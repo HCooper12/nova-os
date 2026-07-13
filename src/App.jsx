@@ -1,0 +1,509 @@
+import { Component, createRef } from 'react';
+import { recipes, notes, basePlan, codeReplies, reviews, galaxyNamed, galaxyLinks, weekData } from './data.js';
+import { css } from './css.js';
+import { Sidebar } from './Sidebar.jsx';
+import { MissionControl } from './screens/MissionControl.jsx';
+import { Voice } from './screens/Voice.jsx';
+import { Galaxy } from './screens/Galaxy.jsx';
+import { Recipes } from './screens/Recipes.jsx';
+import { Workouts } from './screens/Workouts.jsx';
+import { ClaudeCode } from './screens/ClaudeCode.jsx';
+import { Notes } from './screens/Notes.jsx';
+import { MobileChrome } from './MobileChrome.jsx';
+import { RecipeOverlay } from './RecipeOverlay.jsx';
+import { CommandPalette } from './CommandPalette.jsx';
+import { Toast } from './Toast.jsx';
+import { Boot } from './Boot.jsx';
+
+// Personalization — was editor-configurable in the original design canvas.
+// Tweak these three to re-brand without touching layout code.
+const THEME = 'midnight'; // 'aubergine' | 'midnight' | 'graphite'
+const USER_NAME = 'Hayden';
+const WAKE_WORD = true;
+
+const THEMES = {
+  aubergine: { bg0: '#120d18', bg1: '#1a1322', bg2: '#2a1d38' },
+  midnight: { bg0: '#070b13', bg1: '#0c1424', bg2: '#152742' },
+  graphite: { bg0: '#121014', bg1: '#191619', bg2: '#252028' },
+};
+
+export default class App extends Component {
+  constructor(props) {
+    super(props);
+    this.galaxyRef = createRef();
+    this.paletteRef = createRef();
+    this.ivs = [];
+    this.recipes = recipes;
+    this.notes = notes;
+    this.basePlan = basePlan;
+    this.codeReplies = codeReplies;
+    this.codeIdx = 0;
+    this.reviews = reviews;
+  }
+
+  state = {
+    screen: 'mission', booted: false, clock: '--:--:--',
+    paletteOpen: false, paletteQuery: '',
+    micOn: true, orbInput: '',
+    orbChat: [
+      { who: 'nova', text: 'Good morning, sir. Sleep recovery is complete and push day is locked for 17:30.' },
+      { who: 'you', text: 'Anything I should know before deep work?' },
+      { who: 'nova', text: 'Two things: Studio finished your cold-open draft, and you are 84 g short on protein pace. The burrito bowl at 12:30 covers it.' },
+    ],
+    recipeFilter: 'All', openRecipeId: null, servings: 1, recipeInput: '', recipeChat: [],
+    coachInput: '', planNote: null,
+    coachChat: [{ who: 'coach', text: "Push day is set — 6 lifts, ~42 minutes. Bench is at 82.5 kg; if bar speed holds on set two, we take the PR single. Ask me for any changes." }],
+    plan: null,
+    codeInput: '', codeBusy: false,
+    codeChat: [{ who: 'claude', text: "Session restored · ~/vault\nYesterday we shipped the macro tracker script and hooked session logging into Obsidian/Claude/. Backups verified by Guardian at 02:00.\nWhat are we building?" }],
+    noteQuery: '', noteType: 'All', openNoteId: 'n1',
+    galaxySel: null, toast: null, gaugeIdx: 0, reviewIdx: 0,
+    isMobile: typeof window !== 'undefined' && window.innerWidth < 760,
+  };
+
+  componentDidMount() {
+    this.bootT = setTimeout(() => this.setState({ booted: true }), 1700);
+    this.clockIv = setInterval(() => {
+      const d = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      this.setState({ clock: pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) });
+    }, 1000);
+    this.keyH = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); this.setState(s => ({ paletteOpen: !s.paletteOpen, paletteQuery: '' })); }
+      else if (e.key === 'Escape') this.setState({ paletteOpen: false, openRecipeId: null, galaxySel: null });
+    };
+    window.addEventListener('keydown', this.keyH);
+    this.gaugeIv = setInterval(() => this.setState(s => ({ gaugeIdx: 1 - s.gaugeIdx })), 6000);
+    this.resizeH = () => {
+      const m = window.innerWidth < 760;
+      if (m !== this.state.isMobile) {
+        if (this.state.screen === 'galaxy') { this.stopGalaxy(); this.gNodes = null; }
+        this.setState({ isMobile: m });
+      }
+    };
+    window.addEventListener('resize', this.resizeH);
+    this.setState({ reviewIdx: Math.floor(Math.random() * this.reviews.length) });
+    this.applyTheme();
+  }
+  componentWillUnmount() {
+    clearTimeout(this.bootT); clearInterval(this.clockIv); clearInterval(this.gaugeIv);
+    window.removeEventListener('keydown', this.keyH);
+    window.removeEventListener('resize', this.resizeH);
+    this.ivs.forEach(clearInterval);
+    if (this.gRaf) cancelAnimationFrame(this.gRaf);
+  }
+  componentDidUpdate(prevProps, prevState) {
+    this.applyTheme();
+    if (this.state.screen === 'galaxy') this.startGalaxy(); else this.stopGalaxy();
+    if (this.state.paletteOpen && !prevState.paletteOpen && this.paletteRef.current) this.paletteRef.current.focus();
+  }
+  applyTheme() {
+    const t = THEMES[THEME] || THEMES.aubergine;
+    const r = document.documentElement.style;
+    r.setProperty('--bg0', t.bg0); r.setProperty('--bg1', t.bg1); r.setProperty('--bg2', t.bg2);
+  }
+
+  // ---------- galaxy ----------
+  buildGalaxy(w, h) {
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    const types = { note: '#ece5da', podcast: '#8a6ad1', recipe: '#d8b573', training: '#5aa87c', agent: '#6be5f5', idea: '#e08f6f' };
+    this.gNodes = galaxyNamed.map((n, i) => {
+      const ang = (i / galaxyNamed.length) * Math.PI * 2 + rnd(-.4, .4);
+      const rad = rnd(.16, .4) * Math.min(w, h);
+      return { label: n[0], type: n[1], desc: n[2], target: n[3], color: types[n[1]], bx: w / 2 + Math.cos(ang) * rad * (w / h), by: h / 2 + Math.sin(ang) * rad, ph: rnd(0, 6.28), sp: rnd(.3, .8), r: rnd(4, 6.5) };
+    });
+    this.gLinks = galaxyLinks;
+    this.gDust = Array.from({ length: 130 }, () => ({ x: rnd(0, w), y: rnd(0, h), r: rnd(.4, 1.4), ph: rnd(0, 6.28), sp: rnd(.5, 1.5) }));
+  }
+  startGalaxy() {
+    if (this.gRaf) return;
+    const cv = this.galaxyRef.current; if (!cv) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = cv.clientWidth, h = cv.clientHeight;
+    cv.width = w * dpr; cv.height = h * dpr;
+    const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+    if (!this.gNodes) this.buildGalaxy(w, h);
+    this.gPos = [];
+    const loop = () => {
+      const t = performance.now() / 1000;
+      ctx.clearRect(0, 0, w, h);
+      this.gDust.forEach(d => { ctx.globalAlpha = .25 + .45 * Math.abs(Math.sin(t * d.sp + d.ph)); ctx.fillStyle = '#ece5da'; ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, 6.29); ctx.fill(); });
+      ctx.globalAlpha = 1;
+      const pos = this.gNodes.map(n => ({ x: n.bx + Math.sin(t * n.sp * .5 + n.ph) * 12, y: n.by + Math.cos(t * n.sp * .4 + n.ph) * 9 }));
+      this.gPos = pos;
+      ctx.strokeStyle = 'rgba(236,229,218,.13)'; ctx.lineWidth = 1;
+      this.gLinks.forEach(l => { ctx.beginPath(); ctx.moveTo(pos[l[0]].x, pos[l[0]].y); ctx.lineTo(pos[l[1]].x, pos[l[1]].y); ctx.stroke(); });
+      this.gNodes.forEach((n, i) => {
+        const p = pos[i];
+        const sel = this.state.galaxySel && this.state.galaxySel.label === n.label;
+        ctx.shadowColor = n.color; ctx.shadowBlur = sel ? 26 : 14;
+        ctx.fillStyle = n.color; ctx.beginPath(); ctx.arc(p.x, p.y, sel ? n.r + 2 : n.r, 0, 6.29); ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = .18; ctx.beginPath(); ctx.arc(p.x, p.y, n.r + 9, 0, 6.29); ctx.strokeStyle = n.color; ctx.stroke(); ctx.globalAlpha = 1;
+        ctx.font = '10px "JetBrains Mono", monospace'; ctx.fillStyle = sel ? '#ece5da' : 'rgba(236,229,218,.6)';
+        ctx.fillText(n.label, p.x + n.r + 8, p.y + 3);
+      });
+      this.gRaf = requestAnimationFrame(loop);
+    };
+    this.gRaf = requestAnimationFrame(loop);
+  }
+  stopGalaxy() { if (this.gRaf) { cancelAnimationFrame(this.gRaf); this.gRaf = null; } }
+
+  // ---------- helpers ----------
+  toastMsg(text) {
+    clearTimeout(this.toastT);
+    this.setState({ toast: text });
+    this.toastT = setTimeout(() => this.setState({ toast: null }), 3600);
+  }
+  typeIn(key, who, text, after) {
+    this.setState(s => ({ [key]: [...s[key], { who, text: '', typing: true }] }));
+    let i = 0;
+    const iv = setInterval(() => {
+      i += 3;
+      this.setState(s => {
+        const arr = s[key].slice();
+        const m = Object.assign({}, arr[arr.length - 1]);
+        m.text = text.slice(0, i); m.typing = i < text.length;
+        arr[arr.length - 1] = m;
+        return { [key]: arr };
+      });
+      if (i >= text.length) { clearInterval(iv); if (after) after(); }
+    }, 22);
+    this.ivs.push(iv);
+  }
+
+  orbReply(q) {
+    const s = q.toLowerCase();
+    if (/(lunch|eat|food|recipe|meal)/.test(s)) return 'From your vault: the burrito bowl — 52 g protein, 640 kcal, 25 minutes. It closes today’s protein gap. Shall I scale it to two servings?';
+    if (/(gym|train|workout|push|run)/.test(s)) return 'Push day at 17:30 — six lifts, forty-two minutes. Coach flags bench for a PR attempt if bar speed holds. Zone-2 run is rescheduled to tomorrow, 7 am.';
+    if (/(money|spend|budget|sub)/.test(s)) return 'CFO reports $1,284 spent this month — on plan. Two overlapping subscriptions were flagged; cancelling both recovers $23 per month.';
+    if (/(brief|today|plan|morning)/.test(s)) return 'Briefing: deep work 09:00 on the video script — Studio’s cold-open is ready. Lunch 12:30, push day 17:30, reflection 20:00. Protein pace is 84 g short; the bowl covers it.';
+    return 'Understood. I’ve noted that in the vault and routed it to the right agent — Commander will fold it into today’s plan.';
+  }
+  coachReply(q) {
+    const s = q.toLowerCase();
+    if (/(short|less|trim|time|quick)/.test(s)) return { text: 'Done — cutting cable fly, supersetting laterals with triceps. New estimate: 34 minutes, same chest stimulus. Written back to the vault.', mod: 'trim', note: 'Trimmed to 5 lifts · ~34 min · superset added' };
+    if (/(hard|more|heavy|push|extra)/.test(s)) return { text: 'You’ve earned it — bench goes to 5 sets and we’ll chase the 87.5 kg single if velocity holds. Recovery cost is acceptable given last night’s HRV.', mod: 'hard', note: 'Bench 5 × 6 · PR single queued at 87.5 kg' };
+    if (/(swap|replace|shoulder|knee|hurt|pain)/.test(s)) return { text: 'Swapped seated press for landmine press — friendlier angle, same overhead pattern. Flag any pain above 3/10 and I’ll deload the session.', mod: 'swap', note: 'Landmine press substituted · joint-friendly' };
+    return { text: 'Noted. I’ll factor that into tonight’s session and adjust tomorrow’s plan — anything specific you want changed right now? Try “make it shorter” or “go harder”.', mod: null, note: null };
+  }
+  recipeReply(q, r) {
+    const s = q.toLowerCase();
+    if (/(swap|substitut|instead)/.test(s)) return 'Swap ideas for ' + r.name.toLowerCase() + ': chicken thigh → breast saves 6 g fat (−45 kcal); rice → cauliflower rice drops 38 g carbs. Both keep protein at ' + r.p + ' g. Want me to write a variant note to the vault?';
+    if (/(scale|serving|two|double)/.test(s)) return 'Scaled — use the stepper on the left. Macros and every ingredient quantity update together; I’ll add the extra portion to tomorrow’s lunch slot.';
+    if (/(cut|diet|lean|lower)/.test(s)) return 'Cutting version: hold protein at ' + r.p + ' g, drop rice to 50 g and skip cheese — that’s ' + Math.round(r.kcal * 0.75) + ' kcal. I’ve saved it as “' + r.name + ' · cut” in the vault.';
+    return 'This one clears your leucine threshold per serving and fits today’s remaining macros. Ask me to swap ingredients, scale it, or build a cutting version.';
+  }
+
+  renderVals() {
+    const st = this.state;
+    const userName = USER_NAME;
+    const wakeWord = WAKE_WORD;
+    const go = (screen) => () => this.setState({ screen, paletteOpen: false });
+    const mono = "'JetBrains Mono',monospace";
+    const navStyle = (act) => ({ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px', borderRadius: '9px', fontSize: '13.5px', cursor: 'pointer',
+      fontWeight: act ? 500 : 400, color: act ? '#ece5da' : 'rgba(236,229,218,.6)',
+      background: act ? 'linear-gradient(180deg,rgba(216,181,115,.16),rgba(216,181,115,.07))' : 'none',
+      border: act ? '1px solid rgba(216,181,115,.25)' : '1px solid transparent',
+      boxShadow: act ? 'inset 0 1px 0 rgba(255,255,255,.08)' : 'none' });
+    const numStyle = (act) => ({ fontFamily: "'Instrument Serif',serif", fontStyle: 'italic', fontSize: '13px', width: '20px', color: act ? '#d8b573' : 'rgba(216,181,115,.5)' });
+    const mkNav = (label, numeral, screen, count) => ({ label, numeral, count, go: go(screen), style: navStyle(st.screen === screen), numStyle: numStyle(st.screen === screen) });
+
+    // recipes
+    const filters = ['All', 'High protein', 'Quick', 'Batch'];
+    const chip = (act) => ({ cursor: 'pointer', font: "500 10.5px " + mono, letterSpacing: '.08em', padding: '7px 14px', borderRadius: '8px',
+      border: act ? '1px solid rgba(216,181,115,.5)' : '1px solid rgba(236,229,218,.12)',
+      color: act ? '#d8b573' : 'rgba(236,229,218,.55)', background: act ? 'rgba(216,181,115,.08)' : 'rgba(0,0,0,.2)' });
+    const recipeList = this.recipes.filter(r => st.recipeFilter === 'All' || r.filter === st.recipeFilter).map(r => {
+      const tot = r.p + r.c + r.f;
+      const bar = (v, col) => ({ flex: String(v / tot), borderRadius: '2px', background: col });
+      return { name: r.name, tag: r.tag, p: r.p, c: r.c, f: r.f, kcal: r.kcal, time: r.time,
+        open: () => this.setState({ openRecipeId: r.id, servings: 1, recipeChat: [], recipeInput: '' }),
+        phLabel: 'dish photo — ' + r.name.toLowerCase(),
+        phStyle: { height: '104px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, rgba(' + r.hue + ',.13) 0 8px, rgba(' + r.hue + ',.04) 8px 16px)' },
+        pBar: bar(r.p, '#6be5f5'), cBar: bar(r.c, '#d8b573'), fBar: bar(r.f, '#8a6ad1') };
+    });
+    const or = this.recipes.find(r => r.id === st.openRecipeId);
+    const sv = st.servings;
+
+    // workouts
+    const plan = st.plan || this.basePlan;
+    const week = weekData.map(d => {
+      const s = d[2];
+      return { day: d[0], label: d[1], style: { flex: '1', minWidth: '62px', textAlign: 'center', padding: '10px 6px', borderRadius: '10px',
+        border: s === 'today' ? '1px solid rgba(107,229,245,.45)' : '1px solid rgba(236,229,218,.08)',
+        background: s === 'today' ? 'rgba(107,229,245,.07)' : 'rgba(0,0,0,.18)',
+        color: s === 'today' ? '#6be5f5' : s === 'skip' ? 'rgba(201,111,111,.85)' : 'rgba(236,229,218,.55)',
+        boxShadow: s === 'today' ? '0 0 24px -8px rgba(107,229,245,.5)' : 'none' } };
+    });
+    const bubble = (who) => who === 'you'
+      ? { wrapStyle: { display: 'flex', justifyContent: 'flex-end' }, bubbleStyle: { maxWidth: '85%', fontSize: '12.5px', lineHeight: 1.55, padding: '9px 13px', borderRadius: '11px 11px 3px 11px', background: 'rgba(216,181,115,.14)', border: '1px solid rgba(216,181,115,.25)', color: '#ece5da' } }
+      : { wrapStyle: { display: 'flex' }, bubbleStyle: { maxWidth: '90%', fontSize: '12.5px', lineHeight: 1.55, padding: '9px 13px', borderRadius: '11px 11px 11px 3px', background: 'rgba(107,229,245,.07)', border: '1px solid rgba(107,229,245,.2)', color: 'rgba(236,229,218,.92)' } };
+
+    // notes
+    const noteFilters = ['All', 'NOTE', 'PODCAST', 'IDEA'];
+    const nchip = (act) => ({ cursor: 'pointer', font: "500 9px " + mono, letterSpacing: '.1em', padding: '5px 10px', borderRadius: '7px',
+      border: act ? '1px solid rgba(216,181,115,.5)' : '1px solid rgba(236,229,218,.12)', color: act ? '#d8b573' : 'rgba(236,229,218,.5)' });
+    const q = st.noteQuery.toLowerCase();
+    const noteList = this.notes.filter(n => (st.noteType === 'All' || n.type === st.noteType || (st.noteType === 'NOTE' && n.type === 'IDENTITY')) && (!q || n.title.toLowerCase().includes(q) || n.paras.join(' ').toLowerCase().includes(q)))
+      .map(n => ({ title: n.title, type: n.type, date: n.date.split(' · ')[0], select: () => this.setState({ openNoteId: n.id }),
+        typeStyle: { font: "500 8.5px " + mono, letterSpacing: '.08em', color: n.color, flex: 'none' },
+        style: { cursor: 'pointer', padding: '10px 12px', borderRadius: '9px', background: st.openNoteId === n.id ? 'rgba(216,181,115,.09)' : 'none', border: st.openNoteId === n.id ? '1px solid rgba(216,181,115,.22)' : '1px solid transparent' } }));
+    const on = this.notes.find(n => n.id === st.openNoteId) || this.notes[0];
+    const noteByTitle = (label) => this.notes.find(n => n.title.startsWith(label.split(' ·')[0].slice(0, 12)));
+
+    // palette
+    const cmds = [
+      { icon: 'I.', iconColor: '#d8b573', label: 'Mission Control', hint: 'GO', run: go('mission') },
+      { icon: 'II.', iconColor: '#d8b573', label: 'Voice — talk to Nova', hint: 'GO', run: go('voice') },
+      { icon: 'III.', iconColor: '#d8b573', label: 'Memory Galaxy', hint: 'GO', run: go('galaxy') },
+      { icon: 'IV.', iconColor: '#d8b573', label: 'Claude Code', hint: 'GO', run: go('code') },
+      { icon: 'V.', iconColor: '#d8b573', label: 'Recipes', hint: 'GO', run: go('recipes') },
+      { icon: 'VI.', iconColor: '#d8b573', label: 'Workouts', hint: 'GO', run: go('workouts') },
+      { icon: 'VII.', iconColor: '#d8b573', label: 'Notes', hint: 'GO', run: go('notes') },
+      { icon: '✦', iconColor: '#6be5f5', label: 'Scale burrito bowl to 2 servings', hint: 'NOVA', run: () => { this.setState({ screen: 'recipes', openRecipeId: 'r1', servings: 2, recipeChat: [], paletteOpen: false }); this.toastMsg('Nova scaled the burrito bowl ×2 — macros updated'); } },
+      { icon: '✦', iconColor: '#6be5f5', label: 'Ask Coach to ease today’s session', hint: 'COACH', run: () => { this.setState({ screen: 'workouts', paletteOpen: false }); setTimeout(() => this.doCoach('Make it a bit shorter today'), 300); } },
+      { icon: '✦', iconColor: '#6be5f5', label: 'Run vault backup — Guardian', hint: 'GUARDIAN', run: () => { this.setState({ paletteOpen: false }); this.toastMsg('Guardian: snapshot complete — 186 notes · 0 conflicts ✓'); } },
+      { icon: '✦', iconColor: '#6be5f5', label: 'Start a voice session', hint: 'VOICE', run: () => { this.setState({ screen: 'voice', micOn: true, paletteOpen: false }); } },
+    ];
+    const pq = st.paletteQuery.toLowerCase();
+    const paletteResults = cmds.filter(c => !pq || c.label.toLowerCase().includes(pq));
+
+    // responsive
+    const mob = st.isMobile;
+    const mp = { padding: '66px 16px 96px' };
+    const col = (mt) => ({ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: mt });
+    const wrapTall = mob ? mp : null;
+    const tabs = [['I.', 'Home', 'mission'], ['II.', 'Voice', 'voice'], ['III.', 'Galaxy', 'galaxy'], ['IV.', 'Code', 'code'], ['V.', 'Recipes', 'recipes'], ['VI.', 'Train', 'workouts'], ['VII.', 'Notes', 'notes']].map(t => {
+      const act = st.screen === t[2];
+      return { num: t[0], label: t[1], go: go(t[2]),
+        style: { flex: '1', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', padding: '7px 2px', cursor: 'pointer', borderRadius: '9px', color: act ? '#d8b573' : 'rgba(236,229,218,.5)', background: act ? 'rgba(216,181,115,.09)' : 'none' },
+        numStyle: { fontFamily: "'Instrument Serif',serif", fontStyle: 'italic', fontSize: '15px', color: act ? '#d8b573' : 'rgba(216,181,115,.45)' } };
+    });
+
+    return {
+      // chrome
+      showBoot: !st.booted,
+      isMobile: mob, showSidebar: !mob, tabs,
+      wrapMission: mob ? mp : { padding: '28px 40px 40px' },
+      wrapVoice: wrapTall || { padding: '28px 40px 40px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
+      wrapGalaxy: wrapTall || { padding: '28px 40px 40px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
+      wrapRecipes: mob ? mp : { padding: '28px 40px 44px' },
+      wrapWorkouts: mob ? mp : { padding: '28px 40px 44px' },
+      wrapCode: wrapTall || { padding: '28px 40px 44px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
+      wrapNotes: wrapTall || { padding: '28px 40px 44px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
+      gridStats: mob ? col('20px') : { display: 'grid', gridTemplateColumns: '1.7fr 1fr 1fr', gap: '14px', marginTop: '24px' },
+      gridNoticed: mob ? col('12px') : { display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: '14px', marginTop: '14px' },
+      gridVault: mob ? col('12px') : { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px', marginTop: '14px' },
+      gridRecipes: mob ? col('16px') : { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px', marginTop: '18px' },
+      gridWork: mob ? col('16px') : { display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '14px', marginTop: '16px' },
+      gridCode: mob ? col('18px') : { flex: '1', display: 'grid', gridTemplateColumns: '1fr 250px', gap: '14px', marginTop: '18px', minHeight: 0 },
+      gridNotes: mob ? col('16px') : { flex: '1', display: 'grid', gridTemplateColumns: '300px 1fr', gap: '14px', marginTop: '20px', minHeight: 0 },
+      noteListCard: Object.assign({ border: '1px solid rgba(236,229,218,.09)', borderRadius: '14px', background: 'linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.01))', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }, mob ? { maxHeight: '320px', flex: 'none' } : {}),
+      galaxyBox: Object.assign({ position: 'relative', marginTop: '16px', border: '1px solid rgba(236,229,218,.09)', borderRadius: '14px', overflow: 'hidden', background: 'radial-gradient(700px 420px at 50% 45%, rgba(138,106,209,.08), rgba(0,0,0,.24))', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05)' }, mob ? { height: '420px' } : { flex: '1' }),
+      consoleCard: Object.assign({ border: '1px solid rgba(236,229,218,.09)', borderRadius: '14px', background: 'rgba(0,0,0,.32)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }, mob ? { height: '460px' } : {}),
+      gridRecipeOv: mob ? { display: 'flex', flexDirection: 'column', gap: '20px', padding: '18px' } : { display: 'grid', gridTemplateColumns: '300px 1fr', gap: '26px', padding: '26px' },
+      recipeOvWrap: { position: 'fixed', inset: 0, background: 'rgba(8,5,12,.72)', backdropFilter: 'blur(6px)', zIndex: 60, display: 'flex', alignItems: mob ? 'flex-start' : 'center', justifyContent: 'center', padding: mob ? '14px' : '40px', overflowY: 'auto' },
+      isMission: st.screen === 'mission', isVoice: st.screen === 'voice', isGalaxy: st.screen === 'galaxy',
+      isRecipes: st.screen === 'recipes', isWorkouts: st.screen === 'workouts', isCode: st.screen === 'code', isNotes: st.screen === 'notes',
+      clock: st.clock,
+      dateLabel: new Date().toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }).toUpperCase().replace(/,/g, ''),
+      greeting: (new Date().getHours() < 12 ? 'Good morning, ' : new Date().getHours() < 18 ? 'Good afternoon, ' : 'Good evening, ') + userName + '.',
+      navMain: [mkNav('Mission Control', 'I.', 'mission'), mkNav('Voice', 'II.', 'voice'), mkNav('Memory Galaxy', 'III.', 'galaxy'), mkNav('Claude Code', 'IV.', 'code')],
+      navVault: [Object.assign(mkNav('Recipes', 'V.', 'recipes'), { count: '42' }), Object.assign(mkNav('Workouts', 'VI.', 'workouts'), { count: 'wk6' }), Object.assign(mkNav('Notes', 'VII.', 'notes'), { count: '186' })],
+      agents: [
+        { name: 'Commander', role: 'planning', dotStyle: { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', background: '#6be5f5', boxShadow: '0 0 8px rgba(107,229,245,.8)', animation: 'novaPulse 2.4s infinite' } },
+        { name: 'Coach', role: 'fitness', dotStyle: { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', background: '#6be5f5', boxShadow: '0 0 8px rgba(107,229,245,.8)', animation: 'novaPulse 3.1s infinite' } },
+        { name: 'CFO', role: 'money', dotStyle: { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(236,229,218,.18)' } },
+        { name: 'Studio', role: 'content', dotStyle: { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(236,229,218,.18)' } },
+        { name: 'Researcher', role: 'web', dotStyle: { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(236,229,218,.18)' } },
+        { name: 'Guardian', role: 'backups', dotStyle: { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', background: '#6be5f5', boxShadow: '0 0 8px rgba(107,229,245,.8)', animation: 'novaPulse 2.8s infinite' } },
+      ],
+      goVoice: go('voice'), goWorkouts: go('workouts'),
+      orbCardTitle: st.micOn ? 'Nova is listening' : 'Nova is muted',
+      orbCardSub: wakeWord ? 'VOICE · WAKE WORD ON' : 'VOICE · PUSH TO TALK',
+
+      // mission actions
+      openPalette: () => this.setState({ paletteOpen: true, paletteQuery: '' }),
+      openFocusNote: () => this.setState({ screen: 'notes', openNoteId: 'n3' }),
+      snoozeFocus: () => this.toastMsg('Commander moved the script block to 14:00'),
+      acceptRun: () => this.toastMsg('Zone-2 run locked for tomorrow, 7:00 am ✓'),
+      openProteinNote: () => this.setState({ screen: 'notes', openNoteId: 'n1' }),
+      reviewSubs: () => this.toastMsg('CFO drafted the cancellations — review in tonight’s reflection'),
+      openLunch: () => this.setState({ screen: 'recipes', openRecipeId: 'r1', servings: 1, recipeChat: [] }),
+      rotSleep: st.gaugeIdx === 0,
+      rotProtein: st.gaugeIdx === 1,
+      reviewConcept: this.reviews[st.reviewIdx].c,
+      reviewFrom: this.reviews[st.reviewIdx].f,
+      shuffleReview: () => this.setState(s => ({ reviewIdx: (s.reviewIdx + 1 + Math.floor(Math.random() * (this.reviews.length - 1))) % this.reviews.length })),
+      openReview: () => { this.setState({ screen: 'notes', openNoteId: this.reviews[st.reviewIdx].id }); this.toastMsg('Commander queued this concept for tonight’s reflection'); },
+
+      // voice
+      micOn: st.micOn,
+      micStatus: st.micOn ? 'LISTENING' : 'MUTED',
+      micBar: { width: st.micOn ? '92%' : '8%', height: '100%', background: '#6be5f5', transition: 'width .4s' },
+      micBtnStyle: { cursor: 'pointer', font: "500 10.5px " + mono, padding: '9px 16px', borderRadius: '8px', border: '1px solid rgba(107,229,245,.4)', color: st.micOn ? '#6be5f5' : 'rgba(236,229,218,.5)', background: st.micOn ? 'rgba(107,229,245,.08)' : 'rgba(0,0,0,.25)' },
+      micBtnLabel: st.micOn ? '● MIC LIVE' : '○ MIC OFF',
+      orbCaption: st.micOn ? (wakeWord ? 'LISTENING · SAY “NOVA”' : 'LISTENING') : 'STANDING BY',
+      toggleMic: () => this.setState(s => ({ micOn: !s.micOn })),
+      orbMsgs: st.orbChat.map(m => ({ text: m.text, typing: m.typing, tag: m.who === 'nova' ? '» NOVA' : '» YOU', tagStyle: { color: m.who === 'nova' ? '#6be5f5' : 'rgba(236,229,218,.5)', fontWeight: 500 } })),
+      orbInput: st.orbInput,
+      setOrbInput: (e) => this.setState({ orbInput: e.target.value }),
+      orbKey: (e) => { if (e.key === 'Enter') this.doOrb(); },
+      sendOrb: () => this.doOrb(),
+      briefMe: () => { this.setState(s => ({ orbChat: [...s.orbChat, { who: 'you', text: 'Brief me.' }] })); setTimeout(() => this.typeIn('orbChat', 'nova', this.orbReply('brief')), 450); },
+
+      // galaxy
+      galaxyRef: this.galaxyRef,
+      galaxyClick: (e) => {
+        if (!this.gPos) return;
+        const r = e.currentTarget.getBoundingClientRect();
+        const x = e.clientX - r.left, y = e.clientY - r.top;
+        let hit = null;
+        this.gPos.forEach((p, i) => { if (Math.hypot(p.x - x, p.y - y) < 16) hit = this.gNodes[i]; });
+        this.setState({ galaxySel: hit ? { label: hit.label, type: hit.type.toUpperCase(), desc: hit.desc, color: hit.color, target: hit.target } : null });
+      },
+      galaxySelOn: !!st.galaxySel,
+      galaxySelLabel: st.galaxySel ? st.galaxySel.label : '',
+      galaxySelType: st.galaxySel ? st.galaxySel.type : '',
+      galaxySelDesc: st.galaxySel ? st.galaxySel.desc : '',
+      galaxySelColor: st.galaxySel ? st.galaxySel.color : '#d8b573',
+      galaxyClear: () => this.setState({ galaxySel: null }),
+      galaxyOpen: () => {
+        const t = st.galaxySel && st.galaxySel.target;
+        if (!t) return;
+        if (t.startsWith('n')) this.setState({ screen: 'notes', openNoteId: t, galaxySel: null });
+        else if (t.startsWith('r')) this.setState({ screen: 'recipes', openRecipeId: t, servings: 1, recipeChat: [], galaxySel: null });
+        else this.setState({ screen: t, galaxySel: null });
+      },
+
+      // recipes
+      recipeFilters: filters.map(f => ({ label: f, go: () => this.setState({ recipeFilter: f }), style: chip(st.recipeFilter === f) })),
+      recipeList,
+      recipeOpen: !!or,
+      closeRecipe: () => this.setState({ openRecipeId: null }),
+      stopClick: (e) => e.stopPropagation(),
+      orName: or ? or.name : '', orMeta: or ? or.tag + ' · ' + or.time + ' · FROM OBSIDIAN /RECIPES' : '',
+      orPhLabel: or ? 'dish photo — ' + or.name.toLowerCase() : '',
+      orPhStyle: or ? { height: '170px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, rgba(' + or.hue + ',.16) 0 9px, rgba(' + or.hue + ',.05) 9px 18px)', border: '1px solid rgba(236,229,218,.08)' } : {},
+      orP: or ? Math.round(or.p * sv) : 0, orC: or ? Math.round(or.c * sv) : 0, orF: or ? Math.round(or.f * sv) : 0, orKcal: or ? Math.round(or.kcal * sv) : 0,
+      servings: sv,
+      incServ: () => this.setState(s => ({ servings: Math.min(6, s.servings + 1) })),
+      decServ: () => this.setState(s => ({ servings: Math.max(1, s.servings - 1) })),
+      orIngredients: or ? or.ingredients.map(i => ({ qty: i[0] ? (Math.round(i[0] * sv * 10) / 10) + (i[1] ? ' ' + i[1] : '') : '—', name: i[2] })) : [],
+      orSteps: or ? or.steps.map((s2, i) => ({ n: ['i.', 'ii.', 'iii.', 'iv.', 'v.'][i] || (i + 1) + '.', text: s2 })) : [],
+      recipeMsgs: st.recipeChat.map(m => ({ text: m.text, typing: m.typing, tag: m.who === 'nova' ? '» NOVA' : '» YOU', tagStyle: { color: m.who === 'nova' ? '#6be5f5' : 'rgba(236,229,218,.5)', fontWeight: 500, fontFamily: mono, fontSize: '11px' } })),
+      recipeInput: st.recipeInput,
+      setRecipeInput: (e) => this.setState({ recipeInput: e.target.value }),
+      recipeKey: (e) => { if (e.key === 'Enter') this.doRecipeAsk(); },
+      sendRecipe: () => this.doRecipeAsk(),
+
+      // workouts
+      week,
+      plan: plan.map((ex, i) => ({ idx: String(i + 1).padStart(2, '0'), name: ex.name, scheme: ex.scheme, pr: ex.pr })),
+      planMeta: plan.length + ' LIFTS · ' + (st.planNote ? 'EDITED BY COACH' : '~42 MIN · AS PLANNED'),
+      planNoteOn: !!st.planNote, planNote: st.planNote,
+      coachMsgs: st.coachChat.map(m => Object.assign({ text: m.text, typing: m.typing }, bubble(m.who))),
+      coachInput: st.coachInput,
+      setCoachInput: (e) => this.setState({ coachInput: e.target.value }),
+      coachKey: (e) => { if (e.key === 'Enter') this.doCoach(); },
+      sendCoach: () => this.doCoach(),
+
+      // code
+      codeMsgs: st.codeChat.map(m => ({ text: m.text, typing: m.typing, tag: m.who === 'claude' ? '» CLAUDE' : '» YOU', tagStyle: { color: m.who === 'claude' ? '#d8b573' : 'rgba(236,229,218,.5)', fontWeight: 500 } })),
+      codeBusy: st.codeBusy,
+      codeInput: st.codeInput,
+      setCodeInput: (e) => this.setState({ codeInput: e.target.value }),
+      codeKey: (e) => { if (e.key === 'Enter') this.doCode(); },
+      sendCode: () => this.doCode(),
+
+      // notes
+      noteQuery: st.noteQuery,
+      setNoteQuery: (e) => this.setState({ noteQuery: e.target.value }),
+      noteFilters: noteFilters.map(f => ({ label: f, go: () => this.setState({ noteType: f }), style: nchip(st.noteType === f) })),
+      noteList,
+      openNoteTitle: on.title, openNoteType: on.type + ' · OBSIDIAN', openNoteTypeColor: on.color, openNoteMeta: on.date.toUpperCase(),
+      openNoteParas: on.paras.map(p => ({ text: p })),
+      openNoteLinks: on.links.map(l => ({ label: l, go: () => {
+        const t = noteByTitle(l);
+        if (t) this.setState({ openNoteId: t.id });
+        else if (/bowl|oats|parfait|chili/i.test(l)) { const rr = this.recipes.find(x => l.toLowerCase().includes(x.name.split(' ')[0].toLowerCase())); if (rr) this.setState({ screen: 'recipes', openRecipeId: rr.id, servings: 1, recipeChat: [] }); }
+        else if (/push|wk6/i.test(l)) this.setState({ screen: 'workouts' });
+        else this.toastMsg('Linked note opens once that part of the vault is synced');
+      } })),
+
+      // palette
+      paletteOpen: st.paletteOpen,
+      paletteRef: this.paletteRef,
+      paletteQuery: st.paletteQuery,
+      setPaletteQuery: (e) => this.setState({ paletteQuery: e.target.value }),
+      paletteKeyDown: (e) => { if (e.key === 'Enter' && paletteResults[0]) paletteResults[0].run(); },
+      paletteResults,
+      closePalette: () => this.setState({ paletteOpen: false }),
+
+      // toast
+      toastOn: !!st.toast, toast: st.toast,
+    };
+  }
+
+  doOrb() {
+    const q = this.state.orbInput.trim(); if (!q) return;
+    this.setState(s => ({ orbChat: [...s.orbChat, { who: 'you', text: q }], orbInput: '' }));
+    setTimeout(() => this.typeIn('orbChat', 'nova', this.orbReply(q)), 480);
+  }
+  doCoach(preset) {
+    const q = (preset || this.state.coachInput).trim(); if (!q) return;
+    this.setState(s => ({ coachChat: [...s.coachChat, { who: 'you', text: q }], coachInput: '' }));
+    const r = this.coachReply(q);
+    setTimeout(() => this.typeIn('coachChat', 'coach', r.text, () => {
+      if (!r.mod) return;
+      let plan = (this.state.plan || this.basePlan).slice();
+      if (r.mod === 'trim') plan = plan.filter(x => x.name !== 'Cable fly');
+      if (r.mod === 'hard') plan = plan.map(x => x.name.includes('bench') || x.name.includes('Bench') ? Object.assign({}, x, { scheme: '5 × 6 · 82.5 kg' }) : x);
+      if (r.mod === 'swap') plan = plan.map(x => x.name === 'Seated shoulder press' ? { name: 'Landmine press', scheme: '3 × 8 · 40 kg', pr: false } : x);
+      this.setState({ plan, planNote: r.note });
+      this.toastMsg('Coach updated today’s session — written to vault ✓');
+    }), 520);
+  }
+  doCode() {
+    const q = this.state.codeInput.trim(); if (!q) return;
+    this.setState(s => ({ codeChat: [...s.codeChat, { who: 'you', text: q }], codeInput: '', codeBusy: true }));
+    const reply = this.codeReplies[this.codeIdx % this.codeReplies.length]; this.codeIdx++;
+    setTimeout(() => { this.setState({ codeBusy: false }); this.typeIn('codeChat', 'claude', reply); }, 1100);
+  }
+  doRecipeAsk() {
+    const q = this.state.recipeInput.trim(); if (!q) return;
+    const r = this.recipes.find(x => x.id === this.state.openRecipeId); if (!r) return;
+    this.setState(s => ({ recipeChat: [...s.recipeChat, { who: 'you', text: q }], recipeInput: '' }));
+    setTimeout(() => this.typeIn('recipeChat', 'nova', this.recipeReply(q, r)), 480);
+  }
+
+  render() {
+    const v = this.renderVals();
+    return (
+      <div style={css("position:relative;min-height:100vh;color:#ece5da;background:radial-gradient(1400px 760px at 76% -14%, var(--bg2) 0%, var(--bg1) 44%, var(--bg0) 100%)")}>
+        <div style={css("position:fixed;inset:0;pointer-events:none;background-image:radial-gradient(1.5px 1.5px at 110px 90px, rgba(236,229,218,.32), transparent 100%),radial-gradient(1px 1px at 320px 40px, rgba(236,229,218,.22), transparent 100%),radial-gradient(1.5px 1.5px at 520px 150px, rgba(216,181,115,.28), transparent 100%),radial-gradient(1px 1px at 640px 70px, rgba(236,229,218,.26), transparent 100%),radial-gradient(1px 1px at 790px 210px, rgba(107,229,245,.3), transparent 100%),radial-gradient(1.5px 1.5px at 850px 50px, rgba(236,229,218,.24), transparent 100%),radial-gradient(1px 1px at 420px 260px, rgba(236,229,218,.16), transparent 100%),radial-gradient(1px 1px at 180px 330px, rgba(138,106,209,.28), transparent 100%);background-size:920px 460px")}></div>
+        <div style={css("position:fixed;inset:-22%;pointer-events:none;background:radial-gradient(900px 520px at 70% 8%, rgba(138,106,209,.13), transparent 62%),radial-gradient(720px 440px at 18% 82%, rgba(107,229,245,.06), transparent 60%),radial-gradient(820px 520px at 88% 78%, rgba(216,181,115,.05), transparent 60%);animation:auroraDrift 26s ease-in-out infinite alternate")}></div>
+
+        <div style={css("position:relative;display:flex;height:100vh")}>
+          {v.showSidebar && <Sidebar v={v} />}
+          <main style={css("flex:1;overflow-y:auto;min-width:0")}>
+            {v.isMission && <MissionControl v={v} />}
+            {v.isVoice && <Voice v={v} />}
+            {v.isGalaxy && <Galaxy v={v} />}
+            {v.isCode && <ClaudeCode v={v} />}
+            {v.isRecipes && <Recipes v={v} />}
+            {v.isWorkouts && <Workouts v={v} />}
+            {v.isNotes && <Notes v={v} />}
+          </main>
+        </div>
+
+        {v.isMobile && <MobileChrome v={v} />}
+        {v.recipeOpen && <RecipeOverlay v={v} />}
+        {v.paletteOpen && <CommandPalette v={v} />}
+        {v.toastOn && <Toast v={v} />}
+        {v.showBoot && <Boot />}
+      </div>
+    );
+  }
+}
