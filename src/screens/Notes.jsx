@@ -10,7 +10,7 @@ export function Notes({ v }) {
           <span style={css("width:50px;height:1px;background:linear-gradient(90deg,rgba(216,181,115,.7),rgba(216,181,115,.1))")}></span>
           <span style={css("font:500 10px 'JetBrains Mono',monospace;letter-spacing:.32em;color:rgba(236,229,218,.55)")}>VAULT · NOTES</span>
         </div>
-        <span style={css("font:400 10px 'JetBrains Mono',monospace;letter-spacing:.12em;color:rgba(236,229,218,.45)")}>186 NOTES · OBSIDIAN LIVE SYNC</span>
+        <span style={css("font:400 10px 'JetBrains Mono',monospace;letter-spacing:.12em;color:rgba(236,229,218,.45)")}>{v.notesHeaderLabel}</span>
       </div>
       <div style={v.gridNotes}>
         <div style={v.noteListCard}>

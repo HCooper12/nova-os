@@ -31,6 +31,15 @@ export function Sidebar({ v }) {
         ))}
       </div>
 
+      <div style={css("display:flex;flex-direction:column;gap:3px")}>
+        <div style={css("font:500 9px 'JetBrains Mono',monospace;letter-spacing:.26em;color:rgba(236,229,218,.35);margin:0 10px 7px")}>SYSTEM</div>
+        {v.navSystem.map((nav) => (
+          <Interactive key={nav.label} onClick={nav.go} base={nav.style} hoverStyle="background:rgba(255,255,255,.05)">
+            <span style={nav.numStyle}>{nav.numeral}</span><span>{nav.label}</span>
+          </Interactive>
+        ))}
+      </div>
+
       <div style={css("display:flex;flex-direction:column;gap:1px")}>
         <div style={css("font:500 9px 'JetBrains Mono',monospace;letter-spacing:.26em;color:rgba(236,229,218,.35);margin:0 10px 8px")}>AGENTS</div>
         {v.agents.map((ag) => (

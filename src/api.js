@@ -1,0 +1,47 @@
+const STORAGE_KEY = 'novaos.connection';
+
+export function getConnection() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const conn = JSON.parse(raw);
+    return conn?.baseUrl && conn?.token ? conn : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setConnection(conn) {
+  if (!conn) localStorage.removeItem(STORAGE_KEY);
+  else localStorage.setItem(STORAGE_KEY, JSON.stringify(conn));
+}
+
+function baseOf(conn) {
+  return conn.baseUrl.replace(/\/$/, '');
+}
+
+async function call(conn, path) {
+  const res = await fetch(baseOf(conn) + path, {
+    headers: { Authorization: `Bearer ${conn.token}` },
+  });
+  if (!res.ok) throw new Error(`${path} failed: ${res.status}`);
+  return res.json();
+}
+
+export async function testConnection(baseUrl, token) {
+  const base = baseUrl.replace(/\/$/, '');
+  const health = await fetch(base + '/api/health');
+  if (!health.ok) throw new Error('server unreachable');
+  const notes = await fetch(base + '/api/notes', { headers: { Authorization: `Bearer ${token}` } });
+  if (notes.status === 401) throw new Error('token rejected');
+  if (!notes.ok) throw new Error(`vault read failed: ${notes.status}`);
+  const data = await notes.json();
+  return { noteCount: data.notes.length };
+}
+
+export const api = {
+  notes: (conn) => call(conn, '/api/notes'),
+  noteDetail: (conn, id) => call(conn, `/api/notes/detail?id=${encodeURIComponent(id)}`),
+  activity: (conn) => call(conn, '/api/activity'),
+  calendarToday: (conn) => call(conn, '/api/calendar/today'),
+};

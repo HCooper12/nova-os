@@ -99,12 +99,14 @@ export function MissionControl({ v }) {
           </div>
         </div>
         <div style={css("border:1px solid rgba(236,229,218,.09);border-radius:14px;padding:20px 24px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01));box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 14px 34px -20px rgba(0,0,0,.9)")}>
-          <span style={css("font:italic 400 20px 'Instrument Serif',serif;color:#d8b573")}>Today</span>
+          <div style={css("display:flex;justify-content:space-between;align-items:baseline")}>
+            <span style={css("font:italic 400 20px 'Instrument Serif',serif;color:#d8b573")}>Today</span>
+            {v.todayIsLive && <span style={css("font:500 8.5px 'JetBrains Mono',monospace;letter-spacing:.14em;color:#6be5f5")}>LIVE · CALENDAR</span>}
+          </div>
           <div style={css("margin-top:14px;display:flex;flex-direction:column")}>
-            <div style={css("display:flex;gap:14px;padding:8px 0")}><span style={css("font:500 10.5px 'JetBrains Mono',monospace;color:#6be5f5;width:46px;font-variant-numeric:tabular-nums;padding-top:2px")}>09:00</span><span style={css("font-size:13.5px")}>Deep work — video script</span></div>
-            <div style={css("display:flex;gap:14px;padding:8px 0")}><span style={css("font:500 10.5px 'JetBrains Mono',monospace;color:rgba(236,229,218,.4);width:46px;padding-top:2px")}>12:30</span><span style={css("font-size:13.5px;color:rgba(236,229,218,.85)")}>Lunch — <span onClick={v.openLunch} style={css("cursor:pointer;color:#d8b573")}>burrito bowl</span> · 52g P</span></div>
-            <div style={css("display:flex;gap:14px;padding:8px 0")}><span style={css("font:500 10.5px 'JetBrains Mono',monospace;color:rgba(236,229,218,.4);width:46px;padding-top:2px")}>17:30</span><span style={css("font-size:13.5px")}>Gym — push day · wk 6</span></div>
-            <div style={css("display:flex;gap:14px;padding:8px 0")}><span style={css("font:500 10.5px 'JetBrains Mono',monospace;color:rgba(236,229,218,.4);width:46px;padding-top:2px")}>20:00</span><span style={css("font-size:13.5px;color:rgba(236,229,218,.6)")}>Reflection with Commander</span></div>
+            {v.todayEvents.map((ev, i) => (
+              <div key={i} style={css("display:flex;gap:14px;padding:8px 0")}><span style={css("font:500 10.5px 'JetBrains Mono',monospace;color:rgba(236,229,218,.4);width:46px;padding-top:2px;font-variant-numeric:tabular-nums")}>{ev.time}</span><span style={css("font-size:13.5px")}>{ev.label}</span></div>
+            ))}
           </div>
         </div>
       </div>

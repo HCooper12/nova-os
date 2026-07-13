@@ -1,6 +1,7 @@
 import { Component, createRef } from 'react';
 import { recipes, notes, basePlan, codeReplies, reviews, galaxyNamed, galaxyLinks, weekData } from './data.js';
 import { css } from './css.js';
+import { api, getConnection, setConnection, testConnection } from './api.js';
 import { Sidebar } from './Sidebar.jsx';
 import { MissionControl } from './screens/MissionControl.jsx';
 import { Voice } from './screens/Voice.jsx';
@@ -9,11 +10,14 @@ import { Recipes } from './screens/Recipes.jsx';
 import { Workouts } from './screens/Workouts.jsx';
 import { ClaudeCode } from './screens/ClaudeCode.jsx';
 import { Notes } from './screens/Notes.jsx';
+import { Settings } from './screens/Settings.jsx';
 import { MobileChrome } from './MobileChrome.jsx';
 import { RecipeOverlay } from './RecipeOverlay.jsx';
 import { CommandPalette } from './CommandPalette.jsx';
 import { Toast } from './Toast.jsx';
 import { Boot } from './Boot.jsx';
+
+const NOTE_TYPE_COLOR = { concept: '#d8b573', entity: '#e08f6f', topic: '#8a6ad1', source: '#6be5f5', journal: '#5aa87c', analysis: '#ece5da' };
 
 // Personalization — was editor-configurable in the original design canvas.
 // Tweak these three to re-brand without touching layout code.
@@ -59,6 +63,11 @@ export default class App extends Component {
     noteQuery: '', noteType: 'All', openNoteId: 'n1',
     galaxySel: null, toast: null, gaugeIdx: 0, reviewIdx: 0,
     isMobile: typeof window !== 'undefined' && window.innerWidth < 760,
+
+    // live-data connection (Settings screen)
+    settingsBaseUrl: '', settingsToken: '',
+    settingsTestStatus: 'idle', settingsTestMessage: '',
+    liveNotes: null, liveNoteDetails: {}, liveCalendar: null,
   };
 
   componentDidMount() {
@@ -84,6 +93,11 @@ export default class App extends Component {
     window.addEventListener('resize', this.resizeH);
     this.setState({ reviewIdx: Math.floor(Math.random() * this.reviews.length) });
     this.applyTheme();
+    const conn = getConnection();
+    if (conn) {
+      this.setState({ settingsBaseUrl: conn.baseUrl, settingsToken: conn.token });
+      this.refreshLiveData();
+    }
   }
   componentWillUnmount() {
     clearTimeout(this.bootT); clearInterval(this.clockIv); clearInterval(this.gaugeIv);
@@ -101,6 +115,55 @@ export default class App extends Component {
     const t = THEMES[THEME] || THEMES.aubergine;
     const r = document.documentElement.style;
     r.setProperty('--bg0', t.bg0); r.setProperty('--bg1', t.bg1); r.setProperty('--bg2', t.bg2);
+  }
+
+  // ---------- live data (Obsidian + Calendar) ----------
+  async refreshLiveData() {
+    const conn = getConnection();
+    if (!conn) return;
+    try {
+      const notesRes = await api.notes(conn);
+      this.setState({ liveNotes: notesRes.notes });
+      if (notesRes.notes[0]) this.selectNote(notesRes.notes[0].id);
+    } catch {
+      this.setState({ liveNotes: null });
+    }
+    try {
+      const calRes = await api.calendarToday(conn);
+      this.setState({ liveCalendar: calRes.events });
+    } catch {
+      this.setState({ liveCalendar: null });
+    }
+  }
+  selectNote(id) {
+    this.setState({ openNoteId: id });
+    if (this.state.liveNoteDetails[id]) return;
+    const conn = getConnection();
+    if (!conn) return;
+    api.noteDetail(conn, id).then((detail) => {
+      this.setState((s) => ({ liveNoteDetails: { ...s.liveNoteDetails, [id]: detail } }));
+    }).catch(() => {});
+  }
+  async testSettingsConnection() {
+    this.setState({ settingsTestStatus: 'testing', settingsTestMessage: 'Testing…' });
+    try {
+      const { noteCount } = await testConnection(this.state.settingsBaseUrl, this.state.settingsToken);
+      this.setState({ settingsTestStatus: 'ok', settingsTestMessage: `Connected — ${noteCount} notes found.` });
+    } catch (e) {
+      this.setState({ settingsTestStatus: 'error', settingsTestMessage: e.message || 'Connection failed.' });
+    }
+  }
+  saveSettingsConnection() {
+    const { settingsBaseUrl, settingsToken } = this.state;
+    if (!settingsBaseUrl || !settingsToken) { this.toastMsg('Enter a backend URL and token first'); return; }
+    setConnection({ baseUrl: settingsBaseUrl, token: settingsToken });
+    this.toastMsg('Saved — loading your real vault…');
+    this.refreshLiveData();
+  }
+  disconnectSettings() {
+    setConnection(null);
+    this.setState({ settingsBaseUrl: '', settingsToken: '', settingsTestStatus: 'idle', settingsTestMessage: '', liveNotes: null, liveNoteDetails: {}, liveCalendar: null, openNoteId: 'n1' });
+    this.toastMsg('Disconnected — back to demo data');
   }
 
   // ---------- galaxy ----------
@@ -240,16 +303,28 @@ export default class App extends Component {
       ? { wrapStyle: { display: 'flex', justifyContent: 'flex-end' }, bubbleStyle: { maxWidth: '85%', fontSize: '12.5px', lineHeight: 1.55, padding: '9px 13px', borderRadius: '11px 11px 3px 11px', background: 'rgba(216,181,115,.14)', border: '1px solid rgba(216,181,115,.25)', color: '#ece5da' } }
       : { wrapStyle: { display: 'flex' }, bubbleStyle: { maxWidth: '90%', fontSize: '12.5px', lineHeight: 1.55, padding: '9px 13px', borderRadius: '11px 11px 11px 3px', background: 'rgba(107,229,245,.07)', border: '1px solid rgba(107,229,245,.2)', color: 'rgba(236,229,218,.92)' } };
 
-    // notes
-    const noteFilters = ['All', 'NOTE', 'PODCAST', 'IDEA'];
+    // notes — live (real Obsidian vault via server/) or mock, depending on Settings connection
+    const usingLiveNotes = !!st.liveNotes;
     const nchip = (act) => ({ cursor: 'pointer', font: "500 9px " + mono, letterSpacing: '.1em', padding: '5px 10px', borderRadius: '7px',
       border: act ? '1px solid rgba(216,181,115,.5)' : '1px solid rgba(236,229,218,.12)', color: act ? '#d8b573' : 'rgba(236,229,218,.5)' });
     const q = st.noteQuery.toLowerCase();
-    const noteList = this.notes.filter(n => (st.noteType === 'All' || n.type === st.noteType || (st.noteType === 'NOTE' && n.type === 'IDENTITY')) && (!q || n.title.toLowerCase().includes(q) || n.paras.join(' ').toLowerCase().includes(q)))
-      .map(n => ({ title: n.title, type: n.type, date: n.date.split(' · ')[0], select: () => this.setState({ openNoteId: n.id }),
+
+    const noteFilters = usingLiveNotes
+      ? ['All', ...Array.from(new Set(st.liveNotes.map(n => (n.type || 'note').toUpperCase())))]
+      : ['All', 'NOTE', 'PODCAST', 'IDEA'];
+
+    const allNotesNorm = usingLiveNotes
+      ? st.liveNotes.map(n => ({ id: n.id, title: n.title, typeLabel: (n.type || 'note').toUpperCase(), date: (n.date || '').slice(0, 10), color: NOTE_TYPE_COLOR[(n.type || '').toLowerCase()] || '#ece5da', searchText: n.title.toLowerCase() }))
+      : this.notes.map(n => ({ id: n.id, title: n.title, typeLabel: n.type, date: n.date.split(' · ')[0], color: n.color, searchText: (n.title + ' ' + n.paras.join(' ')).toLowerCase() }));
+
+    const noteList = allNotesNorm
+      .filter(n => (st.noteType === 'All' || n.typeLabel === st.noteType || (st.noteType === 'NOTE' && n.typeLabel === 'IDENTITY')) && (!q || n.searchText.includes(q)))
+      .map(n => ({ title: n.title, type: n.typeLabel, date: n.date, select: () => this.selectNote(n.id),
         typeStyle: { font: "500 8.5px " + mono, letterSpacing: '.08em', color: n.color, flex: 'none' },
         style: { cursor: 'pointer', padding: '10px 12px', borderRadius: '9px', background: st.openNoteId === n.id ? 'rgba(216,181,115,.09)' : 'none', border: st.openNoteId === n.id ? '1px solid rgba(216,181,115,.22)' : '1px solid transparent' } }));
-    const on = this.notes.find(n => n.id === st.openNoteId) || this.notes[0];
+
+    const liveDetail = usingLiveNotes ? st.liveNoteDetails[st.openNoteId] : null;
+    const on = usingLiveNotes ? null : (this.notes.find(n => n.id === st.openNoteId) || this.notes[0]);
     const noteByTitle = (label) => this.notes.find(n => n.title.startsWith(label.split(' ·')[0].slice(0, 12)));
 
     // palette
@@ -261,6 +336,7 @@ export default class App extends Component {
       { icon: 'V.', iconColor: '#d8b573', label: 'Recipes', hint: 'GO', run: go('recipes') },
       { icon: 'VI.', iconColor: '#d8b573', label: 'Workouts', hint: 'GO', run: go('workouts') },
       { icon: 'VII.', iconColor: '#d8b573', label: 'Notes', hint: 'GO', run: go('notes') },
+      { icon: 'VIII.', iconColor: '#d8b573', label: 'Settings', hint: 'GO', run: go('settings') },
       { icon: '✦', iconColor: '#6be5f5', label: 'Scale burrito bowl to 2 servings', hint: 'NOVA', run: () => { this.setState({ screen: 'recipes', openRecipeId: 'r1', servings: 2, recipeChat: [], paletteOpen: false }); this.toastMsg('Nova scaled the burrito bowl ×2 — macros updated'); } },
       { icon: '✦', iconColor: '#6be5f5', label: 'Ask Coach to ease today’s session', hint: 'COACH', run: () => { this.setState({ screen: 'workouts', paletteOpen: false }); setTimeout(() => this.doCoach('Make it a bit shorter today'), 300); } },
       { icon: '✦', iconColor: '#6be5f5', label: 'Run vault backup — Guardian', hint: 'GUARDIAN', run: () => { this.setState({ paletteOpen: false }); this.toastMsg('Guardian: snapshot complete — 186 notes · 0 conflicts ✓'); } },
@@ -310,7 +386,8 @@ export default class App extends Component {
       dateLabel: new Date().toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }).toUpperCase().replace(/,/g, ''),
       greeting: (new Date().getHours() < 12 ? 'Good morning, ' : new Date().getHours() < 18 ? 'Good afternoon, ' : 'Good evening, ') + userName + '.',
       navMain: [mkNav('Mission Control', 'I.', 'mission'), mkNav('Voice', 'II.', 'voice'), mkNav('Memory Galaxy', 'III.', 'galaxy'), mkNav('Claude Code', 'IV.', 'code')],
-      navVault: [Object.assign(mkNav('Recipes', 'V.', 'recipes'), { count: '42' }), Object.assign(mkNav('Workouts', 'VI.', 'workouts'), { count: 'wk6' }), Object.assign(mkNav('Notes', 'VII.', 'notes'), { count: '186' })],
+      navVault: [Object.assign(mkNav('Recipes', 'V.', 'recipes'), { count: '42' }), Object.assign(mkNav('Workouts', 'VI.', 'workouts'), { count: 'wk6' }), Object.assign(mkNav('Notes', 'VII.', 'notes'), { count: usingLiveNotes ? String(st.liveNotes.length) : '186' })],
+      navSystem: [mkNav('Settings', 'VIII.', 'settings')],
       agents: [
         { name: 'Commander', role: 'planning', dotStyle: { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', background: '#6be5f5', boxShadow: '0 0 8px rgba(107,229,245,.8)', animation: 'novaPulse 2.4s infinite' } },
         { name: 'Coach', role: 'fitness', dotStyle: { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', background: '#6be5f5', boxShadow: '0 0 8px rgba(107,229,245,.8)', animation: 'novaPulse 3.1s infinite' } },
@@ -331,6 +408,15 @@ export default class App extends Component {
       openProteinNote: () => this.setState({ screen: 'notes', openNoteId: 'n1' }),
       reviewSubs: () => this.toastMsg('CFO drafted the cancellations — review in tonight’s reflection'),
       openLunch: () => this.setState({ screen: 'recipes', openRecipeId: 'r1', servings: 1, recipeChat: [] }),
+      todayIsLive: !!st.liveCalendar,
+      todayEvents: st.liveCalendar && st.liveCalendar.length
+        ? st.liveCalendar.map(e => ({ time: e.time, label: e.label }))
+        : [
+            { time: '09:00', label: 'Deep work — video script' },
+            { time: '12:30', label: 'Lunch — burrito bowl · 52g P' },
+            { time: '17:30', label: 'Gym — push day · wk 6' },
+            { time: '20:00', label: 'Reflection with Commander' },
+          ],
       rotSleep: st.gaugeIdx === 0,
       rotProtein: st.gaugeIdx === 1,
       reviewConcept: this.reviews[st.reviewIdx].c,
@@ -418,19 +504,39 @@ export default class App extends Component {
       sendCode: () => this.doCode(),
 
       // notes
+      notesHeaderLabel: usingLiveNotes ? `${st.liveNotes.length} NOTES · LIVE FROM OBSIDIAN` : '186 NOTES · DEMO DATA',
       noteQuery: st.noteQuery,
       setNoteQuery: (e) => this.setState({ noteQuery: e.target.value }),
       noteFilters: noteFilters.map(f => ({ label: f, go: () => this.setState({ noteType: f }), style: nchip(st.noteType === f) })),
       noteList,
-      openNoteTitle: on.title, openNoteType: on.type + ' · OBSIDIAN', openNoteTypeColor: on.color, openNoteMeta: on.date.toUpperCase(),
-      openNoteParas: on.paras.map(p => ({ text: p })),
-      openNoteLinks: on.links.map(l => ({ label: l, go: () => {
-        const t = noteByTitle(l);
-        if (t) this.setState({ openNoteId: t.id });
-        else if (/bowl|oats|parfait|chili/i.test(l)) { const rr = this.recipes.find(x => l.toLowerCase().includes(x.name.split(' ')[0].toLowerCase())); if (rr) this.setState({ screen: 'recipes', openRecipeId: rr.id, servings: 1, recipeChat: [] }); }
-        else if (/push|wk6/i.test(l)) this.setState({ screen: 'workouts' });
-        else this.toastMsg('Linked note opens once that part of the vault is synced');
-      } })),
+      openNoteTitle: usingLiveNotes ? (liveDetail?.title ?? (allNotesNorm.find(n => n.id === st.openNoteId)?.title || 'Loading…')) : on.title,
+      openNoteType: (usingLiveNotes ? (liveDetail?.type || '').toUpperCase() : on.type) + ' · OBSIDIAN',
+      openNoteTypeColor: usingLiveNotes ? (NOTE_TYPE_COLOR[(liveDetail?.type || '').toLowerCase()] || '#ece5da') : on.color,
+      openNoteMeta: usingLiveNotes ? (liveDetail ? `${liveDetail.date.slice(0, 10).toUpperCase()} · ${liveDetail.backlinks} BACKLINKS` : '') : on.date.toUpperCase(),
+      openNoteParas: usingLiveNotes ? (liveDetail ? liveDetail.paragraphs.map(p => ({ text: p })) : [{ text: 'Loading…' }]) : on.paras.map(p => ({ text: p })),
+      openNoteLinks: usingLiveNotes
+        ? (liveDetail?.links || []).map(l => ({ label: l.label, go: () => this.selectNote(l.id) }))
+        : on.links.map(l => ({ label: l, go: () => {
+            const t = noteByTitle(l);
+            if (t) this.setState({ openNoteId: t.id });
+            else if (/bowl|oats|parfait|chili/i.test(l)) { const rr = this.recipes.find(x => l.toLowerCase().includes(x.name.split(' ')[0].toLowerCase())); if (rr) this.setState({ screen: 'recipes', openRecipeId: rr.id, servings: 1, recipeChat: [] }); }
+            else if (/push|wk6/i.test(l)) this.setState({ screen: 'workouts' });
+            else this.toastMsg('Linked note opens once that part of the vault is synced');
+          } })),
+
+      // settings
+      isSettings: st.screen === 'settings',
+      wrapSettings: mob ? mp : { padding: '28px 40px 44px' },
+      settingsBaseUrl: st.settingsBaseUrl,
+      setSettingsBaseUrl: (e) => this.setState({ settingsBaseUrl: e.target.value }),
+      settingsToken: st.settingsToken,
+      setSettingsToken: (e) => this.setState({ settingsToken: e.target.value }),
+      settingsTestStatus: st.settingsTestStatus,
+      settingsTestMessage: st.settingsTestMessage,
+      testSettingsConnection: () => this.testSettingsConnection(),
+      saveSettingsConnection: () => this.saveSettingsConnection(),
+      disconnectSettings: () => this.disconnectSettings(),
+      connectionActive: usingLiveNotes,
 
       // palette
       paletteOpen: st.paletteOpen,
@@ -495,6 +601,7 @@ export default class App extends Component {
             {v.isRecipes && <Recipes v={v} />}
             {v.isWorkouts && <Workouts v={v} />}
             {v.isNotes && <Notes v={v} />}
+            {v.isSettings && <Settings v={v} />}
           </main>
         </div>
 

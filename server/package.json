@@ -1,0 +1,20 @@
+{
+  "name": "nova-os-server",
+  "version": "1.0.0",
+  "description": "Local backend for Nova OS — reads the Obsidian vault from disk and Apple Calendar via CalDAV.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "gray-matter": "^4.0.3",
+    "node-ical": "^0.26.1",
+    "tsdav": "^2.3.1"
+  }
+}
