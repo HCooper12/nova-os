@@ -396,7 +396,7 @@ export default class App extends Component {
         { name: 'Researcher', role: 'web', dotStyle: { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(236,229,218,.18)' } },
         { name: 'Guardian', role: 'backups', dotStyle: { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', background: '#6be5f5', boxShadow: '0 0 8px rgba(107,229,245,.8)', animation: 'novaPulse 2.8s infinite' } },
       ],
-      goVoice: go('voice'), goWorkouts: go('workouts'),
+      goVoice: go('voice'), goWorkouts: go('workouts'), goSettings: go('settings'),
       orbCardTitle: st.micOn ? 'Nova is listening' : 'Nova is muted',
       orbCardSub: wakeWord ? 'VOICE · WAKE WORD ON' : 'VOICE · PUSH TO TALK',
 
