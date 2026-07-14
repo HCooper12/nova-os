@@ -56,6 +56,7 @@ export const api = {
   notes: (conn) => call(conn, '/api/notes'),
   noteDetail: (conn, id) => call(conn, `/api/notes/detail?id=${encodeURIComponent(id)}`),
   activity: (conn) => call(conn, '/api/activity'),
+  recipes: (conn) => call(conn, '/api/recipes'),
   calendarToday: (conn) => call(conn, '/api/calendar/today'),
   startIngest: (conn, text, sourceUrl) => post(conn, '/api/ingest', { text, sourceUrl }),
   ingestJob: (conn, jobId) => call(conn, `/api/ingest/${encodeURIComponent(jobId)}`),

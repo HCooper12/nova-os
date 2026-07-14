@@ -69,7 +69,7 @@ export default class App extends Component {
     // live-data connection (Settings screen)
     settingsBaseUrl: '', settingsToken: '',
     settingsTestStatus: 'idle', settingsTestMessage: '',
-    liveNotes: null, liveNoteDetails: {}, liveCalendar: null,
+    liveNotes: null, liveNoteDetails: {}, liveCalendar: null, liveRecipes: null,
 
     // transcript ingest
     ingestModalOpen: false, ingestText: '', ingestSourceUrl: '',
@@ -140,6 +140,12 @@ export default class App extends Component {
     } catch {
       this.setState({ liveCalendar: null });
     }
+    try {
+      const recipesRes = await api.recipes(conn);
+      this.setState({ liveRecipes: recipesRes.recipes.length ? recipesRes.recipes : null });
+    } catch {
+      this.setState({ liveRecipes: null });
+    }
   }
   selectNote(id) {
     this.setState({ openNoteId: id });
@@ -168,7 +174,7 @@ export default class App extends Component {
   }
   disconnectSettings() {
     setConnection(null);
-    this.setState({ settingsBaseUrl: '', settingsToken: '', settingsTestStatus: 'idle', settingsTestMessage: '', liveNotes: null, liveNoteDetails: {}, liveCalendar: null, openNoteId: 'n1' });
+    this.setState({ settingsBaseUrl: '', settingsToken: '', settingsTestStatus: 'idle', settingsTestMessage: '', liveNotes: null, liveNoteDetails: {}, liveCalendar: null, liveRecipes: null, openNoteId: 'n1' });
     this.toastMsg('Disconnected — back to demo data');
   }
 
@@ -349,22 +355,42 @@ export default class App extends Component {
     const numStyle = (act) => ({ fontFamily: "'Instrument Serif',serif", fontStyle: 'italic', fontSize: '13px', width: '20px', color: act ? '#d8b573' : 'rgba(216,181,115,.5)' });
     const mkNav = (label, numeral, screen, count) => ({ label, numeral, count, go: go(screen), style: navStyle(st.screen === screen), numStyle: numStyle(st.screen === screen) });
 
-    // recipes
-    const filters = ['All', 'High protein', 'Quick', 'Batch'];
+    // recipes — live (real Wiki/Health/Meal Prep Recipe Collection.md) or mock
+    const usingLiveRecipes = !!st.liveRecipes;
+    const RECIPE_CATEGORY_LABEL = { 'CORE DAILY MEALS': 'Core', 'ROTATION / SWAP MEALS': 'Rotation', TREATS: 'Treats' };
+    const RECIPE_HUES = ['216,181,115', '138,106,209', '107,229,245', '201,111,111', '90,168,124'];
     const chip = (act) => ({ cursor: 'pointer', font: "500 10.5px " + mono, letterSpacing: '.08em', padding: '7px 14px', borderRadius: '8px',
       border: act ? '1px solid rgba(216,181,115,.5)' : '1px solid rgba(236,229,218,.12)',
       color: act ? '#d8b573' : 'rgba(236,229,218,.55)', background: act ? 'rgba(216,181,115,.08)' : 'rgba(0,0,0,.2)' });
-    const recipeList = this.recipes.filter(r => st.recipeFilter === 'All' || r.filter === st.recipeFilter).map(r => {
-      const tot = r.p + r.c + r.f;
-      const bar = (v, col) => ({ flex: String(v / tot), borderRadius: '2px', background: col });
-      return { name: r.name, tag: r.tag, p: r.p, c: r.c, f: r.f, kcal: r.kcal, time: r.time,
-        open: () => this.setState({ openRecipeId: r.id, servings: 1, recipeChat: [], recipeInput: '' }),
-        phLabel: 'dish photo — ' + r.name.toLowerCase(),
-        phStyle: { height: '104px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, rgba(' + r.hue + ',.13) 0 8px, rgba(' + r.hue + ',.04) 8px 16px)' },
-        pBar: bar(r.p, '#6be5f5'), cBar: bar(r.c, '#d8b573'), fBar: bar(r.f, '#8a6ad1') };
-    });
-    const or = this.recipes.find(r => r.id === st.openRecipeId);
-    const sv = st.servings;
+
+    const filters = usingLiveRecipes ? ['All', 'Core', 'Rotation', 'Treats'] : ['All', 'High protein', 'Quick', 'Batch'];
+
+    const recipeList = usingLiveRecipes
+      ? st.liveRecipes
+          .filter(r => st.recipeFilter === 'All' || RECIPE_CATEGORY_LABEL[r.category] === st.recipeFilter)
+          .map((r, i) => {
+            const tot = (r.macros.p + r.macros.c + r.macros.f) || 1;
+            const hue = RECIPE_HUES[i % RECIPE_HUES.length];
+            const bar = (v, col) => ({ flex: String(v / tot), borderRadius: '2px', background: col });
+            return { name: r.name, tag: (RECIPE_CATEGORY_LABEL[r.category] || r.category).toUpperCase(), p: r.macros.p, c: r.macros.c, f: r.macros.f, kcal: r.macros.kcal, time: r.makes || '',
+              open: () => this.setState({ openRecipeId: r.id, servings: 1, recipeChat: [], recipeInput: '' }),
+              phLabel: 'dish photo — ' + r.name.toLowerCase(),
+              phStyle: { height: '104px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, rgba(' + hue + ',.13) 0 8px, rgba(' + hue + ',.04) 8px 16px)' },
+              pBar: bar(r.macros.p, '#6be5f5'), cBar: bar(r.macros.c, '#d8b573'), fBar: bar(r.macros.f, '#8a6ad1') };
+          })
+      : this.recipes.filter(r => st.recipeFilter === 'All' || r.filter === st.recipeFilter).map(r => {
+          const tot = r.p + r.c + r.f;
+          const bar = (v, col) => ({ flex: String(v / tot), borderRadius: '2px', background: col });
+          return { name: r.name, tag: r.tag, p: r.p, c: r.c, f: r.f, kcal: r.kcal, time: r.time,
+            open: () => this.setState({ openRecipeId: r.id, servings: 1, recipeChat: [], recipeInput: '' }),
+            phLabel: 'dish photo — ' + r.name.toLowerCase(),
+            phStyle: { height: '104px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, rgba(' + r.hue + ',.13) 0 8px, rgba(' + r.hue + ',.04) 8px 16px)' },
+            pBar: bar(r.p, '#6be5f5'), cBar: bar(r.c, '#d8b573'), fBar: bar(r.f, '#8a6ad1') };
+        });
+
+    const liveOr = usingLiveRecipes ? (st.liveRecipes.find(r => r.id === st.openRecipeId) || null) : null;
+    const or = usingLiveRecipes ? null : this.recipes.find(r => r.id === st.openRecipeId);
+    const sv = usingLiveRecipes ? 1 : st.servings; // no serving-scaling for live recipes — ingredients are free text, not [qty,unit] tuples
 
     // workouts
     const plan = st.plan || this.basePlan;
@@ -463,7 +489,7 @@ export default class App extends Component {
       dateLabel: new Date().toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }).toUpperCase().replace(/,/g, ''),
       greeting: (new Date().getHours() < 12 ? 'Good morning, ' : new Date().getHours() < 18 ? 'Good afternoon, ' : 'Good evening, ') + userName + '.',
       navMain: [mkNav('Mission Control', 'I.', 'mission'), mkNav('Voice', 'II.', 'voice'), mkNav('Memory Galaxy', 'III.', 'galaxy'), mkNav('Claude Code', 'IV.', 'code')],
-      navVault: [Object.assign(mkNav('Recipes', 'V.', 'recipes'), { count: '42' }), Object.assign(mkNav('Workouts', 'VI.', 'workouts'), { count: 'wk6' }), Object.assign(mkNav('Notes', 'VII.', 'notes'), { count: usingLiveNotes ? String(st.liveNotes.length) : '186' })],
+      navVault: [Object.assign(mkNav('Recipes', 'V.', 'recipes'), { count: usingLiveRecipes ? String(st.liveRecipes.length) : '42' }), Object.assign(mkNav('Workouts', 'VI.', 'workouts'), { count: 'wk6' }), Object.assign(mkNav('Notes', 'VII.', 'notes'), { count: usingLiveNotes ? String(st.liveNotes.length) : '186' })],
       navSystem: [mkNav('Settings', 'VIII.', 'settings')],
       agents: [
         { name: 'Commander', role: 'planning', dotStyle: { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', background: '#6be5f5', boxShadow: '0 0 8px rgba(107,229,245,.8)', animation: 'novaPulse 2.4s infinite' } },
@@ -541,20 +567,37 @@ export default class App extends Component {
       },
 
       // recipes
+      recipesHeaderLabel: usingLiveRecipes ? `${st.liveRecipes.length} RECIPES · LIVE FROM OBSIDIAN` : 'SYNCED FROM OBSIDIAN /RECIPES · 2M AGO',
       recipeFilters: filters.map(f => ({ label: f, go: () => this.setState({ recipeFilter: f }), style: chip(st.recipeFilter === f) })),
       recipeList,
-      recipeOpen: !!or,
+      recipeOpen: usingLiveRecipes ? !!liveOr : !!or,
       closeRecipe: () => this.setState({ openRecipeId: null }),
       stopClick: (e) => e.stopPropagation(),
-      orName: or ? or.name : '', orMeta: or ? or.tag + ' · ' + or.time + ' · FROM OBSIDIAN /RECIPES' : '',
-      orPhLabel: or ? 'dish photo — ' + or.name.toLowerCase() : '',
-      orPhStyle: or ? { height: '170px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, rgba(' + or.hue + ',.16) 0 9px, rgba(' + or.hue + ',.05) 9px 18px)', border: '1px solid rgba(236,229,218,.08)' } : {},
-      orP: or ? Math.round(or.p * sv) : 0, orC: or ? Math.round(or.c * sv) : 0, orF: or ? Math.round(or.f * sv) : 0, orKcal: or ? Math.round(or.kcal * sv) : 0,
+      orName: usingLiveRecipes ? (liveOr ? liveOr.name : '') : (or ? or.name : ''),
+      orMeta: usingLiveRecipes
+        ? (liveOr ? `${(RECIPE_CATEGORY_LABEL[liveOr.category] || liveOr.category).toUpperCase()}${liveOr.makes ? ' · ' + liveOr.makes : ''} · FROM OBSIDIAN /HEALTH` : '')
+        : (or ? or.tag + ' · ' + or.time + ' · FROM OBSIDIAN /RECIPES' : ''),
+      orPhLabel: usingLiveRecipes ? (liveOr ? 'dish photo — ' + liveOr.name.toLowerCase() : '') : (or ? 'dish photo — ' + or.name.toLowerCase() : ''),
+      orPhStyle: usingLiveRecipes
+        ? (liveOr ? { height: '170px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, rgba(216,181,115,.16) 0 9px, rgba(216,181,115,.05) 9px 18px)', border: '1px solid rgba(236,229,218,.08)' } : {})
+        : (or ? { height: '170px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, rgba(' + or.hue + ',.16) 0 9px, rgba(' + or.hue + ',.05) 9px 18px)', border: '1px solid rgba(236,229,218,.08)' } : {}),
+      orP: usingLiveRecipes ? (liveOr ? Math.round(liveOr.macros.p) : 0) : (or ? Math.round(or.p * sv) : 0),
+      orC: usingLiveRecipes ? (liveOr ? Math.round(liveOr.macros.c) : 0) : (or ? Math.round(or.c * sv) : 0),
+      orF: usingLiveRecipes ? (liveOr ? Math.round(liveOr.macros.f) : 0) : (or ? Math.round(or.f * sv) : 0),
+      orKcal: usingLiveRecipes ? (liveOr ? Math.round(liveOr.macros.kcal) : 0) : (or ? Math.round(or.kcal * sv) : 0),
       servings: sv,
+      orShowServings: !usingLiveRecipes,
       incServ: () => this.setState(s => ({ servings: Math.min(6, s.servings + 1) })),
       decServ: () => this.setState(s => ({ servings: Math.max(1, s.servings - 1) })),
-      orIngredients: or ? or.ingredients.map(i => ({ qty: i[0] ? (Math.round(i[0] * sv * 10) / 10) + (i[1] ? ' ' + i[1] : '') : '—', name: i[2] })) : [],
-      orSteps: or ? or.steps.map((s2, i) => ({ n: ['i.', 'ii.', 'iii.', 'iv.', 'v.'][i] || (i + 1) + '.', text: s2 })) : [],
+      orIngredients: usingLiveRecipes
+        ? (liveOr ? liveOr.ingredients.map(i => ({ qty: i.qty, name: i.name })) : [])
+        : (or ? or.ingredients.map(i => ({ qty: i[0] ? (Math.round(i[0] * sv * 10) / 10) + (i[1] ? ' ' + i[1] : '') : '—', name: i[2] })) : []),
+      orSteps: usingLiveRecipes
+        ? (liveOr ? liveOr.method.map((s2, i) => ({ n: ['i.', 'ii.', 'iii.', 'iv.', 'v.'][i] || (i + 1) + '.', text: s2 })) : [])
+        : (or ? or.steps.map((s2, i) => ({ n: ['i.', 'ii.', 'iii.', 'iv.', 'v.'][i] || (i + 1) + '.', text: s2 })) : []),
+      orDescription: usingLiveRecipes && liveOr ? liveOr.description : null,
+      orShowAskNova: !usingLiveRecipes,
+      orNotes: usingLiveRecipes && liveOr ? liveOr.notes : [],
       recipeMsgs: st.recipeChat.map(m => ({ text: m.text, typing: m.typing, tag: m.who === 'nova' ? '» NOVA' : '» YOU', tagStyle: { color: m.who === 'nova' ? '#6be5f5' : 'rgba(236,229,218,.5)', fontWeight: 500, fontFamily: mono, fontSize: '11px' } })),
       recipeInput: st.recipeInput,
       setRecipeInput: (e) => this.setState({ recipeInput: e.target.value }),

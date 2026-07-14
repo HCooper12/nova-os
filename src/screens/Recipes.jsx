@@ -10,7 +10,7 @@ export function Recipes({ v }) {
           <span style={css("width:50px;height:1px;background:linear-gradient(90deg,rgba(216,181,115,.7),rgba(216,181,115,.1))")}></span>
           <span style={css("font:500 10px 'JetBrains Mono',monospace;letter-spacing:.32em;color:rgba(236,229,218,.55)")}>VAULT · RECIPES</span>
         </div>
-        <span style={css("font:400 10px 'JetBrains Mono',monospace;letter-spacing:.12em;color:rgba(236,229,218,.45)")}>SYNCED FROM OBSIDIAN /RECIPES · 2M AGO</span>
+        <span style={css("font:400 10px 'JetBrains Mono',monospace;letter-spacing:.12em;color:rgba(236,229,218,.45)")}>{v.recipesHeaderLabel}</span>
       </div>
       <h1 style={css("margin:18px 0 0;font:400 38px/1.1 'Instrument Serif',serif")}>Recipes, <span style={css("font-style:italic;color:#d8b573")}>macros first.</span></h1>
       <div style={css("display:flex;flex-wrap:wrap;gap:8px;margin-top:18px")}>
@@ -33,7 +33,7 @@ export function Recipes({ v }) {
                 <span style={css("font:400 9.5px 'JetBrains Mono',monospace;color:#d8b573")}>{r.tag}</span>
               </div>
               <div style={css("margin-top:7px;display:flex;gap:12px;font:400 11px 'JetBrains Mono',monospace;color:rgba(236,229,218,.55)")}>
-                <span style={css("color:#6be5f5")}>{r.p}P</span><span>{r.c}C</span><span>{r.f}F</span><span style={css("margin-left:auto")}>{r.kcal} kcal · {r.time}</span>
+                <span style={css("color:#6be5f5")}>{r.p}P</span><span>{r.c}C</span><span>{r.f}F</span><span style={css("margin-left:auto")}>{r.kcal} kcal{r.time ? ` · ${r.time}` : ''}</span>
               </div>
               <div style={css("margin-top:10px;display:flex;gap:3px;height:4px")}>
                 <span style={r.pBar}></span><span style={r.cBar}></span><span style={r.fBar}></span>
