@@ -13,6 +13,7 @@ import { Notes } from './screens/Notes.jsx';
 import { Settings } from './screens/Settings.jsx';
 import { MobileChrome } from './MobileChrome.jsx';
 import { RecipeOverlay } from './RecipeOverlay.jsx';
+import { AddRecipeModal } from './AddRecipeModal.jsx';
 import { CommandPalette } from './CommandPalette.jsx';
 import { IngestModal } from './IngestModal.jsx';
 import { IngestReview } from './IngestReview.jsx';
@@ -70,6 +71,12 @@ export default class App extends Component {
     settingsBaseUrl: '', settingsToken: '',
     settingsTestStatus: 'idle', settingsTestMessage: '',
     liveNotes: null, liveNoteDetails: {}, liveCalendar: null, liveRecipes: null,
+    liveRotation: null, liveRecipeProfile: null,
+
+    // add recipe (writes back to the real vault file)
+    recipeAddOpen: false, recipeAddName: '', recipeAddCategory: 'CORE DAILY MEALS', recipeAddMakes: '',
+    recipeAddP: '', recipeAddC: '', recipeAddF: '', recipeAddKcal: '',
+    recipeAddIngredients: '', recipeAddMethod: '', recipeAddBusy: false, recipeAddError: null,
 
     // transcript ingest
     ingestModalOpen: false, ingestText: '', ingestSourceUrl: '',
@@ -142,10 +149,59 @@ export default class App extends Component {
     }
     try {
       const recipesRes = await api.recipes(conn);
-      this.setState({ liveRecipes: recipesRes.recipes.length ? recipesRes.recipes : null });
+      this.setState({ liveRecipes: recipesRes.recipes.length ? recipesRes.recipes : null, liveRecipeProfile: recipesRes.profile || null });
     } catch {
-      this.setState({ liveRecipes: null });
+      this.setState({ liveRecipes: null, liveRecipeProfile: null });
     }
+    try {
+      const rotationRes = await api.rotation(conn);
+      this.setState({ liveRotation: rotationRes });
+    } catch {
+      this.setState({ liveRotation: null });
+    }
+  }
+  toggleRotationSlot(slot, recipeId) {
+    const conn = getConnection();
+    if (!conn) return;
+    const current = this.state.liveRotation?.slots?.[slot];
+    const next = current && current.id === recipeId ? null : recipeId;
+    api.setRotationSlot(conn, slot, next).then((rotation) => {
+      this.setState({ liveRotation: rotation });
+    }).catch((e) => this.toastMsg('Rotation update failed: ' + e.message));
+  }
+  openAddRecipe() {
+    if (!getConnection()) { this.toastMsg('Connect a backend in Settings first'); return; }
+    this.setState({
+      recipeAddOpen: true, recipeAddName: '', recipeAddCategory: 'CORE DAILY MEALS', recipeAddMakes: '',
+      recipeAddP: '', recipeAddC: '', recipeAddF: '', recipeAddKcal: '',
+      recipeAddIngredients: '', recipeAddMethod: '', recipeAddError: null,
+    });
+  }
+  closeAddRecipe() {
+    this.setState({ recipeAddOpen: false });
+  }
+  submitAddRecipe() {
+    const conn = getConnection();
+    if (!conn) return;
+    const st = this.state;
+    const name = st.recipeAddName.trim();
+    const ingredients = st.recipeAddIngredients.split('\n').map((s) => s.trim()).filter(Boolean);
+    const method = st.recipeAddMethod.split('\n').map((s) => s.trim()).filter(Boolean);
+    const macros = { p: parseFloat(st.recipeAddP), c: parseFloat(st.recipeAddC), f: parseFloat(st.recipeAddF), kcal: parseFloat(st.recipeAddKcal) };
+    if (!name || !ingredients.length || !method.length || [macros.p, macros.c, macros.f, macros.kcal].some((n) => Number.isNaN(n))) {
+      this.setState({ recipeAddError: 'Fill in a name, all four macros, at least one ingredient and one method step.' });
+      return;
+    }
+    this.setState({ recipeAddBusy: true, recipeAddError: null });
+    api.addRecipe(conn, { name, category: st.recipeAddCategory, makes: st.recipeAddMakes.trim() || undefined, macros, ingredients, method })
+      .then(() => {
+        this.setState({ recipeAddOpen: false, recipeAddBusy: false });
+        this.toastMsg(`${name} added ✓ — saved to Obsidian too`);
+        this.refreshLiveData();
+      })
+      .catch((e) => {
+        this.setState({ recipeAddBusy: false, recipeAddError: e.message });
+      });
   }
   selectNote(id) {
     this.setState({ openNoteId: id });
@@ -174,7 +230,7 @@ export default class App extends Component {
   }
   disconnectSettings() {
     setConnection(null);
-    this.setState({ settingsBaseUrl: '', settingsToken: '', settingsTestStatus: 'idle', settingsTestMessage: '', liveNotes: null, liveNoteDetails: {}, liveCalendar: null, liveRecipes: null, openNoteId: 'n1' });
+    this.setState({ settingsBaseUrl: '', settingsToken: '', settingsTestStatus: 'idle', settingsTestMessage: '', liveNotes: null, liveNoteDetails: {}, liveCalendar: null, liveRecipes: null, liveRotation: null, liveRecipeProfile: null, recipeAddOpen: false, openNoteId: 'n1' });
     this.toastMsg('Disconnected — back to demo data');
   }
 
@@ -365,6 +421,28 @@ export default class App extends Component {
 
     const filters = usingLiveRecipes ? ['All', 'Core', 'Rotation', 'Treats'] : ['All', 'High protein', 'Quick', 'Batch'];
 
+    // daily rotation — which real recipe fills each meal slot, and the day's macro total
+    const rotation = st.liveRotation;
+    const profile = st.liveRecipeProfile;
+    const SLOT_DEFS = [
+      { key: 'breakfast', label: 'B', name: 'Breakfast' },
+      { key: 'lunch', label: 'L', name: 'Lunch' },
+      { key: 'dinner', label: 'D', name: 'Dinner' },
+      { key: 'snack', label: 'S', name: 'Snack' },
+    ];
+    const rotationSlots = SLOT_DEFS.map((s) => {
+      const filled = rotation?.slots?.[s.key] || null;
+      return {
+        key: s.key,
+        name: s.name,
+        recipeName: filled ? filled.name : null,
+        sub: filled ? `${Math.round(filled.macros.p)}g P · ${Math.round(filled.macros.kcal)} kcal` : 'not set',
+        open: filled ? () => this.setState({ openRecipeId: filled.id, servings: 1, recipeChat: [], recipeInput: '' }) : null,
+        clear: filled ? () => this.toggleRotationSlot(s.key, filled.id) : null,
+      };
+    });
+    const rotTot = rotation?.totals || { p: 0, c: 0, f: 0, kcal: 0 };
+
     const recipeList = usingLiveRecipes
       ? st.liveRecipes
           .filter(r => st.recipeFilter === 'All' || RECIPE_CATEGORY_LABEL[r.category] === st.recipeFilter)
@@ -376,7 +454,8 @@ export default class App extends Component {
               open: () => this.setState({ openRecipeId: r.id, servings: 1, recipeChat: [], recipeInput: '' }),
               phLabel: 'dish photo — ' + r.name.toLowerCase(),
               phStyle: { height: '104px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, rgba(' + hue + ',.13) 0 8px, rgba(' + hue + ',.04) 8px 16px)' },
-              pBar: bar(r.macros.p, '#6be5f5'), cBar: bar(r.macros.c, '#d8b573'), fBar: bar(r.macros.f, '#8a6ad1') };
+              pBar: bar(r.macros.p, '#6be5f5'), cBar: bar(r.macros.c, '#d8b573'), fBar: bar(r.macros.f, '#8a6ad1'),
+              slotToggles: SLOT_DEFS.map((s) => ({ key: s.key, label: s.label, active: rotation?.slots?.[s.key]?.id === r.id, onClick: () => this.toggleRotationSlot(s.key, r.id) })) };
           })
       : this.recipes.filter(r => st.recipeFilter === 'All' || r.filter === st.recipeFilter).map(r => {
           const tot = r.p + r.c + r.f;
@@ -385,7 +464,7 @@ export default class App extends Component {
             open: () => this.setState({ openRecipeId: r.id, servings: 1, recipeChat: [], recipeInput: '' }),
             phLabel: 'dish photo — ' + r.name.toLowerCase(),
             phStyle: { height: '104px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, rgba(' + r.hue + ',.13) 0 8px, rgba(' + r.hue + ',.04) 8px 16px)' },
-            pBar: bar(r.p, '#6be5f5'), cBar: bar(r.c, '#d8b573'), fBar: bar(r.f, '#8a6ad1') };
+            pBar: bar(r.p, '#6be5f5'), cBar: bar(r.c, '#d8b573'), fBar: bar(r.f, '#8a6ad1'), slotToggles: [] };
         });
 
     const liveOr = usingLiveRecipes ? (st.liveRecipes.find(r => r.id === st.openRecipeId) || null) : null;
@@ -440,7 +519,7 @@ export default class App extends Component {
       { icon: 'VI.', iconColor: '#d8b573', label: 'Workouts', hint: 'GO', run: go('workouts') },
       { icon: 'VII.', iconColor: '#d8b573', label: 'Notes', hint: 'GO', run: go('notes') },
       { icon: 'VIII.', iconColor: '#d8b573', label: 'Settings', hint: 'GO', run: go('settings') },
-      { icon: '✦', iconColor: '#6be5f5', label: 'Scale burrito bowl to 2 servings', hint: 'NOVA', run: () => { this.setState({ screen: 'recipes', openRecipeId: 'r1', servings: 2, recipeChat: [], paletteOpen: false }); this.toastMsg('Nova scaled the burrito bowl ×2 — macros updated'); } },
+      ...(usingLiveRecipes ? [] : [{ icon: '✦', iconColor: '#6be5f5', label: 'Scale burrito bowl to 2 servings', hint: 'NOVA', run: () => { this.setState({ screen: 'recipes', openRecipeId: 'r1', servings: 2, recipeChat: [], paletteOpen: false }); this.toastMsg('Nova scaled the burrito bowl ×2 — macros updated'); } }]),
       { icon: '✦', iconColor: '#6be5f5', label: 'Ask Coach to ease today’s session', hint: 'COACH', run: () => { this.setState({ screen: 'workouts', paletteOpen: false }); setTimeout(() => this.doCoach('Make it a bit shorter today'), 300); } },
       { icon: '✦', iconColor: '#6be5f5', label: 'Run vault backup — Guardian', hint: 'GUARDIAN', run: () => { this.setState({ paletteOpen: false }); this.toastMsg('Guardian: snapshot complete — 186 notes · 0 conflicts ✓'); } },
       { icon: '✦', iconColor: '#6be5f5', label: 'Start a voice session', hint: 'VOICE', run: () => { this.setState({ screen: 'voice', micOn: true, paletteOpen: false }); } },
@@ -510,7 +589,29 @@ export default class App extends Component {
       acceptRun: () => this.toastMsg('Zone-2 run locked for tomorrow, 7:00 am ✓'),
       openProteinNote: () => this.setState({ screen: 'notes', openNoteId: 'n1' }),
       reviewSubs: () => this.toastMsg('CFO drafted the cancellations — review in tonight’s reflection'),
-      openLunch: () => this.setState({ screen: 'recipes', openRecipeId: 'r1', servings: 1, recipeChat: [] }),
+      lunchCardLabel: usingLiveRecipes
+        ? (rotation?.slots?.lunch ? `Lunch — ${rotation.slots.lunch.name}` : 'Lunch — not set')
+        : 'Lunch — burrito bowl',
+      lunchCardMacros: usingLiveRecipes
+        ? (rotation?.slots?.lunch
+            ? `${Math.round(rotation.slots.lunch.macros.p)}P · ${Math.round(rotation.slots.lunch.macros.c)}C · ${Math.round(rotation.slots.lunch.macros.f)}F · ${Math.round(rotation.slots.lunch.macros.kcal)} kcal`
+            : 'Pick a lunch in Recipes →')
+        : '52P · 68C · 18F · 640 kcal',
+      lunchCardPhoto: usingLiveRecipes
+        ? (rotation?.slots?.lunch ? 'dish photo — ' + rotation.slots.lunch.name.toLowerCase() : 'dish photo — none selected')
+        : 'dish photo — burrito bowl',
+      proteinGaugeHint: usingLiveRecipes
+        ? (rotation?.slots?.lunch ? `${rotation.slots.lunch.name.toLowerCase()} closes the gap` : 'add a lunch in Recipes to close the gap')
+        : 'burrito bowl closes the gap',
+      openLunch: () => {
+        if (usingLiveRecipes) {
+          const lunch = rotation?.slots?.lunch;
+          if (lunch) this.setState({ screen: 'recipes', openRecipeId: lunch.id, servings: 1, recipeChat: [] });
+          else this.setState({ screen: 'recipes' });
+        } else {
+          this.setState({ screen: 'recipes', openRecipeId: 'r1', servings: 1, recipeChat: [] });
+        }
+      },
       todayIsLive: !!st.liveCalendar,
       todayEvents: st.liveCalendar && st.liveCalendar.length
         ? st.liveCalendar.map(e => ({ time: e.time, label: e.label }))
@@ -570,6 +671,45 @@ export default class App extends Component {
       recipesHeaderLabel: usingLiveRecipes ? `${st.liveRecipes.length} RECIPES · LIVE FROM OBSIDIAN` : 'SYNCED FROM OBSIDIAN /RECIPES · 2M AGO',
       recipeFilters: filters.map(f => ({ label: f, go: () => this.setState({ recipeFilter: f }), style: chip(st.recipeFilter === f) })),
       recipeList,
+
+      // daily rotation — real meal-slot picks + aggregate macros, live only
+      rotationVisible: usingLiveRecipes,
+      rotationSlots,
+      rotationTotals: { p: Math.round(rotTot.p), c: Math.round(rotTot.c), f: Math.round(rotTot.f), kcal: Math.round(rotTot.kcal) },
+      rotationTargetKcal: profile ? profile.targetKcal : null,
+      rotationProteinFloor: profile ? profile.proteinFloorG : null,
+
+      // add recipe — writes back to the real vault file
+      recipeAddVisible: usingLiveRecipes,
+      openAddRecipe: () => this.openAddRecipe(),
+      closeAddRecipe: () => this.closeAddRecipe(),
+      recipeAddOpen: st.recipeAddOpen,
+      recipeAddName: st.recipeAddName,
+      setRecipeAddName: (e) => this.setState({ recipeAddName: e.target.value }),
+      recipeAddCategoryOptions: [
+        { value: 'CORE DAILY MEALS', label: 'Core' },
+        { value: 'ROTATION / SWAP MEALS', label: 'Rotation' },
+        { value: 'TREATS', label: 'Treats' },
+      ],
+      recipeAddCategory: st.recipeAddCategory,
+      setRecipeAddCategory: (e) => this.setState({ recipeAddCategory: e.target.value }),
+      recipeAddMakes: st.recipeAddMakes,
+      setRecipeAddMakes: (e) => this.setState({ recipeAddMakes: e.target.value }),
+      recipeAddP: st.recipeAddP,
+      setRecipeAddP: (e) => this.setState({ recipeAddP: e.target.value }),
+      recipeAddC: st.recipeAddC,
+      setRecipeAddC: (e) => this.setState({ recipeAddC: e.target.value }),
+      recipeAddF: st.recipeAddF,
+      setRecipeAddF: (e) => this.setState({ recipeAddF: e.target.value }),
+      recipeAddKcal: st.recipeAddKcal,
+      setRecipeAddKcal: (e) => this.setState({ recipeAddKcal: e.target.value }),
+      recipeAddIngredients: st.recipeAddIngredients,
+      setRecipeAddIngredients: (e) => this.setState({ recipeAddIngredients: e.target.value }),
+      recipeAddMethod: st.recipeAddMethod,
+      setRecipeAddMethod: (e) => this.setState({ recipeAddMethod: e.target.value }),
+      recipeAddBusy: st.recipeAddBusy,
+      recipeAddError: st.recipeAddError,
+      submitAddRecipe: () => this.submitAddRecipe(),
       recipeOpen: usingLiveRecipes ? !!liveOr : !!or,
       closeRecipe: () => this.setState({ openRecipeId: null }),
       stopClick: (e) => e.stopPropagation(),
@@ -745,6 +885,7 @@ export default class App extends Component {
 
         {v.isMobile && <MobileChrome v={v} />}
         {v.recipeOpen && <RecipeOverlay v={v} />}
+        {v.recipeAddOpen && <AddRecipeModal v={v} />}
         {v.paletteOpen && <CommandPalette v={v} />}
         {v.ingestModalOpen && <IngestModal v={v} />}
         {v.ingestStatus !== 'idle' && <IngestReview v={v} />}

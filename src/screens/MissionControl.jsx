@@ -67,7 +67,7 @@ export function MissionControl({ v }) {
             <div>
               <div style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.22em;color:rgba(236,229,218,.45)")}>PROTEIN</div>
               <div style={css("margin-top:6px;font:400 25px 'Instrument Serif',serif;font-variant-numeric:tabular-nums")}>96<span style={css("font-size:15px;color:rgba(236,229,218,.5)")}>/180g</span></div>
-              <div style={css("margin-top:2px;font-size:11.5px;color:rgba(236,229,218,.55)")}>burrito bowl closes the gap</div>
+              <div style={css("margin-top:2px;font-size:11.5px;color:rgba(236,229,218,.55)")}>{v.proteinGaugeHint}</div>
             </div>
             <div style={css("position:absolute;top:14px;right:14px;display:flex;gap:5px")}><span style={css("width:5px;height:5px;border-radius:50%;background:rgba(236,229,218,.2)")}></span><span style={css("width:5px;height:5px;border-radius:50%;background:#d8b573")}></span></div>
           </div>
@@ -113,8 +113,8 @@ export function MissionControl({ v }) {
 
       <div style={v.gridVault}>
         <Interactive onClick={v.openLunch} base="cursor:pointer;border:1px solid rgba(236,229,218,.09);border-radius:14px;overflow:hidden;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01));box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 14px 34px -20px rgba(0,0,0,.9)" hoverStyle="border-color:rgba(216,181,115,.35)">
-          <div style={css("height:86px;background:repeating-linear-gradient(45deg, rgba(216,181,115,.12) 0 8px, rgba(216,181,115,.04) 8px 16px);display:flex;align-items:center;justify-content:center")}><span style={css("font:400 10px 'JetBrains Mono',monospace;color:rgba(236,229,218,.5)")}>dish photo — burrito bowl</span></div>
-          <div style={css("padding:12px 16px")}><div style={css("font-size:14px;font-weight:500")}>Lunch — burrito bowl</div><div style={css("margin-top:3px;font:400 11px 'JetBrains Mono',monospace;color:rgba(236,229,218,.5)")}>52P · 68C · 18F · 640 kcal</div></div>
+          <div style={css("height:86px;background:repeating-linear-gradient(45deg, rgba(216,181,115,.12) 0 8px, rgba(216,181,115,.04) 8px 16px);display:flex;align-items:center;justify-content:center")}><span style={css("font:400 10px 'JetBrains Mono',monospace;color:rgba(236,229,218,.5)")}>{v.lunchCardPhoto}</span></div>
+          <div style={css("padding:12px 16px")}><div style={css("font-size:14px;font-weight:500")}>{v.lunchCardLabel}</div><div style={css("margin-top:3px;font:400 11px 'JetBrains Mono',monospace;color:rgba(236,229,218,.5)")}>{v.lunchCardMacros}</div></div>
         </Interactive>
         <Interactive onClick={v.goWorkouts} base="cursor:pointer;border:1px solid rgba(236,229,218,.09);border-radius:14px;overflow:hidden;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01));box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 14px 34px -20px rgba(0,0,0,.9)" hoverStyle="border-color:rgba(107,229,245,.35)">
           <div style={css("height:86px;background:repeating-linear-gradient(45deg, rgba(107,229,245,.1) 0 8px, rgba(107,229,245,.03) 8px 16px);display:flex;align-items:center;justify-content:center")}><span style={css("font:400 10px 'JetBrains Mono',monospace;color:rgba(236,229,218,.5)")}>workout — push day</span></div>
