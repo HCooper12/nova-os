@@ -28,6 +28,19 @@ async function call(conn, path) {
   return res.json();
 }
 
+async function post(conn, path, body) {
+  const res = await fetch(baseOf(conn) + path, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${conn.token}`, 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => null);
+    throw new Error(detail?.error || `${path} failed: ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function testConnection(baseUrl, token) {
   const base = baseUrl.replace(/\/$/, '');
   const health = await fetch(base + '/api/health');
@@ -44,4 +57,8 @@ export const api = {
   noteDetail: (conn, id) => call(conn, `/api/notes/detail?id=${encodeURIComponent(id)}`),
   activity: (conn) => call(conn, '/api/activity'),
   calendarToday: (conn) => call(conn, '/api/calendar/today'),
+  startIngest: (conn, text) => post(conn, '/api/ingest', { text }),
+  ingestJob: (conn, jobId) => call(conn, `/api/ingest/${encodeURIComponent(jobId)}`),
+  approveIngest: (conn, jobId) => post(conn, `/api/ingest/${encodeURIComponent(jobId)}/approve`),
+  discardIngest: (conn, jobId) => post(conn, `/api/ingest/${encodeURIComponent(jobId)}/discard`),
 };

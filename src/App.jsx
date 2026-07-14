@@ -14,6 +14,8 @@ import { Settings } from './screens/Settings.jsx';
 import { MobileChrome } from './MobileChrome.jsx';
 import { RecipeOverlay } from './RecipeOverlay.jsx';
 import { CommandPalette } from './CommandPalette.jsx';
+import { IngestModal } from './IngestModal.jsx';
+import { IngestReview } from './IngestReview.jsx';
 import { Toast } from './Toast.jsx';
 import { Boot } from './Boot.jsx';
 
@@ -68,6 +70,10 @@ export default class App extends Component {
     settingsBaseUrl: '', settingsToken: '',
     settingsTestStatus: 'idle', settingsTestMessage: '',
     liveNotes: null, liveNoteDetails: {}, liveCalendar: null,
+
+    // transcript ingest
+    ingestModalOpen: false, ingestText: '',
+    ingestJobId: null, ingestStatus: 'idle', ingestPreview: null, ingestError: null,
   };
 
   componentDidMount() {
@@ -100,7 +106,7 @@ export default class App extends Component {
     }
   }
   componentWillUnmount() {
-    clearTimeout(this.bootT); clearInterval(this.clockIv); clearInterval(this.gaugeIv);
+    clearTimeout(this.bootT); clearInterval(this.clockIv); clearInterval(this.gaugeIv); clearInterval(this.ingestPollIv);
     window.removeEventListener('keydown', this.keyH);
     window.removeEventListener('resize', this.resizeH);
     this.ivs.forEach(clearInterval);
@@ -164,6 +170,76 @@ export default class App extends Component {
     setConnection(null);
     this.setState({ settingsBaseUrl: '', settingsToken: '', settingsTestStatus: 'idle', settingsTestMessage: '', liveNotes: null, liveNoteDetails: {}, liveCalendar: null, openNoteId: 'n1' });
     this.toastMsg('Disconnected — back to demo data');
+  }
+
+  // ---------- transcript ingest ----------
+  openIngestModal() {
+    if (!getConnection()) { this.toastMsg('Connect a backend in Settings first'); return; }
+    this.setState({ ingestModalOpen: true, ingestText: '' });
+  }
+  closeIngestModal() {
+    this.setState({ ingestModalOpen: false });
+  }
+  onIngestFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => this.setState({ ingestText: String(reader.result || '') });
+    reader.readAsText(file);
+  }
+  submitIngest() {
+    const conn = getConnection();
+    const text = this.state.ingestText.trim();
+    if (!conn || !text) return;
+    this.setState({ ingestModalOpen: false, ingestJobId: null, ingestStatus: 'staging', ingestPreview: null, ingestError: null });
+    api.startIngest(conn, text).then(({ jobId }) => {
+      this.setState({ ingestJobId: jobId });
+      this.ingestPollIv = setInterval(() => this.pollIngestJob(), 3000);
+    }).catch((e) => {
+      this.setState({ ingestStatus: 'error', ingestError: e.message });
+    });
+  }
+  pollIngestJob() {
+    const conn = getConnection();
+    const jobId = this.state.ingestJobId;
+    if (!conn || !jobId) return;
+    api.ingestJob(conn, jobId).then((job) => {
+      if (job.status === 'ready') {
+        clearInterval(this.ingestPollIv);
+        this.setState({ ingestStatus: 'ready', ingestPreview: { summary: job.summary, cost: job.cost, changes: job.changes } });
+      } else if (job.status === 'error') {
+        clearInterval(this.ingestPollIv);
+        this.setState({ ingestStatus: 'error', ingestError: job.error });
+      } else {
+        this.setState({ ingestStatus: job.status });
+      }
+    }).catch(() => {});
+  }
+  closeIngestReview() {
+    if (this.state.ingestStatus === 'ready') { this.discardIngest(); return; }
+    clearInterval(this.ingestPollIv);
+    this.setState({ ingestStatus: 'idle', ingestJobId: null, ingestPreview: null, ingestError: null });
+  }
+  approveIngest() {
+    const conn = getConnection();
+    const jobId = this.state.ingestJobId;
+    if (!conn || !jobId) return;
+    this.setState({ ingestStatus: 'applying' });
+    api.approveIngest(conn, jobId).then(() => {
+      this.setState({ ingestStatus: 'idle', ingestJobId: null, ingestPreview: null });
+      this.toastMsg('Written to your vault ✓');
+      this.refreshLiveData();
+    }).catch((e) => {
+      this.setState({ ingestStatus: 'ready' });
+      this.toastMsg('Approve failed: ' + e.message);
+    });
+  }
+  discardIngest() {
+    const conn = getConnection();
+    const jobId = this.state.ingestJobId;
+    this.setState({ ingestStatus: 'idle', ingestJobId: null, ingestPreview: null, ingestError: null });
+    if (conn && jobId) api.discardIngest(conn, jobId).catch(() => {});
+    this.toastMsg('Discarded — nothing was written');
   }
 
   // ---------- galaxy ----------
@@ -538,6 +614,21 @@ export default class App extends Component {
       disconnectSettings: () => this.disconnectSettings(),
       connectionActive: usingLiveNotes,
 
+      // ingest
+      ingestModalOpen: st.ingestModalOpen,
+      openIngestModal: () => this.openIngestModal(),
+      closeIngestModal: () => this.closeIngestModal(),
+      ingestText: st.ingestText,
+      setIngestText: (e) => this.setState({ ingestText: e.target.value }),
+      onIngestFile: (e) => this.onIngestFile(e),
+      submitIngest: () => this.submitIngest(),
+      ingestStatus: st.ingestStatus,
+      ingestPreview: st.ingestPreview,
+      ingestError: st.ingestError,
+      closeIngestReview: () => this.closeIngestReview(),
+      approveIngest: () => this.approveIngest(),
+      discardIngest: () => this.discardIngest(),
+
       // palette
       paletteOpen: st.paletteOpen,
       paletteRef: this.paletteRef,
@@ -608,6 +699,8 @@ export default class App extends Component {
         {v.isMobile && <MobileChrome v={v} />}
         {v.recipeOpen && <RecipeOverlay v={v} />}
         {v.paletteOpen && <CommandPalette v={v} />}
+        {v.ingestModalOpen && <IngestModal v={v} />}
+        {v.ingestStatus !== 'idle' && <IngestReview v={v} />}
         {v.toastOn && <Toast v={v} />}
         {v.showBoot && <Boot />}
       </div>

@@ -8,6 +8,7 @@ import cors from 'cors';
 import { Vault } from './lib/vault.js';
 import { notesRouter } from './routes/notes.js';
 import { calendarRouter } from './routes/calendar.js';
+import { ingestRouter } from './routes/ingest.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(__dirname, '.env');
@@ -37,7 +38,7 @@ async function main() {
 
   const app = express();
   app.use(cors({ origin: allowedOrigins }));
-  app.use(express.json());
+  app.use(express.json({ limit: '15mb' }));
 
   app.get('/api/health', (req, res) => res.json({ ok: true }));
 
@@ -50,6 +51,7 @@ async function main() {
 
   app.use('/api', notesRouter(vault));
   app.use('/api', calendarRouter());
+  app.use('/api', ingestRouter(process.env.VAULT_PATH));
 
   app.use((err, req, res, next) => {
     console.error(err);

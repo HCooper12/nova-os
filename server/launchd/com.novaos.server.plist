@@ -11,6 +11,11 @@
   </array>
   <key>WorkingDirectory</key>
   <string>/Users/haydencooper/Desktop/Files/Claude/nova-os/server</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/Users/haydencooper/.local/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>

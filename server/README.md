@@ -89,13 +89,36 @@ a real HTTPS endpoint with an auto-renewed certificate.
 2. In the admin console, enable **HTTPS Certificates** for your tailnet (Settings → enable it once).
 3. On the Mac, with the server running on port 4173:
    ```sh
-   tailscale serve https / http://localhost:4173
+   tailscale serve --bg http://localhost:4173
    ```
-   This prints the public tailnet URL, something like `https://your-mac.tailXXXXX.ts.net`.
-   That's what goes in Nova OS → Settings → Backend URL — no port needed.
+   (Older Tailscale versions use `tailscale serve https / http://localhost:4173` — the CLI
+   will tell you which one to use if you get it wrong.) This prints the tailnet URL, something
+   like `https://your-mac.tailXXXXX.ts.net`. That's what goes in Nova OS → Settings → Backend
+   URL — no port needed. Check it anytime with `tailscale serve status`.
 4. On your iPhone, install the Tailscale app and sign in. As long as Tailscale is running
    (it stays connected in the background), Nova OS can reach your Mac from anywhere with
    internet, not just home Wi-Fi.
 
 `tailscale serve` configuration persists across reboots on its own; you don't need to re-run
 step 3 every time, just make sure the Mac is on and the server (launchd service) is running.
+
+## 5. Transcript ingest (Obsidian write-back)
+
+From the Claude Code screen in Nova OS, "⇪ Ingest transcript" lets you paste or upload a
+podcast/video transcript. Under the hood:
+
+1. The backend copies your vault's `Wiki/` + `CLAUDE.md` into a scratch directory in `/tmp`
+   (never the real vault).
+2. It runs `claude -p` (the Claude Code CLI, non-interactively) against that scratch copy,
+   with the transcript as a new raw source — it follows your vault's own `CLAUDE.md` schema
+   exactly, in batch mode.
+3. Nova OS shows you exactly what it drafted (new/updated pages, full content) before anything
+   touches your real vault. **Approve** copies those files into the real vault; **Discard**
+   deletes the scratch copy and nothing is written.
+
+Requires the `claude` CLI installed and logged in on this Mac (it already is, if you've used
+Claude Code here before) — no separate API key needed, it reuses your existing login. Each
+ingest is a real Claude Code session and costs real usage (capped at $3 per ingest via
+`--max-budget-usd`; override in `server/lib/ingest.js` if you need more for very long
+transcripts). If `claude` isn't at `~/.local/bin/claude` on your machine, set `CLAUDE_BIN` in
+`.env` to the correct path.

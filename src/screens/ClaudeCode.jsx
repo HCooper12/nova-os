@@ -12,8 +12,16 @@ export function ClaudeCode({ v }) {
         </div>
         <span style={css("font:400 10px 'JetBrains Mono',monospace;letter-spacing:.12em;color:rgba(236,229,218,.45)")}>SESSIONS AUTO-LOG → OBSIDIAN /CLAUDE</span>
       </div>
-      <div style={css("display:flex;align-items:baseline;justify-content:space-between;margin-top:18px")}>
+      <div style={css("display:flex;align-items:baseline;justify-content:space-between;margin-top:18px;gap:14px;flex-wrap:wrap")}>
         <h1 style={css("margin:0;font:400 38px/1.1 'Instrument Serif',serif")}>Claude, <span style={css("font-style:italic;color:#d8b573")}>direct line.</span></h1>
+        <Interactive
+          as="span"
+          onClick={v.openIngestModal}
+          base="cursor:pointer;font:500 10.5px 'JetBrains Mono',monospace;padding:9px 16px;border:1px solid rgba(216,181,115,.4);border-radius:8px;color:#d8b573;background:rgba(216,181,115,.06)"
+          hoverStyle="background:rgba(216,181,115,.14)"
+        >
+          ⇪ Ingest transcript
+        </Interactive>
       </div>
       <div style={v.gridCode}>
         <div style={v.consoleCard}>
