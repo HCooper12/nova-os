@@ -71,6 +71,12 @@ export function AddRecipeModal({ v }) {
           {macroField('FAT (G)', v.recipeAddF, v.setRecipeAddF)}
           {macroField('KCAL', v.recipeAddKcal, v.setRecipeAddKcal)}
         </div>
+        <div style={css("margin-top:10px;display:flex;align-items:center;gap:12px")}>
+          <div style={css("flex:1")}>
+            {macroField('OR ENTER KJ — AUTO-FILLS KCAL', v.recipeAddKj, v.setRecipeAddKj)}
+          </div>
+          <div style={css("flex:2;font-size:11px;line-height:1.5;color:rgba(236,229,218,.4)")}>Aussie food labels often only list kJ — type it here and Nova converts it to kcal for you.</div>
+        </div>
 
         <div style={css("margin-top:12px")}>
           <div style={css("font:500 9px 'JetBrains Mono',monospace;letter-spacing:.14em;color:rgba(236,229,218,.4)")}>INGREDIENTS — ONE PER LINE</div>

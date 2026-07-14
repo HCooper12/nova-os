@@ -197,7 +197,18 @@ export function insertRecipeIntoRaw(raw, input) {
   return insertQuickRefRow(withRecipe, input);
 }
 
+// Serialize concurrent add-recipe calls (e.g. a double-submit) so a second
+// read-modify-write can't start from a version of the file that doesn't yet
+// include the first one's insertion.
+let addRecipeLock = Promise.resolve();
+
 export async function addRecipe(vaultPath, input) {
+  const run = addRecipeLock.catch(() => {}).then(() => addRecipeUnlocked(vaultPath, input));
+  addRecipeLock = run.catch(() => {});
+  return run;
+}
+
+async function addRecipeUnlocked(vaultPath, input) {
   const full = path.join(vaultPath, RECIPES_REL_PATH);
   const raw = await readFile(full, 'utf8');
   const newRaw = insertRecipeIntoRaw(raw, input);

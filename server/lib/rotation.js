@@ -5,8 +5,8 @@ import matter from 'gray-matter';
 import { backupFile } from './backup.js';
 
 const ROTATION_REL_PATH = 'Wiki/Health/Daily Rotation.md';
-const SLOTS = ['breakfast', 'lunch', 'dinner', 'snack'];
-const SLOT_LABELS = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack' };
+const SLOTS = ['breakfast', 'lunch', 'dinner', 'snack', 'extra'];
+const SLOT_LABELS = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack', extra: 'Extra Meal' };
 
 function bodyFor(slots, recipesById) {
   const lines = SLOTS.map((s) => {
@@ -34,17 +34,43 @@ function resolve(slots, recipesById) {
   return { slots: resolved, totals };
 }
 
-async function readSlots(vaultPath) {
+async function readSlotsFromDisk(vaultPath) {
   const full = path.join(vaultPath, ROTATION_REL_PATH);
   if (!existsSync(full)) return {};
   const raw = await readFile(full, 'utf8');
   return matter(raw).data.slots || {};
 }
 
+// The vault lives on iCloud Drive, and re-reading this file from a
+// long-running Node process shortly after writing it has been observed to
+// intermittently return a stale (pre-write) version — likely an iCloud
+// FileProvider/fs-caching quirk, not present when a fresh process reads the
+// same path. Since Nova is the only normal writer, keep the last-known state
+// in memory and treat it as authoritative after the first read, updating it
+// directly from what we just wrote rather than re-reading from disk.
+let cachedSlots = null;
+
+async function getSlots(vaultPath) {
+  if (cachedSlots === null) cachedSlots = await readSlotsFromDisk(vaultPath);
+  return cachedSlots;
+}
+
 export async function loadRotation(vaultPath, recipes) {
   const recipesById = new Map(recipes.map((r) => [r.id, r]));
-  const slots = await readSlots(vaultPath);
+  const slots = await getSlots(vaultPath);
   return resolve(slots, recipesById);
+}
+
+// Read-modify-write on a single shared file — concurrent slot toggles (e.g.
+// clicking two different meal buttons in quick succession) would otherwise
+// race and silently drop one of the updates. Serialize writes through a
+// simple promise-chain lock so each call sees the previous one's result.
+let writeLock = Promise.resolve();
+
+function withWriteLock(fn) {
+  const run = writeLock.catch(() => {}).then(fn);
+  writeLock = run.catch(() => {});
+  return run;
 }
 
 export async function setRotationSlot(vaultPath, recipes, slot, recipeId) {
@@ -52,17 +78,20 @@ export async function setRotationSlot(vaultPath, recipes, slot, recipeId) {
   const recipesById = new Map(recipes.map((r) => [r.id, r]));
   if (recipeId && !recipesById.has(recipeId)) throw new Error('unknown recipe id');
 
-  const full = path.join(vaultPath, ROTATION_REL_PATH);
-  const slots = await readSlots(vaultPath);
-  if (recipeId) slots[slot] = recipeId;
-  else delete slots[slot];
+  return withWriteLock(async () => {
+    const full = path.join(vaultPath, ROTATION_REL_PATH);
+    const slots = { ...(await getSlots(vaultPath)) };
+    if (recipeId) slots[slot] = recipeId;
+    else delete slots[slot];
 
-  const frontmatter = { type: 'rotation', updated: new Date().toISOString().slice(0, 10), slots };
-  const content = matter.stringify(bodyFor(slots, recipesById), frontmatter);
+    const frontmatter = { type: 'rotation', updated: new Date().toISOString().slice(0, 10), slots };
+    const content = matter.stringify(bodyFor(slots, recipesById), frontmatter);
 
-  await mkdir(path.dirname(full), { recursive: true });
-  if (existsSync(full)) await backupFile(full);
-  await writeFile(full, content, 'utf8');
+    await mkdir(path.dirname(full), { recursive: true });
+    if (existsSync(full)) await backupFile(full);
+    await writeFile(full, content, 'utf8');
 
-  return resolve(slots, recipesById);
+    cachedSlots = slots;
+    return resolve(slots, recipesById);
+  });
 }

@@ -19,25 +19,32 @@ export function Recipes({ v }) {
           <div style={css("display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px")}>
             <span style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.22em;color:rgba(236,229,218,.45)")}>TODAY'S ROTATION</span>
             <span style={css("font:400 11px 'JetBrains Mono',monospace;color:rgba(236,229,218,.6)")}>
-              <span style={css("color:#6be5f5")}>{v.rotationTotals.p}P</span> · {v.rotationTotals.c}C · {v.rotationTotals.f}F · <span style={css("color:#ece5da")}>{v.rotationTotals.kcal} kcal</span>{v.rotationTargetKcal ? ` / ${v.rotationTargetKcal}` : ''}{v.rotationProteinFloor ? ` · protein floor ${v.rotationProteinFloor}g` : ''}
+              <span style={css("color:#6be5f5")}>{v.rotationTotals.p}P</span> · <span style={css("color:#d8b573")}>{v.rotationTotals.c}C</span> · <span style={css("color:#8a6ad1")}>{v.rotationTotals.f}F</span> · <span style={css("color:#7cd68a")}>{v.rotationTotals.kcal} kcal</span>{v.rotationTargetKcal ? ` / ${v.rotationTargetKcal}` : ''}{v.rotationProteinFloor ? ` · protein floor ${v.rotationProteinFloor}g` : ''}
             </span>
           </div>
-          <div style={css("display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px")}>
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${v.rotationSlots.length},1fr)`, gap: '10px', marginTop: '12px' }}>
             {v.rotationSlots.map((s) => (
-              <div key={s.key} style={css("border:1px solid rgba(236,229,218,.1);border-radius:10px;padding:10px 12px;background:rgba(0,0,0,.2)")}>
+              <div key={s.key} style={{ border: `1px solid rgba(${s.hue},${s.recipeName ? '.45' : '.14'})`, borderRadius: '10px', padding: '10px 12px', background: s.recipeName ? `rgba(${s.hue},.07)` : 'rgba(0,0,0,.2)' }}>
                 <div style={css("display:flex;justify-content:space-between;align-items:center")}>
-                  <span style={css("font:500 9px 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(236,229,218,.4)")}>{s.name.toUpperCase()}</span>
+                  <span style={{ font: "500 9px 'JetBrains Mono',monospace", letterSpacing: '.16em', color: `rgba(${s.hue},.95)` }}>{s.name.toUpperCase()}</span>
                   {s.clear && <Interactive as="span" onClick={s.clear} base="cursor:pointer;font-size:12px;color:rgba(236,229,218,.35)" hoverStyle="color:#c96f6f">×</Interactive>}
                 </div>
                 {s.recipeName ? (
-                  <Interactive as="div" onClick={s.open} base="cursor:pointer;margin-top:6px;font-size:12.5px;color:#ece5da;line-height:1.3" hoverStyle="color:#d8b573">{s.recipeName}</Interactive>
+                  <>
+                    <Interactive as="div" onClick={s.open} base="cursor:pointer;margin-top:6px;font-size:12.5px;color:#ece5da;line-height:1.3" hoverStyle="color:#d8b573">{s.recipeName}</Interactive>
+                    <div style={css("margin-top:5px;display:flex;gap:7px;font:400 9.5px 'JetBrains Mono',monospace")}>
+                      <span style={css("color:#6be5f5")}>{s.p}P</span><span style={css("color:#d8b573")}>{s.c}C</span><span style={css("color:#8a6ad1")}>{s.f}F</span><span style={css("color:#7cd68a")}>{s.kcal}kcal</span>
+                    </div>
+                  </>
                 ) : (
                   <div style={css("margin-top:6px;font-size:12.5px;color:rgba(236,229,218,.32)")}>not set</div>
                 )}
-                <div style={css("margin-top:4px;font:400 10px 'JetBrains Mono',monospace;color:rgba(236,229,218,.4)")}>{s.sub}</div>
               </div>
             ))}
           </div>
+          {v.rotationShowExtraButton && (
+            <Interactive as="span" onClick={v.showExtraMealSlot} base="cursor:pointer;display:inline-block;margin-top:12px;font:400 10.5px 'JetBrains Mono',monospace;color:rgba(236,229,218,.4)" hoverStyle="color:#d8b573">+ add a 4th meal</Interactive>
+          )}
         </div>
       )}
 
@@ -66,7 +73,7 @@ export function Recipes({ v }) {
                 <span style={css("font:400 9.5px 'JetBrains Mono',monospace;color:#d8b573")}>{r.tag}</span>
               </div>
               <div style={css("margin-top:7px;display:flex;gap:12px;font:400 11px 'JetBrains Mono',monospace;color:rgba(236,229,218,.55)")}>
-                <span style={css("color:#6be5f5")}>{r.p}P</span><span>{r.c}C</span><span>{r.f}F</span><span style={css("margin-left:auto")}>{r.kcal} kcal{r.time ? ` · ${r.time}` : ''}</span>
+                <span style={css("color:#6be5f5")}>{r.p}P</span><span>{r.c}C</span><span>{r.f}F</span><span style={css("margin-left:auto")}><span style={css("color:#7cd68a")}>{r.kcal} kcal</span>{r.time ? ` · ${r.time}` : ''}</span>
               </div>
               <div style={css("margin-top:10px;display:flex;gap:3px;height:4px")}>
                 <span style={r.pBar}></span><span style={r.cBar}></span><span style={r.fBar}></span>
@@ -78,8 +85,13 @@ export function Recipes({ v }) {
                       key={s.key}
                       as="span"
                       onClick={s.onClick}
-                      base={"cursor:pointer;flex:1;text-align:center;font:500 9.5px 'JetBrains Mono',monospace;padding:4px 0;border-radius:5px;border:1px solid " + (s.active ? 'rgba(216,181,115,.55)' : 'rgba(236,229,218,.12)') + ";color:" + (s.active ? '#d8b573' : 'rgba(236,229,218,.4)') + ";background:" + (s.active ? 'rgba(216,181,115,.12)' : 'transparent')}
-                      hoverStyle="border-color:rgba(216,181,115,.5)"
+                      base={{
+                        cursor: 'pointer', flex: '1', textAlign: 'center', font: "500 9.5px 'JetBrains Mono',monospace", padding: '4px 0', borderRadius: '5px',
+                        border: `1px solid rgba(${s.hue},${s.active ? '.6' : '.14'})`,
+                        color: s.active ? `rgb(${s.hue})` : 'rgba(236,229,218,.4)',
+                        background: s.active ? `rgba(${s.hue},.14)` : 'transparent',
+                      }}
+                      hoverStyle={{ borderColor: `rgba(${s.hue},.6)` }}
                     >
                       {s.label}
                     </Interactive>

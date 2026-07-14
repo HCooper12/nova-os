@@ -18,7 +18,7 @@ export function RecipeOverlay({ v }) {
                 <div style={css("display:flex;justify-content:space-between")}><span style={css("color:#6be5f5")}>PROTEIN</span><span style={css("font-variant-numeric:tabular-nums")}>{v.orP}g</span></div>
                 <div style={css("display:flex;justify-content:space-between")}><span style={css("color:#d8b573")}>CARBS</span><span style={css("font-variant-numeric:tabular-nums")}>{v.orC}g</span></div>
                 <div style={css("display:flex;justify-content:space-between")}><span style={css("color:#8a6ad1")}>FAT</span><span style={css("font-variant-numeric:tabular-nums")}>{v.orF}g</span></div>
-                <div style={css("display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid rgba(236,229,218,.08)")}><span style={css("color:rgba(236,229,218,.6)")}>ENERGY</span><span style={css("font-variant-numeric:tabular-nums")}>{v.orKcal} kcal</span></div>
+                <div style={css("display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid rgba(236,229,218,.08)")}><span style={css("color:#7cd68a")}>ENERGY</span><span style={css("font-variant-numeric:tabular-nums;color:#7cd68a")}>{v.orKcal} kcal</span></div>
               </div>
             </div>
             {v.orShowServings && (
