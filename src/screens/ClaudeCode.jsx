@@ -20,7 +20,7 @@ export function ClaudeCode({ v }) {
           base="cursor:pointer;font:500 10.5px 'JetBrains Mono',monospace;padding:9px 16px;border:1px solid rgba(216,181,115,.4);border-radius:8px;color:#d8b573;background:rgba(216,181,115,.06)"
           hoverStyle="background:rgba(216,181,115,.14)"
         >
-          ⇪ Ingest transcript
+          ⇪ Add to vault
         </Interactive>
       </div>
       <div style={v.gridCode}>

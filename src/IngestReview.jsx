@@ -35,7 +35,7 @@ export function IngestReview({ v }) {
               <span style={css("width:6px;height:6px;border-radius:50%;background:#d8b573;animation:dotBlink 1s .2s infinite")}></span>
               <span style={css("width:6px;height:6px;border-radius:50%;background:#d8b573;animation:dotBlink 1s .4s infinite")}></span>
             </div>
-            <div style={css("font-size:13px;color:rgba(236,229,218,.6);text-align:center")}>{v.ingestStatus === 'staging' ? 'Preparing a scratch copy of your vault…' : 'Reading the transcript and drafting pages — this can take a minute or two…'}</div>
+            <div style={css("font-size:13px;color:rgba(236,229,218,.6);text-align:center")}>{v.ingestStatus === 'staging' ? 'Preparing a scratch copy of your vault…' : 'Reading it and drafting pages — this can take a minute or two…'}</div>
           </div>
         )}
 

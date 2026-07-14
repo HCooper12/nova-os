@@ -75,23 +75,23 @@ export function startIngest(vaultPath) {
       const transcriptPath = path.join(workDir, 'transcript.txt');
       await writeFile(transcriptPath, transcriptText, 'utf8');
 
-      // Claude paraphrases copyrighted transcripts into Raw/ per CLAUDE.md's own rule —
-      // this writes the exact original text too, at a path we control (so it doesn't
-      // depend on Claude picking a matching filename), for anyone who wants the verbatim
-      // source rather than the paraphrase.
-      const verbatimName = `Original transcript - ${jobId}.md`;
+      // Claude paraphrases copyrighted third-party transcripts into Raw/ per CLAUDE.md's
+      // own rule — this writes the exact original text too, at a path we control (so it
+      // doesn't depend on Claude picking a matching filename), so the verbatim text stays
+      // reachable regardless of whether this turns out to be a Source, Journal entry, etc.
+      const verbatimName = `Original - ${jobId}.md`;
       const verbatimRelPath = path.join('Raw', verbatimName);
       await writeFile(
         path.join(stagingVault, verbatimRelPath),
-        `Verbatim transcript pasted by Hayden via Nova OS ingest, received ${new Date().toISOString().slice(0, 10)}.${sourceUrl ? `\nSource URL: ${sourceUrl}` : ''}\n\n---\n\n${transcriptText}`,
+        `Verbatim original text pasted by Hayden via Nova OS, received ${new Date().toISOString().slice(0, 10)}.${sourceUrl ? `\nSource URL: ${sourceUrl}` : ''}\n\n---\n\n${transcriptText}`,
         'utf8'
       );
       job.status = 'running';
 
-      const prompt = `New raw source to ingest — a transcript pasted by Hayden via Nova OS, saved at ${transcriptPath}. Follow this vault's root CLAUDE.md exactly, in batch mode (process fully in one pass, no per-item discussion — just do the work).
+      const prompt = `New content to add to the vault — pasted by Hayden via Nova OS, saved at ${transcriptPath}. This could be an external source (a podcast/video transcript, article, etc.) or it could be Hayden's own note, idea, or reflection that just came to mind — read it and use your own judgement, per this vault's root CLAUDE.md, to pick the right page type (Source, Concept, Entity, Topic, Journal, or Analysis) rather than assuming it's a Source. Follow CLAUDE.md exactly, in batch mode (process fully in one pass, no per-item discussion — just do the work).
 
-The exact verbatim original text is already saved in the vault at ${verbatimRelPath} (separately from whatever paraphrased capture you create per the copyright-handling rule) — add a line on the Source page linking to it, e.g. "Verbatim original: [[Raw/${verbatimName.replace(/\.md$/, '')}]]", so the word-for-word text stays reachable alongside your summary.
-${sourceUrl ? `\nSource URL: ${sourceUrl} — include this as a \`url:\` field in the Source page's frontmatter so it's directly linkable.\n` : ''}
+The exact verbatim original text is already saved in the vault at ${verbatimRelPath}. If this is third-party copyrighted material needing the paraphrase treatment per CLAUDE.md's copyright rule, link to this file from whatever page you create (e.g. "Verbatim original: [[Raw/${verbatimName.replace(/\.md$/, '')}]]"). If it's Hayden's own writing, that rule already allows storing it verbatim directly — no need to paraphrase it, just fold it in or reference this file as you see fit.
+${sourceUrl ? `\nSource URL: ${sourceUrl} — include this as a \`url:\` field in whatever page's frontmatter is most relevant, so it's directly linkable.\n` : ''}
 When done, give a concise final summary: pages created, pages updated, and any contradictions or open questions flagged.`;
 
       const child = spawn(CLAUDE_BIN, [
