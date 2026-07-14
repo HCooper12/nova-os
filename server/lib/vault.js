@@ -1,8 +1,10 @@
 import { readFile, readdir, stat } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 
-const SKIP_FILES = new Set(['index.md', 'log.md']);
+const SKIP_DIRS = new Set(['.obsidian', '.claude', 'assets']);
+const SKIP_FILES = new Set(['index.md', 'log.md', '.DS_Store']);
 
 function stripMarkdown(text) {
   return text
@@ -25,11 +27,11 @@ async function walk(dir, root) {
   const entries = await readdir(dir, { withFileTypes: true });
   const files = [];
   for (const entry of entries) {
-    const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      files.push(...(await walk(full, root)));
+      if (SKIP_DIRS.has(entry.name)) continue;
+      files.push(...(await walk(path.join(dir, entry.name), root)));
     } else if (entry.name.endsWith('.md') && !SKIP_FILES.has(entry.name)) {
-      files.push(path.relative(root, full));
+      files.push(path.relative(root, path.join(dir, entry.name)));
     }
   }
   return files;
@@ -37,12 +39,20 @@ async function walk(dir, root) {
 
 export class Vault {
   constructor(vaultPath) {
+    this.vaultPath = vaultPath;
     this.wikiDir = path.join(vaultPath, 'Wiki');
+    this.rawDir = path.join(vaultPath, 'Raw');
     this.logPath = path.join(this.wikiDir, 'log.md');
   }
 
+  // Paths returned/accepted everywhere below are relative to the vault root
+  // (e.g. "Wiki/Concepts/X.md", "Raw/Y.md"), not to Wiki/ specifically —
+  // this lets Raw/ transcripts show up as viewable "notes" too.
   async listRelativePaths() {
-    return walk(this.wikiDir, this.wikiDir);
+    const out = [];
+    if (existsSync(this.wikiDir)) out.push(...(await walk(this.wikiDir, this.vaultPath)));
+    if (existsSync(this.rawDir)) out.push(...(await walk(this.rawDir, this.vaultPath)));
+    return out;
   }
 
   idFor(relPath) {
@@ -50,14 +60,16 @@ export class Vault {
   }
 
   async readPage(relPath) {
-    const full = path.join(this.wikiDir, relPath);
+    const full = path.join(this.vaultPath, relPath);
     const raw = await readFile(full, 'utf8');
     const { data: frontmatter, content } = matter(raw);
     const headingMatch = content.match(/^#\s+(.+)$/m);
     const filename = path.basename(relPath, '.md');
     const title = frontmatter.title || (headingMatch ? headingMatch[1].trim() : filename);
-    const folder = path.dirname(relPath).split(path.sep)[0] || 'Wiki';
-    const type = (frontmatter.type || folder).toString();
+    const parts = relPath.split(path.sep);
+    const topFolder = parts[0]; // "Wiki" or "Raw"
+    const category = parts.length > 2 ? parts[1] : topFolder;
+    const type = (frontmatter.type || (topFolder === 'Raw' ? 'raw' : category)).toString();
     const st = await stat(full);
     const date = frontmatter.updated || frontmatter.created || st.mtime.toISOString().slice(0, 10);
     const bodyNoHeading = headingMatch ? content.replace(headingMatch[0], '') : content;
@@ -78,6 +90,7 @@ export class Vault {
       type,
       tags: frontmatter.tags || [],
       date,
+      url: frontmatter.url || null,
       paragraphs,
       links: extractWikilinks(content),
       raw: content,

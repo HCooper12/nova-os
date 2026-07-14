@@ -42,6 +42,9 @@ export function Notes({ v }) {
           <div style={css(`font:500 9px 'JetBrains Mono',monospace;letter-spacing:.22em;color:${v.openNoteTypeColor}`)}>{v.openNoteType}</div>
           <h2 style={css("margin:10px 0 0;font:400 32px/1.15 'Instrument Serif',serif")}>{v.openNoteTitle}</h2>
           <div style={css("margin-top:8px;font:400 10.5px 'JetBrains Mono',monospace;color:rgba(236,229,218,.4)")}>{v.openNoteMeta}</div>
+          {v.openNoteUrl && (
+            <a href={v.openNoteUrl} target="_blank" rel="noopener noreferrer" style={css("margin-top:12px;display:inline-flex;align-items:center;gap:7px;width:fit-content;cursor:pointer;font-size:12px;font-weight:500;padding:7px 14px;border-radius:8px;border:1px solid rgba(107,229,245,.4);color:#6be5f5;background:rgba(107,229,245,.06)")}>▶ Watch source</a>
+          )}
           <div style={css("margin-top:20px;max-width:640px;display:flex;flex-direction:column;gap:14px")}>
             {v.openNoteParas.map((p, i) => (
               <p key={i} style={css("margin:0;font-size:14.5px;line-height:1.75;color:rgba(236,229,218,.85);text-wrap:pretty")}>{p.text}</p>

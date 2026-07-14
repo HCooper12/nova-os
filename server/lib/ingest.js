@@ -63,7 +63,7 @@ function diffTrees(originalDir, stagingDir) {
 }
 
 export function startIngest(vaultPath) {
-  return function run(transcriptText) {
+  return function run(transcriptText, sourceUrl) {
     const jobId = randomUUID().slice(0, 8);
     const workDir = path.join(os.tmpdir(), 'nova-ingest', jobId);
     const stagingVault = path.join(workDir, 'vault');
@@ -74,9 +74,25 @@ export function startIngest(vaultPath) {
       await stageVault(vaultPath, stagingVault);
       const transcriptPath = path.join(workDir, 'transcript.txt');
       await writeFile(transcriptPath, transcriptText, 'utf8');
+
+      // Claude paraphrases copyrighted transcripts into Raw/ per CLAUDE.md's own rule —
+      // this writes the exact original text too, at a path we control (so it doesn't
+      // depend on Claude picking a matching filename), for anyone who wants the verbatim
+      // source rather than the paraphrase.
+      const verbatimName = `Original transcript - ${jobId}.md`;
+      const verbatimRelPath = path.join('Raw', verbatimName);
+      await writeFile(
+        path.join(stagingVault, verbatimRelPath),
+        `Verbatim transcript pasted by Hayden via Nova OS ingest, received ${new Date().toISOString().slice(0, 10)}.${sourceUrl ? `\nSource URL: ${sourceUrl}` : ''}\n\n---\n\n${transcriptText}`,
+        'utf8'
+      );
       job.status = 'running';
 
-      const prompt = `New raw source to ingest — a transcript pasted by Hayden via Nova OS, saved at ${transcriptPath}. Follow this vault's root CLAUDE.md exactly, in batch mode (process fully in one pass, no per-item discussion — just do the work). When done, give a concise final summary: pages created, pages updated, and any contradictions or open questions flagged.`;
+      const prompt = `New raw source to ingest — a transcript pasted by Hayden via Nova OS, saved at ${transcriptPath}. Follow this vault's root CLAUDE.md exactly, in batch mode (process fully in one pass, no per-item discussion — just do the work).
+
+The exact verbatim original text is already saved in the vault at ${verbatimRelPath} (separately from whatever paraphrased capture you create per the copyright-handling rule) — add a line on the Source page linking to it, e.g. "Verbatim original: [[Raw/${verbatimName.replace(/\.md$/, '')}]]", so the word-for-word text stays reachable alongside your summary.
+${sourceUrl ? `\nSource URL: ${sourceUrl} — include this as a \`url:\` field in the Source page's frontmatter so it's directly linkable.\n` : ''}
+When done, give a concise final summary: pages created, pages updated, and any contradictions or open questions flagged.`;
 
       const child = spawn(CLAUDE_BIN, [
         '-p', prompt,

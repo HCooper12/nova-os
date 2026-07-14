@@ -22,6 +22,16 @@ export function IngestModal({ v }) {
           style={css("margin-top:16px;width:100%;box-sizing:border-box;height:260px;resize:vertical;background:rgba(0,0,0,.32);border:1px solid rgba(236,229,218,.12);border-radius:9px;padding:14px;color:#ece5da;font-size:13px;font-family:'JetBrains Mono',monospace;line-height:1.6;outline:none")}
         />
 
+        <div style={css("margin-top:12px;font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:rgba(236,229,218,.45)")}>SOURCE URL (OPTIONAL)</div>
+        <Interactive
+          as="input"
+          value={v.ingestSourceUrl}
+          onChange={v.setIngestSourceUrl}
+          placeholder="https://youtube.com/watch?v=… — lets you jump back to the video from this page later"
+          base="margin-top:6px;width:100%;box-sizing:border-box;background:rgba(0,0,0,.32);border:1px solid rgba(236,229,218,.12);border-radius:9px;padding:10px 14px;color:#ece5da;font-size:12.5px;font-family:'JetBrains Mono',monospace;outline:none"
+          focusStyle="border-color:rgba(216,181,115,.5)"
+        />
+
         <div style={css("margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap")}>
           <label style={css("cursor:pointer;font-size:12px;padding:9px 14px;border-radius:8px;border:1px solid rgba(236,229,218,.16);color:rgba(236,229,218,.7)")}>
             Upload .txt / .md

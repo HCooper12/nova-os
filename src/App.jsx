@@ -19,7 +19,7 @@ import { IngestReview } from './IngestReview.jsx';
 import { Toast } from './Toast.jsx';
 import { Boot } from './Boot.jsx';
 
-const NOTE_TYPE_COLOR = { concept: '#d8b573', entity: '#e08f6f', topic: '#8a6ad1', source: '#6be5f5', journal: '#5aa87c', analysis: '#ece5da' };
+const NOTE_TYPE_COLOR = { concept: '#d8b573', entity: '#e08f6f', topic: '#8a6ad1', source: '#6be5f5', journal: '#5aa87c', analysis: '#ece5da', raw: 'rgba(236,229,218,.5)' };
 
 // Personalization — was editor-configurable in the original design canvas.
 // Tweak these three to re-brand without touching layout code.
@@ -72,7 +72,7 @@ export default class App extends Component {
     liveNotes: null, liveNoteDetails: {}, liveCalendar: null,
 
     // transcript ingest
-    ingestModalOpen: false, ingestText: '',
+    ingestModalOpen: false, ingestText: '', ingestSourceUrl: '',
     ingestJobId: null, ingestStatus: 'idle', ingestPreview: null, ingestError: null,
   };
 
@@ -175,7 +175,7 @@ export default class App extends Component {
   // ---------- transcript ingest ----------
   openIngestModal() {
     if (!getConnection()) { this.toastMsg('Connect a backend in Settings first'); return; }
-    this.setState({ ingestModalOpen: true, ingestText: '' });
+    this.setState({ ingestModalOpen: true, ingestText: '', ingestSourceUrl: '' });
   }
   closeIngestModal() {
     this.setState({ ingestModalOpen: false });
@@ -190,9 +190,10 @@ export default class App extends Component {
   submitIngest() {
     const conn = getConnection();
     const text = this.state.ingestText.trim();
+    const sourceUrl = this.state.ingestSourceUrl.trim();
     if (!conn || !text) return;
     this.setState({ ingestModalOpen: false, ingestJobId: null, ingestStatus: 'staging', ingestPreview: null, ingestError: null });
-    api.startIngest(conn, text).then(({ jobId }) => {
+    api.startIngest(conn, text, sourceUrl || undefined).then(({ jobId }) => {
       this.setState({ ingestJobId: jobId });
       this.ingestPollIv = setInterval(() => this.pollIngestJob(), 3000);
     }).catch((e) => {
@@ -589,6 +590,7 @@ export default class App extends Component {
       openNoteType: (usingLiveNotes ? (liveDetail?.type || '').toUpperCase() : on.type) + ' · OBSIDIAN',
       openNoteTypeColor: usingLiveNotes ? (NOTE_TYPE_COLOR[(liveDetail?.type || '').toLowerCase()] || '#ece5da') : on.color,
       openNoteMeta: usingLiveNotes ? (liveDetail ? `${liveDetail.date.slice(0, 10).toUpperCase()} · ${liveDetail.backlinks} BACKLINKS` : '') : on.date.toUpperCase(),
+      openNoteUrl: usingLiveNotes ? (liveDetail?.url || null) : null,
       openNoteParas: usingLiveNotes ? (liveDetail ? liveDetail.paragraphs.map(p => ({ text: p })) : [{ text: 'Loading…' }]) : on.paras.map(p => ({ text: p })),
       openNoteLinks: usingLiveNotes
         ? (liveDetail?.links || []).map(l => ({ label: l.label, go: () => this.selectNote(l.id) }))
@@ -620,6 +622,8 @@ export default class App extends Component {
       closeIngestModal: () => this.closeIngestModal(),
       ingestText: st.ingestText,
       setIngestText: (e) => this.setState({ ingestText: e.target.value }),
+      ingestSourceUrl: st.ingestSourceUrl,
+      setIngestSourceUrl: (e) => this.setState({ ingestSourceUrl: e.target.value }),
       onIngestFile: (e) => this.onIngestFile(e),
       submitIngest: () => this.submitIngest(),
       ingestStatus: st.ingestStatus,

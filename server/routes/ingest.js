@@ -6,9 +6,9 @@ export function ingestRouter(vaultPath) {
   const run = startIngest(vaultPath);
 
   router.post('/ingest', (req, res) => {
-    const { text } = req.body || {};
+    const { text, sourceUrl } = req.body || {};
     if (!text || !text.trim()) return res.status(400).json({ error: 'missing text' });
-    const jobId = run(text);
+    const jobId = run(text, sourceUrl && sourceUrl.trim() ? sourceUrl.trim() : undefined);
     res.json({ jobId });
   });
 
