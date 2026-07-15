@@ -58,6 +58,13 @@ function ExercisePicker({ v }) {
             <option value="">choose muscle group…</option>
             {v.exercisePickerMuscleGroups.filter((m) => m !== 'Any').map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
+          <select
+            value={v.exercisePickerCreateTrackingType}
+            onChange={(e) => v.setExercisePickerCreateTrackingType(e.target.value)}
+            style={{ background: 'rgba(0,0,0,.3)', border: '1px solid rgba(236,229,218,.15)', borderRadius: '6px', color: '#ece5da', fontSize: '11px', padding: '4px 6px', outline: 'none' }}
+          >
+            {v.exercisePickerTrackingTypeOptions.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+          </select>
           <Interactive
             as="span"
             onClick={v.exercisePickerCreateMuscle ? v.createExercise : undefined}
@@ -174,6 +181,7 @@ function RoutineDetailView({ v }) {
                 <input type="number" min="1" defaultValue={e.targetRepsLow} onBlur={e.onTargetLowBlur} style={numInputStyle} />
                 <span>–</span>
                 <input type="number" min="1" defaultValue={e.targetRepsHigh} onBlur={e.onTargetHighBlur} style={numInputStyle} />
+                <span>{e.targetUnit}</span>
               </div>
             </div>
             <div style={css("margin-top:10px;display:flex;align-items:center;gap:6px")}>
@@ -221,12 +229,12 @@ function SessionView({ v }) {
             </div>
             <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:8px")}>
               <div style={css("display:flex;gap:10px;font:500 9px 'JetBrains Mono',monospace;letter-spacing:.1em;color:rgba(236,229,218,.35);padding:0 2px")}>
-                <span style={{ width: '22px' }}>SET</span><span style={{ width: '64px' }}>KG</span><span style={{ width: '64px' }}>REPS</span>
+                <span style={{ width: '22px' }}>SET</span>{!e.isBodyweight && <span style={{ width: '64px' }}>{e.weightLabel}</span>}<span style={{ width: '64px' }}>{e.amountLabel}</span>
               </div>
               {e.sets.map((s, i) => (
                 <div key={i} style={css("display:flex;align-items:center;gap:10px")}>
                   <span style={{ width: '22px', font: "400 11px 'JetBrains Mono',monospace", color: 'rgba(236,229,218,.4)' }}>{i + 1}</span>
-                  <input type="number" step="0.5" min="0" value={s.weight} onChange={s.onWeight} style={setInputStyle} />
+                  {!e.isBodyweight && <input type="number" step="0.5" min="0" value={s.weight} onChange={s.onWeight} style={setInputStyle} />}
                   <input type="number" min="0" value={s.reps} onChange={s.onReps} style={setInputStyle} />
                   <Interactive
                     as="span"

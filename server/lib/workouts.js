@@ -15,6 +15,7 @@ function resolveExercise(entry, exercisesById) {
     exerciseId: entry.exerciseId,
     name: ex ? ex.name : '(deleted exercise)',
     muscleGroup: ex ? ex.muscleGroup : null,
+    trackingType: ex ? ex.trackingType : 'weight_reps',
     targetSets: entry.targetSets,
     targetRepsLow: entry.targetRepsLow,
     targetRepsHigh: entry.targetRepsHigh,

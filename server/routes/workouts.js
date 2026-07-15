@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { loadExerciseLibrary, addCustomExercise, MUSCLE_GROUPS } from '../lib/exercises.js';
+import { loadExerciseLibrary, addCustomExercise, MUSCLE_GROUPS, TRACKING_TYPES } from '../lib/exercises.js';
 import { loadRoutines, createRoutine, updateRoutine, deleteRoutine, setScheduleDay, WEEKDAYS } from '../lib/workouts.js';
 import { loadExerciseState } from '../lib/exerciseState.js';
 import { loadSessions, completeSession, completedCountByRoutine } from '../lib/workoutSessions.js';
@@ -30,9 +30,11 @@ export function workoutsRouter(vaultPath) {
     try {
       const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
       const muscleGroup = req.body?.muscleGroup;
+      const trackingType = req.body?.trackingType;
       if (!name) return res.status(400).json({ error: 'name is required' });
       if (!MUSCLE_GROUPS.includes(muscleGroup)) return res.status(400).json({ error: 'muscleGroup must be one of ' + MUSCLE_GROUPS.join(', ') });
-      const exercise = await addCustomExercise(vaultPath, name, muscleGroup);
+      if (trackingType && !TRACKING_TYPES.includes(trackingType)) return res.status(400).json({ error: 'trackingType must be one of ' + TRACKING_TYPES.join(', ') });
+      const exercise = await addCustomExercise(vaultPath, name, muscleGroup, trackingType);
       res.json({ exercise });
     } catch (err) {
       res.status(400).json({ error: err.message });

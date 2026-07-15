@@ -87,12 +87,13 @@ export default class App extends Component {
     shoppingAddInput: '', shoppingAddBusy: false, shoppingAddError: null,
 
     // workouts
-    liveWorkoutExercises: null, liveWorkoutMuscleGroups: null,
+    liveWorkoutExercises: null, liveWorkoutMuscleGroups: null, liveWorkoutTrackingTypes: null,
     liveWorkoutRoutines: null, liveWorkoutSchedule: null, liveWorkoutWeekdays: null,
     workoutsView: 'routines', openRoutineId: null,
     routineCreating: false, routineNewName: '',
     routineDeleteConfirm: false,
-    exercisePickerOpen: false, exercisePickerQuery: '', exercisePickerMuscle: 'Any', exercisePickerCreateMuscle: '',
+    exercisePickerOpen: false, exercisePickerQuery: '', exercisePickerMuscle: 'Any',
+    exercisePickerCreateMuscle: '', exercisePickerCreateTrackingType: 'weight_reps',
     workoutSession: null, sessionCancelConfirm: false,
     liveWorkoutHistory: null, historyRoutineId: null,
 
@@ -185,7 +186,7 @@ export default class App extends Component {
     }
     try {
       const exercisesRes = await api.workoutExercises(conn);
-      this.setState({ liveWorkoutExercises: exercisesRes.exercises, liveWorkoutMuscleGroups: exercisesRes.muscleGroups });
+      this.setState({ liveWorkoutExercises: exercisesRes.exercises, liveWorkoutMuscleGroups: exercisesRes.muscleGroups, liveWorkoutTrackingTypes: exercisesRes.trackingTypes });
       const routinesRes = await api.workoutRoutines(conn);
       this.setState({ liveWorkoutRoutines: routinesRes.routines, liveWorkoutSchedule: routinesRes.schedule, liveWorkoutWeekdays: routinesRes.weekdays });
     } catch {
@@ -509,7 +510,7 @@ export default class App extends Component {
     this.updateRoutineExercises(entries);
   }
   openExercisePicker() {
-    this.setState({ exercisePickerOpen: true, exercisePickerQuery: '', exercisePickerMuscle: 'Any', exercisePickerCreateMuscle: '' });
+    this.setState({ exercisePickerOpen: true, exercisePickerQuery: '', exercisePickerMuscle: 'Any', exercisePickerCreateMuscle: '', exercisePickerCreateTrackingType: 'weight_reps' });
   }
   closeExercisePicker() {
     this.setState({ exercisePickerOpen: false });
@@ -523,10 +524,13 @@ export default class App extends Component {
   setExercisePickerCreateMuscle(m) {
     this.setState({ exercisePickerCreateMuscle: m });
   }
-  createAndAddExercise(name, muscleGroup) {
+  setExercisePickerCreateTrackingType(t) {
+    this.setState({ exercisePickerCreateTrackingType: t });
+  }
+  createAndAddExercise(name, muscleGroup, trackingType) {
     const conn = getConnection();
     if (!conn || !name.trim() || !muscleGroup) return;
-    api.addWorkoutExercise(conn, name.trim(), muscleGroup).then(({ exercise }) => {
+    api.addWorkoutExercise(conn, name.trim(), muscleGroup, trackingType).then(({ exercise }) => {
       this.setState((s) => ({ liveWorkoutExercises: [...(s.liveWorkoutExercises || []), exercise] }));
       this.addExerciseToRoutine(exercise.id);
     }).catch((e) => this.toastMsg('Could not add exercise: ' + e.message));
@@ -543,7 +547,7 @@ export default class App extends Component {
       const sets = e.lastSets && e.lastSets.length
         ? e.lastSets.map((s) => ({ weight: s.weight, reps: s.reps, done: false }))
         : Array.from({ length: e.targetSets }, () => ({ weight: 0, reps: e.targetRepsLow, done: false }));
-      return { exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh, sets };
+      return { exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, trackingType: e.trackingType, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh, sets };
     });
     this.setState({ workoutsView: 'session', workoutSession: { routineId: routine.id, routineName: routine.name, exercises }, sessionCancelConfirm: false });
   }
@@ -968,14 +972,26 @@ export default class App extends Component {
     }));
 
     const openRoutine = usingLiveWorkouts ? liveRoutines.find((r) => r.id === st.openRoutineId) || null : null;
-    const setsLabel = (sets) => sets && sets.length ? sets.map((s) => `${s.weight}kg×${s.reps}`).join(', ') : 'Not yet performed';
+    const isTimeTracking = (tt) => tt === 'weight_time' || tt === 'bodyweight_time';
+    const isBodyweightTracking = (tt) => tt === 'bodyweight_reps' || tt === 'bodyweight_time';
+    const targetUnit = (tt) => isTimeTracking(tt) ? 'sec' : 'reps';
+    const formatSet = (tt, s) => {
+      if (tt === 'bodyweight_reps') return `${s.reps} reps`;
+      if (tt === 'bodyweight_time') return `${s.reps}s`;
+      if (tt === 'weight_time') return `${s.weight}kg×${s.reps}s`;
+      if (tt === 'weighted_bodyweight_reps') return `BW+${s.weight}kg×${s.reps}`;
+      return `${s.weight}kg×${s.reps}`;
+    };
+    const setsLabel = (tt, sets) => sets && sets.length ? sets.map((s) => formatSet(tt, s)).join(', ') : 'Not yet performed';
 
     const routineDetailExercises = openRoutine ? openRoutine.exercises.map((e, i, arr) => ({
       exerciseId: e.exerciseId,
       name: e.name,
       muscleGroup: e.muscleGroup,
+      trackingType: e.trackingType,
+      targetUnit: targetUnit(e.trackingType),
       targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh,
-      lastLabel: setsLabel(e.lastSets),
+      lastLabel: setsLabel(e.trackingType, e.lastSets),
       canMoveUp: i > 0, canMoveDown: i < arr.length - 1,
       onMoveUp: () => this.moveExerciseInRoutine(e.exerciseId, -1),
       onMoveDown: () => this.moveExerciseInRoutine(e.exerciseId, 1),
@@ -988,6 +1004,7 @@ export default class App extends Component {
     const pickerQuery = st.exercisePickerQuery.trim().toLowerCase();
     const pickerMuscle = st.exercisePickerMuscle;
     const libraryExercises = st.liveWorkoutExercises || [];
+    const exercisesById = new Map(libraryExercises.map((e) => [e.id, e]));
     const alreadyInRoutine = new Set((openRoutine?.exercises || []).map((e) => e.exerciseId));
     const exercisePickerResults = libraryExercises
       .filter((e) => !alreadyInRoutine.has(e.id))
@@ -997,11 +1014,15 @@ export default class App extends Component {
       .map((e) => ({ id: e.id, name: e.name, muscleGroup: e.muscleGroup, onAdd: () => this.addExerciseToRoutine(e.id) }));
     const exercisePickerExactMatch = libraryExercises.some((e) => e.name.toLowerCase() === pickerQuery);
     const exercisePickerShowCreate = pickerQuery.length > 0 && !exercisePickerExactMatch;
+    const TRACKING_TYPE_LABEL = { weight_reps: 'Weight × Reps', bodyweight_reps: 'Bodyweight × Reps', weight_time: 'Weight × Time', bodyweight_time: 'Bodyweight × Time', weighted_bodyweight_reps: 'Weighted Bodyweight × Reps' };
 
     const session = st.workoutSession;
     const sessionExercises = session ? session.exercises.map((e, exIdx) => ({
-      exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup,
-      targetLabel: `Target: ${e.targetSets} × ${e.targetRepsLow}-${e.targetRepsHigh}`,
+      exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, trackingType: e.trackingType,
+      isTime: isTimeTracking(e.trackingType), isBodyweight: isBodyweightTracking(e.trackingType),
+      weightLabel: e.trackingType === 'weighted_bodyweight_reps' ? '+KG' : 'KG',
+      amountLabel: isTimeTracking(e.trackingType) ? 'SEC' : 'REPS',
+      targetLabel: `Target: ${e.targetSets} × ${e.targetRepsLow}-${e.targetRepsHigh} ${targetUnit(e.trackingType)}`,
       onAddSet: () => this.addSessionSet(exIdx),
       sets: e.sets.map((s, setIdx) => ({
         weight: s.weight, reps: s.reps, done: s.done,
@@ -1018,7 +1039,7 @@ export default class App extends Component {
       date: s.date,
       totalSets: s.exercises.reduce((n, e) => n + e.sets.length, 0),
       totalVolume: Math.round(s.exercises.reduce((v, e) => v + e.sets.reduce((sv, set) => sv + set.weight * set.reps, 0), 0)),
-      exercises: s.exercises.map((e) => ({ name: e.name, setsLabel: setsLabel(e.sets) })),
+      exercises: s.exercises.map((e) => ({ name: e.name, setsLabel: setsLabel((exercisesById.get(e.exerciseId) || {}).trackingType || 'weight_reps', e.sets) })),
     }));
     const historyRoutine = liveRoutines.find((r) => r.id === st.historyRoutineId);
     const todayRoutineId = liveSchedule[todayWeekday];
@@ -1416,7 +1437,10 @@ export default class App extends Component {
       exercisePickerShowCreate,
       exercisePickerCreateMuscle: st.exercisePickerCreateMuscle,
       setExercisePickerCreateMuscle: (m) => this.setExercisePickerCreateMuscle(m),
-      createExercise: () => this.createAndAddExercise(st.exercisePickerQuery.trim(), st.exercisePickerCreateMuscle),
+      exercisePickerCreateTrackingType: st.exercisePickerCreateTrackingType,
+      setExercisePickerCreateTrackingType: (t) => this.setExercisePickerCreateTrackingType(t),
+      exercisePickerTrackingTypeOptions: (st.liveWorkoutTrackingTypes || []).map((t) => ({ value: t, label: TRACKING_TYPE_LABEL[t] || t })),
+      createExercise: () => this.createAndAddExercise(st.exercisePickerQuery.trim(), st.exercisePickerCreateMuscle, st.exercisePickerCreateTrackingType),
 
       sessionRoutineName: session ? session.routineName : '',
       sessionExercises,
