@@ -120,6 +120,7 @@ export const api = {
   journalPromptJob: (conn, jobId) => call(conn, `/api/journal/prompt/${encodeURIComponent(jobId)}`),
   startClaudeCodeMessage: (conn, text, sessionId, model, workspace) => post(conn, '/api/claude-code/message', { text, sessionId, model, workspace }),
   claudeCodeJob: (conn, jobId) => call(conn, `/api/claude-code/message/${encodeURIComponent(jobId)}`),
+  healthInsight: (conn) => call(conn, '/api/health-insight'),
   startIngest: (conn, text, sourceUrl) => post(conn, '/api/ingest', { text, sourceUrl }),
   ingestJob: (conn, jobId) => call(conn, `/api/ingest/${encodeURIComponent(jobId)}`),
   approveIngest: (conn, jobId) => post(conn, `/api/ingest/${encodeURIComponent(jobId)}/approve`),

@@ -66,6 +66,7 @@ export default class App extends Component {
     codeInput: '', codeBusy: false,
     codeChat: [],
     codeSessionId: null, codeWorkspace: 'repo', codeModel: 'sonnet',
+    liveHealthInsight: null,
     noteQuery: '', noteType: 'All', openNoteId: 'n1',
     galaxySel: null, toast: null, gaugeIdx: 0, reviewIdx: 0,
     isMobile: typeof window !== 'undefined' && window.innerWidth < 760,
@@ -173,6 +174,12 @@ export default class App extends Component {
       this.setState({ liveNotes: null });
     }
     this.refreshJournalEntries();
+    try {
+      const insight = await api.healthInsight(conn);
+      this.setState({ liveHealthInsight: insight });
+    } catch {
+      this.setState({ liveHealthInsight: null });
+    }
     try {
       const calRes = await api.calendarToday(conn);
       this.setState({ liveCalendar: calRes.events });
@@ -1422,6 +1429,10 @@ export default class App extends Component {
       acceptRun: () => this.toastMsg('Zone-2 run locked for tomorrow, 7:00 am ✓'),
       openProteinNote: () => this.setState({ screen: 'notes', openNoteId: 'n1' }),
       reviewSubs: () => this.toastMsg('CFO drafted the cancellations — review in tonight’s reflection'),
+      usingLiveHealthInsight: usingLiveNotes && !!st.liveHealthInsight,
+      healthInsightText: st.liveHealthInsight?.hasInsight
+        ? st.liveHealthInsight.insight
+        : "Nova hasn't spotted a pattern yet — connect your Apple Health data to start getting daily insights here.",
       lunchCardLabel: usingLiveRecipes
         ? (rotation?.slots?.lunch ? `Lunch — ${rotation.slots.lunch.name}` : 'Lunch — not set')
         : 'Lunch — burrito bowl',

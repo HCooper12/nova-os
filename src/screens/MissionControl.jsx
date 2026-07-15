@@ -131,9 +131,15 @@ export function MissionControl({ v }) {
             <span style={css("font:500 9px 'JetBrains Mono',monospace;letter-spacing:.22em;color:rgba(236,229,218,.4)")}>WHILE YOU SLEPT</span>
           </div>
           <div style={css("margin-top:14px;display:flex;flex-direction:column")}>
-            <div style={css("display:flex;gap:13px;align-items:baseline;padding:11px 0;border-bottom:1px solid rgba(236,229,218,.06)")}><span style={css("color:#d8b573")}>✦</span><span style={css("font-size:13.5px;line-height:1.55;color:rgba(236,229,218,.88)")}>You've skipped three runs — Coach moved tomorrow's zone-2 to 7 am. <span onClick={v.acceptRun} style={css("cursor:pointer;color:#6be5f5;font-size:12px;border-bottom:1px dotted rgba(107,229,245,.5)")}>Accept</span></span></div>
-            <div style={css("display:flex;gap:13px;align-items:baseline;padding:11px 0;border-bottom:1px solid rgba(236,229,218,.06)")}><span style={css("color:#d8b573")}>✦</span><span style={css("font-size:13.5px;line-height:1.55;color:rgba(236,229,218,.88)")}>Your <em onClick={v.openProteinNote} style={css("cursor:pointer;font-family:'Instrument Serif',serif;color:#d8b573")}>Huberman — protein timing</em> note now links to 4 recipes in the vault.</span></div>
-            <div style={css("display:flex;gap:13px;align-items:baseline;padding:11px 0")}><span style={css("color:#d8b573")}>✦</span><span style={css("font-size:13.5px;line-height:1.55;color:rgba(236,229,218,.88)")}>CFO flagged two overlapping subscriptions — $23/mo recoverable. <span onClick={v.reviewSubs} style={css("cursor:pointer;color:#6be5f5;font-size:12px;border-bottom:1px dotted rgba(107,229,245,.5)")}>Review</span></span></div>
+            {v.usingLiveHealthInsight ? (
+              <div style={css("display:flex;gap:13px;align-items:baseline;padding:11px 0")}><span style={css("color:#d8b573")}>✦</span><span style={css("font-size:13.5px;line-height:1.55;color:rgba(236,229,218,.88)")}>{v.healthInsightText}</span></div>
+            ) : (
+              <>
+                <div style={css("display:flex;gap:13px;align-items:baseline;padding:11px 0;border-bottom:1px solid rgba(236,229,218,.06)")}><span style={css("color:#d8b573")}>✦</span><span style={css("font-size:13.5px;line-height:1.55;color:rgba(236,229,218,.88)")}>You've skipped three runs — Coach moved tomorrow's zone-2 to 7 am. <span onClick={v.acceptRun} style={css("cursor:pointer;color:#6be5f5;font-size:12px;border-bottom:1px dotted rgba(107,229,245,.5)")}>Accept</span></span></div>
+                <div style={css("display:flex;gap:13px;align-items:baseline;padding:11px 0;border-bottom:1px solid rgba(236,229,218,.06)")}><span style={css("color:#d8b573")}>✦</span><span style={css("font-size:13.5px;line-height:1.55;color:rgba(236,229,218,.88)")}>Your <em onClick={v.openProteinNote} style={css("cursor:pointer;font-family:'Instrument Serif',serif;color:#d8b573")}>Huberman — protein timing</em> note now links to 4 recipes in the vault.</span></div>
+                <div style={css("display:flex;gap:13px;align-items:baseline;padding:11px 0")}><span style={css("color:#d8b573")}>✦</span><span style={css("font-size:13.5px;line-height:1.55;color:rgba(236,229,218,.88)")}>CFO flagged two overlapping subscriptions — $23/mo recoverable. <span onClick={v.reviewSubs} style={css("cursor:pointer;color:#6be5f5;font-size:12px;border-bottom:1px dotted rgba(107,229,245,.5)")}>Review</span></span></div>
+              </>
+            )}
           </div>
         </div>
         <div style={css("border:1px solid rgba(236,229,218,.09);border-radius:14px;padding:20px 24px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01));box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 14px 34px -20px rgba(0,0,0,.9)")}>
