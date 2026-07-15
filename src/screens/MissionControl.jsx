@@ -62,11 +62,11 @@ export function MissionControl({ v }) {
           <div style={css("position:relative;border:1px solid rgba(236,229,218,.09);border-radius:14px;padding:18px 20px;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012));box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 14px 34px -20px rgba(0,0,0,.9);display:flex;gap:16px;align-items:center;animation:fadeUp .5s ease-out")}>
             <svg width="62" height="62" viewBox="0 0 62 62" style={{ flex: 'none' }}>
               <circle cx="31" cy="31" r="26" fill="none" stroke="rgba(236,229,218,.1)" strokeWidth="4"></circle>
-              <circle cx="31" cy="31" r="26" fill="none" stroke="#d8b573" strokeWidth="4" strokeLinecap="round" strokeDasharray="87 163" transform="rotate(-90 31 31)"></circle>
+              <circle cx="31" cy="31" r="26" fill="none" stroke="#d8b573" strokeWidth="4" strokeLinecap="round" strokeDasharray={v.proteinGaugeDasharray} transform="rotate(-90 31 31)"></circle>
             </svg>
             <div>
               <div style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.22em;color:rgba(236,229,218,.45)")}>PROTEIN</div>
-              <div style={css("margin-top:6px;font:400 25px 'Instrument Serif',serif;font-variant-numeric:tabular-nums")}>96<span style={css("font-size:15px;color:rgba(236,229,218,.5)")}>/180g</span></div>
+              <div style={css("margin-top:6px;font:400 25px 'Instrument Serif',serif;font-variant-numeric:tabular-nums")}>{v.proteinGaugeValue}<span style={css("font-size:15px;color:rgba(236,229,218,.5)")}>{v.proteinGaugeTargetLabel}</span></div>
               <div style={css("margin-top:2px;font-size:11.5px;color:rgba(236,229,218,.55)")}>{v.proteinGaugeHint}</div>
             </div>
             <div style={css("position:absolute;top:14px;right:14px;display:flex;gap:5px")}><span style={css("width:5px;height:5px;border-radius:50%;background:rgba(236,229,218,.2)")}></span><span style={css("width:5px;height:5px;border-radius:50%;background:#d8b573")}></span></div>

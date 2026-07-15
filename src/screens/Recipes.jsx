@@ -22,7 +22,7 @@ export function Recipes({ v }) {
               <span style={css("color:#6be5f5")}>{v.rotationTotals.p}P</span> · <span style={css("color:#d8b573")}>{v.rotationTotals.c}C</span> · <span style={css("color:#8a6ad1")}>{v.rotationTotals.f}F</span> · <span style={css("color:#7cd68a")}>{v.rotationTotals.kcal} kcal</span>{v.rotationTargetKcal ? ` / ${v.rotationTargetKcal}` : ''}{v.rotationProteinFloor ? ` · protein floor ${v.rotationProteinFloor}g` : ''}
             </span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${v.rotationSlots.length},1fr)`, gap: '10px', marginTop: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(128px, 1fr))', gap: '10px', marginTop: '12px' }}>
             {v.rotationSlots.map((s) => (
               <div key={s.key} style={{ border: `1px solid rgba(${s.hue},${s.recipeName ? '.45' : '.14'})`, borderRadius: '10px', padding: '10px 12px', background: s.recipeName ? `rgba(${s.hue},.07)` : 'rgba(0,0,0,.2)' }}>
                 <div style={css("display:flex;justify-content:space-between;align-items:center")}>

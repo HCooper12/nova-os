@@ -515,6 +515,11 @@ export default class App extends Component {
     });
     const rotTot = rotation?.totals || { p: 0, c: 0, f: 0, kcal: 0 };
 
+    // protein gauge — real rotation total vs the file's protein floor, once connected
+    const proteinTarget = usingLiveRecipes ? (profile ? profile.proteinFloorG : 180) : 180;
+    const proteinCurrent = usingLiveRecipes ? rotTot.p : 96;
+    const proteinRatio = proteinTarget > 0 ? Math.min(1, proteinCurrent / proteinTarget) : 0;
+
     const recipeList = usingLiveRecipes
       ? st.liveRecipes
           .filter(r => st.recipeFilter === 'All' || RECIPE_CATEGORY_LABEL[r.category] === st.recipeFilter)
@@ -689,12 +694,17 @@ export default class App extends Component {
         ? st.liveCalendar.map(e => ({ time: e.time, label: e.label }))
         : [
             { time: '09:00', label: 'Deep work — video script' },
-            { time: '12:30', label: 'Lunch — burrito bowl · 52g P' },
+            { time: '12:30', label: usingLiveRecipes
+                ? (rotation?.slots?.lunch ? `Lunch — ${rotation.slots.lunch.name} · ${Math.round(rotation.slots.lunch.macros.p)}g P` : 'Lunch — not set yet')
+                : 'Lunch — burrito bowl · 52g P' },
             { time: '17:30', label: 'Gym — push day · wk 6' },
             { time: '20:00', label: 'Reflection with Commander' },
           ],
       rotSleep: st.gaugeIdx === 0,
       rotProtein: st.gaugeIdx === 1,
+      proteinGaugeValue: Math.round(proteinCurrent),
+      proteinGaugeTargetLabel: `/${proteinTarget}g`,
+      proteinGaugeDasharray: `${Math.round(proteinRatio * 163)} 163`,
       reviewConcept: this.reviews[st.reviewIdx].c,
       reviewFrom: this.reviews[st.reviewIdx].f,
       shuffleReview: () => this.setState(s => ({ reviewIdx: (s.reviewIdx + 1 + Math.floor(Math.random() * (this.reviews.length - 1))) % this.reviews.length })),
