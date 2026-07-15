@@ -24,6 +24,15 @@ import { Boot } from './Boot.jsx';
 
 const NOTE_TYPE_COLOR = { concept: '#d8b573', entity: '#e08f6f', topic: '#8a6ad1', source: '#6be5f5', journal: '#5aa87c', analysis: '#ece5da', raw: 'rgba(236,229,218,.5)' };
 
+// Stable color per Apple Calendar name (Work, Health, Family, ...) so the same
+// category always reads the same hue without hand-maintaining a lookup table.
+const CATEGORY_HUES = ['216,181,115', '107,229,245', '138,106,209', '201,111,111', '90,168,124', '224,143,111'];
+function categoryHue(name) {
+  let hash = 0;
+  for (let i = 0; i < (name || '').length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;
+  return CATEGORY_HUES[Math.abs(hash) % CATEGORY_HUES.length];
+}
+
 // Personalization — was editor-configurable in the original design canvas.
 // Tweak these three to re-brand without touching layout code.
 const THEME = 'midnight'; // 'aubergine' | 'midnight' | 'graphite'
@@ -126,7 +135,6 @@ export default class App extends Component {
       else if (e.key === 'Escape') { clearInterval(this.tweakPollIv); this.setState({ paletteOpen: false, openRecipeId: null, galaxySel: null }); }
     };
     window.addEventListener('keydown', this.keyH);
-    this.gaugeIv = setInterval(() => this.setState(s => ({ gaugeIdx: (s.gaugeIdx + 1) % 3 })), 6000);
     this.resizeH = () => {
       const m = window.innerWidth < 760;
       if (m !== this.state.isMobile) {
@@ -136,6 +144,7 @@ export default class App extends Component {
     };
     window.addEventListener('resize', this.resizeH);
     this.setState({ reviewIdx: Math.floor(Math.random() * this.reviews.length) });
+    this.startGaugeRotation();
     this.applyTheme();
     const conn = getConnection();
     if (conn) {
@@ -162,6 +171,14 @@ export default class App extends Component {
   }
 
   // ---------- live data (Obsidian + Calendar) ----------
+  startGaugeRotation() {
+    clearInterval(this.gaugeIv);
+    this.gaugeIv = setInterval(() => this.setState(s => ({ gaugeIdx: (s.gaugeIdx + 1) % 3 })), 6000);
+  }
+  setGaugeIdx(i) {
+    this.setState({ gaugeIdx: i });
+    this.startGaugeRotation(); // manual pick gets a fresh 6s before auto-advancing again
+  }
   async refreshLiveData() {
     const conn = getConnection();
     if (!conn) return;
@@ -1108,16 +1125,33 @@ export default class App extends Component {
     const proteinTarget = usingLiveRecipes ? (profile ? profile.proteinFloorG : 180) : 180;
     const proteinCurrent = usingLiveRecipes ? rotTot.p : 96;
     const proteinRatio = proteinTarget > 0 ? Math.min(1, proteinCurrent / proteinTarget) : 0;
+    const proteinGap = Math.round(proteinTarget - proteinCurrent);
+    const proteinEmptySlot = visibleSlotDefs.find((s) => !rotation?.slots?.[s.key]);
 
-    // steps gauge — today's Apple Health total once the phone-side Shortcut is sending data
+    // health gauges (steps, sleep) — real Apple Health data once the phone-side Shortcut is sending it
     const STEP_GOAL = 10000;
+    const SLEEP_GOAL_MIN = 480; // 8h
     const usingLiveHealthData = !!st.liveHealthDays;
     const todayKey = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
-    const latestHealthDay = usingLiveHealthData
-      ? (st.liveHealthDays.find((d) => d.date === todayKey && d.steps != null) || [...st.liveHealthDays].reverse().find((d) => d.steps != null) || null)
-      : null;
-    const stepsCurrent = latestHealthDay ? latestHealthDay.steps : 0;
+    const latestWithMetric = (key) => !usingLiveHealthData ? null
+      : st.liveHealthDays.find((d) => d.date === todayKey && d[key] != null)
+        || [...st.liveHealthDays].reverse().find((d) => d[key] != null)
+        || null;
+
+    const stepsDay = latestWithMetric('steps');
+    const stepsCurrent = stepsDay ? stepsDay.steps : 0;
     const stepsRatio = Math.min(1, stepsCurrent / STEP_GOAL);
+
+    // sleep: real asleep-minutes vs an 8h goal, and an HRV delta against the
+    // trailing average of the *other* recent days — an honestly-computed
+    // "recovered" signal rather than a fixed caption.
+    const sleepDay = latestWithMetric('sleepAsleepMinutes');
+    const sleepMinutes = sleepDay ? sleepDay.sleepAsleepMinutes : 0;
+    const sleepRatio = Math.min(1, sleepMinutes / SLEEP_GOAL_MIN);
+    const hrvDay = latestWithMetric('hrv');
+    const hrvHistory = usingLiveHealthData ? st.liveHealthDays.filter((d) => d.hrv != null && d !== hrvDay) : [];
+    const hrvBaseline = hrvHistory.length ? hrvHistory.reduce((sum, d) => sum + d.hrv, 0) / hrvHistory.length : null;
+    const hrvDeltaPct = hrvDay && hrvBaseline ? Math.round(((hrvDay.hrv - hrvBaseline) / hrvBaseline) * 100) : null;
 
     const recipeList = usingLiveRecipes
       ? st.liveRecipes
@@ -1440,6 +1474,7 @@ export default class App extends Component {
       openPalette: () => this.setState({ paletteOpen: true, paletteQuery: '' }),
       openFocusNote: () => this.setState({ screen: 'notes', openNoteId: 'n3' }),
       snoozeFocus: () => this.toastMsg('Commander moved the script block to 14:00'),
+      setGaugeIdx: (i) => this.setGaugeIdx(i),
       acceptRun: () => this.toastMsg('Zone-2 run locked for tomorrow, 7:00 am ✓'),
       openProteinNote: () => this.setState({ screen: 'notes', openNoteId: 'n1' }),
       reviewSubs: () => this.toastMsg('CFO drafted the cancellations — review in tonight’s reflection'),
@@ -1458,8 +1493,15 @@ export default class App extends Component {
       lunchCardPhoto: usingLiveRecipes
         ? (rotation?.slots?.lunch ? 'dish photo — ' + rotation.slots.lunch.name.toLowerCase() : 'dish photo — none selected')
         : 'dish photo — burrito bowl',
+      // meaningful + live: reflects today's actual rotation vs. the real protein
+      // floor, and points at whichever meal slot would close the gap — not a
+      // static caption, so it changes as slots get filled through the day.
       proteinGaugeHint: usingLiveRecipes
-        ? (rotation?.slots?.lunch ? `${rotation.slots.lunch.name.toLowerCase()} closes the gap` : 'add a lunch in Recipes to close the gap')
+        ? (proteinCurrent >= proteinTarget
+            ? `${Math.round(proteinCurrent - proteinTarget)}g clear of your ${proteinTarget}g floor`
+            : proteinEmptySlot
+              ? `fill ${proteinEmptySlot.name.toLowerCase()} to close the ${proteinGap}g gap`
+              : `${proteinGap}g under floor — all meals already set`)
         : 'burrito bowl closes the gap',
       openLunch: () => {
         if (usingLiveRecipes) {
@@ -1482,7 +1524,7 @@ export default class App extends Component {
       todayIsLive: !!st.liveCalendar,
       todayEvents: st.liveCalendar
         ? (st.liveCalendar.length
-            ? st.liveCalendar.map(e => ({ time: e.time, label: e.label }))
+            ? st.liveCalendar.map(e => ({ time: e.time, label: e.label, category: e.calendar, categoryHue: categoryHue(e.calendar) }))
             : [{ time: '', label: 'Nothing on the calendar today' }])
         : [
             { time: '09:00', label: 'Deep work — video script' },
@@ -1495,6 +1537,13 @@ export default class App extends Component {
       rotSleep: st.gaugeIdx === 0,
       rotProtein: st.gaugeIdx === 1,
       rotSteps: st.gaugeIdx === 2,
+      sleepGaugeValue: usingLiveHealthData ? (sleepDay ? `${Math.floor(sleepMinutes / 60)}h ${sleepMinutes % 60}m` : '—') : '7h 42m',
+      sleepGaugeDasharray: usingLiveHealthData ? `${Math.round((sleepDay ? sleepRatio : 0) * 163)} 163` : '140 163',
+      sleepGaugeHint: usingLiveHealthData
+        ? (sleepDay
+            ? (hrvDeltaPct != null ? `HRV ${hrvDeltaPct >= 0 ? '+' : ''}${hrvDeltaPct}% vs 7-day avg` : `${Math.round(sleepRatio * 100)}% of 8h goal`)
+            : 'connect Apple Health in Settings')
+        : 'recovered · HRV +6%',
       proteinGaugeValue: Math.round(proteinCurrent),
       proteinGaugeTargetLabel: `/${proteinTarget}g`,
       proteinGaugeDasharray: `${Math.round(proteinRatio * 163)} 163`,

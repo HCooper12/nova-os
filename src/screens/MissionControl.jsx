@@ -1,6 +1,24 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 
+function GaugeDots({ active, accent, onPick }) {
+  return (
+    <div style={css("position:absolute;top:14px;right:14px;display:flex;gap:7px")}>
+      {[0, 1, 2].map((i) => (
+        <Interactive
+          key={i}
+          as="span"
+          onClick={() => onPick(i)}
+          base={{ cursor: 'pointer', width: '13px', height: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          hoverStyle={{}}
+        >
+          <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: i === active ? accent : 'rgba(236,229,218,.2)' }}></span>
+        </Interactive>
+      ))}
+    </div>
+  );
+}
+
 export function MissionControl({ v }) {
   return (
     <div style={v.wrapMission} data-screen-label="Mission Control">
@@ -48,14 +66,14 @@ export function MissionControl({ v }) {
           <div style={css("position:relative;border:1px solid rgba(236,229,218,.09);border-radius:14px;padding:18px 20px;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012));box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 14px 34px -20px rgba(0,0,0,.9);display:flex;gap:16px;align-items:center;animation:fadeUp .5s ease-out")}>
             <svg width="62" height="62" viewBox="0 0 62 62" style={{ flex: 'none' }}>
               <circle cx="31" cy="31" r="26" fill="none" stroke="rgba(236,229,218,.1)" strokeWidth="4"></circle>
-              <circle cx="31" cy="31" r="26" fill="none" stroke="#6be5f5" strokeWidth="4" strokeLinecap="round" strokeDasharray="140 163" transform="rotate(-90 31 31)"></circle>
+              <circle cx="31" cy="31" r="26" fill="none" stroke="#6be5f5" strokeWidth="4" strokeLinecap="round" strokeDasharray={v.sleepGaugeDasharray} transform="rotate(-90 31 31)"></circle>
             </svg>
             <div>
               <div style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.22em;color:rgba(236,229,218,.45)")}>SLEEP</div>
-              <div style={css("margin-top:6px;font:400 25px 'Instrument Serif',serif;font-variant-numeric:tabular-nums")}>7h 42m</div>
-              <div style={css("margin-top:2px;font-size:11.5px;color:rgba(107,229,245,.85)")}>recovered · HRV +6%</div>
+              <div style={css("margin-top:6px;font:400 25px 'Instrument Serif',serif;font-variant-numeric:tabular-nums")}>{v.sleepGaugeValue}</div>
+              <div style={css("margin-top:2px;font-size:11.5px;color:rgba(107,229,245,.85)")}>{v.sleepGaugeHint}</div>
             </div>
-            <div style={css("position:absolute;top:14px;right:14px;display:flex;gap:5px")}><span style={css("width:5px;height:5px;border-radius:50%;background:#6be5f5")}></span><span style={css("width:5px;height:5px;border-radius:50%;background:rgba(236,229,218,.2)")}></span><span style={css("width:5px;height:5px;border-radius:50%;background:rgba(236,229,218,.2)")}></span></div>
+            <GaugeDots active={0} accent="#6be5f5" onPick={v.setGaugeIdx} />
           </div>
         )}
         {v.rotProtein && (
@@ -69,7 +87,7 @@ export function MissionControl({ v }) {
               <div style={css("margin-top:6px;font:400 25px 'Instrument Serif',serif;font-variant-numeric:tabular-nums")}>{v.proteinGaugeValue}<span style={css("font-size:15px;color:rgba(236,229,218,.5)")}>{v.proteinGaugeTargetLabel}</span></div>
               <div style={css("margin-top:2px;font-size:11.5px;color:rgba(236,229,218,.55)")}>{v.proteinGaugeHint}</div>
             </div>
-            <div style={css("position:absolute;top:14px;right:14px;display:flex;gap:5px")}><span style={css("width:5px;height:5px;border-radius:50%;background:rgba(236,229,218,.2)")}></span><span style={css("width:5px;height:5px;border-radius:50%;background:#d8b573")}></span><span style={css("width:5px;height:5px;border-radius:50%;background:rgba(236,229,218,.2)")}></span></div>
+            <GaugeDots active={1} accent="#d8b573" onPick={v.setGaugeIdx} />
           </div>
         )}
         {v.rotSteps && (
@@ -83,7 +101,7 @@ export function MissionControl({ v }) {
               <div style={css("margin-top:6px;font:400 25px 'Instrument Serif',serif;font-variant-numeric:tabular-nums")}>{v.stepsGaugeValue}</div>
               <div style={css("margin-top:2px;font-size:11.5px;color:rgba(236,229,218,.55)")}>{v.stepsGaugeHint}</div>
             </div>
-            <div style={css("position:absolute;top:14px;right:14px;display:flex;gap:5px")}><span style={css("width:5px;height:5px;border-radius:50%;background:rgba(236,229,218,.2)")}></span><span style={css("width:5px;height:5px;border-radius:50%;background:rgba(236,229,218,.2)")}></span><span style={css("width:5px;height:5px;border-radius:50%;background:#a8e063")}></span></div>
+            <GaugeDots active={2} accent="#a8e063" onPick={v.setGaugeIdx} />
           </div>
         )}
 
@@ -163,7 +181,11 @@ export function MissionControl({ v }) {
           </div>
           <div style={css("margin-top:14px;display:flex;flex-direction:column")}>
             {v.todayEvents.map((ev, i) => (
-              <div key={i} style={css("display:flex;gap:14px;padding:8px 0")}><span style={css("font:500 10.5px 'JetBrains Mono',monospace;color:rgba(236,229,218,.4);width:46px;padding-top:2px;font-variant-numeric:tabular-nums")}>{ev.time}</span><span style={css("font-size:13.5px")}>{ev.label}</span></div>
+              <div key={i} style={css("display:flex;gap:14px;align-items:baseline;padding:8px 0")}>
+                <span style={css("font:500 10.5px 'JetBrains Mono',monospace;color:rgba(236,229,218,.4);width:46px;flex:none;padding-top:2px;font-variant-numeric:tabular-nums")}>{ev.time}</span>
+                <span style={css("font-size:13.5px")}>{ev.label}</span>
+                {ev.category && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: '9.5px', letterSpacing: '.06em', padding: '2px 7px', borderRadius: '5px', flex: 'none', color: `rgba(${ev.categoryHue},.9)`, background: `rgba(${ev.categoryHue},.12)` }}>{ev.category.toUpperCase()}</span>}
+              </div>
             ))}
           </div>
         </div>
