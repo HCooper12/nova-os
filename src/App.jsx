@@ -11,6 +11,7 @@ import { Shopping } from './screens/Shopping.jsx';
 import { Workouts } from './screens/Workouts.jsx';
 import { ClaudeCode } from './screens/ClaudeCode.jsx';
 import { Notes } from './screens/Notes.jsx';
+import { Journal } from './screens/Journal.jsx';
 import { Settings } from './screens/Settings.jsx';
 import { MobileChrome } from './MobileChrome.jsx';
 import { RecipeOverlay } from './RecipeOverlay.jsx';
@@ -99,6 +100,15 @@ export default class App extends Component {
     workoutSession: null, sessionCancelConfirm: false,
     liveWorkoutHistory: null, historyRoutineId: null,
 
+    // daily review + journal
+    reviewShuffleIdx: null,
+    reviewReflectOpen: false, reviewReflectText: '', reviewReflectBusy: false, reviewReflectError: null,
+    reviewReflectPromptBusy: false, reviewReflectPromptText: null,
+    liveJournalEntries: null,
+    journalComposerText: '', journalSaveBusy: false, journalSaveError: null,
+    journalPromptBusy: false, journalPromptText: null,
+    journalOpenDate: null,
+
     // transcript ingest
     ingestModalOpen: false, ingestText: '', ingestSourceUrl: '',
     ingestJobId: null, ingestStatus: 'idle', ingestPreview: null, ingestError: null,
@@ -159,9 +169,11 @@ export default class App extends Component {
       const notesRes = await api.notes(conn);
       this.setState({ liveNotes: notesRes.notes });
       if (notesRes.notes[0]) this.selectNote(notesRes.notes[0].id);
+      this.refreshDailyReviewDetail(notesRes.notes);
     } catch {
       this.setState({ liveNotes: null });
     }
+    this.refreshJournalEntries();
     try {
       const calRes = await api.calendarToday(conn);
       this.setState({ liveCalendar: calRes.events });
@@ -689,12 +701,152 @@ export default class App extends Component {
   }
   selectNote(id) {
     this.setState({ openNoteId: id });
-    if (this.state.liveNoteDetails[id]) return;
+    this.ensureNoteDetail(id);
+  }
+  ensureNoteDetail(id) {
+    if (!id || this.state.liveNoteDetails[id]) return;
     const conn = getConnection();
     if (!conn) return;
     api.noteDetail(conn, id).then((detail) => {
       this.setState((s) => ({ liveNoteDetails: { ...s.liveNoteDetails, [id]: detail } }));
     }).catch(() => {});
+  }
+  // Deterministic "concept of the day" — hashes today's date into the pool of
+  // concept/topic pages so it's stable across reloads within a day but
+  // changes daily, without needing a dedicated backend endpoint (the pool
+  // comes straight from the already-fetched notes list).
+  dailyReviewPool(liveNotes) {
+    return (liveNotes || []).filter((n) => n.type === 'concept' || n.type === 'topic');
+  }
+  dailyReviewIndex(pool) {
+    if (!pool.length) return 0;
+    const dateStr = new Date().toISOString().slice(0, 10);
+    let h = 0;
+    for (let i = 0; i < dateStr.length; i++) h = (h * 31 + dateStr.charCodeAt(i)) | 0;
+    return Math.abs(h) % pool.length;
+  }
+  refreshDailyReviewDetail(liveNotes) {
+    const pool = this.dailyReviewPool(liveNotes);
+    const idx = this.state.reviewShuffleIdx != null ? this.state.reviewShuffleIdx : this.dailyReviewIndex(pool);
+    const page = pool[idx];
+    if (page) this.ensureNoteDetail(page.id);
+  }
+  shuffleDailyReview() {
+    const pool = this.dailyReviewPool(this.state.liveNotes);
+    if (pool.length < 2) return;
+    const current = this.state.reviewShuffleIdx != null ? this.state.reviewShuffleIdx : this.dailyReviewIndex(pool);
+    let next = current;
+    while (next === current) next = Math.floor(Math.random() * pool.length);
+    this.setState({ reviewShuffleIdx: next, reviewReflectOpen: false, reviewReflectText: '', reviewReflectPromptText: null });
+    this.ensureNoteDetail(pool[next].id);
+  }
+  openDailyReview() {
+    const pool = this.dailyReviewPool(this.state.liveNotes);
+    const idx = this.state.reviewShuffleIdx != null ? this.state.reviewShuffleIdx : this.dailyReviewIndex(pool);
+    const page = pool[idx];
+    if (page) this.selectNote(page.id);
+    this.setState({ screen: 'notes' });
+  }
+  toggleReviewReflect() {
+    this.setState((s) => ({ reviewReflectOpen: !s.reviewReflectOpen, reviewReflectText: '', reviewReflectError: null, reviewReflectPromptText: null }));
+  }
+  setReviewReflectText(e) {
+    this.setState({ reviewReflectText: e.target.value });
+  }
+  generateReviewReflectPrompt() {
+    const conn = getConnection();
+    const pool = this.dailyReviewPool(this.state.liveNotes);
+    const idx = this.state.reviewShuffleIdx != null ? this.state.reviewShuffleIdx : this.dailyReviewIndex(pool);
+    const page = pool[idx];
+    if (!conn || !page) return;
+    const detail = this.state.liveNoteDetails[page.id];
+    this.setState({ reviewReflectPromptBusy: true });
+    api.startJournalPrompt(conn, page.title, detail?.paragraphs?.[0] || '').then(({ jobId }) => {
+      this.reviewPromptPollIv = setInterval(() => this.pollReviewReflectPrompt(jobId), 2000);
+    }).catch((e) => {
+      this.setState({ reviewReflectPromptBusy: false });
+      this.toastMsg('Could not generate a prompt: ' + e.message);
+    });
+  }
+  pollReviewReflectPrompt(jobId) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.journalPromptJob(conn, jobId).then((job) => {
+      if (job.status === 'ready') {
+        clearInterval(this.reviewPromptPollIv);
+        this.setState({ reviewReflectPromptBusy: false, reviewReflectPromptText: job.result.prompt });
+      } else if (job.status === 'error') {
+        clearInterval(this.reviewPromptPollIv);
+        this.setState({ reviewReflectPromptBusy: false });
+        this.toastMsg('Could not generate a prompt: ' + job.error);
+      }
+    }).catch(() => {});
+  }
+  saveReviewReflection() {
+    const conn = getConnection();
+    const text = this.state.reviewReflectText.trim();
+    const pool = this.dailyReviewPool(this.state.liveNotes);
+    const idx = this.state.reviewShuffleIdx != null ? this.state.reviewShuffleIdx : this.dailyReviewIndex(pool);
+    const page = pool[idx];
+    if (!conn || !text || !page) return;
+    this.setState({ reviewReflectBusy: true });
+    api.addJournalEntry(conn, text, page.title).then(() => {
+      this.setState({ reviewReflectBusy: false, reviewReflectOpen: false, reviewReflectText: '', reviewReflectPromptText: null });
+      this.toastMsg('Reflection saved to your journal ✓');
+      this.refreshJournalEntries();
+    }).catch((e) => {
+      this.setState({ reviewReflectBusy: false });
+      this.toastMsg('Could not save reflection: ' + e.message);
+    });
+  }
+  refreshJournalEntries() {
+    const conn = getConnection();
+    if (!conn) return;
+    api.journalEntries(conn, 30).then(({ entries }) => this.setState({ liveJournalEntries: entries })).catch(() => {});
+  }
+  setJournalComposerText(e) {
+    this.setState({ journalComposerText: e.target.value });
+  }
+  generateJournalPrompt() {
+    const conn = getConnection();
+    if (!conn) return;
+    this.setState({ journalPromptBusy: true });
+    api.startJournalPrompt(conn, null, null).then(({ jobId }) => {
+      this.journalPromptPollIv = setInterval(() => this.pollJournalPrompt(jobId), 2000);
+    }).catch((e) => {
+      this.setState({ journalPromptBusy: false });
+      this.toastMsg('Could not generate a prompt: ' + e.message);
+    });
+  }
+  pollJournalPrompt(jobId) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.journalPromptJob(conn, jobId).then((job) => {
+      if (job.status === 'ready') {
+        clearInterval(this.journalPromptPollIv);
+        this.setState({ journalPromptBusy: false, journalPromptText: job.result.prompt });
+      } else if (job.status === 'error') {
+        clearInterval(this.journalPromptPollIv);
+        this.setState({ journalPromptBusy: false });
+        this.toastMsg('Could not generate a prompt: ' + job.error);
+      }
+    }).catch(() => {});
+  }
+  submitJournalEntry() {
+    const conn = getConnection();
+    const text = this.state.journalComposerText.trim();
+    if (!conn || !text) return;
+    this.setState({ journalSaveBusy: true, journalSaveError: null });
+    api.addJournalEntry(conn, text).then(() => {
+      this.setState({ journalSaveBusy: false, journalComposerText: '', journalPromptText: null });
+      this.toastMsg('Journal entry saved ✓');
+      this.refreshJournalEntries();
+    }).catch((e) => {
+      this.setState({ journalSaveBusy: false, journalSaveError: e.message });
+    });
+  }
+  toggleJournalDay(date) {
+    this.setState((s) => ({ journalOpenDate: s.journalOpenDate === date ? null : date }));
   }
   async testSettingsConnection() {
     this.setState({ settingsTestStatus: 'testing', settingsTestMessage: 'Testing…' });
@@ -1128,6 +1280,25 @@ export default class App extends Component {
     const on = usingLiveNotes ? null : (this.notes.find(n => n.id === st.openNoteId) || this.notes[0]);
     const noteByTitle = (label) => this.notes.find(n => n.title.startsWith(label.split(' ·')[0].slice(0, 12)));
 
+    // daily review — a deterministic-by-date pick from the real Concepts/Topics
+    // pages in the vault, falling back to the fictional demo cards when not connected
+    const usingLiveReview = usingLiveNotes;
+    const reviewPool = this.dailyReviewPool(st.liveNotes);
+    const reviewIdx = st.reviewShuffleIdx != null ? st.reviewShuffleIdx : this.dailyReviewIndex(reviewPool);
+    const reviewPage = reviewPool[reviewIdx] || null;
+    const reviewDetail = reviewPage ? st.liveNoteDetails[reviewPage.id] : null;
+    const reviewExcerpt = reviewDetail?.paragraphs?.[0] || '';
+
+    // journal — live entries (Wiki/Journal/) grouped by day, newest first
+    const journalDays = (st.liveJournalEntries || []).map((d) => ({
+      date: d.date,
+      open: st.journalOpenDate === d.date,
+      toggle: () => this.toggleJournalDay(d.date),
+      count: d.sections.length,
+      preview: (d.sections[d.sections.length - 1]?.text || '').replace(/\s+/g, ' ').slice(0, 100),
+      sections: d.sections.map((s) => ({ time: s.time, heading: s.heading ? s.heading.replace(/\[\[([^\]]+)\]\]/g, '$1') : null, text: s.text })),
+    }));
+
     // palette
     const cmds = [
       { icon: 'I.', iconColor: '#d8b573', label: 'Mission Control', hint: 'GO', run: go('mission') },
@@ -1195,6 +1366,7 @@ export default class App extends Component {
       wrapWorkouts: mob ? mp : { padding: '28px 40px 44px' },
       wrapCode: wrapTall || { padding: '28px 40px 44px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
       wrapNotes: wrapTall || { padding: '28px 40px 44px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
+      wrapJournal: mob ? mp : { padding: '28px 40px 44px' },
       gridStats: mob ? col('20px') : { display: 'grid', gridTemplateColumns: '1.7fr 1fr 1fr', gap: '14px', marginTop: '24px' },
       gridNoticed: mob ? col('12px') : { display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: '14px', marginTop: '14px' },
       gridVault: mob ? col('12px') : { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px', marginTop: '14px' },
@@ -1208,7 +1380,7 @@ export default class App extends Component {
       gridRecipeOv: mob ? { display: 'flex', flexDirection: 'column', gap: '20px', padding: '18px' } : { display: 'grid', gridTemplateColumns: '300px 1fr', gap: '26px', padding: '26px' },
       recipeOvWrap: { position: 'fixed', inset: 0, background: 'rgba(8,5,12,.72)', backdropFilter: 'blur(6px)', zIndex: 60, display: 'flex', alignItems: mob ? 'flex-start' : 'center', justifyContent: 'center', padding: mob ? '14px' : '40px', overflowY: 'auto' },
       isMission: st.screen === 'mission', isVoice: st.screen === 'voice', isGalaxy: st.screen === 'galaxy',
-      isRecipes: st.screen === 'recipes', isShopping: st.screen === 'shopping', isWorkouts: st.screen === 'workouts', isCode: st.screen === 'code', isNotes: st.screen === 'notes',
+      isRecipes: st.screen === 'recipes', isShopping: st.screen === 'shopping', isWorkouts: st.screen === 'workouts', isCode: st.screen === 'code', isNotes: st.screen === 'notes', isJournal: st.screen === 'journal',
       clock: st.clock,
       dateLabel: new Date().toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }).toUpperCase().replace(/,/g, ''),
       greeting: (new Date().getHours() < 12 ? 'Good morning, ' : new Date().getHours() < 18 ? 'Good afternoon, ' : 'Good evening, ') + userName + '.',
@@ -1218,8 +1390,9 @@ export default class App extends Component {
         Object.assign(mkNav('Shopping List', 'VI.', 'shopping'), { count: String(shoppingItems.length) }),
         Object.assign(mkNav('Workouts', 'VII.', 'workouts'), { count: usingLiveWorkouts ? String(liveRoutines.length) : 'wk6' }),
         Object.assign(mkNav('Notes', 'VIII.', 'notes'), { count: usingLiveNotes ? String(st.liveNotes.length) : '186' }),
+        Object.assign(mkNav('Journal', 'IX.', 'journal'), { count: String(journalDays.length) }),
       ],
-      navSystem: [mkNav('Settings', 'IX.', 'settings')],
+      navSystem: [mkNav('Settings', 'X.', 'settings')],
 
       // shopping list
       shoppingHeaderLabel: st.liveShoppingList ? `${shoppingItems.length} ITEM${shoppingItems.length === 1 ? '' : 'S'} · LIVE FROM OBSIDIAN` : 'CONNECT A BACKEND IN SETTINGS',
@@ -1298,10 +1471,24 @@ export default class App extends Component {
       proteinGaugeValue: Math.round(proteinCurrent),
       proteinGaugeTargetLabel: `/${proteinTarget}g`,
       proteinGaugeDasharray: `${Math.round(proteinRatio * 163)} 163`,
-      reviewConcept: this.reviews[st.reviewIdx].c,
-      reviewFrom: this.reviews[st.reviewIdx].f,
-      shuffleReview: () => this.setState(s => ({ reviewIdx: (s.reviewIdx + 1 + Math.floor(Math.random() * (this.reviews.length - 1))) % this.reviews.length })),
-      openReview: () => { this.setState({ screen: 'notes', openNoteId: this.reviews[st.reviewIdx].id }); this.toastMsg('Commander queued this concept for tonight’s reflection'); },
+      reviewConcept: usingLiveReview
+        ? (reviewPage ? (reviewExcerpt ? (reviewExcerpt.length > 130 ? reviewExcerpt.slice(0, 127) + '…' : reviewExcerpt) : 'Loading…') : 'Add some Concepts or Topics to your wiki to start daily review')
+        : this.reviews[st.reviewIdx].c,
+      reviewFrom: usingLiveReview ? (reviewPage ? reviewPage.title : '') : this.reviews[st.reviewIdx].f,
+      shuffleReview: usingLiveReview ? () => this.shuffleDailyReview() : () => this.setState(s => ({ reviewIdx: (s.reviewIdx + 1 + Math.floor(Math.random() * (this.reviews.length - 1))) % this.reviews.length })),
+      openReview: usingLiveReview
+        ? () => this.openDailyReview()
+        : () => { this.setState({ screen: 'notes', openNoteId: this.reviews[st.reviewIdx].id }); this.toastMsg('Commander queued this concept for tonight’s reflection'); },
+      reviewShowReflect: usingLiveReview && !!reviewPage,
+      reviewReflectOpen: st.reviewReflectOpen,
+      toggleReviewReflect: () => this.toggleReviewReflect(),
+      reviewReflectText: st.reviewReflectText,
+      setReviewReflectText: (e) => this.setReviewReflectText(e),
+      reviewReflectBusy: st.reviewReflectBusy,
+      reviewReflectPromptBusy: st.reviewReflectPromptBusy,
+      reviewReflectPromptText: st.reviewReflectPromptText,
+      generateReviewReflectPrompt: () => this.generateReviewReflectPrompt(),
+      saveReviewReflection: () => this.saveReviewReflection(),
 
       // voice
       micOn: st.micOn,
@@ -1550,6 +1737,18 @@ export default class App extends Component {
             else this.toastMsg('Linked note opens once that part of the vault is synced');
           } })),
 
+      // journal
+      journalHeaderLabel: usingLiveNotes ? `${journalDays.length} DAY${journalDays.length === 1 ? '' : 'S'} · LIVE FROM OBSIDIAN` : 'CONNECT A BACKEND IN SETTINGS',
+      journalComposerText: st.journalComposerText,
+      setJournalComposerText: (e) => this.setJournalComposerText(e),
+      journalSaveBusy: st.journalSaveBusy,
+      journalSaveError: st.journalSaveError,
+      submitJournalEntry: () => this.submitJournalEntry(),
+      journalPromptBusy: st.journalPromptBusy,
+      journalPromptText: st.journalPromptText,
+      generateJournalPrompt: () => this.generateJournalPrompt(),
+      journalDays,
+
       // settings
       isSettings: st.screen === 'settings',
       wrapSettings: mob ? mp : { padding: '28px 40px 44px' },
@@ -1645,6 +1844,7 @@ export default class App extends Component {
             {v.isShopping && <Shopping v={v} />}
             {v.isWorkouts && <Workouts v={v} />}
             {v.isNotes && <Notes v={v} />}
+            {v.isJournal && <Journal v={v} />}
             {v.isSettings && <Settings v={v} />}
           </main>
         </div>

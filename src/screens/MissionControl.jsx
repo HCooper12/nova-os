@@ -81,8 +81,46 @@ export function MissionControl({ v }) {
           <div style={css("margin-top:8px;font:400 18px/1.25 'Instrument Serif',serif;text-wrap:balance")}>{v.reviewConcept}</div>
           <div style={css("margin-top:auto;padding-top:8px;display:flex;align-items:center;justify-content:space-between;gap:10px")}>
             <span style={css("font-size:10.5px;color:rgba(236,229,218,.5);overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>from <span style={css("font-style:italic;font-family:'Instrument Serif',serif;color:#b9a1e8")}>{v.reviewFrom}</span></span>
-            <Interactive as="span" onClick={v.openReview} base="cursor:pointer;flex:none;font-size:11.5px;font-weight:500;padding:6px 12px;border-radius:7px;border:1px solid rgba(138,106,209,.45);color:#cbb6f2;background:rgba(138,106,209,.1)" hoverStyle="background:rgba(138,106,209,.22)">Review</Interactive>
+            <div style={css("display:flex;gap:8px;flex:none")}>
+              {v.reviewShowReflect && (
+                <Interactive as="span" onClick={v.toggleReviewReflect} base={{ cursor: 'pointer', fontSize: '11.5px', fontWeight: 500, padding: '6px 12px', borderRadius: '7px', border: '1px solid rgba(236,229,218,.16)', color: v.reviewReflectOpen ? '#ece5da' : 'rgba(236,229,218,.6)', background: v.reviewReflectOpen ? 'rgba(255,255,255,.06)' : 'none' }} hoverStyle={{ color: '#ece5da' }}>Reflect</Interactive>
+              )}
+              <Interactive as="span" onClick={v.openReview} base="cursor:pointer;font-size:11.5px;font-weight:500;padding:6px 12px;border-radius:7px;border:1px solid rgba(138,106,209,.45);color:#cbb6f2;background:rgba(138,106,209,.1)" hoverStyle="background:rgba(138,106,209,.22)">Review</Interactive>
+            </div>
           </div>
+          {v.reviewReflectOpen && (
+            <div style={css("margin-top:12px;padding-top:12px;border-top:1px solid rgba(138,106,209,.15)")}>
+              <div style={css("display:flex;justify-content:flex-end")}>
+                <Interactive
+                  as="span"
+                  onClick={v.reviewReflectPromptBusy ? undefined : v.generateReviewReflectPrompt}
+                  base={{ cursor: 'pointer', font: "500 9.5px 'JetBrains Mono',monospace", padding: '5px 10px', borderRadius: '6px', color: '#cbb6f2', opacity: v.reviewReflectPromptBusy ? .6 : 1 }}
+                  hoverStyle={{ background: 'rgba(138,106,209,.1)' }}
+                >
+                  {v.reviewReflectPromptBusy ? 'THINKING…' : '✦ Generate a prompt'}
+                </Interactive>
+              </div>
+              {v.reviewReflectPromptText && (
+                <div style={css("font:italic 400 13px/1.5 'Instrument Serif',serif;color:#cbb6f2;margin-bottom:8px")}>{v.reviewReflectPromptText}</div>
+              )}
+              <textarea
+                value={v.reviewReflectText}
+                onChange={v.setReviewReflectText}
+                placeholder="Your reflection on this…"
+                style={css("width:100%;box-sizing:border-box;height:70px;resize:vertical;background:rgba(0,0,0,.28);border:1px solid rgba(236,229,218,.12);border-radius:8px;padding:9px 12px;color:#ece5da;font-size:12.5px;font-family:'Instrument Sans',sans-serif;line-height:1.5;outline:none")}
+              />
+              <div style={css("margin-top:8px;display:flex;justify-content:flex-end")}>
+                <Interactive
+                  as="span"
+                  onClick={v.reviewReflectBusy ? undefined : v.saveReviewReflection}
+                  base={{ cursor: 'pointer', font: "500 10.5px 'JetBrains Mono',monospace", padding: '7px 14px', borderRadius: '7px', background: '#b9a1e8', color: '#1a1322', opacity: v.reviewReflectBusy ? .6 : 1 }}
+                  hoverStyle={{ background: '#cbb6f2' }}
+                >
+                  {v.reviewReflectBusy ? 'Saving…' : 'Save reflection'}
+                </Interactive>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
