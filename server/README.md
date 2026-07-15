@@ -122,3 +122,81 @@ ingest is a real Claude Code session and costs real usage (capped at $3 per inge
 `--max-budget-usd`; override in `server/lib/ingest.js` if you need more for very long
 transcripts). If `claude` isn't at `~/.local/bin/claude` on your machine, set `CLAUDE_BIN` in
 `.env` to the correct path.
+
+## 6. Apple Health (iOS Shortcuts)
+
+`/api/health-data` is already live on the backend and Mission Control's "Nova noticed" panel
+is already waiting on it — nothing here needs a code change. This section is entirely about
+building a Shortcut on your iPhone that POSTs to it once a day. HealthKit has no cloud API,
+so the phone itself has to be the one sending the data.
+
+### What it needs to send
+
+```
+POST <your Tailscale URL>/api/health-data
+Authorization: Bearer <your API_TOKEN>
+Content-Type: application/json
+
+{
+  "date": "2026-07-16",
+  "metrics": {
+    "steps": 8421,
+    "restingHeartRate": 54,
+    "hrv": 62,
+    "sleepAsleepMinutes": 452,
+    "sleepInBedMinutes": 480,
+    "activeEnergyKcal": 612,
+    "walkingRunningDistanceKm": 6.3,
+    "vo2Max": 47.2,
+    "weightKg": 78.4
+  }
+}
+```
+
+Your Tailscale URL and API token are the same ones already in Nova OS → Settings on your
+phone (and `API_TOKEN` in this `.env`). Any metric can be omitted — the backend merges
+rather than overwrites a day's file — so if one block below turns out to be too fiddly,
+skip it for now and add it later; the rest still works.
+
+### Building the Shortcut
+
+1. **Shortcuts app → Automation tab → + → Create Personal Automation → Time of Day.** Pick
+   something late, e.g. 11:50 PM, Daily. Turn **off** "Ask Before Running" so it fires silently.
+2. **Format Date** on "Current Date", Custom format `yyyy-MM-dd` → this is your `date` field.
+3. For each of these, add **Find Health Samples** (type + "Today") → **Calculate Statistics**
+   → **Set Variable** to name the result:
+
+   | Metric | Type | Statistic | Nova key |
+   |---|---|---|---|
+   | Steps | Steps | Sum | `steps` |
+   | Resting Heart Rate | Resting Heart Rate | Average | `restingHeartRate` |
+   | HRV | Heart Rate Variability | Average | `hrv` |
+   | Active Energy | Active Energy | Sum | `activeEnergyKcal` |
+   | Distance | Walking + Running Distance | Sum | `walkingRunningDistanceKm` |
+   | VO2 Max | VO2 Max | Most Recent | `vo2Max` |
+   | Weight | Weight (or "Last 7 Days" if you don't weigh in daily) | Most Recent | `weightKg` |
+
+   Add a **Convert Measurement** step before setting the variable for Distance (→ Kilometers)
+   and Weight (→ Kilograms) if your phone's Health units are set to miles/lb.
+
+4. **Sleep** needs two blocks instead of one, both over "Yesterday 6:00 PM to Today 12:00 PM"
+   (sleep usually starts the evening before, so "Today" alone misses it):
+   - **Find Health Samples**: Sleep Analysis, Value is Asleep (select all Asleep sub-values —
+     Core/Deep/REM — if your iOS version splits them out) → **Calculate Statistics: Sum**.
+     For Sleep Analysis samples this sums *duration*, not a quantity. → `AsleepDuration`.
+   - Same again with Value is In Bed → `InBedDuration`.
+   - Convert both to minutes (**Format Duration**, or divide by 60 with **Calculate** if it
+     comes back as seconds) → `sleepAsleepMinutes`, `sleepInBedMinutes`. Tap **Show Result**
+     on these two while building and sanity-check they're in the ~400-550 range before wiring
+     up the POST — sleep is the one block worth testing in isolation first.
+5. **Dictionary** — one key per Nova key above, values = the matching variables.
+6. **Dictionary** (outer) — two keys: `date` (from step 2) and `metrics` (from step 5).
+7. **Get Contents of URL**: URL `<Tailscale URL>/api/health-data`, Method POST, Headers
+   `Authorization: Bearer <API_TOKEN>` + `Content-Type: application/json`, Request Body JSON
+   → the outer dictionary from step 6.
+8. Run it once manually from the Shortcuts tab (not the automation) to test. First run prompts
+   you to allow Health access per category — tap Allow each time. Check the response from
+   **Get Contents of URL** — it should echo back the merged day object.
+
+Once a day of real data lands, Nova checks hourly and generates a real insight (capped at
+$0.50/day) the first time it finds data — no further setup needed.

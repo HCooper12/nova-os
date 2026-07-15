@@ -66,7 +66,7 @@ export default class App extends Component {
     codeInput: '', codeBusy: false,
     codeChat: [],
     codeSessionId: null, codeWorkspace: 'repo', codeModel: 'sonnet',
-    liveHealthInsight: null,
+    liveHealthInsight: null, liveHealthDays: null,
     noteQuery: '', noteType: 'All', openNoteId: 'n1',
     galaxySel: null, toast: null, gaugeIdx: 0, reviewIdx: 0,
     isMobile: typeof window !== 'undefined' && window.innerWidth < 760,
@@ -126,7 +126,7 @@ export default class App extends Component {
       else if (e.key === 'Escape') { clearInterval(this.tweakPollIv); this.setState({ paletteOpen: false, openRecipeId: null, galaxySel: null }); }
     };
     window.addEventListener('keydown', this.keyH);
-    this.gaugeIv = setInterval(() => this.setState(s => ({ gaugeIdx: 1 - s.gaugeIdx })), 6000);
+    this.gaugeIv = setInterval(() => this.setState(s => ({ gaugeIdx: (s.gaugeIdx + 1) % 3 })), 6000);
     this.resizeH = () => {
       const m = window.innerWidth < 760;
       if (m !== this.state.isMobile) {
@@ -179,6 +179,12 @@ export default class App extends Component {
       this.setState({ liveHealthInsight: insight });
     } catch {
       this.setState({ liveHealthInsight: null });
+    }
+    try {
+      const healthRes = await api.healthData(conn, 7);
+      this.setState({ liveHealthDays: healthRes.days.length ? healthRes.days : null });
+    } catch {
+      this.setState({ liveHealthDays: null });
     }
     try {
       const calRes = await api.calendarToday(conn);
@@ -872,7 +878,7 @@ export default class App extends Component {
   }
   disconnectSettings() {
     setConnection(null);
-    this.setState({ settingsBaseUrl: '', settingsToken: '', settingsTestStatus: 'idle', settingsTestMessage: '', liveNotes: null, liveNoteDetails: {}, liveCalendar: null, liveRecipes: null, liveRotation: null, liveRecipeProfile: null, rotationShowExtra: false, recipeAddOpen: false, liveShoppingList: null, openNoteId: 'n1', liveWorkoutExercises: null, liveWorkoutRoutines: null, liveWorkoutSchedule: null, workoutsView: 'routines', openRoutineId: null, workoutSession: null, liveWorkoutHistory: null });
+    this.setState({ settingsBaseUrl: '', settingsToken: '', settingsTestStatus: 'idle', settingsTestMessage: '', liveNotes: null, liveNoteDetails: {}, liveCalendar: null, liveRecipes: null, liveRotation: null, liveRecipeProfile: null, rotationShowExtra: false, recipeAddOpen: false, liveShoppingList: null, openNoteId: 'n1', liveWorkoutExercises: null, liveWorkoutRoutines: null, liveWorkoutSchedule: null, workoutsView: 'routines', openRoutineId: null, workoutSession: null, liveWorkoutHistory: null, liveHealthDays: null });
     this.toastMsg('Disconnected — back to demo data');
   }
 
@@ -1102,6 +1108,16 @@ export default class App extends Component {
     const proteinTarget = usingLiveRecipes ? (profile ? profile.proteinFloorG : 180) : 180;
     const proteinCurrent = usingLiveRecipes ? rotTot.p : 96;
     const proteinRatio = proteinTarget > 0 ? Math.min(1, proteinCurrent / proteinTarget) : 0;
+
+    // steps gauge — today's Apple Health total once the phone-side Shortcut is sending data
+    const STEP_GOAL = 10000;
+    const usingLiveHealthData = !!st.liveHealthDays;
+    const todayKey = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
+    const latestHealthDay = usingLiveHealthData
+      ? (st.liveHealthDays.find((d) => d.date === todayKey && d.steps != null) || [...st.liveHealthDays].reverse().find((d) => d.steps != null) || null)
+      : null;
+    const stepsCurrent = latestHealthDay ? latestHealthDay.steps : 0;
+    const stepsRatio = Math.min(1, stepsCurrent / STEP_GOAL);
 
     const recipeList = usingLiveRecipes
       ? st.liveRecipes
@@ -1464,8 +1480,10 @@ export default class App extends Component {
         ? (todayRoutine ? 'workout — ' + todayRoutine.name.toLowerCase() : 'workout — rest day')
         : 'workout — push day',
       todayIsLive: !!st.liveCalendar,
-      todayEvents: st.liveCalendar && st.liveCalendar.length
-        ? st.liveCalendar.map(e => ({ time: e.time, label: e.label }))
+      todayEvents: st.liveCalendar
+        ? (st.liveCalendar.length
+            ? st.liveCalendar.map(e => ({ time: e.time, label: e.label }))
+            : [{ time: '', label: 'Nothing on the calendar today' }])
         : [
             { time: '09:00', label: 'Deep work — video script' },
             { time: '12:30', label: usingLiveRecipes
@@ -1476,9 +1494,15 @@ export default class App extends Component {
           ],
       rotSleep: st.gaugeIdx === 0,
       rotProtein: st.gaugeIdx === 1,
+      rotSteps: st.gaugeIdx === 2,
       proteinGaugeValue: Math.round(proteinCurrent),
       proteinGaugeTargetLabel: `/${proteinTarget}g`,
       proteinGaugeDasharray: `${Math.round(proteinRatio * 163)} 163`,
+      stepsGaugeValue: stepsCurrent.toLocaleString(),
+      stepsGaugeDasharray: `${Math.round(stepsRatio * 163)} 163`,
+      stepsGaugeHint: usingLiveHealthData
+        ? (stepsCurrent >= STEP_GOAL ? `${STEP_GOAL.toLocaleString()} goal reached` : `${(STEP_GOAL - stepsCurrent).toLocaleString()} to ${STEP_GOAL.toLocaleString()} goal`)
+        : 'connect Apple Health in Settings',
       reviewConcept: usingLiveReview
         ? (reviewPage ? reviewPage.title : 'Add some Concepts or Topics to your wiki to start daily review')
         : this.reviews[st.reviewIdx].c,
