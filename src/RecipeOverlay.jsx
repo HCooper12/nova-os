@@ -11,7 +11,17 @@ export function RecipeOverlay({ v }) {
         </div>
         <div style={v.gridRecipeOv}>
           <div>
-            <div style={v.orPhStyle}><span style={css("font:400 10px 'JetBrains Mono',monospace;color:rgba(236,229,218,.55)")}>{v.orPhLabel}</span></div>
+            {v.orPhotoUrl ? (
+              <div style={css("height:170px;border-radius:12px;overflow:hidden;position:relative")}>
+                <img src={v.orPhotoUrl} alt={v.orName} style={css("width:100%;height:100%;object-fit:cover;display:block")} />
+              </div>
+            ) : (
+              <div style={v.orPhStyle}><span style={css("font:400 10px 'JetBrains Mono',monospace;color:rgba(236,229,218,.55)")}>{v.orPhLabel}</span></div>
+            )}
+            <label style={css("cursor:pointer;display:block;margin-top:8px;text-align:center;font:500 10px 'JetBrains Mono',monospace;letter-spacing:.08em;color:#6be5f5;border:1px solid rgba(107,229,245,.3);border-radius:8px;padding:8px;background:rgba(107,229,245,.05)")}>
+              {v.orPhotoUploadBusy ? 'Saving…' : (v.orPhotoUrl ? 'Change photo' : '+ Add a photo of this dish')}
+              <input type="file" accept="image/*" onChange={v.onRecipePhotoFile} disabled={v.orPhotoUploadBusy} style={css("display:none")} />
+            </label>
             <div style={css("margin-top:14px;border:1px solid rgba(236,229,218,.09);border-radius:12px;padding:15px 17px;background:rgba(0,0,0,.22)")}>
               <div style={css("display:flex;justify-content:space-between;align-items:baseline")}><span style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:rgba(236,229,218,.45)")}>MACROS</span><span style={css("font:400 10px 'JetBrains Mono',monospace;color:rgba(236,229,218,.45)")}>× {v.servings}</span></div>
               <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:9px;font:400 12px 'JetBrains Mono',monospace")}>

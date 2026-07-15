@@ -88,6 +88,15 @@ export const api = {
   tweakRecipe: (conn, id, request) => post(conn, `/api/recipes/${encodeURIComponent(id)}/tweak`, { request }),
   tweakRecipeJob: (conn, jobId) => call(conn, `/api/recipes/tweak/${encodeURIComponent(jobId)}`),
   addAlternate: (conn, id, alt) => post(conn, `/api/recipes/${encodeURIComponent(id)}/alternates`, alt),
+  addRecipePhoto: (conn, id, imageDataUrl) => post(conn, `/api/recipes/${encodeURIComponent(id)}/photo`, { image: imageDataUrl }),
+  recipePhotoBlobUrl: async (conn, id) => {
+    const res = await fetch(baseOf(conn) + `/api/recipes/${encodeURIComponent(id)}/photo`, {
+      headers: { Authorization: `Bearer ${conn.token}` },
+    });
+    if (!res.ok) return null; // 404 (no photo yet) — not an error case
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  },
   shoppingList: (conn) => call(conn, '/api/shopping-list'),
   addShoppingItems: (conn, items) => post(conn, '/api/shopping-list/items', { items }),
   addShoppingItemsJob: (conn, jobId) => call(conn, `/api/shopping-list/add-items/${encodeURIComponent(jobId)}`),

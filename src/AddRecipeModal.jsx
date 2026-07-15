@@ -46,6 +46,24 @@ export function AddRecipeModal({ v }) {
           )}
         </div>
 
+        <div style={css("margin-top:16px")}>
+          <div style={css("font:500 9px 'JetBrains Mono',monospace;letter-spacing:.14em;color:rgba(236,229,218,.4)")}>DISH PHOTO (OPTIONAL)</div>
+          <div style={css("margin-top:6px;display:flex;align-items:center;gap:12px;flex-wrap:wrap")}>
+            {v.recipeAddPhotoDataUrl && (
+              <div style={css("width:64px;height:64px;border-radius:8px;overflow:hidden;flex:none")}>
+                <img src={v.recipeAddPhotoDataUrl} alt="" style={css("width:100%;height:100%;object-fit:cover;display:block")} />
+              </div>
+            )}
+            <label style={css("cursor:pointer;font-size:12px;padding:9px 14px;border-radius:8px;border:1px solid rgba(216,181,115,.35);color:#d8b573;background:rgba(216,181,115,.06)")}>
+              {v.recipeAddPhotoDataUrl ? 'Change photo' : 'Choose photo'}
+              <input type="file" accept="image/*" onChange={v.onRecipeAddPhotoFile} style={css("display:none")} />
+            </label>
+            {v.recipeAddPhotoDataUrl && (
+              <Interactive as="span" onClick={v.clearRecipeAddPhoto} base="cursor:pointer;font-size:11.5px;color:rgba(236,229,218,.4)" hoverStyle="color:#c96f6f">remove</Interactive>
+            )}
+          </div>
+        </div>
+
         <div style={css("margin-top:16px;display:flex;gap:12px")}>
           <div style={css("flex:2")}>
             <div style={css("font:500 9px 'JetBrains Mono',monospace;letter-spacing:.14em;color:rgba(236,229,218,.4)")}>NAME</div>

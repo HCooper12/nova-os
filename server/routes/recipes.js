@@ -7,6 +7,7 @@ import { loadRecipeData, addRecipe, addAlternate } from '../lib/recipes.js';
 import { loadRotation, setRotationSlot } from '../lib/rotation.js';
 import { startScan, getScanJob } from '../lib/scanRecipe.js';
 import { startTweak, getTweakJob } from '../lib/tweakRecipe.js';
+import { savePhoto, getPhoto, listPhotoRecipeIds } from '../lib/recipePhotos.js';
 
 const VALID_CATEGORIES = ['CORE DAILY MEALS', 'ROTATION / SWAP MEALS', 'TREATS'];
 const IMAGE_DATA_URL = /^data:image\/(jpeg|jpg|png|webp|gif);base64,(.+)$/;
@@ -40,7 +41,8 @@ export function recipesRouter(vaultPath) {
   router.get('/recipes', async (req, res, next) => {
     try {
       const data = await loadRecipeData(vaultPath);
-      res.json(data);
+      const photoIds = await listPhotoRecipeIds(vaultPath);
+      res.json({ ...data, recipes: data.recipes.map((r) => ({ ...r, hasPhoto: photoIds.has(r.id) })) });
     } catch (err) {
       if (err.code === 'ENOENT') return res.json({ recipes: [], profile: null });
       next(err);
@@ -137,6 +139,29 @@ export function recipesRouter(vaultPath) {
       res.json({ recipe: updated });
     } catch (err) {
       res.status(400).json({ error: err.message });
+    }
+  });
+
+  router.post('/recipes/:id/photo', async (req, res, next) => {
+    try {
+      const { recipes } = await loadRecipeData(vaultPath);
+      if (!recipes.some((r) => r.id === req.params.id)) return res.status(404).json({ error: 'recipe not found' });
+      await savePhoto(vaultPath, req.params.id, req.body?.image);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  router.get('/recipes/:id/photo', async (req, res, next) => {
+    try {
+      const photo = await getPhoto(vaultPath, req.params.id);
+      if (!photo) return res.status(404).json({ error: 'no photo for this recipe' });
+      res.set('Content-Type', photo.mime);
+      res.set('Cache-Control', 'private, max-age=300');
+      res.send(photo.buffer);
+    } catch (err) {
+      next(err);
     }
   });
 

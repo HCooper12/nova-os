@@ -66,7 +66,11 @@ export function Recipes({ v }) {
             base="cursor:pointer;border:1px solid rgba(236,229,218,.09);border-radius:14px;overflow:hidden;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01));box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 14px 34px -20px rgba(0,0,0,.9)"
             hoverStyle="border-color:rgba(216,181,115,.4);transform:translateY(-2px)"
           >
-            <div style={r.phStyle}><span style={css("font:400 10px 'JetBrains Mono',monospace;color:rgba(236,229,218,.55)")}>{r.phLabel}</span></div>
+            {r.photoUrl ? (
+              <div style={css("height:104px;overflow:hidden")}><img src={r.photoUrl} alt={r.name} style={css("width:100%;height:100%;object-fit:cover;display:block")} /></div>
+            ) : (
+              <div style={r.phStyle}><span style={css("font:400 10px 'JetBrains Mono',monospace;color:rgba(236,229,218,.55)")}>{r.phLabel}</span></div>
+            )}
             <div style={css("padding:14px 17px")}>
               <div style={css("display:flex;justify-content:space-between;align-items:baseline")}>
                 <div style={css("font-size:15.5px;font-weight:500")}>{r.name}</div>

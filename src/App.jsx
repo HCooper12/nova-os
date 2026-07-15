@@ -80,6 +80,8 @@ export default class App extends Component {
     recipeAddOpen: false, recipeAddName: '', recipeAddCategory: 'CORE DAILY MEALS', recipeAddMakes: '',
     recipeAddP: '', recipeAddC: '', recipeAddF: '', recipeAddKcal: '', recipeAddKj: '',
     recipeAddIngredients: '', recipeAddMethod: '', recipeAddBusy: false, recipeAddError: null,
+    recipeAddPhotoDataUrl: null,
+    liveRecipePhotoUrls: {}, recipePhotoUploadBusy: {},
     recipeScanBusy: false, recipeScanError: null,
 
     // shopping list
@@ -169,6 +171,7 @@ export default class App extends Component {
     try {
       const recipesRes = await api.recipes(conn);
       this.setState({ liveRecipes: recipesRes.recipes.length ? recipesRes.recipes : null, liveRecipeProfile: recipesRes.profile || null });
+      this.refreshRecipePhotos(recipesRes.recipes);
     } catch {
       this.setState({ liveRecipes: null, liveRecipeProfile: null });
     }
@@ -216,7 +219,60 @@ export default class App extends Component {
       recipeAddP: '', recipeAddC: '', recipeAddF: '', recipeAddKcal: '', recipeAddKj: '',
       recipeAddIngredients: '', recipeAddMethod: '', recipeAddError: null,
       recipeScanBusy: false, recipeScanError: null,
+      recipeAddPhotoDataUrl: null,
     });
+  }
+  refreshRecipePhotos(recipes) {
+    const conn = getConnection();
+    if (!conn) return;
+    for (const r of recipes) {
+      if (!r.hasPhoto) continue;
+      api.recipePhotoBlobUrl(conn, r.id).then((url) => {
+        if (!url) return;
+        this.setState((s) => {
+          const prev = s.liveRecipePhotoUrls[r.id];
+          if (prev) URL.revokeObjectURL(prev);
+          return { liveRecipePhotoUrls: { ...s.liveRecipePhotoUrls, [r.id]: url } };
+        });
+      }).catch(() => {});
+    }
+  }
+  readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+  onRecipeAddPhotoFile(fileList) {
+    const file = fileList && fileList[0];
+    if (!file) return;
+    this.readFileAsDataUrl(file).then((dataUrl) => this.setState({ recipeAddPhotoDataUrl: dataUrl }));
+  }
+  onRecipePhotoFile(recipeId, fileList) {
+    const conn = getConnection();
+    const file = fileList && fileList[0];
+    if (!conn || !file) return;
+    this.setState((s) => ({ recipePhotoUploadBusy: { ...s.recipePhotoUploadBusy, [recipeId]: true } }));
+    this.readFileAsDataUrl(file)
+      .then((dataUrl) => api.addRecipePhoto(conn, recipeId, dataUrl))
+      .then(() => api.recipePhotoBlobUrl(conn, recipeId))
+      .then((url) => {
+        this.setState((s) => {
+          const prev = s.liveRecipePhotoUrls[recipeId];
+          if (prev) URL.revokeObjectURL(prev);
+          return {
+            liveRecipePhotoUrls: { ...s.liveRecipePhotoUrls, [recipeId]: url },
+            recipePhotoUploadBusy: { ...s.recipePhotoUploadBusy, [recipeId]: false },
+          };
+        });
+        this.toastMsg('Photo saved ✓');
+      })
+      .catch((e) => {
+        this.setState((s) => ({ recipePhotoUploadBusy: { ...s.recipePhotoUploadBusy, [recipeId]: false } }));
+        this.toastMsg('Could not save photo: ' + e.message);
+      });
   }
   closeAddRecipe() {
     clearInterval(this.scanPollIv);
@@ -244,9 +300,11 @@ export default class App extends Component {
       return;
     }
     this.setState({ recipeAddBusy: true, recipeAddError: null });
+    const pendingPhoto = st.recipeAddPhotoDataUrl;
     api.addRecipe(conn, { name, category: st.recipeAddCategory, makes: st.recipeAddMakes.trim() || undefined, macros, ingredients, method })
+      .then(({ recipe }) => (pendingPhoto ? api.addRecipePhoto(conn, recipe.id, pendingPhoto) : Promise.resolve()))
       .then(() => {
-        this.setState({ recipeAddOpen: false, recipeAddBusy: false });
+        this.setState({ recipeAddOpen: false, recipeAddBusy: false, recipeAddPhotoDataUrl: null });
         this.toastMsg(`${name} added ✓ — saved to Obsidian too`);
         this.refreshLiveData();
       })
@@ -896,6 +954,7 @@ export default class App extends Component {
             const bar = (v, col) => ({ flex: String(v / tot), borderRadius: '2px', background: col });
             return { name: r.name, tag: (RECIPE_CATEGORY_LABEL[r.category] || r.category).toUpperCase(), p: r.macros.p, c: r.macros.c, f: r.macros.f, kcal: r.macros.kcal, time: r.makes || '',
               open: () => this.openRecipe(r.id),
+              photoUrl: st.liveRecipePhotoUrls[r.id] || null,
               phLabel: 'dish photo — ' + r.name.toLowerCase(),
               phStyle: { height: '104px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, rgba(' + hue + ',.13) 0 8px, rgba(' + hue + ',.04) 8px 16px)' },
               pBar: bar(r.macros.p, '#6be5f5'), cBar: bar(r.macros.c, '#d8b573'), fBar: bar(r.macros.f, '#8a6ad1'),
@@ -1333,6 +1392,9 @@ export default class App extends Component {
       recipeScanBusy: st.recipeScanBusy,
       recipeScanError: st.recipeScanError,
       onRecipeScanFiles: (e) => this.onRecipeScanFiles(e.target.files),
+      recipeAddPhotoDataUrl: st.recipeAddPhotoDataUrl,
+      onRecipeAddPhotoFile: (e) => this.onRecipeAddPhotoFile(e.target.files),
+      clearRecipeAddPhoto: () => this.setState({ recipeAddPhotoDataUrl: null }),
       recipeOpen: usingLiveRecipes ? !!liveOr : !!or,
       closeRecipe: () => this.closeRecipe(),
       stopClick: (e) => e.stopPropagation(),
@@ -1344,6 +1406,9 @@ export default class App extends Component {
       orPhStyle: usingLiveRecipes
         ? (liveOr ? { height: '170px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, rgba(216,181,115,.16) 0 9px, rgba(216,181,115,.05) 9px 18px)', border: '1px solid rgba(236,229,218,.08)' } : {})
         : (or ? { height: '170px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, rgba(' + or.hue + ',.16) 0 9px, rgba(' + or.hue + ',.05) 9px 18px)', border: '1px solid rgba(236,229,218,.08)' } : {}),
+      orPhotoUrl: usingLiveRecipes && liveOr ? (st.liveRecipePhotoUrls[liveOr.id] || null) : null,
+      orPhotoUploadBusy: usingLiveRecipes && liveOr ? !!st.recipePhotoUploadBusy[liveOr.id] : false,
+      onRecipePhotoFile: usingLiveRecipes && liveOr ? (e) => this.onRecipePhotoFile(liveOr.id, e.target.files) : () => {},
       orP: usingLiveRecipes ? (effMacros ? Math.round(effMacros.p) : 0) : (or ? Math.round(or.p * sv) : 0),
       orC: usingLiveRecipes ? (effMacros ? Math.round(effMacros.c) : 0) : (or ? Math.round(or.c * sv) : 0),
       orF: usingLiveRecipes ? (effMacros ? Math.round(effMacros.f) : 0) : (or ? Math.round(or.f * sv) : 0),
