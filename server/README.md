@@ -155,48 +155,61 @@ Content-Type: application/json
 
 Your Tailscale URL and API token are the same ones already in Nova OS → Settings on your
 phone (and `API_TOKEN` in this `.env`). Any metric can be omitted — the backend merges
-rather than overwrites a day's file — so if one block below turns out to be too fiddly,
-skip it for now and add it later; the rest still works.
+rather than overwrites a day's file — so building this in two passes is the easier path:
+get one number working end to end, then add the rest.
 
-### Building the Shortcut
+I can't operate the Shortcuts app myself — no tool gives me control of iOS — so this has
+to be built by hand on the phone. A visual walkthrough of the same steps below (nicer to
+follow on the phone you're building on) was published at the time this was written; ask
+in-session for a fresh one if that link has gone stale.
+
+### Phase 1 — just steps
 
 1. **Shortcuts app → Automation tab → + → Create Personal Automation → Time of Day.** Pick
-   something late, e.g. 11:50 PM, Daily. Turn **off** "Ask Before Running" so it fires silently.
+   something late, e.g. 9:00 PM, Daily. Turn **off** "Ask Before Running" so it fires silently.
 2. **Format Date** on "Current Date", Custom format `yyyy-MM-dd` → this is your `date` field.
-3. For each of these, add **Find Health Samples** (type + "Today") → **Calculate Statistics**
-   → **Set Variable** to name the result:
+3. **Find Health Samples**: Type is Steps, Start Date is Today.
+4. **Calculate Statistics**: Sum, fed from step 3.
+5. **Dictionary**: one entry, key `steps`, value = the Sum result from step 4 (insert it as
+   a magic variable).
+6. **Dictionary** again (the outer envelope Nova's endpoint expects): key `date` = the
+   formatted date from step 2, key `metrics` = the dictionary from step 5.
+7. **Get Contents of URL**: URL `<Tailscale URL>/api/health-data`, tap Show More → Method
+   POST, Header `Authorization: Bearer <API_TOKEN>`, Request Body JSON → the dictionary
+   from step 6.
+8. Test it now, don't wait for tonight's automation: open the Shortcuts tab (not
+   Automation), find it by name, tap to run once. First run prompts you to allow Health
+   access — allow it — then check the "Get Contents of URL" result: it should echo back
+   the day's data with your step count in it, not an error.
 
-   | Metric | Type | Statistic | Nova key |
-   |---|---|---|---|
-   | Steps | Steps | Sum | `steps` |
-   | Resting Heart Rate | Resting Heart Rate | Average | `restingHeartRate` |
-   | HRV | Heart Rate Variability | Average | `hrv` |
-   | Active Energy | Active Energy | Sum | `activeEnergyKcal` |
-   | Distance | Walking + Running Distance | Sum | `walkingRunningDistanceKm` |
-   | VO2 Max | VO2 Max | Most Recent | `vo2Max` |
-   | Weight | Weight (or "Last 7 Days" if you don't weigh in daily) | Most Recent | `weightKg` |
+### Phase 2 — optional, add the rest
 
-   Add a **Convert Measurement** step before setting the variable for Distance (→ Kilometers)
-   and Weight (→ Kilograms) if your phone's Health units are set to miles/lb.
+Once steps is confirmed working, extend the inner Dictionary from step 5 with more keys.
+Each follows the exact same pattern: **Find Health Samples → Calculate Statistics → add
+to the Dictionary.**
 
-4. **Sleep** needs two blocks instead of one, both over "Yesterday 6:00 PM to Today 12:00 PM"
-   (sleep usually starts the evening before, so "Today" alone misses it):
-   - **Find Health Samples**: Sleep Analysis, Value is Asleep (select all Asleep sub-values —
-     Core/Deep/REM — if your iOS version splits them out) → **Calculate Statistics: Sum**.
-     For Sleep Analysis samples this sums *duration*, not a quantity. → `AsleepDuration`.
-   - Same again with Value is In Bed → `InBedDuration`.
-   - Convert both to minutes (**Format Duration**, or divide by 60 with **Calculate** if it
-     comes back as seconds) → `sleepAsleepMinutes`, `sleepInBedMinutes`. Tap **Show Result**
-     on these two while building and sanity-check they're in the ~400-550 range before wiring
-     up the POST — sleep is the one block worth testing in isolation first.
-5. **Dictionary** — one key per Nova key above, values = the matching variables.
-6. **Dictionary** (outer) — two keys: `date` (from step 2) and `metrics` (from step 5).
-7. **Get Contents of URL**: URL `<Tailscale URL>/api/health-data`, Method POST, Headers
-   `Authorization: Bearer <API_TOKEN>` + `Content-Type: application/json`, Request Body JSON
-   → the outer dictionary from step 6.
-8. Run it once manually from the Shortcuts tab (not the automation) to test. First run prompts
-   you to allow Health access per category — tap Allow each time. Check the response from
-   **Get Contents of URL** — it should echo back the merged day object.
+| Metric | Find Health Samples: Type | Statistic | Dictionary key |
+|---|---|---|---|
+| Resting Heart Rate | Resting Heart Rate | Average | `restingHeartRate` |
+| HRV | Heart Rate Variability | Average | `hrv` |
+| Active Energy | Active Energy | Sum | `activeEnergyKcal` |
+| Distance | Walking + Running Distance | Sum | `walkingRunningDistanceKm` |
+| VO2 Max | VO2 Max | Most Recent | `vo2Max` |
+| Weight | Weight | Most Recent | `weightKg` |
+
+Add a **Convert Measurement** step (→ Kilometers / Kilograms) before Distance and Weight
+if your phone's Health units are miles/lb — Nova expects metric.
+
+**Sleep** is the fiddly one — two blocks instead of one, both over the window "Yesterday
+6:00 PM to Today 12:00 PM" (sleep usually starts the evening before, so "Today" alone
+misses it):
+- **Find Health Samples**: Sleep Analysis, Value is Asleep (select all Asleep sub-values —
+  Core/Deep/REM — if your iOS version splits them out) → **Calculate Statistics: Sum**.
+  For Sleep Analysis samples this sums *duration*, not a quantity → key `sleepAsleepMinutes`.
+- Same again with Value is In Bed → key `sleepInBedMinutes`.
+- Convert both to minutes (**Format Duration**, or divide by 60 with **Calculate** if it
+  comes back as seconds). Tap **Show Result** while building and sanity-check they land
+  around 400–550 before wiring up the rest — worth testing in isolation first.
 
 Once a day of real data lands, Nova checks hourly and generates a real insight (capped at
 $0.50/day) the first time it finds data — no further setup needed.
