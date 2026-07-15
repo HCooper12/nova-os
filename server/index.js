@@ -39,7 +39,7 @@ async function main() {
 
   const app = express();
   app.use(cors({ origin: allowedOrigins }));
-  app.use(express.json({ limit: '15mb' }));
+  app.use(express.json({ limit: '40mb' })); // headroom for a few base64-encoded recipe photos
 
   app.get('/api/health', (req, res) => res.json({ ok: true }));
 

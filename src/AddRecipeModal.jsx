@@ -29,6 +29,23 @@ export function AddRecipeModal({ v }) {
           Saved into Nova and written straight into your <code>Meal Prep Recipe Collection.md</code> in Obsidian.
         </div>
 
+        <div style={css("margin-top:16px;border:1px solid rgba(107,229,245,.2);border-radius:12px;padding:14px 16px;background:rgba(107,229,245,.04)")}>
+          <div style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:#6be5f5")}>SCAN FROM PHOTOS — OPTIONAL</div>
+          <div style={css("margin-top:6px;font-size:12px;color:rgba(236,229,218,.55);line-height:1.5")}>
+            A nutrition label, a recipe card, or a screenshot — Nova reads it and fills in the fields below for you to check over.
+          </div>
+          <div style={css("margin-top:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap")}>
+            <label style={css("cursor:pointer;font-size:12px;padding:9px 14px;border-radius:8px;border:1px solid rgba(107,229,245,.35);color:#6be5f5;background:rgba(107,229,245,.08)")}>
+              {v.recipeScanBusy ? 'Analyzing…' : 'Upload photo(s)'}
+              <input type="file" accept="image/*" multiple onChange={v.onRecipeScanFiles} disabled={v.recipeScanBusy} style={css("display:none")} />
+            </label>
+            <span style={css("font-size:11px;color:rgba(236,229,218,.4)")}>up to 4 images</span>
+          </div>
+          {v.recipeScanError && (
+            <div style={css("margin-top:10px;font-size:12px;color:#e29b9b")}>{v.recipeScanError}</div>
+          )}
+        </div>
+
         <div style={css("margin-top:16px;display:flex;gap:12px")}>
           <div style={css("flex:2")}>
             <div style={css("font:500 9px 'JetBrains Mono',monospace;letter-spacing:.14em;color:rgba(236,229,218,.4)")}>NAME</div>

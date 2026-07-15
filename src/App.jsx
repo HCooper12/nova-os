@@ -77,6 +77,7 @@ export default class App extends Component {
     recipeAddOpen: false, recipeAddName: '', recipeAddCategory: 'CORE DAILY MEALS', recipeAddMakes: '',
     recipeAddP: '', recipeAddC: '', recipeAddF: '', recipeAddKcal: '', recipeAddKj: '',
     recipeAddIngredients: '', recipeAddMethod: '', recipeAddBusy: false, recipeAddError: null,
+    recipeScanBusy: false, recipeScanError: null,
 
     // transcript ingest
     ingestModalOpen: false, ingestText: '', ingestSourceUrl: '',
@@ -113,7 +114,7 @@ export default class App extends Component {
     }
   }
   componentWillUnmount() {
-    clearTimeout(this.bootT); clearInterval(this.clockIv); clearInterval(this.gaugeIv); clearInterval(this.ingestPollIv);
+    clearTimeout(this.bootT); clearInterval(this.clockIv); clearInterval(this.gaugeIv); clearInterval(this.ingestPollIv); clearInterval(this.scanPollIv);
     window.removeEventListener('keydown', this.keyH);
     window.removeEventListener('resize', this.resizeH);
     this.ivs.forEach(clearInterval);
@@ -175,9 +176,11 @@ export default class App extends Component {
       recipeAddOpen: true, recipeAddName: '', recipeAddCategory: 'CORE DAILY MEALS', recipeAddMakes: '',
       recipeAddP: '', recipeAddC: '', recipeAddF: '', recipeAddKcal: '', recipeAddKj: '',
       recipeAddIngredients: '', recipeAddMethod: '', recipeAddError: null,
+      recipeScanBusy: false, recipeScanError: null,
     });
   }
   closeAddRecipe() {
+    clearInterval(this.scanPollIv);
     this.setState({ recipeAddOpen: false });
   }
   setRecipeAddKj(e) {
@@ -211,6 +214,53 @@ export default class App extends Component {
       .catch((e) => {
         this.setState({ recipeAddBusy: false, recipeAddError: e.message });
       });
+  }
+  onRecipeScanFiles(fileList) {
+    const conn = getConnection();
+    if (!conn) return;
+    const files = Array.from(fileList || []).slice(0, 4);
+    if (!files.length) return;
+    const readAsDataUrl = (file) => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    this.setState({ recipeScanBusy: true, recipeScanError: null });
+    Promise.all(files.map(readAsDataUrl))
+      .then((images) => api.scanRecipe(conn, images))
+      .then(({ jobId }) => {
+        this.scanPollIv = setInterval(() => this.pollRecipeScanJob(jobId), 2000);
+      })
+      .catch((e) => {
+        this.setState({ recipeScanBusy: false, recipeScanError: e.message });
+      });
+  }
+  pollRecipeScanJob(jobId) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.scanRecipeJob(conn, jobId).then((job) => {
+      if (job.status === 'ready') {
+        clearInterval(this.scanPollIv);
+        const r = job.result;
+        this.setState({
+          recipeScanBusy: false, recipeScanError: null,
+          recipeAddName: r.name || '', recipeAddCategory: r.category || 'CORE DAILY MEALS',
+          recipeAddMakes: r.makes || '',
+          recipeAddP: r.macros?.p != null ? String(r.macros.p) : '',
+          recipeAddC: r.macros?.c != null ? String(r.macros.c) : '',
+          recipeAddF: r.macros?.f != null ? String(r.macros.f) : '',
+          recipeAddKcal: r.macros?.kcal != null ? String(r.macros.kcal) : '',
+          recipeAddKj: '',
+          recipeAddIngredients: (r.ingredients || []).join('\n'),
+          recipeAddMethod: (r.method || []).join('\n'),
+        });
+        this.toastMsg('Photo analyzed — check the fields below before saving');
+      } else if (job.status === 'error') {
+        clearInterval(this.scanPollIv);
+        this.setState({ recipeScanBusy: false, recipeScanError: job.error });
+      }
+    }).catch(() => {});
   }
   selectNote(id) {
     this.setState({ openNoteId: id });
@@ -437,9 +487,9 @@ export default class App extends Component {
     // macro colors, so a slot title in one of those would clash with the
     // macro reading right below it in the same card.
     const SLOT_DEFS = [
-      { key: 'breakfast', label: 'B', name: 'Breakfast', hue: '214,150,90' },
-      { key: 'lunch', label: 'L', name: 'Lunch', hue: '99,143,204' },
-      { key: 'dinner', label: 'D', name: 'Dinner', hue: '168,122,92' },
+      { key: 'breakfast', label: 'B', name: 'Breakfast', hue: '214,142,74' },
+      { key: 'lunch', label: 'L', name: 'Lunch', hue: '90,150,224' },
+      { key: 'dinner', label: 'D', name: 'Dinner', hue: '95,105,190' },
       { key: 'snack', label: 'S', name: 'Snack', hue: '199,120,158' },
       { key: 'extra', label: 'E', name: 'Extra Meal', hue: '199,99,99' },
     ];
@@ -736,6 +786,9 @@ export default class App extends Component {
       recipeAddBusy: st.recipeAddBusy,
       recipeAddError: st.recipeAddError,
       submitAddRecipe: () => this.submitAddRecipe(),
+      recipeScanBusy: st.recipeScanBusy,
+      recipeScanError: st.recipeScanError,
+      onRecipeScanFiles: (e) => this.onRecipeScanFiles(e.target.files),
       recipeOpen: usingLiveRecipes ? !!liveOr : !!or,
       closeRecipe: () => this.setState({ openRecipeId: null }),
       stopClick: (e) => e.stopPropagation(),
