@@ -1292,8 +1292,6 @@ export default class App extends Component {
     const reviewPool = this.dailyReviewPool(st.liveNotes);
     const reviewIdx = st.reviewShuffleIdx != null ? st.reviewShuffleIdx : this.dailyReviewIndex(reviewPool);
     const reviewPage = reviewPool[reviewIdx] || null;
-    const reviewDetail = reviewPage ? st.liveNoteDetails[reviewPage.id] : null;
-    const reviewExcerpt = reviewDetail?.paragraphs?.[0] || '';
 
     // journal — live entries (Wiki/Journal/) grouped by day, newest first
     const journalDays = (st.liveJournalEntries || []).map((d) => ({
@@ -1482,9 +1480,11 @@ export default class App extends Component {
       proteinGaugeTargetLabel: `/${proteinTarget}g`,
       proteinGaugeDasharray: `${Math.round(proteinRatio * 163)} 163`,
       reviewConcept: usingLiveReview
-        ? (reviewPage ? (reviewExcerpt ? (reviewExcerpt.length > 130 ? reviewExcerpt.slice(0, 127) + '…' : reviewExcerpt) : 'Loading…') : 'Add some Concepts or Topics to your wiki to start daily review')
+        ? (reviewPage ? reviewPage.title : 'Add some Concepts or Topics to your wiki to start daily review')
         : this.reviews[st.reviewIdx].c,
-      reviewFrom: usingLiveReview ? (reviewPage ? reviewPage.title : '') : this.reviews[st.reviewIdx].f,
+      reviewFrom: usingLiveReview
+        ? (reviewPage ? (reviewPage.type === 'topic' ? 'Topic' : 'Concept') : '')
+        : this.reviews[st.reviewIdx].f,
       shuffleReview: usingLiveReview ? () => this.shuffleDailyReview() : () => this.setState(s => ({ reviewIdx: (s.reviewIdx + 1 + Math.floor(Math.random() * (this.reviews.length - 1))) % this.reviews.length })),
       openReview: usingLiveReview
         ? () => this.openDailyReview()
