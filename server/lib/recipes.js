@@ -27,8 +27,52 @@ function section(body, heading) {
   return m ? m[1] : '';
 }
 
+// Alternates nest their own Ingredients/Method one heading level deeper
+// (##### instead of ###) so they don't get swallowed by the parent
+// recipe's own ### Ingredients / ### Method extraction above.
+function section5(body, heading) {
+  const re = new RegExp(`#####\\s*${heading}[^\\n]*\\n([\\s\\S]*?)(?=\\n#####\\s|\\n####\\s|\\n###\\s|\\n##\\s|$)`, 'i');
+  const m = body.match(re);
+  return m ? m[1] : '';
+}
+
+function parseAlternates(raw) {
+  const chunks = raw.split(/\n(?=####\s+Alternative:)/);
+  const alternates = [];
+  for (const chunk of chunks) {
+    const headingMatch = chunk.match(/^####\s+Alternative:\s*(.+)$/m);
+    if (!headingMatch) continue;
+    const label = headingMatch[1].trim();
+    const macroMatch = chunk.match(/\*\*Macros[^*]*\*\*:?\s*([\d.]+)g P \/ ([\d.]+)g C \/ ([\d.]+)g F \/ ([\d.]+)\s*kcal/i);
+    const ingredients = section5(chunk, 'Ingredients')
+      .split('\n')
+      .map((l) => l.trim())
+      .map((l) => l.match(/^-\s*(.+)/))
+      .filter(Boolean)
+      .map((m) => stripMd(m[1]));
+    const method = section5(chunk, 'Method')
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => /^\d+\.\s/.test(l))
+      .map((l) => stripMd(l.replace(/^\d+\.\s*/, '')));
+    alternates.push({
+      id: slugify(label),
+      label,
+      macros: macroMatch
+        ? { p: parseFloat(macroMatch[1]), c: parseFloat(macroMatch[2]), f: parseFloat(macroMatch[3]), kcal: parseFloat(macroMatch[4]) }
+        : null,
+      ingredients,
+      method,
+    });
+  }
+  return alternates;
+}
+
 function finalizeRecipe(name, bodyLines, category) {
-  const body = bodyLines.join('\n');
+  const altIdx = bodyLines.findIndex((l) => /^####\s+Alternative:/.test(l));
+  const mainLines = altIdx === -1 ? bodyLines : bodyLines.slice(0, altIdx);
+  const alternates = altIdx === -1 ? [] : parseAlternates(bodyLines.slice(altIdx).join('\n'));
+  const body = mainLines.join('\n');
 
   const macroMatch = body.match(/\*\*Macros[^*]*\*\*:?\s*([\d.]+)g P \/ ([\d.]+)g C \/ ([\d.]+)g F \/ ([\d.]+)\s*kcal/i);
   const makesMatch = body.match(/\*\*Makes:\*\*\s*(.+)/i);
@@ -82,6 +126,7 @@ function finalizeRecipe(name, bodyLines, category) {
     method,
     description,
     notes,
+    alternates,
   };
 }
 
@@ -224,4 +269,63 @@ async function addRecipeUnlocked(vaultPath, input) {
   await backupFile(full);
   await writeFile(full, newRaw, 'utf8');
   return after.find((r) => r.name === input.name) || null;
+}
+
+function formatAlternateBlock(alt) {
+  const macroLine = `**Macros:** ${alt.macros.p}g P / ${alt.macros.c}g C / ${alt.macros.f}g F / ${alt.macros.kcal} kcal`;
+  const ingredientsBlock = alt.ingredients.map((i) => `- ${i}`).join('\n');
+  const methodBlock = alt.method.map((s, idx) => `${idx + 1}. ${s}`).join('\n');
+  return `#### Alternative: ${alt.label}\n\n${macroLine}\n\n##### Ingredients\n${ingredientsBlock}\n\n##### Method\n${methodBlock}\n`;
+}
+
+// Pure function: splices a new "#### Alternative: ..." block into an
+// existing recipe's section (after its own content, before the closing
+// "---" that separates it from the next recipe/part heading). Kept
+// separate from disk I/O so it can be tested against real file content
+// without ever writing to it.
+export function insertAlternateIntoRaw(raw, recipeName, alt) {
+  const headingRe = new RegExp(`^##\\s+\\d+\\.\\s+${escapeRe(recipeName)}\\s*$`, 'm');
+  const headingMatch = headingRe.exec(raw);
+  if (!headingMatch) throw new Error(`Could not find recipe "${recipeName}" in the file`);
+
+  const afterHeadingIdx = headingMatch.index + headingMatch[0].length;
+  const rest = raw.slice(afterHeadingIdx);
+  // Next "## " (recipe) or "# " (PART) heading only — not ### / #### which
+  // belong to this recipe's own Ingredients/Method/Alternative content.
+  const nextHeadingMatch = rest.match(/\n#{1,2}(?!#)\s/);
+  const blockEnd = nextHeadingMatch ? afterHeadingIdx + nextHeadingMatch.index + 1 : raw.length;
+
+  let block = raw.slice(afterHeadingIdx, blockEnd);
+  const hadSeparator = /\n---\n\s*$/.test(block);
+  if (hadSeparator) block = block.replace(/\n---\n\s*$/, '\n');
+
+  const altText = formatAlternateBlock(alt);
+  const newBlock = block.replace(/\s*$/, '\n\n') + altText + (hadSeparator ? '\n---\n\n' : '');
+
+  return raw.slice(0, afterHeadingIdx) + newBlock + raw.slice(blockEnd);
+}
+
+// Serialize concurrent alternate-add calls against the same file.
+let addAlternateLock = Promise.resolve();
+
+export async function addAlternate(vaultPath, recipeName, alt) {
+  const run = addAlternateLock.catch(() => {}).then(() => addAlternateUnlocked(vaultPath, recipeName, alt));
+  addAlternateLock = run.catch(() => {});
+  return run;
+}
+
+async function addAlternateUnlocked(vaultPath, recipeName, alt) {
+  const full = path.join(vaultPath, RECIPES_REL_PATH);
+  const raw = await readFile(full, 'utf8');
+  const newRaw = insertAlternateIntoRaw(raw, recipeName, alt);
+
+  const before = parseRecipeCollection(raw).find((r) => r.name === recipeName);
+  const after = parseRecipeCollection(newRaw).find((r) => r.name === recipeName);
+  if (!after || after.alternates.length !== (before?.alternates.length || 0) + 1) {
+    throw new Error('Alternate insertion failed a sanity check — file left unchanged');
+  }
+
+  await backupFile(full);
+  await writeFile(full, newRaw, 'utf8');
+  return after;
 }

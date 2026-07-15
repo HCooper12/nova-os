@@ -3,9 +3,10 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { loadRecipeData, addRecipe } from '../lib/recipes.js';
+import { loadRecipeData, addRecipe, addAlternate } from '../lib/recipes.js';
 import { loadRotation, setRotationSlot } from '../lib/rotation.js';
 import { startScan, getScanJob } from '../lib/scanRecipe.js';
+import { startTweak, getTweakJob } from '../lib/tweakRecipe.js';
 
 const VALID_CATEGORIES = ['CORE DAILY MEALS', 'ROTATION / SWAP MEALS', 'TREATS'];
 const IMAGE_DATA_URL = /^data:image\/(jpeg|jpg|png|webp|gif);base64,(.+)$/;
@@ -13,6 +14,17 @@ const IMAGE_DATA_URL = /^data:image\/(jpeg|jpg|png|webp|gif);base64,(.+)$/;
 function validateRecipeInput(body) {
   if (!body || typeof body.name !== 'string' || !body.name.trim()) return 'name is required';
   if (!VALID_CATEGORIES.includes(body.category)) return 'category must be one of ' + VALID_CATEGORIES.join(', ');
+  const m = body.macros;
+  if (!m || [m.p, m.c, m.f, m.kcal].some((n) => typeof n !== 'number' || Number.isNaN(n) || n < 0)) {
+    return 'macros.p/c/f/kcal must be non-negative numbers';
+  }
+  if (!Array.isArray(body.ingredients) || !body.ingredients.length) return 'at least one ingredient is required';
+  if (!Array.isArray(body.method) || !body.method.length) return 'at least one method step is required';
+  return null;
+}
+
+function validateAlternateInput(body) {
+  if (!body || typeof body.label !== 'string' || !body.label.trim()) return 'label is required';
   const m = body.macros;
   if (!m || [m.p, m.c, m.f, m.kcal].some((n) => typeof n !== 'number' || Number.isNaN(n) || n < 0)) {
     return 'macros.p/c/f/kcal must be non-negative numbers';
@@ -87,6 +99,45 @@ export function recipesRouter(vaultPath) {
     const job = getScanJob(req.params.jobId);
     if (!job) return res.status(404).json({ error: 'job not found' });
     res.json({ status: job.status, result: job.result, error: job.error });
+  });
+
+  router.post('/recipes/:id/tweak', async (req, res, next) => {
+    try {
+      const request = req.body?.request;
+      if (typeof request !== 'string' || !request.trim()) return res.status(400).json({ error: 'request text is required' });
+      const { recipes } = await loadRecipeData(vaultPath);
+      const recipe = recipes.find((r) => r.id === req.params.id);
+      if (!recipe) return res.status(404).json({ error: 'recipe not found' });
+      const jobId = startTweak(recipe, request.trim());
+      res.json({ jobId });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.get('/recipes/tweak/:jobId', (req, res) => {
+    const job = getTweakJob(req.params.jobId);
+    if (!job) return res.status(404).json({ error: 'job not found' });
+    res.json({ status: job.status, result: job.result, error: job.error });
+  });
+
+  router.post('/recipes/:id/alternates', async (req, res, next) => {
+    try {
+      const error = validateAlternateInput(req.body);
+      if (error) return res.status(400).json({ error });
+      const { recipes } = await loadRecipeData(vaultPath);
+      const recipe = recipes.find((r) => r.id === req.params.id);
+      if (!recipe) return res.status(404).json({ error: 'recipe not found' });
+      const updated = await addAlternate(vaultPath, recipe.name, {
+        label: req.body.label.trim(),
+        macros: { p: req.body.macros.p, c: req.body.macros.c, f: req.body.macros.f, kcal: req.body.macros.kcal },
+        ingredients: req.body.ingredients.map((s) => String(s).trim()).filter(Boolean),
+        method: req.body.method.map((s) => String(s).trim()).filter(Boolean),
+      });
+      res.json({ recipe: updated });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
   });
 
   router.get('/rotation', async (req, res, next) => {

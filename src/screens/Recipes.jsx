@@ -51,7 +51,7 @@ export function Recipes({ v }) {
       <div style={css("display:flex;flex-wrap:wrap;gap:8px;margin-top:18px;justify-content:space-between;align-items:center")}>
         <div style={css("display:flex;flex-wrap:wrap;gap:8px")}>
           {v.recipeFilters.map((f) => (
-            <Interactive key={f.label} as="span" onClick={f.go} base={f.style} hoverStyle="border-color:rgba(216,181,115,.5)">{f.label}</Interactive>
+            <Interactive key={f.label} as="span" onClick={f.go} base={f.style} hoverStyle="border:1px solid rgba(216,181,115,.5)">{f.label}</Interactive>
           ))}
         </div>
         {v.recipeAddVisible && (

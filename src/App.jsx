@@ -58,6 +58,8 @@ export default class App extends Component {
       { who: 'nova', text: 'Two things: Studio finished your cold-open draft, and you are 84 g short on protein pace. The burrito bowl at 12:30 covers it.' },
     ],
     recipeFilter: 'All', openRecipeId: null, servings: 1, recipeInput: '', recipeChat: [],
+    recipeAltSelected: null,
+    recipeTweakInput: '', recipeTweakBusy: false, recipeTweakError: null, recipeTweakPreview: null,
     coachInput: '', planNote: null,
     coachChat: [{ who: 'coach', text: "Push day is set — 6 lifts, ~42 minutes. Bench is at 82.5 kg; if bar speed holds on set two, we take the PR single. Ask me for any changes." }],
     plan: null,
@@ -93,7 +95,7 @@ export default class App extends Component {
     }, 1000);
     this.keyH = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); this.setState(s => ({ paletteOpen: !s.paletteOpen, paletteQuery: '' })); }
-      else if (e.key === 'Escape') this.setState({ paletteOpen: false, openRecipeId: null, galaxySel: null });
+      else if (e.key === 'Escape') { clearInterval(this.tweakPollIv); this.setState({ paletteOpen: false, openRecipeId: null, galaxySel: null }); }
     };
     window.addEventListener('keydown', this.keyH);
     this.gaugeIv = setInterval(() => this.setState(s => ({ gaugeIdx: 1 - s.gaugeIdx })), 6000);
@@ -114,7 +116,7 @@ export default class App extends Component {
     }
   }
   componentWillUnmount() {
-    clearTimeout(this.bootT); clearInterval(this.clockIv); clearInterval(this.gaugeIv); clearInterval(this.ingestPollIv); clearInterval(this.scanPollIv);
+    clearTimeout(this.bootT); clearInterval(this.clockIv); clearInterval(this.gaugeIv); clearInterval(this.ingestPollIv); clearInterval(this.scanPollIv); clearInterval(this.tweakPollIv);
     window.removeEventListener('keydown', this.keyH);
     window.removeEventListener('resize', this.resizeH);
     this.ivs.forEach(clearInterval);
@@ -261,6 +263,66 @@ export default class App extends Component {
         this.setState({ recipeScanBusy: false, recipeScanError: job.error });
       }
     }).catch(() => {});
+  }
+  openRecipe(id, servings = 1) {
+    this.setState({
+      openRecipeId: id, servings, recipeChat: [], recipeInput: '',
+      recipeAltSelected: null, recipeTweakInput: '', recipeTweakBusy: false,
+      recipeTweakError: null, recipeTweakPreview: null,
+    });
+  }
+  closeRecipe() {
+    clearInterval(this.tweakPollIv);
+    this.setState({ openRecipeId: null });
+  }
+  selectAlternate(altId) {
+    this.setState({ recipeAltSelected: altId, recipeTweakPreview: null, recipeTweakError: null });
+  }
+  submitRecipeTweak() {
+    const conn = getConnection();
+    const st = this.state;
+    const request = st.recipeTweakInput.trim();
+    if (!conn || !st.openRecipeId || !request) return;
+    this.setState({ recipeTweakBusy: true, recipeTweakError: null, recipeTweakPreview: null });
+    api.tweakRecipe(conn, st.openRecipeId, request)
+      .then(({ jobId }) => {
+        this.tweakPollIv = setInterval(() => this.pollRecipeTweakJob(jobId), 2500);
+      })
+      .catch((e) => {
+        this.setState({ recipeTweakBusy: false, recipeTweakError: e.message });
+      });
+  }
+  pollRecipeTweakJob(jobId) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.tweakRecipeJob(conn, jobId).then((job) => {
+      if (job.status === 'ready') {
+        clearInterval(this.tweakPollIv);
+        this.setState({ recipeTweakBusy: false, recipeTweakPreview: job.result, recipeTweakInput: '' });
+      } else if (job.status === 'error') {
+        clearInterval(this.tweakPollIv);
+        this.setState({ recipeTweakBusy: false, recipeTweakError: job.error });
+      }
+    }).catch(() => {});
+  }
+  saveRecipeTweak() {
+    const conn = getConnection();
+    const st = this.state;
+    const preview = st.recipeTweakPreview;
+    if (!conn || !st.openRecipeId || !preview) return;
+    api.addAlternate(conn, st.openRecipeId, preview).then(({ recipe }) => {
+      this.setState((s) => ({
+        liveRecipes: s.liveRecipes.map((r) => (r.id === recipe.id ? recipe : r)),
+        recipeTweakPreview: null,
+        recipeAltSelected: recipe.alternates[recipe.alternates.length - 1]?.id || null,
+      }));
+      this.toastMsg('Saved as an alternative ✓');
+    }).catch((e) => {
+      this.setState({ recipeTweakError: e.message });
+    });
+  }
+  discardRecipeTweak() {
+    this.setState({ recipeTweakPreview: null, recipeTweakError: null });
   }
   selectNote(id) {
     this.setState({ openNoteId: id });
@@ -506,7 +568,7 @@ export default class App extends Component {
         c: filled ? Math.round(filled.macros.c) : null,
         f: filled ? Math.round(filled.macros.f) : null,
         kcal: filled ? Math.round(filled.macros.kcal) : null,
-        open: filled ? () => this.setState({ openRecipeId: filled.id, servings: 1, recipeChat: [], recipeInput: '' }) : null,
+        open: filled ? () => this.openRecipe(filled.id) : null,
         clear: filled ? () => {
           this.toggleRotationSlot(s.key, filled.id);
           if (s.key === 'extra') this.setState({ rotationShowExtra: false });
@@ -528,7 +590,7 @@ export default class App extends Component {
             const hue = RECIPE_HUES[i % RECIPE_HUES.length];
             const bar = (v, col) => ({ flex: String(v / tot), borderRadius: '2px', background: col });
             return { name: r.name, tag: (RECIPE_CATEGORY_LABEL[r.category] || r.category).toUpperCase(), p: r.macros.p, c: r.macros.c, f: r.macros.f, kcal: r.macros.kcal, time: r.makes || '',
-              open: () => this.setState({ openRecipeId: r.id, servings: 1, recipeChat: [], recipeInput: '' }),
+              open: () => this.openRecipe(r.id),
               phLabel: 'dish photo — ' + r.name.toLowerCase(),
               phStyle: { height: '104px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, rgba(' + hue + ',.13) 0 8px, rgba(' + hue + ',.04) 8px 16px)' },
               pBar: bar(r.macros.p, '#6be5f5'), cBar: bar(r.macros.c, '#d8b573'), fBar: bar(r.macros.f, '#8a6ad1'),
@@ -547,6 +609,13 @@ export default class App extends Component {
     const liveOr = usingLiveRecipes ? (st.liveRecipes.find(r => r.id === st.openRecipeId) || null) : null;
     const or = usingLiveRecipes ? null : this.recipes.find(r => r.id === st.openRecipeId);
     const sv = usingLiveRecipes ? 1 : st.servings; // no serving-scaling for live recipes — ingredients are free text, not [qty,unit] tuples
+
+    // when viewing a live recipe, an alternate (a Nova-suggested tweak the user
+    // chose to keep) can stand in for the original's macros/ingredients/method
+    const activeAlt = liveOr ? (liveOr.alternates || []).find((a) => a.id === st.recipeAltSelected) || null : null;
+    const effMacros = activeAlt ? activeAlt.macros : (liveOr ? liveOr.macros : null);
+    const effIngredients = activeAlt ? activeAlt.ingredients.map((name) => ({ qty: '', name })) : (liveOr ? liveOr.ingredients : []);
+    const effMethod = activeAlt ? activeAlt.method : (liveOr ? liveOr.method : []);
 
     // workouts
     const plan = st.plan || this.basePlan;
@@ -683,7 +752,7 @@ export default class App extends Component {
       openLunch: () => {
         if (usingLiveRecipes) {
           const lunch = rotation?.slots?.lunch;
-          if (lunch) this.setState({ screen: 'recipes', openRecipeId: lunch.id, servings: 1, recipeChat: [] });
+          if (lunch) { this.setState({ screen: 'recipes' }); this.openRecipe(lunch.id); }
           else this.setState({ screen: 'recipes' });
         } else {
           this.setState({ screen: 'recipes', openRecipeId: 'r1', servings: 1, recipeChat: [] });
@@ -800,33 +869,50 @@ export default class App extends Component {
       recipeScanError: st.recipeScanError,
       onRecipeScanFiles: (e) => this.onRecipeScanFiles(e.target.files),
       recipeOpen: usingLiveRecipes ? !!liveOr : !!or,
-      closeRecipe: () => this.setState({ openRecipeId: null }),
+      closeRecipe: () => this.closeRecipe(),
       stopClick: (e) => e.stopPropagation(),
       orName: usingLiveRecipes ? (liveOr ? liveOr.name : '') : (or ? or.name : ''),
       orMeta: usingLiveRecipes
-        ? (liveOr ? `${(RECIPE_CATEGORY_LABEL[liveOr.category] || liveOr.category).toUpperCase()}${liveOr.makes ? ' · ' + liveOr.makes : ''} · FROM OBSIDIAN /HEALTH` : '')
+        ? (liveOr ? `${activeAlt ? 'ALTERNATE: ' + activeAlt.label + ' · ' : ''}${(RECIPE_CATEGORY_LABEL[liveOr.category] || liveOr.category).toUpperCase()}${liveOr.makes ? ' · ' + liveOr.makes : ''} · FROM OBSIDIAN /HEALTH` : '')
         : (or ? or.tag + ' · ' + or.time + ' · FROM OBSIDIAN /RECIPES' : ''),
       orPhLabel: usingLiveRecipes ? (liveOr ? 'dish photo — ' + liveOr.name.toLowerCase() : '') : (or ? 'dish photo — ' + or.name.toLowerCase() : ''),
       orPhStyle: usingLiveRecipes
         ? (liveOr ? { height: '170px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, rgba(216,181,115,.16) 0 9px, rgba(216,181,115,.05) 9px 18px)', border: '1px solid rgba(236,229,218,.08)' } : {})
         : (or ? { height: '170px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, rgba(' + or.hue + ',.16) 0 9px, rgba(' + or.hue + ',.05) 9px 18px)', border: '1px solid rgba(236,229,218,.08)' } : {}),
-      orP: usingLiveRecipes ? (liveOr ? Math.round(liveOr.macros.p) : 0) : (or ? Math.round(or.p * sv) : 0),
-      orC: usingLiveRecipes ? (liveOr ? Math.round(liveOr.macros.c) : 0) : (or ? Math.round(or.c * sv) : 0),
-      orF: usingLiveRecipes ? (liveOr ? Math.round(liveOr.macros.f) : 0) : (or ? Math.round(or.f * sv) : 0),
-      orKcal: usingLiveRecipes ? (liveOr ? Math.round(liveOr.macros.kcal) : 0) : (or ? Math.round(or.kcal * sv) : 0),
+      orP: usingLiveRecipes ? (effMacros ? Math.round(effMacros.p) : 0) : (or ? Math.round(or.p * sv) : 0),
+      orC: usingLiveRecipes ? (effMacros ? Math.round(effMacros.c) : 0) : (or ? Math.round(or.c * sv) : 0),
+      orF: usingLiveRecipes ? (effMacros ? Math.round(effMacros.f) : 0) : (or ? Math.round(or.f * sv) : 0),
+      orKcal: usingLiveRecipes ? (effMacros ? Math.round(effMacros.kcal) : 0) : (or ? Math.round(or.kcal * sv) : 0),
       servings: sv,
       orShowServings: !usingLiveRecipes,
       incServ: () => this.setState(s => ({ servings: Math.min(6, s.servings + 1) })),
       decServ: () => this.setState(s => ({ servings: Math.max(1, s.servings - 1) })),
       orIngredients: usingLiveRecipes
-        ? (liveOr ? liveOr.ingredients.map(i => ({ qty: i.qty, name: i.name })) : [])
+        ? effIngredients.map(i => ({ qty: i.qty, name: i.name }))
         : (or ? or.ingredients.map(i => ({ qty: i[0] ? (Math.round(i[0] * sv * 10) / 10) + (i[1] ? ' ' + i[1] : '') : '—', name: i[2] })) : []),
       orSteps: usingLiveRecipes
-        ? (liveOr ? liveOr.method.map((s2, i) => ({ n: ['i.', 'ii.', 'iii.', 'iv.', 'v.'][i] || (i + 1) + '.', text: s2 })) : [])
+        ? effMethod.map((s2, i) => ({ n: ['i.', 'ii.', 'iii.', 'iv.', 'v.'][i] || (i + 1) + '.', text: s2 }))
         : (or ? or.steps.map((s2, i) => ({ n: ['i.', 'ii.', 'iii.', 'iv.', 'v.'][i] || (i + 1) + '.', text: s2 })) : []),
-      orDescription: usingLiveRecipes && liveOr ? liveOr.description : null,
+      orDescription: usingLiveRecipes && liveOr && !activeAlt ? liveOr.description : null,
       orShowAskNova: !usingLiveRecipes,
-      orNotes: usingLiveRecipes && liveOr ? liveOr.notes : [],
+      orNotes: usingLiveRecipes && liveOr && !activeAlt ? liveOr.notes : [],
+
+      // alternates — Nova-suggested tweaks to a live recipe, kept as extra
+      // saved views rather than overwriting the original
+      orAlternates: usingLiveRecipes && liveOr ? [
+        { id: null, label: 'Original', active: !st.recipeAltSelected, onClick: () => this.selectAlternate(null) },
+        ...liveOr.alternates.map((a) => ({ id: a.id, label: a.label, active: st.recipeAltSelected === a.id, onClick: () => this.selectAlternate(a.id) })),
+      ] : [],
+      orShowTweak: usingLiveRecipes && !!liveOr,
+      recipeTweakInput: st.recipeTweakInput,
+      setRecipeTweakInput: (e) => this.setState({ recipeTweakInput: e.target.value }),
+      recipeTweakKey: (e) => { if (e.key === 'Enter') this.submitRecipeTweak(); },
+      submitRecipeTweak: () => this.submitRecipeTweak(),
+      recipeTweakBusy: st.recipeTweakBusy,
+      recipeTweakError: st.recipeTweakError,
+      recipeTweakPreview: st.recipeTweakPreview,
+      saveRecipeTweak: () => this.saveRecipeTweak(),
+      discardRecipeTweak: () => this.discardRecipeTweak(),
       recipeMsgs: st.recipeChat.map(m => ({ text: m.text, typing: m.typing, tag: m.who === 'nova' ? '» NOVA' : '» YOU', tagStyle: { color: m.who === 'nova' ? '#6be5f5' : 'rgba(236,229,218,.5)', fontWeight: 500, fontFamily: mono, fontSize: '11px' } })),
       recipeInput: st.recipeInput,
       setRecipeInput: (e) => this.setState({ recipeInput: e.target.value }),
