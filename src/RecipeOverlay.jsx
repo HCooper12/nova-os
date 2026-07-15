@@ -58,7 +58,12 @@ export function RecipeOverlay({ v }) {
             )}
             {v.orIngredients.length > 0 && (
               <>
-                <div style={css("margin-top:18px;font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.22em;color:rgba(236,229,218,.45)")}>INGREDIENTS</div>
+                <div style={css("margin-top:18px;display:flex;justify-content:space-between;align-items:baseline")}>
+                  <span style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.22em;color:rgba(236,229,218,.45)")}>INGREDIENTS</span>
+                  {v.orShowAddToShoppingList && (
+                    <Interactive as="span" onClick={v.addRecipeToShoppingList} base="cursor:pointer;font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.06em;color:#d8b573" hoverStyle={{ color: '#e6c98f' }}>+ ADD TO SHOPPING LIST</Interactive>
+                  )}
+                </div>
                 <div style={css("margin-top:10px;display:flex;flex-direction:column")}>
                   {v.orIngredients.map((ing, i) => (
                     <div key={i} style={css("display:flex;gap:12px;padding:7px 0;border-bottom:1px solid rgba(236,229,218,.05);font-size:13.5px")}><span style={css("font:400 11.5px 'JetBrains Mono',monospace;color:#d8b573;width:74px;font-variant-numeric:tabular-nums")}>{ing.qty}</span><span style={css("color:rgba(236,229,218,.85)")}>{ing.name}</span></div>

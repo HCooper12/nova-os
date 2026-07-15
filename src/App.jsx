@@ -7,6 +7,7 @@ import { MissionControl } from './screens/MissionControl.jsx';
 import { Voice } from './screens/Voice.jsx';
 import { Galaxy } from './screens/Galaxy.jsx';
 import { Recipes } from './screens/Recipes.jsx';
+import { Shopping } from './screens/Shopping.jsx';
 import { Workouts } from './screens/Workouts.jsx';
 import { ClaudeCode } from './screens/ClaudeCode.jsx';
 import { Notes } from './screens/Notes.jsx';
@@ -81,6 +82,10 @@ export default class App extends Component {
     recipeAddIngredients: '', recipeAddMethod: '', recipeAddBusy: false, recipeAddError: null,
     recipeScanBusy: false, recipeScanError: null,
 
+    // shopping list
+    liveShoppingList: null,
+    shoppingAddInput: '', shoppingAddBusy: false, shoppingAddError: null,
+
     // transcript ingest
     ingestModalOpen: false, ingestText: '', ingestSourceUrl: '',
     ingestJobId: null, ingestStatus: 'idle', ingestPreview: null, ingestError: null,
@@ -116,7 +121,7 @@ export default class App extends Component {
     }
   }
   componentWillUnmount() {
-    clearTimeout(this.bootT); clearInterval(this.clockIv); clearInterval(this.gaugeIv); clearInterval(this.ingestPollIv); clearInterval(this.scanPollIv); clearInterval(this.tweakPollIv);
+    clearTimeout(this.bootT); clearInterval(this.clockIv); clearInterval(this.gaugeIv); clearInterval(this.ingestPollIv); clearInterval(this.scanPollIv); clearInterval(this.tweakPollIv); clearInterval(this.shoppingAddPollIv);
     window.removeEventListener('keydown', this.keyH);
     window.removeEventListener('resize', this.resizeH);
     this.ivs.forEach(clearInterval);
@@ -161,6 +166,12 @@ export default class App extends Component {
       this.setState({ liveRotation: rotationRes });
     } catch {
       this.setState({ liveRotation: null });
+    }
+    try {
+      const shoppingRes = await api.shoppingList(conn);
+      this.setState({ liveShoppingList: shoppingRes });
+    } catch {
+      this.setState({ liveShoppingList: null });
     }
   }
   toggleRotationSlot(slot, recipeId) {
@@ -324,6 +335,65 @@ export default class App extends Component {
   discardRecipeTweak() {
     this.setState({ recipeTweakPreview: null, recipeTweakError: null });
   }
+  addToShoppingList(items, source) {
+    const conn = getConnection();
+    if (!conn || !items.length) return;
+    this.toastMsg(`Adding ${items.length} item${items.length > 1 ? 's' : ''} to shopping list…`);
+    api.addShoppingItems(conn, items.map((name) => ({ name, source })))
+      .then(({ jobId }) => {
+        this.shoppingAddPollIv = setInterval(() => this.pollShoppingAddJob(jobId), 2500);
+      })
+      .catch((e) => this.toastMsg('Could not add to shopping list: ' + e.message));
+  }
+  pollShoppingAddJob(jobId) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.addShoppingItemsJob(conn, jobId).then((job) => {
+      if (job.status === 'ready') {
+        clearInterval(this.shoppingAddPollIv);
+        this.setState((s) => ({ liveShoppingList: { ...s.liveShoppingList, items: job.items }, shoppingAddBusy: false, shoppingAddInput: '' }));
+        this.toastMsg('Added to shopping list ✓');
+      } else if (job.status === 'error') {
+        clearInterval(this.shoppingAddPollIv);
+        this.setState({ shoppingAddBusy: false, shoppingAddError: job.error });
+        this.toastMsg('Could not add to shopping list: ' + job.error);
+      }
+    }).catch(() => {});
+  }
+  setShoppingAddInput(e) {
+    this.setState({ shoppingAddInput: e.target.value });
+  }
+  submitShoppingAdd() {
+    const conn = getConnection();
+    const items = this.state.shoppingAddInput.split('\n').map((s) => s.trim()).filter(Boolean);
+    if (!conn || !items.length) return;
+    this.setState({ shoppingAddBusy: true, shoppingAddError: null });
+    api.addShoppingItems(conn, items.map((name) => ({ name, source: null })))
+      .then(({ jobId }) => {
+        this.shoppingAddPollIv = setInterval(() => this.pollShoppingAddJob(jobId), 2500);
+      })
+      .catch((e) => {
+        this.setState({ shoppingAddBusy: false, shoppingAddError: e.message });
+      });
+  }
+  toggleShoppingItem(id, checked) {
+    const conn = getConnection();
+    if (!conn) return;
+    this.setState((s) => ({
+      liveShoppingList: { ...s.liveShoppingList, items: s.liveShoppingList.items.map((i) => (i.id === id ? { ...i, checked } : i)) },
+    }));
+    api.toggleShoppingItem(conn, id, checked).then(({ items }) => {
+      this.setState((s) => ({ liveShoppingList: { ...s.liveShoppingList, items } }));
+    }).catch((e) => this.toastMsg('Could not update item: ' + e.message));
+  }
+  confirmShoppingCompletion() {
+    const conn = getConnection();
+    if (!conn) return;
+    api.confirmShoppingCompletion(conn).then(({ items }) => {
+      this.setState((s) => ({ liveShoppingList: { ...s.liveShoppingList, items } }));
+      this.toastMsg('Shopping list updated ✓');
+    }).catch((e) => this.toastMsg('Could not confirm completion: ' + e.message));
+  }
   selectNote(id) {
     this.setState({ openNoteId: id });
     if (this.state.liveNoteDetails[id]) return;
@@ -351,7 +421,7 @@ export default class App extends Component {
   }
   disconnectSettings() {
     setConnection(null);
-    this.setState({ settingsBaseUrl: '', settingsToken: '', settingsTestStatus: 'idle', settingsTestMessage: '', liveNotes: null, liveNoteDetails: {}, liveCalendar: null, liveRecipes: null, liveRotation: null, liveRecipeProfile: null, rotationShowExtra: false, recipeAddOpen: false, openNoteId: 'n1' });
+    this.setState({ settingsBaseUrl: '', settingsToken: '', settingsTestStatus: 'idle', settingsTestMessage: '', liveNotes: null, liveNoteDetails: {}, liveCalendar: null, liveRecipes: null, liveRotation: null, liveRecipeProfile: null, rotationShowExtra: false, recipeAddOpen: false, liveShoppingList: null, openNoteId: 'n1' });
     this.toastMsg('Disconnected — back to demo data');
   }
 
@@ -678,12 +748,37 @@ export default class App extends Component {
     const mp = { padding: '66px 16px 96px' };
     const col = (mt) => ({ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: mt });
     const wrapTall = mob ? mp : null;
-    const tabs = [['I.', 'Home', 'mission'], ['II.', 'Voice', 'voice'], ['III.', 'Galaxy', 'galaxy'], ['IV.', 'Code', 'code'], ['V.', 'Recipes', 'recipes'], ['VI.', 'Train', 'workouts'], ['VII.', 'Notes', 'notes']].map(t => {
+    const tabs = [['I.', 'Home', 'mission'], ['II.', 'Voice', 'voice'], ['III.', 'Galaxy', 'galaxy'], ['IV.', 'Code', 'code'], ['V.', 'Recipes', 'recipes'], ['VI.', 'Shop', 'shopping'], ['VII.', 'Train', 'workouts'], ['VIII.', 'Notes', 'notes']].map(t => {
       const act = st.screen === t[2];
       return { num: t[0], label: t[1], go: go(t[2]),
         style: { flex: '1', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', padding: '7px 2px', cursor: 'pointer', borderRadius: '9px', color: act ? '#d8b573' : 'rgba(236,229,218,.5)', background: act ? 'rgba(216,181,115,.09)' : 'none' },
         numStyle: { fontFamily: "'Instrument Serif',serif", fontStyle: 'italic', fontSize: '15px', color: act ? '#d8b573' : 'rgba(216,181,115,.45)' } };
     });
+
+    // shopping list — grouped by category (matching a typical supermarket layout)
+    const shoppingItems = st.liveShoppingList?.items || [];
+    const shoppingCategoryOrder = st.liveShoppingList?.categories || [];
+    const shoppingCategories = shoppingCategoryOrder
+      .map((cat) => ({
+        name: cat,
+        items: shoppingItems.filter((i) => i.category === cat).map((i) => ({
+          id: i.id, name: i.name, source: i.source, checked: i.checked,
+          onToggle: () => this.toggleShoppingItem(i.id, !i.checked),
+          checkboxStyle: {
+            width: '21px', height: '21px', borderRadius: '6px', flex: 'none',
+            border: i.checked ? '1px solid #6be5f5' : '1px solid rgba(236,229,218,.25)',
+            background: i.checked ? '#6be5f5' : 'transparent',
+            color: '#0a2830', fontSize: '13px', fontWeight: 700, lineHeight: '19px', textAlign: 'center',
+          },
+          nameStyle: {
+            fontSize: '13.5px',
+            color: i.checked ? 'rgba(236,229,218,.35)' : '#ece5da',
+            textDecoration: i.checked ? 'line-through' : 'none',
+          },
+        })),
+      }))
+      .filter((c) => c.items.length > 0);
+    const shoppingCheckedCount = shoppingItems.filter((i) => i.checked).length;
 
     return {
       // chrome
@@ -693,6 +788,7 @@ export default class App extends Component {
       wrapVoice: wrapTall || { padding: '28px 40px 40px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
       wrapGalaxy: wrapTall || { padding: '28px 40px 40px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
       wrapRecipes: mob ? mp : { padding: '28px 40px 44px' },
+      wrapShopping: mob ? mp : { padding: '28px 40px 44px' },
       wrapWorkouts: mob ? mp : { padding: '28px 40px 44px' },
       wrapCode: wrapTall || { padding: '28px 40px 44px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
       wrapNotes: wrapTall || { padding: '28px 40px 44px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
@@ -709,13 +805,29 @@ export default class App extends Component {
       gridRecipeOv: mob ? { display: 'flex', flexDirection: 'column', gap: '20px', padding: '18px' } : { display: 'grid', gridTemplateColumns: '300px 1fr', gap: '26px', padding: '26px' },
       recipeOvWrap: { position: 'fixed', inset: 0, background: 'rgba(8,5,12,.72)', backdropFilter: 'blur(6px)', zIndex: 60, display: 'flex', alignItems: mob ? 'flex-start' : 'center', justifyContent: 'center', padding: mob ? '14px' : '40px', overflowY: 'auto' },
       isMission: st.screen === 'mission', isVoice: st.screen === 'voice', isGalaxy: st.screen === 'galaxy',
-      isRecipes: st.screen === 'recipes', isWorkouts: st.screen === 'workouts', isCode: st.screen === 'code', isNotes: st.screen === 'notes',
+      isRecipes: st.screen === 'recipes', isShopping: st.screen === 'shopping', isWorkouts: st.screen === 'workouts', isCode: st.screen === 'code', isNotes: st.screen === 'notes',
       clock: st.clock,
       dateLabel: new Date().toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }).toUpperCase().replace(/,/g, ''),
       greeting: (new Date().getHours() < 12 ? 'Good morning, ' : new Date().getHours() < 18 ? 'Good afternoon, ' : 'Good evening, ') + userName + '.',
       navMain: [mkNav('Mission Control', 'I.', 'mission'), mkNav('Voice', 'II.', 'voice'), mkNav('Memory Galaxy', 'III.', 'galaxy'), mkNav('Claude Code', 'IV.', 'code')],
-      navVault: [Object.assign(mkNav('Recipes', 'V.', 'recipes'), { count: usingLiveRecipes ? String(st.liveRecipes.length) : '42' }), Object.assign(mkNav('Workouts', 'VI.', 'workouts'), { count: 'wk6' }), Object.assign(mkNav('Notes', 'VII.', 'notes'), { count: usingLiveNotes ? String(st.liveNotes.length) : '186' })],
-      navSystem: [mkNav('Settings', 'VIII.', 'settings')],
+      navVault: [
+        Object.assign(mkNav('Recipes', 'V.', 'recipes'), { count: usingLiveRecipes ? String(st.liveRecipes.length) : '42' }),
+        Object.assign(mkNav('Shopping List', 'VI.', 'shopping'), { count: String(shoppingItems.length) }),
+        Object.assign(mkNav('Workouts', 'VII.', 'workouts'), { count: 'wk6' }),
+        Object.assign(mkNav('Notes', 'VIII.', 'notes'), { count: usingLiveNotes ? String(st.liveNotes.length) : '186' }),
+      ],
+      navSystem: [mkNav('Settings', 'IX.', 'settings')],
+
+      // shopping list
+      shoppingHeaderLabel: st.liveShoppingList ? `${shoppingItems.length} ITEM${shoppingItems.length === 1 ? '' : 'S'} · LIVE FROM OBSIDIAN` : 'CONNECT A BACKEND IN SETTINGS',
+      shoppingCategories,
+      shoppingCheckedCount,
+      shoppingAddInput: st.shoppingAddInput,
+      setShoppingAddInput: (e) => this.setShoppingAddInput(e),
+      submitShoppingAdd: () => this.submitShoppingAdd(),
+      shoppingAddBusy: st.shoppingAddBusy,
+      shoppingAddError: st.shoppingAddError,
+      confirmShoppingCompletion: () => this.confirmShoppingCompletion(),
       agents: [
         { name: 'Commander', role: 'planning', dotStyle: { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', background: '#6be5f5', boxShadow: '0 0 8px rgba(107,229,245,.8)', animation: 'novaPulse 2.4s infinite' } },
         { name: 'Coach', role: 'fitness', dotStyle: { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', background: '#6be5f5', boxShadow: '0 0 8px rgba(107,229,245,.8)', animation: 'novaPulse 3.1s infinite' } },
@@ -903,6 +1015,13 @@ export default class App extends Component {
         { id: null, label: 'Original', active: !st.recipeAltSelected, onClick: () => this.selectAlternate(null) },
         ...liveOr.alternates.map((a) => ({ id: a.id, label: a.label, active: st.recipeAltSelected === a.id, onClick: () => this.selectAlternate(a.id) })),
       ] : [],
+      orShowAddToShoppingList: usingLiveRecipes && !!liveOr && effIngredients.length > 0,
+      addRecipeToShoppingList: () => {
+        if (!liveOr) return;
+        const names = effIngredients.map((i) => i.name);
+        const source = activeAlt ? `${liveOr.name} (${activeAlt.label})` : liveOr.name;
+        this.addToShoppingList(names, source);
+      },
       orShowTweak: usingLiveRecipes && !!liveOr,
       recipeTweakInput: st.recipeTweakInput,
       setRecipeTweakInput: (e) => this.setState({ recipeTweakInput: e.target.value }),
@@ -1052,6 +1171,7 @@ export default class App extends Component {
             {v.isGalaxy && <Galaxy v={v} />}
             {v.isCode && <ClaudeCode v={v} />}
             {v.isRecipes && <Recipes v={v} />}
+            {v.isShopping && <Shopping v={v} />}
             {v.isWorkouts && <Workouts v={v} />}
             {v.isNotes && <Notes v={v} />}
             {v.isSettings && <Settings v={v} />}
