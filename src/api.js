@@ -41,6 +41,31 @@ async function post(conn, path, body) {
   return res.json();
 }
 
+async function put(conn, path, body) {
+  const res = await fetch(baseOf(conn) + path, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${conn.token}`, 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => null);
+    throw new Error(detail?.error || `${path} failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+async function del(conn, path) {
+  const res = await fetch(baseOf(conn) + path, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${conn.token}` },
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => null);
+    throw new Error(detail?.error || `${path} failed: ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function testConnection(baseUrl, token) {
   const base = baseUrl.replace(/\/$/, '');
   const health = await fetch(base + '/api/health');
@@ -71,6 +96,15 @@ export const api = {
   rotation: (conn) => call(conn, '/api/rotation'),
   setRotationSlot: (conn, slot, recipeId) => post(conn, '/api/rotation', { slot, recipeId }),
   calendarToday: (conn) => call(conn, '/api/calendar/today'),
+  workoutExercises: (conn) => call(conn, '/api/workouts/exercises'),
+  addWorkoutExercise: (conn, name, muscleGroup) => post(conn, '/api/workouts/exercises', { name, muscleGroup }),
+  workoutRoutines: (conn) => call(conn, '/api/workouts/routines'),
+  createWorkoutRoutine: (conn, name, exercises) => post(conn, '/api/workouts/routines', { name, exercises }),
+  updateWorkoutRoutine: (conn, id, patch) => put(conn, `/api/workouts/routines/${encodeURIComponent(id)}`, patch),
+  deleteWorkoutRoutine: (conn, id) => del(conn, `/api/workouts/routines/${encodeURIComponent(id)}`),
+  setWorkoutScheduleDay: (conn, day, routineId) => post(conn, '/api/workouts/schedule', { day, routineId }),
+  workoutSessions: (conn, params) => call(conn, `/api/workouts/sessions${params ? '?' + new URLSearchParams(params).toString() : ''}`),
+  completeWorkoutSession: (conn, session) => post(conn, '/api/workouts/sessions', session),
   startIngest: (conn, text, sourceUrl) => post(conn, '/api/ingest', { text, sourceUrl }),
   ingestJob: (conn, jobId) => call(conn, `/api/ingest/${encodeURIComponent(jobId)}`),
   approveIngest: (conn, jobId) => post(conn, `/api/ingest/${encodeURIComponent(jobId)}/approve`),

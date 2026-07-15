@@ -86,6 +86,16 @@ export default class App extends Component {
     liveShoppingList: null,
     shoppingAddInput: '', shoppingAddBusy: false, shoppingAddError: null,
 
+    // workouts
+    liveWorkoutExercises: null, liveWorkoutMuscleGroups: null,
+    liveWorkoutRoutines: null, liveWorkoutSchedule: null, liveWorkoutWeekdays: null,
+    workoutsView: 'routines', openRoutineId: null,
+    routineCreating: false, routineNewName: '',
+    routineDeleteConfirm: false,
+    exercisePickerOpen: false, exercisePickerQuery: '', exercisePickerMuscle: 'Any', exercisePickerCreateMuscle: '',
+    workoutSession: null, sessionCancelConfirm: false,
+    liveWorkoutHistory: null, historyRoutineId: null,
+
     // transcript ingest
     ingestModalOpen: false, ingestText: '', ingestSourceUrl: '',
     ingestJobId: null, ingestStatus: 'idle', ingestPreview: null, ingestError: null,
@@ -173,6 +183,21 @@ export default class App extends Component {
     } catch {
       this.setState({ liveShoppingList: null });
     }
+    try {
+      const exercisesRes = await api.workoutExercises(conn);
+      this.setState({ liveWorkoutExercises: exercisesRes.exercises, liveWorkoutMuscleGroups: exercisesRes.muscleGroups });
+      const routinesRes = await api.workoutRoutines(conn);
+      this.setState({ liveWorkoutRoutines: routinesRes.routines, liveWorkoutSchedule: routinesRes.schedule, liveWorkoutWeekdays: routinesRes.weekdays });
+    } catch {
+      this.setState({ liveWorkoutExercises: null, liveWorkoutRoutines: null });
+    }
+  }
+  refreshWorkoutRoutines() {
+    const conn = getConnection();
+    if (!conn) return Promise.resolve();
+    return api.workoutRoutines(conn).then((r) => {
+      this.setState({ liveWorkoutRoutines: r.routines, liveWorkoutSchedule: r.schedule, liveWorkoutWeekdays: r.weekdays });
+    }).catch(() => {});
   }
   toggleRotationSlot(slot, recipeId) {
     const conn = getConnection();
@@ -394,6 +419,212 @@ export default class App extends Component {
       this.toastMsg('Shopping list updated ✓');
     }).catch((e) => this.toastMsg('Could not confirm completion: ' + e.message));
   }
+
+  // ---------- workouts (Train) ----------
+  currentRoutine() {
+    const st = this.state;
+    return (st.liveWorkoutRoutines || []).find((r) => r.id === st.openRoutineId) || null;
+  }
+  startCreateRoutine() {
+    this.setState({ routineCreating: true, routineNewName: '' });
+  }
+  cancelCreateRoutine() {
+    this.setState({ routineCreating: false, routineNewName: '' });
+  }
+  setRoutineNewName(e) {
+    this.setState({ routineNewName: e.target.value });
+  }
+  submitCreateRoutine() {
+    const conn = getConnection();
+    const name = this.state.routineNewName.trim();
+    if (!conn || !name) return;
+    api.createWorkoutRoutine(conn, name, []).then(({ routine }) => {
+      this.setState({ routineCreating: false, routineNewName: '' });
+      this.refreshWorkoutRoutines().then(() => this.setState({ workoutsView: 'routine', openRoutineId: routine.id }));
+    }).catch((e) => this.toastMsg('Could not create routine: ' + e.message));
+  }
+  openRoutine(id) {
+    this.setState({ workoutsView: 'routine', openRoutineId: id, routineDeleteConfirm: false, exercisePickerOpen: false });
+  }
+  backToRoutines() {
+    this.setState({ workoutsView: 'routines', openRoutineId: null, routineDeleteConfirm: false, exercisePickerOpen: false });
+  }
+  requestDeleteRoutine() {
+    this.setState({ routineDeleteConfirm: true });
+  }
+  cancelDeleteRoutine() {
+    this.setState({ routineDeleteConfirm: false });
+  }
+  confirmDeleteRoutine(id) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.deleteWorkoutRoutine(conn, id).then(() => {
+      this.setState({ workoutsView: 'routines', openRoutineId: null, routineDeleteConfirm: false });
+      this.refreshWorkoutRoutines();
+      this.toastMsg('Routine deleted');
+    }).catch((e) => this.toastMsg('Could not delete routine: ' + e.message));
+  }
+  updateRoutineExercises(entries) {
+    const conn = getConnection();
+    const routine = this.currentRoutine();
+    if (!conn || !routine) return;
+    api.updateWorkoutRoutine(conn, routine.id, { exercises: entries }).then(() => {
+      this.refreshWorkoutRoutines();
+    }).catch((e) => this.toastMsg('Could not update routine: ' + e.message));
+  }
+  routineEntriesFrom(routine) {
+    return routine.exercises.map((e) => ({ exerciseId: e.exerciseId, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh }));
+  }
+  addExerciseToRoutine(exerciseId) {
+    const routine = this.currentRoutine();
+    if (!routine) return;
+    const entries = [...this.routineEntriesFrom(routine), { exerciseId, targetSets: 3, targetRepsLow: 8, targetRepsHigh: 10 }];
+    this.updateRoutineExercises(entries);
+    this.setState({ exercisePickerOpen: false, exercisePickerQuery: '' });
+  }
+  removeExerciseFromRoutine(exerciseId) {
+    const routine = this.currentRoutine();
+    if (!routine) return;
+    const entries = this.routineEntriesFrom(routine).filter((e) => e.exerciseId !== exerciseId);
+    this.updateRoutineExercises(entries);
+  }
+  moveExerciseInRoutine(exerciseId, dir) {
+    const routine = this.currentRoutine();
+    if (!routine) return;
+    const entries = this.routineEntriesFrom(routine);
+    const idx = entries.findIndex((e) => e.exerciseId === exerciseId);
+    const swapWith = idx + dir;
+    if (idx === -1 || swapWith < 0 || swapWith >= entries.length) return;
+    [entries[idx], entries[swapWith]] = [entries[swapWith], entries[idx]];
+    this.updateRoutineExercises(entries);
+  }
+  setExerciseTarget(exerciseId, field, value) {
+    const routine = this.currentRoutine();
+    if (!routine) return;
+    const entries = this.routineEntriesFrom(routine);
+    const idx = entries.findIndex((e) => e.exerciseId === exerciseId);
+    if (idx === -1) return;
+    const n = Math.max(1, Math.round(Number(value)) || 1);
+    entries[idx] = { ...entries[idx], [field]: n };
+    this.updateRoutineExercises(entries);
+  }
+  openExercisePicker() {
+    this.setState({ exercisePickerOpen: true, exercisePickerQuery: '', exercisePickerMuscle: 'Any', exercisePickerCreateMuscle: '' });
+  }
+  closeExercisePicker() {
+    this.setState({ exercisePickerOpen: false });
+  }
+  setExercisePickerQuery(e) {
+    this.setState({ exercisePickerQuery: e.target.value });
+  }
+  setExercisePickerMuscle(m) {
+    this.setState({ exercisePickerMuscle: m });
+  }
+  setExercisePickerCreateMuscle(m) {
+    this.setState({ exercisePickerCreateMuscle: m });
+  }
+  createAndAddExercise(name, muscleGroup) {
+    const conn = getConnection();
+    if (!conn || !name.trim() || !muscleGroup) return;
+    api.addWorkoutExercise(conn, name.trim(), muscleGroup).then(({ exercise }) => {
+      this.setState((s) => ({ liveWorkoutExercises: [...(s.liveWorkoutExercises || []), exercise] }));
+      this.addExerciseToRoutine(exercise.id);
+    }).catch((e) => this.toastMsg('Could not add exercise: ' + e.message));
+  }
+  assignScheduleDay(day, routineId) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.setWorkoutScheduleDay(conn, day, routineId || null).then(({ schedule }) => {
+      this.setState({ liveWorkoutSchedule: schedule });
+    }).catch((e) => this.toastMsg('Could not update schedule: ' + e.message));
+  }
+  startWorkoutSession(routine) {
+    const exercises = routine.exercises.map((e) => {
+      const sets = e.lastSets && e.lastSets.length
+        ? e.lastSets.map((s) => ({ weight: s.weight, reps: s.reps, done: false }))
+        : Array.from({ length: e.targetSets }, () => ({ weight: 0, reps: e.targetRepsLow, done: false }));
+      return { exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh, sets };
+    });
+    this.setState({ workoutsView: 'session', workoutSession: { routineId: routine.id, routineName: routine.name, exercises }, sessionCancelConfirm: false });
+  }
+  updateSessionSet(exIdx, setIdx, field, value) {
+    this.setState((s) => ({
+      workoutSession: {
+        ...s.workoutSession,
+        exercises: s.workoutSession.exercises.map((e, i) => i !== exIdx ? e : {
+          ...e, sets: e.sets.map((set, j) => j !== setIdx ? set : { ...set, [field]: value }),
+        }),
+      },
+    }));
+  }
+  toggleSessionSetDone(exIdx, setIdx) {
+    this.setState((s) => ({
+      workoutSession: {
+        ...s.workoutSession,
+        exercises: s.workoutSession.exercises.map((e, i) => i !== exIdx ? e : {
+          ...e, sets: e.sets.map((set, j) => j !== setIdx ? set : { ...set, done: !set.done }),
+        }),
+      },
+    }));
+  }
+  addSessionSet(exIdx) {
+    this.setState((s) => ({
+      workoutSession: {
+        ...s.workoutSession,
+        exercises: s.workoutSession.exercises.map((e, i) => {
+          if (i !== exIdx) return e;
+          const last = e.sets[e.sets.length - 1];
+          return { ...e, sets: [...e.sets, { weight: last ? last.weight : 0, reps: last ? last.reps : e.targetRepsLow, done: false }] };
+        }),
+      },
+    }));
+  }
+  removeSessionSet(exIdx, setIdx) {
+    this.setState((s) => ({
+      workoutSession: {
+        ...s.workoutSession,
+        exercises: s.workoutSession.exercises.map((e, i) => i !== exIdx ? e : { ...e, sets: e.sets.filter((_, j) => j !== setIdx) }),
+      },
+    }));
+  }
+  requestCancelSession() {
+    this.setState({ sessionCancelConfirm: true });
+  }
+  cancelSessionCancel() {
+    this.setState({ sessionCancelConfirm: false });
+  }
+  discardWorkoutSession() {
+    const routineId = this.state.workoutSession?.routineId;
+    this.setState({ workoutsView: 'routine', openRoutineId: routineId, workoutSession: null, sessionCancelConfirm: false });
+  }
+  finishWorkoutSession() {
+    const conn = getConnection();
+    const session = this.state.workoutSession;
+    if (!conn || !session) return;
+    const payload = {
+      routineId: session.routineId,
+      routineName: session.routineName,
+      exercises: session.exercises.map((e) => ({
+        exerciseId: e.exerciseId,
+        name: e.name,
+        sets: e.sets.map((s) => ({ weight: Number(s.weight) || 0, reps: Number(s.reps) || 0 })),
+      })),
+    };
+    api.completeWorkoutSession(conn, payload).then(() => {
+      this.setState({ workoutsView: 'routine', workoutSession: null, sessionCancelConfirm: false });
+      this.refreshWorkoutRoutines();
+      this.toastMsg('Workout saved ✓');
+    }).catch((e) => this.toastMsg('Could not save workout: ' + e.message));
+  }
+  openWorkoutHistory(routineId) {
+    const conn = getConnection();
+    this.setState({ workoutsView: 'history', historyRoutineId: routineId, liveWorkoutHistory: null });
+    if (!conn) return;
+    api.workoutSessions(conn, { routineId }).then(({ sessions }) => this.setState({ liveWorkoutHistory: sessions })).catch(() => this.setState({ liveWorkoutHistory: [] }));
+  }
+  backFromWorkoutHistory() {
+    this.setState({ workoutsView: 'routine' });
+  }
   selectNote(id) {
     this.setState({ openNoteId: id });
     if (this.state.liveNoteDetails[id]) return;
@@ -421,7 +652,7 @@ export default class App extends Component {
   }
   disconnectSettings() {
     setConnection(null);
-    this.setState({ settingsBaseUrl: '', settingsToken: '', settingsTestStatus: 'idle', settingsTestMessage: '', liveNotes: null, liveNoteDetails: {}, liveCalendar: null, liveRecipes: null, liveRotation: null, liveRecipeProfile: null, rotationShowExtra: false, recipeAddOpen: false, liveShoppingList: null, openNoteId: 'n1' });
+    this.setState({ settingsBaseUrl: '', settingsToken: '', settingsTestStatus: 'idle', settingsTestMessage: '', liveNotes: null, liveNoteDetails: {}, liveCalendar: null, liveRecipes: null, liveRotation: null, liveRecipeProfile: null, rotationShowExtra: false, recipeAddOpen: false, liveShoppingList: null, openNoteId: 'n1', liveWorkoutExercises: null, liveWorkoutRoutines: null, liveWorkoutSchedule: null, workoutsView: 'routines', openRoutineId: null, workoutSession: null, liveWorkoutHistory: null });
     this.toastMsg('Disconnected — back to demo data');
   }
 
@@ -701,6 +932,98 @@ export default class App extends Component {
       ? { wrapStyle: { display: 'flex', justifyContent: 'flex-end' }, bubbleStyle: { maxWidth: '85%', fontSize: '12.5px', lineHeight: 1.55, padding: '9px 13px', borderRadius: '11px 11px 3px 11px', background: 'rgba(216,181,115,.14)', border: '1px solid rgba(216,181,115,.25)', color: '#ece5da' } }
       : { wrapStyle: { display: 'flex' }, bubbleStyle: { maxWidth: '90%', fontSize: '12.5px', lineHeight: 1.55, padding: '9px 13px', borderRadius: '11px 11px 11px 3px', background: 'rgba(107,229,245,.07)', border: '1px solid rgba(107,229,245,.2)', color: 'rgba(236,229,218,.92)' } };
 
+    // workouts — live (real routines/history in Wiki/Health) or mock, depending on Settings connection
+    const usingLiveWorkouts = !!st.liveWorkoutRoutines;
+    const liveRoutines = st.liveWorkoutRoutines || [];
+    const liveSchedule = st.liveWorkoutSchedule || {};
+    const liveWeekdays = st.liveWorkoutWeekdays || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const WEEKDAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const WEEKDAY_SHORT = { monday: 'MON', tuesday: 'TUE', wednesday: 'WED', thursday: 'THU', friday: 'FRI', saturday: 'SAT', sunday: 'SUN' };
+    const todayWeekday = WEEKDAY_NAMES[new Date().getDay()];
+
+    const weekStrip = liveWeekdays.map((day) => {
+      const routineId = liveSchedule[day] || '';
+      const isToday = day === todayWeekday;
+      return {
+        day, dayLabel: WEEKDAY_SHORT[day], isToday,
+        style: { flex: '1', minWidth: '62px', textAlign: 'center', padding: '10px 6px', borderRadius: '10px',
+          border: isToday ? '1px solid rgba(107,229,245,.45)' : '1px solid rgba(236,229,218,.08)',
+          background: isToday ? 'rgba(107,229,245,.07)' : 'rgba(0,0,0,.18)',
+          boxShadow: isToday ? '0 0 24px -8px rgba(107,229,245,.5)' : 'none' },
+        labelColor: isToday ? '#6be5f5' : 'rgba(236,229,218,.55)',
+        value: routineId,
+        onChange: (e) => this.assignScheduleDay(day, e.target.value || null),
+        options: [{ value: '', label: 'Rest' }, ...liveRoutines.map((r) => ({ value: r.id, label: r.name }))],
+      };
+    });
+
+    const routinesList = liveRoutines.map((r) => ({
+      id: r.id,
+      name: r.name,
+      exercisesPreview: r.exercises.length
+        ? r.exercises.slice(0, 3).map((e) => e.name).join(', ') + (r.exercises.length > 3 ? ` +${r.exercises.length - 3} more` : '')
+        : 'No exercises yet',
+      completedCount: r.completedCount,
+      onOpen: () => this.openRoutine(r.id),
+    }));
+
+    const openRoutine = usingLiveWorkouts ? liveRoutines.find((r) => r.id === st.openRoutineId) || null : null;
+    const setsLabel = (sets) => sets && sets.length ? sets.map((s) => `${s.weight}kg×${s.reps}`).join(', ') : 'Not yet performed';
+
+    const routineDetailExercises = openRoutine ? openRoutine.exercises.map((e, i, arr) => ({
+      exerciseId: e.exerciseId,
+      name: e.name,
+      muscleGroup: e.muscleGroup,
+      targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh,
+      lastLabel: setsLabel(e.lastSets),
+      canMoveUp: i > 0, canMoveDown: i < arr.length - 1,
+      onMoveUp: () => this.moveExerciseInRoutine(e.exerciseId, -1),
+      onMoveDown: () => this.moveExerciseInRoutine(e.exerciseId, 1),
+      onRemove: () => this.removeExerciseFromRoutine(e.exerciseId),
+      onTargetSetsBlur: (ev) => this.setExerciseTarget(e.exerciseId, 'targetSets', ev.target.value),
+      onTargetLowBlur: (ev) => this.setExerciseTarget(e.exerciseId, 'targetRepsLow', ev.target.value),
+      onTargetHighBlur: (ev) => this.setExerciseTarget(e.exerciseId, 'targetRepsHigh', ev.target.value),
+    })) : [];
+
+    const pickerQuery = st.exercisePickerQuery.trim().toLowerCase();
+    const pickerMuscle = st.exercisePickerMuscle;
+    const libraryExercises = st.liveWorkoutExercises || [];
+    const alreadyInRoutine = new Set((openRoutine?.exercises || []).map((e) => e.exerciseId));
+    const exercisePickerResults = libraryExercises
+      .filter((e) => !alreadyInRoutine.has(e.id))
+      .filter((e) => pickerMuscle === 'Any' || e.muscleGroup === pickerMuscle)
+      .filter((e) => !pickerQuery || e.name.toLowerCase().includes(pickerQuery))
+      .slice(0, 60)
+      .map((e) => ({ id: e.id, name: e.name, muscleGroup: e.muscleGroup, onAdd: () => this.addExerciseToRoutine(e.id) }));
+    const exercisePickerExactMatch = libraryExercises.some((e) => e.name.toLowerCase() === pickerQuery);
+    const exercisePickerShowCreate = pickerQuery.length > 0 && !exercisePickerExactMatch;
+
+    const session = st.workoutSession;
+    const sessionExercises = session ? session.exercises.map((e, exIdx) => ({
+      exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup,
+      targetLabel: `Target: ${e.targetSets} × ${e.targetRepsLow}-${e.targetRepsHigh}`,
+      onAddSet: () => this.addSessionSet(exIdx),
+      sets: e.sets.map((s, setIdx) => ({
+        weight: s.weight, reps: s.reps, done: s.done,
+        onWeight: (ev) => this.updateSessionSet(exIdx, setIdx, 'weight', ev.target.value),
+        onReps: (ev) => this.updateSessionSet(exIdx, setIdx, 'reps', ev.target.value),
+        onToggleDone: () => this.toggleSessionSetDone(exIdx, setIdx),
+        onRemove: () => this.removeSessionSet(exIdx, setIdx),
+        canRemove: e.sets.length > 1,
+      })),
+    })) : [];
+
+    const historySessions = (st.liveWorkoutHistory || []).map((s) => ({
+      id: s.id,
+      date: s.date,
+      totalSets: s.exercises.reduce((n, e) => n + e.sets.length, 0),
+      totalVolume: Math.round(s.exercises.reduce((v, e) => v + e.sets.reduce((sv, set) => sv + set.weight * set.reps, 0), 0)),
+      exercises: s.exercises.map((e) => ({ name: e.name, setsLabel: setsLabel(e.sets) })),
+    }));
+    const historyRoutine = liveRoutines.find((r) => r.id === st.historyRoutineId);
+    const todayRoutineId = liveSchedule[todayWeekday];
+    const todayRoutine = todayRoutineId ? liveRoutines.find((r) => r.id === todayRoutineId) : null;
+
     // notes — live (real Obsidian vault via server/) or mock, depending on Settings connection
     const usingLiveNotes = !!st.liveNotes;
     const nchip = (act) => ({ cursor: 'pointer', font: "500 9px " + mono, letterSpacing: '.1em', padding: '5px 10px', borderRadius: '7px',
@@ -813,7 +1136,7 @@ export default class App extends Component {
       navVault: [
         Object.assign(mkNav('Recipes', 'V.', 'recipes'), { count: usingLiveRecipes ? String(st.liveRecipes.length) : '42' }),
         Object.assign(mkNav('Shopping List', 'VI.', 'shopping'), { count: String(shoppingItems.length) }),
-        Object.assign(mkNav('Workouts', 'VII.', 'workouts'), { count: 'wk6' }),
+        Object.assign(mkNav('Workouts', 'VII.', 'workouts'), { count: usingLiveWorkouts ? String(liveRoutines.length) : 'wk6' }),
         Object.assign(mkNav('Notes', 'VIII.', 'notes'), { count: usingLiveNotes ? String(st.liveNotes.length) : '186' }),
       ],
       navSystem: [mkNav('Settings', 'IX.', 'settings')],
@@ -870,6 +1193,15 @@ export default class App extends Component {
           this.setState({ screen: 'recipes', openRecipeId: 'r1', servings: 1, recipeChat: [] });
         }
       },
+      workoutCardLabel: usingLiveWorkouts
+        ? (todayRoutine ? todayRoutine.name : (liveRoutines.length ? 'No routine scheduled today' : 'Build a routine in Train'))
+        : 'Push day · week 6',
+      workoutCardMeta: usingLiveWorkouts
+        ? (todayRoutine ? `${todayRoutine.exercises.length} exercise${todayRoutine.exercises.length === 1 ? '' : 's'} · tap to start` : 'Plan your week in Train →')
+        : '6 lifts · 42 min · bench PR watch',
+      workoutCardPhoto: usingLiveWorkouts
+        ? (todayRoutine ? 'workout — ' + todayRoutine.name.toLowerCase() : 'workout — rest day')
+        : 'workout — push day',
       todayIsLive: !!st.liveCalendar,
       todayEvents: st.liveCalendar && st.liveCalendar.length
         ? st.liveCalendar.map(e => ({ time: e.time, label: e.label }))
@@ -1039,6 +1371,8 @@ export default class App extends Component {
       sendRecipe: () => this.doRecipeAsk(),
 
       // workouts
+      usingLiveWorkouts,
+      workoutsView: st.workoutsView,
       week,
       plan: plan.map((ex, i) => ({ idx: String(i + 1).padStart(2, '0'), name: ex.name, scheme: ex.scheme, pr: ex.pr })),
       planMeta: plan.length + ' LIFTS · ' + (st.planNote ? 'EDITED BY COACH' : '~42 MIN · AS PLANNED'),
@@ -1048,6 +1382,54 @@ export default class App extends Component {
       setCoachInput: (e) => this.setState({ coachInput: e.target.value }),
       coachKey: (e) => { if (e.key === 'Enter') this.doCoach(); },
       sendCoach: () => this.doCoach(),
+
+      workoutHeaderLabel: usingLiveWorkouts ? `${liveRoutines.length} ROUTINE${liveRoutines.length === 1 ? '' : 'S'} · LIVE FROM OBSIDIAN` : 'CONNECT A BACKEND IN SETTINGS',
+      weekStrip,
+      routinesList,
+      routineCreating: st.routineCreating,
+      routineNewName: st.routineNewName,
+      setRoutineNewName: (e) => this.setRoutineNewName(e),
+      startCreateRoutine: () => this.startCreateRoutine(),
+      submitCreateRoutine: () => this.submitCreateRoutine(),
+      cancelCreateRoutine: () => this.cancelCreateRoutine(),
+
+      openRoutineName: openRoutine ? openRoutine.name : '',
+      routineDetailExercises,
+      routineDeleteConfirm: st.routineDeleteConfirm,
+      backToRoutines: () => this.backToRoutines(),
+      startWorkout: openRoutine ? () => this.startWorkoutSession(openRoutine) : () => {},
+      startWorkoutDisabled: !openRoutine || !openRoutine.exercises.length,
+      viewWorkoutHistory: openRoutine ? () => this.openWorkoutHistory(openRoutine.id) : () => {},
+      requestDeleteRoutine: () => this.requestDeleteRoutine(),
+      cancelDeleteRoutine: () => this.cancelDeleteRoutine(),
+      confirmDeleteRoutine: openRoutine ? () => this.confirmDeleteRoutine(openRoutine.id) : () => {},
+
+      exercisePickerOpen: st.exercisePickerOpen,
+      openExercisePicker: () => this.openExercisePicker(),
+      closeExercisePicker: () => this.closeExercisePicker(),
+      exercisePickerQuery: st.exercisePickerQuery,
+      setExercisePickerQuery: (e) => this.setExercisePickerQuery(e),
+      exercisePickerMuscle: st.exercisePickerMuscle,
+      exercisePickerMuscleGroups: ['Any', ...(st.liveWorkoutMuscleGroups || [])],
+      setExercisePickerMuscle: (m) => this.setExercisePickerMuscle(m),
+      exercisePickerResults,
+      exercisePickerShowCreate,
+      exercisePickerCreateMuscle: st.exercisePickerCreateMuscle,
+      setExercisePickerCreateMuscle: (m) => this.setExercisePickerCreateMuscle(m),
+      createExercise: () => this.createAndAddExercise(st.exercisePickerQuery.trim(), st.exercisePickerCreateMuscle),
+
+      sessionRoutineName: session ? session.routineName : '',
+      sessionExercises,
+      sessionCancelConfirm: st.sessionCancelConfirm,
+      finishSession: () => this.finishWorkoutSession(),
+      requestCancelSession: () => this.requestCancelSession(),
+      cancelSessionCancel: () => this.cancelSessionCancel(),
+      discardSession: () => this.discardWorkoutSession(),
+
+      historyRoutineName: historyRoutine ? historyRoutine.name : '',
+      historySessions,
+      historyLoading: st.workoutsView === 'history' && st.liveWorkoutHistory === null,
+      backFromWorkoutHistory: () => this.backFromWorkoutHistory(),
 
       // code
       codeMsgs: st.codeChat.map(m => ({ text: m.text, typing: m.typing, tag: m.who === 'claude' ? '» CLAUDE' : '» YOU', tagStyle: { color: m.who === 'claude' ? '#d8b573' : 'rgba(236,229,218,.5)', fontWeight: 500 } })),

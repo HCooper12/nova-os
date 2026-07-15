@@ -11,6 +11,7 @@ import { calendarRouter } from './routes/calendar.js';
 import { ingestRouter } from './routes/ingest.js';
 import { recipesRouter } from './routes/recipes.js';
 import { shoppingListRouter } from './routes/shoppingList.js';
+import { workoutsRouter } from './routes/workouts.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(__dirname, '.env');
@@ -56,6 +57,7 @@ async function main() {
   app.use('/api', ingestRouter(process.env.VAULT_PATH));
   app.use('/api', recipesRouter(process.env.VAULT_PATH));
   app.use('/api', shoppingListRouter(process.env.VAULT_PATH));
+  app.use('/api', workoutsRouter(process.env.VAULT_PATH));
 
   app.use((err, req, res, next) => {
     console.error(err);
