@@ -76,6 +76,9 @@ export default class App extends Component {
     codeChat: [],
     codeSessionId: null, codeWorkspace: 'repo', codeModel: 'sonnet',
     liveHealthInsight: null, liveHealthDays: null,
+    liveReviewSummaries: {},
+    liveFoodLog: null,
+    foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogBusy: false, foodLogError: null,
     noteQuery: '', noteType: 'All', openNoteId: 'n1',
     galaxySel: null, toast: null, gaugeIdx: 0, reviewIdx: 0,
     isMobile: typeof window !== 'undefined' && window.innerWidth < 760,
@@ -223,6 +226,12 @@ export default class App extends Component {
       this.setState({ liveRotation: null });
     }
     try {
+      const foodLogRes = await api.foodLog(conn);
+      this.setState({ liveFoodLog: foodLogRes });
+    } catch {
+      this.setState({ liveFoodLog: null });
+    }
+    try {
       const shoppingRes = await api.shoppingList(conn);
       this.setState({ liveShoppingList: shoppingRes });
     } catch {
@@ -252,6 +261,31 @@ export default class App extends Component {
     api.setRotationSlot(conn, slot, next).then((rotation) => {
       this.setState({ liveRotation: rotation });
     }).catch((e) => this.toastMsg('Rotation update failed: ' + e.message));
+  }
+  toggleSlotConsumed(slot, consumed) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.setRotationConsumed(conn, slot, consumed).then((rotation) => {
+      this.setState({ liveRotation: rotation });
+    }).catch((e) => this.toastMsg('Could not update: ' + e.message));
+  }
+  setFoodLogField(field, e) {
+    this.setState({ [field]: e.target.value });
+  }
+  submitFoodLog() {
+    const conn = getConnection();
+    const name = this.state.foodLogName.trim();
+    const macros = { p: Number(this.state.foodLogP) || 0, c: Number(this.state.foodLogC) || 0, f: Number(this.state.foodLogF) || 0, kcal: Number(this.state.foodLogKcal) || 0 };
+    if (!conn || !name) return;
+    this.setState({ foodLogBusy: true, foodLogError: null });
+    api.addFoodLogEntry(conn, { name, macros }).then((day) => {
+      this.setState({ liveFoodLog: day, foodLogBusy: false, foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '' });
+    }).catch((e) => this.setState({ foodLogBusy: false, foodLogError: e.message }));
+  }
+  deleteFoodLogEntry(id) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.deleteFoodLogEntry(conn, id).then((day) => this.setState({ liveFoodLog: day })).catch((e) => this.toastMsg('Could not remove entry: ' + e.message));
   }
   openAddRecipe() {
     if (!getConnection()) { this.toastMsg('Connect a backend in Settings first'); return; }
@@ -740,6 +774,31 @@ export default class App extends Component {
       this.setState((s) => ({ liveNoteDetails: { ...s.liveNoteDetails, [id]: detail } }));
     }).catch(() => {});
   }
+  ensureReviewSummary(pageId) {
+    const conn = getConnection();
+    if (!conn || !pageId || this.state.liveReviewSummaries[pageId] !== undefined) return;
+    this.setState((s) => ({ liveReviewSummaries: { ...s.liveReviewSummaries, [pageId]: null } })); // null = loading
+    api.startNoteSummary(conn, pageId).then((res) => {
+      if (res.summary) {
+        this.setState((s) => ({ liveReviewSummaries: { ...s.liveReviewSummaries, [pageId]: res.summary } }));
+      } else if (res.jobId) {
+        this.pollReviewSummary(pageId, res.jobId);
+      }
+    }).catch(() => this.setState((s) => ({ liveReviewSummaries: { ...s.liveReviewSummaries, [pageId]: '' } })));
+  }
+  pollReviewSummary(pageId, jobId) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.noteSummaryJob(conn, jobId).then((job) => {
+      if (job.status === 'ready') {
+        this.setState((s) => ({ liveReviewSummaries: { ...s.liveReviewSummaries, [pageId]: job.result.summary } }));
+      } else if (job.status === 'error') {
+        this.setState((s) => ({ liveReviewSummaries: { ...s.liveReviewSummaries, [pageId]: '' } })); // '' = failed, fall back to title
+      } else {
+        setTimeout(() => this.pollReviewSummary(pageId, jobId), 1200);
+      }
+    }).catch(() => this.setState((s) => ({ liveReviewSummaries: { ...s.liveReviewSummaries, [pageId]: '' } })));
+  }
   // Deterministic "concept of the day" — hashes today's date into the pool of
   // concept/topic pages so it's stable across reloads within a day but
   // changes daily, without needing a dedicated backend endpoint (the pool
@@ -758,7 +817,7 @@ export default class App extends Component {
     const pool = this.dailyReviewPool(liveNotes);
     const idx = this.state.reviewShuffleIdx != null ? this.state.reviewShuffleIdx : this.dailyReviewIndex(pool);
     const page = pool[idx];
-    if (page) this.ensureNoteDetail(page.id);
+    if (page) { this.ensureNoteDetail(page.id); this.ensureReviewSummary(page.id); }
   }
   shuffleDailyReview() {
     const pool = this.dailyReviewPool(this.state.liveNotes);
@@ -768,6 +827,7 @@ export default class App extends Component {
     while (next === current) next = Math.floor(Math.random() * pool.length);
     this.setState({ reviewShuffleIdx: next, reviewReflectOpen: false, reviewReflectText: '', reviewReflectPromptText: null });
     this.ensureNoteDetail(pool[next].id);
+    this.ensureReviewSummary(pool[next].id);
   }
   openDailyReview() {
     const pool = this.dailyReviewPool(this.state.liveNotes);
@@ -1112,7 +1172,9 @@ export default class App extends Component {
         c: filled ? Math.round(filled.macros.c) : null,
         f: filled ? Math.round(filled.macros.f) : null,
         kcal: filled ? Math.round(filled.macros.kcal) : null,
+        consumed: !!filled?.consumed,
         open: filled ? () => this.openRecipe(filled.id) : null,
+        toggleConsumed: filled ? () => this.toggleSlotConsumed(s.key, !filled.consumed) : null,
         clear: filled ? () => {
           this.toggleRotationSlot(s.key, filled.id);
           if (s.key === 'extra') this.setState({ rotationShowExtra: false });
@@ -1120,13 +1182,20 @@ export default class App extends Component {
       };
     });
     const rotTot = rotation?.totals || { p: 0, c: 0, f: 0, kcal: 0 };
+    const rotConsumedTot = rotation?.consumedTotals || { p: 0, c: 0, f: 0, kcal: 0 };
+    const foodLogEntries = st.liveFoodLog?.entries || [];
+    const foodLogTot = foodLogEntries.reduce((acc, e) => ({ p: acc.p + e.macros.p, c: acc.c + e.macros.c, f: acc.f + e.macros.f, kcal: acc.kcal + e.macros.kcal }), { p: 0, c: 0, f: 0, kcal: 0 });
 
-    // protein gauge — real rotation total vs the file's protein floor, once connected
+    // protein gauge — tracks what's actually been marked eaten today (rotation
+    // slots marked consumed, plus anything logged off-plan) rather than the
+    // day's full plan, so it climbs through the day instead of sitting at the
+    // planned total from the moment a meal is picked
     const proteinTarget = usingLiveRecipes ? (profile ? profile.proteinFloorG : 180) : 180;
-    const proteinCurrent = usingLiveRecipes ? rotTot.p : 96;
+    const proteinCurrent = usingLiveRecipes ? rotConsumedTot.p + foodLogTot.p : 96;
     const proteinRatio = proteinTarget > 0 ? Math.min(1, proteinCurrent / proteinTarget) : 0;
     const proteinGap = Math.round(proteinTarget - proteinCurrent);
-    const proteinEmptySlot = visibleSlotDefs.find((s) => !rotation?.slots?.[s.key]);
+    const proteinNextSlot = visibleSlotDefs.find((s) => !rotation?.slots?.[s.key]?.consumed);
+    const proteinNextSlotFilled = proteinNextSlot ? rotation?.slots?.[proteinNextSlot.key] : null;
 
     // health gauges (steps, sleep) — real Apple Health data once the phone-side Shortcut is sending it
     const STEP_GOAL = 10000;
@@ -1342,6 +1411,7 @@ export default class App extends Component {
     const reviewPool = this.dailyReviewPool(st.liveNotes);
     const reviewIdx = st.reviewShuffleIdx != null ? st.reviewShuffleIdx : this.dailyReviewIndex(reviewPool);
     const reviewPage = reviewPool[reviewIdx] || null;
+    const reviewSummary = reviewPage ? st.liveReviewSummaries[reviewPage.id] : undefined;
 
     // journal — live entries (Wiki/Journal/) grouped by day, newest first
     const journalDays = (st.liveJournalEntries || []).map((d) => ({
@@ -1493,15 +1563,18 @@ export default class App extends Component {
       lunchCardPhoto: usingLiveRecipes
         ? (rotation?.slots?.lunch ? 'dish photo — ' + rotation.slots.lunch.name.toLowerCase() : 'dish photo — none selected')
         : 'dish photo — burrito bowl',
-      // meaningful + live: reflects today's actual rotation vs. the real protein
-      // floor, and points at whichever meal slot would close the gap — not a
-      // static caption, so it changes as slots get filled through the day.
+      // meaningful + live: reflects what's actually been eaten today vs. the
+      // real protein floor, and names the next unconsumed meal that would
+      // close the gap — not a static caption, so it changes as you mark
+      // meals eaten through the day.
       proteinGaugeHint: usingLiveRecipes
         ? (proteinCurrent >= proteinTarget
             ? `${Math.round(proteinCurrent - proteinTarget)}g clear of your ${proteinTarget}g floor`
-            : proteinEmptySlot
-              ? `fill ${proteinEmptySlot.name.toLowerCase()} to close the ${proteinGap}g gap`
-              : `${proteinGap}g under floor — all meals already set`)
+            : proteinNextSlot
+              ? (proteinNextSlotFilled
+                  ? `eat ${proteinNextSlotFilled.name.toLowerCase()} to close the ${proteinGap}g gap`
+                  : `add a recipe to ${proteinNextSlot.name.toLowerCase()} to close the ${proteinGap}g gap`)
+              : `${proteinGap}g under floor — all meals already eaten`)
         : 'burrito bowl closes the gap',
       openLunch: () => {
         if (usingLiveRecipes) {
@@ -1553,16 +1626,18 @@ export default class App extends Component {
         ? (stepsCurrent >= STEP_GOAL ? `${STEP_GOAL.toLocaleString()} goal reached` : `${(STEP_GOAL - stepsCurrent).toLocaleString()} to ${STEP_GOAL.toLocaleString()} goal`)
         : 'connect Apple Health in Settings',
       reviewConcept: usingLiveReview
-        ? (reviewPage ? reviewPage.title : 'Add some Concepts or Topics to your wiki to start daily review')
+        ? (reviewPage
+            ? (reviewSummary ? reviewSummary : (reviewSummary === undefined || reviewSummary === null ? 'Summarizing…' : reviewPage.title))
+            : 'Add some Concepts or Topics to your wiki to start daily review')
         : this.reviews[st.reviewIdx].c,
       reviewFrom: usingLiveReview
-        ? (reviewPage ? (reviewPage.type === 'topic' ? 'Topic' : 'Concept') : '')
+        ? (reviewPage ? reviewPage.title : '')
         : this.reviews[st.reviewIdx].f,
       shuffleReview: usingLiveReview ? () => this.shuffleDailyReview() : () => this.setState(s => ({ reviewIdx: (s.reviewIdx + 1 + Math.floor(Math.random() * (this.reviews.length - 1))) % this.reviews.length })),
       openReview: usingLiveReview
         ? () => this.openDailyReview()
         : () => { this.setState({ screen: 'notes', openNoteId: this.reviews[st.reviewIdx].id }); this.toastMsg('Commander queued this concept for tonight’s reflection'); },
-      reviewShowReflect: usingLiveReview && !!reviewPage,
+      reviewShowReflect: usingLiveReview && !!reviewPage && st.openNoteId === reviewPage.id,
       reviewReflectOpen: st.reviewReflectOpen,
       toggleReviewReflect: () => this.toggleReviewReflect(),
       reviewReflectText: st.reviewReflectText,
@@ -1625,6 +1700,29 @@ export default class App extends Component {
       rotationProteinFloor: profile ? profile.proteinFloorG : null,
       rotationShowExtraButton: usingLiveRecipes && !rotationExtraVisible,
       showExtraMealSlot: () => this.setState({ rotationShowExtra: true }),
+
+      // off-plan food log — quick-add anything eaten that wasn't a rotation
+      // recipe, so the protein tracker reflects reality rather than just the plan
+      foodLogVisible: usingLiveRecipes,
+      foodLogEntries: foodLogEntries.map((e) => ({
+        id: e.id, time: e.time, name: e.name,
+        p: Math.round(e.macros.p), c: Math.round(e.macros.c), f: Math.round(e.macros.f), kcal: Math.round(e.macros.kcal),
+        remove: () => this.deleteFoodLogEntry(e.id),
+      })),
+      foodLogTotals: { p: Math.round(foodLogTot.p), c: Math.round(foodLogTot.c), f: Math.round(foodLogTot.f), kcal: Math.round(foodLogTot.kcal) },
+      foodLogName: st.foodLogName,
+      setFoodLogName: (e) => this.setFoodLogField('foodLogName', e),
+      foodLogP: st.foodLogP,
+      setFoodLogP: (e) => this.setFoodLogField('foodLogP', e),
+      foodLogC: st.foodLogC,
+      setFoodLogC: (e) => this.setFoodLogField('foodLogC', e),
+      foodLogF: st.foodLogF,
+      setFoodLogF: (e) => this.setFoodLogField('foodLogF', e),
+      foodLogKcal: st.foodLogKcal,
+      setFoodLogKcal: (e) => this.setFoodLogField('foodLogKcal', e),
+      foodLogBusy: st.foodLogBusy,
+      foodLogError: st.foodLogError,
+      submitFoodLog: () => this.submitFoodLog(),
 
       // add recipe — writes back to the real vault file
       recipeAddVisible: usingLiveRecipes,

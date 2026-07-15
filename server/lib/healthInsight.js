@@ -9,6 +9,8 @@ import { loadSessions } from './workoutSessions.js';
 import { listEntries as listJournalEntries } from './journal.js';
 import { loadRecipeData } from './recipes.js';
 import { loadRotation } from './rotation.js';
+import { fetchEventsForDay } from './calendar.js';
+import { getToday as getFoodLogToday } from './foodLog.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const INSIGHT_FILE = path.join(__dirname, '..', 'data', 'health', 'insight.json');
@@ -52,15 +54,35 @@ async function buildContext(vaultPath) {
   try {
     const { recipes, profile } = await loadRecipeData(vaultPath);
     const rotation = await loadRotation(vaultPath, recipes);
-    lines.push('\n## Today\'s planned nutrition (from meal rotation)');
-    lines.push(`- Protein: ${Math.round(rotation.totals.p)}g${profile?.proteinFloorG ? ` (floor ${profile.proteinFloorG}g)` : ''}, Carbs: ${Math.round(rotation.totals.c)}g, Fat: ${Math.round(rotation.totals.f)}g, Energy: ${Math.round(rotation.totals.kcal)} kcal${profile?.targetKcal ? ` (target ${profile.targetKcal})` : ''}`);
+    const foodLog = await getFoodLogToday();
+    const foodLogTotals = foodLog.entries.reduce((a, e) => ({ p: a.p + e.macros.p, c: a.c + e.macros.c, f: a.f + e.macros.f, kcal: a.kcal + e.macros.kcal }), { p: 0, c: 0, f: 0, kcal: 0 });
+    const consumedP = Math.round(rotation.consumedTotals.p + foodLogTotals.p);
+    lines.push('\n## Today\'s nutrition');
+    lines.push(`- Planned: Protein ${Math.round(rotation.totals.p)}g${profile?.proteinFloorG ? ` (floor ${profile.proteinFloorG}g)` : ''}, Carbs ${Math.round(rotation.totals.c)}g, Fat ${Math.round(rotation.totals.f)}g, Energy ${Math.round(rotation.totals.kcal)} kcal${profile?.targetKcal ? ` (target ${profile.targetKcal})` : ''}`);
+    lines.push(`- Actually eaten so far (marked-eaten rotation meals + logged extras): ${consumedP}g protein`);
+    if (foodLog.entries.length) {
+      lines.push(`- Off-plan food logged today: ${foodLog.entries.map((e) => `${e.name} (${Math.round(e.macros.p)}g P)`).join(', ')}`);
+    }
   } catch {
-    lines.push('\n## Today\'s planned nutrition\n- Unavailable.');
+    lines.push('\n## Today\'s nutrition\n- Unavailable.');
+  }
+
+  try {
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const events = await fetchEventsForDay(yesterday);
+    lines.push('\n## Yesterday\'s calendar');
+    if (events.length) {
+      for (const e of events) lines.push(`- ${e.time} ${e.label} (${e.calendar})`);
+    } else {
+      lines.push('- Nothing on the calendar.');
+    }
+  } catch {
+    lines.push('\n## Yesterday\'s calendar\n- Unavailable (Calendar not connected, or a fetch error).');
   }
 
   try {
     const journalDays = await listJournalEntries(vaultPath, { limit: 3 });
-    lines.push('\n## Recent journal entries (most recent first)');
+    lines.push('\n## Recent journal entries, including daily-review reflections (most recent first)');
     if (journalDays.length) {
       for (const d of journalDays) {
         for (const s of d.sections) {
@@ -79,11 +101,11 @@ async function buildContext(vaultPath) {
 }
 
 function buildPrompt(context) {
-  return `You are reviewing Hayden's recent personal data as a thoughtful, holistic health coach — not just repeating numbers back, but noticing real patterns that connect sleep/recovery, training, nutrition, and mood.
+  return `You are reviewing Hayden's recent personal data as a thoughtful, holistic health coach — not just repeating numbers back, but noticing real patterns that connect sleep/recovery, training, nutrition, mood, and how his day was actually structured.
 
 ${context}
 
-Write ONE short, genuinely useful observation or piece of advice (1-2 sentences) that a good coach would proactively raise — something that connects at least two of these data sources if the data supports it (e.g. recovery signals vs training load, sleep vs mood, nutrition vs energy). Be specific and concrete, not generic wellness advice. If there truly isn't enough data yet for a real observation, say so honestly rather than forcing one.
+Write ONE short, genuinely useful observation or piece of advice (1-2 sentences) that a good coach would proactively raise — something that connects at least two of these data sources if the data supports it (e.g. recovery signals vs training load, a packed calendar day vs the next morning's sleep/HRV, nutrition vs energy, a theme recurring across journal/reflection entries). Be specific and concrete, not generic wellness advice. If there truly isn't enough data yet for a real observation, say so honestly rather than forcing one.
 
 Output ONLY a JSON object with exactly these keys:
 - hasInsight: boolean (false if there wasn't enough data for a genuine, specific observation)

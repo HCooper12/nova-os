@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { getCachedSummary, startSummaryJob, getSummaryJob } from '../lib/noteSummaries.js';
 
 export function notesRouter(vault) {
   const router = Router();
@@ -51,6 +52,28 @@ export function notesRouter(vault) {
       if (err.code === 'ENOENT') return res.status(404).json({ error: 'not found' });
       next(err);
     }
+  });
+
+  router.post('/notes/summary', async (req, res, next) => {
+    try {
+      const { id } = req.body || {};
+      if (!id) return res.status(400).json({ error: 'missing id' });
+      const page = await vault.getPage(id);
+      const bodyText = page.paragraphs.join('\n\n');
+      const cached = await getCachedSummary(id, bodyText);
+      if (cached) return res.json({ summary: cached, cached: true });
+      const jobId = startSummaryJob(id, page.title, bodyText);
+      res.json({ jobId });
+    } catch (err) {
+      if (err.code === 'ENOENT') return res.status(404).json({ error: 'not found' });
+      next(err);
+    }
+  });
+
+  router.get('/notes/summary/:jobId', (req, res) => {
+    const job = getSummaryJob(req.params.jobId);
+    if (!job) return res.status(404).json({ error: 'job not found' });
+    res.json({ status: job.status, result: job.result, error: job.error });
   });
 
   router.get('/activity', async (req, res, next) => {

@@ -24,7 +24,7 @@ export function Recipes({ v }) {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(128px, 1fr))', gap: '10px', marginTop: '12px' }}>
             {v.rotationSlots.map((s) => (
-              <div key={s.key} style={{ border: `1px solid rgba(${s.hue},${s.recipeName ? '.45' : '.14'})`, borderRadius: '10px', padding: '10px 12px', background: s.recipeName ? `rgba(${s.hue},.07)` : 'rgba(0,0,0,.2)' }}>
+              <div key={s.key} style={{ border: `1px solid rgba(${s.hue},${s.recipeName ? '.45' : '.14'})`, borderRadius: '10px', padding: '10px 12px', background: s.consumed ? `rgba(124,214,138,.08)` : (s.recipeName ? `rgba(${s.hue},.07)` : 'rgba(0,0,0,.2)') }}>
                 <div style={css("display:flex;justify-content:space-between;align-items:center")}>
                   <span style={{ font: "500 9px 'JetBrains Mono',monospace", letterSpacing: '.16em', color: `rgba(${s.hue},.95)` }}>{s.name.toUpperCase()}</span>
                   {s.clear && <Interactive as="span" onClick={s.clear} base="cursor:pointer;font-size:12px;color:rgba(236,229,218,.35)" hoverStyle="color:#c96f6f">×</Interactive>}
@@ -35,6 +35,17 @@ export function Recipes({ v }) {
                     <div style={css("margin-top:5px;display:flex;gap:7px;font:400 9.5px 'JetBrains Mono',monospace")}>
                       <span style={css("color:#6be5f5")}>{s.p}P</span><span style={css("color:#d8b573")}>{s.c}C</span><span style={css("color:#8a6ad1")}>{s.f}F</span><span style={css("color:#7cd68a")}>{s.kcal}kcal</span>
                     </div>
+                    <Interactive
+                      as="div"
+                      onClick={s.toggleConsumed}
+                      base={{ cursor: 'pointer', marginTop: '8px', textAlign: 'center', font: "500 9.5px 'JetBrains Mono',monospace", padding: '4px 0', borderRadius: '5px',
+                        border: s.consumed ? '1px solid rgba(124,214,138,.5)' : '1px solid rgba(236,229,218,.14)',
+                        color: s.consumed ? '#7cd68a' : 'rgba(236,229,218,.45)',
+                        background: s.consumed ? 'rgba(124,214,138,.12)' : 'transparent' }}
+                      hoverStyle={{ borderColor: 'rgba(124,214,138,.5)' }}
+                    >
+                      {s.consumed ? '✓ Eaten' : 'Mark eaten'}
+                    </Interactive>
                   </>
                 ) : (
                   <div style={css("margin-top:6px;font-size:12.5px;color:rgba(236,229,218,.32)")}>not set</div>
@@ -44,6 +55,40 @@ export function Recipes({ v }) {
           </div>
           {v.rotationShowExtraButton && (
             <Interactive as="span" onClick={v.showExtraMealSlot} base="cursor:pointer;display:inline-block;margin-top:12px;font:400 10.5px 'JetBrains Mono',monospace;color:rgba(236,229,218,.4)" hoverStyle="color:#d8b573">+ add a 4th meal</Interactive>
+          )}
+        </div>
+      )}
+
+      {v.foodLogVisible && (
+        <div style={css("margin-top:12px;border:1px solid rgba(124,214,138,.18);border-radius:14px;padding:16px 18px;background:linear-gradient(180deg,rgba(124,214,138,.05),rgba(124,214,138,.01));box-shadow:inset 0 1px 0 rgba(255,255,255,.04)")}>
+          <div style={css("display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px")}>
+            <span style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.22em;color:#7cd68a")}>LOG SOMETHING ELSE</span>
+            {v.foodLogEntries.length > 0 && (
+              <span style={css("font:400 11px 'JetBrains Mono',monospace;color:rgba(236,229,218,.6)")}>
+                <span style={css("color:#6be5f5")}>{v.foodLogTotals.p}P</span> · <span style={css("color:#d8b573")}>{v.foodLogTotals.c}C</span> · <span style={css("color:#8a6ad1")}>{v.foodLogTotals.f}F</span> · <span style={css("color:#7cd68a")}>{v.foodLogTotals.kcal} kcal</span>
+              </span>
+            )}
+          </div>
+          <div style={css("margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
+            <Interactive as="input" value={v.foodLogName} onChange={v.setFoodLogName} placeholder="What did you eat?" base="flex:1;min-width:140px;box-sizing:border-box;background:rgba(0,0,0,.28);border:1px solid rgba(236,229,218,.12);border-radius:8px;padding:8px 12px;color:#ece5da;font-size:12.5px;font-family:'Instrument Sans',sans-serif;outline:none" focusStyle="border-color:rgba(124,214,138,.5)" />
+            <Interactive as="input" type="number" value={v.foodLogP} onChange={v.setFoodLogP} placeholder="P" base="width:52px;box-sizing:border-box;background:rgba(0,0,0,.28);border:1px solid rgba(236,229,218,.12);border-radius:8px;padding:8px 8px;color:#6be5f5;font-size:12.5px;font-family:'JetBrains Mono',monospace;outline:none" focusStyle="border-color:rgba(124,214,138,.5)" />
+            <Interactive as="input" type="number" value={v.foodLogC} onChange={v.setFoodLogC} placeholder="C" base="width:52px;box-sizing:border-box;background:rgba(0,0,0,.28);border:1px solid rgba(236,229,218,.12);border-radius:8px;padding:8px 8px;color:#d8b573;font-size:12.5px;font-family:'JetBrains Mono',monospace;outline:none" focusStyle="border-color:rgba(124,214,138,.5)" />
+            <Interactive as="input" type="number" value={v.foodLogF} onChange={v.setFoodLogF} placeholder="F" base="width:52px;box-sizing:border-box;background:rgba(0,0,0,.28);border:1px solid rgba(236,229,218,.12);border-radius:8px;padding:8px 8px;color:#8a6ad1;font-size:12.5px;font-family:'JetBrains Mono',monospace;outline:none" focusStyle="border-color:rgba(124,214,138,.5)" />
+            <Interactive as="input" type="number" value={v.foodLogKcal} onChange={v.setFoodLogKcal} placeholder="kcal" base="width:62px;box-sizing:border-box;background:rgba(0,0,0,.28);border:1px solid rgba(236,229,218,.12);border-radius:8px;padding:8px 8px;color:#7cd68a;font-size:12.5px;font-family:'JetBrains Mono',monospace;outline:none" focusStyle="border-color:rgba(124,214,138,.5)" />
+            <Interactive as="span" onClick={v.foodLogBusy ? undefined : v.submitFoodLog} base={{ cursor: 'pointer', flex: 'none', font: "500 11px 'JetBrains Mono',monospace", padding: '9px 16px', borderRadius: '8px', background: '#7cd68a', color: '#122015', opacity: v.foodLogBusy ? .6 : 1 }} hoverStyle={{ background: '#93e39f' }}>{v.foodLogBusy ? 'Adding…' : '+ Add'}</Interactive>
+          </div>
+          {v.foodLogError && <div style={css("margin-top:8px;font-size:12px;color:#e08f6f")}>{v.foodLogError}</div>}
+          {v.foodLogEntries.length > 0 && (
+            <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:6px")}>
+              {v.foodLogEntries.map((e) => (
+                <div key={e.id} style={css("display:flex;align-items:center;gap:10px;font-size:12.5px;padding:6px 0;border-top:1px solid rgba(236,229,218,.06)")}>
+                  <span style={css("font:400 10.5px 'JetBrains Mono',monospace;color:rgba(236,229,218,.4);width:40px;flex:none")}>{e.time}</span>
+                  <span style={css("flex:1")}>{e.name}</span>
+                  <span style={css("font:400 10.5px 'JetBrains Mono',monospace;color:rgba(236,229,218,.5);flex:none")}>{e.p}P · {e.c}C · {e.f}F · {e.kcal}kcal</span>
+                  <Interactive as="span" onClick={e.remove} base="cursor:pointer;flex:none;font-size:13px;color:rgba(236,229,218,.35)" hoverStyle="color:#c96f6f">×</Interactive>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}

@@ -50,6 +50,49 @@ export function Notes({ v }) {
               <p key={i} style={css("margin:0;font-size:14.5px;line-height:1.75;color:rgba(236,229,218,.85);text-wrap:pretty")}>{p.text}</p>
             ))}
           </div>
+
+          {v.reviewShowReflect && (
+            <div style={css("margin-top:24px;max-width:640px;padding:16px 18px;border-radius:12px;border:1px solid rgba(138,106,209,.35);background:rgba(138,106,209,.06)")}>
+              <div style={css("display:flex;justify-content:space-between;align-items:center")}>
+                <span style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.24em;color:#b9a1e8")}>TODAY'S REVIEW · REFLECT</span>
+                <Interactive as="span" onClick={v.toggleReviewReflect} base={{ cursor: 'pointer', fontSize: '11.5px', fontWeight: 500, padding: '6px 12px', borderRadius: '7px', border: '1px solid rgba(236,229,218,.16)', color: v.reviewReflectOpen ? '#ece5da' : 'rgba(236,229,218,.6)', background: v.reviewReflectOpen ? 'rgba(255,255,255,.06)' : 'none' }} hoverStyle={{ color: '#ece5da' }}>{v.reviewReflectOpen ? 'Close' : 'Reflect'}</Interactive>
+              </div>
+              {v.reviewReflectOpen && (
+                <div style={css("margin-top:14px")}>
+                  <div style={css("display:flex;justify-content:flex-end")}>
+                    <Interactive
+                      as="span"
+                      onClick={v.reviewReflectPromptBusy ? undefined : v.generateReviewReflectPrompt}
+                      base={{ cursor: 'pointer', font: "500 9.5px 'JetBrains Mono',monospace", padding: '5px 10px', borderRadius: '6px', color: '#cbb6f2', opacity: v.reviewReflectPromptBusy ? .6 : 1 }}
+                      hoverStyle={{ background: 'rgba(138,106,209,.1)' }}
+                    >
+                      {v.reviewReflectPromptBusy ? 'THINKING…' : '✦ Generate a prompt'}
+                    </Interactive>
+                  </div>
+                  {v.reviewReflectPromptText && (
+                    <div style={css("font:italic 400 15px/1.5 'Instrument Serif',serif;color:#cbb6f2;margin-bottom:10px")}>{v.reviewReflectPromptText}</div>
+                  )}
+                  <textarea
+                    value={v.reviewReflectText}
+                    onChange={v.setReviewReflectText}
+                    placeholder="Your reflection on this…"
+                    style={css("width:100%;box-sizing:border-box;height:110px;resize:vertical;background:rgba(0,0,0,.28);border:1px solid rgba(236,229,218,.12);border-radius:8px;padding:11px 14px;color:#ece5da;font-size:13.5px;font-family:'Instrument Sans',sans-serif;line-height:1.6;outline:none")}
+                  />
+                  <div style={css("margin-top:10px;display:flex;justify-content:flex-end")}>
+                    <Interactive
+                      as="span"
+                      onClick={v.reviewReflectBusy ? undefined : v.saveReviewReflection}
+                      base={{ cursor: 'pointer', font: "500 10.5px 'JetBrains Mono',monospace", padding: '7px 14px', borderRadius: '7px', background: '#b9a1e8', color: '#1a1322', opacity: v.reviewReflectBusy ? .6 : 1 }}
+                      hoverStyle={{ background: '#cbb6f2' }}
+                    >
+                      {v.reviewReflectBusy ? 'Saving…' : 'Save reflection'}
+                    </Interactive>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div style={css("margin-top:26px;padding-top:16px;border-top:1px solid rgba(236,229,218,.08)")}>
             <div style={css("font:500 9px 'JetBrains Mono',monospace;letter-spacing:.22em;color:rgba(236,229,218,.4)")}>LINKED IN GALAXY</div>
             <div style={css("display:flex;flex-wrap:wrap;gap:8px;margin-top:11px")}>
