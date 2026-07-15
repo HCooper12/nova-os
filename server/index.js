@@ -13,6 +13,7 @@ import { recipesRouter } from './routes/recipes.js';
 import { shoppingListRouter } from './routes/shoppingList.js';
 import { workoutsRouter } from './routes/workouts.js';
 import { journalRouter } from './routes/journal.js';
+import { claudeCodeRouter } from './routes/claudeCode.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(__dirname, '.env');
@@ -60,6 +61,7 @@ async function main() {
   app.use('/api', shoppingListRouter(process.env.VAULT_PATH));
   app.use('/api', workoutsRouter(process.env.VAULT_PATH));
   app.use('/api', journalRouter(vault, process.env.VAULT_PATH));
+  app.use('/api', claudeCodeRouter({ repoPath: path.resolve(__dirname, '..'), vaultPath: process.env.VAULT_PATH }));
 
   app.use((err, req, res, next) => {
     console.error(err);

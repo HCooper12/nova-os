@@ -1,5 +1,5 @@
 import { Component, createRef } from 'react';
-import { recipes, notes, basePlan, codeReplies, reviews, galaxyNamed, galaxyLinks, weekData } from './data.js';
+import { recipes, notes, basePlan, reviews, galaxyNamed, galaxyLinks, weekData } from './data.js';
 import { css } from './css.js';
 import { api, getConnection, setConnection, testConnection } from './api.js';
 import { Sidebar } from './Sidebar.jsx';
@@ -45,8 +45,6 @@ export default class App extends Component {
     this.recipes = recipes;
     this.notes = notes;
     this.basePlan = basePlan;
-    this.codeReplies = codeReplies;
-    this.codeIdx = 0;
     this.reviews = reviews;
   }
 
@@ -66,7 +64,8 @@ export default class App extends Component {
     coachChat: [{ who: 'coach', text: "Push day is set — 6 lifts, ~42 minutes. Bench is at 82.5 kg; if bar speed holds on set two, we take the PR single. Ask me for any changes." }],
     plan: null,
     codeInput: '', codeBusy: false,
-    codeChat: [{ who: 'claude', text: "Session restored · ~/vault\nYesterday we shipped the macro tracker script and hooked session logging into Obsidian/Claude/. Backups verified by Guardian at 02:00.\nWhat are we building?" }],
+    codeChat: [],
+    codeSessionId: null, codeWorkspace: 'repo', codeModel: 'sonnet',
     noteQuery: '', noteType: 'All', openNoteId: 'n1',
     galaxySel: null, toast: null, gaugeIdx: 0, reviewIdx: 0,
     isMobile: typeof window !== 'undefined' && window.innerWidth < 760,
@@ -144,7 +143,7 @@ export default class App extends Component {
     }
   }
   componentWillUnmount() {
-    clearTimeout(this.bootT); clearInterval(this.clockIv); clearInterval(this.gaugeIv); clearInterval(this.ingestPollIv); clearInterval(this.scanPollIv); clearInterval(this.tweakPollIv); clearInterval(this.shoppingAddPollIv);
+    clearTimeout(this.bootT); clearInterval(this.clockIv); clearInterval(this.gaugeIv); clearInterval(this.ingestPollIv); clearInterval(this.scanPollIv); clearInterval(this.tweakPollIv); clearInterval(this.shoppingAddPollIv); clearInterval(this.codeJobPollIv);
     window.removeEventListener('keydown', this.keyH);
     window.removeEventListener('resize', this.resizeH);
     this.ivs.forEach(clearInterval);
@@ -1708,12 +1707,25 @@ export default class App extends Component {
       backFromWorkoutHistory: () => this.backFromWorkoutHistory(),
 
       // code
-      codeMsgs: st.codeChat.map(m => ({ text: m.text, typing: m.typing, tag: m.who === 'claude' ? '» CLAUDE' : '» YOU', tagStyle: { color: m.who === 'claude' ? '#d8b573' : 'rgba(236,229,218,.5)', fontWeight: 500 } })),
+      codeConnected: !!getConnection(),
+      codeMsgs: st.codeChat.map(m => ({ text: m.text, tag: m.who === 'claude' ? '» CLAUDE' : m.who === 'system' ? '» SYSTEM' : '» YOU', tagStyle: { color: m.who === 'claude' ? '#d8b573' : m.who === 'system' ? '#c96f6f' : 'rgba(236,229,218,.5)', fontWeight: 500 } })),
       codeBusy: st.codeBusy,
       codeInput: st.codeInput,
       setCodeInput: (e) => this.setState({ codeInput: e.target.value }),
-      codeKey: (e) => { if (e.key === 'Enter') this.doCode(); },
+      codeKey: (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.doCode(); } },
       sendCode: () => this.doCode(),
+      codeWorkspace: st.codeWorkspace,
+      setCodeWorkspace: (w) => this.setCodeWorkspace(w),
+      codeModel: st.codeModel,
+      setCodeModel: (e) => this.setState({ codeModel: e.target.value }),
+      codeModelOptions: [
+        { value: 'sonnet', label: 'Sonnet 5' },
+        { value: 'opus', label: 'Opus 4.8' },
+        { value: 'fable', label: 'Fable 5' },
+        { value: 'haiku', label: 'Haiku 4.5' },
+      ],
+      codeSessionActive: !!st.codeSessionId,
+      newCodeSession: () => this.newClaudeCodeSession(),
 
       // notes
       notesHeaderLabel: usingLiveNotes ? `${st.liveNotes.length} NOTES · LIVE FROM OBSIDIAN` : '186 NOTES · DEMO DATA',
@@ -1814,10 +1826,37 @@ export default class App extends Component {
     }), 520);
   }
   doCode() {
-    const q = this.state.codeInput.trim(); if (!q) return;
+    const conn = getConnection();
+    const q = this.state.codeInput.trim();
+    if (!q) return;
+    if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
     this.setState(s => ({ codeChat: [...s.codeChat, { who: 'you', text: q }], codeInput: '', codeBusy: true }));
-    const reply = this.codeReplies[this.codeIdx % this.codeReplies.length]; this.codeIdx++;
-    setTimeout(() => { this.setState({ codeBusy: false }); this.typeIn('codeChat', 'claude', reply); }, 1100);
+    api.startClaudeCodeMessage(conn, q, this.state.codeSessionId, this.state.codeModel, this.state.codeWorkspace).then(({ jobId }) => {
+      this.codeJobPollIv = setInterval(() => this.pollClaudeCodeJob(jobId), 2000);
+    }).catch((e) => {
+      this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat, { who: 'system', text: 'Error: ' + e.message }] }));
+    });
+  }
+  pollClaudeCodeJob(jobId) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.claudeCodeJob(conn, jobId).then((job) => {
+      if (job.status === 'ready') {
+        clearInterval(this.codeJobPollIv);
+        this.setState(s => ({ codeBusy: false, codeSessionId: job.result.sessionId, codeChat: [...s.codeChat, { who: 'claude', text: job.result.text }] }));
+      } else if (job.status === 'error') {
+        clearInterval(this.codeJobPollIv);
+        this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat, { who: 'system', text: 'Error: ' + job.error }] }));
+      }
+    }).catch(() => {});
+  }
+  setCodeWorkspace(workspace) {
+    clearInterval(this.codeJobPollIv);
+    this.setState({ codeWorkspace: workspace, codeSessionId: null, codeChat: [], codeBusy: false });
+  }
+  newClaudeCodeSession() {
+    clearInterval(this.codeJobPollIv);
+    this.setState({ codeSessionId: null, codeChat: [], codeBusy: false });
   }
   doRecipeAsk() {
     const q = this.state.recipeInput.trim(); if (!q) return;
