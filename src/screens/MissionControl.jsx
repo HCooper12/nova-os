@@ -110,7 +110,7 @@ export function MissionControl({ v }) {
             <span style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.24em;color:#b9a1e8")}>DAILY REVIEW</span>
             <Interactive as="span" onClick={v.shuffleReview} base="cursor:pointer;font:400 13px 'JetBrains Mono',monospace;color:rgba(236,229,218,.45)" hoverStyle="color:#ece5da">⟳</Interactive>
           </div>
-          <div style={css("margin-top:8px;font:400 16px/1.4 'Instrument Serif',serif;text-wrap:balance;color:rgba(236,229,218,.92)")}>{v.reviewConcept}</div>
+          <div style={css("margin-top:8px;font:400 16px/1.4 'Instrument Serif',serif;text-wrap:pretty;color:rgba(236,229,218,.92);max-height:90px;overflow-y:auto")}>{v.reviewConcept}</div>
           <div style={css("margin-top:auto;padding-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px")}>
             <span style={css("font-size:13px;color:rgba(236,229,218,.6);overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>from <span style={css("font-style:italic;font-family:'Instrument Serif',serif;font-size:15px;color:#cbb6f2")}>{v.reviewFrom}</span></span>
             <Interactive as="span" onClick={v.openReview} base="cursor:pointer;flex:none;font-size:11.5px;font-weight:500;padding:6px 12px;border-radius:7px;border:1px solid rgba(138,106,209,.45);color:#cbb6f2;background:rgba(138,106,209,.1)" hoverStyle="background:rgba(138,106,209,.22)">Review</Interactive>
@@ -124,7 +124,7 @@ export function MissionControl({ v }) {
             <span style={css("font:italic 400 20px 'Instrument Serif',serif;color:#d8b573")}>Nova noticed</span>
             <span style={css("font:500 9px 'JetBrains Mono',monospace;letter-spacing:.22em;color:rgba(236,229,218,.4)")}>WHILE YOU SLEPT</span>
           </div>
-          <div style={css("margin-top:14px;display:flex;flex-direction:column")}>
+          <div style={css("margin-top:14px;display:flex;flex-direction:column;max-height:180px;overflow-y:auto")}>
             {v.usingLiveHealthInsight ? (
               <div style={css("display:flex;gap:13px;align-items:baseline;padding:11px 0")}><span style={css("color:#d8b573")}>✦</span><span style={css("font-size:13.5px;line-height:1.55;color:rgba(236,229,218,.88)")}>{v.healthInsightText}</span></div>
             ) : (

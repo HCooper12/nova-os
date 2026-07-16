@@ -79,6 +79,7 @@ export default class App extends Component {
     liveReviewSummaries: {},
     liveFoodLog: null,
     foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogBusy: false, foodLogError: null,
+    foodScanNote: '', foodScanBusy: false, foodScanError: null, foodScanQuestion: null,
     noteQuery: '', noteType: 'All', openNoteId: 'n1',
     galaxySel: null, toast: null, gaugeIdx: 0, reviewIdx: 0,
     isMobile: typeof window !== 'undefined' && window.innerWidth < 760,
@@ -156,7 +157,7 @@ export default class App extends Component {
     }
   }
   componentWillUnmount() {
-    clearTimeout(this.bootT); clearInterval(this.clockIv); clearInterval(this.gaugeIv); clearInterval(this.ingestPollIv); clearInterval(this.scanPollIv); clearInterval(this.tweakPollIv); clearInterval(this.shoppingAddPollIv); clearInterval(this.codeJobPollIv);
+    clearTimeout(this.bootT); clearInterval(this.clockIv); clearInterval(this.gaugeIv); clearInterval(this.ingestPollIv); clearInterval(this.scanPollIv); clearInterval(this.tweakPollIv); clearInterval(this.shoppingAddPollIv); clearInterval(this.codeJobPollIv); clearInterval(this.foodScanPollIv);
     window.removeEventListener('keydown', this.keyH);
     window.removeEventListener('resize', this.resizeH);
     this.ivs.forEach(clearInterval);
@@ -286,6 +287,52 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn) return;
     api.deleteFoodLogEntry(conn, id).then((day) => this.setState({ liveFoodLog: day })).catch((e) => this.toastMsg('Could not remove entry: ' + e.message));
+  }
+  setFoodScanNote(e) {
+    this.setState({ foodScanNote: e.target.value });
+  }
+  onFoodScanFiles(mode, fileList) {
+    const conn = getConnection();
+    if (!conn) return;
+    const files = Array.from(fileList || []).slice(0, 3);
+    if (!files.length) return;
+    const readAsDataUrl = (file) => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    this.setState({ foodScanBusy: true, foodScanError: null, foodScanQuestion: null });
+    Promise.all(files.map(readAsDataUrl))
+      .then((images) => api.startFoodScan(conn, mode, images, this.state.foodScanNote.trim()))
+      .then(({ jobId }) => {
+        this.foodScanPollIv = setInterval(() => this.pollFoodScanJob(jobId), 2000);
+      })
+      .catch((e) => this.setState({ foodScanBusy: false, foodScanError: e.message }));
+  }
+  pollFoodScanJob(jobId) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.foodScanJob(conn, jobId).then((job) => {
+      if (job.status === 'ready') {
+        clearInterval(this.foodScanPollIv);
+        const r = job.result;
+        this.setState({
+          foodScanBusy: false, foodScanError: null,
+          foodScanQuestion: r.confidence === 'low' && r.question ? r.question : null,
+          foodScanNote: '',
+          foodLogName: r.name || '',
+          foodLogP: r.macros?.p != null ? String(r.macros.p) : '',
+          foodLogC: r.macros?.c != null ? String(r.macros.c) : '',
+          foodLogF: r.macros?.f != null ? String(r.macros.f) : '',
+          foodLogKcal: r.macros?.kcal != null ? String(r.macros.kcal) : '',
+        });
+        this.toastMsg(r.confidence === 'low' ? 'Photo analyzed — rough estimate, check the fields below' : 'Photo analyzed — check the fields below before saving');
+      } else if (job.status === 'error') {
+        clearInterval(this.foodScanPollIv);
+        this.setState({ foodScanBusy: false, foodScanError: job.error });
+      }
+    }).catch(() => {});
   }
   openAddRecipe() {
     if (!getConnection()) { this.toastMsg('Connect a backend in Settings first'); return; }
@@ -1723,6 +1770,13 @@ export default class App extends Component {
       foodLogBusy: st.foodLogBusy,
       foodLogError: st.foodLogError,
       submitFoodLog: () => this.submitFoodLog(),
+      foodScanNote: st.foodScanNote,
+      setFoodScanNote: (e) => this.setFoodScanNote(e),
+      foodScanBusy: st.foodScanBusy,
+      foodScanError: st.foodScanError,
+      foodScanQuestion: st.foodScanQuestion,
+      scanFoodLabel: (e) => this.onFoodScanFiles('label', e.target.files),
+      scanFoodMeal: (e) => this.onFoodScanFiles('meal', e.target.files),
 
       // add recipe — writes back to the real vault file
       recipeAddVisible: usingLiveRecipes,

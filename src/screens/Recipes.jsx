@@ -70,6 +70,21 @@ export function Recipes({ v }) {
             )}
           </div>
           <div style={css("margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
+            <Interactive as="input" value={v.foodScanNote} onChange={v.setFoodScanNote} placeholder="Note for the scan — e.g. “ate half” (optional)" base="flex:1;min-width:180px;box-sizing:border-box;background:rgba(0,0,0,.28);border:1px solid rgba(236,229,218,.12);border-radius:8px;padding:8px 12px;color:#ece5da;font-size:12.5px;font-family:'Instrument Sans',sans-serif;outline:none" focusStyle="border-color:rgba(124,214,138,.5)" />
+            <label style={css("cursor:pointer;flex:none;font-size:11.5px;padding:9px 13px;border-radius:8px;border:1px solid rgba(124,214,138,.35);color:#7cd68a;background:rgba(124,214,138,.08)")}>
+              {v.foodScanBusy ? 'Analyzing…' : 'Scan label'}
+              <input type="file" accept="image/*" capture="environment" onChange={v.scanFoodLabel} disabled={v.foodScanBusy} style={css("display:none")} />
+            </label>
+            <label style={css("cursor:pointer;flex:none;font-size:11.5px;padding:9px 13px;border-radius:8px;border:1px solid rgba(124,214,138,.35);color:#7cd68a;background:rgba(124,214,138,.08)")}>
+              {v.foodScanBusy ? 'Analyzing…' : 'Photo of meal'}
+              <input type="file" accept="image/*" capture="environment" onChange={v.scanFoodMeal} disabled={v.foodScanBusy} style={css("display:none")} />
+            </label>
+          </div>
+          {v.foodScanError && <div style={css("margin-top:8px;font-size:12px;color:#e08f6f")}>{v.foodScanError}</div>}
+          {v.foodScanQuestion && (
+            <div style={css("margin-top:8px;font-size:12px;color:#d8b573;font-style:italic")}>Nova's not fully sure — {v.foodScanQuestion} Adjust the numbers below if needed.</div>
+          )}
+          <div style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
             <Interactive as="input" value={v.foodLogName} onChange={v.setFoodLogName} placeholder="What did you eat?" base="flex:1;min-width:140px;box-sizing:border-box;background:rgba(0,0,0,.28);border:1px solid rgba(236,229,218,.12);border-radius:8px;padding:8px 12px;color:#ece5da;font-size:12.5px;font-family:'Instrument Sans',sans-serif;outline:none" focusStyle="border-color:rgba(124,214,138,.5)" />
             <Interactive as="input" type="number" value={v.foodLogP} onChange={v.setFoodLogP} placeholder="P" base="width:52px;box-sizing:border-box;background:rgba(0,0,0,.28);border:1px solid rgba(236,229,218,.12);border-radius:8px;padding:8px 8px;color:#6be5f5;font-size:12.5px;font-family:'JetBrains Mono',monospace;outline:none" focusStyle="border-color:rgba(124,214,138,.5)" />
             <Interactive as="input" type="number" value={v.foodLogC} onChange={v.setFoodLogC} placeholder="C" base="width:52px;box-sizing:border-box;background:rgba(0,0,0,.28);border:1px solid rgba(236,229,218,.12);border-radius:8px;padding:8px 8px;color:#d8b573;font-size:12.5px;font-family:'JetBrains Mono',monospace;outline:none" focusStyle="border-color:rgba(124,214,138,.5)" />

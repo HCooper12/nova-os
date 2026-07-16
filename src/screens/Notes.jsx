@@ -23,7 +23,7 @@ export function Notes({ v }) {
               base="width:100%;box-sizing:border-box;background:rgba(0,0,0,.32);border:1px solid rgba(236,229,218,.12);border-radius:9px;padding:9px 13px;color:#ece5da;font-size:12.5px;font-family:'Instrument Sans',sans-serif;outline:none"
               focusStyle="border-color:rgba(216,181,115,.5)"
             />
-            <div style={css("display:flex;gap:6px;margin-top:10px")}>
+            <div style={css("display:flex;flex-wrap:wrap;gap:6px;margin-top:10px")}>
               {v.noteFilters.map((f) => (
                 <span key={f.label} onClick={f.go} style={f.style}>{f.label}</span>
               ))}
@@ -54,11 +54,12 @@ export function Notes({ v }) {
           {v.reviewShowReflect && (
             <div style={css("margin-top:24px;max-width:640px;padding:16px 18px;border-radius:12px;border:1px solid rgba(138,106,209,.35);background:rgba(138,106,209,.06)")}>
               <div style={css("display:flex;justify-content:space-between;align-items:center")}>
-                <span style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.24em;color:#b9a1e8")}>TODAY'S REVIEW · REFLECT</span>
+                <span style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.24em;color:#b9a1e8")}>TODAY'S REVIEW · SUMMARY</span>
                 <Interactive as="span" onClick={v.toggleReviewReflect} base={{ cursor: 'pointer', fontSize: '11.5px', fontWeight: 500, padding: '6px 12px', borderRadius: '7px', border: '1px solid rgba(236,229,218,.16)', color: v.reviewReflectOpen ? '#ece5da' : 'rgba(236,229,218,.6)', background: v.reviewReflectOpen ? 'rgba(255,255,255,.06)' : 'none' }} hoverStyle={{ color: '#ece5da' }}>{v.reviewReflectOpen ? 'Close' : 'Reflect'}</Interactive>
               </div>
+              <div style={css("margin-top:10px;font:400 15px/1.6 'Instrument Serif',serif;color:rgba(236,229,218,.9);text-wrap:pretty")}>{v.reviewConcept}</div>
               {v.reviewReflectOpen && (
-                <div style={css("margin-top:14px")}>
+                <div style={css("margin-top:16px;padding-top:16px;border-top:1px solid rgba(138,106,209,.15)")}>
                   <div style={css("display:flex;justify-content:flex-end")}>
                     <Interactive
                       as="span"
