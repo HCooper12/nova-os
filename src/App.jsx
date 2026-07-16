@@ -134,7 +134,21 @@ export default class App extends Component {
   };
 
   componentDidMount() {
-    this.bootT = setTimeout(() => this.setState({ booted: true }), 1700);
+    // The boot screen stays up until BOTH the minimum splash time has
+    // elapsed AND (if a backend is configured) the first real-data fetch has
+    // finished — otherwise it reveals demo content for a moment before the
+    // real data swaps in behind it. Capped so an unreachable backend can't
+    // hang the splash forever.
+    const minBootTime = new Promise((resolve) => { this.bootT = setTimeout(resolve, 1700); });
+    let dataReady = Promise.resolve();
+    const bootConn = getConnection();
+    if (bootConn) {
+      this.setState({ settingsBaseUrl: bootConn.baseUrl, settingsToken: bootConn.token });
+      const fetchDone = this.refreshLiveData();
+      const fetchTimeout = new Promise((resolve) => setTimeout(resolve, 5000));
+      dataReady = Promise.race([fetchDone, fetchTimeout]);
+    }
+    Promise.all([minBootTime, dataReady]).then(() => this.setState({ booted: true }));
     this.clockIv = setInterval(() => {
       const d = new Date();
       const pad = (n) => String(n).padStart(2, '0');
@@ -156,11 +170,6 @@ export default class App extends Component {
     this.setState({ reviewIdx: Math.floor(Math.random() * this.reviews.length) });
     this.startGaugeRotation();
     this.applyTheme();
-    const conn = getConnection();
-    if (conn) {
-      this.setState({ settingsBaseUrl: conn.baseUrl, settingsToken: conn.token });
-      this.refreshLiveData();
-    }
   }
   componentWillUnmount() {
     clearTimeout(this.bootT); clearInterval(this.clockIv); clearInterval(this.gaugeIv); clearInterval(this.ingestPollIv); clearInterval(this.scanPollIv); clearInterval(this.tweakPollIv); clearInterval(this.shoppingAddPollIv); clearInterval(this.codeJobPollIv); clearInterval(this.foodScanPollIv);
