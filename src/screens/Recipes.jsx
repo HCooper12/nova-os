@@ -79,6 +79,7 @@ export function Recipes({ v }) {
               {v.foodScanBusy ? 'Analyzing…' : 'Photo of meal'}
               <input type="file" accept="image/*" capture="environment" onChange={v.scanFoodMeal} disabled={v.foodScanBusy} style={css("display:none")} />
             </label>
+            <Interactive as="span" onClick={v.foodScanBusy ? undefined : v.openBarcodeScanner} base="cursor:pointer;flex:none;font-size:11.5px;padding:9px 13px;border-radius:8px;border:1px solid rgba(124,214,138,.35);color:#7cd68a;background:rgba(124,214,138,.08)" hoverStyle="background:rgba(124,214,138,.16)">{v.foodScanBusy ? 'Analyzing…' : 'Scan barcode'}</Interactive>
           </div>
           {v.foodScanError && <div style={css("margin-top:8px;font-size:12px;color:#e08f6f")}>{v.foodScanError}</div>}
           {v.foodScanQuestion && (

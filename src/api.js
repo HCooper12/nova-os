@@ -112,6 +112,7 @@ export const api = {
   deleteFoodLogEntry: (conn, id) => del(conn, `/api/food-log/${encodeURIComponent(id)}`),
   startFoodScan: (conn, mode, images, note) => post(conn, '/api/food-log/scan', { mode, images, note }),
   foodScanJob: (conn, jobId) => call(conn, `/api/food-log/scan/${encodeURIComponent(jobId)}`),
+  lookupBarcode: (conn, code) => call(conn, `/api/food-log/barcode/${encodeURIComponent(code)}`),
   calendarToday: (conn) => call(conn, '/api/calendar/today'),
   workoutExercises: (conn) => call(conn, '/api/workouts/exercises'),
   addWorkoutExercise: (conn, name, muscleGroup, trackingType) => post(conn, '/api/workouts/exercises', { name, muscleGroup, trackingType }),

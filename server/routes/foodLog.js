@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { addEntry, removeEntry, getToday } from '../lib/foodLog.js';
 import { startFoodScan, getFoodScanJob } from '../lib/scanFood.js';
 import { recordTodaySnapshot } from '../lib/nutritionSnapshot.js';
+import { lookupBarcode } from '../lib/barcodeLookup.js';
 
 const IMAGE_DATA_URL = /^data:image\/(jpeg|jpg|png|webp|gif);base64,(.+)$/;
 
@@ -74,6 +75,16 @@ export function foodLogRouter(vaultPath) {
     const job = getFoodScanJob(req.params.jobId);
     if (!job) return res.status(404).json({ error: 'job not found' });
     res.json({ status: job.status, result: job.result, error: job.error });
+  });
+
+  router.get('/food-log/barcode/:code', async (req, res, next) => {
+    try {
+      const result = await lookupBarcode(req.params.code);
+      if (!result) return res.status(404).json({ error: 'No product found for that barcode' });
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
   });
 
   return router;

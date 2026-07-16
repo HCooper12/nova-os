@@ -1,4 +1,4 @@
-import { Component, createRef } from 'react';
+import { Component, createRef, lazy, Suspense } from 'react';
 import { recipes, notes, basePlan, reviews, galaxyNamed, galaxyLinks, weekData } from './data.js';
 import { css } from './css.js';
 import { api, getConnection, setConnection, testConnection } from './api.js';
@@ -21,6 +21,11 @@ import { IngestModal } from './IngestModal.jsx';
 import { IngestReview } from './IngestReview.jsx';
 import { Toast } from './Toast.jsx';
 import { Boot } from './Boot.jsx';
+
+// Code-split: ZXing (barcode decoding) is a sizeable dependency that only
+// the food-log barcode flow needs — no reason to ship it in everyone's
+// initial bundle when most loads never touch it.
+const BarcodeScanner = lazy(() => import('./BarcodeScanner.jsx').then((m) => ({ default: m.BarcodeScanner })));
 
 const NOTE_TYPE_COLOR = { concept: '#d8b573', entity: '#e08f6f', topic: '#8a6ad1', source: '#6be5f5', journal: '#5aa87c', analysis: '#ece5da', raw: 'rgba(236,229,218,.5)' };
 
@@ -80,6 +85,7 @@ export default class App extends Component {
     liveFoodLog: null,
     foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogBusy: false, foodLogError: null,
     foodScanNote: '', foodScanBusy: false, foodScanError: null, foodScanQuestion: null,
+    barcodeScannerOpen: false,
     noteQuery: '', noteType: 'All', openNoteId: 'n1',
     galaxySel: null, toast: null, gaugeIdx: 0, reviewIdx: 0,
     isMobile: typeof window !== 'undefined' && window.innerWidth < 760,
@@ -339,6 +345,29 @@ export default class App extends Component {
         this.setState({ foodScanBusy: false, foodScanError: job.error });
       }
     }).catch(() => {});
+  }
+  openBarcodeScanner() {
+    if (!getConnection()) { this.toastMsg('Connect a backend in Settings first'); return; }
+    this.setState({ barcodeScannerOpen: true, foodScanError: null });
+  }
+  closeBarcodeScanner() {
+    this.setState({ barcodeScannerOpen: false });
+  }
+  onBarcodeDetected(code) {
+    const conn = getConnection();
+    this.setState({ barcodeScannerOpen: false, foodScanBusy: true, foodScanError: null, foodScanQuestion: null });
+    if (!conn) return;
+    api.lookupBarcode(conn, code).then((r) => {
+      this.setState({
+        foodScanBusy: false,
+        foodLogName: r.name || '',
+        foodLogP: r.macros?.p != null ? String(r.macros.p) : '',
+        foodLogC: r.macros?.c != null ? String(r.macros.c) : '',
+        foodLogF: r.macros?.f != null ? String(r.macros.f) : '',
+        foodLogKcal: r.macros?.kcal != null ? String(r.macros.kcal) : '',
+      });
+      this.toastMsg('Barcode matched — check the fields below before saving');
+    }).catch((e) => this.setState({ foodScanBusy: false, foodScanError: e.message }));
   }
   openAddRecipe() {
     if (!getConnection()) { this.toastMsg('Connect a backend in Settings first'); return; }
@@ -1794,6 +1823,10 @@ export default class App extends Component {
       foodScanQuestion: st.foodScanQuestion,
       scanFoodLabel: (e) => this.onFoodScanFiles('label', e.target.files),
       scanFoodMeal: (e) => this.onFoodScanFiles('meal', e.target.files),
+      barcodeScannerOpen: st.barcodeScannerOpen,
+      openBarcodeScanner: () => this.openBarcodeScanner(),
+      closeBarcodeScanner: () => this.closeBarcodeScanner(),
+      onBarcodeDetected: (code) => this.onBarcodeDetected(code),
 
       // add recipe — writes back to the real vault file
       recipeAddVisible: usingLiveRecipes,
@@ -2144,6 +2177,11 @@ export default class App extends Component {
         {v.isMobile && <MobileChrome v={v} />}
         {v.recipeOpen && <RecipeOverlay v={v} />}
         {v.recipeAddOpen && <AddRecipeModal v={v} />}
+        {v.barcodeScannerOpen && (
+          <Suspense fallback={null}>
+            <BarcodeScanner onDetected={v.onBarcodeDetected} onClose={v.closeBarcodeScanner} />
+          </Suspense>
+        )}
         {v.paletteOpen && <CommandPalette v={v} />}
         {v.ingestModalOpen && <IngestModal v={v} />}
         {v.ingestStatus !== 'idle' && <IngestReview v={v} />}
