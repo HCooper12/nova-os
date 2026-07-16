@@ -124,9 +124,25 @@ export function MissionControl({ v }) {
             <span style={css("font:italic 400 20px 'Instrument Serif',serif;color:#d8b573")}>Nova noticed</span>
             <span style={css("font:500 9px 'JetBrains Mono',monospace;letter-spacing:.22em;color:rgba(236,229,218,.4)")}>WHILE YOU SLEPT</span>
           </div>
+          {v.streakBadges.length > 0 && (
+            <div style={css("margin-top:12px;display:flex;flex-wrap:wrap;gap:7px")}>
+              {v.streakBadges.map((b) => (
+                <span key={b.key} style={{ font: "500 9.5px 'JetBrains Mono',monospace", letterSpacing: '.04em', padding: '5px 10px', borderRadius: '7px', color: `rgb(${b.hue})`, background: `rgba(${b.hue},.12)`, border: `1px solid rgba(${b.hue},.3)` }}>{b.label}</span>
+              ))}
+            </div>
+          )}
           <div style={css("margin-top:14px;display:flex;flex-direction:column;max-height:180px;overflow-y:auto")}>
             {v.usingLiveHealthInsight ? (
-              <div style={css("display:flex;gap:13px;align-items:baseline;padding:11px 0")}><span style={css("color:#d8b573")}>✦</span><span style={css("font-size:13.5px;line-height:1.55;color:rgba(236,229,218,.88)")}>{v.healthInsightText}</span></div>
+              v.healthInsightItems.length > 0 ? (
+                v.healthInsightItems.map((item, i) => (
+                  <div key={item.key} style={css(`display:flex;gap:13px;align-items:baseline;padding:11px 0${i < v.healthInsightItems.length - 1 ? ';border-bottom:1px solid rgba(236,229,218,.06)' : ''}`)}>
+                    <span style={css("color:#d8b573")}>✦</span>
+                    <span style={css("font-size:13.5px;line-height:1.55;color:rgba(236,229,218,.88)")}><span style={css("font:500 8.5px 'JetBrains Mono',monospace;letter-spacing:.14em;color:rgba(216,181,115,.75);margin-right:8px")}>{item.label}</span>{item.text}</span>
+                  </div>
+                ))
+              ) : (
+                <div style={css("display:flex;gap:13px;align-items:baseline;padding:11px 0")}><span style={css("color:#d8b573")}>✦</span><span style={css("font-size:13.5px;line-height:1.55;color:rgba(236,229,218,.88)")}>{v.healthInsightEmptyText}</span></div>
+              )
             ) : (
               <>
                 <div style={css("display:flex;gap:13px;align-items:baseline;padding:11px 0;border-bottom:1px solid rgba(236,229,218,.06)")}><span style={css("color:#d8b573")}>✦</span><span style={css("font-size:13.5px;line-height:1.55;color:rgba(236,229,218,.88)")}>You've skipped three runs — Coach moved tomorrow's zone-2 to 7 am. <span onClick={v.acceptRun} style={css("cursor:pointer;color:#6be5f5;font-size:12px;border-bottom:1px dotted rgba(107,229,245,.5)")}>Accept</span></span></div>

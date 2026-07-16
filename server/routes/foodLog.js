@@ -5,10 +5,11 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { addEntry, removeEntry, getToday } from '../lib/foodLog.js';
 import { startFoodScan, getFoodScanJob } from '../lib/scanFood.js';
+import { recordTodaySnapshot } from '../lib/nutritionSnapshot.js';
 
 const IMAGE_DATA_URL = /^data:image\/(jpeg|jpg|png|webp|gif);base64,(.+)$/;
 
-export function foodLogRouter() {
+export function foodLogRouter(vaultPath) {
   const router = Router();
 
   router.get('/food-log', async (req, res, next) => {
@@ -27,6 +28,7 @@ export function foodLogRouter() {
         return res.status(400).json({ error: 'macros.p/c/f/kcal must be non-negative numbers' });
       }
       const day = await addEntry({ name: name.trim(), macros });
+      recordTodaySnapshot(vaultPath).catch(() => {});
       res.json(day);
     } catch (err) {
       res.status(400).json({ error: err.message });
@@ -35,7 +37,9 @@ export function foodLogRouter() {
 
   router.delete('/food-log/:id', async (req, res, next) => {
     try {
-      res.json(await removeEntry(req.params.id));
+      const day = await removeEntry(req.params.id);
+      recordTodaySnapshot(vaultPath).catch(() => {});
+      res.json(day);
     } catch (err) {
       next(err);
     }

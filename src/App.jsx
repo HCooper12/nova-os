@@ -75,7 +75,7 @@ export default class App extends Component {
     codeInput: '', codeBusy: false,
     codeChat: [],
     codeSessionId: null, codeWorkspace: 'repo', codeModel: 'sonnet',
-    liveHealthInsight: null, liveHealthDays: null,
+    liveHealthInsight: null, liveHealthDays: null, liveStreaks: null,
     liveReviewSummaries: {},
     liveFoodLog: null,
     foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogBusy: false, foodLogError: null,
@@ -206,6 +206,12 @@ export default class App extends Component {
       this.setState({ liveHealthDays: healthRes.days.length ? healthRes.days : null });
     } catch {
       this.setState({ liveHealthDays: null });
+    }
+    try {
+      const streaks = await api.streaks(conn);
+      this.setState({ liveStreaks: streaks });
+    } catch {
+      this.setState({ liveStreaks: null });
     }
     try {
       const calRes = await api.calendarToday(conn);
@@ -1596,9 +1602,20 @@ export default class App extends Component {
       openProteinNote: () => this.setState({ screen: 'notes', openNoteId: 'n1' }),
       reviewSubs: () => this.toastMsg('CFO drafted the cancellations — review in tonight’s reflection'),
       usingLiveHealthInsight: usingLiveNotes && !!st.liveHealthInsight,
-      healthInsightText: st.liveHealthInsight?.hasInsight
-        ? st.liveHealthInsight.insight
-        : "Nova hasn't spotted a pattern yet — connect your Apple Health data to start getting daily insights here.",
+      healthInsightItems: [
+        st.liveHealthInsight?.morning?.hasInsight ? { key: 'morning', label: 'MORNING', text: st.liveHealthInsight.morning.insight } : null,
+        st.liveHealthInsight?.evening?.hasInsight ? { key: 'evening', label: 'EVENING', text: st.liveHealthInsight.evening.insight } : null,
+      ].filter(Boolean),
+      healthInsightEmptyText: "Nova hasn't spotted a pattern yet — connect your Apple Health data to start getting daily insights here.",
+      // streaks — pure computed momentum, no AI involved, so it's always
+      // honest and free to show regardless of whether an insight generated
+      streakBadges: st.liveStreaks
+        ? [
+            st.liveStreaks.workoutStreak >= 2 ? { key: 'workout', label: `${st.liveStreaks.workoutStreak}-day workout streak`, hue: '216,181,115' } : null,
+            st.liveStreaks.stepGoalStreak >= 2 ? { key: 'steps', label: `${st.liveStreaks.stepGoalStreak}-day step goal streak`, hue: '168,224,99' } : null,
+            st.liveStreaks.sleepGoalStreak >= 2 ? { key: 'sleep', label: `${st.liveStreaks.sleepGoalStreak}-day sleep goal streak`, hue: '107,229,245' } : null,
+          ].filter(Boolean)
+        : [],
       lunchCardLabel: usingLiveRecipes
         ? (rotation?.slots?.lunch ? `Lunch — ${rotation.slots.lunch.name}` : 'Lunch — not set')
         : 'Lunch — burrito bowl',

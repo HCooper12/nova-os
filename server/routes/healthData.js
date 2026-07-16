@@ -1,9 +1,18 @@
 import { Router } from 'express';
 import { saveDay, loadRecentDays, HEALTH_METRICS } from '../lib/healthData.js';
 import { getLatestInsight, generateInsightNow } from '../lib/healthInsight.js';
+import { computeStreaks } from '../lib/streaks.js';
 
 export function healthDataRouter(vaultPath) {
   const router = Router();
+
+  router.get('/streaks', async (req, res, next) => {
+    try {
+      res.json(await computeStreaks(vaultPath));
+    } catch (err) {
+      next(err);
+    }
+  });
 
   router.get('/health-insight', async (req, res, next) => {
     try {
@@ -15,7 +24,8 @@ export function healthDataRouter(vaultPath) {
 
   router.post('/health-insight/generate', async (req, res, next) => {
     try {
-      res.json(await generateInsightNow(vaultPath));
+      const slot = req.body?.slot === 'morning' ? 'morning' : (req.body?.slot === 'evening' ? 'evening' : (new Date().getHours() < 12 ? 'morning' : 'evening'));
+      res.json(await generateInsightNow(vaultPath, slot));
     } catch (err) {
       res.status(400).json({ error: err.message });
     }

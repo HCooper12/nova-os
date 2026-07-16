@@ -66,7 +66,7 @@ async function main() {
   app.use('/api', journalRouter(vault, process.env.VAULT_PATH));
   app.use('/api', claudeCodeRouter({ repoPath: path.resolve(__dirname, '..'), vaultPath: process.env.VAULT_PATH }));
   app.use('/api', healthDataRouter(process.env.VAULT_PATH));
-  app.use('/api', foodLogRouter());
+  app.use('/api', foodLogRouter(process.env.VAULT_PATH));
 
   startHealthInsightScheduler(process.env.VAULT_PATH);
 

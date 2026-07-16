@@ -11,6 +11,7 @@ import { loadRecipeData } from './recipes.js';
 import { loadRotation } from './rotation.js';
 import { fetchEventsForDay } from './calendar.js';
 import { getToday as getFoodLogToday } from './foodLog.js';
+import { loadRecentDays as loadRecentNutritionDays } from './nutritionLog.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const INSIGHT_FILE = path.join(__dirname, '..', 'data', 'health', 'insight.json');
@@ -68,10 +69,38 @@ async function buildContext(vaultPath) {
   }
 
   try {
+    const nutritionDays = await loadRecentNutritionDays(7);
+    lines.push('\n## Actual protein intake, recent days (oldest first — real consumption, not the plan)');
+    if (nutritionDays.length) {
+      for (const d of nutritionDays) {
+        lines.push(`- ${d.date} — ${d.p}g protein${d.floorG ? ` vs ${d.floorG}g floor (${d.floorMet ? 'met' : 'short'})` : ''}`);
+      }
+    } else {
+      lines.push('- No history yet — this builds up as meals get marked eaten or logged.');
+    }
+  } catch {
+    lines.push('\n## Actual protein intake, recent days\n- Unavailable.');
+  }
+
+  try {
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const events = await fetchEventsForDay(yesterday);
     lines.push('\n## Yesterday\'s calendar');
     if (events.length) {
+      const toMinutes = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+      let scheduledMinutes = 0;
+      let backToBackCount = 0;
+      let prevEnd = null;
+      for (const e of events) {
+        if (e.end) {
+          let mins = toMinutes(e.end) - toMinutes(e.time);
+          if (mins < 0) mins += 24 * 60; // overnight (e.g. sleep block)
+          scheduledMinutes += mins;
+        }
+        if (prevEnd != null && toMinutes(e.time) - prevEnd <= 15) backToBackCount++;
+        if (e.end) prevEnd = toMinutes(e.end) % (24 * 60);
+      }
+      lines.push(`- Load: ${Math.round(scheduledMinutes / 6) / 10}h scheduled across ${events.length} events${backToBackCount ? `, ${backToBackCount} back-to-back` : ''}`);
       for (const e of events) lines.push(`- ${e.time} ${e.label} (${e.calendar})`);
     } else {
       lines.push('- Nothing on the calendar.');
@@ -100,8 +129,12 @@ async function buildContext(vaultPath) {
   return lines.join('\n');
 }
 
-function buildPrompt(context) {
-  return `You are reviewing Hayden's recent personal data as a thoughtful, holistic health coach — not just repeating numbers back, but noticing real patterns that connect sleep/recovery, training, nutrition, mood, and how his day was actually structured.
+function buildPrompt(context, slot) {
+  const framing = slot === 'morning'
+    ? "You're reviewing Hayden's readiness coming into today — how recovered he looks based on last night's sleep and HRV, recent training load, and what's on today's calendar."
+    : "You're reviewing how Hayden's day actually went — a day-in-review, not a forecast. Focus on what happened: training completed (or not), food actually eaten, how the calendar day played out, and how that connects to recovery.";
+
+  return `You are a thoughtful, holistic health coach looking at Hayden's recent personal data — not just repeating numbers back, but noticing real patterns that connect sleep/recovery, training, nutrition, mood, and how his day is structured. ${framing}
 
 ${context}
 
@@ -145,14 +178,23 @@ function runClaude(prompt) {
   });
 }
 
+const EMPTY_SLOT = { date: null, hasInsight: false, insight: null, generatedAt: null };
 let cachedInsight = null;
 
 async function loadCachedInsight() {
   if (cachedInsight !== null) return cachedInsight;
   if (existsSync(INSIGHT_FILE)) {
-    cachedInsight = JSON.parse(await readFile(INSIGHT_FILE, 'utf8'));
+    const raw = JSON.parse(await readFile(INSIGHT_FILE, 'utf8'));
+    if (raw.morning || raw.evening) {
+      cachedInsight = { morning: raw.morning || { ...EMPTY_SLOT }, evening: raw.evening || { ...EMPTY_SLOT } };
+    } else if (raw.date !== undefined) {
+      // migrate the old single-insight file shape (from before morning/evening existed)
+      cachedInsight = { morning: { ...EMPTY_SLOT }, evening: raw };
+    } else {
+      cachedInsight = { morning: { ...EMPTY_SLOT }, evening: { ...EMPTY_SLOT } };
+    }
   } else {
-    cachedInsight = { date: null, hasInsight: false, insight: null, generatedAt: null };
+    cachedInsight = { morning: { ...EMPTY_SLOT }, evening: { ...EMPTY_SLOT } };
   }
   return cachedInsight;
 }
@@ -161,35 +203,44 @@ export async function getLatestInsight() {
   return loadCachedInsight();
 }
 
-export async function generateInsightNow(vaultPath) {
-  return generateAndStore(vaultPath);
+export async function generateInsightNow(vaultPath, slot) {
+  return generateAndStore(vaultPath, slot === 'morning' ? 'morning' : 'evening');
 }
 
-async function generateAndStore(vaultPath) {
+async function generateAndStore(vaultPath, slot) {
   const context = await buildContext(vaultPath);
-  const result = await runClaude(buildPrompt(context));
+  const result = await runClaude(buildPrompt(context, slot));
   const record = {
     date: today(),
     hasInsight: !!result.hasInsight,
     insight: result.hasInsight ? String(result.insight || '').trim() : null,
     generatedAt: new Date().toISOString(),
   };
+  const cached = await loadCachedInsight();
+  const updated = { ...cached, [slot]: record };
   await mkdir(path.dirname(INSIGHT_FILE), { recursive: true });
-  await writeFile(INSIGHT_FILE, JSON.stringify(record, null, 2), 'utf8');
-  cachedInsight = record;
-  return record;
+  await writeFile(INSIGHT_FILE, JSON.stringify(updated, null, 2), 'utf8');
+  cachedInsight = updated;
+  return updated;
 }
 
-// Runs once an hour; only actually generates once per day, and only once at
-// least one day of health data exists, so it stays quiet until the phone
-// side (Shortcuts automation) is actually sending data.
+// Runs once an hour. Generates a morning (readiness) insight once per day
+// after 6am and an evening (day-in-review) insight once per day after 6pm —
+// each independently, only once at least one day of health data exists, so
+// it stays quiet until the phone side (Shortcuts automation) sends data.
 async function checkAndGenerate(vaultPath) {
   try {
-    const cached = await loadCachedInsight();
-    if (cached.date === today()) return;
     const recentDays = await loadRecentDays(1);
     if (!recentDays.length) return;
-    await generateAndStore(vaultPath);
+    const hour = new Date().getHours();
+    const t = today();
+    let cached = await loadCachedInsight();
+    if (cached.morning.date !== t && hour >= 6) {
+      cached = await generateAndStore(vaultPath, 'morning');
+    }
+    if (cached.evening.date !== t && hour >= 18) {
+      cached = await generateAndStore(vaultPath, 'evening');
+    }
   } catch (err) {
     console.error('Health insight generation failed:', err.message);
   }

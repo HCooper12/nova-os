@@ -5,6 +5,7 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { loadRecipeData, addRecipe, addAlternate } from '../lib/recipes.js';
 import { loadRotation, setRotationSlot, setSlotConsumed } from '../lib/rotation.js';
+import { recordTodaySnapshot } from '../lib/nutritionSnapshot.js';
 import { startScan, getScanJob } from '../lib/scanRecipe.js';
 import { startTweak, getTweakJob } from '../lib/tweakRecipe.js';
 import { savePhoto, getPhoto, listPhotoRecipeIds } from '../lib/recipePhotos.js';
@@ -191,6 +192,7 @@ export function recipesRouter(vaultPath) {
       const { slot, consumed } = req.body || {};
       const { recipes } = await loadRecipeData(vaultPath);
       const rotation = await setSlotConsumed(vaultPath, recipes, slot, !!consumed);
+      recordTodaySnapshot(vaultPath).catch(() => {});
       res.json(rotation);
     } catch (err) {
       res.status(400).json({ error: err.message });
