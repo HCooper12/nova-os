@@ -72,6 +72,33 @@ Type system: Outfit (UI + numerals) · Instrument Serif (display, kept from
 Option 0) · JetBrains Mono (microlabels, kept from Option 0) · Caveat
 (Nova's hand).
 
+## Round 3 — ten directions (Continuum rejected; brief: combine 0+3, innovate on 5, try 3D)
+
+**Group A — Midnight Observatory × Aurora Terminal fusions (dark):**
+
+| # | Name | Thesis |
+|---|------|--------|
+| 9 | **Deep Field** | The observatory refined — Option 0's gold serif + starfield with Aurora's glass depth and orbital ring; quieter than Aurora, richer than today |
+| 10 | **Signal** | Night instrument — hi-fi amplifier warmth: brass/amber lamplight on near-black, needle dials, VU-bar training levels, zero blue |
+| 11 | **Nebula Noir** | Cinema — a letterboxed film frame: nebula sky, film grain, huge gradient serif title, all data in one luminous bottom strip |
+| 12 | **Starchart** | Celestial cartography — engraved navy chart, graticule grid, astrolabe dial with three nested rings, the day plotted as waypoints |
+
+**Group B — Prisma innovations:**
+
+| # | Name | Thesis |
+|---|------|--------|
+| 13 | **Prisma Volume** | Physical dichroic glass — stacked refracting slabs with chromatic edges over caustic light, vitals as tilted sheets |
+| 14 | **Prisma Obsidian** | Glass goes nocturnal — oil-slick iridescence on volcanic black, hexagonal facet gauges, the 5↔dark bridge |
+| 15 | **Prisma Flow** | The field becomes flowing aurora ribbons; giant gradient numerals; the most kinetic of the glass family |
+
+**Group C — 3D:**
+
+| # | Name | Thesis |
+|---|------|--------|
+| 16 | **Deck** | True CSS perspective — panels recede like a physical console; upright greeting floats above the tilted deck |
+| 17 | **Habitat** | Isometric diorama — the day as extruded tiles whose HEIGHT is the data; flat inspector column stays readable |
+| 18 | **Orrery** | A shaded golden planet (today) with moons riding tilted elliptical orbits; schedule markers live on the rings |
+
 ### Shared principles regardless of winner
 
 - Same information architecture as today (focus, vitals, noticed, today, vault cards)

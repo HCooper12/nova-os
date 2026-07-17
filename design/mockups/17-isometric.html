@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nova — C2 · Habitat (isometric 3D)</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* C2 HABITAT — the day as an isometric diorama. Light, playful, tactile:
+   your life rendered as a little world of extruded tiles whose heights
+   ARE the data (tile height = progress). A readable inspector column
+   stays flat on the right. */
+:root{--ground:#eef0ea;--ink:#232720;--ink60:rgba(35,39,32,.62);--ink40:rgba(35,39,32,.4);
+--card:#ffffff;--blue:#4a6cf0;--blue2:#32499d;--orange:#f08a2c;--orange2:#a85a1a;
+--green:#3ba876;--green2:#256b4c;--purple:#8a68d8;--purple2:#5a4193;--gold:#e8c063;--gold2:#a5822f}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font-family:'Outfit',sans-serif;min-height:100vh;overflow-x:hidden}
+.wrap{max-width:1340px;margin:0 auto;padding:26px 44px 60px}
+.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.bar{display:flex;align-items:center;gap:16px;padding:13px 20px;border-radius:16px;background:var(--card);border:2px solid var(--ink);box-shadow:0 6px 0 -2px rgba(35,39,32,.18)}
+.brand{font-weight:800;font-size:20px}.brand span{color:var(--orange)}
+.nav{display:flex;gap:2px;margin-left:8px}
+.nav a{font-size:13px;font-weight:600;color:var(--ink60);text-decoration:none;padding:7px 13px;border-radius:10px}
+.nav a.on{background:var(--ink);color:#fff}
+.bar .r{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--ink60)}
+.bar .r b{color:var(--green);font-weight:600}
+.main{display:grid;grid-template-columns:1.5fr 1fr;gap:40px;padding-top:34px;align-items:start}
+/* the diorama */
+.diorama{position:relative;min-height:640px}
+.board{position:absolute;left:50%;top:290px;transform:translateX(-50%) rotateX(57deg) rotateZ(-42deg);transform-style:preserve-3d;width:560px;height:560px}
+.tilebase{position:absolute;inset:-36px;border-radius:34px;background:#e2e5db;box-shadow:0 0 0 2px rgba(35,39,32,.14),34px 34px 0 rgba(35,39,32,.1)}
+.tile{position:absolute;width:150px;height:150px;border-radius:18px;transform-style:preserve-3d}
+.tile .top{position:absolute;inset:0;border-radius:18px;border:2.5px solid var(--ink);display:flex;flex-direction:column;justify-content:flex-end;padding:12px;background:var(--card)}
+.tile .top .l{font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.18em;color:var(--ink60);transform:rotateZ(0)}
+.tile .top .n{font-weight:800;font-size:25px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+/* extrusion: stacked shadows along iso axes */
+.tile.h1 .top{transform:translateZ(34px)}
+.tile.h2 .top{transform:translateZ(64px)}
+.tile.h3 .top{transform:translateZ(110px)}
+.tile .side{position:absolute;inset:0;border-radius:18px;background:currentColor;border:2.5px solid var(--ink)}
+.tile.h1 .side{transform:translateZ(17px);box-shadow:0 0 0 0}
+.tile.h2 .side{transform:translateZ(32px)}
+.tile.h3 .side{transform:translateZ(55px)}
+.tile .base{position:absolute;inset:0;border-radius:18px;background:rgba(35,39,32,.24);transform:translateZ(0);filter:blur(1px)}
+.t-sleep{left:18px;top:18px;color:var(--blue2)}.t-sleep .top{background:#dfe6ff}
+.t-protein{left:206px;top:18px;color:var(--orange2)}.t-protein .top{background:#ffe9d2}
+.t-steps{left:394px;top:18px;color:var(--green2)}.t-steps .top{background:#dcf2e6}
+.t-work{left:18px;top:206px;color:var(--gold2)}.t-work .top{background:#fdf2cf}
+.t-train{left:206px;top:206px;color:var(--purple2)}.t-train .top{background:#e9e0fb}
+.t-vault{left:394px;top:206px;color:var(--blue2)}.t-vault .top{background:#e3ecf5}
+.t-dog{left:18px;top:394px;color:var(--green2)}.t-dog .top{background:#e7f3da}
+.t-food{left:206px;top:394px;color:var(--orange2)}.t-food .top{background:#ffe3dd}
+.t-night{left:394px;top:394px;color:var(--purple2)}.t-night .top{background:#e2e2f2}
+.tile .top .em{font-size:26px;line-height:1;margin-bottom:auto}
+.caption{position:absolute;left:0;right:0;bottom:4px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.24em;color:var(--ink40)}
+/* inspector column */
+.inspector h1{font-weight:800;font-size:42px;line-height:1.05;letter-spacing:-.03em;text-wrap:balance}
+.inspector h1 span{color:var(--orange)}
+.eyebrow{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.26em;color:var(--ink60);margin-bottom:12px}
+.stand{margin-top:12px;font-size:14.5px;line-height:1.65;color:var(--ink60)}.stand b{color:var(--ink);font-weight:700}
+.ctas{display:flex;gap:10px;margin-top:18px}
+.btn{font-size:13.5px;font-weight:700;padding:12px 20px;border-radius:12px;border:2px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer;box-shadow:0 5px 0 -1px rgba(35,39,32,.3)}
+.btn.g{background:var(--card);color:var(--ink)}
+.ins-card{margin-top:18px;border:2px solid var(--ink);border-radius:16px;background:var(--card);padding:16px 18px;box-shadow:0 6px 0 -2px rgba(35,39,32,.16)}
+.ins-card .h{display:flex;justify-content:space-between;align-items:baseline;font-weight:800;font-size:16px;margin-bottom:8px}
+.ins-card .h .m{font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.16em;color:var(--ink40);font-weight:400}
+.ins-card p{font-size:13px;line-height:1.6;color:var(--ink60)}
+.ins-card p b{color:var(--ink)}
+.ins-card p mark{background:#f3ecc0;padding:0 3px;border-radius:3px}
+.ag{list-style:none}.ag li{display:flex;gap:11px;padding:6.5px 0;font-size:13px;font-weight:600;align-items:baseline;border-bottom:1.5px dashed #d8dbd0}
+.ag li:last-child{border:0}.ag .tm{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;color:var(--ink40);width:40px;flex:none}
+.ag .now{color:var(--blue)}.ag .now .tm{color:var(--blue)}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style></head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <div class="brand">nova<span>*</span>os</div>
+    <nav class="nav"><a class="on" href="#">Mission</a><a href="#">Voice</a><a href="#">Galaxy</a><a href="#">Code</a><a href="#">Recipes</a><a href="#">Train</a><a href="#">Notes</a><a href="#">Journal</a></nav>
+    <div class="r">FRI 17 JUL · 13:12 · VAULT 47 · <b>● LIVE</b></div>
+  </div>
+  <div class="main">
+    <div class="diorama">
+      <div class="board">
+        <div class="tilebase"></div>
+        <div class="tile t-sleep h3"><div class="base"></div><div class="side"></div><div class="top"><span class="em">🌙</span><span class="l">SLEEP · 90%</span><span class="n">7h 12m</span></div></div>
+        <div class="tile t-protein h2"><div class="base"></div><div class="side"></div><div class="top"><span class="em">🍳</span><span class="l">PROTEIN · 64%</span><span class="n">96/150g</span></div></div>
+        <div class="tile t-steps h1"><div class="base"></div><div class="side"></div><div class="top"><span class="em">👟</span><span class="l">STEPS · 24%</span><span class="n">2,361</span></div></div>
+        <div class="tile t-work h2"><div class="base"></div><div class="side"></div><div class="top"><span class="em">💰</span><span class="l">NEXT · 15:30</span><span class="n">Work</span></div></div>
+        <div class="tile t-train h1"><div class="base"></div><div class="side"></div><div class="top"><span class="em">🏋️</span><span class="l">TONIGHT</span><span class="n">Upper Body</span></div></div>
+        <div class="tile t-vault h2"><div class="base"></div><div class="side"></div><div class="top"><span class="em">📚</span><span class="l">VAULT</span><span class="n">47 notes</span></div></div>
+        <div class="tile t-dog h1"><div class="base"></div><div class="side"></div><div class="top"><span class="em">🐶</span><span class="l">09:45 ✓</span><span class="n">Tank</span></div></div>
+        <div class="tile t-food h2"><div class="base"></div><div class="side"></div><div class="top"><span class="em">🌶️</span><span class="l">LUNCH ✓ 666KCAL</span><span class="n">Chilli Beef</span></div></div>
+        <div class="tile t-night h1"><div class="base"></div><div class="side"></div><div class="top"><span class="em">💤</span><span class="l">22:30</span><span class="n">Recharge</span></div></div>
+      </div>
+      <div class="caption">TILE HEIGHT = PROGRESS · YOUR DAY AS A LITTLE WORLD</div>
+    </div>
+    <div class="inspector">
+      <div class="eyebrow">FRIDAY 17 JULY · 13:12 · HABITAT VIEW</div>
+      <h1>Good afternoon, Hayden — <span>build today up.</span></h1>
+      <p class="stand">Each tile grows as you fill it. <b>Sleep is tall</b> (7h 12m, 90%), <b>protein is midway</b> (96/150 g), and <b>steps are still flat</b> — 7,639 to raise before midnight. Tonight's <b>Upper Body</b> tile is waiting.</p>
+      <div class="ctas"><button class="btn">Start next block</button><button class="btn g">Rotate view</button></div>
+      <div class="ins-card">
+        <div class="h">Nova noticed <span class="m">WHILE YOU SLEPT</span></div>
+        <p>HRV (93.5) and resting HR (51) read <mark>strong recovery</mark> — because yesterday's 7:30 block never happened. <b>Tonight's session resets the streak</b> and raises the Train tile.</p>
+      </div>
+      <div class="ins-card">
+        <div class="h">Today <span class="m">LIVE · CALENDAR</span></div>
+        <ul class="ag">
+          <li><span class="tm">09:45</span><span>Walk Tank 🐶 ✓</span></li>
+          <li class="now"><span class="tm">15:30</span><span>Work 💰 — in 2h 18m</span></li>
+          <li><span class="tm">22:00</span><span>Mindfulness 🧘</span></li>
+          <li><span class="tm">22:30</span><span>Recharge 💤</span></li>
+        </ul>
+      </div>
+      <div class="ins-card">
+        <div class="h">Daily review <span class="m">CONCEPT</span></div>
+        <p>“Sadness signals a missing option you can learn; anxiety signals too many options to rank and prune.” — <b>Operationalizing Emotions</b></p>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

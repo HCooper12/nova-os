@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nova — A3 · Nebula Noir (0×3)</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&family=Archivo:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* A3 NEBULA NOIR — 0×3 as cinema. A film frame, not a dashboard:
+   letterboxed nebula sky, enormous serif title, content as minimal
+   floating captions and one luminous data strip. Grain over everything.
+   The most cinematic possible reading of the observatory. */
+:root{--void:#06040c;--bone:#ece5da;--bone60:rgba(236,229,218,.62);--bone35:rgba(236,229,218,.34);
+--gold:#d8b573;--magenta:#e267b0;--violet:#8a6ad1;--cyan:#6be5f5;--good:#5aa87c}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--void);color:var(--bone);font-family:'Archivo',sans-serif;min-height:100vh;overflow-x:hidden}
+.nebula{position:fixed;inset:0;pointer-events:none;background:
+radial-gradient(900px 600px at 70% 20%,rgba(138,106,209,.32),transparent 65%),
+radial-gradient(700px 500px at 30% 60%,rgba(226,103,176,.16),transparent 60%),
+radial-gradient(500px 400px at 85% 75%,rgba(107,229,245,.09),transparent 60%),
+radial-gradient(1200px 800px at 50% 40%,rgba(20,14,40,.9),var(--void) 100%);animation:sw 30s ease-in-out infinite alternate}
+@keyframes sw{to{transform:scale(1.06) translate(-1%,1%)}}
+.stars{position:fixed;inset:0;pointer-events:none;background-image:
+radial-gradient(1.5px 1.5px at 11% 14%,rgba(236,229,218,.6),transparent),radial-gradient(1px 1px at 26% 42%,rgba(236,229,218,.35),transparent),
+radial-gradient(1.7px 1.7px at 39% 9%,rgba(216,181,115,.55),transparent),radial-gradient(1px 1px at 55% 30%,rgba(236,229,218,.3),transparent),
+radial-gradient(1.5px 1.5px at 71% 12%,rgba(107,229,245,.5),transparent),radial-gradient(1px 1px at 86% 46%,rgba(236,229,218,.4),transparent),
+radial-gradient(1px 1px at 17% 72%,rgba(226,103,176,.4),transparent),radial-gradient(1.4px 1.4px at 63% 78%,rgba(236,229,218,.35),transparent)}
+.grain{position:fixed;inset:0;pointer-events:none;opacity:.5;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E")}
+.letterbox{position:fixed;left:0;right:0;height:64px;background:#020108;z-index:5}
+.letterbox.top{top:0}.letterbox.bot{bottom:0}
+.lb-meta{position:fixed;z-index:6;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.3em;color:var(--bone35);top:26px}
+.lb-meta.l{left:44px}.lb-meta.r{right:44px;color:var(--gold)}
+.lb-nav{position:fixed;z-index:6;bottom:24px;left:0;right:0;display:flex;justify-content:center;gap:26px;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.26em}
+.lb-nav a{color:var(--bone35);text-decoration:none}.lb-nav a.on{color:var(--gold)}
+.wrap{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:104px 44px 118px;height:100vh;display:flex;flex-direction:column;box-sizing:border-box}
+.eyebrow{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.44em;color:var(--cyan);margin-bottom:24px}
+h1{font-family:'Instrument Serif',serif;font-weight:400;font-size:64px;line-height:1.04;letter-spacing:-.01em;max-width:20ch;text-wrap:balance;text-shadow:0 4px 60px rgba(0,0,0,.8)}
+h1 em{font-style:italic;background:linear-gradient(90deg,var(--gold),var(--magenta));-webkit-background-clip:text;background-clip:text;color:transparent}
+.stand{margin-top:26px;font-size:16.5px;line-height:1.75;color:var(--bone60);max-width:56ch}
+.stand b{color:var(--bone);font-weight:600}
+.hand{font-family:'Instrument Serif',serif;font-style:italic;font-size:21px;color:var(--magenta);margin-top:18px}
+.ctas{display:flex;gap:14px;margin-top:30px}
+.btn{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.18em;padding:14px 26px;cursor:pointer;border:1px solid var(--gold);background:transparent;color:var(--gold);transition:background .2s}
+.btn:hover{background:rgba(216,181,115,.1)}
+.btn.f{background:var(--gold);color:#1a1206}
+/* the data strip — one luminous line of instruments */
+.strip{margin-top:auto;display:flex;align-items:stretch;gap:1px;background:rgba(236,229,218,.12);border:1px solid rgba(236,229,218,.14);backdrop-filter:blur(10px)}
+.cell{flex:1;background:rgba(8,5,16,.72);padding:18px 22px;position:relative}
+.cell .l{font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.3em;color:var(--bone35)}
+.cell .n{font-family:'Instrument Serif',serif;font-size:34px;margin-top:6px;font-variant-numeric:tabular-nums}
+.cell .n small{font-size:16px;color:var(--bone35)}
+.cell .d{font-size:11.5px;color:var(--bone60);margin-top:3px}
+.cell .bar{position:absolute;left:0;right:0;bottom:0;height:2px;background:rgba(236,229,218,.08)}
+.cell .bar i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,var(--gold),var(--magenta))}
+.cell.now .l{color:var(--cyan)}
+.cell.now .n{font-size:26px;padding-top:5px}
+.cell.now .n b{color:var(--cyan);font-style:italic}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style></head>
+<body>
+<div class="nebula"></div><div class="stars"></div><div class="grain"></div>
+<div class="letterbox top"></div><div class="letterbox bot"></div>
+<span class="lb-meta l">NOVA OS · MISSION CONTROL</span>
+<span class="lb-meta r">FRI 17 JUL · 13:12:41 · LIVE ● VAULT 47</span>
+<nav class="lb-nav"><a class="on" href="#">MISSION</a><a href="#">VOICE</a><a href="#">GALAXY</a><a href="#">CODE</a><a href="#">RECIPES</a><a href="#">TRAIN</a><a href="#">NOTES</a><a href="#">JOURNAL</a></nav>
+<div class="wrap">
+  <div class="eyebrow">DAY 213 — A FILM STILL FROM YOUR LIFE</div>
+  <h1>Good afternoon, Hayden — <em>the afternoon belongs to deep work.</em></h1>
+  <p class="stand">Recovery is <b>strong</b> — HRV 93.5 ms, resting 51 bpm — though yesterday's training never fired. Tonight: <b>Upper Body</b>, a <b>54 g protein gap</b>, six scenes left on today's reel.</p>
+  <div class="hand">“Tonight's session resets the streak.” — Nova, while you slept</div>
+  <div class="ctas"><button class="btn f">START 15:30 — WORK 💰</button><button class="btn">TODAY'S REEL</button></div>
+  <div class="strip">
+    <div class="cell"><div class="l">SLEEP</div><div class="n">7h12<small>/8h</small></div><div class="d">HRV +9% · well rested</div><div class="bar"><i style="width:90%"></i></div></div>
+    <div class="cell"><div class="l">PROTEIN</div><div class="n">96<small>/150g</small></div><div class="d">chilli beef closes the 54g gap</div><div class="bar"><i style="width:64%"></i></div></div>
+    <div class="cell"><div class="l">STEPS</div><div class="n">2,361</div><div class="d">7,639 to the 10k goal</div><div class="bar"><i style="width:24%"></i></div></div>
+    <div class="cell now"><div class="l">NEXT SCENE · 15:30</div><div class="n"><b>Work 💰</b> — in 2h 18m</div><div class="d">then Mindfulness 22:00 · Recharge 22:30</div><div class="bar"><i style="width:55%"></i></div></div>
+    <div class="cell"><div class="l">DAILY REVIEW</div><div class="n" style="font-size:16px;line-height:1.45;padding-top:6px">“Sadness signals a missing option you can learn.”</div><div class="d">Operationalizing Emotions</div><div class="bar"><i style="width:100%"></i></div></div>
+  </div>
+</div>
+</body></html>

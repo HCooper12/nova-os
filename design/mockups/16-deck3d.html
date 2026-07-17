@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nova — C1 · Deck (3D perspective)</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* C1 DECK — true CSS 3D: the control surface lies at an angle like a
+   physical console receding into space; the greeting floats upright
+   above it. Panels sit at different depths and catch different light.
+   Dark, cinematic, unmistakably three-dimensional in a still. */
+:root{--void:#070a12;--ink:#e8edf8;--ink60:rgba(232,237,248,.6);--ink40:rgba(232,237,248,.36);
+--cyan:#5fd8ee;--gold:#d8b573;--violet:#8f7bff;--good:#5fe8a8;
+--pane:rgba(18,25,44,.85);--edge:rgba(140,180,255,.24)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:radial-gradient(1300px 800px at 50% -20%,#141d36 0%,#0b1120 45%,var(--void) 100%);color:var(--ink);font-family:'Outfit',sans-serif;min-height:100vh;overflow-x:hidden}
+.stars{position:fixed;inset:0;pointer-events:none;background-image:
+radial-gradient(1.4px 1.4px at 10% 16%,rgba(232,237,248,.5),transparent),radial-gradient(1px 1px at 27% 38%,rgba(232,237,248,.3),transparent),
+radial-gradient(1.5px 1.5px at 41% 9%,rgba(216,181,115,.45),transparent),radial-gradient(1px 1px at 58% 27%,rgba(232,237,248,.28),transparent),
+radial-gradient(1.4px 1.4px at 72% 13%,rgba(95,216,238,.4),transparent),radial-gradient(1px 1px at 88% 33%,rgba(232,237,248,.3),transparent)}
+.wrap{position:relative;max-width:1360px;margin:0 auto;padding:26px 44px 30px}
+.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.bar{display:flex;align-items:center;gap:18px;padding:12px 18px;border-radius:14px;background:rgba(14,20,36,.7);backdrop-filter:blur(16px);border:1px solid var(--edge);box-shadow:0 20px 50px -30px #000}
+.brand{font-family:'Instrument Serif',serif;font-size:23px}.brand em{font-style:italic;color:var(--gold)}
+.nav{display:flex;gap:2px;margin-left:8px}
+.nav a{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.15em;color:var(--ink60);text-decoration:none;padding:8px 12px;border-radius:8px}
+.nav a.on{color:var(--cyan);background:rgba(95,216,238,.08);border:1px solid rgba(95,216,238,.3)}
+.bar .r{margin-left:auto;display:flex;gap:14px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;color:var(--ink60);align-items:center}
+.live{color:var(--good)}
+/* floating upright hero */
+.hero{position:relative;z-index:3;text-align:center;padding:44px 0 8px}
+.eyebrow{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.34em;color:var(--cyan);margin-bottom:14px}
+h1{font-family:'Instrument Serif',serif;font-weight:400;font-size:56px;line-height:1.05;text-wrap:balance}
+h1 em{font-style:italic;color:var(--gold)}
+.stand{margin:14px auto 0;font-size:15px;line-height:1.65;color:var(--ink60);max-width:62ch}
+.stand b{color:var(--ink);font-weight:600}
+.ctas{display:flex;gap:12px;margin-top:22px;justify-content:center}
+.btn{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;padding:12px 22px;border-radius:10px;cursor:pointer;border:1px solid rgba(95,216,238,.55);background:linear-gradient(180deg,rgba(95,216,238,.18),rgba(95,216,238,.05));color:var(--cyan);box-shadow:0 0 30px -12px rgba(95,216,238,.8)}
+.btn.ghost{border-color:rgba(232,237,248,.16);background:transparent;color:var(--ink60);box-shadow:none}
+/* THE DECK — a 3D stage */
+.stage{perspective:1300px;perspective-origin:50% 0%;margin-top:10px}
+.deck{transform:rotateX(38deg);transform-style:preserve-3d;display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:22px;padding:10px 8px 60px}
+.panel{border-radius:18px;background:var(--pane);border:1px solid var(--edge);box-shadow:0 -1px 0 rgba(190,225,255,.28) inset,0 40px 80px -30px rgba(0,0,0,.95);padding:20px 24px;transform-style:preserve-3d;position:relative}
+.panel.lift1{transform:translateZ(46px)}
+.panel.lift2{transform:translateZ(24px)}
+.panel::after{content:'';position:absolute;left:8%;right:8%;bottom:-14px;height:14px;background:radial-gradient(50% 100% at 50% 0,rgba(95,216,238,.18),transparent);filter:blur(4px)}
+.ph{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+.ph .h{font-family:'Instrument Serif',serif;font-style:italic;font-size:21px;color:var(--gold)}
+.ph .m{font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.2em;color:var(--ink40)}
+.panel p{font-size:13.5px;line-height:1.62;color:var(--ink60)}.panel p b{color:var(--ink)}
+.gaugerow{display:flex;gap:16px;margin-top:4px}
+.g{flex:1;text-align:center;padding:12px 8px;border-radius:12px;background:rgba(10,15,28,.6);border:1px solid rgba(140,180,255,.14)}
+.g .l{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.24em;color:var(--ink60)}
+.g .n{font-weight:800;font-size:27px;letter-spacing:-.02em;margin-top:4px;font-variant-numeric:tabular-nums}
+.g .n small{font-size:13px;font-weight:500;color:var(--ink40)}
+.g .track{margin:9px 8px 0;height:4px;border-radius:3px;background:rgba(232,237,248,.1)}
+.g .track i{display:block;height:100%;border-radius:3px}
+.g.s1 .track i{width:90%;background:var(--cyan)}.g.s1 .n{color:var(--cyan)}
+.g.s2 .track i{width:64%;background:var(--gold)}.g.s2 .n{color:var(--gold)}
+.g.s3 .track i{width:24%;background:var(--good)}.g.s3 .n{color:var(--good)}
+.chips{display:flex;gap:8px;margin-top:12px}
+.chip{font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.08em;padding:5px 10px;border-radius:12px;border:1px solid rgba(95,232,168,.45);color:var(--good)}
+.chip.c{border-color:rgba(95,216,238,.4);color:var(--cyan)}
+.ag{list-style:none}.ag li{display:flex;gap:12px;padding:7px 0;font-size:13px;align-items:baseline;border-bottom:1px solid rgba(140,180,255,.09)}
+.ag li:last-child{border:0}.ag .tm{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink40);width:42px;flex:none}
+.ag .now{color:var(--cyan)}.ag .now .tm{color:var(--cyan)}
+.q{font-family:'Instrument Serif',serif;font-size:16.5px;line-height:1.5}
+.src{margin-top:10px;font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.12em;color:var(--ink40)}
+.row2{display:contents}
+.mini{display:flex;gap:14px;margin-top:14px}
+.mc{flex:1;padding:12px 14px;border-radius:12px;background:rgba(10,15,28,.6);border:1px solid rgba(140,180,255,.14);cursor:pointer}
+.mc .k{font-family:'JetBrains Mono',monospace;font-size:7.5px;letter-spacing:.22em;color:var(--gold)}
+.mc .t{font-size:14.5px;font-weight:700;margin-top:4px}
+.mc .d{font-size:10.5px;color:var(--ink60);margin-top:2px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style></head>
+<body>
+<div class="stars"></div>
+<div class="wrap">
+  <div class="bar">
+    <div class="brand">Nova <em>os</em></div>
+    <nav class="nav"><a class="on" href="#">MISSION</a><a href="#">VOICE</a><a href="#">GALAXY</a><a href="#">CODE</a><a href="#">RECIPES</a><a href="#">TRAIN</a><a href="#">NOTES</a><a href="#">JOURNAL</a></nav>
+    <div class="r"><span>FRI 17 JUL · 13:12:41</span><span>VAULT 47</span><span class="live">● LIVE</span></div>
+  </div>
+  <section class="hero">
+    <div class="eyebrow">MISSION CONTROL · THE DECK IS LIVE</div>
+    <h1>Good afternoon, Hayden — <em>your day, laid out on the table.</em></h1>
+    <p class="stand">Recovery is <b>strong</b> — HRV 93.5, resting 51 — though yesterday's training never fired. Tonight: <b>Upper Body</b>, a <b>54 g protein gap</b>, <b>7,639 steps</b> to go.</p>
+    <div class="ctas"><button class="btn">START NEXT BLOCK · 15:30</button><button class="btn ghost">LEVEL THE DECK</button></div>
+  </section>
+  <div class="stage">
+    <div class="deck">
+      <div class="panel lift1">
+        <div class="ph"><span class="h">Vitals</span><span class="m">LIVE TELEMETRY</span></div>
+        <div class="gaugerow">
+          <div class="g s1"><div class="l">SLEEP</div><div class="n">7:12<small>/8h</small></div><div class="track"><i></i></div></div>
+          <div class="g s2"><div class="l">PROTEIN</div><div class="n">96<small>/150</small></div><div class="track"><i></i></div></div>
+          <div class="g s3"><div class="l">STEPS</div><div class="n">2,361</div><div class="track"><i></i></div></div>
+        </div>
+        <div class="mini">
+          <div class="mc"><div class="k">LUNCH ✓</div><div class="t">Chilli Beef &amp; Rice</div><div class="d">60P · 666 kcal · 12:37</div></div>
+          <div class="mc"><div class="k">TONIGHT</div><div class="t">Upper Body</div><div class="d">6 exercises · 82.5 kg</div></div>
+        </div>
+      </div>
+      <div class="panel lift2">
+        <div class="ph"><span class="h">Nova noticed</span><span class="m">WHILE YOU SLEPT</span></div>
+        <p>Your <b>HRV (93.5)</b> and resting HR <b>(51)</b> read strong — because yesterday's 7:30 block never happened. Steps stayed minimal through a 14.8-hour day. <b>Tonight resets the streak.</b></p>
+        <div class="chips"><span class="chip">2-DAY STREAK</span><span class="chip c">RECOVERY · STRONG</span></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="h">Today</span><span class="m">LIVE</span></div>
+        <ul class="ag">
+          <li><span class="tm">09:45</span><span>Walk Tank 🐶</span></li>
+          <li class="now"><span class="tm">15:30</span><span>Work 💰 — in 2h 18m</span></li>
+          <li><span class="tm">22:00</span><span>Mindfulness 🧘</span></li>
+          <li><span class="tm">22:30</span><span>Recharge 💤</span></li>
+        </ul>
+        <div class="ph" style="margin-top:14px"><span class="h" style="font-size:17px">Daily review</span><span class="m">CONCEPT</span></div>
+        <p class="q">“Sadness signals a missing option you can learn.”</p>
+        <div class="src">OPERATIONALIZING EMOTIONS</div>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

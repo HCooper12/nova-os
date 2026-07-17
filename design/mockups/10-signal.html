@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nova — A2 · Signal (0×3)</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* A2 SIGNAL — 0×3 as a night-time instrument: hi-fi amplifier warmth.
+   Near-black chassis, brass/amber luminescence, needle meters, VU bars,
+   waveform motif. Option 0's gold becomes structural, Aurora's glow
+   becomes lamplight. No blue at all. */
+:root{--black:#0c0a07;--panel:#14110c;--panel2:#1a1610;--bone:#efe6d6;--bone60:rgba(239,230,214,.6);--bone35:rgba(239,230,214,.33);
+--brass:#d8a24a;--amber:#ff9e3d;--ember:#c96f4a;--good:#9fc46a;--line:rgba(216,162,74,.2)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:radial-gradient(1100px 700px at 50% -20%,#211a10 0%,#120f0a 44%,var(--black) 100%);color:var(--bone);font-family:'Archivo',sans-serif;min-height:100vh;overflow-x:hidden}
+.glow{position:fixed;inset:-10%;pointer-events:none;background:radial-gradient(700px 400px at 22% 10%,rgba(255,158,61,.06),transparent 60%),radial-gradient(600px 400px at 82% 86%,rgba(216,162,74,.05),transparent 60%)}
+.wrap{position:relative;max-width:1300px;margin:0 auto;padding:26px 44px 70px}
+.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.bar{display:flex;align-items:center;gap:20px;padding:14px 22px;border-radius:10px;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);box-shadow:inset 0 1px 0 rgba(239,230,214,.07),0 20px 50px -30px #000}
+.brand{font-family:'Instrument Serif',serif;font-size:24px}.brand em{font-style:italic;color:var(--brass)}
+.nav{display:flex;gap:2px;margin-left:8px}
+.nav a{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.16em;color:var(--bone60);text-decoration:none;padding:8px 13px;border-radius:6px}
+.nav a.on{color:var(--amber);background:rgba(255,158,61,.08);box-shadow:inset 0 0 0 1px rgba(255,158,61,.35),0 0 16px -6px rgba(255,158,61,.7)}
+.bar .r{margin-left:auto;display:flex;gap:14px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.14em;color:var(--bone60);align-items:center}
+.lamp{display:flex;align-items:center;gap:7px;color:var(--good)}.lamp i{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 10px var(--good)}
+.hero{display:grid;grid-template-columns:1.3fr 1fr;gap:34px;padding:50px 4px 34px;align-items:center}
+.eyebrow{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.32em;color:var(--brass);margin-bottom:16px}
+h1{font-family:'Instrument Serif',serif;font-weight:400;font-size:60px;line-height:1.04;text-wrap:balance}
+h1 em{font-style:italic;color:var(--amber);text-shadow:0 0 30px rgba(255,158,61,.35)}
+.stand{margin-top:16px;font-size:15.5px;line-height:1.7;color:var(--bone60);max-width:54ch}.stand b{color:var(--bone)}
+.ctas{display:flex;gap:12px;margin-top:26px}
+.btn{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.12em;padding:12px 22px;border-radius:8px;cursor:pointer;border:1px solid rgba(255,158,61,.6);background:linear-gradient(180deg,rgba(255,158,61,.22),rgba(255,158,61,.06));color:var(--amber);box-shadow:0 0 24px -10px rgba(255,158,61,.8)}
+.btn.g{border-color:rgba(239,230,214,.16);background:none;color:var(--bone60);box-shadow:none}
+/* meter block — needle dials */
+.meters{border-radius:12px;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);box-shadow:inset 0 1px 0 rgba(239,230,214,.07),0 26px 60px -36px #000;padding:24px 26px}
+.mrow{display:flex;gap:24px;justify-content:space-between}
+.dial{flex:1;text-align:center}
+.dial svg{display:block;margin:0 auto}
+.dial .l{font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.26em;color:var(--bone60);margin-top:8px}
+.dial .n{font-family:'Instrument Serif',serif;font-size:27px;margin-top:3px;font-variant-numeric:tabular-nums}
+.dial .n small{font-size:14px;color:var(--bone35)}
+.vu{margin-top:20px;padding-top:18px;border-top:1px solid rgba(216,162,74,.14)}
+.vu .l{font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.26em;color:var(--bone60);margin-bottom:10px}
+.bars{display:flex;gap:4px;align-items:flex-end;height:34px}
+.bars i{flex:1;background:linear-gradient(180deg,var(--amber),var(--ember));border-radius:2px 2px 0 0;opacity:.9}
+.bars i.dim{background:rgba(239,230,214,.12)}
+.grid{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:16px}
+.p{border-radius:12px;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);box-shadow:inset 0 1px 0 rgba(239,230,214,.07);padding:22px 24px}
+.ph{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:13px}
+.ph .h{font-family:'Instrument Serif',serif;font-style:italic;font-size:22px;color:var(--brass)}
+.ph .m{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.2em;color:var(--bone35)}
+.p p{font-size:14px;line-height:1.7;color:var(--bone60)}.p p b{color:var(--bone)}
+.chips{display:flex;gap:8px;margin-top:14px}
+.chip{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.08em;padding:5px 11px;border-radius:5px;border:1px solid rgba(159,196,106,.4);color:var(--good)}
+.chip.b{border-color:rgba(255,158,61,.4);color:var(--amber)}
+.ag{list-style:none}.ag li{display:flex;gap:13px;padding:8px 0;font-size:13.5px;align-items:baseline;border-bottom:1px dotted rgba(216,162,74,.18)}
+.ag li:last-child{border:0}.ag .tm{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--bone35);width:44px;flex:none}
+.ag .now{color:var(--amber)}.ag .now .tm{color:var(--amber)}
+.q{font-family:'Instrument Serif',serif;font-size:18px;line-height:1.5}
+.src{margin-top:12px;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.1em;color:var(--bone35)}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px}
+.c{border-radius:10px;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);padding:15px 18px;cursor:pointer;transition:box-shadow .2s}
+.c:hover{box-shadow:0 0 26px -12px rgba(255,158,61,.6)}
+.c .k{font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.26em;color:var(--brass)}
+.c .t{font-family:'Instrument Serif',serif;font-size:20px;margin-top:6px}
+.c .d{font-size:12px;color:var(--bone60);margin-top:3px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style></head>
+<body>
+<div class="glow"></div>
+<div class="wrap">
+  <div class="bar">
+    <div class="brand">Nova <em>os</em></div>
+    <nav class="nav"><a class="on" href="#">MISSION</a><a href="#">VOICE</a><a href="#">GALAXY</a><a href="#">CODE</a><a href="#">RECIPES</a><a href="#">TRAIN</a><a href="#">NOTES</a><a href="#">JOURNAL</a></nav>
+    <div class="r"><span>FRI 17 JUL · 13:12:41</span><span>VAULT 47 · SYNCED 13:12</span><span class="lamp"><i></i>SIGNAL</span></div>
+  </div>
+  <section class="hero">
+    <div>
+      <div class="eyebrow">MISSION CONTROL · CHANNEL 213 · ALL LAMPS WARM</div>
+      <h1>Good afternoon, Hayden — <em>deep work on the dial at 15:30.</em></h1>
+      <p class="stand">Recovery is <b>strong</b> — HRV 93.5 ms, resting 51 bpm — though yesterday's training never fired. Tonight holds <b>Upper Body</b>, a <b>54 g protein gap</b>, and <b>7,639 steps</b> before the needle rests.</p>
+      <div class="ctas"><button class="btn">ENGAGE 15:30</button><button class="btn g">FULL PROGRAMME</button></div>
+    </div>
+    <div class="meters">
+      <div class="mrow">
+        <div class="dial">
+          <svg width="120" height="70" viewBox="0 0 120 70">
+            <path d="M10 65 A55 55 0 0 1 110 65" fill="none" stroke="rgba(239,230,214,.12)" stroke-width="5"/>
+            <path d="M10 65 A55 55 0 0 1 98 34" fill="none" stroke="#d8a24a" stroke-width="5" stroke-linecap="round"/>
+            <line x1="60" y1="65" x2="94" y2="26" stroke="#ff9e3d" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="60" cy="65" r="4.5" fill="#ff9e3d"/>
+          </svg>
+          <div class="l">SLEEP</div><div class="n">7h12<small>/8h</small></div>
+        </div>
+        <div class="dial">
+          <svg width="120" height="70" viewBox="0 0 120 70">
+            <path d="M10 65 A55 55 0 0 1 110 65" fill="none" stroke="rgba(239,230,214,.12)" stroke-width="5"/>
+            <path d="M10 65 A55 55 0 0 1 78 15" fill="none" stroke="#d8a24a" stroke-width="5" stroke-linecap="round"/>
+            <line x1="60" y1="65" x2="74" y2="18" stroke="#ff9e3d" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="60" cy="65" r="4.5" fill="#ff9e3d"/>
+          </svg>
+          <div class="l">PROTEIN</div><div class="n">96<small>/150g</small></div>
+        </div>
+        <div class="dial">
+          <svg width="120" height="70" viewBox="0 0 120 70">
+            <path d="M10 65 A55 55 0 0 1 110 65" fill="none" stroke="rgba(239,230,214,.12)" stroke-width="5"/>
+            <path d="M10 65 A55 55 0 0 1 34 30" fill="none" stroke="#d8a24a" stroke-width="5" stroke-linecap="round"/>
+            <line x1="60" y1="65" x2="34" y2="34" stroke="#ff9e3d" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="60" cy="65" r="4.5" fill="#ff9e3d"/>
+          </svg>
+          <div class="l">STEPS</div><div class="n">2,361</div>
+        </div>
+      </div>
+      <div class="vu">
+        <div class="l">WEEK LEVELS · TRAINING VOLUME</div>
+        <div class="bars"><i style="height:60%"></i><i style="height:85%"></i><i class="dim" style="height:20%"></i><i style="height:72%"></i><i class="dim" style="height:14%"></i><i style="height:40%"></i><i style="height:95%"></i><i class="dim" style="height:26%"></i><i style="height:66%"></i><i style="height:88%"></i><i class="dim" style="height:18%"></i><i style="height:52%"></i><i style="height:78%"></i><i class="dim" style="height:30%"></i></div>
+      </div>
+    </div>
+  </section>
+  <section class="grid">
+    <div class="p">
+      <div class="ph"><span class="h">Nova noticed</span><span class="m">WHILE YOU SLEPT</span></div>
+      <p>Your <b>HRV (93.5 ms)</b> and resting heart rate <b>(51 bpm)</b> read strong — but that's because yesterday's 7:30 block never played. Steps and active energy stayed low through a 14.8-hour day. <b>Tonight's session brings the levels back up.</b></p>
+      <div class="chips"><span class="chip">2-DAY STREAK</span><span class="chip b">RECOVERY · STRONG</span></div>
+    </div>
+    <div class="p">
+      <div class="ph"><span class="h">Today</span><span class="m">LIVE · CALENDAR</span></div>
+      <ul class="ag">
+        <li><span class="tm">09:45</span><span>Walk Tank 🐶</span></li>
+        <li class="now"><span class="tm">15:30</span><span>Work 💰 — on deck</span></li>
+        <li><span class="tm">22:00</span><span>Mindfulness 🧘</span></li>
+        <li><span class="tm">22:30</span><span>Recharge 💤</span></li>
+      </ul>
+    </div>
+    <div class="p">
+      <div class="ph"><span class="h">Daily review</span><span class="m">CONCEPT</span></div>
+      <p class="q">“Sadness signals a missing option you can learn; anxiety signals too many options to rank and prune.”</p>
+      <div class="src">FROM · OPERATIONALIZING EMOTIONS</div>
+    </div>
+  </section>
+  <section class="cards">
+    <div class="c"><div class="k">LUNCH · EATEN 12:37</div><div class="t">Chilli Beef &amp; Rice</div><div class="d">60P · 76C · 14F · 666 kcal</div></div>
+    <div class="c"><div class="k">TRAIN · TONIGHT</div><div class="t">Upper Body</div><div class="d">6 exercises · bench 82.5 kg</div></div>
+    <div class="c"><div class="k">VAULT · LATEST</div><div class="t">Resilience &amp; Reframing</div><div class="d">concept · 4 links</div></div>
+  </section>
+</div>
+</body></html>

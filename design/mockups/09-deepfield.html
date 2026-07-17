@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nova — A1 · Deep Field (0×3)</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&family=Archivo:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* A1 DEEP FIELD — Option 0's soul (gold serif, bone ink, starfield) fused
+   with Aurora's glass depth and orbital ring. The observatory, refined:
+   quieter than Aurora Terminal, richer than today's flat cards. */
+:root{--void:#080b14;--bone:#ece5da;--bone60:rgba(236,229,218,.6);--bone35:rgba(236,229,218,.35);
+--gold:#d8b573;--cyan:#6be5f5;--violet:#8a6ad1;--good:#5aa87c;
+--glass:rgba(20,26,44,.5);--edge:rgba(216,181,115,.22);--spec:rgba(236,229,218,.35)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:radial-gradient(1300px 800px at 72% -12%,#1a2340 0%,#0d1322 46%,var(--void) 100%);color:var(--bone);font-family:'Archivo',sans-serif;min-height:100vh;overflow-x:hidden}
+.stars{position:fixed;inset:0;pointer-events:none;background-image:
+radial-gradient(1.5px 1.5px at 8% 12%,rgba(236,229,218,.5),transparent),radial-gradient(1px 1px at 21% 33%,rgba(236,229,218,.32),transparent),
+radial-gradient(1.6px 1.6px at 36% 7%,rgba(216,181,115,.5),transparent),radial-gradient(1px 1px at 52% 24%,rgba(236,229,218,.3),transparent),
+radial-gradient(1.5px 1.5px at 67% 15%,rgba(107,229,245,.45),transparent),radial-gradient(1px 1px at 83% 37%,rgba(236,229,218,.34),transparent),
+radial-gradient(1.4px 1.4px at 94% 8%,rgba(236,229,218,.42),transparent),radial-gradient(1px 1px at 12% 64%,rgba(138,106,209,.4),transparent),
+radial-gradient(1px 1px at 44% 76%,rgba(236,229,218,.25),transparent),radial-gradient(1.4px 1.4px at 74% 68%,rgba(236,229,218,.3),transparent)}
+.aurora{position:fixed;inset:-15%;pointer-events:none;background:
+radial-gradient(800px 460px at 76% 4%,rgba(138,106,209,.15),transparent 62%),
+radial-gradient(700px 420px at 12% 80%,rgba(107,229,245,.07),transparent 60%),
+radial-gradient(760px 480px at 90% 76%,rgba(216,181,115,.06),transparent 60%);animation:drift 26s ease-in-out infinite alternate}
+@keyframes drift{to{transform:translate(2%,3%) scale(1.05)}}
+.wrap{position:relative;max-width:1320px;margin:0 auto;padding:26px 44px 70px}
+.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.serif{font-family:'Instrument Serif',serif}
+.bar{display:flex;align-items:center;gap:20px;padding:13px 20px;border-radius:14px;background:var(--glass);backdrop-filter:blur(18px);border:1px solid var(--edge);box-shadow:inset 0 1px 0 var(--spec),0 24px 60px -34px #000}
+.brand{font-family:'Instrument Serif',serif;font-size:24px}.brand em{font-style:italic;color:var(--gold)}
+.nav{display:flex;gap:2px;margin-left:6px}
+.nav a{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.16em;color:var(--bone60);text-decoration:none;padding:8px 13px;border-radius:8px}
+.nav a.on{color:var(--gold);background:rgba(216,181,115,.09);border:1px solid rgba(216,181,115,.3)}
+.bar .r{margin-left:auto;display:flex;gap:14px;align-items:center;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.14em;color:var(--bone60)}
+.live{color:var(--good);display:flex;gap:7px;align-items:center}.live i{width:6px;height:6px;border-radius:50%;background:var(--good);box-shadow:0 0 9px var(--good);animation:pl 2.2s infinite}@keyframes pl{50%{opacity:.4}}
+.hero{display:grid;grid-template-columns:1.35fr 1fr;gap:30px;padding:52px 4px 36px;align-items:center}
+.eyebrow{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.32em;color:var(--gold);margin-bottom:18px}
+h1{font-family:'Instrument Serif',serif;font-weight:400;font-size:62px;line-height:1.03;text-wrap:balance}
+h1 em{font-style:italic;color:var(--gold)}
+.stand{margin-top:18px;font-size:15.5px;line-height:1.7;color:var(--bone60);max-width:54ch}
+.stand b{color:var(--bone);font-weight:600}
+.ctas{display:flex;gap:12px;margin-top:26px}
+.btn{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.12em;padding:12px 22px;border-radius:10px;cursor:pointer;border:1px solid rgba(216,181,115,.55);background:linear-gradient(180deg,rgba(216,181,115,.2),rgba(216,181,115,.06));color:var(--gold);box-shadow:0 0 28px -12px rgba(216,181,115,.8)}
+.btn.g{border-color:rgba(236,229,218,.16);background:transparent;color:var(--bone60);box-shadow:none}
+.cluster{position:relative;display:flex;align-items:center;justify-content:center;min-height:350px}
+.orb{position:absolute;border:1px dashed rgba(236,229,218,.13);border-radius:50%;animation:spin 80s linear infinite}
+.orb.a{width:330px;height:330px}.orb.b{width:250px;height:250px;animation-direction:reverse;animation-duration:55s}
+@keyframes spin{to{transform:rotate(360deg)}}
+.core{position:relative;width:206px;height:206px;border-radius:50%;background:var(--glass);backdrop-filter:blur(18px);border:1px solid var(--edge);box-shadow:inset 0 1px 0 var(--spec),0 30px 70px -40px #000}
+.core svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.core .v{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+.core .l{font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.34em;color:var(--gold)}
+.core .n{font-family:'Instrument Serif',serif;font-size:52px;line-height:1;font-variant-numeric:tabular-nums}
+.core .n small{font-size:20px;color:var(--bone35)}
+.core .h{font-size:11.5px;color:var(--bone60)}
+.sat{position:absolute;padding:11px 15px;border-radius:12px;background:var(--glass);backdrop-filter:blur(14px);border:1px solid rgba(236,229,218,.12);box-shadow:inset 0 1px 0 var(--spec)}
+.sat .l{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.26em;color:var(--bone60)}
+.sat .n{font-family:'Instrument Serif',serif;font-size:26px;margin-top:2px;font-variant-numeric:tabular-nums}
+.sat .n small{font-size:14px;color:var(--bone35)}
+.sat.s1{top:6px;right:20px}.sat.s2{bottom:16px;left:4px}
+.grid{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:18px}
+.p{border-radius:16px;background:var(--glass);backdrop-filter:blur(18px);border:1px solid rgba(236,229,218,.11);box-shadow:inset 0 1px 0 var(--spec),0 26px 60px -38px #000;padding:22px 24px}
+.ph{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:13px}
+.ph .h{font-family:'Instrument Serif',serif;font-style:italic;font-size:22px;color:var(--gold)}
+.ph .m{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.2em;color:var(--bone35)}
+.p p{font-size:14px;line-height:1.7;color:var(--bone60)}.p p b{color:var(--bone)}
+.chips{display:flex;gap:8px;margin-top:14px}
+.chip{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.08em;padding:5px 11px;border-radius:14px;border:1px solid rgba(90,168,124,.45);color:var(--good)}
+.chip.c{border-color:rgba(107,229,245,.4);color:var(--cyan)}
+.ag{list-style:none}.ag li{display:flex;gap:13px;padding:8px 0;font-size:13.5px;align-items:baseline;border-bottom:1px solid rgba(236,229,218,.07)}
+.ag li:last-child{border:0}.ag .tm{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--bone35);width:44px;flex:none}
+.ag .now{color:var(--cyan)}.ag .now .tm{color:var(--cyan)}.ag .now::before{content:'▸ ';color:var(--gold)}
+.q{font-family:'Instrument Serif',serif;font-size:18px;line-height:1.5;color:var(--bone)}
+.src{margin-top:12px;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.1em;color:var(--bone35)}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:18px}
+.c{border-radius:14px;background:var(--glass);backdrop-filter:blur(14px);border:1px solid rgba(236,229,218,.11);box-shadow:inset 0 1px 0 var(--spec);padding:16px 18px;transition:border-color .2s,transform .2s;cursor:pointer}
+.c:hover{border-color:rgba(216,181,115,.45);transform:translateY(-3px)}
+.c .k{font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.26em;color:var(--gold)}
+.c .t{font-family:'Instrument Serif',serif;font-size:21px;margin-top:6px}
+.c .d{font-size:12px;color:var(--bone60);margin-top:3px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style></head>
+<body>
+<div class="stars"></div><div class="aurora"></div>
+<div class="wrap">
+  <div class="bar">
+    <div class="brand">Nova <em>os</em></div>
+    <nav class="nav"><a class="on" href="#">MISSION</a><a href="#">VOICE</a><a href="#">GALAXY</a><a href="#">CODE</a><a href="#">RECIPES</a><a href="#">TRAIN</a><a href="#">NOTES</a><a href="#">JOURNAL</a></nav>
+    <div class="r"><span>FRI 17 JUL · 13:12:41</span><span>VAULT 47</span><span class="live"><i></i>LIVE</span></div>
+  </div>
+  <section class="hero">
+    <div>
+      <div class="eyebrow">MISSION CONTROL · DAY 213 · SEEING CONDITIONS EXCELLENT</div>
+      <h1>Good afternoon, Hayden — <em>deep work rises at 15:30.</em></h1>
+      <p class="stand">Recovery is <b>strong</b> — HRV 93.5 ms, resting 51 bpm — though yesterday's training never fired. Tonight holds <b>Upper Body</b>, a <b>54 g protein gap</b>, and <b>7,639 steps</b> of sky left to cross.</p>
+      <div class="ctas"><button class="btn">BEGIN NEXT BLOCK</button><button class="btn g">FULL CHART</button></div>
+    </div>
+    <div class="cluster">
+      <div class="orb a"></div><div class="orb b"></div>
+      <div class="core">
+        <svg width="206" height="206" viewBox="0 0 206 206">
+          <circle cx="103" cy="103" r="90" fill="none" stroke="rgba(236,229,218,.1)" stroke-width="5"/>
+          <circle cx="103" cy="103" r="90" fill="none" stroke="#d8b573" stroke-width="5" stroke-linecap="round" stroke-dasharray="362 566"/>
+        </svg>
+        <div class="v"><span class="l">PROTEIN</span><span class="n">96<small>/150g</small></span><span class="h">chilli beef closes it</span></div>
+      </div>
+      <div class="sat s1"><div class="l">SLEEP</div><div class="n">7h12<small>m</small></div></div>
+      <div class="sat s2"><div class="l">STEPS</div><div class="n">2,361</div></div>
+    </div>
+  </section>
+  <section class="grid">
+    <div class="p">
+      <div class="ph"><span class="h">Nova noticed</span><span class="m">WHILE YOU SLEPT</span></div>
+      <p>Your <b>HRV (93.5 ms)</b> and resting heart rate <b>(51 bpm)</b> read strong — but that's because yesterday's 7:30 block never happened. Steps and active energy stayed minimal through a 14.8-hour day. <b>Tonight's session resets the streak.</b></p>
+      <div class="chips"><span class="chip">2-DAY WORKOUT STREAK</span><span class="chip c">RECOVERY · STRONG</span></div>
+    </div>
+    <div class="p">
+      <div class="ph"><span class="h">Today</span><span class="m">LIVE · CALENDAR</span></div>
+      <ul class="ag">
+        <li><span class="tm">09:45</span><span>Walk Tank 🐶</span></li>
+        <li class="now"><span class="tm">15:30</span><span>Work 💰</span></li>
+        <li><span class="tm">22:00</span><span>Mindfulness 🧘</span></li>
+        <li><span class="tm">22:30</span><span>Recharge 💤</span></li>
+      </ul>
+    </div>
+    <div class="p">
+      <div class="ph"><span class="h">Daily review</span><span class="m">CONCEPT</span></div>
+      <p class="q">“Sadness signals a missing option you can learn; anxiety signals too many options to rank and prune.”</p>
+      <div class="src">FROM · OPERATIONALIZING EMOTIONS</div>
+    </div>
+  </section>
+  <section class="cards">
+    <div class="c"><div class="k">LUNCH · EATEN 12:37</div><div class="t">Chilli Beef &amp; Rice</div><div class="d">60P · 76C · 14F · 666 kcal</div></div>
+    <div class="c"><div class="k">TRAIN · TONIGHT</div><div class="t">Upper Body</div><div class="d">6 exercises · bench 82.5 kg</div></div>
+    <div class="c"><div class="k">VAULT · LATEST</div><div class="t">Resilience &amp; Reframing</div><div class="d">concept · 4 links</div></div>
+  </section>
+</div>
+</body></html>
