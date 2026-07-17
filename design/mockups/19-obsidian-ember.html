@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nova — 14a · Obsidian Ember</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* 14a OBSIDIAN EMBER — the obsidian glass warmed from within: molten
+   copper/rose iridescence instead of cyan, a forge-ring gauge with a
+   spark trail, heat-shimmer field. Volcanic glass, still cooling. */
+:root{--obsidian:#100b09;--ink:#f4ede6;--ink60:rgba(244,237,230,.62);--ink40:rgba(244,237,230,.38);
+--glass:rgba(34,24,20,.6);--glass2:rgba(46,32,26,.75);
+--ember:#ff8a4a;--copper:#e8b464;--rose:#ff6a88;--good:#8fd88a}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:radial-gradient(1200px 800px at 55% -20%,#241410 0%,#170e0b 45%,var(--obsidian) 100%);color:var(--ink);font-family:'Outfit',sans-serif;min-height:100vh;overflow-x:hidden}
+.heat{position:fixed;inset:-12%;pointer-events:none;background:
+radial-gradient(620px 420px at 18% 22%,rgba(255,138,74,.09),transparent 62%),
+radial-gradient(560px 420px at 84% 34%,rgba(255,106,136,.07),transparent 60%),
+radial-gradient(600px 460px at 52% 92%,rgba(232,180,100,.08),transparent 60%);animation:sw 22s ease-in-out infinite alternate}
+@keyframes sw{to{transform:translate(2%,3%) scale(1.06)}}
+.wrap{position:relative;max-width:1320px;margin:0 auto;padding:26px 44px 70px}
+.sheet{position:relative;border-radius:22px;background:var(--glass);backdrop-filter:blur(24px) saturate(1.3);box-shadow:0 30px 70px -34px #000,inset 0 1px 0 rgba(244,237,230,.13)}
+.sheet::before{content:'';position:absolute;inset:0;border-radius:22px;padding:1px;background:linear-gradient(135deg,rgba(255,138,74,.6),rgba(232,180,100,.35) 40%,rgba(255,106,136,.5) 75%,rgba(255,138,74,.3));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.bar{display:flex;align-items:center;gap:16px;padding:12px 18px;border-radius:22px}
+.brand{font-weight:800;font-size:20px;letter-spacing:-.02em}
+.brand span{background:linear-gradient(90deg,var(--ember),var(--copper),var(--rose));-webkit-background-clip:text;background-clip:text;color:transparent}
+.nav{display:flex;gap:2px;margin-left:6px}
+.nav a{font-size:13.5px;font-weight:500;color:var(--ink60);text-decoration:none;padding:8px 14px;border-radius:14px}
+.nav a.on{background:var(--glass2);color:var(--ink);box-shadow:0 0 22px -8px rgba(255,138,74,.7)}
+.bar .r{margin-left:auto;display:flex;gap:10px;align-items:center;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em}
+.pill{padding:6px 12px;border-radius:16px;color:var(--good);background:rgba(143,216,138,.08);border:1px solid rgba(143,216,138,.3)}
+.sync{color:var(--ink60)}
+.hero{display:grid;grid-template-columns:1.2fr 1fr;gap:32px;padding:46px 4px 30px;align-items:center}
+.eyebrow{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.3em;color:var(--ink60);margin-bottom:16px}
+h1{font-weight:700;font-size:58px;line-height:1.02;letter-spacing:-.035em;text-wrap:balance}
+h1 .tint{background:linear-gradient(90deg,var(--ember),var(--copper) 50%,var(--rose));-webkit-background-clip:text;background-clip:text;color:transparent}
+.stand{margin-top:16px;font-size:16px;line-height:1.6;color:var(--ink60);max-width:52ch}.stand b{color:var(--ink);font-weight:600}
+.ctas{display:flex;gap:12px;margin-top:26px}
+.gbtn{font-size:14px;font-weight:600;padding:13px 24px;border-radius:16px;border:none;cursor:pointer;background:linear-gradient(90deg,var(--ember),var(--rose));color:#1c0d06;box-shadow:0 0 34px -10px rgba(255,138,74,.8)}
+.gbtn.glass{background:var(--glass);border:1px solid rgba(244,237,230,.16);color:var(--ink);box-shadow:none}
+/* forge ring with spark trail */
+.forge{position:relative;display:flex;align-items:center;justify-content:center;min-height:340px}
+.forge svg{position:absolute}
+.forge .core{position:relative;width:196px;height:196px;border-radius:50%;background:var(--glass);backdrop-filter:blur(18px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;box-shadow:inset 0 0 0 1.5px rgba(255,138,74,.4),0 0 60px -18px rgba(255,138,74,.9)}
+.forge .l{font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.3em;color:var(--ember)}
+.forge .n{font-weight:800;font-size:46px;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+.forge .n small{font-size:18px;font-weight:500;color:var(--ink40)}
+.forge .h{font-size:11.5px;color:var(--ink60)}
+.satrow{position:absolute;bottom:6px;left:0;right:0;display:flex;justify-content:center;gap:14px}
+.sat{padding:10px 16px;border-radius:14px}
+.sat .l{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.24em;color:var(--copper)}
+.sat .n{font-weight:800;font-size:22px;margin-top:2px;font-variant-numeric:tabular-nums}
+.sat .n small{font-size:12px;font-weight:500;color:var(--ink40)}
+.grid{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:20px}
+.p{padding:24px 26px;border-radius:22px}
+.ph{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:13px}
+.ph .h{font-size:19px;font-weight:700;letter-spacing:-.02em}
+.ph .m{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.2em;color:var(--ink40)}
+.p p{font-size:14.5px;line-height:1.66;color:var(--ink60)}.p p b{color:var(--ink);font-weight:600}
+.chips{display:flex;gap:8px;margin-top:14px}
+.chip{font-family:'JetBrains Mono',monospace;font-size:9.5px;padding:6px 12px;border-radius:14px;background:rgba(143,216,138,.07);border:1px solid rgba(143,216,138,.3);color:var(--good)}
+.chip.b{background:rgba(255,138,74,.08);border-color:rgba(255,138,74,.35);color:var(--ember)}
+.ag{list-style:none}.ag li{display:flex;gap:13px;padding:8px 0;font-size:14px;font-weight:500;align-items:baseline;border-bottom:1px solid rgba(244,237,230,.08)}
+.ag li:last-child{border:0}.ag .tm{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink40);width:44px;flex:none}
+.ag .now{color:var(--ember)}.ag .now .tm{color:var(--ember);font-weight:600}
+.q{font-size:16px;font-weight:500;line-height:1.55;letter-spacing:-.01em}
+.src{margin-top:11px;font-size:12.5px;color:var(--ink60)}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:20px}
+.c{padding:16px 20px;border-radius:18px;cursor:pointer;transition:transform .18s}
+.c:hover{transform:translateY(-4px)}
+.c .k{font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.24em;color:var(--copper)}
+.c .t{font-size:18px;font-weight:700;margin-top:6px;letter-spacing:-.02em}
+.c .d{font-size:12px;color:var(--ink60);margin-top:2px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style></head>
+<body>
+<div class="heat"></div>
+<div class="wrap">
+  <div class="bar sheet">
+    <div class="brand">nova<span>os</span></div>
+    <nav class="nav"><a class="on" href="#">Mission</a><a href="#">Voice</a><a href="#">Galaxy</a><a href="#">Code</a><a href="#">Recipes</a><a href="#">Train</a><a href="#">Notes</a><a href="#">Journal</a></nav>
+    <div class="r"><span class="sync">SYNCED 13:12</span><span class="pill">● LIVE · VAULT 47</span></div>
+  </div>
+  <section class="hero">
+    <div>
+      <div class="eyebrow">FRIDAY 17 JULY · 13:12 · STILL WARM FROM THE FORGE</div>
+      <h1>Good afternoon, Hayden. <span class="tint">Keep the ember lit.</span></h1>
+      <p class="stand">Recovery is <b>strong</b> — HRV 93.5 ms, resting 51 bpm — though yesterday's training never fired. Tonight: <b>Upper Body</b>, a <b>54 g protein gap</b>, and <b>7,639 steps</b> before the glass cools.</p>
+      <div class="ctas"><button class="gbtn">Start next block — 15:30</button><button class="gbtn glass">Ask Nova</button></div>
+    </div>
+    <div class="forge">
+      <svg width="300" height="300" viewBox="0 0 300 300">
+        <defs><linearGradient id="fire" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#ff8a4a"/><stop offset=".55" stop-color="#e8b464"/><stop offset="1" stop-color="#ff6a88"/>
+        </linearGradient></defs>
+        <circle cx="150" cy="150" r="128" fill="none" stroke="rgba(244,237,230,.08)" stroke-width="8"/>
+        <g transform="rotate(-90 150 150)">
+          <circle cx="150" cy="150" r="128" fill="none" stroke="url(#fire)" stroke-width="8" stroke-linecap="round" stroke-dasharray="515 804"/>
+        </g>
+        <g fill="#ff8a4a">
+          <circle cx="266" cy="196" r="3.4" opacity=".9"/><circle cx="276" cy="176" r="2.2" opacity=".6"/><circle cx="282" cy="152" r="1.6" opacity=".4"/>
+        </g>
+      </svg>
+      <div class="core"><span class="l">PROTEIN</span><span class="n">96<small>/150g</small></span><span class="h">chilli beef closes it</span></div>
+      <div class="satrow">
+        <div class="sat sheet"><div class="l">SLEEP</div><div class="n">7h12<small>/8h</small></div></div>
+        <div class="sat sheet"><div class="l">STEPS</div><div class="n">2,361</div></div>
+      </div>
+    </div>
+  </section>
+  <section class="grid">
+    <div class="p sheet">
+      <div class="ph"><span class="h">Nova noticed</span><span class="m">WHILE YOU SLEPT</span></div>
+      <p>Your <b>HRV (93.5 ms)</b> and resting heart rate <b>(51 bpm)</b> point to strong recovery — but that's because yesterday's 7:30 workout never happened. Steps and active energy stayed minimal through a 14.8-hour day. <b>Tonight's session stokes the fire again.</b></p>
+      <div class="chips"><span class="chip">2-DAY WORKOUT STREAK</span><span class="chip b">RECOVERY · STRONG</span></div>
+    </div>
+    <div class="p sheet">
+      <div class="ph"><span class="h">Today</span><span class="m">LIVE · CALENDAR</span></div>
+      <ul class="ag">
+        <li><span class="tm">09:45</span><span>Walk Tank 🐶</span></li>
+        <li class="now"><span class="tm">15:30</span><span>Work 💰 — in 2h 18m</span></li>
+        <li><span class="tm">22:00</span><span>Mindfulness 🧘</span></li>
+        <li><span class="tm">22:30</span><span>Recharge 💤</span></li>
+      </ul>
+    </div>
+    <div class="p sheet">
+      <div class="ph"><span class="h">Daily review</span><span class="m">CONCEPT</span></div>
+      <p class="q">“Sadness signals a missing option you can learn; anxiety signals too many options to rank and prune.”</p>
+      <div class="src">from <b>Operationalizing Emotions</b> — tap to reflect</div>
+    </div>
+  </section>
+  <section class="cards">
+    <div class="c sheet"><div class="k">LUNCH · EATEN 12:37</div><div class="t">Chilli Beef &amp; Rice</div><div class="d">60P · 76C · 14F · 666 kcal</div></div>
+    <div class="c sheet"><div class="k">TRAIN · TONIGHT</div><div class="t">Upper Body</div><div class="d">6 exercises · bench at 82.5 kg</div></div>
+    <div class="c sheet"><div class="k">VAULT · LATEST</div><div class="t">Resilience &amp; Reframing</div><div class="d">concept · linked to 4 pages</div></div>
+  </section>
+</div>
+</body></html>

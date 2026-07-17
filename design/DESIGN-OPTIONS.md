@@ -99,6 +99,34 @@ Option 0) · JetBrains Mono (microlabels, kept from Option 0) · Caveat
 | 17 | **Habitat** | Isometric diorama — the day as extruded tiles whose HEIGHT is the data; flat inspector column stays readable |
 | 18 | **Orrery** | A shaded golden planet (today) with moons riding tilted elliptical orbits; schedule markers live on the rings |
 
+## Round 4 — deepening 14 + 3, recoloring 13, one hybrid (files 19–28)
+
+**Obsidian family (from 14):** 19 **Ember** (molten copper/rose warmth, forge-ring
+gauge) · 20 **Depth** (black-glass cavern, panes at receding z, teal light from
+below) · 21 **Bloom** (deep-sea bioluminescence, organic glowing gauges).
+
+**Aurora family (from 3):** 22 **Cockpit** (flight-path ribbon of the day,
+segmented instrument gauges, corner brackets) · 23 **Cathedral** (monumental
+light curtains, votive columns, serif grandeur) · 24 **Ion** (minimal: one ion
+beam threading greeting → vitals → ledger).
+
+**Volume recolors (from 13 — same markup, tokens only → the toggle proof):**
+25 **Glacier** (arctic blues/teals) · 26 **Sunset** (golden hour coral→plum) ·
+27 **Ultraviolet** (dark neon blacklight).
+
+**Hybrid:** 28 **Obsidian Aurora** (14×3 — aurora curtains burning behind black
+dichroic glass, orbital ring cut from dark glass, Instrument Serif voice).
+
+### Theme-toggle feasibility (Hayden's question)
+
+Yes — and 25/26/27 are the existence proof: they are byte-identical markup to
+13 with only design tokens swapped. In the app this means one `THEMES` map of
+CSS custom properties + a Settings picker (and optionally an "auto by hour"
+mode); any set of directions that share a layout can be shipped as switchable
+skins, including keeping Midnight Observatory as the classic option. Directions
+with different *layouts* (e.g. Cockpit vs Cathedral) are more than a token swap
+— those are a mode, not a theme.
+
 ### Shared principles regardless of winner
 
 - Same information architecture as today (focus, vitals, noticed, today, vault cards)

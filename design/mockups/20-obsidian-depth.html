@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nova — 14b · Obsidian Depth</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* 14b OBSIDIAN DEPTH — the black-glass cavern: panes float at real
+   depths (subtle perspective tilt + layered shadows), iridescence
+   restrained to thin seams, one deep teal light source below. The
+   most spatial, architectural obsidian. */
+:root{--void:#08080e;--ink:#eceef6;--ink60:rgba(236,238,246,.62);--ink40:rgba(236,238,246,.38);
+--glass:rgba(20,20,32,.66);--glass2:rgba(30,30,48,.8);
+--seam:#5ce8d0;--seam2:#7c8cff;--good:#5fe8a8}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:radial-gradient(1100px 900px at 50% 118%,#0f2b28 0%,#0a1218 34%,var(--void) 72%);color:var(--ink);font-family:'Outfit',sans-serif;min-height:100vh;overflow-x:hidden}
+.updraft{position:fixed;inset:0;pointer-events:none;background:radial-gradient(700px 460px at 50% 108%,rgba(92,232,208,.12),transparent 62%)}
+.wrap{position:relative;max-width:1320px;margin:0 auto;padding:26px 44px 80px;perspective:1600px}
+.pane{position:relative;border-radius:20px;background:var(--glass);backdrop-filter:blur(22px);box-shadow:0 40px 80px -36px #000,inset 0 1px 0 rgba(236,238,246,.12)}
+.pane::after{content:'';position:absolute;left:6%;right:6%;bottom:-1px;height:1.5px;background:linear-gradient(90deg,transparent,rgba(92,232,208,.65),rgba(124,140,255,.4),transparent)}
+.bar{display:flex;align-items:center;gap:16px;padding:12px 18px;border-radius:20px}
+.brand{font-weight:800;font-size:20px;letter-spacing:-.02em}
+.brand span{color:var(--seam)}
+.nav{display:flex;gap:2px;margin-left:6px}
+.nav a{font-size:13.5px;font-weight:500;color:var(--ink60);text-decoration:none;padding:8px 14px;border-radius:14px}
+.nav a.on{background:var(--glass2);color:var(--ink);box-shadow:0 0 22px -8px rgba(92,232,208,.6)}
+.bar .r{margin-left:auto;display:flex;gap:10px;align-items:center;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em}
+.pill{padding:6px 12px;border-radius:16px;color:var(--good);background:rgba(95,232,168,.08);border:1px solid rgba(95,232,168,.3)}
+.sync{color:var(--ink60)}
+.hero{display:grid;grid-template-columns:1.2fr 1fr;gap:36px;padding:48px 4px 34px;align-items:center}
+.eyebrow{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.3em;color:var(--seam);margin-bottom:16px}
+h1{font-weight:700;font-size:58px;line-height:1.02;letter-spacing:-.035em;text-wrap:balance}
+h1 .tint{background:linear-gradient(90deg,var(--seam),var(--seam2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.stand{margin-top:16px;font-size:16px;line-height:1.6;color:var(--ink60);max-width:52ch}.stand b{color:var(--ink);font-weight:600}
+.ctas{display:flex;gap:12px;margin-top:26px}
+.gbtn{font-size:14px;font-weight:600;padding:13px 24px;border-radius:16px;border:1px solid rgba(92,232,208,.55);cursor:pointer;background:linear-gradient(180deg,rgba(92,232,208,.16),rgba(92,232,208,.04));color:var(--seam);box-shadow:0 0 30px -12px rgba(92,232,208,.8)}
+.gbtn.glass{border-color:rgba(236,238,246,.15);background:transparent;color:var(--ink60);box-shadow:none}
+/* depth stack: three panes at receding z */
+.depthstack{position:relative;height:360px;transform-style:preserve-3d}
+.dp{position:absolute;left:0;right:0;padding:20px 26px;border-radius:20px}
+.dp .l{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.26em;color:var(--ink60)}
+.dp .row{display:flex;align-items:baseline;justify-content:space-between;margin-top:6px}
+.dp .n{font-weight:800;font-size:36px;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.dp .n small{font-size:15px;font-weight:500;color:var(--ink40)}
+.dp .hint{font-size:12px;color:var(--ink60)}
+.dp .track{margin-top:12px;height:6px;border-radius:4px;background:rgba(236,238,246,.09);overflow:hidden}
+.dp .track i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,var(--seam),var(--seam2))}
+.dp.d1{top:0;transform:translateZ(70px) rotateX(4deg);z-index:3}
+.dp.d2{top:126px;transform:translateZ(20px) rotateX(4deg);z-index:2;opacity:.94}
+.dp.d3{top:252px;transform:translateZ(-30px) rotateX(4deg);z-index:1;opacity:.86}
+.grid{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:20px}
+.p{padding:24px 26px;border-radius:20px}
+.ph{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:13px}
+.ph .h{font-size:19px;font-weight:700;letter-spacing:-.02em}
+.ph .m{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.2em;color:var(--ink40)}
+.p p{font-size:14.5px;line-height:1.66;color:var(--ink60)}.p p b{color:var(--ink);font-weight:600}
+.chips{display:flex;gap:8px;margin-top:14px}
+.chip{font-family:'JetBrains Mono',monospace;font-size:9.5px;padding:6px 12px;border-radius:14px;background:rgba(95,232,168,.07);border:1px solid rgba(95,232,168,.3);color:var(--good)}
+.chip.b{background:rgba(92,232,208,.07);border-color:rgba(92,232,208,.32);color:var(--seam)}
+.ag{list-style:none}.ag li{display:flex;gap:13px;padding:8px 0;font-size:14px;font-weight:500;align-items:baseline;border-bottom:1px solid rgba(236,238,246,.08)}
+.ag li:last-child{border:0}.ag .tm{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink40);width:44px;flex:none}
+.ag .now{color:var(--seam)}.ag .now .tm{color:var(--seam);font-weight:600}
+.q{font-size:16px;font-weight:500;line-height:1.55;letter-spacing:-.01em}
+.src{margin-top:11px;font-size:12.5px;color:var(--ink60)}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:20px}
+.c{padding:16px 20px;border-radius:18px;cursor:pointer;transition:transform .18s}
+.c:hover{transform:translateY(-4px)}
+.c .k{font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.24em;color:var(--seam)}
+.c .t{font-size:18px;font-weight:700;margin-top:6px;letter-spacing:-.02em}
+.c .d{font-size:12px;color:var(--ink60);margin-top:2px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style></head>
+<body>
+<div class="updraft"></div>
+<div class="wrap">
+  <div class="bar pane">
+    <div class="brand">nova<span>os</span></div>
+    <nav class="nav"><a class="on" href="#">Mission</a><a href="#">Voice</a><a href="#">Galaxy</a><a href="#">Code</a><a href="#">Recipes</a><a href="#">Train</a><a href="#">Notes</a><a href="#">Journal</a></nav>
+    <div class="r"><span class="sync">SYNCED 13:12</span><span class="pill">● LIVE · VAULT 47</span></div>
+  </div>
+  <section class="hero">
+    <div>
+      <div class="eyebrow">FRIDAY 17 JULY · 13:12 · LIGHT FROM BELOW</div>
+      <h1>Good afternoon, Hayden. <span class="tint">The cavern holds your day.</span></h1>
+      <p class="stand">Recovery is <b>strong</b> — HRV 93.5 ms, resting 51 bpm — though yesterday's training never fired. Tonight: <b>Upper Body</b>, a <b>54 g protein gap</b>, and <b>7,639 steps</b> deeper to go.</p>
+      <div class="ctas"><button class="gbtn">Start next block — 15:30</button><button class="gbtn glass">Ask Nova</button></div>
+    </div>
+    <div class="depthstack">
+      <div class="dp pane d1"><div class="l">SLEEP · NEAREST</div><div class="row"><span class="n">7h 12m<small> /8h</small></span><span class="hint">HRV +9% · well rested</span></div><div class="track"><i style="width:90%"></i></div></div>
+      <div class="dp pane d2"><div class="l">PROTEIN</div><div class="row"><span class="n">96<small> /150 g</small></span><span class="hint">chilli beef closes the gap</span></div><div class="track"><i style="width:64%"></i></div></div>
+      <div class="dp pane d3"><div class="l">STEPS · DEEPEST</div><div class="row"><span class="n">2,361</span><span class="hint">7,639 to the goal</span></div><div class="track"><i style="width:24%"></i></div></div>
+    </div>
+  </section>
+  <section class="grid">
+    <div class="p pane">
+      <div class="ph"><span class="h">Nova noticed</span><span class="m">WHILE YOU SLEPT</span></div>
+      <p>Your <b>HRV (93.5 ms)</b> and resting heart rate <b>(51 bpm)</b> point to strong recovery — but that's because yesterday's 7:30 workout never happened. Steps and active energy stayed minimal through a 14.8-hour day. <b>Tonight's session brings the deep pane forward.</b></p>
+      <div class="chips"><span class="chip">2-DAY WORKOUT STREAK</span><span class="chip b">RECOVERY · STRONG</span></div>
+    </div>
+    <div class="p pane">
+      <div class="ph"><span class="h">Today</span><span class="m">LIVE · CALENDAR</span></div>
+      <ul class="ag">
+        <li><span class="tm">09:45</span><span>Walk Tank 🐶</span></li>
+        <li class="now"><span class="tm">15:30</span><span>Work 💰 — in 2h 18m</span></li>
+        <li><span class="tm">22:00</span><span>Mindfulness 🧘</span></li>
+        <li><span class="tm">22:30</span><span>Recharge 💤</span></li>
+      </ul>
+    </div>
+    <div class="p pane">
+      <div class="ph"><span class="h">Daily review</span><span class="m">CONCEPT</span></div>
+      <p class="q">“Sadness signals a missing option you can learn; anxiety signals too many options to rank and prune.”</p>
+      <div class="src">from <b>Operationalizing Emotions</b> — tap to reflect</div>
+    </div>
+  </section>
+  <section class="cards">
+    <div class="c pane"><div class="k">LUNCH · EATEN 12:37</div><div class="t">Chilli Beef &amp; Rice</div><div class="d">60P · 76C · 14F · 666 kcal</div></div>
+    <div class="c pane"><div class="k">TRAIN · TONIGHT</div><div class="t">Upper Body</div><div class="d">6 exercises · bench at 82.5 kg</div></div>
+    <div class="c pane"><div class="k">VAULT · LATEST</div><div class="t">Resilience &amp; Reframing</div><div class="d">concept · linked to 4 pages</div></div>
+  </section>
+</div>
+</body></html>

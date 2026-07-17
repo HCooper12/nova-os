@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nova — 3c · Aurora Ion</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Instrument+Serif:ital@1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* 3c AURORA ION — the minimal aurora: near-black stillness with one
+   continuous ion beam threading through the layout, connecting
+   greeting → vitals → schedule like a circuit of light. Everything
+   else whisper-quiet. Precision over spectacle. */
+:root{--void:#060810;--ink:#e7ebf4;--ink60:rgba(231,235,244,.6);--ink35:rgba(231,235,244,.33);
+--cy:#59e6ff;--vi:#8f7bff;--good:#5fe8a8;--line:rgba(231,235,244,.09)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--void);color:var(--ink);font-family:'Outfit',sans-serif;min-height:100vh;overflow-x:hidden}
+.hint-glow{position:fixed;inset:-10%;pointer-events:none;background:radial-gradient(800px 500px at 85% 0%,rgba(143,123,255,.06),transparent 62%)}
+svg.beam{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.wrap{position:relative;max-width:1180px;margin:0 auto;padding:30px 44px 80px}
+.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.bar{display:flex;align-items:center;gap:24px;padding:10px 0 22px;border-bottom:1px solid var(--line)}
+.brand{font-weight:600;font-size:19px;letter-spacing:-.01em}
+.brand span{color:var(--cy)}
+.nav{display:flex;gap:22px;margin-left:10px}
+.nav a{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.2em;color:var(--ink35);text-decoration:none}
+.nav a.on{color:var(--cy)}
+.bar .r{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.14em;color:var(--ink35)}
+.bar .r b{color:var(--good);font-weight:500}
+.hero{position:relative;z-index:1;padding:70px 0 20px;max-width:760px}
+.eyebrow{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.4em;color:var(--ink35);margin-bottom:20px}
+h1{font-weight:300;font-size:58px;line-height:1.08;letter-spacing:-.025em;text-wrap:balance}
+h1 b{font-weight:600}
+h1 em{font-family:'Instrument Serif',serif;font-style:italic;font-weight:400;background:linear-gradient(90deg,var(--cy),var(--vi));-webkit-background-clip:text;background-clip:text;color:transparent}
+.stand{margin-top:20px;font-size:15.5px;font-weight:300;line-height:1.75;color:var(--ink60);max-width:54ch}
+.stand b{color:var(--ink);font-weight:500}
+.ctas{display:flex;gap:22px;margin-top:30px;align-items:center}
+.btn{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.18em;padding:13px 26px;cursor:pointer;border:1px solid rgba(89,230,255,.45);background:transparent;color:var(--cy)}
+.link{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.16em;color:var(--ink35);border-bottom:1px solid var(--line);padding-bottom:3px}
+/* vitals rail — nodes on the beam */
+.rail{position:relative;z-index:1;display:flex;gap:0;margin-top:60px;border-top:1px solid var(--line)}
+.node{flex:1;padding:26px 26px 0;position:relative}
+.node::before{content:'';position:absolute;top:-4.5px;left:26px;width:8px;height:8px;border-radius:50%;background:var(--void);border:1.5px solid var(--nc)}
+.node.on::before{background:var(--nc);box-shadow:0 0 14px var(--nc)}
+.node.n1{--nc:#59e6ff}.node.n2{--nc:#8f7bff}.node.n3{--nc:rgba(231,235,244,.4)}
+.node .l{font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.3em;color:var(--ink35)}
+.node .n{font-weight:300;font-size:52px;letter-spacing:-.03em;margin-top:10px;font-variant-numeric:tabular-nums}
+.node .n b{font-weight:600}
+.node .n small{font-size:19px;color:var(--ink35)}
+.node .h{font-size:12.5px;font-weight:300;color:var(--ink60);margin-top:6px}
+/* lower ledger */
+.ledger{position:relative;z-index:1;display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:56px;margin-top:64px}
+.sec .sh{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:14px}
+.sec .sh .h{font-family:'Instrument Serif',serif;font-style:italic;font-size:21px;color:var(--ink)}
+.sec .sh .m{font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.22em;color:var(--ink35)}
+.sec p{font-size:14px;font-weight:300;line-height:1.75;color:var(--ink60)}
+.sec p b{color:var(--ink);font-weight:500}
+.sec p .cy{color:var(--cy)}
+.ag{list-style:none}.ag li{display:flex;gap:13px;padding:8px 0;font-size:13.5px;font-weight:300;align-items:baseline}
+.ag .tm{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--ink35);width:44px;flex:none}
+.ag .now{font-weight:500;color:var(--cy)}.ag .now .tm{color:var(--cy)}
+.q{font-family:'Instrument Serif',serif;font-size:18.5px;line-height:1.55;font-style:italic}
+.src{margin-top:12px;font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.16em;color:var(--ink35)}
+.foot{display:flex;gap:0;margin-top:60px;border-top:1px solid var(--line)}
+.fc{flex:1;padding:18px 26px 0;border-right:1px solid var(--line)}
+.fc:first-child{padding-left:0}.fc:last-child{border-right:0}
+.fc .k{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.26em;color:var(--ink35)}
+.fc .t{font-size:16.5px;font-weight:500;margin-top:6px}
+.fc .d{font-size:12px;font-weight:300;color:var(--ink60);margin-top:2px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style></head>
+<body>
+<div class="hint-glow"></div>
+<svg class="beam" viewBox="0 0 1180 900" preserveAspectRatio="none">
+  <defs><linearGradient id="ion" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#59e6ff"/><stop offset="1" stop-color="#8f7bff"/>
+  </linearGradient></defs>
+  <path d="M-40,160 C240,150 420,208 520,286 C600,348 480,398 250,404 L1220,404" fill="none" stroke="url(#ion)" stroke-width="1.6" opacity=".8"/>
+  <path d="M-40,160 C240,150 420,208 520,286 C600,348 480,398 250,404 L1220,404" fill="none" stroke="url(#ion)" stroke-width="7" opacity=".08"/>
+</svg>
+<div class="wrap">
+  <div class="bar">
+    <div class="brand">nova<span>os</span></div>
+    <nav class="nav"><a class="on" href="#">MISSION</a><a href="#">VOICE</a><a href="#">GALAXY</a><a href="#">CODE</a><a href="#">RECIPES</a><a href="#">TRAIN</a><a href="#">NOTES</a><a href="#">JOURNAL</a></nav>
+    <div class="r">FRI 17 JUL · 13:12:41 · VAULT 47 · <b>● LIVE</b></div>
+  </div>
+  <section class="hero">
+    <div class="eyebrow">MISSION CONTROL · DAY 213</div>
+    <h1>Good afternoon, <b>Hayden</b> — <em>one line of light through the day.</em></h1>
+    <p class="stand">Recovery is <b>strong</b> — HRV 93.5 ms, resting 51 bpm — though yesterday's training never fired. Tonight: <b>Upper Body</b>, a <b>54 g protein gap</b>, and <b>7,639 steps</b> along the beam.</p>
+    <div class="ctas"><button class="btn">START · 15:30 WORK 💰</button><span class="link">ASK NOVA</span></div>
+  </section>
+  <section class="rail">
+    <div class="node n1 on"><div class="l">SLEEP</div><div class="n"><b>7:12</b><small>/8h</small></div><div class="h">HRV +9% · well rested</div></div>
+    <div class="node n2 on"><div class="l">PROTEIN</div><div class="n"><b>96</b><small>/150g</small></div><div class="h">chilli beef closes the 54 g gap</div></div>
+    <div class="node n3"><div class="l">STEPS</div><div class="n">2,361</div><div class="h">7,639 to the 10,000 goal</div></div>
+  </section>
+  <section class="ledger">
+    <div class="sec">
+      <div class="sh"><span class="h">Nova noticed</span><span class="m">WHILE YOU SLEPT</span></div>
+      <p>Your <b>HRV (93.5 ms)</b> and resting heart rate <b>(51 bpm)</b> point to strong recovery — but that's because yesterday's 7:30 workout never happened. Steps and active energy stayed minimal through a 14.8-hour day. <span class="cy">Tonight's session re-threads the line.</span></p>
+    </div>
+    <div class="sec">
+      <div class="sh"><span class="h">Today</span><span class="m">LIVE</span></div>
+      <ul class="ag">
+        <li><span class="tm">09:45</span><span>Walk Tank 🐶</span></li>
+        <li class="now"><span class="tm">15:30</span><span>Work 💰 — in 2h 18m</span></li>
+        <li><span class="tm">22:00</span><span>Mindfulness 🧘</span></li>
+        <li><span class="tm">22:30</span><span>Recharge 💤</span></li>
+      </ul>
+    </div>
+    <div class="sec">
+      <div class="sh"><span class="h">Daily review</span><span class="m">CONCEPT</span></div>
+      <p class="q">“Sadness signals a missing option you can learn; anxiety signals too many options to rank and prune.”</p>
+      <div class="src">OPERATIONALIZING EMOTIONS</div>
+    </div>
+  </section>
+  <section class="foot">
+    <div class="fc"><div class="k">LUNCH · 12:37 ✓</div><div class="t">Chilli Beef &amp; Rice</div><div class="d">60P · 76C · 14F · 666 kcal</div></div>
+    <div class="fc"><div class="k">TRAIN · TONIGHT</div><div class="t">Upper Body</div><div class="d">6 exercises · bench 82.5 kg</div></div>
+    <div class="fc"><div class="k">VAULT · LATEST</div><div class="t">Resilience &amp; Reframing</div><div class="d">concept · 4 links</div></div>
+  </section>
+</div>
+</body></html>

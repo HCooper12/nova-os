@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nova — 3b · Aurora Cathedral</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* 3b AURORA CATHEDRAL — the aurora at monumental scale: tall light
+   curtains falling like stained glass, vast negative space, serif
+   grandeur, content held in three slender columns beneath the light.
+   Sacred-quiet rather than technical. */
+:root{--void:#05060d;--ink:#e9ecf6;--ink60:rgba(233,236,246,.6);--ink35:rgba(233,236,246,.34);
+--cy:#6fe6f5;--vi:#9b85ff;--mg:#ff8fd0;--gold:#d8b573;--good:#5fe8a8}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:linear-gradient(180deg,#0a0d1c 0%,#070912 50%,var(--void) 100%);color:var(--ink);font-family:'Outfit',sans-serif;min-height:100vh;overflow-x:hidden}
+.curtains{position:fixed;inset:0;pointer-events:none;filter:blur(26px);opacity:.85}
+.curtains i{position:absolute;top:-8%;bottom:30%;width:110px;border-radius:60px}
+.curtains i:nth-child(1){left:8%;background:linear-gradient(180deg,rgba(111,230,245,.3),transparent 85%);transform:skewX(-6deg)}
+.curtains i:nth-child(2){left:22%;background:linear-gradient(180deg,rgba(155,133,255,.26),transparent 80%);transform:skewX(-3deg);top:-4%}
+.curtains i:nth-child(3){left:38%;background:linear-gradient(180deg,rgba(255,143,208,.16),transparent 75%);transform:skewX(-8deg)}
+.curtains i:nth-child(4){right:30%;background:linear-gradient(180deg,rgba(111,230,245,.18),transparent 82%);transform:skewX(5deg);top:-6%}
+.curtains i:nth-child(5){right:14%;background:linear-gradient(180deg,rgba(155,133,255,.3),transparent 85%);transform:skewX(8deg)}
+.curtains i:nth-child(6){right:4%;background:linear-gradient(180deg,rgba(255,143,208,.14),transparent 70%);transform:skewX(3deg);top:-3%}
+.stars{position:fixed;inset:0;pointer-events:none;background-image:
+radial-gradient(1.4px 1.4px at 12% 20%,rgba(233,236,246,.5),transparent),radial-gradient(1px 1px at 30% 52%,rgba(233,236,246,.3),transparent),
+radial-gradient(1.5px 1.5px at 47% 12%,rgba(216,181,115,.4),transparent),radial-gradient(1px 1px at 66% 38%,rgba(233,236,246,.28),transparent),
+radial-gradient(1.4px 1.4px at 82% 16%,rgba(111,230,245,.4),transparent),radial-gradient(1px 1px at 93% 58%,rgba(233,236,246,.3),transparent)}
+.wrap{position:relative;max-width:1240px;margin:0 auto;padding:30px 44px 80px;text-align:center}
+.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.topline{display:flex;justify-content:space-between;align-items:baseline;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.28em;color:var(--ink35);text-align:left}
+.topline .brand{font-family:'Instrument Serif',serif;font-size:24px;letter-spacing:0;color:var(--ink)}
+.topline .brand em{font-style:italic;color:var(--gold)}
+.topline .live{color:var(--good)}
+nav.mid{display:flex;justify-content:center;gap:30px;margin-top:22px;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.3em}
+nav.mid a{color:var(--ink35);text-decoration:none}nav.mid a.on{color:var(--cy)}
+.hero{padding:64px 0 40px}
+.eyebrow{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.5em;color:var(--cy);margin-bottom:26px}
+h1{font-family:'Instrument Serif',serif;font-weight:400;font-size:76px;line-height:1.05;letter-spacing:-.005em;text-wrap:balance;margin:0 auto;max-width:17ch;text-shadow:0 6px 70px rgba(0,0,0,.9)}
+h1 em{font-style:italic;background:linear-gradient(90deg,var(--cy),var(--vi) 55%,var(--mg));-webkit-background-clip:text;background-clip:text;color:transparent}
+.stand{margin:24px auto 0;font-size:16px;font-weight:300;line-height:1.8;color:var(--ink60);max-width:58ch}
+.stand b{color:var(--ink);font-weight:500}
+.ctas{display:flex;gap:16px;margin-top:32px;justify-content:center}
+.btn{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.2em;padding:14px 30px;cursor:pointer;border:1px solid rgba(111,230,245,.5);background:transparent;color:var(--cy)}
+.btn.f{background:linear-gradient(90deg,rgba(111,230,245,.16),rgba(155,133,255,.16));box-shadow:0 0 34px -12px rgba(111,230,245,.8)}
+/* three votive columns */
+.votives{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-top:44px;background:rgba(233,236,246,.1)}
+.vot{background:rgba(7,9,18,.82);backdrop-filter:blur(8px);padding:30px 30px 26px;text-align:center;position:relative}
+.vot::before{content:'';position:absolute;top:0;left:20%;right:20%;height:1.5px;background:linear-gradient(90deg,transparent,var(--col),transparent)}
+.vot.v1{--col:#6fe6f5}.vot.v2{--col:#9b85ff}.vot.v3{--col:#ff8fd0}
+.vot .l{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.4em;color:var(--ink35)}
+.vot .n{font-family:'Instrument Serif',serif;font-size:58px;line-height:1.1;margin-top:12px;font-variant-numeric:tabular-nums;color:var(--ink)}
+.vot .n small{font-size:23px;color:var(--ink35)}
+.vot .flame{margin:10px auto 0;width:6px;height:6px;border-radius:50%;background:var(--col);box-shadow:0 0 18px var(--col)}
+.vot .h{margin-top:12px;font-size:12.5px;font-weight:300;color:var(--ink60)}
+/* nave: three readings */
+.nave{display:grid;grid-template-columns:repeat(3,1fr);gap:34px;margin-top:46px;text-align:left}
+.reading .rh{font-family:'Instrument Serif',serif;font-style:italic;font-size:23px;color:var(--gold);margin-bottom:12px}
+.reading .rh span{font-family:'JetBrains Mono',monospace;font-style:normal;font-size:8.5px;letter-spacing:.24em;color:var(--ink35);margin-left:10px}
+.reading p{font-size:14px;font-weight:300;line-height:1.78;color:var(--ink60)}
+.reading p b{color:var(--ink);font-weight:500}
+.ag{list-style:none}.ag li{display:flex;gap:13px;padding:8.5px 0;font-size:13.5px;font-weight:300;align-items:baseline;border-bottom:1px solid rgba(233,236,246,.08)}
+.ag li:last-child{border:0}.ag .tm{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--ink35);width:44px;flex:none}
+.ag .now{color:var(--cy);font-weight:500}.ag .now .tm{color:var(--cy)}
+.q{font-family:'Instrument Serif',serif;font-size:19px;line-height:1.55;color:var(--ink)}
+.src{margin-top:12px;font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.16em;color:var(--ink35)}
+.footrow{display:flex;justify-content:center;gap:40px;margin-top:48px;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.2em;color:var(--ink35)}
+.footrow b{color:var(--ink60);font-weight:500}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style></head>
+<body>
+<div class="curtains"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+<div class="stars"></div>
+<div class="wrap">
+  <div class="topline">
+    <span class="brand">Nova <em>os</em></span>
+    <span>FRI 17 JUL · 13:12:41 · VAULT 47 · <span class="live">● LIVE</span></span>
+  </div>
+  <nav class="mid"><a class="on" href="#">MISSION</a><a href="#">VOICE</a><a href="#">GALAXY</a><a href="#">CODE</a><a href="#">RECIPES</a><a href="#">TRAIN</a><a href="#">NOTES</a><a href="#">JOURNAL</a></nav>
+  <section class="hero">
+    <div class="eyebrow">DAY 213 · THE LIGHT IS HIGH</div>
+    <h1>Good afternoon, Hayden — <em>the afternoon asks for deep work.</em></h1>
+    <p class="stand">Recovery is <b>strong</b> — HRV 93.5 ms, resting 51 bpm — though yesterday's training never fired. Tonight holds <b>Upper Body</b>, a <b>54 g protein gap</b>, and <b>7,639 steps</b> beneath the light.</p>
+    <div class="ctas"><button class="btn f">BEGIN · 15:30 WORK 💰</button><button class="btn">THE WHOLE DAY</button></div>
+  </section>
+  <section class="votives">
+    <div class="vot v1"><div class="l">SLEEP</div><div class="n">7<small>h</small> 12<small>m</small></div><div class="flame"></div><div class="h">90% of the 8h intention · HRV +9%</div></div>
+    <div class="vot v2"><div class="l">PROTEIN</div><div class="n">96<small>/150g</small></div><div class="flame"></div><div class="h">chilli beef &amp; rice closes the gap</div></div>
+    <div class="vot v3"><div class="l">STEPS</div><div class="n">2,361</div><div class="flame"></div><div class="h">7,639 before the light fades</div></div>
+  </section>
+  <section class="nave">
+    <div class="reading">
+      <div class="rh">Nova noticed<span>WHILE YOU SLEPT</span></div>
+      <p>Your <b>HRV (93.5 ms)</b> and resting heart rate <b>(51 bpm)</b> point to strong recovery — but that's because yesterday's 7:30 workout never happened. Steps stayed minimal through a 14.8-hour day. <b>Tonight's session restores the order.</b></p>
+    </div>
+    <div class="reading">
+      <div class="rh">Today<span>LIVE · CALENDAR</span></div>
+      <ul class="ag">
+        <li><span class="tm">09:45</span><span>Walk Tank 🐶</span></li>
+        <li class="now"><span class="tm">15:30</span><span>Work 💰 — in 2h 18m</span></li>
+        <li><span class="tm">22:00</span><span>Mindfulness 🧘</span></li>
+        <li><span class="tm">22:30</span><span>Recharge 💤</span></li>
+      </ul>
+    </div>
+    <div class="reading">
+      <div class="rh">Daily review<span>CONCEPT</span></div>
+      <p class="q">“Sadness signals a missing option you can learn; anxiety signals too many options to rank and prune.”</p>
+      <div class="src">FROM · OPERATIONALIZING EMOTIONS</div>
+    </div>
+  </section>
+  <div class="footrow">
+    <span>LUNCH ✓ <b>CHILLI BEEF · 666 KCAL</b></span>
+    <span>TONIGHT <b>UPPER BODY · 6 EXERCISES</b></span>
+    <span>VAULT <b>RESILIENCE &amp; REFRAMING</b></span>
+  </div>
+</div>
+</body></html>

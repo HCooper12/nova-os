@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nova — 3a · Aurora Cockpit</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+<style>
+/* 3a AURORA COCKPIT — Aurora Terminal leaning fully into flight
+   instrumentation: tick scales, an attitude-ribbon for the day's
+   progress, segmented readouts, callouts with leader lines. The most
+   "piloting your life" of the family. */
+:root{--void:#04070e;--ink:#dfe7f5;--ink60:rgba(223,231,245,.6);--ink35:rgba(223,231,245,.35);
+--pane:rgba(14,20,38,.6);--edge:rgba(120,170,255,.22);--spec:rgba(190,225,255,.5);
+--cy:#59e6ff;--vi:#8f7bff;--mg:#ff7bd5;--good:#5fe8a8;--amber:#ffd166}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:radial-gradient(1300px 800px at 60% -14%,#111b36 0%,#080e1e 46%,var(--void) 100%);color:var(--ink);font-family:'Rajdhani',sans-serif;min-height:100vh;overflow-x:hidden}
+.aur{position:fixed;inset:-14%;pointer-events:none;background:
+radial-gradient(720px 460px at 20% 8%,rgba(89,230,255,.1),transparent 62%),
+radial-gradient(680px 480px at 86% 30%,rgba(143,123,255,.12),transparent 60%);animation:dr 26s ease-in-out infinite alternate}
+@keyframes dr{to{transform:translate(2%,3%) scale(1.06)}}
+.gridl{position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(rgba(120,170,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(120,170,255,.05) 1px,transparent 1px);background-size:48px 48px;mask-image:radial-gradient(75% 65% at 50% 40%,#000 30%,transparent 100%)}
+.wrap{position:relative;max-width:1340px;margin:0 auto;padding:24px 44px 64px}
+.mono{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}
+.pane{border-radius:14px;background:var(--pane);backdrop-filter:blur(16px);border:1px solid var(--edge);box-shadow:inset 0 1px 0 var(--spec),0 24px 60px -34px #000;position:relative}
+.pane::before{content:'';position:absolute;top:6px;left:6px;width:10px;height:10px;border-left:1.5px solid rgba(89,230,255,.5);border-top:1.5px solid rgba(89,230,255,.5)}
+.pane::after{content:'';position:absolute;bottom:6px;right:6px;width:10px;height:10px;border-right:1.5px solid rgba(89,230,255,.5);border-bottom:1.5px solid rgba(89,230,255,.5)}
+.bar{display:flex;align-items:center;gap:22px;padding:12px 20px;border-radius:14px}
+.brand{font-weight:700;font-size:20px;letter-spacing:.14em}
+.brand span{background:linear-gradient(90deg,var(--cy),var(--vi));-webkit-background-clip:text;background-clip:text;color:transparent}
+.nav{display:flex;gap:4px;margin-left:6px}
+.nav a{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;color:var(--ink60);text-decoration:none;padding:7px 11px;border-radius:6px}
+.nav a.on{color:var(--cy);border:1px solid rgba(89,230,255,.4);background:rgba(89,230,255,.07)}
+.bar .r{margin-left:auto;display:flex;gap:14px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--ink60);align-items:center}
+.live{color:var(--good)}
+/* attitude ribbon: the day 00-24h as a horizon strip */
+.ribbon{margin-top:20px;padding:14px 22px;border-radius:14px}
+.ribbon .lbl{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.26em;color:var(--ink35);margin-bottom:10px;display:flex;justify-content:space-between}
+.scale{position:relative;height:44px}
+.scale .line{position:absolute;left:0;right:0;top:22px;height:2px;background:rgba(120,170,255,.2)}
+.scale .fill{position:absolute;left:0;top:22px;height:2px;width:55%;background:linear-gradient(90deg,var(--cy),var(--vi))}
+.tick{position:absolute;top:14px;width:1.5px;height:18px;background:rgba(120,170,255,.3)}
+.tick span{position:absolute;top:22px;left:50%;transform:translateX(-50%);font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--ink35);padding-top:6px}
+.ev{position:absolute;top:2px;transform:translateX(-50%);font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.06em;color:var(--ink60);white-space:nowrap}
+.ev i{display:block;margin:4px auto 0;width:7px;height:7px;border-radius:50%;background:rgba(223,231,245,.5)}
+.ev.done{opacity:.5}.ev.done i{background:var(--good)}
+.ev.now{color:var(--cy)}.ev.now i{background:var(--cy);box-shadow:0 0 12px var(--cy)}
+.marker{position:absolute;left:55%;top:8px;transform:translateX(-50%);color:var(--amber);font-size:13px}
+/* main grid */
+.cols{display:grid;grid-template-columns:1.15fr .95fr 1fr;gap:18px;margin-top:18px}
+.stack{display:flex;flex-direction:column;gap:18px}
+.p{padding:20px 24px;border-radius:14px}
+.callsign{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.3em;color:var(--cy);margin-bottom:12px}
+h1{font-weight:600;font-size:42px;line-height:1.05;text-wrap:balance}
+h1 em{font-family:'Instrument Serif',serif;font-style:italic;font-weight:400;background:linear-gradient(90deg,var(--cy),var(--mg));-webkit-background-clip:text;background-clip:text;color:transparent}
+.stand{margin-top:12px;font-size:15.5px;font-weight:500;line-height:1.6;color:var(--ink60)}
+.stand b{color:var(--ink);font-weight:600}
+.hbtn{margin-top:18px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;padding:12px 22px;border-radius:8px;cursor:pointer;border:1px solid rgba(89,230,255,.5);background:linear-gradient(180deg,rgba(89,230,255,.16),rgba(89,230,255,.05));color:var(--cy);box-shadow:0 0 26px -10px rgba(89,230,255,.7)}
+/* segmented instrument gauges */
+.inst{display:flex;flex-direction:column;gap:16px}
+.seg{padding:14px 18px;border-radius:14px}
+.seg .h{display:flex;justify-content:space-between;align-items:baseline}
+.seg .l{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.26em;color:var(--ink35)}
+.seg .n{font-weight:700;font-size:30px;font-variant-numeric:tabular-nums}
+.seg .n small{font-size:14px;color:var(--ink35);font-weight:500}
+.segbar{margin-top:9px;display:flex;gap:3px}
+.segbar i{flex:1;height:10px;border-radius:2px;background:rgba(120,170,255,.12)}
+.seg.s1 .segbar i.on{background:var(--cy);box-shadow:0 0 8px rgba(89,230,255,.6)}
+.seg.s2 .segbar i.on{background:var(--vi);box-shadow:0 0 8px rgba(143,123,255,.6)}
+.seg.s3 .segbar i.on{background:var(--mg);box-shadow:0 0 8px rgba(255,123,213,.5)}
+.seg .hint{margin-top:7px;font-size:12px;color:var(--ink60)}
+.ph{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:11px}
+.ph .h{font-size:17px;font-weight:700;letter-spacing:.08em}
+.ph .m{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.2em;color:var(--ink35)}
+.p p{font-size:14px;font-weight:500;line-height:1.62;color:var(--ink60)}.p p b{color:var(--ink)}
+.chips{display:flex;gap:8px;margin-top:12px}
+.chip{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.06em;padding:5px 10px;border-radius:12px;border:1px solid rgba(95,232,168,.4);color:var(--good)}
+.chip.b{border-color:rgba(143,123,255,.45);color:var(--vi)}
+.q{font-family:'Instrument Serif',serif;font-style:italic;font-size:17px;line-height:1.5}
+.src{margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.12em;color:var(--ink35)}
+.mini{display:flex;flex-direction:column;gap:12px}
+.mc{padding:12px 16px;border-radius:12px;cursor:pointer}
+.mc .k{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:.24em;color:var(--cy)}
+.mc .t{font-size:16.5px;font-weight:700;margin-top:4px;letter-spacing:.02em}
+.mc .d{font-size:11.5px;color:var(--ink60);margin-top:2px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style></head>
+<body>
+<div class="aur"></div><div class="gridl"></div>
+<div class="wrap">
+  <div class="bar pane">
+    <div class="brand">NOVA<span>·OS</span></div>
+    <nav class="nav"><a class="on" href="#">MISSION</a><a href="#">VOICE</a><a href="#">GALAXY</a><a href="#">CODE</a><a href="#">RECIPES</a><a href="#">TRAIN</a><a href="#">NOTES</a><a href="#">JOURNAL</a></nav>
+    <div class="r"><span>FRI 17 JUL · 13:12:41</span><span>VAULT 47</span><span class="live">● LIVE · SYNCED 13:12</span></div>
+  </div>
+
+  <div class="ribbon pane">
+    <div class="lbl"><span>FLIGHT PATH · TODAY</span><span>ALT 55% THROUGH THE DAY</span></div>
+    <div class="scale">
+      <div class="line"></div><div class="fill"></div>
+      <div class="tick" style="left:0%"><span>00</span></div><div class="tick" style="left:25%"><span>06</span></div>
+      <div class="tick" style="left:50%"><span>12</span></div><div class="tick" style="left:75%"><span>18</span></div>
+      <div class="tick" style="left:99.8%"><span>24</span></div>
+      <span class="ev done" style="left:40.6%"><i></i>09:45 TANK</span>
+      <span class="ev now" style="left:64.6%">15:30 WORK 💰<i></i></span>
+      <span class="ev" style="left:91.7%">22:00 MIND<i></i></span>
+      <span class="marker">▼</span>
+    </div>
+  </div>
+
+  <div class="cols">
+    <div class="p pane">
+      <div class="callsign">MISSION CONTROL · DAY 213 · ALL SYSTEMS NOMINAL</div>
+      <h1>Good afternoon, Hayden — <em>cleared for deep work at 15:30.</em></h1>
+      <p class="stand">Recovery reads <b>strong</b> — HRV 93.5 ms, resting 51 bpm — but yesterday's block never fired. Tonight: <b>Upper Body</b>, <b>54 g protein</b>, <b>7,639 steps</b> on the plan.</p>
+      <button class="hbtn">ENGAGE NEXT BLOCK</button>
+      <div style="margin-top:18px" class="mini">
+        <div class="mc pane"><div class="k">LUNCH · CONSUMED 12:37</div><div class="t">Chilli Beef &amp; Rice</div><div class="d">60P · 76C · 14F · 666 kcal</div></div>
+        <div class="mc pane"><div class="k">TRAIN · T-MINUS 4H</div><div class="t">Upper Body</div><div class="d">6 exercises · bench 82.5 kg</div></div>
+      </div>
+    </div>
+    <div class="inst">
+      <div class="seg pane s1">
+        <div class="h"><span class="l">SLEEP</span><span class="n">7:12<small>/8H</small></span></div>
+        <div class="segbar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
+        <div class="hint">HRV +9% vs 7-day · well rested</div>
+      </div>
+      <div class="seg pane s2">
+        <div class="h"><span class="l">PROTEIN</span><span class="n">96<small>/150G</small></span></div>
+        <div class="segbar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i></div>
+        <div class="hint">chilli beef &amp; rice closes the 54 g gap</div>
+      </div>
+      <div class="seg pane s3">
+        <div class="h"><span class="l">STEPS</span><span class="n">2,361</span></div>
+        <div class="segbar"><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="hint">7,639 to the 10,000 goal</div>
+      </div>
+      <div class="seg pane">
+        <div class="ph" style="margin:0 0 8px"><span class="h" style="font-size:15px">DAILY REVIEW</span><span class="m">CONCEPT</span></div>
+        <p class="q">“Sadness signals a missing option you can learn.”</p>
+        <div class="src">OPERATIONALIZING EMOTIONS</div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="p pane">
+        <div class="ph"><span class="h">NOVA NOTICED</span><span class="m">WHILE YOU SLEPT</span></div>
+        <p>Your <b>HRV (93.5 ms)</b> and resting heart rate <b>(51 bpm)</b> read strong — but that's because yesterday's 7:30 block never happened. Steps and active energy stayed minimal across a 14.8-hour day. <b>Tonight's session is the correction burn.</b></p>
+        <div class="chips"><span class="chip">2-DAY STREAK</span><span class="chip b">RECOVERY · STRONG</span></div>
+      </div>
+      <div class="p pane">
+        <div class="ph"><span class="h">SCHEDULE</span><span class="m">REMAINING LEGS</span></div>
+        <p style="display:flex;flex-direction:column;gap:9px">
+          <span><b style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--cy)">15:30</b> &nbsp;Work 💰 — deep block, protected</span>
+          <span><b style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink35)">22:00</b> &nbsp;Mindfulness 🧘</span>
+          <span><b style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink35)">22:30</b> &nbsp;Recharge 💤 — lights out 23:00</span>
+        </p>
+      </div>
+      <div class="p pane">
+        <div class="ph"><span class="h">VAULT · LATEST</span><span class="m">CONCEPT</span></div>
+        <p><b>Resilience &amp; Reframing</b> — treats setbacks as data about the model, not the self. Linked to 4 pages.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>
