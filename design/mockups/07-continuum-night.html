@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nova OS — Continuum · Night (22:04)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&family=Caveat:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* ================================================================
+   CONTINUUM — the same page at 22:04.
+   After dark the hour-keyed field deepens into the observatory:
+   Options 0 + 3 are not a separate theme — they are what
+   Continuum BECOMES at night. Same layout, same organs, night
+   tokens: aurora field, starfield, dark glass, holo accents,
+   Nova's handwriting glows.
+   ================================================================ */
+:root{
+  --ink:#e6ebf5;
+  --ink-60:rgba(230,235,245,.62);
+  --ink-40:rgba(230,235,245,.38);
+  --glass:rgba(16,22,38,.55);
+  --glass-strong:rgba(22,30,50,.75);
+  --edge:rgba(150,190,255,.22);
+  --specular:rgba(190,225,255,.45);
+  --shadow:inset 0 1px 0 var(--specular),0 26px 60px -30px rgba(0,0,0,.9);
+  --act:#59e6ff;         /* holo cyan */
+  --warm:#f0a35e;        /* candlelight — evening energy */
+  --hand:#ff9ee0;        /* Nova's handwriting glows pink at night */
+  --good:#5fe8a8;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{color:var(--ink);font-family:'Outfit',sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;overflow-x:hidden;background:#05070e}
+.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.hand{font-family:'Caveat',cursive;color:var(--hand)}
+
+/* night field: aurora + stars */
+.fieldbg{position:fixed;inset:0;z-index:0;background:radial-gradient(1200px 700px at 70% -10%,#131c33 0%,#0a101f 45%,#05070e 100%)}
+.blob{position:fixed;border-radius:50%;filter:blur(70px);z-index:0;animation:morph 26s ease-in-out infinite alternate}
+.blob.b1{width:640px;height:520px;background:rgba(89,230,255,.1);top:-140px;left:-100px}
+.blob.b2{width:560px;height:520px;background:rgba(143,123,255,.12);bottom:-180px;right:-100px;animation-delay:-9s}
+.blob.b3{width:420px;height:380px;background:rgba(255,123,213,.07);top:34%;left:42%;animation-delay:-15s}
+@keyframes morph{to{transform:translate(40px,-30px) scale(1.12)}}
+.stars{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:
+  radial-gradient(1.5px 1.5px at 8% 12%,rgba(236,229,218,.5),transparent 100%),
+  radial-gradient(1px 1px at 22% 34%,rgba(236,229,218,.35),transparent 100%),
+  radial-gradient(1.5px 1.5px at 37% 8%,rgba(216,181,115,.4),transparent 100%),
+  radial-gradient(1px 1px at 52% 26%,rgba(236,229,218,.3),transparent 100%),
+  radial-gradient(1.5px 1.5px at 68% 14%,rgba(107,229,245,.45),transparent 100%),
+  radial-gradient(1px 1px at 81% 39%,rgba(236,229,218,.35),transparent 100%),
+  radial-gradient(1.5px 1.5px at 93% 9%,rgba(236,229,218,.4),transparent 100%),
+  radial-gradient(1px 1px at 14% 62%,rgba(138,106,209,.35),transparent 100%),
+  radial-gradient(1px 1px at 45% 71%,rgba(236,229,218,.25),transparent 100%),
+  radial-gradient(1.5px 1.5px at 76% 66%,rgba(236,229,218,.3),transparent 100%),
+  radial-gradient(1px 1px at 89% 82%,rgba(107,229,245,.3),transparent 100%)}
+
+.wrap{position:relative;z-index:1;max-width:1340px;margin:0 auto;padding:24px 44px 70px}
+
+/* dock */
+.dock{display:flex;align-items:center;gap:16px;padding:12px 18px;border-radius:22px;background:var(--glass);backdrop-filter:blur(24px) saturate(1.4);border:1px solid var(--edge);box-shadow:var(--shadow)}
+.brand{font-family:'Instrument Serif',serif;font-size:24px}
+.brand em{font-style:italic;color:#d8b573}
+.docknav{display:flex;gap:2px;margin-left:8px}
+.docknav a{font-size:13.5px;font-weight:500;color:var(--ink-60);text-decoration:none;padding:8px 14px;border-radius:14px;transition:background .2s}
+.docknav a.on{background:var(--glass-strong);color:var(--ink);box-shadow:0 0 20px -6px rgba(89,230,255,.5)}
+.dock .right{margin-left:auto;display:flex;gap:10px;align-items:center}
+.pill{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;padding:6px 12px;border-radius:16px}
+.pill.live{color:var(--good);background:rgba(95,232,168,.08);border:1px solid rgba(95,232,168,.3)}
+.pill.sync{color:var(--ink-60)}
+
+/* lead */
+.lead{display:grid;grid-template-columns:1.3fr 1fr;gap:36px;padding:46px 4px 30px;align-items:center}
+.eyebrow{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.3em;color:var(--ink-60);margin-bottom:16px}
+h1{font-family:'Instrument Serif',serif;font-weight:400;font-size:60px;line-height:1.04;letter-spacing:-.01em;text-wrap:balance}
+h1 em{font-style:italic;background:linear-gradient(90deg,var(--act),var(--hand));-webkit-background-clip:text;background-clip:text;color:transparent}
+.standfirst{margin-top:18px;font-size:16px;line-height:1.65;color:var(--ink-60);max-width:54ch}
+.standfirst b{color:var(--ink);font-weight:600}
+.hand-note{display:inline-block;font-size:23px;margin-top:14px;transform:rotate(-1.2deg);text-shadow:0 0 18px rgba(255,158,224,.4)}
+.cta-row{display:flex;gap:12px;margin-top:24px}
+.gbtn{font-size:14px;font-weight:600;padding:13px 24px;border-radius:16px;cursor:pointer;transition:transform .15s;border:1px solid rgba(89,230,255,.5);background:linear-gradient(180deg,rgba(89,230,255,.16),rgba(89,230,255,.05));color:var(--act);box-shadow:0 0 26px -10px rgba(89,230,255,.7)}
+.gbtn:hover{transform:translateY(-2px)}
+.gbtn.glass{border-color:var(--edge);background:transparent;color:var(--ink-60);box-shadow:none}
+
+/* orbital cluster — night: holo ring */
+.cluster{position:relative;display:flex;align-items:center;justify-content:center;min-height:380px}
+.orbit{position:absolute;border:1.5px dashed rgba(150,190,255,.16);border-radius:50%;animation:spin 70s linear infinite}
+.orbit.o1{width:360px;height:360px}
+.orbit.o2{width:270px;height:270px;animation-duration:50s;animation-direction:reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+.core{position:relative;width:216px;height:216px;border-radius:50%;background:var(--glass);backdrop-filter:blur(22px);border:1px solid var(--edge);box-shadow:var(--shadow)}
+.core svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.core .val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.core .l{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.32em;color:var(--act)}
+.core .n{font-weight:800;font-size:52px;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+.core .n small{font-size:19px;font-weight:500;color:var(--ink-40)}
+.core .h{font-size:12px;color:var(--ink-60)}
+.sat{position:absolute;padding:12px 16px;border-radius:16px;background:var(--glass);backdrop-filter:blur(16px);border:1px solid var(--edge);box-shadow:var(--shadow)}
+.sat .l{font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.24em;color:var(--ink-60)}
+.sat .n{font-weight:800;font-size:26px;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-top:2px}
+.sat .n small{font-size:13px;font-weight:500;color:var(--ink-40)}
+.sat.s1{top:14px;right:26px}
+.sat.s2{bottom:26px;left:6px}
+.sat .hand{position:absolute;white-space:nowrap;font-size:18px}
+.sat.s1 .hand{top:-24px;right:6px;transform:rotate(2deg)}
+.sat.s2 .hand{bottom:-26px;left:10px;transform:rotate(-2deg)}
+.core .hand{position:absolute;bottom:-34px;left:50%;transform:translateX(-50%) rotate(-1.5deg);font-size:20px;white-space:nowrap}
+
+/* panels */
+.focusrow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:22px;margin:6px 0 24px}
+.gpanel{border-radius:24px;background:var(--glass);backdrop-filter:blur(24px) saturate(1.35);border:1px solid var(--edge);box-shadow:var(--shadow);padding:22px 26px;position:relative;overflow:hidden}
+.gpanel::before{content:'';position:absolute;top:0;left:10%;right:10%;height:1px;background:linear-gradient(90deg,transparent,var(--specular),transparent)}
+.k{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.26em;color:var(--ink-60)}
+.next .big{font-size:38px;font-weight:800;letter-spacing:-.03em;margin-top:8px;font-variant-numeric:tabular-nums}
+.next .big span{color:var(--warm)}
+.next .sub2{font-size:13px;color:var(--ink-60);margin-top:4px}
+.countdown{display:inline-flex;gap:8px;margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.08em;background:rgba(89,230,255,.08);border:1px solid rgba(89,230,255,.3);color:var(--act);border-radius:14px;padding:7px 13px}
+.ghead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+.ghead .h{font-family:'Instrument Serif',serif;font-style:italic;font-size:22px;color:#d8b573}
+.ghead .m{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.2em;color:var(--ink-40)}
+.gpanel p{font-size:14.5px;line-height:1.66;color:var(--ink-60)}
+.gpanel p b{color:var(--ink);font-weight:600}
+.chips{display:flex;gap:8px;margin-top:14px}
+.chip{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.06em;padding:6px 12px;border-radius:14px;background:rgba(95,232,168,.08);border:1px solid rgba(95,232,168,.32);color:var(--good)}
+.chip.b{background:rgba(89,230,255,.07);border-color:rgba(89,230,255,.3);color:var(--act)}
+.agenda{list-style:none}
+.agenda li{display:flex;gap:13px;padding:8px 0;font-size:14px;font-weight:500;align-items:baseline;border-bottom:1px solid rgba(150,190,255,.1)}
+.agenda li:last-child{border:0}
+.agenda .tm{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-40);width:44px;flex:none}
+.agenda .done{opacity:.45;text-decoration:line-through}
+.agenda .now{color:var(--act)}
+.agenda .now .tm{color:var(--act);font-weight:600}
+.agenda .now .hand{font-size:17px;margin-left:8px}
+
+.strip{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:22px}
+.review .q{font-family:'Instrument Serif',serif;font-size:19px;line-height:1.5;color:var(--ink);text-wrap:balance}
+.review .src{margin-top:12px;font-size:12.5px;color:var(--ink-60)}
+.scard{border-radius:20px;background:var(--glass);backdrop-filter:blur(20px);border:1px solid var(--edge);box-shadow:var(--shadow);padding:16px 20px;cursor:pointer;transition:transform .18s,border-color .18s}
+.scard:hover{transform:translateY(-4px);border-color:rgba(89,230,255,.4)}
+.scard .t{font-size:18px;font-weight:600;margin-top:6px;letter-spacing:-.01em}
+.scard .d{font-size:12px;color:var(--ink-60);margin-top:2px}
+.duo{display:flex;flex-direction:column;gap:18px}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="fieldbg"></div>
+<div class="stars"></div>
+<div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+<div class="wrap">
+  <div class="dock">
+    <div class="brand">Nova <em>os</em></div>
+    <nav class="docknav"><a class="on" href="#">Mission</a><a href="#">Voice</a><a href="#">Galaxy</a><a href="#">Code</a><a href="#">Recipes</a><a href="#">Train</a><a href="#">Notes</a><a href="#">Journal</a></nav>
+    <div class="right"><span class="pill sync">SYNCED 22:04</span><span class="pill live">● LIVE · VAULT 47</span></div>
+  </div>
+
+  <section class="lead">
+    <div>
+      <div class="eyebrow">FRIDAY 17 JULY · 22:04 · THE OBSERVATORY IS OPEN</div>
+      <h1>Good evening, Hayden — <em>the day is nearly banked.</em></h1>
+      <p class="standfirst"><b>Upper Body: done</b> — 18 sets, bench held at 82.5 kg. Protein closed at <b>151 g</b>. One thing left on the flight plan: <b>mindfulness, then recharge</b> — sleep debt says lights out by 23:00.</p>
+      <span class="hand-note">good session tonight — streak lives ✦</span>
+      <div class="cta-row"><button class="gbtn">Open journal</button><button class="gbtn glass">Review the day</button></div>
+    </div>
+    <div class="cluster">
+      <div class="orbit o1"></div><div class="orbit o2"></div>
+      <div class="core">
+        <svg width="216" height="216" viewBox="0 0 216 216">
+          <defs><linearGradient id="holo" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#59e6ff"/><stop offset="1" stop-color="#8f7bff"/>
+          </linearGradient></defs>
+          <circle cx="108" cy="108" r="96" fill="none" stroke="rgba(150,190,255,.12)" stroke-width="7"/>
+          <circle cx="108" cy="108" r="96" fill="none" stroke="url(#holo)" stroke-width="7" stroke-linecap="round" stroke-dasharray="603 603"/>
+        </svg>
+        <div class="val"><span class="l">PROTEIN</span><span class="n">151<small>/150g</small></span><span class="h">floor cleared ✓</span></div>
+        <span class="hand">clean sheet today ✓</span>
+      </div>
+      <div class="sat s1"><span class="hand">18 sets banked</span><div class="l">TRAIN</div><div class="n">DONE<small> ✓</small></div></div>
+      <div class="sat s2"><div class="l">STEPS</div><div class="n">9,214</div><span class="hand">so close! 786 to go</span></div>
+    </div>
+  </section>
+
+  <section class="focusrow">
+    <div class="gpanel next">
+      <div class="k">UP NEXT · LAST BLOCK OF THE DAY</div>
+      <div class="big">22:00 <span>Mindfulness 🧘</span></div>
+      <div class="sub2">then Recharge at 22:30 · lights out 23:00</div>
+      <span class="countdown">◐ WIND-DOWN MODE — NOTIFICATIONS QUIET</span>
+    </div>
+    <div class="gpanel">
+      <div class="ghead"><span class="h">Nova noticed</span><span class="m">EVENING READ</span></div>
+      <p>You closed every ring that mattered: <b>protein 151 g</b>, <b>session complete</b>, review done. Sleep before 23:00 makes tomorrow's 7:30 block <b>3× more likely to happen</b> — history says so.</p>
+      <div class="chips"><span class="chip">3-DAY STREAK NOW</span><span class="chip b">DAY · BANKED</span></div>
+    </div>
+    <div class="gpanel">
+      <div class="ghead"><span class="h">Today</span><span class="m">LIVE · CALENDAR</span></div>
+      <ul class="agenda">
+        <li class="done"><span class="tm">09:45</span><span>Walk Tank 🐶</span></li>
+        <li class="done"><span class="tm">15:30</span><span>Work 💰</span></li>
+        <li class="now"><span class="tm">22:00</span><span>Mindfulness 🧘</span><span class="hand">← you are here</span></li>
+        <li><span class="tm">22:30</span><span>Recharge 💤</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="strip">
+    <div class="gpanel review">
+      <div class="ghead"><span class="h">Tonight's reflection</span><span class="m">JOURNAL PROMPT</span></div>
+      <p class="q">“You trained when it would have been easy not to. What did the version of you at 7:30 this morning not know yet?”</p>
+      <div class="src">generated from today — write it in <b>Journal</b> ✎</div>
+    </div>
+    <div class="duo">
+      <div class="scard"><div class="k">DINNER · EATEN 19:12</div><div class="t">Chicken Caesar Pasta</div><div class="d">46P · 41C · 16F · 494 kcal</div></div>
+      <div class="scard"><div class="k">TRAIN · COMPLETED 18:41</div><div class="t">Upper Body ✓</div><div class="d">18 sets · 4,120 kg volume · bench 82.5</div></div>
+    </div>
+    <div class="duo">
+      <div class="scard"><div class="k">GALAXY · THE SKY IS OUT</div><div class="t">47 stars · 150 links</div><div class="d">two new stars lit today →</div></div>
+      <div class="scard"><div class="k">TOMORROW · FIRST LIGHT</div><div class="t">07:30 Workout</div><div class="d">Lower Body · alarm 06:45 · sky: dawn mint</div></div>
+    </div>
+  </section>
+</div>
+</body>
+</html>

@@ -46,6 +46,32 @@ The shipped look: a quiet dark observatory.
 - **Gouache:** washes breathe, notes fade in as if being written
 - **Prisma:** field morphs with the hour, cards lift toward you, springy focus
 
+## Round 2 — CONTINUUM (the hybrid, per Hayden's picks: 0 + 3 + 4 + 5)
+
+Prisma's hour-keyed glass base carrying the best organ from each liked
+direction. The unifying idea: **Options 0 and 3 are not a separate theme —
+they are what Continuum becomes at night.** The field flows dawn mint →
+midday sky → dusk apricot → after dark it deepens into the aurora
+observatory, starfield and all.
+
+- **From Prisma (5):** the living hour-keyed field, frosted glass, depth
+- **From Aurora (3) / Option 0:** the night state — aurora light, starfield,
+  holo cyan/violet data, gold Instrument Serif italics; the orbital ring
+  gauge cluster as the vitals signature (and the Galaxy's selection cursor)
+- **From Gouache (4):** Nova's handwritten margin notes (Caveat) — plum by
+  day, glowing pink at night; "← you are here" on the calendar
+- **From Meridian (1):** the editorial serif lead + standfirst hierarchy
+- **From Pulse (2):** kinetic numerals — Outfit 800, tabular, count-up motion
+
+Mockups: `06-continuum-day.html` (Mission Control, 13:12),
+`07-continuum-night.html` (same page at 22:04 — the observatory),
+`08-continuum-galaxy.html` (Memory Galaxy as "tonight's sky", orbit-ring
+selection, canvas star chart).
+
+Type system: Outfit (UI + numerals) · Instrument Serif (display, kept from
+Option 0) · JetBrains Mono (microlabels, kept from Option 0) · Caveat
+(Nova's hand).
+
 ### Shared principles regardless of winner
 
 - Same information architecture as today (focus, vitals, noticed, today, vault cards)

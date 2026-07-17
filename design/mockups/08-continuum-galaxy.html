@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nova OS — Continuum · Memory Galaxy (night)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&family=Caveat:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* ================================================================
+   CONTINUUM — Memory Galaxy, after dark.
+   The signature screen: your vault as tonight's sky. Aurora's
+   orbital ring becomes the selection cursor — pick a star and
+   rings form around it. Nova annotates the sky by hand. During
+   the day this same screen is a pale atlas (day tokens); at
+   night it is the observatory at full depth.
+   ================================================================ */
+:root{
+  --ink:#e6ebf5;
+  --ink-60:rgba(230,235,245,.62);
+  --ink-40:rgba(230,235,245,.38);
+  --glass:rgba(16,22,38,.6);
+  --edge:rgba(150,190,255,.22);
+  --specular:rgba(190,225,255,.45);
+  --shadow:inset 0 1px 0 var(--specular),0 26px 60px -30px rgba(0,0,0,.9);
+  --act:#59e6ff;
+  --hand:#ff9ee0;
+  --gold:#d8b573;
+  --good:#5fe8a8;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{color:var(--ink);font-family:'Outfit',sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;overflow:hidden;background:#04060c}
+.fieldbg{position:fixed;inset:0;z-index:0;background:radial-gradient(1300px 800px at 60% 110%,#10182c 0%,#080d1a 50%,#04060c 100%)}
+.blob{position:fixed;border-radius:50%;filter:blur(80px);z-index:0;animation:morph 28s ease-in-out infinite alternate}
+.blob.b1{width:700px;height:560px;background:rgba(89,230,255,.08);top:-160px;left:-120px}
+.blob.b2{width:600px;height:540px;background:rgba(143,123,255,.1);bottom:-200px;right:-120px;animation-delay:-10s}
+@keyframes morph{to{transform:translate(40px,-30px) scale(1.1)}}
+.wrap{position:relative;z-index:1;max-width:1360px;margin:0 auto;padding:24px 44px 40px;height:100vh;display:flex;flex-direction:column}
+
+.dock{display:flex;align-items:center;gap:16px;padding:12px 18px;border-radius:22px;background:var(--glass);backdrop-filter:blur(24px);border:1px solid var(--edge);box-shadow:var(--shadow);flex:none}
+.brand{font-family:'Instrument Serif',serif;font-size:24px}
+.brand em{font-style:italic;color:var(--gold)}
+.docknav{display:flex;gap:2px;margin-left:8px}
+.docknav a{font-size:13.5px;font-weight:500;color:var(--ink-60);text-decoration:none;padding:8px 14px;border-radius:14px}
+.docknav a.on{background:rgba(22,30,50,.75);color:var(--ink);box-shadow:0 0 20px -6px rgba(89,230,255,.5)}
+.dock .right{margin-left:auto;display:flex;gap:10px;align-items:center}
+.pill{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;padding:6px 12px;border-radius:16px}
+.pill.live{color:var(--good);background:rgba(95,232,168,.08);border:1px solid rgba(95,232,168,.3)}
+.pill.stat{color:var(--ink-60);border:1px solid var(--edge)}
+
+.skyhead{display:flex;align-items:baseline;justify-content:space-between;padding:26px 6px 16px;flex:none}
+h1{font-family:'Instrument Serif',serif;font-weight:400;font-size:40px;letter-spacing:-.01em}
+h1 em{font-style:italic;background:linear-gradient(90deg,var(--act),var(--hand));-webkit-background-clip:text;background-clip:text;color:transparent}
+.legend{display:flex;gap:16px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.08em;color:var(--ink-60)}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend i{width:7px;height:7px;border-radius:50%}
+
+.sky{position:relative;flex:1;border-radius:26px;border:1px solid var(--edge);background:rgba(8,12,24,.4);backdrop-filter:blur(6px);box-shadow:var(--shadow);overflow:hidden}
+.sky canvas{position:absolute;inset:0;width:100%;height:100%}
+.sky .hint{position:absolute;top:16px;left:20px;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.22em;color:var(--ink-40)}
+.sky .hand-note{position:absolute;top:14px;right:24px;font-family:'Caveat',cursive;font-size:22px;color:var(--hand);transform:rotate(1.5deg);text-shadow:0 0 18px rgba(255,158,224,.35)}
+
+/* star detail card w/ orbital cursor legend */
+.starcard{position:absolute;right:24px;bottom:24px;width:300px;border-radius:20px;border:1px solid rgba(216,181,115,.35);background:var(--glass);backdrop-filter:blur(22px);box-shadow:var(--shadow);padding:18px 20px}
+.starcard .k{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.24em;color:var(--gold)}
+.starcard .t{font-family:'Instrument Serif',serif;font-size:24px;margin-top:8px}
+.starcard .d{font-size:13px;color:var(--ink-60);line-height:1.55;margin-top:6px}
+.starcard .links{margin-top:12px;display:flex;flex-wrap:wrap;gap:6px}
+.starcard .lk{font-family:'JetBrains Mono',monospace;font-size:9.5px;padding:4px 10px;border-radius:12px;border:1px solid var(--edge);color:var(--act)}
+.starcard .actions{margin-top:14px;display:flex;gap:8px}
+.sbtn{font-size:12.5px;font-weight:600;padding:9px 16px;border-radius:12px;border:1px solid rgba(89,230,255,.5);background:linear-gradient(180deg,rgba(89,230,255,.16),rgba(89,230,255,.05));color:var(--act);cursor:pointer}
+.sbtn.ghost{border-color:var(--edge);background:transparent;color:var(--ink-60)}
+.starcard .hand{font-family:'Caveat',cursive;font-size:18px;color:var(--hand);display:block;margin-top:10px;transform:rotate(-1deg)}
+@media (prefers-reduced-motion: reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="fieldbg"></div>
+<div class="blob b1"></div><div class="blob b2"></div>
+<div class="wrap">
+  <div class="dock">
+    <div class="brand">Nova <em>os</em></div>
+    <nav class="docknav"><a href="#">Mission</a><a href="#">Voice</a><a class="on" href="#">Galaxy</a><a href="#">Code</a><a href="#">Recipes</a><a href="#">Train</a><a href="#">Notes</a><a href="#">Journal</a></nav>
+    <div class="right"><span class="pill stat">47 STARS · 150 LINKS</span><span class="pill live">● LIVE · 22:04</span></div>
+  </div>
+
+  <div class="skyhead">
+    <h1>Tonight's sky — <em>everything you know, connected.</em></h1>
+    <div class="legend">
+      <span><i style="background:#d8b573"></i>concepts</span>
+      <span><i style="background:#e08f6f"></i>entities</span>
+      <span><i style="background:#8a6ad1"></i>topics</span>
+      <span><i style="background:#6be5f5"></i>sources</span>
+      <span><i style="background:#5aa87c"></i>journals</span>
+    </div>
+  </div>
+
+  <div class="sky">
+    <canvas id="sky"></canvas>
+    <div class="hint">CLICK A STAR · ORBIT RINGS MARK YOUR SELECTION · BRIGHTER = RECENTLY TOUCHED</div>
+    <div class="hand-note">two new stars lit today ✦</div>
+    <div class="starcard">
+      <div class="k">CONCEPT · SELECTED</div>
+      <div class="t">Resilience &amp; Reframing</div>
+      <div class="d">Latest in your vault — treats setbacks as data about the model, not the self. Written today at 11:52.</div>
+      <div class="links"><span class="lk">Operationalizing Emotions</span><span class="lk">The Second Arrow</span><span class="lk">Blame Triad</span><span class="lk">+1</span></div>
+      <div class="actions"><button class="sbtn">Open note</button><button class="sbtn ghost">Reflect ✎</button></div>
+      <span class="hand">this one connects your whole week →</span>
+    </div>
+  </div>
+</div>
+<script>
+// Deterministic star field (seeded) so every render matches the screenshot.
+const TYPES = { concept:'#d8b573', entity:'#e08f6f', topic:'#8a6ad1', source:'#6be5f5', journal:'#5aa87c' };
+const KINDS = Object.keys(TYPES);
+let seed = 7;
+const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+const cv = document.getElementById('sky');
+const dpr = window.devicePixelRatio || 1;
+function draw(){
+  const w = cv.clientWidth, h = cv.clientHeight;
+  cv.width = w*dpr; cv.height = h*dpr;
+  const ctx = cv.getContext('2d'); ctx.scale(dpr,dpr);
+  seed = 7;
+  // dust
+  for(let i=0;i<160;i++){
+    ctx.globalAlpha = .12 + rnd()*.3;
+    ctx.fillStyle = '#ece5da';
+    ctx.beginPath(); ctx.arc(rnd()*w, rnd()*h, rnd()*1.1+.3, 0, 7); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  // stars
+  const stars = [];
+  for(let i=0;i<47;i++){
+    const kind = KINDS[Math.floor(rnd()*KINDS.length)];
+    stars.push({ x: 60+rnd()*(w-320), y: 50+rnd()*(h-120), r: 3+rnd()*3.5, c: TYPES[kind] });
+  }
+  // links
+  ctx.strokeStyle = 'rgba(190,215,255,.12)'; ctx.lineWidth = 1;
+  for(let i=0;i<70;i++){
+    const a = stars[Math.floor(rnd()*stars.length)], b = stars[Math.floor(rnd()*stars.length)];
+    if(!a||!b||a===b) continue;
+    if(Math.hypot(a.x-b.x,a.y-b.y) > w*.32) continue;
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+  }
+  stars.forEach(s=>{
+    ctx.shadowColor = s.c; ctx.shadowBlur = 12;
+    ctx.fillStyle = s.c;
+    ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,7); ctx.fill();
+    ctx.shadowBlur = 0;
+  });
+  // selected star + orbital cursor (the aurora organ)
+  const sel = stars[11];
+  ctx.strokeStyle = 'rgba(89,230,255,.7)'; ctx.lineWidth = 1.4;
+  ctx.setLineDash([5,7]);
+  ctx.beginPath(); ctx.arc(sel.x,sel.y,26,0,7); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,158,224,.5)';
+  ctx.beginPath(); ctx.arc(sel.x,sel.y,40,0,7); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.shadowColor = '#d8b573'; ctx.shadowBlur = 26;
+  ctx.fillStyle = '#d8b573';
+  ctx.beginPath(); ctx.arc(sel.x,sel.y,7,0,7); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.font = '13px Outfit'; ctx.fillStyle = '#e6ebf5';
+  ctx.fillText('Resilience & Reframing', sel.x+16, sel.y+4);
+}
+draw();
+window.addEventListener('resize', draw);
+</script>
+</body>
+</html>
