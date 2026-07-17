@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nova OS — Direction 2 · Pulse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ================================================================
+   DIRECTION 2 — PULSE
+   Kinetic training-floor energy on a bright chalk ground. Ink
+   borders, hard offset shadows, oversized condensed numerals,
+   a scrolling streak ticker. Two accents used by role:
+   ultramarine = information, signal orange = energy/action.
+   Motion language: springy, snappy, marquee tickers.
+   ================================================================ */
+:root{
+  --chalk:#eeede7;
+  --card:#f7f6f1;
+  --ink:#16150f;
+  --ink-60:#5b594e;
+  --ultra:#2b3ff0;      /* information accent */
+  --signal:#ff5c1f;     /* energy/action accent */
+  --lime:#c6f542;       /* status: good — with label, never alone */
+  --shadow:4px 4px 0 var(--ink);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--chalk);color:var(--ink);font-family:'Archivo',sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+.mono{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}
+.wrap{max-width:1300px;margin:0 auto;padding:0 40px 70px}
+
+/* top bar */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:20px 0 16px}
+.logo{font-family:'Anton',sans-serif;font-size:30px;letter-spacing:.02em;text-transform:uppercase}
+.logo span{color:var(--signal)}
+.tabs{display:flex;gap:4px}
+.tab{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.06em;padding:9px 15px;border:2px solid var(--ink);background:var(--card);cursor:pointer}
+.tab.on{background:var(--ink);color:var(--card);box-shadow:var(--shadow)}
+.status{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;padding:9px 14px;border:2px solid var(--ink);background:var(--lime);box-shadow:var(--shadow)}
+
+/* streak ticker */
+.ticker{border:2px solid var(--ink);background:var(--ink);color:var(--chalk);overflow:hidden;white-space:nowrap;margin-bottom:34px}
+.ticker-inner{display:inline-block;padding:8px 0;font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.08em;animation:tick 22s linear infinite}
+.ticker-inner b{color:var(--lime)}
+.ticker-inner em{color:var(--signal);font-style:normal}
+@keyframes tick{to{transform:translateX(-50%)}}
+
+/* hero row */
+.hero{display:grid;grid-template-columns:1.35fr 1fr;gap:28px;align-items:stretch;margin-bottom:28px}
+.heroL h1{font-family:'Anton',sans-serif;font-size:88px;line-height:.94;text-transform:uppercase;letter-spacing:.005em}
+.heroL h1 .accent{-webkit-text-stroke:2.5px var(--ink);color:transparent}
+.heroL .sub{margin-top:18px;font-size:16px;line-height:1.55;color:var(--ink-60);max-width:48ch}
+.heroL .sub b{color:var(--ink)}
+.cta-row{display:flex;gap:14px;margin-top:26px}
+.cta{font-family:'Anton',sans-serif;text-transform:uppercase;font-size:16px;letter-spacing:.04em;padding:14px 26px;border:2.5px solid var(--ink);background:var(--signal);color:var(--ink);box-shadow:var(--shadow);cursor:pointer;transition:transform .12s,box-shadow .12s}
+.cta:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--ink)}
+.cta.alt{background:var(--card)}
+.focusbox{border:2.5px solid var(--ink);background:var(--card);box-shadow:var(--shadow);padding:24px 26px;display:flex;flex-direction:column}
+.focusbox .k{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.2em;color:var(--ultra);font-weight:600}
+.focusbox .big{font-family:'Anton',sans-serif;font-size:56px;text-transform:uppercase;line-height:1;margin-top:12px}
+.focusbox .big small{font-size:26px;color:var(--signal)}
+.focusbox .meta{margin-top:auto;padding-top:18px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-60)}
+.chip{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;border:2px solid var(--ink);padding:4px 9px;margin-top:14px;background:var(--lime)}
+
+/* stat slabs */
+.slabs{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin-bottom:28px}
+.slab{border:2.5px solid var(--ink);background:var(--card);box-shadow:var(--shadow);padding:22px 24px;position:relative;transition:transform .12s}
+.slab:hover{transform:translate(-2px,-2px)}
+.slab .lbl{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.18em;font-weight:600}
+.slab .num{font-family:'Anton',sans-serif;font-size:66px;line-height:1;margin-top:10px;font-variant-numeric:tabular-nums}
+.slab .num small{font-size:24px;color:var(--ink-60)}
+.slab .hint{font-size:12.5px;color:var(--ink-60);margin-top:8px;line-height:1.45}
+.bar{margin-top:16px;height:14px;border:2px solid var(--ink);background:var(--card);position:relative}
+.bar i{position:absolute;inset:0 auto 0 0;background:var(--ultra)}
+.bar.energy i{background:var(--signal)}
+.bar i::after{content:'';position:absolute;top:0;bottom:0;right:0;width:3px;background:var(--ink)}
+.slab .tag{position:absolute;top:-13px;right:14px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;background:var(--ultra);color:#fff;border:2px solid var(--ink);padding:3px 8px}
+
+/* bottom bento */
+.bento{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:28px}
+.box{border:2.5px solid var(--ink);background:var(--card);box-shadow:var(--shadow);padding:22px 24px}
+.box .head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px}
+.box .head .h{font-family:'Anton',sans-serif;font-size:22px;text-transform:uppercase}
+.box .head .m{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;color:var(--ink-60)}
+.box p{font-size:14px;line-height:1.65}
+.box p mark{background:var(--lime);padding:0 3px}
+.agenda{list-style:none}
+.agenda li{display:flex;gap:12px;padding:8px 0;border-bottom:2px dotted #cfcdc2;font-size:13.5px;font-weight:500;align-items:baseline}
+.agenda li:last-child{border:0}
+.agenda .tm{font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:600;width:46px;flex:none;color:var(--ink-60)}
+.agenda .now{background:var(--signal);margin:0 -10px;padding:8px 10px;border:2px solid var(--ink)}
+.agenda .now .tm{color:var(--ink)}
+.mini{display:flex;flex-direction:column;gap:14px}
+.minicard{border:2px solid var(--ink);padding:12px 14px;background:var(--chalk);cursor:pointer;transition:transform .12s,background .12s}
+.minicard:hover{transform:translate(-2px,-2px);background:var(--card)}
+.minicard .k{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.16em;color:var(--ultra);font-weight:600}
+.minicard .t{font-family:'Anton',sans-serif;font-size:19px;text-transform:uppercase;margin-top:4px}
+.minicard .d{font-size:11.5px;color:var(--ink-60);margin-top:3px}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="logo">NOVA<span>*</span>OS</div>
+    <div class="tabs"><button class="tab on">MISSION</button><button class="tab">TRAIN</button><button class="tab">RECIPES</button><button class="tab">NOTES</button><button class="tab">JOURNAL</button><button class="tab">⌘K</button></div>
+    <div class="status">● LIVE · 47 NOTES</div>
+  </div>
+
+  <div class="ticker"><div class="ticker-inner">
+    <b>2-DAY WORKOUT STREAK</b> &nbsp;///&nbsp; PROTEIN <em>96/150G</em> &nbsp;///&nbsp; STEPS 2,361 → 10K &nbsp;///&nbsp; HRV 93.5MS <b>▲ STRONG</b> &nbsp;///&nbsp; NEXT: WORK 💰 15:30 &nbsp;///&nbsp; SYNCED 13:12 &nbsp;///&nbsp;
+    <b>2-DAY WORKOUT STREAK</b> &nbsp;///&nbsp; PROTEIN <em>96/150G</em> &nbsp;///&nbsp; STEPS 2,361 → 10K &nbsp;///&nbsp; HRV 93.5MS <b>▲ STRONG</b> &nbsp;///&nbsp; NEXT: WORK 💰 15:30 &nbsp;///&nbsp; SYNCED 13:12 &nbsp;///&nbsp;
+  </div></div>
+
+  <div class="hero">
+    <div class="heroL">
+      <h1>GOOD<br>AFTERNOON,<br><span class="accent">HAYDEN.</span></h1>
+      <p class="sub">Recovery says <b>go</b> — HRV 93.5 ms, resting HR 51 bpm. But yesterday's session never happened, so tonight's <b>Upper Body</b> is the one that counts. <b>54 g of protein</b> and <b>7,639 steps</b> stand between you and a clean sheet.</p>
+      <div class="cta-row"><button class="cta">START UPPER BODY</button><button class="cta alt">LOG FOOD</button></div>
+    </div>
+    <div class="focusbox">
+      <div class="k">NEXT BLOCK · FROM CALENDAR</div>
+      <div class="big">15:30 <small>WORK 💰</small></div>
+      <span class="chip">IN 2H 18M</span>
+      <div class="meta">FRI 17 JUL · 6 EVENTS TODAY · LAST: RECHARGE 22:30</div>
+    </div>
+  </div>
+
+  <div class="slabs">
+    <div class="slab"><div class="tag">HRV +9%</div>
+      <div class="lbl">SLEEP</div>
+      <div class="num">7:12<small>H</small></div>
+      <div class="hint">90% of the 8h goal — woke 06:48</div>
+      <div class="bar"><i style="width:90%"></i></div>
+    </div>
+    <div class="slab">
+      <div class="lbl">PROTEIN</div>
+      <div class="num">96<small>/150G</small></div>
+      <div class="hint">chilli beef &amp; rice closes the 54g gap</div>
+      <div class="bar energy"><i style="width:64%"></i></div>
+    </div>
+    <div class="slab">
+      <div class="lbl">STEPS</div>
+      <div class="num">2,361</div>
+      <div class="hint">7,639 to go — walk Tank again? 🐶</div>
+      <div class="bar energy"><i style="width:24%"></i></div>
+    </div>
+  </div>
+
+  <div class="bento">
+    <div class="box">
+      <div class="head"><span class="h">Nova noticed</span><span class="m">WHILE YOU SLEPT</span></div>
+      <p>Your HRV (93.5 ms) and resting heart rate (51 bpm) both point to <mark>strong recovery</mark> — but that's likely because yesterday's 7:30am workout never actually happened. Steps and active energy were minimal despite a packed 14.8-hour day. You're over-rested and under-trained: <mark>tonight's session resets the streak.</mark></p>
+    </div>
+    <div class="box">
+      <div class="head"><span class="h">Today</span><span class="m">LIVE</span></div>
+      <ul class="agenda">
+        <li><span class="tm">00:00</span><span>Melvin's birthday 🥳</span></li>
+        <li><span class="tm">07:30</span><span>Workout</span></li>
+        <li><span class="tm">09:45</span><span>Walk Tank 🐶</span></li>
+        <li class="now"><span class="tm">15:30</span><span>Work 💰</span></li>
+        <li><span class="tm">22:00</span><span>Mindfulness 🧘</span></li>
+        <li><span class="tm">22:30</span><span>Recharge 💤</span></li>
+      </ul>
+    </div>
+    <div class="mini">
+      <div class="minicard"><div class="k">LUNCH ✓ EATEN</div><div class="t">Chilli Beef &amp; Rice</div><div class="d">60P · 666 kcal · 12:37</div></div>
+      <div class="minicard"><div class="k">TRAIN TONIGHT</div><div class="t">Upper Body</div><div class="d">6 exercises · bench @ 82.5kg</div></div>
+      <div class="minicard"><div class="k">DAILY REVIEW</div><div class="t">Operationalizing Emotions</div><div class="d">sadness = a missing option you can learn</div></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

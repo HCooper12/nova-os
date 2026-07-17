@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nova OS — Direction 1 · Meridian</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&family=Archivo:wdth,wght@62..125,300..800&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ================================================================
+   DIRECTION 1 — MERIDIAN
+   A daylight broadsheet for your life. Porcelain ground, ink-blue
+   text, one brass accent. The masthead carries a live "sky band"
+   that tints with the hour — morning gold, noon white, dusk rose.
+   Motion language: slow sky drift, ink-line draws, quiet.
+   ================================================================ */
+:root{
+  --porcelain:#f4f5f1;
+  --paper:#fbfbf8;
+  --ink:#1c2733;          /* blue-black ink, not pure black */
+  --ink-60:#5a6672;
+  --ink-30:#aab2ba;
+  --brass:#a8722a;        /* the one accent */
+  --brass-soft:#c89d5e;
+  --sky-a:#f3d9a4;        /* afternoon band */
+  --sky-b:#dfe9ee;
+  --rule:#d8dbd2;
+  --good:#3d7a4f;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--porcelain);color:var(--ink);font-family:'Archivo',sans-serif;font-variation-settings:'wdth' 88;-webkit-font-smoothing:antialiased}
+.sheet{max-width:1280px;margin:0 auto;padding:0 48px 80px;background:var(--paper);min-height:100vh;box-shadow:0 0 60px rgba(28,39,51,.07)}
+.mono{font-family:'Spline Sans Mono',monospace;font-variant-numeric:tabular-nums}
+.serif{font-family:'Newsreader',serif}
+
+/* masthead with the hour-tinted sky band */
+.skyband{height:10px;background:linear-gradient(90deg,var(--sky-b),var(--sky-a) 40%,var(--sky-a) 60%,var(--sky-b));background-size:200% 100%;animation:skydrift 30s linear infinite alternate;border-radius:0 0 6px 6px}
+@keyframes skydrift{to{background-position:100% 0}}
+.masthead{display:flex;align-items:baseline;justify-content:space-between;padding:26px 0 18px;border-bottom:2px solid var(--ink)}
+.masthead .brand{font-family:'Newsreader',serif;font-size:34px;font-weight:500;letter-spacing:.01em}
+.masthead .brand em{color:var(--brass);font-style:italic}
+.masthead .issue{font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.14em;color:var(--ink-60);display:flex;gap:18px}
+.masthead .issue b{color:var(--ink);font-weight:600}
+.live{color:var(--good)}
+.folio{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--rule);font-family:'Spline Sans Mono',monospace;font-size:10.5px;letter-spacing:.18em;color:var(--ink-60)}
+.folio nav{display:flex;gap:22px}
+.folio nav a{color:var(--ink-60);text-decoration:none}
+.folio nav a.on{color:var(--brass);border-bottom:1.5px solid var(--brass);padding-bottom:2px}
+
+/* the lead story = suggested focus */
+.lead{display:grid;grid-template-columns:1.5fr 1fr;gap:44px;padding:40px 0 34px;border-bottom:1px solid var(--rule)}
+.kicker{font-family:'Spline Sans Mono',monospace;font-size:10.5px;letter-spacing:.22em;color:var(--brass);margin-bottom:14px}
+h1.greeting{font-family:'Newsreader',serif;font-weight:400;font-size:54px;line-height:1.04;letter-spacing:-.015em;text-wrap:balance}
+h1.greeting em{font-style:italic;color:var(--brass)}
+.standfirst{margin-top:18px;font-size:15.5px;line-height:1.65;color:var(--ink-60);max-width:52ch}
+.standfirst b{color:var(--ink);font-weight:600}
+.lead-actions{margin-top:24px;display:flex;gap:12px}
+.btn{font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.1em;padding:11px 20px;border:1.5px solid var(--ink);background:var(--ink);color:var(--paper);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink)}
+/* clockplate */
+.clockplate{border-left:1px solid var(--rule);padding-left:44px;display:flex;flex-direction:column;justify-content:center;gap:6px}
+.clock{font-family:'Newsreader',serif;font-size:64px;font-weight:300;font-variant-numeric:tabular-nums;line-height:1}
+.clock small{font-size:22px;color:var(--ink-30)}
+.clockmeta{font-family:'Spline Sans Mono',monospace;font-size:10.5px;letter-spacing:.16em;color:var(--ink-60)}
+.nextup{margin-top:18px;padding:14px 16px;border:1px solid var(--rule);background:var(--porcelain)}
+.nextup .t{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.2em;color:var(--brass)}
+.nextup .v{font-family:'Newsreader',serif;font-size:21px;margin-top:4px}
+
+/* vitals row — stat tiles like market listings */
+.vitals{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--rule)}
+.vital{padding:26px 28px;border-right:1px solid var(--rule);position:relative}
+.vital:last-child{border-right:0}
+.vital .lbl{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.22em;color:var(--ink-60)}
+.vital .num{font-family:'Newsreader',serif;font-weight:300;font-size:46px;line-height:1.1;font-variant-numeric:tabular-nums;margin-top:8px}
+.vital .num small{font-size:20px;color:var(--ink-30)}
+.vital .note{font-size:12.5px;color:var(--ink-60);margin-top:6px}
+.meter{margin-top:14px;height:3px;background:var(--rule);position:relative}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--brass);animation:draw 1.2s cubic-bezier(.2,.8,.2,1) both}
+.meter i::after{content:'';position:absolute;right:-3px;top:-3.5px;width:10px;height:10px;border-radius:50%;background:var(--brass)}
+@keyframes draw{from{width:0 !important}}
+.vital .delta{position:absolute;top:26px;right:28px;font-family:'Spline Sans Mono',monospace;font-size:10.5px;color:var(--good)}
+
+/* columns: noticed / today / review */
+.columns{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:0;border-bottom:1px solid var(--rule)}
+.colm{padding:30px 28px;border-right:1px solid var(--rule)}
+.colm:first-child{padding-left:0}
+.colm:last-child{border-right:0;padding-right:0}
+.colhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px}
+.colhead .h{font-family:'Newsreader',serif;font-style:italic;font-size:22px}
+.colhead .m{font-family:'Spline Sans Mono',monospace;font-size:9.5px;letter-spacing:.18em;color:var(--ink-60)}
+.noticed p{font-size:14.5px;line-height:1.7;color:var(--ink)}
+.noticed p b{background:linear-gradient(transparent 62%,rgba(200,157,94,.35) 0)}
+.badges{display:flex;gap:8px;margin-top:16px}
+.badge{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.06em;padding:5px 10px;border:1px solid var(--brass-soft);color:var(--brass)}
+.agenda{list-style:none}
+.agenda li{display:flex;gap:14px;padding:9px 0;border-bottom:1px dotted var(--rule);font-size:13.5px;align-items:baseline}
+.agenda li:last-child{border-bottom:0}
+.agenda .tm{font-family:'Spline Sans Mono',monospace;font-size:11px;color:var(--ink-60);width:44px;flex:none}
+.agenda .now{color:var(--brass);font-weight:600}
+.agenda .now .tm{color:var(--brass)}
+.review .q{font-family:'Newsreader',serif;font-size:18.5px;line-height:1.5;text-wrap:balance}
+.review .src{margin-top:14px;font-size:12.5px;color:var(--ink-60)}
+.review .src em{font-family:'Newsreader',serif;font-size:14.5px}
+.review .btn{margin-top:16px;display:inline-block}
+
+/* vault strip */
+.vault{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding-top:30px}
+.vcard{border:1px solid var(--rule);padding:18px 20px;background:var(--paper);transition:border-color .2s, transform .2s}
+.vcard:hover{border-color:var(--brass);transform:translateY(-2px)}
+.vcard .k{font-family:'Spline Sans Mono',monospace;font-size:9.5px;letter-spacing:.2em;color:var(--brass)}
+.vcard .t{font-family:'Newsreader',serif;font-size:20px;margin-top:8px}
+.vcard .d{font-size:12.5px;color:var(--ink-60);margin-top:5px}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="skyband"></div>
+  <header class="masthead">
+    <div class="brand">Nova <em>os</em></div>
+    <div class="issue"><span>FRI 17 JUL 2026 · Nº 213</span><span><b>VAULT 47 NOTES</b></span><span>SYNCED 13:12</span><span class="live">● LIVE</span></div>
+  </header>
+  <div class="folio">
+    <nav><a class="on" href="#">MISSION</a><a href="#">VOICE</a><a href="#">GALAXY</a><a href="#">CODE</a><a href="#">RECIPES</a><a href="#">SHOP</a><a href="#">TRAIN</a><a href="#">NOTES</a><a href="#">JOURNAL</a></nav>
+    <span>⌘K SUMMON</span>
+  </div>
+
+  <section class="lead">
+    <div>
+      <div class="kicker">THE DAY'S LEAD · FROM YOUR CALENDAR</div>
+      <h1 class="greeting">Good afternoon, Hayden — <em>deep work at 15:30.</em></h1>
+      <p class="standfirst">Recovery is strong — HRV <b>93.5&nbsp;ms</b>, resting heart rate <b>51&nbsp;bpm</b> — but yesterday's 7:30 workout block never happened. Today holds <b>six calendar events</b>, an upper-body session, and a <b>54&nbsp;g protein gap</b> that chilli beef &amp; rice would close.</p>
+      <div class="lead-actions"><button class="btn">Start the block</button><button class="btn ghost">See today</button></div>
+    </div>
+    <div class="clockplate">
+      <div class="clock">13:12<small>:41</small></div>
+      <div class="clockmeta">AEST · MELBOURNE</div>
+      <div class="nextup"><div class="t">NEXT UP · 15:30</div><div class="v">Work 💰 — 2h 18m from now</div></div>
+    </div>
+  </section>
+
+  <section class="vitals">
+    <div class="vital">
+      <div class="lbl">SLEEP</div><div class="delta">HRV +9%</div>
+      <div class="num">7<small>h</small> 12<small>m</small></div>
+      <div class="note">90% of the 8 h goal · woke 06:48</div>
+      <div class="meter"><i style="width:90%"></i></div>
+    </div>
+    <div class="vital">
+      <div class="lbl">PROTEIN</div>
+      <div class="num">96<small>/150 g</small></div>
+      <div class="note">eat chilli beef &amp; rice to close the 54 g gap</div>
+      <div class="meter"><i style="width:64%"></i></div>
+    </div>
+    <div class="vital">
+      <div class="lbl">STEPS</div>
+      <div class="num">2,361</div>
+      <div class="note">7,639 to the 10,000 goal — evening walk pending</div>
+      <div class="meter"><i style="width:24%"></i></div>
+    </div>
+  </section>
+
+  <section class="columns">
+    <div class="colm noticed">
+      <div class="colhead"><span class="h">Nova noticed</span><span class="m">WHILE YOU SLEPT</span></div>
+      <p>Your <b>HRV (93.5 ms)</b> and resting heart rate <b>(51 bpm)</b> both point to strong recovery — but that's likely because yesterday's 7:30am workout block never actually happened. Steps (2,361) and active energy (170 kcal) were minimal despite a packed 14.8-hour day. You're walking into today over-rested and under-trained: an honest upper-body session this evening costs little and resets the streak.</p>
+      <div class="badges"><span class="badge">2-DAY WORKOUT STREAK</span><span class="badge">RECOVERY · STRONG</span></div>
+    </div>
+    <div class="colm">
+      <div class="colhead"><span class="h">Today</span><span class="m">LIVE · CALENDAR</span></div>
+      <ul class="agenda">
+        <li><span class="tm">00:00</span><span>Melvin Tarplah's birthday 🥳</span></li>
+        <li><span class="tm">07:30</span><span>Workout</span></li>
+        <li><span class="tm">09:45</span><span>Walk Tank 🐶</span></li>
+        <li class="now"><span class="tm">15:30</span><span>Work 💰</span></li>
+        <li><span class="tm">22:00</span><span>Mindfulness or journal 🧘</span></li>
+        <li><span class="tm">22:30</span><span>Recharge 💤</span></li>
+      </ul>
+    </div>
+    <div class="colm review">
+      <div class="colhead"><span class="h">Daily review</span><span class="m">CONCEPT</span></div>
+      <p class="q">“Reframes emotions as diagnosable problems with actions attached: sadness signals a missing option you can learn; anxiety signals too many options to rank and prune.”</p>
+      <div class="src">from <em>Operationalizing Emotions</em></div>
+      <button class="btn ghost">Review it</button>
+    </div>
+  </section>
+
+  <section class="vault">
+    <div class="vcard"><div class="k">LUNCH · ROTATION</div><div class="t">Chilli Beef &amp; Rice</div><div class="d">60P · 76C · 14F · 666 kcal — marked eaten at 12:37</div></div>
+    <div class="vcard"><div class="k">TRAIN · TONIGHT</div><div class="t">Upper Body</div><div class="d">6 exercises · last session 82.5 kg bench</div></div>
+    <div class="vcard"><div class="k">VAULT · LATEST</div><div class="t">Resilience &amp; Reframing</div><div class="d">concept · linked to 4 pages</div></div>
+  </section>
+</div>
+</body>
+</html>

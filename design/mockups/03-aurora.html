@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nova OS — Direction 3 · Aurora Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+/* ================================================================
+   DIRECTION 3 — AURORA TERMINAL
+   The cinematic evolution of the current dark look: a flight deck
+   for your life. Volumetric aurora light, glass panels with
+   specular edges, orbital ring gauges, holographic cyan→violet
+   data. Motion language: slow aurora drift, orbital rotation,
+   scanline shimmer on live data.
+   ================================================================ */
+:root{
+  --void:#05070e;
+  --pane:rgba(16,22,38,.55);
+  --pane-edge:rgba(140,180,255,.18);
+  --specular:rgba(190,225,255,.5);
+  --text:#dfe7f5;
+  --text-60:rgba(223,231,245,.6);
+  --text-35:rgba(223,231,245,.35);
+  --holo-a:#59e6ff;   /* cyan */
+  --holo-b:#8f7bff;   /* violet */
+  --holo-c:#ff7bd5;   /* magenta edge */
+  --good:#5fe8a8;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--void);color:var(--text);font-family:'Rajdhani',sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;overflow-x:hidden}
+.mono{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}
+
+/* aurora field */
+.field{position:fixed;inset:-20%;pointer-events:none;z-index:0}
+.field .a{position:absolute;width:60%;height:55%;left:8%;top:-6%;background:radial-gradient(closest-side,rgba(89,230,255,.16),transparent 70%);filter:blur(30px);animation:drift1 26s ease-in-out infinite alternate}
+.field .b{position:absolute;width:55%;height:60%;right:2%;top:16%;background:radial-gradient(closest-side,rgba(143,123,255,.17),transparent 70%);filter:blur(34px);animation:drift2 32s ease-in-out infinite alternate}
+.field .c{position:absolute;width:40%;height:40%;left:38%;bottom:-8%;background:radial-gradient(closest-side,rgba(255,123,213,.10),transparent 70%);filter:blur(38px);animation:drift1 40s ease-in-out infinite alternate-reverse}
+@keyframes drift1{to{transform:translate(6%,4%) scale(1.08)}}
+@keyframes drift2{to{transform:translate(-5%,6%) scale(1.05)}}
+.grid-lines{position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(140,180,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(140,180,255,.045) 1px,transparent 1px);background-size:56px 56px;mask-image:radial-gradient(70% 60% at 50% 40%,#000 30%,transparent 100%)}
+
+.wrap{position:relative;z-index:1;max-width:1320px;margin:0 auto;padding:26px 44px 70px}
+
+/* command bar */
+.cmdbar{display:flex;align-items:center;gap:26px;padding:12px 20px;border:1px solid var(--pane-edge);border-radius:12px;background:var(--pane);backdrop-filter:blur(14px);box-shadow:inset 0 1px 0 var(--specular),0 20px 50px -30px rgba(0,0,0,.9)}
+.brand{font-weight:700;font-size:20px;letter-spacing:.14em}
+.brand span{background:linear-gradient(90deg,var(--holo-a),var(--holo-b));-webkit-background-clip:text;background-clip:text;color:transparent}
+.cmdnav{display:flex;gap:4px;margin-left:8px}
+.cmdnav a{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.14em;color:var(--text-60);text-decoration:none;padding:7px 12px;border-radius:7px;border:1px solid transparent}
+.cmdnav a.on{color:var(--holo-a);border-color:rgba(89,230,255,.35);background:rgba(89,230,255,.07);box-shadow:0 0 18px -6px rgba(89,230,255,.6)}
+.cmdbar .right{margin-left:auto;display:flex;align-items:center;gap:16px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.14em;color:var(--text-60)}
+.livepill{display:flex;align-items:center;gap:7px;color:var(--good);border:1px solid rgba(95,232,168,.35);border-radius:20px;padding:5px 12px}
+.livepill i{width:6px;height:6px;border-radius:50%;background:var(--good);box-shadow:0 0 10px var(--good);animation:pulse 2s infinite}
+@keyframes pulse{50%{opacity:.4}}
+
+/* hero */
+.hero{display:grid;grid-template-columns:1.3fr .9fr;gap:36px;padding:46px 6px 34px;align-items:center}
+.callsign{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.34em;color:var(--holo-a);margin-bottom:16px}
+h1{font-weight:500;font-size:58px;line-height:1.02;letter-spacing:.005em;text-wrap:balance}
+h1 em{font-family:'Instrument Serif',serif;font-style:italic;font-weight:400;background:linear-gradient(90deg,var(--holo-a),var(--holo-c));-webkit-background-clip:text;background-clip:text;color:transparent}
+.brief{margin-top:16px;font-size:16.5px;font-weight:500;line-height:1.6;color:var(--text-60);max-width:54ch}
+.brief b{color:var(--text);font-weight:600}
+.hero-actions{display:flex;gap:12px;margin-top:26px}
+.hbtn{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;padding:12px 22px;border-radius:9px;cursor:pointer;border:1px solid rgba(89,230,255,.5);background:linear-gradient(180deg,rgba(89,230,255,.16),rgba(89,230,255,.05));color:var(--holo-a);box-shadow:0 0 26px -10px rgba(89,230,255,.7)}
+.hbtn.ghost{border-color:var(--pane-edge);background:transparent;color:var(--text-60);box-shadow:none}
+
+/* orbital gauge cluster */
+.cluster{position:relative;display:flex;align-items:center;justify-content:center;min-height:360px}
+.orbit{position:absolute;border:1px dashed rgba(140,180,255,.15);border-radius:50%;animation:spin 60s linear infinite}
+.orbit.o1{width:340px;height:340px}
+.orbit.o2{width:260px;height:260px;animation-duration:45s;animation-direction:reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+.gauge-main{position:relative;width:210px;height:210px}
+.gauge-main svg{transform:rotate(-90deg)}
+.gauge-main .val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.gauge-main .val .n{font-size:44px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1}
+.gauge-main .val .n small{font-size:18px;color:var(--text-35)}
+.gauge-main .val .l{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.3em;color:var(--holo-a)}
+.gauge-main .val .h{font-size:12px;color:var(--text-60)}
+.sat{position:absolute;width:104px;padding:10px 12px;border-radius:11px;border:1px solid var(--pane-edge);background:var(--pane);backdrop-filter:blur(10px);box-shadow:inset 0 1px 0 var(--specular)}
+.sat .l{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.22em;color:var(--text-60)}
+.sat .n{font-size:21px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:2px}
+.sat .n small{font-size:12px;color:var(--text-35)}
+.sat.s1{top:8px;right:12px}
+.sat.s2{bottom:14px;left:4px}
+
+/* panel row */
+.panels{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:18px}
+.panel{border:1px solid var(--pane-edge);border-radius:16px;background:var(--pane);backdrop-filter:blur(16px);box-shadow:inset 0 1px 0 var(--specular),0 24px 60px -34px rgba(0,0,0,.95);padding:22px 24px;position:relative;overflow:hidden}
+.panel::before{content:'';position:absolute;top:0;left:8%;right:8%;height:1px;background:linear-gradient(90deg,transparent,var(--specular),transparent)}
+.phead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px}
+.phead .h{font-size:19px;font-weight:600;letter-spacing:.06em}
+.phead .h em{font-family:'Instrument Serif',serif;font-style:italic;font-weight:400;color:var(--holo-a)}
+.phead .m{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.2em;color:var(--text-35)}
+.panel p{font-size:14.5px;font-weight:500;line-height:1.68;color:var(--text-60)}
+.panel p b{color:var(--text)}
+.scan{position:relative}
+.scan::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,rgba(89,230,255,.05) 50%,transparent 70%);animation:scan 5s linear infinite;pointer-events:none}
+@keyframes scan{from{transform:translateY(-100%)}to{transform:translateY(100%)}}
+.badges{display:flex;gap:8px;margin-top:14px}
+.badge{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.08em;padding:5px 11px;border-radius:16px;border:1px solid rgba(95,232,168,.4);color:var(--good)}
+.badge.alt{border-color:rgba(143,123,255,.45);color:var(--holo-b)}
+.agenda{list-style:none}
+.agenda li{display:flex;gap:13px;padding:8px 0;font-size:14px;font-weight:500;align-items:baseline;border-bottom:1px solid rgba(140,180,255,.08)}
+.agenda li:last-child{border:0}
+.agenda .tm{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-35);width:44px;flex:none}
+.agenda .now{color:var(--holo-a)}
+.agenda .now .tm{color:var(--holo-a)}
+.agenda .now::before{content:'▸ ';color:var(--holo-c)}
+.review .q{font-family:'Instrument Serif',serif;font-size:18px;line-height:1.5;color:var(--text);text-wrap:balance}
+.review .src{margin-top:12px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--text-35)}
+
+/* dock cards */
+.dock{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:18px}
+.dcard{border:1px solid var(--pane-edge);border-radius:14px;background:var(--pane);backdrop-filter:blur(12px);padding:16px 18px;box-shadow:inset 0 1px 0 var(--specular);cursor:pointer;transition:border-color .2s,transform .2s}
+.dcard:hover{border-color:rgba(89,230,255,.45);transform:translateY(-3px)}
+.dcard .k{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.26em;color:var(--holo-a)}
+.dcard .t{font-size:19px;font-weight:600;margin-top:6px}
+.dcard .d{font-size:12px;color:var(--text-60);margin-top:3px}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="field"><div class="a"></div><div class="b"></div><div class="c"></div></div>
+<div class="grid-lines"></div>
+<div class="wrap">
+  <div class="cmdbar">
+    <div class="brand">NOVA<span>·OS</span></div>
+    <nav class="cmdnav"><a class="on" href="#">MISSION</a><a href="#">VOICE</a><a href="#">GALAXY</a><a href="#">CODE</a><a href="#">RECIPES</a><a href="#">TRAIN</a><a href="#">NOTES</a><a href="#">JOURNAL</a></nav>
+    <div class="right"><span>FRI 17 JUL · 13:12:41</span><span>VAULT 47</span><span class="livepill"><i></i>LIVE · SYNCED 13:12</span></div>
+  </div>
+
+  <section class="hero">
+    <div>
+      <div class="callsign">MISSION CONTROL · DAY 213 · ALL TELEMETRY NOMINAL</div>
+      <h1>Good afternoon, Hayden — <em>cleared for deep work at 15:30.</em></h1>
+      <p class="brief">Recovery reads <b>strong</b> — HRV 93.5 ms, resting HR 51 bpm — but yesterday's training block never fired. Tonight's <b>Upper Body</b> resets the streak; <b>54 g protein</b> and <b>7,639 steps</b> remain on the flight plan.</p>
+      <div class="hero-actions"><button class="hbtn">ENGAGE NEXT BLOCK</button><button class="hbtn ghost">FULL FLIGHT PLAN</button></div>
+    </div>
+    <div class="cluster">
+      <div class="orbit o1"></div><div class="orbit o2"></div>
+      <div class="gauge-main">
+        <svg width="210" height="210" viewBox="0 0 210 210">
+          <defs><linearGradient id="holo" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#59e6ff"/><stop offset="1" stop-color="#8f7bff"/>
+          </linearGradient></defs>
+          <circle cx="105" cy="105" r="92" fill="rgba(10,14,26,.55)" stroke="rgba(140,180,255,.14)" stroke-width="1"/>
+          <circle cx="105" cy="105" r="86" fill="none" stroke="rgba(140,180,255,.12)" stroke-width="6"/>
+          <circle cx="105" cy="105" r="86" fill="none" stroke="url(#holo)" stroke-width="6" stroke-linecap="round" stroke-dasharray="346 540"/>
+        </svg>
+        <div class="val"><span class="l">PROTEIN</span><span class="n">96<small>/150g</small></span><span class="h">chilli beef closes it</span></div>
+      </div>
+      <div class="sat s1"><div class="l">SLEEP</div><div class="n">7h12<small>m</small></div></div>
+      <div class="sat s2"><div class="l">STEPS</div><div class="n">2,361</div></div>
+    </div>
+  </section>
+
+  <section class="panels">
+    <div class="panel scan">
+      <div class="phead"><span class="h"><em>Nova</em> NOTICED</span><span class="m">WHILE YOU SLEPT</span></div>
+      <p>Your <b>HRV (93.5 ms)</b> and resting heart rate <b>(51 bpm)</b> both point to strong recovery — but that's likely because yesterday's 7:30am workout block never actually happened. Steps (2,361) and active energy (170 kcal) were minimal despite a packed 14.8-hour day. You're over-rested and under-trained — <b>tonight's session is the correction burn.</b></p>
+      <div class="badges"><span class="badge">2-DAY WORKOUT STREAK</span><span class="badge alt">RECOVERY · STRONG</span></div>
+    </div>
+    <div class="panel">
+      <div class="phead"><span class="h">TODAY</span><span class="m">LIVE · CALENDAR</span></div>
+      <ul class="agenda">
+        <li><span class="tm">00:00</span><span>Melvin's birthday 🥳</span></li>
+        <li><span class="tm">07:30</span><span>Workout</span></li>
+        <li><span class="tm">09:45</span><span>Walk Tank 🐶</span></li>
+        <li class="now"><span class="tm">15:30</span><span>Work 💰</span></li>
+        <li><span class="tm">22:00</span><span>Mindfulness 🧘</span></li>
+        <li><span class="tm">22:30</span><span>Recharge 💤</span></li>
+      </ul>
+    </div>
+    <div class="panel review">
+      <div class="phead"><span class="h">DAILY REVIEW</span><span class="m">CONCEPT</span></div>
+      <p class="q">“Sadness signals a missing option you can learn; anxiety signals too many options to rank and prune.”</p>
+      <div class="src">FROM · OPERATIONALIZING EMOTIONS</div>
+    </div>
+  </section>
+
+  <section class="dock">
+    <div class="dcard"><div class="k">LUNCH · CONSUMED 12:37</div><div class="t">Chilli Beef &amp; Rice</div><div class="d">60P · 76C · 14F · 666 kcal</div></div>
+    <div class="dcard"><div class="k">TRAIN · T-MINUS 4H</div><div class="t">Upper Body</div><div class="d">6 exercises · bench holding 82.5 kg</div></div>
+    <div class="dcard"><div class="k">VAULT · LATEST ENTRY</div><div class="t">Resilience &amp; Reframing</div><div class="d">concept · 4 constellation links</div></div>
+  </section>
+</div>
+</body>
+</html>
