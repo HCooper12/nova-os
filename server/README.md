@@ -1,13 +1,21 @@
 # Nova OS server
 
-A small local backend that gives Nova OS real data instead of the built-in demo data:
+A local backend that gives Nova OS real data instead of the built-in demo data:
 
-- **Obsidian** — reads your vault's `Wiki/` folder directly off disk (no Obsidian plugin needed).
-- **Apple Calendar** — reads today's events from iCloud via CalDAV.
+- **Obsidian** — reads your vault's `Wiki/` folder directly off disk (no Obsidian plugin
+  needed), and writes back: recipes, the daily rotation, workouts and sessions, the
+  shopping list, journal entries, and approved transcript ingests all land as real
+  markdown in the vault. Every write path snapshots the previous version to a sibling
+  `.nova-backups/` folder first (the newest 20 per file are kept).
+- **Apple Calendar** — reads today's events from iCloud via CalDAV (read-only).
+- **Apple Health** — accepts a daily metrics POST from an iOS Shortcut (section 6) and
+  generates twice-daily AI insights from it.
+- **AI features** — recipe/food photo scanning, recipe tweaks, note summaries, journal
+  prompts, shopping-list categorization, and a Claude Code chat, all via the local
+  `claude` CLI (no API key; each call is budget-capped).
 
-It's read-only for now: Nova OS displays your real notes and events, but buttons like
-"Accept" or "Ask Coach" still just simulate. Write-back (the app actually editing your
-vault or calendar) is a deliberate phase 2, not built yet.
+The server binds to localhost only by default (set `HOST` in `.env` to change that) —
+remote devices reach it through the `tailscale serve` HTTPS proxy from section 4.
 
 ## 1. First-time setup
 

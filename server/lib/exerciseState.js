@@ -1,8 +1,5 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
-import path from 'node:path';
 import matter from 'gray-matter';
-import { backupFile } from './backup.js';
+import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
 
 const STATE_REL_PATH = 'Wiki/Health/Exercise State.md';
 
@@ -22,38 +19,28 @@ function bodyFor(state) {
   return lines.join('\n');
 }
 
-// Same iCloud Drive read-staleness workaround used elsewhere (see rotation.js).
-let cachedState = null;
+// Cache + iCloud staleness handling + external-edit detection live in the
+// shared helper — see vaultStateFile.js.
+const stateFile = createVaultStateFile({
+  relPath: STATE_REL_PATH,
+  parse(raw) {
+    const state = matter(raw).data.state;
+    return state && typeof state === 'object' ? state : {};
+  },
+  empty: () => ({}),
+});
 
-async function readFromDisk(vaultPath) {
-  const full = path.join(vaultPath, STATE_REL_PATH);
-  if (!existsSync(full)) return {};
-  const raw = await readFile(full, 'utf8');
-  const state = matter(raw).data.state;
-  return state && typeof state === 'object' ? state : {};
-}
-
-async function getState(vaultPath) {
-  if (cachedState === null) cachedState = await readFromDisk(vaultPath);
-  return cachedState;
+function getState(vaultPath) {
+  return stateFile.load(vaultPath);
 }
 
 async function persist(vaultPath, state) {
-  const full = path.join(vaultPath, STATE_REL_PATH);
   const frontmatter = { type: 'exercise-state', updated: new Date().toISOString().slice(0, 10), state };
   const content = matter.stringify(bodyFor(state), frontmatter);
-  await mkdir(path.dirname(full), { recursive: true });
-  if (existsSync(full)) await backupFile(full);
-  await writeFile(full, content, 'utf8');
-  cachedState = state;
+  await stateFile.write(vaultPath, content, state);
 }
 
-let writeLock = Promise.resolve();
-function withWriteLock(fn) {
-  const run = writeLock.catch(() => {}).then(fn);
-  writeLock = run.catch(() => {});
-  return run;
-}
+const withWriteLock = createWriteLock();
 
 export async function loadExerciseState(vaultPath) {
   return getState(vaultPath);

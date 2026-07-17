@@ -1,8 +1,5 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
-import path from 'node:path';
 import matter from 'gray-matter';
-import { backupFile } from './backup.js';
+import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
 
 const LIBRARY_REL_PATH = 'Wiki/Health/Exercise Library.md';
 
@@ -115,42 +112,33 @@ function seedExercises() {
   });
 }
 
-async function readFromDisk(vaultPath) {
-  const full = path.join(vaultPath, LIBRARY_REL_PATH);
-  if (!existsSync(full)) return null;
-  const raw = await readFile(full, 'utf8');
-  const exercises = matter(raw).data.exercises;
-  if (!Array.isArray(exercises)) return null;
-  // Older entries predate the trackingType field — default them rather than
-  // requiring a migration.
-  return exercises.map((e) => ({ ...e, trackingType: e.trackingType || DEFAULT_TRACKING_TYPE }));
-}
+// Cache + iCloud staleness handling + external-edit detection live in the
+// shared helper — see vaultStateFile.js. parse/empty return null for a
+// missing or invalid library so getExercises can seed it.
+const stateFile = createVaultStateFile({
+  relPath: LIBRARY_REL_PATH,
+  parse(raw) {
+    const exercises = matter(raw).data.exercises;
+    if (!Array.isArray(exercises)) return null;
+    // Older entries predate the trackingType field — default them rather than
+    // requiring a migration.
+    return exercises.map((e) => ({ ...e, trackingType: e.trackingType || DEFAULT_TRACKING_TYPE }));
+  },
+  empty: () => null,
+});
 
 async function persist(vaultPath, exercises) {
-  const full = path.join(vaultPath, LIBRARY_REL_PATH);
   const frontmatter = { type: 'exercise-library', updated: new Date().toISOString().slice(0, 10), exercises };
   const content = matter.stringify(bodyFor(exercises), frontmatter);
-  await mkdir(path.dirname(full), { recursive: true });
-  if (existsSync(full)) await backupFile(full);
-  await writeFile(full, content, 'utf8');
-  cachedExercises = exercises;
+  await stateFile.write(vaultPath, content, exercises);
 }
 
-// Same iCloud Drive read-staleness workaround used elsewhere (see rotation.js)
-// — keep last-known state in memory once loaded rather than re-reading from
-// disk on every request from this long-running process.
-let cachedExercises = null;
-
 async function getExercises(vaultPath) {
-  if (cachedExercises !== null) return cachedExercises;
-  const fromDisk = await readFromDisk(vaultPath);
-  if (fromDisk) {
-    cachedExercises = fromDisk;
-  } else {
-    cachedExercises = seedExercises();
-    await persist(vaultPath, cachedExercises);
-  }
-  return cachedExercises;
+  const fromDisk = await stateFile.load(vaultPath);
+  if (fromDisk) return fromDisk;
+  const seeded = seedExercises();
+  await persist(vaultPath, seeded);
+  return seeded;
 }
 
 export async function loadExerciseLibrary(vaultPath) {

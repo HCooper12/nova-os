@@ -10,7 +10,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // than once, or a field may arrive from a separate automation later in the
 // day) rather than the backup/write-lock machinery used for vault files —
 // lower stakes, easy to regenerate, no human-authored content to protect.
-const HEALTH_DIR = path.join(__dirname, '..', 'data', 'health');
+// NOVA_DATA_DIR override exists for tests, which must never touch the real
+// data directory.
+const DATA_ROOT = process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
+const HEALTH_DIR = path.join(DATA_ROOT, 'health');
 
 // The fixed set of metrics Nova understands for v1 — recovery/readiness
 // signals that pair with what Nova already tracks (workouts, macros, sleep

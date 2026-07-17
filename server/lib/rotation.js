@@ -1,8 +1,5 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
-import path from 'node:path';
 import matter from 'gray-matter';
-import { backupFile } from './backup.js';
+import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
 
 const ROTATION_REL_PATH = 'Wiki/Health/Daily Rotation.md';
 const SLOTS = ['breakfast', 'lunch', 'dinner', 'snack', 'extra'];
@@ -54,26 +51,19 @@ function resolve(state, recipesById) {
   return { slots: resolved, totals, consumedTotals };
 }
 
-async function readStateFromDisk(vaultPath) {
-  const full = path.join(vaultPath, ROTATION_REL_PATH);
-  if (!existsSync(full)) return { slots: {}, consumed: {}, consumedDate: null };
-  const raw = await readFile(full, 'utf8');
-  const data = matter(raw).data;
-  return { slots: data.slots || {}, consumed: data.consumed || {}, consumedDate: data.consumedDate || null };
-}
+// Cache + iCloud staleness handling + external-edit detection live in the
+// shared helper — see vaultStateFile.js for the full story.
+const stateFile = createVaultStateFile({
+  relPath: ROTATION_REL_PATH,
+  parse(raw) {
+    const data = matter(raw).data;
+    return { slots: data.slots || {}, consumed: data.consumed || {}, consumedDate: data.consumedDate || null };
+  },
+  empty: () => ({ slots: {}, consumed: {}, consumedDate: null }),
+});
 
-// The vault lives on iCloud Drive, and re-reading this file from a
-// long-running Node process shortly after writing it has been observed to
-// intermittently return a stale (pre-write) version — likely an iCloud
-// FileProvider/fs-caching quirk, not present when a fresh process reads the
-// same path. Since Nova is the only normal writer, keep the last-known state
-// in memory and treat it as authoritative after the first read, updating it
-// directly from what we just wrote rather than re-reading from disk.
-let cachedState = null;
-
-async function getState(vaultPath) {
-  if (cachedState === null) cachedState = await readStateFromDisk(vaultPath);
-  return cachedState;
+function getState(vaultPath) {
+  return stateFile.load(vaultPath);
 }
 
 export async function loadRotation(vaultPath, recipes) {
@@ -82,27 +72,14 @@ export async function loadRotation(vaultPath, recipes) {
   return resolve(state, recipesById);
 }
 
-// Read-modify-write on a single shared file — concurrent slot toggles (e.g.
-// clicking two different meal buttons in quick succession) would otherwise
-// race and silently drop one of the updates. Serialize writes through a
-// simple promise-chain lock so each call sees the previous one's result.
-let writeLock = Promise.resolve();
-
-function withWriteLock(fn) {
-  const run = writeLock.catch(() => {}).then(fn);
-  writeLock = run.catch(() => {});
-  return run;
-}
+const withWriteLock = createWriteLock();
 
 async function persist(vaultPath, recipesById, slots, consumed, consumedDate) {
-  const full = path.join(vaultPath, ROTATION_REL_PATH);
+  const state = { slots, consumed, consumedDate };
   const frontmatter = { type: 'rotation', updated: today(), slots, consumed, consumedDate };
   const content = matter.stringify(bodyFor(slots, recipesById), frontmatter);
-  await mkdir(path.dirname(full), { recursive: true });
-  if (existsSync(full)) await backupFile(full);
-  await writeFile(full, content, 'utf8');
-  cachedState = { slots, consumed, consumedDate };
-  return resolve(cachedState, recipesById);
+  await stateFile.write(vaultPath, content, state);
+  return resolve(state, recipesById);
 }
 
 export async function setRotationSlot(vaultPath, recipes, slot, recipeId) {

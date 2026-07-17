@@ -1,11 +1,9 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import matter from 'gray-matter';
-import { backupFile } from './backup.js';
+import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
 
 const LIST_REL_PATH = 'Wiki/Health/Shopping List.md';
 const CATEGORIES = ['Produce', 'Meat & Protein', 'Dairy & Eggs', 'Pantry & Seasonings', 'Frozen', 'Bakery', 'Beverages', 'Household & Other'];
@@ -26,38 +24,24 @@ function bodyFor(items) {
   return lines.join('\n');
 }
 
-// Same iCloud Drive read-staleness workaround used for the daily rotation —
-// keep the last-known state in memory once loaded rather than re-reading
-// this file from disk on every request from this long-running process.
-let cachedItems = null;
+// Cache + iCloud staleness handling + external-edit detection live in the
+// shared helper — see vaultStateFile.js.
+const stateFile = createVaultStateFile({
+  relPath: LIST_REL_PATH,
+  parse: (raw) => matter(raw).data.items || [],
+  empty: () => [],
+});
 
-async function readItemsFromDisk(vaultPath) {
-  const full = path.join(vaultPath, LIST_REL_PATH);
-  if (!existsSync(full)) return [];
-  const raw = await readFile(full, 'utf8');
-  return matter(raw).data.items || [];
+function getItems(vaultPath) {
+  return stateFile.load(vaultPath);
 }
 
-async function getItems(vaultPath) {
-  if (cachedItems === null) cachedItems = await readItemsFromDisk(vaultPath);
-  return cachedItems;
-}
-
-let writeLock = Promise.resolve();
-function withWriteLock(fn) {
-  const run = writeLock.catch(() => {}).then(fn);
-  writeLock = run.catch(() => {});
-  return run;
-}
+const withWriteLock = createWriteLock();
 
 async function persist(vaultPath, items) {
-  const full = path.join(vaultPath, LIST_REL_PATH);
   const frontmatter = { type: 'shopping-list', updated: new Date().toISOString().slice(0, 10), items };
   const content = matter.stringify(bodyFor(items), frontmatter);
-  await mkdir(path.dirname(full), { recursive: true });
-  if (existsSync(full)) await backupFile(full);
-  await writeFile(full, content, 'utf8');
-  cachedItems = items;
+  await stateFile.write(vaultPath, content, items);
 }
 
 export async function loadShoppingList(vaultPath) {

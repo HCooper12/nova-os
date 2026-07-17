@@ -1,16 +1,12 @@
-import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, readdir, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import matter from 'gray-matter';
-import { backupFile } from './backup.js';
+import { createWriteLock } from './vaultStateFile.js';
 import { updateExerciseState } from './exerciseState.js';
 
 const SESSIONS_DIR_REL = 'Wiki/Health/Workouts';
-
-function slugify(name) {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-}
 
 function bodyFor(session) {
   const totalSets = session.exercises.reduce((n, e) => n + e.sets.length, 0);
@@ -30,10 +26,24 @@ function bodyFor(session) {
 // Sessions are one file per completed workout (matching this vault's dated
 // journal-entry convention) rather than one shared file — the full history
 // is meant to accumulate indefinitely and be individually browsable in
-// Obsidian. Cached in memory once listed, same iCloud staleness workaround
-// as the other vault-backed lib modules (see rotation.js) — appended to
-// directly on write rather than re-scanned from disk.
+// Obsidian. Cached in memory once listed (same iCloud staleness workaround
+// as the single-file vault modules — see vaultStateFile.js), but the
+// directory's mtime is checked so a session file added or removed outside
+// Nova (e.g. in Obsidian) triggers a rescan instead of staying invisible
+// until restart. Nova itself never rewrites session files, only appends new
+// ones, so a stale listing can't cause an overwrite.
+const GRACE_MS = Number(process.env.NOVA_VAULT_GRACE_MS ?? 10_000);
 let cachedSessions = null;
+let knownDirMtimeMs = null;
+let lastWriteAt = 0;
+
+async function dirMtime(vaultPath) {
+  try {
+    return (await stat(path.join(vaultPath, SESSIONS_DIR_REL))).mtimeMs;
+  } catch {
+    return null;
+  }
+}
 
 async function readAllFromDisk(vaultPath) {
   const dir = path.join(vaultPath, SESSIONS_DIR_REL);
@@ -49,7 +59,18 @@ async function readAllFromDisk(vaultPath) {
 }
 
 async function getSessions(vaultPath) {
-  if (cachedSessions === null) cachedSessions = await readAllFromDisk(vaultPath);
+  if (cachedSessions === null) {
+    knownDirMtimeMs = await dirMtime(vaultPath);
+    cachedSessions = await readAllFromDisk(vaultPath);
+    return cachedSessions;
+  }
+  if (Date.now() - lastWriteAt >= GRACE_MS) {
+    const mtime = await dirMtime(vaultPath);
+    if (mtime !== knownDirMtimeMs) {
+      cachedSessions = await readAllFromDisk(vaultPath);
+      knownDirMtimeMs = mtime;
+    }
+  }
   return cachedSessions;
 }
 
@@ -72,12 +93,7 @@ export async function completedCountByRoutine(vaultPath) {
   return counts;
 }
 
-let writeLock = Promise.resolve();
-function withWriteLock(fn) {
-  const run = writeLock.catch(() => {}).then(fn);
-  writeLock = run.catch(() => {});
-  return run;
-}
+const withWriteLock = createWriteLock();
 
 function validateSessionInput(body) {
   if (!body || typeof body.routineId !== 'string' || typeof body.routineName !== 'string' || !body.routineName.trim()) {
@@ -131,6 +147,8 @@ export async function completeSession(vaultPath, input) {
     await writeFile(full, content, 'utf8');
 
     cachedSessions = [...current, { ...session, file: fileName }];
+    lastWriteAt = Date.now();
+    knownDirMtimeMs = await dirMtime(vaultPath);
 
     await updateExerciseState(vaultPath, exercises.map((e) => ({ exerciseId: e.exerciseId, name: e.name, date, sets: e.sets })));
 

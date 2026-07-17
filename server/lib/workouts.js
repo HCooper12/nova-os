@@ -1,9 +1,6 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
-import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import matter from 'gray-matter';
-import { backupFile } from './backup.js';
+import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
 
 const ROUTINES_REL_PATH = 'Wiki/Health/Workout Routines.md';
 export const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
@@ -44,38 +41,28 @@ function bodyFor(routines, schedule, exercisesById) {
   return lines.join('\n');
 }
 
-// Same iCloud Drive read-staleness workaround used elsewhere (see rotation.js).
-let cachedData = null; // { routines, schedule }
+// Cache + iCloud staleness handling + external-edit detection live in the
+// shared helper — see vaultStateFile.js.
+const stateFile = createVaultStateFile({
+  relPath: ROUTINES_REL_PATH,
+  parse(raw) {
+    const data = matter(raw).data;
+    return { routines: Array.isArray(data.routines) ? data.routines : [], schedule: data.schedule || {} };
+  },
+  empty: () => ({ routines: [], schedule: {} }),
+});
 
-async function readFromDisk(vaultPath) {
-  const full = path.join(vaultPath, ROUTINES_REL_PATH);
-  if (!existsSync(full)) return { routines: [], schedule: {} };
-  const raw = await readFile(full, 'utf8');
-  const data = matter(raw).data;
-  return { routines: Array.isArray(data.routines) ? data.routines : [], schedule: data.schedule || {} };
-}
-
-async function getData(vaultPath) {
-  if (cachedData === null) cachedData = await readFromDisk(vaultPath);
-  return cachedData;
+function getData(vaultPath) {
+  return stateFile.load(vaultPath);
 }
 
 async function persist(vaultPath, data, exercisesById) {
-  const full = path.join(vaultPath, ROUTINES_REL_PATH);
   const frontmatter = { type: 'workout-routines', updated: new Date().toISOString().slice(0, 10), routines: data.routines, schedule: data.schedule };
   const content = matter.stringify(bodyFor(data.routines, data.schedule, exercisesById), frontmatter);
-  await mkdir(path.dirname(full), { recursive: true });
-  if (existsSync(full)) await backupFile(full);
-  await writeFile(full, content, 'utf8');
-  cachedData = data;
+  await stateFile.write(vaultPath, content, data);
 }
 
-let writeLock = Promise.resolve();
-function withWriteLock(fn) {
-  const run = writeLock.catch(() => {}).then(fn);
-  writeLock = run.catch(() => {});
-  return run;
-}
+const withWriteLock = createWriteLock();
 
 export async function loadRoutines(vaultPath, exercises) {
   const exercisesById = new Map(exercises.map((e) => [e.id, e]));

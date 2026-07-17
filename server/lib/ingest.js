@@ -1,9 +1,10 @@
 import { spawn } from 'node:child_process';
 import { mkdir, cp, writeFile, rm } from 'node:fs/promises';
-import { readdirSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
+import { backupFile } from './backup.js';
 
 const SKIP = new Set(['.obsidian', '.claude', '.DS_Store']);
 const MAX_BUDGET_USD = '3';
@@ -156,6 +157,9 @@ export async function approveJob(jobId) {
   for (const change of job.changes) {
     const dest = path.join(job.vaultPath, change.path);
     await mkdir(path.dirname(dest), { recursive: true });
+    // Same snapshot-before-overwrite policy as every other vault write path —
+    // an "updated" change replaces a real page wholesale.
+    await backupFile(dest);
     await writeFile(dest, change.content, 'utf8');
   }
   job.status = 'applied';

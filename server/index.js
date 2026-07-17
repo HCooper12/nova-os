@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 import { appendFile, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -50,10 +50,15 @@ async function main() {
 
   app.get('/api/health', (req, res) => res.json({ ok: true }));
 
+  // Compare digests rather than the raw strings: timingSafeEqual needs
+  // equal-length inputs, and hashing first removes any timing signal from
+  // length or content.
+  const tokenDigest = createHash('sha256').update(token).digest();
   app.use('/api', (req, res, next) => {
     const auth = req.headers.authorization || '';
-    const provided = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-    if (provided !== token) return res.status(401).json({ error: 'unauthorized' });
+    const provided = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+    const providedDigest = createHash('sha256').update(provided).digest();
+    if (!timingSafeEqual(providedDigest, tokenDigest)) return res.status(401).json({ error: 'unauthorized' });
     next();
   });
 
@@ -75,8 +80,13 @@ async function main() {
     res.status(500).json({ error: 'internal error' });
   });
 
+  // Localhost-only by default: tailscale serve proxies from localhost, so the
+  // https tailnet URL keeps working, and nothing on the LAN can reach the API
+  // directly. Set HOST=0.0.0.0 in .env if something must hit the port raw
+  // (e.g. an iOS Shortcut pointed at an IP address instead of the ts.net URL).
   const port = Number(process.env.PORT || 4173);
-  app.listen(port, () => console.log(`Nova OS server listening on :${port}`));
+  const host = process.env.HOST || '127.0.0.1';
+  app.listen(port, host, () => console.log(`Nova OS server listening on ${host}:${port}`));
 }
 
 main();
