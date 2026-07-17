@@ -52,12 +52,6 @@ export const basePlan = [
   { name: 'Triceps rope pushdown', scheme: '3 × 12 · 32 kg', pr: false },
 ];
 
-export const codeReplies = [
-  "Read your vault config. I can wire the macro tracker to write daily totals into Obsidian/Health/macros.md — a small script watching your food log and appending a dataview row. Want me to scaffold it?",
-  "Done. I created scripts/macro-sync.js and added a launchd job at 21:00 daily. Dry-run output looks correct — 96 g protein logged for today. Session note saved to Obsidian/Claude/2026-07-07.md.",
-  "I checked the recipe importer — 42 files parsed clean, 0 conflicts. Two recipes were missing kcal frontmatter; I computed them from macros (4/4/9) and committed the fix.",
-];
-
 export const reviews = [
   { c: 'Leucine threshold — ~3 g per meal is the lever', f: 'Huberman — protein timing', id: 'n1' },
   { c: 'Identity votes: systems beat goals', f: 'Atomic Habits — key ideas', id: 'n2' },

@@ -9,16 +9,14 @@ export function Galaxy({ v }) {
           <span style={css("width:50px;height:1px;background:linear-gradient(90deg,rgba(216,181,115,.7),rgba(216,181,115,.1))")}></span>
           <span style={css("font:500 10px 'JetBrains Mono',monospace;letter-spacing:.32em;color:rgba(236,229,218,.55)")}>SELF · MEMORY GALAXY</span>
         </div>
-        <span style={css("font:500 10px 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(236,229,218,.5);border:1px solid rgba(236,229,218,.12);border-radius:8px;padding:7px 12px")}>385 STARS · 1,227 LINKS</span>
+        <span style={css("font:500 10px 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(236,229,218,.5);border:1px solid rgba(236,229,218,.12);border-radius:8px;padding:7px 12px")}>{v.galaxyStatsLabel}</span>
       </div>
       <div style={css("display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:16px")}>
         <h1 style={css("margin:0;font:400 38px/1.1 'Instrument Serif',serif")}>Everything you know, <span style={css("font-style:italic;color:#d8b573")}>connected.</span></h1>
         <div style={css("display:flex;flex-wrap:wrap;gap:8px 14px;font:400 10px 'JetBrains Mono',monospace;color:rgba(236,229,218,.55)")}>
-          <span style={css("display:flex;align-items:center;gap:6px")}><span style={css("width:7px;height:7px;border-radius:50%;background:#ece5da")}></span>notes</span>
-          <span style={css("display:flex;align-items:center;gap:6px")}><span style={css("width:7px;height:7px;border-radius:50%;background:#8a6ad1")}></span>podcasts</span>
-          <span style={css("display:flex;align-items:center;gap:6px")}><span style={css("width:7px;height:7px;border-radius:50%;background:#d8b573")}></span>recipes</span>
-          <span style={css("display:flex;align-items:center;gap:6px")}><span style={css("width:7px;height:7px;border-radius:50%;background:#5aa87c")}></span>training</span>
-          <span style={css("display:flex;align-items:center;gap:6px")}><span style={css("width:7px;height:7px;border-radius:50%;background:#6be5f5")}></span>agents</span>
+          {v.galaxyLegend.map((item) => (
+            <span key={item.label} style={css("display:flex;align-items:center;gap:6px")}><span style={{ width: '7px', height: '7px', borderRadius: '50%', background: item.color }}></span>{item.label}</span>
+          ))}
         </div>
       </div>
       <div style={v.galaxyBox}>

@@ -3,7 +3,7 @@ import { Interactive } from './Interactive.jsx';
 
 export function CommandPalette({ v }) {
   return (
-    <div onClick={v.closePalette} style={css("position:fixed;inset:0;background:rgba(8,5,12,.6);backdrop-filter:blur(5px);z-index:80;display:flex;justify-content:center;padding-top:14vh")}>
+    <div role="dialog" aria-modal="true" aria-label="Command palette" onClick={v.closePalette} style={css("position:fixed;inset:0;background:rgba(8,5,12,.6);backdrop-filter:blur(5px);z-index:80;display:flex;justify-content:center;padding-top:14vh")}>
       <div onClick={v.stopClick} style={css("width:560px;max-width:92vw;height:fit-content;border:1px solid rgba(216,181,115,.3);border-radius:14px;background:linear-gradient(180deg,#241b2f,#171021);box-shadow:0 40px 90px -20px rgba(0,0,0,.95),0 0 60px -20px rgba(216,181,115,.25),inset 0 1px 0 rgba(255,255,255,.08);overflow:hidden;animation:fadeUp .25s ease-out")}>
         <div style={css("display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid rgba(236,229,218,.08)")}>
           <span style={css("width:8px;height:8px;border-radius:50%;background:radial-gradient(circle at 40% 35%, #ffe9c4, #d8b573 60%, #6b4f26);box-shadow:0 0 10px rgba(216,181,115,.8)")}></span>

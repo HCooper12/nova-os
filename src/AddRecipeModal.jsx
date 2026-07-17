@@ -18,7 +18,7 @@ const macroField = (label, value, onChange) => (
 
 export function AddRecipeModal({ v }) {
   return (
-    <div onClick={v.closeAddRecipe} style={css("position:fixed;inset:0;background:rgba(8,5,12,.72);backdrop-filter:blur(6px);z-index:60;display:flex;align-items:center;justify-content:center;padding:40px;overflow-y:auto")}>
+    <div role="dialog" aria-modal="true" aria-label="Add a recipe" onClick={v.closeAddRecipe} style={css("position:fixed;inset:0;background:rgba(8,5,12,.72);backdrop-filter:blur(6px);z-index:60;display:flex;align-items:center;justify-content:center;padding:40px;overflow-y:auto")}>
       <div onClick={v.stopClick} style={css("width:640px;max-width:94vw;max-height:88vh;overflow-y:auto;border:1px solid rgba(216,181,115,.28);border-radius:18px;background:linear-gradient(180deg,#221a2c,#16101e);box-shadow:0 40px 90px -30px rgba(0,0,0,.95),inset 0 1px 0 rgba(255,255,255,.07);animation:fadeUp .3s ease-out;padding:26px 28px")}>
         <div style={css("display:flex;justify-content:space-between;align-items:center")}>
           <span style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.24em;color:#d8b573")}>NEW RECIPE</span>

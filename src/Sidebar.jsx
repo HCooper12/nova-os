@@ -41,7 +41,7 @@ export function Sidebar({ v }) {
       </div>
 
       <div style={css("display:flex;flex-direction:column;gap:1px")}>
-        <div style={css("font:500 9px 'JetBrains Mono',monospace;letter-spacing:.26em;color:rgba(236,229,218,.35);margin:0 10px 8px")}>AGENTS</div>
+        <div style={css("font:500 9px 'JetBrains Mono',monospace;letter-spacing:.26em;color:rgba(236,229,218,.35);margin:0 10px 8px")}>AGENTS · CONCEPT</div>
         {v.agents.map((ag) => (
           <div key={ag.name} style={css("display:flex;align-items:center;gap:10px;padding:6px 10px;color:rgba(236,229,218,.75);font-size:13px")}>
             <span>{ag.name}</span>

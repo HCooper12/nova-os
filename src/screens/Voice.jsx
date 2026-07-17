@@ -9,17 +9,18 @@ export function Voice({ v }) {
           <span style={css("font:italic 400 18px 'Instrument Serif',serif;color:#d8b573")}>II.</span>
           <span style={css("width:50px;height:1px;background:linear-gradient(90deg,rgba(216,181,115,.7),rgba(216,181,115,.1))")}></span>
           <span style={css("font:500 10px 'JetBrains Mono',monospace;letter-spacing:.32em;color:rgba(236,229,218,.55)")}>NEURAL LINK · VOICE</span>
+          <span style={css("font:500 9px 'JetBrains Mono',monospace;letter-spacing:.14em;padding:5px 10px;border-radius:7px;border:1px solid rgba(224,143,111,.45);color:#e08f6f;background:rgba(224,143,111,.08)")}>CONCEPT PREVIEW · NOT REAL SPEECH YET</span>
         </div>
         <div style={css("font:400 26px 'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;color:rgba(236,229,218,.85)")}>{v.clock}</div>
       </div>
       <div style={css("flex:1;display:flex;flex-wrap:wrap;gap:28px;align-items:center;justify-content:center;margin-top:10px;overflow-y:auto")}>
         <div style={css("width:230px;flex:none;display:flex;flex-direction:column;gap:15px;font:400 10.5px 'JetBrains Mono',monospace;letter-spacing:.14em")}>
           <div><div style={css("display:flex;justify-content:space-between;color:rgba(236,229,218,.5)")}><span>STATUS</span><span style={css("color:#6be5f5")}>{v.micStatus}</span></div><div style={css("margin-top:6px;height:2px;background:rgba(107,229,245,.14)")}><div style={v.micBar}></div></div></div>
-          <div><div style={css("display:flex;justify-content:space-between;color:rgba(236,229,218,.5)")}><span>VOICE</span><span style={css("color:rgba(236,229,218,.85)")}>DANIEL · EN-GB</span></div><div style={css("margin-top:6px;height:2px;background:rgba(107,229,245,.14)")}><div style={css("width:70%;height:100%;background:#6be5f5")}></div></div></div>
-          <div><div style={css("display:flex;justify-content:space-between;color:rgba(236,229,218,.5)")}><span>LATENCY</span><span style={css("color:rgba(236,229,218,.85)")}>0.42s</span></div><div style={css("margin-top:6px;height:2px;background:rgba(107,229,245,.14)")}><div style={css("width:24%;height:100%;background:#6be5f5")}></div></div></div>
-          <div><div style={css("display:flex;justify-content:space-between;color:rgba(236,229,218,.5)")}><span>VAULT LOG</span><span style={css("color:#d8b573")}>AUTO → OBSIDIAN</span></div><div style={css("margin-top:6px;height:2px;background:rgba(216,181,115,.16)")}><div style={css("width:100%;height:100%;background:#d8b573")}></div></div></div>
+          <div><div style={css("display:flex;justify-content:space-between;color:rgba(236,229,218,.5)")}><span>VOICE</span><span style={css("color:rgba(236,229,218,.85)")}>PLANNED</span></div><div style={css("margin-top:6px;height:2px;background:rgba(107,229,245,.14)")}><div style={css("width:0%;height:100%;background:#6be5f5")}></div></div></div>
+          <div><div style={css("display:flex;justify-content:space-between;color:rgba(236,229,218,.5)")}><span>SPEECH ENGINE</span><span style={css("color:rgba(236,229,218,.85)")}>NOT WIRED</span></div><div style={css("margin-top:6px;height:2px;background:rgba(107,229,245,.14)")}><div style={css("width:0%;height:100%;background:#6be5f5")}></div></div></div>
+          <div><div style={css("display:flex;justify-content:space-between;color:rgba(236,229,218,.5)")}><span>VAULT LOG</span><span style={css("color:#d8b573")}>PLANNED</span></div><div style={css("margin-top:6px;height:2px;background:rgba(216,181,115,.16)")}><div style={css("width:0%;height:100%;background:#d8b573")}></div></div></div>
           <div style={css("margin-top:6px;border:1px solid rgba(236,229,218,.1);border-radius:10px;padding:12px 14px;background:rgba(0,0,0,.2)")}>
-            <div style={css("font-size:9px;color:rgba(236,229,218,.4);letter-spacing:.2em")}>ON THE LINE</div>
+            <div style={css("font-size:9px;color:rgba(236,229,218,.4);letter-spacing:.2em")}>ON THE LINE · CONCEPT</div>
             <div style={css("margin-top:8px;display:flex;flex-direction:column;gap:6px;font-size:10.5px;color:rgba(236,229,218,.85)")}>
               <div style={css("display:flex;justify-content:space-between")}><span>COMMANDER</span><span style={css("color:#6be5f5")}>●</span></div>
               <div style={css("display:flex;justify-content:space-between")}><span>COACH</span><span style={css("color:#6be5f5")}>●</span></div>

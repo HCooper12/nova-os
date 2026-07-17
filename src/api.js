@@ -83,6 +83,7 @@ export const api = {
   startNoteSummary: (conn, id) => post(conn, '/api/notes/summary', { id }),
   noteSummaryJob: (conn, jobId) => call(conn, `/api/notes/summary/${encodeURIComponent(jobId)}`),
   activity: (conn) => call(conn, '/api/activity'),
+  graph: (conn) => call(conn, '/api/graph'),
   recipes: (conn) => call(conn, '/api/recipes'),
   addRecipe: (conn, recipe) => post(conn, '/api/recipes', recipe),
   scanRecipe: (conn, images) => post(conn, '/api/recipes/scan', { images }),

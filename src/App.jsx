@@ -2,6 +2,9 @@ import { Component, createRef, lazy, Suspense } from 'react';
 import { recipes, notes, basePlan, reviews, galaxyNamed, galaxyLinks, weekData } from './data.js';
 import { css } from './css.js';
 import { api, getConnection, setConnection, testConnection } from './api.js';
+import { pollJob } from './jobPoller.js';
+import { orbReply, coachReply, recipeReply } from './mockAssistants.js';
+import { loadLiveCache, saveLiveCache, clearLiveCache } from './liveStore.js';
 import { Sidebar } from './Sidebar.jsx';
 import { MissionControl } from './screens/MissionControl.jsx';
 import { Voice } from './screens/Voice.jsx';
@@ -50,12 +53,33 @@ const THEMES = {
   graphite: { bg0: '#121014', bg1: '#191619', bg2: '#252028' },
 };
 
+// Hash-routed screens (#/recipes etc.) so deep links and the back button work
+// on GitHub Pages without a server-side router.
+const SCREENS = ['mission', 'voice', 'galaxy', 'code', 'recipes', 'shopping', 'workouts', 'notes', 'journal', 'settings'];
+function screenFromHash() {
+  const h = (typeof window !== 'undefined' ? window.location.hash : '').replace(/^#\/?/, '');
+  return SCREENS.includes(h) ? h : 'mission';
+}
+
+// The live* state keys that survive a backend outage: saved to localStorage on
+// every successful sync, hydrated back when the server can't be reached.
+// Note details and photo blob URLs are deliberately excluded (blobs don't
+// serialize; details re-fetch on demand).
+const CACHED_LIVE_KEYS = [
+  'liveNotes', 'liveCalendar', 'liveRecipes', 'liveRecipeProfile', 'liveRotation',
+  'liveFoodLog', 'liveShoppingList', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
+  'liveWorkoutExercises', 'liveWorkoutMuscleGroups', 'liveWorkoutTrackingTypes',
+  'liveWorkoutRoutines', 'liveWorkoutSchedule', 'liveWorkoutWeekdays',
+  'liveJournalEntries', 'liveGraph',
+];
+
 export default class App extends Component {
   constructor(props) {
     super(props);
     this.galaxyRef = createRef();
     this.paletteRef = createRef();
     this.ivs = [];
+    this.pollers = {};
     this.recipes = recipes;
     this.notes = notes;
     this.basePlan = basePlan;
@@ -63,7 +87,12 @@ export default class App extends Component {
   }
 
   state = {
-    screen: 'mission', booted: false, clock: '--:--:--',
+    screen: screenFromHash(), booted: false, clock: '--:--:--',
+    // demo → no backend configured; connecting → configured, first fetch pending;
+    // connected → last sync succeeded; offline → configured but unreachable.
+    connectionStatus: typeof window !== 'undefined' && getConnection() ? 'connecting' : 'demo',
+    lastSyncAt: null,
+    liveGraph: null,
     paletteOpen: false, paletteQuery: '',
     micOn: true, orbInput: '',
     orbChat: [
@@ -143,12 +172,29 @@ export default class App extends Component {
     let dataReady = Promise.resolve();
     const bootConn = getConnection();
     if (bootConn) {
-      this.setState({ settingsBaseUrl: bootConn.baseUrl, settingsToken: bootConn.token });
+      // Hydrate last-known-good data immediately so an unreachable backend
+      // shows real (stale) content behind the offline banner, never demo data.
+      const cached = loadLiveCache();
+      const hydrate = { settingsBaseUrl: bootConn.baseUrl, settingsToken: bootConn.token };
+      if (cached) {
+        for (const key of CACHED_LIVE_KEYS) if (cached.slices[key] !== undefined) hydrate[key] = cached.slices[key];
+        hydrate.lastSyncAt = cached.savedAt;
+      }
+      this.setState(hydrate);
       const fetchDone = this.refreshLiveData();
       const fetchTimeout = new Promise((resolve) => setTimeout(resolve, 5000));
       dataReady = Promise.race([fetchDone, fetchTimeout]);
     }
     Promise.all([minBootTime, dataReady]).then(() => this.setState({ booted: true }));
+    // Keep live data fresh: re-sync when the tab regains focus (the common
+    // "reopen the PWA on the phone" path) and on a slow background cadence.
+    this.visH = () => { if (document.visibilityState === 'visible' && getConnection()) this.refreshLiveData(); };
+    document.addEventListener('visibilitychange', this.visH);
+    this.refreshIv = setInterval(() => { if (getConnection()) this.refreshLiveData(); }, 5 * 60_000);
+    // Back/forward navigation re-derives the screen from the hash.
+    this.popH = () => this.setState({ screen: screenFromHash() });
+    window.addEventListener('popstate', this.popH);
+    window.addEventListener('hashchange', this.popH);
     this.clockIv = setInterval(() => {
       const d = new Date();
       const pad = (n) => String(n).padStart(2, '0');
@@ -156,7 +202,7 @@ export default class App extends Component {
     }, 1000);
     this.keyH = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); this.setState(s => ({ paletteOpen: !s.paletteOpen, paletteQuery: '' })); }
-      else if (e.key === 'Escape') { clearInterval(this.tweakPollIv); this.setState({ paletteOpen: false, openRecipeId: null, galaxySel: null }); }
+      else if (e.key === 'Escape') { this.stopPoll('recipeTweak'); this.setState({ paletteOpen: false, openRecipeId: null, galaxySel: null }); }
     };
     window.addEventListener('keydown', this.keyH);
     this.resizeH = () => {
@@ -172,11 +218,34 @@ export default class App extends Component {
     this.applyTheme();
   }
   componentWillUnmount() {
-    clearTimeout(this.bootT); clearInterval(this.clockIv); clearInterval(this.gaugeIv); clearInterval(this.ingestPollIv); clearInterval(this.scanPollIv); clearInterval(this.tweakPollIv); clearInterval(this.shoppingAddPollIv); clearInterval(this.codeJobPollIv); clearInterval(this.foodScanPollIv);
+    clearTimeout(this.bootT); clearInterval(this.clockIv); clearInterval(this.gaugeIv); clearInterval(this.refreshIv);
+    Object.values(this.pollers || {}).forEach((p) => p.cancel());
     window.removeEventListener('keydown', this.keyH);
     window.removeEventListener('resize', this.resizeH);
+    window.removeEventListener('popstate', this.popH);
+    window.removeEventListener('hashchange', this.popH);
+    document.removeEventListener('visibilitychange', this.visH);
     this.ivs.forEach(clearInterval);
     if (this.gRaf) cancelAnimationFrame(this.gRaf);
+  }
+  // ---------- navigation (hash-routed) ----------
+  navigate(screen, extra = {}) {
+    this.setState({ screen, ...extra });
+    const want = '#/' + screen;
+    // pushState (not location.hash=) so this doesn't also fire hashchange and
+    // double-set state; popstate covers the back button.
+    if (window.location.hash !== want) window.history.pushState(null, '', want);
+  }
+  // ---------- job polling (shared) ----------
+  startPoll(name, fetchJob, handlers) {
+    this.stopPoll(name);
+    this.pollers[name] = pollJob(fetchJob, handlers);
+  }
+  stopPoll(name) {
+    if (this.pollers?.[name]) {
+      this.pollers[name].cancel();
+      delete this.pollers[name];
+    }
   }
   componentDidUpdate(prevProps, prevState) {
     this.applyTheme();
@@ -198,75 +267,67 @@ export default class App extends Component {
     this.setState({ gaugeIdx: i });
     this.startGaugeRotation(); // manual pick gets a fresh 6s before auto-advancing again
   }
+  // One sync pass over every live slice. Failures never null a slice — the
+  // last-known value (in-memory or hydrated from the cache) stays visible and
+  // the connection banner reports the outage; falling back to demo data would
+  // silently show fiction. Runs all fetches in parallel.
   async refreshLiveData() {
     const conn = getConnection();
     if (!conn) return;
-    try {
-      const notesRes = await api.notes(conn);
-      this.setState({ liveNotes: notesRes.notes });
-      if (notesRes.notes[0]) this.selectNote(notesRes.notes[0].id);
-      this.refreshDailyReviewDetail(notesRes.notes);
-    } catch {
-      this.setState({ liveNotes: null });
-    }
-    this.refreshJournalEntries();
-    try {
-      const insight = await api.healthInsight(conn);
-      this.setState({ liveHealthInsight: insight });
-    } catch {
-      this.setState({ liveHealthInsight: null });
-    }
-    try {
-      const healthRes = await api.healthData(conn, 7);
-      this.setState({ liveHealthDays: healthRes.days.length ? healthRes.days : null });
-    } catch {
-      this.setState({ liveHealthDays: null });
-    }
-    try {
-      const streaks = await api.streaks(conn);
-      this.setState({ liveStreaks: streaks });
-    } catch {
-      this.setState({ liveStreaks: null });
-    }
-    try {
-      const calRes = await api.calendarToday(conn);
-      this.setState({ liveCalendar: calRes.events });
-    } catch {
-      this.setState({ liveCalendar: null });
-    }
-    try {
-      const recipesRes = await api.recipes(conn);
-      this.setState({ liveRecipes: recipesRes.recipes.length ? recipesRes.recipes : null, liveRecipeProfile: recipesRes.profile || null });
-      this.refreshRecipePhotos(recipesRes.recipes);
-    } catch {
-      this.setState({ liveRecipes: null, liveRecipeProfile: null });
-    }
-    try {
-      const rotationRes = await api.rotation(conn);
-      this.setState({ liveRotation: rotationRes });
-    } catch {
-      this.setState({ liveRotation: null });
-    }
-    try {
-      const foodLogRes = await api.foodLog(conn);
-      this.setState({ liveFoodLog: foodLogRes });
-    } catch {
-      this.setState({ liveFoodLog: null });
-    }
-    try {
-      const shoppingRes = await api.shoppingList(conn);
-      this.setState({ liveShoppingList: shoppingRes });
-    } catch {
-      this.setState({ liveShoppingList: null });
-    }
-    try {
-      const exercisesRes = await api.workoutExercises(conn);
-      this.setState({ liveWorkoutExercises: exercisesRes.exercises, liveWorkoutMuscleGroups: exercisesRes.muscleGroups, liveWorkoutTrackingTypes: exercisesRes.trackingTypes });
-      const routinesRes = await api.workoutRoutines(conn);
-      this.setState({ liveWorkoutRoutines: routinesRes.routines, liveWorkoutSchedule: routinesRes.schedule, liveWorkoutWeekdays: routinesRes.weekdays });
-    } catch {
-      this.setState({ liveWorkoutExercises: null, liveWorkoutRoutines: null });
-    }
+    if (this.refreshInFlight) return this.refreshInFlight;
+    const tasks = [
+      async () => {
+        const notesRes = await api.notes(conn);
+        this.setState({ liveNotes: notesRes.notes });
+        if (notesRes.notes[0] && !this.state.liveNoteDetails[this.state.openNoteId]) this.selectNote(notesRes.notes[0].id);
+        this.refreshDailyReviewDetail(notesRes.notes);
+      },
+      async () => {
+        const { entries } = await api.journalEntries(conn, 30);
+        this.setState({ liveJournalEntries: entries });
+      },
+      async () => this.setState({ liveHealthInsight: await api.healthInsight(conn) }),
+      async () => {
+        const healthRes = await api.healthData(conn, 7);
+        this.setState({ liveHealthDays: healthRes.days.length ? healthRes.days : null });
+      },
+      async () => this.setState({ liveStreaks: await api.streaks(conn) }),
+      async () => this.setState({ liveCalendar: (await api.calendarToday(conn)).events }),
+      async () => {
+        const recipesRes = await api.recipes(conn);
+        this.setState({ liveRecipes: recipesRes.recipes.length ? recipesRes.recipes : null, liveRecipeProfile: recipesRes.profile || null });
+        this.refreshRecipePhotos(recipesRes.recipes);
+      },
+      async () => this.setState({ liveRotation: await api.rotation(conn) }),
+      async () => this.setState({ liveFoodLog: await api.foodLog(conn) }),
+      async () => this.setState({ liveShoppingList: await api.shoppingList(conn) }),
+      async () => {
+        const exercisesRes = await api.workoutExercises(conn);
+        this.setState({ liveWorkoutExercises: exercisesRes.exercises, liveWorkoutMuscleGroups: exercisesRes.muscleGroups, liveWorkoutTrackingTypes: exercisesRes.trackingTypes });
+        const routinesRes = await api.workoutRoutines(conn);
+        this.setState({ liveWorkoutRoutines: routinesRes.routines, liveWorkoutSchedule: routinesRes.schedule, liveWorkoutWeekdays: routinesRes.weekdays });
+      },
+      async () => {
+        const graph = await api.graph(conn);
+        this.setState({ liveGraph: graph });
+        this.gNodes = null; // rebuilt from the fresh graph next time the galaxy renders
+      },
+    ];
+    this.refreshInFlight = (async () => {
+      const results = await Promise.allSettled(tasks.map((t) => t()));
+      const okCount = results.filter((r) => r.status === 'fulfilled').length;
+      if (okCount > 0) {
+        const now = new Date().toISOString();
+        this.setState({ connectionStatus: 'connected', lastSyncAt: now }, () => {
+          const slices = {};
+          for (const key of CACHED_LIVE_KEYS) slices[key] = this.state[key];
+          saveLiveCache(slices);
+        });
+      } else {
+        this.setState({ connectionStatus: 'offline' });
+      }
+    })().finally(() => { this.refreshInFlight = null; });
+    return this.refreshInFlight;
   }
   refreshWorkoutRoutines() {
     const conn = getConnection();
@@ -317,43 +378,29 @@ export default class App extends Component {
     if (!conn) return;
     const files = Array.from(fileList || []).slice(0, 3);
     if (!files.length) return;
-    const readAsDataUrl = (file) => new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ''));
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
     this.setState({ foodScanBusy: true, foodScanError: null, foodScanQuestion: null });
-    Promise.all(files.map(readAsDataUrl))
+    Promise.all(files.map((f) => this.readFileAsDataUrl(f)))
       .then((images) => api.startFoodScan(conn, mode, images, this.state.foodScanNote.trim()))
       .then(({ jobId }) => {
-        this.foodScanPollIv = setInterval(() => this.pollFoodScanJob(jobId), 2000);
+        this.startPoll('foodScan', () => api.foodScanJob(conn, jobId), {
+          onReady: (job) => {
+            const r = job.result;
+            this.setState({
+              foodScanBusy: false, foodScanError: null,
+              foodScanQuestion: r.confidence === 'low' && r.question ? r.question : null,
+              foodScanNote: '',
+              foodLogName: r.name || '',
+              foodLogP: r.macros?.p != null ? String(r.macros.p) : '',
+              foodLogC: r.macros?.c != null ? String(r.macros.c) : '',
+              foodLogF: r.macros?.f != null ? String(r.macros.f) : '',
+              foodLogKcal: r.macros?.kcal != null ? String(r.macros.kcal) : '',
+            });
+            this.toastMsg(r.confidence === 'low' ? 'Photo analyzed — rough estimate, check the fields below' : 'Photo analyzed — check the fields below before saving');
+          },
+          onError: (msg) => this.setState({ foodScanBusy: false, foodScanError: msg }),
+        });
       })
       .catch((e) => this.setState({ foodScanBusy: false, foodScanError: e.message }));
-  }
-  pollFoodScanJob(jobId) {
-    const conn = getConnection();
-    if (!conn) return;
-    api.foodScanJob(conn, jobId).then((job) => {
-      if (job.status === 'ready') {
-        clearInterval(this.foodScanPollIv);
-        const r = job.result;
-        this.setState({
-          foodScanBusy: false, foodScanError: null,
-          foodScanQuestion: r.confidence === 'low' && r.question ? r.question : null,
-          foodScanNote: '',
-          foodLogName: r.name || '',
-          foodLogP: r.macros?.p != null ? String(r.macros.p) : '',
-          foodLogC: r.macros?.c != null ? String(r.macros.c) : '',
-          foodLogF: r.macros?.f != null ? String(r.macros.f) : '',
-          foodLogKcal: r.macros?.kcal != null ? String(r.macros.kcal) : '',
-        });
-        this.toastMsg(r.confidence === 'low' ? 'Photo analyzed — rough estimate, check the fields below' : 'Photo analyzed — check the fields below before saving');
-      } else if (job.status === 'error') {
-        clearInterval(this.foodScanPollIv);
-        this.setState({ foodScanBusy: false, foodScanError: job.error });
-      }
-    }).catch(() => {});
   }
   openBarcodeScanner() {
     if (!getConnection()) { this.toastMsg('Connect a backend in Settings first'); return; }
@@ -441,7 +488,7 @@ export default class App extends Component {
       });
   }
   closeAddRecipe() {
-    clearInterval(this.scanPollIv);
+    this.stopPoll('recipeScan');
     this.setState({ recipeAddOpen: false });
   }
   setRecipeAddKj(e) {
@@ -483,47 +530,33 @@ export default class App extends Component {
     if (!conn) return;
     const files = Array.from(fileList || []).slice(0, 4);
     if (!files.length) return;
-    const readAsDataUrl = (file) => new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ''));
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
     this.setState({ recipeScanBusy: true, recipeScanError: null });
-    Promise.all(files.map(readAsDataUrl))
+    Promise.all(files.map((f) => this.readFileAsDataUrl(f)))
       .then((images) => api.scanRecipe(conn, images))
       .then(({ jobId }) => {
-        this.scanPollIv = setInterval(() => this.pollRecipeScanJob(jobId), 2000);
+        this.startPoll('recipeScan', () => api.scanRecipeJob(conn, jobId), {
+          onReady: (job) => {
+            const r = job.result;
+            this.setState({
+              recipeScanBusy: false, recipeScanError: null,
+              recipeAddName: r.name || '', recipeAddCategory: r.category || 'CORE DAILY MEALS',
+              recipeAddMakes: r.makes || '',
+              recipeAddP: r.macros?.p != null ? String(r.macros.p) : '',
+              recipeAddC: r.macros?.c != null ? String(r.macros.c) : '',
+              recipeAddF: r.macros?.f != null ? String(r.macros.f) : '',
+              recipeAddKcal: r.macros?.kcal != null ? String(r.macros.kcal) : '',
+              recipeAddKj: '',
+              recipeAddIngredients: (r.ingredients || []).join('\n'),
+              recipeAddMethod: (r.method || []).join('\n'),
+            });
+            this.toastMsg('Photo analyzed — check the fields below before saving');
+          },
+          onError: (msg) => this.setState({ recipeScanBusy: false, recipeScanError: msg }),
+        });
       })
       .catch((e) => {
         this.setState({ recipeScanBusy: false, recipeScanError: e.message });
       });
-  }
-  pollRecipeScanJob(jobId) {
-    const conn = getConnection();
-    if (!conn) return;
-    api.scanRecipeJob(conn, jobId).then((job) => {
-      if (job.status === 'ready') {
-        clearInterval(this.scanPollIv);
-        const r = job.result;
-        this.setState({
-          recipeScanBusy: false, recipeScanError: null,
-          recipeAddName: r.name || '', recipeAddCategory: r.category || 'CORE DAILY MEALS',
-          recipeAddMakes: r.makes || '',
-          recipeAddP: r.macros?.p != null ? String(r.macros.p) : '',
-          recipeAddC: r.macros?.c != null ? String(r.macros.c) : '',
-          recipeAddF: r.macros?.f != null ? String(r.macros.f) : '',
-          recipeAddKcal: r.macros?.kcal != null ? String(r.macros.kcal) : '',
-          recipeAddKj: '',
-          recipeAddIngredients: (r.ingredients || []).join('\n'),
-          recipeAddMethod: (r.method || []).join('\n'),
-        });
-        this.toastMsg('Photo analyzed — check the fields below before saving');
-      } else if (job.status === 'error') {
-        clearInterval(this.scanPollIv);
-        this.setState({ recipeScanBusy: false, recipeScanError: job.error });
-      }
-    }).catch(() => {});
   }
   openRecipe(id, servings = 1) {
     this.setState({
@@ -533,7 +566,7 @@ export default class App extends Component {
     });
   }
   closeRecipe() {
-    clearInterval(this.tweakPollIv);
+    this.stopPoll('recipeTweak');
     this.setState({ openRecipeId: null });
   }
   selectAlternate(altId) {
@@ -547,24 +580,15 @@ export default class App extends Component {
     this.setState({ recipeTweakBusy: true, recipeTweakError: null, recipeTweakPreview: null });
     api.tweakRecipe(conn, st.openRecipeId, request)
       .then(({ jobId }) => {
-        this.tweakPollIv = setInterval(() => this.pollRecipeTweakJob(jobId), 2500);
+        this.startPoll('recipeTweak', () => api.tweakRecipeJob(conn, jobId), {
+          intervalMs: 2500,
+          onReady: (job) => this.setState({ recipeTweakBusy: false, recipeTweakPreview: job.result, recipeTweakInput: '' }),
+          onError: (msg) => this.setState({ recipeTweakBusy: false, recipeTweakError: msg }),
+        });
       })
       .catch((e) => {
         this.setState({ recipeTweakBusy: false, recipeTweakError: e.message });
       });
-  }
-  pollRecipeTweakJob(jobId) {
-    const conn = getConnection();
-    if (!conn) return;
-    api.tweakRecipeJob(conn, jobId).then((job) => {
-      if (job.status === 'ready') {
-        clearInterval(this.tweakPollIv);
-        this.setState({ recipeTweakBusy: false, recipeTweakPreview: job.result, recipeTweakInput: '' });
-      } else if (job.status === 'error') {
-        clearInterval(this.tweakPollIv);
-        this.setState({ recipeTweakBusy: false, recipeTweakError: job.error });
-      }
-    }).catch(() => {});
   }
   saveRecipeTweak() {
     const conn = getConnection();
@@ -590,25 +614,21 @@ export default class App extends Component {
     if (!conn || !items.length) return;
     this.toastMsg(`Adding ${items.length} item${items.length > 1 ? 's' : ''} to shopping list…`);
     api.addShoppingItems(conn, items.map((name) => ({ name, source })))
-      .then(({ jobId }) => {
-        this.shoppingAddPollIv = setInterval(() => this.pollShoppingAddJob(jobId), 2500);
-      })
+      .then(({ jobId }) => this.pollShoppingAdd(conn, jobId))
       .catch((e) => this.toastMsg('Could not add to shopping list: ' + e.message));
   }
-  pollShoppingAddJob(jobId) {
-    const conn = getConnection();
-    if (!conn) return;
-    api.addShoppingItemsJob(conn, jobId).then((job) => {
-      if (job.status === 'ready') {
-        clearInterval(this.shoppingAddPollIv);
+  pollShoppingAdd(conn, jobId) {
+    this.startPoll('shoppingAdd', () => api.addShoppingItemsJob(conn, jobId), {
+      intervalMs: 2500,
+      onReady: (job) => {
         this.setState((s) => ({ liveShoppingList: { ...s.liveShoppingList, items: job.items }, shoppingAddBusy: false, shoppingAddInput: '' }));
         this.toastMsg('Added to shopping list ✓');
-      } else if (job.status === 'error') {
-        clearInterval(this.shoppingAddPollIv);
-        this.setState({ shoppingAddBusy: false, shoppingAddError: job.error });
-        this.toastMsg('Could not add to shopping list: ' + job.error);
-      }
-    }).catch(() => {});
+      },
+      onError: (msg) => {
+        this.setState({ shoppingAddBusy: false, shoppingAddError: msg });
+        this.toastMsg('Could not add to shopping list: ' + msg);
+      },
+    });
   }
   setShoppingAddInput(e) {
     this.setState({ shoppingAddInput: e.target.value });
@@ -619,9 +639,7 @@ export default class App extends Component {
     if (!conn || !items.length) return;
     this.setState({ shoppingAddBusy: true, shoppingAddError: null });
     api.addShoppingItems(conn, items.map((name) => ({ name, source: null })))
-      .then(({ jobId }) => {
-        this.shoppingAddPollIv = setInterval(() => this.pollShoppingAddJob(jobId), 2500);
-      })
+      .then(({ jobId }) => this.pollShoppingAdd(conn, jobId))
       .catch((e) => {
         this.setState({ shoppingAddBusy: false, shoppingAddError: e.message });
       });
@@ -880,15 +898,12 @@ export default class App extends Component {
   pollReviewSummary(pageId, jobId) {
     const conn = getConnection();
     if (!conn) return;
-    api.noteSummaryJob(conn, jobId).then((job) => {
-      if (job.status === 'ready') {
-        this.setState((s) => ({ liveReviewSummaries: { ...s.liveReviewSummaries, [pageId]: job.result.summary } }));
-      } else if (job.status === 'error') {
-        this.setState((s) => ({ liveReviewSummaries: { ...s.liveReviewSummaries, [pageId]: '' } })); // '' = failed, fall back to title
-      } else {
-        setTimeout(() => this.pollReviewSummary(pageId, jobId), 1200);
-      }
-    }).catch(() => this.setState((s) => ({ liveReviewSummaries: { ...s.liveReviewSummaries, [pageId]: '' } })));
+    this.startPoll(`summary:${pageId}`, () => api.noteSummaryJob(conn, jobId), {
+      intervalMs: 1200,
+      onReady: (job) => this.setState((s) => ({ liveReviewSummaries: { ...s.liveReviewSummaries, [pageId]: job.result.summary } })),
+      // '' = failed, the UI falls back to the page title
+      onError: () => this.setState((s) => ({ liveReviewSummaries: { ...s.liveReviewSummaries, [pageId]: '' } })),
+    });
   }
   // Deterministic "concept of the day" — hashes today's date into the pool of
   // concept/topic pages so it's stable across reloads within a day but
@@ -925,7 +940,7 @@ export default class App extends Component {
     const idx = this.state.reviewShuffleIdx != null ? this.state.reviewShuffleIdx : this.dailyReviewIndex(pool);
     const page = pool[idx];
     if (page) this.selectNote(page.id);
-    this.setState({ screen: 'notes' });
+    this.navigate('notes');
   }
   toggleReviewReflect() {
     this.setState((s) => ({ reviewReflectOpen: !s.reviewReflectOpen, reviewReflectText: '', reviewReflectError: null, reviewReflectPromptText: null }));
@@ -942,25 +957,17 @@ export default class App extends Component {
     const detail = this.state.liveNoteDetails[page.id];
     this.setState({ reviewReflectPromptBusy: true });
     api.startJournalPrompt(conn, page.title, detail?.paragraphs?.[0] || '').then(({ jobId }) => {
-      this.reviewPromptPollIv = setInterval(() => this.pollReviewReflectPrompt(jobId), 2000);
+      this.startPoll('reviewPrompt', () => api.journalPromptJob(conn, jobId), {
+        onReady: (job) => this.setState({ reviewReflectPromptBusy: false, reviewReflectPromptText: job.result.prompt }),
+        onError: (msg) => {
+          this.setState({ reviewReflectPromptBusy: false });
+          this.toastMsg('Could not generate a prompt: ' + msg);
+        },
+      });
     }).catch((e) => {
       this.setState({ reviewReflectPromptBusy: false });
       this.toastMsg('Could not generate a prompt: ' + e.message);
     });
-  }
-  pollReviewReflectPrompt(jobId) {
-    const conn = getConnection();
-    if (!conn) return;
-    api.journalPromptJob(conn, jobId).then((job) => {
-      if (job.status === 'ready') {
-        clearInterval(this.reviewPromptPollIv);
-        this.setState({ reviewReflectPromptBusy: false, reviewReflectPromptText: job.result.prompt });
-      } else if (job.status === 'error') {
-        clearInterval(this.reviewPromptPollIv);
-        this.setState({ reviewReflectPromptBusy: false });
-        this.toastMsg('Could not generate a prompt: ' + job.error);
-      }
-    }).catch(() => {});
   }
   saveReviewReflection() {
     const conn = getConnection();
@@ -992,25 +999,17 @@ export default class App extends Component {
     if (!conn) return;
     this.setState({ journalPromptBusy: true });
     api.startJournalPrompt(conn, null, null).then(({ jobId }) => {
-      this.journalPromptPollIv = setInterval(() => this.pollJournalPrompt(jobId), 2000);
+      this.startPoll('journalPrompt', () => api.journalPromptJob(conn, jobId), {
+        onReady: (job) => this.setState({ journalPromptBusy: false, journalPromptText: job.result.prompt }),
+        onError: (msg) => {
+          this.setState({ journalPromptBusy: false });
+          this.toastMsg('Could not generate a prompt: ' + msg);
+        },
+      });
     }).catch((e) => {
       this.setState({ journalPromptBusy: false });
       this.toastMsg('Could not generate a prompt: ' + e.message);
     });
-  }
-  pollJournalPrompt(jobId) {
-    const conn = getConnection();
-    if (!conn) return;
-    api.journalPromptJob(conn, jobId).then((job) => {
-      if (job.status === 'ready') {
-        clearInterval(this.journalPromptPollIv);
-        this.setState({ journalPromptBusy: false, journalPromptText: job.result.prompt });
-      } else if (job.status === 'error') {
-        clearInterval(this.journalPromptPollIv);
-        this.setState({ journalPromptBusy: false });
-        this.toastMsg('Could not generate a prompt: ' + job.error);
-      }
-    }).catch(() => {});
   }
   submitJournalEntry() {
     const conn = getConnection();
@@ -1041,12 +1040,24 @@ export default class App extends Component {
     const { settingsBaseUrl, settingsToken } = this.state;
     if (!settingsBaseUrl || !settingsToken) { this.toastMsg('Enter a backend URL and token first'); return; }
     setConnection({ baseUrl: settingsBaseUrl, token: settingsToken });
+    this.setState({ connectionStatus: 'connecting' });
     this.toastMsg('Saved — loading your real vault…');
     this.refreshLiveData();
   }
   disconnectSettings() {
     setConnection(null);
-    this.setState({ settingsBaseUrl: '', settingsToken: '', settingsTestStatus: 'idle', settingsTestMessage: '', liveNotes: null, liveNoteDetails: {}, liveCalendar: null, liveRecipes: null, liveRotation: null, liveRecipeProfile: null, rotationShowExtra: false, recipeAddOpen: false, liveShoppingList: null, openNoteId: 'n1', liveWorkoutExercises: null, liveWorkoutRoutines: null, liveWorkoutSchedule: null, workoutsView: 'routines', openRoutineId: null, workoutSession: null, liveWorkoutHistory: null, liveHealthDays: null });
+    clearLiveCache();
+    const cleared = {};
+    for (const key of CACHED_LIVE_KEYS) cleared[key] = null;
+    this.setState({
+      ...cleared,
+      connectionStatus: 'demo', lastSyncAt: null,
+      settingsBaseUrl: '', settingsToken: '', settingsTestStatus: 'idle', settingsTestMessage: '',
+      liveNoteDetails: {}, liveReviewSummaries: {}, liveRecipePhotoUrls: {},
+      rotationShowExtra: false, recipeAddOpen: false, openNoteId: 'n1',
+      workoutsView: 'routines', openRoutineId: null, workoutSession: null, liveWorkoutHistory: null,
+    });
+    this.gNodes = null; // rebuild the galaxy from mock data
     this.toastMsg('Disconnected — back to demo data');
   }
 
@@ -1073,30 +1084,20 @@ export default class App extends Component {
     this.setState({ ingestModalOpen: false, ingestJobId: null, ingestStatus: 'staging', ingestPreview: null, ingestError: null });
     api.startIngest(conn, text, sourceUrl || undefined).then(({ jobId }) => {
       this.setState({ ingestJobId: jobId });
-      this.ingestPollIv = setInterval(() => this.pollIngestJob(), 3000);
+      this.startPoll('ingest', () => api.ingestJob(conn, jobId), {
+        intervalMs: 3000,
+        timeoutMs: 15 * 60_000, // long transcripts can legitimately take a while
+        onReady: (job) => this.setState({ ingestStatus: 'ready', ingestPreview: { summary: job.summary, cost: job.cost, changes: job.changes } }),
+        onError: (msg) => this.setState({ ingestStatus: 'error', ingestError: msg }),
+        onProgress: (job) => this.setState({ ingestStatus: job.status }),
+      });
     }).catch((e) => {
       this.setState({ ingestStatus: 'error', ingestError: e.message });
     });
   }
-  pollIngestJob() {
-    const conn = getConnection();
-    const jobId = this.state.ingestJobId;
-    if (!conn || !jobId) return;
-    api.ingestJob(conn, jobId).then((job) => {
-      if (job.status === 'ready') {
-        clearInterval(this.ingestPollIv);
-        this.setState({ ingestStatus: 'ready', ingestPreview: { summary: job.summary, cost: job.cost, changes: job.changes } });
-      } else if (job.status === 'error') {
-        clearInterval(this.ingestPollIv);
-        this.setState({ ingestStatus: 'error', ingestError: job.error });
-      } else {
-        this.setState({ ingestStatus: job.status });
-      }
-    }).catch(() => {});
-  }
   closeIngestReview() {
     if (this.state.ingestStatus === 'ready') { this.discardIngest(); return; }
-    clearInterval(this.ingestPollIv);
+    this.stopPoll('ingest');
     this.setState({ ingestStatus: 'idle', ingestJobId: null, ingestPreview: null, ingestError: null });
   }
   approveIngest() {
@@ -1124,13 +1125,33 @@ export default class App extends Component {
   // ---------- galaxy ----------
   buildGalaxy(w, h) {
     const rnd = (a, b) => a + Math.random() * (b - a);
-    const types = { note: '#ece5da', podcast: '#8a6ad1', recipe: '#d8b573', training: '#5aa87c', agent: '#6be5f5', idea: '#e08f6f' };
-    this.gNodes = galaxyNamed.map((n, i) => {
-      const ang = (i / galaxyNamed.length) * Math.PI * 2 + rnd(-.4, .4);
-      const rad = rnd(.16, .4) * Math.min(w, h);
-      return { label: n[0], type: n[1], desc: n[2], target: n[3], color: types[n[1]], bx: w / 2 + Math.cos(ang) * rad * (w / h), by: h / 2 + Math.sin(ang) * rad, ph: rnd(0, 6.28), sp: rnd(.3, .8), r: rnd(4, 6.5) };
-    });
-    this.gLinks = galaxyLinks;
+    const graph = this.state.liveGraph;
+    if (graph && graph.nodes.length) {
+      // Real vault graph: every page a star, wikilinks as constellation lines.
+      // Capped so a huge vault stays renderable on a phone canvas.
+      const MAX_NODES = 400;
+      const nodes = graph.nodes.slice(0, MAX_NODES);
+      this.gNodes = nodes.map((n, i) => {
+        const ang = (i / nodes.length) * Math.PI * 2 + rnd(-.4, .4);
+        const rad = rnd(.16, .44) * Math.min(w, h);
+        const type = (n.type || 'note').toLowerCase();
+        return {
+          label: n.title, type, desc: `${type} · ${(n.date || '').slice(0, 10)}`, target: 'note:' + n.id,
+          color: NOTE_TYPE_COLOR[type] || '#ece5da',
+          bx: w / 2 + Math.cos(ang) * rad * (w / h), by: h / 2 + Math.sin(ang) * rad,
+          ph: rnd(0, 6.28), sp: rnd(.3, .8), r: nodes.length > 120 ? rnd(2.5, 4) : rnd(4, 6.5),
+        };
+      });
+      this.gLinks = graph.links.filter(([a, b]) => a < nodes.length && b < nodes.length);
+    } else {
+      const types = { note: '#ece5da', podcast: '#8a6ad1', recipe: '#d8b573', training: '#5aa87c', agent: '#6be5f5', idea: '#e08f6f' };
+      this.gNodes = galaxyNamed.map((n, i) => {
+        const ang = (i / galaxyNamed.length) * Math.PI * 2 + rnd(-.4, .4);
+        const rad = rnd(.16, .4) * Math.min(w, h);
+        return { label: n[0], type: n[1], desc: n[2], target: n[3], color: types[n[1]], bx: w / 2 + Math.cos(ang) * rad * (w / h), by: h / 2 + Math.sin(ang) * rad, ph: rnd(0, 6.28), sp: rnd(.3, .8), r: rnd(4, 6.5) };
+      });
+      this.gLinks = galaxyLinks;
+    }
     this.gDust = Array.from({ length: 130 }, () => ({ x: rnd(0, w), y: rnd(0, h), r: rnd(.4, 1.4), ph: rnd(0, 6.28), sp: rnd(.5, 1.5) }));
   }
   startGalaxy() {
@@ -1143,6 +1164,9 @@ export default class App extends Component {
     if (!this.gNodes) this.buildGalaxy(w, h);
     this.gPos = [];
     const loop = () => {
+      // A live-data refresh nulls gNodes to force a rebuild — rebuild inside
+      // the frame loop so the swap to fresh graph data is seamless.
+      if (!this.gNodes) this.buildGalaxy(w, h);
       const t = performance.now() / 1000;
       ctx.clearRect(0, 0, w, h);
       this.gDust.forEach(d => { ctx.globalAlpha = .25 + .45 * Math.abs(Math.sin(t * d.sp + d.ph)); ctx.fillStyle = '#ece5da'; ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, 6.29); ctx.fill(); });
@@ -1151,6 +1175,9 @@ export default class App extends Component {
       this.gPos = pos;
       ctx.strokeStyle = 'rgba(236,229,218,.13)'; ctx.lineWidth = 1;
       this.gLinks.forEach(l => { ctx.beginPath(); ctx.moveTo(pos[l[0]].x, pos[l[0]].y); ctx.lineTo(pos[l[1]].x, pos[l[1]].y); ctx.stroke(); });
+      // With a real vault (hundreds of stars) labels everywhere are unreadable
+      // — draw them only on small graphs, plus always on the selected star.
+      const showLabels = this.gNodes.length <= 80;
       this.gNodes.forEach((n, i) => {
         const p = pos[i];
         const sel = this.state.galaxySel && this.state.galaxySel.label === n.label;
@@ -1158,8 +1185,10 @@ export default class App extends Component {
         ctx.fillStyle = n.color; ctx.beginPath(); ctx.arc(p.x, p.y, sel ? n.r + 2 : n.r, 0, 6.29); ctx.fill();
         ctx.shadowBlur = 0;
         ctx.globalAlpha = .18; ctx.beginPath(); ctx.arc(p.x, p.y, n.r + 9, 0, 6.29); ctx.strokeStyle = n.color; ctx.stroke(); ctx.globalAlpha = 1;
-        ctx.font = '10px "JetBrains Mono", monospace'; ctx.fillStyle = sel ? '#ece5da' : 'rgba(236,229,218,.6)';
-        ctx.fillText(n.label, p.x + n.r + 8, p.y + 3);
+        if (showLabels || sel) {
+          ctx.font = '10px "JetBrains Mono", monospace'; ctx.fillStyle = sel ? '#ece5da' : 'rgba(236,229,218,.6)';
+          ctx.fillText(n.label, p.x + n.r + 8, p.y + 3);
+        }
       });
       this.gRaf = requestAnimationFrame(loop);
     };
@@ -1190,34 +1219,19 @@ export default class App extends Component {
     this.ivs.push(iv);
   }
 
-  orbReply(q) {
-    const s = q.toLowerCase();
-    if (/(lunch|eat|food|recipe|meal)/.test(s)) return 'From your vault: the burrito bowl — 52 g protein, 640 kcal, 25 minutes. It closes today’s protein gap. Shall I scale it to two servings?';
-    if (/(gym|train|workout|push|run)/.test(s)) return 'Push day at 17:30 — six lifts, forty-two minutes. Coach flags bench for a PR attempt if bar speed holds. Zone-2 run is rescheduled to tomorrow, 7 am.';
-    if (/(money|spend|budget|sub)/.test(s)) return 'CFO reports $1,284 spent this month — on plan. Two overlapping subscriptions were flagged; cancelling both recovers $23 per month.';
-    if (/(brief|today|plan|morning)/.test(s)) return 'Briefing: deep work 09:00 on the video script — Studio’s cold-open is ready. Lunch 12:30, push day 17:30, reflection 20:00. Protein pace is 84 g short; the bowl covers it.';
-    return 'Understood. I’ve noted that in the vault and routed it to the right agent — Commander will fold it into today’s plan.';
-  }
-  coachReply(q) {
-    const s = q.toLowerCase();
-    if (/(short|less|trim|time|quick)/.test(s)) return { text: 'Done — cutting cable fly, supersetting laterals with triceps. New estimate: 34 minutes, same chest stimulus. Written back to the vault.', mod: 'trim', note: 'Trimmed to 5 lifts · ~34 min · superset added' };
-    if (/(hard|more|heavy|push|extra)/.test(s)) return { text: 'You’ve earned it — bench goes to 5 sets and we’ll chase the 87.5 kg single if velocity holds. Recovery cost is acceptable given last night’s HRV.', mod: 'hard', note: 'Bench 5 × 6 · PR single queued at 87.5 kg' };
-    if (/(swap|replace|shoulder|knee|hurt|pain)/.test(s)) return { text: 'Swapped seated press for landmine press — friendlier angle, same overhead pattern. Flag any pain above 3/10 and I’ll deload the session.', mod: 'swap', note: 'Landmine press substituted · joint-friendly' };
-    return { text: 'Noted. I’ll factor that into tonight’s session and adjust tomorrow’s plan — anything specific you want changed right now? Try “make it shorter” or “go harder”.', mod: null, note: null };
-  }
-  recipeReply(q, r) {
-    const s = q.toLowerCase();
-    if (/(swap|substitut|instead)/.test(s)) return 'Swap ideas for ' + r.name.toLowerCase() + ': chicken thigh → breast saves 6 g fat (−45 kcal); rice → cauliflower rice drops 38 g carbs. Both keep protein at ' + r.p + ' g. Want me to write a variant note to the vault?';
-    if (/(scale|serving|two|double)/.test(s)) return 'Scaled — use the stepper on the left. Macros and every ingredient quantity update together; I’ll add the extra portion to tomorrow’s lunch slot.';
-    if (/(cut|diet|lean|lower)/.test(s)) return 'Cutting version: hold protein at ' + r.p + ' g, drop rice to 50 g and skip cheese — that’s ' + Math.round(r.kcal * 0.75) + ' kcal. I’ve saved it as “' + r.name + ' · cut” in the vault.';
-    return 'This one clears your leucine threshold per serving and fits today’s remaining macros. Ask me to swap ingredients, scale it, or build a cutting version.';
-  }
-
   renderVals() {
     const st = this.state;
     const userName = USER_NAME;
     const wakeWord = WAKE_WORD;
-    const go = (screen) => () => this.setState({ screen, paletteOpen: false });
+    const go = (screen) => () => this.navigate(screen, { paletteOpen: false });
+
+    // connection truth — everything user-visible about live/demo/offline hangs
+    // off these three values
+    const demoMode = st.connectionStatus === 'demo';
+    const isOffline = st.connectionStatus === 'offline';
+    const lastSyncLabel = st.lastSyncAt
+      ? new Date(st.lastSyncAt).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })
+      : null;
     const mono = "'JetBrains Mono',monospace";
     const navStyle = (act) => ({ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px', borderRadius: '9px', fontSize: '13.5px', cursor: 'pointer',
       fontWeight: act ? 500 : 400, color: act ? '#ece5da' : 'rgba(236,229,218,.6)',
@@ -1524,10 +1538,14 @@ export default class App extends Component {
       { icon: 'VI.', iconColor: '#d8b573', label: 'Workouts', hint: 'GO', run: go('workouts') },
       { icon: 'VII.', iconColor: '#d8b573', label: 'Notes', hint: 'GO', run: go('notes') },
       { icon: 'VIII.', iconColor: '#d8b573', label: 'Settings', hint: 'GO', run: go('settings') },
-      ...(usingLiveRecipes ? [] : [{ icon: '✦', iconColor: '#6be5f5', label: 'Scale burrito bowl to 2 servings', hint: 'NOVA', run: () => { this.setState({ screen: 'recipes', openRecipeId: 'r1', servings: 2, recipeChat: [], paletteOpen: false }); this.toastMsg('Nova scaled the burrito bowl ×2 — macros updated'); } }]),
-      { icon: '✦', iconColor: '#6be5f5', label: 'Ask Coach to ease today’s session', hint: 'COACH', run: () => { this.setState({ screen: 'workouts', paletteOpen: false }); setTimeout(() => this.doCoach('Make it a bit shorter today'), 300); } },
-      { icon: '✦', iconColor: '#6be5f5', label: 'Run vault backup — Guardian', hint: 'GUARDIAN', run: () => { this.setState({ paletteOpen: false }); this.toastMsg('Guardian: snapshot complete — 186 notes · 0 conflicts ✓'); } },
-      { icon: '✦', iconColor: '#6be5f5', label: 'Start a voice session', hint: 'VOICE', run: () => { this.setState({ screen: 'voice', micOn: true, paletteOpen: false }); } },
+      // the scripted "Nova actions" only exist in demo mode — in live mode the
+      // palette offers nothing it can't really do
+      ...(demoMode ? [
+        { icon: '✦', iconColor: '#6be5f5', label: 'Scale burrito bowl to 2 servings', hint: 'NOVA', run: () => { this.navigate('recipes', { openRecipeId: 'r1', servings: 2, recipeChat: [], paletteOpen: false }); this.toastMsg('Nova scaled the burrito bowl ×2 — macros updated'); } },
+        { icon: '✦', iconColor: '#6be5f5', label: 'Ask Coach to ease today’s session', hint: 'COACH', run: () => { this.navigate('workouts', { paletteOpen: false }); setTimeout(() => this.doCoach('Make it a bit shorter today'), 300); } },
+        { icon: '✦', iconColor: '#6be5f5', label: 'Run vault backup — Guardian', hint: 'GUARDIAN', run: () => { this.setState({ paletteOpen: false }); this.toastMsg('Guardian: snapshot complete — 186 notes · 0 conflicts ✓'); } },
+      ] : []),
+      { icon: '✦', iconColor: '#6be5f5', label: 'Start a voice session', hint: 'VOICE', run: () => { this.navigate('voice', { micOn: true, paletteOpen: false }); } },
     ];
     const pq = st.paletteQuery.toLowerCase();
     const paletteResults = cmds.filter(c => !pq || c.label.toLowerCase().includes(pq));
@@ -1569,7 +1587,115 @@ export default class App extends Component {
       .filter((c) => c.items.length > 0);
     const shoppingCheckedCount = shoppingItems.filter((i) => i.checked).length;
 
+    // suggested focus — derived from real data when connected (next calendar
+    // event, else today's training, else the daily-review concept); the
+    // scripted demo card survives only in demo mode
+    const pad2 = (n) => String(n).padStart(2, '0');
+    const nowHM = `${pad2(new Date().getHours())}:${pad2(new Date().getMinutes())}`;
+    let suggestedFocus;
+    if (demoMode) {
+      suggestedFocus = {
+        source: 'from Commander',
+        title: 'Finish the science video script — ',
+        accent: 'Studio drafted the outline.',
+        primaryLabel: 'Open draft',
+        onPrimary: () => this.navigate('notes', { openNoteId: 'n3' }),
+        secondaryLabel: 'Later today',
+        onSecondary: () => this.toastMsg('Commander moved the script block to 14:00'),
+      };
+    } else {
+      const nextEvent = (st.liveCalendar || []).find((e) => e.time && e.time >= nowHM);
+      if (nextEvent) {
+        suggestedFocus = {
+          source: 'from your calendar',
+          title: `${nextEvent.time} — `, accent: nextEvent.label,
+          primaryLabel: 'See today', onPrimary: null, // stays on Mission Control; Today card is beside it
+        };
+      } else if (todayRoutine) {
+        suggestedFocus = {
+          source: 'from your training plan',
+          title: 'Training today — ', accent: todayRoutine.name,
+          primaryLabel: 'Start in Train', onPrimary: go('workouts'),
+        };
+      } else if (reviewPage) {
+        suggestedFocus = {
+          source: 'from your vault',
+          title: 'Clear schedule — review a concept: ', accent: reviewPage.title,
+          primaryLabel: 'Open review', onPrimary: () => this.openDailyReview(),
+        };
+      } else {
+        suggestedFocus = {
+          source: 'from Nova',
+          title: 'All clear. ', accent: 'Nothing queued right now.',
+          primaryLabel: 'Open Notes', onPrimary: go('notes'),
+        };
+      }
+    }
+
+    // latest-note vault card — real newest page when connected
+    const latestNote = (st.liveNotes || [])[0] || null;
+    const noteCard = demoMode
+      ? {
+          photoLabel: 'note — protein timing', title: 'Huberman · protein timing', meta: 'podcast note · linked to 4 recipes',
+          onOpen: () => this.navigate('notes', { openNoteId: 'n1' }),
+        }
+      : latestNote
+        ? {
+            photoLabel: 'note — ' + latestNote.title.toLowerCase(), title: latestNote.title,
+            meta: `${(latestNote.type || 'note').toLowerCase()} · latest in your vault`,
+            onOpen: () => { this.selectNote(latestNote.id); this.navigate('notes'); },
+          }
+        : { photoLabel: 'note — none yet', title: 'No notes yet', meta: 'your vault is empty', onOpen: go('notes') };
+
+    // honest status chips replacing "3 AGENTS LIVE · VAULT SYNCED 2M · BACKUP 02:00"
+    const statusChip = demoMode
+      ? { label: 'DEMO DATA', color: '#d8b573' }
+      : isOffline
+        ? { label: 'OFFLINE', color: '#c96f6f' }
+        : st.connectionStatus === 'connecting'
+          ? { label: 'CONNECTING…', color: 'rgba(236,229,218,.6)' }
+          : { label: 'LIVE', color: '#6be5f5' };
+    const missionStatusItems = demoMode
+      ? ['DEMO DATA — CONNECT A BACKEND IN SETTINGS']
+      : [
+          st.liveNotes ? `VAULT · ${st.liveNotes.length} NOTES` : null,
+          lastSyncLabel ? `SYNCED ${lastSyncLabel.toUpperCase()}` : null,
+          isOffline ? 'SHOWING LAST-KNOWN DATA' : null,
+        ].filter(Boolean);
+
+    const statusBanner = isOffline
+      ? { tone: 'warn', text: `Backend unreachable — showing data saved ${lastSyncLabel || 'earlier'}` }
+      : demoMode && st.screen !== 'settings'
+        ? { tone: 'info', text: 'Demo data — connect your backend in Settings' }
+        : null;
+
+    // galaxy — real vault graph when available
+    const liveGraphOn = !!(st.liveGraph && st.liveGraph.nodes.length);
+    const galaxyStatsLabel = liveGraphOn
+      ? `${st.liveGraph.nodes.length} STARS · ${st.liveGraph.links.length} LINKS`
+      : '385 STARS · 1,227 LINKS · DEMO';
+    const galaxyLegend = liveGraphOn
+      ? Object.entries(NOTE_TYPE_COLOR).filter(([t]) => t !== 'raw').map(([t, color]) => ({ label: t + 's', color }))
+      : [
+          { label: 'notes', color: '#ece5da' }, { label: 'podcasts', color: '#8a6ad1' }, { label: 'recipes', color: '#d8b573' },
+          { label: 'training', color: '#5aa87c' }, { label: 'agents', color: '#6be5f5' },
+        ];
+
     return {
+      // connection truth
+      connectionStatus: st.connectionStatus,
+      statusChip,
+      missionStatusItems,
+      statusBanner,
+      suggestedFocus,
+      noteCard,
+      bootInfo: {
+        vaultLine: demoMode ? 'VAULT · DEMO DATA' : st.liveNotes ? `VAULT · ${st.liveNotes.length} NOTES LINKED` : 'VAULT · CONNECTING…',
+        recipesLine: demoMode ? 'MODE · SHOWCASE' : st.liveRecipes ? `RECIPES · ${st.liveRecipes.length} LOADED` : 'RECIPES · CONNECTING…',
+        agentsLine: demoMode ? 'AGENTS · CONCEPT PREVIEW' : st.liveJournalEntries ? `JOURNAL · ${st.liveJournalEntries.length} DAYS` : 'JOURNAL · CONNECTING…',
+      },
+      galaxyStatsLabel,
+      galaxyLegend,
       // chrome
       showBoot: !st.booted,
       isMobile: mob, showSidebar: !mob, tabs,
@@ -1601,10 +1727,10 @@ export default class App extends Component {
       greeting: (new Date().getHours() < 12 ? 'Good morning, ' : new Date().getHours() < 18 ? 'Good afternoon, ' : 'Good evening, ') + userName + '.',
       navMain: [mkNav('Mission Control', 'I.', 'mission'), mkNav('Voice', 'II.', 'voice'), mkNav('Memory Galaxy', 'III.', 'galaxy'), mkNav('Claude Code', 'IV.', 'code')],
       navVault: [
-        Object.assign(mkNav('Recipes', 'V.', 'recipes'), { count: usingLiveRecipes ? String(st.liveRecipes.length) : '42' }),
+        Object.assign(mkNav('Recipes', 'V.', 'recipes'), { count: usingLiveRecipes ? String(st.liveRecipes.length) : String(this.recipes.length) }),
         Object.assign(mkNav('Shopping List', 'VI.', 'shopping'), { count: String(shoppingItems.length) }),
-        Object.assign(mkNav('Workouts', 'VII.', 'workouts'), { count: usingLiveWorkouts ? String(liveRoutines.length) : 'wk6' }),
-        Object.assign(mkNav('Notes', 'VIII.', 'notes'), { count: usingLiveNotes ? String(st.liveNotes.length) : '186' }),
+        Object.assign(mkNav('Workouts', 'VII.', 'workouts'), { count: usingLiveWorkouts ? String(liveRoutines.length) : '—' }),
+        Object.assign(mkNav('Notes', 'VIII.', 'notes'), { count: usingLiveNotes ? String(st.liveNotes.length) : String(this.notes.length) }),
         Object.assign(mkNav('Journal', 'IX.', 'journal'), { count: String(journalDays.length) }),
       ],
       navSystem: [mkNav('Settings', 'X.', 'settings')],
@@ -1633,11 +1759,9 @@ export default class App extends Component {
 
       // mission actions
       openPalette: () => this.setState({ paletteOpen: true, paletteQuery: '' }),
-      openFocusNote: () => this.setState({ screen: 'notes', openNoteId: 'n3' }),
-      snoozeFocus: () => this.toastMsg('Commander moved the script block to 14:00'),
       setGaugeIdx: (i) => this.setGaugeIdx(i),
       acceptRun: () => this.toastMsg('Zone-2 run locked for tomorrow, 7:00 am ✓'),
-      openProteinNote: () => this.setState({ screen: 'notes', openNoteId: 'n1' }),
+      openProteinNote: () => this.navigate('notes', { openNoteId: 'n1' }),
       reviewSubs: () => this.toastMsg('CFO drafted the cancellations — review in tonight’s reflection'),
       usingLiveHealthInsight: usingLiveNotes && !!st.liveHealthInsight,
       healthInsightItems: [
@@ -1681,10 +1805,10 @@ export default class App extends Component {
       openLunch: () => {
         if (usingLiveRecipes) {
           const lunch = rotation?.slots?.lunch;
-          if (lunch) { this.setState({ screen: 'recipes' }); this.openRecipe(lunch.id); }
-          else this.setState({ screen: 'recipes' });
+          if (lunch) { this.navigate('recipes'); this.openRecipe(lunch.id); }
+          else this.navigate('recipes');
         } else {
-          this.setState({ screen: 'recipes', openRecipeId: 'r1', servings: 1, recipeChat: [] });
+          this.navigate('recipes', { openRecipeId: 'r1', servings: 1, recipeChat: [] });
         }
       },
       workoutCardLabel: usingLiveWorkouts
@@ -1697,18 +1821,21 @@ export default class App extends Component {
         ? (todayRoutine ? 'workout — ' + todayRoutine.name.toLowerCase() : 'workout — rest day')
         : 'workout — push day',
       todayIsLive: !!st.liveCalendar,
+      // Three honest cases: live calendar events; connected but calendar not
+      // set up (say so — never demo events); pure demo mode keeps the
+      // fictional schedule (global demo banner marks it).
       todayEvents: st.liveCalendar
         ? (st.liveCalendar.length
             ? st.liveCalendar.map(e => ({ time: e.time, label: e.label, category: e.calendar, categoryHue: categoryHue(e.calendar) }))
             : [{ time: '', label: 'Nothing on the calendar today' }])
-        : [
-            { time: '09:00', label: 'Deep work — video script' },
-            { time: '12:30', label: usingLiveRecipes
-                ? (rotation?.slots?.lunch ? `Lunch — ${rotation.slots.lunch.name} · ${Math.round(rotation.slots.lunch.macros.p)}g P` : 'Lunch — not set yet')
-                : 'Lunch — burrito bowl · 52g P' },
-            { time: '17:30', label: 'Gym — push day · wk 6' },
-            { time: '20:00', label: 'Reflection with Commander' },
-          ],
+        : !demoMode
+          ? [{ time: '', label: 'Calendar not connected — set iCloud credentials in server/.env' }]
+          : [
+              { time: '09:00', label: 'Deep work — video script' },
+              { time: '12:30', label: 'Lunch — burrito bowl · 52g P' },
+              { time: '17:30', label: 'Gym — push day · wk 6' },
+              { time: '20:00', label: 'Reflection with Commander' },
+            ],
       rotSleep: st.gaugeIdx === 0,
       rotProtein: st.gaugeIdx === 1,
       rotSteps: st.gaugeIdx === 2,
@@ -1738,7 +1865,7 @@ export default class App extends Component {
       shuffleReview: usingLiveReview ? () => this.shuffleDailyReview() : () => this.setState(s => ({ reviewIdx: (s.reviewIdx + 1 + Math.floor(Math.random() * (this.reviews.length - 1))) % this.reviews.length })),
       openReview: usingLiveReview
         ? () => this.openDailyReview()
-        : () => { this.setState({ screen: 'notes', openNoteId: this.reviews[st.reviewIdx].id }); this.toastMsg('Commander queued this concept for tonight’s reflection'); },
+        : () => { this.navigate('notes', { openNoteId: this.reviews[st.reviewIdx].id }); this.toastMsg('Commander queued this concept for tonight’s reflection'); },
       reviewShowReflect: usingLiveReview && !!reviewPage && st.openNoteId === reviewPage.id,
       reviewReflectOpen: st.reviewReflectOpen,
       toggleReviewReflect: () => this.toggleReviewReflect(),
@@ -1763,7 +1890,7 @@ export default class App extends Component {
       setOrbInput: (e) => this.setState({ orbInput: e.target.value }),
       orbKey: (e) => { if (e.key === 'Enter') this.doOrb(); },
       sendOrb: () => this.doOrb(),
-      briefMe: () => { this.setState(s => ({ orbChat: [...s.orbChat, { who: 'you', text: 'Brief me.' }] })); setTimeout(() => this.typeIn('orbChat', 'nova', this.orbReply('brief')), 450); },
+      briefMe: () => { this.setState(s => ({ orbChat: [...s.orbChat, { who: 'you', text: 'Brief me.' }] })); setTimeout(() => this.typeIn('orbChat', 'nova', orbReply('brief')), 450); },
 
       // galaxy
       galaxyRef: this.galaxyRef,
@@ -1784,13 +1911,14 @@ export default class App extends Component {
       galaxyOpen: () => {
         const t = st.galaxySel && st.galaxySel.target;
         if (!t) return;
-        if (t.startsWith('n')) this.setState({ screen: 'notes', openNoteId: t, galaxySel: null });
-        else if (t.startsWith('r')) this.setState({ screen: 'recipes', openRecipeId: t, servings: 1, recipeChat: [], galaxySel: null });
-        else this.setState({ screen: t, galaxySel: null });
+        if (t.startsWith('note:')) { this.selectNote(t.slice(5)); this.navigate('notes', { galaxySel: null }); }
+        else if (t.startsWith('n')) this.navigate('notes', { openNoteId: t, galaxySel: null });
+        else if (t.startsWith('r')) this.navigate('recipes', { openRecipeId: t, servings: 1, recipeChat: [], galaxySel: null });
+        else this.navigate(t, { galaxySel: null });
       },
 
       // recipes
-      recipesHeaderLabel: usingLiveRecipes ? `${st.liveRecipes.length} RECIPES · LIVE FROM OBSIDIAN` : 'SYNCED FROM OBSIDIAN /RECIPES · 2M AGO',
+      recipesHeaderLabel: usingLiveRecipes ? `${st.liveRecipes.length} RECIPES · LIVE FROM OBSIDIAN` : `${this.recipes.length} RECIPES · DEMO DATA`,
       recipeFilters: filters.map(f => ({ label: f, go: () => this.setState({ recipeFilter: f }), style: chip(st.recipeFilter === f) })),
       recipeList,
 
@@ -2023,7 +2151,7 @@ export default class App extends Component {
       newCodeSession: () => this.newClaudeCodeSession(),
 
       // notes
-      notesHeaderLabel: usingLiveNotes ? `${st.liveNotes.length} NOTES · LIVE FROM OBSIDIAN` : '186 NOTES · DEMO DATA',
+      notesHeaderLabel: usingLiveNotes ? `${st.liveNotes.length} NOTES · LIVE FROM OBSIDIAN` : `${this.notes.length} NOTES · DEMO DATA`,
       noteQuery: st.noteQuery,
       setNoteQuery: (e) => this.setState({ noteQuery: e.target.value }),
       noteFilters: noteFilters.map(f => ({ label: f, go: () => this.setState({ noteType: f }), style: nchip(st.noteType === f) })),
@@ -2039,8 +2167,8 @@ export default class App extends Component {
         : on.links.map(l => ({ label: l, go: () => {
             const t = noteByTitle(l);
             if (t) this.setState({ openNoteId: t.id });
-            else if (/bowl|oats|parfait|chili/i.test(l)) { const rr = this.recipes.find(x => l.toLowerCase().includes(x.name.split(' ')[0].toLowerCase())); if (rr) this.setState({ screen: 'recipes', openRecipeId: rr.id, servings: 1, recipeChat: [] }); }
-            else if (/push|wk6/i.test(l)) this.setState({ screen: 'workouts' });
+            else if (/bowl|oats|parfait|chili/i.test(l)) { const rr = this.recipes.find(x => l.toLowerCase().includes(x.name.split(' ')[0].toLowerCase())); if (rr) this.navigate('recipes', { openRecipeId: rr.id, servings: 1, recipeChat: [] }); }
+            else if (/push|wk6/i.test(l)) this.navigate('workouts');
             else this.toastMsg('Linked note opens once that part of the vault is synced');
           } })),
 
@@ -2104,12 +2232,12 @@ export default class App extends Component {
   doOrb() {
     const q = this.state.orbInput.trim(); if (!q) return;
     this.setState(s => ({ orbChat: [...s.orbChat, { who: 'you', text: q }], orbInput: '' }));
-    setTimeout(() => this.typeIn('orbChat', 'nova', this.orbReply(q)), 480);
+    setTimeout(() => this.typeIn('orbChat', 'nova', orbReply(q)), 480);
   }
   doCoach(preset) {
     const q = (preset || this.state.coachInput).trim(); if (!q) return;
     this.setState(s => ({ coachChat: [...s.coachChat, { who: 'you', text: q }], coachInput: '' }));
-    const r = this.coachReply(q);
+    const r = coachReply(q);
     setTimeout(() => this.typeIn('coachChat', 'coach', r.text, () => {
       if (!r.mod) return;
       let plan = (this.state.plan || this.basePlan).slice();
@@ -2127,37 +2255,28 @@ export default class App extends Component {
     if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
     this.setState(s => ({ codeChat: [...s.codeChat, { who: 'you', text: q }], codeInput: '', codeBusy: true }));
     api.startClaudeCodeMessage(conn, q, this.state.codeSessionId, this.state.codeModel, this.state.codeWorkspace).then(({ jobId }) => {
-      this.codeJobPollIv = setInterval(() => this.pollClaudeCodeJob(jobId), 2000);
+      this.startPoll('code', () => api.claudeCodeJob(conn, jobId), {
+        timeoutMs: 10 * 60_000,
+        onReady: (job) => this.setState(s => ({ codeBusy: false, codeSessionId: job.result.sessionId, codeChat: [...s.codeChat, { who: 'claude', text: job.result.text }] })),
+        onError: (msg) => this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat, { who: 'system', text: 'Error: ' + msg }] })),
+      });
     }).catch((e) => {
       this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat, { who: 'system', text: 'Error: ' + e.message }] }));
     });
   }
-  pollClaudeCodeJob(jobId) {
-    const conn = getConnection();
-    if (!conn) return;
-    api.claudeCodeJob(conn, jobId).then((job) => {
-      if (job.status === 'ready') {
-        clearInterval(this.codeJobPollIv);
-        this.setState(s => ({ codeBusy: false, codeSessionId: job.result.sessionId, codeChat: [...s.codeChat, { who: 'claude', text: job.result.text }] }));
-      } else if (job.status === 'error') {
-        clearInterval(this.codeJobPollIv);
-        this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat, { who: 'system', text: 'Error: ' + job.error }] }));
-      }
-    }).catch(() => {});
-  }
   setCodeWorkspace(workspace) {
-    clearInterval(this.codeJobPollIv);
+    this.stopPoll('code');
     this.setState({ codeWorkspace: workspace, codeSessionId: null, codeChat: [], codeBusy: false });
   }
   newClaudeCodeSession() {
-    clearInterval(this.codeJobPollIv);
+    this.stopPoll('code');
     this.setState({ codeSessionId: null, codeChat: [], codeBusy: false });
   }
   doRecipeAsk() {
     const q = this.state.recipeInput.trim(); if (!q) return;
     const r = this.recipes.find(x => x.id === this.state.openRecipeId); if (!r) return;
     this.setState(s => ({ recipeChat: [...s.recipeChat, { who: 'you', text: q }], recipeInput: '' }));
-    setTimeout(() => this.typeIn('recipeChat', 'nova', this.recipeReply(q, r)), 480);
+    setTimeout(() => this.typeIn('recipeChat', 'nova', recipeReply(q, r)), 480);
   }
 
   render() {
@@ -2183,6 +2302,18 @@ export default class App extends Component {
           </main>
         </div>
 
+        {v.statusBanner && (
+          <div style={{
+            position: 'fixed', left: '50%', transform: 'translateX(-50%)',
+            bottom: v.isMobile ? 'calc(76px + env(safe-area-inset-bottom))' : '18px', zIndex: 80,
+            font: "500 10.5px 'JetBrains Mono',monospace", letterSpacing: '.06em', padding: '8px 16px',
+            borderRadius: '20px', whiteSpace: 'nowrap', maxWidth: '92vw', overflow: 'hidden', textOverflow: 'ellipsis',
+            color: v.statusBanner.tone === 'warn' ? '#f0b8b8' : 'rgba(236,229,218,.75)',
+            background: v.statusBanner.tone === 'warn' ? 'rgba(120,40,40,.55)' : 'rgba(0,0,0,.55)',
+            border: v.statusBanner.tone === 'warn' ? '1px solid rgba(201,111,111,.5)' : '1px solid rgba(216,181,115,.35)',
+            backdropFilter: 'blur(8px)',
+          }} role="status">{v.statusBanner.text}</div>
+        )}
         {v.isMobile && <MobileChrome v={v} />}
         {v.recipeOpen && <RecipeOverlay v={v} />}
         {v.recipeAddOpen && <AddRecipeModal v={v} />}
@@ -2195,7 +2326,7 @@ export default class App extends Component {
         {v.ingestModalOpen && <IngestModal v={v} />}
         {v.ingestStatus !== 'idle' && <IngestReview v={v} />}
         {v.toastOn && <Toast v={v} />}
-        {v.showBoot && <Boot />}
+        {v.showBoot && <Boot info={v.bootInfo} />}
       </div>
     );
   }

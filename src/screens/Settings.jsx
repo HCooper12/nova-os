@@ -16,14 +16,15 @@ export function Settings({ v }) {
       <h1 style={css("margin:18px 0 0;font:400 38px/1.1 'Instrument Serif',serif")}>Connect the <span style={css("font-style:italic;color:#d8b573")}>real vault.</span></h1>
       <div style={css("margin-top:8px;font-size:13px;color:rgba(236,229,218,.6);max-width:640px;line-height:1.6")}>
         Point Nova OS at the backend running on your Mac to replace the demo data with your
-        real Obsidian notes and calendar. Without this, the app runs fine on mock data — nothing
-        breaks either way.
+        real Obsidian vault, calendar, and health data. Until then the app runs in demo mode —
+        everything you see is clearly-badged sample data.
       </div>
 
       <div style={css("margin-top:28px;max-width:520px;border:1px solid rgba(236,229,218,.09);border-radius:14px;padding:24px 26px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01));box-shadow:inset 0 1px 0 rgba(255,255,255,.06)")}>
-        <div style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.22em;color:rgba(236,229,218,.45)")}>BACKEND URL</div>
+        <label htmlFor="settings-base-url" style={css("display:block;font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.22em;color:rgba(236,229,218,.45)")}>BACKEND URL</label>
         <Interactive
           as="input"
+          id="settings-base-url"
           value={v.settingsBaseUrl}
           onChange={v.setSettingsBaseUrl}
           placeholder="https://your-mac.tailxxxx.ts.net:4173"
@@ -31,9 +32,10 @@ export function Settings({ v }) {
           focusStyle="border-color:rgba(216,181,115,.5)"
         />
 
-        <div style={css("margin-top:16px;font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.22em;color:rgba(236,229,218,.45)")}>API TOKEN</div>
+        <label htmlFor="settings-token" style={css("display:block;margin-top:16px;font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.22em;color:rgba(236,229,218,.45)")}>API TOKEN</label>
         <Interactive
           as="input"
+          id="settings-token"
           type="password"
           value={v.settingsToken}
           onChange={v.setSettingsToken}

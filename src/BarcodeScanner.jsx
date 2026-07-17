@@ -31,7 +31,7 @@ export function BarcodeScanner({ onDetected, onClose }) {
   }, [onDetected]);
 
   return (
-    <div style={css("position:fixed;inset:0;background:rgba(10,8,14,.92);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px")}>
+    <div role="dialog" aria-modal="true" aria-label="Scan a barcode" style={css("position:fixed;inset:0;background:rgba(10,8,14,.92);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px")}>
       <div style={css("font:500 11px 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(236,229,218,.65)")}>POINT AT A BARCODE</div>
       <video ref={videoRef} style={css("width:min(92vw,440px);border-radius:16px;border:1px solid rgba(236,229,218,.18);background:#000")} muted playsInline />
       {error && <div style={css("color:#e08f6f;font-size:13px;max-width:340px;text-align:center;line-height:1.5")}>{error}</div>}

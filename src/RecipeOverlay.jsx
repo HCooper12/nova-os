@@ -3,7 +3,7 @@ import { Interactive } from './Interactive.jsx';
 
 export function RecipeOverlay({ v }) {
   return (
-    <div onClick={v.closeRecipe} style={v.recipeOvWrap}>
+    <div role="dialog" aria-modal="true" aria-label="Recipe detail" onClick={v.closeRecipe} style={v.recipeOvWrap}>
       <div onClick={v.stopClick} style={css("width:860px;max-width:94vw;max-height:88vh;overflow-y:auto;border:1px solid rgba(216,181,115,.28);border-radius:18px;background:linear-gradient(180deg,#221a2c,#16101e);box-shadow:0 40px 90px -30px rgba(0,0,0,.95),inset 0 1px 0 rgba(255,255,255,.07);animation:fadeUp .3s ease-out")}>
         <div style={css("display:flex;justify-content:space-between;align-items:center;padding:18px 26px;border-bottom:1px solid rgba(236,229,218,.07)")}>
           <span style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.24em;color:#d8b573")}>RECIPE · FROM OBSIDIAN</span>

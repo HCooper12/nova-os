@@ -76,6 +76,33 @@ export function notesRouter(vault) {
     res.json({ status: job.status, result: job.result, error: job.error });
   });
 
+  // Whole-vault graph for the Memory Galaxy: every page as a node, every
+  // resolvable wikilink as an undirected edge (index pairs into nodes).
+  router.get('/graph', async (req, res, next) => {
+    try {
+      const pages = await vault.listPages();
+      const byTitle = new Map(pages.map((p) => [p.title.toLowerCase(), p]));
+      const indexById = new Map(pages.map((p, i) => [p.id, i]));
+      const nodes = pages.map((p) => ({ id: p.id, title: p.title, type: p.type, date: p.date }));
+      const links = [];
+      const seen = new Set();
+      pages.forEach((p, i) => {
+        for (const label of p.links) {
+          const target = byTitle.get(label.toLowerCase());
+          if (!target || target.id === p.id) continue;
+          const j = indexById.get(target.id);
+          const key = i < j ? `${i}:${j}` : `${j}:${i}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          links.push([i, j]);
+        }
+      });
+      res.json({ nodes, links });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   router.get('/activity', async (req, res, next) => {
     try {
       const entries = await vault.recentLog(8);

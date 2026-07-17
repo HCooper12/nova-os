@@ -19,6 +19,23 @@ function GaugeDots({ active, accent, onPick }) {
   );
 }
 
+function GaugeCard({ idx, accent, label, value, hint, hintColor, dasharray, onPick }) {
+  return (
+    <div style={css("position:relative;border:1px solid rgba(236,229,218,.09);border-radius:14px;padding:18px 20px;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012));box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 14px 34px -20px rgba(0,0,0,.9);display:flex;gap:16px;align-items:center;animation:fadeUp .5s ease-out")}>
+      <svg width="62" height="62" viewBox="0 0 62 62" style={{ flex: 'none' }} aria-hidden="true">
+        <circle cx="31" cy="31" r="26" fill="none" stroke="rgba(236,229,218,.1)" strokeWidth="4"></circle>
+        <circle cx="31" cy="31" r="26" fill="none" stroke={accent} strokeWidth="4" strokeLinecap="round" strokeDasharray={dasharray} transform="rotate(-90 31 31)"></circle>
+      </svg>
+      <div>
+        <div style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.22em;color:rgba(236,229,218,.45)")}>{label}</div>
+        <div style={css("margin-top:6px;font:400 25px 'Instrument Serif',serif;font-variant-numeric:tabular-nums")}>{value}</div>
+        <div style={{ marginTop: '2px', fontSize: '11.5px', color: hintColor }}>{hint}</div>
+      </div>
+      <GaugeDots active={idx} accent={accent} onPick={onPick} />
+    </div>
+  );
+}
+
 export function MissionControl({ v }) {
   return (
     <div style={v.wrapMission} data-screen-label="Mission Control">
@@ -36,8 +53,8 @@ export function MissionControl({ v }) {
           >
             ⌘K&nbsp;&nbsp;Summon
           </Interactive>
-          <span style={css("display:flex;align-items:center;gap:8px;font:500 10.5px 'JetBrains Mono',monospace;padding:8px 14px;border:1px solid rgba(107,229,245,.3);border-radius:8px;color:#6be5f5;background:rgba(107,229,245,.05)")}>
-            <span style={css("width:5px;height:5px;border-radius:50%;background:#6be5f5;box-shadow:0 0 8px rgba(107,229,245,.9);animation:novaPulse 2s infinite")}></span>ALL SYSTEMS
+          <span style={{ display: 'flex', alignItems: 'center', gap: '8px', font: "500 10.5px 'JetBrains Mono',monospace", padding: '8px 14px', border: `1px solid ${v.statusChip.color}55`, borderRadius: '8px', color: v.statusChip.color, background: 'rgba(0,0,0,.2)' }}>
+            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: v.statusChip.color, boxShadow: `0 0 8px ${v.statusChip.color}`, animation: v.statusChip.label === 'LIVE' ? 'novaPulse 2s infinite' : 'none' }}></span>{v.statusChip.label}
           </span>
         </div>
       </div>
@@ -46,7 +63,10 @@ export function MissionControl({ v }) {
         <div>
           <h1 style={css("margin:0;font:400 48px/1.05 'Instrument Serif',serif;letter-spacing:-.01em;text-shadow:0 2px 30px rgba(0,0,0,.4)")}>{v.greeting}</h1>
           <div style={css("margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 16px;font:400 10.5px 'JetBrains Mono',monospace;letter-spacing:.1em;color:rgba(236,229,218,.5)")}>
-            <span>{v.dateLabel}</span><span style={css("color:rgba(216,181,115,.7)")}>·</span><span style={css("color:#6be5f5")}>3 AGENTS LIVE</span><span style={css("color:rgba(216,181,115,.7)")}>·</span><span>VAULT SYNCED 2M</span><span style={css("color:rgba(216,181,115,.7)")}>·</span><span>BACKUP 02:00 ✓</span>
+            <span>{v.dateLabel}</span>
+            {v.missionStatusItems.map((item, i) => (
+              <span key={i} style={css("display:flex;gap:16px")}><span style={css("color:rgba(216,181,115,.7)")}>·</span><span>{item}</span></span>
+            ))}
           </div>
         </div>
         <div style={css("font:400 32px 'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;color:rgba(236,229,218,.9);letter-spacing:.04em")}>{v.clock}</div>
@@ -54,55 +74,32 @@ export function MissionControl({ v }) {
 
       <div style={v.gridStats}>
         <div style={css("border:1px solid rgba(216,181,115,.35);border-radius:14px;padding:20px 22px;background:linear-gradient(135deg,rgba(216,181,115,.13),rgba(216,181,115,.04) 60%);box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 0 50px -14px rgba(216,181,115,.4)")}>
-          <div style={css("display:flex;justify-content:space-between")}><span style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.24em;color:#d8b573")}>SUGGESTED FOCUS</span><span style={css("font:italic 400 14px 'Instrument Serif',serif;color:rgba(216,181,115,.7)")}>from Commander</span></div>
-          <div style={css("margin-top:12px;font:400 26px/1.15 'Instrument Serif',serif")}>Finish the science video script — <span style={css("font-style:italic;color:#d8b573")}>Studio drafted the outline.</span></div>
+          <div style={css("display:flex;justify-content:space-between")}><span style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.24em;color:#d8b573")}>SUGGESTED FOCUS</span><span style={css("font:italic 400 14px 'Instrument Serif',serif;color:rgba(216,181,115,.7)")}>{v.suggestedFocus.source}</span></div>
+          <div style={css("margin-top:12px;font:400 26px/1.15 'Instrument Serif',serif")}>{v.suggestedFocus.title}<span style={css("font-style:italic;color:#d8b573")}>{v.suggestedFocus.accent}</span></div>
           <div style={css("margin-top:14px;display:flex;gap:10px")}>
-            <Interactive as="span" onClick={v.openFocusNote} base="cursor:pointer;font-size:12px;font-weight:500;padding:7px 14px;border-radius:8px;background:#d8b573;color:#1a1322;box-shadow:0 4px 16px -6px rgba(216,181,115,.6)" hoverStyle="background:#e6c98f">Open draft</Interactive>
-            <Interactive as="span" onClick={v.snoozeFocus} base="cursor:pointer;font-size:12px;padding:7px 14px;border-radius:8px;border:1px solid rgba(236,229,218,.16);color:rgba(236,229,218,.7)" hoverStyle="background:rgba(255,255,255,.05)">Later today</Interactive>
+            {v.suggestedFocus.onPrimary && (
+              <Interactive as="span" onClick={v.suggestedFocus.onPrimary} base="cursor:pointer;font-size:12px;font-weight:500;padding:7px 14px;border-radius:8px;background:#d8b573;color:#1a1322;box-shadow:0 4px 16px -6px rgba(216,181,115,.6)" hoverStyle="background:#e6c98f">{v.suggestedFocus.primaryLabel}</Interactive>
+            )}
+            {v.suggestedFocus.onSecondary && (
+              <Interactive as="span" onClick={v.suggestedFocus.onSecondary} base="cursor:pointer;font-size:12px;padding:7px 14px;border-radius:8px;border:1px solid rgba(236,229,218,.16);color:rgba(236,229,218,.7)" hoverStyle="background:rgba(255,255,255,.05)">{v.suggestedFocus.secondaryLabel}</Interactive>
+            )}
           </div>
         </div>
 
         {v.rotSleep && (
-          <div style={css("position:relative;border:1px solid rgba(236,229,218,.09);border-radius:14px;padding:18px 20px;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012));box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 14px 34px -20px rgba(0,0,0,.9);display:flex;gap:16px;align-items:center;animation:fadeUp .5s ease-out")}>
-            <svg width="62" height="62" viewBox="0 0 62 62" style={{ flex: 'none' }}>
-              <circle cx="31" cy="31" r="26" fill="none" stroke="rgba(236,229,218,.1)" strokeWidth="4"></circle>
-              <circle cx="31" cy="31" r="26" fill="none" stroke="#6be5f5" strokeWidth="4" strokeLinecap="round" strokeDasharray={v.sleepGaugeDasharray} transform="rotate(-90 31 31)"></circle>
-            </svg>
-            <div>
-              <div style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.22em;color:rgba(236,229,218,.45)")}>SLEEP</div>
-              <div style={css("margin-top:6px;font:400 25px 'Instrument Serif',serif;font-variant-numeric:tabular-nums")}>{v.sleepGaugeValue}</div>
-              <div style={css("margin-top:2px;font-size:11.5px;color:rgba(107,229,245,.85)")}>{v.sleepGaugeHint}</div>
-            </div>
-            <GaugeDots active={0} accent="#6be5f5" onPick={v.setGaugeIdx} />
-          </div>
+          <GaugeCard idx={0} accent="#6be5f5" label="SLEEP" hintColor="rgba(107,229,245,.85)"
+            dasharray={v.sleepGaugeDasharray} hint={v.sleepGaugeHint} onPick={v.setGaugeIdx}
+            value={v.sleepGaugeValue} />
         )}
         {v.rotProtein && (
-          <div style={css("position:relative;border:1px solid rgba(236,229,218,.09);border-radius:14px;padding:18px 20px;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012));box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 14px 34px -20px rgba(0,0,0,.9);display:flex;gap:16px;align-items:center;animation:fadeUp .5s ease-out")}>
-            <svg width="62" height="62" viewBox="0 0 62 62" style={{ flex: 'none' }}>
-              <circle cx="31" cy="31" r="26" fill="none" stroke="rgba(236,229,218,.1)" strokeWidth="4"></circle>
-              <circle cx="31" cy="31" r="26" fill="none" stroke="#d8b573" strokeWidth="4" strokeLinecap="round" strokeDasharray={v.proteinGaugeDasharray} transform="rotate(-90 31 31)"></circle>
-            </svg>
-            <div>
-              <div style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.22em;color:rgba(236,229,218,.45)")}>PROTEIN</div>
-              <div style={css("margin-top:6px;font:400 25px 'Instrument Serif',serif;font-variant-numeric:tabular-nums")}>{v.proteinGaugeValue}<span style={css("font-size:15px;color:rgba(236,229,218,.5)")}>{v.proteinGaugeTargetLabel}</span></div>
-              <div style={css("margin-top:2px;font-size:11.5px;color:rgba(236,229,218,.55)")}>{v.proteinGaugeHint}</div>
-            </div>
-            <GaugeDots active={1} accent="#d8b573" onPick={v.setGaugeIdx} />
-          </div>
+          <GaugeCard idx={1} accent="#d8b573" label="PROTEIN" hintColor="rgba(236,229,218,.55)"
+            dasharray={v.proteinGaugeDasharray} hint={v.proteinGaugeHint} onPick={v.setGaugeIdx}
+            value={<>{v.proteinGaugeValue}<span style={css("font-size:15px;color:rgba(236,229,218,.5)")}>{v.proteinGaugeTargetLabel}</span></>} />
         )}
         {v.rotSteps && (
-          <div style={css("position:relative;border:1px solid rgba(236,229,218,.09);border-radius:14px;padding:18px 20px;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012));box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 14px 34px -20px rgba(0,0,0,.9);display:flex;gap:16px;align-items:center;animation:fadeUp .5s ease-out")}>
-            <svg width="62" height="62" viewBox="0 0 62 62" style={{ flex: 'none' }}>
-              <circle cx="31" cy="31" r="26" fill="none" stroke="rgba(236,229,218,.1)" strokeWidth="4"></circle>
-              <circle cx="31" cy="31" r="26" fill="none" stroke="#a8e063" strokeWidth="4" strokeLinecap="round" strokeDasharray={v.stepsGaugeDasharray} transform="rotate(-90 31 31)"></circle>
-            </svg>
-            <div>
-              <div style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.22em;color:rgba(236,229,218,.45)")}>STEPS</div>
-              <div style={css("margin-top:6px;font:400 25px 'Instrument Serif',serif;font-variant-numeric:tabular-nums")}>{v.stepsGaugeValue}</div>
-              <div style={css("margin-top:2px;font-size:11.5px;color:rgba(236,229,218,.55)")}>{v.stepsGaugeHint}</div>
-            </div>
-            <GaugeDots active={2} accent="#a8e063" onPick={v.setGaugeIdx} />
-          </div>
+          <GaugeCard idx={2} accent="#a8e063" label="STEPS" hintColor="rgba(236,229,218,.55)"
+            dasharray={v.stepsGaugeDasharray} hint={v.stepsGaugeHint} onPick={v.setGaugeIdx}
+            value={v.stepsGaugeValue} />
         )}
 
         <div style={css("border:1px solid rgba(138,106,209,.35);border-radius:14px;padding:16px 20px;background:linear-gradient(135deg,rgba(138,106,209,.13),rgba(138,106,209,.03) 60%);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 0 50px -14px rgba(138,106,209,.4);display:flex;flex-direction:column")}>
@@ -178,15 +175,15 @@ export function MissionControl({ v }) {
           <div style={css("height:86px;background:repeating-linear-gradient(45deg, rgba(107,229,245,.1) 0 8px, rgba(107,229,245,.03) 8px 16px);display:flex;align-items:center;justify-content:center")}><span style={css("font:400 10px 'JetBrains Mono',monospace;color:rgba(236,229,218,.5)")}>{v.workoutCardPhoto}</span></div>
           <div style={css("padding:12px 16px")}><div style={css("font-size:14px;font-weight:500")}>{v.workoutCardLabel}</div><div style={css("margin-top:3px;font:400 11px 'JetBrains Mono',monospace;color:rgba(236,229,218,.5)")}>{v.workoutCardMeta}</div></div>
         </Interactive>
-        <Interactive onClick={v.openProteinNote} base="cursor:pointer;border:1px solid rgba(236,229,218,.09);border-radius:14px;overflow:hidden;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01));box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 14px 34px -20px rgba(0,0,0,.9)" hoverStyle="border-color:rgba(138,106,209,.45)">
-          <div style={css("height:86px;background:repeating-linear-gradient(45deg, rgba(138,106,209,.12) 0 8px, rgba(138,106,209,.04) 8px 16px);display:flex;align-items:center;justify-content:center")}><span style={css("font:400 10px 'JetBrains Mono',monospace;color:rgba(236,229,218,.5)")}>note — protein timing</span></div>
-          <div style={css("padding:12px 16px")}><div style={css("font-size:14px;font-weight:500")}>Huberman · protein timing</div><div style={css("margin-top:3px;font:400 11px 'JetBrains Mono',monospace;color:rgba(236,229,218,.5)")}>podcast note · linked to 4 recipes</div></div>
+        <Interactive onClick={v.noteCard.onOpen} base="cursor:pointer;border:1px solid rgba(236,229,218,.09);border-radius:14px;overflow:hidden;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01));box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 14px 34px -20px rgba(0,0,0,.9)" hoverStyle="border-color:rgba(138,106,209,.45)">
+          <div style={css("height:86px;background:repeating-linear-gradient(45deg, rgba(138,106,209,.12) 0 8px, rgba(138,106,209,.04) 8px 16px);display:flex;align-items:center;justify-content:center;padding:0 12px;overflow:hidden")}><span style={css("font:400 10px 'JetBrains Mono',monospace;color:rgba(236,229,218,.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis")}>{v.noteCard.photoLabel}</span></div>
+          <div style={css("padding:12px 16px")}><div style={css("font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{v.noteCard.title}</div><div style={css("margin-top:3px;font:400 11px 'JetBrains Mono',monospace;color:rgba(236,229,218,.5)")}>{v.noteCard.meta}</div></div>
         </Interactive>
       </div>
 
       {v.isMobile && (
         <div style={css("margin-top:14px;border:1px solid rgba(236,229,218,.09);border-radius:14px;padding:16px 18px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01));box-shadow:inset 0 1px 0 rgba(255,255,255,.06)")}>
-          <div style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.22em;color:rgba(236,229,218,.45)")}>AGENTS</div>
+          <div style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.22em;color:rgba(236,229,218,.45)")}>AGENTS · CONCEPT</div>
           <div style={css("display:flex;flex-wrap:wrap;gap:8px;margin-top:12px")}>
             {v.agents.map((ag) => (
               <span key={ag.name} style={css("display:flex;align-items:center;gap:8px;font-size:12px;padding:7px 12px;border-radius:8px;border:1px solid rgba(236,229,218,.12);color:rgba(236,229,218,.75)")}>{ag.name}<span style={ag.dotStyle}></span></span>

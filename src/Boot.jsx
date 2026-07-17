@@ -1,6 +1,9 @@
 import { css } from './css.js';
 
-export function Boot() {
+export function Boot({ info }) {
+  const lines = info
+    ? [info.vaultLine, info.recipesLine, info.agentsLine]
+    : ['VAULT · CONNECTING…', 'RECIPES · CONNECTING…', 'JOURNAL · CONNECTING…'];
   return (
     <div style={css("position:fixed;inset:0;z-index:100;background:radial-gradient(900px 560px at 50% 42%, #241a2e 0%, #120d18 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px")}>
       <div style={css("position:relative;width:130px;height:130px;display:flex;align-items:center;justify-content:center")}>
@@ -10,9 +13,9 @@ export function Boot() {
       </div>
       <div style={css("font:400 40px 'Instrument Serif',serif;letter-spacing:.06em")}>N O V A</div>
       <div style={css("display:flex;flex-direction:column;gap:7px;font:400 10px 'JetBrains Mono',monospace;letter-spacing:.2em;color:rgba(236,229,218,.55);text-align:center")}>
-        <div style={css("animation:fadeUp .5s ease-out both")}>VAULT · 186 NOTES LINKED</div>
-        <div style={css("animation:fadeUp .5s ease-out .35s both")}>MEMORY · 1,261 FRAGMENTS INDEXED</div>
-        <div style={css("animation:fadeUp .5s ease-out .7s both")}>AGENTS · 6 REPORTING IN</div>
+        {lines.map((line, i) => (
+          <div key={i} style={{ animation: `fadeUp .5s ease-out ${i * 0.35}s both` }}>{line}</div>
+        ))}
       </div>
       <div style={css("width:220px;height:2px;border-radius:2px;background:rgba(236,229,218,.1);overflow:hidden")}><div style={css("height:100%;background:linear-gradient(90deg,#d8b573,#6be5f5);animation:barSweep 1.5s ease-out both")}></div></div>
     </div>
