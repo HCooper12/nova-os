@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { startMessage, getMessageJob } from '../lib/claudeCode.js';
+import { startMessage, getMessageJob, startBreaker } from '../lib/claudeCode.js';
 
 const WORKSPACES = { repo: 'repoPath', vault: 'vaultPath' };
 // Model aliases the frontend picker offers — anything else is rejected rather
@@ -32,6 +32,20 @@ export function claudeCodeRouter({ repoPath, vaultPath }) {
     const job = getMessageJob(req.params.jobId);
     if (!job) return res.status(404).json({ error: 'job not found' });
     res.json({ status: job.status, result: job.result, error: job.error });
+  });
+
+  // Sparring loop: spawn a read-only Breaker over the workspace. Polled via
+  // the same message/:jobId endpoint (shared jobs map).
+  router.post('/claude-code/spar', async (req, res, next) => {
+    try {
+      const workspace = req.body?.workspace;
+      const focus = typeof req.body?.focus === 'string' ? req.body.focus.trim().slice(0, 2000) : '';
+      if (!WORKSPACES[workspace]) return res.status(400).json({ error: 'workspace must be one of ' + Object.keys(WORKSPACES).join(', ') });
+      const jobId = startBreaker(cwdFor[workspace], { focus });
+      res.json({ jobId });
+    } catch (err) {
+      next(err);
+    }
   });
 
   return router;

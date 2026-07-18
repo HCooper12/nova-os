@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,11 +12,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
 const STORE_PATH = () => path.join(dataRoot(), 'inbox.json');
 
-// Keep the history bounded: resolved records beyond this many are dropped
-// (pending/classifying records are always kept regardless of age).
+// Keep the history bounded: RESOLVED records beyond this many are dropped.
+// Unresolved records — classifying, pending, and error — are always kept:
+// an errored capture is the only copy of the thought, so trimming it would
+// be data loss, not history pruning.
 const MAX_RESOLVED = 400;
+const UNRESOLVED = new Set(['classifying', 'pending', 'error']);
 
 let cache = null;
+let loadPromise = null;
 let lock = Promise.resolve();
 
 function withLock(fn) {
@@ -25,24 +29,48 @@ function withLock(fn) {
   return run;
 }
 
-async function load() {
-  if (cache) return cache;
-  if (!existsSync(STORE_PATH())) {
-    cache = { items: [] };
-    return cache;
+// Single-flight load: every caller (including lock-free readers) awaits the
+// SAME promise, so two cold-cache first touches can never build two separate
+// store objects and clobber each other's writes.
+function load() {
+  if (cache) return Promise.resolve(cache);
+  if (!loadPromise) {
+    loadPromise = (async () => {
+      if (!existsSync(STORE_PATH())) {
+        cache = { items: [] };
+        return cache;
+      }
+      let raw;
+      try {
+        raw = await readFile(STORE_PATH(), 'utf8');
+      } catch (e) {
+        // transient I/O failure must not become a permanent wipe — surface it
+        loadPromise = null;
+        throw new Error('could not read inbox history: ' + e.message);
+      }
+      try {
+        const parsed = JSON.parse(raw);
+        cache = Array.isArray(parsed.items) ? parsed : { items: [] };
+      } catch {
+        // corrupt file (e.g. torn write before atomic persist existed) —
+        // quarantine it rather than silently overwriting the evidence
+        await rename(STORE_PATH(), STORE_PATH() + '.corrupt-' + Date.now()).catch(() => {});
+        cache = { items: [] };
+      }
+      return cache;
+    })();
+    loadPromise.catch(() => { loadPromise = null; });
   }
-  try {
-    cache = JSON.parse(await readFile(STORE_PATH(), 'utf8'));
-    if (!Array.isArray(cache.items)) cache = { items: [] };
-  } catch {
-    cache = { items: [] };
-  }
-  return cache;
+  return loadPromise;
 }
 
+// Atomic persist: write a temp file, then rename over the real one, so a
+// mid-write kill leaves either the old file or the new file — never a torn one.
 async function persist() {
   await mkdir(dataRoot(), { recursive: true });
-  await writeFile(STORE_PATH(), JSON.stringify(cache, null, 2), 'utf8');
+  const tmp = STORE_PATH() + '.tmp';
+  await writeFile(tmp, JSON.stringify(cache, null, 2), 'utf8');
+  await rename(tmp, STORE_PATH());
 }
 
 export async function listRecords() {
@@ -60,8 +88,8 @@ export async function createRecord(record) {
   return withLock(async () => {
     const store = await load();
     store.items.push(record);
-    const unresolved = store.items.filter((r) => r.status === 'classifying' || r.status === 'pending');
-    const resolved = store.items.filter((r) => r.status !== 'classifying' && r.status !== 'pending');
+    const unresolved = store.items.filter((r) => UNRESOLVED.has(r.status));
+    const resolved = store.items.filter((r) => !UNRESOLVED.has(r.status));
     if (resolved.length > MAX_RESOLVED) {
       resolved.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
       store.items = [...unresolved, ...resolved.slice(0, MAX_RESOLVED)];
@@ -85,4 +113,5 @@ export async function updateRecord(id, patch) {
 // test hook — drops the in-memory cache so a fresh NOVA_DATA_DIR is re-read
 export function _resetInboxStore() {
   cache = null;
+  loadPromise = null;
 }

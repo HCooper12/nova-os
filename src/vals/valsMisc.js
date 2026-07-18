@@ -104,7 +104,9 @@ export function valsMisc(app, ctx) {
 
     // code
     codeConnected: !!getConnection(),
-    codeMsgs: st.codeChat.map(m => ({ text: m.text, tag: m.who === 'claude' ? '» CLAUDE' : m.who === 'system' ? '» SYSTEM' : '» YOU', tagStyle: { color: m.who === 'claude' ? 'var(--nv-gold)' : m.who === 'system' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', fontWeight: 500 } })),
+    codeMsgs: st.codeChat.map(m => ({ text: m.text, tag: m.who === 'claude' ? '» BUILDER' : m.who === 'breaker' ? '» BREAKER' : m.who === 'system' ? '» SYSTEM' : '» YOU', tagStyle: { color: m.who === 'claude' ? 'var(--nv-gold)' : m.who === 'breaker' ? 'var(--nv-mg)' : m.who === 'system' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', fontWeight: 500 } })),
+    sparBusy: st.sparBusy,
+    startSpar: () => app.startSpar(),
     codeBusy: st.codeBusy,
     codeInput: st.codeInput,
     setCodeInput: (e) => app.setState({ codeInput: e.target.value }),

@@ -93,3 +93,61 @@ export function startMessage(cwd, { text, sessionId, model }) {
 export function getMessageJob(jobId) {
   return jobs.get(jobId) || null;
 }
+
+// The Sparring loop's Breaker: an isolated, READ-ONLY session that tries to
+// break what the Builder (the normal chat) just shipped. Edit/Write join the
+// disallowed list, so the separation of duties is structural — the Breaker
+// proves weaknesses; only the Builder can fix them. Fresh session every time
+// (no --resume): the Breaker judges the work cold, like a reviewer should.
+const BREAKER_DISALLOWED = DISALLOWED_TOOLS + ',Edit,Write';
+
+export function startBreaker(cwd, { focus }) {
+  const jobId = randomUUID().slice(0, 8);
+  const job = { id: jobId, status: 'running', result: null, error: null };
+  jobs.set(jobId, job);
+
+  const prompt = `You are the BREAKER in a builder/breaker sparring loop over this workspace. Your job is adversarial review: find what is genuinely broken, fragile, or wrong — then STOP. You cannot edit anything (your tools are read-only by design); the builder is the only one who can fix what you find.
+
+${focus ? `The builder says the recent work to attack is: ${focus}` : 'No specific focus was given — inspect the most recently modified files and attack the newest work.'}
+
+Method: read the relevant code carefully. Hunt for concrete failures — logic errors, unhandled edge cases, broken contracts between modules, regressions, data-loss risks. Trace real inputs through the code rather than pattern-matching on style. Do not report style nits, hypotheticals you couldn't trace, or praise.
+
+Report format: a short verdict line, then a numbered list of findings — each with the file:line, what breaks, and the concrete input/state that triggers it. If you genuinely find nothing after a real attempt, say exactly that and note what you checked. Plain text, no markdown headers.`;
+
+  const child = spawn(CLAUDE_BIN, [
+    '-p', prompt,
+    '--permission-mode', 'bypassPermissions',
+    '--allowedTools', 'Read Grep Glob',
+    '--disallowedTools', BREAKER_DISALLOWED,
+    '--strict-mcp-config',
+    '--output-format', 'json',
+    '--max-budget-usd', MAX_BUDGET_USD,
+    '--session-id', randomUUID(), // fresh session every time — the Breaker judges cold
+  ], { cwd, stdio: ['ignore', 'pipe', 'pipe'] }); // stdin closed — the CLI otherwise waits on the open pipe
+
+  let stdout = '';
+  let stderr = '';
+  child.stdout.on('data', (d) => { stdout += d; });
+  child.stderr.on('data', (d) => { stderr += d; });
+  child.on('close', (code) => {
+    try {
+      // Prefer the CLI's own structured message even on a nonzero exit —
+      // budget stops land there, with only noise on stderr.
+      const outer = JSON.parse(stdout);
+      if (outer.is_error || code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
+      const replyText = (outer.result || '').trim();
+      if (!replyText) throw new Error('Empty response');
+      job.result = { text: replyText };
+      job.status = 'ready';
+    } catch (e) {
+      job.status = 'error';
+      job.error = code !== 0 && !(stdout || '').trim() ? (stderr.trim() || `claude exited with code ${code}`) : e.message;
+    }
+  });
+  child.on('error', (err) => {
+    job.status = 'error';
+    job.error = err.message;
+  });
+
+  return jobId;
+}

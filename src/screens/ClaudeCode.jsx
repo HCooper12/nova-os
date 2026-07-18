@@ -17,6 +17,14 @@ export function ClaudeCode({ v }) {
         <div style={css("display:flex;gap:10px")}>
           <Interactive
             as="span"
+            onClick={v.sparBusy ? undefined : v.startSpar}
+            base={{ cursor: 'pointer', font: "500 10.5px 'IBM Plex Mono',monospace", padding: '9px 16px', border: '1px solid color-mix(in srgb, var(--nv-mg) 45%, transparent)', borderRadius: '8px', color: 'var(--nv-mg)', background: 'color-mix(in srgb, var(--nv-mg) 06%, transparent)', opacity: v.sparBusy ? 0.55 : 1 }}
+            hoverStyle="background:color-mix(in srgb, var(--nv-mg) 14%, transparent)"
+          >
+            {v.sparBusy ? '⚔ Breaker running…' : '⚔ Spar — send the Breaker'}
+          </Interactive>
+          <Interactive
+            as="span"
             onClick={v.newCodeSession}
             base="cursor:pointer;font:500 10.5px 'IBM Plex Mono',monospace;padding:9px 16px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);border-radius:8px;color:color-mix(in srgb, var(--nv-ink) 60%, transparent)"
             hoverStyle="color:var(--nv-ink)"

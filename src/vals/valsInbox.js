@@ -40,39 +40,81 @@ function timeLabel(iso) {
   return sameDay ? hm : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) + ' ' + hm;
 }
 
-// The self-improvement nudge, grounded in history rather than vibes:
-//  - on auto-high: the last 8+ pending decisions were all approved untouched
-//    and nothing recent was undone → propose full autonomy
-//  - on auto-all: 2+ of the last 10 auto-filings were undone → propose
-//    stepping back down to auto-high
-function computeProposal(mode, items) {
-  const resolved = items.filter((r) => ['filed', 'discarded', 'undone'].includes(r.status));
+// The generalized proposal engine — every nudge is grounded in real history,
+// names its evidence, and only ever PROPOSES; you accept or skip. One
+// computation covers the inbox trust ladder, the dispatch ladder, and the
+// compost loop. Each proposal carries a stable key so a skip sticks until
+// the underlying evidence changes.
+function computeProposals(app, st, items, dispatch, compost) {
+  const out = [];
+  const mode = st.inboxMode;
+  const captures = items.filter((r) => !r.kind); // plain captures only
+  const resolved = captures.filter((r) => ['filed', 'discarded', 'undone'].includes(r.status));
+
+  // inbox ladder: promote after a clean approval streak
   if (mode === 'auto-high') {
-    // the records that went through human review: approved (filed, auto:false),
-    // discarded, or approved-then-undone
     const reviewed = resolved.filter((r) => r.auto === false || r.status === 'discarded');
     const recent = reviewed.slice(0, 8);
-    const allCleanApprovals = recent.length >= 8 && recent.every((r) => r.status === 'filed' && r.auto === false);
-    if (allCleanApprovals) {
-      return {
-        target: 'auto-all',
+    if (recent.length >= 8 && recent.every((r) => r.status === 'filed' && r.auto === false)) {
+      out.push({
+        key: `inbox-auto-all@${recent[0].id}`,
         text: `You've approved Nova's last ${recent.length} review calls without changing a thing — let it file everything on its own?`,
-      };
+        acceptLabel: 'Accept',
+        accept: () => { app.setInboxMode('auto-all'); app.toastMsg('Rule updated — Nova now auto-files everything'); },
+      });
     }
-    return null;
   }
+  // inbox ladder: step back after an undo streak
   if (mode === 'auto-all') {
-    const autoFiled = resolved.filter((r) => r.auto === true || (r.status === 'undone' && r.auto === true)).slice(0, 10);
+    const autoFiled = resolved.filter((r) => r.auto === true).slice(0, 10);
     const undone = autoFiled.filter((r) => r.status === 'undone').length;
     if (autoFiled.length >= 5 && undone >= 2) {
-      return {
-        target: 'auto-high',
+      out.push({
+        key: `inbox-auto-high@${autoFiled[0].id}`,
         text: `${undone} of Nova's last ${autoFiled.length} auto-filings had to be undone — step back to reviewing the uncertain ones?`,
-      };
+        acceptLabel: 'Accept',
+        accept: () => { app.setInboxMode('auto-high'); app.toastMsg('Rule updated — uncertain captures wait for you again'); },
+      });
     }
-    return null;
   }
-  return null;
+
+  // dispatch ladder: promote to auto after an approval streak
+  const dispatches = items.filter((r) => r.kind === 'dispatch' && ['filed', 'discarded', 'undone'].includes(r.status));
+  if (dispatch?.config?.mode === 'draft') {
+    const recent = dispatches.slice(0, 3);
+    if (recent.length >= 3 && recent.every((r) => r.status === 'filed' && r.auto === false)) {
+      out.push({
+        key: `dispatch-auto@${recent[0].id}`,
+        text: `You've approved the last ${recent.length} morning dispatches as drafted — let them file straight into the journal?`,
+        acceptLabel: 'Accept',
+        accept: () => app.setDispatchConfig({ mode: 'auto' }),
+      });
+    }
+    if (recent.length >= 3 && recent.every((r) => r.status === 'discarded')) {
+      out.push({
+        key: `dispatch-off@${recent[0].id}`,
+        text: `The last ${recent.length} morning dispatches were discarded unread — pause the loop?`,
+        acceptLabel: 'Pause it',
+        accept: () => app.setDispatchConfig({ mode: 'off' }),
+      });
+    }
+  }
+
+  // compost: proposals sitting unactioned for over a week deserve one nudge
+  const openCompost = (compost?.proposals || []).filter((p) => p.status === 'open');
+  if (openCompost.length) {
+    const oldest = openCompost.reduce((a, b) => (a.createdAt < b.createdAt ? a : b));
+    if (Date.now() - new Date(oldest.createdAt).getTime() > 7 * 24 * 60 * 60 * 1000) {
+      out.push({
+        key: `compost-waiting@${oldest.id}`,
+        text: `${openCompost.length} compost proposal${openCompost.length === 1 ? ' has' : 's have'} been waiting over a week — worth a minute below.`,
+        acceptLabel: 'Fair',
+        accept: () => app.dismissInboxProposal(`compost-waiting@${oldest.id}`),
+      });
+    }
+  }
+
+  return out;
 }
 
 export function valsInbox(app, ctx) {
@@ -87,9 +129,10 @@ export function valsInbox(app, ctx) {
 
   const mkItem = (r) => ({
     id: r.id,
+    kind: r.kind || null,
     text: r.text,
     time: timeLabel(r.createdAt),
-    source: r.source === 'voice' ? 'VOICE' : 'TYPED',
+    source: r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.source === 'voice' ? 'VOICE' : 'TYPED',
     status: r.status,
     route: r.decision ? (ROUTE_META[r.decision.route] || ROUTE_META.note) : null,
     confidence: r.decision?.confidence || null,
@@ -110,16 +153,44 @@ export function valsInbox(app, ctx) {
   const pendingItems = items.filter((r) => r.status === 'pending').map(mkItem);
   const historyItems = items.filter((r) => r.status !== 'pending').map(mkItem);
 
-  // proposed rule (video-2 trust ladder: Nova proposes, you ratify)
-  const rawProposal = !demoMode && inbox ? computeProposal(st.inboxMode, items) : null;
-  const proposalKey = rawProposal ? `${rawProposal.target}@${items[0]?.id || 'none'}` : '';
-  const inboxProposal = rawProposal && st.inboxProposalDismissed !== proposalKey
-    ? {
-        ...rawProposal,
-        accept: () => { app.setInboxMode(rawProposal.target); app.toastMsg('Rule updated — Nova now runs on ' + MODE_LADDER.find((m) => m.value === rawProposal.target).label.toLowerCase()); },
-        skip: () => app.dismissInboxProposal(proposalKey),
-      }
-    : null;
+  // proposed rules (video-2 trust ladder: Nova proposes, you ratify) — the
+  // generalized engine covers inbox, dispatch, and compost nudges
+  const dismissed = new Set(st.inboxProposalDismissed);
+  const inboxProposals = (!demoMode && inbox ? computeProposals(app, st, items, st.liveDispatch, st.liveCompost) : [])
+    .filter((p) => !dismissed.has(p.key))
+    .map((p) => ({ ...p, skip: () => app.dismissInboxProposal(p.key) }));
+
+  // loops — morning dispatch controls
+  const dispatch = st.liveDispatch;
+  const dispatchModes = ['off', 'draft', 'auto'].map((m) => ({
+    value: m,
+    label: m === 'off' ? 'Off' : m === 'draft' ? 'Draft for review' : 'Auto-file',
+    active: dispatch?.config?.mode === m,
+    pick: () => app.setDispatchConfig({ mode: m }),
+  }));
+
+  // loops — compost proposals
+  const compost = st.liveCompost;
+  const COMPOST_BADGE = {
+    'stale-capture': { label: 'STALE CAPTURE', hue: '224,178,106' },
+    'orphan': { label: 'ORPHAN NOTE', hue: '143,123,255' },
+    'sweep-todos': { label: 'SWEEP', hue: '89,230,255' },
+  };
+  const compostProposals = (compost?.proposals || [])
+    .filter((p) => p.status === 'open')
+    .map((p) => ({
+      id: p.id,
+      badge: COMPOST_BADGE[p.type] || { label: p.type.toUpperCase(), hue: '232,236,246' },
+      title: p.title,
+      detail: p.detail,
+      actionable: p.type !== 'orphan',
+      busy: !!st.compostActionBusy[p.id],
+      accept: () => app.compostAction(p.id, 'accept'),
+      dismiss: () => app.compostAction(p.id, 'dismiss'),
+      open: p.type === 'orphan' && p.data?.noteId
+        ? () => { app.selectNote(p.data.noteId); app.navigate('notes'); }
+        : null,
+    }));
 
   return {
     isInbox: st.screen === 'inbox',
@@ -142,10 +213,30 @@ export function valsInbox(app, ctx) {
       active: st.inboxMode === m.value,
       pick: () => app.setInboxMode(m.value),
     })),
-    inboxProposal,
+    inboxProposals,
     inboxPending: pendingItems,
     inboxHistory: historyItems,
     inboxPendingCount: pendingCount,
     inboxRefresh: () => app.refreshInbox(),
+
+    // loops
+    dispatchLoaded: !!dispatch,
+    dispatchModes,
+    dispatchHour: dispatch?.config?.hour ?? 7,
+    setDispatchHour: (e) => app.setDispatchConfig({ hour: Number(e.target.value) }),
+    dispatchToday: dispatch?.today
+      ? (dispatch.today.status === 'pending' ? 'today’s dispatch is waiting for review below'
+        : dispatch.today.status === 'filed' ? 'today’s dispatch is filed'
+        : dispatch.today.status === 'discarded' ? 'today’s dispatch was discarded'
+        : dispatch.today.status === 'undone' ? 'today’s dispatch was undone'
+        : 'today’s dispatch: ' + dispatch.today.status)
+      : 'no dispatch yet today',
+    dispatchBusy: st.dispatchBusy,
+    runDispatchNow: () => app.runDispatchNow(),
+    compostLoaded: !!compost,
+    compostLastRun: compost?.lastRunAt ? timeLabel(compost.lastRunAt) : 'never',
+    compostProposals,
+    compostBusy: st.compostBusy,
+    runCompostNow: () => app.runCompostNow(),
   };
 }

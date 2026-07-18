@@ -261,6 +261,25 @@ export async function undoFiling(vaultPath, undo) {
     await unlink(full);
     return 'deleted the captured note';
   }
+  if (undo.route === 'note-move') {
+    // compost archive → move the note back where it was
+    const from = path.join(vaultPath, undo.to);
+    const back = path.join(vaultPath, undo.from);
+    if (!existsSync(from)) throw new Error('the archived note no longer exists');
+    if (existsSync(back)) throw new Error('a note with the original name exists again — move it by hand in Obsidian');
+    const { rename } = await import('node:fs/promises');
+    await rename(from, back);
+    return 'moved the note back out of the archive';
+  }
+  if (undo.route === 'todo-restore') {
+    // compost sweep → re-append the swept lines
+    const full = path.join(vaultPath, undo.relPath);
+    if (!existsSync(full)) throw new Error('the To-Do file no longer exists');
+    await backupFile(full);
+    const raw = await readFile(full, 'utf8');
+    await writeFile(full, raw.replace(/\s*$/, '\n') + undo.lines.join('\n') + '\n', 'utf8');
+    return `restored ${undo.lines.length} swept to-do line${undo.lines.length === 1 ? '' : 's'}`;
+  }
   throw new Error('nothing to undo for this record');
 }
 

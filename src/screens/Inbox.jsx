@@ -144,14 +144,96 @@ export function Inbox({ v }) {
         ))}
       </div>
 
-      {/* proposed rule — Nova asks to move on the ladder; you ratify */}
-      {v.inboxProposal && (
-        <div className="nv-pane nv-focus" style={{ marginTop: '16px', padding: '16px 20px' }}>
+      {/* proposed rules — Nova asks to change its own operating rules; you ratify */}
+      {v.inboxProposals.map((p) => (
+        <div key={p.key} className="nv-pane nv-focus" style={{ marginTop: '16px', padding: '16px 20px' }}>
           <div style={css(`font:500 9.5px ${M};letter-spacing:.26em;color:var(--nv-gold)`)}>PROPOSED RULE</div>
-          <div style={css(`margin-top:8px;font:400 17px/1.4 ${S};text-wrap:pretty`)}>{v.inboxProposal.text}</div>
+          <div style={css(`margin-top:8px;font:400 17px/1.4 ${S};text-wrap:pretty`)}>{p.text}</div>
           <div style={css("margin-top:12px;display:flex;gap:10px")}>
-            <Interactive as="span" onClick={v.inboxProposal.accept} base={css(`cursor:pointer;font:600 13px ${R};padding:7px 16px;border-radius:8px;background:var(--nv-gold);color:#1a1206`)} hoverStyle={{ filter: 'brightness(1.1)' }}>Accept</Interactive>
-            <Interactive as="span" onClick={v.inboxProposal.skip} base={css(`cursor:pointer;font:600 13px ${R};padding:7px 16px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent);color:var(--nv-ink60)`)} hoverStyle={{ background: 'rgba(255,255,255,.05)' }}>Skip</Interactive>
+            <Interactive as="span" onClick={p.accept} base={css(`cursor:pointer;font:600 13px ${R};padding:7px 16px;border-radius:8px;background:var(--nv-gold);color:#1a1206`)} hoverStyle={{ filter: 'brightness(1.1)' }}>{p.acceptLabel || 'Accept'}</Interactive>
+            <Interactive as="span" onClick={p.skip} base={css(`cursor:pointer;font:600 13px ${R};padding:7px 16px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent);color:var(--nv-ink60)`)} hoverStyle={{ background: 'rgba(255,255,255,.05)' }}>Skip</Interactive>
+          </div>
+        </div>
+      ))}
+
+      {/* the loops — dispatch and compost run on schedules; controls live here */}
+      {v.inboxConnected && (
+        <div style={{ marginTop: '24px' }}>
+          <div style={css(`font:500 9.5px ${M};letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)`)}>LOOPS</div>
+          <div style={{ display: 'flex', gap: '12px', marginTop: '10px', flexWrap: 'wrap' }}>
+
+            <div className="nv-pane" style={{ flex: '1 1 320px', padding: '16px 18px' }}>
+              <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>
+                <span style={css(`font:500 9.5px ${M};letter-spacing:.2em;color:var(--nv-cy)`)}>MORNING DISPATCH</span>
+                <span style={css(`font:400 8.5px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>DAILY BRIEF · REAL DATA ONLY</span>
+              </div>
+              <div style={css(`margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center`)}>
+                {v.dispatchModes.map((m) => (
+                  <Interactive key={m.value} as="span" onClick={m.pick}
+                    base={{ cursor: 'pointer', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '6px 12px', borderRadius: '7px',
+                      border: m.active ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)',
+                      color: m.active ? 'var(--nv-acc)' : 'var(--nv-ink60)', background: m.active ? 'var(--nv-acc-bg)' : 'transparent' }}
+                    hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}
+                  >{m.label}</Interactive>
+                ))}
+                <select value={v.dispatchHour} onChange={v.setDispatchHour}
+                  style={{ marginLeft: 'auto', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: `500 11px ${M}`, padding: '5px 7px', outline: 'none' }}>
+                  {[5, 6, 7, 8, 9, 10].map((h) => <option key={h} value={h} style={{ background: '#141019' }}>{String(h).padStart(2, '0')}:00</option>)}
+                </select>
+              </div>
+              <div style={css(`margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px`)}>
+                <span style={css(`font:500 11.5px ${R};color:var(--nv-ink60)`)}>{v.dispatchToday}</span>
+                <Interactive as="span" onClick={v.dispatchBusy ? undefined : v.runDispatchNow}
+                  base={{ cursor: 'pointer', flex: 'none', font: `600 10.5px ${M}`, letterSpacing: '.08em', padding: '6px 13px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent)', color: 'var(--nv-cy)', opacity: v.dispatchBusy ? 0.5 : 1 }}
+                  hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' }}
+                >{v.dispatchBusy ? 'COMPOSING…' : 'RUN NOW'}</Interactive>
+              </div>
+            </div>
+
+            <div className="nv-pane" style={{ flex: '1 1 320px', padding: '16px 18px' }}>
+              <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>
+                <span style={css(`font:500 9.5px ${M};letter-spacing:.2em;color:var(--nv-good)`)}>COMPOST LOOP</span>
+                <span style={css(`font:400 8.5px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>WEEKLY · READ-ONLY SCAN</span>
+              </div>
+              <div style={css(`margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px`)}>
+                <span style={css(`font:500 11.5px ${R};color:var(--nv-ink60)`)}>last pass {v.compostLastRun} · {v.compostProposals.length} open proposal{v.compostProposals.length === 1 ? '' : 's'}</span>
+                <Interactive as="span" onClick={v.compostBusy ? undefined : v.runCompostNow}
+                  base={{ cursor: 'pointer', flex: 'none', font: `600 10.5px ${M}`, letterSpacing: '.08em', padding: '6px 13px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-good) 40%, transparent)', color: 'var(--nv-good)', opacity: v.compostBusy ? 0.5 : 1 }}
+                  hoverStyle={{ background: 'color-mix(in srgb, var(--nv-good) 08%, transparent)' }}
+                >{v.compostBusy ? 'SCANNING…' : 'RUN NOW'}</Interactive>
+              </div>
+              {v.compostProposals.length > 0 && (
+                <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:8px")}>
+                  {v.compostProposals.map((p) => (
+                    <div key={p.id} style={css("padding:10px 12px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);background:rgba(0,0,0,.2)")}>
+                      <div style={css("display:flex;align-items:center;gap:8px;flex-wrap:wrap")}>
+                        <span style={{ font: `600 8px ${M}`, letterSpacing: '.14em', padding: '2px 7px', borderRadius: '4px', color: `rgb(${p.badge.hue})`, background: `rgba(${p.badge.hue},.08)`, border: `1px solid rgba(${p.badge.hue},.4)` }}>{p.badge.label}</span>
+                        <span style={css(`font:600 13px ${R}`)}>{p.title}</span>
+                      </div>
+                      <div style={css(`margin-top:4px;font:500 11.5px/1.5 ${R};color:var(--nv-ink60)`)}>{p.detail}</div>
+                      <div style={css("margin-top:8px;display:flex;gap:8px")}>
+                        {p.actionable && (
+                          <Interactive as="span" onClick={p.busy ? undefined : p.accept}
+                            base={{ cursor: 'pointer', font: `600 11.5px ${R}`, padding: '4px 12px', borderRadius: '7px', background: 'var(--nv-gold)', color: '#1a1206', opacity: p.busy ? 0.5 : 1 }}
+                            hoverStyle={{ filter: 'brightness(1.1)' }}
+                          >{p.busy ? '…' : 'Accept'}</Interactive>
+                        )}
+                        {p.open && (
+                          <Interactive as="span" onClick={p.open}
+                            base={{ cursor: 'pointer', font: `600 11.5px ${R}`, padding: '4px 12px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-vi) 45%, transparent)', color: 'var(--nv-vi)' }}
+                            hoverStyle={{ background: 'color-mix(in srgb, var(--nv-vi) 08%, transparent)' }}
+                          >Open</Interactive>
+                        )}
+                        <Interactive as="span" onClick={p.busy ? undefined : p.dismiss}
+                          base={{ cursor: 'pointer', font: `600 11.5px ${R}`, padding: '4px 12px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent)', color: 'var(--nv-ink60)', opacity: p.busy ? 0.5 : 1 }}
+                          hoverStyle={{ background: 'rgba(255,255,255,.05)' }}
+                        >Dismiss</Interactive>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -168,7 +250,7 @@ export function Inbox({ v }) {
                   <span style={css(`font:400 9px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>{item.time} · {item.source}</span>
                 </div>
                 <div style={css(`margin-top:9px;font:600 15px ${R}`)}>{item.title}</div>
-                {item.preview && <div style={css(`margin-top:3px;font:500 13px/1.5 ${R};color:var(--nv-ink60)`)}>{item.preview}</div>}
+                {item.preview && <div style={css(`margin-top:3px;font:500 13px/1.5 ${R};color:var(--nv-ink60);white-space:pre-wrap`)}>{item.preview}</div>}
                 {item.reason && <div style={css(`margin-top:6px;font:italic 400 13px ${S};color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`)}>{item.reason}</div>}
                 {item.error && <div style={css(`margin-top:6px;font:500 12px ${R};color:var(--nv-warn)`)}>{item.error}</div>}
                 <div style={css("margin-top:12px;display:flex;gap:10px")}>

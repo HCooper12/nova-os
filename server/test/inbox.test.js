@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 import matter from 'gray-matter';
 
 const { normalizeDecision, fileDecision, undoFiling } = await import('../lib/inbox.js');
-const { createRecord, getRecord, updateRecord, listRecords } = await import('../lib/inboxStore.js');
+const { createRecord, getRecord, updateRecord, listRecords, _resetInboxStore } = await import('../lib/inboxStore.js');
 const { approveRecord, discardRecord, undoRecord } = await import('../lib/inbox.js');
 const { loadShoppingList } = await import('../lib/shoppingList.js');
 const { listEntries } = await import('../lib/journal.js');
@@ -162,4 +162,47 @@ test('store lifecycle: pending → approve files it; discard and undo guard stat
   const all = await listRecords();
   assert.ok(all.find((r) => r.id === 'test0001'));
   assert.ok(all.find((r) => r.id === 'test0002'));
+});
+
+// --- Breaker-found hardening regressions (sparring loop, first run) ---
+
+test('cold-cache race: concurrent reader + writer share one load, nothing is lost', async () => {
+  _resetInboxStore();
+  const rec = { id: 'race0001', text: 'race test', source: 'text', mode: 'auto-high', status: 'discarded', createdAt: new Date().toISOString(), decision: null };
+  // fire a lock-free read and a locked write into a cold cache simultaneously
+  const [, listed] = await Promise.all([createRecord(rec), listRecords()]);
+  assert.ok(Array.isArray(listed));
+  _resetInboxStore();
+  const after = await listRecords();
+  assert.ok(after.find((r) => r.id === 'race0001'), 'record must survive a concurrent cold-cache read');
+});
+
+test('corrupt store file is quarantined, never silently overwritten', async () => {
+  const { writeFile: wf, readdir } = await import('node:fs/promises');
+  _resetInboxStore();
+  const before = await listRecords(); // records that must survive via quarantine? no — corrupt wipes memory, but evidence is kept
+  await wf(path.join(dataDir, 'inbox.json'), '{"items": [truncated', 'utf8');
+  _resetInboxStore();
+  const items = await listRecords();
+  assert.deepEqual(items, []); // fresh store after corruption
+  const files = await readdir(dataDir);
+  assert.ok(files.some((f) => f.startsWith('inbox.json.corrupt-')), 'corrupt file must be quarantined: ' + files.join(','));
+  // fresh store persists cleanly afterwards
+  await createRecord({ id: 'fresh001', text: 'post-corruption', source: 'text', mode: 'auto-high', status: 'discarded', createdAt: new Date().toISOString(), decision: null });
+  _resetInboxStore();
+  assert.ok((await listRecords()).find((r) => r.id === 'fresh001'));
+  assert.ok(before.length >= 0); // silence unused warning
+});
+
+test('error records are unresolved — never trimmed away', async () => {
+  const errRecord = { id: 'err00001', text: 'a thought that failed to classify', source: 'text', mode: 'auto-high', status: 'error', createdAt: new Date(Date.now() - 10_000_000).toISOString(), decision: null, error: 'boom' };
+  await createRecord(errRecord);
+  // flood with enough newer resolved records to trigger trimming
+  for (let i = 0; i < 405; i++) {
+    await createRecord({ id: `flood${String(i).padStart(4, '0')}`, text: 'x', source: 'text', mode: 'auto-high', status: 'discarded', createdAt: new Date(Date.now() - 1000 + i).toISOString(), decision: null });
+  }
+  const items = await listRecords();
+  assert.ok(items.find((r) => r.id === 'err00001'), 'error record must survive trimming');
+  const resolved = items.filter((r) => !['classifying', 'pending', 'error'].includes(r.status));
+  assert.ok(resolved.length <= 400, 'resolved records must still be bounded');
 });

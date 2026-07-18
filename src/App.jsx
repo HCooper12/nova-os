@@ -62,7 +62,7 @@ const CACHED_LIVE_KEYS = [
   'liveFoodLog', 'liveShoppingList', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
   'liveWorkoutExercises', 'liveWorkoutMuscleGroups', 'liveWorkoutTrackingTypes',
   'liveWorkoutRoutines', 'liveWorkoutSchedule', 'liveWorkoutWeekdays',
-  'liveJournalEntries', 'liveGraph', 'liveInbox',
+  'liveJournalEntries', 'liveGraph', 'liveInbox', 'liveDispatch', 'liveCompost',
 ];
 
 const INBOX_MODE_KEY = 'novaos.inboxMode';
@@ -115,10 +115,13 @@ export default class App extends Component {
     isMobile: typeof window !== 'undefined' && window.innerWidth < 760,
     novaTheme: getNovaTheme(), calmMode: getCalm(), coreStyle: getCoreStyle(),
 
-    // nova inbox (capture → classify → file)
+    // nova inbox (capture → classify → file) + the loops riding its rails
     liveInbox: null, inboxInput: '', inboxCaptureBusy: false, inboxActionBusy: {},
     inboxMode: (typeof window !== 'undefined' && INBOX_MODES.includes(localStorage.getItem(INBOX_MODE_KEY))) ? localStorage.getItem(INBOX_MODE_KEY) : 'auto-high',
-    inboxProposalDismissed: typeof window !== 'undefined' ? (localStorage.getItem('novaos.inboxProposalDismissed') || '') : '',
+    inboxProposalDismissed: (() => { try { const a = JSON.parse(localStorage.getItem('novaos.proposalsDismissed') || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } })(),
+    liveDispatch: null, liveCompost: null,
+    dispatchBusy: false, compostBusy: false, compostActionBusy: {},
+    sparBusy: false,
 
     // live-data connection (Settings screen)
     settingsBaseUrl: '', settingsToken: '',
@@ -313,6 +316,8 @@ export default class App extends Component {
         this.gNodes = null; // rebuilt from the fresh graph next time the galaxy renders
       },
       async () => this.setState({ liveInbox: await api.inbox(conn) }),
+      async () => this.setState({ liveDispatch: await api.dispatchStatus(conn) }),
+      async () => this.setState({ liveCompost: await api.compost(conn) }),
     ];
     this.refreshInFlight = (async () => {
       const results = await Promise.allSettled(tasks.map((t) => t()));
@@ -911,7 +916,11 @@ export default class App extends Component {
   // changes daily, without needing a dedicated backend endpoint (the pool
   // comes straight from the already-fetched notes list).
   dailyReviewPool(liveNotes) {
-    return (liveNotes || []).filter((n) => n.type === 'concept' || n.type === 'topic');
+    // Sorted by title so the pick matches the server-side Morning Dispatch
+    // pool regardless of fetch ordering.
+    return (liveNotes || [])
+      .filter((n) => n.type === 'concept' || n.type === 'topic')
+      .sort((a, b) => a.title.localeCompare(b.title));
   }
   dailyReviewIndex(pool) {
     if (!pool.length) return 0;
@@ -1137,8 +1146,79 @@ export default class App extends Component {
     this.setState({ inboxMode: mode });
   }
   dismissInboxProposal(key) {
-    try { localStorage.setItem('novaos.inboxProposalDismissed', key); } catch { /* best-effort */ }
-    this.setState({ inboxProposalDismissed: key });
+    const next = [...this.state.inboxProposalDismissed, key].slice(-20);
+    try { localStorage.setItem('novaos.proposalsDismissed', JSON.stringify(next)); } catch { /* best-effort */ }
+    this.setState({ inboxProposalDismissed: next });
+  }
+  // ---------- loops (dispatch · compost · sparring) ----------
+  setDispatchConfig(patch) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.dispatchConfig(conn, patch).then(({ config }) => {
+      this.setState((s) => ({ liveDispatch: { ...(s.liveDispatch || {}), config } }));
+      this.toastMsg('Dispatch ' + (patch.mode ? 'set to ' + patch.mode : 'now runs at ' + String(patch.hour).padStart(2, '0') + ':00'));
+    }).catch((e) => this.toastMsg('Could not update dispatch: ' + e.message));
+  }
+  runDispatchNow() {
+    const conn = getConnection();
+    if (!conn || this.state.dispatchBusy) return;
+    this.setState({ dispatchBusy: true });
+    api.dispatchRun(conn, true).then(({ record }) => {
+      this.setState({ dispatchBusy: false });
+      this.refreshInbox();
+      api.dispatchStatus(conn).then((d) => this.setState({ liveDispatch: d })).catch(() => {});
+      this.toastMsg(record.status === 'filed' ? 'Dispatch filed ✓ — ' + record.destination : 'Dispatch drafted — waiting in the Inbox');
+    }).catch((e) => {
+      this.setState({ dispatchBusy: false });
+      this.toastMsg('Dispatch failed: ' + e.message);
+    });
+  }
+  runCompostNow() {
+    const conn = getConnection();
+    if (!conn || this.state.compostBusy) return;
+    this.setState({ compostBusy: true });
+    api.compostRun(conn).then((data) => {
+      this.setState({ compostBusy: false, liveCompost: data });
+      this.toastMsg(data.proposals.length ? `Compost pass done — ${data.proposals.length} proposal${data.proposals.length === 1 ? '' : 's'}` : 'Compost pass done — the vault is tidy');
+    }).catch((e) => {
+      this.setState({ compostBusy: false });
+      this.toastMsg('Compost run failed: ' + e.message);
+    });
+  }
+  compostAction(id, kind) {
+    const conn = getConnection();
+    if (!conn) return;
+    this.setState((s) => ({ compostActionBusy: { ...s.compostActionBusy, [id]: true } }));
+    const fn = kind === 'accept' ? api.compostAccept : api.compostDismiss;
+    fn(conn, id).then((res) => {
+      this.setState((s) => ({
+        compostActionBusy: { ...s.compostActionBusy, [id]: false },
+        liveCompost: s.liveCompost
+          ? { ...s.liveCompost, proposals: s.liveCompost.proposals.map((p) => (p.id === id ? res.proposal : p)) }
+          : s.liveCompost,
+      }));
+      if (kind === 'accept') { this.refreshInbox(); this.toastMsg('Done ✓ — ' + (res.record?.destination || res.proposal.title)); }
+    }).catch((e) => {
+      this.setState((s) => ({ compostActionBusy: { ...s.compostActionBusy, [id]: false } }));
+      this.toastMsg('Could not apply: ' + e.message);
+    });
+  }
+  startSpar() {
+    const conn = getConnection();
+    if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
+    if (this.state.sparBusy) return;
+    const target = this.state.codeWorkspace === 'repo' ? 'Nova OS' : 'the vault';
+    this.setState((s) => ({ sparBusy: true, codeChat: [...s.codeChat, { who: 'system', text: `Breaker engaged — read-only adversarial pass over ${target}…` }] }));
+    const focus = [...this.state.codeChat].reverse().find((m) => m.who === 'you')?.text || '';
+    api.sparStart(conn, this.state.codeWorkspace, focus).then(({ jobId }) => {
+      this.startPoll('spar', () => api.claudeCodeJob(conn, jobId), {
+        timeoutMs: 10 * 60_000,
+        onReady: (job) => this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { who: 'breaker', text: job.result.text }] })),
+        onError: (msg) => this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { who: 'system', text: 'Breaker failed: ' + msg }] })),
+      });
+    }).catch((e) => {
+      this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { who: 'system', text: 'Breaker failed: ' + e.message }] }));
+    });
   }
   captureToInbox(text, source = 'text') {
     const conn = getConnection();
