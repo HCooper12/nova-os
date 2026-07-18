@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nova — 30 · Synthesis B (HUD lean)</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+<style>
+/* 30 SYNTHESIS B — the same architecture as 29, flavored harder
+   toward 22's instrument feel: Rajdhani everywhere, corner brackets,
+   faint grid, squarer radii, more mono. Same palette, same organs. */
+:root{--void:#06070d;--ink:#e8ecf6;--ink60:rgba(232,236,246,.62);--ink40:rgba(232,236,246,.38);
+--glass:rgba(16,20,36,.62);--glass2:rgba(26,32,54,.8);--edge:rgba(130,175,255,.24);--spec:rgba(190,225,255,.45);
+--cy:#59e6ff;--vi:#8f7bff;--mg:#ff7ad9;--gold:#e0b26a;--good:#5fe8a8}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:radial-gradient(1200px 800px at 60% -18%,#111a32 0%,#0a0f1e 45%,var(--void) 100%);color:var(--ink);font-family:'Rajdhani',sans-serif;min-height:100vh;overflow-x:hidden}
+.aurora{position:fixed;inset:-14%;pointer-events:none;filter:blur(34px);opacity:.8;background:
+radial-gradient(640px 400px at 16% 12%,rgba(89,230,255,.12),transparent 62%),
+radial-gradient(600px 440px at 84% 26%,rgba(143,123,255,.14),transparent 60%);animation:dr 24s ease-in-out infinite alternate}
+@keyframes dr{to{transform:translate(2%,3%) scale(1.07)}}
+.gridl{position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(rgba(130,175,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(130,175,255,.045) 1px,transparent 1px);background-size:52px 52px;mask-image:radial-gradient(72% 62% at 50% 40%,#000 30%,transparent 100%)}
+.wrap{position:relative;max-width:1320px;margin:0 auto;padding:26px 44px 70px}
+.mono{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}
+.pane{position:relative;border-radius:10px;background:var(--glass);backdrop-filter:blur(18px);border:1px solid var(--edge);box-shadow:inset 0 1px 0 var(--spec),0 26px 60px -34px #000}
+.pane::before{content:'';position:absolute;top:5px;left:5px;width:11px;height:11px;border-left:1.5px solid rgba(89,230,255,.55);border-top:1.5px solid rgba(89,230,255,.55)}
+.pane::after{content:'';position:absolute;bottom:5px;right:5px;width:11px;height:11px;border-right:1.5px solid rgba(89,230,255,.55);border-bottom:1.5px solid rgba(89,230,255,.55)}
+.bar{display:flex;align-items:center;gap:18px;padding:12px 20px;border-radius:10px}
+.brand{font-weight:700;font-size:21px;letter-spacing:.16em}
+.brand span{background:linear-gradient(90deg,var(--cy),var(--vi));-webkit-background-clip:text;background-clip:text;color:transparent}
+.nav{display:flex;gap:4px;margin-left:8px}
+.nav a{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.15em;color:var(--ink60);text-decoration:none;padding:7px 12px;border-radius:6px}
+.nav a.on{color:var(--cy);background:rgba(89,230,255,.08);border:1px solid rgba(89,230,255,.42);box-shadow:0 0 18px -6px rgba(89,230,255,.9);text-shadow:0 0 12px rgba(89,230,255,.85)}
+.bar .r{margin-left:auto;display:flex;gap:14px;align-items:center;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.13em;color:var(--ink60)}
+.livepill{display:flex;gap:7px;align-items:center;color:var(--good);border:1px solid rgba(95,232,168,.35);border-radius:14px;padding:5px 11px}
+.livepill i{width:6px;height:6px;border-radius:50%;background:var(--good);box-shadow:0 0 10px var(--good);animation:pl 2.2s infinite}
+@keyframes pl{50%{opacity:.4}}
+.hero{display:grid;grid-template-columns:1.22fr 1fr;gap:32px;padding:46px 4px 32px;align-items:center}
+.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.32em;color:var(--ink60);margin-bottom:16px}
+.eyebrow b{color:var(--gold);font-weight:500}
+h1{font-weight:700;font-size:57px;line-height:1.02;letter-spacing:.01em;text-wrap:balance;text-transform:none}
+h1 .tag{display:block;font-family:'Instrument Serif',serif;font-style:italic;font-weight:400;font-size:42px;margin-top:6px;background:linear-gradient(90deg,var(--cy),var(--vi) 55%,var(--mg));-webkit-background-clip:text;background-clip:text;color:transparent}
+.stand{margin-top:16px;font-size:16.5px;font-weight:500;line-height:1.6;color:var(--ink60);max-width:54ch}
+.stand b{color:var(--ink);font-weight:700}
+.stand .cy{color:var(--cy);font-weight:700}
+.ctas{display:flex;gap:12px;margin-top:26px}
+.gbtn{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:11px;letter-spacing:.16em;padding:13px 24px;border-radius:7px;cursor:pointer;border:1px solid rgba(89,230,255,.55);background:linear-gradient(180deg,rgba(89,230,255,.2),rgba(89,230,255,.05));color:var(--cy);box-shadow:0 0 30px -10px rgba(89,230,255,.95);text-shadow:0 0 12px rgba(89,230,255,.7)}
+.gbtn.ghost{border-color:rgba(232,236,246,.16);background:transparent;color:var(--ink60);box-shadow:none;text-shadow:none}
+.cluster{position:relative;display:flex;align-items:center;justify-content:center;min-height:352px}
+.orb{position:absolute;border:1px dashed rgba(130,175,255,.22);border-radius:50%;animation:spin 70s linear infinite}
+.orb.a{width:330px;height:330px}.orb.b{width:252px;height:252px;animation-direction:reverse;animation-duration:50s}
+@keyframes spin{to{transform:rotate(360deg)}}
+.core{position:relative;width:206px;height:206px;border-radius:50%;background:var(--glass);backdrop-filter:blur(18px);box-shadow:inset 0 0 0 1.5px rgba(89,230,255,.35),0 0 74px -18px rgba(89,230,255,.85)}
+.core svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.core .v{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+.core .l{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.32em;color:var(--cy)}
+.core .n{font-weight:700;font-size:54px;line-height:1;font-variant-numeric:tabular-nums}
+.core .n small{font-size:20px;font-weight:600;color:var(--ink40)}
+.core .h{font-size:12px;color:var(--ink60)}
+.sat{position:absolute;padding:11px 16px;border-radius:8px}
+.sat .l{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:.24em;color:var(--ink60)}
+.sat .n{font-weight:700;font-size:26px;margin-top:2px;font-variant-numeric:tabular-nums}
+.sat .n small{font-size:13px;color:var(--ink40)}
+.sat.s1{top:8px;right:14px;box-shadow:0 0 40px -14px rgba(89,230,255,.7)}
+.sat.s1 .n{color:var(--cy)}
+.sat.s2{bottom:16px;left:0;box-shadow:0 0 40px -14px rgba(255,122,217,.6)}
+.sat.s2 .n{color:var(--mg)}
+.grid{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:18px}
+.p{padding:22px 24px;border-radius:10px;overflow:hidden}
+.ph{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:13px}
+.ph .h{font-weight:700;font-size:19px;letter-spacing:.16em}
+.ph .h em{font-family:'Instrument Serif',serif;font-style:italic;font-weight:400;font-size:22px;letter-spacing:0;color:var(--gold);margin-right:3px}
+.ph.cyh .h{color:var(--cy);text-shadow:0 0 16px rgba(89,230,255,.5)}
+.ph.vih .h{color:var(--vi);text-shadow:0 0 16px rgba(143,123,255,.5)}
+.ph .m{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.2em;color:var(--ink40)}
+.p p{font-size:14.5px;font-weight:500;line-height:1.64;color:var(--ink60)}.p p b{color:var(--ink);font-weight:700}
+.scan{position:relative}
+.scan::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,rgba(89,230,255,.05) 50%,transparent 70%);animation:scan 5s linear infinite;pointer-events:none;border:none;width:auto;height:auto}
+@keyframes scan{from{transform:translateY(-100%)}to{transform:translateY(100%)}}
+.chips{display:flex;gap:8px;margin-top:13px}
+.chip{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.07em;padding:5px 11px;border-radius:5px;border:1px solid rgba(95,232,168,.42);color:var(--good);background:rgba(95,232,168,.06)}
+.chip.b{border-color:rgba(143,123,255,.45);color:var(--vi);background:rgba(143,123,255,.07)}
+.ag{list-style:none}
+.ag li{display:flex;gap:13px;padding:8px 0;font-size:14.5px;font-weight:500;align-items:baseline;border-bottom:1px solid rgba(130,175,255,.1)}
+.ag li:last-child{border:0}
+.ag .tm{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink40);width:44px;flex:none}
+.ag .now{color:var(--cy)}.ag .now .tm{color:var(--cy);font-weight:600}
+.ag .now::before{content:'▸ ';color:var(--mg)}
+.q{font-family:'Instrument Serif',serif;font-style:italic;font-size:18px;line-height:1.52}
+.src{margin-top:11px;font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.14em;color:var(--ink40)}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:18px}
+.c{padding:15px 20px;border-radius:8px;cursor:pointer;transition:box-shadow .2s}
+.c:hover{box-shadow:0 0 28px -10px rgba(89,230,255,.6)}
+.c .k{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.24em}
+.c.k1 .k{color:var(--gold)}.c.k2 .k{color:var(--cy)}.c.k3 .k{color:var(--mg)}
+.c .t{font-weight:700;font-size:21px;letter-spacing:.04em;margin-top:5px}
+.c .d{font-size:12.5px;color:var(--ink60);margin-top:2px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style></head>
+<body>
+<div class="aurora"></div><div class="gridl"></div>
+<div class="wrap">
+  <div class="bar pane">
+    <div class="brand">NOVA<span>·OS</span></div>
+    <nav class="nav"><a class="on" href="#">MISSION</a><a href="#">VOICE</a><a href="#">GALAXY</a><a href="#">CODE</a><a href="#">RECIPES</a><a href="#">TRAIN</a><a href="#">NOTES</a><a href="#">JOURNAL</a></nav>
+    <div class="r"><span>SYNCED 13:12</span><span class="livepill"><i></i>LIVE · VAULT 47</span></div>
+  </div>
+  <section class="hero">
+    <div>
+      <div class="eyebrow">FRIDAY 17 JULY · <b>13:12</b> · DAY 213 · ALL SYSTEMS NOMINAL</div>
+      <h1>Good afternoon, Hayden.<span class="tag">Cleared for deep work at 15:30.</span></h1>
+      <p class="stand">Recovery reads <b>strong</b> — HRV <b>93.5 ms</b>, resting <b>51 bpm</b> — but yesterday's block never fired. Tonight: <b>Upper Body</b>, a <b>54 g protein gap</b>, <span class="cy">7,639 steps</span> on the plan.</p>
+      <div class="ctas"><button class="gbtn">ENGAGE NEXT BLOCK</button><button class="gbtn ghost">ASK NOVA</button></div>
+    </div>
+    <div class="cluster">
+      <div class="orb a"></div><div class="orb b"></div>
+      <div class="core">
+        <svg width="206" height="206" viewBox="0 0 206 206">
+          <defs><linearGradient id="holo" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#59e6ff"/><stop offset="1" stop-color="#8f7bff"/>
+          </linearGradient></defs>
+          <circle cx="103" cy="103" r="90" fill="none" stroke="rgba(232,236,246,.09)" stroke-width="6"/>
+          <circle cx="103" cy="103" r="90" fill="none" stroke="url(#holo)" stroke-width="6" stroke-linecap="round" stroke-dasharray="362 566"/>
+        </svg>
+        <div class="v"><span class="l">PROTEIN</span><span class="n">96<small>/150G</small></span><span class="h">chilli beef closes it</span></div>
+      </div>
+      <div class="sat pane s1"><div class="l">SLEEP</div><div class="n">7:12<small>/8H</small></div></div>
+      <div class="sat pane s2"><div class="l">STEPS</div><div class="n">2,361</div></div>
+    </div>
+  </section>
+  <section class="grid">
+    <div class="p pane scan">
+      <div class="ph"><span class="h"><em>Nova</em> NOTICED</span><span class="m">WHILE YOU SLEPT</span></div>
+      <p>Your <b>HRV (93.5 ms)</b> and resting heart rate <b>(51 bpm)</b> read strong — but that's because yesterday's 7:30 block never happened. Steps (2,361) and active energy (170 kcal) stayed minimal across a 14.8-hour day. <b>Tonight's session is the correction burn.</b></p>
+      <div class="chips"><span class="chip">2-DAY WORKOUT STREAK</span><span class="chip b">RECOVERY · STRONG</span></div>
+    </div>
+    <div class="p pane">
+      <div class="ph cyh"><span class="h">TODAY</span><span class="m">LIVE · CALENDAR</span></div>
+      <ul class="ag">
+        <li><span class="tm">09:45</span><span>Walk Tank 🐶</span></li>
+        <li class="now"><span class="tm">15:30</span><span>Work 💰 — in 2h 18m</span></li>
+        <li><span class="tm">22:00</span><span>Mindfulness 🧘</span></li>
+        <li><span class="tm">22:30</span><span>Recharge 💤</span></li>
+      </ul>
+    </div>
+    <div class="p pane">
+      <div class="ph vih"><span class="h">DAILY REVIEW</span><span class="m">CONCEPT</span></div>
+      <p class="q">“Sadness signals a missing option you can learn; anxiety signals too many options to rank and prune.”</p>
+      <div class="src">FROM · OPERATIONALIZING EMOTIONS</div>
+    </div>
+  </section>
+  <section class="cards">
+    <div class="c pane k1"><div class="k">LUNCH · CONSUMED 12:37</div><div class="t">Chilli Beef &amp; Rice</div><div class="d">60P · 76C · 14F · 666 kcal</div></div>
+    <div class="c pane k2"><div class="k">TRAIN · T-MINUS 4H</div><div class="t">Upper Body</div><div class="d">6 exercises · bench 82.5 kg</div></div>
+    <div class="c pane k3"><div class="k">VAULT · LATEST ENTRY</div><div class="t">Resilience &amp; Reframing</div><div class="d">concept · 4 links</div></div>
+  </section>
+</div>
+</body></html>

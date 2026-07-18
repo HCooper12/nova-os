@@ -127,6 +127,24 @@ skins, including keeping Midnight Observatory as the classic option. Directions
 with different *layouts* (e.g. Cockpit vs Cathedral) are more than a token swap
 — those are a mode, not a theme.
 
+## Round 5 — THE SYNTHESIS (files 29–31), from Hayden's element-level picks
+
+Canonical architecture (all three): specular 3D panes with iridescent edges ·
+NOVA·OS dotted brand · glow + text-glow on the active tab and primary CTA ·
+date eyebrow → bold greeting → time-aware serif-gradient tagline → standfirst
+with bolded metrics · orbital core gauge with satellite metric boxes ·
+scanline over "Nova noticed" (with *Nova* in gold serif italic) · colored
+standout section headings (gold/cyan/violet) · highlighted current calendar
+event (▸) · summary chips · colored taglines on bottom cards · SYNCED +
+LIVE·VAULT (real note count) in the bar · animated background.
+
+- **29 Synthesis A — "Nova Prime":** the balanced build (Outfit bold + Rajdhani
+  titles + Instrument Serif accents + JetBrains Mono micro) in 28's palette
+- **30 Synthesis B — HUD lean:** same architecture flavored toward 22 —
+  Rajdhani/Plex Mono dominant, corner brackets, faint grid, squarer radii
+- **31 Ember skin:** byte-identical markup to 29, ember tokens only — the
+  standing proof that alternate schemes (incl. 25–27 brights) ship as toggles
+
 ### Shared principles regardless of winner
 
 - Same information architecture as today (focus, vitals, noticed, today, vault cards)
