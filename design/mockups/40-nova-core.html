@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nova — 40 · The Nova Core</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+<style>
+/* 40 THE NOVA CORE — Nova's identity mark, grown generatively the way
+   the Jarvis reference is: concentric broken circuit-rings, filament
+   wisps and particle embers orbiting a white-hot heart. Blue. Alive:
+   every band rotates at its own speed, the heart breathes, segments
+   flicker like thought. Three personalities + scale tests below. */
+:root{--void:#05070d;--ink:#e8ecf6;--ink60:rgba(232,236,246,.6);--ink40:rgba(232,236,246,.36);
+--edge:rgba(130,175,255,.22);--spec:rgba(190,225,255,.45);--cy:#59e6ff;--vi:#8f7bff}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:radial-gradient(1100px 760px at 50% -14%,#0d1524 0%,#080d18 44%,var(--void) 100%);color:var(--ink);font-family:'Rajdhani',sans-serif;min-height:100vh;overflow-x:hidden}
+.gridl{position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(rgba(130,175,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(130,175,255,.04) 1px,transparent 1px);background-size:52px 52px;mask-image:radial-gradient(70% 62% at 50% 40%,#000 30%,transparent 100%)}
+.wrap{position:relative;max-width:1280px;margin:0 auto;padding:34px 44px 70px;text-align:center}
+.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.34em;color:var(--cy)}
+h1{font-weight:700;font-size:40px;letter-spacing:.06em;margin-top:12px}
+h1 em{font-family:'Instrument Serif',serif;font-style:italic;font-weight:400;background:linear-gradient(90deg,var(--cy),var(--vi));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{margin-top:10px;font-size:15px;color:var(--ink60);max-width:64ch;margin-left:auto;margin-right:auto;line-height:1.6}
+.stage{position:relative;margin:26px auto 6px;width:600px;height:600px}
+.stage canvas{position:absolute;inset:0}
+.stage .lbl{position:absolute;left:50%;bottom:34px;transform:translateX(-50%);font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.4em;color:var(--cy);text-shadow:0 0 14px rgba(89,230,255,.8)}
+.variants{display:flex;justify-content:center;gap:34px;margin-top:26px}
+.var{width:280px}
+.var canvas{width:280px;height:280px}
+.var .vn{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.26em;color:var(--ink60);margin-top:8px}
+.var .vd{font-size:12.5px;color:var(--ink40);margin-top:4px;line-height:1.5}
+.sizes{display:flex;justify-content:center;align-items:flex-end;gap:44px;margin-top:40px;padding-top:28px;border-top:1px solid rgba(130,175,255,.12)}
+.sz{display:flex;flex-direction:column;align-items:center;gap:8px}
+.sz .sl{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.2em;color:var(--ink40)}
+.note{margin-top:30px;font-size:13px;color:var(--ink40);font-family:'IBM Plex Mono',monospace;letter-spacing:.06em}
+</style></head>
+<body>
+<div class="gridl"></div>
+<div class="wrap">
+  <div class="eyebrow">IDENTITY · THE NOVA CORE</div>
+  <h1>An intelligence you can <em>see thinking.</em></h1>
+  <p class="sub">Grown generatively — ~1,400 broken circuit-arcs, filaments and embers orbiting a breathing heart. Every band rotates at its own speed; segments flicker like passing thoughts. Tap it to speak.</p>
+
+  <div class="stage">
+    <canvas id="hero" width="600" height="600"></canvas>
+    <span class="lbl">N O V A · L I S T E N I N G</span>
+  </div>
+
+  <div class="variants">
+    <div class="var"><canvas id="v1" width="280" height="280"></canvas><div class="vn">A · FILAMENT</div><div class="vd">densest — closest to the reference; chaotic circuitry, storm of embers</div></div>
+    <div class="var"><canvas id="v2" width="280" height="280"></canvas><div class="vn">B · LATTICE</div><div class="vd">more ordered — clearer ring structure, calmer particles, engineered feel</div></div>
+    <div class="var"><canvas id="v3" width="280" height="280"></canvas><div class="vn">C · PULSE</div><div class="vd">minimal — few luminous bands and a stronger heart; quietest at small sizes</div></div>
+  </div>
+
+  <div class="sizes">
+    <div class="sz"><canvas id="s1" width="200" height="200"></canvas><span class="sl">REACTOR · 200PX</span></div>
+    <div class="sz"><canvas id="s2" width="96" height="96"></canvas><span class="sl">CARD · 96PX</span></div>
+    <div class="sz"><canvas id="s3" width="36" height="36"></canvas><span class="sl">SIDEBAR · 36PX</span></div>
+  </div>
+  <div class="note">VARIANT A SHOWN AT ALL SIZES · SEEDED — THE SAME BEING EVERY TIME · RESPECTS PREFERS-REDUCED-MOTION</div>
+</div>
+<script>
+// Deterministic seeded rng — Nova is the same being on every load.
+function rng(seed){ let s=seed; return ()=> (s=(s*16807)%2147483647)/2147483647; }
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function buildCore(canvas, opts){
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  const W = canvas.width, H = canvas.height;
+  canvas.width = W*dpr; canvas.height = H*dpr;
+  canvas.style.width = W+'px'; canvas.style.height = H+'px';
+  const ctx = canvas.getContext('2d'); ctx.scale(dpr,dpr);
+  const cx = W/2, cy = H/2, R = W*0.44;
+  const r = rng(opts.seed||7);
+
+  // color by radius fraction: deep blue rim -> cyan -> near-white heart
+  function col(f, a){
+    const hue = 224 - f*36;              // 224 blue -> 188 cyan
+    const sat = 90 - f*10;
+    const lit = 38 + (1-f)*44;           // brighter toward the core
+    return `hsla(${hue},${sat}%,${lit}%,${a})`;
+  }
+
+  // ring bands of broken arc segments (the circuitry)
+  const bands = [];
+  for(let b=0;b<opts.bands;b++){
+    const f = 0.22 + 0.78*(b/(opts.bands-1));            // radius fraction
+    const segs = [];
+    const n = Math.round(opts.segs*(0.5+r()));
+    for(let i=0;i<n;i++){
+      const a0 = r()*Math.PI*2;
+      segs.push({ a0, len: (0.02+r()*r()*opts.arc), w: 0.5+r()*1.8*opts.weight,
+                  jit: (r()-0.5)*R*0.05*opts.chaos, al: 0.14+r()*0.5, fl: r()*6.28, fs: 0.5+r()*2 });
+    }
+    bands.push({ f, segs, vel: (r()-0.5)*opts.speed, squash: 1 - r()*0.16*opts.chaos, tilt:(r()-0.5)*0.5*opts.chaos });
+  }
+  // ember particles
+  const embers = [];
+  for(let i=0;i<opts.embers;i++){
+    const f = Math.pow(r(),0.6);
+    embers.push({ f, ang: r()*6.283, sz: 0.4+r()*1.5, al: 0.15+r()*0.6, tw: r()*6.28, ts: 0.6+r()*2.4 });
+  }
+  // filament wisps (bezier strands through the volume)
+  const wisps = [];
+  for(let i=0;i<opts.wisps;i++){
+    const a = r()*6.283, b2 = a + (r()-0.5)*2.4;
+    wisps.push({ a, b: b2, f1: 0.25+r()*0.7, f2: 0.25+r()*0.7, bulge: (r()-0.5)*1.6, al: 0.05+r()*0.14 });
+  }
+
+  function draw(t){
+    ctx.clearRect(0,0,W,H);
+    ctx.globalCompositeOperation = 'lighter';
+    // wisps
+    for(const w of wisps){
+      const rot = t*0.03;
+      const x1 = cx+Math.cos(w.a+rot)*R*w.f1, y1 = cy+Math.sin(w.a+rot)*R*w.f1*0.94;
+      const x2 = cx+Math.cos(w.b+rot)*R*w.f2, y2 = cy+Math.sin(w.b+rot)*R*w.f2*0.94;
+      const mx = (x1+x2)/2 + (y2-y1)*w.bulge*0.3, my = (y1+y2)/2 - (x2-x1)*w.bulge*0.3;
+      ctx.strokeStyle = col(0.5, w.al); ctx.lineWidth = 0.7;
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.quadraticCurveTo(mx,my,x2,y2); ctx.stroke();
+    }
+    // bands
+    for(const b of bands){
+      const rad = R*b.f;
+      ctx.save(); ctx.translate(cx,cy); ctx.rotate(b.tilt); ctx.scale(1,b.squash);
+      const rot = t*b.vel;
+      for(const s of b.segs){
+        const flick = 0.55 + 0.45*Math.sin(t*s.fs + s.fl);
+        ctx.strokeStyle = col(b.f, s.al*flick);
+        ctx.lineWidth = s.w;
+        ctx.beginPath(); ctx.arc(0,0, rad + s.jit, s.a0+rot, s.a0+rot+s.len); ctx.stroke();
+      }
+      ctx.restore();
+    }
+    // embers
+    for(const e of embers){
+      const tw = 0.4+0.6*Math.abs(Math.sin(t*e.ts + e.tw));
+      const x = cx+Math.cos(e.ang + t*0.05)*R*e.f, y = cy+Math.sin(e.ang + t*0.05)*R*e.f*0.94;
+      ctx.fillStyle = col(e.f, e.al*tw);
+      ctx.beginPath(); ctx.arc(x,y,e.sz,0,6.29); ctx.fill();
+    }
+    // breathing heart
+    const pulse = 1 + 0.07*Math.sin(t*1.8);
+    const hr = R*opts.heart*pulse;
+    const g = ctx.createRadialGradient(cx,cy,0,cx,cy,hr*2.6);
+    g.addColorStop(0,'rgba(240,252,255,.95)');
+    g.addColorStop(0.18,'rgba(158,240,255,.8)');
+    g.addColorStop(0.45,'rgba(64,170,238,.35)');
+    g.addColorStop(1,'rgba(20,60,140,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(cx,cy,hr*2.6,0,6.29); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  if(reduced){ draw(1.7); return; }
+  (function loop(){ draw(performance.now()/1000); requestAnimationFrame(loop); })();
+}
+
+const FILAMENT = {seed:7,  bands:26, segs:34, arc:1.1, weight:1,   chaos:1,   speed:.16, embers:420, wisps:60, heart:.10};
+const LATTICE  = {seed:21, bands:16, segs:22, arc:0.9, weight:1.2, chaos:0.4, speed:.10, embers:160, wisps:18, heart:.11};
+const PULSE    = {seed:40, bands:8,  segs:14, arc:1.4, weight:1.6, chaos:0.25,speed:.08, embers:90,  wisps:8,  heart:.15};
+
+buildCore(document.getElementById('hero'), FILAMENT);
+buildCore(document.getElementById('v1'), FILAMENT);
+buildCore(document.getElementById('v2'), LATTICE);
+buildCore(document.getElementById('v3'), PULSE);
+buildCore(document.getElementById('s1'), FILAMENT);
+buildCore(document.getElementById('s2'), {...FILAMENT, bands:14, segs:18, embers:120, wisps:16});
+buildCore(document.getElementById('s3'), {...FILAMENT, bands:6, segs:10, embers:24, wisps:0, heart:.2});
+</script>
+</body></html>
