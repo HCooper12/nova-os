@@ -80,9 +80,9 @@ function computeProposals(app, st, items, dispatch, compost) {
 
   // dispatch ladder, per slot: promote to auto after an approval streak,
   // propose pausing after a discard streak
-  for (const slot of ['morning', 'evening']) {
+  for (const slot of ['morning', 'evening', 'weekly']) {
     if (dispatch?.config?.[slot]?.mode !== 'draft') continue;
-    const name = slot === 'evening' ? 'evening debriefs' : 'morning dispatches';
+    const name = slot === 'evening' ? 'evening debriefs' : slot === 'weekly' ? 'weekly reviews' : 'morning dispatches';
     const recent = items
       .filter((r) => r.kind === 'dispatch' && (r.slot || 'morning') === slot && ['filed', 'discarded', 'undone'].includes(r.status))
       .slice(0, 3);
@@ -102,6 +102,22 @@ function computeProposals(app, st, items, dispatch, compost) {
         accept: () => app.setDispatchConfig(slot, { mode: 'off' }),
       });
     }
+  }
+
+  // Coach's missed-session rescue — evening, a routine was scheduled, nothing
+  // logged. Nudge only: the weekly schedule is a recurring template, so the
+  // rescue never rewrites it — accepting just opens Train. Keyed per day so
+  // a skip holds for tonight and it re-arms tomorrow.
+  const training = dispatch?.training;
+  if (training?.scheduledName && !training.loggedToday && new Date().getHours() >= 18) {
+    const now = new Date();
+    const dayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    out.push({
+      key: `rescue@${dayKey}`,
+      text: `${training.scheduledName} was on today's schedule and nothing's logged yet — a shortened session still counts.`,
+      acceptLabel: 'Open Train',
+      accept: () => { app.navigate('workouts'); app.dismissInboxProposal(`rescue@${dayKey}`); },
+    });
   }
 
   // compost: proposals sitting unactioned for over a week deserve one nudge
@@ -166,27 +182,32 @@ export function valsInbox(app, ctx) {
 
   // loops — daily brief controls, one row per slot
   const dispatch = st.liveDispatch;
+  const SLOT_META = {
+    morning: { label: 'MORNING DISPATCH', noun: 'dispatch', scope: 'today', defaultHour: 7, hourOptions: [5, 6, 7, 8, 9, 10] },
+    evening: { label: 'EVENING DEBRIEF', noun: 'debrief', scope: 'today', defaultHour: 21, hourOptions: [19, 20, 21, 22] },
+    weekly: { label: 'WEEKLY REVIEW', noun: 'review', scope: 'this week', defaultHour: 17, hourOptions: [15, 16, 17, 18, 19, 20] },
+  };
   const slotStatus = (slot) => {
     const t = dispatch?.today?.[slot];
-    const noun = slot === 'evening' ? 'debrief' : 'dispatch';
-    if (!t) return `no ${noun} yet today`;
-    if (t.status === 'pending') return `today's ${noun} is waiting for review below`;
-    if (t.status === 'filed') return `today's ${noun} is filed`;
-    if (t.status === 'discarded') return `today's ${noun} was discarded`;
-    if (t.status === 'undone') return `today's ${noun} was undone`;
-    return `today's ${noun}: ${t.status}`;
+    const { noun, scope } = SLOT_META[slot];
+    if (!t) return slot === 'weekly' ? 'no review yet this week — composes Sundays' : `no ${noun} yet today`;
+    if (t.status === 'pending') return `${scope}'s ${noun} is waiting for review below`;
+    if (t.status === 'filed') return `${scope}'s ${noun} is filed`;
+    if (t.status === 'discarded') return `${scope}'s ${noun} was discarded`;
+    if (t.status === 'undone') return `${scope}'s ${noun} was undone`;
+    return `${scope}'s ${noun}: ${t.status}`;
   };
-  const dispatchSlots = ['morning', 'evening'].map((slot) => ({
+  const dispatchSlots = ['morning', 'evening', 'weekly'].map((slot) => ({
     slot,
-    label: slot === 'evening' ? 'EVENING DEBRIEF' : 'MORNING DISPATCH',
+    label: SLOT_META[slot].label,
     modes: ['off', 'draft', 'auto'].map((m) => ({
       value: m,
       label: m === 'off' ? 'Off' : m === 'draft' ? 'Draft' : 'Auto',
       active: dispatch?.config?.[slot]?.mode === m,
       pick: () => app.setDispatchConfig(slot, { mode: m }),
     })),
-    hour: dispatch?.config?.[slot]?.hour ?? (slot === 'evening' ? 21 : 7),
-    hourOptions: slot === 'evening' ? [19, 20, 21, 22] : [5, 6, 7, 8, 9, 10],
+    hour: dispatch?.config?.[slot]?.hour ?? SLOT_META[slot].defaultHour,
+    hourOptions: SLOT_META[slot].hourOptions,
     setHour: (e) => app.setDispatchConfig(slot, { hour: Number(e.target.value) }),
     status: slotStatus(slot),
     run: () => app.runDispatchNow(slot),
@@ -214,6 +235,24 @@ export function valsInbox(app, ctx) {
         ? () => { app.selectNote(p.data.noteId); app.navigate('notes'); }
         : null,
     }));
+
+  // loops — todoist two-way sync (to-dos mirror into the Todoist Inbox)
+  const todoist = st.liveTodoist;
+  const tdLast = todoist?.lastResult;
+  const tdBits = tdLast && !tdLast.error
+    ? [tdLast.pushed && `pushed ${tdLast.pushed}`, tdLast.pulled && `pulled ${tdLast.pulled}`, tdLast.closedInTodoist && `closed ${tdLast.closedInTodoist}`, tdLast.checkedInVault && `checked off ${tdLast.checkedInVault}`].filter(Boolean)
+    : [];
+  const todoistCard = {
+    configured: !!todoist?.configured,
+    busy: !!st.todoistBusy,
+    status: !todoist ? 'checking…'
+      : !todoist.configured ? 'Not connected. Paste your API token into server/.env as TODOIST_TOKEN (Todoist → Settings → Integrations → Developer), then restart Nova.'
+      : tdLast?.error ? `Connected, but the last pass hit an error: ${tdLast.error}`
+      : todoist.lastSyncAt
+        ? `${todoist.linkCount} open item${todoist.linkCount === 1 ? '' : 's'} in step · last pass ${timeLabel(todoist.lastSyncAt)}${tdBits.length ? ' — ' + tdBits.join(', ') : ''}`
+        : 'Connected — the first pass runs within ten minutes, or run it now.',
+    sync: () => app.runTodoistSyncNow(),
+  };
 
   return {
     isInbox: st.screen === 'inbox',
@@ -251,5 +290,6 @@ export function valsInbox(app, ctx) {
     compostProposals,
     compostBusy: st.compostBusy,
     runCompostNow: () => app.runCompostNow(),
+    todoist: todoistCard,
   };
 }

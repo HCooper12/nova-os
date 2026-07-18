@@ -61,8 +61,8 @@ const CACHED_LIVE_KEYS = [
   'liveNotes', 'liveCalendar', 'liveRecipes', 'liveRecipeProfile', 'liveRotation',
   'liveFoodLog', 'liveShoppingList', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
   'liveWorkoutExercises', 'liveWorkoutMuscleGroups', 'liveWorkoutTrackingTypes',
-  'liveWorkoutRoutines', 'liveWorkoutSchedule', 'liveWorkoutWeekdays',
-  'liveJournalEntries', 'liveGraph', 'liveInbox', 'liveDispatch', 'liveCompost',
+  'liveWorkoutRoutines', 'liveWorkoutSchedule', 'liveWorkoutWeekdays', 'liveWorkoutProgressions',
+  'liveJournalEntries', 'liveGraph', 'liveInbox', 'liveDispatch', 'liveCompost', 'liveTodoist',
 ];
 
 const INBOX_MODE_KEY = 'novaos.inboxMode';
@@ -119,8 +119,8 @@ export default class App extends Component {
     liveInbox: null, inboxInput: '', inboxCaptureBusy: false, inboxActionBusy: {},
     inboxMode: (typeof window !== 'undefined' && INBOX_MODES.includes(localStorage.getItem(INBOX_MODE_KEY))) ? localStorage.getItem(INBOX_MODE_KEY) : 'auto-high',
     inboxProposalDismissed: (() => { try { const a = JSON.parse(localStorage.getItem('novaos.proposalsDismissed') || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } })(),
-    liveDispatch: null, liveCompost: null,
-    dispatchBusy: false, compostBusy: false, compostActionBusy: {},
+    liveDispatch: null, liveCompost: null, liveTodoist: null,
+    dispatchBusy: false, compostBusy: false, compostActionBusy: {}, todoistBusy: false,
     sparBusy: false,
 
     // live-data connection (Settings screen)
@@ -143,7 +143,7 @@ export default class App extends Component {
 
     // workouts
     liveWorkoutExercises: null, liveWorkoutMuscleGroups: null, liveWorkoutTrackingTypes: null,
-    liveWorkoutRoutines: null, liveWorkoutSchedule: null, liveWorkoutWeekdays: null,
+    liveWorkoutRoutines: null, liveWorkoutSchedule: null, liveWorkoutWeekdays: null, liveWorkoutProgressions: null,
     workoutsView: 'routines', openRoutineId: null,
     routineCreating: false, routineNewName: '',
     routineDeleteConfirm: false,
@@ -308,7 +308,7 @@ export default class App extends Component {
         const exercisesRes = await api.workoutExercises(conn);
         this.setState({ liveWorkoutExercises: exercisesRes.exercises, liveWorkoutMuscleGroups: exercisesRes.muscleGroups, liveWorkoutTrackingTypes: exercisesRes.trackingTypes });
         const routinesRes = await api.workoutRoutines(conn);
-        this.setState({ liveWorkoutRoutines: routinesRes.routines, liveWorkoutSchedule: routinesRes.schedule, liveWorkoutWeekdays: routinesRes.weekdays });
+        this.setState({ liveWorkoutRoutines: routinesRes.routines, liveWorkoutSchedule: routinesRes.schedule, liveWorkoutWeekdays: routinesRes.weekdays, liveWorkoutProgressions: routinesRes.progressions || {} });
       },
       async () => {
         const graph = await api.graph(conn);
@@ -318,6 +318,7 @@ export default class App extends Component {
       async () => this.setState({ liveInbox: await api.inbox(conn) }),
       async () => this.setState({ liveDispatch: await api.dispatchStatus(conn) }),
       async () => this.setState({ liveCompost: await api.compost(conn) }),
+      async () => this.setState({ liveTodoist: await api.todoistStatus(conn) }),
     ];
     this.refreshInFlight = (async () => {
       const results = await Promise.allSettled(tasks.map((t) => t()));
@@ -339,7 +340,7 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn) return Promise.resolve();
     return api.workoutRoutines(conn).then((r) => {
-      this.setState({ liveWorkoutRoutines: r.routines, liveWorkoutSchedule: r.schedule, liveWorkoutWeekdays: r.weekdays });
+      this.setState({ liveWorkoutRoutines: r.routines, liveWorkoutSchedule: r.schedule, liveWorkoutWeekdays: r.weekdays, liveWorkoutProgressions: r.progressions || {} });
     }).catch(() => {});
   }
   toggleRotationSlot(slot, recipeId) {
@@ -791,11 +792,20 @@ export default class App extends Component {
     }).catch((e) => this.toastMsg('Could not update schedule: ' + e.message));
   }
   startWorkoutSession(routine) {
+    const progressions = this.state.liveWorkoutProgressions || {};
     const exercises = routine.exercises.map((e) => {
-      const sets = e.lastSets && e.lastSets.length
+      let sets = e.lastSets && e.lastSets.length
         ? e.lastSets.map((s) => ({ weight: s.weight, reps: s.reps, done: false }))
         : Array.from({ length: e.targetSets }, () => ({ weight: 0, reps: e.targetRepsLow, done: false }));
-      return { exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, trackingType: e.trackingType, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh, sets };
+      // Coach progression: earned suggestions nudge the PREFILL only — what
+      // gets logged is whatever actually happens on the floor.
+      const coach = progressions[`${routine.id}:${e.exerciseId}`] || null;
+      if (coach) {
+        sets = sets.map((s) => coach.kind === 'weight'
+          ? { ...s, weight: Math.round((Number(s.weight) + coach.delta) * 10) / 10 }
+          : { ...s, reps: Number(s.reps) + coach.delta });
+      }
+      return { exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, trackingType: e.trackingType, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh, coach, sets };
     });
     this.setState({ workoutsView: 'session', workoutSession: { routineId: routine.id, routineName: routine.name, exercises }, sessionCancelConfirm: false });
   }
@@ -1173,6 +1183,24 @@ export default class App extends Component {
     }).catch((e) => {
       this.setState({ dispatchBusy: false });
       this.toastMsg('Brief failed: ' + e.message);
+    });
+  }
+  runTodoistSyncNow() {
+    const conn = getConnection();
+    if (!conn || this.state.todoistBusy) return;
+    this.setState({ todoistBusy: true });
+    api.todoistSync(conn).then(({ result }) => {
+      this.setState({ todoistBusy: false });
+      api.todoistStatus(conn).then((t) => this.setState({ liveTodoist: t })).catch(() => {});
+      if (!result.configured) this.toastMsg('Todoist is not connected yet — add TODOIST_TOKEN in server/.env');
+      else if (result.error) this.toastMsg('Todoist sync hit an error: ' + result.error);
+      else {
+        const bits = [result.pushed && `${result.pushed} pushed`, result.pulled && `${result.pulled} pulled`, result.closedInTodoist && `${result.closedInTodoist} closed`, result.checkedInVault && `${result.checkedInVault} checked off`].filter(Boolean);
+        this.toastMsg(bits.length ? `Todoist synced — ${bits.join(', ')}` : 'Todoist synced — already in step');
+      }
+    }).catch((e) => {
+      this.setState({ todoistBusy: false });
+      this.toastMsg('Todoist sync failed: ' + e.message);
     });
   }
   runCompostNow() {

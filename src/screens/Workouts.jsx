@@ -172,8 +172,12 @@ function RoutineDetailView({ v }) {
           <div key={e.exerciseId} style={css("border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:12px;padding:14px 16px;background:rgba(255,255,255,.02)")}>
             <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap")}>
               <div>
-                <div style={css("font-size:14.5px;font-weight:500")}>{e.name}</div>
+                <div style={css("display:flex;align-items:center;gap:8px;flex-wrap:wrap")}>
+                  <span style={css("font-size:14.5px;font-weight:500")}>{e.name}</span>
+                  {e.coachLabel && <span title={e.coachEvidence || ''} style={css("font:500 8.5px 'IBM Plex Mono',monospace;letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-cy);border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);background:color-mix(in srgb, var(--nv-cy) 08%, transparent)")}>{e.coachLabel}</span>}
+                </div>
                 <div style={css("margin-top:2px;font:400 10.5px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{e.muscleGroup} · last: {e.lastLabel}</div>
+                {e.coachEvidence && <div style={css("margin-top:2px;font:400 10px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-cy) 60%, transparent)")}>Coach: {e.coachEvidence} — next session prefills the step up.</div>}
               </div>
               <div style={css("display:flex;align-items:center;gap:4px;font:400 10px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>
                 <input type="number" min="1" defaultValue={e.targetSets} onBlur={e.onTargetSetsBlur} style={numInputStyle} />
@@ -223,8 +227,11 @@ function SessionView({ v }) {
       <div style={css("margin-top:20px;display:flex;flex-direction:column;gap:14px")}>
         {v.sessionExercises.map((e) => (
           <div key={e.exerciseId} style={css("border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:12px;padding:16px 18px;background:rgba(255,255,255,.02)")}>
-            <div style={css("display:flex;justify-content:space-between;align-items:baseline")}>
-              <span style={css("font-size:15px;font-weight:500")}>{e.name}</span>
+            <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap")}>
+              <span style={css("display:flex;align-items:center;gap:8px;flex-wrap:wrap")}>
+                <span style={css("font-size:15px;font-weight:500")}>{e.name}</span>
+                {e.coachLabel && <span title={e.coachEvidence || ''} style={css("font:500 8.5px 'IBM Plex Mono',monospace;letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-cy);border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);background:color-mix(in srgb, var(--nv-cy) 08%, transparent)")}>{e.coachLabel}</span>}
+              </span>
               <span style={css("font:400 10px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{e.targetLabel}</span>
             </div>
             <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:8px")}>

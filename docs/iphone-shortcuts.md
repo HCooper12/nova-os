@@ -84,12 +84,45 @@ Evening version: duplicate it, use key path `today.evening.text`, schedule
 > The notification shows the brief; approving/undoing stays in the app's
 > Inbox, where the draft is waiting (in draft mode).
 
-## Companion habit — fresh health data before the dispatch
+## 4 · "Nova Health Push" — fresh health data on wake-up
 
-If you use a Shortcut automation to send Apple Health data to
-`/api/health-data`, trigger it on the **wake-up alarm** automation (or a time
-a few minutes before the dispatch hour) so the Morning Dispatch always has
-last night's sleep and HRV before it composes.
+The Morning Dispatch's Recovery line is only as fresh as the last push to
+`/api/health-data`. This automation sends last night's numbers the moment
+your alarm goes off, so the 07:00 dispatch always composes against real
+sleep and HRV.
+
+Create Shortcut **Nova Health Push**:
+
+1. **Find Health Samples** — repeat this step per metric you care about (each
+   returns a value into a named variable):
+   - *Steps* — Yesterday, Group by Day, Sum
+   - *Heart Rate Variability* — Last 24 hours, Average
+   - *Resting Heart Rate* — Last 24 hours, Average
+   - *Sleep Analysis* — Last 24 hours, filter "Asleep", Sum → **convert to
+     minutes** (Sleep returns hours/samples; add a "Calculate" or "Convert"
+     step so the number you send is whole minutes)
+2. **Current Date** → **Format Date** — custom format `yyyy-MM-dd`, into
+   variable `today`. *(Send steps under yesterday's date if you prefer the
+   dispatch's "steps yesterday" line to be exact — the server merges by
+   whatever date you give it.)*
+3. **Get contents of URL**
+   - URL: `BASE/api/health-data`
+   - Method: `POST`, Header `Authorization` = `Bearer TOKEN`
+   - Request body `JSON`:
+     - `date` → the formatted date
+     - `metrics` → a Dictionary with any of: `steps`, `hrv`,
+       `restingHeartRate`, `sleepAsleepMinutes`, `sleepInBedMinutes`,
+       `activeEnergyKcal`, `walkingRunningDistanceKm`, `vo2Max`, `weightKg`
+       *(all numbers; unknown keys are ignored, and metrics you skip are
+       simply left out of the brief — nothing is invented)*
+4. Automations tab → **New Automation → Alarm → When My Wake-Up Alarm Goes
+   Off** (or *Is Stopped*) → **Run Immediately** → **Run Shortcut → Nova
+   Health Push**. Add a fallback **Time of Day** automation at ~06:45 for
+   alarm-free mornings.
+
+The server merges per-day (a later push updates the same date's record), so
+running it twice is harmless. The dispatch scheduler composes at the set
+hour; data arriving earlier is always picked up.
 
 ## Security notes
 

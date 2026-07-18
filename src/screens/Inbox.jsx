@@ -164,7 +164,7 @@ export function Inbox({ v }) {
 
             <div className="nv-pane" style={{ flex: '1 1 320px', padding: '16px 18px' }}>
               <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>
-                <span style={css(`font:500 9.5px ${M};letter-spacing:.2em;color:var(--nv-cy)`)}>DAILY BRIEFS</span>
+                <span style={css(`font:500 9.5px ${M};letter-spacing:.2em;color:var(--nv-cy)`)}>BRIEFS</span>
                 <span style={css(`font:400 8.5px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>REAL DATA ONLY</span>
               </div>
               {v.dispatchSlots.map((s, i) => (
@@ -237,6 +237,25 @@ export function Inbox({ v }) {
                     </div>
                   ))}
                 </div>
+              )}
+            </div>
+
+            <div className="nv-pane" style={{ flex: '1 1 320px', padding: '16px 18px' }}>
+              <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>
+                <span style={css(`font:500 9.5px ${M};letter-spacing:.2em;color:var(--nv-vi)`)}>TODOIST SYNC</span>
+                <span style={css(`font:400 8.5px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>{v.todoist.configured ? 'TWO-WAY · EVERY 10 MIN' : 'NOT CONNECTED'}</span>
+              </div>
+              <div style={css(`margin-top:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px`)}>
+                <span style={css(`font:500 11.5px/1.5 ${R};color:var(--nv-ink60)`)}>{v.todoist.status}</span>
+                {v.todoist.configured && (
+                  <Interactive as="span" onClick={v.todoist.busy ? undefined : v.todoist.sync}
+                    base={{ cursor: 'pointer', flex: 'none', font: `600 10.5px ${M}`, letterSpacing: '.08em', padding: '6px 13px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-vi) 45%, transparent)', color: 'var(--nv-vi)', opacity: v.todoist.busy ? 0.5 : 1 }}
+                    hoverStyle={{ background: 'color-mix(in srgb, var(--nv-vi) 08%, transparent)' }}
+                  >{v.todoist.busy ? 'SYNCING…' : 'SYNC NOW'}</Interactive>
+                )}
+              </div>
+              {v.todoist.configured && (
+                <div style={css(`margin-top:8px;font:400 10px ${M};color:color-mix(in srgb, var(--nv-ink) 35%, transparent)`)}>To-dos filed here appear in Todoist's Inbox; tasks added or completed there flow back. Nothing is ever deleted on either side.</div>
               )}
             </div>
           </div>

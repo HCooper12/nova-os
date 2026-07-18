@@ -6,6 +6,7 @@ import { spawn } from 'node:child_process';
 import { randomUUID, createHash } from 'node:crypto';
 import matter from 'gray-matter';
 import { backupFile } from './backup.js';
+import { queueTodoistSync } from './todoistSync.js';
 import { createRecord, updateRecord, getRecord } from './inboxStore.js';
 import { addItemsDirect, removeItems, SHOPPING_CATEGORIES } from './shoppingList.js';
 import * as journal from './journal.js';
@@ -189,6 +190,7 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     const lines = payload.items.map((it) => `- [ ] ${it} _(added ${date})_`);
     const updated = raw.replace(/\s*$/, '\n') + lines.join('\n') + '\n';
     await writeFile(full, updated, 'utf8');
+    queueTodoistSync(vaultPath); // mirror to Todoist shortly (no-op when unconfigured)
     return {
       destination: `To-Do — ${payload.items.join('; ')}`,
       undo: { route, relPath: TODO_REL, lines },

@@ -3,6 +3,7 @@ import { loadExerciseLibrary, addCustomExercise, MUSCLE_GROUPS, TRACKING_TYPES }
 import { loadRoutines, createRoutine, updateRoutine, deleteRoutine, setScheduleDay, WEEKDAYS } from '../lib/workouts.js';
 import { loadExerciseState } from '../lib/exerciseState.js';
 import { loadSessions, completeSession, completedCountByRoutine } from '../lib/workoutSessions.js';
+import { computeProgressions } from '../lib/coach.js';
 
 function annotateRoutines(routines, exerciseState, completedCounts) {
   return routines.map((r) => ({
@@ -49,7 +50,9 @@ export function workoutsRouter(vaultPath) {
         loadExerciseState(vaultPath),
         completedCountByRoutine(vaultPath),
       ]);
-      res.json({ routines: annotateRoutines(routines, exerciseState, completedCounts), schedule, weekdays });
+      // Coach: earned progression suggestions, keyed `${routineId}:${exerciseId}`
+      const progressions = await computeProgressions(vaultPath, routines).catch(() => ({}));
+      res.json({ routines: annotateRoutines(routines, exerciseState, completedCounts), schedule, weekdays, progressions });
     } catch (err) {
       next(err);
     }

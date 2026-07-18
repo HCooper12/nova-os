@@ -1,15 +1,16 @@
 import express from 'express';
 import { getDispatchStatus, setDispatchConfig, runDispatch, DISPATCH_MODES, DISPATCH_SLOTS } from '../lib/dispatch.js';
 import { getCompost, runCompost, acceptProposal, dismissProposal } from '../lib/compost.js';
+import { getTodoistStatus, syncTodoist } from '../lib/todoistSync.js';
 
-// The loops: Morning Dispatch (daily brief on the inbox rails) and the
-// Compost loop (weekly read-only vault hygiene proposals).
+// The loops: the scheduled briefs (dispatch slots on the inbox rails), the
+// Compost loop (weekly read-only vault hygiene proposals), and Todoist sync.
 export function loopsRouter(vaultPath) {
   const router = express.Router();
 
   router.get('/dispatch', async (req, res) => {
     try {
-      res.json(await getDispatchStatus());
+      res.json(await getDispatchStatus(vaultPath));
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
@@ -75,6 +76,22 @@ export function loopsRouter(vaultPath) {
       res.json({ proposal: await dismissProposal(req.params.id) });
     } catch (e) {
       res.status(400).json({ error: e.message });
+    }
+  });
+
+  router.get('/todoist', async (req, res) => {
+    try {
+      res.json(await getTodoistStatus());
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  router.post('/todoist/sync', async (req, res) => {
+    try {
+      res.json({ result: await syncTodoist(vaultPath) });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
     }
   });
 

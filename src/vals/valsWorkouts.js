@@ -65,6 +65,9 @@ export function valsWorkouts(app, ctx) {
   };
   const setsLabel = (tt, sets) => sets && sets.length ? sets.map((s) => formatSet(tt, s)).join(', ') : 'Not yet performed';
 
+  const progressions = st.liveWorkoutProgressions || {};
+  const coachChipLabel = (c) => c ? (c.kind === 'weight' ? `COACH +${c.delta}KG` : `COACH +${c.delta} REP`) : null;
+
   const routineDetailExercises = openRoutine ? openRoutine.exercises.map((e, i, arr) => ({
     exerciseId: e.exerciseId,
     name: e.name,
@@ -72,6 +75,8 @@ export function valsWorkouts(app, ctx) {
     trackingType: e.trackingType,
     targetUnit: targetUnit(e.trackingType),
     targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh,
+    coachLabel: coachChipLabel(progressions[`${openRoutine.id}:${e.exerciseId}`]),
+    coachEvidence: progressions[`${openRoutine.id}:${e.exerciseId}`]?.evidence || null,
     lastLabel: setsLabel(e.trackingType, e.lastSets),
     canMoveUp: i > 0, canMoveDown: i < arr.length - 1,
     onMoveUp: () => app.moveExerciseInRoutine(e.exerciseId, -1),
@@ -100,6 +105,7 @@ export function valsWorkouts(app, ctx) {
   const session = st.workoutSession;
   const sessionExercises = session ? session.exercises.map((e, exIdx) => ({
     exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, trackingType: e.trackingType,
+    coachLabel: coachChipLabel(e.coach), coachEvidence: e.coach?.evidence || null,
     isTime: isTimeTracking(e.trackingType), isBodyweight: isBodyweightTracking(e.trackingType),
     weightLabel: e.trackingType === 'weighted_bodyweight_reps' ? '+KG' : 'KG',
     amountLabel: isTimeTracking(e.trackingType) ? 'SEC' : 'REPS',

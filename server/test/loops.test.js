@@ -38,9 +38,12 @@ test('dispatch config: two slots, persistence, clamping, legacy migration', asyn
   assert.equal(initial.morning.mode, 'draft'); // per Hayden: draft-for-review first
   assert.deepEqual(initial.evening, { mode: 'draft', hour: 21 });
 
+  assert.deepEqual(initial.weekly, { mode: 'draft', hour: 17 });
+
   const set = await setDispatchConfig('morning', { mode: 'auto', hour: 6 });
   assert.deepEqual(set.morning, { mode: 'auto', hour: 6 });
   assert.equal(set.evening.mode, 'draft'); // untouched
+  assert.equal(set.weekly.mode, 'draft'); // untouched
 
   const bad = await setDispatchConfig('morning', { mode: 'nonsense', hour: 99 });
   assert.deepEqual(bad.morning, { mode: 'auto', hour: 6 }); // invalid patch changes nothing
@@ -50,6 +53,7 @@ test('dispatch config: two slots, persistence, clamping, legacy migration', asyn
   const migrated = await getDispatchConfig();
   assert.deepEqual(migrated.morning, { mode: 'auto', hour: 8 });
   assert.deepEqual(migrated.evening, { mode: 'draft', hour: 21 });
+  assert.deepEqual(migrated.weekly, { mode: 'draft', hour: 17 });
 
   await setDispatchConfig('morning', { mode: 'draft', hour: 7 });
 });
@@ -130,6 +134,49 @@ test('evening debrief: independent slot guard, honest content, own title', async
   // and the morning guard still sees its own record
   const morningAgain = await runDispatch(vault, { slot: 'morning' });
   assert.equal(morningAgain.skipped, true);
+});
+
+test('weekly review: this-week-vs-last content, per-week guard, Sunday title', async () => {
+  const { composeDispatch: compose } = await import('../lib/dispatch.js');
+  const { saveDay: saveNutrition } = await import('../lib/nutritionLog.js');
+
+  // deterministic week windows regardless of which weekday the test runs on
+  const monday = new Date();
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  const dISO = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const thisMon = dISO(monday);
+  const lastThu = new Date(monday);
+  lastThu.setDate(lastThu.getDate() - 4);
+
+  // one session this week, one last week
+  const sessionsDir = path.join(vault, 'Wiki/Health/Workouts');
+  await mkdir(sessionsDir, { recursive: true });
+  const sessionFile = (date, id) => matter.stringify('# Leg Day\n', {
+    type: 'workout-session', id, date, routineId: 'r1', routineName: 'Leg Day',
+    finishedAt: `${date}T10:00:00.000Z`,
+    exercises: [{ exerciseId: 'squat', name: 'Squat', sets: [{ weight: 100, reps: 8 }, { weight: 100, reps: 8 }] }],
+  });
+  await writeFile(path.join(sessionsDir, `${thisMon} leg-a.md`), sessionFile(thisMon, 'wk-a'), 'utf8');
+  await writeFile(path.join(sessionsDir, `${dISO(lastThu)} leg-b.md`), sessionFile(dISO(lastThu), 'wk-b'), 'utf8');
+
+  // protein floor: missed on Monday, met today (same day if today IS Monday), met last week
+  await saveNutrition(thisMon, { p: 120, c: 200, f: 60, kcal: 2300 }, 150);
+  await saveNutrition(iso(0), { p: 160, c: 200, f: 60, kcal: 2400 }, 150);
+  await saveNutrition(dISO(lastThu), { p: 155, c: 180, f: 55, kcal: 2250 }, 150);
+
+  const review = await compose(vault, 'weekly');
+  assert.match(review.title, /Weekly Review — Week of/);
+  assert.match(review.text, /\*\*Training\.\*\*/);
+  assert.match(review.text, /1 session, 2 sets this week \(last week: 1 session, 2 sets\)/);
+  assert.match(review.text, /Protein floor hit 1\/[12] tracked day/);
+  assert.match(review.text, /last week 1\/1/);
+
+  // per-week guard: one run holds for the whole week, force supersedes
+  const first = await runDispatch(vault, { slot: 'weekly' });
+  assert.equal(first.record.slot, 'weekly');
+  assert.equal(first.record.status, 'pending');
+  const again = await runDispatch(vault, { slot: 'weekly' });
+  assert.equal(again.skipped, true);
 });
 
 test('compost detects stale captures, orphans, and sweepable to-dos', async () => {

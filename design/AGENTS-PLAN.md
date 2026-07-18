@@ -106,8 +106,11 @@ when starting a session; streaks; health data; dispatch lines.
    bodyweight). Rendered in the session view as pre-accepted defaults you
    can override — friction-free because it changes *prefill*, not files.
 2. *Missed-session rescue* — scheduled routine with no logged session by
-   debrief time → debrief line + one-tap proposal: swap tomorrow's rest day.
-   Writes the schedule (undoable) on accept.
+   debrief time → debrief line + evening nudge in the Inbox. NUDGE ONLY:
+   the weekly schedule is a recurring template, so a one-off rewrite would
+   corrupt every future week — accepting simply opens Train ("a shortened
+   session still counts"); a skip holds for that night and re-arms tomorrow.
+   ✅ Shipped (dispatch status carries training context; proposal engine).
 3. *Recovery-aware deload* — deterministic trigger (HRV 7-day slope down X%,
    sleep debt) → propose a lighter variant ("−15% loads today?"). Model-free.
 4. *Session summary line* — after finishing a workout, a one-line PR/volume

@@ -21,6 +21,7 @@ import { loopsRouter } from './routes/loops.js';
 import { startHealthInsightScheduler } from './lib/healthInsight.js';
 import { startDispatchScheduler } from './lib/dispatch.js';
 import { startCompostScheduler } from './lib/compost.js';
+import { startTodoistScheduler } from './lib/todoistSync.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(__dirname, '.env');
@@ -82,6 +83,7 @@ async function main() {
   startHealthInsightScheduler(process.env.VAULT_PATH);
   startDispatchScheduler(process.env.VAULT_PATH);
   startCompostScheduler(process.env.VAULT_PATH);
+  startTodoistScheduler(process.env.VAULT_PATH);
 
   app.use((err, req, res, next) => {
     console.error(err);
