@@ -235,7 +235,7 @@ h1 .tag{display:block;font-family:'Instrument Serif',serif;font-style:italic;fon
 <div class="wrap">
   <section class="hero">
     <div>
-      <div class="eyebrow">FRIDAY 17 JULY · <b>13:12</b> · <span class="agl"><i></i>3 AGENTS LIVE</span> · THE OBSERVATORY IS OPEN</div>
+      <div class="eyebrow">FRIDAY 17 JULY · <b id="clk">13:12:41</b> · <span class="agl"><i></i>3 AGENTS LIVE</span> · THE OBSERVATORY IS OPEN</div>
       <h1>Good afternoon, Hayden.<span class="tag">Cleared for deep work at 15:30.</span></h1>
       <p class="stand">Recovery reads <b>strong</b> — HRV <b>93.5 ms</b>, resting <b>51 bpm</b> — but yesterday's block never fired. Tonight: <b>Upper Body</b>, a <b>54 g protein gap</b>, <span class="cy">7,639 steps</span> on the plan.</p>
       <div class="ctas"><button class="gbtn">ENGAGE NEXT BLOCK</button><button class="gbtn ghost"><b>⌘K</b>&nbsp; SUMMON</button></div>
@@ -306,15 +306,15 @@ function buildCore(canvas,opts){
   const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
   const cx=W/2,cy=H/2,R=W*0.46,r=rng(opts.seed||7);
   function col(f,a){const hue=224-f*36,sat=90-f*10,lit=38+(1-f)*44;return `hsla(${hue},${sat}%,${lit}%,${a})`}
-  const bands=[];for(let b=0;b<opts.bands;b++){const f=0.24+0.76*(b/(opts.bands-1));const segs=[];const n=Math.round(opts.segs*(0.5+r()));
-    for(let i=0;i<n;i++){segs.push({a0:r()*6.283,len:0.02+r()*r()*opts.arc,w:0.5+r()*1.6*opts.weight,jit:(r()-0.5)*R*0.05*opts.chaos,al:0.16+r()*0.5,fl:r()*6.28,fs:0.5+r()*2})}
+  const bands=[];for(let b=0;b<opts.bands;b++){const f=0.10+0.90*(b/(opts.bands-1));const segs=[];const n=Math.round(opts.segs*(0.5+r()));
+    for(let i=0;i<n;i++){segs.push({a0:r()*6.283,len:0.02+r()*r()*opts.arc,w:0.5+r()*1.6*opts.weight,jit:(r()-0.5)*R*0.05*opts.chaos,al:(0.16+r()*0.5)*(1.35-0.55*f),fl:r()*6.28,fs:0.5+r()*2})}
     bands.push({f,segs,vel:(r()-0.5)*opts.speed,squash:1-r()*0.14*opts.chaos,tilt:(r()-0.5)*0.5*opts.chaos})}
-  const embers=[];for(let i=0;i<opts.embers;i++){embers.push({f:Math.pow(r(),0.6),ang:r()*6.283,sz:0.35+r()*1.3,al:0.15+r()*0.55,tw:r()*6.28,ts:0.6+r()*2.4})}
+  const embers=[];for(let i=0;i<opts.embers;i++){embers.push({f:Math.pow(r(),1.25),ang:r()*6.283,sz:0.35+r()*1.3,al:0.15+r()*0.55,tw:r()*6.28,ts:0.6+r()*2.4})}
   const wisps=[];for(let i=0;i<opts.wisps;i++){const a=r()*6.283;wisps.push({a,b:a+(r()-0.5)*2.4,f1:0.25+r()*0.7,f2:0.25+r()*0.7,bulge:(r()-0.5)*1.6,al:0.05+r()*0.12})}
   function draw(t){ctx.clearRect(0,0,W,H);ctx.globalCompositeOperation='lighter';
     for(const w of wisps){const rot=t*0.03;const x1=cx+Math.cos(w.a+rot)*R*w.f1,y1=cy+Math.sin(w.a+rot)*R*w.f1*0.94;
       const x2=cx+Math.cos(w.b+rot)*R*w.f2,y2=cy+Math.sin(w.b+rot)*R*w.f2*0.94;
-      const mx=(x1+x2)/2+(y2-y1)*w.bulge*0.3,my=(y1+y2)/2-(x2-x1)*w.bulge*0.3;
+      let mx=(x1+x2)/2+(y2-y1)*w.bulge*0.3,my=(y1+y2)/2-(x2-x1)*w.bulge*0.3;mx=mx*0.62+cx*0.38;my=my*0.62+cy*0.38;
       ctx.strokeStyle=col(0.5,w.al);ctx.lineWidth=0.7;ctx.beginPath();ctx.moveTo(x1,y1);ctx.quadraticCurveTo(mx,my,x2,y2);ctx.stroke()}
     for(const b of bands){const rad=R*b.f;ctx.save();ctx.translate(cx,cy);ctx.rotate(b.tilt);ctx.scale(1,b.squash);const rot=t*b.vel;
       for(const s of b.segs){const fl=0.55+0.45*Math.sin(t*s.fs+s.fl);ctx.strokeStyle=col(b.f,s.al*fl);ctx.lineWidth=s.w;
@@ -323,14 +323,19 @@ function buildCore(canvas,opts){
       const x=cx+Math.cos(e.ang+t*0.05)*R*e.f,y=cy+Math.sin(e.ang+t*0.05)*R*e.f*0.94;
       ctx.fillStyle=col(e.f,e.al*tw);ctx.beginPath();ctx.arc(x,y,e.sz,0,6.29);ctx.fill()}
     const pulse=1+0.07*Math.sin(t*1.8),hr=R*opts.heart*pulse;
-    const g=ctx.createRadialGradient(cx,cy,0,cx,cy,hr*2.6);
+    const g=ctx.createRadialGradient(cx,cy,0,cx,cy,hr*3.2);
     g.addColorStop(0,'rgba(240,252,255,.95)');g.addColorStop(0.18,'rgba(158,240,255,.8)');
     g.addColorStop(0.45,'rgba(64,170,238,.35)');g.addColorStop(1,'rgba(20,60,140,0)');
-    ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,hr*2.6,0,6.29);ctx.fill();
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,hr*3.2,0,6.29);ctx.fill();
     ctx.globalCompositeOperation='source-over'}
   if(reduced){draw(1.7);return}
   (function loop(){draw(performance.now()/1000);requestAnimationFrame(loop)})()}
-buildCore(document.getElementById('core'),{seed:7,bands:26,segs:34,arc:1.1,weight:1,chaos:1,speed:.16,embers:420,wisps:60,heart:.10});
+buildCore(document.getElementById('core'),{seed:7,bands:32,segs:36,arc:1.15,weight:1,chaos:1,speed:.16,embers:540,wisps:84,heart:.12});
 buildCore(document.getElementById('coreMini'),{seed:7,bands:6,segs:10,arc:1.2,weight:1.2,chaos:.8,speed:.12,embers:30,wisps:0,heart:.22});
+</script>
+<script>
+let cs=13*3600+12*60+41;
+setInterval(()=>{cs=(cs+1)%86400;const p=n=>String(n).padStart(2,'0');
+document.getElementById('clk').textContent=p(Math.floor(cs/3600))+':'+p(Math.floor(cs%3600/60))+':'+p(cs%60)},1000);
 </script>
 </body></html>
