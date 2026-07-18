@@ -8,7 +8,7 @@ import { AGENTS } from './shared.js';
 // connection truth valsMission shares (statusChip, missionStatusItems).
 export function valsChrome(app, ctx) {
   const st = app.state;
-  const { demoMode, isOffline, go, userName, wakeWord, usingLiveRecipes, usingLiveWorkouts, liveRoutines, usingLiveNotes, journalDays, shoppingItems, statusChip, agentsLiveCount } = ctx;
+  const { demoMode, isOffline, go, userName, wakeWord, usingLiveRecipes, usingLiveWorkouts, liveRoutines, usingLiveNotes, journalDays, shoppingItems, statusChip, agentsLiveCount, inboxPendingCount } = ctx;
 
   const navStyle = (act) => ({ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '8px', cursor: 'pointer',
     fontFamily: "'Rajdhani',sans-serif", fontWeight: 600, fontSize: '14px', letterSpacing: '.02em',
@@ -26,10 +26,13 @@ export function valsChrome(app, ctx) {
     { icon: 'II.', iconColor: 'var(--nv-gold)', label: 'Voice — talk to Nova', hint: 'GO', run: go('voice') },
     { icon: 'III.', iconColor: 'var(--nv-gold)', label: 'Memory Galaxy', hint: 'GO', run: go('galaxy') },
     { icon: 'IV.', iconColor: 'var(--nv-gold)', label: 'Claude Code', hint: 'GO', run: go('code') },
-    { icon: 'V.', iconColor: 'var(--nv-gold)', label: 'Recipes', hint: 'GO', run: go('recipes') },
-    { icon: 'VI.', iconColor: 'var(--nv-gold)', label: 'Workouts', hint: 'GO', run: go('workouts') },
-    { icon: 'VII.', iconColor: 'var(--nv-gold)', label: 'Notes', hint: 'GO', run: go('notes') },
-    { icon: 'VIII.', iconColor: 'var(--nv-gold)', label: 'Settings', hint: 'GO', run: go('settings') },
+    { icon: 'V.', iconColor: 'var(--nv-gold)', label: 'Inbox — capture anything', hint: 'GO', run: go('inbox') },
+    { icon: 'VI.', iconColor: 'var(--nv-gold)', label: 'Recipes', hint: 'GO', run: go('recipes') },
+    { icon: 'VII.', iconColor: 'var(--nv-gold)', label: 'Shopping List', hint: 'GO', run: go('shopping') },
+    { icon: 'VIII.', iconColor: 'var(--nv-gold)', label: 'Train — workouts', hint: 'GO', run: go('workouts') },
+    { icon: 'IX.', iconColor: 'var(--nv-gold)', label: 'Notes', hint: 'GO', run: go('notes') },
+    { icon: 'X.', iconColor: 'var(--nv-gold)', label: 'Journal', hint: 'GO', run: go('journal') },
+    { icon: 'XI.', iconColor: 'var(--nv-gold)', label: 'Settings', hint: 'GO', run: go('settings') },
     // the scripted "Nova actions" only exist in demo mode — in live mode the
     // palette offers nothing it can't really do
     ...(demoMode ? [
@@ -41,13 +44,24 @@ export function valsChrome(app, ctx) {
   ];
   const pq = st.paletteQuery.toLowerCase();
   const paletteResults = cmds.filter(c => !pq || c.label.toLowerCase().includes(pq));
+  // Summon becomes a capture surface: any non-empty query can be sent
+  // straight to the Inbox — Nova routes it from there.
+  const rawQuery = st.paletteQuery.trim();
+  if (rawQuery) {
+    paletteResults.push({
+      icon: '✦', iconColor: 'var(--nv-cy)',
+      label: `Capture to Inbox — “${rawQuery.length > 44 ? rawQuery.slice(0, 41) + '…' : rawQuery}”`,
+      hint: 'CAPTURE',
+      run: () => { app.setState({ paletteOpen: false }); app.captureToInbox(rawQuery, 'text'); },
+    });
+  }
 
   // responsive
   const mob = st.isMobile;
   const mp = { padding: '66px 16px 96px' };
   const col = (mt) => ({ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: mt });
   const wrapTall = mob ? mp : null;
-  const tabs = [['I.', 'Home', 'mission'], ['II.', 'Voice', 'voice'], ['III.', 'Galaxy', 'galaxy'], ['IV.', 'Code', 'code'], ['V.', 'Recipes', 'recipes'], ['VI.', 'Shop', 'shopping'], ['VII.', 'Train', 'workouts'], ['VIII.', 'Notes', 'notes']].map(t => {
+  const tabs = [['I.', 'Home', 'mission'], ['V.', 'Inbox', 'inbox'], ['II.', 'Voice', 'voice'], ['IV.', 'Code', 'code'], ['VI.', 'Recipes', 'recipes'], ['VII.', 'Shop', 'shopping'], ['VIII.', 'Train', 'workouts'], ['IX.', 'Notes', 'notes']].map(t => {
     const act = st.screen === t[2];
     return { num: t[0], label: t[1], go: go(t[2]),
       style: { flex: '1', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', padding: '7px 2px', cursor: 'pointer', borderRadius: '8px', color: act ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: act ? 'var(--nv-acc-bg)' : 'none', textShadow: act ? 'var(--nv-tsh-tab)' : 'none' },
@@ -100,17 +114,23 @@ export function valsChrome(app, ctx) {
     clock: st.clock,
     dateLabel: new Date().toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }).toUpperCase().replace(/,/g, ''),
     greeting: (new Date().getHours() < 12 ? 'Good morning, ' : new Date().getHours() < 18 ? 'Good afternoon, ' : 'Good evening, ') + userName + '.',
-    navMain: [mkNav('Mission Control', 'I.', 'mission'), mkNav('Voice', 'II.', 'voice'), mkNav('Memory Galaxy', 'III.', 'galaxy'), mkNav('Claude Code', 'IV.', 'code')],
+    navMain: [
+      mkNav('Mission Control', 'I.', 'mission'),
+      mkNav('Voice', 'II.', 'voice'),
+      mkNav('Memory Galaxy', 'III.', 'galaxy'),
+      mkNav('Claude Code', 'IV.', 'code'),
+      Object.assign(mkNav('Inbox', 'V.', 'inbox'), inboxPendingCount > 0 ? { count: String(inboxPendingCount), countHot: true } : {}),
+    ],
     navVault: [
       // counts: live numbers when synced, mock numbers only in demo mode,
       // and an honest "—" when configured but not yet synced (offline)
-      Object.assign(mkNav('Recipes', 'V.', 'recipes'), { count: usingLiveRecipes ? String(st.liveRecipes.length) : demoMode ? String(app.recipes.length) : '—' }),
-      Object.assign(mkNav('Shopping', 'VI.', 'shopping'), { count: st.liveShoppingList ? String(shoppingItems.length) : demoMode ? '0' : '—' }),
-      Object.assign(mkNav('Train', 'VII.', 'workouts'), { count: usingLiveWorkouts ? String(liveRoutines.length) : '—' }),
-      Object.assign(mkNav('Notes', 'VIII.', 'notes'), { count: usingLiveNotes ? String(st.liveNotes.length) : demoMode ? String(app.notes.length) : '—' }),
-      Object.assign(mkNav('Journal', 'IX.', 'journal'), { count: st.liveJournalEntries ? String(journalDays.length) : demoMode ? '0' : '—' }),
+      Object.assign(mkNav('Recipes', 'VI.', 'recipes'), { count: usingLiveRecipes ? String(st.liveRecipes.length) : demoMode ? String(app.recipes.length) : '—' }),
+      Object.assign(mkNav('Shopping', 'VII.', 'shopping'), { count: st.liveShoppingList ? String(shoppingItems.length) : demoMode ? '0' : '—' }),
+      Object.assign(mkNav('Train', 'VIII.', 'workouts'), { count: usingLiveWorkouts ? String(liveRoutines.length) : '—' }),
+      Object.assign(mkNav('Notes', 'IX.', 'notes'), { count: usingLiveNotes ? String(st.liveNotes.length) : demoMode ? String(app.notes.length) : '—' }),
+      Object.assign(mkNav('Journal', 'X.', 'journal'), { count: st.liveJournalEntries ? String(journalDays.length) : demoMode ? '0' : '—' }),
     ],
-    navSystem: [mkNav('Settings', 'X.', 'settings')],
+    navSystem: [mkNav('Settings', 'XI.', 'settings')],
     agentsGroupLabel: `AGENTS · ${agentsLiveCount} OF ${AGENTS.length} LIVE`,
     agents: AGENTS.map((a, i) => ({
       name: a.name, role: a.role, on: a.on,

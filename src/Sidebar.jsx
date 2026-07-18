@@ -23,6 +23,11 @@ export function Sidebar({ v }) {
           {v.navMain.map((nav) => (
             <Interactive key={nav.label} onClick={nav.go} base={nav.style} hoverStyle="background:rgba(255,255,255,.05)">
               <span style={nav.numStyle}>{nav.numeral}</span><span>{nav.label}</span>
+              {nav.count != null && (
+                <span style={nav.countHot
+                  ? css(`margin-left:auto;font:600 9px ${M};padding:1px 7px;border-radius:8px;color:var(--nv-acc);border:1px solid var(--nv-acc-border);background:var(--nv-acc-bg)`)
+                  : css(`margin-left:auto;font:400 9px ${M};color:var(--nv-ink40)`)}>{nav.count}</span>
+              )}
             </Interactive>
           ))}
         </div>

@@ -137,6 +137,45 @@ export async function addEntry(vaultPath, entry) {
   });
 }
 
+// Inverse of addEntry for inbox undo: removes the section matching
+// time + exact text from that day's file. Refuses gracefully (returns false)
+// if the section is no longer there — the user may have edited it since.
+export async function removeEntry(vaultPath, { date, time, text }) {
+  return withWriteLock(async () => {
+    const full = path.join(vaultPath, JOURNAL_DIR_REL, `${date}.md`);
+    if (!existsSync(full)) return false;
+    const raw = await readFile(full, 'utf8');
+    const parsed = matter(raw);
+    const sections = parseSections(parsed.content);
+    const idx = sections.findIndex((s) => s.time === time && s.text.trim() === text.trim());
+    if (idx === -1) return false;
+    await backupFile(full);
+    sections.splice(idx, 1);
+
+    if (sections.length === 0) {
+      const { unlink } = await import('node:fs/promises');
+      await unlink(full);
+    } else {
+      const frontmatter = { type: 'journal', tags: [], created: parsed.data.created || date, updated: parsed.data.updated || date };
+      await writeFile(full, matter.stringify(bodyFor(date, sections), frontmatter), 'utf8');
+    }
+
+    // keep the index bullet honest about the new count/preview
+    const indexFull = path.join(vaultPath, INDEX_REL_PATH);
+    if (existsSync(indexFull) && sections.length > 0) {
+      const indexRaw = await readFile(indexFull, 'utf8');
+      const latest = entryPreview(sections[sections.length - 1].text);
+      const summaryLine = `- [[${date}]] — ${sections.length} ${sections.length === 1 ? 'entry' : 'entries'}, latest: ${latest} (updated ${date})`;
+      try {
+        await writeFile(indexFull, upsertIndexBullet(indexRaw, 'Journal', date, summaryLine), 'utf8');
+      } catch {
+        /* index section missing — skip bookkeeping */
+      }
+    }
+    return true;
+  });
+}
+
 export async function listEntries(vaultPath, { limit } = {}) {
   const dir = path.join(vaultPath, JOURNAL_DIR_REL);
   if (!existsSync(dir)) return [];

@@ -11,10 +11,12 @@ import { valsRecipes } from './vals/valsRecipes.js';
 import { valsWorkouts } from './vals/valsWorkouts.js';
 import { valsNotes } from './vals/valsNotes.js';
 import { valsMisc } from './vals/valsMisc.js';
+import { valsInbox } from './vals/valsInbox.js';
 import { valsMission } from './vals/valsMission.js';
 import { valsChrome } from './vals/valsChrome.js';
 import { Sidebar } from './Sidebar.jsx';
 import { MissionControl } from './screens/MissionControl.jsx';
+import { Inbox } from './screens/Inbox.jsx';
 import { Voice } from './screens/Voice.jsx';
 import { Galaxy } from './screens/Galaxy.jsx';
 import { Recipes } from './screens/Recipes.jsx';
@@ -45,7 +47,7 @@ const WAKE_WORD = true;
 
 // Hash-routed screens (#/recipes etc.) so deep links and the back button work
 // on GitHub Pages without a server-side router.
-const SCREENS = ['mission', 'voice', 'galaxy', 'code', 'recipes', 'shopping', 'workouts', 'notes', 'journal', 'settings'];
+const SCREENS = ['mission', 'inbox', 'voice', 'galaxy', 'code', 'recipes', 'shopping', 'workouts', 'notes', 'journal', 'settings'];
 function screenFromHash() {
   const h = (typeof window !== 'undefined' ? window.location.hash : '').replace(/^#\/?/, '');
   return SCREENS.includes(h) ? h : 'mission';
@@ -60,8 +62,11 @@ const CACHED_LIVE_KEYS = [
   'liveFoodLog', 'liveShoppingList', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
   'liveWorkoutExercises', 'liveWorkoutMuscleGroups', 'liveWorkoutTrackingTypes',
   'liveWorkoutRoutines', 'liveWorkoutSchedule', 'liveWorkoutWeekdays',
-  'liveJournalEntries', 'liveGraph',
+  'liveJournalEntries', 'liveGraph', 'liveInbox',
 ];
+
+const INBOX_MODE_KEY = 'novaos.inboxMode';
+const INBOX_MODES = ['review-all', 'auto-high', 'auto-all'];
 
 export default class App extends Component {
   constructor(props) {
@@ -109,6 +114,11 @@ export default class App extends Component {
     galaxySel: null, toast: null, reviewIdx: 0,
     isMobile: typeof window !== 'undefined' && window.innerWidth < 760,
     novaTheme: getNovaTheme(), calmMode: getCalm(), coreStyle: getCoreStyle(),
+
+    // nova inbox (capture → classify → file)
+    liveInbox: null, inboxInput: '', inboxCaptureBusy: false, inboxActionBusy: {},
+    inboxMode: (typeof window !== 'undefined' && INBOX_MODES.includes(localStorage.getItem(INBOX_MODE_KEY))) ? localStorage.getItem(INBOX_MODE_KEY) : 'auto-high',
+    inboxProposalDismissed: typeof window !== 'undefined' ? (localStorage.getItem('novaos.inboxProposalDismissed') || '') : '',
 
     // live-data connection (Settings screen)
     settingsBaseUrl: '', settingsToken: '',
@@ -302,6 +312,7 @@ export default class App extends Component {
         this.setState({ liveGraph: graph });
         this.gNodes = null; // rebuilt from the fresh graph next time the galaxy renders
       },
+      async () => this.setState({ liveInbox: await api.inbox(conn) }),
     ];
     this.refreshInFlight = (async () => {
       const results = await Promise.allSettled(tasks.map((t) => t()));
@@ -1112,6 +1123,72 @@ export default class App extends Component {
     this.toastMsg('Discarded — nothing was written');
   }
 
+  // ---------- nova inbox (capture → classify → file) ----------
+  refreshInbox() {
+    const conn = getConnection();
+    if (!conn) return Promise.resolve();
+    return api.inbox(conn).then((data) => this.setState({ liveInbox: data })).catch(() => {});
+  }
+  setInboxInput(value) {
+    this.setState({ inboxInput: typeof value === 'string' ? value : value.target.value });
+  }
+  setInboxMode(mode) {
+    try { localStorage.setItem(INBOX_MODE_KEY, mode); } catch { /* best-effort */ }
+    this.setState({ inboxMode: mode });
+  }
+  dismissInboxProposal(key) {
+    try { localStorage.setItem('novaos.inboxProposalDismissed', key); } catch { /* best-effort */ }
+    this.setState({ inboxProposalDismissed: key });
+  }
+  captureToInbox(text, source = 'text') {
+    const conn = getConnection();
+    if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
+    const t = (text || '').trim();
+    if (!t) return;
+    this.setState({ inboxCaptureBusy: true, inboxInput: '' });
+    api.inboxCapture(conn, t, this.state.inboxMode, source).then(({ id }) => {
+      this.refreshInbox();
+      this.startPoll('inboxCapture:' + id, () => api.inboxItem(conn, id), {
+        intervalMs: 1500,
+        onReady: ({ record }) => {
+          this.setState({ inboxCaptureBusy: false });
+          this.refreshInbox();
+          if (record.status === 'filed') this.toastMsg('Filed ✓ — ' + record.destination);
+          else if (record.status === 'pending') this.toastMsg('Needs your call — waiting in the Inbox');
+        },
+        onError: (msg) => {
+          this.setState({ inboxCaptureBusy: false });
+          this.refreshInbox();
+          this.toastMsg('Capture failed: ' + msg);
+        },
+      });
+    }).catch((e) => {
+      this.setState({ inboxCaptureBusy: false });
+      this.toastMsg('Capture failed: ' + e.message);
+    });
+  }
+  inboxAction(id, kind) {
+    const conn = getConnection();
+    if (!conn) return;
+    const fn = kind === 'approve' ? api.inboxApprove : kind === 'discard' ? api.inboxDiscard : api.inboxUndo;
+    this.setState((s) => ({ inboxActionBusy: { ...s.inboxActionBusy, [id]: true } }));
+    fn(conn, id).then(({ record }) => {
+      this.setState((s) => ({
+        inboxActionBusy: { ...s.inboxActionBusy, [id]: false },
+        liveInbox: s.liveInbox
+          ? { items: s.liveInbox.items.map((r) => (r.id === id ? record : r)), pendingCount: s.liveInbox.items.map((r) => (r.id === id ? record : r)).filter((r) => r.status === 'pending').length }
+          : s.liveInbox,
+      }));
+      if (kind === 'approve') this.toastMsg('Filed ✓ — ' + record.destination);
+      else if (kind === 'discard') this.toastMsg('Discarded — nothing was written');
+      else this.toastMsg('Undone ✓ — ' + (record.undoSummary || 'reverted'));
+    }).catch((e) => {
+      this.setState((s) => ({ inboxActionBusy: { ...s.inboxActionBusy, [id]: false } }));
+      this.toastMsg(kind === 'undo' ? 'Could not undo: ' + e.message : 'Action failed: ' + e.message);
+      this.refreshInbox();
+    });
+  }
+
   // ---------- galaxy ----------
   buildGalaxy(w, h) {
     const rnd = (a, b) => a + Math.random() * (b - a);
@@ -1233,6 +1310,7 @@ export default class App extends Component {
       ...valsWorkouts(this, ctx),
       ...valsNotes(this, ctx),
       ...valsMisc(this, ctx),
+      ...valsInbox(this, ctx),
       ...valsMission(this, ctx),
       ...valsChrome(this, ctx),
     };
@@ -1303,6 +1381,7 @@ export default class App extends Component {
           {v.showSidebar && <Sidebar v={v} />}
           <main style={css("flex:1;overflow-y:auto;min-width:0")}>
             {v.isMission && <MissionControl v={v} />}
+            {v.isInbox && <Inbox v={v} />}
             {v.isVoice && <Voice v={v} />}
             {v.isGalaxy && <Galaxy v={v} />}
             {v.isCode && <ClaudeCode v={v} />}

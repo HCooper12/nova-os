@@ -8,7 +8,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Off-plan eating (snacks, extras, anything not one of today's rotation
 // recipes) — deliberately not in the Obsidian vault for the same reason as
 // health data: this is raw daily telemetry, not synthesized knowledge.
-const LOG_DIR = path.join(__dirname, '..', 'data', 'food-log');
+// NOVA_DATA_DIR override exists for tests (read lazily so tests can set it).
+const LOG_DIR = () => path.join(process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data'), 'food-log');
 
 function today() {
   const d = new Date();
@@ -16,14 +17,14 @@ function today() {
 }
 
 async function loadDay(date) {
-  const full = path.join(LOG_DIR, `${date}.json`);
+  const full = path.join(LOG_DIR(), `${date}.json`);
   if (!existsSync(full)) return { date, entries: [] };
   return JSON.parse(await readFile(full, 'utf8'));
 }
 
 async function saveDay(day) {
-  await mkdir(LOG_DIR, { recursive: true });
-  await writeFile(path.join(LOG_DIR, `${day.date}.json`), JSON.stringify(day, null, 2), 'utf8');
+  await mkdir(LOG_DIR(), { recursive: true });
+  await writeFile(path.join(LOG_DIR(), `${day.date}.json`), JSON.stringify(day, null, 2), 'utf8');
 }
 
 export async function getToday() {
@@ -49,4 +50,14 @@ export async function removeEntry(entryId) {
   day.entries = day.entries.filter((e) => e.id !== entryId);
   await saveDay(day);
   return day;
+}
+
+// Date-addressed removal for inbox undo, which may run after midnight has
+// rolled the "today" file over.
+export async function removeEntryOn(date, entryId) {
+  const day = await loadDay(date);
+  const before = day.entries.length;
+  day.entries = day.entries.filter((e) => e.id !== entryId);
+  await saveDay(day);
+  return before - day.entries.length;
 }

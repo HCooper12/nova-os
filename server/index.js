@@ -16,6 +16,7 @@ import { journalRouter } from './routes/journal.js';
 import { claudeCodeRouter } from './routes/claudeCode.js';
 import { healthDataRouter } from './routes/healthData.js';
 import { foodLogRouter } from './routes/foodLog.js';
+import { inboxRouter } from './routes/inbox.js';
 import { startHealthInsightScheduler } from './lib/healthInsight.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -72,6 +73,7 @@ async function main() {
   app.use('/api', claudeCodeRouter({ repoPath: path.resolve(__dirname, '..'), vaultPath: process.env.VAULT_PATH }));
   app.use('/api', healthDataRouter(process.env.VAULT_PATH));
   app.use('/api', foodLogRouter(process.env.VAULT_PATH));
+  app.use('/api', inboxRouter(process.env.VAULT_PATH));
 
   startHealthInsightScheduler(process.env.VAULT_PATH);
 

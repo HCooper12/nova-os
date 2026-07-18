@@ -48,6 +48,40 @@ export async function loadShoppingList(vaultPath) {
   return { items: await getItems(vaultPath), categories: CATEGORIES };
 }
 
+export const SHOPPING_CATEGORIES = CATEGORIES;
+
+// Deterministic add for pre-categorized items (the inbox classifier already
+// chose categories, so no claude call happens here). Returns the added items
+// with their assigned ids so the caller can undo them later.
+export async function addItemsDirect(vaultPath, newItems) {
+  const added = newItems
+    .map((it) => ({
+      id: randomUUID().slice(0, 8),
+      name: String(it.name || '').trim(),
+      category: CATEGORIES.includes(it.category) ? it.category : 'Household & Other',
+      checked: false,
+      source: it.source || null,
+    }))
+    .filter((it) => it.name);
+  if (!added.length) throw new Error('no items to add');
+  await withWriteLock(async () => {
+    const current = await getItems(vaultPath);
+    await persist(vaultPath, [...current, ...added]);
+  });
+  return added;
+}
+
+export async function removeItems(vaultPath, ids) {
+  const idSet = new Set(ids);
+  return withWriteLock(async () => {
+    const current = await getItems(vaultPath);
+    const remaining = current.filter((i) => !idSet.has(i.id));
+    const removedCount = current.length - remaining.length;
+    await persist(vaultPath, remaining);
+    return removedCount;
+  });
+}
+
 export async function toggleItem(vaultPath, id, checked) {
   return withWriteLock(async () => {
     const items = [...(await getItems(vaultPath))];

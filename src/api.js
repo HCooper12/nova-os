@@ -137,4 +137,10 @@ export const api = {
   ingestJob: (conn, jobId) => call(conn, `/api/ingest/${encodeURIComponent(jobId)}`),
   approveIngest: (conn, jobId) => post(conn, `/api/ingest/${encodeURIComponent(jobId)}/approve`),
   discardIngest: (conn, jobId) => post(conn, `/api/ingest/${encodeURIComponent(jobId)}/discard`),
+  inbox: (conn) => call(conn, '/api/inbox'),
+  inboxItem: (conn, id) => call(conn, `/api/inbox/item/${encodeURIComponent(id)}`),
+  inboxCapture: (conn, text, mode, source) => post(conn, '/api/inbox/capture', { text, mode, source }),
+  inboxApprove: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/approve`),
+  inboxDiscard: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/discard`),
+  inboxUndo: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/undo`),
 };
