@@ -11,10 +11,10 @@ export function valsWorkouts(app, ctx) {
   const week = weekData.map(d => {
     const s = d[2];
     return { day: d[0], label: d[1], style: { flex: '1', minWidth: '62px', textAlign: 'center', padding: '10px 6px', borderRadius: '10px',
-      border: s === 'today' ? '1px solid rgba(107,229,245,.45)' : '1px solid rgba(236,229,218,.08)',
-      background: s === 'today' ? 'rgba(107,229,245,.07)' : 'rgba(0,0,0,.18)',
-      color: s === 'today' ? '#6be5f5' : s === 'skip' ? 'rgba(201,111,111,.85)' : 'rgba(236,229,218,.55)',
-      boxShadow: s === 'today' ? '0 0 24px -8px rgba(107,229,245,.5)' : 'none' } };
+      border: s === 'today' ? '1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent)' : '1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)',
+      background: s === 'today' ? 'color-mix(in srgb, var(--nv-cy) 07%, transparent)' : 'rgba(0,0,0,.18)',
+      color: s === 'today' ? 'var(--nv-cy)' : s === 'skip' ? 'color-mix(in srgb, var(--nv-warn) 85%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)',
+      boxShadow: s === 'today' ? '0 0 24px -8px color-mix(in srgb, var(--nv-cy) 50%, transparent)' : 'none' } };
   });
 
   // workouts — live (real routines/history in Wiki/Health) or mock, depending on Settings connection
@@ -32,10 +32,10 @@ export function valsWorkouts(app, ctx) {
     return {
       day, dayLabel: WEEKDAY_SHORT[day], isToday,
       style: { flex: '1', minWidth: '62px', textAlign: 'center', padding: '10px 6px', borderRadius: '10px',
-        border: isToday ? '1px solid rgba(107,229,245,.45)' : '1px solid rgba(236,229,218,.08)',
-        background: isToday ? 'rgba(107,229,245,.07)' : 'rgba(0,0,0,.18)',
-        boxShadow: isToday ? '0 0 24px -8px rgba(107,229,245,.5)' : 'none' },
-      labelColor: isToday ? '#6be5f5' : 'rgba(236,229,218,.55)',
+        border: isToday ? '1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent)' : '1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)',
+        background: isToday ? 'color-mix(in srgb, var(--nv-cy) 07%, transparent)' : 'rgba(0,0,0,.18)',
+        boxShadow: isToday ? '0 0 24px -8px color-mix(in srgb, var(--nv-cy) 50%, transparent)' : 'none' },
+      labelColor: isToday ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)',
       value: routineId,
       onChange: (e) => app.assignScheduleDay(day, e.target.value || null),
       options: [{ value: '', label: 'Rest' }, ...liveRoutines.map((r) => ({ value: r.id, label: r.name }))],

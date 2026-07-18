@@ -76,7 +76,7 @@ export function valsRecipes(app, ctx) {
             photoUrl: st.liveRecipePhotoUrls[r.id] || null,
             phLabel: 'dish photo — ' + r.name.toLowerCase(),
             phStyle: { height: '104px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, rgba(' + hue + ',.13) 0 8px, rgba(' + hue + ',.04) 8px 16px)' },
-            pBar: bar(r.macros.p, '#6be5f5'), cBar: bar(r.macros.c, '#d8b573'), fBar: bar(r.macros.f, '#8a6ad1'),
+            pBar: bar(r.macros.p, 'var(--nv-cy)'), cBar: bar(r.macros.c, 'var(--nv-gold)'), fBar: bar(r.macros.f, 'var(--nv-vi)'),
             slotToggles: SLOT_DEFS.map((s) => ({ key: s.key, label: s.label, hue: s.hue, active: rotation?.slots?.[s.key]?.id === r.id, onClick: () => app.toggleRotationSlot(s.key, r.id) })) };
         })
     : app.recipes.filter(r => st.recipeFilter === 'All' || r.filter === st.recipeFilter).map(r => {
@@ -86,7 +86,7 @@ export function valsRecipes(app, ctx) {
           open: () => app.setState({ openRecipeId: r.id, servings: 1, recipeChat: [], recipeInput: '' }),
           phLabel: 'dish photo — ' + r.name.toLowerCase(),
           phStyle: { height: '104px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, rgba(' + r.hue + ',.13) 0 8px, rgba(' + r.hue + ',.04) 8px 16px)' },
-          pBar: bar(r.p, '#6be5f5'), cBar: bar(r.c, '#d8b573'), fBar: bar(r.f, '#8a6ad1'), slotToggles: [] };
+          pBar: bar(r.p, 'var(--nv-cy)'), cBar: bar(r.c, 'var(--nv-gold)'), fBar: bar(r.f, 'var(--nv-vi)'), slotToggles: [] };
       });
 
   const liveOr = usingLiveRecipes ? (st.liveRecipes.find(r => r.id === st.openRecipeId) || null) : null;
@@ -199,8 +199,8 @@ export function valsRecipes(app, ctx) {
       : (or ? or.tag + ' · ' + or.time + ' · FROM OBSIDIAN /RECIPES' : ''),
     orPhLabel: usingLiveRecipes ? (liveOr ? 'dish photo — ' + liveOr.name.toLowerCase() : '') : (or ? 'dish photo — ' + or.name.toLowerCase() : ''),
     orPhStyle: usingLiveRecipes
-      ? (liveOr ? { height: '170px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, rgba(216,181,115,.16) 0 9px, rgba(216,181,115,.05) 9px 18px)', border: '1px solid rgba(236,229,218,.08)' } : {})
-      : (or ? { height: '170px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, rgba(' + or.hue + ',.16) 0 9px, rgba(' + or.hue + ',.05) 9px 18px)', border: '1px solid rgba(236,229,218,.08)' } : {}),
+      ? (liveOr ? { height: '170px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, color-mix(in srgb, var(--nv-gold) 16%, transparent) 0 9px, color-mix(in srgb, var(--nv-gold) 05%, transparent) 9px 18px)', border: '1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)' } : {})
+      : (or ? { height: '170px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, rgba(' + or.hue + ',.16) 0 9px, rgba(' + or.hue + ',.05) 9px 18px)', border: '1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)' } : {}),
     orPhotoUrl: usingLiveRecipes && liveOr ? (st.liveRecipePhotoUrls[liveOr.id] || null) : null,
     orPhotoUploadBusy: usingLiveRecipes && liveOr ? !!st.recipePhotoUploadBusy[liveOr.id] : false,
     onRecipePhotoFile: usingLiveRecipes && liveOr ? (e) => app.onRecipePhotoFile(liveOr.id, e.target.files) : () => {},
@@ -245,7 +245,7 @@ export function valsRecipes(app, ctx) {
     recipeTweakPreview: st.recipeTweakPreview,
     saveRecipeTweak: () => app.saveRecipeTweak(),
     discardRecipeTweak: () => app.discardRecipeTweak(),
-    recipeMsgs: st.recipeChat.map(m => ({ text: m.text, typing: m.typing, tag: m.who === 'nova' ? '» NOVA' : '» YOU', tagStyle: { color: m.who === 'nova' ? '#6be5f5' : 'rgba(236,229,218,.5)', fontWeight: 500, fontFamily: mono, fontSize: '11px' } })),
+    recipeMsgs: st.recipeChat.map(m => ({ text: m.text, typing: m.typing, tag: m.who === 'nova' ? '» NOVA' : '» YOU', tagStyle: { color: m.who === 'nova' ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', fontWeight: 500, fontFamily: mono, fontSize: '11px' } })),
     recipeInput: st.recipeInput,
     setRecipeInput: (e) => app.setState({ recipeInput: e.target.value }),
     recipeKey: (e) => { if (e.key === 'Enter') app.doRecipeAsk(); },

@@ -22,22 +22,22 @@ export function valsChrome(app, ctx) {
 
   // palette
   const cmds = [
-    { icon: 'I.', iconColor: '#d8b573', label: 'Mission Control', hint: 'GO', run: go('mission') },
-    { icon: 'II.', iconColor: '#d8b573', label: 'Voice — talk to Nova', hint: 'GO', run: go('voice') },
-    { icon: 'III.', iconColor: '#d8b573', label: 'Memory Galaxy', hint: 'GO', run: go('galaxy') },
-    { icon: 'IV.', iconColor: '#d8b573', label: 'Claude Code', hint: 'GO', run: go('code') },
-    { icon: 'V.', iconColor: '#d8b573', label: 'Recipes', hint: 'GO', run: go('recipes') },
-    { icon: 'VI.', iconColor: '#d8b573', label: 'Workouts', hint: 'GO', run: go('workouts') },
-    { icon: 'VII.', iconColor: '#d8b573', label: 'Notes', hint: 'GO', run: go('notes') },
-    { icon: 'VIII.', iconColor: '#d8b573', label: 'Settings', hint: 'GO', run: go('settings') },
+    { icon: 'I.', iconColor: 'var(--nv-gold)', label: 'Mission Control', hint: 'GO', run: go('mission') },
+    { icon: 'II.', iconColor: 'var(--nv-gold)', label: 'Voice — talk to Nova', hint: 'GO', run: go('voice') },
+    { icon: 'III.', iconColor: 'var(--nv-gold)', label: 'Memory Galaxy', hint: 'GO', run: go('galaxy') },
+    { icon: 'IV.', iconColor: 'var(--nv-gold)', label: 'Claude Code', hint: 'GO', run: go('code') },
+    { icon: 'V.', iconColor: 'var(--nv-gold)', label: 'Recipes', hint: 'GO', run: go('recipes') },
+    { icon: 'VI.', iconColor: 'var(--nv-gold)', label: 'Workouts', hint: 'GO', run: go('workouts') },
+    { icon: 'VII.', iconColor: 'var(--nv-gold)', label: 'Notes', hint: 'GO', run: go('notes') },
+    { icon: 'VIII.', iconColor: 'var(--nv-gold)', label: 'Settings', hint: 'GO', run: go('settings') },
     // the scripted "Nova actions" only exist in demo mode — in live mode the
     // palette offers nothing it can't really do
     ...(demoMode ? [
-      { icon: '✦', iconColor: '#6be5f5', label: 'Scale burrito bowl to 2 servings', hint: 'NOVA', run: () => { app.navigate('recipes', { openRecipeId: 'r1', servings: 2, recipeChat: [], paletteOpen: false }); app.toastMsg('Nova scaled the burrito bowl ×2 — macros updated'); } },
-      { icon: '✦', iconColor: '#6be5f5', label: 'Ask Coach to ease today’s session', hint: 'COACH', run: () => { app.navigate('workouts', { paletteOpen: false }); setTimeout(() => app.doCoach('Make it a bit shorter today'), 300); } },
-      { icon: '✦', iconColor: '#6be5f5', label: 'Run vault backup — Guardian', hint: 'GUARDIAN', run: () => { app.setState({ paletteOpen: false }); app.toastMsg('Guardian: snapshot complete — 186 notes · 0 conflicts ✓'); } },
+      { icon: '✦', iconColor: 'var(--nv-cy)', label: 'Scale burrito bowl to 2 servings', hint: 'NOVA', run: () => { app.navigate('recipes', { openRecipeId: 'r1', servings: 2, recipeChat: [], paletteOpen: false }); app.toastMsg('Nova scaled the burrito bowl ×2 — macros updated'); } },
+      { icon: '✦', iconColor: 'var(--nv-cy)', label: 'Ask Coach to ease today’s session', hint: 'COACH', run: () => { app.navigate('workouts', { paletteOpen: false }); setTimeout(() => app.doCoach('Make it a bit shorter today'), 300); } },
+      { icon: '✦', iconColor: 'var(--nv-cy)', label: 'Run vault backup — Guardian', hint: 'GUARDIAN', run: () => { app.setState({ paletteOpen: false }); app.toastMsg('Guardian: snapshot complete — 186 notes · 0 conflicts ✓'); } },
     ] : []),
-    { icon: '✦', iconColor: '#6be5f5', label: 'Start a voice session', hint: 'VOICE', run: () => { app.navigate('voice', { micOn: true, paletteOpen: false }); } },
+    { icon: '✦', iconColor: 'var(--nv-cy)', label: 'Start a voice session', hint: 'VOICE', run: () => { app.navigate('voice', { micOn: true, paletteOpen: false }); } },
   ];
   const pq = st.paletteQuery.toLowerCase();
   const paletteResults = cmds.filter(c => !pq || c.label.toLowerCase().includes(pq));
@@ -90,9 +90,9 @@ export function valsChrome(app, ctx) {
     gridWork: mob ? col('16px') : { display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '14px', marginTop: '16px' },
     gridCode: mob ? col('18px') : { flex: '1', display: 'grid', gridTemplateColumns: '1fr 250px', gap: '14px', marginTop: '18px', minHeight: 0 },
     gridNotes: mob ? col('16px') : { flex: '1', display: 'grid', gridTemplateColumns: '300px 1fr', gap: '14px', marginTop: '20px', minHeight: 0 },
-    noteListCard: Object.assign({ border: '1px solid rgba(236,229,218,.09)', borderRadius: '14px', background: 'linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.01))', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }, mob ? { maxHeight: '320px', flex: 'none' } : {}),
-    galaxyBox: Object.assign({ position: 'relative', marginTop: '16px', border: '1px solid rgba(236,229,218,.09)', borderRadius: '14px', overflow: 'hidden', background: 'radial-gradient(700px 420px at 50% 45%, rgba(138,106,209,.08), rgba(0,0,0,.24))', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05)' }, mob ? { height: '420px' } : { flex: '1' }),
-    consoleCard: Object.assign({ border: '1px solid rgba(236,229,218,.09)', borderRadius: '14px', background: 'rgba(0,0,0,.32)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }, mob ? { height: '460px' } : {}),
+    noteListCard: Object.assign({ border: '1px solid var(--nv-edge)', borderRadius: 'var(--nv-radius)', background: 'var(--nv-glass)', boxShadow: 'inset 0 1px 0 var(--nv-spec)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }, mob ? { maxHeight: '320px', flex: 'none' } : {}),
+    galaxyBox: Object.assign({ position: 'relative', marginTop: '16px', border: '1px solid var(--nv-edge)', borderRadius: 'var(--nv-radius)', overflow: 'hidden', background: 'radial-gradient(700px 420px at 50% 45%, color-mix(in srgb, var(--nv-vi) 08%, transparent), rgba(0,0,0,.24))', boxShadow: 'inset 0 1px 0 var(--nv-spec)' }, mob ? { height: '420px' } : { flex: '1' }),
+    consoleCard: Object.assign({ border: '1px solid var(--nv-edge)', borderRadius: 'var(--nv-radius)', background: 'rgba(0,0,0,.32)', boxShadow: 'inset 0 1px 0 var(--nv-spec)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }, mob ? { height: '460px' } : {}),
     gridRecipeOv: mob ? { display: 'flex', flexDirection: 'column', gap: '20px', padding: '18px' } : { display: 'grid', gridTemplateColumns: '300px 1fr', gap: '26px', padding: '26px' },
     recipeOvWrap: { position: 'fixed', inset: 0, background: 'rgba(8,5,12,.72)', backdropFilter: 'blur(6px)', zIndex: 60, display: 'flex', alignItems: mob ? 'flex-start' : 'center', justifyContent: 'center', padding: mob ? '14px' : '40px', overflowY: 'auto' },
     isMission: st.screen === 'mission', isVoice: st.screen === 'voice', isGalaxy: st.screen === 'galaxy',

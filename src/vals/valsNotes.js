@@ -14,14 +14,14 @@ export function valsNotes(app, ctx) {
     : ['All', 'NOTE', 'PODCAST', 'IDEA'];
 
   const allNotesNorm = usingLiveNotes
-    ? st.liveNotes.map(n => ({ id: n.id, title: n.title, typeLabel: (n.type || 'note').toUpperCase(), date: (n.date || '').slice(0, 10), color: NOTE_TYPE_COLOR[(n.type || '').toLowerCase()] || '#ece5da', searchText: n.title.toLowerCase() }))
+    ? st.liveNotes.map(n => ({ id: n.id, title: n.title, typeLabel: (n.type || 'note').toUpperCase(), date: (n.date || '').slice(0, 10), color: NOTE_TYPE_COLOR[(n.type || '').toLowerCase()] || 'var(--nv-ink)', searchText: n.title.toLowerCase() }))
     : app.notes.map(n => ({ id: n.id, title: n.title, typeLabel: n.type, date: n.date.split(' · ')[0], color: n.color, searchText: (n.title + ' ' + n.paras.join(' ')).toLowerCase() }));
 
   const noteList = allNotesNorm
     .filter(n => (st.noteType === 'All' || n.typeLabel === st.noteType || (st.noteType === 'NOTE' && n.typeLabel === 'IDENTITY')) && (!q || n.searchText.includes(q)))
     .map(n => ({ title: n.title, type: n.typeLabel, date: n.date, select: () => app.selectNote(n.id),
       typeStyle: { font: "500 8.5px " + mono, letterSpacing: '.08em', color: n.color, flex: 'none' },
-      style: { cursor: 'pointer', padding: '10px 12px', borderRadius: '9px', background: st.openNoteId === n.id ? 'rgba(216,181,115,.09)' : 'none', border: st.openNoteId === n.id ? '1px solid rgba(216,181,115,.22)' : '1px solid transparent' } }));
+      style: { cursor: 'pointer', padding: '10px 12px', borderRadius: '9px', background: st.openNoteId === n.id ? 'color-mix(in srgb, var(--nv-gold) 09%, transparent)' : 'none', border: st.openNoteId === n.id ? '1px solid color-mix(in srgb, var(--nv-gold) 22%, transparent)' : '1px solid transparent' } }));
 
   const liveDetail = usingLiveNotes ? st.liveNoteDetails[st.openNoteId] : null;
   const on = usingLiveNotes ? null : (app.notes.find(n => n.id === st.openNoteId) || app.notes[0]);
@@ -92,7 +92,7 @@ export function valsNotes(app, ctx) {
     noteList,
     openNoteTitle: usingLiveNotes ? (liveDetail?.title ?? (allNotesNorm.find(n => n.id === st.openNoteId)?.title || 'Loading…')) : on.title,
     openNoteType: (usingLiveNotes ? (liveDetail?.type || '').toUpperCase() : on.type) + ' · OBSIDIAN',
-    openNoteTypeColor: usingLiveNotes ? (NOTE_TYPE_COLOR[(liveDetail?.type || '').toLowerCase()] || '#ece5da') : on.color,
+    openNoteTypeColor: usingLiveNotes ? (NOTE_TYPE_COLOR[(liveDetail?.type || '').toLowerCase()] || 'var(--nv-ink)') : on.color,
     openNoteMeta: usingLiveNotes ? (liveDetail ? `${liveDetail.date.slice(0, 10).toUpperCase()} · ${liveDetail.backlinks} BACKLINKS` : '') : on.date.toUpperCase(),
     openNoteUrl: usingLiveNotes ? (liveDetail?.url || null) : null,
     openNoteParas: usingLiveNotes ? (liveDetail ? liveDetail.paragraphs.map(p => ({ text: p })) : [{ text: 'Loading…' }]) : on.paras.map(p => ({ text: p })),

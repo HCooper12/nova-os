@@ -4,10 +4,10 @@ import { Interactive } from './Interactive.jsx';
 export function RecipeOverlay({ v }) {
   return (
     <div role="dialog" aria-modal="true" aria-label="Recipe detail" onClick={v.closeRecipe} style={v.recipeOvWrap}>
-      <div onClick={v.stopClick} style={css("width:860px;max-width:94vw;max-height:88vh;overflow-y:auto;border:1px solid rgba(216,181,115,.28);border-radius:18px;background:linear-gradient(180deg,#221a2c,#16101e);box-shadow:0 40px 90px -30px rgba(0,0,0,.95),inset 0 1px 0 rgba(255,255,255,.07);animation:fadeUp .3s ease-out")}>
-        <div style={css("display:flex;justify-content:space-between;align-items:center;padding:18px 26px;border-bottom:1px solid rgba(236,229,218,.07)")}>
-          <span style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.24em;color:#d8b573")}>RECIPE · FROM OBSIDIAN</span>
-          <Interactive as="span" onClick={v.closeRecipe} base="cursor:pointer;font:500 11px 'JetBrains Mono',monospace;color:rgba(236,229,218,.5);border:1px solid rgba(236,229,218,.14);border-radius:7px;padding:5px 10px" hoverStyle="color:#ece5da">ESC</Interactive>
+      <div onClick={v.stopClick} style={css("width:860px;max-width:94vw;max-height:88vh;overflow-y:auto;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 40px 90px -30px rgba(0,0,0,.95),inset 0 1px 0 var(--nv-spec);animation:fadeUp .3s ease-out")}>
+        <div style={css("display:flex;justify-content:space-between;align-items:center;padding:18px 26px;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)")}>
+          <span style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.24em;color:var(--nv-gold)")}>RECIPE · FROM OBSIDIAN</span>
+          <Interactive as="span" onClick={v.closeRecipe} base="cursor:pointer;font:500 11px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 50%, transparent);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:7px;padding:5px 10px" hoverStyle="color:var(--nv-ink)">ESC</Interactive>
         </div>
         <div style={v.gridRecipeOv}>
           <div>
@@ -16,33 +16,33 @@ export function RecipeOverlay({ v }) {
                 <img src={v.orPhotoUrl} alt={v.orName} style={css("width:100%;height:100%;object-fit:cover;display:block")} />
               </div>
             ) : (
-              <div style={v.orPhStyle}><span style={css("font:400 10px 'JetBrains Mono',monospace;color:rgba(236,229,218,.55)")}>{v.orPhLabel}</span></div>
+              <div style={v.orPhStyle}><span style={css("font:400 10px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>{v.orPhLabel}</span></div>
             )}
-            <label style={css("cursor:pointer;display:block;margin-top:8px;text-align:center;font:500 10px 'JetBrains Mono',monospace;letter-spacing:.08em;color:#6be5f5;border:1px solid rgba(107,229,245,.3);border-radius:8px;padding:8px;background:rgba(107,229,245,.05)")}>
+            <label style={css("cursor:pointer;display:block;margin-top:8px;text-align:center;font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--nv-cy);border:1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent);border-radius:8px;padding:8px;background:color-mix(in srgb, var(--nv-cy) 05%, transparent)")}>
               {v.orPhotoUploadBusy ? 'Saving…' : (v.orPhotoUrl ? 'Change photo' : '+ Add a photo of this dish')}
               <input type="file" accept="image/*" onChange={v.onRecipePhotoFile} disabled={v.orPhotoUploadBusy} style={css("display:none")} />
             </label>
-            <div style={css("margin-top:14px;border:1px solid rgba(236,229,218,.09);border-radius:12px;padding:15px 17px;background:rgba(0,0,0,.22)")}>
-              <div style={css("display:flex;justify-content:space-between;align-items:baseline")}><span style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:rgba(236,229,218,.45)")}>MACROS</span><span style={css("font:400 10px 'JetBrains Mono',monospace;color:rgba(236,229,218,.45)")}>× {v.servings}</span></div>
-              <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:9px;font:400 12px 'JetBrains Mono',monospace")}>
-                <div style={css("display:flex;justify-content:space-between")}><span style={css("color:#6be5f5")}>PROTEIN</span><span style={css("font-variant-numeric:tabular-nums")}>{v.orP}g</span></div>
-                <div style={css("display:flex;justify-content:space-between")}><span style={css("color:#d8b573")}>CARBS</span><span style={css("font-variant-numeric:tabular-nums")}>{v.orC}g</span></div>
-                <div style={css("display:flex;justify-content:space-between")}><span style={css("color:#8a6ad1")}>FAT</span><span style={css("font-variant-numeric:tabular-nums")}>{v.orF}g</span></div>
-                <div style={css("display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid rgba(236,229,218,.08)")}><span style={css("color:#7cd68a")}>ENERGY</span><span style={css("font-variant-numeric:tabular-nums;color:#7cd68a")}>{v.orKcal} kcal</span></div>
+            <div style={css("margin-top:14px;border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:12px;padding:15px 17px;background:rgba(0,0,0,.22)")}>
+              <div style={css("display:flex;justify-content:space-between;align-items:baseline")}><span style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>MACROS</span><span style={css("font:400 10px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>× {v.servings}</span></div>
+              <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:9px;font:400 12px 'IBM Plex Mono',monospace")}>
+                <div style={css("display:flex;justify-content:space-between")}><span style={css("color:var(--nv-cy)")}>PROTEIN</span><span style={css("font-variant-numeric:tabular-nums")}>{v.orP}g</span></div>
+                <div style={css("display:flex;justify-content:space-between")}><span style={css("color:var(--nv-gold)")}>CARBS</span><span style={css("font-variant-numeric:tabular-nums")}>{v.orC}g</span></div>
+                <div style={css("display:flex;justify-content:space-between")}><span style={css("color:var(--nv-vi)")}>FAT</span><span style={css("font-variant-numeric:tabular-nums")}>{v.orF}g</span></div>
+                <div style={css("display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)")}><span style={css("color:var(--nv-good)")}>ENERGY</span><span style={css("font-variant-numeric:tabular-nums;color:var(--nv-good)")}>{v.orKcal} kcal</span></div>
               </div>
             </div>
             {v.orShowServings && (
               <div style={css("margin-top:14px;display:flex;align-items:center;gap:12px")}>
-                <span style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(236,229,218,.45)")}>SERVINGS</span>
-                <Interactive as="span" onClick={v.decServ} base="cursor:pointer;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(236,229,218,.16);border-radius:8px;color:#ece5da" hoverStyle="border:1px solid rgba(216,181,115,.5)">−</Interactive>
-                <span style={css("font:500 16px 'JetBrains Mono',monospace;font-variant-numeric:tabular-nums")}>{v.servings}</span>
-                <Interactive as="span" onClick={v.incServ} base="cursor:pointer;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(236,229,218,.16);border-radius:8px;color:#ece5da" hoverStyle="border:1px solid rgba(216,181,115,.5)">+</Interactive>
+                <span style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.18em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>SERVINGS</span>
+                <Interactive as="span" onClick={v.decServ} base="cursor:pointer;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);border-radius:8px;color:var(--nv-ink)" hoverStyle="border:1px solid color-mix(in srgb, var(--nv-gold) 50%, transparent)">−</Interactive>
+                <span style={css("font:500 16px 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums")}>{v.servings}</span>
+                <Interactive as="span" onClick={v.incServ} base="cursor:pointer;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);border-radius:8px;color:var(--nv-ink)" hoverStyle="border:1px solid color-mix(in srgb, var(--nv-gold) 50%, transparent)">+</Interactive>
               </div>
             )}
           </div>
           <div>
             <h2 style={css("margin:0;font:400 34px/1.1 'Instrument Serif',serif")}>{v.orName}</h2>
-            <div style={css("margin-top:7px;font:400 10.5px 'JetBrains Mono',monospace;color:rgba(236,229,218,.45)")}>{v.orMeta}</div>
+            <div style={css("margin-top:7px;font:400 10.5px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.orMeta}</div>
             {v.orAlternates.length > 1 && (
               <div style={css("margin-top:12px;display:flex;flex-wrap:wrap;gap:7px")}>
                 {v.orAlternates.map((a) => (
@@ -51,12 +51,12 @@ export function RecipeOverlay({ v }) {
                     as="span"
                     onClick={a.onClick}
                     base={{
-                      cursor: 'pointer', font: "500 10px 'JetBrains Mono',monospace", padding: '6px 12px', borderRadius: '7px',
-                      border: a.active ? '1px solid rgba(107,229,245,.5)' : '1px solid rgba(236,229,218,.14)',
-                      color: a.active ? '#6be5f5' : 'rgba(236,229,218,.55)',
-                      background: a.active ? 'rgba(107,229,245,.08)' : 'rgba(0,0,0,.2)',
+                      cursor: 'pointer', font: "500 10px 'IBM Plex Mono',monospace", padding: '6px 12px', borderRadius: '7px',
+                      border: a.active ? '1px solid color-mix(in srgb, var(--nv-cy) 50%, transparent)' : '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)',
+                      color: a.active ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)',
+                      background: a.active ? 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' : 'rgba(0,0,0,.2)',
                     }}
-                    hoverStyle={{ border: '1px solid rgba(107,229,245,.5)' }}
+                    hoverStyle={{ border: '1px solid color-mix(in srgb, var(--nv-cy) 50%, transparent)' }}
                   >
                     {a.label}
                   </Interactive>
@@ -64,29 +64,29 @@ export function RecipeOverlay({ v }) {
               </div>
             )}
             {v.orDescription && (
-              <div style={css("margin-top:16px;font-size:14px;line-height:1.7;color:rgba(236,229,218,.85)")}>{v.orDescription}</div>
+              <div style={css("margin-top:16px;font-size:14px;line-height:1.7;color:color-mix(in srgb, var(--nv-ink) 85%, transparent)")}>{v.orDescription}</div>
             )}
             {v.orIngredients.length > 0 && (
               <>
                 <div style={css("margin-top:18px;display:flex;justify-content:space-between;align-items:baseline")}>
-                  <span style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.22em;color:rgba(236,229,218,.45)")}>INGREDIENTS</span>
+                  <span style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>INGREDIENTS</span>
                   {v.orShowAddToShoppingList && (
-                    <Interactive as="span" onClick={v.addRecipeToShoppingList} base="cursor:pointer;font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.06em;color:#d8b573" hoverStyle={{ color: '#e6c98f' }}>+ ADD TO SHOPPING LIST</Interactive>
+                    <Interactive as="span" onClick={v.addRecipeToShoppingList} base="cursor:pointer;font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--nv-gold)" hoverStyle={{ color: 'color-mix(in srgb, var(--nv-gold) 85%, white)' }}>+ ADD TO SHOPPING LIST</Interactive>
                   )}
                 </div>
                 <div style={css("margin-top:10px;display:flex;flex-direction:column")}>
                   {v.orIngredients.map((ing, i) => (
-                    <div key={i} style={css("display:flex;gap:12px;padding:7px 0;border-bottom:1px solid rgba(236,229,218,.05);font-size:13.5px")}><span style={css("font:400 11.5px 'JetBrains Mono',monospace;color:#d8b573;width:74px;font-variant-numeric:tabular-nums")}>{ing.qty}</span><span style={css("color:rgba(236,229,218,.85)")}>{ing.name}</span></div>
+                    <div key={i} style={css("display:flex;gap:12px;padding:7px 0;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 05%, transparent);font-size:13.5px")}><span style={css("font:400 11.5px 'IBM Plex Mono',monospace;color:var(--nv-gold);width:74px;font-variant-numeric:tabular-nums")}>{ing.qty}</span><span style={css("color:color-mix(in srgb, var(--nv-ink) 85%, transparent)")}>{ing.name}</span></div>
                   ))}
                 </div>
               </>
             )}
             {v.orSteps.length > 0 && (
               <>
-                <div style={css("margin-top:18px;font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.22em;color:rgba(236,229,218,.45)")}>METHOD</div>
+                <div style={css("margin-top:18px;font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>METHOD</div>
                 <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:9px")}>
                   {v.orSteps.map((st, i) => (
-                    <div key={i} style={css("display:flex;gap:12px;font-size:13.5px;line-height:1.6;color:rgba(236,229,218,.8)")}><span style={css("font:italic 400 14px 'Instrument Serif',serif;color:rgba(216,181,115,.7)")}>{st.n}</span><span>{st.text}</span></div>
+                    <div key={i} style={css("display:flex;gap:12px;font-size:13.5px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 80%, transparent)")}><span style={css("font:italic 400 14px 'Instrument Serif',serif;color:color-mix(in srgb, var(--nv-gold) 70%, transparent)")}>{st.n}</span><span>{st.text}</span></div>
                   ))}
                 </div>
               </>
@@ -94,18 +94,18 @@ export function RecipeOverlay({ v }) {
             {v.orShowTweak ? (
               <>
                 {v.orNotes.length > 0 && (
-                  <div style={css("margin-top:20px;border:1px solid rgba(216,181,115,.2);border-radius:12px;padding:14px 16px;background:rgba(216,181,115,.04)")}>
-                    <div style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:#d8b573")}>NOTES</div>
+                  <div style={css("margin-top:20px;border:1px solid color-mix(in srgb, var(--nv-gold) 20%, transparent);border-radius:12px;padding:14px 16px;background:color-mix(in srgb, var(--nv-gold) 04%, transparent)")}>
+                    <div style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.2em;color:var(--nv-gold)")}>NOTES</div>
                     <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:8px")}>
                       {v.orNotes.map((n, i) => (
-                        <div key={i} style={css("font-size:12.5px;line-height:1.6;color:rgba(236,229,218,.8)")}>◆ {n}</div>
+                        <div key={i} style={css("font-size:12.5px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 80%, transparent)")}>◆ {n}</div>
                       ))}
                     </div>
                   </div>
                 )}
-                <div style={css("margin-top:20px;border:1px solid rgba(107,229,245,.2);border-radius:12px;padding:14px 16px;background:rgba(107,229,245,.04)")}>
-                  <div style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:#6be5f5")}>ASK NOVA FOR A TWEAK</div>
-                  <div style={css("margin-top:8px;font-size:12px;line-height:1.55;color:rgba(236,229,218,.55)")}>
+                <div style={css("margin-top:20px;border:1px solid color-mix(in srgb, var(--nv-cy) 20%, transparent);border-radius:12px;padding:14px 16px;background:color-mix(in srgb, var(--nv-cy) 04%, transparent)")}>
+                  <div style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.2em;color:var(--nv-cy)")}>ASK NOVA FOR A TWEAK</div>
+                  <div style={css("margin-top:8px;font-size:12px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
                     Out of an ingredient? Want it lighter? Ask — Nova suggests a version, saved as an alternative you can switch back from any time.
                   </div>
                   <div style={css("display:flex;gap:8px;margin-top:12px")}>
@@ -116,48 +116,48 @@ export function RecipeOverlay({ v }) {
                       onKeyDown={v.recipeTweakKey}
                       disabled={v.recipeTweakBusy}
                       placeholder='Try "no soy sauce, what instead?" or "cut the carbs"…'
-                      base="flex:1;background:rgba(0,0,0,.3);border:1px solid rgba(236,229,218,.12);border-radius:8px;padding:9px 13px;color:#ece5da;font-size:12.5px;font-family:'Instrument Sans',sans-serif;outline:none"
-                      focusStyle="border:1px solid rgba(107,229,245,.5)"
+                      base="flex:1;background:rgba(0,0,0,.3);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:'Rajdhani',sans-serif;outline:none"
+                      focusStyle="border:1px solid color-mix(in srgb, var(--nv-cy) 50%, transparent)"
                     />
                     <Interactive
                       as="span"
                       onClick={v.recipeTweakBusy ? undefined : v.submitRecipeTweak}
-                      base={{ cursor: 'pointer', display: 'flex', alignItems: 'center', font: "500 10.5px 'JetBrains Mono',monospace", padding: '0 14px', borderRadius: '8px', background: '#6be5f5', color: '#0a2830', opacity: v.recipeTweakBusy ? .6 : 1 }}
-                      hoverStyle={{ background: '#9deefa' }}
+                      base={{ cursor: 'pointer', display: 'flex', alignItems: 'center', font: "500 10.5px 'IBM Plex Mono',monospace", padding: '0 14px', borderRadius: '8px', background: 'var(--nv-cy)', color: '#0a2830', opacity: v.recipeTweakBusy ? .6 : 1 }}
+                      hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 80%, white)' }}
                     >
                       {v.recipeTweakBusy ? 'THINKING…' : 'ASK'}
                     </Interactive>
                   </div>
                   {v.recipeTweakError && (
-                    <div style={css("margin-top:10px;font-size:12px;color:#e29b9b")}>{v.recipeTweakError}</div>
+                    <div style={css("margin-top:10px;font-size:12px;color:var(--nv-warn)")}>{v.recipeTweakError}</div>
                   )}
                   {v.recipeTweakPreview && (
-                    <div style={css("margin-top:14px;border-top:1px solid rgba(107,229,245,.15);padding-top:12px")}>
-                      <div style={css("font-size:13.5px;font-weight:500;color:#ece5da")}>{v.recipeTweakPreview.label}</div>
-                      <div style={css("margin-top:7px;display:flex;gap:12px;font:400 11px 'JetBrains Mono',monospace")}>
-                        <span style={css("color:#6be5f5")}>{v.recipeTweakPreview.macros.p}P</span>
-                        <span style={css("color:#d8b573")}>{v.recipeTweakPreview.macros.c}C</span>
-                        <span style={css("color:#8a6ad1")}>{v.recipeTweakPreview.macros.f}F</span>
-                        <span style={css("color:#7cd68a")}>{v.recipeTweakPreview.macros.kcal} kcal</span>
+                    <div style={css("margin-top:14px;border-top:1px solid color-mix(in srgb, var(--nv-cy) 15%, transparent);padding-top:12px")}>
+                      <div style={css("font-size:13.5px;font-weight:500;color:var(--nv-ink)")}>{v.recipeTweakPreview.label}</div>
+                      <div style={css("margin-top:7px;display:flex;gap:12px;font:400 11px 'IBM Plex Mono',monospace")}>
+                        <span style={css("color:var(--nv-cy)")}>{v.recipeTweakPreview.macros.p}P</span>
+                        <span style={css("color:var(--nv-gold)")}>{v.recipeTweakPreview.macros.c}C</span>
+                        <span style={css("color:var(--nv-vi)")}>{v.recipeTweakPreview.macros.f}F</span>
+                        <span style={css("color:var(--nv-good)")}>{v.recipeTweakPreview.macros.kcal} kcal</span>
                       </div>
                       <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:5px")}>
                         {v.recipeTweakPreview.ingredients.map((ing, i) => (
-                          <div key={i} style={css("font-size:12px;color:rgba(236,229,218,.75)")}>· {ing}</div>
+                          <div key={i} style={css("font-size:12px;color:color-mix(in srgb, var(--nv-ink) 75%, transparent)")}>· {ing}</div>
                         ))}
                       </div>
                       <div style={css("display:flex;gap:8px;margin-top:14px")}>
-                        <Interactive as="span" onClick={v.discardRecipeTweak} base="cursor:pointer;font-size:12px;padding:7px 14px;border-radius:7px;border:1px solid rgba(236,229,218,.16);color:rgba(236,229,218,.7)" hoverStyle={{ background: 'rgba(255,255,255,.05)' }}>Discard</Interactive>
-                        <Interactive as="span" onClick={v.saveRecipeTweak} base="cursor:pointer;font-size:12px;font-weight:500;padding:7px 16px;border-radius:7px;background:#6be5f5;color:#0a2830" hoverStyle={{ background: '#9deefa' }}>Save as alternative</Interactive>
+                        <Interactive as="span" onClick={v.discardRecipeTweak} base="cursor:pointer;font-size:12px;padding:7px 14px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);color:color-mix(in srgb, var(--nv-ink) 70%, transparent)" hoverStyle={{ background: 'rgba(255,255,255,.05)' }}>Discard</Interactive>
+                        <Interactive as="span" onClick={v.saveRecipeTweak} base="cursor:pointer;font-size:12px;font-weight:500;padding:7px 16px;border-radius:7px;background:var(--nv-cy);color:#0a2830" hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 80%, white)' }}>Save as alternative</Interactive>
                       </div>
                     </div>
                   )}
                 </div>
               </>
             ) : v.orShowAskNova && (
-              <div style={css("margin-top:20px;border:1px solid rgba(107,229,245,.2);border-radius:12px;padding:14px 16px;background:rgba(107,229,245,.04)")}>
-                <div style={css("font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:#6be5f5")}>ASK NOVA</div>
+              <div style={css("margin-top:20px;border:1px solid color-mix(in srgb, var(--nv-cy) 20%, transparent);border-radius:12px;padding:14px 16px;background:color-mix(in srgb, var(--nv-cy) 04%, transparent)")}>
+                <div style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.2em;color:var(--nv-cy)")}>ASK NOVA</div>
                 {v.recipeMsgs.map((m, i) => (
-                  <div key={i} style={css("margin-top:10px;font-size:13px;line-height:1.6;color:rgba(236,229,218,.85);animation:fadeUp .3s ease-out")}><span style={m.tagStyle}>{m.tag}</span> {m.text}{m.typing && <span style={css("color:#6be5f5")}>▍</span>}</div>
+                  <div key={i} style={css("margin-top:10px;font-size:13px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 85%, transparent);animation:fadeUp .3s ease-out")}><span style={m.tagStyle}>{m.tag}</span> {m.text}{m.typing && <span style={css("color:var(--nv-cy)")}>▍</span>}</div>
                 ))}
                 <div style={css("display:flex;gap:8px;margin-top:12px")}>
                   <Interactive
@@ -166,10 +166,10 @@ export function RecipeOverlay({ v }) {
                     onChange={v.setRecipeInput}
                     onKeyDown={v.recipeKey}
                     placeholder='Try "suggest a swap" or "scale for cutting"…'
-                    base="flex:1;background:rgba(0,0,0,.3);border:1px solid rgba(236,229,218,.12);border-radius:8px;padding:9px 13px;color:#ece5da;font-size:12.5px;font-family:'Instrument Sans',sans-serif;outline:none"
-                    focusStyle="border:1px solid rgba(107,229,245,.5)"
+                    base="flex:1;background:rgba(0,0,0,.3);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:'Rajdhani',sans-serif;outline:none"
+                    focusStyle="border:1px solid color-mix(in srgb, var(--nv-cy) 50%, transparent)"
                   />
-                  <Interactive as="span" onClick={v.sendRecipe} base="cursor:pointer;display:flex;align-items:center;font:500 10.5px 'JetBrains Mono',monospace;padding:0 14px;border-radius:8px;background:#6be5f5;color:#0a2830" hoverStyle={{ background: '#9deefa' }}>ASK</Interactive>
+                  <Interactive as="span" onClick={v.sendRecipe} base="cursor:pointer;display:flex;align-items:center;font:500 10.5px 'IBM Plex Mono',monospace;padding:0 14px;border-radius:8px;background:var(--nv-cy);color:#0a2830" hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 80%, white)' }}>ASK</Interactive>
                 </div>
               </div>
             )}

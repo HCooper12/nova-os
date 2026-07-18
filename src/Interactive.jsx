@@ -11,7 +11,7 @@ import { css } from './css.js';
 // role="button", a tab stop, Enter/Space activation, and a visible focus
 // outline (unless the caller supplies its own focusStyle).
 const NATIVE_INTERACTIVE = new Set(['button', 'a', 'input', 'select', 'textarea', 'label']);
-const DEFAULT_FOCUS = { outline: '2px solid rgba(107,229,245,.65)', outlineOffset: '2px' };
+const DEFAULT_FOCUS = { outline: '2px solid var(--nv-acc-border)', outlineOffset: '2px' };
 
 export function Interactive({ as: Tag = 'div', base, hoverStyle, focusStyle, onMouseEnter, onMouseLeave, onFocus, onBlur, onClick, onKeyDown, ...rest }) {
   const [hover, setHover] = useState(false);

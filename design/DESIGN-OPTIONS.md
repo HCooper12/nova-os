@@ -232,3 +232,21 @@ identity decision (the references were orange; Nova keeps her color).
 Hologram (new default) or Filament (the original, fully preserved). The
 choice persists (`novaos.core`); the sidebar's 30px mini stays Filament
 (a hologram is illegible that small). Screenshot: `shots/47-core-study.jpeg`.
+
+## Round 13 — full-app restyle (July 2026)
+
+Every remaining screen brought onto the Command token system, closing the
+"old skin inside the new shell" gap: Voice, Galaxy, Notes, Journal, Recipes,
+Shopping, Train, Claude Code, Settings, the recipe/add-recipe/ingest
+overlays, command palette, toast, and the boot splash (which now boots the
+selected Nova core instead of the golden orb).
+
+Mechanics: colors moved to `var(--nv-*)` tokens with `color-mix()` for alpha
+variants; JetBrains Mono → IBM Plex Mono; body type → Rajdhani (weight 500
+base); screen headers use the mono-numeral + accent-rule idiom; h1s are
+Rajdhani 700 with an Instrument Serif italic gold accent; card shells use
+the glass tokens (`--nv-glass/edge/spec/radius`); modal shells are
+`--nv-glass2` with blur. Corner brackets remain a Mission Control signature.
+Canvas-fed colors (galaxy stars, NOTE_TYPE_COLOR) stay literal hex — canvas
+cannot resolve CSS custom properties. Everything now follows the theme
+switcher; note titles and reading surfaces keep Instrument Serif by design.

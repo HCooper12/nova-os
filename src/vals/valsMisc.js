@@ -19,13 +19,13 @@ export function valsMisc(app, ctx) {
         onToggle: () => app.toggleShoppingItem(i.id, !i.checked),
         checkboxStyle: {
           width: '21px', height: '21px', borderRadius: '6px', flex: 'none',
-          border: i.checked ? '1px solid #6be5f5' : '1px solid rgba(236,229,218,.25)',
-          background: i.checked ? '#6be5f5' : 'transparent',
+          border: i.checked ? '1px solid var(--nv-cy)' : '1px solid color-mix(in srgb, var(--nv-ink) 25%, transparent)',
+          background: i.checked ? 'var(--nv-cy)' : 'transparent',
           color: '#0a2830', fontSize: '13px', fontWeight: 700, lineHeight: '19px', textAlign: 'center',
         },
         nameStyle: {
           fontSize: '13.5px',
-          color: i.checked ? 'rgba(236,229,218,.35)' : '#ece5da',
+          color: i.checked ? 'color-mix(in srgb, var(--nv-ink) 35%, transparent)' : 'var(--nv-ink)',
           textDecoration: i.checked ? 'line-through' : 'none',
         },
       })),
@@ -41,8 +41,8 @@ export function valsMisc(app, ctx) {
   const galaxyLegend = liveGraphOn
     ? Object.entries(NOTE_TYPE_COLOR).filter(([t]) => t !== 'raw').map(([t, color]) => ({ label: t + 's', color }))
     : [
-        { label: 'notes', color: '#ece5da' }, { label: 'podcasts', color: '#8a6ad1' }, { label: 'recipes', color: '#d8b573' },
-        { label: 'training', color: '#5aa87c' }, { label: 'agents', color: '#6be5f5' },
+        { label: 'notes', color: 'var(--nv-ink)' }, { label: 'podcasts', color: 'var(--nv-vi)' }, { label: 'recipes', color: 'var(--nv-gold)' },
+        { label: 'training', color: '#5aa87c' }, { label: 'agents', color: 'var(--nv-cy)' },
       ];
 
   // shared with valsChrome (nav count)
@@ -63,12 +63,12 @@ export function valsMisc(app, ctx) {
     // voice (concept preview — no real speech engine)
     micOn: st.micOn,
     micStatus: st.micOn ? 'LISTENING' : 'MUTED',
-    micBar: { width: st.micOn ? '92%' : '8%', height: '100%', background: '#6be5f5', transition: 'width .4s' },
-    micBtnStyle: { cursor: 'pointer', font: "500 10.5px " + mono, padding: '9px 16px', borderRadius: '8px', border: '1px solid rgba(107,229,245,.4)', color: st.micOn ? '#6be5f5' : 'rgba(236,229,218,.5)', background: st.micOn ? 'rgba(107,229,245,.08)' : 'rgba(0,0,0,.25)' },
+    micBar: { width: st.micOn ? '92%' : '8%', height: '100%', background: 'var(--nv-cy)', transition: 'width .4s' },
+    micBtnStyle: { cursor: 'pointer', font: "500 10.5px " + mono, padding: '9px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent)', color: st.micOn ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', background: st.micOn ? 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' : 'rgba(0,0,0,.25)' },
     micBtnLabel: st.micOn ? '● MIC LIVE' : '○ MIC OFF',
     orbCaption: st.micOn ? (wakeWord ? 'LISTENING · SAY “NOVA”' : 'LISTENING') : 'STANDING BY',
     toggleMic: () => app.setState(s => ({ micOn: !s.micOn })),
-    orbMsgs: st.orbChat.map(m => ({ text: m.text, typing: m.typing, tag: m.who === 'nova' ? '» NOVA' : '» YOU', tagStyle: { color: m.who === 'nova' ? '#6be5f5' : 'rgba(236,229,218,.5)', fontWeight: 500 } })),
+    orbMsgs: st.orbChat.map(m => ({ text: m.text, typing: m.typing, tag: m.who === 'nova' ? '» NOVA' : '» YOU', tagStyle: { color: m.who === 'nova' ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', fontWeight: 500 } })),
     orbInput: st.orbInput,
     setOrbInput: (e) => app.setState({ orbInput: e.target.value }),
     orbKey: (e) => { if (e.key === 'Enter') app.doOrb(); },
@@ -91,7 +91,7 @@ export function valsMisc(app, ctx) {
     galaxySelLabel: st.galaxySel ? st.galaxySel.label : '',
     galaxySelType: st.galaxySel ? st.galaxySel.type : '',
     galaxySelDesc: st.galaxySel ? st.galaxySel.desc : '',
-    galaxySelColor: st.galaxySel ? st.galaxySel.color : '#d8b573',
+    galaxySelColor: st.galaxySel ? st.galaxySel.color : 'var(--nv-gold)',
     galaxyClear: () => app.setState({ galaxySel: null }),
     galaxyOpen: () => {
       const t = st.galaxySel && st.galaxySel.target;
@@ -104,7 +104,7 @@ export function valsMisc(app, ctx) {
 
     // code
     codeConnected: !!getConnection(),
-    codeMsgs: st.codeChat.map(m => ({ text: m.text, tag: m.who === 'claude' ? '» CLAUDE' : m.who === 'system' ? '» SYSTEM' : '» YOU', tagStyle: { color: m.who === 'claude' ? '#d8b573' : m.who === 'system' ? '#c96f6f' : 'rgba(236,229,218,.5)', fontWeight: 500 } })),
+    codeMsgs: st.codeChat.map(m => ({ text: m.text, tag: m.who === 'claude' ? '» CLAUDE' : m.who === 'system' ? '» SYSTEM' : '» YOU', tagStyle: { color: m.who === 'claude' ? 'var(--nv-gold)' : m.who === 'system' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', fontWeight: 500 } })),
     codeBusy: st.codeBusy,
     codeInput: st.codeInput,
     setCodeInput: (e) => app.setState({ codeInput: e.target.value }),

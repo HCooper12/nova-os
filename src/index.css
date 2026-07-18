@@ -6,15 +6,16 @@
 *, *::before, *::after { box-sizing: border-box; }
 html, body, #root { margin: 0; height: 100%; }
 body {
-  background: #120d18;
-  font-family: 'Instrument Sans', system-ui, sans-serif;
+  background: var(--nv-void, #06070d);
+  font-family: 'Rajdhani', 'Instrument Sans', system-ui, sans-serif;
+  font-weight: 500;
   -webkit-font-smoothing: antialiased;
 }
-a { color: #d8b573; text-decoration: none; }
-a:hover { color: #eccf99; }
-::selection { background: rgba(216, 181, 115, .3); }
+a { color: var(--nv-gold); text-decoration: none; }
+a:hover { color: var(--nv-acc); }
+::selection { background: color-mix(in srgb, var(--nv-acc) 30%, transparent); }
 
-input::placeholder { color: rgba(236, 229, 218, .35); }
+input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-ink) 35%, transparent); }
 
 @keyframes novaPulse { 0%, 100% { opacity: .5; transform: scale(1); } 50% { opacity: 1; transform: scale(1.28); } }
 @keyframes ringSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
