@@ -23,8 +23,9 @@ const server = http.createServer((req, res) => {
     return;
   }
   const send = (code, body) => { res.writeHead(code, { 'Content-Type': 'application/json' }).end(body === undefined ? '' : JSON.stringify(body)); };
-  if (req.method === 'GET' && req.url === '/projects') return send(200, [{ id: 'p1', name: 'Inbox', is_inbox_project: true }]);
-  if (req.method === 'GET' && req.url.startsWith('/tasks?')) return send(200, stub.tasks);
+  // unified-v1 shapes: list endpoints wrap results and paginate by cursor
+  if (req.method === 'GET' && req.url === '/projects') return send(200, { results: [{ id: 'p1', name: 'Inbox', inbox_project: true }], next_cursor: null });
+  if (req.method === 'GET' && req.url.startsWith('/tasks?')) return send(200, { results: stub.tasks.map((t) => ({ ...t, checked: false })), next_cursor: null });
   if (req.method === 'POST' && req.url === '/tasks') {
     let body = '';
     req.on('data', (c) => { body += c; });

@@ -20,7 +20,8 @@ import { backupFile } from './backup.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
 const STATE_PATH = () => path.join(dataRoot(), 'todoist-sync.json');
-const API_BASE = () => process.env.NOVA_TODOIST_API || 'https://api.todoist.com/rest/v2';
+// Unified API v1 — REST v2 was retired in 2025 and now returns 410 Gone.
+const API_BASE = () => process.env.NOVA_TODOIST_API || 'https://api.todoist.com/api/v1';
 const TOKEN = () => (process.env.TODOIST_TOKEN || '').trim();
 
 const TODO_REL = 'Wiki/Inbox/To-Do.md'; // same page the inbox 'todo' route files into
@@ -71,11 +72,25 @@ async function td(pathname, { method = 'GET', body } = {}) {
   return text ? JSON.parse(text) : null;
 }
 
+// v1 list endpoints return { results, next_cursor } pages; follow the cursor.
+async function tdList(pathname) {
+  const items = [];
+  let cursor = null;
+  do {
+    const sep = pathname.includes('?') ? '&' : '?';
+    const page = await td(cursor ? `${pathname}${sep}cursor=${encodeURIComponent(cursor)}` : pathname);
+    if (Array.isArray(page)) return page; // tolerate plain arrays (stubs)
+    items.push(...(page?.results || []));
+    cursor = page?.next_cursor || null;
+  } while (cursor);
+  return items;
+}
+
 async function inboxProjectId() {
   const override = (process.env.TODOIST_PROJECT_ID || '').trim();
   if (override) return override;
-  const projects = await td('/projects');
-  const inbox = (projects || []).find((p) => p.is_inbox_project);
+  const projects = await tdList('/projects');
+  const inbox = projects.find((p) => p.inbox_project || p.is_inbox_project);
   if (!inbox) throw new Error('no Inbox project found in this Todoist account');
   return String(inbox.id);
 }
@@ -140,7 +155,7 @@ async function doSync(vaultPath) {
 
   try {
     const projectId = await inboxProjectId();
-    const active = await td(`/tasks?project_id=${encodeURIComponent(projectId)}`) || [];
+    const active = (await tdList(`/tasks?project_id=${encodeURIComponent(projectId)}&limit=200`)).filter((t) => !t.checked);
     const activeById = new Map(active.map((t) => [String(t.id), t]));
     const activeByText = new Map(active.map((t) => [t.content.trim(), t]));
 
