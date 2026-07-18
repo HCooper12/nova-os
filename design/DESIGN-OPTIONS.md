@@ -145,6 +145,23 @@ LIVE·VAULT (real note count) in the bar · animated background.
 - **31 Ember skin:** byte-identical markup to 29, ember tokens only — the
   standing proof that alternate schemes (incl. 25–27 brights) ship as toggles
 
+## Round 6 — COMMAND (files 32–34): Option-30 chassis + Option-0 soul
+
+New canon on top of the Round-5 synthesis: ⌘K Summon in the bar · "3 AGENTS
+LIVE" pill · agents roster (Commander/Coach/CFO/Studio/Researcher/Guardian +
+roles) with pulsing active dots · Suggested Focus pane attributed to an agent
+("from Commander") with context-dependent action buttons · ✦ star bullets in
+Nova noticed · Daily Review shows CONCEPT + source wiki page + Review button ·
+the core gauge is now a **voice reactor** (Jarvis-style animated core, "NOVA ·
+LISTENING", waveform) · protein joins sleep/steps as satellites · every metric
+box wears a **conic progress gradient border** showing % toward goal.
+
+- **32 Command · Arc Reactor** — 30's HUD skin, cyan segmented reactor core
+- **33 Command · Golden Orb** — same architecture, warmer: Outfit type,
+  iridescent rounded panes, Option 0's golden orb as the core (Nova identity)
+- **34 Command · Agents Rail** — 32 with the roster as a status rail under the
+  top bar (alternative placement), violet core
+
 ### Shared principles regardless of winner
 
 - Same information architecture as today (focus, vitals, noticed, today, vault cards)
