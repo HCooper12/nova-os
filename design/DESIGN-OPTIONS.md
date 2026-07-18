@@ -162,6 +162,23 @@ box wears a **conic progress gradient border** showing % toward goal.
 - **34 Command · Agents Rail** — 32 with the roster as a status rail under the
   top bar (alternative placement), violet core
 
+## FINAL DECISION (Hayden, rounds 6–11)
+
+**Flagship: 45 — Command Core** (`45-command-final.html`): the 39 sidebar
+architecture + Option-0 soul elements (Summon by the CTA, agents-live in the
+eyebrow, agents roster in sidebar, agent-attributed Suggested Focus with v0
+buttons, ✦ bullets, v0 Daily Review text/source/button, spill-glow on Nova
+noticed) + the **full-density Filament Nova Core** (312px, ~1,400 seeded
+arcs, no glass disc — raw against the void) with satellites (sleep/steps/
+protein) wearing conic progress borders. Brand: NOVA·OS.
+
+**Alternative theme: 46 — Observatory** (`46-observatory-final.html`): the
+same architecture in Midnight Observatory tokens (bone/gold, v0 cards, gold
+nav + CTA), blue core intact, NOVA·OS brand.
+
+**Selectable skins**: Calm mode toggle (43), Ember, the Volume brights
+(25–27), and classic Midnight Observatory — all token-layer themes.
+
 ### Shared principles regardless of winner
 
 - Same information architecture as today (focus, vitals, noticed, today, vault cards)
