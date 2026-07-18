@@ -48,20 +48,31 @@ export function valsNotes(app, ctx) {
   // shared with valsMission (suggested focus, daily review card) and valsChrome (nav counts)
   Object.assign(ctx, { usingLiveNotes, reviewPage, journalDays });
 
+  // the scripted demo review only ever shows in demo mode — a configured
+  // session that hasn't synced (offline, first connect) says so instead
+  const demoMode = ctx.demoMode;
   return {
     // daily review (Mission Control card)
     reviewConcept: usingLiveReview
       ? (reviewPage
           ? (reviewSummary ? reviewSummary : (reviewSummary === undefined || reviewSummary === null ? 'Summarizing…' : reviewPage.title))
           : 'Add some Concepts or Topics to your wiki to start daily review')
-      : app.reviews[st.reviewIdx].c,
+      : demoMode
+        ? app.reviews[st.reviewIdx].c
+        : 'Offline — your daily review returns on the next sync.',
     reviewFrom: usingLiveReview
       ? (reviewPage ? reviewPage.title : '')
-      : app.reviews[st.reviewIdx].f,
-    shuffleReview: usingLiveReview ? () => app.shuffleDailyReview() : () => app.setState(s => ({ reviewIdx: (s.reviewIdx + 1 + Math.floor(Math.random() * (app.reviews.length - 1))) % app.reviews.length })),
+      : demoMode ? app.reviews[st.reviewIdx].f : '',
+    shuffleReview: usingLiveReview
+      ? () => app.shuffleDailyReview()
+      : demoMode
+        ? () => app.setState(s => ({ reviewIdx: (s.reviewIdx + 1 + Math.floor(Math.random() * (app.reviews.length - 1))) % app.reviews.length }))
+        : () => {},
     openReview: usingLiveReview
       ? () => app.openDailyReview()
-      : () => { app.navigate('notes', { openNoteId: app.reviews[st.reviewIdx].id }); app.toastMsg('Commander queued this concept for tonight’s reflection'); },
+      : demoMode
+        ? () => { app.navigate('notes', { openNoteId: app.reviews[st.reviewIdx].id }); app.toastMsg('Commander queued this concept for tonight’s reflection'); }
+        : ctx.go('notes'),
     reviewShowReflect: usingLiveReview && !!reviewPage && st.openNoteId === reviewPage.id,
     reviewReflectOpen: st.reviewReflectOpen,
     toggleReviewReflect: () => app.toggleReviewReflect(),

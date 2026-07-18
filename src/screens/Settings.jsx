@@ -3,6 +3,13 @@ import { Interactive } from '../Interactive.jsx';
 
 const statusColor = { idle: 'rgba(236,229,218,.5)', testing: '#d8b573', ok: '#5aa87c', error: '#c96f6f' };
 
+// Swatch dots shown on each theme card: accent, secondary, ground.
+const THEME_SWATCHES = {
+  command: ['#59e6ff', '#8f7bff', '#0a0f1e'],
+  observatory: ['#d8b573', '#6be5f5', '#0c1424'],
+  ember: ['#ffb35c', '#ff6a88', '#170e0b'],
+};
+
 export function Settings({ v }) {
   return (
     <div style={v.wrapSettings} data-screen-label="Settings">
@@ -53,6 +60,46 @@ export function Settings({ v }) {
         </div>
 
         <div style={css(`margin-top:16px;font-size:12.5px;color:${statusColor[v.settingsTestStatus]}`)}>{v.settingsTestMessage}</div>
+      </div>
+
+      <div style={css("margin-top:34px;font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.22em;color:rgba(236,229,218,.45)")}>APPEARANCE</div>
+      <div style={css("margin-top:12px;max-width:520px;display:flex;flex-direction:column;gap:10px")}>
+        {v.novaThemeOptions.map((t) => (
+          <Interactive
+            key={t.value}
+            onClick={t.pick}
+            base={{
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px', borderRadius: '12px',
+              border: t.active ? '1px solid var(--nv-acc-border)' : '1px solid rgba(236,229,218,.1)',
+              background: t.active ? 'var(--nv-acc-bg)' : 'rgba(0,0,0,.2)',
+              boxShadow: t.active ? 'var(--nv-glow-tab)' : 'none',
+            }}
+            hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}
+          >
+            <span style={{ display: 'flex', gap: '5px', flex: 'none' }}>
+              {(THEME_SWATCHES[t.value] || []).map((c, i) => (
+                <span key={i} style={{ width: '14px', height: '14px', borderRadius: '50%', background: c, border: '1px solid rgba(255,255,255,.18)' }}></span>
+              ))}
+            </span>
+            <span style={{ minWidth: 0 }}>
+              <span style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: t.active ? 'var(--nv-acc)' : 'var(--nv-ink)' }}>{t.label}</span>
+              <span style={{ display: 'block', marginTop: '2px', fontSize: '11.5px', color: 'rgba(236,229,218,.5)' }}>{t.hint}</span>
+            </span>
+            {t.active && <span style={{ marginLeft: 'auto', font: "500 9.5px 'JetBrains Mono',monospace", letterSpacing: '.14em', color: 'var(--nv-acc)' }}>ACTIVE</span>}
+          </Interactive>
+        ))}
+
+        <Interactive
+          onClick={v.toggleCalm}
+          base={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px', borderRadius: '12px', border: '1px solid rgba(236,229,218,.1)', background: 'rgba(0,0,0,.2)' }}
+          hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}
+        >
+          <span style={{ minWidth: 0 }}>
+            <span style={{ display: 'block', fontSize: '14px', fontWeight: 600 }}>Calm mode</span>
+            <span style={{ display: 'block', marginTop: '2px', fontSize: '11.5px', color: 'rgba(236,229,218,.5)' }}>dims the glow and pauses ambient motion — same layout, lower voltage</span>
+          </span>
+          <span style={{ marginLeft: 'auto', flex: 'none', font: "500 9.5px 'JetBrains Mono',monospace", letterSpacing: '.14em', padding: '6px 12px', borderRadius: '14px', border: v.calmMode ? '1px solid var(--nv-acc-border)' : '1px solid rgba(236,229,218,.16)', color: v.calmMode ? 'var(--nv-acc)' : 'rgba(236,229,218,.5)', background: v.calmMode ? 'var(--nv-acc-bg)' : 'none' }}>{v.calmMode ? 'ON' : 'OFF'}</span>
+        </Interactive>
       </div>
 
       <div style={css("margin-top:20px;max-width:520px;font-size:11.5px;line-height:1.7;color:rgba(236,229,218,.4)")}>

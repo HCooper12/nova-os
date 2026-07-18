@@ -27,3 +27,123 @@ input::placeholder { color: rgba(236, 229, 218, .35); }
 @keyframes auroraDrift { from { transform: translate3d(-2%,-1%,0); } to { transform: translate3d(2%,2%,0); } }
 @keyframes barSweep { from { width: 4%; } to { width: 100%; } }
 @keyframes dotBlink { 0%, 100% { opacity: .2; } 50% { opacity: 1; } }
+
+/* ================================================================
+   NOVA COMMAND DESIGN SYSTEM (design/mockups/45-command-final.html)
+   Tokens on :root (Command default), overridden per data-nv-theme;
+   the data-nv-calm block LAST so Calm wins in every theme.
+   ================================================================ */
+:root {
+  --nv-void:#06070d; --nv-bg1:#0a0f1e; --nv-bg2:#111a32;
+  --nv-ink:#e8ecf6; --nv-ink60:rgba(232,236,246,.62); --nv-ink40:rgba(232,236,246,.38);
+  --nv-glass:rgba(16,20,36,.62); --nv-glass2:rgba(26,32,54,.8);
+  --nv-edge:rgba(130,175,255,.24); --nv-spec:rgba(190,225,255,.45);
+  --nv-cy:#59e6ff; --nv-vi:#8f7bff; --nv-mg:#ff7ad9; --nv-gold:#e0b26a;
+  --nv-good:#5fe8a8; --nv-warn:#e08383;
+  --nv-acc:#59e6ff; --nv-acc-bg:rgba(89,230,255,.07); --nv-acc-border:rgba(89,230,255,.42);
+  --nv-radius:10px; --nv-bracket:rgba(89,230,255,.55); --nv-bracket-op:1;
+  --nv-gridline:rgba(130,175,255,.045); --nv-grid-op:1; --nv-aurora-op:.8; --nv-stars-op:0;
+  --nv-aur1:rgba(89,230,255,.12); --nv-aur2:rgba(143,123,255,.14);
+  --nv-anim:running;
+  --nv-glow-tab:0 0 18px -6px rgba(89,230,255,.9); --nv-tsh-tab:0 0 12px rgba(89,230,255,.85);
+  --nv-glow-cta:0 0 30px -10px rgba(89,230,255,.95); --nv-tsh-cta:0 0 12px rgba(89,230,255,.7);
+  --nv-cta-border:rgba(89,230,255,.55); --nv-cta-bg:linear-gradient(180deg,rgba(89,230,255,.2),rgba(89,230,255,.05)); --nv-cta-ink:#59e6ff;
+  --nv-glow-core:0 0 110px -34px rgba(89,230,255,.55);
+  --nv-glow-noticed:0 0 80px -16px rgba(224,178,106,.3),0 0 150px -34px rgba(89,230,255,.28);
+  --nv-glow-focus:0 0 50px -18px rgba(224,178,106,.5);
+  --nv-glow-sat1:0 0 38px -12px rgba(89,230,255,.8);
+  --nv-glow-sat2:0 0 38px -12px rgba(255,122,217,.7);
+  --nv-glow-sat3:0 0 38px -12px rgba(143,123,255,.8);
+  --nv-tsh-head-cy:0 0 16px rgba(89,230,255,.5); --nv-tsh-head-vi:0 0 16px rgba(143,123,255,.5);
+}
+:root[data-nv-theme="observatory"] {
+  --nv-void:#070b13; --nv-bg1:#0c1424; --nv-bg2:#152742;
+  --nv-ink:#ece5da; --nv-ink60:rgba(236,229,218,.62); --nv-ink40:rgba(236,229,218,.38);
+  --nv-glass:rgba(21,28,44,.55); --nv-glass2:rgba(28,38,58,.75);
+  --nv-edge:rgba(236,229,218,.12); --nv-spec:rgba(236,229,218,.3);
+  --nv-cy:#6be5f5; --nv-vi:#8a6ad1; --nv-mg:#e08f6f; --nv-gold:#d8b573; --nv-good:#5aa87c;
+  --nv-acc:#d8b573; --nv-acc-bg:rgba(216,181,115,.1); --nv-acc-border:rgba(216,181,115,.38);
+  --nv-radius:14px; --nv-bracket-op:0;
+  --nv-grid-op:0; --nv-stars-op:1; --nv-aur1:rgba(138,106,209,.13); --nv-aur2:rgba(107,229,245,.07);
+  --nv-glow-tab:none; --nv-tsh-tab:none;
+  --nv-glow-cta:0 4px 18px -6px rgba(216,181,115,.6); --nv-tsh-cta:none;
+  --nv-cta-border:rgba(216,181,115,.5); --nv-cta-bg:#d8b573; --nv-cta-ink:#1a1322;
+  --nv-glow-core:0 0 110px -34px rgba(107,229,245,.45);
+  --nv-glow-noticed:0 0 70px -16px rgba(216,181,115,.28);
+  --nv-glow-focus:0 0 50px -18px rgba(216,181,115,.45);
+  --nv-glow-sat1:0 0 34px -12px rgba(107,229,245,.6);
+  --nv-glow-sat2:0 0 34px -12px rgba(224,143,111,.5);
+  --nv-glow-sat3:0 0 34px -12px rgba(138,106,209,.6);
+  --nv-tsh-head-cy:none; --nv-tsh-head-vi:none;
+}
+:root[data-nv-theme="ember"] {
+  --nv-void:#100b09; --nv-bg1:#170e0b; --nv-bg2:#241410;
+  --nv-ink:#f4ede6; --nv-ink60:rgba(244,237,230,.62); --nv-ink40:rgba(244,237,230,.38);
+  --nv-glass:rgba(34,24,20,.6); --nv-glass2:rgba(46,32,26,.78);
+  --nv-edge:rgba(216,162,74,.24); --nv-spec:rgba(255,220,180,.35);
+  --nv-cy:#ffb35c; --nv-vi:#ff8a4a; --nv-mg:#ff6a88; --nv-gold:#e8b464; --nv-good:#8fd88a;
+  --nv-acc:#ffb35c; --nv-acc-bg:rgba(255,179,92,.08); --nv-acc-border:rgba(255,179,92,.45);
+  --nv-bracket:rgba(255,179,92,.55);
+  --nv-gridline:rgba(216,162,74,.05); --nv-aur1:rgba(255,138,74,.11); --nv-aur2:rgba(255,106,136,.1);
+  --nv-glow-tab:0 0 18px -6px rgba(255,179,92,.9); --nv-tsh-tab:0 0 12px rgba(255,179,92,.85);
+  --nv-glow-cta:0 0 30px -10px rgba(255,179,92,.95); --nv-tsh-cta:0 0 12px rgba(255,179,92,.75);
+  --nv-cta-border:rgba(255,179,92,.6); --nv-cta-bg:linear-gradient(180deg,rgba(255,179,92,.22),rgba(255,179,92,.06)); --nv-cta-ink:#ffb35c;
+  --nv-glow-core:0 0 110px -34px rgba(255,138,74,.5);
+  --nv-glow-noticed:0 0 80px -16px rgba(232,180,100,.32);
+  --nv-glow-focus:0 0 50px -18px rgba(232,180,100,.5);
+  --nv-glow-sat1:0 0 38px -12px rgba(255,179,92,.75);
+  --nv-glow-sat2:0 0 38px -12px rgba(255,106,136,.65);
+  --nv-glow-sat3:0 0 38px -12px rgba(255,138,74,.75);
+  --nv-tsh-head-cy:0 0 16px rgba(255,179,92,.5); --nv-tsh-head-vi:0 0 16px rgba(255,138,74,.5);
+}
+:root[data-nv-calm="1"] {
+  --nv-aurora-op:.35; --nv-grid-op:.5; --nv-anim:paused;
+  --nv-glow-tab:none; --nv-tsh-tab:none; --nv-glow-cta:none; --nv-tsh-cta:none;
+  --nv-glow-core:0 0 44px -20px rgba(89,230,255,.4);
+  /* zero shadows (not `none`): these vars are substituted inside comma-separated
+     box-shadow lists, where a literal `none` invalidates the whole declaration */
+  --nv-glow-noticed:0 0 0 0 rgba(0,0,0,0); --nv-glow-focus:0 0 0 0 rgba(0,0,0,0);
+  --nv-glow-sat1:0 0 0 0 rgba(0,0,0,0); --nv-glow-sat2:0 0 0 0 rgba(0,0,0,0); --nv-glow-sat3:0 0 0 0 rgba(0,0,0,0);
+  --nv-tsh-head-cy:none; --nv-tsh-head-vi:none;
+}
+
+/* shared panes for the new components */
+.nv-pane {
+  position: relative;
+  border-radius: var(--nv-radius);
+  background: var(--nv-glass);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--nv-edge);
+  box-shadow: inset 0 1px 0 var(--nv-spec), 0 26px 60px -34px #000;
+}
+.nv-pane::before {
+  content: ''; position: absolute; top: 5px; left: 5px; width: 11px; height: 11px;
+  border-left: 1.5px solid var(--nv-bracket); border-top: 1.5px solid var(--nv-bracket);
+  opacity: var(--nv-bracket-op); pointer-events: none;
+}
+.nv-pane::after {
+  content: ''; position: absolute; bottom: 5px; right: 5px; width: 11px; height: 11px;
+  border-right: 1.5px solid var(--nv-bracket); border-bottom: 1.5px solid var(--nv-bracket);
+  opacity: var(--nv-bracket-op); pointer-events: none;
+}
+/* pane variants for Mission Control */
+.nv-focus {
+  background: linear-gradient(135deg, rgba(224,178,106,.12), rgba(224,178,106,.03) 60%), var(--nv-glass);
+  border-color: rgba(224,178,106,.4);
+  box-shadow: inset 0 1px 0 var(--nv-spec), var(--nv-glow-focus);
+}
+.nv-focus::before, .nv-focus::after { border-color: rgba(224,178,106,.6); }
+.nv-noticed { box-shadow: inset 0 1px 0 var(--nv-spec), 0 26px 60px -34px #000, var(--nv-glow-noticed); }
+.nv-scan { position: relative; overflow: hidden; }
+.nv-scan::after {
+  content: ''; position: absolute; inset: 0; border: none; width: auto; height: auto; opacity: var(--nv-bracket-op);
+  background: linear-gradient(180deg, transparent 30%, rgba(89,230,255,.05) 50%, transparent 70%);
+  animation: nvScan 5s linear infinite; animation-play-state: var(--nv-anim); pointer-events: none;
+}
+@keyframes nvScan { from { transform: translateY(-100%); } to { transform: translateY(100%); } }
+@keyframes nvSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .nv-scan::after { animation: none; }
+  /* entrance animations complete instantly; looping ambience stops after one pass */
+  * { animation-duration: .01s !important; animation-iteration-count: 1 !important; transition: none !important; }
+}

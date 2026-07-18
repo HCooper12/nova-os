@@ -4,3 +4,6 @@ dist
 *.local
 .env
 server/data
+
+# personal Claude skill bundles that may sit in this folder
+*.skill

@@ -1,5 +1,6 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
+import { NovaCore } from '../NovaCore.jsx';
 
 export function Voice({ v }) {
   return (
@@ -29,11 +30,10 @@ export function Voice({ v }) {
           </div>
         </div>
         <div style={css("flex:1;min-width:320px;display:flex;flex-direction:column;align-items:center;gap:20px")}>
-          <div style={css("position:relative;width:300px;height:300px;display:flex;align-items:center;justify-content:center")}>
-            <div style={css("position:absolute;inset:0;border-radius:50%;border:1px dashed rgba(107,229,245,.22);animation:ringSpin 44s linear infinite")}></div>
-            <div style={css("position:absolute;inset:28px;border-radius:50%;border:1px solid rgba(216,181,115,.2)")}></div>
-            <div style={css("position:absolute;inset:56px;border-radius:50%;border:1px solid rgba(107,229,245,.35);border-top-color:rgba(107,229,245,.9);animation:ringSpin 14s linear infinite reverse")}></div>
-            <div style={css("width:132px;height:132px;border-radius:50%;background:radial-gradient(circle at 42% 36%, #fff3da 0%, #ecc98a 30%, #a3742f 62%, #3a2a12 100%);animation:orbGlow 3.6s ease-in-out infinite")}></div>
+          <div style={css("position:relative;width:300px;height:300px;display:flex;align-items:center;justify-content:center;box-shadow:var(--nv-glow-core);border-radius:50%")}>
+            <div style={css("position:absolute;inset:0;border-radius:50%;border:1px dashed rgba(107,229,245,.22);animation:ringSpin 44s linear infinite var(--nv-anim)")}></div>
+            <div style={css("position:absolute;inset:24px;border-radius:50%;border:1px solid rgba(107,229,245,.28);border-top-color:rgba(107,229,245,.85);animation:ringSpin 14s linear infinite reverse var(--nv-anim)")}></div>
+            <NovaCore size={252} />
           </div>
           <div style={css("font:400 10px 'JetBrains Mono',monospace;letter-spacing:.42em;color:rgba(236,229,218,.6)")}>{v.orbCaption}</div>
           {v.micOn && (

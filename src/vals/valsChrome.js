@@ -1,17 +1,23 @@
+import { NOVA_THEMES } from '../theme.js';
+import { AGENTS } from './shared.js';
+
 // App chrome: sidebar nav, mobile tabs, per-screen wrappers and grids, the
-// command palette, settings, agents (concept), and the toast. Consumes ctx
-// counts from the domain builders (usingLiveRecipes, liveRoutines,
-// usingLiveNotes, journalDays, shoppingItems).
+// command palette, settings (incl. appearance), agents (concept), and the
+// toast. Consumes ctx counts from the domain builders (usingLiveRecipes,
+// liveRoutines, usingLiveNotes, journalDays, shoppingItems) plus the
+// connection truth valsMission shares (statusChip, missionStatusItems).
 export function valsChrome(app, ctx) {
   const st = app.state;
-  const { demoMode, go, userName, wakeWord, usingLiveRecipes, usingLiveWorkouts, liveRoutines, usingLiveNotes, journalDays, shoppingItems } = ctx;
+  const { demoMode, isOffline, go, userName, wakeWord, usingLiveRecipes, usingLiveWorkouts, liveRoutines, usingLiveNotes, journalDays, shoppingItems, statusChip, agentsLiveCount } = ctx;
 
-  const navStyle = (act) => ({ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px', borderRadius: '9px', fontSize: '13.5px', cursor: 'pointer',
-    fontWeight: act ? 500 : 400, color: act ? '#ece5da' : 'rgba(236,229,218,.6)',
-    background: act ? 'linear-gradient(180deg,rgba(216,181,115,.16),rgba(216,181,115,.07))' : 'none',
-    border: act ? '1px solid rgba(216,181,115,.25)' : '1px solid transparent',
-    boxShadow: act ? 'inset 0 1px 0 rgba(255,255,255,.08)' : 'none' });
-  const numStyle = (act) => ({ fontFamily: "'Instrument Serif',serif", fontStyle: 'italic', fontSize: '13px', width: '20px', color: act ? '#d8b573' : 'rgba(216,181,115,.5)' });
+  const navStyle = (act) => ({ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '8px', cursor: 'pointer',
+    fontFamily: "'Rajdhani',sans-serif", fontWeight: 600, fontSize: '14px', letterSpacing: '.02em',
+    color: act ? 'var(--nv-acc)' : 'var(--nv-ink60)',
+    background: act ? 'var(--nv-acc-bg)' : 'none',
+    border: act ? '1px solid var(--nv-acc-border)' : '1px solid transparent',
+    boxShadow: act ? 'var(--nv-glow-tab)' : 'none',
+    textShadow: act ? 'var(--nv-tsh-tab)' : 'none' });
+  const numStyle = (act) => ({ fontFamily: "'IBM Plex Mono',monospace", fontSize: '9px', width: '20px', flex: 'none', color: act ? 'var(--nv-acc)' : 'var(--nv-ink40)' });
   const mkNav = (label, numeral, screen, count) => ({ label, numeral, count, go: go(screen), style: navStyle(st.screen === screen), numStyle: numStyle(st.screen === screen) });
 
   // palette
@@ -44,15 +50,31 @@ export function valsChrome(app, ctx) {
   const tabs = [['I.', 'Home', 'mission'], ['II.', 'Voice', 'voice'], ['III.', 'Galaxy', 'galaxy'], ['IV.', 'Code', 'code'], ['V.', 'Recipes', 'recipes'], ['VI.', 'Shop', 'shopping'], ['VII.', 'Train', 'workouts'], ['VIII.', 'Notes', 'notes']].map(t => {
     const act = st.screen === t[2];
     return { num: t[0], label: t[1], go: go(t[2]),
-      style: { flex: '1', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', padding: '7px 2px', cursor: 'pointer', borderRadius: '9px', color: act ? '#d8b573' : 'rgba(236,229,218,.5)', background: act ? 'rgba(216,181,115,.09)' : 'none' },
-      numStyle: { fontFamily: "'Instrument Serif',serif", fontStyle: 'italic', fontSize: '15px', color: act ? '#d8b573' : 'rgba(216,181,115,.45)' } };
+      style: { flex: '1', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', padding: '7px 2px', cursor: 'pointer', borderRadius: '8px', color: act ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: act ? 'var(--nv-acc-bg)' : 'none', textShadow: act ? 'var(--nv-tsh-tab)' : 'none' },
+      numStyle: { fontFamily: "'IBM Plex Mono',monospace", fontSize: '10px', color: act ? 'var(--nv-acc)' : 'var(--nv-ink40)' } };
   });
+
+  // sidebar status card — same connection truth as the status chip, phrased
+  // for the two-line card under the roster
+  const syncedShort = st.lastSyncAt ? new Date(st.lastSyncAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : null;
+  const sideStatus = {
+    color: statusChip.color,
+    pulse: statusChip.label === 'LIVE',
+    row1: statusChip.label === 'LIVE' && st.liveNotes ? `LIVE · VAULT ${st.liveNotes.length}` : statusChip.label,
+    row2: demoMode
+      ? 'CONNECT A BACKEND IN SETTINGS'
+      : isOffline
+        ? `LAST-KNOWN DATA${syncedShort ? ' · SAVED ' + syncedShort : ''}`
+        : st.connectionStatus === 'connecting'
+          ? 'FIRST SYNC IN FLIGHT…'
+          : `SYNCED ${syncedShort || '—'} · ALL SYSTEMS NOMINAL`,
+  };
 
   return {
     // chrome
     showBoot: !st.booted,
     isMobile: mob, showSidebar: !mob, tabs,
-    wrapMission: mob ? mp : { padding: '28px 40px 40px' },
+    wrapMission: mob ? mp : { padding: '24px 40px 64px', maxWidth: '1180px' },
     wrapVoice: wrapTall || { padding: '28px 40px 40px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
     wrapGalaxy: wrapTall || { padding: '28px 40px 40px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
     wrapRecipes: mob ? mp : { padding: '28px 40px 44px' },
@@ -80,26 +102,34 @@ export function valsChrome(app, ctx) {
     greeting: (new Date().getHours() < 12 ? 'Good morning, ' : new Date().getHours() < 18 ? 'Good afternoon, ' : 'Good evening, ') + userName + '.',
     navMain: [mkNav('Mission Control', 'I.', 'mission'), mkNav('Voice', 'II.', 'voice'), mkNav('Memory Galaxy', 'III.', 'galaxy'), mkNav('Claude Code', 'IV.', 'code')],
     navVault: [
-      Object.assign(mkNav('Recipes', 'V.', 'recipes'), { count: usingLiveRecipes ? String(st.liveRecipes.length) : String(app.recipes.length) }),
-      Object.assign(mkNav('Shopping List', 'VI.', 'shopping'), { count: String(shoppingItems.length) }),
-      Object.assign(mkNav('Workouts', 'VII.', 'workouts'), { count: usingLiveWorkouts ? String(liveRoutines.length) : '—' }),
-      Object.assign(mkNav('Notes', 'VIII.', 'notes'), { count: usingLiveNotes ? String(st.liveNotes.length) : String(app.notes.length) }),
-      Object.assign(mkNav('Journal', 'IX.', 'journal'), { count: String(journalDays.length) }),
+      // counts: live numbers when synced, mock numbers only in demo mode,
+      // and an honest "—" when configured but not yet synced (offline)
+      Object.assign(mkNav('Recipes', 'V.', 'recipes'), { count: usingLiveRecipes ? String(st.liveRecipes.length) : demoMode ? String(app.recipes.length) : '—' }),
+      Object.assign(mkNav('Shopping', 'VI.', 'shopping'), { count: st.liveShoppingList ? String(shoppingItems.length) : demoMode ? '0' : '—' }),
+      Object.assign(mkNav('Train', 'VII.', 'workouts'), { count: usingLiveWorkouts ? String(liveRoutines.length) : '—' }),
+      Object.assign(mkNav('Notes', 'VIII.', 'notes'), { count: usingLiveNotes ? String(st.liveNotes.length) : demoMode ? String(app.notes.length) : '—' }),
+      Object.assign(mkNav('Journal', 'IX.', 'journal'), { count: st.liveJournalEntries ? String(journalDays.length) : demoMode ? '0' : '—' }),
     ],
     navSystem: [mkNav('Settings', 'X.', 'settings')],
-    agents: [
-      { name: 'Commander', role: 'planning', dotStyle: { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', background: '#6be5f5', boxShadow: '0 0 8px rgba(107,229,245,.8)', animation: 'novaPulse 2.4s infinite' } },
-      { name: 'Coach', role: 'fitness', dotStyle: { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', background: '#6be5f5', boxShadow: '0 0 8px rgba(107,229,245,.8)', animation: 'novaPulse 3.1s infinite' } },
-      { name: 'CFO', role: 'money', dotStyle: { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(236,229,218,.18)' } },
-      { name: 'Studio', role: 'content', dotStyle: { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(236,229,218,.18)' } },
-      { name: 'Researcher', role: 'web', dotStyle: { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(236,229,218,.18)' } },
-      { name: 'Guardian', role: 'backups', dotStyle: { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', background: '#6be5f5', boxShadow: '0 0 8px rgba(107,229,245,.8)', animation: 'novaPulse 2.8s infinite' } },
-    ],
+    agentsGroupLabel: `AGENTS · ${agentsLiveCount} OF ${AGENTS.length} LIVE`,
+    agents: AGENTS.map((a, i) => ({
+      name: a.name, role: a.role, on: a.on,
+      dotStyle: a.on
+        ? { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', flex: 'none', background: 'var(--nv-cy)', boxShadow: '0 0 9px var(--nv-cy)', animation: `novaPulse ${2.2 + i * 0.3}s infinite var(--nv-anim)` }
+        : { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', flex: 'none', background: 'rgba(232,236,246,.16)' },
+    })),
+    sideStatus,
     goVoice: go('voice'), goWorkouts: go('workouts'), goSettings: go('settings'),
     orbCardTitle: st.micOn ? 'Nova is listening' : 'Nova is muted',
     orbCardSub: wakeWord ? 'VOICE · WAKE WORD ON' : 'VOICE · PUSH TO TALK',
     openPalette: () => app.setState({ paletteOpen: true, paletteQuery: '' }),
     stopClick: (e) => e.stopPropagation(),
+
+    // appearance (Settings)
+    novaTheme: st.novaTheme,
+    novaThemeOptions: NOVA_THEMES.map((t) => ({ ...t, active: st.novaTheme === t.value, pick: () => app.setNovaTheme(t.value) })),
+    calmMode: st.calmMode,
+    toggleCalm: () => app.setCalmMode(!st.calmMode),
 
     // settings
     isSettings: st.screen === 'settings',

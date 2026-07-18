@@ -5,6 +5,7 @@ import { api, getConnection, setConnection, testConnection } from './api.js';
 import { pollJob } from './jobPoller.js';
 import { orbReply, coachReply, recipeReply } from './mockAssistants.js';
 import { loadLiveCache, saveLiveCache, clearLiveCache } from './liveStore.js';
+import { applyAppearance, getNovaTheme, getCalm } from './theme.js';
 import { NOTE_TYPE_COLOR } from './vals/shared.js';
 import { valsRecipes } from './vals/valsRecipes.js';
 import { valsWorkouts } from './vals/valsWorkouts.js';
@@ -37,17 +38,10 @@ import { Boot } from './Boot.jsx';
 // initial bundle when most loads never touch it.
 const BarcodeScanner = lazy(() => import('./BarcodeScanner.jsx').then((m) => ({ default: m.BarcodeScanner })));
 
-// Personalization — was editor-configurable in the original design canvas.
-// Tweak these three to re-brand without touching layout code.
-const THEME = 'midnight'; // 'aubergine' | 'midnight' | 'graphite'
+// Personalization — appearance now lives in src/theme.js (Settings picks the
+// theme + calm mode at runtime; tokens are CSS custom properties in index.css).
 const USER_NAME = 'Hayden';
 const WAKE_WORD = true;
-
-const THEMES = {
-  aubergine: { bg0: '#120d18', bg1: '#1a1322', bg2: '#2a1d38' },
-  midnight: { bg0: '#070b13', bg1: '#0c1424', bg2: '#152742' },
-  graphite: { bg0: '#121014', bg1: '#191619', bg2: '#252028' },
-};
 
 // Hash-routed screens (#/recipes etc.) so deep links and the back button work
 // on GitHub Pages without a server-side router.
@@ -112,8 +106,9 @@ export default class App extends Component {
     foodScanNote: '', foodScanBusy: false, foodScanError: null, foodScanQuestion: null,
     barcodeScannerOpen: false,
     noteQuery: '', noteType: 'All', openNoteId: 'n1',
-    galaxySel: null, toast: null, gaugeIdx: 0, reviewIdx: 0,
+    galaxySel: null, toast: null, reviewIdx: 0,
     isMobile: typeof window !== 'undefined' && window.innerWidth < 760,
+    novaTheme: getNovaTheme(), calmMode: getCalm(),
 
     // live-data connection (Settings screen)
     settingsBaseUrl: '', settingsToken: '',
@@ -211,11 +206,9 @@ export default class App extends Component {
     };
     window.addEventListener('resize', this.resizeH);
     this.setState({ reviewIdx: Math.floor(Math.random() * this.reviews.length) });
-    this.startGaugeRotation();
-    this.applyTheme();
   }
   componentWillUnmount() {
-    clearTimeout(this.bootT); clearInterval(this.clockIv); clearInterval(this.gaugeIv); clearInterval(this.refreshIv);
+    clearTimeout(this.bootT); clearInterval(this.clockIv); clearInterval(this.refreshIv);
     Object.values(this.pollers || {}).forEach((p) => p.cancel());
     window.removeEventListener('keydown', this.keyH);
     window.removeEventListener('resize', this.resizeH);
@@ -245,25 +238,21 @@ export default class App extends Component {
     }
   }
   componentDidUpdate(prevProps, prevState) {
-    this.applyTheme();
     if (this.state.screen === 'galaxy') this.startGalaxy(); else this.stopGalaxy();
     if (this.state.paletteOpen && !prevState.paletteOpen && this.paletteRef.current) this.paletteRef.current.focus();
   }
-  applyTheme() {
-    const t = THEMES[THEME] || THEMES.aubergine;
-    const r = document.documentElement.style;
-    r.setProperty('--bg0', t.bg0); r.setProperty('--bg1', t.bg1); r.setProperty('--bg2', t.bg2);
+  // ---------- appearance (theme + calm mode, persisted) ----------
+  // Apply from the settled state in the setState callback — applying from
+  // arguments + this.state directly goes stale when both setters run in the
+  // same tick (theme switch immediately followed by a calm toggle).
+  setNovaTheme(theme) {
+    this.setState({ novaTheme: theme }, () => applyAppearance(this.state.novaTheme, this.state.calmMode));
+  }
+  setCalmMode(calm) {
+    this.setState({ calmMode: calm }, () => applyAppearance(this.state.novaTheme, this.state.calmMode));
   }
 
   // ---------- live data (Obsidian + Calendar) ----------
-  startGaugeRotation() {
-    clearInterval(this.gaugeIv);
-    this.gaugeIv = setInterval(() => this.setState(s => ({ gaugeIdx: (s.gaugeIdx + 1) % 3 })), 6000);
-  }
-  setGaugeIdx(i) {
-    this.setState({ gaugeIdx: i });
-    this.startGaugeRotation(); // manual pick gets a fresh 6s before auto-advancing again
-  }
   // One sync pass over every live slice. Failures never null a slice — the
   // last-known value (in-memory or hydrated from the cache) stays visible and
   // the connection banner reports the outage; falling back to demo data would
@@ -1298,11 +1287,15 @@ export default class App extends Component {
   render() {
     const v = this.renderVals();
     return (
-      <div style={css("position:relative;min-height:100vh;color:#ece5da;background:radial-gradient(1400px 760px at 76% -14%, var(--bg2) 0%, var(--bg1) 44%, var(--bg0) 100%)")}>
-        <div style={css("position:fixed;inset:0;pointer-events:none;background-image:radial-gradient(1.5px 1.5px at 110px 90px, rgba(236,229,218,.32), transparent 100%),radial-gradient(1px 1px at 320px 40px, rgba(236,229,218,.22), transparent 100%),radial-gradient(1.5px 1.5px at 520px 150px, rgba(216,181,115,.28), transparent 100%),radial-gradient(1px 1px at 640px 70px, rgba(236,229,218,.26), transparent 100%),radial-gradient(1px 1px at 790px 210px, rgba(107,229,245,.3), transparent 100%),radial-gradient(1.5px 1.5px at 850px 50px, rgba(236,229,218,.24), transparent 100%),radial-gradient(1px 1px at 420px 260px, rgba(236,229,218,.16), transparent 100%),radial-gradient(1px 1px at 180px 330px, rgba(138,106,209,.28), transparent 100%);background-size:920px 460px")}></div>
-        <div style={css("position:fixed;inset:-22%;pointer-events:none;background:radial-gradient(900px 520px at 70% 8%, rgba(138,106,209,.13), transparent 62%),radial-gradient(720px 440px at 18% 82%, rgba(107,229,245,.06), transparent 60%),radial-gradient(820px 520px at 88% 78%, rgba(216,181,115,.05), transparent 60%);animation:auroraDrift 26s ease-in-out infinite alternate")}></div>
+      <div style={css("position:relative;min-height:100vh;color:var(--nv-ink);background:radial-gradient(1200px 800px at 60% -18%, var(--nv-bg2) 0%, var(--nv-bg1) 45%, var(--nv-void) 100%)")}>
+        {/* starfield — themes opt in via --nv-stars-op (Observatory keeps its sky) */}
+        <div style={css("position:fixed;inset:0;pointer-events:none;opacity:var(--nv-stars-op);background-image:radial-gradient(1.5px 1.5px at 110px 90px, rgba(236,229,218,.32), transparent 100%),radial-gradient(1px 1px at 320px 40px, rgba(236,229,218,.22), transparent 100%),radial-gradient(1.5px 1.5px at 520px 150px, rgba(216,181,115,.28), transparent 100%),radial-gradient(1px 1px at 640px 70px, rgba(236,229,218,.26), transparent 100%),radial-gradient(1px 1px at 790px 210px, rgba(107,229,245,.3), transparent 100%),radial-gradient(1.5px 1.5px at 850px 50px, rgba(236,229,218,.24), transparent 100%),radial-gradient(1px 1px at 420px 260px, rgba(236,229,218,.16), transparent 100%),radial-gradient(1px 1px at 180px 330px, rgba(138,106,209,.28), transparent 100%);background-size:920px 460px")}></div>
+        {/* HUD grid — Command/Ember (--nv-grid-op), masked toward the center */}
+        <div style={css("position:fixed;inset:0;pointer-events:none;opacity:var(--nv-grid-op);background-image:linear-gradient(var(--nv-gridline) 1px,transparent 1px),linear-gradient(90deg,var(--nv-gridline) 1px,transparent 1px);background-size:52px 52px;-webkit-mask-image:radial-gradient(72% 62% at 50% 40%,#000 30%,transparent 100%);mask-image:radial-gradient(72% 62% at 50% 40%,#000 30%,transparent 100%)")}></div>
+        {/* aurora — hue pair per theme, paused in calm mode */}
+        <div style={css("position:fixed;inset:-14%;pointer-events:none;filter:blur(34px);opacity:var(--nv-aurora-op);background:radial-gradient(640px 400px at 16% 12%, var(--nv-aur1), transparent 62%),radial-gradient(600px 440px at 84% 26%, var(--nv-aur2), transparent 60%);animation:auroraDrift 26s ease-in-out infinite alternate;animation-play-state:var(--nv-anim)")}></div>
 
-        <div style={css("position:relative;display:flex;height:100vh")}>
+        <div style={css("position:relative;display:flex;height:100vh;max-width:1560px;margin:0 auto")}>
           {v.showSidebar && <Sidebar v={v} />}
           <main style={css("flex:1;overflow-y:auto;min-width:0")}>
             {v.isMission && <MissionControl v={v} />}

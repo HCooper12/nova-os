@@ -5,6 +5,19 @@ export const NOTE_TYPE_COLOR = { concept: '#d8b573', entity: '#e08f6f', topic: '
 
 export const mono = "'JetBrains Mono',monospace";
 
+// The agent roster (still a concept feature): `on` marks the three whose
+// domains are genuinely wired to real data today — Commander (calendar +
+// focus), Coach (training + health), Guardian (server backups). The count
+// shown in the UI is derived from these flags, never hardcoded.
+export const AGENTS = [
+  { name: 'Commander', role: 'PLANNING', on: true },
+  { name: 'Coach', role: 'FITNESS', on: true },
+  { name: 'CFO', role: 'MONEY', on: false },
+  { name: 'Studio', role: 'CONTENT', on: false },
+  { name: 'Researcher', role: 'WEB', on: false },
+  { name: 'Guardian', role: 'BACKUPS', on: true },
+];
+
 export const chip = (act) => ({ cursor: 'pointer', font: "500 10.5px " + mono, letterSpacing: '.08em', padding: '7px 14px', borderRadius: '8px',
   border: act ? '1px solid rgba(216,181,115,.5)' : '1px solid rgba(236,229,218,.12)',
   color: act ? '#d8b573' : 'rgba(236,229,218,.55)', background: act ? 'rgba(216,181,115,.08)' : 'rgba(0,0,0,.2)' });

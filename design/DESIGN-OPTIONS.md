@@ -185,3 +185,34 @@ nav + CTA), blue core intact, NOVA·OS brand.
 - Data honesty carried over: LIVE/OFFLINE/DEMO states, real numbers, tabular-nums
 - Reduced-motion respected everywhere; keyboard focus visible
 - The chosen direction becomes tokens; Option 0 stays selectable
+
+## IMPLEMENTED (July 2026)
+
+Design 45 shipped as the real app:
+
+- **Tokens** — `src/index.css` holds the Command tokens on `:root`, with
+  `[data-nv-theme="observatory"|"ember"]` overrides and `[data-nv-calm="1"]`
+  last; `src/theme.js` persists the choice, `main.jsx` stamps it pre-paint.
+- **Nova Core** — `src/NovaCore.jsx`, the seeded Filament engine as a React
+  canvas (full 312px hero + 30px sidebar mini + 252px Voice); blue in every
+  theme by design. Pauses when hidden; static frame under reduced motion.
+- **Mission Control** — `src/screens/MissionControl.jsx` rebuilt on the 45
+  layout, every value from the live view-model (`vals/valsMission.js`):
+  eyebrow date/clock/agents/status, time-aware tagline, composed standfirst,
+  conic-progress satellites, agent-attributed focus with contextual buttons,
+  ▸ next calendar block, real review summary + source, live noticed + streak
+  chips, real lunch/train/vault cards.
+- **Chrome** — `Sidebar.jsx` (NOVA·OS brand, glowing active nav, roster,
+  truth status card w/ mini core), `MobileChrome.jsx` retinted, App backdrop
+  (void gradient + grid + aurora + starfield, all token-gated).
+- **Settings → Appearance** — theme picker (Command/Observatory/Ember) +
+  Calm toggle.
+- **Honesty hardened** — offline-with-no-cache now shows dashes/"reconnect"
+  copy everywhere; scripted demo content (noticed items, review card, vault
+  cards, satellite values) renders only in demo mode.
+
+Still on the old skin inside the new shell (styles unchanged this round):
+Voice (core swapped in), Galaxy, Claude Code, Recipes, Shopping, Train,
+Notes, Journal, Settings connection card, command palette, boot splash.
+Classic Midnight Observatory ships as the "Observatory" theme; the pre-45
+implementation remains recoverable from git history.
