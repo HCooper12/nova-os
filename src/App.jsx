@@ -1151,26 +1151,28 @@ export default class App extends Component {
     this.setState({ inboxProposalDismissed: next });
   }
   // ---------- loops (dispatch · compost · sparring) ----------
-  setDispatchConfig(patch) {
+  setDispatchConfig(slot, patch) {
     const conn = getConnection();
     if (!conn) return;
-    api.dispatchConfig(conn, patch).then(({ config }) => {
+    api.dispatchConfig(conn, slot, patch).then(({ config }) => {
       this.setState((s) => ({ liveDispatch: { ...(s.liveDispatch || {}), config } }));
-      this.toastMsg('Dispatch ' + (patch.mode ? 'set to ' + patch.mode : 'now runs at ' + String(patch.hour).padStart(2, '0') + ':00'));
-    }).catch((e) => this.toastMsg('Could not update dispatch: ' + e.message));
+      const name = slot === 'evening' ? 'Debrief' : 'Dispatch';
+      this.toastMsg(name + ' ' + (patch.mode ? 'set to ' + patch.mode : 'now runs at ' + String(patch.hour).padStart(2, '0') + ':00'));
+    }).catch((e) => this.toastMsg('Could not update: ' + e.message));
   }
-  runDispatchNow() {
+  runDispatchNow(slot) {
     const conn = getConnection();
     if (!conn || this.state.dispatchBusy) return;
     this.setState({ dispatchBusy: true });
-    api.dispatchRun(conn, true).then(({ record }) => {
+    api.dispatchRun(conn, slot, true).then(({ record }) => {
       this.setState({ dispatchBusy: false });
       this.refreshInbox();
       api.dispatchStatus(conn).then((d) => this.setState({ liveDispatch: d })).catch(() => {});
-      this.toastMsg(record.status === 'filed' ? 'Dispatch filed ✓ — ' + record.destination : 'Dispatch drafted — waiting in the Inbox');
+      const name = slot === 'evening' ? 'Debrief' : 'Dispatch';
+      this.toastMsg(record.status === 'filed' ? name + ' filed ✓ — ' + record.destination : name + ' drafted — waiting in the Inbox');
     }).catch((e) => {
       this.setState({ dispatchBusy: false });
-      this.toastMsg('Dispatch failed: ' + e.message);
+      this.toastMsg('Brief failed: ' + e.message);
     });
   }
   runCompostNow() {

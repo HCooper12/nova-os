@@ -17,12 +17,17 @@ export default defineConfig({
         start_url: '.',
         scope: '.',
         display: 'standalone',
-        background_color: '#120d18',
-        theme_color: '#120d18',
+        background_color: '#06070d',
+        theme_color: '#06070d',
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
           { src: 'icons/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+        // long-press the app icon → jump straight to capture or the deck
+        shortcuts: [
+          { name: 'Capture to Inbox', short_name: 'Capture', url: './#/inbox', icons: [{ src: 'icons/icon-192.png', sizes: '192x192' }] },
+          { name: 'Mission Control', short_name: 'Mission', url: './#/mission', icons: [{ src: 'icons/icon-192.png', sizes: '192x192' }] },
         ],
       },
       workbox: {

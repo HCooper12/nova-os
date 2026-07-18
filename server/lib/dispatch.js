@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,23 +10,28 @@ import { loadRotation } from './rotation.js';
 import { getToday as getFoodLogToday } from './foodLog.js';
 import { loadExerciseLibrary } from './exercises.js';
 import { loadRoutines, WEEKDAYS } from './workouts.js';
+import { loadSessions } from './workoutSessions.js';
 import { computeStreaks } from './streaks.js';
 import { Vault } from './vault.js';
 import { createRecord, listRecords, updateRecord } from './inboxStore.js';
 import { fileDecision } from './inbox.js';
 
-// The Morning Dispatch — the reel's "7am weekly update," made personal: a
-// daily brief composed ENTIRELY from real data (no model call; a data brief
-// doesn't need generated prose). It rides the inbox rails on its own trust
-// ladder: draft → lands in the pending queue for approval; auto → files
-// itself into the journal (still on the record, still undoable); off.
+// The daily briefs — Morning Dispatch (the day ahead) and Evening Debrief
+// (how the day actually went, and tomorrow's first block). Both are composed
+// ENTIRELY from real data (no model call) and ride the inbox rails on their
+// own trust ladders: draft → pending queue for approval; auto → filed into
+// the journal (still on the record, still undoable); off → silent.
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
 const CONFIG_PATH = () => path.join(dataRoot(), 'dispatch.json');
 
 export const DISPATCH_MODES = ['off', 'draft', 'auto'];
-const DEFAULTS = { mode: 'draft', hour: 7 };
+export const DISPATCH_SLOTS = ['morning', 'evening'];
+const DEFAULTS = {
+  morning: { mode: 'draft', hour: 7 },
+  evening: { mode: 'draft', hour: 21 },
+};
 
 function pad(n) {
   return String(n).padStart(2, '0');
@@ -35,37 +40,46 @@ function todayISO(now = new Date()) {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
+function normalizeSlotConfig(raw, fallback) {
+  return {
+    mode: DISPATCH_MODES.includes(raw?.mode) ? raw.mode : fallback.mode,
+    hour: Number.isInteger(raw?.hour) && raw.hour >= 0 && raw.hour <= 23 ? raw.hour : fallback.hour,
+  };
+}
+
 export async function getDispatchConfig() {
-  if (!existsSync(CONFIG_PATH())) return { ...DEFAULTS };
+  if (!existsSync(CONFIG_PATH())) return { morning: { ...DEFAULTS.morning }, evening: { ...DEFAULTS.evening } };
   try {
     const raw = JSON.parse(await readFile(CONFIG_PATH(), 'utf8'));
+    // migrate the original single-slot shape ({mode, hour} = the morning)
+    if (raw.mode !== undefined && raw.morning === undefined) {
+      return { morning: normalizeSlotConfig(raw, DEFAULTS.morning), evening: { ...DEFAULTS.evening } };
+    }
     return {
-      mode: DISPATCH_MODES.includes(raw.mode) ? raw.mode : DEFAULTS.mode,
-      hour: Number.isInteger(raw.hour) && raw.hour >= 0 && raw.hour <= 23 ? raw.hour : DEFAULTS.hour,
+      morning: normalizeSlotConfig(raw.morning, DEFAULTS.morning),
+      evening: normalizeSlotConfig(raw.evening, DEFAULTS.evening),
     };
   } catch {
-    return { ...DEFAULTS };
+    return { morning: { ...DEFAULTS.morning }, evening: { ...DEFAULTS.evening } };
   }
 }
 
-export async function setDispatchConfig(patch) {
+export async function setDispatchConfig(slot, patch) {
+  if (!DISPATCH_SLOTS.includes(slot)) throw new Error('slot must be morning or evening');
   const current = await getDispatchConfig();
-  const next = {
-    mode: DISPATCH_MODES.includes(patch.mode) ? patch.mode : current.mode,
-    hour: Number.isInteger(patch.hour) && patch.hour >= 0 && patch.hour <= 23 ? patch.hour : current.hour,
-  };
+  current[slot] = normalizeSlotConfig({ ...current[slot], ...patch }, current[slot]);
   await mkdir(dataRoot(), { recursive: true });
-  await writeFile(CONFIG_PATH(), JSON.stringify(next, null, 2), 'utf8');
-  return next;
+  const tmp = CONFIG_PATH() + '.tmp';
+  await writeFile(tmp, JSON.stringify(current, null, 2), 'utf8');
+  await rename(tmp, CONFIG_PATH());
+  return current;
 }
 
 /* ------------------------------ composition ------------------------------ */
 
-// Deterministic daily-review pick — same date-hash the client uses, so the
-// dispatch names the same concept Mission Control shows.
+// Deterministic daily-review pick — same date-hash + title sort the client
+// uses, so the dispatch names the same concept Mission Control shows.
 function reviewPick(pages) {
-  // Sorted by title so the pick matches the client's Mission Control pool
-  // regardless of directory-walk vs fetch ordering.
   const pool = pages
     .filter((p) => p.type === 'concept' || p.type === 'topic')
     .sort((a, b) => a.title.localeCompare(b.title));
@@ -76,11 +90,26 @@ function reviewPick(pages) {
   return pool[Math.abs(h) % pool.length];
 }
 
-// Every section degrades honestly when its source is missing — the dispatch
+async function streakLine(vaultPath) {
+  const s = await computeStreaks(vaultPath);
+  const bits = [
+    s.workoutStreak >= 2 ? `${s.workoutStreak}-day workout streak` : null,
+    s.stepGoalStreak >= 2 ? `${s.stepGoalStreak}-day step-goal streak` : null,
+    s.sleepGoalStreak >= 2 ? `${s.sleepGoalStreak}-day sleep-goal streak` : null,
+  ].filter(Boolean);
+  return bits.length ? `**Streaks.** ${bits.join(' · ')}.` : null;
+}
+
+function scheduledRoutineFor(routines, schedule, date) {
+  const dayKey = WEEKDAYS[(date.getDay() + 6) % 7]; // JS Sunday=0 → weekdays array starts Monday
+  const routineId = schedule?.[dayKey];
+  return routines.find((r) => r.id === routineId) || null;
+}
+
+// Every section degrades honestly when its source is missing — the brief
 // says what it can't see instead of inventing.
-export async function composeDispatch(vaultPath, now = new Date()) {
+async function composeMorning(vaultPath, now) {
   const lines = [];
-  const dateLong = now.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long' });
 
   // recovery
   try {
@@ -115,7 +144,7 @@ export async function composeDispatch(vaultPath, now = new Date()) {
     lines.push('**Today.** Calendar unavailable.');
   }
 
-  // fuel
+  // fuel (the plan)
   try {
     const { recipes, profile } = await loadRecipeData(vaultPath);
     const rotation = await loadRotation(vaultPath, recipes);
@@ -129,13 +158,11 @@ export async function composeDispatch(vaultPath, now = new Date()) {
     lines.push('**Fuel.** Rotation unavailable.');
   }
 
-  // training
+  // training (the plan)
   try {
     const { exercises } = await loadExerciseLibrary(vaultPath);
     const { routines, schedule } = await loadRoutines(vaultPath, exercises);
-    const dayKey = WEEKDAYS[(now.getDay() + 6) % 7]; // JS Sunday=0 → weekdays array starts Monday
-    const routineId = schedule?.[dayKey];
-    const routine = routines.find((r) => r.id === routineId);
+    const routine = scheduledRoutineFor(routines, schedule, now);
     lines.push(routine
       ? `**Training.** ${routine.name} is scheduled — ${routine.exercises.length} exercise${routine.exercises.length === 1 ? '' : 's'}.`
       : '**Training.** Rest day.');
@@ -143,66 +170,138 @@ export async function composeDispatch(vaultPath, now = new Date()) {
     lines.push('**Training.** Schedule unavailable.');
   }
 
-  // streaks
   try {
-    const s = await computeStreaks(vaultPath);
-    const bits = [
-      s.workoutStreak >= 2 ? `${s.workoutStreak}-day workout streak` : null,
-      s.stepGoalStreak >= 2 ? `${s.stepGoalStreak}-day step-goal streak` : null,
-      s.sleepGoalStreak >= 2 ? `${s.sleepGoalStreak}-day sleep-goal streak` : null,
-    ].filter(Boolean);
-    if (bits.length) lines.push(`**Streaks.** ${bits.join(' · ')}.`);
-  } catch {
-    /* streaks are optional garnish */
-  }
+    const streaks = await streakLine(vaultPath);
+    if (streaks) lines.push(streaks);
+  } catch { /* optional garnish */ }
 
   // daily review concept
   try {
     const vault = new Vault(vaultPath);
-    const pages = await vault.listPages();
-    const pick = reviewPick(pages);
+    const pick = reviewPick(await vault.listPages());
     if (pick) lines.push(`**Review.** Today's concept: ${pick.title}.`);
+  } catch { /* optional */ }
+
+  return lines;
+}
+
+// The debrief looks backwards (what actually happened) and one step forward.
+async function composeEvening(vaultPath, now) {
+  const lines = [];
+  const t = todayISO(now);
+
+  // fuel (the reality)
+  try {
+    const { recipes, profile } = await loadRecipeData(vaultPath);
+    const rotation = await loadRotation(vaultPath, recipes);
+    const foodLog = await getFoodLogToday();
+    const extraP = foodLog.entries.reduce((s, e) => s + e.macros.p, 0);
+    const eaten = Math.round(rotation.consumedTotals.p + extraP);
+    const floor = profile?.proteinFloorG || null;
+    if (floor) {
+      lines.push(eaten >= floor
+        ? `**Fuel.** Protein floor hit — ${eaten}g against ${floor}g.`
+        : `**Fuel.** ${eaten}g protein against the ${floor}g floor — ${floor - eaten}g short.`);
+    } else {
+      lines.push(`**Fuel.** ${eaten}g protein logged today.`);
+    }
   } catch {
-    /* optional */
+    lines.push('**Fuel.** Rotation unavailable.');
   }
 
-  return {
-    title: `Morning Dispatch — ${dateLong}`,
-    text: `Morning Dispatch — ${dateLong}\n\n${lines.join('\n')}`,
-  };
+  // training (the reality)
+  try {
+    const { exercises } = await loadExerciseLibrary(vaultPath);
+    const { routines, schedule } = await loadRoutines(vaultPath, exercises);
+    const scheduled = scheduledRoutineFor(routines, schedule, now);
+    const sessions = await loadSessions(vaultPath, { limit: 3 });
+    const todaySession = sessions.find((s) => s.date === t);
+    if (todaySession) {
+      const sets = todaySession.exercises.reduce((n, e) => n + e.sets.length, 0);
+      lines.push(`**Training.** ${todaySession.routineName} logged — ${todaySession.exercises.length} exercises, ${sets} sets.`);
+    } else if (scheduled) {
+      lines.push(`**Training.** ${scheduled.name} was scheduled — nothing logged yet.`);
+    } else {
+      lines.push('**Training.** Rest day, as planned.');
+    }
+  } catch {
+    lines.push('**Training.** Unavailable.');
+  }
+
+  // movement (today's steps, if the phone has sent them)
+  try {
+    const days = await loadRecentDays(2);
+    const todayData = days.find((d) => d.date === t);
+    if (todayData?.steps != null) lines.push(`**Movement.** ${todayData.steps.toLocaleString()} steps today.`);
+  } catch { /* optional */ }
+
+  // tomorrow (first blocks + training)
+  try {
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const bits = [];
+    try {
+      const events = await fetchEventsForDay(tomorrow);
+      if (events.length) bits.push(events.slice(0, 3).map((e) => `${e.time || '—'} ${e.label}`).join(' · '));
+    } catch { /* calendar optional here */ }
+    try {
+      const { exercises } = await loadExerciseLibrary(vaultPath);
+      const { routines, schedule } = await loadRoutines(vaultPath, exercises);
+      const routine = scheduledRoutineFor(routines, schedule, tomorrow);
+      if (routine) bits.push(`training: ${routine.name}`);
+    } catch { /* optional */ }
+    if (bits.length) lines.push(`**Tomorrow.** ${bits.join(' · ')}.`);
+  } catch { /* optional */ }
+
+  try {
+    const streaks = await streakLine(vaultPath);
+    if (streaks) lines.push(streaks);
+  } catch { /* optional */ }
+
+  return lines;
+}
+
+export async function composeDispatch(vaultPath, slot = 'morning', now = new Date()) {
+  const dateLong = now.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long' });
+  const title = slot === 'evening' ? `Evening Debrief — ${dateLong}` : `Morning Dispatch — ${dateLong}`;
+  const lines = slot === 'evening' ? await composeEvening(vaultPath, now) : await composeMorning(vaultPath, now);
+  return { title, text: `${title}\n\n${lines.join('\n')}` };
 }
 
 /* ------------------------------ orchestration ----------------------------- */
 
-async function dispatchRecordForToday() {
+async function slotRecordForToday(slot) {
   const items = await listRecords();
   const t = todayISO();
-  return items.find((r) => r.kind === 'dispatch' && (r.createdAt || '').slice(0, 10) === t) || null;
+  // legacy records (pre-slots) carry no slot field and were morning dispatches
+  return items.find((r) => r.kind === 'dispatch' && (r.slot || 'morning') === slot && (r.createdAt || '').slice(0, 10) === t) || null;
 }
 
-// Compose today's dispatch and put it on the inbox rails. Draft mode → a
+// Compose the slot's brief and put it on the inbox rails. Draft mode → a
 // pending record awaiting approval; auto mode → filed immediately (undoable).
-// Never runs twice for the same day unless forced — a forced re-run
+// Never runs twice for the same slot+day unless forced — a forced re-run
 // supersedes an unactioned draft by discarding it first.
-export async function runDispatch(vaultPath, { force = false } = {}) {
-  const config = await getDispatchConfig();
-  const existing = await dispatchRecordForToday();
+export async function runDispatch(vaultPath, { slot = 'morning', force = false } = {}) {
+  if (!DISPATCH_SLOTS.includes(slot)) throw new Error('slot must be morning or evening');
+  const config = (await getDispatchConfig())[slot];
+  const existing = await slotRecordForToday(slot);
   if (existing && !force) return { skipped: true, record: existing };
   if (existing && force && existing.status === 'pending') {
     await updateRecord(existing.id, { status: 'discarded', discardedAt: new Date().toISOString(), error: 'superseded by a re-run' });
   }
 
-  const { title, text } = await composeDispatch(vaultPath);
+  const { title, text } = await composeDispatch(vaultPath, slot);
   const decision = {
     route: 'journal',
     confidence: 'high',
     title,
-    reason: 'Scheduled morning dispatch composed from live data.',
+    reason: `Scheduled ${slot} brief composed from live data.`,
     payload: { text },
   };
   const record = {
     id: randomUUID().slice(0, 8),
     kind: 'dispatch',
+    slot,
     text: title,
     source: 'dispatch',
     mode: config.mode,
@@ -225,26 +324,29 @@ export async function runDispatch(vaultPath, { force = false } = {}) {
 
 export async function getDispatchStatus() {
   const config = await getDispatchConfig();
-  const todayRecord = await dispatchRecordForToday();
-  return {
-    config,
-    today: todayRecord
-      ? { id: todayRecord.id, status: todayRecord.status, destination: todayRecord.destination || null }
-      : null,
-  };
+  const today = {};
+  for (const slot of DISPATCH_SLOTS) {
+    const rec = await slotRecordForToday(slot);
+    today[slot] = rec
+      ? { id: rec.id, status: rec.status, destination: rec.destination || null, text: rec.decision?.payload?.text || null }
+      : null;
+  }
+  return { config, today };
 }
 
-// Hourly check: when the configured hour arrives and today's dispatch hasn't
-// been composed yet, run it. Off mode stays silent.
+// Every 15 minutes: for each slot, when its hour has arrived and today's
+// brief hasn't been composed yet, run it. Off mode stays silent.
 async function checkAndRun(vaultPath) {
-  try {
-    const config = await getDispatchConfig();
-    if (config.mode === 'off') return;
-    if (new Date().getHours() < config.hour) return;
-    if (await dispatchRecordForToday()) return;
-    await runDispatch(vaultPath);
-  } catch (err) {
-    console.error('Morning dispatch failed:', err.message);
+  for (const slot of DISPATCH_SLOTS) {
+    try {
+      const config = (await getDispatchConfig())[slot];
+      if (config.mode === 'off') continue;
+      if (new Date().getHours() < config.hour) continue;
+      if (await slotRecordForToday(slot)) continue;
+      await runDispatch(vaultPath, { slot });
+    } catch (err) {
+      console.error(`${slot} brief failed:`, err.message);
+    }
   }
 }
 

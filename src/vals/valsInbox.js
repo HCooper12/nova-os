@@ -78,24 +78,28 @@ function computeProposals(app, st, items, dispatch, compost) {
     }
   }
 
-  // dispatch ladder: promote to auto after an approval streak
-  const dispatches = items.filter((r) => r.kind === 'dispatch' && ['filed', 'discarded', 'undone'].includes(r.status));
-  if (dispatch?.config?.mode === 'draft') {
-    const recent = dispatches.slice(0, 3);
+  // dispatch ladder, per slot: promote to auto after an approval streak,
+  // propose pausing after a discard streak
+  for (const slot of ['morning', 'evening']) {
+    if (dispatch?.config?.[slot]?.mode !== 'draft') continue;
+    const name = slot === 'evening' ? 'evening debriefs' : 'morning dispatches';
+    const recent = items
+      .filter((r) => r.kind === 'dispatch' && (r.slot || 'morning') === slot && ['filed', 'discarded', 'undone'].includes(r.status))
+      .slice(0, 3);
     if (recent.length >= 3 && recent.every((r) => r.status === 'filed' && r.auto === false)) {
       out.push({
-        key: `dispatch-auto@${recent[0].id}`,
-        text: `You've approved the last ${recent.length} morning dispatches as drafted — let them file straight into the journal?`,
+        key: `dispatch-${slot}-auto@${recent[0].id}`,
+        text: `You've approved the last ${recent.length} ${name} as drafted — let them file straight into the journal?`,
         acceptLabel: 'Accept',
-        accept: () => app.setDispatchConfig({ mode: 'auto' }),
+        accept: () => app.setDispatchConfig(slot, { mode: 'auto' }),
       });
     }
     if (recent.length >= 3 && recent.every((r) => r.status === 'discarded')) {
       out.push({
-        key: `dispatch-off@${recent[0].id}`,
-        text: `The last ${recent.length} morning dispatches were discarded unread — pause the loop?`,
+        key: `dispatch-${slot}-off@${recent[0].id}`,
+        text: `The last ${recent.length} ${name} were discarded unread — pause the loop?`,
         acceptLabel: 'Pause it',
-        accept: () => app.setDispatchConfig({ mode: 'off' }),
+        accept: () => app.setDispatchConfig(slot, { mode: 'off' }),
       });
     }
   }
@@ -160,13 +164,32 @@ export function valsInbox(app, ctx) {
     .filter((p) => !dismissed.has(p.key))
     .map((p) => ({ ...p, skip: () => app.dismissInboxProposal(p.key) }));
 
-  // loops — morning dispatch controls
+  // loops — daily brief controls, one row per slot
   const dispatch = st.liveDispatch;
-  const dispatchModes = ['off', 'draft', 'auto'].map((m) => ({
-    value: m,
-    label: m === 'off' ? 'Off' : m === 'draft' ? 'Draft for review' : 'Auto-file',
-    active: dispatch?.config?.mode === m,
-    pick: () => app.setDispatchConfig({ mode: m }),
+  const slotStatus = (slot) => {
+    const t = dispatch?.today?.[slot];
+    const noun = slot === 'evening' ? 'debrief' : 'dispatch';
+    if (!t) return `no ${noun} yet today`;
+    if (t.status === 'pending') return `today's ${noun} is waiting for review below`;
+    if (t.status === 'filed') return `today's ${noun} is filed`;
+    if (t.status === 'discarded') return `today's ${noun} was discarded`;
+    if (t.status === 'undone') return `today's ${noun} was undone`;
+    return `today's ${noun}: ${t.status}`;
+  };
+  const dispatchSlots = ['morning', 'evening'].map((slot) => ({
+    slot,
+    label: slot === 'evening' ? 'EVENING DEBRIEF' : 'MORNING DISPATCH',
+    modes: ['off', 'draft', 'auto'].map((m) => ({
+      value: m,
+      label: m === 'off' ? 'Off' : m === 'draft' ? 'Draft' : 'Auto',
+      active: dispatch?.config?.[slot]?.mode === m,
+      pick: () => app.setDispatchConfig(slot, { mode: m }),
+    })),
+    hour: dispatch?.config?.[slot]?.hour ?? (slot === 'evening' ? 21 : 7),
+    hourOptions: slot === 'evening' ? [19, 20, 21, 22] : [5, 6, 7, 8, 9, 10],
+    setHour: (e) => app.setDispatchConfig(slot, { hour: Number(e.target.value) }),
+    status: slotStatus(slot),
+    run: () => app.runDispatchNow(slot),
   }));
 
   // loops — compost proposals
@@ -221,18 +244,8 @@ export function valsInbox(app, ctx) {
 
     // loops
     dispatchLoaded: !!dispatch,
-    dispatchModes,
-    dispatchHour: dispatch?.config?.hour ?? 7,
-    setDispatchHour: (e) => app.setDispatchConfig({ hour: Number(e.target.value) }),
-    dispatchToday: dispatch?.today
-      ? (dispatch.today.status === 'pending' ? 'today’s dispatch is waiting for review below'
-        : dispatch.today.status === 'filed' ? 'today’s dispatch is filed'
-        : dispatch.today.status === 'discarded' ? 'today’s dispatch was discarded'
-        : dispatch.today.status === 'undone' ? 'today’s dispatch was undone'
-        : 'today’s dispatch: ' + dispatch.today.status)
-      : 'no dispatch yet today',
+    dispatchSlots,
     dispatchBusy: st.dispatchBusy,
-    runDispatchNow: () => app.runDispatchNow(),
     compostLoaded: !!compost,
     compostLastRun: compost?.lastRunAt ? timeLabel(compost.lastRunAt) : 'never',
     compostProposals,

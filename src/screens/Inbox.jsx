@@ -164,30 +164,35 @@ export function Inbox({ v }) {
 
             <div className="nv-pane" style={{ flex: '1 1 320px', padding: '16px 18px' }}>
               <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>
-                <span style={css(`font:500 9.5px ${M};letter-spacing:.2em;color:var(--nv-cy)`)}>MORNING DISPATCH</span>
-                <span style={css(`font:400 8.5px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>DAILY BRIEF · REAL DATA ONLY</span>
+                <span style={css(`font:500 9.5px ${M};letter-spacing:.2em;color:var(--nv-cy)`)}>DAILY BRIEFS</span>
+                <span style={css(`font:400 8.5px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>REAL DATA ONLY</span>
               </div>
-              <div style={css(`margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center`)}>
-                {v.dispatchModes.map((m) => (
-                  <Interactive key={m.value} as="span" onClick={m.pick}
-                    base={{ cursor: 'pointer', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '6px 12px', borderRadius: '7px',
-                      border: m.active ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)',
-                      color: m.active ? 'var(--nv-acc)' : 'var(--nv-ink60)', background: m.active ? 'var(--nv-acc-bg)' : 'transparent' }}
-                    hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}
-                  >{m.label}</Interactive>
-                ))}
-                <select value={v.dispatchHour} onChange={v.setDispatchHour}
-                  style={{ marginLeft: 'auto', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: `500 11px ${M}`, padding: '5px 7px', outline: 'none' }}>
-                  {[5, 6, 7, 8, 9, 10].map((h) => <option key={h} value={h} style={{ background: '#141019' }}>{String(h).padStart(2, '0')}:00</option>)}
-                </select>
-              </div>
-              <div style={css(`margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px`)}>
-                <span style={css(`font:500 11.5px ${R};color:var(--nv-ink60)`)}>{v.dispatchToday}</span>
-                <Interactive as="span" onClick={v.dispatchBusy ? undefined : v.runDispatchNow}
-                  base={{ cursor: 'pointer', flex: 'none', font: `600 10.5px ${M}`, letterSpacing: '.08em', padding: '6px 13px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent)', color: 'var(--nv-cy)', opacity: v.dispatchBusy ? 0.5 : 1 }}
-                  hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' }}
-                >{v.dispatchBusy ? 'COMPOSING…' : 'RUN NOW'}</Interactive>
-              </div>
+              {v.dispatchSlots.map((s, i) => (
+                <div key={s.slot} style={i > 0 ? { marginTop: '12px', paddingTop: '12px', borderTop: '1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)' } : { marginTop: '10px' }}>
+                  <div style={css(`display:flex;gap:6px;flex-wrap:wrap;align-items:center`)}>
+                    <span style={css(`font:600 8.5px ${M};letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent);margin-right:2px`)}>{s.label}</span>
+                    {s.modes.map((m) => (
+                      <Interactive key={m.value} as="span" onClick={m.pick}
+                        base={{ cursor: 'pointer', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '5px 11px', borderRadius: '7px',
+                          border: m.active ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)',
+                          color: m.active ? 'var(--nv-acc)' : 'var(--nv-ink60)', background: m.active ? 'var(--nv-acc-bg)' : 'transparent' }}
+                        hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}
+                      >{m.label}</Interactive>
+                    ))}
+                    <select value={s.hour} onChange={s.setHour}
+                      style={{ marginLeft: 'auto', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: `500 11px ${M}`, padding: '4px 6px', outline: 'none' }}>
+                      {s.hourOptions.map((h) => <option key={h} value={h} style={{ background: '#141019' }}>{String(h).padStart(2, '0')}:00</option>)}
+                    </select>
+                  </div>
+                  <div style={css(`margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px`)}>
+                    <span style={css(`font:500 11.5px ${R};color:var(--nv-ink60)`)}>{s.status}</span>
+                    <Interactive as="span" onClick={v.dispatchBusy ? undefined : s.run}
+                      base={{ cursor: 'pointer', flex: 'none', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '5px 12px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent)', color: 'var(--nv-cy)', opacity: v.dispatchBusy ? 0.5 : 1 }}
+                      hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' }}
+                    >{v.dispatchBusy ? 'COMPOSING…' : 'RUN NOW'}</Interactive>
+                  </div>
+                </div>
+              ))}
             </div>
 
             <div className="nv-pane" style={{ flex: '1 1 320px', padding: '16px 18px' }}>

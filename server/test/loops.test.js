@@ -33,14 +33,25 @@ function iso(offsetDays) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-test('dispatch config persists and clamps invalid values', async () => {
+test('dispatch config: two slots, persistence, clamping, legacy migration', async () => {
   const initial = await getDispatchConfig();
-  assert.equal(initial.mode, 'draft'); // per Hayden: draft-for-review first
-  const set = await setDispatchConfig({ mode: 'auto', hour: 6 });
-  assert.deepEqual(set, { mode: 'auto', hour: 6 });
-  const bad = await setDispatchConfig({ mode: 'nonsense', hour: 99 });
-  assert.deepEqual(bad, { mode: 'auto', hour: 6 }); // invalid patch changes nothing
-  await setDispatchConfig({ mode: 'draft', hour: 7 });
+  assert.equal(initial.morning.mode, 'draft'); // per Hayden: draft-for-review first
+  assert.deepEqual(initial.evening, { mode: 'draft', hour: 21 });
+
+  const set = await setDispatchConfig('morning', { mode: 'auto', hour: 6 });
+  assert.deepEqual(set.morning, { mode: 'auto', hour: 6 });
+  assert.equal(set.evening.mode, 'draft'); // untouched
+
+  const bad = await setDispatchConfig('morning', { mode: 'nonsense', hour: 99 });
+  assert.deepEqual(bad.morning, { mode: 'auto', hour: 6 }); // invalid patch changes nothing
+
+  // legacy single-slot file shape migrates to the morning slot
+  await writeFile(path.join(dataDir, 'dispatch.json'), JSON.stringify({ mode: 'auto', hour: 8 }), 'utf8');
+  const migrated = await getDispatchConfig();
+  assert.deepEqual(migrated.morning, { mode: 'auto', hour: 8 });
+  assert.deepEqual(migrated.evening, { mode: 'draft', hour: 21 });
+
+  await setDispatchConfig('morning', { mode: 'draft', hour: 7 });
 });
 
 test('composeDispatch degrades honestly with no data, and uses real data when present', async () => {
@@ -91,14 +102,34 @@ test('dispatch draft mode lands a pending inbox record; approve files to journal
 });
 
 test('dispatch auto mode files immediately and stays undoable', async () => {
-  await setDispatchConfig({ mode: 'auto' });
+  await setDispatchConfig('morning', { mode: 'auto' });
   const { record } = await runDispatch(vault, { force: true });
   assert.equal(record.status, 'filed');
   assert.equal(record.auto, true);
   assert.match(record.destination, /Journal/);
   await undoFiling(vault, record.undoData);
   assert.equal((await listEntries(vault)).length, 0);
-  await setDispatchConfig({ mode: 'draft' });
+  await setDispatchConfig('morning', { mode: 'draft' });
+});
+
+test('evening debrief: independent slot guard, honest content, own title', async () => {
+  const { composeDispatch: compose } = await import('../lib/dispatch.js');
+  const debrief = await compose(vault, 'evening');
+  assert.match(debrief.title, /Evening Debrief/);
+  assert.match(debrief.text, /\*\*Fuel\.\*\*/);
+  assert.match(debrief.text, /\*\*Training\.\*\*/);
+
+  // evening run is guarded independently of the morning record
+  const morning = await runDispatch(vault, { slot: 'morning', force: true });
+  const evening = await runDispatch(vault, { slot: 'evening' });
+  assert.equal(evening.record.slot, 'evening');
+  assert.equal(evening.record.status, 'pending');
+  assert.notEqual(evening.record.id, morning.record.id);
+  const again = await runDispatch(vault, { slot: 'evening' });
+  assert.equal(again.skipped, true);
+  // and the morning guard still sees its own record
+  const morningAgain = await runDispatch(vault, { slot: 'morning' });
+  assert.equal(morningAgain.skipped, true);
 });
 
 test('compost detects stale captures, orphans, and sweepable to-dos', async () => {
