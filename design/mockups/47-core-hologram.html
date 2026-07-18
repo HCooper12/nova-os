@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nova — 47 · Core study · Filament vs Hologram</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* 47 CORE STUDY — the current Filament core beside a new true-3D
+   "Hologram" engine: gyroscopic rings at independent tilts/spins (solid,
+   dashed, ticked, doubled), an inner graticule globe with a fibonacci
+   particle shell riding it, 3D filament arcs, comet trackers with fading
+   tails, a fast inner gyro reactor, and depth fog (front bright, back
+   dim, perspective scale) so it reads as a volume, not a disc. */
+:root{--void:#06070d;--ink:#e8ecf6;--ink40:rgba(232,236,246,.38);--cy:#59e6ff}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:radial-gradient(1200px 800px at 50% -18%,#111a32 0%,#0a0f1e 45%,var(--void) 100%);color:var(--ink);font-family:'Rajdhani',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 20px}
+h1{font-size:22px;letter-spacing:.14em;font-weight:700}
+h1 em{font-family:'IBM Plex Mono',monospace;font-style:normal;font-size:10px;letter-spacing:.3em;color:var(--ink40);display:block;margin-top:6px}
+.row{display:flex;gap:70px;margin-top:46px;flex-wrap:wrap;justify-content:center}
+.cell{display:flex;flex-direction:column;align-items:center;gap:18px}
+.cell .lbl{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.3em;color:var(--ink40)}
+.cell .lbl b{color:var(--cy);font-weight:500}
+.stage{position:relative;width:312px;height:312px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 110px -34px rgba(89,230,255,.55);border-radius:50%}
+</style></head>
+<body>
+<h1>NOVA CORE STUDY<em>FILAMENT (SHIPPED) · VS · HOLOGRAM (NEW)</em></h1>
+<div class="row">
+  <div class="cell"><div class="stage"><canvas id="fil" width="312" height="312"></canvas></div><div class="lbl"><b>A</b> · FILAMENT · CURRENT</div></div>
+  <div class="cell"><div class="stage"><canvas id="holo" width="312" height="312"></canvas></div><div class="lbl"><b>B</b> · HOLOGRAM · GYROSCOPIC 3-D</div></div>
+</div>
+
+<script>
+function rng(seed){let s=seed;return()=> (s=(s*16807)%2147483647)/2147483647}
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------------- A · FILAMENT (verbatim from 45) ---------------- */
+function buildCore(canvas,opts){
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  const W=+canvas.getAttribute('width'),H=+canvas.getAttribute('height');
+  canvas.width=W*dpr;canvas.height=H*dpr;canvas.style.width=W+'px';canvas.style.height=H+'px';
+  const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
+  const cx=W/2,cy=H/2,R=W*0.46,r=rng(opts.seed||7);
+  function col(f,a){const hue=224-f*36,sat=90-f*10,lit=38+(1-f)*44;return `hsla(${hue},${sat}%,${lit}%,${a})`}
+  const bands=[];for(let b=0;b<opts.bands;b++){const f=0.10+0.90*(b/(opts.bands-1));const segs=[];const n=Math.round(opts.segs*(0.5+r()));
+    for(let i=0;i<n;i++){segs.push({a0:r()*6.283,len:0.02+r()*r()*opts.arc,w:0.5+r()*1.6*opts.weight,jit:(r()-0.5)*R*0.05*opts.chaos,al:(0.16+r()*0.5)*(1.35-0.55*f),fl:r()*6.28,fs:0.5+r()*2})}
+    bands.push({f,segs,vel:(r()-0.5)*opts.speed,squash:1-r()*0.14*opts.chaos,tilt:(r()-0.5)*0.5*opts.chaos})}
+  const embers=[];for(let i=0;i<opts.embers;i++){embers.push({f:Math.pow(r(),1.25),ang:r()*6.283,sz:0.35+r()*1.3,al:0.15+r()*0.55,tw:r()*6.28,ts:0.6+r()*2.4})}
+  const wisps=[];for(let i=0;i<opts.wisps;i++){const a=r()*6.283;wisps.push({a,b:a+(r()-0.5)*2.4,f1:0.25+r()*0.7,f2:0.25+r()*0.7,bulge:(r()-0.5)*1.6,al:0.05+r()*0.12})}
+  function draw(t){ctx.clearRect(0,0,W,H);ctx.globalCompositeOperation='lighter';
+    for(const w of wisps){const rot=t*0.03;const x1=cx+Math.cos(w.a+rot)*R*w.f1,y1=cy+Math.sin(w.a+rot)*R*w.f1*0.94;
+      const x2=cx+Math.cos(w.b+rot)*R*w.f2,y2=cy+Math.sin(w.b+rot)*R*w.f2*0.94;
+      let mx=(x1+x2)/2+(y2-y1)*w.bulge*0.3,my=(y1+y2)/2-(x2-x1)*w.bulge*0.3;mx=mx*0.62+cx*0.38;my=my*0.62+cy*0.38;
+      ctx.strokeStyle=col(0.5,w.al);ctx.lineWidth=0.7;ctx.beginPath();ctx.moveTo(x1,y1);ctx.quadraticCurveTo(mx,my,x2,y2);ctx.stroke()}
+    for(const b of bands){const rad=R*b.f;ctx.save();ctx.translate(cx,cy);ctx.rotate(b.tilt);ctx.scale(1,b.squash);const rot=t*b.vel;
+      for(const s of b.segs){const fl=0.55+0.45*Math.sin(t*s.fs+s.fl);ctx.strokeStyle=col(b.f,s.al*fl);ctx.lineWidth=s.w;
+        ctx.beginPath();ctx.arc(0,0,rad+s.jit,s.a0+rot,s.a0+rot+s.len);ctx.stroke()}ctx.restore()}
+    for(const e of embers){const tw=0.4+0.6*Math.abs(Math.sin(t*e.ts+e.tw));
+      const x=cx+Math.cos(e.ang+t*0.05)*R*e.f,y=cy+Math.sin(e.ang+t*0.05)*R*e.f*0.94;
+      ctx.fillStyle=col(e.f,e.al*tw);ctx.beginPath();ctx.arc(x,y,e.sz,0,6.29);ctx.fill()}
+    const pulse=1+0.07*Math.sin(t*1.8),hr=R*opts.heart*pulse;
+    const g=ctx.createRadialGradient(cx,cy,0,cx,cy,hr*3.2);
+    g.addColorStop(0,'rgba(240,252,255,.95)');g.addColorStop(0.18,'rgba(158,240,255,.8)');
+    g.addColorStop(0.45,'rgba(64,170,238,.35)');g.addColorStop(1,'rgba(20,60,140,0)');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,hr*3.2,0,6.29);ctx.fill();
+    ctx.globalCompositeOperation='source-over'}
+  if(reduced){draw(1.7);return}
+  (function loop(){draw(performance.now()/1000);requestAnimationFrame(loop)})()}
+
+/* ---------------- B · HOLOGRAM (new true-3D engine) ---------------- */
+function buildHolo(canvas,opts){
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  const W=+canvas.getAttribute('width'),H=+canvas.getAttribute('height');
+  canvas.width=W*dpr;canvas.height=H*dpr;canvas.style.width=W+'px';canvas.style.height=H+'px';
+  const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
+  const cx=W/2,cy=H/2,R=W*0.46,r=rng(opts.seed||7);
+  const D=6; // camera distance in R units — mild perspective
+  const rotX=(p,a)=>{const c=Math.cos(a),s=Math.sin(a);return[p[0],c*p[1]-s*p[2],s*p[1]+c*p[2]]};
+  const rotY=(p,a)=>{const c=Math.cos(a),s=Math.sin(a);return[c*p[0]+s*p[2],p[1],-s*p[0]+c*p[2]]};
+  const dm=dp=>0.3+0.7*Math.pow(dp,1.35); // depth fog: back dim, front bright
+  const hcol=(dp,a)=>`hsla(${222-28*dp},${90-6*dp}%,${44+38*dp}%,${a})`;
+
+  // gyro rings — the Jarvis signature: independent tilts, spins, styles
+  const RSTYLES=['tick','dash','solid','double','dash','tick'];
+  const rings=[];
+  for(let i=0;i<opts.rings;i++){
+    rings.push({f:0.55+0.35*(i/Math.max(1,opts.rings-1))+(r()-0.5)*0.05,
+      tx:(r()-0.5)*2.6,ty:r()*6.28,w:0.7+r()*0.8,al:0.45+r()*0.3,
+      spin:(r()<0.5?-1:1)*(0.10+r()*0.28),style:RSTYLES[i%RSTYLES.length],
+      tickEvery:6+Math.floor(r()*6),
+      comet:i%3===1,cometSp:(r()<0.5?-1:1)*(0.5+r()*0.5),cometPh:r()*6.28});
+  }
+  // 3D ember cloud — a dense inner swarm so the being has a body, not a
+  // hollow shell (the filament lesson, lifted into the volume)
+  const embers=[];
+  for(let i=0;i<opts.embers;i++){const u=r()*6.2832,v=Math.acos(2*r()-1);
+    const rad=0.06+0.34*Math.pow(r(),1.4);
+    embers.push({p:[Math.sin(v)*Math.cos(u)*rad,Math.cos(v)*rad,Math.sin(v)*Math.sin(u)*rad],
+      sp:(r()<0.5?-1:1)*(0.1+r()*0.22),sz:0.5+r()*1.1,al:0.22+r()*0.4,tw:r()*6.28,ts:0.6+r()*2.4})}
+  // inner gyro reactor — three fast, precessing rings around the heart
+  const inner=[];
+  for(let i=0;i<3;i++){inner.push({f:0.13+i*0.045,tx:(r()-0.5)*3,ty:r()*6.28,
+    spin:(r()<0.5?-1:1)*(0.9+r()*0.8),prec:0.3+r()*0.4,ph:r()*6.28})}
+  // 3D filament arcs — the old DNA lifted onto great circles
+  const arcs=[];
+  for(let i=0;i<opts.arcs;i++){arcs.push({f:0.48+r()*0.44,tx:(r()-0.5)*3.1,ty:r()*6.28,
+    a0:r()*6.28,len:0.15+r()*r()*1.1,drift:(r()-0.5)*0.35,al:0.16+r()*0.3,w:0.5+r()*0.9,
+    fl:r()*6.28,fs:0.5+r()*1.8})}
+  // fibonacci particle shell riding the graticule globe
+  const parts=[];
+  for(let i=0;i<opts.parts;i++){const y=1-2*(i+0.5)/opts.parts,rad=Math.sqrt(1-y*y),ph=i*2.399963;
+    parts.push({p:[rad*Math.cos(ph),y,rad*Math.sin(ph)],hot:i%9===0,tw:r()*6.28,ts:0.6+r()*2.2})}
+
+  const seg=(p1,p2,alpha,w)=>{ctx.strokeStyle=hcol((p1.dp+p2.dp)/2,alpha*dm((p1.dp+p2.dp)/2));
+    ctx.lineWidth=w*(p1.s+p2.s)/2;ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.stroke()};
+
+  function draw(t){
+    ctx.clearRect(0,0,W,H);ctx.globalCompositeOperation='lighter';
+    const axT=0.5+0.22*Math.sin(t*0.09),ayT=t*opts.tumble; // slow assembly tumble
+    const P=(fr,a,tx,ty)=>{let p=[Math.cos(a)*fr,Math.sin(a)*fr,0];
+      p=rotX(p,tx);p=rotY(p,ty);p=rotX(p,axT);p=rotY(p,ayT);
+      const s=(D*R)/(D*R-p[2]);return{x:cx+p[0]*s,y:cy+p[1]*s,dp:(p[2]/R+1)/2,s}};
+
+    // graticule globe (spins about its own Y inside the tumbling assembly)
+    const Rg=R*0.42,gs=t*0.12;
+    for(const lat of[-1.05,-0.55,0,0.55,1.05]){const rc=Rg*Math.cos(lat),z0=Rg*Math.sin(lat);
+      let prev=null;for(let k=0;k<=48;k++){const a=k/48*6.2832;
+        let p=[rc*Math.cos(a+gs),z0,rc*Math.sin(a+gs)];p=rotX(p,axT);p=rotY(p,ayT);
+        const s=(D*R)/(D*R-p[2]);const q={x:cx+p[0]*s,y:cy+p[1]*s,dp:(p[2]/R+1)/2,s};
+        if(prev)seg(prev,q,0.17,0.55);prev=q}}
+    for(let l=0;l<6;l++){const ph=l*Math.PI/6+gs;let prev=null;
+      for(let k=0;k<=48;k++){const a=k/48*6.2832;
+        let p=[Rg*Math.sin(a)*Math.cos(ph),Rg*Math.cos(a),Rg*Math.sin(a)*Math.sin(ph)];
+        p=rotX(p,axT);p=rotY(p,ayT);
+        const s=(D*R)/(D*R-p[2]);const q={x:cx+p[0]*s,y:cy+p[1]*s,dp:(p[2]/R+1)/2,s};
+        if(prev)seg(prev,q,0.12,0.55);prev=q}}
+
+    // volumetric halo — faint gas glow filling the sphere
+    const gh=ctx.createRadialGradient(cx,cy,0,cx,cy,R*0.56);
+    gh.addColorStop(0,'rgba(64,170,238,.12)');gh.addColorStop(0.6,'rgba(64,170,238,.05)');gh.addColorStop(1,'rgba(20,60,140,0)');
+    ctx.fillStyle=gh;ctx.beginPath();ctx.arc(cx,cy,R*0.56,0,6.29);ctx.fill();
+
+    // 3D ember cloud (each mote on its own slow orbit inside the body)
+    for(const e of embers){let p=rotY(e.p.map(v=>v*R),t*e.sp*4);p=rotX(p,axT);p=rotY(p,ayT);
+      const s=(D*R)/(D*R-p[2]),dp=(p[2]/R+1)/2;
+      const tw=0.5+0.5*Math.abs(Math.sin(t*e.ts+e.tw));
+      ctx.fillStyle=hcol(dp,e.al*tw*dm(dp));
+      ctx.beginPath();ctx.arc(cx+p[0]*s,cy+p[1]*s,e.sz*s,0,6.29);ctx.fill()}
+
+    // particle shell
+    const Rp=R*0.46;
+    for(const pt of parts){let p=rotY(pt.p.map(v=>v*Rp),gs);p=rotX(p,axT);p=rotY(p,ayT);
+      const s=(D*R)/(D*R-p[2]),dp=(p[2]/R+1)/2;
+      const tw=0.55+0.45*Math.sin(t*pt.ts+pt.tw);
+      ctx.fillStyle=hcol(dp,(pt.hot?0.95:0.5)*tw*dm(dp));
+      ctx.beginPath();ctx.arc(cx+p[0]*s,cy+p[1]*s,(pt.hot?1.6:0.95)*s,0,6.29);ctx.fill()}
+
+    // 3D filament arcs
+    for(const a of arcs){const fr=a.f*R,base=a.a0+t*a.drift;
+      const fl=0.55+0.45*Math.sin(t*a.fs+a.fl);let prev=null;
+      for(let k=0;k<=9;k++){const q=P(fr,base+a.len*k/9,a.tx,a.ty);
+        if(prev)seg(prev,q,a.al*fl*0.85,a.w);prev=q}}
+
+    // gyro rings
+    for(const g of rings){const fr=g.f*R,off=g.spin*t;
+      if(g.style==='solid'||g.style==='tick'||g.style==='double'){
+        const alp=g.style==='tick'?g.al*0.55:g.al;
+        for(let k=0;k<96;k++){const a1=k/96*6.2832+off,a2=(k+1)/96*6.2832+off;
+          if(g.style==='double'){seg(P(fr-R*0.012,a1,g.tx,g.ty),P(fr-R*0.012,a2,g.tx,g.ty),alp*0.7,g.w*0.8);
+            seg(P(fr+R*0.012,a1,g.tx,g.ty),P(fr+R*0.012,a2,g.tx,g.ty),alp*0.7,g.w*0.8)}
+          else seg(P(fr,a1,g.tx,g.ty),P(fr,a2,g.tx,g.ty),alp,g.w)}}
+      if(g.style==='dash'){for(let k=0;k<96;k++){if(k%6>=3)continue;
+        const a1=k/96*6.2832+off,a2=(k+1)/96*6.2832+off;
+        seg(P(fr,a1,g.tx,g.ty),P(fr,a2,g.tx,g.ty),g.al*1.15,g.w*1.25)}}
+      if(g.style==='tick'){const n=Math.round(96/g.tickEvery)*g.tickEvery;
+        for(let k=0;k<n;k+=g.tickEvery){const a=k/96*6.2832+off;
+          const long=(k/g.tickEvery)%4===0,tl=R*(long?0.034:0.018);
+          seg(P(fr-tl,a,g.tx,g.ty),P(fr+tl,a,g.tx,g.ty),g.al*(long?1.3:0.9),g.w*(long?1.1:0.8))}}
+      if(g.comet){const ah=g.cometPh+g.cometSp*t;const K=30;
+        for(let k=0;k<K;k++){const a1=ah-k*0.05*Math.sign(g.cometSp),a2=ah-(k+1)*0.05*Math.sign(g.cometSp);
+          const fade=Math.pow(1-k/K,1.6);
+          seg(P(fr,a1,g.tx,g.ty),P(fr,a2,g.tx,g.ty),0.85*fade,2.2*fade+0.5)}
+        const h=P(fr,ah,g.tx,g.ty);
+        ctx.fillStyle=hcol(h.dp,0.95*dm(h.dp));ctx.beginPath();ctx.arc(h.x,h.y,2.4*h.s,0,6.29);ctx.fill()}}
+
+    // inner gyro reactor — fast precessing rings
+    for(let i=0;i<inner.length;i++){const n=inner[i],fr=n.f*R,off=n.spin*t;
+      const tx=n.tx+0.6*Math.sin(t*n.prec+n.ph),ty=n.ty+t*0.25;
+      for(let k=0;k<48;k++){const a1=k/48*6.2832+off,a2=(k+1)/48*6.2832+off;
+        seg(P(fr,a1,tx,ty),P(fr,a2,tx,ty),0.62,1.05)}}
+
+    // billboard HUD rings — flat, tying the hologram to the interface plane
+    for(let k=0;k<40;k++){const a0=k/40*6.2832+t*0.12,len=6.2832/40*0.5;
+      ctx.strokeStyle='rgba(89,230,255,.4)';ctx.lineWidth=1.2;
+      ctx.beginPath();ctx.arc(cx,cy,R*0.985,a0,a0+len);ctx.stroke()}
+    for(let k=0;k<64;k++){const a0=-t*0.08+k/64*6.2832,len=6.2832/64*0.32;
+      ctx.strokeStyle='rgba(143,123,255,.22)';ctx.lineWidth=0.9;
+      ctx.beginPath();ctx.arc(cx,cy,R*0.93,a0,a0+len);ctx.stroke()}
+
+    // breathing heart (shared identity with the Filament)
+    const pulse=1+0.06*Math.sin(t*1.8),hr=R*0.125*pulse;
+    const g2=ctx.createRadialGradient(cx,cy,0,cx,cy,hr*3.2);
+    g2.addColorStop(0,'rgba(240,252,255,.95)');g2.addColorStop(0.18,'rgba(158,240,255,.8)');
+    g2.addColorStop(0.45,'rgba(64,170,238,.35)');g2.addColorStop(1,'rgba(20,60,140,0)');
+    ctx.fillStyle=g2;ctx.beginPath();ctx.arc(cx,cy,hr*3.2,0,6.29);ctx.fill();
+    ctx.globalCompositeOperation='source-over';
+  }
+  if(reduced){draw(2.5);return}
+  (function loop(){draw(performance.now()/1000);requestAnimationFrame(loop)})()}
+
+buildCore(document.getElementById('fil'),{seed:7,bands:32,segs:36,arc:1.15,weight:1,chaos:1,speed:.16,embers:540,wisps:84,heart:.12});
+buildHolo(document.getElementById('holo'),{seed:7,rings:9,arcs:220,parts:420,embers:260,tumble:0.06});
+</script>
+</body></html>

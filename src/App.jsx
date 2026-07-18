@@ -5,7 +5,7 @@ import { api, getConnection, setConnection, testConnection } from './api.js';
 import { pollJob } from './jobPoller.js';
 import { orbReply, coachReply, recipeReply } from './mockAssistants.js';
 import { loadLiveCache, saveLiveCache, clearLiveCache } from './liveStore.js';
-import { applyAppearance, getNovaTheme, getCalm } from './theme.js';
+import { applyAppearance, getNovaTheme, getCalm, getCoreStyle, saveCoreStyle } from './theme.js';
 import { NOTE_TYPE_COLOR } from './vals/shared.js';
 import { valsRecipes } from './vals/valsRecipes.js';
 import { valsWorkouts } from './vals/valsWorkouts.js';
@@ -108,7 +108,7 @@ export default class App extends Component {
     noteQuery: '', noteType: 'All', openNoteId: 'n1',
     galaxySel: null, toast: null, reviewIdx: 0,
     isMobile: typeof window !== 'undefined' && window.innerWidth < 760,
-    novaTheme: getNovaTheme(), calmMode: getCalm(),
+    novaTheme: getNovaTheme(), calmMode: getCalm(), coreStyle: getCoreStyle(),
 
     // live-data connection (Settings screen)
     settingsBaseUrl: '', settingsToken: '',
@@ -250,6 +250,10 @@ export default class App extends Component {
   }
   setCalmMode(calm) {
     this.setState({ calmMode: calm }, () => applyAppearance(this.state.novaTheme, this.state.calmMode));
+  }
+  setCoreStyle(core) {
+    saveCoreStyle(core);
+    this.setState({ coreStyle: core });
   }
 
   // ---------- live data (Obsidian + Calendar) ----------

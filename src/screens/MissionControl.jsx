@@ -44,7 +44,7 @@ function Cluster({ v }) {
         base={{ position: 'relative', width: core, height: core, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: 'var(--nv-glow-core)' }}
         hoverStyle={{}}
       >
-        <NovaCore size={core} />
+        <NovaCore size={core} engine={v.coreStyle} />
         {v.coreWaveOn && (
           <div style={{ position: 'absolute', bottom: Math.round(core * 0.19), display: 'flex', gap: '2.5px', alignItems: 'flex-end', height: '12px' }}>
             {[5, 10, 7, 11, 6].map((h, i) => (

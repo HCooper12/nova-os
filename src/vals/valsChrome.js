@@ -1,4 +1,4 @@
-import { NOVA_THEMES } from '../theme.js';
+import { NOVA_THEMES, NOVA_CORES } from '../theme.js';
 import { AGENTS } from './shared.js';
 
 // App chrome: sidebar nav, mobile tabs, per-screen wrappers and grids, the
@@ -130,6 +130,8 @@ export function valsChrome(app, ctx) {
     novaThemeOptions: NOVA_THEMES.map((t) => ({ ...t, active: st.novaTheme === t.value, pick: () => app.setNovaTheme(t.value) })),
     calmMode: st.calmMode,
     toggleCalm: () => app.setCalmMode(!st.calmMode),
+    coreStyle: st.coreStyle,
+    novaCoreOptions: NOVA_CORES.map((c) => ({ ...c, active: st.coreStyle === c.value, pick: () => app.setCoreStyle(c.value) })),
 
     // settings
     isSettings: st.screen === 'settings',

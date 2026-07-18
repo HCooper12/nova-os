@@ -33,7 +33,7 @@ export function Voice({ v }) {
           <div style={css("position:relative;width:300px;height:300px;display:flex;align-items:center;justify-content:center;box-shadow:var(--nv-glow-core);border-radius:50%")}>
             <div style={css("position:absolute;inset:0;border-radius:50%;border:1px dashed rgba(107,229,245,.22);animation:ringSpin 44s linear infinite var(--nv-anim)")}></div>
             <div style={css("position:absolute;inset:24px;border-radius:50%;border:1px solid rgba(107,229,245,.28);border-top-color:rgba(107,229,245,.85);animation:ringSpin 14s linear infinite reverse var(--nv-anim)")}></div>
-            <NovaCore size={252} />
+            <NovaCore size={252} engine={v.coreStyle} />
           </div>
           <div style={css("font:400 10px 'JetBrains Mono',monospace;letter-spacing:.42em;color:rgba(236,229,218,.6)")}>{v.orbCaption}</div>
           {v.micOn && (

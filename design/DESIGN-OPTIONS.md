@@ -216,3 +216,19 @@ Voice (core swapped in), Galaxy, Claude Code, Recipes, Shopping, Train,
 Notes, Journal, Settings connection card, command palette, boot splash.
 Classic Midnight Observatory ships as the "Observatory" theme; the pre-45
 implementation remains recoverable from git history.
+
+## Round 12 — the Hologram core (file 47, July 2026)
+
+Brief: "more 3-D, intricate and animated — closer to the Jarvis references."
+`47-core-hologram.html` studies the shipped Filament beside a new **Hologram**
+engine: true-3D gyroscopic rings (solid/dashed/ticked/doubled) at independent
+tilts and spins with comet trackers trailing fades, a graticule globe carrying
+a fibonacci particle shell, great-circle filament arcs, an inner 3-D ember
+cloud (the hollow-shell lesson, applied in volume), depth fog + perspective,
+twin billboard HUD rings, and the shared breathing heart. Blue kept per the
+identity decision (the references were orange; Nova keeps her color).
+
+**Shipped as a second core style**: Settings → Appearance → NOVA CORE picks
+Hologram (new default) or Filament (the original, fully preserved). The
+choice persists (`novaos.core`); the sidebar's 30px mini stays Filament
+(a hologram is illegible that small). Screenshot: `shots/47-core-study.jpeg`.

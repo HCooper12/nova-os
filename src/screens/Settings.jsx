@@ -89,9 +89,36 @@ export function Settings({ v }) {
           </Interactive>
         ))}
 
+        <div style={css("margin-top:14px;font:500 9.5px 'JetBrains Mono',monospace;letter-spacing:.22em;color:rgba(236,229,218,.45)")}>NOVA CORE</div>
+        {v.novaCoreOptions.map((c) => (
+          <Interactive
+            key={c.value}
+            onClick={c.pick}
+            base={{
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px', borderRadius: '12px',
+              border: c.active ? '1px solid var(--nv-acc-border)' : '1px solid rgba(236,229,218,.1)',
+              background: c.active ? 'var(--nv-acc-bg)' : 'rgba(0,0,0,.2)',
+              boxShadow: c.active ? 'var(--nv-glow-tab)' : 'none',
+            }}
+            hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}
+          >
+            <span style={{ flex: 'none', width: '16px', height: '16px', borderRadius: '50%',
+              border: c.value === 'hologram' ? '1.5px solid #59e6ff' : 'none',
+              background: c.value === 'hologram'
+                ? 'radial-gradient(circle at 50% 50%, #eafcff 0%, rgba(89,230,255,.5) 25%, transparent 60%)'
+                : 'radial-gradient(circle at 40% 35%, #eafcff 0%, #9ef0ff 35%, #37b8de 70%, #0c3550 100%)',
+              transform: c.value === 'hologram' ? 'rotateX(0deg)' : 'none' }}></span>
+            <span style={{ minWidth: 0 }}>
+              <span style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: c.active ? 'var(--nv-acc)' : 'var(--nv-ink)' }}>{c.label}</span>
+              <span style={{ display: 'block', marginTop: '2px', fontSize: '11.5px', color: 'rgba(236,229,218,.5)' }}>{c.hint}</span>
+            </span>
+            {c.active && <span style={{ marginLeft: 'auto', font: "500 9.5px 'JetBrains Mono',monospace", letterSpacing: '.14em', color: 'var(--nv-acc)' }}>ACTIVE</span>}
+          </Interactive>
+        ))}
+
         <Interactive
           onClick={v.toggleCalm}
-          base={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px', borderRadius: '12px', border: '1px solid rgba(236,229,218,.1)', background: 'rgba(0,0,0,.2)' }}
+          base={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px', borderRadius: '12px', border: '1px solid rgba(236,229,218,.1)', background: 'rgba(0,0,0,.2)', marginTop: '14px' }}
           hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}
         >
           <span style={{ minWidth: 0 }}>
