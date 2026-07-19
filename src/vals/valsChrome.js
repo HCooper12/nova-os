@@ -83,7 +83,7 @@ export function valsChrome(app, ctx) {
   const mob = st.isMobile;
   // mobile page padding must clear the fixed top bar (which now grows by the
   // Dynamic Island / status-bar inset) and the bottom nav (+ home indicator)
-  const mp = { padding: 'calc(48px + env(safe-area-inset-top)) 16px calc(60px + env(safe-area-inset-bottom))' };
+  const mp = { padding: 'calc(48px + env(safe-area-inset-top)) 16px calc(46px + env(safe-area-inset-bottom))' };
   const col = (mt) => ({ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: mt });
   const wrapTall = mob ? mp : null;
   // Mobile bottom tabs: EVERY screen, in sidebar order, in a horizontally
