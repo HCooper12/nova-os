@@ -81,7 +81,9 @@ export function valsChrome(app, ctx) {
 
   // responsive
   const mob = st.isMobile;
-  const mp = { padding: '66px 16px 96px' };
+  // mobile page padding must clear the fixed top bar (which now grows by the
+  // Dynamic Island / status-bar inset) and the bottom nav (+ home indicator)
+  const mp = { padding: 'calc(60px + env(safe-area-inset-top)) 16px calc(84px + env(safe-area-inset-bottom))' };
   const col = (mt) => ({ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: mt });
   const wrapTall = mob ? mp : null;
   const tabs = [['I.', 'Home', 'mission'], ['V.', 'Inbox', 'inbox'], ['VIII.', 'To-Do', 'todos'], ['II.', 'Voice', 'voice'], ['IV.', 'Code', 'code'], ['VI.', 'Recipes', 'recipes'], ['VII.', 'Shop', 'shopping'], ['IX.', 'Train', 'workouts'], ['X.', 'Notes', 'notes']].map(t => {
