@@ -12,6 +12,8 @@ const ROUTE_META = {
   food: { label: 'FOOD LOG', hue: '255,122,217' },
   expense: { label: 'EXPENSE', hue: '224,178,106' },
   'money-import': { label: 'LEDGER IMPORT', hue: '224,178,106' },
+  idea: { label: 'IDEA', hue: '143,123,255' },
+  'idea-outline': { label: 'OUTLINE', hue: '143,123,255' },
 };
 
 const MODE_LADDER = [
@@ -30,6 +32,8 @@ function payloadPreview(decision) {
     return `${p.name} — ${m.p}P · ${m.c}C · ${m.f}F · ${m.kcal} kcal`;
   }
   if (decision.route === 'journal') return p.text || '';
+  if (decision.route === 'idea') return `${p.title} — ${p.hook} (${p.format})`;
+  if (decision.route === 'idea-outline') return (p.text || '').slice(0, 200);
   if (decision.route === 'expense') return `${p.merchant} ${p.amount < 0 ? '−' : '+'}$${Math.abs(p.amount).toFixed(2)}${p.category ? ` · ${p.category}` : ''}`;
   if (decision.route === 'money-import') {
     const list = p.transactions || [];
@@ -201,7 +205,7 @@ export function valsInbox(app, ctx) {
     kind: r.kind || null,
     text: r.text,
     time: timeLabel(r.createdAt),
-    source: r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.kind === 'guardian' ? 'GUARDIAN' : r.kind === 'cfo' || r.kind === 'money-import' ? 'CFO' : r.kind === 'meal-prep' ? 'MEAL PREP' : r.kind === 'coach' ? 'COACH' : r.kind === 'research' ? 'RESEARCHER' : r.kind === 'followup' ? 'CALENDAR' : r.source === 'voice' ? 'VOICE' : 'TYPED',
+    source: r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.kind === 'guardian' ? 'GUARDIAN' : r.kind === 'cfo' || r.kind === 'money-import' ? 'CFO' : r.kind === 'meal-prep' ? 'MEAL PREP' : r.kind === 'coach' ? 'COACH' : r.kind === 'research' ? 'RESEARCHER' : r.kind === 'followup' ? 'CALENDAR' : r.kind === 'studio' ? 'STUDIO' : r.source === 'voice' ? 'VOICE' : 'TYPED',
     status: r.status,
     route: r.decision ? (ROUTE_META[r.decision.route] || ROUTE_META.note) : null,
     confidence: r.decision?.confidence || null,

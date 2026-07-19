@@ -5,6 +5,10 @@ import matter from 'gray-matter';
 import { backupFile } from './backup.js';
 import { queueTodoistSync } from './todoistSync.js';
 
+function notifyChange() {
+  import('./events.js').then(({ broadcast }) => broadcast('todos')).catch(() => {});
+}
+
 // The To-Do surface. One source of truth: the vault page Wiki/Inbox/To-Do.md
 // — the same page the inbox 'todo' route files into, Obsidian edits, the
 // compost sweep tidies, and the Todoist sync mirrors. This module is just a
@@ -74,6 +78,7 @@ export async function addTodo(vaultPath, text, category) {
   const raw = await readFile(full, 'utf8');
   await writeFile(full, raw.replace(/\s*$/, '\n') + `- [ ] ${clean} _(added ${todayISO()})_ #${cat}\n`, 'utf8');
   queueTodoistSync(vaultPath);
+  notifyChange();
   return listTodos(vaultPath);
 }
 
@@ -90,6 +95,7 @@ export async function setTodoCategory(vaultPath, rawLine, category) {
   const stripped = rawLine.replace(/\s*#[a-z-]+\s*$/, '');
   await writeFile(full, raw.replace(rawLine, `${stripped} #${category}`), 'utf8');
   queueTodoistSync(vaultPath);
+  notifyChange();
   return listTodos(vaultPath);
 }
 
@@ -107,5 +113,6 @@ export async function toggleTodo(vaultPath, rawLine) {
   const flipped = m[1] === 'x' ? rawLine.replace('- [x]', '- [ ]') : rawLine.replace('- [ ]', '- [x]');
   await writeFile(full, raw.replace(rawLine, flipped), 'utf8');
   queueTodoistSync(vaultPath);
+  notifyChange();
   return listTodos(vaultPath);
 }

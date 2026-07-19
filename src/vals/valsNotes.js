@@ -95,6 +95,13 @@ export function valsNotes(app, ctx) {
     openNoteTypeColor: usingLiveNotes ? (NOTE_TYPE_COLOR[(liveDetail?.type || '').toLowerCase()] || 'var(--nv-ink)') : on.color,
     openNoteMeta: usingLiveNotes ? (liveDetail ? `${liveDetail.date.slice(0, 10).toUpperCase()} · ${liveDetail.backlinks} BACKLINKS` : '') : on.date.toUpperCase(),
     openNoteUrl: usingLiveNotes ? (liveDetail?.url || null) : null,
+    // Studio pipeline controls — only on idea pages
+    openNoteStudio: usingLiveNotes && liveDetail && liveDetail.type === 'idea' ? {
+      status: (liveDetail.status || 'seed').toUpperCase(),
+      advance: () => app.advanceIdeaStatus(st.openNoteId, liveDetail.status || 'seed'),
+      outline: () => app.draftIdeaOutline(st.openNoteId),
+      outlineBusy: !!st.studioOutlineBusy,
+    } : null,
     openNoteParas: usingLiveNotes ? (liveDetail ? liveDetail.paragraphs.map(p => ({ text: p })) : [{ text: 'Loading…' }]) : on.paras.map(p => ({ text: p })),
     openNoteLinks: usingLiveNotes
       ? (liveDetail?.links || []).map(l => ({ label: l.label, go: () => app.selectNote(l.id) }))

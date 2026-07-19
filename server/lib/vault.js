@@ -89,6 +89,7 @@ export class Vault {
       title,
       type,
       tags: frontmatter.tags || [],
+      status: frontmatter.status || null, // pipeline state on Studio ideas
       date,
       url: frontmatter.url || null,
       paragraphs,

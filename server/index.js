@@ -21,6 +21,8 @@ import { loopsRouter } from './routes/loops.js';
 import { todosRouter } from './routes/todos.js';
 import { voiceRouter } from './routes/voice.js';
 import { moneyRouter } from './routes/money.js';
+import { subscribe } from './lib/events.js';
+import { studioRouter } from './routes/studio.js';
 import { startMoneyImportScheduler } from './lib/moneyImport.js';
 import { startCfoScheduler } from './lib/cfoReport.js';
 import { startMealPrepScheduler } from './lib/mealPrep.js';
@@ -89,6 +91,8 @@ async function main() {
   app.use('/api', todosRouter(process.env.VAULT_PATH));
   app.use('/api', voiceRouter(process.env.VAULT_PATH));
   app.use('/api', moneyRouter(process.env.VAULT_PATH));
+  app.get('/api/events', (req, res) => subscribe(res));
+  app.use('/api', studioRouter(process.env.VAULT_PATH));
 
   startHealthInsightScheduler(process.env.VAULT_PATH);
   startDispatchScheduler(process.env.VAULT_PATH);

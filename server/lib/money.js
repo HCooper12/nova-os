@@ -121,6 +121,7 @@ export async function addTransactions(inputs, source) {
     data.transactions.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
     await writeMonth(month, data);
   }
+  if (inserted.length) import('./events.js').then(({ broadcast }) => broadcast('money')).catch(() => {});
   return inserted;
 }
 

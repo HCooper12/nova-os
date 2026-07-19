@@ -71,6 +71,8 @@ async function persist() {
   const tmp = STORE_PATH() + '.tmp';
   await writeFile(tmp, JSON.stringify(cache, null, 2), 'utf8');
   await rename(tmp, STORE_PATH());
+  // every record change is user-visible somewhere — nudge open apps
+  import('./events.js').then(({ broadcast }) => broadcast('inbox')).catch(() => {});
 }
 
 export async function listRecords() {

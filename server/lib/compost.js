@@ -67,6 +67,40 @@ async function persist() {
 
 /* ------------------------------- detectors ------------------------------- */
 
+// Studio's graveyard guard: idea seeds untouched for 30 days deserve one
+// "archive or promote" nudge instead of quietly rotting.
+const SEED_STALE_DAYS = 30;
+async function detectStaleSeeds(vaultPath) {
+  const dir = path.join(vaultPath, 'Wiki/Studio/Ideas');
+  if (!existsSync(dir)) return [];
+  const out = [];
+  const cutoff = Date.now() - SEED_STALE_DAYS * 24 * 60 * 60 * 1000;
+  for (const name of await readdir(dir)) {
+    if (!name.endsWith('.md')) continue;
+    const full = path.join(dir, name);
+    const st = await stat(full);
+    if (st.isDirectory()) continue;
+    let data = {};
+    try {
+      data = matter(await readFile(full, 'utf8')).data || {};
+    } catch {
+      continue;
+    }
+    if (data.type !== 'idea' || data.status !== 'seed') continue;
+    const updatedMs = data.updated ? new Date(data.updated).getTime() : st.mtimeMs;
+    if (updatedMs < cutoff) {
+      out.push({
+        type: 'stale-seed',
+        key: `seed:${name}`,
+        title: name.replace(/\.md$/, ''),
+        detail: `An idea seed untouched since ${data.updated || 'over a month ago'} — archive it, or open it and move it along the pipeline.`,
+        data: { relPath: `Wiki/Studio/Ideas/${name}` },
+      });
+    }
+  }
+  return out;
+}
+
 async function detectStaleCaptures(vaultPath) {
   const dir = path.join(vaultPath, INBOX_DIR_REL);
   if (!existsSync(dir)) return [];
@@ -113,6 +147,7 @@ async function detectOrphans(vaultPath) {
   const orphans = pages.filter((p) =>
     KNOWLEDGE_TYPES.has((p.type || '').toLowerCase())
     && !p.relPath.startsWith(INBOX_DIR_REL)
+    && !p.relPath.startsWith('Wiki/Studio/Ideas') // seeds have their own stale-seed lifecycle
     && (backlinks.get(p.id) || 0) === 0
     && p.links.length === 0);
   return orphans.slice(0, MAX_ORPHANS).map((p) => ({
@@ -147,6 +182,7 @@ export async function runCompost(vaultPath) {
     const found = [
       ...(await detectSweepableTodos(vaultPath)),
       ...(await detectStaleCaptures(vaultPath)),
+      ...(await detectStaleSeeds(vaultPath)),
       ...(await detectOrphans(vaultPath)),
     ];
     const dismissed = new Set(store.dismissedKeys);
@@ -189,11 +225,12 @@ export async function acceptProposal(vaultPath, id) {
     let destination;
     let undoData;
 
-    if (p.type === 'stale-capture') {
+    if (p.type === 'stale-capture' || p.type === 'stale-seed') {
       const from = path.join(vaultPath, p.data.relPath);
       if (!existsSync(from)) throw new Error('that note no longer exists');
-      await mkdir(path.join(vaultPath, ARCHIVE_DIR_REL), { recursive: true });
-      let toRel = `${ARCHIVE_DIR_REL}/${path.basename(p.data.relPath)}`;
+      const archiveRel = p.type === 'stale-seed' ? 'Wiki/Studio/Ideas/Archive' : ARCHIVE_DIR_REL;
+      await mkdir(path.join(vaultPath, archiveRel), { recursive: true });
+      let toRel = `${archiveRel}/${path.basename(p.data.relPath)}`;
       if (existsSync(path.join(vaultPath, toRel))) {
         toRel = toRel.replace(/\.md$/, ` ${Date.now() % 10000}.md`);
       }

@@ -38,6 +38,8 @@ export function healthDataRouter(vaultPath) {
       if (typeof date !== 'string') return res.status(400).json({ error: 'date is required (YYYY-MM-DD)' });
       if (!metrics || typeof metrics !== 'object') return res.status(400).json({ error: 'metrics object is required' });
       const saved = await saveDay(date, metrics);
+      const { broadcast } = await import('../lib/events.js');
+      broadcast('health');
       res.json({ day: saved });
     } catch (err) {
       res.status(400).json({ error: err.message });

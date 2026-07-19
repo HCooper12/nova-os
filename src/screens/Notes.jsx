@@ -45,6 +45,18 @@ export function Notes({ v }) {
           {v.openNoteUrl && (
             <a href={v.openNoteUrl} target="_blank" rel="noopener noreferrer" style={css("margin-top:12px;display:inline-flex;align-items:center;gap:7px;width:fit-content;cursor:pointer;font-size:12px;font-weight:500;padding:7px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);color:var(--nv-cy);background:color-mix(in srgb, var(--nv-cy) 06%, transparent)")}>▶ Watch source</a>
           )}
+          {v.openNoteStudio && (
+            <div style={css("margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap")}>
+              <Interactive as="span" onClick={v.openNoteStudio.advance} title="Advance along the pipeline: seed → outlining → scripting → shipped"
+                base={{ cursor: 'pointer', font: "600 9px 'IBM Plex Mono',monospace", letterSpacing: '.14em', padding: '5px 12px', borderRadius: '6px', color: 'var(--nv-vi)', border: '1px solid color-mix(in srgb, var(--nv-vi) 45%, transparent)', background: 'color-mix(in srgb, var(--nv-vi) 08%, transparent)' }}
+                hoverStyle={{ background: 'color-mix(in srgb, var(--nv-vi) 16%, transparent)' }}
+              >STUDIO · {v.openNoteStudio.status} →</Interactive>
+              <Interactive as="span" onClick={v.openNoteStudio.outlineBusy ? undefined : v.openNoteStudio.outline}
+                base={{ cursor: 'pointer', font: "600 9px 'IBM Plex Mono',monospace", letterSpacing: '.14em', padding: '5px 12px', borderRadius: '6px', color: 'var(--nv-gold)', border: '1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent)', opacity: v.openNoteStudio.outlineBusy ? 0.5 : 1 }}
+                hoverStyle={{ background: 'color-mix(in srgb, var(--nv-gold) 08%, transparent)' }}
+              >{v.openNoteStudio.outlineBusy ? 'DRAFTING…' : 'DRAFT OUTLINE'}</Interactive>
+            </div>
+          )}
           <div style={css("margin-top:20px;max-width:640px;display:flex;flex-direction:column;gap:14px")}>
             {v.openNoteParas.map((p, i) => (
               <p key={i} style={css("margin:0;font-size:14.5px;line-height:1.75;color:color-mix(in srgb, var(--nv-ink) 85%, transparent);text-wrap:pretty")}>{p.text}</p>

@@ -26,7 +26,9 @@ const MAX_BUDGET_USD = '0.5';
 const INBOX_DIR_REL = 'Wiki/Inbox';
 const TODO_REL = 'Wiki/Inbox/To-Do.md';
 
-export const ROUTES = ['shopping', 'journal', 'todo', 'note', 'food', 'expense'];
+export const ROUTES = ['shopping', 'journal', 'todo', 'note', 'food', 'expense', 'idea'];
+export const IDEA_FORMATS = ['short', 'long', 'thread'];
+export const IDEAS_DIR_REL = 'Wiki/Studio/Ideas';
 export const MODES = ['review-all', 'auto-high', 'auto-all'];
 
 function pad(n) {
@@ -47,6 +49,7 @@ Routes and their payloads:
 - "todo" — an action to do later. payload: {"items": [{"text": "short action atom", "category": "..."}]} — imperative, concrete; category exactly one of: personal, work, fitness, errands, later ("later" = ideas/someday items).
 - "journal" — a reflection, feeling, or diary-style thought about the day or life. payload: {"text": "..."} — lightly cleaned (fix dictation stumbles, keep the voice; never invent content).
 - "note" — an idea, insight, or piece of knowledge worth keeping. payload: {"title": "Short Title Case Name", "body": "..."} — cleaned prose, keep the substance intact.
+- "idea" — a CONTENT idea (something Hayden might make: a video, post, thread). payload: {"title": "Short Working Title", "hook": "the one-line hook that makes it worth making", "format": "short"|"long"|"thread" — best guess}. Distinct from "note" (knowledge to keep) — an idea is something to potentially produce.
 - "expense" — money spent (or received) to record in the ledger (e.g. "coffee 6.50", "paid the gym 89 dollars"). payload: {"amount": -6.5, "merchant": "...", "category": "...", "date": "YYYY-MM-DD or omit for today"} — amount NEGATIVE for spending, positive for money in; category exactly one of: ${MONEY_CATEGORIES.join(', ')} (best fit, or omit).
 
 Also output:
@@ -105,6 +108,11 @@ export function normalizeDecision(parsed) {
     const text = String(p.text || '').trim();
     if (!text) throw new Error('classifier returned no journal text');
     payload = { text };
+  } else if (route === 'idea') {
+    const ideaTitle = String(p.title || title).trim().slice(0, 120);
+    const hook = String(p.hook || '').trim().slice(0, 300);
+    if (!ideaTitle || !hook) throw new Error('classifier returned an incomplete idea');
+    payload = { title: ideaTitle, hook, format: IDEA_FORMATS.includes(p.format) ? p.format : 'short' };
   } else if (route === 'expense') {
     const amount = Math.round(Number(p.amount) * 100) / 100;
     const merchant = String(p.merchant || '').trim().slice(0, 120);
@@ -247,6 +255,45 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  if (route === 'idea') {
+    // Studio seed: its own page under Wiki/Studio/Ideas with a status
+    // pipeline the board reads (seed → outlining → scripting → shipped)
+    const base = sanitizeFilename(payload.title);
+    let relPath = `${IDEAS_DIR_REL}/${base}.md`;
+    if (existsSync(path.join(vaultPath, relPath))) {
+      relPath = `${IDEAS_DIR_REL}/${base} ${Date.now() % 10000}.md`;
+    }
+    const full = path.join(vaultPath, relPath);
+    await mkdir(path.dirname(full), { recursive: true });
+    const content = matter.stringify(`# ${payload.title}\n\n**Hook:** ${payload.hook}\n`, {
+      type: 'idea',
+      status: 'seed',
+      format: payload.format,
+      created: date,
+      updated: date,
+    });
+    await writeFile(full, content, 'utf8');
+    const hash = createHash('sha256').update(content).digest('hex');
+    return {
+      destination: `Studio — ${payload.title} (seed, ${payload.format})`,
+      undo: { route: 'note', relPath, hash }, // same hash-checked delete as notes
+    };
+  }
+
+  if (route === 'idea-outline') {
+    // Studio's drafted outline, approved → appended to the idea page
+    const full = path.join(vaultPath, payload.relPath);
+    if (!existsSync(full)) throw new Error('that idea page no longer exists');
+    await backupFile(full);
+    const raw = await readFile(full, 'utf8');
+    const block = `\n## Outline (drafted ${date})\n\n${payload.text.trim()}\n`;
+    await writeFile(full, raw.replace(/\s*$/, '\n') + block, 'utf8');
+    return {
+      destination: `Outline appended — ${path.basename(payload.relPath, '.md')}`,
+      undo: { route: 'idea-outline', relPath: payload.relPath, block },
+    };
+  }
+
   // note
   const base = sanitizeFilename(payload.title);
   let relPath = `${INBOX_DIR_REL}/${base}.md`;
@@ -302,6 +349,15 @@ export async function undoFiling(vaultPath, undo) {
     if (!removed) throw new Error('those to-do lines have been edited or checked off since');
     await writeFile(full, raw, 'utf8');
     return `removed ${removed} to-do line${removed === 1 ? '' : 's'}`;
+  }
+  if (undo.route === 'idea-outline') {
+    const full = path.join(vaultPath, undo.relPath);
+    if (!existsSync(full)) throw new Error('that idea page no longer exists');
+    const raw = await readFile(full, 'utf8');
+    if (!raw.includes(undo.block)) throw new Error('the outline was edited since — remove it by hand in Obsidian');
+    await backupFile(full);
+    await writeFile(full, raw.replace(undo.block, '\n'), 'utf8');
+    return 'removed the appended outline';
   }
   if (undo.route === 'expense' || undo.route === 'money-import') {
     if (!undo.ids.length) throw new Error('this filing added nothing (it was a duplicate) — there is nothing to undo');

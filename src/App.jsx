@@ -207,9 +207,17 @@ export default class App extends Component {
     Promise.all([minBootTime, dataReady]).then(() => this.setState({ booted: true }));
     // Keep live data fresh: re-sync when the tab regains focus (the common
     // "reopen the PWA on the phone" path) and on a slow background cadence.
-    this.visH = () => { if (document.visibilityState === 'visible' && getConnection()) this.refreshLiveData(); };
+    this.visH = () => {
+      if (document.visibilityState === 'visible' && getConnection()) {
+        this.refreshLiveData();
+        this.startEventStream();
+      } else {
+        this.stopEventStream(); // save battery while backgrounded
+      }
+    };
     document.addEventListener('visibilitychange', this.visH);
     this.refreshIv = setInterval(() => { if (getConnection()) this.refreshLiveData(); }, 5 * 60_000);
+    this.startEventStream();
     // Back/forward navigation re-derives the screen from the hash.
     this.popH = () => this.setState({ screen: screenFromHash() });
     window.addEventListener('popstate', this.popH);
@@ -288,6 +296,48 @@ export default class App extends Component {
   // last-known value (in-memory or hydrated from the cache) stays visible and
   // the connection banner reports the outage; falling back to demo data would
   // silently show fiction. Runs all fetches in parallel.
+  // The live wire: hold a streaming /api/events response open and re-sync
+  // the moment the server announces a change (health push, filing, brief).
+  // fetch + reader because EventSource can't carry the Bearer header.
+  startEventStream() {
+    const conn = getConnection();
+    if (!conn || this.eventAbort || document.visibilityState !== 'visible') return;
+    const abort = new AbortController();
+    this.eventAbort = abort;
+    fetch(conn.baseUrl.replace(/\/$/, '') + '/api/events', {
+      headers: { Authorization: `Bearer ${conn.token}` },
+      signal: abort.signal,
+    }).then(async (res) => {
+      if (!res.ok || !res.body) throw new Error('stream unavailable');
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (!decoder.decode(value, { stream: true }).includes('data:')) continue;
+        const now = Date.now();
+        if (now - (this.lastEventRefresh || 0) > 3000) {
+          this.lastEventRefresh = now;
+          this.refreshLiveData();
+        }
+      }
+      throw new Error('stream ended');
+    }).catch(() => {
+      if (this.eventAbort !== abort) return; // deliberately stopped
+      this.eventAbort = null;
+      // reconnect with backoff while visible
+      clearTimeout(this.eventRetryT);
+      this.eventRetryT = setTimeout(() => this.startEventStream(), 15_000);
+    });
+  }
+  stopEventStream() {
+    clearTimeout(this.eventRetryT);
+    if (this.eventAbort) {
+      const a = this.eventAbort;
+      this.eventAbort = null;
+      a.abort();
+    }
+  }
   async refreshLiveData() {
     const conn = getConnection();
     if (!conn) return;
@@ -1223,6 +1273,36 @@ export default class App extends Component {
       if (count > 0) navigator.setAppBadge(count).catch(() => {});
       else navigator.clearAppBadge().catch(() => {});
     } catch { /* unsupported */ }
+  }
+  advanceIdeaStatus(id, current) {
+    const conn = getConnection();
+    if (!conn) return;
+    const STATUSES = ['seed', 'outlining', 'scripting', 'shipped'];
+    const next = STATUSES[(STATUSES.indexOf(current) + 1) % STATUSES.length];
+    api.studioSetStatus(conn, id, next).then(() => {
+      this.toastMsg(`Idea moved to ${next.toUpperCase()}`);
+      this.refreshNoteDetail(id);
+    }).catch((e) => this.toastMsg(e.message));
+  }
+  refreshNoteDetail(id) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.noteDetail(conn, id).then((detail) => {
+      this.setState((s) => ({ liveNoteDetails: { ...s.liveNoteDetails, [id]: detail } }));
+    }).catch(() => {});
+  }
+  draftIdeaOutline(id) {
+    const conn = getConnection();
+    if (!conn || this.state.studioOutlineBusy) return;
+    this.setState({ studioOutlineBusy: true });
+    api.studioOutline(conn, id).then(() => {
+      this.setState({ studioOutlineBusy: false });
+      this.toastMsg('Studio is drafting — the outline lands in the Inbox for review');
+      this.refreshInbox();
+    }).catch((e) => {
+      this.setState({ studioOutlineBusy: false });
+      this.toastMsg('Outline failed to start: ' + e.message);
+    });
   }
   answerFollowupDone(label, time, key) {
     const conn = getConnection();

@@ -42,6 +42,7 @@ export function notesRouter(vault) {
         title: page.title,
         type: page.type,
         tags: page.tags,
+        status: page.status,
         date: page.date,
         url: page.url,
         paragraphs: page.paragraphs,
