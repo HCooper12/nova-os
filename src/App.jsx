@@ -13,12 +13,14 @@ import { valsNotes } from './vals/valsNotes.js';
 import { valsMisc } from './vals/valsMisc.js';
 import { valsInbox } from './vals/valsInbox.js';
 import { valsTodos } from './vals/valsTodos.js';
+import { valsMoney } from './vals/valsMoney.js';
 import { valsMission } from './vals/valsMission.js';
 import { valsChrome } from './vals/valsChrome.js';
 import { Sidebar } from './Sidebar.jsx';
 import { MissionControl } from './screens/MissionControl.jsx';
 import { Inbox } from './screens/Inbox.jsx';
 import { Todos } from './screens/Todos.jsx';
+import { Money } from './screens/Money.jsx';
 import { Voice } from './screens/Voice.jsx';
 import { Galaxy } from './screens/Galaxy.jsx';
 import { Recipes } from './screens/Recipes.jsx';
@@ -49,7 +51,7 @@ const WAKE_WORD = true;
 
 // Hash-routed screens (#/recipes etc.) so deep links and the back button work
 // on GitHub Pages without a server-side router.
-const SCREENS = ['mission', 'inbox', 'voice', 'galaxy', 'code', 'recipes', 'shopping', 'todos', 'workouts', 'notes', 'journal', 'settings'];
+const SCREENS = ['mission', 'inbox', 'voice', 'galaxy', 'code', 'recipes', 'shopping', 'todos', 'workouts', 'notes', 'journal', 'money', 'settings'];
 function screenFromHash() {
   const h = (typeof window !== 'undefined' ? window.location.hash : '').replace(/^#\/?/, '');
   return SCREENS.includes(h) ? h : 'mission';
@@ -64,7 +66,7 @@ const CACHED_LIVE_KEYS = [
   'liveFoodLog', 'liveShoppingList', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
   'liveWorkoutExercises', 'liveWorkoutMuscleGroups', 'liveWorkoutTrackingTypes',
   'liveWorkoutRoutines', 'liveWorkoutSchedule', 'liveWorkoutWeekdays', 'liveWorkoutProgressions',
-  'liveJournalEntries', 'liveGraph', 'liveInbox', 'liveDispatch', 'liveCompost', 'liveTodoist', 'liveTodos', 'liveGuardian',
+  'liveJournalEntries', 'liveGraph', 'liveInbox', 'liveDispatch', 'liveCompost', 'liveTodoist', 'liveTodos', 'liveGuardian', 'liveMoney',
 ];
 
 const INBOX_MODE_KEY = 'novaos.inboxMode';
@@ -127,6 +129,8 @@ export default class App extends Component {
     liveDispatch: null, liveCompost: null, liveTodoist: null, liveTodos: null, liveGuardian: null,
     dispatchBusy: false, compostBusy: false, compostActionBusy: {}, todoistBusy: false, guardianBusy: false,
     todoInput: '', todoActionBusy: false,
+    liveMoney: null, moneyBusy: false, moneyScanBusy: false, moneyScanError: null, moneyScanQuestion: null,
+    moneyAddMerchant: '', moneyAddAmount: '', moneyAddIsSpend: true, moneyEditCategoryId: null,
     sparBusy: false,
 
     // live-data connection (Settings screen)
@@ -328,6 +332,7 @@ export default class App extends Component {
       async () => this.setState({ liveTodos: await api.todos(conn) }),
       async () => this.setState({ liveGuardian: await api.guardian(conn) }),
       async () => this.setState({ liveTts: await api.ttsStatus(conn) }),
+      async () => this.setState({ liveMoney: await api.money(conn) }),
     ];
     this.refreshInFlight = (async () => {
       const results = await Promise.allSettled(tasks.map((t) => t()));
@@ -1238,6 +1243,124 @@ export default class App extends Component {
       this.toastMsg('Todoist sync failed: ' + e.message);
     });
   }
+  refreshMoney(month) {
+    const conn = getConnection();
+    if (!conn) return Promise.resolve();
+    return api.money(conn, month).then((data) => this.setState({ liveMoney: data })).catch(() => {});
+  }
+  setMoneyMonth(month) {
+    this.refreshMoney(month);
+  }
+  submitMoneyAdd() {
+    const conn = getConnection();
+    const merchant = this.state.moneyAddMerchant.trim();
+    const raw = Number(this.state.moneyAddAmount);
+    if (!conn || !merchant || !Number.isFinite(raw) || raw === 0 || this.state.moneyBusy) return;
+    const amount = this.state.moneyAddIsSpend ? -Math.abs(raw) : Math.abs(raw);
+    this.setState({ moneyBusy: true });
+    api.moneyAdd(conn, { merchant, amount }).then(() => {
+      this.setState({ moneyBusy: false, moneyAddMerchant: '', moneyAddAmount: '' });
+      this.refreshMoney(this.state.liveMoney?.month);
+    }).catch((e) => {
+      this.setState({ moneyBusy: false });
+      this.toastMsg('Could not add: ' + e.message);
+    });
+  }
+  removeMoneyTransaction(id) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.moneyRemove(conn, id).then(() => this.refreshMoney(this.state.liveMoney?.month))
+      .catch((e) => this.toastMsg('Could not remove: ' + e.message));
+  }
+  setMoneyCategory(id, category) {
+    const conn = getConnection();
+    if (!conn) return;
+    this.setState({ moneyEditCategoryId: null });
+    api.moneyCategory(conn, id, category).then(() => this.refreshMoney(this.state.liveMoney?.month))
+      .catch((e) => this.toastMsg('Could not recategorise: ' + e.message));
+  }
+  setMoneyBudget(category, amount) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.moneyBudget(conn, category, amount).then(() => this.refreshMoney(this.state.liveMoney?.month))
+      .catch((e) => this.toastMsg('Budget failed: ' + e.message));
+  }
+  runMoneyImportNow() {
+    const conn = getConnection();
+    if (!conn || this.state.moneyBusy) return;
+    this.setState({ moneyBusy: true });
+    api.moneyImportRun(conn).then(({ records }) => {
+      this.setState({ moneyBusy: false });
+      this.refreshInbox();
+      const pending = (records || []).filter((r) => r.status === 'pending').length;
+      this.toastMsg(pending ? `${pending} import${pending === 1 ? '' : 's'} drafted — waiting in the Inbox` : 'Imports folder checked — nothing new');
+    }).catch((e) => {
+      this.setState({ moneyBusy: false });
+      this.toastMsg('Import scan failed: ' + e.message);
+    });
+  }
+  cfoReportNow() {
+    const conn = getConnection();
+    if (!conn || this.state.moneyBusy) return;
+    this.setState({ moneyBusy: true });
+    api.moneyReport(conn).then((res) => {
+      this.setState({ moneyBusy: false });
+      if (res.skipped) this.toastMsg('This month’s CFO report is already on the rails');
+      else { this.toastMsg('CFO report drafted — waiting in the Inbox'); this.refreshInbox(); }
+    }).catch((e) => {
+      this.setState({ moneyBusy: false });
+      this.toastMsg('Report failed: ' + e.message);
+    });
+  }
+  onStatementScanFiles(fileList) {
+    const conn = getConnection();
+    if (!conn) return;
+    const files = Array.from(fileList || []).slice(0, 3);
+    if (!files.length) return;
+    this.setState({ moneyScanBusy: true, moneyScanError: null, moneyScanQuestion: null });
+    Promise.all(files.map((f) => this.readFileAsDataUrl(f)))
+      .then((images) => api.moneyScanStatement(conn, images, ''))
+      .then(({ jobId }) => {
+        this.startPoll('moneyScan', () => api.moneyScanJob(conn, jobId), {
+          timeoutMs: 3 * 60_000,
+          onReady: (job) => {
+            const r = job.result;
+            if (!r.transactions.length) {
+              this.setState({ moneyScanBusy: false, moneyScanError: r.question || 'No transactions found in the photo' });
+              return;
+            }
+            // put the extracted lines on the rails as a pending money-import
+            api.moneyScanFile(getConnection(), r.transactions).then(({ record, duplicates }) => {
+              this.setState({ moneyScanBusy: false, moneyScanQuestion: r.confidence === 'low' && r.question ? r.question : null });
+              this.refreshInbox();
+              this.toastMsg(record
+                ? `${record.decision.payload.transactions.length} transaction${record.decision.payload.transactions.length === 1 ? '' : 's'} drafted — review in the Inbox`
+                : `All ${duplicates} already in the ledger — nothing to file`);
+            }).catch((e) => this.setState({ moneyScanBusy: false, moneyScanError: e.message }));
+          },
+          onError: (msg) => this.setState({ moneyScanBusy: false, moneyScanError: msg }),
+        });
+      })
+      .catch((e) => this.setState({ moneyScanBusy: false, moneyScanError: e.message }));
+  }
+  downloadMoneyExport(fy) {
+    const conn = getConnection();
+    if (!conn) return;
+    fetch(`${conn.baseUrl.replace(/\/$/, '')}/api/money/export/${fy}`, { headers: { Authorization: `Bearer ${conn.token}` } })
+      .then((res) => {
+        if (!res.ok) throw new Error(`export failed: ${res.status}`);
+        const name = (res.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/)?.[1] || `nova-money-fy${fy}.csv`;
+        return res.blob().then((blob) => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = name;
+          a.click();
+          URL.revokeObjectURL(url);
+        });
+      })
+      .catch((e) => this.toastMsg('Export failed: ' + e.message));
+  }
   runGuardianNow() {
     const conn = getConnection();
     if (!conn || this.state.guardianBusy) return;
@@ -1482,6 +1605,7 @@ export default class App extends Component {
       ...valsMisc(this, ctx),
       ...valsInbox(this, ctx),
       ...valsTodos(this, ctx),
+      ...valsMoney(this, ctx),
       ...valsMission(this, ctx),
       ...valsChrome(this, ctx),
     };
@@ -1636,6 +1760,7 @@ export default class App extends Component {
             {v.isWorkouts && <Workouts v={v} />}
             {v.isNotes && <Notes v={v} />}
             {v.isJournal && <Journal v={v} />}
+            {v.isMoney && <Money v={v} />}
             {v.isSettings && <Settings v={v} />}
           </main>
         </div>

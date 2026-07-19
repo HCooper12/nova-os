@@ -180,6 +180,19 @@ async function composeMorning(vaultPath, now) {
     lines.push('**Training.** Schedule unavailable.');
   }
 
+  // money (only when something needs eyes — silence is the CFO's success state)
+  try {
+    const { detectSubscriptions, listTransactions } = await import('./money.js');
+    const subs = detectSubscriptions(await listTransactions({ sinceMonths: 13 }));
+    const soon = subs.filter((s) => {
+      const days = Math.round((new Date(s.nextExpected) - now) / 86400000);
+      return days >= 0 && days <= 3;
+    });
+    if (soon.length) {
+      lines.push(`**Money.** ${soon.map((s) => `${s.merchant} ~$${s.amount.toFixed(0)} expected ${s.nextExpected === todayISO(now) ? 'today' : s.nextExpected}`).join(' · ')}.`);
+    }
+  } catch { /* optional */ }
+
   try {
     const streaks = await streakLine(vaultPath);
     if (streaks) lines.push(streaks);
@@ -335,6 +348,16 @@ async function composeWeekly(vaultPath, now) {
       const names = pages.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3).map((p) => p.title);
       lines.push(`**Vault.** ${pages.length} page${pages.length === 1 ? '' : 's'} touched this week — latest: ${names.join(', ')}.`);
     }
+  } catch { /* optional */ }
+
+  // money: spend this week vs last (only once the ledger has data)
+  try {
+    const { listTransactions } = await import('./money.js');
+    const txns = await listTransactions({ sinceMonths: 2 });
+    const spend = (from, to) => Math.round(txns.filter((t) => t.amount < 0 && inWeek(t.date, from, to)).reduce((s, t) => s - t.amount, 0));
+    const week = spend(thisMon);
+    const prev = spend(lastMon, thisMon);
+    if (week || prev) lines.push(`**Money.** $${week} spent this week (last week $${prev}).`);
   } catch { /* optional */ }
 
   // inbox throughput

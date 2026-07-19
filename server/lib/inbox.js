@@ -7,6 +7,8 @@ import { randomUUID, createHash } from 'node:crypto';
 import matter from 'gray-matter';
 import { backupFile } from './backup.js';
 import { queueTodoistSync } from './todoistSync.js';
+import { addTransactions, removeTransactions, CATEGORIES as MONEY_CATEGORIES } from './money.js';
+import { archiveImportFile } from './moneyImport.js';
 import { createRecord, updateRecord, getRecord } from './inboxStore.js';
 import { addItemsDirect, removeItems, SHOPPING_CATEGORIES } from './shoppingList.js';
 import * as journal from './journal.js';
@@ -23,7 +25,7 @@ const MAX_BUDGET_USD = '0.5';
 const INBOX_DIR_REL = 'Wiki/Inbox';
 const TODO_REL = 'Wiki/Inbox/To-Do.md';
 
-export const ROUTES = ['shopping', 'journal', 'todo', 'note', 'food'];
+export const ROUTES = ['shopping', 'journal', 'todo', 'note', 'food', 'expense'];
 export const MODES = ['review-all', 'auto-high', 'auto-all'];
 
 function pad(n) {
@@ -44,6 +46,7 @@ Routes and their payloads:
 - "todo" — an action to do later. payload: {"items": ["short action atom", ...]} — imperative, concrete.
 - "journal" — a reflection, feeling, or diary-style thought about the day or life. payload: {"text": "..."} — lightly cleaned (fix dictation stumbles, keep the voice; never invent content).
 - "note" — an idea, insight, or piece of knowledge worth keeping. payload: {"title": "Short Title Case Name", "body": "..."} — cleaned prose, keep the substance intact.
+- "expense" — money spent (or received) to record in the ledger (e.g. "coffee 6.50", "paid the gym 89 dollars"). payload: {"amount": -6.5, "merchant": "...", "category": "...", "date": "YYYY-MM-DD or omit for today"} — amount NEGATIVE for spending, positive for money in; category exactly one of: ${MONEY_CATEGORIES.join(', ')} (best fit, or omit).
 
 Also output:
 - "title": a short label for the history list (≤ 8 words)
@@ -94,6 +97,17 @@ export function normalizeDecision(parsed) {
     const text = String(p.text || '').trim();
     if (!text) throw new Error('classifier returned no journal text');
     payload = { text };
+  } else if (route === 'expense') {
+    const amount = Math.round(Number(p.amount) * 100) / 100;
+    const merchant = String(p.merchant || '').trim().slice(0, 120);
+    if (!Number.isFinite(amount) || amount === 0) throw new Error('classifier returned no usable amount');
+    if (!merchant) throw new Error('classifier returned no merchant');
+    payload = {
+      amount,
+      merchant,
+      category: MONEY_CATEGORIES.includes(p.category) ? p.category : undefined,
+      date: /^\d{4}-\d{2}-\d{2}$/.test(p.date || '') ? p.date : undefined,
+    };
   } else {
     const noteTitle = String(p.title || title).trim().slice(0, 120) || 'Captured Note';
     const body = String(p.body || '').trim();
@@ -197,6 +211,31 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  if (route === 'expense') {
+    const [added] = await addTransactions([payload], source === 'inbox' ? 'capture' : source);
+    if (!added) {
+      // the exact same day+amount+merchant is already in the ledger
+      return { destination: 'Ledger — already recorded (duplicate, nothing added)', undo: { route, ids: [] } };
+    }
+    const sign = added.amount < 0 ? `-$${Math.abs(added.amount).toFixed(2)}` : `+$${added.amount.toFixed(2)}`;
+    return {
+      destination: `Ledger — ${added.merchant} ${sign} (${added.category})`,
+      undo: { route, ids: [added.id] },
+    };
+  }
+
+  if (route === 'money-import') {
+    const added = await addTransactions(payload.transactions, 'import');
+    if (payload.file) await archiveImportFile(vaultPath, payload.file).catch(() => {});
+    const spend = Math.round(added.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0));
+    return {
+      destination: added.length
+        ? `Ledger — ${added.length} transaction${added.length === 1 ? '' : 's'} imported (~$${spend} spend)`
+        : 'Ledger — all already recorded (duplicates, nothing added)',
+      undo: { route, ids: added.map((t) => t.id) },
+    };
+  }
+
   // note
   const base = sanitizeFilename(payload.title);
   let relPath = `${INBOX_DIR_REL}/${base}.md`;
@@ -252,6 +291,12 @@ export async function undoFiling(vaultPath, undo) {
     if (!removed) throw new Error('those to-do lines have been edited or checked off since');
     await writeFile(full, raw, 'utf8');
     return `removed ${removed} to-do line${removed === 1 ? '' : 's'}`;
+  }
+  if (undo.route === 'expense' || undo.route === 'money-import') {
+    if (!undo.ids.length) throw new Error('this filing added nothing (it was a duplicate) — there is nothing to undo');
+    const removed = await removeTransactions(undo.ids);
+    if (!removed) throw new Error('those ledger entries are no longer there');
+    return `removed ${removed} ledger ${removed === 1 ? 'entry' : 'entries'} (an archived import CSV stays in Money/Imports/Processed)`;
   }
   if (undo.route === 'note') {
     const full = path.join(vaultPath, undo.relPath);

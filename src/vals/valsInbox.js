@@ -10,6 +10,8 @@ const ROUTE_META = {
   todo: { label: 'TO-DO', hue: '89,230,255' },
   note: { label: 'NOTE', hue: '224,178,106' },
   food: { label: 'FOOD LOG', hue: '255,122,217' },
+  expense: { label: 'EXPENSE', hue: '224,178,106' },
+  'money-import': { label: 'LEDGER IMPORT', hue: '224,178,106' },
 };
 
 const MODE_LADDER = [
@@ -28,6 +30,12 @@ function payloadPreview(decision) {
     return `${p.name} — ${m.p}P · ${m.c}C · ${m.f}F · ${m.kcal} kcal`;
   }
   if (decision.route === 'journal') return p.text || '';
+  if (decision.route === 'expense') return `${p.merchant} ${p.amount < 0 ? '−' : '+'}$${Math.abs(p.amount).toFixed(2)}${p.category ? ` · ${p.category}` : ''}`;
+  if (decision.route === 'money-import') {
+    const list = p.transactions || [];
+    const shown = list.slice(0, 4).map((t) => `${t.merchant} ${t.amount < 0 ? '−' : '+'}$${Math.abs(t.amount).toFixed(2)}`).join(' · ');
+    return list.length > 4 ? `${shown} · +${list.length - 4} more` : shown;
+  }
   return `${p.title || ''} — ${p.body || ''}`;
 }
 
@@ -152,7 +160,7 @@ export function valsInbox(app, ctx) {
     kind: r.kind || null,
     text: r.text,
     time: timeLabel(r.createdAt),
-    source: r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.kind === 'guardian' ? 'GUARDIAN' : r.source === 'voice' ? 'VOICE' : 'TYPED',
+    source: r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.kind === 'guardian' ? 'GUARDIAN' : r.kind === 'cfo' || r.kind === 'money-import' ? 'CFO' : r.source === 'voice' ? 'VOICE' : 'TYPED',
     status: r.status,
     route: r.decision ? (ROUTE_META[r.decision.route] || ROUTE_META.note) : null,
     confidence: r.decision?.confidence || null,

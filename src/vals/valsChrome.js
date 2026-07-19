@@ -33,7 +33,8 @@ export function valsChrome(app, ctx) {
     { icon: 'IX.', iconColor: 'var(--nv-gold)', label: 'Train — workouts', hint: 'GO', run: go('workouts') },
     { icon: 'X.', iconColor: 'var(--nv-gold)', label: 'Notes', hint: 'GO', run: go('notes') },
     { icon: 'XI.', iconColor: 'var(--nv-gold)', label: 'Journal', hint: 'GO', run: go('journal') },
-    { icon: 'XII.', iconColor: 'var(--nv-gold)', label: 'Settings', hint: 'GO', run: go('settings') },
+    { icon: 'XII.', iconColor: 'var(--nv-gold)', label: 'Money — the CFO', hint: 'GO', run: go('money') },
+    { icon: 'XIII.', iconColor: 'var(--nv-gold)', label: 'Settings', hint: 'GO', run: go('settings') },
     // the scripted "Nova actions" only exist in demo mode — in live mode the
     // palette offers nothing it can't really do
     ...(demoMode ? [
@@ -95,6 +96,7 @@ export function valsChrome(app, ctx) {
     wrapRecipes: mob ? mp : { padding: '28px 40px 44px' },
     wrapShopping: mob ? mp : { padding: '28px 40px 44px' },
     wrapTodos: mob ? mp : { padding: '28px 40px 44px', maxWidth: '860px' },
+    wrapMoney: mob ? mp : { padding: '28px 40px 44px', maxWidth: '1080px' },
     wrapWorkouts: mob ? mp : { padding: '28px 40px 44px' },
     wrapCode: wrapTall || { padding: '28px 40px 44px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
     wrapNotes: wrapTall || { padding: '28px 40px 44px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
@@ -132,8 +134,9 @@ export function valsChrome(app, ctx) {
       Object.assign(mkNav('Train', 'IX.', 'workouts'), { count: usingLiveWorkouts ? String(liveRoutines.length) : '—' }),
       Object.assign(mkNav('Notes', 'X.', 'notes'), { count: usingLiveNotes ? String(st.liveNotes.length) : demoMode ? String(app.notes.length) : '—' }),
       Object.assign(mkNav('Journal', 'XI.', 'journal'), { count: st.liveJournalEntries ? String(journalDays.length) : demoMode ? '0' : '—' }),
+      mkNav('Money', 'XII.', 'money'),
     ],
-    navSystem: [mkNav('Settings', 'XII.', 'settings')],
+    navSystem: [mkNav('Settings', 'XIII.', 'settings')],
     agentsGroupLabel: `AGENTS · ${agentsLiveCount} OF ${AGENTS.length} LIVE`,
     agents: AGENTS.map((a, i) => ({
       name: a.name, role: a.role, on: a.on,

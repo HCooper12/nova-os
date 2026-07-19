@@ -14,7 +14,7 @@ export const mono = "'IBM Plex Mono',monospace";
 export const AGENTS = [
   { name: 'Commander', role: 'PLANNING', on: true },
   { name: 'Coach', role: 'FITNESS', on: true },
-  { name: 'CFO', role: 'MONEY', on: false },
+  { name: 'CFO', role: 'MONEY', on: true },
   { name: 'Studio', role: 'CONTENT', on: false },
   { name: 'Researcher', role: 'WEB', on: false },
   { name: 'Guardian', role: 'BACKUPS', on: true },

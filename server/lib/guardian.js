@@ -148,7 +148,7 @@ async function checkStores() {
 // The loops themselves: every scheduler stamps data/heartbeat.json on each
 // tick; a stamp far past its cadence means a loop silently stalled — the
 // failure class nothing else would surface.
-const LOOP_CADENCE_HOURS = { dispatch: 2, todoist: 2, compost: 26, guardian: 26 };
+const LOOP_CADENCE_HOURS = { dispatch: 2, todoist: 2, compost: 26, guardian: 26, money: 2 };
 
 async function checkLoops() {
   const beats = await readHeartbeats();
