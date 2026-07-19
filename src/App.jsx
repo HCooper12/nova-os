@@ -121,6 +121,8 @@ export default class App extends Component {
     paletteOpen: false, paletteQuery: '', recallResults: [],
     micOn: true, orbInput: '',
     voiceChat: [], voiceBusy: false, voiceSpeaking: false, liveTts: null,
+    voiceSessionId: typeof localStorage === 'undefined' ? null : (localStorage.getItem('novaos.voiceSession') || null),
+    coachSessionId: typeof localStorage === 'undefined' ? null : (localStorage.getItem('novaos.coachSession') || null),
     voiceSpeak: typeof localStorage === 'undefined' ? true : localStorage.getItem('novaos.voiceSpeak') !== '0',
     voiceVoiceId: typeof localStorage === 'undefined' ? '' : (localStorage.getItem('novaos.voiceId') || ''),
     orbChat: [
@@ -132,7 +134,11 @@ export default class App extends Component {
     recipeAltSelected: null,
     recipeTweakInput: '', recipeTweakBusy: false, recipeTweakError: null, recipeTweakPreview: null,
     coachInput: '', planNote: null,
-    coachChat: [{ who: 'coach', text: "Push day is set — 6 lifts, ~42 minutes. Bench is at 82.5 kg; if bar speed holds on set two, we take the PR single. Ask me for any changes." }],
+    // the scripted opener is demo fiction — a live backend starts the real
+    // coach conversation clean
+    coachChat: (typeof localStorage !== 'undefined' && localStorage.getItem('novaos.connection'))
+      ? []
+      : [{ who: 'coach', text: "Push day is set — 6 lifts, ~42 minutes. Bench is at 82.5 kg; if bar speed holds on set two, we take the PR single. Ask me for any changes." }],
     plan: null,
     codeInput: '', codeBusy: false,
     codeChat: [],
@@ -159,7 +165,7 @@ export default class App extends Component {
     liveWorkoutGoals: null, goalsEditing: false, goalsDraft: { goal: '', focus: '', daysPerWeek: '', notes: '' }, coachBusy: false,
     mealPrepBusy: false,
     quickMinutes: '45', quickNote: '', quickBusy: false, quickPlan: null,
-    liveBackups: null, restoreConfirm: null,
+    liveBackups: null, restoreConfirm: null, pushState: 'checking',
     // an in-progress workout must survive tab reclaim / refresh / app kill —
     // restored from device storage at boot (see restoreActiveSession)
     ...restoreActiveSession(),
@@ -238,6 +244,7 @@ export default class App extends Component {
     if (this.state.restoredSession) {
       setTimeout(() => this.toastMsg('Restored your in-progress workout — nothing was lost'), 1200);
     }
+    this.checkPushState();
     // Keep live data fresh: re-sync when the tab regains focus (the common
     // "reopen the PWA on the phone" path) and on a slow background cadence.
     this.visH = () => {
@@ -1628,6 +1635,49 @@ export default class App extends Component {
       this.toastMsg('Guardian run failed: ' + e.message);
     });
   }
+  // Web Push: real notifications on the installed PWA (mirrors to the Watch)
+  async enablePushNotifications() {
+    const conn = getConnection();
+    if (!conn) return;
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        this.toastMsg('This browser can\'t do push — install Nova to the Home Screen from Safari first');
+        return;
+      }
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        this.toastMsg('Notifications were declined — enable them in iOS Settings → Nova');
+        this.setState({ pushState: 'denied' });
+        return;
+      }
+      const reg = await navigator.serviceWorker.ready;
+      const { key } = await api.pushKey(conn);
+      const subscription = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+      await api.pushSubscribe(conn, subscription.toJSON());
+      this.setState({ pushState: 'on' });
+      this.toastMsg('Notifications are on — drafts and alerts reach your phone (and Watch)');
+    } catch (e) {
+      this.toastMsg('Push setup failed: ' + e.message);
+    }
+  }
+  async checkPushState() {
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return this.setState({ pushState: 'unsupported' });
+      if (Notification.permission === 'denied') return this.setState({ pushState: 'denied' });
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      this.setState({ pushState: sub ? 'on' : 'off' });
+    } catch {
+      this.setState({ pushState: 'unsupported' });
+    }
+  }
+  testPush() {
+    const conn = getConnection();
+    if (!conn) return;
+    api.pushTest(conn).then(({ sent }) => {
+      this.toastMsg(sent ? `Test sent to ${sent} device${sent === 1 ? '' : 's'} — check the lock screen` : 'No devices subscribed yet — tap ENABLE first');
+    }).catch((e) => this.toastMsg('Test failed: ' + e.message));
+  }
   loadBackups() {
     const conn = getConnection();
     if (!conn) return;
@@ -1934,14 +1984,18 @@ export default class App extends Component {
   askNova(question) {
     const conn = getConnection();
     if (!conn || this.state.voiceBusy) return;
-    const history = this.state.voiceChat.filter((m) => m.who !== 'system').slice(-6).map((m) => ({ who: m.who, text: m.text }));
     this.setState((s) => ({ voiceChat: [...s.voiceChat, { who: 'you', text: question }], voiceBusy: true }));
     this.stopSpeaking();
-    api.ask(conn, question, history).then(({ jobId }) => {
+    api.ask(conn, question, this.state.voiceSessionId || null).then(({ jobId }) => {
       this.startPoll('ask', () => api.claudeCodeJob(conn, jobId), {
         timeoutMs: 3 * 60_000,
         onReady: (job) => {
           const text = job.result.text;
+          // the conversation continues across turns AND app restarts
+          if (job.result.sessionId) {
+            localStorage.setItem('novaos.voiceSession', job.result.sessionId);
+            this.setState({ voiceSessionId: job.result.sessionId });
+          }
           this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { who: 'nova', text }] }));
           this.speak(text);
         },
@@ -1950,6 +2004,18 @@ export default class App extends Component {
     }).catch((e) => {
       this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { who: 'system', text: 'Error: ' + e.message }] }));
     });
+  }
+  newVoiceChat() {
+    localStorage.removeItem('novaos.voiceSession');
+    this.stopSpeaking();
+    this.setState({ voiceSessionId: null, voiceChat: [] });
+    this.toastMsg('Fresh conversation — Nova starts clean');
+  }
+  rememberFromChat(text) {
+    const conn = getConnection();
+    if (!conn) return;
+    this.captureToInbox(`Remember this (from a Nova conversation): ${text.slice(0, 1200)}`, 'text');
+    this.toastMsg('Sent to the Inbox — Nova will file it into the vault');
   }
   // Speak an answer aloud: ElevenLabs through the server proxy when the key
   // is configured, otherwise the browser's built-in speech engine — never
@@ -2007,12 +2073,17 @@ export default class App extends Component {
     // live backend → the real evidence-based coach; demo keeps the script
     if (conn && this.state.connectionStatus !== 'demo') {
       if (this.state.coachBusy) return;
-      const history = this.state.coachChat.filter((m) => m.who !== 'system').slice(-6).map((m) => ({ who: m.who, text: m.text }));
       this.setState((s) => ({ coachChat: [...s.coachChat, { who: 'you', text: q }], coachInput: '', coachBusy: true }));
-      api.askCoach(conn, q, history).then(({ jobId }) => {
+      api.askCoach(conn, q, this.state.coachSessionId || null).then(({ jobId }) => {
         this.startPoll('coach', () => api.claudeCodeJob(conn, jobId), {
           timeoutMs: 3 * 60_000,
-          onReady: (job) => this.setState((s) => ({ coachBusy: false, coachChat: [...s.coachChat, { who: 'coach', text: job.result.text }] })),
+          onReady: (job) => {
+            if (job.result.sessionId) {
+              localStorage.setItem('novaos.coachSession', job.result.sessionId);
+              this.setState({ coachSessionId: job.result.sessionId });
+            }
+            this.setState((s) => ({ coachBusy: false, coachChat: [...s.coachChat, { who: 'coach', text: job.result.text }] }));
+          },
           onError: (msg) => this.setState((s) => ({ coachBusy: false, coachChat: [...s.coachChat, { who: 'system', text: 'Error: ' + msg }] })),
         });
       }).catch((e) => {
@@ -2067,6 +2138,11 @@ export default class App extends Component {
       quickPlan: null, quickNote: '',
       sessionCancelConfirm: false,
     });
+  }
+  newCoachChat() {
+    localStorage.removeItem('novaos.coachSession');
+    this.setState({ coachSessionId: null, coachChat: [] });
+    this.toastMsg('Fresh coaching conversation');
   }
   saveFitnessGoals() {
     const conn = getConnection();

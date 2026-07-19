@@ -99,38 +99,44 @@ export function getMessageJob(jobId) {
 // answers questions from what's actually written there, in a spoken
 // register. Exported separately so tests can check the prompt contract
 // without spawning anything.
-export function buildAskPrompt({ question, history = [], context = '' }) {
-  const recent = history.slice(-6).map((m) => `${m.who === 'nova' ? 'Nova' : 'Hayden'}: ${m.text}`).join('\n');
-  return `You are Nova, Hayden's personal OS, answering a spoken question. Your working directory is Hayden's Obsidian vault — their real notes, health pages, workout sessions, recipes, journal. Read whatever pages you need to answer.
+export function buildAskPrompt({ question, context = '' }) {
+  return `You are Nova — Hayden's personal OS and ongoing companion. This is a CONTINUING conversation: it resumes across days, so remember what he tells you here and build on it naturally, the way a sharp assistant who knows him would. Your working directory is his Obsidian vault — real notes, health pages, workout sessions, recipes, journal, money ledger context. Read whatever pages you need.
 
 Ground rules:
-- Answer ONLY from the vault and the live context below. If it isn't there, say so plainly ("nothing in the vault on that") — never invent.
-- This will be read aloud: conversational, direct, no markdown, no bullet lists, no headers. Lead with the answer.
-- Keep it under ~90 words unless the question genuinely needs more.
+- Ground answers in the vault, the live context below, and what he's told you in this conversation. If something isn't anywhere, say so plainly — never invent.
+- Spoken register: conversational, direct, no markdown, no bullet lists. Lead with the answer. Under ~90 words unless the question genuinely needs more.
 - Mention page titles naturally when useful ("your Rigour Protocols note says…").
-- You are read-only here. If asked to change something, say which Nova surface does it (capture in the Inbox, To-Do tab, Train) — you can't write from the voice line.
+- You are read-only. To CHANGE something, point at the surface that does it (capture in the Inbox, To-Do tab, Train, Money). If he asks you to remember something permanently, tell him to tap REMEMBER on your reply — that files it into the vault through the normal rails.
+- Be a companion, not a search box: notice patterns across what he shares, connect it to his goals, and say the useful hard thing kindly when the data warrants it.
 
-Live context (deterministic, computed just now — trust it over stale pages for today's numbers):
+Live context (deterministic, computed at conversation start — trust it over stale pages for today's numbers):
 ${context || '(unavailable)'}
-${recent ? `\nConversation so far:\n${recent}\n` : ''}
+
 Hayden asks: ${question}`;
 }
 
-export function startAskNova(cwd, { question, history, context }) {
+// Continuity: the first ask mints a session; later asks --resume it, so the
+// conversation carries across turns AND days (same mechanism as the Code
+// tab). The client persists the returned sessionId; NEW CHAT drops it.
+export function startAskNova(cwd, { question, context, sessionId }) {
   const jobId = randomUUID().slice(0, 8);
+  const isNewSession = !sessionId;
+  const effectiveSessionId = sessionId || randomUUID();
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
 
-  const child = spawn(CLAUDE_BIN, [
-    '-p', buildAskPrompt({ question, history, context }),
+  const args = [
+    '-p', isNewSession ? buildAskPrompt({ question, context }) : question,
     '--permission-mode', 'bypassPermissions',
     '--allowedTools', 'Read Grep Glob',
     '--disallowedTools', BREAKER_DISALLOWED,
     '--strict-mcp-config',
     '--output-format', 'json',
     '--max-budget-usd', MAX_BUDGET_USD,
-    '--session-id', randomUUID(),
-  ], { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
+  ];
+  args.push(isNewSession ? '--session-id' : '--resume', effectiveSessionId);
+
+  const child = spawn(CLAUDE_BIN, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
 
   let stdout = '';
   let stderr = '';
@@ -142,7 +148,7 @@ export function startAskNova(cwd, { question, history, context }) {
       if (outer.is_error || code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
       const replyText = (outer.result || '').trim();
       if (!replyText) throw new Error('Empty response');
-      job.result = { text: replyText };
+      job.result = { text: replyText, sessionId: effectiveSessionId };
       job.status = 'ready';
     } catch (e) {
       job.status = 'error';
@@ -161,9 +167,8 @@ export function startAskNova(cwd, { question, history, context }) {
 // boundary as Ask Nova, but a different persona: an evidence-based strength
 // coach who knows Hayden's goals, history, and recovery data, and answers
 // like a professional — principled, specific, honest about uncertainty.
-export function buildCoachPrompt({ question, history = [], context = '' }) {
-  const recent = history.slice(-6).map((m) => `${m.who === 'coach' ? 'Coach' : 'Hayden'}: ${m.text}`).join('\n');
-  return `You are Nova's Coach — Hayden's personal strength & conditioning coach. You reason like an experienced, evidence-based practitioner: progressive overload, volume and intensity management, proximity to failure, recovery and sleep, protein targets, long-term adherence over heroics. You give the advice a great human coach would: specific to HIS data, decisive, and honest when evidence is mixed or his data is too thin to say.
+export function buildCoachPrompt({ question, context = '' }) {
+  return `You are Nova's Coach — Hayden's personal strength & conditioning coach. This is a CONTINUING conversation that resumes across days — remember what he tells you and coach the long arc, not just today's question. You reason like an experienced, evidence-based practitioner: progressive overload, volume and intensity management, proximity to failure, recovery and sleep, protein targets, long-term adherence over heroics. You give the advice a great human coach would: specific to HIS data, decisive, and honest when evidence is mixed or his data is too thin to say.
 
 Your working directory is Hayden's Obsidian vault — his real training sessions (Wiki/Health/Workouts/), fitness goals, exercise state, health pages, nutrition. Read what you need; never invent numbers that aren't there.
 
@@ -175,27 +180,30 @@ Ground rules:
 - You are read-only: to CHANGE a routine, point him at the Train screen's editor; to log food, the Recipes/Inbox surfaces. Never claim you wrote anything.
 - Plain text, conversational, tight. Lead with the answer.
 
-Hayden's current picture (computed just now — trust it over stale pages):
+Hayden's current picture (computed at conversation start — trust it over stale pages):
 ${context || '(unavailable)'}
-${recent ? `\nConversation so far:\n${recent}\n` : ''}
+
 Hayden asks: ${question}`;
 }
 
-export function startAskCoach(cwd, { question, history, context }) {
+export function startAskCoach(cwd, { question, context, sessionId }) {
   const jobId = randomUUID().slice(0, 8);
+  const isNewSession = !sessionId;
+  const effectiveSessionId = sessionId || randomUUID();
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
 
-  const child = spawn(CLAUDE_BIN, [
-    '-p', buildCoachPrompt({ question, history, context }),
+  const args = [
+    '-p', isNewSession ? buildCoachPrompt({ question, context }) : question,
     '--permission-mode', 'bypassPermissions',
     '--allowedTools', 'Read Grep Glob',
     '--disallowedTools', BREAKER_DISALLOWED,
     '--strict-mcp-config',
     '--output-format', 'json',
     '--max-budget-usd', MAX_BUDGET_USD,
-    '--session-id', randomUUID(),
-  ], { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
+  ];
+  args.push(isNewSession ? '--session-id' : '--resume', effectiveSessionId);
+  const child = spawn(CLAUDE_BIN, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
 
   let stdout = '';
   let stderr = '';
@@ -207,7 +215,7 @@ export function startAskCoach(cwd, { question, history, context }) {
       if (outer.is_error || code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
       const replyText = (outer.result || '').trim();
       if (!replyText) throw new Error('Empty response');
-      job.result = { text: replyText };
+      job.result = { text: replyText, sessionId: effectiveSessionId };
       job.status = 'ready';
     } catch (e) {
       job.status = 'error';

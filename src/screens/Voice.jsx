@@ -108,13 +108,26 @@ export function Voice({ v }) {
           </div>
         </div>
         <div style={css("flex:1 1 340px;min-width:300px;max-width:470px;min-height:360px;max-height:560px;border-left:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-left:24px;display:flex;flex-direction:column")}>
-          <div style={css(`font:500 10px ${M};letter-spacing:.28em;color:color-mix(in srgb, var(--nv-ink) 50%, transparent)`)}>TRANSCRIPT · THIS SESSION</div>
+          <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>
+            <span style={css(`font:500 10px ${M};letter-spacing:.28em;color:color-mix(in srgb, var(--nv-ink) 50%, transparent)`)}>{v.voiceContinuing ? 'CONVERSATION · CONTINUES ACROSS DAYS' : 'TRANSCRIPT'}</span>
+            {v.voiceContinuing && (
+              <Interactive as="span" onClick={v.newVoiceChat} base={`cursor:pointer;font:500 9px ${M};letter-spacing:.1em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`} hoverStyle="color:var(--nv-cy)">NEW CHAT</Interactive>
+            )}
+          </div>
           <div style={css(`flex:1;overflow-y:auto;margin-top:14px;display:flex;flex-direction:column;gap:14px;font:400 12.5px/1.7 ${M}`)}>
             {v.orbMsgs.length === 0 && (
               <div style={css("color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>Ask about anything in your vault — training, fuel, notes, the week. Answers come from what's actually written.</div>
             )}
             {v.orbMsgs.map((m, i) => (
-              <div key={i} style={css("animation:fadeUp .4s ease-out")}><span style={m.tagStyle}>{m.tag}</span> <span style={css("color:color-mix(in srgb, var(--nv-ink) 90%, transparent)")}>{m.text}</span>{m.typing && <span style={css("color:var(--nv-cy)")}>▍</span>}</div>
+              <div key={i} style={css("animation:fadeUp .4s ease-out")}>
+                <span style={m.tagStyle}>{m.tag}</span> <span style={css("color:color-mix(in srgb, var(--nv-ink) 90%, transparent)")}>{m.text}</span>{m.typing && <span style={css("color:var(--nv-cy)")}>▍</span>}
+                {m.remember && (
+                  <Interactive as="span" onClick={m.remember} title="File this into the vault via the Inbox"
+                    base={`cursor:pointer;display:inline-block;margin-left:8px;font:500 8px ${M};letter-spacing:.1em;padding:1px 7px;border-radius:5px;border:1px solid color-mix(in srgb, var(--nv-gold) 35%, transparent);color:var(--nv-gold)`}
+                    hoverStyle="background:color-mix(in srgb, var(--nv-gold) 08%, transparent)"
+                  >REMEMBER</Interactive>
+                )}
+              </div>
             ))}
             {v.voiceBusy && (
               <div style={css("color:var(--nv-cy)")}>» NOVA <span style={css("color:color-mix(in srgb, var(--nv-ink) 50%, transparent)")}>reading the vault…</span><span style={css("color:var(--nv-cy)")}>▍</span></div>

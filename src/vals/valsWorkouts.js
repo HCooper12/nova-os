@@ -154,6 +154,8 @@ export function valsWorkouts(app, ctx) {
       tagStyle: { font: "500 10px 'IBM Plex Mono',monospace", color: m.who === 'coach' ? 'var(--nv-cy)' : m.who === 'system' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' },
     }, bubble(m.who))),
     coachBusy: st.coachBusy,
+    coachContinuing: !!st.coachSessionId,
+    newCoachChat: () => app.newCoachChat(),
     coachInput: st.coachInput,
     setCoachInput: (e) => app.setState({ coachInput: e.target.value }),
     coachKey: (e) => { if (e.key === 'Enter') app.doCoach(); },

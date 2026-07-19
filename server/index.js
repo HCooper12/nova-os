@@ -92,6 +92,22 @@ async function main() {
   app.use('/api', voiceRouter(process.env.VAULT_PATH));
   app.use('/api', moneyRouter(process.env.VAULT_PATH));
   app.get('/api/events', (req, res) => subscribe(res));
+  app.get('/api/push/key', async (req, res) => {
+    const { getPublicKey } = await import('./lib/push.js');
+    res.json({ key: await getPublicKey() });
+  });
+  app.post('/api/push/subscribe', async (req, res) => {
+    try {
+      const { addSubscription } = await import('./lib/push.js');
+      res.json(await addSubscription(req.body?.subscription));
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+  app.post('/api/push/test', async (req, res) => {
+    const { sendPush } = await import('./lib/push.js');
+    res.json(await sendPush({ title: 'Nova', body: 'Notifications are live — this is what a waiting draft will feel like.', tag: 'test' }));
+  });
   app.use('/api', studioRouter(process.env.VAULT_PATH));
 
   startHealthInsightScheduler(process.env.VAULT_PATH);

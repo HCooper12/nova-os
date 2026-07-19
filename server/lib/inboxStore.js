@@ -86,6 +86,12 @@ export async function getRecord(id) {
   return store.items.find((r) => r.id === id) || null;
 }
 
+// anything newly WAITING on Hayden earns a phone notification
+function notifyIfPending(record, previousStatus) {
+  if (record.status !== 'pending' || previousStatus === 'pending') return;
+  import('./push.js').then(({ pushForRecord }) => pushForRecord(record)).catch(() => {});
+}
+
 export async function createRecord(record) {
   return withLock(async () => {
     const store = await load();
@@ -97,6 +103,7 @@ export async function createRecord(record) {
       store.items = [...unresolved, ...resolved.slice(0, MAX_RESOLVED)];
     }
     await persist();
+    notifyIfPending(record, null);
     return record;
   });
 }
@@ -106,8 +113,10 @@ export async function updateRecord(id, patch) {
     const store = await load();
     const idx = store.items.findIndex((r) => r.id === id);
     if (idx === -1) throw new Error('inbox record not found');
+    const previousStatus = store.items[idx].status;
     store.items[idx] = { ...store.items[idx], ...patch };
     await persist();
+    notifyIfPending(store.items[idx], previousStatus);
     return store.items[idx];
   });
 }

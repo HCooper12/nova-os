@@ -149,9 +149,11 @@ export function workoutsRouter(vaultPath) {
     try {
       const question = typeof req.body?.question === 'string' ? req.body.question.trim() : '';
       if (!question) return res.status(400).json({ error: 'question is required' });
-      const history = Array.isArray(req.body?.history)
-        ? req.body.history.filter((m) => m && typeof m.text === 'string').slice(-6).map((m) => ({ who: m.who === 'coach' ? 'coach' : 'you', text: m.text.slice(0, 500) }))
-        : [];
+      const sessionId = typeof req.body?.sessionId === 'string' && req.body.sessionId ? req.body.sessionId : null;
+      if (sessionId) {
+        // resumed conversation — the session already carries the picture
+        return res.json({ jobId: startAskCoach(vaultPath, { question, sessionId }) });
+      }
 
       const parts = [];
       try {
@@ -180,7 +182,7 @@ export function workoutsRouter(vaultPath) {
         parts.push(`Deload signal: ${signal.advise ? `YES — ${signal.reason}` : signal.reason}.`);
       } catch { /* optional */ }
 
-      res.json({ jobId: startAskCoach(vaultPath, { question, history, context: parts.join('\n\n') }) });
+      res.json({ jobId: startAskCoach(vaultPath, { question, context: parts.join('\n\n') }) });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

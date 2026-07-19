@@ -227,9 +227,14 @@ function RoutinesView({ v }) {
         </div>
 
         <div className="nv-pane" style={{ flex: '1.4 1 340px', padding: '16px 18px', display: 'flex', flexDirection: 'column', maxHeight: '420px' }}>
-          <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>
+          <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap")}>
             <span style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.2em;color:var(--nv-cy)")}>ASK COACH</span>
-            <span style={css("font:400 8.5px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>EVIDENCE-BASED · READS YOUR REAL DATA</span>
+            <span style={css("display:flex;gap:10px;align-items:baseline")}>
+              <span style={css("font:400 8.5px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{v.coachContinuing ? 'REMEMBERS ACROSS DAYS' : 'EVIDENCE-BASED · READS YOUR REAL DATA'}</span>
+              {v.coachContinuing && (
+                <Interactive as="span" onClick={v.newCoachChat} base="cursor:pointer;font:500 8.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-cy)">NEW</Interactive>
+              )}
+            </span>
           </div>
           <div style={css("flex:1;overflow-y:auto;margin-top:10px;display:flex;flex-direction:column;gap:10px;font:500 12.5px/1.6 'Rajdhani',sans-serif")}>
             {v.coachMsgs.length === 0 && !v.coachBusy && (

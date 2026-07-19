@@ -32,27 +32,19 @@ const { buildAskPrompt } = await import('../lib/claudeCode.js');
 
 test.after(() => server.close());
 
-test('ask prompt: grounds in vault, carries live context and trimmed history, stays spoken-register', () => {
+test('ask prompt: companion contract — continuing conversation, vault-grounded, REMEMBER path, spoken register', () => {
   const prompt = buildAskPrompt({
     question: 'How did training go this week?',
     context: 'Morning Dispatch — X\n**Training.** Leg Day is scheduled.',
-    history: [
-      { who: 'you', text: 'earliest question' },
-      { who: 'nova', text: 'earliest answer' },
-      { who: 'you', text: 'q1' }, { who: 'nova', text: 'a1' },
-      { who: 'you', text: 'q2' }, { who: 'nova', text: 'a2' },
-      { who: 'you', text: 'q3' }, { who: 'nova', text: 'a3' },
-    ],
   });
+  assert.match(prompt, /CONTINUING conversation/);
   assert.match(prompt, /read-only/i);
   assert.match(prompt, /never invent/);
+  assert.match(prompt, /tap REMEMBER/);
   assert.match(prompt, /Leg Day is scheduled/);
   assert.match(prompt, /Hayden asks: How did training go this week\?/);
-  assert.match(prompt, /Hayden: q1/); // last 6 turns kept…
-  assert.doesNotMatch(prompt, /earliest question/); // …older ones dropped
-  const noHistory = buildAskPrompt({ question: 'Hi', context: '' });
-  assert.match(noHistory, /\(unavailable\)/);
-  assert.doesNotMatch(noHistory, /Conversation so far/);
+  const noContext = buildAskPrompt({ question: 'Hi', context: '' });
+  assert.match(noContext, /\(unavailable\)/);
 });
 
 test('voices list hits the API with the key and caches', async () => {

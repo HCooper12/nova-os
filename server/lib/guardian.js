@@ -360,7 +360,15 @@ async function tick(vaultPath) {
   try {
     const { lastReport } = await getGuardian();
     if (!lastReport || Date.now() - new Date(lastReport.at).getTime() > 24 * 3600_000) {
-      await runGuardian(vaultPath);
+      const report = await runGuardian(vaultPath);
+      // a NEW alert deserves a phone notification; a persisting one doesn't re-fire daily
+      if (report.status === 'alert' && lastReport?.status !== 'alert') {
+        import('./push.js').then(({ sendPush }) => sendPush({
+          title: 'Guardian ALERT — Nova',
+          body: report.checks.find((c) => c.status === 'alert')?.detail || 'An integrity check failed.',
+          tag: 'guardian-alert',
+        })).catch(() => {});
+      }
     }
   } catch (err) {
     console.error('guardian check failed:', err.message);

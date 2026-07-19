@@ -129,6 +129,25 @@ export function Settings({ v }) {
         </Interactive>
       </div>
 
+      {v.pushSettings && (
+        <div style={{ marginTop: '34px' }}>
+          <div style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>NOTIFICATIONS</div>
+          <div className="nv-pane" style={{ marginTop: '12px', padding: '14px 18px', maxWidth: '520px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <span style={{ minWidth: 0, flex: '1 1 240px' }}>
+              <span style={{ display: 'block', fontSize: '14px', fontWeight: 600 }}>Phone & Watch notifications</span>
+              <span style={{ display: 'block', marginTop: '2px', font: "500 9.5px 'IBM Plex Mono',monospace", letterSpacing: '.06em', color: v.pushSettings.state === 'on' ? 'var(--nv-good)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>{v.pushSettings.label}</span>
+            </span>
+            {v.pushSettings.state !== 'on' && v.pushSettings.state !== 'unsupported' && (
+              <Interactive as="span" onClick={v.pushSettings.enable} base="cursor:pointer;font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;padding:9px 16px;border-radius:8px;background:var(--nv-cy);color:#0a2830" hoverStyle="filter:brightness(1.08)">ENABLE</Interactive>
+            )}
+            {v.pushSettings.state === 'on' && (
+              <Interactive as="span" onClick={v.pushSettings.test} base="cursor:pointer;font:600 10px 'IBM Plex Mono',monospace;letter-spacing:.08em;padding:8px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);color:var(--nv-cy)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 08%, transparent)">TEST</Interactive>
+            )}
+          </div>
+          <div style={css("margin-top:8px;max-width:520px;font-size:11px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Pushes fire when something needs your call — a drafted brief, a research outline, a Guardian alert. iPhone mirrors them to the Apple Watch automatically. Requires Nova installed to the Home Screen (Safari → Share → Add to Home Screen).</div>
+        </div>
+      )}
+
       {v.timeMachine && (
         <div style={{ marginTop: '34px' }}>
           <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>

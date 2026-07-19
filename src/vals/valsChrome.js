@@ -176,6 +176,15 @@ export function valsChrome(app, ctx) {
 
     // settings
     isSettings: st.screen === 'settings',
+    pushSettings: !demoMode ? {
+      state: st.pushState,
+      label: st.pushState === 'on' ? 'ON — DRAFTS & ALERTS REACH YOUR PHONE'
+        : st.pushState === 'denied' ? 'BLOCKED — ALLOW IN iOS SETTINGS → NOVA'
+        : st.pushState === 'unsupported' ? 'INSTALL TO HOME SCREEN (SAFARI → SHARE) TO ENABLE'
+        : st.pushState === 'checking' ? 'CHECKING…' : 'OFF',
+      enable: () => app.enablePushNotifications(),
+      test: () => app.testPush(),
+    } : null,
     timeMachine: !demoMode && !isOffline ? {
       loaded: st.liveBackups != null,
       files: st.liveBackups || [],

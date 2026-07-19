@@ -14,22 +14,22 @@ export function voiceRouter(vaultPath) {
       const question = typeof req.body?.question === 'string' ? req.body.question.trim() : '';
       if (!question) return res.status(400).json({ error: 'question is required' });
       if (question.length > 1000) return res.status(400).json({ error: 'keep a spoken question under 1000 characters' });
-      const history = Array.isArray(req.body?.history)
-        ? req.body.history.filter((m) => m && typeof m.text === 'string').slice(-6).map((m) => ({ who: m.who === 'nova' ? 'nova' : 'you', text: m.text.slice(0, 500) }))
-        : [];
+      const sessionId = typeof req.body?.sessionId === 'string' && req.body.sessionId ? req.body.sessionId : null;
 
-      // Live context: today's numbers, computed deterministically right now —
-      // the same composition the briefs use, so voice answers match them.
+      // Live context injected on the FIRST turn of a conversation; resumed
+      // turns already carry it (and everything said since) in the session.
       let context = '';
-      try {
-        const [morning, evening] = await Promise.all([
-          composeDispatch(vaultPath, 'morning'),
-          composeDispatch(vaultPath, 'evening'),
-        ]);
-        context = `${morning.text}\n\n${evening.text}`;
-      } catch { /* the prompt says "(unavailable)" honestly */ }
+      if (!sessionId) {
+        try {
+          const [morning, evening] = await Promise.all([
+            composeDispatch(vaultPath, 'morning'),
+            composeDispatch(vaultPath, 'evening'),
+          ]);
+          context = `${morning.text}\n\n${evening.text}`;
+        } catch { /* the prompt says "(unavailable)" honestly */ }
+      }
 
-      const jobId = startAskNova(vaultPath, { question, history, context });
+      const jobId = startAskNova(vaultPath, { question, context, sessionId });
       res.json({ jobId });
     } catch (e) {
       res.status(500).json({ error: e.message });
