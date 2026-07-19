@@ -94,6 +94,69 @@ export function getMessageJob(jobId) {
   return jobs.get(jobId) || null;
 }
 
+// Ask Nova — the voice screen's brain. A READ-ONLY session over the vault
+// (same structural boundary as the Breaker: Edit/Write disallowed) that
+// answers questions from what's actually written there, in a spoken
+// register. Exported separately so tests can check the prompt contract
+// without spawning anything.
+export function buildAskPrompt({ question, history = [], context = '' }) {
+  const recent = history.slice(-6).map((m) => `${m.who === 'nova' ? 'Nova' : 'Hayden'}: ${m.text}`).join('\n');
+  return `You are Nova, Hayden's personal OS, answering a spoken question. Your working directory is Hayden's Obsidian vault — their real notes, health pages, workout sessions, recipes, journal. Read whatever pages you need to answer.
+
+Ground rules:
+- Answer ONLY from the vault and the live context below. If it isn't there, say so plainly ("nothing in the vault on that") — never invent.
+- This will be read aloud: conversational, direct, no markdown, no bullet lists, no headers. Lead with the answer.
+- Keep it under ~90 words unless the question genuinely needs more.
+- Mention page titles naturally when useful ("your Rigour Protocols note says…").
+- You are read-only here. If asked to change something, say which Nova surface does it (capture in the Inbox, To-Do tab, Train) — you can't write from the voice line.
+
+Live context (deterministic, computed just now — trust it over stale pages for today's numbers):
+${context || '(unavailable)'}
+${recent ? `\nConversation so far:\n${recent}\n` : ''}
+Hayden asks: ${question}`;
+}
+
+export function startAskNova(cwd, { question, history, context }) {
+  const jobId = randomUUID().slice(0, 8);
+  const job = { id: jobId, status: 'running', result: null, error: null };
+  jobs.set(jobId, job);
+
+  const child = spawn(CLAUDE_BIN, [
+    '-p', buildAskPrompt({ question, history, context }),
+    '--permission-mode', 'bypassPermissions',
+    '--allowedTools', 'Read Grep Glob',
+    '--disallowedTools', BREAKER_DISALLOWED,
+    '--strict-mcp-config',
+    '--output-format', 'json',
+    '--max-budget-usd', MAX_BUDGET_USD,
+    '--session-id', randomUUID(),
+  ], { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
+
+  let stdout = '';
+  let stderr = '';
+  child.stdout.on('data', (d) => { stdout += d; });
+  child.stderr.on('data', (d) => { stderr += d; });
+  child.on('close', (code) => {
+    try {
+      const outer = JSON.parse(stdout);
+      if (outer.is_error || code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
+      const replyText = (outer.result || '').trim();
+      if (!replyText) throw new Error('Empty response');
+      job.result = { text: replyText };
+      job.status = 'ready';
+    } catch (e) {
+      job.status = 'error';
+      job.error = code !== 0 && !(stdout || '').trim() ? (stderr.trim() || `claude exited with code ${code}`) : e.message;
+    }
+  });
+  child.on('error', (err) => {
+    job.status = 'error';
+    job.error = err.message;
+  });
+
+  return jobId;
+}
+
 // The Sparring loop's Breaker: an isolated, READ-ONLY session that tries to
 // break what the Builder (the normal chat) just shipped. Edit/Write join the
 // disallowed list, so the separation of duties is structural — the Breaker

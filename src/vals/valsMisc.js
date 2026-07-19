@@ -6,7 +6,7 @@ import { NOTE_TYPE_COLOR, mono } from './shared.js';
 // Claude Code, and transcript ingest. Adds to ctx: shoppingItems (nav count).
 export function valsMisc(app, ctx) {
   const st = app.state;
-  const { wakeWord } = ctx;
+  const { wakeWord, demoMode, isOffline } = ctx;
 
   // shopping list — grouped by category (matching a typical supermarket layout)
   const shoppingItems = st.liveShoppingList?.items || [];
@@ -60,20 +60,39 @@ export function valsMisc(app, ctx) {
     shoppingAddError: st.shoppingAddError,
     confirmShoppingCompletion: () => app.confirmShoppingCompletion(),
 
-    // voice (concept preview — no real speech engine)
-    micOn: st.micOn,
-    micStatus: st.micOn ? 'LISTENING' : 'MUTED',
-    micBar: { width: st.micOn ? '92%' : '8%', height: '100%', background: 'var(--nv-cy)', transition: 'width .4s' },
-    micBtnStyle: { cursor: 'pointer', font: "500 10.5px " + mono, padding: '9px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent)', color: st.micOn ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', background: st.micOn ? 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' : 'rgba(0,0,0,.25)' },
-    micBtnLabel: st.micOn ? '● MIC LIVE' : '○ MIC OFF',
-    orbCaption: st.micOn ? (wakeWord ? 'LISTENING · SAY “NOVA”' : 'LISTENING') : 'STANDING BY',
-    toggleMic: () => app.setState(s => ({ micOn: !s.micOn })),
-    orbMsgs: st.orbChat.map(m => ({ text: m.text, typing: m.typing, tag: m.who === 'nova' ? '» NOVA' : '» YOU', tagStyle: { color: m.who === 'nova' ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', fontWeight: 500 } })),
+    // voice — Ask Nova: live = real read-only answers from the vault (+ TTS);
+    // demo keeps the scripted preview; offline says so instead of pretending
+    voiceLive: !demoMode && !isOffline,
+    voiceBadge: demoMode
+      ? { text: 'CONCEPT PREVIEW · DEMO REPLIES', tone: '#e08f6f' }
+      : isOffline
+        ? { text: 'OFFLINE — RECONNECT FOR ANSWERS', tone: 'var(--nv-gold)' }
+        : { text: 'LIVE · READ-ONLY ANSWERS FROM YOUR VAULT', tone: 'var(--nv-cy)' },
+    voiceBusy: st.voiceBusy,
+    voiceSpeaking: st.voiceSpeaking,
+    voiceEngineLabel: !st.liveTts ? '—' : st.liveTts.configured ? 'ELEVENLABS' : 'BROWSER',
+    voiceEngineDetail: !st.liveTts ? '' : st.liveTts.configured ? '' : 'add ELEVENLABS_API_KEY in server/.env for a real voice',
+    speakOn: st.voiceSpeak,
+    toggleSpeak: () => app.setVoiceSpeak(!st.voiceSpeak),
+    voiceOptions: (st.liveTts?.voices || []).map((v) => ({ id: v.id, name: v.name })),
+    voiceVoiceId: st.voiceVoiceId,
+    setVoiceId: (e) => app.setVoiceId(e.target.value),
+    wakeWordLabel: wakeWord,
+    orbMsgs: (!demoMode ? st.voiceChat : st.orbChat).map(m => ({
+      text: m.text, typing: m.typing,
+      tag: m.who === 'nova' ? '» NOVA' : m.who === 'system' ? '» SYSTEM' : '» YOU',
+      tagStyle: { color: m.who === 'nova' ? 'var(--nv-cy)' : m.who === 'system' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', fontWeight: 500 },
+    })),
     orbInput: st.orbInput,
     setOrbInput: (e) => app.setState({ orbInput: e.target.value }),
+    setOrbInputValue: (t) => app.setState({ orbInput: t }),
     orbKey: (e) => { if (e.key === 'Enter') app.doOrb(); },
     sendOrb: () => app.doOrb(),
-    briefMe: () => { app.setState(s => ({ orbChat: [...s.orbChat, { who: 'you', text: 'Brief me.' }] })); setTimeout(() => app.typeIn('orbChat', 'nova', orbReply('brief')), 450); },
+    briefMe: () => {
+      if (!demoMode && !isOffline) { app.askNova('Brief me on my day — recovery, calendar, fuel, training, anything waiting on me.'); return; }
+      app.setState(s => ({ orbChat: [...s.orbChat, { who: 'you', text: 'Brief me.' }] }));
+      setTimeout(() => app.typeIn('orbChat', 'nova', orbReply('brief')), 450);
+    },
 
     // galaxy
     galaxyStatsLabel,

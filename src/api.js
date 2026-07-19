@@ -141,6 +141,22 @@ export const api = {
   dispatchStatus: (conn) => call(conn, '/api/dispatch'),
   todoistStatus: (conn) => call(conn, '/api/todoist'),
   todoistSync: (conn) => post(conn, '/api/todoist/sync', {}),
+  ask: (conn, question, history) => post(conn, '/api/ask', { question, history }),
+  ttsStatus: (conn) => call(conn, '/api/tts/status'),
+  ttsAudio: async (conn, text, voiceId) => {
+    const res = await fetch(baseOf(conn) + '/api/tts', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${conn.token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, voiceId }),
+    });
+    if (!res.ok) {
+      const detail = await res.json().catch(() => null);
+      const err = new Error(detail?.error || `/api/tts failed: ${res.status}`);
+      err.status = res.status;
+      throw err;
+    }
+    return res.blob();
+  },
   guardian: (conn) => call(conn, '/api/guardian'),
   guardianRun: (conn) => post(conn, '/api/guardian/run', {}),
   guardianReport: (conn) => post(conn, '/api/guardian/report', {}),

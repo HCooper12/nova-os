@@ -1,0 +1,36 @@
+import { useRef, useState } from 'react';
+
+// Real dictation via the browser's speech engine (on-device / OS-provided).
+// Feature-detected: mic buttons only render where it actually works. Shared
+// by the Inbox capture composer and the Voice screen.
+export function useDictation(getBase, onText, onDone) {
+  const recRef = useRef(null);
+  const baseRef = useRef('');
+  const [on, setOn] = useState(false);
+  const SR = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
+  const toggle = () => {
+    if (on) { recRef.current?.stop(); return; }
+    const rec = new SR();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = 'en-AU';
+    baseRef.current = getBase();
+    let finals = '';
+    rec.onresult = (e) => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) finals += t;
+        else interim += t;
+      }
+      const joined = (baseRef.current + ' ' + finals + interim).replace(/\s+/g, ' ').trim();
+      onText(joined);
+    };
+    rec.onend = () => { setOn(false); onDone?.(); };
+    rec.onerror = () => setOn(false);
+    recRef.current = rec;
+    rec.start();
+    setOn(true);
+  };
+  return { supported: !!SR, on, toggle };
+}

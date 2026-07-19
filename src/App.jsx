@@ -92,6 +92,9 @@ export default class App extends Component {
     liveGraph: null,
     paletteOpen: false, paletteQuery: '',
     micOn: true, orbInput: '',
+    voiceChat: [], voiceBusy: false, voiceSpeaking: false, liveTts: null,
+    voiceSpeak: typeof localStorage === 'undefined' ? true : localStorage.getItem('novaos.voiceSpeak') !== '0',
+    voiceVoiceId: typeof localStorage === 'undefined' ? '' : (localStorage.getItem('novaos.voiceId') || ''),
     orbChat: [
       { who: 'nova', text: 'Good morning, sir. Sleep recovery is complete and push day is locked for 17:30.' },
       { who: 'you', text: 'Anything I should know before deep work?' },
@@ -324,6 +327,7 @@ export default class App extends Component {
       async () => this.setState({ liveTodoist: await api.todoistStatus(conn) }),
       async () => this.setState({ liveTodos: await api.todos(conn) }),
       async () => this.setState({ liveGuardian: await api.guardian(conn) }),
+      async () => this.setState({ liveTts: await api.ttsStatus(conn) }),
     ];
     this.refreshInFlight = (async () => {
       const results = await Promise.allSettled(tasks.map((t) => t()));
@@ -1485,8 +1489,82 @@ export default class App extends Component {
 
   doOrb() {
     const q = this.state.orbInput.trim(); if (!q) return;
+    // live backend → the real Ask Nova pipeline; demo keeps the scripted preview
+    if (getConnection() && this.state.connectionStatus === 'live') {
+      this.setState({ orbInput: '' });
+      this.askNova(q);
+      return;
+    }
     this.setState(s => ({ orbChat: [...s.orbChat, { who: 'you', text: q }], orbInput: '' }));
     setTimeout(() => this.typeIn('orbChat', 'nova', orbReply(q)), 480);
+  }
+  askNova(question) {
+    const conn = getConnection();
+    if (!conn || this.state.voiceBusy) return;
+    const history = this.state.voiceChat.filter((m) => m.who !== 'system').slice(-6).map((m) => ({ who: m.who, text: m.text }));
+    this.setState((s) => ({ voiceChat: [...s.voiceChat, { who: 'you', text: question }], voiceBusy: true }));
+    this.stopSpeaking();
+    api.ask(conn, question, history).then(({ jobId }) => {
+      this.startPoll('ask', () => api.claudeCodeJob(conn, jobId), {
+        timeoutMs: 3 * 60_000,
+        onReady: (job) => {
+          const text = job.result.text;
+          this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { who: 'nova', text }] }));
+          this.speak(text);
+        },
+        onError: (msg) => this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { who: 'system', text: 'Error: ' + msg }] })),
+      });
+    }).catch((e) => {
+      this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { who: 'system', text: 'Error: ' + e.message }] }));
+    });
+  }
+  // Speak an answer aloud: ElevenLabs through the server proxy when the key
+  // is configured, otherwise the browser's built-in speech engine — never
+  // silent unless the SPEAK toggle is off.
+  speak(text) {
+    if (!this.state.voiceSpeak) return;
+    const clean = text.slice(0, 2400);
+    const finish = () => this.setState({ voiceSpeaking: false });
+    this.setState({ voiceSpeaking: true });
+    const conn = getConnection();
+    if (conn && this.state.liveTts?.configured) {
+      api.ttsAudio(conn, clean, this.state.voiceVoiceId || undefined).then((blob) => {
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        this.currentAudio = audio;
+        audio.onended = () => { URL.revokeObjectURL(url); finish(); };
+        audio.onerror = () => { URL.revokeObjectURL(url); finish(); };
+        audio.play().catch(finish);
+      }).catch(() => this.speakFallback(clean, finish));
+    } else {
+      this.speakFallback(clean, finish);
+    }
+  }
+  speakFallback(text, finish) {
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      const voices = window.speechSynthesis.getVoices();
+      u.voice = voices.find((v) => v.lang === 'en-AU') || voices.find((v) => (v.lang || '').startsWith('en')) || null;
+      u.onend = finish;
+      u.onerror = finish;
+      window.speechSynthesis.speak(u);
+    } catch {
+      finish();
+    }
+  }
+  stopSpeaking() {
+    try { window.speechSynthesis.cancel(); } catch { /* not supported */ }
+    if (this.currentAudio) { this.currentAudio.pause(); this.currentAudio = null; }
+    if (this.state.voiceSpeaking) this.setState({ voiceSpeaking: false });
+  }
+  setVoiceSpeak(on) {
+    localStorage.setItem('novaos.voiceSpeak', on ? '1' : '0');
+    this.setState({ voiceSpeak: on });
+    if (!on) this.stopSpeaking();
+  }
+  setVoiceId(id) {
+    localStorage.setItem('novaos.voiceId', id);
+    this.setState({ voiceVoiceId: id });
   }
   doCoach(preset) {
     const q = (preset || this.state.coachInput).trim(); if (!q) return;

@@ -19,6 +19,7 @@ import { foodLogRouter } from './routes/foodLog.js';
 import { inboxRouter } from './routes/inbox.js';
 import { loopsRouter } from './routes/loops.js';
 import { todosRouter } from './routes/todos.js';
+import { voiceRouter } from './routes/voice.js';
 import { startHealthInsightScheduler } from './lib/healthInsight.js';
 import { startDispatchScheduler } from './lib/dispatch.js';
 import { startCompostScheduler } from './lib/compost.js';
@@ -82,6 +83,7 @@ async function main() {
   app.use('/api', inboxRouter(process.env.VAULT_PATH));
   app.use('/api', loopsRouter(process.env.VAULT_PATH));
   app.use('/api', todosRouter(process.env.VAULT_PATH));
+  app.use('/api', voiceRouter(process.env.VAULT_PATH));
 
   startHealthInsightScheduler(process.env.VAULT_PATH);
   startDispatchScheduler(process.env.VAULT_PATH);
