@@ -86,17 +86,22 @@ export function valsChrome(app, ctx) {
   const mp = { padding: 'calc(60px + env(safe-area-inset-top)) 16px calc(84px + env(safe-area-inset-bottom))' };
   const col = (mt) => ({ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: mt });
   const wrapTall = mob ? mp : null;
-  // Mobile bottom tabs: a curated daily-life set (the rest — Code, Galaxy,
-  // Journal — reach via Summon). Deliberately NO Roman numerals here: those
-  // are the sidebar's ordering device, and once the bar reorders for
-  // one-thumb use they'd read as out-of-order noise. A small active dot +
-  // the label carries it. Money is included since it's a core surface that
-  // was otherwise search-only on mobile.
-  const tabs = [['Home', 'mission'], ['Inbox', 'inbox'], ['To-Do', 'todos'], ['Voice', 'voice'], ['Money', 'money'], ['Recipes', 'recipes'], ['Shop', 'shopping'], ['Train', 'workouts'], ['Notes', 'notes']].map(t => {
-    const act = st.screen === t[1];
-    return { label: t[0], go: go(t[1]),
-      style: { flex: '1', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '8px 2px', cursor: 'pointer', borderRadius: '8px', color: act ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: act ? 'var(--nv-acc-bg)' : 'none', textShadow: act ? 'var(--nv-tsh-tab)' : 'none' },
-      dotStyle: { width: '4px', height: '4px', borderRadius: '50%', flex: 'none', background: act ? 'var(--nv-acc)' : 'transparent', boxShadow: act ? '0 0 6px var(--nv-acc)' : 'none' } };
+  // Mobile bottom tabs: EVERY screen, in sidebar order, in a horizontally
+  // scrollable bar — so nothing is ever hidden behind Summon and the
+  // numerals read I–XIII in sequence (the earlier out-of-order look came
+  // from curating a reordered subset; the full ordered list fixes both).
+  // The active tab auto-scrolls into view (see MobileChrome).
+  const tabs = [
+    ['I.', 'Home', 'mission'], ['II.', 'Voice', 'voice'], ['III.', 'Galaxy', 'galaxy'],
+    ['IV.', 'Code', 'code'], ['V.', 'Inbox', 'inbox'], ['VI.', 'Recipes', 'recipes'],
+    ['VII.', 'Shop', 'shopping'], ['VIII.', 'To-Do', 'todos'], ['IX.', 'Train', 'workouts'],
+    ['X.', 'Notes', 'notes'], ['XI.', 'Journal', 'journal'], ['XII.', 'Money', 'money'],
+    ['XIII.', 'Settings', 'settings'],
+  ].map(t => {
+    const act = st.screen === t[2];
+    return { num: t[0], label: t[1], go: go(t[2]), active: act,
+      style: { flex: 'none', minWidth: '54px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', padding: '7px 9px', cursor: 'pointer', borderRadius: '9px', color: act ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: act ? 'var(--nv-acc-bg)' : 'none', textShadow: act ? 'var(--nv-tsh-tab)' : 'none' },
+      numStyle: { font: "500 8.5px 'IBM Plex Mono',monospace", letterSpacing: '.06em', color: act ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 32%, transparent)' } };
   });
 
   // sidebar status card — same connection truth as the status chip, phrased

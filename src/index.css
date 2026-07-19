@@ -148,3 +148,6 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   /* entrance animations complete instantly; looping ambience stops after one pass */
   * { animation-duration: .01s !important; animation-iteration-count: 1 !important; transition: none !important; }
 }
+
+/* mobile tab bar: hide the horizontal scrollbar (all screens scroll in-bar) */
+.nv-tabscroll::-webkit-scrollbar { display: none; }
