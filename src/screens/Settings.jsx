@@ -129,6 +129,48 @@ export function Settings({ v }) {
         </Interactive>
       </div>
 
+      {v.timeMachine && (
+        <div style={{ marginTop: '34px' }}>
+          <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
+            <span style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:var(--nv-gold)")}>TIME MACHINE · GUARDIAN</span>
+            <span style={css("font:400 9px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>EVERY VAULT WRITE SNAPSHOTS FIRST — RESTORE ANY FILE, UNDOABLY</span>
+            {!v.timeMachine.loaded && (
+              <Interactive as="span" onClick={v.timeMachine.load} base="cursor:pointer;font:600 10px 'IBM Plex Mono',monospace;letter-spacing:.08em;padding:5px 12px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold)" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 08%, transparent)">BROWSE SNAPSHOTS</Interactive>
+            )}
+          </div>
+          {v.timeMachine.loaded && v.timeMachine.files.length === 0 && (
+            <div style={css("margin-top:10px;font-size:12px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>No snapshots yet — they appear with the first vault write-back.</div>
+          )}
+          {v.timeMachine.files.length > 0 && (
+            <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:10px;max-width:640px")}>
+              {v.timeMachine.files.map((f) => (
+                <div key={f.file} className="nv-pane" style={{ padding: '12px 15px' }}>
+                  <div style={css("display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap")}>
+                    <span style={css("font:600 13px 'Rajdhani',sans-serif;overflow-wrap:anywhere")}>{f.file}{!f.exists && <span style={css("color:var(--nv-warn);font:500 9px 'IBM Plex Mono',monospace")}> · DELETED</span>}</span>
+                  </div>
+                  <div style={css("margin-top:6px;display:flex;flex-direction:column;gap:4px")}>
+                    {f.backups.map((b) => (
+                      <div key={b.backupRel} style={css("display:flex;justify-content:space-between;gap:10px;align-items:center")}>
+                        <span style={css("font:400 10px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 50%, transparent)")}>{b.stamp}</span>
+                        {v.timeMachine.confirming === b.backupRel ? (
+                          <span style={css("display:flex;gap:8px;align-items:center")}>
+                            <span style={css("font-size:11px;color:var(--nv-warn)")}>Overwrite the current file with this snapshot?</span>
+                            <Interactive as="span" onClick={() => v.timeMachine.restore(b.backupRel)} base="cursor:pointer;font:600 9px 'IBM Plex Mono',monospace;padding:3px 10px;border-radius:6px;background:color-mix(in srgb, var(--nv-warn) 15%, transparent);color:var(--nv-warn);border:1px solid color-mix(in srgb, var(--nv-warn) 40%, transparent)">RESTORE</Interactive>
+                            <Interactive as="span" onClick={v.timeMachine.cancelConfirm} base="cursor:pointer;font:400 9px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)">cancel</Interactive>
+                          </span>
+                        ) : (
+                          <Interactive as="span" onClick={() => v.timeMachine.askConfirm(b.backupRel)} base="cursor:pointer;font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.08em;padding:3px 10px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)" hoverStyle="border-color:color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold)">RESTORE…</Interactive>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={css("margin-top:20px;max-width:520px;font-size:11.5px;line-height:1.7;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>
         The token comes from <code>server/.env</code> on your Mac (auto-generated on first run).
         See <code>server/README.md</code> in the repo for running the backend, installing it as a

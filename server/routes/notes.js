@@ -79,6 +79,16 @@ export function notesRouter(vault) {
 
   // Whole-vault graph for the Memory Galaxy: every page as a node, every
   // resolvable wikilink as an undirected edge (index pairs into nodes).
+  router.get('/recall', async (req, res, next) => {
+    try {
+      const { searchVault } = await import('../lib/recall.js');
+      const q = typeof req.query.q === 'string' ? req.query.q : '';
+      res.json({ results: await searchVault(vault.vaultPath, q) });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   router.get('/graph', async (req, res, next) => {
     try {
       const pages = await vault.listPages();

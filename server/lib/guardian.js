@@ -217,6 +217,77 @@ export async function getGuardian() {
   return { lastReport: state.lastReport || null, lastExportAt: state.lastExportAt || null };
 }
 
+/* ------------------------------ time machine ----------------------------- */
+
+// Browse the per-file snapshots backupFile() has been quietly keeping.
+// Grouped by the original file, newest first, capped so the UI stays sane.
+export async function listBackups(vaultPath) {
+  const dirs = await walkBackupDirs(vaultPath);
+  const files = [];
+  for (const dir of dirs) {
+    const parentRel = path.relative(vaultPath, path.dirname(dir));
+    const byOriginal = new Map();
+    for (const name of await readdir(dir)) {
+      // <original>.<ISO-stamp>.bak — the stamp starts at the LAST .md. in the name
+      const m = name.match(/^(.+\.md)\.(.+)\.bak$/);
+      if (!m) continue;
+      const originalRel = path.join(parentRel, m[1]);
+      if (!byOriginal.has(originalRel)) byOriginal.set(originalRel, []);
+      byOriginal.get(originalRel).push({
+        backupRel: path.join(parentRel, '.nova-backups', name),
+        stamp: m[2].replace(/-/g, (c, i) => (i === 13 || i === 16 ? ':' : c)), // readable-ish
+      });
+    }
+    for (const [originalRel, backups] of byOriginal) {
+      backups.sort((a, b) => (a.backupRel < b.backupRel ? 1 : -1));
+      files.push({ file: originalRel, exists: existsSync(path.join(vaultPath, originalRel)), backups: backups.slice(0, 5) });
+    }
+  }
+  return files.sort((a, b) => a.file.localeCompare(b.file));
+}
+
+// Restore = snapshot the CURRENT state first, then copy the chosen backup
+// over the original. The receipt rides the inbox rails with an undo that
+// puts the pre-restore snapshot straight back — restore can never lose data.
+export async function restoreBackup(vaultPath, backupRel) {
+  if (!backupRel || !backupRel.includes('.nova-backups/') || !backupRel.endsWith('.bak')) {
+    throw new Error('not a snapshot path');
+  }
+  const backupFull = path.join(vaultPath, backupRel);
+  if (!existsSync(backupFull)) throw new Error('that snapshot no longer exists');
+  const originalRel = path.join(path.dirname(path.dirname(backupRel)), path.basename(backupRel).replace(/^(.+\.md)\..+\.bak$/, '$1'));
+  const originalFull = path.join(vaultPath, originalRel);
+
+  const { backupFile } = await import('./backup.js');
+  const priorSnapshot = existsSync(originalFull) ? await backupFile(originalFull) : null;
+  const { copyFile } = await import('node:fs/promises');
+  await copyFile(backupFull, originalFull);
+
+  const { createRecord } = await import('./inboxStore.js');
+  const record = await createRecord({
+    id: randomUUID().slice(0, 8),
+    kind: 'guardian',
+    text: `Restored ${path.basename(originalRel)}`,
+    source: 'guardian',
+    mode: 'auto',
+    status: 'filed',
+    createdAt: new Date().toISOString(),
+    destination: `Restored ${originalRel} from ${path.basename(backupRel)}`,
+    auto: true,
+    decision: {
+      route: 'journal',
+      confidence: 'high',
+      title: `Restored ${path.basename(originalRel)}`,
+      reason: 'Guardian time-machine restore — the pre-restore state was snapshotted first.',
+      payload: { text: `Restored ${originalRel} from snapshot ${path.basename(backupRel)}.` },
+    },
+    undoData: priorSnapshot
+      ? { route: 'restore', relPath: originalRel, priorBackupRel: path.relative(vaultPath, priorSnapshot) }
+      : null,
+  });
+  return { record, file: originalRel };
+}
+
 // One-tap belt-and-braces: zip the vault + data dir to the Desktop. The
 // vault already lives in iCloud; this covers the data dir and gives an
 // off-app restore point a human can see and copy anywhere.
@@ -239,8 +310,9 @@ export async function exportVault(vaultPath) {
 async function monthlyRecordExists() {
   const items = await listRecords();
   const key = monthKey();
-  // LOCAL month of the record's creation instant (same lesson as dispatch)
-  return items.some((r) => r.kind === 'guardian' && r.createdAt && monthKey(new Date(r.createdAt)) === key);
+  // LOCAL month of the record's creation instant (same lesson as dispatch).
+  // Restore receipts share kind:'guardian' — only actual reports count.
+  return items.some((r) => r.kind === 'guardian' && (r.text || '').startsWith('Guardian Report') && r.createdAt && monthKey(new Date(r.createdAt)) === key);
 }
 
 export async function runGuardianReport(vaultPath, { force = false } = {}) {

@@ -92,7 +92,7 @@ export default class App extends Component {
     connectionStatus: typeof window !== 'undefined' && getConnection() ? 'connecting' : 'demo',
     lastSyncAt: null,
     liveGraph: null,
-    paletteOpen: false, paletteQuery: '',
+    paletteOpen: false, paletteQuery: '', recallResults: [],
     micOn: true, orbInput: '',
     voiceChat: [], voiceBusy: false, voiceSpeaking: false, liveTts: null,
     voiceSpeak: typeof localStorage === 'undefined' ? true : localStorage.getItem('novaos.voiceSpeak') !== '0',
@@ -133,6 +133,7 @@ export default class App extends Component {
     liveWorkoutGoals: null, goalsEditing: false, goalsDraft: { goal: '', focus: '', daysPerWeek: '', notes: '' }, coachBusy: false,
     mealPrepBusy: false,
     quickMinutes: '45', quickNote: '', quickBusy: false, quickPlan: null,
+    liveBackups: null, restoreConfirm: null,
     liveMoney: null, moneyBusy: false, moneyScanBusy: false, moneyScanError: null, moneyScanQuestion: null,
     moneyAddMerchant: '', moneyAddAmount: '', moneyAddIsSpend: true, moneyEditCategoryId: null,
     sparBusy: false,
@@ -1274,6 +1275,21 @@ export default class App extends Component {
       else navigator.clearAppBadge().catch(() => {});
     } catch { /* unsupported */ }
   }
+  // Recall — vault search behind the palette, debounced so typing stays smooth
+  queueRecall(query) {
+    clearTimeout(this.recallT);
+    const q = (query || '').trim();
+    const conn = getConnection();
+    if (!conn || q.length < 3) {
+      if (this.state.recallResults.length) this.setState({ recallResults: [] });
+      return;
+    }
+    this.recallT = setTimeout(() => {
+      api.recall(conn, q).then(({ results }) => {
+        if (this.state.paletteQuery.trim() === q) this.setState({ recallResults: results });
+      }).catch(() => {});
+    }, 250);
+  }
   advanceIdeaStatus(id, current) {
     const conn = getConnection();
     if (!conn) return;
@@ -1558,6 +1574,23 @@ export default class App extends Component {
       this.setState({ guardianBusy: false });
       this.toastMsg('Guardian run failed: ' + e.message);
     });
+  }
+  loadBackups() {
+    const conn = getConnection();
+    if (!conn) return;
+    api.guardianBackups(conn).then(({ files }) => this.setState({ liveBackups: files }))
+      .catch((e) => this.toastMsg('Could not list snapshots: ' + e.message));
+  }
+  restoreBackupNow(backupRel) {
+    const conn = getConnection();
+    if (!conn) return;
+    this.setState({ restoreConfirm: null });
+    api.guardianRestore(conn, backupRel).then(({ file }) => {
+      this.toastMsg(`Restored ${file} — undo is in the Inbox history`);
+      this.loadBackups();
+      this.refreshInbox();
+      this.refreshLiveData();
+    }).catch((e) => this.toastMsg('Restore failed: ' + e.message));
   }
   guardianExportNow() {
     const conn = getConnection();

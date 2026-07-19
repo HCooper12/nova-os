@@ -80,6 +80,7 @@ export async function testConnection(baseUrl, token) {
 export const api = {
   notes: (conn) => call(conn, '/api/notes'),
   noteDetail: (conn, id) => call(conn, `/api/notes/detail?id=${encodeURIComponent(id)}`),
+  recall: (conn, q) => call(conn, `/api/recall?q=${encodeURIComponent(q)}`),
   startNoteSummary: (conn, id) => post(conn, '/api/notes/summary', { id }),
   noteSummaryJob: (conn, jobId) => call(conn, `/api/notes/summary/${encodeURIComponent(jobId)}`),
   activity: (conn) => call(conn, '/api/activity'),
@@ -184,6 +185,8 @@ export const api = {
   guardianRun: (conn) => post(conn, '/api/guardian/run', {}),
   guardianReport: (conn) => post(conn, '/api/guardian/report', {}),
   guardianExport: (conn) => post(conn, '/api/guardian/export', {}),
+  guardianBackups: (conn) => call(conn, '/api/guardian/backups'),
+  guardianRestore: (conn, backup) => post(conn, '/api/guardian/restore', { backup }),
   todos: (conn) => call(conn, '/api/todos'),
   todoAdd: (conn, text, category) => post(conn, '/api/todos', { text, category }),
   todoToggle: (conn, line) => post(conn, '/api/todos/toggle', { line }),

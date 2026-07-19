@@ -350,6 +350,13 @@ export async function undoFiling(vaultPath, undo) {
     await writeFile(full, raw, 'utf8');
     return `removed ${removed} to-do line${removed === 1 ? '' : 's'}`;
   }
+  if (undo.route === 'restore') {
+    const prior = path.join(vaultPath, undo.priorBackupRel);
+    if (!existsSync(prior)) throw new Error('the pre-restore snapshot is gone — restore by hand from .nova-backups');
+    const { copyFile } = await import('node:fs/promises');
+    await copyFile(prior, path.join(vaultPath, undo.relPath));
+    return `put ${path.basename(undo.relPath)} back to its pre-restore state`;
+  }
   if (undo.route === 'idea-outline') {
     const full = path.join(vaultPath, undo.relPath);
     if (!existsSync(full)) throw new Error('that idea page no longer exists');

@@ -11,7 +11,8 @@ process.env.NOVA_VAULT_GRACE_MS = '0';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { runGuardian, getGuardian, runGuardianReport } = await import('../lib/guardian.js');
+const { runGuardian, getGuardian, runGuardianReport, listBackups, restoreBackup } = await import('../lib/guardian.js');
+const { undoFiling } = await import('../lib/inbox.js');
 const { beat } = await import('../lib/heartbeat.js');
 const { listRecords } = await import('../lib/inboxStore.js');
 
@@ -90,6 +91,34 @@ test('a stalled loop heartbeat is called out by name', async () => {
   await beat('compost'); // restore for later tests
 });
 
+test('time machine: list snapshots, restore overwrites (after snapshotting current), undo puts it back', async () => {
+  const todoPath = path.join(vault, 'Wiki/Inbox/To-Do.md');
+  await writeFile(todoPath, '# To-Do\n- [ ] version ONE\n', 'utf8');
+  const { backupFile } = await import('../lib/backup.js');
+  await backupFile(todoPath); // snapshot of version ONE
+  await new Promise((r) => setTimeout(r, 5)); // distinct stamp
+  await writeFile(todoPath, '# To-Do\n- [ ] version TWO\n', 'utf8');
+
+  const files = await listBackups(vault);
+  const todo = files.find((f) => f.file === 'Wiki/Inbox/To-Do.md');
+  assert.ok(todo, 'To-Do snapshots listed');
+  assert.ok(todo.backups.length >= 1);
+
+  // restore version ONE over version TWO (newest snapshot = the one just taken)
+  const { record, file } = await restoreBackup(vault, todo.backups[0].backupRel);
+  assert.equal(file, 'Wiki/Inbox/To-Do.md');
+  assert.equal(record.status, 'filed');
+  assert.ok(record.undoData, 'restore carries an undo');
+  assert.match(await readFile(todoPath, 'utf8'), /version ONE/);
+
+  // undo → back to version TWO (the pre-restore snapshot)
+  const summary = await undoFiling(vault, record.undoData);
+  assert.match(summary, /pre-restore state/);
+  assert.match(await readFile(todoPath, 'utf8'), /version TWO/);
+
+  await assert.rejects(() => restoreBackup(vault, 'Wiki/evil.md'), /not a snapshot path/);
+});
+
 test('monthly report drafts once per month onto the inbox rails; force re-drafts', async () => {
   const first = await runGuardianReport(vault);
   assert.equal(first.record.kind, 'guardian');
@@ -105,5 +134,6 @@ test('monthly report drafts once per month onto the inbox rails; force re-drafts
   const forced = await runGuardianReport(vault, { force: true });
   assert.equal(forced.record.status, 'pending');
   const records = await listRecords();
-  assert.equal(records.filter((r) => r.kind === 'guardian').length, 2);
+  // the restore receipt is also kind:'guardian' — count actual reports only
+  assert.equal(records.filter((r) => r.kind === 'guardian' && r.text.startsWith('Guardian Report')).length, 2);
 });

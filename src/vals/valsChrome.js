@@ -1,5 +1,5 @@
 import { NOVA_THEMES, NOVA_CORES } from '../theme.js';
-import { AGENTS } from './shared.js';
+import { AGENTS, NOTE_TYPE_COLOR } from './shared.js';
 
 // App chrome: sidebar nav, mobile tabs, per-screen wrappers and grids, the
 // command palette, settings (incl. appearance), agents (concept), and the
@@ -62,6 +62,15 @@ export function valsChrome(app, ctx) {
       hint: 'RESEARCHER',
       run: () => { app.setState({ paletteOpen: false }); app.startResearch(rawQuery); },
     });
+    // Recall — real vault pages matching the query (debounced fetch)
+    for (const r of st.recallResults) {
+      paletteResults.push({
+        icon: '◈', iconColor: NOTE_TYPE_COLOR[r.type] || 'var(--nv-ink)',
+        label: `${r.title}${r.snippet ? ` — ${r.snippet.slice(0, 70)}${r.snippet.length > 70 ? '…' : ''}` : ''}`,
+        hint: 'RECALL',
+        run: () => { app.setState({ paletteOpen: false }); app.selectNote(r.id); app.navigate('notes'); },
+      });
+    }
   }
 
   // responsive
@@ -167,6 +176,15 @@ export function valsChrome(app, ctx) {
 
     // settings
     isSettings: st.screen === 'settings',
+    timeMachine: !demoMode && !isOffline ? {
+      loaded: st.liveBackups != null,
+      files: st.liveBackups || [],
+      confirming: st.restoreConfirm,
+      load: () => app.loadBackups(),
+      askConfirm: (rel) => app.setState({ restoreConfirm: rel }),
+      cancelConfirm: () => app.setState({ restoreConfirm: null }),
+      restore: (rel) => app.restoreBackupNow(rel),
+    } : null,
     wrapSettings: mob ? mp : { padding: '28px 40px 44px' },
     settingsBaseUrl: st.settingsBaseUrl,
     setSettingsBaseUrl: (e) => app.setState({ settingsBaseUrl: e.target.value }),
@@ -183,7 +201,7 @@ export function valsChrome(app, ctx) {
     paletteOpen: st.paletteOpen,
     paletteRef: app.paletteRef,
     paletteQuery: st.paletteQuery,
-    setPaletteQuery: (e) => app.setState({ paletteQuery: e.target.value }),
+    setPaletteQuery: (e) => { app.setState({ paletteQuery: e.target.value }); app.queueRecall(e.target.value); },
     paletteKeyDown: (e) => { if (e.key === 'Enter' && paletteResults[0]) paletteResults[0].run(); },
     paletteResults,
     closePalette: () => app.setState({ paletteOpen: false }),

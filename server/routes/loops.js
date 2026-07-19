@@ -2,7 +2,7 @@ import express from 'express';
 import { getDispatchStatus, setDispatchConfig, runDispatch, DISPATCH_MODES, DISPATCH_SLOTS } from '../lib/dispatch.js';
 import { getCompost, runCompost, acceptProposal, dismissProposal } from '../lib/compost.js';
 import { getTodoistStatus, syncTodoist } from '../lib/todoistSync.js';
-import { getGuardian, runGuardian, runGuardianReport, exportVault } from '../lib/guardian.js';
+import { getGuardian, runGuardian, runGuardianReport, exportVault, listBackups, restoreBackup } from '../lib/guardian.js';
 import { runMealPrep } from '../lib/mealPrep.js';
 
 // The loops: the scheduled briefs (dispatch slots on the inbox rails), the
@@ -118,6 +118,22 @@ export function loopsRouter(vaultPath) {
       res.json({ report: await runGuardian(vaultPath) });
     } catch (e) {
       res.status(500).json({ error: e.message });
+    }
+  });
+
+  router.get('/guardian/backups', async (req, res) => {
+    try {
+      res.json({ files: await listBackups(vaultPath) });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  router.post('/guardian/restore', async (req, res) => {
+    try {
+      res.json(await restoreBackup(vaultPath, req.body?.backup));
+    } catch (e) {
+      res.status(400).json({ error: e.message });
     }
   });
 
