@@ -166,6 +166,7 @@ export default class App extends Component {
     mealPrepBusy: false,
     quickMinutes: '45', quickNote: '', quickBusy: false, quickPlan: null,
     liveBackups: null, restoreConfirm: null, pushState: 'checking',
+    liveProfile: null, profileEditing: false, profileDraft: { focus: '', priorities: '', bestSelf: '', notes: '' }, profileSaving: false,
     // an in-progress workout must survive tab reclaim / refresh / app kill —
     // restored from device storage at boot (see restoreActiveSession)
     ...restoreActiveSession(),
@@ -449,6 +450,7 @@ export default class App extends Component {
       async () => this.setState({ liveGuardian: await api.guardian(conn) }),
       async () => this.setState({ liveTts: await api.ttsStatus(conn) }),
       async () => this.setState({ liveMoney: await api.money(conn) }),
+      async () => this.setState({ liveProfile: (await api.profile(conn)).profile }),
     ];
     this.refreshInFlight = (async () => {
       const results = await Promise.allSettled(tasks.map((t) => t()));
@@ -1677,6 +1679,43 @@ export default class App extends Component {
     api.pushTest(conn).then(({ sent }) => {
       this.toastMsg(sent ? `Test sent to ${sent} device${sent === 1 ? '' : 's'} — check the lock screen` : 'No devices subscribed yet — tap ENABLE first');
     }).catch((e) => this.toastMsg('Test failed: ' + e.message));
+  }
+  startProfileEdit() {
+    const p = this.state.liveProfile;
+    this.setState({
+      profileEditing: true,
+      profileDraft: {
+        focus: p?.focus || '',
+        priorities: (p?.priorities || []).join('\n'),
+        bestSelf: p?.bestSelf || '',
+        notes: p?.notes || '',
+      },
+    });
+  }
+  setProfileField(field, value) {
+    this.setState((s) => ({ profileDraft: { ...s.profileDraft, [field]: value } }));
+  }
+  saveProfile() {
+    const conn = getConnection();
+    const d = this.state.profileDraft;
+    if (!conn || this.state.profileSaving) return;
+    if (!d.focus.trim() && !d.priorities.trim() && !d.bestSelf.trim() && !d.notes.trim()) {
+      this.toastMsg('Add something first — a focus line, a priority, anything');
+      return;
+    }
+    this.setState({ profileSaving: true });
+    api.setProfile(conn, {
+      focus: d.focus,
+      priorities: d.priorities.split('\n').map((x) => x.trim()).filter(Boolean),
+      bestSelf: d.bestSelf,
+      notes: d.notes,
+    }).then(({ profile }) => {
+      this.setState({ profileSaving: false, profileEditing: false, liveProfile: profile });
+      this.toastMsg('Profile saved — every Nova agent reasons from this now');
+    }).catch((e) => {
+      this.setState({ profileSaving: false });
+      this.toastMsg('Could not save: ' + e.message);
+    });
   }
   loadBackups() {
     const conn = getConnection();

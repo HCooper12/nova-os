@@ -15,7 +15,7 @@ export function Settings({ v }) {
     <div style={v.wrapSettings} data-screen-label="Settings">
       <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>
         <div style={css("display:flex;align-items:center;gap:14px")}>
-          <span style={css("font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--nv-acc)")}>XI.</span>
+          <span style={css("font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--nv-acc)")}>XIII.</span>
           <span style={css("width:50px;height:1px;background:linear-gradient(90deg,var(--nv-acc-border),transparent)")}></span>
           <span style={css("font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.32em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>SYSTEM · SETTINGS</span>
         </div>
@@ -61,6 +61,56 @@ export function Settings({ v }) {
 
         <div style={css(`margin-top:16px;font-size:12.5px;color:${statusColor[v.settingsTestStatus]}`)}>{v.settingsTestMessage}</div>
       </div>
+
+      {v.profile && (
+        <div style={{ marginTop: '34px' }}>
+          <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
+            <span style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:var(--nv-gold)")}>ABOUT YOU</span>
+            <span style={css("font:400 9px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>THE ROOT CONTEXT EVERY NOVA AGENT REASONS FROM · LIVES IN YOUR VAULT</span>
+            {!v.profile.editing && (
+              <Interactive as="span" onClick={v.profile.startEdit} base="cursor:pointer;font:600 10px 'IBM Plex Mono',monospace;letter-spacing:.08em;padding:5px 12px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold)" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 08%, transparent)">{v.profile.set ? 'EDIT' : 'SET UP'}</Interactive>
+            )}
+          </div>
+
+          {v.profile.editing ? (
+            <div className="nv-pane" style={{ marginTop: '12px', padding: '18px 20px', maxWidth: '620px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <label style={css("display:block")}>
+                <span style={css("font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>CURRENT FOCUS · what this season of life is about</span>
+                <input value={v.profile.draft.focus} onChange={v.profile.setField('focus')} placeholder="e.g. Building my body and my content while holding down full-time work"
+                  style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px 'Rajdhani',sans-serif", padding: '9px 12px', outline: 'none' }} />
+              </label>
+              <label style={css("display:block")}>
+                <span style={css("font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>PRIORITIES · one per line, the handful that matter most now</span>
+                <textarea value={v.profile.draft.priorities} onChange={v.profile.setField('priorities')} rows={4} placeholder={"Get to 78kg lean\nShip one video a week\nProtein consistency\nSleep before 11"}
+                  style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px 'Rajdhani',sans-serif", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
+              </label>
+              <label style={css("display:block")}>
+                <span style={css("font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>PERFORMING AT YOUR BEST · what that looks and feels like for you</span>
+                <textarea value={v.profile.draft.bestSelf} onChange={v.profile.setField('bestSelf')} rows={2} placeholder="Disciplined but not rigid — training hard, eating well, creating consistently, present with people."
+                  style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px 'Rajdhani',sans-serif", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
+              </label>
+              <label style={css("display:block")}>
+                <span style={css("font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>CONTEXT &amp; CONSTRAINTS · anything Nova should always know</span>
+                <textarea value={v.profile.draft.notes} onChange={v.profile.setField('notes')} rows={3} placeholder="Work 9-5 Mon-Fri. Gym has only dumbbells (to 40kg) on weekends. Left shoulder flares under heavy overhead. Prefer training evenings."
+                  style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px 'Rajdhani',sans-serif", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
+              </label>
+              <div style={css("display:flex;gap:10px;align-items:center")}>
+                <Interactive as="span" onClick={v.profile.saving ? undefined : v.profile.save} base={{ cursor: 'pointer', font: "600 10.5px 'IBM Plex Mono',monospace", letterSpacing: '.08em', padding: '9px 18px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1322', opacity: v.profile.saving ? 0.5 : 1 }} hoverStyle="filter:brightness(1.08)">{v.profile.saving ? 'SAVING…' : 'SAVE'}</Interactive>
+                <Interactive as="span" onClick={v.profile.cancelEdit} base="cursor:pointer;font:400 10px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-ink)">cancel</Interactive>
+              </div>
+            </div>
+          ) : v.profile.set ? (
+            <div className="nv-pane" style={{ marginTop: '12px', padding: '18px 20px', maxWidth: '620px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {v.profile.view.focus && <div><div style={css("font:500 8.5px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>CURRENT FOCUS</div><div style={css("margin-top:3px;font:500 14px 'Rajdhani',sans-serif")}>{v.profile.view.focus}</div></div>}
+              {v.profile.view.priorities.length > 0 && <div><div style={css("font:500 8.5px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>PRIORITIES</div><div style={css("margin-top:4px;display:flex;flex-direction:column;gap:3px")}>{v.profile.view.priorities.map((p, i) => <div key={i} style={css("font:500 13px 'Rajdhani',sans-serif;color:var(--nv-ink60)")}>· {p}</div>)}</div></div>}
+              {v.profile.view.bestSelf && <div><div style={css("font:500 8.5px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>AT YOUR BEST</div><div style={css("margin-top:3px;font:500 12.5px/1.55 'Rajdhani',sans-serif;color:var(--nv-ink60)")}>{v.profile.view.bestSelf}</div></div>}
+              {v.profile.view.notes && <div><div style={css("font:500 8.5px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>CONTEXT &amp; CONSTRAINTS</div><div style={css("margin-top:3px;font:500 12.5px/1.55 'Rajdhani',sans-serif;color:var(--nv-ink60);white-space:pre-wrap")}>{v.profile.view.notes}</div></div>}
+            </div>
+          ) : (
+            <div style={css("margin-top:10px;max-width:620px;font:500 12.5px/1.7 'Rajdhani',sans-serif;color:var(--nv-ink60)")}>Nova knows your data but not yet your intentions. Tell it what you're working toward and it reasons through that in every answer, coaching session, and brief — the difference between a tool and a companion. Two minutes, editable anytime in Obsidian.</div>
+          )}
+        </div>
+      )}
 
       <div style={css("margin-top:34px;font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>APPEARANCE</div>
       <div style={css("margin-top:12px;max-width:520px;display:flex;flex-direction:column;gap:10px")}>

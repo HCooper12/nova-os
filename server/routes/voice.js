@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { startAskNova } from '../lib/claudeCode.js';
 import { composeDispatch } from '../lib/dispatch.js';
 import { ttsConfigured, listVoices, synthesize } from '../lib/tts.js';
+import { profileContext } from '../lib/profile.js';
 
 // The voice line: Ask Nova (read-only Q&A job over the vault, polled via the
 // shared /claude-code/message/:jobId endpoint) and the ElevenLabs TTS proxy.
@@ -20,13 +21,18 @@ export function voiceRouter(vaultPath) {
       // turns already carry it (and everything said since) in the session.
       let context = '';
       if (!sessionId) {
+        const parts = [];
+        try {
+          parts.push(await profileContext(vaultPath)); // who he is comes first
+        } catch { /* optional */ }
         try {
           const [morning, evening] = await Promise.all([
             composeDispatch(vaultPath, 'morning'),
             composeDispatch(vaultPath, 'evening'),
           ]);
-          context = `${morning.text}\n\n${evening.text}`;
+          parts.push(`${morning.text}\n\n${evening.text}`);
         } catch { /* the prompt says "(unavailable)" honestly */ }
+        context = parts.join('\n\n');
       }
 
       const jobId = startAskNova(vaultPath, { question, context, sessionId });

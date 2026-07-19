@@ -72,6 +72,12 @@ export function valsChrome(app, ctx) {
       });
     }
   }
+  if (pq.length >= 2 && 'about you profile'.includes(pq)) {
+    paletteResults.push({
+      icon: '◆', iconColor: 'var(--nv-gold)', label: 'About You — your profile', hint: 'PROFILE',
+      run: () => { app.navigate('settings', { paletteOpen: false }); setTimeout(() => app.startProfileEdit(), 60); },
+    });
+  }
 
   // responsive
   const mob = st.isMobile;
@@ -176,6 +182,23 @@ export function valsChrome(app, ctx) {
 
     // settings
     isSettings: st.screen === 'settings',
+    profile: !demoMode && !isOffline ? {
+      set: !!(st.liveProfile && (st.liveProfile.focus || (st.liveProfile.priorities || []).length || st.liveProfile.bestSelf || st.liveProfile.notes)),
+      editing: st.profileEditing,
+      saving: st.profileSaving,
+      draft: st.profileDraft,
+      view: st.liveProfile ? {
+        focus: st.liveProfile.focus,
+        priorities: st.liveProfile.priorities || [],
+        bestSelf: st.liveProfile.bestSelf,
+        notes: st.liveProfile.notes,
+        updated: st.liveProfile.updated,
+      } : null,
+      startEdit: () => app.startProfileEdit(),
+      cancelEdit: () => app.setState({ profileEditing: false }),
+      setField: (field) => (e) => app.setProfileField(field, e.target.value),
+      save: () => app.saveProfile(),
+    } : null,
     pushSettings: !demoMode ? {
       state: st.pushState,
       label: st.pushState === 'on' ? 'ON — DRAFTS & ALERTS REACH YOUR PHONE'

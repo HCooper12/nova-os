@@ -6,6 +6,7 @@ import { loadSessions, completeSession, updateSession, deleteSession, completedC
 import { computeProgressions, draftSessionSummary, normalizeQuickPlan } from '../lib/coach.js';
 import { startQuickSession } from '../lib/claudeCode.js';
 import { getFitnessGoals, setFitnessGoals, goalsContext } from '../lib/fitnessGoals.js';
+import { profileContext } from '../lib/profile.js';
 import { startAskCoach } from '../lib/claudeCode.js';
 import { loadRecentDays } from '../lib/healthData.js';
 
@@ -157,6 +158,9 @@ export function workoutsRouter(vaultPath) {
 
       const parts = [];
       try {
+        parts.push(await profileContext(vaultPath)); // who he is, first
+      } catch { /* optional */ }
+      try {
         parts.push(await goalsContext(vaultPath));
       } catch { /* section optional */ }
       try {
@@ -197,6 +201,9 @@ export function workoutsRouter(vaultPath) {
       const note = typeof req.body?.note === 'string' ? req.body.note.trim().slice(0, 300) : '';
 
       const parts = [];
+      try {
+        parts.push(await profileContext(vaultPath)); // who he is, first
+      } catch { /* optional */ }
       try {
         parts.push(await goalsContext(vaultPath));
       } catch { /* optional */ }
