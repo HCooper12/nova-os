@@ -18,10 +18,12 @@ import { healthDataRouter } from './routes/healthData.js';
 import { foodLogRouter } from './routes/foodLog.js';
 import { inboxRouter } from './routes/inbox.js';
 import { loopsRouter } from './routes/loops.js';
+import { todosRouter } from './routes/todos.js';
 import { startHealthInsightScheduler } from './lib/healthInsight.js';
 import { startDispatchScheduler } from './lib/dispatch.js';
 import { startCompostScheduler } from './lib/compost.js';
 import { startTodoistScheduler } from './lib/todoistSync.js';
+import { startGuardianScheduler } from './lib/guardian.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(__dirname, '.env');
@@ -79,11 +81,13 @@ async function main() {
   app.use('/api', foodLogRouter(process.env.VAULT_PATH));
   app.use('/api', inboxRouter(process.env.VAULT_PATH));
   app.use('/api', loopsRouter(process.env.VAULT_PATH));
+  app.use('/api', todosRouter(process.env.VAULT_PATH));
 
   startHealthInsightScheduler(process.env.VAULT_PATH);
   startDispatchScheduler(process.env.VAULT_PATH);
   startCompostScheduler(process.env.VAULT_PATH);
   startTodoistScheduler(process.env.VAULT_PATH);
+  startGuardianScheduler(process.env.VAULT_PATH);
 
   app.use((err, req, res, next) => {
     console.error(err);

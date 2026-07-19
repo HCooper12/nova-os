@@ -478,6 +478,11 @@ async function checkAndRun(vaultPath) {
 }
 
 export function startDispatchScheduler(vaultPath) {
-  checkAndRun(vaultPath);
-  setInterval(() => checkAndRun(vaultPath), 15 * 60 * 1000);
+  const tick = async () => {
+    const { beat } = await import('./heartbeat.js');
+    beat('dispatch');
+    return checkAndRun(vaultPath);
+  };
+  tick();
+  setInterval(tick, 15 * 60 * 1000);
 }

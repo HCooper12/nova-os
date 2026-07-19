@@ -255,8 +255,13 @@ async function checkAndRun(vaultPath) {
 }
 
 export function startCompostScheduler(vaultPath) {
-  checkAndRun(vaultPath);
-  setInterval(() => checkAndRun(vaultPath), 24 * 60 * 60 * 1000);
+  const tick = async () => {
+    const { beat } = await import('./heartbeat.js');
+    beat('compost');
+    return checkAndRun(vaultPath);
+  };
+  tick();
+  setInterval(tick, 24 * 60 * 60 * 1000);
 }
 
 // test hook

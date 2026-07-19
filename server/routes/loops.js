@@ -2,6 +2,7 @@ import express from 'express';
 import { getDispatchStatus, setDispatchConfig, runDispatch, DISPATCH_MODES, DISPATCH_SLOTS } from '../lib/dispatch.js';
 import { getCompost, runCompost, acceptProposal, dismissProposal } from '../lib/compost.js';
 import { getTodoistStatus, syncTodoist } from '../lib/todoistSync.js';
+import { getGuardian, runGuardian, runGuardianReport } from '../lib/guardian.js';
 
 // The loops: the scheduled briefs (dispatch slots on the inbox rails), the
 // Compost loop (weekly read-only vault hygiene proposals), and Todoist sync.
@@ -90,6 +91,30 @@ export function loopsRouter(vaultPath) {
   router.post('/todoist/sync', async (req, res) => {
     try {
       res.json({ result: await syncTodoist(vaultPath) });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  router.get('/guardian', async (req, res) => {
+    try {
+      res.json(await getGuardian());
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  router.post('/guardian/run', async (req, res) => {
+    try {
+      res.json({ report: await runGuardian(vaultPath) });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  router.post('/guardian/report', async (req, res) => {
+    try {
+      res.json(await runGuardianReport(vaultPath, { force: !!req.body?.force }));
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

@@ -152,7 +152,7 @@ export function valsInbox(app, ctx) {
     kind: r.kind || null,
     text: r.text,
     time: timeLabel(r.createdAt),
-    source: r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.source === 'voice' ? 'VOICE' : 'TYPED',
+    source: r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.kind === 'guardian' ? 'GUARDIAN' : r.source === 'voice' ? 'VOICE' : 'TYPED',
     status: r.status,
     route: r.decision ? (ROUTE_META[r.decision.route] || ROUTE_META.note) : null,
     confidence: r.decision?.confidence || null,
@@ -254,6 +254,24 @@ export function valsInbox(app, ctx) {
     sync: () => app.runTodoistSyncNow(),
   };
 
+  // loops — Guardian (the integrity agent's latest read-only check run)
+  const guardianReport = st.liveGuardian?.lastReport;
+  const GUARDIAN_TONE = { ok: 'var(--nv-good)', warn: 'var(--nv-gold)', alert: 'var(--nv-warn)' };
+  const guardianCard = {
+    loaded: !!guardianReport,
+    status: guardianReport?.status || null,
+    statusColor: GUARDIAN_TONE[guardianReport?.status] || 'var(--nv-ink40)',
+    checkedLabel: guardianReport ? `checked ${timeLabel(guardianReport.at)}` : 'no check run yet',
+    checks: (guardianReport?.checks || []).map((c) => ({
+      id: c.id, label: c.label, detail: c.detail,
+      color: GUARDIAN_TONE[c.status] || 'var(--nv-ink40)',
+      statusLabel: c.status.toUpperCase(),
+    })),
+    busy: !!st.guardianBusy,
+    run: () => app.runGuardianNow(),
+    report: () => app.guardianReportNow(),
+  };
+
   return {
     isInbox: st.screen === 'inbox',
     wrapInbox: st.isMobile ? { padding: '66px 16px 96px' } : { padding: '28px 40px 44px', maxWidth: '980px' },
@@ -291,5 +309,6 @@ export function valsInbox(app, ctx) {
     compostBusy: st.compostBusy,
     runCompostNow: () => app.runCompostNow(),
     todoist: todoistCard,
+    guardian: guardianCard,
   };
 }

@@ -29,10 +29,11 @@ export function valsChrome(app, ctx) {
     { icon: 'V.', iconColor: 'var(--nv-gold)', label: 'Inbox — capture anything', hint: 'GO', run: go('inbox') },
     { icon: 'VI.', iconColor: 'var(--nv-gold)', label: 'Recipes', hint: 'GO', run: go('recipes') },
     { icon: 'VII.', iconColor: 'var(--nv-gold)', label: 'Shopping List', hint: 'GO', run: go('shopping') },
-    { icon: 'VIII.', iconColor: 'var(--nv-gold)', label: 'Train — workouts', hint: 'GO', run: go('workouts') },
-    { icon: 'IX.', iconColor: 'var(--nv-gold)', label: 'Notes', hint: 'GO', run: go('notes') },
-    { icon: 'X.', iconColor: 'var(--nv-gold)', label: 'Journal', hint: 'GO', run: go('journal') },
-    { icon: 'XI.', iconColor: 'var(--nv-gold)', label: 'Settings', hint: 'GO', run: go('settings') },
+    { icon: 'VIII.', iconColor: 'var(--nv-gold)', label: 'To-Do — synced with Todoist', hint: 'GO', run: go('todos') },
+    { icon: 'IX.', iconColor: 'var(--nv-gold)', label: 'Train — workouts', hint: 'GO', run: go('workouts') },
+    { icon: 'X.', iconColor: 'var(--nv-gold)', label: 'Notes', hint: 'GO', run: go('notes') },
+    { icon: 'XI.', iconColor: 'var(--nv-gold)', label: 'Journal', hint: 'GO', run: go('journal') },
+    { icon: 'XII.', iconColor: 'var(--nv-gold)', label: 'Settings', hint: 'GO', run: go('settings') },
     // the scripted "Nova actions" only exist in demo mode — in live mode the
     // palette offers nothing it can't really do
     ...(demoMode ? [
@@ -61,7 +62,7 @@ export function valsChrome(app, ctx) {
   const mp = { padding: '66px 16px 96px' };
   const col = (mt) => ({ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: mt });
   const wrapTall = mob ? mp : null;
-  const tabs = [['I.', 'Home', 'mission'], ['V.', 'Inbox', 'inbox'], ['II.', 'Voice', 'voice'], ['IV.', 'Code', 'code'], ['VI.', 'Recipes', 'recipes'], ['VII.', 'Shop', 'shopping'], ['VIII.', 'Train', 'workouts'], ['IX.', 'Notes', 'notes']].map(t => {
+  const tabs = [['I.', 'Home', 'mission'], ['V.', 'Inbox', 'inbox'], ['VIII.', 'To-Do', 'todos'], ['II.', 'Voice', 'voice'], ['IV.', 'Code', 'code'], ['VI.', 'Recipes', 'recipes'], ['VII.', 'Shop', 'shopping'], ['IX.', 'Train', 'workouts'], ['X.', 'Notes', 'notes']].map(t => {
     const act = st.screen === t[2];
     return { num: t[0], label: t[1], go: go(t[2]),
       style: { flex: '1', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', padding: '7px 2px', cursor: 'pointer', borderRadius: '8px', color: act ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: act ? 'var(--nv-acc-bg)' : 'none', textShadow: act ? 'var(--nv-tsh-tab)' : 'none' },
@@ -93,6 +94,7 @@ export function valsChrome(app, ctx) {
     wrapGalaxy: wrapTall || { padding: '28px 40px 40px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
     wrapRecipes: mob ? mp : { padding: '28px 40px 44px' },
     wrapShopping: mob ? mp : { padding: '28px 40px 44px' },
+    wrapTodos: mob ? mp : { padding: '28px 40px 44px', maxWidth: '860px' },
     wrapWorkouts: mob ? mp : { padding: '28px 40px 44px' },
     wrapCode: wrapTall || { padding: '28px 40px 44px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
     wrapNotes: wrapTall || { padding: '28px 40px 44px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
@@ -126,11 +128,12 @@ export function valsChrome(app, ctx) {
       // and an honest "—" when configured but not yet synced (offline)
       Object.assign(mkNav('Recipes', 'VI.', 'recipes'), { count: usingLiveRecipes ? String(st.liveRecipes.length) : demoMode ? String(app.recipes.length) : '—' }),
       Object.assign(mkNav('Shopping', 'VII.', 'shopping'), { count: st.liveShoppingList ? String(shoppingItems.length) : demoMode ? '0' : '—' }),
-      Object.assign(mkNav('Train', 'VIII.', 'workouts'), { count: usingLiveWorkouts ? String(liveRoutines.length) : '—' }),
-      Object.assign(mkNav('Notes', 'IX.', 'notes'), { count: usingLiveNotes ? String(st.liveNotes.length) : demoMode ? String(app.notes.length) : '—' }),
-      Object.assign(mkNav('Journal', 'X.', 'journal'), { count: st.liveJournalEntries ? String(journalDays.length) : demoMode ? '0' : '—' }),
+      Object.assign(mkNav('To-Do', 'VIII.', 'todos'), { count: ctx.todosOpenCount != null ? String(ctx.todosOpenCount) : demoMode ? '0' : '—' }),
+      Object.assign(mkNav('Train', 'IX.', 'workouts'), { count: usingLiveWorkouts ? String(liveRoutines.length) : '—' }),
+      Object.assign(mkNav('Notes', 'X.', 'notes'), { count: usingLiveNotes ? String(st.liveNotes.length) : demoMode ? String(app.notes.length) : '—' }),
+      Object.assign(mkNav('Journal', 'XI.', 'journal'), { count: st.liveJournalEntries ? String(journalDays.length) : demoMode ? '0' : '—' }),
     ],
-    navSystem: [mkNav('Settings', 'XI.', 'settings')],
+    navSystem: [mkNav('Settings', 'XII.', 'settings')],
     agentsGroupLabel: `AGENTS · ${agentsLiveCount} OF ${AGENTS.length} LIVE`,
     agents: AGENTS.map((a, i) => ({
       name: a.name, role: a.role, on: a.on,

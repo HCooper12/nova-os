@@ -258,6 +258,39 @@ export function Inbox({ v }) {
                 <div style={css(`margin-top:8px;font:400 10px ${M};color:color-mix(in srgb, var(--nv-ink) 35%, transparent)`)}>To-dos filed here appear in Todoist's Inbox; tasks added or completed there flow back. Nothing is ever deleted on either side.</div>
               )}
             </div>
+
+            <div className="nv-pane" style={{ flex: '1 1 320px', padding: '16px 18px' }}>
+              <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>
+                <span style={css(`font:500 9.5px ${M};letter-spacing:.2em;color:var(--nv-gold)`)}>GUARDIAN</span>
+                <span style={css(`font:400 8.5px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>DAILY · READ-ONLY CHECKS</span>
+              </div>
+              <div style={css(`margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px`)}>
+                <span style={css(`display:flex;align-items:center;gap:8px;font:500 11.5px ${R};color:var(--nv-ink60)`)}>
+                  {v.guardian.loaded && <span style={{ width: '7px', height: '7px', borderRadius: '50%', flex: 'none', background: v.guardian.statusColor, boxShadow: `0 0 8px ${v.guardian.statusColor}` }}></span>}
+                  {v.guardian.loaded ? `${v.guardian.status.toUpperCase()} · ${v.guardian.checkedLabel}` : v.guardian.checkedLabel}
+                </span>
+                <span style={css("display:flex;gap:6px;flex:none")}>
+                  <Interactive as="span" onClick={v.guardian.busy ? undefined : v.guardian.run}
+                    base={{ cursor: 'pointer', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '5px 11px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent)', color: 'var(--nv-gold)', opacity: v.guardian.busy ? 0.5 : 1 }}
+                    hoverStyle={{ background: 'color-mix(in srgb, var(--nv-gold) 08%, transparent)' }}
+                  >{v.guardian.busy ? 'CHECKING…' : 'RUN CHECKS'}</Interactive>
+                  <Interactive as="span" onClick={v.guardian.busy ? undefined : v.guardian.report}
+                    base={{ cursor: 'pointer', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '5px 11px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent)', color: 'var(--nv-ink60)', opacity: v.guardian.busy ? 0.5 : 1 }}
+                    hoverStyle={{ background: 'rgba(255,255,255,.05)' }}
+                  >REPORT</Interactive>
+                </span>
+              </div>
+              {v.guardian.checks.length > 0 && (
+                <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:7px")}>
+                  {v.guardian.checks.map((c) => (
+                    <div key={c.id} style={css("display:flex;gap:9px;align-items:baseline")}>
+                      <span style={{ font: `600 8px ${M}`, letterSpacing: '.1em', flex: 'none', width: '44px', color: c.color }}>{c.statusLabel}</span>
+                      <span style={css(`font:500 11.5px/1.5 ${R};color:var(--nv-ink60)`)}><span style={css("color:var(--nv-ink)")}>{c.label}.</span> {c.detail}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

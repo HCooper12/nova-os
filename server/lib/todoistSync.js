@@ -249,6 +249,11 @@ export function startTodoistScheduler(vaultPath) {
     console.log('todoist sync: not configured (set TODOIST_TOKEN in server/.env to enable)');
     return;
   }
-  syncTodoist(vaultPath).catch(() => {});
-  setInterval(() => syncTodoist(vaultPath).catch(() => {}), 10 * 60 * 1000);
+  const tick = async () => {
+    const { beat } = await import('./heartbeat.js');
+    beat('todoist');
+    return syncTodoist(vaultPath).catch(() => {});
+  };
+  tick();
+  setInterval(tick, 10 * 60 * 1000);
 }

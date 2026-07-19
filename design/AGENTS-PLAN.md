@@ -266,12 +266,16 @@ error-record preservation.
 
 **Skills & routines to build (in order):**
 1. *Heartbeat file* — every scheduler tick writes `data/heartbeat.json`
-   ({dispatch, compost, healthInsight, lastServerStart}). The client surfaces
-   staleness honestly ("compost hasn't run in 9 days") — catches the
-   silent-stall class of failure.
-2. *Guardian monthly report* — deterministic: backup counts + oldest/newest,
-   data-dir size, quarantined files found, store record counts, uptime
-   since. Draft-gated inbox record on the 1st.
+   ({dispatch, todoist, compost, guardian}). Guardian's daily checks read it
+   back and name stalled loops ("compost last ticked 216h ago") — catches
+   the silent-stall class of failure. ✅ Shipped (lib/heartbeat.js).
+2. *Guardian monthly report* — deterministic: backup counts + restore-read
+   samples, quarantined files found, store record counts, undo-net usage
+   over 30 days. Draft-gated inbox record on the 1st. ✅ Shipped
+   (lib/guardian.js: daily read-only checks — vault reachable, snapshots
+   restore-read, stores parse, heartbeats on cadence — GUARDIAN card in
+   Inbox LOOPS with RUN CHECKS / REPORT, kind:'guardian' records on the
+   rails).
 3. *Restore surface* — Settings: per-file backup list → "restore this
    version" proposal (writes current → backup first, then restores;
    double-undo safe).

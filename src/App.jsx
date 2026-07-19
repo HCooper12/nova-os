@@ -12,11 +12,13 @@ import { valsWorkouts } from './vals/valsWorkouts.js';
 import { valsNotes } from './vals/valsNotes.js';
 import { valsMisc } from './vals/valsMisc.js';
 import { valsInbox } from './vals/valsInbox.js';
+import { valsTodos } from './vals/valsTodos.js';
 import { valsMission } from './vals/valsMission.js';
 import { valsChrome } from './vals/valsChrome.js';
 import { Sidebar } from './Sidebar.jsx';
 import { MissionControl } from './screens/MissionControl.jsx';
 import { Inbox } from './screens/Inbox.jsx';
+import { Todos } from './screens/Todos.jsx';
 import { Voice } from './screens/Voice.jsx';
 import { Galaxy } from './screens/Galaxy.jsx';
 import { Recipes } from './screens/Recipes.jsx';
@@ -47,7 +49,7 @@ const WAKE_WORD = true;
 
 // Hash-routed screens (#/recipes etc.) so deep links and the back button work
 // on GitHub Pages without a server-side router.
-const SCREENS = ['mission', 'inbox', 'voice', 'galaxy', 'code', 'recipes', 'shopping', 'workouts', 'notes', 'journal', 'settings'];
+const SCREENS = ['mission', 'inbox', 'voice', 'galaxy', 'code', 'recipes', 'shopping', 'todos', 'workouts', 'notes', 'journal', 'settings'];
 function screenFromHash() {
   const h = (typeof window !== 'undefined' ? window.location.hash : '').replace(/^#\/?/, '');
   return SCREENS.includes(h) ? h : 'mission';
@@ -62,7 +64,7 @@ const CACHED_LIVE_KEYS = [
   'liveFoodLog', 'liveShoppingList', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
   'liveWorkoutExercises', 'liveWorkoutMuscleGroups', 'liveWorkoutTrackingTypes',
   'liveWorkoutRoutines', 'liveWorkoutSchedule', 'liveWorkoutWeekdays', 'liveWorkoutProgressions',
-  'liveJournalEntries', 'liveGraph', 'liveInbox', 'liveDispatch', 'liveCompost', 'liveTodoist',
+  'liveJournalEntries', 'liveGraph', 'liveInbox', 'liveDispatch', 'liveCompost', 'liveTodoist', 'liveTodos', 'liveGuardian',
 ];
 
 const INBOX_MODE_KEY = 'novaos.inboxMode';
@@ -119,8 +121,9 @@ export default class App extends Component {
     liveInbox: null, inboxInput: '', inboxCaptureBusy: false, inboxActionBusy: {},
     inboxMode: (typeof window !== 'undefined' && INBOX_MODES.includes(localStorage.getItem(INBOX_MODE_KEY))) ? localStorage.getItem(INBOX_MODE_KEY) : 'auto-high',
     inboxProposalDismissed: (() => { try { const a = JSON.parse(localStorage.getItem('novaos.proposalsDismissed') || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } })(),
-    liveDispatch: null, liveCompost: null, liveTodoist: null,
-    dispatchBusy: false, compostBusy: false, compostActionBusy: {}, todoistBusy: false,
+    liveDispatch: null, liveCompost: null, liveTodoist: null, liveTodos: null, liveGuardian: null,
+    dispatchBusy: false, compostBusy: false, compostActionBusy: {}, todoistBusy: false, guardianBusy: false,
+    todoInput: '', todoActionBusy: false,
     sparBusy: false,
 
     // live-data connection (Settings screen)
@@ -319,6 +322,8 @@ export default class App extends Component {
       async () => this.setState({ liveDispatch: await api.dispatchStatus(conn) }),
       async () => this.setState({ liveCompost: await api.compost(conn) }),
       async () => this.setState({ liveTodoist: await api.todoistStatus(conn) }),
+      async () => this.setState({ liveTodos: await api.todos(conn) }),
+      async () => this.setState({ liveGuardian: await api.guardian(conn) }),
     ];
     this.refreshInFlight = (async () => {
       const results = await Promise.allSettled(tasks.map((t) => t()));
@@ -1146,7 +1151,33 @@ export default class App extends Component {
   refreshInbox() {
     const conn = getConnection();
     if (!conn) return Promise.resolve();
+    // approvals can file to-dos — keep the To-Do tab in step with the queue
+    api.todos(conn).then((data) => this.setState({ liveTodos: data })).catch(() => {});
     return api.inbox(conn).then((data) => this.setState({ liveInbox: data })).catch(() => {});
+  }
+  addTodoItem() {
+    const conn = getConnection();
+    const text = this.state.todoInput.trim();
+    if (!conn || !text || this.state.todoActionBusy) return;
+    this.setState({ todoActionBusy: true });
+    api.todoAdd(conn, text).then((data) => {
+      this.setState({ todoActionBusy: false, todoInput: '', liveTodos: data });
+    }).catch((e) => {
+      this.setState({ todoActionBusy: false });
+      this.toastMsg('Could not add: ' + e.message);
+    });
+  }
+  toggleTodoItem(rawLine) {
+    const conn = getConnection();
+    if (!conn || this.state.todoActionBusy) return;
+    this.setState({ todoActionBusy: true });
+    api.todoToggle(conn, rawLine).then((data) => {
+      this.setState({ todoActionBusy: false, liveTodos: data });
+    }).catch((e) => {
+      this.setState({ todoActionBusy: false });
+      this.toastMsg(e.message);
+      api.todos(conn).then((data) => this.setState({ liveTodos: data })).catch(() => {});
+    });
   }
   setInboxInput(value) {
     this.setState({ inboxInput: typeof value === 'string' ? value : value.target.value });
@@ -1201,6 +1232,31 @@ export default class App extends Component {
     }).catch((e) => {
       this.setState({ todoistBusy: false });
       this.toastMsg('Todoist sync failed: ' + e.message);
+    });
+  }
+  runGuardianNow() {
+    const conn = getConnection();
+    if (!conn || this.state.guardianBusy) return;
+    this.setState({ guardianBusy: true });
+    api.guardianRun(conn).then(({ report }) => {
+      this.setState({ guardianBusy: false, liveGuardian: { lastReport: report } });
+      this.toastMsg(report.status === 'ok' ? 'Guardian: all checks clean ✓' : `Guardian: ${report.status.toUpperCase()} — see the card`);
+    }).catch((e) => {
+      this.setState({ guardianBusy: false });
+      this.toastMsg('Guardian run failed: ' + e.message);
+    });
+  }
+  guardianReportNow() {
+    const conn = getConnection();
+    if (!conn || this.state.guardianBusy) return;
+    this.setState({ guardianBusy: true });
+    api.guardianReport(conn).then((res) => {
+      this.setState({ guardianBusy: false });
+      if (res.skipped) this.toastMsg('This month’s Guardian report is already on the rails');
+      else { this.toastMsg('Guardian report drafted — waiting in the Inbox'); this.refreshInbox(); }
+    }).catch((e) => {
+      this.setState({ guardianBusy: false });
+      this.toastMsg('Report failed: ' + e.message);
     });
   }
   runCompostNow() {
@@ -1421,6 +1477,7 @@ export default class App extends Component {
       ...valsNotes(this, ctx),
       ...valsMisc(this, ctx),
       ...valsInbox(this, ctx),
+      ...valsTodos(this, ctx),
       ...valsMission(this, ctx),
       ...valsChrome(this, ctx),
     };
@@ -1497,6 +1554,7 @@ export default class App extends Component {
             {v.isCode && <ClaudeCode v={v} />}
             {v.isRecipes && <Recipes v={v} />}
             {v.isShopping && <Shopping v={v} />}
+            {v.isTodos && <Todos v={v} />}
             {v.isWorkouts && <Workouts v={v} />}
             {v.isNotes && <Notes v={v} />}
             {v.isJournal && <Journal v={v} />}
