@@ -17,8 +17,8 @@ export function MobileChrome({ v }) {
       <div style={css("position:fixed;bottom:0;left:0;right:0;z-index:70;display:flex;padding:6px max(8px, env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));background:var(--nv-glass2);backdrop-filter:blur(14px);border-top:1px solid var(--nv-edge)")}>
         {v.tabs.map((t) => (
           <div key={t.label} onClick={t.go} style={t.style}>
-            <span style={t.numStyle}>{t.num}</span>
-            <span style={css(`font:600 8.5px ${R};letter-spacing:.06em`)}>{t.label}</span>
+            <span style={t.dotStyle}></span>
+            <span style={css(`font:600 9.5px ${R};letter-spacing:.01em;white-space:nowrap`)}>{t.label}</span>
           </div>
         ))}
       </div>
