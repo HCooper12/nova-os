@@ -158,8 +158,8 @@ export default class App extends Component {
     liveInbox: null, inboxInput: '', inboxCaptureBusy: false, inboxActionBusy: {},
     inboxMode: (typeof window !== 'undefined' && INBOX_MODES.includes(localStorage.getItem(INBOX_MODE_KEY))) ? localStorage.getItem(INBOX_MODE_KEY) : 'auto-high',
     inboxProposalDismissed: (() => { try { const a = JSON.parse(localStorage.getItem('novaos.proposalsDismissed') || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } })(),
-    liveDispatch: null, liveCompost: null, liveTodoist: null, liveTodos: null, liveGuardian: null,
-    dispatchBusy: false, compostBusy: false, compostActionBusy: {}, todoistBusy: false, guardianBusy: false,
+    liveDispatch: null, liveCompost: null, liveTodoist: null, liveTodos: null, liveGuardian: null, liveDailyReview: null,
+    dispatchBusy: false, compostBusy: false, compostActionBusy: {}, todoistBusy: false, guardianBusy: false, reviewBusy: false,
     todoInput: '', todoActionBusy: false, todoEditCategoryKey: null,
     editingSessionId: null, sessionDeleteConfirmId: null,
     liveWorkoutGoals: null, goalsEditing: false, goalsDraft: { goal: '', focus: '', daysPerWeek: '', notes: '' }, coachBusy: false,
@@ -451,6 +451,7 @@ export default class App extends Component {
       async () => this.setState({ liveTts: await api.ttsStatus(conn) }),
       async () => this.setState({ liveMoney: await api.money(conn) }),
       async () => this.setState({ liveProfile: (await api.profile(conn)).profile }),
+      async () => this.setState({ liveDailyReview: await api.dailyReview(conn) }),
     ];
     this.refreshInFlight = (async () => {
       const results = await Promise.allSettled(tasks.map((t) => t()));
@@ -1408,6 +1409,26 @@ export default class App extends Component {
       this.toastMsg('Researcher dispatched — the brief lands in the Inbox for review');
       this.refreshInbox();
     }).catch((e) => this.toastMsg('Research failed to start: ' + e.message));
+  }
+  setDailyReviewConfig(patch) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.dailyReviewConfig(conn, patch).then(({ config }) => {
+      this.setState((s) => ({ liveDailyReview: { ...(s.liveDailyReview || {}), config } }));
+    }).catch((e) => this.toastMsg('Could not update: ' + e.message));
+  }
+  runDailyReviewNow() {
+    const conn = getConnection();
+    if (!conn || this.state.reviewBusy) return;
+    this.setState({ reviewBusy: true });
+    api.dailyReviewRun(conn, true).then((res) => {
+      this.setState({ reviewBusy: false });
+      if (res.skipped && res.reason === 'off') this.toastMsg('Daily Review is off — turn it on first');
+      else { this.toastMsg('Nova is reasoning across your day — the review lands in the Inbox shortly'); this.refreshInbox(); setTimeout(() => { const c = getConnection(); if (c) api.dailyReview(c).then((d) => this.setState({ liveDailyReview: d })).catch(() => {}); }, 1500); }
+    }).catch((e) => {
+      this.setState({ reviewBusy: false });
+      this.toastMsg('Daily Review failed: ' + e.message);
+    });
   }
   runMealPrepNow() {
     const conn = getConnection();

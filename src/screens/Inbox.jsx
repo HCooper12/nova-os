@@ -135,7 +135,37 @@ export function Inbox({ v }) {
       {v.inboxConnected && (
         <div style={{ marginTop: '24px' }}>
           <div style={css(`font:500 9.5px ${M};letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)`)}>LOOPS</div>
-          <div style={{ display: 'flex', gap: '12px', marginTop: '10px', flexWrap: 'wrap' }}>
+
+          {/* the flagship: the Daily Review reasons across everything, once a day */}
+          <div className="nv-pane" style={{ marginTop: '10px', padding: '16px 18px', border: '1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent)', background: 'color-mix(in srgb, var(--nv-cy) 04%, transparent)' }}>
+            <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap")}>
+              <span style={css(`font:500 9.5px ${M};letter-spacing:.2em;color:var(--nv-cy)`)}>◆ DAILY REVIEW</span>
+              <span style={css(`font:400 8.5px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>NOVA REASONS ACROSS YOUR WHOLE DAY · ONE COACHED READ + ADJUSTMENTS</span>
+            </div>
+            <div style={css("margin-top:11px;display:flex;gap:6px;flex-wrap:wrap;align-items:center")}>
+              {v.dailyReview.modes.map((m) => (
+                <Interactive key={m.value} as="span" onClick={m.pick}
+                  base={{ cursor: 'pointer', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '5px 11px', borderRadius: '7px',
+                    border: m.active ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)',
+                    color: m.active ? 'var(--nv-acc)' : 'var(--nv-ink60)', background: m.active ? 'var(--nv-acc-bg)' : 'transparent' }}
+                  hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}
+                >{m.label}</Interactive>
+              ))}
+              <select value={v.dailyReview.hour} onChange={v.dailyReview.setHour}
+                style={{ marginLeft: 'auto', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: `500 11px ${M}`, padding: '4px 6px', outline: 'none' }}>
+                {v.dailyReview.hourOptions.map((h) => <option key={h} value={h} style={{ background: '#141019' }}>{String(h).padStart(2, '0')}:00</option>)}
+              </select>
+            </div>
+            <div style={css("margin-top:9px;display:flex;justify-content:space-between;align-items:center;gap:8px")}>
+              <span style={css(`font:500 11.5px ${R};color:var(--nv-ink60)`)}>{v.dailyReview.status}</span>
+              <Interactive as="span" onClick={v.dailyReview.busy ? undefined : v.dailyReview.run}
+                base={{ cursor: 'pointer', flex: 'none', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '6px 13px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent)', color: 'var(--nv-cy)', opacity: v.dailyReview.busy ? 0.5 : 1 }}
+                hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' }}
+              >{v.dailyReview.busy ? 'REASONING…' : 'RUN NOW'}</Interactive>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', marginTop: '12px', flexWrap: 'wrap' }}>
 
             <div className="nv-pane" style={{ flex: '1 1 320px', padding: '16px 18px' }}>
               <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>

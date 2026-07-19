@@ -205,7 +205,7 @@ export function valsInbox(app, ctx) {
     kind: r.kind || null,
     text: r.text,
     time: timeLabel(r.createdAt),
-    source: r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.kind === 'guardian' ? 'GUARDIAN' : r.kind === 'cfo' || r.kind === 'money-import' ? 'CFO' : r.kind === 'meal-prep' ? 'MEAL PREP' : r.kind === 'coach' ? 'COACH' : r.kind === 'research' ? 'RESEARCHER' : r.kind === 'followup' ? 'CALENDAR' : r.kind === 'studio' ? 'STUDIO' : r.source === 'voice' ? 'VOICE' : 'TYPED',
+    source: r.kind === 'review' ? 'DAILY REVIEW' : r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.kind === 'guardian' ? 'GUARDIAN' : r.kind === 'cfo' || r.kind === 'money-import' ? 'CFO' : r.kind === 'meal-prep' ? 'MEAL PREP' : r.kind === 'coach' ? 'COACH' : r.kind === 'research' ? 'RESEARCHER' : r.kind === 'followup' ? 'CALENDAR' : r.kind === 'studio' ? 'STUDIO' : r.source === 'voice' ? 'VOICE' : 'TYPED',
     status: r.status,
     route: r.decision ? (ROUTE_META[r.decision.route] || ROUTE_META.note) : null,
     confidence: r.decision?.confidence || null,
@@ -299,6 +299,29 @@ export function valsInbox(app, ctx) {
     busy: !!st.mealPrepBusy,
     run: () => app.runMealPrepNow(),
   };
+
+  // The Daily Review — the flagship intelligent loop
+  const review = st.liveDailyReview;
+  const reviewToday = review?.today;
+  const reviewCard = {
+    modes: ['off', 'draft', 'auto'].map((m) => ({
+      value: m, label: m === 'off' ? 'Off' : m === 'draft' ? 'Draft' : 'Auto',
+      active: review?.config?.mode === m,
+      pick: () => app.setDailyReviewConfig({ mode: m }),
+    })),
+    hour: review?.config?.hour ?? 8,
+    hourOptions: [5, 6, 7, 8, 9, 10, 11],
+    setHour: (e) => app.setDailyReviewConfig({ hour: Number(e.target.value) }),
+    status: !review ? 'checking…'
+      : !reviewToday ? (review.config?.mode === 'off' ? 'off — turn on for a daily coached read across your whole life' : 'no review yet today — composes at the set hour')
+      : reviewToday.status === 'classifying' ? 'Nova is reasoning across your day…'
+      : reviewToday.status === 'pending' ? "today's review is waiting for you below"
+      : reviewToday.status === 'filed' ? "today's review is filed to your journal"
+      : reviewToday.status === 'error' ? 'today\'s review hit an error — try RUN NOW'
+      : `today's review: ${reviewToday.status}`,
+    busy: !!st.reviewBusy,
+    run: () => app.runDailyReviewNow(),
+  };
   const todoistCard = {
     configured: !!todoist?.configured,
     busy: !!st.todoistBusy,
@@ -376,5 +399,6 @@ export function valsInbox(app, ctx) {
     todoist: todoistCard,
     guardian: guardianCard,
     mealPrep: mealPrepCard,
+    dailyReview: reviewCard,
   };
 }

@@ -4,6 +4,7 @@ import { getCompost, runCompost, acceptProposal, dismissProposal } from '../lib/
 import { getTodoistStatus, syncTodoist } from '../lib/todoistSync.js';
 import { getGuardian, runGuardian, runGuardianReport, exportVault, listBackups, restoreBackup } from '../lib/guardian.js';
 import { runMealPrep } from '../lib/mealPrep.js';
+import { getDailyReviewStatus, setReviewConfig, runDailyReview, REVIEW_MODES } from '../lib/dailyReview.js';
 
 // The loops: the scheduled briefs (dispatch slots on the inbox rails), the
 // Compost loop (weekly read-only vault hygiene proposals), and Todoist sync.
@@ -92,6 +93,31 @@ export function loopsRouter(vaultPath) {
   router.post('/todoist/sync', async (req, res) => {
     try {
       res.json({ result: await syncTodoist(vaultPath) });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  router.get('/daily-review', async (req, res) => {
+    try {
+      res.json(await getDailyReviewStatus());
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  router.post('/daily-review/config', async (req, res) => {
+    try {
+      if (req.body?.mode !== undefined && !REVIEW_MODES.includes(req.body.mode)) return res.status(400).json({ error: 'mode must be off, draft, or auto' });
+      res.json({ config: await setReviewConfig(req.body || {}) });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  router.post('/daily-review/run', async (req, res) => {
+    try {
+      res.json(await runDailyReview(vaultPath, { force: !!req.body?.force }));
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

@@ -96,7 +96,7 @@ export async function sendPush({ title, body, tag, url }) {
 export function pushForRecord(record) {
   if (!record || record.status !== 'pending') return;
   const KIND_LABEL = {
-    dispatch: 'Brief ready', 'meal-prep': 'Meal prep', cfo: 'CFO report', guardian: 'Guardian',
+    review: 'Daily Review', dispatch: 'Brief ready', 'meal-prep': 'Meal prep', cfo: 'CFO report', guardian: 'Guardian',
     research: 'Research brief', studio: 'Studio outline', 'money-import': 'Ledger import', coach: 'Session receipt',
   };
   const label = KIND_LABEL[record.kind] || 'Waiting for review';

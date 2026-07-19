@@ -27,6 +27,7 @@ import { profileRouter } from './routes/profile.js';
 import { startMoneyImportScheduler } from './lib/moneyImport.js';
 import { startCfoScheduler } from './lib/cfoReport.js';
 import { startMealPrepScheduler } from './lib/mealPrep.js';
+import { startDailyReviewScheduler } from './lib/dailyReview.js';
 import { startHealthInsightScheduler } from './lib/healthInsight.js';
 import { startDispatchScheduler } from './lib/dispatch.js';
 import { startCompostScheduler } from './lib/compost.js';
@@ -120,6 +121,7 @@ async function main() {
   startMoneyImportScheduler(process.env.VAULT_PATH);
   startCfoScheduler();
   startMealPrepScheduler(process.env.VAULT_PATH);
+  startDailyReviewScheduler(process.env.VAULT_PATH);
 
   app.use((err, req, res, next) => {
     console.error(err);

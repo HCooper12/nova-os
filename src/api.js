@@ -183,6 +183,9 @@ export const api = {
     return res.blob();
   },
   mealPrepRun: (conn, force) => post(conn, '/api/mealprep/run', { force }),
+  dailyReview: (conn) => call(conn, '/api/daily-review'),
+  dailyReviewConfig: (conn, patch) => post(conn, '/api/daily-review/config', patch),
+  dailyReviewRun: (conn, force) => post(conn, '/api/daily-review/run', { force }),
   guardian: (conn) => call(conn, '/api/guardian'),
   guardianRun: (conn) => post(conn, '/api/guardian/run', {}),
   guardianReport: (conn) => post(conn, '/api/guardian/report', {}),
