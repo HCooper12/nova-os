@@ -8,6 +8,7 @@ import matter from 'gray-matter';
 import { backupFile } from './backup.js';
 import { Vault } from './vault.js';
 import { createRecord, updateRecord } from './inboxStore.js';
+import { NOVA_LENS } from './lens.js';
 
 // Studio — the idea pipeline. Deterministic status moves on idea pages
 // (seed → outlining → scripting → shipped) and an ON-DEMAND outline
@@ -49,7 +50,9 @@ export async function setIdeaStatus(vaultPath, id, status) {
 }
 
 export function buildOutlinePrompt(page, format) {
-  return `You are Nova's Studio, drafting a content outline for Hayden's idea below. Format guess: ${format || 'short'} (short = a tight vertical/short video; long = a full video; thread = a written thread).
+  return `${NOVA_LENS}
+
+You are Nova's Studio, drafting a content outline for Hayden's idea below. Format guess: ${format || 'short'} (short = a tight vertical/short video; long = a full video; thread = a written thread).
 
 Work from the vault: your working directory is Hayden's Obsidian vault. Read the idea page and any obviously related notes (search by the idea's key terms) — the outline should be built from HIS notes and voice, not generic content advice. Cite which vault notes you drew from at the end (or say plainly that nothing related exists yet).
 

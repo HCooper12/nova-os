@@ -3,6 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { createRecord, updateRecord } from './inboxStore.js';
+import { NOVA_LENS } from './lens.js';
 
 // The Researcher — Nova's first agent that reaches OUTSIDE the vault. The
 // boundaries are structural: it runs only on an explicit "research …" ask
@@ -23,7 +24,9 @@ const RESEARCH_DISALLOWED = [
 ].join(',');
 
 export function buildResearchPrompt(question) {
-  return `You are Nova's Researcher, building a short web-research brief for Hayden's second brain (an Obsidian vault). Research the question below using web search, then write the brief.
+  return `${NOVA_LENS}
+
+You are Nova's Researcher, building a short web-research brief for Hayden's second brain (an Obsidian vault). Research the question below using web search, then write the brief.
 
 Rules:
 - EVERY factual claim carries a numbered citation like [1], and the Sources section lists each number with title and URL. No citation → don't claim it.
