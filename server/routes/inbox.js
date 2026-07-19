@@ -19,6 +19,40 @@ export function inboxRouter(vaultPath) {
     }
   });
 
+  // Calendar follow-up answered "done" → deterministic journal receipt on
+  // the rails (filed immediately — the tap IS the approval — and undoable).
+  router.post('/followups', async (req, res) => {
+    try {
+      const label = typeof req.body?.label === 'string' ? req.body.label.trim().slice(0, 120) : '';
+      if (!label) return res.status(400).json({ error: 'label is required' });
+      const time = typeof req.body?.time === 'string' ? req.body.time.slice(0, 5) : '';
+      const { fileDecision } = await import('../lib/inbox.js');
+      const { createRecord, updateRecord } = await import('../lib/inboxStore.js');
+      const { randomUUID } = await import('node:crypto');
+      const decision = {
+        route: 'journal',
+        confidence: 'high',
+        title: `✓ ${label}`,
+        reason: 'Calendar follow-up — confirmed done.',
+        payload: { text: `✓ ${label}${time ? ` (${time} on the calendar)` : ''} — done.` },
+      };
+      const record = await createRecord({
+        id: randomUUID().slice(0, 8),
+        kind: 'followup',
+        text: `✓ ${label}`,
+        source: 'calendar',
+        mode: 'auto',
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        decision,
+      });
+      const { destination, undo } = await fileDecision(vaultPath, decision);
+      res.json({ record: await updateRecord(record.id, { status: 'filed', destination, undoData: undo, filedAt: new Date().toISOString(), auto: true }) });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
   router.post('/research', async (req, res) => {
     try {
       const { startResearch } = await import('../lib/researcher.js');

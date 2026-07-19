@@ -62,6 +62,82 @@ export async function computeProgressions(vaultPath, routines) {
   return out;
 }
 
+/* ---------------------------- deload advisory ---------------------------- */
+
+// Recovery-aware deload signal — pure arithmetic over recent health days,
+// honest about thin data, and ADVISORY only (a line in the brief and the
+// Coach's context; nothing changes any plan by itself).
+export function computeDeloadSignal(healthDays) {
+  const withHrv = (healthDays || []).filter((d) => d.hrv != null);
+  if (withHrv.length < 5) {
+    return { advise: false, reason: `not enough recovery data (${withHrv.length}/7 days with HRV)` };
+  }
+  const recent = withHrv.slice(-3);
+  const baseline = withHrv.slice(0, -3);
+  const avg = (list, key) => list.reduce((s, d) => s + d[key], 0) / list.length;
+  const hrvDrop = baseline.length ? (avg(baseline, 'hrv') - avg(recent, 'hrv')) / avg(baseline, 'hrv') : 0;
+
+  const withSleep = (healthDays || []).filter((d) => d.sleepAsleepMinutes != null);
+  const recentSleep = withSleep.slice(-3);
+  const sleepShort = recentSleep.length >= 3 && avg(recentSleep, 'sleepAsleepMinutes') < 360;
+
+  if (hrvDrop >= 0.1) {
+    return { advise: true, reason: `HRV is down ${Math.round(hrvDrop * 100)}% on your baseline over the last 3 days — a lighter session (−15% loads, stop 2-3 reps short) protects the trend` };
+  }
+  if (sleepShort) {
+    return { advise: true, reason: 'under 6h sleep three nights running — cap intensity today and bank an early night' };
+  }
+  return { advise: false, reason: 'recovery trend looks steady' };
+}
+
+/* --------------------------- quick sessions ------------------------------ */
+
+const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+// Turn the Coach's JSON plan into session-editor exercises: map names onto
+// the real library (so history and prefills attach), fall back to ad-hoc
+// entries for genuinely new movements. Pure and exported for tests.
+export function normalizeQuickPlan(plan, libraryExercises, exerciseState = {}) {
+  const name = String(plan?.name || '').trim().slice(0, 60);
+  const rationale = String(plan?.rationale || '').trim().slice(0, 300);
+  const raw = Array.isArray(plan?.exercises) ? plan.exercises : [];
+  if (!name || !raw.length) throw new Error('the plan came back incomplete — try again');
+
+  const byName = new Map(libraryExercises.map((e) => [e.name.toLowerCase(), e]));
+  const exercises = raw.slice(0, 10).map((x) => {
+    const xName = String(x?.name || '').trim().slice(0, 80);
+    if (!xName) return null;
+    const sets = Math.min(8, Math.max(1, Number(x.sets) || 3));
+    const reps = Math.min(50, Math.max(1, Number(x.reps) || 10));
+    const tokens = (s) => new Set(s.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean));
+    const want = tokens(xName);
+    const lib = byName.get(xName.toLowerCase())
+      || libraryExercises.find((e) => e.name.toLowerCase().includes(xName.toLowerCase()) || xName.toLowerCase().includes(e.name.toLowerCase()))
+      // token subset: "chest supported row" matches "Chest-Supported Dumbbell Row"
+      || libraryExercises.find((e) => {
+        const have = tokens(e.name);
+        return want.size >= 2 && [...want].every((t) => have.has(t));
+      });
+    const state = lib ? exerciseState[lib.id] : null;
+    const lastWeight = state?.lastSets?.length ? Math.max(...state.lastSets.map((s) => Number(s.weight) || 0)) : 0;
+    return {
+      exerciseId: lib ? lib.id : `adhoc-${slug(xName)}`,
+      name: lib ? lib.name : xName,
+      muscleGroup: lib?.muscleGroup || '',
+      trackingType: lib?.trackingType || 'weight_reps',
+      targetSets: sets,
+      targetRepsLow: reps,
+      targetRepsHigh: reps,
+      coach: null,
+      weightHint: String(x.weightHint || '').slice(0, 40) || null,
+      adhoc: !lib,
+      sets: Array.from({ length: sets }, () => ({ weight: lastWeight, reps, done: false })),
+    };
+  }).filter(Boolean);
+  if (!exercises.length) throw new Error('the plan had no usable exercises');
+  return { name, rationale, exercises };
+}
+
 /* --------------------------- session summary ----------------------------- */
 
 const volumeOf = (session) => Math.round(session.exercises.reduce((v, e) => v + e.sets.reduce((s, x) => s + x.weight * x.reps, 0), 0));

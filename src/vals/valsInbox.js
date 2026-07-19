@@ -112,20 +112,61 @@ function computeProposals(app, st, items, dispatch, compost) {
     }
   }
 
-  // Coach's missed-session rescue — evening, a routine was scheduled, nothing
-  // logged. Nudge only: the weekly schedule is a recurring template, so the
-  // rescue never rewrites it — accepting just opens Train. Keyed per day so
-  // a skip holds for tonight and it re-arms tomorrow.
+  // Coach's evening training nudges — one at most. Priority: today's
+  // scheduled session went unlogged (rescue); otherwise a LAPSED streak
+  // (momentum that stopped on rest-adjacent days). Nudge only — accepting
+  // opens Train; a skip holds for tonight and re-arms tomorrow.
   const training = dispatch?.training;
-  if (training?.scheduledName && !training.loggedToday && new Date().getHours() >= 18) {
-    const now = new Date();
-    const dayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    out.push({
-      key: `rescue@${dayKey}`,
-      text: `${training.scheduledName} was on today's schedule and nothing's logged yet — a shortened session still counts.`,
-      acceptLabel: 'Open Train',
-      accept: () => { app.navigate('workouts'); app.dismissInboxProposal(`rescue@${dayKey}`); },
-    });
+  const now = new Date();
+  const dayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  if (now.getHours() >= 18 && training && !training.loggedToday) {
+    if (training.scheduledName) {
+      out.push({
+        key: `rescue@${dayKey}`,
+        text: `${training.scheduledName} was on today's schedule and nothing's logged yet — a shortened session still counts.`,
+        acceptLabel: 'Open Train',
+        accept: () => { app.navigate('workouts'); app.dismissInboxProposal(`rescue@${dayKey}`); },
+      });
+    } else {
+      const lastDate = st.liveStreaks?.lastWorkoutDate;
+      const daysSince = lastDate ? Math.round((new Date(dayKey) - new Date(lastDate)) / 86400000) : null;
+      if (daysSince != null && daysSince >= 3 && daysSince <= 7) {
+        out.push({
+          key: `streak-lapse@${dayKey}`,
+          text: `No session in ${daysSince} days (last: ${lastDate}) — momentum is easier kept than rebuilt. A Quick Session fits any window.`,
+          acceptLabel: 'Open Train',
+          accept: () => { app.navigate('workouts'); app.dismissInboxProposal(`streak-lapse@${dayKey}`); },
+        });
+      }
+    }
+  }
+
+  // Calendar follow-ups — task-like events get an evening "did it happen?"
+  // (Hayden: "I don't always follow my calendar exactly"). Done files a
+  // journal receipt; Move to To-Do carries it forward; Skip lets it go.
+  const TASK_HINTS = ['meal prep', 'prep', 'cook', 'clean', 'laundry', 'groceries', 'grocery', 'shopping', 'errand', 'organise', 'organize', 'admin', 'wash', 'tidy', 'pick up', 'drop off', 'book ', 'call ', 'pay ', 'renew', 'study', 'review notes'];
+  if (now.getHours() >= 18 && Array.isArray(st.liveCalendar)) {
+    const answeredToday = new Set(
+      items.filter((r) => r.kind === 'followup' && r.createdAt && new Date(r.createdAt).toDateString() === now.toDateString())
+        .map((r) => (r.text || '').replace(/^✓ /, '').toLowerCase()),
+    );
+    const openTodos = new Set((st.liveTodos?.items || []).filter((t) => !t.checked).map((t) => t.text.toLowerCase()));
+    for (const ev of st.liveCalendar) {
+      const label = (ev.label || '').trim();
+      if (!label) continue;
+      const lower = ` ${label.toLowerCase()} `;
+      if (!TASK_HINTS.some((h) => lower.includes(h))) continue;
+      if (answeredToday.has(label.toLowerCase()) || openTodos.has(label.toLowerCase())) continue;
+      const key = `followup@${dayKey}@${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+      out.push({
+        key,
+        text: `“${label}” was on today's calendar${ev.time ? ` at ${ev.time}` : ''} — did it actually happen?`,
+        acceptLabel: 'Done ✓',
+        accept: () => app.answerFollowupDone(label, ev.time || '', key),
+        altLabel: 'Move to To-Do',
+        alt: () => app.moveFollowupToTodo(label, key),
+      });
+    }
   }
 
   // compost: proposals sitting unactioned for over a week deserve one nudge
@@ -160,7 +201,7 @@ export function valsInbox(app, ctx) {
     kind: r.kind || null,
     text: r.text,
     time: timeLabel(r.createdAt),
-    source: r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.kind === 'guardian' ? 'GUARDIAN' : r.kind === 'cfo' || r.kind === 'money-import' ? 'CFO' : r.kind === 'meal-prep' ? 'MEAL PREP' : r.kind === 'coach' ? 'COACH' : r.kind === 'research' ? 'RESEARCHER' : r.source === 'voice' ? 'VOICE' : 'TYPED',
+    source: r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.kind === 'guardian' ? 'GUARDIAN' : r.kind === 'cfo' || r.kind === 'money-import' ? 'CFO' : r.kind === 'meal-prep' ? 'MEAL PREP' : r.kind === 'coach' ? 'COACH' : r.kind === 'research' ? 'RESEARCHER' : r.kind === 'followup' ? 'CALENDAR' : r.source === 'voice' ? 'VOICE' : 'TYPED',
     status: r.status,
     route: r.decision ? (ROUTE_META[r.decision.route] || ROUTE_META.note) : null,
     confidence: r.decision?.confidence || null,
@@ -282,6 +323,8 @@ export function valsInbox(app, ctx) {
     busy: !!st.guardianBusy,
     run: () => app.runGuardianNow(),
     report: () => app.guardianReportNow(),
+    exportVault: () => app.guardianExportNow(),
+    lastExportLabel: st.liveGuardian?.lastExportAt ? `last export ${timeLabel(st.liveGuardian.lastExportAt)}` : 'never exported',
   };
 
   return {

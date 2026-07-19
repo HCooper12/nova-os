@@ -132,6 +132,7 @@ export default class App extends Component {
     editingSessionId: null, sessionDeleteConfirmId: null,
     liveWorkoutGoals: null, goalsEditing: false, goalsDraft: { goal: '', focus: '', daysPerWeek: '', notes: '' }, coachBusy: false,
     mealPrepBusy: false,
+    quickMinutes: '45', quickNote: '', quickBusy: false, quickPlan: null,
     liveMoney: null, moneyBusy: false, moneyScanBusy: false, moneyScanError: null, moneyScanQuestion: null,
     moneyAddMerchant: '', moneyAddAmount: '', moneyAddIsSpend: true, moneyEditCategoryId: null,
     sparBusy: false,
@@ -1223,6 +1224,24 @@ export default class App extends Component {
       else navigator.clearAppBadge().catch(() => {});
     } catch { /* unsupported */ }
   }
+  answerFollowupDone(label, time, key) {
+    const conn = getConnection();
+    if (!conn) return;
+    this.dismissInboxProposal(key);
+    api.followupDone(conn, label, time).then(() => {
+      this.toastMsg(`Logged ✓ ${label} — journaled (undoable in history)`);
+      this.refreshInbox();
+    }).catch((e) => this.toastMsg('Could not log it: ' + e.message));
+  }
+  moveFollowupToTodo(label, key) {
+    const conn = getConnection();
+    if (!conn) return;
+    this.dismissInboxProposal(key);
+    api.todoAdd(conn, label).then((data) => {
+      this.setState({ liveTodos: data });
+      this.toastMsg(`"${label}" moved to the To-Do list`);
+    }).catch((e) => this.toastMsg(e.message));
+  }
   startResearch(question) {
     const conn = getConnection();
     const q = (question || '').trim();
@@ -1458,6 +1477,19 @@ export default class App extends Component {
     }).catch((e) => {
       this.setState({ guardianBusy: false });
       this.toastMsg('Guardian run failed: ' + e.message);
+    });
+  }
+  guardianExportNow() {
+    const conn = getConnection();
+    if (!conn || this.state.guardianBusy) return;
+    this.setState({ guardianBusy: true });
+    api.guardianExport(conn).then(({ dest }) => {
+      this.setState({ guardianBusy: false });
+      api.guardian(conn).then((g) => this.setState({ liveGuardian: g })).catch(() => {});
+      this.toastMsg('Exported to ' + dest);
+    }).catch((e) => {
+      this.setState({ guardianBusy: false });
+      this.toastMsg('Export failed: ' + e.message);
     });
   }
   guardianReportNow() {
@@ -1833,6 +1865,42 @@ export default class App extends Component {
       this.setState({ plan, planNote: r.note });
       this.toastMsg('Coach updated today’s session — written to vault ✓');
     }), 520);
+  }
+  buildQuickSession() {
+    const conn = getConnection();
+    if (!conn || this.state.quickBusy) return;
+    this.setState({ quickBusy: true, quickPlan: null });
+    api.quickSession(conn, Number(this.state.quickMinutes), this.state.quickNote.trim()).then(({ jobId }) => {
+      this.startPoll('quick', () => api.claudeCodeJob(conn, jobId), {
+        timeoutMs: 3 * 60_000,
+        onReady: (job) => {
+          api.quickSessionPrepare(conn, job.result.plan).then(({ session }) => {
+            this.setState({ quickBusy: false, quickPlan: session });
+          }).catch((e) => {
+            this.setState({ quickBusy: false });
+            this.toastMsg('Plan came back unusable: ' + e.message);
+          });
+        },
+        onError: (msg) => {
+          this.setState({ quickBusy: false });
+          this.toastMsg('Coach could not build the session: ' + msg);
+        },
+      });
+    }).catch((e) => {
+      this.setState({ quickBusy: false });
+      this.toastMsg('Quick session failed: ' + e.message);
+    });
+  }
+  startQuickPlanSession() {
+    const plan = this.state.quickPlan;
+    if (!plan) return;
+    this.setState({
+      workoutsView: 'session',
+      editingSessionId: null,
+      workoutSession: { routineId: 'impromptu', routineName: plan.name, exercises: plan.exercises },
+      quickPlan: null, quickNote: '',
+      sessionCancelConfirm: false,
+    });
   }
   saveFitnessGoals() {
     const conn = getConnection();

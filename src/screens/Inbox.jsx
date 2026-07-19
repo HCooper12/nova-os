@@ -123,6 +123,9 @@ export function Inbox({ v }) {
           <div style={css(`margin-top:8px;font:400 17px/1.4 ${S};text-wrap:pretty`)}>{p.text}</div>
           <div style={css("margin-top:12px;display:flex;gap:10px")}>
             <Interactive as="span" onClick={p.accept} base={css(`cursor:pointer;font:600 13px ${R};padding:7px 16px;border-radius:8px;background:var(--nv-gold);color:#1a1206`)} hoverStyle={{ filter: 'brightness(1.1)' }}>{p.acceptLabel || 'Accept'}</Interactive>
+            {p.altLabel && (
+              <Interactive as="span" onClick={p.alt} base={css(`cursor:pointer;font:600 13px ${R};padding:7px 16px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);color:var(--nv-cy)`)} hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' }}>{p.altLabel}</Interactive>
+            )}
             <Interactive as="span" onClick={p.skip} base={css(`cursor:pointer;font:600 13px ${R};padding:7px 16px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent);color:var(--nv-ink60)`)} hoverStyle={{ background: 'rgba(255,255,255,.05)' }}>Skip</Interactive>
           </div>
         </div>
@@ -264,6 +267,10 @@ export function Inbox({ v }) {
                     base={{ cursor: 'pointer', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '5px 11px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent)', color: 'var(--nv-ink60)', opacity: v.guardian.busy ? 0.5 : 1 }}
                     hoverStyle={{ background: 'rgba(255,255,255,.05)' }}
                   >REPORT</Interactive>
+                  <Interactive as="span" onClick={v.guardian.busy ? undefined : v.guardian.exportVault} title={`Zip vault + data to the Desktop · ${v.guardian.lastExportLabel}`}
+                    base={{ cursor: 'pointer', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '5px 11px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent)', color: 'var(--nv-ink60)', opacity: v.guardian.busy ? 0.5 : 1 }}
+                    hoverStyle={{ background: 'rgba(255,255,255,.05)' }}
+                  >EXPORT</Interactive>
                 </span>
               </div>
               {v.guardian.checks.length > 0 && (

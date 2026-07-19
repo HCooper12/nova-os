@@ -172,14 +172,20 @@ async function composeMorning(vaultPath, now) {
     lines.push('**Fuel.** Rotation unavailable.');
   }
 
-  // training (the plan)
+  // training (the plan) + the Coach's deload advisory when recovery says so
   try {
     const { exercises } = await loadExerciseLibrary(vaultPath);
     const { routines, schedule } = await loadRoutines(vaultPath, exercises);
     const routine = scheduledRoutineFor(routines, schedule, now);
-    lines.push(routine
+    let line = routine
       ? `**Training.** ${routine.name} is scheduled — ${routine.exercises.length} exercise${routine.exercises.length === 1 ? '' : 's'}.`
-      : '**Training.** Rest day.');
+      : '**Training.** Rest day.';
+    try {
+      const { computeDeloadSignal } = await import('./coach.js');
+      const signal = computeDeloadSignal(await loadRecentDays(7));
+      if (signal.advise && routine) line += ` Coach's advisory: ${signal.reason}.`;
+    } catch { /* advisory is garnish */ }
+    lines.push(line);
   } catch {
     lines.push('**Training.** Schedule unavailable.');
   }

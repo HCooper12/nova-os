@@ -3,7 +3,8 @@ import { loadExerciseLibrary, addCustomExercise, MUSCLE_GROUPS, TRACKING_TYPES }
 import { loadRoutines, createRoutine, updateRoutine, deleteRoutine, setScheduleDay, WEEKDAYS } from '../lib/workouts.js';
 import { loadExerciseState } from '../lib/exerciseState.js';
 import { loadSessions, completeSession, updateSession, deleteSession, completedCountByRoutine } from '../lib/workoutSessions.js';
-import { computeProgressions, draftSessionSummary } from '../lib/coach.js';
+import { computeProgressions, draftSessionSummary, normalizeQuickPlan } from '../lib/coach.js';
+import { startQuickSession } from '../lib/claudeCode.js';
 import { getFitnessGoals, setFitnessGoals, goalsContext } from '../lib/fitnessGoals.js';
 import { startAskCoach } from '../lib/claudeCode.js';
 import { loadRecentDays } from '../lib/healthData.js';
@@ -174,11 +175,62 @@ export function workoutsRouter(vaultPath) {
         const days = await loadRecentDays(7);
         const latest = [...days].reverse().find((d) => d.hrv != null || d.sleepAsleepMinutes != null);
         if (latest) parts.push(`Latest recovery: HRV ${latest.hrv ?? '—'} ms, sleep ${latest.sleepAsleepMinutes ? Math.round(latest.sleepAsleepMinutes / 60 * 10) / 10 + 'h' : '—'}, resting HR ${latest.restingHeartRate ?? '—'}.`);
+        const { computeDeloadSignal } = await import('../lib/coach.js');
+        const signal = computeDeloadSignal(days);
+        parts.push(`Deload signal: ${signal.advise ? `YES — ${signal.reason}` : signal.reason}.`);
       } catch { /* optional */ }
 
       res.json({ jobId: startAskCoach(vaultPath, { question, history, context: parts.join('\n\n') }) });
     } catch (e) {
       res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Impromptu session: the Coach designs a time-boxed one-off for days
+  // outside the program. Two steps: plan (claude job) → prepare (map onto
+  // the library, session-editor-ready).
+  router.post('/workouts/quick-session', async (req, res) => {
+    try {
+      const minutes = Math.min(180, Math.max(10, Number(req.body?.minutes) || 45));
+      const note = typeof req.body?.note === 'string' ? req.body.note.trim().slice(0, 300) : '';
+
+      const parts = [];
+      try {
+        parts.push(await goalsContext(vaultPath));
+      } catch { /* optional */ }
+      try {
+        const { exercises } = await loadExerciseLibrary(vaultPath);
+        parts.push(`Exercise library (use these exact names where possible): ${exercises.map((e) => e.name).join('; ')}`);
+        const { routines, schedule } = await loadRoutines(vaultPath, exercises);
+        const dayKey = (d) => WEEKDAYS[(d.getDay() + 6) % 7];
+        const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+        const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+        const nameOf = (id) => routines.find((r) => r.id === id)?.name || 'rest';
+        parts.push(`Week context — yesterday: ${nameOf(schedule?.[dayKey(yesterday)])}, today's program: ${nameOf(schedule?.[dayKey(new Date())])}, tomorrow: ${nameOf(schedule?.[dayKey(tomorrow)])}.`);
+      } catch { /* optional */ }
+      try {
+        const sessions = await loadSessions(vaultPath, { limit: 3 });
+        if (sessions.length) parts.push('Recent sessions:\n' + sessions.map((s) => `- ${s.date} ${s.routineName}: ${s.exercises.map((e) => e.name).join(', ')}`).join('\n'));
+      } catch { /* optional */ }
+      try {
+        const days = await loadRecentDays(7);
+        const latest = [...days].reverse().find((d) => d.hrv != null || d.sleepAsleepMinutes != null);
+        if (latest) parts.push(`Latest recovery: HRV ${latest.hrv ?? '—'}, sleep ${latest.sleepAsleepMinutes ? Math.round(latest.sleepAsleepMinutes / 60 * 10) / 10 + 'h' : '—'} (${latest.date}).`);
+      } catch { /* optional */ }
+
+      res.json({ jobId: startQuickSession(vaultPath, { minutes, note, context: parts.join('\n\n') }) });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  router.post('/workouts/quick-session/prepare', async (req, res) => {
+    try {
+      const { exercises } = await loadExerciseLibrary(vaultPath);
+      const state = await loadExerciseState(vaultPath);
+      res.json({ session: normalizeQuickPlan(req.body?.plan, exercises, state) });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
     }
   });
 

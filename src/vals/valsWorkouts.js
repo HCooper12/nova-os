@@ -106,6 +106,7 @@ export function valsWorkouts(app, ctx) {
   const sessionExercises = session ? session.exercises.map((e, exIdx) => ({
     exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, trackingType: e.trackingType,
     coachLabel: coachChipLabel(e.coach), coachEvidence: e.coach?.evidence || null,
+    weightHint: e.weightHint || null,
     isTime: isTimeTracking(e.trackingType), isBodyweight: isBodyweightTracking(e.trackingType),
     weightLabel: e.trackingType === 'weighted_bodyweight_reps' ? '+KG' : 'KG',
     amountLabel: isTimeTracking(e.trackingType) ? 'SEC' : 'REPS',
@@ -157,6 +158,22 @@ export function valsWorkouts(app, ctx) {
     setCoachInput: (e) => app.setState({ coachInput: e.target.value }),
     coachKey: (e) => { if (e.key === 'Enter') app.doCoach(); },
     sendCoach: () => app.doCoach(),
+    quickMinutes: st.quickMinutes,
+    setQuickMinutes: (e) => app.setState({ quickMinutes: e.target.value }),
+    quickNote: st.quickNote,
+    setQuickNote: (e) => app.setState({ quickNote: e.target.value }),
+    quickBusy: st.quickBusy,
+    buildQuickSession: () => app.buildQuickSession(),
+    quickPlan: st.quickPlan ? {
+      name: st.quickPlan.name,
+      rationale: st.quickPlan.rationale,
+      exercises: st.quickPlan.exercises.map((e) => ({
+        key: e.exerciseId,
+        label: `${e.name} — ${e.targetSets} × ${e.targetRepsLow}${e.weightHint ? ` · ${e.weightHint}` : ''}${e.adhoc ? ' · NEW' : ''}`,
+      })),
+      start: () => app.startQuickPlanSession(),
+      dismiss: () => app.setState({ quickPlan: null }),
+    } : null,
     goalsSet: !!st.liveWorkoutGoals,
     goalsView: st.liveWorkoutGoals ? {
       goal: st.liveWorkoutGoals.goal,

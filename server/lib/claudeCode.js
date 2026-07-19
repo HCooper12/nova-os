@@ -222,6 +222,68 @@ export function startAskCoach(cwd, { question, history, context }) {
   return jobId;
 }
 
+// Quick Session — the Coach designs a one-off, time-boxed workout for days
+// outside the program. Same read-only boundary; the output is a typed JSON
+// plan the client loads into the normal session editor, so logging, editing,
+// receipts, and history all work exactly like a programmed session.
+export function buildQuickSessionPrompt({ minutes, note, context = '' }) {
+  return `You are Nova's Coach designing an IMPROMPTU session for Hayden — a one-off workout for a day outside his normal program. He has ${minutes} minutes${note ? ` and says: "${note}"` : ''}.
+
+Design rules (think like a real coach):
+- Fit the time box honestly: warm-up included in the budget, ~2-3 min per working set with rests. ${minutes} minutes ≈ ${Math.max(3, Math.round(minutes / 8))}-${Math.max(4, Math.round(minutes / 6))} working exercises.
+- Serve his stated goals and RESPECT the week's context below — don't hammer what yesterday's session hammered or steal tomorrow's scheduled work; fill the gap the program leaves.
+- Prefer exercises FROM HIS LIBRARY (exact names below) so his history and prefills attach; only invent an exercise if the library truly lacks the pattern.
+- Give concrete prescriptions: sets × reps and a weight hint from his logged numbers where the library has history ("~80kg — last time 80×8"), or "start light" where it doesn't.
+- One line of rationale: why THIS session today, tied to goals/recovery/context.
+
+Hayden's picture (computed just now):
+${context || '(unavailable)'}
+
+Output ONLY a JSON object: {"name": "Short Session Name", "rationale": "one sentence", "exercises": [{"name": "Exact Library Name or new name", "sets": 3, "reps": 10, "weightHint": "~80kg" }]}. No code fences, no commentary.`;
+}
+
+export function startQuickSession(cwd, { minutes, note, context }) {
+  const jobId = randomUUID().slice(0, 8);
+  const job = { id: jobId, status: 'running', result: null, error: null };
+  jobs.set(jobId, job);
+
+  const child = spawn(CLAUDE_BIN, [
+    '-p', buildQuickSessionPrompt({ minutes, note, context }),
+    '--permission-mode', 'bypassPermissions',
+    '--allowedTools', 'Read Grep Glob',
+    '--disallowedTools', BREAKER_DISALLOWED,
+    '--strict-mcp-config',
+    '--output-format', 'json',
+    '--max-budget-usd', MAX_BUDGET_USD,
+    '--session-id', randomUUID(),
+  ], { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
+
+  let stdout = '';
+  let stderr = '';
+  child.stdout.on('data', (d) => { stdout += d; });
+  child.stderr.on('data', (d) => { stderr += d; });
+  child.on('close', (code) => {
+    try {
+      const outer = JSON.parse(stdout);
+      if (outer.is_error || code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
+      const text = (outer.result || '').trim();
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in plan response');
+      job.result = { plan: JSON.parse(jsonMatch[0]) };
+      job.status = 'ready';
+    } catch (e) {
+      job.status = 'error';
+      job.error = code !== 0 && !(stdout || '').trim() ? (stderr.trim() || `claude exited with code ${code}`) : e.message;
+    }
+  });
+  child.on('error', (err) => {
+    job.status = 'error';
+    job.error = err.message;
+  });
+
+  return jobId;
+}
+
 // The Sparring loop's Breaker: an isolated, READ-ONLY session that tries to
 // break what the Builder (the normal chat) just shipped. Edit/Write join the
 // disallowed list, so the separation of duties is structural — the Breaker

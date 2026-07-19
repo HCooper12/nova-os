@@ -144,8 +144,48 @@ function RoutinesView({ v }) {
         </div>
       )}
 
+      {/* the Coach's impromptu session builder */}
+      <div className="nv-pane" style={{ marginTop: '26px', padding: '16px 18px' }}>
+        <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap")}>
+          <span style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.2em;color:var(--nv-cy)")}>QUICK SESSION</span>
+          <span style={css("font:400 8.5px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>OFF-PROGRAM DAYS · BUILT FOR YOUR GOALS + TIME</span>
+        </div>
+        {!v.quickPlan ? (
+          <div style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
+            <select value={v.quickMinutes} onChange={v.setQuickMinutes}
+              style={{ background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 11px 'IBM Plex Mono',monospace", padding: '9px 10px', outline: 'none' }}>
+              {['20', '30', '45', '60', '90'].map((m) => <option key={m} value={m} style={{ background: '#141019' }}>{m} MIN</option>)}
+            </select>
+            <input value={v.quickNote} onChange={v.setQuickNote} placeholder="Optional — “hotel gym, dumbbells only”, “feeling beat”, “arms”…"
+              style={{ flex: '1 1 240px', minWidth: 0, background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px 'Rajdhani',sans-serif", padding: '9px 12px', outline: 'none' }} />
+            <Interactive as="span" onClick={v.quickBusy ? undefined : v.buildQuickSession}
+              base={{ cursor: 'pointer', font: "600 10.5px 'IBM Plex Mono',monospace", letterSpacing: '.08em', padding: '9px 16px', borderRadius: '8px', background: 'var(--nv-cy)', color: '#0a2830', opacity: v.quickBusy ? 0.5 : 1 }}
+              hoverStyle={{ filter: 'brightness(1.08)' }}
+            >{v.quickBusy ? 'COACH IS PLANNING…' : 'BUILD MY SESSION'}</Interactive>
+          </div>
+        ) : (
+          <div style={css("margin-top:10px")}>
+            <div style={css("font:600 15px 'Rajdhani',sans-serif")}>{v.quickPlan.name}</div>
+            <div style={css("margin-top:3px;font:500 12px/1.55 'Rajdhani',sans-serif;color:var(--nv-ink60)")}>{v.quickPlan.rationale}</div>
+            <div style={css("margin-top:8px;display:flex;flex-direction:column;gap:4px")}>
+              {v.quickPlan.exercises.map((e) => (
+                <div key={e.key} style={css("font:500 12.5px 'Rajdhani',sans-serif;color:color-mix(in srgb, var(--nv-ink) 80%, transparent)")}>· {e.label}</div>
+              ))}
+            </div>
+            <div style={css("margin-top:12px;display:flex;gap:10px;align-items:center")}>
+              <Interactive as="span" onClick={v.quickPlan.start}
+                base={{ cursor: 'pointer', font: "600 10.5px 'IBM Plex Mono',monospace", letterSpacing: '.08em', padding: '10px 20px', borderRadius: '9px', background: 'var(--nv-cy)', color: '#0a2830' }}
+                hoverStyle={{ filter: 'brightness(1.08)' }}>START THIS SESSION</Interactive>
+              <Interactive as="span" onClick={v.quickPlan.dismiss}
+                base={{ cursor: 'pointer', font: "400 10px 'IBM Plex Mono',monospace", color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}
+                hoverStyle={{ color: 'var(--nv-ink)' }}>discard</Interactive>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* goals + the real coach, side by side */}
-      <div style={{ display: 'flex', gap: '14px', marginTop: '26px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '14px', marginTop: '14px', flexWrap: 'wrap' }}>
         <div className="nv-pane" style={{ flex: '1 1 300px', padding: '16px 18px', alignSelf: 'flex-start' }}>
           <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>
             <span style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.2em;color:var(--nv-gold)")}>GOALS</span>
@@ -303,7 +343,7 @@ function SessionView({ v }) {
                 <span style={css("font-size:15px;font-weight:500")}>{e.name}</span>
                 {e.coachLabel && <span title={e.coachEvidence || ''} style={css("font:500 8.5px 'IBM Plex Mono',monospace;letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-cy);border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);background:color-mix(in srgb, var(--nv-cy) 08%, transparent)")}>{e.coachLabel}</span>}
               </span>
-              <span style={css("font:400 10px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{e.targetLabel}</span>
+              <span style={css("font:400 10px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{e.targetLabel}{e.weightHint ? ` · Coach: ${e.weightHint}` : ''}</span>
             </div>
             <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:8px")}>
               <div style={css("display:flex;gap:10px;font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:color-mix(in srgb, var(--nv-ink) 35%, transparent);padding:0 2px")}>

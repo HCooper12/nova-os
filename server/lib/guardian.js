@@ -214,7 +214,24 @@ export async function runGuardian(vaultPath) {
 
 export async function getGuardian() {
   const state = await loadState();
-  return { lastReport: state.lastReport || null };
+  return { lastReport: state.lastReport || null, lastExportAt: state.lastExportAt || null };
+}
+
+// One-tap belt-and-braces: zip the vault + data dir to the Desktop. The
+// vault already lives in iCloud; this covers the data dir and gives an
+// off-app restore point a human can see and copy anywhere.
+export async function exportVault(vaultPath) {
+  const { spawn } = await import('node:child_process');
+  const os = await import('node:os');
+  const dest = path.join(os.homedir(), 'Desktop', `nova-export-${todayISO()}.zip`);
+  await new Promise((resolve, reject) => {
+    const child = spawn('zip', ['-r', '-q', dest, vaultPath, dataRoot()]);
+    child.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`zip exited ${code}`))));
+    child.on('error', reject);
+  });
+  const state = await loadState();
+  await saveState({ ...state, lastExportAt: new Date().toISOString() });
+  return { dest };
 }
 
 /* --------------------------- monthly report ------------------------------ */

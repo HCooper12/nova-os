@@ -41,5 +41,8 @@ export async function computeStreaks(vaultPath) {
     workoutStreak: currentStreak(workoutDates),
     stepGoalStreak: currentStreak(stepDates),
     sleepGoalStreak: currentStreak(sleepDates),
+    // when the last session happened — lets the client notice a LAPSED
+    // streak (momentum that stopped) without inventing history
+    lastWorkoutDate: workoutDates.size ? [...workoutDates].sort().pop() : null,
   };
 }

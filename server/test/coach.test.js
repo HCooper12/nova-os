@@ -10,7 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import matter from 'gray-matter';
 
-const { computeProgressions, WEIGHT_STEP_KG } = await import('../lib/coach.js');
+const { computeProgressions, WEIGHT_STEP_KG, normalizeQuickPlan, computeDeloadSignal } = await import('../lib/coach.js');
 
 test.after(async () => {
   await rm(vault, { recursive: true, force: true });
@@ -62,6 +62,53 @@ test('progressions: earned after two topped-out sessions, withheld otherwise, ty
   assert.match(prog['push:bench'].evidence, /at 80kg/);
   assert.deepEqual(prog['push:dips'], { kind: 'reps', delta: 1, evidence: prog['push:dips'].evidence });
   assert.match(prog['push:dips'].evidence, /topped 12 reps/);
+});
+
+test('quick-plan normalize: maps to library ids with last-weight prefill, ad-hoc for new movements', () => {
+  const library = [
+    { id: 'bench', name: 'Barbell Bench Press', muscleGroup: 'Chest', trackingType: 'weight_reps' },
+    { id: 'row', name: 'Chest-Supported Dumbbell Row', muscleGroup: 'Back', trackingType: 'weight_reps' },
+  ];
+  const state = { bench: { lastSets: [{ weight: 80, reps: 8 }, { weight: 82.5, reps: 6 }] } };
+  const plan = normalizeQuickPlan({
+    name: '40-Minute Upper Pump',
+    rationale: 'Fills the upper gap without stealing tomorrow’s legs.',
+    exercises: [
+      { name: 'barbell bench press', sets: 3, reps: 8, weightHint: '~80kg' }, // case-insensitive exact
+      { name: 'Chest-Supported Row', sets: 3, reps: 12 }, // fuzzy contains
+      { name: 'Hotel Band Pull-Apart', sets: 2, reps: 20 }, // genuinely new
+    ],
+  }, library, state);
+
+  assert.equal(plan.exercises[0].exerciseId, 'bench');
+  assert.equal(plan.exercises[0].sets[0].weight, 82.5, 'prefill = best logged weight');
+  assert.equal(plan.exercises[0].sets[0].done, false);
+  assert.equal(plan.exercises[1].exerciseId, 'row');
+  assert.equal(plan.exercises[2].exerciseId, 'adhoc-hotel-band-pull-apart');
+  assert.equal(plan.exercises[2].adhoc, true);
+  assert.equal(plan.exercises[2].sets.length, 2);
+
+  assert.throws(() => normalizeQuickPlan({ name: 'X', exercises: [] }, library), /incomplete/);
+});
+
+test('deload signal: honest below 5 HRV days, fires on a real drop, quiet when steady', () => {
+  const day = (hrv, sleep = 420) => ({ hrv, sleepAsleepMinutes: sleep });
+
+  const thin = computeDeloadSignal([day(80), day(82)]);
+  assert.equal(thin.advise, false);
+  assert.match(thin.reason, /2\/7 days/);
+
+  const dropping = computeDeloadSignal([day(90), day(88), day(91), day(89), day(75), day(74), day(73)]);
+  assert.equal(dropping.advise, true);
+  assert.match(dropping.reason, /HRV is down 1\d%/);
+
+  const steady = computeDeloadSignal([day(85), day(86), day(84), day(85), day(86), day(85), day(84)]);
+  assert.equal(steady.advise, false);
+  assert.match(steady.reason, /steady/);
+
+  const sleepless = computeDeloadSignal([day(85), day(85), day(85), day(85), day(85, 300), day(85, 320), day(85, 310)]);
+  assert.equal(sleepless.advise, true);
+  assert.match(sleepless.reason, /sleep/);
 });
 
 test('progressions: a single session is never enough, and short set counts don\'t qualify', async () => {
