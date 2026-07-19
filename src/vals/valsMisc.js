@@ -77,6 +77,11 @@ export function valsMisc(app, ctx) {
     voiceOptions: (st.liveTts?.voices || []).map((v) => ({ id: v.id, name: v.name })),
     voiceVoiceId: st.voiceVoiceId,
     setVoiceId: (e) => app.setVoiceId(e.target.value),
+    // free on-device voices — shown when not using ElevenLabs
+    usingBrowserVoice: !st.liveTts?.configured,
+    systemVoices: (st.speechVoices || []).filter((v) => (v.lang || '').toLowerCase().startsWith('en')).map((v) => ({ uri: v.voiceURI, name: `${v.name} · ${v.lang}` })),
+    speechVoiceURI: st.speechVoiceURI,
+    setSpeechVoice: (e) => app.setSpeechVoice(e.target.value),
     wakeWordLabel: wakeWord,
     orbMsgs: (!demoMode ? st.voiceChat : st.orbChat).map(m => ({
       text: m.text, typing: m.typing,

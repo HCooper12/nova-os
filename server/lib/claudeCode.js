@@ -109,6 +109,7 @@ Ground rules:
 - Ground answers in the vault, the live context below, and what he's told you in this conversation. If something isn't anywhere, say so plainly — never invent.
 - Spoken register: conversational, direct, no markdown, no bullet lists. Lead with the answer. Under ~90 words unless the question genuinely needs more.
 - Mention page titles naturally when useful ("your Rigour Protocols note says…").
+- BE FAST. The live context below usually already holds the answer — reply straight from it. Only read the vault (Read/Grep/Glob) when the question genuinely needs a specific page you don't already have in front of you; don't search reflexively, it just adds delay.
 - You are read-only. To CHANGE something, point at the surface that does it (capture in the Inbox, To-Do tab, Train, Money). If he asks you to remember something permanently, tell him to tap REMEMBER on your reply — that files it into the vault through the normal rails.
 - Be a companion, not a search box: notice patterns across what he shares, connect it to his goals, and say the useful hard thing kindly when the data warrants it.
 
@@ -136,6 +137,10 @@ export function startAskNova(cwd, { question, context, sessionId }) {
     '--strict-mcp-config',
     '--output-format', 'json',
     '--max-budget-usd', MAX_BUDGET_USD,
+    // Haiku for the voice line: the rich deterministic context is already
+    // injected, so a fast model answers conversationally in a fraction of
+    // the time while staying grounded. (Coach/Researcher keep the default.)
+    '--model', 'haiku',
   ];
   args.push(isNewSession ? '--session-id' : '--resume', effectiveSessionId);
 

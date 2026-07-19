@@ -356,7 +356,7 @@ export function valsInbox(app, ctx) {
 
   return {
     isInbox: st.screen === 'inbox',
-    wrapInbox: st.isMobile ? { padding: 'calc(60px + env(safe-area-inset-top)) 16px calc(84px + env(safe-area-inset-bottom))' } : { padding: '28px 40px 44px', maxWidth: '980px' },
+    wrapInbox: st.isMobile ? { padding: 'calc(48px + env(safe-area-inset-top)) 16px calc(60px + env(safe-area-inset-bottom))' } : { padding: '28px 40px 44px', maxWidth: '980px' },
     inboxHeaderLabel: demoMode
       ? 'CONNECT A BACKEND TO CAPTURE'
       : isOffline

@@ -77,6 +77,17 @@ export function Voice({ v }) {
                 </select>
               </div>
             )}
+            {v.usingBrowserVoice && v.systemVoices.length > 0 && (
+              <div>
+                <div style={css("font-size:9px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent);letter-spacing:.2em")}>VOICE · FREE ON-DEVICE</div>
+                <select value={v.speechVoiceURI} onChange={v.setSpeechVoice}
+                  style={{ marginTop: '6px', width: '100%', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: `500 10.5px ${M}`, padding: '6px 8px', outline: 'none' }}>
+                  <option value="" style={{ background: '#141019' }}>System default</option>
+                  {v.systemVoices.map((o) => <option key={o.uri} value={o.uri} style={{ background: '#141019' }}>{o.name}</option>)}
+                </select>
+                <div style={css("margin-top:5px;font-size:8.5px;line-height:1.5;color:color-mix(in srgb, var(--nv-ink) 35%, transparent);letter-spacing:.04em")}>More free voices: iOS Settings → Accessibility → Spoken Content → Voices → download, then they appear here.</div>
+              </div>
+            )}
           </div>
         </div>
         <div style={css("flex:1;min-width:320px;display:flex;flex-direction:column;align-items:center;gap:20px")}>

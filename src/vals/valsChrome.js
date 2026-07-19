@@ -83,7 +83,7 @@ export function valsChrome(app, ctx) {
   const mob = st.isMobile;
   // mobile page padding must clear the fixed top bar (which now grows by the
   // Dynamic Island / status-bar inset) and the bottom nav (+ home indicator)
-  const mp = { padding: 'calc(60px + env(safe-area-inset-top)) 16px calc(84px + env(safe-area-inset-bottom))' };
+  const mp = { padding: 'calc(48px + env(safe-area-inset-top)) 16px calc(60px + env(safe-area-inset-bottom))' };
   const col = (mt) => ({ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: mt });
   const wrapTall = mob ? mp : null;
   // Mobile bottom tabs: EVERY screen, in sidebar order, in a horizontally
@@ -100,7 +100,7 @@ export function valsChrome(app, ctx) {
   ].map(t => {
     const act = st.screen === t[2];
     return { num: t[0], label: t[1], go: go(t[2]), active: act,
-      style: { flex: 'none', minWidth: '54px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', padding: '7px 9px', cursor: 'pointer', borderRadius: '9px', color: act ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: act ? 'var(--nv-acc-bg)' : 'none', textShadow: act ? 'var(--nv-tsh-tab)' : 'none' },
+      style: { flex: 'none', minWidth: '52px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', padding: '5px 9px', cursor: 'pointer', borderRadius: '9px', color: act ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: act ? 'var(--nv-acc-bg)' : 'none', textShadow: act ? 'var(--nv-tsh-tab)' : 'none' },
       numStyle: { font: "500 8.5px 'IBM Plex Mono',monospace", letterSpacing: '.06em', color: act ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 32%, transparent)' } };
   });
 

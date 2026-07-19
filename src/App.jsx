@@ -122,6 +122,7 @@ export default class App extends Component {
     micOn: true, orbInput: '',
     voiceChat: [], voiceBusy: false, voiceSpeaking: false, liveTts: null,
     voiceSessionId: typeof localStorage === 'undefined' ? null : (localStorage.getItem('novaos.voiceSession') || null),
+    speechVoices: [], speechVoiceURI: typeof localStorage === 'undefined' ? '' : (localStorage.getItem('novaos.speechVoiceURI') || ''),
     coachSessionId: typeof localStorage === 'undefined' ? null : (localStorage.getItem('novaos.coachSession') || null),
     voiceSpeak: typeof localStorage === 'undefined' ? true : localStorage.getItem('novaos.voiceSpeak') !== '0',
     voiceVoiceId: typeof localStorage === 'undefined' ? '' : (localStorage.getItem('novaos.voiceId') || ''),
@@ -247,6 +248,13 @@ export default class App extends Component {
       setTimeout(() => this.toastMsg('Restored your in-progress workout — nothing was lost'), 1200);
     }
     this.checkPushState();
+    // load the device's free system voices for the voice picker (they arrive
+    // async on iOS, so listen for the change too)
+    const loadVoices = () => { try { this.setState({ speechVoices: window.speechSynthesis.getVoices() }); } catch { /* unsupported */ } };
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      loadVoices();
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
     // Keep live data fresh: re-sync when the tab regains focus (the common
     // "reopen the PWA on the phone" path) and on a slow background cadence.
     this.visH = () => {
@@ -2107,13 +2115,21 @@ export default class App extends Component {
     try {
       const u = new SpeechSynthesisUtterance(text);
       const voices = window.speechSynthesis.getVoices();
-      u.voice = voices.find((v) => v.lang === 'en-AU') || voices.find((v) => (v.lang || '').startsWith('en')) || null;
+      const chosen = this.state.speechVoiceURI && voices.find((v) => v.voiceURI === this.state.speechVoiceURI);
+      u.voice = chosen || voices.find((v) => v.lang === 'en-AU') || voices.find((v) => (v.lang || '').startsWith('en')) || null;
       u.onend = finish;
       u.onerror = finish;
       window.speechSynthesis.speak(u);
     } catch {
       finish();
     }
+  }
+  setSpeechVoice(uri) {
+    localStorage.setItem('novaos.speechVoiceURI', uri || '');
+    this.setState({ speechVoiceURI: uri || '' });
+    // a short preview so he hears the choice immediately
+    this.stopSpeaking();
+    if (this.state.voiceSpeak) setTimeout(() => this.speakFallback('This is how Nova will sound.', () => {}), 60);
   }
   stopSpeaking() {
     try { window.speechSynthesis.cancel(); } catch { /* not supported */ }
