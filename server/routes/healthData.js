@@ -41,9 +41,16 @@ export function healthDataRouter(vaultPath) {
         try { body = JSON.parse(body); } catch { /* leave as-is; validation below fails honestly */ }
       }
       const date = body?.date;
-      const metrics = body?.metrics;
       if (typeof date !== 'string') return res.status(400).json({ error: 'date is required (YYYY-MM-DD)' });
-      if (!metrics || typeof metrics !== 'object') return res.status(400).json({ error: 'metrics object is required' });
+      // Accept EITHER {date, metrics:{...}} OR a flat {date, steps, hrv, ...}
+      // — the flat shape is far simpler to build in a Shortcut (one
+      // dictionary, no nesting). saveDay ignores keys it doesn't know.
+      let metrics = body?.metrics;
+      if (!metrics || typeof metrics !== 'object') {
+        const { date: _omit, metrics: _m, ...rest } = body || {};
+        metrics = rest;
+      }
+      if (!metrics || !Object.keys(metrics).length) return res.status(400).json({ error: 'at least one metric is required (steps, hrv, sleepAsleepMinutes, …)' });
       const saved = await saveDay(date, metrics);
       const { broadcast } = await import('../lib/events.js');
       broadcast('health');
