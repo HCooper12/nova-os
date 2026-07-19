@@ -98,6 +98,15 @@ export function loopsRouter(vaultPath) {
     }
   });
 
+  router.get('/learning', async (req, res) => {
+    try {
+      const { computePreferences } = await import('../lib/learning.js');
+      res.json(await computePreferences(vaultPath));
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   router.get('/daily-review', async (req, res) => {
     try {
       res.json(await getDailyReviewStatus());

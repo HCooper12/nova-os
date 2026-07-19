@@ -15,6 +15,7 @@ import { computeProgressions, computeDeloadSignal } from './coach.js';
 import { loadRecentDays } from './healthData.js';
 import { computeStreaks } from './streaks.js';
 import { listTodos } from './todos.js';
+import { preferencesContext } from './learning.js';
 import { createRecord, updateRecord, listRecords } from './inboxStore.js';
 import { fileDecision } from './inbox.js';
 
@@ -83,6 +84,7 @@ export async function buildReviewContext(vaultPath, now = new Date()) {
   const add = (label, fn) => fn().then((v) => v && parts.push(v)).catch(() => {});
 
   await add('profile', () => profileContext(vaultPath));
+  await add('learning', () => preferencesContext(vaultPath)); // what he tends to do
   await add('morning', async () => `TODAY'S PICTURE (computed now):\n${(await composeDispatch(vaultPath, 'morning', now)).text}`);
   await add('evening', async () => `HOW TODAY IS GOING:\n${(await composeDispatch(vaultPath, 'evening', now)).text}`);
   await add('sessions', async () => {

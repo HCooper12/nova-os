@@ -81,6 +81,7 @@ export const api = {
   notes: (conn) => call(conn, '/api/notes'),
   noteDetail: (conn, id) => call(conn, `/api/notes/detail?id=${encodeURIComponent(id)}`),
   recall: (conn, q) => call(conn, `/api/recall?q=${encodeURIComponent(q)}`),
+  learning: (conn) => call(conn, '/api/learning'),
   profile: (conn) => call(conn, '/api/profile'),
   setProfile: (conn, body) => put(conn, '/api/profile', body),
   startNoteSummary: (conn, id) => post(conn, '/api/notes/summary', { id }),

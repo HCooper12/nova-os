@@ -33,8 +33,15 @@ export function healthDataRouter(vaultPath) {
 
   router.post('/health-data', async (req, res, next) => {
     try {
-      const date = req.body?.date;
-      const metrics = req.body?.metrics;
+      // Tolerate a raw-text JSON body — iOS Shortcuts sending the body as a
+      // text/plain "File" rather than JSON is a common footgun; parse it
+      // rather than reject an otherwise-valid push.
+      let body = req.body;
+      if (typeof body === 'string') {
+        try { body = JSON.parse(body); } catch { /* leave as-is; validation below fails honestly */ }
+      }
+      const date = body?.date;
+      const metrics = body?.metrics;
       if (typeof date !== 'string') return res.status(400).json({ error: 'date is required (YYYY-MM-DD)' });
       if (!metrics || typeof metrics !== 'object') return res.status(400).json({ error: 'metrics object is required' });
       const saved = await saveDay(date, metrics);

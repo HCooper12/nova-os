@@ -3,6 +3,7 @@ import { startAskNova } from '../lib/claudeCode.js';
 import { composeDispatch } from '../lib/dispatch.js';
 import { ttsConfigured, listVoices, synthesize } from '../lib/tts.js';
 import { profileContext } from '../lib/profile.js';
+import { preferencesContext } from '../lib/learning.js';
 
 // The voice line: Ask Nova (read-only Q&A job over the vault, polled via the
 // shared /claude-code/message/:jobId endpoint) and the ElevenLabs TTS proxy.
@@ -24,6 +25,9 @@ export function voiceRouter(vaultPath) {
         const parts = [];
         try {
           parts.push(await profileContext(vaultPath)); // who he is comes first
+        } catch { /* optional */ }
+        try {
+          parts.push(await preferencesContext(vaultPath)); // what he tends to do
         } catch { /* optional */ }
         try {
           const [morning, evening] = await Promise.all([

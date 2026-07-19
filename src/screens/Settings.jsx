@@ -112,6 +112,20 @@ export function Settings({ v }) {
         </div>
       )}
 
+      {v.learning && v.learning.enoughData && (
+        <div style={{ marginTop: '28px' }}>
+          <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
+            <span style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:var(--nv-cy)")}>WHAT NOVA HAS NOTICED</span>
+            <span style={css("font:400 9px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>LEARNED FROM YOUR REAL DECISIONS · SHAPES EVERY SUGGESTION</span>
+          </div>
+          <div className="nv-pane" style={{ marginTop: '12px', padding: '16px 18px', maxWidth: '620px', display: 'flex', flexDirection: 'column', gap: '7px' }}>
+            {v.learning.noticed.map((n, i) => (
+              <div key={i} style={css("font:500 12.5px/1.5 'Rajdhani',sans-serif;color:var(--nv-ink60)")}>· {n}</div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={css("margin-top:34px;font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>APPEARANCE</div>
       <div style={css("margin-top:12px;max-width:520px;display:flex;flex-direction:column;gap:10px")}>
         {v.novaThemeOptions.map((t) => (

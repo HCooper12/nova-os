@@ -63,6 +63,9 @@ async function main() {
   const app = express();
   app.use(cors({ origin: allowedOrigins }));
   app.use(express.json({ limit: '40mb' })); // headroom for a few base64-encoded recipe photos
+  // fallback for clients (iOS Shortcuts "File" bodies) that send JSON as
+  // text/plain or octet-stream; the app itself always sends application/json
+  app.use(express.text({ type: ['text/*', 'application/octet-stream'], limit: '1mb' }));
 
   app.get('/api/health', (req, res) => res.json({ ok: true }));
 

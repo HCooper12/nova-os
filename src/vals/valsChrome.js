@@ -199,6 +199,11 @@ export function valsChrome(app, ctx) {
       setField: (field) => (e) => app.setProfileField(field, e.target.value),
       save: () => app.saveProfile(),
     } : null,
+    learning: !demoMode && !isOffline ? {
+      noticed: st.liveLearning?.noticed || [],
+      enoughData: !!st.liveLearning?.enoughData,
+      loaded: st.liveLearning != null,
+    } : null,
     pushSettings: !demoMode ? {
       state: st.pushState,
       label: st.pushState === 'on' ? 'ON — DRAFTS & ALERTS REACH YOUR PHONE'

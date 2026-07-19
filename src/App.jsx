@@ -167,6 +167,7 @@ export default class App extends Component {
     quickMinutes: '45', quickNote: '', quickBusy: false, quickPlan: null,
     liveBackups: null, restoreConfirm: null, pushState: 'checking',
     liveProfile: null, profileEditing: false, profileDraft: { focus: '', priorities: '', bestSelf: '', notes: '' }, profileSaving: false,
+    liveLearning: null,
     // an in-progress workout must survive tab reclaim / refresh / app kill —
     // restored from device storage at boot (see restoreActiveSession)
     ...restoreActiveSession(),
@@ -451,6 +452,7 @@ export default class App extends Component {
       async () => this.setState({ liveTts: await api.ttsStatus(conn) }),
       async () => this.setState({ liveMoney: await api.money(conn) }),
       async () => this.setState({ liveProfile: (await api.profile(conn)).profile }),
+      async () => this.setState({ liveLearning: await api.learning(conn) }),
       async () => this.setState({ liveDailyReview: await api.dailyReview(conn) }),
     ];
     this.refreshInFlight = (async () => {
