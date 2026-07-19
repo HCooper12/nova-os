@@ -52,6 +52,32 @@ const WAKE_WORD = true;
 // Hash-routed screens (#/recipes etc.) so deep links and the back button work
 // on GitHub Pages without a server-side router.
 const SCREENS = ['mission', 'inbox', 'voice', 'galaxy', 'code', 'recipes', 'shopping', 'todos', 'workouts', 'notes', 'journal', 'money', 'settings'];
+
+const ACTIVE_SESSION_KEY = 'novaos.activeSession';
+const QUICK_PLAN_KEY = 'novaos.quickPlan';
+const ACTIVE_SESSION_TTL_MS = 20 * 3600_000; // a stale session from days ago shouldn't resurrect
+
+function restoreActiveSession() {
+  const out = {};
+  try {
+    const saved = JSON.parse(localStorage.getItem(ACTIVE_SESSION_KEY) || 'null');
+    if (saved?.workoutSession && Date.now() - (saved.savedAt || 0) < ACTIVE_SESSION_TTL_MS) {
+      out.workoutSession = saved.workoutSession;
+      out.editingSessionId = saved.editingSessionId || null;
+      out.workoutsView = 'session';
+      out.restoredSession = true;
+    } else if (saved) {
+      localStorage.removeItem(ACTIVE_SESSION_KEY);
+    }
+    const plan = JSON.parse(localStorage.getItem(QUICK_PLAN_KEY) || 'null');
+    if (plan?.quickPlan && Date.now() - (plan.savedAt || 0) < ACTIVE_SESSION_TTL_MS) {
+      out.quickPlan = plan.quickPlan;
+    } else if (plan) {
+      localStorage.removeItem(QUICK_PLAN_KEY);
+    }
+  } catch { /* corrupt storage — start clean */ }
+  return out;
+}
 function screenFromHash() {
   const h = (typeof window !== 'undefined' ? window.location.hash : '').replace(/^#\/?/, '');
   return SCREENS.includes(h) ? h : 'mission';
@@ -134,6 +160,9 @@ export default class App extends Component {
     mealPrepBusy: false,
     quickMinutes: '45', quickNote: '', quickBusy: false, quickPlan: null,
     liveBackups: null, restoreConfirm: null,
+    // an in-progress workout must survive tab reclaim / refresh / app kill —
+    // restored from device storage at boot (see restoreActiveSession)
+    ...restoreActiveSession(),
     liveMoney: null, moneyBusy: false, moneyScanBusy: false, moneyScanError: null, moneyScanQuestion: null,
     moneyAddMerchant: '', moneyAddAmount: '', moneyAddIsSpend: true, moneyEditCategoryId: null,
     sparBusy: false,
@@ -206,6 +235,9 @@ export default class App extends Component {
       dataReady = Promise.race([fetchDone, fetchTimeout]);
     }
     Promise.all([minBootTime, dataReady]).then(() => this.setState({ booted: true }));
+    if (this.state.restoredSession) {
+      setTimeout(() => this.toastMsg('Restored your in-progress workout — nothing was lost'), 1200);
+    }
     // Keep live data fresh: re-sync when the tab regains focus (the common
     // "reopen the PWA on the phone" path) and on a slow background cadence.
     this.visH = () => {
@@ -273,10 +305,6 @@ export default class App extends Component {
       delete this.pollers[name];
     }
   }
-  componentDidUpdate(prevProps, prevState) {
-    if (this.state.screen === 'galaxy') this.startGalaxy(); else this.stopGalaxy();
-    if (this.state.paletteOpen && !prevState.paletteOpen && this.paletteRef.current) this.paletteRef.current.focus();
-  }
   // ---------- appearance (theme + calm mode, persisted) ----------
   // Apply from the settled state in the setState callback — applying from
   // arguments + this.state directly goes stale when both setters run in the
@@ -337,6 +365,31 @@ export default class App extends Component {
       const a = this.eventAbort;
       this.eventAbort = null;
       a.abort();
+    }
+  }
+  componentDidUpdate(prevProps, prevState) {
+    if (this.state.screen === 'galaxy') this.startGalaxy(); else this.stopGalaxy();
+    if (this.state.paletteOpen && !prevState.paletteOpen && this.paletteRef.current) this.paletteRef.current.focus();
+    // mirror the in-progress workout to device storage on every change —
+    // this is what survives Chrome reclaiming the tab mid-treadmill
+    if (prevState.workoutSession !== this.state.workoutSession || prevState.editingSessionId !== this.state.editingSessionId) {
+      try {
+        if (this.state.workoutSession) {
+          localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify({
+            workoutSession: this.state.workoutSession,
+            editingSessionId: this.state.editingSessionId,
+            savedAt: Date.now(),
+          }));
+        } else {
+          localStorage.removeItem(ACTIVE_SESSION_KEY);
+        }
+      } catch { /* storage full/blocked — in-memory still works */ }
+    }
+    if (prevState.quickPlan !== this.state.quickPlan) {
+      try {
+        if (this.state.quickPlan) localStorage.setItem(QUICK_PLAN_KEY, JSON.stringify({ quickPlan: this.state.quickPlan, savedAt: Date.now() }));
+        else localStorage.removeItem(QUICK_PLAN_KEY);
+      } catch { /* best-effort */ }
     }
   }
   async refreshLiveData() {
