@@ -8,6 +8,7 @@ import matter from 'gray-matter';
 import { backupFile } from './backup.js';
 import { queueTodoistSync } from './todoistSync.js';
 import { addTransactions, removeTransactions, CATEGORIES as MONEY_CATEGORIES } from './money.js';
+import { TODO_CATEGORIES, guessTodoCategory } from './todos.js';
 import { archiveImportFile } from './moneyImport.js';
 import { createRecord, updateRecord, getRecord } from './inboxStore.js';
 import { addItemsDirect, removeItems, SHOPPING_CATEGORIES } from './shoppingList.js';
@@ -43,7 +44,7 @@ function buildPrompt(text) {
 Routes and their payloads:
 - "shopping" — things to buy. payload: {"items": [{"name": "...", "category": "..."}]} with category exactly one of: ${SHOPPING_CATEGORIES.join(', ')}. Clean each name to a short shopping-list form.
 - "food" — food ALREADY EATEN to log (e.g. "just ate a protein bar"). payload: {"name": "...", "macros": {"p": 0, "c": 0, "f": 0, "kcal": 0}} — estimate macros for the described portion (whole numbers).
-- "todo" — an action to do later. payload: {"items": ["short action atom", ...]} — imperative, concrete.
+- "todo" — an action to do later. payload: {"items": [{"text": "short action atom", "category": "..."}]} — imperative, concrete; category exactly one of: personal, work, fitness, errands, later ("later" = ideas/someday items).
 - "journal" — a reflection, feeling, or diary-style thought about the day or life. payload: {"text": "..."} — lightly cleaned (fix dictation stumbles, keep the voice; never invent content).
 - "note" — an idea, insight, or piece of knowledge worth keeping. payload: {"title": "Short Title Case Name", "body": "..."} — cleaned prose, keep the substance intact.
 - "expense" — money spent (or received) to record in the ledger (e.g. "coffee 6.50", "paid the gym 89 dollars"). payload: {"amount": -6.5, "merchant": "...", "category": "...", "date": "YYYY-MM-DD or omit for today"} — amount NEGATIVE for spending, positive for money in; category exactly one of: ${MONEY_CATEGORIES.join(', ')} (best fit, or omit).
@@ -90,7 +91,14 @@ export function normalizeDecision(parsed) {
       macros: { p: Number(m.p) || 0, c: Number(m.c) || 0, f: Number(m.f) || 0, kcal: Number(m.kcal) || 0 },
     };
   } else if (route === 'todo') {
-    const items = (Array.isArray(p.items) ? p.items : []).map((s) => String(s || '').trim().slice(0, 200)).filter(Boolean);
+    // items may be plain strings (legacy) or {text, category} objects
+    const items = (Array.isArray(p.items) ? p.items : [])
+      .map((it) => {
+        const text = String((it && typeof it === 'object' ? it.text : it) || '').trim().slice(0, 200);
+        const category = it && typeof it === 'object' && TODO_CATEGORIES.includes(it.category) ? it.category : null;
+        return text ? { text, category } : null;
+      })
+      .filter(Boolean);
     if (!items.length) throw new Error('classifier returned no to-do items');
     payload = { items };
   } else if (route === 'journal') {
@@ -201,12 +209,15 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     const full = await ensureInboxNote(vaultPath, TODO_REL, 'To-Do');
     await backupFile(full);
     const raw = await readFile(full, 'utf8');
-    const lines = payload.items.map((it) => `- [ ] ${it} _(added ${date})_`);
+    // items are {text, category} (or legacy strings); missing categories
+    // fall back to the deterministic keyword guess
+    const entries = payload.items.map((it) => (typeof it === 'string' ? { text: it, category: null } : it));
+    const lines = entries.map((it) => `- [ ] ${it.text} _(added ${date})_ #${it.category || guessTodoCategory(it.text)}`);
     const updated = raw.replace(/\s*$/, '\n') + lines.join('\n') + '\n';
     await writeFile(full, updated, 'utf8');
     queueTodoistSync(vaultPath); // mirror to Todoist shortly (no-op when unconfigured)
     return {
-      destination: `To-Do — ${payload.items.join('; ')}`,
+      destination: `To-Do — ${entries.map((it) => it.text).join('; ')}`,
       undo: { route, relPath: TODO_REL, lines },
     };
   }

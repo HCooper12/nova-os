@@ -70,7 +70,8 @@ test('composeDispatch degrades honestly with no data, and uses real data when pr
   assert.match(withData.text, /\+13% vs 7-day avg/); // 90 vs 80 baseline
   assert.match(withData.text, /resting 52 bpm/);
   assert.match(withData.text, /7h 12m asleep/);
-  assert.match(withData.text, /8,200 steps yesterday/);
+  assert.match(withData.text, /8,200 steps/);
+  assert.doesNotMatch(withData.text, /days old/, 'yesterday’s data is not stale');
 });
 
 test('dispatch draft mode lands a pending inbox record; approve files to journal; re-run is guarded', async () => {

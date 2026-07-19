@@ -24,7 +24,7 @@ function payloadPreview(decision) {
   if (!decision) return '';
   const p = decision.payload || {};
   if (decision.route === 'shopping') return (p.items || []).map((i) => i.name).join(' · ');
-  if (decision.route === 'todo') return (p.items || []).join(' · ');
+  if (decision.route === 'todo') return (p.items || []).map((it) => (typeof it === 'string' ? it : `${it.text}${it.category ? ` #${it.category}` : ''}`)).join(' · ');
   if (decision.route === 'food') {
     const m = p.macros || {};
     return `${p.name} — ${m.p}P · ${m.c}C · ${m.f}F · ${m.kcal} kcal`;
@@ -160,7 +160,7 @@ export function valsInbox(app, ctx) {
     kind: r.kind || null,
     text: r.text,
     time: timeLabel(r.createdAt),
-    source: r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.kind === 'guardian' ? 'GUARDIAN' : r.kind === 'cfo' || r.kind === 'money-import' ? 'CFO' : r.source === 'voice' ? 'VOICE' : 'TYPED',
+    source: r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.kind === 'guardian' ? 'GUARDIAN' : r.kind === 'cfo' || r.kind === 'money-import' ? 'CFO' : r.kind === 'meal-prep' ? 'MEAL PREP' : r.kind === 'coach' ? 'COACH' : r.kind === 'research' ? 'RESEARCHER' : r.source === 'voice' ? 'VOICE' : 'TYPED',
     status: r.status,
     route: r.decision ? (ROUTE_META[r.decision.route] || ROUTE_META.note) : null,
     confidence: r.decision?.confidence || null,
@@ -250,6 +250,10 @@ export function valsInbox(app, ctx) {
   const tdBits = tdLast && !tdLast.error
     ? [tdLast.pushed && `pushed ${tdLast.pushed}`, tdLast.pulled && `pulled ${tdLast.pulled}`, tdLast.closedInTodoist && `closed ${tdLast.closedInTodoist}`, tdLast.checkedInVault && `checked off ${tdLast.checkedInVault}`].filter(Boolean)
     : [];
+  const mealPrepCard = {
+    busy: !!st.mealPrepBusy,
+    run: () => app.runMealPrepNow(),
+  };
   const todoistCard = {
     configured: !!todoist?.configured,
     busy: !!st.todoistBusy,
@@ -295,6 +299,12 @@ export function valsInbox(app, ctx) {
     setInboxInput: (e) => app.setInboxInput(e),
     inboxCaptureBusy: st.inboxCaptureBusy,
     submitInboxCapture: (source) => app.captureToInbox(st.inboxInput, source),
+    submitResearch: () => {
+      const q = st.inboxInput.trim();
+      if (!q) { app.toastMsg('Type the research question first'); return; }
+      app.setState({ inboxInput: '' });
+      app.startResearch(q);
+    },
     inboxModes: MODE_LADDER.map((m, i) => ({
       ...m,
       step: i + 1,
@@ -318,5 +328,6 @@ export function valsInbox(app, ctx) {
     runCompostNow: () => app.runCompostNow(),
     todoist: todoistCard,
     guardian: guardianCard,
+    mealPrep: mealPrepCard,
   };
 }

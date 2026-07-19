@@ -135,8 +135,12 @@ async function composeMorning(vaultPath, now) {
       }
       if (latest.restingHeartRate != null) bits.push(`resting ${Math.round(latest.restingHeartRate)} bpm`);
       if (latest.sleepAsleepMinutes != null) bits.push(`${Math.floor(latest.sleepAsleepMinutes / 60)}h ${pad(latest.sleepAsleepMinutes % 60)}m asleep`);
-      if (latest.steps != null) bits.push(`${latest.steps.toLocaleString()} steps yesterday`);
-      lines.push(`**Recovery.** ${bits.join(', ')}.`);
+      if (latest.steps != null) bits.push(`${latest.steps.toLocaleString()} steps`);
+      // stale data must SAY it's stale — a three-day-old number quietly
+      // presented as "yesterday" is a lie by omission
+      const ageDays = Math.round((new Date(todayISO(now)) - new Date(latest.date)) / 86400000);
+      const staleTag = ageDays > 1 ? ` (last data ${ageDays} days old — the health push isn't running)` : '';
+      lines.push(`**Recovery.** ${bits.join(', ')}.${staleTag}`);
     } else {
       lines.push('**Recovery.** No health data yet.');
     }

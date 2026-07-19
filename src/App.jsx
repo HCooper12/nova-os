@@ -65,7 +65,7 @@ const CACHED_LIVE_KEYS = [
   'liveNotes', 'liveCalendar', 'liveRecipes', 'liveRecipeProfile', 'liveRotation',
   'liveFoodLog', 'liveShoppingList', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
   'liveWorkoutExercises', 'liveWorkoutMuscleGroups', 'liveWorkoutTrackingTypes',
-  'liveWorkoutRoutines', 'liveWorkoutSchedule', 'liveWorkoutWeekdays', 'liveWorkoutProgressions',
+  'liveWorkoutRoutines', 'liveWorkoutSchedule', 'liveWorkoutWeekdays', 'liveWorkoutProgressions', 'liveWorkoutGoals',
   'liveJournalEntries', 'liveGraph', 'liveInbox', 'liveDispatch', 'liveCompost', 'liveTodoist', 'liveTodos', 'liveGuardian', 'liveMoney',
 ];
 
@@ -128,7 +128,10 @@ export default class App extends Component {
     inboxProposalDismissed: (() => { try { const a = JSON.parse(localStorage.getItem('novaos.proposalsDismissed') || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } })(),
     liveDispatch: null, liveCompost: null, liveTodoist: null, liveTodos: null, liveGuardian: null,
     dispatchBusy: false, compostBusy: false, compostActionBusy: {}, todoistBusy: false, guardianBusy: false,
-    todoInput: '', todoActionBusy: false,
+    todoInput: '', todoActionBusy: false, todoEditCategoryKey: null,
+    editingSessionId: null, sessionDeleteConfirmId: null,
+    liveWorkoutGoals: null, goalsEditing: false, goalsDraft: { goal: '', focus: '', daysPerWeek: '', notes: '' }, coachBusy: false,
+    mealPrepBusy: false,
     liveMoney: null, moneyBusy: false, moneyScanBusy: false, moneyScanError: null, moneyScanQuestion: null,
     moneyAddMerchant: '', moneyAddAmount: '', moneyAddIsSpend: true, moneyEditCategoryId: null,
     sparBusy: false,
@@ -319,6 +322,7 @@ export default class App extends Component {
         this.setState({ liveWorkoutExercises: exercisesRes.exercises, liveWorkoutMuscleGroups: exercisesRes.muscleGroups, liveWorkoutTrackingTypes: exercisesRes.trackingTypes });
         const routinesRes = await api.workoutRoutines(conn);
         this.setState({ liveWorkoutRoutines: routinesRes.routines, liveWorkoutSchedule: routinesRes.schedule, liveWorkoutWeekdays: routinesRes.weekdays, liveWorkoutProgressions: routinesRes.progressions || {} });
+        api.workoutGoals(conn).then(({ goals }) => this.setState({ liveWorkoutGoals: goals })).catch(() => {});
       },
       async () => {
         const graph = await api.graph(conn);
@@ -871,26 +875,69 @@ export default class App extends Component {
   }
   discardWorkoutSession() {
     const routineId = this.state.workoutSession?.routineId;
+    // abandoning a history edit returns to history untouched
+    if (this.state.editingSessionId) {
+      this.setState({ workoutsView: 'history', workoutSession: null, editingSessionId: null, sessionCancelConfirm: false });
+      return;
+    }
     this.setState({ workoutsView: 'routine', openRoutineId: routineId, workoutSession: null, sessionCancelConfirm: false });
   }
   finishWorkoutSession() {
     const conn = getConnection();
     const session = this.state.workoutSession;
     if (!conn || !session) return;
-    const payload = {
-      routineId: session.routineId,
-      routineName: session.routineName,
-      exercises: session.exercises.map((e) => ({
+    // Only ticked sets are history — an exercise with nothing ticked was
+    // skipped and must not appear in the record at all.
+    const exercises = session.exercises
+      .map((e) => ({
         exerciseId: e.exerciseId,
         name: e.name,
-        sets: e.sets.map((s) => ({ weight: Number(s.weight) || 0, reps: Number(s.reps) || 0 })),
-      })),
-    };
+        sets: e.sets.filter((s) => s.done).map((s) => ({ weight: Number(s.weight) || 0, reps: Number(s.reps) || 0, done: true })),
+      }))
+      .filter((e) => e.sets.length);
+    if (!exercises.length) {
+      this.toastMsg('Nothing ticked yet — tick the sets you actually did, then finish');
+      return;
+    }
+    if (this.state.editingSessionId) {
+      api.updateWorkoutSession(conn, this.state.editingSessionId, { exercises }).then(() => {
+        this.setState({ workoutsView: 'history', workoutSession: null, editingSessionId: null, sessionCancelConfirm: false });
+        this.openWorkoutHistory(this.state.historyRoutineId);
+        this.refreshWorkoutRoutines();
+        this.toastMsg('Session updated ✓');
+      }).catch((e) => this.toastMsg('Could not update session: ' + e.message));
+      return;
+    }
+    const payload = { routineId: session.routineId, routineName: session.routineName, exercises };
     api.completeWorkoutSession(conn, payload).then(() => {
       this.setState({ workoutsView: 'routine', workoutSession: null, sessionCancelConfirm: false });
       this.refreshWorkoutRoutines();
       this.toastMsg('Workout saved ✓');
     }).catch((e) => this.toastMsg('Could not save workout: ' + e.message));
+  }
+  editHistorySession(session) {
+    // Load a past session into the editor: every recorded set arrives
+    // ticked (it happened); untick to remove it from the record on save.
+    const exercises = session.exercises.map((e) => ({
+      exerciseId: e.exerciseId, name: e.name,
+      muscleGroup: e.muscleGroup || '', trackingType: e.trackingType || 'weight_reps',
+      targetSets: e.sets.length, targetRepsLow: 0, targetRepsHigh: 0, coach: null,
+      sets: e.sets.map((s) => ({ weight: s.weight, reps: s.reps, done: true })),
+    }));
+    this.setState({
+      workoutsView: 'session', editingSessionId: session.id,
+      workoutSession: { routineId: session.routineId, routineName: session.routineName, exercises },
+      sessionCancelConfirm: false,
+    });
+  }
+  deleteHistorySession(sessionId) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.deleteWorkoutSession(conn, sessionId).then(() => {
+      this.openWorkoutHistory(this.state.historyRoutineId);
+      this.refreshWorkoutRoutines();
+      this.toastMsg('Session deleted — exercise prefills recomputed');
+    }).catch((e) => this.toastMsg('Could not delete: ' + e.message));
   }
   openWorkoutHistory(routineId) {
     const conn = getConnection();
@@ -1162,7 +1209,41 @@ export default class App extends Component {
     if (!conn) return Promise.resolve();
     // approvals can file to-dos — keep the To-Do tab in step with the queue
     api.todos(conn).then((data) => this.setState({ liveTodos: data })).catch(() => {});
-    return api.inbox(conn).then((data) => this.setState({ liveInbox: data })).catch(() => {});
+    return api.inbox(conn).then((data) => {
+      this.setState({ liveInbox: data });
+      this.updateAppBadge(data);
+    }).catch(() => {});
+  }
+  // pending approvals on the app icon (Badging API — installed PWAs)
+  updateAppBadge(inbox) {
+    try {
+      const count = (inbox?.items || []).filter((r) => r.status === 'pending').length;
+      if (!('setAppBadge' in navigator)) return;
+      if (count > 0) navigator.setAppBadge(count).catch(() => {});
+      else navigator.clearAppBadge().catch(() => {});
+    } catch { /* unsupported */ }
+  }
+  startResearch(question) {
+    const conn = getConnection();
+    const q = (question || '').trim();
+    if (!conn || !q) return;
+    api.research(conn, q).then(() => {
+      this.toastMsg('Researcher dispatched — the brief lands in the Inbox for review');
+      this.refreshInbox();
+    }).catch((e) => this.toastMsg('Research failed to start: ' + e.message));
+  }
+  runMealPrepNow() {
+    const conn = getConnection();
+    if (!conn || this.state.mealPrepBusy) return;
+    this.setState({ mealPrepBusy: true });
+    api.mealPrepRun(conn, true).then((res) => {
+      this.setState({ mealPrepBusy: false });
+      if (res.record) { this.toastMsg('Meal-prep proposal drafted — waiting in the Inbox'); this.refreshInbox(); }
+      else this.toastMsg(res.reason === 'rotation empty' ? 'The rotation has no meals set — pick recipes first' : 'This week’s meal-prep proposal already exists');
+    }).catch((e) => {
+      this.setState({ mealPrepBusy: false });
+      this.toastMsg('Meal prep failed: ' + e.message);
+    });
   }
   addTodoItem() {
     const conn = getConnection();
@@ -1175,6 +1256,12 @@ export default class App extends Component {
       this.setState({ todoActionBusy: false });
       this.toastMsg('Could not add: ' + e.message);
     });
+  }
+  setTodoItemCategory(rawLine, category) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.todoSetCategory(conn, rawLine, category).then((data) => this.setState({ liveTodos: data, todoEditCategoryKey: null }))
+      .catch((e) => { this.toastMsg(e.message); this.setState({ todoEditCategoryKey: null }); });
   }
   toggleTodoItem(rawLine) {
     const conn = getConnection();
@@ -1613,14 +1700,38 @@ export default class App extends Component {
 
   doOrb() {
     const q = this.state.orbInput.trim(); if (!q) return;
-    // live backend → the real Ask Nova pipeline; demo keeps the scripted preview
-    if (getConnection() && this.state.connectionStatus === 'live') {
+    this.primeSpeech(); // inside the user gesture — unlocks audio on iOS
+    // a configured backend → the real Ask Nova pipeline, even while the
+    // status is still 'connecting' (the ask itself proves the connection);
+    // ONLY demo mode gets the scripted preview
+    const conn = getConnection();
+    if (conn) {
+      if (this.state.connectionStatus === 'offline') {
+        this.setState((s) => ({ voiceChat: [...s.voiceChat, { who: 'you', text: q }, { who: 'system', text: 'Offline — reconnect to the Mac to ask Nova.' }], orbInput: '' }));
+        return;
+      }
       this.setState({ orbInput: '' });
       this.askNova(q);
       return;
     }
     this.setState(s => ({ orbChat: [...s.orbChat, { who: 'you', text: q }], orbInput: '' }));
     setTimeout(() => this.typeIn('orbChat', 'nova', orbReply(q)), 480);
+  }
+  // iOS gates audio behind a user gesture: playing a muted element and an
+  // empty utterance during the tap unlocks both paths for the async reply.
+  primeSpeech() {
+    try {
+      if (!this.sharedAudio) {
+        this.sharedAudio = new Audio();
+        this.sharedAudio.muted = true;
+        this.sharedAudio.play().catch(() => {});
+        this.sharedAudio.muted = false;
+      }
+      if (window.speechSynthesis && !this.speechPrimed) {
+        window.speechSynthesis.speak(new SpeechSynthesisUtterance(''));
+        this.speechPrimed = true;
+      }
+    } catch { /* best-effort */ }
   }
   askNova(question) {
     const conn = getConnection();
@@ -1654,11 +1765,13 @@ export default class App extends Component {
     if (conn && this.state.liveTts?.configured) {
       api.ttsAudio(conn, clean, this.state.voiceVoiceId || undefined).then((blob) => {
         const url = URL.createObjectURL(blob);
-        const audio = new Audio(url);
+        // reuse the gesture-unlocked element (iOS blocks fresh ones)
+        const audio = this.sharedAudio || new Audio();
         this.currentAudio = audio;
+        audio.src = url;
         audio.onended = () => { URL.revokeObjectURL(url); finish(); };
         audio.onerror = () => { URL.revokeObjectURL(url); finish(); };
-        audio.play().catch(finish);
+        audio.play().catch(() => { URL.revokeObjectURL(url); this.speakFallback(clean, finish); });
       }).catch(() => this.speakFallback(clean, finish));
     } else {
       this.speakFallback(clean, finish);
@@ -1692,6 +1805,23 @@ export default class App extends Component {
   }
   doCoach(preset) {
     const q = (preset || this.state.coachInput).trim(); if (!q) return;
+    const conn = getConnection();
+    // live backend → the real evidence-based coach; demo keeps the script
+    if (conn && this.state.connectionStatus !== 'demo') {
+      if (this.state.coachBusy) return;
+      const history = this.state.coachChat.filter((m) => m.who !== 'system').slice(-6).map((m) => ({ who: m.who, text: m.text }));
+      this.setState((s) => ({ coachChat: [...s.coachChat, { who: 'you', text: q }], coachInput: '', coachBusy: true }));
+      api.askCoach(conn, q, history).then(({ jobId }) => {
+        this.startPoll('coach', () => api.claudeCodeJob(conn, jobId), {
+          timeoutMs: 3 * 60_000,
+          onReady: (job) => this.setState((s) => ({ coachBusy: false, coachChat: [...s.coachChat, { who: 'coach', text: job.result.text }] })),
+          onError: (msg) => this.setState((s) => ({ coachBusy: false, coachChat: [...s.coachChat, { who: 'system', text: 'Error: ' + msg }] })),
+        });
+      }).catch((e) => {
+        this.setState((s) => ({ coachBusy: false, coachChat: [...s.coachChat, { who: 'system', text: 'Error: ' + e.message }] }));
+      });
+      return;
+    }
     this.setState(s => ({ coachChat: [...s.coachChat, { who: 'you', text: q }], coachInput: '' }));
     const r = coachReply(q);
     setTimeout(() => this.typeIn('coachChat', 'coach', r.text, () => {
@@ -1703,6 +1833,17 @@ export default class App extends Component {
       this.setState({ plan, planNote: r.note });
       this.toastMsg('Coach updated today’s session — written to vault ✓');
     }), 520);
+  }
+  saveFitnessGoals() {
+    const conn = getConnection();
+    const d = this.state.goalsDraft;
+    if (!conn || !d.goal.trim()) { this.toastMsg('A goal is required — one sentence is enough'); return; }
+    api.setWorkoutGoals(conn, { goal: d.goal, focus: d.focus, daysPerWeek: d.daysPerWeek ? Number(d.daysPerWeek) : null, notes: d.notes })
+      .then(({ goals }) => {
+        this.setState({ liveWorkoutGoals: goals, goalsEditing: false });
+        this.toastMsg('Goals saved to the vault — the Coach reads these now');
+      })
+      .catch((e) => this.toastMsg('Could not save goals: ' + e.message));
   }
   doCode() {
     const conn = getConnection();

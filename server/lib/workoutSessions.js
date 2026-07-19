@@ -1,10 +1,10 @@
-import { readFile, writeFile, mkdir, readdir, stat } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, readdir, stat, unlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import matter from 'gray-matter';
 import { createWriteLock } from './vaultStateFile.js';
-import { updateExerciseState } from './exerciseState.js';
+import { updateExerciseState, replaceExerciseState } from './exerciseState.js';
 
 const SESSIONS_DIR_REL = 'Wiki/Health/Workouts';
 
@@ -86,6 +86,58 @@ export async function loadSessions(vaultPath, { routineId, exerciseId, limit } =
   return sessions.map(({ file, ...s }) => s);
 }
 
+// Rewrite one session file in place (history editing). The exercises input
+// uses the same shape/filters as completeSession; date/routine identity are
+// preserved. Exercise-state prefills are rebuilt from the full remaining
+// history afterwards, since this session may have been the newest.
+export async function updateSession(vaultPath, sessionId, input) {
+  return withWriteLock(async () => {
+    const sessions = await getSessions(vaultPath);
+    const existing = sessions.find((s) => s.id === sessionId);
+    if (!existing) throw new Error('session not found');
+    const exercises = validateSessionInput({ routineId: existing.routineId, routineName: existing.routineName, exercises: input.exercises });
+    if (!exercises.length) throw new Error('no sets left — delete the session instead');
+
+    const updated = { ...existing, exercises };
+    delete updated.file;
+    const full = path.join(vaultPath, SESSIONS_DIR_REL, existing.file);
+    await writeFile(full, matter.stringify(bodyFor(updated), updated), 'utf8');
+    cachedSessions = sessions.map((s) => (s.id === sessionId ? { ...updated, file: existing.file } : s));
+    lastWriteAt = Date.now();
+    knownDirMtimeMs = await dirMtime(vaultPath);
+    await rebuildExerciseState(vaultPath, cachedSessions);
+    return updated;
+  });
+}
+
+export async function deleteSession(vaultPath, sessionId) {
+  return withWriteLock(async () => {
+    const sessions = await getSessions(vaultPath);
+    const existing = sessions.find((s) => s.id === sessionId);
+    if (!existing) throw new Error('session not found');
+    await unlink(path.join(vaultPath, SESSIONS_DIR_REL, existing.file));
+    cachedSessions = sessions.filter((s) => s.id !== sessionId);
+    lastWriteAt = Date.now();
+    knownDirMtimeMs = await dirMtime(vaultPath);
+    await rebuildExerciseState(vaultPath, cachedSessions);
+    return { deleted: existing.id };
+  });
+}
+
+// After an edit/delete, "last performed" per exercise must reflect what the
+// history actually says now — newest session containing each exercise wins.
+async function rebuildExerciseState(vaultPath, sessions) {
+  const byExercise = new Map();
+  for (const s of sortedDesc(sessions)) {
+    for (const e of s.exercises) {
+      if (!byExercise.has(e.exerciseId) && e.sets.length) {
+        byExercise.set(e.exerciseId, { exerciseId: e.exerciseId, name: e.name, date: s.date, sets: e.sets });
+      }
+    }
+  }
+  await replaceExerciseState(vaultPath, [...byExercise.values()]);
+}
+
 export async function completedCountByRoutine(vaultPath) {
   const sessions = await getSessions(vaultPath);
   const counts = {};
@@ -105,6 +157,9 @@ function validateSessionInput(body) {
       throw new Error('each exercise needs exerciseId, name, and a sets array');
     }
     const sets = e.sets
+      // A set explicitly marked not-done is prefill, not history — an
+      // exercise skipped for time must leave NO trace in the record.
+      .filter((s) => s.done !== false)
       .map((s) => ({ weight: Number(s.weight) || 0, reps: Number(s.reps) || 0 }))
       .filter((s) => s.weight > 0 || s.reps > 0);
     return { exerciseId: e.exerciseId, name: e.name, sets };

@@ -88,6 +88,7 @@ export function valsMisc(app, ctx) {
     setOrbInputValue: (t) => app.setState({ orbInput: t }),
     orbKey: (e) => { if (e.key === 'Enter') app.doOrb(); },
     sendOrb: () => app.doOrb(),
+    primeSpeech: () => app.primeSpeech(),
     briefMe: () => {
       if (!demoMode && !isOffline) { app.askNova('Brief me on my day — recovery, calendar, fuel, training, anything waiting on me.'); return; }
       app.setState(s => ({ orbChat: [...s.orbChat, { who: 'you', text: 'Brief me.' }] }));

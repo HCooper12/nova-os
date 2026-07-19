@@ -32,7 +32,8 @@ export function Voice({ v }) {
   const dict = useDictation(
     () => '', // each spoken question starts clean
     (text) => v.setOrbInputValue(text),
-    () => { if (inputRef.current.trim()) sendRef.current(); }, // pause = ask
+    () => { if (inputRef.current.trim()) sendRef.current(); }, // recognition end = ask
+    { continuous: false }, // one-shot: silence ends the take (works on iOS)
   );
 
   const caption = dict.on ? 'LISTENING…'
@@ -98,7 +99,7 @@ export function Voice({ v }) {
           )}
           <div style={css("display:flex;gap:10px")}>
             {dict.supported && (
-              <Interactive as="span" onClick={dict.toggle}
+              <Interactive as="span" onClick={() => { v.primeSpeech(); dict.toggle(); }}
                 base={{ cursor: 'pointer', font: `500 10.5px ${M}`, padding: '9px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent)', color: dict.on ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', background: dict.on ? 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' : 'rgba(0,0,0,.25)' }}
                 hoverStyle="border-color:color-mix(in srgb, var(--nv-cy) 60%, transparent)"
               >{dict.on ? '● LISTENING — PAUSE SENDS' : '🎙 ASK BY VOICE'}</Interactive>

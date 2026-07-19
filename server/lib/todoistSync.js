@@ -25,7 +25,10 @@ const API_BASE = () => process.env.NOVA_TODOIST_API || 'https://api.todoist.com/
 const TOKEN = () => (process.env.TODOIST_TOKEN || '').trim();
 
 const TODO_REL = 'Wiki/Inbox/To-Do.md'; // same page the inbox 'todo' route files into
-const LINE_RE = /^- \[( |x)\] (.*?)(?:\s*_\(added [^)]*\)_)?\s*$/;
+// Keep in lockstep with todos.js — the trailing #tag is the category and
+// maps to a Todoist label; identity for sync purposes stays the TEXT only.
+const LINE_RE = /^- \[( |x)\] (.*?)(?:\s*_\(added [^)]*\)_)?(?:\s*#([a-z-]+))?\s*$/;
+const KNOWN_CATEGORIES = new Set(['personal', 'work', 'fitness', 'errands', 'later']);
 
 export function todoistConfigured() {
   return !!TOKEN();
@@ -104,12 +107,13 @@ async function readVaultTodos(vaultPath) {
   const todos = [];
   for (const line of raw.split('\n')) {
     const m = line.match(LINE_RE);
-    if (m) todos.push({ raw: line, checked: m[1] === 'x', text: m[2].trim() });
+    if (m) todos.push({ raw: line, checked: m[1] === 'x', text: m[2].trim(), category: KNOWN_CATEGORIES.has(m[3]) ? m[3] : null });
   }
   return { full, raw, todos };
 }
 
-async function appendVaultTodos(vaultPath, texts) {
+// entries: [{ text, category|null }] — pulled Todoist labels become tags
+async function appendVaultTodos(vaultPath, entries) {
   const full = path.join(vaultPath, TODO_REL);
   const date = todayISO();
   if (!existsSync(full)) {
@@ -118,7 +122,7 @@ async function appendVaultTodos(vaultPath, texts) {
   }
   await backupFile(full);
   const raw = await readFile(full, 'utf8');
-  const lines = texts.map((t) => `- [ ] ${t} _(added ${date})_`);
+  const lines = entries.map((e) => `- [ ] ${e.text} _(added ${date})_${e.category ? ` #${e.category}` : ''}`);
   await writeFile(full, raw.replace(/\s*$/, '\n') + lines.join('\n') + '\n', 'utf8');
 }
 
@@ -194,16 +198,18 @@ async function doSync(vaultPath) {
       // neither side open → the pair is resolved; the link just drops
     }
 
-    // vault-only open items → push to Todoist (link instead of duplicating
-    // when an identical active task already exists, e.g. on the first sync)
-    for (const [text] of openByText) {
+    // vault-only open items → push to Todoist with the category as a label
+    // (link instead of duplicating when an identical active task exists)
+    for (const [text, line] of openByText) {
       if (linkedTexts.has(text) || resolvedTexts.has(text)) continue;
       const existing = activeByText.get(text);
       if (existing) {
         nextLinks.push({ taskId: String(existing.id), text });
         linkedTaskIds.add(String(existing.id));
       } else {
-        const created = await td('/tasks', { method: 'POST', body: { content: text, project_id: projectId } });
+        const body = { content: text, project_id: projectId };
+        if (line.category) body.labels = [line.category];
+        const created = await td('/tasks', { method: 'POST', body });
         nextLinks.push({ taskId: String(created.id), text });
         linkedTaskIds.add(String(created.id));
         summary.pushed++;
@@ -211,10 +217,13 @@ async function doSync(vaultPath) {
       linkedTexts.add(text);
     }
 
-    // todoist-only active tasks → pull into the vault To-Do page
+    // todoist-only active tasks → pull into the vault, labels → category tag
     const toPull = active.filter((t) => !linkedTaskIds.has(String(t.id)) && !closedTaskIds.has(String(t.id)) && !linkedTexts.has(t.content.trim()) && !checkedTexts.has(t.content.trim()) && !resolvedTexts.has(t.content.trim()));
     if (toPull.length) {
-      await appendVaultTodos(vaultPath, toPull.map((t) => t.content.trim()));
+      await appendVaultTodos(vaultPath, toPull.map((t) => ({
+        text: t.content.trim(),
+        category: (t.labels || []).map((l) => String(l).toLowerCase()).find((l) => KNOWN_CATEGORIES.has(l)) || null,
+      })));
       for (const t of toPull) nextLinks.push({ taskId: String(t.id), text: t.content.trim() });
       summary.pulled = toPull.length;
     }

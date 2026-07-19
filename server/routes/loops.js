@@ -3,6 +3,7 @@ import { getDispatchStatus, setDispatchConfig, runDispatch, DISPATCH_MODES, DISP
 import { getCompost, runCompost, acceptProposal, dismissProposal } from '../lib/compost.js';
 import { getTodoistStatus, syncTodoist } from '../lib/todoistSync.js';
 import { getGuardian, runGuardian, runGuardianReport } from '../lib/guardian.js';
+import { runMealPrep } from '../lib/mealPrep.js';
 
 // The loops: the scheduled briefs (dispatch slots on the inbox rails), the
 // Compost loop (weekly read-only vault hygiene proposals), and Todoist sync.
@@ -91,6 +92,14 @@ export function loopsRouter(vaultPath) {
   router.post('/todoist/sync', async (req, res) => {
     try {
       res.json({ result: await syncTodoist(vaultPath) });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  router.post('/mealprep/run', async (req, res) => {
+    try {
+      res.json(await runMealPrep(vaultPath, { force: !!req.body?.force }));
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

@@ -220,9 +220,12 @@ waiting.
 **Mandate.** Answer "go find out about X" with a sourced brief in the vault —
 the only agent that touches the internet, under the tightest contract.
 
-**Where it lives.** Triggered from capture ("research: X" → classifier route
-`research`) or a button on a Studio idea. Output: draft-gated
-`Wiki/Sources/<topic> (Research Brief).md` with citations.
+**Where it lives.** EXPLICIT trigger only (decision hardened at build time:
+no classifier route — a web job never starts off an ambiguous capture): the
+🔭 RESEARCH button beside the Inbox composer, or the palette. Output rides
+the inbox rails as a pending note — filing is ALWAYS review-gated.
+✅ Shipped 19 July (lib/researcher.js — WebSearch/WebFetch/Read only,
+briefs refuse to normalize without citations, kind:'research').
 
 **Skills & routines to build (in order):**
 1. *Research brief job* — claude CLI with `WebSearch`/`WebFetch` allowed and

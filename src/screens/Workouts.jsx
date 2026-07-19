@@ -143,6 +143,77 @@ function RoutinesView({ v }) {
           ))}
         </div>
       )}
+
+      {/* goals + the real coach, side by side */}
+      <div style={{ display: 'flex', gap: '14px', marginTop: '26px', flexWrap: 'wrap' }}>
+        <div className="nv-pane" style={{ flex: '1 1 300px', padding: '16px 18px', alignSelf: 'flex-start' }}>
+          <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>
+            <span style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.2em;color:var(--nv-gold)")}>GOALS</span>
+            {!v.goalsEditing && (
+              <Interactive as="span" onClick={v.startGoalsEdit} base="cursor:pointer;font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;padding:4px 11px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold)" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 08%, transparent)">{v.goalsSet ? 'EDIT' : 'SET GOALS'}</Interactive>
+            )}
+          </div>
+          {v.goalsEditing ? (
+            <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:8px")}>
+              <input value={v.goalsDraft.goal} onChange={v.setGoalsField('goal')} placeholder="The goal — e.g. lean muscle gain, 78kg by December"
+                style={{ background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px 'Rajdhani',sans-serif", padding: '9px 12px', outline: 'none' }} />
+              <input value={v.goalsDraft.focus} onChange={v.setGoalsField('focus')} placeholder="Focus — e.g. upper-body strength, protein consistency"
+                style={{ background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px 'Rajdhani',sans-serif", padding: '9px 12px', outline: 'none' }} />
+              <div style={css("display:flex;gap:8px;align-items:center")}>
+                <span style={css("font:400 10px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>DAYS/WEEK</span>
+                <select value={v.goalsDraft.daysPerWeek} onChange={v.setGoalsField('daysPerWeek')}
+                  style={{ background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: "500 11px 'IBM Plex Mono',monospace", padding: '5px 8px', outline: 'none' }}>
+                  <option value="" style={{ background: '#141019' }}>—</option>
+                  {[1, 2, 3, 4, 5, 6, 7].map((n) => <option key={n} value={n} style={{ background: '#141019' }}>{n}</option>)}
+                </select>
+              </div>
+              <textarea value={v.goalsDraft.notes} onChange={v.setGoalsField('notes')} rows={3} placeholder="Anything the Coach should always know — injuries, constraints, preferences…"
+                style={{ background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px 'Rajdhani',sans-serif", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
+              <div style={css("display:flex;gap:8px")}>
+                <Interactive as="span" onClick={v.saveGoals} base="cursor:pointer;font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;padding:8px 16px;border-radius:8px;background:var(--nv-gold);color:#1a1322" hoverStyle="filter:brightness(1.08)">SAVE</Interactive>
+                <Interactive as="span" onClick={v.cancelGoalsEdit} base="cursor:pointer;font:400 10px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent);padding:8px 6px" hoverStyle="color:var(--nv-ink)">cancel</Interactive>
+              </div>
+            </div>
+          ) : v.goalsSet ? (
+            <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:6px")}>
+              <div style={css("font:600 14px 'Rajdhani',sans-serif")}>{v.goalsView.goal}</div>
+              {v.goalsView.focus && <div style={css("font:500 12px 'Rajdhani',sans-serif;color:var(--nv-ink60)")}>Focus: {v.goalsView.focus}</div>}
+              {v.goalsView.meta && <div style={css("font:400 10px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{v.goalsView.meta}</div>}
+              {v.goalsView.notes && <div style={css("font:500 11.5px/1.55 'Rajdhani',sans-serif;color:var(--nv-ink60);white-space:pre-wrap")}>{v.goalsView.notes}</div>}
+            </div>
+          ) : (
+            <div style={css("margin-top:10px;font:500 11.5px/1.6 'Rajdhani',sans-serif;color:var(--nv-ink60)")}>Tell Nova what you're training for — the Coach, the briefs, and meal-prep all key off this. Lives in the vault at Wiki/Health/Fitness Goals.</div>
+          )}
+        </div>
+
+        <div className="nv-pane" style={{ flex: '1.4 1 340px', padding: '16px 18px', display: 'flex', flexDirection: 'column', maxHeight: '420px' }}>
+          <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>
+            <span style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.2em;color:var(--nv-cy)")}>ASK COACH</span>
+            <span style={css("font:400 8.5px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>EVIDENCE-BASED · READS YOUR REAL DATA</span>
+          </div>
+          <div style={css("flex:1;overflow-y:auto;margin-top:10px;display:flex;flex-direction:column;gap:10px;font:500 12.5px/1.6 'Rajdhani',sans-serif")}>
+            {v.coachMsgs.length === 0 && !v.coachBusy && (
+              <div style={css("color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Ask anything a coach should answer — "should I deload?", "why is my bench stuck?", "build me a plan for a 4-day week."</div>
+            )}
+            {v.coachMsgs.map((m, i) => (
+              <div key={i} style={m.style}><span style={m.tagStyle}>{m.tag}</span> {m.text}{m.typing && <span style={css("color:var(--nv-cy)")}>▍</span>}</div>
+            ))}
+            {v.coachBusy && <div style={css("color:var(--nv-cy);font:400 11px 'IBM Plex Mono',monospace")}>» COACH reading your training history…▍</div>}
+          </div>
+          <div style={css("display:flex;gap:8px;margin-top:10px")}>
+            <Interactive
+              as="input"
+              value={v.coachInput}
+              onChange={v.setCoachInput}
+              onKeyDown={v.coachKey}
+              placeholder="Ask your coach…"
+              base="flex:1;background:rgba(0,0,0,.32);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font:500 12.5px 'Rajdhani',sans-serif;outline:none"
+              focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)"
+            />
+            <Interactive as="span" onClick={v.sendCoach} base="cursor:pointer;display:flex;align-items:center;font:500 11px 'IBM Plex Mono',monospace;padding:0 16px;border-radius:9px;background:var(--nv-cy);color:#0a2830" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">ASK</Interactive>
+          </div>
+        </div>
+      </div>
     </>
   );
 }
@@ -221,8 +292,8 @@ function RoutineDetailView({ v }) {
 function SessionView({ v }) {
   return (
     <>
-      <h1 style={css("margin:18px 0 0;font:700 28px/1.1 'Rajdhani',sans-serif;letter-spacing:.02em")}>{v.sessionRoutineName}</h1>
-      <div style={css("margin-top:4px;font:400 11px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Session in progress — sets auto-fill from last time.</div>
+      <h1 style={css("margin:18px 0 0;font:700 28px/1.1 'Rajdhani',sans-serif;letter-spacing:.02em")}>{v.sessionRoutineName}{v.sessionEditing && <span style={css("font:italic 400 26px 'Instrument Serif',serif;color:var(--nv-gold)")}> — editing the record.</span>}</h1>
+      <div style={css("margin-top:4px;font:400 11px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{v.sessionEditing ? 'Untick anything that didn’t actually happen — only ticked sets stay in history.' : 'Session in progress — sets auto-fill from last time. Only ticked sets are saved.'}</div>
 
       <div style={css("margin-top:20px;display:flex;flex-direction:column;gap:14px")}>
         {v.sessionExercises.map((e) => (
@@ -261,7 +332,7 @@ function SessionView({ v }) {
       </div>
 
       <div style={css("margin-top:24px;display:flex;gap:14px;align-items:center;flex-wrap:wrap")}>
-        <Interactive as="span" onClick={v.finishSession} base="cursor:pointer;font:500 11px 'IBM Plex Mono',monospace;padding:11px 22px;border-radius:9px;background:var(--nv-cy);color:#0a2830" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">FINISH WORKOUT</Interactive>
+        <Interactive as="span" onClick={v.finishSession} base="cursor:pointer;font:500 11px 'IBM Plex Mono',monospace;padding:11px 22px;border-radius:9px;background:var(--nv-cy);color:#0a2830" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">{v.sessionEditing ? 'SAVE CHANGES' : 'FINISH WORKOUT'}</Interactive>
         {!v.sessionCancelConfirm ? (
           <Interactive as="span" onClick={v.requestCancelSession} base="cursor:pointer;font:400 10.5px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-warn)">Cancel session</Interactive>
         ) : (
@@ -298,6 +369,18 @@ function HistoryView({ v }) {
                 {s.exercises.map((e, i) => (
                   <div key={i} style={css("font-size:12px;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}><span style={css("color:var(--nv-ink)")}>{e.name}:</span> {e.setsLabel}</div>
                 ))}
+              </div>
+              <div style={css("margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap")}>
+                <Interactive as="span" onClick={s.onEdit} base="cursor:pointer;font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;padding:4px 11px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);color:var(--nv-cy)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 08%, transparent)">EDIT</Interactive>
+                {!s.deleteConfirm ? (
+                  <Interactive as="span" onClick={s.requestDelete} base="cursor:pointer;font:400 9.5px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 30%, transparent);padding:4px 6px" hoverStyle="color:var(--nv-warn)">Delete</Interactive>
+                ) : (
+                  <>
+                    <span style={css("font-size:11.5px;color:var(--nv-warn)")}>Remove this session from history?</span>
+                    <Interactive as="span" onClick={s.confirmDelete} base="cursor:pointer;font:500 9.5px 'IBM Plex Mono',monospace;padding:4px 11px;border-radius:6px;background:color-mix(in srgb, var(--nv-warn) 15%, transparent);color:var(--nv-warn);border:1px solid color-mix(in srgb, var(--nv-warn) 40%, transparent)" hoverStyle="background:color-mix(in srgb, var(--nv-warn) 25%, transparent)">CONFIRM</Interactive>
+                    <Interactive as="span" onClick={s.cancelDelete} base="cursor:pointer;font:400 9.5px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-ink)">keep</Interactive>
+                  </>
+                )}
               </div>
             </div>
           ))}

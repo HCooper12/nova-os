@@ -38,23 +38,40 @@ export function Todos({ v }) {
         </div>
       )}
 
-      {v.todosLoaded && v.todosOpen.length === 0 && v.todosConnected && (
+      {v.todosLoaded && v.todosOpenCountNum === 0 && v.todosConnected && (
         <div style={css("margin-top:26px;font-size:13px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>Nothing open — capture a thought anywhere and Nova files the action here.</div>
       )}
 
-      <div style={css("margin-top:18px;display:flex;flex-direction:column;gap:8px")}>
-        {v.todosOpen.map((t) => (
-          <div key={t.key} className="nv-pane" style={{ display: 'flex', alignItems: 'center', gap: '13px', padding: '12px 15px' }}>
-            <Interactive as="span" onClick={t.toggle} aria-label={`Mark "${t.text}" done`}
-              base={{ cursor: 'pointer', width: '21px', height: '21px', flex: 'none', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 12%, transparent)' }}
-            ></Interactive>
-            <span style={css(`flex:1;min-width:0;font:500 14.5px ${R};overflow-wrap:anywhere`)}>{t.text}</span>
-            {t.stale && <span style={css(`flex:none;font:500 8px ${M};letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-gold);border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent)`)}>STALE</span>}
-            <span style={css(`flex:none;font:400 9.5px ${M};color:color-mix(in srgb, var(--nv-ink) 35%, transparent)`)}>{t.addedLabel}</span>
+      {v.todosOpenGroups.map((g) => (
+        <div key={g.key} style={{ marginTop: '20px' }}>
+          <div style={css(`font:500 9.5px ${M};letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)`)}>{g.label} · {g.items.length}</div>
+          <div style={css("margin-top:8px;display:flex;flex-direction:column;gap:8px")}>
+            {g.items.map((t) => (
+              <div key={t.key} className="nv-pane" style={{ display: 'flex', alignItems: 'center', gap: '13px', padding: '12px 15px' }}>
+                <Interactive as="span" onClick={t.toggle} aria-label={`Mark "${t.text}" done`}
+                  base={{ cursor: 'pointer', width: '21px', height: '21px', flex: 'none', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 12%, transparent)' }}
+                ></Interactive>
+                <span style={css(`flex:1;min-width:0;font:500 14.5px ${R};overflow-wrap:anywhere`)}>{t.text}</span>
+                {t.editingCategory ? (
+                  <select autoFocus value={t.category || ''} onChange={t.pickCategory}
+                    style={{ flex: 'none', background: 'rgba(0,0,0,.4)', border: '1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent)', borderRadius: '6px', color: 'var(--nv-ink)', font: `500 9px ${M}`, padding: '3px 6px', outline: 'none' }}>
+                    {!t.category && <option value="" style={{ background: '#141019' }}>—</option>}
+                    {v.todoCategories.map((c) => <option key={c.value} value={c.value} style={{ background: '#141019' }}>{c.label}</option>)}
+                  </select>
+                ) : (
+                  <Interactive as="span" onClick={t.startEditCategory} title="Change category (syncs to Todoist as a label)"
+                    base={{ cursor: 'pointer', flex: 'none', font: `500 8px ${M}`, letterSpacing: '.12em', padding: '2px 8px', borderRadius: '5px', color: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', border: '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)' }}
+                    hoverStyle={{ borderColor: 'color-mix(in srgb, var(--nv-cy) 40%, transparent)', color: 'var(--nv-cy)' }}
+                  >{t.categoryLabel}</Interactive>
+                )}
+                {t.stale && <span style={css(`flex:none;font:500 8px ${M};letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-gold);border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent)`)}>STALE</span>}
+                <span style={css(`flex:none;font:400 9.5px ${M};color:color-mix(in srgb, var(--nv-ink) 35%, transparent)`)}>{t.addedLabel}</span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
 
       {v.todosDone.length > 0 && (
         <div style={{ marginTop: '26px' }}>

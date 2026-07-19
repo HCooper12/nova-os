@@ -124,6 +124,11 @@ export const api = {
   setWorkoutScheduleDay: (conn, day, routineId) => post(conn, '/api/workouts/schedule', { day, routineId }),
   workoutSessions: (conn, params) => call(conn, `/api/workouts/sessions${params ? '?' + new URLSearchParams(params).toString() : ''}`),
   completeWorkoutSession: (conn, session) => post(conn, '/api/workouts/sessions', session),
+  workoutGoals: (conn) => call(conn, '/api/workouts/goals'),
+  setWorkoutGoals: (conn, body) => put(conn, '/api/workouts/goals', body),
+  askCoach: (conn, question, history) => post(conn, '/api/workouts/coach', { question, history }),
+  updateWorkoutSession: (conn, id, body) => put(conn, `/api/workouts/sessions/${encodeURIComponent(id)}`, body),
+  deleteWorkoutSession: (conn, id) => del(conn, `/api/workouts/sessions/${encodeURIComponent(id)}`),
   journalEntries: (conn, limit) => call(conn, `/api/journal/entries${limit ? '?limit=' + limit : ''}`),
   addJournalEntry: (conn, text, linkedTitle) => post(conn, '/api/journal/entries', { text, linkedTitle }),
   startJournalPrompt: (conn, seedTitle, seedExcerpt) => post(conn, '/api/journal/prompt', { seedTitle, seedExcerpt }),
@@ -153,6 +158,7 @@ export const api = {
   moneyScanFile: (conn, transactions) => post(conn, '/api/money/scan-file', { transactions }),
   moneyExportUrl: (conn, fy) => `${conn.baseUrl.replace(/\/$/, '')}/api/money/export/${fy}`,
   ask: (conn, question, history) => post(conn, '/api/ask', { question, history }),
+  research: (conn, question) => post(conn, '/api/research', { question }),
   ttsStatus: (conn) => call(conn, '/api/tts/status'),
   ttsAudio: async (conn, text, voiceId) => {
     const res = await fetch(baseOf(conn) + '/api/tts', {
@@ -168,12 +174,14 @@ export const api = {
     }
     return res.blob();
   },
+  mealPrepRun: (conn, force) => post(conn, '/api/mealprep/run', { force }),
   guardian: (conn) => call(conn, '/api/guardian'),
   guardianRun: (conn) => post(conn, '/api/guardian/run', {}),
   guardianReport: (conn) => post(conn, '/api/guardian/report', {}),
   todos: (conn) => call(conn, '/api/todos'),
-  todoAdd: (conn, text) => post(conn, '/api/todos', { text }),
+  todoAdd: (conn, text, category) => post(conn, '/api/todos', { text, category }),
   todoToggle: (conn, line) => post(conn, '/api/todos/toggle', { line }),
+  todoSetCategory: (conn, line, category) => post(conn, '/api/todos/category', { line, category }),
   dispatchConfig: (conn, slot, patch) => post(conn, '/api/dispatch/config', { slot, ...patch }),
   dispatchRun: (conn, slot, force) => post(conn, '/api/dispatch/run', { slot, force }),
   compost: (conn) => call(conn, '/api/compost'),

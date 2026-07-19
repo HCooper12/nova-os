@@ -2,8 +2,10 @@ import { useRef, useState } from 'react';
 
 // Real dictation via the browser's speech engine (on-device / OS-provided).
 // Feature-detected: mic buttons only render where it actually works. Shared
-// by the Inbox capture composer and the Voice screen.
-export function useDictation(getBase, onText, onDone) {
+// by the Inbox capture composer (continuous — long dictation) and the Voice
+// screen (one-shot: continuous false, so silence genuinely ends the take
+// and onDone fires — iOS never ends a continuous session on pause).
+export function useDictation(getBase, onText, onDone, { continuous = true } = {}) {
   const recRef = useRef(null);
   const baseRef = useRef('');
   const [on, setOn] = useState(false);
@@ -11,7 +13,7 @@ export function useDictation(getBase, onText, onDone) {
   const toggle = () => {
     if (on) { recRef.current?.stop(); return; }
     const rec = new SR();
-    rec.continuous = true;
+    rec.continuous = continuous;
     rec.interimResults = true;
     rec.lang = 'en-AU';
     baseRef.current = getBase();

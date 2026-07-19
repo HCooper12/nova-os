@@ -85,8 +85,13 @@ export function Inbox({ v }) {
               hoverStyle={{ background: 'var(--nv-acc-bg)' }}
             >{dict.on ? '◉ LISTENING — TAP TO STOP' : '● DICTATE'}</Interactive>
           )}
+          <Interactive as="span" onClick={v.inboxConnected ? v.submitResearch : undefined}
+            title="Send this as a question to the Researcher — a cited web brief lands here for review"
+            base={{ cursor: 'pointer', marginLeft: 'auto', font: `600 10.5px ${M}`, letterSpacing: '.1em', padding: '9px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-vi) 45%, transparent)', color: 'var(--nv-vi)', opacity: v.inboxConnected ? 1 : 0.4 }}
+            hoverStyle={{ background: 'color-mix(in srgb, var(--nv-vi) 08%, transparent)' }}
+          >🔭 RESEARCH</Interactive>
           <Interactive as="span" onClick={v.inboxConnected && !v.inboxCaptureBusy ? submit : undefined}
-            base={{ cursor: 'pointer', marginLeft: 'auto', font: `600 11px ${M}`, letterSpacing: '.14em', padding: '10px 22px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1206', opacity: v.inboxConnected && !v.inboxCaptureBusy ? 1 : 0.5 }}
+            base={{ cursor: 'pointer', font: `600 11px ${M}`, letterSpacing: '.14em', padding: '10px 22px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1206', opacity: v.inboxConnected && !v.inboxCaptureBusy ? 1 : 0.5 }}
             hoverStyle={{ filter: 'brightness(1.1)' }}
           >{v.inboxCaptureBusy ? 'ROUTING…' : '✦ CAPTURE'}</Interactive>
         </div>
@@ -224,6 +229,20 @@ export function Inbox({ v }) {
               {v.todoist.configured && (
                 <div style={css(`margin-top:8px;font:400 10px ${M};color:color-mix(in srgb, var(--nv-ink) 35%, transparent)`)}>To-dos filed here appear in Todoist's Inbox; tasks added or completed there flow back. Nothing is ever deleted on either side.</div>
               )}
+            </div>
+
+            <div className="nv-pane" style={{ flex: '1 1 320px', padding: '16px 18px' }}>
+              <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>
+                <span style={css(`font:500 9.5px ${M};letter-spacing:.2em;color:var(--nv-pk, #ff7ad9)`)}>MEAL PREP</span>
+                <span style={css(`font:400 8.5px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>THURSDAYS · SAME MEALS BY DESIGN</span>
+              </div>
+              <div style={css(`margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px`)}>
+                <span style={css(`font:500 11.5px/1.5 ${R};color:var(--nv-ink60)`)}>Keeps this week's rotation, checks the protein floor, and drafts the shopping list those meals need — one Accept fills the list.</span>
+                <Interactive as="span" onClick={v.mealPrep.busy ? undefined : v.mealPrep.run}
+                  base={{ cursor: 'pointer', flex: 'none', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '5px 12px', borderRadius: '7px', border: '1px solid color-mix(in srgb, #ff7ad9 45%, transparent)', color: '#ff7ad9', opacity: v.mealPrep.busy ? 0.5 : 1 }}
+                  hoverStyle={{ background: 'color-mix(in srgb, #ff7ad9 08%, transparent)' }}
+                >{v.mealPrep.busy ? 'COMPOSING…' : 'RUN NOW'}</Interactive>
+              </div>
             </div>
 
             <div className="nv-pane" style={{ flex: '1 1 320px', padding: '16px 18px' }}>

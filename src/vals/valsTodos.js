@@ -23,14 +23,31 @@ export function valsTodos(app, ctx) {
 
   Object.assign(ctx, { todosOpenCount: live ? open.length : null });
 
+  const CATEGORY_LABEL = { personal: 'PERSONAL', work: 'WORK', fitness: 'FITNESS', errands: 'ERRANDS', later: 'LATER / IDEAS' };
+  const CATEGORY_ORDER = ['work', 'personal', 'fitness', 'errands', 'later'];
+
   const mkTodo = (t) => ({
     key: t.raw,
     text: t.text,
     checked: t.checked,
+    category: t.category,
+    categoryLabel: t.category ? CATEGORY_LABEL[t.category] : 'UNSORTED',
+    editingCategory: st.todoEditCategoryKey === t.raw,
+    startEditCategory: () => app.setState({ todoEditCategoryKey: t.raw }),
+    pickCategory: (e) => app.setTodoItemCategory(t.raw, e.target.value),
     addedLabel: timeAgoLabel(t.added),
     stale: !t.checked && t.added && (Date.now() - new Date(t.added).getTime()) / 86400000 >= 14,
     toggle: () => app.toggleTodoItem(t.raw),
   });
+
+  const groupsOf = (list) => {
+    const groups = [];
+    for (const cat of [...CATEGORY_ORDER, null]) {
+      const items = list.filter((t) => (cat === null ? !t.category : t.category === cat));
+      if (items.length) groups.push({ key: cat || 'unsorted', label: cat ? CATEGORY_LABEL[cat] : 'UNSORTED', items: items.map(mkTodo) });
+    }
+    return groups;
+  };
 
   const todoist = st.liveTodoist;
 
@@ -50,8 +67,10 @@ export function valsTodos(app, ctx) {
     todoInputKey: (e) => { if (e.key === 'Enter') app.addTodoItem(); },
     submitTodo: () => app.addTodoItem(),
     todoBusy: st.todoActionBusy,
-    todosOpen: open.map(mkTodo),
+    todosOpenGroups: groupsOf(open),
+    todosOpenCountNum: open.length,
     todosDone: done.map(mkTodo),
+    todoCategories: (live?.categories || []).map((c) => ({ value: c, label: CATEGORY_LABEL[c] || c.toUpperCase() })),
     todosSyncNote: !todoist
       ? null
       : todoist.configured

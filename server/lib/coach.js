@@ -1,4 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import { loadSessions } from './workoutSessions.js';
+import { createRecord } from './inboxStore.js';
 
 // Coach's progression engine — pure deterministic rules over logged history,
 // per the agents plan: it only ever changes SUGGESTED numbers (session
@@ -58,4 +60,54 @@ export async function computeProgressions(vaultPath, routines) {
     }
   }
   return out;
+}
+
+/* --------------------------- session summary ----------------------------- */
+
+const volumeOf = (session) => Math.round(session.exercises.reduce((v, e) => v + e.sets.reduce((s, x) => s + x.weight * x.reps, 0), 0));
+
+// One deterministic line the moment a workout is logged — the receipt a
+// good coach hands you on the way out. Drafted to the journal via the rails.
+export async function draftSessionSummary(vaultPath, session) {
+  const previous = (await loadSessions(vaultPath, { routineId: session.routineId, limit: 3 }))
+    .filter((s) => s.id !== session.id)[0] || null;
+
+  const sets = session.exercises.reduce((n, e) => n + e.sets.length, 0);
+  const volume = volumeOf(session);
+  const bits = [`${session.routineName} logged — ${session.exercises.length} exercise${session.exercises.length === 1 ? '' : 's'}, ${sets} sets, ${volume.toLocaleString()}kg volume`];
+
+  if (previous) {
+    const prevVol = volumeOf(previous);
+    if (prevVol > 0) {
+      const delta = Math.round(((volume - prevVol) / prevVol) * 100);
+      bits[0] += ` (${delta >= 0 ? '+' : ''}${delta}% on ${previous.date})`;
+    }
+    const prevTop = new Map(previous.exercises.map((e) => [e.exerciseId, Math.max(...e.sets.map((s) => s.weight))]));
+    const ups = session.exercises
+      .filter((e) => prevTop.has(e.exerciseId) && Math.max(...e.sets.map((s) => s.weight)) > prevTop.get(e.exerciseId))
+      .map((e) => `${e.name} ${prevTop.get(e.exerciseId)}→${Math.max(...e.sets.map((s) => s.weight))}kg`);
+    if (ups.length) bits.push(`Loads up: ${ups.join(', ')}.`);
+  } else {
+    bits.push('First logged session for this routine — the baseline is set.');
+  }
+
+  const title = `Session — ${session.routineName} ${session.date}`;
+  const record = {
+    id: randomUUID().slice(0, 8),
+    kind: 'coach',
+    text: title,
+    source: 'coach',
+    mode: 'draft',
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+    decision: {
+      route: 'journal',
+      confidence: 'high',
+      title,
+      reason: 'Coach’s deterministic session receipt — approve to journal it.',
+      payload: { text: bits.join(' ') + (bits.length === 1 ? '.' : '') },
+    },
+  };
+  await createRecord(record);
+  return record;
 }

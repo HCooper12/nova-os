@@ -127,6 +127,11 @@ export function valsWorkouts(app, ctx) {
     totalSets: s.exercises.reduce((n, e) => n + e.sets.length, 0),
     totalVolume: Math.round(s.exercises.reduce((v, e) => v + e.sets.reduce((sv, set) => sv + set.weight * set.reps, 0), 0)),
     exercises: s.exercises.map((e) => ({ name: e.name, setsLabel: setsLabel((exercisesById.get(e.exerciseId) || {}).trackingType || 'weight_reps', e.sets) })),
+    onEdit: () => app.editHistorySession(s),
+    deleteConfirm: st.sessionDeleteConfirmId === s.id,
+    requestDelete: () => app.setState({ sessionDeleteConfirmId: s.id }),
+    cancelDelete: () => app.setState({ sessionDeleteConfirmId: null }),
+    confirmDelete: () => { app.setState({ sessionDeleteConfirmId: null }); app.deleteHistorySession(s.id); },
   }));
   const historyRoutine = liveRoutines.find((r) => r.id === st.historyRoutineId);
   const todayRoutineId = liveSchedule[todayWeekday];
@@ -142,11 +147,37 @@ export function valsWorkouts(app, ctx) {
     plan: plan.map((ex, i) => ({ idx: String(i + 1).padStart(2, '0'), name: ex.name, scheme: ex.scheme, pr: ex.pr })),
     planMeta: plan.length + ' LIFTS · ' + (st.planNote ? 'EDITED BY COACH' : '~42 MIN · AS PLANNED'),
     planNoteOn: !!st.planNote, planNote: st.planNote,
-    coachMsgs: st.coachChat.map(m => Object.assign({ text: m.text, typing: m.typing }, bubble(m.who))),
+    coachMsgs: st.coachChat.map(m => Object.assign({
+      text: m.text, typing: m.typing,
+      tag: m.who === 'coach' ? '» COACH' : m.who === 'system' ? '» SYSTEM' : '» YOU',
+      tagStyle: { font: "500 10px 'IBM Plex Mono',monospace", color: m.who === 'coach' ? 'var(--nv-cy)' : m.who === 'system' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' },
+    }, bubble(m.who))),
+    coachBusy: st.coachBusy,
     coachInput: st.coachInput,
     setCoachInput: (e) => app.setState({ coachInput: e.target.value }),
     coachKey: (e) => { if (e.key === 'Enter') app.doCoach(); },
     sendCoach: () => app.doCoach(),
+    goalsSet: !!st.liveWorkoutGoals,
+    goalsView: st.liveWorkoutGoals ? {
+      goal: st.liveWorkoutGoals.goal,
+      focus: st.liveWorkoutGoals.focus,
+      notes: st.liveWorkoutGoals.notes,
+      meta: [st.liveWorkoutGoals.daysPerWeek ? `${st.liveWorkoutGoals.daysPerWeek} DAYS/WEEK` : null, st.liveWorkoutGoals.updated ? `UPDATED ${st.liveWorkoutGoals.updated}` : null].filter(Boolean).join(' · '),
+    } : null,
+    goalsEditing: st.goalsEditing,
+    goalsDraft: st.goalsDraft,
+    startGoalsEdit: () => app.setState({
+      goalsEditing: true,
+      goalsDraft: {
+        goal: st.liveWorkoutGoals?.goal || '',
+        focus: st.liveWorkoutGoals?.focus || '',
+        daysPerWeek: st.liveWorkoutGoals?.daysPerWeek || '',
+        notes: st.liveWorkoutGoals?.notes || '',
+      },
+    }),
+    cancelGoalsEdit: () => app.setState({ goalsEditing: false }),
+    setGoalsField: (field) => (e) => app.setState((s) => ({ goalsDraft: { ...s.goalsDraft, [field]: e.target.value } })),
+    saveGoals: () => app.saveFitnessGoals(),
 
     workoutHeaderLabel: usingLiveWorkouts ? `${liveRoutines.length} ROUTINE${liveRoutines.length === 1 ? '' : 'S'} · LIVE FROM OBSIDIAN` : 'CONNECT A BACKEND IN SETTINGS',
     weekStrip,
@@ -187,6 +218,7 @@ export function valsWorkouts(app, ctx) {
     createExercise: () => app.createAndAddExercise(st.exercisePickerQuery.trim(), st.exercisePickerCreateMuscle, st.exercisePickerCreateTrackingType),
 
     sessionRoutineName: session ? session.routineName : '',
+    sessionEditing: !!st.editingSessionId,
     sessionExercises,
     sessionCancelConfirm: st.sessionCancelConfirm,
     finishSession: () => app.finishWorkoutSession(),

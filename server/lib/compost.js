@@ -134,7 +134,7 @@ async function detectSweepableTodos(vaultPath) {
     type: 'sweep-todos',
     key: `sweep:${checked.length}:${checked.join('|').length}`,
     title: `Sweep ${checked.length} completed to-do${checked.length === 1 ? '' : 's'}`,
-    detail: checked.map((l) => l.replace(/^- \[x\]\s*/i, '').replace(/_\(added [^)]*\)_\s*$/, '').trim()).join(' · '),
+    detail: checked.map((l) => l.replace(/^- \[x\]\s*/i, '').replace(/_\(added [^)]*\)_\s*(#[a-z-]+\s*)?$/, '').trim()).join(' · '),
     data: { relPath: TODO_REL, lines: checked },
   }];
 }

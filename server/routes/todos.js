@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { listTodos, addTodo, toggleTodo } from '../lib/todos.js';
+import { listTodos, addTodo, toggleTodo, setTodoCategory } from '../lib/todos.js';
 
 export function todosRouter(vaultPath) {
   const router = Router();
@@ -14,7 +14,15 @@ export function todosRouter(vaultPath) {
 
   router.post('/todos', async (req, res) => {
     try {
-      res.json(await addTodo(vaultPath, req.body?.text));
+      res.json(await addTodo(vaultPath, req.body?.text, req.body?.category));
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  router.post('/todos/category', async (req, res) => {
+    try {
+      res.json(await setTodoCategory(vaultPath, req.body?.line, req.body?.category));
     } catch (e) {
       res.status(400).json({ error: e.message });
     }

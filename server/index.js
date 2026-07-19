@@ -23,6 +23,7 @@ import { voiceRouter } from './routes/voice.js';
 import { moneyRouter } from './routes/money.js';
 import { startMoneyImportScheduler } from './lib/moneyImport.js';
 import { startCfoScheduler } from './lib/cfoReport.js';
+import { startMealPrepScheduler } from './lib/mealPrep.js';
 import { startHealthInsightScheduler } from './lib/healthInsight.js';
 import { startDispatchScheduler } from './lib/dispatch.js';
 import { startCompostScheduler } from './lib/compost.js';
@@ -96,6 +97,7 @@ async function main() {
   startGuardianScheduler(process.env.VAULT_PATH);
   startMoneyImportScheduler(process.env.VAULT_PATH);
   startCfoScheduler();
+  startMealPrepScheduler(process.env.VAULT_PATH);
 
   app.use((err, req, res, next) => {
     console.error(err);

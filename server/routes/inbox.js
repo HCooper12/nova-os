@@ -19,6 +19,16 @@ export function inboxRouter(vaultPath) {
     }
   });
 
+  router.post('/research', async (req, res) => {
+    try {
+      const { startResearch } = await import('../lib/researcher.js');
+      const record = await startResearch(vaultPath, req.body?.question);
+      res.json({ record });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
   router.get('/inbox', async (req, res) => {
     try {
       const items = await listRecords();

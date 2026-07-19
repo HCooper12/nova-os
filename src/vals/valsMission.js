@@ -102,7 +102,8 @@ export function valsMission(app, ctx) {
       else heroStand.push({ t: 'Protein floor ' }, { t: 'cleared', b: 1 }, { t: ` at ${Math.round(proteinCurrent)} g. ` });
     }
     if (usingLiveHealthData && stepsDay) {
-      if (stepsCurrent < STEP_GOAL) heroStand.push({ t: `${(STEP_GOAL - stepsCurrent).toLocaleString()} steps`, cy: 1 }, { t: ' still on the plan.' });
+      if (stepsDay.date !== todayKey) heroStand.push({ t: 'Step data is ' }, { t: 'stale', b: 1 }, { t: ` (last push ${stepsDay.date}) — the wake-up Shortcut isn't running.` });
+      else if (stepsCurrent < STEP_GOAL) heroStand.push({ t: `${(STEP_GOAL - stepsCurrent).toLocaleString()} steps`, cy: 1 }, { t: ' still on the plan.' });
       else heroStand.push({ t: 'Step goal ' }, { t: 'met', cy: 1 }, { t: '.' });
     }
     if (!heroStand.length) {
@@ -125,6 +126,13 @@ export function valsMission(app, ctx) {
           pct: Math.round(sleepRatio * 100),
           hint: `${Math.round(sleepRatio * 100)}%` + (hrvDeltaPct != null ? ` · HRV ${hrvDeltaPct >= 0 ? '+' : ''}${hrvDeltaPct}%` : ''),
         };
+  // a metric from an older day must SAY so — "2,361 steps" three days
+  // running is the health push being dead, not a quiet streak
+  const staleHint = (day) => {
+    if (!day || day.date === todayKey) return null;
+    const days = Math.round((new Date(todayKey) - new Date(day.date)) / 86400000);
+    return days === 1 ? 'YESTERDAY' : `STALE · ${days}D OLD — PUSH NOT RUNNING`;
+  };
   const satSteps = demoMode
     ? { label: 'STEPS', value: '2,361', small: '', pct: 24, hint: '24% · 7,639 TO GO' }
     : !usingLiveHealthData || !stepsDay
@@ -134,7 +142,7 @@ export function valsMission(app, ctx) {
           value: stepsCurrent.toLocaleString(),
           small: '',
           pct: Math.round(stepsRatio * 100),
-          hint: stepsCurrent >= STEP_GOAL ? `${Math.round(stepsRatio * 100)}% · GOAL REACHED` : `${Math.round(stepsRatio * 100)}% · ${(STEP_GOAL - stepsCurrent).toLocaleString()} TO GO`,
+          hint: staleHint(stepsDay) || (stepsCurrent >= STEP_GOAL ? `${Math.round(stepsRatio * 100)}% · GOAL REACHED` : `${Math.round(stepsRatio * 100)}% · ${(STEP_GOAL - stepsCurrent).toLocaleString()} TO GO`),
         };
   // protein numbers come from the rotation — real when synced, the scripted 96
   // only in demo mode, and an honest dash when configured but not synced

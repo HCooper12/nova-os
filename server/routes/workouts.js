@@ -2,8 +2,11 @@ import { Router } from 'express';
 import { loadExerciseLibrary, addCustomExercise, MUSCLE_GROUPS, TRACKING_TYPES } from '../lib/exercises.js';
 import { loadRoutines, createRoutine, updateRoutine, deleteRoutine, setScheduleDay, WEEKDAYS } from '../lib/workouts.js';
 import { loadExerciseState } from '../lib/exerciseState.js';
-import { loadSessions, completeSession, completedCountByRoutine } from '../lib/workoutSessions.js';
-import { computeProgressions } from '../lib/coach.js';
+import { loadSessions, completeSession, updateSession, deleteSession, completedCountByRoutine } from '../lib/workoutSessions.js';
+import { computeProgressions, draftSessionSummary } from '../lib/coach.js';
+import { getFitnessGoals, setFitnessGoals, goalsContext } from '../lib/fitnessGoals.js';
+import { startAskCoach } from '../lib/claudeCode.js';
+import { loadRecentDays } from '../lib/healthData.js';
 
 function annotateRoutines(routines, exerciseState, completedCounts) {
   return routines.map((r) => ({
@@ -115,7 +118,81 @@ export function workoutsRouter(vaultPath) {
   router.post('/workouts/sessions', async (req, res, next) => {
     try {
       const session = await completeSession(vaultPath, req.body);
+      // Coach's receipt rides the rails — never blocks the save
+      draftSessionSummary(vaultPath, session).catch(() => {});
       res.json({ session });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  router.get('/workouts/goals', async (req, res, next) => {
+    try {
+      res.json({ goals: await getFitnessGoals(vaultPath) });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.put('/workouts/goals', async (req, res) => {
+    try {
+      res.json({ goals: await setFitnessGoals(vaultPath, req.body || {}) });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // Ask Coach — assembles the live picture (goals, recent sessions,
+  // progressions, recovery) and hands it to the read-only coach session.
+  router.post('/workouts/coach', async (req, res) => {
+    try {
+      const question = typeof req.body?.question === 'string' ? req.body.question.trim() : '';
+      if (!question) return res.status(400).json({ error: 'question is required' });
+      const history = Array.isArray(req.body?.history)
+        ? req.body.history.filter((m) => m && typeof m.text === 'string').slice(-6).map((m) => ({ who: m.who === 'coach' ? 'coach' : 'you', text: m.text.slice(0, 500) }))
+        : [];
+
+      const parts = [];
+      try {
+        parts.push(await goalsContext(vaultPath));
+      } catch { /* section optional */ }
+      try {
+        const sessions = await loadSessions(vaultPath, { limit: 6 });
+        parts.push(sessions.length
+          ? 'Recent sessions:\n' + sessions.map((s) => `- ${s.date} ${s.routineName}: ${s.exercises.map((e) => `${e.name} ${e.sets.map((x) => `${x.weight}x${x.reps}`).join(',')}`).join(' | ')}`).join('\n')
+          : 'No sessions logged yet.');
+      } catch { /* optional */ }
+      try {
+        const { exercises } = await loadExerciseLibrary(vaultPath);
+        const { routines, schedule } = await loadRoutines(vaultPath, exercises);
+        const progressions = await computeProgressions(vaultPath, routines).catch(() => ({}));
+        const keys = Object.keys(progressions);
+        parts.push(`Routines: ${routines.map((r) => r.name).join(', ') || 'none'}. Schedule: ${JSON.stringify(schedule)}.`);
+        if (keys.length) parts.push(`Earned progressions: ${keys.map((k) => `${k} +${progressions[k].delta}${progressions[k].kind === 'weight' ? 'kg' : ' rep'}`).join(', ')}.`);
+      } catch { /* optional */ }
+      try {
+        const days = await loadRecentDays(7);
+        const latest = [...days].reverse().find((d) => d.hrv != null || d.sleepAsleepMinutes != null);
+        if (latest) parts.push(`Latest recovery: HRV ${latest.hrv ?? '—'} ms, sleep ${latest.sleepAsleepMinutes ? Math.round(latest.sleepAsleepMinutes / 60 * 10) / 10 + 'h' : '—'}, resting HR ${latest.restingHeartRate ?? '—'}.`);
+      } catch { /* optional */ }
+
+      res.json({ jobId: startAskCoach(vaultPath, { question, history, context: parts.join('\n\n') }) });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  router.put('/workouts/sessions/:id', async (req, res) => {
+    try {
+      res.json({ session: await updateSession(vaultPath, req.params.id, req.body || {}) });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  router.delete('/workouts/sessions/:id', async (req, res) => {
+    try {
+      res.json(await deleteSession(vaultPath, req.params.id));
     } catch (err) {
       res.status(400).json({ error: err.message });
     }

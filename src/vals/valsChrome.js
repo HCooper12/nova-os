@@ -56,6 +56,12 @@ export function valsChrome(app, ctx) {
       hint: 'CAPTURE',
       run: () => { app.setState({ paletteOpen: false }); app.captureToInbox(rawQuery, 'text'); },
     });
+    paletteResults.push({
+      icon: '🔭', iconColor: 'var(--nv-vi)',
+      label: `Research the web — “${rawQuery.length > 40 ? rawQuery.slice(0, 37) + '…' : rawQuery}”`,
+      hint: 'RESEARCHER',
+      run: () => { app.setState({ paletteOpen: false }); app.startResearch(rawQuery); },
+    });
   }
 
   // responsive

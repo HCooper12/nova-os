@@ -157,6 +157,71 @@ export function startAskNova(cwd, { question, history, context }) {
   return jobId;
 }
 
+// Ask Coach — the Train screen's chat, made real. Same read-only structural
+// boundary as Ask Nova, but a different persona: an evidence-based strength
+// coach who knows Hayden's goals, history, and recovery data, and answers
+// like a professional — principled, specific, honest about uncertainty.
+export function buildCoachPrompt({ question, history = [], context = '' }) {
+  const recent = history.slice(-6).map((m) => `${m.who === 'coach' ? 'Coach' : 'Hayden'}: ${m.text}`).join('\n');
+  return `You are Nova's Coach — Hayden's personal strength & conditioning coach. You reason like an experienced, evidence-based practitioner: progressive overload, volume and intensity management, proximity to failure, recovery and sleep, protein targets, long-term adherence over heroics. You give the advice a great human coach would: specific to HIS data, decisive, and honest when evidence is mixed or his data is too thin to say.
+
+Your working directory is Hayden's Obsidian vault — his real training sessions (Wiki/Health/Workouts/), fitness goals, exercise state, health pages, nutrition. Read what you need; never invent numbers that aren't there.
+
+Ground rules:
+- Anchor every recommendation in his actual goals and logged history below/in the vault. If history is too thin, say what to log so you can judge next time.
+- Be concrete: exact exercises, sets × reps, loads (kg), rest, or habits — not generic advice.
+- Cite the principle briefly when it matters ("two sessions topped your rep target — classic double-progression trigger") — teach, don't lecture.
+- Safety: flag genuine red flags (pain vs soreness, sleep collapse) plainly; you are not a doctor and say so when it's medical.
+- You are read-only: to CHANGE a routine, point him at the Train screen's editor; to log food, the Recipes/Inbox surfaces. Never claim you wrote anything.
+- Plain text, conversational, tight. Lead with the answer.
+
+Hayden's current picture (computed just now — trust it over stale pages):
+${context || '(unavailable)'}
+${recent ? `\nConversation so far:\n${recent}\n` : ''}
+Hayden asks: ${question}`;
+}
+
+export function startAskCoach(cwd, { question, history, context }) {
+  const jobId = randomUUID().slice(0, 8);
+  const job = { id: jobId, status: 'running', result: null, error: null };
+  jobs.set(jobId, job);
+
+  const child = spawn(CLAUDE_BIN, [
+    '-p', buildCoachPrompt({ question, history, context }),
+    '--permission-mode', 'bypassPermissions',
+    '--allowedTools', 'Read Grep Glob',
+    '--disallowedTools', BREAKER_DISALLOWED,
+    '--strict-mcp-config',
+    '--output-format', 'json',
+    '--max-budget-usd', MAX_BUDGET_USD,
+    '--session-id', randomUUID(),
+  ], { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
+
+  let stdout = '';
+  let stderr = '';
+  child.stdout.on('data', (d) => { stdout += d; });
+  child.stderr.on('data', (d) => { stderr += d; });
+  child.on('close', (code) => {
+    try {
+      const outer = JSON.parse(stdout);
+      if (outer.is_error || code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
+      const replyText = (outer.result || '').trim();
+      if (!replyText) throw new Error('Empty response');
+      job.result = { text: replyText };
+      job.status = 'ready';
+    } catch (e) {
+      job.status = 'error';
+      job.error = code !== 0 && !(stdout || '').trim() ? (stderr.trim() || `claude exited with code ${code}`) : e.message;
+    }
+  });
+  child.on('error', (err) => {
+    job.status = 'error';
+    job.error = err.message;
+  });
+
+  return jobId;
+}
+
 // The Sparring loop's Breaker: an isolated, READ-ONLY session that tries to
 // break what the Builder (the normal chat) just shipped. Edit/Write join the
 // disallowed list, so the separation of duties is structural — the Breaker

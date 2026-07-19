@@ -58,3 +58,17 @@ export async function updateExerciseState(vaultPath, entries) {
     return state;
   });
 }
+
+// Full replacement — used when history is edited or deleted and "last
+// performed" must be recomputed from what the record actually says now.
+export async function replaceExerciseState(vaultPath, entries) {
+  return withWriteLock(async () => {
+    const state = {};
+    for (const e of entries) {
+      if (!e.sets.length) continue;
+      state[e.exerciseId] = { name: e.name, lastDate: e.date, lastSets: e.sets };
+    }
+    await persist(vaultPath, state);
+    return state;
+  });
+}
