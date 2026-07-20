@@ -42,6 +42,30 @@ Notes:
   error — nothing is silently lost, but there is no offline queue (yet); the
   in-app Inbox is the fallback.
 
+## 1b · "Ask Nova" — hands-free Q&A, spoken answer
+
+Say *"Hey Siri, Ask Nova"*, ask your question out loud, and hear Nova's
+answer back — without opening the app. Nova reads your real vault and
+replies in one step.
+
+Create a Shortcut named **Ask Nova**:
+
+1. **Dictate Text** — language English (Australia).
+2. **Get contents of URL**
+   - URL: `BASE/api/ask/sync`
+   - Method: `POST`
+   - Headers: `Authorization` = `Bearer TOKEN`
+   - Request Body: **JSON** — one field: `question` → the *Dictated Text*.
+3. **Get dictionary value** — key `text` from *Contents of URL*.
+4. **Speak Text** — the *Dictionary Value*.
+
+Now *"Hey Siri, Ask Nova"* → speak → Nova answers aloud. It takes a few
+seconds (it's genuinely reading your vault). `/api/ask/sync` holds the
+response open until the answer is ready, so there's no polling to build.
+
+> This is a fresh question each time (no follow-up memory). The in-app Voice
+> screen is the place for a continuing back-and-forth conversation.
+
 ## 2 · "Send to Nova" — share-sheet capture
 
 Share any text, link, or article from any app straight into the Inbox.
