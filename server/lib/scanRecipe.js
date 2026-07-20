@@ -5,6 +5,10 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 
 const MAX_BUDGET_USD = '1';
+// Recipe/label extraction is OCR-shaped work the human always reviews before
+// saving, so it runs on the fast model by default. Override with NOVA_SCAN_MODEL
+// (e.g. 'sonnet') if a class of labels ever reads back wrong.
+const SCAN_MODEL = process.env.NOVA_SCAN_MODEL || 'haiku';
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const CATEGORIES = ['CORE DAILY MEALS', 'ROTATION / SWAP MEALS', 'TREATS'];
@@ -49,6 +53,9 @@ export function startScan(imagePaths, workDir) {
     '-p', prompt,
     '--permission-mode', 'bypassPermissions',
     '--allowedTools', 'Read',
+    '--model', SCAN_MODEL,
+    // don't boot every configured MCP server just to read a photo — pure cold-start savings
+    '--strict-mcp-config',
     '--output-format', 'json',
     '--max-budget-usd', MAX_BUDGET_USD,
     '--no-session-persistence',

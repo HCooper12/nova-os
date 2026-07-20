@@ -610,6 +610,34 @@ export default class App extends Component {
       reader.readAsDataURL(file);
     });
   }
+  // Shrink an image to the model's vision sweet spot (≤~1568px long edge) before
+  // upload. Claude downscales past this server-side regardless, so there's no
+  // accuracy cost — but a multi-MB Instagram screenshot becomes a few hundred KB,
+  // and the slow leg (phone → Tailscale) shrinks with it. Falls back to the raw
+  // file if anything about canvas encoding fails — a speedup must never cost a scan.
+  downscaleImageFile(file, maxEdge = 1568) {
+    if (!file || !/^image\//.test(file.type || '')) return this.readFileAsDataUrl(file);
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      const fallback = () => { URL.revokeObjectURL(url); this.readFileAsDataUrl(file).then(resolve, () => resolve('')); };
+      img.onload = () => {
+        const longEdge = Math.max(img.width, img.height);
+        const scale = longEdge > maxEdge ? maxEdge / longEdge : 1;
+        if (scale === 1) { fallback(); return; } // already small enough — send as-is
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          URL.revokeObjectURL(url);
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        } catch { fallback(); }
+      };
+      img.onerror = fallback;
+      img.src = url;
+    });
+  }
   onRecipeAddPhotoFile(fileList) {
     const file = fileList && fileList[0];
     if (!file) return;
@@ -683,10 +711,11 @@ export default class App extends Component {
     const files = Array.from(fileList || []).slice(0, 4);
     if (!files.length) return;
     this.setState({ recipeScanBusy: true, recipeScanError: null });
-    Promise.all(files.map((f) => this.readFileAsDataUrl(f)))
-      .then((images) => api.scanRecipe(conn, images))
+    Promise.all(files.map((f) => this.downscaleImageFile(f)))
+      .then((images) => api.scanRecipe(conn, images.filter(Boolean)))
       .then(({ jobId }) => {
         this.startPoll('recipeScan', () => api.scanRecipeJob(conn, jobId), {
+          intervalMs: 800, // OCR-shaped scans finish fast — don't sit on the result for 2s
           onReady: (job) => {
             const r = job.result;
             this.setState({
