@@ -531,10 +531,11 @@ export default class App extends Component {
     const files = Array.from(fileList || []).slice(0, 3);
     if (!files.length) return;
     this.setState({ foodScanBusy: true, foodScanError: null, foodScanQuestion: null });
-    Promise.all(files.map((f) => this.readFileAsDataUrl(f)))
-      .then((images) => api.startFoodScan(conn, mode, images, this.state.foodScanNote.trim()))
+    Promise.all(files.map((f) => this.downscaleImageFile(f)))
+      .then((images) => api.startFoodScan(conn, mode, images.filter(Boolean), this.state.foodScanNote.trim()))
       .then(({ jobId }) => {
         this.startPoll('foodScan', () => api.foodScanJob(conn, jobId), {
+          intervalMs: 800, // OCR-shaped scans finish fast — don't sit on the result for 2s
           onReady: (job) => {
             const r = job.result;
             this.setState({

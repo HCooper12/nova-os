@@ -5,6 +5,12 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 
 const MAX_BUDGET_USD = '0.5';
+// Reading a label is OCR — the fast model handles it and the macros are always
+// reviewed before logging. Estimating a meal photo is visual portion/ingredient
+// judgement, where model strength actually moves the number, so that stays on the
+// CLI default model unless explicitly overridden. Both are env-tunable.
+const LABEL_MODEL = process.env.NOVA_FOOD_SCAN_MODEL || 'haiku';
+const MEAL_MODEL = process.env.NOVA_FOOD_SCAN_MEAL_MODEL || null; // null → CLI default
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const jobs = new Map();
@@ -64,15 +70,21 @@ export function startFoodScan(mode, imagePaths, workDir, note) {
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
 
-  const prompt = buildPrompt(mode === 'meal' ? 'meal' : 'label', imagePaths, note);
-  const child = spawn(CLAUDE_BIN, [
+  const isMeal = mode === 'meal';
+  const prompt = buildPrompt(isMeal ? 'meal' : 'label', imagePaths, note);
+  const model = isMeal ? MEAL_MODEL : LABEL_MODEL;
+  const args = [
     '-p', prompt,
     '--permission-mode', 'bypassPermissions',
     '--allowedTools', 'Read',
+    // don't boot every configured MCP server just to read a photo — pure cold-start savings
+    '--strict-mcp-config',
     '--output-format', 'json',
     '--max-budget-usd', MAX_BUDGET_USD,
     '--no-session-persistence',
-  ]);
+  ];
+  if (model) args.push('--model', model);
+  const child = spawn(CLAUDE_BIN, args);
 
   let stdout = '';
   let stderr = '';
