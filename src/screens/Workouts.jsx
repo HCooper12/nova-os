@@ -97,6 +97,86 @@ function RoutinesView({ v }) {
         ))}
       </div>
 
+      {/* a workout you parked mid-set — pick it back up */}
+      {v.resumeSession && (
+        <Interactive
+          onClick={v.resumeSession.resume}
+          base={{ cursor: 'pointer', marginTop: '18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', border: '1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent)', borderRadius: '14px', padding: '15px 18px', background: 'linear-gradient(180deg,color-mix(in srgb, var(--nv-gold) 10%, transparent),transparent)' }}
+          hoverStyle="border-color:color-mix(in srgb, var(--nv-gold) 65%, transparent)"
+        >
+          <div>
+            <div style={css("font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.2em;color:var(--nv-gold)")}>WORKOUT IN PROGRESS</div>
+            <div style={css("margin-top:5px;font:600 16px 'Rajdhani',sans-serif")}>{v.resumeSession.routineName}</div>
+            <div style={css("margin-top:2px;font-size:11.5px;color:var(--nv-ink60)")}>{v.resumeSession.done} set{v.resumeSession.done === 1 ? '' : 's'} logged · saved, not finished</div>
+          </div>
+          <span style={css("font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.06em;padding:10px 18px;border-radius:9px;background:var(--nv-gold);color:#1a1322;white-space:nowrap")}>RESUME →</span>
+        </Interactive>
+      )}
+
+      {/* just finished, but left exercises undone — offer to push them forward */}
+      {v.finishMissed && (
+        <div style={css("margin-top:18px;border:1px solid color-mix(in srgb, var(--nv-cy) 34%, transparent);border-radius:14px;padding:16px 18px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-cy) 08%, transparent),transparent)")}>
+          <div style={css("font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.2em;color:var(--nv-cy)")}>{v.finishMissed.count} EXERCISE{v.finishMissed.count === 1 ? '' : 'S'} NOT DONE</div>
+          <div style={css("margin-top:6px;font-size:12.5px;color:color-mix(in srgb, var(--nv-ink) 78%, transparent);line-height:1.5")}>{v.finishMissed.names}</div>
+          <div style={css("margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap")}>
+            <span style={css("font-size:11.5px;color:var(--nv-ink60)")}>Push to</span>
+            <select value={v.finishMissed.date} onChange={v.finishMissed.setDate}
+              style={{ background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 11px 'IBM Plex Mono',monospace", padding: '9px 10px', outline: 'none' }}>
+              {v.finishMissed.dayOptions.map((o) => <option key={o.value} value={o.value} style={{ background: '#141019' }}>{o.label}</option>)}
+            </select>
+            <Interactive as="span" onClick={v.finishMissed.push}
+              base={{ cursor: 'pointer', font: "600 10.5px 'IBM Plex Mono',monospace", letterSpacing: '.06em', padding: '9px 16px', borderRadius: '8px', background: 'var(--nv-cy)', color: '#0a2830' }}
+              hoverStyle={{ filter: 'brightness(1.08)' }}>PUSH THESE FORWARD</Interactive>
+            <Interactive as="span" onClick={v.finishMissed.dismiss}
+              base={{ cursor: 'pointer', font: "400 10px 'IBM Plex Mono',monospace", color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}
+              hoverStyle={{ color: 'var(--nv-ink)' }}>no thanks</Interactive>
+          </div>
+        </div>
+      )}
+
+      {/* carry-overs — makeup exercises Nova is holding for a day */}
+      {v.carryovers.length > 0 && (
+        <div style={css("margin-top:22px")}>
+          <span style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>CARRY-OVERS</span>
+          <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:10px")}>
+            {v.carryovers.map((c) => (
+              <div key={c.id} style={{ border: `1px solid ${c.overdue ? 'color-mix(in srgb, var(--nv-mag,#e0607e) 42%, transparent)' : c.dueSoon ? 'color-mix(in srgb, var(--nv-gold) 38%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 10%, transparent)'}`, borderRadius: '13px', padding: '15px 17px', background: 'linear-gradient(180deg,rgba(255,255,255,.035),transparent)' }}>
+                <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:10px")}>
+                  <span style={css("font:600 15px 'Rajdhani',sans-serif")}>{c.title}</span>
+                  <span style={{ font: "500 8.5px 'IBM Plex Mono',monospace", letterSpacing: '.1em', color: c.overdue ? 'var(--nv-mag,#e0607e)' : c.dueSoon ? 'var(--nv-gold)' : 'color-mix(in srgb, var(--nv-ink) 45%, transparent)', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>{c.when}</span>
+                </div>
+                <div style={css("margin-top:5px;font-size:11.5px;color:var(--nv-ink60);line-height:1.5")}>{c.count} exercise{c.count === 1 ? '' : 's'} · {c.names}</div>
+                {!c.rescheduling ? (
+                  <div style={css("margin-top:12px;display:flex;gap:12px;align-items:center")}>
+                    <Interactive as="span" onClick={c.start}
+                      base={{ cursor: 'pointer', font: "600 10px 'IBM Plex Mono',monospace", letterSpacing: '.06em', padding: '9px 16px', borderRadius: '8px', background: 'var(--nv-cy)', color: '#0a2830' }}
+                      hoverStyle={{ filter: 'brightness(1.08)' }}>DO IT NOW</Interactive>
+                    <Interactive as="span" onClick={c.startReschedule}
+                      base={{ cursor: 'pointer', font: "500 10px 'IBM Plex Mono',monospace", color: 'var(--nv-ink60)' }}
+                      hoverStyle={{ color: 'var(--nv-gold)' }}>reschedule</Interactive>
+                    <Interactive as="span" onClick={c.remove}
+                      base={{ cursor: 'pointer', font: "400 10px 'IBM Plex Mono',monospace", color: 'color-mix(in srgb, var(--nv-ink) 38%, transparent)' }}
+                      hoverStyle={{ color: 'var(--nv-mag,#e0607e)' }}>remove</Interactive>
+                  </div>
+                ) : (
+                  <div style={css("margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap")}>
+                    <span style={css("font-size:11px;color:var(--nv-ink60)")}>Move to</span>
+                    <select defaultValue="" onChange={c.reschedule}
+                      style={{ background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 11px 'IBM Plex Mono',monospace", padding: '8px 10px', outline: 'none' }}>
+                      <option value="" disabled style={{ background: '#141019' }}>Pick a day…</option>
+                      {c.dayOptions.map((o) => <option key={o.value} value={o.value} style={{ background: '#141019' }}>{o.label}</option>)}
+                    </select>
+                    <Interactive as="span" onClick={c.cancelReschedule}
+                      base={{ cursor: 'pointer', font: "400 10px 'IBM Plex Mono',monospace", color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}
+                      hoverStyle={{ color: 'var(--nv-ink)' }}>cancel</Interactive>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={css("margin-top:22px;display:flex;justify-content:space-between;align-items:baseline")}>
         <span style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>ROUTINES</span>
         {!v.routineCreating && (
@@ -378,6 +458,9 @@ function SessionView({ v }) {
 
       <div style={css("margin-top:24px;display:flex;gap:14px;align-items:center;flex-wrap:wrap")}>
         <Interactive as="span" onClick={v.finishSession} base="cursor:pointer;font:500 11px 'IBM Plex Mono',monospace;padding:11px 22px;border-radius:9px;background:var(--nv-cy);color:#0a2830" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">{v.sessionEditing ? 'SAVE CHANGES' : 'FINISH WORKOUT'}</Interactive>
+        {v.canSaveForLater && (
+          <Interactive as="span" onClick={v.saveForLater} base="cursor:pointer;font:500 10.5px 'IBM Plex Mono',monospace;padding:11px 18px;border-radius:9px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 06%, transparent)" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 12%, transparent)">SAVE FOR LATER</Interactive>
+        )}
         {!v.sessionCancelConfirm ? (
           <Interactive as="span" onClick={v.requestCancelSession} base="cursor:pointer;font:400 10.5px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-warn)">Cancel session</Interactive>
         ) : (

@@ -9,6 +9,7 @@ import { getFitnessGoals, setFitnessGoals, goalsContext } from '../lib/fitnessGo
 import { profileContext } from '../lib/profile.js';
 import { startAskCoach } from '../lib/claudeCode.js';
 import { loadRecentDays } from '../lib/healthData.js';
+import { listCarryovers, addCarryover, rescheduleCarryover, removeCarryover } from '../lib/workoutCarryover.js';
 
 function annotateRoutines(routines, exerciseState, completedCounts) {
   return routines.map((r) => ({
@@ -125,6 +126,38 @@ export function workoutsRouter(vaultPath) {
       res.json({ session });
     } catch (err) {
       res.status(400).json({ error: err.message });
+    }
+  });
+
+  router.get('/workouts/carryovers', async (req, res, next) => {
+    try {
+      res.json({ carryovers: await listCarryovers() });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post('/workouts/carryovers', async (req, res) => {
+    try {
+      res.json({ carryover: await addCarryover(req.body || {}) });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  router.post('/workouts/carryovers/:id/reschedule', async (req, res) => {
+    try {
+      res.json({ carryover: await rescheduleCarryover(req.params.id, req.body?.forDate) });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  router.delete('/workouts/carryovers/:id', async (req, res) => {
+    try {
+      res.json(await removeCarryover(req.params.id));
+    } catch (e) {
+      res.status(400).json({ error: e.message });
     }
   });
 

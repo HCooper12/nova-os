@@ -1,6 +1,19 @@
 import { weekData } from '../data.js';
 import { bubble } from './shared.js';
 
+// The next N days (today → today+N) as {iso, short} for day pickers.
+function nextDays(n) {
+  const out = [];
+  for (let i = 1; i <= n; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const short = i === 1 ? 'Tomorrow' : d.toLocaleDateString('en-GB', { weekday: 'long' });
+    out.push({ iso, short });
+  }
+  return out;
+}
+
 // Workouts (Train) domain: live routines/schedule/sessions/history and the
 // exercise picker, plus the demo-mode mock plan + Coach chat.
 // Adds to ctx: usingLiveWorkouts, liveRoutines, todayRoutine.
@@ -241,9 +254,51 @@ export function valsWorkouts(app, ctx) {
     sessionExercises,
     sessionCancelConfirm: st.sessionCancelConfirm,
     finishSession: () => app.finishWorkoutSession(),
+    saveForLater: () => app.saveWorkoutForLater(),
+    canSaveForLater: !st.editingSessionId, // editing a past session isn't "in progress"
     requestCancelSession: () => app.requestCancelSession(),
     cancelSessionCancel: () => app.cancelSessionCancel(),
     discardSession: () => app.discardWorkoutSession(),
+
+    // a parked, unfinished session — surfaced on the routine list to resume
+    resumeSession: st.workoutSession && st.workoutsView !== 'session' && !st.editingSessionId ? {
+      routineName: st.workoutSession.routineName,
+      done: st.workoutSession.exercises.reduce((n, e) => n + e.sets.filter((s) => s.done).length, 0),
+      resume: () => app.resumeWorkoutSession(),
+    } : null,
+
+    // after finishing with exercises left undone — push them to a day
+    finishMissed: st.finishMissed ? {
+      count: st.finishMissed.length,
+      names: st.finishMissed.map((e) => e.name).join(', '),
+      date: st.finishMissedDate,
+      dateLabel: st.finishMissedDate ? new Date(`${st.finishMissedDate}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short' }) : '',
+      dayOptions: nextDays(7).map((d) => ({ value: d.iso, label: d.short })),
+      setDate: (e) => app.setFinishMissedDate(e.target.value),
+      push: () => app.pushMissedToDay(),
+      dismiss: () => app.dismissFinishMissed(),
+    } : null,
+
+    // carry-overs waiting to be done (missed exercises pushed forward)
+    carryovers: (st.liveCarryovers || []).map((c) => {
+      const days = Math.round((new Date(`${c.forDate}T12:00:00`) - new Date(new Date().toDateString())) / 86400000);
+      return {
+        id: c.id,
+        title: `${c.sourceRoutineName} — makeup`,
+        names: c.exercises.map((e) => e.name).join(', '),
+        count: c.exercises.length,
+        when: days < 0 ? `overdue since ${c.forDate}` : days === 0 ? 'due today' : days === 1 ? 'due tomorrow' : `due ${new Date(`${c.forDate}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short' })}`,
+        overdue: days < 0,
+        dueSoon: days <= 0,
+        start: () => app.startCarryoverSession(c),
+        rescheduling: st.carryoverRescheduleId === c.id,
+        startReschedule: () => app.setState({ carryoverRescheduleId: c.id }),
+        cancelReschedule: () => app.setState({ carryoverRescheduleId: null }),
+        dayOptions: nextDays(7).map((d) => ({ value: d.iso, label: d.short })),
+        reschedule: (e) => app.rescheduleCarryoverTo(c.id, e.target.value),
+        remove: () => app.removeCarryoverItem(c.id),
+      };
+    }),
 
     historyRoutineName: historyRoutine ? historyRoutine.name : '',
     historySessions,

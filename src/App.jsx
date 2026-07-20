@@ -91,7 +91,7 @@ const CACHED_LIVE_KEYS = [
   'liveNotes', 'liveCalendar', 'liveRecipes', 'liveRecipeProfile', 'liveRotation',
   'liveFoodLog', 'liveShoppingList', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
   'liveWorkoutExercises', 'liveWorkoutMuscleGroups', 'liveWorkoutTrackingTypes',
-  'liveWorkoutRoutines', 'liveWorkoutSchedule', 'liveWorkoutWeekdays', 'liveWorkoutProgressions', 'liveWorkoutGoals',
+  'liveWorkoutRoutines', 'liveWorkoutSchedule', 'liveWorkoutWeekdays', 'liveWorkoutProgressions', 'liveWorkoutGoals', 'liveCarryovers',
   'liveJournalEntries', 'liveGraph', 'liveInbox', 'liveDispatch', 'liveCompost', 'liveTodoist', 'liveTodos', 'liveGuardian', 'liveMoney',
 ];
 
@@ -163,6 +163,7 @@ export default class App extends Component {
     dispatchBusy: false, compostBusy: false, compostActionBusy: {}, todoistBusy: false, guardianBusy: false, reviewBusy: false,
     todoInput: '', todoActionBusy: false, todoEditCategoryKey: null,
     editingSessionId: null, sessionDeleteConfirmId: null,
+    liveCarryovers: null, finishMissed: null, finishMissedDate: '', finishMissedRoutine: '', carryoverRescheduleId: null,
     liveWorkoutGoals: null, goalsEditing: false, goalsDraft: { goal: '', focus: '', daysPerWeek: '', notes: '' }, coachBusy: false,
     mealPrepBusy: false,
     quickMinutes: '45', quickNote: '', quickBusy: false, quickPlan: null,
@@ -482,6 +483,7 @@ export default class App extends Component {
   refreshWorkoutRoutines() {
     const conn = getConnection();
     if (!conn) return Promise.resolve();
+    this.loadCarryovers();
     return api.workoutRoutines(conn).then((r) => {
       this.setState({ liveWorkoutRoutines: r.routines, liveWorkoutSchedule: r.schedule, liveWorkoutWeekdays: r.weekdays, liveWorkoutProgressions: r.progressions || {} });
     }).catch(() => {});
@@ -1033,12 +1035,78 @@ export default class App extends Component {
       }).catch((e) => this.toastMsg('Could not update session: ' + e.message));
       return;
     }
+    // exercises with nothing ticked are "missed" — offer to push them to a day
+    const missed = session.exercises
+      .filter((e) => !e.sets.some((s) => s.done))
+      .map((e) => ({ exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, trackingType: e.trackingType, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh }));
+    const carryoverId = session.carryoverId || null;
     const payload = { routineId: session.routineId, routineName: session.routineName, exercises };
     api.completeWorkoutSession(conn, payload).then(() => {
-      this.setState({ workoutsView: 'routine', workoutSession: null, sessionCancelConfirm: false });
+      // finishing a makeup session consumes its carry-over
+      if (carryoverId) api.removeCarryover(conn, carryoverId).then(() => this.loadCarryovers()).catch(() => {});
+      const t = new Date(); t.setDate(t.getDate() + 1);
+      const tomorrow = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+      this.setState({
+        workoutsView: 'routines', openRoutineId: null, workoutSession: null, sessionCancelConfirm: false,
+        finishMissed: missed.length ? missed : null,
+        finishMissedDate: tomorrow,
+        finishMissedRoutine: session.routineName,
+      });
       this.refreshWorkoutRoutines();
-      this.toastMsg('Workout saved ✓');
+      this.toastMsg(missed.length ? `Saved ✓ — ${missed.length} exercise${missed.length === 1 ? '' : 's'} not done; push ${missed.length === 1 ? 'it' : 'them'} to a day below` : 'Workout saved ✓');
     }).catch((e) => this.toastMsg('Could not save workout: ' + e.message));
+  }
+  // Park an in-progress session without finalizing it — stays fully
+  // resumable (it's already mirrored to device storage) via the RESUME card.
+  saveWorkoutForLater() {
+    if (!this.state.workoutSession) return;
+    this.setState({ workoutsView: 'routines', openRoutineId: null, sessionCancelConfirm: false });
+    this.toastMsg('Progress saved — resume it any time from the card up top');
+  }
+  resumeWorkoutSession() {
+    if (this.state.workoutSession) this.setState({ workoutsView: 'session' });
+  }
+  loadCarryovers() {
+    const conn = getConnection();
+    if (!conn) return;
+    api.workoutCarryovers(conn).then(({ carryovers }) => this.setState({ liveCarryovers: carryovers })).catch(() => {});
+  }
+  pushMissedToDay() {
+    const conn = getConnection();
+    if (!conn || !this.state.finishMissed) return;
+    api.addCarryover(conn, { forDate: this.state.finishMissedDate, sourceRoutineName: this.state.finishMissedRoutine, exercises: this.state.finishMissed })
+      .then(() => { const d = this.state.finishMissedDate; this.setState({ finishMissed: null }); this.loadCarryovers(); this.toastMsg(`Pushed to ${d} — it's waiting on Train`); })
+      .catch((e) => this.toastMsg('Could not push: ' + e.message));
+  }
+  dismissFinishMissed() { this.setState({ finishMissed: null }); }
+  setFinishMissedDate(date) { this.setState({ finishMissedDate: date }); }
+  startCarryoverSession(carryover) {
+    const routines = this.state.liveWorkoutRoutines || [];
+    const lastSetsFor = (exId) => {
+      for (const r of routines) { const e = r.exercises.find((x) => x.exerciseId === exId); if (e?.lastSets?.length) return e.lastSets; }
+      return null;
+    };
+    const exercises = carryover.exercises.map((e) => {
+      const last = lastSetsFor(e.exerciseId);
+      const sets = last && last.length
+        ? last.map((s) => ({ weight: s.weight, reps: s.reps, done: false }))
+        : Array.from({ length: e.targetSets }, () => ({ weight: 0, reps: e.targetRepsLow || 0, done: false }));
+      return { exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, trackingType: e.trackingType, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh, coach: null, sets };
+    });
+    this.setState({ workoutsView: 'session', editingSessionId: null, workoutSession: { routineId: 'carryover', routineName: `${carryover.sourceRoutineName} — makeup`, carryoverId: carryover.id, exercises }, sessionCancelConfirm: false });
+  }
+  rescheduleCarryoverTo(id, forDate) {
+    const conn = getConnection();
+    if (!conn) return;
+    this.setState({ carryoverRescheduleId: null });
+    api.rescheduleCarryover(conn, id, forDate).then(() => { this.loadCarryovers(); this.toastMsg(`Moved to ${forDate}`); })
+      .catch((e) => this.toastMsg('Could not reschedule: ' + e.message));
+  }
+  removeCarryoverItem(id) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.removeCarryover(conn, id).then(() => { this.loadCarryovers(); this.toastMsg('Carry-over cleared'); })
+      .catch((e) => this.toastMsg('Could not clear: ' + e.message));
   }
   editHistorySession(session) {
     // Load a past session into the editor: every recorded set arrives
