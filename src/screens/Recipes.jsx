@@ -70,17 +70,25 @@ export function Recipes({ v }) {
             )}
           </div>
           <div style={css("margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
-            <Interactive as="input" value={v.foodScanNote} onChange={v.setFoodScanNote} placeholder="Note for the scan — e.g. “ate half” (optional)" base="flex:1;min-width:180px;box-sizing:border-box;background:rgba(0,0,0,.28);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 12px;color:var(--nv-ink);font-size:12.5px;font-family:'Rajdhani',sans-serif;outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
+            <Interactive as="input" value={v.foodScanNote} onChange={v.setFoodScanNote} placeholder="Note — e.g. “ate half”, “8 pretzels” (optional)" base="flex:1;min-width:180px;box-sizing:border-box;background:rgba(0,0,0,.28);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 12px;color:var(--nv-ink);font-size:12.5px;font-family:'Rajdhani',sans-serif;outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
             <label style={css("cursor:pointer;flex:none;font-size:11.5px;padding:9px 13px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-good) 35%, transparent);color:var(--nv-good);background:color-mix(in srgb, var(--nv-good) 08%, transparent)")}>
-              {v.foodScanBusy ? 'Analyzing…' : 'Scan label'}
-              <input type="file" accept="image/*" capture="environment" onChange={v.scanFoodLabel} disabled={v.foodScanBusy} style={css("display:none")} />
+              + Add photos
+              <input type="file" accept="image/*" multiple onChange={v.addFoodScanPhotos} disabled={v.foodScanBusy} style={css("display:none")} />
             </label>
-            <label style={css("cursor:pointer;flex:none;font-size:11.5px;padding:9px 13px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-good) 35%, transparent);color:var(--nv-good);background:color-mix(in srgb, var(--nv-good) 08%, transparent)")}>
-              {v.foodScanBusy ? 'Analyzing…' : 'Photo of meal'}
-              <input type="file" accept="image/*" capture="environment" onChange={v.scanFoodMeal} disabled={v.foodScanBusy} style={css("display:none")} />
-            </label>
-            <Interactive as="span" onClick={v.foodScanBusy ? undefined : v.openBarcodeScanner} base="cursor:pointer;flex:none;font-size:11.5px;padding:9px 13px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-good) 35%, transparent);color:var(--nv-good);background:color-mix(in srgb, var(--nv-good) 08%, transparent)" hoverStyle="background:color-mix(in srgb, var(--nv-good) 16%, transparent)">{v.foodScanBusy ? 'Analyzing…' : 'Scan barcode'}</Interactive>
+            <Interactive as="span" onClick={v.foodScanBusy ? undefined : v.openBarcodeScanner} base="cursor:pointer;flex:none;font-size:11.5px;padding:9px 13px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-good) 35%, transparent);color:var(--nv-good);background:color-mix(in srgb, var(--nv-good) 08%, transparent)" hoverStyle="background:color-mix(in srgb, var(--nv-good) 16%, transparent)">Barcode</Interactive>
           </div>
+          {v.foodScanCount > 0 && (
+            <div style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
+              {v.foodScanPhotos.map((ph) => (
+                <div key={ph.src.slice(-28)} style={css("position:relative;width:52px;height:52px;border-radius:8px;overflow:hidden;border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)")}>
+                  <img src={ph.src} alt="" style={css("width:100%;height:100%;object-fit:cover;display:block")} />
+                  <Interactive as="span" onClick={ph.remove} base="cursor:pointer;position:absolute;top:1px;right:1px;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:11px;line-height:1;border-radius:5px;background:rgba(0,0,0,.6);color:#fff" hoverStyle="background:var(--nv-warn)">×</Interactive>
+                </div>
+              ))}
+              <Interactive as="span" onClick={v.canRunFoodScan ? v.runFoodScan : undefined} base={{ cursor: v.canRunFoodScan ? 'pointer' : 'default', flex: 'none', font: "600 11px 'IBM Plex Mono',monospace", padding: '9px 16px', borderRadius: '8px', background: 'var(--nv-good)', color: '#122015', opacity: v.foodScanBusy ? 0.6 : 1 }} hoverStyle={{ background: 'color-mix(in srgb, var(--nv-good) 80%, white)' }}>{v.foodScanBusy ? 'Analyzing…' : `Analyze ${v.foodScanCount} photo${v.foodScanCount === 1 ? '' : 's'}`}</Interactive>
+            </div>
+          )}
+          <div style={css("margin-top:8px;font-size:11px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent);line-height:1.5")}>Add up to 5 — nutrition labels and/or the food itself. More photos + a note give a sharper estimate.</div>
           {v.foodScanError && <div style={css("margin-top:8px;font-size:12px;color:#e08f6f")}>{v.foodScanError}</div>}
           {v.foodScanQuestion && (
             <div style={css("margin-top:8px;font-size:12px;color:var(--nv-gold);font-style:italic")}>Nova's not fully sure — {v.foodScanQuestion} Adjust the numbers below if needed.</div>
@@ -93,6 +101,11 @@ export function Recipes({ v }) {
             <Interactive as="input" type="number" value={v.foodLogKcal} onChange={v.setFoodLogKcal} placeholder="kcal" base="width:62px;box-sizing:border-box;background:rgba(0,0,0,.28);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 8px;color:var(--nv-good);font-size:12.5px;font-family:'IBM Plex Mono',monospace;outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
             <Interactive as="span" onClick={v.foodLogBusy ? undefined : v.submitFoodLog} base={{ cursor: 'pointer', flex: 'none', font: "500 11px 'IBM Plex Mono',monospace", padding: '9px 16px', borderRadius: '8px', background: 'var(--nv-good)', color: '#122015', opacity: v.foodLogBusy ? .6 : 1 }} hoverStyle={{ background: 'color-mix(in srgb, var(--nv-good) 80%, white)' }}>{v.foodLogBusy ? 'Adding…' : '+ Add'}</Interactive>
           </div>
+          {v.canSaveScanToRecipe && (
+            <div style={css("margin-top:8px")}>
+              <Interactive as="span" onClick={v.saveScanToRecipe} base="cursor:pointer;font-size:11px;color:var(--nv-gold)" hoverStyle="text-decoration:underline">＋ Save this to my recipe bank</Interactive>
+            </div>
+          )}
           {v.foodLogError && <div style={css("margin-top:8px;font-size:12px;color:#e08f6f")}>{v.foodLogError}</div>}
           {v.foodLogEntries.length > 0 && (
             <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:6px")}>
@@ -106,6 +119,23 @@ export function Recipes({ v }) {
               ))}
             </div>
           )}
+          <div style={css("margin-top:14px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:10px")}>
+            <Interactive as="span" onClick={v.toggleFoodHistory} base="cursor:pointer;font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.18em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)" hoverStyle="color:var(--nv-good)">{v.foodHistoryOpen ? '▾' : '▸'} RECENT FOODS</Interactive>
+            {v.foodHistoryOpen && (
+              <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:5px")}>
+                {!v.foodHistoryLoaded && <div style={css("font-size:12px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Loading…</div>}
+                {v.foodHistoryLoaded && v.foodHistory.length === 0 && <div style={css("font-size:12px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent);line-height:1.5")}>Nothing off-plan yet. Scanned and quick-added foods collect here so you can re-log them in a tap.</div>}
+                {v.foodHistory.map((it) => (
+                  <div key={it.key} style={css("display:flex;align-items:center;gap:9px;font-size:12.5px;padding:4px 0")}>
+                    <span style={css("flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{it.name}{it.seen && <span style={css("margin-left:6px;font:400 9.5px 'IBM Plex Mono',monospace;color:var(--nv-gold)")}>{it.seen}</span>}</span>
+                    <span style={css("font:400 9.5px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 42%, transparent);flex:none")}>{it.macroLabel}</span>
+                    <Interactive as="span" onClick={it.relog} base="cursor:pointer;flex:none;font:500 10px 'IBM Plex Mono',monospace;padding:4px 9px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-good) 30%, transparent);color:var(--nv-good)" hoverStyle="background:color-mix(in srgb, var(--nv-good) 14%, transparent)">＋ log</Interactive>
+                    <Interactive as="span" onClick={it.toRecipe} aria-label="Save to recipe bank" base="cursor:pointer;flex:none;font-size:15px;line-height:1;color:color-mix(in srgb, var(--nv-ink) 38%, transparent)" hoverStyle="color:var(--nv-gold)">☆</Interactive>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

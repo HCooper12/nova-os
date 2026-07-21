@@ -73,6 +73,34 @@ export function recipesRouter(vaultPath) {
     }
   });
 
+  // Promote a scanned/logged food straight into the recipe bank. Macros are
+  // required, but ingredients/method are optional — a snack has neither — so it
+  // lands as a macro-only recipe the user can flesh out later. This is what lets
+  // "save to recipe bank" work without re-entering anything.
+  router.post('/recipes/quick', async (req, res) => {
+    try {
+      const b = req.body || {};
+      if (typeof b.name !== 'string' || !b.name.trim()) return res.status(400).json({ error: 'name is required' });
+      if (!VALID_CATEGORIES.includes(b.category)) return res.status(400).json({ error: 'category must be one of ' + VALID_CATEGORIES.join(', ') });
+      const m = b.macros;
+      if (!m || [m.p, m.c, m.f, m.kcal].some((n) => typeof n !== 'number' || Number.isNaN(n) || n < 0)) {
+        return res.status(400).json({ error: 'macros.p/c/f/kcal must be non-negative numbers' });
+      }
+      const recipe = await addRecipe(vaultPath, {
+        name: b.name.trim(),
+        category: b.category,
+        makes: b.makes ? String(b.makes).trim() : null,
+        macros: { p: m.p, c: m.c, f: m.f, kcal: m.kcal },
+        ingredients: Array.isArray(b.ingredients) ? b.ingredients.map((s) => String(s).trim()).filter(Boolean) : [],
+        method: Array.isArray(b.method) ? b.method.map((s) => String(s).trim()).filter(Boolean) : [],
+        description: b.description ? String(b.description).trim() : null,
+      });
+      res.json({ recipe });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
   router.post('/recipes/scan', async (req, res, next) => {
     try {
       const images = req.body?.images;

@@ -74,6 +74,27 @@ test('insertRecipeIntoRaw roundtrips: parse count grows by exactly one', () => {
   assert.ok(newRaw.indexOf('## 4. Test Chili') < newRaw.indexOf('# PART 2'));
 });
 
+test('insertRecipeIntoRaw supports a macro-only quick recipe (promoted from a scan)', () => {
+  const input = {
+    name: 'Protein Pretzels',
+    category: 'TREATS',
+    macros: { p: 10, c: 20, f: 2, kcal: 145 },
+    ingredients: [],
+    method: [],
+    description: 'Saved from the food tracker.',
+  };
+  const newRaw = insertRecipeIntoRaw(RECIPE_FILE, input);
+  const recipes = parseRecipeCollection(newRaw);
+  assert.equal(recipes.length, 4, 'still parses as one more recipe');
+  const added = recipes.find((r) => r.name === 'Protein Pretzels');
+  assert.ok(added, 'the macro-only recipe is found');
+  assert.deepEqual(added.macros, { p: 10, c: 20, f: 2, kcal: 145 });
+  assert.deepEqual(added.ingredients, [], 'no ingredients, honestly');
+  assert.deepEqual(added.method, [], 'no method steps');
+  // no empty "### Ingredients"/"### Method" headings were emitted for it
+  assert.ok(!/## \d+\. Protein Pretzels[\s\S]*?### Ingredients/.test(newRaw));
+});
+
 test('insertRecipeIntoRaw throws on an unknown category', () => {
   const input = {
     name: 'X',

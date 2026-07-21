@@ -195,9 +195,19 @@ function escapeRe(s) {
 function formatRecipeBlock(num, input) {
   const macroLine = `**Macros:** ${input.macros.p}g P / ${input.macros.c}g C / ${input.macros.f}g F / ${input.macros.kcal} kcal`;
   const makesLine = input.makes ? `**Makes:** ${input.makes}\n` : '';
+  const ingredients = input.ingredients || [];
+  const method = input.method || [];
+  // Macro-only "quick" recipe (e.g. a snack promoted straight from a scan): no
+  // ingredient/method sections, just macros + a one-line description. The parser
+  // already treats a body with no Ingredients/Method headings as a description
+  // (finalizeRecipe), so this round-trips cleanly and reads honestly.
+  if (!ingredients.length && !method.length) {
+    const desc = (input.description && String(input.description).trim()) || 'Saved from the food tracker.';
+    return `## ${num}. ${input.name}\n\n${macroLine}\n${makesLine}\n${desc}\n\n---\n\n`;
+  }
   const ingredientsHeading = input.makes ? `### Ingredients (${input.makes})` : '### Ingredients';
-  const ingredientsBlock = input.ingredients.map((i) => `- ${i}`).join('\n');
-  const methodBlock = input.method.map((s, idx) => `${idx + 1}. ${s}`).join('\n');
+  const ingredientsBlock = ingredients.map((i) => `- ${i}`).join('\n');
+  const methodBlock = method.map((s, idx) => `${idx + 1}. ${s}`).join('\n');
   return (
     `## ${num}. ${input.name}\n\n` +
     `${macroLine}\n${makesLine}\n` +

@@ -89,7 +89,7 @@ function screenFromHash() {
 // serialize; details re-fetch on demand).
 const CACHED_LIVE_KEYS = [
   'liveNotes', 'liveCalendar', 'liveRecipes', 'liveRecipeProfile', 'liveRotation',
-  'liveFoodLog', 'liveShoppingList', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
+  'liveFoodLog', 'liveFoodHistory', 'liveShoppingList', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
   'liveWorkoutExercises', 'liveWorkoutMuscleGroups', 'liveWorkoutTrackingTypes',
   'liveWorkoutRoutines', 'liveWorkoutSchedule', 'liveWorkoutWeekdays', 'liveWorkoutProgressions', 'liveWorkoutGoals', 'liveCarryovers',
   'liveJournalEntries', 'liveGraph', 'liveInbox', 'liveDispatch', 'liveCompost', 'liveTodoist', 'liveTodos', 'liveGuardian', 'liveMoney',
@@ -146,9 +146,9 @@ export default class App extends Component {
     codeSessionId: null, codeWorkspace: 'repo', codeModel: 'sonnet',
     liveHealthInsight: null, liveHealthDays: null, liveStreaks: null,
     liveReviewSummaries: {},
-    liveFoodLog: null,
+    liveFoodLog: null, liveFoodHistory: null, foodHistoryOpen: false,
     foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogBusy: false, foodLogError: null,
-    foodScanNote: '', foodScanBusy: false, foodScanError: null, foodScanQuestion: null,
+    foodScanNote: '', foodScanPhotos: [], foodScanBusy: false, foodScanError: null, foodScanQuestion: null,
     barcodeScannerOpen: false,
     noteQuery: '', noteType: 'All', openNoteId: 'n1',
     galaxySel: null, toast: null, reviewIdx: 0,
@@ -508,8 +508,9 @@ export default class App extends Component {
     const macros = { p: Number(this.state.foodLogP) || 0, c: Number(this.state.foodLogC) || 0, f: Number(this.state.foodLogF) || 0, kcal: Number(this.state.foodLogKcal) || 0 };
     if (!conn || !name) return;
     this.setState({ foodLogBusy: true, foodLogError: null });
-    api.addFoodLogEntry(conn, { name, macros }).then((day) => {
+    api.addFoodLogEntry(conn, { name, macros, source: 'manual' }).then((day) => {
       this.setState({ liveFoodLog: day, foodLogBusy: false, foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '' });
+      if (this.state.foodHistoryOpen) this.loadFoodHistory();
     }).catch((e) => this.setState({ foodLogBusy: false, foodLogError: e.message }));
   }
   deleteFoodLogEntry(id) {
@@ -520,35 +521,82 @@ export default class App extends Component {
   setFoodScanNote(e) {
     this.setState({ foodScanNote: e.target.value });
   }
-  onFoodScanFiles(mode, fileList) {
-    const conn = getConnection();
-    if (!conn) return;
-    const files = Array.from(fileList || []).slice(0, 3);
+  // Stage photos for a scan without analyzing yet — several labels, or a label
+  // plus a photo of the actual portion, get sent together so the estimate can
+  // reconcile them. Downscaled on the way in (upload speed, no accuracy cost).
+  addFoodScanPhotos(fileList) {
+    const files = Array.from(fileList || []);
     if (!files.length) return;
+    const room = 5 - (this.state.foodScanPhotos || []).length;
+    if (room <= 0) { this.toastMsg('Up to 5 photos per scan'); return; }
+    Promise.all(files.slice(0, room).map((f) => this.downscaleImageFile(f)))
+      .then((urls) => this.setState((s) => ({ foodScanPhotos: [...s.foodScanPhotos, ...urls.filter(Boolean)] })));
+    if (files.length > room) this.toastMsg('Up to 5 photos per scan');
+  }
+  removeFoodScanPhoto(idx) {
+    this.setState((s) => ({ foodScanPhotos: s.foodScanPhotos.filter((_, i) => i !== idx) }));
+  }
+  clearFoodScanPhotos() {
+    this.setState({ foodScanPhotos: [] });
+  }
+  runFoodScan() {
+    const conn = getConnection();
+    const photos = this.state.foodScanPhotos || [];
+    if (!conn || !photos.length) return;
     this.setState({ foodScanBusy: true, foodScanError: null, foodScanQuestion: null });
-    Promise.all(files.map((f) => this.downscaleImageFile(f)))
-      .then((images) => api.startFoodScan(conn, mode, images.filter(Boolean), this.state.foodScanNote.trim()))
+    // 'auto' fuses however many photos there are (labels and/or the food) with the note
+    api.startFoodScan(conn, 'auto', photos, this.state.foodScanNote.trim())
       .then(({ jobId }) => {
         this.startPoll('foodScan', () => api.foodScanJob(conn, jobId), {
-          intervalMs: 800, // OCR-shaped scans finish fast — don't sit on the result for 2s
+          intervalMs: 800,
           onReady: (job) => {
             const r = job.result;
             this.setState({
               foodScanBusy: false, foodScanError: null,
+              foodScanPhotos: [], foodScanNote: '',
               foodScanQuestion: r.confidence === 'low' && r.question ? r.question : null,
-              foodScanNote: '',
               foodLogName: r.name || '',
               foodLogP: r.macros?.p != null ? String(r.macros.p) : '',
               foodLogC: r.macros?.c != null ? String(r.macros.c) : '',
               foodLogF: r.macros?.f != null ? String(r.macros.f) : '',
               foodLogKcal: r.macros?.kcal != null ? String(r.macros.kcal) : '',
             });
-            this.toastMsg(r.confidence === 'low' ? 'Photo analyzed — rough estimate, check the fields below' : 'Photo analyzed — check the fields below before saving');
+            this.toastMsg(r.confidence === 'low' ? 'Analyzed — rough estimate, check the fields below' : 'Analyzed — check the fields below before saving');
           },
           onError: (msg) => this.setState({ foodScanBusy: false, foodScanError: msg }),
         });
       })
       .catch((e) => this.setState({ foodScanBusy: false, foodScanError: e.message }));
+  }
+  // Cross-day history of off-plan foods, for the "recent foods" list + re-log.
+  loadFoodHistory() {
+    const conn = getConnection();
+    if (!conn) return;
+    api.foodHistory(conn).then(({ items }) => this.setState({ liveFoodHistory: items })).catch(() => {});
+  }
+  toggleFoodHistory() {
+    const open = !this.state.foodHistoryOpen;
+    this.setState({ foodHistoryOpen: open });
+    if (open) this.loadFoodHistory();
+  }
+  relogFoodItem(item) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.addFoodLogEntry(conn, { name: item.name, macros: item.macros, source: 'history' })
+      .then((day) => { this.setState({ liveFoodLog: day }); this.toastMsg(`Logged ${item.name} ✓`); this.loadFoodHistory(); })
+      .catch((e) => this.toastMsg('Could not log: ' + e.message));
+  }
+  // Pre-fill the Add Recipe modal from a scanned/logged food so it can be saved
+  // to the recipe bank without re-entering anything (macro-only is allowed).
+  openAddRecipeFrom({ name, macros }) {
+    if (!getConnection()) { this.toastMsg('Connect a backend in Settings first'); return; }
+    const num = (n) => (n != null && !Number.isNaN(Number(n)) ? String(Math.round(Number(n))) : '');
+    this.setState({
+      recipeAddOpen: true, recipeAddName: name || '', recipeAddCategory: 'ROTATION / SWAP MEALS', recipeAddMakes: '',
+      recipeAddP: num(macros?.p), recipeAddC: num(macros?.c), recipeAddF: num(macros?.f), recipeAddKcal: num(macros?.kcal), recipeAddKj: '',
+      recipeAddIngredients: '', recipeAddMethod: '', recipeAddError: null,
+      recipeScanBusy: false, recipeScanError: null, recipeAddPhotoDataUrl: null,
+    });
   }
   openBarcodeScanner() {
     if (!getConnection()) { this.toastMsg('Connect a backend in Settings first'); return; }
@@ -684,13 +732,19 @@ export default class App extends Component {
     const ingredients = st.recipeAddIngredients.split('\n').map((s) => s.trim()).filter(Boolean);
     const method = st.recipeAddMethod.split('\n').map((s) => s.trim()).filter(Boolean);
     const macros = { p: parseFloat(st.recipeAddP), c: parseFloat(st.recipeAddC), f: parseFloat(st.recipeAddF), kcal: parseFloat(st.recipeAddKcal) };
-    if (!name || !ingredients.length || !method.length || [macros.p, macros.c, macros.f, macros.kcal].some((n) => Number.isNaN(n))) {
-      this.setState({ recipeAddError: 'Fill in a name, all four macros, at least one ingredient and one method step.' });
+    if (!name || [macros.p, macros.c, macros.f, macros.kcal].some((n) => Number.isNaN(n))) {
+      this.setState({ recipeAddError: 'Fill in a name and all four macros.' });
       return;
     }
     this.setState({ recipeAddBusy: true, recipeAddError: null });
     const pendingPhoto = st.recipeAddPhotoDataUrl;
-    api.addRecipe(conn, { name, category: st.recipeAddCategory, makes: st.recipeAddMakes.trim() || undefined, macros, ingredients, method })
+    // No ingredients/method → a macro-only "quick" recipe (e.g. a snack promoted
+    // from a scan). Otherwise a full recipe. Both write to the vault collection.
+    const macroOnly = !ingredients.length && !method.length;
+    const save = macroOnly
+      ? api.addQuickRecipe(conn, { name, category: st.recipeAddCategory, makes: st.recipeAddMakes.trim() || undefined, macros })
+      : api.addRecipe(conn, { name, category: st.recipeAddCategory, makes: st.recipeAddMakes.trim() || undefined, macros, ingredients, method });
+    save
       .then(({ recipe }) => (pendingPhoto ? api.addRecipePhoto(conn, recipe.id, pendingPhoto) : Promise.resolve()))
       .then(() => {
         this.setState({ recipeAddOpen: false, recipeAddBusy: false, recipeAddPhotoDataUrl: null });

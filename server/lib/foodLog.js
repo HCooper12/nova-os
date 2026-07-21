@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -31,16 +31,38 @@ export async function getToday() {
   return loadDay(today());
 }
 
-export async function addEntry({ name, macros }) {
+export async function addEntry({ name, macros, source }) {
   const day = await loadDay(today());
-  day.entries.push({
+  const entry = {
     id: randomUUID().slice(0, 8),
     time: new Date().toTimeString().slice(0, 5),
     name,
     macros: { p: Number(macros.p) || 0, c: Number(macros.c) || 0, f: Number(macros.f) || 0, kcal: Number(macros.kcal) || 0 },
-  });
+  };
+  // How it was logged — 'scan' | 'barcode' | 'manual' | 'history'. Optional and
+  // additive: older entries simply lack it and every reader tolerates that.
+  if (source) entry.source = String(source).slice(0, 20);
+  day.entries.push(entry);
   await saveDay(day);
   return day;
+}
+
+// Most-recent-first list of day files, for cross-day history/aggregation. The
+// per-day files are never deleted, so this is a durable log of everything
+// eaten off-plan — nothing read across them until now.
+export async function loadRecentDays(days = 45) {
+  const dir = LOG_DIR();
+  if (!existsSync(dir)) return [];
+  const files = (await readdir(dir))
+    .filter((f) => /^\d{4}-\d{2}-\d{2}\.json$/.test(f))
+    .sort()
+    .reverse()
+    .slice(0, days);
+  const out = [];
+  for (const f of files) {
+    try { out.push(JSON.parse(await readFile(path.join(dir, f), 'utf8'))); } catch { /* skip a corrupt day, don't fail the query */ }
+  }
+  return out;
 }
 
 // Entries are only ever shown/removable for today, so no need to search

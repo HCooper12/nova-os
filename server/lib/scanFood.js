@@ -23,6 +23,26 @@ function buildPrompt(mode, imagePaths, note) {
 
   const notFoodInstruction = `\n\nIf the image doesn't actually show food or a nutrition label (wrong photo, too blurry to make out, etc.), still output the same JSON structure: set name to a brief note of what you actually see instead, macros all 0, confidence "low", and question asking the user to re-check and re-upload. Always output the JSON structure below no matter what the image shows — never reply with plain text instead.`;
 
+  if (mode === 'auto') {
+    return `You're given one or more photos at the paths below to work out the nutrition of a single thing the user ate. The photos may be any mix of: nutrition labels / packaging, and photos of the actual food. Use ALL of them together to produce ONE best estimate for what was actually eaten.
+
+How to combine the photos:
+- If a nutrition label is present, it's the ground truth for the macros — read it precisely. If it only shows kJ energy (common on Australian labels), convert to kcal by dividing by 4.184 and round to the nearest whole number.
+- If MULTIPLE DIFFERENT labels are shown (e.g. two different products eaten together), add their contributions together. If the same product appears in more than one photo, don't double-count it.
+- If a photo shows the actual food/portion, use it to judge HOW MUCH was eaten and scale the label's per-serving values to the real portion (e.g. the label is per serving of 20 pretzels but the photo — or the note — says only 8 were eaten).
+- More photos should mean a MORE precise estimate: reconcile them, don't just guess from one.
+
+- name: a short, natural name for what was eaten (use the product/packaging name when visible)
+- macros: {p, c, f, kcal} — the total for everything actually eaten across the photos; grams for p/c/f, whole-number kcal
+- confidence: "high" or "low" — low if the portion or a key value genuinely can't be pinned down from the photos + note
+- question: if confidence is low, ONE short clarifying question that would most improve the estimate. Empty string if high.${noteLine}${notFoodInstruction}
+
+Image path(s):
+${imageList}
+
+Output ONLY a JSON object with exactly these keys: name, macros, confidence, question. No markdown, no code fences, no commentary before or after.`;
+  }
+
   if (mode === 'meal') {
     return `Look at the photo(s) of food at the paths below and estimate its nutrition. This is a photo of the actual meal/snack itself, not a printed label — you're visually judging portion size and likely ingredients/preparation.
 
@@ -70,9 +90,12 @@ export function startFoodScan(mode, imagePaths, workDir, note) {
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
 
-  const isMeal = mode === 'meal';
-  const prompt = buildPrompt(isMeal ? 'meal' : 'label', imagePaths, note);
-  const model = isMeal ? MEAL_MODEL : LABEL_MODEL;
+  // Explicit 'label'/'meal' still honored (legacy + tests); anything else —
+  // notably the multi-photo UI's 'auto' — fuses labels + food + note together.
+  const promptMode = mode === 'meal' ? 'meal' : mode === 'label' ? 'label' : 'auto';
+  const prompt = buildPrompt(promptMode, imagePaths, note);
+  // label OCR → fast model; meal/auto (visual + multi-photo fusion) → strong model
+  const model = promptMode === 'label' ? LABEL_MODEL : MEAL_MODEL;
   const args = [
     '-p', prompt,
     '--permission-mode', 'bypassPermissions',

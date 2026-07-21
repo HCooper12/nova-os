@@ -4,9 +4,12 @@ import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { addEntry, removeEntry, getToday } from '../lib/foodLog.js';
+import { computeFoodHistory } from '../lib/foodHistory.js';
 import { startFoodScan, getFoodScanJob } from '../lib/scanFood.js';
 import { recordTodaySnapshot } from '../lib/nutritionSnapshot.js';
 import { lookupBarcode } from '../lib/barcodeLookup.js';
+
+const MAX_SCAN_IMAGES = 5;
 
 const IMAGE_DATA_URL = /^data:image\/(jpeg|jpg|png|webp|gif);base64,(.+)$/;
 
@@ -23,16 +26,27 @@ export function foodLogRouter(vaultPath) {
 
   router.post('/food-log', async (req, res, next) => {
     try {
-      const { name, macros } = req.body || {};
+      const { name, macros, source } = req.body || {};
       if (typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'name is required' });
       if (!macros || [macros.p, macros.c, macros.f, macros.kcal].some((n) => typeof n !== 'number' || Number.isNaN(n) || n < 0)) {
         return res.status(400).json({ error: 'macros.p/c/f/kcal must be non-negative numbers' });
       }
-      const day = await addEntry({ name: name.trim(), macros });
+      const day = await addEntry({ name: name.trim(), macros, source });
       recordTodaySnapshot(vaultPath).catch(() => {});
       res.json(day);
     } catch (err) {
       res.status(400).json({ error: err.message });
+    }
+  });
+
+  // Cross-day history of off-plan foods — aggregated per item so the UI can show
+  // what's been eaten that isn't a recipe, and offer a one-tap re-log.
+  router.get('/food-log/history', async (req, res, next) => {
+    try {
+      const days = req.query.days ? Math.min(180, Math.max(1, Number(req.query.days) || 45)) : 45;
+      res.json({ items: await computeFoodHistory({ days }) });
+    } catch (err) {
+      next(err);
     }
   });
 
@@ -50,7 +64,7 @@ export function foodLogRouter(vaultPath) {
     try {
       const { mode, images, note } = req.body || {};
       if (!Array.isArray(images) || !images.length) return res.status(400).json({ error: 'at least one image is required' });
-      if (images.length > 3) return res.status(400).json({ error: 'up to 3 images per scan' });
+      if (images.length > MAX_SCAN_IMAGES) return res.status(400).json({ error: `up to ${MAX_SCAN_IMAGES} images per scan` });
 
       const workDir = path.join(os.tmpdir(), 'nova-food-scan', randomUUID().slice(0, 8));
       await mkdir(workDir, { recursive: true });
