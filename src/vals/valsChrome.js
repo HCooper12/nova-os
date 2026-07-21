@@ -1,4 +1,5 @@
 import { NOVA_THEMES, NOVA_CORES } from '../theme.js';
+import { TAB_META, tabLabel, romanFor } from '../tabOrder.js';
 import { AGENTS, NOTE_TYPE_COLOR } from './shared.js';
 
 // App chrome: sidebar nav, mobile tabs, per-screen wrappers and grids, the
@@ -91,15 +92,10 @@ export function valsChrome(app, ctx) {
   // numerals read I–XIII in sequence (the earlier out-of-order look came
   // from curating a reordered subset; the full ordered list fixes both).
   // The active tab auto-scrolls into view (see MobileChrome).
-  const tabs = [
-    ['I.', 'Home', 'mission'], ['II.', 'Voice', 'voice'], ['III.', 'Galaxy', 'galaxy'],
-    ['IV.', 'Code', 'code'], ['V.', 'Inbox', 'inbox'], ['VI.', 'Recipes', 'recipes'],
-    ['VII.', 'Shop', 'shopping'], ['VIII.', 'To-Do', 'todos'], ['IX.', 'Train', 'workouts'],
-    ['X.', 'Notes', 'notes'], ['XI.', 'Journal', 'journal'], ['XII.', 'Money', 'money'],
-    ['XIII.', 'Settings', 'settings'],
-  ].map(t => {
-    const act = st.screen === t[2];
-    return { num: t[0], label: t[1], go: go(t[2]), active: act,
+  const tabOrder = (st.tabOrder && st.tabOrder.length) ? st.tabOrder : TAB_META.map((t) => t[0]);
+  const tabs = tabOrder.map((screen, i) => {
+    const act = st.screen === screen;
+    return { num: romanFor(i), label: tabLabel(screen), go: go(screen), active: act,
       style: { flex: 'none', minWidth: '52px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', padding: '5px 9px', cursor: 'pointer', borderRadius: '9px', color: act ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: act ? 'var(--nv-acc-bg)' : 'none', textShadow: act ? 'var(--nv-tsh-tab)' : 'none' },
       numStyle: { font: "500 8.5px 'IBM Plex Mono',monospace", letterSpacing: '.06em', color: act ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 32%, transparent)' } };
   });
@@ -225,6 +221,8 @@ export function valsChrome(app, ctx) {
       enable: () => app.enablePushNotifications(),
       test: () => app.testPush(),
     } : null,
+    tabOrderItems: (tabOrder || []).map((k) => ({ key: k, label: tabLabel(k) })),
+    setTabOrder: (order) => app.setTabOrder(order),
     calendarSettings: !demoMode && !isOffline ? {
       loaded: st.liveCalendarList != null,
       calendars: (st.liveCalendarList || []).map((c) => ({

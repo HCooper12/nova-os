@@ -6,6 +6,7 @@ import { pollJob } from './jobPoller.js';
 import { orbReply, coachReply, recipeReply } from './mockAssistants.js';
 import { loadLiveCache, saveLiveCache, clearLiveCache } from './liveStore.js';
 import { applyAppearance, getNovaTheme, getCalm, getCoreStyle, saveCoreStyle } from './theme.js';
+import { getTabOrder, saveTabOrder } from './tabOrder.js';
 import { NOTE_TYPE_COLOR } from './vals/shared.js';
 import { valsRecipes } from './vals/valsRecipes.js';
 import { valsWorkouts } from './vals/valsWorkouts.js';
@@ -146,6 +147,7 @@ export default class App extends Component {
     codeSessionId: null, codeWorkspace: 'repo', codeModel: 'sonnet',
     liveHealthInsight: null, liveHealthDays: null, liveStreaks: null,
     stepsOverlayOpen: false, stepEditDate: null, stepEditValue: '',
+    tabOrder: getTabOrder(),
     liveReviewSummaries: {},
     liveFoodLog: null, liveFoodHistory: null, foodHistoryOpen: false,
     foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogBusy: false, foodLogError: null,
@@ -332,6 +334,10 @@ export default class App extends Component {
   setCoreStyle(core) {
     saveCoreStyle(core);
     this.setState({ coreStyle: core });
+  }
+  setTabOrder(order) {
+    saveTabOrder(order);
+    this.setState({ tabOrder: order });
   }
 
   // ---------- live data (Obsidian + Calendar) ----------

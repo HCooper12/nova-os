@@ -1,5 +1,6 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
+import { TabOrderEditor } from '../TabOrderEditor.jsx';
 
 const statusColor = { idle: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', testing: 'var(--nv-gold)', ok: '#5aa87c', error: 'var(--nv-warn)' };
 
@@ -209,6 +210,19 @@ export function Settings({ v }) {
             )}
           </div>
           <div style={css("margin-top:8px;max-width:520px;font-size:11px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Pushes fire when something needs your call — a drafted brief, a research outline, a Guardian alert. iPhone mirrors them to the Apple Watch automatically. Requires Nova installed to the Home Screen (Safari → Share → Add to Home Screen).</div>
+        </div>
+      )}
+
+      {v.tabOrderItems && (
+        <div style={{ marginTop: '34px' }}>
+          <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
+            <span style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>TAB ORDER</span>
+            <span style={css("font:400 9px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>DRAG TO REORDER THE BOTTOM TAB BAR</span>
+          </div>
+          <div style={{ marginTop: '12px' }}>
+            <TabOrderEditor items={v.tabOrderItems} onReorder={v.setTabOrder} />
+          </div>
+          <div style={css("margin-top:8px;max-width:520px;font-size:11px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Press and drag a row to reorder. The order applies to the bottom tab bar on your phone and is remembered on this device.</div>
         </div>
       )}
 
