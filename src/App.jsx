@@ -180,7 +180,7 @@ export default class App extends Component {
     // live-data connection (Settings screen)
     settingsBaseUrl: '', settingsToken: '',
     settingsTestStatus: 'idle', settingsTestMessage: '',
-    liveNotes: null, liveNoteDetails: {}, liveCalendar: null, liveCalendarList: null, liveRecipes: null,
+    liveNotes: null, liveNoteDetails: {}, liveCalendar: null, liveCalendarList: null, calCmdText: '', calCmdBusy: false, liveRecipes: null,
     liveRotation: null, liveRecipeProfile: null, rotationShowExtra: false,
 
     // add recipe (writes back to the real vault file)
@@ -1923,6 +1923,28 @@ export default class App extends Component {
     api.setHiddenCalendars(conn, hidden)
       .then(() => this.refreshLiveData()) // re-pull today's events without the hidden calendars
       .catch((e) => { this.toastMsg('Could not update calendars: ' + e.message); this.loadCalendarList(); });
+  }
+  setCalCmd(e) { this.setState({ calCmdText: e.target.value }); }
+  // Ask Nova to schedule something in natural language. It only DRAFTS a
+  // proposal — the event isn't written until Hayden approves it in the inbox
+  // ("always ask first"). The interpret step runs the model, so it takes a beat.
+  sendCalendarCommand() {
+    const conn = getConnection();
+    const text = (this.state.calCmdText || '').trim();
+    if (!conn || !text || this.state.calCmdBusy) return;
+    this.setState({ calCmdBusy: true });
+    api.calendarCommand(conn, text)
+      .then((r) => {
+        this.setState({ calCmdBusy: false });
+        if (r.proposed) {
+          this.setState({ calCmdText: '' });
+          this.toastMsg('Nova drafted it — approve in your inbox to add it to your calendar');
+          this.refreshLiveData();
+        } else {
+          this.toastMsg(r.reason || "Couldn't turn that into an event");
+        }
+      })
+      .catch((e) => { this.setState({ calCmdBusy: false }); this.toastMsg('Could not reach Nova: ' + e.message); });
   }
   restoreBackupNow(backupRel) {
     const conn = getConnection();

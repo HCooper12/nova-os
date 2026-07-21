@@ -385,5 +385,12 @@ export function valsMission(app, ctx) {
             { time: '17:30', label: 'Gym — push day · wk 6' },
             { time: '20:00', label: 'Reflection with Commander' },
           ]),
+    // Ask Nova to schedule something — drafts a confirm-first proposal, never
+    // writes the calendar until it's approved in the inbox.
+    calCmdEnabled: !demoMode && !isOffline,
+    calCmd: st.calCmdText,
+    setCalCmd: (e) => app.setCalCmd(e),
+    calCmdBusy: st.calCmdBusy,
+    sendCalCmd: () => app.sendCalendarCommand(),
   };
 }

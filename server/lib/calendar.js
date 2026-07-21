@@ -4,6 +4,7 @@ import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { randomUUID } from 'node:crypto';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Which calendars to hide from Nova, keyed by their stable CalDAV URL (names can
@@ -71,6 +72,73 @@ function endOfDay(d) {
   const x = new Date(d);
   x.setHours(23, 59, 59, 999);
   return x;
+}
+
+// ---- writing events (confirm-first: only ever called when the user approves an
+// inbox proposal, never autonomously) --------------------------------------
+function pad2(n) { return String(n).padStart(2, '0'); }
+function toICalUTC(d) {
+  return `${d.getUTCFullYear()}${pad2(d.getUTCMonth() + 1)}${pad2(d.getUTCDate())}T${pad2(d.getUTCHours())}${pad2(d.getUTCMinutes())}${pad2(d.getUTCSeconds())}Z`;
+}
+function icalEscape(s) {
+  return String(s || '').replace(/\\/g, '\\\\').replace(/([,;])/g, '\\$1').replace(/\r?\n/g, '\\n');
+}
+
+// Pure: a minimal single VEVENT calendar for a timed event. Kept separate from
+// the network write so it can be unit-tested exactly.
+export function buildEventICal({ uid, title, start, end, notes, stamp = new Date() }) {
+  const lines = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//NovaOS//calendar//EN', 'CALSCALE:GREGORIAN',
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `DTSTAMP:${toICalUTC(stamp)}`,
+    `DTSTART:${toICalUTC(new Date(start))}`,
+    `DTEND:${toICalUTC(new Date(end))}`,
+    `SUMMARY:${icalEscape(title)}`,
+  ];
+  if (notes) lines.push(`DESCRIPTION:${icalEscape(notes)}`);
+  lines.push('END:VEVENT', 'END:VCALENDAR');
+  return lines.join('\r\n');
+}
+
+async function resolveWritableCalendar(client, preferredName) {
+  const cals = await client.fetchCalendars();
+  const { hidden } = await loadCalendarPrefs();
+  const hiddenSet = new Set(hidden);
+  const writable = cals.filter((c) => !hiddenSet.has(c.url) && (c.components || []).includes('VEVENT'));
+  if (preferredName) {
+    const match = writable.find((c) => c.displayName === preferredName);
+    if (match) return match;
+  }
+  return writable.find((c) => c.displayName === 'Personal')
+    || writable.find((c) => c.displayName === 'Calendar')
+    || writable[0]
+    || null;
+}
+
+export async function createEvent({ title, start, end, notes, calendarName }) {
+  const client = await getClient();
+  const calendar = await resolveWritableCalendar(client, calendarName);
+  if (!calendar) throw new Error('no writable calendar found');
+  const uid = `nova-${randomUUID()}@novaos`;
+  const filename = `${uid}.ics`;
+  const iCalString = buildEventICal({ uid, title, start, end, notes });
+  const res = await client.createCalendarObject({ calendar, filename, iCalString });
+  if (!res.ok && ![200, 201, 204].includes(res.status)) throw new Error(`calendar write failed (${res.status})`);
+  return {
+    uid,
+    objectUrl: new URL(filename, calendar.url).href,
+    etag: res.headers?.get?.('etag') || null,
+    calendarName: calendar.displayName,
+  };
+}
+
+// Undo for a created event — delete it by url (etag If-Match when we have it).
+export async function deleteEventAt({ objectUrl, etag }) {
+  const client = await getClient();
+  const res = await client.deleteCalendarObject({ calendarObject: { url: objectUrl, etag: etag || undefined } });
+  if (!res.ok && ![200, 204].includes(res.status)) throw new Error(`calendar delete failed (${res.status})`);
+  return { removed: true };
 }
 
 function toEvent(ev, start, end, category) {

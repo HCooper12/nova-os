@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { fetchEventsForDay, listCalendars, saveCalendarPrefs } from '../lib/calendar.js';
+import { runCalendarCommand } from '../lib/calendarCommand.js';
 
 function configured() {
   return process.env.ICLOUD_USERNAME && process.env.ICLOUD_APP_PASSWORD;
@@ -25,6 +26,23 @@ export function calendarRouter() {
       res.json({ calendars: await listCalendars() });
     } catch (err) {
       next(err);
+    }
+  });
+
+  // Natural-language scheduling: interpret the request and file a confirm-first
+  // proposal. Writes nothing to the calendar — approval (in the inbox) does that.
+  router.post('/calendar/command', async (req, res) => {
+    try {
+      if (!configured()) return res.status(501).json({ error: 'calendar not configured' });
+      const text = typeof req.body?.text === 'string' ? req.body.text : '';
+      const result = await runCalendarCommand(text);
+      if (result.proposed) {
+        const { broadcast } = await import('../lib/events.js');
+        broadcast('inbox');
+      }
+      res.json(result);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
     }
   });
 

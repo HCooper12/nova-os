@@ -123,6 +123,7 @@ export const api = {
   calendarToday: (conn) => call(conn, '/api/calendar/today'),
   calendars: (conn) => call(conn, '/api/calendar/calendars'),
   setHiddenCalendars: (conn, hidden) => post(conn, '/api/calendar/calendars/hidden', { hidden }),
+  calendarCommand: (conn, text) => post(conn, '/api/calendar/command', { text }),
   workoutExercises: (conn) => call(conn, '/api/workouts/exercises'),
   addWorkoutExercise: (conn, name, muscleGroup, trackingType) => post(conn, '/api/workouts/exercises', { name, muscleGroup, trackingType }),
   workoutRoutines: (conn) => call(conn, '/api/workouts/routines'),

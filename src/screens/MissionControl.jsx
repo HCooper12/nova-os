@@ -163,6 +163,18 @@ export function MissionControl({ v }) {
               </div>
             ))}
           </div>
+          {v.calCmdEnabled && (
+            <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(130,175,255,.09)', display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input
+                value={v.calCmd}
+                onChange={v.setCalCmd}
+                onKeyDown={(e) => { if (e.key === 'Enter') v.sendCalCmd(); }}
+                placeholder="Ask Nova to schedule… “dentist Thu 2pm”"
+                style={{ flex: 1, minWidth: 0, background: 'rgba(0,0,0,.28)', border: '1px solid rgba(130,175,255,.16)', borderRadius: '9px', padding: '10px 13px', color: 'var(--nv-ink)', fontSize: '13px', fontFamily: "'Rajdhani',sans-serif", outline: 'none' }}
+              />
+              <Interactive as="span" onClick={v.calCmdBusy ? undefined : v.sendCalCmd} base={{ cursor: v.calCmdBusy ? 'default' : 'pointer', flex: 'none', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '10px 15px', borderRadius: '9px', background: 'var(--nv-cy)', color: '#0a2830', opacity: v.calCmdBusy ? 0.6 : 1 }} hoverStyle={{ filter: 'brightness(1.08)' }}>{v.calCmdBusy ? 'DRAFTING…' : 'DRAFT'}</Interactive>
+            </div>
+          )}
         </div>
 
         <div className="nv-pane" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column' }}>

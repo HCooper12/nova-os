@@ -15,6 +15,7 @@ import { addItemsDirect, removeItems, SHOPPING_CATEGORIES } from './shoppingList
 import * as journal from './journal.js';
 import * as foodLog from './foodLog.js';
 import { addRecipe, removeRecipe } from './recipes.js';
+import { createEvent, deleteEventAt } from './calendar.js';
 
 // The Nova Inbox: capture any loose thought, let a READ-ONLY classifier make
 // exactly one typed routing decision, then let deterministic code do the
@@ -206,6 +207,15 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  if (route === 'calendar') {
+    // Only reached on the user's explicit approval of a proposed event.
+    const created = await createEvent(payload);
+    return {
+      destination: `Calendar — ${payload.title} (${created.calendarName})`,
+      undo: { route, objectUrl: created.objectUrl, etag: created.etag },
+    };
+  }
+
   if (route === 'recipe') {
     const recipe = await addRecipe(vaultPath, {
       name: payload.name,
@@ -351,6 +361,11 @@ export async function undoFiling(vaultPath, undo) {
     const { removed } = await removeRecipe(vaultPath, undo.recipeId);
     if (!removed) throw new Error('that recipe has already been removed or renamed');
     return 'removed the recipe from your recipe bank';
+  }
+
+  if (undo.route === 'calendar') {
+    await deleteEventAt({ objectUrl: undo.objectUrl, etag: undo.etag });
+    return 'removed the event from your calendar';
   }
 
   if (undo.route === 'journal') {
