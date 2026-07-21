@@ -72,6 +72,10 @@ export function Recipes({ v }) {
           <div style={css("margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
             <Interactive as="input" value={v.foodScanNote} onChange={v.setFoodScanNote} placeholder="Note — e.g. “ate half”, “8 pretzels” (optional)" base="flex:1;min-width:180px;box-sizing:border-box;background:rgba(0,0,0,.28);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 12px;color:var(--nv-ink);font-size:12.5px;font-family:'Rajdhani',sans-serif;outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
             <label style={css("cursor:pointer;flex:none;font-size:11.5px;padding:9px 13px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-good) 35%, transparent);color:var(--nv-good);background:color-mix(in srgb, var(--nv-good) 08%, transparent)")}>
+              📷 Take photo
+              <input type="file" accept="image/*" capture="environment" onChange={v.addFoodScanPhotos} disabled={v.foodScanBusy} style={css("display:none")} />
+            </label>
+            <label style={css("cursor:pointer;flex:none;font-size:11.5px;padding:9px 13px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-good) 28%, transparent);color:color-mix(in srgb, var(--nv-good) 90%, white);background:color-mix(in srgb, var(--nv-good) 05%, transparent)")}>
               + Add photos
               <input type="file" accept="image/*" multiple onChange={v.addFoodScanPhotos} disabled={v.foodScanBusy} style={css("display:none")} />
             </label>
