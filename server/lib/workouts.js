@@ -4,6 +4,10 @@ import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
 
 const ROUTINES_REL_PATH = 'Wiki/Health/Workout Routines.md';
 export const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+// A schedule day can hold a routine id, be empty (rest), or this sentinel:
+// "active rest" — no weight workout, but still active (a treadmill walk for
+// steps, stretching). Distinct from plain rest so Nova plans around it.
+export const ACTIVE_REST = 'active-rest';
 const WEEKDAY_LABEL = { monday: 'Monday', tuesday: 'Tuesday', wednesday: 'Wednesday', thursday: 'Thursday', friday: 'Friday', saturday: 'Saturday', sunday: 'Sunday' };
 
 function resolveExercise(entry, exercisesById) {
@@ -25,8 +29,9 @@ function bodyFor(routines, schedule, exercisesById) {
   if (scheduled.length) {
     lines.push('## This Week', '');
     for (const d of WEEKDAYS) {
-      const r = schedule[d] ? routines.find((x) => x.id === schedule[d]) : null;
-      lines.push(`- **${WEEKDAY_LABEL[d]}:** ${r ? r.name : '_rest / unscheduled_'}`);
+      const r = schedule[d] && schedule[d] !== ACTIVE_REST ? routines.find((x) => x.id === schedule[d]) : null;
+      const label = r ? r.name : schedule[d] === ACTIVE_REST ? '_active rest (walk / stretch)_' : '_rest / unscheduled_';
+      lines.push(`- **${WEEKDAY_LABEL[d]}:** ${label}`);
     }
     lines.push('');
   }
@@ -141,7 +146,7 @@ export async function setScheduleDay(vaultPath, exercises, day, routineId) {
   const exercisesById = new Map(exercises.map((e) => [e.id, e]));
   return withWriteLock(async () => {
     const data = await getData(vaultPath);
-    if (routineId && !data.routines.some((r) => r.id === routineId)) throw new Error('unknown routine id');
+    if (routineId && routineId !== ACTIVE_REST && !data.routines.some((r) => r.id === routineId)) throw new Error('unknown routine id');
     const schedule = { ...data.schedule };
     if (routineId) schedule[day] = routineId;
     else delete schedule[day];

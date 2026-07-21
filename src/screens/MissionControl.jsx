@@ -2,6 +2,7 @@ import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
 import { Clock } from '../Clock.jsx';
+import { StepsHistory } from '../StepsHistory.jsx';
 
 // Command Core (design 45): hero with eyebrow/tagline/standfirst beside the
 // living Nova core + three conic-progress satellites, then Suggested Focus /
@@ -20,7 +21,7 @@ const orbStyle = (size, dur, dir) => ({
 
 function Sat({ pos, colorVar, glowVar, d }) {
   return (
-    <div style={{ position: 'absolute', ...pos, borderRadius: '11px', padding: '2px', background: `conic-gradient(from 210deg, var(${colorVar}) ${d.pct}%, var(--nv-edge) 0)`, boxShadow: `var(${glowVar})` }}>
+    <div onClick={d.onOpen} style={{ position: 'absolute', ...pos, borderRadius: '11px', padding: '2px', background: `conic-gradient(from 210deg, var(${colorVar}) ${d.pct}%, var(--nv-edge) 0)`, boxShadow: `var(${glowVar})`, cursor: d.onOpen ? 'pointer' : 'default' }}>
       <div style={{ borderRadius: '9px', background: 'var(--nv-glass2)', backdropFilter: 'blur(14px)', padding: '10px 15px' }}>
         <div style={{ font: `500 8px ${M}`, letterSpacing: '.22em', color: 'var(--nv-ink60)' }}>{d.label}</div>
         <div style={{ font: `700 24px ${R}`, marginTop: '2px', fontVariantNumeric: 'tabular-nums', color: `var(${colorVar})` }}>
@@ -76,6 +77,7 @@ export function MissionControl({ v }) {
 
   return (
     <div style={v.wrapMission} data-screen-label="Mission Control">
+      {v.stepsOverlay && <StepsHistory v={v.stepsOverlay} />}
       <section style={heroGrid}>
         <div>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 10px', font: `500 10px ${M}`, letterSpacing: '.28em', color: 'var(--nv-ink60)', marginBottom: '16px' }}>

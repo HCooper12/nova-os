@@ -51,7 +51,11 @@ export function valsWorkouts(app, ctx) {
       labelColor: isToday ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)',
       value: routineId,
       onChange: (e) => app.assignScheduleDay(day, e.target.value || null),
-      options: [{ value: '', label: 'Rest' }, ...liveRoutines.map((r) => ({ value: r.id, label: r.name }))],
+      options: [
+        { value: '', label: 'Rest' },
+        { value: 'active-rest', label: 'Active rest' },
+        ...liveRoutines.map((r) => ({ value: r.id, label: r.name })),
+      ],
     };
   });
 
@@ -149,10 +153,11 @@ export function valsWorkouts(app, ctx) {
   }));
   const historyRoutine = liveRoutines.find((r) => r.id === st.historyRoutineId);
   const todayRoutineId = liveSchedule[todayWeekday];
-  const todayRoutine = todayRoutineId ? liveRoutines.find((r) => r.id === todayRoutineId) : null;
+  const todayActiveRest = todayRoutineId === 'active-rest';
+  const todayRoutine = todayRoutineId && !todayActiveRest ? liveRoutines.find((r) => r.id === todayRoutineId) : null;
 
   // shared with valsMission (workout card + suggested focus)
-  Object.assign(ctx, { usingLiveWorkouts, liveRoutines, todayRoutine });
+  Object.assign(ctx, { usingLiveWorkouts, liveRoutines, todayRoutine, todayActiveRest });
 
   return {
     usingLiveWorkouts,

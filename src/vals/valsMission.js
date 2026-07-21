@@ -17,11 +17,41 @@ function categoryHue(name) {
   return CATEGORY_HUES[Math.abs(hash) % CATEGORY_HUES.length];
 }
 
+// The last 7 calendar days as a continuous span (oldest → newest), each mapped
+// to its logged health day or left as a gap — so a night the automation missed
+// is visible AND editable, not silently absent.
+function buildStepsWeek(healthDays, goal) {
+  const byDate = new Map((healthDays || []).map((d) => [d.date, d]));
+  const p2 = (n) => String(n).padStart(2, '0');
+  const out = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const iso = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+    const day = byDate.get(iso);
+    const steps = day && day.steps != null ? day.steps : null;
+    const km = day && day.walkingRunningDistanceKm != null
+      ? day.walkingRunningDistanceKm
+      : (steps != null ? +(steps * 0.000762).toFixed(1) : null); // ~0.762 m/step fallback
+    out.push({
+      date: iso,
+      label: d.toLocaleDateString('en-GB', { weekday: 'short' }),
+      full: d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }),
+      steps,
+      km,
+      hasData: steps != null,
+      over: steps != null && steps >= goal,
+      isToday: i === 0,
+    });
+  }
+  return out;
+}
+
 export function valsMission(app, ctx) {
   const st = app.state;
   const { demoMode, isOffline, lastSyncLabel, go, usingLiveRecipes, rotation,
     proteinTarget, proteinCurrent, proteinRatio, proteinGap, proteinNextSlot, proteinNextSlotFilled,
-    usingLiveWorkouts, liveRoutines, todayRoutine, usingLiveNotes, reviewPage } = ctx;
+    usingLiveWorkouts, liveRoutines, todayRoutine, todayActiveRest, usingLiveNotes, reviewPage } = ctx;
 
   // health satellites (steps, sleep) — real Apple Health data once the phone-side Shortcut is sending it
   const STEP_GOAL = 10000;
@@ -69,10 +99,27 @@ export function valsMission(app, ctx) {
 
   const nextEvent = (st.liveCalendar || []).find((e) => e.time && e.time >= nowHM);
 
+  // When today's scheduled workout actually is — from a matching calendar event
+  // (across the whole day, not just what's still upcoming) so Nova never says
+  // "tonight" for a session that's this morning. Falls back to a neutral "today"
+  // when the calendar doesn't pin a time. [[nova-method]]: honest, never guess.
+  const routineWord = todayRoutine ? todayRoutine.name.replace(/[^\w\s]/g, ' ').trim().split(/\s+/)[0] : '';
+  const workoutEvent = todayRoutine && Array.isArray(st.liveCalendar)
+    ? st.liveCalendar.find((e) => e.time && (
+        (routineWord.length > 2 && new RegExp(`\\b${routineWord}\\b`, 'i').test(e.label))
+        || /\b(gym|workout|training|lift|session|push|pull|legs?|upper|lower|chest|back|shoulders?|cardio)\b/i.test(e.label)
+      ))
+    : null;
+  const partOfDayFrom = (hm) => { const h = parseInt(hm, 10); return h < 12 ? 'this morning' : h < 17 ? 'this afternoon' : 'tonight'; };
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  const workoutWhen = workoutEvent ? partOfDayFrom(workoutEvent.time) : null; // null = time unknown
+
   let heroTagline;
   if (demoMode) heroTagline = 'Cleared for deep work at 15:30.';
   else if (nextEvent) heroTagline = `Cleared for ${nextEvent.label} at ${nextEvent.time}.`;
-  else if (todayRoutine) heroTagline = `${todayRoutine.name} is tonight's mission.`;
+  else if (todayRoutine) heroTagline = workoutEvent
+    ? `${todayRoutine.name} ${workoutWhen} at ${workoutEvent.time}.`
+    : `${todayRoutine.name} is on today's plan.`;
   else if (isOffline) heroTagline = 'Waiting for the link to come back.';
   else if (hour < 12) heroTagline = 'The morning is wide open — claim it.';
   else if (hour < 18) heroTagline = 'The afternoon is clear. Build something.';
@@ -96,7 +143,7 @@ export function valsMission(app, ctx) {
       if (rhrDay) heroStand.push({ t: hrvDay ? ', resting ' : ' — resting ' }, { t: `${Math.round(rhrDay.restingHeartRate)} bpm`, b: 1 });
       heroStand.push({ t: '. ' });
     }
-    if (todayRoutine) heroStand.push({ t: 'Tonight: ' }, { t: todayRoutine.name, b: 1 }, { t: '. ' });
+    if (todayRoutine) heroStand.push({ t: `${workoutWhen ? cap(workoutWhen) : 'Today'}: ` }, { t: todayRoutine.name, b: 1 }, { t: '. ' });
     if (usingLiveRecipes) {
       if (proteinGap > 0) heroStand.push({ t: 'Protein sits at ' }, { t: `${Math.round(proteinCurrent)}/${proteinTarget} g`, b: 1 }, { t: ' — a ' }, { t: `${proteinGap} g gap`, b: 1 }, { t: ' to close. ' });
       else heroStand.push({ t: 'Protein floor ' }, { t: 'cleared', b: 1 }, { t: ` at ${Math.round(proteinCurrent)} g. ` });
@@ -144,6 +191,8 @@ export function valsMission(app, ctx) {
           pct: Math.round(stepsRatio * 100),
           hint: staleHint(stepsDay) || (stepsCurrent >= STEP_GOAL ? `${Math.round(stepsRatio * 100)}% · GOAL REACHED` : `${Math.round(stepsRatio * 100)}% · ${(STEP_GOAL - stepsCurrent).toLocaleString()} TO GO`),
         };
+  // tap the steps satellite to open the 7-day history + manual edit
+  if (!demoMode) satSteps.onOpen = () => app.setState({ stepsOverlayOpen: true });
   // protein numbers come from the rotation — real when synced, the scripted 96
   // only in demo mode, and an honest dash when configured but not synced
   const satProtein = !usingLiveRecipes && !demoMode
@@ -361,13 +410,13 @@ export function valsMission(app, ctx) {
       }
     },
     workoutCardK: usingLiveWorkouts
-      ? (todayRoutine ? 'TRAIN · TODAY' : 'TRAIN · REST DAY')
+      ? (todayRoutine ? 'TRAIN · TODAY' : todayActiveRest ? 'TRAIN · ACTIVE REST' : 'TRAIN · REST DAY')
       : demoMode ? 'TRAIN · 17:30' : 'TRAIN · OFFLINE',
     workoutCardLabel: usingLiveWorkouts
-      ? (todayRoutine ? todayRoutine.name : (liveRoutines.length ? 'No routine scheduled' : 'Build a routine in Train'))
+      ? (todayRoutine ? todayRoutine.name : todayActiveRest ? 'Active rest' : (liveRoutines.length ? 'No routine scheduled' : 'Build a routine in Train'))
       : demoMode ? 'Push day · week 6' : 'Not synced',
     workoutCardMeta: usingLiveWorkouts
-      ? (todayRoutine ? `${todayRoutine.exercises.length} exercise${todayRoutine.exercises.length === 1 ? '' : 's'} · tap to start` : 'Plan your week in Train →')
+      ? (todayRoutine ? `${todayRoutine.exercises.length} exercise${todayRoutine.exercises.length === 1 ? '' : 's'} · tap to start` : todayActiveRest ? 'Walk or stretch — no weights today' : 'Plan your week in Train →')
       : demoMode ? '6 lifts · 42 min · bench PR watch' : 'reconnect to load your plan',
     todayIsLive: !!st.liveCalendar,
     // Three honest cases: live calendar events; connected but calendar not
@@ -392,5 +441,27 @@ export function valsMission(app, ctx) {
     setCalCmd: (e) => app.setCalCmd(e),
     calCmdBusy: st.calCmdBusy,
     sendCalCmd: () => app.sendCalendarCommand(),
+
+    // steps history + manual edit (Pedometer++-style), opened from the satellite
+    stepsOverlay: st.stepsOverlayOpen ? (() => {
+      const week = buildStepsWeek(st.liveHealthDays, STEP_GOAL);
+      const withData = week.filter((d) => d.hasData);
+      const editDay = st.stepEditDate ? week.find((d) => d.date === st.stepEditDate) : null;
+      return {
+        close: () => app.setState({ stepsOverlayOpen: false, stepEditDate: null }),
+        goal: STEP_GOAL,
+        current: stepsCurrent,
+        currentIsStale: !!(stepsDay && stepsDay.date !== todayKey),
+        days: week.map((d) => ({ ...d, editing: d.date === st.stepEditDate, startEdit: () => app.setState({ stepEditDate: d.date, stepEditValue: d.steps != null ? String(d.steps) : '' }) })),
+        total: withData.reduce((s, d) => s + d.steps, 0),
+        totalKm: +withData.reduce((s, d) => s + (d.km || 0), 0).toFixed(1),
+        editDate: st.stepEditDate,
+        editLabel: editDay ? editDay.full : '',
+        editValue: st.stepEditValue,
+        setEditValue: (e) => app.setState({ stepEditValue: e.target.value }),
+        saveEdit: () => app.saveStepEdit(),
+        cancelEdit: () => app.setState({ stepEditDate: null }),
+      };
+    })() : null,
   };
 }

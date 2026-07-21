@@ -153,6 +153,7 @@ export const api = {
   healthInsight: (conn) => call(conn, '/api/health-insight'),
   streaks: (conn) => call(conn, '/api/streaks'),
   healthData: (conn, days) => call(conn, `/api/health-data${days ? '?days=' + days : ''}`),
+  saveHealthDay: (conn, date, metrics) => post(conn, '/api/health-data', { date, ...metrics }),
   startIngest: (conn, text, sourceUrl) => post(conn, '/api/ingest', { text, sourceUrl }),
   ingestJob: (conn, jobId) => call(conn, `/api/ingest/${encodeURIComponent(jobId)}`),
   approveIngest: (conn, jobId) => post(conn, `/api/ingest/${encodeURIComponent(jobId)}/approve`),

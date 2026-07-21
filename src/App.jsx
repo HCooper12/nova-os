@@ -145,6 +145,7 @@ export default class App extends Component {
     codeChat: [],
     codeSessionId: null, codeWorkspace: 'repo', codeModel: 'sonnet',
     liveHealthInsight: null, liveHealthDays: null, liveStreaks: null,
+    stepsOverlayOpen: false, stepEditDate: null, stepEditValue: '',
     liveReviewSummaries: {},
     liveFoodLog: null, liveFoodHistory: null, foodHistoryOpen: false,
     foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogBusy: false, foodLogError: null,
@@ -1945,6 +1946,18 @@ export default class App extends Component {
         }
       })
       .catch((e) => { this.setState({ calCmdBusy: false }); this.toastMsg('Could not reach Nova: ' + e.message); });
+  }
+  // Manually correct a day's steps (e.g. when the phone automation missed a
+  // night). Upserts through the normal health path and re-pulls the week.
+  saveStepEdit() {
+    const conn = getConnection();
+    const date = this.state.stepEditDate;
+    const steps = Math.round(Number(this.state.stepEditValue));
+    if (!conn || !date || Number.isNaN(steps) || steps < 0) { this.toastMsg('Enter a step count'); return; }
+    api.saveHealthDay(conn, date, { steps })
+      .then(() => api.healthData(conn, 7))
+      .then((r) => { this.setState({ liveHealthDays: r.days.length ? r.days : null, stepEditDate: null, stepEditValue: '' }); this.toastMsg(`Steps for ${date} saved ✓`); })
+      .catch((e) => this.toastMsg('Could not save steps: ' + e.message));
   }
   restoreBackupNow(backupRel) {
     const conn = getConnection();
