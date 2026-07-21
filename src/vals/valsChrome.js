@@ -225,6 +225,17 @@ export function valsChrome(app, ctx) {
       enable: () => app.enablePushNotifications(),
       test: () => app.testPush(),
     } : null,
+    calendarSettings: !demoMode && !isOffline ? {
+      loaded: st.liveCalendarList != null,
+      calendars: (st.liveCalendarList || []).map((c) => ({
+        name: c.name,
+        url: c.url,
+        hidden: c.hidden,
+        toggle: () => app.toggleCalendarHidden(c.url),
+      })),
+      anyHidden: (st.liveCalendarList || []).some((c) => c.hidden),
+      load: () => app.loadCalendarList(),
+    } : null,
     timeMachine: !demoMode && !isOffline ? {
       loaded: st.liveBackups != null,
       files: st.liveBackups || [],

@@ -212,6 +212,35 @@ export function Settings({ v }) {
         </div>
       )}
 
+      {v.calendarSettings && (
+        <div style={{ marginTop: '34px' }}>
+          <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
+            <span style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>CALENDARS</span>
+            <span style={css("font:400 9px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>TURN OFF ANY YOU DON'T WANT NOVA READING</span>
+            <Interactive as="span" onClick={v.calendarSettings.load} base="cursor:pointer;font:600 10px 'IBM Plex Mono',monospace;letter-spacing:.08em;padding:5px 12px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 20%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)" hoverStyle="color:var(--nv-ink)">REFRESH</Interactive>
+          </div>
+          {!v.calendarSettings.loaded && (
+            <div style={css("margin-top:10px;font-size:12px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>Loading your calendars…</div>
+          )}
+          {v.calendarSettings.loaded && v.calendarSettings.calendars.length === 0 && (
+            <div style={css("margin-top:10px;max-width:520px;font-size:12px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>No calendars found — check that iCloud calendar access is connected on the server.</div>
+          )}
+          {v.calendarSettings.calendars.length > 0 && (
+            <>
+              <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:8px;max-width:520px")}>
+                {v.calendarSettings.calendars.map((c) => (
+                  <div key={c.url} className="nv-pane" style={{ padding: '11px 15px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ flex: 1, minWidth: 0, fontSize: '14px', fontWeight: 500, opacity: c.hidden ? 0.5 : 1, textDecoration: c.hidden ? 'line-through' : 'none', overflowWrap: 'anywhere' }}>{c.name}</span>
+                    <Interactive as="span" onClick={c.toggle} base={{ cursor: 'pointer', flex: 'none', font: "600 9.5px 'IBM Plex Mono',monospace", letterSpacing: '.1em', padding: '6px 15px', borderRadius: '14px', border: c.hidden ? '1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent)' : '1px solid var(--nv-acc-border)', color: c.hidden ? 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' : 'var(--nv-acc)', background: c.hidden ? 'none' : 'var(--nv-acc-bg)' }} hoverStyle={{ filter: 'brightness(1.12)' }}>{c.hidden ? 'HIDDEN' : 'SHOWN'}</Interactive>
+                  </div>
+                ))}
+              </div>
+              <div style={css("margin-top:8px;max-width:520px;font-size:11px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Hidden calendars are skipped everywhere — today's view, dispatches and the daily review. The Apple Calendar app's own show/hide checkboxes aren't visible to Nova, so set it here.</div>
+            </>
+          )}
+        </div>
+      )}
+
       {v.timeMachine && (
         <div style={{ marginTop: '34px' }}>
           <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>

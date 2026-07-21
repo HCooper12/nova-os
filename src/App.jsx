@@ -180,7 +180,7 @@ export default class App extends Component {
     // live-data connection (Settings screen)
     settingsBaseUrl: '', settingsToken: '',
     settingsTestStatus: 'idle', settingsTestMessage: '',
-    liveNotes: null, liveNoteDetails: {}, liveCalendar: null, liveRecipes: null,
+    liveNotes: null, liveNoteDetails: {}, liveCalendar: null, liveCalendarList: null, liveRecipes: null,
     liveRotation: null, liveRecipeProfile: null, rotationShowExtra: false,
 
     // add recipe (writes back to the real vault file)
@@ -383,6 +383,10 @@ export default class App extends Component {
   componentDidUpdate(prevProps, prevState) {
     if (this.state.screen === 'galaxy') this.startGalaxy(); else this.stopGalaxy();
     if (this.state.paletteOpen && !prevState.paletteOpen && this.paletteRef.current) this.paletteRef.current.focus();
+    // entering Settings — pull the calendar list once so the toggles are ready
+    if (this.state.screen === 'settings' && prevState.screen !== 'settings' && this.state.liveCalendarList == null && getConnection()) {
+      this.loadCalendarList();
+    }
     // mirror the in-progress workout to device storage on every change —
     // this is what survives Chrome reclaiming the tab mid-treadmill
     if (prevState.workoutSession !== this.state.workoutSession || prevState.editingSessionId !== this.state.editingSessionId) {
@@ -1900,6 +1904,25 @@ export default class App extends Component {
     if (!conn) return;
     api.guardianBackups(conn).then(({ files }) => this.setState({ liveBackups: files }))
       .catch((e) => this.toastMsg('Could not list snapshots: ' + e.message));
+  }
+  // The full calendar list (with hidden flags) for the Settings toggles. A 501
+  // (iCloud not configured) or any error just yields an empty list, not a crash.
+  loadCalendarList() {
+    const conn = getConnection();
+    if (!conn) return;
+    api.calendars(conn)
+      .then(({ calendars }) => this.setState({ liveCalendarList: calendars || [] }))
+      .catch(() => this.setState({ liveCalendarList: [] }));
+  }
+  toggleCalendarHidden(url) {
+    const conn = getConnection();
+    if (!conn) return;
+    const next = (this.state.liveCalendarList || []).map((c) => (c.url === url ? { ...c, hidden: !c.hidden } : c));
+    const hidden = next.filter((c) => c.hidden).map((c) => c.url);
+    this.setState({ liveCalendarList: next }); // optimistic — reflect the tap instantly
+    api.setHiddenCalendars(conn, hidden)
+      .then(() => this.refreshLiveData()) // re-pull today's events without the hidden calendars
+      .catch((e) => { this.toastMsg('Could not update calendars: ' + e.message); this.loadCalendarList(); });
   }
   restoreBackupNow(backupRel) {
     const conn = getConnection();

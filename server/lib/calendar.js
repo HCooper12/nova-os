@@ -1,5 +1,49 @@
 import { createDAVClient } from 'tsdav';
 import ical from 'node-ical';
+import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// Which calendars to hide from Nova, keyed by their stable CalDAV URL (names can
+// duplicate — there are two "Task" calendars). Apple Calendar's own show/hide
+// checkboxes are a local display setting CalDAV never exposes, so Nova needs its
+// own list. Operational config, not vault knowledge.
+const PREFS_PATH = () => path.join(process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data'), 'calendar-prefs.json');
+
+export async function loadCalendarPrefs() {
+  try {
+    if (!existsSync(PREFS_PATH())) return { hidden: [] };
+    const raw = JSON.parse(await readFile(PREFS_PATH(), 'utf8'));
+    return { hidden: Array.isArray(raw.hidden) ? raw.hidden : [] };
+  } catch {
+    return { hidden: [] };
+  }
+}
+
+export async function saveCalendarPrefs(hidden) {
+  const clean = [...new Set((Array.isArray(hidden) ? hidden : []).map(String))];
+  await mkdir(path.dirname(PREFS_PATH()), { recursive: true });
+  const tmp = PREFS_PATH() + '.tmp';
+  await writeFile(tmp, JSON.stringify({ hidden: clean }, null, 2), 'utf8');
+  await rename(tmp, PREFS_PATH());
+  return { hidden: clean };
+}
+
+// Every calendar Nova can see, each flagged with whether it's currently hidden —
+// the list the settings toggles are built from.
+export async function listCalendars() {
+  const client = await getClient();
+  const calendars = await client.fetchCalendars();
+  const { hidden } = await loadCalendarPrefs();
+  const hiddenSet = new Set(hidden);
+  return calendars.map((c) => ({
+    name: c.displayName || 'Untitled',
+    url: c.url,
+    hidden: hiddenSet.has(c.url),
+  }));
+}
 
 let clientPromise = null;
 
@@ -47,12 +91,15 @@ function toEvent(ev, start, end, category) {
 export async function fetchEventsForDay(date = new Date()) {
   const client = await getClient();
   const calendars = await client.fetchCalendars();
+  const { hidden } = await loadCalendarPrefs();
+  const hiddenSet = new Set(hidden);
   const dayStart = startOfDay(date);
   const dayEnd = endOfDay(date);
   const timeRange = { start: dayStart.toISOString(), end: dayEnd.toISOString() };
 
   const events = [];
   for (const calendar of calendars) {
+    if (hiddenSet.has(calendar.url)) continue; // respect the user's hide list — skip the fetch entirely
     let objects;
     try {
       objects = await client.fetchCalendarObjects({ calendar, timeRange });
