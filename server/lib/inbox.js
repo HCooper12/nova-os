@@ -14,6 +14,7 @@ import { createRecord, updateRecord, getRecord } from './inboxStore.js';
 import { addItemsDirect, removeItems, SHOPPING_CATEGORIES } from './shoppingList.js';
 import * as journal from './journal.js';
 import * as foodLog from './foodLog.js';
+import { addRecipe, removeRecipe } from './recipes.js';
 
 // The Nova Inbox: capture any loose thought, let a READ-ONLY classifier make
 // exactly one typed routing decision, then let deterministic code do the
@@ -205,6 +206,23 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  if (route === 'recipe') {
+    const recipe = await addRecipe(vaultPath, {
+      name: payload.name,
+      category: payload.category || 'ROTATION / SWAP MEALS',
+      makes: payload.makes || null,
+      macros: payload.macros,
+      ingredients: payload.ingredients || [],
+      method: payload.method || [],
+      description: payload.description || null,
+    });
+    if (!recipe) throw new Error('recipe could not be added');
+    return {
+      destination: `Recipe bank — ${recipe.name}`,
+      undo: { route, recipeId: recipe.id },
+    };
+  }
+
   if (route === 'journal') {
     const saved = await journal.addEntry(vaultPath, { text: payload.text });
     return {
@@ -329,6 +347,12 @@ export async function undoFiling(vaultPath, undo) {
     if (!removed) throw new Error('that food-log entry is no longer there');
     return 'removed the food-log entry';
   }
+  if (undo.route === 'recipe') {
+    const { removed } = await removeRecipe(vaultPath, undo.recipeId);
+    if (!removed) throw new Error('that recipe has already been removed or renamed');
+    return 'removed the recipe from your recipe bank';
+  }
+
   if (undo.route === 'journal') {
     const ok = await journal.removeEntry(vaultPath, undo);
     if (!ok) throw new Error('that journal entry has been edited or removed since');

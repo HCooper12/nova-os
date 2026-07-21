@@ -5,6 +5,7 @@ import {
   parseProfile,
   insertRecipeIntoRaw,
   insertAlternateIntoRaw,
+  removeRecipeFromRaw,
 } from '../lib/recipes.js';
 import { RECIPE_FILE } from './fixtures.js';
 
@@ -93,6 +94,26 @@ test('insertRecipeIntoRaw supports a macro-only quick recipe (promoted from a sc
   assert.deepEqual(added.method, [], 'no method steps');
   // no empty "### Ingredients"/"### Method" headings were emitted for it
   assert.ok(!/## \d+\. Protein Pretzels[\s\S]*?### Ingredients/.test(newRaw));
+});
+
+test('removeRecipeFromRaw removes a recipe block + its quick-ref row (undo path)', () => {
+  // add a macro-only recipe, then remove it — back to the original set exactly
+  const input = { name: 'Temp Snack', category: 'TREATS', macros: { p: 5, c: 10, f: 3, kcal: 90 }, ingredients: [], method: [], description: 'x' };
+  const withIt = insertRecipeIntoRaw(RECIPE_FILE, input);
+  assert.equal(parseRecipeCollection(withIt).length, 4);
+  const without = removeRecipeFromRaw(withIt, 'temp-snack'); // slug of "Temp Snack"
+  assert.equal(parseRecipeCollection(without).length, 3, 'back to the original count');
+  assert.ok(!without.includes('Temp Snack'), 'the block is gone');
+  assert.ok(!/\|\s*Temp Snack\s*\|/.test(without), 'the quick-ref row is gone too');
+});
+
+test('removeRecipeFromRaw leaves other recipes intact and throws when not found', () => {
+  const first = parseRecipeCollection(RECIPE_FILE)[0];
+  const without = removeRecipeFromRaw(RECIPE_FILE, first.id);
+  const left = parseRecipeCollection(without);
+  assert.equal(left.length, 2);
+  assert.ok(!left.some((r) => r.id === first.id), 'the target is gone');
+  assert.throws(() => removeRecipeFromRaw(RECIPE_FILE, 'no-such-recipe'), /not found/);
 });
 
 test('insertRecipeIntoRaw throws on an unknown category', () => {

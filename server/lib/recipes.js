@@ -281,6 +281,53 @@ async function addRecipeUnlocked(vaultPath, input) {
   return after.find((r) => r.name === input.name) || null;
 }
 
+// Pure: remove a recipe's whole "## n. Name … ---" block (by slug id) plus its
+// quick-ref table row. The block runs to the next "## "/"# " heading — not the
+// ###/#### inside it. Numbers aren't renumbered: the parser keys by slug and
+// ignores the number, so a gap is cosmetic. Kept separate from I/O for testing.
+export function removeRecipeFromRaw(raw, id) {
+  const re = /^##\s+\d+\.\s+(.+)$/gm;
+  let m;
+  let startIdx = -1;
+  let name = null;
+  while ((m = re.exec(raw))) {
+    if (slugify(m[1].trim()) === id) { startIdx = m.index; name = m[1].trim(); break; }
+  }
+  if (startIdx === -1) throw new Error('recipe not found');
+  const afterHeading = raw.slice(startIdx + m[0].length);
+  const nextHeading = afterHeading.match(/\n#{1,2}(?!#)\s/);
+  const endIdx = nextHeading ? startIdx + m[0].length + nextHeading.index + 1 : raw.length;
+  let text = raw.slice(0, startIdx) + raw.slice(endIdx);
+  // Exactly the row's own line + its single newline — [^\n]* can't cross lines,
+  // so this never swallows the blank line that follows the table (an earlier
+  // \s*\n did, since \s matches newlines, which drifted the file on undo).
+  const rowRe = new RegExp(`^\\|\\s*${escapeRe(name)}\\s*\\|[^\\n]*\\n`, 'm');
+  text = text.replace(rowRe, '');
+  return text;
+}
+
+export async function removeRecipe(vaultPath, id) {
+  const run = addRecipeLock.catch(() => {}).then(() => removeRecipeUnlocked(vaultPath, id));
+  addRecipeLock = run.catch(() => {});
+  return run;
+}
+
+async function removeRecipeUnlocked(vaultPath, id) {
+  const full = path.join(vaultPath, RECIPES_REL_PATH);
+  const raw = await readFile(full, 'utf8');
+  const before = parseRecipeCollection(raw);
+  const target = before.find((r) => r.id === id);
+  if (!target) return { removed: 0 };
+  const newRaw = removeRecipeFromRaw(raw, id);
+  const after = parseRecipeCollection(newRaw);
+  if (after.length !== before.length - 1) {
+    throw new Error('Recipe removal failed a sanity check — file left unchanged');
+  }
+  await backupFile(full);
+  await writeFile(full, newRaw, 'utf8');
+  return { removed: 1, recipe: target };
+}
+
 function formatAlternateBlock(alt) {
   const macroLine = `**Macros:** ${alt.macros.p}g P / ${alt.macros.c}g C / ${alt.macros.f}g F / ${alt.macros.kcal} kcal`;
   const ingredientsBlock = alt.ingredients.map((i) => `- ${i}`).join('\n');
