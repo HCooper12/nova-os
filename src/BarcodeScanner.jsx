@@ -6,6 +6,13 @@ import { Interactive } from './Interactive.jsx';
 export function BarcodeScanner({ onDetected, onClose }) {
   const videoRef = useRef(null);
   const [error, setError] = useState(null);
+  // Keep the latest onDetected without making it an effect dependency. The
+  // parent re-renders ~once a second (a live clock), handing us a brand-new
+  // onDetected each time; if that drove the effect it would tear down and
+  // re-acquire the camera every second — the flicker/freeze that made the
+  // scanner unusable on iOS. Acquire once, read the callback through a ref.
+  const onDetectedRef = useRef(onDetected);
+  onDetectedRef.current = onDetected;
 
   useEffect(() => {
     const reader = new BrowserMultiFormatReader();
@@ -18,17 +25,17 @@ export function BarcodeScanner({ onDetected, onClose }) {
         if (result && active) {
           active = false;
           controls.stop();
-          onDetected(result.getText());
+          onDetectedRef.current(result.getText());
         }
       }
     ).then((controls) => { liveControls = controls; if (!active) controls.stop(); })
-      .catch((e) => setError(e.message || 'Could not access the camera'));
+      .catch((e) => { if (active) setError(e.message || 'Could not access the camera'); });
 
     return () => {
       active = false;
       liveControls?.stop();
     };
-  }, [onDetected]);
+  }, []); // acquire the camera exactly once, hold it for the scanner's lifetime
 
   return (
     <div role="dialog" aria-modal="true" aria-label="Scan a barcode" style={css("position:fixed;inset:0;background:rgba(10,8,14,.92);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px")}>

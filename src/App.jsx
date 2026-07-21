@@ -112,7 +112,7 @@ export default class App extends Component {
   }
 
   state = {
-    screen: screenFromHash(), booted: false, clock: '--:--:--',
+    screen: screenFromHash(), booted: false,
     // demo → no backend configured; connecting → configured, first fetch pending;
     // connected → last sync succeeded; offline → configured but unreachable.
     connectionStatus: typeof window !== 'undefined' && getConnection() ? 'connecting' : 'demo',
@@ -273,11 +273,6 @@ export default class App extends Component {
     this.popH = () => this.setState({ screen: screenFromHash() });
     window.addEventListener('popstate', this.popH);
     window.addEventListener('hashchange', this.popH);
-    this.clockIv = setInterval(() => {
-      const d = new Date();
-      const pad = (n) => String(n).padStart(2, '0');
-      this.setState({ clock: pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) });
-    }, 1000);
     this.keyH = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); this.setState(s => ({ paletteOpen: !s.paletteOpen, paletteQuery: '' })); }
       else if (e.key === 'Escape') { this.stopPoll('recipeTweak'); this.setState({ paletteOpen: false, openRecipeId: null, galaxySel: null }); }
@@ -294,7 +289,7 @@ export default class App extends Component {
     this.setState({ reviewIdx: Math.floor(Math.random() * this.reviews.length) });
   }
   componentWillUnmount() {
-    clearTimeout(this.bootT); clearInterval(this.clockIv); clearInterval(this.refreshIv);
+    clearTimeout(this.bootT); clearInterval(this.refreshIv);
     Object.values(this.pollers || {}).forEach((p) => p.cancel());
     window.removeEventListener('keydown', this.keyH);
     window.removeEventListener('resize', this.resizeH);
@@ -2375,7 +2370,7 @@ export default class App extends Component {
 
         <div style={css("position:relative;display:flex;height:100vh;max-width:1560px;margin:0 auto")}>
           {v.showSidebar && <Sidebar v={v} />}
-          <main style={css("flex:1;overflow-y:auto;min-width:0")}>
+          <main style={css("flex:1;overflow-y:auto;min-width:0;overscroll-behavior-y:contain")}>
             {v.isMission && <MissionControl v={v} />}
             {v.isInbox && <Inbox v={v} />}
             {v.isVoice && <Voice v={v} />}

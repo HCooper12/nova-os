@@ -1,6 +1,7 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
+import { Clock } from '../Clock.jsx';
 
 // Command Core (design 45): hero with eyebrow/tagline/standfirst beside the
 // living Nova core + three conic-progress satellites, then Suggested Focus /
@@ -80,7 +81,7 @@ export function MissionControl({ v }) {
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 10px', font: `500 10px ${M}`, letterSpacing: '.28em', color: 'var(--nv-ink60)', marginBottom: '16px' }}>
             <span>{v.heroDate}</span>
             <span style={{ color: 'var(--nv-ink40)' }}>·</span>
-            <span style={{ color: 'var(--nv-gold)', fontVariantNumeric: 'tabular-nums' }}>{v.clock}</span>
+            <span style={{ color: 'var(--nv-gold)', fontVariantNumeric: 'tabular-nums' }}><Clock /></span>
             <span style={{ color: 'var(--nv-ink40)' }}>·</span>
             <span style={{ color: 'var(--nv-cy)', display: 'flex', alignItems: 'center', gap: '7px' }}>
               <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--nv-cy)', boxShadow: '0 0 8px var(--nv-cy)', animation: 'novaPulse 2s infinite var(--nv-anim)' }}></span>

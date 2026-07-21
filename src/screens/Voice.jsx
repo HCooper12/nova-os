@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
+import { Clock } from '../Clock.jsx';
 import { useDictation } from '../useDictation.js';
 
 const M = "'IBM Plex Mono',monospace";
@@ -50,7 +51,7 @@ export function Voice({ v }) {
           <span style={css(`font:500 10px ${M};letter-spacing:.32em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`)}>NEURAL LINK · VOICE</span>
           <span style={{ font: `500 9px ${M}`, letterSpacing: '.14em', padding: '5px 10px', borderRadius: '7px', border: `1px solid color-mix(in srgb, ${v.voiceBadge.tone} 45%, transparent)`, color: v.voiceBadge.tone, background: `color-mix(in srgb, ${v.voiceBadge.tone} 08%, transparent)` }}>{v.voiceBadge.text}</span>
         </div>
-        <div style={css(`font:400 26px ${M};font-variant-numeric:tabular-nums;color:color-mix(in srgb, var(--nv-ink) 85%, transparent)`)}>{v.clock}</div>
+        <div style={css(`font:400 26px ${M};font-variant-numeric:tabular-nums;color:color-mix(in srgb, var(--nv-ink) 85%, transparent)`)}><Clock /></div>
       </div>
       <div style={css("flex:1;display:flex;flex-wrap:wrap;gap:28px;align-items:center;justify-content:center;margin-top:10px;overflow-y:auto")}>
         <div style={css(`width:230px;flex:none;display:flex;flex-direction:column;gap:15px;font:400 10.5px ${M};letter-spacing:.14em`)}>

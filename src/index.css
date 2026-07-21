@@ -5,6 +5,11 @@
 }
 *, *::before, *::after { box-sizing: border-box; }
 html, body, #root { margin: 0; height: 100%; }
+/* Native tap feel: kill the grey tap-flash WebKit paints over every clickable
+   (Interactive.jsx now supplies a real pressed state instead), and stop
+   double-tap-zoom gesture detection on controls so taps register instantly. */
+html { -webkit-tap-highlight-color: transparent; }
+button, a, label, select, input, textarea, [role="button"] { touch-action: manipulation; }
 body {
   background: var(--nv-void, #06070d);
   font-family: 'Rajdhani', 'Instrument Sans', system-ui, sans-serif;
