@@ -8,8 +8,11 @@ import { startQuickSession } from '../lib/claudeCode.js';
 import { getFitnessGoals, setFitnessGoals, goalsContext } from '../lib/fitnessGoals.js';
 import { profileContext } from '../lib/profile.js';
 import { startAskCoach } from '../lib/claudeCode.js';
-import { loadRecentDays } from '../lib/healthData.js';
-import { listCarryovers, addCarryover, rescheduleCarryover, removeCarryover } from '../lib/workoutCarryover.js';
+import { loadRecentDays, weightTrendLine } from '../lib/healthData.js';
+import { listCarryovers, addCarryover, rescheduleCarryover, removeCarryover, carryoverContext } from '../lib/workoutCarryover.js';
+import { loadRecentDays as loadRecentNutritionDays } from '../lib/nutritionLog.js';
+import { computeStreaks } from '../lib/streaks.js';
+import { preferencesContext } from '../lib/learning.js';
 
 function annotateRoutines(routines, exerciseState, completedCounts) {
   return routines.map((r) => ({
@@ -218,6 +221,38 @@ export function workoutsRouter(vaultPath) {
         const signal = computeDeloadSignal(days);
         parts.push(`Deload signal: ${signal.advise ? `YES — ${signal.reason}` : signal.reason}.`);
       } catch { /* optional */ }
+      // the connections the sweep found missing — a coach that claims protein
+      // expertise gets nutrition, bodyweight, debt, streaks, and learned habits
+      try {
+        const co = await carryoverContext();
+        if (co) parts.push(co);
+      } catch { /* optional */ }
+      try {
+        const nutrition = await loadRecentNutritionDays(7);
+        if (nutrition.length) {
+          const met = nutrition.filter((d) => d.floorMet === true).length;
+          const tracked = nutrition.filter((d) => d.floorMet != null).length;
+          const avgP = Math.round(nutrition.reduce((s, d) => s + (d.p || 0), 0) / nutrition.length);
+          const last = nutrition[nutrition.length - 1];
+          parts.push(`Nutrition (last ${nutrition.length} tracked days): protein floor met ${met}/${tracked}; avg ${avgP}g protein/day; latest ${last.date}: ${Math.round(last.p)}g P, ${Math.round(last.kcal)} kcal.`);
+        } else {
+          parts.push('Nutrition: no tracked days yet.');
+        }
+      } catch { /* optional */ }
+      try {
+        parts.push(weightTrendLine(await loadRecentDays(28)));
+      } catch { /* optional */ }
+      try {
+        const s = await computeStreaks(vaultPath);
+        const bits = [];
+        if (s.workoutStreak >= 2) bits.push(`${s.workoutStreak}-week training streak`);
+        if (s.lastWorkoutDate) bits.push(`last logged session ${s.lastWorkoutDate}`);
+        if (bits.length) parts.push(`Streaks: ${bits.join('; ')}.`);
+      } catch { /* optional */ }
+      try {
+        const prefs = await preferencesContext(vaultPath);
+        if (prefs) parts.push(prefs);
+      } catch { /* optional */ }
 
       res.json({ jobId: startAskCoach(vaultPath, { question, context: parts.join('\n\n') }) });
     } catch (e) {
@@ -247,8 +282,18 @@ export function workoutsRouter(vaultPath) {
         const dayKey = (d) => WEEKDAYS[(d.getDay() + 6) % 7];
         const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
         const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
-        const nameOf = (id) => routines.find((r) => r.id === id)?.name || 'rest';
-        parts.push(`Week context — yesterday: ${nameOf(schedule?.[dayKey(yesterday)])}, today's program: ${nameOf(schedule?.[dayKey(new Date())])}, tomorrow: ${nameOf(schedule?.[dayKey(tomorrow)])}.`);
+        // active-rest is a schedule value, not a routine — name it honestly
+        const dayName = (d) => { const v = schedule?.[dayKey(d)]; return v === 'active-rest' ? 'active rest' : (routines.find((r) => r.id === v)?.name || 'rest'); };
+        parts.push(`Week context — yesterday: ${dayName(yesterday)}, today's program: ${dayName(new Date())}, tomorrow: ${dayName(tomorrow)}.`);
+        const progressions = await computeProgressions(vaultPath, routines).catch(() => ({}));
+        const keys = Object.keys(progressions);
+        if (keys.length) parts.push(`Earned progressions (prefill these when the exercise appears): ${keys.map((k) => `${k} +${progressions[k].delta}${progressions[k].kind === 'weight' ? 'kg' : ' rep'}`).join(', ')}.`);
+      } catch { /* optional */ }
+      try {
+        // the gap the program leaves is RECORDED — a quick session should
+        // reach for the carried-over work first, not guess at it
+        const co = await carryoverContext();
+        if (co) parts.push(co + ' Consider building the session around clearing what is due or overdue.');
       } catch { /* optional */ }
       try {
         const sessions = await loadSessions(vaultPath, { limit: 3 });

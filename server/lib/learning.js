@@ -14,6 +14,10 @@ import { loadRecentDays as loadNutritionDays } from './nutritionLog.js';
 const KIND_LABEL = {
   review: 'Daily Reviews', dispatch: 'morning briefs', 'meal-prep': 'meal-prep proposals',
   research: 'research briefs', studio: 'Studio outlines', cfo: 'CFO reports',
+  // the sweep: decisions on these were never learned — two proposal loops
+  // couldn't improve themselves
+  'food-suggestion': 'food-to-recipe suggestions', 'training-check': 'training checks',
+  calendar: 'calendar changes', coach: 'session receipts',
 };
 const MIN_DECISIONS = 3;
 

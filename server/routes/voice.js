@@ -27,6 +27,16 @@ export function voiceRouter(vaultPath) {
       ]);
       parts.push(`${morning.text}\n\n${evening.text}`);
     } catch { /* the prompt says "(unavailable)" honestly */ }
+    // month money position — the ledger lives in data/, so the vault-reading
+    // model genuinely can't answer "how's my spending" without this line
+    try {
+      const { getMonthSummary } = await import('../lib/money.js');
+      const m = await getMonthSummary();
+      if (m?.count) {
+        const top = (m.byCategory || []).sort((a, b) => b.spent - a.spent).slice(0, 3).map((c) => `${c.category} $${Math.round(c.spent)}`);
+        parts.push(`Money this month: $${Math.round(m.spent)} spent (last month $${Math.round(m.prevSpent)}); top: ${top.join(', ')}.`);
+      }
+    } catch { /* optional */ }
     return parts.join('\n\n');
   }
 

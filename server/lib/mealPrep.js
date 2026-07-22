@@ -83,6 +83,35 @@ export async function composeMealPrep(vaultPath) {
     }
   }
 
+  // What he ACTUALLY ate (the sweep: meal prep re-proposed the rotation with
+  // no view of reality). Recurring off-plan foods are worth stocking for;
+  // floor adherence says whether the plan is even being executed.
+  try {
+    const { recurringFoods } = await import('./foodHistory.js');
+    const recurring = (await recurringFoods({ days: 21, minCount: 2 })).slice(0, 3);
+    if (recurring.length) {
+      lines.push(`Off-plan regulars (worth stocking for): ${recurring.map((r) => `${r.name} ×${r.count}`).join(' · ')}.`);
+    }
+  } catch { /* optional */ }
+  try {
+    const { loadRecentDays: loadNutrition } = await import('./nutritionLog.js');
+    const week = await loadNutrition(7);
+    const tracked = week.filter((d) => d.floorMet != null);
+    if (tracked.length >= 3) {
+      const met = tracked.filter((d) => d.floorMet).length;
+      if (met < tracked.length) lines.push(`Reality check: floor met ${met}/${tracked.length} tracked days last week — the plan only works when the slots get eaten.`);
+    }
+  } catch { /* optional */ }
+  // the week being shopped for — travel/busy days change what's worth prepping
+  try {
+    const { fetchEventsForRange } = await import('./calendar.js');
+    const events = await fetchEventsForRange(7);
+    const byDate = new Map();
+    for (const e of events) byDate.set(e.date, (byDate.get(e.date) || 0) + 1);
+    const heavy = [...byDate.entries()].filter(([, n]) => n >= 5).map(([d]) => d);
+    if (heavy.length) lines.push(`Heavy calendar day${heavy.length === 1 ? '' : 's'} ahead (${heavy.join(', ')}) — grab-and-go portions matter there.`);
+  } catch { /* optional */ }
+
   const items = toShoppingItems(chosen.flatMap((r) => r.ingredients || []));
   return { lines, items, slotCount: chosen.length, planned, floor };
 }

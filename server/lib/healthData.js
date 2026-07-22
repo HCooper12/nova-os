@@ -47,6 +47,32 @@ export async function saveDay(date, metrics) {
   return merged;
 }
 
+// Bodyweight trend from dated day files — the nutrition loop-closer ("intake
+// vs goal vs the scale"). Pure and honest: null when no weight has ever
+// arrived; delta only when two points exist. days must be oldest-first (the
+// loadRecentDays shape).
+export function computeWeightTrend(days) {
+  const withW = (days || []).filter((d) => d.weightKg != null && d.date);
+  if (!withW.length) return null;
+  const latest = withW[withW.length - 1];
+  const out = { latestKg: Math.round(latest.weightKg * 10) / 10, latestDate: latest.date, deltaKg: null, spanDays: null };
+  if (withW.length >= 2) {
+    const first = withW[0];
+    out.deltaKg = Math.round((latest.weightKg - first.weightKg) * 10) / 10;
+    out.spanDays = Math.round((new Date(`${latest.date}T12:00:00`) - new Date(`${first.date}T12:00:00`)) / 86400000);
+  }
+  return out;
+}
+
+// One context line for agent prompts; honest about the missing-data case.
+export function weightTrendLine(days) {
+  const t = computeWeightTrend(days);
+  if (!t) return 'Bodyweight: no data yet (Body Mass not in the health push).';
+  if (t.deltaKg == null) return `Bodyweight: ${t.latestKg} kg (${t.latestDate}; single reading, no trend yet).`;
+  const dir = t.deltaKg > 0 ? '+' : '';
+  return `Bodyweight: ${t.latestKg} kg (${t.latestDate}), ${dir}${t.deltaKg} kg over ${t.spanDays} days.`;
+}
+
 export async function loadDay(date) {
   const full = path.join(HEALTH_DIR, `${date}.json`);
   if (!existsSync(full)) return null;

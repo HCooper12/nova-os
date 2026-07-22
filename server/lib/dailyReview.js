@@ -111,6 +111,37 @@ export async function buildReviewContext(vaultPath, now = new Date()) {
     const open = items.filter((t) => !t.checked);
     return open.length ? `OPEN TO-DOS (${open.length}): ${open.slice(0, 8).map((t) => t.text).join('; ')}.` : null;
   });
+  // ---- the connections the July sweep found missing ----------------------
+  await add('goals', async () => {
+    const { goalsContext } = await import('./fitnessGoals.js');
+    return goalsContext(vaultPath); // the review reasons TOWARD these — it never had them
+  });
+  await add('carryovers', async () => {
+    const { carryoverContext } = await import('./workoutCarryover.js');
+    return carryoverContext(); // recorded training debt
+  });
+  await add('weight', async () => {
+    const { weightTrendLine } = await import('./healthData.js');
+    return 'BODYWEIGHT: ' + weightTrendLine(await loadRecentDays(28));
+  });
+  await add('week-ahead', async () => {
+    const { fetchEventsForRange } = await import('./calendar.js');
+    const events = await fetchEventsForRange(7);
+    if (!events.length) return 'WEEK AHEAD: nothing on the calendar for the next 7 days.';
+    const byDate = new Map();
+    for (const e of events) byDate.set(e.date, (byDate.get(e.date) || 0) + 1);
+    const busiest = [...byDate.entries()].sort((a, b) => b[1] - a[1])[0];
+    return `WEEK AHEAD (${events.length} events over ${byDate.size} days; busiest ${busiest[0]} with ${busiest[1]}): ` +
+      [...byDate.entries()].map(([d, n]) => `${d}:${n}`).join(' · ') + '.';
+  });
+  await add('money', async () => {
+    const { getMonthSummary } = await import('./money.js');
+    const m = await getMonthSummary();
+    if (!m || !m.count) return null;
+    const over = (m.byCategory || []).filter((c) => c.budget && c.spent > c.budget).map((c) => `${c.category} over budget by $${Math.round(c.spent - c.budget)}`);
+    const vsPrev = m.prevSpent ? ` (last month $${Math.round(m.prevSpent)})` : '';
+    return `MONEY THIS MONTH: $${Math.round(m.spent)} spent${vsPrev}${over.length ? '; ' + over.join(', ') : ''}.`;
+  });
   return parts.join('\n\n');
 }
 

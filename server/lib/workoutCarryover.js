@@ -51,6 +51,21 @@ export async function listCarryovers() {
   return (await load()).sort((a, b) => (a.forDate < b.forDate ? -1 : a.forDate > b.forDate ? 1 : 0));
 }
 
+// One formatted line of recorded training debt for agent contexts — the sweep
+// found every reasoning surface blind to carry-overs while the store sat here.
+// Null when there's none (callers skip the section honestly).
+export async function carryoverContext() {
+  const list = await listCarryovers();
+  if (!list.length) return null;
+  const d = new Date();
+  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const bits = list.map((c) => {
+    const status = c.forDate < today ? 'OVERDUE since ' + c.forDate : c.forDate === today ? 'due TODAY' : 'due ' + c.forDate;
+    return `${c.exercises.map((e) => e.name).join(', ')} (from ${c.sourceRoutineName}, ${status})`;
+  });
+  return `Carried-over exercises (missed work pushed forward — real training debt): ${bits.join('; ')}.`;
+}
+
 export async function addCarryover({ forDate, sourceRoutineName, exercises }) {
   if (!DATE_RE.test(forDate || '')) throw new Error('forDate must be YYYY-MM-DD');
   const ex = normalizeExercises(exercises);

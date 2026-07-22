@@ -3,6 +3,7 @@ import { fetchEventsForDay } from './calendar.js';
 import { loadExerciseLibrary } from './exercises.js';
 import { loadRoutines, WEEKDAYS, ACTIVE_REST } from './workouts.js';
 import { loadSessions } from './workoutSessions.js';
+import { listCarryovers } from './workoutCarryover.js';
 import { createRecord, listRecords } from './inboxStore.js';
 
 // "Did today's training happen?" Each evening Nova cross-checks the Train
@@ -64,6 +65,15 @@ export async function runTrainingCheck(vaultPath) {
     ? " (it's on your calendar but not your Train schedule)"
     : (!calWorkout && scheduledRoutine ? " (it's on your Train schedule but not your calendar)" : '');
 
+  // the check knows about recorded training debt — a miss can be pushed
+  // forward from Train instead of silently vanishing
+  let carryBit = '';
+  try {
+    const due = (await listCarryovers()).filter((c) => c.forDate <= t);
+    if (due.length) carryBit = ` You also have ${due.length} carry-over${due.length === 1 ? '' : 's'} waiting on Train.`;
+    else carryBit = " If you ran out of time mid-session, Train's finish flow can push the missed exercises to another day.";
+  } catch { /* optional */ }
+
   const title = `Did ${plannedName} happen today?`;
   const record = {
     id: randomUUID().slice(0, 8),
@@ -77,7 +87,7 @@ export async function runTrainingCheck(vaultPath) {
       route: 'journal',
       confidence: 'high',
       title,
-      reason: `${trainBit}${calBit}${mismatch}, but nothing's logged in Train yet. Approve to note it as done; if you swapped it for a walk or stretch, dismiss this — that counts as active rest.`,
+      reason: `${trainBit}${calBit}${mismatch}, but nothing's logged in Train yet. Approve to note it as done; if you swapped it for a walk or stretch, dismiss this — that counts as active rest.${carryBit}`,
       payload: { text: `Training reconciled ${t}: completed ${plannedName} (confirmed from the schedule).`, category: 'training', label: 'Training check' },
     },
   };

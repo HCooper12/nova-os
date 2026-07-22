@@ -201,6 +201,28 @@ async function composeMorning(vaultPath, now) {
     lines.push('**Training.** Schedule unavailable.');
   }
 
+  // carried-over exercises due today/overdue — recorded training debt the
+  // day-ahead brief used to be blind to
+  try {
+    const { listCarryovers } = await import('./workoutCarryover.js');
+    const t = todayISO(now);
+    const due = (await listCarryovers()).filter((c) => c.forDate <= t);
+    if (due.length) {
+      const bits = due.map((c) => `${c.exercises.map((e) => e.name).join(', ')} (${c.forDate < t ? 'overdue' : 'today'})`);
+      lines.push(`**Carry-overs.** ${bits.join(' · ')} — waiting on Train.`);
+    }
+  } catch { /* optional */ }
+
+  // open to-dos — the day-ahead brief had no tasks section at all
+  try {
+    const { listTodos } = await import('./todos.js');
+    const { items } = await listTodos(vaultPath);
+    const open = items.filter((x) => !x.checked);
+    if (open.length) {
+      lines.push(`**To-dos.** ${open.length} open${open.length ? ': ' + open.slice(0, 6).map((x) => x.text).join('; ') + (open.length > 6 ? '; …' : '') : ''}.`);
+    }
+  } catch { /* optional */ }
+
   // money (only when something needs eyes — silence is the CFO's success state)
   try {
     const { detectSubscriptions, listTransactions } = await import('./money.js');
