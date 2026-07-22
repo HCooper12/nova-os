@@ -154,6 +154,7 @@ export function MissionControl({ v }) {
             {v.todayIsLive && (
               <Interactive as="span" onClick={v.openCalendarView} base={{ cursor: 'pointer', font: `500 8.5px ${M}`, letterSpacing: '.14em', color: 'var(--nv-ink40)' }} hoverStyle={{ color: 'var(--nv-cy)' }}>NEXT 14 DAYS →</Interactive>
             )}
+            {v.todayStaleLabel && <span style={{ font: `500 8.5px ${M}`, letterSpacing: '.14em', color: 'var(--nv-warn)' }}>{v.todayStaleLabel}</span>}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '218px', overflowY: 'auto' }}>
             {v.todayEvents.map((ev, i) => (

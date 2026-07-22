@@ -77,7 +77,10 @@ export function valsMoney(app, ctx) {
         : money
           ? `${monthLabel(money.month).toUpperCase()} · ${money.count} TRANSACTION${money.count === 1 ? '' : 'S'}`
           : 'LOADING…',
-    moneyConnected: !demoMode && !isOffline,
+    // the ledger renders read-only from cache when offline — the header used to
+    // promise "SHOWING LAST-KNOWN LEDGER" above a blank page
+    moneyConnected: !demoMode && (!isOffline || !!st.liveMoney),
+    moneyReadOnly: isOffline,
     moneyLoaded: !!money,
     moneySpentLabel: money ? fmtMoney(money.spent) : '—',
     moneySpentDelta: spendDelta != null ? { label: `${spendDelta >= 0 ? '+' : '−'}${Math.abs(spendDelta)}% vs ${monthLabel(money.prevMonth)}`, up: spendDelta > 0 } : null,

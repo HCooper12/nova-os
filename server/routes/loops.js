@@ -5,11 +5,28 @@ import { getTodoistStatus, syncTodoist } from '../lib/todoistSync.js';
 import { getGuardian, runGuardian, runGuardianReport, exportVault, listBackups, restoreBackup } from '../lib/guardian.js';
 import { runMealPrep } from '../lib/mealPrep.js';
 import { getDailyReviewStatus, setReviewConfig, runDailyReview, REVIEW_MODES } from '../lib/dailyReview.js';
+import { getInboxConfig, setInboxConfig } from '../lib/inboxConfig.js';
 
 // The loops: the scheduled briefs (dispatch slots on the inbox rails), the
 // Compost loop (weekly read-only vault hygiene proposals), and Todoist sync.
 export function loopsRouter(vaultPath) {
   const router = express.Router();
+
+  // Capture autonomy mode — one system-wide trust ladder, not per-device.
+  router.get('/inbox-config', async (req, res, next) => {
+    try {
+      res.json(await getInboxConfig());
+    } catch (err) {
+      next(err);
+    }
+  });
+  router.put('/inbox-config', async (req, res) => {
+    try {
+      res.json(await setInboxConfig(req.body?.mode));
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
 
   router.get('/dispatch', async (req, res) => {
     try {

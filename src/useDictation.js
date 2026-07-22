@@ -5,7 +5,7 @@ import { useRef, useState } from 'react';
 // by the Inbox capture composer (continuous — long dictation) and the Voice
 // screen (one-shot: continuous false, so silence genuinely ends the take
 // and onDone fires — iOS never ends a continuous session on pause).
-export function useDictation(getBase, onText, onDone, { continuous = true } = {}) {
+export function useDictation(getBase, onText, onDone, { continuous = true, onError } = {}) {
   const recRef = useRef(null);
   const baseRef = useRef('');
   const [on, setOn] = useState(false);
@@ -29,7 +29,8 @@ export function useDictation(getBase, onText, onDone, { continuous = true } = {}
       onText(joined);
     };
     rec.onend = () => { setOn(false); onDone?.(); };
-    rec.onerror = () => setOn(false);
+    // a denied mic permission used to just silently flip the button off
+    rec.onerror = (e) => { setOn(false); onError?.(e?.error || 'dictation failed'); };
     recRef.current = rec;
     rec.start();
     setOn(true);

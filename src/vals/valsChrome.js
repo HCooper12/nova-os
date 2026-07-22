@@ -51,6 +51,18 @@ export function valsChrome(app, ctx) {
   // straight to the Inbox — Nova routes it from there.
   const rawQuery = st.paletteQuery.trim();
   if (rawQuery) {
+    // The button says ASK — it must actually be able to ask. A question-shaped
+    // query (multiple words, or ends with ?) puts Ask FIRST so Enter asks Nova
+    // instead of substring-jumping to whatever screen name it grazes.
+    const askEntry = {
+      icon: '✦', iconColor: 'var(--nv-cy)',
+      label: `Ask Nova — “${rawQuery.length > 44 ? rawQuery.slice(0, 41) + '…' : rawQuery}”`,
+      hint: 'ASK',
+      run: () => { app.navigate('voice', { paletteOpen: false }); setTimeout(() => app.askNova(rawQuery), 120); },
+    };
+    const questionShaped = /\s/.test(rawQuery) || rawQuery.endsWith('?');
+    if (questionShaped) paletteResults.unshift(askEntry);
+    else paletteResults.push(askEntry);
     paletteResults.push({
       icon: '✦', iconColor: 'var(--nv-cy)',
       label: `Capture to Inbox — “${rawQuery.length > 44 ? rawQuery.slice(0, 41) + '…' : rawQuery}”`,
@@ -96,6 +108,9 @@ export function valsChrome(app, ctx) {
   const tabs = tabOrder.map((screen, i) => {
     const act = st.screen === screen;
     return { num: romanFor(i), label: tabLabel(screen), go: go(screen), active: act,
+      // the mobile UI had NO pending signal at all — the badge the app icon
+      // shows must exist inside the app too
+      count: screen === 'inbox' && inboxPendingCount > 0 ? inboxPendingCount : null,
       style: { flex: 'none', minWidth: '52px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', padding: '5px 9px', cursor: 'pointer', borderRadius: '9px', color: act ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: act ? 'var(--nv-acc-bg)' : 'none', textShadow: act ? 'var(--nv-tsh-tab)' : 'none' },
       numStyle: { font: "500 8.5px 'IBM Plex Mono',monospace", letterSpacing: '.06em', color: act ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 32%, transparent)' } };
   });
@@ -190,11 +205,14 @@ export function valsChrome(app, ctx) {
 
     // settings
     isSettings: st.screen === 'settings',
-    profile: !demoMode && !isOffline ? {
+    // offline parity: cached profile/learning always RENDER (read-only, with a
+    // stale note) — hiding his own words offline read as data loss
+    profile: !demoMode ? {
       set: !!(st.liveProfile && (st.liveProfile.focus || (st.liveProfile.priorities || []).length || st.liveProfile.bestSelf || st.liveProfile.notes)),
       editing: st.profileEditing,
       saving: st.profileSaving,
       draft: st.profileDraft,
+      readOnly: isOffline,
       view: st.liveProfile ? {
         focus: st.liveProfile.focus,
         priorities: st.liveProfile.priorities || [],
@@ -202,12 +220,12 @@ export function valsChrome(app, ctx) {
         notes: st.liveProfile.notes,
         updated: st.liveProfile.updated,
       } : null,
-      startEdit: () => app.startProfileEdit(),
+      startEdit: () => { if (isOffline) { app.toastMsg('Offline — reconnect to edit your profile'); return; } app.startProfileEdit(); },
       cancelEdit: () => app.setState({ profileEditing: false }),
       setField: (field) => (e) => app.setProfileField(field, e.target.value),
       save: () => app.saveProfile(),
     } : null,
-    learning: !demoMode && !isOffline ? {
+    learning: !demoMode ? {
       noticed: st.liveLearning?.noticed || [],
       enoughData: !!st.liveLearning?.enoughData,
       loaded: st.liveLearning != null,

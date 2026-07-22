@@ -94,6 +94,9 @@ export function valsMisc(app, ctx) {
     orbInput: st.orbInput,
     setOrbInput: (e) => app.setState({ orbInput: e.target.value }),
     setOrbInputValue: (t) => app.setState({ orbInput: t }),
+    dictationError: (err) => app.toastMsg(err === 'not-allowed'
+      ? 'Microphone blocked — allow it in iOS Settings → Nova'
+      : `Dictation stopped (${err}) — tap the mic to retry`),
     orbKey: (e) => { if (e.key === 'Enter') app.doOrb(); },
     sendOrb: () => app.doOrb(),
     primeSpeech: () => app.primeSpeech(),

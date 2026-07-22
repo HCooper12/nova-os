@@ -116,6 +116,39 @@ export function Inbox({ v }) {
         ))}
       </div>
 
+      {/* pending approvals — THE daily action, straight under the composer.
+          They used to sit below two screens of loop config; the thing the
+          badge points at must be the first thing the screen shows. */}
+      {v.inboxPending.length > 0 && (
+        <div style={{ marginTop: '18px' }}>
+          <div style={css(`font:500 9.5px ${M};letter-spacing:.22em;color:var(--nv-gold)`)}>WAITING FOR YOUR CALL · {v.inboxPending.length}</div>
+          <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:10px")}>
+            {v.inboxPending.map((item) => (
+              <div key={item.id} className="nv-pane" style={{ padding: '14px 18px' }}>
+                <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px")}>
+                  <RouteBadge route={item.route} confidence={item.confidence} />
+                  <span style={css(`font:400 9px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>{item.time} · {item.source}</span>
+                </div>
+                <div style={css(`margin-top:9px;font:600 15px ${R}`)}>{item.title}</div>
+                {item.preview && <div style={css(`margin-top:3px;font:500 13px/1.5 ${R};color:var(--nv-ink60);white-space:pre-wrap`)}>{item.preview}</div>}
+                {item.reason && <div style={css(`margin-top:6px;font:italic 400 13px ${S};color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`)}>{item.reason}</div>}
+                {item.error && <div style={css(`margin-top:6px;font:500 12px ${R};color:var(--nv-warn)`)}>{item.error}</div>}
+                <div style={css("margin-top:12px;display:flex;gap:10px")}>
+                  <Interactive as="span" onClick={item.busy ? undefined : item.approve}
+                    base={{ cursor: 'pointer', font: `600 12.5px ${R}`, padding: '7px 16px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1206', opacity: item.busy ? 0.5 : 1 }}
+                    hoverStyle={{ filter: 'brightness(1.1)' }}
+                  >{item.busy ? 'Working…' : 'Approve & file'}</Interactive>
+                  <Interactive as="span" onClick={item.busy ? undefined : item.discard}
+                    base={{ cursor: 'pointer', font: `600 12.5px ${R}`, padding: '7px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent)', color: 'var(--nv-ink60)', opacity: item.busy ? 0.5 : 1 }}
+                    hoverStyle={{ background: 'rgba(255,255,255,.05)' }}
+                  >Discard</Interactive>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* proposed rules — Nova asks to change its own operating rules; you ratify */}
       {v.inboxProposals.map((p) => (
         <div key={p.key} className="nv-pane nv-focus" style={{ marginTop: '16px', padding: '16px 20px' }}>
@@ -314,37 +347,6 @@ export function Inbox({ v }) {
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* pending approvals */}
-      {v.inboxPending.length > 0 && (
-        <div style={{ marginTop: '24px' }}>
-          <div style={css(`font:500 9.5px ${M};letter-spacing:.22em;color:var(--nv-gold)`)}>WAITING FOR YOUR CALL · {v.inboxPending.length}</div>
-          <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:10px")}>
-            {v.inboxPending.map((item) => (
-              <div key={item.id} className="nv-pane" style={{ padding: '14px 18px' }}>
-                <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px")}>
-                  <RouteBadge route={item.route} confidence={item.confidence} />
-                  <span style={css(`font:400 9px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>{item.time} · {item.source}</span>
-                </div>
-                <div style={css(`margin-top:9px;font:600 15px ${R}`)}>{item.title}</div>
-                {item.preview && <div style={css(`margin-top:3px;font:500 13px/1.5 ${R};color:var(--nv-ink60);white-space:pre-wrap`)}>{item.preview}</div>}
-                {item.reason && <div style={css(`margin-top:6px;font:italic 400 13px ${S};color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`)}>{item.reason}</div>}
-                {item.error && <div style={css(`margin-top:6px;font:500 12px ${R};color:var(--nv-warn)`)}>{item.error}</div>}
-                <div style={css("margin-top:12px;display:flex;gap:10px")}>
-                  <Interactive as="span" onClick={item.busy ? undefined : item.approve}
-                    base={{ cursor: 'pointer', font: `600 12.5px ${R}`, padding: '7px 16px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1206', opacity: item.busy ? 0.5 : 1 }}
-                    hoverStyle={{ filter: 'brightness(1.1)' }}
-                  >{item.busy ? 'Working…' : 'Approve & file'}</Interactive>
-                  <Interactive as="span" onClick={item.busy ? undefined : item.discard}
-                    base={{ cursor: 'pointer', font: `600 12.5px ${R}`, padding: '7px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent)', color: 'var(--nv-ink60)', opacity: item.busy ? 0.5 : 1 }}
-                    hoverStyle={{ background: 'rgba(255,255,255,.05)' }}
-                  >Discard</Interactive>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       )}

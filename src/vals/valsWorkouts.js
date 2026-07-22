@@ -316,9 +316,10 @@ export function valsWorkouts(app, ctx) {
       };
     }),
 
-    historyRoutineName: historyRoutine ? historyRoutine.name : '',
+    historyRoutineName: historyRoutine ? historyRoutine.name : (st.workoutsView === 'history' && !st.historyRoutineId ? 'All sessions' : ''),
     historySessions,
     historyLoading: st.workoutsView === 'history' && st.liveWorkoutHistory === null,
     backFromWorkoutHistory: () => app.backFromWorkoutHistory(),
+    openAllSessions: () => app.openWorkoutHistory(null),
   };
 }

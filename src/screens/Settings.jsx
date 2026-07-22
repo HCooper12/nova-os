@@ -35,6 +35,7 @@ export function Settings({ v }) {
           id="settings-base-url"
           value={v.settingsBaseUrl}
           onChange={v.setSettingsBaseUrl}
+          autoCapitalize="none" autoCorrect="off" spellCheck={false} inputMode="url"
           placeholder="https://your-mac.tailxxxx.ts.net:4173"
           base="margin-top:8px;width:100%;box-sizing:border-box;background:rgba(0,0,0,.32);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font-size:13px;font-family:'IBM Plex Mono',monospace;outline:none"
           focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
@@ -47,6 +48,7 @@ export function Settings({ v }) {
           type="password"
           value={v.settingsToken}
           onChange={v.setSettingsToken}
+          autoCapitalize="none" autoCorrect="off" spellCheck={false}
           placeholder="printed in the server's terminal on first run"
           base="margin-top:8px;width:100%;box-sizing:border-box;background:rgba(0,0,0,.32);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font-size:13px;font-family:'IBM Plex Mono',monospace;outline:none"
           focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"

@@ -178,7 +178,10 @@ function RoutinesView({ v }) {
       )}
 
       <div style={css("margin-top:22px;display:flex;justify-content:space-between;align-items:baseline")}>
-        <span style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>ROUTINES</span>
+        <span style={css("display:flex;align-items:baseline;gap:12px")}>
+          <span style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>ROUTINES</span>
+          <Interactive as="span" onClick={v.openAllSessions} base="cursor:pointer;font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-cy)">ALL SESSIONS →</Interactive>
+        </span>
         {!v.routineCreating && (
           <Interactive as="span" onClick={v.startCreateRoutine} base="cursor:pointer;font:500 10.5px 'IBM Plex Mono',monospace;padding:8px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-gold) 35%, transparent);color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 06%, transparent)" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 14%, transparent)">+ New routine</Interactive>
         )}
@@ -376,11 +379,11 @@ function RoutineDetailView({ v }) {
                 {e.coachEvidence && <div style={css("margin-top:2px;font:400 10px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-cy) 60%, transparent)")}>Coach: {e.coachEvidence} — next session prefills the step up.</div>}
               </div>
               <div style={css("display:flex;align-items:center;gap:4px;font:400 10px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>
-                <input type="number" min="1" defaultValue={e.targetSets} onBlur={e.onTargetSetsBlur} style={numInputStyle} />
+                <input type="number" inputMode="numeric" min="1" defaultValue={e.targetSets} onBlur={e.onTargetSetsBlur} style={numInputStyle} />
                 <span>×</span>
-                <input type="number" min="1" defaultValue={e.targetRepsLow} onBlur={e.onTargetLowBlur} style={numInputStyle} />
+                <input type="number" inputMode="numeric" min="1" defaultValue={e.targetRepsLow} onBlur={e.onTargetLowBlur} style={numInputStyle} />
                 <span>–</span>
-                <input type="number" min="1" defaultValue={e.targetRepsHigh} onBlur={e.onTargetHighBlur} style={numInputStyle} />
+                <input type="number" inputMode="numeric" min="1" defaultValue={e.targetRepsHigh} onBlur={e.onTargetHighBlur} style={numInputStyle} />
                 <span>{e.targetUnit}</span>
               </div>
             </div>
@@ -437,16 +440,18 @@ function SessionView({ v }) {
               {e.sets.map((s, i) => (
                 <div key={i} style={css("display:flex;align-items:center;gap:10px")}>
                   <span style={{ width: '22px', font: "400 11px 'IBM Plex Mono',monospace", color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}>{i + 1}</span>
-                  {!e.isBodyweight && <input type="number" step="0.5" min="0" value={s.weight} onChange={s.onWeight} style={setInputStyle} />}
-                  <input type="number" min="0" value={s.reps} onChange={s.onReps} style={setInputStyle} />
+                  {/* gym-proof: number pad instead of the full keyboard, and the
+                      tick — the app's most-repeated tap — at a 40px target */}
+                  {!e.isBodyweight && <input type="number" inputMode="decimal" step="0.5" min="0" value={s.weight} onChange={s.onWeight} style={setInputStyle} />}
+                  <input type="number" inputMode="numeric" min="0" value={s.reps} onChange={s.onReps} style={setInputStyle} />
                   <Interactive
                     as="span"
                     onClick={s.onToggleDone}
-                    base={{ cursor: 'pointer', width: '22px', height: '22px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700,
+                    base={{ cursor: 'pointer', width: '40px', height: '40px', margin: '-6px 0', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 700,
                       border: s.done ? '1px solid var(--nv-cy)' : '1px solid color-mix(in srgb, var(--nv-ink) 25%, transparent)', background: s.done ? 'var(--nv-cy)' : 'transparent', color: '#0a2830' }}
                   >{s.done ? '✓' : ''}</Interactive>
                   {s.canRemove && (
-                    <Interactive as="span" onClick={s.onRemove} base="cursor:pointer;font-size:13px;color:color-mix(in srgb, var(--nv-ink) 25%, transparent);margin-left:4px" hoverStyle="color:var(--nv-warn)">×</Interactive>
+                    <Interactive as="span" onClick={s.onRemove} base="cursor:pointer;width:36px;height:36px;margin:-4px 0;display:flex;align-items:center;justify-content:center;font-size:16px;color:color-mix(in srgb, var(--nv-ink) 30%, transparent)" hoverStyle="color:var(--nv-warn)">×</Interactive>
                   )}
                 </div>
               ))}

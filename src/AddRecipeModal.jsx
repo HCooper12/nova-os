@@ -7,6 +7,7 @@ const macroField = (label, value, onChange) => (
     <Interactive
       as="input"
       type="number"
+      inputMode="numeric"
       min="0"
       value={value}
       onChange={onChange}

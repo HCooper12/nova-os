@@ -121,7 +121,7 @@ export function Money({ v }) {
             <div style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
               <input value={v.moneyAddMerchant} onChange={v.setMoneyAddMerchant} onKeyDown={v.moneyAddKey} placeholder="Merchant / description"
                 style={{ flex: '2 1 180px', minWidth: 0, background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: `500 12.5px ${R}`, padding: '9px 12px', outline: 'none' }} />
-              <input value={v.moneyAddAmount} onChange={v.setMoneyAddAmount} onKeyDown={v.moneyAddKey} placeholder="0.00" type="number" step="0.01" min="0"
+              <input value={v.moneyAddAmount} onChange={v.setMoneyAddAmount} onKeyDown={v.moneyAddKey} placeholder="0.00" type="number" inputMode="decimal" step="0.01" min="0"
                 style={{ flex: '0 1 110px', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: `500 12.5px ${M}`, padding: '9px 12px', outline: 'none' }} />
               <Interactive as="span" onClick={v.toggleMoneyAddSign}
                 base={{ cursor: 'pointer', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '8px 12px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent)', color: v.moneyAddIsSpend ? 'var(--nv-warn)' : 'var(--nv-good)' }}

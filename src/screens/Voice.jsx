@@ -34,7 +34,10 @@ export function Voice({ v }) {
     () => '', // each spoken question starts clean
     (text) => v.setOrbInputValue(text),
     () => { if (inputRef.current.trim()) sendRef.current(); }, // recognition end = ask
-    { continuous: false }, // one-shot: silence ends the take (works on iOS)
+    {
+      continuous: false, // one-shot: silence ends the take (works on iOS)
+      onError: (err) => v.dictationError(err),
+    },
   );
 
   const caption = dict.on ? 'LISTENING…'

@@ -446,9 +446,18 @@ export function valsMission(app, ctx) {
       ? (todayRoutine ? todayRoutine.name : todayActiveRest ? 'Active rest' : (liveRoutines.length ? 'No routine scheduled' : 'Build a routine in Train'))
       : demoMode ? 'Push day · week 6' : 'Not synced',
     workoutCardMeta: usingLiveWorkouts
-      ? (todayRoutine ? `${todayRoutine.exercises.length} exercise${todayRoutine.exercises.length === 1 ? '' : 's'} · tap to start` : todayActiveRest ? 'Walk or stretch — no weights today' : 'Plan your week in Train →')
+      ? (todayRoutine ? `${todayRoutine.exercises.length} exercise${todayRoutine.exercises.length === 1 ? '' : 's'} · tap to open Train` : todayActiveRest ? 'Walk or stretch — no weights today' : 'Plan your week in Train →')
       : demoMode ? '6 lifts · 42 min · bench PR watch' : 'reconnect to load your plan',
-    todayIsLive: !!st.liveCalendar,
+    todayIsLive: !!st.liveCalendar && !isOffline,
+    // day-scoped cache honesty: offline data from another DAY says which day it
+    // is — cached events rendering under "TODAY" as if fresh was a quiet lie
+    todayStaleLabel: (() => {
+      if (!isOffline || !st.liveCalendar || !st.lastSyncAt) return null;
+      const cacheDay = new Date(st.lastSyncAt).toDateString();
+      return cacheDay !== new Date().toDateString()
+        ? `FROM ${new Date(st.lastSyncAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).toUpperCase()} · OFFLINE`
+        : 'OFFLINE · LAST-KNOWN';
+    })(),
     // Three honest cases: live calendar events; connected but calendar not
     // set up (say so — never demo events); pure demo mode keeps the
     // fictional schedule (global demo banner marks it).

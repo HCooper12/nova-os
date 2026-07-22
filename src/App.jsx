@@ -88,6 +88,23 @@ function restoreActiveSession() {
   } catch { /* corrupt storage — start clean */ }
   return out;
 }
+// Chat transcripts survive an iOS tab reclaim — the conversation (and the UI
+// promise "CONTINUES ACROSS DAYS") used to live only in memory, so backgrounding
+// the app could eat the thread AND any in-flight answer's context.
+const CHATS_KEY = 'novaos.chats';
+const CHAT_KEEP = 40; // messages per chat — enough thread, bounded storage
+function restoreChats() {
+  try {
+    const d = JSON.parse(localStorage.getItem(CHATS_KEY) || 'null');
+    if (!d || Date.now() - (d.savedAt || 0) > SESSION_KEEP_MS) return {};
+    const out = {};
+    for (const k of ['voiceChat', 'coachChat', 'codeChat']) {
+      if (Array.isArray(d[k]) && d[k].length) out[k] = d[k];
+    }
+    return out;
+  } catch { return {}; }
+}
+
 // Composer drafts (capture box, journal entry) survive a reclaim/refresh the
 // same way the workout session does — typed thoughts are never disposable.
 const DRAFTS_KEY = 'novaos.drafts';
@@ -117,6 +134,9 @@ const CACHED_LIVE_KEYS = [
   'liveWorkoutExercises', 'liveWorkoutMuscleGroups', 'liveWorkoutTrackingTypes',
   'liveWorkoutRoutines', 'liveWorkoutSchedule', 'liveWorkoutWeekdays', 'liveWorkoutProgressions', 'liveWorkoutGoals', 'liveCarryovers',
   'liveJournalEntries', 'liveGraph', 'liveInbox', 'liveDispatch', 'liveCompost', 'liveTodoist', 'liveTodos', 'liveGuardian', 'liveMoney',
+  // fetched every sync anyway — excluding them just blanked flagship surfaces
+  // (About You, Daily Review card, learning panel) on every phone reload
+  'liveDailyReview', 'liveProfile', 'liveLearning',
 ];
 
 const INBOX_MODE_KEY = 'novaos.inboxMode';
@@ -127,6 +147,7 @@ export default class App extends Component {
     super(props);
     this.galaxyRef = createRef();
     this.paletteRef = createRef();
+    this.mainRef = createRef();
     this.ivs = [];
     this.pollers = {};
     this.recipes = recipes;
@@ -169,7 +190,7 @@ export default class App extends Component {
     codeChat: [],
     codeSessionId: null, codeWorkspace: 'repo', codeModel: 'sonnet',
     liveHealthInsight: null, liveHealthDays: null, liveStreaks: null,
-    stepsOverlayOpen: false, stepEditDate: null, stepEditValue: '', stepEditWeight: '',
+    stepsOverlayOpen: false, stepEditDate: null, stepEditValue: '', stepEditWeight: '', moneyRemoveConfirm: null,
     tabOrder: getTabOrder(),
     liveReviewSummaries: {},
     liveFoodLog: null, liveFoodHistory: null, foodHistoryOpen: false,
@@ -200,6 +221,7 @@ export default class App extends Component {
     // restored from device storage at boot (see restoreActiveSession)
     ...restoreActiveSession(),
     ...restoreDrafts(),
+    ...restoreChats(),
     liveMoney: null, moneyBusy: false, moneyScanBusy: false, moneyScanError: null, moneyScanQuestion: null,
     moneyAddMerchant: '', moneyAddAmount: '', moneyAddIsSpend: true, moneyEditCategoryId: null,
     sparBusy: false,
@@ -277,8 +299,21 @@ export default class App extends Component {
       setTimeout(() => this.toastMsg(this.state.workoutsView === 'session'
         ? 'Restored your in-progress workout — nothing was lost'
         : 'Your unsaved workout is waiting as a draft on Train — nothing was lost'), 1200);
+    } else if (getConnection()) {
+      // no local draft — check the server-side mirror (survives storage
+      // eviction and reinstalls; the localStorage copy alone proved lossy)
+      api.getSessionDraft(getConnection()).then(({ draft }) => {
+        if (!draft?.workoutSession || this.state.workoutSession) return;
+        this.setState({
+          workoutSession: draft.workoutSession,
+          editingSessionId: draft.editingSessionId || null,
+          workoutSessionSavedAt: draft.savedAt || null,
+        });
+        this.toastMsg('Recovered your workout draft from the server — nothing was lost');
+      }).catch(() => {});
     }
     this.checkPushState();
+    this.syncInboxMode(); // pull the system-wide autonomy mode from the server
     // load the device's free system voices for the voice picker (they arrive
     // async on iOS, so listen for the change too)
     const loadVoices = () => { try { this.setState({ speechVoices: window.speechSynthesis.getVoices() }); } catch { /* unsupported */ } };
@@ -331,7 +366,12 @@ export default class App extends Component {
   }
   // ---------- navigation (hash-routed) ----------
   navigate(screen, extra = {}) {
-    this.setState({ screen, ...extra });
+    const changed = this.state.screen !== screen;
+    this.setState({ screen, ...extra }, () => {
+      // one shared scroller — without a reset, Mission Control opens mid-page
+      // after scrolling Recipes
+      if (changed && this.mainRef?.current) this.mainRef.current.scrollTop = 0;
+    });
     const want = '#/' + screen;
     // pushState (not location.hash=) so this doesn't also fire hashchange and
     // double-set state; popstate covers the back button.
@@ -421,6 +461,18 @@ export default class App extends Component {
     if (this.state.screen === 'settings' && prevState.screen !== 'settings' && this.state.liveCalendarList == null && getConnection()) {
       this.loadCalendarList();
     }
+    // mirror chat transcripts (trimmed) — a reclaim must not eat the thread
+    if (prevState.voiceChat !== this.state.voiceChat || prevState.coachChat !== this.state.coachChat || prevState.codeChat !== this.state.codeChat) {
+      try {
+        const trim = (c) => (c || []).slice(-CHAT_KEEP);
+        const payload = { voiceChat: trim(this.state.voiceChat), coachChat: trim(this.state.coachChat), codeChat: trim(this.state.codeChat), savedAt: Date.now() };
+        if (payload.voiceChat.length || payload.coachChat.length || payload.codeChat.length) {
+          localStorage.setItem(CHATS_KEY, JSON.stringify(payload));
+        } else {
+          localStorage.removeItem(CHATS_KEY);
+        }
+      } catch { /* storage full — chats just won't persist */ }
+    }
     // mirror composer drafts — typed-but-unsubmitted text survives a refresh
     if (prevState.inboxInput !== this.state.inboxInput || prevState.journalComposerText !== this.state.journalComposerText) {
       try {
@@ -443,8 +495,20 @@ export default class App extends Component {
             savedAt,
           }));
           if (this.state.workoutSessionSavedAt !== savedAt) this.setState({ workoutSessionSavedAt: savedAt });
+          // second line of defense: mirror the draft to the SERVER (debounced) —
+          // survives storage eviction, reinstalls, and reconnect cycles
+          clearTimeout(this.draftUploadT);
+          this.draftUploadT = setTimeout(() => {
+            const conn = getConnection();
+            const s = this.state.workoutSession;
+            if (conn && s) api.saveSessionDraft(conn, { workoutSession: s, editingSessionId: this.state.editingSessionId }).catch(() => {});
+          }, 1500);
         } else {
           localStorage.removeItem(ACTIVE_SESSION_KEY);
+          // the session ended on purpose (finish/discard) — clear the server draft too
+          clearTimeout(this.draftUploadT);
+          const conn = getConnection();
+          if (conn) api.clearSessionDraft(conn).catch(() => {});
         }
       } catch { /* storage full/blocked — in-memory still works */ }
     }
@@ -509,10 +573,19 @@ export default class App extends Component {
       async () => this.setState({ liveLearning: await api.learning(conn) }),
       async () => this.setState({ liveDailyReview: await api.dailyReview(conn) }),
     ];
-    this.refreshInFlight = (async () => {
+    // Watchdog: per-request timeouts (api.js) make a hung pass near-impossible,
+    // but if one ever slips through, the flag self-clears so the NEXT sync can
+    // run — one bad pass must never freeze the pipeline forever again.
+    const watchdog = setTimeout(() => {
+      if (this.refreshInFlight === inFlight) this.refreshInFlight = null;
+    }, 120_000);
+    const inFlight = (async () => {
       const results = await Promise.allSettled(tasks.map((t) => t()));
       const okCount = results.filter((r) => r.status === 'fulfilled').length;
-      if (okCount > 0) {
+      // Honest chip: LIVE requires most slices actually syncing. One lucky
+      // fetch out of 24 used to keep the chip green while everything else
+      // (calendar included) silently failed.
+      if (okCount > results.length / 2) {
         const now = new Date().toISOString();
         this.setState({ connectionStatus: 'connected', lastSyncAt: now }, () => {
           const slices = {};
@@ -522,7 +595,8 @@ export default class App extends Component {
       } else {
         this.setState({ connectionStatus: 'offline' });
       }
-    })().finally(() => { this.refreshInFlight = null; });
+    })().finally(() => { clearTimeout(watchdog); if (this.refreshInFlight === inFlight) this.refreshInFlight = null; });
+    this.refreshInFlight = inFlight;
     return this.refreshInFlight;
   }
   refreshWorkoutRoutines() {
@@ -657,8 +731,8 @@ export default class App extends Component {
   }
   onBarcodeDetected(code) {
     const conn = getConnection();
+    if (!conn) { this.setState({ barcodeScannerOpen: false }); this.toastMsg('Connect a backend in Settings first'); return; }
     this.setState({ barcodeScannerOpen: false, foodScanBusy: true, foodScanError: null, foodScanQuestion: null });
-    if (!conn) return;
     api.lookupBarcode(conn, code).then((r) => {
       this.setState({
         foodScanBusy: false,
@@ -1263,12 +1337,16 @@ export default class App extends Component {
   }
   openWorkoutHistory(routineId) {
     const conn = getConnection();
-    this.setState({ workoutsView: 'history', historyRoutineId: routineId, liveWorkoutHistory: null });
+    this.setState({ workoutsView: 'history', historyRoutineId: routineId || null, liveWorkoutHistory: null });
     if (!conn) return;
-    api.workoutSessions(conn, { routineId }).then(({ sessions }) => this.setState({ liveWorkoutHistory: sessions })).catch(() => this.setState({ liveWorkoutHistory: [] }));
+    // no routineId → ALL sessions, which is the only way impromptu ('impromptu')
+    // and makeup ('carryover') sessions are visible/editable at all
+    api.workoutSessions(conn, routineId ? { routineId } : undefined)
+      .then(({ sessions }) => this.setState({ liveWorkoutHistory: sessions }))
+      .catch(() => this.setState({ liveWorkoutHistory: [] }));
   }
   backFromWorkoutHistory() {
-    this.setState({ workoutsView: 'routine' });
+    this.setState({ workoutsView: this.state.historyRoutineId ? 'routine' : 'routines' });
   }
   selectNote(id) {
     this.setState({ openNoteId: id });
@@ -1463,10 +1541,14 @@ export default class App extends Component {
       settingsBaseUrl: '', settingsToken: '', settingsTestStatus: 'idle', settingsTestMessage: '',
       liveNoteDetails: {}, liveReviewSummaries: {}, liveRecipePhotoUrls: {},
       rotationShowExtra: false, recipeAddOpen: false, openNoteId: 'n1',
-      workoutsView: 'routines', openRoutineId: null, workoutSession: null, liveWorkoutHistory: null,
+      // workoutSession deliberately NOT cleared: nulling it here made the
+      // mirror delete the draft — a reconnect cycle (the PWA's occasional
+      // "shows demo data, re-enter the token" glitch) silently destroyed an
+      // in-progress workout. A draft survives disconnects.
+      workoutsView: 'routines', openRoutineId: null, liveWorkoutHistory: null,
     });
     this.gNodes = null; // rebuild the galaxy from mock data
-    this.toastMsg('Disconnected — back to demo data');
+    this.toastMsg('Disconnected — back to demo data (your workout draft is kept)');
   }
 
   // ---------- transcript ingest ----------
@@ -1689,8 +1771,22 @@ export default class App extends Component {
     this.setState({ inboxInput: typeof value === 'string' ? value : value.target.value });
   }
   setInboxMode(mode) {
+    // system-wide trust ladder: the server copy is authoritative; localStorage
+    // stays as the offline fallback so the mode survives without a connection
     try { localStorage.setItem(INBOX_MODE_KEY, mode); } catch { /* best-effort */ }
     this.setState({ inboxMode: mode });
+    const conn = getConnection();
+    if (conn) api.setInboxConfigMode(conn, mode).catch(() => this.toastMsg('Mode saved on this device — server unreachable, will differ across devices until it syncs'));
+  }
+  syncInboxMode() {
+    const conn = getConnection();
+    if (!conn) return;
+    api.getInboxConfig(conn).then(({ mode }) => {
+      if (mode && mode !== this.state.inboxMode) {
+        this.setState({ inboxMode: mode });
+        try { localStorage.setItem(INBOX_MODE_KEY, mode); } catch { /* best-effort */ }
+      }
+    }).catch(() => {});
   }
   dismissInboxProposal(key) {
     const next = [...this.state.inboxProposalDismissed, key].slice(-20);
@@ -1766,6 +1862,14 @@ export default class App extends Component {
   removeMoneyTransaction(id) {
     const conn = getConnection();
     if (!conn) return;
+    // two-tap confirm — an ~11px ✕ with no confirm was a fat-finger delete
+    if (this.state.moneyRemoveConfirm !== id) {
+      this.setState({ moneyRemoveConfirm: id });
+      this.toastMsg('Tap ✕ again to remove this transaction');
+      setTimeout(() => { if (this.state.moneyRemoveConfirm === id) this.setState({ moneyRemoveConfirm: null }); }, 4000);
+      return;
+    }
+    this.setState({ moneyRemoveConfirm: null });
     api.moneyRemove(conn, id).then(() => this.refreshMoney(this.state.liveMoney?.month))
       .catch((e) => this.toastMsg('Could not remove: ' + e.message));
   }
@@ -2549,7 +2653,7 @@ export default class App extends Component {
 
         <div style={css("position:relative;display:flex;height:100vh;max-width:1560px;margin:0 auto")}>
           {v.showSidebar && <Sidebar v={v} />}
-          <main style={css("flex:1;overflow-y:auto;min-width:0;overscroll-behavior-y:contain")}>
+          <main ref={this.mainRef} style={css("flex:1;overflow-y:auto;min-width:0;overscroll-behavior-y:contain")}>
             {v.isMission && <MissionControl v={v} />}
             {v.isInbox && <Inbox v={v} />}
             {v.isVoice && <Voice v={v} />}

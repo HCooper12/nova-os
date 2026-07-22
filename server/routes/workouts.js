@@ -132,6 +132,34 @@ export function workoutsRouter(vaultPath) {
     }
   });
 
+  // In-progress session draft — the server-side copy of unsaved workout
+  // progress. PUT on every edit (debounced client-side), GET on boot when the
+  // device copy is missing, DELETE when the session finishes/discards.
+  router.put('/workouts/session-draft', async (req, res) => {
+    try {
+      const { saveSessionDraft } = await import('../lib/sessionDraft.js');
+      res.json(await saveSessionDraft(req.body || {}));
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+  router.get('/workouts/session-draft', async (req, res, next) => {
+    try {
+      const { getSessionDraft } = await import('../lib/sessionDraft.js');
+      res.json({ draft: await getSessionDraft() });
+    } catch (err) {
+      next(err);
+    }
+  });
+  router.delete('/workouts/session-draft', async (req, res, next) => {
+    try {
+      const { clearSessionDraft } = await import('../lib/sessionDraft.js');
+      res.json(await clearSessionDraft());
+    } catch (err) {
+      next(err);
+    }
+  });
+
   router.get('/workouts/carryovers', async (req, res, next) => {
     try {
       res.json({ carryovers: await listCarryovers() });

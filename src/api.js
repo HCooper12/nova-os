@@ -20,19 +20,30 @@ function baseOf(conn) {
   return conn.baseUrl.replace(/\/$/, '');
 }
 
-async function call(conn, path) {
+// Every request carries a timeout. Without one, a half-open TCP connection
+// (routine on phone↔Tailscale network transitions) is a fetch that NEVER
+// settles — and one of those used to freeze the whole sync pipeline forever
+// while the chip still said LIVE. Long-poll paths pass a bigger budget.
+const REQUEST_TIMEOUT_MS = 20_000;
+function reqSignal(ms = REQUEST_TIMEOUT_MS) {
+  try { return AbortSignal.timeout(ms); } catch { return undefined; } // older WebKit — degrade to no timeout
+}
+
+async function call(conn, path, { timeoutMs } = {}) {
   const res = await fetch(baseOf(conn) + path, {
     headers: { Authorization: `Bearer ${conn.token}` },
+    signal: reqSignal(timeoutMs),
   });
   if (!res.ok) throw new Error(`${path} failed: ${res.status}`);
   return res.json();
 }
 
-async function post(conn, path, body) {
+async function post(conn, path, body, { timeoutMs } = {}) {
   const res = await fetch(baseOf(conn) + path, {
     method: 'POST',
     headers: { Authorization: `Bearer ${conn.token}`, 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
+    signal: reqSignal(timeoutMs),
   });
   if (!res.ok) {
     const detail = await res.json().catch(() => null);
@@ -41,11 +52,12 @@ async function post(conn, path, body) {
   return res.json();
 }
 
-async function put(conn, path, body) {
+async function put(conn, path, body, { timeoutMs } = {}) {
   const res = await fetch(baseOf(conn) + path, {
     method: 'PUT',
     headers: { Authorization: `Bearer ${conn.token}`, 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
+    signal: reqSignal(timeoutMs),
   });
   if (!res.ok) {
     const detail = await res.json().catch(() => null);
@@ -54,10 +66,11 @@ async function put(conn, path, body) {
   return res.json();
 }
 
-async function del(conn, path) {
+async function del(conn, path, { timeoutMs } = {}) {
   const res = await fetch(baseOf(conn) + path, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${conn.token}` },
+    signal: reqSignal(timeoutMs),
   });
   if (!res.ok) {
     const detail = await res.json().catch(() => null);
@@ -90,12 +103,12 @@ export const api = {
   graph: (conn) => call(conn, '/api/graph'),
   recipes: (conn) => call(conn, '/api/recipes'),
   addRecipe: (conn, recipe) => post(conn, '/api/recipes', recipe),
-  scanRecipe: (conn, images) => post(conn, '/api/recipes/scan', { images }),
+  scanRecipe: (conn, images) => post(conn, '/api/recipes/scan', { images }, { timeoutMs: 90_000 }), // photo uploads over cellular need headroom
   scanRecipeJob: (conn, jobId) => call(conn, `/api/recipes/scan/${encodeURIComponent(jobId)}`),
   tweakRecipe: (conn, id, request) => post(conn, `/api/recipes/${encodeURIComponent(id)}/tweak`, { request }),
   tweakRecipeJob: (conn, jobId) => call(conn, `/api/recipes/tweak/${encodeURIComponent(jobId)}`),
   addAlternate: (conn, id, alt) => post(conn, `/api/recipes/${encodeURIComponent(id)}/alternates`, alt),
-  addRecipePhoto: (conn, id, imageDataUrl) => post(conn, `/api/recipes/${encodeURIComponent(id)}/photo`, { image: imageDataUrl }),
+  addRecipePhoto: (conn, id, imageDataUrl) => post(conn, `/api/recipes/${encodeURIComponent(id)}/photo`, { image: imageDataUrl }, { timeoutMs: 90_000 }),
   recipePhotoBlobUrl: async (conn, id) => {
     const res = await fetch(baseOf(conn) + `/api/recipes/${encodeURIComponent(id)}/photo`, {
       headers: { Authorization: `Bearer ${conn.token}` },
@@ -116,7 +129,7 @@ export const api = {
   foodHistory: (conn, days = 45) => call(conn, `/api/food-log/history?days=${days}`),
   addFoodLogEntry: (conn, entry) => post(conn, '/api/food-log', entry),
   deleteFoodLogEntry: (conn, id) => del(conn, `/api/food-log/${encodeURIComponent(id)}`),
-  startFoodScan: (conn, mode, images, note) => post(conn, '/api/food-log/scan', { mode, images, note }),
+  startFoodScan: (conn, mode, images, note) => post(conn, '/api/food-log/scan', { mode, images, note }, { timeoutMs: 90_000 }),
   foodScanJob: (conn, jobId) => call(conn, `/api/food-log/scan/${encodeURIComponent(jobId)}`),
   lookupBarcode: (conn, code) => call(conn, `/api/food-log/barcode/${encodeURIComponent(code)}`),
   addQuickRecipe: (conn, body) => post(conn, '/api/recipes/quick', body),
@@ -141,6 +154,11 @@ export const api = {
   quickSessionPrepare: (conn, plan) => post(conn, '/api/workouts/quick-session/prepare', { plan }),
   updateWorkoutSession: (conn, id, body) => put(conn, `/api/workouts/sessions/${encodeURIComponent(id)}`, body),
   deleteWorkoutSession: (conn, id) => del(conn, `/api/workouts/sessions/${encodeURIComponent(id)}`),
+  getInboxConfig: (conn) => call(conn, '/api/inbox-config'),
+  setInboxConfigMode: (conn, mode) => put(conn, '/api/inbox-config', { mode }),
+  saveSessionDraft: (conn, body) => put(conn, '/api/workouts/session-draft', body),
+  getSessionDraft: (conn) => call(conn, '/api/workouts/session-draft'),
+  clearSessionDraft: (conn) => del(conn, '/api/workouts/session-draft'),
   workoutCarryovers: (conn) => call(conn, '/api/workouts/carryovers'),
   addCarryover: (conn, body) => post(conn, '/api/workouts/carryovers', body),
   rescheduleCarryover: (conn, id, forDate) => post(conn, `/api/workouts/carryovers/${encodeURIComponent(id)}/reschedule`, { forDate }),
