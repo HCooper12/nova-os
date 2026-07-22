@@ -104,8 +104,10 @@ export function valsRecipes(app, ctx) {
   const effIngredients = activeAlt ? activeAlt.ingredients.map((name) => ({ qty: '', name })) : (liveOr ? liveOr.ingredients : []);
   const effMethod = activeAlt ? activeAlt.method : (liveOr ? liveOr.method : []);
 
-  // shared with valsMission (lunch card + protein gauge)
-  Object.assign(ctx, { usingLiveRecipes, rotation, profile, proteinTarget, proteinCurrent, proteinRatio, proteinGap, proteinNextSlot, proteinNextSlotFilled });
+  // shared with valsMission (protein gauge + the home BODY strip's fuel tile —
+  // same eaten-today truth as the Recipes EATEN TODAY strip)
+  Object.assign(ctx, { usingLiveRecipes, rotation, profile, proteinTarget, proteinCurrent, proteinRatio, proteinGap, proteinNextSlot, proteinNextSlotFilled,
+    kcalCurrent: rotConsumedTot.kcal + foodLogTot.kcal, targetKcal: profile ? profile.targetKcal : null });
 
   return {
     // recipes

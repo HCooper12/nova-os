@@ -25,6 +25,15 @@ export const HEALTH_METRICS = [
   'activeEnergyKcal', 'walkingRunningDistanceKm', 'vo2Max', 'weightKg',
 ];
 
+// Metrics where a literal 0 is physiologically impossible — when the Shortcut
+// finds no samples yet (a morning push before HRV/sleep exist), iOS sums an
+// empty list to 0 and sends it. Storing that 0 turns "no data" into a fake
+// measurement ("HRV 0 ms"), so ingestion treats it as absent. Deliberately
+// NOT steps/activeEnergy/distance: 0 of those at 00:05 is a real reading.
+export const IMPOSSIBLE_ZERO = new Set([
+  'restingHeartRate', 'hrv', 'sleepAsleepMinutes', 'sleepInBedMinutes', 'vo2Max', 'weightKg',
+]);
+
 function isValidDate(date) {
   return typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date);
 }
@@ -40,7 +49,10 @@ export async function saveDay(date, metrics) {
   const existing = existsSync(full) ? JSON.parse(await readFile(full, 'utf8')) : { date };
   const cleaned = {};
   for (const key of HEALTH_METRICS) {
-    if (metrics[key] != null && !Number.isNaN(Number(metrics[key]))) cleaned[key] = Number(metrics[key]);
+    if (metrics[key] == null || Number.isNaN(Number(metrics[key]))) continue;
+    const value = Number(metrics[key]);
+    if (value === 0 && IMPOSSIBLE_ZERO.has(key)) continue; // "no samples yet", not a reading
+    cleaned[key] = value;
   }
   const merged = { ...existing, ...cleaned, date, receivedAt: new Date().toISOString() };
   await writeFile(full, JSON.stringify(merged, null, 2), 'utf8');
@@ -52,7 +64,7 @@ export async function saveDay(date, metrics) {
 // arrived; delta only when two points exist. days must be oldest-first (the
 // loadRecentDays shape).
 export function computeWeightTrend(days) {
-  const withW = (days || []).filter((d) => d.weightKg != null && d.date);
+  const withW = (days || []).filter((d) => d.weightKg != null && d.weightKg !== 0 && d.date);
   if (!withW.length) return null;
   const latest = withW[withW.length - 1];
   const out = { latestKg: Math.round(latest.weightKg * 10) / 10, latestDate: latest.date, deltaKg: null, spanDays: null };

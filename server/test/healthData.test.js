@@ -36,6 +36,21 @@ test('saveDay keeps only known numeric metrics', async () => {
   assert.ok(!('restingHeartRate' in saved));
 });
 
+test('impossible zeros are "no samples yet", never a stored reading', async () => {
+  // a morning push before HRV/sleep exist — iOS sums an empty sample list to 0
+  const saved = await saveDay('2025-12-28', { steps: 0, hrv: 0, sleepAsleepMinutes: 0, weightKg: 0, restingHeartRate: 0 });
+  assert.equal(saved.steps, 0, '0 steps at 00:05 is a real reading and stays');
+  assert.ok(!('hrv' in saved), 'HRV 0 ms is not a measurement');
+  assert.ok(!('sleepAsleepMinutes' in saved));
+  assert.ok(!('weightKg' in saved));
+  assert.ok(!('restingHeartRate' in saved));
+
+  // a later 0 must never clobber a real value already stored for the day
+  await saveDay('2025-12-28', { hrv: 71.5 });
+  const after = await saveDay('2025-12-28', { hrv: 0 });
+  assert.equal(after.hrv, 71.5, 'the real reading survives a no-samples re-push');
+});
+
 test('a second save the same day merges instead of overwriting', async () => {
   await saveDay('2026-01-02', { steps: 5000 });
   const merged = await saveDay('2026-01-02', { hrv: 55 });

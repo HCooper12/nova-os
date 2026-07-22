@@ -2,11 +2,11 @@ import { AGENTS } from './shared.js';
 
 // Mission Control domain (Command Core layout): connection status chips and
 // banner, the hero (eyebrow / tagline / standfirst), the core cluster's three
-// satellites, suggested focus, Nova-noticed insights + streaks, today's
-// calendar with the ▸ next-block marker, the three vault cards, and the
-// boot-splash lines. Consumes ctx from valsRecipes (rotation, protein*),
-// valsWorkouts (todayRoutine, liveRoutines, usingLiveWorkouts) and valsNotes
-// (usingLiveNotes, reviewPage).
+// satellites, the BODY metrics strip (weight / HRV / resting HR / kcal),
+// suggested focus, Nova-noticed insights + streaks, today's calendar with the
+// ▸ next-block marker, the vault cards, and the boot-splash lines. Consumes
+// ctx from valsRecipes (protein* + kcal*), valsWorkouts (todayRoutine,
+// liveRoutines, usingLiveWorkouts) and valsNotes (usingLiveNotes, reviewPage).
 
 // Stable color per Apple Calendar name (Work, Health, Family, ...) so the same
 // category always reads the same hue without hand-maintaining a lookup table.
@@ -65,8 +65,8 @@ function groupByDay(events) {
 
 export function valsMission(app, ctx) {
   const st = app.state;
-  const { demoMode, isOffline, lastSyncLabel, go, usingLiveRecipes, rotation,
-    proteinTarget, proteinCurrent, proteinRatio, proteinGap, proteinNextSlot, proteinNextSlotFilled,
+  const { demoMode, isOffline, lastSyncLabel, go, usingLiveRecipes,
+    proteinTarget, proteinCurrent, proteinRatio, proteinGap, kcalCurrent, targetKcal,
     usingLiveWorkouts, liveRoutines, todayRoutine, todayActiveRest, usingLiveNotes, reviewPage } = ctx;
 
   // health satellites (steps, sleep) — real Apple Health data once the phone-side Shortcut is sending it
@@ -74,9 +74,14 @@ export function valsMission(app, ctx) {
   const SLEEP_GOAL_MIN = 480; // 8h
   const usingLiveHealthData = !!st.liveHealthDays;
   const todayKey = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
+  // 0 for these metrics is "no samples yet" from the Shortcut, never a real
+  // reading — the server drops them at ingest now, but offline last-known
+  // data cached before that fix can still carry zeros
+  const IMPOSSIBLE_ZERO = new Set(['restingHeartRate', 'hrv', 'sleepAsleepMinutes', 'weightKg']);
+  const hasMetric = (d, key) => d[key] != null && !(d[key] === 0 && IMPOSSIBLE_ZERO.has(key));
   const latestWithMetric = (key) => !usingLiveHealthData ? null
-    : st.liveHealthDays.find((d) => d.date === todayKey && d[key] != null)
-      || [...st.liveHealthDays].reverse().find((d) => d[key] != null)
+    : st.liveHealthDays.find((d) => d.date === todayKey && hasMetric(d, key))
+      || [...st.liveHealthDays].reverse().find((d) => hasMetric(d, key))
       || null;
 
   const stepsDay = latestWithMetric('steps');
@@ -90,7 +95,7 @@ export function valsMission(app, ctx) {
   const sleepMinutes = sleepDay ? sleepDay.sleepAsleepMinutes : 0;
   const sleepRatio = Math.min(1, sleepMinutes / SLEEP_GOAL_MIN);
   const hrvDay = latestWithMetric('hrv');
-  const hrvHistory = usingLiveHealthData ? st.liveHealthDays.filter((d) => d.hrv != null && d !== hrvDay) : [];
+  const hrvHistory = usingLiveHealthData ? st.liveHealthDays.filter((d) => hasMetric(d, 'hrv') && d !== hrvDay) : [];
   const hrvBaseline = hrvHistory.length ? hrvHistory.reduce((sum, d) => sum + d.hrv, 0) / hrvHistory.length : null;
   const hrvDeltaPct = hrvDay && hrvBaseline ? Math.round(((hrvDay.hrv - hrvBaseline) / hrvBaseline) * 100) : null;
   const rhrDay = latestWithMetric('restingHeartRate');
@@ -232,6 +237,54 @@ export function valsMission(app, ctx) {
           pct: Math.round(proteinRatio * 100),
           hint: proteinGap > 0 ? `${Math.round(proteinRatio * 100)}% · GAP ${proteinGap}G` : 'FLOOR CLEARED',
         };
+
+  // ---- BODY strip — weight / recovery / fuel in one glance ----------------
+  // Weight trend mirrors the server's computeWeightTrend semantics (latest
+  // reading vs the first one in the 14-day window) so Nova's agents and the
+  // home screen never tell two different stories from the same days.
+  const dayLabel = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).toUpperCase();
+  const weightDays = usingLiveHealthData ? st.liveHealthDays.filter((d) => d.date && hasMetric(d, 'weightKg')) : [];
+  const weightLatest = weightDays.length ? weightDays[weightDays.length - 1] : null;
+  const weightDelta = weightDays.length >= 2 ? Math.round((weightLatest.weightKg - weightDays[0].weightKg) * 10) / 10 : null;
+  const weightSpan = weightDays.length >= 2 ? Math.round((new Date(`${weightLatest.date}T12:00:00`) - new Date(`${weightDays[0].date}T12:00:00`)) / 86400000) : null;
+  // weigh-ins are naturally sparse — an older reading gets a quiet date, not
+  // the steps-style "PUSH NOT RUNNING" alarm
+  const weightDated = weightLatest && weightLatest.date !== todayKey ? dayLabel(weightLatest.date) : null;
+  const bodyMetrics = demoMode
+    ? [
+        { key: 'weight', label: 'WEIGHT', value: '78.2', small: 'KG', hint: '−0.4 KG / 14D', color: '--nv-gold' },
+        { key: 'hrv', label: 'HRV', value: '93.5', small: 'MS', hint: '+9% VS BASELINE', color: '--nv-cy' },
+        { key: 'rhr', label: 'RESTING HR', value: '51', small: 'BPM', hint: 'TODAY', color: '--nv-mg' },
+        { key: 'fuel', label: 'EATEN TODAY', value: '1,430', small: '/2600', hint: 'KCAL · 1,170 LEFT', color: '--nv-vi' },
+      ]
+    : [
+        weightLatest
+          ? {
+              key: 'weight', label: 'WEIGHT', value: (Math.round(weightLatest.weightKg * 10) / 10).toFixed(1), small: 'KG', color: '--nv-gold',
+              hint: [weightDelta == null ? 'FIRST READING' : `${weightDelta > 0 ? '+' : ''}${weightDelta} KG / ${weightSpan}D`, weightDated].filter(Boolean).join(' · '),
+              onOpen: () => app.setState({ stepsOverlayOpen: true }),
+            }
+          : {
+              key: 'weight', label: 'WEIGHT', value: '—', small: '', color: '--nv-gold',
+              hint: usingLiveHealthData ? 'TAP TO LOG · OR ADD TO SHORTCUT' : offlineHint,
+              onOpen: usingLiveHealthData ? () => app.setState({ stepsOverlayOpen: true }) : undefined,
+            },
+        hrvDay
+          ? { key: 'hrv', label: 'HRV', value: String(Math.round(hrvDay.hrv * 10) / 10), small: 'MS', color: '--nv-cy',
+              hint: staleHint(hrvDay) || (hrvDeltaPct != null ? `${hrvDeltaPct >= 0 ? '+' : ''}${hrvDeltaPct}% VS BASELINE` : 'BUILDING BASELINE') }
+          : { key: 'hrv', label: 'HRV', value: '—', small: '', color: '--nv-cy', hint: usingLiveHealthData ? 'NO HRV DATA YET' : offlineHint },
+        rhrDay
+          ? { key: 'rhr', label: 'RESTING HR', value: String(Math.round(rhrDay.restingHeartRate)), small: 'BPM', color: '--nv-mg',
+              hint: staleHint(rhrDay) || 'TODAY' }
+          : { key: 'rhr', label: 'RESTING HR', value: '—', small: '', color: '--nv-mg', hint: usingLiveHealthData ? 'NO RHR DATA YET' : offlineHint },
+        usingLiveRecipes
+          ? { key: 'fuel', label: 'EATEN TODAY', value: Math.round(kcalCurrent).toLocaleString(), small: targetKcal ? `/${targetKcal}` : 'KCAL', color: '--nv-vi',
+              hint: targetKcal
+                ? (kcalCurrent <= targetKcal ? `KCAL · ${Math.round(targetKcal - kcalCurrent).toLocaleString()} LEFT` : `KCAL · ${Math.round(kcalCurrent - targetKcal).toLocaleString()} OVER`)
+                : 'KCAL · NO TARGET SET',
+              onOpen: go('recipes') }
+          : { key: 'fuel', label: 'EATEN TODAY', value: '—', small: '', color: '--nv-vi', hint: 'RECONNECT TO LOAD', onOpen: go('recipes') },
+      ];
 
   const untilLabel = (time) => {
     const [h, m] = time.split(':').map(Number);
@@ -417,39 +470,8 @@ export function valsMission(app, ctx) {
           st.liveStreaks.sleepGoalStreak >= 2 ? { key: 'sleep', label: `${st.liveStreaks.sleepGoalStreak}-DAY SLEEP GOAL STREAK`, hue: '89,230,255' } : null,
         ].filter(Boolean)
       : [],
-    lunchCardK: usingLiveRecipes
-      ? (rotation?.slots?.lunch ? (rotation.slots.lunch.consumed ? 'LUNCH · CONSUMED' : 'LUNCH · PLANNED') : 'LUNCH · NOT SET')
-      : demoMode ? 'LUNCH · 12:30' : 'LUNCH · OFFLINE',
-    lunchCardLabel: usingLiveRecipes
-      ? (rotation?.slots?.lunch ? rotation.slots.lunch.name : 'Not set')
-      : demoMode ? 'Burrito bowl' : 'Not synced',
-    lunchCardMacros: usingLiveRecipes
-      ? (rotation?.slots?.lunch
-          ? `${Math.round(rotation.slots.lunch.macros.p)}P · ${Math.round(rotation.slots.lunch.macros.c)}C · ${Math.round(rotation.slots.lunch.macros.f)}F · ${Math.round(rotation.slots.lunch.macros.kcal)} kcal`
-          : 'Pick a lunch in Recipes →')
-      : demoMode ? '52P · 68C · 18F · 640 kcal' : 'reconnect to load your rotation',
-    // meaningful + live: names the next unconsumed meal that would close the
-    // protein gap — changes as meals get marked eaten through the day
-    proteinGaugeHint: usingLiveRecipes
-      ? (proteinTarget == null
-          ? 'no protein floor set — add the Profile line in your recipe file'
-          : proteinCurrent >= proteinTarget
-            ? `${Math.round(proteinCurrent - proteinTarget)}g clear of your ${proteinTarget}g floor`
-            : proteinNextSlot
-              ? (proteinNextSlotFilled
-                  ? `eat ${proteinNextSlotFilled.name.toLowerCase()} to close the ${proteinGap}g gap`
-                  : `add a recipe to ${proteinNextSlot.name.toLowerCase()} to close the ${proteinGap}g gap`)
-              : `${proteinGap}g under floor — all meals already eaten`)
-      : 'burrito bowl closes the gap',
-    openLunch: () => {
-      if (usingLiveRecipes) {
-        const lunch = rotation?.slots?.lunch;
-        if (lunch) { app.navigate('recipes'); app.openRecipe(lunch.id); }
-        else app.navigate('recipes');
-      } else {
-        app.navigate('recipes', { openRecipeId: 'r1', servings: 1, recipeChat: [] });
-      }
-    },
+    bodyMetrics,
+    bodyMetricsMeta: demoMode ? 'DEMO DATA' : 'APPLE HEALTH · FOOD LOG',
     workoutCardK: usingLiveWorkouts
       ? (todayRoutine ? 'TRAIN · TODAY' : todayActiveRest ? 'TRAIN · ACTIVE REST' : 'TRAIN · REST DAY')
       : demoMode ? 'TRAIN · 17:30' : 'TRAIN · OFFLINE',
@@ -535,7 +557,7 @@ export function valsMission(app, ctx) {
         setEditWeight: (e) => app.setState({ stepEditWeight: e.target.value }),
         // the latest known bodyweight, honestly dated — the nutrition loop-closer
         latestWeight: (() => {
-          const w = [...(st.liveHealthDays || [])].reverse().find((d) => d.weightKg != null);
+          const w = [...(st.liveHealthDays || [])].reverse().find((d) => hasMetric(d, 'weightKg'));
           return w ? { kg: w.weightKg, date: w.date } : null;
         })(),
         saveEdit: () => app.saveStepEdit(),

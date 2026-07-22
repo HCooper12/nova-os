@@ -7,8 +7,9 @@ import { CalendarView } from '../CalendarView.jsx';
 import { FocusChip } from '../FocusChip.jsx';
 
 // Command Core (design 45): hero with eyebrow/tagline/standfirst beside the
-// living Nova core + three conic-progress satellites, then Suggested Focus /
-// Today / Daily Review, the wide "Nova noticed" pane, and three vault cards.
+// living Nova core + three conic-progress satellites, the BODY metrics strip
+// (weight / HRV / resting HR / kcal eaten), then Suggested Focus / Today /
+// Daily Review, the wide "Nova noticed" pane, and the vault cards.
 // Everything renders from the view-model — same live-data truth as before.
 
 const M = "'IBM Plex Mono',monospace";
@@ -75,7 +76,7 @@ export function MissionControl({ v }) {
     ? { display: 'flex', flexDirection: 'column', gap: '4px', padding: '10px 0 18px' }
     : { display: 'grid', gridTemplateColumns: '1.15fr 1fr', gap: '26px', padding: '14px 4px 26px', alignItems: 'center' };
   const rowA = mob ? { display: 'flex', flexDirection: 'column', gap: '12px' } : { display: 'grid', gridTemplateColumns: '1.08fr .8fr .8fr', gap: '16px' };
-  const cardsGrid = mob ? { display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' } : { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '18px', marginTop: '18px' };
+  const cardsGrid = mob ? { display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' } : { display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: '18px', marginTop: '18px' };
 
   return (
     <div style={v.wrapMission} data-screen-label="Mission Control">
@@ -117,6 +118,26 @@ export function MissionControl({ v }) {
           </div>
         </div>
         <Cluster v={v} />
+      </section>
+
+      <section style={{ marginBottom: mob ? '12px' : '18px' }}>
+        <div className="nv-pane" style={{ padding: '16px 24px 18px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', marginBottom: '4px' }}>
+            <span style={{ font: `700 19px ${R}`, letterSpacing: '.16em' }}>BODY</span>
+            <span style={phMeta}>{v.bodyMetricsMeta}</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: mob ? '1fr 1fr' : 'repeat(4,1fr)', gap: mob ? '14px 12px' : '16px' }}>
+            {v.bodyMetrics.map((m) => (
+              <Interactive key={m.key} onClick={m.onOpen} base={{ cursor: m.onOpen ? 'pointer' : 'default', borderRadius: '8px', padding: '6px 2px 2px' }} hoverStyle={m.onOpen ? { background: 'rgba(255,255,255,.04)' } : {}}>
+                <div style={{ font: `500 8px ${M}`, letterSpacing: '.22em', color: 'var(--nv-ink60)' }}>{m.label}</div>
+                <div style={{ font: `700 24px ${R}`, marginTop: '2px', fontVariantNumeric: 'tabular-nums', color: `var(${m.color})` }}>
+                  {m.value}{m.small ? <small style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--nv-ink40)', marginLeft: '2px' }}>{m.small}</small> : null}
+                </div>
+                <div style={{ font: `400 8px ${M}`, marginTop: '1px', letterSpacing: '.04em', color: 'var(--nv-ink40)' }}>{m.hint}</div>
+              </Interactive>
+            ))}
+          </div>
+        </div>
       </section>
 
       <section style={rowA}>
@@ -244,11 +265,6 @@ export function MissionControl({ v }) {
       </section>
 
       <section style={cardsGrid}>
-        <Interactive className="nv-pane" onClick={v.openLunch} base={{ padding: '14px 20px', borderRadius: '8px', cursor: 'pointer' }} hoverStyle={{ boxShadow: '0 0 28px -10px rgba(224,178,106,.6)' }}>
-          <div style={{ font: `500 8.5px ${M}`, letterSpacing: '.24em', color: 'var(--nv-gold)' }}>{v.lunchCardK}</div>
-          <div style={{ font: `700 20px ${R}`, letterSpacing: '.04em', marginTop: '5px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.lunchCardLabel}</div>
-          <div style={{ font: `500 12.5px ${R}`, color: 'var(--nv-ink60)', marginTop: '2px' }}>{v.lunchCardMacros}</div>
-        </Interactive>
         <Interactive className="nv-pane" onClick={v.goWorkouts} base={{ padding: '14px 20px', borderRadius: '8px', cursor: 'pointer' }} hoverStyle={{ boxShadow: '0 0 28px -10px rgba(89,230,255,.6)' }}>
           <div style={{ font: `500 8.5px ${M}`, letterSpacing: '.24em', color: 'var(--nv-cy)' }}>{v.workoutCardK}</div>
           <div style={{ font: `700 20px ${R}`, letterSpacing: '.04em', marginTop: '5px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.workoutCardLabel}</div>
