@@ -4,6 +4,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import matter from 'gray-matter';
 import { createWriteLock } from './vaultStateFile.js';
+import { backupFile } from './backup.js';
 import { updateExerciseState, replaceExerciseState } from './exerciseState.js';
 
 const SESSIONS_DIR_REL = 'Wiki/Health/Workouts';
@@ -101,6 +102,7 @@ export async function updateSession(vaultPath, sessionId, input) {
     const updated = { ...existing, exercises };
     delete updated.file;
     const full = path.join(vaultPath, SESSIONS_DIR_REL, existing.file);
+    await backupFile(full); // a session rewrite without a snapshot was the one vault write with no net
     await writeFile(full, matter.stringify(bodyFor(updated), updated), 'utf8');
     cachedSessions = sessions.map((s) => (s.id === sessionId ? { ...updated, file: existing.file } : s));
     lastWriteAt = Date.now();
@@ -115,7 +117,9 @@ export async function deleteSession(vaultPath, sessionId) {
     const sessions = await getSessions(vaultPath);
     const existing = sessions.find((s) => s.id === sessionId);
     if (!existing) throw new Error('session not found');
-    await unlink(path.join(vaultPath, SESSIONS_DIR_REL, existing.file));
+    const full = path.join(vaultPath, SESSIONS_DIR_REL, existing.file);
+    await backupFile(full); // snapshot before the unlink — deletes must be recoverable
+    await unlink(full);
     cachedSessions = sessions.filter((s) => s.id !== sessionId);
     lastWriteAt = Date.now();
     knownDirMtimeMs = await dirMtime(vaultPath);

@@ -7,14 +7,35 @@ import { fileURLToPath } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CACHE_DIR = path.join(__dirname, '..', 'data', 'summaries');
+// honors NOVA_DATA_DIR (it was one of two hard-coded paths that leaked test
+// writes into the real data dir)
+const CACHE_DIR = () => path.join(process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data'), 'summaries');
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const MAX_BUDGET_USD = '0.15';
 const jobs = new Map();
 
 function cacheFile(noteId) {
   const hash = createHash('sha1').update(noteId).digest('hex').slice(0, 16);
-  return path.join(CACHE_DIR, `${hash}.json`);
+  return path.join(CACHE_DIR(), `${hash}.json`);
+}
+
+// GC: summaries are keyed by note-id hash, so a deleted note's cache file was
+// orphaned forever. Prune anything untouched for 60 days (a live note's cache
+// gets rewritten whenever its content changes). Called once at server start.
+export async function pruneStaleSummaries({ maxAgeDays = 60 } = {}) {
+  const dir = CACHE_DIR();
+  if (!existsSync(dir)) return { pruned: 0 };
+  const { readdir, stat, unlink } = await import('node:fs/promises');
+  const cutoff = Date.now() - maxAgeDays * 24 * 3600_000;
+  let pruned = 0;
+  for (const f of await readdir(dir)) {
+    if (!f.endsWith('.json')) continue;
+    try {
+      const full = path.join(dir, f);
+      if ((await stat(full)).mtimeMs < cutoff) { await unlink(full); pruned++; }
+    } catch { /* best-effort */ }
+  }
+  return { pruned };
 }
 function contentHash(text) {
   return createHash('sha1').update(text).digest('hex');
@@ -72,7 +93,7 @@ export function startSummaryJob(noteId, title, bodyText) {
       const parsed = JSON.parse(jsonMatch[0]);
       const summary = String(parsed.summary || '').trim();
       if (!summary) throw new Error('Empty summary in response');
-      await mkdir(CACHE_DIR, { recursive: true });
+      await mkdir(CACHE_DIR(), { recursive: true });
       await writeFile(cacheFile(noteId), JSON.stringify({ summary, sourceHash: contentHash(bodyText), generatedAt: new Date().toISOString() }), 'utf8');
       job.result = { summary };
       job.status = 'ready';

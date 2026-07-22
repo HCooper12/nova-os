@@ -16,7 +16,9 @@ import { NOVA_LENS } from './lens.js';
 import { profileContext } from './profile.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const INSIGHT_FILE = path.join(__dirname, '..', 'data', 'health', 'insight.json');
+// honors NOVA_DATA_DIR like every sibling store — it was the one hard-coded
+// path (tests with the env override still wrote the REAL data dir)
+const INSIGHT_FILE = () => path.join(process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data'), 'health', 'insight.json');
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const MAX_BUDGET_USD = '0.5';
 
@@ -205,8 +207,8 @@ let cachedInsight = null;
 
 async function loadCachedInsight() {
   if (cachedInsight !== null) return cachedInsight;
-  if (existsSync(INSIGHT_FILE)) {
-    const raw = JSON.parse(await readFile(INSIGHT_FILE, 'utf8'));
+  if (existsSync(INSIGHT_FILE())) {
+    const raw = JSON.parse(await readFile(INSIGHT_FILE(), 'utf8'));
     if (raw.morning || raw.evening) {
       cachedInsight = { morning: raw.morning || { ...EMPTY_SLOT }, evening: raw.evening || { ...EMPTY_SLOT } };
     } else if (raw.date !== undefined) {
@@ -240,8 +242,8 @@ async function generateAndStore(vaultPath, slot) {
   };
   const cached = await loadCachedInsight();
   const updated = { ...cached, [slot]: record };
-  await mkdir(path.dirname(INSIGHT_FILE), { recursive: true });
-  await writeFile(INSIGHT_FILE, JSON.stringify(updated, null, 2), 'utf8');
+  await mkdir(path.dirname(INSIGHT_FILE()), { recursive: true });
+  await writeFile(INSIGHT_FILE(), JSON.stringify(updated, null, 2), 'utf8');
   cachedInsight = updated;
   return updated;
 }
@@ -269,6 +271,11 @@ async function checkAndGenerate(vaultPath) {
 }
 
 export function startHealthInsightScheduler(vaultPath) {
-  checkAndGenerate(vaultPath);
-  setInterval(() => checkAndGenerate(vaultPath), 60 * 60 * 1000);
+  const tick = async () => {
+    const { beat } = await import('./heartbeat.js');
+    beat('healthinsight'); // joins the watch-the-watcher net
+    checkAndGenerate(vaultPath);
+  };
+  tick();
+  setInterval(tick, 60 * 60 * 1000);
 }

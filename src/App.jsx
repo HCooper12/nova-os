@@ -195,7 +195,7 @@ export default class App extends Component {
     liveReviewSummaries: {},
     liveFoodLog: null, liveFoodHistory: null, foodHistoryOpen: false,
     foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogBusy: false, foodLogError: null,
-    foodScanNote: '', foodScanPhotos: [], foodScanBusy: false, foodScanError: null, foodScanQuestion: null,
+    foodScanNote: '', foodScanPhotos: [], foodScanBusy: false, foodScanError: null, foodScanQuestion: null, foodLogFillSource: null,
     barcodeScannerOpen: false,
     noteQuery: '', noteType: 'All', openNoteId: 'n1',
     galaxySel: null, toast: null, reviewIdx: 0,
@@ -632,8 +632,8 @@ export default class App extends Component {
     const macros = { p: Number(this.state.foodLogP) || 0, c: Number(this.state.foodLogC) || 0, f: Number(this.state.foodLogF) || 0, kcal: Number(this.state.foodLogKcal) || 0 };
     if (!conn || !name) return;
     this.setState({ foodLogBusy: true, foodLogError: null });
-    api.addFoodLogEntry(conn, { name, macros, source: 'manual' }).then((day) => {
-      this.setState({ liveFoodLog: day, foodLogBusy: false, foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '' });
+    api.addFoodLogEntry(conn, { name, macros, source: this.state.foodLogFillSource || 'manual' }).then((day) => {
+      this.setState({ liveFoodLog: day, foodLogBusy: false, foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogFillSource: null });
       if (this.state.foodHistoryOpen) this.loadFoodHistory();
     }).catch((e) => this.setState({ foodLogBusy: false, foodLogError: e.message }));
   }
@@ -678,6 +678,7 @@ export default class App extends Component {
             this.setState({
               foodScanBusy: false, foodScanError: null,
               foodScanPhotos: [], foodScanNote: '',
+              foodLogFillSource: 'scan', // provenance survives to the log entry
               foodScanQuestion: r.confidence === 'low' && r.question ? r.question : null,
               foodLogName: r.name || '',
               foodLogP: r.macros?.p != null ? String(r.macros.p) : '',
@@ -736,6 +737,7 @@ export default class App extends Component {
     api.lookupBarcode(conn, code).then((r) => {
       this.setState({
         foodScanBusy: false,
+        foodLogFillSource: 'barcode',
         foodLogName: r.name || '',
         foodLogP: r.macros?.p != null ? String(r.macros.p) : '',
         foodLogC: r.macros?.c != null ? String(r.macros.c) : '',

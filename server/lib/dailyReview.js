@@ -237,6 +237,13 @@ function startReviewJob(vaultPath, context, mode, recordId, now) {
       if (mode === 'auto') {
         const { destination, undo } = await fileDecision(vaultPath, decision);
         await updateRecord(recordId, { status: 'filed', destination, undoData: undo, filedAt: new Date().toISOString(), auto: true, decision });
+        // auto mode skips 'pending', so the normal push never fires — but the
+        // flagship read of the day landing silently defeats its purpose
+        import('./push.js').then(({ sendPush }) => sendPush({
+          title: 'Daily Review — Nova',
+          body: decision.title || 'Today\'s review is in your journal.',
+          tag: `record-${recordId}`,
+        })).catch(() => {});
       } else {
         await updateRecord(recordId, { status: 'pending', decision });
       }

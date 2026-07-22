@@ -238,21 +238,26 @@ export async function acceptProposal(vaultPath, id) {
       destination = `Archived — ${p.title}`;
       undoData = { route: 'note-move', from: p.data.relPath, to: toRel };
     } else if (p.type === 'sweep-todos') {
-      const full = path.join(vaultPath, p.data.relPath);
-      if (!existsSync(full)) throw new Error('the To-Do file no longer exists');
-      await backupFile(full);
-      let raw = await readFile(full, 'utf8');
-      const removed = [];
-      for (const line of p.data.lines) {
-        const idx = raw.indexOf(line);
-        if (idx === -1) continue;
-        raw = raw.slice(0, idx) + raw.slice(idx + line.length).replace(/^\n/, '');
-        removed.push(line);
-      }
-      if (!removed.length) throw new Error('those lines have changed since the scan — re-run the loop');
-      await writeFile(full, raw, 'utf8');
-      destination = `Swept ${removed.length} completed to-do${removed.length === 1 ? '' : 's'}`;
-      undoData = { route: 'todo-restore', relPath: p.data.relPath, lines: removed };
+      // shares the todoLine write lock with every other writer of this page
+      const { withTodoLock } = await import('./todoLine.js');
+      const swept = await withTodoLock(async () => {
+        const full = path.join(vaultPath, p.data.relPath);
+        if (!existsSync(full)) throw new Error('the To-Do file no longer exists');
+        await backupFile(full);
+        let raw = await readFile(full, 'utf8');
+        const removed = [];
+        for (const line of p.data.lines) {
+          const idx = raw.indexOf(line);
+          if (idx === -1) continue;
+          raw = raw.slice(0, idx) + raw.slice(idx + line.length).replace(/^\n/, '');
+          removed.push(line);
+        }
+        if (!removed.length) throw new Error('those lines have changed since the scan — re-run the loop');
+        await writeFile(full, raw, 'utf8');
+        return removed;
+      });
+      destination = `Swept ${swept.length} completed to-do${swept.length === 1 ? '' : 's'}`;
+      undoData = { route: 'todo-restore', relPath: p.data.relPath, lines: swept };
     } else {
       throw new Error('this proposal is informational — open it or dismiss it');
     }

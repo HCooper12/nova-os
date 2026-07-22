@@ -17,7 +17,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
 const STATE_PATH = () => path.join(dataRoot(), 'guardian.json');
 
-const STORE_FILES = ['inbox.json', 'dispatch.json', 'compost.json', 'todoist-sync.json'];
+// Every root-level JSON store — the check claimed "all stores parse clean"
+// while reading only 4 of ~13. Absent files are skipped (stores appear on
+// first use), so listing generously is safe.
+const STORE_FILES = [
+  'inbox.json', 'dispatch.json', 'compost.json', 'todoist-sync.json',
+  'guardian.json', 'push.json', 'push-keys.json', 'calendar-prefs.json',
+  'workout-carryovers.json', 'daily-review.json', 'heartbeat.json',
+  'inbox-config.json', 'session-draft.json',
+];
 const SKIP_DIRS = new Set(['.obsidian', '.git', 'node_modules', '.trash']);
 
 function pad(n) {
@@ -149,7 +157,7 @@ async function checkStores() {
 // The loops themselves: every scheduler stamps data/heartbeat.json on each
 // tick; a stamp far past its cadence means a loop silently stalled — the
 // failure class nothing else would surface.
-const LOOP_CADENCE_HOURS = { dispatch: 2, todoist: 2, compost: 26, guardian: 26, money: 2, mealprep: 3, review: 2, 'food-suggest': 2, 'training-check': 2 };
+const LOOP_CADENCE_HOURS = { dispatch: 2, todoist: 2, compost: 26, guardian: 26, money: 2, mealprep: 3, review: 2, 'food-suggest': 2, 'training-check': 2, cfo: 13, healthinsight: 2 };
 
 async function checkLoops() {
   const beats = await readHeartbeats();
@@ -300,9 +308,11 @@ export async function restoreBackup(vaultPath, backupRel) {
       reason: 'Guardian time-machine restore — the pre-restore state was snapshotted first.',
       payload: { text: `Restored ${originalRel} from snapshot ${path.basename(backupRel)}.`, category: 'system', label: 'Guardian restore' },
     },
+    // restoring a file that didn't exist is undone by deleting it again —
+    // undoData:null here was the ONE write on the rails with no undo
     undoData: priorSnapshot
       ? { route: 'restore', relPath: originalRel, priorBackupRel: path.relative(vaultPath, priorSnapshot) }
-      : null,
+      : { route: 'restore-created', relPath: originalRel },
   });
   return { record, file: originalRel };
 }

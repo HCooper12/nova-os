@@ -146,6 +146,13 @@ export async function scanImports(vaultPath) {
         error: e.message,
         decision: { route: 'money-import', confidence: 'low', title: `Import failed — ${file}`, reason: e.message, payload: { file, transactions: [] } },
       }));
+      // born-error skips 'pending' so the normal push never fires — but a CSV
+      // that won't parse is worth exactly one notification (deduped per file)
+      import('./push.js').then(({ sendPush }) => sendPush({
+        title: 'Ledger import failed — Nova',
+        body: `${file}: ${e.message}`.slice(0, 140),
+        tag: `import-fail-${file}`,
+      })).catch(() => {});
       continue;
     }
 

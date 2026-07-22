@@ -130,25 +130,35 @@ export async function addEntry(vaultPath, entry) {
     const content = matter.stringify(bodyFor(date, sections), frontmatter);
     await writeFile(full, content, 'utf8');
 
-    // Bookkeeping — keep index.md and log.md in sync per the vault's own schema.
-    const indexFull = path.join(vaultPath, INDEX_REL_PATH);
-    if (existsSync(indexFull)) {
-      const indexRaw = await readFile(indexFull, 'utf8');
-      const latest = entryPreview(text);
-      const summaryLine = `- [[${date}]] — ${sections.length} ${sections.length === 1 ? 'entry' : 'entries'}, latest: ${latest} (updated ${date})`;
-      const updatedIndex = upsertIndexBullet(indexRaw, 'Journal', date, summaryLine);
-      await writeFile(indexFull, updatedIndex, 'utf8');
-    }
-    const logFull = path.join(vaultPath, LOG_REL_PATH);
-    if (existsSync(logFull)) {
-      const logRaw = await readFile(logFull, 'utf8');
-      const updatedLog = appendLogEntry(logRaw, {
-        date,
-        summary: `Nova journal entry — [[${date}]]`,
-        notes: entry.linkedTitle ? `Reflection linked to [[${entry.linkedTitle}]], written via Nova.` : 'Standalone entry written via Nova.',
-      });
-      await writeFile(logFull, updatedLog, 'utf8');
-    }
+    // Bookkeeping — keep index.md and log.md in sync per the vault's own
+    // schema. Best-effort and BACKED UP: the journal entry itself has already
+    // landed, so a mangled index heading must degrade to skipped bookkeeping,
+    // never surface as a failed filing (an unguarded throw here once reported
+    // an error AFTER the entry was written).
+    try {
+      const indexFull = path.join(vaultPath, INDEX_REL_PATH);
+      if (existsSync(indexFull)) {
+        const indexRaw = await readFile(indexFull, 'utf8');
+        const latest = entryPreview(text);
+        const summaryLine = `- [[${date}]] — ${sections.length} ${sections.length === 1 ? 'entry' : 'entries'}, latest: ${latest} (updated ${date})`;
+        const updatedIndex = upsertIndexBullet(indexRaw, 'Journal', date, summaryLine);
+        await backupFile(indexFull);
+        await writeFile(indexFull, updatedIndex, 'utf8');
+      }
+    } catch { /* index section missing/renamed — skip bookkeeping */ }
+    try {
+      const logFull = path.join(vaultPath, LOG_REL_PATH);
+      if (existsSync(logFull)) {
+        const logRaw = await readFile(logFull, 'utf8');
+        const updatedLog = appendLogEntry(logRaw, {
+          date,
+          summary: `Nova journal entry — [[${date}]]`,
+          notes: entry.linkedTitle ? `Reflection linked to [[${entry.linkedTitle}]], written via Nova.` : 'Standalone entry written via Nova.',
+        });
+        await backupFile(logFull);
+        await writeFile(logFull, updatedLog, 'utf8');
+      }
+    } catch { /* log bookkeeping is best-effort */ }
 
     return { date, time, text, category, linkedTitle: entry.linkedTitle || null };
   });
@@ -184,7 +194,9 @@ export async function removeEntry(vaultPath, { date, time, text }) {
       const latest = entryPreview(sections[sections.length - 1].text);
       const summaryLine = `- [[${date}]] — ${sections.length} ${sections.length === 1 ? 'entry' : 'entries'}, latest: ${latest} (updated ${date})`;
       try {
-        await writeFile(indexFull, upsertIndexBullet(indexRaw, 'Journal', date, summaryLine), 'utf8');
+        const updated = upsertIndexBullet(indexRaw, 'Journal', date, summaryLine);
+        await backupFile(indexFull);
+        await writeFile(indexFull, updated, 'utf8');
       } catch {
         /* index section missing — skip bookkeeping */
       }

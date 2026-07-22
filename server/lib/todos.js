@@ -15,12 +15,10 @@ function notifyChange() {
 // safe read/write API over that page for the To-Do screen; every write
 // snapshots first and nudges the Todoist reconcile after.
 
-export const TODO_REL = 'Wiki/Inbox/To-Do.md';
-// Optional trailing #tag is the category — an Obsidian-native marker shared
-// by every writer of this page AND mirrored to Todoist as a label.
-const LINE_RE = /^- \[( |x)\] (.*?)(?:\s*_\(added ([^)]*)\)_)?(?:\s*#([a-z-]+))?\s*$/;
-
-export const TODO_CATEGORIES = ['personal', 'work', 'fitness', 'errands', 'later'];
+// Line format, categories, and the shared write lock live in todoLine.js —
+// the ONE contract for this page's four writers. Re-exported for callers.
+import { TODO_REL, TODO_CATEGORIES, parseTodoLine, formatTodoLine, flipTodoLine, withTodoLock } from './todoLine.js';
+export { TODO_REL, TODO_CATEGORIES };
 export const TODO_CATEGORY_LABELS = { personal: 'Personal', work: 'Work', fitness: 'Fitness', errands: 'Errands', later: 'Later / Ideas' };
 
 // Deterministic guess for direct adds — the classifier does better for
@@ -60,8 +58,8 @@ export async function listTodos(vaultPath) {
   const raw = await readFile(full, 'utf8');
   const items = [];
   for (const line of raw.split('\n')) {
-    const m = line.match(LINE_RE);
-    if (m) items.push({ raw: line, checked: m[1] === 'x', text: m[2].trim(), added: m[3] || null, category: TODO_CATEGORIES.includes(m[4]) ? m[4] : null });
+    const parsed = parseTodoLine(line);
+    if (parsed) items.push({ raw: line, ...parsed });
   }
   return { items, categories: TODO_CATEGORIES };
 }
@@ -71,15 +69,17 @@ export async function addTodo(vaultPath, text, category) {
   if (!clean) throw new Error('to-do text is required');
   if (clean.length > 300) throw new Error('keep a to-do under 300 characters');
   const cat = TODO_CATEGORIES.includes(category) ? category : guessTodoCategory(clean);
-  const { items } = await listTodos(vaultPath);
-  if (items.some((t) => !t.checked && t.text === clean)) throw new Error('that to-do is already on the list');
-  const full = await ensurePage(vaultPath);
-  await backupFile(full);
-  const raw = await readFile(full, 'utf8');
-  await writeFile(full, raw.replace(/\s*$/, '\n') + `- [ ] ${clean} _(added ${todayISO()})_ #${cat}\n`, 'utf8');
-  queueTodoistSync(vaultPath);
-  notifyChange();
-  return listTodos(vaultPath);
+  return withTodoLock(async () => {
+    const { items } = await listTodos(vaultPath);
+    if (items.some((t) => !t.checked && t.text === clean)) throw new Error('that to-do is already on the list');
+    const full = await ensurePage(vaultPath);
+    await backupFile(full);
+    const raw = await readFile(full, 'utf8');
+    await writeFile(full, raw.replace(/\s*$/, '\n') + formatTodoLine({ text: clean, added: todayISO(), category: cat }) + '\n', 'utf8');
+    queueTodoistSync(vaultPath);
+    notifyChange();
+    return listTodos(vaultPath);
+  });
 }
 
 // Re-categorise by exact raw line — same identity contract as toggle.
@@ -87,16 +87,17 @@ export async function setTodoCategory(vaultPath, rawLine, category) {
   if (!TODO_CATEGORIES.includes(category)) throw new Error('unknown category');
   const full = path.join(vaultPath, TODO_REL);
   if (!existsSync(full)) throw new Error('the To-Do page no longer exists');
-  const m = (rawLine || '').match(LINE_RE);
-  if (!m) throw new Error('that line is not a to-do');
-  await backupFile(full);
-  const raw = await readFile(full, 'utf8');
-  if (!raw.includes(rawLine)) throw new Error('that line changed since you loaded — refreshing');
-  const stripped = rawLine.replace(/\s*#[a-z-]+\s*$/, '');
-  await writeFile(full, raw.replace(rawLine, `${stripped} #${category}`), 'utf8');
-  queueTodoistSync(vaultPath);
-  notifyChange();
-  return listTodos(vaultPath);
+  if (!parseTodoLine(rawLine)) throw new Error('that line is not a to-do');
+  return withTodoLock(async () => {
+    await backupFile(full);
+    const raw = await readFile(full, 'utf8');
+    if (!raw.includes(rawLine)) throw new Error('that line changed since you loaded — refreshing');
+    const stripped = rawLine.replace(/\s*#[a-z-]+\s*$/, '');
+    await writeFile(full, raw.replace(rawLine, `${stripped} #${category}`), 'utf8');
+    queueTodoistSync(vaultPath);
+    notifyChange();
+    return listTodos(vaultPath);
+  });
 }
 
 // Toggle by the line's exact raw text — same identity the undo path uses, so
@@ -105,14 +106,17 @@ export async function setTodoCategory(vaultPath, rawLine, category) {
 export async function toggleTodo(vaultPath, rawLine) {
   const full = path.join(vaultPath, TODO_REL);
   if (!existsSync(full)) throw new Error('the To-Do page no longer exists');
-  const m = (rawLine || '').match(LINE_RE);
-  if (!m) throw new Error('that line is not a to-do');
-  await backupFile(full);
-  const raw = await readFile(full, 'utf8');
-  if (!raw.includes(rawLine)) throw new Error('that line changed since you loaded — refreshing');
-  const flipped = m[1] === 'x' ? rawLine.replace('- [x]', '- [ ]') : rawLine.replace('- [ ]', '- [x]');
-  await writeFile(full, raw.replace(rawLine, flipped), 'utf8');
-  queueTodoistSync(vaultPath);
-  notifyChange();
-  return listTodos(vaultPath);
+  const parsed = parseTodoLine(rawLine);
+  if (!parsed) throw new Error('that line is not a to-do');
+  return withTodoLock(async () => {
+    await backupFile(full);
+    const raw = await readFile(full, 'utf8');
+    if (!raw.includes(rawLine)) throw new Error('that line changed since you loaded — refreshing');
+    // flipTodoLine tolerates the hand-typed capital-X variant the old string
+    // replace silently failed on
+    await writeFile(full, raw.replace(rawLine, flipTodoLine(rawLine, !parsed.checked)), 'utf8');
+    queueTodoistSync(vaultPath);
+    notifyChange();
+    return listTodos(vaultPath);
+  });
 }

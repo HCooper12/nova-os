@@ -84,6 +84,27 @@ async function main() {
     next();
   });
 
+  // "a broadcast() every write path calls" — made TRUE at one chokepoint:
+  // every successful mutating request nudges open apps (the sweep found ~half
+  // the direct-write routes never broadcast, so a second device stayed stale
+  // until its next poll). Silent list: job-start/poll endpoints where nothing
+  // user-visible changed yet, and the 1.5s workout-draft pings which would
+  // echo-refresh other devices mid-set.
+  const BROADCAST_SILENT = [
+    /^\/events/, /^\/workouts\/session-draft/, /^\/push\//, /^\/ask/, /^\/tts/,
+    /^\/food-log\/scan/, /^\/recipes\/scan/, /^\/recipes\/tweak/, /^\/notes\/summary/,
+    /^\/journal\/prompt/, /^\/shopping-list\/add-items\//, /^\/claude-code/,
+  ];
+  app.use('/api', (req, res, next) => {
+    if (req.method === 'GET' || BROADCAST_SILENT.some((re) => re.test(req.path))) return next();
+    res.on('finish', () => {
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        import('./lib/events.js').then(({ broadcast }) => broadcast('write')).catch(() => {});
+      }
+    });
+    next();
+  });
+
   app.use('/api', notesRouter(vault));
   app.use('/api', calendarRouter());
   app.use('/api', ingestRouter(process.env.VAULT_PATH));
@@ -126,6 +147,12 @@ async function main() {
       if (reaped) console.log(`inbox reaper: flipped ${reaped} orphaned record(s) to error`);
     })
   ).catch((e) => console.error('inbox reaper failed:', e.message));
+  // prune orphaned note-summary caches (deleted notes' files lived forever)
+  import('./lib/noteSummaries.js').then(({ pruneStaleSummaries }) =>
+    pruneStaleSummaries().then(({ pruned }) => {
+      if (pruned) console.log(`summary cache: pruned ${pruned} stale file(s)`);
+    })
+  ).catch(() => {});
 
   startHealthInsightScheduler(process.env.VAULT_PATH);
   startDispatchScheduler(process.env.VAULT_PATH);

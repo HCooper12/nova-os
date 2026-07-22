@@ -267,20 +267,24 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
   }
 
   if (route === 'todo') {
-    const full = await ensureInboxNote(vaultPath, TODO_REL, 'To-Do');
-    await backupFile(full);
-    const raw = await readFile(full, 'utf8');
-    // items are {text, category} (or legacy strings); missing categories
-    // fall back to the deterministic keyword guess
-    const entries = payload.items.map((it) => (typeof it === 'string' ? { text: it, category: null } : it));
-    const lines = entries.map((it) => `- [ ] ${it.text} _(added ${date})_ #${it.category || guessTodoCategory(it.text)}`);
-    const updated = raw.replace(/\s*$/, '\n') + lines.join('\n') + '\n';
-    await writeFile(full, updated, 'utf8');
-    queueTodoistSync(vaultPath); // mirror to Todoist shortly (no-op when unconfigured)
-    return {
-      destination: `To-Do — ${entries.map((it) => it.text).join('; ')}`,
-      undo: { route, relPath: TODO_REL, lines },
-    };
+    // format + lock come from the shared todoLine contract
+    const { formatTodoLine, withTodoLock } = await import('./todoLine.js');
+    return withTodoLock(async () => {
+      const full = await ensureInboxNote(vaultPath, TODO_REL, 'To-Do');
+      await backupFile(full);
+      const raw = await readFile(full, 'utf8');
+      // items are {text, category} (or legacy strings); missing categories
+      // fall back to the deterministic keyword guess
+      const entries = payload.items.map((it) => (typeof it === 'string' ? { text: it, category: null } : it));
+      const lines = entries.map((it) => formatTodoLine({ text: it.text, added: date, category: it.category || guessTodoCategory(it.text) }));
+      const updated = raw.replace(/\s*$/, '\n') + lines.join('\n') + '\n';
+      await writeFile(full, updated, 'utf8');
+      queueTodoistSync(vaultPath); // mirror to Todoist shortly (no-op when unconfigured)
+      return {
+        destination: `To-Do — ${entries.map((it) => it.text).join('; ')}`,
+        undo: { route, relPath: TODO_REL, lines },
+      };
+    });
   }
 
   if (route === 'expense') {
@@ -411,20 +415,23 @@ export async function undoFiling(vaultPath, undo) {
     return 'removed the journal entry';
   }
   if (undo.route === 'todo') {
-    const full = path.join(vaultPath, undo.relPath);
-    if (!existsSync(full)) throw new Error('the To-Do file no longer exists');
-    await backupFile(full);
-    let raw = await readFile(full, 'utf8');
-    let removed = 0;
-    for (const line of undo.lines) {
-      const idx = raw.indexOf(line);
-      if (idx === -1) continue;
-      raw = raw.slice(0, idx) + raw.slice(idx + line.length).replace(/^\n/, '');
-      removed++;
-    }
-    if (!removed) throw new Error('those to-do lines have been edited or checked off since');
-    await writeFile(full, raw, 'utf8');
-    return `removed ${removed} to-do line${removed === 1 ? '' : 's'}`;
+    const { withTodoLock } = await import('./todoLine.js');
+    return withTodoLock(async () => {
+      const full = path.join(vaultPath, undo.relPath);
+      if (!existsSync(full)) throw new Error('the To-Do file no longer exists');
+      await backupFile(full);
+      let raw = await readFile(full, 'utf8');
+      let removed = 0;
+      for (const line of undo.lines) {
+        const idx = raw.indexOf(line);
+        if (idx === -1) continue;
+        raw = raw.slice(0, idx) + raw.slice(idx + line.length).replace(/^\n/, '');
+        removed++;
+      }
+      if (!removed) throw new Error('those to-do lines have been edited or checked off since');
+      await writeFile(full, raw, 'utf8');
+      return `removed ${removed} to-do line${removed === 1 ? '' : 's'}`;
+    });
   }
   if (undo.route === 'restore') {
     const prior = path.join(vaultPath, undo.priorBackupRel);
@@ -432,6 +439,17 @@ export async function undoFiling(vaultPath, undo) {
     const { copyFile } = await import('node:fs/promises');
     await copyFile(prior, path.join(vaultPath, undo.relPath));
     return `put ${path.basename(undo.relPath)} back to its pre-restore state`;
+  }
+
+  if (undo.route === 'restore-created') {
+    // the restore CREATED this file (it didn't exist before) — undo removes it,
+    // snapshotting first so even the undo is recoverable
+    const full = path.join(vaultPath, undo.relPath);
+    if (!existsSync(full)) return `${path.basename(undo.relPath)} is already gone`;
+    await backupFile(full);
+    const { unlink } = await import('node:fs/promises');
+    await unlink(full);
+    return `removed ${path.basename(undo.relPath)} (it didn't exist before the restore)`;
   }
   if (undo.route === 'idea-outline') {
     const full = path.join(vaultPath, undo.relPath);
@@ -469,13 +487,16 @@ export async function undoFiling(vaultPath, undo) {
     return 'moved the note back out of the archive';
   }
   if (undo.route === 'todo-restore') {
-    // compost sweep → re-append the swept lines
-    const full = path.join(vaultPath, undo.relPath);
-    if (!existsSync(full)) throw new Error('the To-Do file no longer exists');
-    await backupFile(full);
-    const raw = await readFile(full, 'utf8');
-    await writeFile(full, raw.replace(/\s*$/, '\n') + undo.lines.join('\n') + '\n', 'utf8');
-    return `restored ${undo.lines.length} swept to-do line${undo.lines.length === 1 ? '' : 's'}`;
+    // compost sweep → re-append the swept lines (under the shared page lock)
+    const { withTodoLock } = await import('./todoLine.js');
+    return withTodoLock(async () => {
+      const full = path.join(vaultPath, undo.relPath);
+      if (!existsSync(full)) throw new Error('the To-Do file no longer exists');
+      await backupFile(full);
+      const raw = await readFile(full, 'utf8');
+      await writeFile(full, raw.replace(/\s*$/, '\n') + undo.lines.join('\n') + '\n', 'utf8');
+      return `restored ${undo.lines.length} swept to-do line${undo.lines.length === 1 ? '' : 's'}`;
+    });
   }
   throw new Error('nothing to undo for this record');
 }

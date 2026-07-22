@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, readdir, rename } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,7 +24,11 @@ async function loadDay(date) {
 
 async function saveDay(day) {
   await mkdir(LOG_DIR(), { recursive: true });
-  await writeFile(path.join(LOG_DIR(), `${day.date}.json`), JSON.stringify(day, null, 2), 'utf8');
+  // atomic tmp+rename — this was the one store with neither atomicity nor
+  // backups; a mid-write kill could tear the day's food log
+  const full = path.join(LOG_DIR(), `${day.date}.json`);
+  await writeFile(full + '.tmp', JSON.stringify(day, null, 2), 'utf8');
+  await rename(full + '.tmp', full);
 }
 
 export async function getToday() {

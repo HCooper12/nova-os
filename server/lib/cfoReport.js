@@ -70,6 +70,8 @@ export async function runCfoReport({ force = false } = {}) {
 
 export function startCfoScheduler() {
   const tick = async () => {
+    const { beat } = await import('./heartbeat.js');
+    beat('cfo'); // joins the watch-the-watcher net — a stalled CFO loop was invisible
     try {
       if (new Date().getDate() === 1) await runCfoReport();
     } catch (err) {

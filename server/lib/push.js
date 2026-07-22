@@ -95,9 +95,14 @@ export async function sendPush({ title, body, tag, url }) {
 // everything that happens. One per record, at creation.
 export function pushForRecord(record) {
   if (!record || record.status !== 'pending') return;
+  // followup records transit 'pending' for milliseconds on their way to filed —
+  // the record IS the user's own tap; pushing about it was a stray notification
+  if (record.kind === 'followup') return;
   const KIND_LABEL = {
     review: 'Daily Review', dispatch: 'Brief ready', 'meal-prep': 'Meal prep', cfo: 'CFO report', guardian: 'Guardian',
     research: 'Research brief', studio: 'Studio outline', 'money-import': 'Ledger import', coach: 'Session receipt',
+    // the daily-driver kinds must name themselves, not say "Waiting for review"
+    'training-check': 'Training check', 'food-suggestion': 'Food suggestion', calendar: 'Calendar change', compost: 'Vault hygiene',
   };
   const label = KIND_LABEL[record.kind] || 'Waiting for review';
   sendPush({ title: `${label} — Nova`, body: record.text || 'A draft is waiting in your Inbox.', tag: `record-${record.id}` }).catch(() => {});

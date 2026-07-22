@@ -24,11 +24,10 @@ const STATE_PATH = () => path.join(dataRoot(), 'todoist-sync.json');
 const API_BASE = () => process.env.NOVA_TODOIST_API || 'https://api.todoist.com/api/v1';
 const TOKEN = () => (process.env.TODOIST_TOKEN || '').trim();
 
-const TODO_REL = 'Wiki/Inbox/To-Do.md'; // same page the inbox 'todo' route files into
-// Keep in lockstep with todos.js — the trailing #tag is the category and
-// maps to a Todoist label; identity for sync purposes stays the TEXT only.
-const LINE_RE = /^- \[( |x)\] (.*?)(?:\s*_\(added [^)]*\)_)?(?:\s*#([a-z-]+))?\s*$/;
-const KNOWN_CATEGORIES = new Set(['personal', 'work', 'fitness', 'errands', 'later']);
+// Line format, categories, and the shared write lock come from todoLine.js —
+// the one contract for this page. Identity for sync purposes stays TEXT only.
+import { TODO_REL, TODO_CATEGORIES, parseTodoLine, formatTodoLine, flipTodoLine, withTodoLock } from './todoLine.js';
+const KNOWN_CATEGORIES = new Set(TODO_CATEGORIES);
 
 export function todoistConfigured() {
   return !!TOKEN();
@@ -106,39 +105,43 @@ async function readVaultTodos(vaultPath) {
   const raw = await readFile(full, 'utf8');
   const todos = [];
   for (const line of raw.split('\n')) {
-    const m = line.match(LINE_RE);
-    if (m) todos.push({ raw: line, checked: m[1] === 'x', text: m[2].trim(), category: KNOWN_CATEGORIES.has(m[3]) ? m[3] : null });
+    const parsed = parseTodoLine(line);
+    if (parsed) todos.push({ raw: line, checked: parsed.checked, text: parsed.text, category: KNOWN_CATEGORIES.has(parsed.category) ? parsed.category : null });
   }
   return { full, raw, todos };
 }
 
 // entries: [{ text, category|null }] — pulled Todoist labels become tags
 async function appendVaultTodos(vaultPath, entries) {
-  const full = path.join(vaultPath, TODO_REL);
-  const date = todayISO();
-  if (!existsSync(full)) {
-    await mkdir(path.dirname(full), { recursive: true });
-    await writeFile(full, matter.stringify('# To-Do\n', { type: 'raw', tags: ['inbox'], created: date, updated: date }), 'utf8');
-  }
-  await backupFile(full);
-  const raw = await readFile(full, 'utf8');
-  const lines = entries.map((e) => `- [ ] ${e.text} _(added ${date})_${e.category ? ` #${e.category}` : ''}`);
-  await writeFile(full, raw.replace(/\s*$/, '\n') + lines.join('\n') + '\n', 'utf8');
+  return withTodoLock(async () => {
+    const full = path.join(vaultPath, TODO_REL);
+    const date = todayISO();
+    if (!existsSync(full)) {
+      await mkdir(path.dirname(full), { recursive: true });
+      await writeFile(full, matter.stringify('# To-Do\n', { type: 'raw', tags: ['inbox'], created: date, updated: date }), 'utf8');
+    }
+    await backupFile(full);
+    const raw = await readFile(full, 'utf8');
+    const lines = entries.map((e) => formatTodoLine({ text: e.text, added: date, category: e.category }));
+    await writeFile(full, raw.replace(/\s*$/, '\n') + lines.join('\n') + '\n', 'utf8');
+  });
 }
 
 async function checkVaultTodos(vaultPath, rawLines) {
-  const full = path.join(vaultPath, TODO_REL);
-  if (!existsSync(full)) return 0;
-  await backupFile(full);
-  let raw = await readFile(full, 'utf8');
-  let changed = 0;
-  for (const line of rawLines) {
-    if (!raw.includes(line)) continue;
-    raw = raw.replace(line, line.replace('- [ ]', '- [x]'));
-    changed++;
-  }
-  if (changed) await writeFile(full, raw, 'utf8');
-  return changed;
+  return withTodoLock(async () => {
+    const full = path.join(vaultPath, TODO_REL);
+    if (!existsSync(full)) return 0;
+    await backupFile(full);
+    let raw = await readFile(full, 'utf8');
+    let changed = 0;
+    for (const line of rawLines) {
+      if (!raw.includes(line)) continue;
+      raw = raw.replace(line, flipTodoLine(line, true));
+      changed++;
+    }
+    if (changed) await writeFile(full, raw, 'utf8');
+    return changed;
+  });
 }
 
 /* ------------------------------- reconcile ------------------------------- */
