@@ -30,6 +30,7 @@ import { startMealPrepScheduler } from './lib/mealPrep.js';
 import { startFoodSuggestScheduler } from './lib/foodSuggest.js';
 import { startTrainingCheckScheduler } from './lib/trainingCheck.js';
 import { startWeekPlanScheduler } from './lib/weekPlan.js';
+import { startHealthDropsScheduler } from './lib/healthDrops.js';
 import { snapshotRouter } from './routes/snapshot.js';
 import { startCalendarWatch } from './lib/calendarWatch.js';
 import { startDailyReviewScheduler } from './lib/dailyReview.js';
@@ -167,6 +168,7 @@ async function main() {
   startFoodSuggestScheduler(process.env.VAULT_PATH);
   startTrainingCheckScheduler(process.env.VAULT_PATH);
   startWeekPlanScheduler(process.env.VAULT_PATH);
+  startHealthDropsScheduler(process.env.VAULT_PATH);
   startDailyReviewScheduler(process.env.VAULT_PATH);
   if (process.env.ICLOUD_USERNAME && process.env.ICLOUD_APP_PASSWORD) startCalendarWatch();
 
