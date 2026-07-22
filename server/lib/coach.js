@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { loadSessions } from './workoutSessions.js';
+import { loadSessions, setSessionSummary } from './workoutSessions.js';
 import { createRecord } from './inboxStore.js';
 
 // Coach's progression engine — pure deterministic rules over logged history,
@@ -144,6 +144,37 @@ export function normalizeQuickPlan(plan, libraryExercises, exerciseState = {}) {
   return { name, rationale, exercises };
 }
 
+/* ------------------------------ e1RM trends ------------------------------ */
+
+// Estimated 1RMs (Epley: w × (1 + reps/30)) from logged history — progress
+// read as signal, not noise. Per exercise: current best over the recent
+// window vs the best before it, so the Coach sees direction, not just a
+// number. Sets above 12 reps are skipped (the formula degrades badly there).
+export function estimateE1RMs(sessions, { recentCount = 6 } = {}) {
+  const best = (list) => {
+    const byExercise = new Map();
+    for (const s of list) {
+      for (const e of s.exercises) {
+        for (const set of e.sets) {
+          if (!set.weight || !set.reps || set.reps > 12) continue;
+          const e1 = set.weight * (1 + set.reps / 30);
+          const cur = byExercise.get(e.exerciseId);
+          if (!cur || e1 > cur.e1rm) byExercise.set(e.exerciseId, { name: e.name, e1rm: Math.round(e1 * 2) / 2 });
+        }
+      }
+    }
+    return byExercise;
+  };
+  const recent = best(sessions.slice(0, recentCount));
+  const prior = best(sessions.slice(recentCount));
+  const out = [];
+  for (const [id, cur] of recent) {
+    const before = prior.get(id);
+    out.push({ exerciseId: id, name: cur.name, e1rm: cur.e1rm, delta: before ? Math.round((cur.e1rm - before.e1rm) * 2) / 2 : null });
+  }
+  return out.sort((a, b) => b.e1rm - a.e1rm);
+}
+
 /* --------------------------- session summary ----------------------------- */
 
 const volumeOf = (session) => Math.round(session.exercises.reduce((v, e) => v + e.sets.reduce((s, x) => s + x.weight * x.reps, 0), 0));
@@ -172,6 +203,9 @@ export async function draftSessionSummary(vaultPath, session) {
   } else {
     bits.push('First logged session for this routine — the baseline is set.');
   }
+
+  // stamp the same one-liner into the session file itself (best-effort)
+  setSessionSummary(vaultPath, session.id, bits.join(' ')).catch(() => {});
 
   const title = `Session — ${session.routineName} ${session.date}`;
   const record = {

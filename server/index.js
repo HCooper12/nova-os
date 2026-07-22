@@ -29,6 +29,8 @@ import { startCfoScheduler } from './lib/cfoReport.js';
 import { startMealPrepScheduler } from './lib/mealPrep.js';
 import { startFoodSuggestScheduler } from './lib/foodSuggest.js';
 import { startTrainingCheckScheduler } from './lib/trainingCheck.js';
+import { startWeekPlanScheduler } from './lib/weekPlan.js';
+import { snapshotRouter } from './routes/snapshot.js';
 import { startCalendarWatch } from './lib/calendarWatch.js';
 import { startDailyReviewScheduler } from './lib/dailyReview.js';
 import { startHealthInsightScheduler } from './lib/healthInsight.js';
@@ -164,6 +166,7 @@ async function main() {
   startMealPrepScheduler(process.env.VAULT_PATH);
   startFoodSuggestScheduler(process.env.VAULT_PATH);
   startTrainingCheckScheduler(process.env.VAULT_PATH);
+  startWeekPlanScheduler(process.env.VAULT_PATH);
   startDailyReviewScheduler(process.env.VAULT_PATH);
   if (process.env.ICLOUD_USERNAME && process.env.ICLOUD_APP_PASSWORD) startCalendarWatch();
 
@@ -177,6 +180,10 @@ async function main() {
   // directly. Set HOST=0.0.0.0 in .env if something must hit the port raw
   // (e.g. an iOS Shortcut pointed at an IP address instead of the ts.net URL).
   const port = Number(process.env.PORT || 4173);
+  // one-round-trip sync for the client — self-proxies to this server's own
+  // endpoints so every slice shape stays byte-identical to its route
+  app.use('/api', snapshotRouter({ port, token }));
+
   const host = process.env.HOST || '127.0.0.1';
   app.listen(port, host, () => console.log(`Nova OS server listening on ${host}:${port}`));
 }

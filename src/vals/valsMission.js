@@ -299,10 +299,21 @@ export function valsMission(app, ctx) {
   }
 
   // the hero CTA acts on the suggested focus; when the focus is "stay here"
-  // (a calendar block), it acknowledges instead of navigating nowhere
+  // (a calendar block), engaging starts a REAL focus timer for that block —
+  // countdown on Mission Control, journaled on completion (the plan's
+  // "Engage next block becomes a real timer", not just a toast)
   const onEngage = suggestedFocus.onPrimary
     ? suggestedFocus.onPrimary
-    : () => app.toastMsg(nextEvent ? `Next block: ${nextEvent.time} — ${nextEvent.label}` : 'Nothing queued right now');
+    : () => {
+        if (st.focusSession) { app.toastMsg('A focus block is already running'); return; }
+        if (nextEvent) {
+          const [eh, em] = nextEvent.time.split(':').map(Number);
+          const mins = Math.max(5, Math.min(180, (eh * 60 + em) - (now.getHours() * 60 + now.getMinutes())));
+          app.startFocusBlock(suggestedFocus.accent || `until ${nextEvent.time} ${nextEvent.label}`, mins);
+        } else {
+          app.startFocusBlock(suggestedFocus.accent || 'Deep work', 45);
+        }
+      };
 
   // latest-note vault card — real newest page when connected
   const latestNote = (st.liveNotes || [])[0] || null;
@@ -490,6 +501,14 @@ export function valsMission(app, ctx) {
       retry: () => { app.setState({ calendarRangeError: false }); app.loadCalendarRange(); },
       days: groupByDay(st.liveCalendarRange || []),
       count: (st.liveCalendarRange || []).length,
+    } : null,
+
+    // the running focus block, if any — rendered by the self-ticking FocusChip
+    focusChip: st.focusSession ? {
+      label: st.focusSession.label,
+      endsAt: st.focusSession.endsAt,
+      log: () => app.logFocusBlock(),
+      dismiss: () => app.dismissFocusBlock(),
     } : null,
 
     // steps history + manual edit (Pedometer++-style), opened from the satellite

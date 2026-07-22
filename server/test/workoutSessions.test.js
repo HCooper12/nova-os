@@ -29,11 +29,13 @@ test('unticked sets and skipped exercises leave NO trace in the saved record', a
         { weight: 50, reps: 8, done: false },
         { weight: 50, reps: 8, done: false },
       ] },
-      { exerciseId: 'dips', name: 'Dips', sets: [{ weight: 0, reps: 12, done: true }] },
+      { exerciseId: 'dips', name: 'Dips', sets: [{ weight: 0, reps: 12, rpe: 8.5, done: true }] },
     ],
   });
   assert.deepEqual(session.exercises.map((e) => e.exerciseId), ['bench', 'dips'], 'skipped exercise absent');
   assert.equal(session.exercises[0].sets.length, 2, 'unticked set absent');
+  assert.equal(session.exercises[1].sets[0].rpe, 8.5, 'optional RPE survives the save');
+  assert.equal(session.exercises[0].sets[0].rpe, undefined, 'absent RPE stays absent, never invented');
 
   // exercise-state prefill only knows about what actually happened
   const state = await loadExerciseState(vault);

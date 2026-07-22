@@ -290,7 +290,11 @@ function RoutinesView({ v }) {
                   {[1, 2, 3, 4, 5, 6, 7].map((n) => <option key={n} value={n} style={{ background: '#141019' }}>{n}</option>)}
                 </select>
               </div>
-              <textarea value={v.goalsDraft.notes} onChange={v.setGoalsField('notes')} rows={3} placeholder="Anything the Coach should always know — injuries, constraints, preferences…"
+              <input value={v.goalsDraft.equipment} onChange={v.setGoalsField('equipment')} placeholder="Equipment — e.g. full gym weekdays, dumbbells only at weekends"
+                style={{ marginTop: '8px', width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)', borderRadius: '8px', padding: '9px 12px', color: 'var(--nv-ink)', fontSize: '12.5px', fontFamily: "'Rajdhani',sans-serif", outline: 'none' }} />
+              <input value={v.goalsDraft.limitations} onChange={v.setGoalsField('limitations')} placeholder="Injuries / limitations — e.g. left shoulder impingement, no overhead pressing"
+                style={{ marginTop: '8px', width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-warn) 25%, transparent)', borderRadius: '8px', padding: '9px 12px', color: 'var(--nv-ink)', fontSize: '12.5px', fontFamily: "'Rajdhani',sans-serif", outline: 'none' }} />
+              <textarea value={v.goalsDraft.notes} onChange={v.setGoalsField('notes')} rows={3} placeholder="Anything else the Coach should always know — preferences, schedule quirks…"
                 style={{ background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px 'Rajdhani',sans-serif", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
               <div style={css("display:flex;gap:8px")}>
                 <Interactive as="span" onClick={v.saveGoals} base="cursor:pointer;font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;padding:8px 16px;border-radius:8px;background:var(--nv-gold);color:#1a1322" hoverStyle="filter:brightness(1.08)">SAVE</Interactive>
@@ -435,7 +439,7 @@ function SessionView({ v }) {
             </div>
             <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:8px")}>
               <div style={css("display:flex;gap:10px;font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:color-mix(in srgb, var(--nv-ink) 35%, transparent);padding:0 2px")}>
-                <span style={{ width: '22px' }}>SET</span>{!e.isBodyweight && <span style={{ width: '64px' }}>{e.weightLabel}</span>}<span style={{ width: '64px' }}>{e.amountLabel}</span>
+                <span style={{ width: '22px' }}>SET</span>{!e.isBodyweight && <span style={{ width: '64px' }}>{e.weightLabel}</span>}<span style={{ width: '64px' }}>{e.amountLabel}</span><span style={{ width: '52px' }}>RPE</span>
               </div>
               {e.sets.map((s, i) => (
                 <div key={i} style={css("display:flex;align-items:center;gap:10px")}>
@@ -444,6 +448,8 @@ function SessionView({ v }) {
                       tick — the app's most-repeated tap — at a 40px target */}
                   {!e.isBodyweight && <input type="number" inputMode="decimal" step="0.5" min="0" value={s.weight} onChange={s.onWeight} style={setInputStyle} />}
                   <input type="number" inputMode="numeric" min="0" value={s.reps} onChange={s.onReps} style={setInputStyle} />
+                  {/* optional effort — RPE 1-10; the best autoregulation signal the Coach can get */}
+                  <input type="number" inputMode="decimal" step="0.5" min="1" max="10" value={s.rpe || ''} onChange={s.onRpe} placeholder="RPE" style={{ ...setInputStyle, width: '52px', opacity: s.rpe ? 1 : 0.65 }} />
                   <Interactive
                     as="span"
                     onClick={s.onToggleDone}

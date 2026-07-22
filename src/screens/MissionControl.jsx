@@ -4,6 +4,7 @@ import { NovaCore } from '../NovaCore.jsx';
 import { Clock } from '../Clock.jsx';
 import { StepsHistory } from '../StepsHistory.jsx';
 import { CalendarView } from '../CalendarView.jsx';
+import { FocusChip } from '../FocusChip.jsx';
 
 // Command Core (design 45): hero with eyebrow/tagline/standfirst beside the
 // living Nova core + three conic-progress satellites, then Suggested Focus /
@@ -80,6 +81,7 @@ export function MissionControl({ v }) {
     <div style={v.wrapMission} data-screen-label="Mission Control">
       {v.stepsOverlay && <StepsHistory v={v.stepsOverlay} />}
       {v.calendarView && <CalendarView v={v.calendarView} />}
+      {v.focusChip && <div style={{ marginTop: '10px' }}><FocusChip v={v.focusChip} /></div>}
       <section style={heroGrid}>
         <div>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 10px', font: `500 10px ${M}`, letterSpacing: '.28em', color: 'var(--nv-ink60)', marginBottom: '16px' }}>

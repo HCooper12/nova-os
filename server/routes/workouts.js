@@ -230,8 +230,11 @@ export function workoutsRouter(vaultPath) {
       try {
         const sessions = await loadSessions(vaultPath, { limit: 6 });
         parts.push(sessions.length
-          ? 'Recent sessions:\n' + sessions.map((s) => `- ${s.date} ${s.routineName}: ${s.exercises.map((e) => `${e.name} ${e.sets.map((x) => `${x.weight}x${x.reps}`).join(',')}`).join(' | ')}`).join('\n')
+          ? 'Recent sessions:\n' + sessions.map((s) => `- ${s.date} ${s.routineName}: ${s.exercises.map((e) => `${e.name} ${e.sets.map((x) => `${x.weight}x${x.reps}${x.rpe ? '@' + x.rpe : ''}`).join(',')}`).join(' | ')}`).join('\n')
           : 'No sessions logged yet.');
+        const { estimateE1RMs } = await import('../lib/coach.js');
+        const e1rms = estimateE1RMs(await loadSessions(vaultPath, { limit: 12 }));
+        if (e1rms.length) parts.push('Estimated 1RMs (Epley, from logged sets — direction matters more than the number): ' + e1rms.slice(0, 8).map((x) => `${x.name} ${x.e1rm}kg${x.delta != null ? ` (${x.delta >= 0 ? '+' : ''}${x.delta})` : ''}`).join('; ') + '.');
       } catch { /* optional */ }
       try {
         const { exercises } = await loadExerciseLibrary(vaultPath);

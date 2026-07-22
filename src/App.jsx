@@ -192,6 +192,12 @@ export default class App extends Component {
     liveHealthInsight: null, liveHealthDays: null, liveStreaks: null,
     stepsOverlayOpen: false, stepEditDate: null, stepEditValue: '', stepEditWeight: '', moneyRemoveConfirm: null,
     tabOrder: getTabOrder(),
+    focusSession: (() => {
+      try {
+        const f = JSON.parse(localStorage.getItem('novaos.focus') || 'null');
+        return f && Date.now() - f.endsAt < 2 * 3600_000 ? f : null;
+      } catch { return null; }
+    })(),
     liveReviewSummaries: {},
     liveFoodLog: null, liveFoodHistory: null, foodHistoryOpen: false,
     foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogBusy: false, foodLogError: null,
@@ -211,7 +217,7 @@ export default class App extends Component {
     todoInput: '', todoActionBusy: false, todoEditCategoryKey: null,
     editingSessionId: null, sessionDeleteConfirmId: null,
     liveCarryovers: null, finishMissed: null, finishMissedDate: '', finishMissedRoutine: '', carryoverRescheduleId: null,
-    liveWorkoutGoals: null, goalsEditing: false, goalsDraft: { goal: '', focus: '', daysPerWeek: '', notes: '' }, coachBusy: false,
+    liveWorkoutGoals: null, goalsEditing: false, goalsDraft: { goal: '', focus: '', daysPerWeek: '', equipment: '', limitations: '', notes: '' }, coachBusy: false,
     mealPrepBusy: false,
     quickMinutes: '45', quickNote: '', quickBusy: false, quickPlan: null,
     liveBackups: null, restoreConfirm: null, pushState: 'checking',
@@ -314,6 +320,17 @@ export default class App extends Component {
     }
     this.checkPushState();
     this.syncInboxMode(); // pull the system-wide autonomy mode from the server
+    // an answer that was in flight when the app was reclaimed — pick the poll back up
+    try {
+      const pending = JSON.parse(localStorage.getItem('novaos.askJob') || 'null');
+      const conn = getConnection();
+      if (pending?.jobId && conn && Date.now() - (pending.askedAt || 0) < 10 * 60_000) {
+        this.setState({ voiceBusy: true });
+        this.attachAskPoll(conn, pending.jobId);
+      } else if (pending) {
+        localStorage.removeItem('novaos.askJob');
+      }
+    } catch { /* best-effort */ }
     // load the device's free system voices for the voice picker (they arrive
     // async on iOS, so listen for the change too)
     const loadVoices = () => { try { this.setState({ speechVoices: window.speechSynthesis.getVoices() }); } catch { /* unsupported */ } };
@@ -519,6 +536,46 @@ export default class App extends Component {
       } catch { /* best-effort */ }
     }
   }
+  // Apply a bundled /api/snapshot payload — the same per-slice handling the
+  // individual fetch tasks perform, fed from ONE round-trip. Returns how many
+  // slices applied (the connected/offline quorum works the same way).
+  applySnapshot(slices) {
+    let ok = 0;
+    const apply = (key, fn) => { if (slices[key] !== undefined) { try { fn(slices[key]); ok++; } catch { /* slice shape surprise — skip it */ } } };
+    apply('notes', (r) => {
+      this.setState({ liveNotes: r.notes });
+      if (r.notes[0] && !this.state.liveNoteDetails[this.state.openNoteId]) this.selectNote(r.notes[0].id);
+      this.refreshDailyReviewDetail(r.notes);
+    });
+    apply('journal', (r) => this.setState({ liveJournalEntries: r.entries }));
+    apply('healthInsight', (r) => this.setState({ liveHealthInsight: r }));
+    apply('healthData', (r) => this.setState({ liveHealthDays: r.days.length ? r.days : null }));
+    apply('streaks', (r) => this.setState({ liveStreaks: r }));
+    apply('calendar', (r) => this.setState({ liveCalendar: r.events }));
+    apply('recipes', (r) => {
+      this.setState({ liveRecipes: r.recipes.length ? r.recipes : null, liveRecipeProfile: r.profile || null });
+      this.refreshRecipePhotos(r.recipes);
+    });
+    apply('rotation', (r) => this.setState({ liveRotation: r }));
+    apply('foodLog', (r) => this.setState({ liveFoodLog: r }));
+    apply('shoppingList', (r) => this.setState({ liveShoppingList: r }));
+    apply('workoutExercises', (r) => this.setState({ liveWorkoutExercises: r.exercises, liveWorkoutMuscleGroups: r.muscleGroups, liveWorkoutTrackingTypes: r.trackingTypes }));
+    apply('workoutRoutines', (r) => this.setState({ liveWorkoutRoutines: r.routines, liveWorkoutSchedule: r.schedule, liveWorkoutWeekdays: r.weekdays, liveWorkoutProgressions: r.progressions || {} }));
+    apply('workoutGoals', (r) => this.setState({ liveWorkoutGoals: r.goals }));
+    apply('graph', (r) => { this.setState({ liveGraph: r }); this.gNodes = null; });
+    apply('inbox', (r) => this.setState({ liveInbox: r }));
+    apply('dispatch', (r) => this.setState({ liveDispatch: r }));
+    apply('compost', (r) => this.setState({ liveCompost: r }));
+    apply('todoist', (r) => this.setState({ liveTodoist: r }));
+    apply('todos', (r) => this.setState({ liveTodos: r }));
+    apply('guardian', (r) => this.setState({ liveGuardian: r }));
+    apply('tts', (r) => this.setState({ liveTts: r }));
+    apply('money', (r) => this.setState({ liveMoney: r }));
+    apply('profile', (r) => this.setState({ liveProfile: r.profile }));
+    apply('learning', (r) => this.setState({ liveLearning: r }));
+    apply('dailyReview', (r) => this.setState({ liveDailyReview: r }));
+    return ok;
+  }
   async refreshLiveData() {
     const conn = getConnection();
     if (!conn) return;
@@ -580,12 +637,23 @@ export default class App extends Component {
       if (this.refreshInFlight === inFlight) this.refreshInFlight = null;
     }, 120_000);
     const inFlight = (async () => {
-      const results = await Promise.allSettled(tasks.map((t) => t()));
-      const okCount = results.filter((r) => r.status === 'fulfilled').length;
+      // ONE round-trip via /api/snapshot when the server supports it (the
+      // ~25-requests-per-pass sync was latency + battery over Tailscale);
+      // any failure falls back to the individual fetches unchanged.
+      let okCount = 0;
+      let total = tasks.length;
+      try {
+        const { slices } = await api.snapshot(conn);
+        okCount = this.applySnapshot(slices);
+      } catch {
+        const results = await Promise.allSettled(tasks.map((t) => t()));
+        okCount = results.filter((r) => r.status === 'fulfilled').length;
+        total = results.length;
+      }
       // Honest chip: LIVE requires most slices actually syncing. One lucky
       // fetch out of 24 used to keep the chip green while everything else
       // (calendar included) silently failed.
-      if (okCount > results.length / 2) {
+      if (okCount > total / 2) {
         const now = new Date().toISOString();
         this.setState({ connectionStatus: 'connected', lastSyncAt: now }, () => {
           const slices = {};
@@ -1224,7 +1292,7 @@ export default class App extends Component {
       .map((e) => ({
         exerciseId: e.exerciseId,
         name: e.name,
-        sets: e.sets.filter((s) => s.done).map((s) => ({ weight: Number(s.weight) || 0, reps: Number(s.reps) || 0, done: true })),
+        sets: e.sets.filter((s) => s.done).map((s) => ({ weight: Number(s.weight) || 0, reps: Number(s.reps) || 0, rpe: s.rpe ? Number(s.rpe) : undefined, done: true })),
       }))
       .filter((e) => e.sets.length);
     if (!exercises.length) {
@@ -2081,6 +2149,51 @@ export default class App extends Component {
       .then(() => this.refreshLiveData()) // re-pull today's events without the hidden calendars
       .catch((e) => { this.toastMsg('Could not update calendars: ' + e.message); this.loadCalendarList(); });
   }
+  // The ask poll, attachable from a fresh boot too — an iOS reclaim used to
+  // eat the in-flight answer along with the poll.
+  attachAskPoll(conn, jobId) {
+    const clearJob = () => { try { localStorage.removeItem('novaos.askJob'); } catch { /* best-effort */ } };
+    this.startPoll('ask', () => api.claudeCodeJob(conn, jobId), {
+      timeoutMs: 3 * 60_000,
+      onReady: (job) => {
+        clearJob();
+        const text = job.result.text;
+        // the conversation continues across turns AND app restarts
+        if (job.result.sessionId) {
+          localStorage.setItem('novaos.voiceSession', job.result.sessionId);
+          this.setState({ voiceSessionId: job.result.sessionId });
+        }
+        this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { who: 'nova', text }] }));
+        this.speak(text);
+      },
+      onError: (msg) => { clearJob(); this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { who: 'system', text: 'Error: ' + msg }] })); },
+    });
+  }
+
+  // ---------- focus blocks (the "Engage next block" timer) ----------
+  startFocusBlock(label, minutes) {
+    const endsAt = Date.now() + Math.max(5, Math.min(180, minutes)) * 60000;
+    const focusSession = { label: label.slice(0, 80), startedAt: Date.now(), endsAt };
+    this.setState({ focusSession });
+    try { localStorage.setItem('novaos.focus', JSON.stringify(focusSession)); } catch { /* best-effort */ }
+    this.toastMsg(`Focus block started — ${label} (${Math.round(minutes)} min)`);
+  }
+  logFocusBlock() {
+    const f = this.state.focusSession;
+    const conn = getConnection();
+    if (!f) return;
+    this.dismissFocusBlock();
+    if (!conn) { this.toastMsg('Offline — the block ended but could not be journaled'); return; }
+    const mins = Math.round((Math.min(Date.now(), f.endsAt) - f.startedAt) / 60000);
+    api.addJournalEntry(conn, `Focus block: ${f.label} — ${mins} min.`, null, { category: 'personal', label: 'Focus block' })
+      .then(() => { this.toastMsg('Focus block journaled ✓'); this.refreshLiveData(); })
+      .catch((e) => this.toastMsg('Could not journal the block: ' + e.message));
+  }
+  dismissFocusBlock() {
+    this.setState({ focusSession: null });
+    try { localStorage.removeItem('novaos.focus'); } catch { /* best-effort */ }
+  }
+
   setCalCmd(e) { this.setState({ calCmdText: e.target.value }); }
   // Ask Nova to schedule something in natural language. It only DRAFTS a
   // proposal — the event isn't written until Hayden approves it in the inbox
@@ -2347,8 +2460,11 @@ export default class App extends Component {
   typeIn(key, who, text, after) {
     this.setState(s => ({ [key]: [...s[key], { who, text: '', typing: true }] }));
     let i = 0;
+    // ~12 chars per 80ms tick, not 3 per 22ms: each tick reconciles the whole
+    // tree (P7 in the perf audit), so fewer, larger ticks read the same but
+    // cost ~4× less main-thread work during a reply animation
     const iv = setInterval(() => {
-      i += 3;
+      i += 12;
       this.setState(s => {
         const arr = s[key].slice();
         const m = Object.assign({}, arr[arr.length - 1]);
@@ -2357,7 +2473,7 @@ export default class App extends Component {
         return { [key]: arr };
       });
       if (i >= text.length) { clearInterval(iv); if (after) after(); }
-    }, 22);
+    }, 80);
     this.ivs.push(iv);
   }
 
@@ -2434,20 +2550,10 @@ export default class App extends Component {
     this.setState((s) => ({ voiceChat: [...s.voiceChat, { who: 'you', text: question }], voiceBusy: true }));
     this.stopSpeaking();
     api.ask(conn, question, this.state.voiceSessionId || null).then(({ jobId }) => {
-      this.startPoll('ask', () => api.claudeCodeJob(conn, jobId), {
-        timeoutMs: 3 * 60_000,
-        onReady: (job) => {
-          const text = job.result.text;
-          // the conversation continues across turns AND app restarts
-          if (job.result.sessionId) {
-            localStorage.setItem('novaos.voiceSession', job.result.sessionId);
-            this.setState({ voiceSessionId: job.result.sessionId });
-          }
-          this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { who: 'nova', text }] }));
-          this.speak(text);
-        },
-        onError: (msg) => this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { who: 'system', text: 'Error: ' + msg }] })),
-      });
+      // survive a reclaim mid-answer: the job id persists so boot can
+      // re-attach the poll instead of losing the in-flight reply
+      try { localStorage.setItem('novaos.askJob', JSON.stringify({ jobId, askedAt: Date.now() })); } catch { /* best-effort */ }
+      this.attachAskPoll(conn, jobId);
     }).catch((e) => {
       this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { who: 'system', text: 'Error: ' + e.message }] }));
     });
@@ -2604,7 +2710,7 @@ export default class App extends Component {
     const conn = getConnection();
     const d = this.state.goalsDraft;
     if (!conn || !d.goal.trim()) { this.toastMsg('A goal is required — one sentence is enough'); return; }
-    api.setWorkoutGoals(conn, { goal: d.goal, focus: d.focus, daysPerWeek: d.daysPerWeek ? Number(d.daysPerWeek) : null, notes: d.notes })
+    api.setWorkoutGoals(conn, { goal: d.goal, focus: d.focus, daysPerWeek: d.daysPerWeek ? Number(d.daysPerWeek) : null, equipment: d.equipment, limitations: d.limitations, notes: d.notes })
       .then(({ goals }) => {
         this.setState({ liveWorkoutGoals: goals, goalsEditing: false });
         this.toastMsg('Goals saved to the vault — the Coach reads these now');

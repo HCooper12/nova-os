@@ -102,7 +102,7 @@ export function pushForRecord(record) {
     review: 'Daily Review', dispatch: 'Brief ready', 'meal-prep': 'Meal prep', cfo: 'CFO report', guardian: 'Guardian',
     research: 'Research brief', studio: 'Studio outline', 'money-import': 'Ledger import', coach: 'Session receipt',
     // the daily-driver kinds must name themselves, not say "Waiting for review"
-    'training-check': 'Training check', 'food-suggestion': 'Food suggestion', calendar: 'Calendar change', compost: 'Vault hygiene',
+    'training-check': 'Training check', 'food-suggestion': 'Food suggestion', calendar: 'Calendar change', compost: 'Vault hygiene', 'week-plan': 'Week plan',
   };
   const label = KIND_LABEL[record.kind] || 'Waiting for review';
   sendPush({ title: `${label} — Nova`, body: record.text || 'A draft is waiting in your Inbox.', tag: `record-${record.id}` }).catch(() => {});

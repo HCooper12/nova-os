@@ -213,6 +213,15 @@ async function composeMorning(vaultPath, now) {
     }
   } catch { /* optional */ }
 
+  // training-vs-calendar conflicts — deterministic overlap check (the
+  // Commander plan item, now that the calendar carries event times)
+  try {
+    const { dayConflicts } = await import('./weekPlan.js');
+    const events = await fetchEventsForDay(now);
+    const clashes = dayConflicts(events);
+    if (clashes.length) lines.push(`**Conflicts.** ${clashes.join(' · ')} — ask Nova on Home to move one.`);
+  } catch { /* optional */ }
+
   // open to-dos — the day-ahead brief had no tasks section at all
   try {
     const { listTodos } = await import('./todos.js');

@@ -20,6 +20,9 @@ export async function getFitnessGoals(vaultPath) {
       goal: String(data.goal || '').trim(),
       focus: String(data.focus || '').trim(),
       daysPerWeek: Number.isInteger(data.daysPerWeek) ? data.daysPerWeek : null,
+      // the coach-context fields the sweep's ledger called for
+      equipment: String(data.equipment || '').trim(),
+      limitations: String(data.limitations || '').trim(),
       notes: content.replace(/^#[^\n]*\n?/, '').trim(),
       updated: data.updated || null,
     };
@@ -34,6 +37,8 @@ export async function setFitnessGoals(vaultPath, input) {
   const daysPerWeek = Number.isInteger(Number(input.daysPerWeek)) && Number(input.daysPerWeek) >= 1 && Number(input.daysPerWeek) <= 7
     ? Number(input.daysPerWeek) : null;
   const notes = String(input.notes || '').trim().slice(0, 4000);
+  const equipment = String(input.equipment || '').trim().slice(0, 300);
+  const limitations = String(input.limitations || '').trim().slice(0, 300);
   if (!goal) throw new Error('a goal is required — one sentence is enough');
 
   const full = path.join(vaultPath, GOALS_REL);
@@ -42,6 +47,8 @@ export async function setFitnessGoals(vaultPath, input) {
   const updated = new Date().toISOString().slice(0, 10);
   const frontmatter = { type: 'fitness-goals', goal, focus, updated };
   if (daysPerWeek) frontmatter.daysPerWeek = daysPerWeek;
+  if (equipment) frontmatter.equipment = equipment;
+  if (limitations) frontmatter.limitations = limitations;
   await writeFile(full, matter.stringify(`# Fitness Goals\n\n${notes}\n`, frontmatter), 'utf8');
   return getFitnessGoals(vaultPath);
 }
@@ -54,6 +61,8 @@ export async function goalsContext(vaultPath) {
     `Goal: ${g.goal}`,
     g.focus ? `Focus: ${g.focus}` : null,
     g.daysPerWeek ? `Training days/week: ${g.daysPerWeek}` : null,
+    g.equipment ? `Equipment available: ${g.equipment}` : null,
+    g.limitations ? `Injuries / limitations (work around these): ${g.limitations}` : null,
     g.notes ? `Notes: ${g.notes}` : null,
   ].filter(Boolean).join('\n');
 }

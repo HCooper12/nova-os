@@ -234,6 +234,22 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     throw new Error('unknown calendar action');
   }
 
+  if (route === 'plan-note') {
+    // a drafted plan page (Wiki/Plans/…) — create or overwrite-with-backup;
+    // undo restores what was there before (or deletes a fresh file)
+    const full = path.join(vaultPath, payload.relPath);
+    const existed = existsSync(full);
+    const prior = existed ? await readFile(full, 'utf8') : null;
+    if (existed) await backupFile(full);
+    await mkdir(path.dirname(full), { recursive: true });
+    const fm = `---\ntype: plan\ntags: [plan]\ncreated: ${date}\nupdated: ${date}\n---\n\n`;
+    await writeFile(full, fm + payload.text + '\n', 'utf8');
+    return {
+      destination: `Plans — ${payload.title}`,
+      undo: { route, relPath: payload.relPath, prior },
+    };
+  }
+
   if (route === 'recipe') {
     const recipe = await addRecipe(vaultPath, {
       name: payload.name,
@@ -386,6 +402,19 @@ export async function undoFiling(vaultPath, undo) {
     if (!removed) throw new Error('that food-log entry is no longer there');
     return 'removed the food-log entry';
   }
+  if (undo.route === 'plan-note') {
+    const full = path.join(vaultPath, undo.relPath);
+    if (!existsSync(full)) return 'the plan page is already gone';
+    await backupFile(full);
+    if (undo.prior != null) {
+      await writeFile(full, undo.prior, 'utf8');
+      return `put ${path.basename(undo.relPath)} back to its previous content`;
+    }
+    const { unlink } = await import('node:fs/promises');
+    await unlink(full);
+    return `removed ${path.basename(undo.relPath)}`;
+  }
+
   if (undo.route === 'recipe') {
     const { removed } = await removeRecipe(vaultPath, undo.recipeId);
     if (!removed) throw new Error('that recipe has already been removed or renamed');

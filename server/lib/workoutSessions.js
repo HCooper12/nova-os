@@ -16,9 +16,12 @@ function bodyFor(session) {
     `# ${session.routineName} — ${session.date}`, '',
     `${session.exercises.length} exercises · ${totalSets} sets · ${Math.round(totalVolume)}kg total volume`, '',
   ];
+  // the Coach's one-line read of the session (vs last time, PRs) — written
+  // after completion by setSessionSummary; renders as a quote in Obsidian
+  if (session.summary) lines.push(`> ${session.summary}`, '');
   for (const e of session.exercises) {
     lines.push(`## ${e.name}`, '');
-    for (const s of e.sets) lines.push(`- ${s.weight}kg × ${s.reps}`);
+    for (const s of e.sets) lines.push(`- ${s.weight}kg × ${s.reps}${s.rpe ? ` @RPE${s.rpe}` : ''}`);
     lines.push('');
   }
   return lines.join('\n');
@@ -112,6 +115,25 @@ export async function updateSession(vaultPath, sessionId, input) {
   });
 }
 
+// Stamp the Coach's deterministic one-liner into the session file itself —
+// the history becomes self-describing in Obsidian, not just in the receipt.
+export async function setSessionSummary(vaultPath, sessionId, summary) {
+  return withWriteLock(async () => {
+    const sessions = await getSessions(vaultPath);
+    const existing = sessions.find((s) => s.id === sessionId);
+    if (!existing) return null; // session gone — the summary is garnish, never an error
+    const updated = { ...existing, summary: String(summary).slice(0, 300) };
+    delete updated.file;
+    const full = path.join(vaultPath, SESSIONS_DIR_REL, existing.file);
+    await backupFile(full);
+    await writeFile(full, matter.stringify(bodyFor(updated), updated), 'utf8');
+    cachedSessions = sessions.map((s) => (s.id === sessionId ? { ...updated, file: existing.file } : s));
+    lastWriteAt = Date.now();
+    knownDirMtimeMs = await dirMtime(vaultPath);
+    return updated;
+  });
+}
+
 export async function deleteSession(vaultPath, sessionId) {
   return withWriteLock(async () => {
     const sessions = await getSessions(vaultPath);
@@ -164,7 +186,13 @@ function validateSessionInput(body) {
       // A set explicitly marked not-done is prefill, not history — an
       // exercise skipped for time must leave NO trace in the record.
       .filter((s) => s.done !== false)
-      .map((s) => ({ weight: Number(s.weight) || 0, reps: Number(s.reps) || 0 }))
+      .map((s) => {
+        const set = { weight: Number(s.weight) || 0, reps: Number(s.reps) || 0 };
+        // optional per-set effort (RPE 1–10) — the best autoregulation signal
+        const rpe = Number(s.rpe);
+        if (rpe >= 1 && rpe <= 10) set.rpe = Math.round(rpe * 2) / 2;
+        return set;
+      })
       .filter((s) => s.weight > 0 || s.reps > 0);
     return { exerciseId: e.exerciseId, name: e.name, sets };
   }).filter((e) => e.sets.length);

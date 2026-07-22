@@ -27,7 +27,8 @@ export function journalRouter(vault, vaultPath) {
       if (!text) return res.status(400).json({ error: 'text is required' });
       const linkedTitle = req.body?.linkedTitle ? String(req.body.linkedTitle).trim() : undefined;
       const category = req.body?.category ? String(req.body.category) : undefined; // addEntry validates; defaults personal
-      const entry = await addEntry(vaultPath, { text, linkedTitle, category });
+      const label = req.body?.label ? String(req.body.label).slice(0, 60) : undefined;
+      const entry = await addEntry(vaultPath, { text, linkedTitle, category, label });
       res.json({ entry });
     } catch (err) {
       res.status(400).json({ error: err.message });
