@@ -192,6 +192,57 @@ function toEvent(ev, start, end, calendarName, recurring) {
   };
 }
 
+// Expand one UID's parsed VEVENTs (master + overrides + plain) across a
+// window. Pure and exported for tests — this is where the "calendar never
+// updates" bug lived, so it stays testable forever.
+//
+// Single-occurrence edits ("move just today's Workout to 10:00") live in
+// node-ical's master.recurrences — NOT as top-level entries. The old code
+// only read top-level, so every moved occurrence was invisible and Nova kept
+// showing the series' original time. Overrides are folded in (deduped —
+// node-ical keys each under both a date key and an instant key), rendered at
+// THEIR OWN time, and every override suppresses its original slot — including
+// ones moved out of the window, else the old time would ghost back.
+export function expandUidGroup(versions, rangeStart, rangeEnd, calendarName) {
+  const events = [];
+  const master = versions.find((v) => v.rrule);
+  const plain = versions.filter((v) => !v.rrule && !v.recurrenceid);
+
+  const overrides = [];
+  const seenOverride = new Set();
+  const foldOverride = (o) => {
+    if (!o || !o.start || !o.recurrenceid) return;
+    const k = `${+o.recurrenceid}|${+o.start}`;
+    if (seenOverride.has(k)) return;
+    seenOverride.add(k);
+    o._url = master?._url || o._url; o._etag = master?._etag || o._etag; o._raw = master?._raw || o._raw;
+    overrides.push(o);
+  };
+  for (const v of versions) {
+    if (v.recurrenceid) foldOverride(v); // some feeds DO surface them top-level
+    if (v.recurrences) for (const o of Object.values(v.recurrences)) foldOverride(o);
+  }
+
+  for (const ev of [...overrides, ...plain]) {
+    if (ev.start >= rangeStart && ev.start <= rangeEnd) {
+      // an override is still part of a series — flag it so single-instance
+      // moves/deletes stay honestly declined by the command interpreter
+      events.push(toEvent(ev, ev.start, ev.end, calendarName, !!ev.recurrenceid));
+    }
+  }
+  if (master) {
+    const duration = master.end - master.start;
+    const overriddenInstants = new Set(overrides.map((o) => +o.recurrenceid));
+    const excludedInstants = new Set(master.exdate ? Object.values(master.exdate).map((d) => +d) : []);
+    for (const occStart of master.rrule.between(rangeStart, rangeEnd, true)) {
+      if (overriddenInstants.has(+occStart) || excludedInstants.has(+occStart)) continue;
+      const occEnd = new Date(occStart.getTime() + duration);
+      events.push(toEvent(master, occStart, occEnd, calendarName, true));
+    }
+  }
+  return events;
+}
+
 // A recurring VEVENT's own `start`/`end` are just the *first* occurrence, so
 // expand each master's RRULE across the window, honoring EXDATE and
 // RECURRENCE-ID overrides. Each event carries its object url/etag/raw so it can
@@ -226,24 +277,7 @@ async function collectEvents(rangeStart, rangeEnd) {
       }
     }
     for (const versions of byUid.values()) {
-      const master = versions.find((v) => v.rrule);
-      const overrides = versions.filter((v) => v.recurrenceid);
-      const plain = versions.filter((v) => !v.rrule && !v.recurrenceid);
-      for (const ev of [...overrides, ...plain]) {
-        if (ev.start >= rangeStart && ev.start <= rangeEnd) {
-          events.push(toEvent(ev, ev.start, ev.end, calendar.displayName, false));
-        }
-      }
-      if (master) {
-        const duration = master.end - master.start;
-        const overriddenInstants = new Set(overrides.map((o) => +o.recurrenceid));
-        const excludedInstants = new Set(master.exdate ? Object.values(master.exdate).map((d) => +d) : []);
-        for (const occStart of master.rrule.between(rangeStart, rangeEnd, true)) {
-          if (overriddenInstants.has(+occStart) || excludedInstants.has(+occStart)) continue;
-          const occEnd = new Date(occStart.getTime() + duration);
-          events.push(toEvent(master, occStart, occEnd, calendar.displayName, true));
-        }
-      }
+      events.push(...expandUidGroup(versions, rangeStart, rangeEnd, calendar.displayName));
     }
   }
   return events;
