@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { fetchEventsForDay, listCalendars, saveCalendarPrefs } from '../lib/calendar.js';
+import { fetchEventsForDay, fetchEventsForRange, listCalendars, saveCalendarPrefs } from '../lib/calendar.js';
 import { runCalendarCommand } from '../lib/calendarCommand.js';
 
 function configured() {
@@ -14,6 +14,18 @@ export function calendarRouter() {
       if (!configured()) return res.status(501).json({ error: 'calendar not configured' });
       const events = await fetchEventsForDay(new Date());
       res.json({ events });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Events across a range (default 14 days) — the week/month view + range-aware
+  // reasoning. Hidden calendars are already excluded upstream.
+  router.get('/calendar/range', async (req, res, next) => {
+    try {
+      if (!configured()) return res.status(501).json({ error: 'calendar not configured' });
+      const days = req.query.days ? Math.min(60, Math.max(1, Number(req.query.days) || 14)) : 14;
+      res.json({ events: await fetchEventsForRange(days) });
     } catch (err) {
       next(err);
     }

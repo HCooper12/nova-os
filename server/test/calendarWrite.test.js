@@ -2,7 +2,7 @@
 // transport and the model interpreter are exercised live on approval, not here.)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildEventICal } from '../lib/calendar.js';
+import { buildEventICal, rewriteEventTimes } from '../lib/calendar.js';
 
 test('builds a valid VEVENT with UTC times and CRLF lines', () => {
   const ics = buildEventICal({
@@ -40,4 +40,24 @@ test('accepts ISO strings as well as Date objects for start/end', () => {
   const ics = buildEventICal({ uid: 'u', title: 'X', start: '2026-08-01T06:30:00Z', end: '2026-08-01T07:30:00Z' });
   assert.match(ics, /DTSTART:20260801T063000Z/);
   assert.match(ics, /DTEND:20260801T073000Z/);
+});
+
+test('rewriteEventTimes moves an event to new UTC times, bumps SEQUENCE, keeps the rest', () => {
+  const raw = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'BEGIN:VEVENT', 'UID:abc@x',
+    'DTSTAMP:20260101T000000Z',
+    'DTSTART;TZID=Australia/Sydney:20260722T140000',
+    'DTEND;TZID=Australia/Sydney:20260722T150000',
+    'SUMMARY:Dentist', 'LOCATION:Clinic', 'END:VEVENT', 'END:VCALENDAR',
+  ].join('\r\n');
+  const out = rewriteEventTimes(raw, new Date('2026-07-23T04:00:00Z'), new Date('2026-07-23T05:00:00Z'));
+  assert.match(out, /DTSTART:20260723T040000Z/);
+  assert.match(out, /DTEND:20260723T050000Z/);
+  assert.ok(!out.includes('TZID=Australia'), 'the old tz-based time lines are replaced');
+  assert.match(out, /SUMMARY:Dentist/, 'other properties preserved');
+  assert.match(out, /LOCATION:Clinic/);
+  assert.match(out, /SEQUENCE:1/, 'sequence stamped for the update');
+
+  const again = rewriteEventTimes(out, new Date('2026-07-24T04:00:00Z'), new Date('2026-07-24T05:00:00Z'));
+  assert.match(again, /SEQUENCE:2/, 'sequence bumps on a second move');
 });

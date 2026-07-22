@@ -183,7 +183,8 @@ export default class App extends Component {
     // live-data connection (Settings screen)
     settingsBaseUrl: '', settingsToken: '',
     settingsTestStatus: 'idle', settingsTestMessage: '',
-    liveNotes: null, liveNoteDetails: {}, liveCalendar: null, liveCalendarList: null, calCmdText: '', calCmdBusy: false, liveRecipes: null,
+    liveNotes: null, liveNoteDetails: {}, liveCalendar: null, liveCalendarList: null, calCmdText: '', calCmdBusy: false,
+    calendarViewOpen: false, liveCalendarRange: null, liveRecipes: null,
     liveRotation: null, liveRecipeProfile: null, rotationShowExtra: false,
 
     // add recipe (writes back to the real vault file)
@@ -1952,6 +1953,14 @@ export default class App extends Component {
         }
       })
       .catch((e) => { this.setState({ calCmdBusy: false }); this.toastMsg('Could not reach Nova: ' + e.message); });
+  }
+  openCalendarView() { this.setState({ calendarViewOpen: true }); this.loadCalendarRange(); }
+  loadCalendarRange() {
+    const conn = getConnection();
+    if (!conn) return;
+    api.calendarRange(conn, 14)
+      .then(({ events }) => this.setState({ liveCalendarRange: events || [] }))
+      .catch(() => this.setState({ liveCalendarRange: [] }));
   }
   // Manually correct a day's steps (e.g. when the phone automation missed a
   // night). Upserts through the normal health path and re-pulls the week.

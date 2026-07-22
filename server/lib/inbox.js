@@ -15,7 +15,7 @@ import { addItemsDirect, removeItems, SHOPPING_CATEGORIES } from './shoppingList
 import * as journal from './journal.js';
 import * as foodLog from './foodLog.js';
 import { addRecipe, removeRecipe } from './recipes.js';
-import { createEvent, deleteEventAt } from './calendar.js';
+import { createEvent, deleteEventAt, moveEvent, putEventRaw } from './calendar.js';
 
 // The Nova Inbox: capture any loose thought, let a READ-ONLY classifier make
 // exactly one typed routing decision, then let deterministic code do the
@@ -208,12 +208,30 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
   }
 
   if (route === 'calendar') {
-    // Only reached on the user's explicit approval of a proposed event.
-    const created = await createEvent(payload);
-    return {
-      destination: `Calendar — ${payload.title} (${created.calendarName})`,
-      undo: { route, objectUrl: created.objectUrl, etag: created.etag },
-    };
+    // Only reached on the user's explicit approval. Writes to iCloud here.
+    const action = payload.action || 'create';
+    if (action === 'create') {
+      const created = await createEvent(payload);
+      return {
+        destination: `Calendar — added ${payload.title} (${created.calendarName})`,
+        undo: { route, action: 'create', objectUrl: created.objectUrl, etag: created.etag },
+      };
+    }
+    if (action === 'move') {
+      await moveEvent({ objectUrl: payload.objectUrl, etag: payload.etag, raw: payload.oldRaw, newStart: payload.newStart, newEnd: payload.newEnd });
+      return {
+        destination: `Calendar — moved ${payload.label}`,
+        undo: { route, action: 'move', objectUrl: payload.objectUrl, oldRaw: payload.oldRaw },
+      };
+    }
+    if (action === 'delete') {
+      await deleteEventAt({ objectUrl: payload.objectUrl, etag: payload.etag });
+      return {
+        destination: `Calendar — cancelled ${payload.label}`,
+        undo: { route, action: 'delete', objectUrl: payload.objectUrl, raw: payload.raw },
+      };
+    }
+    throw new Error('unknown calendar action');
   }
 
   if (route === 'recipe') {
@@ -364,8 +382,20 @@ export async function undoFiling(vaultPath, undo) {
   }
 
   if (undo.route === 'calendar') {
-    await deleteEventAt({ objectUrl: undo.objectUrl, etag: undo.etag });
-    return 'removed the event from your calendar';
+    const action = undo.action || 'create';
+    if (action === 'create') {
+      await deleteEventAt({ objectUrl: undo.objectUrl, etag: undo.etag });
+      return 'removed the event from your calendar';
+    }
+    if (action === 'move') {
+      await putEventRaw({ objectUrl: undo.objectUrl, raw: undo.oldRaw });
+      return 'moved the event back to its original time';
+    }
+    if (action === 'delete') {
+      await putEventRaw({ objectUrl: undo.objectUrl, raw: undo.raw });
+      return 'restored the event to your calendar';
+    }
+    throw new Error('unknown calendar undo');
   }
 
   if (undo.route === 'journal') {

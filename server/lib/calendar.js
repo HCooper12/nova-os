@@ -4,7 +4,7 @@ import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Which calendars to hide from Nova, keyed by their stable CalDAV URL (names can
@@ -133,7 +133,6 @@ export async function createEvent({ title, start, end, notes, calendarName }) {
   };
 }
 
-// Undo for a created event — delete it by url (etag If-Match when we have it).
 export async function deleteEventAt({ objectUrl, etag }) {
   const client = await getClient();
   const res = await client.deleteCalendarObject({ calendarObject: { url: objectUrl, etag: etag || undefined } });
@@ -141,40 +140,79 @@ export async function deleteEventAt({ objectUrl, etag }) {
   return { removed: true };
 }
 
-function toEvent(ev, start, end, category) {
+// Rewrite just DTSTART/DTEND (to UTC), refresh DTSTAMP, bump SEQUENCE — a moved
+// event keeps its UID and every other property (alarms, attendees, notes).
+function rewriteEventTimes(raw, newStart, newEnd) {
+  let out = raw
+    .replace(/^DTSTART[^\r\n]*/m, `DTSTART:${toICalUTC(new Date(newStart))}`)
+    .replace(/^DTEND[^\r\n]*/m, `DTEND:${toICalUTC(new Date(newEnd))}`)
+    .replace(/^DTSTAMP[^\r\n]*/m, `DTSTAMP:${toICalUTC(new Date())}`);
+  if (/^SEQUENCE:\d+/m.test(out)) out = out.replace(/^SEQUENCE:(\d+)/m, (_m, n) => `SEQUENCE:${Number(n) + 1}`);
+  else out = out.replace(/^(UID:[^\r\n]*)/m, `$1\r\nSEQUENCE:1`);
+  return out;
+}
+export { rewriteEventTimes };
+
+// Move an existing event by rewriting its times. Returns the new etag.
+export async function moveEvent({ objectUrl, etag, raw, newStart, newEnd }) {
+  const client = await getClient();
+  const data = rewriteEventTimes(raw, newStart, newEnd);
+  const res = await client.updateCalendarObject({ calendarObject: { url: objectUrl, etag: etag || undefined, data } });
+  if (!res.ok && ![200, 204].includes(res.status)) throw new Error(`calendar move failed (${res.status})`);
+  return { objectUrl, newEtag: res.headers?.get?.('etag') || null };
+}
+
+// Restore an event's exact prior iCal (undo a move) or recreate a deleted one —
+// a PUT with no If-Match, which CalDAV creates-or-replaces.
+export async function putEventRaw({ objectUrl, raw }) {
+  const client = await getClient();
+  const res = await client.updateCalendarObject({ calendarObject: { url: objectUrl, data: raw } });
+  if (!res.ok && ![200, 201, 204].includes(res.status)) throw new Error(`calendar restore failed (${res.status})`);
+  return { restored: true };
+}
+
+function shortId(s) { return createHash('sha1').update(s).digest('base64url').slice(0, 12); }
+
+function toEvent(ev, start, end, calendarName, recurring) {
+  const startISO = start.toISOString();
   return {
+    id: shortId(`${ev.uid}|${startISO}`),
+    date: `${start.getFullYear()}-${pad2(start.getMonth() + 1)}-${pad2(start.getDate())}`,
     time: start.toTimeString().slice(0, 5),
-    label: ev.summary || 'Untitled event',
     end: end ? end.toTimeString().slice(0, 5) : null,
-    calendar: category,
+    label: ev.summary || 'Untitled event',
+    calendar: calendarName,
+    startISO,
+    endISO: end ? end.toISOString() : null,
+    recurring: !!recurring,
+    uid: ev.uid,
+    objectUrl: ev._url || null,
+    etag: ev._etag || null,
+    raw: ev._raw || null,
   };
 }
 
-// A recurring VEVENT's own `start`/`end` are just the *first* occurrence in the
-// series (e.g. a weekly workout's DTSTART might be months ago) — checking that
-// against today's window drops every recurring event outright. Instead, expand
-// each recurring master's RRULE for today's window, honoring EXDATE (skipped
-// instances) and RECURRENCE-ID overrides (moved/edited single instances, which
-// arrive as their own separate VEVENT sharing the master's UID).
-export async function fetchEventsForDay(date = new Date()) {
+// A recurring VEVENT's own `start`/`end` are just the *first* occurrence, so
+// expand each master's RRULE across the window, honoring EXDATE and
+// RECURRENCE-ID overrides. Each event carries its object url/etag/raw so it can
+// later be moved or deleted; recurring occurrences are flagged (edits to a
+// single instance of a series are deliberately not offered).
+async function collectEvents(rangeStart, rangeEnd) {
   const client = await getClient();
   const calendars = await client.fetchCalendars();
   const { hidden } = await loadCalendarPrefs();
   const hiddenSet = new Set(hidden);
-  const dayStart = startOfDay(date);
-  const dayEnd = endOfDay(date);
-  const timeRange = { start: dayStart.toISOString(), end: dayEnd.toISOString() };
+  const timeRange = { start: rangeStart.toISOString(), end: rangeEnd.toISOString() };
 
   const events = [];
   for (const calendar of calendars) {
-    if (hiddenSet.has(calendar.url)) continue; // respect the user's hide list — skip the fetch entirely
+    if (hiddenSet.has(calendar.url)) continue;
     let objects;
     try {
       objects = await client.fetchCalendarObjects({ calendar, timeRange });
     } catch {
       continue;
     }
-
     const byUid = new Map();
     for (const obj of objects) {
       if (!obj.data) continue;
@@ -182,36 +220,59 @@ export async function fetchEventsForDay(date = new Date()) {
       for (const key of Object.keys(parsed)) {
         const ev = parsed[key];
         if (ev.type !== 'VEVENT' || !ev.start || !ev.uid) continue;
+        ev._url = obj.url; ev._etag = obj.etag; ev._raw = obj.data;
         if (!byUid.has(ev.uid)) byUid.set(ev.uid, []);
         byUid.get(ev.uid).push(ev);
       }
     }
-
     for (const versions of byUid.values()) {
       const master = versions.find((v) => v.rrule);
       const overrides = versions.filter((v) => v.recurrenceid);
       const plain = versions.filter((v) => !v.rrule && !v.recurrenceid);
-
       for (const ev of [...overrides, ...plain]) {
-        if (ev.start >= dayStart && ev.start <= dayEnd) {
-          events.push(toEvent(ev, ev.start, ev.end, calendar.displayName));
+        if (ev.start >= rangeStart && ev.start <= rangeEnd) {
+          events.push(toEvent(ev, ev.start, ev.end, calendar.displayName, false));
         }
       }
-
       if (master) {
         const duration = master.end - master.start;
         const overriddenInstants = new Set(overrides.map((o) => +o.recurrenceid));
-        const excludedInstants = new Set(
-          master.exdate ? Object.values(master.exdate).map((d) => +d) : []
-        );
-        for (const occStart of master.rrule.between(dayStart, dayEnd, true)) {
+        const excludedInstants = new Set(master.exdate ? Object.values(master.exdate).map((d) => +d) : []);
+        for (const occStart of master.rrule.between(rangeStart, rangeEnd, true)) {
           if (overriddenInstants.has(+occStart) || excludedInstants.has(+occStart)) continue;
           const occEnd = new Date(occStart.getTime() + duration);
-          events.push(toEvent(master, occStart, occEnd, calendar.displayName));
+          events.push(toEvent(master, occStart, occEnd, calendar.displayName, true));
         }
       }
     }
   }
+  return events;
+}
+
+// Client-facing shape — drops the internal CalDAV url/etag/raw.
+const PUBLIC_FIELDS = ['id', 'date', 'time', 'end', 'label', 'calendar', 'recurring', 'startISO'];
+function publicEvent(e) { const o = {}; for (const f of PUBLIC_FIELDS) o[f] = e[f]; return o; }
+
+export async function fetchEventsForDay(date = new Date()) {
+  const events = await collectEvents(startOfDay(date), endOfDay(date));
   events.sort((a, b) => a.time.localeCompare(b.time));
+  return events.map(publicEvent);
+}
+
+// Events across N days from `from` (inclusive) — public shape, for the week/
+// month view and any range-aware reasoning.
+export async function fetchEventsForRange(days = 14, from = new Date()) {
+  const end = endOfDay(new Date(startOfDay(from).getTime() + (days - 1) * 86400000));
+  const events = await collectEvents(startOfDay(from), end);
+  events.sort((a, b) => (a.startISO < b.startISO ? -1 : a.startISO > b.startISO ? 1 : 0));
+  return events.map(publicEvent);
+}
+
+// Server-internal: same range but WITH identity (url/etag/raw), so the command
+// interpreter can resolve "my 3pm meeting" and move or delete it.
+export async function fetchEventsForRangeRaw(days = 14, from = new Date()) {
+  const end = endOfDay(new Date(startOfDay(from).getTime() + (days - 1) * 86400000));
+  const events = await collectEvents(startOfDay(from), end);
+  events.sort((a, b) => (a.startISO < b.startISO ? -1 : a.startISO > b.startISO ? 1 : 0));
   return events;
 }

@@ -124,6 +124,7 @@ export const api = {
   calendars: (conn) => call(conn, '/api/calendar/calendars'),
   setHiddenCalendars: (conn, hidden) => post(conn, '/api/calendar/calendars/hidden', { hidden }),
   calendarCommand: (conn, text) => post(conn, '/api/calendar/command', { text }),
+  calendarRange: (conn, days = 14) => call(conn, `/api/calendar/range?days=${days}`),
   workoutExercises: (conn) => call(conn, '/api/workouts/exercises'),
   addWorkoutExercise: (conn, name, muscleGroup, trackingType) => post(conn, '/api/workouts/exercises', { name, muscleGroup, trackingType }),
   workoutRoutines: (conn) => call(conn, '/api/workouts/routines'),

@@ -3,6 +3,7 @@ import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
 import { Clock } from '../Clock.jsx';
 import { StepsHistory } from '../StepsHistory.jsx';
+import { CalendarView } from '../CalendarView.jsx';
 
 // Command Core (design 45): hero with eyebrow/tagline/standfirst beside the
 // living Nova core + three conic-progress satellites, then Suggested Focus /
@@ -78,6 +79,7 @@ export function MissionControl({ v }) {
   return (
     <div style={v.wrapMission} data-screen-label="Mission Control">
       {v.stepsOverlay && <StepsHistory v={v.stepsOverlay} />}
+      {v.calendarView && <CalendarView v={v.calendarView} />}
       <section style={heroGrid}>
         <div>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 10px', font: `500 10px ${M}`, letterSpacing: '.28em', color: 'var(--nv-ink60)', marginBottom: '16px' }}>
@@ -149,7 +151,9 @@ export function MissionControl({ v }) {
         <div className="nv-pane" style={{ padding: '20px 24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', marginBottom: '10px' }}>
             <span style={phH('--nv-cy', '--nv-tsh-head-cy')}>TODAY</span>
-            {v.todayIsLive && <span style={phMeta}>LIVE · CALENDAR</span>}
+            {v.todayIsLive && (
+              <Interactive as="span" onClick={v.openCalendarView} base={{ cursor: 'pointer', font: `500 8.5px ${M}`, letterSpacing: '.14em', color: 'var(--nv-ink40)' }} hoverStyle={{ color: 'var(--nv-cy)' }}>NEXT 14 DAYS →</Interactive>
+            )}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '218px', overflowY: 'auto' }}>
             {v.todayEvents.map((ev, i) => (
@@ -171,7 +175,7 @@ export function MissionControl({ v }) {
                 value={v.calCmd}
                 onChange={v.setCalCmd}
                 onKeyDown={(e) => { if (e.key === 'Enter') v.sendCalCmd(); }}
-                placeholder="Ask Nova to schedule… “dentist Thu 2pm”"
+                placeholder="Ask Nova… “dentist Thu 2pm”, “move gym to Fri 6pm”, “cancel…”"
                 style={{ flex: 1, minWidth: 0, background: 'rgba(0,0,0,.28)', border: '1px solid rgba(130,175,255,.16)', borderRadius: '9px', padding: '10px 13px', color: 'var(--nv-ink)', fontSize: '13px', fontFamily: "'Rajdhani',sans-serif", outline: 'none' }}
               />
               <Interactive as="span" onClick={v.calCmdBusy ? undefined : v.sendCalCmd} base={{ cursor: v.calCmdBusy ? 'default' : 'pointer', flex: 'none', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '10px 15px', borderRadius: '9px', background: 'var(--nv-cy)', color: '#0a2830', opacity: v.calCmdBusy ? 0.6 : 1 }} hoverStyle={{ filter: 'brightness(1.08)' }}>{v.calCmdBusy ? 'DRAFTING…' : 'DRAFT'}</Interactive>

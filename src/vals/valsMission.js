@@ -47,6 +47,22 @@ function buildStepsWeek(healthDays, goal) {
   return out;
 }
 
+// Group range events into day sections for the week/month view.
+function groupByDay(events) {
+  const byDate = new Map();
+  for (const e of events) {
+    if (!byDate.has(e.date)) byDate.set(e.date, []);
+    byDate.get(e.date).push(e);
+  }
+  const todayIso = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
+  return [...byDate.entries()].map(([date, evs]) => ({
+    date,
+    isToday: date === todayIso,
+    label: new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short' }),
+    events: evs.map((e) => ({ time: e.time, end: e.end, label: e.label, calendar: e.calendar, recurring: e.recurring, hue: categoryHue(e.calendar) })),
+  }));
+}
+
 export function valsMission(app, ctx) {
   const st = app.state;
   const { demoMode, isOffline, lastSyncLabel, go, usingLiveRecipes, rotation,
@@ -441,6 +457,15 @@ export function valsMission(app, ctx) {
     setCalCmd: (e) => app.setCalCmd(e),
     calCmdBusy: st.calCmdBusy,
     sendCalCmd: () => app.sendCalendarCommand(),
+
+    // week/month view — the next 14 days grouped by day, opened from TODAY
+    openCalendarView: () => app.openCalendarView(),
+    calendarView: st.calendarViewOpen ? {
+      close: () => app.setState({ calendarViewOpen: false }),
+      loaded: st.liveCalendarRange != null,
+      days: groupByDay(st.liveCalendarRange || []),
+      count: (st.liveCalendarRange || []).length,
+    } : null,
 
     // steps history + manual edit (Pedometer++-style), opened from the satellite
     stepsOverlay: st.stepsOverlayOpen ? (() => {
