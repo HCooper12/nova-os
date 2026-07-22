@@ -60,16 +60,23 @@ Morning Dispatch; Evening Debrief; next-block marker; the proposal engine.
 1. *Week view / weekly plan draft* — Sunday routine drafting the week ahead
    (training days from schedule, known calendar anchors, review concepts
    queued) as a draft-gated vault note `Wiki/Plans/Week of <date>.md`.
+   **Newly cheap** since 2026-07: `fetchEventsForRange` exists and the
+   client has a 14-day agenda view — this is now composition, not plumbing.
 2. *Conflict detection* — deterministic: training scheduled but a calendar
    event overlaps the usual slot → proposal ("Leg Day clashes with 18:00
-   dinner — move to morning?"). Requires only read access it already has.
+   dinner — move to morning?"). Requires only read access it already has —
+   and approving a move can now ride the shipped calendar write path.
 3. *Focus session* — "Engage next block" becomes a real timer: block start
    logs to journal on completion (review-gated at first), Mission Control
    shows the countdown. No new data sources needed.
-4. *Calendar write path (long-term, careful)* — creating events requires
-   CalDAV write to iCloud. High blast radius: ship as propose-only forever
-   (Commander drafts an .ics the phone opens) unless a safe write path is
-   proven. Never silent calendar mutation.
+4. *Calendar write path* — ✅ Shipped (2026-07), and the "unless a safe
+   write path is proven" bar was met: natural-language create/move/delete
+   over CalDAV, every operation confirm-first on the inbox rails (nothing
+   touches iCloud until Hayden approves) and fully undoable (a move restores
+   the original iCal; a delete recreates it). Recurring-series instances are
+   declined honestly rather than mutated. "Never silent calendar mutation"
+   holds — it is enforced by two independent code locks (the classifier
+   route clamp + draft records only filing through the approve endpoint).
 
 **Friction design.** Everything scheduled; the only taps are approvals while
 trust builds, then proposals to remove even those. Dispatch/Debrief already
@@ -101,18 +108,22 @@ view.
 when starting a session; streaks; health data; dispatch lines.
 
 **Skills & routines to build (in order):**
-1. *Progression proposals (deterministic)* — rule-based: all sets hit
-   target-high reps across last two sessions → propose +2.5kg (or +1 rep for
-   bodyweight). Rendered in the session view as pre-accepted defaults you
-   can override — friction-free because it changes *prefill*, not files.
+1. *Progression proposals (deterministic)* — ✅ Shipped: rule-based, all
+   sets at target-high across the last two sessions → +2.5kg (or +1 rep for
+   bodyweight), rendered as session-view prefills/chips you can override.
+   Also since built: carry-overs (missed exercises pushed to another day,
+   on their own store + Train UI, visible to every training agent) and the
+   evening training check (calendar↔Train↔logged cross-reference asking
+   "did it happen?").
 2. *Missed-session rescue* — scheduled routine with no logged session by
    debrief time → debrief line + evening nudge in the Inbox. NUDGE ONLY:
    the weekly schedule is a recurring template, so a one-off rewrite would
    corrupt every future week — accepting simply opens Train ("a shortened
    session still counts"); a skip holds for that night and re-arms tomorrow.
    ✅ Shipped (dispatch status carries training context; proposal engine).
-3. *Recovery-aware deload* — deterministic trigger (HRV 7-day slope down X%,
-   sleep debt) → propose a lighter variant ("−15% loads today?"). Model-free.
+3. *Recovery-aware deload* — ✅ Shipped: deterministic, date-aware (last 3
+   CALENDAR days, never file-order — sparse data refuses instead of claiming
+   recency), advisory-only in the brief/Coach/Daily Review.
 4. *Session summary line* — after finishing a workout, a one-line PR/volume
    note appended to the session file (deterministic; already has the data).
 5. *(Later) Form/plan Q&A* — the Voice/ask-Nova skill scoped to training

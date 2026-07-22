@@ -1,10 +1,12 @@
 // The Nova operating lens — the single shared reasoning spine that every
-// model-based agent (Ask Nova, Coach, Quick Session, Researcher, Studio)
-// prepends to its own role. This is the runtime half of the Nova Method
-// (design/NOVA-METHOD.md): it makes every insight, suggestion, and
-// reflection happen through the same disciplined thought process instead of
-// each agent improvising its own. Keep it tight — it rides on top of every
-// agent prompt, so it earns its tokens by being principle, not prose.
+// model-based agent (Ask Nova, Coach, Quick Session, Daily Review, Health
+// Insight, Researcher, Studio) prepends to its own role. This is the runtime
+// half of the Nova Method (design/NOVA-METHOD.md): it makes every insight,
+// suggestion, and reflection happen through the same disciplined thought
+// process instead of each agent improvising its own. Keep it tight — it rides
+// on top of every agent prompt, so it earns its tokens by being principle,
+// not prose. (Pure extractors — the recipe/food scanners and the calendar
+// command interpreter — deliberately run without it: they parse, not reason.)
 //
 // If you change this, change design/NOVA-METHOD.md's "Runtime lens" section
 // to match — the doc is the human-readable source of truth.

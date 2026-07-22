@@ -36,8 +36,11 @@ mission is right and the rule needs revising.
 ## 1 · Runtime lens
 
 This is the exact text in `server/lib/lens.js`, prepended to every
-model-based agent (Ask Nova, Coach, Quick Session, Researcher, Studio). It
-is how Nova's agents are required to reason:
+model-based agent (Ask Nova, Coach, Quick Session, Daily Review, Health
+Insight, Researcher, Studio). Pure extractors — the recipe/food photo
+scanners and the calendar-command interpreter — deliberately run without it:
+they parse, they don't reason. It is how Nova's agents are required to
+reason:
 
 > - **GROUND IN REAL DATA.** Use Hayden's actual vault, his logged history,
 >   and the live context you're given. Never invent a number, a fact, or a
@@ -177,30 +180,38 @@ sharper — the backlog for making Nova genuinely intelligent rather than
 merely informed. Fill these in and the same agents get better with no new
 model.
 
-- **Who Hayden is (highest leverage, not yet built).** A structured
-  operating profile: life priorities and current season, what "best self"
-  means to him right now, standing constraints, the handful of things that
-  matter most this month. Every agent should reason from this. Today Nova
-  knows his *data* but not his *intentions* beyond fitness — this is the gap
-  between a helpful tool and a companion.
-- **Train.** Has fitness goals (goal/focus/days/notes). Missing to reason
-  like a real coach: current + target bodyweight and timeline; training age /
-  experience; equipment constraints (the weekend-dumbbells fact surfaced in
-  chat but isn't structured); injury/limitation flags; per-set effort (RPE /
-  reps-in-reserve) — the single best autoregulation signal; estimated 1RMs
-  from logged sets so progress can be read as signal not noise.
-- **Nutrition.** Has a protein floor. Missing: a calorie/energy target tied
-  to the goal (cut/maintain/gain); the bodyweight trend to close the loop
-  ("intake vs goal vs the scale"); food preferences and restrictions so
-  suggestions are things he'll actually eat.
-- **Daily proactivity.** The briefs today *report* (deterministic, reliable)
-  but rarely *coach across domains* (HRV × training load × protein × calendar
-  in one adjustment). The flagship gap: a model-composed daily reflection
-  that reasons across everything through the lens and proposes 1–3 concrete
-  adjustments — reliably useful, review-gated, once a day.
-- **Learning loop.** Corrections and accept/skip decisions are mostly not
-  fed back. A general "Hayden tends to…" memory would let suggestions
-  compound instead of resetting.
+- **Who Hayden is — BUILT (needs his words).** `Wiki/Profile.md` via
+  `profile.js`, injected first into Ask Nova, Coach, Quick Session, Daily
+  Review, and Health Insight. The structure exists; as of 2026-07 the page
+  is still empty, so every agent honestly says "no profile set yet" — the
+  highest-leverage two minutes in the app is filling it in (Settings →
+  About You).
+- **Daily proactivity — BUILT.** The Daily Review (`dailyReview.js`) is the
+  flagship: model-composed once a day through the lens, reasoning across the
+  briefs, sessions, goals, carry-overs, week-ahead calendar, money, and
+  learned preferences; review-gated (or auto with a push). The briefs stay
+  deterministic and now carry to-dos and carry-overs.
+- **Learning loop — PARTIALLY BUILT.** `learning.js` computes accept/skip
+  tendencies across every proposal kind plus the weekend-protein pattern,
+  feeding Daily Review, Ask Nova, and Coach. Still open: a general
+  free-text "Hayden tends to…" memory beyond kind-level stats.
+- **Train.** Has fitness goals (goal/focus/days/notes) reaching Coach, Quick
+  Session, and Daily Review; carry-overs (recorded training debt) reach every
+  training surface; bodyweight trend is wired end-to-end and starts flowing
+  when Body Mass joins the health Shortcut. Still missing to reason like a
+  real coach: training age / experience; equipment constraints (the
+  weekend-dumbbells fact surfaced in chat but isn't structured);
+  injury/limitation flags; per-set effort (RPE / reps-in-reserve) — the
+  single best autoregulation signal; estimated 1RMs from logged sets.
+- **Nutrition.** Has a protein floor + target kcal (recipe-file profile
+  line), cross-day food history, and floor-adherence feeding Coach and meal
+  prep. Still missing: a calorie target semantically tied to the goal
+  (cut/maintain/gain); food preferences and restrictions so suggestions are
+  things he'll actually eat.
+- **The full audit.** `design/PLATFORM-SWEEP-2026-07.md` is the July 2026
+  whole-platform sweep (41 findings, A–E). All five fix passes shipped
+  2026-07-22; its "recommended sequence" section is the record of what was
+  done and its E-section lists what remains deliberately open.
 
 When you add context here, note where it lives (a vault page, a profile
 store) and which agents read it — and prefer a vault page Hayden can edit by

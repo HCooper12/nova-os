@@ -251,3 +251,25 @@ Ranked by recommendation value per effort:
 *Sweep completed 2026-07-22. Sources: five parallel audits (agent context,
 client UX, inbox rails, data layer, doctrine) — static analysis with targeted
 live verification; no code changed during the sweep.*
+
+---
+
+## Status — all five passes shipped (2026-07-22)
+
+1. **Trust pass (A1–A10):** ✅ all ten.
+2. **Connection pass (B1–B10):** ✅ all ten (B5's Shortcut half — adding Body
+   Mass — is Hayden's side; the code path is live).
+3. **Fluency pass (C1–C13):** ✅ except C7 (batched `/api/snapshot`),
+   deliberately deferred — the wedge it mitigated was fixed at the root
+   (request timeouts + watchdog). Chat in-flight-poll re-attach after a
+   reclaim also remains open (transcripts persist; a mid-flight answer's
+   poll does not re-attach).
+4. **Robustness pass (D1–D8):** ✅ all eight.
+5. **Doc sync (E):** ✅ NOVA-METHOD (lens list, context ledger) and
+   AGENTS-PLAN (calendar write path, shipped markers) match reality.
+
+Deliberately still open, beyond C7: the newly-cheap plan items (week-plan
+draft, conflict detection, focus timer, session summary line), the context-
+ledger data gaps (RPE, training age, equipment, injuries, e1RMs, goal-tied
+calorie semantics, food preferences), P7/P8 render-performance levers, and
+the empty About You page (structure built; needs Hayden's words).
