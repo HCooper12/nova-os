@@ -351,6 +351,18 @@ export default class App extends Component {
     document.addEventListener('visibilitychange', this.visH);
     this.refreshIv = setInterval(() => { if (getConnection()) this.refreshLiveData(); }, 5 * 60_000);
     this.startEventStream();
+    // Zombie-stream watchdog: a half-open event stream delivers nothing and
+    // throws nothing — "live" calendar updates silently stopped until the
+    // 5-minute timer. The server pings every 25s, so >75s of silence while
+    // visible means the stream is dead: kill it and reconnect.
+    this.streamWatchIv = setInterval(() => {
+      if (document.visibilityState !== 'visible' || !this.eventAbort) return;
+      if (Date.now() - (this.lastStreamActivity || 0) > 75_000) {
+        this.stopEventStream();
+        this.startEventStream();
+        this.refreshLiveData(); // catch up on whatever the dead stream missed
+      }
+    }, 30_000);
     // Back/forward navigation re-derives the screen from the hash.
     this.popH = () => this.setState({ screen: screenFromHash() });
     window.addEventListener('popstate', this.popH);
@@ -371,7 +383,7 @@ export default class App extends Component {
     this.setState({ reviewIdx: Math.floor(Math.random() * this.reviews.length) });
   }
   componentWillUnmount() {
-    clearTimeout(this.bootT); clearInterval(this.refreshIv);
+    clearTimeout(this.bootT); clearInterval(this.refreshIv); clearInterval(this.streamWatchIv);
     Object.values(this.pollers || {}).forEach((p) => p.cancel());
     window.removeEventListener('keydown', this.keyH);
     window.removeEventListener('resize', this.resizeH);
@@ -444,9 +456,15 @@ export default class App extends Component {
       if (!res.ok || !res.body) throw new Error('stream unavailable');
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
+      this.lastStreamActivity = Date.now();
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
+        // EVERY chunk counts as liveness — the server pings every 25s, so a
+        // healthy stream is never silent longer than that. A half-open TCP
+        // stream (Tailscale network hops) pends forever with no error; the
+        // liveness watchdog uses this timestamp to detect and kill it.
+        this.lastStreamActivity = Date.now();
         if (!decoder.decode(value, { stream: true }).includes('data:')) continue;
         const now = Date.now();
         if (now - (this.lastEventRefresh || 0) > 3000) {
