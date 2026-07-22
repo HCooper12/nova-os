@@ -57,10 +57,14 @@ export function valsRecipes(app, ctx) {
   // slots marked consumed, plus anything logged off-plan) rather than the
   // day's full plan, so it climbs through the day instead of sitting at the
   // planned total from the moment a meal is picked
-  const proteinTarget = usingLiveRecipes ? (profile ? profile.proteinFloorG : 180) : 180;
+  // Live mode NEVER invents a floor: if the vault's Profile line is missing or
+  // fails to parse, the target is honestly unknown (null) — a fictional 180
+  // here once meant the gauge tracked a number Hayden never set. Demo keeps
+  // its scripted 180 under the demo banner.
+  const proteinTarget = usingLiveRecipes ? (profile ? profile.proteinFloorG : null) : 180;
   const proteinCurrent = usingLiveRecipes ? rotConsumedTot.p + foodLogTot.p : 96;
   const proteinRatio = proteinTarget > 0 ? Math.min(1, proteinCurrent / proteinTarget) : 0;
-  const proteinGap = Math.round(proteinTarget - proteinCurrent);
+  const proteinGap = proteinTarget != null ? Math.round(proteinTarget - proteinCurrent) : null;
   const proteinNextSlot = visibleSlotDefs.find((s) => !rotation?.slots?.[s.key]?.consumed);
   const proteinNextSlotFilled = proteinNextSlot ? rotation?.slots?.[proteinNextSlot.key] : null;
 

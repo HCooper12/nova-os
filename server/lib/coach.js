@@ -67,22 +67,28 @@ export async function computeProgressions(vaultPath, routines) {
 // Recovery-aware deload signal — pure arithmetic over recent health days,
 // honest about thin data, and ADVISORY only (a line in the brief and the
 // Coach's context; nothing changes any plan by itself).
+//
+// Date-aware, not file-aware: loadRecentDays returns the last N FILES, and
+// after automation misses those can span weeks — "the last 3 days" must mean
+// the last 3 CALENDAR days or the advisory claims recency the data doesn't
+// have (the honest-degradation rule; see the steps incident).
 export function computeDeloadSignal(healthDays) {
-  const withHrv = (healthDays || []).filter((d) => d.hrv != null);
-  if (withHrv.length < 5) {
-    return { advise: false, reason: `not enough recovery data (${withHrv.length}/7 days with HRV)` };
+  const dayAge = (d) => Math.round((new Date(new Date().toDateString()) - new Date(`${d.date}T12:00:00`)) / 86400000);
+  const all = (healthDays || []).filter((d) => d.date);
+  const withHrv = all.filter((d) => d.hrv != null && dayAge(d) <= 10);
+  const recent = withHrv.filter((d) => dayAge(d) <= 3);
+  const baseline = withHrv.filter((d) => dayAge(d) > 3);
+  if (recent.length < 2 || baseline.length < 3) {
+    return { advise: false, reason: `not enough recent recovery data (${recent.length} of the last 3 days have HRV, ${baseline.length} baseline days)` };
   }
-  const recent = withHrv.slice(-3);
-  const baseline = withHrv.slice(0, -3);
   const avg = (list, key) => list.reduce((s, d) => s + d[key], 0) / list.length;
-  const hrvDrop = baseline.length ? (avg(baseline, 'hrv') - avg(recent, 'hrv')) / avg(baseline, 'hrv') : 0;
+  const hrvDrop = (avg(baseline, 'hrv') - avg(recent, 'hrv')) / avg(baseline, 'hrv');
 
-  const withSleep = (healthDays || []).filter((d) => d.sleepAsleepMinutes != null);
-  const recentSleep = withSleep.slice(-3);
+  const recentSleep = all.filter((d) => d.sleepAsleepMinutes != null && dayAge(d) <= 3);
   const sleepShort = recentSleep.length >= 3 && avg(recentSleep, 'sleepAsleepMinutes') < 360;
 
   if (hrvDrop >= 0.1) {
-    return { advise: true, reason: `HRV is down ${Math.round(hrvDrop * 100)}% on your baseline over the last 3 days — a lighter session (−15% loads, stop 2-3 reps short) protects the trend` };
+    return { advise: true, reason: `HRV is down ${Math.round(hrvDrop * 100)}% on your baseline across the last ${recent.length} logged day${recent.length === 1 ? '' : 's'} — a lighter session (−15% loads, stop 2-3 reps short) protects the trend` };
   }
   if (sleepShort) {
     return { advise: true, reason: 'under 6h sleep three nights running — cap intensity today and bank an early night' };

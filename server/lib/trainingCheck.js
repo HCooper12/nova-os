@@ -85,13 +85,15 @@ export async function runTrainingCheck(vaultPath) {
   return { proposed: true, record };
 }
 
-// Evenings — one nudge a day; the per-day guard makes extra ticks harmless.
+// Evenings — one nudge a day. `>= 19`, not `=== 19`: exact-hour equality on an
+// hourly interval silently skips the day on tick drift or a restart. The
+// store-based per-day guard in runTrainingCheck makes extra ticks harmless.
 export function startTrainingCheckScheduler(vaultPath) {
   const tick = async () => {
     const { beat } = await import('./heartbeat.js');
     beat('training-check');
     try {
-      if (new Date().getHours() === 19) await runTrainingCheck(vaultPath);
+      if (new Date().getHours() >= 19) await runTrainingCheck(vaultPath);
     } catch (err) {
       console.error('training check failed:', err.message);
     }

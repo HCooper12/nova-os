@@ -357,7 +357,9 @@ export function Inbox({ v }) {
         </div>
         {v.inboxHistory.length === 0 ? (
           <div style={css(`margin-top:20px;text-align:center;font:500 13px ${R};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>
-            {v.inboxConnected ? 'Nothing captured yet — drop your first thought above.' : 'Connect a backend in Settings — captures write to your real vault.'}
+            {!v.inboxConnected ? 'Connect a backend in Settings — captures write to your real vault.'
+              : !v.inboxLoaded ? 'Loading your capture history…'
+              : 'Nothing captured yet — drop your first thought above.'}
           </div>
         ) : (
           <div style={css("margin-top:10px;display:flex;flex-direction:column")}>
@@ -383,6 +385,12 @@ export function Inbox({ v }) {
                       base={{ cursor: 'pointer', flex: 'none', font: `600 11px ${R}`, padding: '4px 12px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent)', color: 'var(--nv-ink60)', opacity: item.busy ? 0.5 : 1 }}
                       hoverStyle={{ borderColor: 'var(--nv-acc-border)', color: 'var(--nv-ink)' }}
                     >{item.busy ? '…' : 'Undo'}</Interactive>
+                  )}
+                  {item.canDiscard && (
+                    <Interactive as="span" onClick={item.busy ? undefined : item.discard}
+                      base={{ cursor: 'pointer', flex: 'none', font: `600 11px ${R}`, padding: '4px 12px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-warn) 35%, transparent)', color: 'var(--nv-warn)', opacity: item.busy ? 0.5 : 1 }}
+                      hoverStyle={{ background: 'color-mix(in srgb, var(--nv-warn) 10%, transparent)' }}
+                    >{item.busy ? '…' : 'Dismiss'}</Interactive>
                   )}
                 </div>
               );

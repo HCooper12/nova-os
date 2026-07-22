@@ -119,6 +119,14 @@ async function main() {
   app.use('/api', studioRouter(process.env.VAULT_PATH));
   app.use('/api', profileRouter(process.env.VAULT_PATH));
 
+  // Reap orphans BEFORE the schedulers tick: a record stuck in 'classifying'
+  // from before the restart can never resolve and would block today's loops.
+  import('./lib/inboxStore.js').then(({ reapOrphanedClassifying }) =>
+    reapOrphanedClassifying().then(({ reaped }) => {
+      if (reaped) console.log(`inbox reaper: flipped ${reaped} orphaned record(s) to error`);
+    })
+  ).catch((e) => console.error('inbox reaper failed:', e.message));
+
   startHealthInsightScheduler(process.env.VAULT_PATH);
   startDispatchScheduler(process.env.VAULT_PATH);
   startCompostScheduler(process.env.VAULT_PATH);

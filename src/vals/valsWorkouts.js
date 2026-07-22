@@ -217,6 +217,9 @@ export function valsWorkouts(app, ctx) {
     saveGoals: () => app.saveFitnessGoals(),
 
     workoutHeaderLabel: usingLiveWorkouts ? `${liveRoutines.length} ROUTINE${liveRoutines.length === 1 ? '' : 'S'} · LIVE FROM OBSIDIAN` : 'CONNECT A BACKEND IN SETTINGS',
+    // demo fiction is demoMode-ONLY — a connected session whose workouts fetch
+    // failed shows an honest unavailable state, never the scripted plan
+    workoutsDemo: ctx.demoMode,
     weekStrip,
     routinesList,
     routineCreating: st.routineCreating,

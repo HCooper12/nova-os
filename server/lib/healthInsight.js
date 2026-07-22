@@ -12,6 +12,8 @@ import { loadRotation } from './rotation.js';
 import { fetchEventsForDay } from './calendar.js';
 import { getToday as getFoodLogToday } from './foodLog.js';
 import { loadRecentDays as loadRecentNutritionDays } from './nutritionLog.js';
+import { NOVA_LENS } from './lens.js';
+import { profileContext } from './profile.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const INSIGHT_FILE = path.join(__dirname, '..', 'data', 'health', 'insight.json');
@@ -23,8 +25,14 @@ function today() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-async function buildContext(vaultPath) {
+async function buildContext(vaultPath, slot) {
   const lines = [];
+
+  // who Hayden is — every model surface reasons from the same operating profile
+  try {
+    const profile = await profileContext(vaultPath);
+    if (profile) lines.push(profile, '');
+  } catch { /* profile optional */ }
 
   const healthDays = await loadRecentDays(7);
   lines.push('## Recent health data (last 7 days with data, oldest first)');
@@ -82,31 +90,43 @@ async function buildContext(vaultPath) {
     lines.push('\n## Actual protein intake, recent days\n- Unavailable.');
   }
 
-  try {
-    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const events = await fetchEventsForDay(yesterday);
-    lines.push('\n## Yesterday\'s calendar');
-    if (events.length) {
-      const toMinutes = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
-      let scheduledMinutes = 0;
-      let backToBackCount = 0;
-      let prevEnd = null;
-      for (const e of events) {
-        if (e.end) {
-          let mins = toMinutes(e.end) - toMinutes(e.time);
-          if (mins < 0) mins += 24 * 60; // overnight (e.g. sleep block)
-          scheduledMinutes += mins;
+  // Calendar context per slot. Morning: yesterday's load (what drove last
+  // night's recovery) AND today's day ahead — the framing references today, so
+  // today must actually be in the context (the sweep caught the mismatch).
+  // Evening: today's calendar — the day being reviewed, not yesterday's.
+  const calendarSection = async (heading, date) => {
+    try {
+      const events = await fetchEventsForDay(date);
+      lines.push(`\n## ${heading}`);
+      if (events.length) {
+        const toMinutes = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+        let scheduledMinutes = 0;
+        let backToBackCount = 0;
+        let prevEnd = null;
+        for (const e of events) {
+          if (e.end) {
+            let mins = toMinutes(e.end) - toMinutes(e.time);
+            if (mins < 0) mins += 24 * 60; // overnight (e.g. sleep block)
+            scheduledMinutes += mins;
+          }
+          if (prevEnd != null && toMinutes(e.time) - prevEnd <= 15) backToBackCount++;
+          if (e.end) prevEnd = toMinutes(e.end) % (24 * 60);
         }
-        if (prevEnd != null && toMinutes(e.time) - prevEnd <= 15) backToBackCount++;
-        if (e.end) prevEnd = toMinutes(e.end) % (24 * 60);
+        lines.push(`- Load: ${Math.round(scheduledMinutes / 6) / 10}h scheduled across ${events.length} events${backToBackCount ? `, ${backToBackCount} back-to-back` : ''}`);
+        for (const e of events) lines.push(`- ${e.time} ${e.label} (${e.calendar})`);
+      } else {
+        lines.push('- Nothing on the calendar.');
       }
-      lines.push(`- Load: ${Math.round(scheduledMinutes / 6) / 10}h scheduled across ${events.length} events${backToBackCount ? `, ${backToBackCount} back-to-back` : ''}`);
-      for (const e of events) lines.push(`- ${e.time} ${e.label} (${e.calendar})`);
-    } else {
-      lines.push('- Nothing on the calendar.');
+    } catch {
+      lines.push(`\n## ${heading}\n- Unavailable (Calendar not connected, or a fetch error).`);
     }
-  } catch {
-    lines.push('\n## Yesterday\'s calendar\n- Unavailable (Calendar not connected, or a fetch error).');
+  };
+  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  if (slot === 'morning') {
+    await calendarSection("Yesterday's calendar (what drove last night's recovery)", yesterday);
+    await calendarSection("Today's calendar (the day ahead)", new Date());
+  } else {
+    await calendarSection("Today's calendar (the day being reviewed)", new Date());
   }
 
   try {
@@ -134,7 +154,9 @@ function buildPrompt(context, slot) {
     ? "You're reviewing Hayden's readiness coming into today — how recovered he looks based on last night's sleep and HRV, recent training load, and what's on today's calendar."
     : "You're reviewing how Hayden's day actually went — a day-in-review, not a forecast. Focus on what happened: training completed (or not), food actually eaten, how the calendar day played out, and how that connects to recovery.";
 
-  return `You are a thoughtful, holistic health coach looking at Hayden's recent personal data — not just repeating numbers back, but noticing real patterns that connect sleep/recovery, training, nutrition, mood, and how his day is structured. ${framing}
+  return `${NOVA_LENS}
+
+You are a thoughtful, holistic health coach looking at Hayden's recent personal data — not just repeating numbers back, but noticing real patterns that connect sleep/recovery, training, nutrition, mood, and how his day is structured. ${framing}
 
 ${context}
 
@@ -208,7 +230,7 @@ export async function generateInsightNow(vaultPath, slot) {
 }
 
 async function generateAndStore(vaultPath, slot) {
-  const context = await buildContext(vaultPath);
+  const context = await buildContext(vaultPath, slot);
   const result = await runClaude(buildPrompt(context, slot));
   const record = {
     date: today(),

@@ -233,10 +233,13 @@ export function Settings({ v }) {
             <span style={css("font:400 9px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>TURN OFF ANY YOU DON'T WANT NOVA READING</span>
             <Interactive as="span" onClick={v.calendarSettings.load} base="cursor:pointer;font:600 10px 'IBM Plex Mono',monospace;letter-spacing:.08em;padding:5px 12px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 20%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)" hoverStyle="color:var(--nv-ink)">REFRESH</Interactive>
           </div>
-          {!v.calendarSettings.loaded && (
+          {v.calendarSettings.error && (
+            <div style={css("margin-top:10px;max-width:520px;font-size:12px;line-height:1.6;color:var(--nv-warn)")}>Couldn't load the calendar list — a connection problem, not "no calendars". Tap REFRESH to retry.</div>
+          )}
+          {!v.calendarSettings.error && !v.calendarSettings.loaded && (
             <div style={css("margin-top:10px;font-size:12px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>Loading your calendars…</div>
           )}
-          {v.calendarSettings.loaded && v.calendarSettings.calendars.length === 0 && (
+          {!v.calendarSettings.error && v.calendarSettings.loaded && v.calendarSettings.calendars.length === 0 && (
             <div style={css("margin-top:10px;max-width:520px;font-size:12px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>No calendars found — check that iCloud calendar access is connected on the server.</div>
           )}
           {v.calendarSettings.calendars.length > 0 && (

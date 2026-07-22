@@ -184,7 +184,7 @@ export default class App extends Component {
     settingsBaseUrl: '', settingsToken: '',
     settingsTestStatus: 'idle', settingsTestMessage: '',
     liveNotes: null, liveNoteDetails: {}, liveCalendar: null, liveCalendarList: null, calCmdText: '', calCmdBusy: false,
-    calendarViewOpen: false, liveCalendarRange: null, liveRecipes: null,
+    calendarViewOpen: false, liveCalendarRange: null, calendarRangeError: false, calendarListError: false, liveRecipes: null,
     liveRotation: null, liveRecipeProfile: null, rotationShowExtra: false,
 
     // add recipe (writes back to the real vault file)
@@ -1237,12 +1237,16 @@ export default class App extends Component {
     this.ensureNoteDetail(id);
   }
   ensureNoteDetail(id) {
-    if (!id || this.state.liveNoteDetails[id]) return;
+    // a stored error sentinel counts as "not loaded" so re-selecting retries
+    if (!id || (this.state.liveNoteDetails[id] && !this.state.liveNoteDetails[id].error)) return;
     const conn = getConnection();
     if (!conn) return;
     api.noteDetail(conn, id).then((detail) => {
       this.setState((s) => ({ liveNoteDetails: { ...s.liveNoteDetails, [id]: detail } }));
-    }).catch(() => {});
+    }).catch(() => {
+      // an error sentinel — the silent catch left the pane on "Loading…" forever
+      this.setState((s) => ({ liveNoteDetails: { ...s.liveNoteDetails, [id]: { error: true } } }));
+    });
   }
   ensureReviewSummary(pageId) {
     const conn = getConnection();
@@ -1405,7 +1409,8 @@ export default class App extends Component {
     const { settingsBaseUrl, settingsToken } = this.state;
     if (!settingsBaseUrl || !settingsToken) { this.toastMsg('Enter a backend URL and token first'); return; }
     setConnection({ baseUrl: settingsBaseUrl, token: settingsToken });
-    this.setState({ connectionStatus: 'connecting' });
+    // scripted demo conversations must not linger inside a now-live session
+    this.setState({ connectionStatus: 'connecting', coachChat: [], voiceChat: [], recipeChat: [] });
     this.toastMsg('Saved — loading your real vault…');
     this.refreshLiveData();
   }
@@ -1919,8 +1924,8 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn) return;
     api.calendars(conn)
-      .then(({ calendars }) => this.setState({ liveCalendarList: calendars || [] }))
-      .catch(() => this.setState({ liveCalendarList: [] }));
+      .then(({ calendars }) => this.setState({ liveCalendarList: calendars || [], calendarListError: false }))
+      .catch(() => this.setState({ liveCalendarList: null, calendarListError: true })); // error ≠ "no calendars found"
   }
   toggleCalendarHidden(url) {
     const conn = getConnection();
@@ -1954,13 +1959,15 @@ export default class App extends Component {
       })
       .catch((e) => { this.setState({ calCmdBusy: false }); this.toastMsg('Could not reach Nova: ' + e.message); });
   }
-  openCalendarView() { this.setState({ calendarViewOpen: true }); this.loadCalendarRange(); }
+  openCalendarView() { this.setState({ calendarViewOpen: true, calendarRangeError: false }); this.loadCalendarRange(); }
   loadCalendarRange() {
     const conn = getConnection();
     if (!conn) return;
+    // a fetch failure is an ERROR state, never an empty calendar — "[] on
+    // catch" once made a network blip read as an empty fortnight
     api.calendarRange(conn, 14)
-      .then(({ events }) => this.setState({ liveCalendarRange: events || [] }))
-      .catch(() => this.setState({ liveCalendarRange: [] }));
+      .then(({ events }) => this.setState({ liveCalendarRange: events || [], calendarRangeError: false }))
+      .catch(() => this.setState({ liveCalendarRange: null, calendarRangeError: true }));
   }
   // Manually correct a day's steps (e.g. when the phone automation missed a
   // night). Upserts through the normal health path and re-pulls the week.
@@ -2398,7 +2405,8 @@ export default class App extends Component {
       if (r.mod === 'hard') plan = plan.map(x => x.name.includes('bench') || x.name.includes('Bench') ? Object.assign({}, x, { scheme: '5 × 6 · 82.5 kg' }) : x);
       if (r.mod === 'swap') plan = plan.map(x => x.name === 'Seated shoulder press' ? { name: 'Landmine press', scheme: '3 × 8 · 40 kg', pr: false } : x);
       this.setState({ plan, planNote: r.note });
-      this.toastMsg('Coach updated today’s session — written to vault ✓');
+      // demo never claims a vault write happened — that's the honesty rule
+      this.toastMsg('Coach updated the demo plan (demo mode — nothing written)');
     }), 520);
   }
   buildQuickSession() {

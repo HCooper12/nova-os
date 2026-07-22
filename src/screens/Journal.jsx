@@ -52,7 +52,7 @@ export function Journal({ v }) {
 
       {v.journalDays.length === 0 ? (
         <div style={css("margin-top:40px;text-align:center;font-size:13px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>
-          No journal entries yet — write your first one above.
+          {v.journalLoaded ? 'No journal entries yet — write your first one above.' : 'Loading your journal…'}
         </div>
       ) : (
         <div style={css("margin-top:26px;display:flex;flex-direction:column;gap:10px")}>

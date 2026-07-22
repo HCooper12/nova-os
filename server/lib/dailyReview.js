@@ -161,7 +161,13 @@ export function composeReviewText(parsed, now = new Date()) {
 async function todayReviewRecord() {
   const items = await listRecords();
   const t = todayISO();
-  return items.find((r) => r.kind === 'review' && r.createdAt && todayISO(new Date(r.createdAt)) === t) || null;
+  const todays = items.filter((r) => r.kind === 'review' && r.createdAt && todayISO(new Date(r.createdAt)) === t);
+  // An errored compose must not block the whole day — an orphaned or failed
+  // run used to wedge the review until midnight. But cap the retries (3
+  // attempts/day) so a persistently failing compose can't burn budget all day.
+  const live = todays.find((r) => r.status !== 'error');
+  if (live) return live;
+  return todays.length >= 3 ? todays[0] : null;
 }
 
 function startReviewJob(vaultPath, context, mode, recordId, now) {

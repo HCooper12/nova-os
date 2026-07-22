@@ -531,7 +531,9 @@ export async function approveRecord(vaultPath, id) {
 export async function discardRecord(id) {
   const record = await getRecord(id);
   if (!record) throw new Error('inbox record not found');
-  if (record.status !== 'pending') throw new Error('only pending captures can be discarded');
+  // error records need an exit too — before this, a failed capture/import was
+  // unkillable: no endpoint accepted it and it accumulated forever
+  if (record.status !== 'pending' && record.status !== 'error') throw new Error('only pending or errored captures can be discarded');
   return updateRecord(id, { status: 'discarded', discardedAt: new Date().toISOString(), error: null });
 }
 

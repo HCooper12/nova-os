@@ -55,13 +55,22 @@ export async function runFoodSuggestions(vaultPath) {
   return { proposed: created.length, records: created };
 }
 
-// Evenings — once a day is plenty; the per-item dedup makes extra ticks harmless.
+// Evenings — once a day. `>= 18` with a per-day guard, NOT `=== 18`: an exact-
+// hour equality on an hourly interval silently skips the whole day when a tick
+// drifts past the hour or the server restarts (the same failure class as the
+// missed health pushes). The per-item dedupe makes any extra run harmless.
+let lastSuggestDate = null;
 export function startFoodSuggestScheduler(vaultPath) {
   const tick = async () => {
     const { beat } = await import('./heartbeat.js');
     beat('food-suggest');
     try {
-      if (new Date().getHours() === 18) await runFoodSuggestions(vaultPath);
+      const now = new Date();
+      const today = now.toDateString();
+      if (now.getHours() >= 18 && lastSuggestDate !== today) {
+        lastSuggestDate = today;
+        await runFoodSuggestions(vaultPath);
+      }
     } catch (err) {
       console.error('food suggestions failed:', err.message);
     }

@@ -121,6 +121,28 @@ export async function updateRecord(id, patch) {
   });
 }
 
+// Startup reaper. A record left in 'classifying' belongs to a child process
+// of a server that no longer exists — it can never resolve, shows "Nova is
+// routing this…" forever, and (worse) satisfies the per-day dedupe guards, so
+// an orphaned review/dispatch silently blocked that day's re-run. At boot,
+// every classifying record is by definition orphaned; flip them to error with
+// an honest message so they can be discarded and the day's loops can re-run.
+export async function reapOrphanedClassifying() {
+  return withLock(async () => {
+    const store = await load();
+    let reaped = 0;
+    for (const r of store.items) {
+      if (r.status === 'classifying') {
+        r.status = 'error';
+        r.error = 'Interrupted — the server restarted while this was being processed. Discard it, or re-run the loop.';
+        reaped++;
+      }
+    }
+    if (reaped) await persist();
+    return { reaped };
+  });
+}
+
 // test hook — drops the in-memory cache so a fresh NOVA_DATA_DIR is re-read
 export function _resetInboxStore() {
   cache = null;

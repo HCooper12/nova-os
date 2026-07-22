@@ -225,6 +225,7 @@ export function valsChrome(app, ctx) {
     setTabOrder: (order) => app.setTabOrder(order),
     calendarSettings: !demoMode && !isOffline ? {
       loaded: st.liveCalendarList != null,
+      error: !!st.calendarListError,
       calendars: (st.liveCalendarList || []).map((c) => ({
         name: c.name,
         url: c.url,

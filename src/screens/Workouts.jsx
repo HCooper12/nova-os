@@ -585,13 +585,20 @@ export function Workouts({ v }) {
           <span style={css("font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.32em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>VAULT · TRAINING</span>
         </div>
         {v.usingLiveWorkouts ? (
-          <span style={css("font:400 10px 'IBM Plex Mono',monospace;letter-spacing:.12em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.workoutHeaderLabel}</span>
+          <span style={css("display:flex;align-items:center;gap:8px;font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--nv-cy)")}><span style={css("width:5px;height:5px;border-radius:50%;background:var(--nv-cy);animation:novaPulse 2s infinite")}></span>{v.workoutHeaderLabel}</span>
         ) : (
-          <span style={css("display:flex;align-items:center;gap:8px;font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--nv-cy)")}><span style={css("width:5px;height:5px;border-radius:50%;background:var(--nv-cy);animation:novaPulse 2s infinite")}></span>COACH IS LIVE</span>
+          <span style={css("font:400 10px 'IBM Plex Mono',monospace;letter-spacing:.12em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.workoutsDemo ? 'DEMO PLAN — CONNECT A BACKEND IN SETTINGS' : 'SYNCING…'}</span>
         )}
       </div>
 
-      {!v.usingLiveWorkouts && <MockWorkouts v={v} />}
+      {/* the scripted demo plan renders ONLY in demo mode — a connected session
+          whose workouts haven't loaded says so instead of showing fiction */}
+      {v.workoutsDemo && !v.usingLiveWorkouts && <MockWorkouts v={v} />}
+      {!v.workoutsDemo && !v.usingLiveWorkouts && (
+        <div style={css("margin-top:60px;text-align:center;font-size:13px;line-height:1.7;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>
+          Workouts haven't loaded from the vault yet.<br />If this persists, check the connection in Settings — Nova never shows placeholder training data on a live connection.
+        </div>
+      )}
       {v.usingLiveWorkouts && v.workoutsView === 'routines' && <RoutinesView v={v} />}
       {v.usingLiveWorkouts && v.workoutsView === 'routine' && <RoutineDetailView v={v} />}
       {v.usingLiveWorkouts && v.workoutsView === 'session' && <SessionView v={v} />}

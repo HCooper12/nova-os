@@ -14,6 +14,9 @@ const ROUTE_META = {
   'money-import': { label: 'LEDGER IMPORT', hue: '224,178,106' },
   idea: { label: 'IDEA', hue: '143,123,255' },
   'idea-outline': { label: 'OUTLINE', hue: '143,123,255' },
+  // an iCloud write must never wear a NOTE badge — name what approving does
+  calendar: { label: 'CALENDAR', hue: '89,230,255' },
+  recipe: { label: 'RECIPE BANK', hue: '95,232,168' },
 };
 
 const MODE_LADDER = [
@@ -39,6 +42,16 @@ function payloadPreview(decision) {
     const list = p.transactions || [];
     const shown = list.slice(0, 4).map((t) => `${t.merchant} ${t.amount < 0 ? '−' : '+'}$${Math.abs(t.amount).toFixed(2)}`).join(' · ');
     return list.length > 4 ? `${shown} · +${list.length - 4} more` : shown;
+  }
+  if (decision.route === 'calendar') {
+    const when = (iso) => iso ? new Date(iso).toLocaleString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+    if (p.action === 'move') return `${p.label}: ${when(p.oldStart)} → ${when(p.newStart)}`;
+    if (p.action === 'delete') return `remove ${p.label} (${when(p.startISO)})`;
+    return `${p.title} — ${when(p.start)}${p.calendarName ? ` · ${p.calendarName}` : ''}`;
+  }
+  if (decision.route === 'recipe') {
+    const m = p.macros || {};
+    return `${p.name} — ${m.p}P · ${m.c}C · ${m.f}F · ${m.kcal} kcal → ${p.category || 'recipe bank'}`;
   }
   return `${p.title || ''} — ${p.body || ''}`;
 }
@@ -218,6 +231,7 @@ export function valsInbox(app, ctx) {
     undoSummary: r.undoSummary || null,
     busy: !!st.inboxActionBusy[r.id],
     canUndo: r.status === 'filed' && !!r.undoData,
+    canDiscard: r.status === 'error', // errored records need an exit — they used to be unkillable
     approve: () => app.inboxAction(r.id, 'approve'),
     discard: () => app.inboxAction(r.id, 'discard'),
     undo: () => app.inboxAction(r.id, 'undo'),
@@ -384,6 +398,7 @@ export function valsInbox(app, ctx) {
     inboxProposals,
     inboxPending: pendingItems,
     inboxHistory: historyItems,
+    inboxLoaded: inbox != null, // null = still loading — never renders as "nothing captured yet"
     inboxPendingCount: pendingCount,
     inboxRefresh: () => app.refreshInbox(),
 

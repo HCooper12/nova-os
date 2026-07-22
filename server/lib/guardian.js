@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { createRecord, listRecords } from './inboxStore.js';
 import { beat, readHeartbeats } from './heartbeat.js';
+import { loadRecentDays } from './healthData.js';
 
 // Guardian — the integrity agent. Everything else in Nova writes (filings,
 // briefs, Todoist sync, compost); Guardian is the independent check that the
@@ -148,7 +149,7 @@ async function checkStores() {
 // The loops themselves: every scheduler stamps data/heartbeat.json on each
 // tick; a stamp far past its cadence means a loop silently stalled — the
 // failure class nothing else would surface.
-const LOOP_CADENCE_HOURS = { dispatch: 2, todoist: 2, compost: 26, guardian: 26, money: 2, mealprep: 3, review: 2 };
+const LOOP_CADENCE_HOURS = { dispatch: 2, todoist: 2, compost: 26, guardian: 26, money: 2, mealprep: 3, review: 2, 'food-suggest': 2, 'training-check': 2 };
 
 async function checkLoops() {
   const beats = await readHeartbeats();
@@ -192,13 +193,31 @@ async function checkVault(vaultPath) {
   };
 }
 
+// The health feed: the phone Shortcut pushes each night at ~23:30 for that
+// day, so during the day the newest file is normally yesterday's. Two or more
+// days old means yesterday's push never fired — every recovery/steps surface
+// is then reasoning from old data. Flag it HERE, proactively, instead of each
+// surface separately discovering staleness (the sweep found nothing raised it).
+async function checkHealthFeed() {
+  const days = await loadRecentDays(1);
+  if (!days.length) {
+    return { id: 'health', label: 'Health feed', status: 'warn', detail: 'No health data yet — the phone Shortcut has never pushed.' };
+  }
+  const latest = days[days.length - 1];
+  const age = Math.round((new Date(new Date().toDateString()) - new Date(`${latest.date}T12:00:00`)) / 86400000);
+  if (age >= 2) {
+    return { id: 'health', label: 'Health feed', status: 'warn', detail: `Last health push was ${latest.date} (${age} days ago) — the automation looks stalled. Yesterday's steps can be entered by hand from the Steps card.` };
+  }
+  return { id: 'health', label: 'Health feed', status: 'ok', detail: `Fresh — last push ${age === 0 ? 'today' : 'yesterday'} (${latest.date}).` };
+}
+
 /* -------------------------------- runs ----------------------------------- */
 
 const WORST = { ok: 0, warn: 1, alert: 2 };
 
 export async function runGuardian(vaultPath) {
   const checks = [];
-  for (const fn of [() => checkVault(vaultPath), () => checkBackups(vaultPath), () => checkStores(), () => checkLoops()]) {
+  for (const fn of [() => checkVault(vaultPath), () => checkBackups(vaultPath), () => checkStores(), () => checkLoops(), () => checkHealthFeed()]) {
     try {
       checks.push(await fn());
     } catch (e) {
@@ -361,11 +380,16 @@ async function tick(vaultPath) {
     const { lastReport } = await getGuardian();
     if (!lastReport || Date.now() - new Date(lastReport.at).getTime() > 24 * 3600_000) {
       const report = await runGuardian(vaultPath);
-      // a NEW alert deserves a phone notification; a persisting one doesn't re-fire daily
-      if (report.status === 'alert' && lastReport?.status !== 'alert') {
+      // a NEW degradation deserves a phone notification; a persisting one
+      // doesn't re-fire daily. Warns count too — a quiet health feed is
+      // exactly the thing worth hearing about the day it happens, not
+      // discovering days later ("Nova doesn't know yesterday's steps").
+      const worst = { ok: 0, warn: 1, alert: 2 };
+      if (worst[report.status] > worst[lastReport?.status || 'ok']) {
+        const failing = report.checks.find((c) => c.status === report.status);
         import('./push.js').then(({ sendPush }) => sendPush({
-          title: 'Guardian ALERT — Nova',
-          body: report.checks.find((c) => c.status === 'alert')?.detail || 'An integrity check failed.',
+          title: report.status === 'alert' ? 'Guardian ALERT — Nova' : 'Guardian — Nova noticed something',
+          body: failing?.detail || 'An integrity check degraded.',
           tag: 'guardian-alert',
         })).catch(() => {});
       }

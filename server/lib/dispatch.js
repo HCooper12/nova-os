@@ -10,7 +10,7 @@ import { loadRecipeData } from './recipes.js';
 import { loadRotation } from './rotation.js';
 import { getToday as getFoodLogToday } from './foodLog.js';
 import { loadExerciseLibrary } from './exercises.js';
-import { loadRoutines, WEEKDAYS } from './workouts.js';
+import { loadRoutines, WEEKDAYS, ACTIVE_REST } from './workouts.js';
 import { loadSessions } from './workoutSessions.js';
 import { computeStreaks } from './streaks.js';
 import { Vault } from './vault.js';
@@ -116,6 +116,15 @@ function scheduledRoutineFor(routines, schedule, date) {
   return routines.find((r) => r.id === routineId) || null;
 }
 
+// Active rest (a walk/stretch day, no weights) is a schedule value, not a
+// routine — resolving it through scheduledRoutineFor yields null, which used
+// to make the briefs call it a plain "Rest day". Two readers of one schedule
+// value must tell the same story (see trainingCheck.js).
+function isActiveRestDay(schedule, date) {
+  const dayKey = WEEKDAYS[(date.getDay() + 6) % 7];
+  return schedule?.[dayKey] === ACTIVE_REST;
+}
+
 // Every section degrades honestly when its source is missing — the brief
 // says what it can't see instead of inventing.
 async function composeMorning(vaultPath, now) {
@@ -179,7 +188,9 @@ async function composeMorning(vaultPath, now) {
     const routine = scheduledRoutineFor(routines, schedule, now);
     let line = routine
       ? `**Training.** ${routine.name} is scheduled — ${routine.exercises.length} exercise${routine.exercises.length === 1 ? '' : 's'}.`
-      : '**Training.** Rest day.';
+      : isActiveRestDay(schedule, now)
+        ? '**Training.** Active rest — a walk for your steps or a stretch; no weights today.'
+        : '**Training.** Rest day.';
     try {
       const { computeDeloadSignal } = await import('./coach.js');
       const signal = computeDeloadSignal(await loadRecentDays(7));
@@ -254,6 +265,8 @@ async function composeEvening(vaultPath, now) {
       lines.push(`**Training.** ${todaySession.routineName} logged — ${todaySession.exercises.length} exercises, ${sets} sets.`);
     } else if (scheduled) {
       lines.push(`**Training.** ${scheduled.name} was scheduled — nothing logged yet.`);
+    } else if (isActiveRestDay(schedule, now)) {
+      lines.push('**Training.** Active rest today — a walk or stretch counts, nothing to log.');
     } else {
       lines.push('**Training.** Rest day, as planned.');
     }
@@ -282,6 +295,7 @@ async function composeEvening(vaultPath, now) {
       const { routines, schedule } = await loadRoutines(vaultPath, exercises);
       const routine = scheduledRoutineFor(routines, schedule, tomorrow);
       if (routine) bits.push(`training: ${routine.name}`);
+      else if (isActiveRestDay(schedule, tomorrow)) bits.push('training: active rest (walk / stretch)');
     } catch { /* optional */ }
     if (bits.length) lines.push(`**Tomorrow.** ${bits.join(' · ')}.`);
   } catch { /* optional */ }
@@ -416,7 +430,12 @@ async function slotRecordForToday(slot) {
   const items = await listRecords();
   const since = slot === 'weekly' ? todayISO(mondayOf(new Date())) : todayISO();
   // legacy records (pre-slots) carry no slot field and were morning dispatches
-  return items.find((r) => r.kind === 'dispatch' && (r.slot || 'morning') === slot && localDateOf(r) >= since) || null;
+  const slots = items.filter((r) => r.kind === 'dispatch' && (r.slot || 'morning') === slot && localDateOf(r) >= since);
+  // errored records don't block the slot (same rationale + retry cap as the
+  // daily review) — an orphaned compose used to silence the brief all day
+  const live = slots.find((r) => r.status !== 'error');
+  if (live) return live;
+  return slots.length >= 3 ? slots[0] : null;
 }
 
 // Compose the slot's brief and put it on the inbox rails. Draft mode → a

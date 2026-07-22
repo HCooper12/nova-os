@@ -108,7 +108,15 @@ export function parseBankCsv(raw) {
 
 async function pendingImportFiles() {
   const items = await listRecords();
-  return new Set(items.filter((r) => r.kind === 'money-import' && r.status === 'pending').map((r) => r.decision?.payload?.file).filter(Boolean));
+  // pending AND error records block a re-scan of the same file — a broken CSV
+  // used to spawn a fresh error record every 5-minute tick until the file was
+  // removed by hand. One record per file until it's resolved or discarded.
+  return new Set(
+    items
+      .filter((r) => r.kind === 'money-import' && (r.status === 'pending' || r.status === 'error'))
+      .map((r) => r.decision?.payload?.file)
+      .filter(Boolean)
+  );
 }
 
 export async function scanImports(vaultPath) {

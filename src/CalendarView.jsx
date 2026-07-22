@@ -12,8 +12,17 @@ export function CalendarView({ v }) {
           <Interactive as="span" onClick={v.close} base="cursor:pointer;font:500 11px 'IBM Plex Mono',monospace;color:var(--nv-ink60);border:1px solid var(--nv-edge);border-radius:7px;padding:5px 10px" hoverStyle="color:var(--nv-ink)">ESC</Interactive>
         </div>
 
-        {!v.loaded && <div style={css("margin-top:18px;font-size:12px;color:var(--nv-ink40)")}>Loading your calendar…</div>}
-        {v.loaded && v.days.length === 0 && <div style={css("margin-top:18px;font-size:12px;color:var(--nv-ink40)")}>Nothing scheduled in the next two weeks.</div>}
+        {v.error ? (
+          <div style={css("margin-top:18px;font-size:12.5px;line-height:1.6;color:var(--nv-warn)")}>
+            Couldn't reach the calendar — that's a connection problem, not an empty fortnight.{' '}
+            <Interactive as="span" onClick={v.retry} base="cursor:pointer;text-decoration:underline;color:var(--nv-ink)" hoverStyle="color:var(--nv-cy)">Retry</Interactive>
+          </div>
+        ) : (
+          <>
+            {!v.loaded && <div style={css("margin-top:18px;font-size:12px;color:var(--nv-ink40)")}>Loading your calendar…</div>}
+            {v.loaded && v.days.length === 0 && <div style={css("margin-top:18px;font-size:12px;color:var(--nv-ink40)")}>Nothing scheduled in the next two weeks.</div>}
+          </>
+        )}
 
         <div style={css("margin-top:16px;display:flex;flex-direction:column;gap:16px")}>
           {v.days.map((day) => (

@@ -34,8 +34,19 @@ test('healthy vault with restorable snapshots reports ok/warn honestly', async (
   assert.match(backups.detail, /No snapshots found yet/);
   assert.match(report.checks.find((c) => c.id === 'loops').detail, /No heartbeats recorded yet/);
 
+  // no health data yet → the feed check warns honestly (A6: a quiet feed is
+  // flagged proactively, not discovered surface-by-surface)
+  assert.match(report.checks.find((c) => c.id === 'health').detail, /never pushed/i);
+
   // schedulers stamp their ticks → loops check goes green
   for (const name of ['dispatch', 'todoist', 'compost', 'guardian']) await beat(name);
+
+  // a fresh health day → feed check ok
+  const p2 = (n) => String(n).padStart(2, '0');
+  const now = new Date();
+  const todayIso = `${now.getFullYear()}-${p2(now.getMonth() + 1)}-${p2(now.getDate())}`;
+  await mkdir(path.join(process.env.NOVA_DATA_DIR, 'health'), { recursive: true });
+  await writeFile(path.join(process.env.NOVA_DATA_DIR, 'health', `${todayIso}.json`), JSON.stringify({ date: todayIso, steps: 9000 }), 'utf8');
 
   // add a healthy snapshot → ok, sample restore-read passes
   const bakDir = path.join(vault, 'Wiki/Inbox/.nova-backups');
@@ -46,11 +57,27 @@ test('healthy vault with restorable snapshots reports ok/warn honestly', async (
   assert.equal(report.checks.find((c) => c.id === 'vault').status, 'ok');
   assert.match(report.checks.find((c) => c.id === 'vault').detail, /2 pages reachable · To-Do page present/);
   assert.equal(report.checks.find((c) => c.id === 'loops').status, 'ok');
+  assert.equal(report.checks.find((c) => c.id === 'health').status, 'ok');
   assert.equal(report.status, 'ok');
 
   // report persists
   const { lastReport } = await getGuardian();
   assert.equal(lastReport.status, 'ok');
+
+  // a feed that went quiet two+ days ago warns and names the last push date
+  const stale = new Date(Date.now() - 3 * 86400000);
+  const staleIso = `${stale.getFullYear()}-${p2(stale.getMonth() + 1)}-${p2(stale.getDate())}`;
+  const { rm: rmrf } = await import('node:fs/promises');
+  await rmrf(path.join(process.env.NOVA_DATA_DIR, 'health', `${todayIso}.json`));
+  await writeFile(path.join(process.env.NOVA_DATA_DIR, 'health', `${staleIso}.json`), JSON.stringify({ date: staleIso, steps: 9000 }), 'utf8');
+  report = await runGuardian(vault);
+  const feed = report.checks.find((c) => c.id === 'health');
+  assert.equal(feed.status, 'warn');
+  assert.match(feed.detail, new RegExp(staleIso));
+  assert.match(feed.detail, /stalled/i);
+  // restore freshness (and a green persisted report) for the later tests
+  await writeFile(path.join(process.env.NOVA_DATA_DIR, 'health', `${todayIso}.json`), JSON.stringify({ date: todayIso, steps: 9000 }), 'utf8');
+  await runGuardian(vault);
 });
 
 test('an empty snapshot or a quarantined store escalates to alert', async () => {

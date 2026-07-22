@@ -91,24 +91,46 @@ test('quick-plan normalize: maps to library ids with last-weight prefill, ad-hoc
   assert.throws(() => normalizeQuickPlan({ name: 'X', exercises: [] }, library), /incomplete/);
 });
 
-test('deload signal: honest below 5 HRV days, fires on a real drop, quiet when steady', () => {
-  const day = (hrv, sleep = 420) => ({ hrv, sleepAsleepMinutes: sleep });
+test('deload signal: date-aware — honest on thin/sparse data, fires on a real drop, quiet when steady', () => {
+  // daysAgo → a dated health-day file; the signal must reason over CALENDAR
+  // days, not file order (the sweep found sparse files masquerading as
+  // "the last 3 days")
+  const iso = (daysAgo) => {
+    const d = new Date(); d.setDate(d.getDate() - daysAgo);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const day = (daysAgo, hrv, sleep = 420) => ({ date: iso(daysAgo), hrv, sleepAsleepMinutes: sleep });
 
-  const thin = computeDeloadSignal([day(80), day(82)]);
+  const thin = computeDeloadSignal([day(1, 80), day(2, 82)]);
   assert.equal(thin.advise, false);
-  assert.match(thin.reason, /2\/7 days/);
+  assert.match(thin.reason, /not enough recent recovery data/);
 
-  const dropping = computeDeloadSignal([day(90), day(88), day(91), day(89), day(75), day(74), day(73)]);
+  const dropping = computeDeloadSignal([day(6, 90), day(5, 88), day(4, 91), day(3, 89), day(2, 75), day(1, 74), day(0, 73)]);
   assert.equal(dropping.advise, true);
   assert.match(dropping.reason, /HRV is down 1\d%/);
 
-  const steady = computeDeloadSignal([day(85), day(86), day(84), day(85), day(86), day(85), day(84)]);
+  const steady = computeDeloadSignal([day(6, 85), day(5, 86), day(4, 84), day(3, 85), day(2, 86), day(1, 85), day(0, 84)]);
   assert.equal(steady.advise, false);
   assert.match(steady.reason, /steady/);
 
-  const sleepless = computeDeloadSignal([day(85), day(85), day(85), day(85), day(85, 300), day(85, 320), day(85, 310)]);
+  const sleepless = computeDeloadSignal([day(6, 85), day(5, 85), day(4, 85), day(3, 85), day(2, 85, 300), day(1, 85, 320), day(0, 85, 310)]);
   assert.equal(sleepless.advise, true);
   assert.match(sleepless.reason, /sleep/);
+
+  // REGRESSION (the sweep's A5): seven files spanning five weeks — the three
+  // newest are 12+ days old. File-order logic saw "a drop over the last 3
+  // days"; date-aware logic must refuse rather than claim recency.
+  const sparse = computeDeloadSignal([
+    day(34, 90), day(30, 88), day(26, 91), day(22, 89), day(18, 75), day(15, 74), day(12, 73),
+  ]);
+  assert.equal(sparse.advise, false, 'stale files must not fire a "last 3 days" advisory');
+  assert.match(sparse.reason, /not enough recent recovery data/);
+
+  // gaps INSIDE the window are fine — 2 of the last 3 days present still reads
+  const gappy = computeDeloadSignal([
+    day(9, 90), day(8, 88), day(7, 91), day(6, 89), day(5, 90), day(3, 74), day(1, 73),
+  ]);
+  assert.equal(gappy.advise, true, 'two genuinely recent low days against a real baseline still advises');
 });
 
 test('progressions: a single session is never enough, and short set counts don\'t qualify', async () => {

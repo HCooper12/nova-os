@@ -157,11 +157,18 @@ export function valsMission(app, ctx) {
       heroStand.push({ t: 'Recovery reads ' }, { t: tone, b: 1 });
       if (hrvDay) heroStand.push({ t: ' — HRV ' }, { t: `${Math.round(hrvDay.hrv * 10) / 10} ms`, b: 1 });
       if (rhrDay) heroStand.push({ t: hrvDay ? ', resting ' : ' — resting ' }, { t: `${Math.round(rhrDay.restingHeartRate)} bpm`, b: 1 });
+      // recovery numbers from an older day must say so — never read as fresh
+      const recoveryDay = hrvDay || rhrDay;
+      if (recoveryDay.date && recoveryDay.date !== todayKey) {
+        const age = Math.round((new Date(todayKey) - new Date(recoveryDay.date)) / 86400000);
+        heroStand.push({ t: ` (${age === 1 ? "yesterday's data" : `${age} days old`})` });
+      }
       heroStand.push({ t: '. ' });
     }
     if (todayRoutine) heroStand.push({ t: `${workoutWhen ? cap(workoutWhen) : 'Today'}: ` }, { t: todayRoutine.name, b: 1 }, { t: '. ' });
     if (usingLiveRecipes) {
-      if (proteinGap > 0) heroStand.push({ t: 'Protein sits at ' }, { t: `${Math.round(proteinCurrent)}/${proteinTarget} g`, b: 1 }, { t: ' — a ' }, { t: `${proteinGap} g gap`, b: 1 }, { t: ' to close. ' });
+      if (proteinTarget == null) heroStand.push({ t: `${Math.round(proteinCurrent)} g protein logged`, b: 1 }, { t: ' — no floor set (check the Profile line in your recipe file). ' });
+      else if (proteinGap > 0) heroStand.push({ t: 'Protein sits at ' }, { t: `${Math.round(proteinCurrent)}/${proteinTarget} g`, b: 1 }, { t: ' — a ' }, { t: `${proteinGap} g gap`, b: 1 }, { t: ' to close. ' });
       else heroStand.push({ t: 'Protein floor ' }, { t: 'cleared', b: 1 }, { t: ` at ${Math.round(proteinCurrent)} g. ` });
     }
     if (usingLiveHealthData && stepsDay) {
@@ -178,6 +185,13 @@ export function valsMission(app, ctx) {
 
   // ---- core cluster satellites (conic progress borders) ------------------
   const offlineHint = isOffline ? 'OFFLINE' : 'CONNECT APPLE HEALTH';
+  // a metric from an older day must SAY so — "2,361 steps" three days
+  // running is the health push being dead, not a quiet streak
+  const staleHint = (day) => {
+    if (!day || day.date === todayKey) return null;
+    const days = Math.round((new Date(todayKey) - new Date(day.date)) / 86400000);
+    return days === 1 ? 'YESTERDAY' : `STALE · ${days}D OLD — PUSH NOT RUNNING`;
+  };
   const satSleep = demoMode
     ? { label: 'SLEEP', value: '7:12', small: '/8H', pct: 90, hint: '90% · HRV +9%' }
     : !usingLiveHealthData || !sleepDay
@@ -187,15 +201,10 @@ export function valsMission(app, ctx) {
           value: `${Math.floor(sleepMinutes / 60)}:${pad2(sleepMinutes % 60)}`,
           small: '/8H',
           pct: Math.round(sleepRatio * 100),
-          hint: `${Math.round(sleepRatio * 100)}%` + (hrvDeltaPct != null ? ` · HRV ${hrvDeltaPct >= 0 ? '+' : ''}${hrvDeltaPct}%` : ''),
+          // stale sleep/HRV must self-label like steps does — "7:12" from three
+          // days ago silently repeating is the health push being dead
+          hint: staleHint(sleepDay) || (`${Math.round(sleepRatio * 100)}%` + (hrvDeltaPct != null ? ` · HRV ${hrvDeltaPct >= 0 ? '+' : ''}${hrvDeltaPct}%` : '')),
         };
-  // a metric from an older day must SAY so — "2,361 steps" three days
-  // running is the health push being dead, not a quiet streak
-  const staleHint = (day) => {
-    if (!day || day.date === todayKey) return null;
-    const days = Math.round((new Date(todayKey) - new Date(day.date)) / 86400000);
-    return days === 1 ? 'YESTERDAY' : `STALE · ${days}D OLD — PUSH NOT RUNNING`;
-  };
   const satSteps = demoMode
     ? { label: 'STEPS', value: '2,361', small: '', pct: 24, hint: '24% · 7,639 TO GO' }
     : !usingLiveHealthData || !stepsDay
@@ -213,13 +222,16 @@ export function valsMission(app, ctx) {
   // only in demo mode, and an honest dash when configured but not synced
   const satProtein = !usingLiveRecipes && !demoMode
     ? { label: 'PROTEIN', value: '—', small: '', pct: 0, hint: 'RECONNECT TO LOAD' }
-    : {
-        label: 'PROTEIN',
-        value: String(Math.round(proteinCurrent)),
-        small: `/${proteinTarget}G`,
-        pct: Math.round(proteinRatio * 100),
-        hint: proteinGap > 0 ? `${Math.round(proteinRatio * 100)}% · GAP ${proteinGap}G` : 'FLOOR CLEARED',
-      };
+    : proteinTarget == null && !demoMode
+      // a live gauge with no floor says so — it never tracks an invented target
+      ? { label: 'PROTEIN', value: String(Math.round(proteinCurrent)), small: 'G', pct: 0, hint: 'NO FLOOR SET — CHECK PROFILE LINE' }
+      : {
+          label: 'PROTEIN',
+          value: String(Math.round(proteinCurrent)),
+          small: `/${proteinTarget}G`,
+          pct: Math.round(proteinRatio * 100),
+          hint: proteinGap > 0 ? `${Math.round(proteinRatio * 100)}% · GAP ${proteinGap}G` : 'FLOOR CLEARED',
+        };
 
   const untilLabel = (time) => {
     const [h, m] = time.split(':').map(Number);
@@ -408,13 +420,15 @@ export function valsMission(app, ctx) {
     // meaningful + live: names the next unconsumed meal that would close the
     // protein gap — changes as meals get marked eaten through the day
     proteinGaugeHint: usingLiveRecipes
-      ? (proteinCurrent >= proteinTarget
-          ? `${Math.round(proteinCurrent - proteinTarget)}g clear of your ${proteinTarget}g floor`
-          : proteinNextSlot
-            ? (proteinNextSlotFilled
-                ? `eat ${proteinNextSlotFilled.name.toLowerCase()} to close the ${proteinGap}g gap`
-                : `add a recipe to ${proteinNextSlot.name.toLowerCase()} to close the ${proteinGap}g gap`)
-            : `${proteinGap}g under floor — all meals already eaten`)
+      ? (proteinTarget == null
+          ? 'no protein floor set — add the Profile line in your recipe file'
+          : proteinCurrent >= proteinTarget
+            ? `${Math.round(proteinCurrent - proteinTarget)}g clear of your ${proteinTarget}g floor`
+            : proteinNextSlot
+              ? (proteinNextSlotFilled
+                  ? `eat ${proteinNextSlotFilled.name.toLowerCase()} to close the ${proteinGap}g gap`
+                  : `add a recipe to ${proteinNextSlot.name.toLowerCase()} to close the ${proteinGap}g gap`)
+              : `${proteinGap}g under floor — all meals already eaten`)
       : 'burrito bowl closes the gap',
     openLunch: () => {
       if (usingLiveRecipes) {
@@ -463,6 +477,8 @@ export function valsMission(app, ctx) {
     calendarView: st.calendarViewOpen ? {
       close: () => app.setState({ calendarViewOpen: false }),
       loaded: st.liveCalendarRange != null,
+      error: !!st.calendarRangeError,
+      retry: () => { app.setState({ calendarRangeError: false }); app.loadCalendarRange(); },
       days: groupByDay(st.liveCalendarRange || []),
       count: (st.liveCalendarRange || []).length,
     } : null,

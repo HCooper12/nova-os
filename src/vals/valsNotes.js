@@ -23,7 +23,10 @@ export function valsNotes(app, ctx) {
       typeStyle: { font: "500 8.5px " + mono, letterSpacing: '.08em', color: n.color, flex: 'none' },
       style: { cursor: 'pointer', padding: '10px 12px', borderRadius: '9px', background: st.openNoteId === n.id ? 'color-mix(in srgb, var(--nv-gold) 09%, transparent)' : 'none', border: st.openNoteId === n.id ? '1px solid color-mix(in srgb, var(--nv-gold) 22%, transparent)' : '1px solid transparent' } }));
 
-  const liveDetail = usingLiveNotes ? st.liveNoteDetails[st.openNoteId] : null;
+  const rawDetail = usingLiveNotes ? st.liveNoteDetails[st.openNoteId] : null;
+  const detailFailed = !!rawDetail?.error;
+  // the error sentinel must never masquerade as a loaded note
+  const liveDetail = detailFailed ? null : rawDetail;
   const on = usingLiveNotes ? null : (app.notes.find(n => n.id === st.openNoteId) || app.notes[0]);
   const noteByTitle = (label) => app.notes.find(n => n.title.startsWith(label.split(' ·')[0].slice(0, 12)));
 
@@ -102,7 +105,11 @@ export function valsNotes(app, ctx) {
       outline: () => app.draftIdeaOutline(st.openNoteId),
       outlineBusy: !!st.studioOutlineBusy,
     } : null,
-    openNoteParas: usingLiveNotes ? (liveDetail ? liveDetail.paragraphs.map(p => ({ text: p })) : [{ text: 'Loading…' }]) : on.paras.map(p => ({ text: p })),
+    openNoteParas: usingLiveNotes
+      ? (liveDetail
+          ? liveDetail.paragraphs.map(p => ({ text: p }))
+          : [{ text: detailFailed ? "Couldn't load this note — tap it again to retry, or check the connection in Settings." : 'Loading…' }])
+      : on.paras.map(p => ({ text: p })),
     openNoteLinks: usingLiveNotes
       ? (liveDetail?.links || []).map(l => ({ label: l.label, go: () => app.selectNote(l.id) }))
       : on.links.map(l => ({ label: l, go: () => {
@@ -124,5 +131,6 @@ export function valsNotes(app, ctx) {
     journalPromptText: st.journalPromptText,
     generateJournalPrompt: () => app.generateJournalPrompt(),
     journalDays,
+    journalLoaded: st.liveJournalEntries != null, // null = still loading, not "no entries yet"
   };
 }
