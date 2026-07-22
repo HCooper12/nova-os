@@ -73,6 +73,27 @@ export function weightTrendLine(days) {
   return `Bodyweight: ${t.latestKg} kg (${t.latestDate}), ${dir}${t.deltaKg} kg over ${t.spanDays} days.`;
 }
 
+// Receipts for the health feed: every push ATTEMPT (success or failure) is
+// logged, so "did the phone even try last night?" has an answer in evidence
+// instead of guesswork — the missing-steps saga kept recurring because
+// failures were invisible on both ends (iOS automations swallow errors).
+const PUSHLOG = () => path.join(DATA_ROOT, 'health', 'pushlog.json');
+export async function logPushAttempt(entry) {
+  try {
+    let log = [];
+    if (existsSync(PUSHLOG())) {
+      try { log = JSON.parse(await readFile(PUSHLOG(), 'utf8')).attempts || []; } catch { log = []; }
+    }
+    log.push({ at: new Date().toISOString(), ...entry });
+    await mkdir(path.dirname(PUSHLOG()), { recursive: true });
+    await writeFile(PUSHLOG(), JSON.stringify({ attempts: log.slice(-50) }, null, 2), 'utf8');
+  } catch { /* receipts are best-effort, never block the push */ }
+}
+export async function readPushLog() {
+  if (!existsSync(PUSHLOG())) return [];
+  try { return JSON.parse(await readFile(PUSHLOG(), 'utf8')).attempts || []; } catch { return []; }
+}
+
 export async function loadDay(date) {
   const full = path.join(HEALTH_DIR, `${date}.json`);
   if (!existsSync(full)) return null;

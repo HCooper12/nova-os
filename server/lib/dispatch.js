@@ -150,6 +150,19 @@ async function composeMorning(vaultPath, now) {
       const ageDays = Math.round((new Date(todayISO(now)) - new Date(latest.date)) / 86400000);
       const staleTag = ageDays > 1 ? ` (last data ${ageDays} days old — the health push isn't running)` : '';
       lines.push(`**Recovery.** ${bits.join(', ')}.${staleTag}`);
+      // yesterday missing or only a mid-day partial → say so THIS morning,
+      // with the fix path (the missed-steps saga hid because nothing spoke up)
+      const y = new Date(now); y.setDate(y.getDate() - 1);
+      const yIso = todayISO(y);
+      const yDay = days.find((d) => d.date === yIso);
+      if (!yDay || yDay.steps == null) {
+        lines.push(`**Steps gap.** Yesterday (${yIso}) never arrived — the overnight push didn't land. Tap the Steps ring → yesterday to enter it from Pedometer++.`);
+      } else if (yDay.receivedAt) {
+        const rec = new Date(yDay.receivedAt);
+        if (todayISO(rec) === yIso && rec.getHours() < 20) {
+          lines.push(`**Steps gap.** Yesterday shows ${yDay.steps.toLocaleString()} — a partial from ${String(rec.getHours()).padStart(2, '0')}:${String(rec.getMinutes()).padStart(2, '0')}, not the day's total. Tap the Steps ring to correct it.`);
+        }
+      }
     } else {
       lines.push('**Recovery.** No health data yet.');
     }

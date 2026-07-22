@@ -201,22 +201,50 @@ async function checkVault(vaultPath) {
   };
 }
 
-// The health feed: the phone Shortcut pushes each night at ~23:30 for that
-// day, so during the day the newest file is normally yesterday's. Two or more
-// days old means yesterday's push never fired — every recovery/steps surface
-// is then reasoning from old data. Flag it HERE, proactively, instead of each
-// surface separately discovering staleness (the sweep found nothing raised it).
+// The health feed. Three failure shapes, all learned the hard way:
+// (1) the feed goes quiet entirely (file ≥2 days old);
+// (2) YESTERDAY is missing outright (the push never fired that night — the
+//     Mac sleeps at 23:30, so this was the common case);
+// (3) yesterday EXISTS but is a mid-day partial — a morning push wrote a
+//     snapshot (e.g. 294 steps at 09:04) and nothing ever finalized it. The
+//     old check called that "Fresh", which was exactly the wrong assurance.
+// Evidence rides along: the last push ATTEMPT from the receipts log.
 async function checkHealthFeed() {
-  const days = await loadRecentDays(1);
+  const { readPushLog } = await import('./healthData.js');
+  const attempts = await readPushLog();
+  const lastAttempt = attempts[attempts.length - 1];
+  const evidence = lastAttempt
+    ? ` Last push attempt: ${new Date(lastAttempt.at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })} (${lastAttempt.ok ? 'ok' : 'FAILED: ' + lastAttempt.error}).`
+    : ' No push attempts logged yet (receipts began 2026-07-23).';
+
+  const days = await loadRecentDays(3);
   if (!days.length) {
-    return { id: 'health', label: 'Health feed', status: 'warn', detail: 'No health data yet — the phone Shortcut has never pushed.' };
+    return { id: 'health', label: 'Health feed', status: 'warn', detail: 'No health data yet — the phone Shortcut has never pushed.' + evidence };
   }
+  const pad2 = (n) => String(n).padStart(2, '0');
+  const iso = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  const yesterdayIso = iso(y);
   const latest = days[days.length - 1];
   const age = Math.round((new Date(new Date().toDateString()) - new Date(`${latest.date}T12:00:00`)) / 86400000);
+
   if (age >= 2) {
-    return { id: 'health', label: 'Health feed', status: 'warn', detail: `Last health push was ${latest.date} (${age} days ago) — the automation looks stalled. Yesterday's steps can be entered by hand from the Steps card.` };
+    return { id: 'health', label: 'Health feed', status: 'warn', detail: `Last health data is from ${latest.date} (${age} days ago) — the automation is stalled. Enter missing days from the Steps card.` + evidence };
   }
-  return { id: 'health', label: 'Health feed', status: 'ok', detail: `Fresh — last push ${age === 0 ? 'today' : 'yesterday'} (${latest.date}).` };
+
+  const yDay = days.find((d) => d.date === yesterdayIso);
+  if (!yDay || yDay.steps == null) {
+    return { id: 'health', label: 'Health feed', status: 'warn', detail: `Yesterday (${yesterdayIso}) never arrived — the overnight push didn't land (the Mac is usually asleep at 23:30). Tap the Steps card to enter it.` + evidence };
+  }
+  // received on its own calendar day before ~20:00 local = a mid-day snapshot
+  // that was never finalized — the count is honest-but-partial
+  if (yDay.receivedAt) {
+    const rec = new Date(yDay.receivedAt);
+    if (iso(rec) === yesterdayIso && rec.getHours() < 20) {
+      return { id: 'health', label: 'Health feed', status: 'warn', detail: `Yesterday's steps (${yDay.steps.toLocaleString()}) are a PARTIAL snapshot from ${pad2(rec.getHours())}:${pad2(rec.getMinutes())} — the end-of-day push never landed. Tap the Steps card to correct it.` + evidence };
+    }
+  }
+  return { id: 'health', label: 'Health feed', status: 'ok', detail: `Fresh — yesterday complete (${yDay.steps.toLocaleString()} steps), latest data ${latest.date}.` + evidence };
 }
 
 /* -------------------------------- runs ----------------------------------- */

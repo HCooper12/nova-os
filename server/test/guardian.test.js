@@ -41,11 +41,18 @@ test('healthy vault with restorable snapshots reports ok/warn honestly', async (
   // schedulers stamp their ticks → loops check goes green
   for (const name of ['dispatch', 'todoist', 'compost', 'guardian']) await beat(name);
 
-  // a fresh health day → feed check ok
+  // a complete yesterday + a today file → feed check ok. "Complete" means
+  // received in the EVENING of its own day (or later) — a morning-received
+  // snapshot is the partial case tested below.
   const p2 = (n) => String(n).padStart(2, '0');
   const now = new Date();
-  const todayIso = `${now.getFullYear()}-${p2(now.getMonth() + 1)}-${p2(now.getDate())}`;
+  const isoOf = (d) => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+  const todayIso = isoOf(now);
+  const yd = new Date(); yd.setDate(yd.getDate() - 1);
+  const yIso = isoOf(yd);
+  const yEvening = new Date(yd); yEvening.setHours(21, 30, 0, 0);
   await mkdir(path.join(process.env.NOVA_DATA_DIR, 'health'), { recursive: true });
+  await writeFile(path.join(process.env.NOVA_DATA_DIR, 'health', `${yIso}.json`), JSON.stringify({ date: yIso, steps: 14200, receivedAt: yEvening.toISOString() }), 'utf8');
   await writeFile(path.join(process.env.NOVA_DATA_DIR, 'health', `${todayIso}.json`), JSON.stringify({ date: todayIso, steps: 9000 }), 'utf8');
 
   // add a healthy snapshot → ok, sample restore-read passes
@@ -64,18 +71,36 @@ test('healthy vault with restorable snapshots reports ok/warn honestly', async (
   const { lastReport } = await getGuardian();
   assert.equal(lastReport.status, 'ok');
 
-  // a feed that went quiet two+ days ago warns and names the last push date
+  // the PARTIAL case (the 294-steps incident): yesterday received at 09:04 of
+  // its own day and never finalized must WARN, never read as "Fresh"
+  const yMorning = new Date(yd); yMorning.setHours(9, 4, 0, 0);
+  await writeFile(path.join(process.env.NOVA_DATA_DIR, 'health', `${yIso}.json`), JSON.stringify({ date: yIso, steps: 294, receivedAt: yMorning.toISOString() }), 'utf8');
+  report = await runGuardian(vault);
+  let feed = report.checks.find((c) => c.id === 'health');
+  assert.equal(feed.status, 'warn');
+  assert.match(feed.detail, /PARTIAL/);
+  assert.match(feed.detail, /294/);
+
+  // yesterday missing entirely (the overnight push never landed) also warns
+  const { rm: rmrf } = await import('node:fs/promises');
+  await rmrf(path.join(process.env.NOVA_DATA_DIR, 'health', `${yIso}.json`));
+  report = await runGuardian(vault);
+  feed = report.checks.find((c) => c.id === 'health');
+  assert.equal(feed.status, 'warn');
+  assert.match(feed.detail, /never arrived/i);
+
+  // a feed that went quiet two+ days ago warns and names the last data date
   const stale = new Date(Date.now() - 3 * 86400000);
   const staleIso = `${stale.getFullYear()}-${p2(stale.getMonth() + 1)}-${p2(stale.getDate())}`;
-  const { rm: rmrf } = await import('node:fs/promises');
   await rmrf(path.join(process.env.NOVA_DATA_DIR, 'health', `${todayIso}.json`));
   await writeFile(path.join(process.env.NOVA_DATA_DIR, 'health', `${staleIso}.json`), JSON.stringify({ date: staleIso, steps: 9000 }), 'utf8');
   report = await runGuardian(vault);
-  const feed = report.checks.find((c) => c.id === 'health');
+  feed = report.checks.find((c) => c.id === 'health');
   assert.equal(feed.status, 'warn');
   assert.match(feed.detail, new RegExp(staleIso));
   assert.match(feed.detail, /stalled/i);
-  // restore freshness (and a green persisted report) for the later tests
+  // restore full freshness (and a green persisted report) for the later tests
+  await writeFile(path.join(process.env.NOVA_DATA_DIR, 'health', `${yIso}.json`), JSON.stringify({ date: yIso, steps: 14200, receivedAt: yEvening.toISOString() }), 'utf8');
   await writeFile(path.join(process.env.NOVA_DATA_DIR, 'health', `${todayIso}.json`), JSON.stringify({ date: todayIso, steps: 9000 }), 'utf8');
   await runGuardian(vault);
 });

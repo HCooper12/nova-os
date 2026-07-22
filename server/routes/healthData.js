@@ -41,7 +41,11 @@ export function healthDataRouter(vaultPath) {
         try { body = JSON.parse(body); } catch { /* leave as-is; validation below fails honestly */ }
       }
       const date = body?.date;
-      if (typeof date !== 'string') return res.status(400).json({ error: 'date is required (YYYY-MM-DD)' });
+      const { logPushAttempt } = await import('../lib/healthData.js');
+      if (typeof date !== 'string') {
+        logPushAttempt({ ok: false, error: 'date missing', keys: Object.keys(body || {}) });
+        return res.status(400).json({ error: 'date is required (YYYY-MM-DD)' });
+      }
       // Accept EITHER {date, metrics:{...}} OR a flat {date, steps, hrv, ...}
       // — the flat shape is far simpler to build in a Shortcut (one
       // dictionary, no nesting). saveDay ignores keys it doesn't know.
@@ -50,12 +54,18 @@ export function healthDataRouter(vaultPath) {
         const { date: _omit, metrics: _m, ...rest } = body || {};
         metrics = rest;
       }
-      if (!metrics || !Object.keys(metrics).length) return res.status(400).json({ error: 'at least one metric is required (steps, hrv, sleepAsleepMinutes, …)' });
+      if (!metrics || !Object.keys(metrics).length) {
+        logPushAttempt({ ok: false, date, error: 'no metrics' });
+        return res.status(400).json({ error: 'at least one metric is required (steps, hrv, sleepAsleepMinutes, …)' });
+      }
       const saved = await saveDay(date, metrics);
+      logPushAttempt({ ok: true, date, keys: Object.keys(metrics), steps: metrics.steps ?? null });
       const { broadcast } = await import('../lib/events.js');
       broadcast('health');
       res.json({ day: saved });
     } catch (err) {
+      const { logPushAttempt } = await import('../lib/healthData.js');
+      logPushAttempt({ ok: false, error: err.message });
       res.status(400).json({ error: err.message });
     }
   });
