@@ -174,7 +174,7 @@ export function valsChrome(app, ctx) {
         : { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', flex: 'none', background: 'rgba(232,236,246,.16)' },
     })),
     sideStatus,
-    goVoice: go('voice'), goWorkouts: go('workouts'), goSettings: go('settings'),
+    goVoice: go('voice'), goWorkouts: go('workouts'), goSettings: go('settings'), goHome: go('mission'),
     orbCardTitle: st.micOn ? 'Nova is listening' : 'Nova is muted',
     orbCardSub: wakeWord ? 'VOICE · WAKE WORD ON' : 'VOICE · PUSH TO TALK',
     openPalette: () => app.setState({ paletteOpen: true, paletteQuery: '' }),

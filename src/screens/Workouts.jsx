@@ -107,7 +107,7 @@ function RoutinesView({ v }) {
           <div>
             <div style={css("font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.2em;color:var(--nv-gold)")}>WORKOUT IN PROGRESS</div>
             <div style={css("margin-top:5px;font:600 16px 'Rajdhani',sans-serif")}>{v.resumeSession.routineName}</div>
-            <div style={css("margin-top:2px;font-size:11.5px;color:var(--nv-ink60)")}>{v.resumeSession.done} set{v.resumeSession.done === 1 ? '' : 's'} logged · saved, not finished</div>
+            <div style={css("margin-top:2px;font-size:11.5px;color:var(--nv-ink60)")}>{v.resumeSession.done} set{v.resumeSession.done === 1 ? '' : 's'} logged · {v.resumeSession.ageLabel}</div>
           </div>
           <span style={css("font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.06em;padding:10px 18px;border-radius:9px;background:var(--nv-gold);color:#1a1322;white-space:nowrap")}>RESUME →</span>
         </Interactive>

@@ -54,12 +54,17 @@ export function StepsHistory({ v }) {
           <div style={css("margin-top:16px;border-top:1px solid var(--nv-edge);padding-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap")}>
             <span style={css("font:600 12.5px 'Rajdhani',sans-serif;color:var(--nv-ink);min-width:96px")}>{v.editLabel}</span>
             <input value={v.editValue} onChange={v.setEditValue} onKeyDown={(e) => { if (e.key === 'Enter') v.saveEdit(); }} inputMode="numeric" placeholder="steps" autoFocus
-              style={{ width: '120px', background: 'rgba(0,0,0,.3)', border: '1px solid var(--nv-edge)', borderRadius: '8px', padding: '9px 12px', color: 'var(--nv-ink)', font: "500 13px 'IBM Plex Mono',monospace", outline: 'none' }} />
+              style={{ width: '104px', background: 'rgba(0,0,0,.3)', border: '1px solid var(--nv-edge)', borderRadius: '8px', padding: '9px 12px', color: 'var(--nv-ink)', font: "500 13px 'IBM Plex Mono',monospace", outline: 'none' }} />
+            <input value={v.editWeight} onChange={v.setEditWeight} onKeyDown={(e) => { if (e.key === 'Enter') v.saveEdit(); }} inputMode="decimal" placeholder="kg (opt.)"
+              style={{ width: '84px', background: 'rgba(0,0,0,.3)', border: '1px solid var(--nv-edge)', borderRadius: '8px', padding: '9px 12px', color: 'var(--nv-ink)', font: "500 13px 'IBM Plex Mono',monospace", outline: 'none' }} />
             <Interactive as="span" onClick={v.saveEdit} base="cursor:pointer;font:600 10px 'IBM Plex Mono',monospace;letter-spacing:.06em;padding:9px 15px;border-radius:8px;background:var(--nv-cy);color:#0a2830" hoverStyle="filter:brightness(1.08)">SAVE</Interactive>
             <Interactive as="span" onClick={v.cancelEdit} base="cursor:pointer;font:400 10px 'IBM Plex Mono',monospace;color:var(--nv-ink40)" hoverStyle="color:var(--nv-ink)">cancel</Interactive>
           </div>
         )}
-        <div style={css("margin-top:14px;font-size:11px;line-height:1.55;color:var(--nv-ink40)")}>Tap any day to correct it — handy when the phone automation misses a night. These numbers feed everything Nova reasons about your activity.</div>
+        <div style={css("margin-top:14px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:11px;line-height:1.55;color:var(--nv-ink40)")}>
+          <span>Tap any day to correct steps — or log your bodyweight for that day (kg).</span>
+          <span style={css("flex:none")}>{v.latestWeight ? `Bodyweight: ${v.latestWeight.kg} kg (${v.latestWeight.date})` : 'No bodyweight yet — add Body Mass to the Shortcut, or type it here'}</span>
+        </div>
       </div>
     </div>
   );

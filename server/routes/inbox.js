@@ -34,7 +34,7 @@ export function inboxRouter(vaultPath) {
         confidence: 'high',
         title: `✓ ${label}`,
         reason: 'Calendar follow-up — confirmed done.',
-        payload: { text: `✓ ${label}${time ? ` (${time} on the calendar)` : ''} — done.` },
+        payload: { text: `✓ ${label}${time ? ` (${time} on the calendar)` : ''} — done.`, category: 'system', label: 'Calendar follow-up' },
       };
       const record = await createRecord({
         id: randomUUID().slice(0, 8),

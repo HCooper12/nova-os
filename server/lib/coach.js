@@ -187,7 +187,7 @@ export async function draftSessionSummary(vaultPath, session) {
       confidence: 'high',
       title,
       reason: 'Coach’s deterministic session receipt — approve to journal it.',
-      payload: { text: bits.join(' ') + (bits.length === 1 ? '.' : '') },
+      payload: { text: bits.join(' ') + (bits.length === 1 ? '.' : ''), category: 'training', label: 'Session receipt' },
     },
   };
   await createRecord(record);

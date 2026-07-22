@@ -38,14 +38,41 @@ export function valsNotes(app, ctx) {
   const reviewPage = reviewPool[reviewIdx] || null;
   const reviewSummary = reviewPage ? st.liveReviewSummaries[reviewPage.id] : undefined;
 
-  // journal — live entries (Wiki/Journal/) grouped by day, newest first
-  const journalDays = (st.liveJournalEntries || []).map((d) => ({
-    date: d.date,
-    open: st.journalOpenDate === d.date,
-    toggle: () => app.toggleJournalDay(d.date),
-    count: d.sections.length,
-    preview: (d.sections[d.sections.length - 1]?.text || '').replace(/\s+/g, ' ').slice(0, 100),
-    sections: d.sections.map((s) => ({ time: s.time, heading: s.heading ? s.heading.replace(/\[\[([^\]]+)\]\]/g, '$1') : null, text: s.text })),
+  // journal — live entries (Wiki/Journal/) grouped by day, newest first.
+  // Category filter keeps personal reflections separate from training receipts
+  // and system briefs; days with no matching sections drop out of the list.
+  const CATEGORY_META = {
+    personal: { label: 'PERSONAL', hue: '143,123,255' },
+    training: { label: 'TRAINING', hue: '89,230,255' },
+    system: { label: 'SYSTEM', hue: '224,178,106' },
+  };
+  const jFilter = st.journalFilter || 'all';
+  const mapSection = (s) => ({
+    time: s.time,
+    category: s.category || null,
+    categoryMeta: s.category ? CATEGORY_META[s.category] || null : null,
+    // "Reflection on [[X]]" reads as a concept reflection — label it that way
+    heading: s.heading ? s.heading.replace(/\[\[([^\]]+)\]\]/g, '$1').replace(/^Reflection on /, 'Concept reflection — ') : null,
+    text: s.text,
+  });
+  const journalDays = (st.liveJournalEntries || [])
+    .map((d) => {
+      const sections = d.sections.filter((s) => jFilter === 'all' || (s.category || 'personal') === jFilter);
+      return {
+        date: d.date,
+        open: st.journalOpenDate === d.date,
+        toggle: () => app.toggleJournalDay(d.date),
+        count: sections.length,
+        preview: (sections[sections.length - 1]?.text || '').replace(/\s+/g, ' ').slice(0, 100),
+        sections: sections.map(mapSection),
+      };
+    })
+    .filter((d) => d.count > 0);
+  const journalFilters = ['all', 'personal', 'training', 'system'].map((f) => ({
+    key: f,
+    label: f === 'all' ? 'ALL' : CATEGORY_META[f].label,
+    active: jFilter === f,
+    go: () => app.setState({ journalFilter: f }),
   }));
 
   // shared with valsMission (suggested focus, daily review card) and valsChrome (nav counts)
@@ -131,6 +158,8 @@ export function valsNotes(app, ctx) {
     journalPromptText: st.journalPromptText,
     generateJournalPrompt: () => app.generateJournalPrompt(),
     journalDays,
+    journalFilters,
+    journalFilterActive: jFilter !== 'all',
     journalLoaded: st.liveJournalEntries != null, // null = still loading, not "no entries yet"
   };
 }

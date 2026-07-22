@@ -56,22 +56,31 @@ const SCREENS = ['mission', 'inbox', 'voice', 'galaxy', 'code', 'recipes', 'shop
 
 const ACTIVE_SESSION_KEY = 'novaos.activeSession';
 const QUICK_PLAN_KEY = 'novaos.quickPlan';
-const ACTIVE_SESSION_TTL_MS = 20 * 3600_000; // a stale session from days ago shouldn't resurrect
+// A logged-but-unsaved workout is a DRAFT, not disposable state. The old 20h
+// TTL silently DELETED the session on expiry — an evening workout reopened
+// after ~2pm the next day was gone, ticked sets and all (it bit twice). Now:
+// kept for 7 days; a fresh session (<12h) drops you straight back into it,
+// an older one waits as the RESUME card on Train with its age shown.
+const SESSION_KEEP_MS = 7 * 24 * 3600_000;
+const SESSION_REOPEN_MS = 12 * 3600_000;
 
 function restoreActiveSession() {
   const out = {};
   try {
     const saved = JSON.parse(localStorage.getItem(ACTIVE_SESSION_KEY) || 'null');
-    if (saved?.workoutSession && Date.now() - (saved.savedAt || 0) < ACTIVE_SESSION_TTL_MS) {
+    if (saved?.workoutSession && Date.now() - (saved.savedAt || 0) < SESSION_KEEP_MS) {
       out.workoutSession = saved.workoutSession;
       out.editingSessionId = saved.editingSessionId || null;
-      out.workoutsView = 'session';
+      out.workoutSessionSavedAt = saved.savedAt || null;
+      if (Date.now() - (saved.savedAt || 0) < SESSION_REOPEN_MS) {
+        out.workoutsView = 'session'; // mid-workout — pick up right where he left off
+      }
       out.restoredSession = true;
     } else if (saved) {
       localStorage.removeItem(ACTIVE_SESSION_KEY);
     }
     const plan = JSON.parse(localStorage.getItem(QUICK_PLAN_KEY) || 'null');
-    if (plan?.quickPlan && Date.now() - (plan.savedAt || 0) < ACTIVE_SESSION_TTL_MS) {
+    if (plan?.quickPlan && Date.now() - (plan.savedAt || 0) < SESSION_KEEP_MS) {
       out.quickPlan = plan.quickPlan;
     } else if (plan) {
       localStorage.removeItem(QUICK_PLAN_KEY);
@@ -79,6 +88,20 @@ function restoreActiveSession() {
   } catch { /* corrupt storage — start clean */ }
   return out;
 }
+// Composer drafts (capture box, journal entry) survive a reclaim/refresh the
+// same way the workout session does — typed thoughts are never disposable.
+const DRAFTS_KEY = 'novaos.drafts';
+function restoreDrafts() {
+  try {
+    const d = JSON.parse(localStorage.getItem(DRAFTS_KEY) || 'null');
+    if (!d || Date.now() - (d.savedAt || 0) > SESSION_KEEP_MS) return {};
+    const out = {};
+    if (d.inboxInput) out.inboxInput = d.inboxInput;
+    if (d.journalComposerText) out.journalComposerText = d.journalComposerText;
+    return out;
+  } catch { return {}; }
+}
+
 function screenFromHash() {
   const h = (typeof window !== 'undefined' ? window.location.hash : '').replace(/^#\/?/, '');
   return SCREENS.includes(h) ? h : 'mission';
@@ -146,7 +169,7 @@ export default class App extends Component {
     codeChat: [],
     codeSessionId: null, codeWorkspace: 'repo', codeModel: 'sonnet',
     liveHealthInsight: null, liveHealthDays: null, liveStreaks: null,
-    stepsOverlayOpen: false, stepEditDate: null, stepEditValue: '',
+    stepsOverlayOpen: false, stepEditDate: null, stepEditValue: '', stepEditWeight: '',
     tabOrder: getTabOrder(),
     liveReviewSummaries: {},
     liveFoodLog: null, liveFoodHistory: null, foodHistoryOpen: false,
@@ -176,6 +199,7 @@ export default class App extends Component {
     // an in-progress workout must survive tab reclaim / refresh / app kill —
     // restored from device storage at boot (see restoreActiveSession)
     ...restoreActiveSession(),
+    ...restoreDrafts(),
     liveMoney: null, moneyBusy: false, moneyScanBusy: false, moneyScanError: null, moneyScanQuestion: null,
     moneyAddMerchant: '', moneyAddAmount: '', moneyAddIsSpend: true, moneyEditCategoryId: null,
     sparBusy: false,
@@ -207,7 +231,7 @@ export default class App extends Component {
     routineDeleteConfirm: false,
     exercisePickerOpen: false, exercisePickerQuery: '', exercisePickerMuscle: 'Any',
     exercisePickerCreateMuscle: '', exercisePickerCreateTrackingType: 'weight_reps',
-    workoutSession: null, sessionCancelConfirm: false,
+    workoutSession: null, workoutSessionSavedAt: null, sessionCancelConfirm: false,
     liveWorkoutHistory: null, historyRoutineId: null,
 
     // daily review + journal
@@ -217,7 +241,7 @@ export default class App extends Component {
     liveJournalEntries: null,
     journalComposerText: '', journalSaveBusy: false, journalSaveError: null,
     journalPromptBusy: false, journalPromptText: null,
-    journalOpenDate: null,
+    journalOpenDate: null, journalFilter: 'all',
 
     // transcript ingest
     ingestModalOpen: false, ingestText: '', ingestSourceUrl: '',
@@ -250,7 +274,9 @@ export default class App extends Component {
     }
     Promise.all([minBootTime, dataReady]).then(() => this.setState({ booted: true }));
     if (this.state.restoredSession) {
-      setTimeout(() => this.toastMsg('Restored your in-progress workout — nothing was lost'), 1200);
+      setTimeout(() => this.toastMsg(this.state.workoutsView === 'session'
+        ? 'Restored your in-progress workout — nothing was lost'
+        : 'Your unsaved workout is waiting as a draft on Train — nothing was lost'), 1200);
     }
     this.checkPushState();
     // load the device's free system voices for the voice picker (they arrive
@@ -395,16 +421,28 @@ export default class App extends Component {
     if (this.state.screen === 'settings' && prevState.screen !== 'settings' && this.state.liveCalendarList == null && getConnection()) {
       this.loadCalendarList();
     }
+    // mirror composer drafts — typed-but-unsubmitted text survives a refresh
+    if (prevState.inboxInput !== this.state.inboxInput || prevState.journalComposerText !== this.state.journalComposerText) {
+      try {
+        if (this.state.inboxInput || this.state.journalComposerText) {
+          localStorage.setItem(DRAFTS_KEY, JSON.stringify({ inboxInput: this.state.inboxInput, journalComposerText: this.state.journalComposerText, savedAt: Date.now() }));
+        } else {
+          localStorage.removeItem(DRAFTS_KEY);
+        }
+      } catch { /* storage full — drafts just won't persist */ }
+    }
     // mirror the in-progress workout to device storage on every change —
     // this is what survives Chrome reclaiming the tab mid-treadmill
     if (prevState.workoutSession !== this.state.workoutSession || prevState.editingSessionId !== this.state.editingSessionId) {
       try {
         if (this.state.workoutSession) {
+          const savedAt = Date.now();
           localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify({
             workoutSession: this.state.workoutSession,
             editingSessionId: this.state.editingSessionId,
-            savedAt: Date.now(),
+            savedAt,
           }));
+          if (this.state.workoutSessionSavedAt !== savedAt) this.setState({ workoutSessionSavedAt: savedAt });
         } else {
           localStorage.removeItem(ACTIVE_SESSION_KEY);
         }
@@ -1975,11 +2013,17 @@ export default class App extends Component {
     const conn = getConnection();
     const date = this.state.stepEditDate;
     const steps = Math.round(Number(this.state.stepEditValue));
-    if (!conn || !date || Number.isNaN(steps) || steps < 0) { this.toastMsg('Enter a step count'); return; }
-    api.saveHealthDay(conn, date, { steps })
+    const weight = parseFloat(this.state.stepEditWeight);
+    const hasWeight = !Number.isNaN(weight) && weight > 0;
+    const hasSteps = !Number.isNaN(steps) && steps >= 0 && this.state.stepEditValue !== '';
+    if (!conn || !date || (!hasSteps && !hasWeight)) { this.toastMsg('Enter a step count or a bodyweight'); return; }
+    const metrics = {};
+    if (hasSteps) metrics.steps = steps;
+    if (hasWeight) metrics.weightKg = weight; // manual bodyweight logging — the Shortcut fills this automatically once Body Mass is added
+    api.saveHealthDay(conn, date, metrics)
       .then(() => api.healthData(conn, 7))
-      .then((r) => { this.setState({ liveHealthDays: r.days.length ? r.days : null, stepEditDate: null, stepEditValue: '' }); this.toastMsg(`Steps for ${date} saved ✓`); })
-      .catch((e) => this.toastMsg('Could not save steps: ' + e.message));
+      .then((r) => { this.setState({ liveHealthDays: r.days.length ? r.days : null, stepEditDate: null, stepEditValue: '', stepEditWeight: '' }); this.toastMsg(`${date} saved ✓`); })
+      .catch((e) => this.toastMsg('Could not save: ' + e.message));
   }
   restoreBackupNow(backupRel) {
     const conn = getConnection();

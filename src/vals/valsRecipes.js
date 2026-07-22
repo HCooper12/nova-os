@@ -113,6 +113,19 @@ export function valsRecipes(app, ctx) {
     recipeFilters: filters.map(f => ({ label: f, go: () => app.setState({ recipeFilter: f }), style: chip(st.recipeFilter === f) })),
     recipeList,
 
+    // today-so-far strip at the top of Recipes: everything actually marked
+    // eaten (rotation slots consumed + off-plan log), same truth as the home
+    // protein gauge but with all four macros at a glance
+    dayMacros: usingLiveRecipes ? {
+      p: Math.round(rotConsumedTot.p + foodLogTot.p),
+      c: Math.round(rotConsumedTot.c + foodLogTot.c),
+      f: Math.round(rotConsumedTot.f + foodLogTot.f),
+      kcal: Math.round(rotConsumedTot.kcal + foodLogTot.kcal),
+      proteinTarget,
+      proteinPct: proteinTarget ? Math.min(100, Math.round(((rotConsumedTot.p + foodLogTot.p) / proteinTarget) * 100)) : null,
+      targetKcal: profile ? profile.targetKcal : null,
+    } : null,
+
     // daily rotation — real meal-slot picks + aggregate macros, live only
     rotationVisible: usingLiveRecipes,
     rotationSlots,

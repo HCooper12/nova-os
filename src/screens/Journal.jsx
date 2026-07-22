@@ -56,6 +56,17 @@ export function Journal({ v }) {
         </div>
       ) : (
         <div style={css("margin-top:26px;display:flex;flex-direction:column;gap:10px")}>
+          {/* category filter — personal reflections never lost among training logs */}
+          <div style={css("display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px")}>
+            {v.journalFilters.map((f) => (
+              <Interactive key={f.key} as="span" onClick={f.go}
+                base={{ cursor: 'pointer', font: "500 9.5px 'IBM Plex Mono',monospace", letterSpacing: '.14em', padding: '7px 14px', borderRadius: '14px', border: f.active ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', color: f.active ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', background: f.active ? 'var(--nv-acc-bg)' : 'none' }}
+                hoverStyle={{ color: 'var(--nv-ink)' }}>{f.label}</Interactive>
+            ))}
+          </div>
+          {v.journalDays.length === 0 && v.journalFilterActive && (
+            <div style={css("margin-top:16px;text-align:center;font-size:12.5px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Nothing in this category yet.</div>
+          )}
           {v.journalDays.map((d) => (
             <div key={d.date} style={css("border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:12px;padding:14px 18px;background:rgba(255,255,255,.02)")}>
               <Interactive as="div" onClick={d.toggle} base="cursor:pointer;display:flex;justify-content:space-between;align-items:baseline;gap:10px" hoverStyle={{}}>
@@ -67,8 +78,12 @@ export function Journal({ v }) {
                 <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:12px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent);padding-top:12px")}>
                   {d.sections.map((s, i) => (
                     <div key={i}>
-                      <div style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>
-                        {s.time}{s.heading ? ' — ' + s.heading : ''}
+                      <div style={css("display:flex;align-items:center;gap:8px;flex-wrap:wrap;font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>
+                        <span>{s.time}</span>
+                        {s.categoryMeta && (
+                          <span style={{ font: "600 8px 'IBM Plex Mono',monospace", letterSpacing: '.12em', padding: '2px 8px', borderRadius: '5px', color: `rgba(${s.categoryMeta.hue},.95)`, background: `rgba(${s.categoryMeta.hue},.12)` }}>{s.categoryMeta.label}</span>
+                        )}
+                        {s.heading && <span>— {s.heading}</span>}
                       </div>
                       <div style={css("margin-top:4px;font-size:13px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 85%, transparent)")}>{s.text}</div>
                     </div>

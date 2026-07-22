@@ -57,10 +57,17 @@ function entryPreview(text) {
   return flat.length > 90 ? flat.slice(0, 87) + '…' : flat;
 }
 
+// Entry categories keep personal reflections separate from training receipts
+// and system briefs — "I don't want to lose my records amongst the exercise
+// logs." The category rides IN the section heading so the vault file stays
+// human-readable and hand-editable: "## 21:30 · personal — Daily review".
+// Legacy headings without a marker parse as category null (shown unlabelled).
+export const JOURNAL_CATEGORIES = ['personal', 'training', 'system'];
+
 function bodyFor(date, sections) {
   const lines = [`# ${date}`, ''];
   for (const s of sections) {
-    lines.push(`## ${s.time}${s.heading ? ' — ' + s.heading : ''}`, '', s.text.trim(), '');
+    lines.push(`## ${s.time}${s.category ? ' · ' + s.category : ''}${s.heading ? ' — ' + s.heading : ''}`, '', s.text.trim(), '');
   }
   return lines.join('\n');
 }
@@ -71,9 +78,12 @@ function parseSections(body) {
   const chunks = body.split(/\n(?=##\s)/).filter((c) => /^##\s/.test(c.trim()));
   return chunks.map((chunk) => {
     const headingLine = chunk.match(/^##\s*(.+)$/m)[1].trim();
-    const [time, ...rest] = headingLine.split(/\s+—\s+/);
+    const [timePart, ...rest] = headingLine.split(/\s+—\s+/);
     const text = chunk.replace(/^##[^\n]*\n/, '').trim();
-    return { time: time.trim(), heading: rest.join(' — ').trim() || null, text };
+    // "21:30 · personal" → time + category; bare "21:30" → legacy, no category
+    const [time, ...markers] = timePart.split(/\s+·\s+/);
+    const category = markers.length && JOURNAL_CATEGORIES.includes(markers[0].trim()) ? markers[0].trim() : null;
+    return { time: time.trim(), category, heading: rest.join(' — ').trim() || null, text };
   });
 }
 
@@ -84,12 +94,14 @@ function withWriteLock(fn) {
   return run;
 }
 
-// entry: { text, linkedTitle? } — linkedTitle is a concept/topic page name to
-// cross-link (e.g. from a Daily Review reflection); omitted for a standalone
-// journal entry.
+// entry: { text, linkedTitle?, category?, label? } — linkedTitle is a
+// concept/topic page to cross-link (a concept reflection); category separates
+// personal reflections from training receipts and system briefs (default
+// personal); label is a provenance heading like "Daily review reflection".
 export async function addEntry(vaultPath, entry) {
   const text = (entry.text || '').trim();
   if (!text) throw new Error('entry text is required');
+  const category = JOURNAL_CATEGORIES.includes(entry.category) ? entry.category : 'personal';
 
   return withWriteLock(async () => {
     const { date, time } = todayParts();
@@ -106,7 +118,12 @@ export async function addEntry(vaultPath, entry) {
       createdDate = parsed.data.created || date;
       await backupFile(full);
     }
-    const newSection = { time, heading: entry.linkedTitle ? `Reflection on [[${entry.linkedTitle}]]` : null, text };
+    const newSection = {
+      time,
+      category,
+      heading: entry.linkedTitle ? `Reflection on [[${entry.linkedTitle}]]` : (entry.label || null),
+      text,
+    };
     sections.push(newSection);
 
     const frontmatter = { type: 'journal', tags: [], created: createdDate, updated: date };
@@ -133,7 +150,7 @@ export async function addEntry(vaultPath, entry) {
       await writeFile(logFull, updatedLog, 'utf8');
     }
 
-    return { date, time, text, linkedTitle: entry.linkedTitle || null };
+    return { date, time, text, category, linkedTitle: entry.linkedTitle || null };
   });
 }
 

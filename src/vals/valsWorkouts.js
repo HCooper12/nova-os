@@ -268,12 +268,20 @@ export function valsWorkouts(app, ctx) {
     cancelSessionCancel: () => app.cancelSessionCancel(),
     discardSession: () => app.discardWorkoutSession(),
 
-    // a parked, unfinished session — surfaced on the routine list to resume
-    resumeSession: st.workoutSession && st.workoutsView !== 'session' && !st.editingSessionId ? {
-      routineName: st.workoutSession.routineName,
-      done: st.workoutSession.exercises.reduce((n, e) => n + e.sets.filter((s) => s.done).length, 0),
-      resume: () => app.resumeWorkoutSession(),
-    } : null,
+    // a parked, unfinished session — surfaced on the routine list to resume.
+    // Age shown honestly: a draft from two days ago says so.
+    resumeSession: st.workoutSession && st.workoutsView !== 'session' && !st.editingSessionId ? (() => {
+      const ageMs = st.workoutSessionSavedAt ? Date.now() - st.workoutSessionSavedAt : 0;
+      const ageLabel = ageMs < 3600_000 ? 'saved, not finished'
+        : ageMs < 24 * 3600_000 ? `draft from ${Math.round(ageMs / 3600_000)}h ago`
+        : `draft from ${Math.round(ageMs / 86400_000)} day${Math.round(ageMs / 86400_000) === 1 ? '' : 's'} ago`;
+      return {
+        routineName: st.workoutSession.routineName,
+        done: st.workoutSession.exercises.reduce((n, e) => n + e.sets.filter((s) => s.done).length, 0),
+        ageLabel,
+        resume: () => app.resumeWorkoutSession(),
+      };
+    })() : null,
 
     // after finishing with exercises left undone — push them to a day
     finishMissed: st.finishMissed ? {

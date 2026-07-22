@@ -14,6 +14,25 @@ export function Recipes({ v }) {
       </div>
       <h1 style={css("margin:18px 0 0;font:700 30px/1.1 'Rajdhani',sans-serif;letter-spacing:.02em")}>Recipes, <span style={css("font:italic 400 27px 'Instrument Serif',serif;color:var(--nv-gold)")}>macros first.</span></h1>
 
+      {/* today so far — everything actually eaten, at a glance */}
+      {v.dayMacros && (
+        <div style={css("margin-top:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border:1px solid color-mix(in srgb, var(--nv-cy) 22%, transparent);border-radius:12px;padding:11px 16px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-cy) 05%, transparent),transparent)")}>
+          <span style={css("font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.2em;color:var(--nv-cy);flex:none")}>EATEN TODAY</span>
+          {v.dayMacros.proteinPct != null && (
+            <span style={css("flex:none;display:flex;align-items:center;gap:7px")}>
+              <span style={{ width: '30px', height: '30px', borderRadius: '50%', padding: '2px', flex: 'none', background: `conic-gradient(var(--nv-cy) ${v.dayMacros.proteinPct}%, var(--nv-edge) 0)` }}>
+                <span style={css("width:100%;height:100%;border-radius:50%;background:var(--nv-glass2);display:flex;align-items:center;justify-content:center;font:600 8px 'IBM Plex Mono',monospace;color:var(--nv-cy)")}>{v.dayMacros.proteinPct}%</span>
+              </span>
+              <span style={css("font:500 11px 'IBM Plex Mono',monospace;color:var(--nv-cy)")}>{v.dayMacros.p}/{v.dayMacros.proteinTarget}g P</span>
+            </span>
+          )}
+          {v.dayMacros.proteinPct == null && <span style={css("font:500 11px 'IBM Plex Mono',monospace;color:var(--nv-cy)")}>{v.dayMacros.p}g P</span>}
+          <span style={css("font:400 11px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 62%, transparent)")}>
+            <span style={css("color:var(--nv-gold)")}>{v.dayMacros.c}C</span> · <span style={css("color:var(--nv-vi)")}>{v.dayMacros.f}F</span> · <span style={css("color:var(--nv-good)")}>{v.dayMacros.kcal}{v.dayMacros.targetKcal ? `/${v.dayMacros.targetKcal}` : ''} kcal</span>
+          </span>
+        </div>
+      )}
+
       {v.rotationVisible && (
         <div style={css("margin-top:18px;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);padding:16px 18px;background:var(--nv-glass);box-shadow:inset 0 1px 0 var(--nv-spec)")}>
           <div style={css("display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px")}>

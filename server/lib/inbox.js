@@ -252,9 +252,16 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
   }
 
   if (route === 'journal') {
-    const saved = await journal.addEntry(vaultPath, { text: payload.text });
+    // category separates personal reflections from training receipts and
+    // system briefs; label carries provenance ("Daily review reflection")
+    const saved = await journal.addEntry(vaultPath, {
+      text: payload.text,
+      category: payload.category,
+      label: payload.label,
+      linkedTitle: payload.linkedTitle,
+    });
     return {
-      destination: `Journal — ${saved.date} ${saved.time}`,
+      destination: `Journal — ${saved.date} ${saved.time}${saved.category !== 'personal' ? ` (${saved.category})` : ''}`,
       undo: { route, date: saved.date, time: saved.time, text: saved.text },
     };
   }

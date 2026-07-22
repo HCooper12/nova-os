@@ -457,7 +457,12 @@ export async function runDispatch(vaultPath, { slot = 'morning', force = false }
     confidence: 'high',
     title,
     reason: slot === 'weekly' ? 'Weekly review composed from the week\'s real data.' : `Scheduled ${slot} brief composed from live data.`,
-    payload: { text },
+    // system category — operational briefs never mix into personal reflections
+    payload: {
+      text,
+      category: 'system',
+      label: slot === 'weekly' ? 'Weekly review' : slot === 'morning' ? 'Morning dispatch' : 'Evening debrief',
+    },
   };
   const record = {
     id: randomUUID().slice(0, 8),

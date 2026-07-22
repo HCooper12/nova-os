@@ -13,7 +13,7 @@ const groupLabel = css(`font:500 8px ${M};letter-spacing:.26em;color:var(--nv-in
 export function Sidebar({ v }) {
   return (
     <aside style={css("width:238px;flex:none;display:flex;flex-direction:column;gap:18px;padding:24px 16px 18px;border-right:1px solid var(--nv-edge);background:linear-gradient(180deg,rgba(0,0,0,.28),rgba(0,0,0,0) 40%);overflow-y:auto")}>
-      <div style={css(`padding:0 10px;font:700 21px ${R};letter-spacing:.16em;color:var(--nv-ink)`)}>
+      <div onClick={v.goHome} style={css(`cursor:pointer;padding:0 10px;font:700 21px ${R};letter-spacing:.16em;color:var(--nv-ink)`)}>
         NOVA<span style={css("background:linear-gradient(90deg,var(--nv-cy),var(--nv-vi));-webkit-background-clip:text;background-clip:text;color:transparent")}>·OS</span>
       </div>
 

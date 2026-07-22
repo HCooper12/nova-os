@@ -298,7 +298,7 @@ export async function restoreBackup(vaultPath, backupRel) {
       confidence: 'high',
       title: `Restored ${path.basename(originalRel)}`,
       reason: 'Guardian time-machine restore — the pre-restore state was snapshotted first.',
-      payload: { text: `Restored ${originalRel} from snapshot ${path.basename(backupRel)}.` },
+      payload: { text: `Restored ${originalRel} from snapshot ${path.basename(backupRel)}.`, category: 'system', label: 'Guardian restore' },
     },
     undoData: priorSnapshot
       ? { route: 'restore', relPath: originalRel, priorBackupRel: path.relative(vaultPath, priorSnapshot) }
@@ -356,7 +356,7 @@ export async function runGuardianReport(vaultPath, { force = false } = {}) {
     confidence: 'high',
     title,
     reason: 'Monthly integrity report from Guardian’s read-only checks.',
-    payload: { text: `${title}\n\n${lines.join('\n')}` },
+    payload: { text: `${title}\n\n${lines.join('\n')}`, category: 'system', label: 'Guardian report' },
   };
   const record = {
     id: randomUUID().slice(0, 8),

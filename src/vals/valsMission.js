@@ -493,13 +493,23 @@ export function valsMission(app, ctx) {
         goal: STEP_GOAL,
         current: stepsCurrent,
         currentIsStale: !!(stepsDay && stepsDay.date !== todayKey),
-        days: week.map((d) => ({ ...d, editing: d.date === st.stepEditDate, startEdit: () => app.setState({ stepEditDate: d.date, stepEditValue: d.steps != null ? String(d.steps) : '' }) })),
+        days: week.map((d) => {
+          const healthDay = (st.liveHealthDays || []).find((h) => h.date === d.date);
+          return { ...d, editing: d.date === st.stepEditDate, startEdit: () => app.setState({ stepEditDate: d.date, stepEditValue: d.steps != null ? String(d.steps) : '', stepEditWeight: healthDay?.weightKg != null ? String(healthDay.weightKg) : '' }) };
+        }),
         total: withData.reduce((s, d) => s + d.steps, 0),
         totalKm: +withData.reduce((s, d) => s + (d.km || 0), 0).toFixed(1),
         editDate: st.stepEditDate,
         editLabel: editDay ? editDay.full : '',
         editValue: st.stepEditValue,
         setEditValue: (e) => app.setState({ stepEditValue: e.target.value }),
+        editWeight: st.stepEditWeight,
+        setEditWeight: (e) => app.setState({ stepEditWeight: e.target.value }),
+        // the latest known bodyweight, honestly dated — the nutrition loop-closer
+        latestWeight: (() => {
+          const w = [...(st.liveHealthDays || [])].reverse().find((d) => d.weightKg != null);
+          return w ? { kg: w.weightKg, date: w.date } : null;
+        })(),
         saveEdit: () => app.saveStepEdit(),
         cancelEdit: () => app.setState({ stepEditDate: null }),
       };

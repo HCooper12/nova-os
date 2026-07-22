@@ -78,7 +78,7 @@ export async function runTrainingCheck(vaultPath) {
       confidence: 'high',
       title,
       reason: `${trainBit}${calBit}${mismatch}, but nothing's logged in Train yet. Approve to note it as done; if you swapped it for a walk or stretch, dismiss this — that counts as active rest.`,
-      payload: { text: `Training reconciled ${t}: completed ${plannedName} (confirmed from the schedule).` },
+      payload: { text: `Training reconciled ${t}: completed ${plannedName} (confirmed from the schedule).`, category: 'training', label: 'Training check' },
     },
   };
   await createRecord(record);
