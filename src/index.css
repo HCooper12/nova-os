@@ -140,7 +140,7 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
    theme AND calm. The silhouette tab/nav icons are gated on the same
    attribute in React (valsChrome → appleStyle).
    ================================================================ */
-:root[data-nv-style="apple"] {
+:root[data-nv-style="apple"], :root[data-nv-style="cupertino"] {
   --nv-font-ui:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',system-ui,sans-serif;
   --nv-font-serif:ui-serif,'New York',Georgia,serif;
   --nv-font-mono:ui-monospace,'SF Mono','IBM Plex Mono',monospace;
@@ -158,6 +158,14 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   --nv-glow-noticed:0 0 0 0 rgba(0,0,0,0); --nv-glow-focus:0 0 0 0 rgba(0,0,0,0);
   --nv-glow-sat1:0 0 0 0 rgba(0,0,0,0); --nv-glow-sat2:0 0 0 0 rgba(0,0,0,0); --nv-glow-sat3:0 0 0 0 rgba(0,0,0,0);
   --nv-tsh-head-cy:none; --nv-tsh-head-vi:none;
+}
+/* cupertino extras on top of the shared apple skin: grouped-inset material —
+   slightly more solid surfaces, larger radius, hairline separators. The
+   restructured layouts themselves are React (v.structured gates them). */
+:root[data-nv-style="cupertino"] {
+  --nv-radius:22px;
+  --nv-glass:rgba(255,255,255,.055); --nv-glass2:rgba(17,19,28,.86);
+  --nv-edge:rgba(255,255,255,.08);
 }
 
 /* shared panes for the new components */

@@ -197,8 +197,11 @@ export function valsChrome(app, ctx) {
 
     // appearance (Settings)
     // style is the design language (Command Core HUD vs Apple calm); it
-    // composes with theme (palette) — the silhouette icons key off it too
-    appleStyle: st.novaStyle === 'apple',
+    // composes with theme (palette) — the silhouette icons key off it too.
+    // appleStyle = the Apple family (skin or layout); structured = the
+    // restructured-layout tier only (grouped screens like MissionStructured).
+    appleStyle: st.novaStyle === 'apple' || st.novaStyle === 'cupertino',
+    structured: st.novaStyle === 'cupertino',
     novaStyleOptions: NOVA_STYLES.map((s) => ({ ...s, active: st.novaStyle === s.value, pick: () => app.setNovaStyle(s.value) })),
     novaTheme: st.novaTheme,
     novaThemeOptions: NOVA_THEMES.map((t) => ({ ...t, active: st.novaTheme === t.value, pick: () => app.setNovaTheme(t.value) })),

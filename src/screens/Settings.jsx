@@ -144,12 +144,14 @@ export function Settings({ v }) {
             }}
             hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}
           >
-            {/* material swatch: HUD bracket square vs calm rounded glass */}
+            {/* material swatch: HUD bracket square · calm rounded glass · grouped rows */}
             <span style={{ flex: 'none', width: '16px', height: '16px',
-              borderRadius: s.value === 'apple' ? '6px' : '2px',
-              border: s.value === 'apple' ? '1px solid rgba(255,255,255,.35)' : '1px solid var(--nv-acc-border)',
-              background: s.value === 'apple' ? 'rgba(255,255,255,.12)' : 'var(--nv-acc-bg)',
-              boxShadow: s.value === 'apple' ? 'none' : '0 0 8px -2px var(--nv-acc)' }}></span>
+              borderRadius: s.value === 'command' ? '2px' : '6px',
+              border: s.value === 'command' ? '1px solid var(--nv-acc-border)' : '1px solid rgba(255,255,255,.35)',
+              background: s.value === 'command' ? 'var(--nv-acc-bg)'
+                : s.value === 'cupertino' ? 'repeating-linear-gradient(180deg, rgba(255,255,255,.22) 0 4px, rgba(255,255,255,.06) 4px 8px)'
+                : 'rgba(255,255,255,.12)',
+              boxShadow: s.value === 'command' ? '0 0 8px -2px var(--nv-acc)' : 'none' }}></span>
             <span style={{ minWidth: 0 }}>
               <span style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: s.active ? 'var(--nv-acc)' : 'var(--nv-ink)' }}>{s.label}</span>
               <span style={{ display: 'block', marginTop: '2px', fontSize: '11.5px', color: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>{s.hint}</span>

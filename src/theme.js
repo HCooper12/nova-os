@@ -15,9 +15,12 @@ export const NOVA_THEMES = [
 
 // Style is orthogonal to theme: the theme picks the palette, the style picks
 // the design language it's drawn in. Both compose (Ember × Apple works).
+// 'cupertino' = the Apple skin PLUS restructured layouts (grouped lists,
+// native-app rhythm) — same features, same data, different bones.
 export const NOVA_STYLES = [
   { value: 'command', label: 'Command Core', hint: 'the HUD — glow, brackets, mono telemetry' },
-  { value: 'apple', label: 'Apple', hint: 'calm glass, SF type, silhouette icons — same soul, same colours' },
+  { value: 'apple', label: 'Apple skin', hint: 'calm glass, SF type, silhouette icons — the classic layout' },
+  { value: 'cupertino', label: 'Apple layout', hint: 'the full restructure — grouped lists, native rhythm; every feature intact' },
 ];
 
 export function getNovaStyle() {

@@ -5,6 +5,7 @@ import { Clock } from '../Clock.jsx';
 import { StepsHistory } from '../StepsHistory.jsx';
 import { CalendarView } from '../CalendarView.jsx';
 import { FocusChip } from '../FocusChip.jsx';
+import { MissionStructured } from './MissionStructured.jsx';
 
 // Command Core (design 45): hero with eyebrow/tagline/standfirst beside the
 // living Nova core + three conic-progress satellites, the BODY metrics strip
@@ -71,6 +72,9 @@ const phMeta = { font: `500 8.5px ${M}`, letterSpacing: '.2em', color: 'var(--nv
 const noticedRow = (last) => css(`display:flex;gap:12px;align-items:baseline;padding:9px 0;font:500 14px/1.55 ${R};color:var(--nv-ink60)${last ? '' : ';border-bottom:1px solid rgba(130,175,255,.09)'}`);
 
 export function MissionControl({ v }) {
+  // "Apple layout" renders the grouped-stack twin from the SAME view model —
+  // identical data and actions, different bones (see MissionStructured.jsx)
+  if (v.structured) return <MissionStructured v={v} />;
   const mob = v.isMobile;
   const heroGrid = mob
     ? { display: 'flex', flexDirection: 'column', gap: '4px', padding: '10px 0 18px' }
