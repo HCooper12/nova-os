@@ -345,14 +345,36 @@ export default class App extends Component {
     // Keep live data fresh: re-sync when the tab regains focus (the common
     // "reopen the PWA on the phone" path) and on a slow background cadence.
     this.visH = () => {
-      if (document.visibilityState === 'visible' && getConnection()) {
-        this.refreshLiveData();
-        this.startEventStream();
+      if (document.visibilityState === 'visible') {
+        // A long-lived installed PWA only checks for new versions on
+        // navigation or every 24h — Hayden's Mac app sat on a stale bundle
+        // for days. Ask the SW to check on every resume; when a new version
+        // takes control, the controllerchange reload below applies it.
+        try { navigator.serviceWorker?.getRegistration().then((r) => r?.update()).catch(() => {}); } catch { /* unsupported */ }
+        if (getConnection()) {
+          this.refreshLiveData();
+          this.startEventStream();
+        }
       } else {
         this.stopEventStream(); // save battery while backgrounded
       }
     };
     document.addEventListener('visibilitychange', this.visH);
+    // Apply updates the moment the new service worker takes over — but only
+    // on a real handover (skip the first-ever install claim), and only once.
+    // Resume is the safe moment: drafts are mirrored and boot is ~0.4s.
+    try {
+      if (navigator.serviceWorker) {
+        this.swHadController = !!navigator.serviceWorker.controller;
+        this.swCtrlH = () => {
+          if (!this.swHadController) { this.swHadController = true; return; }
+          if (this.swReloading) return;
+          this.swReloading = true;
+          window.location.reload();
+        };
+        navigator.serviceWorker.addEventListener('controllerchange', this.swCtrlH);
+      }
+    } catch { /* unsupported */ }
     this.refreshIv = setInterval(() => { if (getConnection()) this.refreshLiveData(); }, 5 * 60_000);
     this.startEventStream();
     // Zombie-stream watchdog: a half-open event stream delivers nothing and
@@ -394,6 +416,7 @@ export default class App extends Component {
     window.removeEventListener('popstate', this.popH);
     window.removeEventListener('hashchange', this.popH);
     document.removeEventListener('visibilitychange', this.visH);
+    try { if (this.swCtrlH) navigator.serviceWorker?.removeEventListener('controllerchange', this.swCtrlH); } catch { /* unsupported */ }
     this.ivs.forEach(clearInterval);
     if (this.gRaf) cancelAnimationFrame(this.gRaf);
   }
