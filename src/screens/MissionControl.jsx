@@ -204,9 +204,9 @@ export function MissionControl({ v }) {
                 onChange={v.setCalCmd}
                 onKeyDown={(e) => { if (e.key === 'Enter') v.sendCalCmd(); }}
                 placeholder="Ask Nova… “dentist Thu 2pm”, “move gym to Fri 6pm”, “cancel…”"
-                style={{ flex: 1, minWidth: 0, background: 'rgba(0,0,0,.28)', border: '1px solid rgba(130,175,255,.16)', borderRadius: '9px', padding: '10px 13px', color: 'var(--nv-ink)', fontSize: '13px', fontFamily: "var(--nv-font-ui)", outline: 'none' }}
+                style={{ flex: 1, minWidth: 0, background: 'var(--nv-well)', border: '1px solid rgba(130,175,255,.16)', borderRadius: '9px', padding: '10px 13px', color: 'var(--nv-ink)', fontSize: '13px', fontFamily: "var(--nv-font-ui)", outline: 'none' }}
               />
-              <Interactive as="span" onClick={v.calCmdBusy ? undefined : v.sendCalCmd} base={{ cursor: v.calCmdBusy ? 'default' : 'pointer', flex: 'none', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '10px 15px', borderRadius: '9px', background: 'var(--nv-cy)', color: '#0a2830', opacity: v.calCmdBusy ? 0.6 : 1 }} hoverStyle={{ filter: 'brightness(1.08)' }}>{v.calCmdBusy ? 'DRAFTING…' : 'DRAFT'}</Interactive>
+              <Interactive as="span" onClick={v.calCmdBusy ? undefined : v.sendCalCmd} base={{ cursor: v.calCmdBusy ? 'default' : 'pointer', flex: 'none', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '10px 15px', borderRadius: '9px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)', opacity: v.calCmdBusy ? 0.6 : 1 }} hoverStyle={{ filter: 'brightness(1.08)' }}>{v.calCmdBusy ? 'DRAFTING…' : 'DRAFT'}</Interactive>
             </div>
           )}
         </div>

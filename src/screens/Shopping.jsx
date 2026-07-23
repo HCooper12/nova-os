@@ -20,7 +20,7 @@ export function Shopping({ v }) {
           onChange={v.setShoppingAddInput}
           disabled={v.shoppingAddBusy}
           placeholder={"Add an item… one per line for several\ne.g. spatula\npancake mix\nsoft drink"}
-          style={css("flex:1;box-sizing:border-box;height:60px;resize:vertical;background:rgba(0,0,0,.3);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:10px 14px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-ui);line-height:1.5;outline:none")}
+          style={css("flex:1;box-sizing:border-box;height:60px;resize:vertical;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:10px 14px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-ui);line-height:1.5;outline:none")}
         />
         <Interactive
           as="span"
@@ -44,13 +44,16 @@ export function Shopping({ v }) {
           {v.shoppingCategories.map((cat) => (
             <div key={cat.name}>
               <div style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:var(--nv-gold)")}>{cat.name.toUpperCase()}</div>
-              <div style={css("margin-top:10px;display:flex;flex-direction:column")}>
+              {/* Apple layout: the category becomes one grouped card of rows */}
+              <div className={v.structured ? 'nv-pane' : undefined} style={v.structured ? { marginTop: '8px', padding: '3px 0', overflow: 'hidden' } : css("margin-top:10px;display:flex;flex-direction:column")}>
                 {cat.items.map((item) => (
                   <Interactive
                     key={item.id}
                     as="div"
                     onClick={item.onToggle}
-                    base="cursor:pointer;display:flex;align-items:center;gap:13px;padding:10px 6px;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent);border-radius:6px"
+                    base={v.structured
+                      ? 'cursor:pointer;display:flex;align-items:center;gap:13px;padding:11px 16px;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent)'
+                      : 'cursor:pointer;display:flex;align-items:center;gap:13px;padding:10px 6px;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent);border-radius:6px'}
                     hoverStyle={{ background: 'rgba(255,255,255,.025)' }}
                   >
                     <span style={item.checkboxStyle}>{item.checked ? '✓' : ''}</span>
@@ -73,7 +76,7 @@ export function Shopping({ v }) {
           <Interactive
             as="span"
             onClick={v.confirmShoppingCompletion}
-            base="cursor:pointer;font:500 11px var(--nv-font-mono);padding:10px 18px;border-radius:8px;background:var(--nv-cy);color:#0a2830"
+            base="cursor:pointer;font:500 11px var(--nv-font-mono);padding:10px 18px;border-radius:8px;background:var(--nv-cy);color:var(--nv-on-acc)"
             hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 80%, white)' }}
           >
             Confirm completion — {v.shoppingCheckedCount} collected

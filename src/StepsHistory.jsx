@@ -93,19 +93,19 @@ export function StepsHistory({ v }) {
             {weightMode ? (
               <>
                 <input value={v.editWeight} onChange={v.setEditWeight} onKeyDown={(e) => { if (e.key === 'Enter') v.saveEdit(); }} inputMode="decimal" placeholder="kg" autoFocus
-                  style={{ width: '84px', background: 'rgba(0,0,0,.3)', border: '1px solid var(--nv-edge)', borderRadius: '8px', padding: '9px 12px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-mono)", outline: 'none' }} />
+                  style={{ width: '84px', background: 'var(--nv-well)', border: '1px solid var(--nv-edge)', borderRadius: '8px', padding: '9px 12px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-mono)", outline: 'none' }} />
                 <input value={v.editValue} onChange={v.setEditValue} onKeyDown={(e) => { if (e.key === 'Enter') v.saveEdit(); }} inputMode="numeric" placeholder="steps (opt.)"
-                  style={{ width: '104px', background: 'rgba(0,0,0,.3)', border: '1px solid var(--nv-edge)', borderRadius: '8px', padding: '9px 12px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-mono)", outline: 'none' }} />
+                  style={{ width: '104px', background: 'var(--nv-well)', border: '1px solid var(--nv-edge)', borderRadius: '8px', padding: '9px 12px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-mono)", outline: 'none' }} />
               </>
             ) : (
               <>
                 <input value={v.editValue} onChange={v.setEditValue} onKeyDown={(e) => { if (e.key === 'Enter') v.saveEdit(); }} inputMode="numeric" placeholder="steps" autoFocus
-                  style={{ width: '104px', background: 'rgba(0,0,0,.3)', border: '1px solid var(--nv-edge)', borderRadius: '8px', padding: '9px 12px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-mono)", outline: 'none' }} />
+                  style={{ width: '104px', background: 'var(--nv-well)', border: '1px solid var(--nv-edge)', borderRadius: '8px', padding: '9px 12px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-mono)", outline: 'none' }} />
                 <input value={v.editWeight} onChange={v.setEditWeight} onKeyDown={(e) => { if (e.key === 'Enter') v.saveEdit(); }} inputMode="decimal" placeholder="kg (opt.)"
-                  style={{ width: '84px', background: 'rgba(0,0,0,.3)', border: '1px solid var(--nv-edge)', borderRadius: '8px', padding: '9px 12px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-mono)", outline: 'none' }} />
+                  style={{ width: '84px', background: 'var(--nv-well)', border: '1px solid var(--nv-edge)', borderRadius: '8px', padding: '9px 12px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-mono)", outline: 'none' }} />
               </>
             )}
-            <Interactive as="span" onClick={v.saveEdit} base="cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.06em;padding:9px 15px;border-radius:8px;background:var(--nv-cy);color:#0a2830" hoverStyle="filter:brightness(1.08)">SAVE</Interactive>
+            <Interactive as="span" onClick={v.saveEdit} base="cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.06em;padding:9px 15px;border-radius:8px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle="filter:brightness(1.08)">SAVE</Interactive>
             <Interactive as="span" onClick={v.cancelEdit} base="cursor:pointer;font:400 10px var(--nv-font-mono);color:var(--nv-ink40)" hoverStyle="color:var(--nv-ink)">cancel</Interactive>
           </div>
         )}

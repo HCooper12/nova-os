@@ -20,7 +20,7 @@ export function Money({ v }) {
         <span style={css(`font:500 10px ${M};letter-spacing:.14em;color:var(--nv-ink40)`)}>{v.moneyHeaderLabel}</span>
         {v.moneyMonths.length > 1 && (
           <select value={v.moneyMonth} onChange={v.setMoneyMonth}
-            style={{ marginLeft: 'auto', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: `500 11px ${M}`, padding: '5px 8px', outline: 'none' }}>
+            style={{ marginLeft: 'auto', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: `500 11px ${M}`, padding: '5px 8px', outline: 'none' }}>
             {v.moneyMonths.map((m) => <option key={m.value} value={m.value} style={{ background: '#141019' }}>{m.label}</option>)}
           </select>
         )}
@@ -101,7 +101,7 @@ export function Money({ v }) {
               ) : (
                 <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:9px")}>
                   {v.moneySubscriptions.map((s) => (
-                    <div key={s.key} style={css("display:flex;flex-direction:column;gap:2px;padding:8px 10px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent);background:rgba(0,0,0,.18)")}>
+                    <div key={s.key} style={css("display:flex;flex-direction:column;gap:2px;padding:8px 10px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent);background:var(--nv-well)")}>
                       <div style={css("display:flex;justify-content:space-between;gap:10px;align-items:baseline")}>
                         <span style={css(`font:600 13px ${R}`)}>{s.merchant}</span>
                         <span style={css(`font:500 11px ${M};font-variant-numeric:tabular-nums`)}>{s.amountLabel}</span>
@@ -120,14 +120,14 @@ export function Money({ v }) {
             <div style={css(`font:500 9.5px ${M};letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)`)}>LEDGER</div>
             <div style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
               <input value={v.moneyAddMerchant} onChange={v.setMoneyAddMerchant} onKeyDown={v.moneyAddKey} placeholder="Merchant / description"
-                style={{ flex: '2 1 180px', minWidth: 0, background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: `500 12.5px ${R}`, padding: '9px 12px', outline: 'none' }} />
+                style={{ flex: '2 1 180px', minWidth: 0, background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: `500 12.5px ${R}`, padding: '9px 12px', outline: 'none' }} />
               <input value={v.moneyAddAmount} onChange={v.setMoneyAddAmount} onKeyDown={v.moneyAddKey} placeholder="0.00" type="number" inputMode="decimal" step="0.01" min="0"
-                style={{ flex: '0 1 110px', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: `500 12.5px ${M}`, padding: '9px 12px', outline: 'none' }} />
+                style={{ flex: '0 1 110px', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: `500 12.5px ${M}`, padding: '9px 12px', outline: 'none' }} />
               <Interactive as="span" onClick={v.toggleMoneyAddSign}
                 base={{ cursor: 'pointer', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '8px 12px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent)', color: v.moneyAddIsSpend ? 'var(--nv-warn)' : 'var(--nv-good)' }}
               >{v.moneyAddIsSpend ? 'SPEND' : 'MONEY IN'}</Interactive>
               <Interactive as="span" onClick={v.moneyBusy ? undefined : v.submitMoneyAdd}
-                base={{ cursor: 'pointer', font: `600 10.5px ${M}`, letterSpacing: '.08em', padding: '9px 16px', borderRadius: '8px', background: 'var(--nv-cy)', color: '#0a2830', opacity: v.moneyBusy ? 0.5 : 1 }}
+                base={{ cursor: 'pointer', font: `600 10.5px ${M}`, letterSpacing: '.08em', padding: '9px 16px', borderRadius: '8px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)', opacity: v.moneyBusy ? 0.5 : 1 }}
                 hoverStyle={{ filter: 'brightness(1.08)' }}>ADD</Interactive>
             </div>
             {v.moneyTransactions.length === 0 ? (
@@ -140,7 +140,7 @@ export function Money({ v }) {
                     <span style={css(`flex:1;min-width:0;font:500 13px ${R};overflow-wrap:anywhere`)}>{t.merchant}{t.note && <span style={css("color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}> — {t.note}</span>}</span>
                     {t.editingCategory ? (
                       <select autoFocus value={t.category} onChange={t.pickCategory} onBlur={() => {}}
-                        style={{ flex: 'none', background: 'rgba(0,0,0,.4)', border: '1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent)', borderRadius: '6px', color: 'var(--nv-ink)', font: `500 9.5px ${M}`, padding: '3px 6px', outline: 'none' }}>
+                        style={{ flex: 'none', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent)', borderRadius: '6px', color: 'var(--nv-ink)', font: `500 9.5px ${M}`, padding: '3px 6px', outline: 'none' }}>
                         {v.moneyAllCategories.map((c) => <option key={c} value={c} style={{ background: '#141019' }}>{c}</option>)}
                       </select>
                     ) : (

@@ -3,8 +3,8 @@ import { Interactive } from '../Interactive.jsx';
 
 // Inputs render at 16px (global rule in index.css) so iOS never zoom-jumps on
 // focus — widths/padding here are sized for that, not the old 11–12px text.
-const numInputStyle = { width: '48px', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '6px', padding: '7px 4px', color: 'var(--nv-ink)', fontSize: '16px', fontFamily: "var(--nv-font-mono)", textAlign: 'center', outline: 'none' };
-const setInputStyle = { width: '64px', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '6px', padding: '8px 8px', color: 'var(--nv-ink)', fontSize: '16px', fontFamily: "var(--nv-font-mono)", outline: 'none', boxSizing: 'border-box' };
+const numInputStyle = { width: '48px', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '6px', padding: '7px 4px', color: 'var(--nv-ink)', fontSize: '16px', fontFamily: "var(--nv-font-mono)", textAlign: 'center', outline: 'none' };
+const setInputStyle = { width: '64px', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '6px', padding: '8px 8px', color: 'var(--nv-ink)', fontSize: '16px', fontFamily: "var(--nv-font-mono)", outline: 'none', boxSizing: 'border-box' };
 
 function ExercisePicker({ v }) {
   return (
@@ -19,7 +19,7 @@ function ExercisePicker({ v }) {
         value={v.exercisePickerQuery}
         onChange={v.setExercisePickerQuery}
         placeholder="Search exercises…"
-        base="margin-top:12px;width:100%;box-sizing:border-box;background:rgba(0,0,0,.3);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
+        base="margin-top:12px;width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
         focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)"
       />
       <div style={css("margin-top:10px;display:flex;gap:6px;flex-wrap:wrap")}>
@@ -55,7 +55,7 @@ function ExercisePicker({ v }) {
           <select
             value={v.exercisePickerCreateMuscle}
             onChange={(e) => v.setExercisePickerCreateMuscle(e.target.value)}
-            style={{ background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '6px', color: 'var(--nv-ink)', fontSize: '11px', padding: '4px 6px', outline: 'none' }}
+            style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '6px', color: 'var(--nv-ink)', fontSize: '11px', padding: '4px 6px', outline: 'none' }}
           >
             <option value="">choose muscle group…</option>
             {v.exercisePickerMuscleGroups.filter((m) => m !== 'Any').map((m) => <option key={m} value={m}>{m}</option>)}
@@ -63,7 +63,7 @@ function ExercisePicker({ v }) {
           <select
             value={v.exercisePickerCreateTrackingType}
             onChange={(e) => v.setExercisePickerCreateTrackingType(e.target.value)}
-            style={{ background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '6px', color: 'var(--nv-ink)', fontSize: '11px', padding: '4px 6px', outline: 'none' }}
+            style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '6px', color: 'var(--nv-ink)', fontSize: '11px', padding: '4px 6px', outline: 'none' }}
           >
             {v.exercisePickerTrackingTypeOptions.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
@@ -144,11 +144,11 @@ function RoutinesView({ v }) {
           <div style={css("margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap")}>
             <span style={css("font-size:11.5px;color:var(--nv-ink60)")}>Push to</span>
             <select value={v.finishMissed.date} onChange={v.finishMissed.setDate}
-              style={{ background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 11px var(--nv-font-mono)", padding: '9px 10px', outline: 'none' }}>
+              style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 11px var(--nv-font-mono)", padding: '9px 10px', outline: 'none' }}>
               {v.finishMissed.dayOptions.map((o) => <option key={o.value} value={o.value} style={{ background: '#141019' }}>{o.label}</option>)}
             </select>
             <Interactive as="span" onClick={v.finishMissed.push}
-              base={{ cursor: 'pointer', font: "600 10.5px var(--nv-font-mono)", letterSpacing: '.06em', padding: '9px 16px', borderRadius: '8px', background: 'var(--nv-cy)', color: '#0a2830' }}
+              base={{ cursor: 'pointer', font: "600 10.5px var(--nv-font-mono)", letterSpacing: '.06em', padding: '9px 16px', borderRadius: '8px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)' }}
               hoverStyle={{ filter: 'brightness(1.08)' }}>PUSH THESE FORWARD</Interactive>
             <Interactive as="span" onClick={v.finishMissed.dismiss}
               base={{ cursor: 'pointer', font: "400 10px var(--nv-font-mono)", color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}
@@ -172,7 +172,7 @@ function RoutinesView({ v }) {
                 {!c.rescheduling ? (
                   <div style={css("margin-top:12px;display:flex;gap:12px;align-items:center")}>
                     <Interactive as="span" onClick={c.start}
-                      base={{ cursor: 'pointer', font: "600 10px var(--nv-font-mono)", letterSpacing: '.06em', padding: '9px 16px', borderRadius: '8px', background: 'var(--nv-cy)', color: '#0a2830' }}
+                      base={{ cursor: 'pointer', font: "600 10px var(--nv-font-mono)", letterSpacing: '.06em', padding: '9px 16px', borderRadius: '8px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)' }}
                       hoverStyle={{ filter: 'brightness(1.08)' }}>DO IT NOW</Interactive>
                     <Interactive as="span" onClick={c.startReschedule}
                       base={{ cursor: 'pointer', font: "500 10px var(--nv-font-mono)", color: 'var(--nv-ink60)' }}
@@ -185,7 +185,7 @@ function RoutinesView({ v }) {
                   <div style={css("margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap")}>
                     <span style={css("font-size:11px;color:var(--nv-ink60)")}>Move to</span>
                     <select defaultValue="" onChange={c.reschedule}
-                      style={{ background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 11px var(--nv-font-mono)", padding: '8px 10px', outline: 'none' }}>
+                      style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 11px var(--nv-font-mono)", padding: '8px 10px', outline: 'none' }}>
                       <option value="" disabled style={{ background: '#141019' }}>Pick a day…</option>
                       {c.dayOptions.map((o) => <option key={o.value} value={o.value} style={{ background: '#141019' }}>{o.label}</option>)}
                     </select>
@@ -219,7 +219,7 @@ function RoutinesView({ v }) {
             onChange={v.setRoutineNewName}
             onKeyDown={(e) => { if (e.key === 'Enter') v.submitCreateRoutine(); if (e.key === 'Escape') v.cancelCreateRoutine(); }}
             placeholder="Routine name — e.g. Push Day"
-            base="flex:1;background:rgba(0,0,0,.3);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:10px 14px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-ui);outline:none"
+            base="flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:10px 14px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-ui);outline:none"
             focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
           />
           <Interactive as="span" onClick={v.submitCreateRoutine} base="cursor:pointer;display:flex;align-items:center;font:500 10.5px var(--nv-font-mono);padding:0 16px;border-radius:8px;background:var(--nv-gold);color:#1a1322" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 85%, white)">CREATE</Interactive>
@@ -259,13 +259,13 @@ function RoutinesView({ v }) {
         {!v.quickPlan ? (
           <div style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
             <select value={v.quickMinutes} onChange={v.setQuickMinutes}
-              style={{ background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 11px var(--nv-font-mono)", padding: '9px 10px', outline: 'none' }}>
+              style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 11px var(--nv-font-mono)", padding: '9px 10px', outline: 'none' }}>
               {['20', '30', '45', '60', '90'].map((m) => <option key={m} value={m} style={{ background: '#141019' }}>{m} MIN</option>)}
             </select>
             <input value={v.quickNote} onChange={v.setQuickNote} placeholder="Optional — “hotel gym, dumbbells only”, “feeling beat”, “arms”…"
-              style={{ flex: '1 1 240px', minWidth: 0, background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px var(--nv-font-ui)", padding: '9px 12px', outline: 'none' }} />
+              style={{ flex: '1 1 240px', minWidth: 0, background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px var(--nv-font-ui)", padding: '9px 12px', outline: 'none' }} />
             <Interactive as="span" onClick={v.quickBusy ? undefined : v.buildQuickSession}
-              base={{ cursor: 'pointer', font: "600 10.5px var(--nv-font-mono)", letterSpacing: '.08em', padding: '9px 16px', borderRadius: '8px', background: 'var(--nv-cy)', color: '#0a2830', opacity: v.quickBusy ? 0.5 : 1 }}
+              base={{ cursor: 'pointer', font: "600 10.5px var(--nv-font-mono)", letterSpacing: '.08em', padding: '9px 16px', borderRadius: '8px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)', opacity: v.quickBusy ? 0.5 : 1 }}
               hoverStyle={{ filter: 'brightness(1.08)' }}
             >{v.quickBusy ? 'COACH IS PLANNING…' : 'BUILD MY SESSION'}</Interactive>
           </div>
@@ -280,7 +280,7 @@ function RoutinesView({ v }) {
             </div>
             <div style={css("margin-top:12px;display:flex;gap:10px;align-items:center")}>
               <Interactive as="span" onClick={v.quickPlan.start}
-                base={{ cursor: 'pointer', font: "600 10.5px var(--nv-font-mono)", letterSpacing: '.08em', padding: '10px 20px', borderRadius: '9px', background: 'var(--nv-cy)', color: '#0a2830' }}
+                base={{ cursor: 'pointer', font: "600 10.5px var(--nv-font-mono)", letterSpacing: '.08em', padding: '10px 20px', borderRadius: '9px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)' }}
                 hoverStyle={{ filter: 'brightness(1.08)' }}>START THIS SESSION</Interactive>
               <Interactive as="span" onClick={v.quickPlan.dismiss}
                 base={{ cursor: 'pointer', font: "400 10px var(--nv-font-mono)", color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}
@@ -302,23 +302,23 @@ function RoutinesView({ v }) {
           {v.goalsEditing ? (
             <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:8px")}>
               <input value={v.goalsDraft.goal} onChange={v.setGoalsField('goal')} placeholder="The goal — e.g. lean muscle gain, 78kg by December"
-                style={{ background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px var(--nv-font-ui)", padding: '9px 12px', outline: 'none' }} />
+                style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px var(--nv-font-ui)", padding: '9px 12px', outline: 'none' }} />
               <input value={v.goalsDraft.focus} onChange={v.setGoalsField('focus')} placeholder="Focus — e.g. upper-body strength, protein consistency"
-                style={{ background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px var(--nv-font-ui)", padding: '9px 12px', outline: 'none' }} />
+                style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px var(--nv-font-ui)", padding: '9px 12px', outline: 'none' }} />
               <div style={css("display:flex;gap:8px;align-items:center")}>
                 <span style={css("font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>DAYS/WEEK</span>
                 <select value={v.goalsDraft.daysPerWeek} onChange={v.setGoalsField('daysPerWeek')}
-                  style={{ background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: "500 11px var(--nv-font-mono)", padding: '5px 8px', outline: 'none' }}>
+                  style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: "500 11px var(--nv-font-mono)", padding: '5px 8px', outline: 'none' }}>
                   <option value="" style={{ background: '#141019' }}>—</option>
                   {[1, 2, 3, 4, 5, 6, 7].map((n) => <option key={n} value={n} style={{ background: '#141019' }}>{n}</option>)}
                 </select>
               </div>
               <input value={v.goalsDraft.equipment} onChange={v.setGoalsField('equipment')} placeholder="Equipment — e.g. full gym weekdays, dumbbells only at weekends"
-                style={{ marginTop: '8px', width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)', borderRadius: '8px', padding: '9px 12px', color: 'var(--nv-ink)', fontSize: '12.5px', fontFamily: "var(--nv-font-ui)", outline: 'none' }} />
+                style={{ marginTop: '8px', width: '100%', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)', borderRadius: '8px', padding: '9px 12px', color: 'var(--nv-ink)', fontSize: '12.5px', fontFamily: "var(--nv-font-ui)", outline: 'none' }} />
               <input value={v.goalsDraft.limitations} onChange={v.setGoalsField('limitations')} placeholder="Injuries / limitations — e.g. left shoulder impingement, no overhead pressing"
-                style={{ marginTop: '8px', width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-warn) 25%, transparent)', borderRadius: '8px', padding: '9px 12px', color: 'var(--nv-ink)', fontSize: '12.5px', fontFamily: "var(--nv-font-ui)", outline: 'none' }} />
+                style={{ marginTop: '8px', width: '100%', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-warn) 25%, transparent)', borderRadius: '8px', padding: '9px 12px', color: 'var(--nv-ink)', fontSize: '12.5px', fontFamily: "var(--nv-font-ui)", outline: 'none' }} />
               <textarea value={v.goalsDraft.notes} onChange={v.setGoalsField('notes')} rows={3} placeholder="Anything else the Coach should always know — preferences, schedule quirks…"
-                style={{ background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px var(--nv-font-ui)", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
+                style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px var(--nv-font-ui)", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
               <div style={css("display:flex;gap:8px")}>
                 <Interactive as="span" onClick={v.saveGoals} base="cursor:pointer;font:600 10.5px var(--nv-font-mono);letter-spacing:.08em;padding:8px 16px;border-radius:8px;background:var(--nv-gold);color:#1a1322" hoverStyle="filter:brightness(1.08)">SAVE</Interactive>
                 <Interactive as="span" onClick={v.cancelGoalsEdit} base="cursor:pointer;font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent);padding:8px 6px" hoverStyle="color:var(--nv-ink)">cancel</Interactive>
@@ -362,10 +362,10 @@ function RoutinesView({ v }) {
               onChange={v.setCoachInput}
               onKeyDown={v.coachKey}
               placeholder="Ask your coach…"
-              base="flex:1;background:rgba(0,0,0,.32);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font:500 12.5px var(--nv-font-ui);outline:none"
+              base="flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font:500 12.5px var(--nv-font-ui);outline:none"
               focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)"
             />
-            <Interactive as="span" onClick={v.sendCoach} base="cursor:pointer;display:flex;align-items:center;font:500 11px var(--nv-font-mono);padding:0 16px;border-radius:9px;background:var(--nv-cy);color:#0a2830" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">ASK</Interactive>
+            <Interactive as="span" onClick={v.sendCoach} base="cursor:pointer;display:flex;align-items:center;font:500 11px var(--nv-font-mono);padding:0 16px;border-radius:9px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">ASK</Interactive>
           </div>
         </div>
       </div>
@@ -383,7 +383,7 @@ function RoutineDetailView({ v }) {
         <Interactive
           as="span"
           onClick={v.startWorkoutDisabled ? undefined : v.startWorkout}
-          base={{ cursor: v.startWorkoutDisabled ? 'default' : 'pointer', font: "500 11px var(--nv-font-mono)", padding: '11px 22px', borderRadius: '9px', background: 'var(--nv-cy)', color: '#0a2830', opacity: v.startWorkoutDisabled ? .4 : 1 }}
+          base={{ cursor: v.startWorkoutDisabled ? 'default' : 'pointer', font: "500 11px var(--nv-font-mono)", padding: '11px 22px', borderRadius: '9px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)', opacity: v.startWorkoutDisabled ? .4 : 1 }}
           hoverStyle={v.startWorkoutDisabled ? {} : { background: 'color-mix(in srgb, var(--nv-cy) 80%, white)' }}
         >START WORKOUT</Interactive>
         <Interactive as="span" onClick={v.viewWorkoutHistory} base="cursor:pointer;display:flex;align-items:center;font:500 10.5px var(--nv-font-mono);padding:0 16px;border-radius:9px;border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);color:color-mix(in srgb, var(--nv-ink) 60%, transparent)" hoverStyle="border-color:color-mix(in srgb, var(--nv-cy) 40%, transparent);color:var(--nv-cy)">VIEW HISTORY</Interactive>
@@ -477,7 +477,7 @@ function SessionView({ v }) {
                     as="span"
                     onClick={s.onToggleDone}
                     base={{ cursor: 'pointer', width: '40px', height: '40px', margin: '-6px 0', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 700,
-                      border: s.done ? '1px solid var(--nv-cy)' : '1px solid color-mix(in srgb, var(--nv-ink) 25%, transparent)', background: s.done ? 'var(--nv-cy)' : 'transparent', color: '#0a2830' }}
+                      border: s.done ? '1px solid var(--nv-cy)' : '1px solid color-mix(in srgb, var(--nv-ink) 25%, transparent)', background: s.done ? 'var(--nv-cy)' : 'transparent', color: 'var(--nv-on-acc)' }}
                   >{s.done ? '✓' : ''}</Interactive>
                   {s.canRemove && (
                     <Interactive as="span" onClick={s.onRemove} base="cursor:pointer;width:36px;height:36px;margin:-4px 0;display:flex;align-items:center;justify-content:center;font-size:16px;color:color-mix(in srgb, var(--nv-ink) 30%, transparent)" hoverStyle="color:var(--nv-warn)">×</Interactive>
@@ -491,7 +491,7 @@ function SessionView({ v }) {
       </div>
 
       <div style={css("margin-top:24px;display:flex;gap:14px;align-items:center;flex-wrap:wrap")}>
-        <Interactive as="span" onClick={v.finishSession} base="cursor:pointer;font:500 11px var(--nv-font-mono);padding:11px 22px;border-radius:9px;background:var(--nv-cy);color:#0a2830" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">{v.sessionEditing ? 'SAVE CHANGES' : 'FINISH WORKOUT'}</Interactive>
+        <Interactive as="span" onClick={v.finishSession} base="cursor:pointer;font:500 11px var(--nv-font-mono);padding:11px 22px;border-radius:9px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">{v.sessionEditing ? 'SAVE CHANGES' : 'FINISH WORKOUT'}</Interactive>
         {v.canSaveForLater && (
           <Interactive as="span" onClick={v.saveForLater} base="cursor:pointer;font:500 10.5px var(--nv-font-mono);padding:11px 18px;border-radius:9px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 06%, transparent)" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 12%, transparent)">SAVE FOR LATER</Interactive>
         )}
@@ -598,10 +598,10 @@ function MockWorkouts({ v }) {
               onChange={v.setCoachInput}
               onKeyDown={v.coachKey}
               placeholder='Try "make it shorter" or "go harder"…'
-              base="flex:1;background:rgba(0,0,0,.32);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
+              base="flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
               focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)"
             />
-            <Interactive as="span" onClick={v.sendCoach} base="cursor:pointer;display:flex;align-items:center;font:500 11px var(--nv-font-mono);padding:0 16px;border-radius:9px;background:var(--nv-cy);color:#0a2830" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">SEND</Interactive>
+            <Interactive as="span" onClick={v.sendCoach} base="cursor:pointer;display:flex;align-items:center;font:500 11px var(--nv-font-mono);padding:0 16px;border-radius:9px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">SEND</Interactive>
           </div>
         </div>
       </div>

@@ -22,7 +22,7 @@ export function RecipeOverlay({ v }) {
               {v.orPhotoUploadBusy ? 'Saving…' : (v.orPhotoUrl ? 'Change photo' : '+ Add a photo of this dish')}
               <input type="file" accept="image/*" onChange={v.onRecipePhotoFile} disabled={v.orPhotoUploadBusy} style={css("display:none")} />
             </label>
-            <div style={css("margin-top:14px;border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:12px;padding:15px 17px;background:rgba(0,0,0,.22)")}>
+            <div style={css("margin-top:14px;border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:12px;padding:15px 17px;background:var(--nv-well)")}>
               <div style={css("display:flex;justify-content:space-between;align-items:baseline")}><span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>MACROS</span><span style={css("font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>× {v.servings}</span></div>
               <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:9px;font:400 12px var(--nv-font-mono)")}>
                 <div style={css("display:flex;justify-content:space-between")}><span style={css("color:var(--nv-cy)")}>PROTEIN</span><span style={css("font-variant-numeric:tabular-nums")}>{v.orP}g</span></div>
@@ -116,13 +116,13 @@ export function RecipeOverlay({ v }) {
                       onKeyDown={v.recipeTweakKey}
                       disabled={v.recipeTweakBusy}
                       placeholder='Try "no soy sauce, what instead?" or "cut the carbs"…'
-                      base="flex:1;background:rgba(0,0,0,.3);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
+                      base="flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
                       focusStyle="border:1px solid color-mix(in srgb, var(--nv-cy) 50%, transparent)"
                     />
                     <Interactive
                       as="span"
                       onClick={v.recipeTweakBusy ? undefined : v.submitRecipeTweak}
-                      base={{ cursor: 'pointer', display: 'flex', alignItems: 'center', font: "500 10.5px var(--nv-font-mono)", padding: '0 14px', borderRadius: '8px', background: 'var(--nv-cy)', color: '#0a2830', opacity: v.recipeTweakBusy ? .6 : 1 }}
+                      base={{ cursor: 'pointer', display: 'flex', alignItems: 'center', font: "500 10.5px var(--nv-font-mono)", padding: '0 14px', borderRadius: '8px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)', opacity: v.recipeTweakBusy ? .6 : 1 }}
                       hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 80%, white)' }}
                     >
                       {v.recipeTweakBusy ? 'THINKING…' : 'ASK'}
@@ -147,7 +147,7 @@ export function RecipeOverlay({ v }) {
                       </div>
                       <div style={css("display:flex;gap:8px;margin-top:14px")}>
                         <Interactive as="span" onClick={v.discardRecipeTweak} base="cursor:pointer;font-size:12px;padding:7px 14px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);color:color-mix(in srgb, var(--nv-ink) 70%, transparent)" hoverStyle={{ background: 'rgba(255,255,255,.05)' }}>Discard</Interactive>
-                        <Interactive as="span" onClick={v.saveRecipeTweak} base="cursor:pointer;font-size:12px;font-weight:500;padding:7px 16px;border-radius:7px;background:var(--nv-cy);color:#0a2830" hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 80%, white)' }}>Save as alternative</Interactive>
+                        <Interactive as="span" onClick={v.saveRecipeTweak} base="cursor:pointer;font-size:12px;font-weight:500;padding:7px 16px;border-radius:7px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 80%, white)' }}>Save as alternative</Interactive>
                       </div>
                     </div>
                   )}
@@ -166,10 +166,10 @@ export function RecipeOverlay({ v }) {
                     onChange={v.setRecipeInput}
                     onKeyDown={v.recipeKey}
                     placeholder='Try "suggest a swap" or "scale for cutting"…'
-                    base="flex:1;background:rgba(0,0,0,.3);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
+                    base="flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
                     focusStyle="border:1px solid color-mix(in srgb, var(--nv-cy) 50%, transparent)"
                   />
-                  <Interactive as="span" onClick={v.sendRecipe} base="cursor:pointer;display:flex;align-items:center;font:500 10.5px var(--nv-font-mono);padding:0 14px;border-radius:8px;background:var(--nv-cy);color:#0a2830" hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 80%, white)' }}>ASK</Interactive>
+                  <Interactive as="span" onClick={v.sendRecipe} base="cursor:pointer;display:flex;align-items:center;font:500 10.5px var(--nv-font-mono);padding:0 14px;border-radius:8px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 80%, white)' }}>ASK</Interactive>
                 </div>
               </div>
             )}

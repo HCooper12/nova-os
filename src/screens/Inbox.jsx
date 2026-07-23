@@ -71,7 +71,7 @@ export function Inbox({ v }) {
           onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit(); }}
           placeholder={v.inboxConnected ? 'Anything — "buy tomatoes", "idea: cold open with the drone shot", "ate a protein bar"…' : 'Connect a backend in Settings to start capturing'}
           disabled={!v.inboxConnected}
-          style={css(`margin-top:12px;width:100%;box-sizing:border-box;height:84px;resize:vertical;background:rgba(0,0,0,.3);border:1px solid ${dict.on ? 'var(--nv-acc-border)' : 'color-mix(in srgb, var(--nv-ink) 12%, transparent)'};border-radius:9px;padding:12px 14px;color:var(--nv-ink);font:500 14px var(--nv-font-ui);line-height:1.5;outline:none`)}
+          style={css(`margin-top:12px;width:100%;box-sizing:border-box;height:84px;resize:vertical;background:var(--nv-well);border:1px solid ${dict.on ? 'var(--nv-acc-border)' : 'color-mix(in srgb, var(--nv-ink) 12%, transparent)'};border-radius:9px;padding:12px 14px;color:var(--nv-ink);font:500 14px var(--nv-font-ui);line-height:1.5;outline:none`)}
         />
         <div style={css("margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap")}>
           {dict.supported && (
@@ -185,7 +185,7 @@ export function Inbox({ v }) {
                 >{m.label}</Interactive>
               ))}
               <select value={v.dailyReview.hour} onChange={v.dailyReview.setHour}
-                style={{ marginLeft: 'auto', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: `500 11px ${M}`, padding: '4px 6px', outline: 'none' }}>
+                style={{ marginLeft: 'auto', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: `500 11px ${M}`, padding: '4px 6px', outline: 'none' }}>
                 {v.dailyReview.hourOptions.map((h) => <option key={h} value={h} style={{ background: '#141019' }}>{String(h).padStart(2, '0')}:00</option>)}
               </select>
             </div>
@@ -218,7 +218,7 @@ export function Inbox({ v }) {
                       >{m.label}</Interactive>
                     ))}
                     <select value={s.hour} onChange={s.setHour}
-                      style={{ marginLeft: 'auto', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: `500 11px ${M}`, padding: '4px 6px', outline: 'none' }}>
+                      style={{ marginLeft: 'auto', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: `500 11px ${M}`, padding: '4px 6px', outline: 'none' }}>
                       {s.hourOptions.map((h) => <option key={h} value={h} style={{ background: '#141019' }}>{String(h).padStart(2, '0')}:00</option>)}
                     </select>
                   </div>
@@ -248,7 +248,7 @@ export function Inbox({ v }) {
               {v.compostProposals.length > 0 && (
                 <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:8px")}>
                   {v.compostProposals.map((p) => (
-                    <div key={p.id} style={css("padding:10px 12px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);background:rgba(0,0,0,.2)")}>
+                    <div key={p.id} style={css("padding:10px 12px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);background:var(--nv-well)")}>
                       <div style={css("display:flex;align-items:center;gap:8px;flex-wrap:wrap")}>
                         <span style={{ font: `600 8px ${M}`, letterSpacing: '.14em', padding: '2px 7px', borderRadius: '4px', color: `rgb(${p.badge.hue})`, background: `rgba(${p.badge.hue},.08)`, border: `1px solid rgba(${p.badge.hue},.4)` }}>{p.badge.label}</span>
                         <span style={css(`font:600 13px ${R}`)}>{p.title}</span>

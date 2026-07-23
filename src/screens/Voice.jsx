@@ -64,7 +64,7 @@ export function Voice({ v }) {
           {v.voiceEngineDetail && (
             <div style={css("font-size:9px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 38%, transparent);letter-spacing:.06em")}>{v.voiceEngineDetail}</div>
           )}
-          <div style={css("margin-top:6px;border:1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent);border-radius:10px;padding:12px 14px;background:rgba(0,0,0,.2);display:flex;flex-direction:column;gap:10px")}>
+          <div style={css("margin-top:6px;border:1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent);border-radius:10px;padding:12px 14px;background:var(--nv-well);display:flex;flex-direction:column;gap:10px")}>
             <div style={css("display:flex;justify-content:space-between;align-items:center")}>
               <span style={css("font-size:9px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent);letter-spacing:.2em")}>SPEAK REPLIES</span>
               <Interactive as="span" onClick={v.toggleSpeak}
@@ -75,7 +75,7 @@ export function Voice({ v }) {
               <div>
                 <div style={css("font-size:9px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent);letter-spacing:.2em")}>ELEVENLABS VOICE</div>
                 <select value={v.voiceVoiceId} onChange={v.setVoiceId}
-                  style={{ marginTop: '6px', width: '100%', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: `500 10.5px ${M}`, padding: '6px 8px', outline: 'none' }}>
+                  style={{ marginTop: '6px', width: '100%', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: `500 10.5px ${M}`, padding: '6px 8px', outline: 'none' }}>
                   <option value="" style={{ background: '#141019' }}>Account default</option>
                   {v.voiceOptions.map((o) => <option key={o.id} value={o.id} style={{ background: '#141019' }}>{o.name}</option>)}
                 </select>
@@ -85,7 +85,7 @@ export function Voice({ v }) {
               <div>
                 <div style={css("font-size:9px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent);letter-spacing:.2em")}>VOICE · FREE ON-DEVICE</div>
                 <select value={v.speechVoiceURI} onChange={v.setSpeechVoice}
-                  style={{ marginTop: '6px', width: '100%', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: `500 10.5px ${M}`, padding: '6px 8px', outline: 'none' }}>
+                  style={{ marginTop: '6px', width: '100%', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: `500 10.5px ${M}`, padding: '6px 8px', outline: 'none' }}>
                   <option value="" style={{ background: '#141019' }}>System default</option>
                   {v.systemVoices.map((o) => <option key={o.uri} value={o.uri} style={{ background: '#141019' }}>{o.name}</option>)}
                 </select>
@@ -155,10 +155,10 @@ export function Voice({ v }) {
               onChange={v.setOrbInput}
               onKeyDown={v.orbKey}
               placeholder="Speak or type to Nova…"
-              base={`flex:1;background:rgba(0,0,0,.32);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font:400 12.5px ${M};outline:none`}
+              base={`flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font:400 12.5px ${M};outline:none`}
               focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)"
             />
-            <Interactive as="span" onClick={v.sendOrb} base={`cursor:pointer;display:flex;align-items:center;font:500 11px ${M};padding:0 16px;border-radius:9px;background:var(--nv-cy);color:#0a2830`} hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">SEND</Interactive>
+            <Interactive as="span" onClick={v.sendOrb} base={`cursor:pointer;display:flex;align-items:center;font:500 11px ${M};padding:0 16px;border-radius:9px;background:var(--nv-cy);color:var(--nv-on-acc)`} hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">SEND</Interactive>
           </div>
         </div>
       </div>

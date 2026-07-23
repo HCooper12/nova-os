@@ -20,7 +20,7 @@ export function IngestModal({ v }) {
           value={v.ingestText}
           onChange={v.setIngestText}
           placeholder="Paste a transcript, article, or your own note or thought here…"
-          style={css("margin-top:16px;width:100%;box-sizing:border-box;height:260px;resize:vertical;background:rgba(0,0,0,.32);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:14px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-mono);line-height:1.6;outline:none")}
+          style={css("margin-top:16px;width:100%;box-sizing:border-box;height:260px;resize:vertical;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:14px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-mono);line-height:1.6;outline:none")}
         />
 
         <div style={css("margin-top:12px;font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>SOURCE URL (OPTIONAL — SKIP FOR YOUR OWN NOTES)</div>
@@ -29,7 +29,7 @@ export function IngestModal({ v }) {
           value={v.ingestSourceUrl}
           onChange={v.setIngestSourceUrl}
           placeholder="https://youtube.com/watch?v=… — lets you jump back to the video from this page later"
-          base="margin-top:6px;width:100%;box-sizing:border-box;background:rgba(0,0,0,.32);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-mono);outline:none"
+          base="margin-top:6px;width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-mono);outline:none"
           focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
         />
 

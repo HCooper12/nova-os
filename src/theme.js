@@ -11,6 +11,8 @@ export const NOVA_THEMES = [
   { value: 'command', label: 'Command', hint: 'the flagship — cyan HUD over the void' },
   { value: 'observatory', label: 'Observatory', hint: 'gold and bone — the classic Nova, evolved' },
   { value: 'ember', label: 'Ember', hint: 'molten copper — the forge at night' },
+  // designed for the Apple-family styles; Settings only offers it there
+  { value: 'daylight', label: 'Daylight', hint: 'the white study — light grouped ground, Apple system hues', appleOnly: true },
 ];
 
 // Style is orthogonal to theme: the theme picks the palette, the style picks

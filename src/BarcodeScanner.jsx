@@ -78,7 +78,7 @@ export function BarcodeScanner({ onDetected, onClose }) {
             onKeyDown={(e) => { if (e.key === 'Enter') submitManual(); }}
             inputMode="numeric"
             placeholder="or type the barcode number"
-            style={{ width: '220px', maxWidth: '70vw', background: 'rgba(0,0,0,.35)', border: '1px solid rgba(236,229,218,.22)', borderRadius: '9px', padding: '11px 13px', color: '#ece5da', fontSize: '14px', fontFamily: "var(--nv-font-mono2)", outline: 'none' }}
+            style={{ width: '220px', maxWidth: '70vw', background: 'var(--nv-well)', border: '1px solid rgba(236,229,218,.22)', borderRadius: '9px', padding: '11px 13px', color: '#ece5da', fontSize: '14px', fontFamily: "var(--nv-font-mono2)", outline: 'none' }}
           />
           <Interactive as="span" onClick={submitManual} base="cursor:pointer;font:600 11px var(--nv-font-mono2);letter-spacing:.06em;padding:11px 16px;border-radius:9px;background:var(--nv-good,#5fe8a8);color:#0a2018" hoverStyle="filter:brightness(1.08)">LOOK UP</Interactive>
         </div>

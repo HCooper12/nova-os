@@ -11,7 +11,7 @@ const macroField = (label, value, onChange) => (
       min="0"
       value={value}
       onChange={onChange}
-      base="margin-top:5px;width:100%;box-sizing:border-box;background:rgba(0,0,0,.32);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 10px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-mono);outline:none"
+      base="margin-top:5px;width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 10px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-mono);outline:none"
       focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
     />
   </div>
@@ -73,7 +73,7 @@ export function AddRecipeModal({ v }) {
               value={v.recipeAddName}
               onChange={v.setRecipeAddName}
               placeholder="e.g. Turkey Wrap"
-              base="margin-top:5px;width:100%;box-sizing:border-box;background:rgba(0,0,0,.32);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 10px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-ui);outline:none"
+              base="margin-top:5px;width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 10px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-ui);outline:none"
               focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
             />
           </div>
@@ -82,7 +82,7 @@ export function AddRecipeModal({ v }) {
             <select
               value={v.recipeAddCategory}
               onChange={v.setRecipeAddCategory}
-              style={css("margin-top:5px;width:100%;box-sizing:border-box;background:rgba(0,0,0,.32);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 10px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-ui);outline:none")}
+              style={css("margin-top:5px;width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 10px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-ui);outline:none")}
             >
               {v.recipeAddCategoryOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
@@ -96,7 +96,7 @@ export function AddRecipeModal({ v }) {
             value={v.recipeAddMakes}
             onChange={v.setRecipeAddMakes}
             placeholder="e.g. 1 wrap, or 4 servings"
-            base="margin-top:5px;width:100%;box-sizing:border-box;background:rgba(0,0,0,.32);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 10px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-ui);outline:none"
+            base="margin-top:5px;width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 10px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-ui);outline:none"
             focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
           />
         </div>
@@ -120,7 +120,7 @@ export function AddRecipeModal({ v }) {
             value={v.recipeAddIngredients}
             onChange={v.setRecipeAddIngredients}
             placeholder={"1 wholemeal wrap\n120g turkey breast, sliced\n1 tbsp mustard"}
-            style={css("margin-top:6px;width:100%;box-sizing:border-box;height:90px;resize:vertical;background:rgba(0,0,0,.32);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:12px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-mono);line-height:1.6;outline:none")}
+            style={css("margin-top:6px;width:100%;box-sizing:border-box;height:90px;resize:vertical;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:12px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-mono);line-height:1.6;outline:none")}
           />
         </div>
 
@@ -130,7 +130,7 @@ export function AddRecipeModal({ v }) {
             value={v.recipeAddMethod}
             onChange={v.setRecipeAddMethod}
             placeholder={"Warm the wrap 10 sec.\nLayer turkey, mustard, spinach.\nRoll tightly and slice in half."}
-            style={css("margin-top:6px;width:100%;box-sizing:border-box;height:90px;resize:vertical;background:rgba(0,0,0,.32);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:12px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-mono);line-height:1.6;outline:none")}
+            style={css("margin-top:6px;width:100%;box-sizing:border-box;height:90px;resize:vertical;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:12px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-mono);line-height:1.6;outline:none")}
           />
         </div>
 

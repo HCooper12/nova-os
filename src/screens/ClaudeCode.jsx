@@ -73,7 +73,7 @@ export function ClaudeCode({ v }) {
               onKeyDown={v.codeKey}
               disabled={v.codeBusy}
               placeholder="Message Claude… (⏎ to send)"
-              base="flex:1;background:rgba(0,0,0,.35);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font:400 12.5px var(--nv-font-mono);outline:none"
+              base="flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font:400 12.5px var(--nv-font-mono);outline:none"
               focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
             />
             <Interactive as="span" onClick={v.codeBusy ? undefined : v.sendCode} base={{ cursor: 'pointer', display: 'flex', alignItems: 'center', font: "500 11px var(--nv-font-mono)", padding: '0 16px', borderRadius: '9px', background: 'var(--nv-gold)', color: '#1a1322', opacity: v.codeBusy ? .6 : 1 }} hoverStyle="background:color-mix(in srgb, var(--nv-gold) 85%, white)">RUN</Interactive>
@@ -88,7 +88,7 @@ export function ClaudeCode({ v }) {
                 <select
                   value={v.codeModel}
                   onChange={v.setCodeModel}
-                  style={css("width:100%;box-sizing:border-box;background:rgba(0,0,0,.3);border:1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent);border-radius:7px;color:var(--nv-ink);font-size:12px;padding:7px 9px;outline:none")}
+                  style={css("width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent);border-radius:7px;color:var(--nv-ink);font-size:12px;padding:7px 9px;outline:none")}
                 >
                   {v.codeModelOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>

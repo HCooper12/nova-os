@@ -106,7 +106,7 @@ export function MissionStructured({ v }) {
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '10px 14px', borderTop: '1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)' }}>
               <input value={v.calCmd} onChange={v.setCalCmd} onKeyDown={(e) => { if (e.key === 'Enter') v.sendCalCmd(); }}
                 placeholder="Ask Nova… “dentist Thu 2pm”, “move gym to Fri 6pm”"
-                style={{ flex: 1, minWidth: 0, background: 'rgba(0,0,0,.25)', border: '1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent)', borderRadius: '11px', padding: '9px 13px', color: 'var(--nv-ink)', fontFamily: UI, outline: 'none' }} />
+                style={{ flex: 1, minWidth: 0, background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent)', borderRadius: '11px', padding: '9px 13px', color: 'var(--nv-ink)', fontFamily: UI, outline: 'none' }} />
               <Pill label={v.calCmdBusy ? 'Drafting…' : 'Draft'} onClick={v.calCmdBusy ? undefined : v.sendCalCmd} />
             </div>
           )}

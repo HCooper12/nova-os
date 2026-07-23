@@ -9,6 +9,7 @@ const THEME_SWATCHES = {
   command: ['#59e6ff', '#8f7bff', '#0a0f1e'],
   observatory: ['var(--nv-gold)', 'var(--nv-cy)', '#0c1424'],
   ember: ['#ffb35c', '#ff6a88', '#170e0b'],
+  daylight: ['#007aff', '#ffffff', '#f2f2f7'],
 };
 
 export function Settings({ v }) {
@@ -37,7 +38,7 @@ export function Settings({ v }) {
           onChange={v.setSettingsBaseUrl}
           autoCapitalize="none" autoCorrect="off" spellCheck={false} inputMode="url"
           placeholder="https://your-mac.tailxxxx.ts.net:4173"
-          base="margin-top:8px;width:100%;box-sizing:border-box;background:rgba(0,0,0,.32);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-mono);outline:none"
+          base="margin-top:8px;width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-mono);outline:none"
           focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
         />
 
@@ -50,7 +51,7 @@ export function Settings({ v }) {
           onChange={v.setSettingsToken}
           autoCapitalize="none" autoCorrect="off" spellCheck={false}
           placeholder="printed in the server's terminal on first run"
-          base="margin-top:8px;width:100%;box-sizing:border-box;background:rgba(0,0,0,.32);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-mono);outline:none"
+          base="margin-top:8px;width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-mono);outline:none"
           focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
         />
 
@@ -80,22 +81,22 @@ export function Settings({ v }) {
               <label style={css("display:block")}>
                 <span style={css("font:500 9px var(--nv-font-mono);letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>CURRENT FOCUS · what this season of life is about</span>
                 <input value={v.profile.draft.focus} onChange={v.profile.setField('focus')} placeholder="e.g. Building my body and my content while holding down full-time work"
-                  style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-ui)", padding: '9px 12px', outline: 'none' }} />
+                  style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-ui)", padding: '9px 12px', outline: 'none' }} />
               </label>
               <label style={css("display:block")}>
                 <span style={css("font:500 9px var(--nv-font-mono);letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>PRIORITIES · one per line, the handful that matter most now</span>
                 <textarea value={v.profile.draft.priorities} onChange={v.profile.setField('priorities')} rows={4} placeholder={"Get to 78kg lean\nShip one video a week\nProtein consistency\nSleep before 11"}
-                  style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-ui)", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
+                  style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-ui)", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
               </label>
               <label style={css("display:block")}>
                 <span style={css("font:500 9px var(--nv-font-mono);letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>PERFORMING AT YOUR BEST · what that looks and feels like for you</span>
                 <textarea value={v.profile.draft.bestSelf} onChange={v.profile.setField('bestSelf')} rows={2} placeholder="Disciplined but not rigid — training hard, eating well, creating consistently, present with people."
-                  style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-ui)", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
+                  style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-ui)", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
               </label>
               <label style={css("display:block")}>
                 <span style={css("font:500 9px var(--nv-font-mono);letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>CONTEXT &amp; CONSTRAINTS · anything Nova should always know</span>
                 <textarea value={v.profile.draft.notes} onChange={v.profile.setField('notes')} rows={3} placeholder="Work 9-5 Mon-Fri. Gym has only dumbbells (to 40kg) on weekends. Left shoulder flares under heavy overhead. Prefer training evenings."
-                  style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-ui)", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
+                  style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-ui)", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
               </label>
               <div style={css("display:flex;gap:10px;align-items:center")}>
                 <Interactive as="span" onClick={v.profile.saving ? undefined : v.profile.save} base={{ cursor: 'pointer', font: "600 10.5px var(--nv-font-mono)", letterSpacing: '.08em', padding: '9px 18px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1322', opacity: v.profile.saving ? 0.5 : 1 }} hoverStyle="filter:brightness(1.08)">{v.profile.saving ? 'SAVING…' : 'SAVE'}</Interactive>
@@ -215,7 +216,7 @@ export function Settings({ v }) {
 
         <Interactive
           onClick={v.toggleCalm}
-          base={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px', borderRadius: '12px', border: '1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent)', background: 'rgba(0,0,0,.2)', marginTop: '14px' }}
+          base={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px', borderRadius: '12px', border: '1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent)', background: 'var(--nv-well)', marginTop: '14px' }}
           hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}
         >
           <span style={{ minWidth: 0 }}>
@@ -235,7 +236,7 @@ export function Settings({ v }) {
               <span style={{ display: 'block', marginTop: '2px', font: "500 9.5px var(--nv-font-mono)", letterSpacing: '.06em', color: v.pushSettings.state === 'on' ? 'var(--nv-good)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>{v.pushSettings.label}</span>
             </span>
             {v.pushSettings.state !== 'on' && v.pushSettings.state !== 'unsupported' && (
-              <Interactive as="span" onClick={v.pushSettings.enable} base="cursor:pointer;font:600 10.5px var(--nv-font-mono);letter-spacing:.08em;padding:9px 16px;border-radius:8px;background:var(--nv-cy);color:#0a2830" hoverStyle="filter:brightness(1.08)">ENABLE</Interactive>
+              <Interactive as="span" onClick={v.pushSettings.enable} base="cursor:pointer;font:600 10.5px var(--nv-font-mono);letter-spacing:.08em;padding:9px 16px;border-radius:8px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle="filter:brightness(1.08)">ENABLE</Interactive>
             )}
             {v.pushSettings.state === 'on' && (
               <Interactive as="span" onClick={v.pushSettings.test} base="cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.08em;padding:8px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);color:var(--nv-cy)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 08%, transparent)">TEST</Interactive>

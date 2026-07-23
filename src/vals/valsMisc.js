@@ -21,7 +21,7 @@ export function valsMisc(app, ctx) {
           width: '21px', height: '21px', borderRadius: '6px', flex: 'none',
           border: i.checked ? '1px solid var(--nv-cy)' : '1px solid color-mix(in srgb, var(--nv-ink) 25%, transparent)',
           background: i.checked ? 'var(--nv-cy)' : 'transparent',
-          color: '#0a2830', fontSize: '13px', fontWeight: 700, lineHeight: '19px', textAlign: 'center',
+          color: 'var(--nv-on-acc)', fontSize: '13px', fontWeight: 700, lineHeight: '19px', textAlign: 'center',
         },
         nameStyle: {
           fontSize: '13.5px',

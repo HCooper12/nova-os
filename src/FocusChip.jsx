@@ -25,7 +25,7 @@ export function FocusChip({ v }) {
       {!done && <span style={css("font:600 13px var(--nv-font-mono);font-variant-numeric:tabular-nums;color:var(--nv-cy)")}>{mm}:{String(ss).padStart(2, '0')}</span>}
       {done ? (
         <>
-          <Interactive as="span" onClick={v.log} base="cursor:pointer;font:600 9.5px var(--nv-font-mono);letter-spacing:.06em;padding:6px 12px;border-radius:7px;background:var(--nv-cy);color:#0a2830" hoverStyle="filter:brightness(1.08)">JOURNAL IT</Interactive>
+          <Interactive as="span" onClick={v.log} base="cursor:pointer;font:600 9.5px var(--nv-font-mono);letter-spacing:.06em;padding:6px 12px;border-radius:7px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle="filter:brightness(1.08)">JOURNAL IT</Interactive>
           <Interactive as="span" onClick={v.dismiss} base="cursor:pointer;font:400 9.5px var(--nv-font-mono);color:var(--nv-ink40)" hoverStyle="color:var(--nv-ink)">dismiss</Interactive>
         </>
       ) : (

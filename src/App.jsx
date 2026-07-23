@@ -455,7 +455,11 @@ export default class App extends Component {
     this.setState({ calmMode: calm }, () => applyAppearance(this.state.novaTheme, this.state.calmMode, this.state.novaStyle));
   }
   setNovaStyle(style) {
-    this.setState({ novaStyle: style }, () => applyAppearance(this.state.novaTheme, this.state.calmMode, this.state.novaStyle));
+    // Daylight is an Apple-family palette — returning to Command Core falls
+    // the theme back too, so the HUD never renders on a white ground.
+    const next = { novaStyle: style };
+    if (style === 'command' && this.state.novaTheme === 'daylight') next.novaTheme = 'command';
+    this.setState(next, () => applyAppearance(this.state.novaTheme, this.state.calmMode, this.state.novaStyle));
   }
   setCoreStyle(core) {
     saveCoreStyle(core);

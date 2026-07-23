@@ -20,7 +20,7 @@ export function Notes({ v }) {
               value={v.noteQuery}
               onChange={v.setNoteQuery}
               placeholder="Search the vault…"
-              base="width:100%;box-sizing:border-box;background:rgba(0,0,0,.32);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
+              base="width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
               focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
             />
             <div style={css("display:flex;flex-wrap:wrap;gap:6px;margin-top:10px")}>
@@ -89,7 +89,7 @@ export function Notes({ v }) {
                     value={v.reviewReflectText}
                     onChange={v.setReviewReflectText}
                     placeholder="Your reflection on this…"
-                    style={css("width:100%;box-sizing:border-box;height:110px;resize:vertical;background:rgba(0,0,0,.28);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:11px 14px;color:var(--nv-ink);font-size:13.5px;font-family:var(--nv-font-ui);line-height:1.6;outline:none")}
+                    style={css("width:100%;box-sizing:border-box;height:110px;resize:vertical;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:11px 14px;color:var(--nv-ink);font-size:13.5px;font-family:var(--nv-font-ui);line-height:1.6;outline:none")}
                   />
                   <div style={css("margin-top:10px;display:flex;justify-content:flex-end")}>
                     <Interactive

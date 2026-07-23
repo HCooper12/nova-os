@@ -33,7 +33,7 @@ export function Journal({ v }) {
           value={v.journalComposerText}
           onChange={v.setJournalComposerText}
           placeholder="What's on your mind today…"
-          style={css("margin-top:14px;width:100%;box-sizing:border-box;height:120px;resize:vertical;background:rgba(0,0,0,.3);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:12px 14px;color:var(--nv-ink);font-size:13.5px;font-family:var(--nv-font-ui);line-height:1.6;outline:none")}
+          style={css("margin-top:14px;width:100%;box-sizing:border-box;height:120px;resize:vertical;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:12px 14px;color:var(--nv-ink);font-size:13.5px;font-family:var(--nv-font-ui);line-height:1.6;outline:none")}
         />
         {v.journalSaveError && (
           <div style={css("margin-top:8px;font-size:12px;color:var(--nv-warn)")}>{v.journalSaveError}</div>
@@ -68,7 +68,7 @@ export function Journal({ v }) {
             <div style={css("margin-top:16px;text-align:center;font-size:12.5px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Nothing in this category yet.</div>
           )}
           {v.journalDays.map((d) => (
-            <div key={d.date} style={css("border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:12px;padding:14px 18px;background:rgba(255,255,255,.02)")}>
+            <div key={d.date} className={v.structured ? 'nv-pane' : undefined} style={v.structured ? { padding: '14px 18px' } : css("border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:12px;padding:14px 18px;background:rgba(255,255,255,.02)")}>
               <Interactive as="div" onClick={d.toggle} base="cursor:pointer;display:flex;justify-content:space-between;align-items:baseline;gap:10px" hoverStyle={{}}>
                 <span style={css("font-size:13.5px;font-weight:500")}>{d.date}</span>
                 <span style={css("font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent);text-align:right;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:0 10px")}>{d.open ? '' : d.preview}</span>

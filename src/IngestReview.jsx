@@ -5,7 +5,7 @@ const KIND_COLOR = { new: '#5aa87c', updated: 'var(--nv-gold)' };
 
 function ChangeCard({ change }) {
   return (
-    <div style={css("border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:10px;overflow:hidden;background:rgba(0,0,0,.22)")}>
+    <div style={css("border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:10px;overflow:hidden;background:var(--nv-well)")}>
       <div style={css("display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent)")}>
         <span style={css(`font:500 8.5px var(--nv-font-mono);letter-spacing:.1em;color:${KIND_COLOR[change.kind]};border:1px solid ${KIND_COLOR[change.kind]};border-radius:5px;padding:2px 7px;flex:none`)}>{change.kind.toUpperCase()}</span>
         <span style={css("font-size:12.5px;color:color-mix(in srgb, var(--nv-ink) 85%, transparent);word-break:break-all")}>{change.path}</span>
