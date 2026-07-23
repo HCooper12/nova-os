@@ -190,7 +190,7 @@ export default class App extends Component {
     codeChat: [],
     codeSessionId: null, codeWorkspace: 'repo', codeModel: 'sonnet',
     liveHealthInsight: null, liveHealthDays: null, liveStreaks: null,
-    stepsOverlayOpen: false, stepEditDate: null, stepEditValue: '', stepEditWeight: '', moneyRemoveConfirm: null,
+    stepsOverlayOpen: false, stepsOverlayMode: 'steps', stepEditDate: null, stepEditValue: '', stepEditWeight: '', moneyRemoveConfirm: null,
     tabOrder: getTabOrder(),
     focusSession: (() => {
       try {
@@ -2262,7 +2262,9 @@ export default class App extends Component {
     if (hasSteps) metrics.steps = steps;
     if (hasWeight) metrics.weightKg = weight; // manual bodyweight logging — the Shortcut fills this automatically once Body Mass is added
     api.saveHealthDay(conn, date, metrics)
-      .then(() => api.healthData(conn, 7))
+      // no days override — the server's 14-day default matches the weight
+      // view/trend window; a 7-day refetch here used to truncate it
+      .then(() => api.healthData(conn))
       .then((r) => { this.setState({ liveHealthDays: r.days.length ? r.days : null, stepEditDate: null, stepEditValue: '', stepEditWeight: '' }); this.toastMsg(`${date} saved ✓`); })
       .catch((e) => this.toastMsg('Could not save: ' + e.message));
   }

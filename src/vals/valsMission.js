@@ -47,6 +47,30 @@ function buildStepsWeek(healthDays, goal) {
   return out;
 }
 
+// The last 14 calendar days as a continuous span for the weight view — every
+// day is present and tappable (weigh-ins are sparse; backfilling any day must
+// be one tap), with the same impossible-zero honesty as the tiles.
+function buildWeightSpan(healthDays, n = 14) {
+  const byDate = new Map((healthDays || []).map((d) => [d.date, d]));
+  const p2 = (x) => String(x).padStart(2, '0');
+  const out = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const iso = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+    const day = byDate.get(iso);
+    const kg = day && day.weightKg != null && day.weightKg !== 0 ? day.weightKg : null;
+    out.push({
+      date: iso,
+      full: d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }),
+      kg,
+      hasData: kg != null,
+      isToday: i === 0,
+    });
+  }
+  return out;
+}
+
 // Group range events into day sections for the week/month view.
 function groupByDay(events) {
   const byDate = new Map();
@@ -222,7 +246,7 @@ export function valsMission(app, ctx) {
           hint: staleHint(stepsDay) || (stepsCurrent >= STEP_GOAL ? `${Math.round(stepsRatio * 100)}% · GOAL REACHED` : `${Math.round(stepsRatio * 100)}% · ${(STEP_GOAL - stepsCurrent).toLocaleString()} TO GO`),
         };
   // tap the steps satellite to open the 7-day history + manual edit
-  if (!demoMode) satSteps.onOpen = () => app.setState({ stepsOverlayOpen: true });
+  if (!demoMode) satSteps.onOpen = () => app.setState({ stepsOverlayOpen: true, stepsOverlayMode: 'steps' });
   // protein numbers come from the rotation — real when synced, the scripted 96
   // only in demo mode, and an honest dash when configured but not synced
   const satProtein = !usingLiveRecipes && !demoMode
@@ -255,19 +279,19 @@ export function valsMission(app, ctx) {
         { key: 'weight', label: 'WEIGHT', value: '78.2', small: 'KG', hint: '−0.4 KG / 14D', color: '--nv-gold' },
         { key: 'hrv', label: 'HRV', value: '93.5', small: 'MS', hint: '+9% VS BASELINE', color: '--nv-cy' },
         { key: 'rhr', label: 'RESTING HR', value: '51', small: 'BPM', hint: 'TODAY', color: '--nv-mg' },
-        { key: 'fuel', label: 'EATEN TODAY', value: '1,430', small: '/2600', hint: 'KCAL · 1,170 LEFT', color: '--nv-vi' },
+        { key: 'fuel', label: 'EATEN TODAY', value: '1,430', small: '/2600', hint: 'KCAL · 1,170 LEFT', color: '--nv-good' },
       ]
     : [
         weightLatest
           ? {
               key: 'weight', label: 'WEIGHT', value: (Math.round(weightLatest.weightKg * 10) / 10).toFixed(1), small: 'KG', color: '--nv-gold',
               hint: [weightDelta == null ? 'FIRST READING' : `${weightDelta > 0 ? '+' : ''}${weightDelta} KG / ${weightSpan}D`, weightDated].filter(Boolean).join(' · '),
-              onOpen: () => app.setState({ stepsOverlayOpen: true }),
+              onOpen: () => app.setState({ stepsOverlayOpen: true, stepsOverlayMode: 'weight' }),
             }
           : {
               key: 'weight', label: 'WEIGHT', value: '—', small: '', color: '--nv-gold',
               hint: usingLiveHealthData ? 'TAP TO LOG · OR ADD TO SHORTCUT' : offlineHint,
-              onOpen: usingLiveHealthData ? () => app.setState({ stepsOverlayOpen: true }) : undefined,
+              onOpen: usingLiveHealthData ? () => app.setState({ stepsOverlayOpen: true, stepsOverlayMode: 'weight' }) : undefined,
             },
         hrvDay
           ? { key: 'hrv', label: 'HRV', value: String(Math.round(hrvDay.hrv * 10) / 10), small: 'MS', color: '--nv-cy',
@@ -278,12 +302,15 @@ export function valsMission(app, ctx) {
               hint: staleHint(rhrDay) || 'TODAY' }
           : { key: 'rhr', label: 'RESTING HR', value: '—', small: '', color: '--nv-mg', hint: usingLiveHealthData ? 'NO RHR DATA YET' : offlineHint },
         usingLiveRecipes
-          ? { key: 'fuel', label: 'EATEN TODAY', value: Math.round(kcalCurrent).toLocaleString(), small: targetKcal ? `/${targetKcal}` : 'KCAL', color: '--nv-vi',
+          // kcal wears the same green as calories on the Recipes tab — and
+          // never the protein satellite's violet, so the two counters can't
+          // be mistaken for each other at a glance
+          ? { key: 'fuel', label: 'EATEN TODAY', value: Math.round(kcalCurrent).toLocaleString(), small: targetKcal ? `/${targetKcal}` : 'KCAL', color: '--nv-good',
               hint: targetKcal
                 ? (kcalCurrent <= targetKcal ? `KCAL · ${Math.round(targetKcal - kcalCurrent).toLocaleString()} LEFT` : `KCAL · ${Math.round(kcalCurrent - targetKcal).toLocaleString()} OVER`)
                 : 'KCAL · NO TARGET SET',
               onOpen: go('recipes') }
-          : { key: 'fuel', label: 'EATEN TODAY', value: '—', small: '', color: '--nv-vi', hint: 'RECONNECT TO LOAD', onOpen: go('recipes') },
+          : { key: 'fuel', label: 'EATEN TODAY', value: '—', small: '', color: '--nv-good', hint: 'RECONNECT TO LOAD', onOpen: go('recipes') },
       ];
 
   const untilLabel = (time) => {
@@ -533,20 +560,44 @@ export function valsMission(app, ctx) {
       dismiss: () => app.dismissFocusBlock(),
     } : null,
 
-    // steps history + manual edit (Pedometer++-style), opened from the satellite
+    // day-history overlay + manual edit, opened from the steps satellite
+    // (Pedometer++-style bars) or the WEIGHT tile (weight list — landing on a
+    // steps graph after tapping WEIGHT was a wrong turn); both modes share
+    // the same per-day editor and save path
     stepsOverlay: st.stepsOverlayOpen ? (() => {
       const week = buildStepsWeek(st.liveHealthDays, STEP_GOAL);
       const withData = week.filter((d) => d.hasData);
-      const editDay = st.stepEditDate ? week.find((d) => d.date === st.stepEditDate) : null;
+      const weightSpanDays = buildWeightSpan(st.liveHealthDays);
+      const editDay = st.stepEditDate
+        ? week.find((d) => d.date === st.stepEditDate) || weightSpanDays.find((d) => d.date === st.stepEditDate)
+        : null;
+      const startEditFor = (date, steps) => {
+        const healthDay = (st.liveHealthDays || []).find((h) => h.date === date);
+        return () => app.setState({ stepEditDate: date, stepEditValue: steps != null ? String(steps) : '', stepEditWeight: healthDay?.weightKg != null && healthDay.weightKg !== 0 ? String(healthDay.weightKg) : '' });
+      };
       return {
+        mode: st.stepsOverlayMode === 'weight' ? 'weight' : 'steps',
         close: () => app.setState({ stepsOverlayOpen: false, stepEditDate: null }),
         goal: STEP_GOAL,
         current: stepsCurrent,
         currentIsStale: !!(stepsDay && stepsDay.date !== todayKey),
         days: week.map((d) => {
           const healthDay = (st.liveHealthDays || []).find((h) => h.date === d.date);
-          return { ...d, editing: d.date === st.stepEditDate, startEdit: () => app.setState({ stepEditDate: d.date, stepEditValue: d.steps != null ? String(d.steps) : '', stepEditWeight: healthDay?.weightKg != null ? String(healthDay.weightKg) : '' }) };
+          return { ...d, editing: d.date === st.stepEditDate, startEdit: () => app.setState({ stepEditDate: d.date, stepEditValue: d.steps != null ? String(d.steps) : '', stepEditWeight: healthDay?.weightKg != null && healthDay.weightKg !== 0 ? String(healthDay.weightKg) : '' }) };
         }),
+        weightDays: weightSpanDays.map((d) => ({
+          ...d,
+          editing: d.date === st.stepEditDate,
+          startEdit: startEditFor(d.date, (st.liveHealthDays || []).find((h) => h.date === d.date)?.steps),
+        })),
+        // honest hero for weight mode: latest reading + the same trend the
+        // tile and the coach see, or a plain statement that nothing exists yet
+        weightHero: weightLatest
+          ? {
+              kg: (Math.round(weightLatest.weightKg * 10) / 10).toFixed(1),
+              sub: `${weightDated ? `logged ${weightDated.toLowerCase()}` : 'today'} · ${weightDelta == null ? 'single reading — no trend yet' : `${weightDelta > 0 ? '+' : ''}${weightDelta} kg over ${weightSpan} days`}`,
+            }
+          : null,
         total: withData.reduce((s, d) => s + d.steps, 0),
         totalKm: +withData.reduce((s, d) => s + (d.km || 0), 0).toFixed(1),
         editDate: st.stepEditDate,
