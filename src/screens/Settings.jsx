@@ -16,12 +16,12 @@ export function Settings({ v }) {
     <div style={v.wrapSettings} data-screen-label="Settings">
       <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>
         <div style={css("display:flex;align-items:center;gap:14px")}>
-          <span style={css("font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--nv-acc)")}>XIII.</span>
+          <span style={css("font:500 11px var(--nv-font-mono);letter-spacing:.14em;color:var(--nv-acc)")}>XIII.</span>
           <span style={css("width:50px;height:1px;background:linear-gradient(90deg,var(--nv-acc-border),transparent)")}></span>
-          <span style={css("font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.32em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>SYSTEM · SETTINGS</span>
+          <span style={css("font:500 10px var(--nv-font-mono);letter-spacing:.32em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>SYSTEM · SETTINGS</span>
         </div>
       </div>
-      <h1 style={css("margin:18px 0 0;font:700 30px/1.1 'Rajdhani',sans-serif;letter-spacing:.02em")}>Connect the <span style={css("font:italic 400 27px 'Instrument Serif',serif;color:var(--nv-gold)")}>real vault.</span></h1>
+      <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Connect the <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>real vault.</span></h1>
       <div style={css("margin-top:8px;font-size:13px;color:color-mix(in srgb, var(--nv-ink) 60%, transparent);max-width:640px;line-height:1.6")}>
         Point Nova OS at the backend running on your Mac to replace the demo data with your
         real Obsidian vault, calendar, and health data. Until then the app runs in demo mode —
@@ -29,7 +29,7 @@ export function Settings({ v }) {
       </div>
 
       <div style={css("margin-top:28px;max-width:520px;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);padding:24px 26px;background:var(--nv-glass);box-shadow:inset 0 1px 0 var(--nv-spec)")}>
-        <label htmlFor="settings-base-url" style={css("display:block;font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>BACKEND URL</label>
+        <label htmlFor="settings-base-url" style={css("display:block;font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>BACKEND URL</label>
         <Interactive
           as="input"
           id="settings-base-url"
@@ -37,11 +37,11 @@ export function Settings({ v }) {
           onChange={v.setSettingsBaseUrl}
           autoCapitalize="none" autoCorrect="off" spellCheck={false} inputMode="url"
           placeholder="https://your-mac.tailxxxx.ts.net:4173"
-          base="margin-top:8px;width:100%;box-sizing:border-box;background:rgba(0,0,0,.32);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font-size:13px;font-family:'IBM Plex Mono',monospace;outline:none"
+          base="margin-top:8px;width:100%;box-sizing:border-box;background:rgba(0,0,0,.32);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-mono);outline:none"
           focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
         />
 
-        <label htmlFor="settings-token" style={css("display:block;margin-top:16px;font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>API TOKEN</label>
+        <label htmlFor="settings-token" style={css("display:block;margin-top:16px;font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>API TOKEN</label>
         <Interactive
           as="input"
           id="settings-token"
@@ -50,7 +50,7 @@ export function Settings({ v }) {
           onChange={v.setSettingsToken}
           autoCapitalize="none" autoCorrect="off" spellCheck={false}
           placeholder="printed in the server's terminal on first run"
-          base="margin-top:8px;width:100%;box-sizing:border-box;background:rgba(0,0,0,.32);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font-size:13px;font-family:'IBM Plex Mono',monospace;outline:none"
+          base="margin-top:8px;width:100%;box-sizing:border-box;background:rgba(0,0,0,.32);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-mono);outline:none"
           focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
         />
 
@@ -68,49 +68,49 @@ export function Settings({ v }) {
       {v.profile && (
         <div style={{ marginTop: '34px' }}>
           <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
-            <span style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:var(--nv-gold)")}>ABOUT YOU</span>
-            <span style={css("font:400 9px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>THE ROOT CONTEXT EVERY NOVA AGENT REASONS FROM · LIVES IN YOUR VAULT</span>
+            <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:var(--nv-gold)")}>ABOUT YOU</span>
+            <span style={css("font:400 9px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>THE ROOT CONTEXT EVERY NOVA AGENT REASONS FROM · LIVES IN YOUR VAULT</span>
             {!v.profile.editing && (
-              <Interactive as="span" onClick={v.profile.startEdit} base="cursor:pointer;font:600 10px 'IBM Plex Mono',monospace;letter-spacing:.08em;padding:5px 12px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold)" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 08%, transparent)">{v.profile.set ? 'EDIT' : 'SET UP'}</Interactive>
+              <Interactive as="span" onClick={v.profile.startEdit} base="cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.08em;padding:5px 12px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold)" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 08%, transparent)">{v.profile.set ? 'EDIT' : 'SET UP'}</Interactive>
             )}
           </div>
 
           {v.profile.editing ? (
             <div className="nv-pane" style={{ marginTop: '12px', padding: '18px 20px', maxWidth: '620px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <label style={css("display:block")}>
-                <span style={css("font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>CURRENT FOCUS · what this season of life is about</span>
+                <span style={css("font:500 9px var(--nv-font-mono);letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>CURRENT FOCUS · what this season of life is about</span>
                 <input value={v.profile.draft.focus} onChange={v.profile.setField('focus')} placeholder="e.g. Building my body and my content while holding down full-time work"
-                  style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px 'Rajdhani',sans-serif", padding: '9px 12px', outline: 'none' }} />
+                  style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-ui)", padding: '9px 12px', outline: 'none' }} />
               </label>
               <label style={css("display:block")}>
-                <span style={css("font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>PRIORITIES · one per line, the handful that matter most now</span>
+                <span style={css("font:500 9px var(--nv-font-mono);letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>PRIORITIES · one per line, the handful that matter most now</span>
                 <textarea value={v.profile.draft.priorities} onChange={v.profile.setField('priorities')} rows={4} placeholder={"Get to 78kg lean\nShip one video a week\nProtein consistency\nSleep before 11"}
-                  style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px 'Rajdhani',sans-serif", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
+                  style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-ui)", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
               </label>
               <label style={css("display:block")}>
-                <span style={css("font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>PERFORMING AT YOUR BEST · what that looks and feels like for you</span>
+                <span style={css("font:500 9px var(--nv-font-mono);letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>PERFORMING AT YOUR BEST · what that looks and feels like for you</span>
                 <textarea value={v.profile.draft.bestSelf} onChange={v.profile.setField('bestSelf')} rows={2} placeholder="Disciplined but not rigid — training hard, eating well, creating consistently, present with people."
-                  style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px 'Rajdhani',sans-serif", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
+                  style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-ui)", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
               </label>
               <label style={css("display:block")}>
-                <span style={css("font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>CONTEXT &amp; CONSTRAINTS · anything Nova should always know</span>
+                <span style={css("font:500 9px var(--nv-font-mono);letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>CONTEXT &amp; CONSTRAINTS · anything Nova should always know</span>
                 <textarea value={v.profile.draft.notes} onChange={v.profile.setField('notes')} rows={3} placeholder="Work 9-5 Mon-Fri. Gym has only dumbbells (to 40kg) on weekends. Left shoulder flares under heavy overhead. Prefer training evenings."
-                  style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px 'Rajdhani',sans-serif", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
+                  style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-ui)", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
               </label>
               <div style={css("display:flex;gap:10px;align-items:center")}>
-                <Interactive as="span" onClick={v.profile.saving ? undefined : v.profile.save} base={{ cursor: 'pointer', font: "600 10.5px 'IBM Plex Mono',monospace", letterSpacing: '.08em', padding: '9px 18px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1322', opacity: v.profile.saving ? 0.5 : 1 }} hoverStyle="filter:brightness(1.08)">{v.profile.saving ? 'SAVING…' : 'SAVE'}</Interactive>
-                <Interactive as="span" onClick={v.profile.cancelEdit} base="cursor:pointer;font:400 10px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-ink)">cancel</Interactive>
+                <Interactive as="span" onClick={v.profile.saving ? undefined : v.profile.save} base={{ cursor: 'pointer', font: "600 10.5px var(--nv-font-mono)", letterSpacing: '.08em', padding: '9px 18px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1322', opacity: v.profile.saving ? 0.5 : 1 }} hoverStyle="filter:brightness(1.08)">{v.profile.saving ? 'SAVING…' : 'SAVE'}</Interactive>
+                <Interactive as="span" onClick={v.profile.cancelEdit} base="cursor:pointer;font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-ink)">cancel</Interactive>
               </div>
             </div>
           ) : v.profile.set ? (
             <div className="nv-pane" style={{ marginTop: '12px', padding: '18px 20px', maxWidth: '620px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {v.profile.view.focus && <div><div style={css("font:500 8.5px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>CURRENT FOCUS</div><div style={css("margin-top:3px;font:500 14px 'Rajdhani',sans-serif")}>{v.profile.view.focus}</div></div>}
-              {v.profile.view.priorities.length > 0 && <div><div style={css("font:500 8.5px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>PRIORITIES</div><div style={css("margin-top:4px;display:flex;flex-direction:column;gap:3px")}>{v.profile.view.priorities.map((p, i) => <div key={i} style={css("font:500 13px 'Rajdhani',sans-serif;color:var(--nv-ink60)")}>· {p}</div>)}</div></div>}
-              {v.profile.view.bestSelf && <div><div style={css("font:500 8.5px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>AT YOUR BEST</div><div style={css("margin-top:3px;font:500 12.5px/1.55 'Rajdhani',sans-serif;color:var(--nv-ink60)")}>{v.profile.view.bestSelf}</div></div>}
-              {v.profile.view.notes && <div><div style={css("font:500 8.5px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>CONTEXT &amp; CONSTRAINTS</div><div style={css("margin-top:3px;font:500 12.5px/1.55 'Rajdhani',sans-serif;color:var(--nv-ink60);white-space:pre-wrap")}>{v.profile.view.notes}</div></div>}
+              {v.profile.view.focus && <div><div style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>CURRENT FOCUS</div><div style={css("margin-top:3px;font:500 14px var(--nv-font-ui)")}>{v.profile.view.focus}</div></div>}
+              {v.profile.view.priorities.length > 0 && <div><div style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>PRIORITIES</div><div style={css("margin-top:4px;display:flex;flex-direction:column;gap:3px")}>{v.profile.view.priorities.map((p, i) => <div key={i} style={css("font:500 13px var(--nv-font-ui);color:var(--nv-ink60)")}>· {p}</div>)}</div></div>}
+              {v.profile.view.bestSelf && <div><div style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>AT YOUR BEST</div><div style={css("margin-top:3px;font:500 12.5px/1.55 var(--nv-font-ui);color:var(--nv-ink60)")}>{v.profile.view.bestSelf}</div></div>}
+              {v.profile.view.notes && <div><div style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>CONTEXT &amp; CONSTRAINTS</div><div style={css("margin-top:3px;font:500 12.5px/1.55 var(--nv-font-ui);color:var(--nv-ink60);white-space:pre-wrap")}>{v.profile.view.notes}</div></div>}
             </div>
           ) : (
-            <div style={css("margin-top:10px;max-width:620px;font:500 12.5px/1.7 'Rajdhani',sans-serif;color:var(--nv-ink60)")}>Nova knows your data but not yet your intentions. Tell it what you're working toward and it reasons through that in every answer, coaching session, and brief — the difference between a tool and a companion. Two minutes, editable anytime in Obsidian.</div>
+            <div style={css("margin-top:10px;max-width:620px;font:500 12.5px/1.7 var(--nv-font-ui);color:var(--nv-ink60)")}>Nova knows your data but not yet your intentions. Tell it what you're working toward and it reasons through that in every answer, coaching session, and brief — the difference between a tool and a companion. Two minutes, editable anytime in Obsidian.</div>
           )}
         </div>
       )}
@@ -118,19 +118,47 @@ export function Settings({ v }) {
       {v.learning && v.learning.enoughData && (
         <div style={{ marginTop: '28px' }}>
           <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
-            <span style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:var(--nv-cy)")}>WHAT NOVA HAS NOTICED</span>
-            <span style={css("font:400 9px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>LEARNED FROM YOUR REAL DECISIONS · SHAPES EVERY SUGGESTION</span>
+            <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:var(--nv-cy)")}>WHAT NOVA HAS NOTICED</span>
+            <span style={css("font:400 9px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>LEARNED FROM YOUR REAL DECISIONS · SHAPES EVERY SUGGESTION</span>
           </div>
           <div className="nv-pane" style={{ marginTop: '12px', padding: '16px 18px', maxWidth: '620px', display: 'flex', flexDirection: 'column', gap: '7px' }}>
             {v.learning.noticed.map((n, i) => (
-              <div key={i} style={css("font:500 12.5px/1.5 'Rajdhani',sans-serif;color:var(--nv-ink60)")}>· {n}</div>
+              <div key={i} style={css("font:500 12.5px/1.5 var(--nv-font-ui);color:var(--nv-ink60)")}>· {n}</div>
             ))}
           </div>
         </div>
       )}
 
-      <div style={css("margin-top:34px;font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>APPEARANCE</div>
+      <div style={css("margin-top:34px;font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>APPEARANCE</div>
       <div style={css("margin-top:12px;max-width:520px;display:flex;flex-direction:column;gap:10px")}>
+        <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.18em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>DESIGN STYLE · SAME DATA, SAME FEATURES — TWO SKINS</div>
+        {v.novaStyleOptions.map((s) => (
+          <Interactive
+            key={s.value}
+            onClick={s.pick}
+            base={{
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px', borderRadius: '12px',
+              border: s.active ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent)',
+              background: s.active ? 'var(--nv-acc-bg)' : 'rgba(0,0,0,.2)',
+              boxShadow: s.active ? 'var(--nv-glow-tab)' : 'none',
+            }}
+            hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}
+          >
+            {/* material swatch: HUD bracket square vs calm rounded glass */}
+            <span style={{ flex: 'none', width: '16px', height: '16px',
+              borderRadius: s.value === 'apple' ? '6px' : '2px',
+              border: s.value === 'apple' ? '1px solid rgba(255,255,255,.35)' : '1px solid var(--nv-acc-border)',
+              background: s.value === 'apple' ? 'rgba(255,255,255,.12)' : 'var(--nv-acc-bg)',
+              boxShadow: s.value === 'apple' ? 'none' : '0 0 8px -2px var(--nv-acc)' }}></span>
+            <span style={{ minWidth: 0 }}>
+              <span style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: s.active ? 'var(--nv-acc)' : 'var(--nv-ink)' }}>{s.label}</span>
+              <span style={{ display: 'block', marginTop: '2px', fontSize: '11.5px', color: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>{s.hint}</span>
+            </span>
+            {s.active && <span style={{ marginLeft: 'auto', font: "500 9.5px var(--nv-font-mono)", letterSpacing: '.14em', color: 'var(--nv-acc)' }}>ACTIVE</span>}
+          </Interactive>
+        ))}
+
+        <div style={css("margin-top:14px;font:500 9px var(--nv-font-mono);letter-spacing:.18em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>THEME · THE PALETTE, IN EITHER STYLE</div>
         {v.novaThemeOptions.map((t) => (
           <Interactive
             key={t.value}
@@ -152,11 +180,11 @@ export function Settings({ v }) {
               <span style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: t.active ? 'var(--nv-acc)' : 'var(--nv-ink)' }}>{t.label}</span>
               <span style={{ display: 'block', marginTop: '2px', fontSize: '11.5px', color: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>{t.hint}</span>
             </span>
-            {t.active && <span style={{ marginLeft: 'auto', font: "500 9.5px 'IBM Plex Mono',monospace", letterSpacing: '.14em', color: 'var(--nv-acc)' }}>ACTIVE</span>}
+            {t.active && <span style={{ marginLeft: 'auto', font: "500 9.5px var(--nv-font-mono)", letterSpacing: '.14em', color: 'var(--nv-acc)' }}>ACTIVE</span>}
           </Interactive>
         ))}
 
-        <div style={css("margin-top:14px;font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>NOVA CORE</div>
+        <div style={css("margin-top:14px;font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>NOVA CORE</div>
         {v.novaCoreOptions.map((c) => (
           <Interactive
             key={c.value}
@@ -179,7 +207,7 @@ export function Settings({ v }) {
               <span style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: c.active ? 'var(--nv-acc)' : 'var(--nv-ink)' }}>{c.label}</span>
               <span style={{ display: 'block', marginTop: '2px', fontSize: '11.5px', color: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>{c.hint}</span>
             </span>
-            {c.active && <span style={{ marginLeft: 'auto', font: "500 9.5px 'IBM Plex Mono',monospace", letterSpacing: '.14em', color: 'var(--nv-acc)' }}>ACTIVE</span>}
+            {c.active && <span style={{ marginLeft: 'auto', font: "500 9.5px var(--nv-font-mono)", letterSpacing: '.14em', color: 'var(--nv-acc)' }}>ACTIVE</span>}
           </Interactive>
         ))}
 
@@ -192,23 +220,23 @@ export function Settings({ v }) {
             <span style={{ display: 'block', fontSize: '14px', fontWeight: 600 }}>Calm mode</span>
             <span style={{ display: 'block', marginTop: '2px', fontSize: '11.5px', color: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>dims the glow and pauses ambient motion — same layout, lower voltage</span>
           </span>
-          <span style={{ marginLeft: 'auto', flex: 'none', font: "500 9.5px 'IBM Plex Mono',monospace", letterSpacing: '.14em', padding: '6px 12px', borderRadius: '14px', border: v.calmMode ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent)', color: v.calmMode ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', background: v.calmMode ? 'var(--nv-acc-bg)' : 'none' }}>{v.calmMode ? 'ON' : 'OFF'}</span>
+          <span style={{ marginLeft: 'auto', flex: 'none', font: "500 9.5px var(--nv-font-mono)", letterSpacing: '.14em', padding: '6px 12px', borderRadius: '14px', border: v.calmMode ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent)', color: v.calmMode ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', background: v.calmMode ? 'var(--nv-acc-bg)' : 'none' }}>{v.calmMode ? 'ON' : 'OFF'}</span>
         </Interactive>
       </div>
 
       {v.pushSettings && (
         <div style={{ marginTop: '34px' }}>
-          <div style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>NOTIFICATIONS</div>
+          <div style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>NOTIFICATIONS</div>
           <div className="nv-pane" style={{ marginTop: '12px', padding: '14px 18px', maxWidth: '520px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <span style={{ minWidth: 0, flex: '1 1 240px' }}>
               <span style={{ display: 'block', fontSize: '14px', fontWeight: 600 }}>Phone & Watch notifications</span>
-              <span style={{ display: 'block', marginTop: '2px', font: "500 9.5px 'IBM Plex Mono',monospace", letterSpacing: '.06em', color: v.pushSettings.state === 'on' ? 'var(--nv-good)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>{v.pushSettings.label}</span>
+              <span style={{ display: 'block', marginTop: '2px', font: "500 9.5px var(--nv-font-mono)", letterSpacing: '.06em', color: v.pushSettings.state === 'on' ? 'var(--nv-good)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>{v.pushSettings.label}</span>
             </span>
             {v.pushSettings.state !== 'on' && v.pushSettings.state !== 'unsupported' && (
-              <Interactive as="span" onClick={v.pushSettings.enable} base="cursor:pointer;font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;padding:9px 16px;border-radius:8px;background:var(--nv-cy);color:#0a2830" hoverStyle="filter:brightness(1.08)">ENABLE</Interactive>
+              <Interactive as="span" onClick={v.pushSettings.enable} base="cursor:pointer;font:600 10.5px var(--nv-font-mono);letter-spacing:.08em;padding:9px 16px;border-radius:8px;background:var(--nv-cy);color:#0a2830" hoverStyle="filter:brightness(1.08)">ENABLE</Interactive>
             )}
             {v.pushSettings.state === 'on' && (
-              <Interactive as="span" onClick={v.pushSettings.test} base="cursor:pointer;font:600 10px 'IBM Plex Mono',monospace;letter-spacing:.08em;padding:8px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);color:var(--nv-cy)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 08%, transparent)">TEST</Interactive>
+              <Interactive as="span" onClick={v.pushSettings.test} base="cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.08em;padding:8px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);color:var(--nv-cy)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 08%, transparent)">TEST</Interactive>
             )}
           </div>
           <div style={css("margin-top:8px;max-width:520px;font-size:11px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Pushes fire when something needs your call — a drafted brief, a research outline, a Guardian alert. iPhone mirrors them to the Apple Watch automatically. Requires Nova installed to the Home Screen (Safari → Share → Add to Home Screen).</div>
@@ -218,8 +246,8 @@ export function Settings({ v }) {
       {v.tabOrderItems && (
         <div style={{ marginTop: '34px' }}>
           <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
-            <span style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>TAB ORDER</span>
-            <span style={css("font:400 9px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>DRAG TO REORDER THE BOTTOM TAB BAR</span>
+            <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>TAB ORDER</span>
+            <span style={css("font:400 9px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>DRAG TO REORDER THE BOTTOM TAB BAR</span>
           </div>
           <div style={{ marginTop: '12px' }}>
             <TabOrderEditor items={v.tabOrderItems} onReorder={v.setTabOrder} />
@@ -231,9 +259,9 @@ export function Settings({ v }) {
       {v.calendarSettings && (
         <div style={{ marginTop: '34px' }}>
           <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
-            <span style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>CALENDARS</span>
-            <span style={css("font:400 9px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>TURN OFF ANY YOU DON'T WANT NOVA READING</span>
-            <Interactive as="span" onClick={v.calendarSettings.load} base="cursor:pointer;font:600 10px 'IBM Plex Mono',monospace;letter-spacing:.08em;padding:5px 12px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 20%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)" hoverStyle="color:var(--nv-ink)">REFRESH</Interactive>
+            <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>CALENDARS</span>
+            <span style={css("font:400 9px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>TURN OFF ANY YOU DON'T WANT NOVA READING</span>
+            <Interactive as="span" onClick={v.calendarSettings.load} base="cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.08em;padding:5px 12px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 20%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)" hoverStyle="color:var(--nv-ink)">REFRESH</Interactive>
           </div>
           {v.calendarSettings.error && (
             <div style={css("margin-top:10px;max-width:520px;font-size:12px;line-height:1.6;color:var(--nv-warn)")}>Couldn't load the calendar list — a connection problem, not "no calendars". Tap REFRESH to retry.</div>
@@ -250,7 +278,7 @@ export function Settings({ v }) {
                 {v.calendarSettings.calendars.map((c) => (
                   <div key={c.url} className="nv-pane" style={{ padding: '11px 15px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <span style={{ flex: 1, minWidth: 0, fontSize: '14px', fontWeight: 500, opacity: c.hidden ? 0.5 : 1, textDecoration: c.hidden ? 'line-through' : 'none', overflowWrap: 'anywhere' }}>{c.name}</span>
-                    <Interactive as="span" onClick={c.toggle} base={{ cursor: 'pointer', flex: 'none', font: "600 9.5px 'IBM Plex Mono',monospace", letterSpacing: '.1em', padding: '6px 15px', borderRadius: '14px', border: c.hidden ? '1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent)' : '1px solid var(--nv-acc-border)', color: c.hidden ? 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' : 'var(--nv-acc)', background: c.hidden ? 'none' : 'var(--nv-acc-bg)' }} hoverStyle={{ filter: 'brightness(1.12)' }}>{c.hidden ? 'HIDDEN' : 'SHOWN'}</Interactive>
+                    <Interactive as="span" onClick={c.toggle} base={{ cursor: 'pointer', flex: 'none', font: "600 9.5px var(--nv-font-mono)", letterSpacing: '.1em', padding: '6px 15px', borderRadius: '14px', border: c.hidden ? '1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent)' : '1px solid var(--nv-acc-border)', color: c.hidden ? 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' : 'var(--nv-acc)', background: c.hidden ? 'none' : 'var(--nv-acc-bg)' }} hoverStyle={{ filter: 'brightness(1.12)' }}>{c.hidden ? 'HIDDEN' : 'SHOWN'}</Interactive>
                   </div>
                 ))}
               </div>
@@ -263,10 +291,10 @@ export function Settings({ v }) {
       {v.timeMachine && (
         <div style={{ marginTop: '34px' }}>
           <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
-            <span style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:var(--nv-gold)")}>TIME MACHINE · GUARDIAN</span>
-            <span style={css("font:400 9px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>EVERY VAULT WRITE SNAPSHOTS FIRST — RESTORE ANY FILE, UNDOABLY</span>
+            <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:var(--nv-gold)")}>TIME MACHINE · GUARDIAN</span>
+            <span style={css("font:400 9px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>EVERY VAULT WRITE SNAPSHOTS FIRST — RESTORE ANY FILE, UNDOABLY</span>
             {!v.timeMachine.loaded && (
-              <Interactive as="span" onClick={v.timeMachine.load} base="cursor:pointer;font:600 10px 'IBM Plex Mono',monospace;letter-spacing:.08em;padding:5px 12px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold)" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 08%, transparent)">BROWSE SNAPSHOTS</Interactive>
+              <Interactive as="span" onClick={v.timeMachine.load} base="cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.08em;padding:5px 12px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold)" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 08%, transparent)">BROWSE SNAPSHOTS</Interactive>
             )}
           </div>
           {v.timeMachine.loaded && v.timeMachine.files.length === 0 && (
@@ -277,20 +305,20 @@ export function Settings({ v }) {
               {v.timeMachine.files.map((f) => (
                 <div key={f.file} className="nv-pane" style={{ padding: '12px 15px' }}>
                   <div style={css("display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap")}>
-                    <span style={css("font:600 13px 'Rajdhani',sans-serif;overflow-wrap:anywhere")}>{f.file}{!f.exists && <span style={css("color:var(--nv-warn);font:500 9px 'IBM Plex Mono',monospace")}> · DELETED</span>}</span>
+                    <span style={css("font:600 13px var(--nv-font-ui);overflow-wrap:anywhere")}>{f.file}{!f.exists && <span style={css("color:var(--nv-warn);font:500 9px var(--nv-font-mono)")}> · DELETED</span>}</span>
                   </div>
                   <div style={css("margin-top:6px;display:flex;flex-direction:column;gap:4px")}>
                     {f.backups.map((b) => (
                       <div key={b.backupRel} style={css("display:flex;justify-content:space-between;gap:10px;align-items:center")}>
-                        <span style={css("font:400 10px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 50%, transparent)")}>{b.stamp}</span>
+                        <span style={css("font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 50%, transparent)")}>{b.stamp}</span>
                         {v.timeMachine.confirming === b.backupRel ? (
                           <span style={css("display:flex;gap:8px;align-items:center")}>
                             <span style={css("font-size:11px;color:var(--nv-warn)")}>Overwrite the current file with this snapshot?</span>
-                            <Interactive as="span" onClick={() => v.timeMachine.restore(b.backupRel)} base="cursor:pointer;font:600 9px 'IBM Plex Mono',monospace;padding:3px 10px;border-radius:6px;background:color-mix(in srgb, var(--nv-warn) 15%, transparent);color:var(--nv-warn);border:1px solid color-mix(in srgb, var(--nv-warn) 40%, transparent)">RESTORE</Interactive>
-                            <Interactive as="span" onClick={v.timeMachine.cancelConfirm} base="cursor:pointer;font:400 9px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)">cancel</Interactive>
+                            <Interactive as="span" onClick={() => v.timeMachine.restore(b.backupRel)} base="cursor:pointer;font:600 9px var(--nv-font-mono);padding:3px 10px;border-radius:6px;background:color-mix(in srgb, var(--nv-warn) 15%, transparent);color:var(--nv-warn);border:1px solid color-mix(in srgb, var(--nv-warn) 40%, transparent)">RESTORE</Interactive>
+                            <Interactive as="span" onClick={v.timeMachine.cancelConfirm} base="cursor:pointer;font:400 9px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)">cancel</Interactive>
                           </span>
                         ) : (
-                          <Interactive as="span" onClick={() => v.timeMachine.askConfirm(b.backupRel)} base="cursor:pointer;font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.08em;padding:3px 10px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)" hoverStyle="border-color:color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold)">RESTORE…</Interactive>
+                          <Interactive as="span" onClick={() => v.timeMachine.askConfirm(b.backupRel)} base="cursor:pointer;font:600 9px var(--nv-font-mono);letter-spacing:.08em;padding:3px 10px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)" hoverStyle="border-color:color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold)">RESTORE…</Interactive>
                         )}
                       </div>
                     ))}

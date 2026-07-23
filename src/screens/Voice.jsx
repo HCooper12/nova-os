@@ -5,7 +5,7 @@ import { NovaCore } from '../NovaCore.jsx';
 import { Clock } from '../Clock.jsx';
 import { useDictation } from '../useDictation.js';
 
-const M = "'IBM Plex Mono',monospace";
+const M = "var(--nv-font-mono)";
 
 // Ask Nova — speak (or type) a question; a read-only session over the real
 // vault answers it, and the reply is spoken back (ElevenLabs when the key is

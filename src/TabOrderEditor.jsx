@@ -60,8 +60,8 @@ export function TabOrderEditor({ items, onReorder }) {
           }}
         >
           <span aria-hidden style={{ color: 'var(--nv-ink40)', fontSize: '15px', lineHeight: 1, letterSpacing: '-2px' }}>⠿</span>
-          <span style={{ font: "600 14px 'Rajdhani',sans-serif", color: 'var(--nv-ink)' }}>{it.label}</span>
-          <span style={{ marginLeft: 'auto', font: "500 9px 'IBM Plex Mono',monospace", color: 'var(--nv-ink40)' }}>{i + 1}</span>
+          <span style={{ font: "600 14px var(--nv-font-ui)", color: 'var(--nv-ink)' }}>{it.label}</span>
+          <span style={{ marginLeft: 'auto', font: "500 9px var(--nv-font-mono)", color: 'var(--nv-ink40)' }}>{i + 1}</span>
         </div>
       ))}
     </div>

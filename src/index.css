@@ -24,7 +24,7 @@ button, a, label, select, input, textarea, [role="button"] { touch-action: manip
 input, textarea, select { font-size: 16px !important; }
 body {
   background: var(--nv-void, #06070d);
-  font-family: 'Rajdhani', 'Instrument Sans', system-ui, sans-serif;
+  font-family: var(--nv-font-ui);
   font-weight: 500;
   -webkit-font-smoothing: antialiased;
 }
@@ -52,6 +52,12 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
    the data-nv-calm block LAST so Calm wins in every theme.
    ================================================================ */
 :root {
+  /* Typefaces are tokens so the Style dimension can swap them wholesale —
+     never hardcode a family in a component; use these vars. */
+  --nv-font-ui:'Rajdhani','Instrument Sans',system-ui,sans-serif;
+  --nv-font-serif:'Instrument Serif',serif;
+  --nv-font-mono:'IBM Plex Mono',monospace;
+  --nv-font-mono2:'JetBrains Mono',monospace;
   --nv-void:#06070d; --nv-bg1:#0a0f1e; --nv-bg2:#111a32;
   --nv-ink:#e8ecf6; --nv-ink60:rgba(232,236,246,.62); --nv-ink40:rgba(232,236,246,.38);
   --nv-glass:rgba(16,20,36,.62); --nv-glass2:rgba(26,32,54,.8);
@@ -120,6 +126,35 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   --nv-glow-core:0 0 44px -20px rgba(89,230,255,.4);
   /* zero shadows (not `none`): these vars are substituted inside comma-separated
      box-shadow lists, where a literal `none` invalidates the whole declaration */
+  --nv-glow-noticed:0 0 0 0 rgba(0,0,0,0); --nv-glow-focus:0 0 0 0 rgba(0,0,0,0);
+  --nv-glow-sat1:0 0 0 0 rgba(0,0,0,0); --nv-glow-sat2:0 0 0 0 rgba(0,0,0,0); --nv-glow-sat3:0 0 0 0 rgba(0,0,0,0);
+  --nv-tsh-head-cy:none; --nv-tsh-head-vi:none;
+}
+
+/* ================================================================
+   STYLE · APPLE — a second skin over the same tokens: SF typography,
+   calm glass cards, hairline edges, no HUD FX. Deliberately does NOT
+   touch the palette (--nv-cy/vi/mg/gold/good/acc…) so Nova's colours
+   — and each theme's — carry straight across; the living NovaCore is
+   a canvas component and is untouched by design. LAST so it wins over
+   theme AND calm. The silhouette tab/nav icons are gated on the same
+   attribute in React (valsChrome → appleStyle).
+   ================================================================ */
+:root[data-nv-style="apple"] {
+  --nv-font-ui:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',system-ui,sans-serif;
+  --nv-font-serif:ui-serif,'New York',Georgia,serif;
+  --nv-font-mono:ui-monospace,'SF Mono','IBM Plex Mono',monospace;
+  --nv-font-mono2:ui-monospace,'SF Mono','JetBrains Mono',monospace;
+  --nv-radius:20px;
+  --nv-edge:rgba(255,255,255,.09);
+  --nv-glass:rgba(255,255,255,.05); --nv-glass2:rgba(15,17,26,.82);
+  --nv-spec:rgba(255,255,255,.06);
+  --nv-bracket-op:0;                       /* corner brackets + scanline off */
+  --nv-grid-op:0; --nv-stars-op:0; --nv-aurora-op:.18;
+  --nv-glow-tab:none; --nv-tsh-tab:none;
+  --nv-glow-cta:none; --nv-tsh-cta:none;
+  --nv-cta-border:transparent; --nv-cta-bg:var(--nv-acc); --nv-cta-ink:#0b1016;
+  --nv-glow-core:0 0 70px -28px rgba(89,230,255,.38);
   --nv-glow-noticed:0 0 0 0 rgba(0,0,0,0); --nv-glow-focus:0 0 0 0 rgba(0,0,0,0);
   --nv-glow-sat1:0 0 0 0 rgba(0,0,0,0); --nv-glow-sat2:0 0 0 0 rgba(0,0,0,0); --nv-glow-sat3:0 0 0 0 rgba(0,0,0,0);
   --nv-tsh-head-cy:none; --nv-tsh-head-vi:none;

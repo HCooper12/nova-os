@@ -13,9 +13,9 @@ export function CommandPalette({ v }) {
             onChange={v.setPaletteQuery}
             onKeyDown={v.paletteKeyDown}
             placeholder="Summon Nova — search, command, or ask anything…"
-            style={css("flex:1;background:none;border:none;outline:none;color:var(--nv-ink);font:500 15px 'Rajdhani',sans-serif")}
+            style={css("flex:1;background:none;border:none;outline:none;color:var(--nv-ink);font:500 15px var(--nv-font-ui)")}
           />
-          <span style={css("font:500 9.5px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 40%, transparent);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:5px;padding:3px 7px")}>ESC</span>
+          <span style={css("font:500 9.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:5px;padding:3px 7px")}>ESC</span>
         </div>
         <div style={css("max-height:340px;overflow-y:auto;padding:8px")}>
           {v.paletteResults.map((c, i) => (
@@ -25,13 +25,13 @@ export function CommandPalette({ v }) {
               base="cursor:pointer;display:flex;align-items:center;gap:13px;padding:11px 13px;border-radius:8px"
               hoverStyle="background:var(--nv-acc-bg)"
             >
-              <span style={css(`font:400 12px 'IBM Plex Mono',monospace;color:${c.iconColor};width:16px;text-align:center`)}>{c.icon}</span>
+              <span style={css(`font:400 12px var(--nv-font-mono);color:${c.iconColor};width:16px;text-align:center`)}>{c.icon}</span>
               <span style={css("font-size:13.5px;color:color-mix(in srgb, var(--nv-ink) 90%, transparent)")}>{c.label}</span>
-              <span style={css("margin-left:auto;font:400 9.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>{c.hint}</span>
+              <span style={css("margin-left:auto;font:400 9.5px var(--nv-font-mono);letter-spacing:.1em;color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>{c.hint}</span>
             </Interactive>
           ))}
         </div>
-        <div style={css("display:flex;gap:16px;padding:11px 20px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);font:400 9.5px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>
+        <div style={css("display:flex;gap:16px;padding:11px 20px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);font:400 9.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>
           <span>↵ RUN</span><span>ESC CLOSE</span><span style={css("margin-left:auto;color:color-mix(in srgb, var(--nv-gold) 55%, transparent)")}>NOVA ROUTES TO THE RIGHT AGENT</span>
         </div>
       </div>

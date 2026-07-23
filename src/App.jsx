@@ -5,7 +5,7 @@ import { api, getConnection, setConnection, testConnection } from './api.js';
 import { pollJob } from './jobPoller.js';
 import { orbReply, coachReply, recipeReply } from './mockAssistants.js';
 import { loadLiveCache, saveLiveCache, clearLiveCache } from './liveStore.js';
-import { applyAppearance, getNovaTheme, getCalm, getCoreStyle, saveCoreStyle } from './theme.js';
+import { applyAppearance, getNovaTheme, getCalm, getCoreStyle, saveCoreStyle, getNovaStyle } from './theme.js';
 import { getTabOrder, saveTabOrder } from './tabOrder.js';
 import { NOTE_TYPE_COLOR } from './vals/shared.js';
 import { valsRecipes } from './vals/valsRecipes.js';
@@ -206,7 +206,7 @@ export default class App extends Component {
     noteQuery: '', noteType: 'All', openNoteId: 'n1',
     galaxySel: null, toast: null, reviewIdx: 0,
     isMobile: typeof window !== 'undefined' && window.innerWidth < 760,
-    novaTheme: getNovaTheme(), calmMode: getCalm(), coreStyle: getCoreStyle(),
+    novaTheme: getNovaTheme(), calmMode: getCalm(), coreStyle: getCoreStyle(), novaStyle: getNovaStyle(),
 
     // nova inbox (capture → classify → file) + the loops riding its rails
     liveInbox: null, inboxInput: '', inboxCaptureBusy: false, inboxActionBusy: {},
@@ -426,10 +426,13 @@ export default class App extends Component {
   // arguments + this.state directly goes stale when both setters run in the
   // same tick (theme switch immediately followed by a calm toggle).
   setNovaTheme(theme) {
-    this.setState({ novaTheme: theme }, () => applyAppearance(this.state.novaTheme, this.state.calmMode));
+    this.setState({ novaTheme: theme }, () => applyAppearance(this.state.novaTheme, this.state.calmMode, this.state.novaStyle));
   }
   setCalmMode(calm) {
-    this.setState({ calmMode: calm }, () => applyAppearance(this.state.novaTheme, this.state.calmMode));
+    this.setState({ calmMode: calm }, () => applyAppearance(this.state.novaTheme, this.state.calmMode, this.state.novaStyle));
+  }
+  setNovaStyle(style) {
+    this.setState({ novaStyle: style }, () => applyAppearance(this.state.novaTheme, this.state.calmMode, this.state.novaStyle));
   }
   setCoreStyle(core) {
     saveCoreStyle(core);
@@ -2806,7 +2809,7 @@ export default class App extends Component {
           <div style={{
             position: 'fixed', left: '50%', transform: 'translateX(-50%)',
             bottom: v.isMobile ? 'calc(76px + env(safe-area-inset-bottom))' : '18px', zIndex: 80,
-            font: "500 10.5px 'JetBrains Mono',monospace", letterSpacing: '.06em', padding: '8px 16px',
+            font: "500 10.5px var(--nv-font-mono2)", letterSpacing: '.06em', padding: '8px 16px',
             borderRadius: '20px', whiteSpace: 'nowrap', maxWidth: '92vw', overflow: 'hidden', textOverflow: 'ellipsis',
             color: v.statusBanner.tone === 'warn' ? '#f0b8b8' : 'rgba(236,229,218,.75)',
             background: v.statusBanner.tone === 'warn' ? 'rgba(120,40,40,.55)' : 'rgba(0,0,0,.55)',

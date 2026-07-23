@@ -5,12 +5,29 @@
 const THEME_KEY = 'novaos.theme';
 const CALM_KEY = 'novaos.calm';
 const CORE_KEY = 'novaos.core';
+const STYLE_KEY = 'novaos.style';
 
 export const NOVA_THEMES = [
   { value: 'command', label: 'Command', hint: 'the flagship — cyan HUD over the void' },
   { value: 'observatory', label: 'Observatory', hint: 'gold and bone — the classic Nova, evolved' },
   { value: 'ember', label: 'Ember', hint: 'molten copper — the forge at night' },
 ];
+
+// Style is orthogonal to theme: the theme picks the palette, the style picks
+// the design language it's drawn in. Both compose (Ember × Apple works).
+export const NOVA_STYLES = [
+  { value: 'command', label: 'Command Core', hint: 'the HUD — glow, brackets, mono telemetry' },
+  { value: 'apple', label: 'Apple', hint: 'calm glass, SF type, silhouette icons — same soul, same colours' },
+];
+
+export function getNovaStyle() {
+  try {
+    const s = localStorage.getItem(STYLE_KEY);
+    return NOVA_STYLES.some((x) => x.value === s) ? s : 'command';
+  } catch {
+    return 'command';
+  }
+}
 
 // The core is a React prop rather than a CSS token — the two engines live in
 // NovaCore.jsx. Blue in every theme either way.
@@ -53,15 +70,18 @@ export function getCalm() {
   }
 }
 
-export function applyAppearance(theme, calm) {
+export function applyAppearance(theme, calm, style = getNovaStyle()) {
   const root = document.documentElement;
   if (theme === 'command') root.removeAttribute('data-nv-theme');
   else root.setAttribute('data-nv-theme', theme);
   if (calm) root.setAttribute('data-nv-calm', '1');
   else root.removeAttribute('data-nv-calm');
+  if (style === 'command') root.removeAttribute('data-nv-style');
+  else root.setAttribute('data-nv-style', style);
   try {
     localStorage.setItem(THEME_KEY, theme);
     localStorage.setItem(CALM_KEY, calm ? '1' : '0');
+    localStorage.setItem(STYLE_KEY, style);
   } catch {
     /* best-effort */
   }

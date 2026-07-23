@@ -1,8 +1,9 @@
 import { useRef, useEffect } from 'react';
 import { css } from './css.js';
+import { TabIcon } from './TabIcon.jsx';
 
-const M = "'IBM Plex Mono',monospace";
-const R = "'Rajdhani',sans-serif";
+const M = "var(--nv-font-mono)";
+const R = "var(--nv-font-ui)";
 
 export function MobileChrome({ v }) {
   const scrollRef = useRef(null);
@@ -27,10 +28,11 @@ export function MobileChrome({ v }) {
         <div ref={scrollRef} className="nv-tabscroll" style={{ display: 'flex', gap: '2px', overflowX: 'auto', overscrollBehaviorX: 'contain', padding: '4px max(8px, env(safe-area-inset-left)) 4px max(8px, env(safe-area-inset-right))', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {v.tabs.map((t) => (
             <div key={t.label} data-active={t.active ? '1' : '0'} onClick={t.go} style={{ ...t.style, position: 'relative' }}>
-              <span style={t.numStyle}>{t.num}</span>
+              {/* Apple style trades the Roman numeral for a silhouette icon */}
+              {v.appleStyle ? <TabIcon name={t.screen} size={21} /> : <span style={t.numStyle}>{t.num}</span>}
               <span style={css(`font:600 9.5px ${R};letter-spacing:.01em;white-space:nowrap`)}>{t.label}</span>
               {t.count != null && (
-                <span style={css("position:absolute;top:0;right:2px;min-width:15px;height:15px;padding:0 4px;border-radius:8px;background:var(--nv-gold);color:#1a1206;font:700 9px 'IBM Plex Mono',monospace;display:flex;align-items:center;justify-content:center")}>{t.count}</span>
+                <span style={css("position:absolute;top:0;right:2px;min-width:15px;height:15px;padding:0 4px;border-radius:8px;background:var(--nv-gold);color:#1a1206;font:700 9px var(--nv-font-mono);display:flex;align-items:center;justify-content:center")}>{t.count}</span>
               )}
             </div>
           ))}

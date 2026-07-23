@@ -12,9 +12,9 @@ import { FocusChip } from '../FocusChip.jsx';
 // Daily Review, the wide "Nova noticed" pane, and the vault cards.
 // Everything renders from the view-model — same live-data truth as before.
 
-const M = "'IBM Plex Mono',monospace";
-const R = "'Rajdhani',sans-serif";
-const S = "'Instrument Serif',serif";
+const M = "var(--nv-font-mono)";
+const R = "var(--nv-font-ui)";
+const S = "var(--nv-font-serif)";
 
 const orbStyle = (size, dur, dir) => ({
   position: 'absolute', width: size, height: size, borderRadius: '50%',
@@ -157,13 +157,13 @@ export function MissionControl({ v }) {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: 'auto', paddingTop: '16px' }}>
               {v.suggestedFocus.onPrimary && (
                 <Interactive as="span" onClick={v.suggestedFocus.onPrimary}
-                  base={css("cursor:pointer;font:600 13px 'Rajdhani',sans-serif;letter-spacing:.03em;padding:8px 16px;border-radius:8px;border:1px solid var(--nv-gold);background:var(--nv-gold);color:#1a1206;box-shadow:0 4px 16px -6px rgba(224,178,106,.6)")}
+                  base={css("cursor:pointer;font:600 13px var(--nv-font-ui);letter-spacing:.03em;padding:8px 16px;border-radius:8px;border:1px solid var(--nv-gold);background:var(--nv-gold);color:#1a1206;box-shadow:0 4px 16px -6px rgba(224,178,106,.6)")}
                   hoverStyle={{ filter: 'brightness(1.1)' }}
                 >{v.suggestedFocus.primaryLabel}</Interactive>
               )}
               {v.suggestedFocus.onSecondary && (
                 <Interactive as="span" onClick={v.suggestedFocus.onSecondary}
-                  base={css("cursor:pointer;font:600 13px 'Rajdhani',sans-serif;letter-spacing:.03em;padding:8px 16px;border-radius:8px;border:1px solid rgba(232,236,246,.18);color:var(--nv-ink60);background:transparent")}
+                  base={css("cursor:pointer;font:600 13px var(--nv-font-ui);letter-spacing:.03em;padding:8px 16px;border-radius:8px;border:1px solid rgba(232,236,246,.18);color:var(--nv-ink60);background:transparent")}
                   hoverStyle={{ background: 'rgba(255,255,255,.05)' }}
                 >{v.suggestedFocus.secondaryLabel}</Interactive>
               )}
@@ -200,7 +200,7 @@ export function MissionControl({ v }) {
                 onChange={v.setCalCmd}
                 onKeyDown={(e) => { if (e.key === 'Enter') v.sendCalCmd(); }}
                 placeholder="Ask Nova… “dentist Thu 2pm”, “move gym to Fri 6pm”, “cancel…”"
-                style={{ flex: 1, minWidth: 0, background: 'rgba(0,0,0,.28)', border: '1px solid rgba(130,175,255,.16)', borderRadius: '9px', padding: '10px 13px', color: 'var(--nv-ink)', fontSize: '13px', fontFamily: "'Rajdhani',sans-serif", outline: 'none' }}
+                style={{ flex: 1, minWidth: 0, background: 'rgba(0,0,0,.28)', border: '1px solid rgba(130,175,255,.16)', borderRadius: '9px', padding: '10px 13px', color: 'var(--nv-ink)', fontSize: '13px', fontFamily: "var(--nv-font-ui)", outline: 'none' }}
               />
               <Interactive as="span" onClick={v.calCmdBusy ? undefined : v.sendCalCmd} base={{ cursor: v.calCmdBusy ? 'default' : 'pointer', flex: 'none', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '10px 15px', borderRadius: '9px', background: 'var(--nv-cy)', color: '#0a2830', opacity: v.calCmdBusy ? 0.6 : 1 }} hoverStyle={{ filter: 'brightness(1.08)' }}>{v.calCmdBusy ? 'DRAFTING…' : 'DRAFT'}</Interactive>
             </div>
@@ -221,7 +221,7 @@ export function MissionControl({ v }) {
               from <em style={{ font: `italic 400 15px ${S}`, color: '#cbb6f2' }}>{v.reviewFrom}</em>
             </span>
             <Interactive as="span" onClick={v.openReview}
-              base={css("cursor:pointer;flex:none;font:600 12.5px 'Rajdhani',sans-serif;padding:6px 14px;border-radius:8px;border:1px solid rgba(143,123,255,.45);color:#cbb6f2;background:rgba(143,123,255,.1)")}
+              base={css("cursor:pointer;flex:none;font:600 12.5px var(--nv-font-ui);padding:6px 14px;border-radius:8px;border:1px solid rgba(143,123,255,.45);color:#cbb6f2;background:rgba(143,123,255,.1)")}
               hoverStyle={{ background: 'rgba(143,123,255,.22)' }}
             >Review</Interactive>
           </div>

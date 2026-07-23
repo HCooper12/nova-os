@@ -54,14 +54,14 @@ export function BarcodeScanner({ onDetected, onClose }) {
     <div role="dialog" aria-modal="true" aria-label="Scan a barcode" style={css("position:fixed;inset:0;background:rgba(10,8,14,.96);z-index:200;display:flex;flex-direction:column")}>
       {/* an always-reachable close, pinned top-right — never let a black camera trap the app */}
       <div style={css("flex:none;display:flex;align-items:center;justify-content:space-between;padding:calc(10px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left))")}>
-        <span style={css("font:500 11px 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(236,229,218,.6)")}>SCAN A BARCODE</span>
-        <Interactive as="span" onClick={onClose} base="cursor:pointer;font:500 12px 'JetBrains Mono',monospace;padding:10px 16px;border-radius:9px;border:1px solid rgba(236,229,218,.28);color:#ece5da">✕ Close</Interactive>
+        <span style={css("font:500 11px var(--nv-font-mono2);letter-spacing:.16em;color:rgba(236,229,218,.6)")}>SCAN A BARCODE</span>
+        <Interactive as="span" onClick={onClose} base="cursor:pointer;font:500 12px var(--nv-font-mono2);padding:10px 16px;border-radius:9px;border:1px solid rgba(236,229,218,.28);color:#ece5da">✕ Close</Interactive>
       </div>
 
       <div style={css("flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:12px 16px 24px")}>
         {!started && !error && <div style={css("font-size:13px;color:rgba(236,229,218,.6)")}>Starting camera…</div>}
         <video ref={videoRef} style={css("width:min(90vw,420px);max-height:52vh;object-fit:cover;border-radius:16px;border:1px solid rgba(236,229,218,.18);background:#000")} muted playsInline />
-        {started && !error && <div style={css("font:500 11px 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(236,229,218,.55)")}>POINT AT A BARCODE</div>}
+        {started && !error && <div style={css("font:500 11px var(--nv-font-mono2);letter-spacing:.16em;color:rgba(236,229,218,.55)")}>POINT AT A BARCODE</div>}
         {error && (
           <div style={css("max-width:360px;text-align:center;font-size:12.5px;line-height:1.55;color:#e0a06f")}>
             {error === 'camera-timeout'
@@ -78,9 +78,9 @@ export function BarcodeScanner({ onDetected, onClose }) {
             onKeyDown={(e) => { if (e.key === 'Enter') submitManual(); }}
             inputMode="numeric"
             placeholder="or type the barcode number"
-            style={{ width: '220px', maxWidth: '70vw', background: 'rgba(0,0,0,.35)', border: '1px solid rgba(236,229,218,.22)', borderRadius: '9px', padding: '11px 13px', color: '#ece5da', fontSize: '14px', fontFamily: "'JetBrains Mono',monospace", outline: 'none' }}
+            style={{ width: '220px', maxWidth: '70vw', background: 'rgba(0,0,0,.35)', border: '1px solid rgba(236,229,218,.22)', borderRadius: '9px', padding: '11px 13px', color: '#ece5da', fontSize: '14px', fontFamily: "var(--nv-font-mono2)", outline: 'none' }}
           />
-          <Interactive as="span" onClick={submitManual} base="cursor:pointer;font:600 11px 'JetBrains Mono',monospace;letter-spacing:.06em;padding:11px 16px;border-radius:9px;background:var(--nv-good,#5fe8a8);color:#0a2018" hoverStyle="filter:brightness(1.08)">LOOK UP</Interactive>
+          <Interactive as="span" onClick={submitManual} base="cursor:pointer;font:600 11px var(--nv-font-mono2);letter-spacing:.06em;padding:11px 16px;border-radius:9px;background:var(--nv-good,#5fe8a8);color:#0a2018" hoverStyle="filter:brightness(1.08)">LOOK UP</Interactive>
         </div>
       </div>
     </div>

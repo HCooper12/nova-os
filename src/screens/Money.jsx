@@ -2,8 +2,8 @@ import { useRef } from 'react';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 
-const M = "'IBM Plex Mono',monospace";
-const R = "'Rajdhani',sans-serif";
+const M = "var(--nv-font-mono)";
+const R = "var(--nv-font-ui)";
 
 // The CFO's screen: month summary + budget bars, the subscription radar,
 // the ledger, and the three feed paths (capture is implicit via the Inbox;

@@ -1,13 +1,14 @@
 import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
 import { NovaCore } from './NovaCore.jsx';
+import { TabIcon } from './TabIcon.jsx';
 
 // Command sidebar (design 45): NOVA·OS brand, grouped nav with glowing active
 // item, the agents roster, and a status card that tells the connection truth
 // (LIVE / OFFLINE / DEMO) beside a miniature of the Nova core.
 
-const M = "'IBM Plex Mono',monospace";
-const R = "'Rajdhani',sans-serif";
+const M = "var(--nv-font-mono)";
+const R = "var(--nv-font-ui)";
 const groupLabel = css(`font:500 8px ${M};letter-spacing:.26em;color:var(--nv-ink40);margin:0 10px 7px`);
 
 export function Sidebar({ v }) {
@@ -22,7 +23,7 @@ export function Sidebar({ v }) {
         <div style={css("display:flex;flex-direction:column;gap:2px")}>
           {v.navMain.map((nav) => (
             <Interactive key={nav.label} onClick={nav.go} base={nav.style} hoverStyle="background:rgba(255,255,255,.05)">
-              <span style={nav.numStyle}>{nav.numeral}</span><span>{nav.label}</span>
+              {v.appleStyle ? <TabIcon name={nav.screen} size={16} /> : <span style={nav.numStyle}>{nav.numeral}</span>}<span>{nav.label}</span>
               {nav.count != null && (
                 <span style={nav.countHot
                   ? css(`margin-left:auto;font:600 9px ${M};padding:1px 7px;border-radius:8px;color:var(--nv-acc);border:1px solid var(--nv-acc-border);background:var(--nv-acc-bg)`)
@@ -38,7 +39,7 @@ export function Sidebar({ v }) {
         <div style={css("display:flex;flex-direction:column;gap:2px")}>
           {v.navVault.map((nav) => (
             <Interactive key={nav.label} onClick={nav.go} base={nav.style} hoverStyle="background:rgba(255,255,255,.05)">
-              <span style={nav.numStyle}>{nav.numeral}</span><span>{nav.label}</span>
+              {v.appleStyle ? <TabIcon name={nav.screen} size={16} /> : <span style={nav.numStyle}>{nav.numeral}</span>}<span>{nav.label}</span>
               <span style={css(`margin-left:auto;font:400 9px ${M};color:var(--nv-ink40)`)}>{nav.count}</span>
             </Interactive>
           ))}
@@ -50,7 +51,7 @@ export function Sidebar({ v }) {
         <div style={css("display:flex;flex-direction:column;gap:2px")}>
           {v.navSystem.map((nav) => (
             <Interactive key={nav.label} onClick={nav.go} base={nav.style} hoverStyle="background:rgba(255,255,255,.05)">
-              <span style={nav.numStyle}>{nav.numeral}</span><span>{nav.label}</span>
+              {v.appleStyle ? <TabIcon name={nav.screen} size={16} /> : <span style={nav.numStyle}>{nav.numeral}</span>}<span>{nav.label}</span>
             </Interactive>
           ))}
         </div>

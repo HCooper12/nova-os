@@ -10,9 +10,9 @@ import { useDictation } from '../useDictation.js';
 // "proposed rule" banner implement graduated autonomy: Nova earns trust from
 // the history and proposes its own promotion — you ratify.
 
-const M = "'IBM Plex Mono',monospace";
-const R = "'Rajdhani',sans-serif";
-const S = "'Instrument Serif',serif";
+const M = "var(--nv-font-mono)";
+const R = "var(--nv-font-ui)";
+const S = "var(--nv-font-serif)";
 
 function RouteBadge({ route, confidence }) {
   if (!route) return null;
@@ -51,13 +51,13 @@ export function Inbox({ v }) {
     <div style={v.wrapInbox} data-screen-label="Inbox">
       <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>
         <div style={css("display:flex;align-items:center;gap:14px")}>
-          <span style={css("font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--nv-acc)")}>V.</span>
+          <span style={css("font:500 11px var(--nv-font-mono);letter-spacing:.14em;color:var(--nv-acc)")}>V.</span>
           <span style={css("width:50px;height:1px;background:linear-gradient(90deg,var(--nv-acc-border),transparent)")}></span>
-          <span style={css("font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.32em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>SELF · INBOX</span>
+          <span style={css("font:500 10px var(--nv-font-mono);letter-spacing:.32em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>SELF · INBOX</span>
         </div>
-        <span style={css("font:400 10px 'IBM Plex Mono',monospace;letter-spacing:.12em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.inboxHeaderLabel}</span>
+        <span style={css("font:400 10px var(--nv-font-mono);letter-spacing:.12em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.inboxHeaderLabel}</span>
       </div>
-      <h1 style={css("margin:18px 0 0;font:700 30px/1.1 'Rajdhani',sans-serif;letter-spacing:.02em")}>Drop the thought, <span style={css("font:italic 400 27px 'Instrument Serif',serif;color:var(--nv-gold)")}>Nova files it.</span></h1>
+      <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Drop the thought, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>Nova files it.</span></h1>
 
       {/* capture composer */}
       <div className="nv-pane" style={{ marginTop: '20px', padding: '18px 20px' }}>
@@ -71,7 +71,7 @@ export function Inbox({ v }) {
           onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit(); }}
           placeholder={v.inboxConnected ? 'Anything — "buy tomatoes", "idea: cold open with the drone shot", "ate a protein bar"…' : 'Connect a backend in Settings to start capturing'}
           disabled={!v.inboxConnected}
-          style={css(`margin-top:12px;width:100%;box-sizing:border-box;height:84px;resize:vertical;background:rgba(0,0,0,.3);border:1px solid ${dict.on ? 'var(--nv-acc-border)' : 'color-mix(in srgb, var(--nv-ink) 12%, transparent)'};border-radius:9px;padding:12px 14px;color:var(--nv-ink);font:500 14px 'Rajdhani',sans-serif;line-height:1.5;outline:none`)}
+          style={css(`margin-top:12px;width:100%;box-sizing:border-box;height:84px;resize:vertical;background:rgba(0,0,0,.3);border:1px solid ${dict.on ? 'var(--nv-acc-border)' : 'color-mix(in srgb, var(--nv-ink) 12%, transparent)'};border-radius:9px;padding:12px 14px;color:var(--nv-ink);font:500 14px var(--nv-font-ui);line-height:1.5;outline:none`)}
         />
         <div style={css("margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap")}>
           {dict.supported && (

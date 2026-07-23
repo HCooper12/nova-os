@@ -6,19 +6,19 @@ export function ClaudeCode({ v }) {
     <div style={v.wrapCode} data-screen-label="Claude Code">
       <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>
         <div style={css("display:flex;align-items:center;gap:14px")}>
-          <span style={css("font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--nv-acc)")}>IV.</span>
+          <span style={css("font:500 11px var(--nv-font-mono);letter-spacing:.14em;color:var(--nv-acc)")}>IV.</span>
           <span style={css("width:50px;height:1px;background:linear-gradient(90deg,var(--nv-acc-border),transparent)")}></span>
-          <span style={css("font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.32em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>AGENT · CLAUDE CODE</span>
+          <span style={css("font:500 10px var(--nv-font-mono);letter-spacing:.32em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>AGENT · CLAUDE CODE</span>
         </div>
-        <span style={css("font:400 10px 'IBM Plex Mono',monospace;letter-spacing:.12em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>READ + EDIT FILES · NO SHELL ACCESS</span>
+        <span style={css("font:400 10px var(--nv-font-mono);letter-spacing:.12em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>READ + EDIT FILES · NO SHELL ACCESS</span>
       </div>
       <div style={css("display:flex;align-items:baseline;justify-content:space-between;margin-top:18px;gap:14px;flex-wrap:wrap")}>
-        <h1 style={css("margin:0;font:700 30px/1.1 'Rajdhani',sans-serif;letter-spacing:.02em")}>Claude, <span style={css("font:italic 400 27px 'Instrument Serif',serif;color:var(--nv-gold)")}>direct line.</span></h1>
+        <h1 style={css("margin:0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Claude, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>direct line.</span></h1>
         <div style={css("display:flex;gap:10px")}>
           <Interactive
             as="span"
             onClick={v.sparBusy ? undefined : v.startSpar}
-            base={{ cursor: 'pointer', font: "500 10.5px 'IBM Plex Mono',monospace", padding: '9px 16px', border: '1px solid color-mix(in srgb, var(--nv-mg) 45%, transparent)', borderRadius: '8px', color: 'var(--nv-mg)', background: 'color-mix(in srgb, var(--nv-mg) 06%, transparent)', opacity: v.sparBusy ? 0.55 : 1 }}
+            base={{ cursor: 'pointer', font: "500 10.5px var(--nv-font-mono)", padding: '9px 16px', border: '1px solid color-mix(in srgb, var(--nv-mg) 45%, transparent)', borderRadius: '8px', color: 'var(--nv-mg)', background: 'color-mix(in srgb, var(--nv-mg) 06%, transparent)', opacity: v.sparBusy ? 0.55 : 1 }}
             hoverStyle="background:color-mix(in srgb, var(--nv-mg) 14%, transparent)"
           >
             {v.sparBusy ? '⚔ Breaker running…' : '⚔ Spar — send the Breaker'}
@@ -26,7 +26,7 @@ export function ClaudeCode({ v }) {
           <Interactive
             as="span"
             onClick={v.newCodeSession}
-            base="cursor:pointer;font:500 10.5px 'IBM Plex Mono',monospace;padding:9px 16px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);border-radius:8px;color:color-mix(in srgb, var(--nv-ink) 60%, transparent)"
+            base="cursor:pointer;font:500 10.5px var(--nv-font-mono);padding:9px 16px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);border-radius:8px;color:color-mix(in srgb, var(--nv-ink) 60%, transparent)"
             hoverStyle="color:var(--nv-ink)"
           >
             + New session
@@ -34,7 +34,7 @@ export function ClaudeCode({ v }) {
           <Interactive
             as="span"
             onClick={v.openIngestModal}
-            base="cursor:pointer;font:500 10.5px 'IBM Plex Mono',monospace;padding:9px 16px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);border-radius:8px;color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 06%, transparent)"
+            base="cursor:pointer;font:500 10.5px var(--nv-font-mono);padding:9px 16px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);border-radius:8px;color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 06%, transparent)"
             hoverStyle="background:color-mix(in srgb, var(--nv-gold) 14%, transparent)"
           >
             ⇪ Add to vault
@@ -45,13 +45,13 @@ export function ClaudeCode({ v }) {
         <div style={v.consoleCard}>
           <div style={css("display:flex;align-items:center;gap:9px;padding:12px 18px;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)")}>
             <span style={css("width:9px;height:9px;border-radius:50%;background:var(--nv-warn)")}></span><span style={css("width:9px;height:9px;border-radius:50%;background:var(--nv-gold)")}></span><span style={css("width:9px;height:9px;border-radius:50%;background:#5aa87c")}></span>
-            <span style={css("margin-left:8px;font:400 10.5px 'IBM Plex Mono',monospace;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>nova — claude-code · {v.codeWorkspace === 'repo' ? '~/nova-os' : '~/vault'}</span>
-            <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '7px', font: "500 9.5px 'IBM Plex Mono',monospace", color: v.codeConnected ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 35%, transparent)' }}>
+            <span style={css("margin-left:8px;font:400 10.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>nova — claude-code · {v.codeWorkspace === 'repo' ? '~/nova-os' : '~/vault'}</span>
+            <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '7px', font: "500 9.5px var(--nv-font-mono)", color: v.codeConnected ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 35%, transparent)' }}>
               <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: v.codeConnected ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 30%, transparent)', animation: v.codeConnected ? 'novaPulse 2s infinite' : 'none' }}></span>
               {v.codeConnected ? 'CONNECTED' : 'NOT CONNECTED'}
             </span>
           </div>
-          <div style={css("flex:1;overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:14px;font:400 12.5px/1.7 'IBM Plex Mono',monospace")}>
+          <div style={css("flex:1;overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:14px;font:400 12.5px/1.7 var(--nv-font-mono)")}>
             {!v.codeConnected && (
               <div style={css("color:color-mix(in srgb, var(--nv-ink) 40%, transparent);font-style:italic")}>Connect a backend in Settings to talk to Claude here.</div>
             )}
@@ -73,15 +73,15 @@ export function ClaudeCode({ v }) {
               onKeyDown={v.codeKey}
               disabled={v.codeBusy}
               placeholder="Message Claude… (⏎ to send)"
-              base="flex:1;background:rgba(0,0,0,.35);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font:400 12.5px 'IBM Plex Mono',monospace;outline:none"
+              base="flex:1;background:rgba(0,0,0,.35);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font:400 12.5px var(--nv-font-mono);outline:none"
               focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
             />
-            <Interactive as="span" onClick={v.codeBusy ? undefined : v.sendCode} base={{ cursor: 'pointer', display: 'flex', alignItems: 'center', font: "500 11px 'IBM Plex Mono',monospace", padding: '0 16px', borderRadius: '9px', background: 'var(--nv-gold)', color: '#1a1322', opacity: v.codeBusy ? .6 : 1 }} hoverStyle="background:color-mix(in srgb, var(--nv-gold) 85%, white)">RUN</Interactive>
+            <Interactive as="span" onClick={v.codeBusy ? undefined : v.sendCode} base={{ cursor: 'pointer', display: 'flex', alignItems: 'center', font: "500 11px var(--nv-font-mono)", padding: '0 16px', borderRadius: '9px', background: 'var(--nv-gold)', color: '#1a1322', opacity: v.codeBusy ? .6 : 1 }} hoverStyle="background:color-mix(in srgb, var(--nv-gold) 85%, white)">RUN</Interactive>
           </div>
         </div>
         <div style={css("display:flex;flex-direction:column;gap:14px")}>
           <div style={css("border:1px solid var(--nv-edge);border-radius:var(--nv-radius);padding:16px 18px;background:var(--nv-glass);box-shadow:inset 0 1px 0 var(--nv-spec)")}>
-            <div style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>SESSION</div>
+            <div style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>SESSION</div>
             <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:12px;font-size:12.5px;color:color-mix(in srgb, var(--nv-ink) 80%, transparent)")}>
               <div>
                 <div style={css("color:color-mix(in srgb, var(--nv-ink) 50%, transparent);margin-bottom:5px")}>Model</div>
@@ -99,7 +99,7 @@ export function ClaudeCode({ v }) {
                   <Interactive
                     as="span"
                     onClick={() => v.setCodeWorkspace('repo')}
-                    base={{ cursor: 'pointer', flex: 1, textAlign: 'center', font: "500 10.5px 'IBM Plex Mono',monospace", padding: '7px 0', borderRadius: '7px', border: v.codeWorkspace === 'repo' ? '1px solid color-mix(in srgb, var(--nv-gold) 50%, transparent)' : '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', color: v.codeWorkspace === 'repo' ? 'var(--nv-gold)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)', background: v.codeWorkspace === 'repo' ? 'color-mix(in srgb, var(--nv-gold) 08%, transparent)' : 'transparent' }}
+                    base={{ cursor: 'pointer', flex: 1, textAlign: 'center', font: "500 10.5px var(--nv-font-mono)", padding: '7px 0', borderRadius: '7px', border: v.codeWorkspace === 'repo' ? '1px solid color-mix(in srgb, var(--nv-gold) 50%, transparent)' : '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', color: v.codeWorkspace === 'repo' ? 'var(--nv-gold)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)', background: v.codeWorkspace === 'repo' ? 'color-mix(in srgb, var(--nv-gold) 08%, transparent)' : 'transparent' }}
                     hoverStyle={{ border: '1px solid color-mix(in srgb, var(--nv-gold) 50%, transparent)' }}
                   >
                     Nova OS
@@ -107,7 +107,7 @@ export function ClaudeCode({ v }) {
                   <Interactive
                     as="span"
                     onClick={() => v.setCodeWorkspace('vault')}
-                    base={{ cursor: 'pointer', flex: 1, textAlign: 'center', font: "500 10.5px 'IBM Plex Mono',monospace", padding: '7px 0', borderRadius: '7px', border: v.codeWorkspace === 'vault' ? '1px solid color-mix(in srgb, var(--nv-gold) 50%, transparent)' : '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', color: v.codeWorkspace === 'vault' ? 'var(--nv-gold)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)', background: v.codeWorkspace === 'vault' ? 'color-mix(in srgb, var(--nv-gold) 08%, transparent)' : 'transparent' }}
+                    base={{ cursor: 'pointer', flex: 1, textAlign: 'center', font: "500 10.5px var(--nv-font-mono)", padding: '7px 0', borderRadius: '7px', border: v.codeWorkspace === 'vault' ? '1px solid color-mix(in srgb, var(--nv-gold) 50%, transparent)' : '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', color: v.codeWorkspace === 'vault' ? 'var(--nv-gold)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)', background: v.codeWorkspace === 'vault' ? 'color-mix(in srgb, var(--nv-gold) 08%, transparent)' : 'transparent' }}
                     hoverStyle={{ border: '1px solid color-mix(in srgb, var(--nv-gold) 50%, transparent)' }}
                   >
                     Vault
@@ -121,7 +121,7 @@ export function ClaudeCode({ v }) {
             </div>
           </div>
           <div style={css("border:1px solid var(--nv-edge);border-radius:var(--nv-radius);padding:16px 18px;background:var(--nv-glass);box-shadow:inset 0 1px 0 var(--nv-spec)")}>
-            <div style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>CAN / CAN'T</div>
+            <div style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>CAN / CAN'T</div>
             <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:8px;font-size:12px;line-height:1.5")}>
               <div style={css("color:color-mix(in srgb, var(--nv-ink) 75%, transparent)")}>✓ Read and edit real files in the selected workspace</div>
               <div style={css("color:color-mix(in srgb, var(--nv-ink) 75%, transparent)")}>✓ Remembers the conversation until you start a new session</div>

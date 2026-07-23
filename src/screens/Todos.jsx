@@ -1,8 +1,8 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 
-const M = "'IBM Plex Mono',monospace";
-const R = "'Rajdhani',sans-serif";
+const M = "var(--nv-font-mono)";
+const R = "var(--nv-font-ui)";
 
 // The To-Do screen — the vault To-Do page as a checklist. Open items first,
 // done items dimmed below; the composer writes the same line format the

@@ -6,13 +6,13 @@ export function Shopping({ v }) {
     <div style={v.wrapShopping} data-screen-label="Shopping List">
       <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>
         <div style={css("display:flex;align-items:center;gap:14px")}>
-          <span style={css("font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--nv-acc)")}>VII.</span>
+          <span style={css("font:500 11px var(--nv-font-mono);letter-spacing:.14em;color:var(--nv-acc)")}>VII.</span>
           <span style={css("width:50px;height:1px;background:linear-gradient(90deg,var(--nv-acc-border),transparent)")}></span>
-          <span style={css("font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.32em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>VAULT · SHOPPING LIST</span>
+          <span style={css("font:500 10px var(--nv-font-mono);letter-spacing:.32em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>VAULT · SHOPPING LIST</span>
         </div>
-        <span style={css("font:400 10px 'IBM Plex Mono',monospace;letter-spacing:.12em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.shoppingHeaderLabel}</span>
+        <span style={css("font:400 10px var(--nv-font-mono);letter-spacing:.12em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.shoppingHeaderLabel}</span>
       </div>
-      <h1 style={css("margin:18px 0 0;font:700 30px/1.1 'Rajdhani',sans-serif;letter-spacing:.02em")}>Shop <span style={css("font:italic 400 27px 'Instrument Serif',serif;color:var(--nv-gold)")}>once, cleanly.</span></h1>
+      <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Shop <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>once, cleanly.</span></h1>
 
       <div style={css("margin-top:20px;display:flex;gap:8px;align-items:flex-start")}>
         <textarea
@@ -20,12 +20,12 @@ export function Shopping({ v }) {
           onChange={v.setShoppingAddInput}
           disabled={v.shoppingAddBusy}
           placeholder={"Add an item… one per line for several\ne.g. spatula\npancake mix\nsoft drink"}
-          style={css("flex:1;box-sizing:border-box;height:60px;resize:vertical;background:rgba(0,0,0,.3);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:10px 14px;color:var(--nv-ink);font-size:13px;font-family:'Rajdhani',sans-serif;line-height:1.5;outline:none")}
+          style={css("flex:1;box-sizing:border-box;height:60px;resize:vertical;background:rgba(0,0,0,.3);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:10px 14px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-ui);line-height:1.5;outline:none")}
         />
         <Interactive
           as="span"
           onClick={v.shoppingAddBusy ? undefined : v.submitShoppingAdd}
-          base={{ cursor: 'pointer', display: 'flex', alignItems: 'center', height: '60px', font: "500 10.5px 'IBM Plex Mono',monospace", padding: '0 16px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1322', opacity: v.shoppingAddBusy ? .6 : 1 }}
+          base={{ cursor: 'pointer', display: 'flex', alignItems: 'center', height: '60px', font: "500 10.5px var(--nv-font-mono)", padding: '0 16px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1322', opacity: v.shoppingAddBusy ? .6 : 1 }}
           hoverStyle={{ background: 'color-mix(in srgb, var(--nv-gold) 85%, white)' }}
         >
           {v.shoppingAddBusy ? 'ADDING…' : '+ ADD'}
@@ -43,7 +43,7 @@ export function Shopping({ v }) {
         <div style={css("margin-top:26px;display:flex;flex-direction:column;gap:24px")}>
           {v.shoppingCategories.map((cat) => (
             <div key={cat.name}>
-              <div style={css("font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:var(--nv-gold)")}>{cat.name.toUpperCase()}</div>
+              <div style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:var(--nv-gold)")}>{cat.name.toUpperCase()}</div>
               <div style={css("margin-top:10px;display:flex;flex-direction:column")}>
                 {cat.items.map((item) => (
                   <Interactive
@@ -73,7 +73,7 @@ export function Shopping({ v }) {
           <Interactive
             as="span"
             onClick={v.confirmShoppingCompletion}
-            base="cursor:pointer;font:500 11px 'IBM Plex Mono',monospace;padding:10px 18px;border-radius:8px;background:var(--nv-cy);color:#0a2830"
+            base="cursor:pointer;font:500 11px var(--nv-font-mono);padding:10px 18px;border-radius:8px;background:var(--nv-cy);color:#0a2830"
             hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 80%, white)' }}
           >
             Confirm completion — {v.shoppingCheckedCount} collected

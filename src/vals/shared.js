@@ -5,7 +5,7 @@
 // Memory Galaxy, and canvas cannot resolve CSS custom properties.
 export const NOTE_TYPE_COLOR = { concept: '#d8b573', entity: '#e08f6f', topic: '#8a6ad1', source: '#6be5f5', journal: '#5aa87c', analysis: '#ece5da', raw: 'rgba(236,229,218,.5)' };
 
-export const mono = "'IBM Plex Mono',monospace";
+export const mono = "var(--nv-font-mono)";
 
 // The agent roster (still a concept feature): `on` marks the three whose
 // domains are genuinely wired to real data today — Commander (calendar +

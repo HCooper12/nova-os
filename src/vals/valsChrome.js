@@ -1,4 +1,4 @@
-import { NOVA_THEMES, NOVA_CORES } from '../theme.js';
+import { NOVA_THEMES, NOVA_CORES, NOVA_STYLES } from '../theme.js';
 import { TAB_META, tabLabel, romanFor } from '../tabOrder.js';
 import { AGENTS, NOTE_TYPE_COLOR } from './shared.js';
 
@@ -12,14 +12,14 @@ export function valsChrome(app, ctx) {
   const { demoMode, isOffline, go, userName, wakeWord, usingLiveRecipes, usingLiveWorkouts, liveRoutines, usingLiveNotes, journalDays, shoppingItems, statusChip, agentsLiveCount, inboxPendingCount } = ctx;
 
   const navStyle = (act) => ({ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '8px', cursor: 'pointer',
-    fontFamily: "'Rajdhani',sans-serif", fontWeight: 600, fontSize: '14px', letterSpacing: '.02em',
+    fontFamily: "var(--nv-font-ui)", fontWeight: 600, fontSize: '14px', letterSpacing: '.02em',
     color: act ? 'var(--nv-acc)' : 'var(--nv-ink60)',
     background: act ? 'var(--nv-acc-bg)' : 'none',
     border: act ? '1px solid var(--nv-acc-border)' : '1px solid transparent',
     boxShadow: act ? 'var(--nv-glow-tab)' : 'none',
     textShadow: act ? 'var(--nv-tsh-tab)' : 'none' });
-  const numStyle = (act) => ({ fontFamily: "'IBM Plex Mono',monospace", fontSize: '9px', width: '20px', flex: 'none', color: act ? 'var(--nv-acc)' : 'var(--nv-ink40)' });
-  const mkNav = (label, numeral, screen, count) => ({ label, numeral, count, go: go(screen), style: navStyle(st.screen === screen), numStyle: numStyle(st.screen === screen) });
+  const numStyle = (act) => ({ fontFamily: "var(--nv-font-mono)", fontSize: '9px', width: '20px', flex: 'none', color: act ? 'var(--nv-acc)' : 'var(--nv-ink40)' });
+  const mkNav = (label, numeral, screen, count) => ({ label, numeral, screen, count, go: go(screen), style: navStyle(st.screen === screen), numStyle: numStyle(st.screen === screen) });
 
   // palette
   const cmds = [
@@ -107,12 +107,12 @@ export function valsChrome(app, ctx) {
   const tabOrder = (st.tabOrder && st.tabOrder.length) ? st.tabOrder : TAB_META.map((t) => t[0]);
   const tabs = tabOrder.map((screen, i) => {
     const act = st.screen === screen;
-    return { num: romanFor(i), label: tabLabel(screen), go: go(screen), active: act,
+    return { num: romanFor(i), label: tabLabel(screen), screen, go: go(screen), active: act,
       // the mobile UI had NO pending signal at all — the badge the app icon
       // shows must exist inside the app too
       count: screen === 'inbox' && inboxPendingCount > 0 ? inboxPendingCount : null,
       style: { flex: 'none', minWidth: '52px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', padding: '5px 9px', cursor: 'pointer', borderRadius: '9px', color: act ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: act ? 'var(--nv-acc-bg)' : 'none', textShadow: act ? 'var(--nv-tsh-tab)' : 'none' },
-      numStyle: { font: "500 8.5px 'IBM Plex Mono',monospace", letterSpacing: '.06em', color: act ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 32%, transparent)' } };
+      numStyle: { font: "500 8.5px var(--nv-font-mono)", letterSpacing: '.06em', color: act ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 32%, transparent)' } };
   });
 
   // sidebar status card — same connection truth as the status chip, phrased
@@ -196,6 +196,10 @@ export function valsChrome(app, ctx) {
     stopClick: (e) => e.stopPropagation(),
 
     // appearance (Settings)
+    // style is the design language (Command Core HUD vs Apple calm); it
+    // composes with theme (palette) — the silhouette icons key off it too
+    appleStyle: st.novaStyle === 'apple',
+    novaStyleOptions: NOVA_STYLES.map((s) => ({ ...s, active: st.novaStyle === s.value, pick: () => app.setNovaStyle(s.value) })),
     novaTheme: st.novaTheme,
     novaThemeOptions: NOVA_THEMES.map((t) => ({ ...t, active: st.novaTheme === t.value, pick: () => app.setNovaTheme(t.value) })),
     calmMode: st.calmMode,
