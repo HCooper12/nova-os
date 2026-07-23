@@ -1,8 +1,10 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 
-const numInputStyle = { width: '38px', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '5px', padding: '4px 2px', color: 'var(--nv-ink)', fontSize: '11.5px', fontFamily: "'IBM Plex Mono',monospace", textAlign: 'center', outline: 'none' };
-const setInputStyle = { width: '64px', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '6px', padding: '6px 8px', color: 'var(--nv-ink)', fontSize: '12.5px', fontFamily: "'IBM Plex Mono',monospace", outline: 'none', boxSizing: 'border-box' };
+// Inputs render at 16px (global rule in index.css) so iOS never zoom-jumps on
+// focus — widths/padding here are sized for that, not the old 11–12px text.
+const numInputStyle = { width: '48px', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '6px', padding: '7px 4px', color: 'var(--nv-ink)', fontSize: '16px', fontFamily: "'IBM Plex Mono',monospace", textAlign: 'center', outline: 'none' };
+const setInputStyle = { width: '64px', background: 'rgba(0,0,0,.3)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '6px', padding: '8px 8px', color: 'var(--nv-ink)', fontSize: '16px', fontFamily: "'IBM Plex Mono',monospace", outline: 'none', boxSizing: 'border-box' };
 
 function ExercisePicker({ v }) {
   return (

@@ -7,9 +7,21 @@
 html, body, #root { margin: 0; height: 100%; }
 /* Native tap feel: kill the grey tap-flash WebKit paints over every clickable
    (Interactive.jsx now supplies a real pressed state instead), and stop
-   double-tap-zoom gesture detection on controls so taps register instantly. */
-html { -webkit-tap-highlight-color: transparent; }
+   double-tap-zoom gesture detection on controls so taps register instantly.
+   text-size-adjust stops iOS silently rescaling text on rotation/zoom (a
+   reflow that reads as the page "jumping"); overscroll-behavior kills the
+   document-level rubber-band so the page can't drift out from under a scroll. */
+html { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+html, body { overscroll-behavior: none; }
 button, a, label, select, input, textarea, [role="button"] { touch-action: manipulation; }
+/* iOS auto-zooms into any focused text field whose rendered size is under 16px
+   and never zooms back — the pinch-to-escape annoyance, and the root of most
+   of the "page won't stay put" feel. A >=16px size is the one fix Apple
+   honours. Force it on every text-entry control (the app sizes many smaller
+   inline, so !important is required to win over inline styles); the compact
+   HUD look is carried by labels and mono text, not the inputs. Checkbox /
+   radio / range ignore font-size, so this is a no-op for them. */
+input, textarea, select { font-size: 16px !important; }
 body {
   background: var(--nv-void, #06070d);
   font-family: 'Rajdhani', 'Instrument Sans', system-ui, sans-serif;
