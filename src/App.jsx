@@ -278,18 +278,20 @@ export default class App extends Component {
 
   componentDidMount() {
     if (import.meta.env.DEV) window.__novaApp = this; // dev-only introspection hook
-    // The boot screen stays up until BOTH the minimum splash time has
-    // elapsed AND (if a backend is configured) the first real-data fetch has
-    // finished — otherwise it reveals demo content for a moment before the
-    // real data swaps in behind it. Capped so an unreachable backend can't
-    // hang the splash forever.
-    const minBootTime = new Promise((resolve) => { this.bootT = setTimeout(resolve, 1700); });
-    let dataReady = Promise.resolve();
+    // Boot policy — stale-while-revalidate: a returning session with cached
+    // real data boots straight onto it after a launch-screen blink, and the
+    // refresh swaps live truth in behind the status chip (CONNECTING… → LIVE
+    // or the offline banner). Holding the splash is only for cases where
+    // dropping it early would flash the WRONG content: a first-ever connect
+    // (no cache yet — wait for real data, capped so an unreachable backend
+    // can't hang the splash forever) and demo mode (the scripted intro).
     const bootConn = getConnection();
+    const cached = bootConn ? loadLiveCache() : null;
+    const minBootTime = new Promise((resolve) => { this.bootT = setTimeout(resolve, cached ? 350 : 1700); });
+    let dataReady = Promise.resolve();
     if (bootConn) {
       // Hydrate last-known-good data immediately so an unreachable backend
       // shows real (stale) content behind the offline banner, never demo data.
-      const cached = loadLiveCache();
       const hydrate = { settingsBaseUrl: bootConn.baseUrl, settingsToken: bootConn.token };
       if (cached) {
         for (const key of CACHED_LIVE_KEYS) if (cached.slices[key] !== undefined) hydrate[key] = cached.slices[key];
@@ -297,8 +299,10 @@ export default class App extends Component {
       }
       this.setState(hydrate);
       const fetchDone = this.refreshLiveData();
-      const fetchTimeout = new Promise((resolve) => setTimeout(resolve, 5000));
-      dataReady = Promise.race([fetchDone, fetchTimeout]);
+      if (!cached) {
+        const fetchTimeout = new Promise((resolve) => setTimeout(resolve, 5000));
+        dataReady = Promise.race([fetchDone, fetchTimeout]);
+      }
     }
     Promise.all([minBootTime, dataReady]).then(() => this.setState({ booted: true }));
     if (this.state.restoredSession) {
