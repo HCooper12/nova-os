@@ -2,9 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- Scale is locked: this is an installed daily-driver PWA, not a document.
+         minimum/maximum-scale + user-scalable=no stop the pinch that shrank the
+         app into the corner and exposed empty space (and belt-and-braces on the
+         focus zoom, already handled by 16px inputs). iOS honours this in
+         standalone mode; system accessibility zoom is unaffected. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="description" content="Nova OS — personal AI operating system: mission control, voice, memory galaxy, agents and vault." />
-    <meta name="theme-color" content="#120d18" />
+    <meta name="theme-color" content="#06070d" />
+    <!-- Paint the boot backdrop from the very first frame, before the app's CSS
+         or JS load, so opening Nova never flashes browser-default white — the
+         loading screen is the only thing seen before the app itself. Literal
+         hex (theme vars aren't defined yet); mirrors Boot.jsx's gradient. -->
+    <style>
+      html { background: #06070d; }
+      body { margin: 0; background: radial-gradient(900px 560px at 50% 42%, #2a1d38 0%, #06070d 70%) no-repeat #06070d; }
+    </style>
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
