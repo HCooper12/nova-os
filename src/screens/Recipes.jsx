@@ -1,6 +1,28 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 
+// Apple-layout twin for the eaten-today strip: same dayMacros object,
+// rendered as four stat tiles instead of the inline HUD strip.
+function EatenTiles({ m }) {
+  const tiles = [
+    { k: 'P', val: `${m.p}${m.proteinTarget ? '/' + m.proteinTarget : ''}`, sub: m.proteinPct != null ? `${m.proteinPct}% of floor` : 'grams', color: 'var(--nv-cy)' },
+    { k: 'C', val: String(m.c), sub: 'grams', color: 'var(--nv-gold)' },
+    { k: 'F', val: String(m.f), sub: 'grams', color: 'var(--nv-vi)' },
+    { k: 'KCAL', val: `${m.kcal}${m.targetKcal ? '/' + m.targetKcal : ''}`, sub: m.targetKcal ? 'vs target' : 'eaten', color: 'var(--nv-good)' },
+  ];
+  return (
+    <div className="nv-pane" style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '2px', padding: '10px 8px' }}>
+      {tiles.map((t) => (
+        <div key={t.k} style={{ padding: '4px 10px' }}>
+          <div style={{ font: '600 10px var(--nv-font-ui)', letterSpacing: '.06em', color: 'var(--nv-ink60)' }}>{t.k}</div>
+          <div style={{ font: '700 19px var(--nv-font-ui)', letterSpacing: '-.02em', marginTop: '2px', fontVariantNumeric: 'tabular-nums', color: t.color }}>{t.val}</div>
+          <div style={{ font: '400 9.5px var(--nv-font-mono)', color: 'var(--nv-ink40)' }}>{t.sub}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function Recipes({ v }) {
   return (
     <div style={v.wrapRecipes} data-screen-label="Recipes">
@@ -15,7 +37,8 @@ export function Recipes({ v }) {
       <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Recipes, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>macros first.</span></h1>
 
       {/* today so far — everything actually eaten, at a glance */}
-      {v.dayMacros && (
+      {v.dayMacros && v.structured && <EatenTiles m={v.dayMacros} />}
+      {v.dayMacros && !v.structured && (
         <div style={css("margin-top:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border:1px solid color-mix(in srgb, var(--nv-cy) 22%, transparent);border-radius:12px;padding:11px 16px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-cy) 05%, transparent),transparent)")}>
           <span style={css("font:500 9px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-cy);flex:none")}>EATEN TODAY</span>
           {v.dayMacros.proteinPct != null && (
@@ -33,7 +56,49 @@ export function Recipes({ v }) {
         </div>
       )}
 
-      {v.rotationVisible && (
+      {v.rotationVisible && v.structured && (
+        /* Apple layout: rotation as grouped tick-rows — check toggles eaten,
+           name opens the recipe, × clears; same slot handlers throughout */
+        <section style={{ marginTop: '18px' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', margin: '0 6px 7px', flexWrap: 'wrap' }}>
+            <span style={{ font: '600 12px var(--nv-font-ui)', letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--nv-ink40)' }}>Today's rotation</span>
+            <span style={css("font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
+              <span style={css("color:var(--nv-cy)")}>{v.rotationTotals.p}P</span> · <span style={css("color:var(--nv-gold)")}>{v.rotationTotals.c}C</span> · <span style={css("color:var(--nv-vi)")}>{v.rotationTotals.f}F</span> · <span style={css("color:var(--nv-good)")}>{v.rotationTotals.kcal} kcal</span>{v.rotationTargetKcal ? ` / ${v.rotationTargetKcal}` : ''}{v.rotationProteinFloor ? ` · floor ${v.rotationProteinFloor}g` : ''}
+            </span>
+          </div>
+          <div className="nv-pane" style={{ padding: '4px 0', overflow: 'hidden' }}>
+            {v.rotationSlots.map((s, i) => (
+              <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 16px', borderTop: i === 0 ? 'none' : '1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)' }}>
+                {s.recipeName ? (
+                  <Interactive as="span" onClick={s.toggleConsumed} aria-label={s.consumed ? 'Mark not eaten' : 'Mark eaten'}
+                    base={{ cursor: 'pointer', flex: 'none', width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px',
+                      border: s.consumed ? 'none' : '1.5px solid color-mix(in srgb, var(--nv-ink) 28%, transparent)',
+                      background: s.consumed ? 'color-mix(in srgb, var(--nv-good) 22%, transparent)' : 'transparent',
+                      color: s.consumed ? 'var(--nv-good)' : 'transparent' }}
+                    hoverStyle={{ borderColor: 'var(--nv-good)' }}>✓</Interactive>
+                ) : (
+                  <span style={{ flex: 'none', width: '24px', height: '24px', borderRadius: '50%', border: '1.5px dashed color-mix(in srgb, var(--nv-ink) 18%, transparent)' }}></span>
+                )}
+                <span style={{ minWidth: 0, flex: 1 }}>
+                  {s.recipeName ? (
+                    <Interactive as="span" onClick={s.open} base={{ cursor: 'pointer', display: 'block', font: '550 14.5px var(--nv-font-ui)', color: 'var(--nv-ink)', textDecoration: s.consumed ? 'line-through' : 'none', opacity: s.consumed ? 0.6 : 1 }} hoverStyle={{ color: 'var(--nv-gold)' }}>{s.recipeName}</Interactive>
+                  ) : (
+                    <span style={{ display: 'block', font: '450 14px var(--nv-font-ui)', color: 'var(--nv-ink40)' }}>Not set</span>
+                  )}
+                  <span style={{ display: 'block', marginTop: '1px', font: '400 11px var(--nv-font-mono)', color: 'var(--nv-ink40)' }}>
+                    {s.name}{s.recipeName ? <> · <span style={css("color:var(--nv-cy)")}>{s.p}P</span> <span style={css("color:var(--nv-gold)")}>{s.c}C</span> <span style={css("color:var(--nv-vi)")}>{s.f}F</span> <span style={css("color:var(--nv-good)")}>{s.kcal}kcal</span></> : ' · pick from the bank below'}
+                  </span>
+                </span>
+                {s.clear && <Interactive as="span" onClick={s.clear} base="cursor:pointer;flex:none;font-size:14px;color:color-mix(in srgb, var(--nv-ink) 30%, transparent);padding:4px" hoverStyle="color:var(--nv-warn)">×</Interactive>}
+              </div>
+            ))}
+            {v.rotationShowExtraButton && (
+              <Interactive as="div" onClick={v.showExtraMealSlot} base={{ cursor: 'pointer', padding: '10px 16px', borderTop: '1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)', font: '500 13px var(--nv-font-ui)', color: 'var(--nv-acc)' }} hoverStyle={{ background: 'rgba(255,255,255,.04)' }}>+ Add a 4th meal</Interactive>
+            )}
+          </div>
+        </section>
+      )}
+      {v.rotationVisible && !v.structured && (
         <div style={css("margin-top:18px;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);padding:16px 18px;background:var(--nv-glass);box-shadow:inset 0 1px 0 var(--nv-spec)")}>
           <div style={css("display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px")}>
             <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>TODAY'S ROTATION</span>

@@ -84,20 +84,41 @@ function RoutinesView({ v }) {
     <>
       <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Train, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>your way.</span></h1>
 
-      <div style={css("margin-top:20px;display:flex;gap:8px;overflow-x:auto;padding-bottom:4px")}>
-        {v.weekStrip.map((d) => (
-          <div key={d.day} style={d.style}>
-            <div style={{ font: "500 9px var(--nv-font-mono)", letterSpacing: '.14em', color: d.labelColor }}>{d.dayLabel}</div>
-            <select
-              value={d.value}
-              onChange={d.onChange}
-              style={{ marginTop: '6px', width: '100%', background: 'transparent', border: 'none', color: d.isToday ? 'var(--nv-cy)' : 'var(--nv-ink)', fontSize: '10.5px', fontFamily: "var(--nv-font-ui)", outline: 'none', textAlign: 'center' }}
-            >
-              {d.options.map((o) => <option key={o.value || 'rest'} value={o.value} style={{ background: '#141019', color: 'var(--nv-ink)' }}>{o.label}</option>)}
-            </select>
-          </div>
-        ))}
-      </div>
+      {v.structured ? (
+        /* Apple layout: the week as a grouped card — full-width rows fit real
+           16px pickers, where the compact chips truncated ("Pu…"). Same
+           weekStrip objects, same onChange writes. */
+        <div className="nv-pane" style={{ marginTop: '18px', padding: '4px 0', overflow: 'hidden' }}>
+          {v.weekStrip.map((d, i) => (
+            <div key={d.day} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '7px 16px', borderTop: i === 0 ? 'none' : '1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)' }}>
+              <span style={{ font: '600 12px var(--nv-font-ui)', letterSpacing: '.06em', textTransform: 'uppercase', width: '46px', flex: 'none', color: d.isToday ? 'var(--nv-cy)' : 'var(--nv-ink60)' }}>{d.dayLabel}</span>
+              <select
+                value={d.value}
+                onChange={d.onChange}
+                style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', color: d.isToday ? 'var(--nv-cy)' : 'var(--nv-ink)', fontFamily: 'var(--nv-font-ui)', fontWeight: 550, outline: 'none', textAlign: 'right', paddingRight: '2px' }}
+              >
+                {d.options.map((o) => <option key={o.value || 'rest'} value={o.value} style={{ background: '#141019', color: 'var(--nv-ink)' }}>{o.label}</option>)}
+              </select>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={css("margin-top:20px;display:flex;gap:8px;overflow-x:auto;padding-bottom:4px")}>
+          {v.weekStrip.map((d) => (
+            <div key={d.day} style={d.style}>
+              <div style={{ font: "500 9px var(--nv-font-mono)", letterSpacing: '.14em', color: d.labelColor }}>{d.dayLabel}</div>
+              <select
+                className="nv-compact"
+                value={d.value}
+                onChange={d.onChange}
+                style={{ marginTop: '6px', width: '100%', background: 'transparent', border: 'none', color: d.isToday ? 'var(--nv-cy)' : 'var(--nv-ink)', fontFamily: "var(--nv-font-ui)", outline: 'none', textAlign: 'center' }}
+              >
+                {d.options.map((o) => <option key={o.value || 'rest'} value={o.value} style={{ background: '#141019', color: 'var(--nv-ink)' }}>{o.label}</option>)}
+              </select>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* a workout you parked mid-set — pick it back up */}
       {v.resumeSession && (

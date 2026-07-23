@@ -22,6 +22,11 @@ button, a, label, select, input, textarea, [role="button"] { touch-action: manip
    HUD look is carried by labels and mono text, not the inputs. Checkbox /
    radio / range ignore font-size, so this is a no-op for them. */
 input, textarea, select { font-size: 16px !important; }
+/* Compact-select escape hatch: the week-strip pickers live in ~90px chips
+   where 16px truncates to gibberish ("Pu…"). The viewport is scale-locked
+   (index.html), so iOS focus-zoom is impossible regardless of font size —
+   this class exists for tight controls, later + more specific so it wins. */
+select.nv-compact { font-size: 11px !important; }
 body {
   background: var(--nv-void, #06070d);
   font-family: var(--nv-font-ui);
