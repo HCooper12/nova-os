@@ -1,7 +1,7 @@
 import { readFile, readdir, mkdir, rename } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { saveDay, logPushAttempt, HEALTH_METRICS } from './healthData.js';
+import { saveDay, logPushAttempt, pickKnownMetrics } from './healthData.js';
 
 // Store-and-forward health ingestion — the fix for "my Mac must be awake for
 // the push to work". The phone's Shortcut SAVES the same JSON dictionary as a
@@ -23,8 +23,8 @@ function normalizeRecords(parsed) {
       const { date: _d, metrics: _m, ...rest } = r;
       metrics = rest;
     }
-    const clean = {};
-    for (const k of HEALTH_METRICS) if (metrics[k] != null && !Number.isNaN(Number(metrics[k]))) clean[k] = Number(metrics[k]);
+    // same case-insensitive + impossible-zero cleaning as the URL push
+    const clean = pickKnownMetrics(metrics);
     return Object.keys(clean).length ? { date: r.date, metrics: clean } : null;
   }).filter(Boolean);
 }

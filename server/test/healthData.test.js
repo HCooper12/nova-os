@@ -51,6 +51,18 @@ test('impossible zeros are "no samples yet", never a stored reading', async () =
   assert.equal(after.hrv, 71.5, 'the real reading survives a no-samples re-push');
 });
 
+test('metric keys are case-insensitive — a hand-built Shortcut\'s "weightkg" still lands as weightKg', async () => {
+  // the exact bug from the real push: the phone dictionary sent lowercase keys
+  const saved = await saveDay('2025-12-29', { steps: 8000, weightkg: 78.4, vo2max: 47, RestingHeartRate: 53 });
+  assert.equal(saved.weightKg, 78.4, 'lowercase weightkg maps onto the canonical weightKg');
+  assert.equal(saved.vo2Max, 47);
+  assert.equal(saved.restingHeartRate, 53);
+
+  // exact case still wins when both somehow arrive
+  const both = await saveDay('2025-12-30', { weightKg: 80, weightkg: 999 });
+  assert.equal(both.weightKg, 80, 'the exact-case value takes precedence over the fallback');
+});
+
 test('a second save the same day merges instead of overwriting', async () => {
   await saveDay('2026-01-02', { steps: 5000 });
   const merged = await saveDay('2026-01-02', { hrv: 55 });

@@ -42,18 +42,33 @@ async function ensureDir() {
   await mkdir(HEALTH_DIR, { recursive: true });
 }
 
+// Extract the known numeric metrics from a raw incoming object. Two guards:
+//  - Case-insensitive keys: the phone Shortcut is hand-built, so a lowercase
+//    "weightkg" for "weightKg" (or "vo2max" for "vo2Max") must NOT silently
+//    drop the reading — exact case wins, then a lowercased fallback.
+//  - Impossible zeros dropped: iOS sums an empty sample list to 0, so "no
+//    HRV samples yet" arrives as hrv:0 — that's absence, not a measurement.
+// HEALTH_METRICS lowercased are all distinct, so the fallback can't collide.
+export function pickKnownMetrics(raw) {
+  const lower = {};
+  for (const [k, v] of Object.entries(raw || {})) lower[k.toLowerCase()] = v;
+  const out = {};
+  for (const key of HEALTH_METRICS) {
+    const val = raw?.[key] != null ? raw[key] : lower[key.toLowerCase()];
+    if (val == null || Number.isNaN(Number(val))) continue;
+    const num = Number(val);
+    if (num === 0 && IMPOSSIBLE_ZERO.has(key)) continue; // "no samples yet", not a reading
+    out[key] = num;
+  }
+  return out;
+}
+
 export async function saveDay(date, metrics) {
   if (!isValidDate(date)) throw new Error('date must be YYYY-MM-DD');
   await ensureDir();
   const full = path.join(HEALTH_DIR, `${date}.json`);
   const existing = existsSync(full) ? JSON.parse(await readFile(full, 'utf8')) : { date };
-  const cleaned = {};
-  for (const key of HEALTH_METRICS) {
-    if (metrics[key] == null || Number.isNaN(Number(metrics[key]))) continue;
-    const value = Number(metrics[key]);
-    if (value === 0 && IMPOSSIBLE_ZERO.has(key)) continue; // "no samples yet", not a reading
-    cleaned[key] = value;
-  }
+  const cleaned = pickKnownMetrics(metrics);
   const merged = { ...existing, ...cleaned, date, receivedAt: new Date().toISOString() };
   await writeFile(full, JSON.stringify(merged, null, 2), 'utf8');
   return merged;
