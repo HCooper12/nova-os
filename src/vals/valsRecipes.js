@@ -164,6 +164,13 @@ export function valsRecipes(app, ctx) {
     foodScanBusy: st.foodScanBusy,
     foodScanError: st.foodScanError,
     foodScanQuestion: st.foodScanQuestion,
+    // answering is optional — refine re-runs the same photos with the Q&A in
+    // the note; the filled fields stay saveable as-is either way
+    foodScanAnswer: st.foodScanAnswer,
+    setFoodScanAnswer: (e) => app.setState({ foodScanAnswer: e.target.value }),
+    foodScanCanAnswer: (st.foodScanQAPhotos || []).length > 0,
+    answerFoodScan: () => app.answerFoodScan(),
+    dismissFoodScanQuestion: () => app.dismissFoodScanQuestion(),
     // multi-photo staging — add several (labels and/or the food), then analyze together
     foodScanPhotos: (st.foodScanPhotos || []).map((src, i) => ({ src, remove: () => app.removeFoodScanPhoto(i) })),
     foodScanCount: (st.foodScanPhotos || []).length,

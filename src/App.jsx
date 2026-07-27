@@ -202,6 +202,9 @@ export default class App extends Component {
     liveFoodLog: null, liveFoodHistory: null, foodHistoryOpen: false,
     foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogBusy: false, foodLogError: null,
     foodScanNote: '', foodScanPhotos: [], foodScanBusy: false, foodScanError: null, foodScanQuestion: null, foodLogFillSource: null,
+    // a low-confidence scan's clarifying question stays ANSWERABLE: the photos
+    // + note that produced it are kept so an answer can re-run the same scan
+    foodScanQAPhotos: [], foodScanQANote: '', foodScanAnswer: '',
     barcodeScannerOpen: false,
     noteQuery: '', noteType: 'All', openNoteId: 'n1',
     galaxySel: null, toast: null, reviewIdx: 0,
@@ -753,7 +756,8 @@ export default class App extends Component {
     if (!conn || !name) return;
     this.setState({ foodLogBusy: true, foodLogError: null });
     api.addFoodLogEntry(conn, { name, macros, source: this.state.foodLogFillSource || 'manual' }).then((day) => {
-      this.setState({ liveFoodLog: day, foodLogBusy: false, foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogFillSource: null });
+      this.setState({ liveFoodLog: day, foodLogBusy: false, foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogFillSource: null,
+        foodScanQuestion: null, foodScanQAPhotos: [], foodScanQANote: '', foodScanAnswer: '' });
       if (this.state.foodHistoryOpen) this.loadFoodHistory();
     }).catch((e) => this.setState({ foodLogBusy: false, foodLogError: e.message }));
   }
@@ -783,23 +787,29 @@ export default class App extends Component {
   clearFoodScanPhotos() {
     this.setState({ foodScanPhotos: [] });
   }
-  runFoodScan() {
+  runFoodScan(photosArg, noteArg) {
     const conn = getConnection();
-    const photos = this.state.foodScanPhotos || [];
+    const photos = photosArg || this.state.foodScanPhotos || [];
+    const note = noteArg != null ? noteArg : this.state.foodScanNote.trim();
     if (!conn || !photos.length) return;
-    this.setState({ foodScanBusy: true, foodScanError: null, foodScanQuestion: null });
+    this.setState({ foodScanBusy: true, foodScanError: null, foodScanQuestion: null, foodScanAnswer: '' });
     // 'auto' fuses however many photos there are (labels and/or the food) with the note
-    api.startFoodScan(conn, 'auto', photos, this.state.foodScanNote.trim())
+    api.startFoodScan(conn, 'auto', photos, note)
       .then(({ jobId }) => {
         this.startPoll('foodScan', () => api.foodScanJob(conn, jobId), {
           intervalMs: 800,
           onReady: (job) => {
             const r = job.result;
+            const asks = r.confidence === 'low' && r.question;
             this.setState({
               foodScanBusy: false, foodScanError: null,
               foodScanPhotos: [], foodScanNote: '',
               foodLogFillSource: 'scan', // provenance survives to the log entry
-              foodScanQuestion: r.confidence === 'low' && r.question ? r.question : null,
+              foodScanQuestion: asks ? r.question : null,
+              // keep what produced the question so an answer can re-estimate
+              // (answering is optional — the fields below are always saveable)
+              foodScanQAPhotos: asks ? photos : [],
+              foodScanQANote: asks ? note : '',
               foodLogName: r.name || '',
               foodLogP: r.macros?.p != null ? String(r.macros.p) : '',
               foodLogC: r.macros?.c != null ? String(r.macros.c) : '',
@@ -812,6 +822,20 @@ export default class App extends Component {
         });
       })
       .catch((e) => this.setState({ foodScanBusy: false, foodScanError: e.message }));
+  }
+  // Answer Nova's clarifying question: re-run the SAME photos with the Q&A
+  // folded into the note — the scan prompt already honors notes, so accuracy
+  // improves with zero server changes. May legitimately ask a follow-up.
+  answerFoodScan() {
+    const answer = this.state.foodScanAnswer.trim();
+    const q = this.state.foodScanQuestion;
+    const photos = this.state.foodScanQAPhotos || [];
+    if (!answer || !q || !photos.length) return;
+    const base = this.state.foodScanQANote ? `${this.state.foodScanQANote}. ` : '';
+    this.runFoodScan(photos, `${base}You previously asked: "${q}" — the user's answer: "${answer}". Fold this into the estimate.`);
+  }
+  dismissFoodScanQuestion() {
+    this.setState({ foodScanQuestion: null, foodScanQAPhotos: [], foodScanQANote: '', foodScanAnswer: '' });
   }
   // Cross-day history of off-plan foods, for the "recent foods" list + re-log.
   loadFoodHistory() {

@@ -179,7 +179,27 @@ export function Recipes({ v }) {
           <div style={css("margin-top:8px;font-size:11px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent);line-height:1.5")}>Add up to 5 — nutrition labels and/or the food itself. More photos + a note give a sharper estimate.</div>
           {v.foodScanError && <div style={css("margin-top:8px;font-size:12px;color:#e08f6f")}>{v.foodScanError}</div>}
           {v.foodScanQuestion && (
-            <div style={css("margin-top:8px;font-size:12px;color:var(--nv-gold);font-style:italic")}>Nova's not fully sure — {v.foodScanQuestion} Adjust the numbers below if needed.</div>
+            <div style={css("margin-top:10px;border:1px solid color-mix(in srgb, var(--nv-gold) 32%, transparent);border-radius:11px;padding:11px 13px;background:color-mix(in srgb, var(--nv-gold) 05%, transparent)")}>
+              <div style={css("font-size:12.5px;line-height:1.5;color:var(--nv-gold)")}>Nova asks: <em>{v.foodScanQuestion}</em></div>
+              {v.foodScanCanAnswer ? (
+                <div style={css("margin-top:9px;display:flex;gap:8px;align-items:center;flex-wrap:wrap")}>
+                  <Interactive as="input" value={v.foodScanAnswer} onChange={v.setFoodScanAnswer}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !v.foodScanBusy) v.answerFoodScan(); }}
+                    placeholder='Answer — e.g. "ate the whole packet", "about 300g"'
+                    base="flex:1;min-width:170px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 12px;color:var(--nv-ink);font-family:var(--nv-font-ui);outline:none"
+                    focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)" />
+                  <Interactive as="span" onClick={v.foodScanBusy || !v.foodScanAnswer.trim() ? undefined : v.answerFoodScan}
+                    base={{ cursor: 'pointer', flex: 'none', font: '600 10.5px var(--nv-font-mono)', letterSpacing: '.06em', padding: '9px 14px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1322', opacity: v.foodScanBusy || !v.foodScanAnswer.trim() ? 0.5 : 1 }}
+                    hoverStyle={{ filter: 'brightness(1.08)' }}>{v.foodScanBusy ? 'REFINING…' : 'REFINE ESTIMATE'}</Interactive>
+                  <Interactive as="span" onClick={v.dismissFoodScanQuestion}
+                    base="cursor:pointer;flex:none;font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 42%, transparent)"
+                    hoverStyle="color:var(--nv-ink)">keep as is</Interactive>
+                </div>
+              ) : (
+                <div style={css("margin-top:5px;font-size:11px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>Adjust the numbers below if needed — saving works either way.</div>
+              )}
+              <div style={css("margin-top:7px;font-size:10.5px;line-height:1.5;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Answering re-reads your photos with the extra detail. Or skip it — the numbers below save exactly as they are.</div>
+            </div>
           )}
           <div style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
             <Interactive as="input" value={v.foodLogName} onChange={v.setFoodLogName} placeholder="What did you eat?" base="flex:1;min-width:140px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 12px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
