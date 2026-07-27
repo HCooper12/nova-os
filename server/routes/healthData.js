@@ -43,7 +43,7 @@ export function healthDataRouter(vaultPath) {
       const date = body?.date;
       const { logPushAttempt } = await import('../lib/healthData.js');
       if (typeof date !== 'string') {
-        logPushAttempt({ ok: false, error: 'date missing', keys: Object.keys(body || {}) });
+        await logPushAttempt({ ok: false, error: 'date missing', keys: Object.keys(body || {}) });
         return res.status(400).json({ error: 'date is required (YYYY-MM-DD)' });
       }
       // Accept EITHER {date, metrics:{...}} OR a flat {date, steps, hrv, ...}
@@ -55,17 +55,17 @@ export function healthDataRouter(vaultPath) {
         metrics = rest;
       }
       if (!metrics || !Object.keys(metrics).length) {
-        logPushAttempt({ ok: false, date, error: 'no metrics' });
+        await logPushAttempt({ ok: false, date, error: 'no metrics' });
         return res.status(400).json({ error: 'at least one metric is required (steps, hrv, sleepAsleepMinutes, …)' });
       }
       const saved = await saveDay(date, metrics);
-      logPushAttempt({ ok: true, date, keys: Object.keys(metrics), steps: metrics.steps ?? null });
+      await logPushAttempt({ ok: true, date, keys: Object.keys(metrics), steps: metrics.steps ?? null });
       const { broadcast } = await import('../lib/events.js');
       broadcast('health');
       res.json({ day: saved });
     } catch (err) {
       const { logPushAttempt } = await import('../lib/healthData.js');
-      logPushAttempt({ ok: false, error: err.message });
+      await logPushAttempt({ ok: false, error: err.message });
       res.status(400).json({ error: err.message });
     }
   });

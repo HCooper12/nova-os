@@ -63,20 +63,20 @@ export async function scanHealthDrops(vaultPath) {
       // still-syncing or genuinely malformed — malformed gets archived so it
       // can't retry forever; a read/parse blip retries next tick
       if (e instanceof SyntaxError) {
-        logPushAttempt({ ok: false, source: 'drop', file, error: 'does not parse' });
+        await logPushAttempt({ ok: false, source: 'drop', file, error: 'does not parse' });
         await archiveDrop(vaultPath, file, { bad: true });
       }
       continue;
     }
     const records = normalizeRecords(parsed);
     if (!records.length) {
-      logPushAttempt({ ok: false, source: 'drop', file, error: 'no usable metrics' });
+      await logPushAttempt({ ok: false, source: 'drop', file, error: 'no usable metrics' });
       await archiveDrop(vaultPath, file, { bad: true });
       continue;
     }
     for (const r of records) {
       await saveDay(r.date, r.metrics);
-      logPushAttempt({ ok: true, source: 'drop', file, date: r.date, keys: Object.keys(r.metrics), steps: r.metrics.steps ?? null });
+      await logPushAttempt({ ok: true, source: 'drop', file, date: r.date, keys: Object.keys(r.metrics), steps: r.metrics.steps ?? null });
       ingested++;
     }
     await archiveDrop(vaultPath, file);
