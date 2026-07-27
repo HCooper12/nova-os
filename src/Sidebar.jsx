@@ -83,6 +83,9 @@ export function Sidebar({ v }) {
           <span>{v.sideStatus.row1}</span>
         </div>
         <div style={{ marginTop: '7px', font: `400 8.5px ${M}`, letterSpacing: '.08em', lineHeight: 1.5, color: 'var(--nv-ink40)' }}>{v.sideStatus.row2}</div>
+        {v.outboxCount > 0 && (
+          <div onClick={(e) => { e.stopPropagation(); v.openOutbox(); }} style={{ marginTop: '7px', font: `600 8.5px ${M}`, letterSpacing: '.1em', color: 'var(--nv-gold)', cursor: 'pointer' }}>⇪ OUTBOX · {v.outboxCount} WAITING</div>
+        )}
       </Interactive>
     </aside>
   );

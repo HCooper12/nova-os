@@ -290,6 +290,24 @@ export function valsChrome(app, ctx) {
     paletteResults,
     closePalette: () => app.setState({ paletteOpen: false }),
 
+    // offline outbox — chip shows in the chrome whenever writes are waiting;
+    // never rendered as part of any synced list or total
+    outboxCount: (st.outbox || []).length,
+    outboxOpen: st.outboxOpen,
+    openOutbox: () => app.setState({ outboxOpen: true }),
+    outboxView: st.outboxOpen ? {
+      close: () => app.setState({ outboxOpen: false }),
+      hasQueued: (st.outbox || []).some((i) => i.status === 'queued'),
+      syncNow: () => app.drainOutbox(),
+      items: (st.outbox || []).map((i) => ({
+        id: i.id, kind: i.kind, label: i.label,
+        failed: i.status === 'failed', error: i.error,
+        when: new Date(i.queuedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+        retry: () => app.retryOutboxItem(i.id),
+        discard: () => app.discardOutboxItem(i.id),
+      })),
+    } : null,
+
     // toast
     toastOn: !!st.toast, toast: st.toast,
   };

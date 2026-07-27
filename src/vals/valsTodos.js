@@ -60,7 +60,8 @@ export function valsTodos(app, ctx) {
         : live
           ? `${open.length} OPEN · ${done.length} DONE`
           : 'LOADING…',
-    todosConnected: !demoMode && !isOffline,
+    // composer stays usable offline — adds queue to the outbox
+    todosConnected: !demoMode,
     todosLoaded: !!live,
     todoInput: st.todoInput,
     setTodoInput: (e) => app.setState({ todoInput: e.target.value }),

@@ -5,6 +5,7 @@ import { api, getConnection, setConnection, testConnection } from './api.js';
 import { pollJob } from './jobPoller.js';
 import { orbReply, coachReply, recipeReply } from './mockAssistants.js';
 import { loadLiveCache, saveLiveCache, clearLiveCache } from './liveStore.js';
+import { loadOutbox, saveOutbox, isOfflineError, makeOutboxItem } from './outbox.js';
 import { applyAppearance, getNovaTheme, getCalm, getCoreStyle, saveCoreStyle, getNovaStyle } from './theme.js';
 import { getTabOrder, saveTabOrder } from './tabOrder.js';
 import { NOTE_TYPE_COLOR } from './vals/shared.js';
@@ -38,6 +39,7 @@ import { CommandPalette } from './CommandPalette.jsx';
 import { IngestModal } from './IngestModal.jsx';
 import { IngestReview } from './IngestReview.jsx';
 import { Toast } from './Toast.jsx';
+import { OutboxView } from './OutboxView.jsx';
 import { Boot } from './Boot.jsx';
 
 // Code-split: ZXing (barcode decoding) is a sizeable dependency that only
@@ -226,6 +228,9 @@ export default class App extends Component {
     liveBackups: null, restoreConfirm: null, pushState: 'checking',
     liveProfile: null, profileEditing: false, profileDraft: { focus: '', priorities: '', bestSelf: '', notes: '' }, profileSaving: false,
     liveLearning: null,
+    // offline outbox — writes queued while the backend is unreachable
+    outbox: typeof localStorage !== 'undefined' ? loadOutbox() : [],
+    outboxOpen: false,
     // an in-progress workout must survive tab reclaim / refresh / app kill —
     // restored from device storage at boot (see restoreActiveSession)
     ...restoreActiveSession(),
@@ -392,6 +397,10 @@ export default class App extends Component {
         this.refreshLiveData(); // catch up on whatever the dead stream missed
       }
     }, 30_000);
+    // Network coming back is the outbox's moment — drain immediately rather
+    // than waiting for the next sync tick.
+    this.onlineH = () => { if (getConnection()) { this.drainOutbox(); this.refreshLiveData(); } };
+    window.addEventListener('online', this.onlineH);
     // Back/forward navigation re-derives the screen from the hash.
     this.popH = () => this.setState({ screen: screenFromHash() });
     window.addEventListener('popstate', this.popH);
@@ -418,6 +427,7 @@ export default class App extends Component {
     window.removeEventListener('resize', this.resizeH);
     window.removeEventListener('popstate', this.popH);
     window.removeEventListener('hashchange', this.popH);
+    window.removeEventListener('online', this.onlineH);
     document.removeEventListener('visibilitychange', this.visH);
     try { if (this.swCtrlH) navigator.serviceWorker?.removeEventListener('controllerchange', this.swCtrlH); } catch { /* unsupported */ }
     this.ivs.forEach(clearInterval);
@@ -447,6 +457,87 @@ export default class App extends Component {
       delete this.pollers[name];
     }
   }
+  // ---------- offline outbox (queue writes while the backend is away) ----
+  // One drain function per queued kind — each replays the EXACT api call the
+  // live path makes, so the server sees identical requests either way.
+  outboxDrainFns() {
+    return {
+      capture: (conn, p) => api.inboxCapture(conn, p.text, p.mode, p.source),
+      food: (conn, p) => api.addFoodLogEntry(conn, { name: p.name, macros: p.macros, source: p.source }),
+      todo: (conn, p) => api.todoAdd(conn, p.text),
+      shopping: (conn, p) => api.addShoppingItems(conn, p.items),
+      journal: (conn, p) => api.addJournalEntry(conn, p.text),
+      healthDay: (conn, p) => api.saveHealthDay(conn, p.date, p.metrics),
+      session: (conn, p) => api.completeWorkoutSession(conn, p.payload)
+        .then((r) => { if (p.carryoverId) api.removeCarryover(conn, p.carryoverId).catch(() => {}); return r; }),
+      recipe: (conn, p) => (p.macroOnly
+        ? api.addQuickRecipe(conn, { name: p.name, category: p.category, makes: p.makes, macros: p.macros })
+        : api.addRecipe(conn, { name: p.name, category: p.category, makes: p.makes, macros: p.macros, ingredients: p.ingredients, method: p.method })),
+    };
+  }
+  enqueueOutbox(kind, label, payload) {
+    const item = makeOutboxItem(kind, label, payload);
+    this.setState((s) => {
+      const outbox = [...s.outbox, item];
+      saveOutbox(outbox);
+      return { outbox };
+    });
+    this.toastMsg(`Backend unreachable — “${item.label}” saved to the Outbox, syncs when Nova reconnects`);
+  }
+  // Drain FIFO, single-flight. Connectivity failure stops the drain (retry on
+  // the next reconnect); a server REJECTION marks that item failed-for-review
+  // and moves on — never a silent drop, never an infinite retry.
+  async drainOutbox() {
+    if (this.outboxDraining) return;
+    const conn = getConnection();
+    if (!conn || !this.state.outbox.some((i) => i.status === 'queued')) return;
+    this.outboxDraining = true;
+    const fns = this.outboxDrainFns();
+    let sent = 0;
+    try {
+      for (const item of [...this.state.outbox]) {
+        if (item.status !== 'queued') continue;
+        const fn = fns[item.kind];
+        try {
+          if (fn) await fn(conn, item.payload);
+          this.setState((s) => {
+            const outbox = s.outbox.filter((i) => i.id !== item.id);
+            saveOutbox(outbox);
+            return { outbox };
+          });
+          sent++;
+        } catch (e) {
+          if (isOfflineError(e)) return; // still unreachable — keep everything queued
+          this.setState((s) => {
+            const outbox = s.outbox.map((i) => (i.id === item.id ? { ...i, status: 'failed', error: e.message } : i));
+            saveOutbox(outbox);
+            return { outbox };
+          });
+        }
+      }
+    } finally {
+      this.outboxDraining = false;
+      if (sent) {
+        this.toastMsg(`Outbox synced — ${sent} item${sent === 1 ? '' : 's'} filed ✓`);
+        this.refreshLiveData();
+      }
+    }
+  }
+  discardOutboxItem(id) {
+    this.setState((s) => {
+      const outbox = s.outbox.filter((i) => i.id !== id);
+      saveOutbox(outbox);
+      return { outbox };
+    });
+  }
+  retryOutboxItem(id) {
+    this.setState((s) => {
+      const outbox = s.outbox.map((i) => (i.id === id ? { ...i, status: 'queued', error: null } : i));
+      saveOutbox(outbox);
+      return { outbox };
+    }, () => this.drainOutbox());
+  }
+
   // ---------- appearance (theme + calm mode, persisted) ----------
   // Apply from the settled state in the setState callback — applying from
   // arguments + this.state directly goes stale when both setters run in the
@@ -714,6 +805,7 @@ export default class App extends Component {
           const slices = {};
           for (const key of CACHED_LIVE_KEYS) slices[key] = this.state[key];
           saveLiveCache(slices);
+          this.drainOutbox(); // the backend is answering — flush queued writes
         });
       } else {
         this.setState({ connectionStatus: 'offline' });
@@ -759,7 +851,15 @@ export default class App extends Component {
       this.setState({ liveFoodLog: day, foodLogBusy: false, foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogFillSource: null,
         foodScanQuestion: null, foodScanQAPhotos: [], foodScanQANote: '', foodScanAnswer: '' });
       if (this.state.foodHistoryOpen) this.loadFoodHistory();
-    }).catch((e) => this.setState({ foodLogBusy: false, foodLogError: e.message }));
+    }).catch((e) => {
+      if (isOfflineError(e)) {
+        this.setState({ foodLogBusy: false, foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogFillSource: null,
+          foodScanQuestion: null, foodScanQAPhotos: [], foodScanQANote: '', foodScanAnswer: '' });
+        this.enqueueOutbox('food', name, { name, macros, source: this.state.foodLogFillSource || 'manual' });
+        return;
+      }
+      this.setState({ foodLogBusy: false, foodLogError: e.message });
+    });
   }
   deleteFoodLogEntry(id) {
     const conn = getConnection();
@@ -1022,6 +1122,13 @@ export default class App extends Component {
         this.refreshLiveData();
       })
       .catch((e) => {
+        if (isOfflineError(e)) {
+          this.setState({ recipeAddOpen: false, recipeAddBusy: false, recipeAddPhotoDataUrl: null });
+          // the photo can't ride along (storage quota) — the recipe itself queues
+          this.enqueueOutbox('recipe', name, { macroOnly, name, category: st.recipeAddCategory, makes: st.recipeAddMakes.trim() || undefined, macros, ingredients, method });
+          if (pendingPhoto) this.toastMsg('Recipe queued — re-add the photo once Nova reconnects');
+          return;
+        }
         this.setState({ recipeAddBusy: false, recipeAddError: e.message });
       });
   }
@@ -1142,6 +1249,11 @@ export default class App extends Component {
     api.addShoppingItems(conn, items.map((name) => ({ name, source: null })))
       .then(({ jobId }) => this.pollShoppingAdd(conn, jobId))
       .catch((e) => {
+        if (isOfflineError(e)) {
+          this.setState({ shoppingAddBusy: false, shoppingAddInput: '' });
+          this.enqueueOutbox('shopping', items[0] + (items.length > 1 ? ` +${items.length - 1}` : ''), { items: items.map((name) => ({ name, source: null })) });
+          return;
+        }
         this.setState({ shoppingAddBusy: false, shoppingAddError: e.message });
       });
   }
@@ -1403,7 +1515,18 @@ export default class App extends Component {
       });
       this.refreshWorkoutRoutines();
       this.toastMsg(missed.length ? `Saved ✓ — ${missed.length} exercise${missed.length === 1 ? '' : 's'} not done; push ${missed.length === 1 ? 'it' : 'them'} to a day below` : 'Workout saved ✓');
-    }).catch((e) => this.toastMsg('Could not save workout: ' + e.message));
+    }).catch((e) => {
+      if (isOfflineError(e)) {
+        // the finished session lives in the persisted outbox now — safe to
+        // close the active-session UI; it files the moment Nova reconnects.
+        // (The missed-exercise push-forward needs the server, so it's skipped
+        // for an offline finish — the record itself loses nothing.)
+        this.setState({ workoutsView: 'routines', openRoutineId: null, workoutSession: null, sessionCancelConfirm: false });
+        this.enqueueOutbox('session', `${session.routineName} session`, { payload, carryoverId });
+        return;
+      }
+      this.toastMsg('Could not save workout: ' + e.message);
+    });
   }
   // Park an in-progress session without finalizing it — stays fully
   // resumable (it's already mirrored to device storage) via the RESUME card.
@@ -1652,6 +1775,11 @@ export default class App extends Component {
       this.toastMsg('Journal entry saved ✓');
       this.refreshJournalEntries();
     }).catch((e) => {
+      if (isOfflineError(e)) {
+        this.setState({ journalSaveBusy: false, journalComposerText: '', journalPromptText: null });
+        this.enqueueOutbox('journal', text.slice(0, 44), { text });
+        return;
+      }
       this.setState({ journalSaveBusy: false, journalSaveError: e.message });
     });
   }
@@ -1892,6 +2020,7 @@ export default class App extends Component {
       this.setState({ todoActionBusy: false, todoInput: '', liveTodos: data });
     }).catch((e) => {
       this.setState({ todoActionBusy: false });
+      if (isOfflineError(e)) { this.setState({ todoInput: '' }); this.enqueueOutbox('todo', text, { text }); return; }
       this.toastMsg('Could not add: ' + e.message);
     });
   }
@@ -2320,7 +2449,14 @@ export default class App extends Component {
       // view/trend window; a 7-day refetch here used to truncate it
       .then(() => api.healthData(conn))
       .then((r) => { this.setState({ liveHealthDays: r.days.length ? r.days : null, stepEditDate: null, stepEditValue: '', stepEditWeight: '' }); this.toastMsg(`${date} saved ✓`); })
-      .catch((e) => this.toastMsg('Could not save: ' + e.message));
+      .catch((e) => {
+        if (isOfflineError(e)) {
+          this.setState({ stepEditDate: null, stepEditValue: '', stepEditWeight: '' });
+          this.enqueueOutbox('healthDay', `${date} steps/weight`, { date, metrics }); // day-file upsert — replay-safe
+          return;
+        }
+        this.toastMsg('Could not save: ' + e.message);
+      });
   }
   restoreBackupNow(backupRel) {
     const conn = getConnection();
@@ -2430,6 +2566,7 @@ export default class App extends Component {
       });
     }).catch((e) => {
       this.setState({ inboxCaptureBusy: false });
+      if (isOfflineError(e)) { this.enqueueOutbox('capture', t, { text: t, mode: this.state.inboxMode, source }); return; }
       this.toastMsg('Capture failed: ' + e.message);
     });
   }
@@ -2879,6 +3016,7 @@ export default class App extends Component {
         {v.paletteOpen && <CommandPalette v={v} />}
         {v.ingestModalOpen && <IngestModal v={v} />}
         {v.ingestStatus !== 'idle' && <IngestReview v={v} />}
+        {v.outboxView && <OutboxView v={v.outboxView} />}
         {v.toastOn && <Toast v={v} />}
         {v.showBoot && <Boot info={v.bootInfo} />}
       </div>

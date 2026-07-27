@@ -379,7 +379,9 @@ export function valsInbox(app, ctx) {
         : inbox
           ? `${items.length} CAPTURE${items.length === 1 ? '' : 'S'} · ROUTED BY NOVA`
           : 'LOADING…',
-    inboxConnected: !demoMode && !isOffline,
+    // capture stays usable OFFLINE — the outbox queues it (a capture you can't
+    // type is a thought lost; reachability is the outbox's problem now)
+    inboxConnected: !demoMode,
     inboxInput: st.inboxInput,
     setInboxInput: (e) => app.setInboxInput(e),
     inboxCaptureBusy: st.inboxCaptureBusy,
