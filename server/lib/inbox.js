@@ -14,6 +14,7 @@ import { createRecord, updateRecord, getRecord } from './inboxStore.js';
 import { addItemsDirect, removeItems, SHOPPING_CATEGORIES } from './shoppingList.js';
 import * as journal from './journal.js';
 import * as foodLog from './foodLog.js';
+import { addStashItem, removeStashItem, formatStashItem } from './stash.js';
 import { addRecipe, removeRecipe } from './recipes.js';
 import { createEvent, deleteEventAt, moveEvent, putEventRaw } from './calendar.js';
 
@@ -28,7 +29,7 @@ const MAX_BUDGET_USD = '0.5';
 const INBOX_DIR_REL = 'Wiki/Inbox';
 const TODO_REL = 'Wiki/Inbox/To-Do.md';
 
-export const ROUTES = ['shopping', 'journal', 'todo', 'note', 'food', 'expense', 'idea'];
+export const ROUTES = ['shopping', 'journal', 'todo', 'note', 'food', 'expense', 'idea', 'stash'];
 export const IDEA_FORMATS = ['short', 'long', 'thread'];
 export const IDEAS_DIR_REL = 'Wiki/Studio/Ideas';
 export const MODES = ['review-all', 'auto-high', 'auto-all'];
@@ -53,6 +54,7 @@ Routes and their payloads:
 - "note" — an idea, insight, or piece of knowledge worth keeping. payload: {"title": "Short Title Case Name", "body": "..."} — cleaned prose, keep the substance intact.
 - "idea" — a CONTENT idea (something Hayden might make: a video, post, thread). payload: {"title": "Short Working Title", "hook": "the one-line hook that makes it worth making", "format": "short"|"long"|"thread" — best guess}. Distinct from "note" (knowledge to keep) — an idea is something to potentially produce.
 - "expense" — money spent (or received) to record in the ledger (e.g. "coffee 6.50", "paid the gym 89 dollars"). payload: {"amount": -6.5, "merchant": "...", "category": "...", "date": "YYYY-MM-DD or omit for today"} — amount NEGATIVE for spending, positive for money in; category exactly one of: ${MONEY_CATEGORIES.join(', ')} (best fit, or omit).
+- "stash" — a LINK to keep for later: a product to restock or a page to revisit (e.g. "stash this face wash under skincare https://…"). ONLY when the capture contains an actual http(s) URL — with no URL it is a todo or note instead. payload: {"category": "Short Title Case group — reuse the user's word, e.g. Skincare", "name": "the product/page name", "url": "copied EXACTLY from the capture — never invent, complete, or fix a URL", "note": "optional short note, omit if none"}.
 
 Also output:
 - "title": a short label for the history list (≤ 8 words)
@@ -126,6 +128,14 @@ export function normalizeDecision(parsed) {
       category: MONEY_CATEGORIES.includes(p.category) ? p.category : undefined,
       date: /^\d{4}-\d{2}-\d{2}$/.test(p.date || '') ? p.date : undefined,
     };
+  } else if (route === 'stash') {
+    const url = String(p.url || '').trim();
+    const name = String(p.name || '').trim().slice(0, 120);
+    const category = String(p.category || '').trim().slice(0, 60);
+    if (!/^https?:\/\/\S+$/.test(url)) throw new Error('stash needs a real http(s) link in the capture');
+    if (!name) throw new Error('classifier returned no name for the link');
+    if (!category) throw new Error('classifier returned no category');
+    payload = { category, name, url, note: String(p.note || '').trim().slice(0, 200) || undefined };
   } else {
     const noteTitle = String(p.title || title).trim().slice(0, 120) || 'Captured Note';
     const body = String(p.body || '').trim();
@@ -204,6 +214,14 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     return {
       destination: `Food log — ${entry.name} (${m.p}P · ${m.c}C · ${m.f}F · ${m.kcal} kcal)`,
       undo: { route, date: day.date, entryId: entry.id },
+    };
+  }
+
+  if (route === 'stash') {
+    await addStashItem(vaultPath, payload);
+    return {
+      destination: `Stash — ${payload.name} → ${payload.category}`,
+      undo: { route, raw: formatStashItem(payload) },
     };
   }
 
@@ -401,6 +419,10 @@ export async function undoFiling(vaultPath, undo) {
     const removed = await foodLog.removeEntryOn(undo.date, undo.entryId);
     if (!removed) throw new Error('that food-log entry is no longer there');
     return 'removed the food-log entry';
+  }
+  if (undo.route === 'stash') {
+    await removeStashItem(vaultPath, undo.raw);
+    return 'removed the stashed link';
   }
   if (undo.route === 'plan-note') {
     const full = path.join(vaultPath, undo.relPath);

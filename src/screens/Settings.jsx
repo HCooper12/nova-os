@@ -255,7 +255,7 @@ export function Settings({ v }) {
           <div style={{ marginTop: '12px' }}>
             <TabOrderEditor items={v.tabOrderItems} onReorder={v.setTabOrder} />
           </div>
-          <div style={css("margin-top:8px;max-width:520px;font-size:11px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Press and drag a row to reorder. The order applies to the bottom tab bar on your phone and is remembered on this device.</div>
+          <div style={css("margin-top:8px;max-width:520px;font-size:11px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Press and drag a row to reorder. The first three fill the floating dock on your phone; everything else lives one tap away in More. Remembered on this device.</div>
         </div>
       )}
 

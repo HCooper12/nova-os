@@ -336,7 +336,58 @@ export function valsMission(app, ctx) {
       onSecondary: () => app.toastMsg('Commander moved the script block to 14:00'),
     };
   } else {
-    if (nextEvent) {
+    // ---- context ladder: the most actionable TRUE thing wins ------------
+    // Every rung is deterministic from live data — no model, no fiction.
+    const hm2min = (hm) => { const [h, m] = String(hm).split(':').map(Number); return h * 60 + m; };
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    // a workout already logged today must not be re-suggested (streaks carry
+    // lastWorkoutDate — an honest "done" signal without another fetch)
+    const workoutDoneToday = st.liveStreaks?.lastWorkoutDate === todayKey;
+    const inWorkoutWindow = workoutEvent && workoutEvent.end
+      && nowMin >= hm2min(workoutEvent.time) - 15 && nowMin < hm2min(workoutEvent.end);
+    const overdueCarryover = (st.liveCarryovers || []).find((c) => new Date(`${c.forDate}T23:59:59`) < now);
+    const currentEvent = (st.liveCalendar || []).find((e) => e.time && e.end && hm2min(e.time) <= nowMin && nowMin < hm2min(e.end));
+
+    if (st.workoutSession) {
+      // rung 1 — a session mid-flight beats everything
+      const setsDone = st.workoutSession.exercises.reduce((n, e) => n + e.sets.filter((s) => s.done).length, 0);
+      suggestedFocus = {
+        source: 'session in progress',
+        title: 'Pick it back up — ', accent: st.workoutSession.routineName,
+        detail: `${setsDone} set${setsDone === 1 ? '' : 's'} logged and waiting. Nothing is lost — finish it when you're ready.`,
+        primaryLabel: 'Resume session', onPrimary: () => { app.navigate('workouts'); app.resumeWorkoutSession(); },
+      };
+    } else if (inWorkoutWindow && todayRoutine && !workoutDoneToday) {
+      // rung 2 — the calendar says it's the workout slot RIGHT NOW
+      suggestedFocus = {
+        source: 'from your calendar — now',
+        title: `It's `, accent: `${todayRoutine.name} time.`,
+        detail: `Your ${workoutEvent.time}–${workoutEvent.end} block is live. ${todayRoutine.exercises.length} exercises prefilled from last session — one tap starts logging.`,
+        primaryLabel: `Start ${todayRoutine.name}`,
+        onPrimary: () => { app.startWorkoutSession(todayRoutine); app.navigate('workouts'); },
+        secondaryLabel: 'Open Train', onSecondary: go('workouts'),
+      };
+    } else if (overdueCarryover) {
+      // rung 3 — promised exercises that slipped past their day
+      suggestedFocus = {
+        source: 'carry-over — overdue',
+        title: 'Unfinished from ', accent: `${overdueCarryover.sourceRoutineName}.`,
+        detail: `${overdueCarryover.exercises.length} exercise${overdueCarryover.exercises.length === 1 ? '' : 's'} you pushed to ${overdueCarryover.forDate} still waiting: ${overdueCarryover.exercises.map((e) => e.name).slice(0, 3).join(', ')}${overdueCarryover.exercises.length > 3 ? '…' : ''}.`,
+        primaryLabel: 'Do it now', onPrimary: go('workouts'),
+      };
+    } else if (currentEvent) {
+      // rung 4 — a calendar block is live this minute: protect it
+      suggestedFocus = {
+        source: 'happening now',
+        title: `Until ${currentEvent.end} — `, accent: currentEvent.label,
+        detail: 'This block is live. One tap locks a focus timer to the end of it — logged to your journal when it lands.',
+        primaryLabel: `Focus until ${currentEvent.end}`,
+        onPrimary: () => {
+          if (st.focusSession) { app.toastMsg('A focus block is already running'); return; }
+          app.startFocusBlock(currentEvent.label, Math.max(5, Math.min(180, hm2min(currentEvent.end) - nowMin)));
+        },
+      };
+    } else if (nextEvent) {
       const runway = untilLabel(nextEvent.time);
       suggestedFocus = {
         source: 'from your calendar',
@@ -346,12 +397,30 @@ export function valsMission(app, ctx) {
           : 'This block is live right now.',
         primaryLabel: 'See today', onPrimary: null, // stays on Mission Control; Today card is beside it
       };
-    } else if (todayRoutine) {
+    } else if (hour >= 17 && usingLiveRecipes && proteinTarget != null && proteinGap > 25) {
+      // rung 6 — evening with a real protein gap: name the close
+      suggestedFocus = {
+        source: 'from your food log',
+        title: `${proteinGap} g of protein `, accent: 'still to close tonight.',
+        detail: 'The day is winding down — pick something from the rotation or log what you ate.',
+        primaryLabel: 'Open Recipes', onPrimary: go('recipes'),
+      };
+    } else if (todayRoutine && !workoutDoneToday) {
       suggestedFocus = {
         source: 'from your training plan',
         title: 'Training today — ', accent: todayRoutine.name,
-        detail: `${todayRoutine.exercises.length} exercise${todayRoutine.exercises.length === 1 ? '' : 's'} queued — everything is set up in Train.`,
+        detail: workoutEvent
+          ? `Scheduled ${workoutEvent.time}–${workoutEvent.end || ''} on your calendar. ${todayRoutine.exercises.length} exercises queued.`
+          : `${todayRoutine.exercises.length} exercise${todayRoutine.exercises.length === 1 ? '' : 's'} queued — everything is set up in Train.`,
         primaryLabel: 'Start in Train', onPrimary: go('workouts'),
+      };
+    } else if (todayRoutine && workoutDoneToday) {
+      // the day's block is DONE — say so instead of re-suggesting it
+      suggestedFocus = {
+        source: 'from your training log',
+        title: `${todayRoutine.name} — `, accent: 'done for today. ✓',
+        detail: 'Logged and in the books. Recovery, food, and tomorrow take it from here.',
+        primaryLabel: 'See the session', onPrimary: go('workouts'),
       };
     } else if (reviewPage) {
       suggestedFocus = {

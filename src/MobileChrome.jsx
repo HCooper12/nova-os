@@ -1,18 +1,33 @@
-import { useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { css } from './css.js';
 import { TabIcon } from './TabIcon.jsx';
 
 const M = "var(--nv-font-mono)";
 const R = "var(--nv-font-ui)";
 
+// Mobile chrome, dock edition: the old 14-tab horizontal scroller made every
+// trip a hunt. Now a floating pill dock — the user's top THREE tabs (first
+// three in the Settings tab order), a raised ✦ Capture at true center, and
+// More opening a grid sheet of every screen. Positions never move, so muscle
+// memory forms; capture — the most important act in a second brain — owns
+// the throne. Token-drawn, so all three design styles wear it natively.
+
+function DockTab({ t, size = 22 }) {
+  return (
+    <div onClick={t.go} style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', minWidth: '52px', padding: '6px 8px', cursor: 'pointer', borderRadius: '14px', color: t.active ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: t.active ? 'var(--nv-acc-bg)' : 'none' }}>
+      <TabIcon name={t.screen} size={size} />
+      <span style={css(`font:600 9px ${R};letter-spacing:.01em;white-space:nowrap`)}>{t.label}</span>
+      {t.count != null && (
+        <span style={css("position:absolute;top:1px;right:3px;min-width:15px;height:15px;padding:0 4px;border-radius:8px;background:var(--nv-gold);color:#1a1206;font:700 9px var(--nv-font-mono);display:flex;align-items:center;justify-content:center")}>{t.count}</span>
+      )}
+    </div>
+  );
+}
+
 export function MobileChrome({ v }) {
-  const scrollRef = useRef(null);
-  const activeLabel = (v.tabs.find((t) => t.active) || {}).label;
-  // keep the current tab visible in the scrollable bar as you navigate
-  useEffect(() => {
-    const el = scrollRef.current?.querySelector('[data-active="1"]');
-    el?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
-  }, [activeLabel]);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const dockTabs = v.tabs.slice(0, 3);
+  const activeInDock = dockTabs.some((t) => t.active);
 
   return (
     <>
@@ -27,21 +42,40 @@ export function MobileChrome({ v }) {
         <span onClick={v.openPalette} style={css(`cursor:pointer;font:500 10px ${M};padding:7px 12px;border:1px solid var(--nv-acc-border);border-radius:8px;color:var(--nv-acc);background:var(--nv-acc-bg)`)}>✦ ASK</span>
         <span onClick={v.goSettings} aria-label="Settings" style={css(`cursor:pointer;font-size:14px;line-height:1;padding:7px 10px;border:1px solid ${v.isSettings ? 'var(--nv-acc-border)' : 'var(--nv-edge)'};border-radius:8px;color:${v.isSettings ? 'var(--nv-acc)' : 'var(--nv-ink60)'}`)}>⚙</span>
       </div>
-      <div style={css("position:fixed;bottom:0;left:0;right:0;z-index:70;background:var(--nv-glass2);border-top:1px solid var(--nv-edge);padding-bottom:max(4px, calc(env(safe-area-inset-bottom) - 12px))")}>
-        <div ref={scrollRef} className="nv-tabscroll" style={{ display: 'flex', gap: '2px', overflowX: 'auto', overscrollBehaviorX: 'contain', padding: '4px max(8px, env(safe-area-inset-left)) 4px max(8px, env(safe-area-inset-right))', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-          {v.tabs.map((t) => (
-            <div key={t.label} data-active={t.active ? '1' : '0'} onClick={t.go} style={{ ...t.style, position: 'relative' }}>
-              {/* Apple style trades the Roman numeral for a silhouette icon */}
-              {v.appleStyle ? <TabIcon name={t.screen} size={21} /> : <span style={t.numStyle}>{t.num}</span>}
-              <span style={css(`font:600 9.5px ${R};letter-spacing:.01em;white-space:nowrap`)}>{t.label}</span>
-              {t.count != null && (
-                <span style={css("position:absolute;top:0;right:2px;min-width:15px;height:15px;padding:0 4px;border-radius:8px;background:var(--nv-gold);color:#1a1206;font:700 9px var(--nv-font-mono);display:flex;align-items:center;justify-content:center")}>{t.count}</span>
-              )}
+
+      {/* the More sheet — every screen, grid of silhouettes, one tap */}
+      {moreOpen && (
+        <div onClick={() => setMoreOpen(false)} style={css("position:fixed;inset:0;z-index:74;background:rgba(8,5,12,.6);backdrop-filter:blur(4px)")}>
+          <div onClick={(e) => e.stopPropagation()} style={css("position:absolute;left:0;right:0;bottom:0;border-radius:22px 22px 0 0;border:1px solid var(--nv-edge);border-bottom:none;background:var(--nv-glass2);backdrop-filter:blur(26px);padding:18px 16px calc(20px + env(safe-area-inset-bottom));animation:fadeUp .22s ease-out")}>
+            <div style={css("width:36px;height:4px;border-radius:2px;background:color-mix(in srgb, var(--nv-ink) 22%, transparent);margin:0 auto 14px")}></div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '6px 2px' }}>
+              {v.tabs.map((t) => (
+                <div key={t.screen} onClick={() => { setMoreOpen(false); t.go(); }} style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', padding: '11px 4px', cursor: 'pointer', borderRadius: '14px', color: t.active ? 'var(--nv-acc)' : 'var(--nv-ink60)', background: t.active ? 'var(--nv-acc-bg)' : 'none' }}>
+                  <TabIcon name={t.screen} size={24} />
+                  <span style={css(`font:550 10.5px ${R};white-space:nowrap`)}>{t.label}</span>
+                  {t.count != null && (
+                    <span style={css("position:absolute;top:6px;right:calc(50% - 26px);min-width:15px;height:15px;padding:0 4px;border-radius:8px;background:var(--nv-gold);color:#1a1206;font:700 9px var(--nv-font-mono);display:flex;align-items:center;justify-content:center")}>{t.count}</span>
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
-        {/* fade hint that the bar scrolls to more tabs */}
-        <div style={css("pointer-events:none;position:absolute;top:0;bottom:0;right:0;width:26px;background:linear-gradient(90deg,transparent,var(--nv-glass2))")}></div>
+      )}
+
+      {/* the floating dock — [t1 t2 ✦ t3 More], capture at true center */}
+      <div style={css("position:fixed;left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom));z-index:72;display:flex;align-items:center;gap:2px;padding:7px 10px;border-radius:999px;border:1px solid var(--nv-edge);background:var(--nv-glass2);backdrop-filter:blur(26px);box-shadow:0 14px 44px -14px rgba(0,0,0,.65)")}>
+        {dockTabs.slice(0, 2).map((t) => <DockTab key={t.screen} t={t} />)}
+        <div onClick={v.openPalette} aria-label="Capture or ask Nova"
+          style={{ width: '52px', height: '52px', margin: '0 6px', marginTop: '-22px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+            fontSize: '21px', color: 'var(--nv-on-acc)', background: 'var(--nv-acc)',
+            border: '3px solid color-mix(in srgb, var(--nv-void) 80%, transparent)',
+            boxShadow: '0 10px 26px -8px var(--nv-acc)' }}>✦</div>
+        {dockTabs[2] && <DockTab t={dockTabs[2]} />}
+        <div onClick={() => setMoreOpen(true)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', minWidth: '52px', padding: '6px 8px', cursor: 'pointer', borderRadius: '14px', color: moreOpen || !activeInDock ? 'var(--nv-acc)' : 'var(--nv-ink40)' }}>
+          <TabIcon name="more" size={22} />
+          <span style={css(`font:600 9px ${R};white-space:nowrap`)}>More</span>
+        </div>
       </div>
     </>
   );

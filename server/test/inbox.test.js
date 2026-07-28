@@ -206,3 +206,26 @@ test('error records are unresolved — never trimmed away', async () => {
   const resolved = items.filter((r) => !['classifying', 'pending', 'error'].includes(r.status));
   assert.ok(resolved.length <= 400, 'resolved records must still be bounded');
 });
+
+test('stash route: files a link into the vault Stash and undo strips it exactly', async () => {
+  const d = normalizeDecision({
+    route: 'stash', confidence: 'high', title: 'Stash face wash',
+    payload: { category: 'Skincare', name: 'Face Wash', url: 'https://example.com/wash', note: 'restock' },
+  });
+  assert.equal(d.route, 'stash');
+  const { destination, undo } = await fileDecision(vault, d);
+  assert.match(destination, /Stash — Face Wash → Skincare/);
+  const raw = await readFile(path.join(vault, 'Wiki/Library/Stash.md'), 'utf8');
+  assert.ok(raw.includes('- [Face Wash](https://example.com/wash) — restock'));
+
+  await undoFiling(vault, undo);
+  const after = await readFile(path.join(vault, 'Wiki/Library/Stash.md'), 'utf8');
+  assert.ok(!after.includes('Face Wash'), 'undo removed the exact stashed line');
+});
+
+test('stash route: refuses a capture with no real URL (never invents one)', () => {
+  assert.throws(
+    () => normalizeDecision({ route: 'stash', confidence: 'high', payload: { category: 'Skincare', name: 'Face Wash', url: 'facewash dot com' } }),
+    /http/
+  );
+});
