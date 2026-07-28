@@ -90,6 +90,10 @@ export function valsMisc(app, ctx) {
         approve: m.proposal.status === 'pending' ? () => app.resolveVoiceProposal(m.proposal.recordId, true) : null,
         dismiss: m.proposal.status === 'pending' ? () => app.resolveVoiceProposal(m.proposal.recordId, false) : null,
       } : null,
+      research: !demoMode && m.research ? {
+        status: m.research.status, question: m.research.question,
+        title: m.research.title || null, body: m.research.body || null, error: m.research.error || null,
+      } : null,
       tag: m.who === 'nova' ? '» NOVA' : m.who === 'system' ? '» SYSTEM' : '» YOU',
       tagStyle: { color: m.who === 'nova' ? 'var(--nv-cy)' : m.who === 'system' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', fontWeight: 500 },
       remember: !demoMode && m.who === 'nova' ? () => app.rememberFromChat(m.text) : null,

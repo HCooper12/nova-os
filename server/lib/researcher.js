@@ -40,6 +40,24 @@ The question: ${question}
 Output ONLY a JSON object: {"title": "Short Note Title", "body": "the full brief in markdown — summary, key points, ## Sources list"}. No code fences, no commentary.`;
 }
 
+// A conversation reply may end with one RESEARCH line — parsed off the text
+// the same way as SHOW/PROPOSE. The boundary stays structural: the directive
+// only fires when Hayden explicitly asked for research, and the brief still
+// ALWAYS lands as a pending, citation-required note.
+export function parseResearchDirective(text) {
+  const m = (text || '').match(/^\s*RESEARCH\s+(\{.*\})\s*$/m);
+  if (!m) return { cleanText: text, research: null };
+  const cleanText = text.replace(m[0], '').replace(/\n{3,}/g, '\n\n').trim();
+  try {
+    const parsed = JSON.parse(m[1]);
+    const question = String(parsed.question || '').trim();
+    if (!question) return { cleanText, research: null, parseError: 'the research directive had no question' };
+    return { cleanText, research: { question } };
+  } catch {
+    return { cleanText, research: null, parseError: 'the research directive was not valid JSON' };
+  }
+}
+
 export function normalizeResearch(parsed) {
   const title = String(parsed.title || '').trim().slice(0, 120);
   const body = String(parsed.body || '').trim();

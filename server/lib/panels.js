@@ -5,13 +5,17 @@ import { estimateE1RMs } from './coach.js';
 import { listCarryovers } from './workoutCarryover.js';
 import { loadRecentDays as loadNutritionDays } from './nutritionLog.js';
 import { loadRecipeData } from './recipes.js';
+import { Vault } from './vault.js';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import matter from 'gray-matter';
 
 // The Companion canvas — Phase 2. The conversational agent NAMES a panel
 // with one `SHOW {"panel":...}` line; everything below builds the panel's
 // data DETERMINISTICALLY from the vault. The model never draws a number.
 // Missing data renders as missing — a panel is a view, never a claim.
 
-export const PANEL_TYPES = ['training-week', 'exercise', 'nutrition-week'];
+export const PANEL_TYPES = ['training-week', 'exercise', 'nutrition-week', 'note'];
 
 export function parseShowDirective(text) {
   const m = (text || '').match(/^\s*SHOW\s+(\{.*\})\s*$/m);
@@ -111,10 +115,33 @@ async function buildNutritionWeek(vaultPath) {
   };
 }
 
+// A real vault note, on screen while it's being discussed — the citation
+// made visible. The excerpt is the file's own words, clipped, never a summary.
+const EXCERPT_LIMIT = 1400;
+async function buildNote(vaultPath, name) {
+  if (!String(name || '').trim()) throw new Error('the note panel needs a title');
+  const ci = (s) => String(s || '').trim().toLowerCase();
+  const base = (p) => path.basename(p, '.md');
+  const rels = await new Vault(vaultPath).listRelativePaths();
+  const target = rels.find((p) => ci(base(p)) === ci(name))
+    || rels.find((p) => ci(base(p)).includes(ci(name)));
+  if (!target) throw new Error(`no note called "${name}" in the vault`);
+  const raw = await readFile(path.join(vaultPath, target), 'utf8');
+  const { content } = matter(raw);
+  const body = content.trim();
+  return {
+    title: base(target),
+    relPath: target,
+    excerpt: body.length > EXCERPT_LIMIT ? body.slice(0, EXCERPT_LIMIT).trimEnd() + ' …' : body,
+    truncated: body.length > EXCERPT_LIMIT,
+  };
+}
+
 export async function buildPanel(vaultPath, directive) {
   const type = String(directive?.panel || '').toLowerCase();
   if (!PANEL_TYPES.includes(type)) throw new Error(`unknown panel "${directive?.panel}"`);
   if (type === 'training-week') return { type, data: await buildTrainingWeek(vaultPath) };
   if (type === 'exercise') return { type, data: await buildExercise(vaultPath, directive.name) };
+  if (type === 'note') return { type, data: await buildNote(vaultPath, directive.title || directive.name) };
   return { type, data: await buildNutritionWeek(vaultPath) };
 }

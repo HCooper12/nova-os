@@ -121,7 +121,9 @@ Ground rules:
   SHOW {"panel":"training-week"}
   SHOW {"panel":"exercise","name":"<exact exercise name>"}
   SHOW {"panel":"nutrition-week"}
-  Nova's own code draws the panel from the real vault — you only NAME it; never describe the panel's numbers in your text, and never invent an exercise name. Use it when he asks to see something or a visual genuinely helps (his training week, a specific lift's history, his protein week); most replies need no SHOW line. The line is stripped before he reads the reply, so don't refer to it.
+  SHOW {"panel":"note","title":"<the note's title>"}
+  Nova's own code draws the panel from the real vault — you only NAME it; never describe the panel's numbers in your text, and never invent an exercise or note name. Use "note" when you cite a vault page or he asks what a note says — it puts the page's own words on screen. Use the others when he asks to see something or a visual genuinely helps; most replies need no SHOW line. The line is stripped before he reads the reply, so don't refer to it.
+- RESEARCH: ONLY when he explicitly asks you to research something or look it up online, end the reply with one line: RESEARCH {"question":"<the question, tight and specific>"}. Nova's Researcher (web-read-only, citation-required) runs it; the brief arrives in this conversation as a sources panel AND lands in his Inbox for review. In your text say it's dispatched and takes a couple of minutes — never state findings you don't have yet. Never fire this on your own initiative.
 
 Live context (deterministic, computed at conversation start — trust it over stale pages for today's numbers):
 ${context || '(unavailable)'}
@@ -201,8 +203,11 @@ export function startAskNova(cwd, { question, context, sessionId }) {
       // out and build the panel DETERMINISTICALLY from the vault — the model
       // names a view, our code draws it. A bad directive degrades honestly.
       const { parseShowDirective, buildPanel } = await import('./panels.js');
+      // cleanText === replyText when no directive matched, so never fall back
+      // to replyText here — that would put a raw directive line back into the
+      // reply when the model sent ONLY a directive and no prose.
       const { cleanText, directive } = parseShowDirective(replyText);
-      let text = cleanText || replyText;
+      let text = cleanText;
       let panel = null;
       if (directive) {
         try {
@@ -218,7 +223,7 @@ export function startAskNova(cwd, { question, context, sessionId }) {
       const parsed = parseCoachProposal(text);
       let proposal = null;
       if (parsed.proposal) {
-        text = parsed.cleanText || text;
+        text = parsed.cleanText;
         try {
           const { createVoiceProposal } = await import('./voiceActions.js');
           proposal = await createVoiceProposal(cwd, question, parsed.proposal);
@@ -228,7 +233,31 @@ export function startAskNova(cwd, { question, context, sessionId }) {
       } else if (parsed.parseError) {
         text = `${text} (I tried to draft an action but got the format wrong — nothing was changed. Ask me again.)`;
       }
-      job.result = { text, sessionId: effectiveSessionId, panel, proposal };
+      // And it may dispatch ONE research job — the existing Researcher rails:
+      // web-read-only, citation-required, always review-gated in the Inbox.
+      const { parseResearchDirective, startResearch } = await import('./researcher.js');
+      const res = parseResearchDirective(text);
+      let research = null;
+      if (res.research) {
+        text = res.cleanText;
+        try {
+          const record = await startResearch(cwd, res.research.question);
+          research = { recordId: record.id, question: res.research.question };
+        } catch (e) {
+          text = `${text} (I tried to dispatch the research, but ${e.message}.)`;
+        }
+      } else if (res.parseError) {
+        text = res.cleanText;
+      }
+      // A directive-only reply leaves no prose — give the voice something
+      // honest to say rather than reading a directive line aloud.
+      if (!text.trim()) {
+        text = panel ? 'Here it is.'
+          : proposal ? 'Drafted — say yes to make it real, or leave it for the Inbox.'
+          : research ? 'Research dispatched — give it a couple of minutes.'
+          : replyText;
+      }
+      job.result = { text, sessionId: effectiveSessionId, panel, proposal, research };
       job.status = 'ready';
     } catch (e) {
       job.status = 'error';

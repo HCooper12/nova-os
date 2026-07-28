@@ -2476,9 +2476,9 @@ export default class App extends Component {
     // — Nova starts talking while still thinking, like a person does.
     const stream = { spokenUpTo: 0, started: false };
     const elevenPath = !!(this.state.liveTts?.configured);
-    // Trailing SHOW/PROPOSE lines are typed directives for the server, not
-    // prose — keep them out of the streaming render (and out of the voice)
-    const stripShow = (t) => t.replace(/(^|\n)\s*(SHOW|PROPOSE)\s*(\{[\s\S]*)?$/, '');
+    // Trailing SHOW/PROPOSE/RESEARCH lines are typed directives for the
+    // server, not prose — keep them out of the render (and out of the voice)
+    const stripShow = (t) => t.replace(/(^|\n)\s*(SHOW|PROPOSE|RESEARCH)\s*(\{[\s\S]*)?$/, '');
     const applyPartial = (text) => this.setState((s) => {
       const chat = [...s.voiceChat];
       const idx = chat.map((m) => !!m.streaming).lastIndexOf(true);
@@ -2522,13 +2522,15 @@ export default class App extends Component {
         }
         const panel = job.result.panel || undefined;
         const proposal = job.result.proposal ? { ...job.result.proposal, status: 'pending' } : undefined;
+        const research = job.result.research ? { ...job.result.research, status: 'running' } : undefined;
         this.setState((s) => {
           const chat = [...s.voiceChat];
           const idx = chat.map((m) => !!m.streaming).lastIndexOf(true);
-          if (idx === -1) chat.push({ who: 'nova', text, panel, proposal });
-          else chat[idx] = { who: 'nova', text, panel, proposal };
+          if (idx === -1) chat.push({ who: 'nova', text, panel, proposal, research });
+          else chat[idx] = { who: 'nova', text, panel, proposal, research };
           return { voiceBusy: false, voiceChat: chat, voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal };
         });
+        if (research) this.watchVoiceResearch(conn, research.recordId);
         if (elevenPath) this.speak(text);
         else if (this.state.voiceSpeak) { speakNewSentences(text, true); if (!stream.started) this.speak(text); }
         else this.maybeAutoListen();
@@ -2886,6 +2888,23 @@ export default class App extends Component {
     };
   }
 
+  // A research job dispatched from the conversation: poll the SAME pending
+  // record the Inbox shows. When the brief lands, the message grows a
+  // sources panel + the normal confirm chip (approving files the note).
+  // NOT approving by voice here — the brief arrives minutes later and a
+  // "yes" then could belong to anything; the chip is the confirm surface.
+  watchVoiceResearch(conn, recordId) {
+    const patch = (fn) => this.setState((s) => ({ voiceChat: s.voiceChat.map((m) => (m.research?.recordId === recordId ? fn(m) : m)) }));
+    this.startPoll(`voiceResearch:${recordId}`, () => api.inboxItem(conn, recordId), {
+      intervalMs: 5000, timeoutMs: 8 * 60_000,
+      onReady: ({ record }) => patch((m) => ({
+        ...m,
+        research: { ...m.research, status: 'done', title: record.decision.title, body: record.decision.payload.body },
+        proposal: { recordId, title: `File "${record.decision.title}" into the vault`, status: 'pending' },
+      })),
+      onError: (msg) => patch((m) => ({ ...m, research: { ...m.research, status: 'error', error: msg } })),
+    });
+  }
   // Voice-confirmed actions: approving is DETERMINISTIC — the same Inbox
   // approve endpoint the rails already trust; the model never writes.
   resolveVoiceProposal(recordId, approve) {

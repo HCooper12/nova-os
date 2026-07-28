@@ -93,10 +93,56 @@ function NutritionWeek({ d }) {
   );
 }
 
+function Note({ d }) {
+  return (
+    <Card label={`NOTE · ${d.relPath.toUpperCase()}`}>
+      <div style={css(`font:600 13px ${M};color:var(--nv-ink);margin-bottom:6px`)}>{d.title}</div>
+      <div style={css(`font:400 11.5px/1.65 ${M};color:${dim(72)};white-space:pre-wrap;max-height:260px;overflow-y:auto`)}>{d.excerpt}</div>
+      {d.truncated && <div style={css(`margin-top:6px;font:400 9.5px ${M};letter-spacing:.08em;color:${dim(38)}`)}>EXCERPT — THE FULL NOTE LIVES IN YOUR VAULT</div>}
+    </Card>
+  );
+}
+
 export function VoicePanel({ panel }) {
   if (!panel || !panel.data) return null;
   if (panel.type === 'training-week') return <TrainingWeek d={panel.data} />;
   if (panel.type === 'exercise') return <Exercise d={panel.data} />;
   if (panel.type === 'nutrition-week') return <NutritionWeek d={panel.data} />;
+  if (panel.type === 'note') return <Note d={panel.data} />;
   return null;
+}
+
+// The Researcher's brief, rendered as it lands: the summary in the model's
+// own reviewed words, and every source as a card HE opens — nothing
+// auto-opens, and nothing renders that isn't in the pending record itself.
+export function SourcesPanel({ r }) {
+  const parts = (r.body || '').split(/\n#{1,3}\s*Sources\s*\n?/i);
+  const summary = (parts[0] || '').trim();
+  const links = [];
+  const urlRe = /(https?:\/\/[^\s)\]>"']+)/;
+  for (const line of (parts[1] || '').split('\n')) {
+    const m = line.match(urlRe);
+    if (!m) continue;
+    const label = line.replace(m[1], '').replace(/[[\]()<>|*-]/g, ' ').replace(/^\s*\d+[.:]?\s*/, '').replace(/\s+/g, ' ').trim();
+    let host = '';
+    try { host = new URL(m[1]).hostname.replace(/^www\./, ''); } catch { /* leave blank */ }
+    links.push({ url: m[1], label: label || host || m[1], host });
+  }
+  return (
+    <Card label={`RESEARCH · ${(r.title || '').toUpperCase()}`}>
+      <div style={css(`font:400 11.5px/1.65 ${M};color:${dim(78)};white-space:pre-wrap;max-height:220px;overflow-y:auto`)}>{summary}</div>
+      {links.length > 0 && (
+        <div style={css("display:flex;flex-direction:column;gap:6px;margin-top:10px")}>
+          {links.map((l) => (
+            <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer"
+              style={css(`display:flex;align-items:baseline;gap:8px;text-decoration:none;border:1px solid ${dim(10)};border-radius:8px;padding:7px 10px;background:${dim(3)}`)}>
+              <span style={css(`flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:500 11px ${M};color:var(--nv-cy)`)}>{l.label}</span>
+              {l.host && <span style={css(`flex:none;font:400 9px ${M};letter-spacing:.06em;color:${dim(40)}`)}>{l.host} ↗</span>}
+            </a>
+          ))}
+        </div>
+      )}
+      {links.length === 0 && <div style={css(`margin-top:8px;font:400 10px ${M};color:var(--nv-warn)`)}>No parseable source links — read the full brief in your Inbox.</div>}
+    </Card>
+  );
 }

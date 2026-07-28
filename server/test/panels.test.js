@@ -81,6 +81,25 @@ test('training-week panel: 7 days, schedule vs actually-done from the log', asyn
   assert.equal(panel.data.days[0].done.length, 0, 'six days ago: nothing invented');
 });
 
+test('note panel: real file words only, ci title match, honest not-found', async () => {
+  const { mkdir: mk, writeFile: wf } = await import('node:fs/promises');
+  await mk(path.join(vault, 'Wiki/Concepts'), { recursive: true });
+  await wf(path.join(vault, 'Wiki/Concepts/Rigour Protocols.md'), '---\ntype: concept\n---\n# Rigour Protocols\n\nCheck the source before repeating a claim.\n');
+
+  const panel = await buildPanel(vault, { panel: 'note', title: 'rigour protocols' });
+  assert.equal(panel.data.title, 'Rigour Protocols');
+  assert.equal(panel.data.relPath, 'Wiki/Concepts/Rigour Protocols.md');
+  assert.match(panel.data.excerpt, /Check the source before repeating/);
+  assert.ok(!panel.data.excerpt.includes('type: concept'), 'frontmatter stripped');
+  assert.equal(panel.data.truncated, false);
+
+  const partial = await buildPanel(vault, { panel: 'note', title: 'rigour' });
+  assert.equal(partial.data.title, 'Rigour Protocols', 'partial title matches');
+
+  await assert.rejects(() => buildPanel(vault, { panel: 'note', title: 'Nonexistent Page' }), /no note called/);
+  await assert.rejects(() => buildPanel(vault, { panel: 'note' }), /needs a title/);
+});
+
 test('nutrition-week panel: real days, floor from the log, missing days honest', async () => {
   const d = new Date();
   const iso = (offset) => { const x = new Date(d); x.setDate(x.getDate() - offset); return x.toISOString().slice(0, 10); };

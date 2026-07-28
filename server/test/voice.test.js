@@ -44,6 +44,10 @@ test('ask prompt: companion contract — continuing conversation, vault-grounded
   assert.match(prompt, /"kind":"calendar"/);
   assert.match(prompt, /"kind":"rotation-variant"/);
   assert.match(prompt, /NEVER claim it's already done/);
+  // Phase 4: note citations on screen + explicit-ask-only research dispatch
+  assert.match(prompt, /"panel":"note"/);
+  assert.match(prompt, /RESEARCH \{"question"/);
+  assert.match(prompt, /Never fire this on your own initiative/);
   assert.match(prompt, /never invent/);
   assert.match(prompt, /tap REMEMBER/);
   assert.match(prompt, /Leg Day is scheduled/);

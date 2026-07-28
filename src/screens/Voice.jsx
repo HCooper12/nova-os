@@ -4,7 +4,7 @@ import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
 import { Clock } from '../Clock.jsx';
 import { useDictation } from '../useDictation.js';
-import { VoicePanel } from '../VoicePanels.jsx';
+import { VoicePanel, SourcesPanel } from '../VoicePanels.jsx';
 
 const M = "var(--nv-font-mono)";
 
@@ -163,6 +163,13 @@ export function Voice({ v }) {
                     hoverStyle="background:color-mix(in srgb, var(--nv-gold) 08%, transparent)"
                   >REMEMBER</Interactive>
                 )}
+                {m.research?.status === 'running' && (
+                  <div style={css(`margin-top:8px;font:500 10px ${M};letter-spacing:.1em;color:var(--nv-vi);animation:dotBlink 2s ease-in-out infinite`)}>◇ RESEARCHING — THE BRIEF LANDS HERE AND IN YOUR INBOX</div>
+                )}
+                {m.research?.status === 'error' && (
+                  <div style={css(`margin-top:8px;font:500 10px ${M};color:var(--nv-warn)`)}>RESEARCH DIDN’T COMPLETE — {m.research.error || 'check the Inbox'}</div>
+                )}
+                {m.research?.status === 'done' && <SourcesPanel r={m.research} />}
                 {m.proposal && (
                   <div style={css("margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent);border-radius:9px;padding:8px 12px;background:color-mix(in srgb, var(--nv-gold) 05%, transparent)")}>
                     <span style={css(`font:500 10.5px ${M};color:var(--nv-gold)`)}>◈ {m.proposal.title}</span>
