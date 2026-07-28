@@ -472,6 +472,7 @@ export default class App extends Component {
       // after scrolling Recipes
       if (changed && this.mainRef?.current) this.mainRef.current.scrollTop = 0;
     });
+    if (changed && screen === 'voice') this.maybeVoiceGreet();
     const want = '#/' + screen;
     // pushState (not location.hash=) so this doesn't also fire hashchange and
     // double-set state; popstate covers the back button.
@@ -2988,6 +2989,28 @@ export default class App extends Component {
     }).catch((e) => {
       this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { who: 'system', text: 'Error: ' + e.message }] }));
     });
+  }
+  // The doorman: a DETERMINISTIC greeting when he arrives at the Voice
+  // screen — first arrival of the day gets the time of day, a return after
+  // a real gap gets "Welcome back." Code speaks it instantly (no model, no
+  // latency); the prompt's register keeps the address going from there.
+  maybeVoiceGreet() {
+    if (this.state.demoMode || !getConnection()) return;
+    const now = Date.now();
+    const today = new Date().toDateString();
+    let last = {};
+    try { last = JSON.parse(localStorage.getItem('novaos.voiceGreet')) || {}; } catch { /* fresh */ }
+    try { localStorage.setItem('novaos.voiceGreet', JSON.stringify({ date: today, at: now })); } catch { /* best-effort */ }
+    let line = null;
+    if (last.date !== today) {
+      const h = new Date().getHours();
+      line = h < 12 ? 'Good morning, sir.' : h < 18 ? 'Good afternoon, sir.' : 'Good evening, sir.';
+    } else if (last.at && now - last.at > 3 * 3600e3) {
+      line = 'Welcome back, sir.';
+    }
+    if (!line) return;
+    this.setState((s) => ({ voiceChat: [...s.voiceChat, { who: 'nova', text: line }] }));
+    if (this.state.voiceSpeak) { this.primeSpeech(); this.speak(line); }
   }
   // Rituals — tapped invitations, never interruptions. The transcript shows
   // a clean label; the structured instruction is composed server-side.

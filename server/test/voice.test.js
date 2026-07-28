@@ -50,6 +50,7 @@ test('ask prompt: companion contract — continuing conversation, vault-grounded
   assert.match(prompt, /Never fire this on your own initiative/);
   assert.match(prompt, /never invent/);
   assert.match(prompt, /tap REMEMBER/);
+  assert.match(prompt, /Address him as "sir"/);
   assert.match(prompt, /Leg Day is scheduled/);
   assert.match(prompt, /Hayden asks: How did training go this week\?/);
   const noContext = buildAskPrompt({ question: 'Hi', context: '' });

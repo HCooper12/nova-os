@@ -209,7 +209,10 @@ export async function completeSession(vaultPath, input) {
     const current = await getSessions(vaultPath);
 
     const now = new Date();
-    const date = now.toISOString().slice(0, 10);
+    // LOCAL date, not UTC — toISOString() stamped yesterday's date on any
+    // session finished before ~10am AEST, which broke "done today" streaks,
+    // the training-week panel, and carryover logic for morning workouts.
+    const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const session = {
       type: 'workout-session',
       id: randomUUID().slice(0, 8),
