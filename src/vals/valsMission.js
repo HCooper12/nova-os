@@ -159,13 +159,40 @@ export function valsMission(app, ctx) {
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
   const workoutWhen = workoutEvent ? partOfDayFrom(workoutEvent.time) : null; // null = time unknown
 
+  // ---- shared context signals (tagline ladder + focus ladder read these) --
+  const hm2min = (hm) => { const [h, m] = String(hm).split(':').map(Number); return h * 60 + m; };
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const workoutDoneToday = st.liveStreaks?.lastWorkoutDate === todayKey;
+  const inWorkoutWindow = workoutEvent && workoutEvent.end
+    && nowMin >= hm2min(workoutEvent.time) - 15 && nowMin < hm2min(workoutEvent.end);
+  const overdueCarryover = (st.liveCarryovers || []).find((c) => new Date(`${c.forDate}T23:59:59`) < now);
+  const currentEvent = (st.liveCalendar || []).find((e) => e.time && e.end && hm2min(e.time) <= nowMin && nowMin < hm2min(e.end));
+  const stepsFreshShort = stepsDay && stepsDay.date === todayKey && stepsCurrent < STEP_GOAL ? STEP_GOAL - stepsCurrent : null;
+
+  // ---- tagline ladder: one serif line, the most USEFUL true thing --------
+  // Changes through the day as reality does — a live session, the current
+  // block, banked wins, open loops — instead of parroting "Cleared for X".
   let heroTagline;
   if (demoMode) heroTagline = 'Cleared for deep work at 15:30.';
+  else if (st.workoutSession) {
+    const setsDone = st.workoutSession.exercises.reduce((n, e) => n + e.sets.filter((s) => s.done).length, 0);
+    heroTagline = `${st.workoutSession.routineName} is mid-flight — ${setsDone} set${setsDone === 1 ? '' : 's'} down.`;
+  }
+  else if (inWorkoutWindow && todayRoutine && !workoutDoneToday) heroTagline = `It's ${todayRoutine.name} o'clock.`;
+  else if (currentEvent) heroTagline = `In the thick of ${currentEvent.label} until ${currentEvent.end}.`;
+  else if (overdueCarryover) heroTagline = `${overdueCarryover.exercises.length} exercise${overdueCarryover.exercises.length === 1 ? '' : 's'} still owed from ${overdueCarryover.sourceRoutineName}.`;
+  else if (hour < 10 && (ctx.inboxPendingCount || 0) > 0) heroTagline = `${ctx.inboxPendingCount} capture${ctx.inboxPendingCount === 1 ? '' : 's'} waiting for your call.`;
+  else if (workoutDoneToday && todayRoutine && hour >= 17) heroTagline = `${todayRoutine.name} banked. Evening's yours.`;
+  else if (hour >= 17 && usingLiveRecipes && proteinTarget != null && proteinGap > 25) heroTagline = `${proteinGap} g of protein left to close tonight.`;
+  else if (hour >= 19 && stepsFreshShort && stepsFreshShort > 2000) heroTagline = `${stepsFreshShort.toLocaleString()} steps between you and the goal.`;
   else if (nextEvent) heroTagline = `Cleared for ${nextEvent.label} at ${nextEvent.time}.`;
+  else if (workoutDoneToday && todayRoutine) heroTagline = `${todayRoutine.name} banked — the rest of the day is ahead.`;
   else if (todayRoutine) heroTagline = workoutEvent
     ? `${todayRoutine.name} ${workoutWhen} at ${workoutEvent.time}.`
     : `${todayRoutine.name} is on today's plan.`;
+  else if (todayActiveRest) heroTagline = 'Active rest — move easy today.';
   else if (isOffline) heroTagline = 'Waiting for the link to come back.';
+  else if ((st.liveStreaks?.workoutStreak || 0) >= 3) heroTagline = `${st.liveStreaks.workoutStreak}-day streak intact. Rest is part of it.`;
   else if (hour < 12) heroTagline = 'The morning is wide open — claim it.';
   else if (hour < 18) heroTagline = 'The afternoon is clear. Build something.';
   else heroTagline = 'The evening is yours. Land it well.';
@@ -338,16 +365,9 @@ export function valsMission(app, ctx) {
   } else {
     // ---- context ladder: the most actionable TRUE thing wins ------------
     // Every rung is deterministic from live data — no model, no fiction.
-    const hm2min = (hm) => { const [h, m] = String(hm).split(':').map(Number); return h * 60 + m; };
-    const nowMin = now.getHours() * 60 + now.getMinutes();
-    // a workout already logged today must not be re-suggested (streaks carry
-    // lastWorkoutDate — an honest "done" signal without another fetch)
-    const workoutDoneToday = st.liveStreaks?.lastWorkoutDate === todayKey;
-    const inWorkoutWindow = workoutEvent && workoutEvent.end
-      && nowMin >= hm2min(workoutEvent.time) - 15 && nowMin < hm2min(workoutEvent.end);
-    const overdueCarryover = (st.liveCarryovers || []).find((c) => new Date(`${c.forDate}T23:59:59`) < now);
-    const currentEvent = (st.liveCalendar || []).find((e) => e.time && e.end && hm2min(e.time) <= nowMin && nowMin < hm2min(e.end));
-
+    // (Shared signals — inWorkoutWindow, currentEvent, overdueCarryover,
+    // workoutDoneToday — are hoisted above so the tagline reads the same
+    // truth as this ladder.)
     if (st.workoutSession) {
       // rung 1 — a session mid-flight beats everything
       const setsDone = st.workoutSession.exercises.reduce((n, e) => n + e.sets.filter((s) => s.done).length, 0);
