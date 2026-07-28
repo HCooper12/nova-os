@@ -85,6 +85,11 @@ export function valsMisc(app, ctx) {
     wakeWordLabel: wakeWord,
     orbMsgs: (!demoMode ? st.voiceChat : st.orbChat).map(m => ({
       text: m.text, typing: m.typing, panel: m.panel || null,
+      proposal: !demoMode && m.proposal ? {
+        title: m.proposal.title, status: m.proposal.status,
+        approve: m.proposal.status === 'pending' ? () => app.resolveVoiceProposal(m.proposal.recordId, true) : null,
+        dismiss: m.proposal.status === 'pending' ? () => app.resolveVoiceProposal(m.proposal.recordId, false) : null,
+      } : null,
       tag: m.who === 'nova' ? '» NOVA' : m.who === 'system' ? '» SYSTEM' : '» YOU',
       tagStyle: { color: m.who === 'nova' ? 'var(--nv-cy)' : m.who === 'system' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', fontWeight: 500 },
       remember: !demoMode && m.who === 'nova' ? () => app.rememberFromChat(m.text) : null,

@@ -163,6 +163,20 @@ export function Voice({ v }) {
                     hoverStyle="background:color-mix(in srgb, var(--nv-gold) 08%, transparent)"
                   >REMEMBER</Interactive>
                 )}
+                {m.proposal && (
+                  <div style={css("margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent);border-radius:9px;padding:8px 12px;background:color-mix(in srgb, var(--nv-gold) 05%, transparent)")}>
+                    <span style={css(`font:500 10.5px ${M};color:var(--nv-gold)`)}>◈ {m.proposal.title}</span>
+                    {m.proposal.status === 'pending' && (
+                      <span style={css("display:flex;gap:8px")}>
+                        <Interactive as="span" onClick={m.proposal.approve} base={`cursor:pointer;font:500 9.5px ${M};letter-spacing:.08em;padding:3px 10px;border-radius:6px;background:var(--nv-cy);color:var(--nv-on-acc)`} hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">YES, DO IT</Interactive>
+                        <Interactive as="span" onClick={m.proposal.dismiss} base={`cursor:pointer;font:500 9.5px ${M};letter-spacing:.08em;padding:3px 10px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-ink) 20%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`} hoverStyle="border-color:var(--nv-warn);color:var(--nv-warn)">LEAVE IT</Interactive>
+                      </span>
+                    )}
+                    {m.proposal.status === 'done' && <span style={css(`font:500 9.5px ${M};color:var(--nv-good)`)}>✓ DONE — UNDO IN INBOX</span>}
+                    {m.proposal.status === 'dismissed' && <span style={css(`font:500 9.5px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>✕ DISMISSED</span>}
+                    {m.proposal.status === 'error' && <span style={css(`font:500 9.5px ${M};color:var(--nv-warn)`)}>STILL PENDING IN INBOX</span>}
+                  </div>
+                )}
                 {m.panel && <VoicePanel panel={m.panel} />}
               </div>
             ))}

@@ -2476,9 +2476,9 @@ export default class App extends Component {
     // — Nova starts talking while still thinking, like a person does.
     const stream = { spokenUpTo: 0, started: false };
     const elevenPath = !!(this.state.liveTts?.configured);
-    // A trailing SHOW {"panel":...} line is a canvas directive for the server,
-    // not prose — keep it out of the streaming render (and out of the voice)
-    const stripShow = (t) => t.replace(/(^|\n)\s*SHOW\s*(\{[\s\S]*)?$/, '');
+    // Trailing SHOW/PROPOSE lines are typed directives for the server, not
+    // prose — keep them out of the streaming render (and out of the voice)
+    const stripShow = (t) => t.replace(/(^|\n)\s*(SHOW|PROPOSE)\s*(\{[\s\S]*)?$/, '');
     const applyPartial = (text) => this.setState((s) => {
       const chat = [...s.voiceChat];
       const idx = chat.map((m) => !!m.streaming).lastIndexOf(true);
@@ -2521,12 +2521,13 @@ export default class App extends Component {
           this.setState({ voiceSessionId: job.result.sessionId });
         }
         const panel = job.result.panel || undefined;
+        const proposal = job.result.proposal ? { ...job.result.proposal, status: 'pending' } : undefined;
         this.setState((s) => {
           const chat = [...s.voiceChat];
           const idx = chat.map((m) => !!m.streaming).lastIndexOf(true);
-          if (idx === -1) chat.push({ who: 'nova', text, panel });
-          else chat[idx] = { who: 'nova', text, panel };
-          return { voiceBusy: false, voiceChat: chat };
+          if (idx === -1) chat.push({ who: 'nova', text, panel, proposal });
+          else chat[idx] = { who: 'nova', text, panel, proposal };
+          return { voiceBusy: false, voiceChat: chat, voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal };
         });
         if (elevenPath) this.speak(text);
         else if (this.state.voiceSpeak) { speakNewSentences(text, true); if (!stream.started) this.speak(text); }
@@ -2885,10 +2886,43 @@ export default class App extends Component {
     };
   }
 
+  // Voice-confirmed actions: approving is DETERMINISTIC — the same Inbox
+  // approve endpoint the rails already trust; the model never writes.
+  resolveVoiceProposal(recordId, approve) {
+    const conn = getConnection(); if (!conn) return;
+    const mark = (status, extra) => this.setState((s) => ({
+      voicePendingProposal: s.voicePendingProposal?.recordId === recordId ? null : s.voicePendingProposal,
+      voiceChat: s.voiceChat.map((m) => (m.proposal?.recordId === recordId ? { ...m, proposal: { ...m.proposal, status, ...extra } } : m)),
+    }));
+    const call = approve ? api.inboxApprove(conn, recordId) : api.inboxDiscard(conn, recordId);
+    call.then(() => {
+      mark(approve ? 'done' : 'dismissed');
+      const line = approve ? 'Done — it’s in. Undo lives in your Inbox.' : 'Left alone — nothing changed.';
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { who: 'nova', text: line }] }));
+      if (this.state.voiceSpeak) this.speak(line);
+    }).catch((e) => {
+      mark('error', { error: e.message });
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { who: 'system', text: `Couldn’t ${approve ? 'approve' : 'dismiss'} that: ${e.message}. It’s still pending in your Inbox.` }] }));
+    });
+  }
   doOrb() {
     const q = this.state.orbInput.trim(); if (!q) return;
     this.resumeConv(); // anything sent un-pauses the conversation loop
     this.primeSpeech(); // inside the user gesture — unlocks audio on iOS
+    // A short plain yes/no right after a proposal is a CONFIRMATION, not a
+    // question — approve or dismiss deterministically, no model in the loop.
+    const pending = this.state.voicePendingProposal;
+    if (pending && getConnection() && this.state.connectionStatus !== 'offline') {
+      const yes = /^(yes|yep|yeah|sure|ok|okay|do it|go ahead|confirm|approve|approved|yes please|please do|go for it|make it so|lock it in)[.!\s]*$/i.test(q);
+      const no = /^(no|nope|nah|don't|dont|leave it|skip|skip it|cancel|not now|never mind|nevermind)[.!\s]*$/i.test(q);
+      if (yes || no) {
+        this.setState((s) => ({ voiceChat: [...s.voiceChat, { who: 'you', text: q }], orbInput: '' }));
+        this.resolveVoiceProposal(pending.recordId, yes);
+        return;
+      }
+      // anything else moves the conversation on; the draft stays in the Inbox
+      this.setState({ voicePendingProposal: null });
+    }
     // a configured backend → the real Ask Nova pipeline, even while the
     // status is still 'connecting' (the ask itself proves the connection);
     // ONLY demo mode gets the scripted preview

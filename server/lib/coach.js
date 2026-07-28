@@ -301,12 +301,12 @@ export async function validateCoachEdit(vaultPath, raw) {
 // A pending record the Inbox renders with Approve/Discard — the Coach's
 // proposal, on the same rails as every other write. ALWAYS review-gated:
 // program changes are confirm-first regardless of autonomy mode.
-export async function createCoachEditRecord(vaultPath, { question, proposal }) {
+export async function createCoachEditRecord(vaultPath, { question, proposal, source = 'coach' }) {
   const { payload, title } = await validateCoachEdit(vaultPath, proposal);
   const record = {
     id: randomUUID().slice(0, 8),
     text: question.slice(0, 300),
-    source: 'coach',
+    source,
     mode: 'review-all',
     status: 'pending',
     createdAt: new Date().toISOString(),

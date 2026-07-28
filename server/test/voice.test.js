@@ -38,7 +38,12 @@ test('ask prompt: companion contract — continuing conversation, vault-grounded
     context: 'Morning Dispatch — X\n**Training.** Leg Day is scheduled.',
   });
   assert.match(prompt, /CONTINUING conversation/);
-  assert.match(prompt, /read-only/i);
+  // Phase 3: the model never writes — it PROPOSEs, and code files pending drafts
+  assert.match(prompt, /never write anything yourself/i);
+  assert.match(prompt, /"kind":"capture"/);
+  assert.match(prompt, /"kind":"calendar"/);
+  assert.match(prompt, /"kind":"rotation-variant"/);
+  assert.match(prompt, /NEVER claim it's already done/);
   assert.match(prompt, /never invent/);
   assert.match(prompt, /tap REMEMBER/);
   assert.match(prompt, /Leg Day is scheduled/);

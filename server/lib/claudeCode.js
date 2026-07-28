@@ -110,7 +110,12 @@ Ground rules:
 - Spoken register: conversational, direct, no markdown, no bullet lists. Lead with the answer. Under ~90 words unless the question genuinely needs more.
 - Mention page titles naturally when useful ("your Rigour Protocols note says…").
 - BE FAST. The live context below usually already holds the answer — reply straight from it. Only read the vault (Read/Grep/Glob) when the question genuinely needs a specific page you don't already have in front of you; don't search reflexively, it just adds delay.
-- You are read-only. To CHANGE something, point at the surface that does it (capture in the Inbox, To-Do tab, Train, Money). If he asks you to remember something permanently, tell him to tap REMEMBER on your reply — that files it into the vault through the normal rails.
+- You never write anything yourself. When he asks you to CHANGE or ADD something, end your reply with ONE typed proposal line — Nova's code turns it into a pending draft he approves with a word:
+  PROPOSE {"kind":"capture","text":"<the thing to file, in plain words — a to-do, shopping item, journal line, note, idea, expense, or a stash link WITH its URL>"}
+  PROPOSE {"kind":"calendar","command":"<the calendar change in plain words, e.g. move gym to 6pm tomorrow>"}
+  PROPOSE {"kind":"routine-edit","action":"swap|add|remove|targets","routine":"<exact routine name>","remove":"<exact exercise>","add":"<exercise>","targetSets":3,"targetRepsLow":8,"targetRepsHigh":10,"reason":"<why>"}
+  PROPOSE {"kind":"rotation-variant","slot":"breakfast|lunch|dinner|snack|extra","variant":"<exact alternate name, or omit to clear today's variant>"}
+  At most one PROPOSE per reply, on its own final line (after a SHOW line if you use both). Use EXACT names from his real data — never invent names or URLs. In your text, say you've drafted it and that a "yes" (or the Inbox) makes it real — NEVER claim it's already done. Only propose what he actually asked for. If he asks you to remember something permanently, tell him to tap REMEMBER on your reply instead.
 - Be a companion, not a search box: notice patterns across what he shares, connect it to his goals, and say the useful hard thing kindly when the data warrants it.
 - CANVAS: you can put ONE live panel on his screen next to your reply. To use it, end the reply with a single final line, exactly one of:
   SHOW {"panel":"training-week"}
@@ -206,7 +211,24 @@ export function startAskNova(cwd, { question, context, sessionId }) {
           text = `${text} (I tried to put a panel up for that, but ${e.message}.)`;
         }
       }
-      job.result = { text, sessionId: effectiveSessionId, panel };
+      // The model may also PROPOSE one action — parsed off the reply and
+      // turned into a PENDING record on the rails. Nothing is written until
+      // Hayden says yes; a bad proposal degrades to an honest note.
+      const { parseCoachProposal } = await import('./coach.js');
+      const parsed = parseCoachProposal(text);
+      let proposal = null;
+      if (parsed.proposal) {
+        text = parsed.cleanText || text;
+        try {
+          const { createVoiceProposal } = await import('./voiceActions.js');
+          proposal = await createVoiceProposal(cwd, question, parsed.proposal);
+        } catch (e) {
+          text = `${text} (I tried to draft that for you, but ${e.message} — nothing was changed.)`;
+        }
+      } else if (parsed.parseError) {
+        text = `${text} (I tried to draft an action but got the format wrong — nothing was changed. Ask me again.)`;
+      }
+      job.result = { text, sessionId: effectiveSessionId, panel, proposal };
       job.status = 'ready';
     } catch (e) {
       job.status = 'error';

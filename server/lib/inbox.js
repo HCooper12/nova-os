@@ -175,6 +175,29 @@ function classify(text, onDone) {
   child.on('error', (err) => onDone(err));
 }
 
+// Voice-conversation proposals: classify NOW and land as a pending record —
+// never auto-files regardless of confidence, because a proposal spoken into
+// a conversation deserves an explicit yes. Resolves once the record is
+// pending so the caller can show the classified title as a confirm chip.
+export async function captureForReview(vaultPath, { text, source = 'voice' }) {
+  const clean = String(text || '').trim();
+  if (!clean) throw new Error('nothing to file');
+  const decision = await new Promise((resolve, reject) => {
+    classify(clean, (err, d) => (err ? reject(err) : resolve(d)));
+  });
+  const record = {
+    id: randomUUID().slice(0, 8),
+    text: clean,
+    source,
+    mode: 'review-all',
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+    decision,
+  };
+  await createRecord(record);
+  return record;
+}
+
 /* ------------------------- deterministic filing ------------------------- */
 
 function sanitizeFilename(title) {
@@ -273,6 +296,27 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     return {
       destination: `Train — ${what} in ${routine.name}`,
       undo: { route, routineId: routine.id, routineName: routine.name, priorEntries },
+    };
+  }
+
+  if (route === 'rotation-variant') {
+    // A today-variant for one rotation slot (or clearing one), applied on
+    // approve. The stored recipe never changes; undo restores the slot's
+    // exact prior override.
+    const { loadRecipeData } = await import('./recipes.js');
+    const { loadRotation, setSlotVariant } = await import('./rotation.js');
+    const { recipes } = await loadRecipeData(vaultPath);
+    const before = await loadRotation(vaultPath, recipes);
+    const slotBefore = before.slots?.[payload.slot];
+    if (!slotBefore) throw new Error(`the ${payload.slot} slot has no recipe today`);
+    const priorAltId = slotBefore.variantId || null;
+    await setSlotVariant(vaultPath, recipes, payload.slot, payload.altId || null);
+    const what = payload.altId
+      ? `${payload.slot} → ${slotBefore.name} (${payload.variantLabel})`
+      : `${payload.slot} back to ${slotBefore.name} as written`;
+    return {
+      destination: `Rotation — today only: ${what}`,
+      undo: { route, slot: payload.slot, priorAltId, recipeName: slotBefore.name },
     };
   }
 
@@ -482,6 +526,16 @@ export async function undoFiling(vaultPath, undo) {
     await updateRoutine(vaultPath, exercises, undo.routineId, { exercises: undo.priorEntries });
     return `restored ${undo.routineName} to its prior exercise list`;
   }
+  if (undo.route === 'rotation-variant') {
+    const { loadRecipeData } = await import('./recipes.js');
+    const { setSlotVariant } = await import('./rotation.js');
+    const { recipes } = await loadRecipeData(vaultPath);
+    await setSlotVariant(vaultPath, recipes, undo.slot, undo.priorAltId);
+    return undo.priorAltId
+      ? `restored ${undo.slot}'s previous today-variant of ${undo.recipeName}`
+      : `cleared the today-variant — ${undo.slot} is ${undo.recipeName} as written again`;
+  }
+
   if (undo.route === 'plan-note') {
     const full = path.join(vaultPath, undo.relPath);
     if (!existsSync(full)) return 'the plan page is already gone';
