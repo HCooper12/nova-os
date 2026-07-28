@@ -170,6 +170,9 @@ export function Voice({ v }) {
                     hoverStyle="background:color-mix(in srgb, var(--nv-gold) 08%, transparent)"
                   >REMEMBER</Interactive>
                 )}
+                {m.research?.status === 'queued' && (
+                  <div style={css(`margin-top:8px;font:500 10px ${M};letter-spacing:.1em;color:var(--nv-vi)`)}>◇ QUEUED FOR TONIGHT — THE BRIEF LANDS IN YOUR INBOX BY MORNING</div>
+                )}
                 {m.research?.status === 'running' && (
                   <div style={css(`margin-top:8px;font:500 10px ${M};letter-spacing:.1em;color:var(--nv-vi);animation:dotBlink 2s ease-in-out infinite`)}>◇ RESEARCHING — THE BRIEF LANDS HERE AND IN YOUR INBOX</div>
                 )}

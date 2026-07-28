@@ -78,6 +78,35 @@ export function Ops({ v }) {
         </div>
       </div>
 
+      {/* the overnight queue — work that runs while he sleeps */}
+      <div style={css("margin-top:30px;display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px")}>
+        <span style={css(`font:500 9.5px ${M};letter-spacing:.24em;color:${dim(42)}`)}>OVERNIGHT QUEUE · RUNS {v.overnightWindow} WHILE YOU SLEEP</span>
+        {v.overnightQueuedCount > 0 && (
+          <Interactive as="span" onClick={v.overnightRunNow} base={`cursor:pointer;font:500 9px ${M};letter-spacing:.1em;color:${dim(40)}`} hoverStyle="color:var(--nv-vi)">RUN NOW ▸</Interactive>
+        )}
+      </div>
+      <div style={css("display:flex;gap:8px;margin-top:10px;max-width:640px")}>
+        <Interactive as="input" value={v.overnightInput} onChange={v.setOvernightInput} onKeyDown={v.overnightKey}
+          placeholder="Queue a research question for tonight…"
+          base={`flex:1;background:var(--nv-well);border:1px solid ${dim(12)};border-radius:9px;padding:9px 13px;color:var(--nv-ink);font:400 12px ${M};outline:none`}
+          focusStyle="border-color:color-mix(in srgb, var(--nv-vi) 50%, transparent)" />
+        <Interactive as="span" onClick={v.overnightAdd}
+          base={`cursor:pointer;display:flex;align-items:center;font:500 10px ${M};letter-spacing:.08em;padding:0 15px;border-radius:9px;background:var(--nv-vi);color:var(--nv-on-acc)`}
+          hoverStyle="background:color-mix(in srgb, var(--nv-vi) 80%, white)">QUEUE</Interactive>
+      </div>
+      <div style={css("margin-top:8px;max-width:820px")}>
+        {v.overnightItems.length === 0 && <div style={css(`font:400 10.5px ${M};color:${dim(38)}`)}>Nothing queued — hand Nova a question here (or say “research this tonight” in conversation) and wake up to the brief.</div>}
+        {v.overnightItems.map((i) => (
+          <div key={i.id} style={css(`display:flex;align-items:baseline;gap:10px;padding:7px 0;border-bottom:1px solid ${dim(5)};font:400 11px ${M}`)}>
+            <span style={css(`flex:none;font-size:8.5px;letter-spacing:.1em;color:${i.statusColor};${i.running ? 'animation:dotBlink 1.6s infinite' : ''}`)}>{i.status}</span>
+            <span style={css(`flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${dim(80)}`)}>{i.question}</span>
+            {i.note && <span style={css(`flex:none;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9.5px;color:${dim(45)}`)}>{i.note}</span>}
+            <span style={css(`flex:none;font-size:9px;color:${dim(35)}`)}>{i.when}</span>
+            {i.remove && <Interactive as="span" onClick={i.remove} base={`cursor:pointer;flex:none;font-size:10px;color:${dim(35)}`} hoverStyle="color:var(--nv-warn)">✕</Interactive>}
+          </div>
+        ))}
+      </div>
+
       {/* the stream — receipts, newest first */}
       <div style={css(`margin-top:30px;font:500 9.5px ${M};letter-spacing:.24em;color:${dim(42)}`)}>THE STREAM · LAST {v.opsStream.length} RECEIPTS</div>
       <div style={css("margin-top:10px")}>

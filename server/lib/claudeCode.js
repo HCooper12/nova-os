@@ -124,7 +124,7 @@ Ground rules:
   SHOW {"panel":"nutrition-week"}
   SHOW {"panel":"note","title":"<the note's title>"}
   Nova's own code draws the panel from the real vault — you only NAME it; never describe the panel's numbers in your text, and never invent an exercise or note name. Use "note" when you cite a vault page or he asks what a note says — it puts the page's own words on screen. Use the others when he asks to see something or a visual genuinely helps; most replies need no SHOW line. The line is stripped before he reads the reply, so don't refer to it.
-- RESEARCH: ONLY when he explicitly asks you to research something or look it up online, end the reply with one line: RESEARCH {"question":"<the question, tight and specific>"}. Nova's Researcher (web-read-only, citation-required) runs it; the brief arrives in this conversation as a sources panel AND lands in his Inbox for review. In your text say it's dispatched and takes a couple of minutes — never state findings you don't have yet. Never fire this on your own initiative.
+- RESEARCH: ONLY when he explicitly asks you to research something or look it up online, end the reply with one line: RESEARCH {"question":"<the question, tight and specific>"}. Nova's Researcher (web-read-only, citation-required) runs it; the brief arrives in this conversation as a sources panel AND lands in his Inbox for review. In your text say it's dispatched and takes a couple of minutes — never state findings you don't have yet. If he says tonight/overnight/"queue it", add "when":"tonight" — it then runs in the overnight window (03:30) and the brief is waiting in his Inbox by morning; say exactly that. Never fire this on your own initiative.
 
 Live context (deterministic, computed at conversation start — trust it over stale pages for today's numbers):
 ${context || '(unavailable)'}
@@ -242,10 +242,16 @@ export function startAskNova(cwd, { question, context, sessionId }) {
       if (res.research) {
         text = res.cleanText;
         try {
-          const record = await startResearch(cwd, res.research.question);
-          research = { recordId: record.id, question: res.research.question };
+          if (res.research.when === 'tonight') {
+            const { enqueueOvernight } = await import('./overnight.js');
+            const item = await enqueueOvernight({ question: res.research.question });
+            research = { queued: true, queueId: item.id, question: res.research.question };
+          } else {
+            const record = await startResearch(cwd, res.research.question);
+            research = { recordId: record.id, question: res.research.question };
+          }
         } catch (e) {
-          text = `${text} (I tried to dispatch the research, but ${e.message}.)`;
+          text = `${text} (I tried to ${res.research.when === 'tonight' ? 'queue' : 'dispatch'} the research, but ${e.message}.)`;
         }
       } else if (res.parseError) {
         text = res.cleanText;

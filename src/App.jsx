@@ -224,6 +224,7 @@ export default class App extends Component {
     inboxMode: (typeof window !== 'undefined' && INBOX_MODES.includes(localStorage.getItem(INBOX_MODE_KEY))) ? localStorage.getItem(INBOX_MODE_KEY) : 'auto-high',
     inboxProposalDismissed: (() => { try { const a = JSON.parse(localStorage.getItem('novaos.proposalsDismissed') || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } })(),
     liveDispatch: null, liveCompost: null, liveTodoist: null, liveTodos: null, liveGuardian: null, liveDailyReview: null, liveOps: null,
+    liveOvernight: null, overnightInput: '',
     dispatchBusy: false, compostBusy: false, compostActionBusy: {}, todoistBusy: false, guardianBusy: false, reviewBusy: false,
     todoInput: '', todoActionBusy: false, todoEditCategoryKey: null,
     editingSessionId: null, sessionDeleteConfirmId: null,
@@ -816,6 +817,7 @@ export default class App extends Component {
     apply('learning', (r) => this.setState({ liveLearning: r }));
     apply('dailyReview', (r) => this.setState({ liveDailyReview: r }));
     apply('ops', (r) => this.setState({ liveOps: r }));
+    apply('overnight', (r) => this.setState({ liveOvernight: r }));
     return ok;
   }
   async refreshLiveData() {
@@ -2527,7 +2529,9 @@ export default class App extends Component {
         }
         const panel = job.result.panel || undefined;
         const proposal = job.result.proposal ? { ...job.result.proposal, status: 'pending' } : undefined;
-        const research = job.result.research ? { ...job.result.research, status: 'running' } : undefined;
+        const research = job.result.research
+          ? { ...job.result.research, status: job.result.research.queued ? 'queued' : 'running' }
+          : undefined;
         this.setState((s) => {
           const chat = [...s.voiceChat];
           const idx = chat.map((m) => !!m.streaming).lastIndexOf(true);
@@ -2535,7 +2539,7 @@ export default class App extends Component {
           else chat[idx] = { who: 'nova', text, panel, proposal, research };
           return { voiceBusy: false, voiceChat: chat, voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal };
         });
-        if (research) this.watchVoiceResearch(conn, research.recordId);
+        if (research && !research.queued) this.watchVoiceResearch(conn, research.recordId);
         if (elevenPath) this.speak(text);
         else if (this.state.voiceSpeak) { speakNewSentences(text, true); if (!stream.started) this.speak(text); }
         else this.maybeAutoListen();
@@ -2910,6 +2914,29 @@ export default class App extends Component {
       })),
       onError: (msg) => patch((m) => ({ ...m, research: { ...m.research, status: 'error', error: msg } })),
     });
+  }
+  // The overnight queue — work handed to Nova for the 03:30 window.
+  overnightAdd(question) {
+    const conn = getConnection();
+    const q = (question ?? this.state.overnightInput).trim();
+    if (!conn || !q) return;
+    api.overnightAdd(conn, q).then((r) => {
+      this.setState({ liveOvernight: r, overnightInput: '' });
+      this.toastMsg('Queued for tonight — the brief lands in your Inbox by morning');
+    }).catch((e) => this.toastMsg(e.message));
+  }
+  overnightRemove(id) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.overnightRemove(conn, id).then((r) => this.setState({ liveOvernight: r })).catch((e) => this.toastMsg(e.message));
+  }
+  overnightRunNow() {
+    const conn = getConnection();
+    if (!conn) return;
+    api.overnightRun(conn).then(() => {
+      this.toastMsg('Running the queue now — briefs land in the Inbox as they finish');
+      setTimeout(() => { const c = getConnection(); if (c) api.overnight(c).then((r) => this.setState({ liveOvernight: r })).catch(() => {}); }, 2000);
+    }).catch((e) => this.toastMsg(e.message));
   }
   // Voice-confirmed actions: approving is DETERMINISTIC — the same Inbox
   // approve endpoint the rails already trust; the model never writes.

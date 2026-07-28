@@ -258,6 +258,13 @@ async function composeMorning(vaultPath, now) {
     }
   } catch { /* optional */ }
 
+  // what the overnight queue landed while he slept
+  try {
+    const { overnightMorningLine } = await import('./overnight.js');
+    const overnight = await overnightMorningLine();
+    if (overnight) lines.push(overnight);
+  } catch { /* optional */ }
+
   try {
     const streaks = await streakLine(vaultPath);
     if (streaks) lines.push(streaks);

@@ -6,7 +6,12 @@ const { buildResearchPrompt, normalizeResearch, parseResearchDirective } = await
 test('parseResearchDirective extracts and strips; junk degrades honestly', () => {
   const ok = parseResearchDirective('On it — takes a couple of minutes.\n\nRESEARCH {"question":"creatine timing evidence"}');
   assert.equal(ok.cleanText, 'On it — takes a couple of minutes.');
-  assert.deepEqual(ok.research, { question: 'creatine timing evidence' });
+  assert.deepEqual(ok.research, { question: 'creatine timing evidence', when: 'now' });
+
+  const tonight = parseResearchDirective('Queued.\nRESEARCH {"question":"zone 2 volume","when":"tonight"}');
+  assert.deepEqual(tonight.research, { question: 'zone 2 volume', when: 'tonight' });
+  const junkWhen = parseResearchDirective('Ok.\nRESEARCH {"question":"x y z q","when":"whenever"}');
+  assert.equal(junkWhen.research.when, 'now', 'unknown when degrades to now, never invents a schedule');
 
   assert.equal(parseResearchDirective('No directive here.').research, null);
   assert.equal(parseResearchDirective('Reply.\nRESEARCH {"question":""}').research, null, 'empty question rejected');

@@ -52,7 +52,7 @@ export function parseResearchDirective(text) {
     const parsed = JSON.parse(m[1]);
     const question = String(parsed.question || '').trim();
     if (!question) return { cleanText, research: null, parseError: 'the research directive had no question' };
-    return { cleanText, research: { question } };
+    return { cleanText, research: { question, when: parsed.when === 'tonight' ? 'tonight' : 'now' } };
   } catch {
     return { cleanText, research: null, parseError: 'the research directive was not valid JSON' };
   }

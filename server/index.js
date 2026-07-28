@@ -41,6 +41,8 @@ import { startDispatchScheduler } from './lib/dispatch.js';
 import { startCompostScheduler } from './lib/compost.js';
 import { startTodoistScheduler } from './lib/todoistSync.js';
 import { startGuardianScheduler } from './lib/guardian.js';
+import { startOvernightScheduler } from './lib/overnight.js';
+import { overnightRouter } from './routes/overnight.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(__dirname, '.env');
@@ -117,6 +119,7 @@ async function main() {
   app.use('/api', shoppingListRouter(process.env.VAULT_PATH));
   app.use('/api', stashRouter(process.env.VAULT_PATH));
   app.use('/api', opsRouter());
+  app.use('/api', overnightRouter(process.env.VAULT_PATH));
   app.use('/api', workoutsRouter(process.env.VAULT_PATH));
   app.use('/api', journalRouter(vault, process.env.VAULT_PATH));
   app.use('/api', claudeCodeRouter({ repoPath: path.resolve(__dirname, '..'), vaultPath: process.env.VAULT_PATH }));
@@ -166,6 +169,7 @@ async function main() {
   startCompostScheduler(process.env.VAULT_PATH);
   startTodoistScheduler(process.env.VAULT_PATH);
   startGuardianScheduler(process.env.VAULT_PATH);
+  startOvernightScheduler(process.env.VAULT_PATH);
   startMoneyImportScheduler(process.env.VAULT_PATH);
   startCfoScheduler();
   startMealPrepScheduler(process.env.VAULT_PATH);
