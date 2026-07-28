@@ -113,3 +113,24 @@ E. Greeting/persona layer — ✅ shipped 29 July (this commit).
 Phase-6 items (native wrapper, realtime speech) remain the ceiling movers
 for latency and polish; the ElevenLabs key remains the single biggest
 "feel" upgrade available today.
+
+## Addendum (30 July) — Topic Pulse, from the huwprosser wall-Jarvis reel
+
+Hayden's ask: the brief with a LIVE visual feed — not world news, but
+"news on a specific topic or things it knows I'm interested in", displayed
+as cards/videos while Nova talks. The honest Nova shape:
+
+- **Interests registry** — a small vault page (his to edit) listing topics
+  he cares about, loaded like the skills/standing pages.
+- **Pulse jobs** — a Researcher-lite run per topic (web-read-only, budget-
+  capped): 3–5 current items, each with title + URL + source, citation
+  rules unchanged. On demand ("what's new in X") or scheduled with the
+  overnight queue so the morning brief carries fresh pulses.
+- **Pulse panels** — rendered as link-out cards in the transcript (the
+  SourcesPanel pattern; video links included, tap to open, nothing
+  auto-plays) and as a rotating strip on Ambient mode — the wall display
+  that talks AND shows.
+- Dispatch garnish: "**Pulse.** 3 new on hybrid training; 2 on Claude."
+
+Deterministic spine: models fetch and cite; code stores, renders, rotates.
+Nothing enters the vault without review, as ever.
