@@ -4,6 +4,7 @@ import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
 import { Clock } from '../Clock.jsx';
 import { useDictation } from '../useDictation.js';
+import { VoicePanel } from '../VoicePanels.jsx';
 
 const M = "var(--nv-font-mono)";
 
@@ -162,6 +163,7 @@ export function Voice({ v }) {
                     hoverStyle="background:color-mix(in srgb, var(--nv-gold) 08%, transparent)"
                   >REMEMBER</Interactive>
                 )}
+                {m.panel && <VoicePanel panel={m.panel} />}
               </div>
             ))}
             {v.voiceBusy && (

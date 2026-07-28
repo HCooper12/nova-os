@@ -2476,6 +2476,9 @@ export default class App extends Component {
     // — Nova starts talking while still thinking, like a person does.
     const stream = { spokenUpTo: 0, started: false };
     const elevenPath = !!(this.state.liveTts?.configured);
+    // A trailing SHOW {"panel":...} line is a canvas directive for the server,
+    // not prose — keep it out of the streaming render (and out of the voice)
+    const stripShow = (t) => t.replace(/(^|\n)\s*SHOW\s*(\{[\s\S]*)?$/, '');
     const applyPartial = (text) => this.setState((s) => {
       const chat = [...s.voiceChat];
       const idx = chat.map((m) => !!m.streaming).lastIndexOf(true);
@@ -2504,8 +2507,10 @@ export default class App extends Component {
       onProgress: (job) => {
         if (!job.partial) return;
         stream.started = true;
-        applyPartial(job.partial);
-        speakNewSentences(job.partial, false);
+        const shown = stripShow(job.partial);
+        if (!shown) return;
+        applyPartial(shown);
+        speakNewSentences(shown, false);
       },
       onReady: (job) => {
         clearJob();
@@ -2515,11 +2520,12 @@ export default class App extends Component {
           localStorage.setItem('novaos.voiceSession', job.result.sessionId);
           this.setState({ voiceSessionId: job.result.sessionId });
         }
+        const panel = job.result.panel || undefined;
         this.setState((s) => {
           const chat = [...s.voiceChat];
           const idx = chat.map((m) => !!m.streaming).lastIndexOf(true);
-          if (idx === -1) chat.push({ who: 'nova', text });
-          else chat[idx] = { who: 'nova', text };
+          if (idx === -1) chat.push({ who: 'nova', text, panel });
+          else chat[idx] = { who: 'nova', text, panel };
           return { voiceBusy: false, voiceChat: chat };
         });
         if (elevenPath) this.speak(text);

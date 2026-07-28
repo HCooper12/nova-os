@@ -112,6 +112,11 @@ Ground rules:
 - BE FAST. The live context below usually already holds the answer — reply straight from it. Only read the vault (Read/Grep/Glob) when the question genuinely needs a specific page you don't already have in front of you; don't search reflexively, it just adds delay.
 - You are read-only. To CHANGE something, point at the surface that does it (capture in the Inbox, To-Do tab, Train, Money). If he asks you to remember something permanently, tell him to tap REMEMBER on your reply — that files it into the vault through the normal rails.
 - Be a companion, not a search box: notice patterns across what he shares, connect it to his goals, and say the useful hard thing kindly when the data warrants it.
+- CANVAS: you can put ONE live panel on his screen next to your reply. To use it, end the reply with a single final line, exactly one of:
+  SHOW {"panel":"training-week"}
+  SHOW {"panel":"exercise","name":"<exact exercise name>"}
+  SHOW {"panel":"nutrition-week"}
+  Nova's own code draws the panel from the real vault — you only NAME it; never describe the panel's numbers in your text, and never invent an exercise name. Use it when he asks to see something or a visual genuinely helps (his training week, a specific lift's history, his protein week); most replies need no SHOW line. The line is stripped before he reads the reply, so don't refer to it.
 
 Live context (deterministic, computed at conversation start — trust it over stale pages for today's numbers):
 ${context || '(unavailable)'}
@@ -181,13 +186,27 @@ export function startAskNova(cwd, { question, context, sessionId }) {
     }
   });
   child.stderr.on('data', (d) => { stderr += d; });
-  child.on('close', (code) => {
+  child.on('close', async (code) => {
     try {
       if (resultErr) throw new Error(resultErr);
       const replyText = (resultText || streamed || '').trim();
       if (code !== 0 && !replyText) throw new Error(stderr.trim() || `claude exited with code ${code}`);
       if (!replyText) throw new Error('Empty response');
-      job.result = { text: replyText, sessionId: effectiveSessionId };
+      // Canvas: the model may end with one SHOW {"panel":...} line. Parse it
+      // out and build the panel DETERMINISTICALLY from the vault — the model
+      // names a view, our code draws it. A bad directive degrades honestly.
+      const { parseShowDirective, buildPanel } = await import('./panels.js');
+      const { cleanText, directive } = parseShowDirective(replyText);
+      let text = cleanText || replyText;
+      let panel = null;
+      if (directive) {
+        try {
+          panel = await buildPanel(cwd, directive);
+        } catch (e) {
+          text = `${text} (I tried to put a panel up for that, but ${e.message}.)`;
+        }
+      }
+      job.result = { text, sessionId: effectiveSessionId, panel };
       job.status = 'ready';
     } catch (e) {
       job.status = 'error';
