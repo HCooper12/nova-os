@@ -100,6 +100,16 @@ export function valsMisc(app, ctx) {
     })),
     voiceContinuing: !demoMode && !!st.voiceSessionId,
     newVoiceChat: () => app.newVoiceChat(),
+    // ritual invitations — time-windowed, once a day, tapped never pushed
+    ritualInvite: (() => {
+      if (demoMode || st.voiceBusy) return null;
+      const h = new Date().getHours();
+      const doneToday = (k) => (st.ritualDone || {})[k] === new Date().toDateString();
+      if (h < 10 && !doneToday('morning')) return { kind: 'morning', label: '☀ MORNING BRIEF' };
+      if (h >= 19 && !doneToday('evening')) return { kind: 'evening', label: '☾ EVENING REFLECTION' };
+      return null;
+    })(),
+    startRitual: (kind) => app.startRitual(kind),
     orbInput: st.orbInput,
     setOrbInput: (e) => app.setState({ orbInput: e.target.value }),
     setOrbInputValue: (t) => app.setState({ orbInput: t }),

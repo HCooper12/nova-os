@@ -199,6 +199,7 @@ export const api = {
   moneyScanFile: (conn, transactions) => post(conn, '/api/money/scan-file', { transactions }),
   moneyExportUrl: (conn, fy) => `${conn.baseUrl.replace(/\/$/, '')}/api/money/export/${fy}`,
   ask: (conn, question, sessionId) => post(conn, '/api/ask', { question, sessionId }),
+  askRitual: (conn, kind, sessionId) => post(conn, '/api/ask/ritual', { kind, sessionId }),
   research: (conn, question) => post(conn, '/api/research', { question }),
   followupDone: (conn, label, time) => post(conn, '/api/followups', { label, time }),
   studioSetStatus: (conn, id, status) => post(conn, `/api/studio/idea/${encodeURIComponent(id)}/status`, { status }),

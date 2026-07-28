@@ -235,6 +235,7 @@ export default class App extends Component {
     // offline outbox — writes queued while the backend is unreachable
     outbox: typeof localStorage !== 'undefined' ? loadOutbox() : [],
     nudgeDismissed: {},
+    ritualDone: (() => { try { return JSON.parse(localStorage.getItem('novaos.ritualDone')) || {}; } catch { return {}; } })(),
     outboxOpen: false,
     // an in-progress workout must survive tab reclaim / refresh / app kill —
     // restored from device storage at boot (see restoreActiveSession)
@@ -2986,6 +2987,23 @@ export default class App extends Component {
       this.attachAskPoll(conn, jobId);
     }).catch((e) => {
       this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { who: 'system', text: 'Error: ' + e.message }] }));
+    });
+  }
+  // Rituals — tapped invitations, never interruptions. The transcript shows
+  // a clean label; the structured instruction is composed server-side.
+  startRitual(kind) {
+    const conn = getConnection();
+    if (!conn || this.state.voiceBusy || this.state.connectionStatus === 'offline') return;
+    this.primeSpeech();
+    api.askRitual(conn, kind, this.state.voiceSessionId || null).then(({ jobId, label }) => {
+      const done = { ...(this.state.ritualDone || {}), [kind]: new Date().toDateString() };
+      try { localStorage.setItem('novaos.ritualDone', JSON.stringify(done)); } catch { /* best-effort */ }
+      try { localStorage.setItem('novaos.askJob', JSON.stringify({ jobId, askedAt: Date.now() })); } catch { /* best-effort */ }
+      this.setState((s) => ({ ritualDone: done, voiceBusy: true, voiceChat: [...s.voiceChat, { who: 'you', text: label }] }));
+      this.stopSpeaking();
+      this.attachAskPoll(conn, jobId);
+    }).catch((e) => {
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { who: 'system', text: 'Error: ' + e.message }] }));
     });
   }
   newVoiceChat() {

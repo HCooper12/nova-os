@@ -53,6 +53,25 @@ export function voiceRouter(vaultPath) {
     }
   });
 
+  // Rituals — the morning brief / evening reflection conversations. The
+  // instruction block is built server-side (versioned, tested) around a
+  // dispatch composed fresh at tap time, then rides the normal ask pipeline.
+  router.post('/ask/ritual', async (req, res) => {
+    try {
+      const { buildRitualQuestion, ritualLabel, RITUAL_KINDS } = await import('../lib/rituals.js');
+      const kind = req.body?.kind;
+      if (!RITUAL_KINDS.includes(kind)) return res.status(400).json({ error: 'kind must be morning or evening' });
+      const sessionId = typeof req.body?.sessionId === 'string' && req.body.sessionId ? req.body.sessionId : null;
+      let dispatchText = '';
+      try { dispatchText = (await composeDispatch(vaultPath, kind)).text; } catch { /* honest fallback in the builder */ }
+      const question = buildRitualQuestion(kind, dispatchText);
+      const jobId = startAskNova(vaultPath, { question, context: await askContext(sessionId), sessionId });
+      res.json({ jobId, label: ritualLabel(kind) });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // Synchronous ask — starts the job and holds the response open until Nova
   // has answered, returning the plain text. This is what makes a hands-free
   // "Hey Siri, Ask Nova" Shortcut trivial: one request in, the spoken answer

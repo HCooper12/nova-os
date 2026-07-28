@@ -126,6 +126,13 @@ export function Voice({ v }) {
               <span style={css("width:3px;height:22px;background:color-mix(in srgb, var(--nv-cy) 55%, transparent);animation:wave 1.1s ease-in-out .72s infinite")}></span>
             </div>
           )}
+          {v.ritualInvite && v.voiceLive && (
+            <Interactive as="span" onClick={() => v.startRitual(v.ritualInvite.kind)}
+              title="A guided conversation for this time of day — starts only when you tap"
+              base={`cursor:pointer;display:inline-block;margin-bottom:10px;font:500 11px ${M};letter-spacing:.06em;padding:10px 18px;border-radius:9px;border:1px solid color-mix(in srgb, ${v.ritualInvite.kind === 'morning' ? 'var(--nv-gold)' : 'var(--nv-vi)'} 45%, transparent);color:${v.ritualInvite.kind === 'morning' ? 'var(--nv-gold)' : 'var(--nv-vi)'};background:color-mix(in srgb, ${v.ritualInvite.kind === 'morning' ? 'var(--nv-gold)' : 'var(--nv-vi)'} 07%, transparent);animation:fadeUp .4s ease-out`}
+              hoverStyle={`background:color-mix(in srgb, ${v.ritualInvite.kind === 'morning' ? 'var(--nv-gold)' : 'var(--nv-vi)'} 14%, transparent)`}
+            >{v.ritualInvite.label} — TAP TO START</Interactive>
+          )}
           <div style={css("display:flex;gap:10px")}>
             {dict.supported && (
               <Interactive as="span" onClick={() => { v.primeSpeech(); v.stopSpeaking(); v.resumeConv(); dict.toggle(); }}
