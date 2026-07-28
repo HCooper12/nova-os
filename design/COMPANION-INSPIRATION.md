@@ -4,9 +4,10 @@ Hayden shared 20 Instagram reels as inspiration for what Nova should become
 "in terms of effectiveness, capacity, ability and excitement." This is what
 they depict, what Nova already does, and the real gaps worth building.
 
-**Source honesty:** reviewed via each reel's caption + comment thread
-(Instagram login-walls the video files). The captions describe the demos
-plainly; no theme was ambiguous. Accounts: monopolymccann, aylablumberg.ai,
+**Source honesty:** first pass via captions + comments (login-walled);
+second pass 29 July with Hayden signed in — videos watched frame-by-frame
+(no audio; visuals + subtitles). The frames confirmed every caption theme
+and added the "what it looks like" layer recorded below. Accounts: monopolymccann, aylablumberg.ai,
 techentrepruneur, huwprosser, dex_prm, dhaibuilds, _no_hype_ai, xuztin,
 lukebuildsai, luispdoesai, martim.saragoca, alexandra.kassis,
 reznikov_engineering, rowanthislebrooke (×2), hex.gar, realgfutures, raycfu.
@@ -61,6 +62,36 @@ on real data with receipts. That is already Nova's doctrine.
    dispatch + sources panels.
 7. ◻️ Novelty tier; possible later via iOS Shortcuts triggers. Not a
    priority — excitement should come from substance.
+
+## What the FRAMES added (29 July, logged-in pass)
+
+- **The wake debrief** (monopolymccann): on walking in, Jarvis *speaks what
+  it did while he was away* — "I scanned your competitors over the last 48
+  hours… three brand emails came in overnight" — HUD side-panels appearing
+  per item. The greeting isn't a hello; it's a hello + receipts.
+- **Ambient idle presence** (5 of the reels): the assistant lives on an
+  always-on display even when idle — arc-reactor ring, hex HUD, green ring,
+  particle orb with a live revenue ticker. Presence in the room is most of
+  the "excitement."
+- **The org map that breathes** (reznikov, aylablumberg): the best UIs are
+  not tables — a central orb with radial domain nodes (Researcher, Chief of
+  staff, Calendar, Memory, Email…), nodes glowing while active, a SPEAKING
+  waveform under the core, click-to-zoom into any agent's live log.
+- **The Stream** (xuztin): a chronological "touched" ledger — what surface
+  changed, when, by which agent — plus an Agent Registry pane. The receipts
+  unified in one place.
+- **The human gate as centerpiece** (_no_hype_ai): their diagram celebrates
+  "STAGE 05 — Human gate — the only checkpoint · approve / reject." Nova's
+  inbox rails ARE this; the ops surface should show the gate count proudly.
+- **Expressive persona states** (dhaibuilds): the HUD face has moods —
+  reaction images, a "serious mode." Garnish, but it reads as personality.
+
+Net for the build menu: item B (ops panel) should be **orb-centred map +
+activity stream + pending-gate count**, not a settings-style list; and the
+greeting layer grows a **deterministic wake debrief line** ("Welcome back,
+sir — two items await your review"). An **ambient/wall mode** (fullscreen
+idle Nova on the Mac or a spare screen) joins the menu as a cheap
+high-feel candidate.
 
 ## The build menu this suggests (in value order)
 

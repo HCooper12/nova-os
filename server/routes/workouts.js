@@ -284,6 +284,11 @@ export function workoutsRouter(vaultPath) {
         const prefs = await preferencesContext(vaultPath);
         if (prefs) parts.push(prefs);
       } catch { /* optional */ }
+      try {
+        const { standingContext } = await import('../lib/standing.js');
+        const standing = await standingContext(vaultPath);
+        if (standing) parts.push(standing);
+      } catch { /* optional */ }
 
       res.json({ jobId: startAskCoach(vaultPath, { question, context: parts.join('\n\n') }) });
     } catch (e) {

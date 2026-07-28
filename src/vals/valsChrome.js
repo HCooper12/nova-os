@@ -36,7 +36,8 @@ export function valsChrome(app, ctx) {
     { icon: 'XI.', iconColor: 'var(--nv-gold)', label: 'Journal', hint: 'GO', run: go('journal') },
     { icon: 'XII.', iconColor: 'var(--nv-gold)', label: 'Money — the CFO', hint: 'GO', run: go('money') },
     { icon: 'XIII.', iconColor: 'var(--nv-gold)', label: 'Stash — restock & reference links', hint: 'GO', run: go('stash') },
-    { icon: 'XIV.', iconColor: 'var(--nv-gold)', label: 'Settings', hint: 'GO', run: go('settings') },
+    { icon: 'XIV.', iconColor: 'var(--nv-gold)', label: 'Operations — the agent fleet, live', hint: 'GO', run: go('ops') },
+    { icon: 'XV.', iconColor: 'var(--nv-gold)', label: 'Settings', hint: 'GO', run: go('settings') },
     // the scripted "Nova actions" only exist in demo mode — in live mode the
     // palette offers nothing it can't really do
     ...(demoMode ? [
@@ -192,7 +193,10 @@ export function valsChrome(app, ctx) {
       mkNav('Money', 'XII.', 'money'),
       Object.assign(mkNav('Stash', 'XIII.', 'stash'), { count: st.liveStash ? String(st.liveStash.reduce((n, c) => n + c.items.length, 0)) : demoMode ? '0' : '—' }),
     ],
-    navSystem: [mkNav('Settings', 'XIV.', 'settings')],
+    navSystem: [
+      Object.assign(mkNav('Operations', 'XIV.', 'ops'), { count: st.liveOps ? String(st.liveOps.pending) : demoMode ? '0' : '—' }),
+      mkNav('Settings', 'XV.', 'settings'),
+    ],
     agentsGroupLabel: `AGENTS · ${agentsLiveCount} OF ${AGENTS.length} LIVE`,
     agents: AGENTS.map((a, i) => ({
       name: a.name, role: a.role, on: a.on,

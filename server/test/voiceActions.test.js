@@ -89,3 +89,30 @@ test('clearing a variant is a proposal too, with a symmetric undo', async () => 
   rot = await loadRotation(vault, rs);
   assert.equal(rot.slots.lunch.variant, 'White bread, no avocado', 'undo restored the prior variant');
 });
+
+test('preference: a correction becomes a pending standing rule; approve writes, undo removes, agents read it', async () => {
+  const { standingContext, loadStanding } = await import('../lib/standing.js');
+
+  await assert.rejects(() => createVoiceProposal(vault, 'q', { kind: 'preference', rule: '  ' }), /needs the rule/);
+
+  const out = await createVoiceProposal(vault, "don't suggest oats", { kind: 'preference', rule: 'Never suggest oats — Hayden dislikes them.' });
+  assert.match(out.title, /^Standing: Never suggest oats/);
+
+  // pending = nothing written yet
+  assert.equal((await loadStanding(vault)).length, 0, 'proposing writes nothing');
+  assert.equal(await standingContext(vault), '', 'empty standing block stays silent');
+
+  await approveRecord(vault, out.recordId);
+  const rules = await loadStanding(vault);
+  assert.equal(rules.length, 1);
+  assert.equal(rules[0].rule, 'Never suggest oats — Hayden dislikes them.');
+  assert.match(await standingContext(vault), /OVERRIDE defaults/);
+  assert.match(await standingContext(vault), /Never suggest oats/);
+
+  // duplicates refuse honestly at filing time
+  const dup = await createVoiceProposal(vault, 'again', { kind: 'preference', rule: 'never suggest OATS — hayden dislikes them.' });
+  await assert.rejects(() => approveRecord(vault, dup.recordId), /already written down/);
+
+  await undoRecord(vault, out.recordId);
+  assert.equal((await loadStanding(vault)).length, 0, 'undo removed the exact line');
+});

@@ -7,11 +7,11 @@ export const TAB_META = [
   ['mission', 'Home'], ['voice', 'Voice'], ['galaxy', 'Galaxy'], ['code', 'Code'],
   ['inbox', 'Inbox'], ['recipes', 'Recipes'], ['shopping', 'Shop'], ['todos', 'To-Do'],
   ['workouts', 'Train'], ['notes', 'Notes'], ['journal', 'Journal'], ['money', 'Money'], ['stash', 'Stash'],
-  ['settings', 'Settings'],
+  ['ops', 'Ops'], ['settings', 'Settings'],
 ];
 const ALL_KEYS = TAB_META.map((t) => t[0]);
 const LABELS = Object.fromEntries(TAB_META);
-const ROMAN = ['I.', 'II.', 'III.', 'IV.', 'V.', 'VI.', 'VII.', 'VIII.', 'IX.', 'X.', 'XI.', 'XII.', 'XIII.', 'XIV.', 'XV.'];
+const ROMAN = ['I.', 'II.', 'III.', 'IV.', 'V.', 'VI.', 'VII.', 'VIII.', 'IX.', 'X.', 'XI.', 'XII.', 'XIII.', 'XIV.', 'XV.', 'XVI.'];
 
 export function getTabOrder() {
   let stored = [];

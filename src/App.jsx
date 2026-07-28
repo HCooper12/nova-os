@@ -17,6 +17,7 @@ import { valsInbox } from './vals/valsInbox.js';
 import { valsTodos } from './vals/valsTodos.js';
 import { valsMoney } from './vals/valsMoney.js';
 import { valsMission } from './vals/valsMission.js';
+import { valsOps } from './vals/valsOps.js';
 import { valsChrome } from './vals/valsChrome.js';
 import { Sidebar } from './Sidebar.jsx';
 import { MissionControl } from './screens/MissionControl.jsx';
@@ -28,6 +29,7 @@ import { Galaxy } from './screens/Galaxy.jsx';
 import { Recipes } from './screens/Recipes.jsx';
 import { Shopping } from './screens/Shopping.jsx';
 import { Stash } from './screens/Stash.jsx';
+import { Ops } from './screens/Ops.jsx';
 import { Workouts } from './screens/Workouts.jsx';
 import { ClaudeCode } from './screens/ClaudeCode.jsx';
 import { Notes } from './screens/Notes.jsx';
@@ -221,7 +223,7 @@ export default class App extends Component {
     liveInbox: null, inboxInput: '', inboxCaptureBusy: false, inboxActionBusy: {},
     inboxMode: (typeof window !== 'undefined' && INBOX_MODES.includes(localStorage.getItem(INBOX_MODE_KEY))) ? localStorage.getItem(INBOX_MODE_KEY) : 'auto-high',
     inboxProposalDismissed: (() => { try { const a = JSON.parse(localStorage.getItem('novaos.proposalsDismissed') || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } })(),
-    liveDispatch: null, liveCompost: null, liveTodoist: null, liveTodos: null, liveGuardian: null, liveDailyReview: null,
+    liveDispatch: null, liveCompost: null, liveTodoist: null, liveTodos: null, liveGuardian: null, liveDailyReview: null, liveOps: null,
     dispatchBusy: false, compostBusy: false, compostActionBusy: {}, todoistBusy: false, guardianBusy: false, reviewBusy: false,
     todoInput: '', todoActionBusy: false, todoEditCategoryKey: null,
     editingSessionId: null, sessionDeleteConfirmId: null,
@@ -813,6 +815,7 @@ export default class App extends Component {
     apply('profile', (r) => this.setState({ liveProfile: r.profile }));
     apply('learning', (r) => this.setState({ liveLearning: r }));
     apply('dailyReview', (r) => this.setState({ liveDailyReview: r }));
+    apply('ops', (r) => this.setState({ liveOps: r }));
     return ok;
   }
   async refreshLiveData() {
@@ -2886,6 +2889,7 @@ export default class App extends Component {
       ...valsTodos(this, ctx),
       ...valsMoney(this, ctx),
       ...valsMission(this, ctx),
+      ...valsOps(this, ctx),
       ...valsChrome(this, ctx),
     };
   }
@@ -3009,6 +3013,9 @@ export default class App extends Component {
       line = 'Welcome back, sir.';
     }
     if (!line) return;
+    // the wake debrief — one deterministic line of receipts, Jarvis-fashion
+    const pending = this.state.liveOps?.pending;
+    if (pending > 0) line += ` ${pending === 1 ? 'One item awaits' : `${pending} items await`} your review.`;
     this.setState((s) => ({ voiceChat: [...s.voiceChat, { who: 'nova', text: line }] }));
     if (this.state.voiceSpeak) { this.primeSpeech(); this.speak(line); }
   }
@@ -3298,6 +3305,7 @@ export default class App extends Component {
             {v.isRecipes && <Recipes v={v} />}
             {v.isShopping && <Shopping v={v} />}
             {v.isStash && <Stash v={v} />}
+            {v.isOps && <Ops v={v} />}
             {v.isTodos && <Todos v={v} />}
             {v.isWorkouts && <Workouts v={v} />}
             {v.isNotes && <Notes v={v} />}

@@ -85,6 +85,7 @@ export async function buildReviewContext(vaultPath, now = new Date()) {
 
   await add('profile', () => profileContext(vaultPath));
   await add('learning', () => preferencesContext(vaultPath)); // what he tends to do
+  await add('standing', async () => (await import('./standing.js')).standingContext(vaultPath)); // what he has SAID
   await add('morning', async () => `TODAY'S PICTURE (computed now):\n${(await composeDispatch(vaultPath, 'morning', now)).text}`);
   await add('evening', async () => `HOW TODAY IS GOING:\n${(await composeDispatch(vaultPath, 'evening', now)).text}`);
   await add('sessions', async () => {

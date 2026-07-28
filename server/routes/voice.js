@@ -21,6 +21,11 @@ export function voiceRouter(vaultPath) {
     try { parts.push(await profileContext(vaultPath)); } catch { /* optional */ }
     try { parts.push(await preferencesContext(vaultPath)); } catch { /* optional */ }
     try {
+      const { standingContext } = await import('../lib/standing.js');
+      const standing = await standingContext(vaultPath);
+      if (standing) parts.push(standing);
+    } catch { /* optional */ }
+    try {
       const [morning, evening] = await Promise.all([
         composeDispatch(vaultPath, 'morning'),
         composeDispatch(vaultPath, 'evening'),

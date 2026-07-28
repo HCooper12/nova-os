@@ -248,6 +248,17 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  if (route === 'preference') {
+    // "Correct it once and it writes that down" — an explicit standing rule
+    // every agent's context loads from here on. Undo removes the exact line.
+    const { addStandingRule } = await import('./standing.js');
+    const { raw, rule } = await addStandingRule(vaultPath, payload.rule, payload.source || 'voice');
+    return {
+      destination: `Standing Instructions — "${rule.slice(0, 60)}${rule.length > 60 ? '…' : ''}"`,
+      undo: { route, raw },
+    };
+  }
+
   if (route === 'routine-edit') {
     // A Coach-proposed program change, applied deterministically on approve.
     // Undo restores the routine's EXACT prior exercise list.
@@ -518,6 +529,11 @@ export async function undoFiling(vaultPath, undo) {
   if (undo.route === 'stash') {
     await removeStashItem(vaultPath, undo.raw);
     return 'removed the stashed link';
+  }
+  if (undo.route === 'preference') {
+    const { removeStandingRule } = await import('./standing.js');
+    const removed = await removeStandingRule(vaultPath, undo.raw);
+    return removed ? 'removed the standing instruction' : 'that instruction was already edited out of the page';
   }
   if (undo.route === 'routine-edit') {
     const { loadExerciseLibrary } = await import('./exercises.js');

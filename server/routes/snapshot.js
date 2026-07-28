@@ -36,6 +36,7 @@ const SLICES = {
   profile: '/api/profile',
   learning: '/api/learning',
   dailyReview: '/api/daily-review',
+  ops: '/api/ops',
 };
 
 export function snapshotRouter({ port, token }) {

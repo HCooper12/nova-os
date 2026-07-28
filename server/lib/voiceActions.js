@@ -12,7 +12,7 @@ import { createRecord } from './inboxStore.js';
 // Hayden approves — in the transcript ("yes, do it") or in the Inbox.
 // Models decide, code acts; every kind below reuses a tested filer + undo.
 
-export const PROPOSE_KINDS = ['capture', 'calendar', 'routine-edit', 'rotation-variant'];
+export const PROPOSE_KINDS = ['capture', 'calendar', 'routine-edit', 'rotation-variant', 'preference'];
 
 export async function createVoiceProposal(vaultPath, question, raw) {
   const kind = String(raw?.kind || '').toLowerCase();
@@ -34,6 +34,31 @@ export async function createVoiceProposal(vaultPath, question, raw) {
     const out = await runCalendarCommand(command);
     if (!out.proposed) throw new Error(out.reason || "the calendar change couldn't be worked out");
     return { recordId: out.record.id, title: out.record.decision.title, route: 'calendar' };
+  }
+
+  if (kind === 'preference') {
+    // A correction becomes a standing rule — pending until he approves,
+    // then written to the Standing Instructions page every agent reads.
+    const rule = String(raw.rule || '').replace(/\s+/g, ' ').trim();
+    if (!rule) throw new Error('the preference needs the rule itself');
+    if (rule.length > 300) throw new Error('keep a standing instruction under 300 characters');
+    const record = {
+      id: randomUUID().slice(0, 8),
+      text: question.slice(0, 300),
+      source: 'voice',
+      mode: 'review-all',
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      decision: {
+        route: 'preference',
+        confidence: 'high',
+        title: `Standing: ${rule.slice(0, 70)}${rule.length > 70 ? '…' : ''}`,
+        reason: 'a correction worth keeping — approve and every agent reads it from here on; undo removes it',
+        payload: { rule, source: 'voice' },
+      },
+    };
+    await createRecord(record);
+    return { recordId: record.id, title: record.decision.title, route: 'preference' };
   }
 
   if (kind === 'routine-edit') {
