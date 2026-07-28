@@ -2,8 +2,7 @@ import { Router } from 'express';
 import { startAskNova, getMessageJob } from '../lib/claudeCode.js';
 import { composeDispatch } from '../lib/dispatch.js';
 import { ttsConfigured, listVoices, synthesize } from '../lib/tts.js';
-import { profileContext } from '../lib/profile.js';
-import { preferencesContext } from '../lib/learning.js';
+import { buildAskContext } from '../lib/askContext.js';
 
 // The voice line: Ask Nova (read-only Q&A job over the vault, polled via the
 // shared /claude-code/message/:jobId endpoint) and the ElevenLabs TTS proxy.
@@ -14,36 +13,9 @@ export function voiceRouter(vaultPath) {
   const router = Router();
 
   // Live context injected on the FIRST turn of a conversation; resumed turns
-  // already carry it (and everything said since) in the session.
-  async function askContext(sessionId) {
-    if (sessionId) return '';
-    const parts = [];
-    try { parts.push(await profileContext(vaultPath)); } catch { /* optional */ }
-    try { parts.push(await preferencesContext(vaultPath)); } catch { /* optional */ }
-    try {
-      const { standingContext } = await import('../lib/standing.js');
-      const standing = await standingContext(vaultPath);
-      if (standing) parts.push(standing);
-    } catch { /* optional */ }
-    try {
-      const [morning, evening] = await Promise.all([
-        composeDispatch(vaultPath, 'morning'),
-        composeDispatch(vaultPath, 'evening'),
-      ]);
-      parts.push(`${morning.text}\n\n${evening.text}`);
-    } catch { /* the prompt says "(unavailable)" honestly */ }
-    // month money position — the ledger lives in data/, so the vault-reading
-    // model genuinely can't answer "how's my spending" without this line
-    try {
-      const { getMonthSummary } = await import('../lib/money.js');
-      const m = await getMonthSummary();
-      if (m?.count) {
-        const top = (m.byCategory || []).sort((a, b) => b.spent - a.spent).slice(0, 3).map((c) => `${c.category} $${Math.round(c.spent)}`);
-        parts.push(`Money this month: $${Math.round(m.spent)} spent (last month $${Math.round(m.prevSpent)}); top: ${top.join(', ')}.`);
-      }
-    } catch { /* optional */ }
-    return parts.join('\n\n');
-  }
+  // already carry it. Shared builder (lib/askContext.js) so the Voice
+  // screen, the Siri sync ask, and the Telegram bridge can never drift.
+  const askContext = (sessionId) => buildAskContext(vaultPath, sessionId);
 
   router.post('/ask', async (req, res) => {
     try {

@@ -148,6 +148,12 @@ export function Voice({ v }) {
               >{v.convMode ? '∞ CONVERSATION ON' : '∞ CONVERSATION'}</Interactive>
             )}
             <Interactive as="span" onClick={v.briefMe} base={`cursor:pointer;font:500 10.5px ${M};padding:9px 16px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);border-radius:8px;color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 06%, transparent)`} hoverStyle="background:color-mix(in srgb, var(--nv-gold) 12%, transparent)">☰ BRIEF ME</Interactive>
+            {v.voiceLive && (
+              <Interactive as="span" onClick={v.goAmbient} title="Fullscreen presence — the core, the time, the day's numbers; tap to exit"
+                base={`cursor:pointer;font:500 10.5px ${M};padding:9px 16px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);border-radius:8px;color:color-mix(in srgb, var(--nv-ink) 50%, transparent);background:rgba(0,0,0,.25)`}
+                hoverStyle="border-color:color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)"
+              >◐ AMBIENT</Interactive>
+            )}
           </div>
         </div>
         <div style={css("flex:1 1 340px;min-width:300px;max-width:470px;min-height:360px;max-height:560px;border-left:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-left:24px;display:flex;flex-direction:column")}>

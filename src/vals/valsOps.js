@@ -72,6 +72,25 @@ export function valsOps(app, ctx) {
       last: a.last ? `${a.last.title || ''} · ${ago(a.last.at)} ago` : 'no activity yet',
       dotStyle: freshDot(a.state),
     })),
+    // ambient wall mode — same live state, arranged as presence
+    isAmbient: st.screen === 'ambient',
+    exitAmbient: () => app.navigate('mission'),
+    goAmbient: () => app.navigate('ambient'),
+    ambientNext: (() => {
+      const nowHM = `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`;
+      const e = (st.liveCalendar || []).find((x) => x.time && x.time >= nowHM);
+      return e ? { time: e.time, label: e.label } : null;
+    })(),
+    ambientSteps: (() => {
+      const d = new Date();
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const day = (st.liveHealthDays || []).find((x) => x.date === key);
+      return day?.steps ?? null;
+    })(),
+    ambientProtein: st.liveRotation?.consumedTotals
+      ? { p: Math.round(st.liveRotation.consumedTotals.p), floor: st.liveRecipeProfile?.proteinFloorG ?? null }
+      : null,
+    ambientPending: ops?.pending ?? null,
     // the overnight queue — real items, real statuses, run window shown
     overnightItems: (st.liveOvernight?.items || []).map((i) => ({
       id: i.id,

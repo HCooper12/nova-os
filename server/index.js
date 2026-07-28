@@ -42,6 +42,7 @@ import { startCompostScheduler } from './lib/compost.js';
 import { startTodoistScheduler } from './lib/todoistSync.js';
 import { startGuardianScheduler } from './lib/guardian.js';
 import { startOvernightScheduler } from './lib/overnight.js';
+import { startTelegramBridge } from './lib/telegram.js';
 import { overnightRouter } from './routes/overnight.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -170,6 +171,7 @@ async function main() {
   startTodoistScheduler(process.env.VAULT_PATH);
   startGuardianScheduler(process.env.VAULT_PATH);
   startOvernightScheduler(process.env.VAULT_PATH);
+  startTelegramBridge(process.env.VAULT_PATH);
   startMoneyImportScheduler(process.env.VAULT_PATH);
   startCfoScheduler();
   startMealPrepScheduler(process.env.VAULT_PATH);

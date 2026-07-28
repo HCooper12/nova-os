@@ -37,6 +37,7 @@ export function valsChrome(app, ctx) {
     { icon: 'XII.', iconColor: 'var(--nv-gold)', label: 'Money — the CFO', hint: 'GO', run: go('money') },
     { icon: 'XIII.', iconColor: 'var(--nv-gold)', label: 'Stash — restock & reference links', hint: 'GO', run: go('stash') },
     { icon: 'XIV.', iconColor: 'var(--nv-gold)', label: 'Operations — the agent fleet, live', hint: 'GO', run: go('ops') },
+    { icon: '◐', iconColor: 'var(--nv-cy)', label: 'Ambient mode — Nova on the wall (tap to exit)', hint: 'GO', run: go('ambient') },
     { icon: 'XV.', iconColor: 'var(--nv-gold)', label: 'Settings', hint: 'GO', run: go('settings') },
     // the scripted "Nova actions" only exist in demo mode — in live mode the
     // palette offers nothing it can't really do

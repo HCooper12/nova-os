@@ -30,6 +30,7 @@ import { Recipes } from './screens/Recipes.jsx';
 import { Shopping } from './screens/Shopping.jsx';
 import { Stash } from './screens/Stash.jsx';
 import { Ops } from './screens/Ops.jsx';
+import { Ambient } from './screens/Ambient.jsx';
 import { Workouts } from './screens/Workouts.jsx';
 import { ClaudeCode } from './screens/ClaudeCode.jsx';
 import { Notes } from './screens/Notes.jsx';
@@ -3333,6 +3334,7 @@ export default class App extends Component {
             {v.isShopping && <Shopping v={v} />}
             {v.isStash && <Stash v={v} />}
             {v.isOps && <Ops v={v} />}
+            {v.isAmbient && <Ambient v={v} />}
             {v.isTodos && <Todos v={v} />}
             {v.isWorkouts && <Workouts v={v} />}
             {v.isNotes && <Notes v={v} />}
