@@ -39,11 +39,29 @@ export function valsWorkouts(app, ctx) {
   const WEEKDAY_SHORT = { monday: 'MON', tuesday: 'TUE', wednesday: 'WED', thursday: 'THU', friday: 'FRI', saturday: 'SAT', sunday: 'SUN' };
   const todayWeekday = WEEKDAY_NAMES[new Date().getDay()];
 
+  // Pushed-forward exercises change what a day actually holds — the plan
+  // must say so. Map each upcoming weekday to its date and overlay any
+  // carry-over landing there ("Pull + Push round-up · 3").
+  const dateForWeekday = (day) => {
+    const target = WEEKDAY_NAMES.indexOf(day);
+    const d = new Date();
+    d.setDate(d.getDate() + ((target - d.getDay()) + 7) % 7); // today or the next occurrence
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const carryoversByDate = new Map();
+  for (const c of (st.liveCarryovers || [])) {
+    carryoversByDate.set(c.forDate, [...(carryoversByDate.get(c.forDate) || []), c]);
+  }
+
   const weekStrip = liveWeekdays.map((day) => {
     const routineId = liveSchedule[day] || '';
     const isToday = day === todayWeekday;
+    const dayCarryovers = carryoversByDate.get(dateForWeekday(day)) || [];
+    const carryoverNote = dayCarryovers.length
+      ? `+ ${dayCarryovers.map((c) => `${c.sourceRoutineName} round-up · ${c.exercises.length}`).join(' & ')}`
+      : null;
     return {
-      day, dayLabel: WEEKDAY_SHORT[day], isToday,
+      day, dayLabel: WEEKDAY_SHORT[day], isToday, carryoverNote,
       style: { flex: '1', minWidth: '62px', textAlign: 'center', padding: '10px 6px', borderRadius: '10px',
         border: isToday ? '1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent)' : '1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)',
         background: isToday ? 'color-mix(in srgb, var(--nv-cy) 07%, transparent)' : 'rgba(0,0,0,.18)',

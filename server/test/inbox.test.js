@@ -229,3 +229,54 @@ test('stash route: refuses a capture with no real URL (never invents one)', () =
     /http/
   );
 });
+
+test('routine-edit route: coach swap files deterministically and undo restores the exact list', async () => {
+  const { addCustomExercise } = await import('../lib/exercises.js');
+  const { createRoutine, loadRoutines } = await import('../lib/workouts.js');
+  const { loadExerciseLibrary } = await import('../lib/exercises.js');
+  const curl = await addCustomExercise(vault, 'Spider Curl', 'Biceps', 'weight_reps');
+  const row = await addCustomExercise(vault, 'Lying T Bar Row', 'Back', 'weight_reps');
+  let { exercises } = await loadExerciseLibrary(vault);
+  const routine = await createRoutine(vault, exercises, 'Pull', [
+    { exerciseId: row.id, targetSets: 3, targetRepsLow: 8, targetRepsHigh: 10 },
+    { exerciseId: curl.id, targetSets: 3, targetRepsLow: 8, targetRepsHigh: 10 },
+  ]);
+
+  const { validateCoachEdit } = await import('../lib/coach.js');
+  const { payload, title } = await validateCoachEdit(vault, {
+    action: 'swap', routine: 'pull', remove: 'spider curl', add: 'Incline Dumbbell Curl',
+    targetSets: 3, targetRepsLow: 8, targetRepsHigh: 12, reason: 'elbow-friendly',
+  });
+  assert.match(title, /swap Spider Curl → Incline Dumbbell Curl in Pull/);
+  assert.ok(payload.addExerciseId, 'known library exercise matched by name');
+  const unknown = await validateCoachEdit(vault, { action: 'add', routine: 'Pull', add: 'Zercher Kickflip Curl', muscleGroup: 'Biceps' });
+  assert.equal(unknown.payload.addExerciseId, null, 'truly unknown exercise defers creation to approve time');
+
+  const { destination, undo } = await fileDecision(vault, { route: 'routine-edit', payload });
+  assert.match(destination, /swapped Spider Curl → Incline Dumbbell Curl/);
+  ({ exercises } = await loadExerciseLibrary(vault));
+  let { routines } = await loadRoutines(vault, exercises);
+  let pull = routines.find((r) => r.id === routine.id);
+  assert.deepEqual(pull.exercises.map((e) => e.name), ['Lying T Bar Row', 'Incline Dumbbell Curl']);
+  assert.equal(pull.exercises[1].targetRepsHigh, 12, 'proposed targets applied');
+
+  await undoFiling(vault, undo);
+  ({ routines } = await loadRoutines(vault, exercises));
+  pull = routines.find((r) => r.id === routine.id);
+  assert.deepEqual(pull.exercises.map((e) => e.name), ['Lying T Bar Row', 'Spider Curl'], 'undo restored the exact prior list');
+});
+
+test('routine-edit validation refuses unknown routines and exercises honestly', async () => {
+  const { validateCoachEdit } = await import('../lib/coach.js');
+  await assert.rejects(validateCoachEdit(vault, { action: 'swap', routine: 'Leg Day', remove: 'x', add: 'y' }), /no routine called/);
+  await assert.rejects(validateCoachEdit(vault, { action: 'remove', routine: 'Pull', remove: 'Bench Press' }), /isn't in Pull/);
+});
+
+test('parseCoachProposal extracts the PROPOSE line and cleans the reply', async () => {
+  const { parseCoachProposal } = await import('../lib/coach.js');
+  const { cleanText, proposal } = parseCoachProposal('Swap makes sense — less elbow stress.\n\nPROPOSE {"action":"swap","routine":"Pull","remove":"A","add":"B"}');
+  assert.equal(proposal.action, 'swap');
+  assert.ok(!cleanText.includes('PROPOSE'));
+  const none = parseCoachProposal('Just advice, no change needed.');
+  assert.equal(none.proposal, null);
+});

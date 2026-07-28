@@ -187,7 +187,10 @@ Ground rules:
 - Be concrete: exact exercises, sets × reps, loads (kg), rest, or habits — not generic advice.
 - Cite the principle briefly when it matters ("two sessions topped your rep target — classic double-progression trigger") — teach, don't lecture.
 - Safety: flag genuine red flags (pain vs soreness, sleep collapse) plainly; you are not a doctor and say so when it's medical.
-- You are read-only: to CHANGE a routine, point him at the Train screen's editor; to log food, the Recipes/Inbox surfaces. Never claim you wrote anything.
+- You never write directly — but when Hayden asks you to CHANGE his program (swap, add, or remove an exercise, or change its sets/reps), give your reasoning as normal AND append ONE line at the very end, exactly this shape:
+  PROPOSE {"action":"swap","routine":"Pull","remove":"Spider Curl","add":"Incline Dumbbell Curl","targetSets":3,"targetRepsLow":8,"targetRepsHigh":10,"reason":"less elbow stress, same long-head bias"}
+  Actions: "swap" (replace in place), "add" (fields: routine, add, targets), "remove" (fields: routine, remove), "targets" (fields: routine, exercise, targetSets/targetRepsLow/targetRepsHigh). Use EXACT routine and exercise names from his picture — never invent names. Only propose what he actually asked for; at most one PROPOSE per reply. It becomes a draft he approves in his Inbox — say so in your reply ("I've drafted the swap — approve it in your Inbox"), and never claim it's already done.
+- For anything else you cannot change (logging food, calendar), point him at the right surface. Never claim you wrote anything.
 - Plain text, conversational, tight. Lead with the answer.
 
 Hayden's current picture (computed at conversation start — trust it over stale pages):
@@ -219,13 +222,30 @@ export function startAskCoach(cwd, { question, context, sessionId }) {
   let stderr = '';
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
-  child.on('close', (code) => {
+  child.on('close', async (code) => {
     try {
       const outer = JSON.parse(stdout);
       if (outer.is_error || code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
       const replyText = (outer.result || '').trim();
       if (!replyText) throw new Error('Empty response');
-      job.result = { text: replyText, sessionId: effectiveSessionId };
+      // The Coach may PROPOSE a program change — the model decides, this
+      // code validates against the real routines and files a PENDING record
+      // on the rails; approval (his thumb) is what actually writes.
+      const { parseCoachProposal, createCoachEditRecord } = await import('./coach.js');
+      const { cleanText, proposal, parseError } = parseCoachProposal(replyText);
+      let text = cleanText;
+      let proposalOut = null;
+      if (proposal) {
+        try {
+          const record = await createCoachEditRecord(cwd, { question, proposal });
+          proposalOut = { recordId: record.id, title: record.decision.title };
+        } catch (e) {
+          text += `\n\n(I drafted that change but it didn't validate: ${e.message})`;
+        }
+      } else if (parseError) {
+        text += `\n\n(I tried to draft that change but ${parseError} — ask again and I'll re-propose.)`;
+      }
+      job.result = { text, sessionId: effectiveSessionId, proposal: proposalOut };
       job.status = 'ready';
     } catch (e) {
       job.status = 'error';

@@ -225,6 +225,57 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  if (route === 'routine-edit') {
+    // A Coach-proposed program change, applied deterministically on approve.
+    // Undo restores the routine's EXACT prior exercise list.
+    const { loadExerciseLibrary, addCustomExercise } = await import('./exercises.js');
+    const { loadRoutines, updateRoutine } = await import('./workouts.js');
+    let { exercises } = await loadExerciseLibrary(vaultPath);
+    const { routines } = await loadRoutines(vaultPath, exercises);
+    const routine = routines.find((r) => r.id === payload.routineId);
+    if (!routine) throw new Error(`routine "${payload.routineName}" no longer exists`);
+    const priorEntries = routine.exercises.map((e) => ({
+      exerciseId: e.exerciseId, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh,
+    }));
+    let addId = payload.addExerciseId;
+    if ((payload.action === 'swap' || payload.action === 'add') && !addId) {
+      const removed = routine.exercises.find((e) => e.exerciseId === payload.removeExerciseId);
+      const created = await addCustomExercise(vaultPath, payload.addName,
+        payload.muscleGroup || removed?.muscleGroup || 'Other',
+        payload.trackingType || removed?.trackingType || 'weight_reps');
+      addId = created.id;
+      ({ exercises } = await loadExerciseLibrary(vaultPath));
+    }
+    const entryFor = (base) => ({
+      exerciseId: addId,
+      targetSets: payload.targetSets || base?.targetSets || 3,
+      targetRepsLow: payload.targetRepsLow || base?.targetRepsLow || 8,
+      targetRepsHigh: payload.targetRepsHigh || base?.targetRepsHigh || 10,
+    });
+    let next;
+    if (payload.action === 'swap') {
+      next = priorEntries.map((e) => (e.exerciseId === payload.removeExerciseId ? entryFor(e) : e));
+    } else if (payload.action === 'add') {
+      next = [...priorEntries, entryFor(null)];
+    } else if (payload.action === 'remove') {
+      next = priorEntries.filter((e) => e.exerciseId !== payload.removeExerciseId);
+      if (!next.length) throw new Error('that would leave the routine empty — remove the routine itself from Train instead');
+    } else { // targets
+      next = priorEntries.map((e) => (e.exerciseId === payload.removeExerciseId
+        ? { ...e, targetSets: payload.targetSets || e.targetSets, targetRepsLow: payload.targetRepsLow || e.targetRepsLow, targetRepsHigh: payload.targetRepsHigh || e.targetRepsHigh }
+        : e));
+    }
+    await updateRoutine(vaultPath, exercises, routine.id, { exercises: next });
+    const what = payload.action === 'swap' ? `swapped ${payload.removeName} → ${payload.addName}`
+      : payload.action === 'add' ? `added ${payload.addName}`
+      : payload.action === 'remove' ? `removed ${payload.removeName}`
+      : `retargeted ${payload.removeName}`;
+    return {
+      destination: `Train — ${what} in ${routine.name}`,
+      undo: { route, routineId: routine.id, routineName: routine.name, priorEntries },
+    };
+  }
+
   if (route === 'calendar') {
     // Only reached on the user's explicit approval. Writes to iCloud here.
     const action = payload.action || 'create';
@@ -423,6 +474,13 @@ export async function undoFiling(vaultPath, undo) {
   if (undo.route === 'stash') {
     await removeStashItem(vaultPath, undo.raw);
     return 'removed the stashed link';
+  }
+  if (undo.route === 'routine-edit') {
+    const { loadExerciseLibrary } = await import('./exercises.js');
+    const { updateRoutine } = await import('./workouts.js');
+    const { exercises } = await loadExerciseLibrary(vaultPath);
+    await updateRoutine(vaultPath, exercises, undo.routineId, { exercises: undo.priorEntries });
+    return `restored ${undo.routineName} to its prior exercise list`;
   }
   if (undo.route === 'plan-note') {
     const full = path.join(vaultPath, undo.relPath);

@@ -19,6 +19,7 @@ const ROUTE_META = {
   'plan-note': { label: 'WEEK PLAN', hue: '224,178,106' },
   recipe: { label: 'RECIPE BANK', hue: '95,232,168' },
   stash: { label: 'STASH', hue: '224,178,106' },
+  'routine-edit': { label: 'TRAIN EDIT', hue: '89,230,255' },
 };
 
 const MODE_LADDER = [
@@ -38,6 +39,7 @@ function payloadPreview(decision) {
   }
   if (decision.route === 'journal') return p.text || '';
   if (decision.route === 'stash') return `${p.name} → ${p.category}${p.note ? ' — ' + p.note : ''}`;
+  if (decision.route === 'routine-edit') return `${p.action === 'swap' ? `${p.removeName} → ${p.addName}` : p.action === 'add' ? `+ ${p.addName}` : p.action === 'remove' ? `− ${p.removeName}` : `${p.removeName} targets`} in ${p.routineName}${p.reason ? ' — ' + p.reason : ''}`;
   if (decision.route === 'idea') return `${p.title} — ${p.hook} (${p.format})`;
   if (decision.route === 'idea-outline') return (p.text || '').slice(0, 200);
   if (decision.route === 'expense') return `${p.merchant} ${p.amount < 0 ? '−' : '+'}$${Math.abs(p.amount).toFixed(2)}${p.category ? ` · ${p.category}` : ''}`;

@@ -227,3 +227,97 @@ export async function draftSessionSummary(vaultPath, session) {
   await createRecord(record);
   return record;
 }
+
+/* --------------- Coach program edits (proposed, never direct) ------------ */
+// The Coach chat can PROPOSE a routine change: the model appends one
+// `PROPOSE {json}` line, this code validates it against the REAL routines
+// and exercise library (deterministic — unknown names are an honest error,
+// never a guess), and a pending inbox record carries it to Hayden's thumb.
+// Approval applies it through updateRoutine; undo restores the exact prior
+// exercise list. Models decide, code acts.
+
+export function parseCoachProposal(text) {
+  const m = (text || '').match(/^\s*PROPOSE\s+(\{.*\})\s*$/m);
+  if (!m) return { cleanText: text, proposal: null };
+  const cleanText = text.replace(m[0], '').replace(/\n{3,}/g, '\n\n').trim();
+  try {
+    return { cleanText, proposal: JSON.parse(m[1]) };
+  } catch {
+    return { cleanText, proposal: null, parseError: 'the proposal block was not valid JSON' };
+  }
+}
+
+const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets'];
+
+export async function validateCoachEdit(vaultPath, raw) {
+  const { loadExerciseLibrary } = await import('./exercises.js');
+  const { loadRoutines } = await import('./workouts.js');
+  const action = String(raw?.action || '').toLowerCase();
+  if (!EDIT_ACTIONS.includes(action)) throw new Error(`unknown action "${raw?.action}"`);
+
+  const { exercises } = await loadExerciseLibrary(vaultPath);
+  const { routines } = await loadRoutines(vaultPath, exercises);
+  const ci = (s) => String(s || '').trim().toLowerCase();
+  const routine = routines.find((r) => ci(r.name) === ci(raw.routine))
+    || routines.find((r) => ci(r.name).includes(ci(raw.routine)) || ci(raw.routine).includes(ci(r.name)));
+  if (!routine) throw new Error(`no routine called "${raw.routine}" (have: ${routines.map((r) => r.name).join(', ')})`);
+
+  const findInRoutine = (name) => routine.exercises.find((e) => ci(e.name) === ci(name))
+    || routine.exercises.find((e) => ci(e.name).includes(ci(name)) || ci(name).includes(ci(e.name)));
+  const findInLibrary = (name) => exercises.find((e) => ci(e.name) === ci(name))
+    || exercises.find((e) => ci(e.name).includes(ci(name)) || ci(name).includes(ci(e.name)));
+
+  const payload = { action, routineId: routine.id, routineName: routine.name, reason: String(raw.reason || '').slice(0, 300) };
+  const num = (v, d) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Math.round(Number(v)) : d);
+
+  if (action === 'swap' || action === 'remove' || action === 'targets') {
+    const target = findInRoutine(raw.remove || raw.exercise);
+    if (!target) throw new Error(`"${raw.remove || raw.exercise}" isn't in ${routine.name} (it has: ${routine.exercises.map((e) => e.name).join(', ')})`);
+    payload.removeExerciseId = target.exerciseId;
+    payload.removeName = target.name;
+  }
+  if (action === 'swap' || action === 'add') {
+    const addName = String(raw.add || '').trim();
+    if (!addName) throw new Error('the proposal names no exercise to add');
+    const lib = findInLibrary(addName);
+    payload.addExerciseId = lib ? lib.id : null; // null → created at approve time
+    payload.addName = lib ? lib.name : addName.slice(0, 80);
+    payload.muscleGroup = lib ? lib.muscleGroup : (raw.muscleGroup || null);
+    payload.trackingType = lib ? lib.trackingType : (raw.trackingType || null);
+  }
+  if (action !== 'remove') {
+    payload.targetSets = num(raw.targetSets, null);
+    payload.targetRepsLow = num(raw.targetRepsLow, null);
+    payload.targetRepsHigh = num(raw.targetRepsHigh, null);
+  }
+
+  const title = action === 'swap' ? `Coach: swap ${payload.removeName} → ${payload.addName} in ${routine.name}`
+    : action === 'add' ? `Coach: add ${payload.addName} to ${routine.name}`
+    : action === 'remove' ? `Coach: remove ${payload.removeName} from ${routine.name}`
+    : `Coach: retarget ${payload.removeName} in ${routine.name}`;
+  return { payload, title };
+}
+
+// A pending record the Inbox renders with Approve/Discard — the Coach's
+// proposal, on the same rails as every other write. ALWAYS review-gated:
+// program changes are confirm-first regardless of autonomy mode.
+export async function createCoachEditRecord(vaultPath, { question, proposal }) {
+  const { payload, title } = await validateCoachEdit(vaultPath, proposal);
+  const record = {
+    id: randomUUID().slice(0, 8),
+    text: question.slice(0, 300),
+    source: 'coach',
+    mode: 'review-all',
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+    decision: {
+      route: 'routine-edit',
+      confidence: 'high',
+      title,
+      reason: payload.reason || 'proposed in the Coach chat',
+      payload,
+    },
+  };
+  await createRecord(record);
+  return record;
+}

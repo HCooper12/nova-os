@@ -92,13 +92,16 @@ function RoutinesView({ v }) {
           {v.weekStrip.map((d, i) => (
             <div key={d.day} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '7px 16px', borderTop: i === 0 ? 'none' : '1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)' }}>
               <span style={{ font: '600 12px var(--nv-font-ui)', letterSpacing: '.06em', textTransform: 'uppercase', width: '46px', flex: 'none', color: d.isToday ? 'var(--nv-cy)' : 'var(--nv-ink60)' }}>{d.dayLabel}</span>
-              <select
-                value={d.value}
-                onChange={d.onChange}
-                style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', color: d.isToday ? 'var(--nv-cy)' : 'var(--nv-ink)', fontFamily: 'var(--nv-font-ui)', fontWeight: 550, outline: 'none', textAlign: 'right', paddingRight: '2px' }}
-              >
-                {d.options.map((o) => <option key={o.value || 'rest'} value={o.value} style={{ background: '#141019', color: 'var(--nv-ink)' }}>{o.label}</option>)}
-              </select>
+              <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                <select
+                  value={d.value}
+                  onChange={d.onChange}
+                  style={{ width: '100%', background: 'transparent', border: 'none', color: d.isToday ? 'var(--nv-cy)' : 'var(--nv-ink)', fontFamily: 'var(--nv-font-ui)', fontWeight: 550, outline: 'none', textAlign: 'right', paddingRight: '2px' }}
+                >
+                  {d.options.map((o) => <option key={o.value || 'rest'} value={o.value} style={{ background: '#141019', color: 'var(--nv-ink)' }}>{o.label}</option>)}
+                </select>
+                {d.carryoverNote && <span style={css("font:500 10px var(--nv-font-mono);color:var(--nv-gold)")}>{d.carryoverNote}</span>}
+              </span>
             </div>
           ))}
         </div>
@@ -115,6 +118,7 @@ function RoutinesView({ v }) {
               >
                 {d.options.map((o) => <option key={o.value || 'rest'} value={o.value} style={{ background: '#141019', color: 'var(--nv-ink)' }}>{o.label}</option>)}
               </select>
+              {d.carryoverNote && <div style={css("margin-top:3px;font:500 8px var(--nv-font-mono);color:var(--nv-gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis")} title={d.carryoverNote}>{d.carryoverNote}</div>}
             </div>
           ))}
         </div>

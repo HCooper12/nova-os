@@ -2943,6 +2943,11 @@ export default class App extends Component {
               this.setState({ coachSessionId: job.result.sessionId });
             }
             this.setState((s) => ({ coachBusy: false, coachChat: [...s.coachChat, { who: 'coach', text: job.result.text }] }));
+            // a proposed program change landed on the rails as a pending record
+            if (job.result.proposal) {
+              this.refreshInbox();
+              this.toastMsg(`${job.result.proposal.title} — approve it in your Inbox`);
+            }
           },
           onError: (msg) => this.setState((s) => ({ coachBusy: false, coachChat: [...s.coachChat, { who: 'system', text: 'Error: ' + msg }] })),
         });
