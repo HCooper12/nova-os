@@ -118,6 +118,9 @@ export const api = {
     return URL.createObjectURL(blob);
   },
   shoppingList: (conn) => call(conn, '/api/shopping-list'),
+  stash: (conn) => call(conn, '/api/stash'),
+  stashAdd: (conn, item) => post(conn, '/api/stash/items', item),
+  stashRemove: (conn, raw) => post(conn, '/api/stash/items/remove', { raw }),
   addShoppingItems: (conn, items) => post(conn, '/api/shopping-list/items', { items }),
   addShoppingItemsJob: (conn, jobId) => call(conn, `/api/shopping-list/add-items/${encodeURIComponent(jobId)}`),
   toggleShoppingItem: (conn, id, checked) => post(conn, '/api/shopping-list/toggle', { id, checked }),

@@ -172,5 +172,36 @@ export function valsMisc(app, ctx) {
     closeIngestReview: () => app.closeIngestReview(),
     approveIngest: () => app.approveIngest(),
     discardIngest: () => app.discardIngest(),
+
+    // stash — categorised restock/reference links (vault: Wiki/Library/Stash.md)
+    stashLoaded: st.liveStash != null,
+    stashHeaderLabel: ctx.demoMode
+      ? 'CONNECT A BACKEND TO STASH LINKS'
+      : ctx.isOffline
+        ? 'OFFLINE — SHOWING LAST-KNOWN · ADDS QUEUE TO THE OUTBOX'
+        : st.liveStash
+          ? `${st.liveStash.reduce((n, c) => n + c.items.length, 0)} LINK${st.liveStash.reduce((n, c) => n + c.items.length, 0) === 1 ? '' : 'S'} · LIVE FROM OBSIDIAN`
+          : 'LOADING…',
+    stashCategories: (st.liveStash || []).map((c) => ({
+      name: c.name,
+      items: c.items.map((it) => ({
+        ...it,
+        confirming: st.stashRemoveConfirm === it.raw,
+        askRemove: () => app.setState({ stashRemoveConfirm: it.raw }),
+        cancelRemove: () => app.setState({ stashRemoveConfirm: null }),
+        remove: () => app.removeStashItem(it.raw),
+        host: (() => { try { return new URL(it.url).hostname.replace(/^www\./, ''); } catch { return it.url; } })(),
+      })),
+    })),
+    stashCategoryNames: (st.liveStash || []).map((c) => c.name),
+    stashConnected: !ctx.demoMode,
+    stashAddCategory: st.stashAddCategory,
+    stashAddName: st.stashAddName,
+    stashAddUrl: st.stashAddUrl,
+    stashAddNote: st.stashAddNote,
+    setStashField: (f) => (e) => app.setStashField(f, e),
+    stashAddBusy: st.stashAddBusy,
+    stashAddError: st.stashAddError,
+    submitStashAdd: () => app.addStashItem(),
   };
 }

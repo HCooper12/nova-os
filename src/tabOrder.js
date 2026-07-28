@@ -6,7 +6,7 @@ const KEY = 'novaos.tabOrder';
 export const TAB_META = [
   ['mission', 'Home'], ['voice', 'Voice'], ['galaxy', 'Galaxy'], ['code', 'Code'],
   ['inbox', 'Inbox'], ['recipes', 'Recipes'], ['shopping', 'Shop'], ['todos', 'To-Do'],
-  ['workouts', 'Train'], ['notes', 'Notes'], ['journal', 'Journal'], ['money', 'Money'],
+  ['workouts', 'Train'], ['notes', 'Notes'], ['journal', 'Journal'], ['money', 'Money'], ['stash', 'Stash'],
   ['settings', 'Settings'],
 ];
 const ALL_KEYS = TAB_META.map((t) => t[0]);

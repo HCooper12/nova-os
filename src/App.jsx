@@ -27,6 +27,7 @@ import { Voice } from './screens/Voice.jsx';
 import { Galaxy } from './screens/Galaxy.jsx';
 import { Recipes } from './screens/Recipes.jsx';
 import { Shopping } from './screens/Shopping.jsx';
+import { Stash } from './screens/Stash.jsx';
 import { Workouts } from './screens/Workouts.jsx';
 import { ClaudeCode } from './screens/ClaudeCode.jsx';
 import { Notes } from './screens/Notes.jsx';
@@ -132,7 +133,7 @@ function screenFromHash() {
 // serialize; details re-fetch on demand).
 const CACHED_LIVE_KEYS = [
   'liveNotes', 'liveCalendar', 'liveRecipes', 'liveRecipeProfile', 'liveRotation',
-  'liveFoodLog', 'liveFoodHistory', 'liveShoppingList', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
+  'liveFoodLog', 'liveFoodHistory', 'liveShoppingList', 'liveStash', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
   'liveWorkoutExercises', 'liveWorkoutMuscleGroups', 'liveWorkoutTrackingTypes',
   'liveWorkoutRoutines', 'liveWorkoutSchedule', 'liveWorkoutWeekdays', 'liveWorkoutProgressions', 'liveWorkoutGoals', 'liveCarryovers',
   'liveJournalEntries', 'liveGraph', 'liveInbox', 'liveDispatch', 'liveCompost', 'liveTodoist', 'liveTodos', 'liveGuardian', 'liveMoney',
@@ -202,6 +203,7 @@ export default class App extends Component {
     })(),
     liveReviewSummaries: {},
     liveFoodLog: null, liveFoodHistory: null, foodHistoryOpen: false,
+    liveStash: null, stashAddCategory: '', stashAddName: '', stashAddUrl: '', stashAddNote: '', stashAddBusy: false, stashAddError: null, stashRemoveConfirm: null,
     foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogBusy: false, foodLogError: null,
     foodScanNote: '', foodScanPhotos: [], foodScanBusy: false, foodScanError: null, foodScanQuestion: null, foodLogFillSource: null,
     // a low-confidence scan's clarifying question stays ANSWERABLE: the photos
@@ -470,6 +472,7 @@ export default class App extends Component {
       healthDay: (conn, p) => api.saveHealthDay(conn, p.date, p.metrics),
       session: (conn, p) => api.completeWorkoutSession(conn, p.payload)
         .then((r) => { if (p.carryoverId) api.removeCarryover(conn, p.carryoverId).catch(() => {}); return r; }),
+      stash: (conn, p) => api.stashAdd(conn, p),
       recipe: (conn, p) => (p.macroOnly
         ? api.addQuickRecipe(conn, { name: p.name, category: p.category, makes: p.makes, macros: p.macros })
         : api.addRecipe(conn, { name: p.name, category: p.category, makes: p.makes, macros: p.macros, ingredients: p.ingredients, method: p.method })),
@@ -536,6 +539,43 @@ export default class App extends Component {
       saveOutbox(outbox);
       return { outbox };
     }, () => this.drainOutbox());
+  }
+
+  // ---------- stash (categorised restock/reference links, vault-backed) ----
+  setStashField(field, e) {
+    this.setState({ [field]: e.target.value, stashAddError: null });
+  }
+  addStashItem() {
+    const conn = getConnection();
+    const item = {
+      category: this.state.stashAddCategory.trim(),
+      name: this.state.stashAddName.trim(),
+      url: this.state.stashAddUrl.trim(),
+      note: this.state.stashAddNote.trim() || undefined,
+    };
+    if (!conn || !item.category || !item.name || !item.url) {
+      this.setState({ stashAddError: 'Category, name, and link are all needed.' });
+      return;
+    }
+    this.setState({ stashAddBusy: true, stashAddError: null });
+    api.stashAdd(conn, item).then((r) => {
+      this.setState({ liveStash: r.categories, stashAddBusy: false, stashAddName: '', stashAddUrl: '', stashAddNote: '' });
+      this.toastMsg(`${item.name} stashed ✓ — saved to Obsidian too`);
+    }).catch((e) => {
+      if (isOfflineError(e)) {
+        this.setState({ stashAddBusy: false, stashAddName: '', stashAddUrl: '', stashAddNote: '' });
+        this.enqueueOutbox('stash', item.name, item);
+        return;
+      }
+      this.setState({ stashAddBusy: false, stashAddError: e.message });
+    });
+  }
+  removeStashItem(raw) {
+    const conn = getConnection();
+    if (!conn) return;
+    this.setState({ stashRemoveConfirm: null });
+    api.stashRemove(conn, raw).then((r) => this.setState({ liveStash: r.categories }))
+      .catch((e) => this.toastMsg('Could not remove: ' + e.message));
   }
 
   // ---------- appearance (theme + calm mode, persisted) ----------
@@ -704,6 +744,7 @@ export default class App extends Component {
     });
     apply('rotation', (r) => this.setState({ liveRotation: r }));
     apply('foodLog', (r) => this.setState({ liveFoodLog: r }));
+    apply('stash', (r) => this.setState({ liveStash: r.categories }));
     apply('shoppingList', (r) => this.setState({ liveShoppingList: r }));
     apply('workoutExercises', (r) => this.setState({ liveWorkoutExercises: r.exercises, liveWorkoutMuscleGroups: r.muscleGroups, liveWorkoutTrackingTypes: r.trackingTypes }));
     apply('workoutRoutines', (r) => this.setState({ liveWorkoutRoutines: r.routines, liveWorkoutSchedule: r.schedule, liveWorkoutWeekdays: r.weekdays, liveWorkoutProgressions: r.progressions || {} }));
@@ -727,6 +768,7 @@ export default class App extends Component {
     if (!conn) return;
     if (this.refreshInFlight) return this.refreshInFlight;
     const tasks = [
+      async () => this.setState({ liveStash: (await api.stash(conn)).categories }),
       async () => {
         const notesRes = await api.notes(conn);
         this.setState({ liveNotes: notesRes.notes });
@@ -2984,6 +3026,7 @@ export default class App extends Component {
             {v.isCode && <ClaudeCode v={v} />}
             {v.isRecipes && <Recipes v={v} />}
             {v.isShopping && <Shopping v={v} />}
+            {v.isStash && <Stash v={v} />}
             {v.isTodos && <Todos v={v} />}
             {v.isWorkouts && <Workouts v={v} />}
             {v.isNotes && <Notes v={v} />}

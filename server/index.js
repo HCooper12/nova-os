@@ -19,6 +19,7 @@ import { foodLogRouter } from './routes/foodLog.js';
 import { inboxRouter } from './routes/inbox.js';
 import { loopsRouter } from './routes/loops.js';
 import { todosRouter } from './routes/todos.js';
+import { stashRouter } from './routes/stash.js';
 import { voiceRouter } from './routes/voice.js';
 import { moneyRouter } from './routes/money.js';
 import { subscribe } from './lib/events.js';
@@ -113,6 +114,7 @@ async function main() {
   app.use('/api', ingestRouter(process.env.VAULT_PATH));
   app.use('/api', recipesRouter(process.env.VAULT_PATH));
   app.use('/api', shoppingListRouter(process.env.VAULT_PATH));
+  app.use('/api', stashRouter(process.env.VAULT_PATH));
   app.use('/api', workoutsRouter(process.env.VAULT_PATH));
   app.use('/api', journalRouter(vault, process.env.VAULT_PATH));
   app.use('/api', claudeCodeRouter({ repoPath: path.resolve(__dirname, '..'), vaultPath: process.env.VAULT_PATH }));
