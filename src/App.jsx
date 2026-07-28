@@ -170,6 +170,7 @@ export default class App extends Component {
     paletteOpen: false, paletteQuery: '', recallResults: [],
     micOn: true, orbInput: '',
     voiceChat: [], voiceBusy: false, voiceSpeaking: false, liveTts: null,
+    voiceConvMode: false, voiceConvPaused: false, voiceAutoListenTick: 0,
     voiceSessionId: typeof localStorage === 'undefined' ? null : (localStorage.getItem('novaos.voiceSession') || null),
     speechVoices: [], speechVoiceURI: typeof localStorage === 'undefined' ? '' : (localStorage.getItem('novaos.speechVoiceURI') || ''),
     coachSessionId: typeof localStorage === 'undefined' ? null : (localStorage.getItem('novaos.coachSession') || null),
@@ -2470,8 +2471,42 @@ export default class App extends Component {
   // eat the in-flight answer along with the poll.
   attachAskPoll(conn, jobId) {
     const clearJob = () => { try { localStorage.removeItem('novaos.askJob'); } catch { /* best-effort */ } };
+    // STREAMING: the reply renders word-by-word from job.partial, and (on
+    // the browser speech path) complete sentences are spoken AS they arrive
+    // — Nova starts talking while still thinking, like a person does.
+    const stream = { spokenUpTo: 0, started: false };
+    const elevenPath = !!(this.state.liveTts?.configured);
+    const applyPartial = (text) => this.setState((s) => {
+      const chat = [...s.voiceChat];
+      const idx = chat.map((m) => !!m.streaming).lastIndexOf(true);
+      if (idx === -1) chat.push({ who: 'nova', text, streaming: true });
+      else chat[idx] = { ...chat[idx], text };
+      return { voiceChat: chat };
+    });
+    const speakNewSentences = (text, flushAll) => {
+      if (elevenPath || !this.state.voiceSpeak) return; // ElevenLabs speaks whole replies
+      const fresh = text.slice(stream.spokenUpTo);
+      if (!fresh) return;
+      if (flushAll) {
+        this.speakIncremental(fresh);
+        stream.spokenUpTo = text.length;
+        return;
+      }
+      const m = fresh.match(/[\s\S]*[.!?](?=\s|$)/);
+      if (m) {
+        this.speakIncremental(m[0]);
+        stream.spokenUpTo += m[0].length;
+      }
+    };
     this.startPoll('ask', () => api.claudeCodeJob(conn, jobId), {
       timeoutMs: 3 * 60_000,
+      intervalMs: 700,
+      onProgress: (job) => {
+        if (!job.partial) return;
+        stream.started = true;
+        applyPartial(job.partial);
+        speakNewSentences(job.partial, false);
+      },
       onReady: (job) => {
         clearJob();
         const text = job.result.text;
@@ -2480,10 +2515,18 @@ export default class App extends Component {
           localStorage.setItem('novaos.voiceSession', job.result.sessionId);
           this.setState({ voiceSessionId: job.result.sessionId });
         }
-        this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { who: 'nova', text }] }));
-        this.speak(text);
+        this.setState((s) => {
+          const chat = [...s.voiceChat];
+          const idx = chat.map((m) => !!m.streaming).lastIndexOf(true);
+          if (idx === -1) chat.push({ who: 'nova', text });
+          else chat[idx] = { who: 'nova', text };
+          return { voiceBusy: false, voiceChat: chat };
+        });
+        if (elevenPath) this.speak(text);
+        else if (this.state.voiceSpeak) { speakNewSentences(text, true); if (!stream.started) this.speak(text); }
+        else this.maybeAutoListen();
       },
-      onError: (msg) => { clearJob(); this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { who: 'system', text: 'Error: ' + msg }] })); },
+      onError: (msg) => { clearJob(); this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat.filter((m) => !m.streaming), { who: 'system', text: 'Error: ' + msg }] })); },
     });
   }
 
@@ -2838,6 +2881,7 @@ export default class App extends Component {
 
   doOrb() {
     const q = this.state.orbInput.trim(); if (!q) return;
+    this.resumeConv(); // anything sent un-pauses the conversation loop
     this.primeSpeech(); // inside the user gesture — unlocks audio on iOS
     // a configured backend → the real Ask Nova pipeline, even while the
     // status is still 'connecting' (the ask itself proves the connection);
@@ -2900,11 +2944,63 @@ export default class App extends Component {
   // Speak an answer aloud: ElevenLabs through the server proxy when the key
   // is configured, otherwise the browser's built-in speech engine — never
   // silent unless the SPEAK toggle is off.
+  // ---- speech queue: one counter for whole-text AND incremental chunks,
+  // so "finished speaking" is a single truthful event the conversation loop
+  // can hang off (auto-reopen the mic when Nova stops talking).
+  beginSpeech() {
+    this.speechActive = (this.speechActive || 0) + 1;
+    if (!this.state.voiceSpeaking) this.setState({ voiceSpeaking: true });
+  }
+  endSpeech() {
+    this.speechActive = Math.max(0, (this.speechActive || 0) - 1);
+    if (this.speechActive === 0) this.setState({ voiceSpeaking: false }, () => this.maybeAutoListen());
+  }
+  stopSpeaking() {
+    try { window.speechSynthesis.cancel(); } catch { /* unsupported */ }
+    try { this.currentAudio?.pause(); } catch { /* fine */ }
+    this.speechActive = 0;
+    if (this.state.voiceSpeaking) this.setState({ voiceSpeaking: false });
+  }
+  // browser-synth chunk — used to speak sentences AS the reply streams in
+  speakIncremental(text) {
+    if (!this.state.voiceSpeak || !text.trim()) return;
+    this.beginSpeech();
+    this.speakFallback(text, () => this.endSpeech());
+  }
+  // conversation mode: when Nova finishes speaking (and nothing is running),
+  // reopen the mic — the turn passes back without a tap
+  maybeAutoListen() {
+    if (!this.state.voiceConvMode || this.state.voiceConvPaused) return;
+    if (this.state.screen !== 'voice' || this.state.voiceBusy) return;
+    if ((this.speechActive || 0) > 0) return;
+    this.setState((s) => ({ voiceAutoListenTick: s.voiceAutoListenTick + 1 }));
+  }
+  toggleConvMode() {
+    this.convEmpties = 0;
+    this.setState((s) => ({ voiceConvMode: !s.voiceConvMode, voiceConvPaused: false }), () => {
+      if (this.state.voiceConvMode) this.maybeAutoListen();
+    });
+  }
+  resumeConv() {
+    this.convEmpties = 0;
+    if (this.state.voiceConvPaused) this.setState({ voiceConvPaused: false });
+  }
+  // two silent listens in a row → pause the loop politely (it's an offer,
+  // not surveillance); anything sent resumes it
+  notifyEmptyListen() {
+    this.convEmpties = (this.convEmpties || 0) + 1;
+    if (this.convEmpties >= 2) {
+      this.setState({ voiceConvPaused: true });
+      this.toastMsg('Conversation paused — tap the mic when you’re ready');
+    } else {
+      this.maybeAutoListen();
+    }
+  }
   speak(text) {
-    if (!this.state.voiceSpeak) return;
+    if (!this.state.voiceSpeak) { this.maybeAutoListen(); return; }
     const clean = text.slice(0, 2400);
-    const finish = () => this.setState({ voiceSpeaking: false });
-    this.setState({ voiceSpeaking: true });
+    this.beginSpeech();
+    const finish = () => this.endSpeech();
     const conn = getConnection();
     if (conn && this.state.liveTts?.configured) {
       api.ttsAudio(conn, clean, this.state.voiceVoiceId || undefined).then((blob) => {

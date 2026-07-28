@@ -100,6 +100,14 @@ export function valsMisc(app, ctx) {
     orbKey: (e) => { if (e.key === 'Enter') app.doOrb(); },
     sendOrb: () => app.doOrb(),
     primeSpeech: () => app.primeSpeech(),
+    // conversation mode — the hands-free back-and-forth loop
+    convMode: st.voiceConvMode,
+    convPaused: st.voiceConvPaused,
+    voiceAutoListenTick: st.voiceAutoListenTick,
+    toggleConvMode: () => app.toggleConvMode(),
+    notifyEmptyListen: () => app.notifyEmptyListen(),
+    resumeConv: () => app.resumeConv(),
+    stopSpeaking: () => app.stopSpeaking(),
     briefMe: () => {
       if (!demoMode && !isOffline) { app.askNova('Brief me on my day — recovery, calendar, fuel, training, anything waiting on me.'); return; }
       app.setState(s => ({ orbChat: [...s.orbChat, { who: 'you', text: 'Brief me.' }] }));

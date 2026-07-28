@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
@@ -33,16 +33,29 @@ export function Voice({ v }) {
   const dict = useDictation(
     () => '', // each spoken question starts clean
     (text) => v.setOrbInputValue(text),
-    () => { if (inputRef.current.trim()) sendRef.current(); }, // recognition end = ask
+    () => { if (inputRef.current.trim()) sendRef.current(); else v.notifyEmptyListen(); }, // recognition end = ask; silence feeds the loop
     {
       continuous: false, // one-shot: silence ends the take (works on iOS)
       onError: (err) => v.dictationError(err),
     },
   );
 
-  const caption = dict.on ? 'LISTENING…'
+  // conversation mode: Nova finished speaking → the mic reopens by itself
+  const dictRef = useRef(dict);
+  dictRef.current = dict;
+  useEffect(() => {
+    if (v.voiceAutoListenTick > 0 && v.convMode && !v.convPaused && dictRef.current.supported && !dictRef.current.on) {
+      v.stopSpeaking();
+      dictRef.current.toggle();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [v.voiceAutoListenTick]);
+
+  const caption = dict.on ? (v.convMode ? 'LISTENING — PAUSE SENDS' : 'LISTENING…')
     : v.voiceBusy ? 'READING THE VAULT…'
     : v.voiceSpeaking ? 'SPEAKING'
+    : v.convPaused ? 'CONVERSATION PAUSED — TAP THE MIC'
+    : v.convMode ? 'CONVERSATION ON — YOUR TURN'
     : v.voiceLive ? 'TAP THE MIC OR TYPE' : 'STANDING BY';
 
   return (
@@ -114,10 +127,17 @@ export function Voice({ v }) {
           )}
           <div style={css("display:flex;gap:10px")}>
             {dict.supported && (
-              <Interactive as="span" onClick={() => { v.primeSpeech(); dict.toggle(); }}
+              <Interactive as="span" onClick={() => { v.primeSpeech(); v.stopSpeaking(); v.resumeConv(); dict.toggle(); }}
                 base={{ cursor: 'pointer', font: `500 10.5px ${M}`, padding: '9px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent)', color: dict.on ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', background: dict.on ? 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' : 'rgba(0,0,0,.25)' }}
                 hoverStyle="border-color:color-mix(in srgb, var(--nv-cy) 60%, transparent)"
               >{dict.on ? '● LISTENING — PAUSE SENDS' : '🎙 ASK BY VOICE'}</Interactive>
+            )}
+            {dict.supported && v.voiceLive && (
+              <Interactive as="span" onClick={() => { v.primeSpeech(); v.toggleConvMode(); }}
+                title="Hands-free back-and-forth: Nova speaks, the mic reopens, your pause sends"
+                base={{ cursor: 'pointer', font: `500 10.5px ${M}`, padding: '9px 16px', borderRadius: '8px', border: v.convMode ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent)', color: v.convMode ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', background: v.convMode ? 'var(--nv-acc-bg)' : 'rgba(0,0,0,.25)' }}
+                hoverStyle="border-color:var(--nv-acc-border)"
+              >{v.convMode ? '∞ CONVERSATION ON' : '∞ CONVERSATION'}</Interactive>
             )}
             <Interactive as="span" onClick={v.briefMe} base={`cursor:pointer;font:500 10.5px ${M};padding:9px 16px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);border-radius:8px;color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 06%, transparent)`} hoverStyle="background:color-mix(in srgb, var(--nv-gold) 12%, transparent)">☰ BRIEF ME</Interactive>
           </div>

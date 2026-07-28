@@ -31,7 +31,7 @@ export function claudeCodeRouter({ repoPath, vaultPath }) {
   router.get('/claude-code/message/:jobId', (req, res) => {
     const job = getMessageJob(req.params.jobId);
     if (!job) return res.status(404).json({ error: 'job not found' });
-    res.json({ status: job.status, result: job.result, error: job.error });
+    res.json({ status: job.status, result: job.result, error: job.error, partial: job.partial || null });
   });
 
   // Sparring loop: spawn a read-only Breaker over the workspace. Polled via

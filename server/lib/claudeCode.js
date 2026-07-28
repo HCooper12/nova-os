@@ -135,7 +135,14 @@ export function startAskNova(cwd, { question, context, sessionId }) {
     '--allowedTools', 'Read Grep Glob',
     '--disallowedTools', BREAKER_DISALLOWED,
     '--strict-mcp-config',
-    '--output-format', 'json',
+    // STREAMING: text deltas land in job.partial as they generate, so the
+    // client renders (and speaks) the reply while it's still being written —
+    // the difference between a lookup and a conversation. Event shapes
+    // verified live: stream_event/content_block_delta text_delta (thinking
+    // deltas excluded), full 'assistant' snapshots, final 'result'.
+    '--output-format', 'stream-json',
+    '--include-partial-messages',
+    '--verbose',
     '--max-budget-usd', MAX_BUDGET_USD,
     // Haiku for the voice line: the rich deterministic context is already
     // injected, so a fast model answers conversationally in a fraction of
@@ -146,21 +153,45 @@ export function startAskNova(cwd, { question, context, sessionId }) {
 
   const child = spawn(CLAUDE_BIN, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
 
-  let stdout = '';
+  let buf = '';
+  let streamed = '';
+  let resultText = null;
+  let resultErr = null;
   let stderr = '';
-  child.stdout.on('data', (d) => { stdout += d; });
+  child.stdout.on('data', (d) => {
+    buf += d;
+    let nl;
+    while ((nl = buf.indexOf('\n')) !== -1) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (!line) continue;
+      try {
+        const ev = JSON.parse(line);
+        if (ev.type === 'stream_event' && ev.event?.type === 'content_block_delta' && ev.event.delta?.type === 'text_delta') {
+          streamed += ev.event.delta.text;
+          job.partial = streamed;
+        } else if (ev.type === 'assistant' && Array.isArray(ev.message?.content)) {
+          const txt = ev.message.content.filter((c) => c.type === 'text').map((c) => c.text).join('');
+          if (txt) { streamed = txt; job.partial = streamed; } // authoritative snapshot
+        } else if (ev.type === 'result') {
+          if (ev.is_error) resultErr = ev.result || 'analysis failed';
+          else resultText = (ev.result || '').trim();
+        }
+      } catch { /* non-JSON diagnostic line — ignore */ }
+    }
+  });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', (code) => {
     try {
-      const outer = JSON.parse(stdout);
-      if (outer.is_error || code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
-      const replyText = (outer.result || '').trim();
+      if (resultErr) throw new Error(resultErr);
+      const replyText = (resultText || streamed || '').trim();
+      if (code !== 0 && !replyText) throw new Error(stderr.trim() || `claude exited with code ${code}`);
       if (!replyText) throw new Error('Empty response');
       job.result = { text: replyText, sessionId: effectiveSessionId };
       job.status = 'ready';
     } catch (e) {
       job.status = 'error';
-      job.error = code !== 0 && !(stdout || '').trim() ? (stderr.trim() || `claude exited with code ${code}`) : e.message;
+      job.error = e.message;
     }
   });
   child.on('error', (err) => {
