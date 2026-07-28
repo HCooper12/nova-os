@@ -504,14 +504,22 @@ export function valsMission(app, ctx) {
   // shared with valsChrome (sidebar status card reuses the same truth)
   Object.assign(ctx, { statusChip, missionStatusItems, agentsLiveCount });
 
-  // ---- today list with the ▸ next-block marker ---------------------------
+  // ---- today list markers ------------------------------------------------
+  // The blue ▸ highlight belongs to the event happening RIGHT NOW (start ≤
+  // now < end) — it used to sit on the next upcoming one, so "Work" lit up
+  // two hours early while the live Workout slot sat unmarked. The countdown
+  // stays on the next FUTURE event. No end time → no current-highlight
+  // (honest: we can't know it's still running).
   const markNow = (events) => {
-    const nextIdx = events.findIndex((e) => e.time && e.time >= nowHM);
+    const hm2 = (hm) => { const [h, m] = String(hm).split(':').map(Number); return h * 60 + m; };
+    const nowM = now.getHours() * 60 + now.getMinutes();
+    const curIdx = events.findIndex((e) => e.time && e.end && hm2(e.time) <= nowM && nowM < hm2(e.end));
+    const nextIdx = events.findIndex((e) => e.time && hm2(e.time) > nowM);
     return events.map((e, i) => ({
       ...e,
-      now: i === nextIdx,
-      past: !!e.time && e.time < nowHM && i !== nextIdx,
-      until: i === nextIdx && e.time ? untilLabel(e.time) : null,
+      now: i === curIdx,
+      past: !!e.time && hm2(e.time) <= nowM && i !== curIdx,
+      until: i === nextIdx ? untilLabel(e.time) : null,
     }));
   };
 
@@ -592,15 +600,15 @@ export function valsMission(app, ctx) {
     // fictional schedule (global demo banner marks it).
     todayEvents: st.liveCalendar
       ? (st.liveCalendar.length
-          ? markNow(st.liveCalendar.map(e => ({ time: e.time, label: e.label, category: e.calendar, categoryHue: categoryHue(e.calendar) })))
+          ? markNow(st.liveCalendar.map(e => ({ time: e.time, end: e.end, label: e.label, category: e.calendar, categoryHue: categoryHue(e.calendar) })))
           : [{ time: '', label: 'Nothing on the calendar today' }])
       : !demoMode
         ? [{ time: '', label: 'Calendar not connected — set iCloud credentials in server/.env' }]
         : markNow([
-            { time: '09:00', label: 'Deep work — video script' },
-            { time: '12:30', label: 'Lunch — burrito bowl · 52g P' },
-            { time: '17:30', label: 'Gym — push day · wk 6' },
-            { time: '20:00', label: 'Reflection with Commander' },
+            { time: '09:00', end: '11:00', label: 'Deep work — video script' },
+            { time: '12:30', end: '13:30', label: 'Lunch — burrito bowl · 52g P' },
+            { time: '17:30', end: '19:00', label: 'Gym — push day · wk 6' },
+            { time: '20:00', end: '21:00', label: 'Reflection with Commander' },
           ]),
     // Ask Nova to schedule something — drafts a confirm-first proposal, never
     // writes the calendar until it's approved in the inbox.
