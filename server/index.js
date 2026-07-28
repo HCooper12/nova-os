@@ -119,7 +119,7 @@ async function main() {
   app.use('/api', recipesRouter(process.env.VAULT_PATH));
   app.use('/api', shoppingListRouter(process.env.VAULT_PATH));
   app.use('/api', stashRouter(process.env.VAULT_PATH));
-  app.use('/api', opsRouter());
+  app.use('/api', opsRouter(process.env.VAULT_PATH));
   app.use('/api', overnightRouter(process.env.VAULT_PATH));
   app.use('/api', workoutsRouter(process.env.VAULT_PATH));
   app.use('/api', journalRouter(vault, process.env.VAULT_PATH));

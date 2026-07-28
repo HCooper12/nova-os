@@ -38,6 +38,7 @@ const SLICES = {
   dailyReview: '/api/daily-review',
   ops: '/api/ops',
   overnight: '/api/overnight',
+  skills: '/api/skills',
 };
 
 export function snapshotRouter({ port, token }) {

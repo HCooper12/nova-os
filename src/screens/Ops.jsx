@@ -78,6 +78,26 @@ export function Ops({ v }) {
         </div>
       </div>
 
+      {/* the skill map — what Nova can actually do, from the vault registry */}
+      {v.skillDepartments.length > 0 && (
+        <>
+          <div style={css(`margin-top:30px;font:500 9.5px ${M};letter-spacing:.24em;color:${dim(42)}`)}>THE SKILL MAP · WIKI/LIBRARY/NOVA SKILLS.MD — YOURS TO EDIT</div>
+          <div style={css("display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-top:12px")}>
+            {v.skillDepartments.map((d) => (
+              <div key={d.name} style={css(`border:1px solid ${dim(8)};border-radius:11px;padding:12px 14px;background:${dim(2)}`)}>
+                <div style={css(`font:500 10px ${M};letter-spacing:.22em;color:${dim(55)};margin-bottom:8px`)}>{d.name}</div>
+                {d.skills.map((s) => (
+                  <div key={s.text} style={css("display:flex;align-items:baseline;gap:8px;padding:3px 0")}>
+                    <span style={css(`flex:1;font:400 10.5px/1.5 ${M};color:${dim(72)}`)}>{s.text}</span>
+                    <span style={css(`flex:none;font:500 7.5px ${M};letter-spacing:.08em;color:${s.autonomyColor}`)}>{s.autonomy}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
       {/* the overnight queue — work that runs while he sleeps */}
       <div style={css("margin-top:30px;display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px")}>
         <span style={css(`font:500 9.5px ${M};letter-spacing:.24em;color:${dim(42)}`)}>OVERNIGHT QUEUE · RUNS {v.overnightWindow} WHILE YOU SLEEP</span>

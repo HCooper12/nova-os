@@ -16,6 +16,11 @@ export async function buildAskContext(vaultPath, sessionId) {
     if (standing) parts.push(standing);
   } catch { /* optional */ }
   try {
+    const { skillsContext } = await import('./skills.js');
+    const skills = await skillsContext(vaultPath);
+    if (skills) parts.push(skills);
+  } catch { /* optional */ }
+  try {
     const [morning, evening] = await Promise.all([
       composeDispatch(vaultPath, 'morning'),
       composeDispatch(vaultPath, 'evening'),

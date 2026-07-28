@@ -289,6 +289,11 @@ export function workoutsRouter(vaultPath) {
         const standing = await standingContext(vaultPath);
         if (standing) parts.push(standing);
       } catch { /* optional */ }
+      try {
+        const { skillsContext } = await import('../lib/skills.js');
+        const skills = await skillsContext(vaultPath);
+        if (skills) parts.push(skills);
+      } catch { /* optional */ }
 
       res.json({ jobId: startAskCoach(vaultPath, { question, context: parts.join('\n\n') }) });
     } catch (e) {

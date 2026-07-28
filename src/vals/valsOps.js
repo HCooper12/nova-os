@@ -91,6 +91,16 @@ export function valsOps(app, ctx) {
       ? { p: Math.round(st.liveRotation.consumedTotals.p), floor: st.liveRecipeProfile?.proteinFloorG ?? null }
       : null,
     ambientPending: ops?.pending ?? null,
+    // the skill registry — his editable vault page, drawn by department
+    skillDepartments: (st.liveSkills || []).map((d) => ({
+      name: d.name.toUpperCase(),
+      skills: d.skills.map((s) => ({
+        text: s.text,
+        autonomy: s.autonomy.toUpperCase().replace(/-/g, ' '),
+        autonomyColor: s.autonomy === 'observe' ? 'color-mix(in srgb, var(--nv-ink) 40%, transparent)'
+          : s.autonomy === 'propose' ? 'var(--nv-gold)' : 'var(--nv-cy)',
+      })),
+    })),
     // the overnight queue — real items, real statuses, run window shown
     overnightItems: (st.liveOvernight?.items || []).map((i) => ({
       id: i.id,
