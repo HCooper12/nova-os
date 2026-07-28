@@ -162,7 +162,13 @@ export function valsChrome(app, ctx) {
     gridRecipeOv: mob ? { display: 'flex', flexDirection: 'column', gap: '20px', padding: '18px' } : { display: 'grid', gridTemplateColumns: '300px 1fr', gap: '26px', padding: '26px' },
     // z 82: ABOVE the mobile top bar (70) and floating dock (72) — the close
     // button was buried under chrome and the modal felt impossible to exit
-    recipeOvWrap: { position: 'fixed', inset: 0, background: 'rgba(8,5,12,.72)', backdropFilter: 'blur(6px)', zIndex: 82, display: 'flex', alignItems: mob ? 'flex-start' : 'center', justifyContent: 'center', padding: mob ? '14px' : '40px', overflowY: 'auto' },
+    // phone: a FULL-SCREEN sheet (the floating-card pattern put the close
+    // button under the iOS status bar and left dead space below); desktop
+    // keeps the centered modal
+    recipeOvWrap: mob
+      ? { position: 'fixed', inset: 0, background: 'var(--nv-void)', zIndex: 82, display: 'flex', alignItems: 'stretch', justifyContent: 'stretch', padding: 0 }
+      : { position: 'fixed', inset: 0, background: 'rgba(8,5,12,.72)', backdropFilter: 'blur(6px)', zIndex: 82, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px', overflowY: 'auto' },
+    recipeOvMobile: mob,
     isMission: st.screen === 'mission', isVoice: st.screen === 'voice', isGalaxy: st.screen === 'galaxy',
     isRecipes: st.screen === 'recipes', isShopping: st.screen === 'shopping', isStash: st.screen === 'stash', isWorkouts: st.screen === 'workouts', isCode: st.screen === 'code', isNotes: st.screen === 'notes', isJournal: st.screen === 'journal',
     dateLabel: new Date().toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }).toUpperCase().replace(/,/g, ''),
