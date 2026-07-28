@@ -16,6 +16,13 @@ function effectiveConsumed(state) {
   return state.consumedDate === today() ? (state.consumed || {}) : {};
 }
 
+// A variant override is TODAY's version of a slot's meal (an alternate of the
+// recipe — "white bread, no avocado") without touching the stored recipe.
+// Date-scoped exactly like consumed: yesterday's override is honestly stale.
+function effectiveOverrides(state) {
+  return state.overrideDate === today() ? (state.overrides || {}) : {};
+}
+
 function bodyFor(slots, recipesById) {
   const lines = SLOTS.map((s) => {
     const id = slots[s];
@@ -30,11 +37,15 @@ function resolve(state, recipesById) {
   const totals = { p: 0, c: 0, f: 0, kcal: 0 };
   const consumedTotals = { p: 0, c: 0, f: 0, kcal: 0 };
   const consumed = effectiveConsumed(state);
+  const overrides = effectiveOverrides(state);
   for (const s of SLOTS) {
     const id = state.slots[s] || null;
-    const r = id ? recipesById.get(id) : null;
+    const r0 = id ? recipesById.get(id) : null;
+    const alt = r0 && overrides[s] ? (r0.alternates || []).find((a) => a.id === overrides[s]) : null;
+    // an override with macros stands in for the day; totals stay honest
+    const r = r0 ? (alt && alt.macros ? { ...r0, macros: alt.macros } : r0) : null;
     const isConsumed = !!consumed[s];
-    resolved[s] = r ? { id: r.id, name: r.name, macros: r.macros, consumed: isConsumed } : null;
+    resolved[s] = r ? { id: r.id, name: r.name, macros: r.macros, consumed: isConsumed, variant: alt ? alt.label : null, variantId: alt ? alt.id : null } : null;
     if (r && r.macros) {
       totals.p += r.macros.p;
       totals.c += r.macros.c;
@@ -57,9 +68,9 @@ const stateFile = createVaultStateFile({
   relPath: ROTATION_REL_PATH,
   parse(raw) {
     const data = matter(raw).data;
-    return { slots: data.slots || {}, consumed: data.consumed || {}, consumedDate: data.consumedDate || null };
+    return { slots: data.slots || {}, consumed: data.consumed || {}, consumedDate: data.consumedDate || null, overrides: data.overrides || {}, overrideDate: data.overrideDate || null };
   },
-  empty: () => ({ slots: {}, consumed: {}, consumedDate: null }),
+  empty: () => ({ slots: {}, consumed: {}, consumedDate: null, overrides: {}, overrideDate: null }),
 });
 
 function getState(vaultPath) {
@@ -74,9 +85,9 @@ export async function loadRotation(vaultPath, recipes) {
 
 const withWriteLock = createWriteLock();
 
-async function persist(vaultPath, recipesById, slots, consumed, consumedDate) {
-  const state = { slots, consumed, consumedDate };
-  const frontmatter = { type: 'rotation', updated: today(), slots, consumed, consumedDate };
+async function persist(vaultPath, recipesById, slots, consumed, consumedDate, overrides = {}, overrideDate = null) {
+  const state = { slots, consumed, consumedDate, overrides, overrideDate };
+  const frontmatter = { type: 'rotation', updated: today(), slots, consumed, consumedDate, overrides, overrideDate };
   const content = matter.stringify(bodyFor(slots, recipesById), frontmatter);
   await stateFile.write(vaultPath, content, state);
   return resolve(state, recipesById);
@@ -94,11 +105,34 @@ export async function setRotationSlot(vaultPath, recipes, slot, recipeId) {
     else delete slots[slot];
 
     // swapping (or clearing) a slot's recipe invalidates any "consumed" mark
-    // for it — it no longer refers to the same food.
+    // AND any today-variant for it — neither refers to the same food now.
     const consumed = { ...effectiveConsumed(state) };
     delete consumed[slot];
+    const overrides = { ...effectiveOverrides(state) };
+    delete overrides[slot];
 
-    return persist(vaultPath, recipesById, slots, consumed, today());
+    return persist(vaultPath, recipesById, slots, consumed, today(), overrides, today());
+  });
+}
+
+// TODAY's version of a slot: point it at one of the recipe's alternates
+// (altId null returns to the original). The stored recipe never changes.
+export async function setSlotVariant(vaultPath, recipes, slot, altId) {
+  if (!SLOTS.includes(slot)) throw new Error('invalid slot');
+  const recipesById = new Map(recipes.map((r) => [r.id, r]));
+
+  return withWriteLock(async () => {
+    const state = await getState(vaultPath);
+    const recipeId = state.slots[slot];
+    const recipe = recipeId ? recipesById.get(recipeId) : null;
+    if (!recipe) throw new Error('that slot has no recipe today');
+    if (altId && !(recipe.alternates || []).some((a) => a.id === altId)) {
+      throw new Error(`"${recipe.name}" has no alternate "${altId}"`);
+    }
+    const overrides = { ...effectiveOverrides(state) };
+    if (altId) overrides[slot] = altId;
+    else delete overrides[slot];
+    return persist(vaultPath, recipesById, state.slots, effectiveConsumed(state), state.consumedDate === today() ? today() : state.consumedDate, overrides, today());
   });
 }
 
@@ -109,6 +143,6 @@ export async function setSlotConsumed(vaultPath, recipes, slot, consumedFlag) {
   return withWriteLock(async () => {
     const state = await getState(vaultPath);
     const consumed = { ...effectiveConsumed(state), [slot]: !!consumedFlag };
-    return persist(vaultPath, recipesById, state.slots, consumed, today());
+    return persist(vaultPath, recipesById, state.slots, consumed, today(), effectiveOverrides(state), today());
   });
 }

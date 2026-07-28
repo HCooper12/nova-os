@@ -160,7 +160,9 @@ export function valsChrome(app, ctx) {
     galaxyBox: Object.assign({ position: 'relative', marginTop: '16px', border: '1px solid var(--nv-edge)', borderRadius: 'var(--nv-radius)', overflow: 'hidden', background: 'radial-gradient(700px 420px at 50% 45%, color-mix(in srgb, var(--nv-vi) 08%, transparent), rgba(0,0,0,.24))', boxShadow: 'inset 0 1px 0 var(--nv-spec)' }, mob ? { height: '420px' } : { flex: '1' }),
     consoleCard: Object.assign({ border: '1px solid var(--nv-edge)', borderRadius: 'var(--nv-radius)', background: 'var(--nv-well)', boxShadow: 'inset 0 1px 0 var(--nv-spec)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }, mob ? { height: '460px' } : {}),
     gridRecipeOv: mob ? { display: 'flex', flexDirection: 'column', gap: '20px', padding: '18px' } : { display: 'grid', gridTemplateColumns: '300px 1fr', gap: '26px', padding: '26px' },
-    recipeOvWrap: { position: 'fixed', inset: 0, background: 'rgba(8,5,12,.72)', backdropFilter: 'blur(6px)', zIndex: 60, display: 'flex', alignItems: mob ? 'flex-start' : 'center', justifyContent: 'center', padding: mob ? '14px' : '40px', overflowY: 'auto' },
+    // z 82: ABOVE the mobile top bar (70) and floating dock (72) — the close
+    // button was buried under chrome and the modal felt impossible to exit
+    recipeOvWrap: { position: 'fixed', inset: 0, background: 'rgba(8,5,12,.72)', backdropFilter: 'blur(6px)', zIndex: 82, display: 'flex', alignItems: mob ? 'flex-start' : 'center', justifyContent: 'center', padding: mob ? '14px' : '40px', overflowY: 'auto' },
     isMission: st.screen === 'mission', isVoice: st.screen === 'voice', isGalaxy: st.screen === 'galaxy',
     isRecipes: st.screen === 'recipes', isShopping: st.screen === 'shopping', isStash: st.screen === 'stash', isWorkouts: st.screen === 'workouts', isCode: st.screen === 'code', isNotes: st.screen === 'notes', isJournal: st.screen === 'journal',
     dateLabel: new Date().toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }).toUpperCase().replace(/,/g, ''),

@@ -3,8 +3,8 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { loadRecipeData, addRecipe, addAlternate } from '../lib/recipes.js';
-import { loadRotation, setRotationSlot, setSlotConsumed } from '../lib/rotation.js';
+import { loadRecipeData, addRecipe, addAlternate, promoteAlternate } from '../lib/recipes.js';
+import { loadRotation, setRotationSlot, setSlotConsumed, setSlotVariant } from '../lib/rotation.js';
 import { recordTodaySnapshot } from '../lib/nutritionSnapshot.js';
 import { startScan, getScanJob } from '../lib/scanRecipe.js';
 import { startTweak, getTweakJob } from '../lib/tweakRecipe.js';
@@ -209,6 +209,30 @@ export function recipesRouter(vaultPath) {
       const { slot, recipeId } = req.body || {};
       const { recipes } = await loadRecipeData(vaultPath);
       const rotation = await setRotationSlot(vaultPath, recipes, slot, recipeId || null);
+      res.json(rotation);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  // TODAY's version of a slot — an alternate stands in without touching the
+  // stored recipe; altId null returns to the original.
+  // "This tweak IS the meal now" — alternate becomes primary, old main is
+  // preserved as an alternate named Original (reversible by promoting back).
+  router.post('/recipes/:id/promote', async (req, res) => {
+    try {
+      if (!req.body?.altId) return res.status(400).json({ error: 'altId is required' });
+      const recipe = await promoteAlternate(vaultPath, req.params.id, req.body.altId);
+      res.json({ recipe });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  router.post('/rotation/variant', async (req, res, next) => {
+    try {
+      const { recipes } = await loadRecipeData(vaultPath);
+      const rotation = await setSlotVariant(vaultPath, recipes, req.body?.slot, req.body?.altId || null);
       res.json(rotation);
     } catch (err) {
       res.status(400).json({ error: err.message });

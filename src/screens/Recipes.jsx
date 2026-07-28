@@ -86,7 +86,7 @@ export function Recipes({ v }) {
                     <span style={{ display: 'block', font: '450 14px var(--nv-font-ui)', color: 'var(--nv-ink40)' }}>Not set</span>
                   )}
                   <span style={{ display: 'block', marginTop: '1px', font: '400 11px var(--nv-font-mono)', color: 'var(--nv-ink40)' }}>
-                    {s.name}{s.recipeName ? <> · <span style={css("color:var(--nv-cy)")}>{s.p}P</span> <span style={css("color:var(--nv-gold)")}>{s.c}C</span> <span style={css("color:var(--nv-vi)")}>{s.f}F</span> <span style={css("color:var(--nv-good)")}>{s.kcal}kcal</span></> : ' · pick from the bank below'}
+                    {s.name}{s.recipeName ? <> · <span style={css("color:var(--nv-cy)")}>{s.p}P</span> <span style={css("color:var(--nv-gold)")}>{s.c}C</span> <span style={css("color:var(--nv-vi)")}>{s.f}F</span> <span style={css("color:var(--nv-good)")}>{s.kcal}kcal</span>{s.variant && <> · <span style={css("color:var(--nv-gold)")}>today: {s.variant}</span></>}</> : ' · pick from the bank below'}
                   </span>
                 </span>
                 {s.clear && <Interactive as="span" onClick={s.clear} base="cursor:pointer;flex:none;font-size:14px;color:color-mix(in srgb, var(--nv-ink) 30%, transparent);padding:4px" hoverStyle="color:var(--nv-warn)">×</Interactive>}
@@ -119,6 +119,9 @@ export function Recipes({ v }) {
                     <div style={css("margin-top:5px;display:flex;gap:7px;font:400 9.5px var(--nv-font-mono)")}>
                       <span style={css("color:var(--nv-cy)")}>{s.p}P</span><span style={css("color:var(--nv-gold)")}>{s.c}C</span><span style={css("color:var(--nv-vi)")}>{s.f}F</span><span style={css("color:var(--nv-good)")}>{s.kcal}kcal</span>
                     </div>
+                    {s.variant && (
+                      <div style={css("margin-top:4px;font:500 8.5px var(--nv-font-mono);color:var(--nv-gold)")}>today: {s.variant} <Interactive as="span" onClick={s.clearVariant} base="cursor:pointer;color:color-mix(in srgb, var(--nv-ink) 35%, transparent)" hoverStyle={{ color: 'var(--nv-ink)' }}>· undo</Interactive></div>
+                    )}
                     <Interactive
                       as="div"
                       onClick={s.toggleConsumed}

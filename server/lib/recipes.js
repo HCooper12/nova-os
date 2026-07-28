@@ -386,3 +386,84 @@ async function addAlternateUnlocked(vaultPath, recipeName, alt) {
   await writeFile(full, newRaw, 'utf8');
   return after;
 }
+
+/* --------------------- promote an alternate to primary ------------------- */
+// "This tweak IS the meal now" — e.g. the per-bar Biscoff macros replacing
+// the full-batch numbers. The alternate's macros (and its ingredients/method,
+// when it has them) become the recipe's main content; the OLD main content is
+// preserved as an alternate named "Original", so promotion is reversible by
+// promoting Original back. The rotation inherits the new macros automatically.
+export function promoteAlternateInRaw(raw, recipeName, altId) {
+  const headingRe = new RegExp(`^##\\s+\\d+\\.\\s+${escapeRe(recipeName)}\\s*$`, 'm');
+  const headingMatch = headingRe.exec(raw);
+  if (!headingMatch) throw new Error(`Could not find recipe "${recipeName}" in the file`);
+  const afterHeadingIdx = headingMatch.index + headingMatch[0].length;
+  const rest = raw.slice(afterHeadingIdx);
+  const nextHeadingMatch = rest.match(/\n#{1,2}(?!#)\s/);
+  const blockEnd = nextHeadingMatch ? afterHeadingIdx + nextHeadingMatch.index + 1 : raw.length;
+  let block = raw.slice(afterHeadingIdx, blockEnd);
+
+  const parsed = parseRecipeCollection(raw).find((r) => r.name === recipeName);
+  if (!parsed) throw new Error(`Could not parse recipe "${recipeName}"`);
+  const alt = (parsed.alternates || []).find((a) => a.id === altId);
+  if (!alt) throw new Error(`"${recipeName}" has no alternate "${altId}"`);
+  if (!alt.macros) throw new Error(`alternate "${alt.label}" has no macros to promote`);
+
+  // 1. main macro line ← alternate's macros
+  const macroLineRe = /\*\*Macros[^*]*\*\*:?\s*[\d.]+g P \/ [\d.]+g C \/ [\d.]+g F \/ [\d.]+\s*kcal/i;
+  if (!macroLineRe.test(block)) throw new Error('could not locate the main macro line');
+  block = block.replace(macroLineRe, `**Macros:** ${alt.macros.p}g P / ${alt.macros.c}g C / ${alt.macros.f}g F / ${alt.macros.kcal} kcal`);
+
+  // 2. main ingredients/method ← alternate's, ONLY when the alternate has its
+  //    own (a macro-only tweak — reportioning — keeps the original steps)
+  if (alt.ingredients.length) {
+    block = block.replace(
+      /(^###\s+Ingredients[^\n]*\n)([\s\S]*?)(?=\n###\s|\n####\s|\n##\s|$)/m,
+      (_, h) => `${h}${alt.ingredients.map((x) => `- ${x}`).join('\n')}\n`
+    );
+  }
+  if (alt.method.length) {
+    block = block.replace(
+      /(^###\s+Method[^\n]*\n)([\s\S]*?)(?=\n###\s|\n####\s|\n##\s|$)/m,
+      (_, h) => `${h}${alt.method.map((x, i) => `${i + 1}. ${x}`).join('\n')}\n`
+    );
+  }
+
+  // 3. the promoted alternate's block ← the OLD main content, as "Original"
+  const originalLabel = (parsed.alternates || []).some((a) => /^original\b/i.test(a.label))
+    ? `Original (${new Date().toISOString().slice(0, 10)})`
+    : 'Original';
+  const oldMain = {
+    label: originalLabel,
+    macros: parsed.macros,
+    ingredients: alt.ingredients.length ? parsed.ingredients.map((i) => (i.qty ? `${i.qty} ${i.name}` : i.name)) : [],
+    method: alt.method.length ? parsed.method : [],
+  };
+  const altBlockRe = new RegExp(`####\\s+Alternative:\\s*${escapeRe(alt.label)}\\s*\\n[\\s\\S]*?(?=\\n####\\s|\\n###\\s|\\n##\\s|\\n---|$)`);
+  if (!altBlockRe.test(block)) throw new Error('could not locate the alternate block to swap');
+  block = block.replace(altBlockRe, formatAlternateBlock(oldMain).trimEnd() + '\n');
+
+  return raw.slice(0, afterHeadingIdx) + block + raw.slice(blockEnd);
+}
+
+let promoteLock = Promise.resolve();
+export async function promoteAlternate(vaultPath, recipeId, altId) {
+  const run = promoteLock.catch(() => {}).then(async () => {
+    const full = path.join(vaultPath, RECIPES_REL_PATH);
+    const raw = await readFile(full, 'utf8');
+    const before = parseRecipeCollection(raw).find((r) => r.id === recipeId);
+    if (!before) throw new Error('recipe not found');
+    const alt = (before.alternates || []).find((a) => a.id === altId);
+    const newRaw = promoteAlternateInRaw(raw, before.name, altId);
+    const after = parseRecipeCollection(newRaw).find((r) => r.id === recipeId);
+    // sanity: macros moved, alternate count unchanged (swap, not a loss)
+    if (!after || after.macros.kcal !== alt.macros.kcal || after.alternates.length !== before.alternates.length) {
+      throw new Error('Promotion failed a sanity check — file left unchanged');
+    }
+    await backupFile(full);
+    await writeFile(full, newRaw, 'utf8');
+    return after;
+  });
+  promoteLock = run.catch(() => {});
+  return run;
+}

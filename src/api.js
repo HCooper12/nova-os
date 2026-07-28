@@ -127,6 +127,8 @@ export const api = {
   confirmShoppingCompletion: (conn) => post(conn, '/api/shopping-list/confirm-completion'),
   rotation: (conn) => call(conn, '/api/rotation'),
   setRotationSlot: (conn, slot, recipeId) => post(conn, '/api/rotation', { slot, recipeId }),
+  setRotationVariant: (conn, slot, altId) => post(conn, '/api/rotation/variant', { slot, altId }),
+  promoteRecipeAlternate: (conn, id, altId) => post(conn, `/api/recipes/${encodeURIComponent(id)}/promote`, { altId }),
   setRotationConsumed: (conn, slot, consumed) => post(conn, '/api/rotation/consume', { slot, consumed }),
   foodLog: (conn) => call(conn, '/api/food-log'),
   foodHistory: (conn, days = 45) => call(conn, `/api/food-log/history?days=${days}`),

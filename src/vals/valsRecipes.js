@@ -40,6 +40,8 @@ export function valsRecipes(app, ctx) {
       f: filled ? Math.round(filled.macros.f) : null,
       kcal: filled ? Math.round(filled.macros.kcal) : null,
       consumed: !!filled?.consumed,
+      variant: filled?.variant || null,
+      clearVariant: filled?.variant ? () => app.setRotationVariant(s.key, null) : null,
       open: filled ? () => app.openRecipe(filled.id) : null,
       toggleConsumed: filled ? () => app.toggleSlotConsumed(s.key, !filled.consumed) : null,
       clear: filled ? () => {
@@ -94,6 +96,11 @@ export function valsRecipes(app, ctx) {
       });
 
   const liveOr = usingLiveRecipes ? (st.liveRecipes.find(r => r.id === st.openRecipeId) || null) : null;
+  // if the open recipe sits in a rotation slot today, per-day variant actions apply
+  const openRecipeSlotKey = liveOr && rotation?.slots
+    ? (Object.entries(rotation.slots).find(([, v]) => v && v.id === liveOr.id)?.[0] || null)
+    : null;
+  const openRecipeSlotVariantId = openRecipeSlotKey ? (rotation.slots[openRecipeSlotKey]?.variantId || null) : null;
   const or = usingLiveRecipes ? null : app.recipes.find(r => r.id === st.openRecipeId);
   const sv = usingLiveRecipes ? 1 : st.servings; // no serving-scaling for live recipes — ingredients are free text, not [qty,unit] tuples
 
@@ -271,9 +278,15 @@ export function valsRecipes(app, ctx) {
     // alternates — Nova-suggested tweaks to a live recipe, kept as extra
     // saved views rather than overwriting the original
     orAlternates: usingLiveRecipes && liveOr ? [
-      { id: null, label: 'Original', active: !st.recipeAltSelected, onClick: () => app.selectAlternate(null) },
-      ...liveOr.alternates.map((a) => ({ id: a.id, label: a.label, active: st.recipeAltSelected === a.id, onClick: () => app.selectAlternate(a.id) })),
+      { id: null, label: 'Original', active: !st.recipeAltSelected, onClick: () => app.selectAlternate(null),
+        isToday: openRecipeSlotKey ? !openRecipeSlotVariantId : false,
+        useToday: openRecipeSlotKey && openRecipeSlotVariantId ? () => app.setRotationVariant(openRecipeSlotKey, null) : null },
+      ...liveOr.alternates.map((a) => ({ id: a.id, label: a.label, active: st.recipeAltSelected === a.id, onClick: () => app.selectAlternate(a.id),
+        isToday: openRecipeSlotVariantId === a.id,
+        useToday: openRecipeSlotKey && openRecipeSlotVariantId !== a.id ? () => app.setRotationVariant(openRecipeSlotKey, a.id) : null,
+        makePrimary: a.macros ? () => app.promoteRecipeAlternate(liveOr.id, a.id) : null })),
     ] : [],
+    orSlotKey: openRecipeSlotKey,
     orShowAddToShoppingList: usingLiveRecipes && !!liveOr && effIngredients.length > 0,
     addRecipeToShoppingList: () => {
       if (!liveOr) return;
@@ -282,6 +295,14 @@ export function valsRecipes(app, ctx) {
       app.addToShoppingList(names, source);
     },
     orShowTweak: usingLiveRecipes && !!liveOr,
+    // tap × on an ingredient → builds the tweak request ("today's version
+    // without X") — the model recomputes macros, then one tap applies it to
+    // today's slot without touching the stored recipe
+    removeIngredientForTweak: usingLiveRecipes && liveOr ? (name) => {
+      const cur = st.recipeTweakInput.trim();
+      app.setState({ recipeTweakInput: cur ? `${cur}, no ${name}` : `Today's version: no ${name}` });
+    } : null,
+    saveRecipeTweakToday: openRecipeSlotKey ? () => app.saveRecipeTweak(openRecipeSlotKey) : null,
     recipeTweakInput: st.recipeTweakInput,
     setRecipeTweakInput: (e) => app.setState({ recipeTweakInput: e.target.value }),
     recipeTweakKey: (e) => { if (e.key === 'Enter') app.submitRecipeTweak(); },

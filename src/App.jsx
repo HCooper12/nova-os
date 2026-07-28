@@ -568,6 +568,28 @@ export default class App extends Component {
     }, () => this.drainOutbox());
   }
 
+  // ---------- rotation variants + promote (today's version vs the recipe) --
+  setRotationVariant(slot, altId) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.setRotationVariant(conn, slot, altId).then((rotation) => {
+      this.setState({ liveRotation: rotation });
+      this.toastMsg(altId ? "Applied as today's version — the stored recipe is untouched" : 'Back to the original for today');
+    }).catch((e) => this.toastMsg('Could not set today’s version: ' + e.message));
+  }
+  promoteRecipeAlternate(recipeId, altId) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.promoteRecipeAlternate(conn, recipeId, altId).then(({ recipe }) => {
+      this.setState((s) => ({
+        liveRecipes: s.liveRecipes.map((r) => (r.id === recipe.id ? recipe : r)),
+        recipeAltSelected: null,
+      }));
+      this.refreshLiveData(); // rotation totals inherit the new primary macros
+      this.toastMsg(`${recipe.name} updated — the old version is kept as "Original"`);
+    }).catch((e) => this.toastMsg('Could not make it primary: ' + e.message));
+  }
+
   // ---------- stash (categorised restock/reference links, vault-backed) ----
   setStashField(field, e) {
     this.setState({ [field]: e.target.value, stashAddError: null });
@@ -1282,18 +1304,24 @@ export default class App extends Component {
         this.setState({ recipeTweakBusy: false, recipeTweakError: e.message });
       });
   }
-  saveRecipeTweak() {
+  saveRecipeTweak(useTodaySlot) {
     const conn = getConnection();
     const st = this.state;
     const preview = st.recipeTweakPreview;
     if (!conn || !st.openRecipeId || !preview) return;
     api.addAlternate(conn, st.openRecipeId, preview).then(({ recipe }) => {
+      const newAlt = recipe.alternates[recipe.alternates.length - 1] || null;
       this.setState((s) => ({
         liveRecipes: s.liveRecipes.map((r) => (r.id === recipe.id ? recipe : r)),
         recipeTweakPreview: null,
-        recipeAltSelected: recipe.alternates[recipe.alternates.length - 1]?.id || null,
+        recipeAltSelected: newAlt?.id || null,
       }));
-      this.toastMsg('Saved as an alternative ✓');
+      // one-tap "this is what I'm actually eating today"
+      if (useTodaySlot && newAlt) {
+        this.setRotationVariant(useTodaySlot, newAlt.id);
+      } else {
+        this.toastMsg('Saved as an alternative ✓');
+      }
     }).catch((e) => {
       this.setState({ recipeTweakError: e.message });
     });

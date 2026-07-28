@@ -5,9 +5,9 @@ export function RecipeOverlay({ v }) {
   return (
     <div role="dialog" aria-modal="true" aria-label="Recipe detail" onClick={v.closeRecipe} style={v.recipeOvWrap}>
       <div onClick={v.stopClick} style={css("width:860px;max-width:94vw;max-height:88vh;overflow-y:auto;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 40px 90px -30px rgba(0,0,0,.95),inset 0 1px 0 var(--nv-spec);animation:fadeUp .3s ease-out")}>
-        <div style={css("display:flex;justify-content:space-between;align-items:center;padding:18px 26px;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)")}>
+        <div style={css("position:sticky;top:0;z-index:3;display:flex;justify-content:space-between;align-items:center;padding:18px 26px;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent);background:var(--nv-glass2);backdrop-filter:blur(22px)")}>
           <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.24em;color:var(--nv-gold)")}>RECIPE · FROM OBSIDIAN</span>
-          <Interactive as="span" onClick={v.closeRecipe} base="cursor:pointer;font:500 11px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 50%, transparent);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:7px;padding:5px 10px" hoverStyle="color:var(--nv-ink)">ESC</Interactive>
+          <Interactive as="span" onClick={v.closeRecipe} base="cursor:pointer;font:500 11px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 50%, transparent);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:9px;padding:9px 16px" hoverStyle="color:var(--nv-ink)">✕ CLOSE</Interactive>
         </div>
         <div style={v.gridRecipeOv}>
           <div>
@@ -58,11 +58,23 @@ export function RecipeOverlay({ v }) {
                     }}
                     hoverStyle={{ border: '1px solid color-mix(in srgb, var(--nv-cy) 50%, transparent)' }}
                   >
-                    {a.label}
+                    {a.label}{a.isToday ? ' · TODAY' : ''}
                   </Interactive>
                 ))}
               </div>
             )}
+            {v.orAlternates.filter((a) => a.active && (a.useToday || a.makePrimary)).map((a) => (
+              <div key={'act' + (a.id ?? 'orig')} style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
+                {a.useToday && (
+                  <Interactive as="span" onClick={a.useToday} base="cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.06em;padding:7px 14px;border-radius:8px;background:var(--nv-gold);color:#1a1322" hoverStyle={{ filter: 'brightness(1.08)' }}>USE FOR TODAY</Interactive>
+                )}
+                {a.isToday && <span style={css("font:500 9.5px var(--nv-font-mono);color:var(--nv-gold)")}>✓ today's version — recipe unchanged</span>}
+                {a.makePrimary && (
+                  <Interactive as="span" onClick={a.makePrimary} base="cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.06em;padding:7px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 08%, transparent)">MAKE PRIMARY</Interactive>
+                )}
+                {a.makePrimary && <span style={css("font:400 9.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>replaces the recipe — the old version stays as "Original"</span>}
+              </div>
+            ))}
             {v.orDescription && (
               <div style={css("margin-top:16px;font-size:14px;line-height:1.7;color:color-mix(in srgb, var(--nv-ink) 85%, transparent)")}>{v.orDescription}</div>
             )}
@@ -76,7 +88,7 @@ export function RecipeOverlay({ v }) {
                 </div>
                 <div style={css("margin-top:10px;display:flex;flex-direction:column")}>
                   {v.orIngredients.map((ing, i) => (
-                    <div key={i} style={css("display:flex;gap:12px;padding:7px 0;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 05%, transparent);font-size:13.5px")}><span style={css("font:400 11.5px var(--nv-font-mono);color:var(--nv-gold);width:74px;font-variant-numeric:tabular-nums")}>{ing.qty}</span><span style={css("color:color-mix(in srgb, var(--nv-ink) 85%, transparent)")}>{ing.name}</span></div>
+                    <div key={i} style={css("display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 05%, transparent);font-size:13.5px")}><span style={css("font:400 11.5px var(--nv-font-mono);color:var(--nv-gold);width:74px;font-variant-numeric:tabular-nums")}>{ing.qty}</span><span style={css("flex:1;color:color-mix(in srgb, var(--nv-ink) 85%, transparent)")}>{ing.name}</span>{v.removeIngredientForTweak && (<Interactive as="span" onClick={() => v.removeIngredientForTweak(ing.name)} title="Drop this for today — Nova recomputes the macros below" base="cursor:pointer;flex:none;font-size:12px;color:color-mix(in srgb, var(--nv-ink) 28%, transparent);padding:2px 7px" hoverStyle={{ color: 'var(--nv-warn)' }}>×</Interactive>)}</div>
                   ))}
                 </div>
               </>
@@ -148,6 +160,9 @@ export function RecipeOverlay({ v }) {
                       <div style={css("display:flex;gap:8px;margin-top:14px")}>
                         <Interactive as="span" onClick={v.discardRecipeTweak} base="cursor:pointer;font-size:12px;padding:7px 14px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);color:color-mix(in srgb, var(--nv-ink) 70%, transparent)" hoverStyle={{ background: 'rgba(255,255,255,.05)' }}>Discard</Interactive>
                         <Interactive as="span" onClick={v.saveRecipeTweak} base="cursor:pointer;font-size:12px;font-weight:500;padding:7px 16px;border-radius:7px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 80%, white)' }}>Save as alternative</Interactive>
+                        {v.saveRecipeTweakToday && (
+                          <Interactive as="span" onClick={v.saveRecipeTweakToday} base="cursor:pointer;font-size:12px;font-weight:600;padding:7px 16px;border-radius:7px;background:var(--nv-gold);color:#1a1322" hoverStyle={{ filter: 'brightness(1.08)' }}>Save &amp; use today</Interactive>
+                        )}
                       </div>
                     </div>
                   )}
