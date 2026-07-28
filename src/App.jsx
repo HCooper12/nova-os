@@ -41,6 +41,7 @@ import { IngestModal } from './IngestModal.jsx';
 import { IngestReview } from './IngestReview.jsx';
 import { Toast } from './Toast.jsx';
 import { OutboxView } from './OutboxView.jsx';
+import { NudgeCard } from './NudgeCard.jsx';
 import { Boot } from './Boot.jsx';
 
 // Code-split: ZXing (barcode decoding) is a sizeable dependency that only
@@ -232,6 +233,7 @@ export default class App extends Component {
     liveLearning: null,
     // offline outbox — writes queued while the backend is unreachable
     outbox: typeof localStorage !== 'undefined' ? loadOutbox() : [],
+    nudgeDismissed: {},
     outboxOpen: false,
     // an in-progress workout must survive tab reclaim / refresh / app kill —
     // restored from device storage at boot (see restoreActiveSession)
@@ -323,6 +325,7 @@ export default class App extends Component {
       // no local draft — check the server-side mirror (survives storage
       // eviction and reinstalls; the localStorage copy alone proved lossy)
       api.getSessionDraft(getConnection()).then(({ draft }) => {
+        this.serverDraftChecked = true;
         if (!draft?.workoutSession || this.state.workoutSession) return;
         this.setState({
           workoutSession: draft.workoutSession,
@@ -330,7 +333,11 @@ export default class App extends Component {
           workoutSessionSavedAt: draft.savedAt || null,
         });
         this.toastMsg('Recovered your workout draft from the server — nothing was lost');
-      }).catch(() => {});
+      }).catch(() => {
+        // an UNREACHABLE server is not "no draft" — say so, and the
+        // reconnect re-check below retries the moment the backend answers
+        this.toastMsg('Couldn’t check the server for a workout draft — it retries when Nova reconnects');
+      });
     }
     this.checkPushState();
     this.syncInboxMode(); // pull the system-wide autonomy mode from the server
@@ -367,6 +374,11 @@ export default class App extends Component {
         }
       } else {
         this.stopEventStream(); // save battery while backgrounded
+        // a deferred update applies now — backgrounded, nothing to interrupt
+        if (this.swPendingReload && !this.state.workoutSession && !this.swReloading) {
+          this.swReloading = true;
+          window.location.reload();
+        }
       }
     };
     document.addEventListener('visibilitychange', this.visH);
@@ -379,12 +391,26 @@ export default class App extends Component {
         this.swCtrlH = () => {
           if (!this.swHadController) { this.swHadController = true; return; }
           if (this.swReloading) return;
+          // NEVER reload over an in-flight workout (or any unsaved surface a
+          // reload could race) — it refreshed Hayden mid-set. Defer to the
+          // next backgrounding; the update applies invisibly then.
+          if (this.state.workoutSession) { this.swPendingReload = true; return; }
           this.swReloading = true;
           window.location.reload();
         };
         navigator.serviceWorker.addEventListener('controllerchange', this.swCtrlH);
       }
     } catch { /* unsupported */ }
+    // Last-chance flush: an immediate reload can outrun async storage — on
+    // pagehide, synchronously re-mirror the active session so the draft's
+    // localStorage copy is as fresh as WebKit allows.
+    this.pagehideH = () => {
+      try {
+        const s = this.state.workoutSession;
+        if (s) localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify({ workoutSession: s, editingSessionId: this.state.editingSessionId, savedAt: Date.now() }));
+      } catch { /* best-effort */ }
+    };
+    window.addEventListener('pagehide', this.pagehideH);
     this.refreshIv = setInterval(() => { if (getConnection()) this.refreshLiveData(); }, 5 * 60_000);
     this.startEventStream();
     // Zombie-stream watchdog: a half-open event stream delivers nothing and
@@ -430,6 +456,7 @@ export default class App extends Component {
     window.removeEventListener('popstate', this.popH);
     window.removeEventListener('hashchange', this.popH);
     window.removeEventListener('online', this.onlineH);
+    window.removeEventListener('pagehide', this.pagehideH);
     document.removeEventListener('visibilitychange', this.visH);
     try { if (this.swCtrlH) navigator.serviceWorker?.removeEventListener('controllerchange', this.swCtrlH); } catch { /* unsupported */ }
     this.ivs.forEach(clearInterval);
@@ -848,6 +875,21 @@ export default class App extends Component {
           for (const key of CACHED_LIVE_KEYS) slices[key] = this.state[key];
           saveLiveCache(slices);
           this.drainOutbox(); // the backend is answering — flush queued writes
+          // a session draft on the server must survive even a localStorage
+          // wipe + an offline boot: re-check once per page load on the first
+          // successful sync (the boot check fails silently at the gym)
+          if (!this.serverDraftChecked && !this.state.workoutSession) {
+            this.serverDraftChecked = true;
+            api.getSessionDraft(conn).then(({ draft }) => {
+              if (!draft?.workoutSession || this.state.workoutSession) return;
+              this.setState({
+                workoutSession: draft.workoutSession,
+                editingSessionId: draft.editingSessionId || null,
+                workoutSessionSavedAt: draft.savedAt || null,
+              });
+              this.toastMsg('Found your unfinished workout on the server — resume from Train or the nudge');
+            }).catch(() => { this.serverDraftChecked = false; /* retry next sync */ });
+          }
         });
       } else {
         this.setState({ connectionStatus: 'offline' });
@@ -3059,6 +3101,7 @@ export default class App extends Component {
         {v.paletteOpen && <CommandPalette v={v} />}
         {v.ingestModalOpen && <IngestModal v={v} />}
         {v.ingestStatus !== 'idle' && <IngestReview v={v} />}
+        {v.nudge && <NudgeCard v={v.nudge} />}
         {v.outboxView && <OutboxView v={v.outboxView} />}
         {v.toastOn && <Toast v={v} />}
         {v.showBoot && <Boot info={v.bootInfo} />}

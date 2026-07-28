@@ -312,6 +312,37 @@ export function valsChrome(app, ctx) {
       })),
     } : null,
 
+    // nudges — deterministic pop-up suggestions, one at a time, dismissible
+    // for the rest of this app session. Conditions must be TRUE NOW; a nudge
+    // is an offer, never a gate.
+    nudge: (() => {
+      if (demoMode) return null;
+      const dismissed = st.nudgeDismissed || {};
+      const candidates = [];
+      if (st.workoutSession && st.screen !== 'workouts') {
+        const sets = st.workoutSession.exercises.reduce((n, e) => n + e.sets.filter((s) => s.done).length, 0);
+        candidates.push({
+          key: `session:${st.workoutSessionSavedAt || 'live'}`,
+          icon: '🏋', title: 'Workout in progress',
+          detail: `${st.workoutSession.routineName} — ${sets} set${sets === 1 ? '' : 's'} logged, waiting to be finished`,
+          primaryLabel: 'Resume',
+          onPrimary: () => { app.navigate('workouts'); app.resumeWorkoutSession(); },
+        });
+      }
+      const failedOutbox = (st.outbox || []).filter((i) => i.status === 'failed').length;
+      if (failedOutbox > 0) {
+        candidates.push({
+          key: `outbox-failed:${failedOutbox}`,
+          icon: '⇪', title: 'Outbox needs your call',
+          detail: `${failedOutbox} item${failedOutbox === 1 ? '' : 's'} the server rejected — retry or discard`,
+          primaryLabel: 'Open Outbox',
+          onPrimary: () => app.setState({ outboxOpen: true }),
+        });
+      }
+      const first = candidates.find((c) => !dismissed[c.key]);
+      return first ? { ...first, dismiss: () => app.setState((s) => ({ nudgeDismissed: { ...(s.nudgeDismissed || {}), [first.key]: true } })) } : null;
+    })(),
+
     // toast
     toastOn: !!st.toast, toast: st.toast,
   };
