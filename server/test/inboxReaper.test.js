@@ -45,3 +45,18 @@ test('reaper flips orphaned classifying records to a discardable error; pending 
   // idempotent when nothing is stuck
   assert.deepEqual(await reapOrphanedClassifying(), { reaped: 0 });
 });
+
+test('time-value drafts expire; real content never does', async () => {
+  const { expireStaleDrafts } = await import('../lib/inbox.js');
+  const old = new Date(Date.now() - 72 * 3600e3).toISOString();
+  await createRecord({ id: 'exp11111', kind: 'dispatch', text: 'Morning Dispatch — long ago', source: 'nova', mode: 'draft', status: 'pending', createdAt: old, decision: { route: 'note', title: 'Old dispatch', confidence: 'high', payload: {} } });
+  await createRecord({ id: 'exp22222', kind: 'research', text: 'Research: still valuable', source: 'researcher', mode: 'draft', status: 'pending', createdAt: old, decision: { route: 'note', title: 'Old brief', confidence: 'high', payload: {} } });
+  await createRecord({ id: 'exp33333', kind: 'review', text: 'Daily Review — today', source: 'nova', mode: 'draft', status: 'pending', createdAt: new Date().toISOString(), decision: { route: 'note', title: 'Fresh review', confidence: 'high', payload: {} } });
+
+  const n = await expireStaleDrafts();
+  assert.equal(n, 1, 'only the stale time-value draft expires');
+  assert.equal((await getRecord('exp11111')).status, 'discarded');
+  assert.equal((await getRecord('exp11111')).expired, true, 'expiry is a marked receipt, not a silent delete');
+  assert.equal((await getRecord('exp22222')).status, 'pending', 'research never expires');
+  assert.equal((await getRecord('exp33333')).status, 'pending', 'fresh time-value drafts stay');
+});

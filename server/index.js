@@ -158,6 +158,13 @@ async function main() {
       if (reaped) console.log(`inbox reaper: flipped ${reaped} orphaned record(s) to error`);
     })
   ).catch((e) => console.error('inbox reaper failed:', e.message));
+  // and expire stale time-value drafts (old dispatches/reviews/today-checks)
+  // at boot + every 6h, so the pending queue holds only things worth a yes
+  const expireTick = () => import('./lib/inbox.js').then(({ expireStaleDrafts }) =>
+    expireStaleDrafts().then((n) => { if (n) console.log(`inbox expiry: ${n} stale time-value draft(s) marked expired`); })
+  ).catch((e) => console.error('inbox expiry failed:', e.message));
+  expireTick();
+  setInterval(expireTick, 6 * 3600_000);
   // prune orphaned note-summary caches (deleted notes' files lived forever)
   import('./lib/noteSummaries.js').then(({ pruneStaleSummaries }) =>
     pruneStaleSummaries().then(({ pruned }) => {

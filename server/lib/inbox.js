@@ -10,7 +10,7 @@ import { queueTodoistSync } from './todoistSync.js';
 import { addTransactions, removeTransactions, CATEGORIES as MONEY_CATEGORIES } from './money.js';
 import { TODO_CATEGORIES, guessTodoCategory } from './todos.js';
 import { archiveImportFile } from './moneyImport.js';
-import { createRecord, updateRecord, getRecord } from './inboxStore.js';
+import { createRecord, updateRecord, getRecord, listRecords } from './inboxStore.js';
 import { addItemsDirect, removeItems, SHOPPING_CATEGORIES } from './shoppingList.js';
 import * as journal from './journal.js';
 import * as foodLog from './foodLog.js';
@@ -725,6 +725,27 @@ export async function startCapture(vaultPath, { text, source = 'text', mode = 'a
   });
 
   return record;
+}
+
+// Time-value drafts expire: a Tuesday-morning dispatch has no value on
+// Thursday, and "did Leg Day happen TODAY?" is dead by the weekend. Expiry
+// is a marked discard (expired: true) — visible in the stream as a receipt,
+// never a silent deletion — and only touches kinds whose worth is bound to
+// a moment. Real content (captures, research, coach receipts) never expires.
+const TIME_VALUE_HOURS = { dispatch: 48, review: 48, 'training-check': 48, 'week-plan': 8 * 24 };
+export async function expireStaleDrafts() {
+  const records = await listRecords();
+  const now = Date.now();
+  let expired = 0;
+  for (const r of records) {
+    const hours = TIME_VALUE_HOURS[r.kind];
+    if (!hours || r.status !== 'pending') continue;
+    if (now - new Date(r.createdAt).getTime() > hours * 3600e3) {
+      await updateRecord(r.id, { status: 'discarded', discardedAt: new Date().toISOString(), expired: true, error: null });
+      expired++;
+    }
+  }
+  return expired;
 }
 
 export async function approveRecord(vaultPath, id) {
