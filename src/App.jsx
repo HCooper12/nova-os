@@ -1635,6 +1635,18 @@ export default class App extends Component {
       },
     }));
   }
+  // Drop an exercise from THIS session only — the program is untouched, and
+  // it's reversible until the session is saved. Unticked sets already leave
+  // no trace in history; this just gets it off the screen mid-workout when
+  // he swaps in something else or cuts it short.
+  toggleSessionExerciseSkipped(exIdx) {
+    this.setState((s) => ({
+      workoutSession: {
+        ...s.workoutSession,
+        exercises: s.workoutSession.exercises.map((e, i) => (i !== exIdx ? e : { ...e, skipped: !e.skipped })),
+      },
+    }));
+  }
   requestCancelSession() {
     this.setState({ sessionCancelConfirm: true });
   }
@@ -1657,6 +1669,7 @@ export default class App extends Component {
     // Only ticked sets are history — an exercise with nothing ticked was
     // skipped and must not appear in the record at all.
     const exercises = session.exercises
+      .filter((e) => !e.skipped) // dropped for today — never enters history
       .map((e) => ({
         exerciseId: e.exerciseId,
         name: e.name,

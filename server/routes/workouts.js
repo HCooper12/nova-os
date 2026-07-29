@@ -280,6 +280,15 @@ export function workoutsRouter(vaultPath) {
         if (s.lastWorkoutDate) bits.push(`last logged session ${s.lastWorkoutDate}`);
         if (bits.length) parts.push(`Streaks: ${bits.join('; ')}.`);
       } catch { /* optional */ }
+      // work that keeps not happening — the Coach asks why before proposing
+      try {
+        const { detectSkippedExercises, skippedContext } = await import('../lib/coach.js');
+        const { exercises: lib } = await loadExerciseLibrary(vaultPath);
+        const { routines } = await loadRoutines(vaultPath, lib);
+        const sessions = await loadSessions(vaultPath, { limit: 30 });
+        const skipped = skippedContext(detectSkippedExercises(routines, sessions));
+        if (skipped) parts.push(skipped);
+      } catch { /* optional */ }
       try {
         const prefs = await preferencesContext(vaultPath);
         if (prefs) parts.push(prefs);

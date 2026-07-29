@@ -155,3 +155,56 @@ test('progressions: a single session is never enough, and short set counts don\'
   assert.equal(prog['legs:squat'], undefined, 'one session is not a trend');
   assert.equal(prog['legs:rows'], undefined, 'fewer sets than target does not top out');
 });
+
+test('skipped-exercise detection: real counts only, thin history stays quiet', async () => {
+  const { detectSkippedExercises, skippedContext } = await import('../lib/coach.js');
+  const routines = [{
+    id: 'pull', name: 'Pull',
+    exercises: [
+      { exerciseId: 'row', name: 'Barbell Row' },
+      { exerciseId: 'curl', name: 'Spider Curl' },
+      { exerciseId: 'facepull', name: 'Face Pull' },
+    ],
+  }];
+  const withSets = (id) => ({ exerciseId: id, sets: [{ weight: 20, reps: 10 }] });
+  const sessions = [ // newest first
+    { routineId: 'pull', date: '2026-07-28', exercises: [withSets('row'), withSets('facepull')] },
+    { routineId: 'pull', date: '2026-07-21', exercises: [withSets('row')] },
+    { routineId: 'pull', date: '2026-07-14', exercises: [withSets('row'), withSets('curl'), withSets('facepull')] },
+    { routineId: 'push', date: '2026-07-27', exercises: [withSets('bench')] },
+  ];
+
+  const skipped = detectSkippedExercises(routines, sessions);
+  const names = skipped.map((s) => s.name);
+  assert.deepEqual(names, ['Spider Curl'], 'only the exercise missing twice is flagged');
+  assert.equal(skipped[0].missed, 2);
+  assert.equal(skipped[0].of, 3, 'counted against sessions of THAT routine only');
+  assert.equal(skipped[0].lastDoneDate, '2026-07-14', 'says when it last actually happened');
+
+  const ctx = skippedContext(skipped);
+  assert.match(ctx, /Spider Curl in Pull — missing from 2 of the last 3 sessions \(last done 2026-07-14 — a real drop-off\)/);
+  assert.match(ctx, /ask why/i);
+
+  // one logged session is not a pattern
+  assert.deepEqual(detectSkippedExercises(routines, sessions.slice(0, 1)), [], 'thin history claims nothing');
+  assert.equal(skippedContext([]), '', 'nothing to say stays silent');
+});
+
+test('drop-offs rank above never-logged entries, which may just be new to the program', async () => {
+  const { detectSkippedExercises, skippedContext } = await import('../lib/coach.js');
+  const routines = [{ id: 'push', name: 'Push', exercises: [
+    { exerciseId: 'new1', name: 'Face Pull' },
+    { exerciseId: 'dropped', name: 'Dumbbell Bench Press' },
+  ] }];
+  const withSets = (id) => ({ exerciseId: id, sets: [{ weight: 20, reps: 10 }] });
+  const sessions = [
+    { routineId: 'push', date: '2026-07-28', exercises: [] },
+    { routineId: 'push', date: '2026-07-21', exercises: [] },
+    { routineId: 'push', date: '2026-07-14', exercises: [withSets('dropped')] },
+  ];
+  const skipped = detectSkippedExercises(routines, sessions);
+  assert.equal(skipped[0].name, 'Dumbbell Bench Press', 'the real drop-off leads');
+  const ctx = skippedContext(skipped);
+  assert.match(ctx, /never logged at all — it may simply be newly added/);
+  assert.match(ctx, /a real drop-off/);
+});

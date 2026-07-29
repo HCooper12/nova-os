@@ -147,6 +147,9 @@ export function valsWorkouts(app, ctx) {
     amountLabel: isTimeTracking(e.trackingType) ? 'SEC' : 'REPS',
     targetLabel: `Target: ${e.targetSets} × ${e.targetRepsLow}-${e.targetRepsHigh} ${targetUnit(e.trackingType)}`,
     onAddSet: () => app.addSessionSet(exIdx),
+    // dropped for today only — the program is untouched, tap again to undo
+    skipped: !!e.skipped,
+    onToggleSkip: () => app.toggleSessionExerciseSkipped(exIdx),
     sets: e.sets.map((s, setIdx) => ({
       weight: s.weight, reps: s.reps, rpe: s.rpe || '', done: s.done,
       onWeight: (ev) => app.updateSessionSet(exIdx, setIdx, 'weight', ev.target.value),

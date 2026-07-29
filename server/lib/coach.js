@@ -321,3 +321,48 @@ export async function createCoachEditRecord(vaultPath, { question, proposal, sou
   await createRecord(record);
   return record;
 }
+
+/* ------------------------ repeatedly-skipped work ------------------------ */
+// An exercise that keeps NOT happening is a signal, not an accident: no time,
+// no machine, a niggle, or it simply doesn't belong in the program any more.
+// Deterministic detection here (counts only, from real logged sessions); the
+// Coach asks WHY and may PROPOSE a swap or removal through the normal rails.
+// A session counts as "attended" for a routine only if something was logged,
+// so a rest week doesn't read as skipping.
+const SKIP_LOOKBACK = 4;   // most recent sessions of that routine
+const SKIP_THRESHOLD = 2;  // missing in this many of them
+
+export function detectSkippedExercises(routines, sessions, { lookback = SKIP_LOOKBACK, threshold = SKIP_THRESHOLD } = {}) {
+  const out = [];
+  for (const routine of routines) {
+    const done = sessions.filter((s) => s.routineId === routine.id).slice(0, lookback);
+    if (done.length < threshold) continue; // not enough history to claim a pattern
+    for (const entry of routine.exercises) {
+      const missed = done.filter((s) => !s.exercises.some((e) => e.exerciseId === entry.exerciseId && e.sets?.length));
+      if (missed.length < threshold) continue;
+      const lastDone = sessions.find((s) => s.exercises.some((e) => e.exerciseId === entry.exerciseId && e.sets?.length));
+      out.push({
+        routineId: routine.id,
+        routineName: routine.name,
+        exerciseId: entry.exerciseId,
+        name: entry.name,
+        missed: missed.length,
+        of: done.length,
+        lastDoneDate: lastDone ? lastDone.date : null,
+      });
+    }
+  }
+  // A DROP-OFF (used to happen, now doesn't) is unambiguous; a never-logged
+  // entry may simply be newly added to the program, so it ranks lower and
+  // labels itself. Capped so the Coach sees a signal, not a wall.
+  return out
+    .sort((a, b) => (a.lastDoneDate ? 0 : 1) - (b.lastDoneDate ? 0 : 1) || b.missed - a.missed || a.name.localeCompare(b.name))
+    .slice(0, 4);
+}
+
+// Context line for the Coach — facts only; the asking is the Coach's job.
+export function skippedContext(skipped) {
+  if (!skipped.length) return '';
+  const bits = skipped.map((s) => `${s.name} in ${s.routineName} — missing from ${s.missed} of the last ${s.of} sessions${s.lastDoneDate ? ` (last done ${s.lastDoneDate} — a real drop-off)` : ' (never logged at all — it may simply be newly added to the program, so ask rather than assume)'}`);
+  return `REPEATEDLY SKIPPED WORK (real counts from his logged sessions — raise the most significant ONE naturally, ask why (time? equipment? a niggle? just dislike it?), and only after hearing the reason offer a swap or removal as a PROPOSE. Never nag about more than one, and never assume the reason):\n- ${bits.join('\n- ')}`;
+}

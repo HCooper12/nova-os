@@ -456,15 +456,21 @@ function SessionView({ v }) {
 
       <div style={css("margin-top:20px;display:flex;flex-direction:column;gap:14px")}>
         {v.sessionExercises.map((e) => (
-          <div key={e.exerciseId} style={css("border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:12px;padding:16px 18px;background:rgba(255,255,255,.02)")}>
+          <div key={e.exerciseId} style={css(`border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:12px;padding:16px 18px;background:rgba(255,255,255,.02)${e.skipped ? ';opacity:.5' : ''}`)}>
             <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap")}>
               <span style={css("display:flex;align-items:center;gap:8px;flex-wrap:wrap")}>
-                <span style={css("font-size:15px;font-weight:500")}>{e.name}</span>
-                {e.coachLabel && <span title={e.coachEvidence || ''} style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-cy);border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);background:color-mix(in srgb, var(--nv-cy) 08%, transparent)")}>{e.coachLabel}</span>}
+                <span style={css(`font-size:15px;font-weight:500${e.skipped ? ';text-decoration:line-through' : ''}`)}>{e.name}</span>
+                {e.skipped && <span style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;color:var(--nv-warn)")}>SKIPPED TODAY</span>}
+                {!e.skipped && e.coachLabel && <span title={e.coachEvidence || ''} style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-cy);border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);background:color-mix(in srgb, var(--nv-cy) 08%, transparent)")}>{e.coachLabel}</span>}
               </span>
-              <span style={css("font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{e.targetLabel}{e.weightHint ? ` · Coach: ${e.weightHint}` : ''}</span>
+              <span style={css("display:flex;align-items:center;gap:10px")}>
+                {!e.skipped && <span style={css("font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{e.targetLabel}{e.weightHint ? ` · Coach: ${e.weightHint}` : ''}</span>}
+                <Interactive as="span" onClick={e.onToggleSkip} title={e.skipped ? 'Put it back in today\'s session' : 'Drop this exercise for today only — your program stays as it is'}
+                  base={`cursor:pointer;flex:none;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:500 13px/1 var(--nv-font-ui);border:1.3px solid color-mix(in srgb, var(--nv-warn) ${e.skipped ? 75 : 40}%, transparent);color:var(--nv-warn);background:color-mix(in srgb, var(--nv-warn) ${e.skipped ? 18 : 5}%, transparent)`}
+                  hoverStyle="background:color-mix(in srgb, var(--nv-warn) 16%, transparent)">{e.skipped ? '↺' : '✕'}</Interactive>
+              </span>
             </div>
-            <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:8px")}>
+            <div style={css(`margin-top:12px;display:${e.skipped ? 'none' : 'flex'};flex-direction:column;gap:8px`)}>
               <div style={css("display:flex;gap:10px;font:500 9px var(--nv-font-mono);letter-spacing:.1em;color:color-mix(in srgb, var(--nv-ink) 35%, transparent);padding:0 2px")}>
                 <span style={{ width: '22px' }}>SET</span>{!e.isBodyweight && <span style={{ width: '64px' }}>{e.weightLabel}</span>}<span style={{ width: '64px' }}>{e.amountLabel}</span><span style={{ width: '52px' }}>RPE</span>
               </div>
@@ -489,7 +495,9 @@ function SessionView({ v }) {
                 </div>
               ))}
             </div>
-            <Interactive as="span" onClick={e.onAddSet} base="cursor:pointer;display:inline-block;margin-top:10px;font:500 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-gold)">+ Extra set</Interactive>
+            {!e.skipped && (
+              <Interactive as="span" onClick={e.onAddSet} base="cursor:pointer;display:inline-block;margin-top:10px;font:500 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-gold)">+ Extra set</Interactive>
+            )}
           </div>
         ))}
       </div>
