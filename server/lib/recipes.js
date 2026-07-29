@@ -470,3 +470,68 @@ export async function promoteAlternate(vaultPath, recipeId, altId) {
   promoteLock = run.catch(() => {});
   return run;
 }
+
+/* ----------------------- rename an alternate's label --------------------- */
+// A variant's ID is the slug of its label, so renaming CHANGES the id — any
+// today-variant override pointing at the old id must migrate with it, or the
+// slot would silently fall back to the main recipe. Pure part first.
+export function renameAlternateInRaw(raw, recipeName, altId, newLabel) {
+  const label = String(newLabel || '').replace(/\s+/g, ' ').trim();
+  if (!label) throw new Error('a variant needs a name');
+  if (label.length > 80) throw new Error('keep a variant name under 80 characters');
+  if (/[\n#]/.test(label)) throw new Error('a variant name can\'t contain # or line breaks');
+
+  const parsed = parseRecipeCollection(raw).find((r) => r.name === recipeName);
+  if (!parsed) throw new Error(`Could not parse recipe "${recipeName}"`);
+  const alt = (parsed.alternates || []).find((a) => a.id === altId);
+  if (!alt) throw new Error(`"${recipeName}" has no variant "${altId}"`);
+  if (alt.label === label) return { raw, newId: alt.id, oldId: alt.id };
+  if ((parsed.alternates || []).some((a) => a.id !== altId && a.label.toLowerCase() === label.toLowerCase())) {
+    throw new Error(`"${recipeName}" already has a variant called "${label}"`);
+  }
+
+  // rewrite ONLY this recipe's heading for this alternate
+  const headingRe = new RegExp(`^##\\s+\\d+\\.\\s+${escapeRe(recipeName)}\\s*$`, 'm');
+  const hm = headingRe.exec(raw);
+  if (!hm) throw new Error(`Could not find recipe "${recipeName}" in the file`);
+  const start = hm.index;
+  const after = raw.slice(start + hm[0].length);
+  const nextHeading = after.match(/\n#{1,2}(?!#)\s/);
+  const end = nextHeading ? start + hm[0].length + nextHeading.index + 1 : raw.length;
+  let block = raw.slice(start, end);
+
+  const altHeadingRe = new RegExp(`^(####\\s+Alternative:\\s*)${escapeRe(alt.label)}\\s*$`, 'm');
+  if (!altHeadingRe.test(block)) throw new Error('could not locate the variant heading to rename');
+  block = block.replace(altHeadingRe, (_, head) => `${head}${label}`);
+
+  return { raw: raw.slice(0, start) + block + raw.slice(end), newId: slugify(label), oldId: alt.id };
+}
+
+let renameAltLock = Promise.resolve();
+export async function renameAlternate(vaultPath, recipeId, altId, newLabel) {
+  const run = renameAltLock.catch(() => {}).then(async () => {
+    const full = path.join(vaultPath, RECIPES_REL_PATH);
+    const raw = await readFile(full, 'utf8');
+    const before = parseRecipeCollection(raw).find((r) => r.id === recipeId);
+    if (!before) throw new Error('recipe not found');
+    const { raw: newRaw, newId, oldId } = renameAlternateInRaw(raw, before.name, altId, newLabel);
+    if (newRaw === raw) return { recipe: before, newId, oldId };
+
+    const after = parseRecipeCollection(newRaw).find((r) => r.id === recipeId);
+    // sanity: same number of variants, the new name present, content intact
+    const renamed = after && (after.alternates || []).find((a) => a.id === newId);
+    if (!after || after.alternates.length !== before.alternates.length || !renamed) {
+      throw new Error('Rename failed a sanity check — file left unchanged');
+    }
+    const wasAlt = before.alternates.find((a) => a.id === oldId);
+    if (renamed.ingredients.length !== wasAlt.ingredients.length || renamed.method.length !== wasAlt.method.length) {
+      throw new Error('Rename would have altered the variant\'s content — file left unchanged');
+    }
+
+    await backupFile(full);
+    await writeFile(full, newRaw, 'utf8');
+    return { recipe: after, newId, oldId };
+  });
+  renameAltLock = run.catch(() => {});
+  return run;
+}

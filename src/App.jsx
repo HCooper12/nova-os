@@ -597,6 +597,31 @@ export default class App extends Component {
     }).catch((e) => this.toastMsg('Could not make it primary: ' + e.message));
   }
 
+  // Rename a variant. Its id is the slug of its name, so the server migrates
+  // any today-variant override with it; selection follows the new id.
+  startRenameAlternate(altId, currentLabel) {
+    this.setState({ recipeRenameAltId: altId, recipeRenameValue: currentLabel, recipeRenameError: null });
+  }
+  cancelRenameAlternate() {
+    this.setState({ recipeRenameAltId: null, recipeRenameValue: '', recipeRenameError: null });
+  }
+  commitRenameAlternate() {
+    const conn = getConnection();
+    const { openRecipeId, recipeRenameAltId, recipeRenameValue } = this.state;
+    const label = (recipeRenameValue || '').trim();
+    if (!conn || !openRecipeId || !recipeRenameAltId || !label) return;
+    api.renameAlternate(conn, openRecipeId, recipeRenameAltId, label).then(({ recipe, rotation }) => {
+      const renamed = (recipe.alternates || []).find((a) => a.label === label);
+      this.setState((s) => ({
+        liveRecipes: s.liveRecipes.map((r) => (r.id === recipe.id ? recipe : r)),
+        liveRotation: rotation || s.liveRotation,
+        recipeAltSelected: s.recipeAltSelected === recipeRenameAltId ? (renamed?.id || null) : s.recipeAltSelected,
+        recipeRenameAltId: null, recipeRenameValue: '', recipeRenameError: null,
+      }));
+      this.toastMsg(`Renamed to “${label}”`);
+    }).catch((e) => this.setState({ recipeRenameError: e.message }));
+  }
+
   // ---------- stash (categorised restock/reference links, vault-backed) ----
   setStashField(field, e) {
     this.setState({ [field]: e.target.value, stashAddError: null });
@@ -1289,6 +1314,7 @@ export default class App extends Component {
       recipeAltSelected: null, recipeTweakInput: '', recipeTweakBusy: false,
       recipeTweakError: null, recipeTweakPreview: null,
       recipeRemovals: [], recipeRemovalPrompt: false,
+      recipeRenameAltId: null, recipeRenameValue: '', recipeRenameError: null,
     });
   }
   closeRecipe() {

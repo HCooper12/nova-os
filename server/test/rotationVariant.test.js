@@ -96,3 +96,35 @@ test('promote with full ingredients/method leaves NO leftovers from the old body
   const orig = after.alternates.find((a) => /^Original/.test(a.label));
   assert.deepEqual(orig.ingredients, ['old one', 'old two', 'old three'], 'the Original block holds the full old list');
 });
+
+test('renaming a variant: heading rewritten, content intact, dupes and junk refused', async () => {
+  const { renameAlternate, renameAlternateInRaw } = await import('../lib/recipes.js');
+  await addRecipe(vault, { name: 'Rename Me', category: 'CORE DAILY MEALS', macros: { p: 20, c: 20, f: 5, kcal: 205 }, ingredients: ['base one'], method: ['do it'] });
+  await addAlternate(vault, 'Rename Me', { label: 'Old Name', macros: { p: 18, c: 15, f: 4, kcal: 168 }, ingredients: ['alt one', 'alt two'], method: ['alt step'] });
+
+  let rs = await recipes();
+  const r = rs.find((x) => x.name === 'Rename Me');
+  const { recipe, newId, oldId } = await renameAlternate(vault, r.id, 'old-name', 'Lighter Version');
+  assert.equal(oldId, 'old-name');
+  assert.equal(newId, 'lighter-version', 'the id follows the new name');
+  const alt = recipe.alternates.find((a) => a.id === newId);
+  assert.equal(alt.label, 'Lighter Version');
+  assert.deepEqual(alt.ingredients, ['alt one', 'alt two'], 'content untouched by a rename');
+  assert.deepEqual(alt.method, ['alt step']);
+  assert.equal(recipe.alternates.length, 1, 'no variant gained or lost');
+  assert.equal(recipe.macros.kcal, 205, 'the main recipe is untouched');
+
+  rs = await recipes();
+  const fresh = rs.find((x) => x.name === 'Rename Me');
+  await assert.rejects(() => renameAlternate(vault, fresh.id, 'lighter-version', '   '), /needs a name/);
+  await assert.rejects(() => renameAlternate(vault, fresh.id, 'lighter-version', 'Bad # name'), /can't contain/);
+  await assert.rejects(() => renameAlternate(vault, fresh.id, 'no-such-variant', 'Whatever'), /has no variant/);
+
+  // a duplicate name is refused rather than creating two same-slug variants
+  const raw2 = (await import('node:fs/promises')).readFile;
+  await addAlternate(vault, 'Rename Me', { label: 'Second', macros: { p: 1, c: 1, f: 1, kcal: 17 }, ingredients: ['x'], method: ['y'] });
+  rs = await recipes();
+  const two = rs.find((x) => x.name === 'Rename Me');
+  await assert.rejects(() => renameAlternate(vault, two.id, 'second', 'lighter version'), /already has a variant/);
+  void raw2;
+});

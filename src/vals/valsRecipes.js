@@ -284,8 +284,18 @@ export function valsRecipes(app, ctx) {
       ...liveOr.alternates.map((a) => ({ id: a.id, label: a.label, active: st.recipeAltSelected === a.id, onClick: () => app.selectAlternate(a.id),
         isToday: openRecipeSlotVariantId === a.id,
         useToday: openRecipeSlotKey && openRecipeSlotVariantId !== a.id ? () => app.setRotationVariant(openRecipeSlotKey, a.id) : null,
-        makePrimary: a.macros ? () => app.promoteRecipeAlternate(liveOr.id, a.id) : null })),
+        makePrimary: a.macros ? () => app.promoteRecipeAlternate(liveOr.id, a.id) : null,
+        rename: () => app.startRenameAlternate(a.id, a.label) })),
     ] : [],
+    // renaming a variant in place — its id follows the new name, and the
+    // server migrates today's override so the slot never silently resets
+    renameAltId: st.recipeRenameAltId,
+    renameValue: st.recipeRenameValue,
+    renameError: st.recipeRenameError,
+    setRenameValue: (e) => app.setState({ recipeRenameValue: e.target.value }),
+    renameKey: (e) => { if (e.key === 'Enter') app.commitRenameAlternate(); if (e.key === 'Escape') app.cancelRenameAlternate(); },
+    commitRename: () => app.commitRenameAlternate(),
+    cancelRename: () => app.cancelRenameAlternate(),
     orSlotKey: openRecipeSlotKey,
     orShowAddToShoppingList: usingLiveRecipes && !!liveOr && effIngredients.length > 0,
     addRecipeToShoppingList: () => {

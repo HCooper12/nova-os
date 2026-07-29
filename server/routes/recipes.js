@@ -229,6 +229,29 @@ export function recipesRouter(vaultPath) {
     }
   });
 
+  // Renaming a variant changes its slug id, so any today-variant override
+  // pointing at the old id migrates here — otherwise the slot would quietly
+  // fall back to the main recipe.
+  router.post('/recipes/:id/alternates/rename', async (req, res) => {
+    try {
+      const { altId, label } = req.body || {};
+      if (!altId || !label) return res.status(400).json({ error: 'altId and label are required' });
+      const { renameAlternate } = await import('../lib/recipes.js');
+      const { recipe, newId, oldId } = await renameAlternate(vaultPath, req.params.id, altId, label);
+      let rotation = null;
+      if (newId !== oldId) {
+        const { recipes } = await loadRecipeData(vaultPath);
+        const { loadRotation, setSlotVariant } = await import('../lib/rotation.js');
+        const current = await loadRotation(vaultPath, recipes);
+        const slot = Object.entries(current.slots || {}).find(([, s]) => s && s.id === recipe.id && s.variantId === oldId)?.[0];
+        if (slot) rotation = await setSlotVariant(vaultPath, recipes, slot, newId);
+      }
+      res.json({ recipe, rotation });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
   router.post('/rotation/variant', async (req, res, next) => {
     try {
       const { recipes } = await loadRecipeData(vaultPath);

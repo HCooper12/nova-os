@@ -65,8 +65,22 @@ export function RecipeOverlay({ v }) {
                 ))}
               </div>
             )}
-            {v.orAlternates.filter((a) => a.active && (a.useToday || a.makePrimary)).map((a) => (
+            {v.renameAltId && (
+              <div style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
+                <Interactive as="input" autoFocus value={v.renameValue} onChange={v.setRenameValue} onKeyDown={v.renameKey}
+                  placeholder="Variant name…"
+                  base="flex:1;min-width:180px;max-width:340px;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:9px;padding:8px 12px;color:var(--nv-ink);font:400 12.5px var(--nv-font-ui);outline:none"
+                  focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)" />
+                <Interactive as="span" onClick={v.commitRename} base="cursor:pointer;font:600 11px var(--nv-font-ui);padding:8px 16px;border-radius:980px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 85%, white)">Save name</Interactive>
+                <Interactive as="span" onClick={v.cancelRename} base="cursor:pointer;font:500 11px var(--nv-font-ui);padding:8px 14px;border-radius:980px;color:color-mix(in srgb, var(--nv-ink) 50%, transparent)" hoverStyle={{ color: 'var(--nv-ink)' }}>Cancel</Interactive>
+                {v.renameError && <span style={css("font:400 10px var(--nv-font-mono);color:var(--nv-warn)")}>{v.renameError}</span>}
+              </div>
+            )}
+            {!v.renameAltId && v.orAlternates.filter((a) => a.active && (a.useToday || a.makePrimary || a.rename)).map((a) => (
               <div key={'act' + (a.id ?? 'orig')} style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
+                {a.rename && (
+                  <Interactive as="span" onClick={a.rename} title="Rename this variant" base="cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.06em;padding:7px 12px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)" hoverStyle="border-color:color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)">✎ RENAME</Interactive>
+                )}
                 {a.useToday && (
                   <Interactive as="span" onClick={a.useToday} base="cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.06em;padding:7px 14px;border-radius:8px;background:var(--nv-gold);color:#1a1322" hoverStyle={{ filter: 'brightness(1.08)' }}>USE FOR TODAY</Interactive>
                 )}
