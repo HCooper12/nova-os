@@ -91,6 +91,10 @@ export function valsOps(app, ctx) {
       ? { p: Math.round(st.liveRotation.consumedTotals.p), floor: st.liveRecipeProfile?.proteinFloorG ?? null }
       : null,
     ambientPending: ops?.pending ?? null,
+    // the pulse strip: every cached item flattened; the screen rotates them
+    ambientPulseItems: (st.livePulse || []).flatMap((t) => (t.items || []).map((i) => ({
+      topic: t.topic, title: i.title, source: i.source,
+    }))),
     // the skill registry — his editable vault page, drawn by department
     skillDepartments: (st.liveSkills || []).map((d) => ({
       name: d.name.toUpperCase(),

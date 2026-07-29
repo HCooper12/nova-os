@@ -84,3 +84,12 @@ test('loadRecentDays returns oldest-first and respects the limit', async () => {
 test('loadDay returns null for a day with no data', async () => {
   assert.equal(await loadDay('1999-01-01'), null);
 });
+
+test('settled-steps rule: a past day with recorded steps refuses automated overwrite; gaps and today still accept', async () => {
+  const { shouldDropPastSteps } = await import('../lib/healthData.js');
+  const now = new Date('2026-07-30T09:00:00');
+  assert.equal(shouldDropPastSteps('2026-07-29', 7432, 10476, now), true, 'yesterday, already settled → drop');
+  assert.equal(shouldDropPastSteps('2026-07-29', null, 10476, now), false, 'catch-up into a gap → allowed');
+  assert.equal(shouldDropPastSteps('2026-07-30', 5000, 7000, now), false, 'same day keeps updating');
+  assert.equal(shouldDropPastSteps('2026-07-29', 7432, null, now), false, 'no incoming steps → nothing to drop');
+});

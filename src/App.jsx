@@ -225,7 +225,7 @@ export default class App extends Component {
     inboxMode: (typeof window !== 'undefined' && INBOX_MODES.includes(localStorage.getItem(INBOX_MODE_KEY))) ? localStorage.getItem(INBOX_MODE_KEY) : 'auto-high',
     inboxProposalDismissed: (() => { try { const a = JSON.parse(localStorage.getItem('novaos.proposalsDismissed') || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } })(),
     liveDispatch: null, liveCompost: null, liveTodoist: null, liveTodos: null, liveGuardian: null, liveDailyReview: null, liveOps: null,
-    liveOvernight: null, overnightInput: '', liveSkills: null,
+    liveOvernight: null, overnightInput: '', liveSkills: null, livePulse: null,
     dispatchBusy: false, compostBusy: false, compostActionBusy: {}, todoistBusy: false, guardianBusy: false, reviewBusy: false,
     todoInput: '', todoActionBusy: false, todoEditCategoryKey: null,
     editingSessionId: null, sessionDeleteConfirmId: null,
@@ -820,6 +820,7 @@ export default class App extends Component {
     apply('ops', (r) => this.setState({ liveOps: r }));
     apply('overnight', (r) => this.setState({ liveOvernight: r }));
     apply('skills', (r) => this.setState({ liveSkills: r.departments }));
+    apply('pulse', (r) => this.setState({ livePulse: r.topics }));
     return ok;
   }
   async refreshLiveData() {

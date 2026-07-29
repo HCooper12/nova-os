@@ -265,6 +265,13 @@ async function composeMorning(vaultPath, now) {
     if (overnight) lines.push(overnight);
   } catch { /* optional */ }
 
+  // the topic pulses refreshed overnight
+  try {
+    const { pulseMorningLine } = await import('./pulse.js');
+    const pulse = await pulseMorningLine();
+    if (pulse) lines.push(pulse);
+  } catch { /* optional */ }
+
   try {
     const streaks = await streakLine(vaultPath);
     if (streaks) lines.push(streaks);

@@ -21,5 +21,13 @@ export function opsRouter(vaultPath) {
       res.status(500).json({ error: e.message });
     }
   });
+  router.get('/pulse', async (req, res) => {
+    try {
+      const { getPulse, loadInterests } = await import('../lib/pulse.js');
+      res.json({ topics: await getPulse(), interests: await loadInterests(vaultPath) });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
   return router;
 }

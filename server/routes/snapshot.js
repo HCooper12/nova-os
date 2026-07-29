@@ -39,6 +39,7 @@ const SLICES = {
   ops: '/api/ops',
   overnight: '/api/overnight',
   skills: '/api/skills',
+  pulse: '/api/pulse',
 };
 
 export function snapshotRouter({ port, token }) {

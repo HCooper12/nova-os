@@ -23,6 +23,7 @@ const SCHEDULED = [
   { id: 'todoist', label: 'Todoist', role: 'two-way to-do sync' },
   { id: 'overnight', label: 'Overnight', role: 'queued work while he sleeps' },
   { id: 'telegram', label: 'Telegram', role: 'Nova in his pocket' },
+  { id: 'pulse', label: 'Pulse', role: 'what\'s new on his topics' },
 ];
 
 // Conversational agents surface through the records they leave, not beats.

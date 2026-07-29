@@ -63,6 +63,19 @@ export function pickKnownMetrics(raw) {
   return out;
 }
 
+// The settled-steps rule: once a PAST day has a steps value (recorded by
+// the nightly source-filtered automation, on the day itself), a later
+// automated push may not overwrite it — the morning weight Shortcut kept
+// re-pushing yesterday with phone+watch double-counted steps. Human edits
+// (manual: true from the app) always win; a past day with NO steps still
+// accepts a catch-up push.
+export function shouldDropPastSteps(date, existingSteps, incomingSteps, now = new Date()) {
+  if (incomingSteps == null || existingSteps == null) return false;
+  const pad = (n) => String(n).padStart(2, '0');
+  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  return date < today;
+}
+
 export async function saveDay(date, metrics) {
   if (!isValidDate(date)) throw new Error('date must be YYYY-MM-DD');
   await ensureDir();

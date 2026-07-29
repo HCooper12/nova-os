@@ -179,6 +179,8 @@ async function main() {
   startGuardianScheduler(process.env.VAULT_PATH);
   startOvernightScheduler(process.env.VAULT_PATH);
   startTelegramBridge(process.env.VAULT_PATH);
+  import('./lib/pulse.js').then(({ startPulseScheduler }) => startPulseScheduler(process.env.VAULT_PATH))
+    .catch((e) => console.error('pulse scheduler failed to start:', e.message));
   startMoneyImportScheduler(process.env.VAULT_PATH);
   startCfoScheduler();
   startMealPrepScheduler(process.env.VAULT_PATH);

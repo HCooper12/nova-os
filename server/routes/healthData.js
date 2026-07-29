@@ -51,15 +51,31 @@ export function healthDataRouter(vaultPath) {
       // dictionary, no nesting). saveDay ignores keys it doesn't know.
       let metrics = body?.metrics;
       if (!metrics || typeof metrics !== 'object') {
-        const { date: _omit, metrics: _m, ...rest } = body || {};
+        const { date: _omit, metrics: _m, manual: _man, ...rest } = body || {};
         metrics = rest;
       }
       if (!metrics || !Object.keys(metrics).length) {
         await logPushAttempt({ ok: false, date, error: 'no metrics' });
         return res.status(400).json({ error: 'at least one metric is required (steps, hrv, sleepAsleepMinutes, …)' });
       }
+      // The settled-steps rule: automated pushes can't overwrite a past
+      // day's recorded steps (the morning weight Shortcut kept clobbering
+      // the nightly count with double-counted samples). Manual edits win.
+      let stepsDropped = false;
+      if (body?.manual !== true && metrics.steps != null) {
+        const { loadDay, shouldDropPastSteps } = await import('../lib/healthData.js');
+        const existing = await loadDay(date);
+        if (shouldDropPastSteps(date, existing?.steps, metrics.steps)) {
+          delete metrics.steps;
+          stepsDropped = true;
+          if (!Object.keys(metrics).length) {
+            await logPushAttempt({ ok: true, date, keys: [], steps: null, stepsDropped });
+            return res.json({ day: existing, note: 'steps for a settled past day were ignored — the day-of value stands' });
+          }
+        }
+      }
       const saved = await saveDay(date, metrics);
-      await logPushAttempt({ ok: true, date, keys: Object.keys(metrics), steps: metrics.steps ?? null });
+      await logPushAttempt({ ok: true, date, keys: Object.keys(metrics), steps: metrics.steps ?? null, ...(stepsDropped ? { stepsDropped } : {}) });
       const { broadcast } = await import('../lib/events.js');
       broadcast('health');
       res.json({ day: saved });

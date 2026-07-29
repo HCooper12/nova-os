@@ -15,7 +15,7 @@ import matter from 'gray-matter';
 // data DETERMINISTICALLY from the vault. The model never draws a number.
 // Missing data renders as missing — a panel is a view, never a claim.
 
-export const PANEL_TYPES = ['training-week', 'exercise', 'nutrition-week', 'note'];
+export const PANEL_TYPES = ['training-week', 'exercise', 'nutrition-week', 'note', 'pulse'];
 
 export function parseShowDirective(text) {
   const m = (text || '').match(/^\s*SHOW\s+(\{.*\})\s*$/m);
@@ -137,11 +137,25 @@ async function buildNote(vaultPath, name) {
   };
 }
 
+// The cached pulse for a topic — deterministic render of what the nightly
+// runs fetched, self-labelling its age. Fresh research is a different verb.
+async function buildPulse(topic) {
+  const { getPulse } = await import('./pulse.js');
+  const matches = await getPulse(topic || null);
+  const entry = topic ? matches[0] : (await getPulse())[0];
+  if (!entry || !entry.items?.length) {
+    throw new Error(`no pulse cached${topic ? ` for "${topic}"` : ''} — pulses refresh overnight from his Interests page; offer to RESEARCH it now instead`);
+  }
+  const ageH = Math.round((Date.now() - new Date(entry.at).getTime()) / 3600e3);
+  return { topic: entry.topic, ageLabel: ageH < 1 ? 'fresh' : `${ageH}h old`, items: entry.items };
+}
+
 export async function buildPanel(vaultPath, directive) {
   const type = String(directive?.panel || '').toLowerCase();
   if (!PANEL_TYPES.includes(type)) throw new Error(`unknown panel "${directive?.panel}"`);
   if (type === 'training-week') return { type, data: await buildTrainingWeek(vaultPath) };
   if (type === 'exercise') return { type, data: await buildExercise(vaultPath, directive.name) };
   if (type === 'note') return { type, data: await buildNote(vaultPath, directive.title || directive.name) };
+  if (type === 'pulse') return { type, data: await buildPulse(directive.topic) };
   return { type, data: await buildNutritionWeek(vaultPath) };
 }

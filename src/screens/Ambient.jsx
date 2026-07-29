@@ -74,12 +74,35 @@ export function Ambient({ v }) {
         <div style={css(`font:400 16px var(--nv-font-serif), serif;font-style:italic;color:${dim(62)};text-align:center;max-width:560px;padding:0 12px`)}>{v.heroTagline}</div>
       </div>
 
-      <div style={css("display:flex;gap:44px;flex-wrap:wrap;justify-content:center;align-items:flex-end")}>
-        <Tile label="NEXT" value={v.ambientNext?.time} sub={v.ambientNext?.label} />
-        <Tile label="STEPS" value={v.ambientSteps?.toLocaleString?.() ?? v.ambientSteps} />
-        <Tile label="PROTEIN" value={v.ambientProtein?.p != null ? `${v.ambientProtein.p}g` : null} sub={v.ambientProtein?.floor ? `floor ${v.ambientProtein.floor}g` : null} />
-        <Tile label="GATE" value={v.ambientPending} sub={v.ambientPending > 0 ? 'awaiting your yes' : 'clear'} accent={v.ambientPending > 0 ? 'var(--nv-gold)' : 'var(--nv-good)'} />
+      <div style={css("display:flex;flex-direction:column;align-items:center;gap:26px;width:100%")}>
+        <div style={css("display:flex;gap:44px;flex-wrap:wrap;justify-content:center;align-items:flex-end")}>
+          <Tile label="NEXT" value={v.ambientNext?.time} sub={v.ambientNext?.label} />
+          <Tile label="STEPS" value={v.ambientSteps?.toLocaleString?.() ?? v.ambientSteps} />
+          <Tile label="PROTEIN" value={v.ambientProtein?.p != null ? `${v.ambientProtein.p}g` : null} sub={v.ambientProtein?.floor ? `floor ${v.ambientProtein.floor}g` : null} />
+          <Tile label="GATE" value={v.ambientPending} sub={v.ambientPending > 0 ? 'awaiting your yes' : 'clear'} accent={v.ambientPending > 0 ? 'var(--nv-gold)' : 'var(--nv-good)'} />
+        </div>
+        <PulseStrip items={v.ambientPulseItems} />
       </div>
+    </div>
+  );
+}
+
+// The pulse strip — one cached item at a time, rotating slowly. Reads only
+// what the nightly pulse runs actually fetched; absent cache, absent strip.
+function PulseStrip({ items }) {
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    if (!items?.length) return;
+    const t = setInterval(() => setIdx((i) => (i + 1) % items.length), 9000);
+    return () => clearInterval(t);
+  }, [items?.length]);
+  if (!items?.length) return null;
+  const item = items[idx % items.length];
+  return (
+    <div key={idx} style={css(`display:flex;align-items:baseline;gap:10px;max-width:720px;padding:0 10px;animation:fadeUp .6s ease-out`)}>
+      <span style={css(`flex:none;font:500 8.5px ${M};letter-spacing:.22em;color:${dim(30)}`)}>PULSE · {item.topic.split(' ').slice(0, 3).join(' ').toUpperCase()}</span>
+      <span style={css(`font:400 12px ${M};color:${dim(55)};overflow:hidden;text-overflow:ellipsis;white-space:nowrap`)}>{item.title}</span>
+      <span style={css(`flex:none;font:400 8.5px ${M};color:${dim(28)}`)}>{item.source}</span>
     </div>
   );
 }

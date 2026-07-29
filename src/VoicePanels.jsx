@@ -103,12 +103,32 @@ function Note({ d }) {
   );
 }
 
+// The topic pulse — cached what's-new items, age self-labelled, every card
+// a real found URL he opens himself.
+function Pulse({ d }) {
+  return (
+    <Card label={`PULSE · ${d.topic.toUpperCase()} · ${d.ageLabel.toUpperCase()}`}>
+      <div style={css("display:flex;flex-direction:column;gap:6px")}>
+        {d.items.map((l) => (
+          <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer"
+            style={css(`display:flex;flex-direction:column;gap:2px;text-decoration:none;border:1px solid ${dim(10)};border-radius:8px;padding:8px 11px;background:${dim(3)}`)}>
+            <span style={css(`font:500 11.5px ${M};color:var(--nv-cy)`)}>{l.title}</span>
+            {l.note && <span style={css(`font:400 10px/1.5 ${M};color:${dim(55)}`)}>{l.note}</span>}
+            <span style={css(`font:400 8.5px ${M};letter-spacing:.06em;color:${dim(35)}`)}>{l.source} ↗</span>
+          </a>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 export function VoicePanel({ panel }) {
   if (!panel || !panel.data) return null;
   if (panel.type === 'training-week') return <TrainingWeek d={panel.data} />;
   if (panel.type === 'exercise') return <Exercise d={panel.data} />;
   if (panel.type === 'nutrition-week') return <NutritionWeek d={panel.data} />;
   if (panel.type === 'note') return <Note d={panel.data} />;
+  if (panel.type === 'pulse') return <Pulse d={panel.data} />;
   return null;
 }
 
