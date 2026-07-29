@@ -81,3 +81,18 @@ test('promoting an alternate WITH ingredients swaps the content too, reversibly'
   const back = await promoteAlternate(vault, burger.id, original.id);
   assert.equal(back.macros.kcal, 725, 'promoting Original restores the batch macros');
 });
+
+test('promote with full ingredients/method leaves NO leftovers from the old body (the m-flag $ bug)', async () => {
+  await addRecipe(vault, { name: 'Leftover Trap', category: 'CORE DAILY MEALS', macros: { p: 10, c: 10, f: 10, kcal: 170 }, ingredients: ['old one', 'old two', 'old three'], method: ['old step A', 'old step B'] });
+  await addAlternate(vault, 'Leftover Trap', { label: 'New Way', macros: { p: 12, c: 8, f: 9, kcal: 161 }, ingredients: ['new only'], method: ['new step'] });
+  let rs = await recipes();
+  const trap = rs.find((r) => r.name === 'Leftover Trap');
+  await promoteAlternate(vault, trap.id, trap.alternates[0].id);
+
+  rs = await recipes();
+  const after = rs.find((r) => r.name === 'Leftover Trap');
+  assert.deepEqual(after.ingredients.map((i) => i.name), ['new only'], 'main ingredients are EXACTLY the promoted list');
+  assert.deepEqual(after.method, ['new step'], 'main method is exactly the promoted steps');
+  const orig = after.alternates.find((a) => /^Original/.test(a.label));
+  assert.deepEqual(orig.ingredients, ['old one', 'old two', 'old three'], 'the Original block holds the full old list');
+});

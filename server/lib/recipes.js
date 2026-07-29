@@ -416,15 +416,18 @@ export function promoteAlternateInRaw(raw, recipeName, altId) {
 
   // 2. main ingredients/method ← alternate's, ONLY when the alternate has its
   //    own (a macro-only tweak — reportioning — keeps the original steps)
+  // NOTE the end-of-STRING anchor `$(?![\s\S])`: with the m flag a bare `$`
+  // matches every line end, so the lazy body stopped after ONE line and left
+  // the rest of the old list behind — the shopping-list duplication bug.
   if (alt.ingredients.length) {
     block = block.replace(
-      /(^###\s+Ingredients[^\n]*\n)([\s\S]*?)(?=\n###\s|\n####\s|\n##\s|$)/m,
+      /(^###\s+Ingredients[^\n]*\n)([\s\S]*?)(?=\n###\s|\n####\s|\n##\s|$(?![\s\S]))/m,
       (_, h) => `${h}${alt.ingredients.map((x) => `- ${x}`).join('\n')}\n`
     );
   }
   if (alt.method.length) {
     block = block.replace(
-      /(^###\s+Method[^\n]*\n)([\s\S]*?)(?=\n###\s|\n####\s|\n##\s|$)/m,
+      /(^###\s+Method[^\n]*\n)([\s\S]*?)(?=\n###\s|\n####\s|\n##\s|$(?![\s\S]))/m,
       (_, h) => `${h}${alt.method.map((x, i) => `${i + 1}. ${x}`).join('\n')}\n`
     );
   }

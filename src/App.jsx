@@ -1288,11 +1288,42 @@ export default class App extends Component {
       openRecipeId: id, servings, recipeChat: [], recipeInput: '',
       recipeAltSelected: null, recipeTweakInput: '', recipeTweakBusy: false,
       recipeTweakError: null, recipeTweakPreview: null,
+      recipeRemovals: [], recipeRemovalPrompt: false,
     });
   }
   closeRecipe() {
     this.stopPoll('recipeTweak');
-    this.setState({ openRecipeId: null });
+    this.setState({ openRecipeId: null, recipeRemovals: [], recipeRemovalPrompt: false });
+  }
+  // The ✕-an-ingredient flow: marks collect, one save, a popup asks whether
+  // it's today-only or a keepable alternative — then the existing tweak
+  // pipeline recomputes macros and the existing save paths commit. The
+  // model recalculates; code files; nothing changes until the choice.
+  toggleIngredientRemoval(name) {
+    this.setState((s) => ({
+      recipeRemovals: s.recipeRemovals.includes(name)
+        ? s.recipeRemovals.filter((n) => n !== name)
+        : [...s.recipeRemovals, name],
+    }));
+  }
+  confirmRemovalSave(mode, slotKey) {
+    const conn = getConnection();
+    const st = this.state;
+    const removals = st.recipeRemovals;
+    if (!conn || !st.openRecipeId || !removals.length) return;
+    const request = `Remove ${removals.join(', ')}. Keep everything else identical and recompute the macros honestly.`;
+    this.setState({ recipeRemovalPrompt: false, recipeTweakBusy: true, recipeTweakError: null, recipeTweakPreview: null });
+    api.tweakRecipe(conn, st.openRecipeId, request)
+      .then(({ jobId }) => {
+        this.startPoll('recipeTweak', () => api.tweakRecipeJob(conn, jobId), {
+          intervalMs: 2500,
+          onReady: (job) => this.setState({ recipeTweakBusy: false, recipeTweakPreview: job.result, recipeRemovals: [] }, () => {
+            this.saveRecipeTweak(mode === 'today' ? slotKey : undefined);
+          }),
+          onError: (msg) => this.setState({ recipeTweakBusy: false, recipeTweakError: msg }),
+        });
+      })
+      .catch((e) => this.setState({ recipeTweakBusy: false, recipeTweakError: e.message }));
   }
   selectAlternate(altId) {
     this.setState({ recipeAltSelected: altId, recipeTweakPreview: null, recipeTweakError: null });

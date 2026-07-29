@@ -89,10 +89,54 @@ export function RecipeOverlay({ v }) {
                   )}
                 </div>
                 <div style={css("margin-top:10px;display:flex;flex-direction:column")}>
-                  {v.orIngredients.map((ing, i) => (
-                    <div key={i} style={css("display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 05%, transparent);font-size:13.5px")}><span style={css("font:400 11.5px var(--nv-font-mono);color:var(--nv-gold);width:74px;font-variant-numeric:tabular-nums")}>{ing.qty}</span><span style={css("flex:1;color:color-mix(in srgb, var(--nv-ink) 85%, transparent)")}>{ing.name}</span>{v.removeIngredientForTweak && (<Interactive as="span" onClick={() => v.removeIngredientForTweak(ing.name)} title="Drop this for today — Nova recomputes the macros below" base="cursor:pointer;flex:none;font-size:12px;color:color-mix(in srgb, var(--nv-ink) 28%, transparent);padding:2px 7px" hoverStyle={{ color: 'var(--nv-warn)' }}>×</Interactive>)}</div>
-                  ))}
+                  {v.orIngredients.map((ing, i) => {
+                    const marked = v.ingredientRemovals?.includes(ing.name);
+                    return (
+                      <div key={i} style={css("display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 05%, transparent);font-size:13.5px")}>
+                        <span style={css("font:400 11.5px var(--nv-font-mono);color:var(--nv-gold);width:74px;font-variant-numeric:tabular-nums")}>{ing.qty}</span>
+                        <span style={css(`flex:1;color:color-mix(in srgb, var(--nv-ink) ${marked ? 35 : 85}%, transparent);${marked ? 'text-decoration:line-through;' : ''}`)}>{ing.name}</span>
+                        {v.addIngredientToShopping && !ing.group && (
+                          <Interactive as="span" onClick={() => v.addIngredientToShopping(ing.name)} title="Add just this item to the shopping list"
+                            base="cursor:pointer;flex:none;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:500 15px/1 var(--nv-font-ui);border:1.3px solid color-mix(in srgb, var(--nv-good) 55%, transparent);color:var(--nv-good);background:color-mix(in srgb, var(--nv-good) 07%, transparent)"
+                            hoverStyle="background:color-mix(in srgb, var(--nv-good) 18%, transparent)">＋</Interactive>
+                        )}
+                        {v.toggleIngredientRemoval && !ing.group && (
+                          <Interactive as="span" onClick={() => v.toggleIngredientRemoval(ing.name)} title={marked ? 'Keep it after all' : 'Remove this ingredient — choose today-only or a saved alternative when you save'}
+                            base={`cursor:pointer;flex:none;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:500 13px/1 var(--nv-font-ui);border:1.3px solid color-mix(in srgb, var(--nv-warn) ${marked ? 80 : 45}%, transparent);color:var(--nv-warn);background:color-mix(in srgb, var(--nv-warn) ${marked ? 20 : 6}%, transparent)`}
+                            hoverStyle="background:color-mix(in srgb, var(--nv-warn) 18%, transparent)">✕</Interactive>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
+                {v.ingredientRemovals?.length > 0 && (
+                  <Interactive as="div" onClick={v.openRemovalPrompt}
+                    base="cursor:pointer;margin-top:12px;text-align:center;padding:12px 18px;border-radius:980px;background:var(--nv-cy);color:var(--nv-on-acc);font:600 13px var(--nv-font-ui)"
+                    hoverStyle="background:color-mix(in srgb, var(--nv-cy) 85%, white)"
+                  >Save changes — {v.ingredientRemovals.length} removed</Interactive>
+                )}
+                {v.removalPromptOpen && (
+                  <div style={css("position:fixed;inset:0;z-index:96;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;padding:18px")} onClick={v.cancelRemovalPrompt}>
+                    <div style={css("width:100%;max-width:420px;display:flex;flex-direction:column;gap:9px;padding-bottom:env(safe-area-inset-bottom)")} onClick={(e) => e.stopPropagation()}>
+                      <div style={css("border-radius:14px;overflow:hidden;background:var(--nv-pane, var(--nv-void));border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)")}>
+                        <div style={css("padding:13px 16px;text-align:center;font:400 12px var(--nv-font-ui);color:color-mix(in srgb, var(--nv-ink) 55%, transparent);border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)")}>
+                          Removing {v.ingredientRemovals.join(', ')} — Nova recomputes the macros. The stored recipe is only touched if you save an alternative.
+                        </div>
+                        {v.removalCanToday && (
+                          <Interactive as="div" onClick={() => v.confirmRemovalSave('today')}
+                            base="cursor:pointer;padding:14px;text-align:center;font:500 15px var(--nv-font-ui);color:var(--nv-cy);border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)"
+                            hoverStyle="background:color-mix(in srgb, var(--nv-cy) 08%, transparent)">Just for today</Interactive>
+                        )}
+                        <Interactive as="div" onClick={() => v.confirmRemovalSave('alt')}
+                          base="cursor:pointer;padding:14px;text-align:center;font:500 15px var(--nv-font-ui);color:var(--nv-cy)"
+                          hoverStyle="background:color-mix(in srgb, var(--nv-cy) 08%, transparent)">Save as a new alternative</Interactive>
+                      </div>
+                      <Interactive as="div" onClick={v.cancelRemovalPrompt}
+                        base="cursor:pointer;border-radius:14px;padding:14px;text-align:center;font:600 15px var(--nv-font-ui);color:var(--nv-cy);background:var(--nv-pane, var(--nv-void));border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)"
+                        hoverStyle="background:color-mix(in srgb, var(--nv-ink) 06%, transparent)">Cancel</Interactive>
+                    </div>
+                  </div>
+                )}
               </>
             )}
             {v.orSteps.length > 0 && (

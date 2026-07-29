@@ -295,13 +295,18 @@ export function valsRecipes(app, ctx) {
       app.addToShoppingList(names, source);
     },
     orShowTweak: usingLiveRecipes && !!liveOr,
-    // tap × on an ingredient → builds the tweak request ("today's version
-    // without X") — the model recomputes macros, then one tap applies it to
-    // today's slot without touching the stored recipe
-    removeIngredientForTweak: usingLiveRecipes && liveOr ? (name) => {
-      const cur = st.recipeTweakInput.trim();
-      app.setState({ recipeTweakInput: cur ? `${cur}, no ${name}` : `Today's version: no ${name}` });
-    } : null,
+    // tap ✕ on an ingredient → it's marked (strikethrough, reversible); one
+    // SAVE opens the choice popup; the tweak pipeline recomputes macros and
+    // the existing save paths commit. Tap ＋ → that single item goes to the
+    // shopping list.
+    ingredientRemovals: st.recipeRemovals || [],
+    toggleIngredientRemoval: usingLiveRecipes && liveOr ? (name) => app.toggleIngredientRemoval(name) : null,
+    removalPromptOpen: !!st.recipeRemovalPrompt,
+    openRemovalPrompt: () => app.setState({ recipeRemovalPrompt: true }),
+    cancelRemovalPrompt: () => app.setState({ recipeRemovalPrompt: false }),
+    removalCanToday: !!openRecipeSlotKey,
+    confirmRemovalSave: (mode) => app.confirmRemovalSave(mode, openRecipeSlotKey),
+    addIngredientToShopping: usingLiveRecipes && liveOr ? (name) => app.addToShoppingList([name], liveOr.name) : null,
     saveRecipeTweakToday: openRecipeSlotKey ? () => app.saveRecipeTweak(openRecipeSlotKey) : null,
     recipeTweakInput: st.recipeTweakInput,
     setRecipeTweakInput: (e) => app.setState({ recipeTweakInput: e.target.value }),
