@@ -580,6 +580,7 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn) return;
     api.setRotationVariant(conn, slot, altId).then((rotation) => {
+      this.noteLocalWrite('rotation');
       this.setState({ liveRotation: rotation });
       this.toastMsg(altId ? "Applied as today's version — the stored recipe is untouched" : 'Back to the original for today');
     }).catch((e) => this.toastMsg('Could not set today’s version: ' + e.message));
@@ -589,7 +590,7 @@ export default class App extends Component {
     if (!conn) return;
     api.promoteRecipeAlternate(conn, recipeId, altId).then(({ recipe }) => {
       this.setState((s) => ({
-        liveRecipes: s.liveRecipes.map((r) => (r.id === recipe.id ? recipe : r)),
+        liveRecipes: (this.noteLocalWrite('recipes'), s.liveRecipes.map((r) => (r.id === recipe.id ? recipe : r))),
         recipeAltSelected: null,
       }));
       this.refreshLiveData(); // rotation totals inherit the new primary macros
@@ -613,8 +614,8 @@ export default class App extends Component {
     api.renameAlternate(conn, openRecipeId, recipeRenameAltId, label).then(({ recipe, rotation }) => {
       const renamed = (recipe.alternates || []).find((a) => a.label === label);
       this.setState((s) => ({
-        liveRecipes: s.liveRecipes.map((r) => (r.id === recipe.id ? recipe : r)),
-        liveRotation: rotation || s.liveRotation,
+        liveRecipes: (this.noteLocalWrite('recipes'), s.liveRecipes.map((r) => (r.id === recipe.id ? recipe : r))),
+        liveRotation: (this.noteLocalWrite('rotation'), rotation || s.liveRotation),
         recipeAltSelected: s.recipeAltSelected === recipeRenameAltId ? (renamed?.id || null) : s.recipeAltSelected,
         recipeRenameAltId: null, recipeRenameValue: '', recipeRenameError: null,
       }));
@@ -806,9 +807,20 @@ export default class App extends Component {
   // Apply a bundled /api/snapshot payload — the same per-slice handling the
   // individual fetch tasks perform, fed from ONE round-trip. Returns how many
   // slices applied (the connected/offline quorum works the same way).
-  applySnapshot(slices) {
+  // A snapshot in flight can return state read BEFORE a write that has since
+  // landed; applying it blindly reverted the fresh value — the "I logged it
+  // and it didn't stay" glitch. A slice written locally after the request
+  // began is skipped (it still counts as synced; our copy is the newer one).
+  noteLocalWrite(key) {
+    this.localWrites = { ...(this.localWrites || {}), [key]: Date.now() };
+  }
+  applySnapshot(slices, startedAt = 0) {
     let ok = 0;
-    const apply = (key, fn) => { if (slices[key] !== undefined) { try { fn(slices[key]); ok++; } catch { /* slice shape surprise — skip it */ } } };
+    const apply = (key, fn) => {
+      if (slices[key] === undefined) return;
+      if (startedAt && (this.localWrites?.[key] || 0) > startedAt) { ok++; return; }
+      try { fn(slices[key]); ok++; } catch { /* slice shape surprise — skip it */ }
+    };
     apply('notes', (r) => {
       this.setState({ liveNotes: r.notes });
       if (r.notes[0] && !this.state.liveNoteDetails[this.state.openNoteId]) this.selectNote(r.notes[0].id);
@@ -916,8 +928,9 @@ export default class App extends Component {
       let okCount = 0;
       let total = tasks.length;
       try {
+        const startedAt = Date.now();
         const { slices } = await api.snapshot(conn);
-        okCount = this.applySnapshot(slices);
+        okCount = this.applySnapshot(slices, startedAt);
       } catch {
         const results = await Promise.allSettled(tasks.map((t) => t()));
         okCount = results.filter((r) => r.status === 'fulfilled').length;
@@ -970,6 +983,7 @@ export default class App extends Component {
     const current = this.state.liveRotation?.slots?.[slot];
     const next = current && current.id === recipeId ? null : recipeId;
     api.setRotationSlot(conn, slot, next).then((rotation) => {
+      this.noteLocalWrite('rotation');
       this.setState({ liveRotation: rotation });
     }).catch((e) => this.toastMsg('Rotation update failed: ' + e.message));
   }
@@ -977,6 +991,7 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn) return;
     api.setRotationConsumed(conn, slot, consumed).then((rotation) => {
+      this.noteLocalWrite('rotation');
       this.setState({ liveRotation: rotation });
     }).catch((e) => this.toastMsg('Could not update: ' + e.message));
   }
@@ -990,6 +1005,7 @@ export default class App extends Component {
     if (!conn || !name) return;
     this.setState({ foodLogBusy: true, foodLogError: null });
     api.addFoodLogEntry(conn, { name, macros, source: this.state.foodLogFillSource || 'manual' }).then((day) => {
+      this.noteLocalWrite('foodLog');
       this.setState({ liveFoodLog: day, foodLogBusy: false, foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogFillSource: null,
         foodScanQuestion: null, foodScanQAPhotos: [], foodScanQANote: '', foodScanAnswer: '' });
       if (this.state.foodHistoryOpen) this.loadFoodHistory();
@@ -1006,7 +1022,7 @@ export default class App extends Component {
   deleteFoodLogEntry(id) {
     const conn = getConnection();
     if (!conn) return;
-    api.deleteFoodLogEntry(conn, id).then((day) => this.setState({ liveFoodLog: day })).catch((e) => this.toastMsg('Could not remove entry: ' + e.message));
+    api.deleteFoodLogEntry(conn, id).then((day) => { this.noteLocalWrite('foodLog'); this.setState({ liveFoodLog: day }); }).catch((e) => this.toastMsg('Could not remove entry: ' + e.message));
   }
   setFoodScanNote(e) {
     this.setState({ foodScanNote: e.target.value });
@@ -1094,7 +1110,7 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn) return;
     api.addFoodLogEntry(conn, { name: item.name, macros: item.macros, source: 'history' })
-      .then((day) => { this.setState({ liveFoodLog: day }); this.toastMsg(`Logged ${item.name} ✓`); this.loadFoodHistory(); })
+      .then((day) => { this.noteLocalWrite('foodLog'); this.setState({ liveFoodLog: day }); this.toastMsg(`Logged ${item.name} ✓`); this.loadFoodHistory(); })
       .catch((e) => this.toastMsg('Could not log: ' + e.message));
   }
   // Pre-fill the Add Recipe modal from a scanned/logged food so it can be saved
@@ -1380,7 +1396,7 @@ export default class App extends Component {
     api.addAlternate(conn, st.openRecipeId, preview).then(({ recipe }) => {
       const newAlt = recipe.alternates[recipe.alternates.length - 1] || null;
       this.setState((s) => ({
-        liveRecipes: s.liveRecipes.map((r) => (r.id === recipe.id ? recipe : r)),
+        liveRecipes: (this.noteLocalWrite('recipes'), s.liveRecipes.map((r) => (r.id === recipe.id ? recipe : r))),
         recipeTweakPreview: null,
         recipeAltSelected: newAlt?.id || null,
       }));
@@ -1409,6 +1425,7 @@ export default class App extends Component {
     this.startPoll('shoppingAdd', () => api.addShoppingItemsJob(conn, jobId), {
       intervalMs: 2500,
       onReady: (job) => {
+        this.noteLocalWrite('shoppingList');
         this.setState((s) => ({ liveShoppingList: { ...s.liveShoppingList, items: job.items }, shoppingAddBusy: false, shoppingAddInput: '' }));
         this.toastMsg('Added to shopping list ✓');
       },
@@ -1441,9 +1458,10 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn) return;
     this.setState((s) => ({
-      liveShoppingList: { ...s.liveShoppingList, items: s.liveShoppingList.items.map((i) => (i.id === id ? { ...i, checked } : i)) },
+      liveShoppingList: (this.noteLocalWrite('shoppingList'), { ...s.liveShoppingList, items: s.liveShoppingList.items.map((i) => (i.id === id ? { ...i, checked } : i)) }),
     }));
     api.toggleShoppingItem(conn, id, checked).then(({ items }) => {
+      this.noteLocalWrite('shoppingList');
       this.setState((s) => ({ liveShoppingList: { ...s.liveShoppingList, items } }));
     }).catch((e) => this.toastMsg('Could not update item: ' + e.message));
   }
@@ -1451,6 +1469,7 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn) return;
     api.confirmShoppingCompletion(conn).then(({ items }) => {
+      this.noteLocalWrite('shoppingList');
       this.setState((s) => ({ liveShoppingList: { ...s.liveShoppingList, items } }));
       this.toastMsg('Shopping list updated ✓');
     }).catch((e) => this.toastMsg('Could not confirm completion: ' + e.message));

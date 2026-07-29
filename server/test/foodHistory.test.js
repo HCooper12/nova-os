@@ -62,3 +62,22 @@ test('recurringFoods flags only items over the threshold, respecting excludeKeys
   const lower = await recurringFoods({ days: 45, minCount: 1 });
   assert.equal(lower.length, 3, 'a lower threshold surfaces everything');
 });
+
+test('concurrent logs all survive — the read-modify-write race that dropped entries', async () => {
+  const { addEntry, getToday, removeEntry } = await import('../lib/foodLog.js');
+  const before = (await getToday()).entries.length;
+
+  // fire together, exactly as a double-tap / outbox drain / re-log would
+  const names = ['Race A', 'Race B', 'Race C', 'Race D', 'Race E'];
+  await Promise.all(names.map((name) => addEntry({ name, macros: { p: 1, c: 1, f: 1, kcal: 17 }, source: 'history' })));
+
+  const day = await getToday();
+  assert.equal(day.entries.length, before + 5, 'every concurrent entry landed');
+  for (const name of names) assert.ok(day.entries.some((e) => e.name === name), `${name} survived`);
+
+  // concurrent removals are serialized too
+  const ids = day.entries.filter((e) => names.includes(e.name)).map((e) => e.id);
+  await Promise.all(ids.map((id) => removeEntry(id)));
+  const after = await getToday();
+  assert.equal(after.entries.length, before, 'every concurrent removal applied');
+});

@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
+import { createWriteLock } from './vaultStateFile.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Off-plan eating (snacks, extras, anything not one of today's rotation
@@ -27,15 +28,30 @@ async function saveDay(day) {
   // atomic tmp+rename — this was the one store with neither atomicity nor
   // backups; a mid-write kill could tear the day's food log
   const full = path.join(LOG_DIR(), `${day.date}.json`);
-  await writeFile(full + '.tmp', JSON.stringify(day, null, 2), 'utf8');
-  await rename(full + '.tmp', full);
+  // UNIQUE tmp name: a shared one let two concurrent saves collide — the
+  // second rename found the first's temp file already moved and threw ENOENT,
+  // failing the write outright rather than merely losing an entry.
+  const tmp = `${full}.${randomUUID().slice(0, 8)}.tmp`;
+  await writeFile(tmp, JSON.stringify(day, null, 2), 'utf8');
+  await rename(tmp, full);
 }
 
 export async function getToday() {
   return loadDay(today());
 }
 
+// EVERY mutation goes through one lock. Each was a read-modify-write on the
+// same file: two logs landing together (a double tap, a re-log while a scan
+// finishes, the offline outbox draining) both read the same day, both pushed,
+// and the second write clobbered the first — an entry silently vanishing,
+// which is exactly what "it didn't stay there" looked like.
+const withWriteLock = createWriteLock();
+
 export async function addEntry({ name, macros, source }) {
+  return withWriteLock(() => addEntryUnlocked({ name, macros, source }));
+}
+
+async function addEntryUnlocked({ name, macros, source }) {
   const day = await loadDay(today());
   const entry = {
     id: randomUUID().slice(0, 8),
@@ -72,6 +88,10 @@ export async function loadRecentDays(days = 45) {
 // Entries are only ever shown/removable for today, so no need to search
 // across days for the id.
 export async function removeEntry(entryId) {
+  return withWriteLock(() => removeEntryUnlocked(entryId));
+}
+
+async function removeEntryUnlocked(entryId) {
   const day = await loadDay(today());
   day.entries = day.entries.filter((e) => e.id !== entryId);
   await saveDay(day);
@@ -81,6 +101,10 @@ export async function removeEntry(entryId) {
 // Date-addressed removal for inbox undo, which may run after midnight has
 // rolled the "today" file over.
 export async function removeEntryOn(date, entryId) {
+  return withWriteLock(() => removeEntryOnUnlocked(date, entryId));
+}
+
+async function removeEntryOnUnlocked(date, entryId) {
   const day = await loadDay(date);
   const before = day.entries.length;
   day.entries = day.entries.filter((e) => e.id !== entryId);
