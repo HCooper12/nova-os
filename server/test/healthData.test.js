@@ -123,6 +123,9 @@ test('per-device steps fold by MAX, never summed (no double counting, no missed 
   assert.equal(pickKnownMetrics({ steps: 8311 }).steps, 8311, 'a single figure passes through untouched');
   assert.equal(pickKnownMetrics({ stepsWatch: 9908 }).steps, 9908, 'watch-only still lands as steps');
   assert.equal(pickKnownMetrics({ steps: 8311, stepsWatch: 9908 }).stepsWatch, undefined, 'the helper key is not stored');
+  // his Shortcut writes "watchSteps" — the other word order must not be dropped
+  assert.equal(pickKnownMetrics({ steps: 7846, watchSteps: 7994 }).steps, 7994, 'watchSteps spelling accepted');
+  assert.equal(pickKnownMetrics({ steps: 7994, watchSteps: 0 }).steps, 7994, 'a zero device reading never lowers the total');
 });
 
 test('a just-after-midnight push is filed against the day it actually describes', async () => {

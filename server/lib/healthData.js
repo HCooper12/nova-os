@@ -60,7 +60,10 @@ export function pickKnownMetrics(raw) {
   const src = { ...(raw || {}) };
   const lower = {};
   for (const [k, v] of Object.entries(src)) lower[k.toLowerCase()] = v;
-  const perDevice = ['steps', 'stepswatch', 'stepsiphone', 'stepsphone']
+  // Both word orders accepted: a hand-built Shortcut may as naturally say
+  // "watchSteps" as "stepsWatch", and a silently dropped key is exactly the
+  // failure mode that cost weeks on the weightKg casing bug.
+  const perDevice = ['steps', 'stepswatch', 'watchsteps', 'stepsiphone', 'iphonesteps', 'stepsphone', 'phonesteps']
     .map((k) => Number(lower[k]))
     .filter((n) => Number.isFinite(n) && n >= 0);
   if (perDevice.length) {
