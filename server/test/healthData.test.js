@@ -85,11 +85,14 @@ test('loadDay returns null for a day with no data', async () => {
   assert.equal(await loadDay('1999-01-01'), null);
 });
 
-test('settled-steps rule: a past day with recorded steps refuses automated overwrite; gaps and today still accept', async () => {
+test('monotonic-steps rule: a HIGHER later reading wins for a past day, a truncated one is ignored', async () => {
   const { shouldDropPastSteps } = await import('../lib/healthData.js');
   const now = new Date('2026-07-30T09:00:00');
-  assert.equal(shouldDropPastSteps('2026-07-29', 7432, 10476, now), true, 'yesterday, already settled → drop');
-  assert.equal(shouldDropPastSteps('2026-07-29', null, 10476, now), false, 'catch-up into a gap → allowed');
-  assert.equal(shouldDropPastSteps('2026-07-30', 5000, 7000, now), false, 'same day keeps updating');
-  assert.equal(shouldDropPastSteps('2026-07-29', 7432, null, now), false, 'no incoming steps → nothing to drop');
+  // the real case: 23:45 nightly recorded 8311, next morning's per-date push says 9400
+  assert.equal(shouldDropPastSteps('2026-07-29', 8311, 9400, now), false, 'higher = more complete, accept it');
+  assert.equal(shouldDropPastSteps('2026-07-29', 9400, 8311, now), true, 'lower = truncated reading, ignore it');
+  assert.equal(shouldDropPastSteps('2026-07-29', 8311, 8311, now), true, 'equal changes nothing — no rewrite');
+  assert.equal(shouldDropPastSteps('2026-07-29', null, 9400, now), false, 'catch-up into a gap is welcome');
+  assert.equal(shouldDropPastSteps('2026-07-30', 9000, 5000, now), false, 'today keeps updating freely');
+  assert.equal(shouldDropPastSteps('2026-07-29', 8311, null, now), false, 'no incoming steps, nothing to judge');
 });

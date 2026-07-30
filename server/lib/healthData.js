@@ -63,17 +63,27 @@ export function pickKnownMetrics(raw) {
   return out;
 }
 
-// The settled-steps rule: once a PAST day has a steps value (recorded by
-// the nightly source-filtered automation, on the day itself), a later
-// automated push may not overwrite it — the morning weight Shortcut kept
-// re-pushing yesterday with phone+watch double-counted steps. Human edits
-// (manual: true from the app) always win; a past day with NO steps still
-// accepts a catch-up push.
+// The monotonic-steps rule. Steps within a calendar day only ever increase —
+// you cannot un-walk — so for a PAST day the HIGHEST reported value is the
+// most complete reading, and a lower later push is a truncated one to ignore.
+//
+// Evidence for this shape (pushlog, 23-27 July): the 23:45 nightly automation
+// reports LESS than the per-date catch-up push that runs the next morning, by
+// inconsistent ratios (1.12x, 1.13x, 1.41x) — so it is NOT phone+watch double
+// counting, which would be a steady ~2x. And that later automation pushed
+// figures for TWO different past dates in a single run, which a rolling-24h
+// query cannot do: it asks per calendar date, after the day has ended, so it
+// sees the whole day including watch data unsynced at 23:45. Higher wins.
+//
+// Human edits from the app (manual: true) bypass this entirely — his
+// correction is always the truth of last resort.
 export function shouldDropPastSteps(date, existingSteps, incomingSteps, now = new Date()) {
-  if (incomingSteps == null || existingSteps == null) return false;
+  if (incomingSteps == null) return false;
   const pad = (n) => String(n).padStart(2, '0');
   const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-  return date < today;
+  if (date >= today) return false;          // today keeps updating freely
+  if (existingSteps == null) return false;  // catch-up into a gap is welcome
+  return Number(incomingSteps) <= Number(existingSteps); // only a HIGHER reading replaces
 }
 
 export async function saveDay(date, metrics) {
