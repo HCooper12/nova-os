@@ -50,11 +50,27 @@ async function ensureDir() {
 //    HRV samples yet" arrives as hrv:0 — that's absence, not a measurement.
 // HEALTH_METRICS lowercased are all distinct, so the fallback can't collide.
 export function pickKnownMetrics(raw) {
+  // Steps per DEVICE, folded by MAX — never summed. A Shortcut "Find Health
+  // Samples" sums raw samples, so dropping the Source filter double-counts
+  // every walk both the iPhone and the Watch recorded; filtering to ONE device
+  // instead misses what only the other saw (his iPhone-only figure ran ~1,600
+  // short of Health's own de-duplicated total). Sending each device separately
+  // and taking the higher is the honest middle: a walk both recorded counts
+  // once, and watch-only walking still lands.
+  const src = { ...(raw || {}) };
   const lower = {};
-  for (const [k, v] of Object.entries(raw || {})) lower[k.toLowerCase()] = v;
+  for (const [k, v] of Object.entries(src)) lower[k.toLowerCase()] = v;
+  const perDevice = ['steps', 'stepswatch', 'stepsiphone', 'stepsphone']
+    .map((k) => Number(lower[k]))
+    .filter((n) => Number.isFinite(n) && n >= 0);
+  if (perDevice.length) {
+    src.steps = Math.max(...perDevice);
+    lower.steps = src.steps;
+  }
+
   const out = {};
   for (const key of HEALTH_METRICS) {
-    const val = raw?.[key] != null ? raw[key] : lower[key.toLowerCase()];
+    const val = src[key] != null ? src[key] : lower[key.toLowerCase()];
     if (val == null || Number.isNaN(Number(val))) continue;
     const num = Number(val);
     if (num === 0 && IMPOSSIBLE_ZERO.has(key)) continue; // "no samples yet", not a reading
@@ -67,13 +83,11 @@ export function pickKnownMetrics(raw) {
 // you cannot un-walk — so for a PAST day the HIGHEST reported value is the
 // most complete reading, and a lower later push is a truncated one to ignore.
 //
-// Evidence for this shape (pushlog, 23-27 July): the 23:45 nightly automation
-// reports LESS than the per-date catch-up push that runs the next morning, by
-// inconsistent ratios (1.12x, 1.13x, 1.41x) — so it is NOT phone+watch double
-// counting, which would be a steady ~2x. And that later automation pushed
-// figures for TWO different past dates in a single run, which a rolling-24h
-// query cannot do: it asks per calendar date, after the day has ended, so it
-// sees the whole day including watch data unsynced at 23:45. Higher wins.
+// Evidence (pushlog, 23-27 July + his Health figure on 30 July): the nightly
+// automation reports LESS than a later per-date reading for the same date, by
+// inconsistent ratios (1.12x, 1.13x, 1.41x) — not phone+watch duplication,
+// which would be a steady ~2x. Its Source filter is pinned to the iPhone, so
+// it never saw watch-only walking: 8,311 stored vs 9,908 in Health.
 //
 // Human edits from the app (manual: true) bypass this entirely — his
 // correction is always the truth of last resort.

@@ -115,3 +115,12 @@ test('steps completeness is stamped honestly: during the day = partial, after = 
   assert.equal(fixed.stepsComplete, true, 'his own correction is complete by definition');
   assert.equal((await loadDay(todayKey)).steps, 9908);
 });
+
+test('per-device steps fold by MAX, never summed (no double counting, no missed watch steps)', async () => {
+  const { pickKnownMetrics } = await import('../lib/healthData.js');
+  assert.equal(pickKnownMetrics({ steps: 8311, stepsWatch: 9908 }).steps, 9908, 'the higher device wins');
+  assert.equal(pickKnownMetrics({ steps: 9908, stepsWatch: 8311 }).steps, 9908, 'order does not matter');
+  assert.equal(pickKnownMetrics({ steps: 8311 }).steps, 8311, 'a single figure passes through untouched');
+  assert.equal(pickKnownMetrics({ stepsWatch: 9908 }).steps, 9908, 'watch-only still lands as steps');
+  assert.equal(pickKnownMetrics({ steps: 8311, stepsWatch: 9908 }).stepsWatch, undefined, 'the helper key is not stored');
+});
