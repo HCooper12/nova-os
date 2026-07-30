@@ -58,9 +58,9 @@ export function healthDataRouter(vaultPath) {
         await logPushAttempt({ ok: false, date, error: 'no metrics' });
         return res.status(400).json({ error: 'at least one metric is required (steps, hrv, sleepAsleepMinutes, …)' });
       }
-      // The settled-steps rule: automated pushes can't overwrite a past
-      // day's recorded steps (the morning weight Shortcut kept clobbering
-      // the nightly count with double-counted samples). Manual edits win.
+      // The monotonic-steps rule: for a PAST day only a HIGHER reading may
+      // replace what's stored (steps only ever increase within a day, so a
+      // lower later push is a truncated reading). Manual edits always win.
       let stepsDropped = false;
       if (body?.manual !== true && metrics.steps != null) {
         const { loadDay, shouldDropPastSteps } = await import('../lib/healthData.js');
@@ -70,11 +70,11 @@ export function healthDataRouter(vaultPath) {
           stepsDropped = true;
           if (!Object.keys(metrics).length) {
             await logPushAttempt({ ok: true, date, keys: [], steps: null, stepsDropped });
-            return res.json({ day: existing, note: 'steps for a settled past day were ignored — the day-of value stands' });
+            return res.json({ day: existing, note: 'that steps figure was lower than the one already recorded for that day — kept the higher reading' });
           }
         }
       }
-      const saved = await saveDay(date, metrics);
+      const saved = await saveDay(date, metrics, { manual: body?.manual === true });
       await logPushAttempt({ ok: true, date, keys: Object.keys(metrics), steps: metrics.steps ?? null, ...(stepsDropped ? { stepsDropped } : {}) });
       const { broadcast } = await import('../lib/events.js');
       broadcast('health');

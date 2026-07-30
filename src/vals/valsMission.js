@@ -248,6 +248,15 @@ export function valsMission(app, ctx) {
     const days = Math.round((new Date(todayKey) - new Date(day.date)) / 86400000);
     return days === 1 ? 'YESTERDAY' : `STALE · ${days}D OLD — PUSH NOT RUNNING`;
   };
+  // A past day's steps recorded DURING that day is a partial, not a total —
+  // the 23:45 automation misses the rest of the evening and any watch samples
+  // that hadn't synced (measured ~1,600 short). Say so rather than presenting
+  // a truncated figure as the day's number; tapping through still edits it.
+  const partialStepsHint = (day) => {
+    if (!day || day.date === todayKey || day.stepsComplete !== false || !day.stepsAt) return null;
+    const at = new Date(day.stepsAt);
+    return `PARTIAL · AS OF ${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
+  };
   const satSleep = demoMode
     ? { label: 'SLEEP', value: '7:12', small: '/8H', pct: 90, hint: '90% · HRV +9%' }
     : !usingLiveHealthData || !sleepDay
@@ -270,7 +279,7 @@ export function valsMission(app, ctx) {
           value: stepsCurrent.toLocaleString(),
           small: '',
           pct: Math.round(stepsRatio * 100),
-          hint: staleHint(stepsDay) || (stepsCurrent >= STEP_GOAL ? `${Math.round(stepsRatio * 100)}% · GOAL REACHED` : `${Math.round(stepsRatio * 100)}% · ${(STEP_GOAL - stepsCurrent).toLocaleString()} TO GO`),
+          hint: partialStepsHint(stepsDay) || staleHint(stepsDay) || (stepsCurrent >= STEP_GOAL ? `${Math.round(stepsRatio * 100)}% · GOAL REACHED` : `${Math.round(stepsRatio * 100)}% · ${(STEP_GOAL - stepsCurrent).toLocaleString()} TO GO`),
         };
   // tap the steps satellite to open the 7-day history + manual edit
   if (!demoMode) satSteps.onOpen = () => app.setState({ stepsOverlayOpen: true, stepsOverlayMode: 'steps' });

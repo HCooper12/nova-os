@@ -86,13 +86,34 @@ export function shouldDropPastSteps(date, existingSteps, incomingSteps, now = ne
   return Number(incomingSteps) <= Number(existingSteps); // only a HIGHER reading replaces
 }
 
-export async function saveDay(date, metrics) {
+// A steps reading is only the day's TOTAL if it was captured after the day
+// ended. Captured during the day, it is a partial — honest degradation, not a
+// silent undercount.
+export function stepsCaptureIsComplete(date, capturedAtIso) {
+  if (!capturedAtIso) return false;
+  const at = new Date(capturedAtIso);
+  const pad = (n) => String(n).padStart(2, '0');
+  const localDay = `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
+  return localDay > date; // stamped on a later local day = the day was over
+}
+
+export async function saveDay(date, metrics, { manual = false } = {}) {
   if (!isValidDate(date)) throw new Error('date must be YYYY-MM-DD');
   await ensureDir();
   const full = path.join(HEALTH_DIR, `${date}.json`);
   const existing = existsSync(full) ? JSON.parse(await readFile(full, 'utf8')) : { date };
   const cleaned = pickKnownMetrics(metrics);
   const merged = { ...existing, ...cleaned, date, receivedAt: new Date().toISOString() };
+  // WHEN the steps figure was captured decides whether it can be the day's
+  // total. His nightly automation runs at 23:45, so its number misses the rest
+  // of the evening and any watch samples that hadn't synced — measured at
+  // ~1,600 steps on 29 July (8,311 recorded vs 9,908 in Health). Stamping the
+  // capture time lets every surface say "as of 23:45" instead of presenting a
+  // truncated figure as final. A manual correction is complete by definition.
+  if (cleaned.steps != null) {
+    merged.stepsAt = new Date().toISOString();
+    merged.stepsComplete = manual ? true : stepsCaptureIsComplete(date, merged.stepsAt);
+  }
   await writeFile(full, JSON.stringify(merged, null, 2), 'utf8');
   return merged;
 }

@@ -96,3 +96,22 @@ test('monotonic-steps rule: a HIGHER later reading wins for a past day, a trunca
   assert.equal(shouldDropPastSteps('2026-07-30', 9000, 5000, now), false, 'today keeps updating freely');
   assert.equal(shouldDropPastSteps('2026-07-29', 8311, null, now), false, 'no incoming steps, nothing to judge');
 });
+
+test('steps completeness is stamped honestly: during the day = partial, after = total', async () => {
+  const { stepsCaptureIsComplete, saveDay, loadDay } = await import('../lib/healthData.js');
+  assert.equal(stepsCaptureIsComplete('2026-07-29', '2026-07-29T23:45:00'), false, 'the 23:45 push is a partial');
+  assert.equal(stepsCaptureIsComplete('2026-07-29', '2026-07-30T11:25:00'), true, 'next-morning capture saw the whole day');
+  assert.equal(stepsCaptureIsComplete('2026-07-29', null), false, 'no timestamp claims nothing');
+
+  // the real nightly case: a push for TODAY, captured today → partial
+  const pad = (n) => String(n).padStart(2, '0');
+  const now = new Date();
+  const todayKey = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const day = await saveDay(todayKey, { steps: 8311 });
+  assert.equal(day.stepsComplete, false, 'a reading captured during the day is a partial');
+  assert.ok(day.stepsAt, 'capture time recorded');
+
+  const fixed = await saveDay(todayKey, { steps: 9908 }, { manual: true });
+  assert.equal(fixed.stepsComplete, true, 'his own correction is complete by definition');
+  assert.equal((await loadDay(todayKey)).steps, 9908);
+});
