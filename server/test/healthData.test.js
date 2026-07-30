@@ -124,3 +124,23 @@ test('per-device steps fold by MAX, never summed (no double counting, no missed 
   assert.equal(pickKnownMetrics({ stepsWatch: 9908 }).steps, 9908, 'watch-only still lands as steps');
   assert.equal(pickKnownMetrics({ steps: 8311, stepsWatch: 9908 }).stepsWatch, undefined, 'the helper key is not stored');
 });
+
+test('a just-after-midnight push is filed against the day it actually describes', async () => {
+  const { resolvePushDate } = await import('../lib/healthData.js');
+  // the real case: automation fires 12:05am on the 31st carrying 24h of data
+  const at0005 = new Date('2026-07-31T00:05:00');
+  assert.deepEqual(resolvePushDate('2026-07-31', at0005), { date: '2026-07-30', shifted: true });
+
+  // narrow on purpose
+  const at0900 = new Date('2026-07-31T09:00:00');
+  assert.deepEqual(resolvePushDate('2026-07-31', at0900), { date: '2026-07-31', shifted: false }, 'daytime pushes are left alone');
+  assert.deepEqual(resolvePushDate('2026-07-29', at0005), { date: '2026-07-29', shifted: false }, 'an explicit past date is respected');
+  const at0359 = new Date('2026-07-31T03:59:00');
+  assert.equal(resolvePushDate('2026-07-31', at0359).shifted, true, 'still inside the window');
+  const at0400 = new Date('2026-07-31T04:00:00');
+  assert.equal(resolvePushDate('2026-07-31', at0400).shifted, false, 'cutoff respected');
+
+  // month boundary
+  const firstOfMonth = new Date('2026-08-01T00:05:00');
+  assert.equal(resolvePushDate('2026-08-01', firstOfMonth).date, '2026-07-31', 'rolls back across a month end');
+});

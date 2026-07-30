@@ -79,6 +79,27 @@ export function pickKnownMetrics(raw) {
   return out;
 }
 
+// The just-after-midnight rule. His nightly automation now fires at 12:05am
+// with every query on a rolling "in the last 1 day" window — so the numbers it
+// carries describe YESTERDAY, while the Shortcut's own Formatted Date says
+// today. A full day of steps/energy/distance cannot belong to a day that is
+// five minutes old, so a push landing in the small hours and stamped with
+// today's date is filed against yesterday instead. This spares him an Adjust
+// Date action in Shortcuts, which is the step he has been stuck on.
+//
+// Deliberately narrow: only before HOUR_CUTOFF, only when the payload's date
+// is today, and never for a manual correction. The shift is receipted
+// (dateShifted) so it is visible rather than mysterious.
+export const MIDNIGHT_SHIFT_HOUR_CUTOFF = 4;
+export function resolvePushDate(date, now = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  if (date !== today || now.getHours() >= MIDNIGHT_SHIFT_HOUR_CUTOFF) return { date, shifted: false };
+  const y = new Date(now);
+  y.setDate(y.getDate() - 1);
+  return { date: `${y.getFullYear()}-${pad(y.getMonth() + 1)}-${pad(y.getDate())}`, shifted: true };
+}
+
 // The monotonic-steps rule. Steps within a calendar day only ever increase —
 // you cannot un-walk — so for a PAST day the HIGHEST reported value is the
 // most complete reading, and a lower later push is a truncated one to ignore.

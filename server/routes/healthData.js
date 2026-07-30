@@ -40,7 +40,7 @@ export function healthDataRouter(vaultPath) {
       if (typeof body === 'string') {
         try { body = JSON.parse(body); } catch { /* leave as-is; validation below fails honestly */ }
       }
-      const date = body?.date;
+      let date = body?.date;
       const { logPushAttempt } = await import('../lib/healthData.js');
       if (typeof date !== 'string') {
         await logPushAttempt({ ok: false, error: 'date missing', keys: Object.keys(body || {}) });
@@ -57,6 +57,15 @@ export function healthDataRouter(vaultPath) {
       if (!metrics || !Object.keys(metrics).length) {
         await logPushAttempt({ ok: false, date, error: 'no metrics' });
         return res.status(400).json({ error: 'at least one metric is required (steps, hrv, sleepAsleepMinutes, …)' });
+      }
+      // A 12:05am push carries yesterday's rolling-window numbers under
+      // today's date — file it against the day it actually describes.
+      let dateShifted = false;
+      if (body?.manual !== true) {
+        const { resolvePushDate } = await import('../lib/healthData.js');
+        const resolved = resolvePushDate(date);
+        date = resolved.date;
+        dateShifted = resolved.shifted;
       }
       // The monotonic-steps rule: for a PAST day only a HIGHER reading may
       // replace what's stored (steps only ever increase within a day, so a
@@ -75,7 +84,7 @@ export function healthDataRouter(vaultPath) {
         }
       }
       const saved = await saveDay(date, metrics, { manual: body?.manual === true });
-      await logPushAttempt({ ok: true, date, keys: Object.keys(metrics), steps: metrics.steps ?? null, ...(stepsDropped ? { stepsDropped } : {}) });
+      await logPushAttempt({ ok: true, date, keys: Object.keys(metrics), steps: metrics.steps ?? null, ...(stepsDropped ? { stepsDropped } : {}), ...(dateShifted ? { dateShifted: true } : {}) });
       const { broadcast } = await import('../lib/events.js');
       broadcast('health');
       res.json({ day: saved });
