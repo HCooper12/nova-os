@@ -78,6 +78,9 @@ export function valsRecipes(app, ctx) {
           const hue = RECIPE_HUES[i % RECIPE_HUES.length];
           const bar = (v, col) => ({ flex: String(v / tot), borderRadius: '2px', background: col });
           return { name: r.name, tag: (RECIPE_CATEGORY_LABEL[r.category] || r.category).toUpperCase(), p: r.macros.p, c: r.macros.c, f: r.macros.f, kcal: r.macros.kcal, time: r.makes || '',
+            // the card carries the shared name ONLY while its overlay is shut —
+            // two elements may never hold the same view-transition-name at once
+            vtName: st.openRecipeId === r.id ? undefined : `recipe-${r.id}`,
             open: () => app.openRecipe(r.id),
             photoUrl: st.liveRecipePhotoUrls[r.id] || null,
             phLabel: 'dish photo — ' + r.name.toLowerCase(),

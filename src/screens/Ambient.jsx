@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { css } from '../css.js';
 import { NovaCore } from '../NovaCore.jsx';
+import { CountUp } from '../CountUp.jsx';
 
 const M = "var(--nv-font-mono)";
 const dim = (pct) => `color-mix(in srgb, var(--nv-ink) ${pct}%, transparent)`;
@@ -40,11 +41,15 @@ function useWakeLock() {
   }, []);
 }
 
-function Tile({ label, value, sub, accent }) {
+// `count` numbers animate to their value; `value` is for text like "09:45"
+function Tile({ label, value, count, format, sub, accent }) {
+  const numStyle = css(`font:300 34px ${M};color:${accent || dim(85)};font-variant-numeric:tabular-nums`);
   return (
     <div style={css("display:flex;flex-direction:column;align-items:center;gap:6px;min-width:120px")}>
       <span style={css(`font:500 10px ${M};letter-spacing:.3em;color:${dim(32)}`)}>{label}</span>
-      <span style={css(`font:300 34px ${M};color:${accent || dim(85)};font-variant-numeric:tabular-nums`)}>{value ?? '—'}</span>
+      {count !== undefined
+        ? <CountUp value={count} format={format} style={numStyle} />
+        : <span style={numStyle}>{value ?? '—'}</span>}
       {sub && <span style={css(`font:400 10px ${M};color:${dim(30)}`)}>{sub}</span>}
     </div>
   );
@@ -77,9 +82,9 @@ export function Ambient({ v }) {
       <div style={css("display:flex;flex-direction:column;align-items:center;gap:26px;width:100%")}>
         <div style={css("display:flex;gap:44px;flex-wrap:wrap;justify-content:center;align-items:flex-end")}>
           <Tile label="NEXT" value={v.ambientNext?.time} sub={v.ambientNext?.label} />
-          <Tile label="STEPS" value={v.ambientSteps?.toLocaleString?.() ?? v.ambientSteps} />
-          <Tile label="PROTEIN" value={v.ambientProtein?.p != null ? `${v.ambientProtein.p}g` : null} sub={v.ambientProtein?.floor ? `floor ${v.ambientProtein.floor}g` : null} />
-          <Tile label="GATE" value={v.ambientPending} sub={v.ambientPending > 0 ? 'awaiting your yes' : 'clear'} accent={v.ambientPending > 0 ? 'var(--nv-gold)' : 'var(--nv-good)'} />
+          <Tile label="STEPS" count={v.ambientSteps} />
+          <Tile label="PROTEIN" count={v.ambientProtein?.p ?? null} format={(n) => `${Math.round(n)}g`} sub={v.ambientProtein?.floor ? `floor ${v.ambientProtein.floor}g` : null} />
+          <Tile label="GATE" count={v.ambientPending} sub={v.ambientPending > 0 ? 'awaiting your yes' : 'clear'} accent={v.ambientPending > 0 ? 'var(--nv-gold)' : 'var(--nv-good)'} />
         </div>
         <PulseStrip items={v.ambientPulseItems} />
       </div>

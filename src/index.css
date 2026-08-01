@@ -257,3 +257,38 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 
 /* mobile tab bar: hide the horizontal scrollbar (all screens scroll in-bar) */
 .nv-tabscroll::-webkit-scrollbar { display: none; }
+
+/* ---------------------------------------------------------------------------
+   Shared-element transitions (View Transitions API).
+   Apple's feel is overshoot-and-settle, not linear easing — so the morph uses
+   a spring-like curve and the cross-fade underneath is kept short so movement,
+   not fading, is what the eye reads. Anything without a shared name simply
+   cross-fades. Honoured only where the browser supports it; the reduced-motion
+   block below turns the whole thing off rather than merely shortening it.
+--------------------------------------------------------------------------- */
+::view-transition-group(*) {
+  animation-duration: .42s;
+  animation-timing-function: cubic-bezier(.32, .72, 0, 1); /* spring-ish: fast out, settle in */
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: .26s;
+}
+/* a morphing element should not also cross-fade — that reads as a ghost */
+::view-transition-old(*):only-child,
+::view-transition-new(*):only-child {
+  animation-duration: .3s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+/* Numbers that animate to their value rather than snapping. Used by the
+   count-up helper; the CSS only supplies the easing so a re-render mid-count
+   never jumps. */
+@keyframes countPulse { from { opacity: .55; } to { opacity: 1; } }

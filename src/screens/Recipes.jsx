@@ -275,6 +275,7 @@ export function Recipes({ v }) {
           <Interactive
             key={r.name}
             onClick={r.open}
+            style={r.vtName ? { viewTransitionName: r.vtName } : undefined}
             base="cursor:pointer;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);overflow:hidden;background:var(--nv-glass);box-shadow:inset 0 1px 0 var(--nv-spec),0 14px 34px -20px rgba(0,0,0,.9)"
             hoverStyle="border-color:color-mix(in srgb, var(--nv-gold) 40%, transparent);transform:translateY(-2px)"
           >

@@ -171,6 +171,9 @@ export function valsChrome(app, ctx) {
       ? { position: 'fixed', inset: 0, background: 'var(--nv-void)', zIndex: 82, display: 'flex', alignItems: 'stretch', justifyContent: 'stretch', padding: 0 }
       : { position: 'fixed', inset: 0, background: 'rgba(8,5,12,.72)', backdropFilter: 'blur(6px)', zIndex: 82, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px', overflowY: 'auto' },
     recipeOvMobile: mob,
+    // shared name with the card that opened it — the morph's other half
+    recipeOvVtName: st.openRecipeId ? `recipe-${st.openRecipeId}` : null,
+    supportsViewTransitions: typeof document !== 'undefined' && !!document.startViewTransition,
     isMission: st.screen === 'mission', isVoice: st.screen === 'voice', isGalaxy: st.screen === 'galaxy',
     isRecipes: st.screen === 'recipes', isShopping: st.screen === 'shopping', isStash: st.screen === 'stash', isWorkouts: st.screen === 'workouts', isCode: st.screen === 'code', isNotes: st.screen === 'notes', isJournal: st.screen === 'journal',
     dateLabel: new Date().toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }).toUpperCase().replace(/,/g, ''),

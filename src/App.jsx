@@ -1,4 +1,5 @@
 import { Component, createRef, lazy, Suspense } from 'react';
+import { flushSync } from 'react-dom';
 import { recipes, notes, basePlan, reviews, galaxyNamed, galaxyLinks } from './data.js';
 import { css } from './css.js';
 import { api, getConnection, setConnection, testConnection } from './api.js';
@@ -470,13 +471,27 @@ export default class App extends Component {
     if (this.gRaf) cancelAnimationFrame(this.gRaf);
   }
   // ---------- navigation (hash-routed) ----------
+  // Shared-element transitions. Where the browser supports the View
+  // Transitions API (Safari 18+, Chrome), a state change can be wrapped so
+  // matching elements MORPH between states instead of one thing vanishing and
+  // another appearing — a recipe card becoming its own detail view. Degrades
+  // to an ordinary setState everywhere else, and is skipped entirely when the
+  // system asks for reduced motion.
+  withTransition(fn) {
+    const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced || typeof document === 'undefined' || !document.startViewTransition) { fn(); return; }
+    try { document.startViewTransition(() => { flushSync(() => fn()); }); } catch { fn(); }
+  }
   navigate(screen, extra = {}) {
     const changed = this.state.screen !== screen;
-    this.setState({ screen, ...extra }, () => {
+    // screens cross-fade rather than cut; anything carrying a shared
+    // view-transition-name across the two screens morphs instead
+    const apply = () => this.setState({ screen, ...extra }, () => {
       // one shared scroller — without a reset, Mission Control opens mid-page
       // after scrolling Recipes
       if (changed && this.mainRef?.current) this.mainRef.current.scrollTop = 0;
     });
+    if (changed) this.withTransition(apply); else apply();
     if (changed && screen === 'voice') this.maybeVoiceGreet();
     const want = '#/' + screen;
     // pushState (not location.hash=) so this doesn't also fire hashchange and
@@ -1359,17 +1374,17 @@ export default class App extends Component {
       });
   }
   openRecipe(id, servings = 1) {
-    this.setState({
+    this.withTransition(() => this.setState({
       openRecipeId: id, servings, recipeChat: [], recipeInput: '',
       recipeAltSelected: null, recipeTweakInput: '', recipeTweakBusy: false,
       recipeTweakError: null, recipeTweakPreview: null,
       recipeRemovals: [], recipeRemovalPrompt: false,
       recipeRenameAltId: null, recipeRenameValue: '', recipeRenameError: null,
-    });
+    }));
   }
   closeRecipe() {
     this.stopPoll('recipeTweak');
-    this.setState({ openRecipeId: null, recipeRemovals: [], recipeRemovalPrompt: false });
+    this.withTransition(() => this.setState({ openRecipeId: null, recipeRemovals: [], recipeRemovalPrompt: false }));
   }
   // The ✕-an-ingredient flow: marks collect, one save, a popup asks whether
   // it's today-only or a keepable alternative — then the existing tweak
@@ -3138,6 +3153,7 @@ export default class App extends Component {
     if (!conn || this.state.voiceBusy) return;
     this.setState((s) => ({ voiceChat: [...s.voiceChat, { who: 'you', text: question }], voiceBusy: true }));
     this.stopSpeaking();
+    this.speakAck(question); // fills the 5-8s think-gap immediately
     api.ask(conn, question, this.state.voiceSessionId || null).then(({ jobId }) => {
       // survive a reclaim mid-answer: the job id persists so boot can
       // re-attach the poll instead of losing the in-flight reply
@@ -3222,6 +3238,23 @@ export default class App extends Component {
     if (this.state.voiceSpeaking) this.setState({ voiceSpeaking: false });
   }
   // browser-synth chunk — used to speak sentences AS the reply streams in
+  // The instant acknowledgement. A model reply is 5-8s away; silence in that
+  // gap is what makes Nova feel like a form rather than a person. So the
+  // moment he stops talking, code (never a model) speaks one short line from
+  // the device's own voice — chosen deterministically, varied so it never
+  // sounds like a recording, and skipped entirely on the ElevenLabs path
+  // (a network round-trip for filler would defeat the point) or when the
+  // question is trivially short.
+  ACK_LINES = ['On it, sir.', 'Let me look.', 'One moment.', 'Checking now.', 'Right away, sir.'];
+  speakAck(question) {
+    if (!this.state.voiceSpeak) return;
+    if (this.state.liveTts?.configured) return;      // real voice: no filler round-trip
+    if ((question || '').trim().length < 12) return; // short asks answer fast enough
+    // rotate rather than random: no repeat twice running, no randomness to debug
+    this.ackIdx = ((this.ackIdx ?? -1) + 1) % this.ACK_LINES.length;
+    this.beginSpeech();
+    this.speakFallback(this.ACK_LINES[this.ackIdx], () => this.endSpeech());
+  }
   speakIncremental(text) {
     if (!this.state.voiceSpeak || !text.trim()) return;
     this.beginSpeech();
