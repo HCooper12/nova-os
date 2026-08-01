@@ -211,6 +211,7 @@ export default class App extends Component {
     liveStash: null, stashAddCategory: '', stashAddName: '', stashAddUrl: '', stashAddNote: '', stashAddBusy: false, stashAddError: null, stashRemoveConfirm: null,
     foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogBusy: false, foodLogError: null,
     foodScanNote: '', foodScanPhotos: [], foodScanBusy: false, foodScanError: null, foodScanQuestion: null, foodLogFillSource: null,
+    foodDescribeInput: '',
     // a low-confidence scan's clarifying question stays ANSWERABLE: the photos
     // + note that produced it are kept so an answer can re-run the same scan
     foodScanQAPhotos: [], foodScanQANote: '', foodScanAnswer: '',
@@ -1075,6 +1076,39 @@ export default class App extends Component {
               foodLogKcal: r.macros?.kcal != null ? String(r.macros.kcal) : '',
             });
             this.toastMsg(r.confidence === 'low' ? 'Analyzed — rough estimate, check the fields below' : 'Analyzed — check the fields below before saving');
+          },
+          onError: (msg) => this.setState({ foodScanBusy: false, foodScanError: msg }),
+        });
+      })
+      .catch((e) => this.setState({ foodScanBusy: false, foodScanError: e.message }));
+  }
+  // Describe it in words — "1 large movie popcorn from Village Cinemas". Same
+  // job/preview path as a photo scan; it just fills the fields from words
+  // instead of pixels, and nothing is logged until he taps Add.
+  describeFoodSearch() {
+    const conn = getConnection();
+    const text = (this.state.foodDescribeInput || '').trim();
+    if (!conn || !text) return;
+    this.setState({ foodScanBusy: true, foodScanError: null, foodScanQuestion: null, foodScanAnswer: '' });
+    api.describeFood(conn, text)
+      .then(({ jobId }) => {
+        this.startPoll('foodScan', () => api.foodScanJob(conn, jobId), {
+          intervalMs: 900,
+          onReady: (job) => {
+            const r = job.result;
+            const asks = r.confidence === 'low' && r.question;
+            this.setState({
+              foodScanBusy: false, foodScanError: null, foodDescribeInput: '',
+              foodLogFillSource: 'described',
+              foodScanQuestion: asks ? r.question : null,
+              foodScanQAPhotos: [], foodScanQANote: asks ? text : '',
+              foodLogName: r.name || text,
+              foodLogP: r.macros?.p != null ? String(r.macros.p) : '',
+              foodLogC: r.macros?.c != null ? String(r.macros.c) : '',
+              foodLogF: r.macros?.f != null ? String(r.macros.f) : '',
+              foodLogKcal: r.macros?.kcal != null ? String(r.macros.kcal) : '',
+            });
+            this.toastMsg(asks ? 'Estimated — rough, check the fields below' : 'Estimated — check the fields below before adding');
           },
           onError: (msg) => this.setState({ foodScanBusy: false, foodScanError: msg }),
         });

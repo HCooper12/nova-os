@@ -166,6 +166,11 @@ export function valsRecipes(app, ctx) {
     foodLogBusy: st.foodLogBusy,
     foodLogError: st.foodLogError,
     submitFoodLog: () => app.submitFoodLog(),
+    // describe-it search — words instead of photos, same preview path
+    foodDescribeInput: st.foodDescribeInput || '',
+    setFoodDescribeInput: (e) => app.setState({ foodDescribeInput: e.target.value }),
+    describeFoodKey: (e) => { if (e.key === 'Enter') app.describeFoodSearch(); },
+    describeFoodSearch: () => app.describeFoodSearch(),
     foodScanNote: st.foodScanNote,
     setFoodScanNote: (e) => app.setFoodScanNote(e),
     foodScanBusy: st.foodScanBusy,

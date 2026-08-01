@@ -5,7 +5,7 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { addEntry, removeEntry, getToday } from '../lib/foodLog.js';
 import { computeFoodHistory } from '../lib/foodHistory.js';
-import { startFoodScan, getFoodScanJob } from '../lib/scanFood.js';
+import { startFoodScan, startFoodDescribe, getFoodScanJob } from '../lib/scanFood.js';
 import { recordTodaySnapshot } from '../lib/nutritionSnapshot.js';
 import { lookupBarcode } from '../lib/barcodeLookup.js';
 
@@ -82,6 +82,16 @@ export function foodLogRouter(vaultPath) {
       res.json({ jobId });
     } catch (err) {
       next(err);
+    }
+  });
+
+  // Describe-it: no photos, just words. Same job map, same poll endpoint, same
+  // preview — only the input differs.
+  router.post('/food-log/describe', async (req, res) => {
+    try {
+      res.json({ jobId: startFoodDescribe(req.body?.text) });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
     }
   });
 

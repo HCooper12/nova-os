@@ -156,6 +156,16 @@ export function Recipes({ v }) {
               </span>
             )}
           </div>
+          {/* describe it in words — no photo, no manual macros */}
+          <div style={css("margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
+            <Interactive as="input" value={v.foodDescribeInput} onChange={v.setFoodDescribeInput} onKeyDown={v.describeFoodKey}
+              placeholder="Describe it — e.g. “1 large movie popcorn from Village Cinemas”"
+              base="flex:1;min-width:200px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 12px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
+              focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
+            <Interactive as="span" onClick={v.describeFoodSearch}
+              base="cursor:pointer;flex:none;font-size:11.5px;padding:9px 15px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-good) 45%, transparent);color:var(--nv-good);background:color-mix(in srgb, var(--nv-good) 10%, transparent)"
+              hoverStyle="background:color-mix(in srgb, var(--nv-good) 20%, transparent)">🔎 Look it up</Interactive>
+          </div>
           <div style={css("margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
             <Interactive as="input" value={v.foodScanNote} onChange={v.setFoodScanNote} placeholder="Note — e.g. “ate half”, “8 pretzels” (optional)" base="flex:1;min-width:180px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 12px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
             <label style={css("cursor:pointer;flex:none;font-size:11.5px;padding:9px 13px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-good) 35%, transparent);color:var(--nv-good);background:color-mix(in srgb, var(--nv-good) 08%, transparent)")}>

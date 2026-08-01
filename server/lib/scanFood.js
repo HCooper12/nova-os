@@ -70,6 +70,28 @@ ${imageList}
 Output ONLY a JSON object with exactly these keys: name, macros, confidence, question. No markdown, no code fences, no commentary before or after.`;
 }
 
+// Describe-it mode: no photo, just words — "1 large movie popcorn from Village
+// Cinemas". Named chain items are exactly where a quick lookup beats a guess,
+// so this mode alone gets WebSearch (read-only, budget-capped). The result is
+// the SAME shape as a photo scan, so it flows through the identical preview →
+// confirm path and is never logged without his say-so.
+export function buildDescribePrompt(description) {
+  return `Estimate the nutrition of this food from the user's own description. This is Australian context (Woolworths/Coles/Aldi products, AU chain sizing) unless the description says otherwise.
+
+The description: "${description}"
+
+- If it names a specific product, chain or venue (e.g. a cinema's large popcorn, a named cafe item), look it up so the numbers are real rather than guessed. Prefer the venue's own published nutrition; otherwise a close equivalent, and say so in the question field.
+- If it's generic ("a bowl of porridge"), estimate a sensible standard portion.
+- Respect any quantity or size given ("large", "two", "half of a"). If no size is given for something that varies a lot, assume a normal serving and SAY SO.
+
+- name: a short, natural name for what was eaten, including the venue/brand when given
+- macros: {p, c, f, kcal} — the total for everything described; grams for p/c/f, whole-number kcal
+- confidence: "high" or "low" — low when the portion genuinely can't be pinned down, or you could not find real figures for a named item
+- question: if confidence is low, ONE short question that would most improve the estimate (e.g. "was that the 120g regular or the 170g large?"). Empty string if high.
+
+Output ONLY a JSON object with exactly these keys: name, macros, confidence, question. No markdown, no code fences, no commentary before or after.`;
+}
+
 function normalizeResult(parsed) {
   const macros = parsed.macros || {};
   return {
@@ -140,6 +162,58 @@ export function startFoodScan(mode, imagePaths, workDir, note) {
     job.status = 'error';
     job.error = err.message;
     rm(workDir, { recursive: true, force: true }).catch(() => {});
+  });
+
+  return jobId;
+}
+
+// Same job map and result shape as a photo scan, so the client polls the very
+// same endpoint and renders the very same preview.
+export function startFoodDescribe(description) {
+  const text = String(description || '').replace(/\s+/g, ' ').trim();
+  if (text.length < 3) throw new Error('describe what you ate in a few more words');
+  if (text.length > 300) throw new Error('keep the description under 300 characters');
+
+  const jobId = randomUUID().slice(0, 8);
+  const job = { id: jobId, status: 'running', result: null, error: null };
+  jobs.set(jobId, job);
+
+  const child = spawn(CLAUDE_BIN, [
+    '-p', buildDescribePrompt(text),
+    '--permission-mode', 'bypassPermissions',
+    '--allowedTools', 'WebSearch WebFetch',
+    '--strict-mcp-config',
+    '--output-format', 'json',
+    '--max-budget-usd', MAX_BUDGET_USD,
+    '--no-session-persistence',
+  ]);
+
+  let stdout = '';
+  let stderr = '';
+  child.stdout.on('data', (d) => { stdout += d; });
+  child.stderr.on('data', (d) => { stderr += d; });
+  child.on('close', (code) => {
+    if (code !== 0) {
+      job.status = 'error';
+      job.error = stderr.trim() || `claude exited with code ${code}`;
+      return;
+    }
+    try {
+      const outer = JSON.parse(stdout);
+      if (outer.is_error) throw new Error(outer.result || 'estimate failed');
+      const out = (outer.result || '').trim();
+      const jsonMatch = out.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error(out.slice(0, 200) || 'No response received');
+      job.result = normalizeResult(JSON.parse(jsonMatch[0]));
+      job.status = 'ready';
+    } catch (e) {
+      job.status = 'error';
+      job.error = e.message;
+    }
+  });
+  child.on('error', (err) => {
+    job.status = 'error';
+    job.error = err.message;
   });
 
   return jobId;

@@ -73,3 +73,19 @@ test('never re-proposes the same item on a later run', async () => {
   const res = await runFoodSuggestions(vault);
   assert.equal(res.proposed, 0, 'already proposed once → no repeat, even after dismissal');
 });
+
+test('describe-it prompt: AU context, real lookups for named venues, honest confidence', async () => {
+  const { buildDescribePrompt } = await import('../lib/scanFood.js');
+  const p = buildDescribePrompt('1 large movie popcorn from Village Cinemas');
+  assert.match(p, /1 large movie popcorn from Village Cinemas/);
+  assert.match(p, /Australian context/);
+  assert.match(p, /look it up so the numbers are real rather than guessed/);
+  assert.match(p, /confidence.*"high" or "low"/s);
+  assert.match(p, /Output ONLY a JSON object with exactly these keys: name, macros, confidence, question/);
+});
+
+test('describe-it refuses input too thin or too long to be honest about', async () => {
+  const { startFoodDescribe } = await import('../lib/scanFood.js');
+  assert.throws(() => startFoodDescribe('ok'), /few more words/);
+  assert.throws(() => startFoodDescribe('x'.repeat(301)), /under 300 characters/);
+});

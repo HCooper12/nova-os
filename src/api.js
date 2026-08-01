@@ -122,6 +122,7 @@ export const api = {
   stashAdd: (conn, item) => post(conn, '/api/stash/items', item),
   stashRemove: (conn, raw) => post(conn, '/api/stash/items/remove', { raw }),
   renameAlternate: (conn, recipeId, altId, label) => post(conn, `/api/recipes/${encodeURIComponent(recipeId)}/alternates/rename`, { altId, label }),
+  describeFood: (conn, text) => post(conn, '/api/food-log/describe', { text }),
   addShoppingItems: (conn, items) => post(conn, '/api/shopping-list/items', { items }),
   addShoppingItemsJob: (conn, jobId) => call(conn, `/api/shopping-list/add-items/${encodeURIComponent(jobId)}`),
   toggleShoppingItem: (conn, id, checked) => post(conn, '/api/shopping-list/toggle', { id, checked }),
