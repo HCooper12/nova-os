@@ -29,6 +29,11 @@ function iso(offsetDays) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// A second date GUARANTEED to sit in the same calendar month as today —
+// getMonthSummary only counts this month, so a hardcoded "yesterday" made this
+// test fail on the 1st of every month (it did, on 1 August).
+const otherDayThisMonth = () => (new Date().getDate() === 1 ? iso(1) : iso(-1));
+
 test('ledger: add/dedupe/remove, keyword categorisation, month summary with budgets', async () => {
   const [coffee] = await addTransactions([{ date: iso(0), amount: -6.5, merchant: 'Industry Beans Cafe' }], 'capture');
   assert.equal(coffee.category, 'Eating Out'); // keyword map, no category given
@@ -42,8 +47,8 @@ test('ledger: add/dedupe/remove, keyword categorisation, month summary with budg
   assert.equal((await listTransactions({})).length, 1);
 
   await addTransactions([
-    { date: iso(-1), amount: -120.4, merchant: 'Woolworths', category: 'Groceries' },
-    { date: iso(-1), amount: 2500, merchant: 'Salary — Acme', category: 'Income' },
+    { date: otherDayThisMonth(), amount: -120.4, merchant: 'Woolworths', category: 'Groceries' },
+    { date: otherDayThisMonth(), amount: 2500, merchant: 'Salary — Acme', category: 'Income' },
   ], 'import');
 
   await setBudget('Groceries', 600);
@@ -97,9 +102,9 @@ test('bank CSV parsing: headered, debit/credit, and headerless AU-date shapes', 
 test('drop-folder import: pending record with only-new transactions; approve files + archives; undo removes', async () => {
   const dir = path.join(vault, 'Money/Imports');
   await mkdir(dir, { recursive: true });
-  // one line already in the ledger (Woolworths iso(-1) -120.40) + two new
+  // one line already in the ledger (the Woolworths row seeded above) + two new
   await writeFile(path.join(dir, 'statement.csv'),
-    `Date,Description,Amount\n${iso(-1)},Woolworths,-120.40\n${iso(-2)},OPAL TRANSPORT,-16.40\n${iso(-3)},NETFLIX.COM,-24.99\n`, 'utf8');
+    `Date,Description,Amount\n${otherDayThisMonth()},Woolworths,-120.40\n${iso(-2)},OPAL TRANSPORT,-16.40\n${iso(-3)},NETFLIX.COM,-24.99\n`, 'utf8');
 
   const { records } = await scanImports(vault);
   assert.equal(records.length, 1);

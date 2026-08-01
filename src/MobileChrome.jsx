@@ -63,10 +63,12 @@ export function MobileChrome({ v }) {
         </div>
       )}
 
-      {/* the floating dock — [t1 t2 ✦ t3 More], capture at true center */}
+      {/* the floating dock — [t1 t2 ✦ t3 More]. The raised centre button opens
+          VOICE: talking is the fastest way in, and the command palette is
+          still a tap away on the top bar (✦ ASK) and ⌘K on desktop. */}
       <div style={css("position:fixed;left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom));z-index:72;display:flex;align-items:center;gap:2px;padding:7px 10px;border-radius:999px;border:1px solid var(--nv-edge);background:var(--nv-glass2);backdrop-filter:blur(26px);box-shadow:0 14px 44px -14px rgba(0,0,0,.65)")}>
         {dockTabs.slice(0, 2).map((t) => <DockTab key={t.screen} t={t} />)}
-        <div onClick={v.openPalette} aria-label="Capture or ask Nova"
+        <div onClick={v.goVoice} aria-label="Talk to Nova"
           style={{ width: '52px', height: '52px', margin: '0 6px', marginTop: '-22px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
             fontSize: '21px', color: 'var(--nv-on-acc)', background: 'var(--nv-acc)',
             border: '3px solid color-mix(in srgb, var(--nv-void) 80%, transparent)',
