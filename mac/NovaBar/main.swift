@@ -28,11 +28,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
     var hotKeyRef: EventHotKeyRef?
 
     func applicationDidFinishLaunching(_ note: Notification) {
-        buildStatusItem()
+        // Created one run-loop turn late: made too early in didFinishLaunching
+        // the system hands back a status window with ZERO height that never
+        // lands in the menu bar (button sized, item "visible", nothing drawn).
+        DispatchQueue.main.async { [weak self] in self?.buildStatusItem() }
         buildPanel()
         registerHotKey()
         // no Dock icon, no app switcher — it lives in the menu bar
         NSApp.setActivationPolicy(.accessory)
+        // Show once on launch. On some Macs the system refuses to place a
+        // status item (its window comes back zero-height), which would leave a
+        // running app with no visible way in — the hotkey is the real
+        // interface, and this proves it is alive.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.showPanel() }
     }
 
     private var novaURL: URL {
@@ -41,23 +49,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
     }
 
     func buildStatusItem() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = statusItem.button {
-            // the core, drawn small: a filled ring reads at 16pt where a glyph doesn't
-            let img = NSImage(size: NSSize(width: 16, height: 16), flipped: false) { rect in
-                NSColor.controlAccentColor.setStroke()
-                let ring = NSBezierPath(ovalIn: rect.insetBy(dx: 2.5, dy: 2.5))
-                ring.lineWidth = 1.6
-                ring.stroke()
-                NSColor.controlAccentColor.setFill()
-                NSBezierPath(ovalIn: rect.insetBy(dx: 6.2, dy: 6.2)).fill()
-                return true
+            // An SF Symbol renders predictably at menu-bar size and inherits
+            // the bar's light/dark treatment. The hand-drawn NSImage this
+            // replaced produced an EMPTY template (alpha-only conversion lost
+            // the strokes), so the item existed but was invisible — the worst
+            // kind of bug: running, reachable by hotkey, and apparently absent.
+            let cfg = NSImage.SymbolConfiguration(pointSize: 15, weight: .medium)
+            if let sym = NSImage(systemSymbolName: "circle.hexagonpath.fill",
+                                 accessibilityDescription: "Nova")?
+                                 .withSymbolConfiguration(cfg) {
+                sym.isTemplate = true
+                button.image = sym
+            } else if let sym = NSImage(systemSymbolName: "sparkle",
+                                        accessibilityDescription: "Nova") {
+                sym.isTemplate = true
+                button.image = sym
+            } else {
+                button.title = "◉"          // last resort: always something to click
             }
-            img.isTemplate = true
-            button.image = img
+            button.toolTip = "Nova — ⌥Space"
             button.action = #selector(toggle)
             button.target = self
         }
+        statusItem.isVisible = true
     }
 
     func buildPanel() {
@@ -109,18 +125,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
     }
 
     func showPanel() {
-        // anchor under the status item when we can, else top-right of the screen
-        var origin = NSPoint(x: 200, y: 200)
-        if let btn = statusItem.button, let bw = btn.window {
+        // Anchor under the status item when the system actually placed one.
+        // Where it didn't (its window comes back zero-height at the origin —
+        // see buildStatusItem), anchoring to it would fling the panel off the
+        // bottom-left of the screen, so fall back to the top-right corner
+        // where a menu-bar popover would have appeared anyway.
+        let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        var origin = NSPoint(x: screen.maxX - panel.frame.width - 16,
+                             y: screen.maxY - panel.frame.height - 8)
+        // trust the status item only if the system genuinely placed it IN the
+        // menu bar — a nonzero height alone isn't enough; it must be up there
+        if let btn = statusItem.button, let bw = btn.window,
+           bw.frame.height > 1, bw.frame.maxY > screen.maxY - 8 {
             let f = bw.convertToScreen(btn.convert(btn.bounds, to: nil))
-            origin = NSPoint(x: min(f.midX - panel.frame.width / 2,
-                                    (NSScreen.main?.visibleFrame.maxX ?? f.midX) - panel.frame.width - 12),
+            origin = NSPoint(x: min(f.midX - panel.frame.width / 2, screen.maxX - panel.frame.width - 12),
                              y: f.minY - panel.frame.height - 8)
         }
+        // never leave it off any edge
+        origin.x = max(screen.minX + 8, min(origin.x, screen.maxX - panel.frame.width - 8))
+        origin.y = max(screen.minY + 8, min(origin.y, screen.maxY - panel.frame.height - 8))
         panel.setFrameOrigin(origin)
         panel.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        // reload only if the page died; otherwise the conversation continues
         if web.url == nil { web.load(URLRequest(url: novaURL)) }
     }
 

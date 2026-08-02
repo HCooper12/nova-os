@@ -471,6 +471,17 @@ export default class App extends Component {
     if (this.gRaf) cancelAnimationFrame(this.gRaf);
   }
   // ---------- navigation (hash-routed) ----------
+  // What he actually opens, counted locally. The dock holds four screens; the
+  // More sheet leads with the ones he reaches for most, so the fifth-favourite
+  // is one tap rather than a hunt through fifteen.
+  noteScreenVisit(screen) {
+    try {
+      const raw = JSON.parse(localStorage.getItem('novaos.screenVisits') || '{}');
+      raw[screen] = (raw[screen] || 0) + 1;
+      localStorage.setItem('novaos.screenVisits', JSON.stringify(raw));
+      this.screenVisits = raw;
+    } catch { /* counting is a convenience, never a requirement */ }
+  }
   // Shared-element transitions. Where the browser supports the View
   // Transitions API (Safari 18+, Chrome), a state change can be wrapped so
   // matching elements MORPH between states instead of one thing vanishing and
@@ -491,7 +502,7 @@ export default class App extends Component {
       // after scrolling Recipes
       if (changed && this.mainRef?.current) this.mainRef.current.scrollTop = 0;
     });
-    if (changed) this.withTransition(apply); else apply();
+    if (changed) { this.withTransition(apply); this.noteScreenVisit(screen); } else apply();
     if (changed && screen === 'voice') this.maybeVoiceGreet();
     const want = '#/' + screen;
     // pushState (not location.hash=) so this doesn't also fire hashchange and
@@ -1548,7 +1559,7 @@ export default class App extends Component {
     }).catch((e) => this.toastMsg('Could not create routine: ' + e.message));
   }
   openRoutine(id) {
-    this.setState({ workoutsView: 'routine', openRoutineId: id, routineDeleteConfirm: false, exercisePickerOpen: false });
+    this.withTransition(() => this.setState({ workoutsView: 'routine', openRoutineId: id, routineDeleteConfirm: false, exercisePickerOpen: false }));
   }
   backToRoutines() {
     this.setState({ workoutsView: 'routines', openRoutineId: null, routineDeleteConfirm: false, exercisePickerOpen: false });
@@ -1661,7 +1672,7 @@ export default class App extends Component {
       }
       return { exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, trackingType: e.trackingType, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh, coach, sets };
     });
-    this.setState({ workoutsView: 'session', workoutSession: { routineId: routine.id, routineName: routine.name, exercises }, sessionCancelConfirm: false });
+    this.withTransition(() => this.setState({ workoutsView: 'session', workoutSession: { routineId: routine.id, routineName: routine.name, exercises }, sessionCancelConfirm: false }));
   }
   updateSessionSet(exIdx, setIdx, field, value) {
     this.setState((s) => ({
@@ -1879,7 +1890,8 @@ export default class App extends Component {
     this.setState({ workoutsView: this.state.historyRoutineId ? 'routine' : 'routines' });
   }
   selectNote(id) {
-    this.setState({ openNoteId: id });
+    // note card → reader morphs like a recipe card → its detail
+    this.withTransition(() => this.setState({ openNoteId: id }));
     this.ensureNoteDetail(id);
   }
   ensureNoteDetail(id) {

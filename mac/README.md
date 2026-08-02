@@ -16,6 +16,14 @@ Requires only the Swift toolchain that ships with macOS — no Xcode project, no
 Apple Developer account, no signing. The app is ad-hoc signed so macOS will
 remember its microphone permission.
 
+## If you can't see the menu-bar icon
+
+On some Macs (seen on macOS 26) the system hands back a status-item window
+with zero height and never places it in the menu bar — the app is running and
+the hotkey works, but there's no icon. NovaBar therefore **opens its panel
+once on launch** so it's always findable, and **⌥Space** is the real
+interface. Nothing is broken if the icon never appears.
+
 ## First run
 
 1. `⌥Space` (or click the ring) to open the panel.

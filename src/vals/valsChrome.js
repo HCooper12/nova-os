@@ -119,6 +119,19 @@ export function valsChrome(app, ctx) {
       numStyle: { font: "500 8.5px var(--nv-font-mono)", letterSpacing: '.06em', color: act ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 32%, transparent)' } };
   });
 
+  // Frequent screens, from real local visit counts — the More sheet leads with
+  // these so a regular destination is never a hunt. Falls back to nothing at
+  // all rather than guessing before there is evidence.
+  let visits = {};
+  try { visits = JSON.parse(localStorage.getItem('novaos.screenVisits') || '{}'); } catch { visits = {}; }
+  const dockKeys = new Set(tabOrder.slice(0, 4));
+  const frequentTabs = Object.entries(visits)
+    .filter(([k, n]) => n >= 3 && !dockKeys.has(k) && TAB_META.some((t) => t[0] === k))
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([k]) => tabs.find((t) => t.screen === k))
+    .filter(Boolean);
+
   // sidebar status card — same connection truth as the status chip, phrased
   // for the two-line card under the roster
   const syncedShort = st.lastSyncAt ? new Date(st.lastSyncAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : null;
@@ -267,6 +280,7 @@ export function valsChrome(app, ctx) {
       test: () => app.testPush(),
     } : null,
     tabOrderItems: (tabOrder || []).map((k) => ({ key: k, label: tabLabel(k) })),
+    frequentTabs,
     setTabOrder: (order) => app.setTabOrder(order),
     calendarSettings: !demoMode && !isOffline ? {
       loaded: st.liveCalendarList != null,

@@ -26,7 +26,7 @@ function DockTab({ t, size = 22 }) {
 
 export function MobileChrome({ v }) {
   const [moreOpen, setMoreOpen] = useState(false);
-  const dockTabs = v.tabs.slice(0, 3);
+  const dockTabs = v.tabs.slice(0, 4);
   const activeInDock = dockTabs.some((t) => t.active);
 
   return (
@@ -48,6 +48,20 @@ export function MobileChrome({ v }) {
         <div onClick={() => setMoreOpen(false)} style={css("position:fixed;inset:0;z-index:74;background:rgba(8,5,12,.6);backdrop-filter:blur(4px)")}>
           <div onClick={(e) => e.stopPropagation()} style={css("position:absolute;left:0;right:0;bottom:0;border-radius:22px 22px 0 0;border:1px solid var(--nv-edge);border-bottom:none;background:var(--nv-glass2);backdrop-filter:blur(26px);padding:18px 16px calc(20px + env(safe-area-inset-bottom));animation:fadeUp .22s ease-out")}>
             <div style={css("width:36px;height:4px;border-radius:2px;background:color-mix(in srgb, var(--nv-ink) 22%, transparent);margin:0 auto 14px")}></div>
+            {v.frequentTabs?.length > 0 && (
+              <>
+                <div style={css(`font:600 9px ${M};letter-spacing:.22em;color:var(--nv-ink40);padding:0 6px 8px`)}>FREQUENT</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '6px 2px', marginBottom: '14px' }}>
+                  {v.frequentTabs.map((t) => (
+                    <div key={'f' + t.screen} onClick={() => { setMoreOpen(false); t.go(); }} style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', padding: '11px 4px', cursor: 'pointer', borderRadius: '14px', color: 'var(--nv-acc)', background: 'var(--nv-acc-bg)' }}>
+                      <TabIcon name={t.screen} size={24} />
+                      <span style={css(`font:550 10.5px ${R};white-space:nowrap`)}>{t.label}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={css(`font:600 9px ${M};letter-spacing:.22em;color:var(--nv-ink40);padding:0 6px 8px`)}>ALL SCREENS</div>
+              </>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '6px 2px' }}>
               {v.tabs.map((t) => (
                 <div key={t.screen} onClick={() => { setMoreOpen(false); t.go(); }} style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', padding: '11px 4px', cursor: 'pointer', borderRadius: '14px', color: t.active ? 'var(--nv-acc)' : 'var(--nv-ink60)', background: t.active ? 'var(--nv-acc-bg)' : 'none' }}>
@@ -63,7 +77,10 @@ export function MobileChrome({ v }) {
         </div>
       )}
 
-      {/* the floating dock — [t1 t2 ✦ t3 More]. The raised centre button opens
+      {/* the floating dock — [t1 t2 ✦ t3 t4 More]. Four one-tap screens, not
+          three: the fourth slot is the difference between reaching Train in a
+          tap and hunting for it. Reorder them in Settings → Tab order. The
+          raised centre button opens
           VOICE: talking is the fastest way in, and the command palette is
           still a tap away on the top bar (✦ ASK) and ⌘K on desktop. */}
       <div style={css("position:fixed;left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom));z-index:72;display:flex;align-items:center;gap:2px;padding:7px 10px;border-radius:999px;border:1px solid var(--nv-edge);background:var(--nv-glass2);backdrop-filter:blur(26px);box-shadow:0 14px 44px -14px rgba(0,0,0,.65)")}>
@@ -73,7 +90,7 @@ export function MobileChrome({ v }) {
             fontSize: '21px', color: 'var(--nv-on-acc)', background: 'var(--nv-acc)',
             border: '3px solid color-mix(in srgb, var(--nv-void) 80%, transparent)',
             boxShadow: '0 10px 26px -8px var(--nv-acc)' }}>✦</div>
-        {dockTabs[2] && <DockTab t={dockTabs[2]} />}
+        {dockTabs.slice(2, 4).map((t) => <DockTab key={t.screen} t={t} />)}
         <div onClick={() => setMoreOpen(true)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', minWidth: '52px', padding: '6px 8px', cursor: 'pointer', borderRadius: '14px', color: moreOpen || !activeInDock ? 'var(--nv-acc)' : 'var(--nv-ink40)' }}>
           <TabIcon name="more" size={22} />
           <span style={css(`font:600 9px ${R};white-space:nowrap`)}>More</span>

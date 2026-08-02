@@ -30,7 +30,16 @@ export function Interactive({ as: Tag = 'div', base, hoverStyle, activeStyle, fo
   const fs = focusStyle ? (typeof focusStyle === 'string' ? css(focusStyle) : focusStyle) : (actsAsButton ? DEFAULT_FOCUS : {});
   // an explicit style prop wins last — it carries one-off per-element needs
   // (a view-transition-name, say) that the base/hover cascade can't express
-  const style = { ...b, ...(hover ? hs : {}), ...(active ? as_ : {}), ...(focus ? fs : {}), ...(styleProp || {}) };
+  // Press physics. Every clickable dips very slightly under the finger and
+  // springs back — the difference between a page and a surface. Deliberately
+  // subtle (2%) and skipped where the caller supplies its own activeStyle or
+  // already animates transform, so nothing fights.
+  const pressable = actsAsButton || !!onClick;
+  const springs = pressable && !activeStyle;
+  const motion = springs
+    ? { transform: active ? 'scale(.978)' : 'scale(1)', transition: 'transform .16s cubic-bezier(.32,.72,0,1)' }
+    : {};
+  const style = { ...b, ...motion, ...(hover ? hs : {}), ...(active ? as_ : {}), ...(focus ? fs : {}), ...(styleProp || {}) };
   const a11y = actsAsButton
     ? {
         role: 'button',
