@@ -74,6 +74,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
             button.target = self
         }
         statusItem.isVisible = true
+        // NOTE: on a notched Mac with a full menu bar, macOS may place this
+        // item *under the notch*, where it is invisible though present. Freeing
+        // one slot (System Settings → Control Centre → hide an item) shifts it
+        // into view. The hotkey works either way.
     }
 
     func buildPanel() {

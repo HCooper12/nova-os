@@ -12,9 +12,12 @@ const R = "var(--nv-font-ui)";
 // memory forms; capture — the most important act in a second brain — owns
 // the throne. Token-drawn, so all three design styles wear it natively.
 
-function DockTab({ t, size = 22 }) {
+// Six slots plus the core has to survive a 390pt iPhone: 6x44 + 52 + margins
+// lands near 360, where 52px each would have overflowed. Tap targets stay
+// comfortably past the 44pt minimum because the padding is vertical.
+function DockTab({ t, size = 21 }) {
   return (
-    <div onClick={t.go} style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', minWidth: '52px', padding: '6px 8px', cursor: 'pointer', borderRadius: '14px', color: t.active ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: t.active ? 'var(--nv-acc-bg)' : 'none' }}>
+    <div onClick={t.go} style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', minWidth: '44px', padding: '6px 4px', cursor: 'pointer', borderRadius: '13px', color: t.active ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: t.active ? 'var(--nv-acc-bg)' : 'none' }}>
       <TabIcon name={t.screen} size={size} />
       <span style={css(`font:600 9px ${R};letter-spacing:.01em;white-space:nowrap`)}>{t.label}</span>
       {t.count != null && (
@@ -26,7 +29,7 @@ function DockTab({ t, size = 22 }) {
 
 export function MobileChrome({ v }) {
   const [moreOpen, setMoreOpen] = useState(false);
-  const dockTabs = v.tabs.slice(0, 4);
+  const dockTabs = v.tabs.slice(0, 5);
   const activeInDock = dockTabs.some((t) => t.active);
 
   return (
@@ -77,22 +80,22 @@ export function MobileChrome({ v }) {
         </div>
       )}
 
-      {/* the floating dock — [t1 t2 ✦ t3 t4 More]. Four one-tap screens, not
-          three: the fourth slot is the difference between reaching Train in a
-          tap and hunting for it. Reorder them in Settings → Tab order. The
+      {/* the floating dock — [t1 t2 t3 ✦ t4 t5 More]: THREE either side of the
+          core, so the row is symmetrical about it. Five one-tap screens (the
+          sixth slot is More). Reorder them in Settings → Tab order. The
           raised centre button opens
           VOICE: talking is the fastest way in, and the command palette is
           still a tap away on the top bar (✦ ASK) and ⌘K on desktop. */}
       <div style={css("position:fixed;left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom));z-index:72;display:flex;align-items:center;gap:2px;padding:7px 10px;border-radius:999px;border:1px solid var(--nv-edge);background:var(--nv-glass2);backdrop-filter:blur(26px);box-shadow:0 14px 44px -14px rgba(0,0,0,.65)")}>
-        {dockTabs.slice(0, 2).map((t) => <DockTab key={t.screen} t={t} />)}
+        {dockTabs.slice(0, 3).map((t) => <DockTab key={t.screen} t={t} />)}
         <div onClick={v.goVoice} aria-label="Talk to Nova"
-          style={{ width: '52px', height: '52px', margin: '0 6px', marginTop: '-22px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+          style={{ width: '50px', height: '50px', margin: '0 3px', marginTop: '-21px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
             fontSize: '21px', color: 'var(--nv-on-acc)', background: 'var(--nv-acc)',
             border: '3px solid color-mix(in srgb, var(--nv-void) 80%, transparent)',
             boxShadow: '0 10px 26px -8px var(--nv-acc)' }}>✦</div>
-        {dockTabs.slice(2, 4).map((t) => <DockTab key={t.screen} t={t} />)}
-        <div onClick={() => setMoreOpen(true)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', minWidth: '52px', padding: '6px 8px', cursor: 'pointer', borderRadius: '14px', color: moreOpen || !activeInDock ? 'var(--nv-acc)' : 'var(--nv-ink40)' }}>
-          <TabIcon name="more" size={22} />
+        {dockTabs.slice(3, 5).map((t) => <DockTab key={t.screen} t={t} />)}
+        <div onClick={() => setMoreOpen(true)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', minWidth: '44px', padding: '6px 4px', cursor: 'pointer', borderRadius: '14px', color: moreOpen || !activeInDock ? 'var(--nv-acc)' : 'var(--nv-ink40)' }}>
+          <TabIcon name="more" size={21} />
           <span style={css(`font:600 9px ${R};white-space:nowrap`)}>More</span>
         </div>
       </div>
