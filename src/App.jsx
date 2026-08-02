@@ -145,6 +145,9 @@ const CACHED_LIVE_KEYS = [
   // fetched every sync anyway — excluding them just blanked flagship surfaces
   // (About You, Daily Review card, learning panel) on every phone reload
   'liveDailyReview', 'liveProfile', 'liveLearning',
+  // the surfaces added this week — omitted here they went BLANK the moment the
+  // Mac slept, which is exactly when the phone is all he has
+  'liveOps', 'liveOvernight', 'liveSkills', 'livePulse',
 ];
 
 const INBOX_MODE_KEY = 'novaos.inboxMode';
@@ -534,6 +537,7 @@ export default class App extends Component {
       session: (conn, p) => api.completeWorkoutSession(conn, p.payload)
         .then((r) => { if (p.carryoverId) api.removeCarryover(conn, p.carryoverId).catch(() => {}); return r; }),
       stash: (conn, p) => api.stashAdd(conn, p),
+      rotationConsumed: (conn, p) => api.setRotationConsumed(conn, p.slot, p.consumed),
       recipe: (conn, p) => (p.macroOnly
         ? api.addQuickRecipe(conn, { name: p.name, category: p.category, makes: p.makes, macros: p.macros })
         : api.addRecipe(conn, { name: p.name, category: p.category, makes: p.makes, macros: p.macros, ingredients: p.ingredients, method: p.method })),
@@ -1017,10 +1021,24 @@ export default class App extends Component {
   toggleSlotConsumed(slot, consumed) {
     const conn = getConnection();
     if (!conn) return;
+    // Optimistic + queued: ticking a meal off is what he does standing in a
+    // kitchen with the Mac asleep at home. The tick lands immediately, the
+    // write rides the Outbox, and the protein gauge stays honest meanwhile.
+    const optimistic = this.state.liveRotation && this.state.liveRotation.slots?.[slot]
+      ? { ...this.state.liveRotation, slots: { ...this.state.liveRotation.slots, [slot]: { ...this.state.liveRotation.slots[slot], consumed } } }
+      : null;
     api.setRotationConsumed(conn, slot, consumed).then((rotation) => {
       this.noteLocalWrite('rotation');
       this.setState({ liveRotation: rotation });
-    }).catch((e) => this.toastMsg('Could not update: ' + e.message));
+    }).catch((e) => {
+      if (isOfflineError(e)) {
+        this.noteLocalWrite('rotation');
+        if (optimistic) this.setState({ liveRotation: optimistic });
+        this.enqueueOutbox('rotationConsumed', `${consumed ? 'Ate' : 'Un-ate'} ${slot}`, { slot, consumed });
+        return;
+      }
+      this.toastMsg('Could not update: ' + e.message);
+    });
   }
   setFoodLogField(field, e) {
     this.setState({ [field]: e.target.value });
