@@ -1,7 +1,23 @@
+import { useRef } from 'react';
 import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
+import { useDictation } from './useDictation.js';
 
 export function RecipeOverlay({ v }) {
+  // Talking about a meal, in the place the meal is. One-shot dictation: a
+  // pause ends the take and the question goes straight to Nova, and because
+  // the last preview travels with it, "keep the two whole eggs, what else
+  // raises the protein?" refines rather than restarts.
+  const askRef = useRef('');
+  askRef.current = v.recipeTweakInput;
+  const askVoice = useRef(v.submitRecipeTweakVoice);
+  askVoice.current = v.submitRecipeTweakVoice;
+  const dict = useDictation(
+    () => '',
+    (text) => v.setRecipeTweakValue?.(text),
+    () => { if (askRef.current?.trim()) askVoice.current?.(); },
+    { continuous: false, onError: (err) => v.recipeDictationError?.(err) },
+  );
   return (
     <div role="dialog" aria-modal="true" aria-label="Recipe detail" onClick={v.closeRecipe} style={v.recipeOvWrap}>
       {/* the panel carries the SAME view-transition-name the card had, so the
@@ -189,7 +205,7 @@ export function RecipeOverlay({ v }) {
                 <div style={css("margin-top:20px;border:1px solid color-mix(in srgb, var(--nv-cy) 20%, transparent);border-radius:12px;padding:14px 16px;background:color-mix(in srgb, var(--nv-cy) 04%, transparent)")}>
                   <div style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-cy)")}>ASK NOVA FOR A TWEAK</div>
                   <div style={css("margin-top:8px;font-size:12px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
-                    Out of an ingredient? Want it lighter? Ask — Nova suggests a version, saved as an alternative you can switch back from any time.
+                    Out of an ingredient? Want it lighter? Ask — type it or tap the mic and say it. Nova suggests a version, saved as an alternative you can switch back from any time, and you can keep talking to refine it.
                   </div>
                   <div style={css("display:flex;gap:8px;margin-top:12px")}>
                     <Interactive
@@ -204,6 +220,15 @@ export function RecipeOverlay({ v }) {
                       base="flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
                       focusStyle="border:1px solid color-mix(in srgb, var(--nv-cy) 50%, transparent)"
                     />
+                    {dict.supported && v.setRecipeTweakValue && (
+                      <Interactive
+                        as="span"
+                        onClick={v.recipeTweakBusy ? undefined : dict.toggle}
+                        title={dict.on ? 'Listening — pause to send' : 'Ask out loud'}
+                        base={{ cursor: 'pointer', flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '38px', borderRadius: '8px', font: '400 15px/1 var(--nv-font-ui)', border: `1px solid color-mix(in srgb, var(--nv-cy) ${dict.on ? 60 : 22}%, transparent)`, background: `color-mix(in srgb, var(--nv-cy) ${dict.on ? 18 : 5}%, transparent)`, color: 'var(--nv-cy)' }}
+                        hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 14%, transparent)' }}
+                      >{dict.on ? '◉' : '🎙'}</Interactive>
+                    )}
                     <Interactive
                       as="span"
                       onClick={v.recipeTweakBusy ? undefined : v.submitRecipeTweak}

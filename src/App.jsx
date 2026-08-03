@@ -1496,20 +1496,25 @@ export default class App extends Component {
     // an open edit belongs to the variant it was started from — drop it
     this.setState({ recipeAltSelected: altId, recipeTweakPreview: null, recipeTweakError: null, recipeEdit: null, recipeEditError: null });
   }
-  submitRecipeTweak() {
+  submitRecipeTweak(byVoice = false) {
     const conn = getConnection();
     const st = this.state;
     const request = st.recipeTweakInput.trim();
     if (!conn || !st.openRecipeId || !request) return;
-    this.setState({ recipeTweakBusy: true, recipeTweakError: null, recipeTweakPreview: null });
     // If a preview is already on screen this is a REFINEMENT — send it along
     // so "keep the two whole eggs and suggest something else" builds on what
-    // he can see rather than silently starting from the stored recipe.
-    api.tweakRecipe(conn, st.openRecipeId, request, st.recipeTweakPreview || null)
+    // he can see rather than silently starting from the stored recipe. It also
+    // stays on screen while Nova thinks, so he can see what he's refining.
+    const prior = st.recipeTweakPreview || null;
+    this.setState({ recipeTweakBusy: true, recipeTweakError: null });
+    api.tweakRecipe(conn, st.openRecipeId, request, prior)
       .then(({ jobId }) => {
         this.startPoll('recipeTweak', () => api.tweakRecipeJob(conn, jobId), {
           intervalMs: 2500,
-          onReady: (job) => this.setState({ recipeTweakBusy: false, recipeTweakPreview: job.result, recipeTweakInput: '' }),
+          onReady: (job) => {
+            this.setState({ recipeTweakBusy: false, recipeTweakPreview: job.result, recipeTweakInput: '' });
+            if (byVoice) this.speakTweak(job.result);
+          },
           onError: (msg) => this.setState({ recipeTweakBusy: false, recipeTweakError: msg }),
         });
       })
@@ -1517,6 +1522,17 @@ export default class App extends Component {
         this.setState({ recipeTweakBusy: false, recipeTweakError: e.message });
       });
   }
+  // Asked out loud → answered out loud. Reads only what's actually on screen,
+  // so the spoken version can never claim something the preview doesn't show.
+  speakTweak(result) {
+    if (!result) return;
+    const m = result.macros || {};
+    const macros = [m.p, m.c, m.f, m.kcal].every((n) => typeof n === 'number')
+      ? ` ${Math.round(m.p)} protein, ${Math.round(m.c)} carbs, ${Math.round(m.f)} fat, ${Math.round(m.kcal)} calories.`
+      : '';
+    this.speak(`${result.label}.${macros} Save it, or tell me what else to change.`);
+  }
+
   saveRecipeTweak(useTodaySlot) {
     const conn = getConnection();
     const st = this.state;

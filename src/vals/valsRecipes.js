@@ -349,6 +349,11 @@ export function valsRecipes(app, ctx) {
     saveRecipeTweakToday: openRecipeSlotKey ? () => app.saveRecipeTweak(openRecipeSlotKey) : null,
     recipeTweakInput: st.recipeTweakInput,
     setRecipeTweakInput: (e) => app.setState({ recipeTweakInput: e.target.value }),
+    // spoken path: dictation hands over plain text, and a take that ends with
+    // something in it asks straight away — the same one-shot rhythm as Voice
+    setRecipeTweakValue: (text) => app.setState({ recipeTweakInput: text }),
+    submitRecipeTweakVoice: () => app.submitRecipeTweak(true),
+    recipeDictationError: (err) => app.setState({ recipeTweakError: err === 'not-allowed' ? 'Microphone access is off for this site.' : `Dictation stopped: ${err}` }),
     recipeTweakKey: (e) => { if (e.key === 'Enter') app.submitRecipeTweak(); },
     submitRecipeTweak: () => app.submitRecipeTweak(),
     recipeTweakBusy: st.recipeTweakBusy,
