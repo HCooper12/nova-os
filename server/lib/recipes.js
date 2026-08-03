@@ -535,3 +535,229 @@ export async function renameAlternate(vaultPath, recipeId, altId, newLabel) {
   renameAltLock = run.catch(() => {});
   return run;
 }
+
+// ---------------------------------------------------------------------------
+// Editing an existing recipe (or one of its variants) in place.
+//
+// Everything Nova can put on the plate — a recipe he typed, one it scanned,
+// one it suggested as a tweak — has to be correctable, or the collection
+// slowly fills with things that are almost right and can't be fixed. The
+// rules that make that safe:
+//   * only the fields passed are touched; notes, makes, group labels and every
+//     other variant are left byte-for-byte alone;
+//   * macros travel with ingredients, because changing what's in a meal and
+//     leaving the old numbers behind would make the file lie;
+//   * a prose-only entry (macros + a sentence, no headings — how a scanned
+//     snack is stored) grows real sections the first time it's edited;
+//   * the result is re-parsed and sanity-checked before anything hits disk.
+// ---------------------------------------------------------------------------
+
+// How each list is written to, and read back from, the file. `read` returns the
+// plain text the app shows; `text` returns the raw markdown after the bullet or
+// number, so a line can be moved without losing its **bold**.
+const LIST_KINDS = {
+  ingredients: {
+    is: (l) => /^-\s/.test(l) || /^\*\*.+:\*\*$/.test(l),
+    text: (l) => (/^-\s/.test(l) ? l.replace(/^-\s*/, '') : l),
+    read: (l) => (/^-\s/.test(l) ? stripMd(l.replace(/^-\s*/, '')) : `— ${l.match(/^\*\*(.+):\*\*$/)[1]} —`),
+  },
+  method: {
+    is: (l) => /^\d+\.\s/.test(l),
+    text: (l) => l.replace(/^\d+\.\s*/, ''),
+    read: (l) => stripMd(l.replace(/^\d+\.\s*/, '')),
+  },
+};
+
+// Re-emit the list, reusing each line's ORIGINAL markdown wherever the text is
+// unchanged. Without this, editing step 3 would quietly strip the bold from
+// steps 1, 2 and 4 — the app shows plain text, so a round-trip through it would
+// flatten formatting he never touched.
+function renderList(kind, items, oldLines) {
+  const spec = LIST_KINDS[kind];
+  const keep = new Map();
+  for (const line of oldLines) {
+    const key = spec.read(line);
+    if (key && !keep.has(key)) keep.set(key, spec.text(line));
+  }
+  const out = [];
+  items.forEach((item, i) => {
+    const group = kind === 'ingredients' ? /^—\s*(.+?)\s*—$/.exec(item) : null;
+    if (group) {
+      if (out.length) out.push('');            // his file breathes before a group heading
+      out.push(`**${group[1]}:**`);
+      return;
+    }
+    const body = keep.has(item) ? keep.get(item) : item;
+    out.push(kind === 'method' ? `${i + 1}. ${body}` : `- ${body}`);
+  });
+  return out.join('\n');
+}
+
+// Stop at the next heading of the SAME OR SHALLOWER level, at a --- rule, or at
+// the true end of the string — never at a deeper heading, which belongs to this
+// section. `(?![\s\S])` and not `$`: the regex runs multiline (it has to, to
+// anchor `^###`), and there `$` matches the end of EVERY line, so a lazy body
+// match would stop after the section's first line. That exact trap corrupted a
+// recipe once already.
+function sectionStop(level) {
+  return `(?=\\n#{1,${level}}(?!#)\\s|\\n-{3,}[ \\t]*\\n|(?![\\s\\S]))`;
+}
+
+// Rewrites one section's list. Returns the block unchanged when the list is
+// already what was asked for, and null when the section isn't there at all.
+function rewriteSection(block, level, heading, kind, items) {
+  const hashes = '#'.repeat(level);
+  const spec = LIST_KINDS[kind];
+  const re = new RegExp(`(^${hashes}\\s*${heading}[^\\n]*\\n)([\\s\\S]*?)${sectionStop(level)}`, 'im');
+  const m = re.exec(block);
+  if (!m) return null;
+
+  const lines = m[2].split('\n');
+  let last = -1;
+  const oldLines = [];
+  lines.forEach((l, i) => { const t = l.trim(); if (spec.is(t)) { last = i; oldLines.push(t); } });
+
+  // Identical list → touch nothing. This is what keeps an edit to the method
+  // from reformatting the ingredients, and a no-op save from rewriting the file.
+  const current = oldLines.map((l) => spec.read(l));
+  if (current.length === items.length && current.every((t, i) => t === items[i])) return block;
+
+  // Keep the exact whitespace and any trailing prose that followed the list,
+  // rather than normalising it — silent file drift is how blank lines vanish.
+  const prefixLen = last === -1 ? 0 : lines.slice(0, last + 1).join('\n').length;
+  const tail = last === -1 ? (m[2] ? (m[2].startsWith('\n') ? m[2] : `\n${m[2]}`) : '') : m[2].slice(prefixLen);
+  const body = renderList(kind, items, oldLines);
+  return block.slice(0, m.index) + m[1] + body + tail + block.slice(m.index + m[0].length);
+}
+
+function appendSection(block, level, heading, kind, items) {
+  const hashes = '#'.repeat(level);
+  const rule = block.match(/\n-{3,}[ \t]*\n[\s\S]*$/);
+  const at = rule ? block.length - rule[0].length : block.length;
+  const head = block.slice(0, at).replace(/\s+$/, '');
+  return `${head}\n\n${hashes} ${heading}\n${renderList(kind, items, [])}\n${block.slice(at)}`;
+}
+
+function applyEdit(block, level, edit) {
+  let out = block;
+  if (edit.macros) {
+    const { p, c, f, kcal } = edit.macros;
+    const macroRe = /^(\*\*Macros[^*]*\*\*:?)[^\n]*/im;
+    if (!macroRe.test(out)) throw new Error('could not find the macros line to update');
+    const line = `${p}g P / ${c}g C / ${f}g F / ${kcal} kcal`;
+    out = out.replace(macroRe, (whole, head) => (whole === `${head} ${line}` ? whole : `${head} ${line}`));
+  }
+  for (const [field, heading] of [['ingredients', 'Ingredients'], ['method', 'Method']]) {
+    if (!edit[field]) continue;
+    out = rewriteSection(out, level, heading, field, edit[field])
+      || appendSection(out, level, heading, field, edit[field]);
+  }
+  return out;
+}
+
+function validateEdit(edit) {
+  if (!edit || typeof edit !== 'object') throw new Error('nothing to change');
+  const clean = {};
+  for (const field of ['ingredients', 'method']) {
+    if (edit[field] === undefined || edit[field] === null) continue;
+    if (!Array.isArray(edit[field])) throw new Error(`${field} must be a list`);
+    const lines = edit[field].map((s) => String(s).replace(/\s+/g, ' ').trim()).filter(Boolean);
+    if (!lines.length) throw new Error(`a recipe needs at least one ${field === 'method' ? 'method step' : 'ingredient'}`);
+    if (lines.some((l) => /^#{1,6}\s/.test(l))) throw new Error('a line can\'t start with #');
+    clean[field] = lines;
+  }
+  if (edit.macros) {
+    const m = edit.macros;
+    if ([m.p, m.c, m.f, m.kcal].some((n) => typeof n !== 'number' || Number.isNaN(n) || n < 0)) {
+      throw new Error('macros.p/c/f/kcal must be non-negative numbers');
+    }
+    clean.macros = { p: m.p, c: m.c, f: m.f, kcal: m.kcal };
+  }
+  if (!Object.keys(clean).length) throw new Error('nothing to change');
+  return clean;
+}
+
+// Pure: rewrite one recipe's, or one variant's, ingredients / method / macros.
+export function editRecipeInRaw(raw, id, rawEdit, altId = null) {
+  const edit = validateEdit(rawEdit);
+
+  const headingRe = /^##\s+\d+\.\s+(.+)$/gm;
+  let m;
+  let start = -1;
+  while ((m = headingRe.exec(raw))) {
+    if (slugify(m[1].trim()) === id) { start = m.index; break; }
+  }
+  if (start === -1) throw new Error('recipe not found');
+  const afterHeading = start + m[0].length;
+  const nextHeading = raw.slice(afterHeading).match(/\n#{1,2}(?!#)\s/);
+  const end = nextHeading ? afterHeading + nextHeading.index + 1 : raw.length;
+  const block = raw.slice(start, end);
+
+  const altAt = block.search(/\n####\s+Alternative:/);
+  const mainPart = altAt === -1 ? block : block.slice(0, altAt + 1);
+  const altsPart = altAt === -1 ? '' : block.slice(altAt + 1);
+
+  let newBlock;
+  if (altId) {
+    if (!altsPart) throw new Error('recipe has no variants');
+    const chunks = altsPart.split(/\n(?=####\s+Alternative:)/);
+    let hit = -1;
+    chunks.forEach((chunk, i) => {
+      const label = chunk.match(/^####\s+Alternative:\s*(.+)$/m);
+      if (label && slugify(label[1].trim()) === altId) hit = i;
+    });
+    if (hit === -1) throw new Error(`no variant "${altId}" on this recipe`);
+    // No trailing-whitespace normalisation here: applyEdit preserves whatever
+    // followed the section, and squashing it ate the blank line between the
+    // recipe's closing --- and the next "## " heading — the same silent file
+    // drift that removeRecipeFromRaw was fixed for.
+    chunks[hit] = applyEdit(chunks[hit], 5, edit);
+    newBlock = mainPart + chunks.join('\n');
+  } else {
+    const edited = applyEdit(mainPart, 3, edit);
+    // mainPart was cut just before the first "#### Alternative"; restore the
+    // blank line the split consumed so the variant heading isn't glued on
+    newBlock = altsPart ? edited.replace(/\s*$/, '\n\n') + altsPart : edited;
+  }
+
+  return raw.slice(0, start) + newBlock + raw.slice(end);
+}
+
+let editRecipeLock = Promise.resolve();
+
+export async function editRecipe(vaultPath, id, edit, altId = null) {
+  const run = editRecipeLock.catch(() => {}).then(() => editRecipeUnlocked(vaultPath, id, edit, altId));
+  editRecipeLock = run.catch(() => {});
+  return run;
+}
+
+async function editRecipeUnlocked(vaultPath, id, edit, altId) {
+  const full = path.join(vaultPath, RECIPES_REL_PATH);
+  const raw = await readFile(full, 'utf8');
+  const before = parseRecipeCollection(raw);
+  const target = before.find((r) => r.id === id);
+  if (!target) throw new Error('recipe not found');
+
+  const newRaw = editRecipeInRaw(raw, id, edit, altId);
+  const after = parseRecipeCollection(newRaw);
+  const updated = after.find((r) => r.id === id);
+
+  // The edit must have landed, and must not have taken anything else with it.
+  if (after.length !== before.length) throw new Error('Edit failed a sanity check — file left unchanged');
+  if (!updated || updated.alternates.length !== target.alternates.length) {
+    throw new Error('Edit failed a sanity check — file left unchanged');
+  }
+  const subject = altId ? updated.alternates.find((a) => a.id === altId) : updated;
+  if (!subject) throw new Error('Edit failed a sanity check — file left unchanged');
+  const got = altId ? subject.ingredients : subject.ingredients.map((i) => i.name);
+  if (edit.ingredients && got.length !== edit.ingredients.filter((s) => String(s).trim()).length) {
+    throw new Error('Edit did not round-trip through the file — left unchanged');
+  }
+  if (edit.method && subject.method.length !== edit.method.filter((s) => String(s).trim()).length) {
+    throw new Error('Edit did not round-trip through the file — left unchanged');
+  }
+
+  await backupFile(full);
+  await writeFile(full, newRaw, 'utf8');
+  return updated;
+}

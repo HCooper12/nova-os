@@ -3,7 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { loadRecipeData, addRecipe, addAlternate, promoteAlternate } from '../lib/recipes.js';
+import { loadRecipeData, addRecipe, addAlternate, promoteAlternate, editRecipe } from '../lib/recipes.js';
 import { loadRotation, setRotationSlot, setSlotConsumed, setSlotVariant } from '../lib/rotation.js';
 import { recordTodaySnapshot } from '../lib/nutritionSnapshot.js';
 import { startScan, getScanJob } from '../lib/scanRecipe.js';
@@ -25,6 +25,11 @@ function validateRecipeInput(body) {
   return null;
 }
 
+// An alternate needs a label, macros and ingredients. It does NOT need its own
+// method: a tweak that only swaps ingredients ("drop the hash brown, add egg
+// whites") is cooked exactly like the original, and the model returns no steps
+// for it. Requiring them made a perfectly good tweak unsaveable — the route
+// inherits the parent recipe's method instead.
 function validateAlternateInput(body) {
   if (!body || typeof body.label !== 'string' || !body.label.trim()) return 'label is required';
   const m = body.macros;
@@ -32,7 +37,6 @@ function validateAlternateInput(body) {
     return 'macros.p/c/f/kcal must be non-negative numbers';
   }
   if (!Array.isArray(body.ingredients) || !body.ingredients.length) return 'at least one ingredient is required';
-  if (!Array.isArray(body.method) || !body.method.length) return 'at least one method step is required';
   return null;
 }
 
@@ -139,7 +143,10 @@ export function recipesRouter(vaultPath) {
       const { recipes } = await loadRecipeData(vaultPath);
       const recipe = recipes.find((r) => r.id === req.params.id);
       if (!recipe) return res.status(404).json({ error: 'recipe not found' });
-      const jobId = startTweak(recipe, request.trim());
+      // a follow-up refines the version already on screen rather than
+      // restarting from the stored recipe
+      const prior = req.body?.prior && Array.isArray(req.body.prior.ingredients) ? req.body.prior : null;
+      const jobId = startTweak(recipe, request.trim(), prior);
       res.json({ jobId });
     } catch (err) {
       next(err);
@@ -163,8 +170,27 @@ export function recipesRouter(vaultPath) {
         label: req.body.label.trim(),
         macros: { p: req.body.macros.p, c: req.body.macros.c, f: req.body.macros.f, kcal: req.body.macros.kcal },
         ingredients: req.body.ingredients.map((s) => String(s).trim()).filter(Boolean),
-        method: req.body.method.map((s) => String(s).trim()).filter(Boolean),
+        // no steps of its own → cook it the way the original is cooked
+        method: (Array.isArray(req.body.method) ? req.body.method.map((s) => String(s).trim()).filter(Boolean) : [])
+          .length
+          ? req.body.method.map((s) => String(s).trim()).filter(Boolean)
+          : (recipe.method || []),
       });
+      res.json({ recipe: updated });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  // Edit what's in a meal — his own, one Nova scanned, or a saved tweak.
+  // `alt` names a variant; without it the parent recipe is edited.
+  router.post('/recipes/:id/edit', async (req, res) => {
+    try {
+      const updated = await editRecipe(vaultPath, req.params.id, {
+        ingredients: req.body?.ingredients,
+        method: req.body?.method,
+        macros: req.body?.macros,
+      }, req.body?.alt || null);
       res.json({ recipe: updated });
     } catch (err) {
       res.status(400).json({ error: err.message });

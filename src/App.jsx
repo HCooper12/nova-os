@@ -191,6 +191,7 @@ export default class App extends Component {
     recipeFilter: 'All', openRecipeId: null, servings: 1, recipeInput: '', recipeChat: [],
     recipeAltSelected: null,
     recipeTweakInput: '', recipeTweakBusy: false, recipeTweakError: null, recipeTweakPreview: null,
+    recipeEdit: null, recipeEditBusy: false, recipeEditError: null,
     coachInput: '', planNote: null,
     // the scripted opener is demo fiction — a live backend starts the real
     // coach conversation clean
@@ -652,6 +653,52 @@ export default class App extends Component {
       }));
       this.toastMsg(`Renamed to “${label}”`);
     }).catch((e) => this.setState({ recipeRenameError: e.message }));
+  }
+
+  // ---------- editing what's actually in a meal ---------------------------
+  // Any recipe, any variant: his own, one Nova scanned, or a saved tweak. The
+  // form starts from exactly what's on screen, so "edit" never means "retype".
+  startRecipeEdit(seed) {
+    this.setState({
+      recipeEdit: {
+        ingredients: (seed.ingredients || []).join('\n'),
+        method: (seed.method || []).join('\n'),
+        p: String(seed.macros?.p ?? ''), c: String(seed.macros?.c ?? ''),
+        f: String(seed.macros?.f ?? ''), kcal: String(seed.macros?.kcal ?? ''),
+      },
+      recipeEditError: null, recipeEditBusy: false,
+    });
+  }
+  cancelRecipeEdit() { this.setState({ recipeEdit: null, recipeEditError: null, recipeEditBusy: false }); }
+  setRecipeEditField(field, value) {
+    this.setState((s) => ({ recipeEdit: { ...s.recipeEdit, [field]: value }, recipeEditError: null }));
+  }
+  commitRecipeEdit(recipeId, altId) {
+    const conn = getConnection();
+    const e = this.state.recipeEdit;
+    if (!conn || !recipeId || !e) return;
+    const lines = (text) => String(text || '').split('\n').map((l) => l.trim()).filter(Boolean);
+    const ingredients = lines(e.ingredients);
+    const method = lines(e.method);
+    if (!ingredients.length) return this.setState({ recipeEditError: 'A meal needs at least one ingredient.' });
+    const nums = [e.p, e.c, e.f, e.kcal].map((n) => Number(n));
+    if (nums.some((n) => !Number.isFinite(n) || n < 0)) {
+      return this.setState({ recipeEditError: 'Macros must be numbers.' });
+    }
+    this.setState({ recipeEditBusy: true, recipeEditError: null });
+    api.editRecipe(conn, recipeId, {
+      ingredients,
+      // no steps is legitimate — a variant is cooked like its parent
+      method: method.length ? method : undefined,
+      macros: { p: nums[0], c: nums[1], f: nums[2], kcal: nums[3] },
+      alt: altId || undefined,
+    }).then(({ recipe }) => {
+      this.setState((s) => ({
+        liveRecipes: (this.noteLocalWrite('recipes'), s.liveRecipes.map((r) => (r.id === recipe.id ? recipe : r))),
+        recipeEdit: null, recipeEditBusy: false, recipeEditError: null,
+      }));
+      this.toastMsg('Saved to the vault');
+    }).catch((err) => this.setState({ recipeEditBusy: false, recipeEditError: err.message }));
   }
 
   // ---------- stash (categorised restock/reference links, vault-backed) ----
@@ -1413,7 +1460,7 @@ export default class App extends Component {
   }
   closeRecipe() {
     this.stopPoll('recipeTweak');
-    this.withTransition(() => this.setState({ openRecipeId: null, recipeRemovals: [], recipeRemovalPrompt: false }));
+    this.withTransition(() => this.setState({ openRecipeId: null, recipeRemovals: [], recipeRemovalPrompt: false, recipeEdit: null, recipeEditError: null }));
   }
   // The ✕-an-ingredient flow: marks collect, one save, a popup asks whether
   // it's today-only or a keepable alternative — then the existing tweak
@@ -1446,7 +1493,8 @@ export default class App extends Component {
       .catch((e) => this.setState({ recipeTweakBusy: false, recipeTweakError: e.message }));
   }
   selectAlternate(altId) {
-    this.setState({ recipeAltSelected: altId, recipeTweakPreview: null, recipeTweakError: null });
+    // an open edit belongs to the variant it was started from — drop it
+    this.setState({ recipeAltSelected: altId, recipeTweakPreview: null, recipeTweakError: null, recipeEdit: null, recipeEditError: null });
   }
   submitRecipeTweak() {
     const conn = getConnection();
@@ -1454,7 +1502,10 @@ export default class App extends Component {
     const request = st.recipeTweakInput.trim();
     if (!conn || !st.openRecipeId || !request) return;
     this.setState({ recipeTweakBusy: true, recipeTweakError: null, recipeTweakPreview: null });
-    api.tweakRecipe(conn, st.openRecipeId, request)
+    // If a preview is already on screen this is a REFINEMENT — send it along
+    // so "keep the two whole eggs and suggest something else" builds on what
+    // he can see rather than silently starting from the stored recipe.
+    api.tweakRecipe(conn, st.openRecipeId, request, st.recipeTweakPreview || null)
       .then(({ jobId }) => {
         this.startPoll('recipeTweak', () => api.tweakRecipeJob(conn, jobId), {
           intervalMs: 2500,

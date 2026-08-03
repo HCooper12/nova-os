@@ -313,6 +313,27 @@ export function valsRecipes(app, ctx) {
       app.addToShoppingList(names, source);
     },
     orShowTweak: usingLiveRecipes && !!liveOr,
+
+    // ---- editing the meal itself -----------------------------------------
+    // Available on every live recipe and every variant, including the
+    // prose-only entries that have no sections yet — those grow them on save.
+    orCanEdit: usingLiveRecipes && !!liveOr,
+    orEditing: !!st.recipeEdit,
+    orEditTarget: activeAlt ? activeAlt.label : (liveOr ? liveOr.name : ''),
+    orEditIngredients: st.recipeEdit?.ingredients ?? '',
+    orEditMethod: st.recipeEdit?.method ?? '',
+    orEditP: st.recipeEdit?.p ?? '', orEditC: st.recipeEdit?.c ?? '',
+    orEditF: st.recipeEdit?.f ?? '', orEditKcal: st.recipeEdit?.kcal ?? '',
+    orEditBusy: !!st.recipeEditBusy,
+    orEditError: st.recipeEditError,
+    setEditField: (field) => (e) => app.setRecipeEditField(field, e.target.value),
+    startEdit: () => app.startRecipeEdit({
+      ingredients: effIngredients.map((i) => (i.qty ? `${i.qty} ${i.name}` : i.name)),
+      method: effMethod,
+      macros: effMacros,
+    }),
+    cancelEdit: () => app.cancelRecipeEdit(),
+    saveEdit: () => app.commitRecipeEdit(liveOr ? liveOr.id : null, activeAlt ? activeAlt.id : null),
     // tap ✕ on an ingredient → it's marked (strikethrough, reversible); one
     // SAVE opens the choice popup; the tweak pipeline recomputes macros and
     // the existing save paths commit. Tap ＋ → that single item goes to the

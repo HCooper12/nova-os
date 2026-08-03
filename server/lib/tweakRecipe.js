@@ -8,7 +8,11 @@ const MAX_BUDGET_USD = '0.5';
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const jobs = new Map();
 
-function buildPrompt(recipe, request) {
+// `prior` is the tweak already on screen, when he is refining rather than
+// starting over: "keep the two whole eggs and give me other ways to raise the
+// protein". Without it every follow-up silently restarted from the original
+// recipe and quietly undid what he had just accepted.
+function buildPrompt(recipe, request, prior) {
   const ingredientLines = recipe.ingredients.map((i) => `- ${i.name}`).join('\n');
   const methodLines = recipe.method.map((s, i) => `${i + 1}. ${s}`).join('\n');
   return `Original recipe: ${recipe.name}
@@ -20,7 +24,17 @@ ${ingredientLines}
 Method:
 ${methodLines}
 
-Hayden's requested tweak: "${request}"
+${prior ? `He is REFINING a version you already proposed, not starting again. That version was:
+Label: ${prior.label}
+Macros: ${prior.macros.p}g P / ${prior.macros.c}g C / ${prior.macros.f}g F / ${prior.macros.kcal} kcal
+Ingredients:
+${(prior.ingredients || []).map((i) => `- ${i}`).join('\n')}
+${(prior.method || []).length ? `Method:\n${prior.method.map((x, i) => `${i + 1}. ${x}`).join('\n')}` : ''}
+
+Apply his follow-up to THAT version. Keep everything he has not asked you to change, and never silently revert a change he already has.
+
+His follow-up: "${request}"
+` : `Hayden's requested tweak: "${request}"`}
 
 Produce an adjusted version of this recipe reflecting the request — an ingredient swap for something he's out of, a version with reduced calories/macros, a different cooking approach, etc. Recalculate the macros as accurately as you reasonably can to match the adjusted ingredients — don't just copy the original numbers. Keep it realistic and cookable with normal supermarket ingredients.
 
@@ -33,12 +47,12 @@ Output ONLY a single JSON object with exactly these keys:
 No markdown, no code fences, no commentary before or after — just the raw JSON object.`;
 }
 
-export function startTweak(recipe, request) {
+export function startTweak(recipe, request, prior = null) {
   const jobId = randomUUID().slice(0, 8);
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
 
-  const prompt = buildPrompt(recipe, request);
+  const prompt = buildPrompt(recipe, request, prior);
   const child = spawn(CLAUDE_BIN, [
     '-p', prompt,
     '--permission-mode', 'bypassPermissions',

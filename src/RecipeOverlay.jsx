@@ -99,7 +99,13 @@ export function RecipeOverlay({ v }) {
             {v.orDescription && (
               <div style={css("margin-top:16px;font-size:14px;line-height:1.7;color:color-mix(in srgb, var(--nv-ink) 85%, transparent)")}>{v.orDescription}</div>
             )}
-            {v.orIngredients.length > 0 && (
+            {v.orCanEdit && !v.orEditing && (
+              <Interactive as="span" onClick={v.startEdit} title="Change what's in this meal and how it's made"
+                base="cursor:pointer;display:inline-block;margin-top:14px;font:600 10px var(--nv-font-mono);letter-spacing:.08em;padding:7px 13px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent);color:color-mix(in srgb, var(--nv-ink) 58%, transparent)"
+                hoverStyle="border-color:color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)">✎ EDIT THIS MEAL</Interactive>
+            )}
+            {v.orEditing && <MealEditor v={v} />}
+            {!v.orEditing && v.orIngredients.length > 0 && (
               <>
                 <div style={css("margin-top:18px;display:flex;justify-content:space-between;align-items:baseline")}>
                   <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>INGREDIENTS</span>
@@ -158,7 +164,7 @@ export function RecipeOverlay({ v }) {
                 )}
               </>
             )}
-            {v.orSteps.length > 0 && (
+            {!v.orEditing && v.orSteps.length > 0 && (
               <>
                 <div style={css("margin-top:18px;font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>METHOD</div>
                 <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:9px")}>
@@ -192,7 +198,9 @@ export function RecipeOverlay({ v }) {
                       onChange={v.setRecipeTweakInput}
                       onKeyDown={v.recipeTweakKey}
                       disabled={v.recipeTweakBusy}
-                      placeholder='Try "no soy sauce, what instead?" or "cut the carbs"…'
+                      placeholder={v.recipeTweakPreview
+                        ? 'Refine it — "keep the whole eggs, what else raises protein?"'
+                        : 'Try "no soy sauce, what instead?" or "cut the carbs"…'}
                       base="flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
                       focusStyle="border:1px solid color-mix(in srgb, var(--nv-cy) 50%, transparent)"
                     />
@@ -210,6 +218,7 @@ export function RecipeOverlay({ v }) {
                   )}
                   {v.recipeTweakPreview && (
                     <div style={css("margin-top:14px;border-top:1px solid color-mix(in srgb, var(--nv-cy) 15%, transparent);padding-top:12px")}>
+                      <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 38%, transparent);margin-bottom:6px")}>SUGGESTION · ASK AGAIN ABOVE TO REFINE IT</div>
                       <div style={css("font-size:13.5px;font-weight:500;color:var(--nv-ink)")}>{v.recipeTweakPreview.label}</div>
                       <div style={css("margin-top:7px;display:flex;gap:12px;font:400 11px var(--nv-font-mono)")}>
                         <span style={css("color:var(--nv-cy)")}>{v.recipeTweakPreview.macros.p}P</span>
@@ -255,6 +264,69 @@ export function RecipeOverlay({ v }) {
             )}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+const EDIT_LABEL = "font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)";
+const EDIT_FIELD = "width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 13px;color:var(--nv-ink);font:400 13px/1.7 var(--nv-font-ui);outline:none;resize:vertical";
+
+// One line per ingredient, one per step — the same shape the file stores, so
+// what he types is what lands in the vault. Macros sit alongside because
+// changing what's in a meal without correcting them would leave the numbers
+// lying, and Nova doesn't do that.
+function MealEditor({ v }) {
+  return (
+    <div style={css("margin-top:16px;border:1px solid color-mix(in srgb, var(--nv-cy) 24%, transparent);border-radius:12px;padding:16px;background:color-mix(in srgb, var(--nv-cy) 04%, transparent)")}>
+      <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:10px")}>
+        <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-cy)")}>EDITING · {String(v.orEditTarget || '').toUpperCase()}</span>
+        <span style={css("font:400 9.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>writes to Obsidian</span>
+      </div>
+
+      <div style={css("margin-top:14px")}>
+        <div style={css(EDIT_LABEL)}>INGREDIENTS — ONE PER LINE</div>
+        <Interactive as="textarea" rows={7} value={v.orEditIngredients} onChange={v.setEditField('ingredients')}
+          placeholder={'2 eggs\n100g egg whites'}
+          style={css("margin-top:8px")} base={EDIT_FIELD} focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)" />
+      </div>
+
+      <div style={css("margin-top:14px")}>
+        <div style={css(EDIT_LABEL)}>METHOD — ONE STEP PER LINE</div>
+        <Interactive as="textarea" rows={6} value={v.orEditMethod} onChange={v.setEditField('method')}
+          placeholder={'Leave blank for a variant cooked the same way as the original'}
+          style={css("margin-top:8px")} base={EDIT_FIELD} focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)" />
+      </div>
+
+      <div style={css("margin-top:14px")}>
+        <div style={css(EDIT_LABEL)}>MACROS</div>
+        <div style={css("margin-top:8px;display:grid;grid-template-columns:repeat(4, minmax(0,1fr));gap:8px")}>
+          {[['p', 'P', 'var(--nv-cy)'], ['c', 'C', 'var(--nv-gold)'], ['f', 'F', 'var(--nv-vi)'], ['kcal', 'KCAL', 'var(--nv-good)']].map(([key, label, colour]) => (
+            <label key={key} style={css("display:flex;flex-direction:column;gap:5px")}>
+              <span style={css(`font:500 9px var(--nv-font-mono);letter-spacing:.14em;color:${colour}`)}>{label}</span>
+              <Interactive as="input" type="number" inputMode="decimal" min="0"
+                value={key === 'p' ? v.orEditP : key === 'c' ? v.orEditC : key === 'f' ? v.orEditF : v.orEditKcal}
+                onChange={v.setEditField(key)}
+                base="width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:9px 11px;color:var(--nv-ink);font:400 13px var(--nv-font-mono);font-variant-numeric:tabular-nums;outline:none"
+                focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)" />
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {v.orEditError && (
+        <div style={css("margin-top:12px;font-size:12px;color:var(--nv-warn)")}>{v.orEditError}</div>
+      )}
+
+      <div style={css("margin-top:16px;display:flex;gap:9px;align-items:center;flex-wrap:wrap")}>
+        <Interactive as="span" onClick={v.orEditBusy ? undefined : v.saveEdit}
+          base={{ cursor: 'pointer', font: '600 13px var(--nv-font-ui)', padding: '11px 22px', borderRadius: '980px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)', opacity: v.orEditBusy ? .6 : 1 }}
+          hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 85%, white)' }}>
+          {v.orEditBusy ? 'Saving…' : 'Save changes'}
+        </Interactive>
+        <Interactive as="span" onClick={v.cancelEdit}
+          base="cursor:pointer;font:500 12.5px var(--nv-font-ui);padding:11px 16px;border-radius:980px;color:color-mix(in srgb, var(--nv-ink) 50%, transparent)"
+          hoverStyle={{ color: 'var(--nv-ink)' }}>Cancel</Interactive>
       </div>
     </div>
   );
