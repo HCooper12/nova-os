@@ -12,7 +12,7 @@ the session log at the foot is append-only.
 ---
 
 ## CURRENT HANDOFF
-*Last updated: 3 August 2026*
+*Last updated: 3 August 2026 (evening)*
 
 **GOAL:** Keep Nova the one app Hayden opens daily — reliable enough to trust
 without supervision, and increasingly present the way a real assistant would
@@ -27,6 +27,8 @@ be. Feeds: what to build next, and whether the platform can be left alone.
    ⌥Space works).
 5. Live walkthrough of everything built — **unmet**, repeatedly deferred, and
    he has asked for it twice. Owed.
+6. Everything in the collection correctable, and a tweak refinable by voice —
+   **met** (see this evening's entry).
 
 **STATE (what exists, where):**
 - Frontend: GitHub Pages, auto-deploys on push to `main`
@@ -50,6 +52,15 @@ be. Feeds: what to build next, and whether the platform can be left alone.
 - **Server shifts a just-after-midnight push to yesterday**
   (`resolvePushDate`, <04:00) → iOS offers no "is yesterday" for Health
   samples → forecloses him needing an Adjust Date action in Shortcuts.
+- **A recipe edit rewrites only the lines that changed** → the app shows
+  markdown stripped to plain text, so regenerating a whole section would
+  silently flatten the **bold** on steps he never touched, and normalising
+  whitespace ate a blank line between a recipe's `---` and the next heading
+  → forecloses a simple "render the list from the model" writer; every
+  section write now diffs against what's there first.
+- **An alternate with no method inherits the parent's** → a tweak that only
+  swaps ingredients is cooked the same way and the model returns no steps →
+  forecloses treating a missing method as a validation failure.
 - **Voice dock button opens Voice, not the palette** → talking is the fastest
   way in; palette still on the top bar and ⌘K.
 
@@ -63,6 +74,16 @@ be. Feeds: what to build next, and whether the platform can be left alone.
 - Dock renders `Home · Voice · Train · ✦ · Recipes · Inbox · More` at 354px
   (fits a 390pt iPhone).
 - 184 server tests green; git clean and pushed at `a76d0e7`.
+- Recipe editing, against his REAL collection (not fixtures): an identity
+  edit of all 23 recipes/variants is byte-identical to the source file; a
+  one-step method edit changes exactly 1 line; a macro correction changes
+  exactly 1 line. Live through the running server: edit landed and reverted;
+  an alternate with no method saved and inherited the parent's 5 steps.
+  End-to-end from the UI: ✎ EDIT THIS MEAL on the "Wrap swapped for English
+  muffin" variant added one ingredient, toast said "Saved to the vault", and
+  the file diff was exactly `81a82 > - 1 tsp UI-test hot sauce`.
+  His file was restored byte-for-byte after every test.
+- 190 server tests green; pushed at `45c49a0`; Pages deploy SHA-matched.
 
 **ASSUMED (treat as open):**
 - That the phone automation now fires reliably every night — one success is
@@ -80,8 +101,8 @@ be. Feeds: what to build next, and whether the platform can be left alone.
 - ~28 pending inbox records after expiry — triage offered, not done.
 
 **NEXT ACTION:** Offer the live walkthrough before building anything new —
-it is the oldest outstanding request. Expected observation: he either takes
-it or explicitly redirects.
+it is the oldest outstanding request, now two sessions old. Expected
+observation: he either takes it or explicitly redirects.
 
 **DO NOT (dead ends already paid for):**
 - Do **not** claim anything he must *see* works without a screenshot. Two
@@ -100,10 +121,31 @@ it or explicitly redirects.
   probe in a separate short eval.
 - Do **not** add a new live slice without adding it to `CACHED_LIVE_KEYS`, or
   that screen goes blank whenever the Mac sleeps.
+- Do **not** trust a Vite dev-server reload to pick up a changed module — a
+  new `orCanEdit` key was missing from the running `v` object for three
+  rounds of debugging while the server was serving the correct file. Kill
+  vite, `rm -rf node_modules/.vite`, restart with `--force`.
+- Do **not** verify the PWA against the deployed Pages build in the MCP
+  Chrome: cross-origin fetches to the Tailscale URL never settle there
+  (the preflight is fine via curl). Use `npm run dev` on localhost with
+  `baseUrl: http://127.0.0.1:4173`, and delete `novaos.connection` after.
+- Do **not** use `$` to end a lazy match in a /m regex over vault markdown —
+  it matches every line end. Use `(?![\s\S])`. This has now bitten twice.
 
 ---
 
 ## SESSION LOG (append-only, newest first)
+
+### 3 August 2026 (evening)
+Customisability. Fixed the bug in his screenshot — an ingredients-only tweak
+could not be saved because the alternate validator demanded a method it was
+never going to have. Made a follow-up refine the version on screen instead of
+restarting from the stored recipe, and put a mic beside the ask box so the
+whole exchange can be spoken, with the answer read back from the preview
+only. Built `editRecipe`: ingredients, method and macros, on any recipe or
+any variant, reachable from ✎ EDIT THIS MEAL. The writer only rewrites lines
+that actually changed — the first cut drifted his file and stripped bold from
+steps he never touched, which is what the identity round-trip caught.
 
 ### 3 August 2026
 Closed the steps saga: first fully automatic overnight push landed
