@@ -1,5 +1,11 @@
 # Working on Nova OS
 
+**Start every session by reading `design/SESSION-HANDOFF.md`** — it carries the
+live state of the work: what is half-finished, what was decided and why, what
+is verified versus merely assumed, and the dead ends already paid for. Then
+re-verify its one or two most load-bearing claims cheaply before building on
+them; foundations rot between sessions. Update it at session close.
+
 **Read `design/NOVA-METHOD.md` before changing anything.** It is the thought
 process this platform is built with — how to reason about Nova, not just what
 it contains. What follows is the short version; the Method is the full one.
