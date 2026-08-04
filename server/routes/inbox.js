@@ -1,5 +1,5 @@
 import express from 'express';
-import { startCapture, approveRecord, discardRecord, undoRecord, MODES } from '../lib/inbox.js';
+import { startCapture, approveRecord, discardRecord, undoRecord, retryRecord, MODES } from '../lib/inbox.js';
 import { listRecords, getRecord } from '../lib/inboxStore.js';
 
 export function inboxRouter(vaultPath) {
@@ -96,6 +96,15 @@ export function inboxRouter(vaultPath) {
   router.post('/inbox/:id/discard', async (req, res) => {
     try {
       const record = await discardRecord(req.params.id);
+      res.json({ record });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  router.post('/inbox/:id/retry', async (req, res) => {
+    try {
+      const record = await retryRecord(vaultPath, req.params.id);
       res.json({ record });
     } catch (e) {
       res.status(400).json({ error: e.message });

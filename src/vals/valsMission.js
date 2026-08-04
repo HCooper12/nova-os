@@ -552,6 +552,42 @@ export function valsMission(app, ctx) {
     }));
   };
 
+  // ---- plan today + command deck: straight off the inbox rails ------------
+  // Both read liveInbox (cached offline like every live slice) and show
+  // nothing rather than fiction when there is no record to show.
+  const inboxItems = st.liveInbox?.items || [];
+  const isTodayISO = (iso) => {
+    if (!iso) return false;
+    const d = new Date(iso);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` === todayKey;
+  };
+  const planRec = inboxItems.find((r) => r.kind === 'plan-today' && isTodayISO(r.createdAt) && ['classifying', 'pending', 'filed'].includes(r.status));
+  const planToday = planRec
+    ? {
+        state: planRec.status,
+        priorities: (planRec.decision?.payload?.priorities || []).slice(0, 3),
+        meta: planRec.status === 'filed' ? 'IN THE VAULT' : planRec.status === 'pending' ? 'DRAFT — NEEDS YOUR YES' : 'BEING DRAWN UP',
+        busy: !!st.inboxActionBusy?.[planRec.id],
+        onApprove: planRec.status === 'pending' ? () => app.inboxAction(planRec.id, 'approve') : null,
+        onOpenInbox: go('inbox'),
+      }
+    : null;
+  const pendingRecs = inboxItems.filter((r) => r.status === 'pending');
+  const commandDeck = {
+    count: pendingRecs.length,
+    // oldest first — the longest-waiting decision is the most urgent one
+    items: pendingRecs
+      .slice()
+      .sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''))
+      .slice(0, 3)
+      .map((r) => ({
+        id: r.id,
+        title: r.decision?.title || (r.text || '').slice(0, 60) || 'Untitled',
+        kindLabel: (r.kind || r.source || 'capture').replace(/-/g, ' ').toUpperCase(),
+      })),
+    onOpen: go('inbox'),
+  };
+
   return {
     // connection truth
     connectionStatus: st.connectionStatus,
@@ -559,6 +595,8 @@ export function valsMission(app, ctx) {
     missionStatusItems,
     statusBanner,
     suggestedFocus,
+    planToday,
+    commandDeck,
     noteCard,
     bootInfo: {
       vaultLine: demoMode ? 'VAULT · DEMO DATA' : st.liveNotes ? `VAULT · ${st.liveNotes.length} NOTES LINKED` : 'VAULT · CONNECTING…',

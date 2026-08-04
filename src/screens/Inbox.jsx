@@ -388,6 +388,12 @@ export function Inbox({ v }) {
                       hoverStyle={{ borderColor: 'var(--nv-acc-border)', color: 'var(--nv-ink)' }}
                     >{item.busy ? '…' : 'Undo'}</Interactive>
                   )}
+                  {item.canRetry && (
+                    <Interactive as="span" onClick={item.busy ? undefined : item.retry}
+                      base={{ cursor: 'pointer', flex: 'none', font: `600 11px ${R}`, padding: '4px 12px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent)', color: 'var(--nv-ink60)', opacity: item.busy ? 0.5 : 1 }}
+                      hoverStyle={{ borderColor: 'var(--nv-acc-border)', color: 'var(--nv-ink)' }}
+                    >{item.busy ? '…' : 'Retry'}</Interactive>
+                  )}
                   {item.canDiscard && (
                     <Interactive as="span" onClick={item.busy ? undefined : item.discard}
                       base={{ cursor: 'pointer', flex: 'none', font: `600 11px ${R}`, padding: '4px 12px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-warn) 35%, transparent)', color: 'var(--nv-warn)', opacity: item.busy ? 0.5 : 1 }}

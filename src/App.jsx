@@ -2984,7 +2984,7 @@ export default class App extends Component {
   inboxAction(id, kind) {
     const conn = getConnection();
     if (!conn) return;
-    const fn = kind === 'approve' ? api.inboxApprove : kind === 'discard' ? api.inboxDiscard : api.inboxUndo;
+    const fn = kind === 'approve' ? api.inboxApprove : kind === 'discard' ? api.inboxDiscard : kind === 'retry' ? api.inboxRetry : api.inboxUndo;
     this.setState((s) => ({ inboxActionBusy: { ...s.inboxActionBusy, [id]: true } }));
     fn(conn, id).then(({ record }) => {
       this.setState((s) => ({
@@ -2995,6 +2995,7 @@ export default class App extends Component {
       }));
       if (kind === 'approve') this.toastMsg('Filed ✓ — ' + record.destination);
       else if (kind === 'discard') this.toastMsg('Discarded — nothing was written');
+      else if (kind === 'retry') this.toastMsg('Retrying — Nova is running this again…');
       else this.toastMsg('Undone ✓ — ' + (record.undoSummary || 'reverted'));
     }).catch((e) => {
       this.setState((s) => ({ inboxActionBusy: { ...s.inboxActionBusy, [id]: false } }));

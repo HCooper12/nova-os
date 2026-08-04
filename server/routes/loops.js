@@ -5,6 +5,7 @@ import { getTodoistStatus, syncTodoist } from '../lib/todoistSync.js';
 import { getGuardian, runGuardian, runGuardianReport, exportVault, listBackups, restoreBackup } from '../lib/guardian.js';
 import { runMealPrep } from '../lib/mealPrep.js';
 import { getDailyReviewStatus, setReviewConfig, runDailyReview, REVIEW_MODES } from '../lib/dailyReview.js';
+import { getPlanTodayStatus, setPlanConfig, runPlanToday, PLAN_MODES } from '../lib/planToday.js';
 import { getInboxConfig, setInboxConfig } from '../lib/inboxConfig.js';
 
 // The loops: the scheduled briefs (dispatch slots on the inbox rails), the
@@ -144,6 +145,31 @@ export function loopsRouter(vaultPath) {
   router.post('/daily-review/run', async (req, res) => {
     try {
       res.json(await runDailyReview(vaultPath, { force: !!req.body?.force }));
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  router.get('/plan-today', async (req, res) => {
+    try {
+      res.json(await getPlanTodayStatus());
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  router.post('/plan-today/config', async (req, res) => {
+    try {
+      if (req.body?.mode !== undefined && !PLAN_MODES.includes(req.body.mode)) return res.status(400).json({ error: 'mode must be off, draft, or auto' });
+      res.json({ config: await setPlanConfig(req.body || {}) });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  router.post('/plan-today/run', async (req, res) => {
+    try {
+      res.json(await runPlanToday(vaultPath, { force: !!req.body?.force }));
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

@@ -256,5 +256,6 @@ export const api = {
   inboxCapture: (conn, text, mode, source) => post(conn, '/api/inbox/capture', { text, mode, source }),
   inboxApprove: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/approve`),
   inboxDiscard: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/discard`),
+  inboxRetry: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/retry`),
   inboxUndo: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/undo`),
 };

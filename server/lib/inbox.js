@@ -688,21 +688,11 @@ function shouldAutoFile(mode, confidence) {
   return false;
 }
 
-// Creates the record and kicks off async classification; the record moves
-// classifying → filed | pending | error on its own, and the client polls it.
-export async function startCapture(vaultPath, { text, source = 'text', mode = 'auto-high' }) {
-  const record = {
-    id: randomUUID().slice(0, 8),
-    text,
-    source: source === 'voice' ? 'voice' : 'text',
-    mode: MODES.includes(mode) ? mode : 'auto-high',
-    status: 'classifying',
-    createdAt: new Date().toISOString(),
-    decision: null,
-  };
-  await createRecord(record);
-
-  classify(text, async (err, decision) => {
+// The classify-and-settle step, shared by first runs and retries: the record
+// moves classifying → filed | pending | error on its own, and the client
+// polls it.
+function runClassification(vaultPath, record) {
+  classify(record.text, async (err, decision) => {
     try {
       if (err) {
         await updateRecord(record.id, { status: 'error', error: err.message });
@@ -723,8 +713,41 @@ export async function startCapture(vaultPath, { text, source = 'text', mode = 'a
       console.error('inbox: failed to persist classification outcome', storeErr);
     }
   });
+}
 
+// Creates the record and kicks off async classification.
+export async function startCapture(vaultPath, { text, source = 'text', mode = 'auto-high' }) {
+  const record = {
+    id: randomUUID().slice(0, 8),
+    text,
+    source: source === 'voice' ? 'voice' : 'text',
+    mode: MODES.includes(mode) ? mode : 'auto-high',
+    status: 'classifying',
+    createdAt: new Date().toISOString(),
+    decision: null,
+  };
+  await createRecord(record);
+  runClassification(vaultPath, record);
   return record;
+}
+
+// A failed run deserves a second chance without retyping the thought. Retry
+// re-runs the SAME record's generation in place — only for kinds whose full
+// input survives on the record (a capture's text, a research question).
+// Scheduled drafts re-run on their own cadence, so retrying a stale copy
+// would produce a draft whose moment has passed.
+export async function retryRecord(vaultPath, id) {
+  const record = await getRecord(id);
+  if (!record) throw new Error('inbox record not found');
+  if (record.status !== 'error') throw new Error('only errored records can be retried');
+  if (record.kind === 'research') {
+    const { retryResearch } = await import('./researcher.js');
+    return retryResearch(vaultPath, record);
+  }
+  if (record.kind) throw new Error('this draft comes from a scheduled agent — it re-runs on its own schedule; discard this copy');
+  const updated = await updateRecord(id, { status: 'classifying', error: null });
+  runClassification(vaultPath, updated);
+  return updated;
 }
 
 // Time-value drafts expire: a Tuesday-morning dispatch has no value on
@@ -732,7 +755,7 @@ export async function startCapture(vaultPath, { text, source = 'text', mode = 'a
 // is a marked discard (expired: true) — visible in the stream as a receipt,
 // never a silent deletion — and only touches kinds whose worth is bound to
 // a moment. Real content (captures, research, coach receipts) never expires.
-const TIME_VALUE_HOURS = { dispatch: 48, review: 48, 'training-check': 48, 'week-plan': 8 * 24 };
+const TIME_VALUE_HOURS = { dispatch: 48, review: 48, 'training-check': 48, 'week-plan': 8 * 24, 'plan-today': 24 };
 export async function expireStaleDrafts() {
   const records = await listRecords();
   const now = Date.now();

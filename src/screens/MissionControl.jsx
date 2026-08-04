@@ -232,6 +232,65 @@ export function MissionControl({ v }) {
         </div>
       </section>
 
+      {(v.planToday || v.commandDeck.count > 0) && (
+        <section style={{ marginTop: mob ? '12px' : '18px', display: mob ? 'flex' : 'grid', flexDirection: 'column', gridTemplateColumns: v.planToday && v.commandDeck.count > 0 ? '1.15fr .85fr' : '1fr', gap: mob ? '12px' : '18px' }}>
+          {v.planToday && (
+            <div className="nv-pane" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', marginBottom: '10px' }}>
+                <span style={{ font: `500 9.5px ${M}`, letterSpacing: '.26em', color: 'var(--nv-gold)' }}>TODAY'S TOP 3</span>
+                <span style={{ font: `500 8.5px ${M}`, letterSpacing: '.14em', color: v.planToday.state === 'pending' ? 'var(--nv-gold)' : 'var(--nv-ink40)' }}>{v.planToday.meta}</span>
+              </div>
+              {v.planToday.state === 'classifying' ? (
+                <div style={{ font: `500 14px/1.6 ${R}`, color: 'var(--nv-ink60)' }}>Nova is drawing up today's top 3…</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {v.planToday.priorities.map((p, i) => (
+                    <div key={i} style={css(`display:flex;gap:12px;align-items:baseline;padding:8px 0${i < v.planToday.priorities.length - 1 ? ';border-bottom:1px solid rgba(130,175,255,.09)' : ''}`)}>
+                      <span style={{ font: `600 13px ${M}`, color: 'var(--nv-gold)', flex: 'none' }}>{i + 1}</span>
+                      <span style={{ minWidth: 0 }}>
+                        <span style={{ display: 'block', font: `500 14px/1.45 ${R}` }}>{p.do}</span>
+                        {p.why && <span style={{ display: 'block', font: `500 12px/1.5 ${R}`, color: 'var(--nv-ink60)' }}>{p.why}</span>}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {v.planToday.onApprove && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: 'auto', paddingTop: '14px' }}>
+                  <Interactive as="span" onClick={v.planToday.busy ? undefined : v.planToday.onApprove}
+                    base={css("cursor:pointer;font:600 13px var(--nv-font-ui);letter-spacing:.03em;padding:8px 16px;border-radius:8px;border:1px solid var(--nv-gold);background:var(--nv-gold);color:#1a1206;opacity:" + (v.planToday.busy ? '.6' : '1'))}
+                    hoverStyle={{ filter: 'brightness(1.1)' }}
+                  >{v.planToday.busy ? 'Filing…' : 'Approve — into the vault'}</Interactive>
+                  <Interactive as="span" onClick={v.planToday.onOpenInbox}
+                    base={css("cursor:pointer;font:600 13px var(--nv-font-ui);letter-spacing:.03em;padding:8px 16px;border-radius:8px;border:1px solid rgba(232,236,246,.18);color:var(--nv-ink60);background:transparent")}
+                    hoverStyle={{ background: 'rgba(255,255,255,.05)' }}
+                  >Open Inbox</Interactive>
+                </div>
+              )}
+            </div>
+          )}
+          {v.commandDeck.count > 0 && (
+            <div className="nv-pane" style={{ padding: '20px 24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', marginBottom: '10px' }}>
+                <span style={phH('--nv-cy', '--nv-tsh-head-cy')}>COMMAND DECK</span>
+                <Interactive as="span" onClick={v.commandDeck.onOpen} base={{ cursor: 'pointer', font: `500 8.5px ${M}`, letterSpacing: '.14em', color: 'var(--nv-ink40)' }} hoverStyle={{ color: 'var(--nv-cy)' }}>{v.commandDeck.count} WAITING →</Interactive>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {v.commandDeck.items.map((item, i) => (
+                  <Interactive key={item.id} onClick={v.commandDeck.onOpen}
+                    base={{ display: 'flex', gap: '12px', alignItems: 'baseline', padding: '8px 0', cursor: 'pointer', borderBottom: i < v.commandDeck.items.length - 1 ? '1px solid rgba(130,175,255,.09)' : 'none' }}
+                    hoverStyle={{ background: 'rgba(255,255,255,.03)' }}>
+                    <span style={{ font: `500 8.5px ${M}`, letterSpacing: '.1em', color: 'var(--nv-ink40)', flex: 'none', width: '86px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.kindLabel}</span>
+                    <span style={{ font: `500 14px ${R}`, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</span>
+                    <span style={{ marginLeft: 'auto', color: 'var(--nv-ink40)', flex: 'none' }}>›</span>
+                  </Interactive>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
       <section style={{ marginTop: mob ? '12px' : '18px' }}>
         <div className="nv-pane nv-noticed nv-scan" style={{ padding: '20px 24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', marginBottom: '6px' }}>

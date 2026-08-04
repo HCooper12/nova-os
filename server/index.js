@@ -189,6 +189,8 @@ async function main() {
   startWeekPlanScheduler(process.env.VAULT_PATH);
   startHealthDropsScheduler(process.env.VAULT_PATH);
   startDailyReviewScheduler(process.env.VAULT_PATH);
+  import('./lib/planToday.js').then(({ startPlanTodayScheduler }) => startPlanTodayScheduler(process.env.VAULT_PATH))
+    .catch((e) => console.error('plan-today scheduler failed to start:', e.message));
   if (process.env.ICLOUD_USERNAME && process.env.ICLOUD_APP_PASSWORD) startCalendarWatch();
 
   app.use((err, req, res, next) => {

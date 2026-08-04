@@ -80,7 +80,22 @@ export async function startResearch(vaultPath, question) {
     status: 'classifying', // shows as in-flight in the queue
     createdAt: new Date().toISOString(),
   });
+  runResearchJob(vaultPath, record.id, q);
+  return record;
+}
 
+// A research record carries its whole input in its text, so a failed run can
+// re-fire in place — same record, same question, fresh attempt.
+export async function retryResearch(vaultPath, record) {
+  const q = String(record.text || '').replace(/^Research:\s*/, '').trim();
+  if (!q) throw new Error('this research record has no question to re-run');
+  const updated = await updateRecord(record.id, { status: 'classifying', error: null });
+  runResearchJob(vaultPath, record.id, q);
+  return updated;
+}
+
+// The spawn-and-settle step, shared by first runs and retries.
+function runResearchJob(vaultPath, recordId, q) {
   const child = spawn(CLAUDE_BIN, [
     '-p', buildResearchPrompt(q),
     '--permission-mode', 'bypassPermissions',
@@ -105,7 +120,7 @@ export async function startResearch(vaultPath, question) {
       if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in researcher response');
       const { title, body } = normalizeResearch(JSON.parse(jsonMatch[0]));
       // ALWAYS pending — web content never files itself
-      await updateRecord(record.id, {
+      await updateRecord(recordId, {
         status: 'pending',
         decision: {
           route: 'note',
@@ -116,12 +131,10 @@ export async function startResearch(vaultPath, question) {
         },
       });
     } catch (e) {
-      await updateRecord(record.id, { status: 'error', error: e.message }).catch(() => {});
+      await updateRecord(recordId, { status: 'error', error: e.message }).catch(() => {});
     }
   });
   child.on('error', async (err) => {
-    await updateRecord(record.id, { status: 'error', error: err.message }).catch(() => {});
+    await updateRecord(recordId, { status: 'error', error: err.message }).catch(() => {});
   });
-
-  return record;
 }

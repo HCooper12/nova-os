@@ -223,7 +223,7 @@ export function valsInbox(app, ctx) {
     kind: r.kind || null,
     text: r.text,
     time: timeLabel(r.createdAt),
-    source: r.kind === 'review' ? 'DAILY REVIEW' : r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.kind === 'guardian' ? 'GUARDIAN' : r.kind === 'cfo' || r.kind === 'money-import' ? 'CFO' : r.kind === 'meal-prep' ? 'MEAL PREP' : r.kind === 'food-suggestion' ? 'NUTRITION' : r.kind === 'calendar' ? 'SCHEDULE' : r.kind === 'training-check' ? 'TRAINING' : r.kind === 'week-plan' ? 'COMMANDER' : r.kind === 'coach' ? 'COACH' : r.kind === 'research' ? 'RESEARCHER' : r.kind === 'followup' ? 'CALENDAR' : r.kind === 'studio' ? 'STUDIO' : r.source === 'voice' ? 'VOICE' : 'TYPED',
+    source: r.kind === 'review' ? 'DAILY REVIEW' : r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.kind === 'guardian' ? 'GUARDIAN' : r.kind === 'cfo' || r.kind === 'money-import' ? 'CFO' : r.kind === 'meal-prep' ? 'MEAL PREP' : r.kind === 'food-suggestion' ? 'NUTRITION' : r.kind === 'calendar' ? 'SCHEDULE' : r.kind === 'training-check' ? 'TRAINING' : r.kind === 'week-plan' ? 'COMMANDER' : r.kind === 'plan-today' ? 'PLANNER' : r.kind === 'coach' ? 'COACH' : r.kind === 'research' ? 'RESEARCHER' : r.kind === 'followup' ? 'CALENDAR' : r.kind === 'studio' ? 'STUDIO' : r.source === 'voice' ? 'VOICE' : 'TYPED',
     status: r.status,
     route: r.decision ? (ROUTE_META[r.decision.route] || ROUTE_META.note) : null,
     confidence: r.decision?.confidence || null,
@@ -237,9 +237,13 @@ export function valsInbox(app, ctx) {
     busy: !!st.inboxActionBusy[r.id],
     canUndo: r.status === 'filed' && !!r.undoData,
     canDiscard: r.status === 'error', // errored records need an exit — they used to be unkillable
+    // retry only where the record still carries its full input: a capture's
+    // text or a research question. Scheduled drafts re-run on their own.
+    canRetry: r.status === 'error' && (!r.kind || r.kind === 'research'),
     approve: () => app.inboxAction(r.id, 'approve'),
     discard: () => app.inboxAction(r.id, 'discard'),
     undo: () => app.inboxAction(r.id, 'undo'),
+    retry: () => app.inboxAction(r.id, 'retry'),
   });
 
   const pendingItems = items.filter((r) => r.status === 'pending').map(mkItem);
