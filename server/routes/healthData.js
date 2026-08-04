@@ -37,13 +37,18 @@ export function healthDataRouter(vaultPath) {
       // text/plain "File" rather than JSON is a common footgun; parse it
       // rather than reject an otherwise-valid push.
       let body = req.body;
+      // The exact bytes the phone sent. Key names alone could not explain a
+      // Shortcut whose visible actions built one payload while another
+      // arrived — a whole afternoon went into inferring what this records
+      // directly. Truncated; health metrics only, never credentials.
+      const rawBody = (typeof body === 'string' ? body : JSON.stringify(body ?? null) || '').slice(0, 600);
       if (typeof body === 'string') {
         try { body = JSON.parse(body); } catch { /* leave as-is; validation below fails honestly */ }
       }
       let date = body?.date;
       const { logPushAttempt } = await import('../lib/healthData.js');
       if (typeof date !== 'string') {
-        await logPushAttempt({ ok: false, error: 'date missing', keys: Object.keys(body || {}) });
+        await logPushAttempt({ ok: false, error: 'date missing', keys: Object.keys(body || {}), rawBody });
         return res.status(400).json({ error: 'date is required (YYYY-MM-DD)' });
       }
       // Accept EITHER {date, metrics:{...}} OR a flat {date, steps, hrv, ...}
@@ -55,7 +60,7 @@ export function healthDataRouter(vaultPath) {
         metrics = rest;
       }
       if (!metrics || !Object.keys(metrics).length) {
-        await logPushAttempt({ ok: false, date, error: 'no metrics' });
+        await logPushAttempt({ ok: false, date, error: 'no metrics', rawBody });
         return res.status(400).json({ error: 'at least one metric is required (steps, hrv, sleepAsleepMinutes, …)' });
       }
       // A 12:05am push carries yesterday's rolling-window numbers under
@@ -78,13 +83,13 @@ export function healthDataRouter(vaultPath) {
           delete metrics.steps;
           stepsDropped = true;
           if (!Object.keys(metrics).length) {
-            await logPushAttempt({ ok: true, date, keys: [], steps: null, stepsDropped });
+            await logPushAttempt({ ok: true, date, keys: [], steps: null, stepsDropped, rawBody });
             return res.json({ day: existing, note: 'that steps figure was lower than the one already recorded for that day — kept the higher reading' });
           }
         }
       }
       const saved = await saveDay(date, metrics, { manual: body?.manual === true });
-      await logPushAttempt({ ok: true, date, keys: Object.keys(metrics), steps: metrics.steps ?? null, ...(stepsDropped ? { stepsDropped } : {}), ...(dateShifted ? { dateShifted: true } : {}) });
+      await logPushAttempt({ ok: true, date, keys: Object.keys(metrics), steps: metrics.steps ?? null, ...(stepsDropped ? { stepsDropped } : {}), ...(dateShifted ? { dateShifted: true } : {}), rawBody });
       const { broadcast } = await import('../lib/events.js');
       broadcast('health');
       res.json({ day: saved });
