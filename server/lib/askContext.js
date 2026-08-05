@@ -27,6 +27,19 @@ export async function buildAskContext(vaultPath, sessionId) {
     ]);
     parts.push(`${morning.text}\n\n${evening.text}`);
   } catch { /* the prompt says "(unavailable)" honestly */ }
+  // the reflective surfaces are for DISCUSSING out loud, not just reading —
+  // hand the latest ones to the conversation so "let's talk about the
+  // debrief" needs no re-summarising
+  try {
+    const { latestDebriefContext } = await import('./weeklyDebrief.js');
+    const debrief = await latestDebriefContext();
+    if (debrief) parts.push(debrief);
+  } catch { /* optional */ }
+  try {
+    const { getDailyReviewStatus } = await import('./dailyReview.js');
+    const review = await getDailyReviewStatus();
+    if (review?.today?.text) parts.push(`TODAY'S DAILY REVIEW (engage with its specifics if he brings it up):\n${review.today.text}`);
+  } catch { /* optional */ }
   try {
     const { getMonthSummary } = await import('./money.js');
     const m = await getMonthSummary();

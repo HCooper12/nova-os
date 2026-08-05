@@ -1755,7 +1755,12 @@ export default class App extends Component {
           ? { ...s, weight: Math.round((Number(s.weight) + coach.delta) * 10) / 10 }
           : { ...s, reps: Number(s.reps) + coach.delta });
       }
-      return { exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, trackingType: e.trackingType, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh, coach, sets };
+      return { exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, trackingType: e.trackingType, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh, coach,
+        // last time's truth rides along — with a coach-nudged prefill the
+        // comparison is otherwise invisible mid-session
+        last: e.lastSets && e.lastSets.length ? { date: e.lastDate || null, sets: e.lastSets.map((s) => ({ weight: s.weight, reps: s.reps })) } : null,
+        focusNote: e.tune?.focus || null,
+        sets };
     });
     this.withTransition(() => this.setState({ workoutsView: 'session', workoutSession: { routineId: routine.id, routineName: routine.name, exercises }, sessionCancelConfirm: false }));
   }
@@ -1920,7 +1925,9 @@ export default class App extends Component {
       const sets = last && last.length
         ? last.map((s) => ({ weight: s.weight, reps: s.reps, done: false }))
         : Array.from({ length: e.targetSets }, () => ({ weight: 0, reps: e.targetRepsLow || 0, done: false }));
-      return { exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, trackingType: e.trackingType, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh, coach: null, sets };
+      return { exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, trackingType: e.trackingType, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh, coach: null,
+        last: last && last.length ? { date: null, sets: last.map((s) => ({ weight: s.weight, reps: s.reps })) } : null,
+        sets };
     });
     this.setState({ workoutsView: 'session', editingSessionId: null, workoutSession: { routineId: 'carryover', routineName: `${carryover.sourceRoutineName} — makeup`, carryoverId: carryover.id, exercises }, sessionCancelConfirm: false });
   }
@@ -3449,7 +3456,13 @@ export default class App extends Component {
     if (conn && this.state.connectionStatus !== 'demo') {
       if (this.state.coachBusy) return;
       this.setState((s) => ({ coachChat: [...s.coachChat, { who: 'you', text: q }], coachInput: '', coachBusy: true }));
-      api.askCoach(conn, q, this.state.coachSessionId || null).then(({ jobId }) => {
+      // a live session travels with the question — the Coach answers for the
+      // gym floor when one is in progress (never for a history edit)
+      const ws = this.state.workoutSession;
+      const liveSession = ws && !this.state.editingSessionId
+        ? { routineName: ws.routineName, exercises: ws.exercises.map((e) => ({ name: e.name, skipped: !!e.skipped, sets: e.sets.map((s) => ({ weight: s.weight, reps: s.reps, rpe: s.rpe || null, done: !!s.done })) })) }
+        : null;
+      api.askCoach(conn, q, this.state.coachSessionId || null, liveSession).then(({ jobId }) => {
         this.startPoll('coach', () => api.claudeCodeJob(conn, jobId), {
           timeoutMs: 3 * 60_000,
           onReady: (job) => {

@@ -11,6 +11,7 @@ const SCHEDULED = [
   { id: 'dispatch', label: 'Dispatch', role: 'morning & evening briefs' },
   { id: 'review', label: 'Daily Review', role: 'the day, scored honestly' },
   { id: 'plan-today', label: 'Plan Today', role: "the day's top 3, picked" },
+  { id: 'weekly-debrief', label: 'Weekly Debrief', role: "the Coach's Sunday sit-down" },
   { id: 'guardian', label: 'Guardian', role: 'integrity, backups, alerts' },
   { id: 'health-drops', label: 'Health Sync', role: 'iPhone health drops' },
   { id: 'healthinsight', label: 'Health Insight', role: 'twice-daily noticing' },

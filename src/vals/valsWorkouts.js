@@ -142,6 +142,10 @@ export function valsWorkouts(app, ctx) {
     exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, trackingType: e.trackingType,
     coachLabel: coachChipLabel(e.coach), coachEvidence: e.coach?.evidence || null,
     weightHint: e.weightHint || null,
+    // last session, verbatim — so a coach-raised prefill is a visible choice,
+    // not a silent replacement of what he actually lifted
+    lastLabel: e.last?.sets?.length ? `Last${e.last.date ? ` (${e.last.date})` : ''}: ${e.last.sets.map((s) => `${s.weight || 0}×${s.reps || 0}`).join(', ')}` : null,
+    focusNote: e.focusNote || null,
     isTime: isTimeTracking(e.trackingType), isBodyweight: isBodyweightTracking(e.trackingType),
     weightLabel: e.trackingType === 'weighted_bodyweight_reps' ? '+KG' : 'KG',
     amountLabel: isTimeTracking(e.trackingType) ? 'SEC' : 'REPS',

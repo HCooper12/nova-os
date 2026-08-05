@@ -14,13 +14,14 @@ import { loadRecentDays as loadRecentNutritionDays } from '../lib/nutritionLog.j
 import { computeStreaks } from '../lib/streaks.js';
 import { preferencesContext } from '../lib/learning.js';
 
-function annotateRoutines(routines, exerciseState, completedCounts) {
+function annotateRoutines(routines, exerciseState, completedCounts, tunes = []) {
   return routines.map((r) => ({
     ...r,
     completedCount: completedCounts[r.id] || 0,
     exercises: r.exercises.map((e) => {
       const state = exerciseState[e.exerciseId];
-      return { ...e, lastSets: state ? state.lastSets : [], lastDate: state ? state.lastDate : null };
+      const tune = tunes.find((t) => t.exerciseId === e.exerciseId) || null;
+      return { ...e, lastSets: state ? state.lastSets : [], lastDate: state ? state.lastDate : null, tune };
     }),
   }));
 }
@@ -61,7 +62,11 @@ export function workoutsRouter(vaultPath) {
       ]);
       // Coach: earned progression suggestions, keyed `${routineId}:${exerciseId}`
       const progressions = await computeProgressions(vaultPath, routines).catch(() => ({}));
-      res.json({ routines: annotateRoutines(routines, exerciseState, completedCounts), schedule, weekdays, progressions });
+      // his standing tunes ride along so the session view can show a FOCUS
+      // prescription ("3s eccentric") next to the exercise it belongs to
+      const { getTunes } = await import('../lib/progressionTunes.js');
+      const tunes = await getTunes(vaultPath).catch(() => []);
+      res.json({ routines: annotateRoutines(routines, exerciseState, completedCounts, tunes), schedule, weekdays, progressions });
     } catch (err) {
       next(err);
     }
@@ -215,12 +220,19 @@ export function workoutsRouter(vaultPath) {
       const question = typeof req.body?.question === 'string' ? req.body.question.trim() : '';
       if (!question) return res.status(400).json({ error: 'question is required' });
       const sessionId = typeof req.body?.sessionId === 'string' && req.body.sessionId ? req.body.sessionId : null;
+      // Mid-workout asks carry the live session — the Coach must see what's
+      // logged RIGHT NOW, whether the conversation is new or resumed.
+      const { liveSessionContext } = await import('../lib/coach.js');
+      const live = liveSessionContext(req.body?.liveSession);
       if (sessionId) {
-        // resumed conversation — the session already carries the picture
-        return res.json({ jobId: startAskCoach(vaultPath, { question, sessionId }) });
+        // resumed conversation — the session already carries the picture;
+        // only the just-now state travels with the question
+        const q = live ? `[${live}]\n\n${question}` : question;
+        return res.json({ jobId: startAskCoach(vaultPath, { question: q, sessionId }) });
       }
 
       const parts = [];
+      if (live) parts.push(live);
       try {
         parts.push(await profileContext(vaultPath)); // who he is, first
       } catch { /* optional */ }
@@ -288,6 +300,11 @@ export function workoutsRouter(vaultPath) {
         const sessions = await loadSessions(vaultPath, { limit: 30 });
         const skipped = skippedContext(detectSkippedExercises(routines, sessions));
         if (skipped) parts.push(skipped);
+      } catch { /* optional */ }
+      try {
+        const { tunesContext } = await import('../lib/progressionTunes.js');
+        const tunes = await tunesContext(vaultPath);
+        if (tunes) parts.push(tunes);
       } catch { /* optional */ }
       try {
         const prefs = await preferencesContext(vaultPath);

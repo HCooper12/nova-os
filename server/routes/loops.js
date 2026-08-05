@@ -6,6 +6,7 @@ import { getGuardian, runGuardian, runGuardianReport, exportVault, listBackups, 
 import { runMealPrep } from '../lib/mealPrep.js';
 import { getDailyReviewStatus, setReviewConfig, runDailyReview, REVIEW_MODES } from '../lib/dailyReview.js';
 import { getPlanTodayStatus, setPlanConfig, runPlanToday, PLAN_MODES } from '../lib/planToday.js';
+import { getWeeklyDebriefStatus, setDebriefConfig, runWeeklyDebrief, DEBRIEF_MODES } from '../lib/weeklyDebrief.js';
 import { getInboxConfig, setInboxConfig } from '../lib/inboxConfig.js';
 
 // The loops: the scheduled briefs (dispatch slots on the inbox rails), the
@@ -170,6 +171,31 @@ export function loopsRouter(vaultPath) {
   router.post('/plan-today/run', async (req, res) => {
     try {
       res.json(await runPlanToday(vaultPath, { force: !!req.body?.force }));
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  router.get('/weekly-debrief', async (req, res) => {
+    try {
+      res.json(await getWeeklyDebriefStatus());
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  router.post('/weekly-debrief/config', async (req, res) => {
+    try {
+      if (req.body?.mode !== undefined && !DEBRIEF_MODES.includes(req.body.mode)) return res.status(400).json({ error: 'mode must be off, draft, or auto' });
+      res.json({ config: await setDebriefConfig(req.body || {}) });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  router.post('/weekly-debrief/run', async (req, res) => {
+    try {
+      res.json(await runWeeklyDebrief(vaultPath, { force: !!req.body?.force }));
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

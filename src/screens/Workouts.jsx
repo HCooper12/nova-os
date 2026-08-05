@@ -462,6 +462,7 @@ function SessionView({ v }) {
                 <span style={css(`font-size:15px;font-weight:500${e.skipped ? ';text-decoration:line-through' : ''}`)}>{e.name}</span>
                 {e.skipped && <span style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;color:var(--nv-warn)")}>SKIPPED TODAY</span>}
                 {!e.skipped && e.coachLabel && <span title={e.coachEvidence || ''} style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-cy);border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);background:color-mix(in srgb, var(--nv-cy) 08%, transparent)")}>{e.coachLabel}</span>}
+                {!e.skipped && e.focusNote && <span style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-gold);border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);background:color-mix(in srgb, var(--nv-gold) 08%, transparent)")}>FOCUS: {e.focusNote}</span>}
               </span>
               <span style={css("display:flex;align-items:center;gap:10px")}>
                 {!e.skipped && <span style={css("font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{e.targetLabel}{e.weightHint ? ` · Coach: ${e.weightHint}` : ''}</span>}
@@ -470,6 +471,9 @@ function SessionView({ v }) {
                   hoverStyle="background:color-mix(in srgb, var(--nv-warn) 16%, transparent)">{e.skipped ? '↺' : '✕'}</Interactive>
               </span>
             </div>
+            {!e.skipped && e.lastLabel && (
+              <div style={css("margin-top:6px;font:400 10.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{e.lastLabel}</div>
+            )}
             <div style={css(`margin-top:12px;display:${e.skipped ? 'none' : 'flex'};flex-direction:column;gap:8px`)}>
               <div style={css("display:flex;gap:10px;font:500 9px var(--nv-font-mono);letter-spacing:.1em;color:color-mix(in srgb, var(--nv-ink) 35%, transparent);padding:0 2px")}>
                 <span style={{ width: '22px' }}>SET</span>{!e.isBodyweight && <span style={{ width: '64px' }}>{e.weightLabel}</span>}<span style={{ width: '64px' }}>{e.amountLabel}</span><span style={{ width: '52px' }}>RPE</span>
@@ -517,6 +521,38 @@ function SessionView({ v }) {
           </>
         )}
       </div>
+
+      {/* Mid-workout coaching — same Coach, same conversation, but it sees
+          THIS session's live state. Not shown when editing a past record. */}
+      {!v.sessionEditing && (
+        <div className="nv-pane" style={{ marginTop: '20px', padding: '16px 18px', display: 'flex', flexDirection: 'column', maxHeight: '340px' }}>
+          <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap")}>
+            <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-cy)")}>ASK COACH — MID-SESSION</span>
+            <span style={css("font:400 8.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>SEES THIS SESSION LIVE</span>
+          </div>
+          <div style={css("flex:1;overflow-y:auto;margin-top:10px;display:flex;flex-direction:column;gap:10px;font:500 12.5px/1.6 var(--nv-font-ui)")}>
+            {v.coachMsgs.length === 0 && !v.coachBusy && (
+              <div style={css("color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>"That last set felt heavy — drop the weight?" · "Shoulder's niggling on these, alternative?" · "Only 20 minutes left, what do I cut?"</div>
+            )}
+            {v.coachMsgs.map((m, i) => (
+              <div key={i} style={m.style}><span style={m.tagStyle}>{m.tag}</span> {m.text}{m.typing && <span style={css("color:var(--nv-cy)")}>▍</span>}</div>
+            ))}
+            {v.coachBusy && <div style={css("color:var(--nv-cy);font:400 11px var(--nv-font-mono)")}>» COACH looking at your session…▍</div>}
+          </div>
+          <div style={css("display:flex;gap:8px;margin-top:10px")}>
+            <Interactive
+              as="input"
+              value={v.coachInput}
+              onChange={v.setCoachInput}
+              onKeyDown={v.coachKey}
+              placeholder="Ask mid-workout…"
+              base="flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font:500 12.5px var(--nv-font-ui);outline:none"
+              focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)"
+            />
+            <Interactive as="span" onClick={v.sendCoach} base="cursor:pointer;display:flex;align-items:center;font:500 11px var(--nv-font-mono);padding:0 16px;border-radius:9px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">ASK</Interactive>
+          </div>
+        </div>
+      )}
     </>
   );
 }

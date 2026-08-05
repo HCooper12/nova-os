@@ -28,11 +28,18 @@ function toppedOut(sessionExercise, entry) {
 // `${routineId}:${exerciseId}` → { kind, delta, evidence }.
 export async function computeProgressions(vaultPath, routines) {
   const sessions = await loadSessions(vaultPath); // newest first
+  // His standing feedback, applied here so a correction he gave once holds
+  // forever: a tuned step replaces the default, a hold suppresses the
+  // suggestion entirely. See progressionTunes.js.
+  const { getTunes, tuneFor } = await import('./progressionTunes.js');
+  const tunes = await getTunes(vaultPath).catch(() => []);
   const out = {};
 
   for (const routine of routines) {
     for (const entry of routine.exercises) {
       if (!WEIGHTED_TYPES.has(entry.trackingType) && !BODYWEIGHT_TYPES.has(entry.trackingType)) continue;
+      const tune = tuneFor(tunes, entry.exerciseId);
+      if (tune?.hold) continue; // he asked for no progressions here — honour it
 
       const recent = [];
       for (const s of sessions) {
@@ -45,16 +52,18 @@ export async function computeProgressions(vaultPath, routines) {
 
       const lastWeight = Math.max(...recent[0].sets.map((s) => Number(s.weight) || 0));
       if (WEIGHTED_TYPES.has(entry.trackingType)) {
+        const step = tune?.stepKg ?? WEIGHT_STEP_KG;
         out[`${routine.id}:${entry.exerciseId}`] = {
           kind: 'weight',
-          delta: WEIGHT_STEP_KG,
-          evidence: `hit ${entry.targetRepsHigh}+ reps across all sets twice running${lastWeight ? ` at ${lastWeight}kg` : ''}`,
+          delta: step,
+          evidence: `hit ${entry.targetRepsHigh}+ reps across all sets twice running${lastWeight ? ` at ${lastWeight}kg` : ''}${tune?.stepKg != null ? ` (step tuned to ${step}kg per your feedback)` : ''}`,
         };
       } else {
+        const step = tune?.repStep ?? 1;
         out[`${routine.id}:${entry.exerciseId}`] = {
           kind: 'reps',
-          delta: 1,
-          evidence: `topped ${entry.targetRepsHigh} reps on every set twice running`,
+          delta: step,
+          evidence: `topped ${entry.targetRepsHigh} reps on every set twice running${tune?.repStep != null ? ` (rep step tuned to +${step} per your feedback)` : ''}`,
         };
       }
     }
@@ -228,6 +237,25 @@ export async function draftSessionSummary(vaultPath, session) {
   return record;
 }
 
+/* --------------------------- live session ask ---------------------------- */
+
+// Mid-session coaching needs the state of THIS session, not just history:
+// what's logged so far, what's left, what he's mid-way through. The client
+// sends its live session object; this renders the compact truth the Coach
+// reasons from. Pure and exported for tests.
+export function liveSessionContext(session) {
+  if (!session || !Array.isArray(session.exercises) || !session.exercises.length) return '';
+  const lines = session.exercises.map((e) => {
+    const done = (e.sets || []).filter((s) => s.done);
+    const status = e.skipped ? 'SKIPPED today'
+      : done.length ? done.map((s) => `${Number(s.weight) || 0}x${Number(s.reps) || 0}${s.rpe ? `@${s.rpe}` : ''}`).join(', ') + ` (${done.length}/${(e.sets || []).length} sets)`
+      : 'not started';
+    return `- ${e.name}: ${status}`;
+  });
+  const doneSets = session.exercises.reduce((n, e) => n + (e.sets || []).filter((s) => s.done).length, 0);
+  return `LIVE SESSION IN PROGRESS — ${session.routineName || 'Session'}, ${doneSets} sets logged so far. He is asking you MID-WORKOUT, so answer for the gym floor: short, decisive, about what to do in the next few minutes. Current state:\n${lines.join('\n')}`;
+}
+
 /* --------------- Coach program edits (proposed, never direct) ------------ */
 // The Coach chat can PROPOSE a routine change: the model appends one
 // `PROPOSE {json}` line, this code validates it against the REAL routines
@@ -247,7 +275,7 @@ export function parseCoachProposal(text) {
   }
 }
 
-const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets'];
+const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets', 'tune'];
 
 export async function validateCoachEdit(vaultPath, raw) {
   const { loadExerciseLibrary } = await import('./exercises.js');
@@ -258,6 +286,27 @@ export async function validateCoachEdit(vaultPath, raw) {
   const { exercises } = await loadExerciseLibrary(vaultPath);
   const { routines } = await loadRoutines(vaultPath, exercises);
   const ci = (s) => String(s || '').trim().toLowerCase();
+
+  // "tune" needs no routine — it adjusts the progression engine for ONE
+  // exercise, wherever it appears. This is how his feedback ("that jump is
+  // too big") becomes standing behaviour instead of a remark.
+  if (action === 'tune') {
+    const name = String(raw.exercise || '').trim();
+    const lib = exercises.find((e) => ci(e.name) === ci(name))
+      || exercises.find((e) => ci(e.name).includes(ci(name)) || ci(name).includes(ci(e.name)));
+    if (!lib) throw new Error(`no exercise called "${name}" in his library`);
+    const stepKg = Number.isFinite(Number(raw.stepKg)) && Number(raw.stepKg) > 0 && Number(raw.stepKg) <= 20 ? Number(raw.stepKg) : null;
+    const repStep = Number.isInteger(Number(raw.repStep)) && Number(raw.repStep) >= 1 && Number(raw.repStep) <= 5 ? Number(raw.repStep) : null;
+    const hold = raw.hold === true;
+    const focus = String(raw.focus || '').trim().slice(0, 120);
+    if (stepKg == null && repStep == null && !hold && !focus) throw new Error('a tune needs stepKg, repStep, hold:true, or a focus');
+    const bits = [hold ? 'hold progressions' : null, stepKg != null ? `weight step ${stepKg}kg` : null, repStep != null ? `rep step +${repStep}` : null, focus ? `focus: ${focus}` : null].filter(Boolean);
+    return {
+      payload: { action, exerciseId: lib.id, exerciseName: lib.name, stepKg, repStep, hold, focus, reason: String(raw.reason || '').slice(0, 200) },
+      title: `Coach: tune ${lib.name} — ${bits.join(', ')}`,
+    };
+  }
+
   const routine = routines.find((r) => ci(r.name) === ci(raw.routine))
     || routines.find((r) => ci(r.name).includes(ci(raw.routine)) || ci(raw.routine).includes(ci(r.name)));
   if (!routine) throw new Error(`no routine called "${raw.routine}" (have: ${routines.map((r) => r.name).join(', ')})`);
@@ -311,7 +360,7 @@ export async function createCoachEditRecord(vaultPath, { question, proposal, sou
     status: 'pending',
     createdAt: new Date().toISOString(),
     decision: {
-      route: 'routine-edit',
+      route: payload.action === 'tune' ? 'progression-tune' : 'routine-edit',
       confidence: 'high',
       title,
       reason: payload.reason || 'proposed in the Coach chat',

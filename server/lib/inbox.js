@@ -259,6 +259,26 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  if (route === 'progression-tune') {
+    // Coach feedback made durable: tune the progression engine for one
+    // exercise. Undo restores the exact prior tune (or clears it).
+    const { setTune } = await import('./progressionTunes.js');
+    const { tune, prior } = await setTune(vaultPath, {
+      exerciseId: payload.exerciseId,
+      name: payload.exerciseName,
+      stepKg: payload.stepKg,
+      repStep: payload.repStep,
+      hold: payload.hold,
+      focus: payload.focus,
+      note: payload.reason,
+    });
+    const bits = [tune.hold ? 'progressions on hold' : null, tune.stepKg != null ? `weight step ${tune.stepKg}kg` : null, tune.repStep != null ? `rep step +${tune.repStep}` : null, tune.focus ? `focus: ${tune.focus}` : null].filter(Boolean);
+    return {
+      destination: `Progression Tuning — ${tune.name}: ${bits.join(', ')}`,
+      undo: { route, exerciseId: tune.exerciseId, name: tune.name, prior },
+    };
+  }
+
   if (route === 'routine-edit') {
     // A Coach-proposed program change, applied deterministically on approve.
     // Undo restores the routine's EXACT prior exercise list.
@@ -535,6 +555,11 @@ export async function undoFiling(vaultPath, undo) {
     const removed = await removeStandingRule(vaultPath, undo.raw);
     return removed ? 'removed the standing instruction' : 'that instruction was already edited out of the page';
   }
+  if (undo.route === 'progression-tune') {
+    const { clearTune } = await import('./progressionTunes.js');
+    await clearTune(vaultPath, undo.exerciseId, { restore: undo.prior });
+    return undo.prior ? `restored ${undo.name}'s previous tune` : `cleared the tune — ${undo.name} progresses by the defaults again`;
+  }
   if (undo.route === 'routine-edit') {
     const { loadExerciseLibrary } = await import('./exercises.js');
     const { updateRoutine } = await import('./workouts.js');
@@ -755,7 +780,7 @@ export async function retryRecord(vaultPath, id) {
 // is a marked discard (expired: true) — visible in the stream as a receipt,
 // never a silent deletion — and only touches kinds whose worth is bound to
 // a moment. Real content (captures, research, coach receipts) never expires.
-const TIME_VALUE_HOURS = { dispatch: 48, review: 48, 'training-check': 48, 'week-plan': 8 * 24, 'plan-today': 24 };
+const TIME_VALUE_HOURS = { dispatch: 48, review: 48, 'training-check': 48, 'week-plan': 8 * 24, 'plan-today': 24, 'weekly-debrief': 8 * 24 };
 export async function expireStaleDrafts() {
   const records = await listRecords();
   const now = Date.now();
