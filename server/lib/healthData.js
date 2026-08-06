@@ -63,7 +63,10 @@ export function pickKnownMetrics(raw) {
   // Both word orders accepted: a hand-built Shortcut may as naturally say
   // "watchSteps" as "stepsWatch", and a silently dropped key is exactly the
   // failure mode that cost weeks on the weightKg casing bug.
-  const perDevice = ['steps', 'stepswatch', 'watchsteps', 'stepsiphone', 'iphonesteps', 'stepsphone', 'phonesteps']
+  // pedometersteps: Pedometer++'s own count via its Shortcuts action — a
+  // separate instrument (CMPedometer, not HealthKit) that reads higher than
+  // Health's dedup; if he sends it, it competes in the same MAX fold
+  const perDevice = ['steps', 'stepswatch', 'watchsteps', 'stepsiphone', 'iphonesteps', 'stepsphone', 'phonesteps', 'pedometersteps', 'stepspedometer']
     .map((k) => Number(lower[k]))
     .filter((n) => Number.isFinite(n) && n >= 0);
   if (perDevice.length) {
