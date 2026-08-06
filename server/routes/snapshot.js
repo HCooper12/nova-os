@@ -73,10 +73,16 @@ export function snapshotRouter({ port, token }) {
       out.pending = (await listRecords()).filter((r) => r.status === 'pending').length;
     } catch { out.pending = null; }
     try {
+      // a widget must answer fast — a cold CalDAV fetch can take longer than
+      // iOS will wait, so the calendar gets 5s or the slot is honestly null
       const { fetchEventsForRange } = await import('../lib/calendar.js');
       const nowHM = `${pad(new Date().getHours())}:${pad(new Date().getMinutes())}`;
-      const events = (await fetchEventsForRange(1)).filter((e) => e.date === today && e.time && e.time >= nowHM);
-      out.next = events.length ? { time: events[0].time, label: String(events[0].label || '').slice(0, 40) } : null;
+      const events = await Promise.race([
+        fetchEventsForRange(1),
+        new Promise((resolve) => setTimeout(() => resolve(null), 5000)),
+      ]);
+      const upcoming = (events || []).filter((e) => e.date === today && e.time && e.time >= nowHM);
+      out.next = upcoming.length ? { time: upcoming[0].time, label: String(upcoming[0].label || '').slice(0, 40) } : null;
     } catch { out.next = null; }
     try {
       const { getPlanTodayStatus } = await import('../lib/planToday.js');
