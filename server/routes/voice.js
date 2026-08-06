@@ -58,16 +58,31 @@ export function voiceRouter(vaultPath) {
       const question = typeof req.body?.question === 'string' ? req.body.question.trim() : '';
       if (!question) return res.status(400).json({ error: 'question is required' });
       if (question.length > 1000) return res.status(400).json({ error: 'keep a spoken question under 1000 characters' });
+      // A real answer takes ~30s (context assembly + the model), and iOS
+      // Shortcuts kills a request that sits SILENT that long — "The network
+      // connection was lost". So flush the headers at once and drip a space
+      // every few seconds while Nova thinks: leading whitespace is legal
+      // JSON, so Get Dictionary Value still parses the result, and the
+      // connection never looks idle to the phone.
+      res.set('Content-Type', 'application/json');
+      res.flushHeaders();
+      const keepalive = setInterval(() => { try { res.write(' '); } catch { /* client gone */ } }, 3000);
+      // status can't change after flushing, so failures answer 200 with a
+      // spoken-friendly `text` — Siri says what went wrong instead of nothing
+      const finish = (payload) => { clearInterval(keepalive); res.end(JSON.stringify(payload)); };
+
       const jobId = startAskNova(vaultPath, { question, context: await askContext(null) });
       const deadline = Date.now() + 110_000;
       while (Date.now() < deadline) {
+        if (res.writableEnded || res.destroyed) { clearInterval(keepalive); return; }
         const job = getMessageJob(jobId);
-        if (job?.status === 'ready') return res.json({ text: job.result.text, sessionId: job.result.sessionId });
-        if (job?.status === 'error') return res.status(500).json({ error: job.error });
+        if (job?.status === 'ready') return finish({ text: job.result.text, sessionId: job.result.sessionId });
+        if (job?.status === 'error') return finish({ text: `Nova hit an error: ${job.error}`, error: job.error });
         await sleep(400);
       }
-      res.status(504).json({ error: 'Nova took too long to answer' });
+      finish({ text: 'Nova took too long to answer that one.', error: 'timeout' });
     } catch (e) {
+      if (res.headersSent) { try { res.end(JSON.stringify({ text: `Nova hit an error: ${e.message}`, error: e.message })); } catch { /* gone */ } return; }
       res.status(500).json({ error: e.message });
     }
   });
