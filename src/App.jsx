@@ -138,7 +138,7 @@ function screenFromHash() {
 // serialize; details re-fetch on demand).
 const CACHED_LIVE_KEYS = [
   'liveNotes', 'liveCalendar', 'liveRecipes', 'liveRecipeProfile', 'liveRotation',
-  'liveFoodLog', 'liveFoodHistory', 'liveShoppingList', 'liveStash', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
+  'liveFoodLog', 'liveFoodHistory', 'liveNutritionMonth', 'liveShoppingList', 'liveStash', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
   'liveWorkoutExercises', 'liveWorkoutMuscleGroups', 'liveWorkoutTrackingTypes',
   'liveWorkoutRoutines', 'liveWorkoutSchedule', 'liveWorkoutWeekdays', 'liveWorkoutProgressions', 'liveWorkoutGoals', 'liveCarryovers',
   'liveJournalEntries', 'liveGraph', 'liveInbox', 'liveDispatch', 'liveCompost', 'liveTodoist', 'liveTodos', 'liveGuardian', 'liveMoney',
@@ -212,7 +212,7 @@ export default class App extends Component {
       } catch { return null; }
     })(),
     liveReviewSummaries: {},
-    liveFoodLog: null, liveFoodHistory: null, foodHistoryOpen: false,
+    liveFoodLog: null, liveFoodHistory: null, liveNutritionMonth: null, foodHistoryOpen: false,
     liveStash: null, stashAddCategory: '', stashAddName: '', stashAddUrl: '', stashAddNote: '', stashAddBusy: false, stashAddError: null, stashRemoveConfirm: null,
     foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogBusy: false, foodLogError: null,
     foodScanNote: '', foodScanPhotos: [], foodScanBusy: false, foodScanError: null, foodScanQuestion: null, foodLogFillSource: null,
@@ -915,6 +915,7 @@ export default class App extends Component {
     });
     apply('rotation', (r) => this.setState({ liveRotation: r }));
     apply('foodLog', (r) => this.setState({ liveFoodLog: r }));
+    apply('nutritionMonth', (r) => this.setState({ liveNutritionMonth: r }));
     apply('stash', (r) => this.setState({ liveStash: r.categories }));
     apply('shoppingList', (r) => this.setState({ liveShoppingList: r }));
     apply('workoutExercises', (r) => this.setState({ liveWorkoutExercises: r.exercises, liveWorkoutMuscleGroups: r.muscleGroups, liveWorkoutTrackingTypes: r.trackingTypes }));
@@ -968,6 +969,7 @@ export default class App extends Component {
       },
       async () => this.setState({ liveRotation: await api.rotation(conn) }),
       async () => this.setState({ liveFoodLog: await api.foodLog(conn) }),
+      async () => this.setState({ liveNutritionMonth: await api.nutritionMonth(conn) }),
       async () => this.setState({ liveShoppingList: await api.shoppingList(conn) }),
       async () => {
         const exercisesRes = await api.workoutExercises(conn);

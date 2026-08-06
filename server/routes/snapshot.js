@@ -19,6 +19,7 @@ const SLICES = {
   recipes: '/api/recipes',
   rotation: '/api/rotation',
   foodLog: '/api/food-log',
+  nutritionMonth: '/api/nutrition-month',
   shoppingList: '/api/shopping-list',
   stash: '/api/stash',
   workoutExercises: '/api/workouts/exercises',
@@ -44,6 +45,47 @@ const SLICES = {
 
 export function snapshotRouter({ port, token }) {
   const router = Router();
+
+  // One tiny payload for home-screen widgets (Scriptable on iOS): the day at
+  // a glance, nothing else. Same honesty rules — absent data is null, never
+  // a made-up zero.
+  router.get('/widget', async (req, res) => {
+    const out = { at: new Date().toISOString() };
+    const pad = (n) => String(n).padStart(2, '0');
+    const today = (() => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; })();
+    try {
+      const { loadRecentDays } = await import('../lib/healthData.js');
+      const days = await loadRecentDays(3);
+      const t = days.find((d) => d.date === today);
+      const latest = [...days].reverse().find((d) => d.steps != null);
+      out.steps = t?.steps ?? null;
+      out.stepsDate = t?.steps != null ? today : (latest?.date ?? null);
+      if (t?.steps == null && latest) out.steps = latest.steps;
+    } catch { out.steps = null; }
+    try {
+      const { getToday } = await import('../lib/foodLog.js');
+      const log = await getToday();
+      const sum = (k) => Math.round((log.entries || []).reduce((s, e) => s + (e.macros?.[k] || 0), 0));
+      out.protein = sum('p'); out.kcal = sum('kcal');
+    } catch { out.protein = null; out.kcal = null; }
+    try {
+      const { listRecords } = await import('../lib/inboxStore.js');
+      out.pending = (await listRecords()).filter((r) => r.status === 'pending').length;
+    } catch { out.pending = null; }
+    try {
+      const { fetchEventsForRange } = await import('../lib/calendar.js');
+      const nowHM = `${pad(new Date().getHours())}:${pad(new Date().getMinutes())}`;
+      const events = (await fetchEventsForRange(1)).filter((e) => e.date === today && e.time && e.time >= nowHM);
+      out.next = events.length ? { time: events[0].time, label: String(events[0].label || '').slice(0, 40) } : null;
+    } catch { out.next = null; }
+    try {
+      const { getPlanTodayStatus } = await import('../lib/planToday.js');
+      const plan = await getPlanTodayStatus();
+      out.top3 = (plan.today?.priorities || []).map((p) => String(p.do || '').slice(0, 60));
+      out.planStatus = plan.today?.status || null;
+    } catch { out.top3 = []; }
+    res.json(out);
+  });
 
   router.get('/snapshot', async (req, res) => {
     const base = `http://127.0.0.1:${port}`;

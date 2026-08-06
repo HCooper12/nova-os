@@ -29,7 +29,7 @@ const MAX_BUDGET_USD = '0.5';
 const INBOX_DIR_REL = 'Wiki/Inbox';
 const TODO_REL = 'Wiki/Inbox/To-Do.md';
 
-export const ROUTES = ['shopping', 'journal', 'todo', 'note', 'food', 'expense', 'idea', 'stash'];
+export const ROUTES = ['shopping', 'journal', 'todo', 'note', 'food', 'expense', 'idea', 'stash', 'reminder'];
 export const IDEA_FORMATS = ['short', 'long', 'thread'];
 export const IDEAS_DIR_REL = 'Wiki/Studio/Ideas';
 export const MODES = ['review-all', 'auto-high', 'auto-all'];
@@ -55,13 +55,14 @@ Routes and their payloads:
 - "idea" — a CONTENT idea (something Hayden might make: a video, post, thread). payload: {"title": "Short Working Title", "hook": "the one-line hook that makes it worth making", "format": "short"|"long"|"thread" — best guess}. Distinct from "note" (knowledge to keep) — an idea is something to potentially produce.
 - "expense" — money spent (or received) to record in the ledger (e.g. "coffee 6.50", "paid the gym 89 dollars"). payload: {"amount": -6.5, "merchant": "...", "category": "...", "date": "YYYY-MM-DD or omit for today"} — amount NEGATIVE for spending, positive for money in; category exactly one of: ${MONEY_CATEGORIES.join(', ')} (best fit, or omit).
 - "stash" — a LINK to keep for later: a product to restock or a page to revisit (e.g. "stash this face wash under skincare https://…"). ONLY when the capture contains an actual http(s) URL — with no URL it is a todo or note instead. payload: {"category": "Short Title Case group — reuse the user's word, e.g. Skincare", "name": "the product/page name", "url": "copied EXACTLY from the capture — never invent, complete, or fix a URL", "note": "optional short note, omit if none"}.
+- "reminder" — something to be REMINDED of at a specific time ("remind me at 4pm to call the bank", "tomorrow morning remind me about the parcel"). ONLY when a time or day is stated or clearly implied — an action with no time is a todo. payload: {"text": "short imperative reminder text", "whenISO": "the moment to fire, as a full ISO 8601 local datetime like 2026-08-07T16:00:00"} — resolve relative times ("in 20 minutes", "tomorrow morning" ≈ 08:00, "tonight" ≈ 20:00) against the current date and time given below; the time must be in the FUTURE.
 
 Also output:
 - "title": a short label for the history list (≤ 8 words)
 - "confidence": "high" ONLY when both the route and the payload extraction are unambiguous; otherwise "low"
 - "reason": one short sentence explaining the routing (and, if confidence is low, what was ambiguous)
 
-Rules: dictated text may have transcription errors — clean them. If the thought mixes several intents, pick the dominant one and set confidence "low". If it fits nothing well, use "note" with confidence "low". Today's date is ${todayISO()}.
+Rules: dictated text may have transcription errors — clean them. If the thought mixes several intents, pick the dominant one and set confidence "low". If it fits nothing well, use "note" with confidence "low". The current date and time is ${new Date().toString()}.
 
 The captured thought:
 """
@@ -136,6 +137,12 @@ export function normalizeDecision(parsed) {
     if (!name) throw new Error('classifier returned no name for the link');
     if (!category) throw new Error('classifier returned no category');
     payload = { category, name, url, note: String(p.note || '').trim().slice(0, 200) || undefined };
+  } else if (route === 'reminder') {
+    const text = String(p.text || '').trim().slice(0, 200);
+    const when = new Date(String(p.whenISO || ''));
+    if (!text) throw new Error('classifier returned no reminder text');
+    if (Number.isNaN(when.getTime())) throw new Error('classifier returned no valid reminder time');
+    payload = { text, whenISO: when.toISOString() };
   } else {
     const noteTitle = String(p.title || title).trim().slice(0, 120) || 'Captured Note';
     const body = String(p.body || '').trim();
@@ -256,6 +263,16 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     return {
       destination: `Standing Instructions — "${rule.slice(0, 60)}${rule.length > 60 ? '…' : ''}"`,
       undo: { route, raw },
+    };
+  }
+
+  if (route === 'reminder') {
+    const { createReminder } = await import('./reminders.js');
+    const entry = await createReminder({ text: payload.text, whenISO: payload.whenISO });
+    const whenLabel = new Date(entry.when).toLocaleString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    return {
+      destination: `Reminder — "${entry.text}" ${whenLabel}${entry.apple ? ` (also in Apple Reminders: ${entry.apple.list})` : ' (Nova nudge only — iCloud write did not land)'}`,
+      undo: { route, reminderId: entry.id, text: entry.text },
     };
   }
 
@@ -554,6 +571,11 @@ export async function undoFiling(vaultPath, undo) {
     const { removeStandingRule } = await import('./standing.js');
     const removed = await removeStandingRule(vaultPath, undo.raw);
     return removed ? 'removed the standing instruction' : 'that instruction was already edited out of the page';
+  }
+  if (undo.route === 'reminder') {
+    const { removeReminder } = await import('./reminders.js');
+    const removed = await removeReminder(undo.reminderId);
+    return removed ? `cancelled the reminder "${removed.text}"` : 'that reminder was already gone';
   }
   if (undo.route === 'progression-tune') {
     const { clearTune } = await import('./progressionTunes.js');

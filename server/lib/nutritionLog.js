@@ -27,6 +27,26 @@ export async function saveDay(date, totals, floorG) {
   return record;
 }
 
+// This calendar month, scored: how many tracked days actually met the
+// protein floor. Honest denominators — days with no floor set are excluded
+// from the percentage rather than counted either way.
+export async function monthAdherence(now = new Date()) {
+  if (!existsSync(LOG_DIR())) return { tracked: 0, met: 0, pct: null, avgP: null };
+  const prefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const files = (await readdir(LOG_DIR())).filter((f) => f.startsWith(prefix) && f.endsWith('.json'));
+  let tracked = 0, met = 0, pSum = 0, pDays = 0;
+  for (const f of files) {
+    try {
+      const d = JSON.parse(await readFile(path.join(LOG_DIR(), f), 'utf8'));
+      if (d.p != null) { pSum += d.p; pDays++; }
+      if (d.floorMet == null) continue;
+      tracked++;
+      if (d.floorMet) met++;
+    } catch { /* one bad file never breaks the month */ }
+  }
+  return { tracked, met, pct: tracked ? Math.round((met / tracked) * 100) : null, avgP: pDays ? Math.round(pSum / pDays) : null };
+}
+
 export async function loadRecentDays(n = 7) {
   if (!existsSync(LOG_DIR())) return [];
   const files = (await readdir(LOG_DIR())).filter((f) => /^\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort().reverse();

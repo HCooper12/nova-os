@@ -49,6 +49,26 @@ export function proposalKeyboard(recordId) {
   ]] };
 }
 
+// Plain outbound line — reminders, nudges. Best-effort like everything here.
+export async function sendTelegramText(text) {
+  if (!telegramConfigured() || !CHAT_ID()) return;
+  await tg('sendMessage', { chat_id: CHAT_ID(), text: String(text).slice(0, 4000) }).catch(() => {});
+}
+
+// Poke-style proactivity: a record newly waiting on Hayden is ANNOUNCED in
+// the thread, buttons attached — the same taste filter as web push (things
+// waiting on him, never everything that happens), the same rails when he
+// taps. Best-effort: no bridge, no chat id, or an API hiccup all fail silent.
+const ANNOUNCE_SKIP_KINDS = new Set(['followup']);
+export async function announceRecord(record) {
+  if (!telegramConfigured() || !CHAT_ID()) return;
+  if (!record || record.status !== 'pending' || ANNOUNCE_SKIP_KINDS.has(record.kind)) return;
+  const title = record.decision?.title || record.text || 'Waiting for review';
+  const body = String(record.decision?.payload?.text || record.decision?.reason || '').trim();
+  const text = `◈ ${title}${body && body !== title ? `\n\n${body.slice(0, 900)}${body.length > 900 ? '…' : ''}` : ''}`;
+  await tg('sendMessage', { chat_id: CHAT_ID(), text: text.replace(/\*\*/g, ''), reply_markup: proposalKeyboard(record.id) }).catch(() => {});
+}
+
 async function tg(method, body) {
   const r = await fetch(`${API()}/${method}`, {
     method: 'POST',

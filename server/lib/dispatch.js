@@ -272,6 +272,13 @@ async function composeMorning(vaultPath, now) {
     if (pulse) lines.push(pulse);
   } catch { /* optional */ }
 
+  // what's aging and waiting on him — follow-up until closed
+  try {
+    const { openLoopsLine } = await import('./openLoops.js');
+    const loops = await openLoopsLine(vaultPath);
+    if (loops) lines.push(loops);
+  } catch { /* optional */ }
+
   try {
     const streaks = await streakLine(vaultPath);
     if (streaks) lines.push(streaks);

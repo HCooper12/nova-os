@@ -134,6 +134,7 @@ export const api = {
   promoteRecipeAlternate: (conn, id, altId) => post(conn, `/api/recipes/${encodeURIComponent(id)}/promote`, { altId }),
   setRotationConsumed: (conn, slot, consumed) => post(conn, '/api/rotation/consume', { slot, consumed }),
   foodLog: (conn) => call(conn, '/api/food-log'),
+  nutritionMonth: (conn) => call(conn, '/api/nutrition-month'),
   foodHistory: (conn, days = 45) => call(conn, `/api/food-log/history?days=${days}`),
   addFoodLogEntry: (conn, entry) => post(conn, '/api/food-log', entry),
   deleteFoodLogEntry: (conn, id) => del(conn, `/api/food-log/${encodeURIComponent(id)}`),

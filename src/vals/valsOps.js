@@ -91,6 +91,15 @@ export function valsOps(app, ctx) {
       ? { p: Math.round(st.liveRotation.consumedTotals.p), floor: st.liveRecipeProfile?.proteinFloorG ?? null }
       : null,
     ambientPending: ops?.pending ?? null,
+    // the objectives row — momentum stated as fact (real streaks + the month
+    // scored), and one overall state the core's glow reflects: gold when
+    // something waits or the day is drifting, cyan when the board is clear
+    ambientObjectives: [
+      st.liveStreaks?.workoutStreak >= 1 ? { key: 'train', label: 'TRAIN STREAK', value: `${st.liveStreaks.workoutStreak}d` } : null,
+      st.liveNutritionMonth?.pct != null ? { key: 'fuel', label: 'PROTEIN MONTH', value: `${st.liveNutritionMonth.met}/${st.liveNutritionMonth.tracked}d` } : null,
+      st.liveStreaks?.stepGoalStreak >= 1 ? { key: 'steps', label: 'STEP STREAK', value: `${st.liveStreaks.stepGoalStreak}d` } : null,
+    ].filter(Boolean),
+    ambientState: (ops?.pending ?? 0) > 0 ? 'attention' : 'clear',
     // the pulse strip: every cached item flattened; the screen rotates them
     ambientPulseItems: (st.livePulse || []).flatMap((t) => (t.items || []).map((i) => ({
       topic: t.topic, title: i.title, source: i.source,

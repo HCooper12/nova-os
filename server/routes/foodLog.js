@@ -24,6 +24,16 @@ export function foodLogRouter(vaultPath) {
     }
   });
 
+  // the month, scored — protein-floor adherence for the Fuel scorecard
+  router.get('/nutrition-month', async (req, res, next) => {
+    try {
+      const { monthAdherence } = await import('../lib/nutritionLog.js');
+      res.json(await monthAdherence());
+    } catch (err) {
+      next(err);
+    }
+  });
+
   router.post('/food-log', async (req, res, next) => {
     try {
       const { name, macros, source } = req.body || {};

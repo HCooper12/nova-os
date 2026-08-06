@@ -193,6 +193,8 @@ async function main() {
     .catch((e) => console.error('plan-today scheduler failed to start:', e.message));
   import('./lib/weeklyDebrief.js').then(({ startWeeklyDebriefScheduler }) => startWeeklyDebriefScheduler(process.env.VAULT_PATH))
     .catch((e) => console.error('weekly-debrief scheduler failed to start:', e.message));
+  import('./lib/reminders.js').then(({ startRemindersScheduler }) => startRemindersScheduler())
+    .catch((e) => console.error('reminders scheduler failed to start:', e.message));
   if (process.env.ICLOUD_USERNAME && process.env.ICLOUD_APP_PASSWORD) startCalendarWatch();
 
   app.use((err, req, res, next) => {

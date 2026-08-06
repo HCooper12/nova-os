@@ -21,6 +21,7 @@ const ROUTE_META = {
   stash: { label: 'STASH', hue: '224,178,106' },
   'routine-edit': { label: 'TRAIN EDIT', hue: '89,230,255' },
   'progression-tune': { label: 'COACH TUNE', hue: '224,178,106' },
+  reminder: { label: 'REMINDER', hue: '89,230,255' },
 };
 
 const MODE_LADDER = [
@@ -39,6 +40,7 @@ function payloadPreview(decision) {
     return `${p.name} — ${m.p}P · ${m.c}C · ${m.f}F · ${m.kcal} kcal`;
   }
   if (decision.route === 'journal') return p.text || '';
+  if (decision.route === 'reminder') return `"${p.text}" — ${p.whenISO ? new Date(p.whenISO).toLocaleString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}`;
   if (decision.route === 'stash') return `${p.name} → ${p.category}${p.note ? ' — ' + p.note : ''}`;
   if (decision.route === 'routine-edit') return `${p.action === 'swap' ? `${p.removeName} → ${p.addName}` : p.action === 'add' ? `+ ${p.addName}` : p.action === 'remove' ? `− ${p.removeName}` : `${p.removeName} targets`} in ${p.routineName}${p.reason ? ' — ' + p.reason : ''}`;
   if (decision.route === 'progression-tune') return `${p.exerciseName}: ${[p.hold ? 'hold progressions' : null, p.stepKg != null ? `step ${p.stepKg}kg` : null, p.repStep != null ? `+${p.repStep} rep` : null, p.focus ? `focus — ${p.focus}` : null].filter(Boolean).join(', ')}${p.reason ? ' — ' + p.reason : ''}`;

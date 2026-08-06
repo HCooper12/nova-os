@@ -27,6 +27,16 @@ export async function buildAskContext(vaultPath, sessionId) {
     ]);
     parts.push(`${morning.text}\n\n${evening.text}`);
   } catch { /* the prompt says "(unavailable)" honestly */ }
+  try {
+    const { openLoopsContext } = await import('./openLoops.js');
+    const loops = await openLoopsContext(vaultPath);
+    if (loops) parts.push(loops);
+  } catch { /* optional */ }
+  try {
+    const { remindersContext } = await import('./reminders.js');
+    const reminders = await remindersContext();
+    if (reminders) parts.push(reminders);
+  } catch { /* optional */ }
   // the reflective surfaces are for DISCUSSING out loud, not just reading —
   // hand the latest ones to the conversation so "let's talk about the
   // debrief" needs no re-summarising

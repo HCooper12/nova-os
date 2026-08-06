@@ -295,7 +295,10 @@ export function valsMission(app, ctx) {
           value: String(Math.round(proteinCurrent)),
           small: `/${proteinTarget}G`,
           pct: Math.round(proteinRatio * 100),
-          hint: proteinGap > 0 ? `${Math.round(proteinRatio * 100)}% · GAP ${proteinGap}G` : 'FLOOR CLEARED',
+          // the month scored alongside the day — adherence is the story a
+          // single day can't tell (from the reference nutrition app)
+          hint: (proteinGap > 0 ? `${Math.round(proteinRatio * 100)}% · GAP ${proteinGap}G` : 'FLOOR CLEARED')
+            + (st.liveNutritionMonth?.pct != null ? ` · MET ${st.liveNutritionMonth.met}/${st.liveNutritionMonth.tracked}D` : ''),
         };
 
   // ---- BODY strip — weight / recovery / fuel in one glance ----------------
@@ -341,11 +344,19 @@ export function valsMission(app, ctx) {
           // kcal wears the same green as calories on the Recipes tab — and
           // never the protein satellite's violet, so the two counters can't
           // be mistaken for each other at a glance
-          ? { key: 'fuel', label: 'EATEN TODAY', value: Math.round(kcalCurrent).toLocaleString(), small: targetKcal ? `/${targetKcal}` : 'KCAL', color: '--nv-good',
-              hint: targetKcal
-                ? (kcalCurrent <= targetKcal ? `KCAL · ${Math.round(targetKcal - kcalCurrent).toLocaleString()} LEFT` : `KCAL · ${Math.round(kcalCurrent - targetKcal).toLocaleString()} OVER`)
-                : 'KCAL · NO TARGET SET',
-              onOpen: go('recipes') }
+          ? (() => {
+              // today's full macro picture — C and F have no set targets, so
+              // they read as plain grams (never an invented goal)
+              const entries = st.liveFoodLog?.entries || [];
+              const c = Math.round(entries.reduce((s, e) => s + (e.macros?.c || 0), 0));
+              const f = Math.round(entries.reduce((s, e) => s + (e.macros?.f || 0), 0));
+              const macroBit = entries.length ? ` · ${c}C ${f}F` : '';
+              return { key: 'fuel', label: 'EATEN TODAY', value: Math.round(kcalCurrent).toLocaleString(), small: targetKcal ? `/${targetKcal}` : 'KCAL', color: '--nv-good',
+                hint: (targetKcal
+                  ? (kcalCurrent <= targetKcal ? `KCAL · ${Math.round(targetKcal - kcalCurrent).toLocaleString()} LEFT` : `KCAL · ${Math.round(kcalCurrent - targetKcal).toLocaleString()} OVER`)
+                  : 'KCAL · NO TARGET SET') + macroBit,
+                onOpen: go('recipes') };
+            })()
           : { key: 'fuel', label: 'EATEN TODAY', value: '—', small: '', color: '--nv-good', hint: 'RECONNECT TO LOAD', onOpen: go('recipes') },
       ];
 

@@ -86,10 +86,13 @@ export async function getRecord(id) {
   return store.items.find((r) => r.id === id) || null;
 }
 
-// anything newly WAITING on Hayden earns a phone notification
+// anything newly WAITING on Hayden earns a phone notification — web push,
+// and (when the bridge is up) a Telegram message with the Approve/Leave
+// buttons, so acting is one tap in the thread he already reads
 function notifyIfPending(record, previousStatus) {
   if (record.status !== 'pending' || previousStatus === 'pending') return;
   import('./push.js').then(({ pushForRecord }) => pushForRecord(record)).catch(() => {});
+  import('./telegram.js').then(({ announceRecord }) => announceRecord(record)).catch(() => {});
 }
 
 export async function createRecord(record) {
