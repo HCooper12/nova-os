@@ -15,7 +15,7 @@ export function voiceRouter(vaultPath) {
   // Live context injected on the FIRST turn of a conversation; resumed turns
   // already carry it. Shared builder (lib/askContext.js) so the Voice
   // screen, the Siri sync ask, and the Telegram bridge can never drift.
-  const askContext = (sessionId) => buildAskContext(vaultPath, sessionId);
+  const askContext = (sessionId, opts) => buildAskContext(vaultPath, sessionId, opts);
 
   router.post('/ask', async (req, res) => {
     try {
@@ -71,7 +71,7 @@ export function voiceRouter(vaultPath) {
       // spoken-friendly `text` — Siri says what went wrong instead of nothing
       const finish = (payload) => { clearInterval(keepalive); res.end(JSON.stringify(payload)); };
 
-      const jobId = startAskNova(vaultPath, { question, context: await askContext(null) });
+      const jobId = startAskNova(vaultPath, { question, context: await askContext(null, { fast: true }) });
       const deadline = Date.now() + 110_000;
       while (Date.now() < deadline) {
         if (res.writableEnded || res.destroyed) { clearInterval(keepalive); return; }

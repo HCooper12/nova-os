@@ -15,7 +15,9 @@ export function startCalendarWatch() {
   const tick = async () => {
     if (clientCount() === 0) return; // nobody to notify — don't hammer iCloud
     try {
-      const events = await fetchEventsForDay(new Date());
+      // fresh: the watcher's whole job is spotting edits made elsewhere, and
+      // its fetch is what keeps the shared cache warm for everyone else
+      const events = await fetchEventsForDay(new Date(), { fresh: true });
       const hash = JSON.stringify(events);
       if (lastHash !== null && hash !== lastHash) broadcast('calendar');
       lastHash = hash; // first successful poll just sets the baseline, no spurious push

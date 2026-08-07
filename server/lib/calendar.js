@@ -24,6 +24,7 @@ export async function loadCalendarPrefs() {
 }
 
 export async function saveCalendarPrefs(hidden) {
+  invalidateCalendarCache(); // hiding/showing a calendar changes what events mean
   const clean = [...new Set((Array.isArray(hidden) ? hidden : []).map(String))];
   await mkdir(path.dirname(PREFS_PATH()), { recursive: true });
   const tmp = PREFS_PATH() + '.tmp';
@@ -125,6 +126,7 @@ export async function createEvent({ title, start, end, notes, calendarName }) {
   const iCalString = buildEventICal({ uid, title, start, end, notes });
   const res = await client.createCalendarObject({ calendar, filename, iCalString });
   if (!res.ok && ![200, 201, 204].includes(res.status)) throw new Error(`calendar write failed (${res.status})`);
+  invalidateCalendarCache(); // he must never read a calendar without the change he just made
   return {
     uid,
     objectUrl: new URL(filename, calendar.url).href,
@@ -137,6 +139,7 @@ export async function deleteEventAt({ objectUrl, etag }) {
   const client = await getClient();
   const res = await client.deleteCalendarObject({ calendarObject: { url: objectUrl, etag: etag || undefined } });
   if (!res.ok && ![200, 204].includes(res.status)) throw new Error(`calendar delete failed (${res.status})`);
+  invalidateCalendarCache();
   return { removed: true };
 }
 
@@ -159,6 +162,7 @@ export async function moveEvent({ objectUrl, etag, raw, newStart, newEnd }) {
   const data = rewriteEventTimes(raw, newStart, newEnd);
   const res = await client.updateCalendarObject({ calendarObject: { url: objectUrl, etag: etag || undefined, data } });
   if (!res.ok && ![200, 204].includes(res.status)) throw new Error(`calendar move failed (${res.status})`);
+  invalidateCalendarCache();
   return { objectUrl, newEtag: res.headers?.get?.('etag') || null };
 }
 
@@ -168,6 +172,7 @@ export async function putEventRaw({ objectUrl, raw }) {
   const client = await getClient();
   const res = await client.updateCalendarObject({ calendarObject: { url: objectUrl, data: raw } });
   if (!res.ok && ![200, 201, 204].includes(res.status)) throw new Error(`calendar restore failed (${res.status})`);
+  invalidateCalendarCache();
   return { restored: true };
 }
 
@@ -248,7 +253,34 @@ export function expandUidGroup(versions, rangeStart, rangeEnd, calendarName) {
 // RECURRENCE-ID overrides. Each event carries its object url/etag/raw so it can
 // later be moved or deleted; recurring occurrences are flagged (edits to a
 // single instance of a series are deliberately not offered).
-async function collectEvents(rangeStart, rangeEnd) {
+// iCloud's CalDAV round trip costs ~10s, and nothing cached it — so every
+// brief, plan, review and spoken answer paid it again, which is most of why
+// a Siri ask took ~26s and iOS gave up on it. A short TTL fixes that without
+// letting anyone read a stale calendar: every write path below calls
+// invalidateCalendarCache(), so a change he just made is never hidden. The
+// window is deliberately shorter than the fastest scheduler tick.
+const CALENDAR_TTL_MS = 90_000;
+const eventCache = new Map(); // key → { at, promise }
+
+export function invalidateCalendarCache() {
+  eventCache.clear();
+}
+
+async function collectEvents(rangeStart, rangeEnd, { fresh = false } = {}) {
+  const key = `${rangeStart.toISOString()}|${rangeEnd.toISOString()}`;
+  const hit = eventCache.get(key);
+  // the watcher passes fresh:true — it exists to notice changes made on his
+  // phone, so it must never be answered from the cache it then refills
+  if (!fresh && hit && Date.now() - hit.at < CALENDAR_TTL_MS) return hit.promise;
+  // the PROMISE is cached, not just the result: concurrent callers (the
+  // morning and evening composers run together) share one round trip
+  const promise = collectEventsUncached(rangeStart, rangeEnd);
+  eventCache.set(key, { at: Date.now(), promise });
+  promise.catch(() => eventCache.delete(key)); // a failure must not be cached
+  return promise;
+}
+
+async function collectEventsUncached(rangeStart, rangeEnd) {
   const client = await getClient();
   const calendars = await client.fetchCalendars();
   const { hidden } = await loadCalendarPrefs();
@@ -287,8 +319,8 @@ async function collectEvents(rangeStart, rangeEnd) {
 const PUBLIC_FIELDS = ['id', 'date', 'time', 'end', 'label', 'calendar', 'recurring', 'startISO'];
 function publicEvent(e) { const o = {}; for (const f of PUBLIC_FIELDS) o[f] = e[f]; return o; }
 
-export async function fetchEventsForDay(date = new Date()) {
-  const events = await collectEvents(startOfDay(date), endOfDay(date));
+export async function fetchEventsForDay(date = new Date(), { fresh = false } = {}) {
+  const events = await collectEvents(startOfDay(date), endOfDay(date), { fresh });
   events.sort((a, b) => a.time.localeCompare(b.time));
   return events.map(publicEvent);
 }

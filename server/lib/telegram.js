@@ -96,7 +96,8 @@ async function answerAsk(vaultPath, state, chatId, question) {
   const { startAskNova, getMessageJob } = await import('./claudeCode.js');
   const { buildAskContext } = await import('./askContext.js');
   await tg('sendChatAction', { chat_id: chatId, action: 'typing' }).catch(() => {});
-  const jobId = startAskNova(vaultPath, { question, context: await buildAskContext(vaultPath, state.sessionId), sessionId: state.sessionId });
+  // a text thread is a conversation too — fast context, same as Siri
+  const jobId = startAskNova(vaultPath, { question, context: await buildAskContext(vaultPath, state.sessionId, { fast: true }), sessionId: state.sessionId });
   const deadline = Date.now() + 150_000;
   while (Date.now() < deadline) {
     const job = getMessageJob(jobId);
