@@ -106,7 +106,12 @@ async function main() {
     const auth = req.headers.authorization || '';
     const provided = auth.startsWith('Bearer ') ? auth.slice(7) : '';
     const providedDigest = createHash('sha256').update(provided).digest();
-    if (!timingSafeEqual(providedDigest, tokenDigest)) return res.status(401).json({ error: 'unauthorized' });
+    if (!timingSafeEqual(providedDigest, tokenDigest)) {
+      // the spoken surface must FAIL AUDIBLY: its Shortcut speaks the `text`
+      // field, and a bare 401 left Siri silently mute for a whole morning
+      if (req.path === '/ask/sync') return res.status(401).json({ error: 'unauthorized', text: 'Nova cannot verify this Shortcut — the token does not match. Recopy it from Settings.' });
+      return res.status(401).json({ error: 'unauthorized' });
+    }
     next();
   });
 
