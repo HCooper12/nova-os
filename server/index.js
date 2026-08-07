@@ -83,6 +83,24 @@ async function main() {
   // Compare digests rather than the raw strings: timingSafeEqual needs
   // equal-length inputs, and hashing first removes any timing signal from
   // length or content.
+  // Request receipts. "Did the phone even reach the Mac?" was unanswerable
+  // for a whole afternoon of Shortcut debugging — the same blind spot the
+  // health pushlog was built to close. One line per request: what arrived,
+  // what went back, how long it took, and whether the client hung up first.
+  app.use('/api', (req, res, next) => {
+    const started = Date.now();
+    const from = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '?';
+    let closedEarly = false;
+    req.on('aborted', () => { closedEarly = true; });
+    res.on('finish', () => {
+      console.log(`req ${req.method} ${req.originalUrl} ← ${from} → ${res.statusCode} in ${Date.now() - started}ms`);
+    });
+    res.on('close', () => {
+      if (!res.writableEnded) console.log(`req ${req.method} ${req.originalUrl} ← ${from} → CLIENT HUNG UP after ${Date.now() - started}ms${closedEarly ? ' (aborted)' : ''}`);
+    });
+    next();
+  });
+
   const tokenDigest = createHash('sha256').update(token).digest();
   app.use('/api', (req, res, next) => {
     const auth = req.headers.authorization || '';
