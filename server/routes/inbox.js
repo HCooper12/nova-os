@@ -29,6 +29,12 @@ export function inboxRouter(vaultPath) {
       const text = String(req.body?.text || '').trim();
       if (!text) return res.status(400).json({ error: 'text is required', text: 'Nova heard nothing to capture.' });
       if (text.length > 4000) return res.status(400).json({ error: 'too long', text: 'Keep a spoken capture shorter, sir.' });
+      // the Shortcuts placeholder trap, said OUT LOUD instead of filed as a
+      // mystery draft: this exact literal means the text field holds typed
+      // words where the blue variable chip should be
+      if (/^provided input$/i.test(text)) {
+        return res.status(400).json({ error: 'placeholder input', text: 'Your Shortcut sent the literal words Provided Input — in the text field, delete them and insert Provided Input as the blue variable chip instead.' });
+      }
       const record = await startCapture(vaultPath, { text, source: 'voice', mode: req.body?.mode === 'review-all' ? 'review-all' : 'auto-high' });
 
       res.set('Content-Type', 'application/json');
