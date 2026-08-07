@@ -15,9 +15,13 @@ Actions, in order:
 1. **Ask for Input** — Prompt: "Tell Nova", Input Type: Text
    *(invoked by voice, Siri takes dictation for this automatically)*
 2. **Get Contents of URL**
-   - URL: `https://haydens-macbook-pro.taild050ac.ts.net/api/inbox/capture`
+   - URL: `http://100.65.137.114:4173/api/inbox/capture` (the direct tailnet
+     address — plain http on purpose; the VPN already encrypts)
    - Method: **POST**
-   - Headers: `Authorization: Bearer <API_TOKEN>` · `Content-Type: application/json`
+   - Headers — two rows, and the VALUE must start with the word Bearer
+     (no colon anywhere in a value; Shortcuts adds the colon itself):
+     - Key `Authorization` → Value `Bearer <token>` (one space, then the token)
+     - Key `Content-Type` → Value `application/json`
    - Request Body: **JSON** → `text` = Provided Input, `source` = `voice`
 3. **Show Result** (optional): "Nova has it."
 
@@ -30,7 +34,7 @@ for the next video…".
 Actions, in order:
 1. **Ask for Input** — Prompt: "Ask Nova", Input Type: Text
 2. **Get Contents of URL**
-   - URL: `https://haydens-macbook-pro.taild050ac.ts.net/api/ask/sync`
+   - URL: `http://100.65.137.114:4173/api/ask/sync`
    - Method: **POST**, same two headers as above
    - Request Body: **JSON** → `question` = Provided Input
 3. **Get Dictionary Value** — key `text`

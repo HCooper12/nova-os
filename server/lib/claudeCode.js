@@ -100,12 +100,13 @@ export function getMessageJob(jobId) {
 // answers questions from what's actually written there, in a spoken
 // register. Exported separately so tests can check the prompt contract
 // without spawning anything.
-export function buildAskPrompt({ question, context = '' }) {
+export function buildAskPrompt({ question, context = '', direct = false }) {
   return `${NOVA_LENS}
 
 You are Nova — Hayden's personal OS and ongoing companion. This is a CONTINUING conversation: it resumes across days, so remember what he tells you here and build on it naturally, the way a sharp assistant who knows him would. Your working directory is his Obsidian vault — real notes, health pages, workout sessions, recipes, journal, money ledger context. Read whatever pages you need.
 
-Ground rules:
+Ground rules:${direct ? `
+- THIS IS A HANDS-FREE ONE-SHOT (Siri): he asked ONE question and will hear ONE spoken reply, then the exchange ends. Answer exactly what he asked — nothing else. No greeting, no rundown of his day, no unsolicited observations, no follow-up questions. If the answer is a number, give the number and its date in one or two sentences and stop.` : ''}
 - Ground answers in the vault, the live context below, and what he's told you in this conversation. If something isn't anywhere, say so plainly — never invent.
 - Spoken register: conversational, direct, no markdown, no bullet lists. Lead with the answer. Under ~90 words unless the question genuinely needs more. Address him as "sir" the way a great butler would — warmly, at natural moments (a greeting, a handoff, a wry aside), never in every sentence and never stiffly.
 - Mention page titles naturally when useful ("your Rigour Protocols note says…").
@@ -136,7 +137,7 @@ Hayden asks: ${question}`;
 // Continuity: the first ask mints a session; later asks --resume it, so the
 // conversation carries across turns AND days (same mechanism as the Code
 // tab). The client persists the returned sessionId; NEW CHAT drops it.
-export function startAskNova(cwd, { question, context, sessionId }) {
+export function startAskNova(cwd, { question, context, sessionId, direct = false }) {
   const jobId = randomUUID().slice(0, 8);
   const isNewSession = !sessionId;
   const effectiveSessionId = sessionId || randomUUID();
@@ -144,7 +145,7 @@ export function startAskNova(cwd, { question, context, sessionId }) {
   jobs.set(jobId, job);
 
   const args = [
-    '-p', isNewSession ? buildAskPrompt({ question, context }) : question,
+    '-p', isNewSession ? buildAskPrompt({ question, context, direct }) : question,
     '--permission-mode', 'bypassPermissions',
     '--allowedTools', 'Read Grep Glob',
     '--disallowedTools', BREAKER_DISALLOWED,

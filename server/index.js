@@ -107,6 +107,10 @@ async function main() {
     const provided = auth.startsWith('Bearer ') ? auth.slice(7) : '';
     const providedDigest = createHash('sha256').update(provided).digest();
     if (!timingSafeEqual(providedDigest, tokenDigest)) {
+      // Enough shape to diagnose a mismatch from the log, never enough to
+      // leak the secret: length + first 4 chars. "He re-pasted it twice"
+      // is the moment guessing has to stop.
+      console.log(`auth reject ${req.method} ${req.path}: header ${req.headers.authorization ? `present, scheme "${String(req.headers.authorization).split(' ')[0]}", token len ${provided.length}, starts "${provided.slice(0, 4)}"` : 'MISSING entirely'}`);
       // the spoken surface must FAIL AUDIBLY: its Shortcut speaks the `text`
       // field, and a bare 401 left Siri silently mute for a whole morning
       if (req.path === '/ask/sync') return res.status(401).json({ error: 'unauthorized', text: 'Nova cannot verify this Shortcut — the token does not match. Recopy it from Settings.' });
