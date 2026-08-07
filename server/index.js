@@ -231,6 +231,29 @@ async function main() {
 
   const host = process.env.HOST || '127.0.0.1';
   app.listen(port, host, () => console.log(`Nova OS server listening on ${host}:${port}`));
+
+  // Also listen directly on the Mac's tailnet address (plain HTTP): the
+  // shortest road for iOS Shortcuts and the health push — no DNS, no serve
+  // proxy, no TLS handshake, just the WireGuard tunnel (which already
+  // encrypts) straight to the port. Still invisible to the public internet
+  // (100.x routes only inside the tailnet) and still behind the bearer
+  // token. Tailscale can be down when we boot (it was, the morning this
+  // was written) — so keep trying until the address exists, honestly
+  // logging each state.
+  const { execFile } = await import('node:child_process');
+  const tailnetBind = () => new Promise((resolve) => {
+    execFile('tailscale', ['ip', '-4'], { timeout: 5000 }, (err, stdout) => {
+      const ip = String(stdout || '').trim().split('\n')[0];
+      if (err || !/^100\./.test(ip)) return resolve(false);
+      const s = app.listen(port, ip, () => console.log(`Nova OS server also on tailnet http://${ip}:${port}`));
+      s.on('error', (e) => { console.error(`tailnet bind failed: ${e.message}`); resolve(false); });
+      s.on('listening', () => resolve(true));
+    });
+  });
+  if (!(await tailnetBind())) {
+    console.log('tailnet bind pending — tailscale not up yet, retrying every 60s');
+    const retry = setInterval(async () => { if (await tailnetBind()) clearInterval(retry); }, 60_000);
+  }
 }
 
 main();
