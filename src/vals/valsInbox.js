@@ -36,6 +36,7 @@ function payloadPreview(decision) {
   if (decision.route === 'shopping') return (p.items || []).map((i) => i.name).join(' · ');
   if (decision.route === 'todo') return (p.items || []).map((it) => (typeof it === 'string' ? it : `${it.text}${it.category ? ` #${it.category}` : ''}`)).join(' · ');
   if (decision.route === 'food') {
+    if (p.slot) return `Mark today's ${p.slot} eaten — the planned meal, its real macros`;
     const m = p.macros || {};
     return `${p.name} — ${m.p}P · ${m.c}C · ${m.f}F · ${m.kcal} kcal`;
   }
