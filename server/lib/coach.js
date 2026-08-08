@@ -188,6 +188,35 @@ export function estimateE1RMs(sessions, { recentCount = 6 } = {}) {
 
 const volumeOf = (session) => Math.round(session.exercises.reduce((v, e) => v + e.sets.reduce((s, x) => s + x.weight * x.reps, 0), 0));
 
+// Session receipts get a mode of their own so the trust ladder can watch
+// (and one day propose changing) how they file — same off/draft/auto ladder
+// as the scheduled agents.
+export const RECEIPT_MODES = ['draft', 'auto'];
+const receiptConfigPath = async () => {
+  const path = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const dir = process.env.NOVA_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data');
+  return path.join(dir, 'coach-receipts.json');
+};
+export async function getReceiptConfig() {
+  const { readFile } = await import('node:fs/promises');
+  try {
+    const raw = JSON.parse(await readFile(await receiptConfigPath(), 'utf8'));
+    return { mode: RECEIPT_MODES.includes(raw.mode) ? raw.mode : 'draft' };
+  } catch {
+    return { mode: 'draft' };
+  }
+}
+export async function setReceiptConfig(patch) {
+  const { writeFile, mkdir } = await import('node:fs/promises');
+  const path = await import('node:path');
+  const next = { mode: RECEIPT_MODES.includes(patch?.mode) ? patch.mode : (await getReceiptConfig()).mode };
+  const full = await receiptConfigPath();
+  await mkdir(path.dirname(full), { recursive: true });
+  await writeFile(full, JSON.stringify(next, null, 2), 'utf8');
+  return next;
+}
+
 // One deterministic line the moment a workout is logged — the receipt a
 // good coach hands you on the way out. Drafted to the journal via the rails.
 export async function draftSessionSummary(vaultPath, session) {
@@ -217,12 +246,14 @@ export async function draftSessionSummary(vaultPath, session) {
   setSessionSummary(vaultPath, session.id, bits.join(' ')).catch(() => {});
 
   const title = `Session — ${session.routineName} ${session.date}`;
+  const { mode } = await getReceiptConfig();
+  const body = bits.join(' ') + (bits.length === 1 ? '.' : '');
   const record = {
     id: randomUUID().slice(0, 8),
     kind: 'coach',
     text: title,
     source: 'coach',
-    mode: 'draft',
+    mode,
     status: 'pending',
     createdAt: new Date().toISOString(),
     decision: {
@@ -230,10 +261,19 @@ export async function draftSessionSummary(vaultPath, session) {
       confidence: 'high',
       title,
       reason: 'Coach’s deterministic session receipt — approve to journal it.',
-      payload: { text: bits.join(' ') + (bits.length === 1 ? '.' : ''), category: 'training', label: 'Session receipt' },
+      payload: { text: body, category: 'training', label: 'Session receipt' },
     },
   };
   await createRecord(record);
+  if (mode === 'auto') {
+    try {
+      const { fileDecision } = await import('./inbox.js');
+      const { updateRecord } = await import('./inboxStore.js');
+      const { destination, undo } = await fileDecision(vaultPath, record.decision);
+      import('./telegram.js').then(({ sendTelegramText }) => sendTelegramText(`${title}\n\n${body}`)).catch(() => {});
+      return updateRecord(record.id, { status: 'filed', destination, undoData: undo, filedAt: new Date().toISOString(), auto: true });
+    } catch { /* fall back to the pending draft — the gate still works */ }
+  }
   return record;
 }
 

@@ -28,7 +28,7 @@ test('unknown kinds throw; a missing dispatch degrades honestly', () => {
   assert.throws(() => buildRitualQuestion('midday', 'x'), /unknown ritual/);
   const q = buildRitualQuestion('morning', '');
   assert.match(q, /dispatch unavailable — say so honestly/);
-  assert.deepEqual(RITUAL_KINDS, ['morning', 'evening']);
+  assert.deepEqual(RITUAL_KINDS, ['morning', 'evening', 'about-you']);
   assert.equal(ritualLabel('morning'), '☀ Morning brief');
   assert.equal(ritualLabel('evening'), '☾ Evening reflection');
 });

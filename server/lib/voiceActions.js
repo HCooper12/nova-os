@@ -12,7 +12,7 @@ import { createRecord } from './inboxStore.js';
 // Hayden approves — in the transcript ("yes, do it") or in the Inbox.
 // Models decide, code acts; every kind below reuses a tested filer + undo.
 
-export const PROPOSE_KINDS = ['capture', 'calendar', 'routine-edit', 'rotation-variant', 'preference'];
+export const PROPOSE_KINDS = ['capture', 'calendar', 'routine-edit', 'rotation-variant', 'preference', 'profile'];
 
 export async function createVoiceProposal(vaultPath, question, raw) {
   const kind = String(raw?.kind || '').toLowerCase();
@@ -59,6 +59,40 @@ export async function createVoiceProposal(vaultPath, question, raw) {
     };
     await createRecord(record);
     return { recordId: record.id, title: record.decision.title, route: 'preference' };
+  }
+
+  if (kind === 'profile') {
+    // The About You interview (or any conversation) teaching Nova who he is —
+    // one profile area per proposal, his yes merges it into Wiki/Profile.md.
+    const p = raw.patch || {};
+    const patch = {};
+    if (typeof p.focus === 'string' && p.focus.trim()) patch.focus = p.focus.trim().slice(0, 400);
+    if (typeof p.bestSelf === 'string' && p.bestSelf.trim()) patch.bestSelf = p.bestSelf.trim().slice(0, 600);
+    if (typeof p.notes === 'string' && p.notes.trim()) patch.notes = p.notes.trim().slice(0, 4000);
+    if (Array.isArray(p.priorities)) {
+      const pr = p.priorities.map((x) => String(x).trim()).filter(Boolean).slice(0, 8);
+      if (pr.length) patch.priorities = pr;
+    }
+    const fields = Object.keys(patch);
+    if (!fields.length) throw new Error('the profile proposal carried nothing to save');
+    const summary = fields.map((f) => f === 'priorities' ? `priorities: ${patch.priorities.join('; ')}` : `${f}: ${patch[f]}`).join(' · ');
+    const record = {
+      id: randomUUID().slice(0, 8),
+      text: question.slice(0, 300),
+      source: 'voice',
+      mode: 'review-all',
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      decision: {
+        route: 'profile',
+        confidence: 'high',
+        title: `About you: ${fields.join(' + ')}`,
+        reason: 'learned in conversation — approve and every agent reasons from it; undo restores the prior profile',
+        payload: { patch, summary },
+      },
+    };
+    await createRecord(record);
+    return { recordId: record.id, title: record.decision.title, route: 'profile' };
   }
 
   if (kind === 'routine-edit') {

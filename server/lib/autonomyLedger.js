@@ -59,6 +59,12 @@ export const AUTONOMY_TARGETS = {
     getMode: async () => null, // no mode config exists yet — ledger row only
     setMode: null,             // and therefore never proposed
   },
+  'coach-receipt': {
+    label: 'Session receipts',
+    match: (r) => r.kind === 'coach' && r.decision?.route === 'journal' && r.decision?.payload?.label === 'Session receipt',
+    getMode: async () => (await import('./coach.js')).getReceiptConfig().then((c) => c.mode),
+    setMode: async (mode) => (await import('./coach.js')).setReceiptConfig({ mode }),
+  },
 };
 
 // Pure: one target's history → its ledger row. Exported for tests.

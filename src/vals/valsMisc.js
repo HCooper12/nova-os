@@ -105,6 +105,14 @@ export function valsMisc(app, ctx) {
       if (demoMode || st.voiceBusy) return null;
       const h = new Date().getHours();
       const doneToday = (k) => (st.ritualDone || {})[k] === new Date().toDateString();
+      // an empty profile outranks the daily rituals: every agent reasons
+      // from it, and Nova's own agents keep flagging the gap. liveProfile is
+      // null BOTH before the first sync and when no page exists — so gate on
+      // a live connection before treating null as "truly empty".
+      const p = st.liveProfile;
+      const profileEmpty = st.connectionStatus === 'connected'
+        && (p == null || (!p.focus && !(p.priorities || []).length && !p.bestSelf && !p.notes));
+      if (profileEmpty && !doneToday('about-you')) return { kind: 'about-you', label: '◈ LET NOVA LEARN YOU · 5 MIN' };
       if (h < 10 && !doneToday('morning')) return { kind: 'morning', label: '☀ MORNING BRIEF' };
       if (h >= 19 && !doneToday('evening')) return { kind: 'evening', label: '☾ EVENING REFLECTION' };
       return null;

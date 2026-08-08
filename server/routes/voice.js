@@ -37,10 +37,18 @@ export function voiceRouter(vaultPath) {
     try {
       const { buildRitualQuestion, ritualLabel, RITUAL_KINDS } = await import('../lib/rituals.js');
       const kind = req.body?.kind;
-      if (!RITUAL_KINDS.includes(kind)) return res.status(400).json({ error: 'kind must be morning or evening' });
+      if (!RITUAL_KINDS.includes(kind)) return res.status(400).json({ error: `kind must be one of: ${RITUAL_KINDS.join(', ')}` });
       const sessionId = typeof req.body?.sessionId === 'string' && req.body.sessionId ? req.body.sessionId : null;
       let dispatchText = '';
-      try { dispatchText = (await composeDispatch(vaultPath, kind)).text; } catch { /* honest fallback in the builder */ }
+      if (kind === 'about-you') {
+        // the interview's raw material is the profile as it stands, not the day
+        try {
+          const { profileContext } = await import('../lib/profile.js');
+          dispatchText = await profileContext(vaultPath);
+        } catch { /* honest fallback in the builder */ }
+      } else {
+        try { dispatchText = (await composeDispatch(vaultPath, kind)).text; } catch { /* honest fallback in the builder */ }
+      }
       const question = buildRitualQuestion(kind, dispatchText);
       const jobId = startAskNova(vaultPath, { question, context: await askContext(sessionId), sessionId });
       res.json({ jobId, label: ritualLabel(kind) });

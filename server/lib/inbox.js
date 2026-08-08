@@ -303,6 +303,24 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  if (route === 'profile') {
+    // merge one interview's worth of About You into the profile page —
+    // undo restores the ENTIRE prior profile, so a bad merge is one tap back
+    const { getProfile, setProfile } = await import('./profile.js');
+    const prior = await getProfile(vaultPath);
+    const merged = {
+      focus: payload.patch.focus ?? prior?.focus ?? '',
+      priorities: payload.patch.priorities ?? prior?.priorities ?? [],
+      bestSelf: payload.patch.bestSelf ?? prior?.bestSelf ?? '',
+      notes: payload.patch.notes ?? prior?.notes ?? '',
+    };
+    await setProfile(vaultPath, merged);
+    return {
+      destination: `About You — ${payload.summary.slice(0, 120)}`,
+      undo: { route, prior },
+    };
+  }
+
   if (route === 'agent-mode') {
     // an earned-autonomy proposal, applied deterministically on his yes;
     // undo restores the prior mode exactly
@@ -636,6 +654,17 @@ export async function undoFiling(vaultPath, undo) {
     const { removeReminder } = await import('./reminders.js');
     const removed = await removeReminder(undo.reminderId);
     return removed ? `cancelled the reminder "${removed.text}"` : 'that reminder was already gone';
+  }
+  if (undo.route === 'profile') {
+    const { setProfile } = await import('./profile.js');
+    if (undo.prior && (undo.prior.focus || undo.prior.priorities?.length || undo.prior.bestSelf || undo.prior.notes)) {
+      await setProfile(vaultPath, undo.prior);
+      return 'restored the previous About You';
+    }
+    // there was no profile before — setProfile refuses emptiness, so blank
+    // every field it accepts blank and note it honestly
+    await setProfile(vaultPath, { focus: '', priorities: [], bestSelf: '', notes: '(cleared — the interview draft was undone)' });
+    return 'cleared the About You draft';
   }
   if (undo.route === 'agent-mode') {
     const { AUTONOMY_TARGETS } = await import('./autonomyLedger.js');

@@ -24,6 +24,7 @@ const ROUTE_META = {
   reminder: { label: 'REMINDER', hue: '89,230,255' },
   'skill-backlog': { label: 'SKILL IDEA', hue: '224,178,106' },
   'agent-mode': { label: 'TRUST LADDER', hue: '89,230,255' },
+  profile: { label: 'ABOUT YOU', hue: '143,123,255' },
 };
 
 const MODE_LADDER = [
@@ -47,6 +48,7 @@ function payloadPreview(decision) {
   if (decision.route === 'stash') return `${p.name} → ${p.category}${p.note ? ' — ' + p.note : ''}`;
   if (decision.route === 'routine-edit') return `${p.action === 'swap' ? `${p.removeName} → ${p.addName}` : p.action === 'add' ? `+ ${p.addName}` : p.action === 'remove' ? `− ${p.removeName}` : `${p.removeName} targets`} in ${p.routineName}${p.reason ? ' — ' + p.reason : ''}`;
   if (decision.route === 'agent-mode') return `${p.target}: ${p.from} → ${p.to}`;
+  if (decision.route === 'profile') return p.summary || '';
   if (decision.route === 'progression-tune') return `${p.exerciseName}: ${[p.hold ? 'hold progressions' : null, p.stepKg != null ? `step ${p.stepKg}kg` : null, p.repStep != null ? `+${p.repStep} rep` : null, p.focus ? `focus — ${p.focus}` : null].filter(Boolean).join(', ')}${p.reason ? ' — ' + p.reason : ''}`;
   if (decision.route === 'idea') return `${p.title} — ${p.hook} (${p.format})`;
   if (decision.route === 'idea-outline') return (p.text || '').slice(0, 200);
