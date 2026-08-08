@@ -240,6 +240,7 @@ function startReviewJob(vaultPath, context, mode, recordId, now) {
         await updateRecord(recordId, { status: 'filed', destination, undoData: undo, filedAt: new Date().toISOString(), auto: true, decision });
         // auto mode skips 'pending', so the normal push never fires — but the
         // flagship read of the day landing silently defeats its purpose
+        import('./telegram.js').then(({ sendTelegramText }) => sendTelegramText(`${title}\n\n${body.replace(/\*\*/g, '')}`)).catch(() => {});
         import('./push.js').then(({ sendPush }) => sendPush({
           title: 'Daily Review — Nova',
           body: decision.title || 'Today\'s review is in your journal.',

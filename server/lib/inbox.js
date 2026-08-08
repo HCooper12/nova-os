@@ -303,6 +303,20 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  if (route === 'agent-mode') {
+    // an earned-autonomy proposal, applied deterministically on his yes;
+    // undo restores the prior mode exactly
+    const { AUTONOMY_TARGETS } = await import('./autonomyLedger.js');
+    const target = AUTONOMY_TARGETS[payload.target];
+    if (!target?.setMode) throw new Error(`"${payload.target}" is not a mode-changeable agent`);
+    const prior = await target.getMode();
+    await target.setMode(payload.to);
+    return {
+      destination: `${target.label} — mode ${prior} → ${payload.to}`,
+      undo: { route, target: payload.target, prior },
+    };
+  }
+
   if (route === 'skill-backlog') {
     // pattern scout → the registry's Backlog section; undo removes the line
     const { addBacklogItem } = await import('./skills.js');
@@ -622,6 +636,13 @@ export async function undoFiling(vaultPath, undo) {
     const { removeReminder } = await import('./reminders.js');
     const removed = await removeReminder(undo.reminderId);
     return removed ? `cancelled the reminder "${removed.text}"` : 'that reminder was already gone';
+  }
+  if (undo.route === 'agent-mode') {
+    const { AUTONOMY_TARGETS } = await import('./autonomyLedger.js');
+    const target = AUTONOMY_TARGETS[undo.target];
+    if (!target?.setMode) throw new Error('that agent no longer has a changeable mode');
+    await target.setMode(undo.prior);
+    return `restored ${target.label} to ${undo.prior} mode`;
   }
   if (undo.route === 'skill-backlog') {
     const { removeBacklogItem } = await import('./skills.js');

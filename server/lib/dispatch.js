@@ -545,6 +545,10 @@ export async function runDispatch(vaultPath, { slot = 'morning', force = false }
   if (config.mode === 'auto') {
     try {
       const { destination, undo } = await fileDecision(vaultPath, decision);
+      // auto skips the gate, so the brief must arrive as a MESSAGE — the
+      // whole point of auto is reading it in the thread, not losing it
+      import('./telegram.js').then(({ sendTelegramText }) =>
+        sendTelegramText(`${title}\n\n${text.replace(/\*\*/g, '')}`)).catch(() => {});
       return { record: await updateRecord(record.id, { status: 'filed', destination, undoData: undo, filedAt: new Date().toISOString(), auto: true }) };
     } catch (e) {
       return { record: await updateRecord(record.id, { status: 'pending', error: 'auto-filing failed: ' + e.message }) };

@@ -174,6 +174,7 @@ function startPlanJob(vaultPath, context, mode, recordId, now) {
       if (mode === 'auto') {
         const { destination, undo } = await fileDecision(vaultPath, decision);
         await updateRecord(recordId, { status: 'filed', destination, undoData: undo, filedAt: new Date().toISOString(), auto: true, decision });
+        import('./telegram.js').then(({ sendTelegramText }) => sendTelegramText(`${title}\n\n${body.replace(/\*\*/g, '')}`)).catch(() => {});
         import('./push.js').then(({ sendPush }) => sendPush({
           title: 'Plan Today — Nova',
           body: decision.title || "Today's top 3 are in your journal.",

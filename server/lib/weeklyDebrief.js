@@ -245,6 +245,7 @@ function startDebriefJob(vaultPath, context, mode, recordId, now) {
       if (mode === 'auto') {
         const { destination, undo } = await fileDecision(vaultPath, decision);
         await updateRecord(recordId, { status: 'filed', destination, undoData: undo, filedAt: new Date().toISOString(), auto: true, decision });
+        import('./telegram.js').then(({ sendTelegramText }) => sendTelegramText(`${title}\n\n${body.replace(/\*\*/g, '')}`)).catch(() => {});
         import('./push.js').then(({ sendPush }) => sendPush({
           title: 'Weekly Debrief — Nova',
           body: decision.title || 'The week, held against the plan — in your journal.',

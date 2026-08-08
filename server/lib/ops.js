@@ -29,6 +29,7 @@ const SCHEDULED = [
   { id: 'pulse', label: 'Pulse', role: 'what\'s new on his topics' },
   { id: 'health-mirror', label: 'Health Mirror', role: 'the numbers, into the vault' },
   { id: 'pattern-scout', label: 'Pattern Scout', role: 'repeated acts → skill proposals' },
+  { id: 'autonomy', label: 'Trust Ladder', role: 'autonomy earned, proposed' },
 ];
 
 // Conversational agents surface through the records they leave, not beats.
@@ -71,6 +72,7 @@ export const AGENT_DEPARTMENTS = {
   // skill yet — the screen says "no skills mapped yet", which is the truth.
   'health-mirror': ['Platform'],
   'pattern-scout': ['Platform'],
+  autonomy: ['Platform'],
 };
 
 // Which inbox-record kinds each SCHEDULED agent files — verified against the
@@ -94,6 +96,7 @@ export const AGENT_RECORD_KINDS = {
   money: ['money-import'],
   cfo: ['cfo'],
   'pattern-scout': ['pattern'],
+  autonomy: ['autonomy'],
 };
 
 const RECEIPT_LIMIT = 5;
