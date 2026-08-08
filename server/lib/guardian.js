@@ -234,7 +234,7 @@ async function checkHealthFeed() {
 
   const yDay = days.find((d) => d.date === yesterdayIso);
   if (!yDay || yDay.steps == null) {
-    return { id: 'health', label: 'Health feed', status: 'warn', detail: `Yesterday (${yesterdayIso}) never arrived — the overnight push didn't land (the Mac is usually asleep at 23:30). Tap the Steps card to enter it.` + evidence };
+    return { id: 'health', label: 'Health feed', status: 'warn', detail: `Yesterday (${yesterdayIso}) never arrived — the 00:05 push didn't land. Check the phone automation ran (Shortcuts notification) and that the Mac was awake and plugged in. Tap the Steps card to enter it meanwhile.` + evidence };
   }
   // received on its own calendar day before ~20:00 local = a mid-day snapshot
   // that was never finalized — the count is honest-but-partial
@@ -425,11 +425,18 @@ async function tick(vaultPath) {
       const worst = { ok: 0, warn: 1, alert: 2 };
       if (worst[report.status] > worst[lastReport?.status || 'ok']) {
         const failing = report.checks.find((c) => c.status === report.status);
+        const body = failing?.detail || 'An integrity check degraded.';
         import('./push.js').then(({ sendPush }) => sendPush({
           title: report.status === 'alert' ? 'Guardian ALERT — Nova' : 'Guardian — Nova noticed something',
-          body: failing?.detail || 'An integrity check degraded.',
+          body,
           tag: 'guardian-alert',
         })).catch(() => {});
+        // web push is easy to miss on a phone; the thread he actually reads
+        // gets it too — a silent health feed discovered days later was the
+        // original sin this check exists to prevent
+        import('./telegram.js').then(({ sendTelegramText }) => sendTelegramText(
+          `${report.status === 'alert' ? '⚠︎ Guardian ALERT' : '◇ Guardian noticed'}\n\n${body}`,
+        )).catch(() => {});
       }
     }
   } catch (err) {
