@@ -9,8 +9,9 @@ process.env.NOVA_DATA_DIR = await mkdtemp(path.join(tmpdir(), 'nova-ops-data-'))
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { composeOps } = await import('../lib/ops.js');
+const { composeOps, agentReceipts, AGENT_DEPARTMENTS, AGENT_RECORD_KINDS } = await import('../lib/ops.js');
 const { createRecord } = await import('../lib/inboxStore.js');
+const { loadSkills } = await import('../lib/skills.js');
 
 test.after(async () => { await rm(process.env.NOVA_DATA_DIR, { recursive: true, force: true }); });
 
@@ -41,4 +42,49 @@ test('ops: pending gate, stream, heartbeat freshness, never-run honesty', async 
   assert.equal(voice.last.title, 'Buy milk');
   const researcher = ops.conversational.find((a) => a.id === 'researcher');
   assert.equal(researcher.last.title, 'Creatine Brief');
+
+  // the map drawn — every agent row carries departments + receipts
+  assert.deepEqual(byId.review.departments, ['Mind']);
+  assert.deepEqual(byId.reminders.departments, [], 'unmapped agent says so, no guessed list');
+  assert.equal(byId.telegram.receipts, null, 'no record kinds = leaves no inbox records, not "none yet"');
+  assert.deepEqual(byId.dispatch.receipts, [], 'kind mapped but nothing filed = honestly empty');
+  assert.equal(researcher.receipts.length, 1);
+  assert.equal(researcher.receipts[0].title, 'Creatine Brief');
+  assert.equal(researcher.receipts[0].status, 'filed');
+  assert.deepEqual(voice.departments, AGENT_DEPARTMENTS.voice);
+});
+
+test('ops: agentReceipts is pure — kind match, cap at 5, newest kept, null when recordless', () => {
+  const mk = (i, kind, extra = {}) => ({
+    id: `r${i}`, kind, status: 'filed',
+    createdAt: new Date(Date.now() - i * 3600e3).toISOString(),
+    decision: { title: `Review ${i}` }, ...extra,
+  });
+  const sorted = [0, 1, 2, 3, 4, 5, 6].map((i) => mk(i, 'review'));
+  const got = agentReceipts(sorted, { id: 'review' });
+  assert.equal(got.length, 5, 'capped at 5');
+  assert.equal(got[0].title, 'Review 0', 'newest-first order preserved');
+  assert.equal(got[4].title, 'Review 4');
+
+  assert.deepEqual(agentReceipts(sorted, { id: 'guardian' }), [], 'mapped kind, no matches');
+  assert.equal(agentReceipts(sorted, { id: 'telegram' }), null, 'recordless agent is null');
+
+  const viaMatch = agentReceipts([mk(0, 'capture', { source: 'coach', decision: null, text: 'set logged' })],
+    { id: 'coach', match: (r) => r.source === 'coach' });
+  assert.equal(viaMatch[0].title, 'set logged', 'conversational match fn + text fallback title');
+});
+
+test('ops: every mapped department exists in the skill registry seed (shared contract)', async () => {
+  const vault = await mkdtemp(path.join(tmpdir(), 'nova-ops-vault-'));
+  try {
+    const departments = new Set((await loadSkills(vault)).map((d) => d.name));
+    for (const [agent, depts] of Object.entries(AGENT_DEPARTMENTS)) {
+      for (const d of depts) assert.ok(departments.has(d), `${agent} -> "${d}" is not a department in the registry seed`);
+    }
+    for (const agent of Object.keys(AGENT_RECORD_KINDS)) {
+      assert.ok(AGENT_DEPARTMENTS[agent], `${agent} files records but has no department mapping`);
+    }
+  } finally {
+    await rm(vault, { recursive: true, force: true });
+  }
 });

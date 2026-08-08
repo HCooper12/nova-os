@@ -303,6 +303,16 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  if (route === 'skill-backlog') {
+    // pattern scout → the registry's Backlog section; undo removes the line
+    const { addBacklogItem } = await import('./skills.js');
+    const { line } = await addBacklogItem(vaultPath, payload.text);
+    return {
+      destination: `Nova Skills — Backlog: ${payload.text}`,
+      undo: { route, line },
+    };
+  }
+
   if (route === 'progression-tune') {
     // Coach feedback made durable: tune the progression engine for one
     // exercise. Undo restores the exact prior tune (or clears it).
@@ -612,6 +622,11 @@ export async function undoFiling(vaultPath, undo) {
     const { removeReminder } = await import('./reminders.js');
     const removed = await removeReminder(undo.reminderId);
     return removed ? `cancelled the reminder "${removed.text}"` : 'that reminder was already gone';
+  }
+  if (undo.route === 'skill-backlog') {
+    const { removeBacklogItem } = await import('./skills.js');
+    const ok = await removeBacklogItem(vaultPath, undo.line);
+    return ok ? 'removed the backlog entry' : 'that backlog entry was already gone';
   }
   if (undo.route === 'progression-tune') {
     const { clearTune } = await import('./progressionTunes.js');

@@ -28,10 +28,20 @@ function ago(iso) {
   return `${Math.round(h / 24)}d`;
 }
 
+// One skill line, as the screen draws it — shared by the registry grid and
+// the per-agent detail so autonomy always reads the same everywhere.
+const skillVal = (s) => ({
+  text: s.text,
+  autonomy: s.autonomy.toUpperCase().replace(/-/g, ' '),
+  autonomyColor: s.autonomy === 'observe' ? 'color-mix(in srgb, var(--nv-ink) 40%, transparent)'
+    : s.autonomy === 'propose' ? 'var(--nv-gold)' : 'var(--nv-cy)',
+});
+
 export function valsOps(app, ctx) {
   const st = app.state;
   const ops = st.liveOps;
   const { demoMode } = ctx;
+  const openId = st.opsOpenAgentId;
 
   const freshDot = (state) => state === 'today'
     ? { background: 'var(--nv-cy)', boxShadow: '0 0 10px var(--nv-cy)' }
@@ -65,13 +75,52 @@ export function valsOps(app, ctx) {
         last: a.lastBeat ? `${ago(a.lastBeat)} ago` : 'never run',
         dotStyle: freshDot(a.state),
         x: Math.cos(angle), y: Math.sin(angle),
+        open: a.id === openId,
+        toggle: () => app.toggleOpsAgent(a.id),
       };
     }),
     opsConversational: (ops?.conversational || []).map((a) => ({
       id: a.id, label: a.label, role: a.role,
       last: a.last ? `${a.last.title || ''} · ${ago(a.last.at)} ago` : 'no activity yet',
       dotStyle: freshDot(a.state),
+      open: a.id === openId,
+      toggle: () => app.toggleOpsAgent(a.id),
     })),
+    // the map drawn — the tapped agent's detail: skills owned (departments
+    // from /api/ops, skill lines from the registry the client already holds)
+    // and its last receipts. Every gap states itself: no mapping says so, an
+    // unreadable registry says so, an agent that files no records says so.
+    opsOpenAgent: (() => {
+      if (!openId || !ops) return null;
+      const scheduled = (ops.agents || []).find((a) => a.id === openId);
+      const a = scheduled || (ops.conversational || []).find((x) => x.id === openId);
+      if (!a) return null;
+      const depts = a.departments || [];
+      const registry = st.liveSkills;
+      const byName = new Map((registry || []).map((d) => [d.name, d]));
+      return {
+        id: a.id,
+        scheduled: !!scheduled,
+        label: a.label.toUpperCase(),
+        role: a.role,
+        stateLabel: a.stateLabel,
+        skillGroups: registry ? depts.map((name) => {
+          const d = byName.get(name);
+          return { name: name.toUpperCase(), skills: d ? d.skills.map(skillVal) : [], missing: !d };
+        }) : [],
+        skillsNote: depts.length === 0 ? 'no skills mapped yet'
+          : !registry ? 'registry unavailable' : null,
+        receipts: Array.isArray(a.receipts) ? a.receipts.map((r) => ({
+          id: r.id, title: r.title,
+          status: (r.status || '').toUpperCase(),
+          statusColor: STATUS_COLOR[r.status] || 'var(--nv-ink)',
+          when: ago(r.at),
+        })) : [],
+        receiptsNote: a.receipts === null ? 'leaves heartbeats, not inbox records'
+          : a.receipts === undefined ? 'no receipt data in this sync yet'
+            : a.receipts.length === 0 ? 'no receipts yet' : null,
+      };
+    })(),
     // ambient wall mode — same live state, arranged as presence
     isAmbient: st.screen === 'ambient',
     exitAmbient: () => app.navigate('mission'),
@@ -107,12 +156,7 @@ export function valsOps(app, ctx) {
     // the skill registry — his editable vault page, drawn by department
     skillDepartments: (st.liveSkills || []).map((d) => ({
       name: d.name.toUpperCase(),
-      skills: d.skills.map((s) => ({
-        text: s.text,
-        autonomy: s.autonomy.toUpperCase().replace(/-/g, ' '),
-        autonomyColor: s.autonomy === 'observe' ? 'color-mix(in srgb, var(--nv-ink) 40%, transparent)'
-          : s.autonomy === 'propose' ? 'var(--nv-gold)' : 'var(--nv-cy)',
-      })),
+      skills: d.skills.map(skillVal),
     })),
     // the overnight queue — real items, real statuses, run window shown
     overnightItems: (st.liveOvernight?.items || []).map((i) => ({

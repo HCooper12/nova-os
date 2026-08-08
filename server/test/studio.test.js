@@ -101,3 +101,13 @@ test('compost: month-old seeds get an archive proposal; fresh ones and non-seeds
   assert.match(undoSummary, /moved/);
   assert.ok(existsSync(path.join(dir, 'Dusty Seed.md')));
 });
+
+test('outline prompt carries his design taste when the page exists', async () => {
+  const { buildOutlinePrompt } = await import('../lib/studio.js');
+  const p = buildOutlinePrompt({ relPath: 'x.md', raw: '# Idea' }, 'short', 'HIS DESIGN TASTE (from Wiki/Library/Design Taste.md — …):\n- earned accents');
+  assert.match(p, /HIS DESIGN TASTE/);
+  assert.match(p, /earned accents/);
+  // and stays clean without it
+  const bare = buildOutlinePrompt({ relPath: 'x.md', raw: '# Idea' }, 'short');
+  assert.ok(!bare.includes('HIS DESIGN TASTE'));
+});

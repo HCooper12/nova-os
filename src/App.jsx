@@ -231,7 +231,7 @@ export default class App extends Component {
     inboxMode: (typeof window !== 'undefined' && INBOX_MODES.includes(localStorage.getItem(INBOX_MODE_KEY))) ? localStorage.getItem(INBOX_MODE_KEY) : 'auto-high',
     inboxProposalDismissed: (() => { try { const a = JSON.parse(localStorage.getItem('novaos.proposalsDismissed') || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } })(),
     liveDispatch: null, liveCompost: null, liveTodoist: null, liveTodos: null, liveGuardian: null, liveDailyReview: null, liveOps: null,
-    liveOvernight: null, overnightInput: '', liveSkills: null, livePulse: null,
+    liveOvernight: null, overnightInput: '', liveSkills: null, livePulse: null, opsOpenAgentId: null,
     dispatchBusy: false, compostBusy: false, compostActionBusy: {}, todoistBusy: false, guardianBusy: false, reviewBusy: false,
     todoInput: '', todoActionBusy: false, todoEditCategoryKey: null,
     editingSessionId: null, sessionDeleteConfirmId: null,
@@ -3162,6 +3162,11 @@ export default class App extends Component {
       })),
       onError: (msg) => patch((m) => ({ ...m, research: { ...m.research, status: 'error', error: msg } })),
     });
+  }
+  // The map drawn — tap an agent on the Ops fleet to expand its detail
+  // (skills owned + last receipts); tapping again, or another agent, moves it.
+  toggleOpsAgent(id) {
+    this.setState({ opsOpenAgentId: this.state.opsOpenAgentId === id ? null : id });
   }
   // The overnight queue — work handed to Nova for the 03:30 window.
   overnightAdd(question) {

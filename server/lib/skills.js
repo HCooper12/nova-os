@@ -94,6 +94,62 @@ export async function loadSkills(vaultPath) {
   return parseSkills(raw);
 }
 
+/* ------------------------------- backlog --------------------------------- */
+// Skills Nova COULD learn, kept on the same page under "## Backlog" — the
+// 137-jobs column of the agents plan, maintained by the pattern scout via
+// the rails. Backlog lines carry no autonomy tag on purpose: parseSkills'
+// ITEM_RE ignores them, so an unbuilt skill can never masquerade as a
+// capability in any agent's context.
+const BACKLOG_HEADING = '## Backlog';
+const BACKLOG_ITEM_RE = /^- (.+?) _\(proposed (\d{4}-\d{2}-\d{2})\)_\s*$/;
+
+export function formatBacklogLine(text, date = new Date().toISOString().slice(0, 10)) {
+  return `- ${text} _(proposed ${date})_`;
+}
+
+export function parseBacklog(raw) {
+  const lines = (raw || '').split('\n');
+  const start = lines.findIndex((l) => l.trim() === BACKLOG_HEADING);
+  if (start === -1) return [];
+  const items = [];
+  for (const line of lines.slice(start + 1)) {
+    if (/^##\s+/.test(line)) break;
+    const m = line.match(BACKLOG_ITEM_RE);
+    if (m) items.push({ text: m[1].trim(), proposed: m[2], raw: line });
+  }
+  return items;
+}
+
+export async function addBacklogItem(vaultPath, text) {
+  const clean = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  if (!clean) throw new Error('a backlog skill needs words');
+  await ensureSkillsFile(vaultPath);
+  const full = path.join(vaultPath, SKILLS_REL);
+  const raw = await readFile(full, 'utf8');
+  if (parseBacklog(raw).some((i) => i.text.toLowerCase() === clean.toLowerCase())) {
+    throw new Error('that skill is already on the backlog');
+  }
+  const { backupFile } = await import('./backup.js');
+  await backupFile(full);
+  const line = formatBacklogLine(clean);
+  const next = raw.includes(BACKLOG_HEADING)
+    ? raw.replace(BACKLOG_HEADING, `${BACKLOG_HEADING}\n${line}`)
+    : `${raw.replace(/\s*$/, '\n')}\n${BACKLOG_HEADING}\n\nSkills Nova could learn next — noticed from real usage, not yet built.\n${line}\n`;
+  await writeFile(full, next, 'utf8');
+  return { line };
+}
+
+export async function removeBacklogItem(vaultPath, line) {
+  const full = path.join(vaultPath, SKILLS_REL);
+  if (!existsSync(full)) return false;
+  const raw = await readFile(full, 'utf8');
+  if (!raw.includes(line)) return false;
+  const { backupFile } = await import('./backup.js');
+  await backupFile(full);
+  await writeFile(full, raw.split('\n').filter((l) => l !== line).join('\n'), 'utf8');
+  return true;
+}
+
 // Compact block for the agents' contexts — so "what can you do?" gets a
 // truthful, current answer instead of a guess.
 export async function skillsContext(vaultPath) {

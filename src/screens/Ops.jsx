@@ -13,6 +13,44 @@ const dim = (pct) => `color-mix(in srgb, var(--nv-ink) ${pct}%, transparent)`;
 
 const RING = 150; // ring radius (px) on desktop; the map scales down on mobile
 
+// The map drawn — the tapped agent unfolded: who it is, the skills it owns
+// (from the vault registry, by department), and its last receipts. Rendered
+// under the tapped conversational row, or under the ring for fleet agents.
+// Every absence says so: "no skills mapped yet", "registry unavailable",
+// "no receipts yet", "leaves heartbeats, not inbox records".
+function AgentDetail({ d }) {
+  return (
+    <div style={css(`margin:10px 0 4px;border:1px solid ${dim(10)};border-left:2px solid color-mix(in srgb, var(--nv-cy) 55%, transparent);border-radius:11px;padding:12px 14px;background:${dim(2)};text-align:left`)}>
+      <div style={css(`font:500 10px ${M};letter-spacing:.2em;color:${dim(72)}`)}>
+        {d.label} <span style={css(`letter-spacing:.06em;color:${dim(42)}`)}>— {d.role} · {d.stateLabel}</span>
+      </div>
+      <div style={css(`margin-top:10px;font:500 8.5px ${M};letter-spacing:.22em;color:${dim(42)}`)}>SKILLS OWNED</div>
+      {d.skillsNote && <div style={css(`margin-top:5px;font:400 10.5px ${M};color:${dim(42)}`)}>{d.skillsNote}</div>}
+      {!d.skillsNote && d.skillGroups.map((g) => (
+        <div key={g.name} style={css("margin-top:6px")}>
+          <div style={css(`font:500 8.5px ${M};letter-spacing:.18em;color:color-mix(in srgb, var(--nv-cy) 65%, var(--nv-ink))`)}>{g.name}</div>
+          {g.missing && <div style={css(`font:400 10px ${M};color:${dim(40)};padding:2px 0`)}>not on the registry page</div>}
+          {g.skills.map((s) => (
+            <div key={s.text} style={css("display:flex;align-items:baseline;gap:8px;padding:2.5px 0")}>
+              <span style={css(`flex:1;font:400 10.5px/1.5 ${M};color:${dim(72)}`)}>{s.text}</span>
+              <span style={css(`flex:none;font:500 7.5px ${M};letter-spacing:.08em;color:${s.autonomyColor}`)}>{s.autonomy}</span>
+            </div>
+          ))}
+        </div>
+      ))}
+      <div style={css(`margin-top:12px;font:500 8.5px ${M};letter-spacing:.22em;color:${dim(42)}`)}>LAST RECEIPTS</div>
+      {d.receiptsNote && <div style={css(`margin-top:5px;font:400 10.5px ${M};color:${dim(42)}`)}>{d.receiptsNote}</div>}
+      {d.receipts.map((r) => (
+        <div key={r.id} style={css(`display:flex;align-items:baseline;gap:10px;padding:5px 0;border-bottom:1px solid ${dim(5)};font:400 10.5px ${M}`)}>
+          <span style={css(`flex:none;width:32px;text-align:right;color:${dim(35)};font-size:9px`)}>{r.when}</span>
+          <span style={css(`flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${dim(78)}`)}>{r.title}</span>
+          <span style={css(`flex:none;font-size:8.5px;letter-spacing:.1em;color:${r.statusColor}`)}>{r.status}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function Ops({ v }) {
   if (!v.opsLive) {
     return (
@@ -39,31 +77,43 @@ export function Ops({ v }) {
       </Interactive>
 
       <div style={css("display:flex;flex-wrap:wrap;gap:30px;margin-top:26px;align-items:flex-start")}>
-        {/* the fleet ring */}
-        <div style={css(`flex:0 0 auto;width:${RING * 2 + 120}px;max-width:100%;position:relative;height:${RING * 2 + 110}px;margin:0 auto`)}>
-          <div style={css("position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)")}>
-            <NovaCore size={86} engine={v.coreStyle} />
-          </div>
-          <div style={css(`position:absolute;left:50%;top:50%;width:${RING * 2}px;height:${RING * 2}px;transform:translate(-50%,-50%);border:1px dashed ${dim(8)};border-radius:50%`)} />
-          {v.opsAgents.map((a) => (
-            <div key={a.id} title={`${a.label} — ${a.role} · ${a.stateLabel}`}
-              style={css(`position:absolute;left:calc(50% + ${Math.round(a.x * RING)}px);top:calc(50% + ${Math.round(a.y * RING)}px);transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:4px;width:86px;text-align:center`)}>
-              <span style={{ width: 9, height: 9, borderRadius: '50%', ...a.dotStyle, ...(a.state === 'today' ? { animation: 'novaPulse 2.6s infinite var(--nv-anim)' } : {}) }} />
-              <span style={css(`font:500 9px ${M};letter-spacing:.08em;color:${a.state === 'never' ? dim(35) : dim(72)}`)}>{a.label.toUpperCase()}</span>
-              <span style={css(`font:400 8px ${M};color:${a.state === 'stale' ? 'var(--nv-warn)' : dim(38)}`)}>{a.stateLabel}</span>
+        {/* the fleet ring — tap an agent to unfold its skills + receipts */}
+        <div style={css(`flex:0 0 auto;width:${RING * 2 + 120}px;max-width:100%;margin:0 auto`)}>
+          <div style={css(`position:relative;height:${RING * 2 + 110}px`)}>
+            <div style={css("position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)")}>
+              <NovaCore size={86} engine={v.coreStyle} />
             </div>
-          ))}
+            <div style={css(`position:absolute;left:50%;top:50%;width:${RING * 2}px;height:${RING * 2}px;transform:translate(-50%,-50%);border:1px dashed ${dim(8)};border-radius:50%`)} />
+            {v.opsAgents.map((a) => (
+              // activeStyle restates the centring translate on purpose: the
+              // default press spring would replace transform and jump the node
+              <Interactive as="div" key={a.id} title={`${a.label} — ${a.role} · ${a.stateLabel}`} onClick={a.toggle}
+                base={`cursor:pointer;position:absolute;left:calc(50% + ${Math.round(a.x * RING)}px);top:calc(50% + ${Math.round(a.y * RING)}px);transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:4px;width:86px;text-align:center;padding:3px 0;border-radius:8px`}
+                activeStyle="transform:translate(-50%,-50%) scale(.94)"
+                hoverStyle={`background:${dim(4)}`}>
+                <span style={{ width: 9, height: 9, borderRadius: '50%', ...a.dotStyle, ...(a.state === 'today' ? { animation: 'novaPulse 2.6s infinite var(--nv-anim)' } : {}) }} />
+                <span style={css(`font:500 9px ${M};letter-spacing:.08em;color:${a.open ? 'var(--nv-cy)' : a.state === 'never' ? dim(35) : dim(72)}`)}>{a.label.toUpperCase()}</span>
+                <span style={css(`font:400 8px ${M};color:${a.state === 'stale' ? 'var(--nv-warn)' : dim(38)}`)}>{a.stateLabel}</span>
+              </Interactive>
+            ))}
+          </div>
+          {v.opsOpenAgent?.scheduled && <AgentDetail d={v.opsOpenAgent} />}
         </div>
 
         {/* conversational agents + legend */}
         <div style={css("flex:1 1 280px;min-width:260px")}>
           <div style={css(`font:500 9.5px ${M};letter-spacing:.24em;color:${dim(42)}`)}>IN CONVERSATION</div>
           {v.opsConversational.map((a) => (
-            <div key={a.id} style={css(`display:flex;align-items:baseline;gap:9px;padding:9px 0;border-bottom:1px solid ${dim(6)}`)}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', flex: 'none', alignSelf: 'center', ...a.dotStyle }} />
-              <span style={css(`font:500 11.5px ${M};color:${dim(85)}`)}>{a.label}</span>
-              <span style={css(`font:400 10px ${M};color:${dim(40)}`)}>{a.role}</span>
-              <span style={css(`flex:1;text-align:right;font:400 9.5px ${M};color:${dim(45)};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0`)}>{a.last}</span>
+            <div key={a.id} style={css(`border-bottom:1px solid ${dim(6)}`)}>
+              <Interactive as="div" onClick={a.toggle}
+                base="cursor:pointer;display:flex;align-items:baseline;gap:9px;padding:9px 2px"
+                hoverStyle={`background:${dim(4)}`}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', flex: 'none', alignSelf: 'center', ...a.dotStyle }} />
+                <span style={css(`font:500 11.5px ${M};color:${a.open ? 'var(--nv-cy)' : dim(85)}`)}>{a.label}</span>
+                <span style={css(`font:400 10px ${M};color:${dim(40)}`)}>{a.role}</span>
+                <span style={css(`flex:1;text-align:right;font:400 9.5px ${M};color:${dim(45)};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0`)}>{a.last}</span>
+              </Interactive>
+              {a.open && v.opsOpenAgent && !v.opsOpenAgent.scheduled && <AgentDetail d={v.opsOpenAgent} />}
             </div>
           ))}
           <div style={css(`margin-top:14px;font:400 9px ${M};line-height:2;color:${dim(38)}`)}>

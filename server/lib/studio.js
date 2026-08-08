@@ -49,12 +49,13 @@ export async function setIdeaStatus(vaultPath, id, status) {
   return { id, status };
 }
 
-export function buildOutlinePrompt(page, format) {
+export function buildOutlinePrompt(page, format, taste = '') {
   return `${NOVA_LENS}
 
 You are Nova's Studio, drafting a content outline for Hayden's idea below. Format guess: ${format || 'short'} (short = a tight vertical/short video; long = a full video; thread = a written thread).
 
 Work from the vault: your working directory is Hayden's Obsidian vault. Read the idea page and any obviously related notes (search by the idea's key terms) — the outline should be built from HIS notes and voice, not generic content advice. Cite which vault notes you drew from at the end (or say plainly that nothing related exists yet).
+${taste ? `\n${taste}\n` : ''}
 
 Outline shape: a hook line (sharpen the existing one if you can), 3-6 beats with one concrete detail each, and a closing beat. Keep it tight and shootable — bullet points, not prose paragraphs.
 
@@ -80,8 +81,10 @@ export async function startOutline(vaultPath, id) {
     createdAt: new Date().toISOString(),
   });
 
+  const { tasteContext } = await import('./taste.js');
+  const taste = await tasteContext(vaultPath).catch(() => '');
   const child = spawn(CLAUDE_BIN, [
-    '-p', buildOutlinePrompt(page, page.raw.match(/format:\s*(\w+)/)?.[1]),
+    '-p', buildOutlinePrompt(page, page.raw.match(/format:\s*(\w+)/)?.[1], taste),
     '--permission-mode', 'bypassPermissions',
     '--allowedTools', 'Read Grep Glob',
     '--disallowedTools', OUTLINE_DISALLOWED,
