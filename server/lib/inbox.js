@@ -303,6 +303,15 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  if (route === 'distill-apply') {
+    const { applyDistillJob } = await import('./distill.js');
+    const { applied } = await applyDistillJob(vaultPath, payload.jobId);
+    return {
+      destination: `Distilled into the graph — ${applied} file${applied === 1 ? '' : 's'} updated`,
+      undo: { route, jobId: payload.jobId },
+    };
+  }
+
   if (route === 'profile') {
     // merge one interview's worth of About You into the profile page —
     // undo restores the ENTIRE prior profile, so a bad merge is one tap back
@@ -655,6 +664,11 @@ export async function undoFiling(vaultPath, undo) {
     const removed = await removeReminder(undo.reminderId);
     return removed ? `cancelled the reminder "${removed.text}"` : 'that reminder was already gone';
   }
+  if (undo.route === 'distill-apply') {
+    const { undoDistillJob } = await import('./distill.js');
+    const { restored } = await undoDistillJob(vaultPath, undo.jobId);
+    return `restored ${restored} file${restored === 1 ? '' : 's'} to their pre-distillation state`;
+  }
   if (undo.route === 'profile') {
     const { setProfile } = await import('./profile.js');
     if (undo.prior && (undo.prior.focus || undo.prior.priorities?.length || undo.prior.bestSelf || undo.prior.notes)) {
@@ -903,7 +917,7 @@ export async function retryRecord(vaultPath, id) {
 // is a marked discard (expired: true) — visible in the stream as a receipt,
 // never a silent deletion — and only touches kinds whose worth is bound to
 // a moment. Real content (captures, research, coach receipts) never expires.
-const TIME_VALUE_HOURS = { dispatch: 48, review: 48, 'training-check': 48, 'week-plan': 8 * 24, 'plan-today': 24, 'weekly-debrief': 8 * 24 };
+const TIME_VALUE_HOURS = { dispatch: 48, review: 48, 'training-check': 48, 'week-plan': 8 * 24, 'plan-today': 24, 'weekly-debrief': 8 * 24, distill: 7 * 24 };
 export async function expireStaleDrafts() {
   const records = await listRecords();
   const now = Date.now();

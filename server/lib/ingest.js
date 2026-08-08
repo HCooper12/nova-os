@@ -17,7 +17,7 @@ const jobs = new Map();
 // Only Wiki/ + CLAUDE.md need to exist in the staging copy — the ingest workflow
 // reads/writes wiki pages, not old Raw/ transcripts. Copying the whole vault would
 // force iCloud to download every previously-evicted file, which can hang for minutes.
-async function stageVault(vaultPath, stagingVault) {
+export async function stageVault(vaultPath, stagingVault) {
   await mkdir(stagingVault, { recursive: true });
   const claudeMd = path.join(vaultPath, 'CLAUDE.md');
   if (existsSync(claudeMd)) await cp(claudeMd, path.join(stagingVault, 'CLAUDE.md'));
@@ -42,7 +42,7 @@ function listFiles(dir, base = dir, out = []) {
   return out;
 }
 
-function diffTrees(originalDir, stagingDir) {
+export function diffTrees(originalDir, stagingDir) {
   const before = new Set([...listFiles(path.join(originalDir, 'Wiki')).map((p) => path.join('Wiki', p))]);
   const after = [
     ...listFiles(path.join(stagingDir, 'Wiki')).map((p) => path.join('Wiki', p)),

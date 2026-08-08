@@ -25,6 +25,7 @@ const ROUTE_META = {
   'skill-backlog': { label: 'SKILL IDEA', hue: '224,178,106' },
   'agent-mode': { label: 'TRUST LADDER', hue: '89,230,255' },
   profile: { label: 'ABOUT YOU', hue: '143,123,255' },
+  'distill-apply': { label: 'DISTILL', hue: '95,232,168' },
 };
 
 const MODE_LADDER = [
@@ -49,6 +50,7 @@ function payloadPreview(decision) {
   if (decision.route === 'routine-edit') return `${p.action === 'swap' ? `${p.removeName} → ${p.addName}` : p.action === 'add' ? `+ ${p.addName}` : p.action === 'remove' ? `− ${p.removeName}` : `${p.removeName} targets`} in ${p.routineName}${p.reason ? ' — ' + p.reason : ''}`;
   if (decision.route === 'agent-mode') return `${p.target}: ${p.from} → ${p.to}`;
   if (decision.route === 'profile') return p.summary || '';
+  if (decision.route === 'distill-apply') return `${(p.paths || []).length} files: ${(p.paths || []).slice(0, 3).join(', ')}${(p.paths || []).length > 3 ? '…' : ''}`;
   if (decision.route === 'progression-tune') return `${p.exerciseName}: ${[p.hold ? 'hold progressions' : null, p.stepKg != null ? `step ${p.stepKg}kg` : null, p.repStep != null ? `+${p.repStep} rep` : null, p.focus ? `focus — ${p.focus}` : null].filter(Boolean).join(', ')}${p.reason ? ' — ' + p.reason : ''}`;
   if (decision.route === 'idea') return `${p.title} — ${p.hook} (${p.format})`;
   if (decision.route === 'idea-outline') return (p.text || '').slice(0, 200);
@@ -233,7 +235,7 @@ export function valsInbox(app, ctx) {
     kind: r.kind || null,
     text: r.text,
     time: timeLabel(r.createdAt),
-    source: r.kind === 'review' ? 'DAILY REVIEW' : r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.kind === 'guardian' ? 'GUARDIAN' : r.kind === 'cfo' || r.kind === 'money-import' ? 'CFO' : r.kind === 'meal-prep' ? 'MEAL PREP' : r.kind === 'food-suggestion' ? 'NUTRITION' : r.kind === 'calendar' ? 'SCHEDULE' : r.kind === 'training-check' ? 'TRAINING' : r.kind === 'week-plan' ? 'COMMANDER' : r.kind === 'plan-today' ? 'PLANNER' : r.kind === 'pattern' ? 'SCOUT' : r.kind === 'autonomy' ? 'TRUST LADDER' : r.kind === 'coach' || r.kind === 'weekly-debrief' ? 'COACH' : r.kind === 'research' ? 'RESEARCHER' : r.kind === 'followup' ? 'CALENDAR' : r.kind === 'studio' ? 'STUDIO' : r.source === 'voice' ? 'VOICE' : 'TYPED',
+    source: r.kind === 'review' ? 'DAILY REVIEW' : r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.kind === 'guardian' ? 'GUARDIAN' : r.kind === 'cfo' || r.kind === 'money-import' ? 'CFO' : r.kind === 'meal-prep' ? 'MEAL PREP' : r.kind === 'food-suggestion' ? 'NUTRITION' : r.kind === 'calendar' ? 'SCHEDULE' : r.kind === 'training-check' ? 'TRAINING' : r.kind === 'week-plan' ? 'COMMANDER' : r.kind === 'plan-today' ? 'PLANNER' : r.kind === 'pattern' ? 'SCOUT' : r.kind === 'autonomy' ? 'TRUST LADDER' : r.kind === 'distill' ? 'DISTILLER' : r.kind === 'coach' || r.kind === 'weekly-debrief' ? 'COACH' : r.kind === 'research' ? 'RESEARCHER' : r.kind === 'followup' ? 'CALENDAR' : r.kind === 'studio' ? 'STUDIO' : r.source === 'voice' ? 'VOICE' : 'TYPED',
     status: r.status,
     route: r.decision ? (ROUTE_META[r.decision.route] || ROUTE_META.note) : null,
     confidence: r.decision?.confidence || null,
