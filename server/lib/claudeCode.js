@@ -36,6 +36,42 @@ const DISALLOWED_TOOLS = [
 
 const jobs = new Map();
 
+// Shared wiring for `--output-format stream-json` spawns: text deltas land in
+// job.partial as they generate (the client polls them straight into the
+// bubble), full `assistant` snapshots are authoritative over accumulated
+// deltas, and the final `result` event carries the finished reply. Event
+// shapes verified live: stream_event/content_block_delta text_delta
+// (thinking deltas excluded), 'assistant', 'result'. Returns the accumulator
+// the caller's close handler reads.
+function wireStreamJson(child, job) {
+  const acc = { streamed: '', resultText: null, resultErr: null, stderr: '' };
+  let buf = '';
+  child.stdout.on('data', (d) => {
+    buf += d;
+    let nl;
+    while ((nl = buf.indexOf('\n')) !== -1) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (!line) continue;
+      try {
+        const ev = JSON.parse(line);
+        if (ev.type === 'stream_event' && ev.event?.type === 'content_block_delta' && ev.event.delta?.type === 'text_delta') {
+          acc.streamed += ev.event.delta.text;
+          job.partial = acc.streamed;
+        } else if (ev.type === 'assistant' && Array.isArray(ev.message?.content)) {
+          const txt = ev.message.content.filter((c) => c.type === 'text').map((c) => c.text).join('');
+          if (txt) { acc.streamed = txt; job.partial = acc.streamed; } // authoritative snapshot
+        } else if (ev.type === 'result') {
+          if (ev.is_error) acc.resultErr = ev.result || 'request failed';
+          else acc.resultText = (ev.result || '').trim();
+        }
+      } catch { /* non-JSON diagnostic line — ignore */ }
+    }
+  });
+  child.stderr.on('data', (d) => { acc.stderr += d; });
+  return acc;
+}
+
 // message: { text, sessionId?, model? } — sessionId absent means start a new
 // conversation (a fresh session id is minted and returned for the caller to
 // pass on the next turn); present means continue that conversation via
@@ -53,28 +89,24 @@ export function startMessage(cwd, { text, sessionId, model }) {
     '--allowedTools', ALLOWED_TOOLS,
     '--disallowedTools', DISALLOWED_TOOLS,
     '--strict-mcp-config',
-    '--output-format', 'json',
+    // Streaming here too: the Code tab renders the reply as it's written,
+    // same contract as the Ask Nova path (job.partial via the shared poll).
+    '--output-format', 'stream-json',
+    '--include-partial-messages',
+    '--verbose',
     '--max-budget-usd', MAX_BUDGET_USD,
   ];
   args.push(isNewSession ? '--session-id' : '--resume', effectiveSessionId);
   if (model) args.push('--model', model);
 
-  const child = spawn(CLAUDE_BIN, args, { cwd });
+  const child = spawn(CLAUDE_BIN, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
 
-  let stdout = '';
-  let stderr = '';
-  child.stdout.on('data', (d) => { stdout += d; });
-  child.stderr.on('data', (d) => { stderr += d; });
+  const acc = wireStreamJson(child, job);
   child.on('close', (code) => {
-    if (code !== 0) {
-      job.status = 'error';
-      job.error = stderr.trim() || `claude exited with code ${code}`;
-      return;
-    }
     try {
-      const outer = JSON.parse(stdout);
-      if (outer.is_error) throw new Error(outer.result || 'Claude Code request failed');
-      const replyText = (outer.result || '').trim();
+      if (acc.resultErr) throw new Error(acc.resultErr);
+      const replyText = (acc.resultText || acc.streamed || '').trim();
+      if (code !== 0 && !replyText) throw new Error(acc.stderr.trim() || `claude exited with code ${code}`);
       if (!replyText) throw new Error('Empty response');
       job.result = { text: replyText, sessionId: effectiveSessionId };
       job.status = 'ready';
@@ -169,39 +201,12 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
 
   const child = spawn(CLAUDE_BIN, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
 
-  let buf = '';
-  let streamed = '';
-  let resultText = null;
-  let resultErr = null;
-  let stderr = '';
-  child.stdout.on('data', (d) => {
-    buf += d;
-    let nl;
-    while ((nl = buf.indexOf('\n')) !== -1) {
-      const line = buf.slice(0, nl).trim();
-      buf = buf.slice(nl + 1);
-      if (!line) continue;
-      try {
-        const ev = JSON.parse(line);
-        if (ev.type === 'stream_event' && ev.event?.type === 'content_block_delta' && ev.event.delta?.type === 'text_delta') {
-          streamed += ev.event.delta.text;
-          job.partial = streamed;
-        } else if (ev.type === 'assistant' && Array.isArray(ev.message?.content)) {
-          const txt = ev.message.content.filter((c) => c.type === 'text').map((c) => c.text).join('');
-          if (txt) { streamed = txt; job.partial = streamed; } // authoritative snapshot
-        } else if (ev.type === 'result') {
-          if (ev.is_error) resultErr = ev.result || 'analysis failed';
-          else resultText = (ev.result || '').trim();
-        }
-      } catch { /* non-JSON diagnostic line — ignore */ }
-    }
-  });
-  child.stderr.on('data', (d) => { stderr += d; });
+  const acc = wireStreamJson(child, job);
   child.on('close', async (code) => {
     try {
-      if (resultErr) throw new Error(resultErr);
-      const replyText = (resultText || streamed || '').trim();
-      if (code !== 0 && !replyText) throw new Error(stderr.trim() || `claude exited with code ${code}`);
+      if (acc.resultErr) throw new Error(acc.resultErr);
+      const replyText = (acc.resultText || acc.streamed || '').trim();
+      if (code !== 0 && !replyText) throw new Error(acc.stderr.trim() || `claude exited with code ${code}`);
       if (!replyText) throw new Error('Empty response');
       // Canvas: the model may end with one SHOW {"panel":...} line. Parse it
       // out and build the panel DETERMINISTICALLY from the vault — the model
@@ -326,21 +331,22 @@ export function startAskCoach(cwd, { question, context, sessionId }) {
     '--allowedTools', 'Read Grep Glob',
     '--disallowedTools', BREAKER_DISALLOWED,
     '--strict-mcp-config',
-    '--output-format', 'json',
+    // Streaming: the Coach's answer appears in the chat as it's written —
+    // the wait used to be full-generation THEN a fake typing animation.
+    '--output-format', 'stream-json',
+    '--include-partial-messages',
+    '--verbose',
     '--max-budget-usd', MAX_BUDGET_USD,
   ];
   args.push(isNewSession ? '--session-id' : '--resume', effectiveSessionId);
   const child = spawn(CLAUDE_BIN, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
 
-  let stdout = '';
-  let stderr = '';
-  child.stdout.on('data', (d) => { stdout += d; });
-  child.stderr.on('data', (d) => { stderr += d; });
+  const acc = wireStreamJson(child, job);
   child.on('close', async (code) => {
     try {
-      const outer = JSON.parse(stdout);
-      if (outer.is_error || code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
-      const replyText = (outer.result || '').trim();
+      if (acc.resultErr) throw new Error(acc.resultErr);
+      const replyText = (acc.resultText || acc.streamed || '').trim();
+      if (code !== 0 && !replyText) throw new Error(acc.stderr.trim() || `claude exited with code ${code}`);
       if (!replyText) throw new Error('Empty response');
       // The Coach may PROPOSE a program change — the model decides, this
       // code validates against the real routines and files a PENDING record
@@ -363,7 +369,7 @@ export function startAskCoach(cwd, { question, context, sessionId }) {
       job.status = 'ready';
     } catch (e) {
       job.status = 'error';
-      job.error = code !== 0 && !(stdout || '').trim() ? (stderr.trim() || `claude exited with code ${code}`) : e.message;
+      job.error = e.message;
     }
   });
   child.on('error', (err) => {

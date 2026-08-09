@@ -197,7 +197,9 @@ export function valsWorkouts(app, ctx) {
       tag: m.who === 'coach' ? '» COACH' : m.who === 'system' ? '» SYSTEM' : '» YOU',
       tagStyle: { font: "500 10px var(--nv-font-mono)", color: m.who === 'coach' ? 'var(--nv-cy)' : m.who === 'system' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' },
     }, bubble(m.who))),
-    coachBusy: st.coachBusy,
+    // "reading your history…" shows only until the first streamed words
+    // arrive — once the reply is visibly being written, the line is noise
+    coachBusy: st.coachBusy && !st.coachChat.some((m) => m.streaming),
     coachContinuing: !!st.coachSessionId,
     newCoachChat: () => app.newCoachChat(),
     coachInput: st.coachInput,

@@ -38,6 +38,7 @@ import { Notes } from './screens/Notes.jsx';
 import { Journal } from './screens/Journal.jsx';
 import { Settings } from './screens/Settings.jsx';
 import { MobileChrome } from './MobileChrome.jsx';
+import { FloatingCore } from './FloatingCore.jsx';
 import { RecipeOverlay } from './RecipeOverlay.jsx';
 import { AddRecipeModal } from './AddRecipeModal.jsx';
 import { CommandPalette } from './CommandPalette.jsx';
@@ -174,7 +175,7 @@ export default class App extends Component {
     connectionStatus: typeof window !== 'undefined' && getConnection() ? 'connecting' : 'demo',
     lastSyncAt: null,
     liveGraph: null,
-    paletteOpen: false, paletteQuery: '', recallResults: [],
+    paletteOpen: false, recallResults: [],
     micOn: true, orbInput: '',
     voiceChat: [], voiceBusy: false, voiceSpeaking: false, liveTts: null,
     voiceConvMode: false, voiceConvPaused: false, voiceAutoListenTick: 0,
@@ -446,7 +447,7 @@ export default class App extends Component {
     window.addEventListener('popstate', this.popH);
     window.addEventListener('hashchange', this.popH);
     this.keyH = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); this.setState(s => ({ paletteOpen: !s.paletteOpen, paletteQuery: '' })); }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); this.setState(s => ({ paletteOpen: !s.paletteOpen, recallResults: [] })); }
       else if (e.key === 'Escape') { this.stopPoll('recipeTweak'); this.setState({ paletteOpen: false, openRecipeId: null, galaxySel: null }); }
     };
     window.addEventListener('keydown', this.keyH);
@@ -2273,10 +2274,14 @@ export default class App extends Component {
       else navigator.clearAppBadge().catch(() => {});
     } catch { /* unsupported */ }
   }
-  // Recall — vault search behind the palette, debounced so typing stays smooth
+  // Recall — vault search behind the palette, debounced so typing stays
+  // smooth. The palette input owns its text locally (P8: a keystroke must
+  // not rebuild the whole app), so the staleness guard is an instance
+  // field, not state — late results for an abandoned query stay out.
   queueRecall(query) {
     clearTimeout(this.recallT);
     const q = (query || '').trim();
+    this.recallFor = q;
     const conn = getConnection();
     if (!conn || q.length < 3) {
       if (this.state.recallResults.length) this.setState({ recallResults: [] });
@@ -2284,7 +2289,7 @@ export default class App extends Component {
     }
     this.recallT = setTimeout(() => {
       api.recall(conn, q).then(({ results }) => {
-        if (this.state.paletteQuery.trim() === q) this.setState({ recallResults: results });
+        if (this.recallFor === q) this.setState({ recallResults: results });
       }).catch(() => {});
     }, 250);
   }
@@ -3093,24 +3098,43 @@ export default class App extends Component {
     this.setState({ toast: text });
     this.toastT = setTimeout(() => this.setState({ toast: null }), 3600);
   }
+  // Streaming bubbles (shared by Coach + Code; Voice keeps its own variant
+  // with speech): upsert the in-flight reply so the answer appears while
+  // it's still being written — job.partial arrives from the shared poll.
+  applyStreamPartial(chatKey, who, text) {
+    this.setState((s) => {
+      const chat = [...s[chatKey]];
+      const idx = chat.map((m) => !!m.streaming).lastIndexOf(true);
+      if (idx === -1) chat.push({ who, text, streaming: true });
+      else chat[idx] = { ...chat[idx], text };
+      return { [chatKey]: chat };
+    });
+  }
+  finalizeStream(chatKey, msg, extra) {
+    this.setState((s) => {
+      const chat = [...s[chatKey]];
+      const idx = chat.map((m) => !!m.streaming).lastIndexOf(true);
+      if (idx === -1) chat.push(msg);
+      else chat[idx] = msg;
+      return { [chatKey]: chat, ...extra };
+    });
+  }
   typeIn(key, who, text, after) {
-    this.setState(s => ({ [key]: [...s[key], { who, text: '', typing: true }] }));
-    let i = 0;
-    // ~12 chars per 80ms tick, not 3 per 22ms: each tick reconciles the whole
-    // tree (P7 in the perf audit), so fewer, larger ticks read the same but
-    // cost ~4× less main-thread work during a reply animation
-    const iv = setInterval(() => {
-      i += 12;
+    // P7 closed: two setStates per message (push + typing-flag clear), not
+    // one per tick — the reveal animation runs inside the TypeText leaf,
+    // so a demo reply no longer reconciles the whole tree ~12×/sec.
+    this.setState(s => ({ [key]: [...s[key], { who, text, typing: true }] }));
+    const ms = Math.ceil(text.length / 12) * 80 + 160;
+    const t = setTimeout(() => {
       this.setState(s => {
         const arr = s[key].slice();
-        const m = Object.assign({}, arr[arr.length - 1]);
-        m.text = text.slice(0, i); m.typing = i < text.length;
-        arr[arr.length - 1] = m;
+        const last = arr[arr.length - 1];
+        if (last && last.typing) arr[arr.length - 1] = { ...last, typing: false };
         return { [key]: arr };
       });
-      if (i >= text.length) { clearInterval(iv); if (after) after(); }
-    }, 80);
-    this.ivs.push(iv);
+      if (after) after();
+    }, ms);
+    this.ivs.push(t);
   }
 
   // The view-model for every screen, composed from per-domain builders in
@@ -3469,22 +3493,31 @@ export default class App extends Component {
       const liveSession = ws && !this.state.editingSessionId
         ? { routineName: ws.routineName, exercises: ws.exercises.map((e) => ({ name: e.name, skipped: !!e.skipped, sets: e.sets.map((s) => ({ weight: s.weight, reps: s.reps, rpe: s.rpe || null, done: !!s.done })) })) }
         : null;
+      // a trailing PROPOSE line is a typed directive for the server, not
+      // prose — keep it out of the streamed render
+      const stripDirective = (t) => t.replace(/(^|\n)\s*(SHOW|PROPOSE|RESEARCH)\s*(\{[\s\S]*)?$/, '');
       api.askCoach(conn, q, this.state.coachSessionId || null, liveSession).then(({ jobId }) => {
         this.startPoll('coach', () => api.claudeCodeJob(conn, jobId), {
           timeoutMs: 3 * 60_000,
+          intervalMs: 700,
+          onProgress: (job) => {
+            if (!job.partial) return;
+            const shown = stripDirective(job.partial);
+            if (shown) this.applyStreamPartial('coachChat', 'coach', shown);
+          },
           onReady: (job) => {
             if (job.result.sessionId) {
               localStorage.setItem('novaos.coachSession', job.result.sessionId);
               this.setState({ coachSessionId: job.result.sessionId });
             }
-            this.setState((s) => ({ coachBusy: false, coachChat: [...s.coachChat, { who: 'coach', text: job.result.text }] }));
+            this.finalizeStream('coachChat', { who: 'coach', text: job.result.text }, { coachBusy: false });
             // a proposed program change landed on the rails as a pending record
             if (job.result.proposal) {
               this.refreshInbox();
               this.toastMsg(`${job.result.proposal.title} — approve it in your Inbox`);
             }
           },
-          onError: (msg) => this.setState((s) => ({ coachBusy: false, coachChat: [...s.coachChat, { who: 'system', text: 'Error: ' + msg }] })),
+          onError: (msg) => this.setState((s) => ({ coachBusy: false, coachChat: [...s.coachChat.filter((m) => !m.streaming), { who: 'system', text: 'Error: ' + msg }] })),
         });
       }).catch((e) => {
         this.setState((s) => ({ coachBusy: false, coachChat: [...s.coachChat, { who: 'system', text: 'Error: ' + e.message }] }));
@@ -3565,8 +3598,10 @@ export default class App extends Component {
     api.startClaudeCodeMessage(conn, q, this.state.codeSessionId, this.state.codeModel, this.state.codeWorkspace).then(({ jobId }) => {
       this.startPoll('code', () => api.claudeCodeJob(conn, jobId), {
         timeoutMs: 10 * 60_000,
-        onReady: (job) => this.setState(s => ({ codeBusy: false, codeSessionId: job.result.sessionId, codeChat: [...s.codeChat, { who: 'claude', text: job.result.text }] })),
-        onError: (msg) => this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat, { who: 'system', text: 'Error: ' + msg }] })),
+        intervalMs: 700,
+        onProgress: (job) => { if (job.partial) this.applyStreamPartial('codeChat', 'claude', job.partial); },
+        onReady: (job) => this.finalizeStream('codeChat', { who: 'claude', text: job.result.text }, { codeBusy: false, codeSessionId: job.result.sessionId }),
+        onError: (msg) => this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat.filter((m) => !m.streaming), { who: 'system', text: 'Error: ' + msg }] })),
       });
     }).catch((e) => {
       this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat, { who: 'system', text: 'Error: ' + e.message }] }));
@@ -3633,6 +3668,7 @@ export default class App extends Component {
           }} role="status">{v.statusBanner.text}</div>
         )}
         {v.isMobile && <MobileChrome v={v} />}
+        {v.floatingCore && <FloatingCore s={v.floatingCore} />}
         {v.recipeOpen && <RecipeOverlay v={v} />}
         {v.recipeAddOpen && <AddRecipeModal v={v} />}
         {v.barcodeScannerOpen && (

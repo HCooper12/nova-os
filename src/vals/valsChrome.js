@@ -48,11 +48,15 @@ export function valsChrome(app, ctx) {
     ] : []),
     { icon: '✦', iconColor: 'var(--nv-cy)', label: 'Start a voice session', hint: 'VOICE', run: () => { app.navigate('voice', { micOn: true, paletteOpen: false }); } },
   ];
-  const pq = st.paletteQuery.toLowerCase();
+  // P8: the palette input owns its text locally — a keystroke re-renders
+  // the overlay only, never the whole app. The component calls this with
+  // its live query; recall results still ride App state (debounced fetch).
+  const paletteResultsFor = (query) => {
+  const pq = query.toLowerCase();
   const paletteResults = cmds.filter(c => !pq || c.label.toLowerCase().includes(pq));
   // Summon becomes a capture surface: any non-empty query can be sent
   // straight to the Inbox — Nova routes it from there.
-  const rawQuery = st.paletteQuery.trim();
+  const rawQuery = query.trim();
   if (rawQuery) {
     // The button says ASK — it must actually be able to ask. A question-shaped
     // query (multiple words, or ends with ?) puts Ask FIRST so Enter asks Nova
@@ -94,6 +98,8 @@ export function valsChrome(app, ctx) {
       run: () => { app.navigate('settings', { paletteOpen: false }); setTimeout(() => app.startProfileEdit(), 60); },
     });
   }
+  return paletteResults;
+  };
 
   // responsive
   const mob = st.isMobile;
@@ -215,17 +221,60 @@ export function valsChrome(app, ctx) {
       mkNav('Settings', 'XV.', 'settings'),
     ],
     agentsGroupLabel: `AGENTS · ${agentsLiveCount} OF ${AGENTS.length} LIVE`,
-    agents: AGENTS.map((a, i) => ({
-      name: a.name, role: a.role, on: a.on,
-      dotStyle: a.on
-        ? { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', flex: 'none', background: 'var(--nv-cy)', boxShadow: '0 0 9px var(--nv-cy)', animation: `novaPulse ${2.2 + i * 0.3}s infinite var(--nv-anim)` }
-        : { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', flex: 'none', background: 'rgba(232,236,246,.16)' },
-    })),
+    // Honest lights: a dot PULSES only while its agent is actually working
+    // (an in-flight job this client started), stays LIT for five minutes
+    // after one of its receipts lands on the rails, and otherwise sits dim.
+    // A light that glows constantly says nothing — lights are receipts.
+    agents: (() => {
+      const KINDS = {
+        Commander: ['dispatch', 'plan-today', 'review', 'followup'],
+        Coach: ['coach', 'training-check', 'week-plan', 'weekly-debrief', 'meal-prep'],
+        CFO: ['cfo', 'money'],
+        Studio: ['studio', 'idea', 'idea-outline'],
+        Researcher: ['research'],
+        Guardian: ['guardian'],
+      };
+      const WORKING = {
+        Commander: !!(st.calCmdBusy || st.dispatchBusy),
+        Coach: !!(st.coachBusy || st.quickBusy || st.mealPrepBusy),
+        CFO: !!(st.moneyBusy || st.moneyScanBusy),
+        Studio: false,
+        Researcher: (st.voiceChat || []).some((m) => m.research?.status === 'running'),
+        Guardian: !!st.guardianBusy,
+      };
+      const cutoff = Date.now() - 5 * 60_000;
+      const recent = new Set();
+      for (const r of st.liveInbox?.items || []) {
+        if (!r.createdAt || new Date(r.createdAt).getTime() < cutoff) continue;
+        for (const name of Object.keys(KINDS)) if (KINDS[name].includes(r.kind)) recent.add(name);
+      }
+      const dot = { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', flex: 'none' };
+      return AGENTS.map((a, i) => {
+        const working = WORKING[a.name] || false;
+        return {
+          name: a.name, role: a.role, on: a.on, working,
+          dotStyle: working
+            ? { ...dot, background: 'var(--nv-cy)', boxShadow: '0 0 9px var(--nv-cy)', animation: `novaPulse ${1.1 + i * 0.1}s infinite var(--nv-anim)` }
+            : recent.has(a.name)
+              ? { ...dot, background: 'var(--nv-cy)', boxShadow: '0 0 7px var(--nv-cy)' }
+              : { ...dot, background: a.on ? 'color-mix(in srgb, var(--nv-cy) 38%, transparent)' : 'rgba(232,236,246,.16)' },
+        };
+      });
+    })(),
     sideStatus,
+    // The floating core rides every mobile screen except Voice (which has
+    // the full reactor) and Ambient (deliberately empty). Its ring states
+    // are receipts: thinking = a model job in flight RIGHT NOW, listening =
+    // the mic is genuinely open. Idle is just the core, breathing.
+    floatingCore: mob && st.screen !== 'voice' && st.screen !== 'ambient' ? {
+      thinking: !!(st.voiceBusy || st.coachBusy || st.codeBusy || st.quickBusy || st.sparBusy || st.inboxCaptureBusy),
+      listening: !!st.micOn,
+      tap: go('voice'),
+    } : null,
     goVoice: go('voice'), goWorkouts: go('workouts'), goSettings: go('settings'), goHome: go('mission'),
     orbCardTitle: st.micOn ? 'Nova is listening' : 'Nova is muted',
     orbCardSub: wakeWord ? 'VOICE · WAKE WORD ON' : 'VOICE · PUSH TO TALK',
-    openPalette: () => app.setState({ paletteOpen: true, paletteQuery: '' }),
+    openPalette: () => app.setState({ paletteOpen: true, recallResults: [] }),
     stopClick: (e) => e.stopPropagation(),
 
     // appearance (Settings)
@@ -315,13 +364,12 @@ export function valsChrome(app, ctx) {
     disconnectSettings: () => app.disconnectSettings(),
     connectionActive: usingLiveNotes,
 
-    // palette
+    // palette — the input's text lives in the component (P8); these give it
+    // the results for any query plus the debounced vault-recall trigger
     paletteOpen: st.paletteOpen,
     paletteRef: app.paletteRef,
-    paletteQuery: st.paletteQuery,
-    setPaletteQuery: (e) => { app.setState({ paletteQuery: e.target.value }); app.queueRecall(e.target.value); },
-    paletteKeyDown: (e) => { if (e.key === 'Enter' && paletteResults[0]) paletteResults[0].run(); },
-    paletteResults,
+    paletteResultsFor,
+    queueRecall: (q) => app.queueRecall(q),
     closePalette: () => app.setState({ paletteOpen: false }),
 
     // offline outbox — chip shows in the chrome whenever writes are waiting;

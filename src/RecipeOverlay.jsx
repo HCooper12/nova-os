@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
 import { useDictation } from './useDictation.js';
+import { TypeText } from './TypeText.jsx';
 
 export function RecipeOverlay({ v }) {
   // Talking about a meal, in the place the meal is. One-shot dictation: a
@@ -271,7 +272,7 @@ export function RecipeOverlay({ v }) {
               <div style={css("margin-top:20px;border:1px solid color-mix(in srgb, var(--nv-cy) 20%, transparent);border-radius:12px;padding:14px 16px;background:color-mix(in srgb, var(--nv-cy) 04%, transparent)")}>
                 <div style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-cy)")}>ASK NOVA</div>
                 {v.recipeMsgs.map((m, i) => (
-                  <div key={i} style={css("margin-top:10px;font-size:13px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 85%, transparent);animation:fadeUp .3s ease-out")}><span style={m.tagStyle}>{m.tag}</span> {m.text}{m.typing && <span style={css("color:var(--nv-cy)")}>▍</span>}</div>
+                  <div key={i} style={css("margin-top:10px;font-size:13px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 85%, transparent);animation:fadeUp .3s ease-out")}><span style={m.tagStyle}>{m.tag}</span> <TypeText text={m.text} active={m.typing} /></div>
                 ))}
                 <div style={css("display:flex;gap:8px;margin-top:12px")}>
                   <Interactive

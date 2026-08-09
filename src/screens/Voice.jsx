@@ -5,6 +5,7 @@ import { NovaCore } from '../NovaCore.jsx';
 import { Clock } from '../Clock.jsx';
 import { useDictation } from '../useDictation.js';
 import { VoicePanel, SourcesPanel } from '../VoicePanels.jsx';
+import { TypeText } from '../TypeText.jsx';
 
 const M = "var(--nv-font-mono)";
 
@@ -169,7 +170,7 @@ export function Voice({ v }) {
             )}
             {v.orbMsgs.map((m, i) => (
               <div key={i} style={css("animation:fadeUp .4s ease-out")}>
-                <span style={m.tagStyle}>{m.tag}</span> <span style={css("color:color-mix(in srgb, var(--nv-ink) 90%, transparent)")}>{m.text}</span>{m.typing && <span style={css("color:var(--nv-cy)")}>▍</span>}
+                <span style={m.tagStyle}>{m.tag}</span> <span style={css("color:color-mix(in srgb, var(--nv-ink) 90%, transparent)")}><TypeText text={m.text} active={m.typing} /></span>
                 {m.remember && (
                   <Interactive as="span" onClick={m.remember} title="File this into the vault via the Inbox"
                     base={`cursor:pointer;display:inline-block;margin-left:8px;font:500 8px ${M};letter-spacing:.1em;padding:1px 7px;border-radius:5px;border:1px solid color-mix(in srgb, var(--nv-gold) 35%, transparent);color:var(--nv-gold)`}
