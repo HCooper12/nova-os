@@ -214,6 +214,9 @@ export default class App extends Component {
     })(),
     liveReviewSummaries: {},
     liveFoodLog: null, liveFoodHistory: null, liveNutritionMonth: null, foodHistoryOpen: false,
+    // retro tracking: null = today; a past YYYY-MM-DD flips the log view and
+    // its adds/removes to that day, while today's gauges keep liveFoodLog
+    foodLogDate: null, liveFoodLogView: null,
     liveStash: null, stashAddCategory: '', stashAddName: '', stashAddUrl: '', stashAddNote: '', stashAddBusy: false, stashAddError: null, stashRemoveConfirm: null,
     foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogBusy: false, foodLogError: null,
     foodScanNote: '', foodScanPhotos: [], foodScanBusy: false, foodScanError: null, foodScanQuestion: null, foodLogFillSource: null,
@@ -531,7 +534,7 @@ export default class App extends Component {
   outboxDrainFns() {
     return {
       capture: (conn, p) => api.inboxCapture(conn, p.text, p.mode, p.source),
-      food: (conn, p) => api.addFoodLogEntry(conn, { name: p.name, macros: p.macros, source: p.source }),
+      food: (conn, p) => api.addFoodLogEntry(conn, { name: p.name, macros: p.macros, source: p.source, date: p.date }),
       todo: (conn, p) => api.todoAdd(conn, p.text),
       shopping: (conn, p) => api.addShoppingItems(conn, p.items),
       journal: (conn, p) => api.addJournalEntry(conn, p.text),
@@ -1093,22 +1096,39 @@ export default class App extends Component {
   setFoodLogField(field, e) {
     this.setState({ [field]: e.target.value });
   }
+  // Retro tracking: flip the food log to a past day. The list, adds, and
+  // removes all address THAT day; today's gauges keep reading liveFoodLog.
+  setFoodLogDate(date) {
+    const conn = getConnection();
+    this.setState({ foodLogDate: date, liveFoodLogView: null, foodLogError: null });
+    if (!conn || !date) return;
+    api.foodLog(conn, date)
+      .then((day) => this.setState((s) => (s.foodLogDate === date ? { liveFoodLogView: day } : null)))
+      .catch((e) => this.toastMsg(e.message));
+  }
+  // one place decides which state slice a food-log day belongs in
+  applyFoodLogDay(day) {
+    if (this.state.foodLogDate && day.date === this.state.foodLogDate) this.setState({ liveFoodLogView: day });
+    else if (!this.state.foodLogDate) this.setState({ liveFoodLog: day });
+  }
   submitFoodLog() {
     const conn = getConnection();
     const name = this.state.foodLogName.trim();
     const macros = { p: Number(this.state.foodLogP) || 0, c: Number(this.state.foodLogC) || 0, f: Number(this.state.foodLogF) || 0, kcal: Number(this.state.foodLogKcal) || 0 };
+    const date = this.state.foodLogDate || undefined;
     if (!conn || !name) return;
     this.setState({ foodLogBusy: true, foodLogError: null });
-    api.addFoodLogEntry(conn, { name, macros, source: this.state.foodLogFillSource || 'manual' }).then((day) => {
+    api.addFoodLogEntry(conn, { name, macros, source: this.state.foodLogFillSource || 'manual', date }).then((day) => {
       this.noteLocalWrite('foodLog');
-      this.setState({ liveFoodLog: day, foodLogBusy: false, foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogFillSource: null,
+      this.applyFoodLogDay(day);
+      this.setState({ foodLogBusy: false, foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogFillSource: null,
         foodScanQuestion: null, foodScanQAPhotos: [], foodScanQANote: '', foodScanAnswer: '' });
       if (this.state.foodHistoryOpen) this.loadFoodHistory();
     }).catch((e) => {
       if (isOfflineError(e)) {
         this.setState({ foodLogBusy: false, foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogFillSource: null,
           foodScanQuestion: null, foodScanQAPhotos: [], foodScanQANote: '', foodScanAnswer: '' });
-        this.enqueueOutbox('food', name, { name, macros, source: this.state.foodLogFillSource || 'manual' });
+        this.enqueueOutbox('food', name, { name, macros, source: this.state.foodLogFillSource || 'manual', date });
         return;
       }
       this.setState({ foodLogBusy: false, foodLogError: e.message });
@@ -1117,7 +1137,8 @@ export default class App extends Component {
   deleteFoodLogEntry(id) {
     const conn = getConnection();
     if (!conn) return;
-    api.deleteFoodLogEntry(conn, id).then((day) => { this.noteLocalWrite('foodLog'); this.setState({ liveFoodLog: day }); }).catch((e) => this.toastMsg('Could not remove entry: ' + e.message));
+    const date = this.state.foodLogDate || undefined;
+    api.deleteFoodLogEntry(conn, id, date).then((day) => { this.noteLocalWrite('foodLog'); this.applyFoodLogDay(day); }).catch((e) => this.toastMsg('Could not remove entry: ' + e.message));
   }
   setFoodScanNote(e) {
     this.setState({ foodScanNote: e.target.value });
@@ -1237,8 +1258,9 @@ export default class App extends Component {
   relogFoodItem(item) {
     const conn = getConnection();
     if (!conn) return;
-    api.addFoodLogEntry(conn, { name: item.name, macros: item.macros, source: 'history' })
-      .then((day) => { this.noteLocalWrite('foodLog'); this.setState({ liveFoodLog: day }); this.toastMsg(`Logged ${item.name} ✓`); this.loadFoodHistory(); })
+    const date = this.state.foodLogDate || undefined;
+    api.addFoodLogEntry(conn, { name: item.name, macros: item.macros, source: 'history', date })
+      .then((day) => { this.noteLocalWrite('foodLog'); this.applyFoodLogDay(day); this.toastMsg(`Logged ${item.name}${date ? ` to ${date}` : ''} ✓`); this.loadFoodHistory(); })
       .catch((e) => this.toastMsg('Could not log: ' + e.message));
   }
   // Pre-fill the Add Recipe modal from a scanned/logged food so it can be saved

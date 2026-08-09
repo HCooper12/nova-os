@@ -156,6 +156,21 @@ export function Recipes({ v }) {
               </span>
             )}
           </div>
+          {/* retro strip — pick the day the food belongs to (last 7 days) */}
+          <div style={css("margin-top:10px;display:flex;gap:6px;flex-wrap:wrap")}>
+            {v.foodLogDays.map((d) => (
+              <Interactive key={d.key} as="span" onClick={d.pick}
+                base={{ cursor: 'pointer', font: "500 9px var(--nv-font-mono)", letterSpacing: '.1em', padding: '5px 10px', borderRadius: '7px',
+                  border: d.active ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)',
+                  color: d.active ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 40%, transparent)',
+                  background: d.active ? 'var(--nv-acc-bg)' : 'none' }}
+                hoverStyle={{ color: 'var(--nv-ink)' }}
+              >{d.label}</Interactive>
+            ))}
+          </div>
+          {v.foodLogViewingLabel && (
+            <div style={css("margin-top:8px;font:500 10px var(--nv-font-mono);letter-spacing:.08em;color:var(--nv-gold)")}>{v.foodLogViewingLabel}</div>
+          )}
           {/* describe it in words — no photo, no manual macros */}
           <div style={css("margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
             <Interactive as="input" value={v.foodDescribeInput} onChange={v.setFoodDescribeInput} onKeyDown={v.describeFoodKey}

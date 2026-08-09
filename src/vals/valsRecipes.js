@@ -52,8 +52,16 @@ export function valsRecipes(app, ctx) {
   });
   const rotTot = rotation?.totals || { p: 0, c: 0, f: 0, kcal: 0 };
   const rotConsumedTot = rotation?.consumedTotals || { p: 0, c: 0, f: 0, kcal: 0 };
+  // TODAY's log always feeds the gauges — the retro view below never does
   const foodLogEntries = st.liveFoodLog?.entries || [];
   const foodLogTot = foodLogEntries.reduce((acc, e) => ({ p: acc.p + e.macros.p, c: acc.c + e.macros.c, f: acc.f + e.macros.f, kcal: acc.kcal + e.macros.kcal }), { p: 0, c: 0, f: 0, kcal: 0 });
+  // retro tracking: when a past day is selected the log pane shows THAT
+  // day's entries (loaded into liveFoodLogView); adds/removes go there too
+  const viewingPastDay = !!st.foodLogDate;
+  const viewEntries = viewingPastDay ? (st.liveFoodLogView?.entries || []) : foodLogEntries;
+  const viewTot = viewingPastDay
+    ? viewEntries.reduce((acc, e) => ({ p: acc.p + e.macros.p, c: acc.c + e.macros.c, f: acc.f + e.macros.f, kcal: acc.kcal + e.macros.kcal }), { p: 0, c: 0, f: 0, kcal: 0 })
+    : foodLogTot;
 
   // protein gauge — tracks what's actually been marked eaten today (rotation
   // slots marked consumed, plus anything logged off-plan) rather than the
@@ -150,12 +158,34 @@ export function valsRecipes(app, ctx) {
     // off-plan food log — quick-add anything eaten that wasn't a rotation
     // recipe, so the protein tracker reflects reality rather than just the plan
     foodLogVisible: usingLiveRecipes,
-    foodLogEntries: foodLogEntries.map((e) => ({
+    // the pane renders the SELECTED day (today by default, a past day when
+    // the retro strip picks one) — gauges elsewhere stay on today's numbers
+    foodLogEntries: viewEntries.map((e) => ({
       id: e.id, time: e.time, name: e.name,
       p: Math.round(e.macros.p), c: Math.round(e.macros.c), f: Math.round(e.macros.f), kcal: Math.round(e.macros.kcal),
       remove: () => app.deleteFoodLogEntry(e.id),
     })),
-    foodLogTotals: { p: Math.round(foodLogTot.p), c: Math.round(foodLogTot.c), f: Math.round(foodLogTot.f), kcal: Math.round(foodLogTot.kcal) },
+    foodLogTotals: { p: Math.round(viewTot.p), c: Math.round(viewTot.c), f: Math.round(viewTot.f), kcal: Math.round(viewTot.kcal) },
+    // retro day strip: today + the last 6 days, tappable on both devices
+    foodLogDays: (() => {
+      const days = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const date = i === 0 ? null : iso; // null = today (the default view)
+        days.push({
+          key: iso,
+          label: i === 0 ? 'TODAY' : i === 1 ? 'YST' : d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric' }).toUpperCase(),
+          active: (st.foodLogDate || null) === date,
+          pick: () => app.setFoodLogDate(date),
+        });
+      }
+      return days;
+    })(),
+    foodLogViewingLabel: viewingPastDay
+      ? `LOGGING TO ${new Date(st.foodLogDate + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()} — entries land on that day`
+      : null,
     foodLogName: st.foodLogName,
     setFoodLogName: (e) => app.setFoodLogField('foodLogName', e),
     foodLogP: st.foodLogP,

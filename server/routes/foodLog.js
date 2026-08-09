@@ -3,7 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { addEntry, removeEntry, getToday } from '../lib/foodLog.js';
+import { addEntry, removeEntry, removeEntryOn, getToday, getDay, resolveLogDate } from '../lib/foodLog.js';
 import { computeFoodHistory } from '../lib/foodHistory.js';
 import { startFoodScan, startFoodDescribe, getFoodScanJob } from '../lib/scanFood.js';
 import { recordTodaySnapshot } from '../lib/nutritionSnapshot.js';
@@ -16,11 +16,12 @@ const IMAGE_DATA_URL = /^data:image\/(jpeg|jpg|png|webp|gif);base64,(.+)$/;
 export function foodLogRouter(vaultPath) {
   const router = Router();
 
-  router.get('/food-log', async (req, res, next) => {
+  router.get('/food-log', async (req, res) => {
     try {
-      res.json(await getToday());
+      // ?date=YYYY-MM-DD views a past day (retro tracking); default today
+      res.json(req.query.date ? await getDay(req.query.date) : await getToday());
     } catch (err) {
-      next(err);
+      res.status(400).json({ error: err.message });
     }
   });
 
@@ -34,15 +35,16 @@ export function foodLogRouter(vaultPath) {
     }
   });
 
-  router.post('/food-log', async (req, res, next) => {
+  router.post('/food-log', async (req, res) => {
     try {
-      const { name, macros, source } = req.body || {};
+      const { name, macros, source, date } = req.body || {};
       if (typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'name is required' });
       if (!macros || [macros.p, macros.c, macros.f, macros.kcal].some((n) => typeof n !== 'number' || Number.isNaN(n) || n < 0)) {
         return res.status(400).json({ error: 'macros.p/c/f/kcal must be non-negative numbers' });
       }
-      const day = await addEntry({ name: name.trim(), macros, source });
-      recordTodaySnapshot(vaultPath).catch(() => {});
+      const day = await addEntry({ name: name.trim(), macros, source, date });
+      // the nutrition snapshot mirrors TODAY — a retro day doesn't touch it
+      if (day.date === resolveLogDate()) recordTodaySnapshot(vaultPath).catch(() => {});
       res.json(day);
     } catch (err) {
       res.status(400).json({ error: err.message });
@@ -60,13 +62,18 @@ export function foodLogRouter(vaultPath) {
     }
   });
 
-  router.delete('/food-log/:id', async (req, res, next) => {
+  router.delete('/food-log/:id', async (req, res) => {
     try {
+      if (req.query.date) {
+        const date = resolveLogDate(req.query.date);
+        await removeEntryOn(date, req.params.id);
+        return res.json(await getDay(date));
+      }
       const day = await removeEntry(req.params.id);
       recordTodaySnapshot(vaultPath).catch(() => {});
       res.json(day);
     } catch (err) {
-      next(err);
+      res.status(400).json({ error: err.message });
     }
   });
 

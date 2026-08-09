@@ -12,9 +12,32 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // NOVA_DATA_DIR override exists for tests (read lazily so tests can set it).
 const LOG_DIR = () => path.join(process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data'), 'food-log');
 
-function today() {
-  const d = new Date();
+function localDay(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function today() {
+  return localDay(new Date());
+}
+
+// Retro logging: an entry may target today or up to RETRO_DAYS back — the
+// day-to-day reality of tracking (last night's dinner logged after
+// midnight, yesterday filled in this morning). Never the future, never the
+// deep past. No arg (or empty) resolves to today, so callers can use this
+// as the single date gate.
+const RETRO_DAYS = 30;
+export function resolveLogDate(date) {
+  if (date == null || date === '') return today();
+  const d = String(date);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) throw new Error('date must be YYYY-MM-DD');
+  if (d > today()) throw new Error("can't log food to a future day");
+  const floor = new Date();
+  floor.setDate(floor.getDate() - RETRO_DAYS);
+  if (d < localDay(floor)) throw new Error(`retro logging reaches back ${RETRO_DAYS} days — ${d} is older`);
+  return d;
+}
+
+export async function getDay(date) {
+  return loadDay(resolveLogDate(date));
 }
 
 async function loadDay(date) {
@@ -47,15 +70,18 @@ export async function getToday() {
 // which is exactly what "it didn't stay there" looked like.
 const withWriteLock = createWriteLock();
 
-export async function addEntry({ name, macros, source }) {
-  return withWriteLock(() => addEntryUnlocked({ name, macros, source }));
+export async function addEntry({ name, macros, source, date }) {
+  return withWriteLock(() => addEntryUnlocked({ name, macros, source, date }));
 }
 
-async function addEntryUnlocked({ name, macros, source }) {
-  const day = await loadDay(today());
+async function addEntryUnlocked({ name, macros, source, date }) {
+  const target = resolveLogDate(date);
+  const day = await loadDay(target);
   const entry = {
     id: randomUUID().slice(0, 8),
-    time: new Date().toTimeString().slice(0, 5),
+    // the clock time is only true for same-day logs — stamping a retro
+    // entry with the moment it was TYPED would be fiction about when he ate
+    ...(target === today() ? { time: new Date().toTimeString().slice(0, 5) } : {}),
     name,
     macros: { p: Number(macros.p) || 0, c: Number(macros.c) || 0, f: Number(macros.f) || 0, kcal: Number(macros.kcal) || 0 },
   };
