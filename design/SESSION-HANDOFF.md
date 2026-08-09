@@ -12,171 +12,192 @@ the session log at the foot is append-only.
 ---
 
 ## CURRENT HANDOFF
-*Last updated: 4 August 2026*
+*Last updated: 9 August 2026*
 
-**GOAL:** Keep Nova the one app Hayden opens daily — reliable enough to trust
-without supervision, and increasingly present the way a real assistant would
-be. Feeds: what to build next, and whether the platform can be left alone.
+**GOAL:** Keep Nova the one app Hayden opens daily. This session's thesis:
+Nova was PRODUCING far more than he KEPT, so the work shifted from adding
+surfaces to making the existing ones worth opening — plus closing the
+references backlog and the hands-free (Siri/Shortcuts) path.
 
 **DONE CRITERIA (rolling):**
-1. Overnight health push lands automatically — **met**, twice consecutively
-   (2 Aug and 3 Aug data, both filed at 00:05 local). Two nights is a run,
-   not yet a pattern; keep checking the log.
-2. Nova usable on the phone while the Mac sleeps — **met** for reads and
-   queued writes; **unmet** for live conversation (needs the Mac awake).
-3. Companion plan Phases 1–5 shipped — **met**.
-4. Menu-bar Nova visible on his Mac — **blocked** (icon sits under the notch;
-   ⌥Space works).
-5. Live walkthrough of everything built — **unmet**. Asked for twice, offered
-   again at the close of this session, not yet taken. Owed.
-6. Every meal correctable, and a tweak refinable in words — **met**.
-   `✎ EDIT THIS MEAL` on any recipe or variant; a follow-up refines the
-   preview on screen; a mic beside the ask box, answer spoken back.
+1. Overnight health push lands automatically — **BROKEN AGAIN, 2 nights**.
+   Last successful automatic push: 7 Aug 00:05. Nights of 7→8 and 8→9 Aug
+   produced nothing (pushlog's newest entry is a 09:50 manual catch-up on
+   8 Aug). Manual ▶ runs DO work on the new direct URL — so the automation
+   is not firing, not a network fault.
+2. Nova usable on the phone while the Mac sleeps — **met** for reads/queued
+   writes; **unmet** for live conversation.
+3. Companion plan Phases 1–5 shipped — **met**. Phase 6 (native wrapper)
+   still parked.
+4. Menu-bar Nova visible on his Mac — **blocked** (icon under the notch).
+5. Live walkthrough of everything built — **unmet**, asked for 4+ sessions
+   ago. Owed.
+6. Hands-free Siri capture + answers — **met** (Ask Nova speaks direct
+   answers; Tell Nova files and speaks receipts).
+7. Produce-vs-keep corrected — **partially**: the machinery ships, but the
+   3 trust-ladder proposals are still unapproved, so nothing has changed
+   in his experience yet.
 
 **STATE (what exists, where):**
-- Frontend: GitHub Pages, auto-deploys on push to `main`
-  (`.github/workflows/deploy.yml`). Server: launchd `com.novaos.server`
-  (`RunAtLoad` + `KeepAlive`), port 4173, Tailscale-fronted at
-  `https://haydens-macbook-pro.taild050ac.ts.net` (`tailscale serve`,
-  tailnet only).
-- Recipe editing: `editRecipeInRaw` / `editRecipe` in `server/lib/recipes.js`
-  (~line 540 onward), route `POST /api/recipes/:id/edit` in
-  `server/routes/recipes.js`, tests in `server/test/recipeEdit.test.js`,
-  UI in `src/RecipeOverlay.jsx` (`MealEditor` at the foot).
-- Tweak refinement: `buildPrompt(recipe, request, prior)` in
-  `server/lib/tweakRecipe.js`; the client sends the current preview as
-  `prior` from `App.submitRecipeTweak`.
-- Menu-bar app: `mac/NovaBar/main.swift`, built by `mac/build.sh` into
-  `~/Applications/NovaBar.app`. Not in Login Items yet.
-- Design docs: `design/NOVA-METHOD.md` (doctrine), `COMPANION-PLAN.md`,
-  `COMPANION-INSPIRATION.md`, `AGENT-SKILL-MAP.md`, this file.
-- Offline cache: `src/liveStore.js` + `CACHED_LIVE_KEYS` in `src/App.jsx`.
+- New agents this session, all on the fleet ring (`server/lib/ops.js`
+  SCHEDULED): `healthMirror.js` (vault health pages, 30m tick),
+  `patternScout.js` (Sat 16:00), `autonomyLedger.js` (Sun 18:00),
+  `distill.js` (Sat 17:00), `reminders.js` (60s tick).
+- Hands-free: `design/SIRI-SETUP.md` (Shortcut recipes, direct-IP URLs),
+  `POST /api/inbox/capture/sync` (speakable capture receipt),
+  `/api/ask/sync` in direct mode (`buildAskPrompt({direct:true})`).
+- Reminders → Apple Reminders via CalDAV VTODO (`server/lib/reminders.js`).
+- Trust ladder: `autonomyLedger.js` + `agent-mode` route in `inbox.js`.
+- Distiller: `distill.js` + `distill-apply` route; jobs persist in
+  `server/data/distill/<id>.json`; manual trigger `POST /api/distill/run`.
+- About You interview: `rituals.js` kind `about-you`, `profile` PROPOSE
+  kind in `voiceActions.js`, `profile` route in `inbox.js`.
+- Ops tap-through (built by a subagent): `AGENT_DEPARTMENTS` +
+  `AGENT_RECORD_KINDS` + `agentReceipts()` in `ops.js`; UI in
+  `src/screens/Ops.jsx` + `src/vals/valsOps.js`.
+- Server also binds the tailnet IP directly (`server/index.js`) —
+  `http://100.65.137.114:4173` alongside 127.0.0.1.
+- Request receipts: every `/api` call logged (method, path, client, status,
+  ms, early hangups) to `~/Library/Logs/nova-os-server.log`.
 
 **DECISIONS (choice → reason → what it forecloses):**
-- **No Mac mini / no VPS** → he cannot afford it, and hosting the vault
-  remotely would move his health, journal and money onto rented hardware and
-  break "the vault on his Mac is the source of truth" → forecloses true
-  always-on remote Nova; commits us to making the phone excellent offline.
-- **Steps take the MAX across devices, never the sum** → summing double-counts
-  a walk both iPhone and Watch recorded; filtering to one device misses the
-  other → forecloses matching Apple Health's de-duplicated figure exactly.
-  He has seen this and prefers it (closer to Pedometer++).
-- **Server shifts a just-after-midnight push to yesterday**
-  (`resolvePushDate`, <04:00) → iOS offers no "is yesterday" for Health
-  samples → forecloses him needing an Adjust Date action in Shortcuts.
-- **A recipe edit rewrites only the lines that changed** → the app shows
-  markdown stripped to plain text, so regenerating a whole section would
-  silently flatten the **bold** on steps he never touched, and normalising
-  whitespace ate a blank line between a recipe's `---` and the next heading
-  → forecloses a simple "render the list from the model" writer; every
-  section write diffs against what is already there first.
-- **Macros travel with an ingredient edit** → changing what is in a meal and
-  leaving the old numbers would make the file lie → forecloses an
-  ingredients-only edit form; the macro row is always part of the editor.
-- **An alternate with no method inherits the parent's** → a tweak that only
-  swaps ingredients is cooked the same way and the model returns no steps →
-  forecloses treating a missing method as a validation failure.
-- **Voice dock button opens Voice, not the palette** → talking is the fastest
-  way in; palette still on the top bar and ⌘K.
+- **Server binds the tailnet IP directly, plain http** → Shortcuts kept
+  failing through `tailscale serve` while Safari worked; the WireGuard
+  tunnel already encrypts → forecloses nothing security-wise (100.x is
+  tailnet-only, token still required), but the ts.net hostname is now a
+  second path that can rot unnoticed.
+- **Spoken surfaces use a FAST context** (`buildAskContext(..., {fast})`)
+  → a CalDAV round trip is ~10s and made Siri asks ~26s, which iOS drops →
+  forecloses the full brief being in every spoken answer when the calendar
+  cache is cold; the cheap local TODAY block compensates.
+- **Calendar reads are cached 90s** (`calendar.js`) with invalidation on
+  every write and `fresh:true` for the watcher → forecloses sub-90s
+  external-change detection when the app is closed (the watcher only runs
+  with clients connected).
+- **Autonomy is proposed, never applied** (`autonomyLedger.js`) →
+  doctrine; thresholds live in code (14+ settled, 0 approvals, ≥80% dead)
+  → forecloses per-draft tuning; the judgment is reviewed once, in code.
+- **Distillation refuses wholesale on drift** → a stale diff must never
+  clobber his newer Obsidian edit → forecloses partial application; one
+  changed file voids the whole pass.
+- **"I ate dinner" marks the PLANNED meal** (`inbox.js` food route, slot
+  payload) → the meal already has true macros → forecloses estimating for
+  named rotation slots; estimation is now only for described food.
 
 **VERIFIED (this session, with locators):**
 - Gates at close: `npm run lint` 0 errors; `npm run build` green;
-  `cd server && npm test` 190 pass / 0 fail; `git status --porcelain` empty;
-  `HEAD == origin/main == 96d266c`.
-- Backend healthy after the final `launchctl kickstart`:
-  `curl localhost:4173/api/health` → 200.
-- Pages deploy for `96d266c`: `gh run list` → completed / success.
-- Overnight push, `server/data/health/pushlog.json` last two attempts:
-  `2026-08-02T14:05:17Z filed 2026-08-02 steps 8295 ok true` and
-  `2026-08-03T14:05:19Z filed 2026-08-03 steps 12619 ok true` — i.e. 00:05
-  local on the 3rd and the 4th, each filing the previous day.
-- Recipe editing against his REAL collection (not fixtures): an identity edit
-  of all 23 recipes/variants is byte-identical to the source file; a one-step
-  method edit changes exactly 1 line; a macro correction changes exactly
-  1 line. Live through the running server: an edit landed and reverted, and
-  an alternate posted with no method saved and inherited the parent's 5 steps.
-- End-to-end from the UI (localhost dev build → local server): `✎ EDIT THIS
-  MEAL` on the "Wrap swapped for English muffin" variant added one
-  ingredient, the toast read "Saved to the vault", and the file diff was
-  exactly `81a82 > - 1 tsp UI-test hot sauce`.
-- His recipe file is byte-identical to its pre-session state — `diff` against
-  the snapshot returns nothing. Every test write was reverted.
-- Inbox backlog re-counted at close: 119 records, **28 pending**
-  (11 coach, 5 dispatch, 2 review, 2 training-check, 2 food-suggestion,
-  2 research, 1 each week-plan / cfo / guardian / studio), plus 2 in `error`.
-- Vault collection: 18 recipes, 6 variants (`GET /api/recipes`).
+  `cd server && npm test` **237 pass / 0 fail**; `git status --porcelain`
+  empty; `HEAD == origin/main`; `curl localhost:4173/api/health` → 200.
+- Pages deploy: `gh run list` → last two runs completed/success.
+- Health push root cause CLOSED: pushlog rawBody on 6 Aug shows the full
+  8-metric payload incl. `watchSteps` 10,761 vs iPhone 9,988 → MAX fold
+  stored 10,761. Cause of the long saga was the Shortcut's Request Body
+  (not the queries).
+- Siri path: `POST /api/ask/sync` over the direct IP returned a spoken
+  answer in 12.2s (was 26s) after the CalDAV cache + parallel context.
+- Auth failure diagnosed from the server log line `auth reject … scheme
+  ":" token len 0` — a stray colon in his header value, caused by the
+  doc's `Authorization: Bearer …` one-line form (now rewritten).
+- Health mirror writing his real vault: `Wiki/Health/Health Log/2026-08.md`
+  exists with per-day rows and honest em dashes.
+- Trust ladder's first real pass filed 3 proposals (morning brief, evening
+  debrief, Daily Review → auto) and correctly abstained on thin samples
+  (Plan Today n=5, weekly n=3).
+- Distiller's live run: record `df80b844` pending, job
+  `server/data/distill/622f0292.json`, 2 orphan Studio ideas → 4 files.
+- Ops tap-through rendered against real data (screenshot taken): Daily
+  Review shows its Mind skills + last 5 receipts.
 
 **ASSUMED (treat as open):**
-- That the push now fires *every* night — two consecutive successes is a run,
-  not proof. Read the pushlog before claiming it again.
-- That Watch steps are actually reaching the server — the figures look right
-  to him, but no receipt carrying `watchSteps` has been seen. The pushlog
-  records only a folded `steps` value, so this file cannot settle it.
-- That the mic in the recipe overlay works on his iPhone. It renders and is
-  wired to the same `useDictation` the Voice screen uses, but it was only
-  exercised in desktop Chrome — no spoken take was recorded end to end.
-- That the spoken tweak reply sounds right. `speakTweak` was never heard;
-  only its inputs were checked.
-- Oracle free-tier / VPS pricing, if the hosting question returns.
+- That approving the 3 autonomy proposals will actually reduce the noise —
+  the theory is sound but unproven; re-read the ledger in a week.
+- That the distiller's link choices are good. The SUMMARY was read; the
+  per-file diffs were NOT inspected. Drift-refusal + undo are the safety
+  net, not review.
+- That Tell Nova's food-slot path works end to end from the phone — the
+  server path is unit-tested, but he has not re-tested since the fix.
+- That the Scriptable widget works — written and the endpoint verified,
+  never installed on his phone.
+- That the About You invite renders — the vals logic is written and gated
+  on `connectionStatus === 'connected'`, but it was never seen on screen.
 
 **OPEN QUESTIONS / BLOCKERS:**
-- The **live walkthrough** he asked for twice and has not received. Offered
-  again at the close of this session; no answer yet.
-- 28 pending inbox records, and 2 stuck in `error` — the error ones have not
-  been looked at at all.
-- NovaBar icon hidden under the notch — needs him to free a menu-bar slot.
-- NovaBar first-run: needs baseUrl + token pasted into Settings inside the
-  panel (its web view has its own storage).
-- ElevenLabs key still deferred by choice.
-- Editing a step drops its markdown (`**bold**` becomes plain) because the
-  editor shows and saves plain text. Untouched lines keep theirs. He was told;
-  no decision taken on whether that is worth fixing.
+- **The 00:05 automation has not fired for 2 nights.** Manual runs work.
+  Needs HIS check: Notification Centre around 00:05 for a Shortcuts
+  banner, and whether the automation still says Run Immediately.
+- 44 pending records — including the 3 autonomy proposals, the distill
+  draft, 16 coach receipts, and 2 scout proposals.
+- The live walkthrough (4+ sessions owed).
+- About You is still empty; every agent still reasons without it.
+- Pedometer++ parity: server accepts `pedometerSteps` but his Shortcut
+  doesn't send it; unresolved whether the action even exists.
+- MacBook is often on battery overnight (31% on 8 Aug) — clamshell/battery
+  sleep makes any night unreliable regardless of the automation.
 
-**NEXT ACTION:** Run the live walkthrough — it is the oldest outstanding
-request and he has now been offered it three times. Expected observation: he
-either takes it, or names the next build and it can be struck from the list.
+**NEXT ACTION:** Ask him to approve the three trust-ladder proposals, then
+re-read the ledger after a week. Expected observation: dispatch/review
+stop accumulating as pending and start arriving as Telegram messages;
+`pending` stops climbing past ~20.
 
 **DO NOT (dead ends already paid for):**
-- Do **not** claim anything he must *see* works without a screenshot. Two
-  claims failed this way (the menu-bar icon; the first transitions attempt).
-- Do **not** grep only `App.jsx` for offline behaviour — the cache lives in
-  `src/liveStore.js`. I wrongly told him no cache existed.
-- Do **not** blame the Shortcut for missing steps without checking BOTH
-  `pmset -g log` (was the Mac awake?) and the pushlog (did anything arrive?).
-  Both failure modes were real on different nights.
-- Do **not** remove the Source filter from the steps query — that reintroduces
-  double counting.
-- Do **not** propose Vercel/serverless for the backend: it writes to disk in
-  26 places, spawns the Claude CLI in 21, and runs persistent schedulers.
-- Do **not** drive a view-transition click via a CDP eval that `await`s in the
-  same call — it wedges the renderer for 45s. Click with the `computer` tool,
-  probe in a separate short eval.
-- Do **not** add a new live slice without adding it to `CACHED_LIVE_KEYS`, or
-  that screen goes blank whenever the Mac sleeps.
-- Do **not** trust a Vite dev-server reload to pick up a changed module. A new
-  `orCanEdit` key was absent from the running `v` object through three rounds
-  of debugging while the dev server was serving the correct file — I was one
-  step from "re-investigating" a wiring bug that did not exist. Kill vite,
-  `rm -rf node_modules/.vite`, restart with `--force`, and confirm by reading
-  the fiber props, not the screenshot.
-- Do **not** verify the PWA against the deployed Pages build in the MCP
-  Chrome: cross-origin fetches to the Tailscale URL never settle there, while
-  the CORS preflight is provably fine via curl. Use `npm run dev` on
-  localhost with `baseUrl: http://127.0.0.1:4173`, and delete
-  `novaos.connection` afterwards so his API token is not left in a browser
-  profile he did not choose.
-- Do **not** use `$` to end a lazy match in a `/m` regex over vault markdown —
-  it matches every line end, so the body stops after its first line. Use
-  `(?![\s\S])`. This has now bitten twice (promote-alternate, then the
-  section writer).
-- Do **not** trust fixture tests alone for anything that writes to the vault.
-  The first cut of the section writer passed all 190 tests while eating a
-  blank line and stripping bold from untouched steps; only an identity
-  round-trip over his real file caught it.
+- Do **not** write to `server/data/inbox.json` from a SECOND node process
+  while the server runs. `inboxStore` caches the file in memory; the
+  server's next write clobbers the outside record. A distill record was
+  lost exactly this way — it looked like a silent failure. Trigger
+  in-process via an endpoint (`POST /api/distill/run` exists for this).
+- Do **not** document an HTTP header as `Authorization: Bearer <token>` on
+  one line for a Shortcuts recipe — it gets pasted literally, colon and
+  all, and the server sees scheme `":"`. Show Key and Value separately.
+- Do **not** assume a Shortcuts failure is the Shortcut. This session it
+  was, in order: a stale POST body, a missing `text` field, a literal
+  "Provided Input" placeholder, a colon in the auth header, and a request
+  that never left the phone. Read the request log FIRST.
+- Do **not** chase iOS "network connection was lost" as a network fault
+  without checking latency: >25s of silence is enough for iOS to drop it.
+- Do **not** add a slow external call (CalDAV) into a spoken path without
+  a deadline; it cost ~20s of every Siri answer.
+- Do **not** trust `tailscale serve` alone for phone→Mac; it was up and
+  Safari worked while Shortcuts could not reach it. The direct tailnet IP
+  is the reliable path.
+- Do **not** claim an agent "ran" from a pending record alone — check the
+  record survived (see the clobber note above) and that its job file
+  exists.
+- Everything in the previous DO NOT list still applies (Vite stale
+  modules; `$` in `/m` regex over vault markdown; fixture-only tests for
+  vault writers; verifying the PWA against the deployed Pages build in the
+  MCP Chrome; `CACHED_LIVE_KEYS` for new live slices; Vercel/serverless;
+  the steps Source filter; view-transition CDP evals).
 
 ---
 
 ## SESSION LOG (append-only, newest first)
+
+### 7–9 August 2026
+The session split in two. First, a long Shortcuts saga: Ask Nova and Tell
+Nova failed for hours through five different causes — a stale POST body, a
+missing `text` field, a literal "Provided Input" placeholder, a colon in the
+auth header (my documentation's fault), and finally requests that never left
+the phone. Fixing it properly meant adding request receipts to the server,
+binding the tailnet IP directly, and cutting a spoken answer from 26s to 12s
+by caching CalDAV reads and parallelising the ask context. The health-push
+root cause was also found and closed — the Shortcut's Request Body, not its
+queries — though the automation has since stopped firing again for two
+nights, which is HIS to check.
+
+Second, the build wave: reminders (with real Apple Reminders alarms),
+proactive Telegram, open loops, the fuel scorecard, Ambient v2, the widget
+endpoint, the Ops tap-through (delegated to a subagent), the health mirror,
+the pattern scout, the About You interview, and the distiller. The turn that
+mattered most came from reading the data rather than the backlog: 30 days of
+receipts showed Nova produced ~154 drafts and he kept 9, with the flagship
+briefs aging out unread. That produced the trust ladder — autonomy computed
+from real history and proposed on the rails — whose first pass filed three
+proposals that are still waiting. Two things were corrected rather than
+added: Nova was inventing macros for "I ate dinner" instead of marking the
+planned meal, and a distill record was silently clobbered by writing to the
+inbox store from a second process (now in DO NOT, with an in-process
+endpoint as the fix).
+
 
 ### 3–4 August 2026
 Customisability. Fixed the bug in his screenshot — an ingredients-only tweak

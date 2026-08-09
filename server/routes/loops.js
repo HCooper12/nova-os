@@ -176,6 +176,19 @@ export function loopsRouter(vaultPath) {
     }
   });
 
+  // Manual distillation trigger — every other agent has a /run, and this one
+  // needs it more than most: the inbox store is an in-memory-cached file, so
+  // firing distillation from a SECOND process silently loses its record when
+  // the running server next writes. It must start in-process, here.
+  router.post('/distill/run', async (req, res) => {
+    try {
+      const { runDistillation } = await import('../lib/distill.js');
+      res.json(await runDistillation(vaultPath, { force: !!req.body?.force }));
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   router.get('/weekly-debrief', async (req, res) => {
     try {
       res.json(await getWeeklyDebriefStatus());
