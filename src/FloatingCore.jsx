@@ -11,7 +11,7 @@ export function FloatingCore({ s }) {
     <Interactive
       onClick={s.tap}
       aria-label="Talk to Nova"
-      base={`position:fixed;right:12px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:69;width:56px;height:56px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb, var(--nv-void) 78%, transparent);border:1px solid ${s.thinking || s.listening ? 'var(--nv-acc-border)' : 'var(--nv-edge)'};box-shadow:0 10px 30px -12px rgba(0,0,0,.6)`}
+      base={`position:fixed;right:12px;bottom:${s.bottom};z-index:69;width:56px;height:56px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb, var(--nv-void) 78%, transparent);border:1px solid ${s.thinking || s.listening ? 'var(--nv-acc-border)' : 'var(--nv-edge)'};box-shadow:0 10px 30px -12px rgba(0,0,0,.6)`}
       activeStyle={{ transform: 'scale(.9)', transition: 'transform .16s cubic-bezier(.32,.72,0,1)' }}
     >
       {s.thinking && (

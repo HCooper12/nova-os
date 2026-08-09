@@ -262,14 +262,17 @@ export function valsChrome(app, ctx) {
       });
     })(),
     sideStatus,
-    // The floating core rides every mobile screen except Voice (which has
-    // the full reactor) and Ambient (deliberately empty). Its ring states
-    // are receipts: thinking = a model job in flight RIGHT NOW, listening =
-    // the mic is genuinely open. Idle is just the core, breathing.
-    floatingCore: mob && st.screen !== 'voice' && st.screen !== 'ambient' ? {
+    // The floating core rides every screen — BOTH devices, same feature —
+    // except Voice (which has the full reactor) and Ambient (deliberately
+    // empty). Its ring states are receipts: thinking = a model job in
+    // flight RIGHT NOW, listening = the mic is genuinely open. Idle is just
+    // the core, breathing. Position clears the dock on mobile; desktop has
+    // no dock, so it sits in the corner.
+    floatingCore: st.screen !== 'voice' && st.screen !== 'ambient' ? {
       thinking: !!(st.voiceBusy || st.coachBusy || st.codeBusy || st.quickBusy || st.sparBusy || st.inboxCaptureBusy),
       listening: !!st.micOn,
       tap: go('voice'),
+      bottom: mob ? 'calc(84px + env(safe-area-inset-bottom))' : '18px',
     } : null,
     goVoice: go('voice'), goWorkouts: go('workouts'), goSettings: go('settings'), goHome: go('mission'),
     orbCardTitle: st.micOn ? 'Nova is listening' : 'Nova is muted',

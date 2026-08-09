@@ -320,6 +320,13 @@ export function workoutsRouter(vaultPath) {
         const skills = await skillsContext(vaultPath);
         if (skills) parts.push(skills);
       } catch { /* optional */ }
+      // the shared brain: the Coach knows what the rest of the fleet did
+      // lately (receipts off the rails — dispatch, reviews, drafts waiting)
+      try {
+        const { fleetContext } = await import('../lib/fleetContext.js');
+        const fleet = await fleetContext();
+        if (fleet) parts.push(fleet);
+      } catch { /* optional */ }
 
       res.json({ jobId: startAskCoach(vaultPath, { question, context: parts.join('\n\n') }) });
     } catch (e) {
