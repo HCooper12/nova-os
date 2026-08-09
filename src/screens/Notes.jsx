@@ -55,6 +55,10 @@ export function Notes({ v }) {
                 base={{ cursor: 'pointer', font: "600 9px var(--nv-font-mono)", letterSpacing: '.14em', padding: '5px 12px', borderRadius: '6px', color: 'var(--nv-gold)', border: '1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent)', opacity: v.openNoteStudio.outlineBusy ? 0.5 : 1 }}
                 hoverStyle={{ background: 'color-mix(in srgb, var(--nv-gold) 08%, transparent)' }}
               >{v.openNoteStudio.outlineBusy ? 'DRAFTING…' : 'DRAFT OUTLINE'}</Interactive>
+              <Interactive as="span" onClick={v.openNoteStudio.outlineTonight} title="Drafts in the overnight window — waiting in your Inbox at dawn"
+                base={{ cursor: 'pointer', font: "600 9px var(--nv-font-mono)", letterSpacing: '.14em', padding: '5px 12px', borderRadius: '6px', color: 'var(--nv-cy)', border: '1px solid color-mix(in srgb, var(--nv-cy) 35%, transparent)' }}
+                hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' }}
+              >◐ TONIGHT</Interactive>
             </div>
           )}
           <div style={css("margin-top:20px;max-width:640px;display:flex;flex-direction:column;gap:14px")}>

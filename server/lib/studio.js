@@ -27,7 +27,7 @@ const OUTLINE_DISALLOWED = [
   'Edit', 'Write',
 ].join(',');
 
-async function readIdea(vaultPath, id) {
+export async function readIdea(vaultPath, id) {
   const vault = new Vault(vaultPath);
   const page = await vault.getPage(id).catch(() => null);
   if (!page || page.type !== 'idea') throw new Error('that page is not a Studio idea');

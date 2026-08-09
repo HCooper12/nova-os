@@ -64,17 +64,32 @@ export async function listOvernight() {
   };
 }
 
-export async function enqueueOvernight({ kind = 'research', question }) {
-  const q = String(question || '').replace(/\s+/g, ' ').trim();
-  if (kind !== 'research') throw new Error('only research runs overnight for now');
-  if (q.length < 8) throw new Error('give the Researcher a real question');
-  if (q.length > 500) throw new Error('keep an overnight question under 500 characters');
+export async function enqueueOvernight({ kind = 'research', question, ideaId, ideaTitle }) {
+  // Two kinds of real work run in the window now: Researcher questions and
+  // Studio outlines ("drafts waiting at dawn"). Both are queued BY HAYDEN —
+  // the window decides when, never what; autonomy stays his.
+  let fields;
+  if (kind === 'research') {
+    const q = String(question || '').replace(/\s+/g, ' ').trim();
+    if (q.length < 8) throw new Error('give the Researcher a real question');
+    if (q.length > 500) throw new Error('keep an overnight question under 500 characters');
+    fields = { kind: 'research', question: q };
+  } else if (kind === 'outline') {
+    const id = String(ideaId || '').trim();
+    const title = String(ideaTitle || '').replace(/\s+/g, ' ').trim();
+    if (!id || !title) throw new Error('an overnight outline needs a Studio idea');
+    // question doubles as the display line so every queue surface renders
+    // both kinds without special-casing
+    fields = { kind: 'outline', ideaId: id, question: `Outline: ${title}` };
+  } else {
+    throw new Error('the overnight window runs research questions and Studio outlines');
+  }
   return locked(async () => {
     const state = await load();
     const queued = state.items.filter((i) => i.status === 'queued');
     if (queued.length >= MAX_QUEUED) throw new Error(`the queue holds ${MAX_QUEUED} — each is a real overnight run`);
-    if (queued.some((i) => i.question.toLowerCase() === q.toLowerCase())) throw new Error('that question is already queued');
-    const item = { id: randomUUID().slice(0, 8), kind: 'research', question: q, status: 'queued', queuedAt: new Date().toISOString() };
+    if (queued.some((i) => i.question.toLowerCase() === fields.question.toLowerCase())) throw new Error('that one is already queued');
+    const item = { id: randomUUID().slice(0, 8), ...fields, status: 'queued', queuedAt: new Date().toISOString() };
     state.items = pruned([...state.items, item]);
     await persist(state);
     return item;
@@ -129,6 +144,10 @@ export async function runOvernightQueue(vaultPath, { startJob, pollRecord, pollM
   }
 
   const start = startJob || (async (vp, item) => {
+    if (item.kind === 'outline') {
+      const { startOutline } = await import('./studio.js');
+      return startOutline(vp, item.ideaId);
+    }
     const { startResearch } = await import('./researcher.js');
     return startResearch(vp, item.question);
   });
@@ -166,7 +185,15 @@ export async function overnightMorningLine() {
   const failed = items.filter((i) => i.status === 'error' && new Date(i.ranAt).getTime() > since);
   if (!landed.length && !failed.length) return null;
   const bits = [];
-  if (landed.length) bits.push(`${landed.length} research brief${landed.length === 1 ? '' : 's'} landed for review: ${landed.map((i) => i.title || i.question.slice(0, 50)).join('; ')}`);
+  if (landed.length) {
+    const briefs = landed.filter((i) => i.kind !== 'outline').length;
+    const outlines = landed.length - briefs;
+    const what = [
+      briefs ? `${briefs} research brief${briefs === 1 ? '' : 's'}` : null,
+      outlines ? `${outlines} Studio outline${outlines === 1 ? '' : 's'}` : null,
+    ].filter(Boolean).join(' and ');
+    bits.push(`${what} landed for review: ${landed.map((i) => i.title || i.question.slice(0, 50)).join('; ')}`);
+  }
   if (failed.length) bits.push(`${failed.length} run${failed.length === 1 ? '' : 's'} failed — still queued thinking, not lost: ${failed.map((i) => i.question.slice(0, 40)).join('; ')}`);
   return `**Overnight.** ${bits.join('. ')}.`;
 }

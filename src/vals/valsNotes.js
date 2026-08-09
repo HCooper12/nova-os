@@ -131,6 +131,9 @@ export function valsNotes(app, ctx) {
       advance: () => app.advanceIdeaStatus(st.openNoteId, liveDetail.status || 'seed'),
       outline: () => app.draftIdeaOutline(st.openNoteId),
       outlineBusy: !!st.studioOutlineBusy,
+      // real overnight work: the outline drafts in the 03:30 window and is
+      // waiting in the Inbox at dawn — queued by him, never self-assigned
+      outlineTonight: () => app.queueIdeaOutlineOvernight(st.openNoteId),
     } : null,
     openNoteParas: usingLiveNotes
       ? (liveDetail

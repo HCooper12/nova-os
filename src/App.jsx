@@ -3202,6 +3202,16 @@ export default class App extends Component {
       this.toastMsg('Queued for tonight — the brief lands in your Inbox by morning');
     }).catch((e) => this.toastMsg(e.message));
   }
+  // Studio's overnight work — the outline drafts in the 03:30 window and is
+  // pending in the Inbox by morning. Queued from the idea page, by him.
+  queueIdeaOutlineOvernight(id) {
+    const conn = getConnection();
+    if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
+    api.overnightAddOutline(conn, id).then((r) => {
+      this.setState({ liveOvernight: r });
+      this.toastMsg('Queued for tonight — the outline is in your Inbox by morning');
+    }).catch((e) => this.toastMsg(e.message));
+  }
   overnightRemove(id) {
     const conn = getConnection();
     if (!conn) return;

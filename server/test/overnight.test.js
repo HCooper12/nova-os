@@ -16,7 +16,7 @@ test.after(async () => { await rm(process.env.NOVA_DATA_DIR, { recursive: true, 
 
 test('enqueue: real questions only, dup refusal, honest cap', async () => {
   await assert.rejects(() => enqueueOvernight({ question: 'hm' }), /real question/);
-  await assert.rejects(() => enqueueOvernight({ kind: 'studio', question: 'a long enough question' }), /only research/);
+  await assert.rejects(() => enqueueOvernight({ kind: 'studio', question: 'a long enough question' }), /research questions and Studio outlines/);
 
   const item = await enqueueOvernight({ question: 'Does creatine timing matter?' });
   assert.equal(item.status, 'queued');
@@ -71,4 +71,27 @@ test('runner: sequential, review-gated results recorded; failures honest; force 
   assert.match(line, /^\*\*Overnight\.\*\*/);
   assert.match(line, /1 research brief landed for review: Creatine Brief/);
   assert.match(line, /1 run failed/);
+});
+
+test('outline kind: queued from a real idea, dispatched with its ideaId, counted in the morning line', async () => {
+  // enqueue validates the outline fields and renders as a normal queue line
+  await assert.rejects(() => enqueueOvernight({ kind: 'outline', ideaId: '', ideaTitle: '' }), /needs a Studio idea/);
+  const item = await enqueueOvernight({ kind: 'outline', ideaId: 'idea-42', ideaTitle: 'Second brains that actually act' });
+  assert.equal(item.kind, 'outline');
+  assert.equal(item.ideaId, 'idea-42');
+  assert.equal(item.question, 'Outline: Second brains that actually act');
+  await assert.rejects(() => enqueueOvernight({ kind: 'outline', ideaId: 'idea-42', ideaTitle: 'Second brains that actually act' }), /already queued/);
+
+  // the runner hands the FULL item to the job starter — kind and ideaId
+  // intact — and records the outline's pending record like any other run
+  const startedItems = [];
+  const startJob = async (vp, it) => { startedItems.push(it); return { id: 'rec-outline' }; };
+  const pollRecord = async (id) => ({ id, status: 'pending', decision: { title: 'Outline — Second brains that actually act' } });
+  const summary = await runOvernightQueue('/tmp/nowhere', { startJob, pollRecord, pollMs: 1, force: true });
+  assert.equal(summary.done, 1);
+  assert.equal(startedItems[0].kind, 'outline');
+  assert.equal(startedItems[0].ideaId, 'idea-42');
+
+  const line = await overnightMorningLine();
+  assert.match(line, /1 research brief and 1 Studio outline landed for review/);
 });

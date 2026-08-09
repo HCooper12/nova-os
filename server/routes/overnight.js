@@ -13,7 +13,17 @@ export function overnightRouter(vaultPath) {
 
   router.post('/overnight', async (req, res) => {
     try {
-      const item = await enqueueOvernight({ kind: 'research', question: req.body?.question });
+      const { kind = 'research', question, ideaId } = req.body || {};
+      let item;
+      if (kind === 'outline') {
+        // resolve the real idea page NOW — never queue a ghost that fails
+        // silently at 03:30 (readIdea throws on missing/non-idea pages)
+        const { readIdea } = await import('../lib/studio.js');
+        const page = await readIdea(vaultPath, ideaId);
+        item = await enqueueOvernight({ kind, ideaId, ideaTitle: page.title });
+      } else {
+        item = await enqueueOvernight({ kind: 'research', question });
+      }
       res.json({ item, ...(await listOvernight()) });
     } catch (e) { res.status(400).json({ error: e.message }); }
   });

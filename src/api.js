@@ -208,6 +208,7 @@ export const api = {
   askRitual: (conn, kind, sessionId) => post(conn, '/api/ask/ritual', { kind, sessionId }),
   overnight: (conn) => call(conn, '/api/overnight'),
   overnightAdd: (conn, question) => post(conn, '/api/overnight', { question }),
+  overnightAddOutline: (conn, ideaId) => post(conn, '/api/overnight', { kind: 'outline', ideaId }),
   overnightRemove: (conn, id) => post(conn, '/api/overnight/remove', { id }),
   overnightRun: (conn) => post(conn, '/api/overnight/run'),
   research: (conn, question) => post(conn, '/api/research', { question }),
