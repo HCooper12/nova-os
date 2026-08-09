@@ -98,6 +98,16 @@ export function startHealthDropsScheduler(vaultPath) {
     } catch (err) {
       console.error('health drops scan failed:', err.message);
     }
+    // The missed-push sentinel rides this tick (2-min cadence is plenty for
+    // a 09:00 once-a-day check) — a silent overnight failure becomes one
+    // honest Telegram nudge instead of a hole he finds days later.
+    try {
+      const { runMissedPushSentinel } = await import('./healthSentinel.js');
+      const r = await runMissedPushSentinel();
+      if (r.nudged) console.log(`health sentinel: nudged — no data for ${r.date}`);
+    } catch (err) {
+      console.error('health sentinel failed:', err.message);
+    }
   };
   tick();
   setInterval(tick, 2 * 60_000);

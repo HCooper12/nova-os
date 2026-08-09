@@ -36,15 +36,38 @@ const DISALLOWED_TOOLS = [
 
 const jobs = new Map();
 
-// Shared wiring for `--output-format stream-json` spawns: text deltas land in
-// job.partial as they generate (the client polls them straight into the
-// bubble), full `assistant` snapshots are authoritative over accumulated
-// deltas, and the final `result` event carries the finished reply. Event
-// shapes verified live: stream_event/content_block_delta text_delta
-// (thinking deltas excluded), 'assistant', 'result'. Returns the accumulator
-// the caller's close handler reads.
-function wireStreamJson(child, job) {
-  const acc = { streamed: '', resultText: null, resultErr: null, stderr: '' };
+// ---------------------------- warm conversations ----------------------------
+// A follow-up turn used to pay the full CLI boot (~1.5–2.5s) before the
+// model even started. Conversational sessions (Voice, Coach) now keep ONE
+// process alive per session via --input-format stream-json: turn 2+ writes
+// a user message to stdin and first words arrive in ~1s instead of ~6
+// (measured live, scratchpad warm-test). The pool is a pure accelerator —
+// continuity NEVER depends on it: every entry is keyed by the CLI session
+// id, so an idle-killed or crashed process just means the next turn
+// respawns with --resume and pays the boot once. Budget errors drop the
+// entry the same way (fresh budget on respawn).
+const warm = new Map();
+const WARM_IDLE_MS = 10 * 60_000;
+const WARM_MAX = 4;
+
+function dropWarm(key) {
+  const w = warm.get(key);
+  if (!w) return;
+  warm.delete(key);
+  try { w.child.kill(); } catch { /* already gone */ }
+}
+
+const warmSweep = setInterval(() => {
+  const now = Date.now();
+  for (const [key, w] of warm) {
+    if (!w.currentJob && now - w.lastUsed > WARM_IDLE_MS) dropWarm(key);
+  }
+}, 60_000);
+warmSweep.unref?.();
+
+function spawnWarm(key, { cwd, args }) {
+  const child = spawn(CLAUDE_BIN, args, { cwd, stdio: ['pipe', 'pipe', 'pipe'] });
+  const w = { child, currentJob: null, finishTurn: null, streamed: '', stderr: '', lastUsed: Date.now() };
   let buf = '';
   child.stdout.on('data', (d) => {
     buf += d;
@@ -53,23 +76,70 @@ function wireStreamJson(child, job) {
       const line = buf.slice(0, nl).trim();
       buf = buf.slice(nl + 1);
       if (!line) continue;
-      try {
-        const ev = JSON.parse(line);
-        if (ev.type === 'stream_event' && ev.event?.type === 'content_block_delta' && ev.event.delta?.type === 'text_delta') {
-          acc.streamed += ev.event.delta.text;
-          job.partial = acc.streamed;
-        } else if (ev.type === 'assistant' && Array.isArray(ev.message?.content)) {
-          const txt = ev.message.content.filter((c) => c.type === 'text').map((c) => c.text).join('');
-          if (txt) { acc.streamed = txt; job.partial = acc.streamed; } // authoritative snapshot
-        } else if (ev.type === 'result') {
-          if (ev.is_error) acc.resultErr = ev.result || 'request failed';
-          else acc.resultText = (ev.result || '').trim();
+      let ev;
+      try { ev = JSON.parse(line); } catch { continue; }
+      if (!w.currentJob) continue; // per-turn init/system chatter between turns
+      if (ev.type === 'stream_event' && ev.event?.type === 'content_block_delta' && ev.event.delta?.type === 'text_delta') {
+        w.streamed += ev.event.delta.text;
+        w.currentJob.partial = w.streamed;
+      } else if (ev.type === 'assistant' && Array.isArray(ev.message?.content)) {
+        const txt = ev.message.content.filter((c) => c.type === 'text').map((c) => c.text).join('');
+        if (txt) { w.streamed = txt; w.currentJob.partial = txt; } // authoritative snapshot
+      } else if (ev.type === 'result') {
+        const job = w.currentJob;
+        const finish = w.finishTurn;
+        const replyText = ev.is_error ? null : ((ev.result || '').trim() || w.streamed.trim());
+        const errMsg = ev.is_error ? (ev.result || 'request failed') : (replyText ? null : 'Empty response');
+        w.currentJob = null;
+        w.finishTurn = null;
+        w.streamed = '';
+        w.lastUsed = Date.now();
+        if (errMsg) {
+          job.status = 'error';
+          job.error = errMsg;
+          dropWarm(key); // a fresh process (and budget) next turn, via --resume
+        } else {
+          Promise.resolve(finish(replyText, job)).catch((e) => { job.status = 'error'; job.error = e.message; });
         }
-      } catch { /* non-JSON diagnostic line — ignore */ }
+      }
     }
   });
-  child.stderr.on('data', (d) => { acc.stderr += d; });
-  return acc;
+  child.stderr.on('data', (d) => { w.stderr += d; });
+  const die = () => {
+    if (warm.get(key) === w) warm.delete(key);
+    if (w.currentJob) {
+      w.currentJob.status = 'error';
+      w.currentJob.error = (w.stderr || '').trim() || 'the conversation process exited';
+      w.currentJob = null;
+      w.finishTurn = null;
+    }
+  };
+  child.on('close', die);
+  child.on('error', die);
+  warm.set(key, w);
+  return w;
+}
+
+// One conversational turn: reuse the session's live process, or spawn one
+// (args carry --session-id on turn 1 and --resume thereafter, so a cold
+// spawn is always continuity-safe). finishTurn runs the per-surface
+// post-processing (panels, proposals, research) and marks the job ready.
+function warmTurn({ kind, sessionId, cwd, args, text, job, finishTurn }) {
+  const key = `${kind}:${sessionId}`;
+  let w = warm.get(key);
+  if (w && (w.child.exitCode !== null || w.currentJob)) { dropWarm(key); w = null; }
+  if (!w) {
+    if (warm.size >= WARM_MAX) {
+      const idle = [...warm.entries()].filter(([, x]) => !x.currentJob).sort((a, b) => a[1].lastUsed - b[1].lastUsed)[0];
+      if (idle) dropWarm(idle[0]);
+    }
+    w = spawnWarm(key, { cwd, args });
+  }
+  w.currentJob = job;
+  w.finishTurn = finishTurn;
+  w.streamed = '';
+  w.lastUsed = Date.now();
+  w.child.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content: [{ type: 'text', text }] } }) + '\n');
 }
 
 // message: { text, sessionId?, model? } — sessionId absent means start a new
@@ -84,7 +154,9 @@ export function startMessage(cwd, { text, sessionId, model }) {
   jobs.set(jobId, job);
 
   const args = [
-    '-p', text,
+    // conversational input mode — warm pool keeps the process alive between
+    // turns, so a follow-up message skips the CLI boot
+    '-p', '--input-format', 'stream-json',
     '--permission-mode', 'bypassPermissions',
     '--allowedTools', ALLOWED_TOOLS,
     '--disallowedTools', DISALLOWED_TOOLS,
@@ -99,25 +171,17 @@ export function startMessage(cwd, { text, sessionId, model }) {
   args.push(isNewSession ? '--session-id' : '--resume', effectiveSessionId);
   if (model) args.push('--model', model);
 
-  const child = spawn(CLAUDE_BIN, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
-
-  const acc = wireStreamJson(child, job);
-  child.on('close', (code) => {
-    try {
-      if (acc.resultErr) throw new Error(acc.resultErr);
-      const replyText = (acc.resultText || acc.streamed || '').trim();
-      if (code !== 0 && !replyText) throw new Error(acc.stderr.trim() || `claude exited with code ${code}`);
-      if (!replyText) throw new Error('Empty response');
-      job.result = { text: replyText, sessionId: effectiveSessionId };
-      job.status = 'ready';
-    } catch (e) {
-      job.status = 'error';
-      job.error = e.message;
-    }
-  });
-  child.on('error', (err) => {
-    job.status = 'error';
-    job.error = err.message;
+  warmTurn({
+    kind: 'code',
+    sessionId: effectiveSessionId,
+    cwd,
+    args,
+    text,
+    job,
+    finishTurn: (replyText, turnJob) => {
+      turnJob.result = { text: replyText, sessionId: effectiveSessionId };
+      turnJob.status = 'ready';
+    },
   });
 
   return jobId;
@@ -125,6 +189,15 @@ export function startMessage(cwd, { text, sessionId, model }) {
 
 export function getMessageJob(jobId) {
   return jobs.get(jobId) || null;
+}
+
+// Test-only visibility into the warm pool: which sessions hold a live
+// process, and its pid — so a test can prove turn 2 reused turn 1's process.
+export function _warmStats() {
+  return [...warm.entries()].map(([key, w]) => ({ key, pid: w.child.pid, busy: !!w.currentJob }));
+}
+export function _dropAllWarm() {
+  for (const key of [...warm.keys()]) dropWarm(key);
 }
 
 // Ask Nova — the voice screen's brain. A READ-ONLY session over the vault
@@ -178,7 +251,9 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
   jobs.set(jobId, job);
 
   const args = [
-    '-p', isNewSession ? buildAskPrompt({ question, context, direct }) : question,
+    // conversational input mode: the prompt/question arrives as a stdin
+    // message, and the process STAYS ALIVE between turns (warm pool above)
+    '-p', '--input-format', 'stream-json',
     '--permission-mode', 'bypassPermissions',
     '--allowedTools', 'Read Grep Glob',
     '--disallowedTools', BREAKER_DISALLOWED,
@@ -199,15 +274,8 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
   ];
   args.push(isNewSession ? '--session-id' : '--resume', effectiveSessionId);
 
-  const child = spawn(CLAUDE_BIN, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
-
-  const acc = wireStreamJson(child, job);
-  child.on('close', async (code) => {
+  const finishTurn = async (replyText, turnJob) => {
     try {
-      if (acc.resultErr) throw new Error(acc.resultErr);
-      const replyText = (acc.resultText || acc.streamed || '').trim();
-      if (code !== 0 && !replyText) throw new Error(acc.stderr.trim() || `claude exited with code ${code}`);
-      if (!replyText) throw new Error('Empty response');
       // Canvas: the model may end with one SHOW {"panel":...} line. Parse it
       // out and build the panel DETERMINISTICALLY from the vault — the model
       // names a view, our code draws it. A bad directive degrades honestly.
@@ -272,16 +340,22 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
           : research ? 'Research dispatched — give it a couple of minutes.'
           : replyText;
       }
-      job.result = { text, sessionId: effectiveSessionId, panel, proposal, research };
-      job.status = 'ready';
+      turnJob.result = { text, sessionId: effectiveSessionId, panel, proposal, research };
+      turnJob.status = 'ready';
     } catch (e) {
-      job.status = 'error';
-      job.error = e.message;
+      turnJob.status = 'error';
+      turnJob.error = e.message;
     }
-  });
-  child.on('error', (err) => {
-    job.status = 'error';
-    job.error = err.message;
+  };
+
+  warmTurn({
+    kind: 'voice',
+    sessionId: effectiveSessionId,
+    cwd,
+    args,
+    text: isNewSession ? buildAskPrompt({ question, context, direct }) : question,
+    job,
+    finishTurn,
   });
 
   return jobId;
@@ -326,7 +400,9 @@ export function startAskCoach(cwd, { question, context, sessionId }) {
   jobs.set(jobId, job);
 
   const args = [
-    '-p', isNewSession ? buildCoachPrompt({ question, context }) : question,
+    // conversational input mode — the warm pool keeps this process alive
+    // between turns, so a follow-up question skips the CLI boot entirely
+    '-p', '--input-format', 'stream-json',
     '--permission-mode', 'bypassPermissions',
     '--allowedTools', 'Read Grep Glob',
     '--disallowedTools', BREAKER_DISALLOWED,
@@ -339,15 +415,9 @@ export function startAskCoach(cwd, { question, context, sessionId }) {
     '--max-budget-usd', MAX_BUDGET_USD,
   ];
   args.push(isNewSession ? '--session-id' : '--resume', effectiveSessionId);
-  const child = spawn(CLAUDE_BIN, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
 
-  const acc = wireStreamJson(child, job);
-  child.on('close', async (code) => {
+  const finishTurn = async (replyText, turnJob) => {
     try {
-      if (acc.resultErr) throw new Error(acc.resultErr);
-      const replyText = (acc.resultText || acc.streamed || '').trim();
-      if (code !== 0 && !replyText) throw new Error(acc.stderr.trim() || `claude exited with code ${code}`);
-      if (!replyText) throw new Error('Empty response');
       // The Coach may PROPOSE a program change — the model decides, this
       // code validates against the real routines and files a PENDING record
       // on the rails; approval (his thumb) is what actually writes.
@@ -365,16 +435,22 @@ export function startAskCoach(cwd, { question, context, sessionId }) {
       } else if (parseError) {
         text += `\n\n(I tried to draft that change but ${parseError} — ask again and I'll re-propose.)`;
       }
-      job.result = { text, sessionId: effectiveSessionId, proposal: proposalOut };
-      job.status = 'ready';
+      turnJob.result = { text, sessionId: effectiveSessionId, proposal: proposalOut };
+      turnJob.status = 'ready';
     } catch (e) {
-      job.status = 'error';
-      job.error = e.message;
+      turnJob.status = 'error';
+      turnJob.error = e.message;
     }
-  });
-  child.on('error', (err) => {
-    job.status = 'error';
-    job.error = err.message;
+  };
+
+  warmTurn({
+    kind: 'coach',
+    sessionId: effectiveSessionId,
+    cwd,
+    args,
+    text: isNewSession ? buildCoachPrompt({ question, context }) : question,
+    job,
+    finishTurn,
   });
 
   return jobId;
