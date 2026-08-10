@@ -235,7 +235,7 @@ export function valsInbox(app, ctx) {
     kind: r.kind || null,
     text: r.text,
     time: timeLabel(r.createdAt),
-    source: r.kind === 'review' ? 'DAILY REVIEW' : r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.kind === 'guardian' ? 'GUARDIAN' : r.kind === 'cfo' || r.kind === 'money-import' ? 'CFO' : r.kind === 'meal-prep' ? 'MEAL PREP' : r.kind === 'food-suggestion' ? 'NUTRITION' : r.kind === 'calendar' ? 'SCHEDULE' : r.kind === 'training-check' ? 'TRAINING' : r.kind === 'week-plan' ? 'COMMANDER' : r.kind === 'plan-today' ? 'PLANNER' : r.kind === 'pattern' ? 'SCOUT' : r.kind === 'autonomy' ? 'TRUST LADDER' : r.kind === 'distill' ? 'DISTILLER' : r.kind === 'coach' || r.kind === 'weekly-debrief' ? 'COACH' : r.kind === 'research' ? 'RESEARCHER' : r.kind === 'followup' ? 'CALENDAR' : r.kind === 'studio' ? 'STUDIO' : r.source === 'voice' ? 'VOICE' : 'TYPED',
+    source: r.kind === 'review' ? 'DAILY REVIEW' : r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.kind === 'guardian' ? 'GUARDIAN' : r.kind === 'cfo' || r.kind === 'money-import' ? 'CFO' : r.kind === 'meal-prep' ? 'MEAL PREP' : r.kind === 'food-suggestion' ? 'NUTRITION' : r.kind === 'calendar' ? 'SCHEDULE' : r.kind === 'training-check' ? 'TRAINING' : r.kind === 'week-plan' ? 'COMMANDER' : r.kind === 'plan-today' ? 'PLANNER' : r.kind === 'pattern' ? 'SCOUT' : r.kind === 'autonomy' ? 'TRUST LADDER' : r.kind === 'distill' ? 'DISTILLER' : r.kind === 'coach' || r.kind === 'weekly-debrief' ? 'COACH' : r.kind === 'research' ? 'RESEARCHER' : r.kind === 'video' ? 'WATCHER' : r.kind === 'followup' ? 'CALENDAR' : r.kind === 'studio' ? 'STUDIO' : r.source === 'voice' ? 'VOICE' : 'TYPED',
     status: r.status,
     route: r.decision ? (ROUTE_META[r.decision.route] || ROUTE_META.note) : null,
     confidence: r.decision?.confidence || null,
@@ -250,8 +250,9 @@ export function valsInbox(app, ctx) {
     canUndo: r.status === 'filed' && !!r.undoData,
     canDiscard: r.status === 'error', // errored records need an exit — they used to be unkillable
     // retry only where the record still carries its full input: a capture's
-    // text or a research question. Scheduled drafts re-run on their own.
-    canRetry: r.status === 'error' && (!r.kind || r.kind === 'research'),
+    // text, a research question, or a video URL. Scheduled drafts re-run on
+    // their own.
+    canRetry: r.status === 'error' && (!r.kind || r.kind === 'research' || r.kind === 'video'),
     approve: () => app.inboxAction(r.id, 'approve'),
     discard: () => app.inboxAction(r.id, 'discard'),
     undo: () => app.inboxAction(r.id, 'undo'),
@@ -411,6 +412,12 @@ export function valsInbox(app, ctx) {
       if (!q) { app.toastMsg('Type the research question first'); return; }
       app.setState({ inboxInput: '' });
       app.startResearch(q);
+    },
+    submitWatch: () => {
+      const t = st.inboxInput.trim();
+      if (!/https?:\/\//.test(t)) { app.toastMsg('Paste the video link first (a question alongside it is welcome)'); return; }
+      app.setState({ inboxInput: '' });
+      app.startVideoWatch(t);
     },
     inboxModes: MODE_LADDER.map((m, i) => ({
       ...m,

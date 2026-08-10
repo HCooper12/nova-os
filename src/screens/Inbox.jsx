@@ -90,6 +90,11 @@ export function Inbox({ v }) {
             base={{ cursor: 'pointer', marginLeft: 'auto', font: `600 10.5px ${M}`, letterSpacing: '.1em', padding: '9px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-vi) 45%, transparent)', color: 'var(--nv-vi)', opacity: v.inboxConnected ? 1 : 0.4 }}
             hoverStyle={{ background: 'color-mix(in srgb, var(--nv-vi) 08%, transparent)' }}
           >🔭 RESEARCH</Interactive>
+          <Interactive as="span" onClick={v.inboxConnected ? v.submitWatch : undefined}
+            title="Paste a video link (plus an optional question) — the Watcher pulls the transcript and drafts the Coach's verdict or a distilled note for review"
+            base={{ cursor: 'pointer', font: `600 10.5px ${M}`, letterSpacing: '.1em', padding: '9px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent)', color: 'var(--nv-cy)', opacity: v.inboxConnected ? 1 : 0.4 }}
+            hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' }}
+          >▶ WATCH</Interactive>
           <Interactive as="span" onClick={v.inboxConnected && !v.inboxCaptureBusy ? submit : undefined}
             base={{ cursor: 'pointer', font: `600 11px ${M}`, letterSpacing: '.14em', padding: '10px 22px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1206', opacity: v.inboxConnected && !v.inboxCaptureBusy ? 1 : 0.5 }}
             hoverStyle={{ filter: 'brightness(1.1)' }}

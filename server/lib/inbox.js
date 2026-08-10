@@ -895,7 +895,8 @@ export async function startCapture(vaultPath, { text, source = 'text', mode = 'a
 
 // A failed run deserves a second chance without retyping the thought. Retry
 // re-runs the SAME record's generation in place — only for kinds whose full
-// input survives on the record (a capture's text, a research question).
+// input survives on the record (a capture's text, a research question, a
+// video URL).
 // Scheduled drafts re-run on their own cadence, so retrying a stale copy
 // would produce a draft whose moment has passed.
 export async function retryRecord(vaultPath, id) {
@@ -905,6 +906,10 @@ export async function retryRecord(vaultPath, id) {
   if (record.kind === 'research') {
     const { retryResearch } = await import('./researcher.js');
     return retryResearch(vaultPath, record);
+  }
+  if (record.kind === 'video') {
+    const { retryWatch } = await import('./watcher.js');
+    return retryWatch(vaultPath, record);
   }
   if (record.kind) throw new Error('this draft comes from a scheduled agent — it re-runs on its own schedule; discard this copy');
   const updated = await updateRecord(id, { status: 'classifying', error: null });

@@ -38,6 +38,7 @@ const CONVERSATIONAL = [
   { id: 'voice', label: 'Nova', role: 'the conversation', match: (r) => r.source === 'voice' },
   { id: 'coach', label: 'Coach', role: 'training brain', match: (r) => r.source === 'coach' },
   { id: 'researcher', label: 'Researcher', role: 'cited web briefs', match: (r) => r.kind === 'research' },
+  { id: 'watcher', label: 'Watcher', role: 'videos watched & weighed', match: (r) => r.kind === 'video' },
 ];
 
 // The map drawn (AGENT-SKILL-MAP build 2) — which life department(s) each
@@ -69,6 +70,7 @@ export const AGENT_DEPARTMENTS = {
   voice: ['Knowledge', 'Logistics'],
   coach: ['Train'],
   researcher: ['Knowledge'],
+  watcher: ['Knowledge', 'Train'],
   // reminders deliberately unmapped: it fires nudges but owns no registry
   // skill yet — the screen says "no skills mapped yet", which is the truth.
   'health-mirror': ['Platform'],

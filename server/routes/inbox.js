@@ -104,6 +104,26 @@ export function inboxRouter(vaultPath) {
     }
   });
 
+  // Watch a video: accepts {url, question} or a raw {text} holding both.
+  // Same rails as /research — explicit trigger, note lands pending.
+  router.post('/video', async (req, res) => {
+    try {
+      const { startVideoWatch, extractVideoUrl } = await import('../lib/watcher.js');
+      let url = String(req.body?.url || '').trim();
+      let question = String(req.body?.question || '').trim();
+      if (!url && req.body?.text) {
+        const found = extractVideoUrl(req.body.text);
+        if (!found) return res.status(400).json({ error: 'no video link found — paste the URL' });
+        url = found.url;
+        question = question || found.question;
+      }
+      const record = await startVideoWatch(vaultPath, url, question);
+      res.json({ record });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
   router.get('/inbox', async (req, res) => {
     try {
       const items = await listRecords();

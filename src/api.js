@@ -212,6 +212,7 @@ export const api = {
   overnightRemove: (conn, id) => post(conn, '/api/overnight/remove', { id }),
   overnightRun: (conn) => post(conn, '/api/overnight/run'),
   research: (conn, question) => post(conn, '/api/research', { question }),
+  videoWatch: (conn, text) => post(conn, '/api/video', { text }),
   followupDone: (conn, label, time) => post(conn, '/api/followups', { label, time }),
   studioSetStatus: (conn, id, status) => post(conn, `/api/studio/idea/${encodeURIComponent(id)}/status`, { status }),
   studioOutline: (conn, id) => post(conn, `/api/studio/idea/${encodeURIComponent(id)}/outline`, {}),

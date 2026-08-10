@@ -233,6 +233,7 @@ Ground rules:${direct ? `
   SHOW {"panel":"pulse","topic":"<one of his Interests topics>"} — the cached what's-new feed for a topic (refreshed overnight); use when he asks what's new on something he follows. If nothing is cached you'll get an honest note — offer RESEARCH for a fresh look instead.
   Nova's own code draws the panel from the real vault — you only NAME it; never describe the panel's numbers in your text, and never invent an exercise or note name. Use "note" when you cite a vault page or he asks what a note says — it puts the page's own words on screen. Use the others when he asks to see something or a visual genuinely helps; most replies need no SHOW line. The line is stripped before he reads the reply, so don't refer to it.
 - RESEARCH: ONLY when he explicitly asks you to research something or look it up online, end the reply with one line: RESEARCH {"question":"<the question, tight and specific>"}. Nova's Researcher (web-read-only, citation-required) runs it; the brief arrives in this conversation as a sources panel AND lands in his Inbox for review. In your text say it's dispatched and takes a couple of minutes — never state findings you don't have yet. If he says tonight/overnight/"queue it", add "when":"tonight" — it then runs in the overnight window (03:30) and the brief is waiting in his Inbox by morning; say exactly that. Never fire this on your own initiative.
+- WATCH: ONLY when he gives you a video link (YouTube etc.) and asks you to watch, review, or evaluate it, end the reply with one line: WATCH {"url":"<the exact URL he gave>","question":"<his specific ask about it, or omit>"}. Nova's Watcher pulls the transcript locally and drafts either the Coach's evidence-checked verdict (fitness content) or a distilled reference note (podcasts, talks) — pending in his Inbox for review. In your text say it's dispatched and takes a few minutes — never describe a video you haven't seen. Use the EXACT URL from his message; never invent one. Never fire this on your own initiative.
 
 Live context (deterministic, computed at conversation start — trust it over stale pages for today's numbers):
 ${context || '(unavailable)'}
@@ -332,15 +333,32 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
       } else if (res.parseError) {
         text = res.cleanText;
       }
+      // And it may hand ONE video to the Watcher — transcript pulled locally,
+      // the note always review-gated in the Inbox.
+      const { parseWatchDirective, startVideoWatch } = await import('./watcher.js');
+      const wd = parseWatchDirective(text);
+      let watch = null;
+      if (wd.watch) {
+        text = wd.cleanText;
+        try {
+          const record = await startVideoWatch(cwd, wd.watch.url, wd.watch.question);
+          watch = { recordId: record.id, url: wd.watch.url };
+        } catch (e) {
+          text = `${text} (I tried to hand that video to the Watcher, but ${e.message}.)`;
+        }
+      } else if (wd.parseError) {
+        text = wd.cleanText;
+      }
       // A directive-only reply leaves no prose — give the voice something
       // honest to say rather than reading a directive line aloud.
       if (!text.trim()) {
         text = panel ? 'Here it is.'
           : proposal ? 'Drafted — say yes to make it real, or leave it for the Inbox.'
           : research ? 'Research dispatched — give it a couple of minutes.'
+          : watch ? 'The Watcher has it — the video\'s read lands in your Inbox in a few minutes.'
           : replyText;
       }
-      turnJob.result = { text, sessionId: effectiveSessionId, panel, proposal, research };
+      turnJob.result = { text, sessionId: effectiveSessionId, panel, proposal, research, watch };
       turnJob.status = 'ready';
     } catch (e) {
       turnJob.status = 'error';

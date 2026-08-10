@@ -2372,6 +2372,15 @@ export default class App extends Component {
       this.refreshInbox();
     }).catch((e) => this.toastMsg('Research failed to start: ' + e.message));
   }
+  startVideoWatch(text) {
+    const conn = getConnection();
+    const t = (text || '').trim();
+    if (!conn || !t) return;
+    api.videoWatch(conn, t).then(() => {
+      this.toastMsg("Watcher dispatched — the video's read lands in the Inbox for review");
+      this.refreshInbox();
+    }).catch((e) => this.toastMsg('Watch failed to start: ' + e.message));
+  }
   setDailyReviewConfig(patch) {
     const conn = getConnection();
     if (!conn) return;
