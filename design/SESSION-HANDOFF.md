@@ -39,6 +39,17 @@ references backlog and the hands-free (Siri/Shortcuts) path.
    in his experience yet.
 
 **STATE (what exists, where):**
+- **NEW (10 Aug): The Watcher** (`server/lib/watcher.js`) — video URL →
+  local transcript (watch-skill scripts under
+  `~/.claude/plugins/cache/claude-video/watch/`, newest version resolved at
+  call time; `NOVA_WATCH_DIR` overrides) → one model pass → pending `note`
+  in Wiki/Inbox. Coach lane (claims audited vs web) or reference lane
+  (distilled with timestamps + real-page wikilinks); lane chosen by the
+  model, header composed in code. Triggers: Inbox ▶ WATCH button,
+  `POST /api/video`, `WATCH {...}` directive in Ask Nova replies.
+  Retryable (`kind:'video'` in retryRecord + valsInbox). Ops:
+  conversational agent `watcher`, departments Knowledge+Train. No Whisper
+  key is configured — captionless videos error honestly.
 - New agents this session, all on the fleet ring (`server/lib/ops.js`
   SCHEDULED): `healthMirror.js` (vault health pages, 30m tick),
   `patternScout.js` (Sat 16:00), `autonomyLedger.js` (Sun 18:00),
@@ -84,7 +95,20 @@ references backlog and the hands-free (Siri/Shortcuts) path.
   payload) → the meal already has true macros → forecloses estimating for
   named rotation slots; estimation is now only for described food.
 
-**VERIFIED (this session, with locators):**
+**VERIFIED (10 Aug, Watcher session):**
+- Real end-to-end run: `POST /api/video` with a 17:49 fitness video
+  (sxn5kPQ4Gl0) → record `775ade9d` settled `pending`, lane `coach`,
+  claims cited to PubMed, all three wikilinks resolved to files that
+  exist in `Wiki/Health/`. **The draft is still pending his review.**
+- Transcript leg direct: `fetchVideoTranscript` returned 42,597 chars of
+  timestamped captions with correct metadata.
+- Gates: lint 0 errors, build green, 255 pass / 0 fail (8 new in
+  `server/test/watcher.test.js`), pushed as 9569bd2, service reloaded,
+  health 200.
+- Python: brew 3.14 preferred, Apple 3.9 parses the scripts as fallback;
+  spawn PATH extended with `/opt/homebrew/bin` for launchd.
+
+**VERIFIED (9 Aug session, with locators):**
 - Gates at close: `npm run lint` 0 errors; `npm run build` green;
   `cd server && npm test` **237 pass / 0 fail**; `git status --porcelain`
   empty; `HEAD == origin/main`; `curl localhost:4173/api/health` → 200.
