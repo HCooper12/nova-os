@@ -97,6 +97,19 @@ test('monotonic-steps rule: a HIGHER later reading wins for a past day, a trunca
   assert.equal(shouldDropPastSteps('2026-07-29', 8311, null, now), false, 'no incoming steps, nothing to judge');
 });
 
+test('the guard judges the FOLDED steps figure — a watch-only partial cannot clobber a finished day', async () => {
+  // The 9→10 Aug regression: the 00:05 automation carried NO `steps` key,
+  // only watchSteps 1273 (watch barely worn that day). Guarding on the raw
+  // payload's absent `steps` let saveDay's later fold overwrite the day's
+  // real 12,967. The route now folds first; this pins the composition.
+  const { pickKnownMetrics, shouldDropPastSteps } = await import('../lib/healthData.js');
+  const now = new Date('2026-08-10T00:05:13');
+  const folded = pickKnownMetrics({ watchSteps: 1273, hrv: 58 });
+  assert.equal(folded.steps, 1273, 'watch-only push still folds into steps');
+  assert.equal(shouldDropPastSteps('2026-08-09', 12967, folded.steps, now), true,
+    'the folded partial must be judged — and dropped — against the stored total');
+});
+
 test('steps completeness is stamped honestly: during the day = partial, after = total', async () => {
   const { stepsCaptureIsComplete, saveDay, loadDay } = await import('../lib/healthData.js');
   assert.equal(stepsCaptureIsComplete('2026-07-29', '2026-07-29T23:45:00'), false, 'the 23:45 push is a partial');

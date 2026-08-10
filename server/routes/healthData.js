@@ -63,6 +63,16 @@ export function healthDataRouter(vaultPath) {
         await logPushAttempt({ ok: false, date, error: 'no metrics', rawBody });
         return res.status(400).json({ error: 'at least one metric is required (steps, hrv, sleepAsleepMinutes, …)' });
       }
+      // Fold per-device step keys into canonical metrics BEFORE the monotonic
+      // guard. The 9→10 Aug midnight push carried only watchSteps (a partial
+      // 1,273) — the guard below checked the raw payload's absent `steps`,
+      // never fired, and saveDay's later fold clobbered the day's real 12,967.
+      // The guard must see the same figure the store would keep.
+      const rawKeys = Object.keys(metrics); // receipt keeps the phone's own key names
+      {
+        const { pickKnownMetrics } = await import('../lib/healthData.js');
+        metrics = pickKnownMetrics(metrics);
+      }
       // A 12:05am push carries yesterday's rolling-window numbers under
       // today's date — file it against the day it actually describes.
       let dateShifted = false;
@@ -83,13 +93,13 @@ export function healthDataRouter(vaultPath) {
           delete metrics.steps;
           stepsDropped = true;
           if (!Object.keys(metrics).length) {
-            await logPushAttempt({ ok: true, date, keys: [], steps: null, stepsDropped, rawBody });
+            await logPushAttempt({ ok: true, date, keys: rawKeys, steps: null, stepsDropped, rawBody });
             return res.json({ day: existing, note: 'that steps figure was lower than the one already recorded for that day — kept the higher reading' });
           }
         }
       }
       const saved = await saveDay(date, metrics, { manual: body?.manual === true });
-      await logPushAttempt({ ok: true, date, keys: Object.keys(metrics), steps: metrics.steps ?? null, ...(stepsDropped ? { stepsDropped } : {}), ...(dateShifted ? { dateShifted: true } : {}), rawBody });
+      await logPushAttempt({ ok: true, date, keys: rawKeys, steps: metrics.steps ?? null, ...(stepsDropped ? { stepsDropped } : {}), ...(dateShifted ? { dateShifted: true } : {}), rawBody });
       const { broadcast } = await import('../lib/events.js');
       broadcast('health');
       res.json({ day: saved });
