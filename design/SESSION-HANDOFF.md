@@ -146,9 +146,17 @@ references backlog and the hands-free (Siri/Shortcuts) path.
   on `connectionStatus === 'connected'`, but it was never seen on screen.
 
 **OPEN QUESTIONS / BLOCKERS:**
-- **The 00:05 automation has not fired for 2 nights.** Manual runs work.
-  Needs HIS check: Notification Centre around 00:05 for a Shortcuts
-  banner, and whether the automation still says Run Immediately.
+- **00:05 automation, updated 10 Aug:** it FIRED on the night of 9→10 Aug
+  (pushlog 2026-08-09T14:05Z) and reached the server — his banner was
+  right. Two residues: (a) its payload had NO iPhone `steps` key, only a
+  watch partial, which clobbered 9 Aug's 12,967 down to 1,273 via a
+  guard-ordering bug — FIXED in 13975df (fold before guard, verified
+  live) and the day restored to 12,967; (b) nights 7→8 and 8→9 show no
+  automation entries at all — those nights it genuinely didn't fire.
+  Still HIS to check: why the iPhone steps query returns nothing at
+  00:05 (locked-phone HealthKit? the "has any value" filter?), and the
+  automation's reliability night to night. The server now self-heals
+  from partials either way.
 - 44 pending records — including the 3 autonomy proposals, the distill
   draft, 16 coach receipts, and 2 scout proposals.
 - The live walkthrough (4+ sessions owed).
