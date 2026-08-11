@@ -16,6 +16,7 @@ const {
   parseWatchReport, extractVideoUrl, parseWatchDirective,
   normalizeWatch, composeWatchNote, buildWatchPrompt, resolveWatchScript,
   chunkTranscript, buildChunkNotesPrompt, SINGLE_PASS_MAX_CHARS, CHUNK_CHARS,
+  stripPreamble, repairJsonControlChars,
 } = await import('../lib/watcher.js');
 
 test.after(async () => { await rm(dataDir, { recursive: true, force: true }); });
@@ -171,8 +172,35 @@ test('watcher: chunk-notes prompt contract — exhaustive, chapter-aware, timest
   assert.match(p, /chapter or topic shift/);
   assert.match(p, /anything you omit is LOST/i);
   assert.match(p, /Never compress two distinct ideas into one line/);
-  assert.match(p, /Output ONLY a JSON object/);
-  assert.match(p, /"notes"/);
+  assert.match(p, /PLAIN MARKDOWN/, 'notes come back as markdown — see the JSON-shape test below');
+});
+
+test('watcher: repairJsonControlChars fixes the raw-newline break that killed a 4-hour digest', () => {
+  // the exact shape observed live: a literal newline inside a JSON string
+  const broken = '{"lane":"reference","title":"T","body":"line one\nline two\ttabbed"}';
+  assert.throws(() => JSON.parse(broken), /control character/i, 'the failure is real');
+  const fixed = JSON.parse(repairJsonControlChars(broken));
+  assert.equal(fixed.body, 'line one\nline two\ttabbed', 'content survives the repair intact');
+  // must not corrupt already-valid JSON, including escaped sequences
+  const good = '{"a":"already \\n escaped","b":"quote \\" inside"}';
+  assert.deepEqual(JSON.parse(repairJsonControlChars(good)), JSON.parse(good));
+  // newlines BETWEEN fields are structural, not in-string — leave them
+  assert.deepEqual(JSON.parse(repairJsonControlChars('{\n"a":"b"\n}')), { a: 'b' });
+});
+
+test('watcher: stripPreamble drops model chatter and fences without eating the notes', () => {
+  assert.equal(stripPreamble('Apologies — that tool call was inapplicable here.\n\n## Heading\n- [0:02] point'),
+    '## Heading\n- [0:02] point', 'the live preamble case');
+  assert.equal(stripPreamble('```markdown\n## H\n- a\n```'), '## H\n- a', 'whole-output fence unwrapped');
+  assert.equal(stripPreamble('- [0:01] straight into bullets'), '- [0:01] straight into bullets', 'clean output untouched');
+  assert.equal(stripPreamble('just prose, no markers'), 'just prose, no markers', 'never returns nothing');
+});
+
+test('watcher: chunk-notes prompt demands plain markdown, not the JSON that broke', () => {
+  const p = buildChunkNotesPrompt({ title: 'Long Pod', part: 1, total: 4, chunkPath: '/tmp/c.txt' });
+  assert.match(p, /PLAIN MARKDOWN/);
+  assert.match(p, /No JSON/);
+  assert.doesNotMatch(p, /"notes"/, 'the JSON wrapper is gone — it was a parse failure waiting to happen');
 });
 
 test('watcher: judgment prompt in digest mode names the notes honestly, never calls them the transcript', () => {

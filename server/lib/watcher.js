@@ -192,7 +192,7 @@ Capture, each with its transcript timestamp (M:SS or H:MM:SS):
 ${question ? `- Anything bearing on Hayden's ask: "${question}".\n` : ''}
 Dense bullets, not prose — no verdicts yet, no filler, no padding. Length follows the content: a dense part of a deep podcast often needs 1000-2000 words of notes. Never compress two distinct ideas into one line.
 
-Output ONLY a JSON object: {"notes":"the notes in markdown"}. No code fences, no commentary.`;
+Output the notes as PLAIN MARKDOWN — start directly with the first heading or bullet. No JSON, no code fences, no preamble, no sign-off.`;
 }
 
 export function buildWatchPrompt({ url, title, uploader, duration, question, transcriptPath, transcriptSource, digest = false }) {
@@ -361,10 +361,13 @@ export async function digestTranscript(vaultPath, report, digestDir, question = 
       const i = next++;
       const chunkPath = path.join(digestDir, `chunk-${i + 1}.txt`);
       await writeFile(chunkPath, chunks[i], 'utf8');
-      const parsed = await runClaudeJson(vaultPath, buildChunkNotesPrompt({
+      // Plain markdown, not JSON: a 2000-word notes payload wrapped in a
+      // JSON string is one stray literal newline away from a parse failure,
+      // and the notes need no structure beyond themselves.
+      const raw = await runClaudeText(vaultPath, buildChunkNotesPrompt({
         title: report.title, part: i + 1, total: chunks.length, chunkPath, question,
       }), { allowedTools: 'Read', budget: CHUNK_BUDGET_USD, model: CHUNK_MODEL });
-      const text = String(parsed.notes || '').trim();
+      const text = stripPreamble(raw);
       if (!text) throw new Error(`extraction pass ${i + 1}/${chunks.length} returned no notes`);
       notes[i] = `## Part ${i + 1} of ${chunks.length}\n\n${text}`;
     }
@@ -381,8 +384,58 @@ async function runWatchModel(vaultPath, promptInputs) {
   return normalizeWatch(parsed);
 }
 
-// One spawn, one JSON object back — shared by the judgment and chunk passes.
-function runClaudeJson(vaultPath, prompt, { allowedTools, budget, model } = {}) {
+// A model asked for markdown sometimes opens with a line of chat ("Apologies,
+// that tool call was inapplicable…") — observed live. Drop leading non-note
+// lines, and unwrap a code fence if it wrapped the whole thing anyway.
+export function stripPreamble(text) {
+  let out = String(text || '').trim();
+  const fence = out.match(/^```(?:markdown|md)?\n([\s\S]*?)\n```$/);
+  if (fence) out = fence[1].trim();
+  const lines = out.split('\n');
+  let start = 0;
+  while (start < lines.length && !/^\s*(#{1,6}\s|[-*+]\s|\d+\.\s|\*\*|\[)/.test(lines[start])) start++;
+  // all prose and no markers: keep it whole rather than return nothing
+  return (start === lines.length ? out : lines.slice(start).join('\n')).trim();
+}
+
+// The model occasionally emits a RAW newline/tab inside a JSON string literal,
+// which is invalid JSON ("Bad control character in string literal") and killed
+// a whole 4-hour digest. Escape control characters that sit inside a string.
+export function repairJsonControlChars(text) {
+  let out = '';
+  let inString = false;
+  let escaped = false;
+  for (const ch of String(text)) {
+    if (escaped) { out += ch; escaped = false; continue; }
+    if (ch === '\\') { out += ch; escaped = inString; continue; }
+    if (ch === '"') { inString = !inString; out += ch; continue; }
+    if (inString && ch === '\n') { out += '\\n'; continue; }
+    if (inString && ch === '\r') { out += '\\r'; continue; }
+    if (inString && ch === '\t') { out += '\\t'; continue; }
+    out += ch;
+  }
+  return out;
+}
+
+// One spawn, raw result text back.
+function runClaudeText(vaultPath, prompt, opts = {}) {
+  return runClaude(vaultPath, prompt, opts);
+}
+
+// One spawn, one JSON object back — the judgment pass, which genuinely needs
+// typed fields (lane/title/verdict/body).
+async function runClaudeJson(vaultPath, prompt, opts = {}) {
+  const text = await runClaude(vaultPath, prompt, opts);
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in Watcher response');
+  try {
+    return JSON.parse(jsonMatch[0]);
+  } catch {
+    return JSON.parse(repairJsonControlChars(jsonMatch[0]));
+  }
+}
+
+function runClaude(vaultPath, prompt, { allowedTools, budget, model } = {}) {
   return new Promise((resolve, reject) => {
     const args = [
       '-p', prompt,
@@ -423,9 +476,8 @@ function runClaudeJson(vaultPath, prompt, { allowedTools, budget, model } = {}) 
           );
         }
         const text = (outer.result || '').trim();
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in Watcher response');
-        resolve(JSON.parse(jsonMatch[0]));
+        if (!text) throw new Error('the model returned an empty response');
+        resolve(text);
       } catch (e) {
         reject(e);
       }
