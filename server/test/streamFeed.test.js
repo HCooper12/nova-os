@@ -35,12 +35,14 @@ test('records and significant requests merge newest-first; polls and old-format 
     `req ${iso(10)} POST /api/ask ← 100.65.137.114 → 200 in 6100ms`,
     `req ${iso(8)} GET /api/snapshot ← 127.0.0.1 → 200 in 80ms`, // a poll — excluded
     `req ${iso(2)} POST /api/workouts/coach ← 100.65.137.114 → 200 in 45ms`,
+    `req ${iso(1)} POST /api/health-data ← 100.77.255.37 → 200 in 12ms`, // the real push path — regressed once as /api/health/data
     'req POST /api/ask ← 127.0.0.1 → 200 in 10ms', // pre-timestamp format — can’t join a timeline
   ].join('\n'), 'utf8');
 
   const feed = await streamFeed();
   const labels = feed.events.map((e) => e.label);
   assert.deepEqual(labels, [
+    'Health push landed',
     'Coach was asked',
     'Capture filed “Buy protein”',
     'Nova was asked',

@@ -24,7 +24,7 @@ const REQUEST_LABELS = [
   [/^POST \/api\/food-log\/scan/, 'Food scan started'],
   [/^POST \/api\/food-log\/describe/, 'Food described'],
   [/^POST \/api\/food-log/, 'Food logged'],
-  [/^POST \/api\/health\/data/, 'Health push landed'],
+  [/^POST \/api\/health-data/, 'Health push landed'],
   [/^POST \/api\/workouts\/sessions/, 'Workout session logged'],
   [/^POST \/api\/overnight\/run/, 'Overnight queue run started'],
   [/^POST \/api\/overnight/, 'Work queued for tonight'],
