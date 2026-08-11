@@ -318,8 +318,8 @@ async function runWatchJob(vaultPath, recordId, url, question) {
         confidence: 'high',
         title,
         reason: lane === 'coach'
-          ? "The Coach's read on the video — approving files a Source page + the transcript to Raw/."
-          : 'Video distilled — approving files a Source page + the transcript to Raw/.',
+          ? "The Coach's read. Worth keeping? APPROVE files a Source page + the transcript. Want every concept woven into your second brain? DEEP WEAVE runs the full analysis."
+          : 'Watched and weighed. Worth keeping? APPROVE files a Source page + the transcript. Want every concept woven into your second brain? DEEP WEAVE runs the full analysis.',
         payload: { title, body: note, url, lane, transcriptRef },
       },
     });

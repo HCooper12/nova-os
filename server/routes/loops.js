@@ -189,6 +189,16 @@ export function loopsRouter(vaultPath) {
     }
   });
 
+  // Manual Brain Week trigger — in-process for the same inbox-store reason.
+  router.post('/brain-week/run', async (req, res) => {
+    try {
+      const { runBrainWeek } = await import('../lib/brainWeek.js');
+      res.json(await runBrainWeek(vaultPath, { force: !!req.body?.force }));
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   router.get('/weekly-debrief', async (req, res) => {
     try {
       res.json(await getWeeklyDebriefStatus());

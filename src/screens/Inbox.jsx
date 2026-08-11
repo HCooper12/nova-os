@@ -95,6 +95,11 @@ export function Inbox({ v }) {
             base={{ cursor: 'pointer', font: `600 10.5px ${M}`, letterSpacing: '.1em', padding: '9px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent)', color: 'var(--nv-cy)', opacity: v.inboxConnected ? 1 : 0.4 }}
             hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' }}
           >▶ WATCH</Interactive>
+          <Interactive as="span" onClick={v.inboxConnected ? v.submitWatchAnalyse : undefined}
+            title="Paste a video link — the full second-brain weave: transcript fetched, every concept, person, and idea drafted into vault pages for one review"
+            base={{ cursor: 'pointer', font: `600 10.5px ${M}`, letterSpacing: '.1em', padding: '9px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-gold) 50%, transparent)', color: 'var(--nv-gold)', opacity: v.inboxConnected ? 1 : 0.4 }}
+            hoverStyle={{ background: 'color-mix(in srgb, var(--nv-gold) 08%, transparent)' }}
+          >▶▶ WATCH + ANALYSE</Interactive>
           <Interactive as="span" onClick={v.inboxConnected && !v.inboxCaptureBusy ? submit : undefined}
             base={{ cursor: 'pointer', font: `600 11px ${M}`, letterSpacing: '.14em', padding: '10px 22px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1206', opacity: v.inboxConnected && !v.inboxCaptureBusy ? 1 : 0.5 }}
             hoverStyle={{ filter: 'brightness(1.1)' }}
@@ -147,6 +152,13 @@ export function Inbox({ v }) {
                     base={{ cursor: 'pointer', font: `600 12.5px ${R}`, padding: '7px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent)', color: 'var(--nv-ink60)', opacity: item.busy ? 0.5 : 1 }}
                     hoverStyle={{ background: 'rgba(255,255,255,.05)' }}
                   >Discard</Interactive>
+                  {item.deepAnalyse && (
+                    <Interactive as="span" onClick={item.busy ? undefined : item.deepAnalyse}
+                      title="Run the full vault weave on this video — every concept, person, and idea into your second brain, shown as a diff to approve"
+                      base={{ cursor: 'pointer', font: `600 12.5px ${R}`, padding: '7px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent)', color: 'var(--nv-cy)', opacity: item.busy ? 0.5 : 1 }}
+                      hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' }}
+                    >Deep weave</Interactive>
+                  )}
                 </div>
               </div>
             ))}
@@ -398,6 +410,13 @@ export function Inbox({ v }) {
                       base={{ cursor: 'pointer', flex: 'none', font: `600 11px ${R}`, padding: '4px 12px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent)', color: 'var(--nv-ink60)', opacity: item.busy ? 0.5 : 1 }}
                       hoverStyle={{ borderColor: 'var(--nv-acc-border)', color: 'var(--nv-ink)' }}
                     >{item.busy ? '…' : 'Retry'}</Interactive>
+                  )}
+                  {item.deepAnalyse && item.status === 'filed' && (
+                    <Interactive as="span" onClick={item.busy ? undefined : item.deepAnalyse}
+                      title="Run the full vault weave on this video — every concept and idea into your second brain"
+                      base={{ cursor: 'pointer', flex: 'none', font: `600 11px ${R}`, padding: '4px 12px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent)', color: 'var(--nv-cy)', opacity: item.busy ? 0.5 : 1 }}
+                      hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' }}
+                    >Deep weave</Interactive>
                   )}
                   {item.canDiscard && (
                     <Interactive as="span" onClick={item.busy ? undefined : item.discard}

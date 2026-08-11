@@ -232,6 +232,8 @@ async function main() {
     .catch((e) => console.error('autonomy scheduler failed to start:', e.message));
   import('./lib/distill.js').then(({ startDistillScheduler }) => startDistillScheduler(process.env.VAULT_PATH))
     .catch((e) => console.error('distill scheduler failed to start:', e.message));
+  import('./lib/brainWeek.js').then(({ startBrainWeekScheduler }) => startBrainWeekScheduler(process.env.VAULT_PATH))
+    .catch((e) => console.error('brain week scheduler failed to start:', e.message));
   if (process.env.ICLOUD_USERNAME && process.env.ICLOUD_APP_PASSWORD) startCalendarWatch();
 
   app.use((err, req, res, next) => {

@@ -237,7 +237,7 @@ export function valsInbox(app, ctx) {
     kind: r.kind || null,
     text: r.text,
     time: timeLabel(r.createdAt),
-    source: r.kind === 'review' ? 'DAILY REVIEW' : r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.kind === 'guardian' ? 'GUARDIAN' : r.kind === 'cfo' || r.kind === 'money-import' ? 'CFO' : r.kind === 'meal-prep' ? 'MEAL PREP' : r.kind === 'food-suggestion' ? 'NUTRITION' : r.kind === 'calendar' ? 'SCHEDULE' : r.kind === 'training-check' ? 'TRAINING' : r.kind === 'week-plan' ? 'COMMANDER' : r.kind === 'plan-today' ? 'PLANNER' : r.kind === 'pattern' ? 'SCOUT' : r.kind === 'autonomy' ? 'TRUST LADDER' : r.kind === 'distill' ? 'DISTILLER' : r.kind === 'coach' || r.kind === 'weekly-debrief' ? 'COACH' : r.kind === 'research' ? 'RESEARCHER' : r.kind === 'video' ? 'WATCHER' : r.kind === 'followup' ? 'CALENDAR' : r.kind === 'studio' ? 'STUDIO' : r.source === 'voice' ? 'VOICE' : 'TYPED',
+    source: r.kind === 'review' ? 'DAILY REVIEW' : r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.kind === 'guardian' ? 'GUARDIAN' : r.kind === 'cfo' || r.kind === 'money-import' ? 'CFO' : r.kind === 'meal-prep' ? 'MEAL PREP' : r.kind === 'food-suggestion' ? 'NUTRITION' : r.kind === 'calendar' ? 'SCHEDULE' : r.kind === 'training-check' ? 'TRAINING' : r.kind === 'week-plan' ? 'COMMANDER' : r.kind === 'plan-today' ? 'PLANNER' : r.kind === 'pattern' ? 'SCOUT' : r.kind === 'autonomy' ? 'TRUST LADDER' : r.kind === 'distill' ? 'DISTILLER' : r.kind === 'coach' || r.kind === 'weekly-debrief' ? 'COACH' : r.kind === 'research' ? 'RESEARCHER' : r.kind === 'video' ? 'WATCHER' : r.kind === 'brain-week' ? 'BRAIN WEEK' : r.kind === 'followup' ? 'CALENDAR' : r.kind === 'studio' ? 'STUDIO' : r.source === 'voice' ? 'VOICE' : 'TYPED',
     status: r.status,
     route: r.decision ? (ROUTE_META[r.decision.route] || ROUTE_META.note) : null,
     confidence: r.decision?.confidence || null,
@@ -259,6 +259,11 @@ export function valsInbox(app, ctx) {
     discard: () => app.inboxAction(r.id, 'discard'),
     undo: () => app.inboxAction(r.id, 'undo'),
     retry: () => app.inboxAction(r.id, 'retry'),
+    // a watched video can always go deeper — the full concept weave, from
+    // the pending question or after it's filed
+    deepAnalyse: r.kind === 'video' && r.decision?.payload?.url && ['pending', 'filed'].includes(r.status)
+      ? () => app.startVideoDeepIngest(r.decision.payload.url)
+      : null,
   });
 
   const pendingItems = items.filter((r) => r.status === 'pending').map(mkItem);
@@ -420,6 +425,13 @@ export function valsInbox(app, ctx) {
       if (!/https?:\/\//.test(t)) { app.toastMsg('Paste the video link first (a question alongside it is welcome)'); return; }
       app.setState({ inboxInput: '' });
       app.startVideoWatch(t);
+    },
+    submitWatchAnalyse: () => {
+      const t = st.inboxInput.trim();
+      const url = (t.match(/https?:\/\/\S+/) || [])[0];
+      if (!url) { app.toastMsg('Paste the video link first'); return; }
+      app.setState({ inboxInput: '' });
+      app.startVideoDeepIngest(url);
     },
     inboxModes: MODE_LADDER.map((m, i) => ({
       ...m,

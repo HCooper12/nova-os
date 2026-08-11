@@ -2239,16 +2239,25 @@ export default class App extends Component {
     reader.readAsText(file);
   }
   submitIngest() {
-    const conn = getConnection();
     const text = this.state.ingestText.trim();
     const sourceUrl = this.state.ingestSourceUrl.trim();
-    if (!conn || (!text && !sourceUrl)) return;
+    if (!text && !sourceUrl) return;
+    this.beginIngestJob(text, sourceUrl);
+  }
+  // Watch & analyse: a video link straight into the deep vault weave — the
+  // same job Add-to-vault runs, minus the modal.
+  startVideoDeepIngest(url) {
+    this.beginIngestJob('', url);
+  }
+  beginIngestJob(text, sourceUrl) {
+    const conn = getConnection();
+    if (!conn) return;
     this.setState({ ingestModalOpen: false, ingestJobId: null, ingestStatus: 'staging', ingestPreview: null, ingestError: null });
-    api.startIngest(conn, text, sourceUrl || undefined).then(({ jobId }) => {
+    api.startIngest(conn, text || undefined, sourceUrl || undefined).then(({ jobId }) => {
       this.setState({ ingestJobId: jobId });
       this.startPoll('ingest', () => api.ingestJob(conn, jobId), {
         intervalMs: 3000,
-        timeoutMs: 15 * 60_000, // long transcripts can legitimately take a while
+        timeoutMs: 30 * 60_000, // a 4h video's digest + weave legitimately runs past 15m
         onReady: (job) => this.setState({ ingestStatus: 'ready', ingestPreview: { summary: job.summary, cost: job.cost, changes: job.changes } }),
         onError: (msg) => this.setState({ ingestStatus: 'error', ingestError: msg }),
         onProgress: (job) => this.setState({ ingestStatus: job.status }),

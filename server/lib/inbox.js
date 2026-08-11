@@ -986,7 +986,7 @@ export async function retryRecord(vaultPath, id) {
 // is a marked discard (expired: true) — visible in the stream as a receipt,
 // never a silent deletion — and only touches kinds whose worth is bound to
 // a moment. Real content (captures, research, coach receipts) never expires.
-const TIME_VALUE_HOURS = { dispatch: 48, review: 48, 'training-check': 48, 'week-plan': 8 * 24, 'plan-today': 24, 'weekly-debrief': 8 * 24, distill: 7 * 24 };
+const TIME_VALUE_HOURS = { dispatch: 48, review: 48, 'training-check': 48, 'week-plan': 8 * 24, 'plan-today': 24, 'weekly-debrief': 8 * 24, distill: 7 * 24, 'brain-week': 8 * 24 };
 export async function expireStaleDrafts() {
   const records = await listRecords();
   const now = Date.now();

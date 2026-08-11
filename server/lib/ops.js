@@ -31,6 +31,7 @@ const SCHEDULED = [
   { id: 'pattern-scout', label: 'Pattern Scout', role: 'repeated acts → skill proposals' },
   { id: 'autonomy', label: 'Trust Ladder', role: 'autonomy earned, proposed' },
   { id: 'distill', label: 'Distiller', role: 'captures woven into the graph' },
+  { id: 'brain-week', label: 'Brain Week', role: 'what entered the second brain' },
 ];
 
 // Self-knowledge for the conversation: when he asks "how do you work?",
@@ -88,6 +89,7 @@ export const AGENT_DEPARTMENTS = {
   'pattern-scout': ['Platform'],
   autonomy: ['Platform'],
   distill: ['Knowledge'],
+  'brain-week': ['Knowledge'],
 };
 
 // Which inbox-record kinds each SCHEDULED agent files — verified against the
@@ -113,6 +115,7 @@ export const AGENT_RECORD_KINDS = {
   'pattern-scout': ['pattern'],
   autonomy: ['autonomy'],
   distill: ['distill'],
+  'brain-week': ['brain-week'],
 };
 
 const RECEIPT_LIMIT = 5;
