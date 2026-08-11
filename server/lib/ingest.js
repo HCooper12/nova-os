@@ -66,13 +66,18 @@ export function diffTrees(originalDir, stagingDir) {
 // The header a fetched-video transcript carries into the ingest pass — the
 // metadata is the toolchain's, composed in code, so the model starts from
 // true facts about what it is reading. Pure: exported for the test.
-export function composeFetchedTranscript(report, sourceUrl) {
+// `body` overrides the transcript when a long video was condensed to notes
+// (the label says so honestly; the verbatim full transcript still lands in
+// Raw/ regardless, written by code below).
+export function composeFetchedTranscript(report, sourceUrl, body = null) {
   const head = [
     `${report.title || sourceUrl}${report.uploader ? ` — ${report.uploader}` : ''}${report.duration ? ` (${report.duration})` : ''}`,
     `Source: ${sourceUrl}`,
-    `Timestamped video transcript, via ${report.transcriptSource || 'captions'}:`,
+    body
+      ? `This video is long, so what follows is Nova's condensed timestamped notes over the full transcript (via ${report.transcriptSource || 'captions'}) — the verbatim transcript is stored separately in Raw/:`
+      : `Timestamped video transcript, via ${report.transcriptSource || 'captions'}:`,
   ].join('\n');
-  return `${head}\n\n${report.transcript}`;
+  return `${head}\n\n${body ?? report.transcript}`;
 }
 
 export function startIngest(vaultPath) {
@@ -87,15 +92,25 @@ export function startIngest(vaultPath) {
       // No pasted text + a link = fetch the transcript ourselves via the
       // Watcher's toolchain, then ingest exactly as if he had pasted it.
       let fetched = false;
+      let verbatimOverride = null;
       if ((!transcriptText || !transcriptText.trim()) && sourceUrl) {
         fetched = true;
         job.status = 'fetching';
-        const { fetchVideoTranscript } = await import('./watcher.js');
+        const { fetchVideoTranscript, digestTranscript, SINGLE_PASS_MAX_CHARS } = await import('./watcher.js');
         const report = await fetchVideoTranscript(sourceUrl, path.join(workDir, 'watch'));
         if (!report.transcript) {
           throw new Error('no transcript available — the video has no captions and Whisper could not transcribe it');
         }
-        transcriptText = composeFetchedTranscript(report, sourceUrl);
+        // A multi-hour transcript can't survive the single vault pass — the
+        // model gets condensed notes; Raw/ still gets the full verbatim text.
+        if (report.transcript.length > SINGLE_PASS_MAX_CHARS) {
+          job.status = 'digesting';
+          const notes = await digestTranscript(vaultPath, report, path.join(workDir, 'digest'));
+          transcriptText = composeFetchedTranscript(report, sourceUrl, notes);
+          verbatimOverride = composeFetchedTranscript(report, sourceUrl);
+        } else {
+          transcriptText = composeFetchedTranscript(report, sourceUrl);
+        }
         job.status = 'staging';
       }
       await stageVault(vaultPath, stagingVault);
@@ -110,7 +125,7 @@ export function startIngest(vaultPath) {
       const verbatimRelPath = path.join('Raw', verbatimName);
       await writeFile(
         path.join(stagingVault, verbatimRelPath),
-        `${fetched ? "Verbatim video transcript fetched by Nova's Watcher from the link Hayden submitted" : 'Verbatim original text pasted by Hayden via Nova OS'}, received ${new Date().toISOString().slice(0, 10)}.${sourceUrl ? `\nSource URL: ${sourceUrl}` : ''}\n\n---\n\n${transcriptText}`,
+        `${fetched ? "Verbatim video transcript fetched by Nova's Watcher from the link Hayden submitted" : 'Verbatim original text pasted by Hayden via Nova OS'}, received ${new Date().toISOString().slice(0, 10)}.${sourceUrl ? `\nSource URL: ${sourceUrl}` : ''}\n\n---\n\n${verbatimOverride ?? transcriptText}`,
         'utf8'
       );
       job.status = 'running';

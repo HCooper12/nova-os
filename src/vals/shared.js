@@ -17,6 +17,7 @@ export const AGENTS = [
   { name: 'CFO', role: 'MONEY', on: true },
   { name: 'Studio', role: 'CONTENT', on: true },
   { name: 'Researcher', role: 'WEB', on: true },
+  { name: 'Watcher', role: 'VIDEO', on: true },
   { name: 'Guardian', role: 'BACKUPS', on: true },
 ];
 

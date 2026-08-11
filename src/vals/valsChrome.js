@@ -221,10 +221,12 @@ export function valsChrome(app, ctx) {
       mkNav('Settings', 'XV.', 'settings'),
     ],
     agentsGroupLabel: `AGENTS · ${agentsLiveCount} OF ${AGENTS.length} LIVE`,
-    // Honest lights: a dot PULSES only while its agent is actually working
-    // (an in-flight job this client started), stays LIT for five minutes
-    // after one of its receipts lands on the rails, and otherwise sits dim.
-    // A light that glows constantly says nothing — lights are receipts.
+    // Honest lights: a dot PULSES only while its agent is actually working —
+    // an in-flight job this client started, OR a classifying record on the
+    // rails (so server-side work pulses on every device, not just the one
+    // that asked). It stays LIT for five minutes after one of its receipts
+    // lands, and otherwise sits dim. A light that glows constantly says
+    // nothing — lights are receipts.
     agents: (() => {
       const KINDS = {
         Commander: ['dispatch', 'plan-today', 'review', 'followup'],
@@ -232,6 +234,7 @@ export function valsChrome(app, ctx) {
         CFO: ['cfo', 'money'],
         Studio: ['studio', 'idea', 'idea-outline'],
         Researcher: ['research'],
+        Watcher: ['video'],
         Guardian: ['guardian'],
       };
       const WORKING = {
@@ -240,8 +243,16 @@ export function valsChrome(app, ctx) {
         CFO: !!(st.moneyBusy || st.moneyScanBusy),
         Studio: false,
         Researcher: (st.voiceChat || []).some((m) => m.research?.status === 'running'),
+        // 'fetching' is the watch toolchain pulling a transcript for a
+        // URL-only vault weave; the weave itself shows in its own overlay
+        Watcher: st.ingestStatus === 'fetching',
         Guardian: !!st.guardianBusy,
       };
+      // The rails are the truth: any record still classifying means its
+      // agent is reasoning RIGHT NOW, whoever started it.
+      const activeKinds = new Set(
+        (st.liveInbox?.items || []).filter((r) => r.status === 'classifying').map((r) => r.kind),
+      );
       const cutoff = Date.now() - 5 * 60_000;
       const recent = new Set();
       for (const r of st.liveInbox?.items || []) {
@@ -250,9 +261,14 @@ export function valsChrome(app, ctx) {
       }
       const dot = { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', flex: 'none' };
       return AGENTS.map((a, i) => {
-        const working = WORKING[a.name] || false;
+        const working = WORKING[a.name] || (KINDS[a.name] || []).some((k) => activeKinds.has(k));
+        // hover on a pulsing dot names the actual job — detail without pixels
+        const activeRec = working
+          ? (st.liveInbox?.items || []).find((r) => r.status === 'classifying' && (KINDS[a.name] || []).includes(r.kind))
+          : null;
         return {
           name: a.name, role: a.role, on: a.on, working,
+          hint: activeRec ? `working: ${activeRec.text?.slice(0, 120) || activeRec.kind}` : working ? 'working…' : undefined,
           dotStyle: working
             ? { ...dot, background: 'var(--nv-cy)', boxShadow: '0 0 9px var(--nv-cy)', animation: `novaPulse ${1.1 + i * 0.1}s infinite var(--nv-anim)` }
             : recent.has(a.name)

@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { readdirSync, existsSync } from 'node:fs';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -19,8 +19,17 @@ import { NOVA_LENS } from './lens.js';
 // storing third-party transcripts wholesale).
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const MAX_BUDGET_USD = '1.0';
+const MAX_BUDGET_USD = '1.5';
 const WATCH_TIMEOUT_MS = 6 * 60_000; // yt-dlp caption fetch, occasionally audio+whisper
+
+// A transcript longer than this cannot survive one model pass (his first
+// real video was a 4-hour podcast: 575k chars — past both the context
+// window and any sane single-pass budget). Longer transcripts go through
+// the digest stage: chunked extraction passes, then one judgment pass over
+// the condensed notes.
+export const SINGLE_PASS_MAX_CHARS = 150_000;
+const CHUNK_BUDGET_USD = '0.5';
+const CHUNK_CONCURRENCY = 3;
 
 // Everything except vault reads and the web-read tools. Edit/Write matter most.
 const WATCH_DISALLOWED = [
@@ -132,10 +141,41 @@ export function fetchVideoTranscript(url, workDir) {
   });
 }
 
-export function buildWatchPrompt({ url, title, uploader, duration, question, transcriptPath, transcriptSource }) {
+// Split on line boundaries so no caption segment is cut mid-sentence.
+export function chunkTranscript(transcript, chunkChars = SINGLE_PASS_MAX_CHARS) {
+  if (transcript.length <= chunkChars) return [transcript];
+  const chunks = [];
+  let cur = [];
+  let len = 0;
+  for (const line of transcript.split('\n')) {
+    if (len + line.length + 1 > chunkChars && cur.length) {
+      chunks.push(cur.join('\n'));
+      cur = [];
+      len = 0;
+    }
+    cur.push(line);
+    len += line.length + 1;
+  }
+  if (cur.length) chunks.push(cur.join('\n'));
+  return chunks;
+}
+
+export function buildChunkNotesPrompt({ title, part, total, chunkPath, question }) {
   return `${NOVA_LENS}
 
-You are Nova's Watcher. Hayden submitted a video; its full timestamped transcript has been extracted locally. Your job is to watch it FOR him — read the transcript, weigh it, and draft the one note worth keeping.
+You are Nova's Watcher doing an extraction pass over part ${part} of ${total} of a long video transcript ("${title || 'untitled'}"). Read the transcript chunk at ${chunkPath} in full, then produce dense notes a later judgment pass will rely on:
+- Every substantive claim or idea, each with its transcript timestamp (M:SS or H:MM:SS).
+- People, books, studies, and works referenced.
+- Anything relevant to Hayden's ask${question ? ` ("${question}")` : ''}.
+Notes, not prose — no verdicts yet, no filler. ~300-600 words.
+
+Output ONLY a JSON object: {"notes":"the notes in markdown"}. No code fences, no commentary.`;
+}
+
+export function buildWatchPrompt({ url, title, uploader, duration, question, transcriptPath, transcriptSource, digest = false }) {
+  return `${NOVA_LENS}
+
+You are Nova's Watcher. Hayden submitted a video; ${digest ? 'it is LONG, so its full timestamped transcript was extracted locally and condensed by your own chunked extraction passes into the notes file below' : 'its full timestamped transcript has been extracted locally'}. Your job is to watch it FOR him — read ${digest ? 'the notes' : 'the transcript'}, weigh it, and draft the one note worth keeping.
 
 The video:
 - URL: ${url}
@@ -143,7 +183,7 @@ The video:
 - Uploader: ${uploader || '(unknown)'}
 - Duration: ${duration || '(unknown)'}
 - Transcript source: ${transcriptSource || 'captions'}
-- Transcript file (Read this FIRST, in full): ${transcriptPath}
+- ${digest ? 'Condensed notes file (Read this FIRST, in full — timestamps in it are from the real transcript)' : 'Transcript file (Read this FIRST, in full)'}: ${transcriptPath}
 ${question ? `\nHayden's specific ask: ${question}\n` : ''}
 First decide what this video is, then take the matching lane:
 
@@ -236,11 +276,19 @@ async function runWatchJob(vaultPath, recordId, url, question) {
     if (!report.transcript) {
       throw new Error('no transcript available — the video has no captions and no Whisper key is configured (~/.config/watch/.env)');
     }
-    const transcriptPath = path.join(workDir, 'transcript.txt');
-    await writeFile(transcriptPath, report.transcript, 'utf8');
+    // Long transcript → condense first; the judgment pass reads the notes.
+    const digest = report.transcript.length > SINGLE_PASS_MAX_CHARS;
+    let transcriptPath = path.join(workDir, 'transcript.txt');
+    if (digest) {
+      const notes = await digestTranscript(vaultPath, report, path.join(workDir, 'digest'), question);
+      transcriptPath = path.join(workDir, 'notes.md');
+      await writeFile(transcriptPath, notes, 'utf8');
+    } else {
+      await writeFile(transcriptPath, report.transcript, 'utf8');
+    }
 
     const { lane, title, verdict, body } = await runWatchModel(vaultPath, {
-      url, question, transcriptPath,
+      url, question, transcriptPath, digest,
       title: report.title, uploader: report.uploader,
       duration: report.duration, transcriptSource: report.transcriptSource,
     });
@@ -269,18 +317,54 @@ async function runWatchJob(vaultPath, recordId, url, question) {
   }
 }
 
-function runWatchModel(vaultPath, promptInputs) {
+// The chunked extraction stage: split, write chunk files, run a bounded
+// number of cheap passes concurrently, join their notes with part headers.
+// Exported for the ingest pipeline, which has the same long-video problem.
+export async function digestTranscript(vaultPath, report, digestDir, question = '') {
+  await mkdir(digestDir, { recursive: true });
+  const chunks = chunkTranscript(report.transcript);
+  const notes = new Array(chunks.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < chunks.length) {
+      const i = next++;
+      const chunkPath = path.join(digestDir, `chunk-${i + 1}.txt`);
+      await writeFile(chunkPath, chunks[i], 'utf8');
+      const parsed = await runClaudeJson(vaultPath, buildChunkNotesPrompt({
+        title: report.title, part: i + 1, total: chunks.length, chunkPath, question,
+      }), { allowedTools: 'Read', budget: CHUNK_BUDGET_USD, model: 'haiku' });
+      const text = String(parsed.notes || '').trim();
+      if (!text) throw new Error(`extraction pass ${i + 1}/${chunks.length} returned no notes`);
+      notes[i] = `## Part ${i + 1} of ${chunks.length}\n\n${text}`;
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(CHUNK_CONCURRENCY, chunks.length) }, worker));
+  return notes.join('\n\n');
+}
+
+async function runWatchModel(vaultPath, promptInputs) {
+  const parsed = await runClaudeJson(vaultPath, buildWatchPrompt(promptInputs), {
+    allowedTools: 'Read Grep Glob WebSearch WebFetch',
+    budget: MAX_BUDGET_USD,
+  });
+  return normalizeWatch(parsed);
+}
+
+// One spawn, one JSON object back — shared by the judgment and chunk passes.
+function runClaudeJson(vaultPath, prompt, { allowedTools, budget, model } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(CLAUDE_BIN, [
-      '-p', buildWatchPrompt(promptInputs),
+    const args = [
+      '-p', prompt,
       '--permission-mode', 'bypassPermissions',
-      '--allowedTools', 'Read Grep Glob WebSearch WebFetch',
+      '--allowedTools', allowedTools || 'Read',
       '--disallowedTools', WATCH_DISALLOWED,
       '--strict-mcp-config', // MCP servers can't auth under launchd — drop them
       '--output-format', 'json',
-      '--max-budget-usd', MAX_BUDGET_USD,
+      '--max-budget-usd', budget || MAX_BUDGET_USD,
       '--session-id', randomUUID(),
-    ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
+    ];
+    if (model) args.push('--model', model);
+    const child = spawn(CLAUDE_BIN, args, { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
 
     let stdout = '';
     let stderr = '';
@@ -289,12 +373,19 @@ function runWatchModel(vaultPath, promptInputs) {
     child.on('error', reject);
     child.on('close', (code) => {
       try {
-        const outer = JSON.parse(stdout);
-        if (outer.is_error || code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
+        let outer;
+        try {
+          outer = JSON.parse(stdout);
+        } catch {
+          throw new Error(`claude returned no JSON (exit ${code}): ${(stderr || stdout).trim().slice(0, 300) || 'no output'}`);
+        }
+        if (outer.is_error || code !== 0) {
+          throw new Error(outer.result || stderr.trim() || `claude exited with code ${code} with no error text (likely budget or context exhausted)`);
+        }
         const text = (outer.result || '').trim();
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in Watcher response');
-        resolve(normalizeWatch(JSON.parse(jsonMatch[0])));
+        resolve(JSON.parse(jsonMatch[0]));
       } catch (e) {
         reject(e);
       }

@@ -61,7 +61,7 @@ export function Sidebar({ v }) {
         <div style={groupLabel}>{v.agentsGroupLabel}</div>
         <div style={css("display:flex;flex-direction:column;padding:0 4px")}>
           {v.agents.map((ag) => (
-            <div key={ag.name} style={{ display: 'flex', gap: '9px', alignItems: 'center', padding: '5.5px 6px', font: `600 13px ${R}`, color: ag.on ? 'var(--nv-ink)' : 'var(--nv-ink40)' }}>
+            <div key={ag.name} title={ag.hint} style={{ display: 'flex', gap: '9px', alignItems: 'center', padding: '5.5px 6px', font: `600 13px ${R}`, color: ag.on ? 'var(--nv-ink)' : 'var(--nv-ink40)' }}>
               <span>{ag.name}</span>
               <span style={{ marginLeft: 'auto', font: `400 7.5px ${M}`, letterSpacing: '.1em', color: 'var(--nv-ink40)' }}>{ag.role}</span>
               <span style={ag.dotStyle}></span>

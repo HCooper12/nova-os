@@ -22,3 +22,11 @@ test('composeFetchedTranscript: missing metadata degrades to the URL, never to b
   assert.doesNotMatch(text, /undefined|null/);
   assert.match(text, /via captions/, 'unknown transcript source falls back honestly');
 });
+
+test('composeFetchedTranscript: a digest body is labeled as notes, never passed off as the transcript', () => {
+  const text = composeFetchedTranscript({ transcript: 'full '.repeat(10), duration: '4:08:55' }, 'https://youtu.be/x', '## Part 1 of 4\nnotes');
+  assert.match(text, /condensed timestamped notes/);
+  assert.match(text, /verbatim transcript is stored separately/);
+  assert.match(text, /## Part 1 of 4/);
+  assert.doesNotMatch(text, /full full/, 'digest body replaces the raw transcript');
+});

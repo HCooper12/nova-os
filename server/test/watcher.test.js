@@ -15,6 +15,7 @@ import assert from 'node:assert/strict';
 const {
   parseWatchReport, extractVideoUrl, parseWatchDirective,
   normalizeWatch, composeWatchNote, buildWatchPrompt, resolveWatchScript,
+  chunkTranscript, buildChunkNotesPrompt, SINGLE_PASS_MAX_CHARS,
 } = await import('../lib/watcher.js');
 
 test.after(async () => { await rm(dataDir, { recursive: true, force: true }); });
@@ -131,6 +132,39 @@ test('watcher: prompt contract — lens, both lanes, transcript file, JSON shape
   assert.match(p, /the words, not the pictures/, 'transcript-only limitation is named');
   assert.match(p, /Output ONLY a JSON object/);
   assert.match(p, /"lane":"coach"\|"reference"/);
+});
+
+test('watcher: chunkTranscript splits on line boundaries, loses nothing, respects the single-pass cap', () => {
+  const line = `[00:0${1}] ${'x'.repeat(90)}`;
+  const transcript = Array.from({ length: 50 }, () => line).join('\n');
+  const chunks = chunkTranscript(transcript, 1000);
+  assert.ok(chunks.length > 1, 'long input actually splits');
+  assert.ok(chunks.every((c) => c.length <= 1000), 'every chunk under the cap');
+  assert.equal(chunks.join('\n'), transcript, 'reassembly is lossless');
+  assert.deepEqual(chunkTranscript('short', 1000), ['short'], 'short input passes through whole');
+  // his real failure case: 575k chars must produce multiple chunks at the default cap
+  assert.ok(chunkTranscript('a\n'.repeat(290_000)).length > 1);
+  assert.ok(SINGLE_PASS_MAX_CHARS < 200_000, 'cap stays well under the context window');
+});
+
+test('watcher: chunk-notes prompt contract — part labels, timestamps demanded, JSON shape', () => {
+  const p = buildChunkNotesPrompt({ title: 'Long Pod', part: 2, total: 4, chunkPath: '/tmp/d/chunk-2.txt', question: 'anything on sleep?' });
+  assert.match(p, /part 2 of 4/);
+  assert.match(p, /\/tmp\/d\/chunk-2\.txt/);
+  assert.match(p, /timestamp/);
+  assert.match(p, /anything on sleep\?/);
+  assert.match(p, /Output ONLY a JSON object/);
+  assert.match(p, /"notes"/);
+});
+
+test('watcher: judgment prompt in digest mode names the notes honestly, never calls them the transcript', () => {
+  const p = buildWatchPrompt({
+    url: 'https://youtu.be/a', title: 'Long Pod', duration: '4:08:55',
+    transcriptPath: '/tmp/x/notes.md', transcriptSource: 'captions', digest: true,
+  });
+  assert.match(p, /condensed/i);
+  assert.match(p, /notes\.md/);
+  assert.doesNotMatch(p, /Transcript file \(Read this FIRST/, 'digest mode must not claim a full transcript');
 });
 
 test('watcher: resolveWatchScript honors NOVA_WATCH_DIR and fails honestly when empty', async () => {
