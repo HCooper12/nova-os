@@ -606,6 +606,53 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  // watch-note — the Watcher's filing, in the vault's own source convention:
+  // a Wiki/Sources page (type: source, so the Notes source filter finds it)
+  // plus the verbatim transcript in Raw/, linked from the frontmatter the
+  // same way his hand-ingested podcasts are. The transcript was persisted by
+  // the watch job under server/data/watch/; a missing file degrades honestly
+  // to the source page alone.
+  if (route === 'watch-note') {
+    const base = sanitizeFilename(payload.title);
+    const suffix = existsSync(path.join(vaultPath, `Wiki/Sources/${base}.md`)) ? ` ${Date.now() % 10000}` : '';
+    const srcRel = `Wiki/Sources/${base}${suffix}.md`;
+    const files = [];
+
+    let transcript = null;
+    if (payload.transcriptRef) {
+      const dataRoot = process.env.NOVA_DATA_DIR || path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'data');
+      transcript = await readFile(path.join(dataRoot, 'watch', payload.transcriptRef), 'utf8').catch(() => null);
+    }
+    const rawBase = `${base}${suffix} (Transcript)`;
+    const rawRel = transcript ? `Raw/${rawBase}.md` : null;
+
+    const front = {
+      type: 'source',
+      ...(rawRel ? { raw: `[[Raw/${rawBase}]]` } : {}),
+      ...(payload.url ? { url: payload.url } : {}),
+      tags: ['video', ...(payload.lane === 'coach' ? ['training'] : [])],
+      created: date,
+      updated: date,
+    };
+    const srcContent = matter.stringify(`# ${payload.title}\n\n${payload.body}\n`, front);
+    const srcFull = path.join(vaultPath, srcRel);
+    await mkdir(path.dirname(srcFull), { recursive: true });
+    await writeFile(srcFull, srcContent, 'utf8');
+    files.push({ relPath: srcRel, hash: createHash('sha256').update(srcContent).digest('hex') });
+
+    if (rawRel) {
+      const rawContent = `Verbatim video transcript fetched by Nova's Watcher, received ${date}.\nSource URL: ${payload.url || '(unknown)'}\nSource page: [[${base}${suffix}]]\n\n---\n\n${transcript}`;
+      const rawFull = path.join(vaultPath, rawRel);
+      await mkdir(path.dirname(rawFull), { recursive: true });
+      await writeFile(rawFull, rawContent, 'utf8');
+      files.push({ relPath: rawRel, hash: createHash('sha256').update(rawContent).digest('hex') });
+    }
+    return {
+      destination: `Source — ${payload.title}${rawRel ? ' (+ transcript in Raw/)' : ' (transcript unavailable)'}`,
+      undo: { route: 'watch-note', files },
+    };
+  }
+
   // note
   const base = sanitizeFilename(payload.title);
   let relPath = `${INBOX_DIR_REL}/${base}.md`;
@@ -816,6 +863,22 @@ export async function undoFiling(vaultPath, undo) {
     await backupFile(full);
     await unlink(full);
     return 'deleted the captured note';
+  }
+  if (undo.route === 'watch-note') {
+    // Drift check EVERY file before touching ANY — a half-undone pair would
+    // leave a source page pointing at a deleted transcript or vice versa.
+    for (const f of undo.files) {
+      const full = path.join(vaultPath, f.relPath);
+      if (!existsSync(full)) throw new Error(`${f.relPath} no longer exists`);
+      const hash = createHash('sha256').update(await readFile(full, 'utf8')).digest('hex');
+      if (hash !== f.hash) throw new Error(`${f.relPath} has been edited since filing — delete it in Obsidian if you still want it gone`);
+    }
+    for (const f of undo.files) {
+      const full = path.join(vaultPath, f.relPath);
+      await backupFile(full);
+      await unlink(full);
+    }
+    return `deleted the source page${undo.files.length > 1 ? ' and its transcript' : ''}`;
   }
   if (undo.route === 'note-move') {
     // compost archive → move the note back where it was

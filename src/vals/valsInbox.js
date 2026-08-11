@@ -26,6 +26,8 @@ const ROUTE_META = {
   'agent-mode': { label: 'TRUST LADDER', hue: '89,230,255' },
   profile: { label: 'ABOUT YOU', hue: '143,123,255' },
   'distill-apply': { label: 'DISTILL', hue: '95,232,168' },
+  // approving writes TWO files — the badge says so
+  'watch-note': { label: 'SOURCE + TRANSCRIPT', hue: '224,178,106' },
 };
 
 const MODE_LADDER = [

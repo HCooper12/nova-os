@@ -296,18 +296,24 @@ async function runWatchJob(vaultPath, recordId, url, question) {
       url, title: report.title, uploader: report.uploader, duration: report.duration,
       transcriptSource: report.transcriptSource, verdict, body,
     });
+    // Persist the transcript so approval can file it into Raw/ alongside the
+    // source page — the vault filing must not depend on this tmp workDir.
+    const dataRoot = process.env.NOVA_DATA_DIR || path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'data');
+    await mkdir(path.join(dataRoot, 'watch'), { recursive: true });
+    const transcriptRef = `${recordId}.txt`;
+    await writeFile(path.join(dataRoot, 'watch', transcriptRef), report.transcript, 'utf8');
     // ALWAYS pending — external content never files itself
     await updateRecord(recordId, {
       status: 'pending',
       lane,
       decision: {
-        route: 'note',
+        route: 'watch-note',
         confidence: 'high',
         title,
         reason: lane === 'coach'
-          ? "The Coach's read on the video — review the verdict before it enters the vault."
-          : 'Video distilled — review before it enters the vault.',
-        payload: { title, body: note },
+          ? "The Coach's read on the video — approving files a Source page + the transcript to Raw/."
+          : 'Video distilled — approving files a Source page + the transcript to Raw/.',
+        payload: { title, body: note, url, lane, transcriptRef },
       },
     });
   } catch (e) {

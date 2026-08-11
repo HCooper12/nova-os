@@ -2,7 +2,7 @@
 // imports. Model spawns and the watch toolchain are never exercised here:
 // the report parser, URL extraction, directive parsing, normalization, and
 // prompt contract are all pure and tested as such.
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -165,6 +165,49 @@ test('watcher: judgment prompt in digest mode names the notes honestly, never ca
   assert.match(p, /condensed/i);
   assert.match(p, /notes\.md/);
   assert.doesNotMatch(p, /Transcript file \(Read this FIRST/, 'digest mode must not claim a full transcript');
+});
+
+test('watch-note filing: Source page + Raw transcript in his convention, undo removes both, drift refuses', async () => {
+  const { fileDecision, undoFiling } = await import('../lib/inbox.js');
+  const vault = await mkdtemp(path.join(tmpdir(), 'nova-watcher-vault-'));
+  try {
+    await mkdir(path.join(dataDir, 'watch'), { recursive: true });
+    await writeFile(path.join(dataDir, 'watch', 'ttttt.txt'), '[00:01] hello world', 'utf8');
+    const decision = {
+      route: 'watch-note', confidence: 'high', title: 'Great Pod',
+      payload: { title: 'Great Pod', body: 'The note.', url: 'https://youtu.be/a', lane: 'coach', transcriptRef: 'ttttt.txt' },
+    };
+    const { destination, undo } = await fileDecision(vault, decision);
+    assert.match(destination, /Source — Great Pod \(\+ transcript in Raw\/\)/);
+    const src = await readFile(path.join(vault, 'Wiki/Sources/Great Pod.md'), 'utf8');
+    assert.match(src, /type: source/);
+    assert.match(src, /raw: ['"]\[\[Raw\/Great Pod \(Transcript\)\]\]['"]/);
+    assert.match(src, /url: ['"]?https:\/\/youtu\.be\/a['"]?/);
+    assert.match(src, /- training/, 'coach lane carries the training tag');
+    const raw = await readFile(path.join(vault, 'Raw/Great Pod (Transcript).md'), 'utf8');
+    assert.match(raw, /\[00:01\] hello world/);
+    assert.match(raw, /Source page: \[\[Great Pod\]\]/);
+
+    // edit the transcript, then undo → must refuse and touch NOTHING
+    await writeFile(path.join(vault, 'Raw/Great Pod (Transcript).md'), raw + 'his edit', 'utf8');
+    await assert.rejects(() => undoFiling(vault, undo), /edited since filing/);
+    assert.ok((await readFile(path.join(vault, 'Wiki/Sources/Great Pod.md'), 'utf8')).length, 'source page untouched after refused undo');
+
+    // restore, undo cleanly → both gone
+    await writeFile(path.join(vault, 'Raw/Great Pod (Transcript).md'), raw, 'utf8');
+    const summary = await undoFiling(vault, undo);
+    assert.match(summary, /source page and its transcript/);
+    const { existsSync } = await import('node:fs');
+    assert.ok(!existsSync(path.join(vault, 'Wiki/Sources/Great Pod.md')));
+    assert.ok(!existsSync(path.join(vault, 'Raw/Great Pod (Transcript).md')));
+
+    // missing transcript file → source page alone, said honestly
+    const bare = await fileDecision(vault, { ...decision, payload: { ...decision.payload, transcriptRef: 'gone.txt' } });
+    assert.match(bare.destination, /transcript unavailable/);
+    assert.equal(bare.undo.files.length, 1);
+  } finally {
+    await rm(vault, { recursive: true, force: true });
+  }
 });
 
 test('watcher: resolveWatchScript honors NOVA_WATCH_DIR and fails honestly when empty', async () => {
