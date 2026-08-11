@@ -238,7 +238,7 @@ export default class App extends Component {
     inboxMode: (typeof window !== 'undefined' && INBOX_MODES.includes(localStorage.getItem(INBOX_MODE_KEY))) ? localStorage.getItem(INBOX_MODE_KEY) : 'auto-high',
     inboxProposalDismissed: (() => { try { const a = JSON.parse(localStorage.getItem('novaos.proposalsDismissed') || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } })(),
     liveDispatch: null, liveCompost: null, liveTodoist: null, liveTodos: null, liveGuardian: null, liveDailyReview: null, liveOps: null,
-    liveOvernight: null, overnightInput: '', liveSkills: null, livePulse: null, opsOpenAgentId: null, liveOpsStream: null,
+    liveOvernight: null, overnightInput: '', liveSkills: null, livePulse: null, opsOpenAgentId: null, liveOpsStream: null, greetBanner: null,
     dispatchBusy: false, compostBusy: false, compostActionBusy: {}, todoistBusy: false, guardianBusy: false, reviewBusy: false,
     todoInput: '', todoActionBusy: false, todoEditCategoryKey: null,
     editingSessionId: null, sessionDeleteConfirmId: null,
@@ -514,7 +514,7 @@ export default class App extends Component {
       if (changed && this.mainRef?.current) this.mainRef.current.scrollTop = 0;
     });
     if (changed) { this.withTransition(apply); this.noteScreenVisit(screen); } else apply();
-    if (changed && screen === 'voice') this.maybeVoiceGreet();
+    if (changed && screen === 'voice') this.maybeGreet('voice');
     const want = '#/' + screen;
     // pushState (not location.hash=) so this doesn't also fire hashchange and
     // double-set state; popstate covers the back button.
@@ -1034,6 +1034,10 @@ export default class App extends Component {
           for (const key of CACHED_LIVE_KEYS) slices[key] = this.state[key];
           saveLiveCache(slices);
           this.drainOutbox(); // the backend is answering — flush queued writes
+          // the doorman meets him at whatever door he came in — the due
+          // check (once a day / 3h gap) keeps this from re-greeting on the
+          // routine syncs that also land here
+          this.maybeGreet('arrive');
           // a session draft on the server must survive even a localStorage
           // wipe + an offline boot: re-check once per page load on the first
           // successful sync (the boot check fails silently at the gym)
@@ -3348,13 +3352,17 @@ export default class App extends Component {
   // screen — first arrival of the day gets the time of day, a return after
   // a real gap gets "Welcome back." Code speaks it instantly (no model, no
   // latency); the prompt's register keeps the address going from there.
-  maybeVoiceGreet() {
+  maybeGreet(origin = 'arrive') {
     // WHEN a greeting is due stays deterministic (first arrival of the day,
     // or a return after 3+ quiet hours). The WORDS are generated fresh every
     // time from real receipts — Hayden's rule: nothing Nova says is
     // templated. If the model can't be reached, Nova stays quiet; a canned
     // fallback line would be exactly the thing this replaced.
+    // The doorman greets at ANY door: on the Voice screen it streams into
+    // the transcript; anywhere else it arrives as a HUD banner (and still
+    // lands in the transcript for when he opens Voice).
     if (this.state.demoMode || !getConnection() || this.state.connectionStatus === 'offline') return;
+    if (this.greetInFlight) return;
     const now = Date.now();
     const today = new Date().toDateString();
     let last = {};
@@ -3363,19 +3371,34 @@ export default class App extends Component {
       : (last.at && now - last.at > 3 * 3600e3) ? 'return' : null;
     if (!gap) return;
     try { localStorage.setItem('novaos.voiceGreet', JSON.stringify({ date: today, at: now })); } catch { /* best-effort */ }
+    this.greetInFlight = true;
     const conn = getConnection();
     api.greet(conn, gap).then(({ jobId }) => {
       this.startPoll('greet', () => api.claudeCodeJob(conn, jobId), {
         timeoutMs: 45_000,
         intervalMs: 700,
-        onProgress: (job) => { if (job.partial) this.applyStreamPartial('voiceChat', 'nova', job.partial); },
-        onReady: (job) => {
-          this.finalizeStream('voiceChat', { who: 'nova', text: job.result.text });
-          if (this.state.voiceSpeak) { this.primeSpeech(); this.speak(job.result.text); }
+        onProgress: (job) => {
+          if (job.partial && this.state.screen === 'voice') this.applyStreamPartial('voiceChat', 'nova', job.partial);
         },
-        onError: () => this.setState((s) => ({ voiceChat: s.voiceChat.filter((m) => !m.streaming) })),
+        onReady: (job) => {
+          this.greetInFlight = false;
+          const text = job.result.text;
+          this.finalizeStream('voiceChat', { who: 'nova', text });
+          if (this.state.screen !== 'voice') {
+            clearTimeout(this.greetT);
+            this.setState({ greetBanner: { text } });
+            this.greetT = setTimeout(() => this.setState({ greetBanner: null }), 30_000);
+          }
+          // best-effort speech: browsers may block un-gestured audio; the
+          // banner and transcript carry the words either way
+          if (this.state.voiceSpeak) { if (origin === 'voice') this.primeSpeech(); this.speak(text); }
+        },
+        onError: () => {
+          this.greetInFlight = false;
+          this.setState((s) => ({ voiceChat: s.voiceChat.filter((m) => !m.streaming) }));
+        },
       });
-    }).catch(() => { /* quiet — never a scripted stand-in */ });
+    }).catch(() => { this.greetInFlight = false; /* quiet — never a scripted stand-in */ });
   }
   // Rituals — tapped invitations, never interruptions. The transcript shows
   // a clean label; the structured instruction is composed server-side.
@@ -3725,6 +3748,24 @@ export default class App extends Component {
         )}
         {v.isMobile && <MobileChrome v={v} />}
         {v.floatingCore && <FloatingCore s={v.floatingCore} />}
+        {v.greetBanner && (
+          <div onClick={v.greetBanner.open} role="status"
+            style={{
+              position: 'fixed', left: '50%', transform: 'translateX(-50%)',
+              top: v.isMobile ? 'calc(58px + env(safe-area-inset-top))' : '16px', zIndex: 85,
+              maxWidth: 'min(560px, 92vw)', cursor: 'pointer',
+              display: 'flex', alignItems: 'baseline', gap: '10px',
+              padding: '11px 16px', borderRadius: '12px',
+              background: 'var(--nv-glass2)', backdropFilter: 'blur(18px)',
+              border: '1px solid color-mix(in srgb, var(--nv-gold) 35%, transparent)',
+              boxShadow: '0 18px 50px -18px rgba(0,0,0,.8)',
+              animation: 'fadeUp .4s ease-out',
+            }}>
+            <span style={{ font: '400 13px var(--nv-font-serif)', fontStyle: 'italic', lineHeight: 1.55, color: 'var(--nv-ink)' }}>{v.greetBanner.text}</span>
+            <span onClick={v.greetBanner.dismiss} aria-label="Dismiss greeting"
+              style={{ flex: 'none', font: '500 11px var(--nv-font-mono)', color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)', padding: '2px 4px' }}>✕</span>
+          </div>
+        )}
         {v.recipeOpen && <RecipeOverlay v={v} />}
         {v.recipeAddOpen && <AddRecipeModal v={v} />}
         {v.barcodeScannerOpen && (

@@ -262,6 +262,13 @@ export function valsChrome(app, ctx) {
       });
     })(),
     sideStatus,
+    // the doorman's words when he arrives on a non-Voice screen — generated
+    // server-side, shown once, tap-through to the conversation
+    greetBanner: st.greetBanner ? {
+      text: st.greetBanner.text,
+      open: () => { app.setState({ greetBanner: null }); app.navigate('voice'); },
+      dismiss: (e) => { e.stopPropagation(); app.setState({ greetBanner: null }); },
+    } : null,
     // The floating core rides every screen — BOTH devices, same feature —
     // except Voice (which has the full reactor) and Ambient (deliberately
     // empty). Its ring states are receipts: thinking = a model job in
