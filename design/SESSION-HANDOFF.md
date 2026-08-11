@@ -67,6 +67,17 @@ references backlog and the hands-free (Siri/Shortcuts) path.
   convention; transcript persisted at `server/data/watch/<recordId>.txt`;
   undo drift-checks both files. His first approval (old format, Wiki/Inbox)
   was undone and re-dispatched: **record `bbc39448` pending his approval.**
+- **NEW (11 Aug pm): video identity / anti-duplication** — `videoIdOf` +
+  `findExistingVideoPages` in ingest.js match on the VIDEO ID (so
+  `?si=` tails and youtu.be vs watch?v= are one identity). Re-running the
+  deep weave on an already-filed video reuses the Raw/ transcript instead
+  of writing a second copy, and instructs the model to EDIT the existing
+  pages in place; `diffTrees` now diffs against the real `Raw/` too (was
+  Wiki-only, so every Raw file read as 'new'). The watch-note filer
+  refuses a second Source page for the same video, pointing at Deep weave.
+  Verified against the real vault on the Hormozi link.
+  **NOTE: another session committed concurrently (0210290) and swept
+  these files in — the work IS in HEAD, verified by inspection.**
 - **NEW (11 Aug pm): one-tap depth + Brain Week** — Inbox composer has
   ▶▶ WATCH + ANALYSE (link → full weave via `startVideoDeepIngest`, no
   modal); watch records ask their two questions with buttons (Approve/
