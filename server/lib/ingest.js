@@ -203,6 +203,12 @@ When done, give a concise final summary: pages created, pages updated, and any c
         '--allowedTools', 'Read,Write,Edit,Glob,Grep',
         '--output-format', 'json',
         '--max-budget-usd', job.digested ? DIGEST_BUDGET_USD : MAX_BUDGET_USD,
+        // Digested weaves write pages FROM exhaustive notes — structured
+        // transformation, not judgment. On the default (Opus) model the
+        // 4-hour-podcast weave burned $8.15 and died at the cap; Sonnet
+        // does this job well inside it. Short pasted ingests keep the
+        // default model — there, one pass is doing all the thinking.
+        ...(job.digested ? ['--model', 'sonnet'] : []),
         '--no-session-persistence',
         // stdin must be closed, not an open pipe: the CLI waits 3s for stdin
         // data it will never get, warns on stderr, and that warning then
