@@ -29,7 +29,7 @@ const WATCH_TIMEOUT_MS = 6 * 60_000; // yt-dlp caption fetch, occasionally audio
 // the digest stage: chunked extraction passes, then one judgment pass over
 // the condensed notes.
 export const SINGLE_PASS_MAX_CHARS = 150_000;
-const CHUNK_BUDGET_USD = '0.5';
+const CHUNK_BUDGET_USD = '0.75';
 const CHUNK_CONCURRENCY = 3;
 
 // Everything except vault reads and the web-read tools. Edit/Write matter most.
@@ -164,11 +164,15 @@ export function chunkTranscript(transcript, chunkChars = SINGLE_PASS_MAX_CHARS) 
 export function buildChunkNotesPrompt({ title, part, total, chunkPath, question }) {
   return `${NOVA_LENS}
 
-You are Nova's Watcher doing an extraction pass over part ${part} of ${total} of a long video transcript ("${title || 'untitled'}"). Read the transcript chunk at ${chunkPath} in full, then produce dense notes a later judgment pass will rely on:
-- Every substantive claim or idea, each with its transcript timestamp (M:SS or H:MM:SS).
-- People, books, studies, and works referenced.
-- Anything relevant to Hayden's ask${question ? ` ("${question}")` : ''}.
-Notes, not prose — no verdicts yet, no filler. ~300-600 words.
+You are Nova's Watcher doing an EXHAUSTIVE extraction pass over part ${part} of ${total} of a long video transcript ("${title || 'untitled'}"). Read the transcript chunk at ${chunkPath} in full. Your notes are the only representation of this part that later passes will see — anything you omit is LOST from Hayden's second brain, so completeness beats brevity every time.
+
+Capture, each with its transcript timestamp (M:SS or H:MM:SS):
+- EVERY distinct idea, framework, argument, claim, and mental model — not just the headline ones. When the speakers signal a chapter or topic shift, mark it as a heading and capture the ideas inside it.
+- Stories and examples that carry a point (one line each, with the point).
+- Every person, book, study, company, and work referenced, and what was said about it.
+- Disagreements between speakers, self-corrections, nuances, caveats, and anything else you notice that a second brain should keep.
+${question ? `- Anything bearing on Hayden's ask: "${question}".\n` : ''}
+Dense bullets, not prose — no verdicts yet, no filler, no padding. Length follows the content: a dense part of a deep podcast often needs 1000-2000 words of notes. Never compress two distinct ideas into one line.
 
 Output ONLY a JSON object: {"notes":"the notes in markdown"}. No code fences, no commentary.`;
 }
@@ -339,9 +343,11 @@ export async function digestTranscript(vaultPath, report, digestDir, question = 
       const i = next++;
       const chunkPath = path.join(digestDir, `chunk-${i + 1}.txt`);
       await writeFile(chunkPath, chunks[i], 'utf8');
+      // Full-strength model: extraction faithfulness is the whole game here —
+      // whatever a cheap pass drops is unrecoverable downstream.
       const parsed = await runClaudeJson(vaultPath, buildChunkNotesPrompt({
         title: report.title, part: i + 1, total: chunks.length, chunkPath, question,
-      }), { allowedTools: 'Read', budget: CHUNK_BUDGET_USD, model: 'haiku' });
+      }), { allowedTools: 'Read', budget: CHUNK_BUDGET_USD });
       const text = String(parsed.notes || '').trim();
       if (!text) throw new Error(`extraction pass ${i + 1}/${chunks.length} returned no notes`);
       notes[i] = `## Part ${i + 1} of ${chunks.length}\n\n${text}`;

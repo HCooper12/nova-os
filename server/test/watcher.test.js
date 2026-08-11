@@ -147,12 +147,17 @@ test('watcher: chunkTranscript splits on line boundaries, loses nothing, respect
   assert.ok(SINGLE_PASS_MAX_CHARS < 200_000, 'cap stays well under the context window');
 });
 
-test('watcher: chunk-notes prompt contract — part labels, timestamps demanded, JSON shape', () => {
+test('watcher: chunk-notes prompt contract — exhaustive, chapter-aware, timestamps demanded, JSON shape', () => {
   const p = buildChunkNotesPrompt({ title: 'Long Pod', part: 2, total: 4, chunkPath: '/tmp/d/chunk-2.txt', question: 'anything on sleep?' });
   assert.match(p, /part 2 of 4/);
   assert.match(p, /\/tmp\/d\/chunk-2\.txt/);
   assert.match(p, /timestamp/);
   assert.match(p, /anything on sleep\?/);
+  assert.match(p, /EXHAUSTIVE/, 'completeness is the contract, not a vibe');
+  assert.match(p, /EVERY distinct idea/);
+  assert.match(p, /chapter or topic shift/);
+  assert.match(p, /anything you omit is LOST/i);
+  assert.match(p, /Never compress two distinct ideas into one line/);
   assert.match(p, /Output ONLY a JSON object/);
   assert.match(p, /"notes"/);
 });

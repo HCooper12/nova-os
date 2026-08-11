@@ -8,6 +8,10 @@ import { backupFile } from './backup.js';
 
 const SKIP = new Set(['.obsidian', '.claude', '.DS_Store']);
 const MAX_BUDGET_USD = '3';
+// A digested long video's weave reads condensed notes PLUS targeted slices
+// of the verbatim transcript — the extra headroom is what makes "nothing
+// lost" affordable to honor.
+const DIGEST_BUDGET_USD = '5';
 // launchd services don't inherit the interactive shell's PATH, so `claude` (installed
 // under ~/.local/bin) wouldn't resolve via a bare spawn('claude', ...) — use the
 // absolute path. Override with CLAUDE_BIN in .env if it lives somewhere else.
@@ -105,6 +109,7 @@ export function startIngest(vaultPath) {
         // model gets condensed notes; Raw/ still gets the full verbatim text.
         if (report.transcript.length > SINGLE_PASS_MAX_CHARS) {
           job.status = 'digesting';
+          job.digested = true;
           const notes = await digestTranscript(vaultPath, report, path.join(workDir, 'digest'));
           transcriptText = composeFetchedTranscript(report, sourceUrl, notes);
           verbatimOverride = composeFetchedTranscript(report, sourceUrl);
@@ -133,6 +138,7 @@ export function startIngest(vaultPath) {
       const prompt = `New content to add to the vault — ${fetched ? 'a timestamped video transcript Nova fetched from a link Hayden submitted' : 'pasted by Hayden via Nova OS'}, saved at ${transcriptPath}. This could be an external source (a podcast/video transcript, article, etc.) or it could be Hayden's own note, idea, or reflection that just came to mind — read it and use your own judgement, per this vault's root CLAUDE.md, to pick the right page type (Source, Concept, Entity, Topic, Journal, or Analysis) rather than assuming it's a Source. Follow CLAUDE.md exactly, in batch mode (process fully in one pass, no per-item discussion — just do the work).
 
 The exact verbatim original text is already saved in the vault at ${verbatimRelPath}. If this is third-party copyrighted material needing the paraphrase treatment per CLAUDE.md's copyright rule, link to this file from whatever page you create (e.g. "Verbatim original: [[Raw/${verbatimName.replace(/\.md$/, '')}]]"). If it's Hayden's own writing, that rule already allows storing it verbatim directly — no need to paraphrase it, just fold it in or reference this file as you see fit.
+${job.digested ? `\nThis video was LONG, so the text at ${transcriptPath} is Nova's condensed timestamped notes over the full transcript, structured in parts. Treat the notes as the map, not the territory: while drafting each page, Read the relevant sections of ${verbatimRelPath} (targeted slices around the notes' timestamps — never the whole file at once) so specifics, phrasings, and nuances survive into the paraphrase. Hayden's standing requirement: NO concept or idea from the conversation is lost — cover every idea the notes enumerate, including minor ones, not just the headline themes.\n` : ''}
 ${sourceUrl ? `\nSource URL: ${sourceUrl} — include this as a \`url:\` field in whatever page's frontmatter is most relevant, so it's directly linkable.\n` : ''}
 When done, give a concise final summary: pages created, pages updated, and any contradictions or open questions flagged.`;
 
@@ -141,7 +147,7 @@ When done, give a concise final summary: pages created, pages updated, and any c
         '--permission-mode', 'bypassPermissions',
         '--allowedTools', 'Read,Write,Edit,Glob,Grep',
         '--output-format', 'json',
-        '--max-budget-usd', MAX_BUDGET_USD,
+        '--max-budget-usd', job.digested ? DIGEST_BUDGET_USD : MAX_BUDGET_USD,
         '--no-session-persistence',
       ], { cwd: stagingVault });
 
