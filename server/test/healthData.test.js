@@ -86,15 +86,15 @@ test('loadDay returns null for a day with no data', async () => {
 });
 
 test('monotonic-steps rule: a HIGHER later reading wins for a past day, a truncated one is ignored', async () => {
-  const { shouldDropPastSteps } = await import('../lib/healthData.js');
+  const { shouldDropLowerSteps } = await import('../lib/healthData.js');
   const now = new Date('2026-07-30T09:00:00');
   // the real case: 23:45 nightly recorded 8311, next morning's per-date push says 9400
-  assert.equal(shouldDropPastSteps('2026-07-29', 8311, 9400, now), false, 'higher = more complete, accept it');
-  assert.equal(shouldDropPastSteps('2026-07-29', 9400, 8311, now), true, 'lower = truncated reading, ignore it');
-  assert.equal(shouldDropPastSteps('2026-07-29', 8311, 8311, now), true, 'equal changes nothing — no rewrite');
-  assert.equal(shouldDropPastSteps('2026-07-29', null, 9400, now), false, 'catch-up into a gap is welcome');
-  assert.equal(shouldDropPastSteps('2026-07-30', 9000, 5000, now), false, 'today keeps updating freely');
-  assert.equal(shouldDropPastSteps('2026-07-29', 8311, null, now), false, 'no incoming steps, nothing to judge');
+  assert.equal(shouldDropLowerSteps(8311, 9400), false, 'higher = more complete, accept it');
+  assert.equal(shouldDropLowerSteps(9400, 8311), true, 'lower = truncated reading, ignore it');
+  assert.equal(shouldDropLowerSteps(8311, 8311), true, 'equal changes nothing — no rewrite');
+  assert.equal(shouldDropLowerSteps(null, 9400), false, 'catch-up into a gap is welcome');
+  assert.equal(shouldDropLowerSteps(9000, 5000), true, 'TODAY is not exempt — 11 Aug lost 11,107 to a later 813');
+  assert.equal(shouldDropLowerSteps(8311, null), false, 'no incoming steps, nothing to judge');
 });
 
 test('the guard judges the FOLDED steps figure — a watch-only partial cannot clobber a finished day', async () => {
@@ -102,11 +102,11 @@ test('the guard judges the FOLDED steps figure — a watch-only partial cannot c
   // only watchSteps 1273 (watch barely worn that day). Guarding on the raw
   // payload's absent `steps` let saveDay's later fold overwrite the day's
   // real 12,967. The route now folds first; this pins the composition.
-  const { pickKnownMetrics, shouldDropPastSteps } = await import('../lib/healthData.js');
+  const { pickKnownMetrics, shouldDropLowerSteps } = await import('../lib/healthData.js');
   const now = new Date('2026-08-10T00:05:13');
   const folded = pickKnownMetrics({ watchSteps: 1273, hrv: 58 });
   assert.equal(folded.steps, 1273, 'watch-only push still folds into steps');
-  assert.equal(shouldDropPastSteps('2026-08-09', 12967, folded.steps, now), true,
+  assert.equal(shouldDropLowerSteps(12967, folded.steps), true,
     'the folded partial must be judged — and dropped — against the stored total');
 });
 

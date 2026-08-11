@@ -42,7 +42,11 @@ const { startAskCoach, startAskNova, startMessage, startGreeting, buildGreetingP
 // the warm pool keeps the test runner alive forever
 test.after(() => _dropAllWarm());
 
-const waitFor = async (pred, ms = 4000) => {
+// 20s, not 4: these spawn real child processes, and the suite runs in
+// parallel with others doing the same — a busy machine made this flaky
+// (seen failing on unrelated commits). The CONTRACT under test is still
+// strict: a partial must be visible while status is still 'running'.
+const waitFor = async (pred, ms = 20_000) => {
   const t0 = Date.now();
   while (Date.now() - t0 < ms) {
     const r = pred();

@@ -34,7 +34,10 @@ test.after(async () => {
   await rm(vault, { recursive: true, force: true });
 });
 
-async function waitForSettle(id, timeoutMs = 5000) {
+// 20s, not 5: this waits on a spawned classifier process, and the suite
+// runs in parallel with others doing the same — a busy machine, not a
+// broken retry, is what failed here. The assertions are unchanged.
+async function waitForSettle(id, timeoutMs = 20_000) {
   const start = Date.now();
   for (;;) {
     const r = await getRecord(id);

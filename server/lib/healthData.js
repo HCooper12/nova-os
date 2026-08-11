@@ -118,11 +118,14 @@ export function resolvePushDate(date, now = new Date()) {
 //
 // Human edits from the app (manual: true) bypass this entirely — his
 // correction is always the truth of last resort.
-export function shouldDropPastSteps(date, existingSteps, incomingSteps, now = new Date()) {
+// TODAY IS NOT EXEMPT (fixed 12 Aug 2026, after a real loss): this rule used
+// to skip the current day — "today keeps updating freely" — and on 11 Aug a
+// push reporting 813 landed one minute after a genuine 11,107 for the same
+// day and overwrote it. You cannot un-walk within a day either; a lower
+// later reading is a truncated one whatever day it names. Manual corrections
+// (manual: true) still bypass this entirely — his edit is the last word.
+export function shouldDropLowerSteps(existingSteps, incomingSteps) {
   if (incomingSteps == null) return false;
-  const pad = (n) => String(n).padStart(2, '0');
-  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-  if (date >= today) return false;          // today keeps updating freely
   if (existingSteps == null) return false;  // catch-up into a gap is welcome
   return Number(incomingSteps) <= Number(existingSteps); // only a HIGHER reading replaces
 }
@@ -234,7 +237,7 @@ export async function ingestHealthPayload({ date, metrics, manual = false, sourc
   let stepsDropped = false;
   if (!manual && metrics.steps != null) {
     const existing = await loadDay(date);
-    if (shouldDropPastSteps(date, existing?.steps, metrics.steps)) {
+    if (shouldDropLowerSteps(existing?.steps, metrics.steps)) {
       delete metrics.steps;
       stepsDropped = true;
       if (!Object.keys(metrics).length) {

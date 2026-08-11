@@ -24,12 +24,47 @@ export const yesterdayLocal = (now = new Date()) => {
 };
 
 // Pure so the decision is testable to the hour: nudge only after 09:00
-// local, only when yesterday's file is genuinely absent, once per day.
-export function shouldNudge(now, { hasYesterdayFile, lastNudgeDay }) {
-  if (hasYesterdayFile) return false;
+// local, once per day, when yesterday's steps did not close properly.
+//
+// "Did not close" is BOTH cases (widened 12 Aug 2026): the file is absent,
+// OR it exists carrying only a partial captured during the day itself
+// (stepsComplete false — saveDay stamps that from the capture time). The
+// narrow missing-file test let 11 Aug pass in silence: a stale midday
+// figure sat in the file, so the sentinel saw a file and said nothing while
+// the overnight push had in fact never landed. A stale number is exactly
+// the failure this exists to shout about.
+export function shouldNudge(now, { hasYesterdayFile, yesterdayStepsComplete, lastNudgeDay }) {
   if (now.getHours() < 9) return false;
   if (lastNudgeDay === localDay(now)) return false;
-  return true;
+  if (!hasYesterdayFile) return true;
+  return yesterdayStepsComplete !== true;
+}
+
+// Was the Mac even awake when the push was due? The request log carries
+// timestamps now, so this is EVIDENCE rather than a guess: any request
+// served in the 00:00–00:30 local window means the server was alive and the
+// push never left the phone. No evidence either way → say nothing about the
+// cause (the sentinel must never invent one it cannot see).
+const LOG_PATH = () => process.env.NOVA_REQLOG || path.join(process.env.HOME || '', 'Library', 'Logs', 'nova-os-server.log');
+export async function serverWasAwakeAtMidnight(now = new Date()) {
+  const p = LOG_PATH();
+  if (!existsSync(p)) return null;
+  let text;
+  try {
+    const buf = await readFile(p);
+    text = buf.slice(Math.max(0, buf.length - 512 * 1024)).toString('utf8');
+  } catch {
+    return null;
+  }
+  const from = new Date(now); from.setHours(0, 0, 0, 0);
+  const to = new Date(from.getTime() + 30 * 60_000);
+  let sawAny = false;
+  for (const m of text.matchAll(/^req (\d{4}-\d{2}-\d{2}T[\d:.]+Z) /gm)) {
+    const t = new Date(m[1]).getTime();
+    sawAny = true;
+    if (t >= from.getTime() && t < to.getTime()) return true;
+  }
+  return sawAny ? false : null; // lines exist but none in the window → it was down
 }
 
 async function loadState() {
@@ -42,9 +77,16 @@ async function saveState(state) {
 
 export async function runMissedPushSentinel({ now = new Date(), send } = {}) {
   const yday = yesterdayLocal(now);
-  const hasYesterdayFile = existsSync(path.join(dataRoot(), 'health', `${yday}.json`));
+  const dayPath = path.join(dataRoot(), 'health', `${yday}.json`);
+  const hasYesterdayFile = existsSync(dayPath);
+  let day = null;
+  if (hasYesterdayFile) {
+    try { day = JSON.parse(await readFile(dayPath, 'utf8')); } catch { day = null; }
+  }
   const state = await loadState();
-  if (!shouldNudge(now, { hasYesterdayFile, lastNudgeDay: state.lastNudgeDay })) return { nudged: false };
+  if (!shouldNudge(now, { hasYesterdayFile, yesterdayStepsComplete: day?.stepsComplete, lastNudgeDay: state.lastNudgeDay })) {
+    return { nudged: false };
+  }
 
   const sender = send || (async (text) => {
     const { telegramConfigured, sendTelegramText } = await import('./telegram.js');
@@ -52,10 +94,20 @@ export async function runMissedPushSentinel({ now = new Date(), send } = {}) {
     await sendTelegramText(text);
     return true;
   });
+  // Name which failure it is: a hole reads differently from a stale partial,
+  // and "your steps say 813" is the sentence that actually gets him looking.
+  const headline = !hasYesterdayFile
+    ? `⚠️ Last night's health push didn't land — no data at all for ${yday}.`
+    : `⚠️ Last night's health push didn't land — ${yday} still shows only its midday partial${day?.steps != null ? ` (${Math.round(day.steps).toLocaleString()} steps)` : ''}, never the day's total.`;
+  const awake = await serverWasAwakeAtMidnight(now);
+  const cause = awake === true
+    ? 'The Mac was up and serving at the time, so the push never left the phone.'
+    : awake === false
+      ? 'The server was down in that window too — the Mac was asleep, not the phone at fault.'
+      : "I can't tell from here whether the Mac was awake — check both.";
   const sent = await sender(
-    `⚠️ Last night's health push didn't land — no data for ${yday}.\n` +
-    `Manual runs have been working, so it's the 00:05 automation not firing or the Mac asleep (I can't tell which from here).\n` +
-    `Fix: run the Health Push shortcut once now to recover the day, check the automation still says Run Immediately, and plug the Mac in tonight.`
+    `${headline}\n${cause}\n` +
+    `Fix: run the Health Push shortcut once now to close the day, and check the 00:05 automation in Shortcuts (it should say Run Immediately).`
   );
   if (sent !== false) {
     state.lastNudgeDay = localDay(now);
