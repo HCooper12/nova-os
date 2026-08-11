@@ -48,6 +48,6 @@ test('records and significant requests merge newest-first; polls and old-format 
     'Nova was asked',
     'Dispatch filed “Morning Brief”',
   ], 'newest first, polls and unmapped kinds excluded');
-  assert.equal(feed.events[2].ms, 6100);
+  assert.equal(feed.events[3].ms, 6100);
   assert.equal(feed.pending, 2, 'the mystery-kind record still counts as pending — the gate is the gate');
 });
