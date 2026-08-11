@@ -67,6 +67,12 @@ references backlog and the hands-free (Siri/Shortcuts) path.
   convention; transcript persisted at `server/data/watch/<recordId>.txt`;
   undo drift-checks both files. His first approval (old format, Wiki/Inbox)
   was undone and re-dispatched: **record `bbc39448` pending his approval.**
+- **NEW (11 Aug pm): completeness contract** — digest extraction is now
+  exhaustive (full-strength model, $0.75/chunk, 'anything you omit is
+  LOST', chapter-aware); the digested deep weave Reads targeted verbatim
+  slices while drafting pages ($5 budget); learning loop counts `video`
+  keep/skip. HIS RULE, written down: no concept from a watched video may
+  be lost.
 - **FIXED (11 Aug pm): URL.pathname ghost-path bug** — 4 lib call sites
   resolved `Claude%20Projects` (repo path has a space); all now
   fileURLToPath. Ghost tree migrated + removed. Distill's job file had
