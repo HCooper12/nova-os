@@ -53,3 +53,39 @@ the connection.)
   side even if the Mac later sleeps.
 - HomePod/watch: works via Siri "personal requests" relaying to the iPhone —
   enable *Settings → Siri → Personal Requests* for the HomePod if needed.
+
+## 3. The 00:05 health push — make it network-proof (Health Drops file)
+
+The URL push fails whenever the phone↔Mac link is down at midnight
+(Tailscale suspended overnight is the usual culprit — two multi-night
+outages traced to exactly this). The fix is the store-and-forward channel
+the server has watched since 23 July: **save the same JSON as a FILE into
+the vault's `Health Drops` folder**. Writing to iCloud always succeeds —
+no VPN, no HTTP, no timeout, Mac asleep is fine — and the server drains
+the folder every 2 minutes whenever it's awake, with the same
+protections (midnight date-shift, monotonic steps) as the URL path.
+
+Change the 00:05 automation (Shortcuts app → Automation → the 12:05am one
+→ edit the shortcut it runs):
+
+1. Keep every existing action up to and including the **Dictionary** that
+   builds the payload (`date`, `steps`, `hrv`, …). The file format is
+   IDENTICAL to the URL body — nothing about the queries changes.
+2. After the Dictionary, add **Get Text from Input** (input: Dictionary) —
+   this yields the JSON as text.
+3. Add **Save File** (from the *Documents* actions):
+   - File: the Text from step 2
+   - **Service: iCloud Drive** · turn OFF "Ask Where to Save"
+   - Destination Path: `Obsidian/Hayden's Vault/Health Drops`
+   - Overwrite: on. Name it e.g. `midnight-push.json` (a fixed name is
+     fine — the server archives it into `Health Drops/Processed` seconds
+     after reading, so the slot is empty again for tomorrow).
+4. The old **Get Contents of URL** action can stay as a best-effort second
+   step (instant when the link is up) or be deleted — the file alone is
+   sufficient. If it stays, put it AFTER Save File so a network failure
+   can't stop the file from being written.
+
+Receipts: every drained drop lands in the pushlog like any push
+(`source: "drop"`), shows in the Ops Stream as "Health push landed", and
+the 09:00 Telegram sentinel still fires if a night genuinely produced
+nothing.

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { saveDay, loadRecentDays, HEALTH_METRICS } from '../lib/healthData.js';
+import { loadRecentDays, HEALTH_METRICS } from '../lib/healthData.js';
 import { getLatestInsight, generateInsightNow } from '../lib/healthInsight.js';
 import { computeStreaks } from '../lib/streaks.js';
 
@@ -63,46 +63,18 @@ export function healthDataRouter(vaultPath) {
         await logPushAttempt({ ok: false, date, error: 'no metrics', rawBody });
         return res.status(400).json({ error: 'at least one metric is required (steps, hrv, sleepAsleepMinutes, …)' });
       }
-      // Fold per-device step keys into canonical metrics BEFORE the monotonic
-      // guard. The 9→10 Aug midnight push carried only watchSteps (a partial
-      // 1,273) — the guard below checked the raw payload's absent `steps`,
-      // never fired, and saveDay's later fold clobbered the day's real 12,967.
-      // The guard must see the same figure the store would keep.
-      const rawKeys = Object.keys(metrics); // receipt keeps the phone's own key names
-      {
-        const { pickKnownMetrics } = await import('../lib/healthData.js');
-        metrics = pickKnownMetrics(metrics);
+      // The fold, the midnight date-shift, and the monotonic-steps guard all
+      // live in the SHARED ingest gate (lib/healthData.ingestHealthPayload)
+      // — one format, both transports (this route + the drops folder).
+      const { ingestHealthPayload } = await import('../lib/healthData.js');
+      const result = await ingestHealthPayload({ date, metrics, manual: body?.manual === true, rawBody });
+      if (!result.ok) return res.status(400).json({ error: result.error });
+      if (result.allDropped) {
+        return res.json({ day: result.day, note: 'that steps figure was lower than the one already recorded for that day — kept the higher reading' });
       }
-      // A 12:05am push carries yesterday's rolling-window numbers under
-      // today's date — file it against the day it actually describes.
-      let dateShifted = false;
-      if (body?.manual !== true) {
-        const { resolvePushDate } = await import('../lib/healthData.js');
-        const resolved = resolvePushDate(date);
-        date = resolved.date;
-        dateShifted = resolved.shifted;
-      }
-      // The monotonic-steps rule: for a PAST day only a HIGHER reading may
-      // replace what's stored (steps only ever increase within a day, so a
-      // lower later push is a truncated reading). Manual edits always win.
-      let stepsDropped = false;
-      if (body?.manual !== true && metrics.steps != null) {
-        const { loadDay, shouldDropPastSteps } = await import('../lib/healthData.js');
-        const existing = await loadDay(date);
-        if (shouldDropPastSteps(date, existing?.steps, metrics.steps)) {
-          delete metrics.steps;
-          stepsDropped = true;
-          if (!Object.keys(metrics).length) {
-            await logPushAttempt({ ok: true, date, keys: rawKeys, steps: null, stepsDropped, rawBody });
-            return res.json({ day: existing, note: 'that steps figure was lower than the one already recorded for that day — kept the higher reading' });
-          }
-        }
-      }
-      const saved = await saveDay(date, metrics, { manual: body?.manual === true });
-      await logPushAttempt({ ok: true, date, keys: rawKeys, steps: metrics.steps ?? null, ...(stepsDropped ? { stepsDropped } : {}), ...(dateShifted ? { dateShifted: true } : {}), rawBody });
       const { broadcast } = await import('../lib/events.js');
       broadcast('health');
-      res.json({ day: saved });
+      res.json({ day: result.day });
     } catch (err) {
       const { logPushAttempt } = await import('../lib/healthData.js');
       await logPushAttempt({ ok: false, error: err.message });

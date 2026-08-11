@@ -212,6 +212,42 @@ export async function loadDay(date) {
   return JSON.parse(await readFile(full, 'utf8'));
 }
 
+// ONE ingest gate for BOTH channels — the URL push and the Health Drops
+// folder. The midnight date-shift and the monotonic-steps rule are part of
+// the FORMAT, not the transport: the 9→10 Aug steps clobber happened
+// because a guard lived in only one of the two writers. Callers pass their
+// transport receipts (rawBody / source / file) through to the pushlog.
+export async function ingestHealthPayload({ date, metrics, manual = false, source, file, rawBody }) {
+  const receipt = { ...(source ? { source } : {}), ...(file ? { file } : {}), ...(rawBody ? { rawBody } : {}) };
+  metrics = pickKnownMetrics(metrics || {});
+  const rawKeys = Object.keys(metrics);
+  if (!rawKeys.length) {
+    await logPushAttempt({ ok: false, ...receipt, date, error: 'no usable metrics' });
+    return { ok: false, error: 'no usable metrics' };
+  }
+  let dateShifted = false;
+  if (!manual) {
+    const resolved = resolvePushDate(date);
+    date = resolved.date;
+    dateShifted = resolved.shifted;
+  }
+  let stepsDropped = false;
+  if (!manual && metrics.steps != null) {
+    const existing = await loadDay(date);
+    if (shouldDropPastSteps(date, existing?.steps, metrics.steps)) {
+      delete metrics.steps;
+      stepsDropped = true;
+      if (!Object.keys(metrics).length) {
+        await logPushAttempt({ ok: true, ...receipt, date, keys: rawKeys, steps: null, stepsDropped });
+        return { ok: true, day: existing, date, stepsDropped, allDropped: true };
+      }
+    }
+  }
+  const day = await saveDay(date, metrics, { manual });
+  await logPushAttempt({ ok: true, ...receipt, date, keys: rawKeys, steps: metrics.steps ?? null, ...(stepsDropped ? { stepsDropped } : {}), ...(dateShifted ? { dateShifted: true } : {}) });
+  return { ok: true, day, date, stepsDropped, dateShifted };
+}
+
 export async function loadRecentDays(n = 14) {
   if (!existsSync(HEALTH_DIR)) return [];
   const files = (await readdir(HEALTH_DIR)).filter((f) => /^\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort().reverse();

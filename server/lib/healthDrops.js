@@ -1,7 +1,7 @@
 import { readFile, readdir, mkdir, rename } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { saveDay, logPushAttempt, pickKnownMetrics } from './healthData.js';
+import { logPushAttempt, pickKnownMetrics } from './healthData.js';
 
 // Store-and-forward health ingestion — the fix for "my Mac must be awake for
 // the push to work". The phone's Shortcut SAVES the same JSON dictionary as a
@@ -75,9 +75,12 @@ export async function scanHealthDrops(vaultPath) {
       continue;
     }
     for (const r of records) {
-      await saveDay(r.date, r.metrics);
-      await logPushAttempt({ ok: true, source: 'drop', file, date: r.date, keys: Object.keys(r.metrics), steps: r.metrics.steps ?? null });
-      ingested++;
+      // the SHARED ingest gate: the drops channel gets the same midnight
+      // date-shift + monotonic-steps protection as the URL push — a guard
+      // living in only one writer is how the 9→10 Aug clobber happened
+      const { ingestHealthPayload } = await import('./healthData.js');
+      const result = await ingestHealthPayload({ date: r.date, metrics: r.metrics, source: 'drop', file });
+      if (result.ok) ingested++;
     }
     await archiveDrop(vaultPath, file);
   }

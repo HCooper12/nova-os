@@ -65,3 +65,17 @@ test('re-delivery upserts the same day instead of duplicating (URL push + file b
   assert.equal(day.steps, 14876);
   assert.equal(day.hrv, 71.2, 'upsert preserved the other metrics');
 });
+
+test('drops channel rides the shared ingest gate: lower past-day steps are dropped, never clobber', async () => {
+  const { saveDay } = await import('../lib/healthData.js');
+  // a past day with a real full count on record
+  const past = (() => { const d = new Date(); d.setDate(d.getDate() - 2); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
+  await saveDay(past, { steps: 12000 }, { manual: true });
+  // a drop file arrives carrying a truncated lower reading for that day
+  await mkdir(path.join(vault, DROPS_DIR_REL), { recursive: true });
+  await writeFile(path.join(vault, DROPS_DIR_REL, 'late-partial.json'), JSON.stringify({ date: past, steps: 900, hrv: 88 }), 'utf8');
+  await scanHealthDrops(vault);
+  const day = await loadDay(past);
+  assert.equal(day.steps, 12000, 'the guard now protects the drops channel too');
+  assert.equal(day.hrv, 88, 'non-steps metrics from the same drop still land');
+});
