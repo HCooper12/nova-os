@@ -58,34 +58,39 @@ the connection.)
 
 The URL push fails whenever the phone↔Mac link is down at midnight
 (Tailscale suspended overnight is the usual culprit — two multi-night
-outages traced to exactly this). The fix is the store-and-forward channel
-the server has watched since 23 July: **save the same JSON as a FILE into
-the vault's `Health Drops` folder**. Writing to iCloud always succeeds —
-no VPN, no HTTP, no timeout, Mac asleep is fine — and the server drains
-the folder every 2 minutes whenever it's awake, with the same
-protections (midnight date-shift, monotonic steps) as the URL path.
+outages traced to exactly this). The fix: ALSO save the same JSON as a
+FILE to iCloud — writing a file always succeeds (no VPN, no HTTP, no
+timeout, Mac asleep is fine), and the server drains it within 2 minutes of
+being awake, through the same ingest gate (midnight date-shift, monotonic
+steps) as the URL path.
 
-Change the 00:05 automation (Shortcuts app → Automation → the 12:05am one
-→ edit the shortcut it runs):
+iOS constraint that shapes this: an AUTOMATED "Save File" can only write
+inside **iCloud Drive → Shortcuts** — reaching the Obsidian folder needs
+the interactive picker, which an automation must never depend on. So the
+server watches `iCloud Drive/Shortcuts/Health Drops/` as a second drops
+folder (it creates the folder itself; it syncs down like any iCloud dir).
 
-1. Keep every existing action up to and including the **Dictionary** that
-   builds the payload (`date`, `steps`, `hrv`, …). The file format is
-   IDENTICAL to the URL body — nothing about the queries changes.
-2. After the Dictionary, add **Get Text from Input** (input: Dictionary) —
-   this yields the JSON as text.
-3. Add **Save File** (from the *Documents* actions):
-   - File: the Text from step 2
-   - **Service: iCloud Drive** · turn OFF "Ask Where to Save"
-   - Destination Path: `Obsidian/Hayden's Vault/Health Drops`
-   - Overwrite: on. Name it e.g. `midnight-push.json` (a fixed name is
-     fine — the server archives it into `Health Drops/Processed` seconds
-     after reading, so the slot is empty again for tomorrow).
-4. The old **Get Contents of URL** action can stay as a best-effort second
-   step (instant when the link is up) or be deleted — the file alone is
-   sufficient. If it stays, put it AFTER Save File so a network failure
-   can't stop the file from being written.
+His midnight shortcut builds the JSON as a growing Text variable
+(`JSONBody`), closed by a final Text action ending `}}` just before "Get
+contents of URL". The edit, matched to that structure:
 
-Receipts: every drained drop lands in the pushlog like any push
-(`source: "drop"`), shows in the Ops Stream as "Health push landed", and
-the 09:00 Telegram sentinel still fires if a night genuinely produced
-nothing.
+1. Find the FINAL **Text** action — the one reading
+   `JSONBody ,"vo2Max": VO2Max }}`.
+2. Tap **+** right after it and add **Save File** (search "Save File" —
+   the Documents action):
+   - **File**: the Text from step 1 (select the `Text` variable — it
+     offers itself as the previous action's output).
+   - **Ask Where to Save: OFF**
+   - **Destination Path**: `Health Drops/midnight-push.json`
+     (relative to iCloud Drive/Shortcuts — the folder already exists
+     because the server created it)
+   - **Overwrite If File Exists: ON** (the server archives each file into
+     `Health Drops/Processed` seconds after reading it, so the slot is
+     free again for tomorrow)
+3. Leave **Get Contents of URL** exactly where it is, AFTER Save File —
+   instant delivery when the link happens to be up; the day-file upsert
+   makes double-delivery a no-op.
+
+Receipts: every drained drop lands in the pushlog (`source: "drop"`),
+shows in the Ops Stream as "Health push landed", and the 09:00 Telegram
+sentinel still fires if a night genuinely produced nothing.

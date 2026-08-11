@@ -1,17 +1,29 @@
 import { readFile, readdir, mkdir, rename } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { logPushAttempt, pickKnownMetrics } from './healthData.js';
 
 // Store-and-forward health ingestion — the fix for "my Mac must be awake for
-// the push to work". The phone's Shortcut SAVES the same JSON dictionary as a
-// file into the vault's iCloud folder (always succeeds, Mac state irrelevant);
-// whenever the Mac next wakes, this watcher drains the folder into the health
-// store. Same rail as Money/Imports: scan → ingest → archive to Processed.
-// A direct URL push can still ride alongside for instant delivery when the
-// Mac happens to be awake — the day-file upsert makes double-delivery a no-op.
+// the push to work". The phone's Shortcut SAVES the same JSON as a file into
+// an iCloud folder (always succeeds, Mac state irrelevant); whenever the Mac
+// next wakes, this watcher drains the folder into the health store. Same
+// rail as Money/Imports: scan → ingest → archive to Processed. A direct URL
+// push can still ride alongside for instant delivery when the Mac happens to
+// be awake — the day-file upsert makes double-delivery a no-op.
 export const DROPS_DIR_REL = 'Health Drops';
-const PROCESSED_DIR_REL = 'Health Drops/Processed';
+
+// iOS constraint, learned from his real Shortcut: an AUTOMATED "Save File"
+// can only write inside iCloud Drive/Shortcuts — reaching the Obsidian
+// container needs the interactive picker, which an automation must never
+// need. So the scanner also drains iCloud Drive/Shortcuts/Health Drops.
+// Tests must never touch the real iCloud folder: with NOVA_DATA_DIR set the
+// extra dir is only what NOVA_SHORTCUTS_DROPS explicitly names (or nothing).
+const CLOUD_SHORTCUTS_DROPS = path.join(os.homedir(), 'Library', 'Mobile Documents', 'com~apple~CloudDocs', 'Shortcuts', 'Health Drops');
+function extraDropDirs() {
+  if (process.env.NOVA_SHORTCUTS_DROPS) return [process.env.NOVA_SHORTCUTS_DROPS];
+  return process.env.NOVA_DATA_DIR ? [] : [CLOUD_SHORTCUTS_DROPS];
+}
 
 function normalizeRecords(parsed) {
   // one {date, steps, ...} object or an array of them; tolerate {date, metrics:{...}}
@@ -29,27 +41,26 @@ function normalizeRecords(parsed) {
   }).filter(Boolean);
 }
 
-async function archiveDrop(vaultPath, file, { bad = false } = {}) {
-  const from = path.join(vaultPath, DROPS_DIR_REL, file);
-  const dir = path.join(vaultPath, PROCESSED_DIR_REL);
-  await mkdir(dir, { recursive: true });
-  let dest = path.join(dir, `${bad ? 'bad-' : ''}${file}`);
-  if (existsSync(dest)) dest = path.join(dir, `${Date.now() % 100000}-${file}`);
+async function archiveDrop(dirAbs, file, { bad = false } = {}) {
+  const from = path.join(dirAbs, file);
+  const processed = path.join(dirAbs, 'Processed');
+  await mkdir(processed, { recursive: true });
+  let dest = path.join(processed, `${bad ? 'bad-' : ''}${file}`);
+  if (existsSync(dest)) dest = path.join(processed, `${Date.now() % 100000}-${file}`);
   await rename(from, dest).catch(() => {});
 }
 
-export async function scanHealthDrops(vaultPath) {
-  const dir = path.join(vaultPath, DROPS_DIR_REL);
-  if (!existsSync(dir)) {
+async function drainDropsDir(dirAbs) {
+  if (!existsSync(dirAbs)) {
     // create it so the folder is visible in Files/iCloud for the Shortcut to target
-    await mkdir(dir, { recursive: true }).catch(() => {});
-    return { ingested: 0 };
+    await mkdir(dirAbs, { recursive: true }).catch(() => {});
+    return 0;
   }
   let files;
   try {
-    files = (await readdir(dir)).filter((f) => f.toLowerCase().endsWith('.json'));
+    files = (await readdir(dirAbs)).filter((f) => f.toLowerCase().endsWith('.json'));
   } catch {
-    return { ingested: 0 };
+    return 0;
   }
   // .icloud placeholders (dataless files not yet materialized locally) show as
   // ".name.json.icloud" — skip them; they'll be real on a later tick
@@ -58,20 +69,20 @@ export async function scanHealthDrops(vaultPath) {
   for (const file of files) {
     let parsed;
     try {
-      parsed = JSON.parse(await readFile(path.join(dir, file), 'utf8'));
+      parsed = JSON.parse(await readFile(path.join(dirAbs, file), 'utf8'));
     } catch (e) {
       // still-syncing or genuinely malformed — malformed gets archived so it
       // can't retry forever; a read/parse blip retries next tick
       if (e instanceof SyntaxError) {
         await logPushAttempt({ ok: false, source: 'drop', file, error: 'does not parse' });
-        await archiveDrop(vaultPath, file, { bad: true });
+        await archiveDrop(dirAbs, file, { bad: true });
       }
       continue;
     }
     const records = normalizeRecords(parsed);
     if (!records.length) {
       await logPushAttempt({ ok: false, source: 'drop', file, error: 'no usable metrics' });
-      await archiveDrop(vaultPath, file, { bad: true });
+      await archiveDrop(dirAbs, file, { bad: true });
       continue;
     }
     for (const r of records) {
@@ -82,7 +93,15 @@ export async function scanHealthDrops(vaultPath) {
       const result = await ingestHealthPayload({ date: r.date, metrics: r.metrics, source: 'drop', file });
       if (result.ok) ingested++;
     }
-    await archiveDrop(vaultPath, file);
+    await archiveDrop(dirAbs, file);
+  }
+  return ingested;
+}
+
+export async function scanHealthDrops(vaultPath) {
+  let ingested = 0;
+  for (const dir of [path.join(vaultPath, DROPS_DIR_REL), ...extraDropDirs()]) {
+    ingested += await drainDropsDir(dir);
   }
   if (ingested) {
     import('./events.js').then(({ broadcast }) => broadcast('health')).catch(() => {});

@@ -79,3 +79,23 @@ test('drops channel rides the shared ingest gate: lower past-day steps are dropp
   assert.equal(day.steps, 12000, 'the guard now protects the drops channel too');
   assert.equal(day.hrv, 88, 'non-steps metrics from the same drop still land');
 });
+
+test('the iCloud Shortcuts folder is a second drops source (automated Save File cannot reach the vault)', async () => {
+  const { mkdtemp: mkt } = await import('node:fs/promises');
+  const { tmpdir: tmp } = await import('node:os');
+  const shortcutsDrops = await mkdtemp(path.join(tmpdir(), 'nova-shortcuts-drops-'));
+  process.env.NOVA_SHORTCUTS_DROPS = shortcutsDrops;
+  try {
+    const past = (() => { const d = new Date(); d.setDate(d.getDate() - 3); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
+    await writeFile(path.join(shortcutsDrops, 'midnight-push.json'), JSON.stringify({ date: past, metrics: { hrv: 91 } }), 'utf8');
+    const { ingested } = await scanHealthDrops(vault);
+    assert.ok(ingested >= 1, 'the Shortcuts-folder drop was drained');
+    const day = await loadDay(past);
+    assert.equal(day.hrv, 91);
+    const archived = await readdir(path.join(shortcutsDrops, 'Processed'));
+    assert.ok(archived.includes('midnight-push.json'), 'archived beside its own folder');
+  } finally {
+    delete process.env.NOVA_SHORTCUTS_DROPS;
+    await rm(shortcutsDrops, { recursive: true, force: true });
+  }
+});

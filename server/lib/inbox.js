@@ -614,6 +614,16 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
   // the watch job under server/data/watch/; a missing file degrades honestly
   // to the source page alone.
   if (route === 'watch-note') {
+    // Same video already filed? Never mint a second Source page for it —
+    // refuse honestly and point at the page that exists. (A title collision
+    // with a DIFFERENT video still gets a suffix, below.)
+    if (payload.url) {
+      const { findExistingVideoPages } = await import('./ingest.js');
+      const prior = await findExistingVideoPages(vaultPath, payload.url);
+      if (prior.pages.length) {
+        throw new Error(`this video is already filed at ${prior.pages[0]} — use Deep weave to deepen that page instead of filing a second copy`);
+      }
+    }
     const base = sanitizeFilename(payload.title);
     const suffix = existsSync(path.join(vaultPath, `Wiki/Sources/${base}.md`)) ? ` ${Date.now() % 10000}` : '';
     const srcRel = `Wiki/Sources/${base}${suffix}.md`;

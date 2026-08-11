@@ -47,7 +47,13 @@ function listFiles(dir, base = dir, out = []) {
 }
 
 export function diffTrees(originalDir, stagingDir) {
-  const before = new Set([...listFiles(path.join(originalDir, 'Wiki')).map((p) => path.join('Wiki', p))]);
+  // Raw/ is not staged (see stageVault), but the REAL Raw/ still decides
+  // new-vs-updated: without it, rewriting an existing transcript reads as a
+  // brand-new file and an identical rewrite shows as a change that isn't one.
+  const before = new Set([
+    ...listFiles(path.join(originalDir, 'Wiki')).map((p) => path.join('Wiki', p)),
+    ...listFiles(path.join(originalDir, 'Raw')).map((p) => path.join('Raw', p)),
+  ]);
   const after = [
     ...listFiles(path.join(stagingDir, 'Wiki')).map((p) => path.join('Wiki', p)),
     ...listFiles(path.join(stagingDir, 'Raw')).map((p) => path.join('Raw', p)),
@@ -84,6 +90,39 @@ export function composeFetchedTranscript(report, sourceUrl, body = null) {
   return `${head}\n\n${body ?? report.transcript}`;
 }
 
+// Match on the VIDEO ID, not the URL: the same video arrives as youtu.be/ID,
+// watch?v=ID, with or without a ?si= tracking tail, so URL equality would
+// miss the duplicate it is meant to catch.
+export function videoIdOf(url) {
+  const m = String(url || '').match(/(?:youtu\.be\/|[?&]v=|\/embed\/|\/shorts\/|\/live\/)([A-Za-z0-9_-]{6,})/);
+  return m ? m[1] : null;
+}
+
+// What this video ALREADY has in the vault — the guard against a second copy
+// of a podcast he has watched before. Scans only where a video's own pages
+// land (Sources + Raw), so it stays cheap.
+export async function findExistingVideoPages(vaultPath, url) {
+  const id = videoIdOf(url);
+  const out = { pages: [], transcriptRel: null };
+  if (!id) return out;
+  for (const rel of ['Wiki/Sources', 'Raw']) {
+    const dir = path.join(vaultPath, rel);
+    if (!existsSync(dir)) continue;
+    for (const name of readdirSync(dir)) {
+      if (!name.endsWith('.md')) continue;
+      const relPath = `${rel}/${name}`;
+      let head;
+      try {
+        head = readFileSync(path.join(dir, name), 'utf8').slice(0, 4000);
+      } catch { continue; }
+      if (!head.includes(id)) continue;
+      if (rel === 'Raw') out.transcriptRel ||= relPath;
+      else out.pages.push(relPath);
+    }
+  }
+  return out;
+}
+
 export function startIngest(vaultPath) {
   return function run(transcriptText, sourceUrl) {
     const jobId = randomUUID().slice(0, 8);
@@ -118,6 +157,12 @@ export function startIngest(vaultPath) {
         }
         job.status = 'staging';
       }
+      // Already in the vault? A watch filing (or an earlier weave) may have
+      // left a Source page and the verbatim transcript. Re-running must
+      // DEEPEN those pages, never mint a parallel set.
+      const existing = sourceUrl ? await findExistingVideoPages(vaultPath, sourceUrl) : { pages: [], transcriptRel: null };
+      job.existing = existing;
+
       await stageVault(vaultPath, stagingVault);
       const transcriptPath = path.join(workDir, 'transcript.txt');
       await writeFile(transcriptPath, transcriptText, 'utf8');
@@ -126,19 +171,29 @@ export function startIngest(vaultPath) {
       // own rule — this writes the exact original text too, at a path we control (so it
       // doesn't depend on Claude picking a matching filename), so the verbatim text stays
       // reachable regardless of whether this turns out to be a Source, Journal entry, etc.
-      const verbatimName = `Original - ${jobId}.md`;
-      const verbatimRelPath = path.join('Raw', verbatimName);
-      await writeFile(
-        path.join(stagingVault, verbatimRelPath),
-        `${fetched ? "Verbatim video transcript fetched by Nova's Watcher from the link Hayden submitted" : 'Verbatim original text pasted by Hayden via Nova OS'}, received ${new Date().toISOString().slice(0, 10)}.${sourceUrl ? `\nSource URL: ${sourceUrl}` : ''}\n\n---\n\n${verbatimOverride ?? transcriptText}`,
-        'utf8'
-      );
+      // When the transcript is ALREADY in Raw/, we reuse that file instead —
+      // a second 500k-character copy of the same podcast helps nobody.
+      const verbatimRelPath = existing.transcriptRel || path.join('Raw', `Original - ${jobId}.md`);
+      if (!existing.transcriptRel) {
+        await writeFile(
+          path.join(stagingVault, verbatimRelPath),
+          `${fetched ? "Verbatim video transcript fetched by Nova's Watcher from the link Hayden submitted" : 'Verbatim original text pasted by Hayden via Nova OS'}, received ${new Date().toISOString().slice(0, 10)}.${sourceUrl ? `\nSource URL: ${sourceUrl}` : ''}\n\n---\n\n${verbatimOverride ?? transcriptText}`,
+          'utf8'
+        );
+      }
+      const verbatimName = path.basename(verbatimRelPath, '.md');
+      // Readable copy in the work dir: Raw/ is never staged, so when the
+      // transcript already lives in the real vault the model still needs a
+      // path it can actually open. The vault path is for LINKING only.
+      const verbatimReadPath = path.join(workDir, 'verbatim.txt');
+      await writeFile(verbatimReadPath, verbatimOverride ?? transcriptText, 'utf8');
       job.status = 'running';
 
       const prompt = `New content to add to the vault — ${fetched ? 'a timestamped video transcript Nova fetched from a link Hayden submitted' : 'pasted by Hayden via Nova OS'}, saved at ${transcriptPath}. This could be an external source (a podcast/video transcript, article, etc.) or it could be Hayden's own note, idea, or reflection that just came to mind — read it and use your own judgement, per this vault's root CLAUDE.md, to pick the right page type (Source, Concept, Entity, Topic, Journal, or Analysis) rather than assuming it's a Source. Follow CLAUDE.md exactly, in batch mode (process fully in one pass, no per-item discussion — just do the work).
 
-The exact verbatim original text is already saved in the vault at ${verbatimRelPath}. If this is third-party copyrighted material needing the paraphrase treatment per CLAUDE.md's copyright rule, link to this file from whatever page you create (e.g. "Verbatim original: [[Raw/${verbatimName.replace(/\.md$/, '')}]]"). If it's Hayden's own writing, that rule already allows storing it verbatim directly — no need to paraphrase it, just fold it in or reference this file as you see fit.
-${job.digested ? `\nThis video was LONG, so the text at ${transcriptPath} is Nova's condensed timestamped notes over the full transcript, structured in parts. Treat the notes as the map, not the territory: while drafting each page, Read the relevant sections of ${verbatimRelPath} (targeted slices around the notes' timestamps — never the whole file at once) so specifics, phrasings, and nuances survive into the paraphrase. Hayden's standing requirement: NO concept or idea from the conversation is lost — cover every idea the notes enumerate, including minor ones, not just the headline themes.\n` : ''}
+The exact verbatim original text ${existing.transcriptRel ? 'is ALREADY in the vault' : 'is already saved in the vault'} at ${verbatimRelPath}${existing.transcriptRel ? ' (do NOT write another copy of it — it is not in this staged tree because Raw/ is not staged, and it must stay exactly as it is)' : ''}. If this is third-party copyrighted material needing the paraphrase treatment per CLAUDE.md's copyright rule, link to this file from whatever page you create (e.g. "Verbatim original: [[${verbatimName}]]" — the vault path is ${verbatimRelPath}). If it's Hayden's own writing, that rule already allows storing it verbatim directly — no need to paraphrase it, just fold it in or reference this file as you see fit.
+${existing.pages.length ? `\nALREADY IN THE VAULT — DO NOT DUPLICATE. This exact video already has ${existing.pages.length === 1 ? 'this page' : 'these pages'}, present in the staged tree:\n${existing.pages.map((p) => `- ${p}`).join('\n')}\nRead ${existing.pages.length === 1 ? 'it' : 'them'} FIRST and EDIT in place to deepen ${existing.pages.length === 1 ? 'it' : 'them'} — never create a second page for the same video under a variant title. Preserve what is already written (and its frontmatter) while adding what is missing; the same rule applies to any Concept/Entity/Topic page that already exists — extend it rather than forking a near-duplicate.\n` : ''}
+${job.digested ? `\nThis video was LONG, so the text at ${transcriptPath} is Nova's condensed timestamped notes over the full transcript, structured in parts. Treat the notes as the map, not the territory: while drafting each page, Read the relevant sections of the full verbatim transcript at ${verbatimReadPath} (targeted slices around the notes' timestamps — never the whole file at once) so specifics, phrasings, and nuances survive into the paraphrase. Hayden's standing requirement: NO concept or idea from the conversation is lost — cover every idea the notes enumerate, including minor ones, not just the headline themes.\n` : ''}
 ${sourceUrl ? `\nSource URL: ${sourceUrl} — include this as a \`url:\` field in whatever page's frontmatter is most relevant, so it's directly linkable.\n` : ''}
 When done, give a concise final summary: pages created, pages updated, and any contradictions or open questions flagged.`;
 
