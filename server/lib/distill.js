@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { readFile, writeFile, mkdir, readdir, rm, unlink } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { stageVault, diffTrees } from './ingest.js';
@@ -29,7 +30,7 @@ const MAX_TARGETS = 8;
 const DISTILL_WEEKDAY = 6; // Saturday, an hour after the pattern scout
 const DISTILL_HOUR = 17;
 
-const jobsDir = () => path.join(process.env.NOVA_DATA_DIR || path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'data'), 'distill');
+const jobsDir = () => path.join(process.env.NOVA_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data'), 'distill');
 
 /* ------------------------------ candidates ------------------------------- */
 

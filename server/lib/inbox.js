@@ -1,6 +1,7 @@
 import { readFile, writeFile, mkdir, unlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import os from 'node:os';
 import { spawn } from 'node:child_process';
 import { randomUUID, createHash } from 'node:crypto';
@@ -620,7 +621,7 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
 
     let transcript = null;
     if (payload.transcriptRef) {
-      const dataRoot = process.env.NOVA_DATA_DIR || path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'data');
+      const dataRoot = process.env.NOVA_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data');
       transcript = await readFile(path.join(dataRoot, 'watch', payload.transcriptRef), 'utf8').catch(() => null);
     }
     const rawBase = `${base}${suffix} (Transcript)`;

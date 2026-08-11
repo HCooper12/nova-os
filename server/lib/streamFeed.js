@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import os from 'node:os';
 import { listRecords } from './inboxStore.js';
 import { KIND_AGENT } from './fleetContext.js';
@@ -85,7 +86,7 @@ async function requestEvents() {
 }
 
 async function loadBeats() {
-  const dataRoot = process.env.NOVA_DATA_DIR || path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'data');
+  const dataRoot = process.env.NOVA_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data');
   try {
     const raw = JSON.parse(await readFile(path.join(dataRoot, 'heartbeat.json'), 'utf8'));
     return raw.beats || raw;

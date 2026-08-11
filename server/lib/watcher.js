@@ -3,6 +3,7 @@ import { readdirSync, existsSync } from 'node:fs';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { createRecord, updateRecord } from './inboxStore.js';
 import { NOVA_LENS } from './lens.js';
@@ -298,7 +299,9 @@ async function runWatchJob(vaultPath, recordId, url, question) {
     });
     // Persist the transcript so approval can file it into Raw/ alongside the
     // source page — the vault filing must not depend on this tmp workDir.
-    const dataRoot = process.env.NOVA_DATA_DIR || path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'data');
+    // fileURLToPath, NEVER URL.pathname — a space in the repo path ("Claude
+    // Projects") percent-encodes and silently writes a ghost directory tree
+    const dataRoot = process.env.NOVA_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data');
     await mkdir(path.join(dataRoot, 'watch'), { recursive: true });
     const transcriptRef = `${recordId}.txt`;
     await writeFile(path.join(dataRoot, 'watch', transcriptRef), report.transcript, 'utf8');
