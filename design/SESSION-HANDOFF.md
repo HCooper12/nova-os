@@ -61,6 +61,17 @@ references backlog and the hands-free (Siri/Shortcuts) path.
   referenced existing vault pages (Play It Out, Feedback Filter),
   flagging half the episode as already-held material. **Pending his
   review.**
+- **NEW (11 Aug pm): watch-note filing** — approving a watch now writes
+  `Wiki/Sources/<Title>.md` (type: source, url, raw: link, training tag on
+  coach lane) + `Raw/<Title> (Transcript).md` verbatim, his own podcast
+  convention; transcript persisted at `server/data/watch/<recordId>.txt`;
+  undo drift-checks both files. His first approval (old format, Wiki/Inbox)
+  was undone and re-dispatched: **record `bbc39448` pending his approval.**
+- **FIXED (11 Aug pm): URL.pathname ghost-path bug** — 4 lib call sites
+  resolved `Claude%20Projects` (repo path has a space); all now
+  fileURLToPath. Ghost tree migrated + removed. Distill's job file had
+  landed correctly only by accident of history; streamFeed heartbeat reads
+  were silently empty.
 - **NEW (11 Aug): honest lights, platform-wide** — sidebar agent dots now
   also pulse from ANY classifying record on the rails (server-side work
   visible on every device); Watcher joined the AGENTS roster (VIDEO);
