@@ -52,6 +52,19 @@ references backlog and the hands-free (Siri/Shortcuts) path.
 - **NEW (11 Aug): Whisper live** — his Groq key in `~/.config/watch/.env`
   (verified against the API); captionless videos now transcribe. The
   whisper path itself is untested on a real captionless video.
+- **NEW (11 Aug): long-video digest stage** — transcripts >150k chars
+  chunk into haiku extraction passes (concurrency 3), then the judgment
+  pass reads the condensed notes (`digestTranscript` in watcher.js; same
+  guard in ingest as status `digesting`). Proven on his REAL first video:
+  a 4:08:55 Hormozi podcast (575k chars) that had died with a bare exit 1
+  → record `8ba46f76` now pending, lane reference, and the note cross-
+  referenced existing vault pages (Play It Out, Feedback Filter),
+  flagging half the episode as already-held material. **Pending his
+  review.**
+- **NEW (11 Aug): honest lights, platform-wide** — sidebar agent dots now
+  also pulse from ANY classifying record on the rails (server-side work
+  visible on every device); Watcher joined the AGENTS roster (VIDEO);
+  hovering a pulsing dot names the in-flight job (valsChrome.js).
 - **NEW (11 Aug): URL-only deep ingest** — Add-to-vault accepts a bare
   video link; the job fetches the transcript (status `fetching`) and runs
   the full vault weave. Verified live on sxn5kPQ4Gl0: 8 staged changes
