@@ -48,8 +48,16 @@ references backlog and the hands-free (Siri/Shortcuts) path.
   model, header composed in code. Triggers: Inbox ▶ WATCH button,
   `POST /api/video`, `WATCH {...}` directive in Ask Nova replies.
   Retryable (`kind:'video'` in retryRecord + valsInbox). Ops:
-  conversational agent `watcher`, departments Knowledge+Train. No Whisper
-  key is configured — captionless videos error honestly.
+  conversational agent `watcher`, departments Knowledge+Train.
+- **NEW (11 Aug): Whisper live** — his Groq key in `~/.config/watch/.env`
+  (verified against the API); captionless videos now transcribe. The
+  whisper path itself is untested on a real captionless video.
+- **NEW (11 Aug): URL-only deep ingest** — Add-to-vault accepts a bare
+  video link; the job fetches the transcript (status `fetching`) and runs
+  the full vault weave. Verified live on sxn5kPQ4Gl0: 8 staged changes
+  (Source, Entity, 2 Concepts, Topic, index/log, Raw/ verbatim), $2.71,
+  draft discarded. Two lanes now: Inbox ▶ WATCH = quick verdict note;
+  Add-to-vault link = full weave.
 - New agents this session, all on the fleet ring (`server/lib/ops.js`
   SCHEDULED): `healthMirror.js` (vault health pages, 30m tick),
   `patternScout.js` (Sat 16:00), `autonomyLedger.js` (Sun 18:00),
