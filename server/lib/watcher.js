@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { readdirSync, existsSync } from 'node:fs';
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -346,6 +346,29 @@ async function runWatchJob(vaultPath, recordId, url, question) {
   } finally {
     if (workDir) await rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
+}
+
+// Digest notes are expensive (~$3.50 and ~5 minutes for a 4-hour podcast)
+// and depend only on the transcript — so they are cached per video id. A
+// retry after a later-stage failure, or a second surface asking for the same
+// video, must never re-pay for extraction that already succeeded.
+export function digestNotesPath(videoId) {
+  const dataRoot = process.env.NOVA_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data');
+  return path.join(dataRoot, 'watch', `${videoId}-notes.md`);
+}
+
+export async function digestTranscriptCached(vaultPath, report, digestDir, question, videoId) {
+  const cachePath = videoId ? digestNotesPath(videoId) : null;
+  if (cachePath) {
+    const cached = await readFile(cachePath, 'utf8').catch(() => null);
+    if (cached && cached.trim()) return cached;
+  }
+  const notes = await digestTranscript(vaultPath, report, digestDir, question);
+  if (cachePath) {
+    await mkdir(path.dirname(cachePath), { recursive: true });
+    await writeFile(cachePath, notes, 'utf8').catch(() => {});
+  }
+  return notes;
 }
 
 // The chunked extraction stage: split, write chunk files, run a bounded

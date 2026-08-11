@@ -139,7 +139,7 @@ export function startIngest(vaultPath) {
       if ((!transcriptText || !transcriptText.trim()) && sourceUrl) {
         fetched = true;
         job.status = 'fetching';
-        const { fetchVideoTranscript, digestTranscript, SINGLE_PASS_MAX_CHARS } = await import('./watcher.js');
+        const { fetchVideoTranscript, digestTranscriptCached, SINGLE_PASS_MAX_CHARS } = await import('./watcher.js');
         const report = await fetchVideoTranscript(sourceUrl, path.join(workDir, 'watch'));
         if (!report.transcript) {
           throw new Error('no transcript available — the video has no captions and Whisper could not transcribe it');
@@ -149,7 +149,7 @@ export function startIngest(vaultPath) {
         if (report.transcript.length > SINGLE_PASS_MAX_CHARS) {
           job.status = 'digesting';
           job.digested = true;
-          const notes = await digestTranscript(vaultPath, report, path.join(workDir, 'digest'));
+          const notes = await digestTranscriptCached(vaultPath, report, path.join(workDir, 'digest'), '', videoIdOf(sourceUrl));
           transcriptText = composeFetchedTranscript(report, sourceUrl, notes);
           verbatimOverride = composeFetchedTranscript(report, sourceUrl);
         } else {
@@ -204,26 +204,37 @@ When done, give a concise final summary: pages created, pages updated, and any c
         '--output-format', 'json',
         '--max-budget-usd', job.digested ? DIGEST_BUDGET_USD : MAX_BUDGET_USD,
         '--no-session-persistence',
-      ], { cwd: stagingVault });
+        // stdin must be closed, not an open pipe: the CLI waits 3s for stdin
+        // data it will never get, warns on stderr, and that warning then
+        // masqueraded as the job's error message.
+      ], { cwd: stagingVault, stdio: ['ignore', 'pipe', 'pipe'] });
 
       let stdout = '';
       let stderr = '';
       child.stdout.on('data', (d) => { stdout += d; });
       child.stderr.on('data', (d) => { stderr += d; });
       child.on('close', (code) => {
-        if (code !== 0) {
+        // Parse stdout FIRST even on a non-zero exit: a budget kill reports
+        // is_error + total_cost_usd there, while stderr carries only noise.
+        // Reading stderr first is how a harmless stdin warning came to be
+        // shown as the cause of a fifteen-minute failure.
+        let result = null;
+        try { result = JSON.parse(stdout); } catch { /* not JSON — handled below */ }
+        if (result) {
+          job.cost = result.total_cost_usd || 0;
+          job.summary = result.result || '(no summary returned)';
+        }
+        if (code !== 0 || result?.is_error) {
+          const spent = Number(result?.total_cost_usd);
+          const budget = Number(job.digested ? DIGEST_BUDGET_USD : MAX_BUDGET_USD);
           job.status = 'error';
-          job.error = stderr.trim() || `claude exited with code ${code}`;
+          job.error = (result?.is_error && result?.result)
+            || (Number.isFinite(spent) && spent >= budget * 0.98
+              ? `the vault pass ran out of budget — $${spent.toFixed(2)} spent against a $${budget} cap`
+              : stderr.trim() || `claude exited with code ${code}${Number.isFinite(spent) ? ` after $${spent.toFixed(2)}` : ''}`);
           return;
         }
-        try {
-          const result = JSON.parse(stdout);
-          job.summary = result.result || '(no summary returned)';
-          job.cost = result.total_cost_usd || 0;
-          if (result.is_error) { job.status = 'error'; job.error = job.summary; return; }
-        } catch {
-          job.summary = stdout.trim();
-        }
+        if (!result) job.summary = stdout.trim();
         try {
           job.changes = diffTrees(vaultPath, stagingVault);
           job.status = 'ready';
