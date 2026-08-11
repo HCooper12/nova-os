@@ -20,7 +20,9 @@ import { NOVA_LENS } from './lens.js';
 // storing third-party transcripts wholesale).
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const MAX_BUDGET_USD = '1.5';
+// The judgment pass over a 4-hour podcast reads ~10 parts of dense notes —
+// measured well past the old $1.5 cap.
+const MAX_BUDGET_USD = '3.0';
 const WATCH_TIMEOUT_MS = 6 * 60_000; // yt-dlp caption fetch, occasionally audio+whisper
 
 // A transcript longer than this cannot survive one model pass (his first
@@ -29,7 +31,15 @@ const WATCH_TIMEOUT_MS = 6 * 60_000; // yt-dlp caption fetch, occasionally audio
 // the digest stage: chunked extraction passes, then one judgment pass over
 // the condensed notes.
 export const SINGLE_PASS_MAX_CHARS = 150_000;
-const CHUNK_BUDGET_USD = '0.75';
+// Chunk SIZE is a separate question from the digest threshold, and measured:
+// a 150k-char chunk cost $1.46 on the CLI's default (Opus) model and died at
+// a $0.75 cap having written 218 tokens — it spent the whole budget reading.
+// The same content at 60k chars on Sonnet costs ~$0.35 and returns ~7k
+// tokens of dense notes. Extraction is a faithfulness job, not a judgment
+// job, so Sonnet is the right instrument as well as the affordable one.
+export const CHUNK_CHARS = 60_000;
+const CHUNK_MODEL = 'sonnet';
+const CHUNK_BUDGET_USD = '1.0';
 const CHUNK_CONCURRENCY = 3;
 
 // Everything except vault reads and the web-read tools. Edit/Write matter most.
@@ -142,13 +152,21 @@ export function fetchVideoTranscript(url, workDir) {
   });
 }
 
-// Split on line boundaries so no caption segment is cut mid-sentence.
+// Split on line boundaries so no caption segment is cut mid-sentence. A
+// single line LONGER than the cap (a transcript delivered as one unbroken
+// paragraph — rare, but it exists) is hard-split rather than left whole:
+// an oversized chunk is exactly the budget kill this function prevents.
 export function chunkTranscript(transcript, chunkChars = SINGLE_PASS_MAX_CHARS) {
   if (transcript.length <= chunkChars) return [transcript];
+  const lines = [];
+  for (const line of transcript.split('\n')) {
+    if (line.length <= chunkChars) { lines.push(line); continue; }
+    for (let i = 0; i < line.length; i += chunkChars) lines.push(line.slice(i, i + chunkChars));
+  }
   const chunks = [];
   let cur = [];
   let len = 0;
-  for (const line of transcript.split('\n')) {
+  for (const line of lines) {
     if (len + line.length + 1 > chunkChars && cur.length) {
       chunks.push(cur.join('\n'));
       cur = [];
@@ -335,7 +353,7 @@ async function runWatchJob(vaultPath, recordId, url, question) {
 // Exported for the ingest pipeline, which has the same long-video problem.
 export async function digestTranscript(vaultPath, report, digestDir, question = '') {
   await mkdir(digestDir, { recursive: true });
-  const chunks = chunkTranscript(report.transcript);
+  const chunks = chunkTranscript(report.transcript, CHUNK_CHARS);
   const notes = new Array(chunks.length);
   let next = 0;
   const worker = async () => {
@@ -343,11 +361,9 @@ export async function digestTranscript(vaultPath, report, digestDir, question = 
       const i = next++;
       const chunkPath = path.join(digestDir, `chunk-${i + 1}.txt`);
       await writeFile(chunkPath, chunks[i], 'utf8');
-      // Full-strength model: extraction faithfulness is the whole game here —
-      // whatever a cheap pass drops is unrecoverable downstream.
       const parsed = await runClaudeJson(vaultPath, buildChunkNotesPrompt({
         title: report.title, part: i + 1, total: chunks.length, chunkPath, question,
-      }), { allowedTools: 'Read', budget: CHUNK_BUDGET_USD });
+      }), { allowedTools: 'Read', budget: CHUNK_BUDGET_USD, model: CHUNK_MODEL });
       const text = String(parsed.notes || '').trim();
       if (!text) throw new Error(`extraction pass ${i + 1}/${chunks.length} returned no notes`);
       notes[i] = `## Part ${i + 1} of ${chunks.length}\n\n${text}`;
@@ -395,7 +411,16 @@ function runClaudeJson(vaultPath, prompt, { allowedTools, budget, model } = {}) 
           throw new Error(`claude returned no JSON (exit ${code}): ${(stderr || stdout).trim().slice(0, 300) || 'no output'}`);
         }
         if (outer.is_error || code !== 0) {
-          throw new Error(outer.result || stderr.trim() || `claude exited with code ${code} with no error text (likely budget or context exhausted)`);
+          // A budget kill returns is_error with NO result text — the cost is
+          // the only evidence, so say the numbers rather than guess a cause.
+          const spent = Number(outer.total_cost_usd);
+          const overBudget = Number.isFinite(spent) && spent >= Number(budget || MAX_BUDGET_USD) * 0.98;
+          throw new Error(
+            outer.result || stderr.trim()
+            || (overBudget
+              ? `the model pass ran out of budget — $${spent.toFixed(2)} spent against a $${budget || MAX_BUDGET_USD} cap`
+              : `claude exited with code ${code} with no error text${Number.isFinite(spent) ? ` after $${spent.toFixed(2)}` : ''}`),
+          );
         }
         const text = (outer.result || '').trim();
         const jsonMatch = text.match(/\{[\s\S]*\}/);

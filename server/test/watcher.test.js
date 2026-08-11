@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 const {
   parseWatchReport, extractVideoUrl, parseWatchDirective,
   normalizeWatch, composeWatchNote, buildWatchPrompt, resolveWatchScript,
-  chunkTranscript, buildChunkNotesPrompt, SINGLE_PASS_MAX_CHARS,
+  chunkTranscript, buildChunkNotesPrompt, SINGLE_PASS_MAX_CHARS, CHUNK_CHARS,
 } = await import('../lib/watcher.js');
 
 test.after(async () => { await rm(dataDir, { recursive: true, force: true }); });
@@ -142,9 +142,22 @@ test('watcher: chunkTranscript splits on line boundaries, loses nothing, respect
   assert.ok(chunks.every((c) => c.length <= 1000), 'every chunk under the cap');
   assert.equal(chunks.join('\n'), transcript, 'reassembly is lossless');
   assert.deepEqual(chunkTranscript('short', 1000), ['short'], 'short input passes through whole');
-  // his real failure case: 575k chars must produce multiple chunks at the default cap
-  assert.ok(chunkTranscript('a\n'.repeat(290_000)).length > 1);
-  assert.ok(SINGLE_PASS_MAX_CHARS < 200_000, 'cap stays well under the context window');
+  // his real failure case: a 4-hour podcast (575k chars) at the REAL chunk
+  // size. 150k-char chunks cost $1.46 each and died at the cap — the size
+  // that must stay small is CHUNK_CHARS, independent of the digest threshold.
+  const realistic = Array.from({ length: 11_500 }, (_, i) => `[${i}] ${'word '.repeat(9)}`).join('\n');
+  const real = chunkTranscript(realistic, CHUNK_CHARS);
+  assert.ok(realistic.length > 500_000, 'fixture is podcast-sized');
+  assert.ok(real.length >= 9, `575k chars must split into ~10 affordable passes, got ${real.length}`);
+  assert.ok(real.every((c) => c.length <= CHUNK_CHARS));
+  // a transcript with NO line breaks must still split — one giant chunk is
+  // the budget kill this function exists to prevent
+  const unbroken = chunkTranscript('a'.repeat(200_000), CHUNK_CHARS);
+  assert.ok(unbroken.length >= 3, 'an unbroken paragraph is hard-split, never left whole');
+  assert.ok(unbroken.every((c) => c.length <= CHUNK_CHARS));
+  assert.equal(unbroken.join('').replace(/\n/g, ''), 'a'.repeat(200_000), 'hard split loses no characters');
+  assert.ok(CHUNK_CHARS <= 80_000, 'a chunk must stay inside one cheap pass');
+  assert.ok(CHUNK_CHARS < SINGLE_PASS_MAX_CHARS, 'chunk size and digest threshold are separate dials');
 });
 
 test('watcher: chunk-notes prompt contract — exhaustive, chapter-aware, timestamps demanded, JSON shape', () => {

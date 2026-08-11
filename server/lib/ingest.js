@@ -11,7 +11,7 @@ const MAX_BUDGET_USD = '3';
 // A digested long video's weave reads condensed notes PLUS targeted slices
 // of the verbatim transcript — the extra headroom is what makes "nothing
 // lost" affordable to honor.
-const DIGEST_BUDGET_USD = '5';
+const DIGEST_BUDGET_USD = '8';
 // launchd services don't inherit the interactive shell's PATH, so `claude` (installed
 // under ~/.local/bin) wouldn't resolve via a bare spawn('claude', ...) — use the
 // absolute path. Override with CLAUDE_BIN in .env if it lives somewhere else.
