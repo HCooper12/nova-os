@@ -13,17 +13,18 @@ export function IngestModal({ v }) {
         <div style={css("margin-top:8px;font-size:12.5px;color:color-mix(in srgb, var(--nv-ink) 55%, transparent);line-height:1.6")}>
           A transcript, an article, or just a note or idea that came to mind — Claude reads it, decides
           the right page type per your vault's own <code>CLAUDE.md</code>, and drafts new/updated pages.
-          Nothing touches your real vault until you review and approve it.
+          Or leave the text empty and paste <em>just a video link</em> below — Nova fetches the
+          transcript itself. Nothing touches your real vault until you review and approve it.
         </div>
 
         <textarea
           value={v.ingestText}
           onChange={v.setIngestText}
-          placeholder="Paste a transcript, article, or your own note or thought here…"
+          placeholder="Paste a transcript, article, or your own note or thought here — or leave empty and give just a video link below…"
           style={css("margin-top:16px;width:100%;box-sizing:border-box;height:260px;resize:vertical;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:14px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-mono);line-height:1.6;outline:none")}
         />
 
-        <div style={css("margin-top:12px;font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>SOURCE URL (OPTIONAL — SKIP FOR YOUR OWN NOTES)</div>
+        <div style={css("margin-top:12px;font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>SOURCE URL (A VIDEO LINK ALONE IS ENOUGH — OPTIONAL FOR YOUR OWN NOTES)</div>
         <Interactive
           as="input"
           value={v.ingestSourceUrl}

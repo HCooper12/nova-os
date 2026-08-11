@@ -2242,7 +2242,7 @@ export default class App extends Component {
     const conn = getConnection();
     const text = this.state.ingestText.trim();
     const sourceUrl = this.state.ingestSourceUrl.trim();
-    if (!conn || !text) return;
+    if (!conn || (!text && !sourceUrl)) return;
     this.setState({ ingestModalOpen: false, ingestJobId: null, ingestStatus: 'staging', ingestPreview: null, ingestError: null });
     api.startIngest(conn, text, sourceUrl || undefined).then(({ jobId }) => {
       this.setState({ ingestJobId: jobId });

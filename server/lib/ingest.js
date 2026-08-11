@@ -63,6 +63,18 @@ export function diffTrees(originalDir, stagingDir) {
   return changes;
 }
 
+// The header a fetched-video transcript carries into the ingest pass — the
+// metadata is the toolchain's, composed in code, so the model starts from
+// true facts about what it is reading. Pure: exported for the test.
+export function composeFetchedTranscript(report, sourceUrl) {
+  const head = [
+    `${report.title || sourceUrl}${report.uploader ? ` — ${report.uploader}` : ''}${report.duration ? ` (${report.duration})` : ''}`,
+    `Source: ${sourceUrl}`,
+    `Timestamped video transcript, via ${report.transcriptSource || 'captions'}:`,
+  ].join('\n');
+  return `${head}\n\n${report.transcript}`;
+}
+
 export function startIngest(vaultPath) {
   return function run(transcriptText, sourceUrl) {
     const jobId = randomUUID().slice(0, 8);
@@ -72,6 +84,20 @@ export function startIngest(vaultPath) {
     jobs.set(jobId, job);
 
     (async () => {
+      // No pasted text + a link = fetch the transcript ourselves via the
+      // Watcher's toolchain, then ingest exactly as if he had pasted it.
+      let fetched = false;
+      if ((!transcriptText || !transcriptText.trim()) && sourceUrl) {
+        fetched = true;
+        job.status = 'fetching';
+        const { fetchVideoTranscript } = await import('./watcher.js');
+        const report = await fetchVideoTranscript(sourceUrl, path.join(workDir, 'watch'));
+        if (!report.transcript) {
+          throw new Error('no transcript available — the video has no captions and Whisper could not transcribe it');
+        }
+        transcriptText = composeFetchedTranscript(report, sourceUrl);
+        job.status = 'staging';
+      }
       await stageVault(vaultPath, stagingVault);
       const transcriptPath = path.join(workDir, 'transcript.txt');
       await writeFile(transcriptPath, transcriptText, 'utf8');
@@ -84,12 +110,12 @@ export function startIngest(vaultPath) {
       const verbatimRelPath = path.join('Raw', verbatimName);
       await writeFile(
         path.join(stagingVault, verbatimRelPath),
-        `Verbatim original text pasted by Hayden via Nova OS, received ${new Date().toISOString().slice(0, 10)}.${sourceUrl ? `\nSource URL: ${sourceUrl}` : ''}\n\n---\n\n${transcriptText}`,
+        `${fetched ? "Verbatim video transcript fetched by Nova's Watcher from the link Hayden submitted" : 'Verbatim original text pasted by Hayden via Nova OS'}, received ${new Date().toISOString().slice(0, 10)}.${sourceUrl ? `\nSource URL: ${sourceUrl}` : ''}\n\n---\n\n${transcriptText}`,
         'utf8'
       );
       job.status = 'running';
 
-      const prompt = `New content to add to the vault — pasted by Hayden via Nova OS, saved at ${transcriptPath}. This could be an external source (a podcast/video transcript, article, etc.) or it could be Hayden's own note, idea, or reflection that just came to mind — read it and use your own judgement, per this vault's root CLAUDE.md, to pick the right page type (Source, Concept, Entity, Topic, Journal, or Analysis) rather than assuming it's a Source. Follow CLAUDE.md exactly, in batch mode (process fully in one pass, no per-item discussion — just do the work).
+      const prompt = `New content to add to the vault — ${fetched ? 'a timestamped video transcript Nova fetched from a link Hayden submitted' : 'pasted by Hayden via Nova OS'}, saved at ${transcriptPath}. This could be an external source (a podcast/video transcript, article, etc.) or it could be Hayden's own note, idea, or reflection that just came to mind — read it and use your own judgement, per this vault's root CLAUDE.md, to pick the right page type (Source, Concept, Entity, Topic, Journal, or Analysis) rather than assuming it's a Source. Follow CLAUDE.md exactly, in batch mode (process fully in one pass, no per-item discussion — just do the work).
 
 The exact verbatim original text is already saved in the vault at ${verbatimRelPath}. If this is third-party copyrighted material needing the paraphrase treatment per CLAUDE.md's copyright rule, link to this file from whatever page you create (e.g. "Verbatim original: [[Raw/${verbatimName.replace(/\.md$/, '')}]]"). If it's Hayden's own writing, that rule already allows storing it verbatim directly — no need to paraphrase it, just fold it in or reference this file as you see fit.
 ${sourceUrl ? `\nSource URL: ${sourceUrl} — include this as a \`url:\` field in whatever page's frontmatter is most relevant, so it's directly linkable.\n` : ''}
