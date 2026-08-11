@@ -14,6 +14,16 @@ export function opsRouter(vaultPath) {
       res.status(500).json({ error: e.message });
     }
   });
+  // The Stream — the system's activity as one merged timeline of receipts
+  // that already exist (records + significant requests). Read-only.
+  router.get('/ops/stream', async (req, res) => {
+    try {
+      const { streamFeed } = await import('../lib/streamFeed.js');
+      res.json(await streamFeed());
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
   router.get('/skills', async (req, res) => {
     try {
       res.json({ departments: await loadSkills(vaultPath) });

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { startAskNova, getMessageJob } from '../lib/claudeCode.js';
+import { startAskNova, startGreeting, getMessageJob } from '../lib/claudeCode.js';
 import { composeDispatch } from '../lib/dispatch.js';
 import { ttsConfigured, listVoices, synthesize } from '../lib/tts.js';
 import { buildAskContext } from '../lib/askContext.js';
@@ -25,6 +25,34 @@ export function voiceRouter(vaultPath) {
       const sessionId = typeof req.body?.sessionId === 'string' && req.body.sessionId ? req.body.sessionId : null;
       const jobId = startAskNova(vaultPath, { question, context: await askContext(sessionId), sessionId });
       res.json({ jobId });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // The wake debrief — the doorman greeting, generated (never templated)
+  // from deterministic facts: time of day, arrival gap, the fleet's recent
+  // receipts, and the gate count. The client decides WHEN a greeting is due;
+  // this endpoint only decides the words.
+  router.post('/greet', async (req, res) => {
+    try {
+      const gap = req.body?.gap === 'return' ? 'return' : 'new-day';
+      const now = new Date();
+      const bits = [
+        `Local time: ${now.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })} on ${now.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })}.`,
+        gap === 'return' ? 'He is RETURNING after a few hours away today.' : 'This is his FIRST arrival today.',
+      ];
+      try {
+        const { fleetContext } = await import('../lib/fleetContext.js');
+        const fleet = await fleetContext();
+        if (fleet) bits.push(fleet);
+      } catch { /* quiet rails, quiet greeting */ }
+      try {
+        const { overnightMorningLine } = await import('../lib/overnight.js');
+        const line = await overnightMorningLine();
+        if (line && gap === 'new-day') bits.push(line);
+      } catch { /* optional */ }
+      res.json({ jobId: startGreeting(vaultPath, { facts: bits.join('\n\n') }) });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

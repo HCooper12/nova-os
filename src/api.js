@@ -205,6 +205,7 @@ export const api = {
   moneyScanFile: (conn, transactions) => post(conn, '/api/money/scan-file', { transactions }),
   moneyExportUrl: (conn, fy) => `${conn.baseUrl.replace(/\/$/, '')}/api/money/export/${fy}`,
   ask: (conn, question, sessionId) => post(conn, '/api/ask', { question, sessionId }),
+  greet: (conn, gap) => post(conn, '/api/greet', { gap }),
   askRitual: (conn, kind, sessionId) => post(conn, '/api/ask/ritual', { kind, sessionId }),
   overnight: (conn) => call(conn, '/api/overnight'),
   overnightAdd: (conn, question) => post(conn, '/api/overnight', { question }),

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { audioLevel } from './audioLevel.js';
 
 // The Nova Core — the being at the center of Mission Control, the Voice
 // reactor, and the tiny sibling in the sidebar. Two engines share the seed
@@ -134,7 +135,10 @@ function makeFilamentDraw(ctx, size, opts) {
       ctx.arc(x, y, e.sz, 0, 6.29);
       ctx.fill();
     }
-    const pulse = 1 + 0.07 * Math.sin(t * 1.8);
+    // the heart breathes on its own and SWELLS with real audio — Nova's own
+    // voice while speaking, his while dictating (audioLevel is 0 otherwise,
+    // so idle behavior is exactly what it always was)
+    const pulse = 1 + 0.07 * Math.sin(t * 1.8) + audioLevel() * 0.6;
     drawHeart(ctx, cx, cy, t, R * opts.heart * pulse);
     ctx.globalCompositeOperation = 'source-over';
   };
@@ -379,8 +383,9 @@ function makeHoloDraw(ctx, size, opts) {
       ctx.stroke();
     }
 
-    // breathing heart (shared identity across both engines)
-    const pulse = 1 + 0.06 * Math.sin(t * 1.8);
+    // breathing heart (shared identity across both engines) — swells with
+    // real audio exactly like the filament heart
+    const pulse = 1 + 0.06 * Math.sin(t * 1.8) + audioLevel() * 0.6;
     drawHeart(ctx, cx, cy, t, R * 0.125 * pulse);
     ctx.globalCompositeOperation = 'source-over';
   };

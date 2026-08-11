@@ -88,3 +88,14 @@ test('ops: every mapped department exists in the skill registry seed (shared con
     await rm(vault, { recursive: true, force: true });
   }
 });
+
+test('fleet roster context: the real architecture, honestly stated', async () => {
+  const { fleetRosterContext } = await import('../lib/ops.js');
+  const ctx = fleetRosterContext();
+  assert.match(ctx, /HOW NOVA WORKS/);
+  assert.match(ctx, /Dispatch \(/);
+  assert.match(ctx, /Distiller \(/);
+  assert.match(ctx, /Watcher \(/, 'conversational roster derives from the real array');
+  assert.match(ctx, /ONLY tested deterministic code writes/);
+  assert.match(ctx, /never self-granted/);
+});

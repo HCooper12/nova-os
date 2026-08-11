@@ -65,8 +65,8 @@ const warmSweep = setInterval(() => {
 }, 60_000);
 warmSweep.unref?.();
 
-function spawnWarm(key, { cwd, args }) {
-  const child = spawn(CLAUDE_BIN, args, { cwd, stdio: ['pipe', 'pipe', 'pipe'] });
+function spawnWarm(key, { cwd, args, env }) {
+  const child = spawn(CLAUDE_BIN, args, { cwd, stdio: ['pipe', 'pipe', 'pipe'], env: env ? { ...process.env, ...env } : undefined });
   const w = { child, currentJob: null, finishTurn: null, streamed: '', stderr: '', lastUsed: Date.now() };
   let buf = '';
   child.stdout.on('data', (d) => {
@@ -124,7 +124,7 @@ function spawnWarm(key, { cwd, args }) {
 // (args carry --session-id on turn 1 and --resume thereafter, so a cold
 // spawn is always continuity-safe). finishTurn runs the per-surface
 // post-processing (panels, proposals, research) and marks the job ready.
-function warmTurn({ kind, sessionId, cwd, args, text, job, finishTurn }) {
+function warmTurn({ kind, sessionId, cwd, args, text, job, finishTurn, env }) {
   const key = `${kind}:${sessionId}`;
   let w = warm.get(key);
   if (w && (w.child.exitCode !== null || w.currentJob)) { dropWarm(key); w = null; }
@@ -133,7 +133,7 @@ function warmTurn({ kind, sessionId, cwd, args, text, job, finishTurn }) {
       const idle = [...warm.entries()].filter(([, x]) => !x.currentJob).sort((a, b) => a[1].lastUsed - b[1].lastUsed)[0];
       if (idle) dropWarm(idle[0]);
     }
-    w = spawnWarm(key, { cwd, args });
+    w = spawnWarm(key, { cwd, args, env });
   }
   w.currentJob = job;
   w.finishTurn = finishTurn;
@@ -374,6 +374,66 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
     text: isNewSession ? buildAskPrompt({ question, context, direct }) : question,
     job,
     finishTurn,
+  });
+
+  return jobId;
+}
+
+// The doorman, unscripted: the greeting is GENERATED every time — Hayden's
+// rule is that nothing Nova says may be templated — but every fact in it
+// arrives from deterministic code; the model only does the talking. Fast by
+// construction: haiku, no vault reads, streams through the same jobs map so
+// the client renders it like any reply. A failed greeting stays silent
+// rather than falling back to a canned line.
+export function buildGreetingPrompt({ facts }) {
+  return `${NOVA_LENS}
+
+You are Nova greeting Hayden as he arrives — "sir", the way a great butler would: warm, brief, never stiff. Compose ONE spoken greeting: 1–3 sentences, under 55 words, plain text, no markdown, no questions unless something genuinely needs his decision.
+
+Ground every specific ONLY in the facts below — never invent activity, numbers, or receipts. Pick the one or two most useful things to mention; if the facts are thin, a warm brief hello is perfect. Vary your phrasing naturally between visits — never a stock template. Do not read any files; answer immediately.
+
+FACTS (deterministic, computed just now):
+${facts}`;
+}
+
+export function startGreeting(cwd, { facts }) {
+  const jobId = randomUUID().slice(0, 8);
+  const effectiveSessionId = randomUUID();
+  const job = { id: jobId, status: 'running', result: null, error: null };
+  jobs.set(jobId, job);
+
+  const args = [
+    '-p', '--input-format', 'stream-json',
+    '--permission-mode', 'bypassPermissions',
+    // pure composition: EVERY tool blocked (disallowed is the enforced
+    // boundary) — the facts are already in the prompt, and a doorman who
+    // wanders off to read files keeps him waiting at the door
+    '--allowedTools', '',
+    '--disallowedTools', `${BREAKER_DISALLOWED},Read,Grep,Glob`,
+    '--strict-mcp-config',
+    '--output-format', 'stream-json',
+    '--include-partial-messages',
+    '--verbose',
+    '--max-budget-usd', MAX_BUDGET_USD,
+    '--model', 'haiku',
+    '--session-id', effectiveSessionId,
+  ];
+
+  warmTurn({
+    kind: 'greet',
+    sessionId: effectiveSessionId,
+    cwd,
+    args,
+    // extended thinking OFF: measured live, the persona prompt sent haiku
+    // into ~15s of deliberation before one sentence of hello (20s → 3s).
+    // A doorman greets from the hip; the facts are already on the tray.
+    env: { MAX_THINKING_TOKENS: '0' },
+    text: buildGreetingPrompt({ facts }),
+    job,
+    finishTurn: (replyText, turnJob) => {
+      turnJob.result = { text: replyText.trim() };
+      turnJob.status = 'ready';
+    },
   });
 
   return jobId;

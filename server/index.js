@@ -93,7 +93,9 @@ async function main() {
     let closedEarly = false;
     req.on('aborted', () => { closedEarly = true; });
     res.on('finish', () => {
-      console.log(`req ${req.method} ${req.originalUrl} ← ${from} → ${res.statusCode} in ${Date.now() - started}ms`);
+      // ISO timestamp first: the Stream (ops activity feed) parses these
+      // lines back into a timeline, and a receipt without a time can't join
+      console.log(`req ${new Date().toISOString()} ${req.method} ${req.originalUrl} ← ${from} → ${res.statusCode} in ${Date.now() - started}ms`);
     });
     res.on('close', () => {
       if (!res.writableEnded) console.log(`req ${req.method} ${req.originalUrl} ← ${from} → CLIENT HUNG UP after ${Date.now() - started}ms${closedEarly ? ' (aborted)' : ''}`);

@@ -48,6 +48,7 @@ import { Toast } from './Toast.jsx';
 import { OutboxView } from './OutboxView.jsx';
 import { NudgeCard } from './NudgeCard.jsx';
 import { Boot } from './Boot.jsx';
+import { attachSpeechElement } from './audioLevel.js';
 
 // Code-split: ZXing (barcode decoding) is a sizeable dependency that only
 // the food-log barcode flow needs — no reason to ship it in everyone's
@@ -149,6 +150,8 @@ const CACHED_LIVE_KEYS = [
   // the surfaces added this week — omitted here they went BLANK the moment the
   // Mac slept, which is exactly when the phone is all he has
   'liveOps', 'liveOvernight', 'liveSkills', 'livePulse',
+  // the Stream self-labels with timestamps, so a cached copy degrades honestly
+  'liveOpsStream',
 ];
 
 const INBOX_MODE_KEY = 'novaos.inboxMode';
@@ -235,7 +238,7 @@ export default class App extends Component {
     inboxMode: (typeof window !== 'undefined' && INBOX_MODES.includes(localStorage.getItem(INBOX_MODE_KEY))) ? localStorage.getItem(INBOX_MODE_KEY) : 'auto-high',
     inboxProposalDismissed: (() => { try { const a = JSON.parse(localStorage.getItem('novaos.proposalsDismissed') || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } })(),
     liveDispatch: null, liveCompost: null, liveTodoist: null, liveTodos: null, liveGuardian: null, liveDailyReview: null, liveOps: null,
-    liveOvernight: null, overnightInput: '', liveSkills: null, livePulse: null, opsOpenAgentId: null,
+    liveOvernight: null, overnightInput: '', liveSkills: null, livePulse: null, opsOpenAgentId: null, liveOpsStream: null,
     dispatchBusy: false, compostBusy: false, compostActionBusy: {}, todoistBusy: false, guardianBusy: false, reviewBusy: false,
     todoInput: '', todoActionBusy: false, todoEditCategoryKey: null,
     editingSessionId: null, sessionDeleteConfirmId: null,
@@ -938,6 +941,7 @@ export default class App extends Component {
     apply('learning', (r) => this.setState({ liveLearning: r }));
     apply('dailyReview', (r) => this.setState({ liveDailyReview: r }));
     apply('ops', (r) => this.setState({ liveOps: r }));
+    apply('opsStream', (r) => this.setState({ liveOpsStream: r }));
     apply('overnight', (r) => this.setState({ liveOvernight: r }));
     apply('skills', (r) => this.setState({ liveSkills: r.departments }));
     apply('pulse', (r) => this.setState({ livePulse: r.topics }));
@@ -3345,25 +3349,33 @@ export default class App extends Component {
   // a real gap gets "Welcome back." Code speaks it instantly (no model, no
   // latency); the prompt's register keeps the address going from there.
   maybeVoiceGreet() {
-    if (this.state.demoMode || !getConnection()) return;
+    // WHEN a greeting is due stays deterministic (first arrival of the day,
+    // or a return after 3+ quiet hours). The WORDS are generated fresh every
+    // time from real receipts — Hayden's rule: nothing Nova says is
+    // templated. If the model can't be reached, Nova stays quiet; a canned
+    // fallback line would be exactly the thing this replaced.
+    if (this.state.demoMode || !getConnection() || this.state.connectionStatus === 'offline') return;
     const now = Date.now();
     const today = new Date().toDateString();
     let last = {};
     try { last = JSON.parse(localStorage.getItem('novaos.voiceGreet')) || {}; } catch { /* fresh */ }
+    const gap = last.date !== today ? 'new-day'
+      : (last.at && now - last.at > 3 * 3600e3) ? 'return' : null;
+    if (!gap) return;
     try { localStorage.setItem('novaos.voiceGreet', JSON.stringify({ date: today, at: now })); } catch { /* best-effort */ }
-    let line = null;
-    if (last.date !== today) {
-      const h = new Date().getHours();
-      line = h < 12 ? 'Good morning, sir.' : h < 18 ? 'Good afternoon, sir.' : 'Good evening, sir.';
-    } else if (last.at && now - last.at > 3 * 3600e3) {
-      line = 'Welcome back, sir.';
-    }
-    if (!line) return;
-    // the wake debrief — one deterministic line of receipts, Jarvis-fashion
-    const pending = this.state.liveOps?.pending;
-    if (pending > 0) line += ` ${pending === 1 ? 'One item awaits' : `${pending} items await`} your review.`;
-    this.setState((s) => ({ voiceChat: [...s.voiceChat, { who: 'nova', text: line }] }));
-    if (this.state.voiceSpeak) { this.primeSpeech(); this.speak(line); }
+    const conn = getConnection();
+    api.greet(conn, gap).then(({ jobId }) => {
+      this.startPoll('greet', () => api.claudeCodeJob(conn, jobId), {
+        timeoutMs: 45_000,
+        intervalMs: 700,
+        onProgress: (job) => { if (job.partial) this.applyStreamPartial('voiceChat', 'nova', job.partial); },
+        onReady: (job) => {
+          this.finalizeStream('voiceChat', { who: 'nova', text: job.result.text });
+          if (this.state.voiceSpeak) { this.primeSpeech(); this.speak(job.result.text); }
+        },
+        onError: () => this.setState((s) => ({ voiceChat: s.voiceChat.filter((m) => !m.streaming) })),
+      });
+    }).catch(() => { /* quiet — never a scripted stand-in */ });
   }
   // Rituals — tapped invitations, never interruptions. The transcript shows
   // a clean label; the structured instruction is composed server-side.
@@ -3478,10 +3490,13 @@ export default class App extends Component {
         // reuse the gesture-unlocked element (iOS blocks fresh ones)
         const audio = this.sharedAudio || new Audio();
         this.currentAudio = audio;
+        // the core hears Nova speak: a Web Audio tap on this element drives
+        // the heart's swell (audioLevel) for the length of the reply
+        const detachMeter = attachSpeechElement(audio);
         audio.src = url;
-        audio.onended = () => { URL.revokeObjectURL(url); finish(); };
-        audio.onerror = () => { URL.revokeObjectURL(url); finish(); };
-        audio.play().catch(() => { URL.revokeObjectURL(url); this.speakFallback(clean, finish); });
+        audio.onended = () => { URL.revokeObjectURL(url); detachMeter(); finish(); };
+        audio.onerror = () => { URL.revokeObjectURL(url); detachMeter(); finish(); };
+        audio.play().catch(() => { URL.revokeObjectURL(url); detachMeter(); this.speakFallback(clean, finish); });
       }).catch(() => this.speakFallback(clean, finish));
     } else {
       this.speakFallback(clean, finish);

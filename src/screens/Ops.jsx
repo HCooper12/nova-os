@@ -13,6 +13,27 @@ const dim = (pct) => `color-mix(in srgb, var(--nv-ink) ${pct}%, transparent)`;
 
 const RING = 150; // ring radius (px) on desktop; the map scales down on mobile
 
+// The topology's outer columns — channels flow IN (left), connections are
+// the hands (right). A dot pulses only while a request is genuinely in
+// flight; configured-but-idle sits steady; unconfigured sits dim and says so.
+function TopoCol({ title, items }) {
+  return (
+    <div style={css("flex:0 1 175px;min-width:150px")}>
+      <div style={css(`font:500 9.5px ${M};letter-spacing:.24em;color:${dim(42)}`)}>{title}</div>
+      {items.map((c) => (
+        <div key={c.key} style={css(`display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid ${dim(5)}`)}>
+          <span style={{ width: 7, height: 7, borderRadius: '50%', flex: 'none',
+            background: c.working ? 'var(--nv-cy)' : c.on ? 'color-mix(in srgb, var(--nv-cy) 45%, transparent)' : dim(14),
+            boxShadow: c.working ? '0 0 8px var(--nv-cy)' : 'none',
+            ...(c.working ? { animation: 'novaPulse 1.2s infinite var(--nv-anim)' } : {}) }} />
+          <span style={css(`font:500 9.5px ${M};letter-spacing:.06em;color:${c.on ? dim(75) : dim(35)}`)}>{c.label}</span>
+          <span style={css(`margin-left:auto;font:400 8px ${M};color:${dim(35)};white-space:nowrap`)}>{c.sub}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // The map drawn — the tapped agent unfolded: who it is, the skills it owns
 // (from the vault registry, by department), and its last receipts. Rendered
 // under the tapped conversational row, or under the ring for fleet agents.
@@ -76,7 +97,10 @@ export function Ops({ v }) {
         <span style={css(`font:500 9px ${M};letter-spacing:.14em;color:var(--nv-gold)`)}>OPEN INBOX →</span>
       </Interactive>
 
-      <div style={css("display:flex;flex-wrap:wrap;gap:30px;margin-top:26px;align-items:flex-start")}>
+      <div style={css("display:flex;flex-wrap:wrap;gap:30px;margin-top:26px;align-items:flex-start;justify-content:center")}>
+        {/* channels → core/agents → connections: the real topology, framed
+            the way the map reads — ways in on the left, hands on the right */}
+        <TopoCol title="CHANNELS · WAYS IN" items={v.opsChannels} />
         {/* the fleet ring — tap an agent to unfold its skills + receipts */}
         <div style={css(`flex:0 0 auto;width:${RING * 2 + 120}px;max-width:100%;margin:0 auto`)}>
           <div style={css(`position:relative;height:${RING * 2 + 110}px`)}>
@@ -99,6 +123,8 @@ export function Ops({ v }) {
           </div>
           {v.opsOpenAgent?.scheduled && <AgentDetail d={v.opsOpenAgent} />}
         </div>
+
+        <TopoCol title="CONNECTIONS · HANDS" items={v.opsConnections} />
 
         {/* conversational agents + legend */}
         <div style={css("flex:1 1 280px;min-width:260px")}>

@@ -6,6 +6,12 @@ import { Clock } from '../Clock.jsx';
 import { useDictation } from '../useDictation.js';
 import { VoicePanel, SourcesPanel } from '../VoicePanels.jsx';
 import { TypeText } from '../TypeText.jsx';
+import { VoiceWaveform } from '../VoiceWaveform.jsx';
+
+// iOS dictation has no mic tap (SpeechRecognition owns the microphone), so
+// its listening indicator stays the state bars; everywhere a real meter
+// exists, the waveform draws the actual audio.
+const IOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
 
 const M = "var(--nv-font-mono)";
 
@@ -116,15 +122,18 @@ export function Voice({ v }) {
             <NovaCore size={252} engine={v.coreStyle} />
           </div>
           <div style={css(`font:400 10px ${M};letter-spacing:.42em;color:color-mix(in srgb, var(--nv-ink) 60%, transparent)`)}>{caption}</div>
-          {(dict.on || v.voiceSpeaking) && (
+          {/* the REAL waveform wherever a meter exists (Nova speaking via the
+              TTS tap on both devices; him dictating on desktop) — motion here
+              means sound is genuinely happening. iOS dictation keeps the
+              state bars: an indicator, honestly labeled by its uniformity. */}
+          {(v.voiceSpeaking || (dict.on && !IOS)) && <VoiceWaveform />}
+          {dict.on && IOS && !v.voiceSpeaking && (
             <div style={css("display:flex;gap:3px;align-items:center;height:26px")}>
               <span style={css("width:3px;height:22px;background:color-mix(in srgb, var(--nv-cy) 80%, transparent);animation:wave 1.1s ease-in-out infinite")}></span>
               <span style={css("width:3px;height:22px;background:color-mix(in srgb, var(--nv-cy) 60%, transparent);animation:wave 1.1s ease-in-out .12s infinite")}></span>
               <span style={css("width:3px;height:22px;background:var(--nv-cy);animation:wave 1.1s ease-in-out .24s infinite")}></span>
               <span style={css("width:3px;height:22px;background:color-mix(in srgb, var(--nv-cy) 90%, transparent);animation:wave 1.1s ease-in-out .36s infinite")}></span>
               <span style={css("width:3px;height:22px;background:color-mix(in srgb, var(--nv-cy) 50%, transparent);animation:wave 1.1s ease-in-out .48s infinite")}></span>
-              <span style={css("width:3px;height:22px;background:color-mix(in srgb, var(--nv-cy) 75%, transparent);animation:wave 1.1s ease-in-out .6s infinite")}></span>
-              <span style={css("width:3px;height:22px;background:color-mix(in srgb, var(--nv-cy) 55%, transparent);animation:wave 1.1s ease-in-out .72s infinite")}></span>
             </div>
           )}
           {v.ritualInvite && v.voiceLive && (

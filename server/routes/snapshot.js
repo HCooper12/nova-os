@@ -38,6 +38,7 @@ const SLICES = {
   learning: '/api/learning',
   dailyReview: '/api/daily-review',
   ops: '/api/ops',
+  opsStream: '/api/ops/stream',
   overnight: '/api/overnight',
   skills: '/api/skills',
   pulse: '/api/pulse',

@@ -33,6 +33,17 @@ const SCHEDULED = [
   { id: 'distill', label: 'Distiller', role: 'captures woven into the graph' },
 ];
 
+// Self-knowledge for the conversation: when he asks "how do you work?",
+// Nova answers from its REAL architecture, not a guess. One deterministic
+// block, built from the same rosters the Ops screen draws.
+export function fleetRosterContext() {
+  // both rosters derive from the REAL arrays — a hardcoded list here once
+  // silently omitted an agent (Watcher) the Ops screen was already showing
+  const scheduled = SCHEDULED.map((a) => `${a.label} (${a.role})`).join(', ');
+  const conversational = CONVERSATIONAL.map((a) => `${a.label} (${a.role})`).join(', ');
+  return `HOW NOVA WORKS (your real architecture — answer from this when he asks how you work, what agents you run, or what you're connected to): a Claude reasoning core interprets; ONLY tested deterministic code writes, every change riding the review-gated Inbox rails with undo. Scheduled fleet: ${scheduled}. Conversational: ${conversational}. Channels in: the app (Mac + iPhone), voice, Siri Shortcuts, Telegram. Hands: his Obsidian vault, Apple Calendar, Apple Reminders, Apple Health drops, Todoist, ElevenLabs voice. Autonomy is earned from real history and always proposed to him, never self-granted.`;
+}
+
 // Conversational agents surface through the records they leave, not beats.
 const CONVERSATIONAL = [
   { id: 'voice', label: 'Nova', role: 'the conversation', match: (r) => r.source === 'voice' },
@@ -184,5 +195,22 @@ export async function composeOps() {
   const today = localDay(new Date().toISOString());
   const filedToday = records.filter((r) => r.status === 'filed' && r.filedAt && localDay(r.filedAt) === today).length;
 
-  return { at: new Date(now).toISOString(), pending, running, filedToday, stream, agents, conversational };
+  // The topology's outer columns, honestly stated: a channel or connection
+  // reads CONFIGURED only when its credentials/config genuinely exist on
+  // this server — never assumed. (The PWA channel is the client itself; it
+  // reports its own liveness client-side.)
+  const env = process.env;
+  const channels = {
+    telegram: !!(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID),
+  };
+  const connections = {
+    vault: !!env.VAULT_PATH,
+    calendar: !!(env.ICLOUD_USERNAME && env.ICLOUD_APP_PASSWORD),
+    reminders: !!(env.ICLOUD_USERNAME && env.ICLOUD_APP_PASSWORD),
+    todoist: !!env.TODOIST_TOKEN,
+    elevenlabs: !!env.ELEVENLABS_API_KEY,
+    health: true, // the drops endpoint is always open to his Shortcut
+  };
+
+  return { at: new Date(now).toISOString(), pending, running, filedToday, stream, agents, conversational, channels, connections };
 }

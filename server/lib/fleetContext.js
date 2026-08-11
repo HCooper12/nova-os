@@ -6,7 +6,8 @@ import { listRecords } from './inboxStore.js';
 // are quiet the section says nothing rather than inventing activity.
 
 // kind → the agent name Hayden knows from the Ops screen / sidebar.
-const KIND_AGENT = {
+// Exported: the Stream (activity feed) attributes records with the same map.
+export const KIND_AGENT = {
   dispatch: 'Dispatch', review: 'Daily Review', 'plan-today': 'Plan Today',
   'weekly-debrief': 'Weekly Debrief', 'week-plan': 'Week Plan',
   'training-check': 'Training Check', coach: 'Coach',

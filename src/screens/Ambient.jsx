@@ -99,7 +99,25 @@ export function Ambient({ v }) {
           </div>
         )}
         <PulseStrip items={v.ambientPulseItems} />
+        <StreamStrip items={v.ambientStream} />
       </div>
+    </div>
+  );
+}
+
+// The Stream strip — the system's newest real receipts, faint and factual.
+// Presence proves itself with the actual ledger; a quiet system shows a
+// quiet strip, never a looping animation.
+function StreamStrip({ items }) {
+  if (!items?.length) return null;
+  return (
+    <div style={css("display:flex;flex-direction:column;align-items:center;gap:3px;max-width:720px;width:100%")}>
+      {items.slice(0, 3).map((e) => (
+        <div key={e.id} style={css("display:flex;align-items:baseline;gap:10px;max-width:100%")}>
+          <span style={css(`flex:none;font:400 8.5px ${M};color:${dim(24)};font-variant-numeric:tabular-nums`)}>{e.when}</span>
+          <span style={css(`font:400 10.5px ${M};color:${dim(38)};overflow:hidden;text-overflow:ellipsis;white-space:nowrap`)}>{e.label}</span>
+        </div>
+      ))}
     </div>
   );
 }

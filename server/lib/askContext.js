@@ -86,6 +86,8 @@ export async function buildAskContext(vaultPath, sessionId, { fast = false } = {
     async () => (await import('./openLoops.js')).openLoopsContext(vaultPath),
     // the shared brain: what the rest of the fleet did lately, off the rails
     async () => (await import('./fleetContext.js')).fleetContext(),
+    // self-knowledge: "how do you work?" gets the real architecture
+    async () => (await import('./ops.js')).fleetRosterContext(),
     async () => (await import('./reminders.js')).remindersContext(),
     // the reflective surfaces are for DISCUSSING out loud, not just reading —
     // hand the latest ones to the conversation so "let's talk about the

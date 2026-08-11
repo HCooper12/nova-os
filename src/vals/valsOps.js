@@ -79,6 +79,25 @@ export function valsOps(app, ctx) {
         toggle: () => app.toggleOpsAgent(a.id),
       };
     }),
+    // The topology's outer columns — how he reaches Nova (channels) and what
+    // Nova's hands actually touch (connections). Configured states are the
+    // server's own env truth; the PWA channel is THIS client, so its
+    // liveness is the connection status itself. A dot pulses only while a
+    // request is genuinely in flight from that channel.
+    opsChannels: [
+      { key: 'pwa', label: 'THIS APP', sub: ctx.isOffline ? 'offline' : 'live', on: !ctx.isOffline, working: !!(st.voiceBusy || st.coachBusy || st.codeBusy || st.inboxCaptureBusy) },
+      { key: 'voice', label: 'VOICE', sub: 'dictation + speech', on: true, working: !!st.voiceBusy },
+      { key: 'siri', label: 'SIRI', sub: 'shortcuts', on: true, working: false },
+      { key: 'telegram', label: 'TELEGRAM', sub: ops?.channels?.telegram ? 'configured' : 'not configured', on: !!ops?.channels?.telegram, working: false },
+    ],
+    opsConnections: [
+      { key: 'vault', label: 'OBSIDIAN VAULT', on: !!ops?.connections?.vault },
+      { key: 'calendar', label: 'APPLE CALENDAR', on: !!ops?.connections?.calendar },
+      { key: 'reminders', label: 'APPLE REMINDERS', on: !!ops?.connections?.reminders },
+      { key: 'health', label: 'APPLE HEALTH', on: !!ops?.connections?.health },
+      { key: 'todoist', label: 'TODOIST', on: !!ops?.connections?.todoist },
+      { key: 'elevenlabs', label: 'ELEVENLABS', on: !!ops?.connections?.elevenlabs },
+    ].map((c) => ({ ...c, sub: c.on ? 'connected' : 'not configured', working: false })),
     opsConversational: (ops?.conversational || []).map((a) => ({
       id: a.id, label: a.label, role: a.role,
       last: a.last ? `${a.last.title || ''} · ${ago(a.last.at)} ago` : 'no activity yet',
@@ -176,15 +195,34 @@ export function valsOps(app, ctx) {
     overnightKey: (e) => { if (e.key === 'Enter') app.overnightAdd(); },
     overnightAdd: () => app.overnightAdd(),
     overnightRunNow: () => app.overnightRunNow(),
-    opsStream: (ops?.stream || []).map((r) => ({
-      id: r.id,
-      kind: KIND_LABEL[r.kind] || (r.kind || '').toUpperCase(),
-      title: r.title,
-      status: r.status.toUpperCase(),
-      statusColor: STATUS_COLOR[r.status] || 'var(--nv-ink)',
-      when: ago(r.at),
-      destination: r.destination,
-      source: r.source,
+    // THE STREAM — the merged live feed (fleet records + significant
+    // requests, from /api/ops/stream) when the slice has arrived; the
+    // records-only ledger as fallback so the section never goes blank on an
+    // older cached snapshot.
+    opsStream: st.liveOpsStream?.events
+      ? st.liveOpsStream.events.map((e, i) => ({
+        id: `${e.at}-${i}`,
+        kind: e.source === 'request' ? 'REQUEST' : (e.agent || '').toUpperCase(),
+        title: e.ms != null ? `${e.label} · ${e.ms >= 1000 ? `${(e.ms / 1000).toFixed(1)}s` : `${e.ms}ms`}` : e.label,
+        status: String(e.status || '').toUpperCase(),
+        statusColor: e.status === 'ok' ? 'var(--nv-good)'
+          : STATUS_COLOR[e.status] || (String(e.status).startsWith('http') ? 'var(--nv-warn)' : 'var(--nv-ink)'),
+        when: ago(e.at),
+      }))
+      : (ops?.stream || []).map((r) => ({
+        id: r.id,
+        kind: KIND_LABEL[r.kind] || (r.kind || '').toUpperCase(),
+        title: r.title,
+        status: r.status.toUpperCase(),
+        statusColor: STATUS_COLOR[r.status] || 'var(--nv-ink)',
+        when: ago(r.at),
+        destination: r.destination,
+        source: r.source,
+      })),
+    // Ambient's ticker — the newest few receipts, compact; presence proves
+    // itself with the real ledger, not a looping animation
+    ambientStream: (st.liveOpsStream?.events || []).slice(0, 5).map((e, i) => ({
+      id: `${e.at}-${i}`, when: ago(e.at), label: e.label,
     })),
   };
 }

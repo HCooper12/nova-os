@@ -1,4 +1,11 @@
 import { useRef, useState } from 'react';
+import { attachMicStream } from './audioLevel.js';
+
+// The mic tap below is desktop-only on purpose: SpeechRecognition on iOS
+// owns the microphone, and a parallel getUserMedia capture risks silently
+// breaking dictation itself — the feature that must never regress. On iOS
+// the core still swells for Nova's own voice (the TTS tap in App.speak).
+const IOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
 
 // Real dictation via the browser's speech engine (on-device / OS-provided).
 // Feature-detected: mic buttons only render where it actually works. Shared
@@ -28,12 +35,28 @@ export function useDictation(getBase, onText, onDone, { continuous = true, onErr
       const joined = (baseRef.current + ' ' + finals + interim).replace(/\s+/g, ' ').trim();
       onText(joined);
     };
-    rec.onend = () => { setOn(false); onDone?.(); };
+    const meter = { stream: null, detach: null };
+    const stopMeter = () => {
+      try { meter.detach?.(); } catch { /* already gone */ }
+      try { meter.stream?.getTracks().forEach((tr) => tr.stop()); } catch { /* already gone */ }
+      meter.stream = null;
+      meter.detach = null;
+    };
+    rec.onend = () => { stopMeter(); setOn(false); onDone?.(); };
     // a denied mic permission used to just silently flip the button off
-    rec.onerror = (e) => { setOn(false); onError?.(e?.error || 'dictation failed'); };
+    rec.onerror = (e) => { stopMeter(); setOn(false); onError?.(e?.error || 'dictation failed'); };
     recRef.current = rec;
     rec.start();
     setOn(true);
+    // best-effort audio-level tap so the core visibly hears him while he
+    // talks — any failure leaves dictation completely untouched
+    if (!IOS && navigator.mediaDevices?.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+        if (recRef.current !== rec) { stream.getTracks().forEach((tr) => tr.stop()); return; }
+        meter.stream = stream;
+        meter.detach = attachMicStream(stream);
+      }).catch(() => { /* no meter, no harm */ });
+    }
   };
   return { supported: !!SR, on, toggle };
 }

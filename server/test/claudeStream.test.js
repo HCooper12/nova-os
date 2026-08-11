@@ -36,7 +36,7 @@ process.env.CLAUDE_BIN = stubBin;
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { startAskCoach, startAskNova, startMessage, getMessageJob, _warmStats, _dropAllWarm } = await import('../lib/claudeCode.js');
+const { startAskCoach, startAskNova, startMessage, startGreeting, buildGreetingPrompt, getMessageJob, _warmStats, _dropAllWarm } = await import('../lib/claudeCode.js');
 
 // persistent stub processes hold their pipes open — without this teardown
 // the warm pool keeps the test runner alive forever
@@ -87,4 +87,14 @@ test('code-tab turn streams; partial visible while running', async () => {
   const done = await streamAndFinish(startMessage(stubDir, { text: 'What does ops.js do?' }));
   assert.equal(done.result.text, 'Hello turn 1.');
   assert.ok(done.result.sessionId);
+});
+
+test('greeting: generated (never templated), fact-grounded, streams like any reply', async () => {
+  const prompt = buildGreetingPrompt({ facts: 'Local time: 07:12.\nHis Inbox holds 3 pending drafts.' });
+  assert.match(prompt, /never invent activity/i, 'grounding rule is in the contract');
+  assert.match(prompt, /never a stock template/i, 'the unscripted rule is in the contract');
+  assert.match(prompt, /His Inbox holds 3 pending drafts/, 'the deterministic facts ride along');
+
+  const done = await streamAndFinish(startGreeting(stubDir, { facts: 'Local time: 07:12.' }));
+  assert.equal(done.result.text, 'Hello turn 1.');
 });
