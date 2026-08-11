@@ -67,6 +67,16 @@ references backlog and the hands-free (Siri/Shortcuts) path.
   convention; transcript persisted at `server/data/watch/<recordId>.txt`;
   undo drift-checks both files. His first approval (old format, Wiki/Inbox)
   was undone and re-dispatched: **record `bbc39448` pending his approval.**
+- **NEW (11 Aug pm): one-tap depth + Brain Week** — Inbox composer has
+  ▶▶ WATCH + ANALYSE (link → full weave via `startVideoDeepIngest`, no
+  modal); watch records ask their two questions with buttons (Approve/
+  Discard + Deep weave, on pending AND filed); ingest poll timeout 30m.
+  `brainWeek.js`: Sunday-16:00 scheduled agent (SCHEDULED id
+  `brain-week`, dept Knowledge), deterministic weekly digest of the
+  knowledge folders → pending journal draft; manual
+  `POST /api/brain-week/run`; first real run filed `d7d16872` (3 pages,
+  incl. the approved Hormozi Source + Raw transcript — he approved
+  `bbc39448`). gray-matter YAML-date gotcha handled in `fileCreatedAt`.
 - **NEW (11 Aug pm): completeness contract** — digest extraction is now
   exhaustive (full-strength model, $0.75/chunk, 'anything you omit is
   LOST', chapter-aware); the digested deep weave Reads targeted verbatim
