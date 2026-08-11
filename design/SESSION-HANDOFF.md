@@ -67,6 +67,19 @@ references backlog and the hands-free (Siri/Shortcuts) path.
   convention; transcript persisted at `server/data/watch/<recordId>.txt`;
   undo drift-checks both files. His first approval (old format, Wiki/Inbox)
   was undone and re-dispatched: **record `bbc39448` pending his approval.**
+- **NEW (11 Aug eve): the deep-weave failure chain, closed one by one.**
+  His WATCH + ANALYSE on the Hormozi 4h video failed 4 ways in sequence,
+  each a real bug: (1) 150k chunks on default Opus cost $1.46 vs $0.75
+  cap → now 60k chunks on Sonnet ($0.35, measured), CHUNK_CHARS its own
+  dial; judgment $3, digested weave $8. (2) Model put a raw newline in
+  the {"notes"} JSON → chunk passes now return PLAIN MARKDOWN
+  (stripPreamble), judgment JSON gets repairJsonControlChars. (3) Weave
+  reported a harmless CLI stdin warning as the error (stderr read before
+  stdout) → stdout parsed first, stdin: 'ignore', budget kills say the
+  numbers. (4) Killed at $4.04 by his Claude session limit — reported
+  honestly. Digest notes now CACHED per video id
+  (`data/watch/<id>-notes.md`, 168k chars exists for -AdkwqkE20M) so
+  retries never re-pay extraction. Weave re-running post-reset.
 - **NEW (11 Aug pm): video identity / anti-duplication** — `videoIdOf` +
   `findExistingVideoPages` in ingest.js match on the VIDEO ID (so
   `?si=` tails and youtu.be vs watch?v= are one identity). Re-running the
