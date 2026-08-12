@@ -222,6 +222,17 @@ export async function loadDay(date) {
 // transport receipts (rawBody / source / file) through to the pushlog.
 export async function ingestHealthPayload({ date, metrics, manual = false, source, file, rawBody }) {
   const receipt = { ...(source ? { source } : {}), ...(file ? { file } : {}), ...(rawBody ? { rawBody } : {}) };
+  // The phone may say it in words: "yesterday"/"today" resolve HERE, so a
+  // morning catch-up Shortcut (Health is unreadable while the phone is
+  // locked overnight — the whole reason midnight pushes die) needs no
+  // Adjust Date gymnastics. The server owns the calendar math; the phone
+  // owns the readings.
+  if (typeof date === 'string' && /^(today|yesterday)$/i.test(date.trim())) {
+    const d = new Date();
+    if (date.trim().toLowerCase() === 'yesterday') d.setDate(d.getDate() - 1);
+    const pad = (n) => String(n).padStart(2, '0');
+    date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
   metrics = pickKnownMetrics(metrics || {});
   const rawKeys = Object.keys(metrics);
   if (!rawKeys.length) {

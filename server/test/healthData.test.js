@@ -160,3 +160,15 @@ test('a just-after-midnight push is filed against the day it actually describes'
   const firstOfMonth = new Date('2026-08-01T00:05:00');
   assert.equal(resolvePushDate('2026-08-01', firstOfMonth).date, '2026-07-31', 'rolls back across a month end');
 });
+
+test('ingest accepts "yesterday" literally — the morning catch-up needs no date gymnastics', async () => {
+  const { ingestHealthPayload, loadDay } = await import('../lib/healthData.js');
+  const r = await ingestHealthPayload({ date: 'Yesterday', metrics: { steps: 4321 }, source: 'test' });
+  assert.equal(r.ok, true);
+  const d = new Date(); d.setDate(d.getDate() - 1);
+  const pad = (n) => String(n).padStart(2, '0');
+  const yday = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  assert.equal(r.date, yday, 'the word resolved to the real yesterday');
+  const day = await loadDay(yday);
+  assert.equal(day.stepsComplete, true, 'captured after the day ended = an honest total');
+});

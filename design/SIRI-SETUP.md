@@ -94,3 +94,32 @@ contents of URL". The edit, matched to that structure:
 Receipts: every drained drop lands in the pushlog (`source: "drop"`),
 shows in the Ops Stream as "Health push landed", and the 09:00 Telegram
 sentinel still fires if a night genuinely produced nothing.
+
+## 4. The morning catch-up — the push that fits how he actually sleeps
+
+Confirmed by experiment (12 Aug: automation fired with the phone locked,
+Mac awake and serving — nothing arrived on either channel): **Apple
+encrypts Health data while the phone is locked**, so any automation that
+reads Health after he's asleep dies at the first query. Every midnight
+push that ever succeeded (3, 4, 7, 10 Aug) was a night the phone was
+still in use at 00:05; 29 Jul succeeded because it ran at 23:45. Nothing
+"stopped working" — success always required an unlocked phone.
+
+Since he's asleep by midnight and wants FULL-day totals, the read must
+happen at the first unlock of the morning, capturing YESTERDAY:
+
+1. **Duplicate** the health-push shortcut. In the copy, change every
+   Find Health Samples filter from "Start Date is Today" to
+   "Start Date **is Yesterday**" (same picker).
+2. Change the `date` field in the JSON from Formatted Date to the literal
+   word **`yesterday`** — the server resolves it (deterministic, tested);
+   no Adjust Date actions needed.
+3. Automation triggers for the copy — use BOTH:
+   - **When Alarm is Stopped** (phone is in his hand, Health readable)
+   - a **time fallback** (e.g. 09:30) for alarm-less mornings
+4. Keep the original 00:05 automation — on nights he's up late it still
+   delivers same-night; the monotonic-steps rule makes any combination of
+   pushes converge on the highest (most complete) reading, never lower.
+
+The 09:00 sentinel remains the net: if a morning ever produces nothing,
+the Telegram nudge says so, with the cause read from the request log.
