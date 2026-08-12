@@ -95,43 +95,40 @@ Receipts: every drained drop lands in the pushlog (`source: "drop"`),
 shows in the Ops Stream as "Health push landed", and the 09:00 Telegram
 sentinel still fires if a night genuinely produced nothing.
 
-## 4. The morning catch-up — copy the shortcut that already works
+## 4. The morning catch-up — SHIPPED 12 Aug (clone, don't author)
 
-Root cause, confirmed by experiment (12 Aug): **Apple encrypts Health data
-while the phone is locked**, so the 00:05 automation dies at its first
-Health query on any night he is actually asleep. Every midnight push that
-ever landed was a night the phone was still in use; the first success
-(29 Jul) ran at 23:45, awake. Nothing degraded — success always required
-an unlocked phone. No amount of network-proofing fixes a read the OS
-refuses.
+Root cause of the whole midnight saga, proven by experiment: **Apple
+encrypts Health data while the phone is locked**, so the 00:05 automation
+dies at its first query any night he's asleep. Every push that ever landed
+at midnight was a night the phone was in use.
 
-So the push must happen at the first unlock of the morning, reporting
-YESTERDAY.
+The fix that shipped: **"Nova Health Morning"** — his own working
+automation, cloned byte-for-byte from its iCloud share link and modified
+in exactly two places: the date token became the literal word `yesterday`
+(the server resolves it — ingestHealthPayload), and the drop filename
+became morning-push.json. Signed with `shortcuts sign`, imported on the
+Mac, synced to the phone. Trigger: **When Alarm is Stopped → Run
+Shortcut → Nova Health Morning** (+ the 00:05 automation stays for
+up-late nights; the monotonic rule makes the pair converge upward).
 
-**Do NOT hand-author the actions.** A full attempt (12 Aug) proved the
-transport works — signed .shortcut import, `Authorization` header, the
-server resolving the literal word `yesterday` — but Shortcuts' health
-aggregation could not be reproduced blind: `WFHKSampleFilteringGroupBy:
-"Day"` copied byte-for-byte from a working public shortcut still returned
-individual raw samples (182 steps, 52 steps) rather than day totals. His
-existing 00:05 automation already aggregates correctly. Copy it.
+Verified live 12 Aug: full 8-metric payload filed against 2026-08-11;
+the guard correctly kept his higher manual steps figure while the other
+metrics repaired the day.
 
-**The recipe (about 10 taps):**
-1. Open the 12:05am automation. Long-press any action → **Select Actions**
-   → **Select All** → **Copy**.
-2. Shortcuts tab → **+** → paste. Name it **Nova Health Morning**.
-3. ONE edit: in the first Text action, replace the **Formatted Date**
-   token with the plain word **`yesterday`** — the server resolves it
-   (`ingestHealthPayload`, tested). Leave every Health query untouched.
-4. Automation → **+** → **When Alarm is Stopped** → Run Shortcut → Nova
-   Health Morning → Run Immediately.
-
-Why alarm-stop specifically: the queries use a rolling "in the last 1 day"
-window, which only equals a calendar day when both ends fall in sleep. At
-alarm-stop that holds — yesterday's pre-alarm hours and today's are both
-asleep — so the rolling window is an honest stand-in for yesterday's
-total. Run it hours later and it silently mixes in today's walking.
-
-Keep the 00:05 automation: on nights he is up late it still delivers
-same-night, and the monotonic-steps rule means any mix of pushes converges
-on the highest (most complete) reading and never clobbers downward.
+**Hard-won lessons for anyone touching .shortcut files again:**
+- DON'T author health actions from scratch. Clone a working shortcut.
+  An automation CAN'T be duplicated in the app, but it CAN be shared as
+  an iCloud link — fetch `icloud.com/shortcuts/api/records/<id>`, take
+  `fields.shortcut.value.downloadURL`, and the whole action list is
+  yours to modify.
+- The Statistics action needs an EXPLICIT `Input` attachment (OutputName
+  "Health Samples") and is referenced by its OPERATION name ("Sum",
+  "Average") — an implicit-input Statistics silently returns nothing,
+  which reads as every metric arriving as an empty string.
+- Hand-built date filters silently didn't apply (same bytes as a working
+  shortcut's — still inert). Unresolved; cloning made it moot.
+- His phone does NOT reliably upload Shortcut-saved files to iCloud
+  Drive/Shortcuts (two files never arrived after 6+ min) — the URL push
+  is the primary channel; the drops file is opportunistic.
+- Text-token surgery: replacing a one-char attachment with a literal
+  shifts every later attachment range by len(literal)-1.
