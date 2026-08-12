@@ -12,286 +12,291 @@ the session log at the foot is append-only.
 ---
 
 ## CURRENT HANDOFF
-*Last updated: 9 August 2026*
+*Last updated: 12 August 2026*
 
 **GOAL:** Keep Nova the one app Hayden opens daily. This session's thesis:
-Nova was PRODUCING far more than he KEPT, so the work shifted from adding
-surfaces to making the existing ones worth opening — plus closing the
-references backlog and the hands-free (Siri/Shortcuts) path.
+Nova could not SEE video, and video is where a large share of what he
+learns now lives. So the work was to give Nova eyes — a link in, and every
+idea from that video woven into the second brain, on the same review-gated
+rails as everything else. **A second session ran concurrently on the
+health/Shortcuts side; its commits are in this history (see STATE) and its
+state is NOT verified here.**
 
 **DONE CRITERIA (rolling):**
-1. Overnight health push lands automatically — **BROKEN AGAIN, 2 nights**.
-   Last successful automatic push: 7 Aug 00:05. Nights of 7→8 and 8→9 Aug
-   produced nothing (pushlog's newest entry is a 09:50 manual catch-up on
-   8 Aug). Manual ▶ runs DO work on the new direct URL — so the automation
-   is not firing, not a network fault.
-2. Nova usable on the phone while the Mac sleeps — **met** for reads/queued
-   writes; **unmet** for live conversation.
+1. Overnight health push lands automatically — **partially met, and now
+   another session's ground.** 9→10 Aug fired and landed; a guard-ordering
+   bug it exposed is fixed (13975df). Later commits by the other session
+   (d95dd32, 8ce8ec6, 78f07ef, dff6fc2) add a drops folder + morning
+   catch-up — **not verified by me**.
+2. Nova usable on the phone while the Mac sleeps — **met** for
+   reads/queued writes; **unmet** for live conversation.
 3. Companion plan Phases 1–5 shipped — **met**. Phase 6 (native wrapper)
    still parked.
 4. Menu-bar Nova visible on his Mac — **blocked** (icon under the notch).
-5. Live walkthrough of everything built — **unmet**, asked for 4+ sessions
-   ago. Owed.
-6. Hands-free Siri capture + answers — **met** (Ask Nova speaks direct
-   answers; Tell Nova files and speaks receipts).
-7. Produce-vs-keep corrected — **partially**: the machinery ships, but the
-   3 trust-ladder proposals are still unapproved, so nothing has changed
-   in his experience yet.
+5. Live walkthrough of everything built — **unmet**, owed 5+ sessions.
+6. Hands-free Siri capture + answers — **met**.
+7. Produce-vs-keep corrected — **partially**: machinery ships, the 3
+   trust-ladder proposals are still unapproved.
+8. **Nova can watch a video and keep what matters — met, end to end,
+   with his real 4-hour podcast in the vault.**
 
 **STATE (what exists, where):**
-- **NEW (10 Aug): The Watcher** (`server/lib/watcher.js`) — video URL →
-  local transcript (watch-skill scripts under
-  `~/.claude/plugins/cache/claude-video/watch/`, newest version resolved at
-  call time; `NOVA_WATCH_DIR` overrides) → one model pass → pending `note`
-  in Wiki/Inbox. Coach lane (claims audited vs web) or reference lane
-  (distilled with timestamps + real-page wikilinks); lane chosen by the
-  model, header composed in code. Triggers: Inbox ▶ WATCH button,
-  `POST /api/video`, `WATCH {...}` directive in Ask Nova replies.
-  Retryable (`kind:'video'` in retryRecord + valsInbox). Ops:
-  conversational agent `watcher`, departments Knowledge+Train.
-- **NEW (11 Aug): Whisper live** — his Groq key in `~/.config/watch/.env`
-  (verified against the API); captionless videos now transcribe. The
-  whisper path itself is untested on a real captionless video.
-- **NEW (11 Aug): long-video digest stage** — transcripts >150k chars
-  chunk into haiku extraction passes (concurrency 3), then the judgment
-  pass reads the condensed notes (`digestTranscript` in watcher.js; same
-  guard in ingest as status `digesting`). Proven on his REAL first video:
-  a 4:08:55 Hormozi podcast (575k chars) that had died with a bare exit 1
-  → record `8ba46f76` now pending, lane reference, and the note cross-
-  referenced existing vault pages (Play It Out, Feedback Filter),
-  flagging half the episode as already-held material. **Pending his
-  review.**
-- **NEW (11 Aug pm): watch-note filing** — approving a watch now writes
-  `Wiki/Sources/<Title>.md` (type: source, url, raw: link, training tag on
-  coach lane) + `Raw/<Title> (Transcript).md` verbatim, his own podcast
-  convention; transcript persisted at `server/data/watch/<recordId>.txt`;
-  undo drift-checks both files. His first approval (old format, Wiki/Inbox)
-  was undone and re-dispatched: **record `bbc39448` pending his approval.**
-- **DONE (12 Aug): Hormozi weave APPLIED — 41 changes in the vault.** The
-  final run (Sonnet, cached digest) succeeded at $6.11 with 37 staged
-  changes; he approved in chat; the server had restarted (other session)
-  so the in-memory job was gone — applied from the surviving staging tree
-  via diffTrees+backupFile (recomputed against live vault → 41). Recall
-  verified ('The Lonely Chapter' indexed). Staging dirs cleaned. Also:
-  digested weaves now run on Sonnet (Opus burned $8.15 at the $8 cap).
-- **FIXED (12 Aug): ingest jobs survive restarts** (044ebf9) — persisted
-  to `server/data/ingest/<id>.json` (Distiller pattern); ready jobs carry
-  their full change set so approval needs neither the process nor the tmp
-  staging tree; mid-flight jobs found only on disk error honestly
-  ('server restarted mid-job'); applied/discarded remove their file.
-  Live drill: real kickstart, job recovered over HTTP, discarded clean.
-- **NEW (12 Aug): inbox tap-to-expand** — every inbox item (pending +
-  history) opens to YOU CAPTURED / WILL BE FILED with the full
-  route-aware payload (`fullPayload` in valsInbox.js, `inboxExpanded`
-  map in App).
-- **NEW (11 Aug eve): the deep-weave failure chain, closed one by one.**
-  His WATCH + ANALYSE on the Hormozi 4h video failed 4 ways in sequence,
-  each a real bug: (1) 150k chunks on default Opus cost $1.46 vs $0.75
-  cap → now 60k chunks on Sonnet ($0.35, measured), CHUNK_CHARS its own
-  dial; judgment $3, digested weave $8. (2) Model put a raw newline in
-  the {"notes"} JSON → chunk passes now return PLAIN MARKDOWN
-  (stripPreamble), judgment JSON gets repairJsonControlChars. (3) Weave
-  reported a harmless CLI stdin warning as the error (stderr read before
-  stdout) → stdout parsed first, stdin: 'ignore', budget kills say the
-  numbers. (4) Killed at $4.04 by his Claude session limit — reported
-  honestly. Digest notes now CACHED per video id
-  (`data/watch/<id>-notes.md`, 168k chars exists for -AdkwqkE20M) so
-  retries never re-pay extraction. Weave re-running post-reset.
-- **NEW (11 Aug pm): video identity / anti-duplication** — `videoIdOf` +
-  `findExistingVideoPages` in ingest.js match on the VIDEO ID (so
-  `?si=` tails and youtu.be vs watch?v= are one identity). Re-running the
-  deep weave on an already-filed video reuses the Raw/ transcript instead
-  of writing a second copy, and instructs the model to EDIT the existing
-  pages in place; `diffTrees` now diffs against the real `Raw/` too (was
-  Wiki-only, so every Raw file read as 'new'). The watch-note filer
-  refuses a second Source page for the same video, pointing at Deep weave.
-  Verified against the real vault on the Hormozi link.
-  **NOTE: another session committed concurrently (0210290) and swept
-  these files in — the work IS in HEAD, verified by inspection.**
-- **NEW (11 Aug pm): one-tap depth + Brain Week** — Inbox composer has
-  ▶▶ WATCH + ANALYSE (link → full weave via `startVideoDeepIngest`, no
-  modal); watch records ask their two questions with buttons (Approve/
-  Discard + Deep weave, on pending AND filed); ingest poll timeout 30m.
-  `brainWeek.js`: Sunday-16:00 scheduled agent (SCHEDULED id
-  `brain-week`, dept Knowledge), deterministic weekly digest of the
-  knowledge folders → pending journal draft; manual
-  `POST /api/brain-week/run`; first real run filed `d7d16872` (3 pages,
-  incl. the approved Hormozi Source + Raw transcript — he approved
-  `bbc39448`). gray-matter YAML-date gotcha handled in `fileCreatedAt`.
-- **NEW (11 Aug pm): completeness contract** — digest extraction is now
-  exhaustive (full-strength model, $0.75/chunk, 'anything you omit is
-  LOST', chapter-aware); the digested deep weave Reads targeted verbatim
-  slices while drafting pages ($5 budget); learning loop counts `video`
-  keep/skip. HIS RULE, written down: no concept from a watched video may
-  be lost.
-- **FIXED (11 Aug pm): URL.pathname ghost-path bug** — 4 lib call sites
-  resolved `Claude%20Projects` (repo path has a space); all now
-  fileURLToPath. Ghost tree migrated + removed. Distill's job file had
-  landed correctly only by accident of history; streamFeed heartbeat reads
-  were silently empty.
-- **NEW (11 Aug): honest lights, platform-wide** — sidebar agent dots now
-  also pulse from ANY classifying record on the rails (server-side work
-  visible on every device); Watcher joined the AGENTS roster (VIDEO);
-  hovering a pulsing dot names the in-flight job (valsChrome.js).
-- **NEW (11 Aug): URL-only deep ingest** — Add-to-vault accepts a bare
-  video link; the job fetches the transcript (status `fetching`) and runs
-  the full vault weave. Verified live on sxn5kPQ4Gl0: 8 staged changes
-  (Source, Entity, 2 Concepts, Topic, index/log, Raw/ verbatim), $2.71,
-  draft discarded. Two lanes now: Inbox ▶ WATCH = quick verdict note;
-  Add-to-vault link = full weave.
-- New agents this session, all on the fleet ring (`server/lib/ops.js`
-  SCHEDULED): `healthMirror.js` (vault health pages, 30m tick),
-  `patternScout.js` (Sat 16:00), `autonomyLedger.js` (Sun 18:00),
-  `distill.js` (Sat 17:00), `reminders.js` (60s tick).
-- Hands-free: `design/SIRI-SETUP.md` (Shortcut recipes, direct-IP URLs),
-  `POST /api/inbox/capture/sync` (speakable capture receipt),
-  `/api/ask/sync` in direct mode (`buildAskPrompt({direct:true})`).
-- Reminders → Apple Reminders via CalDAV VTODO (`server/lib/reminders.js`).
-- Trust ladder: `autonomyLedger.js` + `agent-mode` route in `inbox.js`.
-- Distiller: `distill.js` + `distill-apply` route; jobs persist in
-  `server/data/distill/<id>.json`; manual trigger `POST /api/distill/run`.
-- About You interview: `rituals.js` kind `about-you`, `profile` PROPOSE
-  kind in `voiceActions.js`, `profile` route in `inbox.js`.
-- Ops tap-through (built by a subagent): `AGENT_DEPARTMENTS` +
-  `AGENT_RECORD_KINDS` + `agentReceipts()` in `ops.js`; UI in
-  `src/screens/Ops.jsx` + `src/vals/valsOps.js`.
-- Server also binds the tailnet IP directly (`server/index.js`) —
-  `http://100.65.137.114:4173` alongside 127.0.0.1.
-- Request receipts: every `/api` call logged (method, path, client, status,
-  ms, early hangups) to `~/Library/Logs/nova-os-server.log`.
+
+*The video pipeline (this session's build):*
+- **The Watcher** (`server/lib/watcher.js`) — the quick lane. Video URL →
+  local transcript via the watch-skill scripts (resolved newest-version
+  from `~/.claude/plugins/cache/claude-video/watch/`; `NOVA_WATCH_DIR`
+  overrides; brew python preferred, `/opt/homebrew/bin` on the spawn PATH
+  for launchd) → one judgment pass → **pending record, route
+  `watch-note`**. Two lanes chosen by the model: `coach` (claims audited
+  against the web) or `reference` (distilled with timestamps + wikilinks).
+  Triggers: Inbox **▶ WATCH**, `POST /api/video`, or a `WATCH {...}`
+  directive in an Ask Nova reply. Retryable; Ops conversational agent
+  `watcher` (Knowledge+Train).
+- **Approving a watch** writes his own podcast convention (`inbox.js`
+  `watch-note` filer): `Wiki/Sources/<Title>.md` (`type: source`, `url:`,
+  `raw:` link, `training` tag on the coach lane) **plus**
+  `Raw/<Title> (Transcript).md` verbatim. Undo drift-checks BOTH files
+  before touching either. Transcript persisted at
+  `server/data/watch/<recordId>.txt` so filing never depends on a tmp dir.
+- **The deep weave** (`server/lib/ingest.js`) — the full second-brain
+  lane. A bare video link (no pasted text) is enough: it fetches the
+  transcript itself, then the vault-`CLAUDE.md`-governed pass drafts
+  Source/Concept/Entity/Topic pages for one review. Surfaces: Inbox
+  **▶▶ WATCH + ANALYSE**, the **Deep weave** button on any watch record
+  (pending or filed), or Add-to-vault with only a URL.
+- **Long-video digest** (`digestTranscript` / `digestTranscriptCached` in
+  watcher.js): transcripts over `SINGLE_PASS_MAX_CHARS` (150k) split into
+  `CHUNK_CHARS` (60k) chunks, extracted **on Sonnet** at $1.00/chunk cap,
+  concurrency 3, contract = exhaustive ("anything you omit is LOST",
+  chapter-aware). Notes cached at `server/data/watch/<videoId>-notes.md`
+  so a retry never re-pays. Chunk passes return **plain markdown**
+  (`stripPreamble`); the judgment pass keeps JSON with
+  `repairJsonControlChars`. Digested weaves also run on Sonnet.
+- **Anti-duplication** — `videoIdOf` + `findExistingVideoPages`
+  (ingest.js) match on VIDEO ID, so `?si=` tails and youtu.be vs watch?v=
+  are one identity. Re-running reuses the existing Raw/ transcript and
+  instructs the model to EDIT existing pages; the watch-note filer
+  refuses a second Source page for the same video.
+- **Ingest jobs persist** to `server/data/ingest/<id>.json` (Distiller
+  pattern) — a ready job carries its full change set, so approval needs
+  neither the process nor the tmp staging tree.
+- **Brain Week** (`server/lib/brainWeek.js`) — Sunday 16:00 scheduled
+  agent (`brain-week`, dept Knowledge): deterministic walk of the
+  knowledge folders by `created` date → grouped wikilinked digest →
+  pending journal draft. Manual `POST /api/brain-week/run`. Expires after
+  8 days.
+- **Inbox tap-to-expand** (`fullPayload` in `valsInbox.js`,
+  `inboxExpanded` map in App) — every item, pending and history, opens to
+  YOU CAPTURED / WILL BE FILED with the complete route-aware payload.
+- **Honest agent lights** (`valsChrome.js`) — sidebar dots also pulse
+  from ANY `classifying` record on the rails, so server-side work shows
+  on every device; Watcher is on the AGENTS roster (VIDEO); hover names
+  the in-flight job.
+- **Whisper** — his Groq key lives in `~/.config/watch/.env` (0600).
+
+*Other session's work, per commit messages only (NOT verified by me):*
+`d95dd32` steps monotonic rule now applies to today; `8ce8ec6`/`78f07ef`/
+`dff6fc2` morning catch-up shortcut cloned from his working one; health
+drops folder at iCloud Drive/Shortcuts/Health Drops draining through a
+shared ingest gate (`ingestHealthPayload` in `lib/healthData.js`).
+
+*Standing from earlier sessions:* fleet ring in `server/lib/ops.js`;
+hands-free `design/SIRI-SETUP.md`; reminders via CalDAV; trust ladder
+(`autonomyLedger.js`); distiller (`distill.js`); About You interview; Ops
+tap-through; server binds the tailnet IP directly; request receipts in
+`~/Library/Logs/nova-os-server.log`.
 
 **DECISIONS (choice → reason → what it forecloses):**
-- **Server binds the tailnet IP directly, plain http** → Shortcuts kept
-  failing through `tailscale serve` while Safari worked; the WireGuard
-  tunnel already encrypts → forecloses nothing security-wise (100.x is
-  tailnet-only, token still required), but the ts.net hostname is now a
-  second path that can rot unnoticed.
-- **Spoken surfaces use a FAST context** (`buildAskContext(..., {fast})`)
-  → a CalDAV round trip is ~10s and made Siri asks ~26s, which iOS drops →
-  forecloses the full brief being in every spoken answer when the calendar
-  cache is cold; the cheap local TODAY block compensates.
-- **Calendar reads are cached 90s** (`calendar.js`) with invalidation on
-  every write and `fresh:true` for the watcher → forecloses sub-90s
-  external-change detection when the app is closed (the watcher only runs
-  with clients connected).
-- **Autonomy is proposed, never applied** (`autonomyLedger.js`) →
-  doctrine; thresholds live in code (14+ settled, 0 approvals, ≥80% dead)
-  → forecloses per-draft tuning; the judgment is reviewed once, in code.
-- **Distillation refuses wholesale on drift** → a stale diff must never
-  clobber his newer Obsidian edit → forecloses partial application; one
-  changed file voids the whole pass.
-- **"I ate dinner" marks the PLANNED meal** (`inbox.js` food route, slot
-  payload) → the meal already has true macros → forecloses estimating for
-  named rotation slots; estimation is now only for described food.
+- **Two lanes, not one** (quick WATCH vs WATCH + ANALYSE) → triage is
+  cheap (~$0.50) and absorption is not (~$6 for 4 hours), and he should
+  not pay absorption prices to find out a video is filler → forecloses a
+  single "just do the right thing" button; he picks, or taps Deep weave
+  after reading the verdict.
+- **Extraction runs on Sonnet, judgment/weave too when digested** →
+  measured: a 150k chunk on the default (Opus) model cost $1.46 and died
+  at a $0.75 cap having written 218 tokens; 60k on Sonnet costs $0.35 and
+  returns ~7k tokens of dense notes → forecloses Opus-grade nuance in the
+  notes; the exhaustiveness contract + verbatim dip-ins compensate.
+- **Chunk notes are plain markdown, not JSON** → a 2000-word payload in a
+  JSON string is one stray newline from losing a 4-hour digest (it
+  happened) → forecloses structured per-chunk metadata; the notes carry
+  their own headings instead.
+- **Digest notes cached per video id, transcripts per record id** →
+  extraction is the expensive, deterministic-input stage → forecloses
+  automatic invalidation if a video's captions are later corrected; delete
+  the cache file to force a re-extract.
+- **The verbatim transcript never enters a Wiki page** (paraphrase only,
+  full text in `Raw/`) → the vault's own CLAUDE.md rule 11 → forecloses
+  quoting at length in concept pages.
+- **A watch never files itself** (always pending, like the Researcher) →
+  external content is not his words → forecloses hands-free "watch and
+  file"; the Inbox tap is the gate.
+- **Ingest jobs persist but are never resumed** → a dead mid-flight job's
+  child process is gone and cannot be reattached → forecloses resume;
+  the cached digest is what makes the re-run cheap instead.
+- *(Standing: tailnet IP direct; fast spoken context; 90s calendar cache;
+  autonomy proposed never applied; distillation refuses wholesale on
+  drift; "I ate dinner" marks the planned meal.)*
 
-**VERIFIED (10 Aug, Watcher session):**
-- Real end-to-end run: `POST /api/video` with a 17:49 fitness video
-  (sxn5kPQ4Gl0) → record `775ade9d` settled `pending`, lane `coach`,
-  claims cited to PubMed, all three wikilinks resolved to files that
-  exist in `Wiki/Health/`. **The draft is still pending his review.**
-- Transcript leg direct: `fetchVideoTranscript` returned 42,597 chars of
-  timestamped captions with correct metadata.
-- Gates: lint 0 errors, build green, 255 pass / 0 fail (8 new in
-  `server/test/watcher.test.js`), pushed as 9569bd2, service reloaded,
-  health 200.
-- Python: brew 3.14 preferred, Apple 3.9 parses the scripts as fallback;
-  spawn PATH extended with `/opt/homebrew/bin` for launchd.
-
-**VERIFIED (9 Aug session, with locators):**
-- Gates at close: `npm run lint` 0 errors; `npm run build` green;
-  `cd server && npm test` **237 pass / 0 fail**; `git status --porcelain`
-  empty; `HEAD == origin/main`; `curl localhost:4173/api/health` → 200.
-- Pages deploy: `gh run list` → last two runs completed/success.
-- Health push root cause CLOSED: pushlog rawBody on 6 Aug shows the full
-  8-metric payload incl. `watchSteps` 10,761 vs iPhone 9,988 → MAX fold
-  stored 10,761. Cause of the long saga was the Shortcut's Request Body
-  (not the queries).
-- Siri path: `POST /api/ask/sync` over the direct IP returned a spoken
-  answer in 12.2s (was 26s) after the CalDAV cache + parallel context.
-- Auth failure diagnosed from the server log line `auth reject … scheme
-  ":" token len 0` — a stray colon in his header value, caused by the
-  doc's `Authorization: Bearer …` one-line form (now rewritten).
-- Health mirror writing his real vault: `Wiki/Health/Health Log/2026-08.md`
-  exists with per-day rows and honest em dashes.
-- Trust ladder's first real pass filed 3 proposals (morning brief, evening
-  debrief, Daily Review → auto) and correctly abstained on thin samples
-  (Plan Today n=5, weekly n=3).
-- Distiller's live run: record `df80b844` pending, job
-  `server/data/distill/622f0292.json`, 2 orphan Studio ideas → 4 files.
-- Ops tap-through rendered against real data (screenshot taken): Daily
-  Review shows its Mind skills + last 5 receipts.
+**VERIFIED (12 Aug close, with locators):**
+- Gates: `npm run lint` **0 errors**; `npm run build` green (`dist/sw.js`
+  emitted); `cd server && npm test` **284 pass / 0 fail**;
+  `git status --porcelain` **empty**; `HEAD == origin/main` (`dff6fc2`);
+  `curl localhost:4173/api/health` → **200**; no `vite preview` process;
+  `dist/pc.json` absent.
+- Pages deploy: `gh run list` → last **three** runs completed/success.
+- My work survives the concurrent commits — grepped in `git show HEAD:`:
+  `watcher.js::digestTranscriptCached`, `ingest.js::persistJob` (×6),
+  `brainWeek.js::composeBrainWeek`, `valsInbox.js::fullPayload`,
+  `Inbox.jsx::WILL BE FILED`, `ops.js::watcher`.
+- **The Hormozi weave is IN THE VAULT**: 41 changes applied with backups;
+  `Wiki/Concepts/` now holds **52** files including *You're Not Behind
+  You're Early*, *Tragedy Plus Time*, *Undeniable Proof*;
+  `Wiki/Sources/33 Brutal Truths (…).md` and
+  `Raw/33 Brutal Truths (…) (Transcript).md` both exist.
+  Recall indexed it: `GET /api/recall?q=lonely chapter` returns
+  *The Lonely Chapter*.
+- Caches on disk: `server/data/watch/bbc39448.txt` (575,807 bytes),
+  `server/data/watch/-AdkwqkE20M-notes.md` (168,675 bytes).
+  `server/data/ingest/` is empty — correct, every job settled.
+- Job persistence drilled for real: fabricated ready job → **actual
+  `launchctl kickstart`** → recovered over HTTP with changes intact →
+  discarded clean, file removed.
+- Live records now: 192 total, **45 pending**; `bbc39448` video **filed**;
+  `8ba46f76` video **undone** (the old Wiki/Inbox-format filing);
+  `775ade9d` IHA coach verdict **pending**; `d7d16872` Brain Week
+  **pending**.
+- Measured costs (CLI `total_cost_usd`): 150k chunk on default model
+  **$1.46** (killed at $0.75); 60k chunk on Sonnet **$0.35**; digested
+  weave on Opus **$8.15** (killed at $8); the same weave on Sonnet
+  **$6.11** with 37 staged changes.
+- Groq key authenticates: `GET api.groq.com/openai/v1/models` → 200;
+  `setup.py --json` → `status: ready`, `whisper_backend: groq`.
 
 **ASSUMED (treat as open):**
-- That approving the 3 autonomy proposals will actually reduce the noise —
-  the theory is sound but unproven; re-read the ledger in a week.
-- That the distiller's link choices are good. The SUMMARY was read; the
-  per-file diffs were NOT inspected. Drift-refusal + undo are the safety
-  net, not review.
-- That Tell Nova's food-slot path works end to end from the phone — the
-  server path is unit-tested, but he has not re-tested since the fix.
-- That the Scriptable widget works — written and the endpoint verified,
-  never installed on his phone.
-- That the About You invite renders — the vals logic is written and gated
-  on `connectionStatus === 'connected'`, but it was never seen on screen.
+- **That the Whisper fallback actually transcribes.** The key
+  authenticates; no captionless video has ever been run through it.
+- **That the weave's page content is good.** I read the change LIST and
+  spot-checked frontmatter on one page — the 41 files' prose was NOT
+  reviewed. Backups exist for every overwrite.
+- That the exhaustiveness contract genuinely loses nothing. The notes are
+  dense and chapter-aware, but no one diffed transcript against notes to
+  prove coverage.
+- That Brain Week's Sunday tick fires on schedule — only the manual
+  `POST /api/brain-week/run` has ever run.
+- That the tap-to-expand UI renders correctly on his phone — built and
+  deployed, never seen on screen by me.
+- That WATCH + ANALYSE works from the app UI. Every deep weave this
+  session was started via `POST /api/ingest` from the shell; the button
+  wiring is only inspected, not exercised.
+- Everything in the other session's health/Shortcuts work.
+- (Standing: autonomy proposals reducing noise; distiller link choices;
+  food-slot path from the phone; Scriptable widget; About You invite.)
 
 **OPEN QUESTIONS / BLOCKERS:**
-- **00:05 automation, updated 10 Aug:** it FIRED on the night of 9→10 Aug
-  (pushlog 2026-08-09T14:05Z) and reached the server — his banner was
-  right. Two residues: (a) its payload had NO iPhone `steps` key, only a
-  watch partial, which clobbered 9 Aug's 12,967 down to 1,273 via a
-  guard-ordering bug — FIXED in 13975df (fold before guard, verified
-  live) and the day restored to 12,967; (b) nights 7→8 and 8→9 show no
-  automation entries at all — those nights it genuinely didn't fire.
-  Still HIS to check: why the iPhone steps query returns nothing at
-  00:05 (locked-phone HealthKit? the "has any value" filter?), and the
-  automation's reliability night to night. The server now self-heals
-  from partials either way.
-- 44 pending records — including the 3 autonomy proposals, the distill
-  draft, 16 coach receipts, and 2 scout proposals.
-- The live walkthrough (4+ sessions owed).
-- About You is still empty; every agent still reasons without it.
-- Pedometer++ parity: server accepts `pedometerSteps` but his Shortcut
-  doesn't send it; unresolved whether the action even exists.
-- MacBook is often on battery overnight (31% on 8 Aug) — clamshell/battery
-  sleep makes any night unreliable regardless of the automation.
+- **45 pending records** — including `775ade9d` (IHA coach verdict),
+  `d7d16872` (Brain Week), the 3 autonomy proposals, the distill draft,
+  coach receipts. The number is climbing, which is the exact
+  produce-vs-keep problem the trust ladder was built to fix.
+- **The live walkthrough — 5+ sessions owed.** Now overdue enough that he
+  has features he has never seen (Deep weave, Brain Week, tap-to-expand).
+- **Two sessions writing this repo concurrently.** One swept my files into
+  its commit (`0210290`). Nothing was lost, but the handoff and the test
+  suite are shared surfaces — check `git log` before assuming a change is
+  yours.
+- Whether he wants the deep weave to run automatically for trusted
+  channels (his phrasing: "less friction, less to remember").
+- About You is still empty; every agent reasons without it.
+- 00:05 automation reliability night-to-night, and the iPhone steps query
+  returning nothing at midnight — the other session's ground now.
+- MacBook often on battery overnight — any night is unreliable regardless.
 
-**NEXT ACTION:** Ask him to approve the three trust-ladder proposals, then
-re-read the ledger after a week. Expected observation: dispatch/review
-stop accumulating as pending and start arriving as Telegram messages;
-`pending` stops climbing past ~20.
+**NEXT ACTION:** Ask him to run **▶▶ WATCH + ANALYSE from the app** on a
+short video (not the shell). Expected observation: the review overlay
+shows *Fetching the video transcript…* then a change list within ~3
+minutes, and approving it writes Source + Concept pages — proving the
+button wiring and the app-side approve path, which are the last two
+untested links in the chain.
 
 **DO NOT (dead ends already paid for):**
+- Do **not** use `new URL(import.meta.url).pathname` for a path in this
+  repo — the repo path contains a space, so it stays percent-encoded and
+  silently writes a parallel `Claude%20Projects` tree. Four call sites did
+  this; use `fileURLToPath`.
+- Do **not** wrap a long model payload (notes, transcripts, page bodies)
+  in a JSON string field. One raw newline = "Bad control character" and
+  the whole expensive pass is lost. Ask for markdown.
+- Do **not** read stderr before stdout when a `claude` child fails. A
+  harmless "no stdin data received in 3s" warning was reported as the
+  cause of a 15-minute failure; the real reason (is_error +
+  `total_cost_usd`) is in stdout. Also pass `stdio: ['ignore', …]`.
+- Do **not** set a budget cap without measuring the pass first. Two kills
+  ($0.75 vs $1.46 actual, $8 vs $8.15 actual) cost ~$10 and an evening.
+  Run one pass by hand, read `total_cost_usd`, then set the cap.
+- Do **not** assume the CLI's default model is cheap — it is Opus, and
+  bulk reading on it is 5× Sonnet.
+- Do **not** hold an expensive, user-approvable artifact only in memory.
+  Ready ingest jobs died with the process twice; they persist now.
+- Do **not** diff a staged tree against `Wiki/` alone — `Raw/` must be in
+  the `before` set or every transcript reads as "new".
 - Do **not** write to `server/data/inbox.json` from a SECOND node process
-  while the server runs. `inboxStore` caches the file in memory; the
-  server's next write clobbers the outside record. A distill record was
-  lost exactly this way — it looked like a silent failure. Trigger
-  in-process via an endpoint (`POST /api/distill/run` exists for this).
-- Do **not** document an HTTP header as `Authorization: Bearer <token>` on
-  one line for a Shortcuts recipe — it gets pasted literally, colon and
-  all, and the server sees scheme `":"`. Show Key and Value separately.
-- Do **not** assume a Shortcuts failure is the Shortcut. This session it
-  was, in order: a stale POST body, a missing `text` field, a literal
-  "Provided Input" placeholder, a colon in the auth header, and a request
-  that never left the phone. Read the request log FIRST.
-- Do **not** chase iOS "network connection was lost" as a network fault
-  without checking latency: >25s of silence is enough for iOS to drop it.
-- Do **not** add a slow external call (CalDAV) into a spoken path without
-  a deadline; it cost ~20s of every Siri answer.
-- Do **not** trust `tailscale serve` alone for phone→Mac; it was up and
-  Safari worked while Shortcuts could not reach it. The direct tailnet IP
-  is the reliable path.
-- Do **not** claim an agent "ran" from a pending record alone — check the
-  record survived (see the clobber note above) and that its job file
-  exists.
+  while the server runs — `inboxStore` caches it in memory. Trigger
+  in-process via an endpoint.
+- Do **not** document an HTTP header as `Authorization: Bearer <token>`
+  on one line for a Shortcuts recipe — it gets pasted literally.
+- Do **not** assume a Shortcuts failure is the Shortcut. Read the request
+  log FIRST.
+- Do **not** chase iOS "network connection was lost" without checking
+  latency (>25s and iOS drops it).
+- Do **not** add a slow external call into a spoken path without a
+  deadline.
+- Do **not** trust `tailscale serve` alone for phone→Mac.
+- Do **not** claim an agent "ran" from a pending record alone.
 - Everything in the previous DO NOT list still applies (Vite stale
   modules; `$` in `/m` regex over vault markdown; fixture-only tests for
-  vault writers; verifying the PWA against the deployed Pages build in the
-  MCP Chrome; `CACHED_LIVE_KEYS` for new live slices; Vercel/serverless;
-  the steps Source filter; view-transition CDP evals).
-
+  vault writers; verifying the PWA against the deployed Pages build in
+  the MCP Chrome; `CACHED_LIVE_KEYS` for new live slices;
+  Vercel/serverless; the steps Source filter; view-transition CDP evals).
 ---
 
 ## SESSION LOG (append-only, newest first)
+
+### 10–12 August 2026
+Nova learned to watch. The `/watch` skill became an agent — the Watcher —
+and then a whole pipeline: a link in, transcript pulled locally, and either
+a quick verdict (the Coach auditing a fitness video's claims against the
+literature) or the full second-brain weave (Source, Concept, Entity and
+Topic pages, wikilinked, verbatim transcript in `Raw/`). It ships with two
+buttons because absorption costs ~$6 and triage costs ~$0.50, and he should
+not pay the former to discover a video was filler.
+
+Almost everything of value came from the failures, not the build. His first
+real video — a 4-hour Hormozi podcast, 575k characters — broke the pipeline
+four separate ways in sequence, and each break was a real bug: a budget cap
+set by guess rather than measurement (a 150k chunk on the default Opus model
+cost $1.46 against a $0.75 cap and died having written 218 tokens); a
+2000-word payload wrapped in a JSON string that one raw newline destroyed;
+an error handler that read stderr before stdout and so reported a harmless
+"no stdin data" warning as the cause of a fifteen-minute failure; and the
+weave itself dying at its own $8 cap on Opus. Measuring instead of guessing
+fixed all of it — 60k chunks on Sonnet cost $0.35 and return 7k tokens of
+dense notes — and the digest is now cached per video id so a retry never
+re-pays. His question "will this duplicate anything?" was asked at exactly
+the right moment: it would have, twice over, and video identity (by ID, not
+URL) now prevents it.
+
+Three things were corrected rather than added. The Watcher's first filing
+put its note in `Wiki/Inbox` with `type: raw` and threw the transcript away,
+so it never appeared under his Sources filter — it now writes his own
+podcast convention. Four modules resolved a ghost `Claude%20Projects`
+directory because the repo path contains a space (`URL.pathname` instead of
+`fileURLToPath`), silently stranding a transcript and emptying the stream
+feed's heartbeat reads. And ready ingest jobs lived only in memory, so a
+$6 diff died on a server restart and had to be applied out-of-band — they
+persist to disk now, drilled with a real `launchctl kickstart`. The 4-hour
+conversation is in the vault: 41 changes, 19 new concepts, 11 existing
+pages deepened rather than forked.
 
 ### 7–9 August 2026
 The session split in two. First, a long Shortcuts saga: Ask Nova and Tell
