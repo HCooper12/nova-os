@@ -238,12 +238,20 @@ export async function loadDay(date) {
   return JSON.parse(await readFile(full, 'utf8'));
 }
 
-// ONE ingest gate for BOTH channels — the URL push and the Health Drops
-// folder. The midnight date-shift and the monotonic-steps rule are part of
-// the FORMAT, not the transport: the 9→10 Aug steps clobber happened
-// because a guard lived in only one of the two writers. Callers pass their
-// transport receipts (rawBody / source / file) through to the pushlog.
-export async function ingestHealthPayload({ date, metrics, manual = false, source, file, rawBody }) {
+// ONE ingest gate for every channel that writes health data (the URL push,
+// the Health Drops folder, the Health Auto Export adapter). The midnight
+// date-shift and the monotonic guard are part of the FORMAT, not the
+// transport: the 9→10 Aug steps clobber happened because a guard lived in
+// only one of the two writers. Callers pass their transport receipts
+// (rawBody / source / file) through to the pushlog.
+//
+// `skipDateShift` is independent from `manual`: a producer that already
+// resolved its own unambiguous calendar date (real per-sample timestamps,
+// not a single "today" claim from a phone that can't tell the server what
+// day it means) should skip the midnight heuristic WITHOUT also losing the
+// monotonic guard, which manual:true would otherwise disable. Added for
+// Health Auto Export (13 Aug 2026): its dates come pre-resolved per sample.
+export async function ingestHealthPayload({ date, metrics, manual = false, skipDateShift = false, source, file, rawBody }) {
   const receipt = { ...(source ? { source } : {}), ...(file ? { file } : {}), ...(rawBody ? { rawBody } : {}) };
   // The phone may say it in words: "yesterday"/"today" resolve HERE, so a
   // morning catch-up Shortcut (Health is unreadable while the phone is
@@ -263,7 +271,7 @@ export async function ingestHealthPayload({ date, metrics, manual = false, sourc
     return { ok: false, error: 'no usable metrics' };
   }
   let dateShifted = false;
-  if (!manual) {
+  if (!manual && !skipDateShift) {
     const resolved = resolvePushDate(date);
     date = resolved.date;
     dateShifted = resolved.shifted;

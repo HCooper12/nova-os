@@ -83,6 +83,43 @@ export function healthDataRouter(vaultPath) {
     }
   });
 
+  // Health Auto Export (a real app, real HealthKit entitlements) can reach
+  // Apple's own de-duplicated aggregation — the thing a Shortcut cannot do.
+  // See lib/autoExport.js for why, and its UNVERIFIED note: this route has
+  // never seen a real payload from the app. Every date it finds still goes
+  // through the SAME ingestHealthPayload gate as every other channel —
+  // skipDateShift because these dates are already real per-sample calendar
+  // dates, not a single ambiguous "today" claim; the monotonic guard stays
+  // on, because a same-day re-sync should still only grow, never shrink.
+  router.post('/health-data/auto-export', async (req, res, next) => {
+    try {
+      let body = req.body;
+      if (typeof body === 'string') {
+        try { body = JSON.parse(body); } catch { /* leave as-is; parser below fails honestly */ }
+      }
+      const { logPushAttempt, ingestHealthPayload } = await import('../lib/healthData.js');
+      const { parseAutoExportPayload } = await import('../lib/autoExport.js');
+      const { perDate, warnings } = parseAutoExportPayload(body);
+      if (!perDate.size) {
+        await logPushAttempt({ ok: false, source: 'auto-export', error: 'no usable metrics', warnings });
+        return res.status(400).json({ error: 'no usable metrics', warnings });
+      }
+      const days = [];
+      for (const [date, { metrics, warnings: dateWarnings }] of perDate) {
+        const rawBody = JSON.stringify({ date, metrics }).slice(0, 600);
+        const result = await ingestHealthPayload({ date, metrics, source: 'auto-export', skipDateShift: true, rawBody });
+        days.push({ date, ...result, warnings: dateWarnings });
+      }
+      const { broadcast } = await import('../lib/events.js');
+      broadcast('health');
+      res.json({ days, warnings });
+    } catch (err) {
+      const { logPushAttempt } = await import('../lib/healthData.js');
+      await logPushAttempt({ ok: false, source: 'auto-export', error: err.message });
+      res.status(400).json({ error: err.message });
+    }
+  });
+
   router.get('/health-data', async (req, res, next) => {
     try {
       const days = req.query.days ? Number(req.query.days) : 14;

@@ -199,6 +199,20 @@ test('ingest accepts "yesterday" literally — the morning catch-up needs no dat
   assert.equal(day.stepsComplete, true, 'captured after the day ended = an honest total');
 });
 
+test('skipDateShift bypasses the midnight heuristic but keeps the monotonic guard', async () => {
+  // Health Auto Export's dates come from real per-sample timestamps — the
+  // "was this really about yesterday?" ambiguity the midnight-shift exists
+  // for doesn't apply, so this producer opts out of ONLY that heuristic.
+  const { ingestHealthPayload, loadDay } = await import('../lib/healthData.js');
+  const first = await ingestHealthPayload({ date: '2026-03-05', metrics: { steps: 8000 }, source: 'auto-export', skipDateShift: true });
+  assert.equal(first.date, '2026-03-05', 'no midnight shift applied, regardless of when the request landed');
+  assert.equal((await loadDay('2026-03-05')).steps, 8000);
+
+  const lower = await ingestHealthPayload({ date: '2026-03-05', metrics: { steps: 5000 }, source: 'auto-export', skipDateShift: true });
+  assert.equal(lower.stepsDropped, true, 'the monotonic guard still applies — skipDateShift did not disable it');
+  assert.equal((await loadDay('2026-03-05')).steps, 8000, 'the truncated re-sync did not overwrite the higher figure');
+});
+
 test('a manual correction is authoritative but not automatically "complete"', async () => {
   const { saveDay } = await import('../lib/healthData.js');
   const pad = (n) => String(n).padStart(2, '0');
