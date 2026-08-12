@@ -139,8 +139,30 @@ export function Inbox({ v }) {
                   <RouteBadge route={item.route} confidence={item.confidence} />
                   <span style={css(`font:400 9px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>{item.time} · {item.source}</span>
                 </div>
-                <div style={css(`margin-top:9px;font:600 15px ${R}`)}>{item.title}</div>
-                {item.preview && <div style={css(`margin-top:3px;font:500 13px/1.5 ${R};color:var(--nv-ink60);white-space:pre-wrap`)}>{item.preview}</div>}
+                <div onClick={item.canExpand ? item.toggleExpand : undefined} style={{ cursor: item.canExpand ? 'pointer' : 'default' }}
+                  title={item.canExpand ? (item.expanded ? 'Collapse' : 'Tap to see exactly what approving will file') : undefined}>
+                  <div style={css(`margin-top:9px;font:600 15px ${R}`)}>
+                    {item.title}
+                    {item.canExpand && <span style={css(`margin-left:7px;font:400 10px ${M};color:color-mix(in srgb, var(--nv-ink) 38%, transparent)`)}>{item.expanded ? '▾' : '▸'}</span>}
+                  </div>
+                  {!item.expanded && item.previewShort && <div style={css(`margin-top:3px;font:500 13px/1.5 ${R};color:var(--nv-ink60);white-space:pre-wrap`)}>{item.previewShort}</div>}
+                  {item.expanded && (
+                    <div style={css("margin-top:8px;display:flex;flex-direction:column;gap:8px")}>
+                      {item.captured && (
+                        <div>
+                          <div style={css(`font:500 8.5px ${M};letter-spacing:.18em;color:color-mix(in srgb, var(--nv-ink) 42%, transparent)`)}>YOU CAPTURED</div>
+                          <div style={css(`margin-top:3px;font:500 13px/1.55 ${R};color:var(--nv-ink60);white-space:pre-wrap`)}>{item.captured}</div>
+                        </div>
+                      )}
+                      {item.full && (
+                        <div>
+                          <div style={css(`font:500 8.5px ${M};letter-spacing:.18em;color:var(--nv-gold)`)}>WILL BE FILED</div>
+                          <div style={css(`margin-top:3px;font:500 13px/1.55 ${R};white-space:pre-wrap;overflow-wrap:break-word`)}>{item.full}</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
                 {item.reason && <div style={css(`margin-top:6px;font:italic 400 13px ${S};color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`)}>{item.reason}</div>}
                 {item.error && <div style={css(`margin-top:6px;font:500 12px ${R};color:var(--nv-warn)`)}>{item.error}</div>}
                 <div style={css("margin-top:12px;display:flex;gap:10px")}>
@@ -385,10 +407,12 @@ export function Inbox({ v }) {
             {v.inboxHistory.map((item, i) => {
               const meta = STATUS_META[item.status] || STATUS_META.error;
               return (
-                <div key={item.id} style={css(`display:flex;gap:12px;align-items:baseline;padding:10px 4px${i < v.inboxHistory.length - 1 ? ';border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent)' : ''}`)}>
+                <div key={item.id} style={css(`padding:10px 4px${i < v.inboxHistory.length - 1 ? ';border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent)' : ''}`)}>
+                <div style={css('display:flex;gap:12px;align-items:baseline')}>
                   <span style={css(`font:400 9.5px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent);width:76px;flex:none`)}>{item.time}</span>
                   <span style={{ flex: 'none' }}><RouteBadge route={item.route} confidence={null} /></span>
-                  <span style={{ minWidth: 0, flex: 1 }}>
+                  <span onClick={item.canExpand ? item.toggleExpand : undefined} style={{ minWidth: 0, flex: 1, cursor: item.canExpand ? 'pointer' : 'default' }}
+                    title={item.canExpand ? (item.expanded ? 'Collapse' : 'Tap to see what was captured and filed') : undefined}>
                     <span style={css(`font:600 13.5px ${R};display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap`)}>{item.title}</span>
                     <span style={css(`font:500 11.5px ${R};color:var(--nv-ink60);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap`)}>
                       {item.status === 'filed' && item.destination ? `${item.auto ? 'auto-filed' : 'approved'} → ${item.destination}` : ''}
@@ -424,6 +448,23 @@ export function Inbox({ v }) {
                       hoverStyle={{ background: 'color-mix(in srgb, var(--nv-warn) 10%, transparent)' }}
                     >{item.busy ? '…' : 'Dismiss'}</Interactive>
                   )}
+                </div>
+                {item.expanded && (
+                  <div style={css("margin:8px 0 2px 88px;display:flex;flex-direction:column;gap:8px")}>
+                    {item.captured && (
+                      <div>
+                        <div style={css(`font:500 8.5px ${M};letter-spacing:.18em;color:color-mix(in srgb, var(--nv-ink) 42%, transparent)`)}>YOU CAPTURED</div>
+                        <div style={css(`margin-top:3px;font:500 12.5px/1.55 ${R};color:var(--nv-ink60);white-space:pre-wrap`)}>{item.captured}</div>
+                      </div>
+                    )}
+                    {item.full && (
+                      <div>
+                        <div style={css(`font:500 8.5px ${M};letter-spacing:.18em;color:var(--nv-gold)`)}>{item.status === 'filed' ? 'WHAT WAS FILED' : 'THE FILING'}</div>
+                        <div style={css(`margin-top:3px;font:500 12.5px/1.55 ${R};white-space:pre-wrap;overflow-wrap:break-word`)}>{item.full}</div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 </div>
               );
             })}

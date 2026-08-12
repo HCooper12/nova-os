@@ -75,6 +75,26 @@ function payloadPreview(decision) {
   return `${p.title || ''} — ${p.body || ''}`;
 }
 
+// The FULL filing, for the tap-to-expand view — what approving will actually
+// write, uncompressed. Routes whose preview already carries everything fall
+// back to it; the text-bearing routes get their whole payload.
+function fullPayload(decision) {
+  if (!decision) return '';
+  const p = decision.payload || {};
+  const route = decision.route;
+  if (route === 'journal') return [p.text, p.label && `— filed under ${p.category || 'personal'} · ${p.label}`].filter(Boolean).join('\n');
+  if (route === 'note' || route === 'watch-note') return [p.title, p.body].filter(Boolean).join('\n\n');
+  if (route === 'idea-outline') return p.text || '';
+  if (route === 'idea') return [p.title, p.hook, p.format ? `format: ${p.format}` : null].filter(Boolean).join('\n');
+  if (route === 'todo') return (p.items || []).map((it) => (typeof it === 'string' ? `• ${it}` : `• ${it.text}${it.category ? `  #${it.category}` : ''}`)).join('\n');
+  if (route === 'shopping') return (p.items || []).map((i) => `• ${i.name}${i.category ? `  (${i.category})` : ''}`).join('\n');
+  if (route === 'preference') return p.rule || '';
+  if (route === 'stash') return [p.name, p.url, p.category && `→ ${p.category}`, p.note].filter(Boolean).join('\n');
+  return payloadPreview(decision);
+}
+
+const PREVIEW_CLAMP = 220;
+
 function timeLabel(iso) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -232,11 +252,23 @@ export function valsInbox(app, ctx) {
 
   Object.assign(ctx, { inboxPendingCount: pendingCount });
 
-  const mkItem = (r) => ({
+  const mkItem = (r) => {
+    const full = fullPayload(r.decision);
+    const preview = payloadPreview(r.decision);
+    const expanded = !!(st.inboxExpanded || {})[r.id];
+    return {
     id: r.id,
     kind: r.kind || null,
     text: r.text,
     time: timeLabel(r.createdAt),
+    // tap-to-expand: collapsed shows a clamped preview; expanded shows what
+    // he actually captured AND exactly what approving will file
+    expanded,
+    canExpand: !!(full || r.text),
+    full,
+    captured: r.text || '',
+    previewShort: preview.length > PREVIEW_CLAMP ? `${preview.slice(0, PREVIEW_CLAMP)}…` : preview,
+    toggleExpand: () => app.toggleInboxExpand(r.id),
     source: r.kind === 'review' ? 'DAILY REVIEW' : r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.kind === 'guardian' ? 'GUARDIAN' : r.kind === 'cfo' || r.kind === 'money-import' ? 'CFO' : r.kind === 'meal-prep' ? 'MEAL PREP' : r.kind === 'food-suggestion' ? 'NUTRITION' : r.kind === 'calendar' ? 'SCHEDULE' : r.kind === 'training-check' ? 'TRAINING' : r.kind === 'week-plan' ? 'COMMANDER' : r.kind === 'plan-today' ? 'PLANNER' : r.kind === 'pattern' ? 'SCOUT' : r.kind === 'autonomy' ? 'TRUST LADDER' : r.kind === 'distill' ? 'DISTILLER' : r.kind === 'coach' || r.kind === 'weekly-debrief' ? 'COACH' : r.kind === 'research' ? 'RESEARCHER' : r.kind === 'video' ? 'WATCHER' : r.kind === 'brain-week' ? 'BRAIN WEEK' : r.kind === 'followup' ? 'CALENDAR' : r.kind === 'studio' ? 'STUDIO' : r.source === 'voice' ? 'VOICE' : 'TYPED',
     status: r.status,
     route: r.decision ? (ROUTE_META[r.decision.route] || ROUTE_META.note) : null,
@@ -264,7 +296,8 @@ export function valsInbox(app, ctx) {
     deepAnalyse: r.kind === 'video' && r.decision?.payload?.url && ['pending', 'filed'].includes(r.status)
       ? () => app.startVideoDeepIngest(r.decision.payload.url)
       : null,
-  });
+    };
+  };
 
   const pendingItems = items.filter((r) => r.status === 'pending').map(mkItem);
   const historyItems = items.filter((r) => r.status !== 'pending').map(mkItem);

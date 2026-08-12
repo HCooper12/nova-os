@@ -2389,6 +2389,9 @@ export default class App extends Component {
       this.refreshInbox();
     }).catch((e) => this.toastMsg('Research failed to start: ' + e.message));
   }
+  toggleInboxExpand(id) {
+    this.setState((s) => ({ inboxExpanded: { ...s.inboxExpanded, [id]: !(s.inboxExpanded || {})[id] } }));
+  }
   startVideoWatch(text) {
     const conn = getConnection();
     const t = (text || '').trim();
