@@ -106,9 +106,13 @@ export function resolvePushDate(date, now = new Date()) {
   return { date: `${y.getFullYear()}-${pad(y.getMonth() + 1)}-${pad(y.getDate())}`, shifted: true };
 }
 
-// The monotonic-steps rule. Steps within a calendar day only ever increase —
-// you cannot un-walk — so for a PAST day the HIGHEST reported value is the
-// most complete reading, and a lower later push is a truncated one to ignore.
+// The monotonic-accumulator rule. Steps, active energy, and distance are all
+// running totals for the calendar day — you cannot un-walk, un-burn, or
+// un-travel — so for any of them the HIGHEST reported value is the most
+// complete reading, and a lower later push is a truncated one to ignore.
+// Point-in-time metrics (resting heart rate, HRV, VO2 max, weight) are NOT
+// accumulators — a later reading of those is simply more current whatever
+// its number, so they overwrite freely and get no guard here.
 //
 // Evidence (pushlog, 23-27 July + his Health figure on 30 July): the nightly
 // automation reports LESS than a later per-date reading for the same date, by
@@ -124,10 +128,22 @@ export function resolvePushDate(date, now = new Date()) {
 // day and overwrote it. You cannot un-walk within a day either; a lower
 // later reading is a truncated one whatever day it names. Manual corrections
 // (manual: true) still bypass this entirely — his edit is the last word.
-export function shouldDropLowerSteps(existingSteps, incomingSteps) {
-  if (incomingSteps == null) return false;
-  if (existingSteps == null) return false;  // catch-up into a gap is welcome
-  return Number(incomingSteps) <= Number(existingSteps); // only a HIGHER reading replaces
+// GENERALIZED FROM STEPS-ONLY (12 Aug 2026): a drill push carrying a
+// hardcoded date instead of "yesterday" landed against a day with no file
+// yet, so even the steps guard had nothing to compare against — and
+// activeEnergyKcal/walkingRunningDistanceKm had NO guard at all, so 11
+// Aug's energy and distance figures wrote straight into 12 Aug's file
+// (819 kcal / 15 km logged against 163 steps). The guard now covers every
+// accumulator, not just steps, so a second push can never silently replace
+// a better accumulator reading with a worse one — though it still can't
+// protect a day's very FIRST push, which is what actually happened here;
+// that's a data-entry bug, not a gap this guard is meant to close.
+export const ACCUMULATOR_METRICS = ['steps', 'activeEnergyKcal', 'walkingRunningDistanceKm', 'sleepAsleepMinutes', 'sleepInBedMinutes'];
+
+export function shouldDropLowerReading(existingValue, incomingValue) {
+  if (incomingValue == null) return false;
+  if (existingValue == null) return false;  // catch-up into a gap is welcome
+  return Number(incomingValue) <= Number(existingValue); // only a HIGHER reading replaces
 }
 
 // A steps reading is only the day's TOTAL if it was captured after the day
@@ -252,21 +268,25 @@ export async function ingestHealthPayload({ date, metrics, manual = false, sourc
     date = resolved.date;
     dateShifted = resolved.shifted;
   }
-  let stepsDropped = false;
-  if (!manual && metrics.steps != null) {
+  const droppedKeys = [];
+  if (!manual && ACCUMULATOR_METRICS.some((k) => metrics[k] != null)) {
     const existing = await loadDay(date);
-    if (shouldDropLowerSteps(existing?.steps, metrics.steps)) {
-      delete metrics.steps;
-      stepsDropped = true;
-      if (!Object.keys(metrics).length) {
-        await logPushAttempt({ ok: true, ...receipt, date, keys: rawKeys, steps: null, stepsDropped });
-        return { ok: true, day: existing, date, stepsDropped, allDropped: true };
+    for (const key of ACCUMULATOR_METRICS) {
+      if (metrics[key] != null && shouldDropLowerReading(existing?.[key], metrics[key])) {
+        delete metrics[key];
+        droppedKeys.push(key);
       }
+    }
+    if (droppedKeys.length && !Object.keys(metrics).length) {
+      const stepsDropped = droppedKeys.includes('steps');
+      await logPushAttempt({ ok: true, ...receipt, date, keys: rawKeys, steps: null, stepsDropped, droppedKeys });
+      return { ok: true, day: existing, date, stepsDropped, droppedKeys, allDropped: true };
     }
   }
   const day = await saveDay(date, metrics, { manual });
-  await logPushAttempt({ ok: true, ...receipt, date, keys: rawKeys, steps: metrics.steps ?? null, ...(stepsDropped ? { stepsDropped } : {}), ...(dateShifted ? { dateShifted: true } : {}) });
-  return { ok: true, day, date, stepsDropped, dateShifted };
+  const stepsDropped = droppedKeys.includes('steps');
+  await logPushAttempt({ ok: true, ...receipt, date, keys: rawKeys, steps: metrics.steps ?? null, ...(droppedKeys.length ? { stepsDropped, droppedKeys } : {}), ...(dateShifted ? { dateShifted: true } : {}) });
+  return { ok: true, day, date, stepsDropped, droppedKeys, dateShifted };
 }
 
 export async function loadRecentDays(n = 14) {

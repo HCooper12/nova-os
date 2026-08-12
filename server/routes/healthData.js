@@ -70,7 +70,8 @@ export function healthDataRouter(vaultPath) {
       const result = await ingestHealthPayload({ date, metrics, manual: body?.manual === true, rawBody });
       if (!result.ok) return res.status(400).json({ error: result.error });
       if (result.allDropped) {
-        return res.json({ day: result.day, note: 'that steps figure was lower than the one already recorded for that day — kept the higher reading' });
+        const which = result.droppedKeys?.length ? result.droppedKeys.join(', ') : 'that reading';
+        return res.json({ day: result.day, note: `${which} was lower than what's already recorded for that day — kept the higher reading` });
       }
       const { broadcast } = await import('../lib/events.js');
       broadcast('health');

@@ -85,16 +85,15 @@ test('loadDay returns null for a day with no data', async () => {
   assert.equal(await loadDay('1999-01-01'), null);
 });
 
-test('monotonic-steps rule: a HIGHER later reading wins for a past day, a truncated one is ignored', async () => {
-  const { shouldDropLowerSteps } = await import('../lib/healthData.js');
-  const now = new Date('2026-07-30T09:00:00');
+test('monotonic-accumulator rule: a HIGHER later reading wins for a past day, a truncated one is ignored', async () => {
+  const { shouldDropLowerReading } = await import('../lib/healthData.js');
   // the real case: 23:45 nightly recorded 8311, next morning's per-date push says 9400
-  assert.equal(shouldDropLowerSteps(8311, 9400), false, 'higher = more complete, accept it');
-  assert.equal(shouldDropLowerSteps(9400, 8311), true, 'lower = truncated reading, ignore it');
-  assert.equal(shouldDropLowerSteps(8311, 8311), true, 'equal changes nothing — no rewrite');
-  assert.equal(shouldDropLowerSteps(null, 9400), false, 'catch-up into a gap is welcome');
-  assert.equal(shouldDropLowerSteps(9000, 5000), true, 'TODAY is not exempt — 11 Aug lost 11,107 to a later 813');
-  assert.equal(shouldDropLowerSteps(8311, null), false, 'no incoming steps, nothing to judge');
+  assert.equal(shouldDropLowerReading(8311, 9400), false, 'higher = more complete, accept it');
+  assert.equal(shouldDropLowerReading(9400, 8311), true, 'lower = truncated reading, ignore it');
+  assert.equal(shouldDropLowerReading(8311, 8311), true, 'equal changes nothing — no rewrite');
+  assert.equal(shouldDropLowerReading(null, 9400), false, 'catch-up into a gap is welcome');
+  assert.equal(shouldDropLowerReading(9000, 5000), true, 'TODAY is not exempt — 11 Aug lost 11,107 to a later 813');
+  assert.equal(shouldDropLowerReading(8311, null), false, 'no incoming steps, nothing to judge');
 });
 
 test('the guard judges the FOLDED steps figure — a watch-only partial cannot clobber a finished day', async () => {
@@ -102,12 +101,36 @@ test('the guard judges the FOLDED steps figure — a watch-only partial cannot c
   // only watchSteps 1273 (watch barely worn that day). Guarding on the raw
   // payload's absent `steps` let saveDay's later fold overwrite the day's
   // real 12,967. The route now folds first; this pins the composition.
-  const { pickKnownMetrics, shouldDropLowerSteps } = await import('../lib/healthData.js');
-  const now = new Date('2026-08-10T00:05:13');
+  const { pickKnownMetrics, shouldDropLowerReading } = await import('../lib/healthData.js');
   const folded = pickKnownMetrics({ watchSteps: 1273, hrv: 58 });
   assert.equal(folded.steps, 1273, 'watch-only push still folds into steps');
-  assert.equal(shouldDropLowerSteps(12967, folded.steps), true,
+  assert.equal(shouldDropLowerReading(12967, folded.steps), true,
     'the folded partial must be judged — and dropped — against the stored total');
+});
+
+test('the accumulator guard covers energy and distance, not just steps (the 12 Aug bug)', async () => {
+  // The real regression: a stray push carrying yesterday's activeEnergyKcal
+  // (819.379) and walkingRunningDistanceKm (15.3) overwrote today's file
+  // because those two fields had no guard at all, only steps did.
+  const { ingestHealthPayload, loadDay } = await import('../lib/healthData.js');
+  await ingestHealthPayload({ date: '2026-02-01', metrics: { activeEnergyKcal: 819.4, walkingRunningDistanceKm: 15.3 }, source: 'test' });
+  const r = await ingestHealthPayload({ date: '2026-02-01', metrics: { activeEnergyKcal: 28.8, walkingRunningDistanceKm: 0.18 }, source: 'test' });
+  assert.deepEqual(r.droppedKeys.sort(), ['activeEnergyKcal', 'walkingRunningDistanceKm'], 'both truncated accumulators are dropped');
+  const day = await loadDay('2026-02-01');
+  assert.equal(day.activeEnergyKcal, 819.4, 'the higher energy figure survives');
+  assert.equal(day.walkingRunningDistanceKm, 15.3, 'the higher distance figure survives');
+});
+
+test('point-in-time metrics are NOT guarded — a later reading overwrites regardless of direction', async () => {
+  const { ingestHealthPayload, loadDay } = await import('../lib/healthData.js');
+  await ingestHealthPayload({ date: '2026-02-02', metrics: { hrv: 70, restingHeartRate: 65, vo2Max: 50, weightKg: 83 }, source: 'test' });
+  const r = await ingestHealthPayload({ date: '2026-02-02', metrics: { hrv: 55, restingHeartRate: 58, vo2Max: 47, weightKg: 82 }, source: 'test' });
+  assert.deepEqual(r.droppedKeys, [], 'point-in-time metrics never get dropped');
+  const day = await loadDay('2026-02-02');
+  assert.equal(day.hrv, 55, 'a lower later HRV is simply more current');
+  assert.equal(day.restingHeartRate, 58);
+  assert.equal(day.vo2Max, 47);
+  assert.equal(day.weightKg, 82);
 });
 
 test('steps completeness is stamped honestly: during the day = partial, after = total', async () => {
