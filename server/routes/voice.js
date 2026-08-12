@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { startAskNova, startGreeting, getMessageJob } from '../lib/claudeCode.js';
+import { startAskNova, startGreeting, getMessageJob, prewarmAsk } from '../lib/claudeCode.js';
 import { composeDispatch } from '../lib/dispatch.js';
 import { ttsConfigured, listVoices, synthesize } from '../lib/tts.js';
-import { buildAskContext } from '../lib/askContext.js';
+import { buildAskContext, todayLocalContext } from '../lib/askContext.js';
 
 // The voice line: Ask Nova (read-only Q&A job over the vault, polled via the
 // shared /claude-code/message/:jobId endpoint) and the ElevenLabs TTS proxy.
@@ -107,15 +107,50 @@ export function voiceRouter(vaultPath) {
       // spoken-friendly `text` — Siri says what went wrong instead of nothing
       const finish = (payload) => { clearInterval(keepalive); res.end(JSON.stringify(payload)); };
 
-      const jobId = startAskNova(vaultPath, { question, context: await askContext(null, { fast: true }), direct: true });
+      // The spoken lane keeps ONE conversation alive rather than minting a
+      // new one per ask. That single change removes the three biggest costs
+      // in this request — context assembly, the CLI cold boot, and prompt
+      // cache creation — because a resumed session skips all of them (see
+      // lib/spokenSession.js for the measurements that motivated it).
+      const { takeSpokenSession, dropSpokenSession } = await import('../lib/spokenSession.js');
+      const spoken = takeSpokenSession();
+      // A fresh session pays a CLI boot as well as a context build, and those
+      // two waits are independent — so start the process now and assemble the
+      // context while it boots, instead of doing them one after the other.
+      if (!spoken.resumed) prewarmAsk(vaultPath, spoken.sessionId);
+      // On a resumed turn the heavy context is already in the conversation;
+      // only the volatile local numbers get re-stated. Both branches are
+      // awaited the same way so the fast path stays visibly the cheap one.
+      const [context, liveLine] = spoken.resumed
+        ? ['', await todayLocalContext().catch(() => null) || '']
+        : [await askContext(null, { fast: true }), ''];
+      const started = Date.now();
+      const jobId = startAskNova(vaultPath, {
+        question, context, liveLine, direct: true,
+        sessionId: spoken.sessionId, resume: spoken.resumed,
+      });
       const deadline = Date.now() + 110_000;
       while (Date.now() < deadline) {
         if (res.writableEnded || res.destroyed) { clearInterval(keepalive); return; }
         const job = getMessageJob(jobId);
-        if (job?.status === 'ready') return finish({ text: job.result.text, sessionId: job.result.sessionId });
-        if (job?.status === 'error') return finish({ text: `Nova hit an error: ${job.error}`, error: job.error });
-        await sleep(400);
+        if (job?.status === 'ready') {
+          // One receipt line per spoken ask: whether the session was reused
+          // and how long it took. "Why was that one slow?" is then answerable
+          // from the log instead of by guessing (the whole reason this
+          // latency problem went unexamined for so long).
+          console.log(`ask/sync ${Date.now() - started}ms session=${spoken.resumed ? `resumed turn ${spoken.turns}` : `fresh (${spoken.reason})`}`);
+          return finish({ text: job.result.text, sessionId: job.result.sessionId });
+        }
+        if (job?.status === 'error') {
+          // A dead process or a spent budget must not poison the next ask:
+          // the following one starts a clean conversation rather than trying
+          // to --resume something that is gone.
+          dropSpokenSession();
+          return finish({ text: `Nova hit an error: ${job.error}`, error: job.error });
+        }
+        await sleep(120);
       }
+      dropSpokenSession();
       finish({ text: 'Nova took too long to answer that one.', error: 'timeout' });
     } catch (e) {
       if (res.headersSent) { try { res.end(JSON.stringify({ text: `Nova hit an error: ${e.message}`, error: e.message })); } catch { /* gone */ } return; }

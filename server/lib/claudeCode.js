@@ -241,17 +241,34 @@ ${context || '(unavailable)'}
 Hayden asks: ${question}`;
 }
 
+// A RESUMED spoken turn sends only the question — the live process already
+// holds the lens, the ground rules and turn 1's context, and re-sending them
+// is exactly the cost the spoken session exists to avoid. Two things are
+// deliberately re-stated:
+//   - the volatile numbers, because steps/fuel/inbox move between asks and an
+//     answer built on turn 1's snapshot would be confidently out of date
+//   - the one-shot rule for the hands-free lane, because a conversation that
+//     has been going a while drifts back toward chattiness, and Siri reads
+//     every extra sentence aloud
+// Exported so a test can pin the contract without spawning anything.
+export function buildResumedAsk({ question, liveLine = '', direct = false }) {
+  const parts = [];
+  if (liveLine) parts.push(`[Live now — trust this over anything earlier in this conversation: ${liveLine}]`);
+  if (direct) parts.push('[Hands-free one-shot: answer exactly what was asked, in one or two spoken sentences. Nothing else.]');
+  parts.push(question);
+  return parts.join('\n\n');
+}
+
 // Continuity: the first ask mints a session; later asks --resume it, so the
 // conversation carries across turns AND days (same mechanism as the Code
 // tab). The client persists the returned sessionId; NEW CHAT drops it.
-export function startAskNova(cwd, { question, context, sessionId, direct = false }) {
-  const jobId = randomUUID().slice(0, 8);
-  const isNewSession = !sessionId;
-  const effectiveSessionId = sessionId || randomUUID();
-  const job = { id: jobId, status: 'running', result: null, error: null };
-  jobs.set(jobId, job);
-
-  const args = [
+//
+// `resume` is for a caller that mints its own session id up front and so
+// must say explicitly whether this turn opens the conversation or continues
+// it (the spoken lane does — it has to record the id before the turn runs).
+// Omitted, the old rule stands: an id means resume, no id means new.
+function askArgs(sessionId, isNewSession) {
+  return [
     // conversational input mode: the prompt/question arrives as a stdin
     // message, and the process STAYS ALIVE between turns (warm pool above)
     '-p', '--input-format', 'stream-json',
@@ -272,8 +289,40 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
     // injected, so a fast model answers conversationally in a fraction of
     // the time while staying grounded. (Coach/Researcher keep the default.)
     '--model', 'haiku',
+    isNewSession ? '--session-id' : '--resume', sessionId,
   ];
-  args.push(isNewSession ? '--session-id' : '--resume', effectiveSessionId);
+}
+
+// Boot the CLI for a session that is ABOUT to be asked, without sending it
+// anything. A cold spoken ask used to pay two costs back to back — ~2.5s
+// assembling context, then ~2.2s waiting for the process to boot — when they
+// are entirely independent and can simply run at the same time. The process
+// idles at zero cost until a message arrives (no API call is made by booting),
+// so this is free latency: the caller kicks it off, awaits its context, and
+// by then the process is usually already up and waiting.
+//
+// Safe to call speculatively: if the entry already exists (or is mid-turn),
+// nothing happens, and a failure to spawn is swallowed — the normal path
+// spawns it again and pays the boot as it always did.
+export function prewarmAsk(cwd, sessionId) {
+  try {
+    const key = `voice:${sessionId}`;
+    const existing = warm.get(key);
+    if (existing && existing.child.exitCode === null) return false;
+    if (existing) dropWarm(key);
+    spawnWarm(key, { cwd, args: askArgs(sessionId, true) });
+    return true;
+  } catch { return false; }
+}
+
+export function startAskNova(cwd, { question, context, sessionId, direct = false, liveLine = '', resume }) {
+  const jobId = randomUUID().slice(0, 8);
+  const isNewSession = resume === undefined ? !sessionId : !resume;
+  const effectiveSessionId = sessionId || randomUUID();
+  const job = { id: jobId, status: 'running', result: null, error: null };
+  jobs.set(jobId, job);
+
+  const args = askArgs(effectiveSessionId, isNewSession);
 
   const finishTurn = async (replyText, turnJob) => {
     try {
@@ -371,7 +420,7 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
     sessionId: effectiveSessionId,
     cwd,
     args,
-    text: isNewSession ? buildAskPrompt({ question, context, direct }) : question,
+    text: isNewSession ? buildAskPrompt({ question, context, direct }) : buildResumedAsk({ question, liveLine, direct }),
     job,
     finishTurn,
   });

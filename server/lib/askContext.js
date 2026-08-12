@@ -32,7 +32,13 @@ function withDeadline(promise, ms = SECTION_TIMEOUT_MS) {
 
 // Today from local files only — no network, always instant. This is what
 // keeps a fast spoken answer honest about steps, fuel and what's waiting.
-async function todayLocalContext() {
+//
+// Exported because the spoken lane reuses ONE conversation across asks (see
+// lib/spokenSession.js): the full context is injected on turn 1 only, so
+// every RESUMED turn re-states just this block. It is the volatile part —
+// steps and fuel move between one question and the next — and it costs
+// nothing to recompute because it never leaves the local disk.
+export async function todayLocalContext() {
   const pad = (n) => String(n).padStart(2, '0');
   const d = new Date();
   const today = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -46,6 +52,12 @@ async function todayLocalContext() {
     else if (latest) bits.push(`no steps recorded yet today (latest is ${latest.steps} on ${latest.date} — say the date, never call it today's)`);
     const withHrv = [...days].reverse().find((x) => x.hrv != null);
     if (withHrv) bits.push(`HRV ${Math.round(withHrv.hrv)}ms (${withHrv.date})`);
+    // Weight rides this block too: it is already in the days just loaded, and
+    // on a RESUMED spoken turn this line is the only context the model gets.
+    // Without it, "what's my weight?" hedged ("I'd need you to check the
+    // actual number") while the figure sat one field away — observed live.
+    const withWeight = [...days].reverse().find((x) => x.weightKg != null);
+    if (withWeight) bits.push(`weight ${withWeight.weightKg}kg (${withWeight.date})`);
   } catch { /* optional */ }
   try {
     const { getToday } = await import('./foodLog.js');
