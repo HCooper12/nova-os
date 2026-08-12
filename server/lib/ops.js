@@ -51,6 +51,7 @@ const CONVERSATIONAL = [
   { id: 'coach', label: 'Coach', role: 'training brain', match: (r) => r.source === 'coach' },
   { id: 'researcher', label: 'Researcher', role: 'cited web briefs', match: (r) => r.kind === 'research' },
   { id: 'watcher', label: 'Watcher', role: 'videos watched & weighed', match: (r) => r.kind === 'video' },
+  { id: 'forge', label: 'Forge', role: 'builds what he asks for', match: (r) => r.kind === 'forge-job' },
 ];
 
 // The map drawn (AGENT-SKILL-MAP build 2) — which life department(s) each
@@ -83,6 +84,11 @@ export const AGENT_DEPARTMENTS = {
   coach: ['Train'],
   researcher: ['Knowledge'],
   watcher: ['Knowledge', 'Train'],
+  // Platform, not a department of its own: the Forge builds tools that run on
+  // his machine. (The plan sketched a "Build" department — there is no such
+  // thing in the registry seed, and inventing one would break the contract
+  // the ops test enforces between this map and Wiki/Library/Nova Skills.md.)
+  forge: ['Platform'],
   // reminders deliberately unmapped: it fires nudges but owns no registry
   // skill yet — the screen says "no skills mapped yet", which is the truth.
   'health-mirror': ['Platform'],

@@ -1,4 +1,6 @@
 import express from 'express';
+import path from 'node:path';
+import { existsSync } from 'node:fs';
 import { startCapture, approveRecord, discardRecord, undoRecord, retryRecord, MODES } from '../lib/inbox.js';
 import { listRecords, getRecord } from '../lib/inboxStore.js';
 
@@ -121,6 +123,54 @@ export function inboxRouter(vaultPath) {
       res.json({ record });
     } catch (e) {
       res.status(400).json({ error: e.message });
+    }
+  });
+
+  // The Forge: build something from one spoken sentence. Answers IMMEDIATELY
+  // with a spoken-friendly acknowledgment — the caller is usually a Shortcut
+  // on his wrist, and the job reports its progress through the inbox rails
+  // (agent lights, SSE) rather than by holding the request open.
+  router.post('/forge', async (req, res) => {
+    try {
+      const { startForge } = await import('../lib/forge.js');
+      const prompt = String(req.body?.prompt || req.body?.text || '').trim();
+      const started = await startForge(prompt, { model: req.body?.model });
+      res.json({ ...started, text: 'The Forge has it — I\'ll tell you when it\'s built.' });
+    } catch (e) {
+      // `text` so a spoken caller hears the reason rather than silence.
+      res.status(400).json({ error: e.message, text: `I couldn't start that build: ${e.message}` });
+    }
+  });
+
+  router.post('/forge/:id/stop', async (req, res) => {
+    try {
+      const { stopForge } = await import('../lib/forge.js');
+      res.json(await stopForge(req.params.id));
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  router.get('/forge', async (req, res) => {
+    try {
+      const { listJobs } = await import('../lib/forge.js');
+      res.json({ jobs: await listJobs() });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // The proof image for a finished job. Served from the job data dir, and the
+  // id is pattern-checked so a crafted id can't walk out of it.
+  router.get('/forge/:id/proof', async (req, res) => {
+    try {
+      if (!/^[a-f0-9]{6,12}$/i.test(req.params.id)) return res.status(400).json({ error: 'bad job id' });
+      const { JOBS_DIR } = await import('../lib/forge.js');
+      const png = path.join(JOBS_DIR, `${req.params.id}.png`);
+      if (!existsSync(png)) return res.status(404).json({ error: 'no proof image for that job' });
+      res.sendFile(png);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
     }
   });
 
