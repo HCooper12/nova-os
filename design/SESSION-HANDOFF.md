@@ -67,6 +67,19 @@ references backlog and the hands-free (Siri/Shortcuts) path.
   convention; transcript persisted at `server/data/watch/<recordId>.txt`;
   undo drift-checks both files. His first approval (old format, Wiki/Inbox)
   was undone and re-dispatched: **record `bbc39448` pending his approval.**
+- **DONE (12 Aug): Hormozi weave APPLIED — 41 changes in the vault.** The
+  final run (Sonnet, cached digest) succeeded at $6.11 with 37 staged
+  changes; he approved in chat; the server had restarted (other session)
+  so the in-memory job was gone — applied from the surviving staging tree
+  via diffTrees+backupFile (recomputed against live vault → 41). Recall
+  verified ('The Lonely Chapter' indexed). Staging dirs cleaned. KNOWN
+  FRAGILITY: ready ingest jobs die with the process; approval had to
+  happen out-of-band. Also: digested weaves now run on Sonnet (Opus
+  burned $8.15 at the $8 cap).
+- **NEW (12 Aug): inbox tap-to-expand** — every inbox item (pending +
+  history) opens to YOU CAPTURED / WILL BE FILED with the full
+  route-aware payload (`fullPayload` in valsInbox.js, `inboxExpanded`
+  map in App).
 - **NEW (11 Aug eve): the deep-weave failure chain, closed one by one.**
   His WATCH + ANALYSE on the Hormozi 4h video failed 4 ways in sequence,
   each a real bug: (1) 150k chunks on default Opus cost $1.46 vs $0.75
