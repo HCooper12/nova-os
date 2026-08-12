@@ -124,9 +124,12 @@ test('steps completeness is stamped honestly: during the day = partial, after = 
   assert.equal(day.stepsComplete, false, 'a reading captured during the day is a partial');
   assert.ok(day.stepsAt, 'capture time recorded');
 
+  // A manual correction is AUTHORITATIVE (it always wins the value) but a
+  // same-day one is still a partial — the day isn't over. Stamping it
+  // complete used to silence the next morning's missed-push sentinel.
   const fixed = await saveDay(todayKey, { steps: 9908 }, { manual: true });
-  assert.equal(fixed.stepsComplete, true, 'his own correction is complete by definition');
-  assert.equal((await loadDay(todayKey)).steps, 9908);
+  assert.equal(fixed.stepsComplete, false, "correcting today's count does not end the day");
+  assert.equal((await loadDay(todayKey)).steps, 9908, 'but his figure is the one stored');
 });
 
 test('per-device steps fold by MAX, never summed (no double counting, no missed watch steps)', async () => {
@@ -171,4 +174,22 @@ test('ingest accepts "yesterday" literally — the morning catch-up needs no dat
   assert.equal(r.date, yday, 'the word resolved to the real yesterday');
   const day = await loadDay(yday);
   assert.equal(day.stepsComplete, true, 'captured after the day ended = an honest total');
+});
+
+test('a manual correction is authoritative but not automatically "complete"', async () => {
+  const { saveDay } = await import('../lib/healthData.js');
+  const pad = (n) => String(n).padStart(2, '0');
+  const d = new Date();
+  const today = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  const yday = `${y.getFullYear()}-${pad(y.getMonth() + 1)}-${pad(y.getDate())}`;
+
+  // correcting TODAY at noon does not end the day — marking it complete
+  // would silence tomorrow's missed-push sentinel
+  const t = await saveDay(today, { steps: 163 }, { manual: true });
+  assert.equal(t.stepsComplete, false, "today's manual figure is a partial, honestly");
+
+  // correcting a PAST day is complete, because the clock says so
+  const p = await saveDay(yday, { steps: 10218 }, { manual: true });
+  assert.equal(p.stepsComplete, true, 'a finished day corrected later is complete');
 });

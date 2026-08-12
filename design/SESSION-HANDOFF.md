@@ -23,11 +23,14 @@ health/Shortcuts side; its commits are in this history (see STATE) and its
 state is NOT verified here.**
 
 **DONE CRITERIA (rolling):**
-1. Overnight health push lands automatically — **partially met, and now
-   another session's ground.** 9→10 Aug fired and landed; a guard-ordering
-   bug it exposed is fixed (13975df). Later commits by the other session
-   (d95dd32, 8ce8ec6, 78f07ef, dff6fc2) add a drops folder + morning
-   catch-up — **not verified by me**.
+1. Overnight health push lands automatically — **ROOT CAUSE FOUND AND
+   ADDRESSED; one tap from met.** iOS encrypts Health data while the phone
+   is locked, so the 00:05 automation dies at its first query on any night
+   he is actually asleep — every midnight push that ever landed was a
+   night the phone was in use. Fix shipped: **Nova Health Morning**, his
+   own automation cloned from its iCloud share link with the date token
+   replaced by the literal `yesterday`. **Unmet until he adds the
+   trigger** (Automation → When Alarm is Stopped → Run Shortcut).
 2. Nova usable on the phone while the Mac sleeps — **met** for
    reads/queued writes; **unmet** for live conversation.
 3. Companion plan Phases 1–5 shipped — **met**. Phase 6 (native wrapper)
@@ -95,11 +98,33 @@ state is NOT verified here.**
   the in-flight job.
 - **Whisper** — his Groq key lives in `~/.config/watch/.env` (0600).
 
-*Other session's work, per commit messages only (NOT verified by me):*
-`d95dd32` steps monotonic rule now applies to today; `8ce8ec6`/`78f07ef`/
-`dff6fc2` morning catch-up shortcut cloned from his working one; health
-drops folder at iCloud Drive/Shortcuts/Health Drops draining through a
-shared ingest gate (`ingestHealthPayload` in `lib/healthData.js`).
+*The health/Shortcuts thread (the concurrent session's build, verified by
+its author at this close):*
+- **One ingest gate** — `ingestHealthPayload` (`lib/healthData.js`) is the
+  single path for BOTH channels (URL route + drops folder): metric fold,
+  midnight date-shift, monotonic-steps guard, receipts. It also resolves
+  the literal words `yesterday`/`today` as dates, so a morning Shortcut
+  needs no Adjust Date actions.
+- **Monotonic steps now covers TODAY too** (`shouldDropLowerSteps`) — the
+  rule used to exempt the current day, and on 11 Aug a push reporting 813
+  overwrote a genuine 11,107 one minute later. Manual corrections still
+  bypass it (his edit is the last word).
+- **`stepsComplete` is a fact about the clock, not the author** — a manual
+  correction is AUTHORITATIVE but a same-day one is still a partial.
+- **The sentinel shouts at stale days, not just missing ones**
+  (`healthSentinel.js`) — nudges when yesterday's file is absent OR its
+  steps never closed, names the stale figure, and states the cause from
+  EVIDENCE (`serverWasAwakeAtMidnight` reads the request log's midnight
+  window: "the Mac was up, the push never left the phone" only when
+  provable).
+- **Nova Health Morning** — `nova-health-morning-v6-unsigned.shortcut` in
+  the session scratchpad; imported into his library and synced. It is his
+  own 47-action automation, byte-identical except the date token
+  (→ `yesterday`) and the drop filename (`morning-push.json`).
+- **Second drops folder** — the scanner also drains
+  `iCloud Drive/Shortcuts/Health Drops` (an automated Save File cannot
+  reach the Obsidian container; only the picker can).
+- Recipes and hard-won lessons: `design/SIRI-SETUP.md` §3–§4.
 
 *Standing from earlier sessions:* fleet ring in `server/lib/ops.js`;
 hands-free `design/SIRI-SETUP.md`; reminders via CalDAV; trust ladder
@@ -135,17 +160,57 @@ tap-through; server binds the tailnet IP directly; request receipts in
 - **Ingest jobs persist but are never resumed** → a dead mid-flight job's
   child process is gone and cannot be reattached → forecloses resume;
   the cached digest is what makes the re-run cheap instead.
+- **Health reads move to alarm-stop, not a fixed evening time** → his
+  bedtime varies, so any fixed evening hour truncates the day by an
+  unpredictable amount, and he needs accurate totals → forecloses a
+  same-night figure on nights he sleeps early; the 00:05 automation stays
+  for late nights and the monotonic rule makes the pair converge upward.
+- **Clone shortcuts, never author them** → six hand-authored attempts
+  failed on Shortcuts' own serialization (see DO NOT) while a clone of his
+  working automation worked first time → forecloses generating novel
+  Shortcut logic from scratch; new capability starts from a shared link.
+- **The URL push is the primary channel; the drops file is opportunistic**
+  → his phone demonstrably does not upload Shortcuts-saved files to iCloud
+  (two files, 6+ minutes, never arrived) → forecloses relying on
+  store-and-forward for correctness.
 - *(Standing: tailnet IP direct; fast spoken context; 90s calendar cache;
   autonomy proposed never applied; distillation refuses wholesale on
   drift; "I ate dinner" marks the planned meal.)*
 
 **VERIFIED (12 Aug close, with locators):**
-- Gates: `npm run lint` **0 errors**; `npm run build` green (`dist/sw.js`
-  emitted); `cd server && npm test` **284 pass / 0 fail**;
-  `git status --porcelain` **empty**; `HEAD == origin/main` (`dff6fc2`);
-  `curl localhost:4173/api/health` → **200**; no `vite preview` process;
-  `dist/pc.json` absent.
-- Pages deploy: `gh run list` → last **three** runs completed/success.
+- Gates re-run at the health thread's close: `npm run lint` **0 errors**
+  (the one "error" grep hit is the word inside a warning's help text);
+  `npm run build` green (`dist/sw.js` emitted); `cd server && npm test`
+  **285 pass / 0 fail**; `git status --porcelain` **empty**;
+  `HEAD == origin/main`; `curl localhost:4173/api/health` → **200**; no
+  `vite preview` process; `dist/pc.json` absent.
+- Pages deploy: `gh run list` → last runs completed/success.
+
+*The health/Shortcuts thread:*
+- **The locked-phone cause is PROVEN, not inferred**: he fired the
+  automation with the phone locked while the Mac was awake and serving
+  (278 requests logged in the 00:00–00:15 window) — **nothing arrived on
+  either channel**. Every historical midnight success (3, 4, 7, 10 Aug)
+  was a night the phone was in use; the first-ever success ran at 23:45,
+  awake.
+- **Nova Health Morning works end to end** — its run filed the full
+  8-metric payload against **2026-08-11**: `steps 9,626 · watchSteps 9,985
+  · RHR 61 · HRV 60.4 · energy 819.4 kcal · distance 15.3 km · weight 82.7
+  · VO₂ 48.5` (pushlog `2026-08-12T02:17:03Z`).
+- **The guards fired correctly on real data**: the MAX fold took 9,985,
+  found his stored 10,218 higher, and dropped the incoming figure while
+  every other metric repaired 11 Aug's midday partials (28 kcal → 819;
+  0.17 km → 15.3). A deliberately-lower 813 was refused with the honest
+  note; a higher reading was accepted.
+- **The drops channel drains and is guarded** — a test drop written to the
+  real `iCloud Drive/Shortcuts/Health Drops` was consumed within the 2-min
+  tick, refused by the monotonic guard, archived to `Processed/`, and
+  receipted `source:"drop", stepsDropped:true`.
+- **`stepsComplete` honesty fixed and re-stamped**: today's file now reads
+  `steps 163, stepsComplete false` (was `true` from a manual same-day
+  correction, which would have silenced tomorrow's sentinel).
+- Health day files: **11 Aug complete** (10,218 steps, all metrics);
+  12 Aug open (163, partial). Sentinel state `lastNudgeDay: 2026-08-11`.
 - My work survives the concurrent commits — grepped in `git show HEAD:`:
   `watcher.js::digestTranscriptCached`, `ingest.js::persistJob` (×6),
   `brainWeek.js::composeBrainWeek`, `valsInbox.js::fullPayload`,
@@ -190,7 +255,14 @@ tap-through; server binds the tailnet IP directly; request receipts in
 - That WATCH + ANALYSE works from the app UI. Every deep weave this
   session was started via `POST /api/ingest` from the shell; the button
   wiring is only inspected, not exercised.
-- Everything in the other session's health/Shortcuts work.
+- **That the alarm-stop trigger fires and reads Health successfully.**
+  The shortcut is proven by hand; the trigger has never run. This is the
+  whole point of the fix and it is untested.
+- That a rolling "last 1 day" window at alarm-stop is an honest stand-in
+  for yesterday's calendar day. The reasoning is sound (both ends of the
+  window fall in sleep) but no morning run has been compared to Health.
+- That his phone's iCloud upload stall is confined to the Shortcuts
+  folder — never diagnosed, only observed twice.
 - (Standing: autonomy proposals reducing noise; distiller link choices;
   food-slot path from the phone; Scriptable widget; About You invite.)
 
@@ -208,16 +280,32 @@ tap-through; server binds the tailnet IP directly; request receipts in
 - Whether he wants the deep weave to run automatically for trusted
   channels (his phrasing: "less friction, less to remember").
 - About You is still empty; every agent reasons without it.
-- 00:05 automation reliability night-to-night, and the iPhone steps query
-  returning nothing at midnight — the other session's ground now.
+- **The alarm-stop automation is not built yet** — one tap on his phone,
+  and until it exists no night is covered while he sleeps.
+- **His phone does not upload Shortcuts-saved files to iCloud.** Two files
+  (`midnight-push.json`, a shared `.shortcut`) never arrived after 6+
+  minutes, while the Mac's iCloud was idle with zero backlog. The URL
+  channel carries everything; this is only a lost redundancy.
+- **ElevenLabs is still not configured** (`server/.env` has no
+  `ELEVENLABS_API_KEY`), so Nova speaks with the system voice — and the
+  audio-reactive core and waveform cannot animate, because there is no
+  measurable audio stream. He was asked for the key and hasn't added it.
 - MacBook often on battery overnight — any night is unreliable regardless.
 
-**NEXT ACTION:** Ask him to run **▶▶ WATCH + ANALYSE from the app** on a
-short video (not the shell). Expected observation: the review overlay
-shows *Fetching the video transcript…* then a change list within ~3
-minutes, and approving it writes Source + Concept pages — proving the
-button wiring and the app-side approve path, which are the last two
-untested links in the chain.
+**NEXT ACTION (health, time-critical — it decides tomorrow morning):** ask
+him to add the trigger on his phone — **Automation → + → When Alarm is
+Stopped → Run Shortcut → Nova Health Morning → Run Immediately**. Expected
+observation tomorrow: a pushlog receipt shortly after his alarm, filed
+against yesterday's date with steps in the thousands, and
+`server/data/health/<yesterday>.json` showing `stepsComplete: true`. If
+nothing arrives, the 09:00 sentinel Telegrams him naming the cause from
+the request log.
+
+**SECOND ACTION (video):** ask him to run **▶▶ WATCH + ANALYSE from the
+app** on a short video (not the shell). Expected observation: the review
+overlay shows *Fetching the video transcript…* then a change list within
+~3 minutes, and approving it writes Source + Concept pages — proving the
+button wiring and the app-side approve path.
 
 **DO NOT (dead ends already paid for):**
 - Do **not** use `new URL(import.meta.url).pathname` for a path in this
@@ -243,6 +331,29 @@ untested links in the chain.
 - Do **not** write to `server/data/inbox.json` from a SECOND node process
   while the server runs — `inboxStore` caches it in memory. Trigger
   in-process via an endpoint.
+- Do **not** hand-author Health actions in a `.shortcut` file. Six
+  attempts failed: `is.workflow.actions.statistics` returns NOTHING
+  without an explicit `Input` attachment (OutputName "Health Samples") and
+  must be referenced by its OPERATION name ("Sum"/"Average"); hand-built
+  relative date filters were **inert** even when byte-identical to a
+  working shortcut's (changing 1 day → 2 days changed no value).
+  **Clone instead**: an automation can't be duplicated in the app but CAN
+  be shared as an iCloud link — `curl
+  icloud.com/shortcuts/api/records/<id>` → `fields.shortcut.value
+  .downloadURL` → the full plist, editable and re-signable with
+  `shortcuts sign --mode anyone`.
+- Do **not** propose a fixed evening push time as "accurate". His bedtime
+  varies by hours; any fixed hour truncates the day unpredictably. He said
+  so, plainly, after it was suggested.
+- Do **not** treat `manual: true` as meaning "complete". It means
+  authoritative. Stamping a same-day correction complete silences the
+  next morning's sentinel.
+- Do **not** write a health figure back from the pushlog without checking
+  the WINDOW it was captured over. An 11,107 reading taken at 13:19 spans
+  midday-to-midday across two days — it was restored as an 11 Aug total
+  and was simply wrong; his manual 10,218 was right.
+- Do **not** rely on his phone reaching iCloud Drive/Shortcuts. Files
+  saved there by Shortcuts have twice failed to arrive.
 - Do **not** document an HTTP header as `Authorization: Bearer <token>`
   on one line for a Shortcuts recipe — it gets pasted literally.
 - Do **not** assume a Shortcuts failure is the Shortcut. Read the request
@@ -261,6 +372,35 @@ untested links in the chain.
 ---
 
 ## SESSION LOG (append-only, newest first)
+
+### 11–12 August 2026 — the health thread (concurrent session)
+The steps saga ended, and not where anyone was looking. Three faults were
+stacked: iOS **encrypts Health data while the phone is locked**, so the
+00:05 automation had only ever succeeded on nights he happened to be
+awake; my own monotonic-steps guard **exempted the current day**, which is
+how a truncated 813 overwrote a genuine 11,107; and the missed-push
+sentinel only shouted at *missing* days, so a stale midday partial sat
+there in silence all morning. All three are fixed, and his locked-phone
+test is what proved the first — automation fired, Mac awake and serving,
+nothing arrived on either channel.
+
+The fix that shipped is a clone, not a build. Six attempts at authoring a
+`.shortcut` file failed on Shortcuts' own serialization (Statistics needs
+an explicit input; hand-built date filters are inert) — each one costing
+him an import and a run. What worked first time was fetching **his own
+automation from an iCloud share link** and changing exactly two things:
+the date token → the literal word `yesterday` (the server resolves it),
+and the drop filename. Verified live: the full 8-metric payload filed
+against 11 Aug, with the MAX fold and monotonic guard correctly keeping
+his higher manual figure while every other metric repaired the day.
+
+Two things were corrected rather than added. I wrote 11,107 back into
+11 Aug from the pushlog without checking the window it was captured over —
+it spanned midday-to-midday across two days and was never a valid daily
+total; his manual 10,218 was right and mine was wrong. And I proposed a
+fixed 22:30 push as a fix, which he correctly rejected: his bedtime
+varies, so a fixed hour truncates the day unpredictably. Alarm-stop is the
+only trigger that is both unlocked and after the day is complete.
 
 ### 10–12 August 2026
 Nova learned to watch. The `/watch` skill became an agent — the Watcher —

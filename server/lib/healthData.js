@@ -153,10 +153,17 @@ export async function saveDay(date, metrics, { manual = false } = {}) {
   // of the evening and any watch samples that hadn't synced — measured at
   // ~1,600 steps on 29 July (8,311 recorded vs 9,908 in Health). Stamping the
   // capture time lets every surface say "as of 23:45" instead of presenting a
-  // truncated figure as final. A manual correction is complete by definition.
+  // truncated figure as final.
+  //
+  // A manual correction is AUTHORITATIVE but not automatically COMPLETE
+  // (fixed 12 Aug 2026): correcting today's count at noon doesn't end the
+  // day. The old `manual ? true` stamped today as finished, which would
+  // have silenced the next morning's missed-push sentinel — the very
+  // silence that sentinel was widened to break hours earlier. Completeness
+  // is a fact about the clock, never about who typed the number.
   if (cleaned.steps != null) {
     merged.stepsAt = new Date().toISOString();
-    merged.stepsComplete = manual ? true : stepsCaptureIsComplete(date, merged.stepsAt);
+    merged.stepsComplete = stepsCaptureIsComplete(date, merged.stepsAt);
   }
   await writeFile(full, JSON.stringify(merged, null, 2), 'utf8');
   return merged;
