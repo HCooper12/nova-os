@@ -14,8 +14,8 @@ export function ingestRouter(vaultPath) {
     res.json({ jobId });
   });
 
-  router.get('/ingest/:jobId', (req, res) => {
-    const job = getJob(req.params.jobId);
+  router.get('/ingest/:jobId', async (req, res) => {
+    const job = await getJob(req.params.jobId);
     if (!job) return res.status(404).json({ error: 'not found' });
     res.json(job);
   });

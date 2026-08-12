@@ -1,8 +1,9 @@
 import { spawn } from 'node:child_process';
-import { mkdir, cp, writeFile, rm } from 'node:fs/promises';
+import { mkdir, cp, readFile, writeFile, rm } from 'node:fs/promises';
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { backupFile } from './backup.js';
 
@@ -17,6 +18,37 @@ const DIGEST_BUDGET_USD = '8';
 // absolute path. Override with CLAUDE_BIN in .env if it lives somewhere else.
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const jobs = new Map();
+
+// Jobs persist to disk (the Distiller's pattern) so a ready weave survives a
+// server restart — a $6 diff died in this Map twice before this existed, and
+// its approval had to be applied out-of-band from the surviving staging tree.
+// One file per job, single-writer, so there is no shared-cache clobber risk.
+// The in-memory Map stays the fast path; disk is the recovery path.
+const jobsDir = () => path.join(process.env.NOVA_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data'), 'ingest');
+
+async function persistJob(job) {
+  try {
+    await mkdir(jobsDir(), { recursive: true });
+    const { id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt } = job;
+    await writeFile(path.join(jobsDir(), `${id}.json`),
+      JSON.stringify({ id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt }), 'utf8');
+  } catch (e) {
+    console.error(`ingest job ${job.id} failed to persist:`, e.message);
+  }
+}
+
+async function loadJobFromDisk(jobId) {
+  if (!/^[a-f0-9-]+$/i.test(jobId)) return null; // job ids are uuid slices — never a path
+  try {
+    return JSON.parse(await readFile(path.join(jobsDir(), `${jobId}.json`), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+async function removeJobFile(jobId) {
+  await rm(path.join(jobsDir(), `${jobId}.json`), { force: true }).catch(() => {});
+}
 
 // Only Wiki/ + CLAUDE.md need to exist in the staging copy — the ingest workflow
 // reads/writes wiki pages, not old Raw/ transcripts. Copying the whole vault would
@@ -128,8 +160,9 @@ export function startIngest(vaultPath) {
     const jobId = randomUUID().slice(0, 8);
     const workDir = path.join(os.tmpdir(), 'nova-ingest', jobId);
     const stagingVault = path.join(workDir, 'vault');
-    const job = { id: jobId, status: 'staging', summary: '', cost: 0, changes: [], error: null, stagingVault, workDir, vaultPath };
+    const job = { id: jobId, status: 'staging', summary: '', cost: 0, changes: [], error: null, stagingVault, workDir, vaultPath, createdAt: new Date().toISOString() };
     jobs.set(jobId, job);
+    persistJob(job);
 
     (async () => {
       // No pasted text + a link = fetch the transcript ourselves via the
@@ -188,6 +221,7 @@ export function startIngest(vaultPath) {
       const verbatimReadPath = path.join(workDir, 'verbatim.txt');
       await writeFile(verbatimReadPath, verbatimOverride ?? transcriptText, 'utf8');
       job.status = 'running';
+      persistJob(job); // carries the digested flag into the durable copy
 
       const prompt = `New content to add to the vault — ${fetched ? 'a timestamped video transcript Nova fetched from a link Hayden submitted' : 'pasted by Hayden via Nova OS'}, saved at ${transcriptPath}. This could be an external source (a podcast/video transcript, article, etc.) or it could be Hayden's own note, idea, or reflection that just came to mind — read it and use your own judgement, per this vault's root CLAUDE.md, to pick the right page type (Source, Concept, Entity, Topic, Journal, or Analysis) rather than assuming it's a Source. Follow CLAUDE.md exactly, in batch mode (process fully in one pass, no per-item discussion — just do the work).
 
@@ -238,39 +272,59 @@ When done, give a concise final summary: pages created, pages updated, and any c
             || (Number.isFinite(spent) && spent >= budget * 0.98
               ? `the vault pass ran out of budget — $${spent.toFixed(2)} spent against a $${budget} cap`
               : stderr.trim() || `claude exited with code ${code}${Number.isFinite(spent) ? ` after $${spent.toFixed(2)}` : ''}`);
-          return;
         }
         if (!result) job.summary = stdout.trim();
-        try {
-          job.changes = diffTrees(vaultPath, stagingVault);
-          job.status = 'ready';
-        } catch (e) {
-          job.status = 'error';
-          job.error = 'Failed to compute changes: ' + e.message;
+        if (job.status !== 'error') {
+          try {
+            job.changes = diffTrees(vaultPath, stagingVault);
+            job.status = 'ready';
+          } catch (e) {
+            job.status = 'error';
+            job.error = 'Failed to compute changes: ' + e.message;
+          }
         }
+        persistJob(job); // ready (with full changes) or error — durable either way
       });
       child.on('error', (err) => {
         job.status = 'error';
         job.error = err.message;
+        persistJob(job);
       });
     })().catch((e) => {
       job.status = 'error';
       job.error = e.message;
+      persistJob(job);
     });
 
     return jobId;
   };
 }
 
-export function getJob(jobId) {
-  const job = jobs.get(jobId);
-  if (!job) return null;
+function redact(job) {
   return { id: job.id, status: job.status, summary: job.summary, cost: job.cost, error: job.error,
-    changes: job.changes.map((c) => ({ path: c.path, kind: c.kind, content: c.content })) };
+    changes: (job.changes || []).map((c) => ({ path: c.path, kind: c.kind, content: c.content })) };
+}
+
+export async function getJob(jobId) {
+  const job = jobs.get(jobId);
+  if (job) return redact(job);
+  const disk = await loadJobFromDisk(jobId);
+  if (!disk) return null;
+  // On disk but not in memory = the server restarted. A ready/error job is
+  // fully recoverable (changes travel in the file); a mid-flight one lost
+  // its process — say so instead of showing an eternal spinner.
+  if (!['ready', 'error', 'applied'].includes(disk.status)) {
+    return { ...redact(disk), status: 'error', error: 'the server restarted mid-job — start it again (a cached digest makes the re-run cheap)' };
+  }
+  return redact(disk);
+}
+
+async function loadJobAnywhere(jobId) {
+  return jobs.get(jobId) || await loadJobFromDisk(jobId);
 }
 
 export async function approveJob(jobId) {
-  const job = jobs.get(jobId);
+  const job = await loadJobAnywhere(jobId);
   if (!job) throw new Error('job not found');
   if (job.status !== 'ready') throw new Error('job not ready');
   for (const change of job.changes) {
@@ -284,15 +338,18 @@ export async function approveJob(jobId) {
   job.status = 'applied';
   await cleanup(job);
   jobs.delete(jobId);
+  await removeJobFile(jobId);
 }
 
 export async function discardJob(jobId) {
-  const job = jobs.get(jobId);
+  const job = await loadJobAnywhere(jobId);
   if (!job) throw new Error('job not found');
   await cleanup(job);
   jobs.delete(jobId);
+  await removeJobFile(jobId);
 }
 
 async function cleanup(job) {
-  await rm(job.workDir, { recursive: true, force: true }).catch(() => {});
+  // the tmp workDir may already be gone after a restart or reboot — fine
+  if (job.workDir) await rm(job.workDir, { recursive: true, force: true }).catch(() => {});
 }

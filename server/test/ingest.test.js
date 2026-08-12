@@ -1,12 +1,20 @@
 // URL-only ingest: the transcript header handed to the vault pass is composed
 // in code from the watch toolchain's own metadata — never model prose.
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+
+// Temp data dir BEFORE import — job persistence must never touch server/data.
+const dataDir = await mkdtemp(path.join(tmpdir(), 'nova-ingest-data-'));
+process.env.NOVA_DATA_DIR = dataDir;
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { composeFetchedTranscript, videoIdOf, findExistingVideoPages, diffTrees } = await import('../lib/ingest.js');
+const { composeFetchedTranscript, videoIdOf, findExistingVideoPages, diffTrees, getJob, approveJob, discardJob } = await import('../lib/ingest.js');
+
+test.after(async () => { await rm(dataDir, { recursive: true, force: true }); });
 
 test('composeFetchedTranscript: full metadata header, source line, timestamped body', () => {
   const text = composeFetchedTranscript({
@@ -81,6 +89,58 @@ test('diffTrees: an existing Raw file reads as updated, and an identical rewrite
     await rm(original, { recursive: true, force: true });
     await rm(staging, { recursive: true, force: true });
   }
+});
+
+test('a ready job survives a restart: served from disk, approvable, file removed after', async () => {
+  // fabricate what persistJob writes — the process that computed it is gone
+  const vault = await mkdtemp(path.join(tmpdir(), 'nova-ingest-vault-'));
+  try {
+    await mkdir(path.join(dataDir, 'ingest'), { recursive: true });
+    const job = {
+      id: 'deadb33f', status: 'ready', summary: 'wove 2 pages', cost: 6.11, error: null,
+      vaultPath: vault, workDir: path.join(dataDir, 'gone-workdir'), createdAt: new Date().toISOString(),
+      changes: [
+        { path: 'Wiki/Concepts/Restart Survivor.md', kind: 'new', content: '---\ntype: concept\n---\n\nsurvived\n' },
+        { path: 'Wiki/index.md', kind: 'updated', content: '# Index\n- new link\n' },
+      ],
+    };
+    await writeFile(path.join(dataDir, 'ingest', 'deadb33f.json'), JSON.stringify(job), 'utf8');
+    await mkdir(path.join(vault, 'Wiki'), { recursive: true });
+    await writeFile(path.join(vault, 'Wiki/index.md'), '# Index\n', 'utf8');
+
+    const seen = await getJob('deadb33f');
+    assert.equal(seen.status, 'ready', 'a restart does not lose a ready diff');
+    assert.equal(seen.changes.length, 2);
+    assert.equal(seen.cost, 6.11);
+
+    await approveJob('deadb33f');
+    assert.match(await readFile(path.join(vault, 'Wiki/Concepts/Restart Survivor.md'), 'utf8'), /survived/);
+    assert.match(await readFile(path.join(vault, 'Wiki/index.md'), 'utf8'), /new link/);
+    assert.ok(!existsSync(path.join(dataDir, 'ingest', 'deadb33f.json')), 'applied job file removed');
+    assert.equal(await getJob('deadb33f'), null, 'an applied job is gone, not a stale ready');
+  } finally {
+    await rm(vault, { recursive: true, force: true });
+  }
+});
+
+test('a mid-flight job found only on disk reports the restart honestly, and discard cleans it up', async () => {
+  await mkdir(path.join(dataDir, 'ingest'), { recursive: true });
+  await writeFile(path.join(dataDir, 'ingest', 'cafe0001.json'),
+    JSON.stringify({ id: 'cafe0001', status: 'running', summary: '', cost: 0, changes: [], error: null, vaultPath: '/nowhere', createdAt: new Date().toISOString() }), 'utf8');
+
+  const seen = await getJob('cafe0001');
+  assert.equal(seen.status, 'error', 'a dead mid-flight job must not spin forever');
+  assert.match(seen.error, /server restarted mid-job/);
+
+  await assert.rejects(() => approveJob('cafe0001'), /not ready/, 'a lost mid-flight job is never appliable');
+  await discardJob('cafe0001');
+  assert.ok(!existsSync(path.join(dataDir, 'ingest', 'cafe0001.json')));
+  assert.equal(await getJob('cafe0001'), null);
+});
+
+test('getJob: unknown id is null; a path-shaped id never reaches the filesystem', async () => {
+  assert.equal(await getJob('ffffffff'), null);
+  assert.equal(await getJob('../../etc/passwd'), null, 'ids are uuid slices — traversal input is rejected before any read');
 });
 
 test('composeFetchedTranscript: a digest body is labeled as notes, never passed off as the transcript', () => {
