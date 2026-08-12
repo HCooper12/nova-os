@@ -72,10 +72,14 @@ references backlog and the hands-free (Siri/Shortcuts) path.
   changes; he approved in chat; the server had restarted (other session)
   so the in-memory job was gone — applied from the surviving staging tree
   via diffTrees+backupFile (recomputed against live vault → 41). Recall
-  verified ('The Lonely Chapter' indexed). Staging dirs cleaned. KNOWN
-  FRAGILITY: ready ingest jobs die with the process; approval had to
-  happen out-of-band. Also: digested weaves now run on Sonnet (Opus
-  burned $8.15 at the $8 cap).
+  verified ('The Lonely Chapter' indexed). Staging dirs cleaned. Also:
+  digested weaves now run on Sonnet (Opus burned $8.15 at the $8 cap).
+- **FIXED (12 Aug): ingest jobs survive restarts** (044ebf9) — persisted
+  to `server/data/ingest/<id>.json` (Distiller pattern); ready jobs carry
+  their full change set so approval needs neither the process nor the tmp
+  staging tree; mid-flight jobs found only on disk error honestly
+  ('server restarted mid-job'); applied/discarded remove their file.
+  Live drill: real kickstart, job recovered over HTTP, discarded clean.
 - **NEW (12 Aug): inbox tap-to-expand** — every inbox item (pending +
   history) opens to YOU CAPTURED / WILL BE FILED with the full
   route-aware payload (`fullPayload` in valsInbox.js, `inboxExpanded`
