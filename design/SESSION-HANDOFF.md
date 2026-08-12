@@ -12,7 +12,7 @@ the session log at the foot is append-only.
 ---
 
 ## CURRENT HANDOFF
-*Last updated: 12 August 2026 (afternoon close)*
+*Last updated: 13 August 2026*
 
 **GOAL:** Keep Nova the one app Hayden opens daily. This close's scope was
 narrow and deliberate: open the session by re-verifying the previous
@@ -22,15 +22,17 @@ DECISIONS/VERIFIED. **The video-pipeline and health/Shortcuts builds below
 are unchanged from the previous close** except where marked "this close".
 
 **DONE CRITERIA (rolling):**
-1. Overnight health push lands automatically — **machinery shipped, trigger
-   now added.** iOS encrypts Health data while the phone is locked, so the
-   00:05 automation dies at its first query on any night he is actually
-   asleep. Fix: **Nova Health Morning**, his own automation cloned from its
-   iCloud share link with the date token replaced by the literal
-   `yesterday`. **He added the alarm-stop trigger himself this close**
-   (Automation → When Alarm is Stopped → Run Shortcut → Nova Health Morning
-   → Run Immediately) — still **unmet/unverified**, first real run is
-   tomorrow morning.
+1. Overnight health push lands automatically — **MET, first real run
+   confirmed 13 Aug.** iOS encrypts Health data while the phone is locked,
+   so the 00:05 automation used to die at its first query on any night he
+   was actually asleep. Fix: **Nova Health Morning**, cloned from his
+   working automation's iCloud share link with the date token replaced by
+   the literal `yesterday`, triggered by Automation → When Alarm is
+   Stopped. Fired once, cleanly, at 07:25 local — filed the full 8-metric
+   payload against 12 Aug, `stepsComplete: true`, no errors/drops/dupes.
+   Residual: Nova's 10,022 vs Apple Health's own 10,139 (~1.1%, the
+   per-device-MAX fold's known, honest approximation) — see the
+   steps-parity thread below, now on hold.
 2. Nova usable on the phone while the Mac sleeps — **met** for
    reads/queued writes; **unmet** for live conversation.
 3. Companion plan Phases 1–5 shipped — **met**. Phase 6 (native wrapper)
@@ -135,6 +137,23 @@ its author at this close):*
   `iCloud Drive/Shortcuts/Health Drops` (an automated Save File cannot
   reach the Obsidian container; only the picker can).
 - Recipes and hard-won lessons: `design/SIRI-SETUP.md` §3–§4.
+- **THIS CLOSE, THIRD CHANNEL — BUILT BUT ON HOLD: Health Auto Export
+  adapter** (`server/lib/autoExport.js`, route `POST
+  /api/health-data/auto-export` in `routes/healthData.js`). Exists to close
+  the residual ~1% steps gap between Nova's per-device MAX fold and Apple
+  Health's own figure (10,139 Health vs 10,022 Nova on 12 Aug) — that gap
+  is Nova's honest, already-documented approximation, not a bug; a real
+  fix needs Apple's own cross-source dedup (`HKStatisticsQuery`), which
+  only a real HealthKit-entitled app can call, not a Shortcut. Parses the
+  app's published JSON export schema defensively (unrecognized metric
+  names/units dropped with a warning, never guessed); feeds each day
+  through the SAME `ingestHealthPayload` gate via a new independent
+  `skipDateShift` option (dates here are already real per-sample calendar
+  dates, so the midnight-shift heuristic doesn't apply, but the monotonic
+  guard still should). Live-tested against the running server with a
+  synthetic payload — **never against a real export from the app**.
+  **BLOCKED: the app wants a paid subscription; he declined to buy it for
+  now.** Nothing to do until he revisits this — see OPEN QUESTIONS.
 
 *Standing from earlier sessions:* fleet ring in `server/lib/ops.js`;
 hands-free `design/SIRI-SETUP.md`; reminders via CalDAV; trust ladder
@@ -196,6 +215,19 @@ tap-through; server binds the tailnet IP directly; request receipts in
   worse one. Does **not** foreclose — and cannot prevent — a bad first push
   for a brand-new day; that is a data-entry bug (wrong date token), not a
   gap this guard closes.
+- **A real app, not a Shortcut, for the deduped steps total** → Apple's own
+  developer forums confirm the cross-source dedup the Health app shows is
+  only available via `HKStatisticsQuery`/`HKStatisticsCollectionQuery`, a
+  native HealthKit API; manually merging raw samples yourself (which is all
+  a Shortcut can do) "is unlikely to match HealthKit's merge algorithm
+  correctly" — and this project already proved that the hard way (dropping
+  the Source filter double-counted) → forecloses closing this specific gap
+  from Shortcuts at all, however cleverly configured; it needs an app with
+  real entitlements. **Chosen app (Health Auto Export) wants a paid
+  subscription; he declined to buy it for now** → forecloses any further
+  work on this thread until he revisits it — see OPEN QUESTIONS. The
+  server-side adapter is already built and waiting, so restarting costs him
+  only the app + one real export to compare, not a new build.
 - *(Standing: tailnet IP direct; fast spoken context; 90s calendar cache;
   autonomy proposed never applied; distillation refuses wholesale on
   drift; "I ate dinner" marks the planned meal.)*
@@ -208,6 +240,21 @@ tap-through; server binds the tailnet IP directly; request receipts in
   **287 pass / 0 fail** (285 baseline + 2 new for the generalized guard);
   `npm run lint` **0 errors** (warnings only, same set as before); `npm run
   build` green; no stray `vite preview`; `dist/pc.json` absent.
+- **13 Aug, same-day follow-on (auto-export adapter)**: gates re-run again
+  at `84cadb5` — `cd server && npm test` **294 pass / 0 fail** (287 + 7 new
+  for `lib/autoExport.js` and the `skipDateShift` option); lint/build
+  unchanged/clean; `git status --porcelain` empty; server reloaded and
+  `curl localhost:4173/api/health` → 200. The new route verified live
+  (not just unit tests) with a synthetic Health-Auto-Export-shaped payload
+  on a scratch date: 9.7 mi correctly became 15.61 km, an unrecognized
+  metric name was flagged and dropped rather than stored. Scratch data
+  removed after.
+- **The alarm-stop trigger fired for real, 13 Aug 07:25 local** — the
+  whole point of the fix, confirmed: exactly one pushlog entry
+  (`2026-08-12T21:25:12Z` UTC), `"date":"yesterday"` resolved correctly to
+  `2026-08-12`, full 8-metric payload, `steps: 10022, stepsComplete: true`.
+  No errors, no drops, no duplicate pushes. Sentinel `lastNudgeDay` still
+  `2026-08-11` (correctly quiet — the push landed before its 09:00 check).
 - Inbox and pushlog checked directly against the JSON files on disk
   (`server/data/inbox.json`, `server/data/health/pushlog.json`) rather than
   the API, which needs a bearer token and returns `{"error":"unauthorized"}`
@@ -303,15 +350,20 @@ tap-through; server binds the tailnet IP directly; request receipts in
 - That WATCH + ANALYSE works from the app UI. Every deep weave this
   session was started via `POST /api/ingest` from the shell; the button
   wiring is only inspected, not exercised.
-- **That the alarm-stop trigger fires and reads Health successfully.**
-  The shortcut is proven by hand and the trigger is now added to his phone
-  (this close) — but it has never fired. This is the whole point of the
-  fix and it is untested until tomorrow morning.
 - That a rolling "last 1 day" window at alarm-stop is an honest stand-in
-  for yesterday's calendar day. The reasoning is sound (both ends of the
-  window fall in sleep) but no morning run has been compared to Health.
+  for yesterday's calendar day. Confirmed once (13 Aug: steps landed close
+  to Health's own figure, ~1.1% off — see the steps-parity thread) but
+  n=1; worth another look after a few more mornings.
 - That his phone's iCloud upload stall is confined to the Shortcuts
   folder — never diagnosed, only observed twice.
+- **The entire Health Auto Export adapter (`lib/autoExport.js`) is
+  unverified against reality.** Written from the app's published wiki
+  schema, live-tested only with data I fabricated to match my own reading
+  of that schema. The metric name strings, unit strings, and — the whole
+  premise — whether "Summarize Data: ON" truly triggers HealthKit's proper
+  cross-source aggregation rather than the app's own manual sum, are all
+  assumptions. Untestable until he installs the app and it's moot until he
+  decides to.
 - (Standing: autonomy proposals reducing noise; distiller link choices;
   food-slot path from the phone; Scriptable widget; About You invite.)
 
@@ -337,15 +389,24 @@ tap-through; server binds the tailnet IP directly; request receipts in
   audio-reactive core and waveform cannot animate, because there is no
   measurable audio stream. He was asked for the key and hasn't added it.
 - MacBook often on battery overnight — any night is unreliable regardless.
+- **Steps-parity thread is ON HOLD — he won't pay for Health Auto Export
+  right now.** The server-side adapter (`lib/autoExport.js` + `POST
+  /api/health-data/auto-export`) is built, gate-clean, and live-tested with
+  synthetic data, but has never seen a real payload from the app and
+  nothing about it can be confirmed until he does. **Come back to this
+  when he raises it again** — do not re-propose it unprompted; he made a
+  cost call, not a "not now, ask me later" one. When he does: get one real
+  export from the app, compare the route's response and the day file
+  against what Apple Health itself shows for the same day, and expect to
+  fix at least the metric-name/unit-string guesses in `lib/autoExport.js`
+  against whatever the app actually sent.
 
-**NEXT ACTION (health — no action needed, just observe):** the trigger is
-now added; nothing to do but wait for tomorrow's alarm. Expected
-observation: a pushlog receipt shortly after his alarm stops, filed against
-today's date (12 Aug, once the day is actually over) with steps in the
-thousands, and `server/data/health/2026-08-12.json` showing
-`stepsComplete: true`. If nothing arrives, the 09:00 sentinel Telegrams him
-naming the cause from the request log — read that before assuming the
-trigger is broken.
+**NEXT ACTION (health):** none — the alarm-stop trigger fired successfully
+this morning (13 Aug), closing this thread's main goal. What remains is the
+steps-parity thread (Nova 10,022 vs Apple Health 10,139), which is ON HOLD
+behind his subscription decision — do not act on it until he raises it
+again (see OPEN QUESTIONS). Keep watching a few more mornings to build
+confidence the alarm-stop trigger is reliably firing, not just lucky once.
 
 **SECOND ACTION (video):** ask him to run **▶▶ WATCH + ANALYSE from the
 app** on a short video (not the shell). Expected observation: the review
@@ -433,6 +494,25 @@ button wiring and the app-side approve path.
 ---
 
 ## SESSION LOG (append-only, newest first)
+
+### 13 August 2026 — alarm-stop confirmed live; steps-parity thread opened and paused
+The alarm-stop automation fired for the first time, cleanly, at 07:25 local
+— filed 12 Aug's full health payload, `stepsComplete: true`, no errors. The
+whole point of the prior close's fix, proven. He noticed Nova's steps
+(10,022) sat ~1.1% under Apple Health's own figure (10,139) and asked why.
+Root cause, confirmed against Apple's own developer forums: the true
+cross-source dedup Health shows requires `HKStatisticsQuery`, a native
+HealthKit API a Shortcut cannot call — Nova's per-device MAX fold is an
+honest approximation, not a bug, and this project already proved the naive
+alternative (no Source filter) is worse. Built a full adapter
+(`lib/autoExport.js`, route `POST /api/health-data/auto-export`) for Health
+Auto Export, a real app that CAN call the proper API, reusing the existing
+shared ingest gate via a new `skipDateShift` option. Gate-clean (294/294
+tests), live-tested with synthetic data, committed and pushed
+(`84cadb5`) — but he then found the app wants a paid subscription and
+declined to buy it right now. **Thread is parked, not abandoned**: the
+adapter is built and waiting, untested against a real payload, for whenever
+he decides to revisit it.
 
 ### 12 August 2026 (afternoon) — closing the health thread's last gap
 He added the alarm-stop trigger on his phone — the previous close's fix is
