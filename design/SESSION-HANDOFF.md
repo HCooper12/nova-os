@@ -12,25 +12,25 @@ the session log at the foot is append-only.
 ---
 
 ## CURRENT HANDOFF
-*Last updated: 12 August 2026*
+*Last updated: 12 August 2026 (afternoon close)*
 
-**GOAL:** Keep Nova the one app Hayden opens daily. This session's thesis:
-Nova could not SEE video, and video is where a large share of what he
-learns now lives. So the work was to give Nova eyes — a link in, and every
-idea from that video woven into the second brain, on the same review-gated
-rails as everything else. **A second session ran concurrently on the
-health/Shortcuts side; its commits are in this history (see STATE) and its
-state is NOT verified here.**
+**GOAL:** Keep Nova the one app Hayden opens daily. This close's scope was
+narrow and deliberate: open the session by re-verifying the previous
+handoff's load-bearing claims by a second route (not by re-reading it), and
+fix whatever that verification turned up. It turned up a live one — see
+DECISIONS/VERIFIED. **The video-pipeline and health/Shortcuts builds below
+are unchanged from the previous close** except where marked "this close".
 
 **DONE CRITERIA (rolling):**
-1. Overnight health push lands automatically — **ROOT CAUSE FOUND AND
-   ADDRESSED; one tap from met.** iOS encrypts Health data while the phone
-   is locked, so the 00:05 automation dies at its first query on any night
-   he is actually asleep — every midnight push that ever landed was a
-   night the phone was in use. Fix shipped: **Nova Health Morning**, his
-   own automation cloned from its iCloud share link with the date token
-   replaced by the literal `yesterday`. **Unmet until he adds the
-   trigger** (Automation → When Alarm is Stopped → Run Shortcut).
+1. Overnight health push lands automatically — **machinery shipped, trigger
+   now added.** iOS encrypts Health data while the phone is locked, so the
+   00:05 automation dies at its first query on any night he is actually
+   asleep. Fix: **Nova Health Morning**, his own automation cloned from its
+   iCloud share link with the date token replaced by the literal
+   `yesterday`. **He added the alarm-stop trigger himself this close**
+   (Automation → When Alarm is Stopped → Run Shortcut → Nova Health Morning
+   → Run Immediately) — still **unmet/unverified**, first real run is
+   tomorrow morning.
 2. Nova usable on the phone while the Mac sleeps — **met** for
    reads/queued writes; **unmet** for live conversation.
 3. Companion plan Phases 1–5 shipped — **met**. Phase 6 (native wrapper)
@@ -105,10 +105,20 @@ its author at this close):*
   midnight date-shift, monotonic-steps guard, receipts. It also resolves
   the literal words `yesterday`/`today` as dates, so a morning Shortcut
   needs no Adjust Date actions.
-- **Monotonic steps now covers TODAY too** (`shouldDropLowerSteps`) — the
-  rule used to exempt the current day, and on 11 Aug a push reporting 813
-  overwrote a genuine 11,107 one minute later. Manual corrections still
-  bypass it (his edit is the last word).
+- **Monotonic steps now covers TODAY too** (`shouldDropLowerReading`, was
+  `shouldDropLowerSteps`) — the rule used to exempt the current day, and on
+  11 Aug a push reporting 813 overwrote a genuine 11,107 one minute later.
+  Manual corrections still bypass it (his edit is the last word).
+- **THIS CLOSE: the guard now covers every accumulator, not just steps**
+  (`ACCUMULATOR_METRICS` in `lib/healthData.js`: steps, activeEnergyKcal,
+  walkingRunningDistanceKm, sleepAsleepMinutes, sleepInBedMinutes) — a
+  lower later reading of any of them is a truncated/stale one, dropped the
+  same way a truncated steps reading always was. Point-in-time metrics
+  (restingHeartRate, hrv, vo2Max, weightKg) are deliberately NOT in this
+  set — a later reading of those is simply more current regardless of
+  direction, so they keep overwriting freely. `ingestHealthPayload` returns
+  `droppedKeys` (list) alongside the existing `stepsDropped` (bool, kept
+  for compatibility).
 - **`stepsComplete` is a fact about the clock, not the author** — a manual
   correction is AUTHORITATIVE but a same-day one is still a partial.
 - **The sentinel shouts at stale days, not just missing ones**
@@ -173,18 +183,56 @@ tap-through; server binds the tailnet IP directly; request receipts in
   → his phone demonstrably does not upload Shortcuts-saved files to iCloud
   (two files, 6+ minutes, never arrived) → forecloses relying on
   store-and-forward for correctness.
+- **THIS CLOSE — generalize the monotonic guard to every accumulator, not
+  just steps** → re-verifying the previous handoff found today's health
+  file carrying 11 Aug's `activeEnergyKcal` (819 kcal),
+  `walkingRunningDistanceKm` (15 km), `restingHeartRate`, `hrv`, and
+  `vo2Max` against only 163 real steps. Cause: a drill push during the
+  health thread's own testing used the literal date `2026-08-12` (meant
+  `yesterday`) and landed as the day's FIRST push, so even the steps guard
+  had nothing to compare against — and the other accumulators had no guard
+  at ALL, guarded or not, so they wrote straight through → forecloses a
+  second push ever silently downgrading a better accumulator reading to a
+  worse one. Does **not** foreclose — and cannot prevent — a bad first push
+  for a brand-new day; that is a data-entry bug (wrong date token), not a
+  gap this guard closes.
 - *(Standing: tailnet IP direct; fast spoken context; 90s calendar cache;
   autonomy proposed never applied; distillation refuses wholesale on
   drift; "I ate dinner" marks the planned meal.)*
 
-**VERIFIED (12 Aug close, with locators):**
-- Gates re-run at the health thread's close: `npm run lint` **0 errors**
-  (the one "error" grep hit is the word inside a warning's help text);
-  `npm run build` green (`dist/sw.js` emitted); `cd server && npm test`
-  **285 pass / 0 fail**; `git status --porcelain` **empty**;
-  `HEAD == origin/main`; `curl localhost:4173/api/health` → **200**; no
-  `vite preview` process; `dist/pc.json` absent.
-- Pages deploy: `gh run list` → last runs completed/success.
+**VERIFIED (12 Aug afternoon close, with locators):**
+- Gates re-run cold, by a second route (not by re-reading the previous
+  handoff): `git status --porcelain` **empty**, `HEAD == origin/main` at
+  `6b8751b`; `com.novaos.server` loaded (`launchctl list`) and
+  `curl localhost:4173/api/health` → **200**; `cd server && npm test` →
+  **287 pass / 0 fail** (285 baseline + 2 new for the generalized guard);
+  `npm run lint` **0 errors** (warnings only, same set as before); `npm run
+  build` green; no stray `vite preview`; `dist/pc.json` absent.
+- Inbox and pushlog checked directly against the JSON files on disk
+  (`server/data/inbox.json`, `server/data/health/pushlog.json`) rather than
+  the API, which needs a bearer token and returns `{"error":"unauthorized"}`
+  that silently parses as empty if the caller doesn't check `.error` first
+  (see DO NOT): **192 records / 45 pending**, unchanged from the prior
+  close; pushlog held 50 attempts, newest `2026-08-12T02:42:28Z` (the
+  163-step manual correction).
+- **The stale-metrics bug reconstructed from the pushlog, not guessed**:
+  the entry at `2026-08-12T00:05:20Z` carries `"date":"2026-08-12"` with
+  `activeEnergyKcal:819.379`, `walkingRunningDistanceKm:15.0984…` — figures
+  matching 11 Aug's real numbers — and it was the day's FIRST push, so
+  `existing` was `null` and no guard fired for any field.
+- **The generalized guard verified live against the running server**, not
+  just unit tests: POST'd a higher `activeEnergyKcal`/
+  `walkingRunningDistanceKm`/`hrv` for a scratch date (2019-06-15), then a
+  lower set of all three. Result: the two accumulators were refused (held
+  at 900 kcal / 18 km) while `hrv` overwrote to the lower, later figure
+  (55) — exactly the intended split. Scratch day and its pushlog entries
+  removed after.
+- `server/data/health/2026-08-12.json` repaired by hand: the five stale
+  11-Aug-shaped fields removed; `steps: 163` and `weightKg: 82.7` (his own
+  manual push) kept. Confirmed unaffected by the subsequent
+  `launchctl kickstart -k gui/501/com.novaos.server`.
+- Pages deploy: `gh run list` → last runs completed/success (unchanged,
+  not re-checked this close).
 
 *The health/Shortcuts thread:*
 - **The locked-phone cause is PROVEN, not inferred**: he fired the
@@ -256,8 +304,9 @@ tap-through; server binds the tailnet IP directly; request receipts in
   session was started via `POST /api/ingest` from the shell; the button
   wiring is only inspected, not exercised.
 - **That the alarm-stop trigger fires and reads Health successfully.**
-  The shortcut is proven by hand; the trigger has never run. This is the
-  whole point of the fix and it is untested.
+  The shortcut is proven by hand and the trigger is now added to his phone
+  (this close) — but it has never fired. This is the whole point of the
+  fix and it is untested until tomorrow morning.
 - That a rolling "last 1 day" window at alarm-stop is an honest stand-in
   for yesterday's calendar day. The reasoning is sound (both ends of the
   window fall in sleep) but no morning run has been compared to Health.
@@ -273,15 +322,12 @@ tap-through; server binds the tailnet IP directly; request receipts in
   produce-vs-keep problem the trust ladder was built to fix.
 - **The live walkthrough — 5+ sessions owed.** Now overdue enough that he
   has features he has never seen (Deep weave, Brain Week, tap-to-expand).
-- **Two sessions writing this repo concurrently.** One swept my files into
-  its commit (`0210290`). Nothing was lost, but the handoff and the test
-  suite are shared surfaces — check `git log` before assuming a change is
-  yours.
 - Whether he wants the deep weave to run automatically for trusted
   channels (his phrasing: "less friction, less to remember").
 - About You is still empty; every agent reasons without it.
-- **The alarm-stop automation is not built yet** — one tap on his phone,
-  and until it exists no night is covered while he sleeps.
+- **The alarm-stop trigger is added but unrun** — tomorrow morning is the
+  first real observation. If nothing lands, check the request log and the
+  09:00 sentinel's Telegram before assuming the trigger itself is broken.
 - **His phone does not upload Shortcuts-saved files to iCloud.** Two files
   (`midnight-push.json`, a shared `.shortcut`) never arrived after 6+
   minutes, while the Mac's iCloud was idle with zero backlog. The URL
@@ -292,14 +338,14 @@ tap-through; server binds the tailnet IP directly; request receipts in
   measurable audio stream. He was asked for the key and hasn't added it.
 - MacBook often on battery overnight — any night is unreliable regardless.
 
-**NEXT ACTION (health, time-critical — it decides tomorrow morning):** ask
-him to add the trigger on his phone — **Automation → + → When Alarm is
-Stopped → Run Shortcut → Nova Health Morning → Run Immediately**. Expected
-observation tomorrow: a pushlog receipt shortly after his alarm, filed
-against yesterday's date with steps in the thousands, and
-`server/data/health/<yesterday>.json` showing `stepsComplete: true`. If
-nothing arrives, the 09:00 sentinel Telegrams him naming the cause from
-the request log.
+**NEXT ACTION (health — no action needed, just observe):** the trigger is
+now added; nothing to do but wait for tomorrow's alarm. Expected
+observation: a pushlog receipt shortly after his alarm stops, filed against
+today's date (12 Aug, once the day is actually over) with steps in the
+thousands, and `server/data/health/2026-08-12.json` showing
+`stepsComplete: true`. If nothing arrives, the 09:00 sentinel Telegrams him
+naming the cause from the request log — read that before assuming the
+trigger is broken.
 
 **SECOND ACTION (video):** ask him to run **▶▶ WATCH + ANALYSE from the
 app** on a short video (not the shell). Expected observation: the review
@@ -364,6 +410,21 @@ button wiring and the app-side approve path.
   deadline.
 - Do **not** trust `tailscale serve` alone for phone→Mac.
 - Do **not** claim an agent "ran" from a pending record alone.
+- Do **not** assume a stray dated push is harmless because ONE metric got
+  guarded. Only steps had a monotonic guard until 12 Aug; a drill push with
+  a wrong literal date (`2026-08-12` instead of `yesterday`) wrote real
+  11-Aug energy/distance/RHR/HRV/VO2 numbers straight into 12 Aug's file
+  because those fields had no guard at all. Check every metric key, not
+  just the one you're testing.
+- Do **not** trust a GET to `/api/*` without the bearer token as evidence
+  of empty state. It returns `{"error":"unauthorized"}`, and code that
+  reads `.records`/`.items` off that without checking `.error` first sees
+  an empty list, not a rejection — read the JSON files on disk directly
+  when verifying from outside the app.
+- Do **not** assume you're the only session writing this repo. Two sessions
+  wrote it concurrently on 11-12 Aug and one swept the other's files into
+  its commit (`0210290`) — nothing was lost, but check `git log` before
+  assuming a change is yours if it happens again.
 - Everything in the previous DO NOT list still applies (Vite stale
   modules; `$` in `/m` regex over vault markdown; fixture-only tests for
   vault writers; verifying the PWA against the deployed Pages build in
@@ -372,6 +433,26 @@ button wiring and the app-side approve path.
 ---
 
 ## SESSION LOG (append-only, newest first)
+
+### 12 August 2026 (afternoon) — closing the health thread's last gap
+He added the alarm-stop trigger on his phone — the previous close's fix is
+now live end to end, pending tomorrow morning's first real run. Re-verifying
+the previous handoff's claims by a second route (reading the pushlog and the
+JSON files directly, not trusting the prose) surfaced a live bug it hadn't
+caught: `server/data/health/2026-08-12.json` was carrying 11 Aug's
+`activeEnergyKcal`, `walkingRunningDistanceKm`, `restingHeartRate`, `hrv`,
+and `vo2Max` — 819 kcal and 15 km logged against 163 real steps. Cause: a
+drill push made during the health thread's own testing used the literal
+date `2026-08-12` instead of `yesterday`, landed as the day's first push
+(so even the steps guard had nothing to compare against), and the other
+accumulators had no guard at all — only steps did. Fixed by generalizing
+`shouldDropLowerSteps` → `shouldDropLowerReading`, applied across a new
+`ACCUMULATOR_METRICS` set (steps, activeEnergyKcal, walkingRunningDistanceKm,
+sleep*); point-in-time metrics (RHR, HRV, VO2 max, weight) stay unguarded on
+purpose since a later reading of those is just more current. Verified live
+against the running server with a scratch date, not just unit tests. Today's
+file repaired by hand. Gates re-run clean (287/287); committed, pushed
+(`6b8751b`), service reloaded.
 
 ### 11–12 August 2026 — the health thread (concurrent session)
 The steps saga ended, and not where anyone was looking. Three faults were
