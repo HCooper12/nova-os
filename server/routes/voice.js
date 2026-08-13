@@ -94,18 +94,38 @@ export function voiceRouter(vaultPath) {
       const question = typeof req.body?.question === 'string' ? req.body.question.trim() : '';
       if (!question) return res.status(400).json({ error: 'question is required' });
       if (question.length > 1000) return res.status(400).json({ error: 'keep a spoken question under 1000 characters' });
-      // A real answer takes ~30s (context assembly + the model), and iOS
-      // Shortcuts kills a request that sits SILENT that long — "The network
-      // connection was lost". So flush the headers at once and drip a space
-      // every few seconds while Nova thinks: leading whitespace is legal
-      // JSON, so Get Dictionary Value still parses the result, and the
-      // connection never looks idle to the phone.
+      // iOS Shortcuts kills a request that sits SILENT for too long ("The
+      // network connection was lost"), so a long think needs SOMETHING on the
+      // wire. The old fix dripped a space every 3s from the very start, on
+      // the theory that leading whitespace is legal JSON and Shortcuts would
+      // still parse it.
+      //
+      // That theory broke on his phone (13 Aug 2026): the server answered
+      // 200 with the right answer, the body arrived as "    {"text":…}", and
+      // Siri said it couldn't help — i.e. Shortcuts did NOT get a dictionary
+      // out of it. It went unnoticed for so long because the drip only
+      // corrupts SLOW answers, and answers only recently got fast enough for
+      // the difference to show.
+      //
+      // So the drip now starts only once a request is genuinely long — past
+      // the point where a clean body is worth less than a live connection.
+      // Under that threshold (which is now every ordinary ask: ~2s resumed,
+      // ~12s cold) the response is byte-perfect JSON with nothing in front
+      // of it.
       res.set('Content-Type', 'application/json');
       res.flushHeaders();
-      const keepalive = setInterval(() => { try { res.write(' '); } catch { /* client gone */ } }, 3000);
+      let keepalive = null;
+      const KEEPALIVE_AFTER_MS = 20_000; // iOS gives up around 25s
+      const keepaliveStart = setTimeout(() => {
+        keepalive = setInterval(() => { try { res.write(' '); } catch { /* client gone */ } }, 5000);
+      }, KEEPALIVE_AFTER_MS);
       // status can't change after flushing, so failures answer 200 with a
       // spoken-friendly `text` — Siri says what went wrong instead of nothing
-      const finish = (payload) => { clearInterval(keepalive); res.end(JSON.stringify(payload)); };
+      const finish = (payload) => {
+        clearTimeout(keepaliveStart);
+        if (keepalive) clearInterval(keepalive);
+        res.end(JSON.stringify(payload));
+      };
 
       // The spoken lane keeps ONE conversation alive rather than minting a
       // new one per ask. That single change removes the three biggest costs
@@ -138,7 +158,11 @@ export function voiceRouter(vaultPath) {
           // and how long it took. "Why was that one slow?" is then answerable
           // from the log instead of by guessing (the whole reason this
           // latency problem went unexamined for so long).
-          console.log(`ask/sync ${Date.now() - started}ms session=${spoken.resumed ? `resumed turn ${spoken.turns}` : `fresh (${spoken.reason})`}`);
+          // The reply text is on the receipt too: when he says "Siri didn't
+          // answer", the first question is whether Nova produced an answer at
+          // all, and without this that took a live reproduction to establish.
+          const reply = String(job.result.text || '');
+          console.log(`ask/sync ${Date.now() - started}ms session=${spoken.resumed ? `resumed turn ${spoken.turns}` : `fresh (${spoken.reason})`} reply=${reply.length}ch ${JSON.stringify(reply.slice(0, 80))}`);
           return finish({ text: job.result.text, sessionId: job.result.sessionId });
         }
         if (job?.status === 'error') {

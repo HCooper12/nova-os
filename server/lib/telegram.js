@@ -59,7 +59,11 @@ export async function sendTelegramText(text) {
 // the thread, buttons attached — the same taste filter as web push (things
 // waiting on him, never everything that happens), the same rails when he
 // taps. Best-effort: no bridge, no chat id, or an API hiccup all fail silent.
-const ANNOUNCE_SKIP_KINDS = new Set(['followup']);
+// forge-job announces itself (lib/forge.js composeForgeAnnouncement): it has
+// to cover FAILED builds too, which never reach `pending` and so would never
+// be announced here, and its message carries what the generic one can't —
+// what he can now do, what it cost, and where it landed.
+const ANNOUNCE_SKIP_KINDS = new Set(['followup', 'forge-job']);
 export async function announceRecord(record) {
   if (!telegramConfigured() || !CHAT_ID()) return;
   if (!record || record.status !== 'pending' || ANNOUNCE_SKIP_KINDS.has(record.kind)) return;

@@ -143,6 +143,36 @@ export function parseBuiltLine(text) {
   return { summary: m[1].trim(), cleanText: String(text).replace(m[0], '').trim() };
 }
 
+// The completion ping. A build dispatched from his wrist is the one case
+// where he walks away from the machine entirely, so the OUTCOME has to come
+// to him — and that includes the failures, which is the gap this closes:
+// a built job lands `pending` and the inbox rails already announce it, but a
+// FAILED job lands `error`, which notifies nobody. Dispatch-and-never-hear
+// is the worst possible behaviour for a surface whose whole point is that
+// he isn't watching.
+//
+// Cost rides along because a forge job is the most expensive thing Nova
+// does on his behalf without asking first (measured: $0.90 for a small
+// game), and a number he can see is how that stays honest.
+export function composeForgeAnnouncement(job) {
+  const cost = Number.isFinite(job.costUsd) ? ` · $${job.costUsd.toFixed(2)}` : '';
+  const mins = job.startedMs ? Math.max(1, Math.round((Date.now() - job.startedMs) / 60000)) : null;
+  const took = mins ? ` · ${mins} min` : '';
+  if (job.state === 'built') {
+    return `⚒ Forge — built${took}${cost}\n\n${job.summary || 'It finished, but never said what it made.'}\n\n${job.dir}`;
+  }
+  if (job.state === 'stopped') return `⚒ Forge — stopped${took}${cost}\n\n"${job.prompt}"`;
+  return `⚒ Forge — failed${took}${cost}\n\n"${job.prompt}"\n\n${String(job.error || 'no reason given').slice(0, 400)}`;
+}
+
+async function announceForge(job) {
+  try {
+    const { telegramConfigured, sendTelegramText } = await import('./telegram.js');
+    if (!telegramConfigured()) return;
+    await sendTelegramText(composeForgeAnnouncement(job));
+  } catch { /* a missing ping must never be the thing that breaks a build */ }
+}
+
 async function persistJob(job) {
   try {
     await mkdir(JOBS_DIR, { recursive: true });
@@ -271,6 +301,7 @@ async function runForgeJob(job) {
     await persistJob(job);
     await updateRecord(job.recordId, { status: 'error', error: 'stopped by you', forgeStatus: null, forgeCostUsd: cost });
     broadcast('forge');
+    await announceForge(job);
     return;
   }
 
@@ -284,6 +315,9 @@ async function runForgeJob(job) {
     await persistJob(job);
     await updateRecord(job.recordId, { status: 'error', error: reason, forgeStatus: null, forgeCostUsd: cost });
     broadcast('forge');
+    // The important one: an `error` record notifies nobody through the rails,
+    // so without this a build dispatched from his wrist could fail in silence.
+    await announceForge(job);
     return;
   }
 
@@ -311,6 +345,7 @@ async function runForgeJob(job) {
     text: `Forge: ${job.prompt}${summary ? ` — ${summary}` : ''}`,
   });
   broadcast('forge');
+  await announceForge(job);
 }
 
 export async function startForge(prompt, { model } = {}) {

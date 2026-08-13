@@ -1016,6 +1016,20 @@ export async function approveRecord(vaultPath, id) {
   const record = await getRecord(id);
   if (!record) throw new Error('inbox record not found');
   if (record.status !== 'pending') throw new Error('only pending captures can be approved');
+  // A forge job carries no `decision` because it wrote nothing to the vault —
+  // its output is a disposable directory, not knowledge. Approving one means
+  // "I looked at this and I'm keeping it", so it resolves the record without
+  // filing anything and without undoData (there is no vault change to undo).
+  // Routing it through fileDecision would throw on the missing decision.
+  if (record.kind === 'forge-job') {
+    return updateRecord(id, {
+      status: 'filed',
+      destination: record.forgeDir || null,
+      filedAt: new Date().toISOString(),
+      auto: false,
+      error: null,
+    });
+  }
   const { destination, undo } = await fileDecision(vaultPath, record.decision);
   return updateRecord(id, { status: 'filed', destination, undoData: undo, filedAt: new Date().toISOString(), auto: false, error: null });
 }
