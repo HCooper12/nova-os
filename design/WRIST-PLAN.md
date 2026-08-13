@@ -61,6 +61,12 @@ What Nova does NOT have today:
 
 ## Phases (each independently shippable, smallest honest step first)
 
+> **STATUS (13 Aug 2026):** Phase 0 answered by him — Ask Nova DOES run from
+> his watch. Phase 1 (the Forge) is **BUILT and verified live** (`2c59dc8`).
+> The spoken-latency problem he raised alongside it is **fixed** (`faea049`):
+> 14.2s → 2.1–2.2s on a follow-up ask, 11.5s cold. Phases 2–4 are next and
+> untouched. See VERIFIED/OPEN in `SESSION-HANDOFF.md` for the measurements.
+
 ### Phase 0 — verify the free win (zero code)
 Shortcuts sync to watchOS. His existing hands-free **Ask Nova** shortcut
 may already run from the watch — dictate, hear the answer through the
@@ -111,6 +117,45 @@ jobs*:
   produced artifact dir is disposable derived data, not vault truth.
 - Tests: fixture-dir jobs, kill/stop, receipt shape, stream parsing, the
   no-second-process rule.
+
+**AS BUILT (13 Aug 2026) — what differed from this sketch:**
+- Department is **Platform**, not "Build": the registry seed
+  (`lib/skills.js`) has a fixed set of departments and the ops test enforces
+  that `AGENT_DEPARTMENTS` only names real ones. Inventing a department
+  would have broken that contract.
+- **Measured cost: $0.90** for the snake game (3m32s). The cap sits at
+  $4.00 — informed by that measurement rather than guessed, per DO NOT.
+- **The proof screenshot needs a one-time Screen Recording grant** and does
+  not have it yet, so it currently returns an honest note instead of an
+  image. Everything else in the proof path works.
+- The model picker is deferred, not built: no `model` selection has been
+  exercised, and the default model handled the demo job well.
+- `stopForge` had a real bug on first write (it mutated a copy read from
+  disk, so the stop flag never reached the running job). Fixed by keeping
+  the live job object in the running map; verified live — a stopped job now
+  reports "stopped by you" rather than looking like a crash.
+
+### Phase 1b — the spoken lane must be FAST (done, and it was the real blocker)
+He raised this alongside the video and it mattered more than any of the
+below: *"the shortcuts for ask and tell nova take time and I hate how long
+the wait is… it defeats the purpose of trying to use nova for everything."*
+
+Diagnosed from the request log rather than guessed — 14.2s, 15.9s, 23.9s
+were sitting there. Cause: `/api/ask/sync` minted a NEW conversation per
+ask, paying context assembly (~2.5s), a cold CLI boot (~2.2s) and prompt
+cache CREATION every time; the warm pool is keyed by session id, so Siri
+could never hit it. Fixed in `lib/spokenSession.js` — one conversation,
+resumed, with a fresh session on a new day / after 20 min / after 12 turns,
+and the volatile numbers re-stated from local files on every resumed turn.
+Cold asks now overlap the CLI boot with context assembly (`prewarmAsk`).
+
+**Measured after: 2.1–2.2s resumed, 11.5s cold.** A dispatch to the Forge is
+~60ms because it doesn't wait for the build at all.
+
+The remaining cold-ask cost is model time on a fresh ~18k-token prompt, not
+Nova's plumbing. If it still annoys him, the next lever is keeping the
+session warm across longer gaps — deliberately not done yet, because that
+trades freshness for speed and the current window is the honest default.
 
 ### Phase 2 — wrist + phone dispatch (clone, never author)
 - Clone his working Ask Nova shortcut (iCloud share-link method, proven)
