@@ -91,8 +91,42 @@ export function voiceRouter(vaultPath) {
   // out, no client-side polling.
   router.post('/ask/sync', async (req, res) => {
     try {
-      const question = typeof req.body?.question === 'string' ? req.body.question.trim() : '';
-      if (!question) return res.status(400).json({ error: 'question is required' });
+      // THE EXACT BYTES THE PHONE SENT. The health thread learned this the
+      // expensive way — "key names alone could not explain a Shortcut whose
+      // visible actions built one payload while another arrived" — and the
+      // spoken lane just repeated the lesson: on 15 Aug a request arrived,
+      // authenticated, answered 200, and Nova said "I'm ready, sir — what's
+      // the question?" because the body carried no question at all. Without
+      // this line, that is indistinguishable from a Shortcut that never ran.
+      // Truncated; a spoken question only, never credentials.
+      let body = req.body;
+      const rawBody = (typeof body === 'string' ? body : JSON.stringify(body ?? null) || '').slice(0, 400);
+      // Tolerate a raw-text body: iOS Shortcuts sending the request body as a
+      // text "File" rather than JSON is a standing footgun in this codebase
+      // (the health route already carries the same tolerance).
+      if (typeof body === 'string') {
+        try { body = JSON.parse(body); } catch { /* fall through to the field sweep */ }
+      }
+      // Accept the obvious spellings. A hand-built Shortcut names its variable
+      // whatever felt natural at 6am, and a silently-dropped key is exactly
+      // the failure mode that has now cost two separate multi-day hunts.
+      const pick = (o) => ['question', 'text', 'prompt', 'input', 'q']
+        .map((k) => (typeof o?.[k] === 'string' ? o[k].trim() : ''))
+        .find((v) => v) || '';
+      let question = pick(body);
+      // A plain-text body that never parsed as JSON IS the question.
+      if (!question && typeof body === 'string' && body.trim() && !body.trim().startsWith('{')) question = body.trim();
+
+      if (!question) {
+        // Answer 200 with spoken text, not a bare 400: a 400 makes Siri say
+        // "I can't help with that", which describes nothing. This tells him
+        // WHICH end is broken, out loud, the moment it happens.
+        console.log(`ask/sync REJECTED: no question in body. raw=${JSON.stringify(rawBody)}`);
+        return res.json({
+          text: 'The Shortcut reached me but sent no question — its text variable is not making it into the request body. Check the Get Contents of URL step.',
+          error: 'no question in body',
+        });
+      }
       if (question.length > 1000) return res.status(400).json({ error: 'keep a spoken question under 1000 characters' });
       // iOS Shortcuts kills a request that sits SILENT for too long ("The
       // network connection was lost"), so a long think needs SOMETHING on the
@@ -162,7 +196,7 @@ export function voiceRouter(vaultPath) {
           // answer", the first question is whether Nova produced an answer at
           // all, and without this that took a live reproduction to establish.
           const reply = String(job.result.text || '');
-          console.log(`ask/sync ${Date.now() - started}ms session=${spoken.resumed ? `resumed turn ${spoken.turns}` : `fresh (${spoken.reason})`} reply=${reply.length}ch ${JSON.stringify(reply.slice(0, 80))}`);
+          console.log(`ask/sync ${Date.now() - started}ms session=${spoken.resumed ? `resumed turn ${spoken.turns}` : `fresh (${spoken.reason})`} q=${JSON.stringify(question.slice(0, 60))} reply=${reply.length}ch ${JSON.stringify(reply.slice(0, 80))}`);
           return finish({ text: job.result.text, sessionId: job.result.sessionId });
         }
         if (job?.status === 'error') {
