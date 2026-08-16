@@ -51,6 +51,10 @@ test('ask prompt: companion contract — continuing conversation, vault-grounded
   assert.match(prompt, /never invent/);
   assert.match(prompt, /tap REMEMBER/);
   assert.match(prompt, /Address him as "sir"/);
+  // The persona register: unflappable, dry, understated — JARVIS in words, whatever engine speaks them
+  assert.match(prompt, /VOICE: unflappable, precise, dry/);
+  assert.match(prompt, /never exclamatory, never flustered/);
+  assert.match(prompt, /deadpan/);
   assert.match(prompt, /Leg Day is scheduled/);
   assert.match(prompt, /Hayden asks: How did training go this week\?/);
   const noContext = buildAskPrompt({ question: 'Hi', context: '' });

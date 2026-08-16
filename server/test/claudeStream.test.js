@@ -97,6 +97,7 @@ test('greeting: generated (never templated), fact-grounded, streams like any rep
   const prompt = buildGreetingPrompt({ facts: 'Local time: 07:12.\nHis Inbox holds 3 pending drafts.' });
   assert.match(prompt, /never invent activity/i, 'grounding rule is in the contract');
   assert.match(prompt, /never a stock template/i, 'the unscripted rule is in the contract');
+  assert.match(prompt, /unflappable and dry/i, 'the persona register is in the contract');
   assert.match(prompt, /His Inbox holds 3 pending drafts/, 'the deterministic facts ride along');
 
   const done = await streamAndFinish(startGreeting(stubDir, { facts: 'Local time: 07:12.' }));
