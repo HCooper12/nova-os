@@ -7,3 +7,6 @@ server/data
 
 # personal Claude skill bundles that may sit in this folder
 *.skill
+
+# stray reading material that lands in this folder — not project files
+*.pdf
