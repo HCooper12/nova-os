@@ -12,14 +12,18 @@ the session log at the foot is append-only.
 ---
 
 ## CURRENT HANDOFF
-*Last updated: 13 August 2026*
+*Last updated: 16 August 2026*
 
-**GOAL:** Keep Nova the one app Hayden opens daily. This close's scope was
-narrow and deliberate: open the session by re-verifying the previous
-handoff's load-bearing claims by a second route (not by re-reading it), and
-fix whatever that verification turned up. It turned up a live one — see
-DECISIONS/VERIFIED. **The video-pipeline and health/Shortcuts builds below
-are unchanged from the previous close** except where marked "this close".
+**GOAL:** Keep Nova the one app Hayden opens daily. This session ran on two
+threads he opened himself: an Instagram reel he loved (dispatching agents
+from an Apple Watch, live status in the Mac's notch) → a plan plus its first
+phase built; and a complaint that mattered more than the reel — *"the
+shortcuts for ask and tell nova take time and I hate how long the wait is…
+it defeats the purpose of trying to use nova for everything."* That became
+a latency fix, then a three-round bug hunt on the spoken lane in which **the
+first two diagnoses were wrong** (see DO NOT). **The video-pipeline and
+health/Shortcuts builds below are unchanged from earlier closes** except
+where marked.
 
 **DONE CRITERIA (rolling):**
 1. Overnight health push lands automatically — **MET, first real run
@@ -39,15 +43,75 @@ are unchanged from the previous close** except where marked "this close".
    still parked.
 4. Menu-bar Nova visible on his Mac — **blocked** (icon under the notch).
 5. Live walkthrough of everything built — **unmet**, owed 5+ sessions.
-6. Hands-free Siri capture + answers — **met**.
+6. Hands-free Siri capture + answers — **met again, after breaking.** It was
+   broken for days by his Shortcut sending the literal words "Provided
+   Input" (the variable NAME, not its value). He rebound the variable on 16
+   Aug and it works: real question in, right answer out (locator in
+   VERIFIED). **Speed still unmet on the cold path — 19.7s on that run.**
 7. Produce-vs-keep corrected — **partially**: machinery ships, the 3
-   trust-ladder proposals are still unapproved.
+   trust-ladder proposals are still unapproved. **Worse this close: 60
+   pending, up from 45.**
 8. **Nova can watch a video and keep what matters — met, end to end,
    with his real 4-hour podcast in the vault.**
+9. **Nova can BUILD something from one spoken sentence — met on the server
+   side** (the Forge, verified with a real game). **Unmet from his wrist:**
+   the dispatching Shortcut is not built yet.
+10. Live agent status on the Mac (the notch HUD) — **unmet**, planned only.
 
 **STATE (what exists, where):**
 
-*The video pipeline (this session's build):*
+*The spoken lane — rebuilt for speed this close:*
+- **One conversation, resumed** (`server/lib/spokenSession.js`). `/ask/sync`
+  used to mint a NEW conversation per ask, paying all three expensive things
+  at once: context assembly (~2.5s; `buildAskContext` returns `''` for a
+  resumed session), a cold CLI boot (~2.2s; the warm pool is keyed by
+  session id, so a fresh id could never hit it), and prompt-cache CREATION
+  on ~18k tokens. Now: fresh session on a new local day / after 20 min /
+  after 12 turns, resumed otherwise; `dropSpokenSession()` on any error so a
+  dead process is never `--resume`d.
+- **Freshness on resumed turns** — `todayLocalContext()` (now exported from
+  `askContext.js`) re-states steps/HRV/fuel/inbox **and weight** from local
+  files on every resumed turn, prepended by `buildResumedAsk()` in
+  `claudeCode.js` along with a one-shot reminder for the hands-free lane.
+- **`prewarmAsk(cwd, sessionId)`** (`claudeCode.js`) — boots the CLI while
+  context assembles instead of after it. Booting makes no API call, so the
+  overlap is free.
+- **`startAskNova` takes an explicit `resume` flag** — a caller that mints
+  its own session id (the spoken lane must, to record it before the turn)
+  can say whether this turn opens or continues. Omitted, the old rule holds.
+- **Keepalive starts at 20s, not 0s** (`routes/voice.js`) — the drip that
+  keeps iOS from dropping a silent request corrupts the body it precedes.
+- **The spoken lane is now instrumented**: every ask receipts timing, which
+  session, the question, and the reply; a rejected one receipts the RAW
+  BODY. `/ask/sync` also accepts `question|text|prompt|input|q`, a raw
+  text/plain body, and JSON sent as a text File, and refuses known Shortcuts
+  variable NAMES (`PLACEHOLDER_QUESTIONS`) with a spoken instruction.
+
+*The Forge — Nova's build department (new this close):*
+- `server/lib/forge.js` + routes in `routes/inbox.js`: `POST /api/forge`
+  (answers in ~60ms so a wrist Shortcut gets an instant ack),
+  `POST /api/forge/:id/stop`, `GET /api/forge`, `GET /api/forge/:id/proof`.
+- Runs the `claude` CLI with Bash **inside `~/NovaForge/<slug>-<id>/`**
+  (`NOVA_FORGE_DIR` overrides). The DIRECTORY is the containment, not the
+  toolset: no vault writes, output is disposable derived data.
+- Live status rides the existing inbox rails — `forgeStatus` on the record
+  ("Writing index.html", "Running npm install") via `readStreamEvent` +
+  `describeToolUse`, so agent lights and SSE already carry it everywhere.
+- Receipts persist to `server/data/forge/<id>.json` (Distiller pattern).
+  Built jobs land **pending**, never filed. `approveRecord` has a
+  `forge-job` branch — these carry no `decision`, so the normal path would
+  throw on approval.
+- Telegram announces **built, stopped AND failed** (`composeForgeAnnouncement`);
+  `forge-job` is in telegram's `ANNOUNCE_SKIP_KINDS` so it announces once.
+  Failures matter most: an `error` record notifies nobody through the rails.
+- Ops roster: `forge`, department **Platform** (there is no "Build"
+  department; the ops test enforces names against the skills seed).
+
+*The plan this session came from:* `design/WRIST-PLAN.md` — Phases 0–4,
+with as-built notes. Phase 0 answered (Ask Nova does run from his watch),
+Phase 1 built, Phase 1b (latency) done, Phases 2–4 open.
+
+*The video pipeline (earlier close):*
 - **The Watcher** (`server/lib/watcher.js`) — the quick lane. Video URL →
   local transcript via the watch-skill scripts (resolved newest-version
   from `~/.claude/plugins/cache/claude-video/watch/`; `NOVA_WATCH_DIR`
@@ -228,9 +292,71 @@ tap-through; server binds the tailnet IP directly; request receipts in
   work on this thread until he revisits it — see OPEN QUESTIONS. The
   server-side adapter is already built and waiting, so restarting costs him
   only the app + one real export to compare, not a new build.
+- **The spoken lane reuses ONE conversation instead of minting per ask** →
+  measured: minting paid context assembly + cold boot + cache creation every
+  time, for 14.2s on a question whose answer was already in the injected
+  context → forecloses a guaranteed-fresh full context on every ask; the
+  day/age/turn caps plus a local-files live line are what keep it honest
+  instead.
+- **Freshness is re-stated per turn rather than the session being short** →
+  a short session would just reintroduce the cost this fixed → forecloses
+  slower-moving context (calendar brief, debrief, money) being current
+  mid-session; only the volatile numbers are refreshed.
+- **The keepalive drip starts at 20s instead of immediately** → it corrupts
+  the body it precedes, and answers are now fast enough that almost nothing
+  needs it → forecloses protection for a 20s+ request, where a live
+  connection with a stray space still beats a dropped one.
+- **A broken spoken request answers 200 with SPOKEN text, never a bare 400**
+  → a 400 makes Siri say "I can't help with that", which describes nothing
+  and sent this hunt down the wrong path twice → forecloses correct HTTP
+  semantics on that route; the caller is a voice assistant, not a client
+  that reads status codes.
+- **The Forge's containment is its DIRECTORY, not its toolset** → it needs
+  real Bash to build anything, and `--allowedTools` is documentation only
+  under bypassPermissions (verified empirically, see claudeCode.js) →
+  forecloses fine-grained per-tool policy inside a job; the sandbox dir and
+  the disallowed list are the boundary.
+- **Forge output is disposable derived data, never vault truth** → a built
+  artifact is not knowledge and has nothing to undo → forecloses undo for
+  forge jobs; approve means "I'm keeping this", and discard leaves the
+  directory on disk rather than destroying files he can see.
+- **Forge budget cap $4.00, set AFTER measuring $0.90** → the DO NOT about
+  unmeasured caps → forecloses cheap failure on a big job; it errs high
+  because a killed job wastes the entire run.
 - *(Standing: tailnet IP direct; fast spoken context; 90s calendar cache;
   autonomy proposed never applied; distillation refuses wholesale on
   drift; "I ate dinner" marks the planned meal.)*
+
+**VERIFIED (16 Aug close, re-run at this close, with locators):**
+- Gates, just now: `npm run lint` **0 errors**; `npm run build` green
+  (`dist/sw.js` emitted); `cd server && npm test` **312 pass / 0 fail**;
+  `git status --porcelain` **empty**; `HEAD == origin/main` at `b12a417`;
+  `curl localhost:4173/api/health` → **200**; `com.novaos.server` loaded;
+  no `vite preview`; `dist/pc.json` absent.
+- **His Shortcut works again, from his phone** — the decisive log line:
+  `ask/sync 12770ms session=fresh (aged-out) q="What was my step count
+  yesterday?" reply=32ch "8,538 steps on August 15th, sir."` /
+  `req 2026-08-16T12:43:29.921Z POST /api/ask/sync ← 100.77.255.37 → 200 in
+  19676ms`. A real dictated question arrived and the right answer went back.
+- **The cause of the outage is proven from the wire, not inferred**:
+  `ask/sync REJECTED: variable name sent as the question.
+  raw="{\"question\":\"Provided Input\"}"` — the Shortcut had been sending
+  the variable's NAME. His screenshot showed the same thing (the JSON body
+  row rendered as plain text, not a variable chip).
+- **Latency, measured live on the same question**: 14.2s before → **11.5s
+  cold / 2.1–2.2s resumed** after. Receipts in the log
+  (`ask/sync 2078ms session=resumed turn 3`, etc.).
+- **The keepalive corruption was reproduced and fixed against the bytes**:
+  `od -c` on a slow response showed four leading spaces before `{"text"`;
+  after the change the same slow path starts at `{`.
+- **The Forge built something real**: record `4cbfed90`, receipt
+  `server/data/forge/4cbfed90.json` — `state: built`, **$0.90**, 3m32s,
+  artifact `~/NovaForge/build-a-retro-aesthetic-snake-game-that--4cbfed90/
+  index.html` (22,357 bytes, canvas + AudioContext + localStorage high
+  score, structurally inspected). Stop verified separately on job
+  `b5d158d7`: reported "stopped by you", not a crash.
+- Live counts now: **230 records, 60 pending**; forge records `4cbfed90`
+  pending, `b5d158d7` discarded.
 
 **VERIFIED (12 Aug afternoon close, with locators):**
 - Gates re-run cold, by a second route (not by re-reading the previous
@@ -364,14 +490,41 @@ tap-through; server binds the tailnet IP directly; request receipts in
   cross-source aggregation rather than the app's own manual sum, are all
   assumptions. Untestable until he installs the app and it's moot until he
   decides to.
+- **That Siri actually SPOKE the 16 Aug answer.** The server returned the
+  right text in 19.7s and he has not said what he heard. The whole outage
+  was "server fine, phone silent", so a 200 is not proof he was answered.
+- **That the 20s keepalive threshold is right.** Chosen against a DO NOT
+  saying iOS drops silent requests past ~25s. The 19.7s run sat just under
+  it, so the drip has never actually fired since the change — the >20s path
+  is untested.
+- **That the Forge's game runs.** Verified structurally and by the job's own
+  smoke tests; never rendered. The browser extension cannot open `file://`
+  and a local static server failed to bind under the sandbox.
+- **That the proof screenshot works at all.** It has only ever returned its
+  honest "Screen Recording permission may be needed" note; the capture path
+  has never once produced an image.
+- **That a forge job survives a server restart sensibly.** `launchctl
+  kickstart` during a run was never tested; the boot reaper flips
+  `classifying` records to error, which would mark a job failed while its
+  child may still be running.
+- **That `--model` works on a forge job.** The parameter is plumbed and
+  never exercised.
 - (Standing: autonomy proposals reducing noise; distiller link choices;
   food-slot path from the phone; Scriptable widget; About You invite.)
 
 **OPEN QUESTIONS / BLOCKERS:**
-- **45 pending records** — including `775ade9d` (IHA coach verdict),
-  `d7d16872` (Brain Week), the 3 autonomy proposals, the distill draft,
-  coach receipts. The number is climbing, which is the exact
-  produce-vs-keep problem the trust ladder was built to fix.
+- **60 pending records, up from 45 four days ago** — the produce-vs-keep
+  problem is getting measurably worse, not better, and this close added to
+  it (a forge record now sits in there too). The trust ladder was built for
+  exactly this and its 3 proposals are still unapproved.
+- **The cold spoken ask is still slow: 19.7s on his real run.** That is
+  under the 20s drip and the ~25s iOS cutoff, but not by much, and a slower
+  vault or calendar could push a real ask over both. The remaining cost is
+  model time on a fresh ~18k-token prompt plus ~7s of context assembly on a
+  cold vault — not fixed, just no longer the dominant cost on repeat asks.
+- **Nothing dispatches the Forge from his wrist yet.** The server side is
+  done and the Shortcut is not built — so the feature he actually asked for
+  (build something from the watch) is not usable by him today.
 - **The live walkthrough — 5+ sessions owed.** Now overdue enough that he
   has features he has never seen (Deep weave, Brain Week, tap-to-expand).
 - Whether he wants the deep weave to run automatically for trusted
@@ -401,12 +554,26 @@ tap-through; server binds the tailnet IP directly; request receipts in
   fix at least the metric-name/unit-string guesses in `lib/autoExport.js`
   against whatever the app actually sent.
 
-**NEXT ACTION (health):** none — the alarm-stop trigger fired successfully
-this morning (13 Aug), closing this thread's main goal. What remains is the
-steps-parity thread (Nova 10,022 vs Apple Health 10,139), which is ON HOLD
-behind his subscription decision — do not act on it until he raises it
-again (see OPEN QUESTIONS). Keep watching a few more mornings to build
-confidence the alarm-stop trigger is reliably firing, not just lucky once.
+**NEXT ACTION (spoken lane — ask him one question before building
+anything):** *when you asked Siri on the 16th, did it SPEAK the answer?*
+The server returned "8,538 steps on August 15th, sir." in 19.7s, but the
+entire outage was "server healthy, phone silent", so a 200 proves nothing
+about what he heard. Expected observation if it is genuinely fixed: Siri
+reads the step count aloud within ~20s. If it went quiet again, the log now
+carries the raw body and the reply — read those FIRST, before touching code.
+
+**SECOND ACTION (the Forge, his actual ask):** build the "Nova Forge"
+dispatch Shortcut — clone the now-working Ask Nova (iCloud share-link
+method), change the URL path to `/api/forge` and the body key to `prompt`.
+Expected observation: dictating "build me a countdown timer page" from the
+watch returns "The Forge has it" within a second, the Forge dot pulses in
+the app, and Telegram announces the result with its cost a few minutes
+later. **Do not hand-author it** — clone.
+
+**THIRD ACTION (cheap, unblocks a built feature):** grant Screen Recording
+to the server so forge proof shots work. Expected observation: a finished
+job's receipt carries `proof: "<id>.png"` instead of the permission note,
+and `GET /api/forge/:id/proof` returns an image.
 
 **SECOND ACTION (video):** ask him to run **▶▶ WATCH + ANALYSE from the
 app** on a short video (not the shell). Expected observation: the review
@@ -482,6 +649,41 @@ button wiring and the app-side approve path.
   reads `.records`/`.items` off that without checking `.error` first sees
   an empty list, not a rejection — read the JSON files on disk directly
   when verifying from outside the app.
+- Do **not** diagnose a Shortcut failure from the server side without first
+  reading the RAW BODY it sent — and if there is no receipt of that, add one
+  before writing any fix. This close cost THREE rounds and two wrong
+  diagnoses: a real (but unrelated) keepalive-whitespace bug was found and
+  fixed and confidently reported as the cause, twice, while the actual fault
+  was his Shortcut sending the literal words "Provided Input". The evidence
+  that settled it took one grep once the receipt existed.
+- Do **not** ask "is it broken?" when you can ask to SEE it. One screenshot
+  of the Shortcut ended a multi-day hunt in seconds. Ask for it early.
+- Do **not** trust `→ 200` as proof a spoken surface worked. The server can
+  answer perfectly while the phone gets nothing usable — that happened twice
+  here, once from body corruption and once from a nonsense question.
+- Do **not** test only the fast path after a performance fix. The keepalive
+  drip corrupts SLOW responses only; every post-fix test returned in ~2s and
+  looked pristine, which is precisely why the bug survived being "verified".
+- Do **not** believe "leading whitespace is legal JSON so Shortcuts will
+  parse it". It is legal, and Shortcuts did not. That comment sat in the
+  code as an assumption dressed as a fact.
+- Do **not** answer a voice surface with a bare 4xx. Siri renders any
+  failure as "I can't help with that", which is indistinguishable from
+  a dozen other causes. Answer 200 with spoken `text` naming the real fault.
+- Do **not** run `git add -A` in this repo without reading the file list —
+  it swept a PDF of his reading material into a commit this close (now
+  untracked, `*.pdf` ignored, file untouched on disk).
+- Do **not** invent an agent department. `AGENT_DEPARTMENTS` names are a
+  contract with the seed in `skills.js` (Train/Fuel/Mind/Money/Knowledge/
+  Logistics/Platform) and the ops test enforces it — the Forge plan said
+  "Build" and had to become Platform.
+- Do **not** give a new inbox `kind` a pending status without checking
+  `approveRecord`. A forge job carries no `decision`, so Yes would have
+  thrown on a record that had already shipped Yes/Leave buttons to Telegram.
+- Do **not** mutate a job object read back from disk and expect a running
+  child to see it. `stopForge` did exactly that on first write, so the stop
+  flag never reached the process; the live object has to be the one in the
+  running map.
 - Do **not** assume you're the only session writing this repo. Two sessions
   wrote it concurrently on 11-12 Aug and one swept the other's files into
   its commit (`0210290`) — nothing was lost, but check `git log` before
@@ -494,6 +696,45 @@ button wiring and the app-side approve path.
 ---
 
 ## SESSION LOG (append-only, newest first)
+
+### 13–16 August 2026 — the Forge, the spoken lane made fast, and two wrong diagnoses
+He sent an Instagram reel — a hand-built watchOS app dispatching Claude and
+Codex jobs from the wrist, with live status in the Mac's notch — and asked
+for the same, expanded. Watched it frame by frame (60 frames + Whisper
+transcript) and wrote `design/WRIST-PLAN.md`: the key finding was that Nova
+already owns most of what that author built from scratch (server, auth,
+inbox rails, agent lights, SSE, Siri dispatch), so the genuinely new pieces
+are a job runner, a notch HUD, and wrist dispatch. Built Phase 1, **the
+Forge** (`lib/forge.js`): one spoken sentence → a real running artifact,
+sandboxed to `~/NovaForge/`, live tool status on the existing rails,
+persisted receipts, stop, and Telegram announcements including failures.
+Verified with a real snake game — $0.90, 3m32s, 22KB self-contained HTML
+that the job smoke-tested itself. Two bugs were mine and are recorded: the
+plan's invented "Build" department (no such thing — Platform), and a
+`stopForge` that mutated a disk copy so the stop flag never reached the
+child.
+
+The bigger thread was his complaint that Ask Nova from the watch felt so
+slow it defeated the point. That was measurable, not a feeling — 14.2s,
+15.9s, 23.9s sat in the request log. Cause: `/ask/sync` minted a NEW
+conversation per ask, paying context assembly, a cold CLI boot, and prompt
+cache creation every single time, because the warm pool is keyed by session
+id and a fresh id can never hit it. `lib/spokenSession.js` now keeps one
+conversation with day/age/turn caps and re-states the volatile numbers per
+turn: **2.1–2.2s resumed, 11.5s cold**.
+
+Then he said Siri still wasn't answering, and I got it wrong twice. First I
+found and fixed a real bug — the keepalive drip prefixing the JSON body with
+spaces, which Shortcuts could not parse — and reported it as the cause. It
+was not; it had only ever affected slow answers, and my post-fix tests all
+returned in 2s and looked clean. He said it still failed, so I added a raw-
+body receipt, and that finally showed the truth: his Shortcut had been
+sending the literal words `"Provided Input"` — the variable's NAME instead
+of its value. One screenshot from him confirmed it in seconds. He rebound
+the variable and it now works from his phone (`"8,538 steps on August 15th,
+sir."`). The server now refuses known Shortcuts variable names out loud
+rather than politely asking him a question he cannot answer hands-free. Also
+untracked a PDF that a careless `git add -A` swept into a commit.
 
 ### 13 August 2026 — alarm-stop confirmed live; steps-parity thread opened and paused
 The alarm-stop automation fired for the first time, cleanly, at 07:25 local
