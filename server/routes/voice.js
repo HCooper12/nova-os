@@ -9,6 +9,14 @@ import { buildAskContext, todayLocalContext } from '../lib/askContext.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Shortcuts variable NAMES, which arrive when a JSON body row holds typed
+// text where the variable token was meant to go. They are valid strings, so
+// nothing upstream can tell them from a real question — only this list can.
+const PLACEHOLDER_QUESTIONS = new Set([
+  'provided input', 'shortcut input', 'dictated text', 'ask nova', 'text',
+  'spoken text', 'input', 'question', 'variable',
+]);
+
 export function voiceRouter(vaultPath) {
   const router = Router();
 
@@ -125,6 +133,19 @@ export function voiceRouter(vaultPath) {
         return res.json({
           text: 'The Shortcut reached me but sent no question — its text variable is not making it into the request body. Check the Get Contents of URL step.',
           error: 'no question in body',
+        });
+      }
+      // A Shortcut can send the NAME of a variable instead of its value — the
+      // JSON body row accepts typed text, and "Provided Input" typed by hand
+      // looks identical to the real token at a glance. That produces a
+      // perfectly valid request carrying a phrase that is not a question, so
+      // Nova answers "what's the question?" and everything downstream looks
+      // healthy while being useless. Name it instead of politely absorbing it.
+      if (PLACEHOLDER_QUESTIONS.has(question.toLowerCase().replace(/\s+/g, ' '))) {
+        console.log(`ask/sync REJECTED: variable name sent as the question. raw=${JSON.stringify(rawBody)}`);
+        return res.json({
+          text: `The Shortcut sent the words "${question}" instead of what you said. In the Get Contents of URL step, the question field holds typed text rather than the variable — delete it and insert the Provided Input variable from the variable bar.`,
+          error: 'variable name sent instead of its value',
         });
       }
       if (question.length > 1000) return res.status(400).json({ error: 'keep a spoken question under 1000 characters' });
