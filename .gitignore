@@ -14,3 +14,7 @@ server/data
 # local-voice sidecar venv (rebuilt by server/voice/setup.sh)
 server/voice/env/
 __pycache__/
+
+# macOS/iCloud "name 2.ext" conflict duplicates — never repo files
+**/* 2.js
+**/* 2.jsx
