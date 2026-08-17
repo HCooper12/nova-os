@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { startAskNova, startGreeting, getMessageJob, prewarmAsk } from '../lib/claudeCode.js';
 import { composeDispatch } from '../lib/dispatch.js';
-import { ttsConfigured, listVoices, synthesize } from '../lib/tts.js';
+import { ttsConfigured, ttsEngine, listVoices, synthesize } from '../lib/tts.js';
 import { buildAskContext, todayLocalContext } from '../lib/askContext.js';
 
 // The voice line: Ask Nova (read-only Q&A job over the vault, polled via the
@@ -241,7 +241,7 @@ export function voiceRouter(vaultPath) {
     try {
       if (!ttsConfigured()) return res.json({ configured: false, voices: [] });
       const voices = await listVoices().catch(() => []);
-      res.json({ configured: true, voices });
+      res.json({ configured: true, engine: ttsEngine(), voices });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
@@ -249,7 +249,7 @@ export function voiceRouter(vaultPath) {
 
   router.post('/tts', async (req, res) => {
     try {
-      if (!ttsConfigured()) return res.status(409).json({ error: 'ElevenLabs is not configured' });
+      if (!ttsConfigured()) return res.status(409).json({ error: 'no TTS engine is configured' });
       const audio = await synthesize(req.body?.text, req.body?.voiceId);
       res.set('Content-Type', 'audio/mpeg').send(audio);
     } catch (e) {

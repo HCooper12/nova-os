@@ -253,6 +253,16 @@ async function main() {
   const host = process.env.HOST || '127.0.0.1';
   app.listen(port, host, () => console.log(`Nova OS server listening on ${host}:${port}`));
 
+  // Local voice: boot the Kokoro sidecar now (fire-and-forget) so the first
+  // spoken reply never pays its ~8s model load. Failure is honest, not
+  // fatal — /tts/status keeps answering and the client falls back.
+  if (process.env.NOVA_TTS_LOCAL === '1') {
+    import('./lib/ttsLocal.js')
+      .then(({ ensureSidecar }) => ensureSidecar())
+      .then(() => console.log('tts sidecar warm'))
+      .catch((e) => console.log(`tts sidecar prewarm failed: ${e.message}`));
+  }
+
   // Also listen directly on the Mac's tailnet address (plain HTTP): the
   // shortest road for iOS Shortcuts and the health push — no DNS, no serve
   // proxy, no TLS handshake, just the WireGuard tunnel (which already

@@ -1,7 +1,10 @@
-// ElevenLabs text-to-speech proxy. The API key stays server-side in
-// server/.env (ELEVENLABS_API_KEY); the client only ever posts text and gets
-// audio back. Honest degradation: when no key is set, /tts/status says so
-// and the client falls back to the browser's built-in speech engine.
+// Text-to-speech with two providers behind one contract (text in, mp3 out):
+// ElevenLabs when a key is set, otherwise the free local Kokoro sidecar when
+// NOVA_TTS_LOCAL=1 (lib/ttsLocal.js). Honest degradation: when neither is
+// available, /tts/status says so and the client falls back to the browser's
+// built-in speech engine.
+
+import { localTtsEnabled, localVoices, synthesizeLocal } from './ttsLocal.js';
 
 const API_BASE = () => process.env.NOVA_ELEVENLABS_API || 'https://api.elevenlabs.io';
 const KEY = () => (process.env.ELEVENLABS_API_KEY || '').trim();
@@ -10,14 +13,22 @@ const DEFAULT_VOICE = () => (process.env.ELEVENLABS_VOICE_ID || '').trim();
 // Low-latency model tier — voice replies should feel conversational.
 const MODEL_ID = 'eleven_turbo_v2_5';
 
+// ElevenLabs wins when keyed — a paid key is an explicit choice.
+export function ttsEngine() {
+  if (KEY()) return 'elevenlabs';
+  if (localTtsEnabled()) return 'local';
+  return null;
+}
+
 export function ttsConfigured() {
-  return !!KEY();
+  return ttsEngine() !== null;
 }
 
 let voicesCache = { at: 0, voices: null };
 
 export async function listVoices() {
   if (!ttsConfigured()) return [];
+  if (ttsEngine() === 'local') return localVoices();
   if (voicesCache.voices && Date.now() - voicesCache.at < 10 * 60 * 1000) return voicesCache.voices;
   const res = await fetch(`${API_BASE()}/v1/voices`, {
     headers: { 'xi-api-key': KEY() },
@@ -31,10 +42,11 @@ export async function listVoices() {
 }
 
 export async function synthesize(text, voiceId) {
-  if (!ttsConfigured()) throw new Error('ElevenLabs is not configured (set ELEVENLABS_API_KEY in server/.env)');
+  if (!ttsConfigured()) throw new Error('no TTS engine (set ELEVENLABS_API_KEY or NOVA_TTS_LOCAL=1 in server/.env)');
   const clean = (text || '').trim();
   if (!clean) throw new Error('text is required');
   if (clean.length > 2400) throw new Error('text too long for one utterance');
+  if (ttsEngine() === 'local') return synthesizeLocal(clean, voiceId);
   let voice = (voiceId || '').trim() || DEFAULT_VOICE();
   if (!voice) {
     const voices = await listVoices();

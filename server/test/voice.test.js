@@ -91,6 +91,6 @@ test('without a key everything degrades honestly', async () => {
   process.env.ELEVENLABS_API_KEY = '';
   assert.equal(ttsConfigured(), false);
   assert.deepEqual(await listVoices(), []);
-  await assert.rejects(() => synthesize('hello'), /not configured/);
+  await assert.rejects(() => synthesize('hello'), /no TTS engine/);
   process.env.ELEVENLABS_API_KEY = saved;
 });

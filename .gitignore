@@ -10,3 +10,7 @@ server/data
 
 # stray reading material that lands in this folder — not project files
 *.pdf
+
+# local-voice sidecar venv (rebuilt by server/voice/setup.sh)
+server/voice/env/
+__pycache__/
