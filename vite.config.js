@@ -33,6 +33,16 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,svg}'],
         importScripts: ['push-sw.js'], // web-push + notification-click handlers
+        // Offline cold start. Without a navigate fallback the browser asks
+        // for the page URL, the service worker has no route for it, and the
+        // app opens to a WHITE SCREEN — his report, and the reason Nova has
+        // never behaved like an installed app. index.html is precached; this
+        // is what actually serves it to a navigation request.
+        navigateFallback: '/nova-os/index.html',
+        // never swallow API calls — they must fail honestly so the app can
+        // fall back to its cached slices and the Outbox can queue writes
+        navigateFallbackDenylist: [/^\/api\//],
+        cleanupOutdatedCaches: true,
       },
     }),
   ],
