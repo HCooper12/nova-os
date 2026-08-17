@@ -2807,7 +2807,23 @@ export default class App extends Component {
     // something already written.
     const spokenReveal = elevenPath && this.state.voiceSpeak;
     const reveal = (t) => { stream.revealed = (stream.revealed || '') + t; applyPartial(stream.revealed); };
-    const say = elevenPath ? (t) => this.speakTtsSentence(t, spokenReveal ? () => reveal(t) : undefined) : (t) => this.speakIncremental(t);
+    const say = (t) => {
+      clearTimeout(stream.thinkTimer); // a real sentence is here — no filler needed
+      if (elevenPath) this.speakTtsSentence(t, spokenReveal ? () => reveal(t) : undefined);
+      else this.speakIncremental(t);
+    };
+    // The awkward-silence filler: a long think gets ONE quiet touch-point
+    // ("Still with you, sir.") — cached server-side, so it costs ~50ms —
+    // and only when nothing at all is playing or queued. Keep the lines in
+    // step with THINKING_LINES in server/lib/ttsLocal.js (the warm cache).
+    if (spokenReveal) {
+      const THINKING_LINES = ['Still with you, sir.', 'Nearly there.', 'Just pulling that together.'];
+      stream.thinkTimer = setTimeout(() => {
+        if (stream.spokenUpTo > 0 || this.ttsPlaying || (this.ttsQueue || []).length) return;
+        this.thinkIdx = ((this.thinkIdx ?? -1) + 1) % THINKING_LINES.length;
+        this.speakTtsSentence(THINKING_LINES[this.thinkIdx]);
+      }, 4000);
+    }
     const speakNewSentences = (text, flushAll) => {
       if (!this.state.voiceSpeak) return;
       const fresh = text.slice(stream.spokenUpTo);
@@ -2841,6 +2857,7 @@ export default class App extends Component {
       },
       onReady: (job) => {
         clearJob();
+        clearTimeout(stream.thinkTimer);
         const text = job.result.text;
         // the conversation continues across turns AND app restarts
         if (job.result.sessionId) {
@@ -2877,7 +2894,7 @@ export default class App extends Component {
           else this.maybeAutoListen();
         }
       },
-      onError: (msg) => { clearJob(); this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] })); },
+      onError: (msg) => { clearJob(); clearTimeout(stream.thinkTimer); this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] })); },
     });
   }
 

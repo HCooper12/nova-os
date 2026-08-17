@@ -60,8 +60,11 @@ const JARVIS_FX = 'highpass=f=90,equalizer=f=250:t=q:w=1.0:g=-2,'
 // replies those pads stack into audible dead air between chunks and the
 // whole exchange feels laggier than it is. Trim the edges (leading via
 // silenceremove, trailing via reverse-trim-reverse) on EVERY local synth.
-const TRIM_FX = 'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.05,'
-  + 'areverse,silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.08,areverse';
+// Gently: -55dB so consonant onsets survive (-45dB clipped attacks — "not
+// crispy-clear", his words), and 8ms fades so chunk boundaries never click.
+const TRIM_FX = 'silenceremove=start_periods=1:start_threshold=-55dB:start_silence=0.03,'
+  + 'areverse,silenceremove=start_periods=1:start_threshold=-55dB:start_silence=0.05,areverse,'
+  + 'afade=t=in:d=0.008,areverse,afade=t=in:d=0.008,areverse';
 
 let sidecar = null; // the running child, if we spawned one
 
@@ -102,7 +105,7 @@ function wavToMp3(wav, fx) {
   return new Promise((resolve, reject) => {
     const args = ['-loglevel', 'error', '-i', 'pipe:0'];
     if (fx) args.push('-af', fx);
-    args.push('-f', 'mp3', '-b:a', '128k', 'pipe:1');
+    args.push('-f', 'mp3', '-b:a', '192k', 'pipe:1');
     const ff = spawn(FFMPEG, args);
     const out = [];
     const err = [];
@@ -127,10 +130,12 @@ const AUDIO_CACHE_MAX = 48;
 const audioCache = new Map(); // `${voiceId}|${text}` → mp3 Buffer
 export const PREVIEW_LINE = 'This is how I sound, sir.';
 export const ACK_LINES = ['On it, sir.', 'Let me look.', 'One moment.', 'Checking now.', 'Right away, sir.'];
+// spoken when a think runs long — keep in step with THINKING_LINES in App.jsx
+export const THINKING_LINES = ['Still with you, sir.', 'Nearly there.', 'Just pulling that together.'];
 
 export async function warmSpokenLines() {
   for (const v of localVoices()) {
-    for (const line of [PREVIEW_LINE, ...ACK_LINES]) {
+    for (const line of [PREVIEW_LINE, ...ACK_LINES, ...THINKING_LINES]) {
       await synthesizeLocal(line, v.id).catch(() => {}); // warm is best-effort
     }
   }
