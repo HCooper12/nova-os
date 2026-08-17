@@ -48,7 +48,7 @@ import { Toast } from './Toast.jsx';
 import { OutboxView } from './OutboxView.jsx';
 import { NudgeCard } from './NudgeCard.jsx';
 import { Boot } from './Boot.jsx';
-import { attachSpeechElement, resumeAudioGraph, releaseAudioGraph, decodeSpeech, playSpeechBuffer } from './audioLevel.js';
+import { attachSpeechElement } from './audioLevel.js';
 
 // Code-split: ZXing (barcode decoding) is a sizeable dependency that only
 // the food-log barcode flow needs — no reason to ship it in everyone's
@@ -2784,7 +2784,7 @@ export default class App extends Component {
     // STREAMING: the reply renders word-by-word from job.partial, and (on
     // the browser speech path) complete sentences are spoken AS they arrive
     // — Nova starts talking while still thinking, like a person does.
-    const stream = { spokenUpTo: 0 };
+    const stream = { spokenUpTo: 0, started: false };
     const elevenPath = !!(this.state.liveTts?.configured);
     // Trailing SHOW/PROPOSE/RESEARCH lines are typed directives for the
     // server, not prose — keep them out of the render (and out of the voice)
@@ -2792,72 +2792,38 @@ export default class App extends Component {
     const applyPartial = (text) => this.setState((s) => {
       const chat = [...s.voiceChat];
       const idx = chat.map((m) => !!m.streaming).lastIndexOf(true);
-      if (idx === -1) chat.push({ at: Date.now(), who: 'nova', text, streaming: true });
+      if (idx === -1) chat.push({ who: 'nova', text, streaming: true });
       else chat[idx] = { ...chat[idx], text };
       return { voiceChat: chat };
     });
-    // Both engines speak sentence-by-sentence as the reply streams: the
-    // configured engine through the parallel-fetch FIFO (speakTtsSentence),
-    // the browser voice inline. Waiting for the whole reply before the
-    // first sound was the single biggest cost in how slow Nova FELT.
-    //
-    // Reveal-with-speech: on the spoken path the TEXT of each sentence
-    // appears only when its audio starts — voice leads, words follow. Text
-    // arriving seconds early made every reply feel like pressing play on
-    // something already written.
-    const spokenReveal = elevenPath && this.state.voiceSpeak;
-    const reveal = (t) => { stream.revealed = (stream.revealed || '') + t; applyPartial(stream.revealed); };
-    const say = (t) => {
-      clearTimeout(stream.thinkTimer); // a real sentence is here — no filler needed
-      if (elevenPath) this.speakTtsSentence(t, spokenReveal ? () => reveal(t) : undefined);
-      else this.speakIncremental(t);
-    };
-    // The awkward-silence filler: a long think gets ONE quiet touch-point
-    // ("Still with you, sir.") — cached server-side, so it costs ~50ms —
-    // and only when nothing at all is playing or queued. Keep the lines in
-    // step with THINKING_LINES in server/lib/ttsLocal.js (the warm cache).
-    if (spokenReveal) {
-      const THINKING_LINES = ['Still with you, sir.', 'Nearly there.', 'Just pulling that together.'];
-      stream.thinkTimer = setTimeout(() => {
-        if (stream.spokenUpTo > 0 || this.ttsPlaying || (this.ttsQueue || []).length) return;
-        this.thinkIdx = ((this.thinkIdx ?? -1) + 1) % THINKING_LINES.length;
-        this.speakTtsSentence(THINKING_LINES[this.thinkIdx]);
-      }, 4000);
-    }
     const speakNewSentences = (text, flushAll) => {
-      if (!this.state.voiceSpeak) return;
+      if (elevenPath || !this.state.voiceSpeak) return; // ElevenLabs speaks whole replies
       const fresh = text.slice(stream.spokenUpTo);
       if (!fresh) return;
       if (flushAll) {
-        // Sentence-sized pieces even here: a whole brief in one /api/tts
-        // call is 20-30s of synthesis — it hit the sidecar timeout and the
-        // reply went silent after the ack. Small chunks start sounding in
-        // ~1s and CANNOT time out. (This path carries the entire reply when
-        // a job never streamed partials.)
-        const pieces = fresh.match(/[^.!?]*[.!?]+[\s]*|[^.!?]+$/g) || [fresh];
-        for (const p of pieces) { if (p.trim()) say(p); }
+        this.speakIncremental(fresh);
         stream.spokenUpTo = text.length;
         return;
       }
       const m = fresh.match(/[\s\S]*[.!?](?=\s|$)/);
       if (m) {
-        say(m[0]);
+        this.speakIncremental(m[0]);
         stream.spokenUpTo += m[0].length;
       }
     };
     this.startPoll('ask', () => api.claudeCodeJob(conn, jobId), {
       timeoutMs: 3 * 60_000,
-      intervalMs: 350, // conversation cadence: the first spoken sentence rides this tick
+      intervalMs: 700,
       onProgress: (job) => {
         if (!job.partial) return;
+        stream.started = true;
         const shown = stripShow(job.partial);
         if (!shown) return;
-        if (!spokenReveal) applyPartial(shown); // spoken path: reveal() renders, in step with the voice
+        applyPartial(shown);
         speakNewSentences(shown, false);
       },
       onReady: (job) => {
         clearJob();
-        clearTimeout(stream.thinkTimer);
         const text = job.result.text;
         // the conversation continues across turns AND app restarts
         if (job.result.sessionId) {
@@ -2869,32 +2835,19 @@ export default class App extends Component {
         const research = job.result.research
           ? { ...job.result.research, status: job.result.research.queued ? 'queued' : 'running' }
           : undefined;
-        const commit = () => {
-          this.setState((s) => {
-            const chat = [...s.voiceChat];
-            const idx = chat.map((m) => !!m.streaming).lastIndexOf(true);
-            if (idx === -1) chat.push({ at: Date.now(), who: 'nova', text, panel, proposal, research });
-            else chat[idx] = { at: Date.now(), who: 'nova', text, panel, proposal, research };
-            return { voiceChat: chat, voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal };
-          });
-          if (research && !research.queued) this.watchVoiceResearch(conn, research.recordId);
-        };
-        this.setState({ voiceBusy: false }); // he can barge in the moment the answer exists
-        if (spokenReveal) {
-          // remaining sentences queue with reveal-on-play; the commit rides
-          // the queue as a barrier, landing when the last word is spoken
-          // (or instantly if he interrupts — resetTtsQueue runs finalizers)
-          speakNewSentences(text, true);
-          this.queueTtsFinalize(commit);
-        } else {
-          commit();
-          // Flush whatever trails the last sentence-ender; if nothing ever
-          // streamed (non-streaming job), this speaks the whole reply.
-          if (this.state.voiceSpeak) speakNewSentences(text, true);
-          else this.maybeAutoListen();
-        }
+        this.setState((s) => {
+          const chat = [...s.voiceChat];
+          const idx = chat.map((m) => !!m.streaming).lastIndexOf(true);
+          if (idx === -1) chat.push({ who: 'nova', text, panel, proposal, research });
+          else chat[idx] = { who: 'nova', text, panel, proposal, research };
+          return { voiceBusy: false, voiceChat: chat, voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal };
+        });
+        if (research && !research.queued) this.watchVoiceResearch(conn, research.recordId);
+        if (elevenPath) this.speak(text);
+        else if (this.state.voiceSpeak) { speakNewSentences(text, true); if (!stream.started) this.speak(text); }
+        else this.maybeAutoListen();
       },
-      onError: (msg) => { clearJob(); clearTimeout(stream.thinkTimer); this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] })); },
+      onError: (msg) => { clearJob(); this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat.filter((m) => !m.streaming), { who: 'system', text: 'Error: ' + msg }] })); },
     });
   }
 
@@ -3053,16 +3006,16 @@ export default class App extends Component {
     if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
     if (this.state.sparBusy) return;
     const target = this.state.codeWorkspace === 'repo' ? 'Nova OS' : 'the vault';
-    this.setState((s) => ({ sparBusy: true, codeChat: [...s.codeChat, { at: Date.now(), who: 'system', text: `Breaker engaged — read-only adversarial pass over ${target}…` }] }));
+    this.setState((s) => ({ sparBusy: true, codeChat: [...s.codeChat, { who: 'system', text: `Breaker engaged — read-only adversarial pass over ${target}…` }] }));
     const focus = [...this.state.codeChat].reverse().find((m) => m.who === 'you')?.text || '';
     api.sparStart(conn, this.state.codeWorkspace, focus).then(({ jobId }) => {
       this.startPoll('spar', () => api.claudeCodeJob(conn, jobId), {
         timeoutMs: 10 * 60_000,
         onReady: (job) => this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { who: 'breaker', text: job.result.text }] })),
-        onError: (msg) => this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { at: Date.now(), who: 'system', text: 'Breaker failed: ' + msg }] })),
+        onError: (msg) => this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { who: 'system', text: 'Breaker failed: ' + msg }] })),
       });
     }).catch((e) => {
-      this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { at: Date.now(), who: 'system', text: 'Breaker failed: ' + e.message }] }));
+      this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { who: 'system', text: 'Breaker failed: ' + e.message }] }));
     });
   }
   captureToInbox(text, source = 'text') {
@@ -3335,11 +3288,11 @@ export default class App extends Component {
     call.then(() => {
       mark(approve ? 'done' : 'dismissed');
       const line = approve ? 'Done — it’s in. Undo lives in your Inbox.' : 'Left alone — nothing changed.';
-      this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { who: 'nova', text: line }] }));
       if (this.state.voiceSpeak) this.speak(line);
     }).catch((e) => {
       mark('error', { error: e.message });
-      this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: `Couldn’t ${approve ? 'approve' : 'dismiss'} that: ${e.message}. It’s still pending in your Inbox.` }] }));
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { who: 'system', text: `Couldn’t ${approve ? 'approve' : 'dismiss'} that: ${e.message}. It’s still pending in your Inbox.` }] }));
     });
   }
   doOrb() {
@@ -3353,7 +3306,7 @@ export default class App extends Component {
       const yes = /^(yes|yep|yeah|sure|ok|okay|do it|go ahead|confirm|approve|approved|yes please|please do|go for it|make it so|lock it in)[.!\s]*$/i.test(q);
       const no = /^(no|nope|nah|don't|dont|leave it|skip|skip it|cancel|not now|never mind|nevermind)[.!\s]*$/i.test(q);
       if (yes || no) {
-        this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q }], orbInput: '' }));
+        this.setState((s) => ({ voiceChat: [...s.voiceChat, { who: 'you', text: q }], orbInput: '' }));
         this.resolveVoiceProposal(pending.recordId, yes);
         return;
       }
@@ -3366,21 +3319,20 @@ export default class App extends Component {
     const conn = getConnection();
     if (conn) {
       if (this.state.connectionStatus === 'offline') {
-        this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q }, { at: Date.now(), who: 'system', text: 'Offline — reconnect to the Mac to ask Nova.' }], orbInput: '' }));
+        this.setState((s) => ({ voiceChat: [...s.voiceChat, { who: 'you', text: q }, { who: 'system', text: 'Offline — reconnect to the Mac to ask Nova.' }], orbInput: '' }));
         return;
       }
       this.setState({ orbInput: '' });
       this.askNova(q);
       return;
     }
-    this.setState(s => ({ orbChat: [...s.orbChat, { at: Date.now(), who: 'you', text: q }], orbInput: '' }));
+    this.setState(s => ({ orbChat: [...s.orbChat, { who: 'you', text: q }], orbInput: '' }));
     setTimeout(() => this.typeIn('orbChat', 'nova', orbReply(q)), 480);
   }
   // iOS gates audio behind a user gesture: playing a muted element and an
   // empty utterance during the tap unlocks both paths for the async reply.
   primeSpeech() {
     try {
-      resumeAudioGraph(); // inside the gesture — the one moment iOS lets a suspended graph wake
       if (!this.sharedAudio) {
         this.sharedAudio = new Audio();
         this.sharedAudio.muted = true;
@@ -3393,58 +3345,19 @@ export default class App extends Component {
       }
     } catch { /* best-effort */ }
   }
-  // The Morning Show / Evening Debrief: prepared receipts played as a
-  // narrated sequence — each beat's text and pane reveal AS its audio
-  // starts, and the closing pending item arms the spoken-yes gate. The
-  // reel's morning scene, on Nova's rails.
-  runShow(variant) {
-    const conn = getConnection();
-    if (!conn || this.state.voiceBusy) return;
-    this.stopSpeaking();
-    this.primeSpeech();
-    this.setState({ voiceBusy: true });
-    api.show(conn, variant).then(({ steps, pending }) => {
-      this.setState({ voiceBusy: false });
-      if (!steps?.length) { this.toastMsg('Nothing to brief right now.'); return; }
-      const spoken = this.state.voiceSpeak && this.state.liveTts?.configured;
-      for (const st of steps) {
-        const show = () => this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: st.say, panel: st.panel || undefined }] }));
-        if (spoken) this.speakTtsSentence(st.say, show);
-        else show();
-      }
-      if (pending) {
-        const arm = () => this.setState({ voicePendingProposal: { recordId: pending.recordId, title: pending.title } });
-        if (spoken) this.queueTtsFinalize(arm); else arm();
-      }
-      if (spoken) this.queueTtsFinalize(() => this.maybeAutoListen()); // his turn, hands-free
-    }).catch((e) => {
-      this.setState({ voiceBusy: false });
-      this.toastMsg('Brief failed: ' + e.message);
-    });
-  }
   askNova(question) {
     const conn = getConnection();
     if (!conn || this.state.voiceBusy) return;
-    this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: question }], voiceBusy: true }));
+    this.setState((s) => ({ voiceChat: [...s.voiceChat, { who: 'you', text: question }], voiceBusy: true }));
     this.stopSpeaking();
     this.speakAck(question); // fills the 5-8s think-gap immediately
-    api.ask(conn, question, this.state.voiceSessionId || null).then((resp) => {
-      if (resp.text) {
-        // Reflex answer — code replied from the live record, no job to poll.
-        // Voice leads here too: the text lands when the audio starts.
-        this.setState({ voiceBusy: false });
-        const show = () => this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: resp.text }] }));
-        if (this.state.voiceSpeak) this.speakTtsSentence(resp.text, show);
-        else { show(); this.maybeAutoListen(); }
-        return;
-      }
-      const { jobId } = resp;
+    api.ask(conn, question, this.state.voiceSessionId || null).then(({ jobId }) => {
       // survive a reclaim mid-answer: the job id persists so boot can
       // re-attach the poll instead of losing the in-flight reply
       try { localStorage.setItem('novaos.askJob', JSON.stringify({ jobId, askedAt: Date.now() })); } catch { /* best-effort */ }
       this.attachAskPoll(conn, jobId);
     }).catch((e) => {
-      this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: 'Error: ' + e.message }] }));
+      this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { who: 'system', text: 'Error: ' + e.message }] }));
     });
   }
   // The doorman: a DETERMINISTIC greeting when he arrives at the Voice
@@ -3482,7 +3395,7 @@ export default class App extends Component {
         onReady: (job) => {
           this.greetInFlight = false;
           const text = job.result.text;
-          this.finalizeStream('voiceChat', { at: Date.now(), who: 'nova', text });
+          this.finalizeStream('voiceChat', { who: 'nova', text });
           if (this.state.screen !== 'voice') {
             clearTimeout(this.greetT);
             this.setState({ greetBanner: { text } });
@@ -3509,11 +3422,11 @@ export default class App extends Component {
       const done = { ...(this.state.ritualDone || {}), [kind]: new Date().toDateString() };
       try { localStorage.setItem('novaos.ritualDone', JSON.stringify(done)); } catch { /* best-effort */ }
       try { localStorage.setItem('novaos.askJob', JSON.stringify({ jobId, askedAt: Date.now() })); } catch { /* best-effort */ }
-      this.setState((s) => ({ ritualDone: done, voiceBusy: true, voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: label }] }));
+      this.setState((s) => ({ ritualDone: done, voiceBusy: true, voiceChat: [...s.voiceChat, { who: 'you', text: label }] }));
       this.stopSpeaking();
       this.attachAskPoll(conn, jobId);
     }).catch((e) => {
-      this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: 'Error: ' + e.message }] }));
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { who: 'system', text: 'Error: ' + e.message }] }));
     });
   }
   newVoiceChat() {
@@ -3540,28 +3453,13 @@ export default class App extends Component {
   }
   endSpeech() {
     this.speechActive = Math.max(0, (this.speechActive || 0) - 1);
-    if (this.speechActive === 0) {
-      this.setState({ voiceSpeaking: false }, () => this.maybeAutoListen());
-      // after a quiet 3s, hand the audio session back (his music resumes);
-      // any new speech or gesture re-claims it instantly
-      clearTimeout(this.audioReleaseTimer);
-      this.audioReleaseTimer = setTimeout(() => {
-        if ((this.speechActive || 0) === 0 && !this.ttsPlaying && !(this.ttsQueue || []).length) releaseAudioGraph();
-      }, 3000);
-    }
+    if (this.speechActive === 0) this.setState({ voiceSpeaking: false }, () => this.maybeAutoListen());
   }
   stopSpeaking() {
     try { window.speechSynthesis.cancel(); } catch { /* unsupported */ }
     try { this.currentAudio?.pause(); } catch { /* fine */ }
-    try { this.currentSource?.stop(); } catch { /* already ended */ }
-    this.currentSource = null;
-    this.resetTtsQueue(); // in-flight sentence fetches land against a stale generation and vanish
     this.speechActive = 0;
     if (this.state.voiceSpeaking) this.setState({ voiceSpeaking: false });
-    clearTimeout(this.audioReleaseTimer);
-    this.audioReleaseTimer = setTimeout(() => {
-      if ((this.speechActive || 0) === 0 && !this.ttsPlaying) releaseAudioGraph();
-    }, 3000);
   }
   // browser-synth chunk — used to speak sentences AS the reply streams in
   // The instant acknowledgement. A model reply is 5-8s away; silence in that
@@ -3574,18 +3472,12 @@ export default class App extends Component {
   ACK_LINES = ['On it, sir.', 'Let me look.', 'One moment.', 'Checking now.', 'Right away, sir.'];
   speakAck(question) {
     if (!this.state.voiceSpeak) return;
+    if (this.state.liveTts?.configured) return;      // real voice: no filler round-trip
     if ((question || '').trim().length < 12) return; // short asks answer fast enough
     // rotate rather than random: no repeat twice running, no randomness to debug
     this.ackIdx = ((this.ackIdx ?? -1) + 1) % this.ACK_LINES.length;
-    const line = this.ACK_LINES[this.ackIdx];
-    if (this.state.liveTts?.configured) {
-      // his own voice, ~0.5s local synth — and the FIFO guarantees the ack
-      // lands BEFORE the reply's first sentence, never over it
-      this.speakTtsSentence(line);
-      return;
-    }
     this.beginSpeech();
-    this.speakFallback(line, () => this.endSpeech());
+    this.speakFallback(this.ACK_LINES[this.ackIdx], () => this.endSpeech());
   }
   speakIncremental(text) {
     if (!this.state.voiceSpeak || !text.trim()) return;
@@ -3602,22 +3494,9 @@ export default class App extends Component {
   }
   toggleConvMode() {
     this.convEmpties = 0;
-    const turningOn = !this.state.voiceConvMode;
-    if (turningOn) {
-      // Like raising Siri: the tap IS the start of the conversation. Cut any
-      // speech (its speechActive would gate maybeAutoListen), unlock audio
-      // inside this gesture, and open the mic unconditionally — not through
-      // maybeAutoListen's politeness checks.
-      this.stopSpeaking();
-      this.primeSpeech();
-    }
-    // one commit: mode + listen tick together — every extra render is a
-    // beat between his tap and the mic opening
-    this.setState((s) => ({
-      voiceConvMode: !s.voiceConvMode,
-      voiceConvPaused: false,
-      voiceAutoListenTick: turningOn ? s.voiceAutoListenTick + 1 : s.voiceAutoListenTick,
-    }));
+    this.setState((s) => ({ voiceConvMode: !s.voiceConvMode, voiceConvPaused: false }), () => {
+      if (this.state.voiceConvMode) this.maybeAutoListen();
+    });
   }
   resumeConv() {
     this.convEmpties = 0;
@@ -3633,104 +3512,6 @@ export default class App extends Component {
     } else {
       this.maybeAutoListen();
     }
-  }
-  // ——— The streamed voice: sentence-level TTS pipelining ———
-  // A whole-reply round trip means silence for the full compose time PLUS
-  // the full synthesis time. Instead each finished sentence goes to /api/tts
-  // the moment it exists, fetches run in parallel, and playback drains a
-  // strict FIFO through the one gesture-unlocked element — Nova starts
-  // talking seconds before he has finished thinking. A generation counter
-  // makes a stop/new-turn flush every in-flight fetch harmless.
-  resetTtsQueue() {
-    // Flushing must never eat words or a reply's completion: reveal any
-    // text that hadn't played yet and run any pending finalizer, THEN drop
-    // the queue. An interrupted reply shows instantly instead of vanishing.
-    for (const e of this.ttsQueue || []) {
-      try { if (!e.revealed) e.onPlay?.(); e.finalize?.(); } catch { /* reveal is best-effort */ }
-    }
-    this.ttsGen = (this.ttsGen || 0) + 1;
-    this.ttsQueue = [];
-    this.ttsPlaying = false;
-  }
-  // onPlay fires when this sentence's AUDIO starts (or when it provably
-  // can't) — it is how text is revealed in sync with speech instead of
-  // seconds ahead of it. He named the failure exactly: text-first feels
-  // like pressing play on something already written.
-  speakTtsSentence(text, onPlay) {
-    const clean = (text || '').trim().slice(0, 2400);
-    if (!clean) return;
-    const conn = getConnection();
-    if (!conn || !this.state.liveTts?.configured) { onPlay?.(); this.speakIncremental(clean); return; }
-    const gen = this.ttsGen || 0;
-    const entry = { done: false, buffer: null, blob: null, onPlay, revealed: false };
-    (this.ttsQueue = this.ttsQueue || []).push(entry);
-    this.beginSpeech(); // matched by endSpeech when the entry plays out or drops
-    api.ttsAudio(conn, clean, this.state.voiceVoiceId || undefined)
-      .then(async (blob) => {
-        // decode NOW, while earlier sentences play — playback then starts
-        // from pre-decoded samples on the audio thread, jitter-proof
-        try { entry.buffer = await decodeSpeech(await blob.arrayBuffer()); } catch { entry.blob = blob; } // element fallback
-      })
-      .catch(() => { entry.failed = true; })
-      .finally(() => { entry.done = true; this.drainTtsQueue(gen); });
-  }
-  // A completion barrier: runs when the queue reaches it — i.e. after every
-  // sentence queued before it has spoken. Carries a reply's final commit
-  // (panel, proposal, streaming:false) so those land WITH the voice, not
-  // ahead of it.
-  queueTtsFinalize(fn) {
-    (this.ttsQueue = this.ttsQueue || []).push({ done: true, finalize: fn });
-    this.drainTtsQueue(this.ttsGen || 0);
-  }
-  drainTtsQueue(gen) {
-    if (gen !== (this.ttsGen || 0)) return; // flushed mid-flight — the fetch's beginSpeech was already zeroed
-    if (this.ttsPlaying) return;
-    const head = (this.ttsQueue || [])[0];
-    if (!head || !head.done) return; // strict order: nothing plays past an unfinished head
-    this.ttsQueue.shift();
-    if (head.finalize) { try { head.finalize(); } catch { /* commit is best-effort */ } this.drainTtsQueue(gen); return; }
-    if (head.failed || (!head.buffer && !head.blob)) {
-      // can't speak it — reveal the words anyway; text must never be lost
-      try { head.onPlay?.(); head.revealed = true; } catch { /* best-effort */ }
-      this.endSpeech(); this.drainTtsQueue(gen); return;
-    }
-    this.ttsPlaying = true;
-    resumeAudioGraph(); // a suspended graph plays SILENTLY — resume before every chunk
-    if (head.buffer) {
-      // the crisp path: pre-decoded samples straight onto the audio thread
-      const src = playSpeechBuffer(head.buffer, () => {
-        if (this.currentSource === src) this.currentSource = null;
-        if (gen !== (this.ttsGen || 0)) return;
-        this.ttsPlaying = false; this.endSpeech();
-        this.drainTtsQueue(gen);
-      });
-      this.currentSource = src;
-      try { head.onPlay?.(); head.revealed = true; } catch { /* best-effort */ }
-      return;
-    }
-    const url = URL.createObjectURL(head.blob);
-    const audio = this.sharedAudio || new Audio();
-    this.currentAudio = audio;
-    const detachMeter = attachSpeechElement(audio); // the core hears every sentence
-    let settled = false; // ended/error/rejected-play can ALL fire for one chunk on a src swap
-    const done = () => {
-      if (settled) return;
-      settled = true;
-      URL.revokeObjectURL(url); detachMeter();
-      if (gen !== (this.ttsGen || 0)) return; // a stop flushed this generation — don't touch live state
-      this.ttsPlaying = false; this.endSpeech();
-      this.drainTtsQueue(gen);
-    };
-    audio.src = url;
-    audio.onended = done;
-    audio.onerror = done;
-    audio.play().then(() => {
-      // audio is genuinely rolling — NOW the words may appear
-      try { head.onPlay?.(); head.revealed = true; } catch { /* best-effort */ }
-    }).catch(() => {
-      try { head.onPlay?.(); head.revealed = true; } catch { /* best-effort */ }
-      done();
-    });
   }
   speak(text) {
     if (!this.state.voiceSpeak) { this.maybeAutoListen(); return; }
@@ -3788,18 +3569,7 @@ export default class App extends Component {
   }
   setVoiceId(id) {
     localStorage.setItem('novaos.voiceId', id);
-    // hear the choice immediately — a short statement in the NEW voice, so
-    // picking is never guesswork (and never a question he isn't answering).
-    // Debounced: flicking through the list previews only where he LANDS —
-    // rapid stop/queue cycles on the shared element raced and went mute.
-    this.setState({ voiceVoiceId: id }, () => {
-      this.stopSpeaking();
-      clearTimeout(this.voicePreviewTimer);
-      this.voicePreviewTimer = setTimeout(() => {
-        if (this.state.voiceVoiceId !== id) return; // he moved on — preview the final pick only
-        if (this.state.voiceSpeak && this.state.liveTts?.configured) this.speakTtsSentence('This is how I sound, sir.');
-      }, 300);
-    });
+    this.setState({ voiceVoiceId: id });
   }
   doCoach(preset) {
     const q = (preset || this.state.coachInput).trim(); if (!q) return;
@@ -3807,7 +3577,7 @@ export default class App extends Component {
     // live backend → the real evidence-based coach; demo keeps the script
     if (conn && this.state.connectionStatus !== 'demo') {
       if (this.state.coachBusy) return;
-      this.setState((s) => ({ coachChat: [...s.coachChat, { at: Date.now(), who: 'you', text: q }], coachInput: '', coachBusy: true }));
+      this.setState((s) => ({ coachChat: [...s.coachChat, { who: 'you', text: q }], coachInput: '', coachBusy: true }));
       // a live session travels with the question — the Coach answers for the
       // gym floor when one is in progress (never for a history edit)
       const ws = this.state.workoutSession;
@@ -3838,14 +3608,14 @@ export default class App extends Component {
               this.toastMsg(`${job.result.proposal.title} — approve it in your Inbox`);
             }
           },
-          onError: (msg) => this.setState((s) => ({ coachBusy: false, coachChat: [...s.coachChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] })),
+          onError: (msg) => this.setState((s) => ({ coachBusy: false, coachChat: [...s.coachChat.filter((m) => !m.streaming), { who: 'system', text: 'Error: ' + msg }] })),
         });
       }).catch((e) => {
-        this.setState((s) => ({ coachBusy: false, coachChat: [...s.coachChat, { at: Date.now(), who: 'system', text: 'Error: ' + e.message }] }));
+        this.setState((s) => ({ coachBusy: false, coachChat: [...s.coachChat, { who: 'system', text: 'Error: ' + e.message }] }));
       });
       return;
     }
-    this.setState(s => ({ coachChat: [...s.coachChat, { at: Date.now(), who: 'you', text: q }], coachInput: '' }));
+    this.setState(s => ({ coachChat: [...s.coachChat, { who: 'you', text: q }], coachInput: '' }));
     const r = coachReply(q);
     setTimeout(() => this.typeIn('coachChat', 'coach', r.text, () => {
       if (!r.mod) return;
@@ -3915,17 +3685,17 @@ export default class App extends Component {
     const q = this.state.codeInput.trim();
     if (!q) return;
     if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
-    this.setState(s => ({ codeChat: [...s.codeChat, { at: Date.now(), who: 'you', text: q }], codeInput: '', codeBusy: true }));
+    this.setState(s => ({ codeChat: [...s.codeChat, { who: 'you', text: q }], codeInput: '', codeBusy: true }));
     api.startClaudeCodeMessage(conn, q, this.state.codeSessionId, this.state.codeModel, this.state.codeWorkspace).then(({ jobId }) => {
       this.startPoll('code', () => api.claudeCodeJob(conn, jobId), {
         timeoutMs: 10 * 60_000,
         intervalMs: 700,
         onProgress: (job) => { if (job.partial) this.applyStreamPartial('codeChat', 'claude', job.partial); },
         onReady: (job) => this.finalizeStream('codeChat', { who: 'claude', text: job.result.text }, { codeBusy: false, codeSessionId: job.result.sessionId }),
-        onError: (msg) => this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] })),
+        onError: (msg) => this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat.filter((m) => !m.streaming), { who: 'system', text: 'Error: ' + msg }] })),
       });
     }).catch((e) => {
-      this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat, { at: Date.now(), who: 'system', text: 'Error: ' + e.message }] }));
+      this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat, { who: 'system', text: 'Error: ' + e.message }] }));
     });
   }
   setCodeWorkspace(workspace) {
@@ -3939,7 +3709,7 @@ export default class App extends Component {
   doRecipeAsk() {
     const q = this.state.recipeInput.trim(); if (!q) return;
     const r = this.recipes.find(x => x.id === this.state.openRecipeId); if (!r) return;
-    this.setState(s => ({ recipeChat: [...s.recipeChat, { at: Date.now(), who: 'you', text: q }], recipeInput: '' }));
+    this.setState(s => ({ recipeChat: [...s.recipeChat, { who: 'you', text: q }], recipeInput: '' }));
     setTimeout(() => this.typeIn('recipeChat', 'nova', recipeReply(q, r)), 480);
   }
 

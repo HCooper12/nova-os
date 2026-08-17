@@ -483,6 +483,8 @@ export function startGreeting(cwd, { facts }) {
     finishTurn: (replyText, turnJob) => {
       turnJob.result = { text: replyText.trim() };
       turnJob.status = 'ready';
+      // the doorman's words are Nova's words — the ask model must own them
+      import('./spokenLog.js').then(({ logSpoken }) => logSpoken('greeting', replyText.trim())).catch(() => {});
     },
   });
 

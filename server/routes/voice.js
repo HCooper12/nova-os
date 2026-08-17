@@ -38,6 +38,7 @@ export function voiceRouter(vaultPath) {
       const reflex = await tryReflex(question).catch(() => null);
       if (reflex) {
         console.log(`reflex hit [${reflex.matched}] q=${JSON.stringify(question.slice(0, 80))} reply=${reflex.text.length}ch`);
+        import('../lib/spokenLog.js').then(({ logSpoken }) => logSpoken('reflex', reflex.text)).catch(() => {});
         return res.json({ text: reflex.text, reflex: true });
       }
       const sessionId = typeof req.body?.sessionId === 'string' && req.body.sessionId ? req.body.sessionId : null;
@@ -165,6 +166,7 @@ export function voiceRouter(vaultPath) {
       const reflex = await tryReflex(question).catch(() => null);
       if (reflex) {
         console.log(`ask/sync reflex hit [${reflex.matched}] q=${JSON.stringify(question.slice(0, 80))}`);
+        import('../lib/spokenLog.js').then(({ logSpoken }) => logSpoken('reflex', reflex.text)).catch(() => {});
         return res.json({ text: reflex.text, sessionId: null });
       }
       // iOS Shortcuts kills a request that sits SILENT for too long ("The
@@ -263,6 +265,9 @@ export function voiceRouter(vaultPath) {
       const variant = req.body?.variant === 'evening' ? 'evening' : 'morning';
       const show = await composeShow(vaultPath, { variant });
       console.log(`show composed [${variant}] ${show.steps.length} beats${show.pending ? ` highlight=${show.pending.recordId}` : ''}`);
+      // the model must know what its own voice said — see lib/spokenLog.js
+      const { logSpoken } = await import('../lib/spokenLog.js');
+      for (const s of show.steps) await logSpoken('brief', s.say);
       res.json(show);
     } catch (e) {
       res.status(500).json({ error: e.message });

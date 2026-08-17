@@ -71,7 +71,16 @@ export async function todayLocalContext() {
     const pending = (await listRecords()).filter((r) => r.status === 'pending').length;
     bits.push(`${pending} draft${pending === 1 ? '' : 's'} waiting in his Inbox`);
   } catch { /* optional */ }
-  return bits.length ? `TODAY, FROM THE LIVE RECORD (${today}): ${bits.join('; ')}.` : null;
+  const live = bits.length ? `TODAY, FROM THE LIVE RECORD (${today}): ${bits.join('; ')}.` : null;
+  // What code said with Nova's voice (briefs, reflex answers) — on BOTH
+  // lanes, so the model never denies its own spoken lines. See spokenLog.js
+  // for the failure that mandated this.
+  try {
+    const { recentSpokenBlock } = await import('./spokenLog.js');
+    const spoken = await recentSpokenBlock();
+    if (spoken) return live ? `${live}\n\n${spoken}` : spoken;
+  } catch { /* optional */ }
+  return live;
 }
 
 export async function buildAskContext(vaultPath, sessionId, { fast = false } = {}) {

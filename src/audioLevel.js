@@ -55,14 +55,29 @@ export function audioLevel() {
 // resume() only succeeds near a user gesture), playback runs silently while
 // every callback fires as if all were well. Call this at every gesture AND
 // right before playback; re-resume automatically if the OS suspends us.
+let held = false; // are WE claiming the audio session right now?
 export function resumeAudioGraph() {
   if (!ctx) return;
+  held = true;
   ctx.resume().catch(() => {});
   if (!ctx.onstatechange) {
     ctx.onstatechange = () => {
-      if (ctx.state === 'suspended' || ctx.state === 'interrupted') ctx.resume().catch(() => {});
+      // fight the OS for the session ONLY while we're actually speaking —
+      // an unconditional re-resume kept his AirPods pinned to Nova and
+      // Music couldn't reclaim them after the conversation ended
+      if (held && (ctx.state === 'suspended' || ctx.state === 'interrupted')) ctx.resume().catch(() => {});
     };
   }
+}
+
+// Done talking and listening: let the audio session go so Music/podcasts
+// can take the AirPods back. Suspend is instantly reversible — the next
+// resumeAudioGraph() (every gesture, every chunk) re-claims in ~ms.
+export function releaseAudioGraph() {
+  if (!ctx) return;
+  if (active > 0) return; // a mic tap or a playing source still needs it
+  held = false;
+  ctx.suspend().catch(() => {});
 }
 
 // Nova's own voice: the gesture-unlocked <audio> the ElevenLabs replies
