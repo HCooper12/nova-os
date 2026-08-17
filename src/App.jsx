@@ -2800,7 +2800,14 @@ export default class App extends Component {
     // configured engine through the parallel-fetch FIFO (speakTtsSentence),
     // the browser voice inline. Waiting for the whole reply before the
     // first sound was the single biggest cost in how slow Nova FELT.
-    const say = elevenPath ? (t) => this.speakTtsSentence(t) : (t) => this.speakIncremental(t);
+    //
+    // Reveal-with-speech: on the spoken path the TEXT of each sentence
+    // appears only when its audio starts — voice leads, words follow. Text
+    // arriving seconds early made every reply feel like pressing play on
+    // something already written.
+    const spokenReveal = elevenPath && this.state.voiceSpeak;
+    const reveal = (t) => { stream.revealed = (stream.revealed || '') + t; applyPartial(stream.revealed); };
+    const say = elevenPath ? (t) => this.speakTtsSentence(t, spokenReveal ? () => reveal(t) : undefined) : (t) => this.speakIncremental(t);
     const speakNewSentences = (text, flushAll) => {
       if (!this.state.voiceSpeak) return;
       const fresh = text.slice(stream.spokenUpTo);
@@ -2829,7 +2836,7 @@ export default class App extends Component {
         if (!job.partial) return;
         const shown = stripShow(job.partial);
         if (!shown) return;
-        applyPartial(shown);
+        if (!spokenReveal) applyPartial(shown); // spoken path: reveal() renders, in step with the voice
         speakNewSentences(shown, false);
       },
       onReady: (job) => {
@@ -2845,19 +2852,30 @@ export default class App extends Component {
         const research = job.result.research
           ? { ...job.result.research, status: job.result.research.queued ? 'queued' : 'running' }
           : undefined;
-        this.setState((s) => {
-          const chat = [...s.voiceChat];
-          const idx = chat.map((m) => !!m.streaming).lastIndexOf(true);
-          if (idx === -1) chat.push({ at: Date.now(), who: 'nova', text, panel, proposal, research });
-          else chat[idx] = { at: Date.now(), who: 'nova', text, panel, proposal, research };
-          return { voiceBusy: false, voiceChat: chat, voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal };
-        });
-        if (research && !research.queued) this.watchVoiceResearch(conn, research.recordId);
-        // Flush whatever trails the last sentence-ender; if nothing ever
-        // streamed (non-streaming job), this speaks the whole reply — on
-        // either engine, through the same path the partials took.
-        if (this.state.voiceSpeak) speakNewSentences(text, true);
-        else this.maybeAutoListen();
+        const commit = () => {
+          this.setState((s) => {
+            const chat = [...s.voiceChat];
+            const idx = chat.map((m) => !!m.streaming).lastIndexOf(true);
+            if (idx === -1) chat.push({ at: Date.now(), who: 'nova', text, panel, proposal, research });
+            else chat[idx] = { at: Date.now(), who: 'nova', text, panel, proposal, research };
+            return { voiceChat: chat, voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal };
+          });
+          if (research && !research.queued) this.watchVoiceResearch(conn, research.recordId);
+        };
+        this.setState({ voiceBusy: false }); // he can barge in the moment the answer exists
+        if (spokenReveal) {
+          // remaining sentences queue with reveal-on-play; the commit rides
+          // the queue as a barrier, landing when the last word is spoken
+          // (or instantly if he interrupts — resetTtsQueue runs finalizers)
+          speakNewSentences(text, true);
+          this.queueTtsFinalize(commit);
+        } else {
+          commit();
+          // Flush whatever trails the last sentence-ender; if nothing ever
+          // streamed (non-streaming job), this speaks the whole reply.
+          if (this.state.voiceSpeak) speakNewSentences(text, true);
+          else this.maybeAutoListen();
+        }
       },
       onError: (msg) => { clearJob(); this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] })); },
     });
@@ -3367,11 +3385,11 @@ export default class App extends Component {
     api.ask(conn, question, this.state.voiceSessionId || null).then((resp) => {
       if (resp.text) {
         // Reflex answer — code replied from the live record, no job to poll.
-        // Render and speak immediately; the ack (if queued) plays first via
-        // the FIFO, so the exchange sounds: "On it, sir." → the number.
-        this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: resp.text }] }));
-        if (this.state.voiceSpeak) this.speakTtsSentence(resp.text);
-        else this.maybeAutoListen();
+        // Voice leads here too: the text lands when the audio starts.
+        this.setState({ voiceBusy: false });
+        const show = () => this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: resp.text }] }));
+        if (this.state.voiceSpeak) this.speakTtsSentence(resp.text, show);
+        else { show(); this.maybeAutoListen(); }
         return;
       }
       const { jobId } = resp;
@@ -3533,9 +3551,13 @@ export default class App extends Component {
       this.stopSpeaking();
       this.primeSpeech();
     }
-    this.setState((s) => ({ voiceConvMode: !s.voiceConvMode, voiceConvPaused: false }), () => {
-      if (this.state.voiceConvMode) this.setState((s) => ({ voiceAutoListenTick: s.voiceAutoListenTick + 1 }));
-    });
+    // one commit: mode + listen tick together — every extra render is a
+    // beat between his tap and the mic opening
+    this.setState((s) => ({
+      voiceConvMode: !s.voiceConvMode,
+      voiceConvPaused: false,
+      voiceAutoListenTick: turningOn ? s.voiceAutoListenTick + 1 : s.voiceAutoListenTick,
+    }));
   }
   resumeConv() {
     this.convEmpties = 0;
@@ -3560,17 +3582,27 @@ export default class App extends Component {
   // talking seconds before he has finished thinking. A generation counter
   // makes a stop/new-turn flush every in-flight fetch harmless.
   resetTtsQueue() {
+    // Flushing must never eat words or a reply's completion: reveal any
+    // text that hadn't played yet and run any pending finalizer, THEN drop
+    // the queue. An interrupted reply shows instantly instead of vanishing.
+    for (const e of this.ttsQueue || []) {
+      try { if (!e.revealed) e.onPlay?.(); e.finalize?.(); } catch { /* reveal is best-effort */ }
+    }
     this.ttsGen = (this.ttsGen || 0) + 1;
     this.ttsQueue = [];
     this.ttsPlaying = false;
   }
-  speakTtsSentence(text) {
+  // onPlay fires when this sentence's AUDIO starts (or when it provably
+  // can't) — it is how text is revealed in sync with speech instead of
+  // seconds ahead of it. He named the failure exactly: text-first feels
+  // like pressing play on something already written.
+  speakTtsSentence(text, onPlay) {
     const clean = (text || '').trim().slice(0, 2400);
     if (!clean) return;
     const conn = getConnection();
-    if (!conn || !this.state.liveTts?.configured) { this.speakIncremental(clean); return; }
+    if (!conn || !this.state.liveTts?.configured) { onPlay?.(); this.speakIncremental(clean); return; }
     const gen = this.ttsGen || 0;
-    const entry = { done: false, blob: null };
+    const entry = { done: false, blob: null, onPlay, revealed: false };
     (this.ttsQueue = this.ttsQueue || []).push(entry);
     this.beginSpeech(); // matched by endSpeech when the entry plays out or drops
     api.ttsAudio(conn, clean, this.state.voiceVoiceId || undefined)
@@ -3578,13 +3610,26 @@ export default class App extends Component {
       .catch(() => { entry.failed = true; })
       .finally(() => { entry.done = true; this.drainTtsQueue(gen); });
   }
+  // A completion barrier: runs when the queue reaches it — i.e. after every
+  // sentence queued before it has spoken. Carries a reply's final commit
+  // (panel, proposal, streaming:false) so those land WITH the voice, not
+  // ahead of it.
+  queueTtsFinalize(fn) {
+    (this.ttsQueue = this.ttsQueue || []).push({ done: true, finalize: fn });
+    this.drainTtsQueue(this.ttsGen || 0);
+  }
   drainTtsQueue(gen) {
     if (gen !== (this.ttsGen || 0)) return; // flushed mid-flight — the fetch's beginSpeech was already zeroed
     if (this.ttsPlaying) return;
     const head = (this.ttsQueue || [])[0];
     if (!head || !head.done) return; // strict order: nothing plays past an unfinished head
     this.ttsQueue.shift();
-    if (head.failed || !head.blob) { this.endSpeech(); this.drainTtsQueue(gen); return; }
+    if (head.finalize) { try { head.finalize(); } catch { /* commit is best-effort */ } this.drainTtsQueue(gen); return; }
+    if (head.failed || !head.blob) {
+      // can't speak it — reveal the words anyway; text must never be lost
+      try { head.onPlay?.(); head.revealed = true; } catch { /* best-effort */ }
+      this.endSpeech(); this.drainTtsQueue(gen); return;
+    }
     this.ttsPlaying = true;
     resumeAudioGraph(); // a suspended graph plays SILENTLY — resume before every chunk
     const url = URL.createObjectURL(head.blob);
@@ -3603,7 +3648,13 @@ export default class App extends Component {
     audio.src = url;
     audio.onended = done;
     audio.onerror = done;
-    audio.play().catch(done);
+    audio.play().then(() => {
+      // audio is genuinely rolling — NOW the words may appear
+      try { head.onPlay?.(); head.revealed = true; } catch { /* best-effort */ }
+    }).catch(() => {
+      try { head.onPlay?.(); head.revealed = true; } catch { /* best-effort */ }
+      done();
+    });
   }
   speak(text) {
     if (!this.state.voiceSpeak) { this.maybeAutoListen(); return; }
