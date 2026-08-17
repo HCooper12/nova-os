@@ -147,7 +147,9 @@ export const api = {
   calendarToday: (conn) => call(conn, '/api/calendar/today'),
   calendars: (conn) => call(conn, '/api/calendar/calendars'),
   setHiddenCalendars: (conn, hidden) => post(conn, '/api/calendar/calendars/hidden', { hidden }),
-  calendarCommand: (conn, text) => post(conn, '/api/calendar/command', { text }),
+  // 60s: interpretation spawns the CLI and measured ~18s on a real request —
+  // the 20s default aborted it at 19.9s and the ask silently did nothing
+  calendarCommand: (conn, text) => post(conn, '/api/calendar/command', { text }, { timeoutMs: 60_000 }),
   calendarRange: (conn, days = 14) => call(conn, `/api/calendar/range?days=${days}`),
   workoutExercises: (conn) => call(conn, '/api/workouts/exercises'),
   addWorkoutExercise: (conn, name, muscleGroup, trackingType) => post(conn, '/api/workouts/exercises', { name, muscleGroup, trackingType }),

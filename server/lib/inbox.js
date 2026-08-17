@@ -17,7 +17,7 @@ import * as journal from './journal.js';
 import * as foodLog from './foodLog.js';
 import { addStashItem, removeStashItem, formatStashItem } from './stash.js';
 import { addRecipe, removeRecipe } from './recipes.js';
-import { createEvent, deleteEventAt, moveEvent, putEventRaw } from './calendar.js';
+import { createEvent, deleteEventAt, moveEvent, moveOccurrence, putEventRaw } from './calendar.js';
 
 // The Nova Inbox: capture any loose thought, let a READ-ONLY classifier make
 // exactly one typed routing decision, then let deterministic code do the
@@ -461,7 +461,13 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
       };
     }
     if (action === 'move') {
-      await moveEvent({ objectUrl: payload.objectUrl, etag: payload.etag, raw: payload.oldRaw, newStart: payload.newStart, newEnd: payload.newEnd });
+      // a repeating event moves ONE occurrence via an override; a one-off
+      // rewrites its own times (payload.occurrence marks which)
+      if (payload.occurrence) {
+        await moveOccurrence({ objectUrl: payload.objectUrl, etag: payload.etag, raw: payload.oldRaw, occurrenceStartISO: payload.occurrence, newStart: payload.newStart, newEnd: payload.newEnd });
+      } else {
+        await moveEvent({ objectUrl: payload.objectUrl, etag: payload.etag, raw: payload.oldRaw, newStart: payload.newStart, newEnd: payload.newEnd });
+      }
       return {
         destination: `Calendar — moved ${payload.label}`,
         undo: { route, action: 'move', objectUrl: payload.objectUrl, oldRaw: payload.oldRaw },

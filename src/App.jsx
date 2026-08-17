@@ -2952,7 +2952,12 @@ export default class App extends Component {
         this.setState({ calCmdBusy: false });
         if (r.proposed) {
           this.setState({ calCmdText: '' });
-          this.toastMsg('Nova drafted it — approve in your inbox to add it to your calendar');
+          // one request can produce several drafts ("push X and move Y")
+          const n = r.count || 1;
+          this.toastMsg(
+            (n > 1 ? `Nova drafted ${n} changes — approve them in your inbox` : 'Nova drafted it — approve in your inbox to add it to your calendar')
+            + (r.partial ? ` (${r.partial})` : ''),
+          );
           this.refreshLiveData();
         } else {
           this.toastMsg(r.reason || "Couldn't turn that into an event");

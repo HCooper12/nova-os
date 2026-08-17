@@ -168,6 +168,49 @@ export async function moveEvent({ objectUrl, etag, raw, newStart, newEnd }) {
 
 // Restore an event's exact prior iCal (undo a move) or recreate a deleted one —
 // a PUT with no If-Match, which CalDAV creates-or-replaces.
+// Move ONE occurrence of a repeating event, leaving the series alone. The
+// CalDAV way is an override component: a second VEVENT sharing the master's
+// UID, carrying RECURRENCE-ID (which occurrence) and the new DTSTART/DTEND.
+// Nova's own reader already honours these (expandUidGroup), so the moved
+// instance renders correctly the moment it lands.
+//
+// Before this, "push my workout to 10:30" was refused outright because his
+// routines are all recurring — which is most of what a calendar IS for him.
+export function buildOccurrenceOverride(raw, occurrenceStartISO, newStart, newEnd) {
+  const master = raw.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/);
+  if (!master) throw new Error('could not read the event');
+  const block = master[0];
+  const field = (name) => (block.match(new RegExp(`^${name}:([^\\r\\n]*)`, 'm')) || [])[1] || null;
+  const uid = field('UID');
+  if (!uid) throw new Error('event has no UID');
+  const carry = ['SUMMARY', 'LOCATION', 'DESCRIPTION', 'CATEGORIES', 'STATUS', 'TRANSP']
+    .map((k) => (field(k) != null ? `${k}:${field(k)}` : null)).filter(Boolean);
+  const override = [
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `RECURRENCE-ID:${toICalUTC(new Date(occurrenceStartISO))}`,
+    `DTSTAMP:${toICalUTC(new Date())}`,
+    `DTSTART:${toICalUTC(new Date(newStart))}`,
+    `DTEND:${toICalUTC(new Date(newEnd))}`,
+    ...carry,
+    'SEQUENCE:1',
+    'END:VEVENT',
+  ].join('\r\n');
+  // drop any existing override for this same occurrence, then append
+  const rid = toICalUTC(new Date(occurrenceStartISO));
+  const cleaned = raw.replace(new RegExp(`BEGIN:VEVENT(?:(?!END:VEVENT)[\\s\\S])*?RECURRENCE-ID:${rid}[\\s\\S]*?END:VEVENT\\r?\\n`, 'g'), '');
+  return cleaned.replace(/END:VCALENDAR\s*$/, `${override}\r\nEND:VCALENDAR\r\n`);
+}
+
+export async function moveOccurrence({ objectUrl, etag, raw, occurrenceStartISO, newStart, newEnd }) {
+  const client = await getClient();
+  const data = buildOccurrenceOverride(raw, occurrenceStartISO, newStart, newEnd);
+  const res = await client.updateCalendarObject({ calendarObject: { url: objectUrl, etag: etag || undefined, data } });
+  if (!res.ok && ![200, 204].includes(res.status)) throw new Error(`calendar move failed (${res.status})`);
+  invalidateCalendarCache();
+  return { objectUrl, newEtag: res.headers?.get?.('etag') || null };
+}
+
 export async function putEventRaw({ objectUrl, raw }) {
   const client = await getClient();
   const res = await client.updateCalendarObject({ calendarObject: { url: objectUrl, data: raw } });
