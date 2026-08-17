@@ -79,7 +79,10 @@ export async function ensureSidecar() {
     });
     sidecar.on('exit', (code) => console.log(`tts sidecar exited (${code})`));
   }
-  const deadline = Date.now() + 60_000;
+  // 3 minutes, not 60s: model load measured 8-17s normally but >60s under
+  // heavy machine load (a VM pinning cores while Chrome renders) — a boot
+  // that is merely slow must not be declared dead.
+  const deadline = Date.now() + 180_000;
   while (Date.now() < deadline) {
     if (await healthy()) return true;
     if (sidecar.exitCode !== null) throw new Error(`tts sidecar died at boot (exit ${sidecar.exitCode}) — run server/voice/setup.sh`);
