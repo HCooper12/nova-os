@@ -50,6 +50,21 @@ export function audioLevel() {
   return level;
 }
 
+// A wired element plays THROUGH this context — if the context is suspended
+// (iOS suspends it whenever speech recognition takes the audio session, and
+// resume() only succeeds near a user gesture), playback runs silently while
+// every callback fires as if all were well. Call this at every gesture AND
+// right before playback; re-resume automatically if the OS suspends us.
+export function resumeAudioGraph() {
+  if (!ctx) return;
+  ctx.resume().catch(() => {});
+  if (!ctx.onstatechange) {
+    ctx.onstatechange = () => {
+      if (ctx.state === 'suspended' || ctx.state === 'interrupted') ctx.resume().catch(() => {});
+    };
+  }
+}
+
 // Nova's own voice: the gesture-unlocked <audio> the ElevenLabs replies
 // play through. The element ALSO routes straight to the speakers — the
 // analyser is a tap, never in the audible path.

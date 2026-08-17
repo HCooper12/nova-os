@@ -56,6 +56,13 @@ const JARVIS_FX = 'highpass=f=90,equalizer=f=250:t=q:w=1.0:g=-2,'
   + 'acompressor=threshold=-18dB:ratio=3:attack=5:release=120,'
   + 'aecho=0.9:0.88:20:0.09,alimiter=limit=0.95';
 
+// Kokoro pads both ends of every utterance with silence; on sentence-chunked
+// replies those pads stack into audible dead air between chunks and the
+// whole exchange feels laggier than it is. Trim the edges (leading via
+// silenceremove, trailing via reverse-trim-reverse) on EVERY local synth.
+const TRIM_FX = 'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.05,'
+  + 'areverse,silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.08,areverse';
+
 let sidecar = null; // the running child, if we spawned one
 
 async function healthy() {
@@ -152,7 +159,7 @@ export async function synthesizeLocal(text, voiceId) {
     throw new Error(`local tts → ${res.status}${detail.error ? `: ${detail.error}` : ''}`);
   }
   const wav = Buffer.from(await res.arrayBuffer());
-  const mp3 = await wavToMp3(wav, jarvis ? JARVIS_FX : '');
+  const mp3 = await wavToMp3(wav, jarvis ? `${TRIM_FX},${JARVIS_FX}` : TRIM_FX);
   audioCache.set(cacheKey, mp3);
   if (audioCache.size > AUDIO_CACHE_MAX) audioCache.delete(audioCache.keys().next().value);
   return mp3;

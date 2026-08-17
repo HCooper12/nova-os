@@ -48,7 +48,7 @@ import { Toast } from './Toast.jsx';
 import { OutboxView } from './OutboxView.jsx';
 import { NudgeCard } from './NudgeCard.jsx';
 import { Boot } from './Boot.jsx';
-import { attachSpeechElement } from './audioLevel.js';
+import { attachSpeechElement, resumeAudioGraph } from './audioLevel.js';
 
 // Code-split: ZXing (barcode decoding) is a sizeable dependency that only
 // the food-log barcode flow needs — no reason to ship it in everyone's
@@ -2824,7 +2824,7 @@ export default class App extends Component {
     };
     this.startPoll('ask', () => api.claudeCodeJob(conn, jobId), {
       timeoutMs: 3 * 60_000,
-      intervalMs: 700,
+      intervalMs: 350, // conversation cadence: the first spoken sentence rides this tick
       onProgress: (job) => {
         if (!job.partial) return;
         const shown = stripShow(job.partial);
@@ -3345,6 +3345,7 @@ export default class App extends Component {
   // empty utterance during the tap unlocks both paths for the async reply.
   primeSpeech() {
     try {
+      resumeAudioGraph(); // inside the gesture — the one moment iOS lets a suspended graph wake
       if (!this.sharedAudio) {
         this.sharedAudio = new Audio();
         this.sharedAudio.muted = true;
@@ -3566,6 +3567,7 @@ export default class App extends Component {
     this.ttsQueue.shift();
     if (head.failed || !head.blob) { this.endSpeech(); this.drainTtsQueue(gen); return; }
     this.ttsPlaying = true;
+    resumeAudioGraph(); // a suspended graph plays SILENTLY — resume before every chunk
     const url = URL.createObjectURL(head.blob);
     const audio = this.sharedAudio || new Audio();
     this.currentAudio = audio;
