@@ -149,7 +149,9 @@ export function valsMisc(app, ctx) {
     resumeConv: () => app.resumeConv(),
     stopSpeaking: () => app.stopSpeaking(),
     briefMe: () => {
-      if (!demoMode && !isOffline) { app.askNova('Brief me on my day — recovery, calendar, fuel, training, anything waiting on me.'); return; }
+      // the composed show: deterministic receipts, spoken beat-by-beat with
+      // panes — evening variant after 5pm (day receipts + tomorrow's shape)
+      if (!demoMode && !isOffline) { app.runShow(new Date().getHours() >= 17 ? 'evening' : 'morning'); return; }
       app.setState(s => ({ orbChat: [...s.orbChat, { who: 'you', text: 'Brief me.' }] }));
       setTimeout(() => app.typeIn('orbChat', 'nova', orbReply('brief')), 450);
     },

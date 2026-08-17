@@ -4,6 +4,7 @@ import { composeDispatch } from '../lib/dispatch.js';
 import { ttsConfigured, ttsEngine, listVoices, synthesize } from '../lib/tts.js';
 import { buildAskContext, todayLocalContext } from '../lib/askContext.js';
 import { tryReflex } from '../lib/reflex.js';
+import { composeShow } from '../lib/morningShow.js';
 
 // The voice line: Ask Nova (read-only Q&A job over the vault, polled via the
 // shared /claude-code/message/:jobId endpoint) and the ElevenLabs TTS proxy.
@@ -250,6 +251,20 @@ export function voiceRouter(vaultPath) {
       finish({ text: 'Nova took too long to answer that one.', error: 'timeout' });
     } catch (e) {
       if (res.headersSent) { try { res.end(JSON.stringify({ text: `Nova hit an error: ${e.message}`, error: e.message })); } catch { /* gone */ } return; }
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // The Morning Show / Evening Debrief — deterministic receipts composed
+  // as a spoken sequence; the client plays it through the TTS FIFO with
+  // panes revealing per beat. Fast by construction (no model in the loop).
+  router.post('/show', async (req, res) => {
+    try {
+      const variant = req.body?.variant === 'evening' ? 'evening' : 'morning';
+      const show = await composeShow(vaultPath, { variant });
+      console.log(`show composed [${variant}] ${show.steps.length} beats${show.pending ? ` highlight=${show.pending.recordId}` : ''}`);
+      res.json(show);
+    } catch (e) {
       res.status(500).json({ error: e.message });
     }
   });

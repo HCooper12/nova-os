@@ -3393,6 +3393,35 @@ export default class App extends Component {
       }
     } catch { /* best-effort */ }
   }
+  // The Morning Show / Evening Debrief: prepared receipts played as a
+  // narrated sequence — each beat's text and pane reveal AS its audio
+  // starts, and the closing pending item arms the spoken-yes gate. The
+  // reel's morning scene, on Nova's rails.
+  runShow(variant) {
+    const conn = getConnection();
+    if (!conn || this.state.voiceBusy) return;
+    this.stopSpeaking();
+    this.primeSpeech();
+    this.setState({ voiceBusy: true });
+    api.show(conn, variant).then(({ steps, pending }) => {
+      this.setState({ voiceBusy: false });
+      if (!steps?.length) { this.toastMsg('Nothing to brief right now.'); return; }
+      const spoken = this.state.voiceSpeak && this.state.liveTts?.configured;
+      for (const st of steps) {
+        const show = () => this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: st.say, panel: st.panel || undefined }] }));
+        if (spoken) this.speakTtsSentence(st.say, show);
+        else show();
+      }
+      if (pending) {
+        const arm = () => this.setState({ voicePendingProposal: { recordId: pending.recordId, title: pending.title } });
+        if (spoken) this.queueTtsFinalize(arm); else arm();
+      }
+      if (spoken) this.queueTtsFinalize(() => this.maybeAutoListen()); // his turn, hands-free
+    }).catch((e) => {
+      this.setState({ voiceBusy: false });
+      this.toastMsg('Brief failed: ' + e.message);
+    });
+  }
   askNova(question) {
     const conn = getConnection();
     if (!conn || this.state.voiceBusy) return;
