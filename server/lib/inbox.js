@@ -258,6 +258,9 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
       if (!meal) throw new Error(`there's no ${payload.slot} in today's rotation to mark eaten`);
       if (meal.consumed) throw new Error(`${payload.slot} (${meal.name}) is already marked eaten today`);
       await setSlotConsumed(vaultPath, recipes, payload.slot, true);
+      // the meal joins the food log like any other — so a past day can show it
+      const { setRotationEntry } = await import('./foodLog.js');
+      await setRotationEntry({ slot: payload.slot, name: meal.name, macros: meal.macros, recipeId: meal.id, consumed: true }).catch(() => {});
       const { recordTodaySnapshot } = await import('./nutritionSnapshot.js');
       recordTodaySnapshot(vaultPath).catch(() => {});
       const m = meal.macros || {};
@@ -700,6 +703,8 @@ export async function undoFiling(vaultPath, undo) {
       const { setSlotConsumed } = await import('./rotation.js');
       const { recipes } = await loadRecipeData(vaultPath);
       await setSlotConsumed(vaultPath, recipes, undo.slot, false);
+      const { setRotationEntry } = await import('./foodLog.js');
+      await setRotationEntry({ slot: undo.slot, consumed: false }).catch(() => {}); // and out of the log
       const { recordTodaySnapshot } = await import('./nutritionSnapshot.js');
       recordTodaySnapshot(vaultPath).catch(() => {});
       return `unmarked ${undo.slot} — ${undo.mealName} reads as not eaten again`;

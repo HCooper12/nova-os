@@ -51,10 +51,21 @@ export function valsRecipes(app, ctx) {
     };
   });
   const rotTot = rotation?.totals || { p: 0, c: 0, f: 0, kcal: 0 };
-  const rotConsumedTot = rotation?.consumedTotals || { p: 0, c: 0, f: 0, kcal: 0 };
-  // TODAY's log always feeds the gauges — the retro view below never does
+  // TODAY's log always feeds the gauges — the retro view below never does.
+  // Rotation meals now WRITE into the food log when ticked (source:
+  // 'rotation'), so this single sum is the whole day — no join, and no
+  // double-count. Legacy days logged before that change carry no rotation
+  // entries, so their consumedTotals are added back once, for today only.
   const foodLogEntries = st.liveFoodLog?.entries || [];
-  const foodLogTot = foodLogEntries.reduce((acc, e) => ({ p: acc.p + e.macros.p, c: acc.c + e.macros.c, f: acc.f + e.macros.f, kcal: acc.kcal + e.macros.kcal }), { p: 0, c: 0, f: 0, kcal: 0 });
+  const sumOf = (list) => list.reduce((acc, e) => ({ p: acc.p + e.macros.p, c: acc.c + e.macros.c, f: acc.f + e.macros.f, kcal: acc.kcal + e.macros.kcal }), { p: 0, c: 0, f: 0, kcal: 0 });
+  const loggedRotationSlots = new Set(foodLogEntries.filter((e) => e.source === 'rotation').map((e) => e.slot));
+  // per-slot: count a consumed slot ONLY if the log doesn't already carry it
+  const rotConsumedTot = Object.entries(rotation?.slots || {}).reduce((acc, [slot, r]) => (
+    !r || !r.consumed || !r.macros || loggedRotationSlots.has(slot) ? acc : {
+      p: acc.p + r.macros.p, c: acc.c + r.macros.c, f: acc.f + r.macros.f, kcal: acc.kcal + r.macros.kcal,
+    }
+  ), { p: 0, c: 0, f: 0, kcal: 0 });
+  const foodLogTot = sumOf(foodLogEntries);
   // retro tracking: when a past day is selected the log pane shows THAT
   // day's entries (loaded into liveFoodLogView); adds/removes go there too
   const viewingPastDay = !!st.foodLogDate;

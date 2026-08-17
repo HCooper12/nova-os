@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { addEntry, removeEntry, removeEntryOn, getToday, getDay, resolveLogDate } from '../lib/foodLog.js';
 import { computeFoodHistory } from '../lib/foodHistory.js';
 import { startFoodScan, startFoodDescribe, getFoodScanJob } from '../lib/scanFood.js';
-import { recordTodaySnapshot } from '../lib/nutritionSnapshot.js';
+import { recordDaySnapshot } from '../lib/nutritionSnapshot.js';
 import { lookupBarcode } from '../lib/barcodeLookup.js';
 
 const MAX_SCAN_IMAGES = 5;
@@ -43,8 +43,10 @@ export function foodLogRouter(vaultPath) {
         return res.status(400).json({ error: 'macros.p/c/f/kcal must be non-negative numbers' });
       }
       const day = await addEntry({ name: name.trim(), macros, source, date });
-      // the nutrition snapshot mirrors TODAY — a retro day doesn't touch it
-      if (day.date === resolveLogDate()) recordTodaySnapshot(vaultPath).catch(() => {});
+      // Snapshot the day that CHANGED, not just today: a retro edit used to
+      // be skipped, so the archive (and every weekly/monthly scorecard built
+      // on it) stayed permanently wrong for that date.
+      recordDaySnapshot(vaultPath, day.date).catch(() => {});
       res.json(day);
     } catch (err) {
       res.status(400).json({ error: err.message });
@@ -67,10 +69,11 @@ export function foodLogRouter(vaultPath) {
       if (req.query.date) {
         const date = resolveLogDate(req.query.date);
         await removeEntryOn(date, req.params.id);
+        recordDaySnapshot(vaultPath, date).catch(() => {}); // retro deletes count too
         return res.json(await getDay(date));
       }
       const day = await removeEntry(req.params.id);
-      recordTodaySnapshot(vaultPath).catch(() => {});
+      recordDaySnapshot(vaultPath, day.date).catch(() => {});
       res.json(day);
     } catch (err) {
       res.status(400).json({ error: err.message });

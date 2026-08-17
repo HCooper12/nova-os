@@ -93,6 +93,49 @@ async function addEntryUnlocked({ name, macros, source, date }) {
   return day;
 }
 
+// Rotation meals ARE food. Ticking "lunch eaten" used to write a single
+// boolean into the vault's Daily Rotation frontmatter — which holds ONE
+// day — so the moment the date rolled, the biggest meals of the day became
+// invisible: a past day showed only the off-plan extras (54.6g protein
+// against a real 149g on 17 Aug 2026, his report). They now land in the
+// same per-day store as everything else, keyed by slot so ticking and
+// unticking are idempotent, and carrying the recipe id so the entry can be
+// traced back to what was actually eaten.
+export async function setRotationEntry({ date, slot, name, macros, recipeId, consumed }) {
+  return withWriteLock(async () => {
+    const target = resolveLogDate(date);
+    const day = await loadDay(target);
+    day.entries = day.entries.filter((e) => !(e.source === 'rotation' && e.slot === slot));
+    if (consumed) {
+      day.entries.push({
+        id: randomUUID().slice(0, 8),
+        ...(target === today() ? { time: new Date().toTimeString().slice(0, 5) } : {}),
+        name,
+        macros: { p: Number(macros?.p) || 0, c: Number(macros?.c) || 0, f: Number(macros?.f) || 0, kcal: Number(macros?.kcal) || 0 },
+        source: 'rotation',
+        slot,
+        ...(recipeId ? { recipeId } : {}),
+      });
+    }
+    await saveDay(day);
+    return day;
+  });
+}
+
+// The ONE way to total a day. The rotation+extras join used to be written
+// out by hand in six places (snapshot, two val mappers, dispatch twice,
+// health insight) — a shared format with six readers is a contract waiting
+// to drift, and it did. Rotation meals are now IN entries, so this is a
+// straight sum with no join at all.
+export function totalsOf(entries = []) {
+  return entries.reduce((t, e) => ({
+    p: t.p + (Number(e.macros?.p) || 0),
+    c: t.c + (Number(e.macros?.c) || 0),
+    f: t.f + (Number(e.macros?.f) || 0),
+    kcal: t.kcal + (Number(e.macros?.kcal) || 0),
+  }), { p: 0, c: 0, f: 0, kcal: 0 });
+}
+
 // Most-recent-first list of day files, for cross-day history/aggregation. The
 // per-day files are never deleted, so this is a durable log of everything
 // eaten off-plan — nothing read across them until now.

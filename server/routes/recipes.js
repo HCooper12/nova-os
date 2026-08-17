@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { loadRecipeData, addRecipe, addAlternate, promoteAlternate, editRecipe } from '../lib/recipes.js';
 import { loadRotation, setRotationSlot, setSlotConsumed, setSlotVariant } from '../lib/rotation.js';
 import { recordTodaySnapshot } from '../lib/nutritionSnapshot.js';
+import { setRotationEntry } from '../lib/foodLog.js';
 import { startScan, getScanJob } from '../lib/scanRecipe.js';
 import { startTweak, getTweakJob } from '../lib/tweakRecipe.js';
 import { savePhoto, getPhoto, listPhotoRecipeIds } from '../lib/recipePhotos.js';
@@ -293,6 +294,19 @@ export function recipesRouter(vaultPath) {
       const { slot, consumed } = req.body || {};
       const { recipes } = await loadRecipeData(vaultPath);
       const rotation = await setSlotConsumed(vaultPath, recipes, slot, !!consumed);
+      // Write the meal into the food log too — the rotation frontmatter only
+      // remembers TODAY, so without this a past day loses its main meals
+      // entirely (his report: 54.6g shown against a real 149g).
+      const chosen = rotation.slots?.[slot];
+      if (chosen) {
+        await setRotationEntry({
+          slot,
+          name: chosen.name,
+          macros: chosen.macros,
+          recipeId: chosen.id,
+          consumed: !!consumed,
+        }).catch(() => {});
+      }
       recordTodaySnapshot(vaultPath).catch(() => {});
       res.json(rotation);
     } catch (err) {
