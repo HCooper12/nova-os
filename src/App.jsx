@@ -2792,7 +2792,7 @@ export default class App extends Component {
     const applyPartial = (text) => this.setState((s) => {
       const chat = [...s.voiceChat];
       const idx = chat.map((m) => !!m.streaming).lastIndexOf(true);
-      if (idx === -1) chat.push({ who: 'nova', text, streaming: true });
+      if (idx === -1) chat.push({ at: Date.now(), who: 'nova', text, streaming: true });
       else chat[idx] = { ...chat[idx], text };
       return { voiceChat: chat };
     });
@@ -2842,8 +2842,8 @@ export default class App extends Component {
         this.setState((s) => {
           const chat = [...s.voiceChat];
           const idx = chat.map((m) => !!m.streaming).lastIndexOf(true);
-          if (idx === -1) chat.push({ who: 'nova', text, panel, proposal, research });
-          else chat[idx] = { who: 'nova', text, panel, proposal, research };
+          if (idx === -1) chat.push({ at: Date.now(), who: 'nova', text, panel, proposal, research });
+          else chat[idx] = { at: Date.now(), who: 'nova', text, panel, proposal, research };
           return { voiceBusy: false, voiceChat: chat, voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal };
         });
         if (research && !research.queued) this.watchVoiceResearch(conn, research.recordId);
@@ -2853,7 +2853,7 @@ export default class App extends Component {
         if (this.state.voiceSpeak) speakNewSentences(text, true);
         else this.maybeAutoListen();
       },
-      onError: (msg) => { clearJob(); this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat.filter((m) => !m.streaming), { who: 'system', text: 'Error: ' + msg }] })); },
+      onError: (msg) => { clearJob(); this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] })); },
     });
   }
 
@@ -3012,16 +3012,16 @@ export default class App extends Component {
     if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
     if (this.state.sparBusy) return;
     const target = this.state.codeWorkspace === 'repo' ? 'Nova OS' : 'the vault';
-    this.setState((s) => ({ sparBusy: true, codeChat: [...s.codeChat, { who: 'system', text: `Breaker engaged — read-only adversarial pass over ${target}…` }] }));
+    this.setState((s) => ({ sparBusy: true, codeChat: [...s.codeChat, { at: Date.now(), who: 'system', text: `Breaker engaged — read-only adversarial pass over ${target}…` }] }));
     const focus = [...this.state.codeChat].reverse().find((m) => m.who === 'you')?.text || '';
     api.sparStart(conn, this.state.codeWorkspace, focus).then(({ jobId }) => {
       this.startPoll('spar', () => api.claudeCodeJob(conn, jobId), {
         timeoutMs: 10 * 60_000,
         onReady: (job) => this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { who: 'breaker', text: job.result.text }] })),
-        onError: (msg) => this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { who: 'system', text: 'Breaker failed: ' + msg }] })),
+        onError: (msg) => this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { at: Date.now(), who: 'system', text: 'Breaker failed: ' + msg }] })),
       });
     }).catch((e) => {
-      this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { who: 'system', text: 'Breaker failed: ' + e.message }] }));
+      this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { at: Date.now(), who: 'system', text: 'Breaker failed: ' + e.message }] }));
     });
   }
   captureToInbox(text, source = 'text') {
@@ -3294,11 +3294,11 @@ export default class App extends Component {
     call.then(() => {
       mark(approve ? 'done' : 'dismissed');
       const line = approve ? 'Done — it’s in. Undo lives in your Inbox.' : 'Left alone — nothing changed.';
-      this.setState((s) => ({ voiceChat: [...s.voiceChat, { who: 'nova', text: line }] }));
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
       if (this.state.voiceSpeak) this.speak(line);
     }).catch((e) => {
       mark('error', { error: e.message });
-      this.setState((s) => ({ voiceChat: [...s.voiceChat, { who: 'system', text: `Couldn’t ${approve ? 'approve' : 'dismiss'} that: ${e.message}. It’s still pending in your Inbox.` }] }));
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: `Couldn’t ${approve ? 'approve' : 'dismiss'} that: ${e.message}. It’s still pending in your Inbox.` }] }));
     });
   }
   doOrb() {
@@ -3312,7 +3312,7 @@ export default class App extends Component {
       const yes = /^(yes|yep|yeah|sure|ok|okay|do it|go ahead|confirm|approve|approved|yes please|please do|go for it|make it so|lock it in)[.!\s]*$/i.test(q);
       const no = /^(no|nope|nah|don't|dont|leave it|skip|skip it|cancel|not now|never mind|nevermind)[.!\s]*$/i.test(q);
       if (yes || no) {
-        this.setState((s) => ({ voiceChat: [...s.voiceChat, { who: 'you', text: q }], orbInput: '' }));
+        this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q }], orbInput: '' }));
         this.resolveVoiceProposal(pending.recordId, yes);
         return;
       }
@@ -3325,14 +3325,14 @@ export default class App extends Component {
     const conn = getConnection();
     if (conn) {
       if (this.state.connectionStatus === 'offline') {
-        this.setState((s) => ({ voiceChat: [...s.voiceChat, { who: 'you', text: q }, { who: 'system', text: 'Offline — reconnect to the Mac to ask Nova.' }], orbInput: '' }));
+        this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q }, { at: Date.now(), who: 'system', text: 'Offline — reconnect to the Mac to ask Nova.' }], orbInput: '' }));
         return;
       }
       this.setState({ orbInput: '' });
       this.askNova(q);
       return;
     }
-    this.setState(s => ({ orbChat: [...s.orbChat, { who: 'you', text: q }], orbInput: '' }));
+    this.setState(s => ({ orbChat: [...s.orbChat, { at: Date.now(), who: 'you', text: q }], orbInput: '' }));
     setTimeout(() => this.typeIn('orbChat', 'nova', orbReply(q)), 480);
   }
   // iOS gates audio behind a user gesture: playing a muted element and an
@@ -3354,7 +3354,7 @@ export default class App extends Component {
   askNova(question) {
     const conn = getConnection();
     if (!conn || this.state.voiceBusy) return;
-    this.setState((s) => ({ voiceChat: [...s.voiceChat, { who: 'you', text: question }], voiceBusy: true }));
+    this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: question }], voiceBusy: true }));
     this.stopSpeaking();
     this.speakAck(question); // fills the 5-8s think-gap immediately
     api.ask(conn, question, this.state.voiceSessionId || null).then(({ jobId }) => {
@@ -3363,7 +3363,7 @@ export default class App extends Component {
       try { localStorage.setItem('novaos.askJob', JSON.stringify({ jobId, askedAt: Date.now() })); } catch { /* best-effort */ }
       this.attachAskPoll(conn, jobId);
     }).catch((e) => {
-      this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { who: 'system', text: 'Error: ' + e.message }] }));
+      this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: 'Error: ' + e.message }] }));
     });
   }
   // The doorman: a DETERMINISTIC greeting when he arrives at the Voice
@@ -3401,7 +3401,7 @@ export default class App extends Component {
         onReady: (job) => {
           this.greetInFlight = false;
           const text = job.result.text;
-          this.finalizeStream('voiceChat', { who: 'nova', text });
+          this.finalizeStream('voiceChat', { at: Date.now(), who: 'nova', text });
           if (this.state.screen !== 'voice') {
             clearTimeout(this.greetT);
             this.setState({ greetBanner: { text } });
@@ -3428,11 +3428,11 @@ export default class App extends Component {
       const done = { ...(this.state.ritualDone || {}), [kind]: new Date().toDateString() };
       try { localStorage.setItem('novaos.ritualDone', JSON.stringify(done)); } catch { /* best-effort */ }
       try { localStorage.setItem('novaos.askJob', JSON.stringify({ jobId, askedAt: Date.now() })); } catch { /* best-effort */ }
-      this.setState((s) => ({ ritualDone: done, voiceBusy: true, voiceChat: [...s.voiceChat, { who: 'you', text: label }] }));
+      this.setState((s) => ({ ritualDone: done, voiceBusy: true, voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: label }] }));
       this.stopSpeaking();
       this.attachAskPoll(conn, jobId);
     }).catch((e) => {
-      this.setState((s) => ({ voiceChat: [...s.voiceChat, { who: 'system', text: 'Error: ' + e.message }] }));
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: 'Error: ' + e.message }] }));
     });
   }
   newVoiceChat() {
@@ -3643,7 +3643,7 @@ export default class App extends Component {
     // live backend → the real evidence-based coach; demo keeps the script
     if (conn && this.state.connectionStatus !== 'demo') {
       if (this.state.coachBusy) return;
-      this.setState((s) => ({ coachChat: [...s.coachChat, { who: 'you', text: q }], coachInput: '', coachBusy: true }));
+      this.setState((s) => ({ coachChat: [...s.coachChat, { at: Date.now(), who: 'you', text: q }], coachInput: '', coachBusy: true }));
       // a live session travels with the question — the Coach answers for the
       // gym floor when one is in progress (never for a history edit)
       const ws = this.state.workoutSession;
@@ -3674,14 +3674,14 @@ export default class App extends Component {
               this.toastMsg(`${job.result.proposal.title} — approve it in your Inbox`);
             }
           },
-          onError: (msg) => this.setState((s) => ({ coachBusy: false, coachChat: [...s.coachChat.filter((m) => !m.streaming), { who: 'system', text: 'Error: ' + msg }] })),
+          onError: (msg) => this.setState((s) => ({ coachBusy: false, coachChat: [...s.coachChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] })),
         });
       }).catch((e) => {
-        this.setState((s) => ({ coachBusy: false, coachChat: [...s.coachChat, { who: 'system', text: 'Error: ' + e.message }] }));
+        this.setState((s) => ({ coachBusy: false, coachChat: [...s.coachChat, { at: Date.now(), who: 'system', text: 'Error: ' + e.message }] }));
       });
       return;
     }
-    this.setState(s => ({ coachChat: [...s.coachChat, { who: 'you', text: q }], coachInput: '' }));
+    this.setState(s => ({ coachChat: [...s.coachChat, { at: Date.now(), who: 'you', text: q }], coachInput: '' }));
     const r = coachReply(q);
     setTimeout(() => this.typeIn('coachChat', 'coach', r.text, () => {
       if (!r.mod) return;
@@ -3751,17 +3751,17 @@ export default class App extends Component {
     const q = this.state.codeInput.trim();
     if (!q) return;
     if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
-    this.setState(s => ({ codeChat: [...s.codeChat, { who: 'you', text: q }], codeInput: '', codeBusy: true }));
+    this.setState(s => ({ codeChat: [...s.codeChat, { at: Date.now(), who: 'you', text: q }], codeInput: '', codeBusy: true }));
     api.startClaudeCodeMessage(conn, q, this.state.codeSessionId, this.state.codeModel, this.state.codeWorkspace).then(({ jobId }) => {
       this.startPoll('code', () => api.claudeCodeJob(conn, jobId), {
         timeoutMs: 10 * 60_000,
         intervalMs: 700,
         onProgress: (job) => { if (job.partial) this.applyStreamPartial('codeChat', 'claude', job.partial); },
         onReady: (job) => this.finalizeStream('codeChat', { who: 'claude', text: job.result.text }, { codeBusy: false, codeSessionId: job.result.sessionId }),
-        onError: (msg) => this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat.filter((m) => !m.streaming), { who: 'system', text: 'Error: ' + msg }] })),
+        onError: (msg) => this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] })),
       });
     }).catch((e) => {
-      this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat, { who: 'system', text: 'Error: ' + e.message }] }));
+      this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat, { at: Date.now(), who: 'system', text: 'Error: ' + e.message }] }));
     });
   }
   setCodeWorkspace(workspace) {
@@ -3775,7 +3775,7 @@ export default class App extends Component {
   doRecipeAsk() {
     const q = this.state.recipeInput.trim(); if (!q) return;
     const r = this.recipes.find(x => x.id === this.state.openRecipeId); if (!r) return;
-    this.setState(s => ({ recipeChat: [...s.recipeChat, { who: 'you', text: q }], recipeInput: '' }));
+    this.setState(s => ({ recipeChat: [...s.recipeChat, { at: Date.now(), who: 'you', text: q }], recipeInput: '' }));
     setTimeout(() => this.typeIn('recipeChat', 'nova', recipeReply(q, r)), 480);
   }
 

@@ -179,7 +179,10 @@ export function Voice({ v }) {
             )}
             {v.orbMsgs.map((m, i) => (
               <div key={i} style={css("animation:fadeUp .4s ease-out")}>
-                <span style={m.tagStyle}>{m.tag}</span> <span style={css("color:color-mix(in srgb, var(--nv-ink) 90%, transparent)")}><TypeText text={m.text} active={m.typing} /></span>
+                {m.daySep && (
+                  <div style={css(`margin:10px 0 8px;text-align:center;font:500 8.5px ${M};letter-spacing:.14em;color:color-mix(in srgb, var(--nv-ink) 38%, transparent)`)}>— {m.daySep.toUpperCase()} —</div>
+                )}
+                <span style={m.tagStyle}>{m.tag}</span>{m.time && <span style={css(`margin-left:6px;font:400 8px ${M};color:color-mix(in srgb, var(--nv-ink) 32%, transparent)`)}>{m.time}</span>} <span style={css("color:color-mix(in srgb, var(--nv-ink) 90%, transparent)")}><TypeText text={m.text} active={m.typing} /></span>
                 {m.remember && (
                   <Interactive as="span" onClick={m.remember} title="File this into the vault via the Inbox"
                     base={`cursor:pointer;display:inline-block;margin-left:8px;font:500 8px ${M};letter-spacing:.1em;padding:1px 7px;border-radius:5px;border:1px solid color-mix(in srgb, var(--nv-gold) 35%, transparent);color:var(--nv-gold)`}

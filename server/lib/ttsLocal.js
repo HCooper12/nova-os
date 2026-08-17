@@ -107,10 +107,33 @@ function wavToMp3(wav, fx) {
   });
 }
 
+// Fixed lines repeat constantly — the voice-picker preview and the ack
+// fillers ("On it, sir.") — and re-synthesizing a string that cannot change
+// is pure waste that makes switching voices feel broken under load. Small
+// insertion-ordered cache, warmed at boot so those lines answer in ~50ms
+// from the first tap. Keep PREVIEW_LINE/ACK_LINES in step with App.jsx
+// (speakAck / setVoiceId) — shared formats are contracts.
+const AUDIO_CACHE_MAX = 48;
+const audioCache = new Map(); // `${voiceId}|${text}` → mp3 Buffer
+export const PREVIEW_LINE = 'This is how I sound, sir.';
+export const ACK_LINES = ['On it, sir.', 'Let me look.', 'One moment.', 'Checking now.', 'Right away, sir.'];
+
+export async function warmSpokenLines() {
+  for (const v of localVoices()) {
+    for (const line of [PREVIEW_LINE, ...ACK_LINES]) {
+      await synthesizeLocal(line, v.id).catch(() => {}); // warm is best-effort
+    }
+  }
+  console.log(`tts cache warm: ${audioCache.size} lines`);
+}
+
 export async function synthesizeLocal(text, voiceId) {
   const requested = (voiceId || '').trim() || 'nova';
   const jarvis = requested.endsWith('-jarvis');
   const voice = jarvis ? requested.slice(0, -'-jarvis'.length) : requested;
+  const cacheKey = `${requested}|${text}`;
+  const hit = audioCache.get(cacheKey);
+  if (hit) return hit;
   await ensureSidecar();
   const res = await fetch(`${BASE()}/tts`, {
     method: 'POST',
@@ -123,5 +146,8 @@ export async function synthesizeLocal(text, voiceId) {
     throw new Error(`local tts → ${res.status}${detail.error ? `: ${detail.error}` : ''}`);
   }
   const wav = Buffer.from(await res.arrayBuffer());
-  return wavToMp3(wav, jarvis ? JARVIS_FX : '');
+  const mp3 = await wavToMp3(wav, jarvis ? JARVIS_FX : '');
+  audioCache.set(cacheKey, mp3);
+  if (audioCache.size > AUDIO_CACHE_MAX) audioCache.delete(audioCache.keys().next().value);
+  return mp3;
 }

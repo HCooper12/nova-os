@@ -77,6 +77,11 @@ test('local synthesis: stub sidecar wav → real ffmpeg → mp3 bytes; -jarvis m
     assert.ok(mp3.length > 100, 'mp3 came back non-trivial');
     const magicOk = mp3.slice(0, 3).toString() === 'ID3' || (mp3[0] === 0xff && (mp3[1] & 0xe0) === 0xe0);
     assert.ok(magicOk, `mp3 magic bytes (got ${mp3.slice(0, 4).toString('hex')})`);
+    // repeated fixed lines come from cache — the sidecar is not consulted again
+    const before = seen.length;
+    const again = await synthesizeLocal('Your heart rate is steady, sir.', 'nova-jarvis');
+    assert.equal(seen.length, before, 'cache hit skips the sidecar');
+    assert.equal(again, mp3, 'the exact cached buffer is returned');
   } finally {
     stub.close();
   }

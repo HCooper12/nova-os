@@ -258,8 +258,11 @@ async function main() {
   // fatal — /tts/status keeps answering and the client falls back.
   if (process.env.NOVA_TTS_LOCAL === '1') {
     import('./lib/ttsLocal.js')
-      .then(({ ensureSidecar }) => ensureSidecar())
-      .then(() => console.log('tts sidecar warm'))
+      .then(async ({ ensureSidecar, warmSpokenLines }) => {
+        await ensureSidecar();
+        console.log('tts sidecar warm');
+        await warmSpokenLines(); // previews + acks answer instantly from first tap
+      })
       .catch((e) => console.log(`tts sidecar prewarm failed: ${e.message}`));
   }
 
