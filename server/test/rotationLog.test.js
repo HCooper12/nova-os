@@ -15,7 +15,10 @@ const { setRotationEntry, getDay, totalsOf, addEntry } = await import('../lib/fo
 test.after(() => rm(dir, { recursive: true, force: true }));
 
 test('a ticked rotation meal lands in the day it was eaten, and unticking removes it', async () => {
-  const date = '2026-08-17';
+  // 5 days back, computed — a hardcoded date is "yesterday" here and "today"
+  // on a UTC runner, which flips the no-clock-time assertion (it did)
+  const d = new Date(Date.now() - 5 * 86_400_000);
+  const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   await setRotationEntry({ date, slot: 'lunch', name: 'Works Burger', recipeId: 'works-burger', macros: { p: 52, c: 42, f: 17.5, kcal: 540 }, consumed: true });
   await setRotationEntry({ date, slot: 'dinner', name: 'Animal Style Potato Bowl', macros: { p: 44, c: 60, f: 20, kcal: 620 }, consumed: true });
   await addEntry({ name: 'Maltesers', macros: { p: 1.6, c: 20, f: 8, kcal: 160 }, date });
