@@ -36,8 +36,11 @@ function speakTime(t) {
 // should count but not headline. Keep in step with the inbox seed kinds.
 const PRODUCE_KINDS = ['research', 'watch-note', 'forge-job', 'pattern', 'studio', 'brain-week', 'distill'];
 
+// emoji and symbols never reach the voice engine — G2P mangles them
+const despeak = (s) => String(s).replace(/[\p{Extended_Pictographic}️]/gu, '').replace(/\s+/g, ' ').trim();
+
 const recordLabel = (r) =>
-  (r.title || r.question || r.text || r.kind || 'a draft').toString().replace(/\s+/g, ' ').slice(0, 90);
+  despeak(r.title || r.question || r.text || r.kind || 'a draft').slice(0, 90);
 
 const defaultDeps = {
   recentDays: async () => (await import('./healthData.js')).loadRecentDays(3),
@@ -99,8 +102,15 @@ export async function composeShow(vaultPath, { variant = 'morning' } = {}, deps 
       const word = evening ? 'Tomorrow' : 'Today';
       if (!events.length) steps.push({ say: `${word} is clear on the calendar.` });
       else {
-        const first = events[0];
-        steps.push({ say: `${word} holds ${events.length === 1 ? 'one thing' : `${events.length} things`} — ${evening ? 'first is' : 'starting with'} ${first.label} at ${speakTime(first.time)}.` });
+        // "Birthday at 12:00 am" is how a calendar talks, not a person:
+        // all-day entries get named plainly, and "starting with" means the
+        // first TIMED thing he actually has to be somewhere for.
+        const allDay = events.filter((e) => e.time === '00:00');
+        const timed = events.filter((e) => e.time !== '00:00');
+        const parts = [];
+        if (allDay.length) parts.push(allDay.length === 1 ? `it's ${despeak(allDay[0].label)}` : `${allDay.length} all-day notes, first ${despeak(allDay[0].label)}`);
+        if (timed.length) parts.push(`${timed.length === 1 ? 'one timed thing' : `${timed.length} timed things`}, ${evening ? 'first is' : 'starting with'} ${despeak(timed[0].label)} at ${speakTime(timed[0].time)}`);
+        steps.push({ say: `${word}: ${parts.join('; ')}.` });
       }
     }
   }

@@ -33,6 +33,15 @@ test('morning show: receipts spoken in order, times humanized, spoken-yes armed 
   assert.match(all, /6 hours 42 minutes/, 'sleep read from today\'s file');
   assert.match(all, /8,538 steps yesterday/);
   assert.match(all, /Push Day at 5:30 pm/, '24h times become spoken 12h');
+  // all-day entries speak like a person, never "at 12:00 am"
+  const withAllDay = { ...deps, eventsForDay: async () => [
+    { label: "Aarush's Birthday 🥳", time: '00:00' },
+    { label: 'Push Day', time: '17:30' },
+  ] };
+  const again = await composeShow('/tmp/vault', { variant: 'morning' }, withAllDay);
+  const cal = again.steps.map((s) => s.say).join(' | ');
+  assert.match(cal, /it's Aarush's Birthday; one timed thing, starting with Push Day at 5:30 pm/);
+  assert.doesNotMatch(cal, /12:00 am|🥳/, 'no midnight times, no emoji in speech');
   assert.match(all, /research agent drafted/i, 'overnight produce is narrated');
   assert.match(all, /Say the word/, 'the approval callout closes the brief');
   assert.equal(pending.recordId, 'bbb', 'highlight prefers agent-produced work over coach housekeeping');
@@ -44,7 +53,7 @@ test('evening show: today\'s numbers, tomorrow\'s shape, fuel beat carries its p
   assert.match(all, /evening, sir/i);
   assert.match(all, /2,100 steps today/);
   assert.match(all, /80 grams of protein and 1,900 calories/);
-  assert.match(all, /Tomorrow holds/);
+  assert.match(all, /Tomorrow: one timed thing, first is Push Day at 5:30 pm/);
   const fuel = steps.find((s) => s.say.includes('protein'));
   assert.equal(fuel.panel?.type, 'nutrition-week', 'evidence pane rides its beat');
 });
