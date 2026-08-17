@@ -31,7 +31,7 @@ espeakng_loader.get_data_path = lambda: ESPEAK_DATA
 import mlx.core as mx  # noqa: E402
 import numpy as np  # noqa: E402
 import soundfile as sf  # noqa: E402
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer  # noqa: E402
+from http.server import BaseHTTPRequestHandler, HTTPServer  # noqa: E402
 from mlx_audio.tts.models.kokoro.pipeline import KokoroPipeline  # noqa: E402
 from mlx_audio.tts.utils import load_model  # noqa: E402
 
@@ -112,6 +112,10 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     try:
-        ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
+        # Serial HTTPServer, deliberately: synthesis must run on the MAIN
+        # thread — MLX contends badly off it (measured 5-15s from a worker
+        # thread vs 0.4-0.6s on main for the same line). One request at a
+        # time is the truth of this device anyway.
+        HTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
     except KeyboardInterrupt:
         sys.exit(0)
