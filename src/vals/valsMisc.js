@@ -77,6 +77,9 @@ export function valsMisc(app, ctx) {
       : st.liveTts.engine === 'local' ? 'NOVA · ON-DEVICE'
         : st.liveTts.engine === 'elevenlabs' ? 'ELEVENLABS' : 'VOICE · READY',
     voiceEngineDetail: !st.liveTts ? '' : st.liveTts.configured ? '' : 'add ELEVENLABS_API_KEY or NOVA_TTS_LOCAL=1 in server/.env for a real voice',
+    // the picker's caption names the ACTUAL engine, never a brand it isn't
+    voicePickerLabel: st.liveTts?.engine === 'local' ? 'NOVA VOICE' : st.liveTts?.engine === 'elevenlabs' ? 'ELEVENLABS VOICE' : 'VOICE',
+    voiceDefaultLabel: st.liveTts?.engine === 'local' ? 'Nova (default)' : 'Account default',
     speakOn: st.voiceSpeak,
     toggleSpeak: () => app.setVoiceSpeak(!st.voiceSpeak),
     voiceOptions: (st.liveTts?.voices || []).map((v) => ({ id: v.id, name: v.name })),

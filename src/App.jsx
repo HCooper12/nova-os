@@ -2806,7 +2806,13 @@ export default class App extends Component {
       const fresh = text.slice(stream.spokenUpTo);
       if (!fresh) return;
       if (flushAll) {
-        say(fresh);
+        // Sentence-sized pieces even here: a whole brief in one /api/tts
+        // call is 20-30s of synthesis — it hit the sidecar timeout and the
+        // reply went silent after the ack. Small chunks start sounding in
+        // ~1s and CANNOT time out. (This path carries the entire reply when
+        // a job never streamed partials.)
+        const pieces = fresh.match(/[^.!?]*[.!?]+[\s]*|[^.!?]+$/g) || [fresh];
+        for (const p of pieces) { if (p.trim()) say(p); }
         stream.spokenUpTo = text.length;
         return;
       }

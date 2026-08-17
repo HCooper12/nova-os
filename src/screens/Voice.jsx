@@ -81,7 +81,7 @@ export function Voice({ v }) {
         <div style={css(`width:230px;flex:none;display:flex;flex-direction:column;gap:15px;font:400 10.5px ${M};letter-spacing:.14em`)}>
           <RailRow label="MIC" value={dict.supported ? (dict.on ? 'LISTENING' : 'READY') : 'NOT AVAILABLE'} tone={dict.on ? 'var(--nv-cy)' : undefined} barPct={dict.on ? 92 : dict.supported ? 12 : 0} />
           <RailRow label="ANSWERS" value={!v.voiceLive ? 'OFFLINE' : v.voiceBusy ? 'THINKING…' : 'VAULT · READ-ONLY'} tone={v.voiceBusy ? 'var(--nv-cy)' : undefined} barPct={v.voiceBusy ? 88 : v.voiceLive ? 46 : 0} />
-          <RailRow label="SPEECH ENGINE" value={v.voiceEngineLabel} tone={v.voiceEngineLabel === 'ELEVENLABS' ? 'var(--nv-cy)' : undefined} barPct={v.voiceSpeaking ? 92 : v.speakOn ? 34 : 0} />
+          <RailRow label="SPEECH ENGINE" value={v.voiceEngineLabel} tone={v.voiceEngineLabel !== 'BROWSER' && v.voiceEngineLabel !== '—' ? 'var(--nv-cy)' : undefined} barPct={v.voiceSpeaking ? 92 : v.speakOn ? 34 : 0} />
           {v.voiceEngineDetail && (
             <div style={css("font-size:9px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 38%, transparent);letter-spacing:.06em")}>{v.voiceEngineDetail}</div>
           )}
@@ -94,10 +94,10 @@ export function Voice({ v }) {
             </div>
             {v.voiceOptions.length > 0 && (
               <div>
-                <div style={css("font-size:9px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent);letter-spacing:.2em")}>ELEVENLABS VOICE</div>
+                <div style={css("font-size:9px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent);letter-spacing:.2em")}>{v.voicePickerLabel}</div>
                 <select value={v.voiceVoiceId} onChange={v.setVoiceId}
                   style={{ marginTop: '6px', width: '100%', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: `500 10.5px ${M}`, padding: '6px 8px', outline: 'none' }}>
-                  <option value="" style={{ background: '#141019' }}>Account default</option>
+                  <option value="" style={{ background: '#141019' }}>{v.voiceDefaultLabel}</option>
                   {v.voiceOptions.map((o) => <option key={o.id} value={o.id} style={{ background: '#141019' }}>{o.name}</option>)}
                 </select>
               </div>

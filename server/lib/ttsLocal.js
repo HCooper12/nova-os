@@ -142,7 +142,10 @@ export async function synthesizeLocal(text, voiceId) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text: rewriteForSpeech(text), voice }),
-    signal: AbortSignal.timeout(30_000),
+    // 90s: a 2400-char worst case is ~2min of audio and can exceed 30s of
+    // synthesis — timing it out returned a 400 and silenced a whole brief.
+    // The client sends sentence-sized pieces, so this is a backstop.
+    signal: AbortSignal.timeout(90_000),
   });
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}));
