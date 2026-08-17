@@ -143,6 +143,9 @@ export function valsMisc(app, ctx) {
     // conversation mode — the hands-free back-and-forth loop
     convMode: st.voiceConvMode,
     convPaused: st.voiceConvPaused,
+    // the no-button reply window after Nova speaks (see App.endSpeech)
+    replyListen: !demoMode && !!st.voiceReplyWindow,
+    consumeReplyListen: () => app.setState({ voiceReplyWindow: false }),
     voiceAutoListenTick: st.voiceAutoListenTick,
     toggleConvMode: () => app.toggleConvMode(),
     notifyEmptyListen: () => app.notifyEmptyListen(),

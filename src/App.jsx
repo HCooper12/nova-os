@@ -3558,6 +3558,17 @@ export default class App extends Component {
     this.speechActive = Math.max(0, (this.speechActive || 0) - 1);
     if (this.speechActive === 0) {
       this.setState({ voiceSpeaking: false }, () => this.maybeAutoListen());
+      // The reply window: Nova just finished SPEAKING to him — talking back
+      // should need no button, conversation mode or not. One-shot mic for
+      // ~12s on the Voice screen; a reply routes like any spoken ask, and
+      // silence closes it quietly. (He spoke back to a brief and nothing
+      // registered — a voice that talks AT you is not a companion.)
+      if (this.replyWorthy && this.state.voiceSpeak && this.state.screen === 'voice' && !this.state.voiceConvMode && !this.state.voiceBusy) {
+        clearTimeout(this.replyWindowTimer);
+        this.setState((s) => ({ voiceReplyWindow: true, voiceAutoListenTick: s.voiceAutoListenTick + 1 }));
+        this.replyWindowTimer = setTimeout(() => this.setState({ voiceReplyWindow: false }), 12_000);
+      }
+      this.replyWorthy = false;
       // after a quiet 3s, hand the audio session back (his music resumes);
       // any new speech or gesture re-claims it instantly
       clearTimeout(this.audioReleaseTimer);
@@ -3678,6 +3689,10 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn || !this.state.liveTts?.configured) { onPlay?.(); this.speakIncremental(clean); return; }
     const gen = this.ttsGen || 0;
+    // conversational output (replies, briefs, greetings) carries a reveal
+    // callback; previews/acks/fillers don't — only the former earns a
+    // no-button reply window when the speaking ends
+    if (onPlay) this.replyWorthy = true;
     const entry = { done: false, buffer: null, blob: null, onPlay, revealed: false };
     (this.ttsQueue = this.ttsQueue || []).push(entry);
     this.beginSpeech(); // matched by endSpeech when the entry plays out or drops

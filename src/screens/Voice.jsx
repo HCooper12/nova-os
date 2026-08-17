@@ -52,9 +52,12 @@ export function Voice({ v }) {
   const dictRef = useRef(dict);
   dictRef.current = dict;
   useEffect(() => {
-    if (v.voiceAutoListenTick > 0 && v.convMode && !v.convPaused && dictRef.current.supported && !dictRef.current.on) {
+    // conversation mode's turn-taking, OR the one-shot reply window that
+    // opens whenever Nova finishes speaking — both arrive on the same tick
+    if (v.voiceAutoListenTick > 0 && (v.convMode || v.replyListen) && !v.convPaused && dictRef.current.supported && !dictRef.current.on) {
       v.stopSpeaking();
       dictRef.current.toggle();
+      v.consumeReplyListen?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [v.voiceAutoListenTick]);
