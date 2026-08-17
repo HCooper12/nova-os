@@ -45,7 +45,11 @@ test('provider dispatch: local when enabled and unkeyed, elevenlabs wins when ke
   }
 });
 
-test('local synthesis: stub sidecar wav → real ffmpeg → mp3 bytes; -jarvis maps to the base voice', async () => {
+import { spawnSync } from 'node:child_process';
+const hasFfmpeg = ['/opt/homebrew/bin/ffmpeg', 'ffmpeg']
+  .some((p) => spawnSync(p, ['-version']).status === 0);
+
+test('local synthesis: stub sidecar wav → real ffmpeg → mp3 bytes; -jarvis maps to the base voice', { skip: !hasFfmpeg && 'no ffmpeg on this machine (CI)' }, async () => {
   // A minimal valid 24kHz mono 16-bit WAV: header + 2400 samples of silence.
   const samples = 2400;
   const data = Buffer.alloc(samples * 2);

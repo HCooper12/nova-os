@@ -70,8 +70,12 @@ export function valsMisc(app, ctx) {
         : { text: 'LIVE · READ-ONLY ANSWERS FROM YOUR VAULT', tone: 'var(--nv-cy)' },
     voiceBusy: st.voiceBusy,
     voiceSpeaking: st.voiceSpeaking,
+    // Name an engine ONLY when the server names it — a guessed label is
+    // false information wearing a confident face (it happened: an old
+    // bundle showed ELEVENLABS while Kokoro spoke).
     voiceEngineLabel: !st.liveTts ? '—' : !st.liveTts.configured ? 'BROWSER'
-      : st.liveTts.engine === 'local' ? 'NOVA · ON-DEVICE' : 'ELEVENLABS',
+      : st.liveTts.engine === 'local' ? 'NOVA · ON-DEVICE'
+        : st.liveTts.engine === 'elevenlabs' ? 'ELEVENLABS' : 'VOICE · READY',
     voiceEngineDetail: !st.liveTts ? '' : st.liveTts.configured ? '' : 'add ELEVENLABS_API_KEY or NOVA_TTS_LOCAL=1 in server/.env for a real voice',
     speakOn: st.voiceSpeak,
     toggleSpeak: () => app.setVoiceSpeak(!st.voiceSpeak),

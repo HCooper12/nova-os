@@ -12,7 +12,11 @@ import path from 'node:path';
 const VOICE_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'voice');
 const PORT = () => Number(process.env.NOVA_TTS_PORT || 4175);
 const BASE = () => `http://127.0.0.1:${PORT()}`;
-const FFMPEG = process.env.NOVA_FFMPEG || '/opt/homebrew/bin/ffmpeg';
+// brew's path when it exists (launchd PATH lacks /opt/homebrew/bin), plain
+// PATH lookup elsewhere (CI runners have no brew tree)
+import { existsSync } from 'node:fs';
+const FFMPEG = process.env.NOVA_FFMPEG
+  || (existsSync('/opt/homebrew/bin/ffmpeg') ? '/opt/homebrew/bin/ffmpeg' : 'ffmpeg');
 
 export function localTtsEnabled() {
   return process.env.NOVA_TTS_LOCAL === '1';

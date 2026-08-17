@@ -2784,7 +2784,7 @@ export default class App extends Component {
     // STREAMING: the reply renders word-by-word from job.partial, and (on
     // the browser speech path) complete sentences are spoken AS they arrive
     // — Nova starts talking while still thinking, like a person does.
-    const stream = { spokenUpTo: 0, started: false };
+    const stream = { spokenUpTo: 0 };
     const elevenPath = !!(this.state.liveTts?.configured);
     // Trailing SHOW/PROPOSE/RESEARCH lines are typed directives for the
     // server, not prose — keep them out of the render (and out of the voice)
@@ -2796,18 +2796,23 @@ export default class App extends Component {
       else chat[idx] = { ...chat[idx], text };
       return { voiceChat: chat };
     });
+    // Both engines speak sentence-by-sentence as the reply streams: the
+    // configured engine through the parallel-fetch FIFO (speakTtsSentence),
+    // the browser voice inline. Waiting for the whole reply before the
+    // first sound was the single biggest cost in how slow Nova FELT.
+    const say = elevenPath ? (t) => this.speakTtsSentence(t) : (t) => this.speakIncremental(t);
     const speakNewSentences = (text, flushAll) => {
-      if (elevenPath || !this.state.voiceSpeak) return; // ElevenLabs speaks whole replies
+      if (!this.state.voiceSpeak) return;
       const fresh = text.slice(stream.spokenUpTo);
       if (!fresh) return;
       if (flushAll) {
-        this.speakIncremental(fresh);
+        say(fresh);
         stream.spokenUpTo = text.length;
         return;
       }
       const m = fresh.match(/[\s\S]*[.!?](?=\s|$)/);
       if (m) {
-        this.speakIncremental(m[0]);
+        say(m[0]);
         stream.spokenUpTo += m[0].length;
       }
     };
@@ -2816,7 +2821,6 @@ export default class App extends Component {
       intervalMs: 700,
       onProgress: (job) => {
         if (!job.partial) return;
-        stream.started = true;
         const shown = stripShow(job.partial);
         if (!shown) return;
         applyPartial(shown);
@@ -2843,8 +2847,10 @@ export default class App extends Component {
           return { voiceBusy: false, voiceChat: chat, voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal };
         });
         if (research && !research.queued) this.watchVoiceResearch(conn, research.recordId);
-        if (elevenPath) this.speak(text);
-        else if (this.state.voiceSpeak) { speakNewSentences(text, true); if (!stream.started) this.speak(text); }
+        // Flush whatever trails the last sentence-ender; if nothing ever
+        // streamed (non-streaming job), this speaks the whole reply — on
+        // either engine, through the same path the partials took.
+        if (this.state.voiceSpeak) speakNewSentences(text, true);
         else this.maybeAutoListen();
       },
       onError: (msg) => { clearJob(); this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat.filter((m) => !m.streaming), { who: 'system', text: 'Error: ' + msg }] })); },
@@ -3458,6 +3464,7 @@ export default class App extends Component {
   stopSpeaking() {
     try { window.speechSynthesis.cancel(); } catch { /* unsupported */ }
     try { this.currentAudio?.pause(); } catch { /* fine */ }
+    this.resetTtsQueue(); // in-flight sentence fetches land against a stale generation and vanish
     this.speechActive = 0;
     if (this.state.voiceSpeaking) this.setState({ voiceSpeaking: false });
   }
@@ -3472,12 +3479,18 @@ export default class App extends Component {
   ACK_LINES = ['On it, sir.', 'Let me look.', 'One moment.', 'Checking now.', 'Right away, sir.'];
   speakAck(question) {
     if (!this.state.voiceSpeak) return;
-    if (this.state.liveTts?.configured) return;      // real voice: no filler round-trip
     if ((question || '').trim().length < 12) return; // short asks answer fast enough
     // rotate rather than random: no repeat twice running, no randomness to debug
     this.ackIdx = ((this.ackIdx ?? -1) + 1) % this.ACK_LINES.length;
+    const line = this.ACK_LINES[this.ackIdx];
+    if (this.state.liveTts?.configured) {
+      // his own voice, ~0.5s local synth — and the FIFO guarantees the ack
+      // lands BEFORE the reply's first sentence, never over it
+      this.speakTtsSentence(line);
+      return;
+    }
     this.beginSpeech();
-    this.speakFallback(this.ACK_LINES[this.ackIdx], () => this.endSpeech());
+    this.speakFallback(line, () => this.endSpeech());
   }
   speakIncremental(text) {
     if (!this.state.voiceSpeak || !text.trim()) return;
@@ -3512,6 +3525,54 @@ export default class App extends Component {
     } else {
       this.maybeAutoListen();
     }
+  }
+  // ——— The streamed voice: sentence-level TTS pipelining ———
+  // A whole-reply round trip means silence for the full compose time PLUS
+  // the full synthesis time. Instead each finished sentence goes to /api/tts
+  // the moment it exists, fetches run in parallel, and playback drains a
+  // strict FIFO through the one gesture-unlocked element — Nova starts
+  // talking seconds before he has finished thinking. A generation counter
+  // makes a stop/new-turn flush every in-flight fetch harmless.
+  resetTtsQueue() {
+    this.ttsGen = (this.ttsGen || 0) + 1;
+    this.ttsQueue = [];
+    this.ttsPlaying = false;
+  }
+  speakTtsSentence(text) {
+    const clean = (text || '').trim().slice(0, 2400);
+    if (!clean) return;
+    const conn = getConnection();
+    if (!conn || !this.state.liveTts?.configured) { this.speakIncremental(clean); return; }
+    const gen = this.ttsGen || 0;
+    const entry = { done: false, blob: null };
+    (this.ttsQueue = this.ttsQueue || []).push(entry);
+    this.beginSpeech(); // matched by endSpeech when the entry plays out or drops
+    api.ttsAudio(conn, clean, this.state.voiceVoiceId || undefined)
+      .then((blob) => { entry.blob = blob; })
+      .catch(() => { entry.failed = true; })
+      .finally(() => { entry.done = true; this.drainTtsQueue(gen); });
+  }
+  drainTtsQueue(gen) {
+    if (gen !== (this.ttsGen || 0)) return; // flushed mid-flight — the fetch's beginSpeech was already zeroed
+    if (this.ttsPlaying) return;
+    const head = (this.ttsQueue || [])[0];
+    if (!head || !head.done) return; // strict order: nothing plays past an unfinished head
+    this.ttsQueue.shift();
+    if (head.failed || !head.blob) { this.endSpeech(); this.drainTtsQueue(gen); return; }
+    this.ttsPlaying = true;
+    const url = URL.createObjectURL(head.blob);
+    const audio = this.sharedAudio || new Audio();
+    this.currentAudio = audio;
+    const detachMeter = attachSpeechElement(audio); // the core hears every sentence
+    const done = () => {
+      URL.revokeObjectURL(url); detachMeter();
+      this.ttsPlaying = false; this.endSpeech();
+      this.drainTtsQueue(gen);
+    };
+    audio.src = url;
+    audio.onended = done;
+    audio.onerror = done;
+    audio.play().catch(done);
   }
   speak(text) {
     if (!this.state.voiceSpeak) { this.maybeAutoListen(); return; }
@@ -3569,7 +3630,12 @@ export default class App extends Component {
   }
   setVoiceId(id) {
     localStorage.setItem('novaos.voiceId', id);
-    this.setState({ voiceVoiceId: id });
+    // hear the choice immediately — a short statement in the NEW voice, so
+    // picking is never guesswork (and never a question he isn't answering)
+    this.setState({ voiceVoiceId: id }, () => {
+      this.stopSpeaking();
+      if (this.state.voiceSpeak && this.state.liveTts?.configured) this.speakTtsSentence('This is how I sound, sir.');
+    });
   }
   doCoach(preset) {
     const q = (preset || this.state.coachInput).trim(); if (!q) return;
