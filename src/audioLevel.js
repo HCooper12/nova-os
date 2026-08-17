@@ -86,6 +86,37 @@ export function attachSpeechElement(el) {
   return () => { active = Math.max(0, active - 1); };
 }
 
+// Nova's sentence chunks, the crisp path: decode the whole chunk up front,
+// then play it as a raw buffer on the audio THREAD. An <audio> element
+// decodes as it plays and stutters when the main thread is busy (a VM, a
+// typing animation, the core's canvas) — "jitters during sentences", his
+// words. A decoded AudioBufferSource cannot: the samples already exist.
+export function decodeSpeech(arrayBuffer) {
+  if (!ensureCtx()) return Promise.reject(new Error('no audio context'));
+  return ctx.decodeAudioData(arrayBuffer);
+}
+
+export function playSpeechBuffer(buffer, onEnded) {
+  if (!ensureCtx()) { onEnded?.(); return null; }
+  ctx.resume().catch(() => {});
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  src.connect(analyser);      // the core hears it
+  src.connect(ctx.destination); // and so does he
+  active++;
+  start();
+  let finished = false;
+  src.onended = () => {
+    if (finished) return;
+    finished = true;
+    active = Math.max(0, active - 1);
+    try { src.disconnect(); } catch { /* already gone */ }
+    onEnded?.();
+  };
+  src.start();
+  return src; // caller may .stop() to interrupt
+}
+
 // His voice: a mic tap while dictation runs. Mic audio connects to the
 // analyser ONLY — never to the speakers (feedback). The caller owns the
 // stream's lifetime and stops its tracks when dictation ends.

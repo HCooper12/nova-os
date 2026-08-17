@@ -48,7 +48,7 @@ import { Toast } from './Toast.jsx';
 import { OutboxView } from './OutboxView.jsx';
 import { NudgeCard } from './NudgeCard.jsx';
 import { Boot } from './Boot.jsx';
-import { attachSpeechElement, resumeAudioGraph } from './audioLevel.js';
+import { attachSpeechElement, resumeAudioGraph, decodeSpeech, playSpeechBuffer } from './audioLevel.js';
 
 // Code-split: ZXing (barcode decoding) is a sizeable dependency that only
 // the food-log barcode flow needs — no reason to ship it in everyone's
@@ -3516,6 +3516,8 @@ export default class App extends Component {
   stopSpeaking() {
     try { window.speechSynthesis.cancel(); } catch { /* unsupported */ }
     try { this.currentAudio?.pause(); } catch { /* fine */ }
+    try { this.currentSource?.stop(); } catch { /* already ended */ }
+    this.currentSource = null;
     this.resetTtsQueue(); // in-flight sentence fetches land against a stale generation and vanish
     this.speechActive = 0;
     if (this.state.voiceSpeaking) this.setState({ voiceSpeaking: false });
@@ -3619,11 +3621,15 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn || !this.state.liveTts?.configured) { onPlay?.(); this.speakIncremental(clean); return; }
     const gen = this.ttsGen || 0;
-    const entry = { done: false, blob: null, onPlay, revealed: false };
+    const entry = { done: false, buffer: null, blob: null, onPlay, revealed: false };
     (this.ttsQueue = this.ttsQueue || []).push(entry);
     this.beginSpeech(); // matched by endSpeech when the entry plays out or drops
     api.ttsAudio(conn, clean, this.state.voiceVoiceId || undefined)
-      .then((blob) => { entry.blob = blob; })
+      .then(async (blob) => {
+        // decode NOW, while earlier sentences play — playback then starts
+        // from pre-decoded samples on the audio thread, jitter-proof
+        try { entry.buffer = await decodeSpeech(await blob.arrayBuffer()); } catch { entry.blob = blob; } // element fallback
+      })
       .catch(() => { entry.failed = true; })
       .finally(() => { entry.done = true; this.drainTtsQueue(gen); });
   }
@@ -3642,13 +3648,25 @@ export default class App extends Component {
     if (!head || !head.done) return; // strict order: nothing plays past an unfinished head
     this.ttsQueue.shift();
     if (head.finalize) { try { head.finalize(); } catch { /* commit is best-effort */ } this.drainTtsQueue(gen); return; }
-    if (head.failed || !head.blob) {
+    if (head.failed || (!head.buffer && !head.blob)) {
       // can't speak it — reveal the words anyway; text must never be lost
       try { head.onPlay?.(); head.revealed = true; } catch { /* best-effort */ }
       this.endSpeech(); this.drainTtsQueue(gen); return;
     }
     this.ttsPlaying = true;
     resumeAudioGraph(); // a suspended graph plays SILENTLY — resume before every chunk
+    if (head.buffer) {
+      // the crisp path: pre-decoded samples straight onto the audio thread
+      const src = playSpeechBuffer(head.buffer, () => {
+        if (this.currentSource === src) this.currentSource = null;
+        if (gen !== (this.ttsGen || 0)) return;
+        this.ttsPlaying = false; this.endSpeech();
+        this.drainTtsQueue(gen);
+      });
+      this.currentSource = src;
+      try { head.onPlay?.(); head.revealed = true; } catch { /* best-effort */ }
+      return;
+    }
     const url = URL.createObjectURL(head.blob);
     const audio = this.sharedAudio || new Audio();
     this.currentAudio = audio;
