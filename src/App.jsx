@@ -3364,7 +3364,17 @@ export default class App extends Component {
     this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: question }], voiceBusy: true }));
     this.stopSpeaking();
     this.speakAck(question); // fills the 5-8s think-gap immediately
-    api.ask(conn, question, this.state.voiceSessionId || null).then(({ jobId }) => {
+    api.ask(conn, question, this.state.voiceSessionId || null).then((resp) => {
+      if (resp.text) {
+        // Reflex answer — code replied from the live record, no job to poll.
+        // Render and speak immediately; the ack (if queued) plays first via
+        // the FIFO, so the exchange sounds: "On it, sir." → the number.
+        this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: resp.text }] }));
+        if (this.state.voiceSpeak) this.speakTtsSentence(resp.text);
+        else this.maybeAutoListen();
+        return;
+      }
+      const { jobId } = resp;
       // survive a reclaim mid-answer: the job id persists so boot can
       // re-attach the poll instead of losing the in-flight reply
       try { localStorage.setItem('novaos.askJob', JSON.stringify({ jobId, askedAt: Date.now() })); } catch { /* best-effort */ }
@@ -3514,8 +3524,17 @@ export default class App extends Component {
   }
   toggleConvMode() {
     this.convEmpties = 0;
+    const turningOn = !this.state.voiceConvMode;
+    if (turningOn) {
+      // Like raising Siri: the tap IS the start of the conversation. Cut any
+      // speech (its speechActive would gate maybeAutoListen), unlock audio
+      // inside this gesture, and open the mic unconditionally — not through
+      // maybeAutoListen's politeness checks.
+      this.stopSpeaking();
+      this.primeSpeech();
+    }
     this.setState((s) => ({ voiceConvMode: !s.voiceConvMode, voiceConvPaused: false }), () => {
-      if (this.state.voiceConvMode) this.maybeAutoListen();
+      if (this.state.voiceConvMode) this.setState((s) => ({ voiceAutoListenTick: s.voiceAutoListenTick + 1 }));
     });
   }
   resumeConv() {
@@ -3572,8 +3591,12 @@ export default class App extends Component {
     const audio = this.sharedAudio || new Audio();
     this.currentAudio = audio;
     const detachMeter = attachSpeechElement(audio); // the core hears every sentence
+    let settled = false; // ended/error/rejected-play can ALL fire for one chunk on a src swap
     const done = () => {
+      if (settled) return;
+      settled = true;
       URL.revokeObjectURL(url); detachMeter();
+      if (gen !== (this.ttsGen || 0)) return; // a stop flushed this generation — don't touch live state
       this.ttsPlaying = false; this.endSpeech();
       this.drainTtsQueue(gen);
     };
@@ -3639,10 +3662,16 @@ export default class App extends Component {
   setVoiceId(id) {
     localStorage.setItem('novaos.voiceId', id);
     // hear the choice immediately — a short statement in the NEW voice, so
-    // picking is never guesswork (and never a question he isn't answering)
+    // picking is never guesswork (and never a question he isn't answering).
+    // Debounced: flicking through the list previews only where he LANDS —
+    // rapid stop/queue cycles on the shared element raced and went mute.
     this.setState({ voiceVoiceId: id }, () => {
       this.stopSpeaking();
-      if (this.state.voiceSpeak && this.state.liveTts?.configured) this.speakTtsSentence('This is how I sound, sir.');
+      clearTimeout(this.voicePreviewTimer);
+      this.voicePreviewTimer = setTimeout(() => {
+        if (this.state.voiceVoiceId !== id) return; // he moved on — preview the final pick only
+        if (this.state.voiceSpeak && this.state.liveTts?.configured) this.speakTtsSentence('This is how I sound, sir.');
+      }, 300);
     });
   }
   doCoach(preset) {

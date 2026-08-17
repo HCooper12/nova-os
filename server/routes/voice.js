@@ -3,6 +3,7 @@ import { startAskNova, startGreeting, getMessageJob, prewarmAsk } from '../lib/c
 import { composeDispatch } from '../lib/dispatch.js';
 import { ttsConfigured, ttsEngine, listVoices, synthesize } from '../lib/tts.js';
 import { buildAskContext, todayLocalContext } from '../lib/askContext.js';
+import { tryReflex } from '../lib/reflex.js';
 
 // The voice line: Ask Nova (read-only Q&A job over the vault, polled via the
 // shared /claude-code/message/:jobId endpoint) and the ElevenLabs TTS proxy.
@@ -30,6 +31,14 @@ export function voiceRouter(vaultPath) {
       const question = typeof req.body?.question === 'string' ? req.body.question.trim() : '';
       if (!question) return res.status(400).json({ error: 'question is required' });
       if (question.length > 1000) return res.status(400).json({ error: 'keep a spoken question under 1000 characters' });
+      // The Reflex Layer: a direct question the live record already answers
+      // never reaches the model. Code answers in <1s; a miss falls through
+      // silently to the normal ask. (lib/reflex.js; MORNING-SHOW-PLAN.md)
+      const reflex = await tryReflex(question).catch(() => null);
+      if (reflex) {
+        console.log(`reflex hit [${reflex.matched}] q=${JSON.stringify(question.slice(0, 80))} reply=${reflex.text.length}ch`);
+        return res.json({ text: reflex.text, reflex: true });
+      }
       const sessionId = typeof req.body?.sessionId === 'string' && req.body.sessionId ? req.body.sessionId : null;
       const jobId = startAskNova(vaultPath, { question, context: await askContext(sessionId), sessionId });
       res.json({ jobId });
@@ -149,6 +158,14 @@ export function voiceRouter(vaultPath) {
         });
       }
       if (question.length > 1000) return res.status(400).json({ error: 'keep a spoken question under 1000 characters' });
+      // The Reflex Layer, same as /ask: the Siri lane is where <1s matters
+      // most — a reflex hit means Siri speaks the number before the CLI
+      // would have finished booting. Miss → the session machinery below.
+      const reflex = await tryReflex(question).catch(() => null);
+      if (reflex) {
+        console.log(`ask/sync reflex hit [${reflex.matched}] q=${JSON.stringify(question.slice(0, 80))}`);
+        return res.json({ text: reflex.text, sessionId: null });
+      }
       // iOS Shortcuts kills a request that sits SILENT for too long ("The
       // network connection was lost"), so a long think needs SOMETHING on the
       // wire. The old fix dripped a space every 3s from the very start, on
