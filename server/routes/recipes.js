@@ -221,6 +221,26 @@ export function recipesRouter(vaultPath) {
     }
   });
 
+  // Delete a recipe. removeRecipe existed (and was tested) since the
+  // beginning but was reachable ONLY through inbox undo — the bank was
+  // write-only from the UI. Clears any rotation slot pointing at it first
+  // so the day never references a recipe that no longer exists.
+  router.delete('/recipes/:id', async (req, res) => {
+    try {
+      const { removeRecipe } = await import('../lib/recipes.js');
+      const { recipes } = await loadRecipeData(vaultPath);
+      const rotation = await loadRotation(vaultPath, recipes);
+      for (const [slot, r] of Object.entries(rotation.slots || {})) {
+        if (r?.id === req.params.id) await setRotationSlot(vaultPath, recipes, slot, null);
+      }
+      const result = await removeRecipe(vaultPath, req.params.id);
+      if (!result.removed) return res.status(404).json({ error: 'recipe not found' });
+      res.json({ removed: true });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
   router.get('/rotation', async (req, res, next) => {
     try {
       const { recipes } = await loadRecipeData(vaultPath);

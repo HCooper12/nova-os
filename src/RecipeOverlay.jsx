@@ -31,6 +31,12 @@ export function RecipeOverlay({ v }) {
         animation: v.supportsViewTransitions ? undefined : (v.recipeOvMobile ? 'fadeUp .25s ease-out' : 'fadeUp .3s ease-out') }}>
         <div style={css(`position:sticky;top:0;z-index:3;display:flex;justify-content:space-between;align-items:center;padding:${v.recipeOvMobile ? 'calc(12px + env(safe-area-inset-top)) 18px 12px' : '18px 26px'};border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent);background:var(--nv-glass2);backdrop-filter:blur(22px)`)}>
           <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.24em;color:var(--nv-gold)")}>RECIPE · FROM OBSIDIAN</span>
+          {v.orDelete && (
+            <Interactive as="span" onClick={v.orDelete}
+              base={`cursor:pointer;font:500 11px var(--nv-font-mono);border-radius:9px;padding:9px 16px;margin-right:8px;border:1px solid color-mix(in srgb, var(--nv-warn) ${v.orDeleteArmed ? '55' : '22'}%, transparent);color:${v.orDeleteArmed ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-warn) 60%, transparent)'};background:${v.orDeleteArmed ? 'color-mix(in srgb, var(--nv-warn) 12%, transparent)' : 'transparent'}`}
+              hoverStyle="color:var(--nv-warn)"
+            >{v.orDeleteArmed ? 'TAP AGAIN TO DELETE' : '✕ DELETE'}</Interactive>
+          )}
           <Interactive as="span" onClick={v.closeRecipe} base="cursor:pointer;font:500 11px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 50%, transparent);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:9px;padding:9px 16px" hoverStyle="color:var(--nv-ink)">✕ CLOSE</Interactive>
         </div>
         <div style={v.gridRecipeOv}>

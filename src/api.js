@@ -135,6 +135,8 @@ export const api = {
   setRotationConsumed: (conn, slot, consumed) => post(conn, '/api/rotation/consume', { slot, consumed }),
   foodLog: (conn, date) => call(conn, `/api/food-log${date ? `?date=${encodeURIComponent(date)}` : ''}`),
   nutritionMonth: (conn) => call(conn, '/api/nutrition-month'),
+  nutritionWeek: (conn) => call(conn, '/api/nutrition-week'),
+  deleteRecipe: (conn, id) => del(conn, `/api/recipes/${encodeURIComponent(id)}`),
   foodHistory: (conn, days = 45) => call(conn, `/api/food-log/history?days=${days}`),
   addFoodLogEntry: (conn, entry) => post(conn, '/api/food-log', entry),
   deleteFoodLogEntry: (conn, id, date) => del(conn, `/api/food-log/${encodeURIComponent(id)}${date ? `?date=${encodeURIComponent(date)}` : ''}`),

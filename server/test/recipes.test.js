@@ -148,3 +148,21 @@ test('insertAlternateIntoRaw throws for a recipe that does not exist', () => {
   const alt = { label: 'X', macros: { p: 1, c: 1, f: 1, kcal: 10 }, ingredients: [], method: [] };
   assert.throws(() => insertAlternateIntoRaw(RECIPE_FILE, 'Ghost Recipe', alt), /Could not find/);
 });
+
+test('quick-ref table follows a macro edit and a promotion — it can no longer drift', async () => {
+  const { updateQuickRefRow } = await import('../lib/recipes.js');
+  const raw = [
+    '### Core Daily Meals',
+    '',
+    '| Recipe | Protein | Carbs | Fat | kcal |',
+    '|---|---|---|---|---|',
+    '| Works Burger | 54g | 66g | 27.5g | 725 |',
+    '| Other Meal | 30g | 40g | 10g | 380 |',
+    '',
+  ].join('\n');
+  const out = updateQuickRefRow(raw, 'Works Burger', { p: 52, c: 42, f: 17.5, kcal: 540 });
+  assert.match(out, /\| Works Burger \| 52g \| 42g \| 17\.5g \| 540 \|/);
+  assert.match(out, /\| Other Meal \| 30g \| 40g \| 10g \| 380 \|/, 'other rows untouched');
+  // a recipe with no row is a no-op, never an error
+  assert.equal(updateQuickRefRow(raw, 'Ghost Meal', { p: 1, c: 1, f: 1, kcal: 1 }), raw);
+});

@@ -56,3 +56,22 @@ export async function loadRecentDays(n = 7) {
   }
   return days.reverse(); // oldest-first
 }
+
+// The last n CALENDAR days ending today — a missing file is an honest
+// untracked day ({date, p: null}), never silently skipped. loadRecentDays
+// above walks FILES, so with gaps in the log "the last 7" quietly spanned
+// 10+ real days — the exact failure class the health code already guards
+// against (coach.js's window rule).
+export async function loadCalendarDays(n = 7) {
+  const days = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86_400_000);
+    const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    try {
+      days.push({ date, ...JSON.parse(await readFile(path.join(LOG_DIR(), `${date}.json`), 'utf8')) });
+    } catch {
+      days.push({ date, p: null, c: null, f: null, kcal: null, floorMet: null });
+    }
+  }
+  return days; // oldest-first, exactly n entries
+}

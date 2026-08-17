@@ -95,7 +95,10 @@ async function buildExercise(vaultPath, name) {
 }
 
 async function buildNutritionWeek(vaultPath) {
-  const days = await loadNutritionDays(7);
+  // Calendar days, not files: an untracked day shows as an honest gap
+  // instead of quietly stretching "this week" across 10+ real days.
+  const { loadCalendarDays } = await import('./nutritionLog.js');
+  const days = await loadCalendarDays(7);
   let floor = null;
   let targetKcal = null;
   try {
@@ -103,10 +106,12 @@ async function buildNutritionWeek(vaultPath) {
     floor = profile?.proteinFloorG ?? null;
     targetKcal = profile?.targetKcal ?? null;
   } catch { /* profile line optional */ }
-  if (floor == null && days.length) floor = days[days.length - 1].floorG ?? null;
+  if (floor == null) floor = [...days].reverse().find((d) => d.floorG != null)?.floorG ?? null;
   const tracked = days.filter((d) => d.p != null);
+  const round = (v) => (v != null ? Math.round(v) : null);
   return {
-    days: days.map((d) => ({ date: d.date, p: d.p != null ? Math.round(d.p) : null, kcal: d.kcal != null ? Math.round(d.kcal) : null, floorMet: d.floorMet ?? null })),
+    // all four macros — c and f were stored all along and then dropped here
+    days: days.map((d) => ({ date: d.date, p: round(d.p), c: round(d.c), f: round(d.f), kcal: round(d.kcal), floorMet: d.floorMet ?? null })),
     floor,
     targetKcal,
     avgP: tracked.length ? Math.round(tracked.reduce((s, d) => s + d.p, 0) / tracked.length) : null,

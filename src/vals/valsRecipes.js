@@ -169,6 +169,9 @@ export function valsRecipes(app, ctx) {
     // off-plan food log — quick-add anything eaten that wasn't a rotation
     // recipe, so the protein tracker reflects reality rather than just the plan
     foodLogVisible: usingLiveRecipes,
+    // the week at a glance — calendar-true days from the archive (all four
+    // macros), rendered with the same component the voice panel uses
+    fuelWeek: usingLiveRecipes ? (st.liveNutritionWeek || null) : null,
     // the pane renders the SELECTED day (today by default, a past day when
     // the retro strip picks one) — gauges elsewhere stay on today's numbers
     foodLogEntries: viewEntries.map((e) => ({
@@ -295,6 +298,13 @@ export function valsRecipes(app, ctx) {
     clearRecipeAddPhoto: () => app.setState({ recipeAddPhotoDataUrl: null }),
     recipeOpen: usingLiveRecipes ? !!liveOr : !!or,
     closeRecipe: () => app.closeRecipe(),
+    // delete, two-tap: first tap arms, second confirms — matching the
+    // repo's no-silent-destruction rule without a modal
+    orDeleteArmed: usingLiveRecipes && liveOr ? st.recipeDeleteArmed === liveOr.id : false,
+    orDelete: usingLiveRecipes && liveOr ? () => {
+      if (st.recipeDeleteArmed === liveOr.id) app.deleteRecipe(liveOr.id, liveOr.name);
+      else app.setState({ recipeDeleteArmed: liveOr.id });
+    } : null,
     orName: usingLiveRecipes ? (liveOr ? liveOr.name : '') : (or ? or.name : ''),
     orMeta: usingLiveRecipes
       ? (liveOr ? `${activeAlt ? 'ALTERNATE: ' + activeAlt.label + ' · ' : ''}${(RECIPE_CATEGORY_LABEL[liveOr.category] || liveOr.category).toUpperCase()}${liveOr.makes ? ' · ' + liveOr.makes : ''} · FROM OBSIDIAN /HEALTH` : '')

@@ -229,6 +229,19 @@ function insertQuickRefRow(raw, input) {
   return raw.slice(0, m.index) + block + raw.slice(m.index + m[1].length);
 }
 
+// Keep the quick-ref table telling the truth: rewrite a recipe's row to its
+// CURRENT macros. Before this, rows were written once on insert and never
+// again — an edit or a promote changed the recipe body while the table kept
+// the old numbers (live example: Works Burger's table row read 54/66/27.5/725
+// against a body of 52/42/17.5/540). Best-effort like insertQuickRefRow: the
+// recipe body is the source of truth, a missing row is not an error.
+export function updateQuickRefRow(raw, name, macros) {
+  if (!name || !macros) return raw;
+  const rowRe = new RegExp(`^(\\|\\s*${escapeRe(name)}\\s*\\|)[^\\n]*$`, 'm');
+  if (!rowRe.test(raw)) return raw;
+  return raw.replace(rowRe, `| ${name} | ${macros.p}g | ${macros.c}g | ${macros.f}g | ${macros.kcal} |`);
+}
+
 // Pure function: given the raw file text and a new-recipe input, returns the
 // new file text. Kept separate from disk I/O so it can be unit-tested against
 // the real file's content without ever writing to it.
@@ -457,7 +470,9 @@ export async function promoteAlternate(vaultPath, recipeId, altId) {
     const before = parseRecipeCollection(raw).find((r) => r.id === recipeId);
     if (!before) throw new Error('recipe not found');
     const alt = (before.alternates || []).find((a) => a.id === altId);
-    const newRaw = promoteAlternateInRaw(raw, before.name, altId);
+    let newRaw = promoteAlternateInRaw(raw, before.name, altId);
+    // the promoted macros are the recipe's macros now — the table follows
+    if (alt?.macros) newRaw = updateQuickRefRow(newRaw, before.name, alt.macros);
     const after = parseRecipeCollection(newRaw).find((r) => r.id === recipeId);
     // sanity: macros moved, alternate count unchanged (swap, not a loss)
     if (!after || after.macros.kcal !== alt.macros.kcal || after.alternates.length !== before.alternates.length) {
@@ -738,7 +753,10 @@ async function editRecipeUnlocked(vaultPath, id, edit, altId) {
   const target = before.find((r) => r.id === id);
   if (!target) throw new Error('recipe not found');
 
-  const newRaw = editRecipeInRaw(raw, id, edit, altId);
+  let newRaw = editRecipeInRaw(raw, id, edit, altId);
+  // a macro edit on the PARENT keeps its quick-ref row true (variant macros
+  // never appear in the table, so an alt edit leaves it alone)
+  if (edit.macros && !altId) newRaw = updateQuickRefRow(newRaw, target.name, edit.macros);
   const after = parseRecipeCollection(newRaw);
   const updated = after.find((r) => r.id === id);
 

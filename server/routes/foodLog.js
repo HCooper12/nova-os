@@ -25,6 +25,17 @@ export function foodLogRouter(vaultPath) {
     }
   });
 
+  // the week at a glance — calendar-true, all four macros, honest gaps.
+  // Reuses the panel builder so the SHOW panel and this view can never drift.
+  router.get('/nutrition-week', async (req, res, next) => {
+    try {
+      const { buildPanel } = await import('../lib/panels.js');
+      res.json((await buildPanel(vaultPath, { panel: 'nutrition-week' })).data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
   // the month, scored — protein-floor adherence for the Fuel scorecard
   router.get('/nutrition-month', async (req, res, next) => {
     try {

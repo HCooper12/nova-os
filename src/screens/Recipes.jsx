@@ -1,5 +1,6 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
+import { VoicePanel } from '../VoicePanels.jsx';
 
 // Apple-layout twin for the eaten-today strip: same dayMacros object,
 // rendered as four stat tiles instead of the inline HUD strip.
@@ -146,6 +147,13 @@ export function Recipes({ v }) {
         </div>
       )}
 
+      {/* the week, at a glance — same truth (and same renderer) as the
+          voice panel; the archive is calendar-true so gaps show honestly */}
+      {v.fuelWeek && (
+        <div style={css("margin-top:12px")}>
+          <VoicePanel panel={{ type: 'nutrition-week', data: v.fuelWeek }} />
+        </div>
+      )}
       {v.foodLogVisible && (
         <div style={css("margin-top:12px;border:1px solid color-mix(in srgb, var(--nv-good) 18%, transparent);border-radius:14px;padding:16px 18px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-good) 05%, transparent),color-mix(in srgb, var(--nv-good) 01%, transparent));box-shadow:inset 0 1px 0 rgba(255,255,255,.04)")}>
           <div style={css("display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px")}>

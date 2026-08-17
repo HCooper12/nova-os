@@ -140,7 +140,7 @@ function screenFromHash() {
 // serialize; details re-fetch on demand).
 const CACHED_LIVE_KEYS = [
   'liveNotes', 'liveCalendar', 'liveRecipes', 'liveRecipeProfile', 'liveRotation',
-  'liveFoodLog', 'liveFoodHistory', 'liveNutritionMonth', 'liveShoppingList', 'liveStash', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
+  'liveFoodLog', 'liveFoodHistory', 'liveNutritionMonth', 'liveNutritionWeek', 'liveShoppingList', 'liveStash', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
   'liveWorkoutExercises', 'liveWorkoutMuscleGroups', 'liveWorkoutTrackingTypes',
   'liveWorkoutRoutines', 'liveWorkoutSchedule', 'liveWorkoutWeekdays', 'liveWorkoutProgressions', 'liveWorkoutGoals', 'liveCarryovers',
   'liveJournalEntries', 'liveGraph', 'liveInbox', 'liveDispatch', 'liveCompost', 'liveTodoist', 'liveTodos', 'liveGuardian', 'liveMoney',
@@ -637,6 +637,21 @@ export default class App extends Component {
     }).catch((e) => this.toastMsg('Could not make it primary: ' + e.message));
   }
 
+  // Delete a recipe from the bank. Two-tap confirm (armed state on the
+  // button), and the server clears any rotation slot pointing at it first.
+  deleteRecipe(recipeId, name) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.deleteRecipe(conn, recipeId).then(() => {
+      this.setState((s) => ({
+        liveRecipes: (this.noteLocalWrite('recipes'), s.liveRecipes.filter((r) => r.id !== recipeId)),
+        recipeOverlay: null, recipeAltSelected: null, recipeDeleteArmed: null,
+      }));
+      this.refreshLiveData();
+      this.toastMsg(`${name} removed from the bank`);
+    }).catch((e) => { this.setState({ recipeDeleteArmed: null }); this.toastMsg('Could not delete: ' + e.message); });
+  }
+
   // Rename a variant. Its id is the slug of its name, so the server migrates
   // any today-variant override with it; selection follows the new id.
   startRenameAlternate(altId, currentLabel) {
@@ -978,6 +993,7 @@ export default class App extends Component {
       async () => this.setState({ liveRotation: await api.rotation(conn) }),
       async () => this.setState({ liveFoodLog: await api.foodLog(conn) }),
       async () => this.setState({ liveNutritionMonth: await api.nutritionMonth(conn) }),
+      async () => this.setState({ liveNutritionWeek: await api.nutritionWeek(conn) }),
       async () => this.setState({ liveShoppingList: await api.shoppingList(conn) }),
       async () => {
         const exercisesRes = await api.workoutExercises(conn);
