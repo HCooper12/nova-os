@@ -136,6 +136,27 @@ export function totalsOf(entries = []) {
   }), { p: 0, c: 0, f: 0, kcal: 0 });
 }
 
+// Correct an entry in place — any day, today or retro. Add and delete
+// existed; editing did not, so fixing a wrong estimate meant deleting and
+// re-typing it (and losing its original clock time in the process).
+export async function editEntryOn(date, entryId, { name, macros }) {
+  return withWriteLock(async () => {
+    const target = resolveLogDate(date);
+    const day = await loadDay(target);
+    const entry = day.entries.find((e) => e.id === entryId);
+    if (!entry) throw new Error('that entry is no longer there');
+    if (typeof name === 'string' && name.trim()) entry.name = name.trim().slice(0, 120);
+    if (macros) {
+      for (const k of ['p', 'c', 'f', 'kcal']) {
+        if (macros[k] != null) entry.macros[k] = Math.max(0, Number(macros[k]) || 0);
+      }
+    }
+    entry.edited = true; // an amended number is not the original estimate
+    await saveDay(day);
+    return day;
+  });
+}
+
 // Most-recent-first list of day files, for cross-day history/aggregation. The
 // per-day files are never deleted, so this is a durable log of everything
 // eaten off-plan — nothing read across them until now.

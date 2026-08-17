@@ -177,28 +177,61 @@ export async function moveEvent({ objectUrl, etag, raw, newStart, newEnd }) {
 // Before this, "push my workout to 10:30" was refused outright because his
 // routines are all recurring — which is most of what a calendar IS for him.
 export function buildOccurrenceOverride(raw, occurrenceStartISO, newStart, newEnd) {
-  const master = raw.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/);
+  const master = raw.match(/BEGIN:VEVENT(?:(?!END:VEVENT)[\s\S])*?RRULE:(?:(?!END:VEVENT)[\s\S])*?END:VEVENT/)
+    || raw.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/);
   if (!master) throw new Error('could not read the event');
   const block = master[0];
-  const field = (name) => (block.match(new RegExp(`^${name}:([^\\r\\n]*)`, 'm')) || [])[1] || null;
-  const uid = field('UID');
+  const field = (name) => (block.match(new RegExp(`^${name}[^:\\r\\n]*:([^\\r\\n]*)`, 'm')) || [])[1] || null;
+  const uid = (block.match(/^UID:([^\r\n]*)/m) || [])[1];
   if (!uid) throw new Error('event has no UID');
+
+  // CRITICAL: the override must name the occurrence in the SAME time form as
+  // the master's DTSTART. His calendar uses TZID=Australia/Melbourne; writing
+  // RECURRENCE-ID in UTC produced an event Apple could not match to the
+  // series, so the moved instance appeared ALONGSIDE the original — two
+  // times for one event, exactly what he saw.
+  const dtstartLine = (block.match(/^DTSTART([^:\r\n]*):([^\r\n]*)/m) || []);
+  const tzid = (dtstartLine[1] || '').match(/TZID=([^;:]+)/)?.[1] || null;
+  const stamp = (d) => {
+    const dt = new Date(d);
+    if (!tzid) return toICalUTC(dt);
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tzid, year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+    }).formatToParts(dt);
+    const g = (t) => parts.find((x) => x.type === t).value;
+    return `${g('year')}${g('month')}${g('day')}T${g('hour')}${g('minute')}${g('second')}`;
+  };
+  const param = tzid ? `;TZID=${tzid}` : '';
+  const rid = stamp(occurrenceStartISO);
+
+  // and it must out-rank every SEQUENCE already in the file, or the reader
+  // discards it as stale ("Ignoring older RECURRENCE-ID override")
+  const seqs = [...raw.matchAll(/^SEQUENCE:(\d+)/gm)].map((m) => Number(m[1]));
+  const nextSeq = (seqs.length ? Math.max(...seqs) : 0) + 1;
+
   const carry = ['SUMMARY', 'LOCATION', 'DESCRIPTION', 'CATEGORIES', 'STATUS', 'TRANSP']
     .map((k) => (field(k) != null ? `${k}:${field(k)}` : null)).filter(Boolean);
   const override = [
     'BEGIN:VEVENT',
     `UID:${uid}`,
-    `RECURRENCE-ID:${toICalUTC(new Date(occurrenceStartISO))}`,
+    `RECURRENCE-ID${param}:${rid}`,
     `DTSTAMP:${toICalUTC(new Date())}`,
-    `DTSTART:${toICalUTC(new Date(newStart))}`,
-    `DTEND:${toICalUTC(new Date(newEnd))}`,
+    `DTSTART${param}:${stamp(newStart)}`,
+    `DTEND${param}:${stamp(newEnd)}`,
     ...carry,
-    'SEQUENCE:1',
+    `SEQUENCE:${nextSeq}`,
     'END:VEVENT',
   ].join('\r\n');
-  // drop any existing override for this same occurrence, then append
-  const rid = toICalUTC(new Date(occurrenceStartISO));
-  const cleaned = raw.replace(new RegExp(`BEGIN:VEVENT(?:(?!END:VEVENT)[\\s\\S])*?RECURRENCE-ID:${rid}[\\s\\S]*?END:VEVENT\\r?\\n`, 'g'), '');
+
+  // replace any existing override for this same occurrence (in EITHER time
+  // form) so a re-move never stacks a third version
+  const ridUtc = toICalUTC(new Date(occurrenceStartISO));
+  const dropRe = new RegExp(
+    `BEGIN:VEVENT(?:(?!END:VEVENT)[\\s\\S])*?RECURRENCE-ID[^:\\r\\n]*:(?:${rid}|${ridUtc})(?:(?!END:VEVENT)[\\s\\S])*?END:VEVENT\\r?\\n?`,
+    'g',
+  );
+  const cleaned = raw.replace(dropRe, '');
   return cleaned.replace(/END:VCALENDAR\s*$/, `${override}\r\nEND:VCALENDAR\r\n`);
 }
 

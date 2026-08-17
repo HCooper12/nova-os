@@ -6,7 +6,7 @@ function configured() {
   return process.env.ICLOUD_USERNAME && process.env.ICLOUD_APP_PASSWORD;
 }
 
-export function calendarRouter() {
+export function calendarRouter(vaultPath) {
   const router = Router();
 
   router.get('/calendar/today', async (req, res, next) => {
@@ -47,7 +47,7 @@ export function calendarRouter() {
     try {
       if (!configured()) return res.status(501).json({ error: 'calendar not configured' });
       const text = typeof req.body?.text === 'string' ? req.body.text : '';
-      const result = await runCalendarCommand(text);
+      const result = await runCalendarCommand(text, vaultPath);
       if (result.proposed) {
         const { broadcast } = await import('../lib/events.js');
         broadcast('inbox');

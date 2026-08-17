@@ -69,9 +69,31 @@ function interpret(prompt) {
 }
 
 function fileProposal(record) { return createRecord(record).then(() => ({ proposed: true, record })); }
+
+// A change he TYPED, for TODAY, is not a suggestion needing review — he
+// already decided. Same-day edits apply straight away (still fully undoable
+// via the record's undo data); anything on a future day keeps the
+// confirm-first gate, where a misread date is expensive and easy to miss.
+function isToday(iso) {
+  const d = new Date(iso);
+  const n = new Date();
+  return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
+}
+async function applyNow(vaultPath, record, whenISO) {
+  if (!vaultPath || !isToday(whenISO)) return fileProposal(record);
+  try {
+    const { fileDecision } = await import('./inbox.js');
+    const { destination, undo } = await fileDecision(vaultPath, record.decision, { source: 'calendar-direct' });
+    await createRecord({ ...record, status: 'filed', mode: 'auto', destination, undoData: undo || null, filedAt: new Date().toISOString() });
+    return { proposed: true, applied: true, record: { ...record, status: 'filed', destination } };
+  } catch (e) {
+    // couldn't write it — fall back to a proposal rather than losing the ask
+    return fileProposal({ ...record, text: `${record.text} (needs your approval — ${e.message})` });
+  }
+}
 function whenLabel(iso) { return new Date(iso).toLocaleString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); }
 
-export async function runCalendarCommand(text) {
+export async function runCalendarCommand(text, vaultPath = null) {
   const clean = String(text || '').trim();
   if (!clean) throw new Error('Tell Nova what to change.');
 
@@ -89,7 +111,7 @@ export async function runCalendarCommand(text) {
   if (!ops.length) return { proposed: false, reason: "I couldn't turn that into a calendar change." };
   if (ops.length > 1) {
     const results = [];
-    for (const one of ops) results.push(await proposeOne(one, clean, events));
+    for (const one of ops) results.push(await proposeOne(one, clean, events, vaultPath));
     const ok = results.filter((r) => r.proposed);
     if (!ok.length) return { proposed: false, reason: results.map((r) => r.reason).filter(Boolean).join(' ') || "I couldn't turn that into a calendar change." };
     return {
@@ -100,10 +122,10 @@ export async function runCalendarCommand(text) {
       ...(ok.length < results.length ? { partial: results.filter((r) => !r.proposed).map((r) => r.reason).join(' ') } : {}),
     };
   }
-  return proposeOne(ops[0], clean, events);
+  return proposeOne(ops[0], clean, events, vaultPath);
 }
 
-async function proposeOne(op, clean, events) {
+async function proposeOne(op, clean, events, vaultPath) {
   const base = { id: randomUUID().slice(0, 8), kind: 'calendar', source: 'nova', mode: 'draft', status: 'pending', createdAt: new Date().toISOString() };
 
   // ---- ADD ----------------------------------------------------------------
@@ -114,14 +136,14 @@ async function proposeOne(op, clean, events) {
       return { proposed: false, reason: "I couldn't work out a clear time for that — try naming the day and time." };
     }
     const title = `Add “${op.title}” — ${whenLabel(start.toISOString())}`;
-    return fileProposal({
+    return applyNow(vaultPath, {
       ...base, text: title,
       decision: {
         route: 'calendar', action: 'create', confidence: 'high', title,
         reason: `From "${clean}". Approve to add it to ${op.calendarName || 'your calendar'}${op.notes ? ` — ${op.notes}` : ''}. Nothing changes until you approve.`,
         payload: { action: 'create', title: op.title, start: start.toISOString(), end: end.toISOString(), notes: op.notes || null, calendarName: op.calendarName || null },
       },
-    });
+    }, start.toISOString());
   }
 
   // ---- MOVE / DELETE (resolve the target event by id) ---------------------
@@ -140,14 +162,14 @@ async function proposeOne(op, clean, events) {
         return { proposed: false, reason: "I couldn't work out the new time — try naming the day and time." };
       }
       const title = `Move “${ev.label}” → ${whenLabel(newStart.toISOString())}`;
-      return fileProposal({
+      return applyNow(vaultPath, {
         ...base, text: title,
         decision: {
           route: 'calendar', action: 'move', confidence: 'high', title,
           reason: `From "${clean}". Reschedule from ${whenLabel(ev.startISO)} to ${whenLabel(newStart.toISOString())}. Nothing changes until you approve.`,
           payload: { action: 'move', objectUrl: ev.objectUrl, etag: ev.etag, oldRaw: ev.raw, label: ev.label, oldStart: ev.startISO, oldEnd: ev.endISO, newStart: newStart.toISOString(), newEnd: newEnd.toISOString(), ...(ev.recurring ? { occurrence: ev.startISO } : {}) },
         },
-      });
+      }, newStart.toISOString());
     }
 
     // delete

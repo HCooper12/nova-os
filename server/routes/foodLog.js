@@ -75,6 +75,19 @@ export function foodLogRouter(vaultPath) {
     }
   });
 
+  // correct an entry in place — any day
+  router.patch('/food-log/:id', async (req, res) => {
+    try {
+      const { editEntryOn } = await import('../lib/foodLog.js');
+      const date = resolveLogDate(req.body?.date);
+      const day = await editEntryOn(date, req.params.id, { name: req.body?.name, macros: req.body?.macros });
+      recordDaySnapshot(vaultPath, date).catch(() => {});
+      res.json(day);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
   router.delete('/food-log/:id', async (req, res) => {
     try {
       if (req.query.date) {

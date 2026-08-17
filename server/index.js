@@ -143,7 +143,7 @@ async function main() {
   });
 
   app.use('/api', notesRouter(vault));
-  app.use('/api', calendarRouter());
+  app.use('/api', calendarRouter(process.env.VAULT_PATH));
   app.use('/api', ingestRouter(process.env.VAULT_PATH));
   app.use('/api', recipesRouter(process.env.VAULT_PATH));
   app.use('/api', shoppingListRouter(process.env.VAULT_PATH));

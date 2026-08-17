@@ -187,12 +187,31 @@ export function recipesRouter(vaultPath) {
   // `alt` names a variant; without it the parent recipe is edited.
   router.post('/recipes/:id/edit', async (req, res) => {
     try {
+      // snapshot before, so we can tell whether the numbers moved with the food
+      const prior = req.body?.ingredients
+        ? (await loadRecipeData(vaultPath)).recipes.find((r) => r.id === req.params.id)
+        : null;
+      const priorSubject = prior && req.body?.alt ? (prior.alternates || []).find((a) => a.id === req.body.alt) : prior;
+      const priorIng = priorSubject ? (req.body?.alt ? priorSubject.ingredients : priorSubject.ingredients.map((i) => i.name)) : null;
+
       const updated = await editRecipe(vaultPath, req.params.id, {
         ingredients: req.body?.ingredients,
         method: req.body?.method,
         macros: req.body?.macros,
       }, req.body?.alt || null);
-      res.json({ recipe: updated });
+
+      // Macros are never derived from ingredients — they're whatever was typed
+      // or estimated. Changing the food while the numbers stand still is an
+      // editing trap ("I fixed the recipe" but the macros are the old dish),
+      // so say it out loud instead of letting it pass silently.
+      const m = req.body?.macros;
+      const pm = priorSubject?.macros;
+      const ingredientsMoved = priorIng && JSON.stringify(priorIng) !== JSON.stringify(req.body.ingredients.filter((s) => String(s).trim()));
+      const macrosStood = !m || (pm && m.p === pm.p && m.c === pm.c && m.f === pm.f && m.kcal === pm.kcal);
+      res.json({
+        recipe: updated,
+        ...(ingredientsMoved && macrosStood ? { warning: 'Ingredients changed but the macros did not — update them if the change affects the numbers.' } : {}),
+      });
     } catch (err) {
       res.status(400).json({ error: err.message });
     }

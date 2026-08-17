@@ -714,11 +714,12 @@ export default class App extends Component {
       method: method.length ? method : undefined,
       macros: { p: nums[0], c: nums[1], f: nums[2], kcal: nums[3] },
       alt: altId || undefined,
-    }).then(({ recipe }) => {
+    }).then(({ recipe, warning }) => {
       this.setState((s) => ({
         liveRecipes: (this.noteLocalWrite('recipes'), s.liveRecipes.map((r) => (r.id === recipe.id ? recipe : r))),
         recipeEdit: null, recipeEditBusy: false, recipeEditError: null,
       }));
+      if (warning) this.toastMsg(warning); // ingredients moved, numbers didn't
       this.toastMsg('Saved to the vault');
     }).catch((err) => this.setState({ recipeEditBusy: false, recipeEditError: err.message }));
   }

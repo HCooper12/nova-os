@@ -163,7 +163,31 @@ export function parseRecipeCollection(raw) {
   return recipes.filter((r) => r.macros); // drop any stray non-recipe ## heading that slipped through
 }
 
+// The protein floor, the kcal target, floorMet, the Fuel scorecard and the
+// month adherence % ALL come from here. It used to be one regex over a
+// hand-written prose line: reword that sentence in Obsidian and every target
+// goes dark at once. Frontmatter is now read first (stable, explicit), with
+// the prose line kept as the fallback so nothing breaks for existing files.
+//
+//   ---
+//   proteinFloorG: 150
+//   targetKcal: 2200
+//   weightKg: 86
+//   heightCm: 188
+//   ---
 export function parseProfile(raw) {
+  const fm = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (fm) {
+    const num = (key) => {
+      const m = fm[1].match(new RegExp(`^${key}\\s*:\\s*([\\d.,]+)`, 'm'));
+      return m ? parseFloat(m[1].replace(/,/g, '')) : null;
+    };
+    const proteinFloorG = num('proteinFloorG');
+    const targetKcal = num('targetKcal');
+    if (proteinFloorG != null || targetKcal != null) {
+      return { weightKg: num('weightKg'), heightCm: num('heightCm'), targetKcal, proteinFloorG };
+    }
+  }
   const m = raw.match(
     /\*\*Profile:\*\*\s*([\d.]+)kg,\s*([\d.]+)cm[^|]*\|\s*Cut target ~?([\d,.]+)\s*kcal\/day[^|]*\|\s*Protein floor\s*([\d.]+)g\+?\/day/i
   );

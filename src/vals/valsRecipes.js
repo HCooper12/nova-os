@@ -89,9 +89,19 @@ export function valsRecipes(app, ctx) {
   const proteinNextSlot = visibleSlotDefs.find((s) => !rotation?.slots?.[s.key]?.consumed);
   const proteinNextSlotFilled = proteinNextSlot ? rotation?.slots?.[proteinNextSlot.key] : null;
 
+  // Search + "fits what's left": a growing bank behind three category chips
+  // was becoming unbrowsable, and the genuinely useful question at 8pm is
+  // "what can I still eat tonight?" — answered from his real remaining
+  // kcal/protein, not a guess.
+  const q = (st.recipeSearch || '').trim().toLowerCase();
+  const kcalLeft = profile?.targetKcal != null ? profile.targetKcal - (rotConsumedTot.kcal + foodLogTot.kcal) : null;
+  const fitsOnly = !!st.recipeFitsOnly && kcalLeft != null;
   const recipeList = usingLiveRecipes
     ? st.liveRecipes
         .filter(r => st.recipeFilter === 'All' || RECIPE_CATEGORY_LABEL[r.category] === st.recipeFilter)
+        .filter(r => !q || r.name.toLowerCase().includes(q)
+          || (r.ingredients || []).some(i => String(i.name || i).toLowerCase().includes(q)))
+        .filter(r => !fitsOnly || (r.macros?.kcal ?? 0) <= kcalLeft)
         .map((r, i) => {
           const tot = (r.macros.p + r.macros.c + r.macros.f) || 1;
           const hue = RECIPE_HUES[i % RECIPE_HUES.length];
@@ -142,6 +152,15 @@ export function valsRecipes(app, ctx) {
     // recipes
     recipesHeaderLabel: usingLiveRecipes ? `${st.liveRecipes.length} RECIPES · LIVE FROM OBSIDIAN` : `${app.recipes.length} RECIPES · DEMO DATA`,
     recipeFilters: filters.map(f => ({ label: f, go: () => app.setState({ recipeFilter: f }), style: chip(st.recipeFilter === f) })),
+    recipeSearch: st.recipeSearch || '',
+    setRecipeSearch: (e) => app.setState({ recipeSearch: e.target.value }),
+    // "what can I still eat tonight?" — from real remaining kcal, or hidden
+    // entirely when no target is set (never invent a budget)
+    recipeFitsAvailable: usingLiveRecipes && kcalLeft != null,
+    recipeFitsOn: !!st.recipeFitsOnly,
+    recipeFitsLabel: kcalLeft != null ? `FITS ${Math.max(0, Math.round(kcalLeft))} KCAL LEFT` : '',
+    toggleRecipeFits: () => app.setState({ recipeFitsOnly: !st.recipeFitsOnly }),
+    recipeCount: recipeList.length,
     recipeList,
 
     // today-so-far strip at the top of Recipes: everything actually marked
