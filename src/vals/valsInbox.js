@@ -288,7 +288,23 @@ export function valsInbox(app, ctx) {
     // their own.
     canRetry: r.status === 'error' && (!r.kind || r.kind === 'research' || r.kind === 'video'),
     approve: () => app.inboxAction(r.id, 'approve'),
-    discard: () => app.inboxAction(r.id, 'discard'),
+    // Declining COACH advice asks why — the reason rides the record so the
+    // Coach learns from it (and never re-asks). Everything else discards
+    // in one tap, same as always.
+    ...(() => {
+      const COACH_ADVICE = new Set(['progression-tune', 'routine-edit', 'injury-log', 'goal-target', 'training-block']);
+      const isAdvice = COACH_ADVICE.has(r.decision?.route) || r.kind === 'fuel-cross';
+      const asking = st.inboxAskWhy === r.id;
+      return {
+        discard: () => (isAdvice ? app.setState({ inboxAskWhy: r.id, inboxWhyText: '' }) : app.inboxAction(r.id, 'discard')),
+        askingWhy: asking,
+        whyChips: asking ? ['Not now', 'Too aggressive', 'No equipment for it', 'I disagree — my call'] : null,
+        whyText: asking ? (st.inboxWhyText || '') : '',
+        onWhyText: (e) => app.setState({ inboxWhyText: typeof e === 'string' ? e : e.target.value }),
+        submitWhy: (reason) => { app.setState({ inboxAskWhy: null, inboxWhyText: '' }); app.inboxAction(r.id, 'discard', (reason || st.inboxWhyText || '').trim() || undefined); },
+        cancelWhy: () => app.setState({ inboxAskWhy: null, inboxWhyText: '' }),
+      };
+    })(),
     undo: () => app.inboxAction(r.id, 'undo'),
     retry: () => app.inboxAction(r.id, 'retry'),
     // a watched video can always go deeper — the full concept weave, from

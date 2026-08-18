@@ -165,7 +165,7 @@ export function Inbox({ v }) {
                 </div>
                 {item.reason && <div style={css(`margin-top:6px;font:italic 400 13px ${S};color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`)}>{item.reason}</div>}
                 {item.error && <div style={css(`margin-top:6px;font:500 12px ${R};color:var(--nv-warn)`)}>{item.error}</div>}
-                <div style={css("margin-top:12px;display:flex;gap:10px")}>
+                <div style={css("margin-top:12px;display:flex;gap:10px;flex-wrap:wrap")}>
                   <Interactive as="span" onClick={item.busy ? undefined : item.approve}
                     base={{ cursor: 'pointer', font: `600 12.5px ${R}`, padding: '7px 16px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1206', opacity: item.busy ? 0.5 : 1 }}
                     hoverStyle={{ filter: 'brightness(1.1)' }}
@@ -174,6 +174,32 @@ export function Inbox({ v }) {
                     base={{ cursor: 'pointer', font: `600 12.5px ${R}`, padding: '7px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent)', color: 'var(--nv-ink60)', opacity: item.busy ? 0.5 : 1 }}
                     hoverStyle={{ background: 'rgba(255,255,255,.05)' }}
                   >Discard</Interactive>
+                  {item.askingWhy && (
+                    <div style={css("flex-basis:100%;margin-top:10px;padding:12px 14px;border:1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent);border-radius:10px;background:color-mix(in srgb, var(--nv-gold) 04%, transparent)")}>
+                      <div style={css(`font:500 10px ${M};letter-spacing:.2em;color:var(--nv-gold);margin-bottom:9px`)}>WHY PASS? — THE COACH LEARNS FROM THIS</div>
+                      <div style={css("display:flex;gap:7px;flex-wrap:wrap;margin-bottom:9px")}>
+                        {item.whyChips.map((c) => (
+                          <Interactive key={c} as="span" onClick={() => item.submitWhy(c)}
+                            base={{ cursor: 'pointer', font: `500 11.5px ${R}`, padding: '6px 12px', borderRadius: '999px', border: '1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent)', color: 'var(--nv-ink)' }}
+                            hoverStyle={{ borderColor: 'var(--nv-gold)', color: 'var(--nv-gold)' }}
+                          >{c}</Interactive>
+                        ))}
+                      </div>
+                      <div style={css("display:flex;gap:8px;align-items:center")}>
+                        <input value={item.whyText} onChange={item.onWhyText} placeholder="Or say it in your own words…"
+                          onKeyDown={(e) => { if (e.key === 'Enter') item.submitWhy(); }}
+                          style={css(`flex:1;min-width:0;background:rgba(0,0,0,.3);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:8px;padding:8px 11px;font:400 12.5px ${R};color:var(--nv-ink)`)} />
+                        <Interactive as="span" onClick={() => item.submitWhy()}
+                          base={{ cursor: 'pointer', font: `600 12px ${R}`, padding: '8px 14px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1206' }}
+                          hoverStyle={{ filter: 'brightness(1.1)' }}
+                        >{(item.whyText || '').trim() ? 'Discard with reason' : 'Discard anyway'}</Interactive>
+                        <Interactive as="span" onClick={item.cancelWhy}
+                          base={{ cursor: 'pointer', font: `500 12px ${R}`, padding: '8px 10px', color: 'var(--nv-ink60)' }}
+                          hoverStyle={{ color: 'var(--nv-ink)' }}
+                        >Keep it</Interactive>
+                      </div>
+                    </div>
+                  )}
                   {item.deepAnalyse && (
                     <Interactive as="span" onClick={item.busy ? undefined : item.deepAnalyse}
                       title="Run the full vault weave on this video — every concept, person, and idea into your second brain, shown as a diff to approve"

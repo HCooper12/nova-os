@@ -235,6 +235,7 @@ export default class App extends Component {
 
     // nova inbox (capture → classify → file) + the loops riding its rails
     liveInbox: null, inboxInput: '', inboxCaptureBusy: false, inboxActionBusy: {},
+    inboxAskWhy: null, inboxWhyText: '', // decline-asks-why on Coach advice
     inboxMode: (typeof window !== 'undefined' && INBOX_MODES.includes(localStorage.getItem(INBOX_MODE_KEY))) ? localStorage.getItem(INBOX_MODE_KEY) : 'auto-high',
     inboxProposalDismissed: (() => { try { const a = JSON.parse(localStorage.getItem('novaos.proposalsDismissed') || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } })(),
     liveDispatch: null, liveCompost: null, liveTodoist: null, liveTodos: null, liveGuardian: null, liveDailyReview: null, liveOps: null,
@@ -3148,12 +3149,12 @@ export default class App extends Component {
       this.toastMsg('Capture failed: ' + e.message);
     });
   }
-  inboxAction(id, kind) {
+  inboxAction(id, kind, reason) {
     const conn = getConnection();
     if (!conn) return;
     const fn = kind === 'approve' ? api.inboxApprove : kind === 'discard' ? api.inboxDiscard : kind === 'retry' ? api.inboxRetry : api.inboxUndo;
     this.setState((s) => ({ inboxActionBusy: { ...s.inboxActionBusy, [id]: true } }));
-    fn(conn, id).then(({ record }) => {
+    (kind === 'discard' ? api.inboxDiscard(conn, id, reason) : fn(conn, id)).then(({ record }) => {
       this.setState((s) => ({
         inboxActionBusy: { ...s.inboxActionBusy, [id]: false },
         liveInbox: s.liveInbox

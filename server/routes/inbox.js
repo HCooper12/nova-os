@@ -206,7 +206,7 @@ export function inboxRouter(vaultPath) {
 
   router.post('/inbox/:id/discard', async (req, res) => {
     try {
-      const record = await discardRecord(req.params.id);
+      const record = await discardRecord(req.params.id, req.body?.reason);
       res.json({ record });
     } catch (e) {
       res.status(400).json({ error: e.message });

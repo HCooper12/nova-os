@@ -280,3 +280,37 @@ test('parseCoachProposal extracts the PROPOSE line and cleans the reply', async 
   const none = parseCoachProposal('Just advice, no change needed.');
   assert.equal(none.proposal, null);
 });
+
+test('a fuel-cross finding approves as an acknowledgement — no decision, nothing written', async () => {
+  await createRecord({ id: 'fuelx001', kind: 'fuel-cross', findingKey: 'floor-most-days', text: 'Fuel × training: the floor was missed.', source: 'coach', mode: 'draft', status: 'pending', createdAt: new Date().toISOString() });
+  const approved = await approveRecord(vault, 'fuelx001');
+  assert.equal(approved.status, 'filed');
+  assert.equal(approved.destination, null); // a receipt, not a filing
+  assert.ok(!approved.undoData); // nothing to undo — nothing was written
+});
+
+test('declining with a reason stores it; adviceContext holds the Coach to it', async () => {
+  await createRecord({
+    id: 'declin01', text: 'add weighted dips', source: 'text', mode: 'review-all', status: 'pending',
+    createdAt: new Date().toISOString(),
+    decision: { route: 'routine-edit', confidence: 'high', title: 'Add weighted dips to Push', reason: 'chest volume is low', payload: {} },
+  });
+  const declined = await discardRecord('declin01', '  no dip belt at my gym  ');
+  assert.equal(declined.status, 'discarded');
+  assert.equal(declined.declineReason, 'no dip belt at my gym'); // trimmed
+
+  const { adviceContext } = await import('../lib/coach.js');
+  const ctx = await adviceContext();
+  assert.match(ctx, /Add weighted dips to Push → declined — his reason: "no dip belt at my gym"/);
+  assert.match(ctx, /never re-ask why/);
+
+  // declining WITHOUT a reason leaves the ask-once instruction instead
+  await createRecord({
+    id: 'declin02', text: 'deload next week', source: 'text', mode: 'review-all', status: 'pending',
+    createdAt: new Date().toISOString(),
+    decision: { route: 'training-block', confidence: 'high', title: 'Start a deload block', reason: 'fatigue signals', payload: {} },
+  });
+  await discardRecord('declin02');
+  const ctx2 = await adviceContext();
+  assert.match(ctx2, /Start a deload block → declined \(no reason recorded — ask why once/);
+});

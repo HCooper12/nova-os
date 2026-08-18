@@ -1101,13 +1101,16 @@ export async function approveRecord(vaultPath, id) {
   return updateRecord(id, { status: 'filed', destination, undoData: undo, filedAt: new Date().toISOString(), auto: false, error: null });
 }
 
-export async function discardRecord(id) {
+export async function discardRecord(id, reason) {
   const record = await getRecord(id);
   if (!record) throw new Error('inbox record not found');
   // error records need an exit too — before this, a failed capture/import was
   // unkillable: no endpoint accepted it and it accumulated forever
   if (record.status !== 'pending' && record.status !== 'error') throw new Error('only pending or errored captures can be discarded');
-  return updateRecord(id, { status: 'discarded', discardedAt: new Date().toISOString(), error: null });
+  // WHY a recommendation was declined is coaching gold — it rides the record
+  // so adviceContext can hold the Coach to it (and spare him being re-asked)
+  const declineReason = typeof reason === 'string' && reason.trim() ? reason.trim().slice(0, 300) : null;
+  return updateRecord(id, { status: 'discarded', discardedAt: new Date().toISOString(), error: null, ...(declineReason ? { declineReason } : {}) });
 }
 
 export async function undoRecord(vaultPath, id) {
