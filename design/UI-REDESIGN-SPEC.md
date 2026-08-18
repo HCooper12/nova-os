@@ -32,9 +32,13 @@ the build contract. The mockups are the look; THIS is the list.*
 4. **Session cut short** flow: one tap on finishing early ("out of time") →
    Coach follows up later with restructure options (fewer exercises that
    day vs shuffled split) and DISCUSSES rather than dictates.
-5. **PAIN button flow**: tap → where + when (during rep / after / constant)
-   → Coach responds with evidence-based options: stop, stretch/mobility
-   swap, or same-muscle substitute for today; offers to log to Injury Log.
+5. **PAIN button flow** (v2 feedback): suggested locations are RELEVANT TO
+   THE EXERCISE (bench → shoulder/elbow/wrist; squat → knee/hip/low back),
+   each asking left/right; a dropdown of other body areas; AND a free-text
+   field for exact location + details. Coach answers at the level of a
+   leading physiotherapist/S&C/medical expert — evidence-based triage
+   (stop / stretch / same-muscle substitute), honest about when it's
+   "see a professional" territory.
 6. **Proposal decline asks why** — and Coach may push back with reasoning.
    A coach who agrees with everything is not a coach (his words). Never
    sycophantic; debate is welcome.
@@ -73,6 +77,16 @@ the build contract. The mockups are the look; THIS is the list.*
 15. **Design history**: `design/history/` archives screenshots + notes at
     each design milestone; side-by-side "where it started vs now" always
     possible. Maintained from now on (see DESIGN-HISTORY.md).
+
+## Platform + reliability (v2 feedback — binding)
+- **Uniform across iPhone AND MacBook**: every redesigned surface ships in
+  both layout modes at once; desktop widths get the widened hero/grid, not
+  a stretched phone view.
+- **Nothing ships unverified**: each feature is exercised live (endpoint
+  curled / flow clicked) before it's called done. He should never have to
+  report that a planned feature doesn't work. Fuel gap-fill suggestions
+  ("the pouch covers the last 10g") confirmed as a loved feature — keep
+  deterministic and always-on.
 
 ## Phasing
 - **P1**: Train Today pane (ring, focus card, today card, momentum feed,
