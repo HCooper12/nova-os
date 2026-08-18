@@ -44,6 +44,7 @@ export async function computeProgressions(vaultPath, routines) {
       const recent = [];
       for (const s of sessions) {
         const ex = s.exercises.find((e) => e.exerciseId === entry.exerciseId);
+        if (ex && ex.anomaly) continue; // flagged off-day — not evidence
         if (ex && ex.sets?.length) recent.push(ex);
         if (recent.length === 2) break;
       }

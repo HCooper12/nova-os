@@ -1817,6 +1817,28 @@ export default class App extends Component {
     });
     this.withTransition(() => this.setState({ workoutsView: 'session', workoutSession: { routineId: routine.id, routineName: routine.name, exercises }, sessionCancelConfirm: false }));
   }
+  // cockpit: exercise-level fields (note / anomaly / pain) — same immutable
+  // update pattern as sets; unknown fields flow through to the save intact
+  updateSessionExerciseField(exIdx, field, value) {
+    this.setState((s) => ({
+      workoutSession: {
+        ...s.workoutSession,
+        exercises: s.workoutSession.exercises.map((e, i) => (i !== exIdx ? e : { ...e, [field]: value })),
+      },
+    }));
+  }
+  // The PAIN flow's hand-off: compose the physio-grade question and put it
+  // to the Coach WITH the live session attached (doCoach does that), so the
+  // triage lands in the mid-session pane where he's standing.
+  askPainCoach(exIdx) {
+    const p = this.state.sessionPain;
+    const ex = this.state.workoutSession?.exercises?.[exIdx];
+    if (!p?.area || !ex) return;
+    const desc = `${p.area}${p.side ? ` (${p.side})` : ''}${p.when ? `, ${p.when}` : ''}${p.detail ? ` — ${p.detail}` : ''}`;
+    this.updateSessionExerciseField(exIdx, 'pain', desc);
+    this.setState({ sessionPain: null });
+    this.doCoach(`PAIN report, mid-session on ${ex.name}: ${desc}. Triage this like a leading physio + S&C coach: should I stop this lift today, stretch/mobilise, or substitute a same-muscle alternative (name it)? Be honest if this is see-a-professional territory. If it's worth tracking, PROPOSE logging it to my Injury Log.`);
+  }
   updateSessionSet(exIdx, setIdx, field, value) {
     this.setState((s) => ({
       workoutSession: {
@@ -1916,7 +1938,10 @@ export default class App extends Component {
       .filter((e) => !e.sets.some((s) => s.done))
       .map((e) => ({ exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, trackingType: e.trackingType, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh }));
     const carryoverId = session.carryoverId || null;
-    const payload = { routineId: session.routineId, routineName: session.routineName, exercises };
+    const payload = { routineId: session.routineId, routineName: session.routineName, exercises,
+      // the finishing-early reason (cockpit chips) rides the record so the
+      // Coach can notice the pattern and open the restructure conversation
+      ...(this.state.sessionCutShort ? { cutShort: this.state.sessionCutShort } : {}) };
     api.completeWorkoutSession(conn, payload).then(() => {
       // finishing a makeup session consumes its carry-over
       if (carryoverId) api.removeCarryover(conn, carryoverId).then(() => this.loadCarryovers()).catch(() => {});

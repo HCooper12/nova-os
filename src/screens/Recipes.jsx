@@ -173,28 +173,38 @@ export function Recipes({ v }) {
           {v.foodLogViewingLabel && (
             <div style={css("margin-top:8px;font:500 10px var(--nv-font-mono);letter-spacing:.08em;color:var(--nv-gold)")}>{v.foodLogViewingLabel}</div>
           )}
-          {/* describe it in words — no photo, no manual macros */}
-          <div style={css("margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
+          {/* ONE bar, four senses (mockup): type it, shoot it, scan it —
+              icons inline, no separate sections. Enter or the arrow submits;
+              the optional note field appears only once photos are staged. */}
+          <div style={css("margin-top:12px;display:flex;gap:8px;align-items:center")}>
             <Interactive as="input" value={v.foodDescribeInput} onChange={v.setFoodDescribeInput} onKeyDown={v.describeFoodKey}
-              placeholder="Describe it — e.g. “1 large movie popcorn from Village Cinemas”"
-              base="flex:1;min-width:200px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 12px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
+              placeholder="Log anything — type it, shoot it, or scan it…"
+              base="flex:1;min-width:160px;box-sizing:border-box;background:rgba(0,0,0,.3);border:1px solid var(--nv-edge);border-radius:12px;padding:11px 14px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-ui);outline:none"
               focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
-            <Interactive as="span" onClick={v.describeFoodSearch}
-              base="cursor:pointer;flex:none;font-size:11.5px;padding:9px 15px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-good) 45%, transparent);color:var(--nv-good);background:color-mix(in srgb, var(--nv-good) 10%, transparent)"
-              hoverStyle="background:color-mix(in srgb, var(--nv-good) 20%, transparent)">🔎 Look it up</Interactive>
-          </div>
-          <div style={css("margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
-            <Interactive as="input" value={v.foodScanNote} onChange={v.setFoodScanNote} placeholder="Note — e.g. “ate half”, “8 pretzels” (optional)" base="flex:1;min-width:180px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 12px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
-            <label style={css("cursor:pointer;flex:none;font-size:11.5px;padding:9px 13px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-good) 35%, transparent);color:var(--nv-good);background:color-mix(in srgb, var(--nv-good) 08%, transparent)")}>
-              📷 Take photo
+            <Interactive as="span" onClick={v.describeFoodSearch} aria-label="Look it up"
+              base="cursor:pointer;flex:none;width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;border:1px solid color-mix(in srgb, var(--nv-good) 45%, transparent);background:color-mix(in srgb, var(--nv-good) 10%, transparent)"
+              hoverStyle="background:color-mix(in srgb, var(--nv-good) 20%, transparent)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--nv-good)" strokeWidth="2.4"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            </Interactive>
+            <label aria-label="Take photo" style={css("cursor:pointer;flex:none;width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;border:1px solid var(--nv-edge)")}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="color-mix(in srgb, var(--nv-ink) 62%, transparent)" strokeWidth="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.4"/></svg>
               <input type="file" accept="image/*" capture="environment" onChange={v.addFoodScanPhotos} disabled={v.foodScanBusy} style={css("display:none")} />
             </label>
-            <label style={css("cursor:pointer;flex:none;font-size:11.5px;padding:9px 13px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-good) 28%, transparent);color:color-mix(in srgb, var(--nv-good) 90%, white);background:color-mix(in srgb, var(--nv-good) 05%, transparent)")}>
-              + Add photos
+            <label aria-label="Add photos" style={css("cursor:pointer;flex:none;width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;border:1px solid var(--nv-edge)")}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="color-mix(in srgb, var(--nv-ink) 62%, transparent)" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M12 8v8M8 12h8"/></svg>
               <input type="file" accept="image/*" multiple onChange={v.addFoodScanPhotos} disabled={v.foodScanBusy} style={css("display:none")} />
             </label>
-            <Interactive as="span" onClick={v.foodScanBusy ? undefined : v.openBarcodeScanner} base="cursor:pointer;flex:none;font-size:11.5px;padding:9px 13px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-good) 35%, transparent);color:var(--nv-good);background:color-mix(in srgb, var(--nv-good) 08%, transparent)" hoverStyle="background:color-mix(in srgb, var(--nv-good) 16%, transparent)">Barcode</Interactive>
+            <Interactive as="span" onClick={v.foodScanBusy ? undefined : v.openBarcodeScanner} aria-label="Scan barcode"
+              base="cursor:pointer;flex:none;width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;border:1px solid var(--nv-edge)"
+              hoverStyle="border-color:var(--nv-good)">
+              <svg width="17" height="17" viewBox="0 0 24 24" stroke="color-mix(in srgb, var(--nv-ink) 62%, transparent)" strokeWidth="2"><path d="M4 6v12M8 6v12M12 6v12M15 6v12M19 6v12" fill="none"/></svg>
+            </Interactive>
           </div>
+          {v.foodScanCount > 0 && (
+            <div style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
+              <Interactive as="input" value={v.foodScanNote} onChange={v.setFoodScanNote} placeholder="Note — e.g. “ate half” (optional)" base="flex:1;min-width:160px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 12px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
+            </div>
+          )}
           {v.foodScanCount > 0 && (
             <div style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
               {v.foodScanPhotos.map((ph) => (

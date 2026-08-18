@@ -78,6 +78,7 @@ export function detectPlateaus(sessions, { minSessions = 4, minDays = 21 } = {})
   const byExercise = new Map();
   for (const s of sessions) {
     for (const ex of s.exercises || []) {
+      if (ex.anomaly) continue; // "off day — don't learn from this"
       if (!(ex.sets || []).some((x) => x.weight > 0)) continue;
       const arr = byExercise.get(ex.exerciseId) || [];
       arr.push({ date: s.date, name: ex.name, best: bestE1rm(ex.sets) });
@@ -249,6 +250,19 @@ export async function analyticsContext(vaultPath) {
   if (vol.length) {
     lines.push(`WEEKLY HARD SETS PER MUSCLE (recent weeks, newest first): ${vol.map((w) => `wk ${w.week.slice(5)}: ${Object.entries(w.groups).map(([g, n]) => `${g} ${n}`).join(', ')}`).join(' | ')}`);
   }
+
+  // his own words from the logger: notes, pain reports, cut-short reasons —
+  // the cockpit's feedback channel the Coach digests over time
+  const worded = [];
+  for (const s2 of sessions.slice(0, 12)) {
+    if (s2.cutShort) worded.push(`${s2.date} ${s2.routineName}: CUT SHORT (${s2.cutShort})`);
+    for (const ex of s2.exercises || []) {
+      if (ex.pain) worded.push(`${s2.date} ${ex.name}: PAIN — ${ex.pain}`);
+      if (ex.note) worded.push(`${s2.date} ${ex.name}: "${ex.note}"`);
+      if (ex.anomaly) worded.push(`${s2.date} ${ex.name}: flagged off-day (excluded from signals)`);
+    }
+  }
+  if (worded.length) lines.push(`HIS SESSION NOTES (digest these over time — trajectory feedback like "felt easy" repeated should eventually change the PRESCRIPTION, e.g. bodyweight → weighted; repeated cut-shorts should open the restructure conversation): ${worded.slice(0, 10).join(' | ')}`);
 
   const audit = auditProgram({ routines, schedule, goals, exercises });
   if (audit.length) lines.push(`PROGRAM AUDIT FLAGS (deterministic checks — raise the most important one when program design comes up): ${audit.map((f) => f.detail).join(' • ')}`);

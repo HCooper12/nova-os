@@ -401,7 +401,7 @@ function SessionView({ v }) {
             )}
             <div style={css(`margin-top:12px;display:${e.skipped ? 'none' : 'flex'};flex-direction:column;gap:8px`)}>
               <div style={css("display:flex;gap:10px;font:500 9px var(--nv-font-mono);letter-spacing:.1em;color:color-mix(in srgb, var(--nv-ink) 35%, transparent);padding:0 2px")}>
-                <span style={{ width: '22px' }}>SET</span>{!e.isBodyweight && <span style={{ width: '64px' }}>{e.weightLabel}</span>}<span style={{ width: '64px' }}>{e.amountLabel}</span><span style={{ width: '52px' }}>RPE</span>
+                <span style={{ width: '22px' }}>SET</span>{!e.isBodyweight && <span style={{ width: '64px' }}>{e.weightLabel}</span>}<span style={{ width: '64px' }}>{e.amountLabel}</span><span style={{ width: '52px' }}>RPE</span><span style={{ width: '44px' }}>RIR</span>
               </div>
               {e.sets.map((s, i) => (
                 <div key={i} style={css("display:flex;align-items:center;gap:10px")}>
@@ -412,6 +412,12 @@ function SessionView({ v }) {
                   <input type="number" inputMode="numeric" min="0" value={s.reps} onChange={s.onReps} style={setInputStyle} />
                   {/* optional effort — RPE 1-10; the best autoregulation signal the Coach can get */}
                   <input type="number" inputMode="decimal" step="0.5" min="1" max="10" value={s.rpe || ''} onChange={s.onRpe} placeholder="RPE" style={{ ...setInputStyle, width: '52px', opacity: s.rpe ? 1 : 0.65 }} />
+                  <input type="number" inputMode="decimal" step="0.5" min="0" max="6" value={s.rir} onChange={s.onRir} placeholder="RIR" style={{ ...setInputStyle, width: '44px', opacity: s.rir !== '' ? 1 : 0.55 }} />
+                  {/* set type cycles working → backoff → warm-up; warm-ups are
+                      excluded from volume counts and PRs */}
+                  <Interactive as="span" onClick={s.cycleType} title="Tap to cycle: working / backoff / warm-up"
+                    base={`cursor:pointer;flex:none;font:600 8px var(--nv-font-mono);letter-spacing:.08em;padding:5px 7px;border-radius:6px;border:1px solid ${s.setType === 'warmup' ? 'color-mix(in srgb, var(--nv-gold) 45%, transparent)' : s.setType === 'backoff' ? 'color-mix(in srgb, var(--nv-vi) 45%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 18%, transparent)'};color:${s.setType === 'warmup' ? 'var(--nv-gold)' : s.setType === 'backoff' ? 'var(--nv-vi)' : 'color-mix(in srgb, var(--nv-ink) 45%, transparent)'}`}
+                  >{s.setType === 'warmup' ? 'WU' : s.setType === 'backoff' ? 'BO' : 'WK'}</Interactive>
                   <Interactive
                     as="span"
                     onClick={s.onToggleDone}
@@ -427,10 +433,75 @@ function SessionView({ v }) {
             {!e.skipped && (
               <Interactive as="span" onClick={e.onAddSet} base="cursor:pointer;display:inline-block;margin-top:10px;font:500 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-gold)">+ Extra set</Interactive>
             )}
+            {!e.skipped && (
+              <div style={css("margin-top:10px;display:flex;gap:7px;align-items:center;flex-wrap:wrap")}>
+                <input value={e.note} onChange={e.onNote} placeholder={'Note — "felt strong", "grip gave first"…'}
+                  style={{ flex: 1, minWidth: '150px', background: 'rgba(0,0,0,.22)', border: '1px dashed color-mix(in srgb, var(--nv-ink) 20%, transparent)', borderRadius: '9px', padding: '8px 11px', color: 'var(--nv-ink)', fontSize: '12px', fontFamily: 'var(--nv-font-ui)', outline: 'none' }} />
+                <Interactive as="span" onClick={e.toggleAnomaly} title={'Off day — exclude today from progression and plateau signals'}
+                  base={`cursor:pointer;font:600 8.5px var(--nv-font-mono);letter-spacing:.08em;padding:7px 10px;border-radius:99px;border:1px solid ${e.anomaly ? 'color-mix(in srgb, var(--nv-gold) 55%, transparent)' : 'var(--nv-edge)'};color:${e.anomaly ? 'var(--nv-gold)' : 'color-mix(in srgb, var(--nv-ink) 45%, transparent)'};background:${e.anomaly ? 'color-mix(in srgb, var(--nv-gold) 10%, transparent)' : 'transparent'}`}
+                >{e.anomaly ? 'OFF DAY ✓' : 'ANOMALY'}</Interactive>
+                <Interactive as="span" onClick={e.painOpen ? e.closePain : e.openPain}
+                  base={`cursor:pointer;font:600 8.5px var(--nv-font-mono);letter-spacing:.08em;padding:7px 10px;border-radius:99px;border:1px solid color-mix(in srgb, var(--nv-warn) ${e.painOpen || e.painLogged ? 60 : 35}%, transparent);color:var(--nv-warn);background:${e.painLogged ? 'color-mix(in srgb, var(--nv-warn) 10%, transparent)' : 'transparent'}`}
+                >{e.painLogged ? '⚠ PAIN LOGGED' : 'PAIN?'}</Interactive>
+              </div>
+            )}
+            {e.painOpen && e.painState && (
+              <div style={css("margin-top:10px;border:1px solid color-mix(in srgb, var(--nv-warn) 45%, transparent);border-radius:13px;padding:12px;background:color-mix(in srgb, var(--nv-warn) 05%, transparent)")}>
+                <span style={css("font:600 9px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-warn)")}>⚠ PAIN — WHERE?</span>
+                <div style={css("display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center")}>
+                  {e.painAreas.map((a) => (
+                    <Interactive key={a} as="span" onClick={() => e.setPainField('area')(a)}
+                      base={`cursor:pointer;font:600 9px var(--nv-font-mono);padding:6px 11px;border-radius:99px;border:1px solid ${e.painState.area === a ? 'var(--nv-warn)' : 'var(--nv-edge)'};color:${e.painState.area === a ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)'}`}
+                    >{a.toUpperCase()}</Interactive>
+                  ))}
+                  <select value={e.painState.area && !e.painAreas.includes(e.painState.area) ? e.painState.area : ''} onChange={(ev) => ev.target.value && e.setPainField('area')(ev.target.value)}
+                    style={{ background: 'var(--nv-well)', border: '1px solid var(--nv-edge)', borderRadius: '8px', color: 'var(--nv-ink)', font: '500 11px var(--nv-font-ui)', padding: '6px 8px', outline: 'none' }}>
+                    <option value="" style={{ background: '#141019' }}>Other…</option>
+                    {e.painOther.map((o) => <option key={o} value={o} style={{ background: '#141019' }}>{o}</option>)}
+                  </select>
+                </div>
+                {e.painState.area && (
+                  <>
+                    <div style={css("display:flex;gap:6px;flex-wrap:wrap;margin-top:9px")}>
+                      {['left', 'right', 'both/centre'].map((sd) => (
+                        <Interactive key={sd} as="span" onClick={() => e.setPainField('side')(sd)}
+                          base={`cursor:pointer;font:600 9px var(--nv-font-mono);padding:6px 11px;border-radius:99px;border:1px solid ${e.painState.side === sd ? 'var(--nv-warn)' : 'var(--nv-edge)'};color:${e.painState.side === sd ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)'}`}
+                        >{sd.toUpperCase()}</Interactive>
+                      ))}
+                      {['during the rep', 'after sets', 'constant'].map((w) => (
+                        <Interactive key={w} as="span" onClick={() => e.setPainField('when')(w)}
+                          base={`cursor:pointer;font:600 9px var(--nv-font-mono);padding:6px 11px;border-radius:99px;border:1px solid ${e.painState.when === w ? 'var(--nv-warn)' : 'var(--nv-edge)'};color:${e.painState.when === w ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)'}`}
+                        >{w.toUpperCase()}</Interactive>
+                      ))}
+                    </div>
+                    <input value={e.painState.detail} onChange={(ev) => e.setPainField('detail')(ev.target.value)} placeholder="Exact spot + anything else — optional"
+                      style={{ marginTop: '9px', width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,.22)', border: '1px solid var(--nv-edge)', borderRadius: '9px', padding: '8px 11px', color: 'var(--nv-ink)', fontSize: '12px', fontFamily: 'var(--nv-font-ui)', outline: 'none' }} />
+                    <div style={css("display:flex;gap:8px;margin-top:10px")}>
+                      <Interactive as="span" onClick={e.submitPain}
+                        base="cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.1em;padding:9px 16px;border-radius:9px;background:var(--nv-warn);color:#2a1214"
+                        hoverStyle="background:color-mix(in srgb, var(--nv-warn) 80%, white)">ASK COACH — TRIAGE THIS</Interactive>
+                      <Interactive as="span" onClick={e.closePain} base="cursor:pointer;font:500 10px var(--nv-font-mono);padding:9px 12px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)" hoverStyle="color:var(--nv-ink)">CANCEL</Interactive>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
 
+      {v.sessionHasUndone && !v.sessionEditing && (
+        <div style={css("margin-top:18px;border:1px solid color-mix(in srgb, var(--nv-gold) 35%, transparent);border-radius:13px;padding:11px 13px")}>
+          <span style={css("font:600 9px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-gold)")}>FINISHING EARLY? ONE TAP TELLS COACH WHY</span>
+          <div style={css("display:flex;gap:7px;flex-wrap:wrap;margin-top:8px")}>
+            {['out of time', 'low energy', 'gym busy', 'pain'].map((r) => (
+              <Interactive key={r} as="span" onClick={() => v.setSessionCutShort(r)}
+                base={`cursor:pointer;font:600 9px var(--nv-font-mono);letter-spacing:.08em;padding:7px 12px;border-radius:99px;border:1px solid ${v.sessionCutShort === r ? 'color-mix(in srgb, var(--nv-gold) 55%, transparent)' : 'var(--nv-edge)'};color:${v.sessionCutShort === r ? 'var(--nv-gold)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)'};background:${v.sessionCutShort === r ? 'color-mix(in srgb, var(--nv-gold) 10%, transparent)' : 'transparent'}`}
+              >{r.toUpperCase()}</Interactive>
+            ))}
+          </div>
+        </div>
+      )}
       <div style={css("margin-top:24px;display:flex;gap:14px;align-items:center;flex-wrap:wrap")}>
         <Interactive as="span" onClick={v.finishSession} base="cursor:pointer;font:500 11px var(--nv-font-mono);padding:11px 22px;border-radius:9px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">{v.sessionEditing ? 'SAVE CHANGES' : 'FINISH WORKOUT'}</Interactive>
         {v.canSaveForLater && (

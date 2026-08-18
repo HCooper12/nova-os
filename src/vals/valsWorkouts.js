@@ -176,6 +176,14 @@ export function valsWorkouts(app, ctx) {
   const TRACKING_TYPE_LABEL = { weight_reps: 'Weight × Reps', bodyweight_reps: 'Bodyweight × Reps', weight_time: 'Weight × Time', bodyweight_time: 'Bodyweight × Time', weighted_bodyweight_reps: 'Weighted Bodyweight × Reps' };
 
   const session = st.workoutSession;
+  const PAIN_AREAS = {
+    Chest: ['Shoulder', 'Elbow', 'Wrist'], Shoulders: ['Shoulder', 'Neck', 'Elbow'], Triceps: ['Elbow', 'Shoulder', 'Wrist'],
+    Back: ['Lower back', 'Shoulder', 'Elbow'], Biceps: ['Elbow', 'Forearm', 'Shoulder'], Forearms: ['Forearm', 'Wrist', 'Elbow'],
+    Quads: ['Knee', 'Hip', 'Lower back'], Hamstrings: ['Hamstring', 'Knee', 'Lower back'], Glutes: ['Hip', 'Lower back', 'Glute'],
+    Calves: ['Calf', 'Ankle', 'Achilles'], Abs: ['Lower back', 'Hip'], 'Full Body': ['Lower back', 'Knee', 'Shoulder'],
+  };
+  const PAIN_OTHER = ['Neck', 'Upper back', 'Lower back', 'Hip', 'Knee', 'Ankle', 'Foot', 'Groin', 'Hamstring', 'Achilles'];
+  const pain = st.sessionPain || null;
   const sessionExercises = session ? session.exercises.map((e, exIdx) => ({
     exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, trackingType: e.trackingType,
     coachLabel: coachChipLabel(e.coach), coachEvidence: e.coach?.evidence || null,
@@ -192,8 +200,26 @@ export function valsWorkouts(app, ctx) {
     // dropped for today only — the program is untouched, tap again to undo
     skipped: !!e.skipped,
     onToggleSkip: () => app.toggleSessionExerciseSkipped(exIdx),
+    // cockpit fields
+    note: e.note || '',
+    onNote: (ev) => app.updateSessionExerciseField(exIdx, 'note', ev.target.value),
+    anomaly: !!e.anomaly,
+    toggleAnomaly: () => app.updateSessionExerciseField(exIdx, 'anomaly', !e.anomaly),
+    painLogged: e.pain || null,
+    painOpen: pain?.exIdx === exIdx,
+    openPain: () => app.setState({ sessionPain: { exIdx, area: null, side: null, when: null, detail: '' } }),
+    closePain: () => app.setState({ sessionPain: null }),
+    painAreas: PAIN_AREAS[e.muscleGroup] || ['Shoulder', 'Elbow', 'Knee'],
+    painOther: PAIN_OTHER,
+    painState: pain?.exIdx === exIdx ? pain : null,
+    setPainField: (field) => (val) => app.setState({ sessionPain: { ...st.sessionPain, [field]: val } }),
+    submitPain: () => app.askPainCoach(exIdx),
     sets: e.sets.map((s, setIdx) => ({
       weight: s.weight, reps: s.reps, rpe: s.rpe || '', done: s.done,
+      rir: s.rir ?? '',
+      onRir: (ev) => app.updateSessionSet(exIdx, setIdx, 'rir', ev.target.value),
+      setType: s.setType || 'working',
+      cycleType: () => app.updateSessionSet(exIdx, setIdx, 'setType', (s.setType === 'warmup' ? 'working' : s.setType === 'backoff' ? 'warmup' : 'backoff')),
       onWeight: (ev) => app.updateSessionSet(exIdx, setIdx, 'weight', ev.target.value),
       onReps: (ev) => app.updateSessionSet(exIdx, setIdx, 'reps', ev.target.value),
       onRpe: (ev) => app.updateSessionSet(exIdx, setIdx, 'rpe', ev.target.value),
@@ -332,6 +358,10 @@ export function valsWorkouts(app, ctx) {
     sessionRoutineName: session ? session.routineName : '',
     sessionEditing: !!st.editingSessionId,
     sessionExercises,
+    // finishing-early chips (P2): visible only when something is undone
+    sessionHasUndone: !!session && session.exercises.some((e2) => e2.skipped || !e2.sets.every((s2) => s2.done)),
+    sessionCutShort: st.sessionCutShort || null,
+    setSessionCutShort: (r) => app.setState({ sessionCutShort: st.sessionCutShort === r ? null : r }),
     sessionCancelConfirm: st.sessionCancelConfirm,
     finishSession: () => app.finishWorkoutSession(),
     saveForLater: () => app.saveWorkoutForLater(),

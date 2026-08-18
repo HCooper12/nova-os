@@ -19,8 +19,12 @@ function bodyFor(session) {
   // the Coach's one-line read of the session (vs last time, PRs) — written
   // after completion by setSessionSummary; renders as a quote in Obsidian
   if (session.summary) lines.push(`> ${session.summary}`, '');
+  if (session.cutShort) lines.push(`> Cut short: ${session.cutShort}`, '');
   for (const e of session.exercises) {
     lines.push(`## ${e.name}`, '');
+    if (e.anomaly) lines.push('> off day — excluded from progression signals', '');
+    if (e.pain) lines.push(`> ⚠ pain: ${e.pain}`, '');
+    if (e.note) lines.push(`> ${e.note}`, '');
     for (const s of e.sets) lines.push(`- ${s.weight}kg × ${s.reps}${s.rpe ? ` @RPE${s.rpe}` : ''}${s.rir != null ? ` (${s.rir} RIR)` : ''}${s.setType === 'warmup' ? ' [warm-up]' : s.setType === 'backoff' ? ' [backoff]' : ''}${s.pain ? ` ⚠ pain${typeof s.pain === 'string' ? `: ${s.pain}` : ''}` : ''}`);
     lines.push('');
   }
@@ -177,6 +181,10 @@ function validateSessionInput(body) {
   if (!body || typeof body.routineId !== 'string' || typeof body.routineName !== 'string' || !body.routineName.trim()) {
     throw new Error('routineId and routineName are required');
   }
+  // why a session ended early — one of the cockpit's finishing-early chips;
+  // the Coach reads these across sessions and opens the restructure talk
+  if (typeof body.cutShort === 'string' && body.cutShort.trim()) body.cutShort = body.cutShort.trim().slice(0, 60);
+  else delete body.cutShort;
   if (!Array.isArray(body.exercises) || !body.exercises.length) throw new Error('at least one exercise is required');
   return body.exercises.map((e) => {
     if (!e || typeof e.exerciseId !== 'string' || typeof e.name !== 'string' || !Array.isArray(e.sets)) {
@@ -203,7 +211,13 @@ function validateSessionInput(body) {
         return set;
       })
       .filter((s) => s.weight > 0 || s.reps > 0);
-    return { exerciseId: e.exerciseId, name: e.name, sets };
+    const out = { exerciseId: e.exerciseId, name: e.name, sets };
+    // cockpit fields (P2): a free note, the anomaly flag ("off day — don't
+    // learn from this"), and a pain report — all optional, all persisted
+    if (typeof e.note === 'string' && e.note.trim()) out.note = e.note.trim().slice(0, 200);
+    if (e.anomaly === true) out.anomaly = true;
+    if (typeof e.pain === 'string' && e.pain.trim()) out.pain = e.pain.trim().slice(0, 200);
+    return out;
   }).filter((e) => e.sets.length);
 }
 
@@ -229,6 +243,7 @@ export async function completeSession(vaultPath, input) {
       routineId: input.routineId,
       routineName: input.routineName.trim(),
       exercises,
+      ...(input.cutShort ? { cutShort: input.cutShort } : {}),
       finishedAt: now.toISOString(),
     };
 
