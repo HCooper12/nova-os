@@ -378,6 +378,27 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  if (route === 'injury-log') {
+    // Pain mentioned in the Coach chat, made durable — the log every
+    // prescription checks. Undo removes the entry.
+    const { addInjury } = await import('./injuryLog.js');
+    const entry = await addInjury(vaultPath, { area: payload.area, note: payload.note, severity: payload.severity });
+    return {
+      destination: `Injury Log — ${entry.area} (${entry.severity})`,
+      undo: { route, injuryId: entry.id, area: entry.area },
+    };
+  }
+
+  if (route === 'goal-target') {
+    // A measurable target proposed by the Coach. Undo removes it.
+    const { addGoalTarget } = await import('./fitnessGoals.js');
+    const target = await addGoalTarget(vaultPath, payload);
+    return {
+      destination: `Fitness Goals — target: ${target.metric} ${target.value}${target.unit || ''}${target.by ? ` by ${target.by}` : ''}`,
+      undo: { route, targetId: target.id, metric: target.metric },
+    };
+  }
+
   if (route === 'routine-edit') {
     // A Coach-proposed program change, applied deterministically on approve.
     // Undo restores the routine's EXACT prior exercise list.
@@ -765,6 +786,16 @@ export async function undoFiling(vaultPath, undo) {
     const { clearTune } = await import('./progressionTunes.js');
     await clearTune(vaultPath, undo.exerciseId, { restore: undo.prior });
     return undo.prior ? `restored ${undo.name}'s previous tune` : `cleared the tune — ${undo.name} progresses by the defaults again`;
+  }
+  if (undo.route === 'injury-log') {
+    const { removeInjury } = await import('./injuryLog.js');
+    await removeInjury(vaultPath, undo.injuryId);
+    return `removed the ${undo.area} entry from the Injury Log`;
+  }
+  if (undo.route === 'goal-target') {
+    const { removeGoalTarget } = await import('./fitnessGoals.js');
+    await removeGoalTarget(vaultPath, undo.targetId);
+    return `removed the ${undo.metric} target`;
   }
   if (undo.route === 'routine-edit') {
     const { loadExerciseLibrary } = await import('./exercises.js');

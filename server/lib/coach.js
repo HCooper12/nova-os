@@ -105,6 +105,33 @@ export function computeDeloadSignal(healthDays) {
   return { advise: false, reason: 'recovery trend looks steady' };
 }
 
+// The live line for RESUMED coach turns — the same fix the spoken lane got.
+// A conversation persisted in localStorage indefinitely kept reasoning off
+// the context computed on turn ONE (possibly weeks old) under a prompt that
+// says to trust that context over the vault. Every resumed turn now
+// re-states the volatile picture: date, recovery series, deload verdict,
+// last session, streak. Cheap by design — local files only.
+export async function coachLiveLine(vaultPath) {
+  const bits = [];
+  const today = new Date();
+  bits.push(`today is ${today.toDateString()}`);
+  try {
+    const { loadRecentDays } = await import('./healthData.js');
+    const days = await loadRecentDays(7);
+    const series = days.filter((d) => d.hrv != null || d.sleepAsleepMinutes != null)
+      .map((d) => `${d.date.slice(5)}: ${d.hrv != null ? `HRV ${Math.round(d.hrv)}` : ''}${d.sleepAsleepMinutes != null ? ` sleep ${(d.sleepAsleepMinutes / 60).toFixed(1)}h` : ''}${d.restingHeartRate != null ? ` RHR ${d.restingHeartRate}` : ''}`.trim());
+    if (series.length) bits.push(`recovery 7d [${series.join(' | ')}]`);
+    const deload = computeDeloadSignal(days);
+    bits.push(`deload signal: ${deload.advise ? 'YES — ' : 'no — '}${deload.reason}`);
+  } catch { bits.push('recovery data FAILED to load this turn'); }
+  try {
+    const { loadSessions } = await import('./workoutSessions.js');
+    const sessions = await loadSessions(vaultPath, { limit: 1 });
+    if (sessions.length) bits.push(`last session ${sessions[0].date} — ${sessions[0].routineName}`);
+  } catch { bits.push('session history FAILED to load this turn'); }
+  return `LIVE UPDATE (recomputed this turn — supersedes earlier numbers in this conversation): ${bits.join('; ')}.`;
+}
+
 /* --------------------------- quick sessions ------------------------------ */
 
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -315,7 +342,7 @@ export function parseCoachProposal(text) {
   }
 }
 
-const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets', 'tune'];
+const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets', 'tune', 'injury', 'goal'];
 
 export async function validateCoachEdit(vaultPath, raw) {
   const { loadExerciseLibrary } = await import('./exercises.js');
@@ -344,6 +371,31 @@ export async function validateCoachEdit(vaultPath, raw) {
     return {
       payload: { action, exerciseId: lib.id, exerciseName: lib.name, stepKg, repStep, hold, focus, reason: String(raw.reason || '').slice(0, 200) },
       title: `Coach: tune ${lib.name} — ${bits.join(', ')}`,
+    };
+  }
+
+  // "injury" logs a limitation the Coach heard about — pain in chat is
+  // safety-critical data that must not evaporate when the conversation does
+  if (action === 'injury') {
+    const area = String(raw.area || '').trim().slice(0, 60);
+    if (!area) throw new Error('an injury needs the affected area');
+    const { SEVERITIES } = await import('./injuryLog.js');
+    return {
+      payload: { action, area, note: String(raw.note || '').trim().slice(0, 300), severity: SEVERITIES.includes(raw.severity) ? raw.severity : 'niggle' },
+      title: `Coach: log ${area} ${SEVERITIES.includes(raw.severity) ? raw.severity : 'niggle'} to the Injury Log`,
+    };
+  }
+
+  // "goal" proposes a MEASURABLE target — the goal page was one untouched
+  // prose line; a coach that can't set targets can't coach toward them
+  if (action === 'goal') {
+    const metric = String(raw.metric || '').trim().slice(0, 60);
+    const value = Number(raw.value);
+    if (!metric || !Number.isFinite(value)) throw new Error('a goal needs a metric and a numeric value');
+    const by = /^\d{4}-\d{2}-\d{2}$/.test(String(raw.by || '')) ? raw.by : null;
+    return {
+      payload: { action, metric, value, unit: String(raw.unit || '').trim().slice(0, 12), by, note: String(raw.note || '').trim().slice(0, 200) },
+      title: `Coach: target — ${metric} ${value}${raw.unit || ''}${by ? ` by ${by}` : ''}`,
     };
   }
 
@@ -400,7 +452,10 @@ export async function createCoachEditRecord(vaultPath, { question, proposal, sou
     status: 'pending',
     createdAt: new Date().toISOString(),
     decision: {
-      route: payload.action === 'tune' ? 'progression-tune' : 'routine-edit',
+      route: payload.action === 'tune' ? 'progression-tune'
+        : payload.action === 'injury' ? 'injury-log'
+          : payload.action === 'goal' ? 'goal-target'
+            : 'routine-edit',
       confidence: 'high',
       title,
       reason: payload.reason || 'proposed in the Coach chat',

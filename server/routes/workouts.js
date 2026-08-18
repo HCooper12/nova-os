@@ -215,6 +215,34 @@ export function workoutsRouter(vaultPath) {
 
   // Ask Coach — assembles the live picture (goals, recent sessions,
   // progressions, recovery) and hands it to the read-only coach session.
+  // The Injury Log — the page a coach checks before every prescription
+  router.get('/workouts/injuries', async (req, res, next) => {
+    try {
+      const { listInjuries } = await import('../lib/injuryLog.js');
+      res.json({ injuries: await listInjuries(vaultPath) });
+    } catch (err) { next(err); }
+  });
+  router.post('/workouts/injuries', async (req, res) => {
+    try {
+      const { addInjury } = await import('../lib/injuryLog.js');
+      res.json({ injury: await addInjury(vaultPath, req.body || {}) });
+    } catch (err) { res.status(400).json({ error: err.message }); }
+  });
+  router.post('/workouts/injuries/:id/resolve', async (req, res) => {
+    try {
+      const { resolveInjury } = await import('../lib/injuryLog.js');
+      await resolveInjury(vaultPath, req.params.id);
+      res.json({ ok: true });
+    } catch (err) { res.status(400).json({ error: err.message }); }
+  });
+  router.delete('/workouts/injuries/:id', async (req, res) => {
+    try {
+      const { removeInjury } = await import('../lib/injuryLog.js');
+      await removeInjury(vaultPath, req.params.id);
+      res.json({ ok: true });
+    } catch (err) { res.status(400).json({ error: err.message }); }
+  });
+
   router.post('/workouts/coach', async (req, res) => {
     try {
       const question = typeof req.body?.question === 'string' ? req.body.question.trim() : '';
@@ -222,23 +250,46 @@ export function workoutsRouter(vaultPath) {
       const sessionId = typeof req.body?.sessionId === 'string' && req.body.sessionId ? req.body.sessionId : null;
       // Mid-workout asks carry the live session — the Coach must see what's
       // logged RIGHT NOW, whether the conversation is new or resumed.
-      const { liveSessionContext } = await import('../lib/coach.js');
+      const { liveSessionContext, coachLiveLine } = await import('../lib/coach.js');
       const live = liveSessionContext(req.body?.liveSession);
       if (sessionId) {
-        // resumed conversation — the session already carries the picture;
-        // only the just-now state travels with the question
-        const q = live ? `[${live}]\n\n${question}` : question;
+        // Resumed conversation: the session carries the deep picture, but the
+        // VOLATILE picture is recomputed every turn — a chat resumed after a
+        // week was answering from week-old recovery numbers under a prompt
+        // that says to trust them (the spoken lane's bug, same fix).
+        const fresh = await coachLiveLine(vaultPath).catch(() => '');
+        const preamble = [fresh, live ? `[${live}]` : ''].filter(Boolean).join('\n');
+        const q = preamble ? `${preamble}\n\n${question}` : question;
         return res.json({ jobId: startAskCoach(vaultPath, { question: q, sessionId }) });
       }
 
       const parts = [];
+      const failures = []; // a vanished section must be NAMED, never silent
       if (live) parts.push(live);
       try {
         parts.push(await profileContext(vaultPath)); // who he is, first
-      } catch { /* optional */ }
+      } catch { failures.push('profile'); }
       try {
         parts.push(await goalsContext(vaultPath));
-      } catch { /* section optional */ }
+      } catch { failures.push('goals'); }
+      try {
+        const { injuriesContext } = await import('../lib/injuryLog.js');
+        const inj = await injuriesContext(vaultPath);
+        if (inj) parts.push(inj);
+      } catch { failures.push('injury log'); }
+      try {
+        // the full analytics picture: PRs, plateaus, RPE drift, weekly
+        // muscle volume, program audit — computed fresh, one implementation
+        const { analyticsContext } = await import('../lib/trainingAnalytics.js');
+        const a = await analyticsContext(vaultPath);
+        if (a) parts.push(a);
+      } catch { failures.push('training analytics'); }
+      try {
+        // the prompt demands EXACT exercise names — give it the library to
+        // name from (it previously saw only routine names)
+        const { exercises } = await loadExerciseLibrary(vaultPath);
+        parts.push(`EXERCISE LIBRARY (the only valid names for swaps/adds): ${exercises.map((e) => e.name).join(', ')}`);
+      } catch { failures.push('exercise library'); }
       try {
         const sessions = await loadSessions(vaultPath, { limit: 6 });
         parts.push(sessions.length
@@ -247,7 +298,7 @@ export function workoutsRouter(vaultPath) {
         const { estimateE1RMs } = await import('../lib/coach.js');
         const e1rms = estimateE1RMs(await loadSessions(vaultPath, { limit: 12 }));
         if (e1rms.length) parts.push('Estimated 1RMs (Epley, from logged sets — direction matters more than the number): ' + e1rms.slice(0, 8).map((x) => `${x.name} ${x.e1rm}kg${x.delta != null ? ` (${x.delta >= 0 ? '+' : ''}${x.delta})` : ''}`).join('; ') + '.');
-      } catch { /* optional */ }
+      } catch { failures.push('recent sessions'); }
       try {
         const { exercises } = await loadExerciseLibrary(vaultPath);
         const { routines, schedule } = await loadRoutines(vaultPath, exercises);
@@ -255,21 +306,24 @@ export function workoutsRouter(vaultPath) {
         const keys = Object.keys(progressions);
         parts.push(`Routines: ${routines.map((r) => r.name).join(', ') || 'none'}. Schedule: ${JSON.stringify(schedule)}.`);
         if (keys.length) parts.push(`Earned progressions: ${keys.map((k) => `${k} +${progressions[k].delta}${progressions[k].kind === 'weight' ? 'kg' : ' rep'}`).join(', ')}.`);
-      } catch { /* optional */ }
+      } catch { failures.push('e1RM estimates'); }
       try {
         const days = await loadRecentDays(7);
-        const latest = [...days].reverse().find((d) => d.hrv != null || d.sleepAsleepMinutes != null);
-        if (latest) parts.push(`Latest recovery: HRV ${latest.hrv ?? '—'} ms, sleep ${latest.sleepAsleepMinutes ? Math.round(latest.sleepAsleepMinutes / 60 * 10) / 10 + 'h' : '—'}, resting HR ${latest.restingHeartRate ?? '—'}.`);
+        // the SERIES, not one day — a coach reading a single snapshot can't
+        // see a trend, and autoregulation is trend-reading
+        const series = days.filter((d) => d.hrv != null || d.sleepAsleepMinutes != null || d.restingHeartRate != null)
+          .map((d) => `${d.date.slice(5)}: ${[d.hrv != null ? `HRV ${Math.round(d.hrv)}` : null, d.sleepAsleepMinutes != null ? `sleep ${(d.sleepAsleepMinutes / 60).toFixed(1)}h` : null, d.restingHeartRate != null ? `RHR ${d.restingHeartRate}` : null, d.steps != null ? `${d.steps} steps` : null].filter(Boolean).join(', ')}`);
+        if (series.length) parts.push(`Recovery, last 7 days (oldest first):\n${series.join('\n')}`);
         const { computeDeloadSignal } = await import('../lib/coach.js');
         const signal = computeDeloadSignal(days);
-        parts.push(`Deload signal: ${signal.advise ? `YES — ${signal.reason}` : signal.reason}.`);
-      } catch { /* optional */ }
+        parts.push(`Deload signal: ${signal.advise ? `YES — ${signal.reason}. When this is YES and today holds a session, OPEN with the adjustment (concrete: −% load or capped RIR), don't wait to be asked` : signal.reason}.`);
+      } catch { failures.push('routines/schedule'); }
       // the connections the sweep found missing — a coach that claims protein
       // expertise gets nutrition, bodyweight, debt, streaks, and learned habits
       try {
         const co = await carryoverContext();
         if (co) parts.push(co);
-      } catch { /* optional */ }
+      } catch { failures.push('earned progressions'); }
       try {
         const nutrition = await loadRecentNutritionDays(7);
         if (nutrition.length) {
@@ -281,17 +335,17 @@ export function workoutsRouter(vaultPath) {
         } else {
           parts.push('Nutrition: no tracked days yet.');
         }
-      } catch { /* optional */ }
+      } catch { failures.push('recovery'); }
       try {
         parts.push(weightTrendLine(await loadRecentDays(28)));
-      } catch { /* optional */ }
+      } catch { failures.push('deload signal'); }
       try {
         const s = await computeStreaks(vaultPath);
         const bits = [];
         if (s.workoutStreak >= 2) bits.push(`${s.workoutStreak}-week training streak`);
         if (s.lastWorkoutDate) bits.push(`last logged session ${s.lastWorkoutDate}`);
         if (bits.length) parts.push(`Streaks: ${bits.join('; ')}.`);
-      } catch { /* optional */ }
+      } catch { failures.push('carryovers'); }
       // work that keeps not happening — the Coach asks why before proposing
       try {
         const { detectSkippedExercises, skippedContext } = await import('../lib/coach.js');
@@ -300,34 +354,39 @@ export function workoutsRouter(vaultPath) {
         const sessions = await loadSessions(vaultPath, { limit: 30 });
         const skipped = skippedContext(detectSkippedExercises(routines, sessions));
         if (skipped) parts.push(skipped);
-      } catch { /* optional */ }
+      } catch { failures.push('nutrition'); }
       try {
         const { tunesContext } = await import('../lib/progressionTunes.js');
         const tunes = await tunesContext(vaultPath);
         if (tunes) parts.push(tunes);
-      } catch { /* optional */ }
+      } catch { failures.push('weight trend'); }
       try {
         const prefs = await preferencesContext(vaultPath);
         if (prefs) parts.push(prefs);
-      } catch { /* optional */ }
+      } catch { failures.push('streaks'); }
       try {
         const { standingContext } = await import('../lib/standing.js');
         const standing = await standingContext(vaultPath);
         if (standing) parts.push(standing);
-      } catch { /* optional */ }
+      } catch { failures.push('skipped exercises'); }
       try {
         const { skillsContext } = await import('../lib/skills.js');
         const skills = await skillsContext(vaultPath);
         if (skills) parts.push(skills);
-      } catch { /* optional */ }
+      } catch { failures.push('progression tunes'); }
       // the shared brain: the Coach knows what the rest of the fleet did
       // lately (receipts off the rails — dispatch, reviews, drafts waiting)
       try {
         const { fleetContext } = await import('../lib/fleetContext.js');
         const fleet = await fleetContext();
         if (fleet) parts.push(fleet);
-      } catch { /* optional */ }
+      } catch { failures.push('preferences'); }
 
+      if (failures.length) {
+        // Silent context loss made the Coach blame his logging for a code
+        // failure ("if history is thin, say what to log"). Name what's gone.
+        parts.push(`NOTE — these context sections FAILED to load this turn (an error, NOT thin logging): ${failures.join(', ')}. If one matters to the question, say the data could not be loaded — never tell him to log more because of it.`);
+      }
       res.json({ jobId: startAskCoach(vaultPath, { question, context: parts.join('\n\n') }) });
     } catch (e) {
       res.status(500).json({ error: e.message });
