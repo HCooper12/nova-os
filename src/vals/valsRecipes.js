@@ -48,6 +48,22 @@ export function valsRecipes(app, ctx) {
         app.toggleRotationSlot(s.key, filled.id);
         if (s.key === 'extra') app.setState({ rotationShowExtra: false });
       } : null,
+      // spec #13: hold a meal card for its secondary actions — variants,
+      // eaten toggle, the recipe itself — direct manipulation, never a chat
+      onLongPress: filled ? ({ x, y }) => {
+        const recipe = (st.liveRecipes || []).find((r) => r.id === filled.id);
+        const alts = (recipe?.alternates || []).filter((a) => a.id !== filled.variantId);
+        app.openContextMenu({
+          x, y, title: `${s.name.toUpperCase()} · ${filled.name.toUpperCase()}`,
+          items: [
+            { label: filled.consumed ? 'Mark not eaten' : 'Mark eaten', hint: `${Math.round(filled.macros.p)}P · ${Math.round(filled.macros.kcal)} kcal`, onSelect: () => app.toggleSlotConsumed(s.key, !filled.consumed) },
+            ...alts.slice(0, 3).map((a) => ({ label: `Swap → ${a.label}`, hint: a.macros ? `${Math.round(a.macros.p)}P` : undefined, onSelect: () => app.setRotationVariant(s.key, a.id) })),
+            filled.variant ? { label: `Back to ${filled.name}`, onSelect: () => app.setRotationVariant(s.key, null) } : null,
+            { label: 'Open recipe', onSelect: () => app.openRecipe(filled.id) },
+            { label: 'Clear slot', danger: true, onSelect: () => { app.toggleRotationSlot(s.key, filled.id); if (s.key === 'extra') app.setState({ rotationShowExtra: false }); } },
+          ],
+        });
+      } : null,
     };
   });
   const rotTot = rotation?.totals || { p: 0, c: 0, f: 0, kcal: 0 };

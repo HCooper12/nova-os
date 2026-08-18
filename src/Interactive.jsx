@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { css } from './css.js';
+import { useLongPress } from './longPress.js';
 
 // The original design used `style-hover` / `style-focus` attributes (a Design
 // Canvas-only feature) to patch inline styles on :hover/:focus. This is the
@@ -13,10 +14,13 @@ import { css } from './css.js';
 const NATIVE_INTERACTIVE = new Set(['button', 'a', 'input', 'select', 'textarea', 'label']);
 const DEFAULT_FOCUS = { outline: '2px solid var(--nv-acc-border)', outlineOffset: '2px' };
 
-export function Interactive({ as: Tag = 'div', base, hoverStyle, activeStyle, focusStyle, style: styleProp, onPointerDown, onPointerUp, onPointerCancel, onPointerEnter, onPointerLeave, onFocus, onBlur, onClick, onKeyDown, ...rest }) {
+export function Interactive({ as: Tag = 'div', base, hoverStyle, activeStyle, focusStyle, style: styleProp, onPointerDown, onPointerUp, onPointerCancel, onPointerEnter, onPointerLeave, onFocus, onBlur, onClick, onKeyDown, onLongPress, ...rest }) {
   const [hover, setHover] = useState(false);
   const [active, setActive] = useState(false);
   const [focus, setFocus] = useState(false);
+  // spec #13: hold (or right-click) any Interactive for its secondary
+  // actions — the hook composes with the pressed-state handlers below
+  const lp = useLongPress(onLongPress);
   const b = typeof base === 'string' ? css(base) : base || {};
   const hs = hoverStyle ? (typeof hoverStyle === 'string' ? css(hoverStyle) : hoverStyle) : {};
   // A tap should show feedback the instant the finger lands. WebKit only
@@ -39,7 +43,7 @@ export function Interactive({ as: Tag = 'div', base, hoverStyle, activeStyle, fo
   const motion = springs
     ? { transform: active ? 'scale(.978)' : 'scale(1)', transition: 'transform .16s cubic-bezier(.32,.72,0,1)' }
     : {};
-  const style = { ...b, ...motion, ...(hover ? hs : {}), ...(active ? as_ : {}), ...(focus ? fs : {}), ...(styleProp || {}) };
+  const style = { ...b, ...motion, ...(hover ? hs : {}), ...(active ? as_ : {}), ...(focus ? fs : {}), ...(lp.style || {}), ...(styleProp || {}) };
   const a11y = actsAsButton
     ? {
         role: 'button',
@@ -54,12 +58,15 @@ export function Interactive({ as: Tag = 'div', base, hoverStyle, activeStyle, fo
     <Tag
       style={style}
       onClick={onClick}
-      onPointerDown={(e) => { setActive(true); onPointerDown?.(e); }}
-      onPointerUp={(e) => { setActive(false); onPointerUp?.(e); }}
-      onPointerCancel={(e) => { setActive(false); onPointerCancel?.(e); }}
+      onClickCapture={lp.onClickCapture}
+      onContextMenu={lp.onContextMenu}
+      onPointerDown={(e) => { setActive(true); lp.onPointerDown?.(e); onPointerDown?.(e); }}
+      onPointerMove={lp.onPointerMove}
+      onPointerUp={(e) => { setActive(false); lp.onPointerUp?.(e); onPointerUp?.(e); }}
+      onPointerCancel={(e) => { setActive(false); lp.onPointerCancel?.(e); onPointerCancel?.(e); }}
       // hover is a mouse-only affordance — never let touch set it (that's what stuck)
       onPointerEnter={(e) => { if (e.pointerType === 'mouse') setHover(true); onPointerEnter?.(e); }}
-      onPointerLeave={(e) => { setHover(false); setActive(false); onPointerLeave?.(e); }}
+      onPointerLeave={(e) => { setHover(false); setActive(false); lp.onPointerLeave?.(e); onPointerLeave?.(e); }}
       onFocus={(e) => { setFocus(true); onFocus?.(e); }}
       onBlur={(e) => { setFocus(false); onBlur?.(e); }}
       {...a11y}

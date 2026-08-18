@@ -123,7 +123,39 @@ export function valsWorkouts(app, ctx) {
       : 'No exercises yet',
     completedCount: r.completedCount,
     onOpen: () => app.openRoutine(r.id),
+    // spec #13: hold a routine card for its secondary actions
+    onLongPress: ({ x, y }) => app.openContextMenu({
+      x, y, title: r.name.toUpperCase(),
+      items: [
+        { label: 'Start session', hint: `${r.exercises.length} exercises`, onSelect: () => app.startWorkoutSession(r) },
+        { label: 'Open & edit', onSelect: () => app.openRoutine(r.id) },
+        { label: 'History', hint: `${r.completedCount}×`, onSelect: () => app.openWorkoutHistory(r.id) },
+        { label: 'Ask Coach about it', onSelect: () => { app.setState({ trainTab: 'coach' }); app.doCoach(`Review my ${r.name} routine — structure, order, anything to change?`); } },
+      ],
+    }),
   }));
+
+  // The mockup's GYM hero: today's card, front and centre — the day's most
+  // important action must never hide behind a routine tile. Rest days say
+  // so honestly (with the recovery focus when one exists) instead of
+  // pretending there's a session to start.
+  const gymHero = (() => {
+    if (!usingLiveWorkouts || st.workoutSession) return null;
+    const o = overview;
+    if (!o) return null;
+    if (o.restDay) {
+      return { rest: true, focusText: (o.focus && o.focus.kind === 'rest') ? o.focus.text : 'Active rest — move, don’t load. The week’s work lands while you recover.' };
+    }
+    if (!o.today) return null;
+    const r = liveRoutines.find((x) => x.id === o.today.routineId);
+    const estMin = Math.round((o.today.exerciseCount * 8 + 4) / 5) * 5;
+    return {
+      rest: false,
+      name: o.today.name,
+      meta: `${o.today.exerciseCount} exercises · ~${estMin} min${o.today.lastVolume ? ` · last time ${o.today.lastVolume.toLocaleString()} kg` : ''}`,
+      begin: r ? () => app.startWorkoutSession(r) : null,
+    };
+  })();
 
   const openRoutine = usingLiveWorkouts ? liveRoutines.find((r) => r.id === st.openRoutineId) || null : null;
   const isTimeTracking = (tt) => tt === 'weight_time' || tt === 'bodyweight_time';
@@ -184,8 +216,24 @@ export function valsWorkouts(app, ctx) {
   };
   const PAIN_OTHER = ['Neck', 'Upper back', 'Lower back', 'Hip', 'Knee', 'Ankle', 'Foot', 'Groin', 'Hamstring', 'Achilles'];
   const pain = st.sessionPain || null;
+  const libraryById = new Map(libraryExercises.map((x) => [x.id, x]));
   const sessionExercises = session ? session.exercises.map((e, exIdx) => ({
     exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, trackingType: e.trackingType,
+    // ▶ FORM — the curated clip/diagram for this lift, when one is filed
+    formUrl: libraryById.get(e.exerciseId)?.resourceUrl || null,
+    // spec #13: hold the exercise header for its secondary actions
+    onLongPress: ({ x, y }) => app.openContextMenu({
+      x, y, title: e.name.toUpperCase(),
+      items: [
+        libraryById.get(e.exerciseId)?.resourceUrl
+          ? { label: '▶ Form video', hint: 'curated', onSelect: () => window.open(libraryById.get(e.exerciseId).resourceUrl, '_blank', 'noopener') }
+          : { label: 'Find me a form video', hint: 'Coach curates', onSelect: () => { app.setState({ trainTab: 'coach' }); app.doCoach(`Find the best form video for ${e.name} (from a reputable coach) and propose saving it to the exercise.`); } },
+        { label: e.anomaly ? 'Unflag anomaly' : 'Flag anomaly — off day', onSelect: () => app.updateSessionExerciseField(exIdx, 'anomaly', !e.anomaly) },
+        { label: 'Report pain', danger: true, onSelect: () => app.setState({ sessionPain: { exIdx, area: null, side: null, when: null, detail: '' } }) },
+        { label: e.skipped ? 'Un-skip today' : 'Skip today', onSelect: () => app.toggleSessionExerciseSkipped(exIdx) },
+        { label: 'Ask Coach about this lift', onSelect: () => { app.setState({ trainTab: 'coach' }); app.doCoach(`Mid-session — talk me through ${e.name}: cues, common mistakes, and what matters most for my goals.`); } },
+      ],
+    }),
     coachLabel: coachChipLabel(e.coach), coachEvidence: e.coach?.evidence || null,
     weightHint: e.weightHint || null,
     // last session, verbatim — so a coach-raised prefill is a visible choice,
@@ -320,6 +368,7 @@ export function valsWorkouts(app, ctx) {
     workoutsDemo: ctx.demoMode,
     weekStrip,
     routinesList,
+    gymHero,
     routineCreating: st.routineCreating,
     routineNewName: st.routineNewName,
     setRoutineNewName: (e) => app.setRoutineNewName(e),

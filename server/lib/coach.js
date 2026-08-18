@@ -364,7 +364,7 @@ export function parseCoachProposal(text) {
   }
 }
 
-const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets', 'tune', 'injury', 'goal', 'block'];
+const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets', 'tune', 'injury', 'goal', 'block', 'resource'];
 
 export async function validateCoachEdit(vaultPath, raw) {
   const { loadExerciseLibrary } = await import('./exercises.js');
@@ -394,6 +394,23 @@ export async function validateCoachEdit(vaultPath, raw) {
     return {
       payload: { action, exerciseId: lib.id, exerciseName: lib.name, stepKg, repStep, hold, focus, model, reason: String(raw.reason || '').slice(0, 200) },
       title: `Coach: tune ${lib.name} — ${bits.join(', ')}`,
+    };
+  }
+
+  // "resource" curates ONE form clip/diagram onto an exercise — the ▶ FORM
+  // chip's supply line. The Coach found it on the open web; filing it is
+  // still his call, like every write.
+  if (action === 'resource') {
+    const name = String(raw.exercise || '').trim();
+    const lib = exercises.find((e) => ci(e.name) === ci(name))
+      || exercises.find((e) => ci(e.name).includes(ci(name)) || ci(name).includes(ci(e.name)));
+    if (!lib) throw new Error(`no exercise called "${name}" in his library`);
+    const url = String(raw.url || '').trim();
+    if (!/^https?:\/\//.test(url)) throw new Error('a resource needs an http(s) url');
+    const cues = String(raw.cues || '').trim().slice(0, 300);
+    return {
+      payload: { action, exerciseId: lib.id, exerciseName: lib.name, url: url.slice(0, 300), cues, reason: String(raw.reason || '').slice(0, 200) },
+      title: `Coach: file form resource for ${lib.name}`,
     };
   }
 
@@ -492,7 +509,8 @@ export async function createCoachEditRecord(vaultPath, { question, proposal, sou
         : payload.action === 'injury' ? 'injury-log'
           : payload.action === 'goal' ? 'goal-target'
             : payload.action === 'block' ? 'training-block'
-              : 'routine-edit',
+              : payload.action === 'resource' ? 'exercise-resource'
+                : 'routine-edit',
       confidence: 'high',
       title,
       reason: payload.reason || 'proposed in the Coach chat',
@@ -511,7 +529,7 @@ export async function createCoachEditRecord(vaultPath, { question, proposal, sou
 // coach that never learns whether its advice landed can't improve.
 export async function adviceContext(days = 14) {
   const { listRecords } = await import('./inboxStore.js');
-  const COACH_ROUTES = new Set(['progression-tune', 'routine-edit', 'injury-log', 'goal-target', 'training-block']);
+  const COACH_ROUTES = new Set(['progression-tune', 'routine-edit', 'injury-log', 'goal-target', 'training-block', 'exercise-resource']);
   const cutoff = Date.now() - days * 86400000;
   const records = (await listRecords()).filter((r) =>
     COACH_ROUTES.has(r.decision?.route) && new Date(r.createdAt || 0).getTime() > cutoff);

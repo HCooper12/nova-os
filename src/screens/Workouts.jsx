@@ -87,6 +87,28 @@ function RoutinesView({ v }) {
     <>
       <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Train, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>your way.</span></h1>
 
+      {/* the mockup's hero: ON TODAY'S CARD, front and centre — a session
+          in progress replaces it with the resume card below */}
+      {v.gymHero && !v.resumeSession && (v.gymHero.rest ? (
+        <div style={css("margin-top:18px;border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:16px;padding:18px 22px;background:linear-gradient(180deg,rgba(255,255,255,.03),transparent)")}>
+          <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>ON TODAY'S CARD</div>
+          <div style={css("margin-top:7px;font:700 24px/1.1 var(--nv-font-ui)")}>Active rest</div>
+          <div style={css("margin-top:7px;font-size:12.5px;color:var(--nv-ink60);line-height:1.55;max-width:520px")}>{v.gymHero.focusText}</div>
+        </div>
+      ) : (
+        <div style={css("margin-top:18px;border:1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent);border-radius:16px;padding:20px 22px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-cy) 09%, transparent),transparent);box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 18px 44px -26px color-mix(in srgb, var(--nv-cy) 55%, transparent)")}>
+          <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.22em;color:var(--nv-cy)")}>ON TODAY'S CARD</div>
+          <div style={css("margin-top:7px;font:700 30px/1.05 var(--nv-font-ui);letter-spacing:.01em")}>{v.gymHero.name.toUpperCase()}</div>
+          <div style={css("margin-top:7px;font:400 12px var(--nv-font-mono);color:var(--nv-ink60)")}>{v.gymHero.meta}</div>
+          {v.gymHero.begin && (
+            <Interactive as="span" onClick={v.gymHero.begin}
+              base={{ cursor: 'pointer', display: 'inline-block', marginTop: '15px', font: "600 11.5px var(--nv-font-mono)", letterSpacing: '.1em', padding: '12px 26px', borderRadius: '10px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)' }}
+              hoverStyle={{ filter: 'brightness(1.1)' }}
+            >▶ BEGIN SESSION</Interactive>
+          )}
+        </div>
+      ))}
+
       {v.structured ? (
         /* Apple layout: the week as a grouped card — full-width rows fit real
            16px pickers, where the compact chips truncated ("Pu…"). Same
@@ -244,6 +266,7 @@ function RoutinesView({ v }) {
             <Interactive
               key={r.id}
               onClick={r.onOpen}
+              onLongPress={r.onLongPress}
               base={{ cursor: 'pointer', flex: '1 1 260px', minWidth: '240px', border: '1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent)', borderRadius: '14px', padding: '18px 20px', background: 'linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01))', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.06),0 14px 34px -20px rgba(0,0,0,.9)' }}
               hoverStyle="border-color:color-mix(in srgb, var(--nv-cy) 35%, transparent)"
             >
@@ -383,12 +406,17 @@ function SessionView({ v }) {
         {v.sessionExercises.map((e) => (
           <div key={e.exerciseId} style={css(`border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:12px;padding:16px 18px;background:rgba(255,255,255,.02)${e.skipped ? ';opacity:.5' : ''}`)}>
             <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap")}>
-              <span style={css("display:flex;align-items:center;gap:8px;flex-wrap:wrap")}>
+              <Interactive as="span" onLongPress={e.onLongPress} base={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <span style={css(`font-size:15px;font-weight:500${e.skipped ? ';text-decoration:line-through' : ''}`)}>{e.name}</span>
+                {!e.skipped && e.formUrl && (
+                  <Interactive as="span" onClick={() => window.open(e.formUrl, '_blank', 'noopener')} title="Curated form clip/diagram for this lift"
+                    base={css("cursor:pointer;font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-ink);border:1px solid color-mix(in srgb, var(--nv-ink) 25%, transparent);background:rgba(255,255,255,.04)")}
+                    hoverStyle="color:var(--nv-cy);border-color:color-mix(in srgb, var(--nv-cy) 45%, transparent)">▶ FORM</Interactive>
+                )}
                 {e.skipped && <span style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;color:var(--nv-warn)")}>SKIPPED TODAY</span>}
                 {!e.skipped && e.coachLabel && <span title={e.coachEvidence || ''} style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-cy);border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);background:color-mix(in srgb, var(--nv-cy) 08%, transparent)")}>{e.coachLabel}</span>}
                 {!e.skipped && e.focusNote && <span style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-gold);border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);background:color-mix(in srgb, var(--nv-gold) 08%, transparent)")}>FOCUS: {e.focusNote}</span>}
-              </span>
+              </Interactive>
               <span style={css("display:flex;align-items:center;gap:10px")}>
                 {!e.skipped && <span style={css("font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{e.targetLabel}{e.weightHint ? ` · Coach: ${e.weightHint}` : ''}</span>}
                 <Interactive as="span" onClick={e.onToggleSkip} title={e.skipped ? 'Put it back in today\'s session' : 'Drop this exercise for today only — your program stays as it is'}

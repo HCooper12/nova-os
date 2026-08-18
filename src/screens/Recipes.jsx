@@ -114,7 +114,8 @@ export function Recipes({ v }) {
           </div>
           <div style={css("display:flex;gap:10px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:none")}>
             {v.rotationSlots.map((s) => (
-              <div key={s.key} style={{ flex: '0 0 172px', borderRadius: '16px', padding: '12px', position: 'relative', cursor: s.recipeName ? 'pointer' : 'default',
+              <Interactive as="div" key={s.key} onLongPress={s.onLongPress}
+                base={{ flex: '0 0 172px', borderRadius: '16px', padding: '12px', position: 'relative', cursor: s.recipeName ? 'pointer' : 'default',
                 border: s.consumed ? '1px solid color-mix(in srgb, var(--nv-good) 50%, transparent)' : '1px solid var(--nv-edge)',
                 background: 'var(--nv-glass)', transition: 'border-color .2s' }}>
                 <span style={css(`font:600 8.5px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-vi)`)}>{s.name.toUpperCase()}</span>
@@ -139,7 +140,7 @@ export function Recipes({ v }) {
                 ) : (
                   <div style={css("font:400 12px var(--nv-font-ui);color:color-mix(in srgb, var(--nv-ink) 35%, transparent);margin-top:8px")}>Empty — pick from the bank below (tap a recipe's {s.name[0]} chip)</div>
                 )}
-              </div>
+              </Interactive>
             ))}
             {v.rotationShowExtraButton && (
               <Interactive as="div" onClick={v.showExtraMealSlot} base={{ flex: '0 0 120px', cursor: 'pointer', borderRadius: '16px', border: '1px dashed var(--nv-edge)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '500 11px var(--nv-font-mono)', color: 'var(--nv-acc)', minHeight: '110px' }} hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}>+ 4TH MEAL</Interactive>

@@ -151,6 +151,7 @@ export function weeklyMuscleVolume(sessions, exercises, { weeks = 4 } = {}) {
     const wk = weekOf(s.date);
     for (const ex of s.exercises || []) {
       const g = groupOf.get(ex.exerciseId) || 'Other';
+      if (g === 'Mobility') continue; // tracked for adherence, never as hypertrophy volume
       const working = (ex.sets || []).filter((x) => x.setType !== 'warmup' && (x.weight > 0 || x.reps > 0));
       if (!working.length) continue;
       const w = acc.get(wk) || new Map();
@@ -249,6 +250,19 @@ export async function analyticsContext(vaultPath) {
   const vol = weeklyMuscleVolume(sessions, exercises);
   if (vol.length) {
     lines.push(`WEEKLY HARD SETS PER MUSCLE (recent weeks, newest first): ${vol.map((w) => `wk ${w.week.slice(5)}: ${Object.entries(w.groups).map(([g, n]) => `${g} ${n}`).join(', ')}`).join(' | ')}`);
+  }
+
+  // the mobility dimension — adherence, not volume: how much mobility work
+  // actually happened lately. Silence when he has no mobility exercises yet
+  // (the honest state), but if the library HAS them and the count is zero,
+  // that IS the signal.
+  {
+    const mobilityIds = new Set(exercises.filter((e) => e.muscleGroup === 'Mobility').map((e) => e.id));
+    if (mobilityIds.size) {
+      const cutoff = new Date(Date.now() - 14 * 86_400_000).toISOString().slice(0, 10);
+      const done = sessions.filter((s) => s.date >= cutoff && s.exercises?.some((ex) => mobilityIds.has(ex.exerciseId) && ex.sets?.length));
+      lines.push(`MOBILITY (a dimension you program and watch, like volume — it protects everything else): ${done.length} session${done.length === 1 ? '' : 's'} with mobility work in the last 14 days. Rest days are mobility's home; if this reads 0 for long, raise it.`);
+    }
   }
 
   // his own words from the logger: notes, pain reports, cut-short reasons —

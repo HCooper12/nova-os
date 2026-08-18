@@ -45,6 +45,7 @@ import { CommandPalette } from './CommandPalette.jsx';
 import { IngestModal } from './IngestModal.jsx';
 import { IngestReview } from './IngestReview.jsx';
 import { Toast } from './Toast.jsx';
+import { ContextMenuHost } from './ContextMenu.jsx';
 import { OutboxView } from './OutboxView.jsx';
 import { NudgeCard } from './NudgeCard.jsx';
 import { Boot } from './Boot.jsx';
@@ -230,6 +231,7 @@ export default class App extends Component {
     barcodeScannerOpen: false,
     noteQuery: '', noteType: 'All', openNoteId: 'n1',
     galaxySel: null, toast: null, reviewIdx: 0,
+    ctxMenu: null, // the long-press / right-click menu: { x, y, title?, items }
     isMobile: typeof window !== 'undefined' && window.innerWidth < 760,
     novaTheme: getNovaTheme(), calmMode: getCalm(), coreStyle: getCoreStyle(), novaStyle: getNovaStyle(),
 
@@ -3252,6 +3254,15 @@ export default class App extends Component {
     this.setState({ toast: text });
     this.toastT = setTimeout(() => this.setState({ toast: null }), 3600);
   }
+  // ---------- long-press / right-click context menus (spec #13) ----------
+  openContextMenu(spec) {
+    const items = (spec.items || []).filter(Boolean);
+    if (!items.length) return;
+    this.setState({ ctxMenu: { x: spec.x ?? 0, y: spec.y ?? 0, title: spec.title || null, items } });
+  }
+  closeContextMenu() {
+    this.setState({ ctxMenu: null });
+  }
   // Streaming bubbles (shared by Coach + Code; Voice keeps its own variant
   // with speech): upsert the in-flight reply so the answer appears while
   // it's still being written — job.partial arrives from the shared poll.
@@ -4046,6 +4057,8 @@ export default class App extends Component {
             {v.isSettings && <Settings v={v} />}
           </main>
         </div>
+
+        <ContextMenuHost menu={this.state.ctxMenu} isMobile={v.isMobile} close={() => this.closeContextMenu()} />
 
         {v.statusBanner && (
           <div style={{

@@ -73,6 +73,22 @@ test('weekly volume: working sets per muscle per calendar week, warm-ups exclude
   assert.equal(vol[0].groups.Back, 1);
 });
 
+test('mobility sets never count as hypertrophy volume', () => {
+  const exercises = [
+    { id: 'bench', name: 'Bench', muscleGroup: 'Chest' },
+    { id: 'spiderman', name: 'Spider-Man Lunge', muscleGroup: 'Mobility' },
+  ];
+  const sessions = [
+    { date: '2026-08-10', exercises: [
+      { exerciseId: 'bench', name: 'Bench', sets: [{ weight: 80, reps: 5 }] },
+      { exerciseId: 'spiderman', name: 'Spider-Man Lunge', sets: [{ weight: 0, reps: 10 }, { weight: 0, reps: 10 }] },
+    ] },
+  ];
+  const vol = weeklyMuscleVolume(sessions, exercises);
+  assert.equal(vol[0].groups.Chest, 1);
+  assert.equal(vol[0].groups.Mobility, undefined, 'stretching is not a hard set');
+});
+
 test('program audit: catches his program\'s real, previously invisible errors', () => {
   const exercises = [
     { id: 'pullup', name: 'Pull-Up', muscleGroup: 'Back' },

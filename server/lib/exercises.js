@@ -6,6 +6,11 @@ const LIBRARY_REL_PATH = 'Wiki/Health/Exercise Library.md';
 export const MUSCLE_GROUPS = [
   'Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps',
   'Quads', 'Hamstrings', 'Glutes', 'Calves', 'Abs', 'Forearms', 'Full Body',
+  // Mobility is a first-class training dimension, not a muscle: hip openers,
+  // thoracic work, Spider-Man lunges. Its sets are tracked (adherence
+  // matters) but excluded from hypertrophy volume — stretching is not a
+  // hard set and must never inflate a muscle's weekly count.
+  'Mobility',
 ];
 
 // How a set of this exercise is logged. "reps" fields elsewhere in the app

@@ -379,6 +379,24 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  if (route === 'exercise-resource') {
+    // A Coach-curated form clip/diagram, filed onto the exercise. Undo
+    // restores the exact prior knowledge fields.
+    const { loadExerciseLibrary, setExerciseKnowledge } = await import('./exercises.js');
+    const { exercises } = await loadExerciseLibrary(vaultPath);
+    const prior = exercises.find((e) => e.id === payload.exerciseId);
+    if (!prior) throw new Error(`exercise ${payload.exerciseId} no longer exists`);
+    const priorKnowledge = { cues: prior.cues || null, resourceUrl: prior.resourceUrl || null };
+    await setExerciseKnowledge(vaultPath, payload.exerciseId, {
+      resourceUrl: payload.url,
+      ...(payload.cues ? { cues: payload.cues } : {}),
+    });
+    return {
+      destination: `Exercise Library — ${payload.exerciseName}: form resource filed`,
+      undo: { route, exerciseId: payload.exerciseId, name: payload.exerciseName, prior: priorKnowledge },
+    };
+  }
+
   if (route === 'training-block') {
     const { setBlock, getBlock } = await import('./trainingBlocks.js');
     const prior = await getBlock(vaultPath).catch(() => null);
@@ -797,6 +815,11 @@ export async function undoFiling(vaultPath, undo) {
     const { clearTune } = await import('./progressionTunes.js');
     await clearTune(vaultPath, undo.exerciseId, { restore: undo.prior });
     return undo.prior ? `restored ${undo.name}'s previous tune` : `cleared the tune — ${undo.name} progresses by the defaults again`;
+  }
+  if (undo.route === 'exercise-resource') {
+    const { setExerciseKnowledge } = await import('./exercises.js');
+    await setExerciseKnowledge(vaultPath, undo.exerciseId, { cues: undo.prior?.cues || '', resourceUrl: undo.prior?.resourceUrl || '' });
+    return undo.prior?.resourceUrl ? `restored ${undo.name}'s previous form resource` : `removed the form resource from ${undo.name}`;
   }
   if (undo.route === 'training-block') {
     if (undo.prior) {
