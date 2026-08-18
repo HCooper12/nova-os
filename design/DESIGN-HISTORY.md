@@ -11,6 +11,17 @@ Capture Home / Train / Recipes at 390×844 from the deployed app into
 
 ## Ledger (newest first)
 
+### 2026-08-18 — P1 shipped (Train TODAY pane + Fuel hero)
+- The redesign's first phase is LIVE: readiness ring, focus-for-today,
+  today card, momentum feed, volume-vs-goal bars, glossary system; Fuel
+  protein ring + coloured macros + gap-fill coach line. Commit: see
+  `git log` ("P1 of the redesign").
+- No screenshots in this entry yet: these surfaces render only with live
+  data, and the Pages site (public repo) must never carry personal data —
+  demo mode shows the old view. Capture from a connected device into a
+  PRIVATE copy, or extend demo data to cover the overview, before the next
+  entry.
+
 ### 2026-08-18 — "Before the redesign" + mockup v1
 - `history/2026-08-18-before/` — home.png, train.png, recipes.png: the app
   as it stood after the Coach intelligence upgrades but before any visual
