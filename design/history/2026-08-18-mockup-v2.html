@@ -1,0 +1,452 @@
+<title>Nova OS — Train & Fuel Redesign v2</title>
+<style>
+  :root{
+    --void:#06070d; --bg1:#0a0f1e; --bg2:#111a32;
+    --ink:#e8ecf6; --ink60:rgba(232,236,246,.62); --ink40:rgba(232,236,246,.38); --ink25:rgba(232,236,246,.25);
+    --glass:rgba(16,20,36,.72); --glass2:rgba(26,32,54,.85);
+    --edge:rgba(130,175,255,.24); --spec:rgba(190,225,255,.35);
+    --cy:#59e6ff; --vi:#8f7bff; --gold:#e0b26a; --good:#5fe8a8; --warn:#e08383; --mg:#ff7ad9;
+    --ui:'Rajdhani',-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',system-ui,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,'SF Mono','JetBrains Mono',Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--void);color:var(--ink);font-family:var(--ui);line-height:1.5;
+    background-image:radial-gradient(1200px 500px at 20% -10%,rgba(89,230,255,.06),transparent),
+                     radial-gradient(1000px 600px at 90% 10%,rgba(143,123,255,.07),transparent)}
+  .wrap{max-width:1180px;margin:0 auto;padding:40px 20px 80px}
+  a{color:var(--cy)}
+  .eyebrow{font:600 10px var(--mono);letter-spacing:.28em;color:var(--cy);text-transform:uppercase}
+  h1{font-size:clamp(26px,4vw,38px);font-weight:600;letter-spacing:.02em;margin:6px 0 4px;text-wrap:balance}
+  .sub{color:var(--ink60);max-width:64ch;font-size:15px}
+  .v2{display:inline-block;font:600 10px var(--mono);letter-spacing:.16em;color:var(--gold);border:1px solid rgba(224,178,106,.4);border-radius:99px;padding:3px 10px;margin-left:8px;vertical-align:middle}
+  .section{margin-top:56px}
+  .section>h2{font:600 12px var(--mono);letter-spacing:.24em;color:var(--gold);margin-bottom:18px}
+  .duo{display:flex;gap:36px;align-items:flex-start;flex-wrap:wrap}
+  .notes{flex:1 1 300px;min-width:280px;display:flex;flex-direction:column;gap:14px;position:sticky;top:24px}
+  .note{background:var(--glass);border:1px solid var(--edge);border-radius:12px;padding:14px 16px}
+  .note.new{border-color:rgba(224,178,106,.45)}
+  .note b{color:var(--ink);font-weight:600}
+  .note .k{font:600 9.5px var(--mono);letter-spacing:.2em;color:var(--cy);display:block;margin-bottom:5px}
+  .note.new .k{color:var(--gold)}
+  .note p{color:var(--ink60);font-size:13.5px}
+
+  .phone{flex:0 0 auto;width:392px;max-width:100%;background:linear-gradient(180deg,var(--bg1),var(--void) 70%);
+    border:1px solid var(--edge);border-radius:44px;padding:12px;box-shadow:0 40px 90px -30px rgba(0,0,0,.9),inset 0 1px 0 var(--spec)}
+  .screen{border-radius:34px;overflow:hidden;background:var(--void);position:relative;min-height:820px;display:flex;flex-direction:column;
+    background-image:radial-gradient(340px 140px at 50% -40px,rgba(89,230,255,.09),transparent)}
+  .statusbar{display:flex;justify-content:space-between;align-items:center;padding:14px 22px 6px;font:600 12px var(--mono);color:var(--ink60)}
+  .island{width:110px;height:26px;background:#000;border-radius:14px;margin:0 auto;position:absolute;left:50%;transform:translateX(-50%);top:10px}
+  .content{flex:1;padding:10px 14px 24px;overflow:hidden}
+
+  .card{background:var(--glass);border:1px solid var(--edge);border-radius:16px;padding:14px;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+  .label{font:600 9px var(--mono);letter-spacing:.22em;color:var(--ink40)}
+  .chip{display:inline-flex;align-items:center;gap:5px;font:600 10px var(--mono);letter-spacing:.08em;
+    padding:5px 10px;border-radius:99px;border:1px solid var(--edge);color:var(--ink60);cursor:pointer;transition:border-color .2s,color .2s}
+  .chip:hover{border-color:var(--cy);color:var(--cy)}
+  .chip.on{border-color:rgba(89,230,255,.5);color:var(--cy);background:rgba(89,230,255,.08)}
+  .chip.gold{border-color:rgba(224,178,106,.45);color:var(--gold)}
+  .chip.good{border-color:rgba(95,232,168,.4);color:var(--good)}
+  .chip.warn{border-color:rgba(224,131,131,.45);color:var(--warn)}
+  .num{font-variant-numeric:tabular-nums}
+  svg{display:block}
+  /* glossary term — dotted underline, tap to explain */
+  .term{border-bottom:1px dotted rgba(89,230,255,.55);cursor:help;position:relative}
+  .gloss{position:absolute;left:0;bottom:calc(100% + 8px);z-index:30;width:230px;background:var(--bg2);border:1px solid rgba(89,230,255,.4);
+    border-radius:12px;padding:11px 13px;font:400 12px var(--ui);color:var(--ink);letter-spacing:0;text-transform:none;
+    box-shadow:0 18px 50px -12px rgba(0,0,0,.9);display:none}
+  .term.open .gloss{display:block}
+  .gloss b{color:var(--cy);display:block;font:600 10px var(--mono);letter-spacing:.14em;margin-bottom:4px}
+
+  .hero{display:flex;gap:14px;align-items:center;margin-top:8px}
+  .ring{position:relative;width:118px;height:118px;flex:none}
+  .ring svg{width:118px;height:118px;transform:rotate(-90deg)}
+  .ring .pct{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .ring .pct b{font-size:26px;font-weight:600;color:var(--cy);text-shadow:0 0 14px rgba(89,230,255,.5)}
+  .ring .pct span{font:600 8px var(--mono);letter-spacing:.2em;color:var(--ink40)}
+  .facts{flex:1;display:flex;flex-direction:column;gap:7px}
+  .fact{display:flex;justify-content:space-between;font-size:13px;color:var(--ink60)}
+  .fact b{color:var(--ink);font-weight:600}
+
+  .focuscard{margin-top:12px;border-radius:16px;padding:13px 14px;border:1px solid rgba(224,178,106,.4);
+    background:linear-gradient(135deg,rgba(224,178,106,.10),rgba(224,178,106,.02))}
+  .focuscard .fk{font:600 9px var(--mono);letter-spacing:.22em;color:var(--gold)}
+  .focuscard p{font-size:13.5px;color:var(--ink);margin-top:5px;line-height:1.5}
+  .focuscard p i{color:var(--ink60)}
+
+  .todaycard{margin-top:12px;background:linear-gradient(135deg,rgba(89,230,255,.10),rgba(143,123,255,.06));
+    border:1px solid rgba(89,230,255,.35);border-radius:18px;padding:16px;position:relative;overflow:hidden}
+  .todaycard::after{content:"";position:absolute;inset:0;background:radial-gradient(300px 80px at 85% 0%,rgba(89,230,255,.12),transparent);pointer-events:none}
+  .todaycard h3{font-size:24px;font-weight:600;letter-spacing:.04em}
+  .todaycard .meta{color:var(--ink60);font-size:12.5px;margin-top:2px}
+  .begin{margin-top:12px;display:inline-flex;align-items:center;gap:8px;cursor:pointer;
+    font:600 12px var(--mono);letter-spacing:.14em;color:var(--cy);padding:11px 18px;border-radius:12px;
+    border:1px solid rgba(89,230,255,.55);background:linear-gradient(180deg,rgba(89,230,255,.18),rgba(89,230,255,.04));
+    box-shadow:0 0 26px -8px rgba(89,230,255,.7);transition:box-shadow .2s}
+  .begin:hover{box-shadow:0 0 34px -6px rgba(89,230,255,.9)}
+
+  .feed{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 8px;margin-top:12px;scrollbar-width:none}
+  .feed::-webkit-scrollbar{display:none}
+  .fcard{flex:0 0 162px;border-radius:14px;padding:12px;border:1px solid var(--edge);background:var(--glass);cursor:pointer;transition:transform .2s,border-color .2s}
+  .fcard:hover{transform:translateY(-2px)}
+  .fcard .fk{font:600 8.5px var(--mono);letter-spacing:.18em;display:block;margin-bottom:6px}
+  .fcard .fv{font-size:15.5px;font-weight:600;line-height:1.25}
+  .fcard .fs{font-size:10.5px;color:var(--ink40);margin-top:4px;line-height:1.4}
+  .fcard.pr{border-color:rgba(224,178,106,.5);background:linear-gradient(160deg,rgba(224,178,106,.10),var(--glass))}
+  .fcard.pr .fk{color:var(--gold)} .fcard.pr:hover{border-color:var(--gold)}
+  .fcard.stall{border-color:rgba(224,131,131,.45)} .fcard.stall .fk{color:var(--warn)} .fcard.stall:hover{border-color:var(--warn)}
+  .fcard.mob .fk{color:var(--mg)}
+
+  .vol{margin-top:12px}
+  .vrow{display:flex;align-items:center;gap:8px;margin-top:7px}
+  .vrow .vn{width:70px;font:600 9px var(--mono);letter-spacing:.1em;color:var(--ink40)}
+  .vbar{flex:1;height:8px;border-radius:4px;background:rgba(130,175,255,.08);overflow:hidden;position:relative}
+  .vbar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,var(--vi),var(--cy))}
+  .vbar.low i{background:linear-gradient(90deg,rgba(224,131,131,.8),rgba(224,131,131,.5))}
+  .vbar .tgt{position:absolute;top:-2px;bottom:-2px;width:2px;background:rgba(232,236,246,.35)}
+  .vrow .vv{width:40px;text-align:right;font:600 10px var(--mono);color:var(--ink60)}
+  .vrow .vv.low{color:var(--warn)}
+
+  .coach{margin-top:12px}
+  .msg{background:var(--glass2);border:1px solid var(--edge);border-radius:14px 14px 14px 4px;padding:12px 13px;font-size:13px;color:var(--ink);line-height:1.55}
+  .msg .who{font:600 9px var(--mono);letter-spacing:.2em;color:var(--cy);display:block;margin-bottom:5px}
+  .msg.me{border-radius:14px 14px 4px 14px;background:rgba(89,230,255,.06);border-color:rgba(89,230,255,.25);margin-top:10px}
+  .msg.me .who{color:var(--ink40)}
+  .resource{display:flex;gap:10px;align-items:center;margin-top:10px;padding:9px 11px;border-radius:11px;cursor:pointer;
+    border:1px solid rgba(89,230,255,.35);background:rgba(89,230,255,.06);transition:background .2s}
+  .resource:hover{background:rgba(89,230,255,.12)}
+  .resource .play{width:26px;height:26px;flex:none;border-radius:8px;background:rgba(89,230,255,.15);display:flex;align-items:center;justify-content:center}
+  .resource .rt{font-size:12px;font-weight:600;color:var(--cy)}
+  .resource .rs{font-size:10.5px;color:var(--ink40)}
+  .quick{display:flex;gap:7px;margin-top:10px;flex-wrap:wrap}
+
+  .exrow{margin-top:10px}
+  .exhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .exhead b{font-size:15px;font-weight:600}
+  .formlink{font:600 9px var(--mono);letter-spacing:.1em;color:var(--cy);cursor:pointer;white-space:nowrap}
+  .setpills{display:flex;gap:7px;margin-top:8px;flex-wrap:wrap}
+  .setpill{font:600 11px var(--mono);padding:8px 11px;border-radius:10px;border:1px solid var(--edge);color:var(--ink60);cursor:pointer;transition:border-color .2s}
+  .setpill.done{border-color:rgba(95,232,168,.5);color:var(--good);background:rgba(95,232,168,.06)}
+  .setpill:hover{border-color:var(--cy)}
+  .setpill .rir{color:var(--ink25);font-size:9px}
+  .notesrow{display:flex;gap:7px;margin-top:9px;align-items:center}
+  .noteinput{flex:1;font:400 11.5px var(--ui);color:var(--ink40);background:rgba(0,0,0,.25);border:1px dashed rgba(130,175,255,.25);border-radius:9px;padding:7px 10px}
+  .painsheet{margin-top:10px;border:1px solid rgba(224,131,131,.45);border-radius:13px;padding:12px;background:rgba(224,131,131,.05)}
+  .painsheet .pk{font:600 9px var(--mono);letter-spacing:.2em;color:var(--warn)}
+  .painsheet .prow{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+
+  .tabs{display:flex;gap:6px;margin:6px 0 10px}
+  .tab{flex:1;text-align:center;font:600 9.5px var(--mono);letter-spacing:.14em;padding:9px 0;border-radius:11px;cursor:pointer;
+    color:var(--ink40);border:1px solid transparent;transition:color .2s,border-color .2s}
+  .tab.on{color:var(--cy);border-color:rgba(89,230,255,.4);background:rgba(89,230,255,.06);text-shadow:0 0 10px rgba(89,230,255,.6)}
+  .pane{display:none}.pane.on{display:block}
+
+  .fuelhero{display:flex;gap:16px;align-items:center;margin-top:8px}
+  .weeks{display:flex;gap:7px;align-items:flex-end;height:78px;margin-top:10px;position:relative}
+  .weeks .floor{position:absolute;left:0;right:0;border-top:1px dashed rgba(232,236,246,.22)}
+  .wb{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;justify-content:flex-end;height:100%}
+  .wb i{width:100%;max-width:30px;border-radius:5px 5px 0 0;background:rgba(130,175,255,.18)}
+  .wb.met i{background:linear-gradient(180deg,var(--good),rgba(95,232,168,.4));box-shadow:0 0 12px -2px rgba(95,232,168,.6)}
+  .wb span{font:600 8px var(--mono);color:var(--ink25)}
+  .wb b{font:600 9px var(--mono);color:var(--ink60)}
+  .wb.met b{color:var(--good)}
+  .mealrow{display:flex;gap:10px;overflow-x:auto;margin-top:12px;padding:26px 2px 6px;scrollbar-width:none;position:relative}
+  .mealrow::-webkit-scrollbar{display:none}
+  .meal{flex:0 0 170px;border-radius:16px;border:1px solid var(--edge);background:var(--glass);padding:12px;cursor:pointer;position:relative;transition:border-color .2s}
+  .meal:hover{border-color:var(--cy)}
+  .meal .slot{font:600 8.5px var(--mono);letter-spacing:.2em;color:var(--vi)}
+  .meal h4{font-size:14.5px;font-weight:600;margin-top:3px;line-height:1.25}
+  .meal .mac{font:600 10px var(--mono);margin-top:6px;color:var(--ink40)}
+  .mac .p{color:var(--cy)} .mac .c{color:var(--gold)} .mac .f{color:var(--vi)} .mac .k{color:var(--good)}
+  .tick{position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:50%;border:1.5px solid var(--edge);display:flex;align-items:center;justify-content:center;transition:all .2s}
+  .meal.eaten{border-color:rgba(95,232,168,.5)}
+  .meal.eaten .tick{border-color:var(--good);background:rgba(95,232,168,.15);box-shadow:0 0 12px -2px rgba(95,232,168,.7)}
+  /* long-press context menu, shown open on the dinner card */
+  .ctx{position:absolute;top:-22px;left:150px;z-index:40;width:170px;background:var(--bg2);border:1px solid var(--edge);border-radius:14px;overflow:hidden;
+    box-shadow:0 24px 60px -12px rgba(0,0,0,.95)}
+  .ctx div{padding:10px 14px;font-size:12.5px;color:var(--ink);cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+  .ctx div:hover{background:rgba(89,230,255,.08)}
+  .ctx div+div{border-top:1px solid rgba(130,175,255,.12)}
+  .ctx .danger{color:var(--warn)}
+  .searchrow{display:flex;gap:8px;margin-top:14px}
+  .search{flex:1;display:flex;gap:8px;align-items:center;background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:12px;padding:10px 12px;color:var(--ink40);font-size:12.5px}
+  .iconbtn{width:40px;height:40px;flex:none;border-radius:12px;border:1px solid var(--edge);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:border-color .2s}
+  .iconbtn:hover{border-color:var(--cy)}
+  .crossref{margin-top:12px;border-radius:14px;border:1px solid rgba(143,123,255,.4);background:linear-gradient(135deg,rgba(143,123,255,.09),transparent);padding:12px 13px}
+  .crossref .ck{font:600 9px var(--mono);letter-spacing:.2em;color:var(--vi)}
+  .crossref p{font-size:12.5px;color:var(--ink);margin-top:5px;line-height:1.5}
+
+  @media (prefers-reduced-motion:no-preference){
+    .ring circle.arc{transition:stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1)}
+    .reveal{animation:up .5s ease-out both}
+    @keyframes up{from{opacity:0;transform:translateY(8px)}}
+  }
+  :focus-visible{outline:2px solid var(--cy);outline-offset:2px;border-radius:6px}
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">Nova OS · Design Direction</div>
+  <h1>Train &amp; Fuel, redesigned<span class="v2">V2 — YOUR FEEDBACK</span></h1>
+  <p class="sub">Every point from your notes is now visible: dotted-underlined terms explain themselves (tap <span style="border-bottom:1px dotted var(--cy)">RIR</span> in the phone), the focus card, per-exercise notes + anomaly, the PAIN flow, decline-asks-why proposals, mobility, form clips, volume-vs-goal watching, and long-press menus. Gold-bordered notes on the right are the new additions.</p>
+
+  <!-- ============ TRAIN ============ -->
+  <div class="section">
+    <h2>01 · TRAIN</h2>
+    <div class="duo">
+      <div class="phone reveal">
+        <div class="screen">
+          <div class="island"></div>
+          <div class="statusbar"><span>9:41</span><span class="label" style="color:var(--cy)">NOVA·OS</span><span>◈ 82%</span></div>
+          <div class="content">
+            <div class="tabs" role="tablist">
+              <div class="tab on" data-pane="today" role="tab" tabindex="0">TODAY</div>
+              <div class="tab" data-pane="session" role="tab" tabindex="0">SESSION</div>
+              <div class="tab" data-pane="coach" role="tab" tabindex="0">COACH</div>
+            </div>
+
+            <!-- TODAY -->
+            <div class="pane on" id="today">
+              <div class="hero">
+                <div class="ring">
+                  <svg viewBox="0 0 118 118" aria-label="Readiness 82 percent">
+                    <circle cx="59" cy="59" r="52" fill="none" stroke="rgba(130,175,255,.10)" stroke-width="9"/>
+                    <circle class="arc" cx="59" cy="59" r="52" fill="none" stroke="var(--cy)" stroke-width="9" stroke-linecap="round"
+                      stroke-dasharray="326.7" stroke-dashoffset="58.8" style="filter:drop-shadow(0 0 6px rgba(89,230,255,.6))"/>
+                  </svg>
+                  <div class="pct"><b class="num">82</b><span>READY</span></div>
+                </div>
+                <div class="facts">
+                  <div class="fact"><span>HRV trend</span><b class="num">89 ms ↗ +7%</b></div>
+                  <div class="fact"><span>Sleep</span><b class="num">7h 06</b></div>
+                  <div class="fact"><span>Post-workout HR</span><b class="num" style="color:var(--ink40)">auto from Health</b></div>
+                  <div style="margin-top:2px"><span class="chip gold term" tabindex="0">ACCUMULATION · WK 1/4
+                    <span class="gloss"><b>ACCUMULATION</b>The building phase of your 4-week block: volume climbs, effort stays ~2 reps shy of failure. Week 4 is the planned easy week.</span>
+                  </span></div>
+                </div>
+              </div>
+
+              <div class="focuscard">
+                <span class="fk">◈ FOCUS FOR TODAY</span>
+                <p>Bench: leave <span class="term" tabindex="0">2 RIR<span class="gloss"><b>RIR — Reps In Reserve</b>How many more reps you could have done. "2 RIR" = stop two before failure. Lower RIR = closer to your limit.</span></span> on the first two sets, take the last to 1 — that's the PR double next week. <i>Pulldown: 3s lowering, fixed chest touch-point. Quality over stack today.</i></p>
+              </div>
+
+              <div class="todaycard">
+                <div class="label" style="color:var(--cy)">ON TODAY'S CARD</div>
+                <h3>PUSH</h3>
+                <div class="meta">6 exercises · ~52 min · last time 6,930 kg</div>
+                <div class="begin" role="button" tabindex="0">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="var(--cy)"><path d="M8 5v14l11-7z"/></svg>
+                  BEGIN SESSION
+                </div>
+              </div>
+
+              <div class="feed">
+                <div class="fcard pr"><span class="fk">◆ PR · YESTERDAY</span><div class="fv">Bench 65 kg × 8</div><div class="fs">heaviest ever · was 62.5</div></div>
+                <div class="fcard stall"><span class="fk">▲ STALLED · 28 D</span><div class="fv">Lat Pulldown</div><div class="fs">no strength gain in 4 weeks — tap for Coach's fix</div></div>
+                <div class="fcard mob"><span class="fk">◇ MOBILITY</span><div class="fv">Hips · 12 min</div><div class="fs">Spider-Man flow · 3rd this week</div></div>
+                <div class="fcard"><span class="fk" style="color:var(--good)">● STREAK</span><div class="fv num">4 sessions</div><div class="fs">longest this block</div></div>
+              </div>
+
+              <div class="card vol">
+                <div style="display:flex;justify-content:space-between;align-items:baseline">
+                  <span class="label">HARD SETS THIS WEEK</span>
+                  <span class="label" style="color:var(--gold)">GOAL: ARMS</span>
+                </div>
+                <div class="vrow"><span class="vn">BACK</span><div class="vbar"><i style="width:84%"></i><span class="tgt" style="left:63%"></span></div><span class="vv num">16</span></div>
+                <div class="vrow"><span class="vn">CHEST</span><div class="vbar"><i style="width:63%"></i><span class="tgt" style="left:63%"></span></div><span class="vv num">12</span></div>
+                <div class="vrow"><span class="vn">TRICEPS</span><div class="vbar low"><i style="width:26%"></i><span class="tgt" style="left:53%"></span></div><span class="vv num low">5 ▲</span></div>
+                <div class="vrow"><span class="vn">BICEPS</span><div class="vbar low"><i style="width:32%"></i><span class="tgt" style="left:53%"></span></div><span class="vv num low">6 ▲</span></div>
+                <div style="font-size:11px;color:var(--ink40);margin-top:8px">Coach: arms are the stated goal but tris/bis sit under target — <span style="color:var(--gold);cursor:pointer">add 4-6 sets? →</span></div>
+              </div>
+            </div>
+
+            <!-- SESSION -->
+            <div class="pane" id="session">
+              <div class="card">
+                <div class="exhead"><b>Barbell Bench Press</b><span class="formlink">▶ FORM</span></div>
+                <div style="font:600 10px var(--mono);color:var(--ink40);margin-top:3px">TARGET 3 × 8–10 · <span class="chip gold" style="padding:2px 8px;font-size:8.5px">+2.5 KG EARNED</span></div>
+                <div class="setpills">
+                  <span class="setpill done num">65 × 8 <span class="rir">2 RIR</span></span>
+                  <span class="setpill done num">65 × 8 <span class="rir">2 RIR</span></span>
+                  <span class="setpill num">65 × —</span>
+                </div>
+                <div class="notesrow">
+                  <div class="noteinput">Note — "felt strong", "grip gave first"…</div>
+                  <span class="chip" title="Exclude today from progression signals">ANOMALY</span>
+                </div>
+              </div>
+              <div class="card exrow">
+                <div class="exhead"><b>Wide-Grip Lat Pulldown</b><span class="formlink">▶ FORM</span></div>
+                <div style="font:600 10px var(--mono);color:var(--ink40);margin-top:3px">COACH FOCUS: 3S ECCENTRIC · FIXED TOUCH-POINT</div>
+                <div class="setpills">
+                  <span class="setpill done num">73 × 9 <span class="rir">@RPE 8</span></span>
+                  <span class="setpill num">73 × —</span>
+                </div>
+                <div class="painsheet">
+                  <span class="pk">⚠ PAIN — WHERE &amp; WHEN?</span>
+                  <div class="prow"><span class="chip warn">L SHOULDER</span><span class="chip">ELBOW</span><span class="chip">WRIST</span></div>
+                  <div class="prow"><span class="chip warn">DURING REP</span><span class="chip">AFTER SETS</span></div>
+                  <div style="font-size:12px;color:var(--ink);margin-top:9px;line-height:1.5"><b style="color:var(--warn)">Coach:</b> sharp in-rep shoulder pain on a vertical pull — stop this lift today. Sub <b>Neutral-Grip Pulldown</b> (same lats, friendlier shoulder path), and I've queued a doorway pec stretch. Log it to your Injury Log?</div>
+                  <div class="prow"><span class="chip good">SUB + LOG IT</span><span class="chip">JUST SUB</span><span class="chip">PUSH THROUGH</span></div>
+                </div>
+              </div>
+              <div class="card exrow" style="border-color:rgba(224,178,106,.35)">
+                <span class="label" style="color:var(--gold)">FINISHING EARLY?</span>
+                <div style="font-size:12px;color:var(--ink60);margin-top:5px">One tap tells Coach why — he'll come back with a restructure to discuss, not a lecture.</div>
+                <div class="quick"><span class="chip">OUT OF TIME</span><span class="chip">ENERGY</span><span class="chip">GYM BUSY</span></div>
+              </div>
+            </div>
+
+            <!-- COACH -->
+            <div class="pane" id="coach">
+              <div class="coach">
+                <div class="msg"><span class="who">» COACH</span>
+                  Pull-ups have topped their range three weeks straight at RPE 7 — you've outgrown bodyweight here. Two honest routes: <b>weighted pull-ups</b> (+5 kg, 3×5-8) or a harder line (archer → one-arm negatives). Given the arms goal, weighted is my pick.
+                  <div class="resource" role="link" tabindex="0">
+                    <div class="play"><svg width="11" height="11" viewBox="0 0 24 24" fill="var(--cy)"><path d="M8 5v14l11-7z"/></svg></div>
+                    <div><div class="rt">Loading the pull-up — setup &amp; belt</div><div class="rs">3 variations compared · 6 min</div></div>
+                  </div>
+                  <div class="quick"><span class="chip gold">DRAFT: WEIGHTED +5KG</span><span class="chip">SHOW HARDER LINE</span><span class="chip">WHY RPE 7?</span></div>
+                </div>
+
+                <div class="msg me"><span class="who">YOU · declined "swap curls → hammer curls"</span>Nah, keeping regular curls.</div>
+
+                <div class="msg" style="margin-top:10px"><span class="who">» COACH</span>
+                  Fair — but tell me why, so I stop proposing into a wall. If it's comfort, fine, I'll drop it. If it's "curls feel harder", that's exactly the brachialis gap I'm targeting: your curl volume is 80% supinated and forearm growth is lagging the goal. Convince me or let me convince you.
+                  <div class="quick"><span class="chip">THEY JUST FEEL BETTER</span><span class="chip">ELBOW NIGGLE</span><span class="chip good">OK — MAKE THE CASE</span></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <div class="notes">
+        <div class="note new"><span class="k">FOCUS FOR TODAY</span><p>Composed from the day's routine + earned progressions + Coach focuses + block week. Rest days get a real mobility/recovery focus. Never filler — if nothing meaningful exists, the card doesn't render.</p></div>
+        <div class="note new"><span class="k">JARGON EXPLAINS ITSELF</span><p>Every term of art is dotted-underlined — <b>tap RIR or ACCUMULATION in the phone</b>. One reusable glossary sheet; if a term can't earn a plain-English line, it doesn't ship.</p></div>
+        <div class="note new"><span class="k">NOTES + ANOMALY</span><p>Every exercise takes a free note; ANOMALY excludes today from progression/plateau signals ("off day, don't learn from this"). Coach digests notes over time — pull-ups trending easy is how "go weighted" gets proposed.</p></div>
+        <div class="note new"><span class="k">THE PAIN FLOW</span><p>Two taps (where/when) → evidence-based triage: stop, stretch, or same-muscle substitute — and one tap files it to the Injury Log Coach reads before every prescription.</p></div>
+        <div class="note new"><span class="k">DECLINE ASKS WHY</span><p>A declined proposal triggers the why — and Coach argues back when the data disagrees. Supportive, never sycophantic.</p></div>
+        <div class="note new"><span class="k">VOLUME vs YOUR GOALS</span><p>Target ticks on each muscle bar; under-volumed goal muscles flag red with a one-tap fix. Arms goal = tris/bis watched.</p></div>
+        <div class="note"><span class="k">FORM ON EVERY LIFT</span><p>▶ FORM on each exercise opens the curated clip/diagram + variations, with Coach recommending the variation for YOUR goals.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ FUEL ============ -->
+  <div class="section">
+    <h2>02 · FUEL</h2>
+    <div class="duo">
+      <div class="phone reveal">
+        <div class="screen">
+          <div class="island"></div>
+          <div class="statusbar"><span>18:22</span><span class="label" style="color:var(--cy)">NOVA·OS</span><span>◈ 82%</span></div>
+          <div class="content">
+            <div class="fuelhero">
+              <div class="ring">
+                <svg viewBox="0 0 118 118" aria-label="Protein 96 of 150 grams">
+                  <circle cx="59" cy="59" r="52" fill="none" stroke="rgba(130,175,255,.10)" stroke-width="9"/>
+                  <circle class="arc" cx="59" cy="59" r="52" fill="none" stroke="var(--cy)" stroke-width="9" stroke-linecap="round"
+                    stroke-dasharray="326.7" stroke-dashoffset="117.6" style="filter:drop-shadow(0 0 6px rgba(89,230,255,.55))"/>
+                </svg>
+                <div class="pct"><b class="num">96<span style="font-size:12px;color:var(--ink40)">g</span></b><span>OF 150 P</span></div>
+              </div>
+              <div class="facts">
+                <div class="fact"><span style="color:var(--good)">Calories</span><b class="num">1,240 / 2,200</b></div>
+                <div class="fact"><span><span style="color:var(--gold)">Carbs</span> · <span style="color:var(--vi)">Fat</span></span><b class="num"><span style="color:var(--gold)">118C</span> · <span style="color:var(--vi)">41F</span></b></div>
+                <div style="margin-top:4px"><span class="chip good">FITS 960 KCAL LEFT</span></div>
+                <div style="margin-top:2px;font-size:11.5px;color:var(--ink60)">Coach: <b style="color:var(--ink)">54 g to go</b> — dinner covers 44, find 10 (the yoghurt pouch does it).</div>
+              </div>
+            </div>
+
+            <div class="card" style="margin-top:14px">
+              <span class="label">THE WEEK · FLOOR 150 G</span>
+              <div class="weeks">
+                <div class="floor" style="bottom:74%"></div>
+                <div class="wb"><i style="height:55%"></i><b class="num">111</b><span>12</span></div>
+                <div class="wb"><i style="height:42%"></i><b class="num">84</b><span>13</span></div>
+                <div class="wb"><i style="height:13%"></i><b class="num">26</b><span>14</span></div>
+                <div class="wb"><i style="height:71%"></i><b class="num">142</b><span>15</span></div>
+                <div class="wb"><i style="height:48%"></i><b class="num">96</b><span>16</span></div>
+                <div class="wb met"><i style="height:76%"></i><b class="num">151</b><span>17</span></div>
+                <div class="wb"><i style="height:48%;background:rgba(89,230,255,.35)"></i><b class="num" style="color:var(--cy)">96</b><span>18</span></div>
+              </div>
+            </div>
+
+            <div class="crossref">
+              <span class="ck">◈ TRAINING × FUEL — CROSS-CHECK</span>
+              <p>Your rotation lands <b class="num">~132 g</b> protein on training days — <b>18 g under floor</b> exactly when it matters most. One swap fixes it: potato bowl → dinner on Push days. <span style="color:var(--vi);cursor:pointer">Draft it →</span></p>
+            </div>
+
+            <div style="margin-top:14px"><span class="label">TODAY'S ROTATION — TAP TO EAT · HOLD FOR MORE</span></div>
+            <div class="mealrow">
+              <div class="meal eaten">
+                <span class="slot">LUNCH</span><h4>Works Burger</h4>
+                <div class="mac"><span class="p">52P</span> · <span class="c">42C</span> · <span class="f">17.5F</span> · <span class="k">540</span></div>
+                <div class="tick"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--good)" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div>
+              </div>
+              <div class="meal" style="border-color:rgba(89,230,255,.4)">
+                <span class="slot">DINNER</span><h4>Chicken Caesar Pasta</h4>
+                <div class="mac"><span class="p">44P</span> · <span class="c">52C</span> · <span class="f">16F</span> · <span class="k">530</span></div>
+                <div class="tick"></div>
+                <div class="ctx">
+                  <div>Mark eaten <span style="color:var(--good)">✓</span></div>
+                  <div>Use a variant ▸</div>
+                  <div>Rename slot…</div>
+                  <div>Swap meal…</div>
+                  <div class="danger">Clear slot</div>
+                </div>
+              </div>
+              <div class="meal">
+                <span class="slot">SNACK</span><h4>Protein Blueberry Pouch</h4>
+                <div class="mac"><span class="p">15P</span> · <span class="c">12C</span> · <span class="f">2F</span> · <span class="k">130</span></div>
+                <div class="tick"></div>
+              </div>
+            </div>
+
+            <div class="searchrow">
+              <div class="search">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+                Log anything — type it, say it, shoot it…
+              </div>
+              <div class="iconbtn" title="Speak to Nova" tabindex="0"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--cy)" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div>
+              <div class="iconbtn" title="Photo scan" tabindex="0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink60)" stroke-width="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.4"/></svg></div>
+              <div class="iconbtn" title="Barcode" tabindex="0"><svg width="16" height="16" viewBox="0 0 24 24" stroke="var(--ink60)" stroke-width="2"><path d="M4 6v12M8 6v12M12 6v12M15 6v12M19 6v12" fill="none"/></svg></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="notes">
+        <div class="note new"><span class="k">TRAINING × FUEL CROSS-CHECK</span><p>The non-negotiable: an agent continuously cross-references program + goals + rotation + logs, and surfaces findings as one-liners with a drafted fix. No friction, no asking.</p></div>
+        <div class="note new"><span class="k">LONG-PRESS EVERYWHERE</span><p>The open menu on the dinner card is the pattern platform-wide: hold any card, tab, or exercise for its secondary actions — rename, variants, history, clear. Direct manipulation; never "ask Nova to edit it".</p></div>
+        <div class="note new"><span class="k">MACRO COLOURS, ALWAYS</span><p>P cyan · C gold · F violet · kcal green — consistent on every surface: hero, cards, bank, coach lines.</p></div>
+        <div class="note"><span class="k">ONE BAR, FOUR SENSES</span><p>Type, <b>speak</b>, photograph, or scan — one field, same pipeline. The mic goes straight to Nova's voice lane ("log my lunch").</p></div>
+        <div class="note"><span class="k">COACH DOES ARITHMETIC</span><p>"54 g to go — dinner covers 44, find 10 (the pouch does it)" — every stat arrives as a decision, not homework.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" style="max-width:66ch">
+    <h2>BUILD ORDER</h2>
+    <p class="sub" style="font-size:14px"><b>P1</b> — Train TODAY pane + Fuel hero/week/rotation + one log bar + glossary system. <b>P2</b> — session cockpit: notes/anomaly, PAIN flow, cut-short flow, form links. <b>P3</b> — Coach tab with decline-why, technique media library, mobility dimension, cross-reference agent, Apple Health workout ingest, long-press system everywhere. Full spec: <span style="font-family:var(--mono);font-size:12px">design/UI-REDESIGN-SPEC.md</span> · history: <span style="font-family:var(--mono);font-size:12px">design/DESIGN-HISTORY.md</span></p>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.tab').forEach(t => {
+    const go = () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x===t));
+      document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.id===t.dataset.pane));
+    };
+    t.addEventListener('click', go);
+    t.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') { e.preventDefault(); go(); } });
+  });
+  document.querySelectorAll('.term').forEach(t => {
+    const toggle = (e) => { e.stopPropagation(); document.querySelectorAll('.term.open').forEach(x => x!==t && x.classList.remove('open')); t.classList.toggle('open'); };
+    t.addEventListener('click', toggle);
+    t.addEventListener('keydown', e => { if (e.key==='Enter') toggle(e); });
+  });
+  document.addEventListener('click', () => document.querySelectorAll('.term.open').forEach(x => x.classList.remove('open')));
+</script>
