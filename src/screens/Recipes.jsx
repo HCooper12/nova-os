@@ -284,10 +284,18 @@ export function Recipes({ v }) {
       )}
 
       <div style={css("display:flex;flex-wrap:wrap;gap:8px;margin-top:18px;justify-content:space-between;align-items:center")}>
-        <div style={css("display:flex;flex-wrap:wrap;gap:8px")}>
+        <div style={css("display:flex;flex-wrap:wrap;gap:8px;align-items:center")}>
           {v.recipeFilters.map((f) => (
             <Interactive key={f.label} as="span" onClick={f.go} base={f.style} hoverStyle="border:1px solid color-mix(in srgb, var(--nv-gold) 50%, transparent)">{f.label}</Interactive>
           ))}
+          <input value={v.recipeSearch} onChange={v.setRecipeSearch} placeholder="Search recipes or ingredients…"
+            style={css("width:190px;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:7px 11px;color:var(--nv-ink);font:400 12px var(--nv-font-ui);outline:none")} />
+          {v.recipeFitsAvailable && (
+            <Interactive as="span" onClick={v.toggleRecipeFits}
+              base={`cursor:pointer;font:500 9px var(--nv-font-mono);letter-spacing:.1em;padding:6px 11px;border-radius:8px;border:1px solid ${v.recipeFitsOn ? 'var(--nv-acc-border)' : 'color-mix(in srgb, var(--nv-good) 30%, transparent)'};color:${v.recipeFitsOn ? 'var(--nv-acc)' : 'var(--nv-good)'};background:${v.recipeFitsOn ? 'var(--nv-acc-bg)' : 'transparent'}`}
+              hoverStyle="background:color-mix(in srgb, var(--nv-good) 10%, transparent)"
+            >{v.recipeFitsLabel}</Interactive>
+          )}
         </div>
         {v.recipeAddVisible && (
           <Interactive as="span" onClick={v.openAddRecipe} base="cursor:pointer;font:500 10.5px var(--nv-font-mono);padding:8px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-gold) 35%, transparent);color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 06%, transparent)" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 14%, transparent)">+ Add recipe</Interactive>
