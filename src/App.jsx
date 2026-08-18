@@ -939,6 +939,8 @@ export default class App extends Component {
     apply('rotation', (r) => this.setState({ liveRotation: r }));
     apply('foodLog', (r) => this.setState({ liveFoodLog: r }));
     apply('nutritionMonth', (r) => this.setState({ liveNutritionMonth: r }));
+    apply('nutritionWeek', (r) => this.setState({ liveNutritionWeek: r }));
+    apply('trainOverview', (r) => this.setState({ liveTrainOverview: r }));
     apply('stash', (r) => this.setState({ liveStash: r.categories }));
     apply('shoppingList', (r) => this.setState({ liveShoppingList: r }));
     apply('workoutExercises', (r) => this.setState({ liveWorkoutExercises: r.exercises, liveWorkoutMuscleGroups: r.muscleGroups, liveWorkoutTrackingTypes: r.trackingTypes }));

@@ -30,11 +30,20 @@ export function valsWorkouts(app, ctx) {
   const trainToday = {
     o: overview,
     actions: {
-      begin: overviewRoutine ? () => app.startWorkoutSession(overviewRoutine) : null,
-      askPlateau: (name) => app.doCoach(`Why is my ${name} stalled, and what's the fix?`),
-      askVolume: (muscles) => app.doCoach(`My weekly sets for ${muscles} are under target for my goal — how should I add volume?`),
+      // BEGIN lands you in the logger; feed cards land you in the Coach
+      // with the question already asked — every card is a doorway
+      begin: overviewRoutine ? () => { app.setState({ trainTab: 'gym' }); app.startWorkoutSession(overviewRoutine); } : null,
+      askPlateau: (name) => { app.setState({ trainTab: 'coach' }); app.doCoach(`Why is my ${name} stalled, and what's the fix?`); },
+      askVolume: (muscles) => { app.setState({ trainTab: 'coach' }); app.doCoach(`My weekly sets for ${muscles} are under target for my goal — how should I add volume?`); },
     },
   };
+  // the three-surface structure from the mockup; a live workout pins GYM
+  const trainTab = st.workoutSession ? 'gym' : (st.trainTab || (overview ? 'today' : 'gym'));
+  const trainTabs = [
+    { key: 'today', label: 'TODAY' },
+    { key: 'gym', label: 'GYM' },
+    { key: 'coach', label: 'COACH' },
+  ].map((t) => ({ ...t, on: trainTab === t.key, go: () => app.setState({ trainTab: t.key }) }));
 
   const plan = st.plan || app.basePlan;
   const week = weekData.map(d => {
@@ -203,6 +212,8 @@ export function valsWorkouts(app, ctx) {
 
   return {
     trainToday,
+    trainTab,
+    trainTabs,
     usingLiveWorkouts,
     workoutsView: st.workoutsView,
     week,

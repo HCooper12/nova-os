@@ -20,6 +20,8 @@ const SLICES = {
   rotation: '/api/rotation',
   foodLog: '/api/food-log',
   nutritionMonth: '/api/nutrition-month',
+  nutritionWeek: '/api/nutrition-week',
+  trainOverview: '/api/train/overview',
   shoppingList: '/api/shopping-list',
   stash: '/api/stash',
   workoutExercises: '/api/workouts/exercises',

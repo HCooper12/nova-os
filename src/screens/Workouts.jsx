@@ -297,85 +297,7 @@ function RoutinesView({ v }) {
         )}
       </div>
 
-      {/* goals + the real coach, side by side */}
-      <div style={{ display: 'flex', gap: '14px', marginTop: '14px', flexWrap: 'wrap' }}>
-        <div className="nv-pane" style={{ flex: '1 1 300px', padding: '16px 18px', alignSelf: 'flex-start' }}>
-          <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>
-            <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-gold)")}>GOALS</span>
-            {!v.goalsEditing && (
-              <Interactive as="span" onClick={v.startGoalsEdit} base="cursor:pointer;font:500 9.5px var(--nv-font-mono);letter-spacing:.08em;padding:4px 11px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold)" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 08%, transparent)">{v.goalsSet ? 'EDIT' : 'SET GOALS'}</Interactive>
-            )}
-          </div>
-          {v.goalsEditing ? (
-            <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:8px")}>
-              <input value={v.goalsDraft.goal} onChange={v.setGoalsField('goal')} placeholder="The goal — e.g. lean muscle gain, 78kg by December"
-                style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px var(--nv-font-ui)", padding: '9px 12px', outline: 'none' }} />
-              <input value={v.goalsDraft.focus} onChange={v.setGoalsField('focus')} placeholder="Focus — e.g. upper-body strength, protein consistency"
-                style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px var(--nv-font-ui)", padding: '9px 12px', outline: 'none' }} />
-              <div style={css("display:flex;gap:8px;align-items:center")}>
-                <span style={css("font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>DAYS/WEEK</span>
-                <select value={v.goalsDraft.daysPerWeek} onChange={v.setGoalsField('daysPerWeek')}
-                  style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: "500 11px var(--nv-font-mono)", padding: '5px 8px', outline: 'none' }}>
-                  <option value="" style={{ background: '#141019' }}>—</option>
-                  {[1, 2, 3, 4, 5, 6, 7].map((n) => <option key={n} value={n} style={{ background: '#141019' }}>{n}</option>)}
-                </select>
-              </div>
-              <input value={v.goalsDraft.equipment} onChange={v.setGoalsField('equipment')} placeholder="Equipment — e.g. full gym weekdays, dumbbells only at weekends"
-                style={{ marginTop: '8px', width: '100%', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)', borderRadius: '8px', padding: '9px 12px', color: 'var(--nv-ink)', fontSize: '12.5px', fontFamily: "var(--nv-font-ui)", outline: 'none' }} />
-              <input value={v.goalsDraft.limitations} onChange={v.setGoalsField('limitations')} placeholder="Injuries / limitations — e.g. left shoulder impingement, no overhead pressing"
-                style={{ marginTop: '8px', width: '100%', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-warn) 25%, transparent)', borderRadius: '8px', padding: '9px 12px', color: 'var(--nv-ink)', fontSize: '12.5px', fontFamily: "var(--nv-font-ui)", outline: 'none' }} />
-              <textarea value={v.goalsDraft.notes} onChange={v.setGoalsField('notes')} rows={3} placeholder="Anything else the Coach should always know — preferences, schedule quirks…"
-                style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px var(--nv-font-ui)", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
-              <div style={css("display:flex;gap:8px")}>
-                <Interactive as="span" onClick={v.saveGoals} base="cursor:pointer;font:600 10.5px var(--nv-font-mono);letter-spacing:.08em;padding:8px 16px;border-radius:8px;background:var(--nv-gold);color:#1a1322" hoverStyle="filter:brightness(1.08)">SAVE</Interactive>
-                <Interactive as="span" onClick={v.cancelGoalsEdit} base="cursor:pointer;font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent);padding:8px 6px" hoverStyle="color:var(--nv-ink)">cancel</Interactive>
-              </div>
-            </div>
-          ) : v.goalsSet ? (
-            <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:6px")}>
-              <div style={css("font:600 14px var(--nv-font-ui)")}>{v.goalsView.goal}</div>
-              {v.goalsView.focus && <div style={css("font:500 12px var(--nv-font-ui);color:var(--nv-ink60)")}>Focus: {v.goalsView.focus}</div>}
-              {v.goalsView.meta && <div style={css("font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{v.goalsView.meta}</div>}
-              {v.goalsView.notes && <div style={css("font:500 11.5px/1.55 var(--nv-font-ui);color:var(--nv-ink60);white-space:pre-wrap")}>{v.goalsView.notes}</div>}
-            </div>
-          ) : (
-            <div style={css("margin-top:10px;font:500 11.5px/1.6 var(--nv-font-ui);color:var(--nv-ink60)")}>Tell Nova what you're training for — the Coach, the briefs, and meal-prep all key off this. Lives in the vault at Wiki/Health/Fitness Goals.</div>
-          )}
-        </div>
-
-        <div className="nv-pane" style={{ flex: '1.4 1 340px', padding: '16px 18px', display: 'flex', flexDirection: 'column', maxHeight: '420px' }}>
-          <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap")}>
-            <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-cy)")}>ASK COACH</span>
-            <span style={css("display:flex;gap:10px;align-items:baseline")}>
-              <span style={css("font:400 8.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{v.coachContinuing ? 'REMEMBERS ACROSS DAYS' : 'EVIDENCE-BASED · READS YOUR REAL DATA'}</span>
-              {v.coachContinuing && (
-                <Interactive as="span" onClick={v.newCoachChat} base="cursor:pointer;font:500 8.5px var(--nv-font-mono);letter-spacing:.08em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-cy)">NEW</Interactive>
-              )}
-            </span>
-          </div>
-          <div style={css("flex:1;overflow-y:auto;margin-top:10px;display:flex;flex-direction:column;gap:10px;font:500 12.5px/1.6 var(--nv-font-ui)")}>
-            {v.coachMsgs.length === 0 && !v.coachBusy && (
-              <div style={css("color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Ask anything a coach should answer — "should I deload?", "why is my bench stuck?", "build me a plan for a 4-day week."</div>
-            )}
-            {v.coachMsgs.map((m, i) => (
-              <div key={i} style={m.style}><span style={m.tagStyle}>{m.tag}</span> {m.typing ? <TypeText text={m.text} active /> : <ChatMarkdown text={m.text} />}</div>
-            ))}
-            {v.coachBusy && <div style={css("color:var(--nv-cy);font:400 11px var(--nv-font-mono)")}>» COACH reading your training history…▍</div>}
-          </div>
-          <div style={css("display:flex;gap:8px;margin-top:10px")}>
-            <Interactive
-              as="input"
-              value={v.coachInput}
-              onChange={v.setCoachInput}
-              onKeyDown={v.coachKey}
-              placeholder="Ask your coach…"
-              base="flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font:500 12.5px var(--nv-font-ui);outline:none"
-              focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)"
-            />
-            <Interactive as="span" onClick={v.sendCoach} base="cursor:pointer;display:flex;align-items:center;font:500 11px var(--nv-font-mono);padding:0 16px;border-radius:9px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">ASK</Interactive>
-          </div>
-        </div>
-      </div>
+      <GoalsCoachPane v={v} />
     </>
   );
 }
@@ -660,6 +582,95 @@ function MockWorkouts({ v }) {
   );
 }
 
+
+// Goals + the Coach chat, extracted so the COACH tab can render it
+// standalone (previously buried inside RoutinesView).
+function GoalsCoachPane({ v }) {
+  return (
+    <>
+      {/* goals + the real coach, side by side */}
+      <div style={{ display: 'flex', gap: '14px', marginTop: '14px', flexWrap: 'wrap' }}>
+        <div className="nv-pane" style={{ flex: '1 1 300px', padding: '16px 18px', alignSelf: 'flex-start' }}>
+          <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>
+            <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-gold)")}>GOALS</span>
+            {!v.goalsEditing && (
+              <Interactive as="span" onClick={v.startGoalsEdit} base="cursor:pointer;font:500 9.5px var(--nv-font-mono);letter-spacing:.08em;padding:4px 11px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold)" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 08%, transparent)">{v.goalsSet ? 'EDIT' : 'SET GOALS'}</Interactive>
+            )}
+          </div>
+          {v.goalsEditing ? (
+            <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:8px")}>
+              <input value={v.goalsDraft.goal} onChange={v.setGoalsField('goal')} placeholder="The goal — e.g. lean muscle gain, 78kg by December"
+                style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px var(--nv-font-ui)", padding: '9px 12px', outline: 'none' }} />
+              <input value={v.goalsDraft.focus} onChange={v.setGoalsField('focus')} placeholder="Focus — e.g. upper-body strength, protein consistency"
+                style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px var(--nv-font-ui)", padding: '9px 12px', outline: 'none' }} />
+              <div style={css("display:flex;gap:8px;align-items:center")}>
+                <span style={css("font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>DAYS/WEEK</span>
+                <select value={v.goalsDraft.daysPerWeek} onChange={v.setGoalsField('daysPerWeek')}
+                  style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: "500 11px var(--nv-font-mono)", padding: '5px 8px', outline: 'none' }}>
+                  <option value="" style={{ background: '#141019' }}>—</option>
+                  {[1, 2, 3, 4, 5, 6, 7].map((n) => <option key={n} value={n} style={{ background: '#141019' }}>{n}</option>)}
+                </select>
+              </div>
+              <input value={v.goalsDraft.equipment} onChange={v.setGoalsField('equipment')} placeholder="Equipment — e.g. full gym weekdays, dumbbells only at weekends"
+                style={{ marginTop: '8px', width: '100%', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)', borderRadius: '8px', padding: '9px 12px', color: 'var(--nv-ink)', fontSize: '12.5px', fontFamily: "var(--nv-font-ui)", outline: 'none' }} />
+              <input value={v.goalsDraft.limitations} onChange={v.setGoalsField('limitations')} placeholder="Injuries / limitations — e.g. left shoulder impingement, no overhead pressing"
+                style={{ marginTop: '8px', width: '100%', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-warn) 25%, transparent)', borderRadius: '8px', padding: '9px 12px', color: 'var(--nv-ink)', fontSize: '12.5px', fontFamily: "var(--nv-font-ui)", outline: 'none' }} />
+              <textarea value={v.goalsDraft.notes} onChange={v.setGoalsField('notes')} rows={3} placeholder="Anything else the Coach should always know — preferences, schedule quirks…"
+                style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px var(--nv-font-ui)", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
+              <div style={css("display:flex;gap:8px")}>
+                <Interactive as="span" onClick={v.saveGoals} base="cursor:pointer;font:600 10.5px var(--nv-font-mono);letter-spacing:.08em;padding:8px 16px;border-radius:8px;background:var(--nv-gold);color:#1a1322" hoverStyle="filter:brightness(1.08)">SAVE</Interactive>
+                <Interactive as="span" onClick={v.cancelGoalsEdit} base="cursor:pointer;font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent);padding:8px 6px" hoverStyle="color:var(--nv-ink)">cancel</Interactive>
+              </div>
+            </div>
+          ) : v.goalsSet ? (
+            <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:6px")}>
+              <div style={css("font:600 14px var(--nv-font-ui)")}>{v.goalsView.goal}</div>
+              {v.goalsView.focus && <div style={css("font:500 12px var(--nv-font-ui);color:var(--nv-ink60)")}>Focus: {v.goalsView.focus}</div>}
+              {v.goalsView.meta && <div style={css("font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{v.goalsView.meta}</div>}
+              {v.goalsView.notes && <div style={css("font:500 11.5px/1.55 var(--nv-font-ui);color:var(--nv-ink60);white-space:pre-wrap")}>{v.goalsView.notes}</div>}
+            </div>
+          ) : (
+            <div style={css("margin-top:10px;font:500 11.5px/1.6 var(--nv-font-ui);color:var(--nv-ink60)")}>Tell Nova what you're training for — the Coach, the briefs, and meal-prep all key off this. Lives in the vault at Wiki/Health/Fitness Goals.</div>
+          )}
+        </div>
+
+        <div className="nv-pane" style={{ flex: '1.4 1 340px', padding: '16px 18px', display: 'flex', flexDirection: 'column', maxHeight: '420px' }}>
+          <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap")}>
+            <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-cy)")}>ASK COACH</span>
+            <span style={css("display:flex;gap:10px;align-items:baseline")}>
+              <span style={css("font:400 8.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{v.coachContinuing ? 'REMEMBERS ACROSS DAYS' : 'EVIDENCE-BASED · READS YOUR REAL DATA'}</span>
+              {v.coachContinuing && (
+                <Interactive as="span" onClick={v.newCoachChat} base="cursor:pointer;font:500 8.5px var(--nv-font-mono);letter-spacing:.08em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-cy)">NEW</Interactive>
+              )}
+            </span>
+          </div>
+          <div style={css("flex:1;overflow-y:auto;margin-top:10px;display:flex;flex-direction:column;gap:10px;font:500 12.5px/1.6 var(--nv-font-ui)")}>
+            {v.coachMsgs.length === 0 && !v.coachBusy && (
+              <div style={css("color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Ask anything a coach should answer — "should I deload?", "why is my bench stuck?", "build me a plan for a 4-day week."</div>
+            )}
+            {v.coachMsgs.map((m, i) => (
+              <div key={i} style={m.style}><span style={m.tagStyle}>{m.tag}</span> {m.typing ? <TypeText text={m.text} active /> : <ChatMarkdown text={m.text} />}</div>
+            ))}
+            {v.coachBusy && <div style={css("color:var(--nv-cy);font:400 11px var(--nv-font-mono)")}>» COACH reading your training history…▍</div>}
+          </div>
+          <div style={css("display:flex;gap:8px;margin-top:10px")}>
+            <Interactive
+              as="input"
+              value={v.coachInput}
+              onChange={v.setCoachInput}
+              onKeyDown={v.coachKey}
+              placeholder="Ask your coach…"
+              base="flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font:500 12.5px var(--nv-font-ui);outline:none"
+              focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)"
+            />
+            <Interactive as="span" onClick={v.sendCoach} base="cursor:pointer;display:flex;align-items:center;font:500 11px var(--nv-font-mono);padding:0 16px;border-radius:9px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">ASK</Interactive>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export function Workouts({ v }) {
   return (
     <div style={v.wrapWorkouts} data-screen-label="Workouts">
@@ -676,8 +687,26 @@ export function Workouts({ v }) {
         )}
       </div>
 
-      {/* the redesigned TODAY pane — mockup v2 made real (see design/UI-REDESIGN-SPEC.md) */}
-      {v.trainToday?.o && <div style={css('margin-top:14px')}><TrainToday o={v.trainToday.o} actions={v.trainToday.actions} /></div>}
+      {/* the mockup's structure, for real: TODAY / GYM / COACH tabs.
+          Demo mode keeps the scripted plan below; live mode IS the tabs. */}
+      {v.usingLiveWorkouts && (
+        <div style={css('display:flex;gap:6px;margin-top:14px')}>
+          {v.trainTabs.map((t) => (
+            <Interactive key={t.key} as="span" onClick={t.go}
+              base={`flex:1;text-align:center;cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.16em;padding:10px 0;border-radius:12px;border:1px solid ${t.on ? 'color-mix(in srgb, var(--nv-cy) 40%, transparent)' : 'transparent'};color:${t.on ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 40%, transparent)'};background:${t.on ? 'color-mix(in srgb, var(--nv-cy) 06%, transparent)' : 'transparent'};text-shadow:${t.on ? '0 0 10px color-mix(in srgb, var(--nv-cy) 60%, transparent)' : 'none'}`}
+              hoverStyle="color:var(--nv-cy)"
+            >{t.label}</Interactive>
+          ))}
+        </div>
+      )}
+      {v.usingLiveWorkouts && v.trainTab === 'today' && (
+        <div style={css('margin-top:14px')}>
+          {v.trainToday?.o
+            ? <TrainToday o={v.trainToday.o} actions={v.trainToday.actions} />
+            : <div style={css('color:color-mix(in srgb, var(--nv-ink) 45%, transparent);font:400 12px var(--nv-font-mono);padding:20px 0')}>Syncing today's picture…</div>}
+        </div>
+      )}
+      {v.usingLiveWorkouts && v.trainTab === 'coach' && <GoalsCoachPane v={v} />}
 
       {/* the scripted demo plan renders ONLY in demo mode — a connected session
           whose workouts haven't loaded says so instead of showing fiction */}
@@ -687,10 +716,10 @@ export function Workouts({ v }) {
           Workouts haven't loaded from the vault yet.<br />If this persists, check the connection in Settings — Nova never shows placeholder training data on a live connection.
         </div>
       )}
-      {v.usingLiveWorkouts && v.workoutsView === 'routines' && <RoutinesView v={v} />}
-      {v.usingLiveWorkouts && v.workoutsView === 'routine' && <RoutineDetailView v={v} />}
-      {v.usingLiveWorkouts && v.workoutsView === 'session' && <SessionView v={v} />}
-      {v.usingLiveWorkouts && v.workoutsView === 'history' && <HistoryView v={v} />}
+      {v.usingLiveWorkouts && v.trainTab === 'gym' && v.workoutsView === 'routines' && <RoutinesView v={v} />}
+      {v.usingLiveWorkouts && v.trainTab === 'gym' && v.workoutsView === 'routine' && <RoutineDetailView v={v} />}
+      {v.usingLiveWorkouts && v.trainTab === 'gym' && v.workoutsView === 'session' && <SessionView v={v} />}
+      {v.usingLiveWorkouts && v.trainTab === 'gym' && v.workoutsView === 'history' && <HistoryView v={v} />}
     </div>
   );
 }
