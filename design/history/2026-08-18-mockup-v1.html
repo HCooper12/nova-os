@@ -1,0 +1,395 @@
+<title>Nova OS — Train & Fuel Redesign</title>
+<style>
+  /* Nova's own tokens — this must read as Nova evolved, not another app.
+     Single committed theme: Nova IS a dark HUD; painted explicitly. */
+  :root{
+    --void:#06070d; --bg1:#0a0f1e; --bg2:#111a32;
+    --ink:#e8ecf6; --ink60:rgba(232,236,246,.62); --ink40:rgba(232,236,246,.38); --ink25:rgba(232,236,246,.25);
+    --glass:rgba(16,20,36,.72); --glass2:rgba(26,32,54,.85);
+    --edge:rgba(130,175,255,.24); --spec:rgba(190,225,255,.35);
+    --cy:#59e6ff; --vi:#8f7bff; --gold:#e0b26a; --good:#5fe8a8; --warn:#e08383; --mg:#ff7ad9;
+    --ui:'Rajdhani',-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',system-ui,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,'SF Mono','JetBrains Mono',Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--void);color:var(--ink);font-family:var(--ui);line-height:1.5;
+    background-image:radial-gradient(1200px 500px at 20% -10%,rgba(89,230,255,.06),transparent),
+                     radial-gradient(1000px 600px at 90% 10%,rgba(143,123,255,.07),transparent)}
+  .wrap{max-width:1180px;margin:0 auto;padding:40px 20px 80px}
+  a{color:var(--cy)}
+
+  /* ---------- page chrome ---------- */
+  .eyebrow{font:600 10px var(--mono);letter-spacing:.28em;color:var(--cy);text-transform:uppercase}
+  h1{font-size:clamp(26px,4vw,38px);font-weight:600;letter-spacing:.02em;margin:6px 0 4px;text-wrap:balance}
+  .sub{color:var(--ink60);max-width:62ch;font-size:15px}
+  .section{margin-top:56px}
+  .section>h2{font:600 12px var(--mono);letter-spacing:.24em;color:var(--gold);margin-bottom:18px}
+  .duo{display:flex;gap:36px;align-items:flex-start;flex-wrap:wrap}
+  .notes{flex:1 1 300px;min-width:280px;display:flex;flex-direction:column;gap:14px;position:sticky;top:24px}
+  .note{background:var(--glass);border:1px solid var(--edge);border-radius:12px;padding:14px 16px}
+  .note b{color:var(--ink);font-weight:600}
+  .note .k{font:600 9.5px var(--mono);letter-spacing:.2em;color:var(--cy);display:block;margin-bottom:5px}
+  .note p{color:var(--ink60);font-size:13.5px}
+
+  /* ---------- the phone ---------- */
+  .phone{flex:0 0 auto;width:392px;max-width:100%;background:linear-gradient(180deg,var(--bg1),var(--void) 70%);
+    border:1px solid var(--edge);border-radius:44px;padding:12px;box-shadow:0 40px 90px -30px rgba(0,0,0,.9),inset 0 1px 0 var(--spec)}
+  .screen{border-radius:34px;overflow:hidden;background:var(--void);position:relative;min-height:780px;display:flex;flex-direction:column}
+  .statusbar{display:flex;justify-content:space-between;align-items:center;padding:14px 22px 6px;font:600 12px var(--mono);color:var(--ink60)}
+  .island{width:110px;height:26px;background:#000;border-radius:14px;margin:0 auto;position:absolute;left:50%;transform:translateX(-50%);top:10px}
+  .content{flex:1;padding:10px 14px 90px;overflow:hidden}
+
+  /* ---------- shared atoms ---------- */
+  .card{background:var(--glass);border:1px solid var(--edge);border-radius:16px;padding:14px;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+  .label{font:600 9px var(--mono);letter-spacing:.22em;color:var(--ink40)}
+  .chip{display:inline-flex;align-items:center;gap:5px;font:600 10px var(--mono);letter-spacing:.08em;
+    padding:5px 10px;border-radius:99px;border:1px solid var(--edge);color:var(--ink60);cursor:pointer;transition:border-color .2s,color .2s}
+  .chip:hover{border-color:var(--cy);color:var(--cy)}
+  .chip.on{border-color:rgba(89,230,255,.5);color:var(--cy);background:rgba(89,230,255,.08)}
+  .chip.gold{border-color:rgba(224,178,106,.45);color:var(--gold)}
+  .chip.good{border-color:rgba(95,232,168,.4);color:var(--good)}
+  .chip.warn{border-color:rgba(224,131,131,.45);color:var(--warn)}
+  .num{font-variant-numeric:tabular-nums}
+  svg{display:block}
+
+  /* ---------- TRAIN hero ---------- */
+  .hero{display:flex;gap:14px;align-items:center;margin-top:8px}
+  .ring{position:relative;width:118px;height:118px;flex:none}
+  .ring svg{width:118px;height:118px;transform:rotate(-90deg)}
+  .ring .pct{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .ring .pct b{font-size:26px;font-weight:600;color:var(--cy);text-shadow:0 0 14px rgba(89,230,255,.5)}
+  .ring .pct span{font:600 8px var(--mono);letter-spacing:.2em;color:var(--ink40)}
+  .hero .facts{flex:1;display:flex;flex-direction:column;gap:7px}
+  .fact{display:flex;justify-content:space-between;font-size:13px;color:var(--ink60)}
+  .fact b{color:var(--ink);font-weight:600}
+  .todaycard{margin-top:14px;background:linear-gradient(135deg,rgba(89,230,255,.10),rgba(143,123,255,.06));
+    border:1px solid rgba(89,230,255,.35);border-radius:18px;padding:16px;position:relative;overflow:hidden}
+  .todaycard::after{content:"";position:absolute;inset:0;background:radial-gradient(300px 80px at 85% 0%,rgba(89,230,255,.12),transparent);pointer-events:none}
+  .todaycard h3{font-size:24px;font-weight:600;letter-spacing:.04em}
+  .todaycard .meta{color:var(--ink60);font-size:12.5px;margin-top:2px}
+  .begin{margin-top:12px;display:inline-flex;align-items:center;gap:8px;cursor:pointer;
+    font:600 12px var(--mono);letter-spacing:.14em;color:var(--cy);padding:11px 18px;border-radius:12px;
+    border:1px solid rgba(89,230,255,.55);background:linear-gradient(180deg,rgba(89,230,255,.18),rgba(89,230,255,.04));
+    box-shadow:0 0 26px -8px rgba(89,230,255,.7);transition:box-shadow .2s}
+  .begin:hover{box-shadow:0 0 34px -6px rgba(89,230,255,.9)}
+
+  /* momentum feed */
+  .feed{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 8px;margin-top:14px;scrollbar-width:none}
+  .feed::-webkit-scrollbar{display:none}
+  .fcard{flex:0 0 158px;border-radius:14px;padding:12px;border:1px solid var(--edge);background:var(--glass);cursor:pointer;transition:transform .2s,border-color .2s}
+  .fcard:hover{transform:translateY(-2px)}
+  .fcard .fk{font:600 8.5px var(--mono);letter-spacing:.18em;display:block;margin-bottom:6px}
+  .fcard .fv{font-size:16px;font-weight:600;line-height:1.25}
+  .fcard .fs{font-size:11px;color:var(--ink40);margin-top:4px}
+  .fcard.pr{border-color:rgba(224,178,106,.5);background:linear-gradient(160deg,rgba(224,178,106,.10),var(--glass))}
+  .fcard.pr .fk{color:var(--gold)} .fcard.pr:hover{border-color:var(--gold)}
+  .fcard.stall{border-color:rgba(224,131,131,.45)} .fcard.stall .fk{color:var(--warn)} .fcard.stall:hover{border-color:var(--warn)}
+  .fcard.streak .fk{color:var(--good)}
+
+  /* muscle volume bars */
+  .vol{margin-top:12px}
+  .vrow{display:flex;align-items:center;gap:8px;margin-top:7px}
+  .vrow .vn{width:64px;font:600 9px var(--mono);letter-spacing:.1em;color:var(--ink40)}
+  .vbar{flex:1;height:8px;border-radius:4px;background:rgba(130,175,255,.08);overflow:hidden}
+  .vbar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,var(--vi),var(--cy))}
+  .vrow .vv{width:26px;text-align:right;font:600 10px var(--mono);color:var(--ink60)}
+
+  /* coach surface */
+  .coach{margin-top:14px}
+  .coach .msg{background:var(--glass2);border:1px solid var(--edge);border-radius:14px 14px 14px 4px;padding:12px 13px;font-size:13px;color:var(--ink);line-height:1.55}
+  .coach .msg .who{font:600 9px var(--mono);letter-spacing:.2em;color:var(--cy);display:block;margin-bottom:5px}
+  .resource{display:flex;gap:10px;align-items:center;margin-top:10px;padding:9px 11px;border-radius:11px;cursor:pointer;
+    border:1px solid rgba(89,230,255,.35);background:rgba(89,230,255,.06);transition:background .2s}
+  .resource:hover{background:rgba(89,230,255,.12)}
+  .resource .play{width:26px;height:26px;flex:none;border-radius:8px;background:rgba(89,230,255,.15);display:flex;align-items:center;justify-content:center}
+  .resource .rt{font-size:12px;font-weight:600;color:var(--cy)}
+  .resource .rs{font-size:10.5px;color:var(--ink40)}
+  .quick{display:flex;gap:7px;margin-top:10px;flex-wrap:wrap}
+
+  /* session logger */
+  .exrow{margin-top:10px}
+  .exhead{display:flex;justify-content:space-between;align-items:baseline}
+  .exhead b{font-size:15px;font-weight:600}
+  .setpills{display:flex;gap:7px;margin-top:8px;flex-wrap:wrap}
+  .setpill{font:600 11px var(--mono);padding:8px 11px;border-radius:10px;border:1px solid var(--edge);color:var(--ink60);cursor:pointer;transition:border-color .2s}
+  .setpill.done{border-color:rgba(95,232,168,.5);color:var(--good);background:rgba(95,232,168,.06)}
+  .setpill:hover{border-color:var(--cy)}
+  .setpill .rir{color:var(--ink25);font-size:9px}
+  .painflag{width:7px;height:7px;border-radius:50%;background:var(--warn);box-shadow:0 0 8px var(--warn);display:inline-block;margin-left:6px}
+
+  /* tabs inside phone */
+  .tabs{display:flex;gap:6px;margin:6px 0 10px}
+  .tab{flex:1;text-align:center;font:600 9.5px var(--mono);letter-spacing:.16em;padding:9px 0;border-radius:11px;cursor:pointer;
+    color:var(--ink40);border:1px solid transparent;transition:color .2s,border-color .2s}
+  .tab.on{color:var(--cy);border-color:rgba(89,230,255,.4);background:rgba(89,230,255,.06);text-shadow:0 0 10px rgba(89,230,255,.6)}
+  .pane{display:none}.pane.on{display:block}
+
+  /* ---------- FUEL ---------- */
+  .fuelhero{display:flex;gap:16px;align-items:center;margin-top:8px}
+  .weeks{display:flex;gap:7px;align-items:flex-end;height:78px;margin-top:10px;position:relative}
+  .weeks .floor{position:absolute;left:0;right:0;border-top:1px dashed rgba(232,236,246,.22)}
+  .wb{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;justify-content:flex-end;height:100%}
+  .wb i{width:100%;max-width:30px;border-radius:5px 5px 0 0;background:rgba(130,175,255,.18)}
+  .wb.met i{background:linear-gradient(180deg,var(--good),rgba(95,232,168,.4));box-shadow:0 0 12px -2px rgba(95,232,168,.6)}
+  .wb span{font:600 8px var(--mono);color:var(--ink25)}
+  .wb b{font:600 9px var(--mono);color:var(--ink60)}
+  .wb.met b{color:var(--good)}
+  .mealrow{display:flex;gap:10px;overflow-x:auto;margin-top:12px;padding-bottom:6px;scrollbar-width:none}
+  .mealrow::-webkit-scrollbar{display:none}
+  .meal{flex:0 0 170px;border-radius:16px;border:1px solid var(--edge);background:var(--glass);padding:12px;cursor:pointer;position:relative;transition:border-color .2s}
+  .meal:hover{border-color:var(--cy)}
+  .meal .slot{font:600 8.5px var(--mono);letter-spacing:.2em;color:var(--vi)}
+  .meal h4{font-size:14.5px;font-weight:600;margin-top:3px;line-height:1.25}
+  .meal .mac{font:600 10px var(--mono);color:var(--ink40);margin-top:6px}
+  .meal .mac b{color:var(--cy)}
+  .tick{position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:50%;border:1.5px solid var(--edge);display:flex;align-items:center;justify-content:center;transition:all .2s}
+  .meal.eaten{border-color:rgba(95,232,168,.5)}
+  .meal.eaten .tick{border-color:var(--good);background:rgba(95,232,168,.15);box-shadow:0 0 12px -2px rgba(95,232,168,.7)}
+  .searchrow{display:flex;gap:8px;margin-top:14px}
+  .search{flex:1;display:flex;gap:8px;align-items:center;background:rgba(0,0,0,.3);border:1px solid var(--edge);border-radius:12px;padding:10px 12px;color:var(--ink40);font-size:12.5px}
+  .iconbtn{width:40px;height:40px;flex:none;border-radius:12px;border:1px solid var(--edge);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:border-color .2s}
+  .iconbtn:hover{border-color:var(--cy)}
+
+  @media (prefers-reduced-motion:no-preference){
+    .ring circle.arc{transition:stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1)}
+    .reveal{animation:up .5s ease-out both}
+    @keyframes up{from{opacity:0;transform:translateY(8px)}}
+  }
+  :focus-visible{outline:2px solid var(--cy);outline-offset:2px;border-radius:6px}
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">Nova OS · Design Direction</div>
+  <h1>Train &amp; Fuel, redesigned</h1>
+  <p class="sub">Two live-feeling mockups built from your real data and Nova's own tokens. The thesis: yesterday's Coach engine (readiness, blocks, PRs, plateaus, curated resources) becomes the <em>surface</em> — not features hidden behind a chat box. Tap the tabs inside the Train phone.</p>
+
+  <!-- ============ TRAIN ============ -->
+  <div class="section">
+    <h2>01 · TRAIN</h2>
+    <div class="duo">
+      <div class="phone reveal">
+        <div class="screen">
+          <div class="island"></div>
+          <div class="statusbar"><span>9:41</span><span class="label" style="color:var(--cy)">NOVA·OS</span><span>◈ 82%</span></div>
+          <div class="content">
+            <div class="tabs" role="tablist">
+              <div class="tab on" data-pane="today" role="tab" tabindex="0" aria-selected="true">TODAY</div>
+              <div class="tab" data-pane="session" role="tab" tabindex="0" aria-selected="false">SESSION</div>
+              <div class="tab" data-pane="coach" role="tab" tabindex="0" aria-selected="false">COACH</div>
+            </div>
+
+            <!-- TODAY -->
+            <div class="pane on" id="today">
+              <div class="hero">
+                <div class="ring">
+                  <svg viewBox="0 0 118 118" aria-label="Readiness 82 percent">
+                    <circle cx="59" cy="59" r="52" fill="none" stroke="rgba(130,175,255,.10)" stroke-width="9"/>
+                    <circle class="arc" cx="59" cy="59" r="52" fill="none" stroke="var(--cy)" stroke-width="9" stroke-linecap="round"
+                      stroke-dasharray="326.7" stroke-dashoffset="58.8" style="filter:drop-shadow(0 0 6px rgba(89,230,255,.6))"/>
+                  </svg>
+                  <div class="pct"><b class="num">82</b><span>READY</span></div>
+                </div>
+                <div class="facts">
+                  <div class="fact"><span>HRV</span><b class="num">89 ms ↗</b></div>
+                  <div class="fact"><span>Sleep</span><b class="num">7h 06</b></div>
+                  <div class="fact"><span>Resting HR</span><b class="num">54</b></div>
+                  <div style="margin-top:2px"><span class="chip gold">ACCUMULATION · WK 1/4</span></div>
+                </div>
+              </div>
+
+              <div class="todaycard">
+                <div class="label" style="color:var(--cy)">ON TODAY'S CARD</div>
+                <h3>PUSH</h3>
+                <div class="meta">6 exercises · ~52 min · last time 6,930 kg</div>
+                <div class="begin" role="button" tabindex="0">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="var(--cy)"><path d="M8 5v14l11-7z"/></svg>
+                  BEGIN SESSION
+                </div>
+              </div>
+
+              <div class="feed">
+                <div class="fcard pr"><span class="fk">◆ PR · YESTERDAY</span><div class="fv">Bench 65 kg × 8</div><div class="fs">heaviest ever · was 62.5</div></div>
+                <div class="fcard stall"><span class="fk">▲ PLATEAU · 28 D</span><div class="fv">Lat Pulldown</div><div class="fs">e1RM flat at 94.9 → ask Coach</div></div>
+                <div class="fcard streak"><span class="fk">● STREAK</span><div class="fv num">4 sessions</div><div class="fs">longest this block</div></div>
+                <div class="fcard"><span class="fk" style="color:var(--vi)">◇ NEXT UP</span><div class="fv">+2.5 kg earned</div><div class="fs">Incline DB Press</div></div>
+              </div>
+
+              <div class="card vol">
+                <span class="label">HARD SETS THIS WEEK</span>
+                <div class="vrow"><span class="vn">BACK</span><div class="vbar"><i style="width:84%"></i></div><span class="vv num">16</span></div>
+                <div class="vrow"><span class="vn">CHEST</span><div class="vbar"><i style="width:63%"></i></div><span class="vv num">12</span></div>
+                <div class="vrow"><span class="vn">SHOULDERS</span><div class="vbar"><i style="width:47%"></i></div><span class="vv num">9</span></div>
+                <div class="vrow"><span class="vn">QUADS</span><div class="vbar"><i style="width:42%"></i></div><span class="vv num">8</span></div>
+              </div>
+            </div>
+
+            <!-- SESSION -->
+            <div class="pane" id="session">
+              <div class="card">
+                <div class="exhead"><b>Barbell Bench Press</b><span class="chip gold">+2.5 KG EARNED</span></div>
+                <div class="fs" style="font:600 10px var(--mono);color:var(--ink40);margin-top:3px">TARGET 3 × 8–10 · LAST 62.5×10 ×3</div>
+                <div class="setpills">
+                  <span class="setpill done num">65 × 8 <span class="rir">@RPE 8</span></span>
+                  <span class="setpill done num">65 × 8 <span class="rir">2 RIR</span></span>
+                  <span class="setpill num">65 × —</span>
+                  <span class="setpill" style="border-style:dashed">＋</span>
+                </div>
+                <div class="quick">
+                  <span class="chip">WARM-UP</span><span class="chip on">WORKING</span><span class="chip">BACKOFF</span>
+                  <span class="chip warn">PAIN?</span>
+                </div>
+              </div>
+              <div class="card exrow">
+                <div class="exhead"><b>Wide-Grip Lat Pulldown<span class="painflag" title="pain flagged last session"></span></b><span class="chip warn">STALLED 28D</span></div>
+                <div class="fs" style="font:600 10px var(--mono);color:var(--ink40);margin-top:3px">COACH FOCUS: 3S ECCENTRIC · FIXED TOUCH-POINT</div>
+                <div class="setpills">
+                  <span class="setpill num">73 × —</span><span class="setpill num">73 × —</span><span class="setpill num">73 × —</span>
+                </div>
+              </div>
+              <div class="card exrow" style="border-color:rgba(224,178,106,.35)">
+                <span class="label" style="color:var(--gold)">MID-SESSION COACH</span>
+                <div style="font-size:12.5px;color:var(--ink60);margin-top:5px">"Two clean sets at 2 RIR — take the third to <b style="color:var(--ink)">1 RIR</b>, same bar speed. That's the PR double next week."</div>
+              </div>
+            </div>
+
+            <!-- COACH -->
+            <div class="pane" id="coach">
+              <div class="coach">
+                <div class="msg"><span class="who">» COACH</span>
+                  <b>Wide-Grip Lat Pulldown</b> is your clearest stall — 10 sessions over 28 days, e1RM pinned at <span class="num">94.9 kg</span>, and it's programmed on both Pull <i>and</i> Upper. Stop chasing the stack: fixed chest touch-point, big stretch, <b>3s eccentric</b>, run 8→12 before adding weight.
+                  <div class="resource" role="link" tabindex="0">
+                    <div class="play"><svg width="11" height="11" viewBox="0 0 24 24" fill="var(--cy)"><path d="M8 5v14l11-7z"/></svg></div>
+                    <div><div class="rt">RP — Improve Your Lat Pulldown</div><div class="rs">the touch-point argument · 9 min</div></div>
+                  </div>
+                </div>
+                <div class="quick">
+                  <span class="chip">WHY IS IT STALLED?</span><span class="chip">SET RPE MODEL</span><span class="chip gold">DRAFT THE TUNE ↗</span>
+                </div>
+                <div class="msg" style="margin-top:12px;border-color:rgba(224,178,106,.4)"><span class="who" style="color:var(--gold)">» PROPOSAL · PENDING YOUR WORD</span>
+                  Tune Lat Pulldown → RPE-autoregulated, focus "3s eccentric"
+                  <div class="quick"><span class="chip good">APPROVE</span><span class="chip">LEAVE IT</span></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <div class="notes">
+        <div class="note"><span class="k">THE THESIS</span><p><b>Readiness is the hero.</b> The first thing every morning is the ring — recovery, block week, today's card — then one glowing action. No scrolling to find out what today is.</p></div>
+        <div class="note"><span class="k">MOMENTUM FEED</span><p>PRs (gold), plateaus (warn), streaks (green) as swipeable cards — the analytics engine made visible. Each card is a doorway: tap the plateau, land in Coach with context loaded.</p></div>
+        <div class="note"><span class="k">LOGGER AS COCKPIT</span><p>Set pills carry RPE/RIR inline; set-type and pain are one tap, not a form. Coach's focus prescription and earned progressions sit <b>on the exercise row</b> where the decision happens.</p></div>
+        <div class="note"><span class="k">COACH AS SURFACE</span><p>Curated resources render as playable cards, proposals as approve/leave chips. The chat stops being a footnote and becomes the third tab.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ FUEL ============ -->
+  <div class="section">
+    <h2>02 · FUEL</h2>
+    <div class="duo">
+      <div class="phone reveal">
+        <div class="screen">
+          <div class="island"></div>
+          <div class="statusbar"><span>18:22</span><span class="label" style="color:var(--cy)">NOVA·OS</span><span>◈ 82%</span></div>
+          <div class="content">
+            <div class="fuelhero">
+              <div class="ring">
+                <svg viewBox="0 0 118 118" aria-label="Protein 96 of 150 grams">
+                  <circle cx="59" cy="59" r="52" fill="none" stroke="rgba(130,175,255,.10)" stroke-width="9"/>
+                  <circle class="arc" cx="59" cy="59" r="52" fill="none" stroke="var(--good)" stroke-width="9" stroke-linecap="round"
+                    stroke-dasharray="326.7" stroke-dashoffset="117.6" style="filter:drop-shadow(0 0 6px rgba(95,232,168,.55))"/>
+                </svg>
+                <div class="pct"><b class="num" style="color:var(--good)">96<span style="font-size:12px;color:var(--ink40)">g</span></b><span>OF 150 P</span></div>
+              </div>
+              <div class="facts">
+                <div class="fact"><span>Calories</span><b class="num">1,240 / 2,200</b></div>
+                <div class="fact"><span>Carbs · Fat</span><b class="num">118 C · 41 F</b></div>
+                <div style="margin-top:4px"><span class="chip good">FITS 960 KCAL LEFT</span></div>
+                <div style="margin-top:2px;font-size:11px;color:var(--ink40)">Coach: 54 g protein to go — dinner covers 44.</div>
+              </div>
+            </div>
+
+            <div class="card" style="margin-top:14px">
+              <span class="label">THE WEEK · FLOOR 150 G</span>
+              <div class="weeks">
+                <div class="floor" style="bottom:74%"></div>
+                <div class="wb"><i style="height:55%"></i><b class="num">111</b><span>12</span></div>
+                <div class="wb"><i style="height:42%"></i><b class="num">84</b><span>13</span></div>
+                <div class="wb"><i style="height:13%"></i><b class="num">26</b><span>14</span></div>
+                <div class="wb"><i style="height:71%"></i><b class="num">142</b><span>15</span></div>
+                <div class="wb"><i style="height:48%"></i><b class="num">96</b><span>16</span></div>
+                <div class="wb met"><i style="height:76%"></i><b class="num">151</b><span>17</span></div>
+                <div class="wb"><i style="height:48%;background:rgba(89,230,255,.35)"></i><b class="num" style="color:var(--cy)">96</b><span>18</span></div>
+              </div>
+            </div>
+
+            <div style="margin-top:14px"><span class="label">TODAY'S ROTATION — TAP TO EAT</span></div>
+            <div class="mealrow">
+              <div class="meal eaten">
+                <span class="slot">LUNCH</span><h4>Works Burger</h4>
+                <div class="mac"><b>52P</b> · 42C · 17.5F · 540</div>
+                <div class="tick"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--good)" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div>
+              </div>
+              <div class="meal">
+                <span class="slot">DINNER</span><h4>Chicken Caesar Pasta</h4>
+                <div class="mac"><b>44P</b> · 52C · 16F · 530</div>
+                <div class="tick"></div>
+              </div>
+              <div class="meal">
+                <span class="slot">SNACK</span><h4>Protein Blueberry Pouch</h4>
+                <div class="mac"><b>15P</b> · 12C · 2F · 130</div>
+                <div class="tick"></div>
+              </div>
+            </div>
+
+            <div class="searchrow">
+              <div class="search">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+                Log anything — “large flat white”…
+              </div>
+              <div class="iconbtn" title="Photo scan" tabindex="0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink60)" stroke-width="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.4"/></svg></div>
+              <div class="iconbtn" title="Barcode" tabindex="0"><svg width="16" height="16" viewBox="0 0 24 24" stroke="var(--ink60)" stroke-width="2"><path d="M4 6v12M8 6v12M12 6v12M15 6v12M19 6v12" fill="none"/></svg></div>
+            </div>
+
+            <div class="card" style="margin-top:14px">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span class="label">RECIPE BANK · 23</span>
+                <span class="chip on" style="font-size:9px">FITS 960 KCAL</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
+                <div class="meal" style="flex:none"><span class="slot" style="color:var(--gold)">ROTATION</span><h4 style="font-size:13px">Animal Style Potato Bowl</h4><div class="mac"><b>44P</b> · 475</div></div>
+                <div class="meal" style="flex:none"><span class="slot" style="color:var(--gold)">TREAT</span><h4 style="font-size:13px">Choc Protein Oats</h4><div class="mac"><b>32P</b> · 410</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="notes">
+        <div class="note"><span class="k">ONE TRUTH, ONE RING</span><p>Protein-to-floor is <b>the</b> number, so it owns the hero — with kcal, C/F, and the "fits what's left" budget beside it. The Coach's one-liner makes it a plan, not a stat.</p></div>
+        <div class="note"><span class="k">THE WEEK IS HONEST</span><p>Your real last-7: gaps stay visibly thin, the floor is a line you either crossed or didn't, today glows cyan because it's still moving.</p></div>
+        <div class="note"><span class="k">EATING IS ONE TAP</span><p>Rotation meals as swipeable cards with a satisfying tick — the thing you do 4× a day gets the biggest targets on the screen (44 px+).</p></div>
+        <div class="note"><span class="k">LOG ANYTHING, FAST</span><p>One bar: type it, shoot it, or scan it. Retro days and editing live one tap deeper — visible, not buried.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" style="max-width:62ch">
+    <h2>WHAT SHIPS FIRST</h2>
+    <p class="sub" style="font-size:14px">Phase 1: the Train <b>Today</b> pane (readiness ring, block chip, today card, momentum feed) and the Fuel hero + week strip — highest feel-per-effort, all data already served. Phase 2: the session logger cockpit. Phase 3: Coach-as-tab. Same tokens as the live app throughout — this is Nova, sharpened.</p>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.tab').forEach(t => {
+    const go = () => {
+      document.querySelectorAll('.tab').forEach(x => { x.classList.toggle('on', x===t); x.setAttribute('aria-selected', x===t); });
+      document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.id===t.dataset.pane));
+    };
+    t.addEventListener('click', go);
+    t.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') { e.preventDefault(); go(); } });
+  });
+</script>

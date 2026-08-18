@@ -1,0 +1,27 @@
+# Nova OS — Design History
+
+A visual ledger of how Nova has looked over time, so "where it started vs
+where it is" is always one folder away. **Maintained from now on**: every
+design milestone adds a dated folder of screenshots (390×844 phone viewport,
+demo data — stable content, no personal data in the repo) plus a line here.
+
+## How to add an entry
+Capture Home / Train / Recipes at 390×844 from the deployed app into
+`design/history/<date>-<label>/`, add a row below, commit.
+
+## Ledger (newest first)
+
+### 2026-08-18 — "Before the redesign" + mockup v1
+- `history/2026-08-18-before/` — home.png, train.png, recipes.png: the app
+  as it stood after the Coach intelligence upgrades but before any visual
+  redesign. Dense card stacks, chat-at-the-bottom Coach, list-style
+  rotation.
+- `history/2026-08-18-mockup-v1.html` — the first redesign direction
+  (readiness ring hero, momentum feed, coach-as-tab, fuel ring + honest
+  week, rotation tick-cards). Hayden's feedback captured in
+  `UI-REDESIGN-SPEC.md`; v2 iterates on it.
+
+### Earlier eras (not captured — noted for the record)
+- Jul–Aug 2026: the HUD era — glass cards, mono labels, cyan/gold macro
+  colours, the orb core. Established `--nv-*` tokens still in use.
+- Jun 2026: first build — basic dark PWA before the design language.
