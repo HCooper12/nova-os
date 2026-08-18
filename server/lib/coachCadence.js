@@ -69,6 +69,12 @@ export async function morningReadiness(vaultPath) {
   const days = await loadRecentDays(7).catch(() => []);
   const signal = computeDeloadSignal(days);
   const lines = [`Coach — ${routine.name} is on today's card (${routine.exercises.length} exercises).`];
+  try {
+    const { getBlock } = await import('./trainingBlocks.js');
+    const block = await getBlock(vaultPath);
+    if (block?.isDeloadWeek) lines.push(`Deload week (${block.phase}, week ${block.week}/${block.lengthWeeks}): −10-20% loads, stop 3-4 short. The block only works if you actually back off.`);
+    else if (block && !block.ended) lines.push(`${block.phase} week ${block.week}/${block.lengthWeeks}.`);
+  } catch { /* no block, no line */ }
   if (signal.advise) lines.push(`Recovery says go LIGHTER: ${signal.reason}.`);
   else {
     const latest = [...days].reverse().find((d) => d.hrv != null);

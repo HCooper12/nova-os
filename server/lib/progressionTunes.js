@@ -22,6 +22,8 @@ function normalizeTune(raw) {
     stepKg: Number.isFinite(Number(raw?.stepKg)) && Number(raw.stepKg) > 0 && Number(raw.stepKg) <= 20 ? Number(raw.stepKg) : null,
     repStep: Number.isInteger(Number(raw?.repStep)) && Number(raw.repStep) >= 1 && Number(raw.repStep) <= 5 ? Number(raw.repStep) : null,
     hold: raw?.hold === true,
+    // progression model override: 'rpe' = autoregulated (effort decides)
+    model: raw?.model === 'rpe' ? 'rpe' : null,
     // a qualitative prescription — "3s eccentric, same load", "pause at the
     // bottom" — for lifts where the next step isn't more kilograms
     focus: String(raw?.focus || '').trim().slice(0, 120),
@@ -29,7 +31,7 @@ function normalizeTune(raw) {
     updated: typeof raw?.updated === 'string' ? raw.updated : new Date().toISOString().slice(0, 10),
   };
   if (!t.exerciseId || !t.name) return null;
-  if (t.stepKg == null && t.repStep == null && !t.hold && !t.focus) return null; // tunes nothing
+  if (t.stepKg == null && t.repStep == null && !t.hold && !t.focus && !t.model) return null; // tunes nothing
   return t;
 }
 
@@ -52,6 +54,7 @@ async function writeTunes(vaultPath, tunes) {
     ? tunes.map((t) => {
         const bits = [];
         if (t.hold) bits.push('progressions ON HOLD');
+        if (t.model === 'rpe') bits.push('RPE-autoregulated');
         if (t.stepKg != null) bits.push(`weight step ${t.stepKg}kg`);
         if (t.repStep != null) bits.push(`rep step +${t.repStep}`);
         if (t.focus) bits.push(`focus: ${t.focus}`);
@@ -97,6 +100,7 @@ export async function tunesContext(vaultPath) {
   const bits = tunes.map((t) => {
     const parts = [];
     if (t.hold) parts.push('progressions on hold');
+    if (t.model === 'rpe') parts.push('progression is RPE-autoregulated (≤8 top-set earns the step)');
     if (t.stepKg != null) parts.push(`weight step ${t.stepKg}kg (not the default 2.5)`);
     if (t.repStep != null) parts.push(`rep step +${t.repStep}`);
     if (t.focus) parts.push(`current focus: ${t.focus}`);

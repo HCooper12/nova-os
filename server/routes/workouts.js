@@ -276,6 +276,15 @@ export function workoutsRouter(vaultPath) {
         parts.push(await goalsContext(vaultPath));
       } catch { failures.push('goals'); }
       try {
+        const { blockContext } = await import('../lib/trainingBlocks.js');
+        parts.push(await blockContext(vaultPath));
+      } catch { failures.push('training block'); }
+      try {
+        const { adviceContext } = await import('../lib/coach.js');
+        const adv = await adviceContext();
+        if (adv) parts.push(adv);
+      } catch { failures.push('advice outcomes'); }
+      try {
         const { injuriesContext } = await import('../lib/injuryLog.js');
         const inj = await injuriesContext(vaultPath);
         if (inj) parts.push(inj);

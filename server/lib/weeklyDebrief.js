@@ -76,6 +76,12 @@ export async function setDebriefConfig(patch) {
 export async function buildDebriefContext(vaultPath, now = new Date()) {
   const parts = [];
   const add = (label, fn) => fn().then((v) => v && parts.push(v)).catch(() => {});
+  await add('advice', async () => {
+    // the Coach's recommendations this week and their fates — the debrief
+    // holds the week against what was actually advised (audit item #11)
+    const { adviceContext } = await import('./coach.js');
+    return adviceContext(7);
+  });
   const weekStart = todayISO(mondayOf(now));
 
   await add('profile', () => profileContext(vaultPath));

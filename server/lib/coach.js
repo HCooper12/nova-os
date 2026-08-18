@@ -47,6 +47,27 @@ export async function computeProgressions(vaultPath, routines) {
         if (ex && ex.sets?.length) recent.push(ex);
         if (recent.length === 2) break;
       }
+      if (recent.length < 1) continue;
+
+      // RPE-AUTOREGULATED model (tune {model:'rpe'}): effort decides, not
+      // rep counting. One session at target with headroom (top-set RPE ≤ 8)
+      // earns the step; RPE ≥ 9.5 means grinding — no progression even if
+      // the reps were there. The audit: RPE captured for weeks, computed on
+      // by nothing.
+      if (tune?.model === 'rpe') {
+        const last = recent[0];
+        const rpes = last.sets.map((s) => s.rpe).filter((r) => r != null);
+        if (!rpes.length) continue; // no effort data logged — the model can't run
+        const top = Math.max(...rpes);
+        if (!toppedOut(last, entry) || top > 8) continue;
+        const lastW = Math.max(...last.sets.map((s) => Number(s.weight) || 0));
+        const step = tune?.stepKg ?? WEIGHT_STEP_KG;
+        out[`${routine.id}:${entry.exerciseId}`] = WEIGHTED_TYPES.has(entry.trackingType)
+          ? { kind: 'weight', delta: step, evidence: `hit target reps at top-set RPE ${top} (autoregulated: ≤8 earns the step)${lastW ? ` at ${lastW}kg` : ''}` }
+          : { kind: 'reps', delta: tune?.repStep ?? 1, evidence: `target reps at RPE ${top} — room for more (autoregulated)` };
+        continue;
+      }
+
       if (recent.length < 2) continue;
       if (!recent.every((ex) => toppedOut(ex, entry))) continue;
 
@@ -342,7 +363,7 @@ export function parseCoachProposal(text) {
   }
 }
 
-const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets', 'tune', 'injury', 'goal'];
+const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets', 'tune', 'injury', 'goal', 'block'];
 
 export async function validateCoachEdit(vaultPath, raw) {
   const { loadExerciseLibrary } = await import('./exercises.js');
@@ -366,11 +387,25 @@ export async function validateCoachEdit(vaultPath, raw) {
     const repStep = Number.isInteger(Number(raw.repStep)) && Number(raw.repStep) >= 1 && Number(raw.repStep) <= 5 ? Number(raw.repStep) : null;
     const hold = raw.hold === true;
     const focus = String(raw.focus || '').trim().slice(0, 120);
-    if (stepKg == null && repStep == null && !hold && !focus) throw new Error('a tune needs stepKg, repStep, hold:true, or a focus');
-    const bits = [hold ? 'hold progressions' : null, stepKg != null ? `weight step ${stepKg}kg` : null, repStep != null ? `rep step +${repStep}` : null, focus ? `focus: ${focus}` : null].filter(Boolean);
+    const model = raw.model === 'rpe' ? 'rpe' : null; // autoregulated progression
+    if (stepKg == null && repStep == null && !hold && !focus && !model) throw new Error('a tune needs stepKg, repStep, hold:true, a focus, or model:"rpe"');
+    const bits = [hold ? 'hold progressions' : null, model ? 'RPE-autoregulated progression' : null, stepKg != null ? `weight step ${stepKg}kg` : null, repStep != null ? `rep step +${repStep}` : null, focus ? `focus: ${focus}` : null].filter(Boolean);
     return {
-      payload: { action, exerciseId: lib.id, exerciseName: lib.name, stepKg, repStep, hold, focus, reason: String(raw.reason || '').slice(0, 200) },
+      payload: { action, exerciseId: lib.id, exerciseName: lib.name, stepKg, repStep, hold, focus, model, reason: String(raw.reason || '').slice(0, 200) },
       title: `Coach: tune ${lib.name} — ${bits.join(', ')}`,
+    };
+  }
+
+  // "block" starts (or advances) a training block — periodization as a
+  // confirm-first proposal, like every program change
+  if (action === 'block') {
+    const { PHASES } = await import('./trainingBlocks.js');
+    const phase = String(raw.phase || '').toLowerCase();
+    if (!PHASES.includes(phase)) throw new Error(`phase must be one of ${PHASES.join(', ')}`);
+    const lengthWeeks = Number(raw.lengthWeeks) >= 1 && Number(raw.lengthWeeks) <= 16 ? Number(raw.lengthWeeks) : 4;
+    return {
+      payload: { action, phase, lengthWeeks, startedAt: /^\d{4}-\d{2}-\d{2}$/.test(String(raw.startedAt || '')) ? raw.startedAt : null, deloadLastWeek: raw.deloadLastWeek !== false, note: String(raw.note || '').trim().slice(0, 300) },
+      title: `Coach: start ${phase} block — ${lengthWeeks} weeks`,
     };
   }
 
@@ -455,7 +490,8 @@ export async function createCoachEditRecord(vaultPath, { question, proposal, sou
       route: payload.action === 'tune' ? 'progression-tune'
         : payload.action === 'injury' ? 'injury-log'
           : payload.action === 'goal' ? 'goal-target'
-            : 'routine-edit',
+            : payload.action === 'block' ? 'training-block'
+              : 'routine-edit',
       confidence: 'high',
       title,
       reason: payload.reason || 'proposed in the Coach chat',
@@ -464,6 +500,23 @@ export async function createCoachEditRecord(vaultPath, { question, proposal, sou
   };
   await createRecord(record);
   return record;
+}
+
+/* --------------------- advice-outcome accountability --------------------- */
+
+// What the Coach recommended lately, and what happened to it. Proposals are
+// already typed records on the rails — their status IS the outcome, so this
+// needs no new store. Rides the Coach context AND the weekly debrief: a
+// coach that never learns whether its advice landed can't improve.
+export async function adviceContext(days = 14) {
+  const { listRecords } = await import('./inboxStore.js');
+  const COACH_ROUTES = new Set(['progression-tune', 'routine-edit', 'injury-log', 'goal-target', 'training-block']);
+  const cutoff = Date.now() - days * 86400000;
+  const records = (await listRecords()).filter((r) =>
+    COACH_ROUTES.has(r.decision?.route) && new Date(r.createdAt || 0).getTime() > cutoff);
+  if (!records.length) return null;
+  const line = (r) => `${(r.createdAt || '').slice(5, 10)} ${r.decision.title} → ${r.status === 'filed' ? 'APPROVED' : r.status === 'discarded' ? 'declined' : 'still pending his word'}`;
+  return `YOUR RECENT RECOMMENDATIONS AND THEIR OUTCOMES (last ${days}d — hold yourself to these: don't re-propose declined ones, follow up on approved ones, nudge once on stale pending ones):\n${records.map(line).join('\n')}`;
 }
 
 /* ------------------------ repeatedly-skipped work ------------------------ */

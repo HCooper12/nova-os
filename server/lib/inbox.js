@@ -369,12 +369,23 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
       repStep: payload.repStep,
       hold: payload.hold,
       focus: payload.focus,
+      model: payload.model,
       note: payload.reason,
     });
     const bits = [tune.hold ? 'progressions on hold' : null, tune.stepKg != null ? `weight step ${tune.stepKg}kg` : null, tune.repStep != null ? `rep step +${tune.repStep}` : null, tune.focus ? `focus: ${tune.focus}` : null].filter(Boolean);
     return {
       destination: `Progression Tuning — ${tune.name}: ${bits.join(', ')}`,
       undo: { route, exerciseId: tune.exerciseId, name: tune.name, prior },
+    };
+  }
+
+  if (route === 'training-block') {
+    const { setBlock, getBlock } = await import('./trainingBlocks.js');
+    const prior = await getBlock(vaultPath).catch(() => null);
+    const b = await setBlock(vaultPath, payload);
+    return {
+      destination: `Training Block — ${b.phase}, ${b.lengthWeeks}w from ${b.startedAt}`,
+      undo: { route, prior: prior ? { phase: prior.phase, startedAt: prior.startedAt, lengthWeeks: prior.lengthWeeks, deloadLastWeek: prior.deloadLastWeek, note: prior.note } : null },
     };
   }
 
@@ -786,6 +797,15 @@ export async function undoFiling(vaultPath, undo) {
     const { clearTune } = await import('./progressionTunes.js');
     await clearTune(vaultPath, undo.exerciseId, { restore: undo.prior });
     return undo.prior ? `restored ${undo.name}'s previous tune` : `cleared the tune — ${undo.name} progresses by the defaults again`;
+  }
+  if (undo.route === 'training-block') {
+    if (undo.prior) {
+      const { setBlock } = await import('./trainingBlocks.js');
+      await setBlock(vaultPath, undo.prior);
+      return `restored the previous ${undo.prior.phase} block`;
+    }
+    // no prior block — leave the page; the note says so honestly
+    return 'there was no block before this one — the new block stands until you set another';
   }
   if (undo.route === 'injury-log') {
     const { removeInjury } = await import('./injuryLog.js');
