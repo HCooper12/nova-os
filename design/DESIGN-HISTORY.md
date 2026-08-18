@@ -36,3 +36,18 @@ Capture Home / Train / Recipes at 390×844 from the deployed app into
 - Jul–Aug 2026: the HUD era — glass cards, mono labels, cyan/gold macro
   colours, the orb core. Established `--nv-*` tokens still in use.
 - Jun 2026: first build — basic dark PWA before the design language.
+
+### 2026-08-18 — P1+P2 shipped and SCREEN-VERIFIED (bundle index-LNMWCdKo.js)
+- New verification standard applied: every surface below was screenshotted
+  live via the harness (local dist + real connection, SW unregistered)
+  BEFORE the ship claim. Live Pages bundle hash confirmed identical to the
+  verified dist.
+- P1: Train TODAY tab (ring, focus card, momentum feed, volume-vs-goals
+  bars), COACH tab with live-signal quick chips, Fuel hero ring + honest
+  week + rotation tick-cards.
+- P2: session cockpit (RIR column, WK/BO/WU set-type chips, per-exercise
+  note + ANOMALY + PAIN), the full pain sheet (exercise-relevant areas,
+  left/right, timing, Other… dropdown, free text, ASK COACH triage),
+  finishing-early reason chips, Fuel one-bar log with inline icons.
+- Private captures: `~/Desktop/nova-design-history/2026-08-18-p2/`
+  (p2-pain-flow.png, p2-fuel-logbar.png) — personal data, never the repo.
