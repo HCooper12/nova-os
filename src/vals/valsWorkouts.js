@@ -39,6 +39,19 @@ export function valsWorkouts(app, ctx) {
   };
   // the three-surface structure from the mockup; a live workout pins GYM
   const trainTab = st.workoutSession ? 'gym' : (st.trainTab || (overview ? 'today' : 'gym'));
+  // starter chips — the mockup's quick-replies, composed from LIVE signals
+  // so they're always worth tapping (never canned filler)
+  const coachChips = (() => {
+    const chips = [];
+    const o = overview;
+    if (o?.momentum?.plateau) chips.push({ label: `WHY IS ${o.momentum.plateau.name.split(' (')[0].toUpperCase()} STALLED?`, tone: 'warn', q: `Why is my ${o.momentum.plateau.name} stalled, and what's the fix?` });
+    const under = (o?.volume || []).filter((v2) => v2.goalMuscle && v2.sets < v2.target).map((v2) => v2.muscle);
+    if (under.length) chips.push({ label: `ADD ${under[0].toUpperCase()} VOLUME`, tone: 'gold', q: `My ${under.join(' and ')} volume is under target for my goal — restructure my week to fix it.` });
+    if (o?.deload?.advise) chips.push({ label: 'SHOULD I DELOAD TODAY?', tone: 'warn', q: 'Recovery flagged a deload — how should I adjust today, exactly?' });
+    if (o?.today) chips.push({ label: `PLAN TODAY'S ${o.today.name.toUpperCase()}`, tone: null, q: `Walk me into today's ${o.today.name} — what matters most this session?` });
+    chips.push({ label: 'REVIEW MY WEEK', tone: null, q: 'Review my training week — volume, effort, anything drifting.' });
+    return chips.slice(0, 4).map((c) => ({ label: c.label, tone: c.tone, go: () => app.doCoach(c.q) }));
+  })();
   const trainTabs = [
     { key: 'today', label: 'TODAY' },
     { key: 'gym', label: 'GYM' },
@@ -212,6 +225,7 @@ export function valsWorkouts(app, ctx) {
 
   return {
     trainToday,
+    coachChips,
     trainTab,
     trainTabs,
     usingLiveWorkouts,

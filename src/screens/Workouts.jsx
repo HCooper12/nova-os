@@ -249,7 +249,7 @@ function RoutinesView({ v }) {
             >
               <div style={css("display:flex;justify-content:space-between;align-items:baseline")}>
                 <span style={css("font-size:15.5px;font-weight:500")}>{r.name}</span>
-                {r.completedCount > 0 && <span style={css("font:500 9px var(--nv-font-mono);color:var(--nv-gold)")}>{r.completedCount > 10 ? '🏆' : r.completedCount >= 3 ? '🥇' : '●'} {r.completedCount}×</span>}
+                {r.completedCount > 0 && <span style={css("font:500 9px var(--nv-font-mono);color:var(--nv-gold)")}>◆ {r.completedCount}×</span>}
               </div>
               <div style={css("margin-top:8px;font-size:12px;color:color-mix(in srgb, var(--nv-ink) 50%, transparent);line-height:1.5")}>{r.exercisesPreview}</div>
             </Interactive>
@@ -649,10 +649,20 @@ function GoalsCoachPane({ v }) {
               <div style={css("color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Ask anything a coach should answer — "should I deload?", "why is my bench stuck?", "build me a plan for a 4-day week."</div>
             )}
             {v.coachMsgs.map((m, i) => (
-              <div key={i} style={m.style}><span style={m.tagStyle}>{m.tag}</span> {m.typing ? <TypeText text={m.text} active /> : <ChatMarkdown text={m.text} />}</div>
+              <div key={i} style={m.wrapStyle}><div style={m.bubbleStyle}><span style={m.tagStyle}>{m.tag}</span> {m.typing ? <TypeText text={m.text} active /> : <ChatMarkdown text={m.text} />}</div></div>
             ))}
             {v.coachBusy && <div style={css("color:var(--nv-cy);font:400 11px var(--nv-font-mono)")}>» COACH reading your training history…▍</div>}
           </div>
+          {v.coachChips?.length > 0 && (
+            <div style={css("display:flex;gap:7px;flex-wrap:wrap;margin-top:10px")}>
+              {v.coachChips.map((c) => (
+                <Interactive key={c.label} as="span" onClick={c.go}
+                  base={`cursor:pointer;font:600 9.5px var(--nv-font-mono);letter-spacing:.08em;padding:7px 12px;border-radius:99px;border:1px solid ${c.tone === 'gold' ? 'color-mix(in srgb, var(--nv-gold) 45%, transparent)' : c.tone === 'warn' ? 'color-mix(in srgb, var(--nv-warn) 45%, transparent)' : 'var(--nv-edge)'};color:${c.tone === 'gold' ? 'var(--nv-gold)' : c.tone === 'warn' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 60%, transparent)'}`}
+                  hoverStyle="border-color:var(--nv-cy);color:var(--nv-cy)"
+                >{c.label}</Interactive>
+              ))}
+            </div>
+          )}
           <div style={css("display:flex;gap:8px;margin-top:10px")}>
             <Interactive
               as="input"
