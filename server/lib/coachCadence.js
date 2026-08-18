@@ -80,9 +80,55 @@ export async function morningReadiness(vaultPath) {
     const latest = [...days].reverse().find((d) => d.hrv != null);
     if (latest) lines.push(`Recovery looks ready (HRV ${Math.round(latest.hrv)}).`);
   }
+  try {
+    // the cross-reference agent's sharpest finding rides the morning card —
+    // fuel advice lands best BEFORE the day's eating, not in a debrief
+    const { crossCheck } = await import('./fuelCross.js');
+    const { findings } = await crossCheck(vaultPath);
+    const top = findings.find((f) => f.severity === 'high') || findings[0];
+    if (top) lines.push(`Fuel: ${top.line}`);
+  } catch { /* no findings, no line */ }
   const sent = await send(lines.join(' '));
   if (sent) await markSent('morning');
   return sent ? lines.join(' ') : null;
+}
+
+// ---- structural fuel findings land in the Inbox, once a week per key -----
+// Informational records on the rails: approving files them, nothing writes.
+// A finding that persists is a pattern; a pattern deserves a receipt he can
+// act on, not just a line that scrolls past in a chat.
+export async function raiseFuelFindings(vaultPath) {
+  const { crossCheck } = await import('./fuelCross.js');
+  const { createRecord, listRecords } = await import('./inboxStore.js');
+  const { findings } = await crossCheck(vaultPath);
+  if (!findings.length) return [];
+  const s = await loadState();
+  const raised = s.fuelRaised || {};
+  const cutoff = Date.now() - 7 * 86_400_000;
+  const existing = (await listRecords()).filter((r) => r.kind === 'fuel-cross' && r.status === 'pending');
+  const out = [];
+  for (const f of findings) {
+    if (raised[f.key] && new Date(raised[f.key]).getTime() > cutoff) continue;
+    if (existing.some((r) => r.findingKey === f.key)) continue; // still unread — don't stack duplicates
+    const { randomUUID } = await import('node:crypto');
+    out.push(await createRecord({
+      id: randomUUID().slice(0, 8),
+      kind: 'fuel-cross',
+      findingKey: f.key,
+      text: `Fuel × training: ${f.line}`,
+      source: 'coach',
+      mode: 'draft',
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    }));
+    raised[f.key] = new Date().toISOString();
+  }
+  if (out.length) {
+    s.fuelRaised = raised;
+    await mkdir(path.dirname(STATE_PATH), { recursive: true }).catch(() => {});
+    await writeFile(STATE_PATH, JSON.stringify(s, null, 2));
+  }
+  return out;
 }
 
 // ---- the missed-session rescue (the audit's ghost comment, made real) ----
@@ -125,6 +171,7 @@ export function startCoachCadenceScheduler(vaultPath) {
     try {
       const h = new Date().getHours();
       if (h >= 7 && h < 12) await morningReadiness(vaultPath);
+      if (h >= 7 && h < 12) await raiseFuelFindings(vaultPath); // weekly-cooldown inside
       if (h >= 16 && h < 19) await missedSessionNudge(vaultPath); // early enough to still train
     } catch (err) {
       console.error('coach cadence failed:', err.message);

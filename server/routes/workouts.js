@@ -37,6 +37,21 @@ export function workoutsRouter(vaultPath) {
     } catch (err) { next(err); }
   });
 
+  // The cross-reference agent, on demand: findings now, and (with raise)
+  // the same weekly-cooldown Inbox drop the morning scheduler performs.
+  router.get('/train/fuel-cross', async (req, res, next) => {
+    try {
+      const { crossCheck } = await import('../lib/fuelCross.js');
+      res.json(await crossCheck(vaultPath));
+    } catch (err) { next(err); }
+  });
+  router.post('/train/fuel-cross/raise', async (req, res, next) => {
+    try {
+      const { raiseFuelFindings } = await import('../lib/coachCadence.js');
+      res.json({ raised: await raiseFuelFindings(vaultPath) });
+    } catch (err) { next(err); }
+  });
+
   router.get('/workouts/exercises', async (req, res, next) => {
     try {
       res.json(await loadExerciseLibrary(vaultPath));
@@ -345,13 +360,13 @@ export function workoutsRouter(vaultPath) {
         const { computeDeloadSignal } = await import('../lib/coach.js');
         const signal = computeDeloadSignal(days);
         parts.push(`Deload signal: ${signal.advise ? `YES — ${signal.reason}. When this is YES and today holds a session, OPEN with the adjustment (concrete: −% load or capped RIR), don't wait to be asked` : signal.reason}.`);
-      } catch { failures.push('routines/schedule'); }
+      } catch { failures.push('recovery/deload'); }
       // the connections the sweep found missing — a coach that claims protein
       // expertise gets nutrition, bodyweight, debt, streaks, and learned habits
       try {
         const co = await carryoverContext();
         if (co) parts.push(co);
-      } catch { failures.push('earned progressions'); }
+      } catch { failures.push('carryovers'); }
       try {
         const nutrition = await loadRecentNutritionDays(7);
         if (nutrition.length) {
@@ -363,17 +378,23 @@ export function workoutsRouter(vaultPath) {
         } else {
           parts.push('Nutrition: no tracked days yet.');
         }
-      } catch { failures.push('recovery'); }
+      } catch { failures.push('nutrition'); }
+      try {
+        // fuel × training joins — the cross-reference agent's findings
+        const { crossCheck, crossContext } = await import('../lib/fuelCross.js');
+        const xc = crossContext(await crossCheck(vaultPath));
+        if (xc) parts.push(xc);
+      } catch { failures.push('fuel cross-check'); }
       try {
         parts.push(weightTrendLine(await loadRecentDays(28)));
-      } catch { failures.push('deload signal'); }
+      } catch { failures.push('weight trend'); }
       try {
         const s = await computeStreaks(vaultPath);
         const bits = [];
         if (s.workoutStreak >= 2) bits.push(`${s.workoutStreak}-week training streak`);
         if (s.lastWorkoutDate) bits.push(`last logged session ${s.lastWorkoutDate}`);
         if (bits.length) parts.push(`Streaks: ${bits.join('; ')}.`);
-      } catch { failures.push('carryovers'); }
+      } catch { failures.push('streaks'); }
       // work that keeps not happening — the Coach asks why before proposing
       try {
         const { detectSkippedExercises, skippedContext } = await import('../lib/coach.js');
@@ -402,33 +423,33 @@ export function workoutsRouter(vaultPath) {
         } else if (stale.length) {
           parts.push(`Repeatedly-skipped work was raised with him recently (${stale.map((x) => x.name).join(', ')}) — don't re-raise unless he brings it up.`);
         }
-      } catch { failures.push('nutrition'); }
+      } catch { failures.push('skipped-work memory'); }
       try {
         const { tunesContext } = await import('../lib/progressionTunes.js');
         const tunes = await tunesContext(vaultPath);
         if (tunes) parts.push(tunes);
-      } catch { failures.push('weight trend'); }
+      } catch { failures.push('progression tunes'); }
       try {
         const prefs = await preferencesContext(vaultPath);
         if (prefs) parts.push(prefs);
-      } catch { failures.push('streaks'); }
+      } catch { failures.push('preferences'); }
       try {
         const { standingContext } = await import('../lib/standing.js');
         const standing = await standingContext(vaultPath);
         if (standing) parts.push(standing);
-      } catch { failures.push('skipped exercises'); }
+      } catch { failures.push('standing instructions'); }
       try {
         const { skillsContext } = await import('../lib/skills.js');
         const skills = await skillsContext(vaultPath);
         if (skills) parts.push(skills);
-      } catch { failures.push('progression tunes'); }
+      } catch { failures.push('skills'); }
       // the shared brain: the Coach knows what the rest of the fleet did
       // lately (receipts off the rails — dispatch, reviews, drafts waiting)
       try {
         const { fleetContext } = await import('../lib/fleetContext.js');
         const fleet = await fleetContext();
         if (fleet) parts.push(fleet);
-      } catch { failures.push('preferences'); }
+      } catch { failures.push('fleet activity'); }
 
       if (failures.length) {
         // Silent context loss made the Coach blame his logging for a code

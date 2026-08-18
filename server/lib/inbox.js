@@ -1058,7 +1058,7 @@ export async function retryRecord(vaultPath, id) {
 // is a marked discard (expired: true) — visible in the stream as a receipt,
 // never a silent deletion — and only touches kinds whose worth is bound to
 // a moment. Real content (captures, research, coach receipts) never expires.
-const TIME_VALUE_HOURS = { dispatch: 48, review: 48, 'training-check': 48, 'week-plan': 8 * 24, 'plan-today': 24, 'weekly-debrief': 8 * 24, distill: 7 * 24, 'brain-week': 8 * 24 };
+const TIME_VALUE_HOURS = { dispatch: 48, review: 48, 'training-check': 48, 'week-plan': 8 * 24, 'plan-today': 24, 'weekly-debrief': 8 * 24, distill: 7 * 24, 'brain-week': 8 * 24, 'fuel-cross': 7 * 24 };
 export async function expireStaleDrafts() {
   const records = await listRecords();
   const now = Date.now();
@@ -1091,6 +1091,11 @@ export async function approveRecord(vaultPath, id) {
       auto: false,
       error: null,
     });
+  }
+  // A fuel-cross finding is a receipt, not a write: it carries no decision
+  // because nothing goes to the vault. Approving means "seen, acknowledged".
+  if (record.kind === 'fuel-cross') {
+    return updateRecord(id, { status: 'filed', destination: null, filedAt: new Date().toISOString(), auto: false, error: null });
   }
   const { destination, undo } = await fileDecision(vaultPath, record.decision);
   return updateRecord(id, { status: 'filed', destination, undoData: undo, filedAt: new Date().toISOString(), auto: false, error: null });
