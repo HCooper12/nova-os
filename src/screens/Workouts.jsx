@@ -2,6 +2,7 @@ import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { TypeText } from '../TypeText.jsx';
 import { ChatMarkdown } from '../ChatMarkdown.jsx';
+import { TrainToday } from '../TrainToday.jsx';
 
 // Inputs render at 16px (global rule in index.css) so iOS never zoom-jumps on
 // focus — widths/padding here are sized for that, not the old 11–12px text.
@@ -674,6 +675,9 @@ export function Workouts({ v }) {
           <span style={css("font:400 10px var(--nv-font-mono);letter-spacing:.12em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.workoutsDemo ? 'DEMO PLAN — CONNECT A BACKEND IN SETTINGS' : 'SYNCING…'}</span>
         )}
       </div>
+
+      {/* the redesigned TODAY pane — mockup v2 made real (see design/UI-REDESIGN-SPEC.md) */}
+      {v.trainToday?.o && <div style={css('margin-top:14px')}><TrainToday o={v.trainToday.o} actions={v.trainToday.actions} /></div>}
 
       {/* the scripted demo plan renders ONLY in demo mode — a connected session
           whose workouts haven't loaded says so instead of showing fiction */}

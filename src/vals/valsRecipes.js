@@ -176,6 +176,39 @@ export function valsRecipes(app, ctx) {
       targetKcal: profile ? profile.targetKcal : null,
     } : null,
 
+    // the redesigned Fuel hero: ring + coloured macros + the gap-fill line
+    // ("54g to go — dinner covers 44, the pouch does the last 10") — the
+    // feature he called out as loved; deterministic, always honest
+    fuelHero: usingLiveRecipes && proteinTarget != null ? (() => {
+      const gap = Math.max(0, Math.round(proteinTarget - proteinCurrent));
+      const unconsumed = Object.entries(rotation?.slots || {})
+        .filter(([, r]) => r && !r.consumed && r.macros)
+        .map(([slot, r]) => ({ slot, name: r.name, p: Math.round(r.macros.p) }))
+        .sort((a, b) => b.p - a.p);
+      let gapText;
+      if (gap === 0) gapText = 'Protein floor hit — everything above is bonus.';
+      else if (!unconsumed.length) gapText = `${gap}g protein to go — nothing left in the rotation; the bank's FITS filter has options.`;
+      else {
+        const picks = [];
+        let need = gap;
+        for (const m of unconsumed) { if (need <= 0) break; picks.push(m); need -= m.p; }
+        const cover = picks.map((m) => `${m.slot} covers ${m.p}`).join(', ');
+        gapText = need <= 0
+          ? `${gap}g to go — ${cover}${picks.length && picks[picks.length - 1].p >= need + picks[picks.length - 1].p ? '' : ''}.`
+          : `${gap}g to go — ${cover}, still ${need}g short: add something from the bank.`;
+      }
+      return {
+        p: Math.round(proteinCurrent), target: proteinTarget,
+        pct: Math.min(100, Math.round((proteinCurrent / proteinTarget) * 100)),
+        kcal: Math.round(rotConsumedTot.kcal + foodLogTot.kcal),
+        kcalTarget: profile?.targetKcal ?? null,
+        c: Math.round(rotConsumedTot.c + foodLogTot.c),
+        f: Math.round(rotConsumedTot.f + foodLogTot.f),
+        kcalLeft: kcalLeft != null ? Math.max(0, Math.round(kcalLeft)) : null,
+        gapText,
+      };
+    })() : null,
+
     // daily rotation — real meal-slot picks + aggregate macros, live only
     rotationVisible: usingLiveRecipes,
     rotationSlots,

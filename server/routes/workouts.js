@@ -29,6 +29,14 @@ function annotateRoutines(routines, exerciseState, completedCounts, tunes = []) 
 export function workoutsRouter(vaultPath) {
   const router = Router();
 
+  // the redesigned TODAY pane's single read — see lib/trainOverview.js
+  router.get('/train/overview', async (req, res, next) => {
+    try {
+      const { buildTrainOverview } = await import('../lib/trainOverview.js');
+      res.json(await buildTrainOverview(vaultPath));
+    } catch (err) { next(err); }
+  });
+
   router.get('/workouts/exercises', async (req, res, next) => {
     try {
       res.json(await loadExerciseLibrary(vaultPath));

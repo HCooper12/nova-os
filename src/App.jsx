@@ -142,7 +142,7 @@ const CACHED_LIVE_KEYS = [
   'liveNotes', 'liveCalendar', 'liveRecipes', 'liveRecipeProfile', 'liveRotation',
   'liveFoodLog', 'liveFoodHistory', 'liveNutritionMonth', 'liveNutritionWeek', 'liveShoppingList', 'liveStash', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
   'liveWorkoutExercises', 'liveWorkoutMuscleGroups', 'liveWorkoutTrackingTypes',
-  'liveWorkoutRoutines', 'liveWorkoutSchedule', 'liveWorkoutWeekdays', 'liveWorkoutProgressions', 'liveWorkoutGoals', 'liveCarryovers',
+  'liveWorkoutRoutines', 'liveWorkoutSchedule', 'liveWorkoutWeekdays', 'liveWorkoutProgressions', 'liveWorkoutGoals', 'liveCarryovers', 'liveTrainOverview',
   'liveJournalEntries', 'liveGraph', 'liveInbox', 'liveDispatch', 'liveCompost', 'liveTodoist', 'liveTodos', 'liveGuardian', 'liveMoney',
   // fetched every sync anyway — excluding them just blanked flagship surfaces
   // (About You, Daily Review card, learning panel) on every phone reload
@@ -995,6 +995,7 @@ export default class App extends Component {
       async () => this.setState({ liveFoodLog: await api.foodLog(conn) }),
       async () => this.setState({ liveNutritionMonth: await api.nutritionMonth(conn) }),
       async () => this.setState({ liveNutritionWeek: await api.nutritionWeek(conn) }),
+      async () => this.setState({ liveTrainOverview: await api.trainOverview(conn) }),
       async () => this.setState({ liveShoppingList: await api.shoppingList(conn) }),
       async () => {
         const exercisesRes = await api.workoutExercises(conn);

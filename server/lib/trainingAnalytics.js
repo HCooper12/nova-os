@@ -56,7 +56,17 @@ export function prsInSession(sessions, session) {
   // e1RM PRs that are just echoes of a weight PR on the same lift add noise —
   // keep the weight PR (the one he felt) and the e1RM only when it stands alone
   const weightLifts = new Set(out.filter((p) => p.kind === 'weight').map((p) => p.exerciseId));
-  return out.filter((p) => p.kind === 'weight' || !weightLifts.has(p.exerciseId));
+  const filtered = out.filter((p) => p.kind === 'weight' || !weightLifts.has(p.exerciseId));
+  // one entry per (exercise, kind): several sets can each nudge the best up —
+  // report the day's FINAL best against the PRE-SESSION previous
+  const best = new Map();
+  for (const p of filtered) {
+    const k = `${p.exerciseId}|${p.kind}`;
+    const cur = best.get(k);
+    if (!cur) best.set(k, { ...p });
+    else { cur.value = Math.max(cur.value, p.value); }
+  }
+  return [...best.values()];
 }
 
 /* ---------------- plateau: e1RM flat or falling across sessions ---------- */

@@ -37,9 +37,44 @@ export function Recipes({ v }) {
       </div>
       <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Recipes, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>macros first.</span></h1>
 
+      {/* the redesigned Fuel hero: ring + coloured macros + the gap-fill
+          coach line — one glance answers "where am I, and what do I eat
+          next?" (design/UI-REDESIGN-SPEC.md). Falls back to the old strip
+          when no protein target exists. */}
+      {v.fuelHero && (
+        <div style={css("margin-top:16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;border:1px solid var(--nv-edge);border-radius:18px;padding:16px;background:var(--nv-glass)")}>
+          <div style={{ position: 'relative', width: '104px', height: '104px', flex: 'none' }} aria-label={`Protein ${v.fuelHero.p} of ${v.fuelHero.target} grams`}>
+            <svg viewBox="0 0 104 104" style={{ width: 104, height: 104, transform: 'rotate(-90deg)' }}>
+              <circle cx="52" cy="52" r="45" fill="none" stroke="rgba(130,175,255,.10)" strokeWidth="8" />
+              <circle cx="52" cy="52" r="45" fill="none" stroke="var(--nv-cy)" strokeWidth="8" strokeLinecap="round"
+                strokeDasharray={2 * Math.PI * 45} strokeDashoffset={2 * Math.PI * 45 * (1 - v.fuelHero.pct / 100)}
+                style={{ filter: 'drop-shadow(0 0 6px rgba(89,230,255,.55))', transition: 'stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1)' }} />
+            </svg>
+            <div style={css("position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center")}>
+              <b style={css("font:600 22px var(--nv-font-ui);color:var(--nv-cy);font-variant-numeric:tabular-nums")}>{v.fuelHero.p}<span style={css("font-size:11px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>g</span></b>
+              <span style={css("font:600 8px var(--nv-font-mono);letter-spacing:.18em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>OF {v.fuelHero.target} P</span>
+            </div>
+          </div>
+          <div style={css("flex:1;min-width:220px;display:flex;flex-direction:column;gap:6px")}>
+            <div style={css("display:flex;justify-content:space-between;font-size:13px;color:color-mix(in srgb, var(--nv-ink) 62%, transparent)")}>
+              <span style={css("color:var(--nv-good)")}>Calories</span>
+              <b style={css("color:var(--nv-ink);font-variant-numeric:tabular-nums")}>{v.fuelHero.kcal.toLocaleString()}{v.fuelHero.kcalTarget ? ` / ${v.fuelHero.kcalTarget.toLocaleString()}` : ''}</b>
+            </div>
+            <div style={css("display:flex;justify-content:space-between;font-size:13px;color:color-mix(in srgb, var(--nv-ink) 62%, transparent)")}>
+              <span><span style={css("color:var(--nv-gold)")}>Carbs</span> · <span style={css("color:var(--nv-vi)")}>Fat</span></span>
+              <b style={css("font-variant-numeric:tabular-nums")}><span style={css("color:var(--nv-gold)")}>{v.fuelHero.c}C</span> · <span style={css("color:var(--nv-vi)")}>{v.fuelHero.f}F</span></b>
+            </div>
+            {v.fuelHero.kcalLeft != null && (
+              <span style={css("align-self:flex-start;font:600 9px var(--nv-font-mono);letter-spacing:.1em;padding:4px 10px;border-radius:99px;border:1px solid color-mix(in srgb, var(--nv-good) 40%, transparent);color:var(--nv-good)")}>FITS {v.fuelHero.kcalLeft} KCAL LEFT</span>
+            )}
+            <span style={css("font-size:12px;color:color-mix(in srgb, var(--nv-ink) 62%, transparent);line-height:1.45")}>Coach: {v.fuelHero.gapText}</span>
+          </div>
+        </div>
+      )}
+
       {/* today so far — everything actually eaten, at a glance */}
-      {v.dayMacros && v.structured && <EatenTiles m={v.dayMacros} />}
-      {v.dayMacros && !v.structured && (
+      {!v.fuelHero && v.dayMacros && v.structured && <EatenTiles m={v.dayMacros} />}
+      {!v.fuelHero && v.dayMacros && !v.structured && (
         <div style={css("margin-top:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border:1px solid color-mix(in srgb, var(--nv-cy) 22%, transparent);border-radius:12px;padding:11px 16px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-cy) 05%, transparent),transparent)")}>
           <span style={css("font:500 9px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-cy);flex:none")}>EATEN TODAY</span>
           {v.dayMacros.proteinPct != null && (

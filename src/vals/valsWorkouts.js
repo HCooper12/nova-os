@@ -20,6 +20,22 @@ function nextDays(n) {
 export function valsWorkouts(app, ctx) {
   const st = app.state;
 
+  // the redesigned TODAY pane (TrainToday.jsx) — one overview object, and
+  // actions that route into flows that already exist (begin the scheduled
+  // routine; feed cards open the Coach with the question pre-asked)
+  const overview = st.liveTrainOverview || null;
+  const overviewRoutine = overview?.today
+    ? (st.liveWorkoutRoutines || []).find((r) => r.id === overview.today.routineId) || null
+    : null;
+  const trainToday = {
+    o: overview,
+    actions: {
+      begin: overviewRoutine ? () => app.startWorkoutSession(overviewRoutine) : null,
+      askPlateau: (name) => app.doCoach(`Why is my ${name} stalled, and what's the fix?`),
+      askVolume: (muscles) => app.doCoach(`My weekly sets for ${muscles} are under target for my goal — how should I add volume?`),
+    },
+  };
+
   const plan = st.plan || app.basePlan;
   const week = weekData.map(d => {
     const s = d[2];
@@ -186,6 +202,7 @@ export function valsWorkouts(app, ctx) {
   Object.assign(ctx, { usingLiveWorkouts, liveRoutines, todayRoutine, todayActiveRest });
 
   return {
+    trainToday,
     usingLiveWorkouts,
     workoutsView: st.workoutsView,
     week,
