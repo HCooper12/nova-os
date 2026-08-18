@@ -266,6 +266,11 @@ function toEvent(ev, start, end, calendarName, recurring) {
     startISO,
     endISO: end ? end.toISOString() : null,
     recurring: !!recurring,
+    // The ORIGINAL series time for this occurrence. An already-overridden
+    // instance starts at its NEW time, so using start as the RECURRENCE-ID
+    // named an occurrence that doesn't exist and Apple made a fresh event —
+    // the duplicate he saw. Overrides carry their true anchor here.
+    recurrenceId: ev.recurrenceid ? new Date(ev.recurrenceid).toISOString() : (recurring ? startISO : null),
     uid: ev.uid,
     objectUrl: ev._url || null,
     etag: ev._etag || null,

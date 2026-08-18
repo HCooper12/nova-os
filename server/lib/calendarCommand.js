@@ -167,7 +167,7 @@ async function proposeOne(op, clean, events, vaultPath) {
         decision: {
           route: 'calendar', action: 'move', confidence: 'high', title,
           reason: `From "${clean}". Reschedule from ${whenLabel(ev.startISO)} to ${whenLabel(newStart.toISOString())}. Nothing changes until you approve.`,
-          payload: { action: 'move', objectUrl: ev.objectUrl, etag: ev.etag, oldRaw: ev.raw, label: ev.label, oldStart: ev.startISO, oldEnd: ev.endISO, newStart: newStart.toISOString(), newEnd: newEnd.toISOString(), ...(ev.recurring ? { occurrence: ev.startISO } : {}) },
+          payload: { action: 'move', objectUrl: ev.objectUrl, etag: ev.etag, oldRaw: ev.raw, label: ev.label, oldStart: ev.startISO, oldEnd: ev.endISO, newStart: newStart.toISOString(), newEnd: newEnd.toISOString(), ...(ev.recurring ? { occurrence: ev.recurrenceId || ev.startISO } : {}) },
         },
       }, newStart.toISOString());
     }
