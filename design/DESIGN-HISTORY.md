@@ -51,3 +51,18 @@ Capture Home / Train / Recipes at 390×844 from the deployed app into
   finishing-early reason chips, Fuel one-bar log with inline icons.
 - Private captures: `~/Desktop/nova-design-history/2026-08-18-p2/`
   (p2-pain-flow.png, p2-fuel-logbar.png) — personal data, never the repo.
+
+### 2026-08-18 — Visual-claims audit (Hayden's request): both claims VERIFIED
+- Voice animation dynamics: REAL. Two harness frames seconds apart during a
+  spoken brief show the SPEAKING state with the waveform strip alive and
+  different between frames; the analyser chain feeds both the element path
+  and the new pre-decoded buffer path (`src.connect(analyser)`).
+- Pop-up infographic panels: REAL. "Show my training week on screen" →
+  spoken reply + TRAINING WEEK · LIVE FROM YOUR LOG panel rendered
+  mid-conversation from the actual log. Panels ride two lanes: Ask Nova
+  SHOW directives (5 panel types) and the evening brief's fuel beat.
+- The audit CAUGHT A LIVE BUG while verifying: a deploy's service-worker
+  update reloaded the page mid-answer and the reply+panel vanished —
+  the job receipt cleared at fetch-time, not commit-time. Fixed same day
+  (receipt now clears on-screen; suspended-context watchdog frees the
+  speech FIFO). Captures: `~/Desktop/nova-design-history/2026-08-18-audit/`.
