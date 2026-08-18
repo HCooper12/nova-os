@@ -37,8 +37,12 @@ export function valsWorkouts(app, ctx) {
       askVolume: (muscles) => { app.setState({ trainTab: 'coach' }); app.doCoach(`My weekly sets for ${muscles} are under target for my goal — how should I add volume?`); },
     },
   };
-  // the three-surface structure from the mockup; a live workout pins GYM
-  const trainTab = st.workoutSession ? 'gym' : (st.trainTab || (overview ? 'today' : 'gym'));
+  // the three-surface structure from the mockup. A live workout DEFAULTS
+  // to GYM but never locks him there — consulting the Coach mid-session is
+  // the whole point of a coach ("can't switch tabs during a workout" was
+  // his bug report, 19 Aug). The session lives in state; leaving the tab
+  // parks it, the LIVE chip on GYM leads back.
+  const trainTab = st.trainTab || (st.workoutSession ? 'gym' : (overview ? 'today' : 'gym'));
   // starter chips — the mockup's quick-replies, composed from LIVE signals
   // so they're always worth tapping (never canned filler)
   const coachChips = (() => {
@@ -54,7 +58,7 @@ export function valsWorkouts(app, ctx) {
   })();
   const trainTabs = [
     { key: 'today', label: 'TODAY' },
-    { key: 'gym', label: 'GYM' },
+    { key: 'gym', label: 'GYM', live: !!st.workoutSession }, // ● a session is running — the way back
     { key: 'coach', label: 'COACH' },
   ].map((t) => ({ ...t, on: trainTab === t.key, go: () => app.setState({ trainTab: t.key }) }));
 
@@ -219,8 +223,12 @@ export function valsWorkouts(app, ctx) {
   const libraryById = new Map(libraryExercises.map((x) => [x.id, x]));
   const sessionExercises = session ? session.exercises.map((e, exIdx) => ({
     exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, trackingType: e.trackingType,
-    // ▶ FORM — the curated clip/diagram for this lift, when one is filed
-    formUrl: libraryById.get(e.exerciseId)?.resourceUrl || null,
+    // ▶ FORM — on EVERY lift (the mockup's contract). Curated link when
+    // one is filed; otherwise an honest, deterministic technique search —
+    // never a dead chip, never a pretend curation.
+    formUrl: libraryById.get(e.exerciseId)?.resourceUrl
+      || `https://www.youtube.com/results?search_query=${encodeURIComponent(`${e.name} form technique`)}`,
+    formCurated: !!libraryById.get(e.exerciseId)?.resourceUrl,
     // spec #13: hold the exercise header for its secondary actions
     onLongPress: ({ x, y }) => app.openContextMenu({
       x, y, title: e.name.toUpperCase(),

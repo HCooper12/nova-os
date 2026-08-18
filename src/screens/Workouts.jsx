@@ -408,9 +408,10 @@ function SessionView({ v }) {
             <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap")}>
               <Interactive as="span" onLongPress={e.onLongPress} base={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <span style={css(`font-size:15px;font-weight:500${e.skipped ? ';text-decoration:line-through' : ''}`)}>{e.name}</span>
-                {!e.skipped && e.formUrl && (
-                  <Interactive as="span" onClick={() => window.open(e.formUrl, '_blank', 'noopener')} title="Curated form clip/diagram for this lift"
-                    base={css("cursor:pointer;font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-ink);border:1px solid color-mix(in srgb, var(--nv-ink) 25%, transparent);background:rgba(255,255,255,.04)")}
+                {!e.skipped && (
+                  <Interactive as="span" onClick={() => window.open(e.formUrl, '_blank', 'noopener')}
+                    title={e.formCurated ? 'Curated form clip for this lift — Coach-approved' : 'Technique videos for this lift (no curated pick yet — hold the exercise name to have Coach curate one)'}
+                    base={css(`cursor:pointer;font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;padding:2px 7px;border-radius:5px;${e.formCurated ? 'color:var(--nv-cy);border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);background:color-mix(in srgb, var(--nv-cy) 07%, transparent)' : 'color:color-mix(in srgb, var(--nv-ink) 55%, transparent);border:1px solid color-mix(in srgb, var(--nv-ink) 22%, transparent);background:rgba(255,255,255,.03)'}`)}
                     hoverStyle="color:var(--nv-cy);border-color:color-mix(in srgb, var(--nv-cy) 45%, transparent)">▶ FORM</Interactive>
                 )}
                 {e.skipped && <span style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;color:var(--nv-warn)")}>SKIPPED TODAY</span>}
@@ -804,7 +805,7 @@ export function Workouts({ v }) {
             <Interactive key={t.key} as="span" onClick={t.go}
               base={`flex:1;text-align:center;cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.16em;padding:10px 0;border-radius:12px;border:1px solid ${t.on ? 'color-mix(in srgb, var(--nv-cy) 40%, transparent)' : 'transparent'};color:${t.on ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 40%, transparent)'};background:${t.on ? 'color-mix(in srgb, var(--nv-cy) 06%, transparent)' : 'transparent'};text-shadow:${t.on ? '0 0 10px color-mix(in srgb, var(--nv-cy) 60%, transparent)' : 'none'}`}
               hoverStyle="color:var(--nv-cy)"
-            >{t.label}</Interactive>
+            >{t.label}{t.live && <span style={css("margin-left:6px;color:var(--nv-good);text-shadow:0 0 8px color-mix(in srgb, var(--nv-good) 70%, transparent)")}>●</span>}</Interactive>
           ))}
         </div>
       )}
