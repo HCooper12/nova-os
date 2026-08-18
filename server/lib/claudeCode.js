@@ -34,6 +34,12 @@ const DISALLOWED_TOOLS = [
   'TaskCreate', 'TaskGet', 'TaskList', 'TaskOutput', 'TaskStop', 'TaskUpdate', 'Monitor',
 ].join(',');
 
+// The Coach's boundary: same as the breaker's, MINUS the web. A coach that
+// claims to be evidence-based but cannot open a study or find a form video
+// is theatre — WebSearch/WebFetch are reads, and the read-only rule is about
+// WRITES. Everything else stays blocked.
+const COACH_DISALLOWED = DISALLOWED_TOOLS.split(',').filter((t) => t !== 'WebFetch' && t !== 'WebSearch').join(',') + ',Edit,Write';
+
 const jobs = new Map();
 
 // ---------------------------- warm conversations ----------------------------
@@ -514,7 +520,8 @@ Ground rules:
 - PROGRESSION IS MORE THAN KILOGRAMS: the default +2.5kg is wrong for many lifts — lateral raises, curls, cable work, anything where dumbbells jump 2kg at a time. When more load isn't the right next step, prescribe the alternative a good coach would: more reps first (repStep), a smaller step if the gym's equipment allows it (ask what increments he actually has access to if you don't know), or a QUALITY focus — slower 3-4s eccentric, a pause, strict tempo, fuller range — via PROPOSE {"action":"tune","exercise":"Lateral Raise","focus":"3s eccentric, same load","reason":"2.5kg is a 20% jump on this lift"}. A focus shows as a chip on that exercise in his session view until changed, and the weekly debrief holds the week against it.
 - For anything else you cannot change (logging food, calendar), point him at the right surface. Never claim you wrote anything.
 - SKIPPED WORK: if the context lists repeatedly-skipped exercises, raise the single most significant one once, naturally, after answering what he actually asked — name the count ("Spider Curls have missed 3 of your last 4 Pulls"), ASK WHY (no time? equipment busy? a niggle? you just hate it?), and STOP there. Do not propose a fix in the same breath — the reason decides whether it's a swap, a removal, moving it earlier in the session, or nothing at all. Once he tells you why, then offer the fix (and PROPOSE it if he wants it). Never raise the same one twice in a conversation, and never moralise about it.
-- Plain text, conversational, tight. Lead with the answer.
+- RESOURCES: you have WebSearch and WebFetch — USE them whenever seeing beats describing: form checks, technique cues, a stretch or mobility routine, "how do I do X", or any claim worth a citation. Curate, never dump: 1-3 links maximum, each as a markdown link with a specific title and ONE line on why it's worth his time ("[Squat University — fixing butt wink](url) — the hip-anatomy explanation at 2:10 is the fix for your depth question"). Prefer reputable channels/sources (Squat University, Renaissance Periodization, Jeff Nippard, Stronger by Science, E3 Rehab, published studies). When you cite evidence, link it. Never invent a URL — only link what you actually found this turn.
+- Format: conversational and tight, but markdown WORKS here — links render clickable, **bold** for the one number that matters, short lists when prescribing (sets × reps × rest). No headings, no tables. Lead with the answer.
 
 Hayden's current picture (computed at conversation start — trust it over stale pages):
 ${context || '(unavailable)'}
@@ -534,8 +541,8 @@ export function startAskCoach(cwd, { question, context, sessionId }) {
     // between turns, so a follow-up question skips the CLI boot entirely
     '-p', '--input-format', 'stream-json',
     '--permission-mode', 'bypassPermissions',
-    '--allowedTools', 'Read Grep Glob',
-    '--disallowedTools', BREAKER_DISALLOWED,
+    '--allowedTools', 'Read Grep Glob WebSearch WebFetch',
+    '--disallowedTools', COACH_DISALLOWED,
     '--strict-mcp-config',
     // Streaming: the Coach's answer appears in the chat as it's written —
     // the wait used to be full-generation THEN a fake typing animation.

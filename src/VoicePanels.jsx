@@ -50,6 +50,12 @@ function Exercise({ d }) {
           )}
         </div>
       )}
+      {d.cues && (
+        <div style={css(`margin-bottom:6px;font:400 11px ${M};color:var(--nv-gold)`)}>CUES: {d.cues}</div>
+      )}
+      {d.resourceUrl && (
+        <a href={d.resourceUrl} target="_blank" rel="noopener noreferrer" style={css(`display:block;margin-bottom:6px;font:500 11px ${M};color:var(--nv-cy);text-decoration:underline;text-underline-offset:2px`)}>▶ form / technique resource</a>
+      )}
       {d.recent.length === 0 && <div style={css(`font:400 11px ${M};color:${dim(40)}`)}>No logged sessions yet for this one.</div>}
       {d.recent.map((r) => (
         <div key={r.date + r.sets} style={css(`display:flex;gap:10px;padding:3px 0;font:400 11px ${M};color:${dim(78)}`)}>

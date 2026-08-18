@@ -152,6 +152,31 @@ function withWriteLock(fn) {
   return run;
 }
 
+// The knowledge base fields (audit #12): setup/form cues and ONE curated
+// resource link per exercise — shown in the exercise panel and mid-session.
+// The exercise record was just a name and a muscle group; a coach's exercise
+// card never is.
+export async function setExerciseKnowledge(vaultPath, id, { cues, resourceUrl }) {
+  return withWriteLock(async () => {
+    const existing = [...(await getExercises(vaultPath))];
+    const idx = existing.findIndex((e) => e.id === id);
+    if (idx === -1) throw new Error('no such exercise');
+    const e = { ...existing[idx] };
+    if (cues !== undefined) {
+      const clean = String(cues || '').trim().slice(0, 300);
+      if (clean) e.cues = clean; else delete e.cues;
+    }
+    if (resourceUrl !== undefined) {
+      const url = String(resourceUrl || '').trim();
+      if (url && !/^https?:\/\//.test(url)) throw new Error('resourceUrl must be an http(s) link');
+      if (url) e.resourceUrl = url.slice(0, 300); else delete e.resourceUrl;
+    }
+    existing[idx] = e;
+    await persist(vaultPath, existing);
+    return e;
+  });
+}
+
 export async function addCustomExercise(vaultPath, name, muscleGroup, trackingType) {
   if (!MUSCLE_GROUPS.includes(muscleGroup)) throw new Error('invalid muscle group');
   const tt = trackingType || DEFAULT_TRACKING_TYPE;

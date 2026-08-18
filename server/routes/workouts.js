@@ -52,6 +52,14 @@ export function workoutsRouter(vaultPath) {
     }
   });
 
+  // knowledge base: cues + one curated resource per exercise
+  router.patch('/workouts/exercises/:id', async (req, res) => {
+    try {
+      const { setExerciseKnowledge } = await import('../lib/exercises.js');
+      res.json({ exercise: await setExerciseKnowledge(vaultPath, req.params.id, { cues: req.body?.cues, resourceUrl: req.body?.resourceUrl }) });
+    } catch (err) { res.status(400).json({ error: err.message }); }
+  });
+
   router.get('/workouts/routines', async (req, res, next) => {
     try {
       const { exercises } = await loadExerciseLibrary(vaultPath);

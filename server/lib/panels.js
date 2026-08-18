@@ -91,6 +91,9 @@ async function buildExercise(vaultPath, name) {
     inRoutines,
     recent,
     e1rm: e1 ? { value: e1.e1rm, delta: e1.delta ?? null } : null,
+    // knowledge base: form cues + the one curated resource
+    cues: ex.cues || null,
+    resourceUrl: ex.resourceUrl || null,
   };
 }
 

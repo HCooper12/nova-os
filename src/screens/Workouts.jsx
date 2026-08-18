@@ -1,6 +1,7 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { TypeText } from '../TypeText.jsx';
+import { ChatMarkdown } from '../ChatMarkdown.jsx';
 
 // Inputs render at 16px (global rule in index.css) so iOS never zoom-jumps on
 // focus — widths/padding here are sized for that, not the old 11–12px text.
@@ -356,7 +357,7 @@ function RoutinesView({ v }) {
               <div style={css("color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Ask anything a coach should answer — "should I deload?", "why is my bench stuck?", "build me a plan for a 4-day week."</div>
             )}
             {v.coachMsgs.map((m, i) => (
-              <div key={i} style={m.style}><span style={m.tagStyle}>{m.tag}</span> <TypeText text={m.text} active={m.typing} /></div>
+              <div key={i} style={m.style}><span style={m.tagStyle}>{m.tag}</span> {m.typing ? <TypeText text={m.text} active /> : <ChatMarkdown text={m.text} />}</div>
             ))}
             {v.coachBusy && <div style={css("color:var(--nv-cy);font:400 11px var(--nv-font-mono)")}>» COACH reading your training history…▍</div>}
           </div>
@@ -536,7 +537,7 @@ function SessionView({ v }) {
               <div style={css("color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>"That last set felt heavy — drop the weight?" · "Shoulder's niggling on these, alternative?" · "Only 20 minutes left, what do I cut?"</div>
             )}
             {v.coachMsgs.map((m, i) => (
-              <div key={i} style={m.style}><span style={m.tagStyle}>{m.tag}</span> <TypeText text={m.text} active={m.typing} /></div>
+              <div key={i} style={m.style}><span style={m.tagStyle}>{m.tag}</span> {m.typing ? <TypeText text={m.text} active /> : <ChatMarkdown text={m.text} />}</div>
             ))}
             {v.coachBusy && <div style={css("color:var(--nv-cy);font:400 11px var(--nv-font-mono)")}>» COACH looking at your session…▍</div>}
           </div>
