@@ -131,6 +131,9 @@ export function workoutsRouter(vaultPath) {
       const session = await completeSession(vaultPath, req.body);
       // Coach's receipt rides the rails — never blocks the save
       draftSessionSummary(vaultPath, session).catch(() => {});
+      // a PR detected on save is celebrated the moment it exists — the
+      // cadence engine's only event-driven (non-clock) message
+      import('../lib/coachCadence.js').then(({ celebratePRs }) => celebratePRs(vaultPath, session)).catch(() => {});
       res.json({ session });
     } catch (err) {
       res.status(400).json({ error: err.message });
@@ -352,8 +355,28 @@ export function workoutsRouter(vaultPath) {
         const { exercises: lib } = await loadExerciseLibrary(vaultPath);
         const { routines } = await loadRoutines(vaultPath, lib);
         const sessions = await loadSessions(vaultPath, { limit: 30 });
-        const skipped = skippedContext(detectSkippedExercises(routines, sessions));
-        if (skipped) parts.push(skipped);
+        const list = detectSkippedExercises(routines, sessions);
+        // cross-conversation memory: the Coach used to re-raise the same
+        // skipped exercise in every NEW chat with no idea it already asked.
+        // The top unraised one is recorded as raised (7-day cooldown).
+        const { readFile: rf, writeFile: wf } = await import('node:fs/promises');
+        const pathMod = await import('node:path');
+        const { fileURLToPath } = await import('node:url'); // never URL.pathname — repo path has a space
+        const raisedPath = pathMod.join(process.env.NOVA_DATA_DIR || pathMod.join(pathMod.dirname(fileURLToPath(import.meta.url)), '..', 'data'), 'coach-raised.json');
+        let raised = {};
+        try { raised = JSON.parse(await rf(raisedPath, 'utf8')); } catch { /* first run */ }
+        const cutoff = Date.now() - 7 * 86400000;
+        const fresh = list.filter((x) => !(raised[x.exerciseId] && new Date(raised[x.exerciseId]).getTime() > cutoff));
+        const stale = list.filter((x) => !fresh.includes(x));
+        const skipped = skippedContext(fresh);
+        if (skipped) {
+          parts.push(skipped + (stale.length ? `
+(Already raised recently — do NOT re-raise unless he brings them up: ${stale.map((x) => x.name).join(', ')}.)` : ''));
+          raised[fresh[0].exerciseId] = new Date().toISOString();
+          wf(raisedPath, JSON.stringify(raised, null, 2)).catch(() => {});
+        } else if (stale.length) {
+          parts.push(`Repeatedly-skipped work was raised with him recently (${stale.map((x) => x.name).join(', ')}) — don't re-raise unless he brings it up.`);
+        }
       } catch { failures.push('nutrition'); }
       try {
         const { tunesContext } = await import('../lib/progressionTunes.js');

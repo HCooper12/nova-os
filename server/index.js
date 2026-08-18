@@ -31,6 +31,7 @@ import { startCfoScheduler } from './lib/cfoReport.js';
 import { startMealPrepScheduler } from './lib/mealPrep.js';
 import { startFoodSuggestScheduler } from './lib/foodSuggest.js';
 import { startTrainingCheckScheduler } from './lib/trainingCheck.js';
+import { startCoachCadenceScheduler } from './lib/coachCadence.js';
 import { startWeekPlanScheduler } from './lib/weekPlan.js';
 import { startHealthDropsScheduler } from './lib/healthDrops.js';
 import { snapshotRouter } from './routes/snapshot.js';
@@ -215,6 +216,7 @@ async function main() {
   startMealPrepScheduler(process.env.VAULT_PATH);
   startFoodSuggestScheduler(process.env.VAULT_PATH);
   startTrainingCheckScheduler(process.env.VAULT_PATH);
+  startCoachCadenceScheduler(process.env.VAULT_PATH);
   startWeekPlanScheduler(process.env.VAULT_PATH);
   startHealthDropsScheduler(process.env.VAULT_PATH);
   startDailyReviewScheduler(process.env.VAULT_PATH);

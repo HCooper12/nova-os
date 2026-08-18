@@ -1,0 +1,129 @@
+// The Coach's cadence engine — the voice that speaks FIRST.
+//
+// The audit's core finding: the Coach had never initiated contact in its
+// life. Zero Telegram messages ever (both channels defaulted to draft), the
+// "missed-session rescue nudge" existed only as a comment, streaks were
+// computed and ignored, and PRs were never detected at all. A coach who
+// never speaks first isn't a coach; he's a search box with opinions.
+//
+// Everything here is DETERMINISTIC composition over real signals (deload,
+// schedule, sessions, PRs from trainingAnalytics) — no model in the loop,
+// so a nudge costs nothing and can never invent. Messages go out via
+// Telegram; each kind fires at most once per day, state in
+// server/data/coach-cadence.json. NOVA_COACH_CADENCE=off silences it all.
+
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url'; // never URL.pathname — the repo path has a space
+import path from 'node:path';
+
+const STATE_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'coach-cadence.json');
+
+const pad = (n) => String(n).padStart(2, '0');
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+
+async function loadState() {
+  try { return JSON.parse(await readFile(STATE_PATH, 'utf8')); } catch { return {}; }
+}
+async function markSent(kind) {
+  const s = await loadState();
+  s[kind] = today();
+  await mkdir(path.dirname(STATE_PATH), { recursive: true }).catch(() => {});
+  await writeFile(STATE_PATH, JSON.stringify(s, null, 2));
+}
+async function sentToday(kind) {
+  return (await loadState())[kind] === today();
+}
+
+async function send(text) {
+  const { telegramConfigured, sendTelegramText } = await import('./telegram.js');
+  if (!telegramConfigured()) return false;
+  await sendTelegramText(text);
+  return true;
+}
+
+const WEEKDAY = () => ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][new Date().getDay()];
+
+async function todaysRoutine(vaultPath) {
+  const { loadExerciseLibrary } = await import('./exercises.js');
+  const { loadRoutines } = await import('./workouts.js');
+  const { exercises } = await loadExerciseLibrary(vaultPath);
+  const { routines, schedule } = await loadRoutines(vaultPath, exercises);
+  const id = schedule?.[WEEKDAY()];
+  if (!id || id === 'ACTIVE_REST') return null;
+  return routines.find((r) => r.id === id) || null;
+}
+
+async function loggedToday(vaultPath) {
+  const { loadSessions } = await import('./workoutSessions.js');
+  const sessions = await loadSessions(vaultPath, { limit: 3 });
+  return sessions.some((s) => s.date === today());
+}
+
+// ---- morning readiness: the day's card + the recovery verdict ------------
+export async function morningReadiness(vaultPath) {
+  if (await sentToday('morning')) return null;
+  const routine = await todaysRoutine(vaultPath);
+  if (!routine) return null; // rest days earn silence, not filler
+  const { loadRecentDays } = await import('./healthData.js');
+  const { computeDeloadSignal } = await import('./coach.js');
+  const days = await loadRecentDays(7).catch(() => []);
+  const signal = computeDeloadSignal(days);
+  const lines = [`Coach — ${routine.name} is on today's card (${routine.exercises.length} exercises).`];
+  if (signal.advise) lines.push(`Recovery says go LIGHTER: ${signal.reason}.`);
+  else {
+    const latest = [...days].reverse().find((d) => d.hrv != null);
+    if (latest) lines.push(`Recovery looks ready (HRV ${Math.round(latest.hrv)}).`);
+  }
+  const sent = await send(lines.join(' '));
+  if (sent) await markSent('morning');
+  return sent ? lines.join(' ') : null;
+}
+
+// ---- the missed-session rescue (the audit's ghost comment, made real) ----
+export async function missedSessionNudge(vaultPath) {
+  if (await sentToday('missed')) return null;
+  const routine = await todaysRoutine(vaultPath);
+  if (!routine) return null;
+  if (await loggedToday(vaultPath)) return null;
+  const { computeStreaks } = await import('./streaks.js');
+  const streaks = await computeStreaks(vaultPath).catch(() => null);
+  const streakLine = streaks?.workoutStreak >= 3 ? ` Your ${streaks.workoutStreak}-session streak is on the line.` : '';
+  const msg = `Coach — ${routine.name} hasn't been logged yet today.${streakLine} An evening slot still works; even a trimmed session beats a zero. Want me to hold you to it?`;
+  const sent = await send(msg);
+  if (sent) await markSent('missed');
+  return sent ? msg : null;
+}
+
+// ---- PR celebration: fired from session completion, not the clock --------
+export async function celebratePRs(vaultPath, session) {
+  const { loadSessions } = await import('./workoutSessions.js');
+  const { prsInSession } = await import('./trainingAnalytics.js');
+  const sessions = await loadSessions(vaultPath, { limit: 60 });
+  const full = sessions.find((s) => s.date === session.date && s.routineId === session.routineId) || session;
+  const prs = prsInSession(sessions, full);
+  if (!prs.length) return null;
+  const lines = prs.slice(0, 3).map((p) => p.kind === 'weight'
+    ? `${p.name}: ${p.value}kg × ${p.reps} — heaviest ever${p.previous ? ` (was ${p.previous}kg)` : ''}`
+    : `${p.name}: e1RM ${p.value}kg${p.previous ? ` (was ${p.previous})` : ''}`);
+  const msg = `Coach — PR${prs.length > 1 ? 's' : ''} today. ${lines.join(' · ')}. Earned, sir.`;
+  await send(msg);
+  return { prs, message: msg };
+}
+
+// ---- the scheduler -------------------------------------------------------
+export function startCoachCadenceScheduler(vaultPath) {
+  if (process.env.NOVA_COACH_CADENCE === 'off') return;
+  const tick = async () => {
+    const { beat } = await import('./heartbeat.js');
+    beat('coach-cadence');
+    try {
+      const h = new Date().getHours();
+      if (h >= 7 && h < 12) await morningReadiness(vaultPath);
+      if (h >= 16 && h < 19) await missedSessionNudge(vaultPath); // early enough to still train
+    } catch (err) {
+      console.error('coach cadence failed:', err.message);
+    }
+  };
+  tick();
+  setInterval(tick, 1800_000); // half-hourly: the windows above are short
+}
