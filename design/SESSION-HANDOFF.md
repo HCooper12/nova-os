@@ -23,7 +23,17 @@ ordered is DONE — both past claims verified real on screen, and the audit
 caught a live reply-loss bug in the act (fixed same day).
 
 **VERIFIED THIS SESSION (all by screenshot or live endpoint, receipts in
-`~/Desktop/nova-design-history/2026-08-18-{p1,p2,audit}/`):**
+`~/Desktop/nova-design-history/2026-08-18-{p1,p2,audit,p3}/`):**
+0. HIS MID-SESSION FEEDBACK ("gym tab still needs work to be more like
+   the mockup") — root cause was the missing ON TODAY'S CARD hero.
+   Shipped + screen-verified: PUSH / 10 exercises · ~85 min · last time
+   tonnage / ▶ BEGIN SESSION; live bundle hash-verified after deploy.
+   Also shipped + screen-verified same batch: the LONG-PRESS SYSTEM
+   (routine cards, session exercises, rotation meal cards; right-click
+   = same menu on Mac; bottom sheet on phone), ▶ FORM chips + Coach
+   'resource' proposal action (inbox rails, undoable), and the
+   Mobility dimension (group excluded from hypertrophy volume, 14-day
+   adherence line, prompt contract).
 1. P2 session cockpit on screen: RIR column, WK/BO/WU chips, note+ANOMALY+
    PAIN row, full pain sheet (exercise-relevant areas, sides, timing,
    Other…, free text, ASK COACH triage), finishing-early chips; Fuel
@@ -62,11 +72,12 @@ caught a live reply-loss bug in the act (fixed same day).
   re-attach logic reading, not by reproducing the reload race live.
 
 **OPEN (next session, in priority order):**
-1. Long-press context menus platform-wide (spec #13) — not started.
-2. Technique media curation (▶ FORM links per exercise) — resourceUrl
-   PATCH exists; curation flow + UI not started.
-3. Mobility dimension — not started.
-4. Apple Health workout ingest — BLOCKED on ~10 min with his phone.
+1. Apple Health workout ingest — BLOCKED on ~10 min with his phone.
+2. First real long-press use on HIS iPhone (harness verified touch via
+   contextmenu parity + the sheet; a physical-device hold is the last
+   confirmation).
+3. Coach 'resource' action end-to-end with a real web find (rails and
+   prompt shipped; not yet exercised by a live Coach turn).
 5. Test flake: server/test/inboxRetry.test.js fails ~2/3 of full parallel
    suite runs, passes isolated — shared data-dir contention suspected.
 6. His two harness test questions ("put my training week up…") remain in
