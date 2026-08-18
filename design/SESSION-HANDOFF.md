@@ -78,6 +78,18 @@ caught a live reply-loss bug in the act (fixed same day).
    confirmation).
 3. Coach 'resource' action end-to-end with a real web find (rails and
    prompt shipped; not yet exercised by a live Coach turn).
+
+**19 AUG — HIS TWO BUG REPORTS, both fixed + screen-verified same day:**
+- "FORM not in my actual platform but you said it was" — TRUE claim
+  failure: chip required a curated link, none existed. Now: FORM on
+  EVERY exercise (cyan=curated, dim=honest search fallback), and all
+  30 program exercises carry REAL curated videos (web-searched this
+  session — Nippard/RP/Athlean-X etc., filed via the knowledge
+  endpoint). Lesson for the ledger: a supply line without supply is a
+  false claim on his screen even when the code is 'done'.
+- "Can't switch to coach tab mid-workout" — the session pinned
+  trainTab. Unpinned; green ● on GYM marks the live session; GYM→
+  COACH→GYM round-trip verified with session intact.
 5. Test flake: server/test/inboxRetry.test.js fails ~2/3 of full parallel
    suite runs, passes isolated — shared data-dir contention suspected.
 6. His two harness test questions ("put my training week up…") remain in
