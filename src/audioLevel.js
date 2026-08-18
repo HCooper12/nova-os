@@ -121,13 +121,20 @@ export function playSpeechBuffer(buffer, onEnded) {
   active++;
   start();
   let finished = false;
-  src.onended = () => {
+  const finish = () => {
     if (finished) return;
     finished = true;
+    clearTimeout(watchdog);
     active = Math.max(0, active - 1);
     try { src.disconnect(); } catch { /* already gone */ }
     onEnded?.();
   };
+  src.onended = finish;
+  // A suspended context (fresh document, no gesture yet) starts the source
+  // but never advances time — onended never fires and the sentence FIFO
+  // stalls forever, holding the reply's commit hostage. The watchdog frees
+  // it: duration + grace, then move on (the text was already revealed).
+  const watchdog = setTimeout(finish, buffer.duration * 1000 + 3000);
   src.start();
   return src; // caller may .stop() to interrupt
 }

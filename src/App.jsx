@@ -2901,7 +2901,6 @@ export default class App extends Component {
         speakNewSentences(shown, false);
       },
       onReady: (job) => {
-        clearJob();
         clearTimeout(stream.thinkTimer);
         const text = job.result.text;
         // the conversation continues across turns AND app restarts
@@ -2915,6 +2914,12 @@ export default class App extends Component {
           ? { ...job.result.research, status: job.result.research.queued ? 'queued' : 'running' }
           : undefined;
         const commit = () => {
+          // The job id persists until the reply is ON SCREEN, not merely
+          // fetched: a reload during the spoken window (SW update mid-
+          // deploy, an iOS reclaim) used to eat the answer — the poll had
+          // already cleared its receipt, so boot had nothing to re-attach.
+          // Watched happen live 18 Aug: reply + panel vanished silently.
+          clearJob();
           this.setState((s) => {
             const chat = [...s.voiceChat];
             const idx = chat.map((m) => !!m.streaming).lastIndexOf(true);
