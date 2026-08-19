@@ -7,6 +7,7 @@ import express from 'express';
 import cors from 'cors';
 import { Vault } from './lib/vault.js';
 import { notesRouter } from './routes/notes.js';
+import { intentRouter } from './routes/intent.js';
 import { calendarRouter } from './routes/calendar.js';
 import { ingestRouter } from './routes/ingest.js';
 import { recipesRouter } from './routes/recipes.js';
@@ -144,6 +145,7 @@ async function main() {
     next();
   });
 
+  app.use('/api', intentRouter(vault)); // the front door — one input, deterministic routing
   app.use('/api', notesRouter(vault));
   app.use('/api', calendarRouter(process.env.VAULT_PATH));
   app.use('/api', ingestRouter(process.env.VAULT_PATH));

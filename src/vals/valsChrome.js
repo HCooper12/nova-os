@@ -161,6 +161,8 @@ export function valsChrome(app, ctx) {
     wrapMission: mob ? mp : { padding: '24px 40px 64px', maxWidth: '1180px' },
     wrapVoice: wrapTall || { padding: '28px 40px 40px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
     wrapGalaxy: wrapTall || { padding: '28px 40px 40px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
+    routePreview: (q) => app.routeIntentLocal(q),
+    sendIntent: (q) => app.sendIntent(q),
     wrapRecipes: mob ? mp : { padding: '28px 40px 44px' },
     wrapShopping: mob ? mp : { padding: '28px 40px 44px' },
     wrapTodos: mob ? mp : { padding: '28px 40px 44px', maxWidth: '860px' },

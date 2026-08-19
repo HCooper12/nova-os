@@ -3280,6 +3280,44 @@ export default class App extends Component {
     this.setState({ toast: text });
     this.toastT = setTimeout(() => this.setState({ toast: null }), 3600);
   }
+  // ---------- the front door (C1) ----------
+  // The preview is computed LOCALLY from the same rules the server uses, so
+  // the lane chip appears as he types with no round-trip (and still works
+  // offline); the dispatch itself goes to the server, which owns the lanes.
+  routeIntentLocal(text) {
+    const raw = String(text || '').trim();
+    if (raw.length < 3) return null;
+    const urls = raw.match(/https?:\/\/[^\s<>"']+/gi) || [];
+    const study = /\b(analyse|analyze|study|research) (this |their |the )?(creator|channel|account|profile|competitor)\b|\bevery video\b/i.test(raw);
+    const L = (lane, label, why) => ({ lane, label, why });
+    if (urls.length) {
+      const u = urls[0];
+      const channel = /youtube\.com\/(@|c\/|channel\/|user\/)|tiktok\.com\/@[^/]+\/?$/i.test(u) && !/watch\?v=|youtu\.be\/|\/reel\/|\/shorts\//i.test(u);
+      if (study || channel || urls.length > 1) return L('study', 'STUDY', 'a body of work — Nova enumerates it, then compares');
+      if (/(youtube\.com|youtu\.be|vimeo|tiktok|instagram|twitch|x\.com|twitter)/i.test(u) && /watch\?v=|youtu\.be\/|\/reel\/|\/shorts\/|\/video\/|\/p\/|\/status\//i.test(u)) return L('watch', 'WATCH', 'a video — the Watcher pulls the transcript and drafts a verdict');
+      return L('research', 'RESEARCH', 'a link to read — the Researcher cites what it finds');
+    }
+    if (study) return L('study', 'STUDY', 'a creator/catalogue analysis');
+    if (/\b(build|implement|refactor|fix the bug|write a (script|test|function)|add a (feature|test)|deploy|commit|codebase|in nova|to nova|the repo)\b/i.test(raw)) return L('code', 'CLAUDE CODE', 'a build request — runs as a Claude Code session inside Nova');
+    if (/\b(research|look up|find out|dig into|sources? on)\b/i.test(raw)) return L('research', 'RESEARCH', 'research with citations');
+    if (/\b(my (bench|squat|deadlift|press|pull-?ups?|lift|program|routine|volume|macros|protein)|should i (train|deload|lift|eat)|reps?|sets?|rpe|deload)\b/i.test(raw)) return L('coach', 'COACH', 'a training question — the Coach has your full history');
+    if (/^(remind me|remember|note:|todo:|add|buy|log)\b/i.test(raw)) return L('capture', 'INBOX', 'a thing to file');
+    return L('ask', 'ASK NOVA', 'answered from your vault');
+  }
+  sendIntent(text) {
+    const conn = getConnection();
+    if (!conn) { this.toastMsg('Connect a backend first'); return; }
+    const preview = this.routeIntentLocal(text);
+    this.setState({ paletteOpen: false });
+    this.toastMsg(`${preview?.label || 'Routing'} — dispatching…`);
+    api.sendIntent(conn, text).then((r) => {
+      if (r.forward?.screen === 'workouts') { this.navigate('workouts', { trainTab: 'coach' }); this.doCoach(r.forward.question); return; }
+      if (r.forward?.screen === 'voice') { this.navigate('voice'); this.askNova(r.forward.question); return; }
+      if (r.lane === 'code') { this.navigate('code'); }
+      this.toastMsg(r.said || `${r.label} — on it`);
+      this.refreshInbox?.();
+    }).catch((e) => this.toastMsg('Could not route that: ' + e.message));
+  }
   // ---------- long-press / right-click context menus (spec #13) ----------
   openContextMenu(spec) {
     const items = (spec.items || []).filter(Boolean);
