@@ -34,7 +34,9 @@ async function tombstoneAt() {
 export async function saveSessionDraft({ workoutSession, editingSessionId, capturedAt }) {
   if (!workoutSession || !Array.isArray(workoutSession.exercises)) throw new Error('a session draft needs exercises');
   const captured = Number(capturedAt) || Date.now();
-  if (captured <= await tombstoneAt()) {
+  // strictly BEFORE: an echo's state predates the discard tap by design;
+  // a same-instant capture is a genuinely new session and must save
+  if (captured < await tombstoneAt()) {
     return { saved: false, dropped: 'a deliberate clear is newer than this state — stale echo ignored' };
   }
   await mkdir(dataRoot(), { recursive: true });

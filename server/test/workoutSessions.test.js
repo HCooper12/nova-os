@@ -90,6 +90,12 @@ test('deleting a session removes the file and recomputes state from what remains
 });
 
 test('a discarded session cannot be resurrected by an in-flight draft echo', async () => {
+  // drafts live in NOVA_DATA_DIR — point it at scratch so the test never
+  // touches the real server/data (dataRoot() reads env at call time)
+  const dataDir = await mkdtemp(path.join(tmpdir(), 'nova-draft-data-'));
+  const priorDataDir = process.env.NOVA_DATA_DIR;
+  process.env.NOVA_DATA_DIR = dataDir;
+  try {
   const { saveSessionDraft, getSessionDraft, clearSessionDraft } = await import('../lib/sessionDraft.js');
   const ws = { routineId: 'push', routineName: 'Push', exercises: [{ exerciseId: 'bench', sets: [] }] };
   const before = Date.now() - 5000;
@@ -101,7 +107,11 @@ test('a discarded session cannot be resurrected by an in-flight draft echo', asy
   assert.equal(echo.saved, false, 'stale echo dropped');
   assert.equal(await getSessionDraft(), null, 'no ghost session');
   // a genuinely NEW session after the clear still saves
-  const fresh = await saveSessionDraft({ workoutSession: ws, capturedAt: Date.now() });
+  const fresh = await saveSessionDraft({ workoutSession: ws, capturedAt: Date.now() + 1 });
   assert.equal(fresh.saved, true);
   await clearSessionDraft();
+  } finally {
+    if (priorDataDir === undefined) delete process.env.NOVA_DATA_DIR; else process.env.NOVA_DATA_DIR = priorDataDir;
+    await rm(dataDir, { recursive: true, force: true });
+  }
 });
