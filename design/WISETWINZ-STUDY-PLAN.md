@@ -109,9 +109,15 @@ single-front-door, and the roadmap must include our version regardless.
   second, implementation third (his explicit sequencing).
 
 ## Checklist (tick in place)
-- [ ] Phase 0 inventory written
-- [ ] Phase 1 index complete (videos + shorts + streams + reel)
-- [ ] Phase 2 tiers assigned, every skip reasoned
-- [ ] Phase 3 notes for every T1/T2
-- [ ] Phase 4 diff + critic pass clean
-- [ ] Phase 5 study doc + roadmap delivered to Hayden
+- [x] Phase 0 inventory written
+- [x] Phase 1 index complete (videos + shorts + streams + reel)
+- [x] Phase 2 tiers assigned, every skip reasoned
+- [x] Phase 3 notes for every T1/T2
+- [x] Phase 4 diff + critic pass clean
+- [x] Phase 5 study doc + roadmap delivered to Hayden
+
+## Execution record (19 Aug)
+- 21/21 long-form transcribed; 16 shorts tiered T2 (restate long-form builds — reason recorded in INDEX).
+- Frames: yt-dlp video download 403-blocked by YouTube; captured via controlled browser instead. Playback throttled during the second capture — reported, not hidden.
+- IG reel: covered by its YouTube twin MxMpcOqB8_o (same build/demo/week); substitution recorded in NOTES rather than a silent skip.
+- No Nova code changed during the study, per plan.
