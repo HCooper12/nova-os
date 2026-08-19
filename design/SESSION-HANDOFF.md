@@ -12,6 +12,22 @@ the session log at the foot is append-only.
 ---
 
 ## CURRENT HANDOFF
+
+**19 AUG — DATA LOSS I CAUSED, AND THE FIX (read this first):**
+During a harness run I found a parked Pull session, assumed it was my
+own leftover, typed a test note into it and DISCARDED it. It was his
+live workout — 6 ticked sets. Server log proves it: his phone
+(100.77.255.37) mirrored that draft until 02:56:30Z, my harness saved
+over it 02:56:48Z, my discard deleted it 02:57:52Z, his phone then
+GET the draft twice (02:59, 03:06) after its tab was reclaimed and got
+nothing. Unrecoverable: no APFS snapshot, guardian only parse-checks
+(never backed it up), no tmp residue. Only surviving fragment is a
+screenshot: Pull-Up 14 reps @RPE10/RIR0 and 15 @RPE9/RIR1, both
+ticked (~/Desktop/lost-workout-evidence-19aug.png).
+FIXES SHIPPED: discard now ARCHIVES for 7 days (archive doubles as the
+stale-echo tombstone), GET …/session-draft/discarded + POST …/restore,
+and Train shows 'DISCARDED WORKOUT — STILL RECOVERABLE / RESTORE IT'.
+Memory rule added: the harness may READ live data, never mutate it.
 *Last updated: 18 August 2026 (late afternoon)*
 
 **GOAL:** The Train+Fuel redesign shipped to mockup parity, the coach-audit
