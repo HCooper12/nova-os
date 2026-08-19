@@ -54,3 +54,12 @@ test('ingestWorkouts: groups by own dates, persists idempotently, honest on junk
   const junk = await ingestWorkouts({ date: '2026-08-19', workouts: [{}] });
   assert.equal(junk.ok, false);
 });
+
+test('duration tolerance: minutes, seconds, and clock strings all resolve', () => {
+  const base = { type: 'Walking', startISO: '2026-08-19T07:30:00+10:00' };
+  assert.equal(normalizeWorkout({ ...base, duration: 34 }, null).minutes, 34, 'plain minutes');
+  assert.equal(normalizeWorkout({ ...base, duration: 3130 }, null).minutes, 52, "Apple's seconds become minutes");
+  assert.equal(normalizeWorkout({ ...base, duration: '52:10' }, null).minutes, 52, 'MM:SS clock string');
+  assert.equal(normalizeWorkout({ ...base, duration: '1:02:45' }, null).minutes, 63, 'H:MM:SS clock string');
+  assert.equal(normalizeWorkout({ ...base, duration: 90000 }, null), null, 'beyond 24h even as seconds → refused');
+});

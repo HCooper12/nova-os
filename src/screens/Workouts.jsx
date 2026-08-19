@@ -1,5 +1,6 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
+import { Term } from '../Glossary.jsx';
 import { TypeText } from '../TypeText.jsx';
 import { ChatMarkdown } from '../ChatMarkdown.jsx';
 import { TrainToday } from '../TrainToday.jsx';
@@ -7,7 +8,10 @@ import { TrainToday } from '../TrainToday.jsx';
 // Inputs render at 16px (global rule in index.css) so iOS never zoom-jumps on
 // focus — widths/padding here are sized for that, not the old 11–12px text.
 const numInputStyle = { width: '48px', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '6px', padding: '7px 4px', color: 'var(--nv-ink)', fontSize: '16px', fontFamily: "var(--nv-font-mono)", textAlign: 'center', outline: 'none' };
-const setInputStyle = { width: '64px', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '6px', padding: '8px 8px', color: 'var(--nv-ink)', fontSize: '16px', fontFamily: "var(--nv-font-mono)", outline: 'none', boxSizing: 'border-box' };
+// Inputs FLEX on a phone — 7 fixed-width columns overflowed 390px and
+// pushed the done-tick (the most-tapped control in the app) off the row;
+// his report, 19 Aug. The tick alone keeps a hard 40px target.
+const setInputStyle = { flex: '1 1 48px', width: 'auto', minWidth: '40px', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '6px', padding: '8px 6px', color: 'var(--nv-ink)', fontSize: '16px', fontFamily: "var(--nv-font-mono)", outline: 'none', boxSizing: 'border-box' };
 
 function ExercisePicker({ v }) {
   return (
@@ -436,18 +440,18 @@ function SessionView({ v }) {
             )}
             <div style={css(`margin-top:12px;display:${e.skipped ? 'none' : 'flex'};flex-direction:column;gap:8px`)}>
               <div style={css("display:flex;gap:10px;font:500 9px var(--nv-font-mono);letter-spacing:.1em;color:color-mix(in srgb, var(--nv-ink) 35%, transparent);padding:0 2px")}>
-                <span style={{ width: '22px' }}>SET</span>{!e.isBodyweight && <span style={{ width: '64px' }}>{e.weightLabel}</span>}<span style={{ width: '64px' }}>{e.amountLabel}</span><span style={{ width: '52px' }}>RPE</span><span style={{ width: '44px' }}>RIR</span>
+                <span style={{ width: '20px', flex: 'none' }}>SET</span>{!e.isBodyweight && <span style={{ flex: '1 1 48px' }}>{e.weightLabel}</span>}<span style={{ flex: '1 1 48px' }}>{e.amountLabel}</span><span style={{ width: '40px', flex: 'none' }}><Term k="RPE">RPE</Term></span><span style={{ width: '36px', flex: 'none' }}><Term k="RIR">RIR</Term></span><span style={{ width: '28px', flex: 'none' }}><Term k="SET TYPE">TYPE</Term></span>
               </div>
               {e.sets.map((s, i) => (
-                <div key={i} style={css("display:flex;align-items:center;gap:10px")}>
-                  <span style={{ width: '22px', font: "400 11px var(--nv-font-mono)", color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}>{i + 1}</span>
+                <div key={i} style={css("display:flex;align-items:center;gap:6px")}>
+                  <span style={{ width: '20px', flex: 'none', font: "400 11px var(--nv-font-mono)", color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}>{i + 1}</span>
                   {/* gym-proof: number pad instead of the full keyboard, and the
                       tick — the app's most-repeated tap — at a 40px target */}
                   {!e.isBodyweight && <input type="number" inputMode="decimal" step="0.5" min="0" value={s.weight} onChange={s.onWeight} style={setInputStyle} />}
                   <input type="number" inputMode="numeric" min="0" value={s.reps} onChange={s.onReps} style={setInputStyle} />
                   {/* optional effort — RPE 1-10; the best autoregulation signal the Coach can get */}
-                  <input type="number" inputMode="decimal" step="0.5" min="1" max="10" value={s.rpe || ''} onChange={s.onRpe} placeholder="RPE" style={{ ...setInputStyle, width: '52px', opacity: s.rpe ? 1 : 0.65 }} />
-                  <input type="number" inputMode="decimal" step="0.5" min="0" max="6" value={s.rir} onChange={s.onRir} placeholder="RIR" style={{ ...setInputStyle, width: '44px', opacity: s.rir !== '' ? 1 : 0.55 }} />
+                  <input type="number" inputMode="decimal" step="0.5" min="1" max="10" value={s.rpe || ''} onChange={s.onRpe} placeholder="RP" style={{ ...setInputStyle, flex: 'none', width: '40px', opacity: s.rpe ? 1 : 0.65 }} />
+                  <input type="number" inputMode="decimal" step="0.5" min="0" max="6" value={s.rir} onChange={s.onRir} placeholder="R" style={{ ...setInputStyle, flex: 'none', width: '36px', opacity: s.rir !== '' ? 1 : 0.55 }} />
                   {/* set type cycles working → backoff → warm-up; warm-ups are
                       excluded from volume counts and PRs */}
                   <Interactive as="span" onClick={s.cycleType} title="Tap to cycle: working / backoff / warm-up"
@@ -460,7 +464,7 @@ function SessionView({ v }) {
                       border: s.done ? '1px solid var(--nv-cy)' : '1px solid color-mix(in srgb, var(--nv-ink) 25%, transparent)', background: s.done ? 'var(--nv-cy)' : 'transparent', color: 'var(--nv-on-acc)' }}
                   >{s.done ? '✓' : ''}</Interactive>
                   {s.canRemove && (
-                    <Interactive as="span" onClick={s.onRemove} base="cursor:pointer;width:36px;height:36px;margin:-4px 0;display:flex;align-items:center;justify-content:center;font-size:16px;color:color-mix(in srgb, var(--nv-ink) 30%, transparent)" hoverStyle="color:var(--nv-warn)">×</Interactive>
+                    <Interactive as="span" onClick={s.onRemove} base="cursor:pointer;flex:none;width:26px;height:36px;margin:-4px 0;display:flex;align-items:center;justify-content:center;font-size:16px;color:color-mix(in srgb, var(--nv-ink) 30%, transparent)" hoverStyle="color:var(--nv-warn)">×</Interactive>
                   )}
                 </div>
               ))}

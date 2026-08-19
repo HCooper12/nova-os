@@ -31,7 +31,22 @@ export function normalizeWorkout(raw, fallbackDate) {
   if (!raw || typeof raw !== 'object') return null;
   const type = String(raw.type || raw.workoutType || raw.name || '').trim().slice(0, 60);
   const startISO = String(raw.startISO || raw.start || raw.startDate || '').trim();
-  const minutes = Math.round(Number(raw.minutes ?? raw.durationMinutes ?? raw.duration) || 0);
+  // Duration arrives however Shortcuts felt like serialising it: minutes
+  // (number), SECONDS (Apple's workout Duration detail), or a clock string
+  // ("52:10", "1:02:45"). Interpret all three — a dead pipeline that
+  // politely refused Apple's own format would be honesty theatre.
+  const rawDur = raw.minutes ?? raw.durationMinutes ?? raw.duration;
+  let minutes = 0;
+  const clock = typeof rawDur === 'string' && rawDur.trim().match(/^(\d+):(\d{2})(?::(\d{2}))?$/);
+  if (clock) {
+    minutes = clock[3] != null
+      ? Number(clock[1]) * 60 + Number(clock[2]) + Number(clock[3]) / 60 // H:MM:SS
+      : Number(clock[1]) + Number(clock[2]) / 60;                        // MM:SS
+  } else {
+    minutes = Number(rawDur) || 0;
+    if (minutes > 24 * 60 && minutes <= 24 * 3600) minutes = minutes / 60; // seconds, clearly
+  }
+  minutes = Math.round(minutes);
   const kcal = Math.round(Number(raw.kcal ?? raw.activeEnergyKcal ?? raw.energy) || 0);
   if (!type || minutes <= 0 || minutes > 24 * 60) return null;
   const date = localDateOf(startISO) || (DATE_RE.test(String(fallbackDate)) ? fallbackDate : null);
