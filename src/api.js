@@ -213,6 +213,7 @@ export const api = {
   ask: (conn, question, sessionId) => post(conn, '/api/ask', { question, sessionId }),
   trainOverview: (conn) => call(conn, '/api/train/overview'),
   fuelCross: (conn) => call(conn, '/api/train/fuel-cross'),
+  verdict: (conn, kind, of) => call(conn, `/api/verdict/${encodeURIComponent(kind)}${of ? `?of=${encodeURIComponent(of)}` : ''}`),
   sendIntent: (conn, text, lane) => post(conn, '/api/intent', lane ? { text, lane } : { text }),
   show: (conn, variant) => post(conn, '/api/show', { variant }),
   greet: (conn, gap) => post(conn, '/api/greet', { gap }),

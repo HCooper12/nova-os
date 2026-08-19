@@ -46,6 +46,7 @@ import { IngestModal } from './IngestModal.jsx';
 import { IngestReview } from './IngestReview.jsx';
 import { Toast } from './Toast.jsx';
 import { ContextMenuHost } from './ContextMenu.jsx';
+import { VerdictCard } from './VerdictCard.jsx';
 import { OutboxView } from './OutboxView.jsx';
 import { NudgeCard } from './NudgeCard.jsx';
 import { Boot } from './Boot.jsx';
@@ -232,6 +233,7 @@ export default class App extends Component {
     noteQuery: '', noteType: 'All', openNoteId: 'n1',
     galaxySel: null, toast: null, reviewIdx: 0,
     ctxMenu: null, // the long-press / right-click menu: { x, y, title?, items }
+    verdict: null, verdictBusy: false, // A1 — a question answered as a card
     isMobile: typeof window !== 'undefined' && window.innerWidth < 760,
     novaTheme: getNovaTheme(), calmMode: getCalm(), coreStyle: getCoreStyle(), novaStyle: getNovaStyle(),
 
@@ -3280,6 +3282,15 @@ export default class App extends Component {
     this.setState({ toast: text });
     this.toastT = setTimeout(() => this.setState({ toast: null }), 3600);
   }
+  // ---------- verdict cards (A1) ----------
+  openVerdict(kind, of) {
+    const conn = getConnection();
+    if (!conn) { this.toastMsg('Connect a backend first'); return; }
+    this.setState({ verdictBusy: true });
+    api.verdict(conn, kind, of)
+      .then(({ verdict }) => this.setState({ verdict, verdictBusy: false }))
+      .catch((e) => { this.setState({ verdictBusy: false }); this.toastMsg('Could not build that verdict: ' + e.message); });
+  }
   // ---------- the front door (C1) ----------
   // The preview is computed LOCALLY from the same rules the server uses, so
   // the lane chip appears as he types with no round-trip (and still works
@@ -4122,6 +4133,11 @@ export default class App extends Component {
           </main>
         </div>
 
+        {this.state.verdict && (
+          <VerdictCard v={this.state.verdict}
+            onClose={() => this.setState({ verdict: null })}
+            onSpeak={(text) => { if (this.state.liveTts?.configured) this.speakTtsSentence(text); else this.speakIncremental(text); }} />
+        )}
         <ContextMenuHost menu={this.state.ctxMenu} isMobile={v.isMobile} close={() => this.closeContextMenu()} />
 
         {v.statusBanner && (

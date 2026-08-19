@@ -76,6 +76,11 @@ export function Recipes({ v }) {
               <span style={css("align-self:flex-start;font:600 9px var(--nv-font-mono);letter-spacing:.1em;padding:4px 10px;border-radius:99px;border:1px solid color-mix(in srgb, var(--nv-good) 40%, transparent);color:var(--nv-good)")}>FITS {v.fuelHero.kcalLeft} KCAL LEFT</span>
             )}
             <span style={css("font-size:12px;color:color-mix(in srgb, var(--nv-ink) 62%, transparent);line-height:1.45")}>Coach: {v.fuelHero.gapText}</span>
+            {v.askProteinVerdict && (
+              <Interactive as="span" onClick={v.askProteinVerdict}
+                base={css("align-self:flex-start;cursor:pointer;font:600 9px var(--nv-font-mono);letter-spacing:.12em;padding:5px 11px;border-radius:99px;border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);color:var(--nv-cy)")}
+                hoverStyle="background:color-mix(in srgb, var(--nv-cy) 12%, transparent)">WHERE DID MY PROTEIN GO?</Interactive>
+            )}
           </div>
         </div>
       )}

@@ -39,6 +39,15 @@ export function workoutsRouter(vaultPath) {
 
   // The cross-reference agent, on demand: findings now, and (with raise)
   // the same weekly-cooldown Inbox drop the morning scheduler performs.
+  // verdict cards (A1) — a question in, a full evidence card out. Every
+  // number computed deterministically here; the model is not in this path.
+  router.get('/verdict/:kind', async (req, res) => {
+    try {
+      const { buildVerdict } = await import('../lib/verdicts.js');
+      res.json({ verdict: await buildVerdict(vaultPath, req.params.kind, req.query.of) });
+    } catch (err) { res.status(400).json({ error: err.message }); }
+  });
+
   router.get('/train/fuel-cross', async (req, res, next) => {
     try {
       const { crossCheck } = await import('../lib/fuelCross.js');

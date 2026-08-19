@@ -53,6 +53,11 @@ export function TrainToday({ o, actions, resume }) {
               </span>
             )}
             {o.deload?.advise && <span style={css('font-size:11px;color:var(--nv-warn)')}>{o.deload.reason}</span>}
+            {actions?.askTired && (
+              <Interactive as="span" onClick={actions.askTired}
+                base={`align-self:flex-start;cursor:pointer;font:600 9px ${M};letter-spacing:.12em;padding:5px 11px;border-radius:99px;border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);color:var(--nv-cy)`}
+                hoverStyle="background:color-mix(in srgb, var(--nv-cy) 12%, transparent)">WHY AM I TIRED?</Interactive>
+            )}
             {o.watch?.length > 0 && (
               <div style={css('display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--nv-ink60)')}>
                 <span>Watch today</span>

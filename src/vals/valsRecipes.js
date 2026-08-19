@@ -198,6 +198,7 @@ export function valsRecipes(app, ctx) {
     // TRAINING × FUEL — the cross-reference agent's card on the Fuel screen
     // (mockup v2): the sharpest finding with the draft action. Hidden when
     // the agent has nothing true to say — never filler.
+    askProteinVerdict: usingLiveRecipes ? () => app.openVerdict('protein') : null,
     fuelCross: (() => {
       const f = (st.liveFuelCross?.findings || [])[0];
       if (!f || !usingLiveRecipes) return null;

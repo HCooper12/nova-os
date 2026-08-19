@@ -42,7 +42,9 @@ export function valsWorkouts(app, ctx) {
       // BEGIN lands you in the logger; feed cards land you in the Coach
       // with the question already asked — every card is a doorway
       begin: overviewRoutine ? () => { app.setState({ trainTab: 'gym' }); app.startWorkoutSession(overviewRoutine); } : null,
-      askPlateau: (name) => { app.setState({ trainTab: 'coach' }); app.doCoach(`Why is my ${name} stalled, and what's the fix?`); },
+      // the plateau card now opens a VERDICT first — evidence before advice
+      askPlateau: (name) => app.openVerdict('stalled', name),
+      askTired: () => app.openVerdict('tired'),
       askVolume: (muscles) => { app.setState({ trainTab: 'coach' }); app.doCoach(`My weekly sets for ${muscles} are under target for my goal — how should I add volume?`); },
     },
   };
