@@ -27,8 +27,17 @@ export function valsWorkouts(app, ctx) {
   const overviewRoutine = overview?.today
     ? (st.liveWorkoutRoutines || []).find((r) => r.id === overview.today.routineId) || null
     : null;
+  // a PARKED session must surface instantly, everywhere — from device
+  // state alone, never waiting on the snapshot ("takes longer than I'd
+  // like to refresh so I can resume", 19 Aug)
+  const parked = st.workoutSession && st.workoutsView !== 'session' ? {
+    name: st.workoutSession.routineName,
+    done: st.workoutSession.exercises.reduce((n, e2) => n + e2.sets.filter((s2) => s2.done).length, 0),
+    go: () => app.setState({ trainTab: 'gym', workoutsView: 'session' }),
+  } : null;
   const trainToday = {
     o: overview,
+    resume: parked,
     actions: {
       // BEGIN lands you in the logger; feed cards land you in the Coach
       // with the question already asked — every card is a doorway
@@ -383,6 +392,7 @@ export function valsWorkouts(app, ctx) {
     weekStrip,
     routinesList,
     gymHero,
+    sessionLive: !!st.workoutSession,
     routineCreating: st.routineCreating,
     routineNewName: st.routineNewName,
     setRoutineNewName: (e) => app.setRoutineNewName(e),

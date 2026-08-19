@@ -474,8 +474,12 @@ function SessionView({ v }) {
             )}
             {!e.skipped && (
               <div style={css("margin-top:10px;display:flex;gap:7px;align-items:center;flex-wrap:wrap")}>
-                <input value={e.note} onChange={e.onNote} placeholder={'Note — "felt strong", "grip gave first"…'}
-                  style={{ flex: 1, minWidth: '150px', background: 'rgba(0,0,0,.22)', border: '1px dashed color-mix(in srgb, var(--nv-ink) 20%, transparent)', borderRadius: '9px', padding: '8px 11px', color: 'var(--nv-ink)', fontSize: '12px', fontFamily: 'var(--nv-font-ui)', outline: 'none' }} />
+                {/* a NOTE grows as he types — a one-line box that scrolls
+                    sideways is unreadable the moment a note earns its place */}
+                <textarea value={e.note} rows={1} placeholder={'Note — "felt strong", "grip gave first"…'}
+                  onChange={(ev) => { ev.target.style.height = 'auto'; ev.target.style.height = `${ev.target.scrollHeight}px`; e.onNote(ev); }}
+                  ref={(el) => { if (el && el.scrollHeight > el.clientHeight) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; } }}
+                  style={{ flex: 1, minWidth: '150px', resize: 'none', overflow: 'hidden', lineHeight: 1.5, background: 'rgba(0,0,0,.22)', border: '1px dashed color-mix(in srgb, var(--nv-ink) 20%, transparent)', borderRadius: '9px', padding: '8px 11px', color: 'var(--nv-ink)', fontSize: '12px', fontFamily: 'var(--nv-font-ui)', outline: 'none', boxSizing: 'border-box' }} />
                 <Interactive as="span" onClick={e.toggleAnomaly} title={'Off day — exclude today from progression and plateau signals'}
                   base={`cursor:pointer;font:600 8.5px var(--nv-font-mono);letter-spacing:.08em;padding:7px 10px;border-radius:99px;border:1px solid ${e.anomaly ? 'color-mix(in srgb, var(--nv-gold) 55%, transparent)' : 'var(--nv-edge)'};color:${e.anomaly ? 'var(--nv-gold)' : 'color-mix(in srgb, var(--nv-ink) 45%, transparent)'};background:${e.anomaly ? 'color-mix(in srgb, var(--nv-gold) 10%, transparent)' : 'transparent'}`}
                 >{e.anomaly ? 'OFF DAY ✓' : 'ANOMALY'}</Interactive>
@@ -809,7 +813,7 @@ export function Workouts({ v }) {
 
       {/* the mockup's structure, for real: TODAY / GYM / COACH tabs.
           Demo mode keeps the scripted plan below; live mode IS the tabs. */}
-      {v.usingLiveWorkouts && (
+      {(v.usingLiveWorkouts || v.sessionLive) && (
         <div style={css('display:flex;gap:6px;margin-top:14px')}>
           {v.trainTabs.map((t) => (
             <Interactive key={t.key} as="span" onClick={t.go}
@@ -819,10 +823,10 @@ export function Workouts({ v }) {
           ))}
         </div>
       )}
-      {v.usingLiveWorkouts && v.trainTab === 'today' && (
+      {(v.usingLiveWorkouts || v.sessionLive) && v.trainTab === 'today' && (
         <div style={css('margin-top:14px')}>
-          {v.trainToday?.o
-            ? <TrainToday o={v.trainToday.o} actions={v.trainToday.actions} />
+          {(v.trainToday?.o || v.trainToday?.resume)
+            ? <TrainToday o={v.trainToday.o} actions={v.trainToday.actions} resume={v.trainToday.resume} />
             : <div style={css('color:color-mix(in srgb, var(--nv-ink) 45%, transparent);font:400 12px var(--nv-font-mono);padding:20px 0')}>Syncing today's picture…</div>}
         </div>
       )}
@@ -838,7 +842,7 @@ export function Workouts({ v }) {
       )}
       {v.usingLiveWorkouts && v.trainTab === 'gym' && v.workoutsView === 'routines' && <RoutinesView v={v} />}
       {v.usingLiveWorkouts && v.trainTab === 'gym' && v.workoutsView === 'routine' && <RoutineDetailView v={v} />}
-      {v.usingLiveWorkouts && v.trainTab === 'gym' && v.workoutsView === 'session' && <SessionView v={v} />}
+      {(v.usingLiveWorkouts || v.sessionLive) && v.trainTab === 'gym' && v.workoutsView === 'session' && <SessionView v={v} />}
       {v.usingLiveWorkouts && v.trainTab === 'gym' && v.workoutsView === 'history' && <HistoryView v={v} />}
     </div>
   );

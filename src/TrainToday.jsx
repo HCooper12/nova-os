@@ -31,15 +31,17 @@ function Ring({ score, basis }) {
 
 const fcardBase = (edge) => `flex:0 0 160px;border-radius:14px;padding:12px;border:1px solid ${edge};background:var(--nv-glass);cursor:pointer;transition:transform .2s,border-color .2s`;
 
-export function TrainToday({ o, actions }) {
-  if (!o) return null;
-  const sleepH = o.recovery?.sleepMin != null ? (o.recovery.sleepMin / 60).toFixed(1) : null;
-  const under = (o.volume || []).filter((v) => v.goalMuscle && v.sets < v.target);
+export function TrainToday({ o, actions, resume }) {
+  // the RESUME card renders from device state alone — it must appear
+  // instantly on reopen, before the overview has even been fetched
+  if (!o && !resume) return null;
+  const sleepH = o?.recovery?.sleepMin != null ? (o.recovery.sleepMin / 60).toFixed(1) : null;
+  const under = (o?.volume || []).filter((v) => v.goalMuscle && v.sets < v.target);
   return (
     <div style={css('display:flex;flex-direction:column;gap:12px;margin-bottom:16px')}>
       {/* hero: ring + facts + today card — widens into one row on desktop */}
       <div style={css('display:flex;gap:14px;flex-wrap:wrap;align-items:stretch')}>
-        <div style={css('display:flex;gap:14px;align-items:center;flex:1 1 300px;background:var(--nv-glass);border:1px solid var(--nv-edge);border-radius:18px;padding:14px')}>
+        {o && <div style={css('display:flex;gap:14px;align-items:center;flex:1 1 300px;background:var(--nv-glass);border:1px solid var(--nv-edge);border-radius:18px;padding:14px')}>
           <Ring score={o.readiness?.score} basis={o.readiness?.basis} />
           <div style={css('flex:1;display:flex;flex-direction:column;gap:6px;min-width:0')}>
             <div style={css('display:flex;justify-content:space-between;font-size:13px;color:var(--nv-ink60)')}><span>HRV</span><b style={css('color:var(--nv-ink);font-variant-numeric:tabular-nums')}>{o.recovery?.hrv != null ? `${o.recovery.hrv} ms` : '—'}</b></div>
@@ -60,9 +62,22 @@ export function TrainToday({ o, actions }) {
               </div>
             )}
           </div>
-        </div>
+        </div>}
 
-        {(o.today || o.restDay) && (
+        {resume && (
+          <div style={css('flex:1 1 300px;border-radius:18px;padding:16px;position:relative;overflow:hidden;border:1px solid color-mix(in srgb, var(--nv-gold) 45%, transparent);background:linear-gradient(135deg,color-mix(in srgb, var(--nv-gold) 12%, transparent),transparent)')}>
+            <div style={css(`font:600 9px ${M};letter-spacing:.22em;color:var(--nv-gold)`)}>SESSION IN PROGRESS</div>
+            <div style={css('font-size:24px;font-weight:600;letter-spacing:.04em;margin-top:2px')}>{resume.name.toUpperCase()}</div>
+            <div style={css('color:var(--nv-ink60);font-size:12.5px;margin-top:2px;font-variant-numeric:tabular-nums')}>
+              {resume.done} set{resume.done === 1 ? '' : 's'} ticked — pick up where you left off
+            </div>
+            <Interactive as="span" onClick={resume.go}
+              base={`margin-top:12px;display:inline-flex;align-items:center;gap:8px;cursor:pointer;font:600 12px ${M};letter-spacing:.14em;color:#1a1322;padding:11px 18px;border-radius:12px;background:var(--nv-gold);box-shadow:0 0 26px -8px color-mix(in srgb, var(--nv-gold) 70%, transparent)`}
+              hoverStyle="filter:brightness(1.08)"
+            >▶ RESUME</Interactive>
+          </div>
+        )}
+        {!resume && (o.today || o.restDay) && (
           <div style={css('flex:1 1 300px;border-radius:18px;padding:16px;position:relative;overflow:hidden;border:1px solid color-mix(in srgb, var(--nv-cy) 35%, transparent);background:linear-gradient(135deg,color-mix(in srgb, var(--nv-cy) 10%, transparent),color-mix(in srgb, var(--nv-vi) 06%, transparent))')}>
             <div style={css(`font:600 9px ${M};letter-spacing:.22em;color:var(--nv-cy)`)}>{o.today ? "ON TODAY'S CARD" : 'TODAY'}</div>
             <div style={css('font-size:24px;font-weight:600;letter-spacing:.04em;margin-top:2px')}>{o.today ? o.today.name.toUpperCase() : 'REST DAY'}</div>
@@ -82,7 +97,7 @@ export function TrainToday({ o, actions }) {
       </div>
 
       {/* focus for today — only when something meaningful exists */}
-      {o.focus && (
+      {o?.focus && (
         <div style={css('border-radius:16px;padding:13px 14px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);background:linear-gradient(135deg,color-mix(in srgb, var(--nv-gold) 10%, transparent),color-mix(in srgb, var(--nv-gold) 2%, transparent))')}>
           <span style={css(`font:600 9px ${M};letter-spacing:.22em;color:var(--nv-gold)`)}>◈ FOCUS FOR TODAY</span>
           <div style={css('font-size:13.5px;color:var(--nv-ink);margin-top:5px;line-height:1.5')}>{o.focus.text}</div>
@@ -90,7 +105,7 @@ export function TrainToday({ o, actions }) {
       )}
 
       {/* momentum feed */}
-      {(o.momentum?.prs?.length > 0 || o.momentum?.plateau || o.momentum?.streak >= 2) && (
+      {o && (o.momentum?.prs?.length > 0 || o.momentum?.plateau || o.momentum?.streak >= 2) && (
         <div style={css('display:flex;gap:10px;overflow-x:auto;padding:2px 2px 6px;scrollbar-width:none')}>
           {o.momentum.prs.map((p) => (
             <div key={p.name + p.kind} style={css(fcardBase('color-mix(in srgb, var(--nv-gold) 50%, transparent)') + ';background:linear-gradient(160deg,color-mix(in srgb, var(--nv-gold) 10%, transparent),var(--nv-glass))')}>
@@ -119,7 +134,7 @@ export function TrainToday({ o, actions }) {
       )}
 
       {/* weekly volume vs goal-aware targets */}
-      {o.volume?.length > 0 && (
+      {o?.volume?.length > 0 && (
         <div style={css('background:var(--nv-glass);border:1px solid var(--nv-edge);border-radius:16px;padding:14px')}>
           <div style={css('display:flex;justify-content:space-between;align-items:baseline')}>
             <span style={css(`font:600 9px ${M};letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}><Term k="hard sets">HARD SETS THIS WEEK</Term></span>
