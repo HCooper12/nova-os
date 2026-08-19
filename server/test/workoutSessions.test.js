@@ -115,3 +115,47 @@ test('a discarded session cannot be resurrected by an in-flight draft echo', asy
     await rm(dataDir, { recursive: true, force: true });
   }
 });
+
+test('discard is UNDOABLE: an archived session restores in full', async () => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), 'nova-draft-undo-'));
+  const priorDataDir = process.env.NOVA_DATA_DIR;
+  process.env.NOVA_DATA_DIR = dataDir;
+  try {
+    const { saveSessionDraft, getSessionDraft, clearSessionDraft, getDiscardedDraft, restoreDiscardedDraft } = await import('../lib/sessionDraft.js');
+    const ws = { routineId: 'pull', routineName: 'Pull', exercises: [
+      { exerciseId: 'pullup', name: 'Pull-Up', sets: [{ weight: 0, reps: 14, rpe: 10, done: true }, { weight: 0, reps: 15, rpe: 9, done: true }, { weight: 0, reps: 15, done: false }] },
+    ] };
+    await saveSessionDraft({ workoutSession: ws, capturedAt: Date.now() });
+    const cleared = await clearSessionDraft();
+    assert.equal(cleared.recoverable, true, 'the discard reports what it archived');
+    assert.equal(await getSessionDraft(), null, 'live draft is gone');
+
+    const arch = await getDiscardedDraft();
+    assert.ok(arch, 'the discarded session is offered back');
+    assert.equal(arch.tickedSets, 2, 'ticked work is counted for the offer');
+
+    const restored = await restoreDiscardedDraft();
+    assert.equal(restored.workoutSession.exercises[0].sets[0].reps, 14, 'the logged set survived intact');
+    assert.ok(await getSessionDraft(), 'it is the live draft again');
+    assert.equal(await getDiscardedDraft(), null, 'and no longer offered');
+    await assert.rejects(() => restoreDiscardedDraft(), /no discarded workout/);
+  } finally {
+    if (priorDataDir === undefined) delete process.env.NOVA_DATA_DIR; else process.env.NOVA_DATA_DIR = priorDataDir;
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('an untouched session is not offered back (nothing was lost)', async () => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), 'nova-draft-empty-'));
+  const priorDataDir = process.env.NOVA_DATA_DIR;
+  process.env.NOVA_DATA_DIR = dataDir;
+  try {
+    const { saveSessionDraft, clearSessionDraft, getDiscardedDraft } = await import('../lib/sessionDraft.js');
+    await saveSessionDraft({ workoutSession: { routineName: 'Push', exercises: [{ exerciseId: 'b', sets: [{ weight: 60, reps: 8, done: false }] }] }, capturedAt: Date.now() });
+    await clearSessionDraft();
+    assert.equal(await getDiscardedDraft(), null);
+  } finally {
+    if (priorDataDir === undefined) delete process.env.NOVA_DATA_DIR; else process.env.NOVA_DATA_DIR = priorDataDir;
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});

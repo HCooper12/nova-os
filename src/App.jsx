@@ -295,6 +295,7 @@ export default class App extends Component {
     exercisePickerCreateMuscle: '', exercisePickerCreateTrackingType: 'weight_reps',
     workoutSession: null, workoutSessionSavedAt: null, sessionCancelConfirm: false,
     liveWorkoutHistory: null, historyRoutineId: null,
+    discardedDraft: null, // a discarded workout still inside its 7-day window
 
     // daily review + journal
     reviewShuffleIdx: null,
@@ -1066,6 +1067,14 @@ export default class App extends Component {
           // a session draft on the server must survive even a localStorage
           // wipe + an offline boot: re-check once per page load on the first
           // successful sync (the boot check fails silently at the gym)
+          // a discard is undoable for 7 days — surface it on Train so an
+          // accidental one (his, or a stray tap) is never terminal
+          if (!this.discardedChecked) {
+            this.discardedChecked = true;
+            api.getDiscardedDraft(conn)
+              .then(({ draft }) => { if (draft) this.setState({ discardedDraft: draft }); })
+              .catch(() => { this.discardedChecked = false; });
+          }
           if (!this.serverDraftChecked && !this.state.workoutSession) {
             this.serverDraftChecked = true;
             api.getSessionDraft(conn).then(({ draft }) => {
@@ -1901,6 +1910,21 @@ export default class App extends Component {
   }
   cancelSessionCancel() {
     this.setState({ sessionCancelConfirm: false });
+  }
+  restoreDiscardedSession() {
+    const conn = getConnection();
+    if (!conn) return;
+    api.restoreDiscardedDraft(conn).then(({ draft }) => {
+      this.setState({
+        workoutSession: draft.workoutSession,
+        editingSessionId: draft.editingSessionId || null,
+        workoutSessionSavedAt: draft.savedAt || null,
+        discardedDraft: null,
+        workoutsView: 'session',
+        trainTab: 'gym',
+      });
+      this.toastMsg('Workout restored — nothing was lost');
+    }).catch((e) => this.toastMsg('Could not restore: ' + e.message));
   }
   discardWorkoutSession() {
     const routineId = this.state.workoutSession?.routineId;

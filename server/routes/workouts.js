@@ -201,6 +201,21 @@ export function workoutsRouter(vaultPath) {
       next(err);
     }
   });
+  // a discarded workout stays recoverable for 7 days — discard is the one
+  // write that used to have no undo, and it cost a live session (19 Aug)
+  router.get('/workouts/session-draft/discarded', async (req, res, next) => {
+    try {
+      const { getDiscardedDraft } = await import('../lib/sessionDraft.js');
+      res.json({ draft: await getDiscardedDraft() });
+    } catch (err) { next(err); }
+  });
+  router.post('/workouts/session-draft/restore', async (req, res) => {
+    try {
+      const { restoreDiscardedDraft } = await import('../lib/sessionDraft.js');
+      res.json({ draft: await restoreDiscardedDraft() });
+    } catch (err) { res.status(400).json({ error: err.message }); }
+  });
+
   router.delete('/workouts/session-draft', async (req, res, next) => {
     try {
       const { clearSessionDraft } = await import('../lib/sessionDraft.js');

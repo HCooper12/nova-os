@@ -153,6 +153,25 @@ function RoutinesView({ v }) {
         </div>
       )}
 
+      {/* a discarded workout, still recoverable — discard is undoable now */}
+      {v.discardedDraft && (
+        <div style={css("margin-top:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border:1px solid color-mix(in srgb, var(--nv-warn) 42%, transparent);border-radius:14px;padding:15px 18px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-warn) 09%, transparent),transparent)")}>
+          <div>
+            <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-warn)")}>DISCARDED WORKOUT — STILL RECOVERABLE</div>
+            <div style={css("margin-top:5px;font:600 16px var(--nv-font-ui)")}>{v.discardedDraft.name}</div>
+            <div style={css("margin-top:2px;font-size:11.5px;color:var(--nv-ink60)")}>{v.discardedDraft.sets} set{v.discardedDraft.sets === 1 ? '' : 's'} logged · discarded {v.discardedDraft.when}</div>
+          </div>
+          <div style={css("display:flex;gap:10px;align-items:center")}>
+            <Interactive as="span" onClick={v.discardedDraft.restore}
+              base={{ cursor: 'pointer', font: "600 10.5px var(--nv-font-mono)", letterSpacing: '.06em', padding: '10px 18px', borderRadius: '9px', background: 'var(--nv-warn)', color: '#1a1206' }}
+              hoverStyle={{ filter: 'brightness(1.08)' }}>RESTORE IT</Interactive>
+            <Interactive as="span" onClick={v.discardedDraft.dismiss}
+              base="cursor:pointer;font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)"
+              hoverStyle="color:var(--nv-ink)">dismiss</Interactive>
+          </div>
+        </div>
+      )}
+
       {/* a workout you parked mid-set — pick it back up */}
       {v.resumeSession && (
         <Interactive

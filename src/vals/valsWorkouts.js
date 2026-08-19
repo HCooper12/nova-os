@@ -393,6 +393,15 @@ export function valsWorkouts(app, ctx) {
     routinesList,
     gymHero,
     sessionLive: !!st.workoutSession,
+    // an accidental discard is recoverable for 7 days — the offer only
+    // appears when the archived session actually holds ticked work
+    discardedDraft: (!st.workoutSession && st.discardedDraft) ? {
+      name: st.discardedDraft.workoutSession?.routineName || 'workout',
+      sets: st.discardedDraft.tickedSets,
+      when: st.discardedDraft.clearedAt ? new Date(st.discardedDraft.clearedAt).toLocaleString('en-GB', { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : '',
+      restore: () => app.restoreDiscardedSession(),
+      dismiss: () => app.setState({ discardedDraft: null }),
+    } : null,
     routineCreating: st.routineCreating,
     routineNewName: st.routineNewName,
     setRoutineNewName: (e) => app.setRoutineNewName(e),
