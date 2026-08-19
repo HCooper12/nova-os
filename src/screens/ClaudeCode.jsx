@@ -51,6 +51,52 @@ export function ClaudeCode({ v }) {
               {v.codeConnected ? 'CONNECTED' : 'NOT CONNECTED'}
             </span>
           </div>
+          {/* C2: the diff, and his call on it — the thing that used to send
+              him to a terminal. Shelving is undoable by construction. */}
+          {v.codeChanges && !v.codeChanges.clean && (
+            <div style={css("margin:0 16px 0;border:1px solid color-mix(in srgb, var(--nv-gold) 38%, transparent);border-radius:13px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-gold) 07%, transparent),transparent)")}>
+              <div style={css("display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 15px")}>
+                <span style={css("font:600 9px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-gold)")}>UNCOMMITTED CHANGES</span>
+                <span style={css("font:400 11px var(--nv-font-mono);color:var(--nv-ink60)")}>{v.codeChanges.files.length} file{v.codeChanges.files.length === 1 ? '' : 's'} · {v.codeChanges.branch}</span>
+                <Interactive as="span" onClick={v.toggleCodeChanges}
+                  base="cursor:pointer;margin-left:auto;font:500 10px var(--nv-font-mono);color:var(--nv-ink60)"
+                  hoverStyle="color:var(--nv-gold)">{v.codeChangesOpen ? '▾ HIDE DIFF' : '▸ SHOW DIFF'}</Interactive>
+              </div>
+              <div style={css("padding:0 15px 6px;font:400 11px var(--nv-font-mono);color:var(--nv-ink60);line-height:1.6")}>
+                {v.codeChanges.files.slice(0, 8).map((f) => (
+                  <div key={f.path}><span style={css("color:var(--nv-cy)")}>{f.status}</span> {f.path}</div>
+                ))}
+                {v.codeChanges.files.length > 8 && <div>…and {v.codeChanges.files.length - 8} more</div>}
+              </div>
+              {v.codeChangesOpen && (
+                <pre style={css("margin:0;padding:12px 15px;max-height:320px;overflow:auto;font:400 10.5px/1.5 var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 72%, transparent);background:rgba(0,0,0,.35);white-space:pre;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)")}>{v.codeChanges.diff}{v.codeChanges.truncated ? '\n…diff truncated — the rest is on disk' : ''}</pre>
+              )}
+              {v.codeChanges.readOnly ? (
+                <div style={css("padding:10px 15px 13px;font-size:11.5px;color:var(--nv-ink60)")}>The vault is read-only from here — Nova never commits your notes for you.</div>
+              ) : (
+                <div style={css("display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 15px 13px")}>
+                  <Interactive as="input" value={v.codeCommitMsg} onChange={v.setCodeCommitMsg} placeholder="Commit message — why, not what…"
+                    base="flex:1;min-width:170px;box-sizing:border-box;background:rgba(0,0,0,.3);border:1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent);border-radius:8px;padding:9px 12px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
+                    focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 55%, transparent)" />
+                  <Interactive as="span" onClick={v.codeChangeBusy ? undefined : v.commitCodeChanges}
+                    base={{ cursor: 'pointer', flex: 'none', font: '600 10.5px var(--nv-font-mono)', letterSpacing: '.06em', padding: '10px 16px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1206', opacity: v.codeChangeBusy ? 0.6 : 1 }}
+                    hoverStyle={{ filter: 'brightness(1.08)' }}>COMMIT</Interactive>
+                  <Interactive as="span" onClick={v.codeChangeBusy ? undefined : v.shelveCodeChanges}
+                    title="Stashes the changes — recoverable, never destroyed"
+                    base="cursor:pointer;flex:none;font:500 10.5px var(--nv-font-mono);padding:10px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent);color:var(--nv-ink60)"
+                    hoverStyle="color:var(--nv-ink)">SHELVE</Interactive>
+                </div>
+              )}
+            </div>
+          )}
+          {v.codeShelf && (
+            <div style={css("margin:10px 16px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent);border-radius:11px;padding:10px 14px")}>
+              <span style={css("font:400 11.5px var(--nv-font-ui);color:var(--nv-ink60)")}>Shelved {v.codeShelf.files} file{v.codeShelf.files === 1 ? '' : 's'} — nothing lost.</span>
+              <Interactive as="span" onClick={v.unshelveCodeChanges}
+                base="cursor:pointer;margin-left:auto;font:600 10px var(--nv-font-mono);color:var(--nv-cy)"
+                hoverStyle="filter:brightness(1.2)">RESTORE</Interactive>
+            </div>
+          )}
           <div style={css("flex:1;overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:14px;font:400 12.5px/1.7 var(--nv-font-mono)")}>
             {!v.codeConnected && (
               <div style={css("color:color-mix(in srgb, var(--nv-ink) 40%, transparent);font-style:italic")}>Connect a backend in Settings to talk to Claude here.</div>

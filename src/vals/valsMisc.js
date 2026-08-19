@@ -188,6 +188,17 @@ export function valsMisc(app, ctx) {
 
     // code
     codeConnected: !!getConnection(),
+    // C2 — the diff panel's view model
+    codeChanges: st.codeChanges,
+    codeChangesOpen: !!st.codeChangesOpen,
+    toggleCodeChanges: () => app.setState({ codeChangesOpen: !st.codeChangesOpen }),
+    codeCommitMsg: st.codeCommitMsg || '',
+    setCodeCommitMsg: (e) => app.setState({ codeCommitMsg: e.target.value }),
+    codeChangeBusy: !!st.codeChangeBusy,
+    commitCodeChanges: () => app.commitCodeChanges(),
+    shelveCodeChanges: () => app.shelveCodeChanges(),
+    unshelveCodeChanges: () => app.unshelveCodeChanges(),
+    codeShelf: st.codeShelf,
     codeMsgs: st.codeChat.map(m => ({ text: m.text, tag: m.who === 'claude' ? '» BUILDER' : m.who === 'breaker' ? '» BREAKER' : m.who === 'system' ? '» SYSTEM' : '» YOU', tagStyle: { color: m.who === 'claude' ? 'var(--nv-gold)' : m.who === 'breaker' ? 'var(--nv-mg)' : m.who === 'system' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', fontWeight: 500 } })),
     sparBusy: st.sparBusy,
     startSpar: () => app.startSpar(),

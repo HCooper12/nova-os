@@ -48,5 +48,32 @@ export function claudeCodeRouter({ repoPath, vaultPath }) {
     }
   });
 
+  // C2: what the session changed, and his call on it. The diff is the
+  // thing that made a terminal necessary; keeping/shelving closes the loop.
+  router.get('/claude-code/changes', async (req, res) => {
+    try {
+      const { changeSummary } = await import('../lib/codeChanges.js');
+      res.json(await changeSummary(req.query.workspace || 'repo', vaultPath));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+  router.post('/claude-code/commit', async (req, res) => {
+    try {
+      const { commitChanges } = await import('../lib/codeChanges.js');
+      res.json(await commitChanges(req.body?.workspace || 'repo', vaultPath, req.body?.message));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+  router.post('/claude-code/shelve', async (req, res) => {
+    try {
+      const { shelveChanges } = await import('../lib/codeChanges.js');
+      res.json(await shelveChanges(req.body?.workspace || 'repo', vaultPath));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+  router.post('/claude-code/unshelve', async (req, res) => {
+    try {
+      const { unshelveLatest } = await import('../lib/codeChanges.js');
+      res.json(await unshelveLatest(req.body?.workspace || 'repo', vaultPath));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
   return router;
 }

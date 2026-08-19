@@ -208,6 +208,7 @@ export default class App extends Component {
     codeInput: '', codeBusy: false,
     codeChat: [],
     codeSessionId: null, codeWorkspace: 'repo', codeModel: 'sonnet',
+    codeChanges: null, codeChangesOpen: false, codeCommitMsg: '', codeChangeBusy: false, codeShelf: null,
     liveHealthInsight: null, liveHealthDays: null, liveStreaks: null,
     stepsOverlayOpen: false, stepsOverlayMode: 'steps', stepEditDate: null, stepEditValue: '', stepEditWeight: '', moneyRemoveConfirm: null,
     tabOrder: getTabOrder(),
@@ -364,6 +365,9 @@ export default class App extends Component {
         this.toastMsg('Couldn’t check the server for a workout draft — it retries when Nova reconnects');
       });
     }
+    // opening straight onto the Code screen (a reload, a deep link) must
+    // still show what's uncommitted — navigate() only fires on a CHANGE
+    if (this.state.screen === 'code') this.refreshCodeChanges();
     this.checkPushState();
     this.syncInboxMode(); // pull the system-wide autonomy mode from the server
     // an answer that was in flight when the app was reclaimed — pick the poll back up
@@ -521,6 +525,7 @@ export default class App extends Component {
     });
     if (changed) { this.withTransition(apply); this.noteScreenVisit(screen); } else apply();
     if (changed && screen === 'voice') this.maybeGreet('voice');
+    if (changed && screen === 'code') this.refreshCodeChanges(); // the diff is the first thing he wants to see
     const want = '#/' + screen;
     // pushState (not location.hash=) so this doesn't also fire hashchange and
     // double-set state; popstate covers the back button.
@@ -3321,6 +3326,13 @@ export default class App extends Component {
     const preview = this.routeIntentLocal(text);
     this.setState({ paletteOpen: false });
     this.toastMsg(`${preview?.label || 'Routing'} — dispatching…`);
+    // the code lane runs through the SAME path the Code screen uses, so the
+    // session lands in his chat with streaming — not an orphan job he can't see
+    if (preview?.lane === 'code') {
+      this.navigate('code');
+      this.setState({ codeInput: text }, () => this.doCode());
+      return;
+    }
     api.sendIntent(conn, text).then((r) => {
       if (r.forward?.screen === 'workouts') { this.navigate('workouts', { trainTab: 'coach' }); this.doCoach(r.forward.question); return; }
       if (r.forward?.screen === 'voice') { this.navigate('voice'); this.askNova(r.forward.question); return; }
@@ -4078,12 +4090,52 @@ export default class App extends Component {
         timeoutMs: 10 * 60_000,
         intervalMs: 700,
         onProgress: (job) => { if (job.partial) this.applyStreamPartial('codeChat', 'claude', job.partial); },
-        onReady: (job) => this.finalizeStream('codeChat', { who: 'claude', text: job.result.text }, { codeBusy: false, codeSessionId: job.result.sessionId }),
+        onReady: (job) => {
+          this.finalizeStream('codeChat', { who: 'claude', text: job.result.text }, { codeBusy: false, codeSessionId: job.result.sessionId });
+          this.refreshCodeChanges(); // the diff is the point — surface it the moment the turn lands
+        },
         onError: (msg) => this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] })),
       });
     }).catch((e) => {
       this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat, { at: Date.now(), who: 'system', text: 'Error: ' + e.message }] }));
     });
+  }
+  refreshCodeChanges() {
+    const conn = getConnection();
+    if (!conn) return;
+    api.codeChanges(conn, this.state.codeWorkspace)
+      .then((c) => this.setState({ codeChanges: c }))
+      .catch(() => {});
+  }
+  commitCodeChanges() {
+    const conn = getConnection();
+    const message = this.state.codeCommitMsg.trim();
+    if (!conn) return;
+    this.setState({ codeChangeBusy: true });
+    api.codeCommit(conn, this.state.codeWorkspace, message).then((r) => {
+      this.setState({ codeChangeBusy: false, codeCommitMsg: '', codeChanges: null, codeChangesOpen: false });
+      this.toastMsg(`Committed ${r.sha} — ${r.files} file${r.files === 1 ? '' : 's'}`);
+      this.refreshCodeChanges();
+    }).catch((e) => { this.setState({ codeChangeBusy: false }); this.toastMsg(e.message); });
+  }
+  shelveCodeChanges() {
+    const conn = getConnection();
+    if (!conn) return;
+    this.setState({ codeChangeBusy: true });
+    api.codeShelve(conn, this.state.codeWorkspace).then((r) => {
+      this.setState({ codeChangeBusy: false, codeChanges: null, codeShelf: r });
+      this.toastMsg(`Shelved ${r.files} file${r.files === 1 ? '' : 's'} — recoverable, nothing lost`);
+      this.refreshCodeChanges();
+    }).catch((e) => { this.setState({ codeChangeBusy: false }); this.toastMsg(e.message); });
+  }
+  unshelveCodeChanges() {
+    const conn = getConnection();
+    if (!conn) return;
+    api.codeUnshelve(conn, this.state.codeWorkspace).then(() => {
+      this.setState({ codeShelf: null });
+      this.toastMsg('Restored the shelved changes');
+      this.refreshCodeChanges();
+    }).catch((e) => this.toastMsg(e.message));
   }
   setCodeWorkspace(workspace) {
     this.stopPoll('code');
