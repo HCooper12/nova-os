@@ -51,6 +51,14 @@ export function TrainToday({ o, actions }) {
               </span>
             )}
             {o.deload?.advise && <span style={css('font-size:11px;color:var(--nv-warn)')}>{o.deload.reason}</span>}
+            {o.watch?.length > 0 && (
+              <div style={css('display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--nv-ink60)')}>
+                <span>Watch today</span>
+                <b style={css('color:var(--nv-ink);font-variant-numeric:tabular-nums;text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>
+                  {o.watch.map((w) => `${w.type} ${w.minutes}m`).join(' · ')}
+                </b>
+              </div>
+            )}
           </div>
         </div>
 

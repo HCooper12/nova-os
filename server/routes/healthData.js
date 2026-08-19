@@ -83,6 +83,34 @@ export function healthDataRouter(vaultPath) {
     }
   });
 
+  // Apple Watch workouts — same Shortcut tolerances as /health-data
+  // (raw-text bodies, flat shapes), same receipts. Idempotent by design:
+  // the Shortcut pushes "today's workouts" and may fire many times a day.
+  router.post('/health-data/workouts', async (req, res) => {
+    try {
+      let body = req.body;
+      const rawBody = (typeof body === 'string' ? body : JSON.stringify(body ?? null) || '').slice(0, 600);
+      if (typeof body === 'string') {
+        try { body = JSON.parse(body); } catch { /* validation below fails honestly */ }
+      }
+      const { ingestWorkouts } = await import('../lib/healthWorkouts.js');
+      const result = await ingestWorkouts({ date: body?.date, workouts: body?.workouts, rawBody });
+      if (!result.ok) return res.status(400).json({ error: result.error });
+      const { broadcast } = await import('../lib/events.js');
+      broadcast('health');
+      res.json({ saved: result.saved });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  router.get('/health-data/workouts', async (req, res, next) => {
+    try {
+      const { recentWorkoutDays } = await import('../lib/healthWorkouts.js');
+      res.json({ days: await recentWorkoutDays(Number(req.query.days) || 7) });
+    } catch (err) { next(err); }
+  });
+
   // Health Auto Export (a real app, real HealthKit entitlements) can reach
   // Apple's own de-duplicated aggregation — the thing a Shortcut cannot do.
   // See lib/autoExport.js for why, and its UNVERIFIED note: this route has

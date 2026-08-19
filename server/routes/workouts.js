@@ -406,6 +406,12 @@ export function workoutsRouter(vaultPath) {
         if (xc) parts.push(xc);
       } catch { failures.push('fuel cross-check'); }
       try {
+        // the watch's account of his week + the logged-vs-tracked join
+        const { watchContext } = await import('../lib/healthWorkouts.js');
+        const wc = await watchContext(vaultPath);
+        if (wc) parts.push(wc);
+      } catch { failures.push('watch workouts'); }
+      try {
         parts.push(weightTrendLine(await loadRecentDays(28)));
       } catch { failures.push('weight trend'); }
       try {

@@ -49,6 +49,7 @@ async function buildReflectionContext(vaultPath) {
     const { crossCheck, crossContext } = await import('./fuelCross.js');
     return crossContext(await crossCheck(vaultPath));
   });
+  await add('watch workouts', async () => (await import('./healthWorkouts.js')).watchContext(vaultPath));
   await add('recovery', async () => {
     const { loadRecentDays } = await import('./healthData.js');
     const days = await loadRecentDays(7);

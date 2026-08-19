@@ -170,6 +170,18 @@ export async function buildTrainOverview(vaultPath) {
       })(),
     } : null,
     restDay: !routine,
+    // the watch's account of TODAY — walks, cardio, anything tracked on
+    // his wrist. Absent when nothing was pushed (honest, never zeros).
+    watch: await (async () => {
+      try {
+        const { workoutsForDay } = await import('./healthWorkouts.js');
+        const pad2 = (n) => String(n).padStart(2, '0');
+        const now2 = new Date();
+        const todayISO = `${now2.getFullYear()}-${pad2(now2.getMonth() + 1)}-${pad2(now2.getDate())}`;
+        const ws = await workoutsForDay(todayISO);
+        return ws.length ? ws.map((w) => ({ type: w.type, minutes: w.minutes, kcal: w.kcal })) : null;
+      } catch { return null; }
+    })(),
     focus,
     momentum: {
       prs: recentPRs.map((p) => ({ name: p.name, kind: p.kind, value: p.value, reps: p.reps ?? null, previous: p.previous, date: last?.date })),
