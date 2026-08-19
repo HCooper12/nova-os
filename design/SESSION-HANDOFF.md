@@ -79,6 +79,22 @@ caught a live reply-loss bug in the act (fixed same day).
 3. Coach 'resource' action end-to-end with a real web find (rails and
    prompt shipped; not yet exercised by a live Coach turn).
 
+**19 AUG NIGHT — item 2 SHIPPED AND OBSERVED LIVE; the flake is dead:**
+- coachReflection.js: nightly (03:00-05:00, once/day) the Coach reviews
+  the week unasked. Outputs bounded by the rails: ≤3 learn proposals
+  (approval-gated), ≤1 Telegram outreach, or recorded silence.
+  POST /train/reflection/run {force:true} for on-demand.
+- FIRST LIVE RUN (forced, 19 Aug ~13:00): raised 2 genuinely sharp
+  learnings ("he does not self-progress load — stalled prescriptions
+  sit until the Coach moves them", "the 150g floor functions as a
+  ceiling", both evidence-cited) + sent 1 outreach to Telegram. The
+  once/day state means tonight's window skips; normal from tomorrow.
+- inboxRetry flake ROOT-CAUSED: test.after rm raced a trailing store
+  write → ENOTEMPTY killed the FILE. Cleanup settles+retries now;
+  two consecutive 355/355 full-suite runs.
+- The expertise plan (items 1, 2, 3) is now fully live. Still open:
+  Apple Health ingest (his phone), long-press on his physical iPhone.
+
 **19 AUG EVE — overflow glitch + Coach expertise items 1+3 SHIPPED:**
 - Fuel left-shift glitch: 5 icons + input overflowed 390px → page scrolled
   sideways. Bar is now input+mic+camera+barcode (camera = iOS action sheet,
