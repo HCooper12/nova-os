@@ -890,7 +890,7 @@ export default class App extends Component {
           this.draftUploadT = setTimeout(() => {
             const conn = getConnection();
             const s = this.state.workoutSession;
-            if (conn && s) api.saveSessionDraft(conn, { workoutSession: s, editingSessionId: this.state.editingSessionId }).catch(() => {});
+            if (conn && s) api.saveSessionDraft(conn, { workoutSession: s, editingSessionId: this.state.editingSessionId, capturedAt: this.state.workoutSessionSavedAt || Date.now() }).catch(() => {});
           }, 1500);
         } else {
           localStorage.removeItem(ACTIVE_SESSION_KEY);

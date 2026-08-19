@@ -194,7 +194,7 @@ export function Recipes({ v }) {
           <div style={css("margin-top:12px;display:flex;gap:8px;align-items:center")}>
             <Interactive as="input" value={v.foodDescribeInput} onChange={v.setFoodDescribeInput} onKeyDown={v.describeFoodKey}
               placeholder="Log anything — type it, shoot it, or scan it…"
-              base="flex:1;min-width:160px;box-sizing:border-box;background:rgba(0,0,0,.3);border:1px solid var(--nv-edge);border-radius:12px;padding:11px 14px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-ui);outline:none"
+              base="flex:1;min-width:0;box-sizing:border-box;background:rgba(0,0,0,.3);border:1px solid var(--nv-edge);border-radius:12px;padding:11px 14px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-ui);outline:none"
               focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
             {dict.supported && (
               <Interactive as="span" onClick={dict.toggle} aria-label={dict.on ? 'Stop dictating' : 'Say it'}
@@ -203,17 +203,11 @@ export function Recipes({ v }) {
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--nv-good)" strokeWidth="2.2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
               </Interactive>
             )}
-            <Interactive as="span" onClick={v.describeFoodSearch} aria-label="Look it up"
-              base="cursor:pointer;flex:none;width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;border:1px solid var(--nv-edge)"
-              hoverStyle="border-color:var(--nv-good)">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="color-mix(in srgb, var(--nv-ink) 62%, transparent)" strokeWidth="2.4"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-            </Interactive>
-            <label aria-label="Take photo" style={css("cursor:pointer;flex:none;width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;border:1px solid var(--nv-edge)")}>
+            <label aria-label="Shoot or add photos" style={css("cursor:pointer;flex:none;width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;border:1px solid var(--nv-edge)")}>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="color-mix(in srgb, var(--nv-ink) 62%, transparent)" strokeWidth="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.4"/></svg>
-              <input type="file" accept="image/*" capture="environment" onChange={v.addFoodScanPhotos} disabled={v.foodScanBusy} style={css("display:none")} />
-            </label>
-            <label aria-label="Add photos" style={css("cursor:pointer;flex:none;width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;border:1px solid var(--nv-edge)")}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="color-mix(in srgb, var(--nv-ink) 62%, transparent)" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M12 8v8M8 12h8"/></svg>
+              {/* no capture attr + multiple: iOS offers Take Photo OR the
+                  library from the one button — shoot it AND add-photos,
+                  without the fifth icon that overflowed a phone width */}
               <input type="file" accept="image/*" multiple onChange={v.addFoodScanPhotos} disabled={v.foodScanBusy} style={css("display:none")} />
             </label>
             <Interactive as="span" onClick={v.foodScanBusy ? undefined : v.openBarcodeScanner} aria-label="Scan barcode"

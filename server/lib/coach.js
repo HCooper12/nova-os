@@ -388,7 +388,7 @@ export function parseCoachProposal(text) {
   }
 }
 
-const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets', 'tune', 'injury', 'goal', 'block', 'resource'];
+const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets', 'tune', 'injury', 'goal', 'block', 'resource', 'learn'];
 
 export async function validateCoachEdit(vaultPath, raw) {
   const { loadExerciseLibrary } = await import('./exercises.js');
@@ -418,6 +418,20 @@ export async function validateCoachEdit(vaultPath, raw) {
     return {
       payload: { action, exerciseId: lib.id, exerciseName: lib.name, stepKg, repStep, hold, focus, model, reason: String(raw.reason || '').slice(0, 200) },
       title: `Coach: tune ${lib.name} — ${bits.join(', ')}`,
+    };
+  }
+
+  // "learn" writes ONE observed durable fact into What Works For Hayden —
+  // the client file. Approval-gated like every write; this is how the
+  // Coach's understanding of HIM compounds across conversations.
+  if (action === 'learn') {
+    const { LEARN_KINDS } = await import('./coachKnowledge.js');
+    const insight = String(raw.insight || '').trim().slice(0, 300);
+    if (insight.length < 10) throw new Error('a learning needs a real insight (10+ chars)');
+    const kind = LEARN_KINDS.includes(raw.kind) ? raw.kind : 'works';
+    return {
+      payload: { action, insight, kind, reason: String(raw.reason || '').slice(0, 200) },
+      title: `Coach: remember — ${insight.slice(0, 60)}${insight.length > 60 ? '…' : ''}`,
     };
   }
 
@@ -534,7 +548,8 @@ export async function createCoachEditRecord(vaultPath, { question, proposal, sou
           : payload.action === 'goal' ? 'goal-target'
             : payload.action === 'block' ? 'training-block'
               : payload.action === 'resource' ? 'exercise-resource'
-                : 'routine-edit',
+                : payload.action === 'learn' ? 'coach-learning'
+                  : 'routine-edit',
       confidence: 'high',
       title,
       reason: payload.reason || 'proposed in the Coach chat',
@@ -553,7 +568,7 @@ export async function createCoachEditRecord(vaultPath, { question, proposal, sou
 // coach that never learns whether its advice landed can't improve.
 export async function adviceContext(days = 14) {
   const { listRecords } = await import('./inboxStore.js');
-  const COACH_ROUTES = new Set(['progression-tune', 'routine-edit', 'injury-log', 'goal-target', 'training-block', 'exercise-resource']);
+  const COACH_ROUTES = new Set(['progression-tune', 'routine-edit', 'injury-log', 'goal-target', 'training-block', 'exercise-resource', 'coach-learning']);
   const cutoff = Date.now() - days * 86400000;
   const records = (await listRecords()).filter((r) =>
     COACH_ROUTES.has(r.decision?.route) && new Date(r.createdAt || 0).getTime() > cutoff);

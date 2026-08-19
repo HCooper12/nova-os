@@ -146,6 +146,40 @@ export async function missedSessionNudge(vaultPath) {
   return sent ? msg : null;
 }
 
+// ---- post-session debrief: the coach at the rack, unprompted -------------
+// Event-driven on save (like PR pings). Deterministic code computes every
+// fact; the model only reacts to them; Telegram delivers. Silent on any
+// failure — a missing debrief is a non-event, never an error he sees.
+export async function sessionDebrief(vaultPath, session) {
+  if (process.env.NOVA_COACH_CADENCE === 'off') return null;
+  const { telegramConfigured } = await import('./telegram.js');
+  if (!telegramConfigured()) return null;
+  const { loadSessions } = await import('./workoutSessions.js');
+  const sessions = await loadSessions(vaultPath, { limit: 10 });
+  const full = sessions.find((s) => s.date === session.date && s.routineId === session.routineId) || session;
+  const prev = sessions.filter((s) => s.routineId === session.routineId && s.id !== full.id)[0] || null;
+  const volumeOf = (s) => Math.round((s.exercises || []).reduce((v, e) => v + (e.sets || []).reduce((x, st2) => x + (st2.weight || 0) * (st2.reps || 0), 0), 0));
+  const facts = [];
+  facts.push(`Session just logged: ${full.routineName}, ${full.date} — ${(full.exercises || []).length} exercises, ${(full.exercises || []).reduce((n, e) => n + (e.sets || []).length, 0)} sets, ${volumeOf(full).toLocaleString()}kg total volume.`);
+  for (const ex of full.exercises || []) {
+    const line = (ex.sets || []).map((s2) => `${s2.weight || 0}×${s2.reps || 0}${s2.rpe ? `@${s2.rpe}` : ''}`).join(', ');
+    const flags = [ex.anomaly ? 'ANOMALY (off day — not evidence)' : null, ex.pain ? `PAIN: ${ex.pain}` : null, ex.note ? `his note: "${ex.note}"` : null, ex.skipped ? 'skipped today' : null].filter(Boolean);
+    facts.push(`- ${ex.name}: ${line || 'no sets'}${flags.length ? ` [${flags.join('; ')}]` : ''}`);
+  }
+  if (full.cutShort) facts.push(`Session CUT SHORT — his reason: ${full.cutShort}.`);
+  if (prev) facts.push(`Previous ${full.routineName} (${prev.date}): ${volumeOf(prev).toLocaleString()}kg volume.`);
+  try {
+    const { prsInSession } = await import('./trainingAnalytics.js');
+    const prs = prsInSession(sessions, full);
+    if (prs.length) facts.push(`PRs this session (already celebrated separately — acknowledge, don't re-announce): ${prs.map((p) => p.name).join(', ')}.`);
+  } catch { /* no PR facts, no line */ }
+  const { startSessionDebrief } = await import('./claudeCode.js');
+  startSessionDebrief(vaultPath, { facts: facts.join('\n') }, (text) => {
+    if (text) send(`Coach — ${text}`).catch(() => {});
+  });
+  return true;
+}
+
 // ---- PR celebration: fired from session completion, not the clock --------
 export async function celebratePRs(vaultPath, session) {
   const { loadSessions } = await import('./workoutSessions.js');

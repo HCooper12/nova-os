@@ -88,3 +88,20 @@ test('deleting a session removes the file and recomputes state from what remains
   const files = await readdir(path.join(vault, 'Wiki/Health/Workouts'));
   assert.equal(files.filter((f) => f.endsWith('.md')).length, 1);
 });
+
+test('a discarded session cannot be resurrected by an in-flight draft echo', async () => {
+  const { saveSessionDraft, getSessionDraft, clearSessionDraft } = await import('../lib/sessionDraft.js');
+  const ws = { routineId: 'push', routineName: 'Push', exercises: [{ exerciseId: 'bench', sets: [] }] };
+  const before = Date.now() - 5000;
+  await saveSessionDraft({ workoutSession: ws, capturedAt: before });
+  assert.ok(await getSessionDraft(), 'draft saved');
+  await clearSessionDraft(); // he discarded — deliberate
+  // the stale echo: an upload captured BEFORE the discard lands late
+  const echo = await saveSessionDraft({ workoutSession: ws, capturedAt: before });
+  assert.equal(echo.saved, false, 'stale echo dropped');
+  assert.equal(await getSessionDraft(), null, 'no ghost session');
+  // a genuinely NEW session after the clear still saves
+  const fresh = await saveSessionDraft({ workoutSession: ws, capturedAt: Date.now() });
+  assert.equal(fresh.saved, true);
+  await clearSessionDraft();
+});

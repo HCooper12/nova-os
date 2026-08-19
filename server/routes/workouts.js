@@ -165,6 +165,9 @@ export function workoutsRouter(vaultPath) {
       // a PR detected on save is celebrated the moment it exists — the
       // cadence engine's only event-driven (non-clock) message
       import('../lib/coachCadence.js').then(({ celebratePRs }) => celebratePRs(vaultPath, session)).catch(() => {});
+      // the coach at the rack: one unprompted reaction to THIS session,
+      // composed from computed facts, delivered via Telegram (item 3)
+      import('../lib/coachCadence.js').then(({ sessionDebrief }) => sessionDebrief(vaultPath, session)).catch(() => {});
       res.json({ session });
     } catch (err) {
       res.status(400).json({ error: err.message });
@@ -306,6 +309,12 @@ export function workoutsRouter(vaultPath) {
       try {
         parts.push(await goalsContext(vaultPath));
       } catch { failures.push('goals'); }
+      try {
+        // his Coaching Principles + What Works For Hayden pages — the
+        // knowledge base that makes this HIS coach, not a textbook
+        const { knowledgeContext } = await import('../lib/coachKnowledge.js');
+        parts.push(await knowledgeContext(vaultPath));
+      } catch { failures.push('coaching knowledge'); }
       try {
         const { blockContext } = await import('../lib/trainingBlocks.js');
         parts.push(await blockContext(vaultPath));

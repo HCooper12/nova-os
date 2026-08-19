@@ -397,6 +397,16 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  if (route === 'coach-learning') {
+    // one approved fact into the client file — undo removes the exact line
+    const { appendLearning } = await import('./coachKnowledge.js');
+    const { line, kind } = await appendLearning(vaultPath, payload);
+    return {
+      destination: `What Works For Hayden — ${kind}: ${payload.insight.slice(0, 50)}`,
+      undo: { route, line },
+    };
+  }
+
   if (route === 'training-block') {
     const { setBlock, getBlock } = await import('./trainingBlocks.js');
     const prior = await getBlock(vaultPath).catch(() => null);
@@ -815,6 +825,11 @@ export async function undoFiling(vaultPath, undo) {
     const { clearTune } = await import('./progressionTunes.js');
     await clearTune(vaultPath, undo.exerciseId, { restore: undo.prior });
     return undo.prior ? `restored ${undo.name}'s previous tune` : `cleared the tune — ${undo.name} progresses by the defaults again`;
+  }
+  if (undo.route === 'coach-learning') {
+    const { removeLearning } = await import('./coachKnowledge.js');
+    const r = await removeLearning(vaultPath, undo.line);
+    return r.removed ? 'removed that learning from What Works For Hayden' : 'that learning was already gone';
   }
   if (undo.route === 'exercise-resource') {
     const { setExerciseKnowledge } = await import('./exercises.js');
