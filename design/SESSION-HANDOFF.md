@@ -79,6 +79,20 @@ caught a live reply-loss bug in the act (fixed same day).
 3. Coach 'resource' action end-to-end with a real web find (rails and
    prompt shipped; not yet exercised by a live Coach turn).
 
+**19 AUG LATE — Apple Health workout ingest: server side LIVE, phone next:**
+- healthWorkouts.js + POST/GET /api/health-data/workouts: Shortcut-shaped
+  tolerance, own-date grouping, idempotent merge (live-verified twice on a
+  synthetic past date, then removed), pushlog receipts kind:'workouts'.
+- Flows: TODAY hero 'Watch today' line (absent until a push — no zeros);
+  Coach context + nightly reflection get APPLE WATCH WORKOUTS with the
+  logged-vs-tracked JOIN check (watch strength day with no Nova session →
+  raised once, gently).
+- CI lesson: workout dates resolve in the SERVER'S zone; tests pin
+  Australia/Sydney or a UTC runner asserts the wrong day.
+- HIS 10 MINUTES: design/APPLE-HEALTH-WORKOUTS.md — exact Shortcut
+  (same host+token as the nightly health push) + 'when a workout ends'
+  automation. THE BOARD IS OTHERWISE EMPTY.
+
 **19 AUG NIGHT — item 2 SHIPPED AND OBSERVED LIVE; the flake is dead:**
 - coachReflection.js: nightly (03:00-05:00, once/day) the Coach reviews
   the week unasked. Outputs bounded by the rails: ≤3 learn proposals
