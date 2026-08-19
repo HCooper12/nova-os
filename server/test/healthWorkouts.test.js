@@ -1,5 +1,10 @@
 // The watch pipeline's honesty contract: Shortcut-shaped tolerance, own-date
 // grouping, idempotent merges — a re-fired Shortcut never duplicates.
+//
+// TZ pinned BEFORE any Date use: workout dates resolve in the SERVER'S
+// local zone (his Mac, Australia) — on a UTC CI runner the same +10:00
+// instants land on different calendar days and the assertions lie.
+process.env.TZ = 'Australia/Sydney';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
