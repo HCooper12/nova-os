@@ -22,6 +22,7 @@ const SLICES = {
   nutritionMonth: '/api/nutrition-month',
   nutritionWeek: '/api/nutrition-week',
   trainOverview: '/api/train/overview',
+  fuelCross: '/api/train/fuel-cross',
   shoppingList: '/api/shopping-list',
   stash: '/api/stash',
   workoutExercises: '/api/workouts/exercises',

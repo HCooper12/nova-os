@@ -348,7 +348,10 @@ export function workoutsRouter(vaultPath) {
         const progressions = await computeProgressions(vaultPath, routines).catch(() => ({}));
         const keys = Object.keys(progressions);
         parts.push(`Routines: ${routines.map((r) => r.name).join(', ') || 'none'}. Schedule: ${JSON.stringify(schedule)}.`);
-        if (keys.length) parts.push(`Earned progressions: ${keys.map((k) => `${k} +${progressions[k].delta}${progressions[k].kind === 'weight' ? 'kg' : ' rep'}`).join(', ')}.`);
+        const stepKeys = keys.filter((k) => progressions[k].kind !== 'outgrown');
+        const outgrownKeys = keys.filter((k) => progressions[k].kind === 'outgrown');
+        if (stepKeys.length) parts.push(`Earned progressions: ${stepKeys.map((k) => `${k} +${progressions[k].delta}${progressions[k].kind === 'weight' ? 'kg' : ' rep'}`).join(', ')}.`);
+        if (outgrownKeys.length) parts.push(`PRESCRIPTION CHANGES DUE (deterministic — the engine has STOPPED suggesting more reps here): ${outgrownKeys.map((k) => `${k}: ${progressions[k].evidence}`).join(' | ')}. RAISE THIS UNPROMPTED at the start of your next reply if you haven't already discussed it with him: present the reasoning briefly and PROPOSE the concrete fix — a routine-edit swap to a weighted/harder variation from his exercise library, or new targets. He asked for exactly this: a coach that reflects and brings the alternative, not one that adds reps forever.`);
       } catch { failures.push('e1RM estimates'); }
       try {
         const days = await loadRecentDays(7);

@@ -14,6 +14,9 @@ import { createRecord } from './inboxStore.js';
 // are left alone (no honest deterministic rule for them yet).
 
 export const WEIGHT_STEP_KG = 2.5;
+// A bodyweight movement whose EVERY set clears target-high by this margin,
+// two sessions running, has outgrown its prescription — see 'outgrown'.
+const OUTGROWN_MARGIN = 2;
 const WEIGHTED_TYPES = new Set(['weight_reps', 'weighted_bodyweight_reps']);
 const BODYWEIGHT_TYPES = new Set(['bodyweight_reps']);
 
@@ -63,9 +66,13 @@ export async function computeProgressions(vaultPath, routines) {
         if (!toppedOut(last, entry) || top > 8) continue;
         const lastW = Math.max(...last.sets.map((s) => Number(s.weight) || 0));
         const step = tune?.stepKg ?? WEIGHT_STEP_KG;
+        const rpeOutgrown = !WEIGHTED_TYPES.has(entry.trackingType)
+          && last.sets.every((s) => (Number(s.reps) || 0) >= entry.targetRepsHigh + OUTGROWN_MARGIN);
         out[`${routine.id}:${entry.exerciseId}`] = WEIGHTED_TYPES.has(entry.trackingType)
           ? { kind: 'weight', delta: step, evidence: `hit target reps at top-set RPE ${top} (autoregulated: ≤8 earns the step)${lastW ? ` at ${lastW}kg` : ''}` }
-          : { kind: 'reps', delta: tune?.repStep ?? 1, evidence: `target reps at RPE ${top} — room for more (autoregulated)` };
+          : rpeOutgrown
+            ? { kind: 'outgrown', delta: 0, evidence: `every set ≥ ${entry.targetRepsHigh + OUTGROWN_MARGIN} reps at RPE ${top} against a ${entry.targetRepsLow}-${entry.targetRepsHigh} target — the prescription is outgrown; add load or a harder variation.` }
+            : { kind: 'reps', delta: tune?.repStep ?? 1, evidence: `target reps at RPE ${top} — room for more (autoregulated)` };
         continue;
       }
 
@@ -81,12 +88,29 @@ export async function computeProgressions(vaultPath, routines) {
           evidence: `hit ${entry.targetRepsHigh}+ reps across all sets twice running${lastWeight ? ` at ${lastWeight}kg` : ''}${tune?.stepKg != null ? ` (step tuned to ${step}kg per your feedback)` : ''}`,
         };
       } else {
-        const step = tune?.repStep ?? 1;
-        out[`${routine.id}:${entry.exerciseId}`] = {
-          kind: 'reps',
-          delta: step,
-          evidence: `topped ${entry.targetRepsHigh} reps on every set twice running${tune?.repStep != null ? ` (rep step tuned to +${step} per your feedback)` : ''}`,
-        };
+        // OUTGROWN, not "one more rep": a bodyweight movement repped WELL
+        // past its target range two sessions running has stopped being the
+        // stimulus the program prescribed — his exact words: coach kept
+        // "adding reps to pull ups" with no reasoning and no alternative.
+        // A real coach changes the PRESCRIPTION (load it, harden the
+        // variation), so the engine stops suggesting reps and says so.
+        const minsAbove = recent.every((ex) =>
+          ex.sets.every((s) => (Number(s.reps) || 0) >= entry.targetRepsHigh + OUTGROWN_MARGIN));
+        if (minsAbove) {
+          const minRep = Math.min(...recent[0].sets.map((s) => Number(s.reps) || 0));
+          out[`${routine.id}:${entry.exerciseId}`] = {
+            kind: 'outgrown',
+            delta: 0,
+            evidence: `every set ≥ ${entry.targetRepsHigh + OUTGROWN_MARGIN} reps two sessions running (last: min ${minRep}) against a ${entry.targetRepsLow}-${entry.targetRepsHigh} target — more reps is no longer the stimulus. Time to add load (weighted) or a harder variation.`,
+          };
+        } else {
+          const step = tune?.repStep ?? 1;
+          out[`${routine.id}:${entry.exerciseId}`] = {
+            kind: 'reps',
+            delta: step,
+            evidence: `topped ${entry.targetRepsHigh} reps on every set twice running${tune?.repStep != null ? ` (rep step tuned to +${step} per your feedback)` : ''}`,
+          };
+        }
       }
     }
   }

@@ -74,11 +74,19 @@ export async function composeFocus(vaultPath, { routine, block, deload, progress
   }
   if (routine) {
     const inRoutine = new Set(routine.exercises.map((e) => e.exerciseId));
-    const earned = Object.entries(progressions || {}).find(([key]) => key.startsWith(`${routine.id}:`));
+    const entries = Object.entries(progressions || {}).filter(([key]) => key.startsWith(`${routine.id}:`));
+    // an outgrown prescription outranks an ordinary earned step — it's the
+    // "stop adding reps to pull-ups" conversation, and it opens ITSELF
+    const outgrown = entries.find(([, p]) => p.kind === 'outgrown');
+    const earned = entries.find(([, p]) => p.kind !== 'outgrown');
     const tuned = (tunes || []).find((t) => inRoutine.has(t.exerciseId) && t.focus);
     const stalled = (plateaus || []).find((p) => inRoutine.has(p.exerciseId));
     const bits = [];
-    if (earned) {
+    if (outgrown) {
+      const ex = routine.exercises.find((e) => e.exerciseId === outgrown[0].split(':')[1]);
+      bits.push(`${ex?.name} has OUTGROWN its prescription — ${outgrown[1].evidence}`);
+    }
+    if (earned && !outgrown) {
       const ex = routine.exercises.find((e) => e.exerciseId === earned[0].split(':')[1]);
       bits.push(`${ex?.name}: +${earned[1].delta}${earned[1].kind === 'weight' ? 'kg' : ' rep'} earned — take it (${earned[1].evidence}).`);
     }

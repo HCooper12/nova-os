@@ -944,6 +944,7 @@ export default class App extends Component {
     apply('nutritionMonth', (r) => this.setState({ liveNutritionMonth: r }));
     apply('nutritionWeek', (r) => this.setState({ liveNutritionWeek: r }));
     apply('trainOverview', (r) => this.setState({ liveTrainOverview: r }));
+    apply('fuelCross', (r) => this.setState({ liveFuelCross: r }));
     apply('stash', (r) => this.setState({ liveStash: r.categories }));
     apply('shoppingList', (r) => this.setState({ liveShoppingList: r }));
     apply('workoutExercises', (r) => this.setState({ liveWorkoutExercises: r.exercises, liveWorkoutMuscleGroups: r.muscleGroups, liveWorkoutTrackingTypes: r.trackingTypes }));
@@ -1001,6 +1002,7 @@ export default class App extends Component {
       async () => this.setState({ liveNutritionMonth: await api.nutritionMonth(conn) }),
       async () => this.setState({ liveNutritionWeek: await api.nutritionWeek(conn) }),
       async () => this.setState({ liveTrainOverview: await api.trainOverview(conn) }),
+      async () => this.setState({ liveFuelCross: await api.fuelCross(conn) }),
       async () => this.setState({ liveShoppingList: await api.shoppingList(conn) }),
       async () => {
         const exercisesRes = await api.workoutExercises(conn);

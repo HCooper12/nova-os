@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { VoicePanel } from '../VoicePanels.jsx';
+import { useDictation } from '../useDictation.js';
 
 // Apple-layout twin for the eaten-today strip: same dayMacros object,
 // rendered as four stat tiles instead of the inline HUD strip.
@@ -25,17 +27,23 @@ function EatenTiles({ m }) {
 }
 
 export function Recipes({ v }) {
+  // the one bar's "say it": on-device dictation straight into the log input
+  const dict = useDictation(() => v.foodDescribeValue || '', (text) => v.setFoodDescribeInput(text), null);
+  const [manualOpen, setManualOpen] = useState(false);
+  // a photo-scan result lands its numbers in these fields — they must never
+  // hide behind a collapsed disclosure while holding his data
+  const manualVisible = manualOpen || !!(v.foodLogName || v.foodLogP || v.foodLogC || v.foodLogF || v.foodLogKcal);
   return (
     <div style={v.wrapRecipes} data-screen-label="Recipes">
       <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>
         <div style={css("display:flex;align-items:center;gap:14px")}>
           <span style={css("font:500 11px var(--nv-font-mono);letter-spacing:.14em;color:var(--nv-acc)")}>VI.</span>
           <span style={css("width:50px;height:1px;background:linear-gradient(90deg,var(--nv-acc-border),transparent)")}></span>
-          <span style={css("font:500 10px var(--nv-font-mono);letter-spacing:.32em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>VAULT · RECIPES</span>
+          <span style={css("font:500 10px var(--nv-font-mono);letter-spacing:.32em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>VAULT · FUEL</span>
         </div>
         <span style={css("font:400 10px var(--nv-font-mono);letter-spacing:.12em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.recipesHeaderLabel}</span>
       </div>
-      <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Recipes, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>macros first.</span></h1>
+      <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Fuel, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>macros first.</span></h1>
 
       {/* the redesigned Fuel hero: ring + coloured macros + the gap-fill
           coach line — one glance answers "where am I, and what do I eat
@@ -55,7 +63,7 @@ export function Recipes({ v }) {
               <span style={css("font:600 8px var(--nv-font-mono);letter-spacing:.18em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>OF {v.fuelHero.target} P</span>
             </div>
           </div>
-          <div style={css("flex:1;min-width:220px;display:flex;flex-direction:column;gap:6px")}>
+          <div style={css("flex:1;min-width:170px;display:flex;flex-direction:column;gap:6px")}>
             <div style={css("display:flex;justify-content:space-between;font-size:13px;color:color-mix(in srgb, var(--nv-ink) 62%, transparent)")}>
               <span style={css("color:var(--nv-good)")}>Calories</span>
               <b style={css("color:var(--nv-ink);font-variant-numeric:tabular-nums")}>{v.fuelHero.kcal.toLocaleString()}{v.fuelHero.kcalTarget ? ` / ${v.fuelHero.kcalTarget.toLocaleString()}` : ''}</b>
@@ -100,6 +108,19 @@ export function Recipes({ v }) {
         </div>
       )}
 
+      {/* the cross-reference agent's card (mockup v2): training × fuel joins,
+          surfaced where the eating decisions happen. Hidden when the agent
+          has nothing true to say. */}
+      {v.fuelCross && (
+        <div style={css("margin-top:12px;border:1px solid color-mix(in srgb, var(--nv-vi) 38%, transparent);border-radius:14px;padding:14px 17px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-vi) 06%, transparent),transparent)")}>
+          <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.22em;color:var(--nv-vi)")}>◈ TRAINING × FUEL — CROSS-CHECK</div>
+          <div style={css("margin-top:8px;font-size:13px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 85%, transparent)")}>{v.fuelCross.line}</div>
+          <Interactive as="span" onClick={v.fuelCross.draft}
+            base={css("cursor:pointer;display:inline-block;margin-top:9px;font:600 11.5px var(--nv-font-ui);color:var(--nv-vi)")}
+            hoverStyle="filter:brightness(1.25)">Draft the fix with Coach →</Interactive>
+        </div>
+      )}
+
       {/* the mockup's rotation: horizontal tick-cards — the action taken 4x
           a day gets the biggest targets on the screen. One component, both
           layouts. Tick = eaten (writes the food log), name opens the recipe,
@@ -107,7 +128,7 @@ export function Recipes({ v }) {
       {v.rotationVisible && (
         <div style={css("margin-top:18px")}>
           <div style={css("display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin:0 2px 8px")}>
-            <span style={css("font:600 9px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>TODAY'S ROTATION — TAP THE RING TO EAT</span>
+            <span style={css("font:600 9px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>TODAY'S ROTATION — TAP TO EAT · HOLD FOR MORE</span>
             <span style={css("font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
               <span style={css("color:var(--nv-cy)")}>{v.rotationTotals.p}P</span> · <span style={css("color:var(--nv-gold)")}>{v.rotationTotals.c}C</span> · <span style={css("color:var(--nv-vi)")}>{v.rotationTotals.f}F</span> · <span style={css("color:var(--nv-good)")}>{v.rotationTotals.kcal}</span>
             </span>
@@ -151,16 +172,9 @@ export function Recipes({ v }) {
 
       {v.foodLogVisible && (
         <div style={css("margin-top:12px;border:1px solid color-mix(in srgb, var(--nv-good) 18%, transparent);border-radius:14px;padding:16px 18px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-good) 05%, transparent),color-mix(in srgb, var(--nv-good) 01%, transparent));box-shadow:inset 0 1px 0 rgba(255,255,255,.04)")}>
-          <div style={css("display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px")}>
-            <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:var(--nv-good)")}>LOG SOMETHING ELSE</span>
-            {v.foodLogEntries.length > 0 && (
-              <span style={css("font:400 11px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 60%, transparent)")}>
-                <span style={css("color:var(--nv-cy)")}>{v.foodLogTotals.p}P</span> · <span style={css("color:var(--nv-gold)")}>{v.foodLogTotals.c}C</span> · <span style={css("color:var(--nv-vi)")}>{v.foodLogTotals.f}F</span> · <span style={css("color:var(--nv-good)")}>{v.foodLogTotals.kcal} kcal</span>
-              </span>
-            )}
-          </div>
-          {/* retro strip — pick the day the food belongs to (last 7 days) */}
-          <div style={css("margin-top:10px;display:flex;gap:6px;flex-wrap:wrap")}>
+          {/* mockup v2: no headline, no furniture — the bar IS the feature.
+              The day strip lives BELOW it; off-plan totals ride the strip. */}
+          <div style={css("display:none")}>
             {v.foodLogDays.map((d) => (
               <Interactive key={d.key} as="span" onClick={d.pick}
                 base={{ cursor: 'pointer', font: "500 9px var(--nv-font-mono)", letterSpacing: '.1em', padding: '5px 10px', borderRadius: '7px',
@@ -182,10 +196,17 @@ export function Recipes({ v }) {
               placeholder="Log anything — type it, shoot it, or scan it…"
               base="flex:1;min-width:160px;box-sizing:border-box;background:rgba(0,0,0,.3);border:1px solid var(--nv-edge);border-radius:12px;padding:11px 14px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-ui);outline:none"
               focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
+            {dict.supported && (
+              <Interactive as="span" onClick={dict.toggle} aria-label={dict.on ? 'Stop dictating' : 'Say it'}
+                base={css(`cursor:pointer;flex:none;width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;border:1px solid ${dict.on ? 'var(--nv-good)' : 'color-mix(in srgb, var(--nv-good) 45%, transparent)'};background:color-mix(in srgb, var(--nv-good) ${dict.on ? 22 : 10}%, transparent)`)}
+                hoverStyle="background:color-mix(in srgb, var(--nv-good) 20%, transparent)">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--nv-good)" strokeWidth="2.2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+              </Interactive>
+            )}
             <Interactive as="span" onClick={v.describeFoodSearch} aria-label="Look it up"
-              base="cursor:pointer;flex:none;width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;border:1px solid color-mix(in srgb, var(--nv-good) 45%, transparent);background:color-mix(in srgb, var(--nv-good) 10%, transparent)"
-              hoverStyle="background:color-mix(in srgb, var(--nv-good) 20%, transparent)">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--nv-good)" strokeWidth="2.4"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+              base="cursor:pointer;flex:none;width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;border:1px solid var(--nv-edge)"
+              hoverStyle="border-color:var(--nv-good)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="color-mix(in srgb, var(--nv-ink) 62%, transparent)" strokeWidth="2.4"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
             </Interactive>
             <label aria-label="Take photo" style={css("cursor:pointer;flex:none;width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;border:1px solid var(--nv-edge)")}>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="color-mix(in srgb, var(--nv-ink) 62%, transparent)" strokeWidth="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.4"/></svg>
@@ -200,6 +221,25 @@ export function Recipes({ v }) {
               hoverStyle="border-color:var(--nv-good)">
               <svg width="17" height="17" viewBox="0 0 24 24" stroke="color-mix(in srgb, var(--nv-ink) 62%, transparent)" strokeWidth="2"><path d="M4 6v12M8 6v12M12 6v12M15 6v12M19 6v12" fill="none"/></svg>
             </Interactive>
+          </div>
+          {/* which day this lands on — compact, below the bar (mockup keeps
+              the bar clean); off-plan totals ride along when they exist */}
+          <div style={css("margin-top:9px;display:flex;gap:6px;flex-wrap:wrap;align-items:center")}>
+            <span style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.14em;color:color-mix(in srgb, var(--nv-ink) 38%, transparent)")}>FOR</span>
+            {v.foodLogDays.map((d) => (
+              <Interactive key={d.key} as="span" onClick={d.pick}
+                base={{ cursor: 'pointer', font: "500 8.5px var(--nv-font-mono)", letterSpacing: '.08em', padding: '4px 9px', borderRadius: '6px',
+                  border: d.active ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent)',
+                  color: d.active ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 38%, transparent)',
+                  background: d.active ? 'var(--nv-acc-bg)' : 'none' }}
+                hoverStyle={{ color: 'var(--nv-ink)' }}
+              >{d.label}</Interactive>
+            ))}
+            {v.foodLogEntries.length > 0 && (
+              <span style={css("margin-left:auto;font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
+                off-plan: <span style={css("color:var(--nv-cy)")}>{v.foodLogTotals.p}P</span> · <span style={css("color:var(--nv-good)")}>{v.foodLogTotals.kcal} kcal</span>
+              </span>
+            )}
           </div>
           {v.foodScanCount > 0 && (
             <div style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
@@ -217,7 +257,7 @@ export function Recipes({ v }) {
               <Interactive as="span" onClick={v.canRunFoodScan ? v.runFoodScan : undefined} base={{ cursor: v.canRunFoodScan ? 'pointer' : 'default', flex: 'none', font: "600 11px var(--nv-font-mono)", padding: '9px 16px', borderRadius: '8px', background: 'var(--nv-good)', color: '#122015', opacity: v.foodScanBusy ? 0.6 : 1 }} hoverStyle={{ background: 'color-mix(in srgb, var(--nv-good) 80%, white)' }}>{v.foodScanBusy ? 'Analyzing…' : `Analyze ${v.foodScanCount} photo${v.foodScanCount === 1 ? '' : 's'}`}</Interactive>
             </div>
           )}
-          <div style={css("margin-top:8px;font-size:11px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent);line-height:1.5")}>Add up to 5 — nutrition labels and/or the food itself. More photos + a note give a sharper estimate.</div>
+          {v.foodScanCount > 0 && <div style={css("margin-top:8px;font-size:11px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent);line-height:1.5")}>Add up to 5 — nutrition labels and/or the food itself. More photos + a note give a sharper estimate.</div>}
           {v.foodScanError && <div style={css("margin-top:8px;font-size:12px;color:#e08f6f")}>{v.foodScanError}</div>}
           {v.foodScanQuestion && (
             <div style={css("margin-top:10px;border:1px solid color-mix(in srgb, var(--nv-gold) 32%, transparent);border-radius:11px;padding:11px 13px;background:color-mix(in srgb, var(--nv-gold) 05%, transparent)")}>
@@ -242,14 +282,19 @@ export function Recipes({ v }) {
               <div style={css("margin-top:7px;font-size:10.5px;line-height:1.5;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Answering re-reads your photos with the extra detail. Or skip it — the numbers below save exactly as they are.</div>
             </div>
           )}
-          <div style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
+          {/* manual macros are the fallback, not the feature — folded away
+              (mockup: one bar, four senses; numbers only when he wants them) */}
+          <Interactive as="span" onClick={() => setManualOpen(!manualOpen)}
+            base="cursor:pointer;display:inline-block;margin-top:10px;font:500 9.5px var(--nv-font-mono);letter-spacing:.18em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)"
+            hoverStyle="color:var(--nv-good)">{manualVisible ? '▾' : '▸'} ENTER MACROS MYSELF</Interactive>
+          {manualVisible && <div style={css("margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
             <Interactive as="input" value={v.foodLogName} onChange={v.setFoodLogName} placeholder="What did you eat?" base="flex:1;min-width:140px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 12px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
             <Interactive as="input" type="number" inputMode="numeric" value={v.foodLogP} onChange={v.setFoodLogP} placeholder="P" base="width:52px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 8px;color:var(--nv-cy);font-size:12.5px;font-family:var(--nv-font-mono);outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
             <Interactive as="input" type="number" inputMode="numeric" value={v.foodLogC} onChange={v.setFoodLogC} placeholder="C" base="width:52px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 8px;color:var(--nv-gold);font-size:12.5px;font-family:var(--nv-font-mono);outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
             <Interactive as="input" type="number" inputMode="numeric" value={v.foodLogF} onChange={v.setFoodLogF} placeholder="F" base="width:52px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 8px;color:var(--nv-vi);font-size:12.5px;font-family:var(--nv-font-mono);outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
             <Interactive as="input" type="number" inputMode="numeric" value={v.foodLogKcal} onChange={v.setFoodLogKcal} placeholder="kcal" base="width:62px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 8px;color:var(--nv-good);font-size:12.5px;font-family:var(--nv-font-mono);outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
             <Interactive as="span" onClick={v.foodLogBusy ? undefined : v.submitFoodLog} base={{ cursor: 'pointer', flex: 'none', font: "500 11px var(--nv-font-mono)", padding: '9px 16px', borderRadius: '8px', background: 'var(--nv-good)', color: '#122015', opacity: v.foodLogBusy ? .6 : 1 }} hoverStyle={{ background: 'color-mix(in srgb, var(--nv-good) 80%, white)' }}>{v.foodLogBusy ? 'Adding…' : '+ Add'}</Interactive>
-          </div>
+          </div>}
           {v.canSaveScanToRecipe && (
             <div style={css("margin-top:8px")}>
               <Interactive as="span" onClick={v.saveScanToRecipe} base="cursor:pointer;font-size:11px;color:var(--nv-gold)" hoverStyle="text-decoration:underline">＋ Save this to my recipe bank</Interactive>

@@ -208,3 +208,33 @@ test('drop-offs rank above never-logged entries, which may just be new to the pr
   assert.match(ctx, /never logged at all — it may simply be newly added/);
   assert.match(ctx, /a real drop-off/);
 });
+
+test('outgrown: reps far past target stop earning +1 and flag a prescription change', async () => {
+  const dir = path.join(vault, 'Wiki/Health/Workouts'); // the real sessions dir — mtime rescan picks these up
+  await mkdir(dir, { recursive: true });
+  // dips target 10-12: every set ≥ 14 (high+2) two sessions running → outgrown
+  await writeFile(path.join(dir, '2026-08-10 push.md'), session('2026-08-10', [
+    { exerciseId: 'dips', name: 'Dips', sets: [{ weight: 0, reps: 15 }, { weight: 0, reps: 14 }, { weight: 0, reps: 14 }] },
+  ]));
+  await writeFile(path.join(dir, '2026-08-13 push.md'), session('2026-08-13', [
+    { exerciseId: 'dips', name: 'Dips', sets: [{ weight: 0, reps: 16 }, { weight: 0, reps: 15 }, { weight: 0, reps: 14 }] },
+  ]));
+  const prog = await computeProgressions(vault, routines);
+  const dips = prog['push:dips'];
+  assert.ok(dips, 'dips earns a signal');
+  assert.equal(dips.kind, 'outgrown');
+  assert.equal(dips.delta, 0, 'no more reps suggested');
+  assert.match(dips.evidence, /no longer the stimulus/);
+  // just past target but inside the margin → still an ordinary +1 rep.
+  // NEW files with later dates: the session cache re-reads on dir-mtime
+  // change (create), never on in-place rewrite — Nova only ever appends.
+  await writeFile(path.join(dir, '2026-08-15 push.md'), session('2026-08-15', [
+    { exerciseId: 'dips', name: 'Dips', sets: [{ weight: 0, reps: 12 }, { weight: 0, reps: 13 }, { weight: 0, reps: 12 }] },
+  ]));
+  await writeFile(path.join(dir, '2026-08-17 push.md'), session('2026-08-17', [
+    { exerciseId: 'dips', name: 'Dips', sets: [{ weight: 0, reps: 13 }, { weight: 0, reps: 12 }, { weight: 0, reps: 12 }] },
+  ]));
+  const prog2 = await computeProgressions(vault, routines);
+  assert.equal(prog2['push:dips']?.kind, 'reps');
+  assert.equal(prog2['push:dips']?.delta, 1);
+});

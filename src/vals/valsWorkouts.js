@@ -175,7 +175,12 @@ export function valsWorkouts(app, ctx) {
   const setsLabel = (tt, sets) => sets && sets.length ? sets.map((s) => formatSet(tt, s)).join(', ') : 'Not yet performed';
 
   const progressions = st.liveWorkoutProgressions || {};
-  const coachChipLabel = (c) => c ? (c.kind === 'weight' ? `COACH +${c.delta}KG` : `COACH +${c.delta} REP`) : null;
+  const coachChipLabel = (c) => c ? (c.kind === 'outgrown' ? 'COACH: OUTGROWN →' : c.kind === 'weight' ? `COACH +${c.delta}KG` : `COACH +${c.delta} REP`) : null;
+  // an OUTGROWN chip is a doorway, not a number: tapping it opens the Coach
+  // with the prescription-change conversation already started
+  const coachChipAsk = (c, name) => (c && c.kind === 'outgrown')
+    ? () => { app.setState({ trainTab: 'coach' }); app.doCoach(`My ${name} has outgrown its rep target (${c.evidence}) — propose the concrete change: weighted, a harder variation from my library, or new targets. Make the case.`); }
+    : null;
 
   const routineDetailExercises = openRoutine ? openRoutine.exercises.map((e, i, arr) => ({
     exerciseId: e.exerciseId,
@@ -243,6 +248,7 @@ export function valsWorkouts(app, ctx) {
       ],
     }),
     coachLabel: coachChipLabel(e.coach), coachEvidence: e.coach?.evidence || null,
+    coachAsk: coachChipAsk(e.coach, e.name),
     weightHint: e.weightHint || null,
     // last session, verbatim — so a coach-raised prefill is a visible choice,
     // not a silent replacement of what he actually lifted

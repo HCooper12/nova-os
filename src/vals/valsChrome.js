@@ -28,7 +28,7 @@ export function valsChrome(app, ctx) {
     { icon: 'III.', iconColor: 'var(--nv-gold)', label: 'Memory Galaxy', hint: 'GO', run: go('galaxy') },
     { icon: 'IV.', iconColor: 'var(--nv-gold)', label: 'Claude Code', hint: 'GO', run: go('code') },
     { icon: 'V.', iconColor: 'var(--nv-gold)', label: 'Inbox — capture anything', hint: 'GO', run: go('inbox') },
-    { icon: 'VI.', iconColor: 'var(--nv-gold)', label: 'Recipes', hint: 'GO', run: go('recipes') },
+    { icon: 'VI.', iconColor: 'var(--nv-gold)', label: 'Fuel', hint: 'GO', run: go('recipes') },
     { icon: 'VII.', iconColor: 'var(--nv-gold)', label: 'Shopping List', hint: 'GO', run: go('shopping') },
     { icon: 'VIII.', iconColor: 'var(--nv-gold)', label: 'To-Do — synced with Todoist', hint: 'GO', run: go('todos') },
     { icon: 'IX.', iconColor: 'var(--nv-gold)', label: 'Train — workouts', hint: 'GO', run: go('workouts') },
@@ -207,7 +207,7 @@ export function valsChrome(app, ctx) {
     navVault: [
       // counts: live numbers when synced, mock numbers only in demo mode,
       // and an honest "—" when configured but not yet synced (offline)
-      Object.assign(mkNav('Recipes', 'VI.', 'recipes'), { count: usingLiveRecipes ? String(st.liveRecipes.length) : demoMode ? String(app.recipes.length) : '—' }),
+      Object.assign(mkNav('Fuel', 'VI.', 'recipes'), { count: usingLiveRecipes ? String(st.liveRecipes.length) : demoMode ? String(app.recipes.length) : '—' }),
       Object.assign(mkNav('Shopping', 'VII.', 'shopping'), { count: st.liveShoppingList ? String(shoppingItems.length) : demoMode ? '0' : '—' }),
       Object.assign(mkNav('To-Do', 'VIII.', 'todos'), { count: ctx.todosOpenCount != null ? String(ctx.todosOpenCount) : demoMode ? '0' : '—' }),
       Object.assign(mkNav('Train', 'IX.', 'workouts'), { count: usingLiveWorkouts ? String(liveRoutines.length) : '—' }),

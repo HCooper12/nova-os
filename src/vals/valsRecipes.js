@@ -195,6 +195,17 @@ export function valsRecipes(app, ctx) {
     // the redesigned Fuel hero: ring + coloured macros + the gap-fill line
     // ("54g to go — dinner covers 44, the pouch does the last 10") — the
     // feature he called out as loved; deterministic, always honest
+    // TRAINING × FUEL — the cross-reference agent's card on the Fuel screen
+    // (mockup v2): the sharpest finding with the draft action. Hidden when
+    // the agent has nothing true to say — never filler.
+    fuelCross: (() => {
+      const f = (st.liveFuelCross?.findings || [])[0];
+      if (!f || !usingLiveRecipes) return null;
+      return {
+        line: f.line,
+        draft: () => { app.navigate('workouts', { trainTab: 'coach' }); app.doCoach(`Your fuel cross-check flags: ${f.line} Draft the concrete fix — a rotation swap, a target change, whatever actually closes it — as a proposal I can approve.`); },
+      };
+    })(),
     fuelHero: usingLiveRecipes && proteinTarget != null ? (() => {
       const gap = Math.max(0, Math.round(proteinTarget - proteinCurrent));
       const unconsumed = Object.entries(rotation?.slots || {})
@@ -283,7 +294,8 @@ export function valsRecipes(app, ctx) {
     submitFoodLog: () => app.submitFoodLog(),
     // describe-it search — words instead of photos, same preview path
     foodDescribeInput: st.foodDescribeInput || '',
-    setFoodDescribeInput: (e) => app.setState({ foodDescribeInput: e.target.value }),
+    setFoodDescribeInput: (e) => app.setState({ foodDescribeInput: typeof e === 'string' ? e : e.target.value }),
+    foodDescribeValue: st.foodDescribeInput || '',
     describeFoodKey: (e) => { if (e.key === 'Enter') app.describeFoodSearch(); },
     describeFoodSearch: () => app.describeFoodSearch(),
     foodScanNote: st.foodScanNote,

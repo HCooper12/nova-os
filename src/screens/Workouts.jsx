@@ -415,7 +415,13 @@ function SessionView({ v }) {
                     hoverStyle="color:var(--nv-cy);border-color:color-mix(in srgb, var(--nv-cy) 45%, transparent)">▶ FORM</Interactive>
                 )}
                 {e.skipped && <span style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;color:var(--nv-warn)")}>SKIPPED TODAY</span>}
-                {!e.skipped && e.coachLabel && <span title={e.coachEvidence || ''} style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-cy);border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);background:color-mix(in srgb, var(--nv-cy) 08%, transparent)")}>{e.coachLabel}</span>}
+                {!e.skipped && e.coachLabel && (e.coachAsk ? (
+                  <Interactive as="span" onClick={e.coachAsk} title={e.coachEvidence || ''}
+                    base={css("cursor:pointer;font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-gold);border:1px solid color-mix(in srgb, var(--nv-gold) 45%, transparent);background:color-mix(in srgb, var(--nv-gold) 08%, transparent)")}
+                    hoverStyle={{ filter: 'brightness(1.15)' }}>{e.coachLabel}</Interactive>
+                ) : (
+                  <span title={e.coachEvidence || ''} style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-cy);border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);background:color-mix(in srgb, var(--nv-cy) 08%, transparent)")}>{e.coachLabel}</span>
+                ))}
                 {!e.skipped && e.focusNote && <span style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-gold);border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);background:color-mix(in srgb, var(--nv-gold) 08%, transparent)")}>FOCUS: {e.focusNote}</span>}
               </Interactive>
               <span style={css("display:flex;align-items:center;gap:10px")}>
