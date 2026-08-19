@@ -32,6 +32,7 @@ import { startMealPrepScheduler } from './lib/mealPrep.js';
 import { startFoodSuggestScheduler } from './lib/foodSuggest.js';
 import { startTrainingCheckScheduler } from './lib/trainingCheck.js';
 import { startCoachCadenceScheduler } from './lib/coachCadence.js';
+import { startCoachReflectionScheduler } from './lib/coachReflection.js';
 import { startWeekPlanScheduler } from './lib/weekPlan.js';
 import { startHealthDropsScheduler } from './lib/healthDrops.js';
 import { snapshotRouter } from './routes/snapshot.js';
@@ -203,6 +204,7 @@ async function main() {
   ).catch(() => {});
 
   startHealthInsightScheduler(process.env.VAULT_PATH);
+  startCoachReflectionScheduler(process.env.VAULT_PATH);
   startDispatchScheduler(process.env.VAULT_PATH);
   startCompostScheduler(process.env.VAULT_PATH);
   startTodoistScheduler(process.env.VAULT_PATH);

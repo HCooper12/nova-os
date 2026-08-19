@@ -41,3 +41,32 @@ test('unknown kind falls back to works; short insights are refused upstream (val
   const { kind } = await appendLearning(vault, { insight: 'evening sessions beat morning ones for him', kind: 'nonsense' });
   assert.equal(kind, 'works');
 });
+
+test('normalizeReflection: clamps, validates kinds, honours silence', async () => {
+  const { normalizeReflection } = await import('../lib/coachReflection.js');
+  // sloppy model output → safe reflection
+  const r = normalizeReflection({
+    learnings: [
+      { insight: 'evening sessions consistently outperform morning ones', kind: 'works', reason: 'volume +12% across 4 evening sessions' },
+      { insight: 'short', kind: 'works' },                          // too short — dropped
+      { insight: 'high-rep leg work gets cut short repeatedly', kind: 'bogus' }, // kind falls back
+      { insight: 'a', kind: 'works' },
+      { insight: 'protein lands only when lunch is pre-planned the night before', kind: 'nutrition' },
+      { insight: 'one too many — beyond the cap', kind: 'works' },
+    ],
+    outreach: '  Your pull volume dropped 30% this week while notes say "felt easy" — those two things cannot both be true. Worth ten minutes tomorrow.  ',
+    quiet_reason: '',
+  });
+  assert.equal(r.learnings.length, 3, 'capped at 3, invalid dropped');
+  assert.equal(r.learnings[1].kind, 'works', 'unknown kind falls back');
+  assert.match(r.outreach, /cannot both be true/);
+  // silence is first-class
+  const quiet = normalizeReflection({ learnings: [], outreach: 'too short', quiet_reason: 'steady week, nothing new to say' });
+  assert.equal(quiet.outreach, null, 'sub-20-char outreach is not worth sending');
+  assert.equal(quiet.learnings.length, 0);
+  assert.match(quiet.quietReason, /steady week/);
+  // garbage in → silent reflection out
+  const junk = normalizeReflection(null);
+  assert.deepEqual(junk.learnings, []);
+  assert.equal(junk.outreach, null);
+});

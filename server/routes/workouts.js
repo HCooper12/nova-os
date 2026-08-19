@@ -45,6 +45,14 @@ export function workoutsRouter(vaultPath) {
       res.json(await crossCheck(vaultPath));
     } catch (err) { next(err); }
   });
+  // the nightly reflection, on demand (guarded by the once-a-day state
+  // unless forced) — the same run the 03:00 window performs
+  router.post('/train/reflection/run', async (req, res, next) => {
+    try {
+      const { runReflection } = await import('../lib/coachReflection.js');
+      res.json(await runReflection(vaultPath, { force: req.body?.force === true }));
+    } catch (err) { next(err); }
+  });
   router.post('/train/fuel-cross/raise', async (req, res, next) => {
     try {
       const { raiseFuelFindings } = await import('../lib/coachCadence.js');

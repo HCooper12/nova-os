@@ -30,8 +30,18 @@ const { retryRecord } = await import('../lib/inbox.js');
 const { createRecord, getRecord } = await import('../lib/inboxStore.js');
 
 test.after(async () => {
-  await rm(dataDir, { recursive: true, force: true });
-  await rm(vault, { recursive: true, force: true });
+  // The store's writes are fire-and-forget past the last assertion — a
+  // trailing persist can land WHILE rm walks the tree, and macOS then
+  // throws ENOTEMPTY and fails the whole file (the suite's only flake,
+  // 2-of-3 runs on 18 Aug). Let stragglers settle, then retry; a tmpdir
+  // the OS will reap anyway is never worth a red suite.
+  await new Promise((res) => setTimeout(res, 250));
+  for (const dir of [dataDir, vault]) {
+    for (let i = 0; i < 4; i++) {
+      try { await rm(dir, { recursive: true, force: true }); break; }
+      catch { await new Promise((res) => setTimeout(res, 200)); }
+    }
+  }
 });
 
 // 20s, not 5: this waits on a spawned classifier process, and the suite
