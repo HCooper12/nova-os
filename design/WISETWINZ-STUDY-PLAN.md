@@ -121,3 +121,11 @@ single-front-door, and the roadmap must include our version regardless.
 - Frames: yt-dlp video download 403-blocked by YouTube; captured via controlled browser instead. Playback throttled during the second capture — reported, not hidden.
 - IG reel: covered by its YouTube twin MxMpcOqB8_o (same build/demo/week); substitution recorded in NOTES rather than a silent skip.
 - No Nova code changed during the study, per plan.
+
+## Video access — SOLVED (20 Aug)
+YouTube 403s logged-out downloads (captions were always fine). Fixed with
+authenticated cookies exported while Chrome was closed:
+`~/.config/watch/yt-cookies.txt` (0600). Use with
+`yt-dlp --cookies ~/.config/watch/yt-cookies.txt …` — verified pulling a
+full 8.7 MB video. Cookies expire eventually; re-export the same way
+(Chrome must be quit for the DB to unlock).
