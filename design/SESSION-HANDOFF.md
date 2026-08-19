@@ -79,6 +79,25 @@ caught a live reply-loss bug in the act (fixed same day).
 3. Coach 'resource' action end-to-end with a real web find (rails and
    prompt shipped; not yet exercised by a live Coach turn).
 
+**19 AUG EVE — overflow glitch + Coach expertise items 1+3 SHIPPED:**
+- Fuel left-shift glitch: 5 icons + input overflowed 390px → page scrolled
+  sideways. Bar is now input+mic+camera+barcode (camera = iOS action sheet,
+  shoot OR library). Verified: 0px horizontal overflow.
+- GHOST SESSIONS: debounced draft upload in flight when he discards landed
+  AFTER the server clear → immortal 'Workout in progress' banner. Fixed
+  with a clear-tombstone; saves captured strictly before it are dropped.
+  (CI caught a same-ms tie-break bug in v1 — strictly-before is the rule.)
+- ITEM 1: coachKnowledge.js — 'Coaching Principles' (seeded doctrine, his
+  to edit) + 'What Works For Hayden' (client file, written ONLY via the
+  new 'learn' proposal action, undo removes the exact line). Both ride
+  every Coach conversation; BOTH PAGES SEEDED IN HIS REAL VAULT.
+- ITEM 3: sessionDebrief — saving a session fires a composition-only
+  model call (greeting architecture, sonnet default) over computed facts;
+  Telegram delivers the coach's unprompted reaction. NOT yet observed
+  live (fires on his next real session save).
+- Remaining from his expertise ask: item 2, the nightly reflection agent
+  (review week → update client file → open at most one conversation).
+
 **19 AUG PM — three more of his reports, fixed + screen-verified:**
 - "Coach still only adds reps to pull-ups": OUTGROWN engine kind — every
   set ≥ target-high+2 twice running stops rep suggestions, gold chip is
