@@ -79,6 +79,24 @@ caught a live reply-loss bug in the act (fixed same day).
 3. Coach 'resource' action end-to-end with a real web find (rails and
    prompt shipped; not yet exercised by a live Coach turn).
 
+**19 AUG PM2 — cockpit ergonomics + instant resume + the built Shortcut:**
+- Set row FLEXES at 390px (tick was pushed off — his report); RPE/RIR/TYPE
+  headers are tap-to-explain Terms; SET TYPE glossary entry added.
+- Notes are auto-growing textareas (long note verified at phone width).
+- PARKED SESSION renders from device state alone — session view + tab bar
+  no longer gated on usingLiveWorkouts (the 12s snapshot was the wait);
+  TODAY hero shows gold SESSION IN PROGRESS / ▶ RESUME instead of BEGIN.
+- Workout durations parse minutes, seconds, and clock strings (Apple's
+  Duration detail serialises unpredictably) — tested all dialects.
+- THE SHORTCUT IS BUILT AND SIGNED: 'Nova Workout Push signed.shortcut'
+  ON HIS DESKTOP, import sheet already open in Shortcuts on the Mac —
+  ONE CLICK ('Add Shortcut') imports; iCloud syncs it to the iPhone.
+  Property names verified against Apple's dyld cache (Workout Type /
+  Active Energy Burned / Duration); latest-10-idempotent design avoids
+  fragile date filters. He then adds the 'when a workout ends'
+  automation on the phone. ALSO: an osascript accessibility prompt from
+  my probe may still be up — DENY it, it's not needed.
+
 **19 AUG LATE — Apple Health workout ingest: server side LIVE, phone next:**
 - healthWorkouts.js + POST/GET /api/health-data/workouts: Shortcut-shaped
   tolerance, own-date grouping, idempotent merge (live-verified twice on a
