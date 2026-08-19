@@ -79,6 +79,24 @@ caught a live reply-loss bug in the act (fixed same day).
 3. Coach 'resource' action end-to-end with a real web find (rails and
    prompt shipped; not yet exercised by a live Coach turn).
 
+**19 AUG PM — three more of his reports, fixed + screen-verified:**
+- "Coach still only adds reps to pull-ups": OUTGROWN engine kind — every
+  set ≥ target-high+2 twice running stops rep suggestions, gold chip is
+  a doorway to the Coach, TODAY focus leads with it, context carries an
+  unprompted-raise order with a concrete-alternative requirement. Tested.
+- Fuel ≠ mockup: renamed Recipes→FUEL (labels only, route unchanged);
+  hero holds side-by-side on phone; TRAINING × FUEL cross-check card ON
+  the Fuel screen (snapshot slice fuelCross in BOTH maps); one bar with
+  dictation mic; day chips + manual macros folded away (manual auto-
+  opens when a photo-scan lands numbers). Phone-width screen receipts
+  in ~/Desktop/nova-design-history/2026-08-19-fuel/.
+- His open question (answered in chat, roadmap pending his pick):
+  how to give Coach deeper standing expertise + self-initiated
+  behaviour. Candidate lanes: curated knowledge pages the Coach reads
+  (principles per goal, his response history), a nightly reflection
+  agent that reviews the week and OPENS conversations via inbox/
+  Telegram, and a post-session debrief turn. NOT built yet.
+
 **19 AUG — HIS TWO BUG REPORTS, both fixed + screen-verified same day:**
 - "FORM not in my actual platform but you said it was" — TRUE claim
   failure: chip required a curated link, none existed. Now: FORM on
