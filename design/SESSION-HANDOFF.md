@@ -13,6 +13,27 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**20 AUG (later) — HIS TWO CORRECTIONS LANDED.** (1) The reactor icon is
+UNWIRED everywhere: he wants the core he already chose animated, not a
+new design. Both real engines (filament + hologram) are now live-speech
+dynamic in NovaCore.jsx — audio-accelerated integrated clock, gold/
+violet state tint, amplitude flares geometry/alpha/weight, heart bloom
+for legibility at 44px; idle is untouched. Voice screen, VoicePresence,
+FloatingCore and the tab orb all render HIS coreStyle (vals carry it).
+The 'reactor' engine still exists but nothing uses it. (2) SECOND-BRAIN
+FIX: "what's the last video I gave you?" answered from chat memory.
+Now: server/lib/platformActivity.js (the front-door ledger — video/
+study/research lanes off the inbox rails) rides buildAskContext turn 1
+AND resumed /ask turns via resumedRefreshContext → liveLine (his PWA
+session persists for DAYS in localStorage; resumed turns previously got
+NOTHING fresh). Ask prompt now states the CEO framing: front door of
+the whole platform, specialists beneath, chat-memory-only answers are a
+failure. Verified vs real data: ledger line 1 = the WiseTwinz study.
+375/375 tests. Screenshots in nova-design-history/wisetwinz-study/
+(core-phone-f1/f2 show real motion; core-desktop shows the presence
+docked). NOT yet verified: a real end-to-end ask through the new
+liveLine path (server restarted with it; harness never sends asks).
+
 **20 AUG — THE WISETWINZ ROADMAP IS FULLY BUILT.** C1 front door (⌘K/
 ✦ ASK routes anything deterministically), A1 verdict cards (tired/
 stalled/protein), C2 Claude Code in Nova (diff + commit + undoable
