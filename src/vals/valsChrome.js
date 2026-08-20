@@ -222,6 +222,24 @@ export function valsChrome(app, ctx) {
       Object.assign(mkNav('Operations', 'XIV.', 'ops'), { count: st.liveOps ? String(st.liveOps.pending) : demoMode ? '0' : '—' }),
       mkNav('Settings', 'XV.', 'settings'),
     ],
+    // C3 — the job tray: everything in flight RIGHT NOW, derived from
+    // state that already exists (classifying inbox records + the code
+    // lane). Completion pings were already wired (push + Telegram fire
+    // when a record flips pending); this makes the in-between VISIBLE.
+    jobTray: (() => {
+      const KIND_NAME = { research: 'Research', video: 'Watching', study: 'Study', distill: 'Distilling', 'brain-week': 'Brain week' };
+      const jobs = (st.liveInbox?.items || [])
+        .filter((r) => r.status === 'classifying')
+        .map((r) => ({ id: r.id, label: `${KIND_NAME[r.kind] || 'Filing'} — ${(r.text || '').slice(0, 60)}`, kind: r.kind || 'capture' }));
+      if (st.codeBusy) jobs.unshift({ id: 'code', label: 'Claude Code — session running', kind: 'code', go: () => app.navigate('code') });
+      if (st.verdictBusy) jobs.unshift({ id: 'verdict', label: 'Building a verdict…', kind: 'verdict' });
+      return {
+        jobs,
+        open: !!st.jobTrayOpen,
+        toggle: () => app.setState({ jobTrayOpen: !st.jobTrayOpen }),
+        goInbox: () => { app.setState({ jobTrayOpen: false }); app.navigate('inbox'); },
+      };
+    })(),
     agentsGroupLabel: `AGENTS · ${agentsLiveCount} OF ${AGENTS.length} LIVE`,
     // Honest lights: a dot PULSES only while its agent is actually working —
     // an in-flight job this client started, OR a classifying record on the

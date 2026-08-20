@@ -269,7 +269,7 @@ export function valsInbox(app, ctx) {
     captured: r.text || '',
     previewShort: preview.length > PREVIEW_CLAMP ? `${preview.slice(0, PREVIEW_CLAMP)}…` : preview,
     toggleExpand: () => app.toggleInboxExpand(r.id),
-    source: r.kind === 'review' ? 'DAILY REVIEW' : r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.kind === 'guardian' ? 'GUARDIAN' : r.kind === 'cfo' || r.kind === 'money-import' ? 'CFO' : r.kind === 'meal-prep' ? 'MEAL PREP' : r.kind === 'food-suggestion' ? 'NUTRITION' : r.kind === 'calendar' ? 'SCHEDULE' : r.kind === 'training-check' ? 'TRAINING' : r.kind === 'week-plan' ? 'COMMANDER' : r.kind === 'plan-today' ? 'PLANNER' : r.kind === 'pattern' ? 'SCOUT' : r.kind === 'autonomy' ? 'TRUST LADDER' : r.kind === 'distill' ? 'DISTILLER' : r.kind === 'coach' || r.kind === 'weekly-debrief' ? 'COACH' : r.kind === 'research' ? 'RESEARCHER' : r.kind === 'video' ? 'WATCHER' : r.kind === 'brain-week' ? 'BRAIN WEEK' : r.kind === 'followup' ? 'CALENDAR' : r.kind === 'studio' ? 'STUDIO' : r.kind === 'fuel-cross' ? 'FUEL × TRAINING' : r.source === 'voice' ? 'VOICE' : 'TYPED',
+    source: r.kind === 'review' ? 'DAILY REVIEW' : r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.kind === 'guardian' ? 'GUARDIAN' : r.kind === 'cfo' || r.kind === 'money-import' ? 'CFO' : r.kind === 'meal-prep' ? 'MEAL PREP' : r.kind === 'food-suggestion' ? 'NUTRITION' : r.kind === 'calendar' ? 'SCHEDULE' : r.kind === 'training-check' ? 'TRAINING' : r.kind === 'week-plan' ? 'COMMANDER' : r.kind === 'plan-today' ? 'PLANNER' : r.kind === 'pattern' ? 'SCOUT' : r.kind === 'autonomy' ? 'TRUST LADDER' : r.kind === 'distill' ? 'DISTILLER' : r.kind === 'coach' || r.kind === 'weekly-debrief' ? 'COACH' : r.kind === 'research' ? 'RESEARCHER' : r.kind === 'video' ? 'WATCHER' : r.kind === 'brain-week' ? 'BRAIN WEEK' : r.kind === 'followup' ? 'CALENDAR' : r.kind === 'studio' ? 'STUDIO' : r.kind === 'fuel-cross' ? 'FUEL × TRAINING' : r.kind === 'study' ? 'STUDY' : r.source === 'voice' ? 'VOICE' : 'TYPED',
     status: r.status,
     route: r.decision ? (ROUTE_META[r.decision.route] || ROUTE_META.note) : null,
     confidence: r.decision?.confidence || null,
@@ -286,7 +286,7 @@ export function valsInbox(app, ctx) {
     // retry only where the record still carries its full input: a capture's
     // text, a research question, or a video URL. Scheduled drafts re-run on
     // their own.
-    canRetry: r.status === 'error' && (!r.kind || r.kind === 'research' || r.kind === 'video'),
+    canRetry: r.status === 'error' && (!r.kind || r.kind === 'research' || r.kind === 'video' || r.kind === 'study'),
     approve: () => app.inboxAction(r.id, 'approve'),
     // Declining COACH advice asks why — the reason rides the record so the
     // Coach learns from it (and never re-asks). Everything else discards

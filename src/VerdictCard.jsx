@@ -49,6 +49,32 @@ export function VerdictCard({ v: verdict, onClose, onSpeak }) {
           </div>
         )}
 
+        {/* F1: the day-curve — peak band, trough, and a NOW marker */}
+        {verdict.curve?.points?.length > 0 && (() => {
+          const pts = verdict.curve.points;
+          const X = (h) => ((h - 6) / 16) * 300 + 10;
+          const Y = (v2) => 86 - (v2 / 100) * 72;
+          const line = pts.map((p, i) => `${i ? 'L' : 'M'}${X(p.h).toFixed(1)},${Y(p.v).toFixed(1)}`).join(' ');
+          const [ps, pe] = verdict.curve.peak || [];
+          const nowH = verdict.curve.now;
+          return (
+            <div style={css('margin-top:16px')}>
+              <svg viewBox="0 0 320 100" style={{ width: '100%', height: 'auto' }} aria-label="Performance curve through the day">
+                {ps != null && <rect x={X(ps)} y="8" width={X(pe) - X(ps)} height="82" fill="color-mix(in srgb, var(--nv-cy) 10%, transparent)" rx="4" />}
+                {verdict.curve.trough != null && <line x1={X(verdict.curve.trough)} y1="8" x2={X(verdict.curve.trough)} y2="90" stroke="color-mix(in srgb, var(--nv-warn) 45%, transparent)" strokeDasharray="3 4" />}
+                <path d={line} fill="none" stroke="var(--nv-cy)" strokeWidth="2.4" strokeLinecap="round" style={{ filter: 'drop-shadow(0 0 6px rgba(89,230,255,.5))' }} />
+                {nowH >= 6 && nowH <= 22 && (() => {
+                  const np = pts.find((p) => p.h === nowH);
+                  return np ? <circle cx={X(np.h)} cy={Y(np.v)} r="4.5" fill="var(--nv-gold)" style={{ filter: 'drop-shadow(0 0 6px rgba(224,178,106,.8))' }} /> : null;
+                })()}
+                {[6, 10, 14, 18, 22].map((h) => (
+                  <text key={h} x={X(h)} y="99" textAnchor="middle" style={{ font: '500 7px var(--nv-font-mono)', fill: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}>{((h + 11) % 12) + 1}{h < 12 ? 'a' : 'p'}</text>
+                ))}
+              </svg>
+            </div>
+          );
+        })()}
+
         {verdict.equation && (
           <div style={css(`margin-top:16px;text-align:center;font:500 clamp(10px,2.6vw,12.5px) ${M};letter-spacing:.1em;color:color-mix(in srgb, var(--nv-ink) 62%, transparent);border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding:11px 4px`)}>{verdict.equation}</div>
         )}

@@ -1085,6 +1085,10 @@ export async function retryRecord(vaultPath, id) {
     const { retryWatch } = await import('./watcher.js');
     return retryWatch(vaultPath, record);
   }
+  if (record.kind === 'study') {
+    const { retryStudy } = await import('./studyLane.js');
+    return retryStudy(vaultPath, record);
+  }
   if (record.kind) throw new Error('this draft comes from a scheduled agent — it re-runs on its own schedule; discard this copy');
   const updated = await updateRecord(id, { status: 'classifying', error: null });
   runClassification(vaultPath, updated);

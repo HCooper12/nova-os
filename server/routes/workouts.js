@@ -177,6 +177,16 @@ export function workoutsRouter(vaultPath) {
   router.post('/workouts/sessions', async (req, res, next) => {
     try {
       const session = await completeSession(vaultPath, req.body);
+      // D2 — the reward moment: PRs computed HERE, synchronously, so the
+      // save response carries them and the client can celebrate on the spot
+      // (Telegram still pings separately via celebratePRs).
+      let prs = [];
+      try {
+        const { prsInSession } = await import('../lib/trainingAnalytics.js');
+        const all = await loadSessions(vaultPath, { limit: 60 });
+        const full = all.find((s2) => s2.date === session.date && s2.routineId === session.routineId) || session;
+        prs = prsInSession(all, full).slice(0, 3);
+      } catch { /* a missing celebration is a non-event */ }
       // Coach's receipt rides the rails — never blocks the save
       draftSessionSummary(vaultPath, session).catch(() => {});
       // a PR detected on save is celebrated the moment it exists — the
@@ -185,7 +195,7 @@ export function workoutsRouter(vaultPath) {
       // the coach at the rack: one unprompted reaction to THIS session,
       // composed from computed facts, delivered via Telegram (item 3)
       import('../lib/coachCadence.js').then(({ sessionDebrief }) => sessionDebrief(vaultPath, session)).catch(() => {});
-      res.json({ session });
+      res.json({ session, prs });
     } catch (err) {
       res.status(400).json({ error: err.message });
     }

@@ -45,6 +45,7 @@ export function valsWorkouts(app, ctx) {
       // the plateau card now opens a VERDICT first — evidence before advice
       askPlateau: (name) => app.openVerdict('stalled', name),
       askTired: () => app.openVerdict('tired'),
+      askPeak: () => app.openVerdict('peak'),
       askVolume: (muscles) => { app.setState({ trainTab: 'coach' }); app.doCoach(`My weekly sets for ${muscles} are under target for my goal — how should I add volume?`); },
     },
   };

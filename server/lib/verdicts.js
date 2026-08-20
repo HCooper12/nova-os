@@ -22,7 +22,7 @@ const pad = (n) => String(n).padStart(2, '0');
 const hm = (mins) => `${Math.floor(mins / 60)}H ${pad(Math.round(mins % 60))}M`;
 const dayAge = (d) => Math.round((new Date(new Date().toDateString()) - new Date(`${d}T12:00:00`)) / 86400000);
 
-export const VERDICT_KINDS = ['tired', 'stalled', 'protein'];
+export const VERDICT_KINDS = ['tired', 'stalled', 'protein', 'peak'];
 
 function insufficient(question, title, missing) {
   return {
@@ -191,7 +191,106 @@ export async function proteinVerdict(vaultPath) {
   };
 }
 
+/* ----------------------- WHEN AM I AT MY BEST? ------------------------- */
+// F1 — the WiseTwinz Peak Tracker, done deterministically: a day-curve from
+// a standard two-peak circadian base, shifted by HIS measured recovery
+// (sleep vs his own typical, HRV vs baseline, resting-HR drift), with the
+// afternoon dip deepened by short sleep. No model; every adjustment is a
+// named, visible driver. Honest floor: with no recovery signal at all,
+// there is no forecast — a confident curve from nothing is astrology.
+const CIRCADIAN = [[6, 42], [7, 56], [8, 70], [9, 83], [10, 90], [11, 92], [12, 86], [13, 73], [14, 62], [15, 64], [16, 74], [17, 82], [18, 80], [19, 74], [20, 64], [21, 52], [22, 40]];
+
+export async function peakVerdict(vaultPath) {
+  const { loadRecentDays } = await import('./healthData.js');
+  const days = (await loadRecentDays(14)).filter((d) => d.date);
+
+  const drivers = [];
+  let shift = 0;
+  let dipExtra = 0;
+
+  // sleep vs HIS typical (75th percentile), same definition as the tired card
+  const pool = days.filter((d) => d.sleepAsleepMinutes != null).map((d) => d.sleepAsleepMinutes).sort((a, b) => a - b);
+  const need = pool.length >= 4 ? pool[Math.floor(pool.length * 0.75)] : null;
+  const lastSleep = [...days].reverse().find((d) => d.sleepAsleepMinutes != null && dayAge(d.date) <= 1);
+  if (lastSleep && need != null) {
+    const gapH = (need - lastSleep.sleepAsleepMinutes) / 60;
+    const adj = Math.max(-18, Math.min(4, -gapH * 6));
+    shift += adj;
+    if (gapH > 0.75) dipExtra = Math.min(8, gapH * 4);
+    drivers.push({ n: drivers.length + 1, label: 'SLEEP', value: `${adj >= 0 ? '+' : ''}${Math.round(adj)}`, note: `${(lastSleep.sleepAsleepMinutes / 60).toFixed(1)}h against your ${(need / 60).toFixed(1)}h typical${gapH > 0.75 ? ' — deeper afternoon dip' : ''}`, tone: adj < -5 ? 'warn' : 'good' });
+  }
+
+  const withHrv = days.filter((d) => d.hrv != null);
+  const hrvBase = withHrv.filter((d) => dayAge(d.date) > 2);
+  const hrvNow = [...withHrv].reverse().find((d) => dayAge(d.date) <= 2);
+  if (hrvNow && hrvBase.length >= 3) {
+    const avg = hrvBase.reduce((s2, d) => s2 + d.hrv, 0) / hrvBase.length;
+    const pct = ((hrvNow.hrv - avg) / avg) * 100;
+    const adj = Math.max(-12, Math.min(8, pct * 0.6));
+    shift += adj;
+    drivers.push({ n: drivers.length + 1, label: 'HRV', value: `${adj >= 0 ? '+' : ''}${Math.round(adj)}`, note: `${pct >= 0 ? '+' : ''}${Math.round(pct)}% vs your ${Math.round(avg)} ms baseline`, tone: adj < -4 ? 'warn' : 'good' });
+  }
+
+  const withRhr = days.filter((d) => d.restingHeartRate != null);
+  const rhrBase = withRhr.filter((d) => dayAge(d.date) > 2);
+  const rhrNow = [...withRhr].reverse().find((d) => dayAge(d.date) <= 2);
+  if (rhrNow && rhrBase.length >= 3) {
+    const avg = rhrBase.reduce((s2, d) => s2 + d.restingHeartRate, 0) / rhrBase.length;
+    const drift = rhrNow.restingHeartRate - avg;
+    const adj = Math.max(-14, Math.min(4, -drift * 1.2));
+    if (Math.abs(drift) >= 2) {
+      shift += adj;
+      drivers.push({ n: drivers.length + 1, label: 'RESTING HR', value: `${adj >= 0 ? '+' : ''}${Math.round(adj)}`, note: `${drift >= 0 ? '+' : ''}${Math.round(drift)} bpm vs your ${Math.round(avg)} baseline`, tone: adj < -4 ? 'warn' : 'good' });
+    }
+  }
+
+  if (!drivers.length) {
+    return insufficient('When am I at my best today?', 'PEAK FORECAST', 'no recovery signal (sleep, HRV or resting heart rate) has enough history to shape a curve');
+  }
+
+  const curve = CIRCADIAN.map(([h, base]) => {
+    let v = base + shift;
+    if (h >= 13 && h <= 16) v -= dipExtra;
+    return { h, v: Math.max(5, Math.min(100, Math.round(v))) };
+  });
+  const best = [...curve].sort((a, b) => b.v - a.v)[0];
+  const peakBand = curve.filter((p) => p.v >= best.v - 6).map((p) => p.h);
+  const peakStart = Math.min(...peakBand);
+  const peakEnd = Math.max(...peakBand) + 1;
+  const troughPool = curve.filter((p) => p.h >= 12 && p.h <= 18);
+  const trough = [...troughPool].sort((a, b) => a.v - b.v)[0];
+  const fmtH = (h) => `${((h + 11) % 12) + 1}${h < 12 ? 'am' : 'pm'}`;
+
+  // calendar nudge: anything scheduled inside the trough gets named
+  let nudge = null;
+  try {
+    const { fetchEventsForDay } = await import('./calendar.js');
+    const events = await fetchEventsForDay(new Date());
+    const inTrough = (events || []).filter((e) => {
+      const hh = Number(String(e.time || '').split(':')[0]);
+      return e.time && e.time !== '00:00' && Math.abs(hh - trough.h) <= 1;
+    });
+    if (inTrough.length) nudge = `"${inTrough[0].label}" sits in your ${fmtH(trough.h)} trough — if it needs your sharpest hours, move it toward ${fmtH(peakStart)}.`;
+  } catch { /* no calendar, no nudge */ }
+
+  const nowH = new Date().getHours();
+  const nowPoint = curve.find((p) => p.h === Math.min(22, Math.max(6, nowH)));
+
+  return {
+    kind: 'peak', question: 'When am I at my best today?', title: 'PEAK FORECAST',
+    metric: { value: String(nowPoint?.v ?? best.v), unit: '%', caption: `RIGHT NOW · PEAK ${fmtH(peakStart)}–${fmtH(peakEnd)}`, pct: nowPoint?.v ?? null },
+    curve: { points: curve, peak: [peakStart, peakEnd], trough: trough.h, now: nowH },
+    equation: `CIRCADIAN BASE ${shift >= 0 ? '+' : ''}${Math.round(shift)} FROM RECOVERY${dipExtra ? ` − ${Math.round(dipExtra)} AFTERNOON (SHORT SLEEP)` : ''}`,
+    evidence: drivers,
+    verdict: `Your sharpest window today is ${fmtH(peakStart)}–${fmtH(peakEnd)}; the trough lands around ${fmtH(trough.h)}. ${nudge || `Put the hardest thing in the peak and the admin in the dip.`}`,
+    basis: `a standard two-peak day-curve shifted only by your measured recovery (${drivers.map((d) => d.label.toLowerCase()).join(', ')})`,
+    caveats: ['A forecast, not a measurement — treat it as scheduling advice.', ...(lastSleep ? [] : ['Blind spot: no sleep recorded — the curve leans on HRV and resting HR.']), ...(nudge ? [] : [])],
+    asOf: new Date().toISOString().slice(0, 10),
+  };
+}
+
 export async function buildVerdict(vaultPath, kind, arg) {
+  if (kind === 'peak') return peakVerdict(vaultPath);
   if (kind === 'tired') return tiredVerdict(vaultPath);
   if (kind === 'stalled') return stalledVerdict(vaultPath, arg);
   if (kind === 'protein') return proteinVerdict(vaultPath);

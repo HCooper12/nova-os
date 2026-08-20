@@ -39,6 +39,26 @@ export function MobileChrome({ v }) {
           NOVA<span style={css("background:linear-gradient(90deg,var(--nv-cy),var(--nv-vi));-webkit-background-clip:text;background-clip:text;color:transparent")}>·OS</span>
         </span>
         <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '7px', font: `500 9px ${M}`, letterSpacing: '.12em', color: v.statusChip.color }}><span style={{ width: '5px', height: '5px', borderRadius: '50%', background: v.statusChip.color, animation: v.statusChip.label === 'LIVE' ? 'novaPulse 2s infinite var(--nv-anim)' : 'none' }}></span>{v.statusChip.label}</span>
+        {/* C3 — in-flight work, visible: a spinner chip while agents run */}
+        {v.jobTray.jobs.length > 0 && (
+          <span onClick={v.jobTray.toggle} style={css(`cursor:pointer;display:flex;align-items:center;gap:6px;font:600 9px ${M};letter-spacing:.08em;padding:6px 10px;border:1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent);border-radius:8px;color:var(--nv-cy);background:color-mix(in srgb, var(--nv-cy) 08%, transparent)`)}>
+            <span style={css("width:9px;height:9px;border-radius:50%;border:1.5px solid var(--nv-cy);border-top-color:transparent;animation:spin 1s linear infinite")}></span>
+            {v.jobTray.jobs.length}
+          </span>
+        )}
+        {v.jobTray.open && v.jobTray.jobs.length > 0 && (
+          <div onClick={v.jobTray.toggle} style={css("position:fixed;inset:0;z-index:110")}>
+            <div onClick={(e) => e.stopPropagation()} style={css("position:absolute;top:56px;right:12px;width:min(340px,92vw);border:1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent);border-radius:14px;background:color-mix(in srgb, var(--nv-bg2) 94%, black);box-shadow:0 18px 60px rgba(0,0,0,.55);overflow:hidden;animation:fadeUp .18s ease-out")}>
+              <div style={css(`padding:11px 15px 8px;font:500 9px ${M};letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)`)}>RUNNING NOW — NOVA PINGS YOU WHEN EACH LANDS</div>
+              {v.jobTray.jobs.map((j) => (
+                <div key={j.id} onClick={j.go || v.jobTray.goInbox} style={css("cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 15px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent);font:400 12.5px var(--nv-font-ui);color:var(--nv-ink)")}>
+                  <span style={css("flex:none;width:9px;height:9px;border-radius:50%;border:1.5px solid var(--nv-cy);border-top-color:transparent;animation:spin 1s linear infinite")}></span>
+                  <span style={css("min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{j.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {v.outboxCount > 0 && (
           <span onClick={v.openOutbox} style={css(`cursor:pointer;font:600 9px ${M};letter-spacing:.08em;padding:6px 10px;border:1px solid color-mix(in srgb, var(--nv-gold) 45%, transparent);border-radius:8px;color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 08%, transparent)`)}>⇪ {v.outboxCount}</span>
         )}

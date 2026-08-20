@@ -235,6 +235,8 @@ export default class App extends Component {
     galaxySel: null, toast: null, reviewIdx: 0,
     ctxMenu: null, // the long-press / right-click menu: { x, y, title?, items }
     verdict: null, verdictBusy: false, // A1 — a question answered as a card
+    jobTrayOpen: false, // C3 — in-flight work, visible
+    prCelebration: null, // D2 — the star moment when a save contains PRs
     isMobile: typeof window !== 'undefined' && window.innerWidth < 760,
     novaTheme: getNovaTheme(), calmMode: getCalm(), coreStyle: getCoreStyle(), novaStyle: getNovaStyle(),
 
@@ -1953,7 +1955,19 @@ export default class App extends Component {
       .map((e) => ({
         exerciseId: e.exerciseId,
         name: e.name,
-        sets: e.sets.filter((s) => s.done).map((s) => ({ weight: Number(s.weight) || 0, reps: Number(s.reps) || 0, rpe: s.rpe ? Number(s.rpe) : undefined, done: true })),
+        // EVERY cockpit field rides the save — rir/setType/note/anomaly/pain
+        // were being captured on screen and silently dropped here (found
+        // 20 Aug while wiring the PR moment; the server validated them all
+        // along). Data he typed must never evaporate between UI and disk.
+        sets: e.sets.filter((s) => s.done).map((s) => ({
+          weight: Number(s.weight) || 0, reps: Number(s.reps) || 0,
+          rpe: s.rpe ? Number(s.rpe) : undefined, done: true,
+          ...(s.rir !== '' && s.rir != null ? { rir: Number(s.rir) } : {}),
+          ...(s.setType && s.setType !== 'working' ? { setType: s.setType } : {}),
+        })),
+        ...(e.note ? { note: e.note } : {}),
+        ...(e.anomaly ? { anomaly: true } : {}),
+        ...(e.pain ? { pain: e.pain } : {}),
       }))
       .filter((e) => e.sets.length);
     if (!exercises.length) {
@@ -1978,7 +1992,12 @@ export default class App extends Component {
       // the finishing-early reason (cockpit chips) rides the record so the
       // Coach can notice the pattern and open the restructure conversation
       ...(this.state.sessionCutShort ? { cutShort: this.state.sessionCutShort } : {}) };
-    api.completeWorkoutSession(conn, payload).then(() => {
+    api.completeWorkoutSession(conn, payload).then(({ prs } = {}) => {
+      if (prs?.length) {
+        this.setState({ prCelebration: prs });
+        clearTimeout(this.prT);
+        this.prT = setTimeout(() => this.setState({ prCelebration: null }), 4200);
+      }
       // finishing a makeup session consumes its carry-over
       if (carryoverId) api.removeCarryover(conn, carryoverId).then(() => this.loadCarryovers()).catch(() => {});
       const t = new Date(); t.setDate(t.getDate() + 1);
@@ -4185,6 +4204,22 @@ export default class App extends Component {
           </main>
         </div>
 
+        {this.state.prCelebration && (
+          <div onClick={() => this.setState({ prCelebration: null })}
+            style={css('position:fixed;inset:0;z-index:125;display:flex;align-items:center;justify-content:center;background:rgba(4,3,8,.7);backdrop-filter:blur(6px);animation:fadeIn .2s ease-out')}>
+            <div style={css('text-align:center;animation:prPop .5s cubic-bezier(.2,.8,.2,1)')}>
+              <div style={css('font-size:56px;line-height:1;color:var(--nv-gold);text-shadow:0 0 40px color-mix(in srgb, var(--nv-gold) 80%, transparent);animation:prStar 1.4s ease-in-out infinite')}>◆</div>
+              <div style={css('margin-top:14px;font:600 11px var(--nv-font-mono);letter-spacing:.3em;color:var(--nv-gold)')}>PERSONAL RECORD</div>
+              {this.state.prCelebration.map((p, i) => (
+                <div key={i} style={css('margin-top:8px;font:600 20px var(--nv-font-ui);color:var(--nv-ink)')}>
+                  {p.name} — {p.kind === 'weight' ? `${p.value} kg × ${p.reps}` : `e1RM ${p.value} kg`}
+                  {p.previous ? <span style={css('font-size:13px;color:var(--nv-ink60)')}>{'  '}(was {p.previous})</span> : null}
+                </div>
+              ))}
+              <div style={css('margin-top:10px;font-size:12px;color:var(--nv-ink60)')}>Earned, sir.</div>
+            </div>
+          </div>
+        )}
         {this.state.verdict && (
           <VerdictCard v={this.state.verdict}
             onClose={() => this.setState({ verdict: null })}

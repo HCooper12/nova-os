@@ -41,14 +41,11 @@ export function intentRouter(vaultPath) {
         out.record = await startResearch(vaultPath, q);
         out.said = 'Researching now — the brief lands in your Inbox with citations.';
       } else if (lane === 'study') {
-        // A multi-source study is a real job, not a one-shot. Until the
-        // Study lane runs itself, this files an honest, actionable brief
-        // rather than pretending a single research pass covered a whole
-        // catalogue — the protocol lives in design/WISETWINZ-STUDY-PLAN.md.
-        const { startResearch } = await import('../lib/researcher.js');
-        const q = `Catalogue study — ${decision.prose || 'analyse this creator'}. Sources: ${(decision.urls || []).join(' ') || '(named above)'}. Enumerate their whole body of work first, then compare against Nova's capabilities, and end with a prioritised list of what to adopt.`;
-        out.record = await startResearch(vaultPath, q);
-        out.said = 'Queued as a study — enumerating first, then comparing. It lands in your Inbox.';
+        // the real Study agent: enumerate → transcribe → synthesize vs
+        // Nova's inventory. The record carries progress and the brief.
+        const { startStudy } = await import('../lib/studyLane.js');
+        out.record = await startStudy(vaultPath, { urls: decision.urls, prose: decision.prose });
+        out.said = 'Study running — enumerating their whole catalogue, then transcribing and comparing. Nova pings you when the brief lands.';
       } else if (lane === 'code') {
         const { startMessage } = await import('../lib/claudeCode.js');
         const { jobId, sessionId } = startMessage(process.cwd(), { text });

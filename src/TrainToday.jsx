@@ -58,6 +58,11 @@ export function TrainToday({ o, actions, resume }) {
                 base={`align-self:flex-start;cursor:pointer;font:600 9px ${M};letter-spacing:.12em;padding:5px 11px;border-radius:99px;border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);color:var(--nv-cy)`}
                 hoverStyle="background:color-mix(in srgb, var(--nv-cy) 12%, transparent)">WHY AM I TIRED?</Interactive>
             )}
+            {actions?.askPeak && (
+              <Interactive as="span" onClick={actions.askPeak}
+                base={`align-self:flex-start;cursor:pointer;font:600 9px ${M};letter-spacing:.12em;padding:5px 11px;border-radius:99px;border:1px solid color-mix(in srgb, var(--nv-gold) 42%, transparent);color:var(--nv-gold)`}
+                hoverStyle="background:color-mix(in srgb, var(--nv-gold) 12%, transparent)">WHEN AM I AT MY BEST?</Interactive>
+            )}
             {o.watch?.length > 0 && (
               <div style={css('display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--nv-ink60)')}>
                 <span>Watch today</span>
