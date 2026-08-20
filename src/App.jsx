@@ -47,6 +47,7 @@ import { IngestReview } from './IngestReview.jsx';
 import { Toast } from './Toast.jsx';
 import { ContextMenuHost } from './ContextMenu.jsx';
 import { VerdictCard } from './VerdictCard.jsx';
+import { NovaLive } from './NovaLive.jsx';
 import { OutboxView } from './OutboxView.jsx';
 import { NudgeCard } from './NudgeCard.jsx';
 import { Boot } from './Boot.jsx';
@@ -237,6 +238,8 @@ export default class App extends Component {
     verdict: null, verdictBusy: false, // A1 — a question answered as a card
     jobTrayOpen: false, // C3 — in-flight work, visible
     prCelebration: null, // D2 — the star moment when a save contains PRs
+    // NOVA LIVE — native conversation from the orb, on any screen
+    liveTalkOn: false, liveInput: '', liveAsk: '', liveReply: '', liveVerdictOffer: null, liveVerdict: null,
     isMobile: typeof window !== 'undefined' && window.innerWidth < 760,
     novaTheme: getNovaTheme(), calmMode: getCalm(), coreStyle: getCoreStyle(), novaStyle: getNovaStyle(),
 
@@ -2978,8 +2981,12 @@ export default class App extends Component {
           this.setState((s) => {
             const chat = [...s.voiceChat];
             const idx = chat.map((m) => !!m.streaming).lastIndexOf(true);
-            if (idx === -1) chat.push({ at: Date.now(), who: 'nova', text, panel, proposal, research });
-            else chat[idx] = { at: Date.now(), who: 'nova', text, panel, proposal, research };
+            // his ask: show the information Nova is referring to, so the
+            // two of us are on the same page. A deterministic keyword match
+            // offers the matching EVIDENCE card; code still computes it.
+            const evidence = this.offerVerdictFor(text);
+            if (idx === -1) chat.push({ at: Date.now(), who: 'nova', text, panel, proposal, research, evidence });
+            else chat[idx] = { at: Date.now(), who: 'nova', text, panel, proposal, research, evidence };
             return { voiceChat: chat, voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal };
           });
           if (research && !research.queued) this.watchVoiceResearch(conn, research.recordId);
@@ -3306,6 +3313,50 @@ export default class App extends Component {
     this.setState({ toast: text });
     this.toastT = setTimeout(() => this.setState({ toast: null }), 3600);
   }
+  // ---------- Nova Live: native conversation from the orb ----------
+  startLiveTalk() {
+    if (!getConnection()) { this.navigate('voice'); return; }
+    this.stopSpeaking();
+    this.primeSpeech();
+    this.setState({ liveTalkOn: true, voiceConvMode: true, voiceConvPaused: false, liveInput: '', liveAsk: '', liveReply: '', liveVerdictOffer: null });
+  }
+  endLiveTalk() {
+    this.setState({ liveTalkOn: false, voiceConvMode: false, liveInput: '', liveVerdictOffer: null, liveVerdict: null });
+    this.stopSpeaking();
+  }
+  // The reply is scanned for a verdict Nova can SHOW — his ask: the pop-up
+  // information card should appear while talking, so the thing being
+  // referred to is on screen. Deterministic keyword match; the card itself
+  // is still computed by code, never by the model.
+  offerVerdictFor(text) {
+    const t = `${text}`.toLowerCase();
+    if (/\btired|fatigue|exhaust|worn out|recovery\b/.test(t)) return { kind: 'tired', label: 'Why am I tired? — the evidence' };
+    if (/\bstall|plateau|flat|not progress/.test(t)) return { kind: 'stalled', label: 'The stall, with its numbers' };
+    if (/\bprotein|floor\b/.test(t)) return { kind: 'protein', label: 'Protein this week — the maths' };
+    if (/\bpeak|sharpest|best time|schedule|focus block/.test(t)) return { kind: 'peak', label: 'Your peak window today' };
+    return null;
+  }
+  sendLiveTalk() {
+    const q = (this.state.liveInput || '').trim();
+    const conn = getConnection();
+    if (!q || !conn) return;
+    this.setState({ liveAsk: q, liveInput: '', liveReply: '', voiceBusy: true, liveVerdictOffer: null });
+    api.ask(conn, q, this.state.voiceSessionId || null).then((resp) => {
+      const land = (text, sessionId) => {
+        this.setState({ voiceBusy: false, liveReply: text, liveVerdictOffer: this.offerVerdictFor(`${q} ${text}`), ...(sessionId ? { voiceSessionId: sessionId } : {}) });
+        // keep the full transcript honest — the sheet is a window on the
+        // same conversation, not a separate one
+        this.setState((s2) => ({ voiceChat: [...s2.voiceChat, { at: Date.now(), who: 'you', text: q }, { at: Date.now(), who: 'nova', text }] }));
+        if (this.state.voiceSpeak) this.speakTtsSentence(text, () => {}); else this.maybeAutoListen();
+      };
+      if (resp.text) { land(resp.text); return; }
+      this.startPoll('ask', () => api.claudeCodeJob(conn, resp.jobId), {
+        timeoutMs: 3 * 60_000, intervalMs: 400,
+        onReady: (job) => land(job.result.text, job.result.sessionId),
+        onError: (msg) => this.setState({ voiceBusy: false, liveReply: 'Error: ' + msg }),
+      });
+    }).catch((e) => this.setState({ voiceBusy: false, liveReply: 'Error: ' + e.message }));
+  }
   // ---------- verdict cards (A1) ----------
   openVerdict(kind, of) {
     const conn = getConnection();
@@ -3606,7 +3657,7 @@ export default class App extends Component {
         // Reflex answer — code replied from the live record, no job to poll.
         // Voice leads here too: the text lands when the audio starts.
         this.setState({ voiceBusy: false });
-        const show = () => this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: resp.text }] }));
+        const show = () => this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: resp.text, evidence: this.offerVerdictFor(resp.text) }] }));
         if (this.state.voiceSpeak) this.speakTtsSentence(resp.text, show);
         else { show(); this.maybeAutoListen(); }
         return;
@@ -3780,7 +3831,7 @@ export default class App extends Component {
   // reopen the mic — the turn passes back without a tap
   maybeAutoListen() {
     if (!this.state.voiceConvMode || this.state.voiceConvPaused) return;
-    if (this.state.screen !== 'voice' || this.state.voiceBusy) return;
+    if ((this.state.screen !== 'voice' && !this.state.liveTalkOn) || this.state.voiceBusy) return;
     if ((this.speechActive || 0) > 0) return;
     this.setState((s) => ({ voiceAutoListenTick: s.voiceAutoListenTick + 1 }));
   }
@@ -4204,6 +4255,7 @@ export default class App extends Component {
           </main>
         </div>
 
+        {this.state.liveTalkOn && <NovaLive v={v} />}
         {this.state.prCelebration && (
           <div onClick={() => this.setState({ prCelebration: null })}
             style={css('position:fixed;inset:0;z-index:125;display:flex;align-items:center;justify-content:center;background:rgba(4,3,8,.7);backdrop-filter:blur(6px);animation:fadeIn .2s ease-out')}>

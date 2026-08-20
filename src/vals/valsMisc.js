@@ -93,6 +93,7 @@ export function valsMisc(app, ctx) {
     wakeWordLabel: wakeWord,
     orbMsgs: (!demoMode ? st.voiceChat : st.orbChat).map((m, i, arr) => ({
       text: m.text, typing: m.typing, panel: m.panel || null,
+      evidence: m.evidence ? { ...m.evidence, open: () => app.openVerdict(m.evidence.kind, m.evidence.of) } : null,
       // when this was said — only for messages that carry a real stamp
       // (restored pre-stamp history shows nothing rather than a guess)
       time: m.at ? new Date(m.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null,

@@ -217,6 +217,16 @@ export function Voice({ v }) {
                   </div>
                 )}
                 {m.panel && <VoicePanel panel={m.panel} />}
+                {/* the evidence card Nova is referring to, one tap away */}
+                {m.evidence && (
+                  <Interactive onClick={m.evidence.open}
+                    base={css("cursor:pointer;margin-top:9px;display:flex;align-items:center;gap:10px;border:1px solid color-mix(in srgb, var(--nv-cy) 35%, transparent);border-radius:12px;padding:10px 13px;background:color-mix(in srgb, var(--nv-cy) 07%, transparent)")}
+                    hoverStyle="background:color-mix(in srgb, var(--nv-cy) 15%, transparent)">
+                    <span style={css(`font:600 8.5px ${M};letter-spacing:.16em;color:var(--nv-cy)`)}>◆ EVIDENCE</span>
+                    <span style={css("flex:1;min-width:0;font-size:12.5px;color:var(--nv-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{m.evidence.label}</span>
+                    <span style={css("flex:none;color:var(--nv-cy)")}>→</span>
+                  </Interactive>
+                )}
               </div>
             ))}
             {v.voiceBusy && (

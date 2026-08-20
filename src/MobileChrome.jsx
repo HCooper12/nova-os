@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { css } from './css.js';
 import { TabIcon } from './TabIcon.jsx';
+import { Interactive } from './Interactive.jsx';
+import { VoiceHalo } from './VoiceHalo.jsx';
 
 const M = "var(--nv-font-mono)";
 const R = "var(--nv-font-ui)";
@@ -108,11 +110,17 @@ export function MobileChrome({ v }) {
           still a tap away on the top bar (✦ ASK) and ⌘K on desktop. */}
       <div style={css("position:fixed;left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom));z-index:72;display:flex;align-items:center;gap:2px;padding:7px 10px;border-radius:999px;border:1px solid var(--nv-edge);background:var(--nv-glass2);backdrop-filter:blur(26px);box-shadow:0 14px 44px -14px rgba(0,0,0,.65)")}>
         {dockTabs.slice(0, 3).map((t) => <DockTab key={t.screen} t={t} />)}
-        <div onClick={v.goVoice} aria-label="Talk to Nova"
-          style={{ width: '50px', height: '50px', margin: '0 3px', marginTop: '-21px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+        {/* THE mini Nova icon — his ask: tapping it starts talking right
+            here, natively, without opening the Voice section (long-press
+            still goes there). The halo breathes with real audio. */}
+        <Interactive onClick={v.startLiveTalk} onLongPress={v.goVoice} aria-label="Talk to Nova"
+          base={{ position: 'relative', width: '50px', height: '50px', margin: '0 3px', marginTop: '-21px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
             fontSize: '21px', color: 'var(--nv-on-acc)', background: 'var(--nv-acc)',
             border: '3px solid color-mix(in srgb, var(--nv-void) 80%, transparent)',
-            boxShadow: '0 10px 26px -8px var(--nv-acc)' }}>✦</div>
+            boxShadow: '0 10px 26px -8px var(--nv-acc)' }}>
+          <VoiceHalo speaking={v.novaSpeaking} listening={v.micOn} />
+          <span aria-hidden="true">✦</span>
+        </Interactive>
         {dockTabs.slice(3, 5).map((t) => <DockTab key={t.screen} t={t} />)}
         <div onClick={() => setMoreOpen(true)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', minWidth: '44px', padding: '6px 4px', cursor: 'pointer', borderRadius: '14px', color: moreOpen || !activeInDock ? 'var(--nv-acc)' : 'var(--nv-ink40)' }}>
           <TabIcon name="more" size={21} />

@@ -138,7 +138,7 @@ function makeFilamentDraw(ctx, size, opts) {
     // the heart breathes on its own and SWELLS with real audio — Nova's own
     // voice while speaking, his while dictating (audioLevel is 0 otherwise,
     // so idle behavior is exactly what it always was)
-    const pulse = 1 + 0.07 * Math.sin(t * 1.8) + audioLevel() * 0.6;
+    const pulse = 1 + 0.07 * Math.sin(t * 1.8) + audioLevel() * 1.15; // his note: it must READ as alive while speaking
     drawHeart(ctx, cx, cy, t, R * opts.heart * pulse);
     ctx.globalCompositeOperation = 'source-over';
   };
@@ -385,7 +385,7 @@ function makeHoloDraw(ctx, size, opts) {
 
     // breathing heart (shared identity across both engines) — swells with
     // real audio exactly like the filament heart
-    const pulse = 1 + 0.06 * Math.sin(t * 1.8) + audioLevel() * 0.6;
+    const pulse = 1 + 0.06 * Math.sin(t * 1.8) + audioLevel() * 1.15; // ditto — the mini orb carries the same life
     drawHeart(ctx, cx, cy, t, R * 0.125 * pulse);
     ctx.globalCompositeOperation = 'source-over';
   };

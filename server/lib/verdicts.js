@@ -22,7 +22,7 @@ const pad = (n) => String(n).padStart(2, '0');
 const hm = (mins) => `${Math.floor(mins / 60)}H ${pad(Math.round(mins % 60))}M`;
 const dayAge = (d) => Math.round((new Date(new Date().toDateString()) - new Date(`${d}T12:00:00`)) / 86400000);
 
-export const VERDICT_KINDS = ['tired', 'stalled', 'protein', 'peak'];
+export const VERDICT_KINDS = ['tired', 'stalled', 'protein', 'peak', 'volume', 'week', 'consistency', 'spend'];
 
 function insufficient(question, title, missing) {
   return {
@@ -289,7 +289,126 @@ export async function peakVerdict(vaultPath) {
   };
 }
 
+/* ------------------ AM I TRAINING ENOUGH FOR MY GOAL? ------------------ */
+export async function volumeVerdict(vaultPath) {
+  const { buildTrainOverview } = await import('./trainOverview.js');
+  const o = await buildTrainOverview(vaultPath);
+  const vol = (o.volume || []).filter((x) => x.sets != null);
+  if (!vol.length) return insufficient('Am I training enough for my goal?', 'VOLUME SIGNAL', 'no logged sets this week to count');
+  const under = vol.filter((x) => x.goalMuscle && x.sets < x.target);
+  const goalRows = vol.filter((x) => x.goalMuscle);
+  const totalGoal = goalRows.reduce((sum, x) => sum + x.sets, 0);
+  const totalTarget = goalRows.reduce((sum, x) => sum + x.target, 0);
+  return {
+    kind: 'volume', question: 'Am I training enough for my goal?', title: 'WEEKLY VOLUME vs GOAL',
+    metric: totalTarget ? { value: String(totalGoal), unit: '', caption: `OF ${totalTarget} GOAL SETS`, pct: Math.min(100, Math.round((totalGoal / totalTarget) * 100)) } : null,
+    equation: totalTarget ? `GOAL MUSCLES ${totalGoal} SETS − TARGET ${totalTarget} = ${totalGoal - totalTarget >= 0 ? '+' : ''}${totalGoal - totalTarget}` : null,
+    evidence: vol.slice(0, 6).map((x, i) => ({ n: i + 1, label: x.muscle.toUpperCase(), value: `${x.sets}/${x.target}`, note: x.goalMuscle ? 'named by your goal' : 'maintenance target', tone: x.sets < x.target ? (x.goalMuscle ? 'warn' : null) : 'good' })),
+    verdict: under.length
+      ? `${under.map((x) => x.muscle).join(', ')} ${under.length === 1 ? 'is' : 'are'} under target for the goal you set — that is where growth is being left on the table.`
+      : 'Every goal muscle is at or above its weekly target. Volume is not your limiter right now.',
+    basis: 'hard sets this week from your logged sessions; warm-ups and mobility excluded',
+    caveats: ['Sets are a proxy — effort and progression still decide the outcome.'],
+    asOf: new Date().toISOString().slice(0, 10),
+  };
+}
+
+/* -------------------------- HOW WAS MY WEEK? --------------------------- */
+export async function weekVerdict(vaultPath) {
+  const { loadSessions } = await import('./workoutSessions.js');
+  const { loadRecentDays } = await import('./foodLog.js');
+  const { totalsOf } = await import('./foodLog.js');
+  const cutoff = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
+  const sessions = (await loadSessions(vaultPath, { limit: 20 })).filter((x) => x.date >= cutoff);
+  const days = (await loadRecentDays(7)) || [];
+  const logged = days.map((d) => totalsOf(d.entries || [])).filter((d) => d.kcal >= 800);
+  if (!sessions.length && !logged.length) return insufficient('How was my week?', 'WEEK IN REVIEW', 'nothing was logged this week — no sessions, no full food days');
+  const volume = sessions.reduce((sum, x) => sum + x.exercises.reduce((v2, e) => v2 + (e.sets || []).reduce((y, st2) => y + (st2.weight || 0) * (st2.reps || 0), 0), 0), 0);
+  const cut = sessions.filter((x) => x.cutShort).length;
+  const evidence = [
+    { n: 1, label: 'SESSIONS', value: String(sessions.length), note: `${Math.round(volume).toLocaleString()} kg total volume`, tone: sessions.length >= 3 ? 'good' : 'warn' },
+  ];
+  if (logged.length) evidence.push({ n: 2, label: 'FULLY-LOGGED DAYS', value: `${logged.length}/7`, note: `avg ${Math.round(logged.reduce((sum, d) => sum + d.p, 0) / logged.length)}g protein`, tone: logged.length >= 5 ? 'good' : 'warn' });
+  if (cut) evidence.push({ n: evidence.length + 1, label: 'CUT SHORT', value: String(cut), note: sessions.filter((x) => x.cutShort).map((x) => x.cutShort).join(', '), tone: 'warn' });
+  return {
+    kind: 'week', question: 'How was my week?', title: 'THE WEEK, MEASURED',
+    metric: { value: String(sessions.length), unit: '', caption: 'SESSIONS LOGGED', pct: Math.min(100, sessions.length * 25) },
+    equation: `${sessions.length} SESSIONS · ${Math.round(volume).toLocaleString()}KG VOLUME · ${logged.length}/7 DAYS FULLY LOGGED`,
+    evidence,
+    verdict: `${sessions.length} session${sessions.length === 1 ? '' : 's'} and ${Math.round(volume).toLocaleString()}kg moved${logged.length ? `, ${logged.length} of 7 days fully logged` : ''}.${cut ? ` ${cut} finished early — worth naming why.` : ''}`,
+    basis: 'logged sessions and fully-logged food days from the last 7 days',
+    caveats: ['Only what you logged is counted.'],
+    asOf: sessions[0]?.date || new Date().toISOString().slice(0, 10),
+  };
+}
+
+/* ---------------------- AM I ACTUALLY CONSISTENT? ---------------------- */
+export async function consistencyVerdict(vaultPath) {
+  const { loadSessions } = await import('./workoutSessions.js');
+  const sessions = await loadSessions(vaultPath, { limit: 60 });
+  if (sessions.length < 4) return insufficient('Am I actually consistent?', 'CONSISTENCY SIGNAL', 'fewer than four logged sessions to judge a pattern from');
+  const weeks = new Map();
+  for (const s2 of sessions) {
+    const d = new Date(`${s2.date}T12:00:00`);
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    const k = d.toISOString().slice(0, 10);
+    weeks.set(k, (weeks.get(k) || 0) + 1);
+  }
+  const recent = [...weeks.entries()].sort((a, b) => b[0].localeCompare(a[0])).slice(0, 6);
+  const avg = recent.reduce((sum, [, n]) => sum + n, 0) / recent.length;
+  const gaps = [];
+  for (let i = 1; i < sessions.length; i++) {
+    const a = new Date(`${sessions[i - 1].date}T12:00:00`), b = new Date(`${sessions[i].date}T12:00:00`);
+    gaps.push(Math.round((a - b) / 86400000));
+  }
+  const longest = Math.max(...gaps);
+  return {
+    kind: 'consistency', question: 'Am I actually consistent?', title: 'CONSISTENCY SIGNAL',
+    metric: { value: avg.toFixed(1), unit: '/wk', caption: `OVER ${recent.length} WEEKS`, pct: Math.min(100, Math.round((avg / 4) * 100)) },
+    equation: `${sessions.length} SESSIONS ÷ ${recent.length} WEEKS = ${avg.toFixed(1)} PER WEEK · LONGEST GAP ${longest} DAYS`,
+    evidence: [
+      { n: 1, label: 'SESSIONS / WEEK', value: avg.toFixed(1), note: recent.map(([, n]) => n).join(' · ') + ' (recent weeks first)', tone: avg >= 3 ? 'good' : 'warn' },
+      { n: 2, label: 'LONGEST GAP', value: `${longest} DAYS`, note: 'between two logged sessions', tone: longest > 7 ? 'warn' : 'good' },
+    ],
+    verdict: avg >= 3
+      ? `You average ${avg.toFixed(1)} sessions a week over ${recent.length} weeks — that IS consistent. The longest gap was ${longest} days.`
+      : `You average ${avg.toFixed(1)} sessions a week over ${recent.length} weeks, with a ${longest}-day gap at worst. Frequency, not effort, is the thing limiting you.`,
+    basis: `${sessions.length} logged sessions grouped by calendar week`,
+    caveats: ['Unlogged training reads as absence here.'],
+    asOf: sessions[0]?.date || null,
+  };
+}
+
+/* ----------------------- WHERE IS MY MONEY GOING? ---------------------- */
+export async function spendVerdict(vaultPath) {
+  const { listTransactions } = await import('./money.js');
+  const all = await listTransactions({ sinceMonths: 3 }).catch(() => []);
+  const tx = (Array.isArray(all) ? all : all?.transactions || []).filter((t) => t.amount < 0);
+  if (tx.length < 5) return insufficient('Where is my money going?', 'SPEND SIGNAL', 'fewer than five recorded expenses to find a pattern in');
+  const cutoff = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
+  const recent = tx.filter((t) => (t.date || '') >= cutoff);
+  const pool = recent.length >= 5 ? recent : tx.slice(0, 40);
+  const byCat = new Map();
+  for (const t of pool) byCat.set(t.category || 'Uncategorised', (byCat.get(t.category || 'Uncategorised') || 0) + Math.abs(t.amount));
+  const rows = [...byCat.entries()].sort((a, b) => b[1] - a[1]);
+  const total = rows.reduce((sum, [, v2]) => sum + v2, 0);
+  return {
+    kind: 'spend', question: 'Where is my money going?', title: 'SPEND SIGNAL',
+    metric: { value: `$${Math.round(total).toLocaleString()}`, unit: '', caption: `${pool.length} EXPENSES${recent.length >= 5 ? ' · LAST 30 DAYS' : ''}`, pct: null },
+    equation: rows.slice(0, 3).map(([c, v2]) => `${c.toUpperCase()} $${Math.round(v2)}`).join('  +  ') + `  =  $${Math.round(rows.slice(0, 3).reduce((sum, [, v2]) => sum + v2, 0))} OF $${Math.round(total)}`,
+    evidence: rows.slice(0, 4).map(([c, v2], i) => ({ n: i + 1, label: c.toUpperCase(), value: `$${Math.round(v2).toLocaleString()}`, note: `${Math.round((v2 / total) * 100)}% of the window`, tone: i === 0 ? 'warn' : null })),
+    verdict: `${rows[0][0]} is your biggest line at $${Math.round(rows[0][1]).toLocaleString()} — ${Math.round((rows[0][1] / total) * 100)}% of $${Math.round(total).toLocaleString()} across ${pool.length} expenses.`,
+    basis: recent.length >= 5 ? 'expenses recorded in the last 30 days' : `your ${pool.length} most recent recorded expenses`,
+    caveats: ['Only what reached the ledger is counted.'],
+    asOf: pool[0]?.date || null,
+  };
+}
+
 export async function buildVerdict(vaultPath, kind, arg) {
+  if (kind === 'volume') return volumeVerdict(vaultPath);
+  if (kind === 'week') return weekVerdict(vaultPath);
+  if (kind === 'consistency') return consistencyVerdict(vaultPath);
+  if (kind === 'spend') return spendVerdict(vaultPath);
   if (kind === 'peak') return peakVerdict(vaultPath);
   if (kind === 'tired') return tiredVerdict(vaultPath);
   if (kind === 'stalled') return stalledVerdict(vaultPath, arg);
