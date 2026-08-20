@@ -311,21 +311,29 @@ export function valsChrome(app, ctx) {
     // flight RIGHT NOW, listening = the mic is genuinely open. Idle is just
     // the core, breathing. Position clears the dock on mobile; desktop has
     // no dock, so it sits in the corner.
-    floatingCore: st.screen !== 'voice' && st.screen !== 'ambient' ? {
+    // ONE Nova icon per device (his ask). On the phone that icon is the dock's
+    // centre orb — the floating one would be a second, so it is gone there.
+    // The Mac has no dock, so the floating core IS its icon.
+    floatingCore: !mob && st.screen !== 'voice' && st.screen !== 'ambient' ? {
       thinking: !!(st.voiceBusy || st.coachBusy || st.codeBusy || st.quickBusy || st.sparBusy || st.inboxCaptureBusy),
-      listening: !!st.micOn,
+      // the mic's REAL state, not the settings flag (which defaults on and
+      // used to paint the core permanently violet)
+      listening: !!st.liveMicOpen,
       // his ask: the orb starts the conversation natively, wherever he is —
       // no navigating to a Voice section. Long-press still opens the full
       // Voice screen for the transcript and the brief.
       tap: () => app.startLiveTalk(),
-      onLongPress: () => app.navigate('voice'),
+      // hold = the words (his ask). The full Voice screen is a nav away.
+      onLongPress: () => app.toggleLiveText(),
       speaking: !!st.voiceSpeaking,
       coreStyle: st.coreStyle,
       bottom: mob ? 'calc(84px + env(safe-area-inset-bottom))' : '18px',
     } : null,
     // the non-blocking voice presence (replaces the modal sheet — his note:
     // it must not interrupt what he's doing)
-    presence: st.liveTalkOn ? {
+    // never on the Voice/Ambient screens — the core and the transcript are
+    // already the whole screen there
+    presence: st.liveTalkOn && st.screen !== 'voice' && st.screen !== 'ambient' ? {
       input: st.liveInput || '',
       setInput: (t) => app.setState({ liveInput: t }),
       send: () => app.sendLiveTalk(),
@@ -335,7 +343,13 @@ export function valsChrome(app, ctx) {
       conversing: !!st.voiceConvMode,
       coreStyle: st.coreStyle,
       autoListenTick: st.voiceAutoListenTick,
+      ask: st.liveAsk || '',
       reply: st.liveReply || '',
+      // the words are opt-in: long-press the core
+      textOpen: !!st.liveTextOpen,
+      closeText: () => app.setState({ liveTextOpen: false }),
+      // the dictation hook owns the truth about the mic; the orb needs it
+      reportMic: (on) => { if (!!st.liveMicOpen !== !!on) app.setState({ liveMicOpen: !!on }); },
       evidence: st.liveVerdictOffer,
       openEvidence: () => app.openVerdict(st.liveVerdictOffer.kind, st.liveVerdictOffer.of),
       onError: (err) => app.toastMsg('Dictation: ' + err),
@@ -361,6 +375,11 @@ export function valsChrome(app, ctx) {
     startLiveTalk: () => app.startLiveTalk(),
     novaSpeaking: !!st.voiceSpeaking,
     micOn: !!st.micOn,
+    // the dock orb's live state — the mic as it ACTUALLY is, plus the
+    // long-press that reveals the words
+    novaListening: !!st.liveMicOpen,
+    novaTalkOn: !!st.liveTalkOn,
+    holdNovaText: () => app.toggleLiveText(),
     goVoice: go('voice'), goWorkouts: go('workouts'), goSettings: go('settings'), goHome: go('mission'),
     orbCardTitle: st.micOn ? 'Nova is listening' : 'Nova is muted',
     orbCardSub: wakeWord ? 'VOICE · WAKE WORD ON' : 'VOICE · PUSH TO TALK',

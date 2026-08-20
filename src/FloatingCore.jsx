@@ -6,8 +6,11 @@ import { VoiceHalo } from './VoiceHalo.jsx';
 // the ring is a receipt (spinning = a model job genuinely in flight,
 // pulsing = the mic is actually open), and TAPPING IT STARTS TALKING —
 // natively, on whatever screen he's on (his ask: "like how Siri can work
-// natively in any area of iOS"). A long press still opens the full Voice
-// screen.
+// natively in any area of iOS"). A LONG PRESS reveals the words — the
+// transcript pop-up — because he wants the icon alone by default.
+//
+// This is the MAC's single Nova icon. The phone's lives in the dock's centre
+// button, styled the same way, so neither device ever shows two.
 //
 // The halo is driven by the REAL audio analyser at 60fps through a ref —
 // never React state, or every frame would re-render the app. Nova's voice

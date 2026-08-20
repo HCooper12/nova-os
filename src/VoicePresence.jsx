@@ -1,24 +1,26 @@
 import { useEffect, useRef } from 'react';
 import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
-import { NovaCore } from './NovaCore.jsx';
 import { useDictation } from './useDictation.js';
 
 const M = 'var(--nv-font-mono)';
 
-// VOICE PRESENCE — his 20-Aug brief, from two reference reels:
-//   "the voice icon popping up on the screen when communicating verbally so
-//    I know it's talking, while it dynamically pulls up data cards…"
-//   "the mini icon showing the same dynamic animation WITHOUT opening a
-//    separate text box and interrupting the flow of what I'm currently doing"
+// VOICE PRESENCE — the conversation's non-visual machinery plus the ONE
+// thing that may appear on screen: the transcript pop-up.
 //
-// So this is deliberately NOT a modal: no backdrop, no page takeover, no
-// pointer capture except on the strip itself. His own chosen Nova core
-// appears (the Voice-screen identity, live-speech dynamic — see
-// NovaCore.jsx); the line Nova is saying rides beneath it; and
-// evidence cards arrive as chips right there. He keeps working the screen
-// he was on. Same component both platforms — it docks bottom-right on the
-// Mac and above the tab bar on the phone.
+// His 20-Aug correction, second pass: "I would rather the mini icon itself
+// be the ONLY thing displayed when I press that button to communicate with
+// it. I don't want this text popping up unless I hold on the Nova icon."
+// So the icon is the whole interface — it already lives on screen (the tab
+// orb on the phone, the floating core on the Mac) and simply comes alive.
+// This component renders NOTHING while a conversation runs, and mounts only
+// to drive dictation and the turn-taking loop.
+//
+// LONG-PRESS the icon and the words appear, as the pop-up panel from his
+// reference: floating clear of the bottom edge, dark glass, a lit cyan
+// border with an outward glow. Same treatment on both platforms.
+// Evidence cards are the exception — a card Nova is referring to appears on
+// its own, because that was the whole point of the second reel.
 export function VoicePresence({ v }) {
   const s = v.presence;
   const inputRef = useRef('');
@@ -34,6 +36,10 @@ export function VoicePresence({ v }) {
   );
   const dictRef = useRef(dict);
   dictRef.current = dict;
+
+  // the mic's true state drives the icon everywhere — App owns it so the
+  // orb (which lives in another tree) can colour itself listening-violet
+  useEffect(() => { s.reportMic(dict.on); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [dict.on]);
 
   // turn-taking: Nova finishes speaking → the mic reopens by itself
   useEffect(() => {
@@ -51,17 +57,20 @@ export function VoicePresence({ v }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.conversing]);
 
-  const state = dict.on ? 'LISTENING' : s.busy ? 'THINKING' : s.speaking ? 'SPEAKING' : s.conversing ? 'YOUR TURN' : 'NOVA';
-  const line = s.reply || s.input || (s.conversing ? 'Ask me anything.' : '');
-  const stop = () => { try { if (dict.on) dict.toggle(); } catch { /* already closed */ } s.end(); };
+  // stop the mic when the conversation ends, so the OS gets its session back
+  useEffect(() => () => { try { if (dictRef.current.on) dictRef.current.toggle(); } catch { /* already closed */ } }, []);
+
+  const state = dict.on ? 'LISTENING' : s.busy ? 'THINKING' : s.speaking ? 'SPEAKING' : 'YOUR TURN';
+  const tone = dict.on ? 'var(--nv-vi)' : s.speaking ? 'var(--nv-gold)' : 'var(--nv-cy)';
+  if (!s.textOpen && !s.evidence) return null;
 
   return (
-    <div style={css(`position:fixed;${v.isMobile ? 'left:10px;right:10px;bottom:calc(84px + env(safe-area-inset-bottom))' : 'right:20px;bottom:20px;width:min(430px,42vw)'};z-index:112;pointer-events:none;display:flex;flex-direction:column;gap:9px;align-items:${v.isMobile ? 'stretch' : 'flex-end'}`)}>
+    <div style={css(`position:fixed;left:0;right:0;bottom:${v.isMobile ? 'calc(96px + env(safe-area-inset-bottom))' : '26px'};z-index:112;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:10px;padding:0 12px`)}>
 
-      {/* evidence chips — the cards Nova pulls up as it talks */}
+      {/* the card Nova is referring to, arriving mid-conversation */}
       {s.evidence && (
         <Interactive onClick={s.openEvidence}
-          base={css('pointer-events:auto;display:flex;align-items:center;gap:10px;border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);border-radius:14px;padding:11px 14px;background:color-mix(in srgb, var(--nv-bg2) 92%, black);box-shadow:0 14px 40px rgba(0,0,0,.5);animation:sheetUp .28s cubic-bezier(.32,.72,0,1);max-width:100%')}
+          base={css('pointer-events:auto;display:flex;align-items:center;gap:10px;width:min(560px,100%);border:1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent);border-radius:13px;padding:11px 15px;background:color-mix(in srgb, var(--nv-void) 92%, black);box-shadow:0 0 22px -6px color-mix(in srgb, var(--nv-cy) 45%, transparent),0 16px 40px rgba(0,0,0,.55);animation:popIn .3s cubic-bezier(.2,.9,.25,1)')}
           hoverStyle="border-color:var(--nv-cy)">
           <span style={css(`font:600 8.5px ${M};letter-spacing:.16em;color:var(--nv-cy);flex:none`)}>◆ EVIDENCE</span>
           <span style={css('flex:1;min-width:0;font-size:12.5px;color:var(--nv-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{s.evidence.label}</span>
@@ -69,24 +78,30 @@ export function VoicePresence({ v }) {
         </Interactive>
       )}
 
-      {/* the presence strip: reactor core + the live line */}
-      <div style={css(`pointer-events:auto;display:flex;align-items:center;gap:12px;border:1px solid color-mix(in srgb, var(--nv-cy) ${s.speaking || dict.on ? 45 : 22}%, transparent);border-radius:18px;padding:10px 14px 10px 10px;background:color-mix(in srgb, var(--nv-bg2) 90%, black);backdrop-filter:blur(14px);box-shadow:0 16px 44px rgba(0,0,0,.5);animation:sheetUp .26s cubic-bezier(.32,.72,0,1)`)}>
-        <div style={css('flex:none;width:54px;height:54px;position:relative;display:flex;align-items:center;justify-content:center')}>
-          <NovaCore size={54} variant="mini" engine={s.coreStyle} speaking={s.speaking} listening={dict.on} style={{ pointerEvents: 'none' }} />
+      {/* THE POP-UP — only ever on screen because he asked for it (long-press
+          the core). The lit border + outward glow is the reference's look. */}
+      {s.textOpen && (
+        <div style={css(`pointer-events:auto;width:min(620px,100%);border:1px solid color-mix(in srgb, var(--nv-cy) 55%, transparent);border-radius:16px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-cy) 06%, transparent),color-mix(in srgb, var(--nv-void) 94%, black));backdrop-filter:blur(16px);box-shadow:0 0 30px -4px color-mix(in srgb, var(--nv-cy) 50%, transparent),inset 0 1px 0 color-mix(in srgb, var(--nv-cy) 22%, transparent),0 24px 60px rgba(0,0,0,.6);animation:popIn .32s cubic-bezier(.2,.9,.25,1);overflow:hidden`)}>
+          <div style={css(`display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid color-mix(in srgb, var(--nv-cy) 20%, transparent);background:color-mix(in srgb, var(--nv-cy) 07%, transparent)`)}>
+            <span style={css(`font:600 8.5px ${M};letter-spacing:.22em;color:${tone}`)}>NOVA · {state}</span>
+            <span style={css('flex:1')}></span>
+            <Interactive as="span" onClick={dict.supported ? () => { v.primeSpeech(); dict.toggle(); } : undefined} aria-label={dict.on ? 'Stop listening' : 'Listen'}
+              base={css(`cursor:pointer;flex:none;width:30px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;border:1px solid ${dict.on ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-cy) 25%, transparent)'};background:color-mix(in srgb, var(--nv-cy) ${dict.on ? 20 : 5}%, transparent)`)}
+              hoverStyle="background:color-mix(in srgb, var(--nv-cy) 18%, transparent)">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--nv-cy)" strokeWidth="2.2"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
+            </Interactive>
+            <Interactive as="span" onClick={s.closeText} aria-label="Hide the transcript"
+              base={css(`cursor:pointer;flex:none;font:400 15px/1 ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent);padding:2px 4px`)}
+              hoverStyle="color:var(--nv-ink)">×</Interactive>
+          </div>
+          <div style={css('padding:13px 16px 15px;max-height:38vh;overflow-y:auto')}>
+            {s.ask && <div style={css(`font:400 11px ${M};letter-spacing:.04em;color:color-mix(in srgb, var(--nv-ink) 42%, transparent);margin-bottom:7px`)}>» {s.ask}</div>}
+            <div style={css('font-size:14px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 94%, transparent)')}>
+              {s.reply || s.input || (s.busy ? 'Reading the vault…' : 'Listening — speak, and it appears here.')}
+            </div>
+          </div>
         </div>
-        <div style={css('flex:1;min-width:0')}>
-          <div style={css(`font:600 8.5px ${M};letter-spacing:.22em;color:${dict.on ? 'var(--nv-vi)' : s.speaking ? 'var(--nv-gold)' : 'var(--nv-cy)'}`)}>{state}</div>
-          <div style={css('margin-top:3px;font-size:13px;line-height:1.4;color:var(--nv-ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden')}>{line}</div>
-        </div>
-        <Interactive as="span" onClick={dict.supported ? () => dict.toggle() : undefined} aria-label={dict.on ? 'Stop listening' : 'Listen'}
-          base={css(`cursor:pointer;flex:none;width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;border:1px solid ${dict.on ? 'var(--nv-cy)' : 'var(--nv-edge)'};background:color-mix(in srgb, var(--nv-cy) ${dict.on ? 20 : 6}%, transparent)`)}
-          hoverStyle="background:color-mix(in srgb, var(--nv-cy) 18%, transparent)">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--nv-cy)" strokeWidth="2.2"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
-        </Interactive>
-        <Interactive as="span" onClick={stop} aria-label="Dismiss"
-          base={css(`cursor:pointer;flex:none;font:400 17px/1 ${M};color:color-mix(in srgb, var(--nv-ink) 38%, transparent);padding:2px 5px`)}
-          hoverStyle="color:var(--nv-ink)">×</Interactive>
-      </div>
+      )}
     </div>
   );
 }

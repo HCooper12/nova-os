@@ -46,8 +46,32 @@ function start() {
   if (!raf && analyser) raf = requestAnimationFrame(tick);
 }
 
+// When Nova's voice plays through the bare <audio> element (the iOS path
+// below), there is no analyser in the signal chain — a real meter is
+// impossible. But we KNOW our own audio is rolling, because we started it.
+// So the core rides a speech-cadence envelope for exactly that window. This
+// is not the meter pretending to hear something: it is only ever on while
+// our own element is genuinely playing, and it never touches `level`.
+let synthHolders = 0;
+export function holdSyntheticSpeech(on) {
+  synthHolders = Math.max(0, synthHolders + (on ? 1 : -1));
+}
+
 export function audioLevel() {
+  if (synthHolders > 0) {
+    const t = performance.now() / 1000;
+    const env = 0.34 + 0.20 * Math.sin(t * 10.7) * Math.sin(t * 3.1) + 0.10 * Math.sin(t * 6.3);
+    return Math.max(level, Math.max(0.14, env));
+  }
   return level;
+}
+
+// Is the graph actually able to make sound right now? iOS suspends it
+// whenever speech recognition takes the audio session, and resume() only
+// succeeds near a user gesture — so a reply arriving from the network can
+// find the graph dead. Everything that plays audio must ask first.
+export function graphRunning() {
+  return !!ctx && ctx.state === 'running';
 }
 
 // A wired element plays THROUGH this context — if the context is suspended
@@ -86,6 +110,15 @@ export function releaseAudioGraph() {
 export function attachSpeechElement(el) {
   if (!el || !ensureCtx()) return () => {};
   ctx.resume().catch(() => {});
+  // NEVER wire an element into a graph that isn't running. createMediaElementSource
+  // is permanent: once the element's output is routed through a suspended
+  // context, it is silent — and STAYS silent for the life of the element,
+  // even after the context wakes. This was Nova going mute on his phone
+  // (iOS suspends the graph the moment dictation takes the audio session,
+  // and resume() from a network callback is not a gesture). Unwired, the
+  // element plays natively through the OS; the core rides the synthetic
+  // envelope instead of a meter.
+  if (!wiredElements.has(el) && ctx.state !== 'running') return () => {};
   if (!wiredElements.has(el)) {
     try {
       const src = ctx.createMediaElementSource(el);

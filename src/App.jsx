@@ -51,7 +51,7 @@ import { VoicePresence } from './VoicePresence.jsx';
 import { OutboxView } from './OutboxView.jsx';
 import { NudgeCard } from './NudgeCard.jsx';
 import { Boot } from './Boot.jsx';
-import { attachSpeechElement, resumeAudioGraph, releaseAudioGraph, decodeSpeech, playSpeechBuffer } from './audioLevel.js';
+import { attachSpeechElement, resumeAudioGraph, releaseAudioGraph, decodeSpeech, playSpeechBuffer, graphRunning, holdSyntheticSpeech } from './audioLevel.js';
 
 // Code-split: ZXing (barcode decoding) is a sizeable dependency that only
 // the food-log barcode flow needs — no reason to ship it in everyone's
@@ -240,6 +240,12 @@ export default class App extends Component {
     prCelebration: null, // D2 — the star moment when a save contains PRs
     // NOVA LIVE — native conversation from the orb, on any screen
     liveTalkOn: false, liveInput: '', liveAsk: '', liveReply: '', liveVerdictOffer: null, liveVerdict: null,
+    // the transcript pop-up is OPT-IN (long-press the core) — his ask: the
+    // icon alone, no text box interrupting what he's doing. liveMicOpen is
+    // the mic's TRUE state, reported up from the dictation hook, so the orb
+    // can colour itself listening without lying (the old `micOn` is a
+    // settings flag that defaults on — it said "listening" permanently).
+    liveTextOpen: false, liveMicOpen: false,
     isMobile: typeof window !== 'undefined' && window.innerWidth < 760,
     novaTheme: getNovaTheme(), calmMode: getCalm(), coreStyle: getCoreStyle(), novaStyle: getNovaStyle(),
 
@@ -3314,21 +3320,40 @@ export default class App extends Component {
     this.toastT = setTimeout(() => this.setState({ toast: null }), 3600);
   }
   // ---------- Nova Live: native conversation from the orb ----------
+  // Tapping the core toggles the conversation: a second tap ends it, the way
+  // pressing the side button twice dismisses Siri. Nothing but the core is
+  // ever drawn for it — the words are a long-press away.
   startLiveTalk() {
     if (!getConnection()) { this.navigate('voice'); return; }
+    if (this.state.liveTalkOn) { this.endLiveTalk(); return; }
     this.stopSpeaking();
     this.primeSpeech();
     this.setState({ liveTalkOn: true, voiceConvMode: true, voiceConvPaused: false, liveInput: '', liveAsk: '', liveReply: '', liveVerdictOffer: null });
+  }
+  // Long-press the core: the transcript pop-up. It also STARTS a conversation
+  // if none is running, so holding is a complete gesture on its own.
+  toggleLiveText() {
+    const open = !this.state.liveTextOpen;
+    this.setState({ liveTextOpen: open });
+    if (open && !this.state.liveTalkOn && getConnection()) {
+      this.primeSpeech();
+      this.setState({ liveTalkOn: true, voiceConvMode: true, voiceConvPaused: false });
+    }
   }
   // Nova speaking anywhere SHOWS the presence — his ask: "the voice icon
   // popping up on the screen when communicating verbally so I know it's
   // talking". Never on the Voice/Ambient screens, which are already the core.
   showPresenceForSpeech() {
+    // The core is ALWAYS on screen now (the tab orb on the phone, the
+    // floating core on the Mac) and it animates itself while Nova speaks —
+    // so "show the presence" needs no panel, and must never open the text
+    // box he asked to keep out of his way. Left as the single hook that
+    // marks a conversation live wherever speech starts.
     if (this.state.screen === 'voice' || this.state.screen === 'ambient') return;
     if (!this.state.liveTalkOn) this.setState({ liveTalkOn: true });
   }
   endLiveTalk() {
-    this.setState({ liveTalkOn: false, voiceConvMode: false, liveInput: '', liveVerdictOffer: null, liveVerdict: null });
+    this.setState({ liveTalkOn: false, liveTextOpen: false, liveMicOpen: false, voiceConvMode: false, liveInput: '', liveVerdictOffer: null, liveVerdict: null });
     this.stopSpeaking();
   }
   // The reply is scanned for a verdict Nova can SHOW — his ask: the pop-up
@@ -3916,7 +3941,10 @@ export default class App extends Component {
       .then(async (blob) => {
         // decode NOW, while earlier sentences play — playback then starts
         // from pre-decoded samples on the audio thread, jitter-proof
-        try { entry.buffer = await decodeSpeech(await blob.arrayBuffer()); } catch { entry.blob = blob; } // element fallback
+        // keep the blob EITHER WAY — the decoded buffer can only play through
+        // the audio graph, and on iOS the graph is often suspended by then
+        entry.blob = blob;
+        try { entry.buffer = await decodeSpeech(await blob.arrayBuffer()); } catch { /* element path covers it */ }
       })
       .catch(() => { entry.failed = true; })
       .finally(() => { entry.done = true; this.drainTtsQueue(gen); });
@@ -3943,7 +3971,12 @@ export default class App extends Component {
     }
     this.ttsPlaying = true;
     resumeAudioGraph(); // a suspended graph plays SILENTLY — resume before every chunk
-    if (head.buffer) {
+    // ...but resume() only lands near a gesture, and a reply arrives from the
+    // network. If the graph is still not running, the decoded buffer CANNOT
+    // be heard — fall through to the gesture-unlocked <audio> element, which
+    // plays through the OS directly. (Nova went silent on his phone for
+    // exactly this reason; the watchdog made it look like it had spoken.)
+    if (head.buffer && graphRunning()) {
       // the crisp path: pre-decoded samples straight onto the audio thread
       const src = playSpeechBuffer(head.buffer, () => {
         if (this.currentSource === src) this.currentSource = null;
@@ -3959,10 +3992,15 @@ export default class App extends Component {
     const audio = this.sharedAudio || new Audio();
     this.currentAudio = audio;
     const detachMeter = attachSpeechElement(audio); // the core hears every sentence
+    // no meter available (unwired element on iOS) → the core rides the
+    // synthetic envelope so it still visibly speaks
+    const synthetic = !graphRunning();
+    if (synthetic) holdSyntheticSpeech(true);
     let settled = false; // ended/error/rejected-play can ALL fire for one chunk on a src swap
     const done = () => {
       if (settled) return;
       settled = true;
+      if (synthetic) holdSyntheticSpeech(false);
       URL.revokeObjectURL(url); detachMeter();
       if (gen !== (this.ttsGen || 0)) return; // a stop flushed this generation — don't touch live state
       this.ttsPlaying = false; this.endSpeech();
@@ -3994,10 +4032,13 @@ export default class App extends Component {
         // the core hears Nova speak: a Web Audio tap on this element drives
         // the heart's swell (audioLevel) for the length of the reply
         const detachMeter = attachSpeechElement(audio);
+        const synthetic = !graphRunning(); // unwired on iOS — the core still speaks
+        if (synthetic) holdSyntheticSpeech(true);
+        const release = () => { if (synthetic) holdSyntheticSpeech(false); URL.revokeObjectURL(url); detachMeter(); };
         audio.src = url;
-        audio.onended = () => { URL.revokeObjectURL(url); detachMeter(); finish(); };
-        audio.onerror = () => { URL.revokeObjectURL(url); detachMeter(); finish(); };
-        audio.play().catch(() => { URL.revokeObjectURL(url); detachMeter(); this.speakFallback(clean, finish); });
+        audio.onended = () => { release(); finish(); };
+        audio.onerror = () => { release(); finish(); };
+        audio.play().catch(() => { release(); this.speakFallback(clean, finish); });
       }).catch(() => this.speakFallback(clean, finish));
     } else {
       this.speakFallback(clean, finish);

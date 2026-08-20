@@ -20,6 +20,37 @@ const M = "var(--nv-font-mono)";
 // configured, the browser's own engine otherwise). Demo mode keeps the old
 // scripted preview and says so on the banner.
 
+// COMMAND CENTRE (his 20-Aug ask, from the reference reels): the screen
+// should read as a station, not a chat page. Every cluster sits in a framed
+// panel with corner brackets and a lit header rule; the core sits inside a
+// targeting reticle; the transcript carries the same pop-up glow as the
+// floating panel. Structure and behaviour are unchanged — this is the frame
+// around them.
+function Panel({ label, right, children, glow = false, style }) {
+  const B = (pos) => (
+    <span aria-hidden="true" style={{ position: 'absolute', width: '9px', height: '9px', ...pos, borderColor: 'color-mix(in srgb, var(--nv-cy) 55%, transparent)', borderStyle: 'solid', borderWidth: 0, ...pos.b }} />
+  );
+  return (
+    <div style={{ position: 'relative', border: '1px solid color-mix(in srgb, var(--nv-cy) 18%, transparent)', borderRadius: '12px',
+      background: 'linear-gradient(180deg, color-mix(in srgb, var(--nv-cy) 04%, transparent), rgba(0,0,0,.22))',
+      boxShadow: glow ? '0 0 26px -8px color-mix(in srgb, var(--nv-cy) 45%, transparent), 0 18px 46px -22px rgba(0,0,0,.8)' : 'none',
+      display: 'flex', flexDirection: 'column', minHeight: 0, ...style }}>
+      <B pos={{ top: '-1px', left: '-1px', b: { borderTopWidth: '1px', borderLeftWidth: '1px', borderTopLeftRadius: '12px' } }} />
+      <B pos={{ top: '-1px', right: '-1px', b: { borderTopWidth: '1px', borderRightWidth: '1px', borderTopRightRadius: '12px' } }} />
+      <B pos={{ bottom: '-1px', left: '-1px', b: { borderBottomWidth: '1px', borderLeftWidth: '1px', borderBottomLeftRadius: '12px' } }} />
+      <B pos={{ bottom: '-1px', right: '-1px', b: { borderBottomWidth: '1px', borderRightWidth: '1px', borderBottomRightRadius: '12px' } }} />
+      {label && (
+        <div style={css(`display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid color-mix(in srgb, var(--nv-cy) 14%, transparent)`)}>
+          <span style={css(`font:600 8.5px ${M};letter-spacing:.26em;color:color-mix(in srgb, var(--nv-cy) 78%, transparent)`)}>{label}</span>
+          <span style={css('flex:1')}></span>
+          {right}
+        </div>
+      )}
+      <div style={css('flex:1;min-height:0;display:flex;flex-direction:column;padding:13px 14px')}>{children}</div>
+    </div>
+  );
+}
+
 function RailRow({ label, value, tone, barPct }) {
   return (
     <div>
@@ -81,14 +112,18 @@ export function Voice({ v }) {
         <div style={css(`font:400 26px ${M};font-variant-numeric:tabular-nums;color:color-mix(in srgb, var(--nv-ink) 85%, transparent)`)}><Clock /></div>
       </div>
       <div style={css("flex:1;display:flex;flex-wrap:wrap;gap:28px;align-items:center;justify-content:center;margin-top:10px;overflow-y:auto")}>
-        <div style={css(`width:230px;flex:none;display:flex;flex-direction:column;gap:15px;font:400 10.5px ${M};letter-spacing:.14em`)}>
-          <RailRow label="MIC" value={dict.supported ? (dict.on ? 'LISTENING' : 'READY') : 'NOT AVAILABLE'} tone={dict.on ? 'var(--nv-cy)' : undefined} barPct={dict.on ? 92 : dict.supported ? 12 : 0} />
-          <RailRow label="ANSWERS" value={!v.voiceLive ? 'OFFLINE' : v.voiceBusy ? 'THINKING…' : 'VAULT · READ-ONLY'} tone={v.voiceBusy ? 'var(--nv-cy)' : undefined} barPct={v.voiceBusy ? 88 : v.voiceLive ? 46 : 0} />
-          <RailRow label="SPEECH ENGINE" value={v.voiceEngineLabel} tone={v.voiceEngineLabel !== 'BROWSER' && v.voiceEngineLabel !== '—' ? 'var(--nv-cy)' : undefined} barPct={v.voiceSpeaking ? 92 : v.speakOn ? 34 : 0} />
-          {v.voiceEngineDetail && (
-            <div style={css("font-size:9px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 38%, transparent);letter-spacing:.06em")}>{v.voiceEngineDetail}</div>
-          )}
-          <div style={css("margin-top:6px;border:1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent);border-radius:10px;padding:12px 14px;background:var(--nv-well);display:flex;flex-direction:column;gap:10px")}>
+        <div style={css(`width:236px;flex:none;display:flex;flex-direction:column;gap:12px;font:400 10.5px ${M};letter-spacing:.14em`)}>
+          <Panel label="STATION · STATUS">
+            <div style={css('display:flex;flex-direction:column;gap:15px')}>
+              <RailRow label="MIC" value={dict.supported ? (dict.on ? 'LISTENING' : 'READY') : 'NOT AVAILABLE'} tone={dict.on ? 'var(--nv-cy)' : undefined} barPct={dict.on ? 92 : dict.supported ? 12 : 0} />
+              <RailRow label="ANSWERS" value={!v.voiceLive ? 'OFFLINE' : v.voiceBusy ? 'THINKING…' : 'VAULT · READ-ONLY'} tone={v.voiceBusy ? 'var(--nv-cy)' : undefined} barPct={v.voiceBusy ? 88 : v.voiceLive ? 46 : 0} />
+              <RailRow label="SPEECH ENGINE" value={v.voiceEngineLabel} tone={v.voiceEngineLabel !== 'BROWSER' && v.voiceEngineLabel !== '—' ? 'var(--nv-cy)' : undefined} barPct={v.voiceSpeaking ? 92 : v.speakOn ? 34 : 0} />
+              {v.voiceEngineDetail && (
+                <div style={css("font-size:9px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 38%, transparent);letter-spacing:.06em")}>{v.voiceEngineDetail}</div>
+              )}
+            </div>
+          </Panel>
+          <div style={css("border:1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent);border-radius:10px;padding:12px 14px;background:var(--nv-well);display:flex;flex-direction:column;gap:10px")}>
             <div style={css("display:flex;justify-content:space-between;align-items:center")}>
               <span style={css("font-size:9px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent);letter-spacing:.2em")}>SPEAK REPLIES</span>
               <Interactive as="span" onClick={v.toggleSpeak}
@@ -118,13 +153,20 @@ export function Voice({ v }) {
             )}
           </div>
         </div>
-        <div style={css("flex:1;min-width:320px;display:flex;flex-direction:column;align-items:center;gap:20px")}>
+        <div style={css("flex:1 1 420px;min-width:340px;display:flex;flex-direction:column;align-items:center;gap:20px")}>
+          {/* the core in its reticle — a station's centre instrument: two
+              counter-rotating rings, a state-lit halo, and tick marks that
+              read as calibration rather than decoration */}
           <div style={css("position:relative;width:300px;height:300px;display:flex;align-items:center;justify-content:center;box-shadow:var(--nv-glow-core);border-radius:50%")}>
             <div style={css("position:absolute;inset:0;border-radius:50%;border:1px dashed color-mix(in srgb, var(--nv-cy) 22%, transparent);animation:ringSpin 44s linear infinite var(--nv-anim)")}></div>
             <div style={{ position: 'absolute', inset: '24px', borderRadius: '50%', border: '1px solid color-mix(in srgb, var(--nv-cy) 28%, transparent)', borderTopColor: 'color-mix(in srgb, var(--nv-cy) 85%, transparent)', animation: `ringSpin ${v.voiceBusy ? 3 : 14}s linear infinite reverse var(--nv-anim)` }}></div>
+            <div aria-hidden="true" style={{ position: 'absolute', inset: '-14px', borderRadius: '50%', border: `1px solid color-mix(in srgb, ${dict.on ? 'var(--nv-vi)' : v.voiceSpeaking ? 'var(--nv-gold)' : 'var(--nv-cy)'} ${dict.on || v.voiceSpeaking ? 40 : 12}%, transparent)`, transition: 'border-color .5s' }}></div>
+            {[0, 90, 180, 270].map((deg) => (
+              <span key={deg} aria-hidden="true" style={{ position: 'absolute', top: '50%', left: '50%', width: '11px', height: '1px', background: 'color-mix(in srgb, var(--nv-cy) 55%, transparent)', transform: `rotate(${deg}deg) translateX(157px)` }}></span>
+            ))}
             <NovaCore size={252} engine={v.coreStyle} speaking={v.voiceSpeaking} listening={dict.on} />
           </div>
-          <div style={css(`font:400 10px ${M};letter-spacing:.42em;color:color-mix(in srgb, var(--nv-ink) 60%, transparent)`)}>{caption}</div>
+          <div style={css(`font:400 10px ${M};letter-spacing:.42em;color:${dict.on ? 'var(--nv-vi)' : v.voiceSpeaking ? 'var(--nv-gold)' : 'color-mix(in srgb, var(--nv-ink) 60%, transparent)'};transition:color .4s`)}>{caption}</div>
           {/* the REAL waveform wherever a meter exists (Nova speaking via the
               TTS tap on both devices; him dictating on desktop) — motion here
               means sound is genuinely happening. iOS dictation keeps the
@@ -146,7 +188,7 @@ export function Voice({ v }) {
               hoverStyle={`background:color-mix(in srgb, ${v.ritualInvite.kind === 'morning' ? 'var(--nv-gold)' : 'var(--nv-vi)'} 14%, transparent)`}
             >{v.ritualInvite.label} — TAP TO START</Interactive>
           )}
-          <div style={css("display:flex;gap:10px")}>
+          <div style={css("display:flex;gap:10px;flex-wrap:wrap;justify-content:center;white-space:nowrap")}>
             {dict.supported && (
               <Interactive as="span" onClick={() => { v.primeSpeech(); v.stopSpeaking(); v.resumeConv(); dict.toggle(); }}
                 base={{ cursor: 'pointer', font: `500 10.5px ${M}`, padding: '9px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent)', color: dict.on ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', background: dict.on ? 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' : 'rgba(0,0,0,.25)' }}
@@ -169,14 +211,13 @@ export function Voice({ v }) {
             )}
           </div>
         </div>
-        <div style={css("flex:1 1 340px;min-width:300px;max-width:470px;min-height:360px;max-height:560px;border-left:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-left:24px;display:flex;flex-direction:column")}>
-          <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>
-            <span style={css(`font:500 10px ${M};letter-spacing:.28em;color:color-mix(in srgb, var(--nv-ink) 50%, transparent)`)}>{v.voiceContinuing ? 'CONVERSATION · CONTINUES ACROSS DAYS' : 'TRANSCRIPT'}</span>
-            {v.voiceContinuing && (
-              <Interactive as="span" onClick={v.newVoiceChat} base={`cursor:pointer;font:500 9px ${M};letter-spacing:.1em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`} hoverStyle="color:var(--nv-cy)">NEW CHAT</Interactive>
-            )}
-          </div>
-          <div style={css(`flex:1;overflow-y:auto;margin-top:14px;display:flex;flex-direction:column;gap:14px;font:400 12.5px/1.7 ${M}`)}>
+        <Panel glow
+          label={v.voiceContinuing ? 'CONVERSATION · CONTINUES ACROSS DAYS' : 'TRANSCRIPT'}
+          right={v.voiceContinuing ? (
+            <Interactive as="span" onClick={v.newVoiceChat} base={`cursor:pointer;font:500 9px ${M};letter-spacing:.1em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`} hoverStyle="color:var(--nv-cy)">NEW CHAT</Interactive>
+          ) : null}
+          style={{ flex: '1 1 340px', minWidth: '300px', maxWidth: '470px', minHeight: '360px', maxHeight: '560px' }}>
+          <div style={css(`flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px;font:400 12.5px/1.7 ${M}`)}>
             {v.orbMsgs.length === 0 && (
               <div style={css("color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>Ask about anything in your vault — training, fuel, notes, the week. Answers come from what's actually written.</div>
             )}
@@ -245,7 +286,7 @@ export function Voice({ v }) {
             />
             <Interactive as="span" onClick={v.sendOrb} base={`cursor:pointer;display:flex;align-items:center;font:500 11px ${M};padding:0 16px;border-radius:9px;background:var(--nv-cy);color:var(--nv-on-acc)`} hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">SEND</Interactive>
           </div>
-        </div>
+        </Panel>
       </div>
     </div>
   );

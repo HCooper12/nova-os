@@ -114,17 +114,21 @@ export function MobileChrome({ v }) {
         {/* THE mini Nova icon — his ask: tapping it starts talking right
             here, natively, without opening the Voice section (long-press
             still goes there). The halo breathes with real audio. */}
-        <Interactive onClick={v.startLiveTalk} onLongPress={v.goVoice} aria-label="Talk to Nova"
-          base={{ position: 'relative', width: '50px', height: '50px', margin: '0 3px', marginTop: '-21px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-            fontSize: '21px', color: 'var(--nv-on-acc)', background: 'var(--nv-acc)',
-            border: '3px solid color-mix(in srgb, var(--nv-void) 80%, transparent)',
-            boxShadow: '0 10px 26px -8px var(--nv-acc)' }}>
-          <VoiceHalo speaking={v.novaSpeaking} listening={v.micOn} />
-          {/* the mini core IS the icon while Nova talks — HIS chosen core
-              (the Voice-screen identity), gone dynamic, not a different design */}
-          {(v.novaSpeaking || v.micOn)
-            ? <NovaCore size={44} variant="mini" engine={v.coreStyle} speaking={v.novaSpeaking} listening={v.micOn} style={{ pointerEvents: 'none' }} />
-            : <span aria-hidden="true">✦</span>}
+        <Interactive onClick={v.startLiveTalk} onLongPress={v.holdNovaText} aria-label="Talk to Nova"
+          base={{ position: 'relative', width: '54px', height: '54px', margin: '0 3px', marginTop: '-23px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+            // the bottom-right core's own treatment, moved in here: a dark
+            // well with a thin lit edge, NOT a filled accent disc. The solid
+            // cyan fill is what made the core look washed-out and glitchy.
+            background: 'color-mix(in srgb, var(--nv-void) 88%, black)',
+            border: `1px solid ${v.novaSpeaking || v.novaListening || v.novaTalkOn ? 'var(--nv-acc-border)' : 'var(--nv-edge)'}`,
+            boxShadow: '0 10px 28px -10px rgba(0,0,0,.8), 0 0 0 4px color-mix(in srgb, var(--nv-void) 78%, transparent)' }}>
+          <VoiceHalo speaking={v.novaSpeaking} listening={v.novaListening} inset="-6px" />
+          {v.novaListening && (
+            <span aria-hidden="true" style={{ position: 'absolute', inset: '-3px', borderRadius: '50%', border: '2px solid var(--nv-cy)', opacity: 0.7, animation: 'novaPulse 1.6s infinite var(--nv-anim)' }}></span>
+          )}
+          {/* ONE Nova icon on the phone, and it is this one: his chosen core,
+              always drawn (never the ✦ glyph), live-dynamic while talking */}
+          <NovaCore size={46} variant="mini" engine={v.coreStyle} speaking={v.novaSpeaking} listening={v.novaListening} style={{ pointerEvents: 'none' }} />
         </Interactive>
         {dockTabs.slice(3, 5).map((t) => <DockTab key={t.screen} t={t} />)}
         <div onClick={() => setMoreOpen(true)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', minWidth: '44px', padding: '6px 4px', cursor: 'pointer', borderRadius: '14px', color: moreOpen || !activeInDock ? 'var(--nv-acc)' : 'var(--nv-ink40)' }}>
