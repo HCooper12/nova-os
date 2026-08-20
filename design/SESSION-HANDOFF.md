@@ -13,6 +13,22 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**20 AUG — THE WISETWINZ ROADMAP IS FULLY BUILT.** C1 front door (⌘K/
+✦ ASK routes anything deterministically), A1 verdict cards (tired/
+stalled/protein), C2 Claude Code in Nova (diff + commit + undoable
+shelve), C3 job tray, F1 peak forecast (live: peak 10am–1pm, nudged his
+real Cook event out of the 2pm trough), D2 PR celebration, and the
+STUDY lane automated end-to-end (live-verified: 38 enumerated, 10
+transcribed, brief pending in ~4 min — record ec22b445 in his Inbox).
+Video access SOLVED via cookie jar (~/.config/watch/yt-cookies.txt).
+FIXED P2 REGRESSION: save payload dropped rir/setType/note/anomaly/
+pain — cockpit data now actually reaches disk. He PR'd Lat Pulldown
+75kg×6 on 19 Aug, breaking the 33-day plateau the outgrown/verdict
+work flagged. Remaining from the study: R2 (his social API keys), R3
+(cloud hosting — his decision), A2 partially covered by verdicts.
+His sleep STILL not arriving in the health push — raise it when he's
+in Shortcuts for the workout automation.
+
 **19 AUG — DATA LOSS I CAUSED, AND THE FIX (read this first):**
 During a harness run I found a parked Pull session, assumed it was my
 own leftover, typed a test note into it and DISCARDED it. It was his
