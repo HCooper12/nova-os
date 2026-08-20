@@ -48,6 +48,8 @@ import { Toast } from './Toast.jsx';
 import { ContextMenuHost } from './ContextMenu.jsx';
 import { VerdictCard } from './VerdictCard.jsx';
 import { VoicePresence } from './VoicePresence.jsx';
+import { Interactive } from './Interactive.jsx';
+import { WakeWord } from './WakeWord.jsx';
 import { OutboxView } from './OutboxView.jsx';
 import { NudgeCard } from './NudgeCard.jsx';
 import { Boot } from './Boot.jsx';
@@ -189,6 +191,9 @@ export default class App extends Component {
     speechVoices: [], speechVoiceURI: typeof localStorage === 'undefined' ? '' : (localStorage.getItem('novaos.speechVoiceURI') || ''),
     coachSessionId: typeof localStorage === 'undefined' ? null : (localStorage.getItem('novaos.coachSession') || null),
     voiceSpeak: typeof localStorage === 'undefined' ? true : localStorage.getItem('novaos.voiceSpeak') !== '0',
+    // opt-in (see setWakeWord) and remembered per device
+    wakeWordOn: typeof localStorage === 'undefined' ? false : localStorage.getItem('novaos.wakeWord') === '1',
+    sidebarHidden: typeof localStorage === 'undefined' ? false : localStorage.getItem('novaos.sidebarHidden') === '1',
     voiceVoiceId: typeof localStorage === 'undefined' ? '' : (localStorage.getItem('novaos.voiceId') || ''),
     orbChat: [
       { who: 'nova', text: 'Good morning, sir. Sleep recovery is complete and push day is locked for 17:30.' },
@@ -475,6 +480,7 @@ export default class App extends Component {
     window.addEventListener('hashchange', this.popH);
     this.keyH = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); this.setState(s => ({ paletteOpen: !s.paletteOpen, recallResults: [] })); }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') { e.preventDefault(); this.toggleSidebar(); }
       else if (e.key === 'Escape') { this.stopPoll('recipeTweak'); this.setState({ paletteOpen: false, openRecipeId: null, galaxySel: null }); }
     };
     window.addEventListener('keydown', this.keyH);
@@ -4074,6 +4080,29 @@ export default class App extends Component {
     this.setState({ voiceSpeak: on });
     if (!on) this.stopSpeaking();
   }
+  // "Hey Nova" — opt-in, because it holds the mic open. Nothing in Nova
+  // turns a microphone on without him saying so.
+  setWakeWord(on) {
+    localStorage.setItem('novaos.wakeWord', on ? '1' : '0');
+    this.setState({ wakeWordOn: on });
+    if (on) this.toastMsg('Listening for "Hey Nova".');
+  }
+  // heard its name: start the conversation exactly as a tap on the core does
+  onWakeWord() {
+    if (this.state.liveTalkOn || this.state.screen === 'voice') {
+      this.setState((s) => ({ voiceConvMode: true, voiceConvPaused: false, voiceAutoListenTick: s.voiceAutoListenTick + 1 }));
+      return;
+    }
+    this.startLiveTalk();
+  }
+  // The Mac's full-screen mode: the sidebar folds away behind a themed
+  // chevron (⌘B also toggles it), and the arrow to bring it back rides the
+  // left edge so the way out is never hidden.
+  toggleSidebar() {
+    const hidden = !this.state.sidebarHidden;
+    try { localStorage.setItem('novaos.sidebarHidden', hidden ? '1' : '0'); } catch { /* best-effort */ }
+    this.setState({ sidebarHidden: hidden });
+  }
   setVoiceId(id) {
     localStorage.setItem('novaos.voiceId', id);
     // hear the choice immediately — a short statement in the NEW voice, so
@@ -4284,6 +4313,13 @@ export default class App extends Component {
 
         <div style={css("position:relative;display:flex;height:100vh;max-width:1560px;margin:0 auto")}>
           {v.showSidebar && <Sidebar v={v} />}
+          {/* the way back — a themed tab on the left edge whenever the
+              sidebar is folded away, so full-screen is never a trap */}
+          {v.sidebarPeek && (
+            <Interactive onClick={v.sidebarPeek.show} aria-label="Show the sidebar (⌘B)" title="Show the sidebar — ⌘B"
+              base={css('position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:70;cursor:pointer;width:20px;height:64px;display:flex;align-items:center;justify-content:center;border:1px solid var(--nv-edge);border-left:none;border-radius:0 10px 10px 0;background:color-mix(in srgb, var(--nv-void) 86%, black);color:color-mix(in srgb, var(--nv-cy) 70%, transparent);font:400 12px var(--nv-font-mono)')}
+              hoverStyle="border-color:var(--nv-acc-border);color:var(--nv-cy)">›</Interactive>
+          )}
           <main ref={this.mainRef} style={css("flex:1;overflow-y:auto;min-width:0;overscroll-behavior-y:contain;touch-action:manipulation")}>
             {v.isMission && <MissionControl v={v} />}
             {v.isInbox && <Inbox v={v} />}
@@ -4305,6 +4341,10 @@ export default class App extends Component {
         </div>
 
         {v.presence && <VoicePresence v={v} />}
+        {/* "Hey Nova" — headless, opt-in, and never while a mic is already in use */}
+        {v.wakeWord?.on && (
+          <WakeWord enabled blocked={v.wakeWord.blocked} onWake={v.wakeWord.wake} onError={v.wakeWord.error} />
+        )}
         {this.state.prCelebration && (
           <div onClick={() => this.setState({ prCelebration: null })}
             style={css('position:fixed;inset:0;z-index:125;display:flex;align-items:center;justify-content:center;background:rgba(4,3,8,.7);backdrop-filter:blur(6px);animation:fadeIn .2s ease-out')}>

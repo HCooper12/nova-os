@@ -1,6 +1,7 @@
 import { getConnection } from '../api.js';
 import { orbReply } from '../mockAssistants.js';
 import { NOTE_TYPE_COLOR, mono } from './shared.js';
+import { speechRecognitionSupported } from '../useDictation.js';
 
 // The smaller screens: Voice (concept preview), Memory Galaxy, Shopping List,
 // Claude Code, and transcript ingest. Adds to ctx: shoppingItems (nav count).
@@ -91,6 +92,10 @@ export function valsMisc(app, ctx) {
     speechVoiceURI: st.speechVoiceURI,
     setSpeechVoice: (e) => app.setSpeechVoice(e.target.value),
     wakeWordLabel: wakeWord,
+    // "Hey Nova" — the Settings toggle and the Voice screen's status row
+    wakeWordOn: !!st.wakeWordOn,
+    wakeWordSupported: speechRecognitionSupported(),
+    setWakeWord: (on) => app.setWakeWord(on),
     orbMsgs: (!demoMode ? st.voiceChat : st.orbChat).map((m, i, arr) => ({
       text: m.text, typing: m.typing, panel: m.panel || null,
       evidence: m.evidence ? { ...m.evidence, open: () => app.openVerdict(m.evidence.kind, m.evidence.of) } : null,

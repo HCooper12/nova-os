@@ -14,8 +14,15 @@ const groupLabel = css(`font:500 8px ${M};letter-spacing:.26em;color:var(--nv-in
 export function Sidebar({ v }) {
   return (
     <aside style={css("width:238px;flex:none;display:flex;flex-direction:column;gap:18px;padding:24px 16px 18px;border-right:1px solid var(--nv-edge);background:linear-gradient(180deg,rgba(0,0,0,.28),rgba(0,0,0,0) 40%);overflow-y:auto")}>
-      <div onClick={v.goHome} style={css(`cursor:pointer;padding:0 10px;font:700 21px ${R};letter-spacing:.16em;color:var(--nv-ink)`)}>
-        NOVA<span style={css("background:linear-gradient(90deg,var(--nv-cy),var(--nv-vi));-webkit-background-clip:text;background-clip:text;color:transparent")}>·OS</span>
+      <div style={css('display:flex;align-items:center;gap:8px')}>
+        <div onClick={v.goHome} style={css(`flex:1;min-width:0;cursor:pointer;padding:0 10px;font:700 21px ${R};letter-spacing:.16em;color:var(--nv-ink)`)}>
+          NOVA<span style={css("background:linear-gradient(90deg,var(--nv-cy),var(--nv-vi));-webkit-background-clip:text;background-clip:text;color:transparent")}>·OS</span>
+        </div>
+        {/* fold the sidebar away for a full-screen display (⌘B). A matching
+            tab on the left edge brings it straight back. */}
+        <Interactive as="span" onClick={v.hideSidebar} aria-label="Hide the sidebar (⌘B)" title="Hide the sidebar — ⌘B"
+          base={css(`cursor:pointer;flex:none;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:7px;border:1px solid var(--nv-edge);color:var(--nv-ink40);font:400 12px ${M}`)}
+          hoverStyle="border-color:var(--nv-acc-border);color:var(--nv-cy)">‹</Interactive>
       </div>
 
       <div>

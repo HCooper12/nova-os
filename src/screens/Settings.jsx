@@ -246,16 +246,78 @@ export function Settings({ v }) {
         </div>
       )}
 
+      {/* VOICE — moved off the Voice screen, which is a command centre, not
+          a preferences page. Everything that only gets set once lives here. */}
+      <div style={{ marginTop: '34px' }}>
+        <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
+          <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>VOICE</span>
+          <span style={css("font:400 9px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>HOW NOVA SPEAKS, AND HOW IT HEARS YOU</span>
+        </div>
+        <div style={css("margin-top:12px;max-width:520px;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);padding:20px 22px;background:var(--nv-glass);display:flex;flex-direction:column;gap:16px")}>
+          <div style={css("display:flex;justify-content:space-between;align-items:center;gap:12px")}>
+            <div>
+              <div style={css("font:600 12.5px var(--nv-font-ui)")}>Speak replies</div>
+              <div style={css("margin-top:2px;font-size:11px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.voiceEngineLabel === 'BROWSER' ? 'Using the browser voice' : `Engine: ${v.voiceEngineLabel}`}</div>
+            </div>
+            <Interactive as="span" onClick={v.toggleSpeak}
+              base={{ cursor: 'pointer', font: '600 9px var(--nv-font-mono)', letterSpacing: '.1em', padding: '6px 13px', borderRadius: '7px', border: v.speakOn ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', color: v.speakOn ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: v.speakOn ? 'var(--nv-acc-bg)' : 'transparent' }}
+            >{v.speakOn ? 'ON' : 'OFF'}</Interactive>
+          </div>
+
+          <div style={css("display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:16px")}>
+            <div>
+              <div style={css("font:600 12.5px var(--nv-font-ui)")}>“Hey Nova”</div>
+              <div style={css("margin-top:2px;max-width:340px;font-size:11px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>
+                {v.wakeWordSupported
+                  ? 'Say it anywhere in Nova and the conversation starts — no tap. Holds the microphone open while you’re in the app, and stands down whenever you or Nova are already talking.'
+                  : 'This browser has no speech recognition, so the wake word can’t run here.'}
+              </div>
+            </div>
+            {v.wakeWordSupported && (
+              <Interactive as="span" onClick={() => v.setWakeWord(!v.wakeWordOn)}
+                base={{ cursor: 'pointer', flex: 'none', font: '600 9px var(--nv-font-mono)', letterSpacing: '.1em', padding: '6px 13px', borderRadius: '7px', border: v.wakeWordOn ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', color: v.wakeWordOn ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: v.wakeWordOn ? 'var(--nv-acc-bg)' : 'transparent' }}
+              >{v.wakeWordOn ? 'ON' : 'OFF'}</Interactive>
+            )}
+          </div>
+
+          {v.voiceOptions.length > 0 && (
+            <div style={css("border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:16px")}>
+              <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{v.voicePickerLabel}</div>
+              <select value={v.voiceVoiceId} onChange={v.setVoiceId}
+                style={{ marginTop: '7px', width: '100%', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: '500 11px var(--nv-font-mono)', padding: '8px 9px', outline: 'none' }}>
+                <option value="" style={{ background: '#141019' }}>{v.voiceDefaultLabel}</option>
+                {v.voiceOptions.map((o) => <option key={o.id} value={o.id} style={{ background: '#141019' }}>{o.name}</option>)}
+              </select>
+            </div>
+          )}
+
+          {v.usingBrowserVoice && v.systemVoices.length > 0 && (
+            <div style={css("border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:16px")}>
+              <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>VOICE · FREE ON-DEVICE</div>
+              <select value={v.speechVoiceURI} onChange={v.setSpeechVoice}
+                style={{ marginTop: '7px', width: '100%', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: '500 11px var(--nv-font-mono)', padding: '8px 9px', outline: 'none' }}>
+                <option value="" style={{ background: '#141019' }}>System default</option>
+                {v.systemVoices.map((o) => <option key={o.uri} value={o.uri} style={{ background: '#141019' }}>{o.name}</option>)}
+              </select>
+              <div style={css("margin-top:6px;font-size:10px;line-height:1.5;color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>More free voices: iOS Settings → Accessibility → Spoken Content → Voices → download, then they appear here.</div>
+            </div>
+          )}
+          {v.voiceEngineDetail && (
+            <div style={css("font-size:10.5px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 38%, transparent)")}>{v.voiceEngineDetail}</div>
+          )}
+        </div>
+      </div>
+
       {v.tabOrderItems && (
         <div style={{ marginTop: '34px' }}>
           <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
-            <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>TAB ORDER</span>
-            <span style={css("font:400 9px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>DRAG TO REORDER THE BOTTOM TAB BAR</span>
+            <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>NAVIGATION ORDER</span>
+            <span style={css("font:400 9px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>DRAG TO REORDER THE TAB BAR AND THE SIDEBAR</span>
           </div>
           <div style={{ marginTop: '12px' }}>
             <TabOrderEditor items={v.tabOrderItems} onReorder={v.setTabOrder} />
           </div>
-          <div style={css("margin-top:8px;max-width:520px;font-size:11px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Press and drag a row to reorder. The first three fill the floating dock on your phone; everything else lives one tap away in More. Remembered on this device.</div>
+          <div style={css("margin-top:8px;max-width:520px;font-size:11px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Press and drag a row to reorder. On your phone the first three fill the floating dock and the rest live in More. On the Mac this same order sorts the sidebar within its groups — Workspace, Vault and System stay as they are. Remembered on this device.</div>
         </div>
       )}
 

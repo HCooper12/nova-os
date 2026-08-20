@@ -93,12 +93,38 @@ export function Voice({ v }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [v.voiceAutoListenTick]);
 
+  // The transcript opens where the conversation IS — at the newest line.
+  // It continues across days, so landing at the top means scrolling past
+  // history every single time. Jumps on mount, animates on new messages,
+  // and leaves him alone if he has deliberately scrolled up to read back.
+  const logRef = useRef(null);
+  const firstPaint = useRef(true);
+  useEffect(() => {
+    const el = logRef.current;
+    if (!el) return;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    if (!firstPaint.current && !atBottom) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: firstPaint.current ? 'auto' : 'smooth' });
+    firstPaint.current = false;
+  }, [v.orbMsgs.length, v.voiceBusy]);
+
+  // one gesture, everything it needs: unlock audio inside the tap (iOS),
+  // stop any reply mid-sentence so he can interrupt, and open the mic in
+  // conversation mode so the turn comes back to him without another press
+  const startTalking = () => {
+    v.primeSpeech();
+    if (dict.on) { dict.toggle(); return; }
+    v.stopSpeaking();
+    v.resumeConv();
+    if (!v.convMode) v.toggleConvMode(); else dict.toggle();
+  };
+
   const caption = dict.on ? (v.convMode ? 'LISTENING — PAUSE SENDS' : 'LISTENING…')
     : v.voiceBusy ? 'READING THE VAULT…'
     : v.voiceSpeaking ? 'SPEAKING'
-    : v.convPaused ? 'CONVERSATION PAUSED — TAP THE MIC'
+    : v.convPaused ? 'PAUSED — TAP THE CORE'
     : v.convMode ? 'CONVERSATION ON — YOUR TURN'
-    : v.voiceLive ? 'TAP THE MIC OR TYPE' : 'STANDING BY';
+    : v.voiceLive ? (v.wakeWordOn ? 'TAP THE CORE, TYPE, OR SAY “HEY NOVA”' : 'TAP THE CORE OR TYPE') : 'STANDING BY';
 
   return (
     <div style={v.wrapVoice} data-screen-label="Voice">
@@ -118,40 +144,13 @@ export function Voice({ v }) {
               <RailRow label="MIC" value={dict.supported ? (dict.on ? 'LISTENING' : 'READY') : 'NOT AVAILABLE'} tone={dict.on ? 'var(--nv-cy)' : undefined} barPct={dict.on ? 92 : dict.supported ? 12 : 0} />
               <RailRow label="ANSWERS" value={!v.voiceLive ? 'OFFLINE' : v.voiceBusy ? 'THINKING…' : 'VAULT · READ-ONLY'} tone={v.voiceBusy ? 'var(--nv-cy)' : undefined} barPct={v.voiceBusy ? 88 : v.voiceLive ? 46 : 0} />
               <RailRow label="SPEECH ENGINE" value={v.voiceEngineLabel} tone={v.voiceEngineLabel !== 'BROWSER' && v.voiceEngineLabel !== '—' ? 'var(--nv-cy)' : undefined} barPct={v.voiceSpeaking ? 92 : v.speakOn ? 34 : 0} />
+              <RailRow label="WAKE WORD" value={v.wakeWordOn ? '“HEY NOVA” · ON' : 'OFF'} tone={v.wakeWordOn ? 'var(--nv-cy)' : undefined} barPct={v.wakeWordOn ? 70 : 0} />
               {v.voiceEngineDetail && (
                 <div style={css("font-size:9px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 38%, transparent);letter-spacing:.06em")}>{v.voiceEngineDetail}</div>
               )}
+              <div style={css("font-size:9px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 32%, transparent);letter-spacing:.06em")}>Voice, speech engine and wake word live in Settings.</div>
             </div>
           </Panel>
-          <div style={css("border:1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent);border-radius:10px;padding:12px 14px;background:var(--nv-well);display:flex;flex-direction:column;gap:10px")}>
-            <div style={css("display:flex;justify-content:space-between;align-items:center")}>
-              <span style={css("font-size:9px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent);letter-spacing:.2em")}>SPEAK REPLIES</span>
-              <Interactive as="span" onClick={v.toggleSpeak}
-                base={{ cursor: 'pointer', font: `600 9px ${M}`, letterSpacing: '.1em', padding: '4px 10px', borderRadius: '6px', border: v.speakOn ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', color: v.speakOn ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: v.speakOn ? 'var(--nv-acc-bg)' : 'transparent' }}
-              >{v.speakOn ? 'ON' : 'OFF'}</Interactive>
-            </div>
-            {v.voiceOptions.length > 0 && (
-              <div>
-                <div style={css("font-size:9px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent);letter-spacing:.2em")}>{v.voicePickerLabel}</div>
-                <select value={v.voiceVoiceId} onChange={v.setVoiceId}
-                  style={{ marginTop: '6px', width: '100%', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: `500 10.5px ${M}`, padding: '6px 8px', outline: 'none' }}>
-                  <option value="" style={{ background: '#141019' }}>{v.voiceDefaultLabel}</option>
-                  {v.voiceOptions.map((o) => <option key={o.id} value={o.id} style={{ background: '#141019' }}>{o.name}</option>)}
-                </select>
-              </div>
-            )}
-            {v.usingBrowserVoice && v.systemVoices.length > 0 && (
-              <div>
-                <div style={css("font-size:9px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent);letter-spacing:.2em")}>VOICE · FREE ON-DEVICE</div>
-                <select value={v.speechVoiceURI} onChange={v.setSpeechVoice}
-                  style={{ marginTop: '6px', width: '100%', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: `500 10.5px ${M}`, padding: '6px 8px', outline: 'none' }}>
-                  <option value="" style={{ background: '#141019' }}>System default</option>
-                  {v.systemVoices.map((o) => <option key={o.uri} value={o.uri} style={{ background: '#141019' }}>{o.name}</option>)}
-                </select>
-                <div style={css("margin-top:5px;font-size:8.5px;line-height:1.5;color:color-mix(in srgb, var(--nv-ink) 35%, transparent);letter-spacing:.04em")}>More free voices: iOS Settings → Accessibility → Spoken Content → Voices → download, then they appear here.</div>
-              </div>
-            )}
-          </div>
         </div>
         <div style={css("flex:1 1 420px;min-width:340px;display:flex;flex-direction:column;align-items:center;gap:20px")}>
           {/* the core in its reticle — a station's centre instrument: two
@@ -164,7 +163,16 @@ export function Voice({ v }) {
             {[0, 90, 180, 270].map((deg) => (
               <span key={deg} aria-hidden="true" style={{ position: 'absolute', top: '50%', left: '50%', width: '11px', height: '1px', background: 'color-mix(in srgb, var(--nv-cy) 55%, transparent)', transform: `rotate(${deg}deg) translateX(157px)` }}></span>
             ))}
-            <NovaCore size={252} engine={v.coreStyle} speaking={v.voiceSpeaking} listening={dict.on} />
+            {/* THE CORE IS THE BUTTON (his ask: no ASK BY VOICE / CONVERSATION
+                pair, just one thing to press). Tap to start talking, tap
+                again to stop. Conversation mode is simply what talking IS
+                now — Nova speaks, the mic reopens, a pause sends. */}
+            <Interactive onClick={startTalking} aria-label={dict.on ? 'Stop listening' : 'Talk to Nova'}
+              title={dict.on ? 'Listening — a pause sends. Tap to stop.' : 'Tap to talk' + (v.wakeWordOn ? ' — or just say “Hey Nova”' : '')}
+              base={css('cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center;background:none;border:none;padding:0')}
+              activeStyle={{ transform: 'scale(.97)', transition: 'transform .16s cubic-bezier(.32,.72,0,1)' }}>
+              <NovaCore size={252} engine={v.coreStyle} speaking={v.voiceSpeaking} listening={dict.on} style={{ pointerEvents: 'none' }} />
+            </Interactive>
           </div>
           <div style={css(`font:400 10px ${M};letter-spacing:.42em;color:${dict.on ? 'var(--nv-vi)' : v.voiceSpeaking ? 'var(--nv-gold)' : 'color-mix(in srgb, var(--nv-ink) 60%, transparent)'};transition:color .4s`)}>{caption}</div>
           {/* the REAL waveform wherever a meter exists (Nova speaking via the
@@ -189,19 +197,6 @@ export function Voice({ v }) {
             >{v.ritualInvite.label} — TAP TO START</Interactive>
           )}
           <div style={css("display:flex;gap:10px;flex-wrap:wrap;justify-content:center;white-space:nowrap")}>
-            {dict.supported && (
-              <Interactive as="span" onClick={() => { v.primeSpeech(); v.stopSpeaking(); v.resumeConv(); dict.toggle(); }}
-                base={{ cursor: 'pointer', font: `500 10.5px ${M}`, padding: '9px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent)', color: dict.on ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', background: dict.on ? 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' : 'rgba(0,0,0,.25)' }}
-                hoverStyle="border-color:color-mix(in srgb, var(--nv-cy) 60%, transparent)"
-              >{dict.on ? '● LISTENING — PAUSE SENDS' : '🎙 ASK BY VOICE'}</Interactive>
-            )}
-            {dict.supported && v.voiceLive && (
-              <Interactive as="span" onClick={() => { v.primeSpeech(); v.toggleConvMode(); }}
-                title="Hands-free back-and-forth: Nova speaks, the mic reopens, your pause sends"
-                base={{ cursor: 'pointer', font: `500 10.5px ${M}`, padding: '9px 16px', borderRadius: '8px', border: v.convMode ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent)', color: v.convMode ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', background: v.convMode ? 'var(--nv-acc-bg)' : 'rgba(0,0,0,.25)' }}
-                hoverStyle="border-color:var(--nv-acc-border)"
-              >{v.convMode ? '∞ CONVERSATION ON' : '∞ CONVERSATION'}</Interactive>
-            )}
             <Interactive as="span" onClick={v.briefMe} base={`cursor:pointer;font:500 10.5px ${M};padding:9px 16px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);border-radius:8px;color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 06%, transparent)`} hoverStyle="background:color-mix(in srgb, var(--nv-gold) 12%, transparent)">☰ BRIEF ME</Interactive>
             {v.voiceLive && (
               <Interactive as="span" onClick={v.goAmbient} title="Fullscreen presence — the core, the time, the day's numbers; tap to exit"
@@ -217,7 +212,7 @@ export function Voice({ v }) {
             <Interactive as="span" onClick={v.newVoiceChat} base={`cursor:pointer;font:500 9px ${M};letter-spacing:.1em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`} hoverStyle="color:var(--nv-cy)">NEW CHAT</Interactive>
           ) : null}
           style={{ flex: '1 1 340px', minWidth: '300px', maxWidth: '470px', minHeight: '360px', maxHeight: '560px' }}>
-          <div style={css(`flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px;font:400 12.5px/1.7 ${M}`)}>
+          <div ref={logRef} style={css(`flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px;font:400 12.5px/1.7 ${M}`)}>
             {v.orbMsgs.length === 0 && (
               <div style={css("color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>Ask about anything in your vault — training, fuel, notes, the week. Answers come from what's actually written.</div>
             )}

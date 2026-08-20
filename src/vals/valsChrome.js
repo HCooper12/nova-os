@@ -20,6 +20,17 @@ export function valsChrome(app, ctx) {
     textShadow: act ? 'var(--nv-tsh-tab)' : 'none' });
   const numStyle = (act) => ({ fontFamily: "var(--nv-font-mono)", fontSize: '9px', width: '20px', flex: 'none', color: act ? 'var(--nv-acc)' : 'var(--nv-ink40)' });
   const mkNav = (label, numeral, screen, count) => ({ label, numeral, screen, count, go: go(screen), style: navStyle(st.screen === screen), numStyle: numStyle(st.screen === screen) });
+  // his saved order, applied inside each sidebar group. Anything the order
+  // doesn't mention keeps its declared position at the end rather than
+  // jumping to the front — a new screen must never reshuffle his list.
+  const orderIndex = (screen) => {
+    const i = (st.tabOrder || []).indexOf(screen);
+    return i < 0 ? Number.MAX_SAFE_INTEGER : i;
+  };
+  const sortByOrder = (navs) => navs
+    .map((n, i) => ({ n, i }))
+    .sort((a, b) => (orderIndex(a.n.screen) - orderIndex(b.n.screen)) || (a.i - b.i))
+    .map((x) => x.n);
 
   // palette
   const cmds = [
@@ -157,7 +168,13 @@ export function valsChrome(app, ctx) {
   return {
     // chrome
     showBoot: !st.booted,
-    isMobile: mob, showSidebar: !mob, tabs,
+    isMobile: mob,
+    // full-screen on the Mac: the sidebar folds away, and a tab on the left
+    // edge (plus ⌘B) brings it back
+    showSidebar: !mob && !st.sidebarHidden,
+    sidebarPeek: !mob && st.sidebarHidden ? { show: () => app.toggleSidebar() } : null,
+    hideSidebar: () => app.toggleSidebar(),
+    tabs,
     wrapMission: mob ? mp : { padding: '24px 40px 64px', maxWidth: '1180px' },
     wrapVoice: wrapTall || { padding: '28px 40px 40px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
     wrapGalaxy: wrapTall || { padding: '28px 40px 40px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
@@ -199,14 +216,19 @@ export function valsChrome(app, ctx) {
     isRecipes: st.screen === 'recipes', isShopping: st.screen === 'shopping', isStash: st.screen === 'stash', isWorkouts: st.screen === 'workouts', isCode: st.screen === 'code', isNotes: st.screen === 'notes', isJournal: st.screen === 'journal',
     dateLabel: new Date().toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }).toUpperCase().replace(/,/g, ''),
     greeting: (new Date().getHours() < 12 ? 'Good morning, ' : new Date().getHours() < 18 ? 'Good afternoon, ' : 'Good evening, ') + userName + '.',
-    navMain: [
+    // ONE saved order drives both the phone's dock and the Mac's sidebar
+    // (Settings → Tab order). The three sidebar groups stay — they mean
+    // something — and his order sorts the rows inside each. Numerals are
+    // canonical identity (screens show "IX." in their own headers), so they
+    // travel with the row rather than renumbering by position.
+    navMain: sortByOrder([
       mkNav('Mission Control', 'I.', 'mission'),
       mkNav('Voice', 'II.', 'voice'),
       mkNav('Memory Galaxy', 'III.', 'galaxy'),
       mkNav('Claude Code', 'IV.', 'code'),
       Object.assign(mkNav('Inbox', 'V.', 'inbox'), inboxPendingCount > 0 ? { count: String(inboxPendingCount), countHot: true } : {}),
-    ],
-    navVault: [
+    ]),
+    navVault: sortByOrder([
       // counts: live numbers when synced, mock numbers only in demo mode,
       // and an honest "—" when configured but not yet synced (offline)
       Object.assign(mkNav('Fuel', 'VI.', 'recipes'), { count: usingLiveRecipes ? String(st.liveRecipes.length) : demoMode ? String(app.recipes.length) : '—' }),
@@ -217,11 +239,11 @@ export function valsChrome(app, ctx) {
       Object.assign(mkNav('Journal', 'XI.', 'journal'), { count: st.liveJournalEntries ? String(journalDays.length) : demoMode ? '0' : '—' }),
       mkNav('Money', 'XII.', 'money'),
       Object.assign(mkNav('Stash', 'XIII.', 'stash'), { count: st.liveStash ? String(st.liveStash.reduce((n, c) => n + c.items.length, 0)) : demoMode ? '0' : '—' }),
-    ],
-    navSystem: [
+    ]),
+    navSystem: sortByOrder([
       Object.assign(mkNav('Operations', 'XIV.', 'ops'), { count: st.liveOps ? String(st.liveOps.pending) : demoMode ? '0' : '—' }),
       mkNav('Settings', 'XV.', 'settings'),
-    ],
+    ]),
     // C3 — the job tray: everything in flight RIGHT NOW, derived from
     // state that already exists (classifying inbox records + the code
     // lane). Completion pings were already wired (push + Telegram fire
@@ -377,6 +399,22 @@ export function valsChrome(app, ctx) {
     micOn: !!st.micOn,
     // the dock orb's live state — the mic as it ACTUALLY is, plus the
     // long-press that reveals the words
+    // "Hey Nova" — it must never hold the mic while dictation or a reply is
+    // using it, or it would wake on Nova's own voice
+    wakeWord: {
+      on: !!st.wakeWordOn,
+      // the Voice screen runs its own dictation, whose state never reaches
+      // App — so we stand down there entirely rather than fight it for the
+      // mic. The core is one tap away on that screen anyway.
+      blocked: !!(st.liveMicOpen || st.voiceSpeaking || st.voiceBusy || st.screen === 'voice' || st.screen === 'ambient'),
+      wake: () => app.onWakeWord(),
+      error: (kind) => {
+        app.setWakeWord(false);
+        app.toastMsg(kind === 'not-allowed' || kind === 'service-not-allowed'
+          ? 'Microphone blocked — "Hey Nova" is off. Allow the mic, then switch it back on in Settings.'
+          : 'Wake word stopped — turn it back on in Settings.');
+      },
+    },
     novaListening: !!st.liveMicOpen,
     novaTalkOn: !!st.liveTalkOn,
     holdNovaText: () => app.toggleLiveText(),

@@ -12,6 +12,11 @@ const IOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigato
 // by the Inbox capture composer (continuous — long dictation) and the Voice
 // screen (one-shot: continuous false, so silence genuinely ends the take
 // and onDone fires — iOS never ends a continuous session on pause).
+// One place asks whether this browser can hear at all — the dictation hook,
+// the wake word, and every button that should hide itself when it cannot.
+export const speechRecognitionSupported = () => typeof window !== 'undefined'
+  && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+
 export function useDictation(getBase, onText, onDone, { continuous = true, onError } = {}) {
   const recRef = useRef(null);
   const baseRef = useRef('');
