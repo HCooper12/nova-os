@@ -120,9 +120,10 @@ export function MobileChrome({ v }) {
             border: '3px solid color-mix(in srgb, var(--nv-void) 80%, transparent)',
             boxShadow: '0 10px 26px -8px var(--nv-acc)' }}>
           <VoiceHalo speaking={v.novaSpeaking} listening={v.micOn} />
-          {/* the mini core IS the icon now — it bristles while Nova talks */}
+          {/* the mini core IS the icon while Nova talks — HIS chosen core
+              (the Voice-screen identity), gone dynamic, not a different design */}
           {(v.novaSpeaking || v.micOn)
-            ? <NovaCore size={44} variant="mini" engine="reactor" speaking={v.novaSpeaking} listening={v.micOn} style={{ pointerEvents: 'none' }} />
+            ? <NovaCore size={44} variant="mini" engine={v.coreStyle} speaking={v.novaSpeaking} listening={v.micOn} style={{ pointerEvents: 'none' }} />
             : <span aria-hidden="true">✦</span>}
         </Interactive>
         {dockTabs.slice(3, 5).map((t) => <DockTab key={t.screen} t={t} />)}

@@ -83,6 +83,20 @@ export async function todayLocalContext() {
   return live;
 }
 
+// The volatile refresh for a RESUMED turn. His Voice conversation persists
+// for days (voiceSessionId lives in localStorage), so turn-1 context goes
+// stale: a video handed to the Watcher on Tuesday is invisible to a session
+// started Monday. The spoken lane already re-states the volatile block each
+// turn; this is the same idea for the PWA ask — today's live numbers plus
+// the platform ledger, both local-disk instant.
+export async function resumedRefreshContext() {
+  const [today, activity] = await Promise.all([
+    withDeadline(todayLocalContext(), 3000),
+    withDeadline((async () => (await import('./platformActivity.js')).platformActivityContext())(), 3000),
+  ]);
+  return [today, activity].filter((s) => typeof s === 'string' && s.trim()).join('\n\n');
+}
+
 export async function buildAskContext(vaultPath, sessionId, { fast = false } = {}) {
   if (sessionId) return '';
 
@@ -107,6 +121,9 @@ export async function buildAskContext(vaultPath, sessionId, { fast = false } = {
     async () => (await import('./openLoops.js')).openLoopsContext(vaultPath),
     // the shared brain: what the rest of the fleet did lately, off the rails
     async () => (await import('./fleetContext.js')).fleetContext(),
+    // the front door's ledger: what HE gave the platform (videos, studies,
+    // research) — "what was the last video I gave you?" answers from here
+    async () => (await import('./platformActivity.js')).platformActivityContext(),
     // self-knowledge: "how do you work?" gets the real architecture
     async () => (await import('./ops.js')).fleetRosterContext(),
     async () => (await import('./reminders.js')).remindersContext(),

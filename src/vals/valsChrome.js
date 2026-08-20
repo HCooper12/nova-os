@@ -320,6 +320,7 @@ export function valsChrome(app, ctx) {
       tap: () => app.startLiveTalk(),
       onLongPress: () => app.navigate('voice'),
       speaking: !!st.voiceSpeaking,
+      coreStyle: st.coreStyle,
       bottom: mob ? 'calc(84px + env(safe-area-inset-bottom))' : '18px',
     } : null,
     // the non-blocking voice presence (replaces the modal sheet — his note:
@@ -332,6 +333,7 @@ export function valsChrome(app, ctx) {
       busy: !!st.voiceBusy,
       speaking: !!st.voiceSpeaking,
       conversing: !!st.voiceConvMode,
+      coreStyle: st.coreStyle,
       autoListenTick: st.voiceAutoListenTick,
       reply: st.liveReply || '',
       evidence: st.liveVerdictOffer,

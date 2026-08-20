@@ -13,8 +13,9 @@ const M = 'var(--nv-font-mono)';
 //    separate text box and interrupting the flow of what I'm currently doing"
 //
 // So this is deliberately NOT a modal: no backdrop, no page takeover, no
-// pointer capture except on the strip itself. The reactor core appears,
-// bristling with the voice; the line Nova is saying rides beneath it; and
+// pointer capture except on the strip itself. His own chosen Nova core
+// appears (the Voice-screen identity, live-speech dynamic — see
+// NovaCore.jsx); the line Nova is saying rides beneath it; and
 // evidence cards arrive as chips right there. He keeps working the screen
 // he was on. Same component both platforms — it docks bottom-right on the
 // Mac and above the tab bar on the phone.
@@ -71,7 +72,7 @@ export function VoicePresence({ v }) {
       {/* the presence strip: reactor core + the live line */}
       <div style={css(`pointer-events:auto;display:flex;align-items:center;gap:12px;border:1px solid color-mix(in srgb, var(--nv-cy) ${s.speaking || dict.on ? 45 : 22}%, transparent);border-radius:18px;padding:10px 14px 10px 10px;background:color-mix(in srgb, var(--nv-bg2) 90%, black);backdrop-filter:blur(14px);box-shadow:0 16px 44px rgba(0,0,0,.5);animation:sheetUp .26s cubic-bezier(.32,.72,0,1)`)}>
         <div style={css('flex:none;width:54px;height:54px;position:relative;display:flex;align-items:center;justify-content:center')}>
-          <NovaCore size={54} variant="mini" engine="reactor" speaking={s.speaking} listening={dict.on} style={{ pointerEvents: 'none' }} />
+          <NovaCore size={54} variant="mini" engine={s.coreStyle} speaking={s.speaking} listening={dict.on} style={{ pointerEvents: 'none' }} />
         </div>
         <div style={css('flex:1;min-width:0')}>
           <div style={css(`font:600 8.5px ${M};letter-spacing:.22em;color:${dict.on ? 'var(--nv-vi)' : s.speaking ? 'var(--nv-gold)' : 'var(--nv-cy)'}`)}>{state}</div>

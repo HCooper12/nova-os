@@ -16,6 +16,13 @@ import { audioLevel } from './audioLevel.js';
 // Deliberately blue in every theme — the intelligence keeps its own color.
 // The rAF loop pauses when the tab is hidden and never runs under
 // prefers-reduced-motion (one still frame at a flattering angle).
+//
+// BOTH engines are live-speech dynamic (his 20-Aug brief, second pass: the
+// icon he already chose is the one that animates — not a different design):
+// real audio amplitude accelerates the whole scene, flares the light, and
+// surges the geometry; smoothed speaking/listening state tints the palette
+// gold/violet so the mode reads at any size. Idle is untouched. The spiked
+// 'reactor' engine remains selectable but is no longer wired anywhere.
 
 const FILAMENT_PRESETS = {
   full: { seed: 7, bands: 32, segs: 36, arc: 1.15, weight: 1, chaos: 1, speed: 0.16, embers: 540, wisps: 84, heart: 0.12 },
@@ -65,13 +72,6 @@ function buildFilamentScene(opts, R) {
   return { bands, embers, wisps };
 }
 
-function filCol(f, a) {
-  const hue = 224 - f * 36;
-  const sat = 90 - f * 10;
-  const lit = 38 + (1 - f) * 44;
-  return `hsla(${hue},${sat}%,${lit}%,${a})`;
-}
-
 function drawHeart(ctx, cx, cy, t, hr) {
   const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, hr * 3.2);
   g.addColorStop(0, 'rgba(240,252,255,.95)');
@@ -84,16 +84,40 @@ function drawHeart(ctx, cx, cy, t, hr) {
   ctx.fill();
 }
 
-function makeFilamentDraw(ctx, size, opts) {
+function makeFilamentDraw(ctx, size, opts, getState) {
   const cx = size / 2;
   const cy = size / 2;
   const R = size * 0.46;
   const { bands, embers, wisps } = buildFilamentScene(opts, R);
+  // Live-speech dynamics (his 20-Aug brief, second pass: innovate THIS icon,
+  // not a different one). Three ingredients:
+  //   clock — an integrated timebase that ACCELERATES with the real audio
+  //           level, so the whole being visibly quickens with each syllable
+  //           and never snaps when the speed changes;
+  //   mixS/mixL — smoothed speaking/listening state, pulling the palette
+  //           toward gold / violet so the state reads across a room;
+  //   lvl — raw amplitude, flaring alpha, weight and the band radii.
+  // Idle (all three at 0) is EXACTLY the core he already knows.
+  let mixS = 0, mixL = 0, clock = 0, last = null, lvl = 0;
+  const col = (f, a) => {
+    let hue = 224 - f * 36;
+    hue += (406 - hue) * mixS * 0.82; // → gold, travelling through violet/rose, never green
+    hue += (272 - hue) * mixL * 0.82; // → violet
+    const lit = Math.min(38 + (1 - f) * 44 + lvl * 12, 88);
+    return `hsla(${hue % 360},${90 - f * 10}%,${lit}%,${a})`;
+  };
   return function draw(t) {
+    const st = getState ? getState() : {};
+    lvl = audioLevel();
+    const dt = last == null ? 0 : Math.min(t - last, 0.1);
+    last = t;
+    mixS += ((st.speaking ? 1 : 0) - mixS) * 0.07;
+    mixL += ((st.listening ? 1 : 0) - mixL) * 0.07;
+    clock += dt * (1 + lvl * 2.6 + (mixS + mixL) * 0.4);
     ctx.clearRect(0, 0, size, size);
     ctx.globalCompositeOperation = 'lighter';
     for (const w of wisps) {
-      const rot = t * 0.03;
+      const rot = clock * 0.03;
       const x1 = cx + Math.cos(w.a + rot) * R * w.f1;
       const y1 = cy + Math.sin(w.a + rot) * R * w.f1 * 0.94;
       const x2 = cx + Math.cos(w.b + rot) * R * w.f2;
@@ -102,7 +126,7 @@ function makeFilamentDraw(ctx, size, opts) {
       let my = (y1 + y2) / 2 - (x2 - x1) * w.bulge * 0.3;
       mx = mx * 0.62 + cx * 0.38;
       my = my * 0.62 + cy * 0.38;
-      ctx.strokeStyle = filCol(0.5, w.al);
+      ctx.strokeStyle = col(0.5, w.al * (1 + lvl * 1.2));
       ctx.lineWidth = 0.7;
       ctx.beginPath();
       ctx.moveTo(x1, y1);
@@ -110,16 +134,18 @@ function makeFilamentDraw(ctx, size, opts) {
       ctx.stroke();
     }
     for (const b of bands) {
-      const rad = R * b.f;
+      // the filament rings SURGE outward with the voice, each band on its
+      // own phase so the whole body ripples rather than pumping as one
+      const rad = R * b.f * (1 + lvl * 0.16 * Math.sin(clock * 3.1 + b.f * 9));
       ctx.save();
       ctx.translate(cx, cy);
       ctx.rotate(b.tilt);
       ctx.scale(1, b.squash);
-      const rot = t * b.vel;
+      const rot = clock * b.vel;
       for (const s of b.segs) {
-        const fl = 0.55 + 0.45 * Math.sin(t * s.fs + s.fl);
-        ctx.strokeStyle = filCol(b.f, s.al * fl);
-        ctx.lineWidth = s.w;
+        const fl = 0.55 + 0.45 * Math.sin(clock * s.fs + s.fl);
+        ctx.strokeStyle = col(b.f, s.al * fl * (1 + lvl * 1.4));
+        ctx.lineWidth = s.w * (1 + lvl * 0.5);
         ctx.beginPath();
         ctx.arc(0, 0, rad + s.jit, s.a0 + rot, s.a0 + rot + s.len);
         ctx.stroke();
@@ -127,18 +153,31 @@ function makeFilamentDraw(ctx, size, opts) {
       ctx.restore();
     }
     for (const e of embers) {
-      const tw = 0.4 + 0.6 * Math.abs(Math.sin(t * e.ts + e.tw));
-      const x = cx + Math.cos(e.ang + t * 0.05) * R * e.f;
-      const y = cy + Math.sin(e.ang + t * 0.05) * R * e.f * 0.94;
-      ctx.fillStyle = filCol(e.f, e.al * tw);
+      const tw = 0.4 + 0.6 * Math.abs(Math.sin(clock * e.ts + e.tw));
+      const x = cx + Math.cos(e.ang + clock * 0.05) * R * e.f;
+      const y = cy + Math.sin(e.ang + clock * 0.05) * R * e.f * 0.94;
+      ctx.fillStyle = col(e.f, e.al * tw * (1 + lvl * 1.4));
       ctx.beginPath();
-      ctx.arc(x, y, e.sz, 0, 6.29);
+      ctx.arc(x, y, e.sz * (1 + lvl * 1.1), 0, 6.29);
+      ctx.fill();
+    }
+    // a state-tinted bloom around the heart — gold while Nova speaks, violet
+    // while the mic is open — so the icon's mode is legible even at 44px
+    const bloomA = (mixS + mixL) * (0.22 + lvl * 0.5);
+    if (bloomA > 0.02) {
+      const br = R * (0.34 + lvl * 0.30);
+      const g2 = ctx.createRadialGradient(cx, cy, 0, cx, cy, br);
+      g2.addColorStop(0, col(0.1, Math.min(bloomA, 0.8)));
+      g2.addColorStop(1, col(0.9, 0));
+      ctx.fillStyle = g2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, br, 0, 6.29);
       ctx.fill();
     }
     // the heart breathes on its own and SWELLS with real audio — Nova's own
     // voice while speaking, his while dictating (audioLevel is 0 otherwise,
     // so idle behavior is exactly what it always was)
-    const pulse = 1 + 0.07 * Math.sin(t * 1.8) + audioLevel() * 1.15; // his note: it must READ as alive while speaking
+    const pulse = 1 + 0.07 * Math.sin(t * 1.8) + lvl * 1.15; // his note: it must READ as alive while speaking
     drawHeart(ctx, cx, cy, t, R * opts.heart * pulse);
     ctx.globalCompositeOperation = 'source-over';
   };
@@ -255,7 +294,6 @@ const rotX = (p, a) => { const c = Math.cos(a), s = Math.sin(a); return [p[0], c
 const rotY = (p, a) => { const c = Math.cos(a), s = Math.sin(a); return [c * p[0] + s * p[2], p[1], -s * p[0] + c * p[2]]; };
 const CAM_D = 6; // camera distance in R units — mild perspective
 const depthMult = (dp) => 0.3 + 0.7 * Math.pow(dp, 1.35); // fog: back dim, front bright
-const holoCol = (dp, a) => `hsla(${222 - 28 * dp},${90 - 6 * dp}%,${44 + 38 * dp}%,${a})`;
 
 function buildHoloScene(opts) {
   const r = seededRng(opts.seed);
@@ -307,15 +345,27 @@ function buildHoloScene(opts) {
   return { rings, inner, arcs, embers, parts };
 }
 
-function makeHoloDraw(ctx, size, opts) {
+function makeHoloDraw(ctx, size, opts, getState) {
   const cx = size / 2;
   const cy = size / 2;
   const R = size * 0.46;
   const { rings, inner, arcs, embers, parts } = buildHoloScene(opts);
 
+  // same live-speech dynamics as the filament engine (see that comment):
+  // an audio-accelerated clock, smoothed gold/violet state mixes, amplitude
+  // flares. Idle is exactly the hologram he already knows.
+  let mixS = 0, mixL = 0, clock = 0, last = null, lvl = 0;
+  const col = (dp, a) => {
+    let hue = 222 - 28 * dp;
+    hue += (406 - hue) * mixS * 0.82;
+    hue += (272 - hue) * mixL * 0.82;
+    const lit = Math.min(44 + 38 * dp + lvl * 10, 90);
+    return `hsla(${hue % 360},${90 - 6 * dp}%,${lit}%,${a})`;
+  };
+
   const seg = (p1, p2, alpha, w) => {
     const dp = (p1.dp + p2.dp) / 2;
-    ctx.strokeStyle = holoCol(dp, alpha * depthMult(dp));
+    ctx.strokeStyle = col(dp, alpha * depthMult(dp) * (1 + lvl * 0.9));
     ctx.lineWidth = w * (p1.s + p2.s) / 2;
     ctx.beginPath();
     ctx.moveTo(p1.x, p1.y);
@@ -328,10 +378,17 @@ function makeHoloDraw(ctx, size, opts) {
   };
 
   return function draw(t) {
+    const st = getState ? getState() : {};
+    lvl = audioLevel();
+    const dt = last == null ? 0 : Math.min(t - last, 0.1);
+    last = t;
+    mixS += ((st.speaking ? 1 : 0) - mixS) * 0.07;
+    mixL += ((st.listening ? 1 : 0) - mixL) * 0.07;
+    clock += dt * (1 + lvl * 2.6 + (mixS + mixL) * 0.4);
     ctx.clearRect(0, 0, size, size);
     ctx.globalCompositeOperation = 'lighter';
     const axT = 0.5 + 0.22 * Math.sin(t * 0.09);
-    const ayT = t * opts.tumble; // slow assembly tumble
+    const ayT = clock * opts.tumble; // slow assembly tumble — quickens with the voice
     const P = (fr, a, tx, ty) => {
       let p = [Math.cos(a) * fr, Math.sin(a) * fr, 0];
       p = rotX(p, tx); p = rotY(p, ty); p = rotX(p, axT); p = rotY(p, ayT);
@@ -339,7 +396,7 @@ function makeHoloDraw(ctx, size, opts) {
     };
 
     // graticule globe (spins about its own axis inside the tumbling assembly)
-    const Rg = R * 0.42, gs = t * 0.12;
+    const Rg = R * 0.42, gs = clock * 0.12;
     for (const lat of [-1.05, -0.55, 0, 0.55, 1.05]) {
       const rc = Rg * Math.cos(lat), z0 = Rg * Math.sin(lat);
       let prev = null;
@@ -367,8 +424,8 @@ function makeHoloDraw(ctx, size, opts) {
 
     // volumetric halo — faint gas glow filling the sphere
     const gh = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.56);
-    gh.addColorStop(0, 'rgba(64,170,238,.12)');
-    gh.addColorStop(0.6, 'rgba(64,170,238,.05)');
+    gh.addColorStop(0, col(0.5, 0.12 + lvl * 0.2));
+    gh.addColorStop(0.6, col(0.5, 0.05 + lvl * 0.08));
     gh.addColorStop(1, 'rgba(20,60,140,0)');
     ctx.fillStyle = gh;
     ctx.beginPath();
@@ -377,11 +434,11 @@ function makeHoloDraw(ctx, size, opts) {
 
     // ember cloud (each mote on its own slow orbit inside the body)
     for (const e of embers) {
-      let p = rotY([e.p[0] * R, e.p[1] * R, e.p[2] * R], t * e.sp * 4);
+      let p = rotY([e.p[0] * R, e.p[1] * R, e.p[2] * R], clock * e.sp * 4);
       p = rotX(p, axT); p = rotY(p, ayT);
       const q = project(p);
-      const tw = 0.5 + 0.5 * Math.abs(Math.sin(t * e.ts + e.tw));
-      ctx.fillStyle = holoCol(q.dp, e.al * tw * depthMult(q.dp));
+      const tw = 0.5 + 0.5 * Math.abs(Math.sin(clock * e.ts + e.tw));
+      ctx.fillStyle = col(q.dp, e.al * tw * depthMult(q.dp) * (1 + lvl * 1.2));
       ctx.beginPath();
       ctx.arc(q.x, q.y, e.sz * q.s, 0, 6.29);
       ctx.fill();
@@ -393,8 +450,8 @@ function makeHoloDraw(ctx, size, opts) {
       let p = rotY([pt.p[0] * Rp, pt.p[1] * Rp, pt.p[2] * Rp], gs);
       p = rotX(p, axT); p = rotY(p, ayT);
       const q = project(p);
-      const tw = 0.55 + 0.45 * Math.sin(t * pt.ts + pt.tw);
-      ctx.fillStyle = holoCol(q.dp, (pt.hot ? 0.95 : 0.5) * tw * depthMult(q.dp));
+      const tw = 0.55 + 0.45 * Math.sin(clock * pt.ts + pt.tw);
+      ctx.fillStyle = col(q.dp, (pt.hot ? 0.95 : 0.5) * tw * depthMult(q.dp) * (1 + lvl * 0.9));
       ctx.beginPath();
       ctx.arc(q.x, q.y, (pt.hot ? 1.6 : 0.95) * q.s, 0, 6.29);
       ctx.fill();
@@ -402,8 +459,8 @@ function makeHoloDraw(ctx, size, opts) {
 
     // 3D filament arcs
     for (const a of arcs) {
-      const fr = a.f * R, base = a.a0 + t * a.drift;
-      const fl = 0.55 + 0.45 * Math.sin(t * a.fs + a.fl);
+      const fr = a.f * R, base = a.a0 + clock * a.drift;
+      const fl = 0.55 + 0.45 * Math.sin(clock * a.fs + a.fl);
       let prev = null;
       for (let k = 0; k <= 9; k++) {
         const q = P(fr, base + a.len * k / 9, a.tx, a.ty);
@@ -414,7 +471,7 @@ function makeHoloDraw(ctx, size, opts) {
 
     // gyro rings
     for (const g of rings) {
-      const fr = g.f * R, off = g.spin * t;
+      const fr = g.f * R, off = g.spin * clock;
       if (g.style === 'solid' || g.style === 'tick' || g.style === 'double') {
         const alp = g.style === 'tick' ? g.al * 0.55 : g.al;
         for (let k = 0; k < 96; k++) {
@@ -444,7 +501,7 @@ function makeHoloDraw(ctx, size, opts) {
         }
       }
       if (g.comet) {
-        const ah = g.cometPh + g.cometSp * t;
+        const ah = g.cometPh + g.cometSp * clock;
         const K = 30;
         for (let k = 0; k < K; k++) {
           const a1 = ah - k * 0.05 * Math.sign(g.cometSp);
@@ -453,7 +510,7 @@ function makeHoloDraw(ctx, size, opts) {
           seg(P(fr, a1, g.tx, g.ty), P(fr, a2, g.tx, g.ty), 0.85 * fade, 2.2 * fade + 0.5);
         }
         const h = P(fr, ah, g.tx, g.ty);
-        ctx.fillStyle = holoCol(h.dp, 0.95 * depthMult(h.dp));
+        ctx.fillStyle = col(h.dp, 0.95 * depthMult(h.dp));
         ctx.beginPath();
         ctx.arc(h.x, h.y, 2.4 * h.s, 0, 6.29);
         ctx.fill();
@@ -462,8 +519,8 @@ function makeHoloDraw(ctx, size, opts) {
 
     // inner gyro reactor — fast precessing rings around the heart
     for (const n of inner) {
-      const fr = n.f * R, off = n.spin * t;
-      const tx = n.tx + 0.6 * Math.sin(t * n.prec + n.ph), ty = n.ty + t * 0.25;
+      const fr = n.f * R, off = n.spin * clock;
+      const tx = n.tx + 0.6 * Math.sin(t * n.prec + n.ph), ty = n.ty + clock * 0.25;
       for (let k = 0; k < 48; k++) {
         const a1 = k / 48 * 6.2832 + off, a2 = (k + 1) / 48 * 6.2832 + off;
         seg(P(fr, a1, tx, ty), P(fr, a2, tx, ty), 0.62, 1.05);
@@ -472,7 +529,7 @@ function makeHoloDraw(ctx, size, opts) {
 
     // billboard HUD rings — flat, tying the hologram to the interface plane
     for (let k = 0; k < 40; k++) {
-      const a0 = k / 40 * 6.2832 + t * 0.12, len = 6.2832 / 40 * 0.5;
+      const a0 = k / 40 * 6.2832 + clock * 0.12, len = 6.2832 / 40 * 0.5;
       ctx.strokeStyle = 'rgba(89,230,255,.4)';
       ctx.lineWidth = 1.2;
       ctx.beginPath();
@@ -480,7 +537,7 @@ function makeHoloDraw(ctx, size, opts) {
       ctx.stroke();
     }
     for (let k = 0; k < 64; k++) {
-      const a0 = -t * 0.08 + k / 64 * 6.2832, len = 6.2832 / 64 * 0.32;
+      const a0 = -clock * 0.08 + k / 64 * 6.2832, len = 6.2832 / 64 * 0.32;
       ctx.strokeStyle = 'rgba(143,123,255,.22)';
       ctx.lineWidth = 0.9;
       ctx.beginPath();
@@ -490,7 +547,18 @@ function makeHoloDraw(ctx, size, opts) {
 
     // breathing heart (shared identity across both engines) — swells with
     // real audio exactly like the filament heart
-    const pulse = 1 + 0.06 * Math.sin(t * 1.8) + audioLevel() * 1.15; // ditto — the mini orb carries the same life
+    const bloomA = (mixS + mixL) * (0.22 + lvl * 0.5);
+    if (bloomA > 0.02) {
+      const br = R * (0.30 + lvl * 0.26);
+      const g2 = ctx.createRadialGradient(cx, cy, 0, cx, cy, br);
+      g2.addColorStop(0, col(0.9, Math.min(bloomA, 0.8)));
+      g2.addColorStop(1, col(0.1, 0));
+      ctx.fillStyle = g2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, br, 0, 6.29);
+      ctx.fill();
+    }
+    const pulse = 1 + 0.06 * Math.sin(t * 1.8) + lvl * 1.15; // ditto — the mini orb carries the same life
     drawHeart(ctx, cx, cy, t, R * 0.125 * pulse);
     ctx.globalCompositeOperation = 'source-over';
   };
@@ -514,11 +582,12 @@ export function NovaCore({ size = 312, variant = 'full', engine = 'filament', st
     const ctx = canvas.getContext('2d');
     ctx.scale(dpr, dpr);
 
+    const getState = () => stateRef.current;
     const draw = engine === 'reactor'
-      ? makeReactorDraw(ctx, size, () => stateRef.current)
+      ? makeReactorDraw(ctx, size, getState)
       : engine === 'hologram'
-        ? makeHoloDraw(ctx, size, size < 260 ? HOLO_SMALL : HOLO_FULL)
-        : makeFilamentDraw(ctx, size, FILAMENT_PRESETS[variant] || FILAMENT_PRESETS.full);
+        ? makeHoloDraw(ctx, size, size < 260 ? HOLO_SMALL : HOLO_FULL, getState)
+        : makeFilamentDraw(ctx, size, FILAMENT_PRESETS[variant] || FILAMENT_PRESETS.full, getState);
 
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduced) {

@@ -42,7 +42,14 @@ export function voiceRouter(vaultPath) {
         return res.json({ text: reflex.text, reflex: true });
       }
       const sessionId = typeof req.body?.sessionId === 'string' && req.body.sessionId ? req.body.sessionId : null;
-      const jobId = startAskNova(vaultPath, { question, context: await askContext(sessionId), sessionId });
+      // Resumed turns get the volatile refresh (today's numbers + the
+      // platform ledger) as a live line — his PWA conversation persists for
+      // days, and turn-1 context alone left Nova blind to everything handed
+      // to the platform since (observed 20 Aug: "what's the last video I
+      // gave you?" answered from chat memory).
+      const { resumedRefreshContext } = await import('../lib/askContext.js');
+      const liveLine = sessionId ? await resumedRefreshContext().catch(() => '') : '';
+      const jobId = startAskNova(vaultPath, { question, context: await askContext(sessionId), sessionId, liveLine });
       res.json({ jobId });
     } catch (e) {
       res.status(500).json({ error: e.message });
