@@ -47,7 +47,7 @@ import { IngestReview } from './IngestReview.jsx';
 import { Toast } from './Toast.jsx';
 import { ContextMenuHost } from './ContextMenu.jsx';
 import { VerdictCard } from './VerdictCard.jsx';
-import { NovaLive } from './NovaLive.jsx';
+import { VoicePresence } from './VoicePresence.jsx';
 import { OutboxView } from './OutboxView.jsx';
 import { NudgeCard } from './NudgeCard.jsx';
 import { Boot } from './Boot.jsx';
@@ -3320,6 +3320,13 @@ export default class App extends Component {
     this.primeSpeech();
     this.setState({ liveTalkOn: true, voiceConvMode: true, voiceConvPaused: false, liveInput: '', liveAsk: '', liveReply: '', liveVerdictOffer: null });
   }
+  // Nova speaking anywhere SHOWS the presence — his ask: "the voice icon
+  // popping up on the screen when communicating verbally so I know it's
+  // talking". Never on the Voice/Ambient screens, which are already the core.
+  showPresenceForSpeech() {
+    if (this.state.screen === 'voice' || this.state.screen === 'ambient') return;
+    if (!this.state.liveTalkOn) this.setState({ liveTalkOn: true });
+  }
   endLiveTalk() {
     this.setState({ liveTalkOn: false, voiceConvMode: false, liveInput: '', liveVerdictOffer: null, liveVerdict: null });
     this.stopSpeaking();
@@ -3761,6 +3768,7 @@ export default class App extends Component {
   beginSpeech() {
     this.speechActive = (this.speechActive || 0) + 1;
     if (!this.state.voiceSpeaking) this.setState({ voiceSpeaking: true });
+    this.showPresenceForSpeech(); // the icon appears the moment Nova talks
   }
   endSpeech() {
     this.speechActive = Math.max(0, (this.speechActive || 0) - 1);
@@ -4255,7 +4263,7 @@ export default class App extends Component {
           </main>
         </div>
 
-        {this.state.liveTalkOn && <NovaLive v={v} />}
+        {v.presence && <VoicePresence v={v} />}
         {this.state.prCelebration && (
           <div onClick={() => this.setState({ prCelebration: null })}
             style={css('position:fixed;inset:0;z-index:125;display:flex;align-items:center;justify-content:center;background:rgba(4,3,8,.7);backdrop-filter:blur(6px);animation:fadeIn .2s ease-out')}>

@@ -122,7 +122,7 @@ export function Voice({ v }) {
           <div style={css("position:relative;width:300px;height:300px;display:flex;align-items:center;justify-content:center;box-shadow:var(--nv-glow-core);border-radius:50%")}>
             <div style={css("position:absolute;inset:0;border-radius:50%;border:1px dashed color-mix(in srgb, var(--nv-cy) 22%, transparent);animation:ringSpin 44s linear infinite var(--nv-anim)")}></div>
             <div style={{ position: 'absolute', inset: '24px', borderRadius: '50%', border: '1px solid color-mix(in srgb, var(--nv-cy) 28%, transparent)', borderTopColor: 'color-mix(in srgb, var(--nv-cy) 85%, transparent)', animation: `ringSpin ${v.voiceBusy ? 3 : 14}s linear infinite reverse var(--nv-anim)` }}></div>
-            <NovaCore size={252} engine={v.coreStyle} />
+            <NovaCore size={252} engine={(v.voiceSpeaking || dict.on) ? 'reactor' : v.coreStyle} speaking={v.voiceSpeaking} listening={dict.on} />
           </div>
           <div style={css(`font:400 10px ${M};letter-spacing:.42em;color:color-mix(in srgb, var(--nv-ink) 60%, transparent)`)}>{caption}</div>
           {/* the REAL waveform wherever a meter exists (Nova speaking via the

@@ -144,6 +144,111 @@ function makeFilamentDraw(ctx, size, opts) {
   };
 }
 
+
+/* ---------------------------- reactor engine ----------------------------
+   His reference (Instagram, 20 Aug): a dense sphere of radial spikes off a
+   hot core — it BRISTLES with the voice and shifts colour by state. The
+   filament engine is beautiful but too even-tempered to read as "talking";
+   this one is built to be watched while Nova speaks.
+
+   Every spike is a 3-D unit vector on a Fibonacci sphere, projected flat.
+   Length = base + audio amplitude (with per-spike phase so it shimmers
+   rather than pumping as one block). Colour lerps idle-cyan → speaking-gold
+   → listening-violet, so the state is readable across a room. Audio comes
+   from the same analyser everything else uses, so silence looks like
+   silence.                                                                */
+
+const SPIKES = 620;
+const PALETTE = {
+  idle: [[0.35, 0.90, 1.0], [0.55, 0.78, 1.0]],      // cyan
+  speaking: [[1.0, 0.78, 0.36], [1.0, 0.55, 0.30]],  // gold/amber — the reference's hot core
+  listening: [[0.66, 0.55, 1.0], [0.85, 0.60, 1.0]], // violet
+};
+const lerp = (a, b, k) => a + (b - a) * k;
+
+function makeReactorDraw(ctx, size, getState) {
+  const cx = size / 2, cy = size / 2;
+  const R = size * 0.30;
+  // Fibonacci sphere — even coverage, no polar clumping
+  const pts = Array.from({ length: SPIKES }, (_, i) => {
+    const y = 1 - (i / (SPIKES - 1)) * 2;
+    const r = Math.sqrt(Math.max(0, 1 - y * y));
+    const th = Math.PI * (3 - Math.sqrt(5)) * i;
+    return { v: [Math.cos(th) * r, y, Math.sin(th) * r], ph: (i % 97) / 97 * 6.283, sp: 0.6 + (i % 13) / 13 };
+  });
+  let mix = [0, 0]; // smoothed [speaking, listening] so colour glides, never snaps
+
+  return (t) => {
+    const st = getState();
+    const lvl = audioLevel();
+    mix = [lerp(mix[0], st.speaking ? 1 : 0, 0.08), lerp(mix[1], st.listening ? 1 : 0, 0.08)];
+    const [ca, cb] = (() => {
+      const base = PALETTE.idle;
+      const out = [[...base[0]], [...base[1]]];
+      for (let k = 0; k < 2; k++) {
+        for (let c = 0; c < 3; c++) {
+          out[k][c] = lerp(out[k][c], PALETTE.speaking[k][c], mix[0]);
+          out[k][c] = lerp(out[k][c], PALETTE.listening[k][c], mix[1]);
+        }
+      }
+      return out;
+    })();
+    const rgb = (c, a) => `rgba(${Math.round(c[0] * 255)},${Math.round(c[1] * 255)},${Math.round(c[2] * 255)},${a})`;
+
+    ctx.clearRect(0, 0, size, size);
+    ctx.globalCompositeOperation = 'lighter';
+
+    const ry = t * 0.28, rx = Math.sin(t * 0.17) * 0.35;
+    const cosY = Math.cos(ry), sinY = Math.sin(ry), cosX = Math.cos(rx), sinX = Math.sin(rx);
+    // amplitude drives spike extension; a little always-on shimmer keeps it
+    // alive between syllables without pretending there's sound
+    const amp = lvl * 1.9;
+
+    for (const p of pts) {
+      const [x0, y0, z0] = p.v;
+      const x1 = cosY * x0 + sinY * z0;
+      const z1 = -sinY * x0 + cosY * z0;
+      const y1 = cosX * y0 - sinX * z1;
+      const z2 = sinX * y0 + cosX * z1;
+      const depth = (z2 + 1) / 2;                    // 0 back → 1 front
+      const shimmer = 0.5 + 0.5 * Math.sin(t * (1.6 * p.sp) + p.ph);
+      const len = R * (0.14 + 0.10 * shimmer + amp * (0.30 + 0.35 * shimmer));
+      const r0 = R * 0.62;
+      const sx = cx + x1 * r0, sy = cy + y1 * r0;
+      const ex = cx + x1 * (r0 + len), ey = cy + y1 * (r0 + len);
+      const a = (0.10 + 0.55 * depth) * (0.55 + 0.45 * shimmer);
+      ctx.strokeStyle = rgb(depth > 0.5 ? ca : cb, a);
+      ctx.lineWidth = depth > 0.72 ? 1.5 : 1;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+    }
+
+    // the hot heart — swells hard with the voice (this is the bit the eye reads)
+    const hr = R * (0.42 + lvl * 0.5 + 0.03 * Math.sin(t * 2.2));
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, hr);
+    g.addColorStop(0, rgb([1, 1, 1], 0.95));
+    g.addColorStop(0.35, rgb(ca, 0.75));
+    g.addColorStop(1, rgb(cb, 0));
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(cx, cy, hr, 0, 6.283);
+    ctx.fill();
+
+    // two orbital rings, tilted — the reference's containment field
+    for (let i = 0; i < 2; i++) {
+      const rr = R * (1.06 + i * 0.16);
+      ctx.strokeStyle = rgb(cb, 0.10 + 0.18 * (1 - i * 0.5) + lvl * 0.3);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rr, rr * (0.30 + 0.22 * i + 0.08 * Math.sin(t * 0.5 + i)), t * (0.12 + i * 0.07), 0, 6.283);
+      ctx.stroke();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  };
+}
+
 /* ---------------------------- hologram engine ---------------------------- */
 
 const rotX = (p, a) => { const c = Math.cos(a), s = Math.sin(a); return [p[0], c * p[1] - s * p[2], s * p[1] + c * p[2]]; };
@@ -393,8 +498,12 @@ function makeHoloDraw(ctx, size, opts) {
 
 /* ------------------------------- component ------------------------------- */
 
-export function NovaCore({ size = 312, variant = 'full', engine = 'filament', style }) {
+export function NovaCore({ size = 312, variant = 'full', engine = 'filament', style, speaking = false, listening = false }) {
   const ref = useRef(null);
+  // live state read through a ref so the rAF loop sees changes WITHOUT the
+  // canvas being torn down and rebuilt on every speech toggle
+  const stateRef = useRef({ speaking, listening });
+  stateRef.current = { speaking, listening };
 
   useEffect(() => {
     const canvas = ref.current;
@@ -405,13 +514,15 @@ export function NovaCore({ size = 312, variant = 'full', engine = 'filament', st
     const ctx = canvas.getContext('2d');
     ctx.scale(dpr, dpr);
 
-    const draw = engine === 'hologram'
-      ? makeHoloDraw(ctx, size, size < 260 ? HOLO_SMALL : HOLO_FULL)
-      : makeFilamentDraw(ctx, size, FILAMENT_PRESETS[variant] || FILAMENT_PRESETS.full);
+    const draw = engine === 'reactor'
+      ? makeReactorDraw(ctx, size, () => stateRef.current)
+      : engine === 'hologram'
+        ? makeHoloDraw(ctx, size, size < 260 ? HOLO_SMALL : HOLO_FULL)
+        : makeFilamentDraw(ctx, size, FILAMENT_PRESETS[variant] || FILAMENT_PRESETS.full);
 
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduced) {
-      draw(engine === 'hologram' ? 3.2 : 1.7);
+      draw(engine === 'hologram' ? 3.2 : 1.7); // reduced-motion: one still frame
       return undefined;
     }
     let raf = 0;

@@ -322,6 +322,22 @@ export function valsChrome(app, ctx) {
       speaking: !!st.voiceSpeaking,
       bottom: mob ? 'calc(84px + env(safe-area-inset-bottom))' : '18px',
     } : null,
+    // the non-blocking voice presence (replaces the modal sheet — his note:
+    // it must not interrupt what he's doing)
+    presence: st.liveTalkOn ? {
+      input: st.liveInput || '',
+      setInput: (t) => app.setState({ liveInput: t }),
+      send: () => app.sendLiveTalk(),
+      end: () => app.endLiveTalk(),
+      busy: !!st.voiceBusy,
+      speaking: !!st.voiceSpeaking,
+      conversing: !!st.voiceConvMode,
+      autoListenTick: st.voiceAutoListenTick,
+      reply: st.liveReply || '',
+      evidence: st.liveVerdictOffer,
+      openEvidence: () => app.openVerdict(st.liveVerdictOffer.kind, st.liveVerdictOffer.of),
+      onError: (err) => app.toastMsg('Dictation: ' + err),
+    } : null,
     liveTalk: st.liveTalkOn ? {
       input: st.liveInput || '',
       setInput: (t) => app.setState({ liveInput: t }),

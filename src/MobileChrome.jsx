@@ -3,6 +3,7 @@ import { css } from './css.js';
 import { TabIcon } from './TabIcon.jsx';
 import { Interactive } from './Interactive.jsx';
 import { VoiceHalo } from './VoiceHalo.jsx';
+import { NovaCore } from './NovaCore.jsx';
 
 const M = "var(--nv-font-mono)";
 const R = "var(--nv-font-ui)";
@@ -119,7 +120,10 @@ export function MobileChrome({ v }) {
             border: '3px solid color-mix(in srgb, var(--nv-void) 80%, transparent)',
             boxShadow: '0 10px 26px -8px var(--nv-acc)' }}>
           <VoiceHalo speaking={v.novaSpeaking} listening={v.micOn} />
-          <span aria-hidden="true">✦</span>
+          {/* the mini core IS the icon now — it bristles while Nova talks */}
+          {(v.novaSpeaking || v.micOn)
+            ? <NovaCore size={44} variant="mini" engine="reactor" speaking={v.novaSpeaking} listening={v.micOn} style={{ pointerEvents: 'none' }} />
+            : <span aria-hidden="true">✦</span>}
         </Interactive>
         {dockTabs.slice(3, 5).map((t) => <DockTab key={t.screen} t={t} />)}
         <div onClick={() => setMoreOpen(true)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', minWidth: '44px', padding: '6px 4px', cursor: 'pointer', borderRadius: '14px', color: moreOpen || !activeInDock ? 'var(--nv-acc)' : 'var(--nv-ink40)' }}>
