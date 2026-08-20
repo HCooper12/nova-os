@@ -55,7 +55,7 @@ function RailRow({ label, value, tone, barPct }) {
   return (
     <div>
       <div style={css("display:flex;justify-content:space-between;color:color-mix(in srgb, var(--nv-ink) 50%, transparent)")}>
-        <span>{label}</span><span style={{ color: tone || 'color-mix(in srgb, var(--nv-ink) 85%, transparent)' }}>{value}</span>
+        <span style={css('white-space:nowrap')}>{label}</span><span style={{ color: tone || 'color-mix(in srgb, var(--nv-ink) 85%, transparent)', whiteSpace: 'nowrap' }}>{value}</span>
       </div>
       <div style={css("margin-top:6px;height:2px;background:color-mix(in srgb, var(--nv-cy) 14%, transparent)")}>
         <div style={{ width: `${barPct}%`, height: '100%', background: 'var(--nv-cy)', transition: 'width .4s' }}></div>
@@ -82,6 +82,10 @@ export function Voice({ v }) {
   // conversation mode: Nova finished speaking → the mic reopens by itself
   const dictRef = useRef(dict);
   dictRef.current = dict;
+  // this screen owns its own dictation, so App can't see it — report up, or
+  // the wake word would fight this mic for the microphone
+  useEffect(() => { v.reportScreenMic?.(dict.on); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [dict.on]);
+  useEffect(() => () => v.reportScreenMic?.(false), []); // leaving the screen frees it
   useEffect(() => {
     // conversation mode's turn-taking, OR the one-shot reply window that
     // opens whenever Nova finishes speaking — both arrive on the same tick
@@ -119,6 +123,11 @@ export function Voice({ v }) {
     if (!v.convMode) v.toggleConvMode(); else dict.toggle();
   };
 
+  // The core is the instrument — it should dominate the station, and take
+  // the room the sidebar gives back when it folds away.
+  const coreSize = v.isMobile ? 244 : (v.showSidebar ? 300 : 372);
+  const reticle = coreSize + 56;
+
   const caption = dict.on ? (v.convMode ? 'LISTENING — PAUSE SENDS' : 'LISTENING…')
     : v.voiceBusy ? 'READING THE VAULT…'
     : v.voiceSpeaking ? 'SPEAKING'
@@ -143,12 +152,20 @@ export function Voice({ v }) {
             <div style={css('display:flex;flex-direction:column;gap:15px')}>
               <RailRow label="MIC" value={dict.supported ? (dict.on ? 'LISTENING' : 'READY') : 'NOT AVAILABLE'} tone={dict.on ? 'var(--nv-cy)' : undefined} barPct={dict.on ? 92 : dict.supported ? 12 : 0} />
               <RailRow label="ANSWERS" value={!v.voiceLive ? 'OFFLINE' : v.voiceBusy ? 'THINKING…' : 'VAULT · READ-ONLY'} tone={v.voiceBusy ? 'var(--nv-cy)' : undefined} barPct={v.voiceBusy ? 88 : v.voiceLive ? 46 : 0} />
-              <RailRow label="SPEECH ENGINE" value={v.voiceEngineLabel} tone={v.voiceEngineLabel !== 'BROWSER' && v.voiceEngineLabel !== '—' ? 'var(--nv-cy)' : undefined} barPct={v.voiceSpeaking ? 92 : v.speakOn ? 34 : 0} />
-              <RailRow label="WAKE WORD" value={v.wakeWordOn ? '“HEY NOVA” · ON' : 'OFF'} tone={v.wakeWordOn ? 'var(--nv-cy)' : undefined} barPct={v.wakeWordOn ? 70 : 0} />
+              <RailRow label="ENGINE" value={v.voiceEngineLabel} tone={v.voiceEngineLabel !== 'BROWSER' && v.voiceEngineLabel !== '—' ? 'var(--nv-cy)' : undefined} barPct={v.voiceSpeaking ? 92 : v.speakOn ? 34 : 0} />
+              {v.wakeWordSupported && (
+                <RailRow label="“HEY NOVA”" barPct={v.wakeWordOn ? 70 : 0} tone={v.wakeWordOn ? 'var(--nv-cy)' : undefined}
+                  value={(
+                    <Interactive as="span" onClick={() => v.setWakeWord(!v.wakeWordOn)}
+                      aria-label={v.wakeWordOn ? 'Turn the wake word off' : 'Turn the wake word on'}
+                      base={{ cursor: 'pointer', font: 'inherit', letterSpacing: 'inherit', color: v.wakeWordOn ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 85%, transparent)' }}
+                      hoverStyle="color:var(--nv-cy);text-decoration:underline">{v.wakeWordOn ? 'ON' : 'OFF'}</Interactive>
+                  )} />
+              )}
               {v.voiceEngineDetail && (
                 <div style={css("font-size:9px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 38%, transparent);letter-spacing:.06em")}>{v.voiceEngineDetail}</div>
               )}
-              <div style={css("font-size:9px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 32%, transparent);letter-spacing:.06em")}>Voice, speech engine and wake word live in Settings.</div>
+              <div style={css("font-size:9px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 32%, transparent);letter-spacing:.06em")}>Voice selection lives in Settings.</div>
             </div>
           </Panel>
         </div>
@@ -156,12 +173,17 @@ export function Voice({ v }) {
           {/* the core in its reticle — a station's centre instrument: two
               counter-rotating rings, a state-lit halo, and tick marks that
               read as calibration rather than decoration */}
-          <div style={css("position:relative;width:300px;height:300px;display:flex;align-items:center;justify-content:center;box-shadow:var(--nv-glow-core);border-radius:50%")}>
-            <div style={css("position:absolute;inset:0;border-radius:50%;border:1px dashed color-mix(in srgb, var(--nv-cy) 22%, transparent);animation:ringSpin 44s linear infinite var(--nv-anim)")}></div>
-            <div style={{ position: 'absolute', inset: '24px', borderRadius: '50%', border: '1px solid color-mix(in srgb, var(--nv-cy) 28%, transparent)', borderTopColor: 'color-mix(in srgb, var(--nv-cy) 85%, transparent)', animation: `ringSpin ${v.voiceBusy ? 3 : 14}s linear infinite reverse var(--nv-anim)` }}></div>
-            <div aria-hidden="true" style={{ position: 'absolute', inset: '-14px', borderRadius: '50%', border: `1px solid color-mix(in srgb, ${dict.on ? 'var(--nv-vi)' : v.voiceSpeaking ? 'var(--nv-gold)' : 'var(--nv-cy)'} ${dict.on || v.voiceSpeaking ? 40 : 12}%, transparent)`, transition: 'border-color .5s' }}></div>
+          <div style={{ position: 'relative', width: `${reticle}px`, height: `${reticle}px`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--nv-glow-core)', borderRadius: '50%' }}>
+            {/* EVERY decorative ring is pointer-events:none and the core sits
+                on its own stacking level. They are absolutely positioned and
+                the button was not, so CSS painted them ON TOP and they ate
+                every tap — the core looked dead because its clicks never
+                reached it. */}
+            <div style={css("position:absolute;inset:0;pointer-events:none;border-radius:50%;border:1px dashed color-mix(in srgb, var(--nv-cy) 22%, transparent);animation:ringSpin 44s linear infinite var(--nv-anim)")}></div>
+            <div style={{ position: 'absolute', inset: '24px', pointerEvents: 'none', borderRadius: '50%', border: '1px solid color-mix(in srgb, var(--nv-cy) 28%, transparent)', borderTopColor: 'color-mix(in srgb, var(--nv-cy) 85%, transparent)', animation: `ringSpin ${v.voiceBusy ? 3 : 14}s linear infinite reverse var(--nv-anim)` }}></div>
+            <div aria-hidden="true" style={{ position: 'absolute', inset: '-14px', pointerEvents: 'none', borderRadius: '50%', border: `1px solid color-mix(in srgb, ${dict.on ? 'var(--nv-vi)' : v.voiceSpeaking ? 'var(--nv-gold)' : 'var(--nv-cy)'} ${dict.on || v.voiceSpeaking ? 40 : 12}%, transparent)`, transition: 'border-color .5s' }}></div>
             {[0, 90, 180, 270].map((deg) => (
-              <span key={deg} aria-hidden="true" style={{ position: 'absolute', top: '50%', left: '50%', width: '11px', height: '1px', background: 'color-mix(in srgb, var(--nv-cy) 55%, transparent)', transform: `rotate(${deg}deg) translateX(157px)` }}></span>
+              <span key={deg} aria-hidden="true" style={{ position: 'absolute', top: '50%', left: '50%', pointerEvents: 'none', width: '11px', height: '1px', background: 'color-mix(in srgb, var(--nv-cy) 55%, transparent)', transform: `rotate(${deg}deg) translateX(${reticle / 2 + 7}px)` }}></span>
             ))}
             {/* THE CORE IS THE BUTTON (his ask: no ASK BY VOICE / CONVERSATION
                 pair, just one thing to press). Tap to start talking, tap
@@ -169,9 +191,9 @@ export function Voice({ v }) {
                 now — Nova speaks, the mic reopens, a pause sends. */}
             <Interactive onClick={startTalking} aria-label={dict.on ? 'Stop listening' : 'Talk to Nova'}
               title={dict.on ? 'Listening — a pause sends. Tap to stop.' : 'Tap to talk' + (v.wakeWordOn ? ' — or just say “Hey Nova”' : '')}
-              base={css('cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center;background:none;border:none;padding:0')}
+              base={css('position:relative;z-index:2;cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center;background:none;border:none;padding:0')}
               activeStyle={{ transform: 'scale(.97)', transition: 'transform .16s cubic-bezier(.32,.72,0,1)' }}>
-              <NovaCore size={252} engine={v.coreStyle} speaking={v.voiceSpeaking} listening={dict.on} style={{ pointerEvents: 'none' }} />
+              <NovaCore size={coreSize} engine={v.coreStyle} speaking={v.voiceSpeaking} listening={dict.on} style={{ pointerEvents: 'none' }} />
             </Interactive>
           </div>
           <div style={css(`font:400 10px ${M};letter-spacing:.42em;color:${dict.on ? 'var(--nv-vi)' : v.voiceSpeaking ? 'var(--nv-gold)' : 'color-mix(in srgb, var(--nv-ink) 60%, transparent)'};transition:color .4s`)}>{caption}</div>

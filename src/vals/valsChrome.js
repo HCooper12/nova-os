@@ -172,8 +172,8 @@ export function valsChrome(app, ctx) {
     // full-screen on the Mac: the sidebar folds away, and a tab on the left
     // edge (plus ⌘B) brings it back
     showSidebar: !mob && !st.sidebarHidden,
-    sidebarPeek: !mob && st.sidebarHidden ? { show: () => app.toggleSidebar() } : null,
-    hideSidebar: () => app.toggleSidebar(),
+    // one control, one place, both states
+    sidebarToggle: !mob ? { open: !st.sidebarHidden, toggle: () => app.toggleSidebar() } : null,
     tabs,
     wrapMission: mob ? mp : { padding: '24px 40px 64px', maxWidth: '1180px' },
     wrapVoice: wrapTall || { padding: '28px 40px 40px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
@@ -336,7 +336,7 @@ export function valsChrome(app, ctx) {
     // ONE Nova icon per device (his ask). On the phone that icon is the dock's
     // centre orb — the floating one would be a second, so it is gone there.
     // The Mac has no dock, so the floating core IS its icon.
-    floatingCore: !mob && st.screen !== 'voice' && st.screen !== 'ambient' ? {
+    floatingCore: !mob && st.screen !== 'voice' && st.screen !== 'ambient' && st.screen !== 'mission' ? {
       thinking: !!(st.voiceBusy || st.coachBusy || st.codeBusy || st.quickBusy || st.sparBusy || st.inboxCaptureBusy),
       // the mic's REAL state, not the settings flag (which defaults on and
       // used to paint the core permanently violet)
@@ -403,10 +403,14 @@ export function valsChrome(app, ctx) {
     // using it, or it would wake on Nova's own voice
     wakeWord: {
       on: !!st.wakeWordOn,
-      // the Voice screen runs its own dictation, whose state never reaches
-      // App — so we stand down there entirely rather than fight it for the
-      // mic. The core is one tap away on that screen anyway.
-      blocked: !!(st.liveMicOpen || st.voiceSpeaking || st.voiceBusy || st.screen === 'voice' || st.screen === 'ambient'),
+      // Blocked ONLY while a microphone is genuinely in use — one recogniser
+      // owns the mic at a time. Notably NOT blocked while Nova is speaking:
+      // that is barge-in, and being able to cut Nova off mid-sentence by
+      // saying its name is the difference between a conversation and a
+      // recital. (Nova's replies never contain the phrase, so it cannot
+      // wake itself.) The Voice screen reports its own mic up through
+      // voiceScreenMic, so the wake word now works there too.
+      blocked: !!(st.liveMicOpen || st.voiceScreenMic || st.screen === 'ambient'),
       wake: () => app.onWakeWord(),
       error: (kind) => {
         app.setWakeWord(false);

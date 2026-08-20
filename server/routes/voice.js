@@ -56,6 +56,24 @@ export function voiceRouter(vaultPath) {
     }
   });
 
+  // Called the instant the microphone opens — before there is a question.
+  // Boots the conversation's process (and, on a cold session, warms the
+  // context cache) so the answer starts the moment he stops talking.
+  // Deliberately cheap and fire-and-forget: it never blocks the ask.
+  router.post('/ask/prewarm', (req, res) => {
+    const sessionId = typeof req.body?.sessionId === 'string' && req.body.sessionId ? req.body.sessionId : null;
+    let warmed = false;
+    // Only warm a process for a session that actually exists. Warming a
+    // random id would park a useless child in a 4-slot pool and evict the
+    // one that matters.
+    if (sessionId) { try { warmed = prewarmAsk(vaultPath, sessionId, { resume: true }); } catch { /* best-effort */ } }
+    // A NEW conversation pays ~2.4s of context assembly before the model
+    // sees a word. Build it now, while he is still speaking; the ask picks
+    // it up from the cache (see buildAskContext).
+    else buildAskContext(vaultPath, null).catch(() => {});
+    res.json({ warmed });
+  });
+
   // The wake debrief — the doorman greeting, generated (never templated)
   // from deterministic facts: time of day, arrival gap, the fleet's recent
   // receipts, and the gate count. The client decides WHEN a greeting is due;

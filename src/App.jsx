@@ -250,7 +250,7 @@ export default class App extends Component {
     // the mic's TRUE state, reported up from the dictation hook, so the orb
     // can colour itself listening without lying (the old `micOn` is a
     // settings flag that defaults on — it said "listening" permanently).
-    liveTextOpen: false, liveMicOpen: false,
+    liveTextOpen: false, liveMicOpen: false, voiceScreenMic: false,
     isMobile: typeof window !== 'undefined' && window.innerWidth < 760,
     novaTheme: getNovaTheme(), calmMode: getCalm(), coreStyle: getCoreStyle(), novaStyle: getNovaStyle(),
 
@@ -2962,7 +2962,10 @@ export default class App extends Component {
     };
     this.startPoll('ask', () => api.claudeCodeJob(conn, jobId), {
       timeoutMs: 3 * 60_000,
-      intervalMs: 350, // conversation cadence: the first spoken sentence rides this tick
+      // conversation cadence: the first spoken sentence rides this tick, so
+      // it is pure added latency on every reply. 150ms costs a few cheap
+      // local requests and takes ~200ms off the wait.
+      intervalMs: 150,
       onProgress: (job) => {
         if (!job.partial) return;
         const shown = stripShow(job.partial);
@@ -3334,6 +3337,7 @@ export default class App extends Component {
     if (this.state.liveTalkOn) { this.endLiveTalk(); return; }
     this.stopSpeaking();
     this.primeSpeech();
+    this.prewarmAsk(); // the process boots while he speaks his first sentence
     this.setState({ liveTalkOn: true, voiceConvMode: true, voiceConvPaused: false, liveInput: '', liveAsk: '', liveReply: '', liveVerdictOffer: null });
   }
   // Long-press the core: the transcript pop-up. It also STARTS a conversation
@@ -3378,6 +3382,7 @@ export default class App extends Component {
     const q = (this.state.liveInput || '').trim();
     const conn = getConnection();
     if (!q || !conn) return;
+    if (this.maybeStandDown(q)) return;
     this.setState({ liveAsk: q, liveInput: '', liveReply: '', voiceBusy: true, liveVerdictOffer: null });
     api.ask(conn, q, this.state.voiceSessionId || null).then((resp) => {
       const land = (text, sessionId) => {
@@ -3638,6 +3643,35 @@ export default class App extends Component {
     this.setState(s => ({ orbChat: [...s.orbChat, { at: Date.now(), who: 'you', text: q }], orbInput: '' }));
     setTimeout(() => this.typeIn('orbChat', 'nova', orbReply(q)), 480);
   }
+  // THE MIC IS OPENING — boot the answer's machinery now, while he talks.
+  // Spawning the conversation's process costs ~2.2s and assembling a cold
+  // conversation's context ~2.4s; both used to land after his last word.
+  // Called from every path that opens the microphone.
+  prewarmAsk() {
+    const conn = getConnection();
+    if (!conn) return;
+    const now = Date.now();
+    if (this.lastPrewarm && now - this.lastPrewarm < 4000) return; // one per turn, not per keystroke
+    this.lastPrewarm = now;
+    api.prewarmAsk(conn, this.state.voiceSessionId || null);
+  }
+  // "STAND DOWN" — the spoken way out. A conversation he can't end by
+  // talking isn't a conversation; it's a machine that has to be tapped.
+  // Matched on the CLIENT and never sent to the model: this is about the
+  // microphone, and a round-trip to be told to stop listening is absurd.
+  // Deliberately narrow — it must never eat a real question that happens to
+  // contain the words.
+  static STAND_DOWN = /^\s*(?:ok(?:ay)?|alright|right|hey nova)?[,\s]*(?:nova[,\s]*)?(?:stand down|stop listening|that'?s all|that'?ll be all|nothing else|go to sleep|never ?mind|dismissed|thank you,? that'?s all)\s*[.!]?\s*$/i;
+  maybeStandDown(text) {
+    if (!App.STAND_DOWN.test(String(text || ''))) return false;
+    this.stopSpeaking();
+    this.setState({
+      voiceConvMode: false, voiceConvPaused: true, voiceReplyWindow: false,
+      liveTalkOn: false, liveTextOpen: false, liveMicOpen: false, liveInput: '', orbInput: '',
+    });
+    this.toastMsg('Standing down, sir.');
+    return true;
+  }
   // iOS gates audio behind a user gesture: playing a muted element and an
   // empty utterance during the tap unlocks both paths for the async reply.
   primeSpeech() {
@@ -3687,6 +3721,7 @@ export default class App extends Component {
   askNova(question) {
     const conn = getConnection();
     if (!conn || this.state.voiceBusy) return;
+    if (this.maybeStandDown(question)) return;
     this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: question }], voiceBusy: true }));
     this.stopSpeaking();
     this.speakAck(question); // fills the 5-8s think-gap immediately
@@ -3870,6 +3905,7 @@ export default class App extends Component {
   // reopen the mic — the turn passes back without a tap
   maybeAutoListen() {
     if (!this.state.voiceConvMode || this.state.voiceConvPaused) return;
+    this.prewarmAsk(); // his turn is starting — get the process ready for it
     if ((this.state.screen !== 'voice' && !this.state.liveTalkOn) || this.state.voiceBusy) return;
     if ((this.speechActive || 0) > 0) return;
     this.setState((s) => ({ voiceAutoListenTick: s.voiceAutoListenTick + 1 }));
@@ -3884,6 +3920,7 @@ export default class App extends Component {
       // maybeAutoListen's politeness checks.
       this.stopSpeaking();
       this.primeSpeech();
+      this.prewarmAsk();
     }
     // one commit: mode + listen tick together — every extra render is a
     // beat between his tap and the mic opening
@@ -4087,10 +4124,15 @@ export default class App extends Component {
     this.setState({ wakeWordOn: on });
     if (on) this.toastMsg('Listening for "Hey Nova".');
   }
-  // heard its name: start the conversation exactly as a tap on the core does
+  // Heard its name. Two jobs, in this order: CUT NOVA OFF (barge-in — the
+  // whole point of being able to say its name mid-reply), then open the mic
+  // exactly as a tap on the core does. Nothing here starts listening on its
+  // own: the mic opens because he said the words or touched the icon.
   onWakeWord() {
+    this.stopSpeaking();
+    this.prewarmAsk();
     if (this.state.liveTalkOn || this.state.screen === 'voice') {
-      this.setState((s) => ({ voiceConvMode: true, voiceConvPaused: false, voiceAutoListenTick: s.voiceAutoListenTick + 1 }));
+      this.setState((s) => ({ voiceConvMode: true, voiceConvPaused: false, voiceBusy: false, voiceAutoListenTick: s.voiceAutoListenTick + 1 }));
       return;
     }
     this.startLiveTalk();
@@ -4313,12 +4355,15 @@ export default class App extends Component {
 
         <div style={css("position:relative;display:flex;height:100vh;max-width:1560px;margin:0 auto")}>
           {v.showSidebar && <Sidebar v={v} />}
-          {/* the way back — a themed tab on the left edge whenever the
-              sidebar is folded away, so full-screen is never a trap */}
-          {v.sidebarPeek && (
-            <Interactive onClick={v.sidebarPeek.show} aria-label="Show the sidebar (⌘B)" title="Show the sidebar — ⌘B"
-              base={css('position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:70;cursor:pointer;width:20px;height:64px;display:flex;align-items:center;justify-content:center;border:1px solid var(--nv-edge);border-left:none;border-radius:0 10px 10px 0;background:color-mix(in srgb, var(--nv-void) 86%, black);color:color-mix(in srgb, var(--nv-cy) 70%, transparent);font:400 12px var(--nv-font-mono)')}
-              hoverStyle="border-color:var(--nv-acc-border);color:var(--nv-cy)">›</Interactive>
+          {/* ONE toggle, ONE position — the same tab on the left edge whether
+              the sidebar is open or folded, so his hand goes there without
+              thinking. Only the arrow flips. ⌘B does the same thing. */}
+          {v.sidebarToggle && (
+            <Interactive onClick={v.sidebarToggle.toggle}
+              aria-label={v.sidebarToggle.open ? 'Hide the sidebar (⌘B)' : 'Show the sidebar (⌘B)'}
+              title={`${v.sidebarToggle.open ? 'Hide' : 'Show'} the sidebar — ⌘B`}
+              base={css('position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:74;cursor:pointer;width:18px;height:66px;display:flex;align-items:center;justify-content:center;border:1px solid var(--nv-edge);border-left:none;border-radius:0 9px 9px 0;background:color-mix(in srgb, var(--nv-void) 88%, black);color:color-mix(in srgb, var(--nv-cy) 65%, transparent);font:400 12px var(--nv-font-mono)')}
+              hoverStyle="border-color:var(--nv-acc-border);color:var(--nv-cy)">{v.sidebarToggle.open ? '‹' : '›'}</Interactive>
           )}
           <main ref={this.mainRef} style={css("flex:1;overflow-y:auto;min-width:0;overscroll-behavior-y:contain;touch-action:manipulation")}>
             {v.isMission && <MissionControl v={v} />}

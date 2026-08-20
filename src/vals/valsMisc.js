@@ -75,7 +75,7 @@ export function valsMisc(app, ctx) {
     // false information wearing a confident face (it happened: an old
     // bundle showed ELEVENLABS while Kokoro spoke).
     voiceEngineLabel: !st.liveTts ? '—' : !st.liveTts.configured ? 'BROWSER'
-      : st.liveTts.engine === 'local' ? 'NOVA · ON-DEVICE'
+      : st.liveTts.engine === 'local' ? 'NOVA · DEFAULT'
         : st.liveTts.engine === 'elevenlabs' ? 'ELEVENLABS' : 'VOICE · READY',
     voiceEngineDetail: !st.liveTts ? '' : st.liveTts.configured ? '' : 'add ELEVENLABS_API_KEY or NOVA_TTS_LOCAL=1 in server/.env for a real voice',
     // the picker's caption names the ACTUAL engine, never a brand it isn't
@@ -96,6 +96,9 @@ export function valsMisc(app, ctx) {
     wakeWordOn: !!st.wakeWordOn,
     wakeWordSupported: speechRecognitionSupported(),
     setWakeWord: (on) => app.setWakeWord(on),
+    // the Voice screen's dictation is local to that screen — App needs to
+    // know, so the wake word never competes with it for the microphone
+    reportScreenMic: (on) => { if (!!st.voiceScreenMic !== !!on) app.setState({ voiceScreenMic: !!on }); },
     orbMsgs: (!demoMode ? st.voiceChat : st.orbChat).map((m, i, arr) => ({
       text: m.text, typing: m.typing, panel: m.panel || null,
       evidence: m.evidence ? { ...m.evidence, open: () => app.openVerdict(m.evidence.kind, m.evidence.of) } : null,

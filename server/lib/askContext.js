@@ -97,8 +97,18 @@ export async function resumedRefreshContext() {
   return [today, activity].filter((s) => typeof s === 'string' && s.trim()).join('\n\n');
 }
 
+// Turn-1 context costs ~2.4s to assemble (measured), almost all of it the
+// calendar dispatch reaching iCloud — and it is awaited BEFORE the model
+// sees the question, so he hears it as dead air. The mic-open prewarm now
+// builds it while he is still speaking and parks it here; the ask that
+// follows finds it ready. Short TTL because this block is a snapshot of
+// "conversation start", and a stale one would be a lie about today.
+const CONTEXT_TTL_MS = 90_000;
+let contextCache = null; // { at, text }
+
 export async function buildAskContext(vaultPath, sessionId, { fast = false } = {}) {
   if (sessionId) return '';
+  if (contextCache && Date.now() - contextCache.at < CONTEXT_TTL_MS) return contextCache.text;
 
   // Order here is the order in the prompt — who he is, what he's said, what
   // today looks like, then the reflective surfaces.
@@ -153,5 +163,9 @@ export async function buildAskContext(vaultPath, sessionId, { fast = false } = {
     return withDeadline(Promise.resolve(started), ms);
   }));
 
-  return results.filter((s) => typeof s === 'string' && s.trim()).join('\n\n');
+  const text = results.filter((s) => typeof s === 'string' && s.trim()).join('\n\n');
+  // never cache a failed assembly — an empty block would be served as
+  // though it were his context for the next 90 seconds
+  if (text) contextCache = { at: Date.now(), text };
+  return text;
 }

@@ -211,6 +211,10 @@ export const api = {
   moneyScanFile: (conn, transactions) => post(conn, '/api/money/scan-file', { transactions }),
   moneyExportUrl: (conn, fy) => `${conn.baseUrl.replace(/\/$/, '')}/api/money/export/${fy}`,
   ask: (conn, question, sessionId) => post(conn, '/api/ask', { question, sessionId }),
+  // fired the moment the mic opens, before a question exists — boots the
+  // conversation's process (and a cold session's context) while he talks.
+  // Failure is silently fine: it only ever costs him latency, never an answer.
+  prewarmAsk: (conn, sessionId) => post(conn, '/api/ask/prewarm', { sessionId }).catch(() => null),
   trainOverview: (conn) => call(conn, '/api/train/overview'),
   fuelCross: (conn) => call(conn, '/api/train/fuel-cross'),
   codeChanges: (conn, workspace) => call(conn, `/api/claude-code/changes?workspace=${encodeURIComponent(workspace || 'repo')}`),

@@ -312,13 +312,20 @@ function askArgs(sessionId, isNewSession) {
 // Safe to call speculatively: if the entry already exists (or is mid-turn),
 // nothing happens, and a failure to spawn is swallowed — the normal path
 // spawns it again and pays the boot as it always did.
-export function prewarmAsk(cwd, sessionId) {
+// Boot the conversation's process while he is still talking. Spawning the
+// CLI costs ~2.2s, and that used to land AFTER he finished his sentence —
+// dead air he could hear. The client now calls this the moment the mic
+// opens, so by the time the question exists the process is waiting for it.
+// `resume` must match how the turn will actually be sent: the warm pool is
+// keyed by session, and a process spawned with the wrong flag would be
+// reused for a turn it cannot serve.
+export function prewarmAsk(cwd, sessionId, { resume = false } = {}) {
   try {
     const key = `voice:${sessionId}`;
     const existing = warm.get(key);
     if (existing && existing.child.exitCode === null) return false;
     if (existing) dropWarm(key);
-    spawnWarm(key, { cwd, args: askArgs(sessionId, true) });
+    spawnWarm(key, { cwd, args: askArgs(sessionId, !resume) });
     return true;
   } catch { return false; }
 }
