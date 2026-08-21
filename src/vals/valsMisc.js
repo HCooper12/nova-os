@@ -96,10 +96,13 @@ export function valsMisc(app, ctx) {
     wakeWordOn: !!st.wakeWordOn,
     wakeWordSupported: speechRecognitionSupported(),
     setWakeWord: (on) => app.setWakeWord(on),
+    voiceTest: st.voiceTest || null,
+    runVoiceTest: () => app.runVoiceTest(),
     // the Voice screen's dictation is local to that screen — App needs to
     // know, so the wake word never competes with it for the microphone
     stageCard: st.stageCard || null,
     stageHistory: st.stageHistory || [],
+    speechBlocked: st.speechBlocked ? { reason: st.speechBlocked.reason, replay: () => app.replayBlockedSpeech() } : null,
     // the glass has his attention: the rest of the station blurs behind it
     stageFocus: !!(st.stageFocus && st.stageCard),
     dismissStage: () => app.dismissStage(),

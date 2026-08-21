@@ -65,10 +65,20 @@ export function VoicePresence({ v }) {
 
   const state = dict.on ? 'LISTENING' : s.busy ? 'THINKING' : s.speaking ? 'SPEAKING' : 'YOUR TURN';
   const tone = dict.on ? 'var(--nv-vi)' : s.speaking ? 'var(--nv-gold)' : 'var(--nv-cy)';
-  if (!s.textOpen && !s.evidence && !s.card) return null;
+  if (!s.textOpen && !s.evidence && !s.card && !v.speechBlocked) return null;
 
   return (
     <div style={css(`position:fixed;left:0;right:0;bottom:${v.isMobile ? 'calc(96px + env(safe-area-inset-bottom))' : '26px'};z-index:112;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:10px;padding:0 12px`)}>
+
+      {/* he heard nothing — one tap plays it, from inside the gesture */}
+      {v.speechBlocked && (
+        <Interactive onClick={v.speechBlocked.replay} aria-label="Play the reply you didn't hear"
+          base={css(`pointer-events:auto;cursor:pointer;display:flex;align-items:center;gap:9px;width:min(430px,100%);padding:10px 14px;border-radius:12px;border:1px solid color-mix(in srgb, var(--nv-warn) 55%, transparent);background:color-mix(in srgb, var(--nv-void) 92%, black);animation:popIn .3s cubic-bezier(.2,.9,.25,1)`)}
+          hoverStyle="background:color-mix(in srgb, var(--nv-warn) 14%, transparent)">
+          <span style={css(`font:600 8.5px ${M};letter-spacing:.16em;color:var(--nv-warn);flex:none`)}>▶ TAP TO HEAR</span>
+          <span style={css('flex:1;min-width:0;font-size:11.5px;color:color-mix(in srgb, var(--nv-ink) 65%, transparent)')}>Nova answered but {v.speechBlocked.reason}.</span>
+        </Interactive>
+      )}
 
       {/* THE GLASS — the figure for the line being spoken, appearing by
           itself and changing as Nova moves to the next line */}

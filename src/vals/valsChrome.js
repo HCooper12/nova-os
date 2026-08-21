@@ -429,6 +429,8 @@ export function valsChrome(app, ctx) {
     novaListening: !!st.liveMicOpen,
     // the glass, for surfaces outside the Voice screen
     stageCard: st.stageCard || null,
+    // a reply he never heard, and the tap that plays it
+    speechBlocked: st.speechBlocked ? { reason: st.speechBlocked.reason, replay: () => app.replayBlockedSpeech() } : null,
     novaTalkOn: !!st.liveTalkOn,
     holdNovaText: () => app.toggleLiveText(),
     goVoice: go('voice'), goWorkouts: go('workouts'), goSettings: go('settings'), goHome: go('mission'),

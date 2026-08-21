@@ -280,6 +280,28 @@ export function Settings({ v }) {
             )}
           </div>
 
+          {/* "I heard nothing" is not a diagnosis — this makes it one. */}
+          <div style={css("border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:16px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px")}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={css("font:600 12.5px var(--nv-font-ui)")}>Can you hear Nova?</div>
+              <div style={css("margin-top:2px;font-size:11px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>Walks the whole path and names whatever fails.</div>
+              {v.voiceTest?.stages?.length > 0 && (
+                <div style={css("margin-top:9px;display:flex;flex-direction:column;gap:5px")}>
+                  {v.voiceTest.stages.map((st, i) => (
+                    <div key={i} style={css("display:flex;gap:8px;align-items:baseline;font:400 11px var(--nv-font-mono)")}>
+                      <span style={{ color: st.ok ? 'var(--nv-good)' : 'var(--nv-warn)', flex: 'none' }}>{st.ok ? '✓' : '✕'}</span>
+                      <span style={{ color: 'var(--nv-ink)', flex: 'none' }}>{st.stage}</span>
+                      <span style={{ color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)', minWidth: 0 }}>{st.detail}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <Interactive as="span" onClick={v.runVoiceTest}
+              base={{ cursor: 'pointer', flex: 'none', font: '600 9px var(--nv-font-mono)', letterSpacing: '.1em', padding: '6px 13px', borderRadius: '7px', border: '1px solid var(--nv-acc-border)', color: 'var(--nv-acc)', background: 'var(--nv-acc-bg)' }}
+            >{v.voiceTest?.running ? 'TESTING…' : 'TEST'}</Interactive>
+          </div>
+
           {v.voiceOptions.length > 0 && (
             <div style={css("border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:16px")}>
               <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{v.voicePickerLabel}</div>

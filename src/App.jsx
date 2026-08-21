@@ -53,6 +53,10 @@ import { WakeWord } from './WakeWord.jsx';
 import { OutboxView } from './OutboxView.jsx';
 import { NudgeCard } from './NudgeCard.jsx';
 import { Boot } from './Boot.jsx';
+// 0.05s of silence — a REAL source, so iOS accepts the gesture and unlocks
+// the element for the reply that arrives seconds later.
+const SILENT_WAV = 'data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQ4AAAAAAAAAAAAAAAAAAAAAAA==';
+
 import { attachSpeechElement, resumeAudioGraph, releaseAudioGraph, decodeSpeech, playSpeechBuffer, graphRunning, holdSyntheticSpeech } from './audioLevel.js';
 
 // Code-split: ZXing (barcode decoding) is a sizeable dependency that only
@@ -251,6 +255,9 @@ export default class App extends Component {
     // can colour itself listening without lying (the old `micOn` is a
     // settings flag that defaults on — it said "listening" permanently).
     liveTextOpen: false, liveMicOpen: false, voiceScreenMic: false, voicePendingOffer: null,
+    // set when a reply was composed but the device refused to play it —
+    // silence must never also be invisible
+    speechBlocked: null,
     // THE GLASS — the card for the line Nova is speaking RIGHT NOW, and the
     // ones it has already spoken past (newest first). Set as each beat's
     // audio starts, never before: the visual must track the voice.
@@ -3351,7 +3358,14 @@ export default class App extends Component {
   // pressing the side button twice dismisses Siri. Nothing but the core is
   // ever drawn for it — the words are a long-press away.
   startLiveTalk() {
-    if (!getConnection()) { this.navigate('voice'); return; }
+    if (!getConnection()) {
+      // it used to silently navigate to Voice, which reads as "the button
+      // did something" when in fact Nova cannot answer at all
+      this.toastMsg('Not connected to your Mac — check Settings.');
+      this.navigate('settings');
+      return;
+    }
+    if (!this.state.voiceSpeak) this.toastMsg('Spoken replies are OFF — turn them on in Settings → Voice.');
     if (this.state.liveTalkOn) { this.endLiveTalk(); return; }
     this.stopSpeaking();
     this.primeSpeech();
@@ -3803,11 +3817,24 @@ export default class App extends Component {
     try {
       resumeAudioGraph(); // inside the gesture — the one moment iOS lets a suspended graph wake
       if (!this.sharedAudio) {
-        this.sharedAudio = new Audio();
-        this.sharedAudio.muted = true;
-        this.sharedAudio.play().catch(() => {});
-        this.sharedAudio.muted = false;
+        // THE UNLOCK MUST PLAY SOMETHING REAL. `new Audio()` with no src
+        // rejects play() instantly on iOS (NotSupportedError), which spends
+        // the gesture on nothing — the element stays locked, every later
+        // play() is refused, and the catch turns that into SILENCE with the
+        // text still appearing. That was Nova saying nothing on his phone.
+        // A tiny silent WAV is a real source, so the unlock actually takes.
+        this.sharedAudio = new Audio(SILENT_WAV);
+        this.sharedAudio.playsInline = true;
+        this.sharedAudio.preload = 'auto';
       }
+      // Re-play the silent clip on EVERY gesture, not just the first: iOS
+      // re-locks the element after an interruption (a call, a route change,
+      // the screen locking), and each gesture is a free chance to reclaim it.
+      const unlock = this.sharedAudio.play();
+      if (unlock?.then) {
+        unlock.then(() => { this.audioUnlocked = true; })
+          .catch(() => { this.audioUnlocked = false; });
+      } else this.audioUnlocked = true;
       if (window.speechSynthesis && !this.speechPrimed) {
         window.speechSynthesis.speak(new SpeechSynthesisUtterance(''));
         this.speechPrimed = true;
@@ -4117,7 +4144,7 @@ export default class App extends Component {
     // callback; previews/acks/fillers don't — only the former earns a
     // no-button reply window when the speaking ends
     if (onPlay) this.replyWorthy = true;
-    const entry = { done: false, buffer: null, blob: null, onPlay, revealed: false };
+    const entry = { done: false, buffer: null, blob: null, onPlay, revealed: false, said: clean };
     (this.ttsQueue = this.ttsQueue || []).push(entry);
     this.beginSpeech(); // matched by endSpeech when the entry plays out or drops
     api.ttsAudio(conn, clean, this.state.voiceVoiceId || undefined)
@@ -4194,11 +4221,74 @@ export default class App extends Component {
     audio.onerror = done;
     audio.play().then(() => {
       // audio is genuinely rolling — NOW the words may appear
+      this.noteSpeechHeard();
       try { head.onPlay?.(); head.revealed = true; } catch { /* best-effort */ }
-    }).catch(() => {
+    }).catch((err) => {
+      // The reply exists but the device refused to play it. NEVER let that
+      // be silent AND invisible — that is exactly how "I heard nothing"
+      // happened with no way to tell why.
+      this.noteSpeechBlocked(head.said, err);
       try { head.onPlay?.(); head.revealed = true; } catch { /* best-effort */ }
       done();
     });
+  }
+  // VOICE SELF-TEST. "I heard nothing" has half a dozen possible causes and
+  // no way to tell them apart from the couch. This walks the real path —
+  // replies enabled, engine reachable, audio fetched, audio actually
+  // PLAYED — and names the stage that failed, from inside his tap.
+  async runVoiceTest() {
+    const conn = getConnection();
+    const set = (stage, ok, detail) => this.setState((s) => ({
+      voiceTest: { ...(s.voiceTest || {}), running: true, stages: [...((s.voiceTest || {}).stages || []), { stage, ok, detail }] },
+    }));
+    this.setState({ voiceTest: { running: true, stages: [] } });
+    this.primeSpeech(); // inside the gesture
+    set('Spoken replies', !!this.state.voiceSpeak, this.state.voiceSpeak ? 'on' : 'OFF — turn it on above');
+    set('Connected to your Mac', !!conn, conn ? 'yes' : 'no — set the backend URL in Settings');
+    if (!conn) { this.setState((s) => ({ voiceTest: { ...s.voiceTest, running: false } })); return; }
+    set('Speech engine', !!this.state.liveTts?.configured, this.state.liveTts?.configured ? (this.state.liveTts.engine || 'ready') : 'not configured — the browser voice will be used');
+    let blob = null;
+    try {
+      blob = await api.ttsAudio(conn, 'Voice test. If you can hear this, sir, everything is working.', this.state.voiceVoiceId || undefined);
+      set('Audio received', true, `${Math.round(blob.size / 1024)} KB`);
+    } catch (e) {
+      set('Audio received', false, e.message);
+      this.setState((s) => ({ voiceTest: { ...s.voiceTest, running: false } }));
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const audio = this.sharedAudio || new Audio();
+    audio.src = url;
+    try {
+      await audio.play();
+      set('Playing', true, 'you should be hearing it now');
+    } catch (e) {
+      set('Playing', false, `${e?.name || 'refused'} — check the silent switch, the volume, and that Nova is allowed to play sound`);
+    }
+    audio.onended = () => URL.revokeObjectURL(url);
+    this.setState((s) => ({ voiceTest: { ...s.voiceTest, running: false } }));
+  }
+  // Speech genuinely reached his ears — clear any standing warning.
+  noteSpeechHeard() {
+    this.speechEverPlayed = true;
+    if (this.state.speechBlocked) this.setState({ speechBlocked: null });
+  }
+  // It didn't. Say so, and keep the words so one tap can play them: a tap is
+  // a gesture, which is the very thing iOS wants before it will make sound.
+  noteSpeechBlocked(said, err) {
+    const reason = /NotAllowed/i.test(String(err?.name || err || ''))
+      ? 'your phone blocked the audio'
+      : /NotSupported/i.test(String(err?.name || err || '')) ? 'the audio format was refused' : 'the audio could not start';
+    this.setState({ speechBlocked: { text: said || '', reason } });
+  }
+  // Replay what he never heard, from inside the tap.
+  replayBlockedSpeech() {
+    const b = this.state.speechBlocked;
+    if (!b) return;
+    this.primeSpeech();
+    this.setState({ speechBlocked: null });
+    this.stopSpeaking();
+    if (b.text) this.speakTtsSentence(b.text, () => {});
   }
   speak(text) {
     if (!this.state.voiceSpeak) { this.maybeAutoListen(); return; }

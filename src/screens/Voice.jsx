@@ -264,6 +264,18 @@ export function Voice({ v }) {
           </div>
           <div style={css(`font:400 10px ${M};letter-spacing:.42em;color:${dict.on ? 'var(--nv-vi)' : v.voiceSpeaking ? 'var(--nv-gold)' : 'color-mix(in srgb, var(--nv-ink) 60%, transparent)'};transition:color .4s`)}>{caption}</div>
 
+          {/* HE HEARD NOTHING — say so, and make one tap fix it. A tap is a
+              gesture, which is exactly what the device wants before it will
+              make sound. */}
+          {v.speechBlocked && (
+            <Interactive onClick={v.speechBlocked.replay} aria-label="Play the reply you didn't hear"
+              base={css(`cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:10px;border:1px solid color-mix(in srgb, var(--nv-warn) 55%, transparent);background:color-mix(in srgb, var(--nv-warn) 08%, transparent);animation:popIn .3s cubic-bezier(.2,.9,.25,1)`)}
+              hoverStyle="background:color-mix(in srgb, var(--nv-warn) 16%, transparent)">
+              <span style={css(`font:600 9px ${M};letter-spacing:.16em;color:var(--nv-warn)`)}>▶ TAP TO HEAR</span>
+              <span style={css('font-size:11.5px;color:color-mix(in srgb, var(--nv-ink) 60%, transparent)')}>Nova answered but {v.speechBlocked.reason}.</span>
+            </Interactive>
+          )}
+
           {/* THE GLASS — the figure for the line being spoken right now,
               centre stage, changing with the narration (his reference:
               "let me put it on the glass"). */}
