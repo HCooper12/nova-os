@@ -11,6 +11,13 @@ const numInputStyle = { width: '48px', background: 'var(--nv-well)', border: '1p
 // Inputs FLEX on a phone — 7 fixed-width columns overflowed 390px and
 // pushed the done-tick (the most-tapped control in the app) off the row;
 // his report, 19 Aug. The tick alone keeps a hard 40px target.
+// ONE column template for the set header and every set row beneath it, so a
+// label can never sit over the wrong number. Order: set no · [weight] ·
+// reps · RPE · RIR · type · tick · remove. The weight column disappears for
+// bodyweight work, in both the header and the rows, together.
+const setCols = (isBodyweight) =>
+  `20px ${isBodyweight ? '' : 'minmax(44px,1fr) '}minmax(44px,1fr) 44px 38px 32px 40px 26px`;
+
 const setInputStyle = { flex: '1 1 48px', width: 'auto', minWidth: '40px', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '6px', padding: '8px 6px', color: 'var(--nv-ink)', fontSize: '16px', fontFamily: "var(--nv-font-mono)", outline: 'none', boxSizing: 'border-box' };
 
 function ExercisePicker({ v }) {
@@ -458,33 +465,48 @@ function SessionView({ v }) {
               <div style={css("margin-top:6px;font:400 10.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{e.lastLabel}</div>
             )}
             <div style={css(`margin-top:12px;display:${e.skipped ? 'none' : 'flex'};flex-direction:column;gap:8px`)}>
-              <div style={css("display:flex;gap:10px;font:500 9px var(--nv-font-mono);letter-spacing:.1em;color:color-mix(in srgb, var(--nv-ink) 35%, transparent);padding:0 2px")}>
-                <span style={{ width: '20px', flex: 'none' }}>SET</span>{!e.isBodyweight && <span style={{ flex: '1 1 48px' }}>{e.weightLabel}</span>}<span style={{ flex: '1 1 48px' }}>{e.amountLabel}</span><span style={{ width: '40px', flex: 'none' }}><Term k="RPE">RPE</Term></span><span style={{ width: '36px', flex: 'none' }}><Term k="RIR">RIR</Term></span><span style={{ width: '28px', flex: 'none' }}><Term k="SET TYPE">TYPE</Term></span>
+              {/* HEADER AND ROWS SHARE ONE GRID. They used to be two flex rows
+                  with different gaps (10 vs 6) and different trailing items —
+                  the header had no tick or remove column, so its flexible KG
+                  and REPS cells absorbed that leftover space and every label
+                  from REPS rightward drifted off its data. He caught RIR
+                  sitting over the wrong column mid-workout. One template for
+                  both makes drift impossible. */}
+              <div style={{ display: 'grid', gridTemplateColumns: setCols(e.isBodyweight), gap: '6px', alignItems: 'center',
+                font: '500 9px var(--nv-font-mono)', letterSpacing: '.1em', color: 'color-mix(in srgb, var(--nv-ink) 35%, transparent)' }}>
+                <span>SET</span>
+                {!e.isBodyweight && <span>{e.weightLabel}</span>}
+                <span>{e.amountLabel}</span>
+                <span><Term k="RPE">RPE</Term></span>
+                <span><Term k="RIR">RIR</Term></span>
+                <span><Term k="SET TYPE">TYPE</Term></span>
+                <span></span>
+                <span></span>
               </div>
               {e.sets.map((s, i) => (
-                <div key={i} style={css("display:flex;align-items:center;gap:6px")}>
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: setCols(e.isBodyweight), gap: '6px', alignItems: 'center' }}>
                   <span style={{ width: '20px', flex: 'none', font: "400 11px var(--nv-font-mono)", color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}>{i + 1}</span>
                   {/* gym-proof: number pad instead of the full keyboard, and the
                       tick — the app's most-repeated tap — at a 40px target */}
-                  {!e.isBodyweight && <input type="number" inputMode="decimal" step="0.5" min="0" value={s.weight} onChange={s.onWeight} style={setInputStyle} />}
-                  <input type="number" inputMode="numeric" min="0" value={s.reps} onChange={s.onReps} style={setInputStyle} />
+                  {!e.isBodyweight && <input type="number" inputMode="decimal" step="0.5" min="0" value={s.weight} onChange={s.onWeight} style={{ ...setInputStyle, width: '100%', minWidth: 0 }} />}
+                  <input type="number" inputMode="numeric" min="0" value={s.reps} onChange={s.onReps} style={{ ...setInputStyle, width: '100%', minWidth: 0 }} />
                   {/* optional effort — RPE 1-10; the best autoregulation signal the Coach can get */}
-                  <input type="number" inputMode="decimal" step="0.5" min="1" max="10" value={s.rpe || ''} onChange={s.onRpe} placeholder="RP" style={{ ...setInputStyle, flex: 'none', width: '40px', opacity: s.rpe ? 1 : 0.65 }} />
-                  <input type="number" inputMode="decimal" step="0.5" min="0" max="6" value={s.rir} onChange={s.onRir} placeholder="R" style={{ ...setInputStyle, flex: 'none', width: '36px', opacity: s.rir !== '' ? 1 : 0.55 }} />
+                  <input type="number" inputMode="decimal" step="0.5" min="1" max="10" value={s.rpe || ''} onChange={s.onRpe} placeholder="RP" style={{ ...setInputStyle, width: '100%', minWidth: 0, opacity: s.rpe ? 1 : 0.65 }} />
+                  <input type="number" inputMode="decimal" step="0.5" min="0" max="6" value={s.rir} onChange={s.onRir} placeholder="R" style={{ ...setInputStyle, width: '100%', minWidth: 0, opacity: s.rir !== '' ? 1 : 0.55 }} />
                   {/* set type cycles working → backoff → warm-up; warm-ups are
                       excluded from volume counts and PRs */}
                   <Interactive as="span" onClick={s.cycleType} title="Tap to cycle: working / backoff / warm-up"
-                    base={`cursor:pointer;flex:none;font:600 8px var(--nv-font-mono);letter-spacing:.08em;padding:5px 7px;border-radius:6px;border:1px solid ${s.setType === 'warmup' ? 'color-mix(in srgb, var(--nv-gold) 45%, transparent)' : s.setType === 'backoff' ? 'color-mix(in srgb, var(--nv-vi) 45%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 18%, transparent)'};color:${s.setType === 'warmup' ? 'var(--nv-gold)' : s.setType === 'backoff' ? 'var(--nv-vi)' : 'color-mix(in srgb, var(--nv-ink) 45%, transparent)'}`}
+                    base={`cursor:pointer;text-align:center;font:600 8px var(--nv-font-mono);letter-spacing:.08em;padding:5px 7px;border-radius:6px;border:1px solid ${s.setType === 'warmup' ? 'color-mix(in srgb, var(--nv-gold) 45%, transparent)' : s.setType === 'backoff' ? 'color-mix(in srgb, var(--nv-vi) 45%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 18%, transparent)'};color:${s.setType === 'warmup' ? 'var(--nv-gold)' : s.setType === 'backoff' ? 'var(--nv-vi)' : 'color-mix(in srgb, var(--nv-ink) 45%, transparent)'}`}
                   >{s.setType === 'warmup' ? 'WU' : s.setType === 'backoff' ? 'BO' : 'WK'}</Interactive>
                   <Interactive
                     as="span"
                     onClick={s.onToggleDone}
-                    base={{ cursor: 'pointer', width: '40px', height: '40px', margin: '-6px 0', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 700,
+                    base={{ cursor: 'pointer', width: '40px', height: '40px', margin: '-6px 0', justifySelf: 'start', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 700,
                       border: s.done ? '1px solid var(--nv-cy)' : '1px solid color-mix(in srgb, var(--nv-ink) 25%, transparent)', background: s.done ? 'var(--nv-cy)' : 'transparent', color: 'var(--nv-on-acc)' }}
                   >{s.done ? '✓' : ''}</Interactive>
-                  {s.canRemove && (
-                    <Interactive as="span" onClick={s.onRemove} base="cursor:pointer;flex:none;width:26px;height:36px;margin:-4px 0;display:flex;align-items:center;justify-content:center;font-size:16px;color:color-mix(in srgb, var(--nv-ink) 30%, transparent)" hoverStyle="color:var(--nv-warn)">×</Interactive>
-                  )}
+                  {s.canRemove ? (
+                    <Interactive as="span" onClick={s.onRemove} base="cursor:pointer;width:26px;height:36px;margin:-4px 0;display:flex;align-items:center;justify-content:center;font-size:16px;color:color-mix(in srgb, var(--nv-ink) 30%, transparent)" hoverStyle="color:var(--nv-warn)">×</Interactive>
+                  ) : <span></span>}
                 </div>
               ))}
             </div>
