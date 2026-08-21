@@ -13,6 +13,28 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**21 AUG — THE GLASS + THE MORNING BRIEF.** From his reel (IG
+DcRlRlMsbdD): spoken lines put their figure on screen and the card
+changes with the narration. Built `server/lib/spokenCards.js`
+(metric/bars/list, built from already-computed numbers — no model, no
+card without real data) + `src/StageCard.jsx`; `App.putCard` fires as
+each beat's AUDIO starts and pushes the previous card into a history
+rail. Voice screen restructured to the reel: COMMS LOG left, core +
+live card centre (core shrinks to 62% when a card is up), STATION ·
+STATUS + ON THE GLASS right. MORNING BRIEF auto-runs on first open of
+the day (gated 4am–12pm, once/day, writes novaos.morningBrief AND
+novaos.voiceGreet so the doorman doesn't double-speak), navigates to
+Voice, and ends in conversation mode. Brief now carries: unusual
+calendar events (label absent from trailing fortnight), a pain question
+raised ONLY on evidence (open injury / pain note in last 4 days / RHR
++7 over baseline), and a closing question. REPLY WINDOW is now
+universal — any spoken line hands him the turn on any surface.
+PERF: /api/show 16.0s → 11.8s cold, 14ms warm (one fetchEventsForRange
+instead of 14 per-day calls, started first and awaited last, 4s cap);
+client budget for /api/show raised to 60s. 383/383 tests.
+NOT VERIFIED: the first-open-of-day trigger (needs a real tomorrow) and
+"Hey Nova" firing (needs a live mic).
+
 **20 AUG (later) — HIS TWO CORRECTIONS LANDED.** (1) The reactor icon is
 UNWIRED everywhere: he wants the core he already chose animated, not a
 new design. Both real engines (filament + hologram) are now live-speech
