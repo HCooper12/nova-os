@@ -100,6 +100,10 @@ export function valsMisc(app, ctx) {
     // know, so the wake word never competes with it for the microphone
     stageCard: st.stageCard || null,
     stageHistory: st.stageHistory || [],
+    // the glass has his attention: the rest of the station blurs behind it
+    stageFocus: !!(st.stageFocus && st.stageCard),
+    dismissStage: () => app.dismissStage(),
+    focusCard: (card) => app.focusCard(card),
     reportScreenMic: (on) => { if (!!st.voiceScreenMic !== !!on) app.setState({ voiceScreenMic: !!on }); },
     orbMsgs: (!demoMode ? st.voiceChat : st.orbChat).map((m, i, arr) => ({
       text: m.text, typing: m.typing, panel: m.panel || null,

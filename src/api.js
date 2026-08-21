@@ -226,6 +226,7 @@ export const api = {
   // 60s: the brief reads health, calendar (CalDAV), the vault and the rails.
   // At the 20s default it aborted mid-compose and the morning brief silently
   // never arrived — observed in the harness, ERR_ABORTED on /api/show.
+  glassToday: (conn) => call(conn, '/api/glass/today'),
   show: (conn, variant) => post(conn, '/api/show', { variant }, { timeoutMs: 60_000 }),
   greet: (conn, gap) => post(conn, '/api/greet', { gap }),
   askRitual: (conn, kind, sessionId) => post(conn, '/api/ask/ritual', { kind, sessionId }),

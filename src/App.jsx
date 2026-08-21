@@ -254,7 +254,7 @@ export default class App extends Component {
     // THE GLASS — the card for the line Nova is speaking RIGHT NOW, and the
     // ones it has already spoken past (newest first). Set as each beat's
     // audio starts, never before: the visual must track the voice.
-    stageCard: null, stageHistory: [],
+    stageCard: null, stageHistory: [], stageFocus: false,
     isMobile: typeof window !== 'undefined' && window.innerWidth < 760,
     novaTheme: getNovaTheme(), calmMode: getCalm(), coreStyle: getCoreStyle(), novaStyle: getNovaStyle(),
 
@@ -3014,6 +3014,9 @@ export default class App extends Component {
             else chat[idx] = { at: Date.now(), who: 'nova', text, panel, proposal, research, evidence };
             return { voiceChat: chat, voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal };
           });
+          // THE GLASS: any spoken answer with a shape puts its card up — his
+          // ask that this works "for anything I ask Nova verbally".
+          this.putCard(job.result.card);
           if (research && !research.queued) this.watchVoiceResearch(conn, research.recordId);
         };
         this.setState({ voiceBusy: false }); // he can barge in the moment the answer exists
@@ -3611,6 +3614,7 @@ export default class App extends Component {
     const call = approve ? api.inboxApprove(conn, recordId) : api.inboxDiscard(conn, recordId);
     call.then(() => {
       mark(approve ? 'done' : 'dismissed');
+      if (approve) { this.refreshLiveData(); this.refreshCalendarCard(); }
       const line = approve ? 'Done — it’s in. Undo lives in your Inbox.' : 'Left alone — nothing changed.';
       this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
       if (this.state.voiceSpeak) this.speak(line);
@@ -3689,10 +3693,42 @@ export default class App extends Component {
     if (!card) return;
     this.setState((s) => ({
       stageCard: card,
+      // his 21-Aug note: the chat beside it is distracting — when Nova puts
+      // something on the glass, everything else blurs back, exactly like the
+      // reel, so one thing at a time has his attention
+      stageFocus: true,
       stageHistory: s.stageCard ? [s.stageCard, ...s.stageHistory].slice(0, 6) : s.stageHistory,
     }));
   }
-  clearStage() { this.setState({ stageCard: null, stageHistory: [] }); }
+  clearStage() { this.setState({ stageCard: null, stageHistory: [], stageFocus: false }); }
+  // Tap a spent card in the rail to bring it back to the middle. The one it
+  // displaces goes into the rail, so nothing is ever lost by looking.
+  focusCard(card) {
+    if (!card) return;
+    this.setState((s) => ({
+      stageCard: card,
+      stageFocus: true,
+      stageHistory: [s.stageCard, ...s.stageHistory.filter((c) => c !== card)].filter(Boolean).slice(0, 6),
+    }));
+  }
+  dismissStage() { this.setState({ stageFocus: false }); }
+  // A card is a snapshot of the moment it was spoken — so anything that
+  // CHANGES the calendar has to re-pull it, or the glass keeps showing times
+  // Nova itself just moved (his 21-Aug bug, screenshot attached to the ask).
+  refreshCalendarCard() {
+    const conn = getConnection();
+    if (!conn) return;
+    const isCal = (c) => c && c.kind === 'list' && /ON THE CALENDAR/.test(c.label || '');
+    const { stageCard, stageHistory } = this.state;
+    if (!isCal(stageCard) && !(stageHistory || []).some(isCal)) return;
+    api.glassToday(conn).then(({ card }) => {
+      if (!card) return;
+      this.setState((s) => ({
+        stageCard: isCal(s.stageCard) ? card : s.stageCard,
+        stageHistory: (s.stageHistory || []).map((c) => (isCal(c) ? card : c)),
+      }));
+    }).catch(() => { /* the stale card is better than a broken screen; the vault is still truth */ });
+  }
 
   // THE MORNING BRIEF, on the first open of the day. His ask: Nova opens the
   // day itself — the fleet's overnight work, the shape of the day, what it
@@ -3938,9 +3974,16 @@ export default class App extends Component {
   // (a network round-trip for filler would defeat the point) or when the
   // question is trivially short.
   ACK_LINES = ['On it, sir.', 'Let me look.', 'One moment.', 'Checking now.', 'Right away, sir.'];
+  // Gratitude, agreement and hellos are not work. "Perfect, thanks Nova"
+  // must never be met with "On it, sir" — his note: it doesn't need to
+  // analyse anything. Mirrors the server's small-talk reflex so the ack is
+  // never spoken before the request has even left the device.
+  static SMALL_TALK = /^(?:ok(?:ay)?|alright|right|perfect|great|nice|good|cool|lovely|brilliant|awesome|cheers|got it|understood|noted|sounds good|hi|hey|hello|morning|good morning|afternoon|evening)?[,\s]*(?:thanks|thank you|ta|cheers|much appreciated|appreciate it)?[,\s]*(?:mate|nova|jarvis|sir)?[.!]?$/i;
   speakAck(question) {
     if (!this.state.voiceSpeak) return;
-    if ((question || '').trim().length < 12) return; // short asks answer fast enough
+    const q = (question || '').trim();
+    if (App.SMALL_TALK.test(q)) return; // a thank-you gets an answer, not a receipt
+    if (q.length < 12) return; // short asks answer fast enough
     // rotate rather than random: no repeat twice running, no randomness to debug
     this.ackIdx = ((this.ackIdx ?? -1) + 1) % this.ACK_LINES.length;
     const line = this.ACK_LINES[this.ackIdx];

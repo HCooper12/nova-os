@@ -74,6 +74,32 @@ export function voiceRouter(vaultPath) {
     res.json({ warmed });
   });
 
+  // TODAY, FRESH — one card, rebuilt from the calendar as it stands right
+  // now. His 21-Aug bug: he had Nova move three events and the TODAY card
+  // in the rail still showed the old times, because a card is a snapshot of
+  // the moment it was spoken. Anything that CHANGES the calendar re-pulls
+  // this, so the glass can never contradict the vault.
+  router.get('/glass/today', async (req, res) => {
+    try {
+      const { fetchEventsForDay } = await import('../lib/calendar.js');
+      const { listCard } = await import('../lib/spokenCards.js');
+      const events = await fetchEventsForDay(new Date(), { fresh: true });
+      const speakTime = (t) => {
+        const [H, M] = String(t || '').split(':').map(Number);
+        if (Number.isNaN(H)) return t;
+        return `${((H + 11) % 12) + 1}:${String(M || 0).padStart(2, '0')} ${H < 12 ? 'am' : 'pm'}`;
+      };
+      res.json({
+        card: listCard({
+          label: `TODAY · ${events.length} ON THE CALENDAR`,
+          items: events.slice(0, 5).map((e) => ({ name: e.label, note: e.time === '00:00' ? 'all day' : speakTime(e.time) })),
+        }),
+      });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // The wake debrief — the doorman greeting, generated (never templated)
   // from deterministic facts: time of day, arrival gap, the fleet's recent
   // receipts, and the gate count. The client decides WHEN a greeting is due;

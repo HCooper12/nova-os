@@ -149,6 +149,14 @@ export function Voice({ v }) {
         </div>
         <div style={css(`font:400 26px ${M};font-variant-numeric:tabular-nums;color:color-mix(in srgb, var(--nv-ink) 85%, transparent)`)}><Clock /></div>
       </div>
+      {/* THE GLASS TAKES THE ROOM. His note: the chat beside it is
+          distracting when a card pops up — so when Nova puts something on
+          the glass, everything else recedes behind a blur, exactly like the
+          reel. Click anywhere off the card (or the × on it) to come back. */}
+      {v.stageFocus && (
+        <div onClick={v.dismissStage} aria-hidden="true"
+          style={css('position:fixed;inset:0;z-index:60;background:rgba(4,3,8,.55);backdrop-filter:blur(9px);animation:fadeIn .3s ease-out')}></div>
+      )}
       <div style={css("flex:1;display:flex;flex-wrap:wrap;gap:28px;align-items:center;justify-content:center;margin-top:10px;overflow-y:auto")}>
         <Panel glow
           label={v.voiceContinuing ? 'COMMS LOG · CONTINUES ACROSS DAYS' : 'COMMS LOG'}
@@ -226,7 +234,8 @@ export function Voice({ v }) {
             <Interactive as="span" onClick={v.sendOrb} base={`cursor:pointer;display:flex;align-items:center;font:500 11px ${M};padding:0 16px;border-radius:9px;background:var(--nv-cy);color:var(--nv-on-acc)`} hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">SEND</Interactive>
           </div>
         </Panel>
-        <div style={css("flex:1 1 420px;min-width:340px;display:flex;flex-direction:column;align-items:center;gap:20px")}>
+        <div style={{ flex: '1 1 420px', minWidth: '340px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px',
+          ...(v.stageFocus ? { position: 'relative', zIndex: 61 } : {}) }}>
           {/* the core in its reticle — a station's centre instrument: two
               counter-rotating rings, a state-lit halo, and tick marks that
               read as calibration rather than decoration */}
@@ -259,8 +268,13 @@ export function Voice({ v }) {
               centre stage, changing with the narration (his reference:
               "let me put it on the glass"). */}
           {onGlass && (
-            <div style={css('width:min(420px,100%)')}>
+            <div style={css(`width:min(${v.stageFocus ? 520 : 420}px,100%);position:relative`)}>
               <StageCard card={v.stageCard} />
+              {v.stageFocus && (
+                <Interactive as="span" onClick={v.dismissStage} aria-label="Dismiss the card"
+                  base={css(`position:absolute;top:8px;right:10px;cursor:pointer;font:400 16px/1 ${M};color:color-mix(in srgb, var(--nv-ink) 35%, transparent);padding:3px 6px`)}
+                  hoverStyle="color:var(--nv-ink)">×</Interactive>
+              )}
             </div>
           )}
           {/* the REAL waveform wherever a meter exists (Nova speaking via the
@@ -320,7 +334,13 @@ export function Voice({ v }) {
           {v.stageHistory?.length > 0 && (
             <Panel label="ON THE GLASS">
               <div style={css('display:flex;flex-direction:column;gap:8px')}>
-                {v.stageHistory.map((c, i) => <StageCard key={i} card={c} size="mini" />)}
+                {v.stageHistory.map((c, i) => (
+                  <Interactive key={i} onClick={() => v.focusCard(c)} aria-label={`Bring “${c.label}” back to the middle`}
+                    base={css('cursor:pointer;border-radius:10px;display:block')}
+                    hoverStyle="filter:brightness(1.35)">
+                    <StageCard card={c} size="mini" />
+                  </Interactive>
+                ))}
               </div>
             </Panel>
           )}

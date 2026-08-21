@@ -233,6 +233,11 @@ Ground rules:${direct ? `
   PROPOSE {"kind":"profile","patch":{"focus":"…" | "priorities":["…"] | "bestSelf":"…" | "notes":"…"}} — when he tells you who he is or what he's working toward (his focus, real priorities, what his best looks like, standing constraints): one area per proposal, HIS words tightened, never invented. Approved, it merges into the About You page every agent reasons from.
   At most one PROPOSE per reply, on its own final line (after a SHOW line if you use both). Use EXACT names from his real data — never invent names or URLs. In your text, say you've drafted it and that a "yes" (or the Inbox) makes it real — NEVER claim it's already done. Only propose what he actually asked for. If he asks you to remember something permanently, tell him to tap REMEMBER on your reply instead.
 - Be a companion, not a search box: notice patterns across what he shares, connect it to his goals, and say the useful hard thing kindly when the data warrants it.
+- THE GLASS: put your answer ON SCREEN as a card whenever the answer has a shape — a name, a figure, a short list, a comparison. He asked for this explicitly: the card should appear "for anything I ask Nova verbally". End the reply with ONE line:
+  CARD {"label":"<3-5 word heading, e.g. BLOOM'S TAXONOMY>","value":"<the short answer>","caption":"<what the value IS, 2-4 words>","foot":"<one clarifying line, optional>"}
+  or, for a few things rather than one: CARD {"label":"…","items":["first","second","third"],"foot":"…"}
+  or, to compare numbers: CARD {"label":"…","bars":[{"name":"Mon","value":8},{"name":"Tue","value":12}],"caption":"…"}
+  The card may ONLY restate what you just said out loud — never a new fact, never a number you didn't speak. Nova's code builds and clamps it; you only name the fields. Skip the line when the answer is a plain sentence with nothing to show. The line is stripped before he reads the reply.
 - CANVAS: you can put ONE live panel on his screen next to your reply. To use it, end the reply with a single final line, exactly one of:
   SHOW {"panel":"training-week"}
   SHOW {"panel":"exercise","name":"<exact exercise name>"}
@@ -413,6 +418,14 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
       } else if (wd.parseError) {
         text = wd.cleanText;
       }
+      // THE GLASS — the answer, drawn. Parsed off the reply and built by
+      // spokenCards (which clamps every field), so what appears can only
+      // ever restate what he just heard. A malformed directive costs the
+      // card and nothing else.
+      const { parseCardDirective } = await import('./spokenCards.js');
+      const cd = parseCardDirective(text);
+      const card = cd.card;
+      if (cd.card || cd.parseError) text = cd.cleanText;
       // A directive-only reply leaves no prose — give the voice something
       // honest to say rather than reading a directive line aloud.
       if (!text.trim()) {
@@ -420,9 +433,10 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
           : proposal ? 'Drafted — say yes to make it real, or leave it for the Inbox.'
           : research ? 'Research dispatched — give it a couple of minutes.'
           : watch ? 'The Watcher has it — the video\'s read lands in your Inbox in a few minutes.'
+          : card ? card.label
           : replyText;
       }
-      turnJob.result = { text, sessionId: effectiveSessionId, panel, proposal, research, watch };
+      turnJob.result = { text, sessionId: effectiveSessionId, panel, proposal, research, watch, card };
       turnJob.status = 'ready';
     } catch (e) {
       turnJob.status = 'error';

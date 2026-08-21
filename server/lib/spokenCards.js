@@ -56,3 +56,48 @@ export function listCard({ label, items, foot }) {
   if (!rows.length) return null;
   return { kind: 'list', label: clean(label).toUpperCase(), items: rows, foot: foot ? clean(foot) : null };
 }
+
+// ---------------------------------------------------------------------------
+// THE CARD DIRECTIVE — how a spoken ANSWER gets onto the glass.
+//
+// His 21-Aug ask: the pop-up should appear "for anything I ask Nova verbally
+// to do" — pulling up a video, naming the pyramid-shaped teaching hierarchy,
+// anything. Those answers aren't metrics we already computed, so the model
+// names the card and CODE builds it: the model may only restate, in
+// structured fields, what it just said out loud. Every field is clamped
+// here, an unknown kind is dropped, and a malformed directive degrades to
+// no card at all — never to a card that says something new.
+const CARD_RE = /^\s*CARD\s*(\{[\s\S]*\})\s*$/m;
+
+export function parseCardDirective(text) {
+  const raw = String(text ?? '');
+  const m = raw.match(CARD_RE);
+  if (!m) return { cleanText: raw, card: null };
+  const cleanText = raw.replace(CARD_RE, '').replace(/\n{3,}/g, '\n\n').trim();
+  try {
+    const d = JSON.parse(m[1]);
+    return { cleanText, card: cardFromDirective(d) };
+  } catch {
+    // a broken directive costs the card, never the answer
+    return { cleanText, card: null, parseError: 'the card directive was not valid JSON' };
+  }
+}
+
+export function cardFromDirective(d) {
+  if (!d || typeof d !== 'object') return null;
+  const label = String(d.label ?? '').slice(0, 42);
+  if (!label.trim()) return null;
+  if (Array.isArray(d.items) && d.items.length) {
+    return listCard({ label, items: d.items.map((i) => (typeof i === 'string' ? { name: i } : i)), foot: d.foot });
+  }
+  if (Array.isArray(d.bars) && d.bars.length) {
+    return barsCard({ label, bars: d.bars, caption: d.caption, foot: d.foot });
+  }
+  if (d.value != null && String(d.value).trim()) {
+    return metricCard({
+      label, value: String(d.value).slice(0, 28), unit: d.unit ? String(d.unit).slice(0, 8) : null,
+      caption: d.caption, foot: d.foot, tone: ['cy', 'gold', 'warn', 'good', 'vi'].includes(d.tone) ? d.tone : 'cy',
+    });
+  }
+  return null;
+}

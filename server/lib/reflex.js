@@ -43,8 +43,33 @@ const defaultDeps = {
 
 // Each reflex: match → load → speak-or-null. Order matters only for
 // overlapping phrasings; keep the list short and each pattern tight.
+// SMALL TALK. "Perfect, thanks Nova" is not a request for work, and Nova
+// answering it with "On it, sir — let me look" (then spawning a model to
+// think about gratitude) is the single most robotic thing it does. His
+// note: it "feels off… it doesn't need to actually analyse anything".
+// Code answers these instantly, warmly, and briefly — and because it is a
+// reflex, no ack fires and no model is spawned.
+const THANKS = /^(?:ok(?:ay)?|alright|perfect|great|nice|lovely|brilliant|awesome|cheers)?[,\s]*(?:thanks|thank you|ta|cheers|much appreciated|appreciate it)[,\s]*(?:mate|nova|jarvis|sir)?[.!]?$/i;
+const AFFIRM = /^(?:ok(?:ay)?|alright|right|got it|understood|noted|sounds good|perfect|great|nice|good|cool|lovely|brilliant)[.!]?$/i;
+const GREET = /^(?:hi|hey|hello|morning|good morning|afternoon|good afternoon|evening|good evening)[,\s]*(?:nova|jarvis)?[.!]?$/i;
+
+export function smallTalkReply(question) {
+  const q = normalize(question);
+  // normalize() strips a leading "hey nova" — so a BARE wake phrase lands
+  // here as an empty string. It still deserves an answer.
+  if (!q) return /\b(nova|jarvis)\b/i.test(question || '') ? pick(['Sir?', 'Yes, sir?', 'Listening, sir.']) : null;
+  if (THANKS.test(q)) return pick(['Any time, sir.', 'My pleasure, sir.', 'Of course, sir.']);
+  if (AFFIRM.test(q)) return pick(['Right you are, sir.', 'Noted.', 'Very good, sir.']);
+  if (GREET.test(q)) return pick(['Sir.', 'Good to see you, sir.', 'At your service, sir.']);
+  return null;
+}
+
 export async function tryReflex(question, deps = defaultDeps) {
   const q = normalize(question);
+  // small talk first: it must never reach the model, and it must never be
+  // preceded by an ack about looking something up
+  const chat = smallTalkReply(question);
+  if (chat) return { matched: 'small-talk', text: chat, smallTalk: true };
   if (!q || q.length > 80 || NEEDS_THOUGHT.test(q)) return null;
 
   const now = new Date();

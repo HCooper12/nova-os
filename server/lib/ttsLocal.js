@@ -41,11 +41,38 @@ export function localVoices() {
 const SPOKEN_REWRITES = [
   [/\bheart rate\b/gi, 'heart-rate'],
   [/\bstep count\b/gi, 'step-count'],
+  // SYMBOLS A PERSON WOULD NEVER SAY. Record titles are written for the eye
+  // ("Fuel × training:", "Push → Pull") and Nova was reading them out as
+  // punctuation — his note: "reads certain titles a bit clunky without the
+  // human touch". These turn written shorthand back into speech.
+  [/\s*×\s*/g, ' and '],
+  [/\s*→\s*/g, ' to '],
+  [/\s+·\s+/g, ', '],
+  [/\s*\/\s*/g, ' or '],
+  [/\s*&\s*/g, ' and '],
+  [/\s*\+\s*/g, ' plus '],
+  [/\s*—\s*/g, ', '],   // an em dash is a breath, not a word
+  [/\s*--\s*/g, ', '],
+  [/(\d)\s*kg\b/gi, '$1 kilos'],
+  [/(\d)\s*bpm\b/gi, '$1 beats per minute'],
+  [/(\d)\s*ms\b/gi, '$1 milliseconds'],
+  [/\bRPE\b/g, 'R P E'],
+  [/\bHRV\b/g, 'H R V'],
+  [/\bRHR\b/g, 'resting heart-rate'],
+  [/\bvs\.?\b/gi, 'versus'],
+  [/\be\.g\.\s*/gi, 'for example, '],
+  [/\bi\.e\.\s*/gi, 'that is, '],
 ];
+// A title cut mid-word ("…training days ave") is the single most robotic
+// thing a voice can do. Trim back to the last whole word and let the
+// sentence end, the way a person reading aloud would.
+function mendTruncation(text) {
+  return String(text).replace(/([A-Za-z]{2,})\s*(?:…|\.\.\.)\s*$/g, '$1.');
+}
 export function rewriteForSpeech(text) {
-  let out = text;
+  let out = mendTruncation(text);
   for (const [re, to] of SPOKEN_REWRITES) out = out.replace(re, to);
-  return out;
+  return out.replace(/\s{2,}/g, ' ').trim();
 }
 
 // The "workshop" chain from the listening rounds: clear the boxiness, lift
@@ -142,18 +169,29 @@ export async function warmSpokenLines() {
   console.log(`tts cache warm: ${audioCache.size} lines`);
 }
 
+// His 21-Aug note: "Nova is speaking too quickly, it's hard to keep up."
+// Kokoro takes a speed multiplier; 0.88 is a measured, unhurried delivery
+// without dragging. Tunable per device without a rebuild.
+const SPEED = () => {
+  const v = Number(process.env.NOVA_TTS_SPEED);
+  return Number.isFinite(v) && v >= 0.5 && v <= 1.5 ? v : 0.88;
+};
+
 export async function synthesizeLocal(text, voiceId) {
   const requested = (voiceId || '').trim() || 'nova';
   const jarvis = requested.endsWith('-jarvis');
   const voice = jarvis ? requested.slice(0, -'-jarvis'.length) : requested;
-  const cacheKey = `${requested}|${text}`;
+  const speed = SPEED();
+  // speed is part of the identity of the audio — leaving it out of the key
+  // would serve yesterday's pace after he changes it
+  const cacheKey = `${requested}|${speed}|${text}`;
   const hit = audioCache.get(cacheKey);
   if (hit) return hit;
   await ensureSidecar();
   const res = await fetch(`${BASE()}/tts`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: rewriteForSpeech(text), voice }),
+    body: JSON.stringify({ text: rewriteForSpeech(text), voice, speed }),
     // 90s: a 2400-char worst case is ~2min of audio and can exceed 30s of
     // synthesis — timing it out returned a 400 and silenced a whole brief.
     // The client sends sentence-sized pieces, so this is a backstop.
