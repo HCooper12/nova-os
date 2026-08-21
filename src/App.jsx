@@ -1836,11 +1836,20 @@ export default class App extends Component {
   openSessionExercisePicker() {
     this.setState({ exercisePickerOpen: true, exercisePickerMode: 'session', exercisePickerQuery: '', exercisePickerMuscle: 'Any', exercisePickerCreateMuscle: '', exercisePickerCreateTrackingType: 'weight_reps' });
   }
-  addExerciseToSession(exerciseId) {
+  addExerciseToSession(exerciseOrId) {
     const session = this.state.workoutSession;
     if (!session) return;
-    const lib = (this.state.liveWorkoutExercises || []).find((e) => e.id === exerciseId);
-    if (!lib) return;
+    // an id when he picks from the list; the object itself when it was just
+    // created and the library state has not caught up yet
+    const lib = typeof exerciseOrId === 'string'
+      ? (this.state.liveWorkoutExercises || []).find((e) => e.id === exerciseOrId)
+      : exerciseOrId;
+    if (!lib?.id) { this.toastMsg('Could not add that exercise.'); return; }
+    if (session.exercises.some((e) => e.exerciseId === lib.id)) {
+      this.toastMsg(`${lib.name} is already in this session.`);
+      this.setState({ exercisePickerOpen: false, exercisePickerQuery: '' });
+      return;
+    }
     // no routine, no last-session prefill — an honest fresh start, same
     // hypertrophy-default rep range the rest of the app assumes
     const targetRepsLow = 8, targetRepsHigh = 12, targetSets = 3;
@@ -1884,9 +1893,19 @@ export default class App extends Component {
   createAndAddExercise(name, muscleGroup, trackingType) {
     const conn = getConnection();
     if (!conn || !name.trim() || !muscleGroup) return;
+    // WHERE it goes depends on which picker asked. This ignored the mode and
+    // always routed to the routine, so creating a brand-new exercise
+    // mid-session filed it in the library and then added it NOWHERE (no open
+    // routine → silent early return) — or, worse, wrote it into his actual
+    // program if a routine happened to be open behind the session.
+    const toSession = this.state.exercisePickerMode === 'session' && this.state.workoutSession;
     api.addWorkoutExercise(conn, name.trim(), muscleGroup, trackingType).then(({ exercise }) => {
+      if (!exercise?.id) throw new Error('the server did not return the new exercise');
       this.setState((s) => ({ liveWorkoutExercises: [...(s.liveWorkoutExercises || []), exercise] }));
-      this.addExerciseToRoutine(exercise.id);
+      // pass the exercise ITSELF, never look it back up: the setState above
+      // has not applied yet, so a lookup by id would find nothing
+      if (toSession) this.addExerciseToSession(exercise);
+      else this.addExerciseToRoutine(exercise.id);
     }).catch((e) => this.toastMsg('Could not add exercise: ' + e.message));
   }
   assignScheduleDay(day, routineId) {

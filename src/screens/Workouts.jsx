@@ -502,7 +502,7 @@ function SessionView({ v }) {
                     program, held apart from anything he actually planned */}
                 {e.adhoc && (
                   <span title="Added mid-session — not part of your program"
-                    style={css(`font:600 8.5px ${M};letter-spacing:.14em;padding:2px 7px;border-radius:5px;color:var(--nv-gold);border:1px dashed color-mix(in srgb, var(--nv-gold) 40%, transparent);background:color-mix(in srgb, var(--nv-gold) 06%, transparent)`)}
+                    style={css("font:600 8.5px var(--nv-font-mono);letter-spacing:.14em;padding:2px 7px;border-radius:5px;color:var(--nv-gold);border:1px dashed color-mix(in srgb, var(--nv-gold) 40%, transparent);background:color-mix(in srgb, var(--nv-gold) 06%, transparent)")}
                   >EXTRA · TODAY ONLY</span>
                 )}
                 {e.lastLabel && <span>{e.lastLabel}</span>}
