@@ -69,6 +69,24 @@ export function workoutsRouter(vaultPath) {
     } catch (err) { next(err); }
   });
 
+  // The Coach's program review — mapping errors, muscles chronically
+  // short, lifts that have stopped paying. Same shape as fuel-cross above:
+  // a preview (no write) and an on-demand raise (the same rails the
+  // morning window runs automatically), so this can be triggered without
+  // waiting for the 7am-noon scheduler window.
+  router.get('/train/program-review', async (req, res, next) => {
+    try {
+      const { reviewProgram } = await import('../lib/coachProgramReview.js');
+      res.json(await reviewProgram(vaultPath));
+    } catch (err) { next(err); }
+  });
+  router.post('/train/program-review/raise', async (req, res, next) => {
+    try {
+      const { raiseProgramFindings } = await import('../lib/coachProgramReview.js');
+      res.json(await raiseProgramFindings(vaultPath));
+    } catch (err) { next(err); }
+  });
+
   router.get('/workouts/exercises', async (req, res, next) => {
     try {
       res.json(await loadExerciseLibrary(vaultPath));
@@ -439,6 +457,13 @@ export function workoutsRouter(vaultPath) {
         const xc = crossContext(await crossCheck(vaultPath));
         if (xc) parts.push(xc);
       } catch { failures.push('fuel cross-check'); }
+      try {
+        // program changes he has been asked about and not answered — Coach
+        // must be able to raise it in conversation, not only in the Inbox
+        const { programReviewContext } = await import('../lib/coachProgramReview.js');
+        const pr = await programReviewContext();
+        if (pr) parts.push(pr);
+      } catch { failures.push('program review'); }
       try {
         // the watch's account of his week + the logged-vs-tracked join
         const { watchContext } = await import('../lib/healthWorkouts.js');

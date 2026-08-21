@@ -60,6 +60,12 @@ const defaultDeps = {
     return fetchEventsForRange(days, from);
   },
   injuries: async (vaultPath) => (await import('./injuryLog.js')).listInjuries(vaultPath),
+  programOpen: async () => {
+    const { listRecords } = await import('./inboxStore.js');
+    return (await listRecords())
+      .filter((r) => r.kind === 'coach-program' && r.status === 'pending')
+      .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+  },
   lastSessions: async (vaultPath) => (await import('./workoutSessions.js')).loadSessions(vaultPath, { limit: 4 }),
   foodToday: async () => (await import('./foodLog.js')).getToday(),
   records: async () => (await import('./inboxStore.js')).listRecords(),
@@ -235,6 +241,28 @@ export async function composeShow(vaultPath, { variant = 'morning' } = {}, deps 
         ...(painPrompt ? { asks: true } : {}),
       });
     }
+  }
+
+  // — THE COACH'S OPEN ASK. His 21-Aug ask: a proposed program change
+  //   should reach him in the morning brief, not only the Inbox. One at a
+  //   time, the oldest unanswered first, and it says how long it has waited.
+  if (!evening && deps.programOpen) {
+    try {
+      const open = (await deps.programOpen()) || [];
+      if (open.length) {
+        const top = open[0];
+        const waited = Math.floor((now - new Date(top.createdAt || now)) / 86_400_000);
+        steps.push({
+          say: `${top.nudges ? 'Still waiting on you' : 'One from me'}, sir: ${despeak(String(top.text || '').replace(/^Coach:\s*/, ''))}`,
+          card: listCard({
+            label: top.nudges ? `COACH · ASKED ${top.nudges + 1}×` : 'COACH · A CHANGE WORTH MAKING',
+            items: [{ name: despeak(String(top.text || '').replace(/^Coach:\s*/, '')).slice(0, 46), note: waited > 0 ? `${waited}d open` : 'new', tone: top.nudges ? 'warn' : 'gold' }],
+            foot: 'yes or no in your Inbox — or argue it with Coach',
+          }),
+          asks: true,
+        });
+      }
+    } catch { /* absent section */ }
   }
 
   // — what the agents produced (last 16 hours, newest first, max two) —

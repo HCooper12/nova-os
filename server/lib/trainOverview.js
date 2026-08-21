@@ -25,7 +25,9 @@ const GOAL_WORDS = {
   glutes: ['Glutes'], abs: ['Abs'], core: ['Abs'],
 };
 
-function goalMuscles(goals) {
+// exported so the Coach's program review reasons from the SAME muscles the
+// volume bars call "goal muscles" — two parsers would drift apart
+export function goalMuscles(goals) {
   const text = `${goals?.goal || ''} ${goals?.focus || ''}`.toLowerCase();
   const out = new Set();
   for (const [word, muscles] of Object.entries(GOAL_WORDS)) {
@@ -177,6 +179,26 @@ export async function buildTrainOverview(vaultPath) {
 
   volume.sort((a, b) => b.sets - a.sets);
 
+  // the Coach's open program ask — shown on Train, because that is where a
+  // change to his program is actually decided
+  const coachAsk = await (async () => {
+    try {
+      const { listRecords } = await import('./inboxStore.js');
+      const open = (await listRecords())
+        .filter((r) => r.kind === 'coach-program' && r.status === 'pending')
+        .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+      if (!open.length) return null;
+      const r = open[0];
+      return {
+        recordId: r.id,
+        text: String(r.text || '').replace(/^Coach:\s*/, ''),
+        nudges: r.nudges || 0,
+        daysOpen: Math.floor((Date.now() - new Date(r.createdAt || Date.now())) / 86_400_000),
+        applies: !!(r.fix && r.fix.action === 'remap'),
+      };
+    } catch { return null; }
+  })();
+
   const latest = [...days].reverse().find((d) => d.hrv != null || d.sleepAsleepMinutes != null || d.restingHeartRate != null) || {};
 
   return {
@@ -187,6 +209,7 @@ export async function buildTrainOverview(vaultPath) {
       restingHr: latest.restingHeartRate ?? null,
     },
     deload: { advise: deload.advise, reason: deload.reason },
+    coachAsk,
     block: block ? { phase: block.phase, week: block.week, lengthWeeks: block.lengthWeeks, isDeloadWeek: block.isDeloadWeek, ended: block.ended } : null,
     today: routine ? {
       routineId: routine.id, name: routine.name, exerciseCount: routine.exercises.length,

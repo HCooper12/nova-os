@@ -161,6 +161,26 @@ function withWriteLock(fn) {
 // resource link per exercise — shown in the exercise panel and mid-session.
 // The exercise record was just a name and a muscle group; a coach's exercise
 // card never is.
+// Re-file an exercise under a different muscle. Every past set logged
+// against it moves with it — the weekly volume is computed from the library
+// at read time, so a correction is retroactive by construction, which is
+// exactly what makes it worth doing. Returns the previous group so the
+// change can be undone from the Inbox.
+export async function setExerciseMuscleGroup(vaultPath, id, muscleGroup) {
+  const group = String(muscleGroup || '').trim();
+  if (!MUSCLE_GROUPS.includes(group)) throw new Error(`muscleGroup must be one of: ${MUSCLE_GROUPS.join(', ')}`);
+  return withWriteLock(async () => {
+    const existing = [...(await getExercises(vaultPath))];
+    const idx = existing.findIndex((e) => e.id === id);
+    if (idx === -1) throw new Error('no such exercise');
+    const before = existing[idx].muscleGroup || 'Other';
+    if (before === group) return { exercise: existing[idx], before, unchanged: true };
+    existing[idx] = { ...existing[idx], muscleGroup: group };
+    await persist(vaultPath, existing);
+    return { exercise: existing[idx], before, unchanged: false };
+  });
+}
+
 export async function setExerciseKnowledge(vaultPath, id, { cues, resourceUrl }) {
   return withWriteLock(async () => {
     const existing = [...(await getExercises(vaultPath))];

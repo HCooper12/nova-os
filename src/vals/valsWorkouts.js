@@ -47,6 +47,10 @@ export function valsWorkouts(app, ctx) {
       askTired: () => app.openVerdict('tired'),
       askPeak: () => app.openVerdict('peak'),
       askVolume: (muscles) => { app.setState({ trainTab: 'coach' }); app.doCoach(`My weekly sets for ${muscles} are under target for my goal — how should I add volume?`); },
+      // the Coach's open program ask: take it, or say no. Either way it
+      // stops asking — an answered question is answered.
+      applyCoachAsk: (recordId) => app.resolveCoachAsk(recordId, true),
+      dismissCoachAsk: (recordId) => app.resolveCoachAsk(recordId, false),
     },
   };
   // the three-surface structure from the mockup. A live workout DEFAULTS
@@ -215,15 +219,21 @@ export function valsWorkouts(app, ctx) {
 
   const pickerQuery = st.exercisePickerQuery.trim().toLowerCase();
   const pickerMuscle = st.exercisePickerMuscle;
+  const pickerMode = st.exercisePickerMode || 'routine';
   const libraryExercises = st.liveWorkoutExercises || [];
   const exercisesById = new Map(libraryExercises.map((e) => [e.id, e]));
+  // 'routine' mode hides what the TEMPLATE already has; 'session' mode
+  // hides what is already logged THIS session — a different exclusion, so
+  // he never gets offered a duplicate in either context
   const alreadyInRoutine = new Set((openRoutine?.exercises || []).map((e) => e.exerciseId));
+  const alreadyInSession = new Set((st.workoutSession?.exercises || []).map((e) => e.exerciseId));
+  const pickerExclude = pickerMode === 'session' ? alreadyInSession : alreadyInRoutine;
   const exercisePickerResults = libraryExercises
-    .filter((e) => !alreadyInRoutine.has(e.id))
+    .filter((e) => !pickerExclude.has(e.id))
     .filter((e) => pickerMuscle === 'Any' || e.muscleGroup === pickerMuscle)
     .filter((e) => !pickerQuery || e.name.toLowerCase().includes(pickerQuery))
     .slice(0, 60)
-    .map((e) => ({ id: e.id, name: e.name, muscleGroup: e.muscleGroup, onAdd: () => app.addExerciseToRoutine(e.id) }));
+    .map((e) => ({ id: e.id, name: e.name, muscleGroup: e.muscleGroup, onAdd: () => (pickerMode === 'session' ? app.addExerciseToSession(e.id) : app.addExerciseToRoutine(e.id)) }));
   const exercisePickerExactMatch = libraryExercises.some((e) => e.name.toLowerCase() === pickerQuery);
   const exercisePickerShowCreate = pickerQuery.length > 0 && !exercisePickerExactMatch;
   const TRACKING_TYPE_LABEL = { weight_reps: 'Weight × Reps', bodyweight_reps: 'Bodyweight × Reps', weight_time: 'Weight × Time', bodyweight_time: 'Bodyweight × Time', weighted_bodyweight_reps: 'Weighted Bodyweight × Reps' };
@@ -263,6 +273,9 @@ export function valsWorkouts(app, ctx) {
         { label: 'Report pain', danger: true, onSelect: () => app.setState({ sessionPain: { exIdx, area: null, side: null, when: null, detail: '' } }) },
         { label: e.skipped ? 'Un-skip today' : 'Skip today', onSelect: () => app.toggleSessionExerciseSkipped(exIdx) },
         { label: 'Ask Coach about this lift', onSelect: () => { app.setState({ trainTab: 'coach' }); app.doCoach(`Mid-session — talk me through ${e.name}: cues, common mistakes, and what matters most for my goals.`); } },
+        // only an EXTRA (this-session-only) exercise can be pulled out
+        // whole — a programmed one is skipped, never deleted
+        ...(e.adhoc ? [{ label: 'Remove — this session only', danger: true, onSelect: () => app.removeExerciseFromSession(exIdx) }] : []),
       ],
     }),
     coachLabel: coachChipLabel(e.coach), coachEvidence: e.coach?.evidence || null,
@@ -272,6 +285,7 @@ export function valsWorkouts(app, ctx) {
     // not a silent replacement of what he actually lifted
     lastLabel: e.last?.sets?.length ? `Last${e.last.date ? ` (${e.last.date})` : ''}: ${e.last.sets.map((s) => `${s.weight || 0}×${s.reps || 0}`).join(', ')}` : null,
     focusNote: e.focusNote || null,
+    adhoc: !!e.adhoc, // this session only — his 21-Aug ask, a temporary extra lift
     isTime: isTimeTracking(e.trackingType), isBodyweight: isBodyweightTracking(e.trackingType),
     weightLabel: e.trackingType === 'weighted_bodyweight_reps' ? '+KG' : 'KG',
     amountLabel: isTimeTracking(e.trackingType) ? 'SEC' : 'REPS',
@@ -430,7 +444,9 @@ export function valsWorkouts(app, ctx) {
     confirmDeleteRoutine: openRoutine ? () => app.confirmDeleteRoutine(openRoutine.id) : () => {},
 
     exercisePickerOpen: st.exercisePickerOpen,
+    exercisePickerMode: pickerMode,
     openExercisePicker: () => app.openExercisePicker(),
+    openSessionExercisePicker: () => app.openSessionExercisePicker(),
     closeExercisePicker: () => app.closeExercisePicker(),
     exercisePickerQuery: st.exercisePickerQuery,
     setExercisePickerQuery: (e) => app.setExercisePickerQuery(e),

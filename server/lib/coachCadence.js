@@ -206,6 +206,24 @@ export function startCoachCadenceScheduler(vaultPath) {
       const h = new Date().getHours();
       if (h >= 7 && h < 12) await morningReadiness(vaultPath);
       if (h >= 7 && h < 12) await raiseFuelFindings(vaultPath); // weekly-cooldown inside
+      // the program review: catch a mis-filed lift, a muscle short for weeks,
+      // a lift that has stopped paying — and nudge whatever he left unanswered
+      if (h >= 7 && h < 12) {
+        try {
+          const { raiseProgramFindings } = await import('./coachProgramReview.js');
+          const { raised, nudged } = await raiseProgramFindings(vaultPath);
+          // A FINAL nudge earns a Telegram — by then it has sat unanswered
+          // for over a week and the Inbox clearly is not reaching him.
+          const finals = nudged.filter((n) => n.final);
+          if (finals.length) {
+            const { sendTelegramText, telegramConfigured } = await import('./telegram.js');
+            if (telegramConfigured()) {
+              await sendTelegramText('Coach: a program change has been waiting on you for a week. It\'s in your Inbox — yes or no is fine.').catch(() => {});
+            }
+          }
+          if (raised.length || nudged.length) console.log(`coach program review: ${raised.length} raised, ${nudged.length} nudged`);
+        } catch (e) { console.log('coach program review failed:', e.message); }
+      }
       if (h >= 16 && h < 19) await missedSessionNudge(vaultPath); // early enough to still train
     } catch (err) {
       console.error('coach cadence failed:', err.message);

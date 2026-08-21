@@ -758,6 +758,13 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
 // Best-effort, honest revert of one filing. Returns a human summary; throws
 // with a clear message when the target changed since filing.
 export async function undoFiling(vaultPath, undo) {
+  // put an exercise back where it was — the volume bars follow it back, since
+  // they read the library at query time
+  if (undo.kind === 'exercise-muscle-group') {
+    const { setExerciseMuscleGroup } = await import('./exercises.js');
+    const { exercise } = await setExerciseMuscleGroup(vaultPath, undo.exerciseId, undo.muscleGroup);
+    return `${exercise.name} is filed under ${undo.muscleGroup} again`;
+  }
   if (undo.route === 'shopping') {
     const removed = await removeItems(vaultPath, undo.ids);
     if (!removed) throw new Error('those items are no longer on the shopping list');
@@ -1133,6 +1140,23 @@ export async function approveRecord(vaultPath, id) {
       auto: false,
       error: null,
     });
+  }
+  // A COACH PROGRAM CHANGE. Approving it APPLIES the fix — a re-filed
+  // exercise moves every past set with it, because volume is computed from
+  // the library at read time. undoData carries the previous group, so a
+  // change he regrets is one tap back. A finding with no applicable fix
+  // (a "you're short on sets" observation) files as an acknowledgement.
+  if (record.kind === 'coach-program') {
+    const fix = record.fix || null;
+    if (fix?.action === 'remap' && fix.exerciseId && fix.muscleGroup) {
+      const { setExerciseMuscleGroup } = await import('./exercises.js');
+      const { before } = await setExerciseMuscleGroup(vaultPath, fix.exerciseId, fix.muscleGroup);
+      return updateRecord(id, {
+        status: 'filed', destination: 'exercise library', filedAt: new Date().toISOString(), auto: false, error: null,
+        undoData: { kind: 'exercise-muscle-group', exerciseId: fix.exerciseId, muscleGroup: before },
+      });
+    }
+    return updateRecord(id, { status: 'filed', destination: null, filedAt: new Date().toISOString(), auto: false, error: null });
   }
   // A fuel-cross finding is a receipt, not a write: it carries no decision
   // because nothing goes to the vault. Approving means "seen, acknowledged".

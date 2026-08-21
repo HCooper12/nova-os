@@ -145,6 +145,35 @@ export function TrainToday({ o, actions, resume }) {
         </div>
       )}
 
+      {/* THE COACH'S OPEN ASK — a proposed program change, on the screen
+          where programs are actually decided. Three ways out: take it,
+          argue it with Coach, or leave it (and it will ask again, twice). */}
+      {o?.coachAsk && (
+        <div style={css(`background:color-mix(in srgb, ${o.coachAsk.nudges ? 'var(--nv-warn)' : 'var(--nv-gold)'} 07%, transparent);border:1px solid color-mix(in srgb, ${o.coachAsk.nudges ? 'var(--nv-warn)' : 'var(--nv-gold)'} 40%, transparent);border-radius:16px;padding:14px`)}>
+          <div style={css(`font:600 9px ${M};letter-spacing:.22em;color:${o.coachAsk.nudges ? 'var(--nv-warn)' : 'var(--nv-gold)'}`)}>
+            ◆ COACH{o.coachAsk.nudges ? ` · ASKED ${o.coachAsk.nudges + 1}× · ${o.coachAsk.daysOpen}D OPEN` : ' · A CHANGE WORTH MAKING'}
+          </div>
+          <div style={css('margin-top:7px;font-size:13.5px;line-height:1.5')}>{o.coachAsk.text}</div>
+          <div style={css('margin-top:11px;display:flex;gap:8px;flex-wrap:wrap')}>
+            {o.coachAsk.applies && actions?.applyCoachAsk && (
+              <Interactive as="span" onClick={() => actions.applyCoachAsk(o.coachAsk.recordId)}
+                base={css(`cursor:pointer;font:600 10px ${M};letter-spacing:.1em;padding:7px 14px;border-radius:8px;background:var(--nv-gold);color:#1a1322`)}
+                hoverStyle={{ filter: 'brightness(1.08)' }}>DO IT</Interactive>
+            )}
+            {actions?.askVolume && (
+              <Interactive as="span" onClick={() => actions.askVolume(`About your suggestion: ${o.coachAsk.text} — talk me through it.`)}
+                base={css(`cursor:pointer;font:600 10px ${M};letter-spacing:.1em;padding:7px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)`)}
+                hoverStyle="background:color-mix(in srgb, var(--nv-cy) 12%, transparent)">DISCUSS IT</Interactive>
+            )}
+            {actions?.dismissCoachAsk && (
+              <Interactive as="span" onClick={() => actions.dismissCoachAsk(o.coachAsk.recordId)}
+                base={css(`cursor:pointer;font:600 10px ${M};letter-spacing:.1em;padding:7px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent);color:color-mix(in srgb, var(--nv-ink) 50%, transparent)`)}
+                hoverStyle="border-color:var(--nv-warn);color:var(--nv-warn)">NOT THIS</Interactive>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* weekly volume vs goal-aware targets — Monday to Sunday, and the
           session in progress counts toward it as he ticks */}
       {o?.volume?.length > 0 && (

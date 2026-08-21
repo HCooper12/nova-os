@@ -323,6 +323,9 @@ export default class App extends Component {
     routineDeleteConfirm: false,
     exercisePickerOpen: false, exercisePickerQuery: '', exercisePickerMuscle: 'Any',
     exercisePickerCreateMuscle: '', exercisePickerCreateTrackingType: 'weight_reps',
+    // 'routine' (default, writes to the vault template) or 'session' (his
+    // 21-Aug ask: a one-off extra lift for TODAY only, never the program)
+    exercisePickerMode: 'routine',
     workoutSession: null, workoutSessionSavedAt: null, sessionCancelConfirm: false,
     liveWorkoutHistory: null, historyRoutineId: null,
     discardedDraft: null, // a discarded workout still inside its 7-day window
@@ -1824,7 +1827,44 @@ export default class App extends Component {
     this.updateRoutineExercises(entries);
   }
   openExercisePicker() {
-    this.setState({ exercisePickerOpen: true, exercisePickerQuery: '', exercisePickerMuscle: 'Any', exercisePickerCreateMuscle: '', exercisePickerCreateTrackingType: 'weight_reps' });
+    this.setState({ exercisePickerOpen: true, exercisePickerMode: 'routine', exercisePickerQuery: '', exercisePickerMuscle: 'Any', exercisePickerCreateMuscle: '', exercisePickerCreateTrackingType: 'weight_reps' });
+  }
+  // A TEMPORARY exercise for the session he is in right now — his 21-Aug
+  // ask: an extra lift that never touches the program (no writeRoutine
+  // call, nothing filed to the vault). Reuses the same picker UI; only the
+  // mode and the destination of onAdd differ.
+  openSessionExercisePicker() {
+    this.setState({ exercisePickerOpen: true, exercisePickerMode: 'session', exercisePickerQuery: '', exercisePickerMuscle: 'Any', exercisePickerCreateMuscle: '', exercisePickerCreateTrackingType: 'weight_reps' });
+  }
+  addExerciseToSession(exerciseId) {
+    const session = this.state.workoutSession;
+    if (!session) return;
+    const lib = (this.state.liveWorkoutExercises || []).find((e) => e.id === exerciseId);
+    if (!lib) return;
+    // no routine, no last-session prefill — an honest fresh start, same
+    // hypertrophy-default rep range the rest of the app assumes
+    const targetRepsLow = 8, targetRepsHigh = 12, targetSets = 3;
+    const entry = {
+      exerciseId: lib.id, name: lib.name, muscleGroup: lib.muscleGroup, trackingType: lib.trackingType,
+      targetSets, targetRepsLow, targetRepsHigh, coach: null, last: null, focusNote: null,
+      adhoc: true, // this session only — never written to the routine
+      sets: Array.from({ length: targetSets }, () => ({ weight: 0, reps: targetRepsLow, done: false })),
+    };
+    this.setState((s) => ({
+      workoutSession: { ...s.workoutSession, exercises: [...s.workoutSession.exercises, entry] },
+      exercisePickerOpen: false, exercisePickerQuery: '',
+    }));
+    this.toastMsg(`${lib.name} added — this session only.`);
+  }
+  // Only an adhoc entry can be pulled out whole — a PROGRAMMED exercise is
+  // skipped (spec'd, undoable, stays visible), never deleted outright.
+  removeExerciseFromSession(exIdx) {
+    this.setState((s) => {
+      const ex = s.workoutSession?.exercises?.[exIdx];
+      if (!ex?.adhoc) return null;
+      const exercises = s.workoutSession.exercises.filter((_, i) => i !== exIdx);
+      return { workoutSession: { ...s.workoutSession, exercises } };
+    });
   }
   closeExercisePicker() {
     this.setState({ exercisePickerOpen: false });
@@ -3646,6 +3686,18 @@ export default class App extends Component {
       const line = `I couldn't hand that to the Watcher: ${e.message}`;
       this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: line }] }));
     });
+  }
+  // Coach proposed a program change; he answered. Approving APPLIES it (a
+  // re-filed exercise moves every past set with it) and leaves an undo in
+  // the Inbox; declining closes it so it stops being raised.
+  resolveCoachAsk(recordId, approve) {
+    const conn = getConnection();
+    if (!conn) return;
+    const call = approve ? api.inboxApprove(conn, recordId) : api.inboxDiscard(conn, recordId);
+    call.then(() => {
+      this.toastMsg(approve ? 'Done — your weekly volume just re-counted. Undo lives in your Inbox.' : 'Noted — Coach will leave it.');
+      this.refreshLiveData();
+    }).catch((e) => this.toastMsg('Could not apply that: ' + e.message));
   }
   resolveVoiceProposal(recordId, approve) {
     const conn = getConnection(); if (!conn) return;

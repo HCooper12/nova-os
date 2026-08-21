@@ -1,3 +1,4 @@
+import { useRef, useEffect } from 'react';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { Term } from '../Glossary.jsx';
@@ -20,11 +21,31 @@ const setCols = (isBodyweight) =>
 
 const setInputStyle = { flex: '1 1 48px', width: 'auto', minWidth: '40px', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '6px', padding: '8px 6px', color: 'var(--nv-ink)', fontSize: '16px', fontFamily: "var(--nv-font-mono)", outline: 'none', boxSizing: 'border-box' };
 
+// The Coach's conversation always opens at the newest line — his 21-Aug
+// ask, same reasoning as the Voice screen's transcript: it continues
+// across days, so landing at the top means scrolling past history every
+// time. Jumps on mount, animates on a new message, and leaves him alone
+// if he has deliberately scrolled up to read back.
+function useAutoScrollBottom(len, busy) {
+  const ref = useRef(null);
+  const firstPaint = useRef(true);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    if (!firstPaint.current && !atBottom) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: firstPaint.current ? 'auto' : 'smooth' });
+    firstPaint.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [len, busy]);
+  return ref;
+}
+
 function ExercisePicker({ v }) {
   return (
     <div style={css("margin-top:14px;border:1px solid color-mix(in srgb, var(--nv-cy) 18%, transparent);border-radius:12px;padding:16px 18px;background:color-mix(in srgb, var(--nv-cy) 03%, transparent)")}>
       <div style={css("display:flex;justify-content:space-between;align-items:center")}>
-        <span style={css("font:italic 400 15px var(--nv-font-serif);color:var(--nv-cy)")}>Add an exercise</span>
+        <span style={css("font:italic 400 15px var(--nv-font-serif);color:var(--nv-cy)")}>{v.exercisePickerMode === 'session' ? 'Add for this session' : 'Add an exercise'}</span>
         <Interactive as="span" onClick={v.closeExercisePicker} base="cursor:pointer;font-size:16px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-ink)">×</Interactive>
       </div>
       <Interactive
@@ -427,6 +448,7 @@ function RoutineDetailView({ v }) {
 }
 
 function SessionView({ v }) {
+  const midSessionLogRef = useAutoScrollBottom(v.coachMsgs.length, v.coachBusy);
   return (
     <>
       <h1 style={css("margin:18px 0 0;font:700 28px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>{v.sessionRoutineName}{v.sessionEditing && <span style={css("font:italic 400 26px var(--nv-font-serif);color:var(--nv-gold)")}> — editing the record.</span>}</h1>
@@ -475,6 +497,13 @@ function SessionView({ v }) {
                       : `Every working set here counts toward ${e.muscleGroup} in this week's hard sets.`}
                     style={css(`font:600 8.5px var(--nv-font-mono);letter-spacing:.14em;padding:2px 7px;border-radius:5px;color:${e.muscleGroup === 'Mobility' ? 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' : 'var(--nv-vi)'};border:1px solid color-mix(in srgb, ${e.muscleGroup === 'Mobility' ? 'var(--nv-ink)' : 'var(--nv-vi)'} 30%, transparent);background:color-mix(in srgb, ${e.muscleGroup === 'Mobility' ? 'var(--nv-ink)' : 'var(--nv-vi)'} 07%, transparent)`)}
                   >{e.muscleGroup.toUpperCase()}{e.muscleGroup === 'Mobility' ? ' · NOT VOLUME' : ''}</span>
+                )}
+                {/* a temporary, this-session-only lift — never part of the
+                    program, held apart from anything he actually planned */}
+                {e.adhoc && (
+                  <span title="Added mid-session — not part of your program"
+                    style={css(`font:600 8.5px ${M};letter-spacing:.14em;padding:2px 7px;border-radius:5px;color:var(--nv-gold);border:1px dashed color-mix(in srgb, var(--nv-gold) 40%, transparent);background:color-mix(in srgb, var(--nv-gold) 06%, transparent)`)}
+                  >EXTRA · TODAY ONLY</span>
                 )}
                 {e.lastLabel && <span>{e.lastLabel}</span>}
               </div>
@@ -589,6 +618,17 @@ function SessionView({ v }) {
         ))}
       </div>
 
+      {/* his 21-Aug ask: a temporary extra lift for TODAY only — never
+          touches the program. Same picker as the routine editor, just a
+          different destination for the tap. */}
+      {v.exercisePickerOpen && v.exercisePickerMode === 'session' ? (
+        <ExercisePicker v={v} />
+      ) : (
+        <Interactive as="span" onClick={v.openSessionExercisePicker}
+          base="cursor:pointer;display:inline-block;margin-top:14px;font:500 10.5px var(--nv-font-mono);padding:9px 16px;border-radius:8px;border:1px dashed color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 05%, transparent)"
+          hoverStyle="background:color-mix(in srgb, var(--nv-gold) 12%, transparent)">+ Add exercise — this session only</Interactive>
+      )}
+
       {v.sessionHasUndone && !v.sessionEditing && (
         <div style={css("margin-top:18px;border:1px solid color-mix(in srgb, var(--nv-gold) 35%, transparent);border-radius:13px;padding:11px 13px")}>
           <span style={css("font:600 9px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-gold)")}>FINISHING EARLY? ONE TAP TELLS COACH WHY</span>
@@ -625,7 +665,7 @@ function SessionView({ v }) {
             <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-cy)")}>ASK COACH — MID-SESSION</span>
             <span style={css("font:400 8.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>SEES THIS SESSION LIVE</span>
           </div>
-          <div style={css("flex:1;overflow-y:auto;margin-top:10px;display:flex;flex-direction:column;gap:10px;font:500 12.5px/1.6 var(--nv-font-ui)")}>
+          <div ref={midSessionLogRef} style={css("flex:1;overflow-y:auto;margin-top:10px;display:flex;flex-direction:column;gap:10px;font:500 12.5px/1.6 var(--nv-font-ui)")}>
             {v.coachMsgs.length === 0 && !v.coachBusy && (
               <div style={css("color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>"That last set felt heavy — drop the weight?" · "Shoulder's niggling on these, alternative?" · "Only 20 minutes left, what do I cut?"</div>
             )}
@@ -696,6 +736,7 @@ function HistoryView({ v }) {
 }
 
 function MockWorkouts({ v }) {
+  const demoLogRef = useAutoScrollBottom(v.coachMsgs.length, v.coachBusy);
   return (
     <>
       <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Push day, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>week six.</span></h1>
@@ -729,7 +770,7 @@ function MockWorkouts({ v }) {
             <span style={css("font:italic 400 20px var(--nv-font-serif);color:var(--nv-cy)")}>Ask Coach</span>
             <span style={css("font:400 9px var(--nv-font-mono);letter-spacing:.18em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>EDITS WRITE BACK TO VAULT</span>
           </div>
-          <div style={css("flex:1;overflow-y:auto;margin-top:14px;display:flex;flex-direction:column;gap:12px")}>
+          <div ref={demoLogRef} style={css("flex:1;overflow-y:auto;margin-top:14px;display:flex;flex-direction:column;gap:12px")}>
             {v.coachMsgs.map((m, i) => (
               <div key={i} style={m.wrapStyle}><div style={m.bubbleStyle}><TypeText text={m.text} active={m.typing} /></div></div>
             ))}
@@ -756,6 +797,7 @@ function MockWorkouts({ v }) {
 // Goals + the Coach chat, extracted so the COACH tab can render it
 // standalone (previously buried inside RoutinesView).
 function GoalsCoachPane({ v }) {
+  const coachLogRef = useAutoScrollBottom(v.coachMsgs.length, v.coachBusy);
   return (
     <>
       {/* goals + the real coach, side by side */}
@@ -814,7 +856,7 @@ function GoalsCoachPane({ v }) {
               )}
             </span>
           </div>
-          <div style={css("flex:1;overflow-y:auto;margin-top:10px;display:flex;flex-direction:column;gap:10px;font:500 12.5px/1.6 var(--nv-font-ui)")}>
+          <div ref={coachLogRef} style={css("flex:1;overflow-y:auto;margin-top:10px;display:flex;flex-direction:column;gap:10px;font:500 12.5px/1.6 var(--nv-font-ui)")}>
             {v.coachMsgs.length === 0 && !v.coachBusy && (
               <div style={css("color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Ask anything a coach should answer — "should I deload?", "why is my bench stuck?", "build me a plan for a 4-day week."</div>
             )}
