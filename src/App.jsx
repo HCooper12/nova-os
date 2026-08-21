@@ -926,7 +926,14 @@ export default class App extends Component {
           this.draftUploadT = setTimeout(() => {
             const conn = getConnection();
             const s = this.state.workoutSession;
-            if (conn && s) api.saveSessionDraft(conn, { workoutSession: s, editingSessionId: this.state.editingSessionId, capturedAt: this.state.workoutSessionSavedAt || Date.now() }).catch(() => {});
+            if (!conn || !s) return;
+            api.saveSessionDraft(conn, { workoutSession: s, editingSessionId: this.state.editingSessionId, capturedAt: this.state.workoutSessionSavedAt || Date.now() })
+              // the weekly volume bars count the live session now, so once the
+              // draft has landed, pull the overview again — the bars move as he
+              // ticks instead of only when he finishes (his ask, mid-workout)
+              .then(() => api.trainOverview(conn))
+              .then((r) => this.setState({ liveTrainOverview: r }))
+              .catch(() => {});
           }, 1500);
         } else {
           localStorage.removeItem(ACTIVE_SESSION_KEY);

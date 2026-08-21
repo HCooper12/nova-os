@@ -149,6 +149,32 @@ export async function buildTrainOverview(vaultPath) {
   for (const m of focused) {
     if (!volume.some((v) => v.muscle === m)) volume.push({ muscle: m, sets: 0, target: GOAL_TARGET, goalMuscle: true });
   }
+  // THE SESSION HE IS IN RIGHT NOW counts too. Filed sessions only update
+  // when he finishes, so mid-workout the bars sat behind by exactly what he
+  // had just ticked — he noticed 9 ticked sets missing from the totals. The
+  // live draft is mirrored to the server on every tick, so read it and add
+  // the ticked, non-warm-up sets. `live` is kept separate as well as folded
+  // into the total, so the bar can show which part is happening now.
+  const muscleOf = new Map(exercises.map((e) => [e.id, e.muscleGroup || 'Other']));
+  try {
+    const { getSessionDraft } = await import('./sessionDraft.js');
+    const draft = await getSessionDraft();
+    const ws = draft?.workoutSession;
+    for (const ex of ws?.exercises || []) {
+      const g = muscleOf.get(ex.exerciseId) || 'Other';
+      if (g === 'Mobility') continue;
+      const ticked = (ex.sets || []).filter((x) => x.done && x.setType !== 'warmup'
+        && (Number(x.weight) > 0 || Number(x.reps) > 0));
+      if (!ticked.length) continue;
+      const row = volume.find((v) => v.muscle === g);
+      if (row) { row.sets += ticked.length; row.live = (row.live || 0) + ticked.length; }
+      else {
+        volume.push({ muscle: g, sets: ticked.length, live: ticked.length,
+          target: focused.has(g) ? GOAL_TARGET : BASE_TARGET, goalMuscle: focused.has(g) });
+      }
+    }
+  } catch { /* no draft, or it failed to read — the filed totals stand alone */ }
+
   volume.sort((a, b) => b.sets - a.sets);
 
   const latest = [...days].reverse().find((d) => d.hrv != null || d.sleepAsleepMinutes != null || d.restingHeartRate != null) || {};

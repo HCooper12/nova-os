@@ -37,6 +37,8 @@ export function TrainToday({ o, actions, resume }) {
   if (!o && !resume) return null;
   const sleepH = o?.recovery?.sleepMin != null ? (o.recovery.sleepMin / 60).toFixed(1) : null;
   const under = (o?.volume || []).filter((v) => v.goalMuscle && v.sets < v.target);
+  // sets ticked in the session he is in right now, already folded into the totals
+  const liveNow = (o?.volume || []).reduce((n, v) => n + (v.live || 0), 0);
   return (
     <div style={css('display:flex;flex-direction:column;gap:12px;margin-bottom:16px')}>
       {/* hero: ring + facts + today card — widens into one row on desktop */}
@@ -143,12 +145,15 @@ export function TrainToday({ o, actions, resume }) {
         </div>
       )}
 
-      {/* weekly volume vs goal-aware targets */}
+      {/* weekly volume vs goal-aware targets — Monday to Sunday, and the
+          session in progress counts toward it as he ticks */}
       {o?.volume?.length > 0 && (
         <div style={css('background:var(--nv-glass);border:1px solid var(--nv-edge);border-radius:16px;padding:14px')}>
           <div style={css('display:flex;justify-content:space-between;align-items:baseline')}>
             <span style={css(`font:600 9px ${M};letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}><Term k="hard sets">HARD SETS THIS WEEK</Term></span>
-            {under.length > 0 && <span style={css(`font:600 9px ${M};letter-spacing:.14em;color:var(--nv-warn)`)}>GOAL MUSCLES UNDER ▲</span>}
+            {liveNow > 0
+              ? <span style={css(`font:600 9px ${M};letter-spacing:.14em;color:var(--nv-gold)`)}>◆ {liveNow} LIVE THIS SESSION</span>
+              : under.length > 0 && <span style={css(`font:600 9px ${M};letter-spacing:.14em;color:var(--nv-warn)`)}>GOAL MUSCLES UNDER ▲</span>}
           </div>
           {o.volume.slice(0, 6).map((v) => {
             const pct = Math.min(100, Math.round((v.sets / v.target) * 100));
@@ -158,6 +163,12 @@ export function TrainToday({ o, actions, resume }) {
                 <span style={css(`width:76px;font:600 9px ${M};letter-spacing:.08em;color:${v.goalMuscle ? 'var(--nv-gold)' : 'color-mix(in srgb, var(--nv-ink) 40%, transparent)'}`)}>{v.muscle.toUpperCase()}</span>
                 <div style={css('flex:1;height:8px;border-radius:4px;background:rgba(130,175,255,.08);overflow:hidden;position:relative')}>
                   <i style={css(`display:block;height:100%;width:${pct}%;border-radius:4px;background:${low ? 'linear-gradient(90deg,rgba(224,131,131,.8),rgba(224,131,131,.5))' : 'linear-gradient(90deg,var(--nv-vi),var(--nv-cy))'}`)} />
+                  {/* what he has ticked in THIS session, lit at the head of the
+                      bar — the part that is happening right now reads as
+                      happening right now */}
+                  {v.live > 0 && (
+                    <i style={css(`position:absolute;top:0;bottom:0;left:${Math.max(0, pct - Math.min(100, Math.round((v.live / v.target) * 100)))}%;width:${Math.min(100, Math.round((v.live / v.target) * 100))}%;background:var(--nv-gold);box-shadow:0 0 8px color-mix(in srgb, var(--nv-gold) 70%, transparent)`)} />
+                  )}
                   <span style={css('position:absolute;top:-2px;bottom:-2px;width:2px;background:rgba(232,236,246,.35);left:100%')} />
                 </div>
                 <span style={css(`width:44px;text-align:right;font:600 10px ${M};color:${low ? 'var(--nv-warn)' : 'var(--nv-ink60)'};font-variant-numeric:tabular-nums`)}>{v.sets}/{v.target}</span>
