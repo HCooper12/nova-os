@@ -251,6 +251,10 @@ export default class App extends Component {
     // can colour itself listening without lying (the old `micOn` is a
     // settings flag that defaults on — it said "listening" permanently).
     liveTextOpen: false, liveMicOpen: false, voiceScreenMic: false,
+    // THE GLASS — the card for the line Nova is speaking RIGHT NOW, and the
+    // ones it has already spoken past (newest first). Set as each beat's
+    // audio starts, never before: the visual must track the voice.
+    stageCard: null, stageHistory: [],
     isMobile: typeof window !== 'undefined' && window.innerWidth < 760,
     novaTheme: getNovaTheme(), calmMode: getCalm(), coreStyle: getCoreStyle(), novaStyle: getNovaStyle(),
 
@@ -1087,6 +1091,12 @@ export default class App extends Component {
           // the doorman meets him at whatever door he came in — the due
           // check (once a day / 3h gap) keeps this from re-greeting on the
           // routine syncs that also land here
+          // FIRST OPEN OF THE DAY: the full morning brief takes precedence
+          // over the doorman's hello — it IS the greeting, and a longer one.
+          if (!this.briefChecked) {
+            this.briefChecked = true;
+            this.maybeMorningBrief();
+          }
           this.maybeGreet('arrive');
           // a session draft on the server must survive even a localStorage
           // wipe + an offline boot: re-check once per page load on the first
@@ -3672,6 +3682,45 @@ export default class App extends Component {
     this.toastMsg('Standing down, sir.');
     return true;
   }
+  // Put a card on the glass as its line begins. The one it replaces slides
+  // into the rail — the reference's history stack, so the numbers he has
+  // already heard stay readable while the brief runs on.
+  putCard(card) {
+    if (!card) return;
+    this.setState((s) => ({
+      stageCard: card,
+      stageHistory: s.stageCard ? [s.stageCard, ...s.stageHistory].slice(0, 6) : s.stageHistory,
+    }));
+  }
+  clearStage() { this.setState({ stageCard: null, stageHistory: [] }); }
+
+  // THE MORNING BRIEF, on the first open of the day. His ask: Nova opens the
+  // day itself — the fleet's overnight work, the shape of the day, what it
+  // wants him to keep in mind, and a question to help him prepare. It opens
+  // the Voice screen because that is where the conversation lives, and it
+  // leaves the mic open at the end so he can just answer.
+  maybeMorningBrief() {
+    if (!getConnection() || this.state.demoMode) return;
+    const today = new Date().toDateString();
+    let last = null;
+    try { last = localStorage.getItem('novaos.morningBrief'); } catch { /* private mode */ }
+    if (last === today) return;
+    const h = new Date().getHours();
+    if (h < 4 || h >= 12) return; // a "morning" brief at 9pm is a nuisance, not a briefing
+    try {
+      localStorage.setItem('novaos.morningBrief', today);
+      // the brief IS the greeting today — stand the doorman down, or Nova
+      // says hello twice over the top of itself
+      localStorage.setItem('novaos.voiceGreet', JSON.stringify({ date: today, at: Date.now() }));
+    } catch { /* best-effort */ }
+    // let the app settle and the connection prove itself before it speaks
+    this.morningT = setTimeout(() => {
+      if (this.state.connectionStatus === 'offline') return;
+      this.navigate('voice');
+      this.prewarmAsk();
+      setTimeout(() => this.runShow('morning'), 700);
+    }, 2200);
+  }
   // iOS gates audio behind a user gesture: playing a muted element and an
   // empty utterance during the tap unlocks both paths for the async reply.
   primeSpeech() {
@@ -3703,8 +3752,12 @@ export default class App extends Component {
       this.setState({ voiceBusy: false });
       if (!steps?.length) { this.toastMsg('Nothing to brief right now.'); return; }
       const spoken = this.state.voiceSpeak && this.state.liveTts?.configured;
+      this.clearStage();
       for (const st of steps) {
-        const show = () => this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: st.say, panel: st.panel || undefined }] }));
+        const show = () => {
+          this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: st.say, panel: st.panel || undefined }] }));
+          this.putCard(st.card); // the glass keeps up with the voice
+        };
         if (spoken) this.speakTtsSentence(st.say, show);
         else show();
       }
@@ -3712,7 +3765,11 @@ export default class App extends Component {
         const arm = () => this.setState({ voicePendingProposal: { recordId: pending.recordId, title: pending.title } });
         if (spoken) this.queueTtsFinalize(arm); else arm();
       }
-      if (spoken) this.queueTtsFinalize(() => this.maybeAutoListen()); // his turn, hands-free
+      // his turn, hands-free — conversation mode ON so the brief ends in a
+      // conversation rather than a monologue with a button at the end
+      if (spoken) this.queueTtsFinalize(() => {
+        this.setState((s) => ({ voiceConvMode: true, voiceConvPaused: false, voiceAutoListenTick: s.voiceAutoListenTick + 1 }));
+      });
     }).catch((e) => {
       this.setState({ voiceBusy: false });
       this.toastMsg('Brief failed: ' + e.message);
@@ -3845,7 +3902,7 @@ export default class App extends Component {
       // ~12s on the Voice screen; a reply routes like any spoken ask, and
       // silence closes it quietly. (He spoke back to a brief and nothing
       // registered — a voice that talks AT you is not a companion.)
-      if (this.replyWorthy && this.state.voiceSpeak && this.state.screen === 'voice' && !this.state.voiceConvMode && !this.state.voiceBusy) {
+      if (this.replyWorthy && this.state.voiceSpeak && !this.state.voiceConvMode && !this.state.voiceBusy) {
         clearTimeout(this.replyWindowTimer);
         this.setState((s) => ({ voiceReplyWindow: true, voiceAutoListenTick: s.voiceAutoListenTick + 1 }));
         this.replyWindowTimer = setTimeout(() => this.setState({ voiceReplyWindow: false }), 12_000);

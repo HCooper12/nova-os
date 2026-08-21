@@ -98,6 +98,8 @@ export function valsMisc(app, ctx) {
     setWakeWord: (on) => app.setWakeWord(on),
     // the Voice screen's dictation is local to that screen — App needs to
     // know, so the wake word never competes with it for the microphone
+    stageCard: st.stageCard || null,
+    stageHistory: st.stageHistory || [],
     reportScreenMic: (on) => { if (!!st.voiceScreenMic !== !!on) app.setState({ voiceScreenMic: !!on }); },
     orbMsgs: (!demoMode ? st.voiceChat : st.orbChat).map((m, i, arr) => ({
       text: m.text, typing: m.typing, panel: m.panel || null,

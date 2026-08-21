@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
 import { useDictation } from './useDictation.js';
+import { StageCard } from './StageCard.jsx';
 
 const M = 'var(--nv-font-mono)';
 
@@ -41,9 +42,11 @@ export function VoicePresence({ v }) {
   // orb (which lives in another tree) can colour itself listening-violet
   useEffect(() => { s.reportMic(dict.on); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [dict.on]);
 
-  // turn-taking: Nova finishes speaking → the mic reopens by itself
+  // turn-taking: Nova finishes speaking → the mic reopens by itself. Also
+  // honours the REPLY WINDOW, so a one-off spoken line (a brief, a greeting)
+  // hands him the turn without conversation mode being on.
   useEffect(() => {
-    if (s.autoListenTick > 0 && s.conversing && !dictRef.current.on && dictRef.current.supported) {
+    if (s.autoListenTick > 0 && (s.conversing || s.replyWindow) && !dictRef.current.on && dictRef.current.supported) {
       v.stopSpeaking();
       dictRef.current.toggle();
     }
@@ -62,10 +65,18 @@ export function VoicePresence({ v }) {
 
   const state = dict.on ? 'LISTENING' : s.busy ? 'THINKING' : s.speaking ? 'SPEAKING' : 'YOUR TURN';
   const tone = dict.on ? 'var(--nv-vi)' : s.speaking ? 'var(--nv-gold)' : 'var(--nv-cy)';
-  if (!s.textOpen && !s.evidence) return null;
+  if (!s.textOpen && !s.evidence && !s.card) return null;
 
   return (
     <div style={css(`position:fixed;left:0;right:0;bottom:${v.isMobile ? 'calc(96px + env(safe-area-inset-bottom))' : '26px'};z-index:112;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:10px;padding:0 12px`)}>
+
+      {/* THE GLASS — the figure for the line being spoken, appearing by
+          itself and changing as Nova moves to the next line */}
+      {s.card && (
+        <div style={css('pointer-events:auto;width:min(430px,100%)')}>
+          <StageCard card={s.card} />
+        </div>
+      )}
 
       {/* the card Nova is referring to, arriving mid-conversation */}
       {s.evidence && (

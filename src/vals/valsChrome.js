@@ -369,6 +369,13 @@ export function valsChrome(app, ctx) {
       reply: st.liveReply || '',
       // the words are opt-in: long-press the core
       textOpen: !!st.liveTextOpen,
+      // the card for the line being spoken right now — his "dynamic pop up
+      // visuals referencing whatever is being spoken", on every screen
+      card: st.stageCard || null,
+      // the reply window: Nova finished a sentence, so the mic opens for a
+      // beat WITHOUT conversation mode being on (his ask: never press a
+      // button to say I'm replying verbally)
+      replyWindow: !!st.voiceReplyWindow,
       closeText: () => app.setState({ liveTextOpen: false }),
       // the dictation hook owns the truth about the mic; the orb needs it
       reportMic: (on) => { if (!!st.liveMicOpen !== !!on) app.setState({ liveMicOpen: !!on }); },
@@ -420,6 +427,8 @@ export function valsChrome(app, ctx) {
       },
     },
     novaListening: !!st.liveMicOpen,
+    // the glass, for surfaces outside the Voice screen
+    stageCard: st.stageCard || null,
     novaTalkOn: !!st.liveTalkOn,
     holdNovaText: () => app.toggleLiveText(),
     goVoice: go('voice'), goWorkouts: go('workouts'), goSettings: go('settings'), goHome: go('mission'),
