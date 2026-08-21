@@ -110,7 +110,13 @@ export async function runDistillation(vaultPath, { force = false } = {}) {
       '--permission-mode', 'bypassPermissions',
       '--allowedTools', 'Read,Write,Edit,Glob,Grep',
       '--output-format', 'json',
-      '--max-budget-usd', MAX_BUDGET_USD,
+      // named explicitly — an unpinned call silently inherits the account's
+    // ambient default model, which cost him a Fable-5 usage-limit hit on a
+    // totally unrelated lane (Coach) once that became the default. 'sonnet'
+    // matches the convention already used for this tier of task elsewhere
+    // (see ingest.js).
+    '--model', 'sonnet',
+    '--max-budget-usd', MAX_BUDGET_USD,
       '--no-session-persistence',
     ], { cwd: stagingVault });
     let stdout = '';

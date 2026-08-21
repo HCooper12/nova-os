@@ -175,7 +175,9 @@ export function startMessage(cwd, { text, sessionId, model }) {
     '--max-budget-usd', MAX_BUDGET_USD,
   ];
   args.push(isNewSession ? '--session-id' : '--resume', effectiveSessionId);
-  if (model) args.push('--model', model);
+  // an explicit choice from the Code screen's picker always wins; absent
+  // that, a real default — never the account's ambient one (see Coach, above)
+  args.push('--model', model || 'sonnet');
 
   warmTurn({
     kind: 'code',
@@ -649,6 +651,12 @@ export function startAskCoach(cwd, { question, context, sessionId }) {
     '--include-partial-messages',
     '--verbose',
     '--max-budget-usd', MAX_BUDGET_USD,
+    // His 21-Aug catch: this call had NO --model, so it silently inherited
+    // the CLI's ambient default — which on his machine had become Fable 5
+    // (~/.claude/settings.json) — and he hit its usage limit mid-conversation.
+    // Coach is a reasoning-heavy, high-value lane; it gets a real model,
+    // named, never left to whatever the account happens to default to.
+    '--model', 'opus',
   ];
   args.push(isNewSession ? '--session-id' : '--resume', effectiveSessionId);
 

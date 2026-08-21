@@ -210,6 +210,12 @@ function startReviewJob(vaultPath, context, mode, recordId, now) {
     '--disallowedTools', REVIEW_DISALLOWED,
     '--strict-mcp-config',
     '--output-format', 'json',
+    // named explicitly — an unpinned call silently inherits the account's
+    // ambient default model, which cost him a Fable-5 usage-limit hit on a
+    // totally unrelated lane (Coach) once that became the default. 'sonnet'
+    // matches the convention already used for this tier of task elsewhere
+    // (see ingest.js).
+    '--model', 'sonnet',
     '--max-budget-usd', MAX_BUDGET_USD,
     '--session-id', randomUUID(),
   ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });

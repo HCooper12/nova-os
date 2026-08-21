@@ -123,6 +123,12 @@ Output ONLY a JSON array with exactly ${newItems.length} objects, one per item i
     '--permission-mode', 'bypassPermissions',
     '--allowedTools', '',
     '--output-format', 'json',
+    // named explicitly — an unpinned call silently inherits the account's
+    // ambient default model, which cost him a Fable-5 usage-limit hit on a
+    // totally unrelated lane (Coach) once that became the default. 'sonnet'
+    // matches the convention already used for this tier of task elsewhere
+    // (see ingest.js).
+    '--model', 'sonnet',
     '--max-budget-usd', MAX_BUDGET_USD,
     '--no-session-persistence',
   ]);

@@ -237,7 +237,7 @@ async function runForgeJob(job) {
     '--max-budget-usd', MAX_BUDGET_USD,
     '--session-id', randomUUID(),
   ];
-  if (job.model) args.push('--model', job.model);
+  args.push('--model', job.model || 'sonnet'); // never the account's ambient default (see claudeCode.js Coach fix, 21 Aug)
 
   // stdio: stdin IGNORED, never inherited — a child that waits on stdin under
   // launchd hangs forever, and its "no stdin data received" warning has
