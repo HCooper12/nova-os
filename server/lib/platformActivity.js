@@ -20,6 +20,32 @@ const STATUS = {
 };
 const MAX_ITEMS = 8;
 
+// The pending drafts WITH ENOUGH OF THEIR CONTENT TO DISCUSS. His 21-Aug
+// failure: Nova mentioned a Fuel agent draft and then could not open it —
+// because inbox records live in server/data/, outside the vault, so none of
+// its file tools can reach them. Naming a thing you cannot open is worse
+// than staying quiet, so the drafts now ride the context itself.
+const DIGEST_MAX = 10;
+const DIGEST_CHARS = 420;
+
+export async function inboxDigestContext() {
+  try {
+    const { listRecords } = await import('./inboxStore.js');
+    const pending = (await listRecords()).filter((r) => r.status === 'pending').slice(0, DIGEST_MAX);
+    if (!pending.length) return null;
+    const lines = pending.map((r) => {
+      const title = r.decision?.title || String(r.text || '').split('\n')[0];
+      const body = r.decision?.payload?.body || r.text || '';
+      const flat = String(body).replace(/\s+/g, ' ').trim();
+      const shown = flat.slice(0, DIGEST_CHARS);
+      return `- [${r.kind} · ${String(r.createdAt || '').slice(0, 10)}] ${String(title).slice(0, 90)}\n  ${shown}${flat.length > DIGEST_CHARS ? ' …(truncated — say so if he wants the rest; it is in his Inbox)' : ''}`;
+    });
+    return `HIS PENDING DRAFTS, IN FULL ENOUGH TO READ OUT (newest first, ${pending.length} shown). When he asks you to open, read, summarise or discuss one of these, DO IT FROM HERE — read the actual words back, quote the number that matters, answer follow-ups about it. Never say you cannot open a draft: these are the drafts.\n${lines.join('\n')}`;
+  } catch {
+    return null;
+  }
+}
+
 export async function platformActivityContext() {
   try {
     const { listRecords } = await import('./inboxStore.js');

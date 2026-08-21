@@ -233,6 +233,8 @@ Ground rules:${direct ? `
   PROPOSE {"kind":"profile","patch":{"focus":"…" | "priorities":["…"] | "bestSelf":"…" | "notes":"…"}} — when he tells you who he is or what he's working toward (his focus, real priorities, what his best looks like, standing constraints): one area per proposal, HIS words tightened, never invented. Approved, it merges into the About You page every agent reasons from.
   At most one PROPOSE per reply, on its own final line (after a SHOW line if you use both). Use EXACT names from his real data — never invent names or URLs. In your text, say you've drafted it and that a "yes" (or the Inbox) makes it real — NEVER claim it's already done. Only propose what he actually asked for. If he asks you to remember something permanently, tell him to tap REMEMBER on your reply instead.
 - Be a companion, not a search box: notice patterns across what he shares, connect it to his goals, and say the useful hard thing kindly when the data warrants it.
+- WHEN YOU HAVE JUST DONE SOMETHING, say so in character and in one short breath — "Here it is, sir." / "Done — it's playing." / "That's it on screen." — and then, when there is an obvious next step, OFFER IT as a single short clause he can answer with one word: "Say the word and I'll have the Watcher digest it." One offer, never a menu, and only when it genuinely follows. Never narrate your own mechanics ("I'll use the media lane"), and never say you are unable to open something that is already in your context — his drafts are there in full; read them.
+- PLAY: when he asks you to pull up, play, put on or open a video/episode/podcast ("pull up the latest Diary of a CEO video"), end the reply with one line: PLAY {"query":"<what he named, e.g. latest Diary of a CEO video>"}. Nova's code finds the channel's NEWEST upload and opens it playing on his Mac, and puts the title on the glass. In your text: acknowledge briefly in character ("Here it is, sir.") and OFFER the obvious next thing in one short clause — handing it to the Watcher to digest, for instance. Do not describe or judge a video you have not seen, and never guess a URL.
 - THE GLASS: put your answer ON SCREEN as a card whenever the answer has a shape — a name, a figure, a short list, a comparison. He asked for this explicitly: the card should appear "for anything I ask Nova verbally". End the reply with ONE line:
   CARD {"label":"<3-5 word heading, e.g. BLOOM'S TAXONOMY>","value":"<the short answer>","caption":"<what the value IS, 2-4 words>","foot":"<one clarifying line, optional>"}
   or, for a few things rather than one: CARD {"label":"…","items":["first","second","third"],"foot":"…"}
@@ -418,6 +420,25 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
       } else if (wd.parseError) {
         text = wd.cleanText;
       }
+      // PLAY — the one place Nova reaches out of the app and into his Mac.
+      // Resolves the channel's newest upload and opens it playing; the
+      // offer that follows is armed for a spoken yes.
+      const { parsePlayDirective } = await import('./mediaLane.js');
+      const pd = parsePlayDirective(text);
+      let played = null;
+      if (pd.play) {
+        text = pd.cleanText;
+        try {
+          const { resolveLatestVideo, openInBrowser } = await import('./mediaLane.js');
+          const found = await resolveLatestVideo(pd.play.query);
+          await openInBrowser(found.url).catch(() => {}); // resolving still helps even if opening fails
+          played = found;
+        } catch (e) {
+          text = `${text} (I couldn't pull that up: ${e.message}.)`;
+        }
+      } else if (pd.parseError) {
+        text = pd.cleanText;
+      }
       // THE GLASS — the answer, drawn. Parsed off the reply and built by
       // spokenCards (which clamps every field), so what appears can only
       // ever restate what he just heard. A malformed directive costs the
@@ -436,7 +457,13 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
           : card ? card.label
           : replyText;
       }
-      turnJob.result = { text, sessionId: effectiveSessionId, panel, proposal, research, watch, card };
+      // a played video takes the glass unless the model named its own card
+      const playedCard = played ? (await import('./spokenCards.js')).metricCard({
+        label: played.channel.slice(0, 42), value: played.title.slice(0, 28), caption: 'NOW PLAYING',
+        foot: `${played.durationMin ? `${played.durationMin} min · ` : ''}${played.exact ? 'newest upload' : 'closest match — not certain it is the newest'}`,
+        tone: 'gold',
+      }) : null;
+      turnJob.result = { text, sessionId: effectiveSessionId, panel, proposal, research, watch, card: card || playedCard, played };
       turnJob.status = 'ready';
     } catch (e) {
       turnJob.status = 'error';

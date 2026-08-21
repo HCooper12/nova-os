@@ -90,11 +90,12 @@ export async function todayLocalContext() {
 // turn; this is the same idea for the PWA ask — today's live numbers plus
 // the platform ledger, both local-disk instant.
 export async function resumedRefreshContext() {
-  const [today, activity] = await Promise.all([
+  const [today, activity, drafts] = await Promise.all([
     withDeadline(todayLocalContext(), 3000),
     withDeadline((async () => (await import('./platformActivity.js')).platformActivityContext())(), 3000),
+    withDeadline((async () => (await import('./platformActivity.js')).inboxDigestContext())(), 3000),
   ]);
-  return [today, activity].filter((s) => typeof s === 'string' && s.trim()).join('\n\n');
+  return [today, activity, drafts].filter((s) => typeof s === 'string' && s.trim()).join('\n\n');
 }
 
 // Turn-1 context costs ~2.4s to assemble (measured), almost all of it the
@@ -134,6 +135,8 @@ export async function buildAskContext(vaultPath, sessionId, { fast = false } = {
     // the front door's ledger: what HE gave the platform (videos, studies,
     // research) — "what was the last video I gave you?" answers from here
     async () => (await import('./platformActivity.js')).platformActivityContext(),
+    // the drafts themselves — so "open that Fuel draft and read it" works
+    async () => (await import('./platformActivity.js')).inboxDigestContext(),
     // self-knowledge: "how do you work?" gets the real architecture
     async () => (await import('./ops.js')).fleetRosterContext(),
     async () => (await import('./reminders.js')).remindersContext(),

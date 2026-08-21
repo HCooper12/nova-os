@@ -12,7 +12,11 @@
 // The router only DECIDES. Dispatch lives in the route, so a decision can
 // always be shown to him before anything runs.
 
-export const LANES = ['watch', 'study', 'research', 'code', 'coach', 'capture', 'ask'];
+export const LANES = ['watch', 'study', 'research', 'code', 'coach', 'capture', 'play', 'ask'];
+// "pull up the latest Diary of a CEO video" — a request to WATCH something
+// now, as opposed to handing a link to the Watcher to digest. Needs a naming
+// verb AND a media noun, so "what did that video say" still routes to ask.
+const PLAY_RE = /\b(pull up|put on|play|open|bring up|start)\b[\s\S]{0,60}\b(video|episode|podcast|clip|documentary)\b|\b(video|episode|podcast|clip)\b[\s\S]{0,30}\b(by|from)\b/i;
 
 const URL_RE = /https?:\/\/[^\s<>"']+/gi;
 
@@ -63,6 +67,7 @@ export function routeIntent(text) {
   }
 
   if (hasStudyWords) return { lane: 'study', urls: [], prose: raw, why: 'you asked for a creator/catalogue analysis' };
+  if (PLAY_RE.test(raw)) return { lane: 'play', urls: [], prose: raw, why: 'you asked to watch something — Nova finds the newest one and opens it playing' };
   if (CODE_RE.test(raw)) return { lane: 'code', urls: [], prose: raw, why: 'a build/change request — this runs as a Claude Code session inside Nova' };
   if (RESEARCH_RE.test(raw)) return { lane: 'research', urls: [], prose: raw, why: 'you asked for research — the Researcher answers with citations' };
   if (COACH_RE.test(raw)) return { lane: 'coach', urls: [], prose: raw, why: 'a training/nutrition question — the Coach has your full history' };
@@ -71,6 +76,7 @@ export function routeIntent(text) {
 }
 
 export const LANE_LABEL = {
+  play: 'PLAY',
   watch: 'WATCH', study: 'STUDY', research: 'RESEARCH',
   code: 'CLAUDE CODE', coach: 'COACH', capture: 'INBOX', ask: 'ASK NOVA',
 };

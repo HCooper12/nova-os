@@ -51,6 +51,12 @@ export function intentRouter(vaultPath) {
         const { jobId, sessionId } = startMessage(process.cwd(), { text });
         out.jobId = jobId; out.sessionId = sessionId;
         out.said = 'Running it as a Claude Code session — watch it on the Code screen.';
+      } else if (lane === 'play') {
+        const { resolveLatestVideo, openInBrowser } = await import('../lib/mediaLane.js');
+        const found = await resolveLatestVideo(decision.prose || text);
+        await openInBrowser(found.url).catch(() => {});
+        out.played = found;
+        out.said = `Here it is, sir — ${found.title}. Say the word and I'll have the Watcher digest it.`;
       } else if (lane === 'coach') {
         out.forward = { screen: 'workouts', tab: 'coach', question: text };
         out.said = 'That one is the Coach’s — opening it with your question.';

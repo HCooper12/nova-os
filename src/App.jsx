@@ -250,7 +250,7 @@ export default class App extends Component {
     // the mic's TRUE state, reported up from the dictation hook, so the orb
     // can colour itself listening without lying (the old `micOn` is a
     // settings flag that defaults on — it said "listening" permanently).
-    liveTextOpen: false, liveMicOpen: false, voiceScreenMic: false,
+    liveTextOpen: false, liveMicOpen: false, voiceScreenMic: false, voicePendingOffer: null,
     // THE GLASS — the card for the line Nova is speaking RIGHT NOW, and the
     // ones it has already spoken past (newest first). Set as each beat's
     // audio starts, never before: the visual must track the voice.
@@ -3017,6 +3017,11 @@ export default class App extends Component {
           // THE GLASS: any spoken answer with a shape puts its card up — his
           // ask that this works "for anything I ask Nova verbally".
           this.putCard(job.result.card);
+          // Nova offered to digest what it just put on — arm the offer so a
+          // plain "yes" hands it to the Watcher, no second sentence needed.
+          if (job.result.played?.url) {
+            this.setState({ voicePendingOffer: { kind: 'watch', url: job.result.played.url, title: job.result.played.title } });
+          }
           if (research && !research.queued) this.watchVoiceResearch(conn, research.recordId);
         };
         this.setState({ voiceBusy: false }); // he can barge in the moment the answer exists
@@ -3605,6 +3610,22 @@ export default class App extends Component {
   }
   // Voice-confirmed actions: approving is DETERMINISTIC — the same Inbox
   // approve endpoint the rails already trust; the model never writes.
+  // "Yes" to the offer Nova made: hand the video it just opened to the
+  // Watcher, on the existing rails (transcript pulled locally, the read
+  // review-gated in his Inbox).
+  acceptWatchOffer(offer) {
+    const conn = getConnection();
+    if (!conn || !offer?.url) return;
+    api.sendIntent(conn, offer.url, 'watch').then(() => {
+      const line = 'On it — the Watcher has it. The read lands in your Inbox.';
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
+      if (this.state.voiceSpeak) this.speak(line);
+      this.refreshLiveData();
+    }).catch((e) => {
+      const line = `I couldn't hand that to the Watcher: ${e.message}`;
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: line }] }));
+    });
+  }
   resolveVoiceProposal(recordId, approve) {
     const conn = getConnection(); if (!conn) return;
     const mark = (status, extra) => this.setState((s) => ({
@@ -3629,6 +3650,25 @@ export default class App extends Component {
     this.primeSpeech(); // inside the user gesture — unlocks audio on iOS
     // A short plain yes/no right after a proposal is a CONFIRMATION, not a
     // question — approve or dismiss deterministically, no model in the loop.
+    // an offer Nova just made ("shall I have the Watcher digest it?") takes
+    // the yes first — it is the most recent thing said, so it is what "yes"
+    // means. Anything else moves the conversation on and the offer lapses.
+    const offer = this.state.voicePendingOffer;
+    if (offer && getConnection() && this.state.connectionStatus !== 'offline') {
+      const yes = /^(yes|yep|yeah|sure|ok|okay|do it|go ahead|please do|go on|yes please)[.!\s]*$/i.test(q);
+      const no = /^(no|nope|nah|don't|dont|leave it|skip|skip it|not now|no thanks)[.!\s]*$/i.test(q);
+      if (yes || no) {
+        this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q }], orbInput: '', voicePendingOffer: null }));
+        if (yes) this.acceptWatchOffer(offer);
+        else {
+          const line = 'As you wish, sir.';
+          this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
+          if (this.state.voiceSpeak) this.speak(line);
+        }
+        return;
+      }
+      this.setState({ voicePendingOffer: null });
+    }
     const pending = this.state.voicePendingProposal;
     if (pending && getConnection() && this.state.connectionStatus !== 'offline') {
       const yes = /^(yes|yep|yeah|sure|ok|okay|do it|go ahead|confirm|approve|approved|yes please|please do|go for it|make it so|lock it in)[.!\s]*$/i.test(q);
