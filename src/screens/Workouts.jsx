@@ -461,8 +461,23 @@ function SessionView({ v }) {
                   hoverStyle="background:color-mix(in srgb, var(--nv-warn) 16%, transparent)">{e.skipped ? '↺' : '✕'}</Interactive>
               </span>
             </div>
-            {!e.skipped && e.lastLabel && (
-              <div style={css("margin-top:6px;font:400 10.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{e.lastLabel}</div>
+            {/* WHAT THIS FEEDS. His ask: a subtle note per exercise naming
+                the muscle, so the weekly volume can be trusted. It reads from
+                the exercise LIBRARY — the same source the server counts from —
+                so it describes the number he is actually looking at. Mobility
+                says so plainly, because it is deliberately not volume. */}
+            {!e.skipped && (e.muscleGroup || e.lastLabel) && (
+              <div style={css("margin-top:6px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;font:400 10.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>
+                {e.muscleGroup && (
+                  <span
+                    title={e.muscleGroup === 'Mobility'
+                      ? 'Mobility is tracked for adherence — it never counts toward hypertrophy volume.'
+                      : `Every working set here counts toward ${e.muscleGroup} in this week's hard sets.`}
+                    style={css(`font:600 8.5px var(--nv-font-mono);letter-spacing:.14em;padding:2px 7px;border-radius:5px;color:${e.muscleGroup === 'Mobility' ? 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' : 'var(--nv-vi)'};border:1px solid color-mix(in srgb, ${e.muscleGroup === 'Mobility' ? 'var(--nv-ink)' : 'var(--nv-vi)'} 30%, transparent);background:color-mix(in srgb, ${e.muscleGroup === 'Mobility' ? 'var(--nv-ink)' : 'var(--nv-vi)'} 07%, transparent)`)}
+                  >{e.muscleGroup.toUpperCase()}{e.muscleGroup === 'Mobility' ? ' · NOT VOLUME' : ''}</span>
+                )}
+                {e.lastLabel && <span>{e.lastLabel}</span>}
+              </div>
             )}
             <div style={css(`margin-top:12px;display:${e.skipped ? 'none' : 'flex'};flex-direction:column;gap:8px`)}>
               {/* HEADER AND ROWS SHARE ONE GRID. They used to be two flex rows

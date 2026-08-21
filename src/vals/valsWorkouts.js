@@ -239,7 +239,13 @@ export function valsWorkouts(app, ctx) {
   const pain = st.sessionPain || null;
   const libraryById = new Map(libraryExercises.map((x) => [x.id, x]));
   const sessionExercises = session ? session.exercises.map((e, exIdx) => ({
-    exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, trackingType: e.trackingType,
+    exerciseId: e.exerciseId, name: e.name, trackingType: e.trackingType,
+    // THE LIBRARY IS THE AUTHORITY, not the copy frozen into the session when
+    // it started. The weekly volume is counted server-side from the library
+    // (groupOf.get(exerciseId)), so the note beside the exercise must read
+    // from the same place — otherwise it would reassure him about a number
+    // it isn't actually describing.
+    muscleGroup: libraryById.get(e.exerciseId)?.muscleGroup || e.muscleGroup || 'Other',
     // ▶ FORM — on EVERY lift (the mockup's contract). Curated link when
     // one is filed; otherwise an honest, deterministic technique search —
     // never a dead chip, never a pretend curation.
