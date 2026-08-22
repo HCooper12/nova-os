@@ -13,6 +13,153 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**23 AUG — MODEL-COST FIX, THE COACH THAT SELF-CORRECTS, AND A CRASH I SHIPPED AND THEN FIXED PROPERLY.**
+
+GOAL: (1) stop Coach silently burning his Fable-5 usage; (2) give Coach
+the standing ability to catch its own program mistakes, propose exercise
+swaps from real evidence, and chase him for an answer; (3) two small
+ergonomics asks — coach chat opens at the bottom, and a temporary
+mid-session exercise that never touches the program.
+
+DONE CRITERIA: (1) MET — every unpinned `spawn(CLAUDE_BIN…)` call now
+names a real model. (2) MET — three detectors live, raising onto the
+inbox rails, surfaced in the brief/Train/Coach's own context, nudged and
+Telegram-escalated. (3a) MET (mechanism identical to the proven Voice
+fix). (3b) MET, but only after a real regression I shipped and then
+caught myself — see DO NOT.
+
+STATE (files):
+- Model pins: `server/lib/claudeCode.js` (Coach → `opus`; `startMessage`
+  → caller's choice or `sonnet`, never blank), `server/lib/forge.js`
+  (same pattern), and 10 previously-unpinned background lanes now pinned
+  to `sonnet` (coachReflection, dailyReview, distill, healthInsight,
+  journalPrompt, noteSummaries, patternScout, planToday, researcher,
+  shoppingList).
+- Coach program review: `server/lib/coachProgramReview.js` (three
+  detectors: mapping / stale-lift / chronic-under-volume, plus
+  raise/nudge/context helpers), `server/test/coachProgramReview.test.js`
+  (13 tests). Wired into `server/lib/morningShow.js` (a spoken beat +
+  card, ends the brief on a question), `server/lib/trainOverview.js`
+  (`coachAsk` field), `src/TrainToday.jsx` (the gold card, DO
+  IT/DISCUSS IT/NOT THIS), `server/lib/inbox.js` (approving a mapping
+  finding calls `setExerciseMuscleGroup` for real, with undo),
+  `server/lib/exercises.js` (`setExerciseMuscleGroup`, new),
+  `server/routes/workouts.js` (`GET/POST /api/train/program-review[/raise]`
+  — mirrors the existing fuel-cross pattern), `server/lib/coachCadence.js`
+  (raises/nudges in the 7am–noon window; a FINAL nudge fires Telegram).
+- Coach chat auto-scroll: `src/screens/Workouts.jsx` — one
+  `useAutoScrollBottom(len, busy)` hook, wired into all three coach chat
+  surfaces (mid-session, `GoalsCoachPane`, the demo panel).
+- Mid-session temporary exercise: `src/App.jsx`
+  (`openSessionExercisePicker`, `addExerciseToSession`,
+  `removeExerciseFromSession`, and the `createAndAddExercise` fix),
+  `src/vals/valsWorkouts.js` (`exercisePickerMode` routing),
+  `src/screens/Workouts.jsx` (the picker's mode-aware title, the "+ Add
+  exercise — this session only" trigger, the EXTRA · TODAY ONLY badge).
+
+DECISIONS:
+- Pinned the 10 background lanes to `sonnet` (not left on the account's
+  ambient default) — restores what the code's own comments always
+  assumed ("Coach/Researcher keep the default") before the CLI's default
+  silently became Fable 5. Forecloses: any of these lanes riding a future
+  ambient-default change without an explicit decision to do so.
+- Mapping detector only fires on names it can read with certainty
+  (curl-family, grip, kickback all disambiguated after real false
+  positives in testing); anything ambiguous (Jefferson curl, a sled, a
+  carry) gets NO correction. Forecloses: broader "smart guessing" later
+  without deliberately loosening this — the conservative bar was chosen
+  specifically because a wrong correction breaks trust in the whole
+  feature.
+- Added `GET/POST /api/train/program-review[/raise]` rather than only
+  the scheduler hook — this is what let me raise real findings safely
+  IN the live server's own process (see DO NOT). Forecloses: needing a
+  one-off script to exercise this path again; use the route.
+
+VERIFIED (with locators):
+- Model fix live: `claude --help` confirms `opus`/`sonnet` are valid
+  aliases; `~/.claude/settings.json` read directly showed the account
+  default was `claude-fable-5[1m]`, matching his exact error.
+- Coach program review, against his REAL vault: raised two real findings
+  onto his Inbox via `POST /api/train/program-review/raise` (record ids
+  `adec275d`, `86c483f0` — Face Pull mapping, Cable Flys stale-lift).
+  Confirmed live via `GET /api/train/overview` (`coachAsk` populated)
+  AND via `composeShow(vaultPath,{variant:'morning'})` (the beat, its
+  card, `asks:true`). Screen-verified the Train TODAY card on the
+  connected harness (screenshot `coach-ask-card.png`,
+  `~/Desktop/nova-design-history/wisetwinz-study/`).
+- Mid-session exercise add, on an ISOLATED SCRATCH SERVER (port 4199,
+  `NOVA_DATA_DIR=/tmp/nova-scratch/data`, `VAULT_PATH=`a COPY of his
+  vault — his live backend and in-progress session untouched
+  throughout): reproduced his exact black-screen report, found the real
+  cause (`ReferenceError: M is not defined` — `Workouts.jsx` has no
+  local `M` mono-font alias, unlike its siblings), fixed it, re-ran the
+  identical steps — no error, exercise added with 12 editable inputs,
+  `Target: 3 × 8-12 reps`, `EXTRA · TODAY ONLY` badge, same shape as a
+  programmed exercise. Screenshot `adhoc-exercise.png`, same folder.
+- 415/415 server tests, `npm run lint` 0 errors, `npm run build` green,
+  deployed bundle hash == local dist hash after every push this session.
+
+ASSUMED (no locator, flagged as such):
+- Coach chat auto-scroll actually jumping to bottom against a genuinely
+  long conversation — the hook is the identical, already-proven Voice
+  mechanism and the empty-state render was confirmed crash-free, but
+  there is no existing long coach conversation in either his live
+  account or demo mode to scroll through without sending a real message
+  (avoided deliberately).
+- The picker's unchanged `'routine'` mode (editing a routine template)
+  still works exactly as before — the branch is byte-identical to the
+  pre-existing code path; not re-clicked live.
+
+OPEN QUESTIONS / BLOCKERS:
+- The two coach-program findings now sitting in his real Inbox (Face
+  Pull mapping, Cable Flys stale-lift) are REAL and INTENTIONAL, not
+  verification debris — do not discard them as test cleanup in a future
+  session. He can act on them normally.
+- "Hey Nova" wake-word firing is still never verified with a live mic
+  (carried over, unchanged since 21 Aug).
+- WiseTwinz R2 (his social API keys) / R3 (cloud hosting) and the
+  overnight health-push sleep-field bug are still outstanding from
+  earlier sessions — untouched this session.
+
+NEXT ACTION: he tries the mid-session "+ Add exercise — this session
+only" flow himself, including creating a brand-new exercise (the exact
+path that crashed) — expected observation: the exercise appears in the
+cockpit with full editable set rows and the EXTRA badge, no black
+screen. Report back if anything is still off.
+
+DO NOT:
+- Do not run a one-off Node script that WRITES to `inboxStore.js` (or
+  any store built on its `let cache = null` module-singleton pattern)
+  while the live server process is also running. This session did
+  exactly that raising the two coach-program findings, and the live
+  server's stale in-memory cache silently clobbered the disk write on
+  its own next unrelated persist — the findings vanished with no error
+  anywhere. The fix was adding a real HTTP route so the raise happens
+  IN the live process; use that route for this feature going forward,
+  and prefer an HTTP trigger over an external script for anything
+  that writes through a cached store.
+- Do not assume a font-shorthand pattern (`${M}` etc.) is safe to reuse
+  across screen files without checking — `Workouts.jsx` spells out
+  `var(--nv-font-mono)` directly and has NO local `M` alias, unlike
+  `TrainToday.jsx`/`Voice.jsx`. A stray `${M}` compiles clean (the build
+  does not catch it) and only throws at RENDER time — grep for the
+  pattern in the actual file before trusting it, never infer from a
+  sibling file.
+- Do not ship a client write-path described internally as "not
+  screen-verified, per the standing memory rule" without first trying a
+  SCRATCH-SERVER repro (copy the vault, throwaway port, throwaway data
+  dir). "I can't verify this without touching his live session" was
+  true and was still the wrong stopping point — it should have been the
+  cue to build the safe repro, not to ship uncrossed fingers. This is
+  now the standing method for verifying any write path that would
+  otherwise require his live session/draft.
+- Never mutate his live workout draft or session state to verify
+  anything (standing rule, unchanged — this session specifically
+  demonstrates the alternative: copy the vault, use a throwaway port and
+  data dir, tear it down after).
+
+---
+
 **21 AUG — THE GLASS + THE MORNING BRIEF.** From his reel (IG
 DcRlRlMsbdD): spoken lines put their figure on screen and the card
 changes with the narration. Built `server/lib/spokenCards.js`
@@ -268,6 +415,35 @@ caught a live reply-loss bug in the act (fixed same day).
 
 
 ## SESSION LOG (append-only, newest first)
+
+### 23 August 2026 — model-cost fix, Coach's self-review, a shipped crash caught and fixed
+He caught Coach hitting a "Fable 5 usage" limit mid-conversation — traced
+to every unpinned Claude CLI call inheriting the account's ambient
+default model, which had silently become Fable 5. Pinned Coach to opus
+and 12 other automated background lanes to sonnet. Built the Coach's
+program review (server/lib/coachProgramReview.js): three code-driven
+detectors — a lift's name contradicting its filed muscle group, a lift
+flat for 3+ weeks (swap suggested to the same muscle), a goal muscle
+chronically under target — raised onto the inbox rails, surfaced in the
+morning brief, the Train TODAY card, and Coach's own conversation
+context, nudged at 3 and 7 days then escalated to Telegram. Verified
+against his real vault: raised two genuine findings (a real Face Pull
+mapping error, a real stale Cable Flys swap) that are still sitting in
+his Inbox, intentionally. Added coach-chat auto-scroll-to-bottom and a
+temporary mid-session exercise add ("this session only", never written
+to the program) — but the first ship of the latter crashed his screen
+black. Reproduced it properly on an isolated scratch server (a COPY of
+his vault, throwaway port/data dir, his live backend untouched) rather
+than guessing: found an undefined `${M}` font reference that only threw
+at render time, plus a second bug where creating a brand-new exercise
+mid-session was silently routed to the wrong destination (or worse, into
+his real program if a routine happened to be open behind it). Both
+fixed and re-verified on the same scratch repro. Also discovered and
+fixed, mid-session, a real data-loss mechanism in inboxStore.js: writing
+to it from a one-off script while the live server also runs risks a
+silent cross-process cache clobber — the two coach findings vanished
+once before I caught it and built the proper HTTP-route fix. 415/415
+tests, four deploys, every bundle hash-verified.
 
 ### 18 August 2026 — mockup parity shipped + the audit that caught a live bug
 P2 cockpit + one-bar log screen-verified and deployed. Visual-claims audit:
