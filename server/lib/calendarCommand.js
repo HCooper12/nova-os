@@ -4,13 +4,13 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { fetchEventsForRangeRaw } from './calendar.js';
 import { createRecord } from './inboxStore.js';
+import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 
 // Turn a spoken/typed request into ONE structured calendar op — add, move, or
 // delete — then file it as a confirm-first inbox proposal. The model only
 // INTERPRETS and identifies which event; the actual iCloud write happens later
 // in fileDecision, when the user approves. Nothing here touches the calendar.
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const CMD_MODEL = process.env.NOVA_CALENDAR_MODEL || 'haiku';
 const MAX_BUDGET_USD = '0.5';
 const RANGE_DAYS = 21; // how far ahead the interpreter can see + act
 
@@ -41,7 +41,7 @@ function interpret(prompt) {
     const child = spawn(CLAUDE_BIN, [
       '-p', prompt,
       '--permission-mode', 'bypassPermissions',
-      '--model', CMD_MODEL,
+      '--model', modelFor('calendar-command'),
       '--strict-mcp-config',
       '--output-format', 'json',
       '--max-budget-usd', MAX_BUDGET_USD,
@@ -96,6 +96,7 @@ function whenLabel(iso) { return new Date(iso).toLocaleString('en-GB', { weekday
 export async function runCalendarCommand(text, vaultPath = null) {
   const clean = String(text || '').trim();
   if (!clean) throw new Error('Tell Nova what to change.');
+  if (!laneEnabled('calendar-command')) throw laneOffError('calendar-command');
 
   let events = [];
   try { events = await fetchEventsForRangeRaw(RANGE_DAYS); } catch { /* range is best-effort */ }

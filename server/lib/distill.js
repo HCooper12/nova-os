@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { stageVault, diffTrees } from './ingest.js';
 import { createRecord, listRecords } from './inboxStore.js';
 import { backupFile } from './backup.js';
+import { modelFor, laneSkipped } from './modelPrefs.js';
 
 // The distiller — captures become knowledge. Filed captures land as FLAT
 // pages (Wiki/Inbox, Studio ideas) with no wikilinks, so the graph never
@@ -91,6 +92,7 @@ export async function loadDistillJob(jobId) {
 // Runs the staged model pass and files the pending record. Resolves when the
 // job has settled (unlike the interactive ingest, nobody is polling a UI).
 export async function runDistillation(vaultPath, { force = false } = {}) {
+  if (laneSkipped('distill', 'the weekly distillation')) return { skipped: true, reason: 'lane switched off in Settings' };
   const records = await listRecords();
   const cutoff = Date.now() - 6 * 86400e3;
   if (!force && records.some((r) => r.kind === 'distill' && new Date(r.createdAt).getTime() >= cutoff)) {
@@ -111,11 +113,11 @@ export async function runDistillation(vaultPath, { force = false } = {}) {
       '--allowedTools', 'Read,Write,Edit,Glob,Grep',
       '--output-format', 'json',
       // named explicitly — an unpinned call silently inherits the account's
-    // ambient default model, which cost him a Fable-5 usage-limit hit on a
-    // totally unrelated lane (Coach) once that became the default. 'sonnet'
-    // matches the convention already used for this tier of task elsewhere
-    // (see ingest.js).
-    '--model', 'sonnet',
+      // ambient default model, which cost him a Fable-5 usage-limit hit on a
+      // totally unrelated lane (Coach) once that became the default. The pin
+      // now comes from the model board (lib/modelPrefs.js) so it is settable
+      // in Settings; the default is the 'sonnet' this lane has always run on.
+      '--model', modelFor('distill'),
     '--max-budget-usd', MAX_BUDGET_USD,
       '--no-session-persistence',
     ], { cwd: stagingVault });

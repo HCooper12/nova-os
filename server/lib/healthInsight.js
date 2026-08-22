@@ -14,6 +14,7 @@ import { getToday as getFoodLogToday } from './foodLog.js';
 import { loadRecentDays as loadRecentNutritionDays } from './nutritionLog.js';
 import { NOVA_LENS } from './lens.js';
 import { profileContext } from './profile.js';
+import { modelFor, laneSkipped, laneEnabled } from './modelPrefs.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // honors NOVA_DATA_DIR like every sibling store — it was the one hard-coded
@@ -179,11 +180,11 @@ function runClaude(prompt) {
       '--allowedTools', '',
       '--output-format', 'json',
       // named explicitly — an unpinned call silently inherits the account's
-    // ambient default model, which cost him a Fable-5 usage-limit hit on a
-    // totally unrelated lane (Coach) once that became the default. 'sonnet'
-    // matches the convention already used for this tier of task elsewhere
-    // (see ingest.js).
-    '--model', 'sonnet',
+      // ambient default model, which cost him a Fable-5 usage-limit hit on a
+      // totally unrelated lane (Coach) once that became the default. The pin
+      // now comes from the model board (lib/modelPrefs.js) so it is settable
+      // in Settings; the default is the 'sonnet' this lane has always run on.
+      '--model', modelFor('health-insight'),
     '--max-budget-usd', MAX_BUDGET_USD,
       '--no-session-persistence',
     ]);
@@ -238,6 +239,10 @@ export async function generateInsightNow(vaultPath, slot) {
 }
 
 async function generateAndStore(vaultPath, slot) {
+  // Off means the cache is left exactly as it is — an old insight keeps its
+  // own timestamp and self-labels as stale rather than being overwritten by
+  // nothing. Health numbers and the Sentinel's alerts are untouched.
+  if (!laneEnabled('health-insight')) { laneSkipped('health-insight', `the ${slot} health insight`); return loadCachedInsight(); }
   const context = await buildContext(vaultPath, slot);
   const result = await runClaude(buildPrompt(context, slot));
   const record = {

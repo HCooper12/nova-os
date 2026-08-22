@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { readdirSync, existsSync } from 'node:fs';
 import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import path from 'node:path';
@@ -38,7 +39,7 @@ export const SINGLE_PASS_MAX_CHARS = 150_000;
 // tokens of dense notes. Extraction is a faithfulness job, not a judgment
 // job, so Sonnet is the right instrument as well as the affordable one.
 export const CHUNK_CHARS = 60_000;
-const CHUNK_MODEL = 'sonnet';
+const CHUNK_MODEL = () => modelFor('watcher-chunk');
 const CHUNK_BUDGET_USD = '1.0';
 const CHUNK_CONCURRENCY = 3;
 
@@ -266,6 +267,11 @@ export async function startVideoWatch(vaultPath, url, question = '') {
   if (!/^https?:\/\//.test(u)) throw new Error('a video URL is required');
   if (u.length > 500) throw new Error('that URL does not look right (500 chars max)');
   const q = String(question || '').trim().slice(0, 500);
+  // Both passes are checked up front: a long video that clears the verdict
+  // lane but not the chunk lane would fail halfway with a record stranded
+  // in 'classifying'.
+  if (!laneEnabled('watcher-verdict')) throw laneOffError('watcher-verdict');
+  if (!laneEnabled('watcher-chunk')) throw laneOffError('watcher-chunk');
 
   const record = await createRecord({
     id: randomUUID().slice(0, 8),
@@ -389,7 +395,7 @@ export async function digestTranscript(vaultPath, report, digestDir, question = 
       // and the notes need no structure beyond themselves.
       const raw = await runClaudeText(vaultPath, buildChunkNotesPrompt({
         title: report.title, part: i + 1, total: chunks.length, chunkPath, question,
-      }), { allowedTools: 'Read', budget: CHUNK_BUDGET_USD, model: CHUNK_MODEL });
+      }), { allowedTools: 'Read', budget: CHUNK_BUDGET_USD, model: CHUNK_MODEL() });
       const text = stripPreamble(raw);
       if (!text) throw new Error(`extraction pass ${i + 1}/${chunks.length} returned no notes`);
       notes[i] = `## Part ${i + 1} of ${chunks.length}\n\n${text}`;
@@ -403,6 +409,7 @@ async function runWatchModel(vaultPath, promptInputs) {
   const parsed = await runClaudeJson(vaultPath, buildWatchPrompt(promptInputs), {
     allowedTools: 'Read Grep Glob WebSearch WebFetch',
     budget: MAX_BUDGET_USD,
+    model: modelFor('watcher-verdict'), // was unpinned until the model board
   });
   return normalizeWatch(parsed);
 }

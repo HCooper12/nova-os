@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import matter from 'gray-matter';
 import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
+import { modelFor, laneSkipped, laneEnabled } from './modelPrefs.js';
 
 const LIST_REL_PATH = 'Wiki/Health/Shopping List.md';
 const CATEGORIES = ['Produce', 'Meat & Protein', 'Dairy & Eggs', 'Pantry & Seasonings', 'Frozen', 'Bakery', 'Beverages', 'Household & Other'];
@@ -109,6 +110,30 @@ export function startAddItems(vaultPath, newItems) {
   const job = { id: jobId, status: 'running', items: null, error: null };
   jobs.set(jobId, job);
 
+  // Sorting is the model's job here; ADDING is not. With the lane off, the
+  // items still go on the list — they just land under Household & Other for
+  // him to move. Refusing the whole add would lose the thing he asked for.
+  if (!laneEnabled('shopping-categorize')) {
+    laneSkipped('shopping-categorize', 'shopping-list categorisation (items added uncategorised)');
+    (async () => {
+      try {
+        await addItemsDirect(vaultPath, newItems.map((it) => ({
+          name: String(it.name || '').trim(),
+          category: 'Household & Other',
+          source: it.source || null,
+        })).filter((it) => it.name));
+        // job.items is the WHOLE list on the model path — the client renders
+        // it wholesale — so this branch must hand back the same shape.
+        job.items = await getItems(vaultPath);
+        job.status = 'ready';
+      } catch (e) {
+        job.status = 'error';
+        job.error = e.message;
+      }
+    })();
+    return jobId;
+  }
+
   const prompt = `Categorize each of these shopping list items into exactly one of these categories: ${CATEGORIES.join(', ')}.
 
 Items:
@@ -125,10 +150,10 @@ Output ONLY a JSON array with exactly ${newItems.length} objects, one per item i
     '--output-format', 'json',
     // named explicitly — an unpinned call silently inherits the account's
     // ambient default model, which cost him a Fable-5 usage-limit hit on a
-    // totally unrelated lane (Coach) once that became the default. 'sonnet'
-    // matches the convention already used for this tier of task elsewhere
-    // (see ingest.js).
-    '--model', 'sonnet',
+    // totally unrelated lane (Coach) once that became the default. The pin
+    // now comes from the model board (lib/modelPrefs.js) so it is settable
+    // in Settings; the default is the 'sonnet' this lane has always run on.
+    '--model', modelFor('shopping-categorize'),
     '--max-budget-usd', MAX_BUDGET_USD,
     '--no-session-persistence',
   ]);

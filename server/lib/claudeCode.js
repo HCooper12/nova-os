@@ -3,6 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { NOVA_LENS } from './lens.js';
+import { modelFor, assertLaneOn, laneEnabled } from './modelPrefs.js';
 
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
@@ -153,6 +154,7 @@ function warmTurn({ kind, sessionId, cwd, args, text, job, finishTurn, env }) {
 // pass on the next turn); present means continue that conversation via
 // --resume, preserving full context across turns.
 export function startMessage(cwd, { text, sessionId, model }) {
+  assertLaneOn('code');
   const jobId = randomUUID().slice(0, 8);
   const isNewSession = !sessionId;
   const effectiveSessionId = sessionId || randomUUID();
@@ -176,8 +178,9 @@ export function startMessage(cwd, { text, sessionId, model }) {
   ];
   args.push(isNewSession ? '--session-id' : '--resume', effectiveSessionId);
   // an explicit choice from the Code screen's picker always wins; absent
-  // that, a real default — never the account's ambient one (see Coach, above)
-  args.push('--model', model || 'sonnet');
+  // that, the lane's setting — never the account's ambient one (see Coach,
+  // above). modelFor never returns empty, so --model is never blank.
+  args.push('--model', model || modelFor('code'));
 
   warmTurn({
     kind: 'code',
@@ -302,10 +305,10 @@ function askArgs(sessionId, isNewSession) {
     '--include-partial-messages',
     '--verbose',
     '--max-budget-usd', MAX_BUDGET_USD,
-    // Haiku for the voice line: the rich deterministic context is already
-    // injected, so a fast model answers conversationally in a fraction of
-    // the time while staying grounded. (Coach/Researcher keep the default.)
-    '--model', 'haiku',
+    // Haiku by default for the voice line: the rich deterministic context is
+    // already injected, so a fast model answers conversationally in a
+    // fraction of the time while staying grounded. Settable per lane.
+    '--model', modelFor('ask-nova'),
     isNewSession ? '--session-id' : '--resume', sessionId,
   ];
 }
@@ -330,6 +333,8 @@ function askArgs(sessionId, isNewSession) {
 // reused for a turn it cannot serve.
 export function prewarmAsk(cwd, sessionId, { resume = false } = {}) {
   try {
+    // Booting a process for a lane that will refuse the turn is pure waste.
+    if (!laneEnabled('ask-nova')) return false;
     const key = `voice:${sessionId}`;
     const existing = warm.get(key);
     if (existing && existing.child.exitCode === null) return false;
@@ -340,6 +345,7 @@ export function prewarmAsk(cwd, sessionId, { resume = false } = {}) {
 }
 
 export function startAskNova(cwd, { question, context, sessionId, direct = false, liveLine = '', resume }) {
+  assertLaneOn('ask-nova');
   const jobId = randomUUID().slice(0, 8);
   const isNewSession = resume === undefined ? !sessionId : !resume;
   const effectiveSessionId = sessionId || randomUUID();
@@ -518,6 +524,7 @@ ${facts}`;
 }
 
 export function startSessionDebrief(cwd, { facts }, onReady) {
+  assertLaneOn('session-debrief');
   const jobId = randomUUID().slice(0, 8);
   const effectiveSessionId = randomUUID();
   const job = { id: jobId, status: 'running', result: null, error: null };
@@ -532,6 +539,10 @@ export function startSessionDebrief(cwd, { facts }, onReady) {
     '--include-partial-messages',
     '--verbose',
     '--max-budget-usd', MAX_BUDGET_USD,
+    // This call ran unpinned until the model board was built — it inherited
+    // whatever the account defaulted to, which is the exact failure the
+    // 21-Aug Coach fix was about. Named now, like every other lane.
+    '--model', modelFor('session-debrief'),
     '--session-id', effectiveSessionId,
   ];
   warmTurn({
@@ -552,6 +563,7 @@ export function startSessionDebrief(cwd, { facts }, onReady) {
 }
 
 export function startGreeting(cwd, { facts }) {
+  assertLaneOn('greeting');
   const jobId = randomUUID().slice(0, 8);
   const effectiveSessionId = randomUUID();
   const job = { id: jobId, status: 'running', result: null, error: null };
@@ -570,7 +582,7 @@ export function startGreeting(cwd, { facts }) {
     '--include-partial-messages',
     '--verbose',
     '--max-budget-usd', MAX_BUDGET_USD,
-    '--model', 'haiku',
+    '--model', modelFor('greeting'),
     '--session-id', effectiveSessionId,
   ];
 
@@ -631,6 +643,7 @@ Hayden asks: ${question}`;
 }
 
 export function startAskCoach(cwd, { question, context, sessionId }) {
+  assertLaneOn('coach');
   const jobId = randomUUID().slice(0, 8);
   const isNewSession = !sessionId;
   const effectiveSessionId = sessionId || randomUUID();
@@ -656,7 +669,8 @@ export function startAskCoach(cwd, { question, context, sessionId }) {
     // (~/.claude/settings.json) — and he hit its usage limit mid-conversation.
     // Coach is a reasoning-heavy, high-value lane; it gets a real model,
     // named, never left to whatever the account happens to default to.
-    '--model', 'opus',
+    // Opus by default, changeable in Settings → Claude models.
+    '--model', modelFor('coach'),
   ];
   args.push(isNewSession ? '--session-id' : '--resume', effectiveSessionId);
 
@@ -723,6 +737,7 @@ Output ONLY a JSON object: {"name": "Short Session Name", "rationale": "one sent
 }
 
 export function startQuickSession(cwd, { minutes, note, context }) {
+  assertLaneOn('quick-session');
   const jobId = randomUUID().slice(0, 8);
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
@@ -735,6 +750,7 @@ export function startQuickSession(cwd, { minutes, note, context }) {
     '--strict-mcp-config',
     '--output-format', 'json',
     '--max-budget-usd', MAX_BUDGET_USD,
+    '--model', modelFor('quick-session'), // was unpinned until the model board
     '--session-id', randomUUID(),
   ], { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
 
@@ -772,6 +788,7 @@ export function startQuickSession(cwd, { minutes, note, context }) {
 const BREAKER_DISALLOWED = DISALLOWED_TOOLS + ',Edit,Write';
 
 export function startBreaker(cwd, { focus }) {
+  assertLaneOn('breaker');
   const jobId = randomUUID().slice(0, 8);
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
@@ -792,6 +809,7 @@ Report format: a short verdict line, then a numbered list of findings — each w
     '--strict-mcp-config',
     '--output-format', 'json',
     '--max-budget-usd', MAX_BUDGET_USD,
+    '--model', modelFor('breaker'), // was unpinned until the model board
     '--session-id', randomUUID(), // fresh session every time — the Breaker judges cold
   ], { cwd, stdio: ['ignore', 'pipe', 'pipe'] }); // stdin closed — the CLI otherwise waits on the open pipe
 

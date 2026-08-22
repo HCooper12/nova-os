@@ -3,6 +3,7 @@ import { rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
+import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { CATEGORIES, categorize } from './money.js';
 
 // Photograph a statement page or receipt → the model extracts transaction
@@ -34,6 +35,7 @@ Output ONLY the JSON object. No markdown, no code fences, no commentary.`;
 }
 
 export function startStatementScan(imagePaths, workDir, note) {
+  if (!laneEnabled('scan-statement')) throw laneOffError('scan-statement');
   const jobId = randomUUID().slice(0, 8);
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
@@ -44,6 +46,7 @@ export function startStatementScan(imagePaths, workDir, note) {
     '--allowedTools', 'Read',
     '--output-format', 'json',
     '--max-budget-usd', MAX_BUDGET_USD,
+    '--model', modelFor('scan-statement'), // was unpinned until the model board
     '--session-id', randomUUID(),
   ], { stdio: ['ignore', 'pipe', 'pipe'] });
 

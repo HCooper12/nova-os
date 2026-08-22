@@ -13,6 +13,7 @@
 // ALWAYS stated: "transcribed 10 of 37" is a finding, not a footnote.
 
 import { spawn } from 'node:child_process';
+import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -136,6 +137,7 @@ function runModel(prompt) {
       '--allowedTools', '',
       '--output-format', 'json',
       '--max-budget-usd', MAX_BUDGET_USD,
+      '--model', modelFor('study-lane'), // was unpinned until the model board
       '--no-session-persistence',
     ]);
     let stdout = '', stderr = '';
@@ -188,6 +190,7 @@ async function runStudyJob(vaultPath, record, { urls, prose }) {
 export async function startStudy(vaultPath, { urls, prose }) {
   const list = (urls || []).filter(Boolean);
   if (!list.length) throw new Error('a study needs at least one link');
+  if (!laneEnabled('study-lane')) throw laneOffError('study-lane');
   const { createRecord } = await import('./inboxStore.js');
   const record = await createRecord({
     id: randomUUID().slice(0, 8),

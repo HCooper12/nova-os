@@ -1,10 +1,13 @@
 import { Router } from 'express';
 import { startMessage, getMessageJob, startBreaker } from '../lib/claudeCode.js';
+import { MODEL_CHOICES } from '../lib/modelPrefs.js';
 
 const WORKSPACES = { repo: 'repoPath', vault: 'vaultPath' };
-// Model aliases the frontend picker offers — anything else is rejected rather
-// than passed through to the CLI's --model flag.
-const MODELS = new Set(['sonnet', 'opus', 'fable', 'haiku']);
+// Exactly the values the model board recognises (aliases + pinned ids) —
+// anything else is rejected rather than passed through to the CLI's --model
+// flag. One list, so the picker and the board can never disagree about what
+// is a valid model.
+const MODELS = new Set(MODEL_CHOICES.map((m) => m.value));
 const SESSION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function claudeCodeRouter({ repoPath, vaultPath }) {

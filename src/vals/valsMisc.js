@@ -229,9 +229,14 @@ export function valsMisc(app, ctx) {
     setCodeWorkspace: (w) => app.setCodeWorkspace(w),
     codeModel: st.codeModel,
     setCodeModel: (e) => app.setState({ codeModel: e.target.value }),
+    // Aliases, not pinned ids: this picker is a per-message override and
+    // should follow whatever is newest in each family. The labels track the
+    // model board's (server/lib/modelPrefs.js) — change both together.
+    // ('Opus 4.8' sat here after Opus 5 shipped; that is the drift this
+    // comment exists to prevent.)
     codeModelOptions: [
       { value: 'sonnet', label: 'Sonnet 5' },
-      { value: 'opus', label: 'Opus 4.8' },
+      { value: 'opus', label: 'Opus 5' },
       { value: 'fable', label: 'Fable 5' },
       { value: 'haiku', label: 'Haiku 4.5' },
     ],

@@ -170,6 +170,10 @@ export const api = {
   snapshot: (conn) => call(conn, '/api/snapshot', { timeoutMs: 30_000 }),
   getInboxConfig: (conn) => call(conn, '/api/inbox-config'),
   setInboxConfigMode: (conn, mode) => put(conn, '/api/inbox-config', { mode }),
+  // the model board — one lane per write, so a toggle never rewrites a model
+  modelPrefs: (conn) => call(conn, '/api/model-prefs'),
+  setModelLane: (conn, lane, patch) => put(conn, '/api/model-prefs', { lane, ...patch }),
+  resetModelLane: (conn, lane) => post(conn, '/api/model-prefs/reset', lane ? { lane } : {}),
   saveSessionDraft: (conn, body) => put(conn, '/api/workouts/session-draft', body),
   getSessionDraft: (conn) => call(conn, '/api/workouts/session-draft'),
   clearSessionDraft: (conn) => del(conn, '/api/workouts/session-draft'),

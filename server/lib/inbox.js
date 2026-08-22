@@ -12,6 +12,7 @@ import { addTransactions, removeTransactions, CATEGORIES as MONEY_CATEGORIES } f
 import { TODO_CATEGORIES, guessTodoCategory } from './todos.js';
 import { archiveImportFile } from './moneyImport.js';
 import { createRecord, updateRecord, getRecord, listRecords } from './inboxStore.js';
+import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { addItemsDirect, removeItems, SHOPPING_CATEGORIES } from './shoppingList.js';
 import * as journal from './journal.js';
 import * as foodLog from './foodLog.js';
@@ -162,9 +163,13 @@ export function normalizeDecision(parsed) {
 }
 
 function classify(text, onDone) {
+  // Off: the capture still exists on the rails, it just stops here carrying
+  // the reason — visible in the Inbox and retryable once it is back on.
+  // Never a silent auto-file, and never a guessed route.
+  if (!laneEnabled('inbox-classify')) { onDone(laneOffError('inbox-classify')); return; }
   const child = spawn(CLAUDE_BIN, [
     '-p', buildPrompt(text),
-    '--model', 'haiku',
+    '--model', modelFor('inbox-classify'),
     '--permission-mode', 'bypassPermissions',
     '--allowedTools', '',
     '--output-format', 'json',

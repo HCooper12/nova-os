@@ -375,6 +375,97 @@ export function Settings({ v }) {
         </div>
       )}
 
+      {/* THE MODEL BOARD — one row per lane that talks to Claude: pick the
+          model, or switch the lane off. Server-held, so what you set here is
+          what the Mac's schedulers run at 3am too. */}
+      {v.modelSettings && (
+        <div style={{ marginTop: '34px' }}>
+          <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
+            <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:var(--nv-gold)")}>CLAUDE MODELS</span>
+            <span style={css("font:400 9px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>EVERY AGENT AND FEATURE · PICK THE MODEL, OR SWITCH IT OFF</span>
+            {v.modelSettings.loaded && v.modelSettings.customisedCount + v.modelSettings.offCount > 0 && (
+              <Interactive as="span" onClick={v.modelSettings.busyAll ? undefined : v.modelSettings.resetAll} base="cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.08em;padding:5px 12px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 20%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)" hoverStyle="color:var(--nv-ink)">{v.modelSettings.busyAll ? 'RESETTING…' : 'RESET ALL'}</Interactive>
+            )}
+          </div>
+
+          {v.modelSettings.error && (
+            <div style={css("margin-top:10px;max-width:640px;font-size:12px;line-height:1.6;color:var(--nv-warn)")}>
+              Couldn't load the model board — a connection problem, not “no lanes”. Nothing has changed on the server.
+              <Interactive as="span" onClick={v.modelSettings.load} base="cursor:pointer;margin-left:10px;font:600 10px var(--nv-font-mono);letter-spacing:.08em;color:var(--nv-gold)">RETRY</Interactive>
+            </div>
+          )}
+          {!v.modelSettings.error && !v.modelSettings.loaded && (
+            <div style={css("margin-top:10px;font-size:12px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>Loading the model board…</div>
+          )}
+
+          {v.modelSettings.loaded && (
+            <>
+              <div style={css("margin-top:10px;max-width:640px;font-size:11.5px;line-height:1.7;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>
+                {v.modelSettings.laneCount} lanes talk to Claude. Each names its model explicitly — none of them inherit
+                whatever your account happens to default to. Aliases (Opus 5, Sonnet 5…) follow the newest release in
+                that family; the <em>pinned</em> entries stay on one exact version forever.
+                {v.modelSettings.offCount > 0 && <span style={css("color:var(--nv-warn)")}> {v.modelSettings.offCount} switched off.</span>}
+              </div>
+
+              {v.modelSettings.groups.map((g) => (
+                <div key={g.id} style={{ marginTop: '18px', maxWidth: '640px' }}>
+                  <Interactive as="div" onClick={g.toggleOpen}
+                    base="cursor:pointer;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding-bottom:7px;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent)"
+                    hoverStyle="border-bottom-color:var(--nv-acc-border)"
+                  >
+                    <span style={css("font:500 9px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-cy)")}>{g.open ? '▾' : '▸'} {g.label}</span>
+                    <span style={css("font:400 9px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>{g.hint}</span>
+                    <span style={{ marginLeft: 'auto', font: "500 9px var(--nv-font-mono)", color: g.offCount ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 35%, transparent)' }}>
+                      {g.offCount ? `${g.offCount}/${g.count} OFF` : `${g.count}`}
+                    </span>
+                  </Interactive>
+
+                  {g.open && g.lanes.map((l) => (
+                    <div key={l.id} className="nv-pane" style={{ marginTop: '8px', padding: '13px 15px', opacity: l.busy ? 0.55 : 1 }}>
+                      <div style={css("display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap")}>
+                        <span style={{ flex: '1 1 220px', minWidth: 0 }}>
+                          <span style={{ display: 'block', fontSize: '13.5px', fontWeight: 600, color: l.enabled ? 'var(--nv-ink)' : 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>{l.label}</span>
+                          <span style={{ display: 'block', marginTop: '3px', fontSize: '11px', lineHeight: 1.55, color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>{l.hint}</span>
+                        </span>
+                        <Interactive as="span" onClick={l.busy ? undefined : l.toggle}
+                          base={{ cursor: 'pointer', flex: 'none', font: '600 9px var(--nv-font-mono)', letterSpacing: '.1em', padding: '6px 13px', borderRadius: '14px',
+                            border: l.enabled ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-warn) 40%, transparent)',
+                            color: l.enabled ? 'var(--nv-acc)' : 'var(--nv-warn)',
+                            background: l.enabled ? 'var(--nv-acc-bg)' : 'color-mix(in srgb, var(--nv-warn) 08%, transparent)' }}
+                          hoverStyle={{ filter: 'brightness(1.14)' }}
+                        >{l.enabled ? 'ON' : 'OFF'}</Interactive>
+                      </div>
+
+                      {l.enabled ? (
+                        <div style={css("margin-top:10px;display:flex;align-items:center;gap:9px;flex-wrap:wrap")}>
+                          <select value={l.model} onChange={l.setModel} disabled={l.busy}
+                            style={{ flex: '1 1 220px', background: 'var(--nv-well)', border: `1px solid ${l.customised ? 'color-mix(in srgb, var(--nv-gold) 45%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 15%, transparent)'}`, borderRadius: '7px', color: 'var(--nv-ink)', font: '500 11px var(--nv-font-mono)', padding: '8px 9px', outline: 'none' }}>
+                            {v.modelSettings.models.map((m) => (
+                              <option key={m.value} value={m.value} style={{ background: '#141019' }}>
+                                {m.label}{m.value === l.defaultModel ? ' · default' : ''}
+                              </option>
+                            ))}
+                          </select>
+                          {l.reset && (
+                            <Interactive as="span" onClick={l.busy ? undefined : l.reset} base="cursor:pointer;flex:none;font:400 9px var(--nv-font-mono);letter-spacing:.06em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-gold)">reset</Interactive>
+                          )}
+                        </div>
+                      ) : (
+                        // An off switch that doesn't say what it stopped is a
+                        // trap — this is the honest half of the toggle.
+                        <div style={css("margin-top:10px;font-size:11px;line-height:1.6;color:color-mix(in srgb, var(--nv-warn) 80%, var(--nv-ink))")}>
+                          {l.offEffect}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+
       {v.timeMachine && (
         <div style={{ marginTop: '34px' }}>
           <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>

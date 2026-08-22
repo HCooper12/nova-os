@@ -3,12 +3,12 @@ import { rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
+import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 
 const MAX_BUDGET_USD = '1';
 // Recipe/label extraction is OCR-shaped work the human always reviews before
-// saving, so it runs on the fast model by default. Override with NOVA_SCAN_MODEL
-// (e.g. 'sonnet') if a class of labels ever reads back wrong.
-const SCAN_MODEL = process.env.NOVA_SCAN_MODEL || 'haiku';
+// saving, so it runs on the fast model by default. Change it in Settings →
+// Claude models; NOVA_SCAN_MODEL still seeds the default.
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const CATEGORIES = ['CORE DAILY MEALS', 'ROTATION / SWAP MEALS', 'TREATS'];
@@ -44,6 +44,7 @@ function normalizeResult(parsed) {
 }
 
 export function startScan(imagePaths, workDir) {
+  if (!laneEnabled('scan-recipe')) throw laneOffError('scan-recipe');
   const jobId = randomUUID().slice(0, 8);
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
@@ -53,7 +54,7 @@ export function startScan(imagePaths, workDir) {
     '-p', prompt,
     '--permission-mode', 'bypassPermissions',
     '--allowedTools', 'Read',
-    '--model', SCAN_MODEL,
+    '--model', modelFor('scan-recipe'),
     // don't boot every configured MCP server just to read a photo — pure cold-start savings
     '--strict-mcp-config',
     '--output-format', 'json',

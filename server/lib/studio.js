@@ -8,6 +8,7 @@ import matter from 'gray-matter';
 import { backupFile } from './backup.js';
 import { Vault } from './vault.js';
 import { createRecord, updateRecord } from './inboxStore.js';
+import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { NOVA_LENS } from './lens.js';
 
 // Studio — the idea pipeline. Deterministic status moves on idea pages
@@ -70,6 +71,7 @@ Output ONLY a JSON object: {"text": "the outline in markdown — hook, beats, cl
 // The outline rides the rails exactly like research: an in-flight record
 // that flips to pending with the draft — approval appends it to the page.
 export async function startOutline(vaultPath, id) {
+  if (!laneEnabled('studio-outline')) throw laneOffError('studio-outline');
   const page = await readIdea(vaultPath, id);
   const record = await createRecord({
     id: randomUUID().slice(0, 8),
@@ -91,6 +93,7 @@ export async function startOutline(vaultPath, id) {
     '--strict-mcp-config',
     '--output-format', 'json',
     '--max-budget-usd', MAX_BUDGET_USD,
+    '--model', modelFor('studio-outline'), // was unpinned until the model board
     '--session-id', randomUUID(),
   ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
 

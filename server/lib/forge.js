@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { mkdir, writeFile, readFile, readdir, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -237,7 +238,10 @@ async function runForgeJob(job) {
     '--max-budget-usd', MAX_BUDGET_USD,
     '--session-id', randomUUID(),
   ];
-  args.push('--model', job.model || 'sonnet'); // never the account's ambient default (see claudeCode.js Coach fix, 21 Aug)
+  // A job may name its own model (a Shortcut can pass one); otherwise the
+  // lane's setting. Never the account's ambient default — see the 21-Aug
+  // Coach fix in claudeCode.js.
+  args.push('--model', job.model || modelFor('forge'));
 
   // stdio: stdin IGNORED, never inherited — a child that waits on stdin under
   // launchd hangs forever, and its "no stdin data received" warning has
@@ -351,6 +355,9 @@ async function runForgeJob(job) {
 export async function startForge(prompt, { model } = {}) {
   const p = String(prompt || '').trim();
   if (!p) throw new Error('a prompt is required — say what you want built');
+  // Refused before the record and its working directory exist. Jobs already
+  // running are deliberately left alone — stopping one is a separate act.
+  if (!laneEnabled('forge')) throw laneOffError('forge');
   if (p.length > MAX_PROMPT_CHARS) throw new Error(`keep a spoken build request under ${MAX_PROMPT_CHARS} characters`);
 
   const id = randomUUID().slice(0, 8);

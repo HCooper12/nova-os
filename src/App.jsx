@@ -300,6 +300,11 @@ export default class App extends Component {
     settingsBaseUrl: '', settingsToken: '',
     settingsTestStatus: 'idle', settingsTestMessage: '',
     liveNotes: null, liveNoteDetails: {}, liveCalendar: null, liveCalendarList: null, calCmdText: '', calCmdBusy: false,
+    // the model board (Settings): null until loaded, so "not loaded" and
+    // "loaded and empty" can never be confused
+    // groups render OPEN by default — the whole point is seeing every lane's
+    // state at a glance; this map holds only the ones he has collapsed
+    liveModelPrefs: null, modelPrefsError: false, modelPrefsBusy: null, modelPrefsCollapsed: {},
     calendarViewOpen: false, liveCalendarRange: null, calendarRangeError: false, calendarListError: false, liveRecipes: null,
     liveRotation: null, liveRecipeProfile: null, rotationShowExtra: false,
 
@@ -888,6 +893,10 @@ export default class App extends Component {
     // entering Settings — pull the calendar list once so the toggles are ready
     if (this.state.screen === 'settings' && prevState.screen !== 'settings' && this.state.liveCalendarList == null && getConnection()) {
       this.loadCalendarList();
+    }
+    // …and the model board, for the same reason
+    if (this.state.screen === 'settings' && prevState.screen !== 'settings' && this.state.liveModelPrefs == null && getConnection()) {
+      this.loadModelPrefs();
     }
     // mirror chat transcripts (trimmed) — a reclaim must not eat the thread
     if (prevState.voiceChat !== this.state.voiceChat || prevState.coachChat !== this.state.coachChat || prevState.codeChat !== this.state.codeChat) {
@@ -2975,6 +2984,43 @@ export default class App extends Component {
       .then(() => this.refreshLiveData()) // re-pull today's events without the hidden calendars
       .catch((e) => { this.toastMsg('Could not update calendars: ' + e.message); this.loadCalendarList(); });
   }
+  // ------------------------------ model board ------------------------------
+  // Which Claude model each Nova lane runs on, and whether it runs. Server-
+  // held, so the phone and the Mac's schedulers can never disagree about it.
+  loadModelPrefs() {
+    const conn = getConnection();
+    if (!conn) return;
+    api.modelPrefs(conn)
+      .then((prefs) => this.setState({ liveModelPrefs: prefs, modelPrefsError: false }))
+      .catch(() => this.setState({ liveModelPrefs: null, modelPrefsError: true })); // a failed load is NOT "no lanes"
+  }
+  // One lane, one field. The server answers with the whole board, so what
+  // renders after a write is always the server's truth rather than a guess.
+  setModelLane(lane, patch) {
+    const conn = getConnection();
+    if (!conn) return;
+    this.setState({ modelPrefsBusy: lane });
+    api.setModelLane(conn, lane, patch)
+      .then((prefs) => this.setState({ liveModelPrefs: prefs, modelPrefsBusy: null }))
+      .catch((e) => {
+        this.setState({ modelPrefsBusy: null });
+        this.toastMsg('Could not change that lane: ' + e.message);
+        this.loadModelPrefs(); // never leave the screen showing a change that didn't land
+      });
+  }
+  resetModelLane(lane) {
+    const conn = getConnection();
+    if (!conn) return;
+    this.setState({ modelPrefsBusy: lane || '*' });
+    api.resetModelLane(conn, lane)
+      .then((prefs) => this.setState({ liveModelPrefs: prefs, modelPrefsBusy: null }))
+      .catch((e) => {
+        this.setState({ modelPrefsBusy: null });
+        this.toastMsg('Could not reset: ' + e.message);
+        this.loadModelPrefs();
+      });
+  }
+
   // The ask poll, attachable from a fresh boot too — an iOS reclaim used to
   // eat the in-flight answer along with the poll.
   attachAskPoll(conn, jobId) {

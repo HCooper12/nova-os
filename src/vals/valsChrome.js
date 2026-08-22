@@ -505,6 +505,54 @@ export function valsChrome(app, ctx) {
       anyHidden: (st.liveCalendarList || []).some((c) => c.hidden),
       load: () => app.loadCalendarList(),
     } : null,
+    // THE MODEL BOARD — every Nova lane that spawns Claude, the model it runs
+    // on, and an on/off switch. Server-held (see lib/modelPrefs.js), so it is
+    // hidden in demo mode and while offline rather than shown as editable and
+    // silently dropping his taps.
+    modelSettings: !demoMode && !isOffline ? (() => {
+      const prefs = st.liveModelPrefs;
+      const lanes = prefs?.lanes || [];
+      const collapsed = st.modelPrefsCollapsed || {};
+      return {
+        loaded: prefs != null,
+        error: !!st.modelPrefsError,
+        load: () => app.loadModelPrefs(),
+        models: prefs?.models || [],
+        laneCount: lanes.length,
+        offCount: lanes.filter((l) => !l.enabled).length,
+        customisedCount: lanes.filter((l) => l.customised).length,
+        busyAll: st.modelPrefsBusy === '*',
+        resetAll: () => app.resetModelLane(null),
+        groups: (prefs?.groups || []).map((g) => {
+          const mine = lanes.filter((l) => l.group === g.id);
+          return {
+            id: g.id,
+            label: g.label,
+            hint: g.hint,
+            open: !collapsed[g.id],
+            offCount: mine.filter((l) => !l.enabled).length,
+            count: mine.length,
+            toggleOpen: () => app.setState({ modelPrefsCollapsed: { ...collapsed, [g.id]: !collapsed[g.id] } }),
+            lanes: mine.map((l) => ({
+              id: l.id,
+              label: l.label,
+              hint: l.hint,
+              // what actually stops when this is off — shown only when it IS
+              // off, where it is the answer to "what did I just turn off?"
+              offEffect: l.off,
+              model: l.model,
+              defaultModel: l.defaultModel,
+              customised: l.customised,
+              enabled: l.enabled,
+              busy: st.modelPrefsBusy === l.id,
+              setModel: (e) => app.setModelLane(l.id, { model: e.target.value }),
+              toggle: () => app.setModelLane(l.id, { enabled: !l.enabled }),
+              reset: l.customised || !l.enabled ? () => app.resetModelLane(l.id) : null,
+            })),
+          };
+        }),
+      };
+    })() : null,
     timeMachine: !demoMode && !isOffline ? {
       loaded: st.liveBackups != null,
       files: st.liveBackups || [],

@@ -5,6 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
+import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { backupFile } from './backup.js';
 
 const SKIP = new Set(['.obsidian', '.claude', '.DS_Store']);
@@ -157,6 +158,7 @@ export async function findExistingVideoPages(vaultPath, url) {
 
 export function startIngest(vaultPath) {
   return function run(transcriptText, sourceUrl) {
+    if (!laneEnabled('ingest')) throw laneOffError('ingest');
     const jobId = randomUUID().slice(0, 8);
     const workDir = path.join(os.tmpdir(), 'nova-ingest', jobId);
     const stagingVault = path.join(workDir, 'vault');
@@ -231,6 +233,10 @@ ${job.digested ? `\nThis video was LONG, so the text at ${transcriptPath} is Nov
 ${sourceUrl ? `\nSource URL: ${sourceUrl} — include this as a \`url:\` field in whatever page's frontmatter is most relevant, so it's directly linkable.\n` : ''}
 When done, give a concise final summary: pages created, pages updated, and any contradictions or open questions flagged.`;
 
+      // A long transcript rides a SEPARATE lane, so it can be switched off (or
+      // moved to a cheaper model) without touching short pasted ingests.
+      if (job.digested && !laneEnabled('ingest-digest')) throw laneOffError('ingest-digest');
+
       const child = spawn(CLAUDE_BIN, [
         '-p', prompt,
         '--permission-mode', 'bypassPermissions',
@@ -238,11 +244,12 @@ When done, give a concise final summary: pages created, pages updated, and any c
         '--output-format', 'json',
         '--max-budget-usd', job.digested ? DIGEST_BUDGET_USD : MAX_BUDGET_USD,
         // Digested weaves write pages FROM exhaustive notes — structured
-        // transformation, not judgment. On the default (Opus) model the
-        // 4-hour-podcast weave burned $8.15 and died at the cap; Sonnet
-        // does this job well inside it. Short pasted ingests keep the
-        // default model — there, one pass is doing all the thinking.
-        ...(job.digested ? ['--model', 'sonnet'] : []),
+        // transformation, not judgment. On the ambient default (Opus at the
+        // time) the 4-hour-podcast weave burned $8.15 and died at the cap;
+        // Sonnet does this job well inside it. Short pasted ingests default
+        // to Opus — there, one pass is doing all the thinking. Both are now
+        // named lanes rather than an implicit fall-through to the account.
+        '--model', job.digested ? modelFor('ingest-digest') : modelFor('ingest'),
         '--no-session-persistence',
         // stdin must be closed, not an open pipe: the CLI waits 3s for stdin
         // data it will never get, warns on stderr, and that warning then

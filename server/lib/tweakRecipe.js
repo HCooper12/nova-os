@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
+import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 
 const MAX_BUDGET_USD = '0.5';
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
@@ -48,6 +49,7 @@ No markdown, no code fences, no commentary before or after — just the raw JSON
 }
 
 export function startTweak(recipe, request, prior = null) {
+  if (!laneEnabled('tweak-recipe')) throw laneOffError('tweak-recipe');
   const jobId = randomUUID().slice(0, 8);
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
@@ -59,6 +61,7 @@ export function startTweak(recipe, request, prior = null) {
     '--allowedTools', '',
     '--output-format', 'json',
     '--max-budget-usd', MAX_BUDGET_USD,
+    '--model', modelFor('tweak-recipe'), // was unpinned until the model board
     '--no-session-persistence',
   ]);
 

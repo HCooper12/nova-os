@@ -16,6 +16,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url'; // never URL.pathname — the repo path has a space
 import path from 'node:path';
 import os from 'node:os';
+import { modelFor, laneSkipped } from './modelPrefs.js';
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const MAX_BUDGET_USD = '1.0';
@@ -107,11 +108,11 @@ function runModel(prompt) {
       '--allowedTools', '',
       '--output-format', 'json',
       // named explicitly — an unpinned call silently inherits the account's
-    // ambient default model, which cost him a Fable-5 usage-limit hit on a
-    // totally unrelated lane (Coach) once that became the default. 'sonnet'
-    // matches the convention already used for this tier of task elsewhere
-    // (see ingest.js).
-    '--model', 'sonnet',
+      // ambient default model, which cost him a Fable-5 usage-limit hit on a
+      // totally unrelated lane (Coach) once that became the default. The pin
+      // now comes from the model board (lib/modelPrefs.js) so it is settable
+      // in Settings; the default is the 'sonnet' this lane has always run on.
+      '--model', modelFor('coach-reflection'),
     '--max-budget-usd', MAX_BUDGET_USD,
       '--no-session-persistence',
     ]);
@@ -136,6 +137,7 @@ function runModel(prompt) {
 export async function runReflection(vaultPath, { force = false } = {}) {
   const state = await loadState();
   if (!force && state.lastRun === today()) return { skipped: true, reason: 'already ran today' };
+  if (laneSkipped('coach-reflection', 'the coach reflection')) return { skipped: true, reason: 'lane switched off in Settings' };
 
   const context = await buildReflectionContext(vaultPath);
   const reflection = normalizeReflection(await runModel(buildReflectionPrompt(context)));

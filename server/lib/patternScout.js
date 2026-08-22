@@ -4,6 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { NOVA_LENS } from './lens.js';
 import { createRecord, updateRecord, listRecords } from './inboxStore.js';
+import { modelFor, laneSkipped } from './modelPrefs.js';
 
 // The pattern scout — skill proposals (agents plan, build 3): once a week a
 // model reads what Hayden actually DID by hand — his captures, their routes,
@@ -152,6 +153,9 @@ async function fileProposals(proposals, marker) {
 }
 
 export async function runPatternScout(vaultPath, { force = false } = {}) {
+  // Checked BEFORE the marker record is created: a lane that is off must
+  // leave nothing behind, least of all a record stuck in 'classifying'.
+  if (laneSkipped('pattern-scout', 'the weekly pattern scout')) return { skipped: true, laneOff: true };
   if (!force && await thisWeekScoutRan()) return { skipped: true };
   const marker = await createRecord({
     id: randomUUID().slice(0, 8),
@@ -173,10 +177,10 @@ export async function runPatternScout(vaultPath, { force = false } = {}) {
     '--output-format', 'json',
     // named explicitly — an unpinned call silently inherits the account's
     // ambient default model, which cost him a Fable-5 usage-limit hit on a
-    // totally unrelated lane (Coach) once that became the default. 'sonnet'
-    // matches the convention already used for this tier of task elsewhere
-    // (see ingest.js).
-    '--model', 'sonnet',
+    // totally unrelated lane (Coach) once that became the default. The pin
+    // now comes from the model board (lib/modelPrefs.js), settable in
+    // Settings, defaulting to the 'sonnet' this lane has always run on.
+    '--model', modelFor('pattern-scout'),
     '--max-budget-usd', MAX_BUDGET_USD,
     '--session-id', randomUUID(),
   ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });

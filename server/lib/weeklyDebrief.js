@@ -12,6 +12,7 @@ import { loadRecentDays, weightTrendLine } from './healthData.js';
 import { computeStreaks } from './streaks.js';
 import { createRecord, updateRecord, listRecords } from './inboxStore.js';
 import { fileDecision } from './inbox.js';
+import { modelFor, laneSkipped } from './modelPrefs.js';
 
 // THE WEEKLY DEBRIEF — the Coach's Sunday sit-down. The Daily Review reads
 // one day; this reads the WEEK: training done vs planned, strength direction
@@ -226,6 +227,7 @@ function startDebriefJob(vaultPath, context, mode, recordId, now) {
     '--strict-mcp-config',
     '--output-format', 'json',
     '--max-budget-usd', MAX_BUDGET_USD,
+    '--model', modelFor('weekly-debrief'), // was unpinned until the model board
     '--session-id', randomUUID(),
   ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
 
@@ -272,6 +274,7 @@ function startDebriefJob(vaultPath, context, mode, recordId, now) {
 export async function runWeeklyDebrief(vaultPath, { force = false } = {}) {
   const config = await getDebriefConfig();
   if (config.mode === 'off' && !force) return { skipped: true, reason: 'off' };
+  if (laneSkipped('weekly-debrief', 'the weekly training debrief')) return { skipped: true, reason: 'lane switched off in Settings' };
   const existing = await thisWeekDebriefRecord();
   if (existing && !force) return { skipped: true, record: existing };
 

@@ -3,14 +3,16 @@ import { rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
+import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 
 const MAX_BUDGET_USD = '0.5';
 // Reading a label is OCR — the fast model handles it and the macros are always
 // reviewed before logging. Estimating a meal photo is visual portion/ingredient
-// judgement, where model strength actually moves the number, so that stays on the
-// CLI default model unless explicitly overridden. Both are env-tunable.
-const LABEL_MODEL = process.env.NOVA_FOOD_SCAN_MODEL || 'haiku';
-const MEAL_MODEL = process.env.NOVA_FOOD_SCAN_MEAL_MODEL || null; // null → CLI default
+// judgement, where model strength actually moves the number, so it runs on a
+// stronger one. Both are lanes on the model board (Settings → Claude models),
+// and NOVA_FOOD_SCAN_MODEL / NOVA_FOOD_SCAN_MEAL_MODEL still seed their
+// defaults. The meal lane used to pass NO --model at all, which meant the
+// account's ambient default — the exact hole the 21-Aug Coach fix closed.
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const jobs = new Map();
@@ -108,16 +110,19 @@ function normalizeResult(parsed) {
 }
 
 export function startFoodScan(mode, imagePaths, workDir, note) {
+  const promptModeEarly = mode === 'meal' ? 'meal' : mode === 'label' ? 'label' : 'auto';
+  const lane = promptModeEarly === 'label' ? 'scan-food-label' : 'scan-food-meal';
+  if (!laneEnabled(lane)) throw laneOffError(lane);
   const jobId = randomUUID().slice(0, 8);
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
 
   // Explicit 'label'/'meal' still honored (legacy + tests); anything else —
   // notably the multi-photo UI's 'auto' — fuses labels + food + note together.
-  const promptMode = mode === 'meal' ? 'meal' : mode === 'label' ? 'label' : 'auto';
+  const promptMode = promptModeEarly;
   const prompt = buildPrompt(promptMode, imagePaths, note);
   // label OCR → fast model; meal/auto (visual + multi-photo fusion) → strong model
-  const model = promptMode === 'label' ? LABEL_MODEL : MEAL_MODEL;
+  const model = modelFor(lane);
   const args = [
     '-p', prompt,
     '--permission-mode', 'bypassPermissions',
@@ -128,7 +133,7 @@ export function startFoodScan(mode, imagePaths, workDir, note) {
     '--max-budget-usd', MAX_BUDGET_USD,
     '--no-session-persistence',
   ];
-  if (model) args.push('--model', model);
+  args.push('--model', model); // modelFor never returns empty — the flag is always named
   const child = spawn(CLAUDE_BIN, args);
 
   let stdout = '';
@@ -170,6 +175,7 @@ export function startFoodScan(mode, imagePaths, workDir, note) {
 // Same job map and result shape as a photo scan, so the client polls the very
 // same endpoint and renders the very same preview.
 export function startFoodDescribe(description) {
+  if (!laneEnabled('food-describe')) throw laneOffError('food-describe');
   const text = String(description || '').replace(/\s+/g, ' ').trim();
   if (text.length < 3) throw new Error('describe what you ate in a few more words');
   if (text.length > 300) throw new Error('keep the description under 300 characters');
@@ -185,6 +191,7 @@ export function startFoodDescribe(description) {
     '--strict-mcp-config',
     '--output-format', 'json',
     '--max-budget-usd', MAX_BUDGET_USD,
+    '--model', modelFor('food-describe'), // was unpinned until the model board
     '--no-session-persistence',
   ]);
 

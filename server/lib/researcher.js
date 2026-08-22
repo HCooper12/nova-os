@@ -4,6 +4,7 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { createRecord, updateRecord } from './inboxStore.js';
 import { NOVA_LENS } from './lens.js';
+import { modelFor, laneOffError, laneEnabled } from './modelPrefs.js';
 
 // The Researcher — Nova's first agent that reaches OUTSIDE the vault. The
 // boundaries are structural: it runs only on an explicit "research …" ask
@@ -70,6 +71,9 @@ export async function startResearch(vaultPath, question) {
   const q = (question || '').trim();
   if (!q) throw new Error('a research question is required');
   if (q.length > 500) throw new Error('keep the research question under 500 characters');
+  // Refused before the record exists: a switched-off lane must not leave a
+  // record sitting in 'classifying' that nothing will ever resolve.
+  if (!laneEnabled('researcher')) throw laneOffError('researcher');
 
   const record = await createRecord({
     id: randomUUID().slice(0, 8),
@@ -89,6 +93,7 @@ export async function startResearch(vaultPath, question) {
 export async function retryResearch(vaultPath, record) {
   const q = String(record.text || '').replace(/^Research:\s*/, '').trim();
   if (!q) throw new Error('this research record has no question to re-run');
+  if (!laneEnabled('researcher')) throw laneOffError('researcher');
   const updated = await updateRecord(record.id, { status: 'classifying', error: null });
   runResearchJob(vaultPath, record.id, q);
   return updated;
@@ -105,10 +110,10 @@ function runResearchJob(vaultPath, recordId, q) {
     '--output-format', 'json',
     // named explicitly — an unpinned call silently inherits the account's
     // ambient default model, which cost him a Fable-5 usage-limit hit on a
-    // totally unrelated lane (Coach) once that became the default. 'sonnet'
-    // matches the convention already used for this tier of task elsewhere
-    // (see ingest.js).
-    '--model', 'sonnet',
+    // totally unrelated lane (Coach) once that became the default. The pin
+    // now comes from the model board (lib/modelPrefs.js) so it is settable
+    // in Settings; the default is the 'sonnet' this lane has always run on.
+    '--model', modelFor('researcher'),
     '--max-budget-usd', MAX_BUDGET_USD,
     '--session-id', randomUUID(),
   ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });

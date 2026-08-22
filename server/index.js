@@ -22,6 +22,7 @@ import { loopsRouter } from './routes/loops.js';
 import { todosRouter } from './routes/todos.js';
 import { stashRouter } from './routes/stash.js';
 import { opsRouter } from './routes/ops.js';
+import { modelPrefsRouter } from './routes/modelPrefs.js';
 import { voiceRouter } from './routes/voice.js';
 import { moneyRouter } from './routes/money.js';
 import { subscribe } from './lib/events.js';
@@ -153,6 +154,7 @@ async function main() {
   app.use('/api', shoppingListRouter(process.env.VAULT_PATH));
   app.use('/api', stashRouter(process.env.VAULT_PATH));
   app.use('/api', opsRouter(process.env.VAULT_PATH));
+  app.use('/api', modelPrefsRouter());
   app.use('/api', overnightRouter(process.env.VAULT_PATH));
   app.use('/api', workoutsRouter(process.env.VAULT_PATH));
   app.use('/api', journalRouter(vault, process.env.VAULT_PATH));
@@ -243,6 +245,14 @@ async function main() {
   if (process.env.ICLOUD_USERNAME && process.env.ICLOUD_APP_PASSWORD) startCalendarWatch();
 
   app.use((err, req, res, next) => {
+    // A lane the user switched off is not a fault — it is the setting doing
+    // exactly what he asked. Saying "internal error" to that would be the
+    // dishonest-degradation failure the whole model board exists to avoid,
+    // so it answers 409 carrying the reason in words he can act on.
+    if (err?.laneOff) {
+      console.log(`lane "${err.laneOff}" is off — refused ${req.method} ${req.originalUrl}`);
+      return res.status(409).json({ error: err.message, laneOff: err.laneOff });
+    }
     console.error(err);
     res.status(500).json({ error: 'internal error' });
   });

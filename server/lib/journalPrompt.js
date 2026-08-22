@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
+import { modelFor, laneOffError, laneEnabled } from './modelPrefs.js';
 
 const MAX_BUDGET_USD = '0.3';
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
@@ -24,6 +25,7 @@ Write ONE short, thoughtful journaling prompt (1-2 sentences) for today. You may
 }
 
 export function startPromptJob(seed) {
+  if (!laneEnabled('journal-prompt')) throw laneOffError('journal-prompt');
   const jobId = randomUUID().slice(0, 8);
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
@@ -36,10 +38,10 @@ export function startPromptJob(seed) {
     '--output-format', 'json',
     // named explicitly — an unpinned call silently inherits the account's
     // ambient default model, which cost him a Fable-5 usage-limit hit on a
-    // totally unrelated lane (Coach) once that became the default. 'sonnet'
-    // matches the convention already used for this tier of task elsewhere
-    // (see ingest.js).
-    '--model', 'sonnet',
+    // totally unrelated lane (Coach) once that became the default. The pin
+    // now comes from the model board (lib/modelPrefs.js) so it is settable
+    // in Settings; the default is the 'sonnet' this lane has always run on.
+    '--model', modelFor('journal-prompt'),
     '--max-budget-usd', MAX_BUDGET_USD,
     '--no-session-persistence',
   ]);

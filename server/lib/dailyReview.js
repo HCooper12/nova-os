@@ -18,6 +18,7 @@ import { listTodos } from './todos.js';
 import { preferencesContext } from './learning.js';
 import { createRecord, updateRecord, listRecords } from './inboxStore.js';
 import { fileDecision } from './inbox.js';
+import { modelFor, laneSkipped } from './modelPrefs.js';
 
 // THE DAILY REVIEW — Nova's flagship intelligent surface. Once a day, a model
 // reasons across everything (profile, health, training, nutrition, calendar,
@@ -212,10 +213,10 @@ function startReviewJob(vaultPath, context, mode, recordId, now) {
     '--output-format', 'json',
     // named explicitly — an unpinned call silently inherits the account's
     // ambient default model, which cost him a Fable-5 usage-limit hit on a
-    // totally unrelated lane (Coach) once that became the default. 'sonnet'
-    // matches the convention already used for this tier of task elsewhere
-    // (see ingest.js).
-    '--model', 'sonnet',
+    // totally unrelated lane (Coach) once that became the default. The pin
+    // now comes from the model board (lib/modelPrefs.js) so it is settable
+    // in Settings; the default is the 'sonnet' this lane has always run on.
+    '--model', modelFor('daily-review'),
     '--max-budget-usd', MAX_BUDGET_USD,
     '--session-id', randomUUID(),
   ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -267,6 +268,9 @@ function startReviewJob(vaultPath, context, mode, recordId, now) {
 export async function runDailyReview(vaultPath, { force = false } = {}) {
   const config = await getReviewConfig();
   if (config.mode === 'off' && !force) return { skipped: true, reason: 'off' };
+  // The lane switch outranks `force`: a forced run of a lane he has turned
+  // off is still a run of a lane he turned off.
+  if (laneSkipped('daily-review', 'the daily review')) return { skipped: true, reason: 'lane switched off in Settings' };
   const existing = await todayReviewRecord();
   if (existing && !force) return { skipped: true, record: existing };
 

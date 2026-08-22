@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { beat } from './heartbeat.js';
+import { modelFor, laneSkipped } from './modelPrefs.js';
 
 // Topic Pulse — the brief that SHOWS. For each topic on Hayden's Interests
 // page (his to edit, in the vault), a small web-read-only run fetches a few
@@ -117,7 +118,7 @@ export async function refreshPulseTopic(topic, { runner } = {}) {
       '--disallowedTools', PULSE_DISALLOWED,
       '--strict-mcp-config',
       '--output-format', 'json',
-      '--model', 'haiku',
+      '--model', modelFor('pulse'),
       '--max-budget-usd', MAX_BUDGET_USD,
       '--session-id', randomUUID(),
     ], { stdio: ['ignore', 'pipe', 'pipe'] });
@@ -147,6 +148,9 @@ export async function refreshPulseTopic(topic, { runner } = {}) {
 // Refresh every interest, sequentially, one model at a time. Topics that
 // fail keep their previous cache — stale-and-labelled beats gone.
 export async function refreshAllPulses(vaultPath, { runner } = {}) {
+  // A real runner injected by a test still runs; only the spawning path is
+  // gated, and only when nothing was injected.
+  if (!runner && laneSkipped('pulse', 'the overnight pulse sweep')) return { refreshed: 0, failed: 0, laneOff: true };
   const topics = await loadInterests(vaultPath);
   const summary = { refreshed: 0, failed: 0 };
   for (const topic of topics) {
