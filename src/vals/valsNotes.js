@@ -20,6 +20,13 @@ export function valsNotes(app, ctx) {
   const noteList = allNotesNorm
     .filter(n => (st.noteType === 'All' || n.typeLabel === st.noteType || (st.noteType === 'NOTE' && n.typeLabel === 'IDENTITY')) && (!q || n.searchText.includes(q)))
     .map(n => ({ title: n.title, type: n.typeLabel, date: n.date, select: () => app.selectNote(n.id),
+      // Intent prefetch: the body starts loading when the finger lands, not
+      // when it lifts — so the reader is usually already filled by the time
+      // the tap registers. ensureNoteDetail is idempotent and caches, so the
+      // tap that follows costs nothing. A scroll gesture also begins with a
+      // pointerdown on a row, which at worst spends one small cached GET per
+      // flick; the read is free and the write path is untouched.
+      warm: () => app.ensureNoteDetail(n.id),
       typeStyle: { font: "500 8.5px " + mono, letterSpacing: '.08em', color: n.color, flex: 'none' },
       style: { cursor: 'pointer', padding: '10px 12px', borderRadius: '9px', background: st.openNoteId === n.id ? 'color-mix(in srgb, var(--nv-gold) 09%, transparent)' : 'none', border: st.openNoteId === n.id ? '1px solid color-mix(in srgb, var(--nv-gold) 22%, transparent)' : '1px solid transparent' } }));
 

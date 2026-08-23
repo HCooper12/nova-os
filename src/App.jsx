@@ -2527,12 +2527,20 @@ export default class App extends Component {
     if (!id || (this.state.liveNoteDetails[id] && !this.state.liveNoteDetails[id].error)) return;
     const conn = getConnection();
     if (!conn) return;
+    // SINGLE-FLIGHT. Now that pointerdown prefetches and the click still calls
+    // this, one tap reaches here twice — and the second call arrives before
+    // the first response has landed in state, so the "already loaded" guard
+    // above cannot see it. Without this key, intent-prefetch would double
+    // every note fetch instead of speeding it up.
+    if (!this.noteDetailInFlight) this.noteDetailInFlight = new Set();
+    if (this.noteDetailInFlight.has(id)) return;
+    this.noteDetailInFlight.add(id);
     api.noteDetail(conn, id).then((detail) => {
       this.setState((s) => ({ liveNoteDetails: { ...s.liveNoteDetails, [id]: detail } }));
     }).catch(() => {
       // an error sentinel — the silent catch left the pane on "Loading…" forever
       this.setState((s) => ({ liveNoteDetails: { ...s.liveNoteDetails, [id]: { error: true } } }));
-    });
+    }).finally(() => this.noteDetailInFlight.delete(id));
   }
   ensureReviewSummary(pageId) {
     const conn = getConnection();
@@ -4079,6 +4087,12 @@ export default class App extends Component {
       // always already loaded it and this is a no-op (import() is memoized);
       // it only earns its keep on a tap that beat the prefetch.
       go: (screen) => () => { warmScreen(screen); this.navigate(screen, { paletteOpen: false }); },
+      // …and again on pointerdown, which lands ~100ms before the click. Idle
+      // prefetch has usually loaded everything already, so both are normally
+      // no-ops (import() is memoized) — this only earns its keep on a tap
+      // that beats the prefetch, which is exactly the cold-boot tap that
+      // used to stall on a chunk parse.
+      warm: (screen) => () => warmScreen(screen),
     };
     return {
       ...valsRecipes(this, ctx),
@@ -4267,6 +4281,11 @@ export default class App extends Component {
     if (this.lastPrewarm && now - this.lastPrewarm < 4000) return; // one per turn, not per keystroke
     this.lastPrewarm = now;
     api.prewarmAsk(conn, this.state.voiceSessionId || null);
+    // Warm the SPEAKING side too, while he is still talking. The ElevenLabs
+    // path already prewarms; the browser path paid its voice-list resolve on
+    // the first sentence instead. Resolving here moves that off the critical
+    // path — and it is safe to call unconditionally because it only reads.
+    this.resolveSpeechVoice();
   }
   // "STAND DOWN" — the spoken way out. A conversation he can't end by
   // talking isn't a conversation; it's a machine that has to be tapped.
@@ -4411,6 +4430,13 @@ export default class App extends Component {
         else show();
       }
       if (pending) {
+        // The brief is the strongest nav signal in the app: when it ends on a
+        // proposal, the next tap is almost always into the Inbox to answer it.
+        // Warm that chunk while Nova is still talking, so the screen he was
+        // just told to visit is already parsed when he gets there.
+        // (The plan called for a Brief→Train prefetch; the brief has no Train
+        // beat — its beats point at the Inbox. Warming what it actually names.)
+        warmScreen('inbox');
         const arm = () => this.setState({ voicePendingProposal: { recordId: pending.recordId, title: pending.title } });
         if (spoken) this.queueTtsFinalize(arm); else arm();
       }
@@ -4924,12 +4950,27 @@ export default class App extends Component {
       this.speakFallback(clean, finish);
     }
   }
+  // The chosen SpeechSynthesisVoice, resolved once and kept. getVoices() plus
+  // three fallback scans ran on EVERY sentence of a spoken reply, and on this
+  // machine the list is ~200 voices — work repeated per sentence for an answer
+  // that never changes mid-reply. Re-resolves only when his pick changes or
+  // the engine's voice list does (it loads asynchronously, and on iOS it can
+  // arrive empty and fill in later).
+  resolveSpeechVoice() {
+    let voices = [];
+    try { voices = window.speechSynthesis.getVoices() || []; } catch { return null; }
+    const key = `${this.state.speechVoiceURI || ''}|${voices.length}`;
+    if (this.speechVoiceKey === key) return this.speechVoiceCached;
+    const chosen = this.state.speechVoiceURI && voices.find((v) => v.voiceURI === this.state.speechVoiceURI);
+    const picked = chosen || voices.find((v) => v.lang === 'en-AU') || voices.find((v) => (v.lang || '').startsWith('en')) || null;
+    // don't cache a miss from an empty list — that's "not loaded yet", not "none"
+    if (voices.length) { this.speechVoiceKey = key; this.speechVoiceCached = picked; }
+    return picked;
+  }
   speakFallback(text, finish) {
     try {
       const u = new SpeechSynthesisUtterance(text);
-      const voices = window.speechSynthesis.getVoices();
-      const chosen = this.state.speechVoiceURI && voices.find((v) => v.voiceURI === this.state.speechVoiceURI);
-      u.voice = chosen || voices.find((v) => v.lang === 'en-AU') || voices.find((v) => (v.lang || '').startsWith('en')) || null;
+      u.voice = this.resolveSpeechVoice();
       u.onend = finish;
       u.onerror = finish;
       window.speechSynthesis.speak(u);

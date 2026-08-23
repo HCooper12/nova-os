@@ -10,7 +10,7 @@ import { dtf } from './fmt.js';
 // connection truth valsMission shares (statusChip, missionStatusItems).
 export function valsChrome(app, ctx) {
   const st = app.state;
-  const { demoMode, isOffline, go, userName, wakeWord, usingLiveRecipes, usingLiveWorkouts, liveRoutines, usingLiveNotes, journalDays, shoppingItems, statusChip, agentsLiveCount, inboxPendingCount } = ctx;
+  const { demoMode, isOffline, go, warm, userName, wakeWord, usingLiveRecipes, usingLiveWorkouts, liveRoutines, usingLiveNotes, journalDays, shoppingItems, statusChip, agentsLiveCount, inboxPendingCount } = ctx;
 
   const navStyle = (act) => ({ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '8px', cursor: 'pointer',
     fontFamily: "var(--nv-font-ui)", fontWeight: 600, fontSize: '14px', letterSpacing: '.02em',
@@ -20,7 +20,7 @@ export function valsChrome(app, ctx) {
     boxShadow: act ? 'var(--nv-glow-tab)' : 'none',
     textShadow: act ? 'var(--nv-tsh-tab)' : 'none' });
   const numStyle = (act) => ({ fontFamily: "var(--nv-font-mono)", fontSize: '9px', width: '20px', flex: 'none', color: act ? 'var(--nv-acc)' : 'var(--nv-ink40)' });
-  const mkNav = (label, numeral, screen, count) => ({ label, numeral, screen, count, go: go(screen), style: navStyle(st.screen === screen), numStyle: numStyle(st.screen === screen) });
+  const mkNav = (label, numeral, screen, count) => ({ label, numeral, screen, count, go: go(screen), warm: warm(screen), style: navStyle(st.screen === screen), numStyle: numStyle(st.screen === screen) });
   // his saved order, applied inside each sidebar group. Anything the order
   // doesn't mention keeps its declared position at the end rather than
   // jumping to the front — a new screen must never reshuffle his list.
@@ -129,7 +129,7 @@ export function valsChrome(app, ctx) {
   const tabOrder = (st.tabOrder && st.tabOrder.length) ? st.tabOrder : TAB_META.map((t) => t[0]);
   const tabs = tabOrder.map((screen, i) => {
     const act = st.screen === screen;
-    return { num: romanFor(i), label: tabLabel(screen), screen, go: go(screen), active: act,
+    return { num: romanFor(i), label: tabLabel(screen), screen, go: go(screen), warm: warm(screen), active: act,
       // the mobile UI had NO pending signal at all — the badge the app icon
       // shows must exist inside the app too
       count: screen === 'inbox' && inboxPendingCount > 0 ? inboxPendingCount : null,

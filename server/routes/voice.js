@@ -71,6 +71,14 @@ export function voiceRouter(vaultPath) {
     // sees a word. Build it now, while he is still speaking; the ask picks
     // it up from the cache (see buildAskContext).
     else buildAskContext(vaultPath, null).catch(() => {});
+    // Warm the VOICE too, not just the thinking. A cold Kokoro sidecar spends
+    // ~8s loading its model, and that was paid AFTER the answer came back —
+    // the one moment the wait is audible. Booting it now means it loads while
+    // he is still speaking. Only when local TTS is actually the chosen path:
+    // spawning a Python process for someone on ElevenLabs would be waste.
+    import('../lib/ttsLocal.js')
+      .then(({ localTtsEnabled, ensureSidecar }) => (localTtsEnabled() ? ensureSidecar() : null))
+      .catch(() => { /* best-effort: a cold sidecar still boots on first use */ });
     res.json({ warmed });
   });
 

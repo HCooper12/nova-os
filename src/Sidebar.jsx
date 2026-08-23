@@ -25,7 +25,7 @@ export function Sidebar({ v }) {
         <div style={groupLabel}>WORKSPACE</div>
         <div style={css("display:flex;flex-direction:column;gap:2px")}>
           {v.navMain.map((nav) => (
-            <Interactive key={nav.label} onClick={nav.go} base={nav.style} hoverStyle="background:rgba(255,255,255,.05)">
+            <Interactive key={nav.label} onClick={nav.go} onPointerDown={nav.warm} base={nav.style} hoverStyle="background:rgba(255,255,255,.05)">
               {v.appleStyle ? <TabIcon name={nav.screen} size={16} /> : <span style={nav.numStyle}>{nav.numeral}</span>}<span>{nav.label}</span>
               {nav.count != null && (
                 <span style={nav.countHot
@@ -41,7 +41,7 @@ export function Sidebar({ v }) {
         <div style={groupLabel}>VAULT · OBSIDIAN</div>
         <div style={css("display:flex;flex-direction:column;gap:2px")}>
           {v.navVault.map((nav) => (
-            <Interactive key={nav.label} onClick={nav.go} base={nav.style} hoverStyle="background:rgba(255,255,255,.05)">
+            <Interactive key={nav.label} onClick={nav.go} onPointerDown={nav.warm} base={nav.style} hoverStyle="background:rgba(255,255,255,.05)">
               {v.appleStyle ? <TabIcon name={nav.screen} size={16} /> : <span style={nav.numStyle}>{nav.numeral}</span>}<span>{nav.label}</span>
               <span style={css(`margin-left:auto;font:400 9px ${M};color:var(--nv-ink40)`)}>{nav.count}</span>
             </Interactive>
@@ -53,7 +53,7 @@ export function Sidebar({ v }) {
         <div style={groupLabel}>SYSTEM</div>
         <div style={css("display:flex;flex-direction:column;gap:2px")}>
           {v.navSystem.map((nav) => (
-            <Interactive key={nav.label} onClick={nav.go} base={nav.style} hoverStyle="background:rgba(255,255,255,.05)">
+            <Interactive key={nav.label} onClick={nav.go} onPointerDown={nav.warm} base={nav.style} hoverStyle="background:rgba(255,255,255,.05)">
               {v.appleStyle ? <TabIcon name={nav.screen} size={16} /> : <span style={nav.numStyle}>{nav.numeral}</span>}<span>{nav.label}</span>
             </Interactive>
           ))}

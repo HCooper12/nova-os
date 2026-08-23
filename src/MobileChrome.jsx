@@ -20,7 +20,7 @@ const R = "var(--nv-font-ui)";
 // comfortably past the 44pt minimum because the padding is vertical.
 function DockTab({ t, size = 21 }) {
   return (
-    <div onClick={t.go} style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', minWidth: '44px', padding: '6px 4px', cursor: 'pointer', borderRadius: '13px', color: t.active ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: t.active ? 'var(--nv-acc-bg)' : 'none' }}>
+    <div onClick={t.go} onPointerDown={t.warm} style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', minWidth: '44px', padding: '6px 4px', cursor: 'pointer', borderRadius: '13px', color: t.active ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: t.active ? 'var(--nv-acc-bg)' : 'none' }}>
       <TabIcon name={t.screen} size={size} />
       <span style={css(`font:600 9px ${R};letter-spacing:.01em;white-space:nowrap`)}>{t.label}</span>
       {t.count != null && (

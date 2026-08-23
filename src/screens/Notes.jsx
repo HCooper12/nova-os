@@ -31,7 +31,7 @@ export function Notes({ v }) {
           </div>
           <div style={css("flex:1;overflow-y:auto;padding:0 8px 10px;display:flex;flex-direction:column;gap:2px")}>
             {v.noteList.map((n, i) => (
-              <Interactive key={i} onClick={n.select} base={n.style} hoverStyle="background:rgba(255,255,255,.05)">
+              <Interactive key={i} onClick={n.select} onPointerDown={n.warm} base={n.style} hoverStyle="background:rgba(255,255,255,.05)">
                 <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}><span style={css("font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{n.title}</span><span style={n.typeStyle}>{n.type}</span></div>
                 <div style={css("margin-top:3px;font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{n.date}</div>
               </Interactive>
