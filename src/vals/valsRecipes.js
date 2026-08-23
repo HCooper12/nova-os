@@ -170,7 +170,7 @@ export function valsRecipes(app, ctx) {
     recipesHeaderLabel: usingLiveRecipes ? `${st.liveRecipes.length} RECIPES · LIVE FROM OBSIDIAN` : `${app.recipes.length} RECIPES · DEMO DATA`,
     recipeFilters: filters.map(f => ({ label: f, go: () => app.setState({ recipeFilter: f }), style: chip(st.recipeFilter === f) })),
     recipeSearch: st.recipeSearch || '',
-    setRecipeSearch: (e) => app.setState({ recipeSearch: e.target.value }),
+    setRecipeSearch: (e) => app.setState({ recipeSearch: typeof e === 'string' ? e : e.target.value }),
     // "what can I still eat tonight?" — from real remaining kcal, or hidden
     // entirely when no target is set (never invent a budget)
     recipeFitsAvailable: usingLiveRecipes && kcalLeft != null,

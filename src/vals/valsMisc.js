@@ -178,7 +178,9 @@ export function valsMisc(app, ctx) {
       ? 'Microphone blocked — allow it in iOS Settings → Nova'
       : `Dictation stopped (${err}) — tap the mic to retry`),
     orbKey: (e) => { if (e.key === 'Enter') app.doOrb(); },
-    sendOrb: () => app.doOrb(),
+    // takes the live value from the LocalInput composer; without one it
+    // falls back to App state (the SEND button path — a click blurs first)
+    sendOrb: (text) => app.doOrb(text),
     primeSpeech: () => app.primeSpeech(),
     // conversation mode — the hands-free back-and-forth loop
     convMode: st.voiceConvMode,

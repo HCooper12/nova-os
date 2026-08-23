@@ -4023,8 +4023,12 @@ export default class App extends Component {
       this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: `Couldn’t ${approve ? 'approve' : 'dismiss'} that: ${e.message}. It’s still pending in your Inbox.` }] }));
     });
   }
-  doOrb() {
-    const q = this.state.orbInput.trim(); if (!q) return;
+  // `text`: the live value handed over by the LocalInput composer, which may
+  // not have reached App state yet (see LocalInput.jsx). Called without one
+  // — the SEND button, a programmatic send — it falls back to state, which
+  // is correct there because a click blurs the field and flushes it first.
+  doOrb(text) {
+    const q = (typeof text === 'string' ? text : this.state.orbInput).trim(); if (!q) return;
     this.resumeConv(); // anything sent un-pauses the conversation loop
     this.primeSpeech(); // inside the user gesture — unlocks audio on iOS
     // A short plain yes/no right after a proposal is a CONFIRMATION, not a

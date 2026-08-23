@@ -511,21 +511,27 @@ export function valsInbox(app, ctx) {
     inboxInput: st.inboxInput,
     setInboxInput: (e) => app.setInboxInput(e),
     inboxCaptureBusy: st.inboxCaptureBusy,
-    submitInboxCapture: (source) => app.captureToInbox(st.inboxInput, source),
-    submitResearch: () => {
-      const q = st.inboxInput.trim();
+    // Every submit below takes the text as an ARGUMENT, falling back to App
+    // state only when called without one (the toolbar buttons). The composer
+    // is a LocalInput — its live text hasn't necessarily reached App state
+    // when a submit fires, so reading st.inboxInput here would drop the last
+    // characters typed. A lost capture is a lost thought; the value travels
+    // with the call instead of being looked up.
+    submitInboxCapture: (source, text) => app.captureToInbox(text ?? st.inboxInput, source),
+    submitResearch: (text) => {
+      const q = (text ?? st.inboxInput).trim();
       if (!q) { app.toastMsg('Type the research question first'); return; }
       app.setState({ inboxInput: '' });
       app.startResearch(q);
     },
-    submitWatch: () => {
-      const t = st.inboxInput.trim();
+    submitWatch: (text) => {
+      const t = (text ?? st.inboxInput).trim();
       if (!/https?:\/\//.test(t)) { app.toastMsg('Paste the video link first (a question alongside it is welcome)'); return; }
       app.setState({ inboxInput: '' });
       app.startVideoWatch(t);
     },
-    submitWatchAnalyse: () => {
-      const t = st.inboxInput.trim();
+    submitWatchAnalyse: (text) => {
+      const t = (text ?? st.inboxInput).trim();
       const url = (t.match(/https?:\/\/\S+/) || [])[0];
       if (!url) { app.toastMsg('Paste the video link first'); return; }
       app.setState({ inboxInput: '' });

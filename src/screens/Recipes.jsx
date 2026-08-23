@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
+import { LocalInput } from '../LocalInput.jsx';
 import { VoicePanel } from '../VoicePanels.jsx';
 import { useDictation } from '../useDictation.js';
 
@@ -350,7 +351,10 @@ export function Recipes({ v }) {
           {v.recipeFilters.map((f) => (
             <Interactive key={f.label} as="span" onClick={f.go} base={f.style} hoverStyle="border:1px solid color-mix(in srgb, var(--nv-gold) 50%, transparent)">{f.label}</Interactive>
           ))}
-          <input value={v.recipeSearch} onChange={v.setRecipeSearch} placeholder="Search recipes or ingredients…"
+          {/* local echo, filter-only (no submit): typing no longer
+              re-renders the whole app per character; the 150ms debounce
+              drives the actual filtering. */}
+          <LocalInput value={v.recipeSearch} onChange={(t) => v.setRecipeSearch(t)} submitOnEnter={false} placeholder="Search recipes or ingredients…"
             style={css("width:190px;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:7px 11px;color:var(--nv-ink);font:400 12px var(--nv-font-ui);outline:none")} />
           {v.recipeFitsAvailable && (
             <Interactive as="span" onClick={v.toggleRecipeFits}

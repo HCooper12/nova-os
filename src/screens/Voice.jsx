@@ -6,6 +6,7 @@ import { Clock } from '../Clock.jsx';
 import { useDictation } from '../useDictation.js';
 import { VoicePanel, SourcesPanel } from '../VoicePanels.jsx';
 import { TypeText } from '../TypeText.jsx';
+import { LocalInput } from '../LocalInput.jsx';
 import { VoiceWaveform } from '../VoiceWaveform.jsx';
 import { StageCard } from '../StageCard.jsx';
 
@@ -222,16 +223,17 @@ export function Voice({ v }) {
             )}
           </div>
           <div style={css("display:flex;gap:8px;margin-top:14px")}>
-            <Interactive
-              as="input"
+            {/* local echo — see LocalInput.jsx. Enter hands the live text
+                straight to sendOrb so nothing can be lost to the debounce;
+                dictation still writes in through the value prop. */}
+            <LocalInput
               value={v.orbInput}
-              onChange={v.setOrbInput}
-              onKeyDown={v.orbKey}
+              onChange={(text) => v.setOrbInputValue(text)}
+              onSubmit={(text) => v.sendOrb(text)}
               placeholder="Speak or type to Nova…"
-              base={`flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font:400 12.5px ${M};outline:none`}
-              focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)"
+              style={css(`flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font:400 12.5px ${M};outline:none`)}
             />
-            <Interactive as="span" onClick={v.sendOrb} base={`cursor:pointer;display:flex;align-items:center;font:500 11px ${M};padding:0 16px;border-radius:9px;background:var(--nv-cy);color:var(--nv-on-acc)`} hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">SEND</Interactive>
+            <Interactive as="span" onClick={() => v.sendOrb()} base={`cursor:pointer;display:flex;align-items:center;font:500 11px ${M};padding:0 16px;border-radius:9px;background:var(--nv-cy);color:var(--nv-on-acc)`} hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">SEND</Interactive>
           </div>
         </Panel>
         <div style={{ flex: '1 1 420px', minWidth: '340px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px',
