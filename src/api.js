@@ -203,7 +203,7 @@ export const api = {
   // manual:true marks a HUMAN edit — exempt from the past-day steps guard
   // that blocks unfiltered Shortcut re-pushes from clobbering settled days
   saveHealthDay: (conn, date, metrics) => post(conn, '/api/health-data', { date, ...metrics, manual: true }),
-  startIngest: (conn, text, sourceUrl) => post(conn, '/api/ingest', { text, sourceUrl }),
+  startIngest: (conn, text, sourceUrl, book) => post(conn, '/api/ingest', { text, sourceUrl, ...(book ? { book } : {}) }),
   ingestJob: (conn, jobId) => call(conn, `/api/ingest/${encodeURIComponent(jobId)}`),
   approveIngest: (conn, jobId) => post(conn, `/api/ingest/${encodeURIComponent(jobId)}/approve`),
   discardIngest: (conn, jobId) => post(conn, `/api/ingest/${encodeURIComponent(jobId)}/discard`),

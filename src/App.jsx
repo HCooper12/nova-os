@@ -422,7 +422,7 @@ export default class App extends Component {
     journalOpenDate: null, journalFilter: 'all',
 
     // transcript ingest
-    ingestModalOpen: false, ingestText: '', ingestSourceUrl: '',
+    ingestModalOpen: false, ingestText: '', ingestSourceUrl: '', ingestBookTitle: '', ingestBookAuthor: '',
     ingestJobId: null, ingestStatus: 'idle', ingestPreview: null, ingestError: null,
   };
 
@@ -2745,7 +2745,7 @@ export default class App extends Component {
   // ---------- transcript ingest ----------
   openIngestModal() {
     if (!getConnection()) { this.toastMsg('Connect a backend in Settings first'); return; }
-    this.setState({ ingestModalOpen: true, ingestText: '', ingestSourceUrl: '' });
+    this.setState({ ingestModalOpen: true, ingestText: '', ingestSourceUrl: '', ingestBookTitle: '', ingestBookAuthor: '' });
   }
   closeIngestModal() {
     this.setState({ ingestModalOpen: false });
@@ -2760,6 +2760,14 @@ export default class App extends Component {
   submitIngest() {
     const text = this.state.ingestText.trim();
     const sourceUrl = this.state.ingestSourceUrl.trim();
+    const title = this.state.ingestBookTitle.trim();
+    const author = this.state.ingestBookAuthor.trim();
+    // A book with no pasted text is a Librarian research run — model-gated
+    // like research and watch (deep research is a cost decision, his call).
+    if (title && author && !text && !sourceUrl) {
+      this.gateModelChoice('book', (model) => this.beginIngestJob(null, null, { title, author, model }));
+      return;
+    }
     if (!text && !sourceUrl) return;
     this.beginIngestJob(text, sourceUrl);
   }
@@ -2768,11 +2776,11 @@ export default class App extends Component {
   startVideoDeepIngest(url) {
     this.beginIngestJob('', url);
   }
-  beginIngestJob(text, sourceUrl) {
+  beginIngestJob(text, sourceUrl, book) {
     const conn = getConnection();
     if (!conn) return;
-    this.setState({ ingestModalOpen: false, ingestJobId: null, ingestStatus: 'staging', ingestPreview: null, ingestError: null });
-    api.startIngest(conn, text || undefined, sourceUrl || undefined).then(({ jobId }) => {
+    this.setState({ ingestModalOpen: false, ingestJobId: null, ingestStatus: book ? 'researching' : 'staging', ingestPreview: null, ingestError: null });
+    api.startIngest(conn, text || undefined, sourceUrl || undefined, book || undefined).then(({ jobId }) => {
       this.setState({ ingestJobId: jobId });
       this.startPoll('ingest', () => api.ingestJob(conn, jobId), {
         intervalMs: 3000,
@@ -3973,6 +3981,14 @@ export default class App extends Component {
       if (/(youtube\.com|youtu\.be|vimeo|tiktok|instagram|twitch|x\.com|twitter)/i.test(u) && /watch\?v=|youtu\.be\/|\/reel\/|\/shorts\/|\/video\/|\/p\/|\/status\//i.test(u)) return L('watch', 'WATCH', 'a video — the Watcher pulls the transcript and drafts a verdict');
       return L('research', 'RESEARCH', 'a link to read — the Researcher cites what it finds');
     }
+    // mirrors server/lib/intentRouter.js parseBookIntent — before research
+    // and capture, or "add book X by Y" would land in the Inbox as a todo
+    const bookM = /\b(?:add|ingest|research|get|read|pull in|bring in)\b[^.?!]{0,30}?\bbook\b\s+(.+?)\s+by\s+(.+?)\s*[.?!]?\s*$/i.exec(raw);
+    if (bookM) {
+      const strip = (s) => s.trim().replace(/^["'“”]+|["'“”]+$/g, '').trim();
+      const title = strip(bookM[1]); const author = strip(bookM[2]);
+      if (title && author) return { ...L('book', 'LIBRARIAN', `the Librarian researches "${title}" and weaves it into your vault`), book: { title, author } };
+    }
     if (study) return L('study', 'STUDY', 'a creator/catalogue analysis');
     if (/\b(build|implement|refactor|fix the bug|write a (script|test|function)|add a (feature|test)|deploy|commit|codebase|in nova|to nova|the repo)\b/i.test(raw)) return L('code', 'CLAUDE CODE', 'a build request — runs as a Claude Code session inside Nova');
     if (/\b(research|look up|find out|dig into|sources? on)\b/i.test(raw)) return L('research', 'RESEARCH', 'research with citations');
@@ -3997,6 +4013,15 @@ export default class App extends Component {
     // same as the Inbox composer and Ask Nova's voice directive. Bypasses
     // /api/intent for these two and calls their own routes directly, same
     // as the code lane already bypasses it above.
+    // a book is a Librarian research run — gated like research/watch, and it
+    // rides the ingest job UI (review → approve/undo) rather than the inbox
+    if (preview?.lane === 'book' && preview.book) {
+      this.gateModelChoice('book', (model) => {
+        this.beginIngestJob(null, null, { ...preview.book, model });
+        this.toastMsg(`Librarian — researching "${preview.book.title}"`);
+      });
+      return;
+    }
     if (preview?.lane === 'research' || preview?.lane === 'watch') {
       this.gateModelChoice(preview.lane, (model) => {
         const dispatch = preview.lane === 'research' ? api.research(conn, text, model) : api.videoWatch(conn, text, model);

@@ -35,6 +35,15 @@ export function intentRouter(vaultPath) {
         if (!url) return res.status(400).json({ error: 'no video link found' });
         out.record = await startVideoWatch(vaultPath, url, decision.prose || found?.question || '');
         out.said = 'On it — pulling the transcript. The verdict lands in your Inbox.';
+      } else if (lane === 'book') {
+        // A book from the front door (voice, Telegram, the palette). The
+        // model-gated UI path calls /api/ingest directly with its choice;
+        // this path runs on the board's default for the librarian lane.
+        const meta = decision.book;
+        if (!meta) return res.status(400).json({ error: 'could not read a title and author — try "add book <title> by <author>"' });
+        const { startIngest } = await import('../lib/ingest.js');
+        out.jobId = startIngest(vaultPath)(null, undefined, meta);
+        out.said = `On it — the Librarian is researching "${meta.title}" by ${meta.author}. The draft pages land for your review.`;
       } else if (lane === 'research') {
         const { startResearch } = await import('../lib/researcher.js');
         const q = decision.urls?.length ? `${decision.prose || 'Read and summarise this'}: ${decision.urls.join(' ')}` : text;

@@ -16,7 +16,7 @@ function ChangeCard({ change }) {
 }
 
 export function IngestReview({ v }) {
-  const processing = v.ingestStatus === 'fetching' || v.ingestStatus === 'digesting' || v.ingestStatus === 'staging' || v.ingestStatus === 'running';
+  const processing = v.ingestStatus === 'researching' || v.ingestStatus === 'fetching' || v.ingestStatus === 'digesting' || v.ingestStatus === 'staging' || v.ingestStatus === 'running';
   const applying = v.ingestStatus === 'applying';
   return (
     <div role="dialog" aria-modal="true" aria-label="Review ingest changes" onClick={processing ? undefined : v.closeIngestReview} style={css("position:fixed;inset:0;background:rgba(8,5,12,.72);backdrop-filter:blur(6px);z-index:60;display:flex;align-items:center;justify-content:center;padding:40px;overflow-y:auto")}>
@@ -35,7 +35,7 @@ export function IngestReview({ v }) {
               <span style={css("width:6px;height:6px;border-radius:50%;background:var(--nv-gold);animation:dotBlink 1s .2s infinite")}></span>
               <span style={css("width:6px;height:6px;border-radius:50%;background:var(--nv-gold);animation:dotBlink 1s .4s infinite")}></span>
             </div>
-            <div style={css("font-size:13px;color:color-mix(in srgb, var(--nv-ink) 60%, transparent);text-align:center")}>{v.ingestStatus === 'fetching' ? 'Fetching the video transcript…' : v.ingestStatus === 'digesting' ? 'Long video — condensing the transcript in passes…' : v.ingestStatus === 'staging' ? 'Preparing a scratch copy of your vault…' : 'Reading it and drafting pages — this can take a minute or two…'}</div>
+            <div style={css("font-size:13px;color:color-mix(in srgb, var(--nv-ink) 60%, transparent);text-align:center")}>{v.ingestStatus === 'researching' ? 'The Librarian is researching the book — triangulating public sources takes a few minutes…' : v.ingestStatus === 'fetching' ? 'Fetching the video transcript…' : v.ingestStatus === 'digesting' ? 'Long video — condensing the transcript in passes…' : v.ingestStatus === 'staging' ? 'Preparing a scratch copy of your vault…' : 'Reading it and drafting pages — this can take a minute or two…'}</div>
           </div>
         )}
 

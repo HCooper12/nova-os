@@ -120,6 +120,7 @@ export function valsMisc(app, ctx) {
       question: {
         research: 'Want Opus for this research, or is Sonnet fine?',
         watch: 'Want Opus for this video, or is Sonnet fine?',
+        book: 'Want Opus on this book? Deeper research finds more of its ideas and connections — or Sonnet is fine.',
       }[st.modelChoicePending.lane] || 'Want Opus for this, or is Sonnet fine?',
       pickOpus: () => app.resolveModelChoice('opus'),
       pickSonnet: () => app.resolveModelChoice('sonnet'),
@@ -275,6 +276,10 @@ export function valsMisc(app, ctx) {
     setIngestText: (e) => app.setState({ ingestText: e.target.value }),
     ingestSourceUrl: st.ingestSourceUrl,
     setIngestSourceUrl: (e) => app.setState({ ingestSourceUrl: e.target.value }),
+    ingestBookTitle: st.ingestBookTitle,
+    setIngestBookTitle: (e) => app.setState({ ingestBookTitle: e.target.value }),
+    ingestBookAuthor: st.ingestBookAuthor,
+    setIngestBookAuthor: (e) => app.setState({ ingestBookAuthor: e.target.value }),
     onIngestFile: (e) => app.onIngestFile(e),
     submitIngest: () => app.submitIngest(),
     ingestStatus: st.ingestStatus,

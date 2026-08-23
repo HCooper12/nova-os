@@ -12,7 +12,23 @@
 // The router only DECIDES. Dispatch lives in the route, so a decision can
 // always be shown to him before anything runs.
 
-export const LANES = ['watch', 'study', 'research', 'code', 'coach', 'capture', 'play', 'ask'];
+export const LANES = ['watch', 'study', 'research', 'code', 'coach', 'capture', 'play', 'ask', 'book'];
+
+// "add the book Atomic Habits by James Clear" — a Librarian research run.
+// Deliberately narrow: needs the word "book" AND a "<title> by <author>"
+// shape, so "what does that book say about sleep" still routes to ask, and
+// "add book club to my calendar" (no "by") is a capture. Pure and exported
+// so the parse is testable on its own.
+const BOOK_RE = /\b(?:add|ingest|research|get|read|pull in|bring in)\b[^.?!]{0,30}?\bbook\b\s+(.+?)\s+by\s+(.+?)\s*[.?!]?\s*$/i;
+export function parseBookIntent(text) {
+  const m = BOOK_RE.exec(String(text || '').trim());
+  if (!m) return null;
+  const strip = (s) => s.trim().replace(/^["'“”]+|["'“”]+$/g, '').trim();
+  const title = strip(m[1]);
+  const author = strip(m[2]);
+  if (!title || !author) return null;
+  return { title, author };
+}
 // "pull up the latest Diary of a CEO video" — a request to WATCH something
 // now, as opposed to handing a link to the Watcher to digest. Needs a naming
 // verb AND a media noun, so "what did that video say" still routes to ask.
@@ -66,6 +82,8 @@ export function routeIntent(text) {
     return { lane: 'research', urls, prose, why: 'a link to read — the Researcher reads it and cites what it finds' };
   }
 
+  const bookMeta = parseBookIntent(raw);
+  if (bookMeta) return { lane: 'book', urls: [], prose: raw, book: bookMeta, why: `a book — the Librarian researches "${bookMeta.title}" and weaves it into your vault` };
   if (hasStudyWords) return { lane: 'study', urls: [], prose: raw, why: 'you asked for a creator/catalogue analysis' };
   if (PLAY_RE.test(raw)) return { lane: 'play', urls: [], prose: raw, why: 'you asked to watch something — Nova finds the newest one and opens it playing' };
   if (CODE_RE.test(raw)) return { lane: 'code', urls: [], prose: raw, why: 'a build/change request — this runs as a Claude Code session inside Nova' };
@@ -78,5 +96,5 @@ export function routeIntent(text) {
 export const LANE_LABEL = {
   play: 'PLAY',
   watch: 'WATCH', study: 'STUDY', research: 'RESEARCH',
-  code: 'CLAUDE CODE', coach: 'COACH', capture: 'INBOX', ask: 'ASK NOVA',
+  code: 'CLAUDE CODE', coach: 'COACH', capture: 'INBOX', ask: 'ASK NOVA', book: 'LIBRARIAN',
 };

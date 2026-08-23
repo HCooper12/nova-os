@@ -19,6 +19,7 @@ import { randomUUID } from 'node:crypto';
 // waits there, same as any other draft awaiting a decision.
 export const GATE_LANES = {
   researcher: { label: 'this research', questionNoun: 'this' },
+  librarian: { label: 'this book — deeper research finds more of its ideas and connections', questionNoun: 'this book' },
   watcher: { label: 'this video', questionNoun: 'this video' },
   'pattern-scout': { label: "this week's pattern scout — connecting what's spread across your vault", questionNoun: 'this' },
   distill: { label: "this week's distillation", questionNoun: 'this' },

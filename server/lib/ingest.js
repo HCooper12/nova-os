@@ -30,9 +30,9 @@ const jobsDir = () => path.join(process.env.NOVA_DATA_DIR || path.join(path.dirn
 async function persistJob(job) {
   try {
     await mkdir(jobsDir(), { recursive: true });
-    const { id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt } = job;
+    const { id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt, book } = job;
     await writeFile(path.join(jobsDir(), `${id}.json`),
-      JSON.stringify({ id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt }), 'utf8');
+      JSON.stringify({ id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt, book }), 'utf8');
   } catch (e) {
     console.error(`ingest job ${job.id} failed to persist:`, e.message);
   }
@@ -157,16 +157,37 @@ export async function findExistingVideoPages(vaultPath, url) {
 }
 
 export function startIngest(vaultPath) {
-  return function run(transcriptText, sourceUrl) {
+  // `book` = {title, author, notes?}: no text and no URL — Nova's Librarian
+  // researches the book first (lib/librarian.js) and the resulting dossier
+  // rides this exact rail from there. One rail, one review UI, one undo.
+  return function run(transcriptText, sourceUrl, book = null) {
     if (!laneEnabled('ingest')) throw laneOffError('ingest');
+    if (book && !laneEnabled('librarian')) throw laneOffError('librarian');
+    if (book && (!String(book.title || '').trim() || !String(book.author || '').trim())) {
+      throw new Error('a book needs both a title and an author');
+    }
     const jobId = randomUUID().slice(0, 8);
     const workDir = path.join(os.tmpdir(), 'nova-ingest', jobId);
     const stagingVault = path.join(workDir, 'vault');
-    const job = { id: jobId, status: 'staging', summary: '', cost: 0, changes: [], error: null, stagingVault, workDir, vaultPath, createdAt: new Date().toISOString() };
+    const job = { id: jobId, status: 'staging', summary: '', cost: 0, changes: [], error: null, stagingVault, workDir, vaultPath, createdAt: new Date().toISOString(), ...(book ? { book: { title: String(book.title).trim(), author: String(book.author).trim() } } : {}) };
     jobs.set(jobId, job);
     persistJob(job);
 
     (async () => {
+      // BOOK MODE: research before the weave. The dossier is Nova's own
+      // authored synthesis (researched, never the book's text), so it is
+      // safe — and right — to keep verbatim in Raw/ as provenance.
+      if (book && (!transcriptText || !transcriptText.trim())) {
+        job.status = 'researching';
+        persistJob(job);
+        const { runBookResearch, composeBookDossier } = await import('./librarian.js');
+        await mkdir(workDir, { recursive: true });
+        const { dossier, cost } = await runBookResearch({ ...job.book, notes: book.notes || '', model: book.model }, workDir);
+        job.cost += cost;
+        transcriptText = composeBookDossier(job.book, dossier);
+        job.status = 'staging';
+        persistJob(job);
+      }
       // No pasted text + a link = fetch the transcript ourselves via the
       // Watcher's toolchain, then ingest exactly as if he had pasted it.
       let fetched = false;
@@ -195,7 +216,14 @@ export function startIngest(vaultPath) {
       // Already in the vault? A watch filing (or an earlier weave) may have
       // left a Source page and the verbatim transcript. Re-running must
       // DEEPEN those pages, never mint a parallel set.
-      const existing = sourceUrl ? await findExistingVideoPages(vaultPath, sourceUrl) : { pages: [], transcriptRel: null };
+      let existing = { pages: [], transcriptRel: null };
+      if (sourceUrl) existing = await findExistingVideoPages(vaultPath, sourceUrl);
+      else if (book) {
+        // same contract as videos: a re-research must DEEPEN the earlier
+        // pages, never mint a parallel set under a variant title
+        const { findExistingBookPages } = await import('./librarian.js');
+        existing = { ...(findExistingBookPages(vaultPath, job.book.title, job.book.author)), transcriptRel: null };
+      }
       job.existing = existing;
 
       await stageVault(vaultPath, stagingVault);
@@ -212,7 +240,7 @@ export function startIngest(vaultPath) {
       if (!existing.transcriptRel) {
         await writeFile(
           path.join(stagingVault, verbatimRelPath),
-          `${fetched ? "Verbatim video transcript fetched by Nova's Watcher from the link Hayden submitted" : 'Verbatim original text pasted by Hayden via Nova OS'}, received ${new Date().toISOString().slice(0, 10)}.${sourceUrl ? `\nSource URL: ${sourceUrl}` : ''}\n\n---\n\n${verbatimOverride ?? transcriptText}`,
+          `${book ? "Research dossier authored by Nova's Librarian (Nova's own synthesis from public sources — not the book's text)" : fetched ? "Verbatim video transcript fetched by Nova's Watcher from the link Hayden submitted" : 'Verbatim original text pasted by Hayden via Nova OS'}, received ${new Date().toISOString().slice(0, 10)}.${sourceUrl ? `\nSource URL: ${sourceUrl}` : ''}\n\n---\n\n${verbatimOverride ?? transcriptText}`,
           'utf8'
         );
       }
@@ -225,10 +253,16 @@ export function startIngest(vaultPath) {
       job.status = 'running';
       persistJob(job); // carries the digested flag into the durable copy
 
-      const prompt = `New content to add to the vault — ${fetched ? 'a timestamped video transcript Nova fetched from a link Hayden submitted' : 'pasted by Hayden via Nova OS'}, saved at ${transcriptPath}. This could be an external source (a podcast/video transcript, article, etc.) or it could be Hayden's own note, idea, or reflection that just came to mind — read it and use your own judgement, per this vault's root CLAUDE.md, to pick the right page type (Source, Concept, Entity, Topic, Journal, or Analysis) rather than assuming it's a Source. Follow CLAUDE.md exactly, in batch mode (process fully in one pass, no per-item discussion — just do the work).
+      const prompt = `New content to add to the vault — ${book ? `a research dossier Nova's Librarian compiled about the book "${job.book.title}" by ${job.book.author}, which Hayden asked to add to his vault` : fetched ? 'a timestamped video transcript Nova fetched from a link Hayden submitted' : 'pasted by Hayden via Nova OS'}, saved at ${transcriptPath}.${book ? `
+
+BOOK RULES, on top of CLAUDE.md:
+- The Source page is the book itself. Its frontmatter must include: title: "${job.book.title}", author: "${job.book.author}", type: book, provenance: researched (Nova has NOT read this book — the dossier is triangulated from public sources, and every page you write from it inherits that honesty; if a page states something as the book's position, it is the dossier's sourced account of the book's position).
+- The dossier's "Frameworks & terms" become Concept pages, its "People, works and studies" become Entity pages — but per the dedup rule, extend any that already exist rather than forking.
+- The dossier's "Connection hooks" are HYPOTHESES, not facts: test each against pages that actually exist in the staged tree and only write the wikilink where the connection is real. A contradiction between this book and an existing source is worth a sentence ON BOTH pages — disagreement is signal, not noise.
+- Carry the claim/evidence distinctions through: a contested claim stays contested on the vault page, with the dossier's evidence note.` : ''} This could be an external source (a podcast/video transcript, article, etc.) or it could be Hayden's own note, idea, or reflection that just came to mind — read it and use your own judgement, per this vault's root CLAUDE.md, to pick the right page type (Source, Concept, Entity, Topic, Journal, or Analysis) rather than assuming it's a Source. Follow CLAUDE.md exactly, in batch mode (process fully in one pass, no per-item discussion — just do the work).
 
 The exact verbatim original text ${existing.transcriptRel ? 'is ALREADY in the vault' : 'is already saved in the vault'} at ${verbatimRelPath}${existing.transcriptRel ? ' (do NOT write another copy of it — it is not in this staged tree because Raw/ is not staged, and it must stay exactly as it is)' : ''}. If this is third-party copyrighted material needing the paraphrase treatment per CLAUDE.md's copyright rule, link to this file from whatever page you create (e.g. "Verbatim original: [[${verbatimName}]]" — the vault path is ${verbatimRelPath}). If it's Hayden's own writing, that rule already allows storing it verbatim directly — no need to paraphrase it, just fold it in or reference this file as you see fit.
-${existing.pages.length ? `\nALREADY IN THE VAULT — DO NOT DUPLICATE. This exact video already has ${existing.pages.length === 1 ? 'this page' : 'these pages'}, present in the staged tree:\n${existing.pages.map((p) => `- ${p}`).join('\n')}\nRead ${existing.pages.length === 1 ? 'it' : 'them'} FIRST and EDIT in place to deepen ${existing.pages.length === 1 ? 'it' : 'them'} — never create a second page for the same video under a variant title. Preserve what is already written (and its frontmatter) while adding what is missing; the same rule applies to any Concept/Entity/Topic page that already exists — extend it rather than forking a near-duplicate.\n` : ''}
+${existing.pages.length ? `\nALREADY IN THE VAULT — DO NOT DUPLICATE. This exact ${book ? 'book' : 'video'} already has ${existing.pages.length === 1 ? 'this page' : 'these pages'}, present in the staged tree:\n${existing.pages.map((p) => `- ${p}`).join('\n')}\nRead ${existing.pages.length === 1 ? 'it' : 'them'} FIRST and EDIT in place to deepen ${existing.pages.length === 1 ? 'it' : 'them'} — never create a second page for the same ${book ? 'book' : 'video'} under a variant title. Preserve what is already written (and its frontmatter) while adding what is missing; the same rule applies to any Concept/Entity/Topic page that already exists — extend it rather than forking a near-duplicate.\n` : ''}
 ${job.digested ? `\nThis video was LONG, so the text at ${transcriptPath} is Nova's condensed timestamped notes over the full transcript, structured in parts. Treat the notes as the map, not the territory: while drafting each page, Read the relevant sections of the full verbatim transcript at ${verbatimReadPath} (targeted slices around the notes' timestamps — never the whole file at once) so specifics, phrasings, and nuances survive into the paraphrase. Hayden's standing requirement: NO concept or idea from the conversation is lost — cover every idea the notes enumerate, including minor ones, not just the headline themes.\n` : ''}
 ${sourceUrl ? `\nSource URL: ${sourceUrl} — include this as a \`url:\` field in whatever page's frontmatter is most relevant, so it's directly linkable.\n` : ''}
 When done, give a concise final summary: pages created, pages updated, and any contradictions or open questions flagged.`;
@@ -268,7 +302,10 @@ When done, give a concise final summary: pages created, pages updated, and any c
         let result = null;
         try { result = JSON.parse(stdout); } catch { /* not JSON — handled below */ }
         if (result) {
-          job.cost = result.total_cost_usd || 0;
+          // ADD, don't assign: a book job already spent its research cost
+          // before the weave started (measured: the ready total showed $1.75
+          // after $3.91 of research — the overwrite was hiding real money).
+          job.cost += result.total_cost_usd || 0;
           job.summary = result.result || '(no summary returned)';
         }
         if (code !== 0 || result?.is_error) {

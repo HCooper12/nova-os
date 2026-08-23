@@ -34,6 +34,30 @@ export function IngestModal({ v }) {
           focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
         />
 
+        <div style={css("margin-top:16px;font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>OR A BOOK — NOVA'S LIBRARIAN RESEARCHES IT FOR YOU (LEAVE TEXT AND URL EMPTY)</div>
+        <div style={css("margin-top:6px;display:flex;gap:10px;flex-wrap:wrap")}>
+          <Interactive
+            as="input"
+            value={v.ingestBookTitle}
+            onChange={v.setIngestBookTitle}
+            placeholder="Book title…"
+            base="flex:2;min-width:200px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-mono);outline:none"
+            focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
+          />
+          <Interactive
+            as="input"
+            value={v.ingestBookAuthor}
+            onChange={v.setIngestBookAuthor}
+            placeholder="Author…"
+            base="flex:1;min-width:140px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-mono);outline:none"
+            focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
+          />
+        </div>
+        <div style={css("margin-top:6px;font-size:11px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent);line-height:1.5")}>
+          Researched from public sources — key ideas, frameworks, claims and connections, honestly labelled
+          as researched (not read). Nova never fetches a book's actual text.
+        </div>
+
         <div style={css("margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap")}>
           <label style={css("cursor:pointer;font-size:12px;padding:9px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);color:color-mix(in srgb, var(--nv-ink) 70%, transparent)")}>
             Upload .txt / .md

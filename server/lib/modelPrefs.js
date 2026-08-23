@@ -223,6 +223,11 @@ export const LANES = [
     off: 'Video watching is refused; nothing is written about a video Nova has not read.',
   },
   {
+    id: 'librarian', label: 'Librarian · book research', group: 'research', def: 'sonnet',
+    hint: 'a book title + author into a triangulated dossier — the weave into your vault then rides the ingest lane',
+    off: 'Book requests are refused with a plain message; pasting your own notes about a book still works via ingest.',
+  },
+  {
     id: 'studio-outline', label: 'Studio outline', group: 'research', def: 'sonnet',
     hint: 'an idea into a real outline in your voice',
     off: 'Outlines are refused; the idea stays in Studio as you wrote it.',
