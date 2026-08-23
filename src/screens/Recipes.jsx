@@ -242,6 +242,22 @@ export function Recipes({ v }) {
               hoverStyle="border-color:var(--nv-good)">
               <svg width="17" height="17" viewBox="0 0 24 24" stroke="color-mix(in srgb, var(--nv-ink) 62%, transparent)" strokeWidth="2"><path d="M4 6v12M8 6v12M12 6v12M15 6v12M19 6v12" fill="none"/></svg>
             </Interactive>
+            {/* THE SUBMIT CONTROL. The bar had none — the comment above
+                claimed "Enter or the arrow submits" but only Enter existed,
+                so on a phone (no Enter key in reach, keyboard covering the
+                view) typing a food genuinely could not be searched. */}
+            <Interactive as="span" onClick={v.canDescribeFood ? v.describeFoodSearch : undefined}
+              aria-label="Search this food"
+              base={{ cursor: v.canDescribeFood ? 'pointer' : 'default', flex: 'none', width: '42px', height: '42px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                border: v.canDescribeFood ? '1px solid var(--nv-good)' : '1px solid var(--nv-edge)',
+                background: v.canDescribeFood ? 'color-mix(in srgb, var(--nv-good) 16%, transparent)' : 'none',
+                opacity: v.foodScanBusy ? 0.5 : 1, transition: 'background .2s ease, border-color .2s ease' }}
+              hoverStyle={v.canDescribeFood ? { background: 'color-mix(in srgb, var(--nv-good) 26%, transparent)' } : undefined}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2"
+                stroke={v.canDescribeFood ? 'var(--nv-good)' : 'color-mix(in srgb, var(--nv-ink) 30%, transparent)'}>
+                <path d="M5 12h13M12 5l7 7-7 7"/>
+              </svg>
+            </Interactive>
           </div>
           {v.foodScanBusy && (
             <div style={css("margin-top:7px;display:flex;align-items:center;gap:6px;font-size:11px;color:color-mix(in srgb, var(--nv-good) 75%, var(--nv-ink))")}>
@@ -268,6 +284,67 @@ export function Recipes({ v }) {
               </span>
             )}
           </div>
+          {/* Log part of something already in his collection — his ask: a bag
+              stored as one full serving, eaten a third at a time, without
+              re-entering it as a new food. */}
+          <div style={css("margin-top:10px")}>
+            <Interactive as="span" onClick={v.foodRecipePickerOpen ? v.closeFoodRecipePicker : v.openFoodRecipePicker}
+              base={`cursor:pointer;display:inline-flex;align-items:center;gap:7px;font:600 9.5px var(--nv-font-mono);letter-spacing:.12em;padding:7px 12px;border-radius:8px;border:1px solid ${v.foodRecipePickerOpen ? 'var(--nv-acc-border)' : 'color-mix(in srgb, var(--nv-ink) 14%, transparent)'};color:${v.foodRecipePickerOpen ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)'};background:${v.foodRecipePickerOpen ? 'var(--nv-acc-bg)' : 'none'}`}
+              hoverStyle="background:rgba(255,255,255,.05)">
+              {v.foodRecipePickerOpen ? '× FROM YOUR RECIPES' : '＋ FROM YOUR RECIPES'}
+            </Interactive>
+          </div>
+          {v.foodRecipePickerOpen && (
+            <div style={css("margin-top:10px;border:1px solid var(--nv-edge);border-radius:12px;background:rgba(0,0,0,.22);padding:12px;animation:fadeUp .22s ease-out")}>
+              <Interactive as="input" value={v.foodRecipePickerQuery} onChange={v.setFoodRecipePickerQuery}
+                placeholder="Search your recipes…"
+                base="width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
+                focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
+              <div style={css("margin-top:9px;max-height:210px;overflow-y:auto;display:flex;flex-direction:column;gap:5px")}>
+                {v.foodRecipeOptions.length === 0 && (
+                  <div style={css("padding:10px;font-size:12px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>No recipes match that.</div>
+                )}
+                {v.foodRecipeOptions.map((r) => (
+                  <Interactive key={r.id} onClick={r.pick}
+                    base={{ cursor: 'pointer', padding: '9px 11px', borderRadius: '9px', border: r.active ? '1px solid var(--nv-acc-border)' : '1px solid transparent', background: r.active ? 'var(--nv-acc-bg)' : 'none' }}
+                    hoverStyle="background:rgba(255,255,255,.05)">
+                    <div style={css("font-size:13px;color:var(--nv-ink)")}>{r.name}</div>
+                    <div style={css("margin-top:3px;font:400 10.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{r.sub}</div>
+                  </Interactive>
+                ))}
+              </div>
+              {v.foodRecipePick && (
+                <div style={css("margin-top:12px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent);padding-top:12px")}>
+                  <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.18em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>HOW MUCH OF IT?</div>
+                  <div style={css("margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center")}>
+                    {v.foodRecipePick.portions.map((pn) => (
+                      <Interactive key={pn.label} as="span" onClick={pn.pick}
+                        base={{ cursor: 'pointer', minWidth: '44px', textAlign: 'center', font: "600 13px var(--nv-font-ui)", padding: '9px 12px', borderRadius: '9px',
+                          border: pn.active ? '1px solid var(--nv-good)' : '1px solid color-mix(in srgb, var(--nv-ink) 13%, transparent)',
+                          color: pn.active ? 'var(--nv-good)' : 'color-mix(in srgb, var(--nv-ink) 60%, transparent)',
+                          background: pn.active ? 'color-mix(in srgb, var(--nv-good) 12%, transparent)' : 'none' }}
+                        hoverStyle="background:rgba(255,255,255,.06)">{pn.label}</Interactive>
+                    ))}
+                    <Interactive as="input" value={v.foodRecipePick.custom} onChange={v.foodRecipePick.setCustom}
+                      placeholder="or 0.4…" inputMode="decimal"
+                      base="width:88px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:9px 11px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-mono);outline:none"
+                      focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
+                  </div>
+                  <div style={css("margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap")}>
+                    <div style={css("flex:1;min-width:180px")}>
+                      <div style={css("font-size:12.5px;color:var(--nv-ink)")}>{v.foodRecipePick.loggedName || v.foodRecipePick.name}</div>
+                      <div style={{ marginTop: '3px', font: '400 11px var(--nv-font-mono)', color: v.foodRecipePick.valid ? 'var(--nv-good)' : '#e08f6f' }}>{v.foodRecipePick.preview}</div>
+                    </div>
+                    <Interactive as="span" onClick={v.foodRecipePick.valid ? v.foodRecipePick.confirm : undefined}
+                      base={{ cursor: v.foodRecipePick.valid ? 'pointer' : 'default', flex: 'none', font: "600 11px var(--nv-font-mono)", padding: '10px 18px', borderRadius: '9px', background: 'var(--nv-good)', color: '#122015', opacity: v.foodRecipePick.valid ? 1 : 0.45 }}
+                      hoverStyle={v.foodRecipePick.valid ? { background: 'color-mix(in srgb, var(--nv-good) 82%, white)' } : undefined}>
+                      LOG IT
+                    </Interactive>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           {v.foodScanCount > 0 && (
             <div style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
               <Interactive as="input" value={v.foodScanNote} onChange={v.setFoodScanNote} placeholder="Note — e.g. “ate half” (optional)" base="flex:1;min-width:160px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 12px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />

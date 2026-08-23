@@ -1,5 +1,6 @@
 import { chip, mono } from './shared.js';
 import { dtf } from './fmt.js';
+import { scaleMacros, portionName, validPortion, PORTIONS } from '../portion.js';
 
 // Recipes domain: recipe list/filters, daily rotation, off-plan food log,
 // add-recipe modal, and the recipe overlay (incl. alternates + tweak chat).
@@ -300,6 +301,50 @@ export function valsRecipes(app, ctx) {
     foodDescribeValue: st.foodDescribeInput || '',
     describeFoodKey: (e) => { if (e.key === 'Enter') app.describeFoodSearch(); },
     describeFoodSearch: () => app.describeFoodSearch(),
+    // the submit control the input bar never actually had — the code comment
+    // claimed "Enter or the arrow submits", but only Enter existed, so on a
+    // phone there was nothing to tap and searching looked broken
+    canDescribeFood: !st.foodScanBusy && (st.foodDescribeInput || '').trim().length >= 3,
+
+    // ---- log a portion of a recipe he already has ----
+    foodRecipePickerOpen: !!st.foodRecipePickerOpen,
+    openFoodRecipePicker: () => app.openFoodRecipePicker(),
+    closeFoodRecipePicker: () => app.closeFoodRecipePicker(),
+    foodRecipePickerQuery: st.foodRecipePickerQuery || '',
+    setFoodRecipePickerQuery: (e) => app.setState({ foodRecipePickerQuery: typeof e === 'string' ? e : e.target.value }),
+    foodRecipeOptions: (() => {
+      const q = String(st.foodRecipePickerQuery || '').trim().toLowerCase();
+      return (st.liveRecipes || [])
+        .filter((r) => r.macros && (!q || r.name.toLowerCase().includes(q)))
+        .slice(0, 40)
+        .map((r) => ({
+          id: r.id, name: r.name, macros: r.macros,
+          sub: `${r.macros.p}P · ${r.macros.c}C · ${r.macros.f}F · ${r.macros.kcal} kcal${r.makes ? ` · ${r.makes}` : ''}`,
+          active: st.foodRecipePick?.id === r.id,
+          pick: () => app.pickFoodRecipe(r),
+        }));
+    })(),
+    foodRecipePick: st.foodRecipePick ? (() => {
+      const custom = String(st.foodPortionCustom || '').trim();
+      const factor = custom ? Number(custom) : st.foodPortionFactor;
+      const ok = validPortion(factor);
+      const scaled = ok ? scaleMacros(st.foodRecipePick.macros, factor) : null;
+      return {
+        name: st.foodRecipePick.name,
+        base: st.foodRecipePick.macros,
+        portions: PORTIONS.map((pn) => ({
+          label: pn.label, factor: pn.factor,
+          active: !custom && Math.abs(st.foodPortionFactor - pn.factor) < 0.001,
+          pick: () => app.setState({ foodPortionFactor: pn.factor, foodPortionCustom: '' }),
+        })),
+        custom,
+        setCustom: (e) => app.setState({ foodPortionCustom: typeof e === 'string' ? e : e.target.value }),
+        valid: ok,
+        preview: scaled ? `${scaled.p}P · ${scaled.c}C · ${scaled.f}F · ${scaled.kcal} kcal` : 'Enter a portion between a sliver and 20 servings',
+        loggedName: ok ? portionName(st.foodRecipePick.name, factor) : null,
+        confirm: () => app.logRecipePortion(),
+      };
+    })() : null,
     foodScanNote: st.foodScanNote,
     setFoodScanNote: (e) => app.setFoodScanNote(e),
     foodScanBusy: st.foodScanBusy,

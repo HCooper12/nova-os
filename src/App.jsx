@@ -14,6 +14,7 @@ import { valsRecipes } from './vals/valsRecipes.js';
 import { valsWorkouts } from './vals/valsWorkouts.js';
 import { valsNotes } from './vals/valsNotes.js';
 import { valsLibrary } from './vals/valsLibrary.js';
+import { scaleMacros, portionName, validPortion } from './portion.js';
 import { valsMisc } from './vals/valsMisc.js';
 import { valsInbox } from './vals/valsInbox.js';
 import { valsTodos } from './vals/valsTodos.js';
@@ -379,6 +380,7 @@ export default class App extends Component {
     // live-data connection (Settings screen)
     settingsBaseUrl: '', settingsToken: '',
     settingsTestStatus: 'idle', settingsTestMessage: '',
+    foodRecipePickerOpen: false, foodRecipePickerQuery: '', foodRecipePick: null, foodPortionFactor: 1, foodPortionCustom: '',
     liveNotes: null, liveNoteDetails: {},
     liveLibrary: null, liveLibraryDetails: {}, libraryFilter: 'all', libraryQuery: '', libraryOpenId: null, liveCalendar: null, liveCalendarList: null, calCmdText: '', calCmdBusy: false,
     // the model board (Settings): null until loaded, so "not loaded" and
@@ -1656,6 +1658,38 @@ export default class App extends Component {
     const open = !this.state.foodHistoryOpen;
     this.setState({ foodHistoryOpen: open });
     if (open) this.loadFoodHistory();
+  }
+  // Log part of a recipe he already has — his ask: a bag stored as one full
+  // serving, eaten a third at a time, without re-entering it as a new food.
+  openFoodRecipePicker() {
+    this.setState({ foodRecipePickerOpen: true, foodRecipePickerQuery: '', foodRecipePick: null, foodPortionFactor: 1, foodPortionCustom: '' });
+  }
+  closeFoodRecipePicker() {
+    this.setState({ foodRecipePickerOpen: false, foodRecipePick: null, foodPortionCustom: '' });
+  }
+  pickFoodRecipe(recipe) {
+    this.setState({ foodRecipePick: recipe, foodPortionFactor: 1, foodPortionCustom: '' });
+  }
+  logRecipePortion() {
+    const conn = getConnection();
+    const pick = this.state.foodRecipePick;
+    if (!conn || !pick) return;
+    const custom = this.state.foodPortionCustom.trim();
+    const factor = custom ? Number(custom) : this.state.foodPortionFactor;
+    if (!validPortion(factor)) { this.toastMsg('That portion doesn’t look right — try something between a sliver and 20 servings.'); return; }
+    const name = portionName(pick.name, factor);
+    const macros = scaleMacros(pick.macros, factor);
+    const date = this.state.foodLogDate || undefined;
+    this.closeFoodRecipePicker();
+    // optimistic, like every other food write — the day updates instantly and
+    // the server's copy replaces it when it lands
+    api.addFoodLogEntry(conn, { name, macros, source: 'recipe', date })
+      .then((day) => {
+        this.noteLocalWrite('foodLog');
+        this.applyFoodLogDay(day);
+        this.toastMsg(`Logged ${name}${date ? ` to ${date}` : ''} ✓`);
+      })
+      .catch((e) => this.toastMsg('Could not log that: ' + e.message));
   }
   relogFoodItem(item) {
     const conn = getConnection();
