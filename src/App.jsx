@@ -2829,16 +2829,28 @@ export default class App extends Component {
     api.todoSetCategory(conn, rawLine, category).then((data) => this.setState({ liveTodos: data, todoEditCategoryKey: null }))
       .catch((e) => { this.toastMsg(e.message); this.setState({ todoEditCategoryKey: null }); });
   }
+  // OPTIMISTIC (mirrors toggleSlotConsumed, the house pattern): ticking a
+  // to-do used to sit behind a full round trip with the whole list locked by
+  // todoActionBusy — 100-600ms of dead UI per tap over Tailscale, and no
+  // second tick until it returned. The tick now lands in the same frame; the
+  // server's answer replaces it, and a failure reverts with the reason.
   toggleTodoItem(rawLine) {
     const conn = getConnection();
-    if (!conn || this.state.todoActionBusy) return;
-    this.setState({ todoActionBusy: true });
+    if (!conn) return;
+    const previous = this.state.liveTodos;
+    haptic('tick');
+    this.setState((s) => {
+      if (!s.liveTodos?.items) return null;
+      this.noteLocalWrite('todos'); // a racing snapshot must not clobber this
+      return { liveTodos: { ...s.liveTodos, items: s.liveTodos.items.map((t) => (t.raw === rawLine ? { ...t, checked: !t.checked } : t)) } };
+    });
     api.todoToggle(conn, rawLine).then((data) => {
-      this.setState({ todoActionBusy: false, liveTodos: data });
+      this.noteLocalWrite('todos');
+      this.setState({ liveTodos: data });
     }).catch((e) => {
-      this.setState({ todoActionBusy: false });
-      this.toastMsg(e.message);
-      api.todos(conn).then((data) => this.setState({ liveTodos: data })).catch(() => {});
+      // revert to exactly what was on screen before the tap, then say why
+      this.setState({ liveTodos: previous });
+      this.toastMsg('Could not update that to-do: ' + e.message);
     });
   }
   setInboxInput(value) {
@@ -3563,8 +3575,28 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn) return;
     const fn = kind === 'approve' ? api.inboxApprove : kind === 'discard' ? api.inboxDiscard : kind === 'retry' ? api.inboxRetry : api.inboxUndo;
+    // OPTIMISTIC for approve/discard — the two that are "the daily action".
+    // The row leaves the pending list in the same frame; the server's real
+    // record (with its destination and undo data) replaces this a moment
+    // later. Deliberately NOT optimistic for retry/undo: retry is a dispatch
+    // whose outcome is genuinely unknown until it runs, and undo must never
+    // claim to have reverted a vault write before the server says it did.
+    //
+    // The optimistic record carries NO undoData and NO destination — those
+    // are receipts, and a receipt for something that hasn't happened is the
+    // one lie this codebase must never tell. The UI reads them as absent
+    // until the server's record lands.
+    const previousInbox = this.state.liveInbox;
+    if ((kind === 'approve' || kind === 'discard') && previousInbox?.items) {
+      haptic('tick');
+      this.noteLocalWrite('inbox');
+      const optimisticStatus = kind === 'approve' ? 'filed' : 'discarded';
+      const items = previousInbox.items.map((r) => (r.id === id ? { ...r, status: optimisticStatus, pendingLocally: true } : r));
+      this.setState({ liveInbox: { items, pendingCount: items.filter((r) => r.status === 'pending').length } });
+    }
     this.setState((s) => ({ inboxActionBusy: { ...s.inboxActionBusy, [id]: true } }));
     (kind === 'discard' ? api.inboxDiscard(conn, id, reason) : fn(conn, id)).then(({ record }) => {
+      this.noteLocalWrite('inbox');
       this.setState((s) => ({
         inboxActionBusy: { ...s.inboxActionBusy, [id]: false },
         liveInbox: s.liveInbox
@@ -3576,9 +3608,14 @@ export default class App extends Component {
       else if (kind === 'retry') this.toastMsg('Retrying — Nova is running this again…');
       else this.toastMsg('Undone ✓ — ' + (record.undoSummary || 'reverted'));
     }).catch((e) => {
-      this.setState((s) => ({ inboxActionBusy: { ...s.inboxActionBusy, [id]: false } }));
+      // Put the row back exactly where it was — an optimistic approve that
+      // failed must return to pending, not sit in history looking filed.
+      this.setState((s) => ({
+        inboxActionBusy: { ...s.inboxActionBusy, [id]: false },
+        liveInbox: previousInbox || s.liveInbox,
+      }));
       this.toastMsg(kind === 'undo' ? 'Could not undo: ' + e.message : 'Action failed: ' + e.message);
-      this.refreshInbox();
+      this.refreshInbox(); // and re-sync, so the truth wins over both guesses
     });
   }
   // The scheduled-lane half of the model-choice gate: Pattern Scout/Distill

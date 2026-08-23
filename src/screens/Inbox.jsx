@@ -43,6 +43,13 @@ export function Inbox({ v }) {
     null,
   );
   const [dictated, setDictated] = useState(false);
+  // History is unbounded and he has 246 records — rendering every one cost
+  // ~211ms on EVERY inbox change (3,239 DOM nodes reconciled to tick one
+  // box). The recent slice is what anyone actually reads; the rest are one
+  // tap away and the count is stated, so nothing is hidden.
+  const [historyLimit, setHistoryLimit] = useState(25);
+  const shownHistory = v.inboxHistory.slice(0, historyLimit);
+  const hiddenHistoryCount = v.inboxHistory.length - shownHistory.length;
   const micToggle = () => { if (!dict.on) setDictated(true); dict.toggle(); };
   // `text` arrives from LocalInput on Cmd+Enter (the live value, which may
   // not have reached App state yet); the toolbar buttons call submit() with
@@ -472,10 +479,10 @@ export function Inbox({ v }) {
           </div>
         ) : (
           <div style={css("margin-top:10px;display:flex;flex-direction:column")}>
-            {v.inboxHistory.map((item, i) => {
+            {shownHistory.map((item, i) => {
               const meta = STATUS_META[item.status] || STATUS_META.error;
               return (
-                <div key={item.id} style={css(`padding:10px 4px${i < v.inboxHistory.length - 1 ? ';border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent)' : ''}`)}>
+                <div key={item.id} style={css(`padding:10px 4px${i < shownHistory.length - 1 ? ';border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent)' : ''}`)}>
                 <div style={css('display:flex;gap:12px;align-items:baseline')}>
                   <span style={css(`font:400 9.5px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent);width:76px;flex:none`)}>{item.time}</span>
                   <span style={{ flex: 'none' }}><RouteBadge route={item.route} confidence={null} /></span>
@@ -536,6 +543,12 @@ export function Inbox({ v }) {
                 </div>
               );
             })}
+            {hiddenHistoryCount > 0 && (
+              <Interactive as="span" onClick={() => setHistoryLimit((n) => n + 100)}
+                base={css(`cursor:pointer;align-self:flex-start;margin-top:12px;font:600 10px ${M};letter-spacing:.1em;padding:8px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`)}
+                hoverStyle="color:var(--nv-ink);border-color:var(--nv-acc-border)"
+              >SHOW {Math.min(100, hiddenHistoryCount)} MORE · {hiddenHistoryCount} OLDER</Interactive>
+            )}
           </div>
         )}
       </div>
