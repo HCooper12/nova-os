@@ -8,6 +8,7 @@ import cors from 'cors';
 import { Vault } from './lib/vault.js';
 import { slicesForPath } from './lib/writeSlices.js';
 import { libraryRouter } from './routes/library.js';
+import { parseWithEmptyValues } from './lib/jsonRepair.js';
 import { notesRouter } from './routes/notes.js';
 import { intentRouter } from './routes/intent.js';
 import { calendarRouter } from './routes/calendar.js';
@@ -79,7 +80,25 @@ async function main() {
 
   const app = express();
   app.use(cors({ origin: allowedOrigins }));
-  app.use(express.json({ limit: '40mb' })); // headroom for a few base64-encoded recipe photos
+  // `verify` keeps the exact bytes: when strict JSON.parse rejects a body we
+  // need the original text to attempt the empty-value repair below.
+  app.use(express.json({ limit: '40mb', verify: (req, res, buf) => { req.rawBody = buf.toString('utf8'); } })); // headroom for a few base64-encoded recipe photos
+  // A missing HealthKit sample makes the Shortcut send `"restingHeartRate":,`
+  // — one absent metric used to throw away the WHOLE morning push and answer
+  // "internal error". An empty slot means "no reading", which is null here,
+  // so repair those and carry on; anything else still fails, and now it fails
+  // in words instead of a 500.
+  app.use((err, req, res, next) => {
+    if (!(err instanceof SyntaxError) || err.status !== 400 || !('body' in err)) return next(err);
+    const repairedBody = req.rawBody ? parseWithEmptyValues(req.rawBody) : null;
+    if (repairedBody) {
+      console.log(`repaired ${repairedBody.repaired} empty value(s) in ${req.method} ${req.originalUrl} — a metric had no reading; stored as null`);
+      req.body = repairedBody.value;
+      return next();
+    }
+    console.log(`malformed JSON body on ${req.method} ${req.originalUrl}: ${err.message}`);
+    return res.status(400).json({ error: `the request body is not valid JSON: ${err.message}`, text: 'Nova could not read that push — the body was not valid JSON.' });
+  });
   // fallback for clients (iOS Shortcuts "File" bodies) that send JSON as
   // text/plain or octet-stream; the app itself always sends application/json
   app.use(express.text({ type: ['text/*', 'application/octet-stream'], limit: '1mb' }));
