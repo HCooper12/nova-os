@@ -1,4 +1,5 @@
 import { AGENTS } from './shared.js';
+import { dtf } from './fmt.js';
 
 // Mission Control domain (Command Core layout): connection status chips and
 // banner, the hero (eyebrow / tagline / standfirst), the core cluster's three
@@ -35,8 +36,8 @@ function buildStepsWeek(healthDays, goal) {
       : (steps != null ? +(steps * 0.000762).toFixed(1) : null); // ~0.762 m/step fallback
     out.push({
       date: iso,
-      label: d.toLocaleDateString('en-GB', { weekday: 'short' }),
-      full: d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }),
+      label: dtf('en-GB', { weekday: 'short' }).format(d),
+      full: dtf('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }).format(d),
       steps,
       km,
       hasData: steps != null,
@@ -62,7 +63,7 @@ function buildWeightSpan(healthDays, n = 14) {
     const kg = day && day.weightKg != null && day.weightKg !== 0 ? day.weightKg : null;
     out.push({
       date: iso,
-      full: d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }),
+      full: dtf('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }).format(d),
       kg,
       hasData: kg != null,
       isToday: i === 0,
@@ -82,7 +83,7 @@ function groupByDay(events) {
   return [...byDate.entries()].map(([date, evs]) => ({
     date,
     isToday: date === todayIso,
-    label: new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short' }),
+    label: dtf('en-GB', { weekday: 'long', day: '2-digit', month: 'short' }).format(new Date(`${date}T12:00:00`)),
     events: evs.map((e) => ({ time: e.time, end: e.end, label: e.label, calendar: e.calendar, recurring: e.recurring, hue: categoryHue(e.calendar) })),
   }));
 }
@@ -305,7 +306,7 @@ export function valsMission(app, ctx) {
   // Weight trend mirrors the server's computeWeightTrend semantics (latest
   // reading vs the first one in the 14-day window) so Nova's agents and the
   // home screen never tell two different stories from the same days.
-  const dayLabel = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).toUpperCase();
+  const dayLabel = (iso) => dtf('en-GB', { day: '2-digit', month: 'short' }).format(new Date(`${iso}T12:00:00`)).toUpperCase();
   const weightDays = usingLiveHealthData ? st.liveHealthDays.filter((d) => d.date && hasMetric(d, 'weightKg')) : [];
   const weightLatest = weightDays.length ? weightDays[weightDays.length - 1] : null;
   const weightDelta = weightDays.length >= 2 ? Math.round((weightLatest.weightKg - weightDays[0].weightKg) * 10) / 10 : null;

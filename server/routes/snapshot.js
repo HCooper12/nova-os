@@ -47,6 +47,10 @@ const SLICES = {
   pulse: '/api/pulse',
 };
 
+// sentinel for a slice that lost its time-budget race — a unique object, so
+// it can never be confused with a real payload
+const BUDGET_MISS = Symbol('budget-miss');
+
 export function snapshotRouter({ port, token }) {
   const router = Router();
 
@@ -97,6 +101,16 @@ export function snapshotRouter({ port, token }) {
     res.json(out);
   });
 
+  // Per-slice time budget. The whole snapshot used to wait for its slowest
+  // slice — measured on the live log: p50 ~5s, p90 ~10s, all of it one
+  // slice (a cold CalDAV calendar; every other slice answers in <75ms).
+  // The calendar is now stale-while-revalidate so it's rarely slow, but the
+  // budget makes the contract structural: a slice that can't answer in time
+  // is reported in `errors` and simply absent — the client keeps its cached
+  // copy (applySnapshot skips missing keys) and fetches the straggler
+  // individually. The slow fetch itself is NOT aborted: it keeps running
+  // here and warms the server cache for that follow-up.
+  const SLICE_BUDGET_MS = 6000;
   router.get('/snapshot', async (req, res) => {
     const base = `http://127.0.0.1:${port}`;
     const headers = { Authorization: `Bearer ${token}` };
@@ -104,9 +118,18 @@ export function snapshotRouter({ port, token }) {
     const errors = {};
     await Promise.all(Object.entries(SLICES).map(async ([key, path]) => {
       try {
-        const r = await fetch(base + path, { headers, signal: AbortSignal.timeout(15_000) });
-        if (!r.ok) throw new Error(`${r.status}`);
-        slices[key] = await r.json();
+        const work = (async () => {
+          const r = await fetch(base + path, { headers, signal: AbortSignal.timeout(15_000) });
+          if (!r.ok) throw new Error(`${r.status}`);
+          return r.json();
+        })();
+        work.catch(() => {}); // it may lose the race — never an unhandled rejection
+        const result = await Promise.race([
+          work,
+          new Promise((resolve) => setTimeout(() => resolve(BUDGET_MISS), SLICE_BUDGET_MS)),
+        ]);
+        if (result === BUDGET_MISS) errors[key] = 'budget';
+        else slices[key] = result;
       } catch (e) {
         errors[key] = e.message;
       }

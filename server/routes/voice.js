@@ -122,6 +122,17 @@ export function voiceRouter(vaultPath) {
         const line = await overnightMorningLine();
         if (line && gap === 'new-day') bits.push(line);
       } catch { /* optional */ }
+      // His ask (24 Aug): notice something like a movie marathon or a day
+      // off on today's calendar and say a warm word about it — a check-in
+      // moment, not just the full morning brief. Deterministic: the real
+      // event, found by keyword (leisureEventToday, shared with the brief),
+      // never invented or guessed at by the model.
+      try {
+        const { fetchEventsForDay } = await import('../lib/calendar.js');
+        const { leisureEventToday } = await import('../lib/morningShow.js');
+        const leisure = leisureEventToday(await fetchEventsForDay(now));
+        if (leisure) bits.push(`Today's calendar includes "${leisure.label}" — worth a warm word if it genuinely fits, never forced.`);
+      } catch { /* quiet rails, quiet greeting */ }
       res.json({ jobId: startGreeting(vaultPath, { facts: bits.join('\n\n') }) });
     } catch (e) {
       res.status(500).json({ error: e.message });

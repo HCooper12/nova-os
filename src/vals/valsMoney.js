@@ -1,3 +1,4 @@
+import { nf } from './fmt.js';
 // CFO domain: the Money screen — month summary with budget bars, the
 // subscription radar, the transaction ledger, the imports pipeline, and the
 // statement scanner. Everything reads the deterministic ledger; every write
@@ -5,7 +6,7 @@
 // Adds to ctx: nothing (Money has no nav count — a dollar figure in the
 // sidebar would be noise).
 
-const fmtMoney = (n) => `$${Math.abs(n).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const fmtMoney = (n) => `$${nf('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(n))}`;
 
 export function valsMoney(app, ctx) {
   const st = app.state;

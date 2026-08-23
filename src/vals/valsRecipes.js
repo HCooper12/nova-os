@@ -1,4 +1,5 @@
 import { chip, mono } from './shared.js';
+import { dtf } from './fmt.js';
 
 // Recipes domain: recipe list/filters, daily rotation, off-plan food log,
 // add-recipe modal, and the recipe overlay (incl. alternates + tweak chat).
@@ -270,7 +271,7 @@ export function valsRecipes(app, ctx) {
         const date = i === 0 ? null : iso; // null = today (the default view)
         days.push({
           key: iso,
-          label: i === 0 ? 'TODAY' : i === 1 ? 'YST' : d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric' }).toUpperCase(),
+          label: i === 0 ? 'TODAY' : i === 1 ? 'YST' : dtf('en-AU', { weekday: 'short', day: 'numeric' }).format(d).toUpperCase(),
           active: (st.foodLogDate || null) === date,
           pick: () => app.setFoodLogDate(date),
         });
@@ -302,6 +303,9 @@ export function valsRecipes(app, ctx) {
     foodScanNote: st.foodScanNote,
     setFoodScanNote: (e) => app.setFoodScanNote(e),
     foodScanBusy: st.foodScanBusy,
+    // a search past its first few seconds gets a second line rather than
+    // leaving him staring at a static bar wondering if the tap registered
+    foodScanSlow: !!(st.foodScanBusy && st.foodScanSlow),
     foodScanError: st.foodScanError,
     foodScanQuestion: st.foodScanQuestion,
     // answering is optional — refine re-runs the same photos with the Q&A in

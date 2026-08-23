@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { createRecord, updateRecord } from './inboxStore.js';
 import { NOVA_LENS } from './lens.js';
 import { modelFor, laneOffError, laneEnabled } from './modelPrefs.js';
+import { isGateModel } from './modelChoice.js';
 
 // The Researcher — Nova's first agent that reaches OUTSIDE the vault. The
 // boundaries are structural: it runs only on an explicit "research …" ask
@@ -67,10 +68,15 @@ export function normalizeResearch(parsed) {
   return { title, body };
 }
 
-export async function startResearch(vaultPath, question) {
+// `model`: an explicit per-run override from the model-choice gate (the
+// caller already asked "Opus or Sonnet?" before reaching here) — 'opus' or
+// 'sonnet' only, never the full model board. Omitted, this run just uses
+// the lane's standing default (modelFor('researcher')), same as always.
+export async function startResearch(vaultPath, question, { model } = {}) {
   const q = (question || '').trim();
   if (!q) throw new Error('a research question is required');
   if (q.length > 500) throw new Error('keep the research question under 500 characters');
+  if (model !== undefined && !isGateModel(model)) throw new Error("model must be 'opus' or 'sonnet'");
   // Refused before the record exists: a switched-off lane must not leave a
   // record sitting in 'classifying' that nothing will ever resolve.
   if (!laneEnabled('researcher')) throw laneOffError('researcher');
@@ -84,7 +90,7 @@ export async function startResearch(vaultPath, question) {
     status: 'classifying', // shows as in-flight in the queue
     createdAt: new Date().toISOString(),
   });
-  runResearchJob(vaultPath, record.id, q);
+  runResearchJob(vaultPath, record.id, q, model);
   return record;
 }
 
@@ -100,7 +106,7 @@ export async function retryResearch(vaultPath, record) {
 }
 
 // The spawn-and-settle step, shared by first runs and retries.
-function runResearchJob(vaultPath, recordId, q) {
+function runResearchJob(vaultPath, recordId, q, model) {
   const child = spawn(CLAUDE_BIN, [
     '-p', buildResearchPrompt(q),
     '--permission-mode', 'bypassPermissions',
@@ -111,9 +117,10 @@ function runResearchJob(vaultPath, recordId, q) {
     // named explicitly — an unpinned call silently inherits the account's
     // ambient default model, which cost him a Fable-5 usage-limit hit on a
     // totally unrelated lane (Coach) once that became the default. The pin
-    // now comes from the model board (lib/modelPrefs.js) so it is settable
-    // in Settings; the default is the 'sonnet' this lane has always run on.
-    '--model', modelFor('researcher'),
+    // comes from the model board (lib/modelPrefs.js) so it is settable in
+    // Settings, UNLESS the model-choice gate already asked and got an
+    // explicit per-run answer — that answer wins for this one job only.
+    '--model', model || modelFor('researcher'),
     '--max-budget-usd', MAX_BUDGET_USD,
     '--session-id', randomUUID(),
   ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });

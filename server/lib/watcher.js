@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { isGateModel } from './modelChoice.js';
 import { readdirSync, existsSync } from 'node:fs';
 import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import path from 'node:path';
@@ -262,11 +263,17 @@ export function parseWatchDirective(text) {
   }
 }
 
-export async function startVideoWatch(vaultPath, url, question = '') {
+// `model`: an explicit per-run override from the model-choice gate — 'opus'
+// or 'sonnet' only, applied to BOTH the chunk-extraction pass and the
+// verdict pass so a video watched "on Opus" actually runs on Opus
+// throughout, not just its final judgment. Omitted, both passes just use
+// their own standing lane default, same as always.
+export async function startVideoWatch(vaultPath, url, question = '', { model } = {}) {
   const u = String(url || '').trim();
   if (!/^https?:\/\//.test(u)) throw new Error('a video URL is required');
   if (u.length > 500) throw new Error('that URL does not look right (500 chars max)');
   const q = String(question || '').trim().slice(0, 500);
+  if (model !== undefined && !isGateModel(model)) throw new Error("model must be 'opus' or 'sonnet'");
   // Both passes are checked up front: a long video that clears the verdict
   // lane but not the chunk lane would fail halfway with a record stranded
   // in 'classifying'.
@@ -282,7 +289,7 @@ export async function startVideoWatch(vaultPath, url, question = '') {
     status: 'classifying', // shows as in-flight in the queue
     createdAt: new Date().toISOString(),
   });
-  runWatchJob(vaultPath, record.id, u, q);
+  runWatchJob(vaultPath, record.id, u, q, model);
   return record;
 }
 
@@ -297,7 +304,7 @@ export async function retryWatch(vaultPath, record) {
 }
 
 // The fetch-then-reason step, shared by first runs and retries.
-async function runWatchJob(vaultPath, recordId, url, question) {
+async function runWatchJob(vaultPath, recordId, url, question, model) {
   let workDir = null;
   try {
     workDir = await mkdtemp(path.join(os.tmpdir(), 'nova-watch-'));
@@ -309,7 +316,7 @@ async function runWatchJob(vaultPath, recordId, url, question) {
     const digest = report.transcript.length > SINGLE_PASS_MAX_CHARS;
     let transcriptPath = path.join(workDir, 'transcript.txt');
     if (digest) {
-      const notes = await digestTranscript(vaultPath, report, path.join(workDir, 'digest'), question);
+      const notes = await digestTranscript(vaultPath, report, path.join(workDir, 'digest'), question, model);
       transcriptPath = path.join(workDir, 'notes.md');
       await writeFile(transcriptPath, notes, 'utf8');
     } else {
@@ -320,7 +327,7 @@ async function runWatchJob(vaultPath, recordId, url, question) {
       url, question, transcriptPath, digest,
       title: report.title, uploader: report.uploader,
       duration: report.duration, transcriptSource: report.transcriptSource,
-    });
+    }, model);
     const note = composeWatchNote({
       url, title: report.title, uploader: report.uploader, duration: report.duration,
       transcriptSource: report.transcriptSource, verdict, body,
@@ -380,7 +387,7 @@ export async function digestTranscriptCached(vaultPath, report, digestDir, quest
 // The chunked extraction stage: split, write chunk files, run a bounded
 // number of cheap passes concurrently, join their notes with part headers.
 // Exported for the ingest pipeline, which has the same long-video problem.
-export async function digestTranscript(vaultPath, report, digestDir, question = '') {
+export async function digestTranscript(vaultPath, report, digestDir, question = '', model) {
   await mkdir(digestDir, { recursive: true });
   const chunks = chunkTranscript(report.transcript, CHUNK_CHARS);
   const notes = new Array(chunks.length);
@@ -395,7 +402,7 @@ export async function digestTranscript(vaultPath, report, digestDir, question = 
       // and the notes need no structure beyond themselves.
       const raw = await runClaudeText(vaultPath, buildChunkNotesPrompt({
         title: report.title, part: i + 1, total: chunks.length, chunkPath, question,
-      }), { allowedTools: 'Read', budget: CHUNK_BUDGET_USD, model: CHUNK_MODEL() });
+      }), { allowedTools: 'Read', budget: CHUNK_BUDGET_USD, model: model || CHUNK_MODEL() });
       const text = stripPreamble(raw);
       if (!text) throw new Error(`extraction pass ${i + 1}/${chunks.length} returned no notes`);
       notes[i] = `## Part ${i + 1} of ${chunks.length}\n\n${text}`;
@@ -405,11 +412,11 @@ export async function digestTranscript(vaultPath, report, digestDir, question = 
   return notes.join('\n\n');
 }
 
-async function runWatchModel(vaultPath, promptInputs) {
+async function runWatchModel(vaultPath, promptInputs, model) {
   const parsed = await runClaudeJson(vaultPath, buildWatchPrompt(promptInputs), {
     allowedTools: 'Read Grep Glob WebSearch WebFetch',
     budget: MAX_BUDGET_USD,
-    model: modelFor('watcher-verdict'), // was unpinned until the model board
+    model: model || modelFor('watcher-verdict'), // was unpinned until the model board
   });
   return normalizeWatch(parsed);
 }

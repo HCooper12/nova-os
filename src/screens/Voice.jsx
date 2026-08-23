@@ -272,7 +272,7 @@ export function Voice({ v }) {
               base={css(`cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:10px;border:1px solid color-mix(in srgb, var(--nv-warn) 55%, transparent);background:color-mix(in srgb, var(--nv-warn) 08%, transparent);animation:popIn .3s cubic-bezier(.2,.9,.25,1)`)}
               hoverStyle="background:color-mix(in srgb, var(--nv-warn) 16%, transparent)">
               <span style={css(`font:600 9px ${M};letter-spacing:.16em;color:var(--nv-warn)`)}>▶ TAP TO HEAR</span>
-              <span style={css('font-size:11.5px;color:color-mix(in srgb, var(--nv-ink) 60%, transparent)')}>Nova answered but {v.speechBlocked.reason}.</span>
+              <span style={css('font-size:11.5px;color:color-mix(in srgb, var(--nv-ink) 60%, transparent)')}>{v.speechBlocked.message}</span>
             </Interactive>
           )}
 

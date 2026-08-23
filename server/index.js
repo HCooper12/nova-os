@@ -242,7 +242,12 @@ async function main() {
     .catch((e) => console.error('distill scheduler failed to start:', e.message));
   import('./lib/brainWeek.js').then(({ startBrainWeekScheduler }) => startBrainWeekScheduler(process.env.VAULT_PATH))
     .catch((e) => console.error('brain week scheduler failed to start:', e.message));
-  if (process.env.ICLOUD_USERNAME && process.env.ICLOUD_APP_PASSWORD) startCalendarWatch();
+  if (process.env.ICLOUD_USERNAME && process.env.ICLOUD_APP_PASSWORD) {
+    startCalendarWatch();
+    // pay today's CalDAV round trip once NOW, so the first sync after a
+    // restart answers from the warm cache instead of blocking ~10s on iCloud
+    import('./lib/calendar.js').then(({ prewarmCalendarCache }) => prewarmCalendarCache()).catch(() => {});
+  }
 
   app.use((err, req, res, next) => {
     // A lane the user switched off is not a fault — it is the setting doing

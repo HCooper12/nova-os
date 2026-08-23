@@ -3,6 +3,7 @@
 // from real history when a mode change has earned itself and proposes it —
 // you Accept or Skip; it never changes its own autonomy).
 // Adds to ctx: inboxPendingCount (sidebar badge).
+import { dtf } from './fmt.js';
 
 const ROUTE_META = {
   shopping: { label: 'SHOPPING', hue: '95,232,168' },
@@ -30,6 +31,13 @@ const ROUTE_META = {
   'watch-note': { label: 'SOURCE + TRANSCRIPT', hue: '224,178,106' },
 };
 
+// THE MODEL CHOICE GATE, scheduled-lane half — Pattern Scout/Distill's own
+// weekly cron raises this instead of running, and it just needs a model tap
+// (server/lib/modelChoice.js). No route/confidence badge fits a decision
+// that files nothing itself, so it gets its own tiny meta table instead of
+// ROUTE_META.
+const MODEL_CHOICE_LANE_LABEL = { 'pattern-scout': 'PATTERN SCOUT', distill: 'DISTILL' };
+
 const MODE_LADDER = [
   { value: 'review-all', label: 'Review everything', hint: 'Nova drafts the filing — you approve every one' },
   { value: 'auto-high', label: 'Auto-file high confidence', hint: 'sure things file themselves; doubts wait for you' },
@@ -38,6 +46,9 @@ const MODE_LADDER = [
 
 function payloadPreview(decision) {
   if (!decision) return '';
+  // the gate question already renders as item.reason — a preview line would
+  // just repeat it (or, without this branch, print an empty " — ")
+  if (decision.route === 'model-choice') return '';
   const p = decision.payload || {};
   if (decision.route === 'shopping') return (p.items || []).map((i) => i.name).join(' · ');
   if (decision.route === 'todo') return (p.items || []).map((it) => (typeof it === 'string' ? it : `${it.text}${it.category ? ` #${it.category}` : ''}`)).join(' · ');
@@ -95,13 +106,25 @@ function fullPayload(decision) {
 
 const PREVIEW_CLAMP = 220;
 
+// Memoized per ISO string: this runs for EVERY history record on EVERY
+// render (up to ~400), and the un-cached toLocaleDateString inside it was
+// 10.7ms/render on real data — most of the app's entire render cost (see
+// fmt.js). The label only changes when the calendar day rolls over, so the
+// cache carries a day stamp and empties itself at midnight.
+const timeLabelCache = new Map();
+let timeLabelDay = '';
 function timeLabel(iso) {
   if (!iso) return '';
+  const today = new Date().toDateString();
+  if (today !== timeLabelDay) { timeLabelCache.clear(); timeLabelDay = today; }
+  const hit = timeLabelCache.get(iso);
+  if (hit !== undefined) return hit;
   const d = new Date(iso);
-  const today = new Date();
-  const sameDay = d.toDateString() === today.toDateString();
+  const sameDay = d.toDateString() === today;
   const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  return sameDay ? hm : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) + ' ' + hm;
+  const out = sameDay ? hm : dtf('en-GB', { day: '2-digit', month: 'short' }).format(d) + ' ' + hm;
+  timeLabelCache.set(iso, out);
+  return out;
 }
 
 // The generalized proposal engine — every nudge is grounded in real history,
@@ -269,7 +292,7 @@ export function valsInbox(app, ctx) {
     captured: r.text || '',
     previewShort: preview.length > PREVIEW_CLAMP ? `${preview.slice(0, PREVIEW_CLAMP)}…` : preview,
     toggleExpand: () => app.toggleInboxExpand(r.id),
-    source: r.kind === 'review' ? 'DAILY REVIEW' : r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.kind === 'guardian' ? 'GUARDIAN' : r.kind === 'cfo' || r.kind === 'money-import' ? 'CFO' : r.kind === 'meal-prep' ? 'MEAL PREP' : r.kind === 'food-suggestion' ? 'NUTRITION' : r.kind === 'calendar' ? 'SCHEDULE' : r.kind === 'training-check' ? 'TRAINING' : r.kind === 'week-plan' ? 'COMMANDER' : r.kind === 'plan-today' ? 'PLANNER' : r.kind === 'pattern' ? 'SCOUT' : r.kind === 'autonomy' ? 'TRUST LADDER' : r.kind === 'distill' ? 'DISTILLER' : r.kind === 'coach' || r.kind === 'weekly-debrief' ? 'COACH' : r.kind === 'research' ? 'RESEARCHER' : r.kind === 'video' ? 'WATCHER' : r.kind === 'brain-week' ? 'BRAIN WEEK' : r.kind === 'followup' ? 'CALENDAR' : r.kind === 'studio' ? 'STUDIO' : r.kind === 'fuel-cross' ? 'FUEL × TRAINING' : r.kind === 'study' ? 'STUDY' : r.source === 'voice' ? 'VOICE' : 'TYPED',
+    source: r.kind === 'review' ? 'DAILY REVIEW' : r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.kind === 'guardian' ? 'GUARDIAN' : r.kind === 'cfo' || r.kind === 'money-import' ? 'CFO' : r.kind === 'meal-prep' ? 'MEAL PREP' : r.kind === 'food-suggestion' ? 'NUTRITION' : r.kind === 'calendar' ? 'SCHEDULE' : r.kind === 'training-check' ? 'TRAINING' : r.kind === 'week-plan' ? 'COMMANDER' : r.kind === 'plan-today' ? 'PLANNER' : r.kind === 'pattern' ? 'SCOUT' : r.kind === 'autonomy' ? 'TRUST LADDER' : r.kind === 'distill' ? 'DISTILLER' : r.kind === 'coach' || r.kind === 'weekly-debrief' ? 'COACH' : r.kind === 'research' ? 'RESEARCHER' : r.kind === 'video' ? 'WATCHER' : r.kind === 'model-choice' ? 'MODEL CHOICE' : r.kind === 'brain-week' ? 'BRAIN WEEK' : r.kind === 'followup' ? 'CALENDAR' : r.kind === 'studio' ? 'STUDIO' : r.kind === 'fuel-cross' ? 'FUEL × TRAINING' : r.kind === 'study' ? 'STUDY' : r.source === 'voice' ? 'VOICE' : 'TYPED',
     status: r.status,
     route: r.decision ? (ROUTE_META[r.decision.route] || ROUTE_META.note) : null,
     confidence: r.decision?.confidence || null,
@@ -312,11 +335,37 @@ export function valsInbox(app, ctx) {
     deepAnalyse: r.kind === 'video' && r.decision?.payload?.url && ['pending', 'filed'].includes(r.status)
       ? () => app.startVideoDeepIngest(r.decision.payload.url)
       : null,
+    // THE MODEL CHOICE GATE, scheduled-lane half — this card doesn't file
+    // anything of its own, so it swaps the usual approve/discard for a model
+    // tap (discard still works normally underneath — it's the generic
+    // "skip this week" path, unchanged).
+    isModelChoice: r.kind === 'model-choice',
+    modelChoiceLabel: r.kind === 'model-choice' ? (MODEL_CHOICE_LANE_LABEL[r.decision?.payload?.lane] || r.decision?.payload?.lane) : null,
+    pickOpus: r.kind === 'model-choice' ? () => app.pickModelChoice(r.id, 'opus') : null,
+    pickSonnet: r.kind === 'model-choice' ? () => app.pickModelChoice(r.id, 'sonnet') : null,
     };
   };
 
-  const pendingItems = items.filter((r) => r.status === 'pending').map(mkItem);
-  const historyItems = items.filter((r) => r.status !== 'pending').map(mkItem);
+  // MEMOIZED on input identity: building ~300 rich item objects (payload
+  // previews, closures, time labels) cost ~4ms on EVERY render — including
+  // every keystroke in an unrelated composer, because renderVals computes
+  // all domains. The mapping only actually changes when one of these five
+  // state slices changes identity (plus the day, for timeLabel's today/date
+  // split), so everything else reuses the previous arrays untouched. The
+  // closures stay valid across reuse: they capture `app` (stable) and `r`
+  // (owned by st.liveInbox, part of the key).
+  const itemsKey = [items, st.inboxExpanded, st.inboxActionBusy, st.inboxAskWhy, st.inboxWhyText, new Date().toDateString()];
+  let mapped = app._inboxItemsMemo;
+  if (!mapped || mapped.key.length !== itemsKey.length || mapped.key.some((k, i) => k !== itemsKey[i])) {
+    mapped = {
+      key: itemsKey,
+      pending: items.filter((r) => r.status === 'pending').map(mkItem),
+      history: items.filter((r) => r.status !== 'pending').map(mkItem),
+    };
+    app._inboxItemsMemo = mapped;
+  }
+  const pendingItems = mapped.pending;
+  const historyItems = mapped.history;
 
   // proposed rules (video-2 trust ladder: Nova proposes, you ratify) — the
   // generalized engine covers inbox, dispatch, and compost nudges

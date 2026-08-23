@@ -5,6 +5,7 @@ import os from 'node:os';
 import { NOVA_LENS } from './lens.js';
 import { createRecord, updateRecord, listRecords } from './inboxStore.js';
 import { modelFor, laneSkipped } from './modelPrefs.js';
+import { isGateModel } from './modelChoice.js';
 
 // The pattern scout — skill proposals (agents plan, build 3): once a week a
 // model reads what Hayden actually DID by hand — his captures, their routes,
@@ -152,7 +153,11 @@ async function fileProposals(proposals, marker) {
   });
 }
 
-export async function runPatternScout(vaultPath, { force = false } = {}) {
+// `model`: the per-run override the model-choice gate already resolved
+// (server/lib/modelChoice.js) — 'opus' or 'sonnet' only. Omitted, this run
+// just uses the lane's standing default.
+export async function runPatternScout(vaultPath, { force = false, model } = {}) {
+  if (model !== undefined && !isGateModel(model)) throw new Error("model must be 'opus' or 'sonnet'");
   // Checked BEFORE the marker record is created: a lane that is off must
   // leave nothing behind, least of all a record stuck in 'classifying'.
   if (laneSkipped('pattern-scout', 'the weekly pattern scout')) return { skipped: true, laneOff: true };
@@ -179,8 +184,9 @@ export async function runPatternScout(vaultPath, { force = false } = {}) {
     // ambient default model, which cost him a Fable-5 usage-limit hit on a
     // totally unrelated lane (Coach) once that became the default. The pin
     // now comes from the model board (lib/modelPrefs.js), settable in
-    // Settings, defaulting to the 'sonnet' this lane has always run on.
-    '--model', modelFor('pattern-scout'),
+    // Settings, defaulting to the 'sonnet' this lane has always run on —
+    // UNLESS the model-choice gate already asked and got a per-run answer.
+    '--model', model || modelFor('pattern-scout'),
     '--max-budget-usd', MAX_BUDGET_USD,
     '--session-id', randomUUID(),
   ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -207,14 +213,22 @@ export async function runPatternScout(vaultPath, { force = false } = {}) {
   return { record: marker };
 }
 
-export function startPatternScoutScheduler(vaultPath) {
+// vaultPath: unused now that the gate raises a card instead of running
+// directly — kept in the signature so every scheduler in index.js still
+// takes the same shape.
+export function startPatternScoutScheduler(_vaultPath) {
   const tick = async () => {
     const { beat } = await import('./heartbeat.js');
     beat('pattern-scout');
     try {
       const now = new Date();
       if (now.getDay() !== SCOUT_WEEKDAY || now.getHours() < SCOUT_HOUR) return;
-      await runPatternScout(vaultPath);
+      // The model-choice gate raises an Inbox card instead of running
+      // directly — this is exactly the connect-the-dots-across-the-vault
+      // work he asked to be offered Opus for, and nobody is at the keyboard
+      // when a weekly cron fires to answer a spoken question.
+      const { raiseWeeklyModelChoice } = await import('./modelChoice.js');
+      await raiseWeeklyModelChoice('pattern-scout');
     } catch (err) {
       console.error('pattern scout failed:', err.message);
     }

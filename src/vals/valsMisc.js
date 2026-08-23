@@ -2,6 +2,7 @@ import { getConnection } from '../api.js';
 import { orbReply } from '../mockAssistants.js';
 import { NOTE_TYPE_COLOR, mono } from './shared.js';
 import { speechRecognitionSupported } from '../useDictation.js';
+import { dtf } from './fmt.js';
 
 // The smaller screens: Voice (concept preview), Memory Galaxy, Shopping List,
 // Claude Code, and transcript ingest. Adds to ctx: shoppingItems (nav count).
@@ -102,7 +103,28 @@ export function valsMisc(app, ctx) {
     // know, so the wake word never competes with it for the microphone
     stageCard: st.stageCard || null,
     stageHistory: st.stageHistory || [],
-    speechBlocked: st.speechBlocked ? { reason: st.speechBlocked.reason, replay: () => app.replayBlockedSpeech() } : null,
+    // count > 1 means a whole sequence (e.g. the morning brief) was blocked
+    // line by line — say so, rather than naming just the last sentence.
+    speechBlocked: st.speechBlocked ? {
+      message: st.speechBlocked.texts.length > 1
+        ? `Nova has ${st.speechBlocked.texts.length} lines ready but ${st.speechBlocked.reason}.`
+        : `Nova answered but ${st.speechBlocked.reason}.`,
+      replay: () => app.replayBlockedSpeech(),
+    } : null,
+    // THE MODEL CHOICE GATE — mirrors server/lib/modelChoice.js's phrasing
+    // client-side (the voice path's question already arrived embedded in
+    // the spoken reply; this is what the popup shows for every path,
+    // including that one, so looking at the screen tells the same story as
+    // listening to it).
+    modelChoicePrompt: st.modelChoicePending ? {
+      question: {
+        research: 'Want Opus for this research, or is Sonnet fine?',
+        watch: 'Want Opus for this video, or is Sonnet fine?',
+      }[st.modelChoicePending.lane] || 'Want Opus for this, or is Sonnet fine?',
+      pickOpus: () => app.resolveModelChoice('opus'),
+      pickSonnet: () => app.resolveModelChoice('sonnet'),
+      cancel: () => app.cancelModelChoice(),
+    } : null,
     // the glass has his attention: the rest of the station blurs behind it
     stageFocus: !!(st.stageFocus && st.stageCard),
     dismissStage: () => app.dismissStage(),
@@ -113,9 +135,9 @@ export function valsMisc(app, ctx) {
       evidence: m.evidence ? { ...m.evidence, open: () => app.openVerdict(m.evidence.kind, m.evidence.of) } : null,
       // when this was said — only for messages that carry a real stamp
       // (restored pre-stamp history shows nothing rather than a guess)
-      time: m.at ? new Date(m.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null,
+      time: m.at ? dtf('', { hour: '2-digit', minute: '2-digit' }).format(new Date(m.at)) : null,
       daySep: m.at && (!arr[i - 1]?.at || new Date(arr[i - 1].at).toDateString() !== new Date(m.at).toDateString())
-        ? new Date(m.at).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }) : null,
+        ? dtf('', { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(m.at)) : null,
       proposal: !demoMode && m.proposal ? {
         title: m.proposal.title, status: m.proposal.status,
         approve: m.proposal.status === 'pending' ? () => app.resolveVoiceProposal(m.proposal.recordId, true) : null,

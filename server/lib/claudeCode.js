@@ -238,6 +238,7 @@ Ground rules:${direct ? `
   PROPOSE {"kind":"profile","patch":{"focus":"…" | "priorities":["…"] | "bestSelf":"…" | "notes":"…"}} — when he tells you who he is or what he's working toward (his focus, real priorities, what his best looks like, standing constraints): one area per proposal, HIS words tightened, never invented. Approved, it merges into the About You page every agent reasons from.
   At most one PROPOSE per reply, on its own final line (after a SHOW line if you use both). Use EXACT names from his real data — never invent names or URLs. In your text, say you've drafted it and that a "yes" (or the Inbox) makes it real — NEVER claim it's already done. Only propose what he actually asked for. If he asks you to remember something permanently, tell him to tap REMEMBER on your reply instead.
 - Be a companion, not a search box: notice patterns across what he shares, connect it to his goals, and say the useful hard thing kindly when the data warrants it.
+- BE PRESENT IN HIS ACTUAL DAY: when the live context holds something specific and timely — a notable thing on today's calendar, a deadline, a reason for a kind word — weave ONE brief, natural remark into your answer where it genuinely fits, the way a person who actually knows his day would. "Enjoy the movie marathon this afternoon, sir — good excuse to rest" beats a generic reply when that's sitting right there in the context. Never force it into an answer it doesn't belong in, never invent the event, and never turn it into its own paragraph — one folded-in line is the whole move.
 - WHEN YOU HAVE JUST DONE SOMETHING, say so in character and in one short breath — "Here it is, sir." / "Done — it's playing." / "That's it on screen." — and then, when there is an obvious next step, OFFER IT as a single short clause he can answer with one word: "Say the word and I'll have the Watcher digest it." One offer, never a menu, and only when it genuinely follows. Never narrate your own mechanics ("I'll use the media lane"), and never say you are unable to open something that is already in your context — his drafts are there in full; read them.
 - PLAY: when he asks you to pull up, play, put on or open a video/episode/podcast ("pull up the latest Diary of a CEO video"), end the reply with one line: PLAY {"query":"<what he named, e.g. latest Diary of a CEO video>"}. Nova's code finds the channel's NEWEST upload and opens it playing on his Mac, and puts the title on the glass. In your text: acknowledge briefly in character ("Here it is, sir.") and OFFER the obvious next thing in one short clause — handing it to the Watcher to digest, for instance. Do not describe or judge a video you have not seen, and never guess a URL.
 - THE GLASS: put your answer ON SCREEN as a card whenever the answer has a shape — a name, a figure, a short list, a comparison. He asked for this explicitly: the card should appear "for anything I ask Nova verbally". End the reply with ONE line:
@@ -392,38 +393,68 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
       }
       // And it may dispatch ONE research job — the existing Researcher rails:
       // web-read-only, citation-required, always review-gated in the Inbox.
+      // THE MODEL-CHOICE GATE: an immediate (non-overnight) research request
+      // asks first, rather than dispatching (his ask: "if it's on Sonnet,
+      // prompt me for Opus"). The reply carries the gate question instead of
+      // a dispatch acknowledgment; modelChoicePending tells the client what
+      // to actually run once he answers. Two paths skip the gate and
+      // dispatch immediately, exactly as before: the overnight ("queue it
+      // for tonight") request — nobody is there at 3:30am to answer a
+      // follow-up — and `direct` (the Siri hands-free lane), which is one
+      // shot by design and has no way to receive a follow-up turn at all;
+      // asking it a question it can never hear the answer to would just
+      // silently drop the request.
       const { parseResearchDirective, startResearch } = await import('./researcher.js');
+      const { gateQuestion } = await import('./modelChoice.js');
       const res = parseResearchDirective(text);
       let research = null;
+      let modelChoicePending = null;
       if (res.research) {
         text = res.cleanText;
-        try {
+        if (res.research.when === 'tonight' || direct) {
           if (res.research.when === 'tonight') {
-            const { enqueueOvernight } = await import('./overnight.js');
-            const item = await enqueueOvernight({ question: res.research.question });
-            research = { queued: true, queueId: item.id, question: res.research.question };
+            try {
+              const { enqueueOvernight } = await import('./overnight.js');
+              const item = await enqueueOvernight({ question: res.research.question });
+              research = { queued: true, queueId: item.id, question: res.research.question };
+            } catch (e) {
+              text = `${text} (I tried to queue the research, but ${e.message}.)`;
+            }
           } else {
-            const record = await startResearch(cwd, res.research.question);
-            research = { recordId: record.id, question: res.research.question };
+            try {
+              const record = await startResearch(cwd, res.research.question);
+              research = { recordId: record.id, question: res.research.question };
+            } catch (e) {
+              text = `${text} (I tried to dispatch the research, but ${e.message}.)`;
+            }
           }
-        } catch (e) {
-          text = `${text} (I tried to ${res.research.when === 'tonight' ? 'queue' : 'dispatch'} the research, but ${e.message}.)`;
+        } else {
+          modelChoicePending = { kind: 'research', question: res.research.question };
+          text = `${text} ${gateQuestion('researcher')}`;
         }
       } else if (res.parseError) {
         text = res.cleanText;
       }
       // And it may hand ONE video to the Watcher — transcript pulled locally,
-      // the note always review-gated in the Inbox.
+      // the note always review-gated in the Inbox. Same gate as research,
+      // same `direct` exception.
       const { parseWatchDirective, startVideoWatch } = await import('./watcher.js');
       const wd = parseWatchDirective(text);
       let watch = null;
       if (wd.watch) {
         text = wd.cleanText;
-        try {
-          const record = await startVideoWatch(cwd, wd.watch.url, wd.watch.question);
-          watch = { recordId: record.id, url: wd.watch.url };
-        } catch (e) {
-          text = `${text} (I tried to hand that video to the Watcher, but ${e.message}.)`;
+        if (direct) {
+          try {
+            const record = await startVideoWatch(cwd, wd.watch.url, wd.watch.question);
+            watch = { recordId: record.id, url: wd.watch.url };
+          } catch (e) {
+            text = `${text} (I tried to hand that video to the Watcher, but ${e.message}.)`;
+          }
+        // At most one pending choice per turn — the model is only ever
+        // supposed to emit one directive anyway; this just keeps the first.
+        } else if (!modelChoicePending) {
+          modelChoicePending = { kind: 'watch', url: wd.watch.url, question: wd.watch.question };
+          text = `${text} ${gateQuestion('watcher')}`;
         }
       } else if (wd.parseError) {
         text = wd.cleanText;
@@ -471,7 +502,7 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
         foot: `${played.durationMin ? `${played.durationMin} min · ` : ''}${played.exact ? 'newest upload' : 'closest match — not certain it is the newest'}`,
         tone: 'gold',
       }) : null;
-      turnJob.result = { text, sessionId: effectiveSessionId, panel, proposal, research, watch, card: card || playedCard, played };
+      turnJob.result = { text, sessionId: effectiveSessionId, panel, proposal, research, watch, modelChoicePending, card: card || playedCard, played };
       turnJob.status = 'ready';
     } catch (e) {
       turnJob.status = 'error';

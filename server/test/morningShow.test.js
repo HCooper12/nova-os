@@ -3,7 +3,7 @@
 // gate is armed exactly when something is pending.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { composeShow } from '../lib/morningShow.js';
+import { composeShow, leisureEventToday } from '../lib/morningShow.js';
 
 const pad = (n) => String(n).padStart(2, '0');
 const local = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -72,4 +72,31 @@ test('missing sources lose their beats silently — never filler, never a crash'
   assert.doesNotMatch(all, /steps|calendar|Inbox|undefined|NaN/);
   assert.equal(pending, null);
   assert.ok(steps.length >= 2, 'greeting + close at minimum');
+});
+
+test('leisureEventToday: finds a leisure/rest event by keyword, ignores ordinary ones, never guesses', () => {
+  assert.equal(leisureEventToday([{ label: 'Push Day', time: '17:30' }]), null, 'training is not leisure');
+  assert.equal(leisureEventToday([{ label: 'Dentist', time: '09:00' }]), null, 'an appointment is not leisure');
+  assert.equal(leisureEventToday([]), null);
+  assert.equal(leisureEventToday(null), null, 'never throws on a missing calendar read');
+  const movie = { label: 'Movie Marathon with the boys', time: '19:00' };
+  assert.equal(leisureEventToday([{ label: 'Push Day', time: '17:30' }, movie]), movie, 'finds it anywhere in the day, not just first');
+  assert.equal(leisureEventToday([{ label: 'Team space planning' }]), null, 'word-boundary match — "spa" must not hide inside "space"');
+});
+
+test('morning show: a leisure event on the calendar earns a warm, specific line — never on the evening variant', async () => {
+  const withLeisure = { ...deps, eventsForDay: async () => [{ label: 'Movie Marathon', time: '14:00' }] };
+  const { steps } = await composeShow('/tmp/vault', { variant: 'morning' }, withLeisure);
+  const all = steps.map((s) => s.say).join(' | ');
+  assert.match(all, /movie marathon/i);
+  assert.match(all, /enjoy|earned the downtime|make the most of it/i);
+
+  // the evening variant reads the SAME event back as part of tomorrow's
+  // shape (expected — that beat runs regardless of variant); what must be
+  // absent is the warm REMARK itself, morning-only by design
+  const evening = await composeShow('/tmp/vault', { variant: 'evening' }, withLeisure);
+  assert.doesNotMatch(evening.steps.map((s) => s.say).join(' | '), /enjoy your|earned the downtime|make the most of it/i, 'the leisure remark is morning-only');
+
+  const { steps: plain } = await composeShow('/tmp/vault', { variant: 'morning' }, deps);
+  assert.doesNotMatch(plain.map((s) => s.say).join(' | '), /enjoy your|earned the downtime/i, 'no event, no remark — never invented');
 });

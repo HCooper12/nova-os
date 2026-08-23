@@ -183,7 +183,11 @@ export function loopsRouter(vaultPath) {
   router.post('/distill/run', async (req, res) => {
     try {
       const { runDistillation } = await import('../lib/distill.js');
-      res.json(await runDistillation(vaultPath, { force: !!req.body?.force }));
+      // This is the raw manual/debug trigger, not an interactive surface —
+      // nothing is "asking" here, so it isn't gated. An explicit model MAY
+      // still be passed (the same 'opus'/'sonnet' the gate would offer);
+      // omitted, it just runs on the lane's standing default as always.
+      res.json(await runDistillation(vaultPath, { force: !!req.body?.force, model: req.body?.model }));
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

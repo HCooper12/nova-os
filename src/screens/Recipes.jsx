@@ -197,7 +197,14 @@ export function Recipes({ v }) {
               icons inline, no separate sections. Enter or the arrow submits;
               the optional note field appears only once photos are staged. */}
           <div style={css("margin-top:12px;display:flex;gap:8px;align-items:center")}>
+            {/* his report: typing a food and hitting Enter looked like it did
+                nothing — because it didn't SHOW anything, even though a
+                search was genuinely running. Disabled proves the tap
+                registered; the caption below the bar (not the placeholder —
+                the box still holds what he typed, so a placeholder swap
+                would never actually be visible) is the rest of the fix. */}
             <Interactive as="input" value={v.foodDescribeInput} onChange={v.setFoodDescribeInput} onKeyDown={v.describeFoodKey}
+              disabled={v.foodScanBusy}
               placeholder="Log anything — type it, shoot it, or scan it…"
               base="flex:1;min-width:0;box-sizing:border-box;background:rgba(0,0,0,.3);border:1px solid var(--nv-edge);border-radius:12px;padding:11px 14px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-ui);outline:none"
               focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
@@ -221,6 +228,12 @@ export function Recipes({ v }) {
               <svg width="17" height="17" viewBox="0 0 24 24" stroke="color-mix(in srgb, var(--nv-ink) 62%, transparent)" strokeWidth="2"><path d="M4 6v12M8 6v12M12 6v12M15 6v12M19 6v12" fill="none"/></svg>
             </Interactive>
           </div>
+          {v.foodScanBusy && (
+            <div style={css("margin-top:7px;display:flex;align-items:center;gap:6px;font-size:11px;color:color-mix(in srgb, var(--nv-good) 75%, var(--nv-ink))")}>
+              <span style={css("width:6px;height:6px;border-radius:50%;background:var(--nv-good);flex:none;animation:novaPulse 1.4s ease-in-out infinite")}></span>
+              {v.foodScanSlow ? 'Still searching — a named product can take a moment…' : 'Searching…'}
+            </div>
+          )}
           {/* which day this lands on — compact, below the bar (mockup keeps
               the bar clean); off-plan totals ride along when they exist */}
           <div style={css("margin-top:9px;display:flex;gap:6px;flex-wrap:wrap;align-items:center")}>

@@ -9,6 +9,7 @@ import { stageVault, diffTrees } from './ingest.js';
 import { createRecord, listRecords } from './inboxStore.js';
 import { backupFile } from './backup.js';
 import { modelFor, laneSkipped } from './modelPrefs.js';
+import { isGateModel } from './modelChoice.js';
 
 // The distiller — captures become knowledge. Filed captures land as FLAT
 // pages (Wiki/Inbox, Studio ideas) with no wikilinks, so the graph never
@@ -91,7 +92,11 @@ export async function loadDistillJob(jobId) {
 
 // Runs the staged model pass and files the pending record. Resolves when the
 // job has settled (unlike the interactive ingest, nobody is polling a UI).
-export async function runDistillation(vaultPath, { force = false } = {}) {
+// `model`: the per-run override the model-choice gate already resolved —
+// 'opus' or 'sonnet' only. Omitted, this run uses the lane's standing
+// default.
+export async function runDistillation(vaultPath, { force = false, model } = {}) {
+  if (model !== undefined && !isGateModel(model)) throw new Error("model must be 'opus' or 'sonnet'");
   if (laneSkipped('distill', 'the weekly distillation')) return { skipped: true, reason: 'lane switched off in Settings' };
   const records = await listRecords();
   const cutoff = Date.now() - 6 * 86400e3;
@@ -116,8 +121,9 @@ export async function runDistillation(vaultPath, { force = false } = {}) {
       // ambient default model, which cost him a Fable-5 usage-limit hit on a
       // totally unrelated lane (Coach) once that became the default. The pin
       // now comes from the model board (lib/modelPrefs.js) so it is settable
-      // in Settings; the default is the 'sonnet' this lane has always run on.
-      '--model', modelFor('distill'),
+      // in Settings; the default is the 'sonnet' this lane has always run on —
+      // UNLESS the model-choice gate already asked and got a per-run answer.
+      '--model', model || modelFor('distill'),
     '--max-budget-usd', MAX_BUDGET_USD,
       '--no-session-persistence',
     ], { cwd: stagingVault });
@@ -221,14 +227,21 @@ export async function undoDistillJob(vaultPath, jobId) {
 
 /* ------------------------------- scheduler ------------------------------- */
 
-export function startDistillScheduler(vaultPath) {
+// vaultPath: unused now that the gate raises a card instead of running
+// directly — kept in the signature so every scheduler in index.js still
+// takes the same shape.
+export function startDistillScheduler(_vaultPath) {
   const tick = async () => {
     const { beat } = await import('./heartbeat.js');
     beat('distill');
     try {
       const now = new Date();
       if (now.getDay() !== DISTILL_WEEKDAY || now.getHours() < DISTILL_HOUR) return;
-      await runDistillation(vaultPath);
+      // The model-choice gate raises an Inbox card instead of running
+      // directly — nobody is at the keyboard when a weekly cron fires to
+      // answer a spoken question, so the run waits for a tap instead.
+      const { raiseWeeklyModelChoice } = await import('./modelChoice.js');
+      await raiseWeeklyModelChoice('distill');
     } catch (err) {
       console.error('distillation failed:', err.message);
     }

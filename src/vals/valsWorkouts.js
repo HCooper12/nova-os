@@ -1,5 +1,6 @@
 import { weekData } from '../data.js';
 import { bubble } from './shared.js';
+import { dtf } from './fmt.js';
 
 // The next N days (today → today+N) as {iso, short} for day pickers.
 function nextDays(n) {
@@ -8,7 +9,7 @@ function nextDays(n) {
     const d = new Date();
     d.setDate(d.getDate() + i);
     const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const short = i === 1 ? 'Tomorrow' : d.toLocaleDateString('en-GB', { weekday: 'long' });
+    const short = i === 1 ? 'Tomorrow' : dtf('en-GB', { weekday: 'long' }).format(d);
     out.push({ iso, short });
   }
   return out;
@@ -512,7 +513,7 @@ export function valsWorkouts(app, ctx) {
         title: `${c.sourceRoutineName} — makeup`,
         names: c.exercises.map((e) => e.name).join(', '),
         count: c.exercises.length,
-        when: days < 0 ? `overdue since ${c.forDate}` : days === 0 ? 'due today' : days === 1 ? 'due tomorrow' : `due ${new Date(`${c.forDate}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short' })}`,
+        when: days < 0 ? `overdue since ${c.forDate}` : days === 0 ? 'due today' : days === 1 ? 'due tomorrow' : `due ${dtf('en-GB', { weekday: 'long', day: '2-digit', month: 'short' }).format(new Date(`${c.forDate}T12:00:00`))}`,
         overdue: days < 0,
         dueSoon: days <= 0,
         start: () => app.startCarryoverSession(c),

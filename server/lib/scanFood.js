@@ -15,6 +15,21 @@ const MAX_BUDGET_USD = '0.5';
 // account's ambient default — the exact hole the 21-Aug Coach fix closed.
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
+// --allowedTools is NOT a real restriction under --permission-mode
+// bypassPermissions (verified empirically, see claudeCode.js) — dropping
+// WebFetch from the allow-list alone would do nothing. --disallowedTools IS
+// enforced regardless of permission mode, so it's the actual gate here: a
+// full-page fetch was the slowest single thing this lane could do (he's
+// standing there waiting on a search result, not a research brief), and the
+// prompt's own instruction not to fetch is backed up structurally rather
+// than trusted alone.
+const DESCRIBE_DISALLOWED = [
+  'Bash', 'Agent', 'Skill', 'ToolSearch', 'ScheduleWakeup', 'ReportFindings', 'Artifact',
+  'SendMessage', 'CronCreate', 'CronDelete', 'CronList', 'DesignSync',
+  'EnterWorktree', 'ExitWorktree', 'NotebookEdit', 'PushNotification', 'RemoteTrigger',
+  'TaskCreate', 'TaskGet', 'TaskList', 'TaskOutput', 'TaskStop', 'TaskUpdate', 'Monitor',
+  'Edit', 'Write', 'Grep', 'Glob', 'Read', 'WebFetch',
+].join(',');
 const jobs = new Map();
 
 function buildPrompt(mode, imagePaths, note) {
@@ -78,17 +93,19 @@ Output ONLY a JSON object with exactly these keys: name, macros, confidence, que
 // the SAME shape as a photo scan, so it flows through the identical preview →
 // confirm path and is never logged without his say-so.
 export function buildDescribePrompt(description) {
-  return `Estimate the nutrition of this food from the user's own description. This is Australian context (Woolworths/Coles/Aldi products, AU chain sizing) unless the description says otherwise.
+  return `Estimate the nutrition of this food from the user's own description. This is Australian context (Woolworths/Coles/Aldi products, AU chain sizing) unless the description says otherwise. He is standing there waiting on this answer — every second counts more than it would for a normal question, so the instructions below are about speed as much as accuracy.
 
 The description: "${description}"
 
-- If it names a specific product, chain or venue (e.g. a cinema's large popcorn, a named cafe item), look it up so the numbers are real rather than guessed. Prefer the venue's own published nutrition; otherwise a close equivalent, and say so in the question field.
-- If it's generic ("a bowl of porridge"), estimate a sensible standard portion.
+- MOST foods need ZERO tools. "banana", "grilled chicken breast", "a bowl of porridge", "two eggs on toast" — you already know these well enough; answer immediately from your own knowledge, no search.
+- Search ONLY when a specific branded product, chain or venue is named that genuinely changes the numbers (e.g. a cinema's large popcorn, a named cafe item, a packaged product with a distinctive size) AND you're not already confident of its real figures.
+- When you do search: ONE search, then answer from the results shown to you. Do not open/fetch any page — the search snippets are enough, and reading a full page costs him real time for a precision he doesn't need. If the snippets don't settle it, say so honestly via "question" and confidence:"low" rather than searching again.
+- If it's generic, estimate a sensible standard portion.
 - Respect any quantity or size given ("large", "two", "half of a"). If no size is given for something that varies a lot, assume a normal serving and SAY SO.
 
 - name: a short, natural name for what was eaten, including the venue/brand when given
 - macros: {p, c, f, kcal} — the total for everything described; grams for p/c/f, whole-number kcal
-- confidence: "high" or "low" — low when the portion genuinely can't be pinned down, or you could not find real figures for a named item
+- confidence: "high" or "low" — low when the portion genuinely can't be pinned down, or a search didn't settle a named item's real figures
 - question: if confidence is low, ONE short question that would most improve the estimate (e.g. "was that the 120g regular or the 170g large?"). Empty string if high.
 
 Output ONLY a JSON object with exactly these keys: name, macros, confidence, question. No markdown, no code fences, no commentary before or after.`;
@@ -187,7 +204,8 @@ export function startFoodDescribe(description) {
   const child = spawn(CLAUDE_BIN, [
     '-p', buildDescribePrompt(text),
     '--permission-mode', 'bypassPermissions',
-    '--allowedTools', 'WebSearch WebFetch',
+    '--allowedTools', 'WebSearch',
+    '--disallowedTools', DESCRIBE_DISALLOWED,
     '--strict-mcp-config',
     '--output-format', 'json',
     '--max-budget-usd', MAX_BUDGET_USD,

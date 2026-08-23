@@ -99,7 +99,9 @@ export function inboxRouter(vaultPath) {
   router.post('/research', async (req, res) => {
     try {
       const { startResearch } = await import('../lib/researcher.js');
-      const record = await startResearch(vaultPath, req.body?.question);
+      // model: the client already asked "Opus or Sonnet?" via the
+      // model-choice gate before sending this request — 'opus'/'sonnet' only.
+      const record = await startResearch(vaultPath, req.body?.question, { model: req.body?.model });
       res.json({ record });
     } catch (e) {
       res.status(400).json({ error: e.message });
@@ -119,7 +121,7 @@ export function inboxRouter(vaultPath) {
         url = found.url;
         question = question || found.question;
       }
-      const record = await startVideoWatch(vaultPath, url, question);
+      const record = await startVideoWatch(vaultPath, url, question, { model: req.body?.model });
       res.json({ record });
     } catch (e) {
       res.status(400).json({ error: e.message });
@@ -207,6 +209,21 @@ export function inboxRouter(vaultPath) {
   router.post('/inbox/:id/discard', async (req, res) => {
     try {
       const record = await discardRecord(req.params.id, req.body?.reason);
+      res.json({ record });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // THE MODEL CHOICE GATE, scheduled-lane half: Pattern Scout/Distill raise
+  // a pending 'model-choice' card instead of running when their weekly cron
+  // fires (server/lib/modelChoice.js) — this is what actually runs the
+  // week's job once he picks. Discarding the SAME card (the generic
+  // /discard route above already handles any pending kind) skips the week.
+  router.post('/inbox/:id/model-choice', async (req, res) => {
+    try {
+      const { resolveWeeklyModelChoice } = await import('../lib/modelChoice.js');
+      const { record } = await resolveWeeklyModelChoice(vaultPath, req.params.id, req.body?.model);
       res.json({ record });
     } catch (e) {
       res.status(400).json({ error: e.message });

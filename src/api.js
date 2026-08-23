@@ -144,7 +144,9 @@ export const api = {
   foodScanJob: (conn, jobId) => call(conn, `/api/food-log/scan/${encodeURIComponent(jobId)}`),
   lookupBarcode: (conn, code) => call(conn, `/api/food-log/barcode/${encodeURIComponent(code)}`),
   addQuickRecipe: (conn, body) => post(conn, '/api/recipes/quick', body),
-  calendarToday: (conn) => call(conn, '/api/calendar/today'),
+  // opts pass-through: the post-snapshot straggler fetch needs a longer
+  // timeout (a genuinely cold CalDAV read can run past the 20s default)
+  calendarToday: (conn, opts) => call(conn, '/api/calendar/today', opts),
   calendars: (conn) => call(conn, '/api/calendar/calendars'),
   setHiddenCalendars: (conn, hidden) => post(conn, '/api/calendar/calendars/hidden', { hidden }),
   // 60s: interpretation spawns the CLI and measured ~18s on a real request —
@@ -239,8 +241,13 @@ export const api = {
   overnightAddOutline: (conn, ideaId) => post(conn, '/api/overnight', { kind: 'outline', ideaId }),
   overnightRemove: (conn, id) => post(conn, '/api/overnight/remove', { id }),
   overnightRun: (conn) => post(conn, '/api/overnight/run'),
-  research: (conn, question) => post(conn, '/api/research', { question }),
-  videoWatch: (conn, text) => post(conn, '/api/video', { text }),
+  // model: the model-choice gate's answer ('opus'/'sonnet') — omitted, the
+  // lane's own standing default runs, same as always.
+  research: (conn, question, model) => post(conn, '/api/research', { question, model }),
+  videoWatch: (conn, text, model) => post(conn, '/api/video', { text, model }),
+  // the gate already has url/question split (a voice directive, a played
+  // offer) — this skips the text-sniffing /api/video does for the other form
+  videoWatchDirect: (conn, url, question, model) => post(conn, '/api/video', { url, question, model }),
   followupDone: (conn, label, time) => post(conn, '/api/followups', { label, time }),
   studioSetStatus: (conn, id, status) => post(conn, `/api/studio/idea/${encodeURIComponent(id)}/status`, { status }),
   studioOutline: (conn, id) => post(conn, `/api/studio/idea/${encodeURIComponent(id)}/outline`, {}),
@@ -288,5 +295,7 @@ export const api = {
   inboxApprove: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/approve`),
   inboxDiscard: (conn, id, reason) => post(conn, `/api/inbox/${encodeURIComponent(id)}/discard`, reason ? { reason } : undefined),
   inboxRetry: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/retry`),
+  // the scheduled-lane half of the model-choice gate (Pattern Scout, Distill)
+  inboxModelChoice: (conn, id, model) => post(conn, `/api/inbox/${encodeURIComponent(id)}/model-choice`, { model }),
   inboxUndo: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/undo`),
 };

@@ -52,6 +52,7 @@ import { Interactive } from './Interactive.jsx';
 import { WakeWord } from './WakeWord.jsx';
 import { OutboxView } from './OutboxView.jsx';
 import { NudgeCard } from './NudgeCard.jsx';
+import { ModelChoicePrompt } from './ModelChoicePrompt.jsx';
 import { Boot } from './Boot.jsx';
 // 0.05s of silence — a REAL source, so iOS accepts the gesture and unlocks
 // the element for the reply that arrives seconds later.
@@ -235,7 +236,7 @@ export default class App extends Component {
     foodLogDate: null, liveFoodLogView: null,
     liveStash: null, stashAddCategory: '', stashAddName: '', stashAddUrl: '', stashAddNote: '', stashAddBusy: false, stashAddError: null, stashRemoveConfirm: null,
     foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogBusy: false, foodLogError: null,
-    foodScanNote: '', foodScanPhotos: [], foodScanBusy: false, foodScanError: null, foodScanQuestion: null, foodLogFillSource: null,
+    foodScanNote: '', foodScanPhotos: [], foodScanBusy: false, foodScanSlow: false, foodScanError: null, foodScanQuestion: null, foodLogFillSource: null,
     foodDescribeInput: '',
     // a low-confidence scan's clarifying question stays ANSWERABLE: the photos
     // + note that produced it are kept so an answer can re-run the same scan
@@ -258,6 +259,10 @@ export default class App extends Component {
     // set when a reply was composed but the device refused to play it —
     // silence must never also be invisible
     speechBlocked: null,
+    // THE MODEL CHOICE GATE — { lane: 'research'|'watch', run(model) } while
+    // a reasoning-heavy job is waiting on "Opus or Sonnet?"; null the rest
+    // of the time. One at a time, same as a pending proposal.
+    modelChoicePending: null,
     // THE GLASS — the card for the line Nova is speaking RIGHT NOW, and the
     // ones it has already spoken past (newest first). Set as each beat's
     // audio starts, never before: the visual must track the voice.
@@ -414,6 +419,17 @@ export default class App extends Component {
         this.attachAskPoll(conn, pending.jobId);
       } else if (pending) {
         localStorage.removeItem('novaos.askJob');
+      }
+    } catch { /* best-effort */ }
+    // same reclaim, for a food scan/describe that was mid-flight — see
+    // persistFoodScanJob for why this exists at all
+    try {
+      const pendingFood = JSON.parse(localStorage.getItem('novaos.foodScanJob') || 'null');
+      const conn2 = getConnection();
+      if (pendingFood?.jobId && conn2 && Date.now() - (pendingFood.startedAt || 0) < 10 * 60_000) {
+        this.attachFoodScanPoll(conn2, pendingFood.jobId, pendingFood);
+      } else if (pendingFood) {
+        localStorage.removeItem('novaos.foodScanJob');
       }
     } catch { /* best-effort */ }
     // load the device's free system voices for the voice picker (they arrive
@@ -1099,6 +1115,17 @@ export default class App extends Component {
         const startedAt = Date.now();
         const { slices } = await api.snapshot(conn);
         okCount = this.applySnapshot(slices, startedAt);
+        // The snapshot no longer waits on a slow slice (a cold CalDAV
+        // calendar was holding EVERY sync to ~5-10s) — a slice that missed
+        // its server-side budget arrives absent. The calendar is the only
+        // slice that realistically misses; fetch the straggler directly,
+        // unbudgeted, so today's events land seconds behind the fast sync
+        // instead of a whole sync-cycle later. Cached data covers the gap.
+        if (slices.calendar === undefined) {
+          api.calendarToday(conn, { timeoutMs: 30_000 })
+            .then((r) => this.setState({ liveCalendar: r.events }))
+            .catch(() => {}); // next sync tries again; the cached copy stands
+        }
       } catch {
         const results = await Promise.allSettled(tasks.map((t) => t()));
         okCount = results.filter((r) => r.status === 'fulfilled').length;
@@ -1263,6 +1290,72 @@ export default class App extends Component {
   clearFoodScanPhotos() {
     this.setState({ foodScanPhotos: [] });
   }
+  // A food-scan/describe job used to live ONLY in memory: `this.pollers` and
+  // the poll's closure. A slow one (a real web search can run well past a
+  // minute) regularly outlived the tab — iOS reclaims a backgrounded PWA
+  // under memory pressure, which wipes all JS state — and the answer, sitting
+  // finished on the server the whole time, was never seen again. Reload,
+  // still says "Analyzing…" a second ago and now shows nothing: indistin-
+  // guishable from "the search doesn't work" (his exact report). Persist
+  // just enough to reattach, the same mechanism novaos.askJob already proved
+  // for Ask Nova.
+  persistFoodScanJob(jobId, meta) {
+    try { localStorage.setItem('novaos.foodScanJob', JSON.stringify({ jobId, ...meta, startedAt: Date.now() })); } catch { /* best-effort */ }
+  }
+  clearFoodScanJob() {
+    try { localStorage.removeItem('novaos.foodScanJob'); } catch { /* best-effort */ }
+  }
+  // Shared by a fresh dispatch AND a reattach after reload — meta.kind picks
+  // which fields the result fills. `photos`/`note` are the SCAN continuation
+  // (his answer to a low-confidence question); they exist only in memory, so
+  // a reattach after a real reload loses them same as it always would — this
+  // fix is about not losing the ANSWER, not about surviving every follow-up.
+  attachFoodScanPoll(conn, jobId, meta) {
+    this.setState({ foodScanBusy: true, foodScanSlow: false });
+    clearTimeout(this.foodScanSlowTimer);
+    this.foodScanSlowTimer = setTimeout(() => this.setState({ foodScanSlow: true }), 5000);
+    this.startPoll('foodScan', () => api.foodScanJob(conn, jobId), {
+      intervalMs: meta.kind === 'describe' ? 900 : 800,
+      onReady: (job) => {
+        clearTimeout(this.foodScanSlowTimer);
+        this.clearFoodScanJob();
+        const r = job.result;
+        const asks = r.confidence === 'low' && r.question;
+        if (meta.kind === 'describe') {
+          this.setState({
+            foodScanBusy: false, foodScanError: null, foodDescribeInput: '',
+            foodLogFillSource: 'described',
+            foodScanQuestion: asks ? r.question : null,
+            foodScanQAPhotos: [], foodScanQANote: asks ? meta.text : '',
+            foodLogName: r.name || meta.text,
+            foodLogP: r.macros?.p != null ? String(r.macros.p) : '',
+            foodLogC: r.macros?.c != null ? String(r.macros.c) : '',
+            foodLogF: r.macros?.f != null ? String(r.macros.f) : '',
+            foodLogKcal: r.macros?.kcal != null ? String(r.macros.kcal) : '',
+          });
+          this.toastMsg(asks ? 'Estimated — rough, check the fields below' : 'Estimated — check the fields below before adding');
+        } else {
+          this.setState({
+            foodScanBusy: false, foodScanError: null,
+            foodScanPhotos: [], foodScanNote: '',
+            foodLogFillSource: 'scan', // provenance survives to the log entry
+            foodScanQuestion: asks ? r.question : null,
+            // keep what produced the question so an answer can re-estimate
+            // (answering is optional — the fields below are always saveable)
+            foodScanQAPhotos: asks ? (meta.photos || []) : [],
+            foodScanQANote: asks ? (meta.note || '') : '',
+            foodLogName: r.name || '',
+            foodLogP: r.macros?.p != null ? String(r.macros.p) : '',
+            foodLogC: r.macros?.c != null ? String(r.macros.c) : '',
+            foodLogF: r.macros?.f != null ? String(r.macros.f) : '',
+            foodLogKcal: r.macros?.kcal != null ? String(r.macros.kcal) : '',
+          });
+          this.toastMsg(r.confidence === 'low' ? 'Analyzed — rough estimate, check the fields below' : 'Analyzed — check the fields below before saving');
+        }
+      },
+      onError: (msg) => { clearTimeout(this.foodScanSlowTimer); this.clearFoodScanJob(); this.setState({ foodScanBusy: false, foodScanError: msg }); },
+    });
+  }
   runFoodScan(photosArg, noteArg) {
     const conn = getConnection();
     const photos = photosArg || this.state.foodScanPhotos || [];
@@ -1272,30 +1365,8 @@ export default class App extends Component {
     // 'auto' fuses however many photos there are (labels and/or the food) with the note
     api.startFoodScan(conn, 'auto', photos, note)
       .then(({ jobId }) => {
-        this.startPoll('foodScan', () => api.foodScanJob(conn, jobId), {
-          intervalMs: 800,
-          onReady: (job) => {
-            const r = job.result;
-            const asks = r.confidence === 'low' && r.question;
-            this.setState({
-              foodScanBusy: false, foodScanError: null,
-              foodScanPhotos: [], foodScanNote: '',
-              foodLogFillSource: 'scan', // provenance survives to the log entry
-              foodScanQuestion: asks ? r.question : null,
-              // keep what produced the question so an answer can re-estimate
-              // (answering is optional — the fields below are always saveable)
-              foodScanQAPhotos: asks ? photos : [],
-              foodScanQANote: asks ? note : '',
-              foodLogName: r.name || '',
-              foodLogP: r.macros?.p != null ? String(r.macros.p) : '',
-              foodLogC: r.macros?.c != null ? String(r.macros.c) : '',
-              foodLogF: r.macros?.f != null ? String(r.macros.f) : '',
-              foodLogKcal: r.macros?.kcal != null ? String(r.macros.kcal) : '',
-            });
-            this.toastMsg(r.confidence === 'low' ? 'Analyzed — rough estimate, check the fields below' : 'Analyzed — check the fields below before saving');
-          },
-          onError: (msg) => this.setState({ foodScanBusy: false, foodScanError: msg }),
-        });
+        this.persistFoodScanJob(jobId, { kind: 'scan', note });
+        this.attachFoodScanPoll(conn, jobId, { kind: 'scan', photos, note });
       })
       .catch((e) => this.setState({ foodScanBusy: false, foodScanError: e.message }));
   }
@@ -1309,26 +1380,8 @@ export default class App extends Component {
     this.setState({ foodScanBusy: true, foodScanError: null, foodScanQuestion: null, foodScanAnswer: '' });
     api.describeFood(conn, text)
       .then(({ jobId }) => {
-        this.startPoll('foodScan', () => api.foodScanJob(conn, jobId), {
-          intervalMs: 900,
-          onReady: (job) => {
-            const r = job.result;
-            const asks = r.confidence === 'low' && r.question;
-            this.setState({
-              foodScanBusy: false, foodScanError: null, foodDescribeInput: '',
-              foodLogFillSource: 'described',
-              foodScanQuestion: asks ? r.question : null,
-              foodScanQAPhotos: [], foodScanQANote: asks ? text : '',
-              foodLogName: r.name || text,
-              foodLogP: r.macros?.p != null ? String(r.macros.p) : '',
-              foodLogC: r.macros?.c != null ? String(r.macros.c) : '',
-              foodLogF: r.macros?.f != null ? String(r.macros.f) : '',
-              foodLogKcal: r.macros?.kcal != null ? String(r.macros.kcal) : '',
-            });
-            this.toastMsg(asks ? 'Estimated — rough, check the fields below' : 'Estimated — check the fields below before adding');
-          },
-          onError: (msg) => this.setState({ foodScanBusy: false, foodScanError: msg }),
-        });
+        this.persistFoodScanJob(jobId, { kind: 'describe', text });
+        this.attachFoodScanPoll(conn, jobId, { kind: 'describe', text });
       })
       .catch((e) => this.setState({ foodScanBusy: false, foodScanError: e.message }));
   }
@@ -2591,10 +2644,12 @@ export default class App extends Component {
     const conn = getConnection();
     const q = (question || '').trim();
     if (!conn || !q) return;
-    api.research(conn, q).then(() => {
-      this.toastMsg('Researcher dispatched — the brief lands in the Inbox for review');
-      this.refreshInbox();
-    }).catch((e) => this.toastMsg('Research failed to start: ' + e.message));
+    this.gateModelChoice('research', (model) => {
+      api.research(conn, q, model).then(() => {
+        this.toastMsg('Researcher dispatched — the brief lands in the Inbox for review');
+        this.refreshInbox();
+      }).catch((e) => this.toastMsg('Research failed to start: ' + e.message));
+    });
   }
   toggleInboxExpand(id) {
     this.setState((s) => ({ inboxExpanded: { ...s.inboxExpanded, [id]: !(s.inboxExpanded || {})[id] } }));
@@ -2603,10 +2658,12 @@ export default class App extends Component {
     const conn = getConnection();
     const t = (text || '').trim();
     if (!conn || !t) return;
-    api.videoWatch(conn, t).then(() => {
-      this.toastMsg("Watcher dispatched — the video's read lands in the Inbox for review");
-      this.refreshInbox();
-    }).catch((e) => this.toastMsg('Watch failed to start: ' + e.message));
+    this.gateModelChoice('watch', (model) => {
+      api.videoWatch(conn, t, model).then(() => {
+        this.toastMsg("Watcher dispatched — the video's read lands in the Inbox for review");
+        this.refreshInbox();
+      }).catch((e) => this.toastMsg('Watch failed to start: ' + e.message));
+    });
   }
   setDailyReviewConfig(patch) {
     const conn = getConnection();
@@ -3142,6 +3199,34 @@ export default class App extends Component {
             this.setState({ voicePendingOffer: { kind: 'watch', url: job.result.played.url, title: job.result.played.title } });
           }
           if (research && !research.queued) this.watchVoiceResearch(conn, research.recordId);
+          // THE MODEL CHOICE GATE: the reply just asked "Opus or Sonnet?" —
+          // arm it so a tap on the popup OR the next spoken turn (see
+          // askNova) dispatches the research/watch that's actually waiting.
+          const mc = job.result.modelChoicePending;
+          if (mc) {
+            this.gateModelChoice(mc.kind, (model) => {
+              if (mc.kind === 'research') {
+                api.research(conn, mc.question, model).then(({ record }) => {
+                  const line = 'On it — the brief lands in your Inbox.';
+                  this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line, research: { recordId: record.id, question: mc.question, status: 'running' } }] }));
+                  if (this.state.voiceSpeak) this.speak(line);
+                  this.watchVoiceResearch(conn, record.id);
+                }).catch((e) => {
+                  const line = `I couldn't start that research: ${e.message}`;
+                  this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: line }] }));
+                });
+              } else if (mc.kind === 'watch') {
+                api.videoWatchDirect(conn, mc.url, mc.question, model).then(() => {
+                  const line = "On it — the Watcher has it. The read lands in your Inbox.";
+                  this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
+                  if (this.state.voiceSpeak) this.speak(line);
+                }).catch((e) => {
+                  const line = `I couldn't hand that video to the Watcher: ${e.message}`;
+                  this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: line }] }));
+                });
+              }
+            });
+          }
         };
         this.setState({ voiceBusy: false }); // he can barge in the moment the answer exists
         if (spokenReveal) {
@@ -3384,6 +3469,28 @@ export default class App extends Component {
       this.refreshInbox();
     });
   }
+  // The scheduled-lane half of the model-choice gate: Pattern Scout/Distill
+  // raised a pending 'model-choice' card instead of running when their
+  // weekly cron fired — this is what actually runs the week's job.
+  pickModelChoice(id, model) {
+    const conn = getConnection();
+    if (!conn) return;
+    this.setState((s) => ({ inboxActionBusy: { ...s.inboxActionBusy, [id]: true } }));
+    api.inboxModelChoice(conn, id, model).then(({ record }) => {
+      this.setState((s) => ({
+        inboxActionBusy: { ...s.inboxActionBusy, [id]: false },
+        liveInbox: s.liveInbox
+          ? { items: s.liveInbox.items.map((r) => (r.id === id ? record : r)), pendingCount: s.liveInbox.items.map((r) => (r.id === id ? record : r)).filter((r) => r.status === 'pending').length }
+          : s.liveInbox,
+      }));
+      if (record.status === 'error') this.toastMsg("Couldn't start it: " + record.error);
+      else this.toastMsg(`Running on ${model === 'opus' ? 'Opus' : 'Sonnet'} — it'll land in your Inbox when it's done.`);
+    }).catch((e) => {
+      this.setState((s) => ({ inboxActionBusy: { ...s.inboxActionBusy, [id]: false } }));
+      this.toastMsg('Could not start it: ' + e.message);
+      this.refreshInbox();
+    });
+  }
 
   // ---------- galaxy ----------
   buildGalaxy(w, h) {
@@ -3582,14 +3689,29 @@ export default class App extends Component {
     if (!conn) { this.toastMsg('Connect a backend first'); return; }
     const preview = this.routeIntentLocal(text);
     this.setState({ paletteOpen: false });
-    this.toastMsg(`${preview?.label || 'Routing'} — dispatching…`);
     // the code lane runs through the SAME path the Code screen uses, so the
     // session lands in his chat with streaming — not an orphan job he can't see
     if (preview?.lane === 'code') {
+      this.toastMsg(`${preview?.label || 'Routing'} — dispatching…`);
       this.navigate('code');
       this.setState({ codeInput: text }, () => this.doCode());
       return;
     }
+    // research/watch are model-choice-gated lanes — ask before dispatching,
+    // same as the Inbox composer and Ask Nova's voice directive. Bypasses
+    // /api/intent for these two and calls their own routes directly, same
+    // as the code lane already bypasses it above.
+    if (preview?.lane === 'research' || preview?.lane === 'watch') {
+      this.gateModelChoice(preview.lane, (model) => {
+        const dispatch = preview.lane === 'research' ? api.research(conn, text, model) : api.videoWatch(conn, text, model);
+        dispatch.then(() => {
+          this.toastMsg(`${preview.label} — on it`);
+          this.refreshInbox?.();
+        }).catch((e) => this.toastMsg('Could not route that: ' + e.message));
+      });
+      return;
+    }
+    this.toastMsg(`${preview?.label || 'Routing'} — dispatching…`);
     api.sendIntent(conn, text).then((r) => {
       if (r.forward?.screen === 'workouts') { this.navigate('workouts', { trainTab: 'coach' }); this.doCoach(r.forward.question); return; }
       if (r.forward?.screen === 'voice') { this.navigate('voice'); this.askNova(r.forward.question); return; }
@@ -3742,14 +3864,16 @@ export default class App extends Component {
   acceptWatchOffer(offer) {
     const conn = getConnection();
     if (!conn || !offer?.url) return;
-    api.sendIntent(conn, offer.url, 'watch').then(() => {
-      const line = 'On it — the Watcher has it. The read lands in your Inbox.';
-      this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
-      if (this.state.voiceSpeak) this.speak(line);
-      this.refreshLiveData();
-    }).catch((e) => {
-      const line = `I couldn't hand that to the Watcher: ${e.message}`;
-      this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: line }] }));
+    this.gateModelChoice('watch', (model) => {
+      api.videoWatchDirect(conn, offer.url, '', model).then(() => {
+        const line = 'On it — the Watcher has it. The read lands in your Inbox.';
+        this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
+        if (this.state.voiceSpeak) this.speak(line);
+        this.refreshLiveData();
+      }).catch((e) => {
+        const line = `I couldn't hand that to the Watcher: ${e.message}`;
+        this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: line }] }));
+      });
     });
   }
   // Coach proposed a program change; he answered. Approving APPLIES it (a
@@ -3860,6 +3984,7 @@ export default class App extends Component {
     this.setState({
       voiceConvMode: false, voiceConvPaused: true, voiceReplyWindow: false,
       liveTalkOn: false, liveTextOpen: false, liveMicOpen: false, liveInput: '', orbInput: '',
+      modelChoicePending: null, // "stop" cancels a pending research/watch model choice too
     });
     this.toastMsg('Standing down, sir.');
     return true;
@@ -4006,6 +4131,9 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn || this.state.voiceBusy) return;
     if (this.maybeStandDown(question)) return;
+    // Answering the model-choice gate is not a new question for Nova to
+    // reason about — intercept it here, before it ever reaches Ask Nova.
+    if (this.state.modelChoicePending) { this.resolveModelChoiceFromSpeech(question); return; }
     this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: question }], voiceBusy: true }));
     this.stopSpeaking();
     this.speakAck(question); // fills the 5-8s think-gap immediately
@@ -4146,6 +4274,7 @@ export default class App extends Component {
   stopSpeaking() {
     try { window.speechSynthesis.cancel(); } catch { /* unsupported */ }
     try { this.currentAudio?.pause(); } catch { /* fine */ }
+    this.currentAudio = null;
     try { this.currentSource?.stop(); } catch { /* already ended */ }
     this.currentSource = null;
     this.resetTtsQueue(); // in-flight sentence fetches land against a stale generation and vanish
@@ -4395,24 +4524,81 @@ export default class App extends Component {
   // Speech genuinely reached his ears — clear any standing warning.
   noteSpeechHeard() {
     this.speechEverPlayed = true;
+    this.speechBlockedTexts = [];
     if (this.state.speechBlocked) this.setState({ speechBlocked: null });
   }
   // It didn't. Say so, and keep the words so one tap can play them: a tap is
   // a gesture, which is the very thing iOS wants before it will make sound.
+  // A multi-sentence sequence (the morning brief is the extreme case — a
+  // dozen lines queued back to back) blocks EVERY sentence the same way, one
+  // after another; the banner used to just get overwritten by whichever line
+  // failed last, so one tap only ever replayed the tail of a brief. Lines
+  // are now collected on an INSTANCE FIELD (not read back from this.state)
+  // for the whole speaking generation (ttsGen — the same counter
+  // stopSpeaking()/resetTtsQueue() already use to know what's stale):
+  // consecutive blocked sentences can land in the same React batch, where
+  // this.state.speechBlocked would still read its pre-batch value for all of
+  // them — reading back state to decide whether to accumulate would silently
+  // drop everything but the last line, the exact bug this replaces.
   noteSpeechBlocked(said, err) {
     const reason = /NotAllowed/i.test(String(err?.name || err || ''))
       ? 'your phone blocked the audio'
       : /NotSupported/i.test(String(err?.name || err || '')) ? 'the audio format was refused' : 'the audio could not start';
-    this.setState({ speechBlocked: { text: said || '', reason } });
+    const gen = this.ttsGen || 0;
+    if (this.speechBlockedGen !== gen) { this.speechBlockedTexts = []; this.speechBlockedGen = gen; }
+    this.speechBlockedTexts.push(said || '');
+    this.setState({ speechBlocked: { texts: this.speechBlockedTexts.slice(), reason } });
   }
   // Replay what he never heard, from inside the tap.
   replayBlockedSpeech() {
     const b = this.state.speechBlocked;
     if (!b) return;
+    this.speechBlockedTexts = [];
     this.primeSpeech();
     this.setState({ speechBlocked: null });
     this.stopSpeaking();
-    if (b.text) this.speakTtsSentence(b.text, () => {});
+    for (const t of b.texts) { if (t) this.speakTtsSentence(t, () => {}); }
+  }
+  // ——— THE MODEL CHOICE GATE ———
+  // Before a reasoning-heavy job runs on its default model, ask whether this
+  // ONE run should use Opus instead (his ask, 24 Aug). `run` is held until
+  // answered — a tap on the popup, a spoken reply while on the Voice screen,
+  // or a cancel — and never fires on its own; that IS the "hard gate".
+  gateModelChoice(lane, run) {
+    this.setState({ modelChoicePending: { lane, run } });
+  }
+  resolveModelChoice(model) {
+    const p = this.state.modelChoicePending;
+    if (!p) return;
+    this.setState({ modelChoicePending: null });
+    p.run(model);
+  }
+  // An explicit "no" — the request itself is abandoned, not defaulted. A
+  // silent auto-run on dismiss would make the gate decorative.
+  cancelModelChoice() {
+    if (!this.state.modelChoicePending) return;
+    this.setState({ modelChoicePending: null });
+    this.toastMsg('Cancelled — nothing was dispatched.');
+  }
+  // A spoken reply to the gate is not a new question — parsed locally and
+  // instantly (no model round-trip to tell "opus" from "sonnet" apart).
+  // Genuinely ambiguous replies fall back to the safe default rather than
+  // asking again: a hard gate that can never resolve would leave the
+  // original request unanswered forever, which is worse than proceeding.
+  resolveModelChoiceFromSpeech(question) {
+    const pending = this.state.modelChoicePending;
+    const t = String(question || '').toLowerCase();
+    const choice = /\b(opus|deeper|stronger|the strong one|go big|more thorough|go deep|really dig in)\b/.test(t) ? 'opus'
+      : /\b(sonnet|no|nah|nope|fine|default|quick|as.is|go ahead|that'?s fine|keep it|normal|standard)\b/.test(t) ? 'sonnet'
+      : null;
+    const model = choice || 'sonnet';
+    const said = choice ? `${model === 'opus' ? 'Opus' : 'Sonnet'} it is.` : "Not sure I caught that, sir — I'll go with Sonnet.";
+    this.setState((s) => ({
+      voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: question }, { at: Date.now(), who: 'nova', text: said }],
+      modelChoicePending: null,
+    }));
+    if (this.state.voiceSpeak) this.speak(said);
+    pending.run(model);
   }
   speak(text) {
     if (!this.state.voiceSpeak) { this.maybeAutoListen(); return; }
@@ -4460,11 +4646,6 @@ export default class App extends Component {
     // a short preview so he hears the choice immediately
     this.stopSpeaking();
     if (this.state.voiceSpeak) setTimeout(() => this.speakFallback('This is how Nova will sound.', () => {}), 60);
-  }
-  stopSpeaking() {
-    try { window.speechSynthesis.cancel(); } catch { /* not supported */ }
-    if (this.currentAudio) { this.currentAudio.pause(); this.currentAudio = null; }
-    if (this.state.voiceSpeaking) this.setState({ voiceSpeaking: false });
   }
   setVoiceSpeak(on) {
     localStorage.setItem('novaos.voiceSpeak', on ? '1' : '0');
@@ -4810,6 +4991,7 @@ export default class App extends Component {
         {v.ingestModalOpen && <IngestModal v={v} />}
         {v.ingestStatus !== 'idle' && <IngestReview v={v} />}
         {v.nudge && <NudgeCard v={v.nudge} />}
+        {v.modelChoicePrompt && <ModelChoicePrompt v={v.modelChoicePrompt} />}
         {v.outboxView && <OutboxView v={v.outboxView} />}
         {v.toastOn && <Toast v={v} />}
         {v.showBoot && <Boot info={v.bootInfo} />}

@@ -1,6 +1,7 @@
 import { NOVA_THEMES, NOVA_CORES, NOVA_STYLES } from '../theme.js';
 import { TAB_META, tabLabel, romanFor } from '../tabOrder.js';
 import { AGENTS, NOTE_TYPE_COLOR } from './shared.js';
+import { dtf } from './fmt.js';
 
 // App chrome: sidebar nav, mobile tabs, per-screen wrappers and grids, the
 // command palette, settings (incl. appearance), agents (concept), and the
@@ -151,7 +152,7 @@ export function valsChrome(app, ctx) {
 
   // sidebar status card — same connection truth as the status chip, phrased
   // for the two-line card under the roster
-  const syncedShort = st.lastSyncAt ? new Date(st.lastSyncAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : null;
+  const syncedShort = st.lastSyncAt ? dtf('en-GB', { hour: '2-digit', minute: '2-digit' }).format(new Date(st.lastSyncAt)) : null;
   const sideStatus = {
     color: statusChip.color,
     pulse: statusChip.label === 'LIVE',
@@ -214,7 +215,7 @@ export function valsChrome(app, ctx) {
     supportsViewTransitions: typeof document !== 'undefined' && !!document.startViewTransition,
     isMission: st.screen === 'mission', isVoice: st.screen === 'voice', isGalaxy: st.screen === 'galaxy',
     isRecipes: st.screen === 'recipes', isShopping: st.screen === 'shopping', isStash: st.screen === 'stash', isWorkouts: st.screen === 'workouts', isCode: st.screen === 'code', isNotes: st.screen === 'notes', isJournal: st.screen === 'journal',
-    dateLabel: new Date().toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }).toUpperCase().replace(/,/g, ''),
+    dateLabel: dtf('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }).format(new Date()).toUpperCase().replace(/,/g, ''),
     greeting: (new Date().getHours() < 12 ? 'Good morning, ' : new Date().getHours() < 18 ? 'Good afternoon, ' : 'Good evening, ') + userName + '.',
     // ONE saved order drives both the phone's dock and the Mac's sidebar
     // (Settings → Tab order). The three sidebar groups stay — they mean
@@ -429,8 +430,10 @@ export function valsChrome(app, ctx) {
     novaListening: !!st.liveMicOpen,
     // the glass, for surfaces outside the Voice screen
     stageCard: st.stageCard || null,
-    // a reply he never heard, and the tap that plays it
-    speechBlocked: st.speechBlocked ? { reason: st.speechBlocked.reason, replay: () => app.replayBlockedSpeech() } : null,
+    // speechBlocked lives in valsMisc.js — this module spreads AFTER it in
+    // renderVals(), so a second definition here would silently win and
+    // shadow it (the exact bug class that broke stopSpeaking()). One
+    // definition only.
     novaTalkOn: !!st.liveTalkOn,
     holdNovaText: () => app.toggleLiveText(),
     goVoice: go('voice'), goWorkouts: go('workouts'), goSettings: go('settings'), goHome: go('mission'),
@@ -594,7 +597,7 @@ export function valsChrome(app, ctx) {
       items: (st.outbox || []).map((i) => ({
         id: i.id, kind: i.kind, label: i.label,
         failed: i.status === 'failed', error: i.error,
-        when: new Date(i.queuedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+        when: dtf('en-GB', { hour: '2-digit', minute: '2-digit' }).format(new Date(i.queuedAt)),
         retry: () => app.retryOutboxItem(i.id),
         discard: () => app.discardOutboxItem(i.id),
       })),

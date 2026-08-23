@@ -79,7 +79,8 @@ test('describe-it prompt: AU context, real lookups for named venues, honest conf
   const p = buildDescribePrompt('1 large movie popcorn from Village Cinemas');
   assert.match(p, /1 large movie popcorn from Village Cinemas/);
   assert.match(p, /Australian context/);
-  assert.match(p, /look it up so the numbers are real rather than guessed/);
+  assert.match(p, /Search ONLY when a specific branded product, chain or venue is named/);
+  assert.match(p, /ONE search, then answer from the results/, 'speed: no full-page fetch for a search he is waiting on');
   assert.match(p, /confidence.*"high" or "low"/s);
   assert.match(p, /Output ONLY a JSON object with exactly these keys: name, macros, confidence, question/);
 });

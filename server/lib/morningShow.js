@@ -85,6 +85,25 @@ export function unusualEvents(todays, history) {
 }
 const normLabel = (l) => despeak(l).toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
 
+// The one calendar entry worth a warm, specific word rather than just a
+// listing — his ask (24 Aug): notice something like a movie marathon or a
+// day off and say something about it, the way a person would, not read it
+// back as an entry. Deterministic keyword match, same shape as the Inbox's
+// own TASK_HINTS classifier (valsInbox.js) — never a model guessing at what
+// counts as worth a remark. Returns the first match, or null.
+const LEISURE_HINTS = ['movie', 'film', 'cinema', 'marathon', 'concert', 'gig', 'theatre', 'theater', 'show', 'game night', 'date night', 'party', 'festival', 'holiday', 'vacation', 'day off', 'spa', 'massage', 'brunch'];
+// Word-boundary, not plain substring: a couple of these hints ("spa", "gig")
+// are short enough to hide inside an ordinary word ("space planning" has no
+// business becoming "enjoy your spa day, sir") — a wrong guess here is a
+// visibly odd line in his mouth, not just a silently skipped nudge.
+const LEISURE_RE = LEISURE_HINTS.map((h) => new RegExp(`\\b${h}\\b`));
+export function leisureEventToday(events) {
+  return (events || []).find((e) => {
+    const lower = normLabel(e.label);
+    return LEISURE_RE.some((re) => re.test(lower));
+  }) || null;
+}
+
 export async function composeShow(vaultPath, { variant = 'morning' } = {}, deps = defaultDeps) {
   const steps = [];
   const now = new Date();
@@ -191,6 +210,19 @@ export async function composeShow(vaultPath, { variant = 'morning' } = {}, deps 
               foot: 'nothing like it in the last 14 days',
             }),
           });
+        }
+      }
+
+      // — a leisure/rest event gets a word, not just a listing —
+      if (!evening) {
+        const leisure = leisureEventToday(events);
+        if (leisure) {
+          const label = despeak(leisure.label);
+          steps.push({ say: pick([
+            `Enjoy your ${label.toLowerCase()} today, sir — good excuse to rest and recharge.`,
+            `${label} on the calendar today. Take it, sir — you've earned the downtime.`,
+            `Worth noting: ${label.toLowerCase()} today. Make the most of it.`,
+          ]) });
         }
       }
     }

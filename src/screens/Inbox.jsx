@@ -166,14 +166,30 @@ export function Inbox({ v }) {
                 {item.reason && <div style={css(`margin-top:6px;font:italic 400 13px ${S};color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`)}>{item.reason}</div>}
                 {item.error && <div style={css(`margin-top:6px;font:500 12px ${R};color:var(--nv-warn)`)}>{item.error}</div>}
                 <div style={css("margin-top:12px;display:flex;gap:10px;flex-wrap:wrap")}>
-                  <Interactive as="span" onClick={item.busy ? undefined : item.approve}
-                    base={{ cursor: 'pointer', font: `600 12.5px ${R}`, padding: '7px 16px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1206', opacity: item.busy ? 0.5 : 1 }}
-                    hoverStyle={{ filter: 'brightness(1.1)' }}
-                  >{item.busy ? 'Working…' : 'Approve & file'}</Interactive>
+                  {/* THE MODEL CHOICE GATE — this card files nothing itself,
+                      so it gets a model tap instead of approve/file. Discard
+                      (below, unchanged) still skips the week normally. */}
+                  {item.isModelChoice ? (
+                    <>
+                      <Interactive as="span" onClick={item.busy ? undefined : item.pickOpus}
+                        base={{ cursor: 'pointer', font: `600 12.5px ${R}`, padding: '7px 16px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1206', opacity: item.busy ? 0.5 : 1 }}
+                        hoverStyle={{ filter: 'brightness(1.1)' }}
+                      >{item.busy ? 'Working…' : 'Opus — deeper'}</Interactive>
+                      <Interactive as="span" onClick={item.busy ? undefined : item.pickSonnet}
+                        base={{ cursor: 'pointer', font: `600 12.5px ${R}`, padding: '7px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent)', color: 'var(--nv-ink)', opacity: item.busy ? 0.5 : 1 }}
+                        hoverStyle={{ background: 'rgba(255,255,255,.05)' }}
+                      >Sonnet — default</Interactive>
+                    </>
+                  ) : (
+                    <Interactive as="span" onClick={item.busy ? undefined : item.approve}
+                      base={{ cursor: 'pointer', font: `600 12.5px ${R}`, padding: '7px 16px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1206', opacity: item.busy ? 0.5 : 1 }}
+                      hoverStyle={{ filter: 'brightness(1.1)' }}
+                    >{item.busy ? 'Working…' : 'Approve & file'}</Interactive>
+                  )}
                   <Interactive as="span" onClick={item.busy ? undefined : item.discard}
                     base={{ cursor: 'pointer', font: `600 12.5px ${R}`, padding: '7px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent)', color: 'var(--nv-ink60)', opacity: item.busy ? 0.5 : 1 }}
                     hoverStyle={{ background: 'rgba(255,255,255,.05)' }}
-                  >Discard</Interactive>
+                  >{item.isModelChoice ? 'Skip this week' : 'Discard'}</Interactive>
                   {item.askingWhy && (
                     <div style={css("flex-basis:100%;margin-top:10px;padding:12px 14px;border:1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent);border-radius:10px;background:color-mix(in srgb, var(--nv-gold) 04%, transparent)")}>
                       <div style={css(`font:500 10px ${M};letter-spacing:.2em;color:var(--nv-gold);margin-bottom:9px`)}>WHY PASS? — THE COACH LEARNS FROM THIS</div>

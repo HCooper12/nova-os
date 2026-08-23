@@ -340,11 +340,54 @@ export function expandUidGroup(versions, rangeStart, rangeEnd, calendarName) {
 // letting anyone read a stale calendar: every write path below calls
 // invalidateCalendarCache(), so a change he just made is never hidden. The
 // window is deliberately shorter than the fastest scheduler tick.
+//
+// STALE-WHILE-REVALIDATE (the perf sweep's finding, 23 Aug): the TTL alone
+// still left the common case slow. The client syncs on every app open, the
+// watcher only keeps the cache warm while the app is OPEN — so the first
+// sync after any time away found a cold cache and /api/snapshot sat on the
+// full CalDAV round trip: p50 ~5s, p90 ~10s, live-log measured. Now an
+// EXPIRED entry (up to a bounded age) is served instantly while one refresh
+// runs behind it; if the refresh lands different data, 'calendar' is
+// broadcast and every open client re-pulls — the same self-correction the
+// watcher already uses. Honesty is preserved by construction:
+//   - his OWN writes still hard-invalidate (no stale entry left to serve)
+//   - `fresh: true` callers (the glass, the watcher) still always bypass
+//   - beyond MAX_STALE the entry is discarded — genuinely old data blocks
+//     rather than lies
 const CALENDAR_TTL_MS = 90_000;
+// A calendar from within the last day is the right thing to show INSTANTLY
+// while the truth loads — it's what he last saw, and the refresh corrects
+// the screen within seconds via the broadcast.
+const CALENDAR_MAX_STALE_MS = 24 * 3600_000;
 const eventCache = new Map(); // key → { at, promise }
 
 export function invalidateCalendarCache() {
   eventCache.clear();
+}
+
+function refreshInBackground(key, rangeStart, rangeEnd, staleHit) {
+  // The stale entry KEEPS serving while the refresh runs (swapping the
+  // in-flight promise in immediately would block the next caller on it —
+  // the exact wait this exists to remove); `refreshing` stops a stampede.
+  staleHit.refreshing = true;
+  collectEventsUncached(rangeStart, rangeEnd)
+    .then(async (freshEvents) => {
+      eventCache.set(key, { at: Date.now(), promise: Promise.resolve(freshEvents) });
+      // tell open clients only when the picture actually changed — an
+      // unconditional broadcast would make every sync trigger another sync
+      try {
+        const stale = await staleHit.promise;
+        if (JSON.stringify(freshEvents) !== JSON.stringify(stale)) {
+          const { broadcast } = await import('./events.js');
+          broadcast('calendar');
+        }
+      } catch { /* comparison is best-effort */ }
+    })
+    .catch(() => {
+      // refresh failed — the stale entry (still within MAX_STALE) simply
+      // stays; the next expired read retries the refresh
+      staleHit.refreshing = false;
+    });
 }
 
 async function collectEvents(rangeStart, rangeEnd, { fresh = false } = {}) {
@@ -352,13 +395,30 @@ async function collectEvents(rangeStart, rangeEnd, { fresh = false } = {}) {
   const hit = eventCache.get(key);
   // the watcher passes fresh:true — it exists to notice changes made on his
   // phone, so it must never be answered from the cache it then refills
-  if (!fresh && hit && Date.now() - hit.at < CALENDAR_TTL_MS) return hit.promise;
+  if (!fresh && hit) {
+    const age = Date.now() - hit.at;
+    if (age < CALENDAR_TTL_MS) return hit.promise;
+    if (age < CALENDAR_MAX_STALE_MS) {
+      if (!hit.refreshing) refreshInBackground(key, rangeStart, rangeEnd, hit);
+      return hit.promise; // instant answer; the broadcast corrects any drift
+    }
+    eventCache.delete(key); // too old to show — block on the real thing
+  }
   // the PROMISE is cached, not just the result: concurrent callers (the
   // morning and evening composers run together) share one round trip
   const promise = collectEventsUncached(rangeStart, rangeEnd);
   eventCache.set(key, { at: Date.now(), promise });
   promise.catch(() => eventCache.delete(key)); // a failure must not be cached
   return promise;
+}
+
+// Boot prewarm: the one remaining cold case is a server restart — pay the
+// CalDAV round trip once now, in the background, so the first sync after a
+// reload/reboot doesn't. Fire-and-forget; a failure just means the old
+// cold-start behaviour for that first request.
+export function prewarmCalendarCache() {
+  const now = new Date();
+  collectEvents(startOfDay(now), endOfDay(now)).catch(() => {});
 }
 
 async function collectEventsUncached(rangeStart, rangeEnd) {
