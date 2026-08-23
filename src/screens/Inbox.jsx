@@ -4,6 +4,7 @@ import { Interactive } from '../Interactive.jsx';
 import { useDictation } from '../useDictation.js';
 import { SkeletonList } from '../Skeleton.jsx';
 import { LocalInput } from '../LocalInput.jsx';
+import { SwipeRow } from '../SwipeRow.jsx';
 
 // The Nova Inbox: one place to drop any loose thought — typed or dictated —
 // and let Nova route it (shopping / journal / to-do / note / food log).
@@ -167,7 +168,18 @@ export function Inbox({ v }) {
           <div style={css(`font:500 9.5px ${M};letter-spacing:.22em;color:var(--nv-gold)`)}>WAITING FOR YOUR CALL · {v.inboxPending.length}</div>
           <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:10px")}>
             {v.inboxPending.map((item) => (
-              <div key={item.id} className="nv-pane" style={{ padding: '14px 18px' }}>
+              /* SWIPE: right approves, left discards — additive, the buttons
+                 below are untouched. A model-choice card has no single
+                 "approve" (it needs a model picked), so it gets no swipe;
+                 discard-with-a-reason cards route through their ask-why
+                 panel exactly as the button does. Safety: a gesture that
+                 locks vertical can never commit (swipeCore.js + its test). */
+              <SwipeRow
+                key={item.id}
+                right={item.isModelChoice ? null : { label: 'FILE', icon: '✓', tone: 'var(--nv-good)', run: () => { if (!item.busy) item.approve(); } }}
+                left={{ label: 'DISCARD', icon: '✕', tone: 'var(--nv-warn)', run: () => { if (!item.busy) item.discard(); } }}
+              >
+              <div className="nv-pane" style={{ padding: '14px 18px' }}>
                 <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px")}>
                   <RouteBadge route={item.route} confidence={item.confidence} />
                   <span style={css(`font:400 9px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>{item.time} · {item.source}</span>
@@ -258,6 +270,7 @@ export function Inbox({ v }) {
                   )}
                 </div>
               </div>
+              </SwipeRow>
             ))}
           </div>
         </div>
