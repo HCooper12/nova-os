@@ -28,10 +28,10 @@ export function Todos({ v }) {
               placeholder="Add a to-do — Enter files it here, in Obsidian, and in Todoist"
               style={{ flex: 1, minWidth: 0, background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '9px', color: 'var(--nv-ink)', font: `500 13.5px ${R}`, padding: '11px 14px', outline: 'none' }}
             />
-            <Interactive as="span" onClick={v.todoBusy ? undefined : v.submitTodo}
-              base={{ cursor: 'pointer', flex: 'none', font: `600 10.5px ${M}`, letterSpacing: '.08em', padding: '11px 18px', borderRadius: '9px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)', opacity: v.todoBusy ? 0.5 : 1 }}
+            <Interactive as="span" onClick={v.submitTodo}
+              base={{ cursor: 'pointer', flex: 'none', font: `600 10.5px ${M}`, letterSpacing: '.08em', padding: '11px 18px', borderRadius: '9px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)' }}
               hoverStyle={{ filter: 'brightness(1.08)' }}
-            >{v.todoBusy ? 'ADDING…' : 'ADD'}</Interactive>
+            >ADD</Interactive>
           </div>
           {v.todosSyncNote && (
             <div style={css(`margin-top:9px;font:400 10px ${M};color:color-mix(in srgb, var(--nv-ink) 35%, transparent)`)}>{v.todosSyncNote}</div>

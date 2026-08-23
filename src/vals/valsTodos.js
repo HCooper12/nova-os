@@ -67,7 +67,6 @@ export function valsTodos(app, ctx) {
     setTodoInput: (e) => app.setState({ todoInput: e.target.value }),
     todoInputKey: (e) => { if (e.key === 'Enter') app.addTodoItem(); },
     submitTodo: () => app.addTodoItem(),
-    todoBusy: st.todoActionBusy,
     todosOpenGroups: groupsOf(open),
     todosOpenCountNum: open.length,
     todosDone: done.map(mkTodo),

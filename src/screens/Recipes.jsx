@@ -412,9 +412,50 @@ export function Recipes({ v }) {
                   <span style={css("font:400 10.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent);width:40px;flex:none")}>{e.time}</span>
                   <span style={css("flex:1")}>{e.name}</span>
                   <span style={css("font:400 10.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 50%, transparent);flex:none")}>{e.p}P · {e.c}C · {e.f}F · {e.kcal}kcal</span>
-                  <Interactive as="span" onClick={e.remove} base="cursor:pointer;flex:none;font-size:13px;color:color-mix(in srgb, var(--nv-ink) 35%, transparent)" hoverStyle="color:var(--nv-warn)">×</Interactive>
+                  {e.edited && <span title="amended after logging" style={css("flex:none;font:500 8px var(--nv-font-mono);letter-spacing:.1em;color:color-mix(in srgb, var(--nv-gold) 75%, transparent)")}>EDITED</span>}
+                  {/* a 44px tap target either side — these rows sit close together */}
+                  <Interactive as="span" onClick={e.edit} aria-label={`Edit ${e.name}`}
+                    base="cursor:pointer;flex:none;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:12px;color:color-mix(in srgb, var(--nv-ink) 35%, transparent)"
+                    hoverStyle="color:var(--nv-cy)">✎</Interactive>
+                  <Interactive as="span" onClick={e.remove} aria-label={`Remove ${e.name}`}
+                    base="cursor:pointer;flex:none;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:13px;color:color-mix(in srgb, var(--nv-ink) 35%, transparent)"
+                    hoverStyle="color:var(--nv-warn)">×</Interactive>
                 </div>
               ))}
+              {v.foodEdit && (
+                <div style={css("margin-top:6px;border:1px solid color-mix(in srgb, var(--nv-cy) 32%, transparent);border-radius:11px;padding:12px;background:color-mix(in srgb, var(--nv-cy) 05%, transparent);animation:fadeUp .2s ease-out")}>
+                  <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.18em;color:var(--nv-cy)")}>EDIT THIS ENTRY</div>
+                  <Interactive as="input" value={v.foodEdit.name} onChange={v.foodEdit.setName}
+                    base="margin-top:9px;width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:9px 12px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-ui);outline:none"
+                    focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 55%, transparent)" />
+                  <div style={css("margin-top:8px;display:flex;gap:7px;flex-wrap:wrap")}>
+                    {v.foodEdit.fields.map((f) => (
+                      <div key={f.key} style={css("flex:1;min-width:64px")}>
+                        <div style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{f.label}</div>
+                        <Interactive as="input" value={f.value} onChange={f.set} inputMode="decimal"
+                          base="margin-top:3px;width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 10px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-mono);outline:none"
+                          focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 55%, transparent)" />
+                      </div>
+                    ))}
+                  </div>
+                  <div style={css("margin-top:9px;display:flex;gap:7px;align-items:center;flex-wrap:wrap")}>
+                    <span style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>ATE LESS —</span>
+                    {v.foodEdit.quick.map((q) => (
+                      <Interactive key={q.label} as="span" onClick={q.apply}
+                        base="cursor:pointer;font:600 12px var(--nv-font-ui);padding:6px 11px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 13%, transparent);color:color-mix(in srgb, var(--nv-ink) 60%, transparent)"
+                        hoverStyle="background:rgba(255,255,255,.06);color:var(--nv-ink)">{q.label}</Interactive>
+                    ))}
+                    <div style={css("margin-left:auto;display:flex;gap:8px")}>
+                      <Interactive as="span" onClick={v.foodEdit.cancel}
+                        base="cursor:pointer;font:600 10.5px var(--nv-font-mono);padding:9px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)"
+                        hoverStyle="background:rgba(255,255,255,.05)">CANCEL</Interactive>
+                      <Interactive as="span" onClick={v.foodEdit.save}
+                        base="cursor:pointer;font:600 10.5px var(--nv-font-mono);padding:9px 16px;border-radius:8px;background:var(--nv-cy);color:var(--nv-on-acc)"
+                        hoverStyle="background:color-mix(in srgb, var(--nv-cy) 82%, white)">SAVE</Interactive>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
           <div style={css("margin-top:14px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:10px")}>

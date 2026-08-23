@@ -74,13 +74,23 @@ function Shelf({ v }) {
             <Interactive onClick={b.open}
               base={{ cursor: 'pointer', transition: 'transform .32s cubic-bezier(.22,1,.36,1), box-shadow .32s ease' }}
               hoverStyle={{ transform: 'translateY(-7px) scale(1.025)', boxShadow: '0 22px 44px -18px rgba(0,0,0,.85)' }}>
-              <div style={{ ...b.coverStyle, aspectRatio: b.isBook ? '2/3' : '16/10', borderRadius: b.isBook ? '4px 9px 9px 4px' : '11px', border: '1px solid rgba(255,255,255,.09)', boxShadow: '0 14px 30px -16px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.08)', padding: '13px 13px 11px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <div style={css('display:flex;justify-content:space-between;align-items:center')}>
-                  <span style={{ font: `600 8px ${M}`, letterSpacing: '.18em', color: 'rgba(255,255,255,.5)' }}>{b.kindLabel}</span>
+              <div style={{ ...b.coverStyle, aspectRatio: b.isBook ? '2/3' : '16/10', borderRadius: b.isBook ? '4px 9px 9px 4px' : '11px', border: '1px solid rgba(255,255,255,.09)', boxShadow: '0 14px 30px -16px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.08)', padding: '13px 13px 11px', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+                {b.jacket && (
+                  /* the real jacket, once it has loaded — the generated cover
+                     stays underneath as the frame and the permanent fallback */
+                  <img src={b.jacket} alt="" loading="lazy"
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', animation: 'fadeIn .35s ease-out' }} />
+                )}
+                <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {!b.jacket && <span style={{ font: `600 8px ${M}`, letterSpacing: '.18em', color: 'rgba(255,255,255,.5)' }}>{b.kindLabel}</span>}
                   {!b.isBook && <span style={css('font-size:13px;color:rgba(255,255,255,.55)')}>{b.glyph}</span>}
                 </div>
-                <div style={{ marginTop: 'auto', font: `400 ${b.isBook ? 17 : 14.5}px ${S}`, lineHeight: 1.18, color: 'rgba(255,255,255,.94)', textShadow: '0 1px 6px rgba(0,0,0,.4)', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{b.title}</div>
-                {b.author && <div style={{ marginTop: '7px', font: `500 8.5px ${M}`, letterSpacing: '.12em', color: 'rgba(255,255,255,.55)', textTransform: 'uppercase' }}>{b.author}</div>}
+                {!b.jacket && (
+                  <>
+                    <div style={{ marginTop: 'auto', font: `400 ${b.isBook ? 17 : 14.5}px ${S}`, lineHeight: 1.18, color: 'rgba(255,255,255,.94)', textShadow: '0 1px 6px rgba(0,0,0,.4)', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{b.title}</div>
+                    {b.author && <div style={{ marginTop: '7px', font: `500 8.5px ${M}`, letterSpacing: '.12em', color: 'rgba(255,255,255,.55)', textTransform: 'uppercase' }}>{b.author}</div>}
+                  </>
+                )}
               </div>
             </Interactive>
             <div style={css('margin-top:8px;display:flex;align-items:center;gap:7px;min-height:16px')}>
@@ -111,10 +121,17 @@ function Detail({ v }) {
       {d.item && (
         <>
           <div style={css('margin-top:20px;display:flex;gap:24px;flex-wrap:wrap')}>
-            <div style={{ ...d.item.coverStyle, width: d.item.isBook ? '150px' : '210px', aspectRatio: d.item.isBook ? '2/3' : '16/10', flex: 'none', borderRadius: d.item.isBook ? '5px 11px 11px 5px' : '12px', border: '1px solid rgba(255,255,255,.1)', boxShadow: '0 26px 54px -20px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.08)', padding: '15px', display: 'flex', flexDirection: 'column', animation: 'shelfIn .45s cubic-bezier(.22,1,.36,1) both' }}>
-              <span style={{ font: `600 8px ${M}`, letterSpacing: '.18em', color: 'rgba(255,255,255,.5)' }}>{d.item.kindLabel}</span>
-              <span style={{ marginTop: 'auto', font: `400 19px ${S}`, lineHeight: 1.16, color: 'rgba(255,255,255,.95)' }}>{d.item.title}</span>
-              {d.item.author && <span style={{ marginTop: '8px', font: `500 9px ${M}`, letterSpacing: '.12em', color: 'rgba(255,255,255,.55)', textTransform: 'uppercase' }}>{d.item.author}</span>}
+            <div style={{ ...d.item.coverStyle, width: d.item.isBook ? '150px' : '210px', aspectRatio: d.item.isBook ? '2/3' : '16/10', flex: 'none', borderRadius: d.item.isBook ? '5px 11px 11px 5px' : '12px', border: '1px solid rgba(255,255,255,.1)', boxShadow: '0 26px 54px -20px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.08)', padding: '15px', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', animation: 'shelfIn .45s cubic-bezier(.22,1,.36,1) both' }}>
+              {d.item.jacket && (
+                <img src={d.item.jacket} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit', animation: 'fadeIn .35s ease-out' }} />
+              )}
+              {!d.item.jacket && (
+                <>
+                  <span style={{ font: `600 8px ${M}`, letterSpacing: '.18em', color: 'rgba(255,255,255,.5)' }}>{d.item.kindLabel}</span>
+                  <span style={{ marginTop: 'auto', font: `400 19px ${S}`, lineHeight: 1.16, color: 'rgba(255,255,255,.95)' }}>{d.item.title}</span>
+                  {d.item.author && <span style={{ marginTop: '8px', font: `500 9px ${M}`, letterSpacing: '.12em', color: 'rgba(255,255,255,.55)', textTransform: 'uppercase' }}>{d.item.author}</span>}
+                </>
+              )}
             </div>
             <div style={css('flex:1;min-width:250px')}>
               <h2 style={{ margin: 0, font: `400 30px ${S}`, lineHeight: 1.12 }}>{d.item.title}</h2>

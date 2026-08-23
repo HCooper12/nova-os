@@ -66,6 +66,20 @@ async function put(conn, path, body, { timeoutMs } = {}) {
   return res.json();
 }
 
+async function patch(conn, path, body, { timeoutMs } = {}) {
+  const res = await fetch(baseOf(conn) + path, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${conn.token}`, 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+    signal: reqSignal(timeoutMs),
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => null);
+    throw new Error(detail?.error || `${path} failed: ${res.status}`);
+  }
+  return res.json();
+}
+
 async function del(conn, path, { timeoutMs } = {}) {
   const res = await fetch(baseOf(conn) + path, {
     method: 'DELETE',
@@ -120,6 +134,13 @@ export const api = {
     const blob = await res.blob();
     return URL.createObjectURL(blob);
   },
+  bookCoverBlobUrl: async (conn, title, author) => {
+    const q = new URLSearchParams({ title: title || '' });
+    if (author) q.set('author', author);
+    const res = await fetch(baseOf(conn) + `/api/library/cover?${q}`, { headers: { Authorization: `Bearer ${conn.token}` } });
+    if (!res.ok) return null; // no jacket — the generated cover stands
+    return URL.createObjectURL(await res.blob());
+  },
   shoppingList: (conn) => call(conn, '/api/shopping-list'),
   stash: (conn) => call(conn, '/api/stash'),
   stashAdd: (conn, item) => post(conn, '/api/stash/items', item),
@@ -141,6 +162,7 @@ export const api = {
   deleteRecipe: (conn, id) => del(conn, `/api/recipes/${encodeURIComponent(id)}`),
   foodHistory: (conn, days = 45) => call(conn, `/api/food-log/history?days=${days}`),
   addFoodLogEntry: (conn, entry) => post(conn, '/api/food-log', entry),
+  editFoodLogEntry: (conn, id, body) => patch(conn, `/api/food-log/${encodeURIComponent(id)}`, body),
   deleteFoodLogEntry: (conn, id, date) => del(conn, `/api/food-log/${encodeURIComponent(id)}${date ? `?date=${encodeURIComponent(date)}` : ''}`),
   startFoodScan: (conn, mode, images, note) => post(conn, '/api/food-log/scan', { mode, images, note }, { timeoutMs: 90_000 }),
   foodScanJob: (conn, jobId) => call(conn, `/api/food-log/scan/${encodeURIComponent(jobId)}`),

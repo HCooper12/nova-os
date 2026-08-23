@@ -9,7 +9,7 @@ import { loadExerciseLibrary } from './exercises.js';
 import { loadRoutines } from './workouts.js';
 import { loadRecentDays } from './healthData.js';
 import { computeDeloadSignal } from './coach.js';
-import { personalRecords, prsInSession, detectPlateaus, weeklyMuscleVolume } from './trainingAnalytics.js';
+import { personalRecords, prsInSession, detectPlateaus, weeklyMuscleVolume, mondayOf } from './trainingAnalytics.js';
 
 const WEEKDAY = () => ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][new Date().getDay()];
 
@@ -141,7 +141,13 @@ export async function buildTrainOverview(vaultPath) {
 
   // volume vs goal-aware targets
   const focused = goalMuscles(goals);
-  const vol = weeklyMuscleVolume(sessions, exercises, { weeks: 1 })[0] || { groups: {} };
+  // THIS week, not "the newest week that happens to have data". weeklyMuscleVolume
+  // only returns weeks that CONTAIN sessions, so [0] was last week's numbers
+  // every Monday until the first session landed — under a header reading
+  // "HARD SETS THIS WEEK". He caught it on a Monday morning showing a full
+  // week's volume. An empty week must read as zeros; that IS the finding.
+  const thisWeek = mondayOf(new Date());
+  const vol = weeklyMuscleVolume(sessions, exercises, { weeks: 6 }).find((w) => w.week === thisWeek) || { groups: {} };
   const volume = Object.entries(vol.groups || {}).map(([muscle, sets]) => ({
     muscle, sets,
     target: focused.has(muscle) ? GOAL_TARGET : BASE_TARGET,

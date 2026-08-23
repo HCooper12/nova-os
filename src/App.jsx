@@ -354,7 +354,7 @@ export default class App extends Component {
     liveDispatch: null, liveCompost: null, liveTodoist: null, liveTodos: null, liveGuardian: null, liveDailyReview: null, liveOps: null,
     liveOvernight: null, overnightInput: '', liveSkills: null, livePulse: null, opsOpenAgentId: null, liveOpsStream: null, greetBanner: null,
     dispatchBusy: false, compostBusy: false, compostActionBusy: {}, todoistBusy: false, guardianBusy: false, reviewBusy: false,
-    todoInput: '', todoActionBusy: false, todoEditCategoryKey: null,
+    todoInput: '', todoEditCategoryKey: null,
     editingSessionId: null, sessionDeleteConfirmId: null,
     liveCarryovers: null, finishMissed: null, finishMissedDate: '', finishMissedRoutine: '', carryoverRescheduleId: null,
     liveWorkoutGoals: null, goalsEditing: false, goalsDraft: { goal: '', focus: '', daysPerWeek: '', equipment: '', limitations: '', notes: '' }, coachBusy: false,
@@ -380,9 +380,10 @@ export default class App extends Component {
     // live-data connection (Settings screen)
     settingsBaseUrl: '', settingsToken: '',
     settingsTestStatus: 'idle', settingsTestMessage: '',
+    foodEditId: null, foodEditName: '', foodEditP: '', foodEditC: '', foodEditF: '', foodEditKcal: '',
     foodRecipePickerOpen: false, foodRecipePickerQuery: '', foodRecipePick: null, foodPortionFactor: 1, foodPortionCustom: '',
     liveNotes: null, liveNoteDetails: {},
-    liveLibrary: null, liveLibraryDetails: {}, libraryFilter: 'all', libraryQuery: '', libraryOpenId: null, liveCalendar: null, liveCalendarList: null, calCmdText: '', calCmdBusy: false,
+    liveLibrary: null, liveLibraryDetails: {}, liveBookCoverUrls: {}, libraryFilter: 'all', libraryQuery: '', libraryOpenId: null, liveCalendar: null, liveCalendarList: null, calCmdText: '', calCmdBusy: false,
     // the model board (Settings): null until loaded, so "not loaded" and
     // "loaded and empty" can never be confused
     // groups render OPEN by default — the whole point is seeing every lane's
@@ -1151,7 +1152,7 @@ export default class App extends Component {
       if (r.notes[0] && !this.state.liveNoteDetails[this.state.openNoteId]) this.selectNote(r.notes[0].id);
       this.refreshDailyReviewDetail(r.notes);
     });
-    apply('library', (r) => this.setState({ liveLibrary: r.items }));
+    apply('library', (r) => { this.setState({ liveLibrary: r.items }); this.refreshBookCovers(r.items); });
     apply('journal', (r) => this.setState({ liveJournalEntries: r.entries }));
     apply('healthInsight', (r) => this.setState({ liveHealthInsight: r }));
     apply('healthData', (r) => this.setState({ liveHealthDays: r.days.length ? r.days : null }));
@@ -1261,7 +1262,7 @@ export default class App extends Component {
         if (notesRes.notes[0] && !this.state.liveNoteDetails[this.state.openNoteId]) this.selectNote(notesRes.notes[0].id);
         this.refreshDailyReviewDetail(notesRes.notes);
       },
-      async () => this.setState({ liveLibrary: (await api.library(conn)).items }),
+      async () => { const r = await api.library(conn); this.setState({ liveLibrary: r.items }); this.refreshBookCovers(r.items); },
       async () => {
         const { entries } = await api.journalEntries(conn, 30);
         this.setState({ liveJournalEntries: entries });
@@ -1691,6 +1692,50 @@ export default class App extends Component {
       })
       .catch((e) => this.toastMsg('Could not log that: ' + e.message));
   }
+  // Edit an entry already logged — his ask, and it also covers "I put the
+  // wrong amount in". The server has always supported this (PATCH
+  // /food-log/:id, editEntryOn) and marks the entry `edited` so an amended
+  // number is never mistaken for the original estimate; only the client was
+  // missing. Works on any day, including past ones.
+  startFoodEntryEdit(entry) {
+    this.setState({
+      foodEditId: entry.id,
+      foodEditName: entry.name,
+      foodEditP: String(entry.p), foodEditC: String(entry.c),
+      foodEditF: String(entry.f), foodEditKcal: String(entry.kcal),
+    });
+  }
+  cancelFoodEntryEdit() {
+    this.setState({ foodEditId: null });
+  }
+  // Rescale every macro by the same factor — "I only ate half of what I
+  // logged" without arithmetic. Applied to the FIELDS, so he still sees the
+  // numbers before committing.
+  scaleFoodEntryEdit(factor) {
+    const n = (v) => Math.round((Number(v) || 0) * factor);
+    this.setState((s) => ({
+      foodEditP: String(n(s.foodEditP)), foodEditC: String(n(s.foodEditC)),
+      foodEditF: String(n(s.foodEditF)), foodEditKcal: String(n(s.foodEditKcal)),
+    }));
+  }
+  saveFoodEntryEdit() {
+    const conn = getConnection();
+    const id = this.state.foodEditId;
+    if (!conn || !id) return;
+    const name = this.state.foodEditName.trim();
+    if (!name) { this.toastMsg('Give it a name.'); return; }
+    const macros = {
+      p: Math.max(0, Number(this.state.foodEditP) || 0),
+      c: Math.max(0, Number(this.state.foodEditC) || 0),
+      f: Math.max(0, Number(this.state.foodEditF) || 0),
+      kcal: Math.max(0, Number(this.state.foodEditKcal) || 0),
+    };
+    const date = this.state.foodLogDate || undefined;
+    this.setState({ foodEditId: null });
+    api.editFoodLogEntry(conn, id, { name, macros, date })
+      .then((day) => { this.noteLocalWrite('foodLog'); this.applyFoodLogDay(day); this.toastMsg('Updated ✓'); })
+      .catch((e) => this.toastMsg('Could not update: ' + e.message));
+  }
   relogFoodItem(item) {
     const conn = getConnection();
     if (!conn) return;
@@ -1744,6 +1789,25 @@ export default class App extends Component {
       recipeScanBusy: false, recipeScanError: null,
       recipeAddPhotoDataUrl: null,
     });
+  }
+  // Real jackets for the shelf's books. Same shape as refreshRecipePhotos:
+  // fetched through the server (which caches, so this is one network trip per
+  // book ever), and a miss simply leaves the generated cover in place.
+  refreshBookCovers(items) {
+    const conn = getConnection();
+    if (!conn) return;
+    for (const it of items || []) {
+      if (it.kind !== 'book' || !it.title) continue;
+      if (this.state.liveBookCoverUrls[it.id] !== undefined) continue; // done, or known-missing
+      if (!this.bookCoverTried) this.bookCoverTried = new Set();
+      if (this.bookCoverTried.has(it.id)) continue;
+      this.bookCoverTried.add(it.id);
+      api.bookCoverBlobUrl(conn, it.title, it.author).then((url) => {
+        // null is a REAL answer ("no jacket exists") — store it so the shelf
+        // stops asking, and so the generated cover stands permanently
+        this.setState((s) => ({ liveBookCoverUrls: { ...s.liveBookCoverUrls, [it.id]: url || null } }));
+      }).catch(() => {});
+    }
   }
   refreshRecipePhotos(recipes) {
     const conn = getConnection();
@@ -3033,16 +3097,35 @@ export default class App extends Component {
       this.toastMsg('Meal prep failed: ' + e.message);
     });
   }
+  // OPTIMISTIC, like toggleTodoItem below. Adding used to lock the whole
+  // list behind a round-trip busy lock, so over Tailscale the typed
+  // item hung in the box for 100-600ms and a second add was impossible until
+  // the first returned. The row now appears in the same frame; the server's
+  // list replaces it, and a rejection (a duplicate, say) reverts with the
+  // reason. The category is left for the server to decide — guessing it
+  // client-side would be a second copy of guessTodoCategory drifting out of
+  // sync with the real one.
   addTodoItem() {
     const conn = getConnection();
     const text = this.state.todoInput.trim();
-    if (!conn || !text || this.state.todoActionBusy) return;
-    this.setState({ todoActionBusy: true });
+    if (!conn || !text) return;
+    const previous = this.state.liveTodos;
+    const tempRaw = `__pending__${Date.now()}__${text}`;
+    haptic('tick');
+    this.setState((s) => {
+      if (!s.liveTodos?.items) return { todoInput: '' };
+      this.noteLocalWrite('todos'); // a racing snapshot must not clobber this
+      return {
+        todoInput: '',
+        liveTodos: { ...s.liveTodos, items: [...s.liveTodos.items, { raw: tempRaw, text, checked: false, category: null, pending: true }] },
+      };
+    });
     api.todoAdd(conn, text).then((data) => {
-      this.setState({ todoActionBusy: false, todoInput: '', liveTodos: data });
+      this.noteLocalWrite('todos');
+      this.setState({ liveTodos: data });
     }).catch((e) => {
-      this.setState({ todoActionBusy: false });
-      if (isOfflineError(e)) { this.setState({ todoInput: '' }); this.enqueueOutbox('todo', text, { text }); return; }
+      if (isOfflineError(e)) { this.enqueueOutbox('todo', text, { text }); return; } // the row stays; the outbox will land it
+      this.setState({ liveTodos: previous, todoInput: text }); // give the words back
       this.toastMsg('Could not add: ' + e.message);
     });
   }
@@ -3054,7 +3137,7 @@ export default class App extends Component {
   }
   // OPTIMISTIC (mirrors toggleSlotConsumed, the house pattern): ticking a
   // to-do used to sit behind a full round trip with the whole list locked by
-  // todoActionBusy — 100-600ms of dead UI per tap over Tailscale, and no
+  // a busy lock — 100-600ms of dead UI per tap over Tailscale, and no
   // second tick until it returned. The tick now lands in the same frame; the
   // server's answer replaces it, and a failure reverts with the reason.
   toggleTodoItem(rawLine) {

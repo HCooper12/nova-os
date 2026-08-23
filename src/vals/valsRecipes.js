@@ -260,7 +260,25 @@ export function valsRecipes(app, ctx) {
       id: e.id, time: e.time, name: e.name,
       p: Math.round(e.macros.p), c: Math.round(e.macros.c), f: Math.round(e.macros.f), kcal: Math.round(e.macros.kcal),
       remove: () => app.deleteFoodLogEntry(e.id),
+      edited: !!e.edited,
+      edit: () => app.startFoodEntryEdit({ id: e.id, name: e.name, p: Math.round(e.macros.p), c: Math.round(e.macros.c), f: Math.round(e.macros.f), kcal: Math.round(e.macros.kcal) }),
+      editing: st.foodEditId === e.id,
     })),
+    foodEdit: st.foodEditId ? {
+      name: st.foodEditName,
+      setName: (ev) => app.setState({ foodEditName: typeof ev === 'string' ? ev : ev.target.value }),
+      fields: [
+        { key: 'p', label: 'P', value: st.foodEditP, set: (ev) => app.setState({ foodEditP: ev.target.value }) },
+        { key: 'c', label: 'C', value: st.foodEditC, set: (ev) => app.setState({ foodEditC: ev.target.value }) },
+        { key: 'f', label: 'F', value: st.foodEditF, set: (ev) => app.setState({ foodEditF: ev.target.value }) },
+        { key: 'kcal', label: 'KCAL', value: st.foodEditKcal, set: (ev) => app.setState({ foodEditKcal: ev.target.value }) },
+      ],
+      quick: PORTIONS.filter((pn) => pn.factor < 1).map((pn) => ({
+        label: pn.label, apply: () => app.scaleFoodEntryEdit(pn.factor),
+      })),
+      save: () => app.saveFoodEntryEdit(),
+      cancel: () => app.cancelFoodEntryEdit(),
+    } : null,
     foodLogTotals: { p: Math.round(viewTot.p), c: Math.round(viewTot.c), f: Math.round(viewTot.f), kcal: Math.round(viewTot.kcal) },
     // retro day strip: today + the last 6 days, tappable on both devices
     foodLogDays: (() => {

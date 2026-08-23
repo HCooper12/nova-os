@@ -138,14 +138,28 @@ export function rpeTrend(sessions, { recentN = 4 } = {}) {
 // Hard sets per muscle group per ISO week — the number every volume landmark
 // conversation (MEV/MAV) starts from. A set counts when it was logged with
 // load or reps; warm-up flags (when they exist) are excluded.
+// The Monday that owns a given date — every weekly number in Nova is keyed
+// by this, so "this week" means one thing everywhere. Exported because the
+// caller must be able to ask for the CURRENT week specifically rather than
+// "the newest week that happens to have data" (see the bug note in
+// trainOverview.js).
+export function mondayOf(date = new Date()) {
+  const d = typeof date === 'string' ? new Date(`${date}T12:00:00`) : new Date(date);
+  d.setHours(12, 0, 0, 0);
+  const day = (d.getDay() + 6) % 7; // Monday=0
+  d.setDate(d.getDate() - day);
+  const pad = (n) => String(n).padStart(2, '0');
+  // Built from LOCAL parts rather than toISOString(). The old version was
+  // correct — but only because the noon anchor above absorbed the UTC shift
+  // (checked in Australia/Melbourne: identical output). Reading local parts
+  // doesn't depend on that subtlety holding, which matters now that this is
+  // also called with `new Date()` from a different caller.
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 export function weeklyMuscleVolume(sessions, exercises, { weeks = 4 } = {}) {
   const groupOf = new Map(exercises.map((e) => [e.id, e.muscleGroup || 'Other']));
-  const weekOf = (dateStr) => {
-    const d = new Date(`${dateStr}T12:00:00`);
-    const day = (d.getDay() + 6) % 7; // Monday=0
-    d.setDate(d.getDate() - day);
-    return d.toISOString().slice(0, 10); // week keyed by its Monday
-  };
+  const weekOf = (dateStr) => mondayOf(dateStr);
   const acc = new Map(); // week -> group -> sets
   for (const s of sessions) {
     const wk = weekOf(s.date);

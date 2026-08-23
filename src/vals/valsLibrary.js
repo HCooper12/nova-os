@@ -72,6 +72,7 @@ export function valsLibrary(app, ctx) {
       provenance: prov,
       conceptCount: it.concepts?.length || 0,
       backlinks: it.backlinks || 0,
+      jacket: st.liveBookCoverUrls?.[it.id] || null,
       coverStyle: {
         ...coverStyleFor(it.title, it.kind),
         // the morph target: the cover flies into the detail header
@@ -108,6 +109,7 @@ export function valsLibrary(app, ctx) {
           : it.provenance === 'read' ? 'Woven from the book’s own text or your notes.' : null,
         url: it.url, tags: it.tags || [], created: it.created, updated: it.updated,
         coverStyle: coverStyleFor(it.title, it.kind),
+        jacket: st.liveBookCoverUrls?.[it.id] || null,
         isBook: it.kind === 'book',
       } : null,
       body: rawDetail?.body || '',
