@@ -912,25 +912,51 @@ export default class App extends Component {
       this.setState({ stashAddError: 'Category, name, and link are all needed.' });
       return;
     }
-    this.setState({ stashAddBusy: true, stashAddError: null });
+    // OPTIMISTIC: the link appears under its category immediately and the
+    // form clears. The server's reply carries every category, replacing the
+    // list wholesale — so the temp row is superseded, never merged, and
+    // duplication is impossible by construction (same shape as the food log).
+    const previousStash = this.state.liveStash;
+    const previousForm = { stashAddName: this.state.stashAddName, stashAddUrl: this.state.stashAddUrl, stashAddNote: this.state.stashAddNote };
+    if (previousStash) {
+      haptic('commit');
+      const optimistic = previousStash.map((c) => (c.name === item.category
+        ? { ...c, items: [...c.items, { ...item, raw: `pending-${Date.now()}`, pending: true }] }
+        : c));
+      this.setState({ liveStash: optimistic });
+    }
+    this.setState({ stashAddBusy: true, stashAddError: null, stashAddName: '', stashAddUrl: '', stashAddNote: '' });
     api.stashAdd(conn, item).then((r) => {
-      this.setState({ liveStash: r.categories, stashAddBusy: false, stashAddName: '', stashAddUrl: '', stashAddNote: '' });
+      this.setState({ liveStash: r.categories, stashAddBusy: false });
       this.toastMsg(`${item.name} stashed ✓ — saved to Obsidian too`);
     }).catch((e) => {
+      if (previousStash) this.setState({ liveStash: previousStash });
       if (isOfflineError(e)) {
-        this.setState({ stashAddBusy: false, stashAddName: '', stashAddUrl: '', stashAddNote: '' });
+        // queued, not lost — the form stays clear
+        this.setState({ stashAddBusy: false });
         this.enqueueOutbox('stash', item.name, item);
         return;
       }
-      this.setState({ stashAddBusy: false, stashAddError: e.message });
+      // a real rejection: hand back exactly what he typed
+      this.setState({ ...previousForm, stashAddBusy: false, stashAddError: e.message });
     });
   }
   removeStashItem(raw) {
     const conn = getConnection();
     if (!conn) return;
-    this.setState({ stashRemoveConfirm: null });
+    // optimistic removal — the row goes now, and returns if the server says no
+    const previousStash = this.state.liveStash;
+    if (previousStash) {
+      haptic('tick');
+      this.setState({ stashRemoveConfirm: null, liveStash: previousStash.map((c) => ({ ...c, items: c.items.filter((i) => i.raw !== raw) })) });
+    } else {
+      this.setState({ stashRemoveConfirm: null });
+    }
     api.stashRemove(conn, raw).then((r) => this.setState({ liveStash: r.categories }))
-      .catch((e) => this.toastMsg('Could not remove: ' + e.message));
+      .catch((e) => {
+        if (previousStash) this.setState({ liveStash: previousStash });
+        this.toastMsg('Could not remove: ' + e.message);
+      });
   }
 
   // ---------- appearance (theme + calm mode, persisted) ----------
@@ -2577,18 +2603,26 @@ export default class App extends Component {
     const conn = getConnection();
     const text = this.state.journalComposerText.trim();
     if (!conn || !text) return;
-    this.setState({ journalSaveBusy: true, journalSaveError: null });
+    // OPTIMISTIC: the composer clears the moment he commits, so the next
+    // thought can start immediately. The entry list is refreshed from the
+    // server rather than guessed at — journal entries are grouped by day
+    // with server-assigned times, and inventing that shape client-side
+    // would be a fiction the refresh would only contradict a moment later.
+    const previousText = this.state.journalComposerText;
+    haptic('commit');
+    this.setState({ journalSaveBusy: true, journalSaveError: null, journalComposerText: '', journalPromptText: null });
     api.addJournalEntry(conn, text).then(() => {
-      this.setState({ journalSaveBusy: false, journalComposerText: '', journalPromptText: null });
+      this.setState({ journalSaveBusy: false });
       this.toastMsg('Journal entry saved ✓');
       this.refreshJournalEntries();
     }).catch((e) => {
       if (isOfflineError(e)) {
-        this.setState({ journalSaveBusy: false, journalComposerText: '', journalPromptText: null });
+        this.setState({ journalSaveBusy: false });
         this.enqueueOutbox('journal', text.slice(0, 44), { text });
         return;
       }
-      this.setState({ journalSaveBusy: false, journalSaveError: e.message });
+      // a real rejection must never eat what he wrote
+      this.setState({ journalSaveBusy: false, journalComposerText: previousText, journalSaveError: e.message });
     });
   }
   toggleJournalDay(date) {

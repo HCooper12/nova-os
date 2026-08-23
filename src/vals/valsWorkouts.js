@@ -312,12 +312,14 @@ export function valsWorkouts(app, ctx) {
     sets: e.sets.map((s, setIdx) => ({
       weight: s.weight, reps: s.reps, rpe: s.rpe || '', done: s.done,
       rir: s.rir ?? '',
-      onRir: (ev) => app.updateSessionSet(exIdx, setIdx, 'rir', ev.target.value),
+      onRir: (ev) => app.updateSessionSet(exIdx, setIdx, 'rir', typeof ev === 'string' ? ev : ev.target.value),
       setType: s.setType || 'working',
       cycleType: () => app.updateSessionSet(exIdx, setIdx, 'setType', (s.setType === 'warmup' ? 'working' : s.setType === 'backoff' ? 'warmup' : 'backoff')),
-      onWeight: (ev) => app.updateSessionSet(exIdx, setIdx, 'weight', ev.target.value),
-      onReps: (ev) => app.updateSessionSet(exIdx, setIdx, 'reps', ev.target.value),
-      onRpe: (ev) => app.updateSessionSet(exIdx, setIdx, 'rpe', ev.target.value),
+      // accept a plain string (LocalInput) as well as an event (anything
+      // still passing one) — the set fields are local-echo inputs now
+      onWeight: (ev) => app.updateSessionSet(exIdx, setIdx, 'weight', typeof ev === 'string' ? ev : ev.target.value),
+      onReps: (ev) => app.updateSessionSet(exIdx, setIdx, 'reps', typeof ev === 'string' ? ev : ev.target.value),
+      onRpe: (ev) => app.updateSessionSet(exIdx, setIdx, 'rpe', typeof ev === 'string' ? ev : ev.target.value),
       onToggleDone: () => app.toggleSessionSetDone(exIdx, setIdx),
       onRemove: () => app.removeSessionSet(exIdx, setIdx),
       canRemove: e.sets.length > 1,
