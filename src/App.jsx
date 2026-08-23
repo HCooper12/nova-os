@@ -21,39 +21,27 @@ import { valsMission } from './vals/valsMission.js';
 import { valsOps } from './vals/valsOps.js';
 import { valsChrome } from './vals/valsChrome.js';
 import { Sidebar } from './Sidebar.jsx';
+// THE DAILY FIVE — statically imported, never lazy. These are what a session
+// actually opens on: Mission (the default screen), Voice (where the morning
+// brief lands), Inbox, Recipes/Fuel and Train. Making any of them lazy would
+// put a Suspense fallback in front of the first thing he sees.
 import { MissionControl } from './screens/MissionControl.jsx';
 import { Inbox } from './screens/Inbox.jsx';
-import { Todos } from './screens/Todos.jsx';
-import { Money } from './screens/Money.jsx';
 import { Voice } from './screens/Voice.jsx';
-import { Galaxy } from './screens/Galaxy.jsx';
 import { Recipes } from './screens/Recipes.jsx';
-import { Shopping } from './screens/Shopping.jsx';
-import { Stash } from './screens/Stash.jsx';
-import { Ops } from './screens/Ops.jsx';
-import { Ambient } from './screens/Ambient.jsx';
 import { Workouts } from './screens/Workouts.jsx';
-import { ClaudeCode } from './screens/ClaudeCode.jsx';
-import { Notes } from './screens/Notes.jsx';
-import { Journal } from './screens/Journal.jsx';
-import { Settings } from './screens/Settings.jsx';
 import { MobileChrome } from './MobileChrome.jsx';
 import { FloatingCore } from './FloatingCore.jsx';
-import { RecipeOverlay } from './RecipeOverlay.jsx';
-import { AddRecipeModal } from './AddRecipeModal.jsx';
 import { CommandPalette } from './CommandPalette.jsx';
-import { IngestModal } from './IngestModal.jsx';
-import { IngestReview } from './IngestReview.jsx';
 import { Toast } from './Toast.jsx';
 import { ContextMenuHost } from './ContextMenu.jsx';
-import { VerdictCard } from './VerdictCard.jsx';
 import { VoicePresence } from './VoicePresence.jsx';
 import { Interactive } from './Interactive.jsx';
 import { WakeWord } from './WakeWord.jsx';
-import { OutboxView } from './OutboxView.jsx';
 import { NudgeCard } from './NudgeCard.jsx';
 import { ModelChoicePrompt } from './ModelChoicePrompt.jsx';
 import { Boot } from './Boot.jsx';
+import { haptic } from './haptics.js';
 // 0.05s of silence — a REAL source, so iOS accepts the gesture and unlocks
 // the element for the reply that arrives seconds later.
 const SILENT_WAV = 'data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQ4AAAAAAAAAAAAAAAAAAAAAAA==';
@@ -64,6 +52,90 @@ import { attachSpeechElement, resumeAudioGraph, releaseAudioGraph, decodeSpeech,
 // the food-log barcode flow needs — no reason to ship it in everyone's
 // initial bundle when most loads never touch it.
 const BarcodeScanner = lazy(() => import('./BarcodeScanner.jsx').then((m) => ({ default: m.BarcodeScanner })));
+
+// THE LAZY SCREENS. One 968KB chunk meant every cold start — and iOS reclaims
+// a backgrounded PWA often — parsed the whole app before first paint. These
+// nine are heavy and rarely the screen a session STARTS on, so they load on
+// demand. `prefetchScreens()` below then pulls them in during idle, so the
+// only load that ever waits is one that beat the idle callback: after that,
+// navigation is as instant as it was when everything shipped up front.
+// Each import resolves the NAMED export to a default — same shape the
+// BarcodeScanner split above already uses.
+const lazyScreen = (loader, name) => lazy(() => loader().then((m) => ({ default: m[name] })));
+const SCREEN_LOADERS = {
+  galaxy: () => import('./screens/Galaxy.jsx'),
+  money: () => import('./screens/Money.jsx'),
+  ops: () => import('./screens/Ops.jsx'),
+  journal: () => import('./screens/Journal.jsx'),
+  settings: () => import('./screens/Settings.jsx'),
+  stash: () => import('./screens/Stash.jsx'),
+  shopping: () => import('./screens/Shopping.jsx'),
+  ambient: () => import('./screens/Ambient.jsx'),
+  code: () => import('./screens/ClaudeCode.jsx'),
+  todos: () => import('./screens/Todos.jsx'),
+  notes: () => import('./screens/Notes.jsx'),
+};
+const Galaxy = lazyScreen(SCREEN_LOADERS.galaxy, 'Galaxy');
+const Money = lazyScreen(SCREEN_LOADERS.money, 'Money');
+const Ops = lazyScreen(SCREEN_LOADERS.ops, 'Ops');
+const Journal = lazyScreen(SCREEN_LOADERS.journal, 'Journal');
+const Settings = lazyScreen(SCREEN_LOADERS.settings, 'Settings');
+const Stash = lazyScreen(SCREEN_LOADERS.stash, 'Stash');
+const Shopping = lazyScreen(SCREEN_LOADERS.shopping, 'Shopping');
+const Ambient = lazyScreen(SCREEN_LOADERS.ambient, 'Ambient');
+const ClaudeCode = lazyScreen(SCREEN_LOADERS.code, 'ClaudeCode');
+const Todos = lazyScreen(SCREEN_LOADERS.todos, 'Todos');
+const Notes = lazyScreen(SCREEN_LOADERS.notes, 'Notes');
+
+// The OVERLAYS — every one is conditionally rendered (a modal, a sheet, an
+// overlay), so none of them is ever part of a first paint. RecipeOverlay
+// alone is 33KB of the initial bundle for a view that only exists after a
+// recipe is tapped. Same lazy treatment, same idle prefetch below.
+const OVERLAY_LOADERS = {
+  recipeOverlay: () => import('./RecipeOverlay.jsx'),
+  addRecipeModal: () => import('./AddRecipeModal.jsx'),
+  ingestModal: () => import('./IngestModal.jsx'),
+  ingestReview: () => import('./IngestReview.jsx'),
+  outboxView: () => import('./OutboxView.jsx'),
+  verdictCard: () => import('./VerdictCard.jsx'),
+};
+const RecipeOverlay = lazyScreen(OVERLAY_LOADERS.recipeOverlay, 'RecipeOverlay');
+const AddRecipeModal = lazyScreen(OVERLAY_LOADERS.addRecipeModal, 'AddRecipeModal');
+const IngestModal = lazyScreen(OVERLAY_LOADERS.ingestModal, 'IngestModal');
+const IngestReview = lazyScreen(OVERLAY_LOADERS.ingestReview, 'IngestReview');
+const OutboxView = lazyScreen(OVERLAY_LOADERS.outboxView, 'OutboxView');
+const VerdictCard = lazyScreen(OVERLAY_LOADERS.verdictCard, 'VerdictCard');
+
+// What a not-yet-parsed screen shows. Deliberately quiet: a chunk parse is
+// tens of milliseconds after the idle prefetch, so anything busier than this
+// would flash. Not a spinner — spinners read as "something is wrong".
+function ScreenFallback() {
+  return (
+    <div style={css('display:flex;align-items:center;justify-content:center;min-height:60vh')}>
+      <span style={css('width:9px;height:9px;border-radius:50%;background:var(--nv-acc);opacity:.5;animation:novaPulse 1.4s ease-in-out infinite;animation-play-state:var(--nv-anim)')}></span>
+    </div>
+  );
+}
+
+// Pull every lazy chunk in the background once boot has settled. The service
+// worker precaches them all (globPatterns covers **/*.js), so this is about
+// having them PARSED and in module cache before he taps, not about network.
+// requestIdleCallback is unavailable in Safari — feature-detected, with a
+// timeout fallback rather than an assumption.
+let screensPrefetched = false;
+function prefetchScreens() {
+  if (screensPrefetched) return;
+  screensPrefetched = true;
+  const run = () => { for (const load of [...Object.values(SCREEN_LOADERS), ...Object.values(OVERLAY_LOADERS)]) load().catch(() => {}); };
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 6000 });
+  else setTimeout(run, 3000);
+}
+// Nav intent: pointerdown on a nav row warms that screen's chunk before the
+// tap even completes. Harmless when already loaded — import() is memoized.
+function warmScreen(screen) {
+  const load = SCREEN_LOADERS[screen];
+  if (load) load().catch(() => {});
+}
 
 // Personalization — appearance now lives in src/theme.js (Settings picks the
 // theme + calm mode at runtime; tokens are CSS custom properties in index.css).
@@ -409,6 +481,9 @@ export default class App extends Component {
     // still show what's uncommitted — navigate() only fires on a CHANGE
     if (this.state.screen === 'code') this.refreshCodeChanges();
     this.checkPushState();
+    // Boot has settled — pull the lazy screen chunks in the background so the
+    // first navigation to any of them never waits on a parse.
+    prefetchScreens();
     this.syncInboxMode(); // pull the system-wide autonomy mode from the server
     // an answer that was in flight when the app was reclaimed — pick the poll back up
     try {
@@ -564,16 +639,50 @@ export default class App extends Component {
   withTransition(fn) {
     const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduced || typeof document === 'undefined' || !document.startViewTransition) { fn(); return; }
-    try { document.startViewTransition(() => { flushSync(() => fn()); }); } catch { fn(); }
+    try {
+      const t = document.startViewTransition(() => { flushSync(() => fn()); });
+      // A transition started while another is mid-flight SUPERSEDES it, and
+      // the superseded one rejects `.finished`/`.updateCallbackDone` with
+      // AbortError: "Transition was skipped". That is normal, expected
+      // behaviour on a fast tab-hop — but unhandled it surfaces as an
+      // unhandled promise rejection (3 of them in a 16-screen walk). The
+      // navigation itself is unaffected (verified: the last tap still wins);
+      // this only silences the noise. The try/catch above cannot do it —
+      // these are async rejections, not synchronous throws.
+      t?.finished?.catch(() => {});
+      t?.updateCallbackDone?.catch(() => {});
+    } catch { fn(); }
   }
   navigate(screen, extra = {}) {
     const changed = this.state.screen !== screen;
+    // SCROLL RESTORATION. One shared scroller means leaving a screen loses
+    // your place in it — a reset to 0 was the old fix, and it's why coming
+    // back to a long list always dumped you at the top. Positions live on a
+    // plain instance field (not state: zero re-renders) and are session-only
+    // by design — a reload starts fresh, which is what iOS does after it
+    // kills an app. A screen never visited restores to 0, same as before.
+    //
+    // Voice and Ambient opt out: Voice owns its own auto-scroll-to-bottom
+    // (restoring a stale offset would fight it mid-conversation), and
+    // Ambient is a single non-scrolling wall view.
+    const NO_RESTORE = new Set(['voice', 'ambient']);
+    if (changed && this.mainRef?.current) {
+      this.scrollPositions = this.scrollPositions || {};
+      this.scrollPositions[this.state.screen] = this.mainRef.current.scrollTop;
+    }
     // screens cross-fade rather than cut; anything carrying a shared
     // view-transition-name across the two screens morphs instead
     const apply = () => this.setState({ screen, ...extra }, () => {
-      // one shared scroller — without a reset, Mission Control opens mid-page
-      // after scrolling Recipes
-      if (changed && this.mainRef?.current) this.mainRef.current.scrollTop = 0;
+      if (!changed || !this.mainRef?.current) return;
+      const saved = NO_RESTORE.has(screen) ? 0 : (this.scrollPositions?.[screen] || 0);
+      this.mainRef.current.scrollTop = saved;
+      // A lazy screen's content mounts a frame or two later (Suspense
+      // resolving), and setting scrollTop before the content exists clamps
+      // it to 0 — so re-apply once after paint. Cheap, and a no-op when the
+      // first assignment already stuck.
+      if (saved > 0) requestAnimationFrame(() => {
+        if (this.state.screen === screen && this.mainRef?.current) this.mainRef.current.scrollTop = saved;
+      });
     });
     if (changed) { this.withTransition(apply); this.noteScreenVisit(screen); } else apply();
     if (changed && screen === 'voice') this.maybeGreet('voice');
@@ -1203,6 +1312,7 @@ export default class App extends Component {
   toggleSlotConsumed(slot, consumed) {
     const conn = getConnection();
     if (!conn) return;
+    haptic('tick');
     // Optimistic + queued: ticking a meal off is what he does standing in a
     // kitchen with the Mac asleep at home. The tick lands immediately, the
     // write rides the Outbox, and the protein gauge stays honest meanwhile.
@@ -1782,6 +1892,7 @@ export default class App extends Component {
   toggleShoppingItem(id, checked) {
     const conn = getConnection();
     if (!conn) return;
+    haptic('tick');
     this.setState((s) => ({
       liveShoppingList: (this.noteLocalWrite('shoppingList'), { ...s.liveShoppingList, items: s.liveShoppingList.items.map((i) => (i.id === id ? { ...i, checked } : i)) }),
     }));
@@ -2155,6 +2266,7 @@ export default class App extends Component {
     api.completeWorkoutSession(conn, payload).then(({ prs } = {}) => {
       if (prs?.length) {
         this.setState({ prCelebration: prs });
+        haptic('celebrate'); // no-op on iOS today (see haptics.js) — real on Android/desktop
         clearTimeout(this.prT);
         this.prT = setTimeout(() => this.setState({ prCelebration: null }), 4200);
       }
@@ -3785,7 +3897,12 @@ export default class App extends Component {
       lastSyncLabel: st.lastSyncAt
         ? new Date(st.lastSyncAt).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })
         : null,
-      go: (screen) => () => this.navigate(screen, { paletteOpen: false }),
+      // Every nav path (sidebar, dock, More sheet, palette) funnels through
+      // this one factory, so warming the target's chunk here covers all of
+      // them at once. Called on the CLICK — by then idle prefetch has almost
+      // always already loaded it and this is a no-op (import() is memoized);
+      // it only earns its keep on a tap that beat the prefetch.
+      go: (screen) => () => { warmScreen(screen); this.navigate(screen, { paletteOpen: false }); },
     };
     return {
       ...valsRecipes(this, ctx),
@@ -4901,22 +5018,29 @@ export default class App extends Component {
               hoverStyle="border-color:var(--nv-acc-border);color:var(--nv-cy)">{v.sidebarToggle.open ? '‹' : '›'}</Interactive>
           )}
           <main ref={this.mainRef} style={css("flex:1;overflow-y:auto;min-width:0;overscroll-behavior-y:contain;touch-action:manipulation")}>
-            {v.isMission && <MissionControl v={v} />}
-            {v.isInbox && <Inbox v={v} />}
-            {v.isVoice && <Voice v={v} />}
-            {v.isGalaxy && <Galaxy v={v} />}
-            {v.isCode && <ClaudeCode v={v} />}
-            {v.isRecipes && <Recipes v={v} />}
-            {v.isShopping && <Shopping v={v} />}
-            {v.isStash && <Stash v={v} />}
-            {v.isOps && <Ops v={v} />}
-            {v.isAmbient && <Ambient v={v} />}
-            {v.isTodos && <Todos v={v} />}
-            {v.isWorkouts && <Workouts v={v} />}
-            {v.isNotes && <Notes v={v} />}
-            {v.isJournal && <Journal v={v} />}
-            {v.isMoney && <Money v={v} />}
-            {v.isSettings && <Settings v={v} />}
+            {/* ONE boundary around the screen switch. The daily five are
+                static so they never reach it; the lazy nine hit it only on a
+                navigation that beat the idle prefetch. ScreenFallback is a
+                calm centred pulse (never a white flash), and it honours calm
+                mode / reduced motion like every other animation here. */}
+            <Suspense fallback={<ScreenFallback />}>
+              {v.isMission && <MissionControl v={v} />}
+              {v.isInbox && <Inbox v={v} />}
+              {v.isVoice && <Voice v={v} />}
+              {v.isGalaxy && <Galaxy v={v} />}
+              {v.isCode && <ClaudeCode v={v} />}
+              {v.isRecipes && <Recipes v={v} />}
+              {v.isShopping && <Shopping v={v} />}
+              {v.isStash && <Stash v={v} />}
+              {v.isOps && <Ops v={v} />}
+              {v.isAmbient && <Ambient v={v} />}
+              {v.isTodos && <Todos v={v} />}
+              {v.isWorkouts && <Workouts v={v} />}
+              {v.isNotes && <Notes v={v} />}
+              {v.isJournal && <Journal v={v} />}
+              {v.isMoney && <Money v={v} />}
+              {v.isSettings && <Settings v={v} />}
+            </Suspense>
           </main>
         </div>
 
@@ -4942,9 +5066,11 @@ export default class App extends Component {
           </div>
         )}
         {this.state.verdict && (
-          <VerdictCard v={this.state.verdict}
-            onClose={() => this.setState({ verdict: null })}
-            onSpeak={(text) => { if (this.state.liveTts?.configured) this.speakTtsSentence(text); else this.speakIncremental(text); }} />
+          <Suspense fallback={null}>
+            <VerdictCard v={this.state.verdict}
+              onClose={() => this.setState({ verdict: null })}
+              onSpeak={(text) => { if (this.state.liveTts?.configured) this.speakTtsSentence(text); else this.speakIncremental(text); }} />
+          </Suspense>
         )}
         <ContextMenuHost menu={this.state.ctxMenu} isMobile={v.isMobile} close={() => this.closeContextMenu()} />
 
@@ -4980,19 +5106,22 @@ export default class App extends Component {
               style={{ flex: 'none', font: '500 11px var(--nv-font-mono)', color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)', padding: '2px 4px' }}>✕</span>
           </div>
         )}
-        {v.recipeOpen && <RecipeOverlay v={v} />}
-        {v.recipeAddOpen && <AddRecipeModal v={v} />}
+        {/* fallback={null}: an overlay appearing a frame later reads as
+            normal modal timing — a placeholder card would be worse than
+            nothing. Idle prefetch means they're almost always already in. */}
+        {v.recipeOpen && <Suspense fallback={null}><RecipeOverlay v={v} /></Suspense>}
+        {v.recipeAddOpen && <Suspense fallback={null}><AddRecipeModal v={v} /></Suspense>}
         {v.barcodeScannerOpen && (
           <Suspense fallback={null}>
             <BarcodeScanner onDetected={v.onBarcodeDetected} onClose={v.closeBarcodeScanner} />
           </Suspense>
         )}
         {v.paletteOpen && <CommandPalette v={v} />}
-        {v.ingestModalOpen && <IngestModal v={v} />}
-        {v.ingestStatus !== 'idle' && <IngestReview v={v} />}
+        {v.ingestModalOpen && <Suspense fallback={null}><IngestModal v={v} /></Suspense>}
+        {v.ingestStatus !== 'idle' && <Suspense fallback={null}><IngestReview v={v} /></Suspense>}
         {v.nudge && <NudgeCard v={v.nudge} />}
         {v.modelChoicePrompt && <ModelChoicePrompt v={v.modelChoicePrompt} />}
-        {v.outboxView && <OutboxView v={v.outboxView} />}
+        {v.outboxView && <Suspense fallback={null}><OutboxView v={v.outboxView} /></Suspense>}
         {v.toastOn && <Toast v={v} />}
         {v.showBoot && <Boot info={v.bootInfo} />}
       </div>

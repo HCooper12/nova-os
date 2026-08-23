@@ -363,6 +363,12 @@ export function Recipes({ v }) {
           <Interactive as="span" onClick={v.openAddRecipe} base="cursor:pointer;font:500 10.5px var(--nv-font-mono);padding:8px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-gold) 35%, transparent);color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 06%, transparent)" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 14%, transparent)">+ Add recipe</Interactive>
         )}
       </div>
+      {/* NO SKELETON HERE, deliberately. The recipe grid falls back to the
+          demo bank whenever `liveRecipes` is null, so it is never actually
+          empty — a skeleton would stack ON TOP of visible cards rather than
+          fill a void (caught in verification, 23 Aug). A skeleton must only
+          ever occupy space that is genuinely blank; the Inbox qualifies,
+          this grid does not. */}
       <div style={v.gridRecipes}>
         {v.recipeList.map((r) => (
           <Interactive

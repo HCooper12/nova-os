@@ -541,6 +541,10 @@ export function valsInbox(app, ctx) {
     inboxPending: pendingItems,
     inboxHistory: historyItems,
     inboxLoaded: inbox != null, // null = still loading — never renders as "nothing captured yet"
+    // the skeleton needs to know NOT to shimmer offline (last-known history
+    // renders under the offline banner there — a shimmer would promise data
+    // that isn't coming)
+    isOffline,
     inboxPendingCount: pendingCount,
     inboxRefresh: () => app.refreshInbox(),
 

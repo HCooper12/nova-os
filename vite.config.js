@@ -5,6 +5,20 @@ import { VitePWA } from 'vite-plugin-pwa'
 // https://vite.dev/config/
 export default defineConfig({
   base: '/nova-os/',
+  build: {
+    rollupOptions: {
+      output: {
+        // React + React DOM in their own chunk. They change only when the
+        // dependency is upgraded, so an ordinary app edit no longer forces
+        // every installed client to re-download the framework on the next
+        // service-worker update — it re-fetches the app chunk alone.
+        // Function form, not the object form: this project builds on Vite 8
+        // / rolldown, which accepts only a function here (the object form
+        // fails the build with "manualChunks is not a function").
+        manualChunks: (id) => (/node_modules\/(react|react-dom|scheduler)\//.test(id) ? 'react' : undefined),
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({

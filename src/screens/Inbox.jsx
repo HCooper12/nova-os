@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { useDictation } from '../useDictation.js';
+import { SkeletonList } from '../Skeleton.jsx';
 
 // The Nova Inbox: one place to drop any loose thought — typed or dictated —
 // and let Nova route it (shopping / journal / to-do / note / food log).
@@ -125,6 +126,18 @@ export function Inbox({ v }) {
           </Interactive>
         ))}
       </div>
+
+      {/* Skeleton ONLY while the inbox has genuinely never loaded — never
+          over real data, and never offline (that path shows last-known
+          history under its own banner). `inboxLoaded` already carries the
+          null-vs-empty distinction, so an empty inbox keeps its honest
+          "nothing captured yet" copy rather than shimmering forever. */}
+      {!v.inboxLoaded && v.inboxConnected && !v.isOffline && (
+        <div style={{ marginTop: '18px' }}>
+          <div style={css(`font:500 9.5px ${M};letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 35%, transparent)`)}>LOADING…</div>
+          <div style={{ marginTop: '10px' }}><SkeletonList rows={3} lines={2} /></div>
+        </div>
+      )}
 
       {/* pending approvals — THE daily action, straight under the composer.
           They used to sit below two screens of loop config; the thing the
