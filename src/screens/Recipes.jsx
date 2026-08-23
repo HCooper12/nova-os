@@ -152,13 +152,27 @@ export function Recipes({ v }) {
                     <div style={css("font:600 10px var(--nv-font-mono);margin-top:6px")}>
                       <span style={css("color:var(--nv-cy)")}>{s.p}P</span> <span style={css("color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>·</span> <span style={css("color:var(--nv-gold)")}>{s.c}C</span> <span style={css("color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>·</span> <span style={css("color:var(--nv-vi)")}>{s.f}F</span> <span style={css("color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>·</span> <span style={css("color:var(--nv-good)")}>{s.kcal}</span>
                     </div>
+                    {/* NO SWIPE on these cards, deliberately. They sit in a
+                        horizontally-scrolling strip (904px of content in a
+                        468px viewport on a phone — measured), so a sideways
+                        swipe would fight the scroll on the SAME axis. The
+                        direction lock in swipeCore.js separates horizontal
+                        from vertical and cannot help here; adding it would
+                        recreate exactly the accidental-commit failure that
+                        design exists to prevent.
+                        What the goal actually needed was a usable tap
+                        target: this was 30x30, under Apple's 44pt minimum,
+                        on the control used every meal. Now 44x44 — the ring
+                        stays 30px visually, the touch area is the padding. */}
                     <Interactive as="span" onClick={s.toggleConsumed} aria-label={s.consumed ? 'Mark not eaten' : 'Mark eaten'}
-                      base={{ cursor: 'pointer', position: 'absolute', top: '10px', right: '10px', width: '30px', height: '30px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      base={{ cursor: 'pointer', position: 'absolute', top: '3px', right: '3px', width: '44px', height: '44px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ width: '30px', height: '30px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                         border: s.consumed ? '1.5px solid var(--nv-good)' : '1.5px solid var(--nv-edge)',
                         background: s.consumed ? 'color-mix(in srgb, var(--nv-good) 15%, transparent)' : 'transparent',
-                        boxShadow: s.consumed ? '0 0 12px -2px color-mix(in srgb, var(--nv-good) 70%, transparent)' : 'none', transition: 'all .2s' }}
-                      hoverStyle={{ borderColor: 'var(--nv-good)' }}
-                    >{s.consumed ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--nv-good)" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg> : null}</Interactive>
+                        boxShadow: s.consumed ? '0 0 12px -2px color-mix(in srgb, var(--nv-good) 70%, transparent)' : 'none', transition: 'all .2s' }}>
+                        {s.consumed ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--nv-good)" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg> : null}
+                      </span>
+                    </Interactive>
                     <div style={css("display:flex;gap:8px;margin-top:8px")}>
                       {s.clearVariant && <Interactive as="span" onClick={s.clearVariant} base="cursor:pointer;font:500 8.5px var(--nv-font-mono);color:var(--nv-gold)" hoverStyle="text-decoration:underline">UNDO VARIANT</Interactive>}
                       <Interactive as="span" onClick={s.clear} base="cursor:pointer;font:500 8.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 35%, transparent)" hoverStyle="color:var(--nv-warn)">CLEAR</Interactive>
