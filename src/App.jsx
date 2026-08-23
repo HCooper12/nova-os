@@ -1014,11 +1014,16 @@ export default class App extends Component {
         // stream (Tailscale network hops) pends forever with no error; the
         // liveness watchdog uses this timestamp to detect and kill it.
         this.lastStreamActivity = Date.now();
-        if (!decoder.decode(value, { stream: true }).includes('data:')) continue;
-        const now = Date.now();
-        if (now - (this.lastEventRefresh || 0) > 3000) {
-          this.lastEventRefresh = now;
-          this.refreshLiveData();
+        const chunk = decoder.decode(value, { stream: true });
+        if (!chunk.includes('data:')) continue;
+        // A chunk can carry more than one event; read every one, because each
+        // carries its own slice tag and dropping one loses that tag.
+        for (const line of chunk.split('\n')) {
+          if (!line.startsWith('data:')) continue;
+          let payload = null;
+          try { payload = JSON.parse(line.slice(5)); } catch { /* not JSON — treat as untagged */ }
+          if (payload?.kind === 'hello') continue; // the stream handshake, not a write
+          this.queueStreamRefresh(payload);
         }
       }
       throw new Error('stream ended');
@@ -1032,6 +1037,10 @@ export default class App extends Component {
   }
   stopEventStream() {
     clearTimeout(this.eventRetryT);
+    // a queued nudge must not wake a backgrounded app to sync; the pending
+    // tags stay in the set and the resume path does a full sync anyway
+    clearTimeout(this.streamRefreshT);
+    this.streamRefreshT = null;
     if (this.eventAbort) {
       const a = this.eventAbort;
       this.eventAbort = null;
@@ -1175,6 +1184,64 @@ export default class App extends Component {
     apply('pulse', (r) => this.setState({ livePulse: r.topics }));
     return ok;
   }
+  // A write nudge arrived. If the server told us WHICH slices it touched
+  // (lib/writeSlices.js) we can pull three instead of thirty — a todo
+  // checkbox, or every set of a workout, no longer costs a whole snapshot.
+  //
+  // Two rules keep this honest:
+  //   - An untagged nudge poisons the whole batch into a full sync. Unknown
+  //     means unknown; we never narrow on a guess.
+  //   - Coalesced events must ACCUMULATE, never drop. The old code discarded
+  //     any nudge landing within 3s of the last refresh, which was harmless
+  //     when every refresh was a full one — with targeted syncs, a dropped
+  //     tag is a slice that silently never updates. So the burst is queued
+  //     and flushed at the end of the window instead.
+  queueStreamRefresh(payload) {
+    if (!this.pendingSlices) this.pendingSlices = new Set();
+    const tagged = Array.isArray(payload?.slices) && payload.slices.length > 0;
+    if (tagged) for (const s of payload.slices) this.pendingSlices.add(s);
+    else this.pendingFullSync = true;
+    if (this.streamRefreshT) return; // a flush is already scheduled — it will pick this up
+    // A single write usually emits TWO events: the route's own domain
+    // broadcast and the generic one from the write chokepoint. Flushing on
+    // the first would sync twice for one change (measured: two identical
+    // ?only=todos requests), so always wait a beat and let siblings merge.
+    // 150ms is below the threshold where a screen update reads as delayed.
+    const wait = Math.max(150, 3000 - (Date.now() - (this.lastEventRefresh || 0)));
+    this.streamRefreshT = setTimeout(() => {
+      this.streamRefreshT = null;
+      this.lastEventRefresh = Date.now();
+      const full = this.pendingFullSync;
+      const only = [...this.pendingSlices];
+      this.pendingFullSync = false;
+      this.pendingSlices.clear();
+      if (full || !only.length) this.refreshLiveData();
+      else this.refreshSlices(only);
+    }, wait);
+  }
+
+  // Targeted sync: the same snapshot endpoint, narrowed. Any failure falls
+  // back to the full pass, so the worst case is the behaviour we had before.
+  async refreshSlices(only) {
+    const conn = getConnection();
+    if (!conn) return;
+    if (this.refreshInFlight) return; // a full sync is already running and covers these
+    try {
+      const startedAt = Date.now();
+      const { slices } = await api.snapshot(conn, { only });
+      this.applySnapshot(slices, startedAt);
+      this.setState({ connectionStatus: 'connected', lastSyncAt: new Date().toISOString() }, () => {
+        // keep the offline cache current too, or a reload would show the
+        // pre-write copy of a slice that did update on screen
+        const cached = {};
+        for (const key of CACHED_LIVE_KEYS) cached[key] = this.state[key];
+        saveLiveCache(cached);
+      });
+    } catch {
+      this.refreshLiveData();
+    }
+  }
+
   async refreshLiveData() {
     const conn = getConnection();
     if (!conn) return;

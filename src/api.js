@@ -169,7 +169,13 @@ export const api = {
   quickSessionPrepare: (conn, plan) => post(conn, '/api/workouts/quick-session/prepare', { plan }),
   updateWorkoutSession: (conn, id, body) => put(conn, `/api/workouts/sessions/${encodeURIComponent(id)}`, body),
   deleteWorkoutSession: (conn, id) => del(conn, `/api/workouts/sessions/${encodeURIComponent(id)}`),
-  snapshot: (conn) => call(conn, '/api/snapshot', { timeoutMs: 30_000 }),
+  // `only` narrows the sync to named slices — used by the targeted resync a
+  // tagged write nudge triggers. Omit it for the full sync.
+  snapshot: (conn, { only } = {}) => call(
+    conn,
+    only?.length ? `/api/snapshot?only=${encodeURIComponent(only.join(','))}` : '/api/snapshot',
+    { timeoutMs: 30_000 },
+  ),
   getInboxConfig: (conn) => call(conn, '/api/inbox-config'),
   setInboxConfigMode: (conn, mode) => put(conn, '/api/inbox-config', { mode }),
   // the model board — one lane per write, so a toggle never rewrites a model

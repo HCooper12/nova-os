@@ -9,7 +9,9 @@ import { Router } from 'express';
 // handlers, byte-identical shapes, zero drift — and bundles the results.
 // Local HTTP is ~ms per call; the client's single Tailscale round-trip is
 // where the win lives.
-const SLICES = {
+// exported so writeSlices.js's tags can be checked against the real slice
+// names in a test — a typo'd tag would silently refresh nothing
+export const SLICES = {
   notes: '/api/notes',
   journal: '/api/journal/entries?limit=30',
   healthInsight: '/api/health-insight',
@@ -116,7 +118,14 @@ export function snapshotRouter({ port, token }) {
     const headers = { Authorization: `Bearer ${token}` };
     const slices = {};
     const errors = {};
-    await Promise.all(Object.entries(SLICES).map(async ([key, path]) => {
+    // ?only=foodLog,fuelCross — a targeted resync after a tagged write nudge
+    // (see lib/writeSlices.js). Unknown names are dropped rather than 400'd:
+    // an older client asking for a slice this build no longer has should get
+    // the slices it CAN have, not a failed sync. An `only` that names nothing
+    // real falls back to the full set — never an empty response.
+    const wanted = String(req.query.only || '').split(',').map((s) => s.trim()).filter((s) => s in SLICES);
+    const chosen = wanted.length ? wanted.map((k) => [k, SLICES[k]]) : Object.entries(SLICES);
+    await Promise.all(chosen.map(async ([key, path]) => {
       try {
         const work = (async () => {
           const r = await fetch(base + path, { headers, signal: AbortSignal.timeout(15_000) });

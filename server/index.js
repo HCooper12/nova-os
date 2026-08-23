@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import cors from 'cors';
 import { Vault } from './lib/vault.js';
+import { slicesForPath } from './lib/writeSlices.js';
 import { notesRouter } from './routes/notes.js';
 import { intentRouter } from './routes/intent.js';
 import { calendarRouter } from './routes/calendar.js';
@@ -138,9 +139,15 @@ async function main() {
   ];
   app.use('/api', (req, res, next) => {
     if (req.method === 'GET' || BROADCAST_SILENT.some((re) => re.test(req.path))) return next();
+    // Tag the nudge with the slices this path can have touched, so the client
+    // pulls those few instead of a whole ~30-slice snapshot for one checkbox.
+    // An untagged (unknown) path still means "resync everything" — the tag is
+    // an optimisation, never a filter that can hide a change. req.path is read
+    // HERE, before the handler runs: Express rewrites it inside routers.
+    const slices = slicesForPath(req.path);
     res.on('finish', () => {
       if (res.statusCode >= 200 && res.statusCode < 300) {
-        import('./lib/events.js').then(({ broadcast }) => broadcast('write')).catch(() => {});
+        import('./lib/events.js').then(({ broadcast }) => broadcast('write', slices ? { slices } : null)).catch(() => {});
       }
     });
     next();

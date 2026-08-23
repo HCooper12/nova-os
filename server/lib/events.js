@@ -4,6 +4,8 @@
 // 5-minute poll. SSE line format over plain fetch (EventSource can't send
 // the Authorization header, so the client reads the stream itself).
 
+import { slicesForKind } from './writeSlices.js';
+
 const clients = new Set();
 
 export function subscribe(res) {
@@ -19,8 +21,15 @@ export function subscribe(res) {
   res.on('close', () => clients.delete(res));
 }
 
-export function broadcast(kind) {
-  const line = `data: ${JSON.stringify({ kind, at: Date.now() })}\n\n`;
+// `slices` names what the write actually touched (see lib/writeSlices.js) so
+// the client can pull those instead of a whole snapshot. Omitted or null means
+// "unknown" and the client resyncs everything — the old behaviour, unchanged.
+export function broadcast(kind, meta = null) {
+  // A caller that didn't pass slices may still be nameable from its kind
+  // (broadcast('todos') and friends) — otherwise this stays absent and the
+  // client resyncs everything, exactly as before.
+  const slices = meta?.slices || slicesForKind(kind);
+  const line = `data: ${JSON.stringify({ kind, at: Date.now(), ...(meta || {}), ...(slices ? { slices } : {}) })}\n\n`;
   for (const res of clients) {
     try {
       res.write(line);
