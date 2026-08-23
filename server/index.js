@@ -7,6 +7,7 @@ import express from 'express';
 import cors from 'cors';
 import { Vault } from './lib/vault.js';
 import { slicesForPath } from './lib/writeSlices.js';
+import { libraryRouter } from './routes/library.js';
 import { notesRouter } from './routes/notes.js';
 import { intentRouter } from './routes/intent.js';
 import { calendarRouter } from './routes/calendar.js';
@@ -155,6 +156,7 @@ async function main() {
 
   app.use('/api', intentRouter(vault)); // the front door — one input, deterministic routing
   app.use('/api', notesRouter(vault));
+  app.use('/api', libraryRouter(process.env.VAULT_PATH, vault)); // the visual Library — read-only view over Sources
   app.use('/api', calendarRouter(process.env.VAULT_PATH));
   app.use('/api', ingestRouter(process.env.VAULT_PATH));
   app.use('/api', recipesRouter(process.env.VAULT_PATH));

@@ -92,6 +92,8 @@ export async function testConnection(baseUrl, token) {
 
 export const api = {
   notes: (conn) => call(conn, '/api/notes'),
+  library: (conn) => call(conn, '/api/library'),
+  libraryItem: (conn, id) => call(conn, `/api/library/item?id=${encodeURIComponent(id)}`),
   noteDetail: (conn, id) => call(conn, `/api/notes/detail?id=${encodeURIComponent(id)}`),
   recall: (conn, q) => call(conn, `/api/recall?q=${encodeURIComponent(q)}`),
   learning: (conn) => call(conn, '/api/learning'),

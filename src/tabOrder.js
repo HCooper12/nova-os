@@ -8,6 +8,8 @@ export const TAB_META = [
   ['inbox', 'Inbox'], ['recipes', 'Fuel'], ['shopping', 'Shop'], ['todos', 'To-Do'],
   ['workouts', 'Train'], ['notes', 'Notes'], ['journal', 'Journal'], ['money', 'Money'], ['stash', 'Stash'],
   ['ops', 'Ops'], ['settings', 'Settings'],
+  // appended (not inserted) so the canonical numerals of existing tabs never move
+  ['library', 'Library'],
 ];
 const ALL_KEYS = TAB_META.map((t) => t[0]);
 // TAB_META fixes the canonical NUMBERING (Train is always IX). This is the
@@ -15,7 +17,7 @@ const ALL_KEYS = TAB_META.map((t) => t[0]);
 // one-tap dock slots before he has customised anything. Train and Recipes are
 // the daily surfaces; Galaxy and Code are occasional, so they move back.
 const DEFAULT_ORDER = ['mission', 'voice', 'workouts', 'recipes', 'inbox', 'todos',
-  'shopping', 'notes', 'journal', 'money', 'stash', 'galaxy', 'code', 'ops', 'settings'];
+  'shopping', 'notes', 'library', 'journal', 'money', 'stash', 'galaxy', 'code', 'ops', 'settings'];
 const LABELS = Object.fromEntries(TAB_META);
 const ROMAN = ['I.', 'II.', 'III.', 'IV.', 'V.', 'VI.', 'VII.', 'VIII.', 'IX.', 'X.', 'XI.', 'XII.', 'XIII.', 'XIV.', 'XV.', 'XVI.'];
 

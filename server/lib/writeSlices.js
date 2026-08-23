@@ -48,7 +48,7 @@ export const WRITE_SLICE_MAP = [
   // a journal entry is a real vault note: it lands in the note list and the
   // graph as well as the journal feed
   { test: /^\/journal(\/|$)/, slices: ['journal', 'notes', 'graph'] },
-  { test: /^\/notes(\/|$)/, slices: ['notes', 'graph'] },
+  { test: /^\/notes(\/|$)/, slices: ['notes', 'graph', 'library'] },
   { test: /^\/stash(\/|$)/, slices: ['stash'] },
   { test: /^\/shopping-list(\/|$)/, slices: ['shoppingList'] },
   { test: /^\/todos(\/|$)/, slices: ['todos'] },
@@ -74,7 +74,7 @@ export const WRITE_SLICE_MAP = [
 // that isn't named here means "unknown", not "nothing".
 export const KIND_SLICE_MAP = {
   todos: ['todos'],
-  notes: ['notes', 'graph'],
+  notes: ['notes', 'graph', 'library'],
   money: ['money'],
   calendar: ['calendar'],
   health: ['healthData', 'healthInsight', 'streaks'],

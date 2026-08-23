@@ -54,8 +54,10 @@ export function IngestModal({ v }) {
           />
         </div>
         <div style={css("margin-top:6px;font-size:11px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent);line-height:1.5")}>
-          Researched from public sources — key ideas, frameworks, claims and connections, honestly labelled
-          as researched (not read). Nova never fetches a book's actual text.
+          On its own: researched from public sources — key ideas, frameworks, claims and connections,
+          honestly labelled as researched (not read); Nova never fetches a book's actual text.
+          With the title <em>and</em> the book's text pasted or uploaded above (your own copy or notes):
+          Nova reads the real thing, extracts everything, and the pages carry provenance: read.
         </div>
 
         <div style={css("margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap")}>

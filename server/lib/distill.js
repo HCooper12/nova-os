@@ -74,7 +74,9 @@ For EACH page, following this vault's root CLAUDE.md conventions exactly:
 
 Hard rules: never delete content; never invent facts, names, or links to pages that don't exist; a page with no genuine relations gets LEFT ALONE (say so in the summary — honesty beats busywork). Batch mode: process everything in one pass.
 
-Finish with a concise summary: per page, what was linked (or why it was left), and any pages moved.`;
+THEN, one CROSS-SOURCE pass over Wiki/Sources (books, videos, podcasts): where two sources genuinely engage the same concept, make sure both link that Concept page (never each other directly without one). Where two sources genuinely DISAGREE — one's claim undercuts another's premise — add one honest sentence to EACH page naming the tension and linking the other (e.g. "Tension: [[Other Source]] argues the opposite on X"). Disagreement between sources is the most valuable link in this vault; a graph that only agrees is a scrapbook. Same hard rules: only where the engagement is real, at most a handful of the strongest connections, none manufactured to look busy.
+
+Finish with a concise summary: per page, what was linked (or why it was left), any pages moved, and any cross-source tensions recorded.`;
 }
 
 async function persistJob(job) {

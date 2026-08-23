@@ -119,5 +119,5 @@ test('a path and its matching kind agree about the slices they name', () => {
 test('a prefix must match a whole path segment', () => {
   // '/notesomething' is not a /notes write
   assert.equal(slicesForPath('/notesomething'), null);
-  assert.deepEqual(slicesForPath('/notes'), ['notes', 'graph']);
+  assert.deepEqual(slicesForPath('/notes'), ['notes', 'graph', 'library']);
 });

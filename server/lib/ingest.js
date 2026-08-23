@@ -177,7 +177,8 @@ export function startIngest(vaultPath) {
       // BOOK MODE: research before the weave. The dossier is Nova's own
       // authored synthesis (researched, never the book's text), so it is
       // safe — and right — to keep verbatim in Raw/ as provenance.
-      if (book && (!transcriptText || !transcriptText.trim())) {
+      const bookProvided = !!(book && transcriptText && transcriptText.trim());
+      if (book && !bookProvided) {
         job.status = 'researching';
         persistJob(job);
         const { runBookResearch, composeBookDossier } = await import('./librarian.js');
@@ -240,7 +241,7 @@ export function startIngest(vaultPath) {
       if (!existing.transcriptRel) {
         await writeFile(
           path.join(stagingVault, verbatimRelPath),
-          `${book ? "Research dossier authored by Nova's Librarian (Nova's own synthesis from public sources — not the book's text)" : fetched ? "Verbatim video transcript fetched by Nova's Watcher from the link Hayden submitted" : 'Verbatim original text pasted by Hayden via Nova OS'}, received ${new Date().toISOString().slice(0, 10)}.${sourceUrl ? `\nSource URL: ${sourceUrl}` : ''}\n\n---\n\n${verbatimOverride ?? transcriptText}`,
+          `${book ? (bookProvided ? "Text/notes of a book supplied by Hayden from his own copy via Nova OS" : "Research dossier authored by Nova's Librarian (Nova's own synthesis from public sources — not the book's text)") : fetched ? "Verbatim video transcript fetched by Nova's Watcher from the link Hayden submitted" : 'Verbatim original text pasted by Hayden via Nova OS'}, received ${new Date().toISOString().slice(0, 10)}.${sourceUrl ? `\nSource URL: ${sourceUrl}` : ''}\n\n---\n\n${verbatimOverride ?? transcriptText}`,
           'utf8'
         );
       }
@@ -253,13 +254,8 @@ export function startIngest(vaultPath) {
       job.status = 'running';
       persistJob(job); // carries the digested flag into the durable copy
 
-      const prompt = `New content to add to the vault — ${book ? `a research dossier Nova's Librarian compiled about the book "${job.book.title}" by ${job.book.author}, which Hayden asked to add to his vault` : fetched ? 'a timestamped video transcript Nova fetched from a link Hayden submitted' : 'pasted by Hayden via Nova OS'}, saved at ${transcriptPath}.${book ? `
-
-BOOK RULES, on top of CLAUDE.md:
-- The Source page is the book itself. Its frontmatter must include: title: "${job.book.title}", author: "${job.book.author}", type: book, provenance: researched (Nova has NOT read this book — the dossier is triangulated from public sources, and every page you write from it inherits that honesty; if a page states something as the book's position, it is the dossier's sourced account of the book's position).
-- The dossier's "Frameworks & terms" become Concept pages, its "People, works and studies" become Entity pages — but per the dedup rule, extend any that already exist rather than forking.
-- The dossier's "Connection hooks" are HYPOTHESES, not facts: test each against pages that actually exist in the staged tree and only write the wikilink where the connection is real. A contradiction between this book and an existing source is worth a sentence ON BOTH pages — disagreement is signal, not noise.
-- Carry the claim/evidence distinctions through: a contested claim stays contested on the vault page, with the dossier's evidence note.` : ''} This could be an external source (a podcast/video transcript, article, etc.) or it could be Hayden's own note, idea, or reflection that just came to mind — read it and use your own judgement, per this vault's root CLAUDE.md, to pick the right page type (Source, Concept, Entity, Topic, Journal, or Analysis) rather than assuming it's a Source. Follow CLAUDE.md exactly, in batch mode (process fully in one pass, no per-item discussion — just do the work).
+      const bookRules = book ? (await import('./librarian.js')).bookWeaveRules(job.book, bookProvided) : '';
+      const prompt = `New content to add to the vault — ${book ? bookProvided ? `the text/notes of the book "${job.book.title}" by ${job.book.author}, supplied by Hayden from his own copy` : `a research dossier Nova's Librarian compiled about the book "${job.book.title}" by ${job.book.author}, which Hayden asked to add to his vault` : fetched ? 'a timestamped video transcript Nova fetched from a link Hayden submitted' : 'pasted by Hayden via Nova OS'}, saved at ${transcriptPath}.${bookRules} This could be an external source (a podcast/video transcript, article, etc.) or it could be Hayden's own note, idea, or reflection that just came to mind — read it and use your own judgement, per this vault's root CLAUDE.md, to pick the right page type (Source, Concept, Entity, Topic, Journal, or Analysis) rather than assuming it's a Source. Follow CLAUDE.md exactly, in batch mode (process fully in one pass, no per-item discussion — just do the work).
 
 The exact verbatim original text ${existing.transcriptRel ? 'is ALREADY in the vault' : 'is already saved in the vault'} at ${verbatimRelPath}${existing.transcriptRel ? ' (do NOT write another copy of it — it is not in this staged tree because Raw/ is not staged, and it must stay exactly as it is)' : ''}. If this is third-party copyrighted material needing the paraphrase treatment per CLAUDE.md's copyright rule, link to this file from whatever page you create (e.g. "Verbatim original: [[${verbatimName}]]" — the vault path is ${verbatimRelPath}). If it's Hayden's own writing, that rule already allows storing it verbatim directly — no need to paraphrase it, just fold it in or reference this file as you see fit.
 ${existing.pages.length ? `\nALREADY IN THE VAULT — DO NOT DUPLICATE. This exact ${book ? 'book' : 'video'} already has ${existing.pages.length === 1 ? 'this page' : 'these pages'}, present in the staged tree:\n${existing.pages.map((p) => `- ${p}`).join('\n')}\nRead ${existing.pages.length === 1 ? 'it' : 'them'} FIRST and EDIT in place to deepen ${existing.pages.length === 1 ? 'it' : 'them'} — never create a second page for the same ${book ? 'book' : 'video'} under a variant title. Preserve what is already written (and its frontmatter) while adding what is missing; the same rule applies to any Concept/Entity/Topic page that already exists — extend it rather than forking a near-duplicate.\n` : ''}

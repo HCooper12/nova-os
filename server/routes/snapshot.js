@@ -13,6 +13,7 @@ import { Router } from 'express';
 // names in a test — a typo'd tag would silently refresh nothing
 export const SLICES = {
   notes: '/api/notes',
+  library: '/api/library',
   journal: '/api/journal/entries?limit=30',
   healthInsight: '/api/health-insight',
   healthData: '/api/health-data', // server default 14 — ?days=7 truncated the weight window

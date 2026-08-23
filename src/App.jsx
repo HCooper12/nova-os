@@ -13,6 +13,7 @@ import { NOTE_TYPE_COLOR } from './vals/shared.js';
 import { valsRecipes } from './vals/valsRecipes.js';
 import { valsWorkouts } from './vals/valsWorkouts.js';
 import { valsNotes } from './vals/valsNotes.js';
+import { valsLibrary } from './vals/valsLibrary.js';
 import { valsMisc } from './vals/valsMisc.js';
 import { valsInbox } from './vals/valsInbox.js';
 import { valsTodos } from './vals/valsTodos.js';
@@ -74,6 +75,7 @@ const SCREEN_LOADERS = {
   code: () => import('./screens/ClaudeCode.jsx'),
   todos: () => import('./screens/Todos.jsx'),
   notes: () => import('./screens/Notes.jsx'),
+  library: () => import('./screens/Library.jsx'),
 };
 const Galaxy = lazyScreen(SCREEN_LOADERS.galaxy, 'Galaxy');
 const Money = lazyScreen(SCREEN_LOADERS.money, 'Money');
@@ -86,6 +88,7 @@ const Ambient = lazyScreen(SCREEN_LOADERS.ambient, 'Ambient');
 const ClaudeCode = lazyScreen(SCREEN_LOADERS.code, 'ClaudeCode');
 const Todos = lazyScreen(SCREEN_LOADERS.todos, 'Todos');
 const Notes = lazyScreen(SCREEN_LOADERS.notes, 'Notes');
+const Library = lazyScreen(SCREEN_LOADERS.library, 'Library');
 
 // The OVERLAYS — every one is conditionally rendered (a modal, a sheet, an
 // overlay), so none of them is ever part of a first paint. RecipeOverlay
@@ -144,7 +147,7 @@ const WAKE_WORD = true;
 
 // Hash-routed screens (#/recipes etc.) so deep links and the back button work
 // on GitHub Pages without a server-side router.
-const SCREENS = ['mission', 'inbox', 'voice', 'galaxy', 'code', 'recipes', 'shopping', 'todos', 'workouts', 'notes', 'journal', 'money', 'settings'];
+const SCREENS = ['mission', 'inbox', 'voice', 'galaxy', 'code', 'recipes', 'shopping', 'todos', 'workouts', 'notes', 'library', 'journal', 'money', 'settings'];
 
 const ACTIVE_SESSION_KEY = 'novaos.activeSession';
 const QUICK_PLAN_KEY = 'novaos.quickPlan';
@@ -221,7 +224,7 @@ function screenFromHash() {
 // Note details and photo blob URLs are deliberately excluded (blobs don't
 // serialize; details re-fetch on demand).
 const CACHED_LIVE_KEYS = [
-  'liveNotes', 'liveCalendar', 'liveRecipes', 'liveRecipeProfile', 'liveRotation',
+  'liveNotes', 'liveLibrary', 'liveCalendar', 'liveRecipes', 'liveRecipeProfile', 'liveRotation',
   'liveFoodLog', 'liveFoodHistory', 'liveNutritionMonth', 'liveNutritionWeek', 'liveShoppingList', 'liveStash', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
   'liveWorkoutExercises', 'liveWorkoutMuscleGroups', 'liveWorkoutTrackingTypes',
   'liveWorkoutRoutines', 'liveWorkoutSchedule', 'liveWorkoutWeekdays', 'liveWorkoutProgressions', 'liveWorkoutGoals', 'liveCarryovers', 'liveTrainOverview',
@@ -376,7 +379,8 @@ export default class App extends Component {
     // live-data connection (Settings screen)
     settingsBaseUrl: '', settingsToken: '',
     settingsTestStatus: 'idle', settingsTestMessage: '',
-    liveNotes: null, liveNoteDetails: {}, liveCalendar: null, liveCalendarList: null, calCmdText: '', calCmdBusy: false,
+    liveNotes: null, liveNoteDetails: {},
+    liveLibrary: null, liveLibraryDetails: {}, libraryFilter: 'all', libraryQuery: '', libraryOpenId: null, liveCalendar: null, liveCalendarList: null, calCmdText: '', calCmdBusy: false,
     // the model board (Settings): null until loaded, so "not loaded" and
     // "loaded and empty" can never be confused
     // groups render OPEN by default — the whole point is seeing every lane's
@@ -1145,6 +1149,7 @@ export default class App extends Component {
       if (r.notes[0] && !this.state.liveNoteDetails[this.state.openNoteId]) this.selectNote(r.notes[0].id);
       this.refreshDailyReviewDetail(r.notes);
     });
+    apply('library', (r) => this.setState({ liveLibrary: r.items }));
     apply('journal', (r) => this.setState({ liveJournalEntries: r.entries }));
     apply('healthInsight', (r) => this.setState({ liveHealthInsight: r }));
     apply('healthData', (r) => this.setState({ liveHealthDays: r.days.length ? r.days : null }));
@@ -1254,6 +1259,7 @@ export default class App extends Component {
         if (notesRes.notes[0] && !this.state.liveNoteDetails[this.state.openNoteId]) this.selectNote(notesRes.notes[0].id);
         this.refreshDailyReviewDetail(notesRes.notes);
       },
+      async () => this.setState({ liveLibrary: (await api.library(conn)).items }),
       async () => {
         const { entries } = await api.journalEntries(conn, 30);
         this.setState({ liveJournalEntries: entries });
@@ -2522,6 +2528,32 @@ export default class App extends Component {
     this.withTransition(() => this.setState({ openNoteId: id }));
     this.ensureNoteDetail(id);
   }
+  // Library: open a source — the cover morphs into the detail header. The
+  // detail is cached per id and single-flighted, same pattern (and same
+  // reasoning) as ensureNoteDetail above.
+  openLibraryItem(id) {
+    this.withTransition(() => this.setState({ libraryOpenId: id, screen: 'library' }));
+    this.ensureLibraryDetail(id);
+  }
+  closeLibraryItem() {
+    this.withTransition(() => this.setState({ libraryOpenId: null }));
+  }
+  ensureLibraryDetail(id, force = false) {
+    if (!id) return;
+    const have = this.state.liveLibraryDetails[id];
+    if (have && !have.error && !force) return;
+    const conn = getConnection();
+    if (!conn) return;
+    if (!this.libraryDetailInFlight) this.libraryDetailInFlight = new Set();
+    if (this.libraryDetailInFlight.has(id)) return;
+    this.libraryDetailInFlight.add(id);
+    if (force) this.setState((s) => { const d = { ...s.liveLibraryDetails }; delete d[id]; return { liveLibraryDetails: d }; });
+    api.libraryItem(conn, id).then((detail) => {
+      this.setState((s) => ({ liveLibraryDetails: { ...s.liveLibraryDetails, [id]: detail } }));
+    }).catch(() => {
+      this.setState((s) => ({ liveLibraryDetails: { ...s.liveLibraryDetails, [id]: { error: true } } }));
+    }).finally(() => this.libraryDetailInFlight.delete(id));
+  }
   ensureNoteDetail(id) {
     // a stored error sentinel counts as "not loaded" so re-selecting retries
     if (!id || (this.state.liveNoteDetails[id] && !this.state.liveNoteDetails[id].error)) return;
@@ -2769,7 +2801,9 @@ export default class App extends Component {
       return;
     }
     if (!text && !sourceUrl) return;
-    this.beginIngestJob(text, sourceUrl);
+    // title+author WITH text = his own copy/notes of the book — no research
+    // run (nothing to gate), and the weave marks the pages provenance: read
+    this.beginIngestJob(text, sourceUrl, title && author ? { title, author } : undefined);
   }
   // Watch & analyse: a video link straight into the deep vault weave — the
   // same job Add-to-vault runs, minus the modal.
@@ -4123,6 +4157,7 @@ export default class App extends Component {
       ...valsRecipes(this, ctx),
       ...valsWorkouts(this, ctx),
       ...valsNotes(this, ctx),
+      ...valsLibrary(this, ctx),
       ...valsMisc(this, ctx),
       ...valsInbox(this, ctx),
       ...valsTodos(this, ctx),
@@ -5283,6 +5318,7 @@ export default class App extends Component {
               {v.isTodos && <Todos v={v} />}
               {v.isWorkouts && <Workouts v={v} />}
               {v.isNotes && <Notes v={v} />}
+              {v.isLibrary && <Library v={v} />}
               {v.isJournal && <Journal v={v} />}
               {v.isMoney && <Money v={v} />}
               {v.isSettings && <Settings v={v} />}

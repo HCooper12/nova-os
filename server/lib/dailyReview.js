@@ -136,6 +136,22 @@ export async function buildReviewContext(vaultPath, now = new Date()) {
     return `WEEK AHEAD (${events.length} events over ${byDate.size} days; busiest ${busiest[0]} with ${busiest[1]}): ` +
       [...byDate.entries()].map(([d, n]) => `${d}:${n}`).join(' · ') + '.';
   });
+  await add('library', async () => {
+    // Resurfacing — the library only compounds if its ideas come back. Two
+    // candidates: the STALEST source (longest untouched — spaced repetition,
+    // roughly) and the FRESHEST (still settling in). Deterministic pick; the
+    // model decides IF one genuinely connects to today, and its discipline
+    // rules already forbid forcing it.
+    const { Vault } = await import('./vault.js');
+    const { buildLibrary } = await import('./library.js');
+    const items = await buildLibrary(vaultPath, new Vault(vaultPath));
+    if (!items.length) return null;
+    const line = (s, tag) => `- [${tag}] "${s.title}"${s.author ? ` (${s.author})` : ''} — ideas: ${(s.concepts || []).slice(0, 4).join(', ') || s.excerpt.slice(0, 80)}${s.provenance === 'researched' ? ' [researched, not read]' : ''}`;
+    const freshest = items[0];
+    const stalest = items[items.length - 1];
+    return 'FROM HIS LIBRARY (weave ONE in only if it genuinely connects to today — an idea he stored, coming back when it matters):\n'
+      + line(stalest, 'longest untouched') + (stalest !== freshest ? '\n' + line(freshest, 'newest') : '');
+  });
   await add('money', async () => {
     const { getMonthSummary } = await import('./money.js');
     const m = await getMonthSummary();
