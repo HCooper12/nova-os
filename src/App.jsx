@@ -42,6 +42,7 @@ import { Interactive } from './Interactive.jsx';
 import { WakeWord } from './WakeWord.jsx';
 import { NudgeCard } from './NudgeCard.jsx';
 import { ModelChoicePrompt } from './ModelChoicePrompt.jsx';
+import { CoachApplySheet } from './CoachApplySheet.jsx';
 import { Boot } from './Boot.jsx';
 import { haptic } from './haptics.js';
 // 0.05s of silence — a REAL source, so iOS accepts the gesture and unlocks
@@ -380,6 +381,7 @@ export default class App extends Component {
     // live-data connection (Settings screen)
     settingsBaseUrl: '', settingsToken: '',
     settingsTestStatus: 'idle', settingsTestMessage: '',
+    coachApplyPending: null, coachApplyNote: '', coachApplyBusy: false,
     foodEditId: null, foodEditName: '', foodEditP: '', foodEditC: '', foodEditF: '', foodEditKcal: '',
     foodRecipePickerOpen: false, foodRecipePickerQuery: '', foodRecipePick: null, foodPortionFactor: 1, foodPortionCustom: '',
     liveNotes: null, liveNoteDetails: {},
@@ -4363,6 +4365,44 @@ export default class App extends Component {
   // Coach proposed a program change; he answered. Approving APPLIES it (a
   // re-filed exercise moves every past set with it) and leaves an undo in
   // the Inbox; declining closes it so it stops being raised.
+  // COACH CHANGES THE PLAN — always via this confirm sheet (his rule: the
+  // button must confirm, and give him room to type "add the new one but
+  // keep the old one" before anything moves).
+  openCoachApply({ recordId = null, fix = null, proposal = '' }) {
+    this.setState({ coachApplyPending: { recordId, fix, proposal }, coachApplyNote: '', coachApplyBusy: false });
+  }
+  cancelCoachApply() {
+    if (this.state.coachApplyBusy) return; // a running change can't be un-asked
+    this.setState({ coachApplyPending: null, coachApplyNote: '' });
+  }
+  confirmCoachApply() {
+    const conn = getConnection();
+    const p = this.state.coachApplyPending;
+    if (!conn || !p || this.state.coachApplyBusy) return;
+    const note = this.state.coachApplyNote.trim();
+    this.setState({ coachApplyBusy: true });
+    const done = (msg) => {
+      this.setState({ coachApplyPending: null, coachApplyNote: '', coachApplyBusy: false });
+      if (msg) this.toastMsg(msg);
+      this.refreshLiveData();
+    };
+    api.coachApply(conn, { recordId: p.recordId || undefined, fix: p.fix || undefined, proposal: p.proposal || undefined, note: note || undefined })
+      .then((r) => {
+        if (r.jobId) {
+          // Coach is reading his note — poll; the plan updates when it lands
+          this.toastMsg('Coach is working your note into the plan…');
+          this.startPoll('coachApply', () => api.coachApplyJob(conn, r.jobId), {
+            intervalMs: 1500,
+            timeoutMs: 3 * 60_000,
+            onReady: (job) => done(job.result?.summary || 'Done — the plan is updated. Undo lives in your Inbox.'),
+            onError: (msg) => { this.setState({ coachApplyBusy: false }); this.toastMsg('Coach could not apply that: ' + msg); },
+          });
+          return;
+        }
+        done(`${r.summary} — undo lives in your Inbox.`);
+      })
+      .catch((e) => { this.setState({ coachApplyBusy: false }); this.toastMsg('Could not apply: ' + e.message); });
+  }
   resolveCoachAsk(recordId, approve) {
     const conn = getConnection();
     if (!conn) return;
@@ -5520,6 +5560,7 @@ export default class App extends Component {
         {v.ingestStatus !== 'idle' && <Suspense fallback={null}><IngestReview v={v} /></Suspense>}
         {v.nudge && <NudgeCard v={v.nudge} />}
         {v.modelChoicePrompt && <ModelChoicePrompt v={v.modelChoicePrompt} />}
+        {v.coachApply && <CoachApplySheet c={v.coachApply} />}
         {v.outboxView && <Suspense fallback={null}><OutboxView v={v.outboxView} /></Suspense>}
         {v.toastOn && <Toast v={v} />}
         {v.showBoot && <Boot info={v.bootInfo} />}

@@ -50,7 +50,8 @@ export function valsWorkouts(app, ctx) {
       askVolume: (muscles) => { app.setState({ trainTab: 'coach' }); app.doCoach(`My weekly sets for ${muscles} are under target for my goal — how should I add volume?`); },
       // the Coach's open program ask: take it, or say no. Either way it
       // stops asking — an answered question is answered.
-      applyCoachAsk: (recordId) => app.resolveCoachAsk(recordId, true),
+      applyCoachAsk: (recordId, fix, proposal) => app.openCoachApply({ recordId, fix, proposal }),
+      applyFocusFix: (fix, proposal) => app.openCoachApply({ fix, proposal }),
       dismissCoachAsk: (recordId) => app.resolveCoachAsk(recordId, false),
     },
   };
@@ -206,6 +207,7 @@ export function valsWorkouts(app, ctx) {
     trackingType: e.trackingType,
     targetUnit: targetUnit(e.trackingType),
     targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh,
+    coachAdded: e.coachAdded ? { why: e.coachAdded.why, startWeightKg: e.coachAdded.startWeightKg } : null,
     coachLabel: coachChipLabel(progressions[`${openRoutine.id}:${e.exerciseId}`]),
     coachEvidence: progressions[`${openRoutine.id}:${e.exerciseId}`]?.evidence || null,
     lastLabel: setsLabel(e.trackingType, e.lastSets),
@@ -348,6 +350,23 @@ export function valsWorkouts(app, ctx) {
 
   return {
     trainToday,
+    coachApply: st.coachApplyPending ? {
+      proposal: st.coachApplyPending.proposal,
+      // what will actually happen, said plainly before he confirms
+      changeLine: (() => {
+        const f = st.coachApplyPending.fix;
+        if (!f) return 'Coach will decide the exact change from your note.';
+        if (f.action === 'swap') return 'Swaps the old exercise out and the new one in, keeping your sets and reps.';
+        if (f.action === 'weighted-variant') return `Creates “Weighted ${f.name || 'variant'}”, swaps it in with the same prescription, starting around 5kg added.`;
+        if (f.action === 'remap') return 'Re-files the exercise under the right muscle — your volume bars re-count.';
+        return 'Applies the change to your plan.';
+      })(),
+      note: st.coachApplyNote,
+      setNote: (ev) => app.setState({ coachApplyNote: typeof ev === 'string' ? ev : ev.target.value }),
+      busy: st.coachApplyBusy,
+      confirm: () => app.confirmCoachApply(),
+      cancel: () => app.cancelCoachApply(),
+    } : null,
     coachChips,
     trainTab,
     trainTabs,

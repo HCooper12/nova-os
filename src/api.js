@@ -195,6 +195,8 @@ export const api = {
   deleteWorkoutSession: (conn, id) => del(conn, `/api/workouts/sessions/${encodeURIComponent(id)}`),
   // `only` narrows the sync to named slices — used by the targeted resync a
   // tagged write nudge triggers. Omit it for the full sync.
+  coachApply: (conn, body) => post(conn, '/api/workouts/coach-apply', body),
+  coachApplyJob: (conn, jobId) => call(conn, `/api/workouts/coach-apply/${encodeURIComponent(jobId)}`),
   snapshot: (conn, { only } = {}) => call(
     conn,
     only?.length ? `/api/snapshot?only=${encodeURIComponent(only.join(','))}` : '/api/snapshot',

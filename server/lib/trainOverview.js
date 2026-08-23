@@ -84,9 +84,15 @@ export async function composeFocus(vaultPath, { routine, block, deload, progress
     const tuned = (tunes || []).find((t) => inRoutine.has(t.exerciseId) && t.focus);
     const stalled = (plateaus || []).find((p) => inRoutine.has(p.exerciseId));
     const bits = [];
+    let focusFix = null;
     if (outgrown) {
-      const ex = routine.exercises.find((e) => e.exerciseId === outgrown[0].split(':')[1]);
+      const outgrownId = outgrown[0].split(':')[1];
+      const ex = routine.exercises.find((e) => e.exerciseId === outgrownId);
       bits.push(`${ex?.name} has OUTGROWN its prescription — ${outgrown[1].evidence}`);
+      // his ask: a focus that implies a plan change must be appliable on the
+      // spot — the weighted-variant op mints "Weighted X", swaps it in with
+      // the same prescription, and carries a low starting load on the marker
+      focusFix = { action: 'weighted-variant', exerciseId: outgrownId, name: ex?.name || outgrownId };
     }
     if (earned && !outgrown) {
       const ex = routine.exercises.find((e) => e.exerciseId === earned[0].split(':')[1]);
@@ -94,7 +100,7 @@ export async function composeFocus(vaultPath, { routine, block, deload, progress
     }
     if (tuned) bits.push(`${tuned.name}: ${tuned.focus}.`);
     if (!bits.length && stalled) bits.push(`${stalled.name} has been flat ${stalled.spanDays} days — today is quality over load: slower lowering, full range, honest reps.`);
-    if (bits.length) return { kind: 'session', text: bits.slice(0, 2).join(' ') };
+    if (bits.length) return { kind: 'session', text: bits.slice(0, 2).join(' '), ...(focusFix ? { fix: focusFix } : {}) };
     return null; // an ordinary day with nothing earned says nothing
   }
   const active = (injuries || []).filter((i) => !i.resolvedAt);
@@ -200,7 +206,8 @@ export async function buildTrainOverview(vaultPath) {
         text: String(r.text || '').replace(/^Coach:\s*/, ''),
         nudges: r.nudges || 0,
         daysOpen: Math.floor((Date.now() - new Date(r.createdAt || Date.now())) / 86_400_000),
-        applies: !!(r.fix && r.fix.action === 'remap'),
+        applies: !!(r.fix && ['remap', 'swap', 'weighted-variant'].includes(r.fix.action)),
+        fix: r.fix || null,
       };
     } catch { return null; }
   })();

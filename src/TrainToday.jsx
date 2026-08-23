@@ -113,6 +113,13 @@ export function TrainToday({ o, actions, resume }) {
         <div style={css('border-radius:16px;padding:13px 14px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);background:linear-gradient(135deg,color-mix(in srgb, var(--nv-gold) 10%, transparent),color-mix(in srgb, var(--nv-gold) 2%, transparent))')}>
           <span style={css(`font:600 9px ${M};letter-spacing:.22em;color:var(--nv-gold)`)}>◈ FOCUS FOR TODAY</span>
           <div style={css('font-size:13.5px;color:var(--nv-ink);margin-top:5px;line-height:1.5')}>{o.focus.text}</div>
+          {o.focus.fix && actions?.applyFocusFix && (
+            <div style={css('margin-top:10px')}>
+              <Interactive as="span" onClick={() => actions.applyFocusFix(o.focus.fix, o.focus.text)}
+                base={css(`cursor:pointer;font:600 10px ${M};letter-spacing:.1em;padding:7px 14px;border-radius:8px;background:var(--nv-gold);color:#1a1322`)}
+                hoverStyle={{ filter: 'brightness(1.08)' }}>MAKE THE CHANGE</Interactive>
+            </div>
+          )}
         </div>
       )}
 
@@ -156,7 +163,7 @@ export function TrainToday({ o, actions, resume }) {
           <div style={css('margin-top:7px;font-size:13.5px;line-height:1.5')}>{o.coachAsk.text}</div>
           <div style={css('margin-top:11px;display:flex;gap:8px;flex-wrap:wrap')}>
             {o.coachAsk.applies && actions?.applyCoachAsk && (
-              <Interactive as="span" onClick={() => actions.applyCoachAsk(o.coachAsk.recordId)}
+              <Interactive as="span" onClick={() => actions.applyCoachAsk(o.coachAsk.recordId, o.coachAsk.fix, o.coachAsk.text)}
                 base={css(`cursor:pointer;font:600 10px ${M};letter-spacing:.1em;padding:7px 14px;border-radius:8px;background:var(--nv-gold);color:#1a1322`)}
                 hoverStyle={{ filter: 'brightness(1.08)' }}>DO IT</Interactive>
             )}

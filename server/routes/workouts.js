@@ -132,10 +132,67 @@ export function workoutsRouter(vaultPath) {
       // prescription ("3s eccentric") next to the exercise it belongs to
       const { getTunes } = await import('../lib/progressionTunes.js');
       const tunes = await getTunes(vaultPath).catch(() => []);
-      res.json({ routines: annotateRoutines(routines, exerciseState, completedCounts, tunes), schedule, weekdays, progressions });
+      // COACH highlights — entries Coach put here (his ask: a change Coach
+      // made must be visible in the plan, so he never has to remember it)
+      const { readMarkers } = await import('../lib/coachPlan.js');
+      const markers = await readMarkers().catch(() => ({}));
+      const annotated = annotateRoutines(routines, exerciseState, completedCounts, tunes).map((r) => ({
+        ...r,
+        exercises: r.exercises.map((e) => {
+          const mk = markers[`${r.id}:${e.exerciseId}`];
+          // `coach` is taken by progression annotations (annotateRoutines) —
+          // this is a different fact: Coach PUT this exercise here
+          return mk ? { ...e, coachAdded: { at: mk.at, why: mk.why || null, startWeightKg: mk.startWeightKg || null } } : e;
+        }),
+      }));
+      res.json({ routines: annotated, schedule, weekdays, progressions });
     } catch (err) {
       next(err);
     }
+  });
+
+  // COACH CHANGES THE PLAN. No note: the structured fix applies
+  // deterministically, right now. With a note: the Coach model reads the
+  // proposal + his words and answers in ops (a job; poll the GET below).
+  // Either way the change files on the record with full undo.
+  router.post('/workouts/coach-apply', async (req, res) => {
+    try {
+      const { recordId, note } = req.body || {};
+      let fix = req.body?.fix || null;
+      let proposal = String(req.body?.proposal || '');
+      if (recordId) {
+        const { listRecords } = await import('../lib/inboxStore.js');
+        const record = (await listRecords()).find((r) => r.id === recordId);
+        if (!record) return res.status(404).json({ error: 'that proposal is no longer in the inbox' });
+        if (record.status !== 'pending') return res.status(400).json({ error: 'that proposal was already answered' });
+        fix = fix || record.fix || null;
+        proposal = proposal || String(record.text || '').replace(/^Coach:\s*/, '');
+      }
+      const trimmedNote = String(note || '').trim();
+      if (trimmedNote) {
+        const { startCoachAmend } = await import('../lib/coachPlan.js');
+        const jobId = startCoachAmend(vaultPath, { proposal, note: trimmedNote, fix, recordId: recordId || null });
+        return res.json({ jobId });
+      }
+      const { opsFromFix, applyOps } = await import('../lib/coachPlan.js');
+      const ops = opsFromFix(fix);
+      if (!ops) return res.status(400).json({ error: 'this proposal has no one-tap change — add a note telling Coach what to do, or discuss it' });
+      const { summary, undo } = await applyOps(vaultPath, ops, { why: proposal.slice(0, 90) || 'Coach change' });
+      if (recordId) {
+        const { updateRecord } = await import('../lib/inboxStore.js');
+        await updateRecord(recordId, { status: 'filed', destination: 'workout plan', filedAt: new Date().toISOString(), auto: false, error: null, undoData: undo, applySummary: summary });
+      }
+      res.json({ applied: true, summary });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  router.get('/workouts/coach-apply/:jobId', async (req, res) => {
+    const { getAmendJob } = await import('../lib/coachPlan.js');
+    const job = getAmendJob(req.params.jobId);
+    if (!job) return res.status(404).json({ error: 'job not found' });
+    res.json({ status: job.status, result: job.result, error: job.error });
   });
 
   router.post('/workouts/routines', async (req, res, next) => {

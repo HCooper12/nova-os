@@ -763,6 +763,23 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
 // Best-effort, honest revert of one filing. Returns a human summary; throws
 // with a clear message when the target changed since filing.
 export async function undoFiling(vaultPath, undo) {
+  // A COACH PLAN CHANGE, reversed in full: every touched routine gets its
+  // prior entries back, the COACH highlights disappear, and the library
+  // keeps any exercise that was created (harmless, and sessions may already
+  // reference it — deleting history's foreign keys is never worth a tidier
+  // library).
+  if (undo.kind === 'coach-plan') {
+    const { loadExerciseLibrary } = await import('./exercises.js');
+    const { updateRoutine } = await import('./workouts.js');
+    const { clearMarkers } = await import('./coachPlan.js');
+    const { exercises } = await loadExerciseLibrary(vaultPath);
+    for (const r of undo.routines || []) {
+      await updateRoutine(vaultPath, exercises, r.routineId, { exercises: r.entries });
+    }
+    await clearMarkers(undo.markerKeys || []);
+    const n = (undo.routines || []).length;
+    return `restored ${n} routine${n === 1 ? '' : 's'} to how they were before Coach's change`;
+  }
   // put an exercise back where it was — the volume bars follow it back, since
   // they read the library at query time
   if (undo.kind === 'exercise-muscle-group') {

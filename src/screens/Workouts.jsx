@@ -405,6 +405,7 @@ function RoutineDetailView({ v }) {
                 <div style={css("display:flex;align-items:center;gap:8px;flex-wrap:wrap")}>
                   <span style={css("font-size:14.5px;font-weight:500")}>{e.name}</span>
                   {e.coachLabel && <span title={e.coachEvidence || ''} style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-cy);border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);background:color-mix(in srgb, var(--nv-cy) 08%, transparent)")}>{e.coachLabel}</span>}
+                  {e.coachAdded && <span title={e.coachAdded.why || ''} style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-gold);border:1px solid color-mix(in srgb, var(--nv-gold) 45%, transparent);background:color-mix(in srgb, var(--nv-gold) 09%, transparent)")}>◆ COACH{e.coachAdded.startWeightKg ? ` · START ~${e.coachAdded.startWeightKg}KG` : ''}</span>}
                 </div>
                 <div style={css("margin-top:2px;font:400 10.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{e.muscleGroup} · last: {e.lastLabel}</div>
                 {e.coachEvidence && <div style={css("margin-top:2px;font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-cy) 60%, transparent)")}>Coach: {e.coachEvidence} — next session prefills the step up.</div>}
