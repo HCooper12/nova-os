@@ -1,4 +1,5 @@
 import { css } from '../css.js';
+import { SwipeRow } from '../SwipeRow.jsx';
 import { Interactive } from '../Interactive.jsx';
 
 export function Shopping({ v }) {
@@ -47,8 +48,15 @@ export function Shopping({ v }) {
               {/* Apple layout: the category becomes one grouped card of rows */}
               <div className={v.structured ? 'nv-pane' : undefined} style={v.structured ? { marginTop: '8px', padding: '3px 0', overflow: 'hidden' } : css("margin-top:10px;display:flex;flex-direction:column")}>
                 {cat.items.map((item) => (
-                  <Interactive
+                  /* swipe right to check off — additive; the whole row is
+                     still tappable, same as before. Vertical-locked gestures
+                     can never commit (swipeCore.js + its tests). */
+                  <SwipeRow
                     key={item.id}
+                    right={{ label: item.checked ? 'UNCHECK' : 'GOT IT', icon: '✓', tone: 'var(--nv-good)', run: item.onToggle }}
+                    style={{ borderRadius: 0 }}
+                  >
+                  <Interactive
                     as="div"
                     onClick={item.onToggle}
                     base={v.structured
@@ -64,6 +72,7 @@ export function Shopping({ v }) {
                       )}
                     </div>
                   </Interactive>
+                  </SwipeRow>
                 ))}
               </div>
             </div>

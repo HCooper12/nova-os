@@ -1,4 +1,5 @@
 import { css } from '../css.js';
+import { SwipeRow } from '../SwipeRow.jsx';
 import { Interactive } from '../Interactive.jsx';
 
 const M = "var(--nv-font-mono)";
@@ -48,7 +49,16 @@ export function Todos({ v }) {
           {/* Apple layout: one grouped card with hairline rows; classic keeps a pane per item. Same nodes either way. */}
           <div className={v.structured ? 'nv-pane' : undefined} style={v.structured ? { marginTop: '8px', padding: '3px 0', overflow: 'hidden' } : css("margin-top:8px;display:flex;flex-direction:column;gap:8px")}>
             {g.items.map((t, ti) => (
-              <div key={t.key} className={v.structured ? undefined : 'nv-pane'} style={{ display: 'flex', alignItems: 'center', gap: '13px', padding: v.structured ? '11px 16px' : '12px 15px', borderTop: v.structured && ti > 0 ? '1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)' : 'none' }}>
+              /* swipe right to complete — the same proven primitive as the
+                 Inbox (a gesture that locks vertical can never commit; see
+                 swipeCore.js + its tests). borderRadius:0 in the grouped
+                 layout so the wrapper doesn't break the hairline card. */
+              <SwipeRow
+                key={t.key}
+                right={{ label: 'DONE', icon: '✓', tone: 'var(--nv-good)', run: t.toggle }}
+                style={v.structured ? { borderRadius: 0 } : undefined}
+              >
+              <div className={v.structured ? undefined : 'nv-pane'} style={{ display: 'flex', alignItems: 'center', gap: '13px', padding: v.structured ? '11px 16px' : '12px 15px', borderTop: v.structured && ti > 0 ? '1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)' : 'none' }}>
                 <Interactive as="span" onClick={t.toggle} aria-label={`Mark "${t.text}" done`}
                   base={{ cursor: 'pointer', width: '21px', height: '21px', flex: 'none', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 12%, transparent)' }}
@@ -69,6 +79,7 @@ export function Todos({ v }) {
                 {t.stale && <span style={css(`flex:none;font:500 8px ${M};letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-gold);border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent)`)}>STALE</span>}
                 <span style={css(`flex:none;font:400 9.5px ${M};color:color-mix(in srgb, var(--nv-ink) 35%, transparent)`)}>{t.addedLabel}</span>
               </div>
+              </SwipeRow>
             ))}
           </div>
         </div>

@@ -1356,28 +1356,66 @@ export default class App extends Component {
     const macros = { p: Number(this.state.foodLogP) || 0, c: Number(this.state.foodLogC) || 0, f: Number(this.state.foodLogF) || 0, kcal: Number(this.state.foodLogKcal) || 0 };
     const date = this.state.foodLogDate || undefined;
     if (!conn || !name) return;
-    this.setState({ foodLogBusy: true, foodLogError: null });
-    api.addFoodLogEntry(conn, { name, macros, source: this.state.foodLogFillSource || 'manual', date }).then((day) => {
+    const source = this.state.foodLogFillSource || 'manual';
+    // OPTIMISTIC: the entry appears (and the macro gauges move) in the same
+    // frame, and the form clears so the next thing can be typed immediately.
+    // Duplication is impossible by construction — the server's reply carries
+    // the WHOLE day and applyFoodLogDay replaces it wholesale, so the temp
+    // row is superseded rather than merged. A failure removes it again and
+    // puts his numbers back in the form so nothing typed is lost.
+    const previousDay = this.state.foodLogDate ? this.state.liveFoodLogView : this.state.liveFoodLog;
+    const previousForm = {
+      foodLogName: this.state.foodLogName, foodLogP: this.state.foodLogP, foodLogC: this.state.foodLogC,
+      foodLogF: this.state.foodLogF, foodLogKcal: this.state.foodLogKcal, foodLogFillSource: this.state.foodLogFillSource,
+    };
+    const clearForm = {
+      foodLogBusy: false, foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogFillSource: null,
+      foodScanQuestion: null, foodScanQAPhotos: [], foodScanQANote: '', foodScanAnswer: '',
+    };
+    if (previousDay?.entries) {
+      haptic('commit');
       this.noteLocalWrite('foodLog');
-      this.applyFoodLogDay(day);
-      this.setState({ foodLogBusy: false, foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogFillSource: null,
-        foodScanQuestion: null, foodScanQAPhotos: [], foodScanQANote: '', foodScanAnswer: '' });
+      this.applyFoodLogDay({ ...previousDay, entries: [...previousDay.entries, { id: `pending-${Date.now()}`, name, macros, source, pending: true }] });
+    }
+    this.setState({ ...clearForm, foodLogBusy: true, foodLogError: null });
+    api.addFoodLogEntry(conn, { name, macros, source, date }).then((day) => {
+      this.noteLocalWrite('foodLog');
+      this.applyFoodLogDay(day); // whole-day replace — the temp row is gone
+      this.setState({ foodLogBusy: false });
       if (this.state.foodHistoryOpen) this.loadFoodHistory();
     }).catch((e) => {
+      // the optimistic row goes either way — it was never real
+      if (previousDay) this.applyFoodLogDay(previousDay);
       if (isOfflineError(e)) {
-        this.setState({ foodLogBusy: false, foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogFillSource: null,
-          foodScanQuestion: null, foodScanQAPhotos: [], foodScanQANote: '', foodScanAnswer: '' });
-        this.enqueueOutbox('food', name, { name, macros, source: this.state.foodLogFillSource || 'manual', date });
+        // Queue it and leave the form CLEAR: the entry is not lost, it is
+        // waiting in the Outbox, and re-showing his numbers would imply it
+        // still needs re-typing. `source` is the captured value, not a state
+        // read — the form has already been cleared by this point.
+        this.setState({ foodLogBusy: false });
+        this.enqueueOutbox('food', name, { name, macros, source, date });
         return;
       }
-      this.setState({ foodLogBusy: false, foodLogError: e.message });
+      // a real rejection: give him his numbers back so nothing typed is lost
+      this.setState({ ...previousForm, foodLogBusy: false, foodLogError: e.message });
     });
   }
   deleteFoodLogEntry(id) {
     const conn = getConnection();
     if (!conn) return;
     const date = this.state.foodLogDate || undefined;
-    api.deleteFoodLogEntry(conn, id, date).then((day) => { this.noteLocalWrite('foodLog'); this.applyFoodLogDay(day); }).catch((e) => this.toastMsg('Could not remove entry: ' + e.message));
+    // optimistic removal — the row goes now, and comes back if the server says no
+    const previousDay = this.state.foodLogDate ? this.state.liveFoodLogView : this.state.liveFoodLog;
+    if (previousDay?.entries) {
+      haptic('tick');
+      this.noteLocalWrite('foodLog');
+      this.applyFoodLogDay({ ...previousDay, entries: previousDay.entries.filter((en) => en.id !== id) });
+    }
+    api.deleteFoodLogEntry(conn, id, date)
+      .then((day) => { this.noteLocalWrite('foodLog'); this.applyFoodLogDay(day); })
+      .catch((e) => {
+        if (previousDay) this.applyFoodLogDay(previousDay);
+        this.toastMsg('Could not remove entry: ' + e.message);
+      });
   }
   setFoodScanNote(e) {
     this.setState({ foodScanNote: e.target.value });
