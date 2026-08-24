@@ -212,7 +212,7 @@ export function RecipeOverlay({ v }) {
                 <div style={css("margin-top:20px;border:1px solid color-mix(in srgb, var(--nv-cy) 20%, transparent);border-radius:12px;padding:14px 16px;background:color-mix(in srgb, var(--nv-cy) 04%, transparent)")}>
                   <div style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-cy)")}>ASK NOVA FOR A TWEAK</div>
                   <div style={css("margin-top:8px;font-size:12px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
-                    Out of an ingredient? Want it lighter? Ask — type it or tap the mic and say it. Nova suggests a version, saved as an alternative you can switch back from any time, and you can keep talking to refine it.
+                    Out of an ingredient? Want it lighter? Ask — type it or tap the mic and say it. Attach a photo of a different ingredient (its label, its packaging, the thing itself) and Nova reads it before recalculating. Nova suggests a version, saved as an alternative you can switch back from any time, and you can keep talking to refine it.
                   </div>
                   <div style={css("display:flex;gap:8px;margin-top:12px")}>
                     <Interactive
@@ -236,6 +236,15 @@ export function RecipeOverlay({ v }) {
                         hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 14%, transparent)' }}
                       >{dict.on ? '◉' : '🎙'}</Interactive>
                     )}
+                    {v.addRecipeTweakPhotos && (
+                      <label
+                        title="Attach a photo of a different ingredient"
+                        style={css("cursor:pointer;flex:none;width:38px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-cy) 22%, transparent);background:color-mix(in srgb, var(--nv-cy) 05%, transparent)")}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--nv-cy)" strokeWidth="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.4"/></svg>
+                        <input type="file" accept="image/*" multiple onChange={v.addRecipeTweakPhotos} disabled={v.recipeTweakBusy} style={css("display:none")} />
+                      </label>
+                    )}
                     <Interactive
                       as="span"
                       onClick={v.recipeTweakBusy ? undefined : v.submitRecipeTweak}
@@ -245,6 +254,18 @@ export function RecipeOverlay({ v }) {
                       {v.recipeTweakBusy ? 'THINKING…' : 'ASK'}
                     </Interactive>
                   </div>
+                  {v.recipeTweakPhotos?.length > 0 && (
+                    <div style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap")}>
+                      {v.recipeTweakPhotos.map((ph, i) => (
+                        <div key={i} style={css("position:relative;width:48px;height:48px;border-radius:8px;overflow:hidden;border:1px solid color-mix(in srgb, var(--nv-cy) 25%, transparent)")}>
+                          <img src={ph.src} alt="" style={css("width:100%;height:100%;object-fit:cover;display:block")} />
+                          {!v.recipeTweakBusy && (
+                            <Interactive as="span" onClick={ph.remove} base="cursor:pointer;position:absolute;top:1px;right:1px;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:11px;line-height:1;border-radius:5px;background:rgba(0,0,0,.6);color:#fff" hoverStyle="background:var(--nv-warn)">×</Interactive>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {v.recipeTweakError && (
                     <div style={css("margin-top:10px;font-size:12px;color:var(--nv-warn)")}>{v.recipeTweakError}</div>
                   )}

@@ -558,6 +558,10 @@ export function valsRecipes(app, ctx) {
     recipeTweakBusy: st.recipeTweakBusy,
     recipeTweakError: st.recipeTweakError,
     recipeTweakPreview: st.recipeTweakPreview,
+    // his ask: photograph a different ingredient (a substitute's packaging,
+    // its nutrition label, the item itself) for Nova to read and consider
+    recipeTweakPhotos: (st.recipeTweakPhotos || []).map((src, i) => ({ src, remove: () => app.removeRecipeTweakPhoto(i) })),
+    addRecipeTweakPhotos: (e) => app.addRecipeTweakPhotos(e.target.files),
     saveRecipeTweak: () => app.saveRecipeTweak(),
     discardRecipeTweak: () => app.discardRecipeTweak(),
     recipeMsgs: st.recipeChat.map(m => ({ text: m.text, typing: m.typing, tag: m.who === 'nova' ? '» NOVA' : '» YOU', tagStyle: { color: m.who === 'nova' ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', fontWeight: 500, fontFamily: mono, fontSize: '11px' } })),

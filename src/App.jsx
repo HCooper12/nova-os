@@ -284,7 +284,7 @@ export default class App extends Component {
     ],
     recipeFilter: 'All', openRecipeId: null, servings: 1, recipeInput: '', recipeChat: [],
     recipeAltSelected: null,
-    recipeTweakInput: '', recipeTweakBusy: false, recipeTweakError: null, recipeTweakPreview: null,
+    recipeTweakInput: '', recipeTweakBusy: false, recipeTweakError: null, recipeTweakPreview: null, recipeTweakPhotos: [],
     recipeEdit: null, recipeEditBusy: false, recipeEditError: null,
     coachInput: '', planNote: null,
     // the scripted opener is demo fiction — a live backend starts the real
@@ -1980,7 +1980,7 @@ export default class App extends Component {
     this.withTransition(() => this.setState({
       openRecipeId: id, servings, recipeChat: [], recipeInput: '',
       recipeAltSelected: null, recipeTweakInput: '', recipeTweakBusy: false,
-      recipeTweakError: null, recipeTweakPreview: null,
+      recipeTweakError: null, recipeTweakPreview: null, recipeTweakPhotos: [],
       recipeRemovals: [], recipeRemovalPrompt: false,
       recipeRenameAltId: null, recipeRenameValue: '', recipeRenameError: null,
     }));
@@ -2033,13 +2033,16 @@ export default class App extends Component {
     // he can see rather than silently starting from the stored recipe. It also
     // stays on screen while Nova thinks, so he can see what he's refining.
     const prior = st.recipeTweakPreview || null;
+    // his ask: a photo of a DIFFERENT ingredient (a substitute's packaging,
+    // its nutrition label, the item itself) considered alongside the request
+    const photos = st.recipeTweakPhotos;
     this.setState({ recipeTweakBusy: true, recipeTweakError: null });
-    api.tweakRecipe(conn, st.openRecipeId, request, prior)
+    api.tweakRecipe(conn, st.openRecipeId, request, prior, photos)
       .then(({ jobId }) => {
         this.startPoll('recipeTweak', () => api.tweakRecipeJob(conn, jobId), {
           intervalMs: 2500,
           onReady: (job) => {
-            this.setState({ recipeTweakBusy: false, recipeTweakPreview: job.result, recipeTweakInput: '' });
+            this.setState({ recipeTweakBusy: false, recipeTweakPreview: job.result, recipeTweakInput: '', recipeTweakPhotos: [] });
             if (byVoice) this.speakTweak(job.result);
           },
           onError: (msg) => this.setState({ recipeTweakBusy: false, recipeTweakError: msg }),
@@ -2048,6 +2051,24 @@ export default class App extends Component {
       .catch((e) => {
         this.setState({ recipeTweakBusy: false, recipeTweakError: e.message });
       });
+  }
+  // Stage a photo for the NEXT tweak request without asking anything yet —
+  // his ask: photograph a different ingredient (a substitute's packaging,
+  // its label, the product itself) so the macro recalculation reads the
+  // real numbers instead of guessing. Same downscale-on-the-way-in as the
+  // Fuel scan photos (upload speed, no accuracy cost — Claude downscales
+  // past this edge length server-side regardless).
+  addRecipeTweakPhotos(fileList) {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    const room = 4 - (this.state.recipeTweakPhotos || []).length;
+    if (room <= 0) { this.toastMsg('Up to 4 photos per tweak'); return; }
+    Promise.all(files.slice(0, room).map((f) => this.downscaleImageFile(f)))
+      .then((urls) => this.setState((s) => ({ recipeTweakPhotos: [...s.recipeTweakPhotos, ...urls.filter(Boolean)] })));
+    if (files.length > room) this.toastMsg('Up to 4 photos per tweak');
+  }
+  removeRecipeTweakPhoto(idx) {
+    this.setState((s) => ({ recipeTweakPhotos: s.recipeTweakPhotos.filter((_, i) => i !== idx) }));
   }
   // Asked out loud → answered out loud. Reads only what's actually on screen,
   // so the spoken version can never claim something the preview doesn't show.

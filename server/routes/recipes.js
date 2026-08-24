@@ -147,7 +147,29 @@ export function recipesRouter(vaultPath) {
       // a follow-up refines the version already on screen rather than
       // restarting from the stored recipe
       const prior = req.body?.prior && Array.isArray(req.body.prior.ingredients) ? req.body.prior : null;
-      const jobId = startTweak(recipe, request.trim(), prior);
+
+      // His ask: a photo of a DIFFERENT ingredient (a substitute's packaging,
+      // its nutrition label, the item itself) so Nova reads the real numbers
+      // off it rather than guessing — same data-URL-to-tmpfile pattern as
+      // /recipes/scan just above.
+      const images = req.body?.images;
+      let workDir = null;
+      const imagePaths = [];
+      if (Array.isArray(images) && images.length) {
+        if (images.length > 4) return res.status(400).json({ error: 'up to 4 images per tweak' });
+        workDir = path.join(os.tmpdir(), 'nova-tweak', randomUUID().slice(0, 8));
+        await mkdir(workDir, { recursive: true });
+        for (let i = 0; i < images.length; i++) {
+          const m = String(images[i]).match(IMAGE_DATA_URL);
+          if (!m) return res.status(400).json({ error: `image ${i + 1} is not a supported image data URL` });
+          const [, ext, b64] = m;
+          const imgPath = path.join(workDir, `photo-${i + 1}.${ext}`);
+          await writeFile(imgPath, Buffer.from(b64, 'base64'));
+          imagePaths.push(imgPath);
+        }
+      }
+
+      const jobId = startTweak(recipe, request.trim(), prior, imagePaths, workDir);
       res.json({ jobId });
     } catch (err) {
       next(err);

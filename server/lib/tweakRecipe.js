@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -13,9 +14,21 @@ const jobs = new Map();
 // starting over: "keep the two whole eggs and give me other ways to raise the
 // protein". Without it every follow-up silently restarted from the original
 // recipe and quietly undid what he had just accepted.
-function buildPrompt(recipe, request, prior) {
+//
+// `imagePaths` — his ask: let him photograph a DIFFERENT ingredient (a
+// substitute's packaging, its nutrition label, the product itself) so a swap
+// like "swap in this protein powder" is computed from what the label
+// actually says, not a guess. Same Read-a-path convention as the food scan
+// prompts (scanFood.js), so one photo pipeline behaves one way everywhere.
+export function buildPrompt(recipe, request, prior, imagePaths = []) {
   const ingredientLines = recipe.ingredients.map((i) => `- ${i.name}`).join('\n');
   const methodLines = recipe.method.map((s, i) => `${i + 1}. ${s}`).join('\n');
+  const imageBlock = imagePaths.length ? `
+He has attached ${imagePaths.length} photo${imagePaths.length === 1 ? '' : 's'} of an ingredient or product for you to consider — packaging, a nutrition label, or the item itself. If a nutrition label is visible, read it precisely and use its per-serving values as ground truth for whatever quantity is actually going in (convert kJ to kcal by dividing by 4.184 if that's what's shown, and scale a label's per-serving numbers to the amount actually used, not the whole pack, unless he says otherwise). Use the photo(s) together with his request below to work out exactly what he wants swapped, added, or removed, and reflect it precisely in the ingredients list and macros.
+
+Photo path(s):
+${imagePaths.map((p) => `- ${p}`).join('\n')}
+` : '';
   return `Original recipe: ${recipe.name}
 Macros: ${recipe.macros.p}g P / ${recipe.macros.c}g C / ${recipe.macros.f}g F / ${recipe.macros.kcal} kcal
 
@@ -24,7 +37,7 @@ ${ingredientLines}
 
 Method:
 ${methodLines}
-
+${imageBlock}
 ${prior ? `He is REFINING a version you already proposed, not starting again. That version was:
 Label: ${prior.label}
 Macros: ${prior.macros.p}g P / ${prior.macros.c}g C / ${prior.macros.f}g F / ${prior.macros.kcal} kcal
@@ -48,17 +61,26 @@ Output ONLY a single JSON object with exactly these keys:
 No markdown, no code fences, no commentary before or after — just the raw JSON object.`;
 }
 
-export function startTweak(recipe, request, prior = null) {
+// `imagePaths`/`workDir` are optional — a text-only tweak (the common case)
+// behaves exactly as before. When photos are attached, Read is enabled (the
+// same convention scanFood.js uses: --allowedTools is not a real restriction
+// under bypassPermissions, --strict-mcp-config just avoids booting MCP
+// servers to read a photo) and workDir is cleaned up once the job settles,
+// whether it succeeds, fails, or the process itself errors.
+export function startTweak(recipe, request, prior = null, imagePaths = [], workDir = null) {
   if (!laneEnabled('tweak-recipe')) throw laneOffError('tweak-recipe');
   const jobId = randomUUID().slice(0, 8);
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
 
-  const prompt = buildPrompt(recipe, request, prior);
+  const hasImages = imagePaths.length > 0;
+  const prompt = buildPrompt(recipe, request, prior, imagePaths);
+  const cleanup = () => { if (workDir) rm(workDir, { recursive: true, force: true }).catch(() => {}); };
   const child = spawn(CLAUDE_BIN, [
     '-p', prompt,
     '--permission-mode', 'bypassPermissions',
-    '--allowedTools', '',
+    '--allowedTools', hasImages ? 'Read' : '',
+    ...(hasImages ? ['--strict-mcp-config'] : []),
     '--output-format', 'json',
     '--max-budget-usd', MAX_BUDGET_USD,
     '--model', modelFor('tweak-recipe'), // was unpinned until the model board
@@ -73,6 +95,7 @@ export function startTweak(recipe, request, prior = null) {
     if (code !== 0) {
       job.status = 'error';
       job.error = stderr.trim() || `claude exited with code ${code}`;
+      cleanup();
       return;
     }
     try {
@@ -99,10 +122,12 @@ export function startTweak(recipe, request, prior = null) {
       job.status = 'error';
       job.error = 'Could not generate a tweak: ' + e.message;
     }
+    cleanup();
   });
   child.on('error', (err) => {
     job.status = 'error';
     job.error = err.message;
+    cleanup();
   });
 
   return jobId;
