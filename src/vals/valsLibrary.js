@@ -145,10 +145,12 @@ export function valsLibrary(app, ctx) {
     libraryChips: chips,
     libraryShelf: shelf,
     libraryEmpty: st.liveLibrary && !items.length
-      ? 'Your library is empty. Add a book (⇪ Add to vault, or just say “add book … by …”), or ingest a video or podcast — every source lands on this shelf.'
+      ? 'Your library is empty. Press ＋ ADD SOURCE above to research a book by title and author, paste your own notes, or drop in a video or podcast link — every source lands on this shelf.'
       : (st.liveLibrary && !filtered.length ? 'Nothing matches that filter.' : null),
     libraryQuery: st.libraryQuery || '',
     setLibraryQuery: (e) => app.setState({ libraryQuery: e.target.value }),
+    // the shelf owns this now — see the note in Library.jsx
+    openIngestModal: () => app.openIngestModal(),
     libraryDetail: detail,
     libraryMono: mono, librarySerif: serif,
   };

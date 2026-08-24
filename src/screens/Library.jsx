@@ -58,8 +58,18 @@ function Shelf({ v }) {
           </Interactive>
         ))}
         <Interactive as="input" value={v.libraryQuery} onChange={v.setLibraryQuery} placeholder="Search the shelf…"
-          base={`margin-left:auto;min-width:170px;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:8px 13px;color:var(--nv-ink);font:400 12px ${M};outline:none`}
+          base={`margin-left:auto;min-width:120px;flex:1 1 120px;max-width:230px;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:8px 13px;color:var(--nv-ink);font:400 12px ${M};outline:none`}
           focusStyle="border-color:var(--nv-acc-border)" />
+        {/* The shelf is where you think about books, so it is where you must
+            be able to add one. This affordance existed only on the Claude
+            Code screen behind "⇪ Add to vault" — findable by nobody, and he
+            reasonably reported the feature as missing. Same modal, put where
+            the intent actually forms. */}
+        <Interactive as="span" onClick={v.openIngestModal}
+          base={`flex:0 0 auto;cursor:pointer;font:600 9.5px ${M};letter-spacing:.16em;padding:8px 14px;border-radius:9px;color:var(--nv-gold);border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);background:color-mix(in srgb, var(--nv-gold) 06%, transparent);white-space:nowrap`}
+          hoverStyle="background:color-mix(in srgb, var(--nv-gold) 14%, transparent)">
+          ＋ ADD SOURCE
+        </Interactive>
       </div>
 
       {v.libraryEmpty && (
