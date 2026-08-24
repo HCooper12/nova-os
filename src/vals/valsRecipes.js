@@ -129,6 +129,7 @@ export function valsRecipes(app, ctx) {
             // two elements may never hold the same view-transition-name at once
             vtName: st.openRecipeId === r.id ? undefined : `recipe-${r.id}`,
             open: () => app.openRecipe(r.id),
+            logIt: () => app.openPortionSheet({ name: r.name, macros: r.macros, source: 'recipe' }),
             photoUrl: st.liveRecipePhotoUrls[r.id] || null,
             phLabel: 'dish photo — ' + r.name.toLowerCase(),
             phStyle: { height: '104px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, rgba(' + hue + ',.13) 0 8px, rgba(' + hue + ',.04) 8px 16px)' },
@@ -494,6 +495,13 @@ export function valsRecipes(app, ctx) {
         makePrimary: a.macros ? () => app.promoteRecipeAlternate(liveOr.id, a.id) : null,
         rename: () => app.startRenameAlternate(a.id, a.label) })),
     ] : [],
+    // LOG THIS VERSION — his ask: a saved variant he eats sometimes should be
+    // loggable without being promoted to the recipe.
+    orLogActive: usingLiveRecipes && liveOr ? () => app.openPortionSheet({
+      name: activeAlt ? `${liveOr.name} (${activeAlt.label})` : liveOr.name,
+      macros: activeAlt?.macros || liveOr.macros,
+      source: 'recipe',
+    }) : null,
     // renaming a variant in place — its id follows the new name, and the
     // server migrates today's override so the slot never silently resets
     renameAltId: st.recipeRenameAltId,
@@ -560,6 +568,28 @@ export function valsRecipes(app, ctx) {
     recipeTweakPreview: st.recipeTweakPreview,
     // his ask: photograph a different ingredient (a substitute's packaging,
     // its nutrition label, the item itself) for Nova to read and consider
+    portionSheet: st.portionSheet ? (() => {
+      const custom = String(st.foodPortionCustom || '').trim();
+      const factor = custom ? Number(custom) : st.foodPortionFactor;
+      const ok = validPortion(factor);
+      const scaled = ok ? scaleMacros(st.portionSheet.macros, factor) : null;
+      return {
+        name: st.portionSheet.name,
+        base: st.portionSheet.macros,
+        dayLabel: st.foodLogDate ? `LOGGING TO ${st.foodLogDate}` : null,
+        portions: PORTIONS.map((pn) => ({
+          label: pn.label, active: !custom && Math.abs(st.foodPortionFactor - pn.factor) < 0.001,
+          pick: () => app.setState({ foodPortionFactor: pn.factor, foodPortionCustom: '' }),
+        })),
+        custom,
+        setCustom: (e) => app.setState({ foodPortionCustom: typeof e === 'string' ? e : e.target.value }),
+        valid: ok,
+        preview: scaled ? `${scaled.p}P · ${scaled.c}C · ${scaled.f}F · ${scaled.kcal} kcal` : 'Enter a portion between a sliver and 20 servings',
+        loggedName: ok ? portionName(st.portionSheet.name, factor) : null,
+        confirm: () => app.confirmPortionSheet(),
+        cancel: () => app.closePortionSheet(),
+      };
+    })() : null,
     recipeTweakPhotos: (st.recipeTweakPhotos || []).map((src, i) => ({ src, remove: () => app.removeRecipeTweakPhoto(i) })),
     addRecipeTweakPhotos: (e) => app.addRecipeTweakPhotos(e.target.files),
     saveRecipeTweak: () => app.saveRecipeTweak(),

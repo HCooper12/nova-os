@@ -93,6 +93,18 @@ export function RecipeOverlay({ v }) {
                 ))}
               </div>
             )}
+            {/* His ask: log the version he is LOOKING AT without promoting it
+                to primary. Sits outside the per-variant action row on
+                purpose — it must work for the Original too, and whether or
+                not this recipe happens to sit in a rotation slot today. */}
+            {v.orLogActive && (
+              <div style={css("margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
+                <Interactive as="span" onClick={v.orLogActive}
+                  base="cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.06em;padding:8px 15px;border-radius:8px;background:var(--nv-good);color:#122015"
+                  hoverStyle={{ filter: 'brightness(1.08)' }}>＋ LOG THIS VERSION</Interactive>
+                <span style={css("font:400 9.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>adds it to your food log — pick a portion, recipe unchanged</span>
+              </div>
+            )}
             {v.renameAltId && (
               <div style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
                 <Interactive as="input" autoFocus value={v.renameValue} onChange={v.setRenameValue} onKeyDown={v.renameKey}
@@ -214,7 +226,7 @@ export function RecipeOverlay({ v }) {
                   <div style={css("margin-top:8px;font-size:12px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
                     Out of an ingredient? Want it lighter? Ask — type it or tap the mic and say it. Attach a photo of a different ingredient (its label, its packaging, the thing itself) and Nova reads it before recalculating. Nova suggests a version, saved as an alternative you can switch back from any time, and you can keep talking to refine it.
                   </div>
-                  <div style={css("display:flex;gap:8px;margin-top:12px")}>
+                  <div style={css("display:flex;gap:8px;margin-top:12px;flex-wrap:wrap")}>
                     <Interactive
                       as="input"
                       value={v.recipeTweakInput}
@@ -224,7 +236,7 @@ export function RecipeOverlay({ v }) {
                       placeholder={v.recipeTweakPreview
                         ? 'Refine it — "keep the whole eggs, what else raises protein?"'
                         : 'Try "no soy sauce, what instead?" or "cut the carbs"…'}
-                      base="flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
+                      base="flex:1;min-width:0;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
                       focusStyle="border:1px solid color-mix(in srgb, var(--nv-cy) 50%, transparent)"
                     />
                     {dict.supported && v.setRecipeTweakValue && (
@@ -301,14 +313,14 @@ export function RecipeOverlay({ v }) {
                 {v.recipeMsgs.map((m, i) => (
                   <div key={i} style={css("margin-top:10px;font-size:13px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 85%, transparent);animation:fadeUp .3s ease-out")}><span style={m.tagStyle}>{m.tag}</span> <TypeText text={m.text} active={m.typing} /></div>
                 ))}
-                <div style={css("display:flex;gap:8px;margin-top:12px")}>
+                <div style={css("display:flex;gap:8px;margin-top:12px;flex-wrap:wrap")}>
                   <Interactive
                     as="input"
                     value={v.recipeInput}
                     onChange={v.setRecipeInput}
                     onKeyDown={v.recipeKey}
                     placeholder='Try "suggest a swap" or "scale for cutting"…'
-                    base="flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
+                    base="flex:1;min-width:0;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
                     focusStyle="border:1px solid color-mix(in srgb, var(--nv-cy) 50%, transparent)"
                   />
                   <Interactive as="span" onClick={v.sendRecipe} base="cursor:pointer;display:flex;align-items:center;font:500 10.5px var(--nv-font-mono);padding:0 14px;border-radius:8px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 80%, white)' }}>ASK</Interactive>

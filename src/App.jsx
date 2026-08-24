@@ -43,6 +43,7 @@ import { WakeWord } from './WakeWord.jsx';
 import { NudgeCard } from './NudgeCard.jsx';
 import { ModelChoicePrompt } from './ModelChoicePrompt.jsx';
 import { CoachApplySheet } from './CoachApplySheet.jsx';
+import { PortionSheet } from './PortionSheet.jsx';
 import { Boot } from './Boot.jsx';
 import { haptic } from './haptics.js';
 // 0.05s of silence — a REAL source, so iOS accepts the gesture and unlocks
@@ -381,6 +382,7 @@ export default class App extends Component {
     // live-data connection (Settings screen)
     settingsBaseUrl: '', settingsToken: '',
     settingsTestStatus: 'idle', settingsTestMessage: '',
+    portionSheet: null, // { name, macros, source } — log any meal/variant, from anywhere
     coachApplyPending: null, coachApplyNote: '', coachApplyBusy: false,
     foodEditId: null, foodEditName: '', foodEditP: '', foodEditC: '', foodEditF: '', foodEditKcal: '',
     foodRecipePickerOpen: false, foodRecipePickerQuery: '', foodRecipePick: null, foodPortionFactor: 1, foodPortionCustom: '',
@@ -1664,6 +1666,39 @@ export default class App extends Component {
   }
   // Log part of a recipe he already has — his ask: a bag stored as one full
   // serving, eaten a third at a time, without re-entering it as a new food.
+  // LOG ANY MEAL, FROM ANYWHERE. His ask: he saved an alternative Bacon Egg
+  // Fold and could not log it without promoting it to primary — a variant he
+  // eats sometimes should not have to become the recipe. This takes any
+  // {name, macros} (a recipe, a saved variant, a scanned meal) and opens the
+  // portion chooser over it, so the same fractions/custom/past-day machinery
+  // serves every surface instead of each one needing its own button wired by
+  // hand.
+  openPortionSheet(item) {
+    if (!item?.macros) return;
+    this.setState({ portionSheet: { name: item.name, macros: item.macros, source: item.source || 'recipe' }, foodPortionFactor: 1, foodPortionCustom: '' });
+  }
+  closePortionSheet() {
+    this.setState({ portionSheet: null, foodPortionCustom: '' });
+  }
+  confirmPortionSheet() {
+    const conn = getConnection();
+    const item = this.state.portionSheet;
+    if (!conn || !item) return;
+    const custom = this.state.foodPortionCustom.trim();
+    const factor = custom ? Number(custom) : this.state.foodPortionFactor;
+    if (!validPortion(factor)) { this.toastMsg('That portion doesn’t look right — try something between a sliver and 20 servings.'); return; }
+    const name = portionName(item.name, factor);
+    const macros = scaleMacros(item.macros, factor);
+    const date = this.state.foodLogDate || undefined;
+    this.setState({ portionSheet: null, foodPortionCustom: '' });
+    api.addFoodLogEntry(conn, { name, macros, source: item.source, date })
+      .then((day) => {
+        this.noteLocalWrite('foodLog');
+        this.applyFoodLogDay(day);
+        this.toastMsg(`Logged ${name}${date ? ` to ${date}` : ''} ✓`);
+      })
+      .catch((e) => this.toastMsg('Could not log that: ' + e.message));
+  }
   openFoodRecipePicker() {
     this.setState({ foodRecipePickerOpen: true, foodRecipePickerQuery: '', foodRecipePick: null, foodPortionFactor: 1, foodPortionCustom: '' });
   }
@@ -5584,6 +5619,7 @@ export default class App extends Component {
         {v.nudge && <NudgeCard v={v.nudge} />}
         {v.modelChoicePrompt && <ModelChoicePrompt v={v.modelChoicePrompt} />}
         {v.coachApply && <CoachApplySheet c={v.coachApply} />}
+        {v.portionSheet && <PortionSheet p={v.portionSheet} />}
         {v.outboxView && <Suspense fallback={null}><OutboxView v={v.outboxView} /></Suspense>}
         {v.toastOn && <Toast v={v} />}
         {v.showBoot && <Boot info={v.bootInfo} />}

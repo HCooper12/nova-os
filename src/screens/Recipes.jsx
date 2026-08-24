@@ -550,6 +550,18 @@ export function Recipes({ v }) {
                   ))}
                 </div>
               )}
+              {/* His ask: log a meal straight from the recipe itself rather
+                  than opening the separate picker higher up the screen. The
+                  slot chips above say "which meal is this today"; this says
+                  "I ate it" — a different question, so it gets its own row.
+                  stopPropagation, or the tap opens the recipe instead. */}
+              {r.logIt && (
+                <div style={css("margin-top:8px")} onClick={(e) => e.stopPropagation()}>
+                  <Interactive as="span" onClick={r.logIt}
+                    base="cursor:pointer;display:block;text-align:center;font:600 9.5px var(--nv-font-mono);letter-spacing:.1em;padding:7px 0;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-good) 35%, transparent);color:var(--nv-good);background:color-mix(in srgb, var(--nv-good) 06%, transparent)"
+                    hoverStyle="background:color-mix(in srgb, var(--nv-good) 15%, transparent)">＋ LOG THIS</Interactive>
+                </div>
+              )}
             </div>
           </Interactive>
         ))}
