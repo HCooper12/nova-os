@@ -15,17 +15,31 @@ import { createRecord } from './inboxStore.js';
 
 export const WEIGHT_STEP_KG = 2.5;
 // Effort thresholds for the DEFAULT path (the RPE-tuned model has its own).
-// At or above GRIND_RPE the lift is already maximal — load is the wrong
-// lever and quality is the right one. At or below READY_RPE there is genuine
-// headroom, so a step is earned. Between them, bank a rep first.
-// Checked against his real log before settling these: he trains genuinely
-// hard, so a single RPE-9 cutoff made EVERY exercise return the same
-// "hold and control" note — advice on everything is worth as much as advice
-// on nothing. Splitting the bands gives each effort level its own honest
-// answer: 9.5+ is maximal (fix quality), 9 is hard-but-not-maximal (bank a
-// rep at this weight), ≤8 has real headroom (take the load).
-export const GRIND_RPE = 9.5;
-export const READY_RPE = 8;
+//
+// CALIBRATED TO HIS SCALE, measured from his real log (323 rated sets across
+// 32 sessions): RPE 7 = 1%, 8 = 10%, 9 = 64%, 10 = 24%. Eighty-eight percent
+// sit at 9-10, and a 9 is his FIRST set on most exercises, not just his last.
+// He confirmed in words what the distribution shows: a 9 means "it felt hard
+// and I had to give a lot of effort by the end" — his normal working set, NOT
+// one-rep-in-reserve.
+//
+// The consequence is the important part: an ABSOLUTE RPE cutoff carries
+// almost no differential signal for him. Gating at 9.5 held every single lift
+// at "quality" — 16/16 measured live on his server — and advice on everything
+// is worth what advice on nothing is worth. Raising the cutoff alone does not
+// fix it either: at 10 it still held 17/21, because he genuinely does take a
+// top set to 10 most sessions.
+//
+// So effort no longer decides on its own. The discriminator is OBJECTIVE —
+// is the best set's estimated 1RM moving? Effort only decides
+// what to prescribe once we know it is NOT moving.
+export const GRIND_RPE = 10; // his true ceiling — failure, not "hard"
+export const READY_RPE = 9; // his normal hard working set — load is earned here
+// A best-set drop larger than this is a REGRESSION, not a sticking point. The
+// cause is different (recovery, a deload, a logging change), so the advice
+// must be different — telling him to "add tempo" when he went backwards is
+// answering the wrong question.
+export const REGRESSION_MARGIN = 0.1;
 // A bodyweight movement whose EVERY set clears target-high by this margin,
 // two sessions running, has outgrown its prescription — see 'outgrown'.
 const OUTGROWN_MARGIN = 2;
@@ -36,6 +50,31 @@ function toppedOut(sessionExercise, entry) {
   const sets = sessionExercise.sets || [];
   if (sets.length < entry.targetSets) return false;
   return sets.every((s) => (Number(s.reps) || 0) >= entry.targetRepsHigh);
+}
+
+const maxOf = (ex, pick) => Math.max(0, ...(ex.sets || []).map((s) => Number(pick(s)) || 0));
+
+// The best set's ESTIMATED ONE-REP MAX (Epley), or best reps for bodyweight.
+// This is the objective trend the progression engine reads first, because his
+// RPE saturates at 9-10 and cannot discriminate on its own.
+//
+// Why e1RM and not weight × reps: volume-load punishes the exact thing
+// progress looks like. Caught on his real log — Wide-Grip Lat Pulldown went
+// 73kg×8 → 75kg×6, which volume-load scored 584 → 450 and reported as "you
+// went backwards, check your sleep". By e1RM that is 92.5 → 90, correctly a
+// near-flat lift rather than a collapse. Trading reps for load is normal
+// progression and must never read as a regression.
+export function bestSetLoad(ex) {
+  let best = 0;
+  for (const s of ex.sets || []) {
+    const w = Number(s.weight) || 0;
+    const r = Number(s.reps) || 0;
+    if (!r) continue;
+    // bodyweight movements carry no weight — reps ARE the load
+    const score = w > 0 ? w * (1 + r / 30) : r;
+    if (score > best) best = score;
+  }
+  return best;
 }
 
 // routines: the resolved routines from loadRoutines (entries carry
@@ -107,13 +146,22 @@ export async function computeProgressions(vaultPath, routines) {
       // tension" rather than load every time.
       const rpesRecent = recent[0].sets.map((s) => s.rpe).filter((r) => r != null);
       const topRpe = rpesRecent.length ? Math.max(...rpesRecent) : null;
-      const lastWeight = Math.max(...recent[0].sets.map((s) => Number(s.weight) || 0));
+      const lastWeight = maxOf(recent[0], (s) => s.weight);
 
-      if (topRpe != null && topRpe >= GRIND_RPE) {
-        // is he also not gaining reps? then it is a genuine sticking point,
-        // not just one heavy day
-        const repsOf = (ex) => Math.max(...ex.sets.map((s) => Number(s.reps) || 0));
-        const flat = recent.length >= 2 && repsOf(recent[0]) <= repsOf(recent[1]);
+      // OBJECTIVE TREND FIRST. His effort rating is near-constant, so "is it
+      // moving?" is the only question that separates one lift from another.
+      const loadNow = bestSetLoad(recent[0]);
+      const loadPrev = bestSetLoad(recent[1]);
+      const improving = loadNow > loadPrev;
+      const regressed = loadPrev > 0 && loadNow < loadPrev * (1 - REGRESSION_MARGIN);
+      const work = (n) => Math.round(n);
+
+      // A lift only gets held when he is at his ACTUAL ceiling *and* the work
+      // has stopped moving. At RPE 9 — his working effort — a lift that is
+      // still climbing now progresses normally, which is the whole fix.
+      if (topRpe != null && topRpe >= GRIND_RPE && !improving) {
+        const repsOf = (ex) => maxOf(ex, (s) => s.reps);
+        const flat = repsOf(recent[0]) <= repsOf(recent[1]);
         const topReps = repsOf(recent[0]);
         // Only name a rep target he is actually BELOW. Caught on his own data:
         // a lateral raise at 12 reps against a target of 9 produced "earn 9
@@ -123,10 +171,16 @@ export async function computeProgressions(vaultPath, routines) {
         out[`${routine.id}:${entry.exerciseId}`] = {
           kind: 'quality',
           delta: 0,
-          focus: '3s lowering, no bounce out of the bottom, full range — same weight',
-          evidence: repRoom
-            ? `top set RPE ${topRpe} at ${lastWeight}kg${flat ? ` and reps flat at ${topReps}` : ''} — adding load here just buys worse reps. Hold ${lastWeight}kg and make it harder with tempo: 3s lowering, no bounce, full range. Earn ${repRoom} clean reps at this weight before the next jump.`
-            : `top set RPE ${topRpe} at ${lastWeight}kg for ${topReps} reps — you're at the top of the range and at your limit, so more load or more reps both cost you form. Hold ${lastWeight}kg and spend a block making the same reps stricter: 3s lowering, no bounce, full range. When it feels like an 8, the step is yours.`,
+          focus: regressed
+            ? 'same weight, full range — rebuild your best set before adding anything'
+            : '3s lowering, no bounce out of the bottom, full range — same weight',
+          // A drop is a recovery question, not a technique question. Saying
+          // "add tempo" to a lift that went backwards answers the wrong one.
+          evidence: regressed
+            ? `top set RPE ${topRpe} and your best set went BACKWARDS — ${work(loadPrev)} → ${work(loadNow)} est. 1RM${lastWeight ? ` (now ${lastWeight}kg)` : ''}. That reads as recovery, not a sticking point: sleep, food, or too many sets taken to 10. Rebuild to your previous best at this weight before changing the prescription.`
+            : repRoom
+              ? `top set RPE ${topRpe} at ${lastWeight}kg${flat ? ` and reps flat at ${topReps}` : ''}, with the work not moving (${work(loadPrev)} → ${work(loadNow)} est. 1RM) — adding load here just buys worse reps. Hold ${lastWeight}kg and make it harder with tempo: 3s lowering, no bounce, full range. Earn ${repRoom} clean reps at this weight before the next jump.`
+              : `top set RPE ${topRpe} at ${lastWeight}kg for ${topReps} reps and the work is flat (${work(loadPrev)} → ${work(loadNow)} est. 1RM) — you're at the top of the range and at your limit, so more load or more reps both cost you form. Hold ${lastWeight}kg and spend a block making the same reps stricter: 3s lowering, no bounce, full range.`,
         };
         continue;
       }
@@ -141,7 +195,10 @@ export async function computeProgressions(vaultPath, routines) {
         out[`${routine.id}:${entry.exerciseId}`] = {
           kind: 'reps',
           delta: tune?.repStep ?? 1,
-          evidence: `target reps twice running but at RPE ${topRpe}${lastWeight ? ` on ${lastWeight}kg` : ''} — bank another rep at this weight first; take the load when the top set feels like an 8.`,
+          // "feels like a 9" is the honest target on HIS scale — a 9 is his
+          // hard working set, and telling him to wait for an 8 would mean
+          // waiting for something he logs on 10% of sets.
+          evidence: `target reps twice running but the top set hit RPE ${topRpe}${lastWeight ? ` on ${lastWeight}kg` : ''} — bank another rep at this weight first; take the load once the top set settles back to a 9.`,
         };
         continue;
       }

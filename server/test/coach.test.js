@@ -238,3 +238,79 @@ test('outgrown: reps far past target stop earning +1 and flag a prescription cha
   assert.equal(prog2['push:dips']?.kind, 'reps');
   assert.equal(prog2['push:dips']?.delta, 1);
 });
+
+// ---------------------------------------------------------------------------
+// EFFORT CALIBRATION (his scale). These paths shipped with no coverage at all,
+// which is how a 9.5 cutoff came to hold 16/16 of his lifts unnoticed. The
+// rule under test: effort alone never decides — the objective e1RM trend does,
+// and effort only picks the prescription once the lift has stopped moving.
+// ---------------------------------------------------------------------------
+
+const effortRoutines = [{
+  id: 'pull',
+  exercises: [
+    { exerciseId: 'row', trackingType: 'weight_reps', targetSets: 3, targetRepsLow: 8, targetRepsHigh: 10 },
+  ],
+}];
+
+function pullSession(date, sets) {
+  return matter.stringify('# Pull\n', {
+    type: 'workout-session', id: `p-${date}`, date, routineId: 'pull', routineName: 'Pull',
+    finishedAt: `${date}T10:00:00.000Z`,
+    exercises: [{ exerciseId: 'row', name: 'Row', sets }],
+  });
+}
+
+async function progFor(dirName, prev, now) {
+  const dir = path.join(vault, dirName, 'Wiki/Health/Workouts');
+  await mkdir(dir, { recursive: true });
+  await writeFile(path.join(dir, '2026-07-10 pull.md'), pullSession('2026-07-10', prev), 'utf8');
+  await writeFile(path.join(dir, '2026-07-14 pull.md'), pullSession('2026-07-14', now), 'utf8');
+  return computeProgressions(path.join(vault, dirName), effortRoutines);
+}
+
+test('effort: RPE 9 is his WORKING set — a climbing lift still earns load', async () => {
+  // 60kg x10 -> 62.5kg x10, all at RPE 9. Under the old 9.5 cutoff this was
+  // still allowed; under a naive "9 means grinding" reading it would be held.
+  const prog = await progFor('rpe9-climbing',
+    Array.from({ length: 3 }, () => ({ weight: 60, reps: 10, rpe: 9 })),
+    Array.from({ length: 3 }, () => ({ weight: 62.5, reps: 10, rpe: 9 })));
+  assert.equal(prog['pull:row'].kind, 'weight', 'RPE 9 with a rising e1RM must not be held at quality');
+  assert.equal(prog['pull:row'].delta, WEIGHT_STEP_KG);
+});
+
+test('effort: RPE 10 with a FLAT e1RM is a genuine sticking point → quality', async () => {
+  const flat = Array.from({ length: 3 }, () => ({ weight: 60, reps: 10, rpe: 10 }));
+  const prog = await progFor('rpe10-flat', flat, flat);
+  assert.equal(prog['pull:row'].kind, 'quality');
+  assert.equal(prog['pull:row'].delta, 0);
+  assert.match(prog['pull:row'].evidence, /est\. 1RM/);
+  assert.ok(prog['pull:row'].focus, 'a quality prescription must carry a concrete focus');
+});
+
+test('effort: RPE 10 but still CLIMBING is not held — the work is moving', async () => {
+  const prog = await progFor('rpe10-climbing',
+    Array.from({ length: 3 }, () => ({ weight: 60, reps: 10, rpe: 10 })),
+    Array.from({ length: 3 }, () => ({ weight: 65, reps: 10, rpe: 10 })));
+  assert.notEqual(prog['pull:row']?.kind, 'quality', 'a lift at RPE 10 that is still adding load must not be held');
+});
+
+test('effort: trading reps for load never reads as a regression', async () => {
+  // His real Wide-Grip Lat Pulldown: 73kg x8 -> 75kg x6. Volume-load scored
+  // this 584 -> 450 and told him he had gone backwards and to check his sleep.
+  const prog = await progFor('reps-for-load',
+    Array.from({ length: 3 }, () => ({ weight: 73, reps: 8, rpe: 10 })),
+    Array.from({ length: 3 }, () => ({ weight: 75, reps: 6, rpe: 10 })));
+  const ev = prog['pull:row']?.evidence || '';
+  assert.doesNotMatch(ev, /BACKWARDS/, 'adding weight at the cost of reps is progression, not regression');
+});
+
+test('effort: a real e1RM collapse asks about recovery, not tempo', async () => {
+  const prog = await progFor('true-regression',
+    Array.from({ length: 3 }, () => ({ weight: 80, reps: 10, rpe: 10 })),
+    Array.from({ length: 3 }, () => ({ weight: 60, reps: 8, rpe: 10 })));
+  assert.equal(prog['pull:row'].kind, 'quality');
+  assert.match(prog['pull:row'].evidence, /BACKWARDS/);
+  assert.match(prog['pull:row'].evidence, /recovery/i);
+  assert.doesNotMatch(prog['pull:row'].evidence, /3s lowering/, 'a collapse is a recovery question, not a technique one');
+});
