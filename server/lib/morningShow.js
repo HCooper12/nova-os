@@ -26,6 +26,15 @@ function hoursMinutes(min) {
   return m ? `${h} hours ${m} minutes` : `${h} hours`;
 }
 
+// Has this "HH:MM" already gone by, on the day `now` falls in? Unparseable
+// times are treated as still ahead — announcing something as missed when it
+// might not be is the more expensive mistake.
+function isPast(t, now) {
+  const [H, M] = String(t || '').split(':').map(Number);
+  if (Number.isNaN(H)) return false;
+  return (H * 60 + (M || 0)) < (now.getHours() * 60 + now.getMinutes());
+}
+
 function speakTime(t) {
   // "17:30" → "5:30 pm" — Kokoro reads 12-hour clock more naturally
   const [H, M] = String(t || '').split(':').map(Number);
@@ -40,6 +49,50 @@ const PRODUCE_KINDS = ['research', 'watch-note', 'forge-job', 'pattern', 'studio
 
 // emoji and symbols never reach the voice engine — G2P mangles them
 const despeak = (s) => String(s).replace(/[\p{Extended_Pictographic}️]/gu, '').replace(/\s+/g, ' ').trim();
+
+// SPOKEN DATES. He reported Nova reading "14 Aug" literally — as two tokens,
+// not as a date. Calendars and note titles write dates in shorthand; a person
+// says "the fourteenth of August". Applied to every spoken line at the end of
+// the build, so it catches labels, titles and composed copy alike.
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
+const MONTH_BY_PREFIX = {
+  jan: 'January', feb: 'February', mar: 'March', apr: 'April', may: 'May', jun: 'June',
+  jul: 'July', aug: 'August', sep: 'September', sept: 'September', oct: 'October',
+  nov: 'November', dec: 'December',
+};
+const ORDINALS = ['', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh',
+  'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth', 'thirteenth', 'fourteenth', 'fifteenth',
+  'sixteenth', 'seventeenth', 'eighteenth', 'nineteenth', 'twentieth', 'twenty-first',
+  'twenty-second', 'twenty-third', 'twenty-fourth', 'twenty-fifth', 'twenty-sixth',
+  'twenty-seventh', 'twenty-eighth', 'twenty-ninth', 'thirtieth', 'thirty-first'];
+// A bare number after a month name is far more often a measurement than a day
+// ("Aug 12 reps"), so anything carrying a unit is left alone.
+const UNIT_AHEAD = '(?!\\s*(?:kg|kgs|lb|lbs|g|mg|ml|l|reps?|sets?|min|mins|minutes?|hours?|hrs?|kcal|cal|%|km|mi|m\\b))';
+function speakDates(s) {
+  let out = String(s);
+  // 2026-08-14 → the fourteenth of August
+  out = out.replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (m, _y, mo, d) => {
+    const name = MONTH_NAMES[Number(mo) - 1];
+    const day = Number(d);
+    return name && day >= 1 && day <= 31 ? `the ${ORDINALS[day]} of ${name}` : m;
+  });
+  // 14 Aug / 14th August → the fourteenth of August
+  out = out.replace(/\b(\d{1,2})(?:st|nd|rd|th)?\s+(jan|feb|mar|apr|may|jun|jul|sept|sep|aug|oct|nov|dec)[a-z]*\.?/gi,
+    (m, d, mon) => {
+      const name = MONTH_BY_PREFIX[mon.toLowerCase()];
+      const day = Number(d);
+      return name && day >= 1 && day <= 31 ? `the ${ORDINALS[day]} of ${name}` : m;
+    });
+  // Aug 14 / August 14th → the fourteenth of August
+  out = out.replace(new RegExp(`\\b(jan|feb|mar|apr|may|jun|jul|sept|sep|aug|oct|nov|dec)[a-z]*\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b${UNIT_AHEAD}`, 'gi'),
+    (m, mon, d) => {
+      const name = MONTH_BY_PREFIX[mon.toLowerCase()];
+      const day = Number(d);
+      return name && day >= 1 && day <= 31 ? `the ${ORDINALS[day]} of ${name}` : m;
+    });
+  return out;
+}
 
 const recordLabel = (r) =>
   despeak(r.title || r.question || r.text || r.kind || 'a draft').slice(0, 90);
@@ -104,9 +157,12 @@ export function leisureEventToday(events) {
   }) || null;
 }
 
-export async function composeShow(vaultPath, { variant = 'morning' } = {}, deps = defaultDeps) {
+// `now` is injectable so the clock-aware beats can be tested at a fixed hour
+// rather than against whatever time the suite happens to run at. Production
+// never passes it.
+export async function composeShow(vaultPath, { variant = 'morning', now: nowIn } = {}, deps = defaultDeps) {
   const steps = [];
-  const now = new Date();
+  const now = nowIn ? new Date(nowIn) : new Date();
   const today = localDate(now);
   const yesterday = localDate(new Date(now.getTime() - 86_400_000));
   const evening = variant === 'evening';
@@ -177,14 +233,41 @@ export async function composeShow(vaultPath, { variant = 'morning' } = {}, deps 
         // first TIMED thing he actually has to be somewhere for.
         const allDay = events.filter((e) => e.time === '00:00');
         const timed = events.filter((e) => e.time !== '00:00');
+        // THE CLOCK IS PART OF THE CONTEXT. This used to announce timed[0] —
+        // the day's FIRST entry — as what the day starts with, no matter what
+        // time it was. He opened the brief at 9am and was told his day starts
+        // with a 7:30 workout, then asked what he wanted before it. Both
+        // wrong, and wrong in a way that makes Nova look like it isn't there
+        // with him. Only "today" has a now to be past: tomorrow's list is all
+        // ahead of him by definition.
+        const ahead = evening ? timed : timed.filter((e) => !isPast(e.time, now));
+        const gone = evening ? [] : timed.filter((e) => isPast(e.time, now));
         const parts = [];
         if (allDay.length) parts.push(allDay.length === 1 ? `it's ${despeak(allDay[0].label)}` : `${allDay.length} all-day notes, first ${despeak(allDay[0].label)}`);
-        if (timed.length) parts.push(`${timed.length === 1 ? 'one timed thing' : `${timed.length} timed things`}, ${evening ? 'first is' : 'starting with'} ${despeak(timed[0].label)} at ${speakTime(timed[0].time)}`);
+        if (ahead.length) {
+          // "left" only makes sense about a day already under way — tomorrow
+          // has nothing left, it has everything.
+          const count = ahead.length === 1 ? 'one timed thing' : `${ahead.length} timed things`;
+          parts.push(evening
+            ? `${count}, first is ${despeak(ahead[0].label)} at ${speakTime(ahead[0].time)}`
+            : `${count}${gone.length ? ' left' : ''}, next is ${despeak(ahead[0].label)} at ${speakTime(ahead[0].time)}`);
+        } else if (gone.length) {
+          // Say the true thing: the calendar is behind him. Naming what has
+          // passed is also the honest opening for "did that actually happen?"
+          parts.push(gone.length === 1
+            ? `your only timed thing, ${despeak(gone[0].label)} at ${speakTime(gone[0].time)}, is already behind you`
+            : `all ${gone.length} timed things are already behind you, the last being ${despeak(gone[gone.length - 1].label)} at ${speakTime(gone[gone.length - 1].time)}`);
+        }
+        if (!parts.length) parts.push('nothing timed left on the calendar');
         steps.push({
           say: `${word}: ${parts.join('; ')}.`,
           card: listCard({
             label: `${word} · ${events.length} ON THE CALENDAR`,
-            items: events.slice(0, 5).map((e) => ({ name: despeak(e.label), note: e.time === '00:00' ? 'all day' : speakTime(e.time) })),
+            items: events.slice(0, 5).map((e) => ({
+              name: despeak(e.label),
+              note: e.time === '00:00' ? 'all day'
+                : `${speakTime(e.time)}${!evening && isPast(e.time, now) ? ' · passed' : ''}`,
+            })),
           }),
         });
       }
@@ -201,9 +284,14 @@ export async function composeShow(vaultPath, { variant = 'morning' } = {}, deps 
         // a failed history read must not turn every ordinary event into news
         const odd = history ? unusualEvents(events, history) : [];
         if (odd.length) {
-          const e = odd[0];
+          // Prefer one he can still act on. "Worth deciding now what you need
+          // for it" is nonsense about something that finished two hours ago.
+          const e = odd.find((x) => x.time === '00:00' || !isPast(x.time, now)) || odd[0];
+          const done = e.time !== '00:00' && isPast(e.time, now);
           steps.push({
-            say: `One thing stands out: ${despeak(e.label)}${e.time && e.time !== '00:00' ? ` at ${speakTime(e.time)}` : ''} isn't part of your usual week. Worth deciding now what you need for it.`,
+            say: done
+              ? `One thing stood out today: ${despeak(e.label)} at ${speakTime(e.time)} isn't part of your usual week. It's already passed — worth a note on how it went.`
+              : `One thing stands out: ${despeak(e.label)}${e.time && e.time !== '00:00' ? ` at ${speakTime(e.time)}` : ''} isn't part of your usual week. Worth deciding now what you need for it.`,
             card: listCard({
               label: 'NOT YOUR USUAL WEEK',
               items: odd.slice(0, 3).map((x) => ({ name: despeak(x.label), note: x.time === '00:00' ? 'all day' : speakTime(x.time), tone: 'gold' })),
@@ -346,5 +434,7 @@ export async function composeShow(vaultPath, { variant = 'morning' } = {}, deps 
       ]),
     ...(evening ? {} : { asks: true }) });
 
-  return { steps, pending: approve };
+  // ONE EXIT for spoken text: every line leaves as a person would say it.
+  // Done here rather than at each push so a new beat cannot forget it.
+  return { steps: steps.map((s) => (s.say ? { ...s, say: speakDates(s.say) } : s)), pending: approve };
 }

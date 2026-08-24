@@ -10,6 +10,11 @@ const local = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDat
 const TODAY = local(new Date());
 const YESTERDAY = local(new Date(Date.now() - 86_400_000));
 const NOW_ISO = new Date().toISOString();
+// Clock-aware beats are pinned rather than left to whenever the suite runs.
+const atHour = (h, m = 0) => { const d = new Date(); d.setHours(h, m, 0, 0); return d; };
+const AT_7AM = atHour(7);
+const AT_9AM = atHour(9);
+const AT_8PM = atHour(20);
 
 const deps = {
   recentDays: async () => [
@@ -27,7 +32,7 @@ const deps = {
 };
 
 test('morning show: receipts spoken in order, times humanized, spoken-yes armed on the produced item', async () => {
-  const { steps, pending } = await composeShow('/tmp/vault', { variant: 'morning' }, deps);
+  const { steps, pending } = await composeShow('/tmp/vault', { variant: 'morning', now: AT_7AM }, deps);
   const all = steps.map((s) => s.say).join(' | ');
   assert.match(all, /morning, sir/i);
   assert.match(all, /6 hours 42 minutes/, 'sleep read from today\'s file');
@@ -38,9 +43,9 @@ test('morning show: receipts spoken in order, times humanized, spoken-yes armed 
     { label: "Aarush's Birthday 🥳", time: '00:00' },
     { label: 'Push Day', time: '17:30' },
   ] };
-  const again = await composeShow('/tmp/vault', { variant: 'morning' }, withAllDay);
+  const again = await composeShow('/tmp/vault', { variant: 'morning', now: AT_7AM }, withAllDay);
   const cal = again.steps.map((s) => s.say).join(' | ');
-  assert.match(cal, /it's Aarush's Birthday; one timed thing, starting with Push Day at 5:30 pm/);
+  assert.match(cal, /it's Aarush's Birthday; one timed thing, next is Push Day at 5:30 pm/);
   assert.doesNotMatch(cal, /12:00 am|🥳/, 'no midnight times, no emoji in speech');
   assert.match(all, /research agent drafted/i, 'overnight produce is narrated');
   assert.match(all, /Say the word/, 'the approval callout closes the brief');
@@ -99,4 +104,75 @@ test('morning show: a leisure event on the calendar earns a warm, specific line 
 
   const { steps: plain } = await composeShow('/tmp/vault', { variant: 'morning' }, deps);
   assert.doesNotMatch(plain.map((s) => s.say).join(' | '), /enjoy your|earned the downtime/i, 'no event, no remark — never invented');
+});
+
+// ---------------------------------------------------------------------------
+// THE CLOCK IS CONTEXT. He opened the brief at 9am and was told his day starts
+// with a 7:30 workout he had already missed, then asked what he wanted before
+// it. Nova has to know what time it is relative to what it is describing.
+// ---------------------------------------------------------------------------
+
+const gymDeps = { ...deps, eventsForDay: async () => [{ label: 'Gym — Push', time: '07:30' }] };
+
+test('clock: a timed event that has already passed is never announced as what is next', async () => {
+  const { steps } = await composeShow('/tmp/vault', { variant: 'morning', now: AT_9AM }, gymDeps);
+  const all = steps.map((s) => s.say).join(' | ');
+  assert.doesNotMatch(all, /next is Gym/, 'a 7:30 event is not "next" at 9am');
+  assert.doesNotMatch(all, /starting with Gym/, 'nor what the day starts with');
+  assert.match(all, /already behind you/, 'it says the true thing instead');
+  assert.match(all, /Gym — Push at 7:30 am/, 'and still names it');
+});
+
+test('clock: the same event before it happens is still announced as next', async () => {
+  const { steps } = await composeShow('/tmp/vault', { variant: 'morning', now: atHour(6) }, gymDeps);
+  const all = steps.map((s) => s.say).join(' | ');
+  assert.match(all, /next is Gym — Push at 7:30 am/);
+  assert.doesNotMatch(all, /behind you/);
+});
+
+test('clock: with some done and some to come, only what remains is "next"', async () => {
+  const mixed = { ...deps, eventsForDay: async () => [
+    { label: 'Gym — Push', time: '07:30' },
+    { label: 'Standup', time: '14:00' },
+  ] };
+  const { steps } = await composeShow('/tmp/vault', { variant: 'morning', now: AT_9AM }, mixed);
+  const all = steps.map((s) => s.say).join(' | ');
+  assert.match(all, /one timed thing left, next is Standup at 2:00 pm/);
+});
+
+test("clock: tomorrow's list is never described as time-worn", async () => {
+  const { steps } = await composeShow('/tmp/vault', { variant: 'evening', now: AT_8PM }, gymDeps);
+  const all = steps.map((s) => s.say).join(' | ');
+  assert.match(all, /Tomorrow: one timed thing, first is Gym — Push at 7:30 am/,
+    'a 7:30 event tomorrow is ahead of him even though 7:30 today has passed');
+  assert.doesNotMatch(all, /behind you|left,/);
+});
+
+// ---------------------------------------------------------------------------
+// SPOKEN DATES — "14 Aug" is how a calendar writes it, not how a person says it
+// ---------------------------------------------------------------------------
+
+test('dates: shorthand in a calendar label is spoken as a person would say it', async () => {
+  const dated = { ...deps, eventsForDay: async () => [{ label: 'Invoice due 14 Aug', time: '09:00' }] };
+  const { steps } = await composeShow('/tmp/vault', { variant: 'morning', now: atHour(6) }, dated);
+  const all = steps.map((s) => s.say).join(' | ');
+  assert.match(all, /the fourteenth of August/);
+  assert.doesNotMatch(all, /14 Aug\b/);
+});
+
+test('dates: ISO and month-first forms too, but never a measurement', async () => {
+  const cases = [
+    { label: 'Review 2026-08-14', want: /the fourteenth of August/ },
+    { label: 'Deadline Aug 3', want: /the third of August/ },
+    { label: 'Trip 1st September', want: /the first of September/ },
+  ];
+  for (const c of cases) {
+    const d = { ...deps, eventsForDay: async () => [{ label: c.label, time: '09:00' }] };
+    const { steps } = await composeShow('/tmp/vault', { variant: 'morning', now: atHour(6) }, d);
+    assert.match(steps.map((s) => s.say).join(' | '), c.want, c.label);
+  }
+  // a rep count is not a date
+  const reps = { ...deps, eventsForDay: async () => [{ label: 'Push Day Aug 12 reps', time: '09:00' }] };
+  const { steps } = await composeShow('/tmp/vault', { variant: 'morning', now: atHour(6) }, reps);
+  assert.match(steps.map((s) => s.say).join(' | '), /Aug 12 reps/, 'a unit after the number means it is a measurement');
 });

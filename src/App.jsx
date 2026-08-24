@@ -4637,19 +4637,32 @@ export default class App extends Component {
     if (last === today) return;
     const h = new Date().getHours();
     if (h < 4 || h >= 12) return; // a "morning" brief at 9pm is a nuisance, not a briefing
-    try {
-      localStorage.setItem('novaos.morningBrief', today);
-      // the brief IS the greeting today — stand the doorman down, or Nova
-      // says hello twice over the top of itself
-      localStorage.setItem('novaos.voiceGreet', JSON.stringify({ date: today, at: Date.now() }));
-    } catch { /* best-effort */ }
+    // THE DAY IS NOT MARKED BRIEFED HERE. It used to be, and that is why he
+    // opened Nova, watched it land on Voice and sit there loading, and then
+    // had to press BRIEF himself: the flag was committed BEFORE the brief
+    // ran, so every failure downstream (offline at the 2.2s mark, voiceBusy
+    // when runShow fired, a stalled /api/show) burned the whole day silently
+    // and there was no second attempt. Mark it only once it has actually
+    // spoken — see markBriefedToday().
     // let the app settle and the connection prove itself before it speaks
     this.morningT = setTimeout(() => {
       if (this.state.connectionStatus === 'offline') return;
+      // the brief IS the greeting today — stand the doorman down BEFORE we
+      // land on Voice, or Nova says hello over the top of its own brief
+      try {
+        localStorage.setItem('novaos.voiceGreet', JSON.stringify({ date: today, at: Date.now() }));
+      } catch { /* private mode */ }
       this.navigate('voice');
       this.prewarmAsk();
-      setTimeout(() => this.runShow('morning'), 700);
+      setTimeout(() => this.runShow('morning', { auto: true }), 700);
     }, 2200);
+  }
+  // Committed only when the brief has real content on screen. Keeping this
+  // separate from maybeMorningBrief is the whole point: "we tried" and "he
+  // was briefed" are different facts and must not share a flag.
+  markBriefedToday() {
+    const today = new Date().toDateString();
+    try { localStorage.setItem('novaos.morningBrief', today); } catch { /* private mode */ }
   }
   // iOS gates audio behind a user gesture: playing a muted element and an
   // empty utterance during the tap unlocks both paths for the async reply.
@@ -4685,15 +4698,39 @@ export default class App extends Component {
   // narrated sequence — each beat's text and pane reveal AS its audio
   // starts, and the closing pending item arms the spoken-yes gate. The
   // reel's morning scene, on Nova's rails.
-  runShow(variant) {
+  runShow(variant, opts = {}) {
     const conn = getConnection();
-    if (!conn || this.state.voiceBusy) return;
+    if (!conn) return;
+    // Something else is already speaking. The automatic brief must WAIT for
+    // it rather than drop itself on the floor — this silent return, paired
+    // with the day already being marked briefed, is the other half of why
+    // his morning brief never arrived.
+    if (this.state.voiceBusy) {
+      const tries = opts.tries || 0;
+      if (opts.auto && tries < 6) {
+        clearTimeout(this.morningRetryT);
+        this.morningRetryT = setTimeout(() => this.runShow(variant, { ...opts, tries: tries + 1 }), 1500);
+      }
+      return;
+    }
     this.stopSpeaking();
     this.primeSpeech();
     this.setState({ voiceBusy: true });
+    // A stalled request used to leave the Voice screen spinning forever with
+    // no error and no way back — his exact report: "looked like it was
+    // loading and didn't do anything". .catch never fires on a hang.
+    clearTimeout(this.showWatchdogT);
+    this.showWatchdogT = setTimeout(() => {
+      if (!this.state.voiceBusy) return;
+      this.setState({ voiceBusy: false });
+      this.toastMsg('Brief timed out — press BRIEF to retry.');
+    }, 40000);
     api.show(conn, variant).then(({ steps, pending }) => {
+      clearTimeout(this.showWatchdogT);
       this.setState({ voiceBusy: false });
       if (!steps?.length) { this.toastMsg('Nothing to brief right now.'); return; }
+      // it is speaking, so the day is genuinely briefed
+      if (opts.auto) this.markBriefedToday();
       const spoken = this.state.voiceSpeak && this.state.liveTts?.configured;
       this.clearStage();
       for (const st of steps) {
@@ -4721,6 +4758,7 @@ export default class App extends Component {
         this.setState((s) => ({ voiceConvMode: true, voiceConvPaused: false, voiceAutoListenTick: s.voiceAutoListenTick + 1 }));
       });
     }).catch((e) => {
+      clearTimeout(this.showWatchdogT);
       this.setState({ voiceBusy: false });
       this.toastMsg('Brief failed: ' + e.message);
     });
