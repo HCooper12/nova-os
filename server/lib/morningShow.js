@@ -15,6 +15,9 @@ import { metricCard, listCard } from './spokenCards.js';
 
 const pad = (n) => String(n).padStart(2, '0');
 const localDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+// Monday of the week `d` falls in — matches coachProgramAudit's weekOf key
+// so "is this audit from this week" is one comparison, not a date range.
+const mondayOfLocal = (d) => { const m = new Date(d); m.setDate(m.getDate() - ((m.getDay() + 6) % 7)); m.setHours(0,0,0,0); return m; };
 
 let rot = 0;
 const pick = (arr) => arr[rot++ % arr.length];
@@ -123,6 +126,7 @@ const defaultDeps = {
   foodToday: async () => (await import('./foodLog.js')).getToday(),
   records: async () => (await import('./inboxStore.js')).listRecords(),
   eventsForDay: async (date) => (await import('./calendar.js')).fetchEventsForDay(date),
+  latestAudit: async () => (await import('./coachProgramAudit.js')).readAuditLog().then((a) => a[0] || null),
   panel: async (vaultPath, directive) => (await import('./panels.js')).buildPanel(vaultPath, directive),
 };
 
@@ -380,6 +384,34 @@ export async function composeShow(vaultPath, { variant = 'morning', now: nowIn }
             foot: 'yes or no in your Inbox — or argue it with Coach',
           }),
           asks: true,
+        });
+      }
+    } catch { /* absent section */ }
+  }
+
+  // — the weekly program audit —
+  // Not a finding: a RECEIPT. He asked for the program checks to be audited
+  // across the week and to hear about it, and the reassuring half of that is
+  // "I looked at eight things and six are clean" — which is exactly the part
+  // a findings-only brief never says. Spoken once, the morning it lands.
+  if (!evening && deps.latestAudit) {
+    try {
+      const audit = await deps.latestAudit();
+      if (audit && audit.weekOf === localDate(mondayOfLocal(now))) {
+        const fired = (audit.checks || []).filter((c) => c.status === 'fired').length;
+        const clear = (audit.checks || []).filter((c) => c.status === 'clear').length;
+        const notYet = (audit.checks || []).filter((c) => c.status === 'not-yet').length;
+        steps.push({
+          say: despeak(audit.summary),
+          card: listCard({
+            label: `PROGRAM AUDIT · WEEK OF ${audit.weekOf}`,
+            items: (audit.checks || []).slice(0, 5).map((c) => ({
+              name: c.label,
+              note: c.status === 'fired' ? 'needs a decision' : c.status === 'clear' ? 'clean' : 'not yet answerable',
+              tone: c.status === 'fired' ? 'gold' : undefined,
+            })),
+            foot: `${fired} to decide · ${clear} clean · ${notYet} pending more history`,
+          }),
         });
       }
     } catch { /* absent section */ }

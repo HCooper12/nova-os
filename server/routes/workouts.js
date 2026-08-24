@@ -87,6 +87,26 @@ export function workoutsRouter(vaultPath) {
     } catch (err) { next(err); }
   });
 
+  // THE WEEKLY AUDIT. GET previews it without writing — including the checks
+  // that came back CLEAR, which is the whole reason it exists: three
+  // detectors had never fired on his data and silence was indistinguishable
+  // from breakage. POST runs it for real (receipt + one inbox record), the
+  // same thing the Monday scheduler does, so it can be triggered on demand.
+  router.get('/train/program-audit', async (req, res, next) => {
+    try {
+      const { auditProgram, readAuditLog } = await import('../lib/coachProgramAudit.js');
+      const [audit, history] = await Promise.all([auditProgram(vaultPath), readAuditLog()]);
+      res.json({ ...audit, history: history.map(({ weekOf, at, summary }) => ({ weekOf, at, summary })) });
+    } catch (err) { next(err); }
+  });
+  router.post('/train/program-audit/run', async (req, res, next) => {
+    try {
+      const { runWeeklyAudit } = await import('../lib/coachProgramAudit.js');
+      const { audit, record } = await runWeeklyAudit(vaultPath);
+      res.json({ summary: audit.summary, weekOf: audit.weekOf, checks: audit.checks, recordId: record?.id || null });
+    } catch (err) { next(err); }
+  });
+
   router.get('/workouts/exercises', async (req, res, next) => {
     try {
       res.json(await loadExerciseLibrary(vaultPath));

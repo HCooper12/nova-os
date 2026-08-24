@@ -223,6 +223,18 @@ export function startCoachCadenceScheduler(vaultPath) {
           }
           if (raised.length || nudged.length) console.log(`coach program review: ${raised.length} raised, ${nudged.length} nudged`);
         } catch (e) { console.log('coach program review failed:', e.message); }
+
+        // THE WEEKLY AUDIT — once a week, the sweep itself gets a receipt.
+        // Three detectors had never fired on his data and there was no way
+        // to tell "checked and clean" from "quietly broken". Monday so the
+        // week's decisions land before he trains it.
+        try {
+          const { auditedThisWeek, runWeeklyAudit } = await import('./coachProgramAudit.js');
+          if (new Date().getDay() === 1 && !(await auditedThisWeek())) {
+            const { audit } = await runWeeklyAudit(vaultPath);
+            console.log(`coach weekly audit: ${audit.summary}`);
+          }
+        } catch (e) { console.log('coach weekly audit failed:', e.message); }
       }
       if (h >= 16 && h < 19) await missedSessionNudge(vaultPath); // early enough to still train
     } catch (err) {

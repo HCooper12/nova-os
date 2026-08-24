@@ -1185,6 +1185,13 @@ export async function approveRecord(vaultPath, id) {
   if (record.kind === 'fuel-cross') {
     return updateRecord(id, { status: 'filed', destination: null, filedAt: new Date().toISOString(), auto: false, error: null });
   }
+  // The weekly program audit is the same shape: a receipt that the sweep ran.
+  // The findings inside it are raised separately as their own coach-program
+  // records with their own fixes — approving the audit acknowledges the
+  // report, it does not action anything.
+  if (record.kind === 'coach-audit') {
+    return updateRecord(id, { status: 'filed', destination: null, filedAt: new Date().toISOString(), auto: false, error: null });
+  }
   const { destination, undo } = await fileDecision(vaultPath, record.decision);
   return updateRecord(id, { status: 'filed', destination, undoData: undo, filedAt: new Date().toISOString(), auto: false, error: null });
 }

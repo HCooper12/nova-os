@@ -176,3 +176,38 @@ test('dates: ISO and month-first forms too, but never a measurement', async () =
   const { steps } = await composeShow('/tmp/vault', { variant: 'morning', now: atHour(6) }, reps);
   assert.match(steps.map((s) => s.say).join(' | '), /Aug 12 reps/, 'a unit after the number means it is a measurement');
 });
+
+// The audit beat: the reassuring half of the report. A findings-only brief
+// never says "six things came back clean", which is the part that makes the
+// silences trustworthy.
+test('audit beat: this week\'s audit is spoken, with clean and pending states shown', async () => {
+  const weekOf = (() => { const m = new Date(); m.setDate(m.getDate() - ((m.getDay() + 6) % 7)); return local(m); })();
+  const withAudit = { ...deps, latestAudit: async () => ({
+    weekOf,
+    summary: 'I ran 8 checks over your program this week; nothing needs a decision; 7 came back clean; 1 can\'t be answered yet.',
+    checks: [
+      { id: 'junk-volume', label: 'A muscle past the point more sets help', status: 'clear', detail: 'peak was 18' },
+      { id: 'tenure', label: 'Same lift long enough to be worth rotating', status: 'not-yet', detail: 'needs 16 weeks' },
+    ],
+  }) };
+  const { steps } = await composeShow('/tmp/vault', { variant: 'morning', now: AT_7AM }, withAudit);
+  const all = steps.map((s) => s.say).join(' | ');
+  assert.match(all, /I ran 8 checks/);
+  assert.match(all, /7 came back clean/);
+  const card = steps.find((s) => s.card?.label?.includes('PROGRAM AUDIT'))?.card;
+  assert.ok(card, 'the beat carries its evidence pane');
+  assert.match(card.foot, /clean/);
+});
+
+test('audit beat: a stale audit from a previous week is not spoken as this week\'s', async () => {
+  const stale = { ...deps, latestAudit: async () => ({ weekOf: '2020-01-06', summary: 'ancient audit', checks: [] }) };
+  const { steps } = await composeShow('/tmp/vault', { variant: 'morning', now: AT_7AM }, stale);
+  assert.doesNotMatch(steps.map((s) => s.say).join(' | '), /ancient audit/);
+});
+
+test('audit beat: never on the evening variant', async () => {
+  const weekOf = (() => { const m = new Date(); m.setDate(m.getDate() - ((m.getDay() + 6) % 7)); return local(m); })();
+  const withAudit = { ...deps, latestAudit: async () => ({ weekOf, summary: 'audit line here', checks: [] }) };
+  const { steps } = await composeShow('/tmp/vault', { variant: 'evening', now: AT_8PM }, withAudit);
+  assert.doesNotMatch(steps.map((s) => s.say).join(' | '), /audit line here/);
+});
