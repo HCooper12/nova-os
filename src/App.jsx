@@ -2355,7 +2355,9 @@ export default class App extends Component {
       // Coach progression: earned suggestions nudge the PREFILL only — what
       // gets logged is whatever actually happens on the floor.
       const coach = progressions[`${routine.id}:${e.exerciseId}`] || null;
-      if (coach) {
+      // a 'quality' prescription deliberately changes NO number — the whole
+      // point is the same weight done better, so the prefill is left alone
+      if (coach && coach.kind !== 'quality') {
         sets = sets.map((s) => coach.kind === 'weight'
           ? { ...s, weight: Math.round((Number(s.weight) + coach.delta) * 10) / 10 }
           : { ...s, reps: Number(s.reps) + coach.delta });

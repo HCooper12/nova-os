@@ -206,7 +206,7 @@ export async function buildTrainOverview(vaultPath) {
         text: String(r.text || '').replace(/^Coach:\s*/, ''),
         nudges: r.nudges || 0,
         daysOpen: Math.floor((Date.now() - new Date(r.createdAt || Date.now())) / 86_400_000),
-        applies: !!(r.fix && ['remap', 'swap', 'weighted-variant'].includes(r.fix.action)),
+        applies: !!(r.fix && ['remap', 'swap', 'weighted-variant', 'drop'].includes(r.fix.action)),
         fix: r.fix || null,
       };
     } catch { return null; }

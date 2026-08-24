@@ -193,7 +193,9 @@ export function valsWorkouts(app, ctx) {
   const setsLabel = (tt, sets) => sets && sets.length ? sets.map((s) => formatSet(tt, s)).join(', ') : 'Not yet performed';
 
   const progressions = st.liveWorkoutProgressions || {};
-  const coachChipLabel = (c) => c ? (c.kind === 'outgrown' ? 'COACH: OUTGROWN →' : c.kind === 'weight' ? `COACH +${c.delta}KG` : `COACH +${c.delta} REP`) : null;
+  // 'quality' carries no number on purpose — the prescription IS the focus
+  // (tempo/control), so a chip reading "+0KG" would be nonsense
+  const coachChipLabel = (c) => c ? (c.kind === 'outgrown' ? 'COACH: OUTGROWN →' : c.kind === 'quality' ? 'COACH: HOLD & CONTROL' : c.kind === 'weight' ? `COACH +${c.delta}KG` : `COACH +${c.delta} REP`) : null;
   // an OUTGROWN chip is a doorway, not a number: tapping it opens the Coach
   // with the prescription-change conversation already started
   const coachChipAsk = (c, name) => (c && c.kind === 'outgrown')
@@ -359,6 +361,7 @@ export function valsWorkouts(app, ctx) {
         if (f.action === 'swap') return 'Swaps the old exercise out and the new one in, keeping your sets and reps.';
         if (f.action === 'weighted-variant') return `Creates “Weighted ${f.name || 'variant'}”, swaps it in with the same prescription, starting around 5kg added.`;
         if (f.action === 'remap') return 'Re-files the exercise under the right muscle — your volume bars re-count.';
+        if (f.action === 'drop') return 'Removes that movement from the routine. Everything else stays exactly as it is.';
         return 'Applies the change to your plan.';
       })(),
       note: st.coachApplyNote,

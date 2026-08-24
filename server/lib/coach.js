@@ -14,6 +14,18 @@ import { createRecord } from './inboxStore.js';
 // are left alone (no honest deterministic rule for them yet).
 
 export const WEIGHT_STEP_KG = 2.5;
+// Effort thresholds for the DEFAULT path (the RPE-tuned model has its own).
+// At or above GRIND_RPE the lift is already maximal — load is the wrong
+// lever and quality is the right one. At or below READY_RPE there is genuine
+// headroom, so a step is earned. Between them, bank a rep first.
+// Checked against his real log before settling these: he trains genuinely
+// hard, so a single RPE-9 cutoff made EVERY exercise return the same
+// "hold and control" note — advice on everything is worth as much as advice
+// on nothing. Splitting the bands gives each effort level its own honest
+// answer: 9.5+ is maximal (fix quality), 9 is hard-but-not-maximal (bank a
+// rep at this weight), ≤8 has real headroom (take the load).
+export const GRIND_RPE = 9.5;
+export const READY_RPE = 8;
 // A bodyweight movement whose EVERY set clears target-high by this margin,
 // two sessions running, has outgrown its prescription — see 'outgrown'.
 const OUTGROWN_MARGIN = 2;
@@ -77,15 +89,69 @@ export async function computeProgressions(vaultPath, routines) {
       }
 
       if (recent.length < 2) continue;
+
+      // EFFORT GATES LOAD — even without an explicit RPE tune.
+      //
+      // He logs RPE on nearly every set, and this default path used to ignore
+      // it completely: reps at target twice running earned +2.5kg no matter
+      // how hard they were. Caught in his own data — Dumbbell Shoulder Press
+      // (Single Arm) sat at 22.5kg for three sessions at RPE 9, 9 then 10
+      // with reps FLAT at 7-8, and Coach kept prescribing another 2.5kg
+      // (an 11% jump on a single-arm dumbbell, while he was already grinding).
+      // That is the "suggesting changes for the sake of them" he called out.
+      //
+      // A coach reads the effort first: at RPE 9+ the bar is not the lever,
+      // technique and time under tension are. So a grinding lift now earns a
+      // QUALITY prescription instead of a number — his exact ask for "more
+      // varied improvements like rep ranges, controlled form, time under
+      // tension" rather than load every time.
+      const rpesRecent = recent[0].sets.map((s) => s.rpe).filter((r) => r != null);
+      const topRpe = rpesRecent.length ? Math.max(...rpesRecent) : null;
+      const lastWeight = Math.max(...recent[0].sets.map((s) => Number(s.weight) || 0));
+
+      if (topRpe != null && topRpe >= GRIND_RPE) {
+        // is he also not gaining reps? then it is a genuine sticking point,
+        // not just one heavy day
+        const repsOf = (ex) => Math.max(...ex.sets.map((s) => Number(s.reps) || 0));
+        const flat = recent.length >= 2 && repsOf(recent[0]) <= repsOf(recent[1]);
+        const topReps = repsOf(recent[0]);
+        // Only name a rep target he is actually BELOW. Caught on his own data:
+        // a lateral raise at 12 reps against a target of 9 produced "earn 9
+        // clean reps" — telling him to do FEWER than he already does. A number
+        // that reads as nonsense costs more trust than saying nothing.
+        const repRoom = entry.targetRepsHigh > topReps ? entry.targetRepsHigh : null;
+        out[`${routine.id}:${entry.exerciseId}`] = {
+          kind: 'quality',
+          delta: 0,
+          focus: '3s lowering, no bounce out of the bottom, full range — same weight',
+          evidence: repRoom
+            ? `top set RPE ${topRpe} at ${lastWeight}kg${flat ? ` and reps flat at ${topReps}` : ''} — adding load here just buys worse reps. Hold ${lastWeight}kg and make it harder with tempo: 3s lowering, no bounce, full range. Earn ${repRoom} clean reps at this weight before the next jump.`
+            : `top set RPE ${topRpe} at ${lastWeight}kg for ${topReps} reps — you're at the top of the range and at your limit, so more load or more reps both cost you form. Hold ${lastWeight}kg and spend a block making the same reps stricter: 3s lowering, no bounce, full range. When it feels like an 8, the step is yours.`,
+        };
+        continue;
+      }
+
       if (!recent.every((ex) => toppedOut(ex, entry))) continue;
 
-      const lastWeight = Math.max(...recent[0].sets.map((s) => Number(s.weight) || 0));
+      // DOUBLE PROGRESSION — reps within the prescribed range before load.
+      // Topping the range at a hard-but-not-maximal effort means the reps are
+      // there but the margin isn't; a coach banks a rep at the same weight
+      // rather than jumping the load and losing three.
+      if (WEIGHTED_TYPES.has(entry.trackingType) && topRpe != null && topRpe > READY_RPE) {
+        out[`${routine.id}:${entry.exerciseId}`] = {
+          kind: 'reps',
+          delta: tune?.repStep ?? 1,
+          evidence: `target reps twice running but at RPE ${topRpe}${lastWeight ? ` on ${lastWeight}kg` : ''} — bank another rep at this weight first; take the load when the top set feels like an 8.`,
+        };
+        continue;
+      }
+
       if (WEIGHTED_TYPES.has(entry.trackingType)) {
         const step = tune?.stepKg ?? WEIGHT_STEP_KG;
         out[`${routine.id}:${entry.exerciseId}`] = {
           kind: 'weight',
           delta: step,
-          evidence: `hit ${entry.targetRepsHigh}+ reps across all sets twice running${lastWeight ? ` at ${lastWeight}kg` : ''}${tune?.stepKg != null ? ` (step tuned to ${step}kg per your feedback)` : ''}`,
+          evidence: `hit ${entry.targetRepsHigh}+ reps across all sets twice running${lastWeight ? ` at ${lastWeight}kg` : ''}${topRpe != null ? ` at RPE ${topRpe} — headroom for the step` : ''}${tune?.stepKg != null ? ` (step tuned to ${step}kg per your feedback)` : ''}`,
         };
       } else {
         // OUTGROWN, not "one more rep": a bodyweight movement repped WELL

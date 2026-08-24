@@ -189,11 +189,276 @@ export function findChronicUnderVolume(weeklyVolume = [], { goalMuscles = [], ta
   return out;
 }
 
+/* ------------------- (d) IS IT ENOUGH, OR TOO MUCH? ----------------------- */
+//
+// His ask: Coach should judge whether a session is "enough" or "too much" —
+// too many exercises, movements that aren't paying their way, and lifts he
+// has simply been doing too long. Three detectors, all held to the same bar
+// as everything above: CODE finds the problem in his real history, the model
+// only phrases it. Every threshold here is deliberately conservative, because
+// a coach who calls a good session bloated once is never believed again.
+//
+// A note on the numbers: these are the widely-taught natural-lifter
+// landmarks, not precision science, so each detector requires the pattern to
+// PERSIST (multiple weeks, multiple sessions) before it says anything. A
+// single big day is training, not a programming error.
+
+// Above this many hard sets in a week, added volume is generally not buying
+// growth for a natural lifter — it is buying fatigue. Set well clear of the
+// 10-12 targets so an ordinary hard week never trips it.
+export const JUNK_VOLUME_CEILING = 22;
+// A session past this many exercises tends to mean the last ones are done
+// tired, fast and half-loaded. His Push day sits at 10, which is exactly the
+// conversation he wants Coach to start.
+export const SESSION_EXERCISE_CEILING = 9;
+// How long a lift can stay in the program before a coach would rotate it for
+// variation — even if it is still creeping upward.
+export const TENURE_WEEKS = 16;
+
+// TOO MUCH: a muscle carrying junk volume for consecutive weeks. The mirror
+// image of findChronicUnderVolume, and it reads the same weeklyVolume input
+// so the two can never disagree about what a week contained.
+export function findJunkVolume(weeklyVolume = [], { ceiling = JUNK_VOLUME_CEILING, weeks = 2 } = {}) {
+  const out = [];
+  const recent = weeklyVolume.slice(0, weeks);
+  if (recent.length < weeks) return out;
+  const muscles = new Set(recent.flatMap((w) => Object.keys(w.groups || {})));
+  for (const muscle of muscles) {
+    const counts = recent.map((w) => (w.groups || {})[muscle] || 0);
+    if (counts.some((c) => c < ceiling)) continue; // must be over it EVERY week
+    const avg = Math.round((counts.reduce((a, b) => a + b, 0) / counts.length) * 10) / 10;
+    out.push({
+      kind: 'junk-volume',
+      key: `junk:${muscle}:${recent[0].week}`,
+      muscle,
+      avg,
+      ceiling,
+      weeks: recent.length,
+      line: `${muscle} has run at ${avg} hard sets a week for ${recent.length} weeks — past the point where more sets buy more growth. Those last few sets are costing you recovery you could spend elsewhere. Worth trimming the least productive movement.`,
+      // no one-tap fix: WHICH set to cut is his call, and a coach who
+      // silently deletes work is not one you keep
+      fix: null,
+    });
+  }
+  return out;
+}
+
+// TOO MANY EXERCISES: not "this session ran long" — measured against what he
+// ACTUALLY finishes. Checked on his real history first, and the generic
+// session-length ceiling was the wrong frame entirely: his sessions log 3-6
+// exercises, because he already splits a big routine across days. The real
+// signal was sitting in the same data — routines DEFINING 9-10 exercises
+// that he completes about half of, generating 12 makeup sessions in six
+// weeks. A plan you can never finish isn't an ambitious plan, it's a plan
+// that hands you a backlog, and that is exactly the "too many exercises than
+// what is needed" he asked Coach to notice.
+export function findOversizedRoutines(sessions = [], routines = [], { minSessions = 3, ratio = 0.7, minDefined = 6, now = new Date(), justAdded = new Set() } = {}) {
+  const out = [];
+  const cut = new Date(now.getTime() - 42 * 86_400_000).toISOString().slice(0, 10);
+  const workedCount = (s) => (s.exercises || []).filter((ex) => (ex.sets || []).some((x) => x.setType !== 'warmup' && ((Number(x.weight) || 0) > 0 || (Number(x.reps) || 0) > 0))).length;
+
+  for (const routine of routines) {
+    const defined = (routine.exercises || []).length;
+    if (defined < minDefined) continue;
+    const mine = sessions.filter((s) => s.routineId === routine.id && s.date >= cut);
+    if (mine.length < minSessions) continue;
+    const counts = mine.map(workedCount).filter((n) => n > 0);
+    if (counts.length < minSessions) continue;
+    const avg = counts.reduce((a, b) => a + b, 0) / counts.length;
+    if (avg / defined >= ratio) continue; // he finishes most of it — leave it alone
+
+    // WHICH exercise to cut is answered by his own behaviour: the one he
+    // reaches least often. Named as evidence, and offered as the one tap.
+    const seen = new Map();
+    for (const s of mine) {
+      for (const ex of s.exercises || []) {
+        const worked = (ex.sets || []).some((x) => x.setType !== 'warmup' && ((Number(x.weight) || 0) > 0 || (Number(x.reps) || 0) > 0));
+        if (worked) seen.set(ex.exerciseId, (seen.get(ex.exerciseId) || 0) + 1);
+      }
+    }
+    // An exercise Coach itself added days ago has not had a CHANCE to be
+    // reached — proposing he cut it is the "change for the sake of it" he
+    // called out, and it happened for real: the review offered to drop
+    // Weighted Pull-Up half an hour after Coach put it there.
+    const leastDone = (routine.exercises || [])
+      .filter((e) => !justAdded.has(`${routine.id}:${e.exerciseId}`))
+      .map((e) => ({ e, n: seen.get(e.exerciseId) || 0 }))
+      .sort((a, b) => a.n - b.n)[0];
+
+    out.push({
+      kind: 'routine-oversized',
+      key: `oversized:${routine.id}:${mine[0].date}`,
+      routineId: routine.id,
+      routineName: routine.name,
+      defined,
+      avg: Math.round(avg * 10) / 10,
+      sessions: counts.length,
+      line: `${routine.name} lists ${defined} exercises but you finish about ${Math.round(avg * 10) / 10} of them across your last ${counts.length} — the rest keeps rolling into makeup sessions. That's a plan bigger than the session you actually train, and the tail end is the part that never gets your best work.${leastDone && leastDone.n === 0 ? ` ${leastDone.e.name} hasn't been touched once.` : leastDone ? ` ${leastDone.e.name} is the one you reach least (${leastDone.n} of ${counts.length}).` : ''} Trimming it to what you genuinely do would make every session count.`,
+      // one tap cuts the movement his own history says he never reaches;
+      // anything more surgical is a conversation, which DISCUSS IT opens
+      fix: leastDone ? { action: 'drop', routineId: routine.id, exerciseId: leastDone.e.exerciseId } : null,
+    });
+  }
+  return out.sort((a, b) => (a.avg / a.defined) - (b.avg / b.defined));
+}
+
+// LEAST PRODUCTIVE MOVEMENT: within one routine, when a muscle is getting
+// several movements AND at least one of them has gone nowhere while its
+// stablemates climbed, that one is the honest candidate to cut or change.
+// This is the "not as effective as the others" judgement he asked for, made
+// by comparison against his OWN lifts rather than an opinion about exercises.
+export function findLowValueExercises(sessions = [], exercises = [], routines = [], { minMovements = 3, minSessions = 3 } = {}) {
+  const byId = new Map(exercises.map((e) => [e.id, e]));
+  const trend = new Map(); // exerciseId -> gain ratio across its history
+  const hist = new Map();
+  for (const s of sessions) {
+    for (const ex of s.exercises || []) {
+      if (ex.anomaly) continue;
+      const best = bestSet(ex.sets);
+      if (!best) continue;
+      const arr = hist.get(ex.exerciseId) || [];
+      arr.push({ date: s.date, best, name: ex.name });
+      hist.set(ex.exerciseId, arr);
+    }
+  }
+  for (const [id, arr] of hist) {
+    if (arr.length < minSessions) continue;
+    const d = arr.sort((a, b) => a.date.localeCompare(b.date));
+    trend.set(id, { gain: d[d.length - 1].best / (d[0].best || 1), n: d.length, name: d[0].name });
+  }
+
+  const out = [];
+  for (const routine of routines) {
+    const groups = new Map();
+    for (const e of routine.exercises || []) {
+      const g = byId.get(e.exerciseId)?.muscleGroup || e.muscleGroup || 'Other';
+      if (g === 'Other' || g === 'Mobility') continue;
+      groups.set(g, [...(groups.get(g) || []), e]);
+    }
+    for (const [group, entries] of groups) {
+      if (entries.length < minMovements) continue;
+      const scored = entries.map((e) => ({ e, t: trend.get(e.exerciseId) })).filter((x) => x.t);
+      if (scored.length < minMovements) continue; // not enough history to judge fairly
+      scored.sort((a, b) => a.t.gain - b.t.gain);
+      const worst = scored[0];
+      const best = scored[scored.length - 1];
+      // only speak when the gap is REAL: the worst went nowhere while another
+      // in the same group genuinely moved
+      if (worst.t.gain > 1.01) continue;
+      if (best.t.gain < 1.05) continue;
+      const worstPct = Math.round((worst.t.gain - 1) * 100);
+      const bestPct = Math.round((best.t.gain - 1) * 100);
+      out.push({
+        kind: 'low-value',
+        key: `lowvalue:${routine.id}:${worst.e.exerciseId}`,
+        routineId: routine.id,
+        routineName: routine.name,
+        exerciseId: worst.e.exerciseId,
+        name: worst.t.name,
+        group,
+        line: `You're running ${entries.length} ${group.toLowerCase()} movements in ${routine.name}, and ${worst.t.name} is the one not paying for its place — ${worstPct <= 0 ? 'flat' : `up only ${worstPct}%`} across ${worst.t.n} sessions while ${best.t.name} went up ${bestPct}%. Cutting it or changing it would buy back time and recovery without costing you ${group.toLowerCase()}.`,
+        fix: { action: 'drop', routineId: routine.id, exerciseId: worst.e.exerciseId },
+      });
+    }
+  }
+  return out;
+}
+
+// TOO LONG ON THE SAME THING: distinct from `stale`, which is about a lift
+// that stopped progressing. This is the variation argument — he has been
+// doing it for months, and a block on something else is worth taking even
+// while it still creeps.
+export function findLongTenure(sessions = [], exercises = [], { weeks = TENURE_WEEKS, minSessions = 10, now = new Date() } = {}) {
+  const byId = new Map(exercises.map((e) => [e.id, e]));
+  const hist = new Map();
+  for (const s of sessions) {
+    for (const ex of s.exercises || []) {
+      const arr = hist.get(ex.exerciseId) || [];
+      arr.push({ date: s.date, name: ex.name });
+      hist.set(ex.exerciseId, arr);
+    }
+  }
+  const recentCut = new Date(now.getTime() - 21 * 86_400_000).toISOString().slice(0, 10);
+  const out = [];
+  for (const [id, arr] of hist) {
+    if (arr.length < minSessions) continue;
+    const d = arr.sort((a, b) => a.date.localeCompare(b.date));
+    // it has to still be IN the program — a lift he already dropped is history
+    if (d[d.length - 1].date < recentCut) continue;
+    const spanWeeks = Math.round((new Date(`${d[d.length - 1].date}T12:00:00`) - new Date(`${d[0].date}T12:00:00`)) / (7 * 86_400_000));
+    if (spanWeeks < weeks) continue;
+    const group = byId.get(id)?.muscleGroup || 'Other';
+    if (group === 'Other' || group === 'Mobility') continue;
+    const alternatives = exercises.filter((e) => e.id !== id && (e.muscleGroup || 'Other') === group).slice(0, 2);
+    out.push({
+      kind: 'tenure',
+      key: `tenure:${id}:${Math.floor(spanWeeks / 4)}`, // re-raisable at most monthly
+      exerciseId: id,
+      name: d[0].name,
+      group,
+      weeks: spanWeeks,
+      sessions: d.length,
+      line: `You've been doing ${d[0].name} for ${spanWeeks} weeks straight — ${d.length} sessions. Even when a lift is still creeping, a block on something else for the same muscle tends to come back stronger${alternatives.length ? `; ${alternatives[0].name} would do it` : ''}.`,
+      fix: alternatives.length ? { action: 'swap', exerciseId: id, replaceWith: alternatives[0].id, group } : null,
+    });
+  }
+  return out;
+}
+
+// THE EFFORT CEILING — the finding that explains the others.
+//
+// Found in his real log while fixing the progression engine: 227 working
+// sets, every one carrying an RPE, and 94% of them at 9 or 10. Training
+// everything at the edge is why so many lifts read "stale" at once — there
+// is no headroom left to progress INTO, and recovery is spent before the
+// next session. A coach would say this once, plainly, rather than issue
+// fourteen identical "hold and control" notes exercise by exercise.
+//
+// Needs a real body of evidence (100+ sets, most carrying RPE) before it
+// speaks, because on a thin log this would just be describing a hard week.
+export const EFFORT_CEILING_SHARE = 0.85;
+
+export function findEffortCeiling(sessions = [], { minSets = 100, share = EFFORT_CEILING_SHARE, now = new Date() } = {}) {
+  const cut = new Date(now.getTime() - 42 * 86_400_000).toISOString().slice(0, 10);
+  let total = 0;
+  let hard = 0;
+  let rated = 0;
+  for (const s of sessions) {
+    if (s.date < cut) continue;
+    for (const ex of s.exercises || []) {
+      if (ex.anomaly) continue;
+      for (const st of ex.sets || []) {
+        if (st.setType === 'warmup') continue;
+        if (!((Number(st.weight) || 0) > 0 || (Number(st.reps) || 0) > 0)) continue;
+        total++;
+        if (st.rpe == null) continue;
+        rated++;
+        if (Number(st.rpe) >= 9) hard++;
+      }
+    }
+  }
+  if (total < minSets) return [];
+  if (rated < total * 0.6) return []; // not enough effort data to judge honestly
+  const pct = hard / rated;
+  if (pct < share) return [];
+  return [{
+    kind: 'effort-ceiling',
+    key: `effort:${Math.round(pct * 100)}:${sessions[0]?.date || ''}`,
+    pct: Math.round(pct * 100),
+    sets: rated,
+    line: `${Math.round(pct * 100)}% of your last ${rated} working sets were RPE 9 or 10. Training every set at the edge leaves nothing to progress into — it's the most likely reason several lifts have gone flat at once. Taking the first set or two of each exercise to an honest 7-8 and saving the 9s for the last set would let the numbers start moving again.`,
+    fix: null, // this is a habit to change on the floor, not a plan edit
+  }];
+}
+
 /* ------------------------------ the review -------------------------------- */
 
 // Priority: a wrong mapping first (it corrupts every other number), then a
-// muscle short for weeks, then a lift that has stopped paying.
-const RANK = { mapping: 0, 'under-volume': 1, stale: 2 };
+// muscle short for weeks, then too much of one thing, then a bloated
+// session, then a movement not paying its way, then a lift that has stopped
+// paying, and last the "you've done this a long time" nudge — which is real
+// but never urgent.
+const RANK = { mapping: 0, 'effort-ceiling': 1, 'under-volume': 2, 'junk-volume': 3, 'routine-oversized': 4, 'low-value': 5, stale: 6, tenure: 7 };
 
 export function rankFindings(findings) {
   return [...findings].sort((a, b) => (RANK[a.kind] ?? 9) - (RANK[b.kind] ?? 9));
@@ -207,17 +472,35 @@ export async function reviewProgram(vaultPath, deps = {}) {
     // the same parser the volume bars use — one definition of "goal muscle"
     focusOf = async (g) => [...(await import('./trainOverview.js')).goalMuscles(g)],
     volume = async (sessions, exercises) => (await import('./trainingAnalytics.js')).weeklyMuscleVolume(sessions, exercises, { weeks: 4 }),
+    // routines are needed to judge "too many exercises" and "which movement
+    // isn't paying" — both are questions about the PROGRAM, not just history
+    loadRoutinesFor = async (exercises) => (await import('./workouts.js')).loadRoutines(vaultPath, exercises).then((r) => r.routines),
     now = new Date(),
   } = deps;
 
   const [sessions, exercises, g] = await Promise.all([loadSessions(), loadExercises(), goals().catch(() => null)]);
   const goalMuscles = await focusOf(g).catch(() => []);
   const weekly = await volume(sessions, exercises);
+  const routines = await loadRoutinesFor(exercises).catch(() => []);
+  // anything Coach placed in the plan recently is off the chopping block
+  const justAdded = await (async () => {
+    try {
+      const { readMarkers } = await import('./coachPlan.js');
+      const markers = await readMarkers();
+      const cut = now.getTime() - 21 * 86_400_000;
+      return new Set(Object.entries(markers).filter(([, m]) => new Date(m.at || 0).getTime() > cut).map(([k]) => k));
+    } catch { return new Set(); }
+  })();
 
   const findings = [
     ...findMappingSuspects(exercises),
     ...findChronicUnderVolume(weekly, { goalMuscles }),
+    ...findEffortCeiling(sessions, { now }),
+    ...findJunkVolume(weekly),
+    ...findOversizedRoutines(sessions, routines, { now, justAdded }),
+    ...findLowValueExercises(sessions, exercises, routines),
     ...findStaleLifts(sessions, exercises, { now }),
+    ...findLongTenure(sessions, exercises, { now }),
   ];
   return { findings: rankFindings(findings), counts: { sessions: sessions.length, exercises: exercises.length } };
 }

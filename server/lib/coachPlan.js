@@ -259,7 +259,12 @@ export function opsFromFix(fix) {
   if (fix.action === 'remap') return [{ op: 'remap', exerciseId: fix.exerciseId, muscleGroup: fix.muscleGroup }];
   if (fix.action === 'swap') return [{ op: 'swap', exerciseId: fix.exerciseId, replaceWith: fix.replaceWith }];
   if (fix.action === 'weighted-variant') return [{ op: 'weighted-variant', exerciseId: fix.exerciseId, startWeightKg: fix.startWeightKg }];
-  return null; // add-sets and observations stay a conversation, not a button
+  // "this movement isn't paying for its place" — cutting it is one tap, and
+  // fully undoable like every other plan change
+  if (fix.action === 'drop' && fix.routineId && fix.exerciseId) return [{ op: 'remove', routineId: fix.routineId, exerciseId: fix.exerciseId }];
+  return null; // add-sets, junk-volume and session-bloat stay a conversation:
+  // WHICH set or movement to cut is his call, and a coach that silently
+  // deletes training is not one you keep
 }
 
 /* ---------------------------- the amend path ----------------------------- */
