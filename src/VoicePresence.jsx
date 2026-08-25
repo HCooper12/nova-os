@@ -3,6 +3,7 @@ import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
 import { useDictation } from './useDictation.js';
 import { StageCard } from './StageCard.jsx';
+import { SafeVisual } from './SafeVisual.jsx';
 
 const M = 'var(--nv-font-mono)';
 
@@ -84,7 +85,7 @@ export function VoicePresence({ v }) {
           itself and changing as Nova moves to the next line */}
       {s.card && (
         <div style={css('pointer-events:auto;width:min(430px,100%)')}>
-          <StageCard card={s.card} />
+          <SafeVisual what="stage-card" resetKey={s.card?.label}><StageCard card={s.card} /></SafeVisual>
         </div>
       )}
 

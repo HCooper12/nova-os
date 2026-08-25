@@ -743,7 +743,24 @@ export function startAskCoach(cwd, { question, context, sessionId }) {
       } else if (parseError) {
         text += `\n\n(I tried to draft that change but ${parseError} — ask again and I'll re-propose.)`;
       }
-      turnJob.result = { text, sessionId: effectiveSessionId, proposal: proposalOut };
+      // EVIDENCE BY DEFAULT, here too. Coach is where he asks about training
+      // data most ("how has push been going", "how is my bench"), and it was
+      // the one answer path that could never put a figure on screen — its
+      // result carried text and a proposal and nothing to look at.
+      let coachPanel = null;
+      try {
+        const { inferPanelDirective, buildPanel } = await import('./panels.js');
+        const { loadExerciseLibrary } = await import('./exercises.js');
+        const { loadRoutines } = await import('./workouts.js');
+        const { exercises } = await loadExerciseLibrary(cwd);
+        const { routines } = await loadRoutines(cwd, exercises);
+        const guess = inferPanelDirective(question, {
+          routines: routines.map((r) => r.name),
+          exercises: exercises.map((e) => e.name),
+        });
+        if (guess) coachPanel = await buildPanel(cwd, guess);
+      } catch { /* no panel rather than a wrong one */ }
+      turnJob.result = { text, sessionId: effectiveSessionId, proposal: proposalOut, panel: coachPanel };
       turnJob.status = 'ready';
     } catch (e) {
       turnJob.status = 'error';

@@ -12,8 +12,18 @@ const M = 'var(--nv-font-mono)';
 const TONE = { cy: 'var(--nv-cy)', gold: 'var(--nv-gold)', warn: 'var(--nv-warn)', good: 'var(--nv-good)', vi: 'var(--nv-vi)' };
 const toneOf = (t) => TONE[t] || TONE.cy;
 
+const DRAWABLE = new Set(['metric', 'bars', 'list']);
+
 export function StageCard({ card, size = 'full' }) {
   if (!card) return null;
+  // An unrecognised kind used to render the glass with a label and NOTHING
+  // inside — a lit, empty box that reads as the app having broken. If we
+  // cannot draw the shape, we draw nothing at all: honest silence beats a
+  // frame around a void. (A genuinely empty list is already impossible —
+  // listCard returns null rather than an empty card.)
+  if (!DRAWABLE.has(card.kind)) return null;
+  if (card.kind === 'list' && !(card.items || []).length) return null;
+  if (card.kind === 'bars' && !(card.bars || []).length) return null;
   const mini = size === 'mini';
   const accent = toneOf(card.tone);
   const pad = mini ? '10px 12px' : '18px 20px 16px';
@@ -39,7 +49,7 @@ export function StageCard({ card, size = 'full' }) {
 
       {card.kind === 'bars' && (
         <div style={css(`display:flex;align-items:flex-end;gap:${mini ? 4 : 9}px;height:${mini ? 44 : 104}px;margin-top:${mini ? 8 : 16}px`)}>
-          {card.bars.map((b, i) => (
+          {(card.bars || []).map((b, i) => (
             <div key={i} style={css('flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;height:100%;gap:5px')}>
               <div style={{ height: `${b.pct}%`, borderRadius: '3px 3px 0 0', background: `linear-gradient(180deg, ${toneOf(b.tone) || accent}, color-mix(in srgb, ${toneOf(b.tone) || accent} 35%, transparent))` }}></div>
               {!mini && <span style={{ font: `500 7.5px ${M}`, letterSpacing: '.06em', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</span>}
@@ -50,7 +60,7 @@ export function StageCard({ card, size = 'full' }) {
 
       {card.kind === 'list' && (
         <div style={css(`margin-top:${mini ? 7 : 13}px;display:flex;flex-direction:column;gap:${mini ? 5 : 9}px`)}>
-          {(mini ? card.items.slice(0, 3) : card.items).map((it, i) => (
+          {(mini ? (card.items || []).slice(0, 3) : (card.items || [])).map((it, i) => (
             <div key={i} style={css('display:flex;align-items:baseline;gap:9px')}>
               <span style={{ width: '3px', height: '3px', borderRadius: '50%', flex: 'none', background: toneOf(it.tone) || accent, transform: 'translateY(-2px)' }}></span>
               <span style={{ flex: 1, minWidth: 0, fontSize: mini ? '10.5px' : '13px', color: 'color-mix(in srgb, var(--nv-ink) 92%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.name}</span>

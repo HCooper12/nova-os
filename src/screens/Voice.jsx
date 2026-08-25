@@ -9,6 +9,7 @@ import { TypeText } from '../TypeText.jsx';
 import { LocalInput } from '../LocalInput.jsx';
 import { VoiceWaveform } from '../VoiceWaveform.jsx';
 import { StageCard } from '../StageCard.jsx';
+import { SafeVisual } from '../SafeVisual.jsx';
 
 // iOS dictation has no mic tap (SpeechRecognition owns the microphone), so
 // its listening indicator stays the state bars; everywhere a real meter
@@ -190,7 +191,7 @@ export function Voice({ v }) {
                 {m.research?.status === 'error' && (
                   <div style={css(`margin-top:8px;font:500 10px ${M};color:var(--nv-warn)`)}>RESEARCH DIDN’T COMPLETE — {m.research.error || 'check the Inbox'}</div>
                 )}
-                {m.research?.status === 'done' && <SourcesPanel r={m.research} />}
+                {m.research?.status === 'done' && <SafeVisual what="sources" resetKey={m.at}><SourcesPanel r={m.research} /></SafeVisual>}
                 {m.proposal && (
                   <div style={css("margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent);border-radius:9px;padding:8px 12px;background:color-mix(in srgb, var(--nv-gold) 05%, transparent)")}>
                     <span style={css(`font:500 10.5px ${M};color:var(--nv-gold)`)}>◈ {m.proposal.title}</span>
@@ -205,7 +206,7 @@ export function Voice({ v }) {
                     {m.proposal.status === 'error' && <span style={css(`font:500 9.5px ${M};color:var(--nv-warn)`)}>STILL PENDING IN INBOX</span>}
                   </div>
                 )}
-                {m.panel && <VoicePanel panel={m.panel} />}
+                {m.panel && <SafeVisual what={`panel:${m.panel.type}`} resetKey={m.at}><VoicePanel panel={m.panel} /></SafeVisual>}
                 {/* the evidence card Nova is referring to, one tap away */}
                 {m.evidence && (
                   <Interactive onClick={m.evidence.open}
@@ -283,7 +284,7 @@ export function Voice({ v }) {
               "let me put it on the glass"). */}
           {onGlass && (
             <div style={css(`width:min(${v.stageFocus ? 520 : 420}px,100%);position:relative`)}>
-              <StageCard card={v.stageCard} />
+              <SafeVisual what="stage-card" resetKey={v.stageCard?.label}><StageCard card={v.stageCard} /></SafeVisual>
               {v.stageFocus && (
                 <Interactive as="span" onClick={v.dismissStage} aria-label="Dismiss the card"
                   base={css(`position:absolute;top:8px;right:10px;cursor:pointer;font:400 16px/1 ${M};color:color-mix(in srgb, var(--nv-ink) 35%, transparent);padding:3px 6px`)}
@@ -352,7 +353,7 @@ export function Voice({ v }) {
                   <Interactive key={i} onClick={() => v.focusCard(c)} aria-label={`Bring “${c.label}” back to the middle`}
                     base={css('cursor:pointer;border-radius:10px;display:block')}
                     hoverStyle="filter:brightness(1.35)">
-                    <StageCard card={c} size="mini" />
+                    <SafeVisual what="stage-card-mini" resetKey={c?.label}><StageCard card={c} size="mini" /></SafeVisual>
                   </Interactive>
                 ))}
               </div>

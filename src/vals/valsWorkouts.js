@@ -380,7 +380,7 @@ export function valsWorkouts(app, ctx) {
     planMeta: plan.length + ' LIFTS · ' + (st.planNote ? 'EDITED BY COACH' : '~42 MIN · AS PLANNED'),
     planNoteOn: !!st.planNote, planNote: st.planNote,
     coachMsgs: st.coachChat.map(m => Object.assign({
-      text: m.text, typing: m.typing,
+      text: m.text, typing: m.typing, panel: m.panel || null, at: m.at,
       tag: m.who === 'coach' ? '» COACH' : m.who === 'system' ? '» SYSTEM' : '» YOU',
       tagStyle: { font: "500 10px var(--nv-font-mono)", color: m.who === 'coach' ? 'var(--nv-cy)' : m.who === 'system' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' },
     }, bubble(m.who))),

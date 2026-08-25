@@ -4,6 +4,7 @@ import { Interactive } from '../Interactive.jsx';
 import { LocalInput } from '../LocalInput.jsx';
 import { VoicePanel } from '../VoicePanels.jsx';
 import { useDictation } from '../useDictation.js';
+import { SafeVisual } from '../SafeVisual.jsx';
 
 // Apple-layout twin for the eaten-today strip: same dayMacros object,
 // rendered as four stat tiles instead of the inline HUD strip.
@@ -110,7 +111,7 @@ export function Recipes({ v }) {
           voice panel; the archive is calendar-true so gaps show honestly */}
       {v.fuelWeek && (
         <div style={css("margin-top:12px")}>
-          <VoicePanel panel={{ type: 'nutrition-week', data: v.fuelWeek }} />
+          <SafeVisual what="panel:nutrition-week"><VoicePanel panel={{ type: 'nutrition-week', data: v.fuelWeek }} /></SafeVisual>
         </div>
       )}
 

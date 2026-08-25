@@ -4781,9 +4781,17 @@ export default class App extends Component {
       clearTimeout(this.showWatchdogT);
       this.setState({ voiceBusy: false });
       if (!steps?.length) { this.toastMsg('Nothing to brief right now.'); return; }
-      // it is speaking, so the day is genuinely briefed
-      if (opts.auto) this.markBriefedToday();
       const spoken = this.state.voiceSpeak && this.state.liveTts?.configured;
+      // THE DAY IS BRIEFED WHEN HE ACTUALLY HEARS IT — not when the steps
+      // arrive. On his phone an automatic brief has NO user gesture behind
+      // it (it fires on a timer after the app opens), and iOS refuses audio
+      // outside a gesture: every line was blocked, yet the day was already
+      // stamped briefed, so it never tried again and the automatic brief
+      // simply never spoke. Marking on genuine playback means a blocked
+      // morning retries on the next open instead of being written off.
+      // When speech is off entirely, reading it IS the brief.
+      if (opts.auto && !spoken) this.markBriefedToday();
+      if (opts.auto && spoken) this.briefPendingMark = true;
       this.clearStage();
       for (const st of steps) {
         const show = () => {
@@ -5213,6 +5221,8 @@ export default class App extends Component {
   noteSpeechHeard() {
     this.speechEverPlayed = true;
     this.speechBlockedTexts = [];
+    // the automatic brief only counts as delivered once a line truly played
+    if (this.briefPendingMark) { this.briefPendingMark = false; this.markBriefedToday(); }
     if (this.state.speechBlocked) this.setState({ speechBlocked: null });
   }
   // It didn't. Say so, and keep the words so one tap can play them: a tap is
@@ -5428,7 +5438,9 @@ export default class App extends Component {
               localStorage.setItem('novaos.coachSession', job.result.sessionId);
               this.setState({ coachSessionId: job.result.sessionId });
             }
-            this.finalizeStream('coachChat', { who: 'coach', text: job.result.text }, { coachBusy: false });
+            // keep the panel: a Coach answer with a figure on screen is the
+            // whole point — dropping it here is how the sweep stayed incomplete
+            this.finalizeStream('coachChat', { who: 'coach', text: job.result.text, panel: job.result.panel || undefined }, { coachBusy: false });
             // a proposed program change landed on the rails as a pending record
             if (job.result.proposal) {
               this.refreshInbox();

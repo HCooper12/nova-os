@@ -6,6 +6,8 @@ import { Term } from '../Glossary.jsx';
 import { TypeText } from '../TypeText.jsx';
 import { ChatMarkdown } from '../ChatMarkdown.jsx';
 import { TrainToday } from '../TrainToday.jsx';
+import { SafeVisual } from '../SafeVisual.jsx';
+import { VoicePanel } from '../VoicePanels.jsx';
 
 // Inputs render at 16px (global rule in index.css) so iOS never zoom-jumps on
 // focus — widths/padding here are sized for that, not the old 11–12px text.
@@ -672,7 +674,16 @@ function SessionView({ v }) {
               <div style={css("color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>"That last set felt heavy — drop the weight?" · "Shoulder's niggling on these, alternative?" · "Only 20 minutes left, what do I cut?"</div>
             )}
             {v.coachMsgs.map((m, i) => (
-              <div key={i} style={m.style}><span style={m.tagStyle}>{m.tag}</span> {m.typing ? <TypeText text={m.text} active /> : <ChatMarkdown text={m.text} />}</div>
+              <div key={i} style={m.style}>
+                <span style={m.tagStyle}>{m.tag}</span> {m.typing ? <TypeText text={m.text} active /> : <ChatMarkdown text={m.text} />}
+                {/* Coach answers questions ABOUT DATA — the figure belongs on
+                    screen beside the words, same as everywhere else. */}
+                {m.panel && (
+                  <SafeVisual what={`panel:${m.panel.type}`} resetKey={m.at}>
+                    <VoicePanel panel={m.panel} />
+                  </SafeVisual>
+                )}
+              </div>
             ))}
             {v.coachBusy && <div style={css("color:var(--nv-cy);font:400 11px var(--nv-font-mono)")}>» COACH looking at your session…▍</div>}
           </div>

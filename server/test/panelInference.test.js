@@ -97,3 +97,27 @@ test('case and spacing do not matter — he speaks, he does not type', () => {
   assert.equal(infer('PULL UP MY RECENT UPPER BODY SESSIONS')?.routine, 'Upper Body');
   assert.equal(infer('Show me my Recent Upper Body Sessions')?.routine, 'Upper Body');
 });
+
+// The panel data contract the renderers depend on. Every renderer maps over
+// these arrays; a builder that returns a shape without them crashed the whole
+// screen on his phone (there was no error boundary anywhere in the app).
+test('the sessions panel always carries the arrays its renderer maps over', async () => {
+  const { buildPanel } = await import('../lib/panels.js');
+  const { mkdtemp, mkdir } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const path = (await import('node:path')).default;
+  const v = await mkdtemp(path.join(tmpdir(), 'nova-panel-'));
+  await mkdir(path.join(v, 'Wiki/Health/Workouts'), { recursive: true });
+
+  // an EMPTY vault is the shape most likely to break a renderer
+  const p = await buildPanel(v, { panel: 'sessions', routine: 'Upper Body' });
+  assert.equal(p.type, 'sessions');
+  assert.ok(Array.isArray(p.data.sessions), 'sessions must be an array, never undefined');
+  assert.equal(p.data.sessions.length, 0);
+  assert.match(p.data.note, /Upper Body/, 'an empty result names the filter that found nothing');
+});
+
+test('an unknown panel name is refused rather than half-built', async () => {
+  const { buildPanel } = await import('../lib/panels.js');
+  await assert.rejects(() => buildPanel('/tmp', { panel: 'not-a-panel' }), /unknown panel/);
+});

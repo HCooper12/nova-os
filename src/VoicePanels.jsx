@@ -21,18 +21,18 @@ function Card({ label, children }) {
 function TrainingWeek({ d }) {
   return (
     <Card label="TRAINING WEEK · LIVE FROM YOUR LOG">
-      {d.days.map((day) => (
+      {(d.days || []).map((day) => (
         <div key={day.date} style={css(`display:flex;align-items:baseline;gap:10px;padding:4px 0;font:400 11.5px ${M};${day.isToday ? 'color:var(--nv-cy)' : `color:${dim(80)}`}`)}>
           <span style={css(`width:34px;flex:none;font-size:9.5px;letter-spacing:.14em;color:${day.isToday ? 'var(--nv-cy)' : dim(45)}`)}>{day.weekday}</span>
           <span style={css("flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{day.planned}</span>
           {day.done.length > 0
-            ? <span style={css("flex:none;color:var(--nv-good)")}>✓ {day.done.map((s) => `${s.name} · ${s.sets} sets`).join(' + ')}</span>
+            ? <span style={css("flex:none;color:var(--nv-good)")}>✓ {(day.done || []).map((s) => `${s.name} · ${s.sets} sets`).join(' + ')}</span>
             : <span style={css(`flex:none;color:${dim(30)}`)}>—</span>}
         </div>
       ))}
       {d.carryovers.length > 0 && (
         <div style={css(`margin-top:7px;padding-top:7px;border-top:1px solid ${dim(8)};font:400 10.5px ${M};color:var(--nv-gold)`)}>
-          {d.carryovers.map((c) => `+ ${c.count} carried from ${c.from} · due ${c.due}`).join(' · ')}
+          {(d.carryovers || []).map((c) => `+ ${c.count} carried from ${c.from} · due ${c.due}`).join(' · ')}
         </div>
       )}
     </Card>
@@ -56,22 +56,22 @@ function Exercise({ d }) {
       {d.resourceUrl && (
         <a href={d.resourceUrl} target="_blank" rel="noopener noreferrer" style={css(`display:block;margin-bottom:6px;font:500 11px ${M};color:var(--nv-cy);text-decoration:underline;text-underline-offset:2px`)}>▶ form / technique resource</a>
       )}
-      {d.recent.length === 0 && <div style={css(`font:400 11px ${M};color:${dim(40)}`)}>No logged sessions yet for this one.</div>}
-      {d.recent.map((r) => (
+      {!(d.recent || []).length && <div style={css(`font:400 11px ${M};color:${dim(40)}`)}>No logged sessions yet for this one.</div>}
+      {(d.recent || []).map((r) => (
         <div key={r.date + r.sets} style={css(`display:flex;gap:10px;padding:3px 0;font:400 11px ${M};color:${dim(78)}`)}>
           <span style={css(`flex:none;color:${dim(45)}`)}>{r.date.slice(5)}</span>
           <span style={css("flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{r.sets}</span>
         </div>
       ))}
-      {d.inRoutines.length > 0 && (
-        <div style={css(`margin-top:7px;font:400 10px ${M};letter-spacing:.06em;color:${dim(40)}`)}>IN: {d.inRoutines.join(' · ')}</div>
+      {(d.inRoutines || []).length > 0 && (
+        <div style={css(`margin-top:7px;font:400 10px ${M};letter-spacing:.06em;color:${dim(40)}`)}>IN: {(d.inRoutines || []).join(' · ')}</div>
       )}
     </Card>
   );
 }
 
 function NutritionWeek({ d }) {
-  const max = Math.max(d.floor || 0, ...d.days.map((x) => x.p || 0), 1);
+  const max = Math.max(d.floor || 0, ...(d.days || []).map((x) => x.p || 0), 1);
   return (
     <Card label="PROTEIN · LAST 7 DAYS">
       {d.days.length === 0 && <div style={css(`font:400 11px ${M};color:${dim(40)}`)}>No tracked days yet.</div>}
@@ -79,7 +79,7 @@ function NutritionWeek({ d }) {
         {d.floor != null && (
           <div style={css(`position:absolute;left:0;right:0;bottom:${(d.floor / max) * 76}%;border-top:1px dashed ${dim(28)}`)} />
         )}
-        {d.days.map((day) => (
+        {(d.days || []).map((day) => (
           <div key={day.date} style={css("flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end")}>
             <span style={css(`font:500 9px ${M};color:${day.floorMet ? 'var(--nv-good)' : dim(55)}`)}>{day.p ?? '·'}</span>
             <div style={css(`width:100%;max-width:26px;border-radius:4px 4px 0 0;height:${day.p ? Math.max(6, (day.p / max) * 76) : 3}%;background:${day.p == null ? dim(12) : day.floorMet ? 'color-mix(in srgb, var(--nv-good) 55%, transparent)' : dim(25)}`)} />
@@ -87,7 +87,7 @@ function NutritionWeek({ d }) {
         ))}
       </div>
       <div style={css("display:flex;gap:6px;margin-top:4px")}>
-        {d.days.map((day) => (
+        {(d.days || []).map((day) => (
           <span key={day.date} style={css(`flex:1;text-align:center;font:400 8.5px ${M};color:${dim(38)}`)}>{day.date.slice(8)}</span>
         ))}
       </div>
@@ -115,7 +115,7 @@ function Pulse({ d }) {
   return (
     <Card label={`PULSE · ${d.topic.toUpperCase()} · ${d.ageLabel.toUpperCase()}`}>
       <div style={css("display:flex;flex-direction:column;gap:6px")}>
-        {d.items.map((l) => (
+        {(d.items || []).map((l) => (
           <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer"
             style={css(`display:flex;flex-direction:column;gap:2px;text-decoration:none;border:1px solid ${dim(10)};border-radius:8px;padding:8px 11px;background:${dim(3)}`)}>
             <span style={css(`font:500 11.5px ${M};color:var(--nv-cy)`)}>{l.title}</span>
@@ -137,14 +137,14 @@ function Sessions({ d }) {
   return (
     <Card label={`${label} · LIVE FROM YOUR LOG`}>
       {d.note && <div style={css(`font:400 11px ${M};color:${dim(45)}`)}>{d.note}</div>}
-      {d.sessions.map((s) => (
+      {(d.sessions || []).map((s) => (
         <div key={s.date + s.routineName} style={css(`padding:7px 0;border-top:1px solid ${dim(7)}`)}>
           <div style={css(`display:flex;align-items:baseline;gap:9px;font:500 10.5px ${M}`)}>
             <span style={css(`flex:none;color:var(--nv-cy)`)}>{s.date.slice(5)}</span>
             <span style={css("flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{s.routineName}</span>
             <span style={css(`flex:none;color:${dim(42)}`)}>{s.totalSets} sets</span>
           </div>
-          {s.exercises.map((e, i) => (
+          {(s.exercises || []).map((e, i) => (
             <div key={i} style={css(`display:flex;gap:9px;padding:2px 0 2px 4px;font:400 10.5px ${M};color:${dim(72)}`)}>
               <span style={css("flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{e.name}</span>
               <span style={css(`flex:none;color:${dim(50)}`)}>{e.top || `${e.setCount}\u00d7`}</span>
