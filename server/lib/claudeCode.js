@@ -374,6 +374,25 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
           text = `${text} (I tried to put a panel up for that, but ${e.message}.)`;
         }
       }
+      // EVIDENCE BY DEFAULT. If the model did not ask for a panel, code
+      // decides one from the QUESTION. A spoken answer with nothing on screen
+      // is the thing he cannot follow when Nova talks faster than he reads —
+      // so the visual stops depending on the model remembering to request it.
+      // Silent on failure: no panel is honest, a wrong one is not.
+      if (!panel) {
+        try {
+          const { inferPanelDirective } = await import('./panels.js');
+          const { loadExerciseLibrary } = await import('./exercises.js');
+          const { loadRoutines } = await import('./workouts.js');
+          const { exercises } = await loadExerciseLibrary(cwd);
+          const { routines } = await loadRoutines(cwd, exercises);
+          const guess = inferPanelDirective(question, {
+            routines: routines.map((r) => r.name),
+            exercises: exercises.map((e) => e.name),
+          });
+          if (guess) panel = await buildPanel(cwd, guess);
+        } catch { /* no panel rather than a wrong one */ }
+      }
       // The model may also PROPOSE one action — parsed off the reply and
       // turned into a PENDING record on the rails. Nothing is written until
       // Hayden says yes; a bad proposal degrades to an honest note.

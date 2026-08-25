@@ -15,7 +15,7 @@ import matter from 'gray-matter';
 // data DETERMINISTICALLY from the vault. The model never draws a number.
 // Missing data renders as missing — a panel is a view, never a claim.
 
-export const PANEL_TYPES = ['training-week', 'exercise', 'nutrition-week', 'note', 'pulse'];
+export const PANEL_TYPES = ['training-week', 'exercise', 'nutrition-week', 'note', 'pulse', 'sessions'];
 
 export function parseShowDirective(text) {
   const m = (text || '').match(/^\s*SHOW\s+(\{.*\})\s*$/m);
@@ -158,6 +158,53 @@ async function buildPulse(topic) {
   return { topic: entry.topic, ageLabel: ageH < 1 ? 'fresh' : `${ageH}h old`, items: entry.items };
 }
 
+// RECENT SESSIONS — what he actually did, session by session.
+//
+// The panel that was missing when he asked Nova to "pull up my recent upper
+// body sessions" and got speech with nothing to look at. `training-week`
+// answers "what is scheduled", `exercise` answers "how is this ONE lift
+// going" — neither answers "show me my last few Upper Body workouts", which
+// is the most ordinary training question there is.
+//
+// The routine filter is fuzzy on purpose: he says "upper body", the routine
+// is called "Upper Body", and an exact match would fail on the space or the
+// case and silently show him everything instead.
+async function buildSessions(vaultPath, routineFilter) {
+  const ci = (x) => String(x || '').trim().toLowerCase();
+  const want = ci(routineFilter);
+  const all = await loadSessions(vaultPath, { limit: 30 });
+  const matched = want
+    ? all.filter((s) => ci(s.routineName).includes(want) || want.includes(ci(s.routineName)))
+    : all;
+  const sessions = matched.slice(0, 5).map((s) => {
+    const exercises = (s.exercises || []).map((e) => {
+      const sets = (e.sets || []).filter((x) => x.setType !== 'warmup');
+      const best = sets.reduce((b, x) => {
+        const w = Number(x.weight) || 0; const r = Number(x.reps) || 0;
+        const score = w > 0 ? w * (1 + r / 30) : r;
+        return score > (b?.score ?? -1) ? { score, w, r } : b;
+      }, null);
+      return {
+        name: e.name || e.exerciseId,
+        setCount: sets.length,
+        sets: sets.map((x) => `${x.weight || 0}×${x.reps || 0}${x.rpe != null ? '@' + x.rpe : ''}`).join('  '),
+        top: best && best.w > 0 ? `${best.w}kg × ${best.r}` : (best ? `${best.r} reps` : null),
+      };
+    }).filter((e) => e.setCount > 0);
+    return {
+      date: s.date,
+      routineName: s.routineName || 'Session',
+      totalSets: exercises.reduce((n, e) => n + e.setCount, 0),
+      exercises,
+    };
+  });
+  // Honest emptiness: say WHICH filter found nothing, never a blank card.
+  const note = sessions.length ? null
+    : (want ? `Nothing logged for a routine matching "${routineFilter}" in the last 30 sessions.`
+      : 'No sessions logged yet.');
+  return { filter: routineFilter || null, matchedCount: matched.length, sessions, note };
+}
+
 export async function buildPanel(vaultPath, directive) {
   const type = String(directive?.panel || '').toLowerCase();
   if (!PANEL_TYPES.includes(type)) throw new Error(`unknown panel "${directive?.panel}"`);
@@ -165,5 +212,60 @@ export async function buildPanel(vaultPath, directive) {
   if (type === 'exercise') return { type, data: await buildExercise(vaultPath, directive.name) };
   if (type === 'note') return { type, data: await buildNote(vaultPath, directive.title || directive.name) };
   if (type === 'pulse') return { type, data: await buildPulse(directive.topic) };
+  if (type === 'sessions') return { type, data: await buildSessions(vaultPath, directive.routine || directive.name) };
   return { type, data: await buildNutritionWeek(vaultPath) };
+}
+
+// ---------------------------------------------------------------------------
+// EVIDENCE BY DEFAULT.
+//
+// Panels used to exist only if the MODEL remembered to end its answer with a
+// SHOW directive. That made the visual optional, and optional is why he asked
+// for his recent Upper Body sessions, got a spoken answer, and had nothing to
+// look at while Nova talked — which is the whole problem with keeping up when
+// it speaks faster than he can process.
+//
+// So the fallback is deterministic: code reads the QUESTION and decides what
+// evidence belongs on screen. Models decide what to say; code decides what to
+// show. It returns null rather than guessing when nothing fits — an
+// irrelevant panel is worse than none, and a wrong one is a lie.
+//
+// Pure and total: the caller passes the names it knows about, so this can be
+// tested exhaustively without a vault.
+export function inferPanelDirective(question, { routines = [], exercises = [] } = {}) {
+  const q = String(question || '').toLowerCase();
+  if (!q.trim()) return null;
+  const has = (re) => re.test(q);
+
+  // An exercise named outright wins — it is the most specific thing he can
+  // ask about. Longest name first so "Incline Dumbbell Bench" is not matched
+  // as plain "Bench".
+  const named = [...exercises]
+    .filter((n) => String(n || '').trim().length >= 4)
+    .sort((a, b) => b.length - a.length)
+    .find((n) => q.includes(String(n).toLowerCase()));
+
+  // "my last few X sessions" — the routine view he actually asked for.
+  const sessionish = has(/\b(session|workout|training)s?\b/) && has(/\b(recent|last|latest|previous|past|pull up|show|history|few)\b/);
+  const routine = [...routines]
+    .sort((a, b) => b.length - a.length)
+    .find((n) => q.includes(String(n).toLowerCase()));
+  if (sessionish) return { panel: 'sessions', ...(routine ? { routine } : {}) };
+  if (routine && has(/\b(how|what|show|pull up|did|been)\b/) && !named) return { panel: 'sessions', routine };
+
+  if (named && has(/\b(how|what|show|progress|going|lift|heavy|strong|set|rep|weight|e1rm|pr)\b/)) {
+    return { panel: 'exercise', name: named };
+  }
+
+  if (has(/\b(this week|week'?s|schedule|scheduled|training week|split|next session|what am i (doing|training)|rest day)\b/)) {
+    return { panel: 'training-week' };
+  }
+  if (has(/\b(protein|calories?|kcal|macros?|carbs?|fats?|nutrition|eaten|ate|eating|diet|deficit|surplus)\b/)) {
+    return { panel: 'nutrition-week' };
+  }
+  if (has(/\b(hrv|sleep|slept|steps?|resting heart|recovery|readiness|weight trend|body ?weight)\b/)) {
+    return { panel: 'pulse' };
+  }
+  if (named) return { panel: 'exercise', name: named };
+  return null;
 }

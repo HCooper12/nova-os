@@ -128,6 +128,34 @@ function Pulse({ d }) {
   );
 }
 
+// RECENT SESSIONS — the panel that was missing when he asked to see his last
+// few Upper Body workouts. Each session is a header (date, routine, set
+// count) and the lifts under it with their real sets, so he can read along
+// while Nova talks instead of trying to hold numbers in his head.
+function Sessions({ d }) {
+  const label = d.filter ? `RECENT · ${String(d.filter).toUpperCase()}` : 'RECENT SESSIONS';
+  return (
+    <Card label={`${label} · LIVE FROM YOUR LOG`}>
+      {d.note && <div style={css(`font:400 11px ${M};color:${dim(45)}`)}>{d.note}</div>}
+      {d.sessions.map((s) => (
+        <div key={s.date + s.routineName} style={css(`padding:7px 0;border-top:1px solid ${dim(7)}`)}>
+          <div style={css(`display:flex;align-items:baseline;gap:9px;font:500 10.5px ${M}`)}>
+            <span style={css(`flex:none;color:var(--nv-cy)`)}>{s.date.slice(5)}</span>
+            <span style={css("flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{s.routineName}</span>
+            <span style={css(`flex:none;color:${dim(42)}`)}>{s.totalSets} sets</span>
+          </div>
+          {s.exercises.map((e, i) => (
+            <div key={i} style={css(`display:flex;gap:9px;padding:2px 0 2px 4px;font:400 10.5px ${M};color:${dim(72)}`)}>
+              <span style={css("flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{e.name}</span>
+              <span style={css(`flex:none;color:${dim(50)}`)}>{e.top || `${e.setCount}\u00d7`}</span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </Card>
+  );
+}
+
 export function VoicePanel({ panel }) {
   if (!panel || !panel.data) return null;
   if (panel.type === 'training-week') return <TrainingWeek d={panel.data} />;
@@ -135,6 +163,7 @@ export function VoicePanel({ panel }) {
   if (panel.type === 'nutrition-week') return <NutritionWeek d={panel.data} />;
   if (panel.type === 'note') return <Note d={panel.data} />;
   if (panel.type === 'pulse') return <Pulse d={panel.data} />;
+  if (panel.type === 'sessions') return <Sessions d={panel.data} />;
   return null;
 }
 
