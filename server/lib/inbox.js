@@ -1185,6 +1185,11 @@ export async function approveRecord(vaultPath, id) {
   if (record.kind === 'fuel-cross') {
     return updateRecord(id, { status: 'filed', destination: null, filedAt: new Date().toISOString(), auto: false, error: null });
   }
+  // A read-next proposal is a suggestion about the WORLD, not a vault write:
+  // approving it means "noted", because only he can decide what to buy.
+  if (record.kind === 'read-next') {
+    return updateRecord(id, { status: 'filed', destination: null, filedAt: new Date().toISOString(), auto: false, error: null });
+  }
   // The weekly program audit is the same shape: a receipt that the sweep ran.
   // The findings inside it are raised separately as their own coach-program
   // records with their own fixes — approving the audit acknowledges the

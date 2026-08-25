@@ -235,6 +235,17 @@ export function startCoachCadenceScheduler(vaultPath) {
             console.log(`coach weekly audit: ${audit.summary}`);
           }
         } catch (e) { console.log('coach weekly audit failed:', e.message); }
+
+        // READ NEXT — the graph proposing what to read, weekly, one at a
+        // time. Rides the same Monday window; raiseReadNext keeps itself to
+        // a single open proposal so it can never become a reading list.
+        try {
+          if (new Date().getDay() === 1) {
+            const { raiseReadNext } = await import('./readNext.js');
+            const { raised, gaps } = await raiseReadNext(vaultPath);
+            if (raised) console.log(`read-next: raised "${raised.meta?.concept}" (${gaps} gap(s) in the graph)`);
+          }
+        } catch (e) { console.log('read-next failed:', e.message); }
       }
       if (h >= 16 && h < 19) await missedSessionNudge(vaultPath); // early enough to still train
     } catch (err) {
