@@ -102,6 +102,43 @@ export async function confirmCompletion(vaultPath) {
   });
 }
 
+// CLEAR THE WHOLE LIST. Ticking twenty things off one at a time to empty a
+// list is bookkeeping, not shopping. Returns everything it removed so the
+// caller can put it straight back — wiping a list is the most destructive
+// thing this file does, and "everything writeable is undoable" is not
+// optional for the destructive ones.
+export async function clearAll(vaultPath) {
+  return withWriteLock(async () => {
+    const cleared = await getItems(vaultPath);
+    if (cleared.length) await persist(vaultPath, []);
+    return cleared;
+  });
+}
+
+// The undo half. Restores items VERBATIM — same ids, same categories, same
+// checked state — so an undo returns the list he had, not a reconstruction
+// of it. Items already present are skipped rather than duplicated, which
+// makes a double-tapped undo harmless.
+export async function restoreItems(vaultPath, items) {
+  const incoming = (Array.isArray(items) ? items : [])
+    .map((it) => ({
+      id: String(it?.id || '').trim() || randomUUID().slice(0, 8),
+      name: String(it?.name || '').trim(),
+      category: CATEGORIES.includes(it?.category) ? it.category : 'Household & Other',
+      checked: !!it?.checked,
+      source: it?.source || null,
+    }))
+    .filter((it) => it.name);
+  if (!incoming.length) throw new Error('nothing to restore');
+  return withWriteLock(async () => {
+    const current = await getItems(vaultPath);
+    const have = new Set(current.map((i) => i.id));
+    const merged = [...current, ...incoming.filter((i) => !have.has(i.id))];
+    await persist(vaultPath, merged);
+    return merged;
+  });
+}
+
 // --- add-items categorization job (async, claude-powered) ---
 const jobs = new Map();
 

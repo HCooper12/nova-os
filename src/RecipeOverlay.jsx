@@ -140,6 +140,21 @@ export function RecipeOverlay({ v }) {
                 hoverStyle="border-color:color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)">✎ EDIT THIS MEAL</Interactive>
             )}
             {v.orEditing && <MealEditor v={v} />}
+            {/* An item that IS the thing you buy gets its own way onto the
+                list — the ingredients button below can never reach it. */}
+            {!v.orEditing && v.orIsWholeItem && (
+              <div style={css("margin-top:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:13px 15px;border-radius:10px;border:1px solid color-mix(in srgb, var(--nv-gold) 26%, transparent);background:color-mix(in srgb, var(--nv-gold) 05%, transparent)")}>
+                <span style={css("font-size:12.5px;line-height:1.5;color:color-mix(in srgb, var(--nv-ink) 60%, transparent)")}>
+                  A whole item — no ingredients to shop for, just the thing itself.
+                </span>
+                <Interactive as="span" onClick={v.addWholeItemToShoppingList}
+                  title="Add this item to the shopping list"
+                  base="cursor:pointer;flex:none;white-space:nowrap;font:600 9.5px var(--nv-font-mono);letter-spacing:.1em;padding:8px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-gold) 45%, transparent);color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 08%, transparent)"
+                  hoverStyle="background:color-mix(in srgb, var(--nv-gold) 18%, transparent)">
+                  ＋ ADD TO SHOPPING LIST
+                </Interactive>
+              </div>
+            )}
             {!v.orEditing && v.orIngredients.length > 0 && (
               <>
                 <div style={css("margin-top:18px;display:flex;justify-content:space-between;align-items:baseline")}>

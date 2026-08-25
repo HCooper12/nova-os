@@ -2,6 +2,11 @@ import { chip, mono } from './shared.js';
 import { dtf } from './fmt.js';
 import { scaleMacros, portionName, validPortion, PORTIONS } from '../portion.js';
 
+// The rename UI keys off a variant id. The version IN USE has none — it is
+// the recipe's main block, not an alternate — so it needs a sentinel rather
+// than null, which already means "no rename in progress".
+export const CURRENT_VERSION = '__current__';
+
 // Recipes domain: recipe list/filters, daily rotation, off-plan food log,
 // add-recipe modal, and the recipe overlay (incl. alternates + tweak chat).
 // Adds to ctx: usingLiveRecipes, rotation, profile, and the protein-gauge
@@ -486,9 +491,14 @@ export function valsRecipes(app, ctx) {
     // alternates — Nova-suggested tweaks to a live recipe, kept as extra
     // saved views rather than overwriting the original
     orAlternates: usingLiveRecipes && liveOr ? [
-      { id: null, label: 'Original', active: !st.recipeAltSelected, onClick: () => app.selectAlternate(null),
+      // The version in use. Its label used to be the literal string
+      // "Original" with no rename handler at all — which is why promoting a
+      // variant appeared to rename it to "Original" and why he could not
+      // edit that name. It now shows what the recipe says it is called.
+      { id: null, label: liveOr.versionLabel || 'Original', active: !st.recipeAltSelected, onClick: () => app.selectAlternate(null),
         isToday: openRecipeSlotKey ? !openRecipeSlotVariantId : false,
-        useToday: openRecipeSlotKey && openRecipeSlotVariantId ? () => app.setRotationVariant(openRecipeSlotKey, null) : null },
+        useToday: openRecipeSlotKey && openRecipeSlotVariantId ? () => app.setRotationVariant(openRecipeSlotKey, null) : null,
+        rename: () => app.startRenameAlternate(CURRENT_VERSION, liveOr.versionLabel || 'Original') },
       ...liveOr.alternates.map((a) => ({ id: a.id, label: a.label, active: st.recipeAltSelected === a.id, onClick: () => app.selectAlternate(a.id),
         isToday: openRecipeSlotVariantId === a.id,
         useToday: openRecipeSlotKey && openRecipeSlotVariantId !== a.id ? () => app.setRotationVariant(openRecipeSlotKey, a.id) : null,
@@ -518,6 +528,17 @@ export function valsRecipes(app, ctx) {
       const names = effIngredients.map((i) => i.name);
       const source = activeAlt ? `${liveOr.name} (${activeAlt.label})` : liveOr.name;
       app.addToShoppingList(names, source);
+    },
+    // A WHOLE ITEM — an entry with no ingredients because it IS the thing you
+    // buy (his Pauls protein yoghurt, YoPro, a protein bar). The only route to
+    // the shopping list was "add these ingredients", and an item with none had
+    // no button at all: the affordance was nested inside the ingredients block
+    // AND gated on its length, so it was doubly invisible. For these, the
+    // recipe's own name is the shopping item.
+    orIsWholeItem: usingLiveRecipes && !!liveOr && effIngredients.length === 0 && effMethod.length === 0,
+    addWholeItemToShoppingList: () => {
+      if (!liveOr) return;
+      app.addToShoppingList([liveOr.name], liveOr.name);
     },
     orShowTweak: usingLiveRecipes && !!liveOr,
 

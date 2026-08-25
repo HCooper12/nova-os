@@ -10,7 +10,7 @@ import { loadOutbox, saveOutbox, isOfflineError, makeOutboxItem } from './outbox
 import { applyAppearance, getNovaTheme, getCalm, getCoreStyle, saveCoreStyle, getNovaStyle } from './theme.js';
 import { getTabOrder, saveTabOrder } from './tabOrder.js';
 import { NOTE_TYPE_COLOR } from './vals/shared.js';
-import { valsRecipes } from './vals/valsRecipes.js';
+import { valsRecipes, CURRENT_VERSION } from './vals/valsRecipes.js';
 import { valsWorkouts } from './vals/valsWorkouts.js';
 import { valsNotes } from './vals/valsNotes.js';
 import { valsLibrary } from './vals/valsLibrary.js';
@@ -407,6 +407,7 @@ export default class App extends Component {
     // shopping list
     liveShoppingList: null,
     shoppingAddInput: '', shoppingAddBusy: false, shoppingAddError: null,
+    shoppingClearArmed: false, shoppingClearBusy: false, shoppingCleared: [],
 
     // workouts
     liveWorkoutExercises: null, liveWorkoutMuscleGroups: null, liveWorkoutTrackingTypes: null,
@@ -847,7 +848,23 @@ export default class App extends Component {
     const conn = getConnection();
     const { openRecipeId, recipeRenameAltId, recipeRenameValue } = this.state;
     const label = (recipeRenameValue || '').trim();
-    if (!conn || !openRecipeId || !recipeRenameAltId || !label) return;
+    if (!conn || !openRecipeId || !label) return;
+    // THE CURRENT VERSION renames through its own route. It has no altId
+    // because it isn't an alternate — it's the recipe's main block — and
+    // that is exactly why it could never be renamed before: the rename UI
+    // keys off an altId, so the version actually in use was skipped and
+    // whatever he typed was lost the moment he switched away.
+    if (recipeRenameAltId === CURRENT_VERSION) {
+      api.renameCurrentVersion(conn, openRecipeId, label).then(({ recipe }) => {
+        this.setState((s) => ({
+          liveRecipes: (this.noteLocalWrite('recipes'), s.liveRecipes.map((r) => (r.id === recipe.id ? recipe : r))),
+          recipeRenameAltId: null, recipeRenameValue: '', recipeRenameError: null,
+        }));
+        this.toastMsg(`Renamed to “${label}”`);
+      }).catch((e) => this.setState({ recipeRenameError: e.message }));
+      return;
+    }
+    if (!recipeRenameAltId) return;
     api.renameAlternate(conn, openRecipeId, recipeRenameAltId, label).then(({ recipe, rotation }) => {
       const renamed = (recipe.alternates || []).find((a) => a.label === label);
       this.setState((s) => ({
@@ -2203,6 +2220,41 @@ export default class App extends Component {
       this.toastMsg('Shopping list updated ✓');
     }).catch((e) => this.toastMsg('Could not confirm completion: ' + e.message));
   }
+
+  // CLEAR THE WHOLE LIST. Ticking twenty things off to empty a list is
+  // bookkeeping, not shopping. This wipes unchecked items too — which is the
+  // point — so it confirms first, and the cleared items are held in memory so
+  // UNDO restores the exact list (same ids, same checked state) rather than a
+  // reconstruction of it. Nothing here is irreversible until he navigates on.
+  clearShoppingList() {
+    const conn = getConnection();
+    if (!conn) return;
+    this.setState({ shoppingClearBusy: true });
+    api.clearShoppingList(conn).then(({ items, cleared, count }) => {
+      this.noteLocalWrite('shoppingList');
+      this.setState((s) => ({
+        liveShoppingList: { ...s.liveShoppingList, items },
+        shoppingCleared: cleared || [],
+        shoppingClearArmed: false,
+        shoppingClearBusy: false,
+      }));
+      this.toastMsg(count ? `Cleared ${count} item${count === 1 ? '' : 's'} — undo at the top` : 'Nothing to clear');
+    }).catch((e) => {
+      this.setState({ shoppingClearBusy: false, shoppingClearArmed: false });
+      this.toastMsg('Could not clear the list: ' + e.message);
+    });
+  }
+  undoShoppingClear() {
+    const conn = getConnection();
+    const cleared = this.state.shoppingCleared || [];
+    if (!conn || !cleared.length) return;
+    api.restoreShoppingList(conn, cleared).then(({ items }) => {
+      this.noteLocalWrite('shoppingList');
+      this.setState((s) => ({ liveShoppingList: { ...s.liveShoppingList, items }, shoppingCleared: [] }));
+      this.toastMsg('List restored ✓');
+    }).catch((e) => this.toastMsg('Could not restore the list: ' + e.message));
+  }
+  dismissShoppingClearUndo() { this.setState({ shoppingCleared: [] }); }
 
   // ---------- workouts (Train) ----------
   currentRoutine() {

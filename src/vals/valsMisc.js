@@ -61,6 +61,18 @@ export function valsMisc(app, ctx) {
     shoppingAddBusy: st.shoppingAddBusy,
     shoppingAddError: st.shoppingAddError,
     confirmShoppingCompletion: () => app.confirmShoppingCompletion(),
+    // CLEAR ALL — emptying a list by ticking twenty things off one at a time
+    // is bookkeeping, not shopping. Confirms first (it wipes unchecked items
+    // too, which is the point) and the toast carries a real undo.
+    shoppingCanClear: shoppingItems.length > 0,
+    shoppingClearArmed: !!st.shoppingClearArmed,
+    armShoppingClear: () => app.setState({ shoppingClearArmed: true }),
+    cancelShoppingClear: () => app.setState({ shoppingClearArmed: false }),
+    confirmShoppingClear: () => app.clearShoppingList(),
+    shoppingClearBusy: !!st.shoppingClearBusy,
+    shoppingClearedCount: (st.shoppingCleared || []).length,
+    undoShoppingClear: () => app.undoShoppingClear(),
+    dismissShoppingClearUndo: () => app.dismissShoppingClearUndo(),
 
     // voice — Ask Nova: live = real read-only answers from the vault (+ TTS);
     // demo keeps the scripted preview; offline says so instead of pretending

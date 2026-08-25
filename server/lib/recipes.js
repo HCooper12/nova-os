@@ -76,6 +76,10 @@ function finalizeRecipe(name, bodyLines, category) {
 
   const macroMatch = body.match(/\*\*Macros[^*]*\*\*:?\s*([\d.]+)g P \/ ([\d.]+)g C \/ ([\d.]+)g F \/ ([\d.]+)\s*kcal/i);
   const makesMatch = body.match(/\*\*Makes:\*\*\s*(.+)/i);
+  // The CURRENT version's own name. The main recipe used to have nowhere to
+  // store one, which is why promoting a variant silently renamed it to
+  // "Original" and lost whatever he had called it. Absent = never renamed.
+  const versionMatch = body.match(/^\*\*Version:\*\*\s*(.+)$/mi);
 
   const ingredients = section(body, 'Ingredients')
     .split('\n')
@@ -106,6 +110,7 @@ function finalizeRecipe(name, bodyLines, category) {
     description = stripMd(
       body
         .replace(/\*\*Macros[^*]*\*\*:?[^\n]*/i, '')
+        .replace(/\*\*Version:\*\*[^\n]*/i, '')
         .split('\n')
         .map((l) => l.trim())
         .filter((l) => l && !l.startsWith('>') && !/^-{3,}$/.test(l))
@@ -119,6 +124,7 @@ function finalizeRecipe(name, bodyLines, category) {
     name,
     category,
     makes: makesMatch ? stripMd(makesMatch[1]) : null,
+    versionLabel: versionMatch ? stripMd(versionMatch[1]).trim() : null,
     macros: macroMatch
       ? { p: parseFloat(macroMatch[1]), c: parseFloat(macroMatch[2]), f: parseFloat(macroMatch[3]), kcal: parseFloat(macroMatch[4]) }
       : null,
@@ -365,6 +371,21 @@ async function removeRecipeUnlocked(vaultPath, id) {
   return { removed: 1, recipe: target };
 }
 
+// Writes (or replaces) the `**Version:**` line inside a recipe's main block —
+// the current version's own name. Placed immediately above the Macros line so
+// it reads as part of the header rather than stray prose, and so the
+// prose-only entries (which have no Ingredients/Method) still parse.
+const MAIN_MACRO_LINE_RE = /\*\*Macros[^*]*\*\*:?\s*[\d.]+g P \/ [\d.]+g C \/ [\d.]+g F \/ [\d.]+\s*kcal/i;
+export function upsertVersionLine(block, label) {
+  const clean = String(label || '').trim();
+  if (!clean) return block;
+  if (/^\*\*Version:\*\*\s*.+$/mi.test(block)) {
+    return block.replace(/^\*\*Version:\*\*\s*.+$/mi, `**Version:** ${clean}`);
+  }
+  if (!MAIN_MACRO_LINE_RE.test(block)) return block;
+  return block.replace(MAIN_MACRO_LINE_RE, (m) => `**Version:** ${clean}\n\n${m}`);
+}
+
 function formatAlternateBlock(alt) {
   const macroLine = `**Macros:** ${alt.macros.p}g P / ${alt.macros.c}g C / ${alt.macros.f}g F / ${alt.macros.kcal} kcal`;
   const ingredientsBlock = alt.ingredients.map((i) => `- ${i}`).join('\n');
@@ -469,10 +490,27 @@ export function promoteAlternateInRaw(raw, recipeName, altId) {
     );
   }
 
-  // 3. the promoted alternate's block ← the OLD main content, as "Original"
-  const originalLabel = (parsed.alternates || []).some((a) => /^original\b/i.test(a.label))
-    ? `Original (${new Date().toISOString().slice(0, 10)})`
-    : 'Original';
+  // 2b. the main block now carries the promoted version's NAME.
+  //
+  // This is the fix for names vanishing on promotion. The main recipe had no
+  // label slot at all: promoting "Higher protein" made it the current version
+  // and then had nowhere to record that it WAS "Higher protein", so the name
+  // he had typed was simply dropped, and the version he demoted was stamped
+  // "Original" no matter what it had been called. Switching between versions
+  // afterwards showed neither of the names he chose.
+  block = upsertVersionLine(block, alt.label);
+
+  // 3. the promoted alternate's block ← the OLD main content, under ITS OWN
+  //    name. It was only ever "Original" because there was nowhere to keep
+  //    the real one; now there is, so a demoted version keeps what he called
+  //    it. Only a genuinely unnamed version falls back to "Original".
+  const demotedBase = parsed.versionLabel || 'Original';
+  const taken = new Set((parsed.alternates || [])
+    .filter((a) => a.id !== altId)
+    .map((a) => a.label.toLowerCase()));
+  const originalLabel = taken.has(demotedBase.toLowerCase())
+    ? `${demotedBase} (${new Date().toISOString().slice(0, 10)})`
+    : demotedBase;
   const oldMain = {
     label: originalLabel,
     macros: parsed.macros,
@@ -572,6 +610,60 @@ export async function renameAlternate(vaultPath, recipeId, altId, newLabel) {
     return { recipe: after, newId, oldId };
   });
   renameAltLock = run.catch(() => {});
+  return run;
+}
+
+// Rename the CURRENT version. He could always rename the other variants —
+// they own a `#### Alternative: <label>` heading — but the version actually
+// in use had no name of its own to edit, so the rename UI simply skipped it
+// and any name he gave it was lost the moment he switched away. This writes
+// the `**Version:**` line the main block now carries.
+export function renameCurrentVersionInRaw(raw, recipeName, newLabel) {
+  const clean = String(newLabel || '').trim();
+  if (!clean) throw new Error('a version needs a name');
+  if (/[\n\r]/.test(clean)) throw new Error('a version name is one line');
+  const headingRe = new RegExp(`^##\\s+\\d+\\.\\s+${escapeRe(recipeName)}\\s*$`, 'm');
+  const headingMatch = headingRe.exec(raw);
+  if (!headingMatch) throw new Error(`Could not find recipe "${recipeName}" in the file`);
+  const afterHeadingIdx = headingMatch.index + headingMatch[0].length;
+  const rest = raw.slice(afterHeadingIdx);
+  const nextHeadingMatch = rest.match(/\n#{1,2}(?!#)\s/);
+  const blockEnd = nextHeadingMatch ? afterHeadingIdx + nextHeadingMatch.index + 1 : raw.length;
+  const block = raw.slice(afterHeadingIdx, blockEnd);
+
+  // Only the MAIN block may gain the line — everything from the first
+  // "#### Alternative:" belongs to the variants and must be left untouched.
+  const altIdx = block.search(/^####\s+Alternative:/m);
+  const mainPart = altIdx === -1 ? block : block.slice(0, altIdx);
+  const tail = altIdx === -1 ? '' : block.slice(altIdx);
+  const updated = upsertVersionLine(mainPart, clean);
+  if (updated === mainPart) throw new Error('could not locate this recipe\'s header to name the version');
+  return raw.slice(0, afterHeadingIdx) + updated + tail + raw.slice(blockEnd);
+}
+
+let renameCurrentLock = Promise.resolve();
+export async function renameCurrentVersion(vaultPath, recipeId, newLabel) {
+  const run = renameCurrentLock.catch(() => {}).then(async () => {
+    const full = path.join(vaultPath, RECIPES_REL_PATH);
+    const raw = await readFile(full, 'utf8');
+    const before = parseRecipeCollection(raw).find((r) => r.id === recipeId);
+    if (!before) throw new Error('recipe not found');
+    const newRaw = renameCurrentVersionInRaw(raw, before.name, newLabel);
+    const after = parseRecipeCollection(newRaw).find((r) => r.id === recipeId);
+    // A rename touches the NAME and nothing else. Anything that moved is a bug.
+    if (!after || after.versionLabel !== String(newLabel).trim()) {
+      throw new Error('Rename failed a sanity check — file left unchanged');
+    }
+    if (after.ingredients.length !== before.ingredients.length
+      || after.method.length !== before.method.length
+      || (after.alternates || []).length !== (before.alternates || []).length) {
+      throw new Error('Rename would have altered the recipe\'s content — file left unchanged');
+    }
+    await backupFile(full);
+    await writeFile(full, newRaw, 'utf8');
+    return { recipe: after };
+  });
+  renameCurrentLock = run.catch(() => {});
   return run;
 }
 

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { loadShoppingList, toggleItem, confirmCompletion, startAddItems, getAddItemsJob } from '../lib/shoppingList.js';
+import { loadShoppingList, toggleItem, confirmCompletion, startAddItems, getAddItemsJob, clearAll, restoreItems } from '../lib/shoppingList.js';
 
 export function shoppingListRouter(vaultPath) {
   const router = Router();
@@ -54,6 +54,27 @@ export function shoppingListRouter(vaultPath) {
       res.json({ items });
     } catch (err) {
       next(err);
+    }
+  });
+
+  // CLEAR ALL — one button instead of ticking twenty things off. The
+  // response carries everything it removed so the client can offer a real
+  // undo rather than an apology.
+  router.post('/shopping-list/clear', async (req, res, next) => {
+    try {
+      const cleared = await clearAll(vaultPath);
+      res.json({ items: [], cleared, count: cleared.length });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post('/shopping-list/restore', async (req, res, next) => {
+    try {
+      const items = await restoreItems(vaultPath, (req.body || {}).items);
+      res.json({ items });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
     }
   });
 

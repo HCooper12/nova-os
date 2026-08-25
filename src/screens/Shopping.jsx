@@ -36,6 +36,47 @@ export function Shopping({ v }) {
         <div style={css("margin-top:8px;font-size:12px;color:var(--nv-warn)")}>{v.shoppingAddError}</div>
       )}
 
+      {/* CLEAR ALL — one action instead of ticking twenty things off. It wipes
+          unchecked items too, so it asks first, and the undo restores the
+          exact list rather than a reconstruction of it. */}
+      {v.shoppingClearedCount > 0 ? (
+        <div style={css("margin-top:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 14px;border-radius:9px;border:1px solid color-mix(in srgb, var(--nv-good) 30%, transparent);background:color-mix(in srgb, var(--nv-good) 06%, transparent)")}>
+          <span style={css("font-size:12.5px;color:color-mix(in srgb, var(--nv-ink) 65%, transparent)")}>
+            Cleared {v.shoppingClearedCount} item{v.shoppingClearedCount === 1 ? '' : 's'}.
+          </span>
+          <span style={css("display:flex;gap:8px;flex:none")}>
+            <Interactive as="span" onClick={v.undoShoppingClear}
+              base="cursor:pointer;font:600 9.5px var(--nv-font-mono);letter-spacing:.1em;padding:7px 13px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-good) 50%, transparent);color:var(--nv-good)"
+              hoverStyle="background:color-mix(in srgb, var(--nv-good) 14%, transparent)">UNDO</Interactive>
+            <Interactive as="span" onClick={v.dismissShoppingClearUndo}
+              base="cursor:pointer;font:600 9.5px var(--nv-font-mono);letter-spacing:.1em;padding:7px 11px;border-radius:8px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)"
+              hoverStyle="color:var(--nv-ink)">DISMISS</Interactive>
+          </span>
+        </div>
+      ) : v.shoppingClearArmed ? (
+        <div style={css("margin-top:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 14px;border-radius:9px;border:1px solid color-mix(in srgb, var(--nv-warn) 38%, transparent);background:color-mix(in srgb, var(--nv-warn) 06%, transparent)")}>
+          <span style={css("font-size:12.5px;color:color-mix(in srgb, var(--nv-ink) 70%, transparent)")}>
+            Clear the whole list, ticked or not?
+          </span>
+          <span style={css("display:flex;gap:8px;flex:none")}>
+            <Interactive as="span" onClick={v.shoppingClearBusy ? undefined : v.confirmShoppingClear}
+              base={{ cursor: 'pointer', font: '600 9.5px var(--nv-font-mono)', letterSpacing: '.1em', padding: '7px 13px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-warn) 55%, transparent)', color: 'var(--nv-warn)', opacity: v.shoppingClearBusy ? .6 : 1 }}
+              hoverStyle="background:color-mix(in srgb, var(--nv-warn) 14%, transparent)">
+              {v.shoppingClearBusy ? 'CLEARING…' : 'CLEAR IT'}
+            </Interactive>
+            <Interactive as="span" onClick={v.cancelShoppingClear}
+              base="cursor:pointer;font:600 9.5px var(--nv-font-mono);letter-spacing:.1em;padding:7px 11px;border-radius:8px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)"
+              hoverStyle="color:var(--nv-ink)">KEEP</Interactive>
+          </span>
+        </div>
+      ) : v.shoppingCanClear ? (
+        <div style={css("margin-top:12px;display:flex;justify-content:flex-end")}>
+          <Interactive as="span" onClick={v.armShoppingClear} title="Empty the whole shopping list"
+            base="cursor:pointer;font:600 9.5px var(--nv-font-mono);letter-spacing:.1em;padding:7px 13px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);color:color-mix(in srgb, var(--nv-ink) 50%, transparent)"
+            hoverStyle="border-color:color-mix(in srgb, var(--nv-warn) 45%, transparent);color:var(--nv-warn)">CLEAR ALL</Interactive>
+        </div>
+      ) : null}
+
       {v.shoppingCategories.length === 0 ? (
         <div style={css("margin-top:60px;text-align:center;font-size:13px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>
           Nothing on the list yet — add ingredients from a recipe, or type something above.

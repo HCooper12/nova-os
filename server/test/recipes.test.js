@@ -166,3 +166,122 @@ test('quick-ref table follows a macro edit and a promotion — it can no longer 
   // a recipe with no row is a no-op, never an error
   assert.equal(updateQuickRefRow(raw, 'Ghost Meal', { p: 1, c: 1, f: 1, kcal: 1 }), raw);
 });
+
+// ---------------------------------------------------------------------------
+// VERSION NAMES SURVIVE PROMOTION.
+// He renamed a variant, made it the one he was using, and the name vanished:
+// the version he promoted came back as the recipe's plain name and the one he
+// demoted was stamped "Original" regardless of what he had called it. Cause:
+// the MAIN recipe had no label slot at all, so promotion had nowhere to put
+// the promoted version's name and hard-coded "Original" for the demoted one.
+// ---------------------------------------------------------------------------
+
+const { promoteAlternateInRaw, renameCurrentVersionInRaw, upsertVersionLine } = await import('../lib/recipes.js');
+
+const withAlt = (label, macros = '30g P / 10g C / 5g F / 210 kcal') => `# PART 1 — CORE DAILY MEALS
+
+## 1. Chicken Burrito Bowl
+
+**Macros:** 42g P / 55g C / 18g F / 560 kcal
+
+### Ingredients
+- 200g chicken
+- 100g rice
+
+### Method
+1. Cook the chicken.
+2. Serve.
+
+#### Alternative: ${label}
+
+**Macros:** ${macros}
+
+##### Ingredients
+- 250g chicken
+- 80g rice
+
+##### Method
+1. Cook it hotter.
+`;
+
+test('promote: the promoted version keeps the name he gave it', () => {
+  const out = promoteAlternateInRaw(withAlt('Higher Protein'), 'Chicken Burrito Bowl', 'higher-protein');
+  const recipe = parseRecipeCollection(out)[0];
+  assert.equal(recipe.versionLabel, 'Higher Protein', 'the version in use is named, not anonymous');
+  assert.deepEqual(recipe.macros, { p: 30, c: 10, f: 5, kcal: 210 }, 'and it really is the promoted content');
+  assert.ok(recipe.ingredients.some((i) => i.name.includes('250g chicken')));
+});
+
+test('promote: the demoted version keeps ITS name instead of becoming "Original"', () => {
+  // first promotion: the main was never named, so "Original" is honest
+  const once = promoteAlternateInRaw(withAlt('Higher Protein'), 'Chicken Burrito Bowl', 'higher-protein');
+  assert.equal(parseRecipeCollection(once)[0].alternates[0].label, 'Original');
+
+  // now promote back — the demoted version is "Higher Protein", NOT "Original"
+  const twice = promoteAlternateInRaw(once, 'Chicken Burrito Bowl', 'original');
+  const recipe = parseRecipeCollection(twice)[0];
+  assert.equal(recipe.versionLabel, 'Original', 'the one now in use is the one he promoted');
+  assert.deepEqual(recipe.alternates.map((a) => a.label), ['Higher Protein'],
+    'the demoted version kept its own name — this is the bug he reported');
+});
+
+test('promote: round-tripping twice returns the original content, names intact', () => {
+  const start = withAlt('Higher Protein');
+  const there = promoteAlternateInRaw(start, 'Chicken Burrito Bowl', 'higher-protein');
+  const back = promoteAlternateInRaw(there, 'Chicken Burrito Bowl', 'original');
+  const recipe = parseRecipeCollection(back)[0];
+  assert.deepEqual(recipe.macros, { p: 42, c: 55, f: 18, kcal: 560 }, 'the numbers came home');
+  assert.ok(recipe.ingredients.some((i) => i.name.includes('200g chicken')));
+  assert.equal(recipe.alternates.length, 1, 'no variant was duplicated or lost');
+});
+
+test('promote: a demoted name that collides with an existing variant is disambiguated', () => {
+  // main is named "Higher Protein" and a DIFFERENT variant is also called that
+  let raw = withAlt('Higher Protein');
+  raw = promoteAlternateInRaw(raw, 'Chicken Burrito Bowl', 'higher-protein'); // main := Higher Protein
+  raw = insertAlternateIntoRaw(raw, 'Chicken Burrito Bowl', {
+    label: 'Higher Protein', macros: { p: 1, c: 1, f: 1, kcal: 10 }, ingredients: ['x'], method: ['y'],
+  });
+  const out = promoteAlternateInRaw(raw, 'Chicken Burrito Bowl', 'original');
+  const labels = parseRecipeCollection(out)[0].alternates.map((a) => a.label);
+  assert.equal(new Set(labels).size, labels.length, 'no two variants may share a name');
+  assert.ok(labels.some((l) => /^Higher Protein \(\d{4}-\d{2}-\d{2}\)$/.test(l)), 'the clash is dated, not overwritten');
+});
+
+test('rename the CURRENT version — the thing he could not do at all', () => {
+  const out = renameCurrentVersionInRaw(withAlt('Higher Protein'), 'Chicken Burrito Bowl', 'My Weekday Bowl');
+  const recipe = parseRecipeCollection(out)[0];
+  assert.equal(recipe.versionLabel, 'My Weekday Bowl');
+  // renaming touches the NAME and nothing else
+  assert.deepEqual(recipe.macros, { p: 42, c: 55, f: 18, kcal: 560 });
+  assert.equal(recipe.ingredients.length, 2);
+  assert.equal(recipe.method.length, 2);
+  assert.deepEqual(recipe.alternates.map((a) => a.label), ['Higher Protein'], 'variants untouched');
+});
+
+test('rename the current version twice — it replaces, never stacks', () => {
+  let raw = renameCurrentVersionInRaw(withAlt('Higher Protein'), 'Chicken Burrito Bowl', 'First Name');
+  raw = renameCurrentVersionInRaw(raw, 'Chicken Burrito Bowl', 'Second Name');
+  assert.equal(parseRecipeCollection(raw)[0].versionLabel, 'Second Name');
+  assert.equal((raw.match(/\*\*Version:\*\*/g) || []).length, 1, 'one Version line, not a pile of them');
+});
+
+test('rename rejects an empty or multi-line name', () => {
+  assert.throws(() => renameCurrentVersionInRaw(withAlt('X'), 'Chicken Burrito Bowl', '   '), /needs a name/);
+  assert.throws(() => renameCurrentVersionInRaw(withAlt('X'), 'Chicken Burrito Bowl', 'a\nb'), /one line/);
+});
+
+test('a whole-item entry (no ingredients) can still carry a version name', () => {
+  // YoPro Yogurt is prose-only — his Pauls protein yoghurt is the same shape
+  const named = renameCurrentVersionInRaw(RECIPE_FILE, 'YoPro Yogurt', 'The 700g Tub');
+  const yogurt = parseRecipeCollection(named).find((r) => r.name === 'YoPro Yogurt');
+  assert.equal(yogurt.versionLabel, 'The 700g Tub');
+  assert.equal(yogurt.ingredients.length, 0, 'still a whole item, not turned into a recipe');
+  assert.match(yogurt.description, /straight from the fridge/, 'its prose survived');
+  assert.doesNotMatch(yogurt.description, /Version/, 'and the version line is not read back as prose');
+});
+
+test('upsertVersionLine leaves a block it cannot place a name in alone', () => {
+  assert.equal(upsertVersionLine('no macro line here', 'X'), 'no macro line here');
+  assert.equal(upsertVersionLine('**Macros:** 1g P / 1g C / 1g F / 1 kcal', '  '), '**Macros:** 1g P / 1g C / 1g F / 1 kcal');
+});

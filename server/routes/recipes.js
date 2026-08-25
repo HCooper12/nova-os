@@ -340,6 +340,21 @@ export function recipesRouter(vaultPath) {
     }
   });
 
+  // Rename the version currently IN USE. Previously only the other variants
+  // could be renamed (they own a heading); the active one had no name to
+  // edit, so anything he typed was lost the moment he switched away.
+  router.post('/recipes/:id/rename-current', async (req, res) => {
+    try {
+      const { label } = req.body || {};
+      if (!label || !String(label).trim()) return res.status(400).json({ error: 'label is required' });
+      const { renameCurrentVersion } = await import('../lib/recipes.js');
+      const { recipe } = await renameCurrentVersion(vaultPath, req.params.id, String(label).trim());
+      res.json({ recipe });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
   router.post('/rotation/variant', async (req, res, next) => {
     try {
       const { recipes } = await loadRecipeData(vaultPath);
