@@ -107,11 +107,23 @@ export function Shopping({ v }) {
                   >
                     <span style={item.checkboxStyle}>{item.checked ? '✓' : ''}</span>
                     <div style={css("flex:1")}>
-                      <div style={item.nameStyle}>{item.name}</div>
+                      <div style={item.nameStyle}>{item.qty > 1 ? `${item.qty} × ${item.name}` : item.name}</div>
                       {item.source && (
                         <div style={css("font-size:10.5px;color:color-mix(in srgb, var(--nv-ink) 35%, transparent);margin-top:2px")}>from {item.source}</div>
                       )}
                     </div>
+                    {/* QUANTITY — how many to buy, changed right here. The
+                        row itself toggles "got it", so these must not bubble
+                        or every tap on − would also tick the item off. */}
+                    <span onClick={(e) => e.stopPropagation()} style={css("flex:none;display:flex;align-items:center;gap:2px")}>
+                      <Interactive as="span" onClick={item.decQty} aria-label={`One fewer ${item.name}`}
+                        base="cursor:pointer;width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font:500 15px/1 var(--nv-font-ui);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)"
+                        hoverStyle="background:rgba(255,255,255,.07);color:var(--nv-ink)">−</Interactive>
+                      <span style={css("min-width:17px;text-align:center;font:500 12px var(--nv-font-mono);font-variant-numeric:tabular-nums;color:color-mix(in srgb, var(--nv-ink) 60%, transparent)")}>{item.qty}</span>
+                      <Interactive as="span" onClick={item.incQty} aria-label={`One more ${item.name}`}
+                        base="cursor:pointer;width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font:500 15px/1 var(--nv-font-ui);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)"
+                        hoverStyle="background:rgba(255,255,255,.07);color:var(--nv-ink)">+</Interactive>
+                    </span>
                   </Interactive>
                   </SwipeRow>
                 ))}

@@ -2226,6 +2226,16 @@ export default class App extends Component {
   // point — so it confirms first, and the cleared items are held in memory so
   // UNDO restores the exact list (same ids, same checked state) rather than a
   // reconstruction of it. Nothing here is irreversible until he navigates on.
+  // Quantity is part of the item, not a note on it — "7 × yoghurt" is one
+  // decision he makes in the shop, so it edits in place on the row.
+  setShoppingQty(id, qty) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.setShoppingQty(conn, id, qty).then(({ items }) => {
+      this.noteLocalWrite('shoppingList');
+      this.setState((s) => ({ liveShoppingList: { ...s.liveShoppingList, items } }));
+    }).catch((e) => this.toastMsg('Could not change the quantity: ' + e.message));
+  }
   clearShoppingList() {
     const conn = getConnection();
     if (!conn) return;
@@ -2995,6 +3005,26 @@ export default class App extends Component {
   onIngestFile(e) {
     const file = e.target.files?.[0];
     if (!file) return;
+    // EPUB and PDF are BINARY — FileReader.readAsText mangles every byte of
+    // them, which is why picking a book here used to do nothing useful. They
+    // go up as bytes and the server extracts the text (macOS PDFKit / unzip).
+    if (/\.(epub|pdf)$/i.test(file.name)) {
+      const conn = getConnection();
+      if (!conn) { this.toastMsg('Connect a backend first'); return; }
+      this.setState({ ingestStatus: 'researching', ingestError: null });
+      api.uploadBookFile(conn, file, {
+        title: this.state.ingestBookTitle.trim(),
+        author: this.state.ingestBookAuthor.trim(),
+      }).then(({ jobId, title, author, chars }) => {
+        this.setState({ ingestModalOpen: false, ingestJobId: jobId, ingestStatus: 'reading', ingestPreview: null, ingestError: null });
+        this.toastMsg(`Reading “${title}” by ${author} — ${Math.round(chars / 1000)}k characters`);
+        this.pollIngest(jobId);
+      }).catch((err) => {
+        // extraction failures carry advice he can act on — show them, do not swallow
+        this.setState({ ingestStatus: null, ingestError: err.message });
+      });
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => this.setState({ ingestText: String(reader.result || '') });
     reader.readAsText(file);
@@ -3024,17 +3054,22 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn) return;
     this.setState({ ingestModalOpen: false, ingestJobId: null, ingestStatus: book ? 'researching' : 'staging', ingestPreview: null, ingestError: null });
-    api.startIngest(conn, text || undefined, sourceUrl || undefined, book || undefined).then(({ jobId }) => {
-      this.setState({ ingestJobId: jobId });
-      this.startPoll('ingest', () => api.ingestJob(conn, jobId), {
-        intervalMs: 3000,
-        timeoutMs: 30 * 60_000, // a 4h video's digest + weave legitimately runs past 15m
-        onReady: (job) => this.setState({ ingestStatus: 'ready', ingestPreview: { summary: job.summary, cost: job.cost, changes: job.changes } }),
-        onError: (msg) => this.setState({ ingestStatus: 'error', ingestError: msg }),
-        onProgress: (job) => this.setState({ ingestStatus: job.status }),
-      });
-    }).catch((e) => {
-      this.setState({ ingestStatus: 'error', ingestError: e.message });
+    api.startIngest(conn, text || undefined, sourceUrl || undefined, book || undefined)
+      .then(({ jobId }) => this.pollIngest(jobId))
+      .catch((e) => { this.setState({ ingestStatus: 'error', ingestError: e.message }); });
+  }
+  // One poller for every ingest, however it started — pasted text, a link, or
+  // a book file he uploaded. A second copy would be a second thing to fix.
+  pollIngest(jobId) {
+    const conn = getConnection();
+    if (!conn) return;
+    this.setState({ ingestJobId: jobId });
+    this.startPoll('ingest', () => api.ingestJob(conn, jobId), {
+      intervalMs: 3000,
+      timeoutMs: 30 * 60_000, // a 4h video's digest + weave legitimately runs past 15m
+      onReady: (job) => this.setState({ ingestStatus: 'ready', ingestPreview: { summary: job.summary, cost: job.cost, changes: job.changes } }),
+      onError: (msg) => this.setState({ ingestStatus: 'error', ingestError: msg }),
+      onProgress: (job) => this.setState({ ingestStatus: job.status }),
     });
   }
   closeIngestReview() {

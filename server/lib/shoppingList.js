@@ -18,7 +18,8 @@ function bodyFor(items) {
     if (!inCat.length) continue;
     lines.push(`## ${cat}`, '');
     for (const item of inCat) {
-      lines.push(`- [${item.checked ? 'x' : ' '}] ${item.name}${item.source ? ` _(from ${item.source})_` : ''}`);
+      const qty = Number(item.qty) > 1 ? `${Number(item.qty)} × ` : '';
+      lines.push(`- [${item.checked ? 'x' : ' '}] ${qty}${item.name}${item.source ? ` _(from ${item.source})_` : ''}`);
     }
     lines.push('');
   }
@@ -61,6 +62,9 @@ export async function addItemsDirect(vaultPath, newItems) {
       name: String(it.name || '').trim(),
       category: CATEGORIES.includes(it.category) ? it.category : 'Household & Other',
       checked: false,
+      // How many to buy. 1 is the honest default — an item with no stated
+      // quantity means "one of these", not "unspecified".
+      qty: normalizeQty(it.qty),
       source: it.source || null,
     }))
     .filter((it) => it.name);
@@ -70,6 +74,26 @@ export async function addItemsDirect(vaultPath, newItems) {
     await persist(vaultPath, [...current, ...added]);
   });
   return added;
+}
+
+// Quantities are whole counts he can act on in a shop: at least one, and
+// capped so a slipped keypress cannot ask for four thousand yoghurts.
+export const MAX_QTY = 99;
+export function normalizeQty(v) {
+  const n = Math.floor(Number(v));
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(n, MAX_QTY);
+}
+
+export async function setItemQty(vaultPath, id, qty) {
+  return withWriteLock(async () => {
+    const items = [...(await getItems(vaultPath))];
+    const idx = items.findIndex((i) => i.id === id);
+    if (idx === -1) throw new Error('item not found');
+    items[idx] = { ...items[idx], qty: normalizeQty(qty) };
+    await persist(vaultPath, items);
+    return items;
+  });
 }
 
 export async function removeItems(vaultPath, ids) {
@@ -126,6 +150,7 @@ export async function restoreItems(vaultPath, items) {
       name: String(it?.name || '').trim(),
       category: CATEGORIES.includes(it?.category) ? it.category : 'Household & Other',
       checked: !!it?.checked,
+      qty: normalizeQty(it?.qty),
       source: it?.source || null,
     }))
     .filter((it) => it.name);

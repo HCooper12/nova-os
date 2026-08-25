@@ -63,7 +63,7 @@ export function IngestModal({ v }) {
         <div style={css("margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap")}>
           <label style={css("cursor:pointer;font-size:12px;padding:9px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);color:color-mix(in srgb, var(--nv-ink) 70%, transparent)")}>
             Upload .txt / .md
-            <input type="file" accept=".txt,.md" onChange={v.onIngestFile} style={css("display:none")} />
+            <input type="file" accept=".txt,.md,.epub,.pdf" onChange={v.onIngestFile} style={css("display:none")} />
           </label>
           <span style={css("font-size:11px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{v.ingestText.length.toLocaleString()} characters</span>
           <div style={css("margin-left:auto;display:flex;gap:10px")}>

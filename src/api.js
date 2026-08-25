@@ -152,6 +152,22 @@ export const api = {
   addShoppingItemsJob: (conn, jobId) => call(conn, `/api/shopping-list/add-items/${encodeURIComponent(jobId)}`),
   toggleShoppingItem: (conn, id, checked) => post(conn, '/api/shopping-list/toggle', { id, checked }),
   confirmShoppingCompletion: (conn) => post(conn, '/api/shopping-list/confirm-completion'),
+  // A book he owns: the FILE goes up as bytes (EPUB/PDF are binary — reading
+  // them as text destroys them), and the server extracts and weaves it.
+  uploadBookFile: async (conn, file, { title, author } = {}) => {
+    const q = new URLSearchParams({ filename: file.name });
+    if (title) q.set('title', title);
+    if (author) q.set('author', author);
+    const res = await fetch(`${conn.url}/api/ingest/book-file?${q}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${conn.token}`, 'Content-Type': 'application/octet-stream' },
+      body: file,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `upload failed (${res.status})`);
+    return data;
+  },
+  setShoppingQty: (conn, id, qty) => post(conn, '/api/shopping-list/qty', { id, qty }),
   clearShoppingList: (conn) => post(conn, '/api/shopping-list/clear'),
   restoreShoppingList: (conn, items) => post(conn, '/api/shopping-list/restore', { items }),
   rotation: (conn) => call(conn, '/api/rotation'),

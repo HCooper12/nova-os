@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { loadShoppingList, toggleItem, confirmCompletion, startAddItems, getAddItemsJob, clearAll, restoreItems } from '../lib/shoppingList.js';
+import { loadShoppingList, toggleItem, confirmCompletion, startAddItems, getAddItemsJob, clearAll, restoreItems, setItemQty } from '../lib/shoppingList.js';
 
 export function shoppingListRouter(vaultPath) {
   const router = Router();
@@ -72,6 +72,17 @@ export function shoppingListRouter(vaultPath) {
   router.post('/shopping-list/restore', async (req, res, next) => {
     try {
       const items = await restoreItems(vaultPath, (req.body || {}).items);
+      res.json({ items });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  router.post('/shopping-list/qty', async (req, res, next) => {
+    try {
+      const { id, qty } = req.body || {};
+      if (!id) return res.status(400).json({ error: 'id is required' });
+      const items = await setItemQty(vaultPath, id, qty);
       res.json({ items });
     } catch (err) {
       res.status(400).json({ error: err.message });

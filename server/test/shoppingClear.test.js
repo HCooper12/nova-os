@@ -11,7 +11,7 @@ process.env.NOVA_VAULT_GRACE_MS = '0';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { addItemsDirect, clearAll, restoreItems, loadShoppingList, toggleItem } =
+const { addItemsDirect, clearAll, restoreItems, loadShoppingList, toggleItem, setItemQty, normalizeQty, MAX_QTY } =
   await import('../lib/shoppingList.js');
 
 test.after(async () => { await rm(vault, { recursive: true, force: true }); });
@@ -96,4 +96,55 @@ test('a whole item with no ingredients is an ordinary list entry', async () => {
   assert.equal(added.length, 1);
   assert.equal(added[0].name, 'Pauls protein yoghurt');
   assert.equal((await loadShoppingList(vault)).items.length, 1);
+});
+
+// QUANTITIES. "Add the protein yoghurt but make it seven" is one decision in
+// a shop, not a note stapled to the item.
+test('a new item is one of a thing unless he says otherwise', async () => {
+  await clearAll(vault).catch(() => {});
+  const [a] = await addItemsDirect(vault, [{ name: 'Pauls protein yoghurt' }]);
+  assert.equal(a.qty, 1, 'no stated quantity means one, never undefined');
+});
+
+test('quantity can be set, and survives a reload', async () => {
+  await clearAll(vault).catch(() => {});
+  const [a] = await addItemsDirect(vault, [{ name: 'Pauls protein yoghurt' }]);
+  await setItemQty(vault, a.id, 7);
+  const items = (await loadShoppingList(vault)).items;
+  assert.equal(items.find((i) => i.id === a.id).qty, 7);
+});
+
+test('quantity is clamped to something a shop can honour', () => {
+  assert.equal(normalizeQty(0), 1, 'zero of a thing is not on a list');
+  assert.equal(normalizeQty(-4), 1);
+  assert.equal(normalizeQty(2.7), 2, 'whole items only');
+  assert.equal(normalizeQty('7'), 7);
+  assert.equal(normalizeQty(9999), MAX_QTY, 'a slipped keypress cannot ask for thousands');
+  assert.equal(normalizeQty(undefined), 1);
+  assert.equal(normalizeQty('nonsense'), 1);
+});
+
+test('setting a quantity on a missing item is an error, not a silent no-op', async () => {
+  await assert.rejects(() => setItemQty(vault, 'nope', 3), /item not found/);
+});
+
+test('the vault file shows the count a person would read', async () => {
+  const { readFile } = await import('node:fs/promises');
+  await clearAll(vault).catch(() => {});
+  const [a] = await addItemsDirect(vault, [{ name: 'Pauls protein yoghurt', category: 'Dairy & Eggs' }]);
+  await setItemQty(vault, a.id, 7);
+  const raw = await readFile(path.join(vault, 'Wiki/Health/Shopping List.md'), 'utf8');
+  assert.match(raw, /7 × Pauls protein yoghurt/, 'Obsidian shows "7 ×", not a hidden field');
+  await setItemQty(vault, a.id, 1);
+  const single = await readFile(path.join(vault, 'Wiki/Health/Shopping List.md'), 'utf8');
+  assert.doesNotMatch(single, /1 × /, 'one of a thing needs no number in front of it');
+});
+
+test('an undo restores quantities too', async () => {
+  await clearAll(vault).catch(() => {});
+  const [a] = await addItemsDirect(vault, [{ name: 'yoghurt' }]);
+  await setItemQty(vault, a.id, 7);
+  const cleared = await clearAll(vault);
+  await restoreItems(vault, cleared);
+  assert.equal((await loadShoppingList(vault)).items[0].qty, 7);
 });
