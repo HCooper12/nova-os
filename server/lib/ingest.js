@@ -169,7 +169,7 @@ export function startIngest(vaultPath) {
     const jobId = randomUUID().slice(0, 8);
     const workDir = path.join(os.tmpdir(), 'nova-ingest', jobId);
     const stagingVault = path.join(workDir, 'vault');
-    const job = { id: jobId, status: 'staging', summary: '', cost: 0, changes: [], error: null, stagingVault, workDir, vaultPath, createdAt: new Date().toISOString(), ...(book ? { book: { title: String(book.title).trim(), author: String(book.author).trim() } } : {}) };
+    const job = { id: jobId, status: 'staging', summary: '', cost: 0, changes: [], error: null, stagingVault, workDir, vaultPath, createdAt: new Date().toISOString(), ...(book ? { book: { title: String(book.title).trim(), author: String(book.author).trim(), ...(book.reading ? { reading: book.reading } : {}) } } : {}) };
     jobs.set(jobId, job);
     persistJob(job);
 

@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { buildLibrarianPrompt, bookKey, findExistingBookPages, composeBookDossier } from '../lib/librarian.js';
+import { buildLibrarianPrompt, bookKey, findExistingBookPages, composeBookDossier, bookWeaveRules } from '../lib/librarian.js';
 import { parseBookIntent, routeIntent, LANES, LANE_LABEL } from '../lib/intentRouter.js';
 import { GATE_LANES } from '../lib/modelChoice.js';
 import { LANES as MODEL_LANES } from '../lib/modelPrefs.js';
@@ -109,4 +109,25 @@ test('the lane is fully registered: router, label, model board, gate', () => {
   assert.ok(LANE_LABEL.book, 'lane label missing');
   assert.ok(MODEL_LANES.some((l) => l.id === 'librarian'), 'model board lane missing');
   assert.ok(GATE_LANES.librarian, 'model-choice gate missing — deep research must stay his call');
+});
+
+// Librarian Phase 2 — a book he UPLOADED is read by him; a dossier Nova
+// assembled is not. The two must never wear each other's label, and the
+// reading lifecycle has to reflect the same distinction.
+test('weave rules: an uploaded book is read + absorbed, a dossier is researched + want-to-read', () => {
+  const supplied = bookWeaveRules({ title: 'Deep Work', author: 'Cal Newport' }, true);
+  assert.match(supplied, /provenance: read/);
+  assert.match(supplied, /reading: absorbed/);
+  assert.doesNotMatch(supplied, /provenance: researched/);
+
+  const dossier = bookWeaveRules({ title: 'Deep Work', author: 'Cal Newport' }, false);
+  assert.match(dossier, /provenance: researched/);
+  assert.match(dossier, /reading: want-to-read/, 'Nova reading ABOUT a book is not him reading it');
+  assert.match(dossier, /Nova has NOT read this book/);
+});
+
+test('weave rules: an explicit reading state overrides the default', () => {
+  const r = bookWeaveRules({ title: 'T', author: 'A', reading: 'reading' }, true);
+  assert.match(r, /reading: reading/);
+  assert.match(r, /provenance: read/);
 });

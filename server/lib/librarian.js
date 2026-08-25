@@ -151,11 +151,15 @@ export function runBookResearch({ title, author, notes, model: modelOverride }, 
 // researched dossier. The two must never wear each other's label: a
 // researched page claiming `read` is Nova lying about how well it knows
 // something, and a read page claiming `researched` buries the good stuff.
-export function bookWeaveRules({ title, author }, provided = false) {
+export function bookWeaveRules({ title, author, reading }, provided = false) {
   const prov = provided ? 'read' : 'researched';
+  // The reading lifecycle (want-to-read -> reading -> absorbed). A book he
+  // uploaded is absorbed unless he says otherwise; a researched dossier is
+  // want-to-read, because Nova reading ABOUT a book is not him reading it.
+  const readingState = reading || (provided ? 'absorbed' : 'want-to-read');
   return `
 BOOK RULES, on top of CLAUDE.md:
-- The Source page is the book itself. Its frontmatter must include: title: "${title}", author: "${author}", type: book, provenance: ${prov}${provided
+- The Source page is the book itself. Its frontmatter must include: title: "${title}", author: "${author}", type: book, provenance: ${prov}, reading: ${readingState}${provided
     ? ' (Hayden supplied this book\'s own text/notes — extract EVERYTHING: every idea, framework, claim, example and person, not just headlines; his standing requirement is that no concept is lost. The verbatim stays in Raw/; Wiki pages follow CLAUDE.md\'s paraphrase rule for third-party text.)'
     : ' (Nova has NOT read this book — the dossier is triangulated from public sources, and every page you write from it inherits that honesty; if a page states something as the book\'s position, it is the dossier\'s sourced account of the book\'s position.)'}
 - ${provided ? 'A prior researched version of this book may already have pages: DEEPEN them with what the real text shows, correct anything the research got wrong (note the correction), and flip their provenance to read.' : "The dossier's \"Frameworks & terms\" become Concept pages, its \"People, works and studies\" become Entity pages — but per the dedup rule, extend any that already exist rather than forking."}

@@ -80,6 +80,14 @@ async function main() {
 
   const app = express();
   app.use(cors({ origin: allowedOrigins }));
+  // BINARY UPLOADS MUST BEAT THE TEXT PARSERS. The global express.text below
+  // claims application/octet-stream and decodes it as UTF-8 — which silently
+  // mangles every byte of an EPUB or PDF and caps it at 1mb. A book uploaded
+  // through it arrived as corrupted text and extracted to zero characters,
+  // with no error anywhere: the request looked fine, the file was ruined.
+  // Claiming the path first is the fix; the later parsers skip a body that
+  // has already been read.
+  app.use('/api/ingest/book-file', express.raw({ type: '*/*', limit: '120mb' }));
   // `verify` keeps the exact bytes: when strict JSON.parse rejects a body we
   // need the original text to attempt the empty-value repair below.
   app.use(express.json({ limit: '40mb', verify: (req, res, buf) => { req.rawBody = buf.toString('utf8'); } })); // headroom for a few base64-encoded recipe photos
