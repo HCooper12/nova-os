@@ -148,3 +148,52 @@ test('an undo restores quantities too', async () => {
   await restoreItems(vault, cleared);
   assert.equal((await loadShoppingList(vault)).items[0].qty, 7);
 });
+
+// AMOUNTS FROM A RECIPE. He added the Chicken Caesar and the chicken arrived
+// as bare "chicken breast" — the 1kg had been tidied away by the model that
+// categorises names. The amount is now split off BEFORE the model sees it.
+test('splitAmount handles the shapes his real recipes actually use', async () => {
+  const { splitAmount } = await import('../lib/shoppingList.js');
+  const cases = [
+    ['1kg raw chicken breast (Nuttab or Woolworths RSPCA)', '1kg', 'raw chicken breast (Nuttab or Woolworths RSPCA)'],
+    ['400g pasta (Mafalde Forte or any short pasta shape)', '400g', 'pasta (Mafalde Forte or any short pasta shape)'],
+    ['10 slices Wonder white bread', '10 slices', 'Wonder white bread'],
+    ['2 whole eggs', '2', 'whole eggs'],
+    ['1 x 250g microwave rice pouch', '1 x 250g', 'microwave rice pouch'],
+    ['1 tbsp BBQ sauce', '1 tbsp', 'BBQ sauce'],
+    ['1 1/4 cups caramelised brown onion (about 5 onions worth)', '1 1/4 cups', 'caramelised brown onion (about 5 onions worth)'],
+  ];
+  for (const [input, amount, name] of cases) {
+    assert.deepEqual(splitAmount(input), { amount, name }, input);
+  }
+});
+
+test('splitAmount never invents an amount, and never eats the whole item', async () => {
+  const { splitAmount } = await import('../lib/shoppingList.js');
+  for (const s of ['Milk', 'Fresh spring onion + sliced red chilli to top', 'Soy sauce + oyster sauce (3 tbsp combined)']) {
+    assert.deepEqual(splitAmount(s), { amount: null, name: s }, s);
+  }
+  // a bare amount IS the item — there is nothing left to buy without it
+  assert.deepEqual(splitAmount('500g'), { amount: null, name: '500g' });
+  assert.deepEqual(splitAmount('3 kg'), { amount: null, name: '3 kg' });
+  assert.deepEqual(splitAmount(''), { amount: null, name: '' });
+  assert.deepEqual(splitAmount(undefined), { amount: null, name: '' });
+});
+
+test('adding a recipe ingredient keeps its amount all the way to the list', async () => {
+  await clearAll(vault).catch(() => {});
+  const added = await addItemsDirect(vault, [{ name: '1kg raw chicken breast', source: 'Chicken Caesar Pasta' }]);
+  assert.equal(added[0].amount, '1kg', 'the weight survives the add');
+  assert.equal(added[0].name, 'raw chicken breast');
+  const { readFile } = await import('node:fs/promises');
+  const raw = await readFile(path.join(vault, 'Wiki/Health/Shopping List.md'), 'utf8');
+  assert.match(raw, /1kg raw chicken breast/, 'and it reads correctly in Obsidian');
+});
+
+test('an amount survives a clear and undo', async () => {
+  await clearAll(vault).catch(() => {});
+  await addItemsDirect(vault, [{ name: '400g pasta' }]);
+  const cleared = await clearAll(vault);
+  await restoreItems(vault, cleared);
+  assert.equal((await loadShoppingList(vault)).items[0].amount, '400g');
+});

@@ -19,7 +19,8 @@ function bodyFor(items) {
     lines.push(`## ${cat}`, '');
     for (const item of inCat) {
       const qty = Number(item.qty) > 1 ? `${Number(item.qty)} × ` : '';
-      lines.push(`- [${item.checked ? 'x' : ' '}] ${qty}${item.name}${item.source ? ` _(from ${item.source})_` : ''}`);
+      const amount = item.amount ? `${item.amount} ` : '';
+      lines.push(`- [${item.checked ? 'x' : ' '}] ${qty}${amount}${item.name}${item.source ? ` _(from ${item.source})_` : ''}`);
     }
     lines.push('');
   }
@@ -57,6 +58,13 @@ export const SHOPPING_CATEGORIES = CATEGORIES;
 // with their assigned ids so the caller can undo them later.
 export async function addItemsDirect(vaultPath, newItems) {
   const added = newItems
+    .map((raw) => {
+      // A caller that already split keeps its amount; one that passed a whole
+      // ingredient line ("1kg raw chicken breast") gets it split here, so no
+      // add path can drop the number.
+      const s = raw.amount ? { amount: raw.amount, name: String(raw.name || '').trim() } : splitAmount(raw.name);
+      return { ...raw, name: s.name, amount: s.amount };
+    })
     .map((it) => ({
       id: randomUUID().slice(0, 8),
       name: String(it.name || '').trim(),
@@ -65,6 +73,9 @@ export async function addItemsDirect(vaultPath, newItems) {
       // How many to buy. 1 is the honest default — an item with no stated
       // quantity means "one of these", not "unspecified".
       qty: normalizeQty(it.qty),
+      // what the recipe called for, e.g. "1kg" — distinct from qty, which is
+      // how many of THAT he is buying
+      amount: it.amount ? String(it.amount).trim().slice(0, 24) : null,
       source: it.source || null,
     }))
     .filter((it) => it.name);
@@ -74,6 +85,37 @@ export async function addItemsDirect(vaultPath, newItems) {
     await persist(vaultPath, [...current, ...added]);
   });
   return added;
+}
+
+// THE AMOUNT AN INGREDIENT CALLS FOR — "1kg", "10 slices", "1 x 250g".
+//
+// He added the Chicken Caesar to his list and the chicken came back as plain
+// "chicken breast" with no weight, which is useless at the shops. The cause:
+// items go past a model for CATEGORISING, and its prompt asked for names
+// "short enough for a shopping list" — so it helpfully deleted the 1kg.
+//
+// The fix is to take the amount out of the model's reach entirely. Code
+// splits the leading amount off first, the model only ever sees the food, and
+// the amount is re-attached afterwards. Models decide the category; code
+// keeps the number.
+const AMOUNT_UNITS = 'kg|g|mg|ml|l|tbsp|tbs|tsp|cups?|slices?|cloves?|cans?|tins?|pouch(?:es)?|punnets?|bunch(?:es)?|heads?|scoops?|serves?|packs?|jars?|bottles?|sticks?|rashers?|fillets?|sheets?';
+const NUM = '(?:\\d+\\s+\\d+\\/\\d+|\\d+\\/\\d+|[¼½¾⅓⅔]|\\d+(?:\\.\\d+)?)';
+const AMOUNT_RE = new RegExp(`^\\s*(${NUM}\\s*(?:x\\s*${NUM}\\s*)?(?:${AMOUNT_UNITS})?)\\s*(?:of\\s+)?(?=\\S)`, 'i');
+
+export function splitAmount(raw) {
+  const str = String(raw ?? '').trim();
+  if (!str) return { amount: null, name: '' };
+  const m = AMOUNT_RE.exec(str);
+  if (!m) return { amount: null, name: str };
+  const amount = m[1].replace(/\s+/g, ' ').trim();
+  const name = str.slice(m[0].length).trim();
+  // "500g" on its own is the item, not an amount with nothing left to buy.
+  // The lookahead backtracks to leave a bare unit behind ("500" + "g"), so
+  // the remainder has to be a real word before we accept the split.
+  if (!name || name.length < 2 || new RegExp(`^(?:${AMOUNT_UNITS})$`, 'i').test(name)) {
+    return { amount: null, name: str };
+  }
+  return { amount, name };
 }
 
 // Quantities are whole counts he can act on in a shop: at least one, and
@@ -151,6 +193,7 @@ export async function restoreItems(vaultPath, items) {
       category: CATEGORIES.includes(it?.category) ? it.category : 'Household & Other',
       checked: !!it?.checked,
       qty: normalizeQty(it?.qty),
+      amount: it?.amount ? String(it.amount).trim().slice(0, 24) : null,
       source: it?.source || null,
     }))
     .filter((it) => it.name);
@@ -168,6 +211,12 @@ export async function restoreItems(vaultPath, items) {
 const jobs = new Map();
 
 export function startAddItems(vaultPath, newItems) {
+  // Split the amount off BEFORE the model sees anything — this is what keeps
+  // "1kg" attached to his chicken instead of being tidied away.
+  const split = (newItems || []).map((it) => {
+    const { amount, name } = splitAmount(it.name);
+    return { ...it, name, amount: it.amount || amount };
+  });
   const jobId = randomUUID().slice(0, 8);
   const job = { id: jobId, status: 'running', items: null, error: null };
   jobs.set(jobId, job);
@@ -179,9 +228,10 @@ export function startAddItems(vaultPath, newItems) {
     laneSkipped('shopping-categorize', 'shopping-list categorisation (items added uncategorised)');
     (async () => {
       try {
-        await addItemsDirect(vaultPath, newItems.map((it) => ({
+        await addItemsDirect(vaultPath, split.map((it) => ({
           name: String(it.name || '').trim(),
           category: 'Household & Other',
+          amount: it.amount || null,
           source: it.source || null,
         })).filter((it) => it.name));
         // job.items is the WHOLE list on the model path — the client renders
@@ -199,9 +249,9 @@ export function startAddItems(vaultPath, newItems) {
   const prompt = `Categorize each of these shopping list items into exactly one of these categories: ${CATEGORIES.join(', ')}.
 
 Items:
-${newItems.map((it, i) => `${i + 1}. ${it.name}`).join('\n')}
+${split.map((it, i) => `${i + 1}. ${it.name}`).join('\n')}
 
-Use "Household & Other" for anything that isn't food (kitchenware, cleaning supplies, etc). You may lightly clean up each name (e.g. strip cooking-state notes like "(cooked, drained)") but keep it recognizable and short enough for a shopping list — don't invent quantities that weren't given.
+Use "Household & Other" for anything that isn't food (kitchenware, cleaning supplies, etc). You may lightly clean up each name (e.g. strip cooking-state notes like "(cooked, drained)") but keep it recognizable and short enough for a shopping list. Amounts have already been removed before you see this list — never add one, and never remove a brand or variety that is part of the name.
 
 Output ONLY a JSON array with exactly ${newItems.length} objects, one per item in the same order, each with keys "name" and "category". No markdown, no commentary — just the raw JSON array.`;
 
@@ -240,10 +290,14 @@ Output ONLY a JSON array with exactly ${newItems.length} objects, one per item i
         const parsed = JSON.parse(jsonMatch[0]);
         const categorized = parsed.map((p, i) => ({
           id: randomUUID().slice(0, 8),
-          name: String(p.name || newItems[i]?.name || '').trim(),
+          name: String(p.name || split[i]?.name || '').trim(),
           category: CATEGORIES.includes(p.category) ? p.category : 'Household & Other',
           checked: false,
-          source: newItems[i]?.source || null,
+          qty: normalizeQty(split[i]?.qty),
+          // re-attached from OUR split, never from the model's output — the
+          // amount is the one field it cannot lose
+          amount: split[i]?.amount || null,
+          source: split[i]?.source || null,
         })).filter((it) => it.name);
 
         const items = await withWriteLock(async () => {

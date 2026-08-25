@@ -107,7 +107,15 @@ export function Shopping({ v }) {
                   >
                     <span style={item.checkboxStyle}>{item.checked ? '✓' : ''}</span>
                     <div style={css("flex:1")}>
-                      <div style={item.nameStyle}>{item.qty > 1 ? `${item.qty} × ${item.name}` : item.name}</div>
+                      <div style={item.nameStyle}>
+                        {item.qty > 1 && <span>{item.qty} × </span>}
+                        {/* the amount the recipe called for — the number he
+                            actually needs standing at the shelf */}
+                        {item.amount && (
+                          <span style={css("font:600 11.5px var(--nv-font-mono);color:var(--nv-gold);margin-right:5px")}>{item.amount}</span>
+                        )}
+                        {item.name}
+                      </div>
                       {item.source && (
                         <div style={css("font-size:10.5px;color:color-mix(in srgb, var(--nv-ink) 35%, transparent);margin-top:2px")}>from {item.source}</div>
                       )}

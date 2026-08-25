@@ -20,6 +20,8 @@ export function valsMisc(app, ctx) {
         id: i.id, name: i.name, source: i.source, checked: i.checked,
         // legacy items carry no qty — one of a thing is the honest default
         qty: Math.max(1, Number(i.qty) || 1),
+        // what the recipe called for ("1kg") — the thing he needs at the shops
+        amount: i.amount || null,
         onToggle: () => app.toggleShoppingItem(i.id, !i.checked),
         incQty: () => app.setShoppingQty(i.id, Math.min(99, (Number(i.qty) || 1) + 1)),
         decQty: () => app.setShoppingQty(i.id, Math.max(1, (Number(i.qty) || 1) - 1)),
