@@ -137,20 +137,31 @@ export async function buildReviewContext(vaultPath, now = new Date()) {
       [...byDate.entries()].map(([d, n]) => `${d}:${n}`).join(' · ') + '.';
   });
   await add('library', async () => {
-    // Resurfacing — the library only compounds if its ideas come back. Two
-    // candidates: the STALEST source (longest untouched — spaced repetition,
-    // roughly) and the FRESHEST (still settling in). Deterministic pick; the
-    // model decides IF one genuinely connects to today, and its discipline
-    // rules already forbid forcing it.
+    // Resurfacing — the library only compounds if its ideas come back.
+    // This used to pick the first and last items by list position, which
+    // meant the same two sources every day and everything in the middle
+    // never seen again. Now it is genuinely SPACED: a picker with a memory
+    // that widens the gap each time a source is shown, and jumps anything
+    // his vault has newly linked to the front. Deterministic pick; the model
+    // decides IF it genuinely connects to today, and its discipline rules
+    // already forbid forcing it.
     const { Vault } = await import('./vault.js');
     const { buildLibrary } = await import('./library.js');
+    const { pickForResurfacing, readSpacing, markSurfaced } = await import('./librarySpacing.js');
     const items = await buildLibrary(vaultPath, new Vault(vaultPath));
     if (!items.length) return null;
-    const line = (s, tag) => `- [${tag}] "${s.title}"${s.author ? ` (${s.author})` : ''} — ideas: ${(s.concepts || []).slice(0, 4).join(', ') || s.excerpt.slice(0, 80)}${s.provenance === 'researched' ? ' [researched, not read]' : ''}`;
-    const freshest = items[0];
-    const stalest = items[items.length - 1];
-    return 'FROM HIS LIBRARY (weave ONE in only if it genuinely connects to today — an idea he stored, coming back when it matters):\n'
-      + line(stalest, 'longest untouched') + (stalest !== freshest ? '\n' + line(freshest, 'newest') : '');
+    const pick = pickForResurfacing(items, await readSpacing(), now.getTime());
+    if (!pick) return null; // nothing due — say nothing rather than repeat
+    const s = pick.item;
+    // Marked as surfaced HERE, when it enters the prompt. The alternative —
+    // marking only if the model uses it — would let one unused idea block
+    // the queue forever.
+    await markSurfaced(s, now).catch(() => {});
+    const why = pick.reason === 'reconnected'
+      ? 'newly linked from elsewhere in his vault — that connection is the reason it is back'
+      : pick.reason === 'new' ? 'never resurfaced before' : 'due for a revisit';
+    return `FROM HIS LIBRARY (weave it in ONLY if it genuinely connects to today — an idea he stored, coming back when it matters; ${pick.due} source${pick.due === 1 ? '' : 's'} were due, this is the one):\n`
+      + `- [${why}] "${s.title}"${s.author ? ` (${s.author})` : ''} — ideas: ${(s.concepts || []).slice(0, 4).join(', ') || String(s.excerpt || '').slice(0, 80)}${s.provenance === 'researched' ? ' [researched, not read]' : ''}`;
   });
   await add('money', async () => {
     const { getMonthSummary } = await import('./money.js');

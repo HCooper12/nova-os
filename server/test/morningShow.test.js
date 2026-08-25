@@ -211,3 +211,30 @@ test('audit beat: never on the evening variant', async () => {
   const { steps } = await composeShow('/tmp/vault', { variant: 'evening', now: AT_8PM }, withAudit);
   assert.doesNotMatch(steps.map((s) => s.say).join(' | '), /audit line here/);
 });
+
+// Librarian Phase 3's brief hook — occasional, and honest about provenance.
+test('library beat: an idea resurfaces with its concepts, flagged if only researched', async () => {
+  const withLib = { ...deps, libraryResurface: async () => ({
+    line: 'From your library, sir: "Deep Work" by Cal Newport — Attention Residue.',
+    item: { title: 'Deep Work', concepts: ['Attention Residue', 'Shallow Work'], provenance: 'researched' },
+    reason: 'new',
+  }) };
+  const { steps } = await composeShow('/tmp/vault', { variant: 'morning', now: AT_7AM }, withLib);
+  const all = steps.map((s) => s.say).join(' | ');
+  assert.match(all, /Attention Residue/);
+  const card = steps.find((s) => s.card?.label?.includes('FROM YOUR LIBRARY'))?.card;
+  assert.ok(card, 'the beat carries its concepts as evidence');
+  assert.match(card.foot, /researched, not read/, 'provenance survives into the brief');
+});
+
+test('library beat: rate-limited to silence, never filler', async () => {
+  const quiet = { ...deps, libraryResurface: async () => null };
+  const { steps } = await composeShow('/tmp/vault', { variant: 'morning', now: AT_7AM }, quiet);
+  assert.doesNotMatch(steps.map((s) => s.say).join(' | '), /From your library/);
+});
+
+test('library beat: never on the evening variant', async () => {
+  const withLib = { ...deps, libraryResurface: async () => ({ line: 'library line here', item: { concepts: [] }, reason: 'new' }) };
+  const { steps } = await composeShow('/tmp/vault', { variant: 'evening', now: AT_8PM }, withLib);
+  assert.doesNotMatch(steps.map((s) => s.say).join(' | '), /library line here/);
+});

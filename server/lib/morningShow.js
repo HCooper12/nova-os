@@ -127,6 +127,13 @@ const defaultDeps = {
   records: async () => (await import('./inboxStore.js')).listRecords(),
   eventsForDay: async (date) => (await import('./calendar.js')).fetchEventsForDay(date),
   latestAudit: async () => (await import('./coachProgramAudit.js')).readAuditLog().then((a) => a[0] || null),
+  libraryResurface: async (vaultPath, now) => {
+    const { Vault } = await import('./vault.js');
+    const { buildLibrary } = await import('./library.js');
+    const { briefResurfaceLine } = await import('./librarySpacing.js');
+    const items = await buildLibrary(vaultPath, new Vault(vaultPath));
+    return items.length ? briefResurfaceLine(items, now) : null;
+  },
   panel: async (vaultPath, directive) => (await import('./panels.js')).buildPanel(vaultPath, directive),
 };
 
@@ -411,6 +418,26 @@ export async function composeShow(vaultPath, { variant = 'morning', now: nowIn }
               tone: c.status === 'fired' ? 'gold' : undefined,
             })),
             foot: `${fired} to decide · ${clear} clean · ${notYet} pending more history`,
+          }),
+        });
+      }
+    } catch { /* absent section */ }
+  }
+
+  // — an idea from his library, occasionally —
+  // Librarian Phase 3's brief hook. Rate-limited hard (once every few days)
+  // because the way a resurfacing beat turns preachy is by arriving every
+  // morning; it declines rather than reaching when nothing is genuinely due.
+  if (!evening && deps.libraryResurface) {
+    try {
+      const res = await deps.libraryResurface(vaultPath, now);
+      if (res?.line) {
+        steps.push({
+          say: despeak(res.line),
+          card: listCard({
+            label: res.reason === 'reconnected' ? 'FROM YOUR LIBRARY · NEWLY CONNECTED' : 'FROM YOUR LIBRARY',
+            items: (res.item.concepts || []).slice(0, 4).map((c) => ({ name: c })),
+            foot: res.item.provenance === 'researched' ? 'researched, not read' : undefined,
           }),
         });
       }
