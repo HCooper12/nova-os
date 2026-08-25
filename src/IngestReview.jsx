@@ -16,15 +16,19 @@ function ChangeCard({ change }) {
 }
 
 export function IngestReview({ v }) {
-  const processing = v.ingestStatus === 'researching' || v.ingestStatus === 'fetching' || v.ingestStatus === 'digesting' || v.ingestStatus === 'staging' || v.ingestStatus === 'running';
+  const processing = ['researching', 'fetching', 'digesting', 'staging', 'running', 'reading'].includes(v.ingestStatus);
   const applying = v.ingestStatus === 'applying';
   return (
     <div role="dialog" aria-modal="true" aria-label="Review ingest changes" onClick={processing ? undefined : v.closeIngestReview} style={css("position:fixed;inset:0;background:rgba(8,5,12,.72);backdrop-filter:blur(6px);z-index:60;display:flex;align-items:center;justify-content:center;padding:40px;overflow-y:auto")}>
       <div onClick={v.stopClick} style={css("width:700px;max-width:94vw;max-height:88vh;overflow-y:auto;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 40px 90px -30px rgba(0,0,0,.95),inset 0 1px 0 var(--nv-spec);animation:fadeUp .3s ease-out;padding:26px 28px")}>
         <div style={css("display:flex;justify-content:space-between;align-items:center")}>
           <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.24em;color:var(--nv-gold)")}>INGEST · REVIEW</span>
-          {!processing && !applying && (
-            <Interactive as="span" onClick={v.closeIngestReview} base="cursor:pointer;font:500 11px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 50%, transparent);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:7px;padding:5px 10px" hoverStyle="color:var(--nv-ink)">ESC</Interactive>
+          {/* An escape is ALWAYS available. A processing job used to hide this
+              button and disable the backdrop, so a run that stalled left him
+              sealed inside a spinner with no way out but force-quitting the
+              app — which is exactly what happened with Atomic Habits. */}
+          {!applying && (
+            <Interactive as="span" onClick={v.closeIngestReview} base="cursor:pointer;font:500 11px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 50%, transparent);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:7px;padding:5px 10px" hoverStyle="color:var(--nv-ink)">{processing ? 'CANCEL' : 'ESC'}</Interactive>
           )}
         </div>
 
@@ -35,7 +39,10 @@ export function IngestReview({ v }) {
               <span style={css("width:6px;height:6px;border-radius:50%;background:var(--nv-gold);animation:dotBlink 1s .2s infinite")}></span>
               <span style={css("width:6px;height:6px;border-radius:50%;background:var(--nv-gold);animation:dotBlink 1s .4s infinite")}></span>
             </div>
-            <div style={css("font-size:13px;color:color-mix(in srgb, var(--nv-ink) 60%, transparent);text-align:center")}>{v.ingestStatus === 'researching' ? 'The Librarian is researching the book — triangulating public sources takes a few minutes…' : v.ingestStatus === 'fetching' ? 'Fetching the video transcript…' : v.ingestStatus === 'digesting' ? 'Long video — condensing the transcript in passes…' : v.ingestStatus === 'staging' ? 'Preparing a scratch copy of your vault…' : 'Reading it and drafting pages — this can take a minute or two…'}</div>
+            <div style={css("font-size:13px;color:color-mix(in srgb, var(--nv-ink) 60%, transparent);text-align:center")}>{v.ingestStatus === 'researching' ? 'The Librarian is researching the book — triangulating public sources takes a few minutes…' : v.ingestStatus === 'fetching' ? 'Fetching the video transcript…' : v.ingestStatus === 'digesting' ? 'Condensing a long text in passes — a whole book runs 15–40 minutes…' : v.ingestStatus === 'reading' ? 'Reading your copy — a full book is several passes, 15–40 minutes…' : v.ingestStatus === 'staging' ? 'Preparing a scratch copy of your vault…' : 'Reading it and drafting pages — this can take a minute or two…'}</div>
+            {/* It is safe to leave. Saying so is the difference between a long
+                job and a hostage situation. */}
+            <div style={css("font:400 11px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 38%, transparent);text-align:center")}>Cancel closes this — the work keeps running and lands in your Inbox.</div>
           </div>
         )}
 

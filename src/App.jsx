@@ -3054,9 +3054,19 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn) return;
     this.setState({ ingestModalOpen: false, ingestJobId: null, ingestStatus: book ? 'researching' : 'staging', ingestPreview: null, ingestError: null });
+    // A HUNG START MUST NOT LOOK LIKE A LONG RUN. The status was set before
+    // this request, so if it never settled (a dropped Tailscale route, a
+    // route that hung) the spinner ran forever with no job behind it and no
+    // way to cancel. Half an hour of "researching" with nothing on the
+    // server is what that looked like.
+    const startGuard = setTimeout(() => {
+      if (!this.state.ingestJobId) {
+        this.setState({ ingestStatus: 'error', ingestError: 'Nova never got the job started — check the backend connection and try again. Nothing was written.' });
+      }
+    }, 45_000);
     api.startIngest(conn, text || undefined, sourceUrl || undefined, book || undefined)
-      .then(({ jobId }) => this.pollIngest(jobId))
-      .catch((e) => { this.setState({ ingestStatus: 'error', ingestError: e.message }); });
+      .then(({ jobId }) => { clearTimeout(startGuard); this.pollIngest(jobId); })
+      .catch((e) => { clearTimeout(startGuard); this.setState({ ingestStatus: 'error', ingestError: e.message }); });
   }
   // One poller for every ingest, however it started — pasted text, a link, or
   // a book file he uploaded. A second copy would be a second thing to fix.
