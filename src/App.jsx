@@ -3012,6 +3012,10 @@ export default class App extends Component {
   }
   onIngestFile(e) {
     const file = e.target.files?.[0];
+    // Clear the input NOW: a file input keeps its value, so picking the SAME
+    // file after a failure fires no change event and the retry silently does
+    // nothing — which is exactly what his second Atomic Habits attempt did.
+    e.target.value = '';
     if (!file) return;
     // EPUB and PDF are BINARY — FileReader.readAsText mangles every byte of
     // them, which is why picking a book here used to do nothing useful. They
@@ -3028,8 +3032,10 @@ export default class App extends Component {
         this.toastMsg(`Reading “${title}” by ${author} — ${Math.round(chars / 1000)}k characters`);
         this.pollIngest(jobId);
       }).catch((err) => {
-        // extraction failures carry advice he can act on — show them, do not swallow
-        this.setState({ ingestStatus: null, ingestError: err.message });
+        // 'error', NEVER null: null rendered the review sheet completely
+        // BLANK and threw the message away — three upload failures in a row
+        // showed him an empty box instead of a single word of why.
+        this.setState({ ingestStatus: 'error', ingestError: err.message });
       });
       return;
     }

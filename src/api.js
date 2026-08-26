@@ -158,11 +158,24 @@ export const api = {
     const q = new URLSearchParams({ filename: file.name });
     if (title) q.set('title', title);
     if (author) q.set('author', author);
-    const res = await fetch(`${conn.url}/api/ingest/book-file?${q}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${conn.token}`, 'Content-Type': 'application/octet-stream' },
-      body: file,
-    });
+    // baseOf(conn), NOT conn.url — conn has no `url` property. The undefined
+    // interpolated into a RELATIVE path, so every book upload was POSTed to
+    // the app's own origin (GitHub Pages) instead of his server: an instant
+    // 404-shaped failure with nothing in the server log, on every attempt,
+    // since the day this shipped.
+    let res;
+    try {
+      res = await fetch(`${baseOf(conn)}/api/ingest/book-file?${q}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${conn.token}`, 'Content-Type': 'application/octet-stream' },
+        body: file,
+      });
+    } catch (err) {
+      // A rejected fetch has no status and a useless message ("Failed to
+      // fetch"). Say where the upload was going — a blocked request and a
+      // down server read identically without it.
+      throw new Error(`the upload never left the browser (${err.message}) — Nova at ${baseOf(conn)} was never reached. Check Settings → connection, then pick the file again.`);
+    }
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || `upload failed (${res.status})`);
     return data;

@@ -18,6 +18,11 @@ function ChangeCard({ change }) {
 export function IngestReview({ v }) {
   const processing = ['researching', 'fetching', 'digesting', 'staging', 'running', 'reading'].includes(v.ingestStatus);
   const applying = v.ingestStatus === 'applying';
+  // Anything unrecognized renders as an error, NEVER as an empty sheet: a
+  // null status once showed a bare header while the real message sat unread
+  // in state — a failure the user cannot see is a failure that gets retried
+  // blind, three times, on camera.
+  const errored = v.ingestStatus === 'error' || (!processing && !applying && v.ingestStatus !== 'ready');
   return (
     <div role="dialog" aria-modal="true" aria-label="Review ingest changes" onClick={processing ? undefined : v.closeIngestReview} style={css("position:fixed;inset:0;background:rgba(8,5,12,.72);backdrop-filter:blur(6px);z-index:60;display:flex;align-items:center;justify-content:center;padding:40px;overflow-y:auto")}>
       <div onClick={v.stopClick} style={css("width:700px;max-width:94vw;max-height:88vh;overflow-y:auto;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 40px 90px -30px rgba(0,0,0,.95),inset 0 1px 0 var(--nv-spec);animation:fadeUp .3s ease-out;padding:26px 28px")}>
@@ -46,9 +51,9 @@ export function IngestReview({ v }) {
           </div>
         )}
 
-        {v.ingestStatus === 'error' && (
+        {errored && (
           <div style={css("margin-top:20px")}>
-            <div style={css("font-size:13px;color:var(--nv-warn);line-height:1.6")}>{v.ingestError}</div>
+            <div style={css("font-size:13px;color:var(--nv-warn);line-height:1.6")}>{v.ingestError || 'Something went wrong and the reason was lost before it could be shown. Nothing was written to your vault — try again, and if this repeats it is a bug worth reporting.'}</div>
             <div style={css("margin-top:16px")}>
               <Interactive as="span" onClick={v.closeIngestReview} base="cursor:pointer;font-size:12.5px;padding:9px 16px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);color:color-mix(in srgb, var(--nv-ink) 70%, transparent)" hoverStyle="background:rgba(255,255,255,.05)">Dismiss</Interactive>
             </div>

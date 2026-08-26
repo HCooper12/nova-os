@@ -40,6 +40,9 @@ const FEATURES = [
   ['Brief · question-by-question close', 'startBriefQueue'],
   ['Coach · apply from the chat', 'APPLY IT'],
   ['Book upload (EPUB/PDF)', 'uploadBookFile'],
+  // the marker above only proves the FUNCTION shipped — it shipped broken
+  // (posted to the app's own origin). This one exists only in the fixed code.
+  ['Book upload · reaches the right server', 'never left the browser'],
   ['Update banner', 'A newer Nova is ready'],
 ];
 
