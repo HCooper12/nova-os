@@ -93,6 +93,12 @@ export function buildChecks({ sessions, exercises, routines, weekly, goalMuscles
       clear: () => 'in every muscle group with enough movements to compare, the weakest is still gaining',
     },
     {
+      id: 'reported-form',
+      label: 'Something you flagged yourself',
+      gate: () => (sessions.length ? null : 'no sessions logged yet'),
+      clear: () => 'nothing you have written about form or pain is repeating',
+    },
+    {
       id: 'stale',
       label: 'A lift flat for three weeks or more',
       gate: () => (sessions.length >= 4 ? null : `needs 4 logged sessions, you have ${sessions.length}`),
@@ -150,7 +156,11 @@ export async function auditProgram(vaultPath, deps = {}) {
     ? Math.max(0, ...weekly.flatMap((w) => Object.values(w.groups || {}))) : 0;
 
   const byKind = new Map();
-  for (const f of findings) byKind.set(f.kind, [...(byKind.get(f.kind) || []), f]);
+  for (const f of findings) {
+    // pain and form are one CHECK from his side — "something you flagged"
+    const k = f.kind === 'reported-pain' ? 'reported-form' : f.kind;
+    byKind.set(k, [...(byKind.get(k) || []), f]);
+  }
 
   const checks = buildChecks({
     sessions, exercises, routines, weekly, goalMuscles, spanWeeks, ratedSets,

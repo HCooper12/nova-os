@@ -314,3 +314,58 @@ test('effort: a real e1RM collapse asks about recovery, not tempo', async () => 
   assert.match(prog['pull:row'].evidence, /recovery/i);
   assert.doesNotMatch(prog['pull:row'].evidence, /3s lowering/, 'a collapse is a recovery question, not a technique one');
 });
+
+// HIS OWN WORDS OUTRANK THE REP COUNT. He wrote that he was heaving a lateral
+// raise up with body momentum; the engine could not see it and would have
+// handed him +2.5kg on the strength of the reps.
+test('a note reporting form breakdown HOLDS the load and quotes him', async () => {
+  const dir = path.join(vault, 'note-form', 'Wiki/Health/Workouts');
+  await mkdir(dir, { recursive: true });
+  const sets = (w, r, n = 3) => Array.from({ length: n }, () => ({ weight: w, reps: r, rpe: 8 }));
+  await writeFile(path.join(dir, '2026-07-10 pull.md'), pullSession('2026-07-10', sets(9.1, 12)), 'utf8');
+  await writeFile(path.join(dir, '2026-07-14 pull.md'), matter.stringify('# Pull\n', {
+    type: 'workout-session', id: 'p-2', date: '2026-07-14', routineId: 'pull', routineName: 'Pull',
+    finishedAt: '2026-07-14T10:00:00.000Z',
+    exercises: [{ exerciseId: 'row', name: 'Row', sets: sets(9.1, 12), note: 'struggling to move it without a nudge of body momentum' }],
+  }), 'utf8');
+
+  const prog = await computeProgressions(path.join(vault, 'note-form'), effortRoutines);
+  const s = prog['pull:row'];
+  assert.equal(s.kind, 'quality', 'topped-out reps at RPE 8 would otherwise have earned load');
+  assert.equal(s.delta, 0);
+  assert.match(s.evidence, /body momentum/, 'his sentence is the reason, not an inference');
+  assert.match(s.evidence, /Holding/);
+});
+
+test('a note saying form was GOOD does not block progress', async () => {
+  const dir = path.join(vault, 'note-good', 'Wiki/Health/Workouts');
+  await mkdir(dir, { recursive: true });
+  const sets = (w, r, n = 3) => Array.from({ length: n }, () => ({ weight: w, reps: r, rpe: 8 }));
+  const mk = (date, note) => matter.stringify('# Pull\n', {
+    type: 'workout-session', id: `g-${date}`, date, routineId: 'pull', routineName: 'Pull',
+    finishedAt: `${date}T10:00:00.000Z`,
+    exercises: [{ exerciseId: 'row', name: 'Row', sets: sets(60, 12), note }],
+  });
+  await writeFile(path.join(dir, '2026-07-10 pull.md'), mk('2026-07-10', 'form was good'), 'utf8');
+  await writeFile(path.join(dir, '2026-07-14 pull.md'), mk('2026-07-14', 'clean reps, strict form'), 'utf8');
+
+  const prog = await computeProgressions(path.join(vault, 'note-good'), effortRoutines);
+  assert.notEqual(prog['pull:row']?.kind, 'quality', 'a positive form report must not read as a problem');
+});
+
+test('every suggestion carries his latest note for that lift', async () => {
+  const dir = path.join(vault, 'note-carry', 'Wiki/Health/Workouts');
+  await mkdir(dir, { recursive: true });
+  const sets = (w, r, n = 3) => Array.from({ length: n }, () => ({ weight: w, reps: r, rpe: 8 }));
+  const mk = (date, note) => matter.stringify('# Pull\n', {
+    type: 'workout-session', id: `c-${date}`, date, routineId: 'pull', routineName: 'Pull',
+    finishedAt: `${date}T10:00:00.000Z`,
+    exercises: [{ exerciseId: 'row', name: 'Row', sets: sets(60, 12), ...(note ? { note } : {}) }],
+  });
+  await writeFile(path.join(dir, '2026-07-10 pull.md'), mk('2026-07-10', 'done first today'), 'utf8');
+  await writeFile(path.join(dir, '2026-07-14 pull.md'), mk('2026-07-14'), 'utf8');
+
+  const prog = await computeProgressions(path.join(vault, 'note-carry'), effortRoutines);
+  assert.equal(prog['pull:row'].note, 'done first today', 'the number arrives beside what he said about the lift');
+  assert.equal(prog['pull:row'].noteDate, '2026-07-10');
+});

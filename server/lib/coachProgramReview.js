@@ -1,3 +1,4 @@
+import { recurringSignal } from './sessionNotes.js';
 // THE COACH'S PROGRAM REVIEW — the things a real coach notices between
 // sessions and raises unprompted.
 //
@@ -421,6 +422,54 @@ export function findLongTenure(sessions = [], exercises = [], { weeks = TENURE_W
 //
 // Needs a real body of evidence (100+ sets, most carrying RPE) before it
 // speaks, because on a thin log this would just be describing a hard week.
+// HIS OWN WORDS, RAISED AS A FINDING.
+//
+// He writes "struggling to move 9.1kg without a nudge of body momentum", then
+// something like it again a fortnight later. Twice is a pattern — and a
+// pattern he reported HIMSELF is the highest-quality signal in the system,
+// better than any number, because he was there. Until now not one detector
+// read a note.
+//
+// This raises the FACT and quotes him; it does not prescribe. What to do
+// about form breaking down under load is a coaching judgement Coach makes
+// with its own evidence rules, and hard-coding a prescription here would be
+// this file pretending to expertise it does not have.
+export function findNoteSignals(sessions = [], exercises = [], { min = 2, within = 6 } = {}) {
+  const byId = new Map(exercises.map((e) => [e.id, e]));
+  const seen = new Set();
+  const out = [];
+  for (const s of sessions) {
+    for (const ex of s.exercises || []) {
+      const id = ex.exerciseId;
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      for (const signal of ['pain', 'form-breakdown']) {
+        const hits = recurringSignal(sessions, id, signal, { min: signal === 'pain' ? 1 : min, within });
+        if (!hits) continue;
+        const name = byId.get(id)?.name || ex.name || id;
+        const quotes = hits.slice(0, 2).map((h) => `"${h.pain || h.note}"`).join(' and ');
+        out.push({
+          kind: signal === 'pain' ? 'reported-pain' : 'reported-form',
+          key: `${signal}:${id}:${hits[0].date}`,
+          exerciseId: id,
+          name,
+          times: hits.length,
+          dates: hits.map((h) => h.date),
+          quote: hits[0].pain || hits[0].note,
+          line: signal === 'pain'
+            ? `You logged pain on ${name} — ${quotes}. Worth deciding about before the next session rather than after it.`
+            : `You have flagged your own form on ${name} ${hits.length} times across your recent sessions — ${quotes}. A load you cannot own cleanly is not a load you are getting the benefit of, and that is the thing to fix before the number moves again.`,
+          // never a one-tap change: what to do about his technique is a
+          // conversation with Coach, not a silent edit to his plan
+          fix: null,
+        });
+        break; // one finding per lift — pain outranks form
+      }
+    }
+  }
+  return out;
+}
+
 export const EFFORT_CEILING_SHARE = 0.85;
 
 export function findEffortCeiling(sessions = [], { minSets = 100, share = EFFORT_CEILING_SHARE, now = new Date() } = {}) {
@@ -463,7 +512,7 @@ export function findEffortCeiling(sessions = [], { minSets = 100, share = EFFORT
 // session, then a movement not paying its way, then a lift that has stopped
 // paying, and last the "you've done this a long time" nudge — which is real
 // but never urgent.
-const RANK = { mapping: 0, 'effort-ceiling': 1, 'under-volume': 2, 'junk-volume': 3, 'routine-oversized': 4, 'low-value': 5, stale: 6, tenure: 7 };
+const RANK = { 'reported-pain': 0, 'reported-form': 1, mapping: 2, 'effort-ceiling': 3, 'under-volume': 4, 'junk-volume': 5, 'routine-oversized': 6, 'low-value': 7, stale: 8, tenure: 9 };
 
 export function rankFindings(findings) {
   return [...findings].sort((a, b) => (RANK[a.kind] ?? 9) - (RANK[b.kind] ?? 9));
@@ -506,6 +555,8 @@ export async function reviewProgram(vaultPath, deps = {}) {
     ...findLowValueExercises(sessions, exercises, routines),
     ...findStaleLifts(sessions, exercises, { now }),
     ...findLongTenure(sessions, exercises, { now }),
+    // what he told Nova himself — the highest-quality signal there is
+    ...findNoteSignals(sessions, exercises),
   ];
   return { findings: rankFindings(findings), counts: { sessions: sessions.length, exercises: exercises.length } };
 }

@@ -92,7 +92,7 @@ export async function buildDebriefContext(vaultPath, now = new Date()) {
     const sessions = (await loadSessions(vaultPath, { limit: 14 })).filter((s) => s.date >= weekStart);
     if (!sessions.length) return `TRAINING THIS WEEK (since ${weekStart}): no sessions logged.`;
     return `TRAINING THIS WEEK (since ${weekStart}, ${sessions.length} session${sessions.length === 1 ? '' : 's'}):\n` +
-      sessions.map((s) => `- ${s.date} ${s.routineName}: ${s.exercises.map((e) => `${e.name} ${e.sets.map((x) => `${x.weight}x${x.reps}${x.rpe ? '@' + x.rpe : ''}`).join(',')}`).join(' | ')}`).join('\n');
+      sessions.map((s) => `- ${s.date} ${s.routineName}: ${s.exercises.map((e) => `${e.name} ${e.sets.map((x) => `${x.weight}x${x.reps}${x.rpe ? '@' + x.rpe : ''}`).join(',')}${e.note ? ` — his note: "${e.note}"` : ''}${e.pain ? ` — PAIN: ${e.pain}` : ''}`).join(' | ')}${s.cutShort ? ` [CUT SHORT: ${s.cutShort}]` : ''}`).join('\n');
   });
   await add('schedule', async () => {
     const { loadExerciseLibrary } = await import('./exercises.js');

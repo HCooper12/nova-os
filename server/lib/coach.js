@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { loadSessions, setSessionSummary } from './workoutSessions.js';
 import { createRecord } from './inboxStore.js';
+import { readExerciseNote } from './sessionNotes.js';
 
 // Coach's progression engine — pure deterministic rules over logged history,
 // per the agents plan: it only ever changes SUGGESTED numbers (session
@@ -148,6 +149,16 @@ export async function computeProgressions(vaultPath, routines) {
       const topRpe = rpesRecent.length ? Math.max(...rpesRecent) : null;
       const lastWeight = maxOf(recent[0], (s) => s.weight);
 
+      // HIS OWN WORDS ARE EVIDENCE. He writes a note against the exercise
+      // mid-session and, until now, this engine never read it — so a lift he
+      // had just described himself heaving up with body momentum could still
+      // earn +2.5kg because the rep count looked fine. A note reporting form
+      // breaking down (or pain) HOLDS the load: the deterministic layer only
+      // ever suppresses an increase, never invents one, and it quotes his
+      // sentence back so the reason is his, not an inference.
+      const lastNote = readExerciseNote(recent[0]);
+      const formGone = !!lastNote?.signals.some((x) => x === 'form-breakdown' || x === 'pain');
+
       // OBJECTIVE TREND FIRST. His effort rating is near-constant, so "is it
       // moving?" is the only question that separates one lift from another.
       const loadNow = bestSetLoad(recent[0]);
@@ -159,6 +170,20 @@ export async function computeProgressions(vaultPath, routines) {
       // A lift only gets held when he is at his ACTUAL ceiling *and* the work
       // has stopped moving. At RPE 9 — his working effort — a lift that is
       // still climbing now progresses normally, which is the whole fix.
+      // He said the form went. That is a stronger signal than any rep count,
+      // and it decides before the numbers get a vote.
+      if (formGone) {
+        const why = lastNote.pain ? `you reported pain — "${lastNote.pain}"` : `your own note: "${lastNote.note}"`;
+        out[`${routine.id}:${entry.exerciseId}`] = {
+          kind: 'quality',
+          delta: 0,
+          note: lastNote.note || null,
+          focus: 'same weight, strict form — own the rep before you own the load',
+          evidence: `Holding ${lastWeight ? `${lastWeight}kg` : 'this weight'} because ${why}. Adding load to a lift you are already fighting buys worse reps, not more muscle — clean this up at the same weight first and the step is yours.`,
+        };
+        continue;
+      }
+
       if (topRpe != null && topRpe >= GRIND_RPE && !improving) {
         const repsOf = (ex) => maxOf(ex, (s) => s.reps);
         const flat = repsOf(recent[0]) <= repsOf(recent[1]);
@@ -236,6 +261,18 @@ export async function computeProgressions(vaultPath, routines) {
         }
       }
     }
+  }
+  // EVERY suggestion carries his most recent note for that lift, whether or
+  // not the note changed the decision. Seeing "+2.5kg" beside his own
+  // sentence about that exercise is the difference between a number he
+  // trusts and a number he has to audit for himself.
+  for (const [key, sug] of Object.entries(out)) {
+    if (sug.note) continue; // the form-hold path already quoted him
+    const exerciseId = key.split(':')[1];
+    const last = sessions.find((x) => (x.exercises || []).some((e) => e.exerciseId === exerciseId && (e.note || e.pain)));
+    const ex = last && (last.exercises || []).find((e) => e.exerciseId === exerciseId);
+    const read = ex ? readExerciseNote(ex) : null;
+    if (read) out[key] = { ...sug, note: read.note, noteDate: last.date, noteSignals: read.signals };
   }
   return out;
 }
