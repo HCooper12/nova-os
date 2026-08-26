@@ -287,12 +287,16 @@ export function Voice({ v }) {
           {/* HE HEARD NOTHING — say so, and make one tap fix it. A tap is a
               gesture, which is exactly what the device wants before it will
               make sound. */}
+          {/* PINNED ON MOBILE. This lived in the layout below the comms log,
+              which on a phone is below the fold — the same mistake as the
+              stage card: a notice he can only see by scrolling past the
+              thing he is waiting on is not a notice. */}
           {v.speechBlocked && (
             <Interactive onClick={v.speechBlocked.replay} aria-label="Play the reply you didn't hear"
-              base={css(`cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:10px;border:1px solid color-mix(in srgb, var(--nv-warn) 55%, transparent);background:color-mix(in srgb, var(--nv-warn) 08%, transparent);animation:popIn .3s cubic-bezier(.2,.9,.25,1)`)}
+              base={css(`cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:10px;border:1px solid color-mix(in srgb, var(--nv-warn) 55%, transparent);background:${v.isMobile ? 'color-mix(in srgb, var(--nv-void) 94%, black)' : 'color-mix(in srgb, var(--nv-warn) 08%, transparent)'};animation:popIn .3s cubic-bezier(.2,.9,.25,1)${v.isMobile ? ';position:fixed;left:12px;right:12px;bottom:calc(96px + env(safe-area-inset-bottom));z-index:113;box-shadow:0 14px 40px rgba(0,0,0,.6)' : ''}`)}
               hoverStyle="background:color-mix(in srgb, var(--nv-warn) 16%, transparent)">
-              <span style={css(`font:600 9px ${M};letter-spacing:.16em;color:var(--nv-warn)`)}>▶ TAP TO HEAR</span>
-              <span style={css('font-size:11.5px;color:color-mix(in srgb, var(--nv-ink) 60%, transparent)')}>{v.speechBlocked.message}</span>
+              <span style={css(`font:600 9px ${M};letter-spacing:.16em;color:var(--nv-warn);flex:none`)}>▶ TAP TO HEAR</span>
+              <span style={css('flex:1;min-width:0;font-size:11.5px;color:color-mix(in srgb, var(--nv-ink) 60%, transparent)')}>{v.speechBlocked.message}</span>
             </Interactive>
           )}
 

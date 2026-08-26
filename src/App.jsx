@@ -4818,9 +4818,9 @@ export default class App extends Component {
     // was dumped on screen at once with no audio, and Nova never tried to
     // speak at all. That is the exact "works on my MacBook, silent on my
     // phone" split. Wait for the answer before deciding.
-    if (opts.auto && !this.state.liveTts) {
+    if (!this.state.liveTts) {
       const waited = opts.ttsWaited || 0;
-      if (waited < 12) {
+      if (waited < (opts.auto ? 12 : 4)) {
         clearTimeout(this.morningRetryT);
         this.morningRetryT = setTimeout(() => this.runShow(variant, { ...opts, ttsWaited: waited + 1 }), 1000);
         return;
@@ -4844,6 +4844,19 @@ export default class App extends Component {
       this.setState({ voiceBusy: false });
       if (!steps?.length) { this.toastMsg('Nothing to brief right now.'); return; }
       const spoken = this.state.voiceSpeak && this.state.liveTts?.configured;
+      // A brief that cannot speak used to just... not speak. No sound, no
+      // reason, nothing to tap — which is how "it didn't speak again" ends up
+      // being the whole bug report. Say WHICH of the three reasons it was,
+      // and offer the one tap that fixes two of them (a tap is the gesture
+      // iOS wants, and by then the engine status has usually arrived).
+      if (!spoken) {
+        const why = !this.state.voiceSpeak
+          ? 'spoken replies are switched off in Settings'
+          : !this.state.liveTts
+            ? "Nova hadn't heard back from your Mac about the voice engine yet"
+            : 'no speech engine is configured on your Mac';
+        this.noteSpeechUnavailable(steps.map((st) => st.say).filter(Boolean), why);
+      }
       // THE DAY IS BRIEFED WHEN HE ACTUALLY HEARS IT — not when the steps
       // arrive. On his phone an automatic brief has NO user gesture behind
       // it (it fires on a timer after the app opens), and iOS refuses audio
@@ -5308,6 +5321,15 @@ export default class App extends Component {
     if (this.speechBlockedGen !== gen) { this.speechBlockedTexts = []; this.speechBlockedGen = gen; }
     this.speechBlockedTexts.push(said || '');
     this.setState({ speechBlocked: { texts: this.speechBlockedTexts.slice(), reason } });
+  }
+  // Speech was never ATTEMPTED (engine off, replies off, status not in yet) —
+  // distinct from attempted-and-refused, but it costs him the same silence,
+  // so it earns the same visible bar and the same one-tap replay.
+  noteSpeechUnavailable(texts, reason) {
+    if (!texts?.length) return;
+    this.speechBlockedTexts = texts.slice();
+    this.speechBlockedGen = this.ttsGen || 0;
+    this.setState({ speechBlocked: { texts: texts.slice(), reason } });
   }
   // Replay what he never heard, from inside the tap.
   replayBlockedSpeech() {
