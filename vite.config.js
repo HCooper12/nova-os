@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { writeFileSync, mkdirSync } from 'node:fs'
+import { execSync } from 'node:child_process'
 
 // THE BUILD STAMP — the thing that ends "is my phone even running your fix?"
 //
@@ -16,7 +17,16 @@ import { writeFileSync, mkdirSync } from 'node:fs'
 // version.json beside it. The app compares the two and can say, out loud,
 // "you are running an old Nova — tap to update". No guessing, from either
 // side of the conversation.
-const BUILD_ID = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15);
+// FROM THE COMMIT, NOT THE CLOCK. A timestamp is regenerated when CI builds
+// the same commit, so the local and deployed ids could never match and the
+// check was unfalsifiable. The commit sha is the same on both machines.
+const BUILD_ID = (() => {
+  try {
+    return execSync('git rev-parse --short=9 HEAD', { encoding: 'utf8' }).trim();
+  } catch {
+    return `dev-${Date.now().toString(36)}`;
+  }
+})();
 function buildStamp() {
   return {
     name: 'nova-build-stamp',

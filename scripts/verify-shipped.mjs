@@ -79,11 +79,15 @@ try {
   else ok(`deployed build matches local (${deployed.buildId})`);
 
   const html = await fetch(`${SITE}/?t=${Date.now()}`, { cache: 'no-store' }).then((r) => r.text());
-  const names = [...html.matchAll(/\/nova-os\/assets\/([A-Za-z0-9._-]+\.js)/g)].map((m) => m[1]);
-  // the entry pulls the rest in; fetch every chunk the built app has, since a
-  // feature often lives in a lazily-loaded screen
-  const local = existsSync(DIST) ? readdirSync(DIST).filter((f) => f.endsWith('.js')) : [];
-  const all = [...new Set([...names, ...local])];
+  const entries = [...html.matchAll(/\/nova-os\/assets\/([A-Za-z0-9._-]+\.js)/g)].map((m) => m[1]);
+  // LAZY CHUNK NAMES COME FROM THE LIVE ENTRY, not from local dist. CI
+  // rebuilds produce different content hashes, so local filenames 404 against
+  // the deployed site — which is why three shipped features looked absent on
+  // the first run of this script. The entry bundle names every chunk it can
+  // import; that list is the truth about what his device can load.
+  const entryText = await Promise.all(entries.map((n) => fetch(`${SITE}/assets/${n}`).then((r) => (r.ok ? r.text() : '')).catch(() => '')));
+  const lazy = [...new Set(entryText.join('\n').match(/[A-Za-z0-9._-]+-[A-Za-z0-9_-]{6,}\.js/g) || [])];
+  const all = [...new Set([...entries, ...lazy])];
   const bodies = await Promise.all(all.map((n) => fetch(`${SITE}/assets/${n}`).then((r) => (r.ok ? r.text() : '')).catch(() => '')));
   liveJs = bodies.join('\n');
   const fetched = bodies.filter(Boolean).length;
