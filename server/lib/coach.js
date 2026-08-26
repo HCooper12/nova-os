@@ -539,7 +539,19 @@ export function liveSessionContext(session) {
 
 export function parseCoachProposal(text) {
   const m = (text || '').match(/^\s*PROPOSE\s+(\{.*\})\s*$/m);
-  if (!m) return { cleanText: text, proposal: null };
+  if (!m) {
+    // A PROPOSE line that is NOT the JSON form (a compacted session drifts
+    // into prose like "PROPOSE swap: X → Y") used to be COMPLETELY silent:
+    // no record, no error, and the raw directive left in the display text —
+    // Coach promising an APPLY button that never came. Catch it, strip it,
+    // and let the caller say so out loud.
+    const prose = (text || '').match(/^\s*PROPOSE\b.*$/m);
+    if (prose) {
+      const cleanText = text.replace(prose[0], '').replace(/\n{3,}/g, '\n\n').trim();
+      return { cleanText, proposal: null, parseError: 'the PROPOSE line was prose, not the typed JSON form' };
+    }
+    return { cleanText: text, proposal: null };
+  }
   const cleanText = text.replace(m[0], '').replace(/\n{3,}/g, '\n\n').trim();
   try {
     return { cleanText, proposal: JSON.parse(m[1]) };

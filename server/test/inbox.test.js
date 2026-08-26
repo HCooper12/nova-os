@@ -279,6 +279,27 @@ test('parseCoachProposal extracts the PROPOSE line and cleans the reply', async 
   assert.ok(!cleanText.includes('PROPOSE'));
   const none = parseCoachProposal('Just advice, no change needed.');
   assert.equal(none.proposal, null);
+  assert.ok(!none.parseError); // plain advice is not an error
+});
+
+test('a prose PROPOSE line is caught loudly, not silently ignored', async () => {
+  const { parseCoachProposal } = await import('../lib/coach.js');
+  // VERBATIM from his real 26 Aug conversation — the line Coach actually
+  // emitted while telling him to "tap APPLY IT below". The old parser
+  // returned proposal:null with NO parseError and left the raw line in the
+  // display text: a promised button that never rendered.
+  const real = 'Say the word and I\'ll put each one up.\n\nPROPOSE swap: Single-Arm Cable Extensions (Cross Body optional) → Carter Extension (Triceps, weight × reps), Push 2 × 8–12 and Upper Body 3 × 8–12, starting load 13.6kg';
+  const out = parseCoachProposal(real);
+  assert.equal(out.proposal, null);
+  assert.ok(out.parseError, 'malformed PROPOSE must surface a parseError');
+  assert.ok(!out.cleanText.includes('PROPOSE'), 'the raw directive must not reach his screen');
+  // the second real shape from the same conversation
+  const real2 = parseCoachProposal('…gives a clean trigger: hit 8/8/8, add 5kg.\n\nPROPOSE targets: Weighted Pull-Up (Push) 3 × 12–12 → 3 × 6–8');
+  assert.ok(real2.parseError);
+  // mid-sentence "propose" in prose must NOT trip the guard
+  const chatty = parseCoachProposal('I would propose resting a day.');
+  assert.equal(chatty.proposal, null);
+  assert.ok(!chatty.parseError);
 });
 
 test('a fuel-cross finding approves as an acknowledgement — no decision, nothing written', async () => {

@@ -696,7 +696,13 @@ Hayden asks: ${question}`;
 // Prepended to every RESUMED coach turn. Deliberately short — it is a
 // correction, not a second prompt — and it only restates what is already
 // true, so it can never teach Coach a capability it does not have.
-const COACH_TURN_REMINDER = '[Standing reminder: you CAN change his program. You do it by ending your reply with one PROPOSE line (swap/add/remove/targets/tune/injury/goal/learn/resource); it renders as APPLY IT / NOT NOW on your own message and applies deterministically with undo when he taps it. Never tell him you are unable to edit his program or that you lack write access — that is false and it blocks him. What you cannot do is write WITHOUT his yes. His session notes are in your context tagged [form-breakdown]/[pain]/[fatigue]/[too-easy] — treat them as your best evidence, coach the technique properly from what the research supports, and quote his sentence back.]';
+// The reminder MUST carry the exact directive syntax, not just its name. A
+// multi-day session compacts its turn-1 prompt away; the model then still
+// remembers it should PROPOSE but forgets the JSON shape and writes prose
+// ("PROPOSE swap: X → Y"), which the parser cannot see — Coach said "tap
+// APPLY IT below" over a button that never rendered, three turns in a row,
+// on his phone.
+const COACH_TURN_REMINDER = '[Standing reminder: you CAN change his program. You do it by ending your reply with ONE typed line, EXACTLY this JSON form on its own final line: PROPOSE {"action":"swap","routine":"Push","remove":"Exact Old Name","add":"Exact New Name","targetSets":3,"targetRepsLow":8,"targetRepsHigh":12,"reason":"why"} — actions: swap/add/remove/targets/tune/injury/goal/learn/resource. Prose after PROPOSE does not work; only the JSON object is machine-readable. It renders as APPLY IT / NOT NOW on your own message and applies deterministically with undo when he taps it. Never tell him you are unable to edit his program or that you lack write access — that is false and it blocks him. What you cannot do is write WITHOUT his yes. His session notes are in your context tagged [form-breakdown]/[pain]/[fatigue]/[too-easy] — treat them as your best evidence, coach the technique properly from what the research supports, and quote his sentence back.]';
 
 export function startAskCoach(cwd, { question, context, sessionId }) {
   assertLaneOn('coach');
