@@ -683,6 +683,33 @@ function SessionView({ v }) {
                     <VoicePanel panel={m.panel} />
                   </SafeVisual>
                 )}
+                {/* A CHANGE HE CAN ACCEPT HERE. Coach could always draft a
+                    program edit — it just landed in the Inbox with a toast,
+                    so from the chat it looked like Coach could not edit at
+                    all. Yes applies it on the same rails, with the same undo. */}
+                {m.proposal && (
+                  <div style={css("margin-top:10px;padding:11px 13px;border-radius:11px;border:1px solid var(--nv-acc-border);background:var(--nv-acc-bg)")}>
+                    {/* the title gets its own line: inside a chat bubble a
+                        flex row squeezed it to one word per line */}
+                    <div style={css("font-size:12.5px;line-height:1.45;color:var(--nv-ink)")}>{m.proposal.title}</div>
+                    <div style={css("margin-top:9px;display:flex;align-items:center;gap:8px;flex-wrap:wrap")}>
+                    {m.proposal.status === 'open' && (
+                      <>
+                        <Interactive as="span" onClick={m.proposal.apply}
+                          base={css("cursor:pointer;font:600 9.5px var(--nv-font-mono);letter-spacing:.08em;padding:7px 13px;border-radius:8px;background:var(--nv-cy);color:var(--nv-on-acc)")}
+                          hoverStyle="background:color-mix(in srgb, var(--nv-cy) 82%, white)">APPLY IT</Interactive>
+                        <Interactive as="span" onClick={m.proposal.decline}
+                          base={css("cursor:pointer;font:600 9.5px var(--nv-font-mono);letter-spacing:.08em;padding:7px 11px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 20%, transparent);color:color-mix(in srgb, var(--nv-ink) 60%, transparent)")}
+                          hoverStyle="border-color:var(--nv-warn);color:var(--nv-warn)">NOT NOW</Interactive>
+                      </>
+                    )}
+                    {m.proposal.status === 'working' && <span style={css("font:600 9.5px var(--nv-font-mono);color:var(--nv-cy)")}>APPLYING…</span>}
+                    {m.proposal.status === 'done' && <span style={css("font:600 9.5px var(--nv-font-mono);color:var(--nv-good)")}>✓ APPLIED — UNDO IN INBOX</span>}
+                    {m.proposal.status === 'dismissed' && <span style={css("font:600 9.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>✕ LEFT ALONE</span>}
+                    {m.proposal.status === 'error' && <span style={css("font:600 9.5px var(--nv-font-mono);color:var(--nv-warn)")}>STILL PENDING IN INBOX</span>}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
             {v.coachBusy && <div style={css("color:var(--nv-cy);font:400 11px var(--nv-font-mono)")}>» COACH looking at your session…▍</div>}
@@ -874,7 +901,45 @@ function GoalsCoachPane({ v }) {
               <div style={css("color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Ask anything a coach should answer — "should I deload?", "why is my bench stuck?", "build me a plan for a 4-day week."</div>
             )}
             {v.coachMsgs.map((m, i) => (
-              <div key={i} style={m.wrapStyle}><div style={m.bubbleStyle}><span style={m.tagStyle}>{m.tag}</span> {m.typing ? <TypeText text={m.text} active /> : <ChatMarkdown text={m.text} />}</div></div>
+              <div key={i} style={m.wrapStyle}>
+                <div style={m.bubbleStyle}>
+                  <span style={m.tagStyle}>{m.tag}</span> {m.typing ? <TypeText text={m.text} active /> : <ChatMarkdown text={m.text} />}
+                  {/* Coach answers questions ABOUT DATA — the figure belongs on
+                    screen beside the words, same as everywhere else. */}
+                {m.panel && (
+                  <SafeVisual what={`panel:${m.panel.type}`} resetKey={m.at}>
+                    <VoicePanel panel={m.panel} />
+                  </SafeVisual>
+                )}
+                {/* A CHANGE HE CAN ACCEPT HERE. Coach could always draft a
+                    program edit — it just landed in the Inbox with a toast,
+                    so from the chat it looked like Coach could not edit at
+                    all. Yes applies it on the same rails, with the same undo. */}
+                {m.proposal && (
+                  <div style={css("margin-top:10px;padding:11px 13px;border-radius:11px;border:1px solid var(--nv-acc-border);background:var(--nv-acc-bg)")}>
+                    {/* the title gets its own line: inside a chat bubble a
+                        flex row squeezed it to one word per line */}
+                    <div style={css("font-size:12.5px;line-height:1.45;color:var(--nv-ink)")}>{m.proposal.title}</div>
+                    <div style={css("margin-top:9px;display:flex;align-items:center;gap:8px;flex-wrap:wrap")}>
+                    {m.proposal.status === 'open' && (
+                      <>
+                        <Interactive as="span" onClick={m.proposal.apply}
+                          base={css("cursor:pointer;font:600 9.5px var(--nv-font-mono);letter-spacing:.08em;padding:7px 13px;border-radius:8px;background:var(--nv-cy);color:var(--nv-on-acc)")}
+                          hoverStyle="background:color-mix(in srgb, var(--nv-cy) 82%, white)">APPLY IT</Interactive>
+                        <Interactive as="span" onClick={m.proposal.decline}
+                          base={css("cursor:pointer;font:600 9.5px var(--nv-font-mono);letter-spacing:.08em;padding:7px 11px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 20%, transparent);color:color-mix(in srgb, var(--nv-ink) 60%, transparent)")}
+                          hoverStyle="border-color:var(--nv-warn);color:var(--nv-warn)">NOT NOW</Interactive>
+                      </>
+                    )}
+                    {m.proposal.status === 'working' && <span style={css("font:600 9.5px var(--nv-font-mono);color:var(--nv-cy)")}>APPLYING…</span>}
+                    {m.proposal.status === 'done' && <span style={css("font:600 9.5px var(--nv-font-mono);color:var(--nv-good)")}>✓ APPLIED — UNDO IN INBOX</span>}
+                    {m.proposal.status === 'dismissed' && <span style={css("font:600 9.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>✕ LEFT ALONE</span>}
+                    {m.proposal.status === 'error' && <span style={css("font:600 9.5px var(--nv-font-mono);color:var(--nv-warn)")}>STILL PENDING IN INBOX</span>}
+                    </div>
+                  </div>
+                )}
+                </div>
+              </div>
             ))}
             {v.coachBusy && <div style={css("color:var(--nv-cy);font:400 11px var(--nv-font-mono)")}>» COACH reading your training history…▍</div>}
           </div>

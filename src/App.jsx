@@ -4568,6 +4568,31 @@ export default class App extends Component {
       this.refreshLiveData();
     }).catch((e) => this.toastMsg('Could not apply that: ' + e.message));
   }
+  // Accept (or decline) a Coach proposal from inside the conversation. YES
+  // approves the record on the rails — the SAME deterministic apply the
+  // Inbox performs, with the same undo — so nothing new writes to his plan;
+  // the only thing that changed is where he is allowed to say yes.
+  resolveCoachChatProposal(recordId, approve) {
+    const conn = getConnection();
+    if (!conn || !recordId) return;
+    const mark = (status, extra) => this.setState((s) => ({
+      coachChat: s.coachChat.map((m) => (m.proposal?.recordId === recordId
+        ? { ...m, proposal: { ...m.proposal, status, ...extra } } : m)),
+    }));
+    mark('working');
+    const call = approve ? api.inboxApprove(conn, recordId) : api.inboxDiscard(conn, recordId);
+    call.then(() => {
+      mark(approve ? 'done' : 'dismissed');
+      if (approve) { this.refreshLiveData(); this.refreshInbox(); }
+      const line = approve
+        ? "Done — it's in your program. Undo is in your Inbox."
+        : 'Left it alone — your program is unchanged.';
+      this.setState((s) => ({ coachChat: [...s.coachChat, { at: Date.now(), who: 'coach', text: line }] }));
+    }).catch((e) => {
+      mark('error', { error: e.message });
+      this.setState((s) => ({ coachChat: [...s.coachChat, { at: Date.now(), who: 'system', text: `Couldn't ${approve ? 'apply' : 'dismiss'} that: ${e.message}. It's still pending in your Inbox.` }] }));
+    });
+  }
   // ——— THE BRIEF'S CLOSE: one question at a time ———
   // Each step speaks its own question, puts its own card on the glass, and
   // waits. Yes/no can be tapped or spoken (the existing spoken-yes gate
@@ -5621,12 +5646,17 @@ export default class App extends Component {
             }
             // keep the panel: a Coach answer with a figure on screen is the
             // whole point — dropping it here is how the sweep stayed incomplete
-            this.finalizeStream('coachChat', { who: 'coach', text: job.result.text, panel: job.result.panel || undefined }, { coachBusy: false });
-            // a proposed program change landed on the rails as a pending record
-            if (job.result.proposal) {
-              this.refreshInbox();
-              this.toastMsg(`${job.result.proposal.title} — approve it in your Inbox`);
-            }
+            // The proposal rides the MESSAGE, so he can accept it right here.
+            // It used to land as a pending record and a toast telling him to
+            // go to the Inbox — which is why asking Coach to change something
+            // read as "Coach can't edit my program". It always could; there
+            // was simply no way to say yes without leaving the conversation.
+            this.finalizeStream('coachChat', {
+              who: 'coach', text: job.result.text,
+              panel: job.result.panel || undefined,
+              proposal: job.result.proposal ? { ...job.result.proposal, status: 'open' } : undefined,
+            }, { coachBusy: false });
+            if (job.result.proposal) this.refreshInbox();
           },
           onError: (msg) => this.setState((s) => ({ coachBusy: false, coachChat: [...s.coachChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] })),
         });

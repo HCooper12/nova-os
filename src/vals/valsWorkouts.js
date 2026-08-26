@@ -381,6 +381,12 @@ export function valsWorkouts(app, ctx) {
     planNoteOn: !!st.planNote, planNote: st.planNote,
     coachMsgs: st.coachChat.map(m => Object.assign({
       text: m.text, typing: m.typing, panel: m.panel || null, at: m.at,
+      // a program change Coach drafted — acceptable right here, no detour
+      proposal: m.proposal ? {
+        ...m.proposal,
+        apply: () => app.resolveCoachChatProposal(m.proposal.recordId, true),
+        decline: () => app.resolveCoachChatProposal(m.proposal.recordId, false),
+      } : null,
       tag: m.who === 'coach' ? '» COACH' : m.who === 'system' ? '» SYSTEM' : '» YOU',
       tagStyle: { font: "500 10px var(--nv-font-mono)", color: m.who === 'coach' ? 'var(--nv-cy)' : m.who === 'system' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' },
     }, bubble(m.who))),
