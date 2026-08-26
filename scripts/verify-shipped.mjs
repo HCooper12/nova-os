@@ -61,9 +61,14 @@ console.log('\ngit');
 try {
   const status = execSync('git status --porcelain', { encoding: 'utf8' }).trim();
   status ? bad(`working tree is dirty — ${status.split('\n').length} file(s) uncommitted`) : ok('working tree clean');
-  execSync('git fetch -q origin main', { stdio: 'ignore' });
-  const ahead = execSync('git rev-list --count origin/main..HEAD', { encoding: 'utf8' }).trim();
-  ahead === '0' ? ok('HEAD is pushed to origin/main') : bad(`${ahead} commit(s) NOT pushed — nothing after these is on his phone`);
+  // ls-remote rather than fetch: it needs no write to .git, so it works in
+  // sandboxes where fetch is refused — and comparing the sha directly is a
+  // stronger statement than a local ref that may itself be stale.
+  const localSha = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
+  const remoteSha = execSync('git ls-remote origin refs/heads/main', { encoding: 'utf8' }).trim().split(/\s+/)[0];
+  localSha === remoteSha
+    ? ok('HEAD is pushed to origin/main')
+    : bad(`HEAD ${localSha.slice(0, 9)} is NOT on origin (${(remoteSha || 'unknown').slice(0, 9)}) — nothing here is on his phone`);
 } catch (e) { bad(`git check failed: ${e.message}`); }
 
 /* ------------------------------ 2. deploy -------------------------------- */
