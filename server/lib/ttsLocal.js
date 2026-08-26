@@ -153,7 +153,12 @@ function wavToMp3(wav, fx) {
 // insertion-ordered cache, warmed at boot so those lines answer in ~50ms
 // from the first tap. Keep PREVIEW_LINE/ACK_LINES in step with App.jsx
 // (speakAck / setVoiceId) — shared formats are contracts.
-const AUDIO_CACHE_MAX = 48;
+// Headroom matters more than bytes here: the fixed warm set is already
+// 4 voices × 9 lines = 36, and a warmed morning brief adds ~8 more. At 48
+// the brief's lines were the first thing evicted by any other synthesis —
+// i.e. the cache would drop exactly the audio it had just pre-built. A
+// sentence of mp3 is tens of KB, so 160 entries is single-digit megabytes.
+const AUDIO_CACHE_MAX = 160;
 const audioCache = new Map(); // `${voiceId}|${text}` → mp3 Buffer
 export const PREVIEW_LINE = 'This is how I sound, sir.';
 export const ACK_LINES = ['On it, sir.', 'Let me look.', 'One moment.', 'Checking now.', 'Right away, sir.'];

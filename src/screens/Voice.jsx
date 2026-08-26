@@ -193,7 +193,15 @@ export function Voice({ v }) {
           right={v.voiceContinuing ? (
             <Interactive as="span" onClick={v.newVoiceChat} base={`cursor:pointer;font:500 9px ${M};letter-spacing:.1em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`} hoverStyle="color:var(--nv-cy)">NEW CHAT</Interactive>
           ) : null}
-          style={{ flex: '1 1 330px', minWidth: '300px', maxWidth: '430px', minHeight: '380px', maxHeight: '600px' }}>
+          style={{ flex: '1 1 330px', minWidth: '300px', maxWidth: '430px', minHeight: '380px', maxHeight: '600px',
+            // ON A PHONE THE TRANSCRIPT GOES LAST. flex-wrap stacks these in
+            // source order, which put the log and its text box ABOVE the core
+            // — so the first thing on screen during a brief was an input he
+            // wasn't using, pushing what Nova was actually saying down the
+            // page. order:2 puts the core first and lands the composer at the
+            // bottom, where a chat input belongs. Desktop is a real two-column
+            // layout and keeps reading left-to-right.
+            ...(v.isMobile ? { order: 2 } : {}) }}>
           <div ref={logRef} style={css(`flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px;font:400 12.5px/1.7 ${M}`)}>
             {v.orbMsgs.length === 0 && (
               <div style={css("color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>Ask about anything in your vault — training, fuel, notes, the week. Answers come from what's actually written.</div>
@@ -266,6 +274,7 @@ export function Voice({ v }) {
           </div>
         </Panel>
         <div style={{ flex: '1 1 420px', minWidth: '340px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px',
+          ...(v.isMobile ? { order: 1 } : {}),
           ...(v.stageFocus ? { position: 'relative', zIndex: 61 } : {}) }}>
           {/* the core in its reticle — a station's centre instrument: two
               counter-rotating rings, a state-lit halo, and tick marks that

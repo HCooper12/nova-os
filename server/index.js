@@ -264,6 +264,8 @@ async function main() {
   startCoachCadenceScheduler(process.env.VAULT_PATH);
   startWeekPlanScheduler(process.env.VAULT_PATH);
   startLeaderScheduler(process.env.VAULT_PATH);
+  import('./lib/briefWarm.js').then(({ startBriefWarmScheduler }) => startBriefWarmScheduler(process.env.VAULT_PATH))
+    .catch((e) => console.error('brief warm scheduler failed to start:', e.message));
   startHealthDropsScheduler(process.env.VAULT_PATH);
   startDailyReviewScheduler(process.env.VAULT_PATH);
   import('./lib/planToday.js').then(({ startPlanTodayScheduler }) => startPlanTodayScheduler(process.env.VAULT_PATH))

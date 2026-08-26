@@ -5005,14 +5005,35 @@ export default class App extends Component {
       if (opts.auto && !spoken) this.markBriefedToday();
       if (opts.auto && spoken) this.briefPendingMark = true;
       this.clearStage();
-      for (const st of steps) {
+      // THE FIRST BEAT NEVER WAITS FOR AUDIO.
+      //
+      // Every beat used to be revealed by its own onPlay callback, i.e. when
+      // its audio BEGAN. On a cold cache the first sentence took 5.9s to
+      // synthesize (measured, 27 Aug), so the brief opened onto a blank
+      // screen and sat there — no words, no card, nothing to look at — until
+      // the voice arrived. That silence is the whole of "it didn't work and
+      // the animations didn't appear": the app was working perfectly and
+      // showing him nothing while it did.
+      //
+      // The opening beat now renders the instant the steps land, and its
+      // audio catches up to it. Later beats still follow the voice, because
+      // that choreography is right once talking has started — it is only the
+      // opening gap that reads as broken.
+      steps.forEach((st, i) => {
         const show = () => {
           this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: st.say, panel: st.panel || undefined }] }));
           this.putCard(st.card); // the glass keeps up with the voice
         };
-        if (spoken) this.speakTtsSentence(st.say, show);
-        else show();
-      }
+        if (!spoken) { show(); return; }
+        if (i === 0) {
+          show();
+          // still pass a callback: it marks the utterance reply-worthy, which
+          // is what earns the no-button reply window when speaking ends
+          this.speakTtsSentence(st.say, () => {});
+        } else {
+          this.speakTtsSentence(st.say, show);
+        }
+      });
       // THE CLOSE — his ask: rather than leaving him to remember a wall of
       // analysis and act on it later, walk the open decisions one at a time.
       // Queued behind the narration so the first question lands after Nova

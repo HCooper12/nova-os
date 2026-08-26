@@ -367,6 +367,9 @@ export function voiceRouter(vaultPath) {
   router.post('/tts', async (req, res) => {
     try {
       if (!ttsConfigured()) return res.status(409).json({ error: 'no TTS engine is configured' });
+      // remember which voice his device actually asks for — the pre-warm
+      // caches per voice, and warming a voice he doesn't use warms nothing
+      import('../lib/briefWarm.js').then(({ recordSpokenVoice }) => recordSpokenVoice(req.body?.voiceId)).catch(() => {});
       const audio = await synthesize(req.body?.text, req.body?.voiceId);
       res.set('Content-Type', 'audio/mpeg').send(audio);
     } catch (e) {

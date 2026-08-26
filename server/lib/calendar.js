@@ -49,6 +49,16 @@ export async function listCalendars() {
 
 let clientPromise = null;
 
+// A REJECTED PROMISE MUST NEVER BE CACHED. This memo used to keep whatever
+// createDAVClient first returned — including a rejection — so ONE transient
+// failure disabled the calendar until the next server restart, while iCloud
+// itself was perfectly healthy. Boot is exactly when that transient is most
+// likely (prewarmCalendarCache fires immediately, before the network has
+// necessarily settled), which is how a restart at 20:48 left every brief and
+// every Suggested-focus card with no calendar for twelve hours, answering
+// "cannot find homeUrl" to a server that answers 207 to a direct probe.
+// Clearing the memo on failure costs one re-discovery per failed attempt and
+// makes the outage last as long as the outage, not as long as the process.
 function getClient() {
   if (!clientPromise) {
     clientPromise = createDAVClient({
@@ -59,6 +69,9 @@ function getClient() {
       },
       authMethod: 'Basic',
       defaultAccountType: 'caldav',
+    }).catch((err) => {
+      clientPromise = null; // next caller retries instead of inheriting this
+      throw err;
     });
   }
   return clientPromise;
