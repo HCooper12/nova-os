@@ -156,8 +156,25 @@ export function Voice({ v }) {
           the glass, everything else recedes behind a blur, exactly like the
           reel. Click anywhere off the card (or the × on it) to come back. */}
       {v.stageFocus && (
-        <div onClick={v.dismissStage} aria-hidden="true"
-          style={css('position:fixed;inset:0;z-index:60;background:rgba(4,3,8,.55);backdrop-filter:blur(9px);animation:fadeIn .3s ease-out')}></div>
+        <div onClick={v.dismissStage}
+          style={css('position:fixed;inset:0;z-index:60;background:rgba(4,3,8,.55);backdrop-filter:blur(9px);animation:fadeIn .3s ease-out;display:flex;align-items:center;justify-content:center;padding:24px')}>
+          {/* THE CARD MUST BE INSIDE THE SPOTLIGHT.
+              The scrim is fixed to the viewport but the card it exists to
+              highlight sits in normal flow further down the Voice screen —
+              on a phone that is below the fold, so the whole screen blurred
+              and spotlighted NOTHING. That is the blank blurred screen he
+              recorded and had to tap out of. On mobile the focused card is
+              drawn here, in the middle of the scrim, where a spotlight
+              belongs; desktop keeps it in the layout where it already fits. */}
+          {v.isMobile && v.stageCard && (
+            <div onClick={(e) => e.stopPropagation()} style={css('width:min(430px,100%)')}>
+              <SafeVisual what="stage-card-focus" resetKey={v.stageCard?.label}>
+                <StageCard card={v.stageCard} />
+              </SafeVisual>
+              <div style={css('margin-top:12px;text-align:center;font:500 9px var(--nv-font-mono);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)')}>TAP ANYWHERE TO DISMISS</div>
+            </div>
+          )}
+        </div>
       )}
       <div style={css("flex:1;display:flex;flex-wrap:wrap;gap:28px;align-items:center;justify-content:center;margin-top:10px;overflow-y:auto")}>
         <Panel glow
@@ -282,7 +299,7 @@ export function Voice({ v }) {
           {/* THE GLASS — the figure for the line being spoken right now,
               centre stage, changing with the narration (his reference:
               "let me put it on the glass"). */}
-          {onGlass && (
+          {onGlass && !(v.isMobile && v.stageFocus) && (
             <div style={css(`width:min(${v.stageFocus ? 520 : 420}px,100%);position:relative`)}>
               <SafeVisual what="stage-card" resetKey={v.stageCard?.label}><StageCard card={v.stageCard} /></SafeVisual>
               {v.stageFocus && (

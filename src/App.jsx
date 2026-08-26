@@ -4810,6 +4810,23 @@ export default class App extends Component {
       }
       return;
     }
+    // THE BRIEF USED TO RACE THE TTS STATUS AND LOSE ON HIS PHONE.
+    // `spoken` is decided from this.state.liveTts, which is fetched in the
+    // startup batch. The automatic brief fires ~2.9s after open; on the Mac
+    // that fetch has landed by then, on a phone over Tailscale it often has
+    // not — so liveTts was still null, `spoken` came out false, every beat
+    // was dumped on screen at once with no audio, and Nova never tried to
+    // speak at all. That is the exact "works on my MacBook, silent on my
+    // phone" split. Wait for the answer before deciding.
+    if (opts.auto && !this.state.liveTts) {
+      const waited = opts.ttsWaited || 0;
+      if (waited < 12) {
+        clearTimeout(this.morningRetryT);
+        this.morningRetryT = setTimeout(() => this.runShow(variant, { ...opts, ttsWaited: waited + 1 }), 1000);
+        return;
+      }
+      // 12s and still no answer — proceed silently rather than not at all
+    }
     this.stopSpeaking();
     this.primeSpeech();
     this.setState({ voiceBusy: true });
