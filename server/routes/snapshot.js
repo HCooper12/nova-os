@@ -86,8 +86,8 @@ export function snapshotRouter({ port, token }) {
     } catch { out.pending = null; }
     try {
       // today's leadership idea — a stored receipt, absent is null
-      const { leadLineForWidget } = await import('../lib/leader.js');
-      out.lead = await leadLineForWidget();
+      const { leadForWidget } = await import('../lib/leader.js');
+      out.lead = await leadForWidget();
     } catch { out.lead = null; }
     try {
       // a widget must answer fast — a cold CalDAV fetch can take longer than

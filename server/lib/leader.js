@@ -504,8 +504,12 @@ export async function leadLineForBrief(now = new Date()) {
   return `**Lead.** Try today: ${t.title} — ${t.line}`;
 }
 
-export async function leadLineForWidget(now = new Date()) {
+// Structured, not a pre-joined string: the widget renders the title as a
+// headline and the line as body, and a lock-screen widget shows the title
+// ALONE. Splitting a joined string back apart would break on any title
+// containing a colon.
+export async function leadForWidget(now = new Date()) {
   const state = await readLeaderState();
   const t = todayLead(state, now);
-  return t ? `${t.title}: ${t.line}` : null;
+  return t ? { title: t.title, line: t.line } : null;
 }

@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 
 const {
   readLeaderState, applyLeaderReflection, parseLeaderReflect, pickSpaced,
-  todayLead, leadLineForBrief, leadLineForWidget, leaderCorpus, profileLines,
+  todayLead, leadLineForBrief, leadForWidget, leaderCorpus, profileLines,
 } = await import('../lib/leader.js');
 
 function pad(n) { return String(n).padStart(2, '0'); }
@@ -24,7 +24,7 @@ test('empty state is honest: no today, null brief and widget lines', async () =>
   const state = await readLeaderState();
   assert.equal(todayLead(state), null);
   assert.equal(await leadLineForBrief(), null);
-  assert.equal(await leadLineForWidget(), null);
+  assert.equal(await leadForWidget(), null);
 });
 
 test('reflection merges his words, dedupes, and resolves without deleting', async () => {
@@ -100,7 +100,10 @@ test('a stored day reaches the brief and the widget verbatim; other days do not'
 
   const brief = await leadLineForBrief();
   assert.ok(brief.startsWith('**Lead.** Try today: State the decision first'));
-  const widget = await leadLineForWidget();
-  assert.ok(widget.includes('State the decision first'));
+  // structured for the widget: a lock-screen widget shows the title alone,
+  // so title and line must arrive separately, never pre-joined
+  const widget = await leadForWidget();
+  assert.equal(widget.title, 'State the decision first');
+  assert.ok(widget.line.includes('Open the 15:30'));
   assert.ok(!brief.includes('Old idea'), 'yesterday never leaks into today');
 });
