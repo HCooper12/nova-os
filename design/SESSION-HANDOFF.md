@@ -13,150 +13,313 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**23–24 AUG — PERFORMANCE PHASE C, THE LIBRARIAN + VISUAL LIBRARY, COACH THAT
-CHANGES THE PLAN AND JUDGES IT, AND A RUN OF FUEL FIXES HE HAD TO ASK FOR TWICE.**
+**25–26 AUG — THE SHIP-VERIFICATION CRISIS, EVIDENCE-ON-SCREEN, THE
+QUESTION-BY-QUESTION BRIEF CLOSE, AND COACH READING HIS OWN WORDS.**
 
-GOAL: a long multi-thread session. (1) Finish the fluidity plan (Phase C:
-slice-tagged SSE, intent prefetch). (2) Books as first-class second-brain
-knowledge + a visual Library for every source. (3) Let Coach APPLY its
-suggestions to the real program, confirmed and undoable. (4) Make Coach
-judge whether training is "enough / too much" and stop suggesting load for
-the sake of it. (5) A run of Fuel bugs and ergonomics.
+GOAL: a very long multi-thread session, mostly reactive to him hitting real
+gaps in real use. In rough order: (1) universal evidence-on-screen for
+anything Nova says out loud. (2) Diagnose and fix why the phone brief was
+silent/blank/looping. (3) Infographics for Coach/Fuel findings instead of
+paragraphs. (4) A question-by-question close to the morning brief so he
+doesn't have to remember what to act on. (5) Let Coach actually apply
+program edits from the CHAT, not just the Inbox. (6) **Stop telling him
+things are shipped when they are not** — this became the dominant thread
+after repeated real failures eroded his trust. (7) Make Coach read, hold
+load on, and coach from his per-exercise session notes.
 
 DONE CRITERIA:
-- Phase C — MET. Slice-tagged SSE live (996KB → 3KB measured on his real
-  server); intent prefetch on Notes rows + nav; voice/Kokoro prewarm shipped
-  but marginal (see ASSUMED).
-- Librarian + Library — MET. Book → dossier → vault weave, real jackets,
-  provenance read/researched, daily-review + Distiller resurfacing.
-- Coach applies plan changes — MET, and exercised on his REAL plan mid-gym.
-- Coach judges enough/too much — MET. Six detectors; the RPE fix is the
-  substantive one.
-- Fuel run — MET for everything he named. See DO NOT for the two I shipped
-  broken first.
+- Evidence-on-screen — MET. `inferPanelDirective` (deterministic, code
+  decides the panel from the question, never the model) wired into Ask Nova
+  AND Coach chat. `sessions` panel added (recent-workouts, didn't exist
+  before). Every render site wrapped in `SafeVisual` — an error boundary
+  that degrades to a small note instead of blanking the whole screen, which
+  is what a malformed panel used to do (no boundary existed anywhere in the
+  app before this session).
+- Phone voice diagnosis — MET, three DISTINCT root causes found by actually
+  watching his screen recordings frame-by-frame rather than guessing:
+  (a) the auto/manual brief raced `liveTts` fetched in the startup batch —
+  now waits (12s auto / 4s manual) before deciding it can't speak;
+  (b) `stageFocus`'s full-screen blur scrim spotlit a card rendered in
+  normal page flow below the fold on mobile — literally blurring nothing;
+  fixed by drawing the focused card INSIDE the scrim on mobile;
+  (c) `primeSpeech()`'s "unlock" element had its `.src` reassigned to every
+  TTS blob as it played, so unlocking replayed his LAST sentence at full
+  volume and blocked the mic ("Dictation: aborted", visible in his
+  recording) — now resets to silence first.
+- Infographics — MET. `findingCards.js` maps every coach/fuel finding kind
+  to a bars/metric card FROM THE SAME NUMBERS the spoken line quotes (never
+  invented). Fuel findings didn't expose their numbers before this session
+  (baked into prose) — now do (`data: {...}` on the finding, `finding:` on
+  the raised record).
+- Question-by-question close — MET. `briefDecisions.js`: existing pending
+  records (coach-program/fuel-cross/read-next/coach-audit), asked one at a
+  time, yes/no/later maps onto the EXISTING approve/discard rails. Capped at
+  5, ordered by consequence. Ships inside `/api/show`'s response.
+- Coach applies from chat — MET, but the deploy-verification crisis (below)
+  is WHY this took three tries to actually land for him.
+- Ship-verification failsafe — MET. This is now the load-bearing
+  infrastructure change of the session; see STATE and DECISIONS.
+- Session notes reach every surface — MET. `sessionNotes.js` (narrow signal
+  reader, suppress-only) wired into the progression engine (a note can HOLD
+  a load increase, quoting his sentence), a new `findNoteSignals` detector
+  (his own repeated report outranks every computed signal), the weekly
+  audit, the Sunday debrief (previously dropped notes/pain/cutShort
+  entirely), and both new+resumed Coach prompts.
 
 STATE (paths):
-- `server/lib/writeSlices.js` + `server/lib/events.js` + `routes/snapshot.js`
-  (`?only=`) — slice-tagged sync. `src/App.jsx` `queueStreamRefresh`/`refreshSlices`.
-- `server/lib/librarian.js`, `server/lib/library.js`, `server/lib/bookCovers.js`,
-  `server/routes/library.js`, `src/screens/Library.jsx`, `src/vals/valsLibrary.js`.
-  Plan: `design/LIBRARIAN-PLAN.md` (phases 2–4 unbuilt).
-- `server/lib/coachPlan.js` — the ONLY thing that mutates a routine (typed ops
-  + undo). `server/routes/workouts.js` `/workouts/coach-apply`.
-  `src/CoachApplySheet.jsx`.
-- `server/lib/coachProgramReview.js` — six detectors incl. `findEffortCeiling`,
-  `findOversizedRoutines`, `findLowValueExercises`. `server/lib/coach.js` —
-  RPE now gates load on the default path.
-- `src/PortionSheet.jsx` + `src/portion.js` — one global "log any meal" sheet;
-  three surfaces feed it.
-- `server/lib/jsonRepair.js` — the health-push empty-value repair.
+- `src/buildCheck.js` — the whole ship-verification failsafe, client half.
+  `RUNNING_BUILD` (compiled in via vite `define`), `fetchDeployedBuild()`,
+  `watchForUpdate()` (polls `version.json` every 10min + on visibilitychange),
+  `applyUpdate()` (unregisters SW, clears every cache, hard-reloads with a
+  cache-busted URL). Wired in `src/App.jsx` (`updateReady` state, banner at
+  the very top of the render tree, z-200) and `src/vals/valsMisc.js`.
+- `vite.config.js` — `BUILD_ID` is `git rev-parse --short=9 HEAD` (NOT a
+  timestamp — see DECISIONS), written to `dist/version.json` by a custom
+  `buildStamp()` plugin, injected into the bundle via `define`.
+- `scripts/verify-shipped.mjs` — `npm run verify:shipped` (add `-- --server`
+  for backend route checks). Checks git push state (via `ls-remote`, not
+  `fetch` — sandbox-safe), deployed build id vs local, and a `FEATURES`
+  array of marker-strings fetched from the LIVE bundle (entry + every lazy
+  chunk it imports, discovered from the live entry's own text — NOT local
+  dist filenames, which 404 against a CI rebuild's different hashes).
+- `server/lib/sessionNotes.js` — `signalsIn()` (regex-based, suppress-only:
+  form-breakdown/pain/fatigue/too-easy), `readExerciseNote`,
+  `recurringSignal` (min=2 within=6, pain min=1), `recentNotes`,
+  `notesContextLines`. Consumed by `server/lib/coach.js`
+  (`computeProgressions` — holds load, attaches `.note`/`.noteDate` to every
+  suggestion), `server/lib/coachProgramReview.js` (`findNoteSignals`,
+  ranked ABOVE every other finding kind), `server/lib/coachProgramAudit.js`
+  (`reported-form` check), `server/lib/weeklyDebrief.js`,
+  `server/lib/claudeCode.js` (Coach prompt + `COACH_TURN_REMINDER` for
+  resumed turns).
+- `server/lib/findingCards.js` — `findingCard()`, `auditCard()`,
+  `proteinWeekCard()`. Fed by `.finding`/`.data` fields added to records in
+  `coachProgramReview.js` (`out.push({..., finding: {...f, line:undefined,
+  fix:undefined}})`) and `fuelCross.js` (`.data.kind`).
+- `server/lib/briefDecisions.js` — `buildQueue()` (pure), `questionFor()`,
+  `cardFor()`. Driven client-side by `App.jsx` `startBriefQueue` /
+  `askBriefQuestion` / `answerBriefQuestion` / `advanceBriefQueue`
+  (state: `briefQueue`, `briefQueueIdx`, `briefQueueRemaining`).
+- `src/SafeVisual.jsx` — the error boundary. Wraps every `<VoicePanel>` /
+  `<StageCard>` render site (6 of them found; 3 duplicate coach-message
+  renderers exist in `src/screens/Workouts.jsx` — mid-session, demo, AND
+  the actual Coach tab — a new coach-surface feature must patch ALL THREE
+  or it silently doesn't appear where he's actually looking).
+- `server/lib/claudeCode.js` — `COACH_TURN_REMINDER`, prepended to every
+  RESUMED coach turn (the prompt itself only sends on turn 1; his coach
+  conversation persists across days, so a session started before a prompt
+  change keeps arguing from the old rules — this is CONFIRMED as the cause
+  of him being told "I don't have write access in this session").
 
 DECISIONS (choice → reason → what it forecloses):
-- Slice tags default to NULL = full sync → under-tagging fails silently and
-  would make Nova lie about the vault → forecloses aggressive narrowing;
-  every new write path is full-sync until deliberately tagged.
-- Librarian synthesises IDEAS, never fetches book text → piracy, and raw text
-  is useless to the graph → forecloses "full transcript of a book" permanently.
-- Book covers fetched + cached SERVER-side → phone never talks to
-  openlibrary.org; works offline; reading list not leaked → forecloses
-  client-side cover fetching.
-- Coach mutates plans ONLY through typed ops in `coachPlan.js` → models decide,
-  code acts → forecloses letting a model edit routine files directly.
-- `junk-volume` / `routine-oversized` / `effort-ceiling` carry NO one-tap fix
-  where the choice is his → a coach that silently deletes training is not one
-  you keep → forecloses auto-trimming volume.
-- One global PortionSheet instead of per-surface buttons → he explicitly asked
-  not to keep coming back for small tweaks → adding a 4th entry point is one
-  call, not a feature.
+- Build id is the git SHORT SHA, not a timestamp → a timestamp regenerates
+  on every CI rebuild of the SAME commit, so local-vs-deployed could NEVER
+  match and the freshness check would cry wolf forever → forecloses any
+  clock-based versioning scheme; the sha is the only thing guaranteed
+  identical between his machine and CI.
+- verify-shipped discovers lazy chunk names from the LIVE entry bundle's own
+  text, never from local `dist/` filenames → content hashes differ between
+  a local build and a CI rebuild of the same source, so local filenames
+  404 against the deployed site (this cost 3 false FAILs on three shipped
+  features on the FIRST run of the script) → forecloses trusting
+  `dist/assets/*.js` as a proxy for what's actually deployed.
+- `git ls-remote` instead of `git fetch` for the push check → `fetch`
+  writes to `.git` and is refused in some sandboxes; comparing SHAs
+  directly is also a stronger claim than a possibly-stale local ref →
+  forecloses relying on `origin/main` being fresh without an explicit sync.
+- `sessionNotes.js` signals may ONLY suppress a load increase, never create
+  one, and every regex has an explicit positive-report override ("form was
+  good" cancels the form-breakdown match) → a false positive costs one
+  cautious week, a false negative risks reinforcing an injury → forecloses
+  ANY signal in this file ever being read as grounds to increase load or
+  volume; that direction stays numeric-only.
+- `findNoteSignals` carries NO one-tap fix (`fix: null`), same as
+  junk-volume/routine-oversized → what to DO about his technique is a
+  Coach conversation, not a silent plan edit → forecloses auto-swapping an
+  exercise because a note pattern fired.
+- The brief's question queue reuses the EXISTING coach-program/fuel-cross
+  inbox records and their EXISTING approve/discard handlers rather than a
+  new write path → the apply/undo logic already existed and was tested;
+  duplicating it would be two things to keep in sync → forecloses any
+  future "decision" kind that doesn't already have an inbox route.
+- On mobile, `StageCard`'s focused rendering moved INSIDE the `stageFocus`
+  scrim rather than fixing its position in the normal-flow layout →
+  the normal-flow position is correct and used on desktop; only mobile's
+  viewport is short enough to push it below the fold → forecloses a single
+  shared DOM position for the focused card across breakpoints.
 
 VERIFIED (with locators):
-- Slice sync: live server, read-only — full snapshot 35 slices/996KB vs
-  `?only=todos` 1 slice/3KB. Browser (prod build): tagged→`?only=todos`,
-  untagged→full, burst→union, tagged+untagged→full.
-- Librarian: real run on scratch vault (Atomic Habits, sonnet) → dossier
-  honoured every honesty rule; weave produced 12 typed pages and EXTENDED the
-  seeded Habit Formation concept rather than forking it. Job discarded; no
-  vault touched.
-- Library jackets: real 331×500 / 369×500 JPEGs cached to disk, 3ms on repeat;
-  screenshot of shelf + detail.
-- Coach apply: applied to his REAL plan — Push now has Incline Barbell Bench
-  Press (4×10-12) + Weighted Pull-Up (3×12-12, ~5kg); Pull has Weighted
-  Pull-Up. Both carry ◆ COACH markers. A real model amend run honoured
-  "add the new one but don't remove the old".
-- RPE fix: his real log — 227 working sets, ALL RPE-rated, 88–94% at RPE 9–10;
-  Dumbbell Shoulder Press (Single Arm) 22.5kg @ RPE 9/9/10 with reps flat was
-  being told +2.5kg. Now returns `quality`. Live server confirms mix.
-- Health push repair: live log line "repaired 2 empty value(s) in POST
-  /api/health-data" (~/Library/Logs/nova-os-server.log).
-- Fuel: variant logged at ½ stored 15P/12C/11F/210kcal (exactly half its own
-  30/24/22/420) with recipe untouched; 21 cards carry ＋ LOG THIS; ASK button
-  right edge 340 vs card 357 at a 375px-constrained panel.
-- This close: lint 0 errors, build green, 528/528 tests, git clean and pushed,
-  backend 200, no stray processes, no dist/pc.json, deploy 32721579584 success.
+- verify:shipped, full run this session: git clean+pushed, deployed build
+  `9e55ceb5b` == local, 21 live chunks fetched, ALL 13 feature markers PASS
+  in the live bundle he downloads, 6/6 backend routes 200. Independently
+  re-checked at close: `curl https://hcooper12.github.io/nova-os/version.json`
+  → `9e55ceb5b`, matching `git rev-parse --short=9 HEAD`.
+- Phone voice bugs: diagnosed from his actual screen recordings via the
+  `/watch` skill (frame-by-frame + Whisper transcript), not inferred. The
+  transcript proved audio hardware/routing was fine (ruled out several
+  wrong hypotheses) before the src-reassignment bug was found.
+- Panel inference + findingCards: run against his REAL vault read-only —
+  "pull up my recent upper body sessions" → 13 matched, 5 shown, real
+  weights (27.5kg×7 etc). Upper Body 9-listed/4.4-finished, Push 10/5, Pull
+  9/5.6 all charted from live data.
+- Session notes: `findNoteSignals` independently re-run at session close
+  (separate node invocation from the one that built it) → still fires
+  exactly once, on Cable Lateral Raise, same as when built. Progression
+  engine: Cable Lateral Raise (9.1kg) and Alternate Incline Dumbbell Curl
+  (20kg) both HELD citing his exact sentences, live on his real vault.
+- All mobile UI (update banner, brief-close answer bar, focused stage card,
+  Coach apply buttons) screenshotted at a REAL 375px device-emulated
+  viewport (not a style-injected clamp — the `stageFocus` scrim is
+  `position:fixed` and escapes a `#root` width clamp entirely, which
+  produced a false "it overflows" reading earlier in the session before
+  switching to `mcp__chrome-devtools__emulate`).
+- 671/671 server tests, lint 0 errors, build green at every ship point this
+  session (checked repeatedly, not just at close).
 
 ASSUMED (not verified):
-- That his RPE logging is CALIBRATED. The 88% figure assumes "9" means one rep
-  in reserve, not "that felt hard". If it is habit-rating, the effort-ceiling
-  finding overstates the case. Flagged to him; needs his judgement, not code.
-- Voice/Kokoro prewarm value. The SpeechSynthesisVoice cache measured
-  0.0020ms → 0.0015ms per sentence (negligible) and index.js already boots the
-  sidecar at startup — the added ping only helps if the sidecar died. Kept as
-  hygiene, NOT claimed as a win.
-- That his phone has picked up any of this. Every fix ships to GitHub Pages,
-  but his device runs a cached bundle until the app is fully closed/reopened.
+- That he has actually seen the update banner and tapped UPDATE. The
+  mechanism is deployed and verified live; whether HIS device has crossed
+  the poll interval / foregrounded since is not observable from here.
+- That the Coach-tab proposal buttons read correctly on a REAL phone rather
+  than the emulated 375px viewport used this session — device emulation is
+  not the same hardware, and Safari/iOS PWA rendering has surprised this
+  project before (see prior DO NOT entries, now folded into memory).
+- That `findNoteSignals`' thresholds (min=2 within=6 sessions for form,
+  min=1 for pain) are the right cadence for HIM specifically — chosen from
+  first principles (twice is a pattern, pain is never worth waiting on),
+  not tuned against a real recurrence yet because he doesn't have one on
+  record besides the lateral raise.
 
 OPEN QUESTIONS / BLOCKERS:
-- Librarian phases 2–4 unbuilt: owned-book files (EPUB/PDF need exporting to
-  text first — no native extraction), spaced resurfacing beyond the two hooks,
-  read-next graph-gap analysis. `design/LIBRARIAN-PLAN.md`.
-- The `stale` detector still fires on Cable Flys Low Position even though it
-  was swapped OUT of Push — it reads session HISTORY, not current membership.
-  Filtered in practice by the `seen` findingKey guard, but a re-raise would
-  propose swapping an exercise no longer in any routine, and `applyOps` would
-  throw "not in any routine". Not hit yet; worth a membership check.
-- `findJunkVolume`, `findLowValueExercises`, `findLongTenure` have NEVER fired
-  on his real data — unit-tested only. Their thresholds are unproven in the field.
-- He is mid-Push-session as of the last check (draft with 10 exercises logged).
-  Plan changes applied take effect NEXT Push, not that one.
+- He was mid-way through re-adding the Atomic Habits PDF when this session
+  picked up the notes work — never confirmed whether the ingest actually
+  completed after the update banner should have refreshed his bundle.
+  Worth asking directly next session rather than assuming.
+- The existing coach-program/fuel-cross records raised BEFORE this
+  session's `.finding`/`.data` fields were added will show text-only cards
+  in the brief's question queue, not charts, until each is naturally
+  re-raised. Not a bug — just means the charted close won't look complete
+  on his very next brief for records already sitting in his Inbox.
+- `findNoteSignals` has fired exactly once, ever (Cable Lateral Raise). Like
+  the volume detectors before it, its behavior on a SECOND real recurrence
+  is unproven — worth watching, not re-tuning pre-emptively.
 
-NEXT ACTION: ask him whether his RPE scale is calibrated (one-rep-in-reserve
-vs "felt hard"). If calibrated, the effort-ceiling finding is the highest-
-leverage change available to him and should be surfaced hard; if not, raise
-`GRIND_RPE`/`EFFORT_CEILING_SHARE` in `server/lib/coach.js` +
-`coachProgramReview.js`. Expected observation if handled: the progression mix
-from `/api/workouts/routines` stops being 14/14 `quality` and shows a spread
-of weight/reps/quality.
+NEXT ACTION: ask him directly (a) did the Atomic Habits PDF ingest actually
+finish once his phone updated, and (b) how did the Coach-tab apply buttons
+and the brief's question-by-question close actually read on his real
+device. Both are the kind of claim this session's whole failsafe exists
+to stop taking on faith — confirm with him, don't assume from the emulator.
+Expected observation if the update banner is doing its job: he reports
+seeing "A newer Nova is ready" rather than a feature silently appearing.
 
 DO NOT:
-- Do not verify a UI change at desktop width only. The ASK button escaped its
-  card at phone width and he found it AFTER I called the feature live — twice
-  now this class of miss. Constrain the panel (a style injection works) or
-  emulate; a row that fits at 1000px proves nothing about a phone.
-- Do not trust a browser measurement without confirming the page runs the code
-  you just wrote. A hash-only navigation does NOT re-execute modules, and the
-  service worker serves the previous build — this produced a precise,
-  believable, WRONG measurement (two requests exactly 3001ms apart) that
-  nearly had me "fix" working code. Clear SW + caches, change the QUERY string,
-  pass ignoreCache.
-- Do not add a detector without running it against his REAL log first. Two
-  shipped-then-corrected in one session: a session-length ceiling that could
-  never fire (he already splits routines across days), and copy that told him
-  to "earn 9 clean reps" on a lift he was already doing 12 of.
-- Do not let Coach propose cutting an exercise it added itself — it offered to
-  drop Weighted Pull-Up 30 minutes after creating it. Guarded by the 21-day
-  `justAdded` marker check; keep that guard if the detector is refactored.
-- Do not assume `--allowedTools` restricts anything under bypassPermissions;
-  only `--disallowedTools` is enforced.
-- Do not run a scratch server on port 4199 while `npm test` runs — EADDRINUSE
-  breaks the suite (hit again this session).
+- Do not tell him ANYTHING is shipped without running `npm run
+  verify:shipped` first and reading a clean pass. This is now written to
+  memory (`never-claim-shipped-unverified.md`) because it was said,
+  wrongly, MULTIPLE times this session before the failsafe existed — nine
+  commits sat unpushed behind a blocked permission classifier at one point
+  while "done" kept being reported.
+- Do not assume `registerType: 'autoUpdate'` means his device is current.
+  It updates the SERVICE WORKER in the background; the RUNNING app keeps
+  its old JS until a genuine reload, which in an installed PWA he doesn't
+  force-quit can be days. This is why the update banner exists — do not
+  remove it or downgrade it to something dismissable-forever.
+- Do not add a coach-chat-facing feature and patch only ONE renderer.
+  `src/screens/Workouts.jsx` has THREE separate coach-message render
+  blocks (mid-session / demo / the actual Coach tab) built from the same
+  `coachMsgs` view-model but rendered independently. This session shipped
+  a "fix" that only worked in the surface he wasn't looking at, TWICE
+  in one session (panels, then proposal buttons) before catching the
+  pattern. Grep for all render sites before calling a coach UI change done.
+- Do not verify a mobile overlay with a `#root` width-clamp style
+  injection if the overlay might be `position:fixed` — it escapes the
+  clamp entirely and produces a false "doesn't overflow" or false
+  "overflows" reading depending on which way you get unlucky. Use real
+  viewport emulation (`mcp__chrome-devtools__emulate`).
+- Do not read `this.state.X` immediately after calling `this.setState({X:
+  ...})` in the same synchronous block — React has not committed yet. Hit
+  this exact bug in `startBriefQueue`/`askBriefQuestion`: the first
+  question silently produced an answer bar with no card and no words asked.
+  Read from a `setState` callback or pass the value down explicitly.
+- Do not let a session-note signal regex match on the bare presence of a
+  word without a negative-report override. "Form was good" contains
+  "form"; matching on that alone would have inverted the entire feature's
+  meaning on a genuinely positive report.
+- Do not add a build-id scheme based on wall-clock time. It cannot equal
+  itself between a local build and a CI rebuild of the same commit.
+- Do not verify a UI change at desktop width only. The ASK button escaped
+  its card at phone width and he found it AFTER I called the feature live
+  — this class of miss recurred again this session (the update banner, the
+  brief answer bar) before every mobile check moved to real device
+  emulation. See the width-clamp DO NOT above for the deeper trap.
+- Do not trust a browser measurement without confirming the page runs the
+  code you just wrote. A hash-only navigation does NOT re-execute modules,
+  and the service worker serves the previous build.
+- Do not add a detector without running it against his REAL log first.
+  `findNoteSignals` was checked against his 5 real notes AND a set of
+  negative cases before shipping, per this standing rule.
+- Do not let Coach propose cutting an exercise it added itself — guarded
+  by the 21-day `justAdded` marker check; keep that guard if the detector
+  is refactored.
+- Do not assume `--allowedTools` restricts anything under
+  bypassPermissions; only `--disallowedTools` is enforced.
+- Do not run a scratch server on port 4199 while `npm test` runs —
+  EADDRINUSE breaks the suite.
 - Do not write to inbox.json from a side process while the server runs; go
-  through its endpoints. (Seeding a record with the server STOPPED is fine.)
-- Do not grep NOVA_TOKEN in server/.env — it is API_TOKEN. And note
-  `ensureApiToken()` APPENDS a generated token to the real .env if it is unset.
+  through its endpoints. (This session's `runWeeklyAudit` bug — a record
+  written via `createRecord` with no `id` and no `createdAt` — was caught
+  live and required stopping the server, patching the file, then
+  KICKSTARTING so it reloaded from disk rather than clobbering it from its
+  own stale in-memory state on next write.)
+- Do not grep NOVA_TOKEN in server/.env — it is API_TOKEN.
 - The Pages URL is hcooper12.github.io/nova-os (not haydencooper).
 
 
 ## SESSION LOG (append-only, newest first)
+
+### 25–26 August 2026 — evidence on screen, the phone-voice bugs, the ship-verification crisis, and Coach reading his own notes
+Started from his complaint that Nova speaks a lot without anything to look
+at, and ended up rebuilding how "done" gets claimed at all. Made every
+spoken Ask-Nova/Coach answer infer a visual panel deterministically (code
+picks the shape from the question, never the model), added a `sessions`
+panel that didn't exist, and wrapped every render site in an error boundary
+— there was none anywhere in the app, so one malformed panel used to blank
+the whole screen. He sent screen recordings of the phone voice failing;
+watching them frame-by-frame (rather than guessing) found three separate,
+unrelated bugs: the brief racing a TTS-status fetch and giving up silently,
+a full-screen focus blur spotlighting a card rendered below the mobile
+fold, and the iOS-audio "unlock" replaying his last sentence because its
+audio element still held the previous TTS blob. Built findings-as-charts
+(fuel findings had never exposed the numbers their prose quoted) and a
+question-by-question brief close that reuses the existing inbox
+approve/discard rails rather than inventing a new one. Let Coach apply
+program edits from inside the chat — the write path already existed and
+was tested, it just had nowhere to say yes from.
+
+Then he said, plainly, that he no longer trusted "shipped" as a word from
+me, and he was right to: nine commits had sat unpushed behind a blocked
+permission classifier while progress kept being reported, a feature landed
+in the one Coach-message renderer out of three that he wasn't looking at
+(twice), and his PWA was silently serving a cached bundle for days because
+`autoUpdate` updates the service worker, not the running app. Built the
+actual failsafe rather than apologising again: a build id compiled from
+the git commit (not a timestamp — those can't equal themselves across a CI
+rebuild), a `version.json` the app polls and shows an UPDATE banner
+against, and `scripts/verify-shipped.mjs`, which checks the LIVE deployed
+bundle rather than the working tree. Running it immediately caught two
+bugs in itself — a build id that could never match, and chunk names read
+from local files that 404 against CI's different content hashes — which
+is exactly the point of a script instead of a claim.
+
+Closed by confirming, and it was true: Coach's progression engine, its
+weekly detectors, the program audit and the Sunday debrief all ignored his
+per-exercise session notes. A note reading "struggling to move 9.1kg
+without a nudge of body momentum" could not stop a load increase, because
+nothing except the chat ever read it. Built a narrow, suppress-only note
+reader (a signal can hold a load increase, never create one) and wired it
+through every surface that reviews his training — verified live: Cable
+Lateral Raise and Alternate Incline Dumbbell Curl are now held, citing his
+own sentences.
 
 ### 23–24 August 2026 — Phase C, the Librarian + Library, Coach that edits and judges the plan, and Fuel fixes he asked for twice
 Finished the fluidity plan: writes now tag which slices they touched, so a
