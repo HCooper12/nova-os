@@ -18,3 +18,5 @@ __pycache__/
 # macOS/iCloud "name 2.ext" conflict duplicates — never repo files
 **/* 2.js
 **/* 2.jsx
+# screen recordings dropped in for debugging — never repo content
+*.mov
