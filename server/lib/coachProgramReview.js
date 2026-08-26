@@ -356,6 +356,11 @@ export function findLowValueExercises(sessions = [], exercises = [], routines = 
         exerciseId: worst.e.exerciseId,
         name: worst.t.name,
         group,
+        // the same figures the line quotes — exposed so the card can draw
+        // them instead of a second, independently-derived version
+        worstPct,
+        bestPct,
+        bestName: best.t.name,
         line: `You're running ${entries.length} ${group.toLowerCase()} movements in ${routine.name}, and ${worst.t.name} is the one not paying for its place — ${worstPct <= 0 ? 'flat' : `up only ${worstPct}%`} across ${worst.t.n} sessions while ${best.t.name} went up ${bestPct}%. Cutting it or changing it would buy back time and recovery without costing you ${group.toLowerCase()}.`,
         fix: { action: 'drop', routineId: routine.id, exerciseId: worst.e.exerciseId },
       });
@@ -572,6 +577,10 @@ export async function raiseProgramFindings(vaultPath, deps = {}) {
         kind: 'coach-program',
         findingKey: f.key,
         findingKind: f.kind,
+        // The numbers the line was written from, kept so the brief can DRAW
+        // the finding instead of reading a paragraph at him. Nothing derived
+        // — the card and the sentence come from the same object.
+        finding: { ...f, line: undefined, fix: undefined },
         fix: f.fix || null,
         text: `Coach: ${f.line}`,
         source: 'coach',

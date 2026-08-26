@@ -196,7 +196,13 @@ test('audit beat: this week\'s audit is spoken, with clean and pending states sh
   assert.match(all, /7 came back clean/);
   const card = steps.find((s) => s.card?.label?.includes('PROGRAM AUDIT'))?.card;
   assert.ok(card, 'the beat carries its evidence pane');
-  assert.match(card.foot, /clean/);
+  // It is now a CHART, not a list: three bars, so the clean checks are as
+  // visible as the ones needing a decision — that reassurance is the half a
+  // wall of speech loses.
+  assert.equal(card.kind, 'bars');
+  assert.deepEqual(card.bars.map((b) => b.name), ['Decide', 'Clean', 'Not yet']);
+  assert.equal(card.bars.find((b) => b.name === 'Clean').value, 1);
+  assert.match(card.foot, /nothing needs a decision/);
 });
 
 test('audit beat: a stale audit from a previous week is not spoken as this week\'s', async () => {

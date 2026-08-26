@@ -4777,6 +4777,21 @@ export default class App extends Component {
         this.sharedAudio.playsInline = true;
         this.sharedAudio.preload = 'auto';
       }
+      // THE UNLOCK MUST PLAY SILENCE — and by this point it usually would
+      // not have. drainTtsQueue reassigns sharedAudio.src to each TTS blob as
+      // it plays, so this element is left holding the LAST SENTENCE NOVA
+      // SPOKE. Calling play() on it to "unlock audio" therefore replayed that
+      // sentence, at full volume, on every gesture: tapping the core on his
+      // phone repeated the same greeting word for word every single time
+      // (byte-identical, because it was the same blob), and the mic could not
+      // open over the top of it — "Dictation: aborted".
+      //
+      // Only reset when nothing is genuinely playing, or a gesture mid-reply
+      // would cut Nova off in the middle of a sentence.
+      if (!this.ttsPlaying && this.sharedAudio.src !== SILENT_WAV) {
+        try { this.sharedAudio.pause(); } catch { /* already idle */ }
+        this.sharedAudio.src = SILENT_WAV;
+      }
       // Re-play the silent clip on EVERY gesture, not just the first: iOS
       // re-locks the element after an interruption (a call, a route change,
       // the screen locking), and each gesture is a free chance to reclaim it.

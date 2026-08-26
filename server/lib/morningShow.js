@@ -12,6 +12,7 @@
 // rotation over randomness, same as the ack lines.
 
 import { metricCard, listCard } from './spokenCards.js';
+import { findingCard, auditCard, proteinWeekCard } from './findingCards.js';
 
 const pad = (n) => String(n).padStart(2, '0');
 const localDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -227,7 +228,13 @@ export async function composeShow(vaultPath, { variant = 'morning', now: nowIn }
       const p = Math.round(entries.reduce((s, e) => s + (e.macros?.p || 0), 0));
       const kcal = Math.round(entries.reduce((s, e) => s + (e.macros?.kcal || 0), 0));
       const panel = await deps.panel(vaultPath, { panel: 'nutrition-week' }).catch(() => null);
-      steps.push({ say: `${p} grams of protein and ${kcal.toLocaleString()} calories logged.`, ...(panel ? { panel } : {}) });
+      steps.push({
+        say: `${p} grams of protein and ${kcal.toLocaleString()} calories logged.`,
+        // the week against his floor, day by day — the sentence says today,
+        // the picture says whether today is typical
+        card: proteinWeekCard(panel?.data) || metricCard({ label: 'Protein today', value: p, unit: 'g', caption: `${kcal.toLocaleString()} KCAL LOGGED`, tone: 'cy' }),
+        ...(panel ? { panel } : {}),
+      });
     }
   }
 
@@ -385,7 +392,10 @@ export async function composeShow(vaultPath, { variant = 'morning', now: nowIn }
         const waited = Math.floor((now - new Date(top.createdAt || now)) / 86_400_000);
         steps.push({
           say: `${top.nudges ? 'Still waiting on you' : 'One from me'}, sir: ${despeak(String(top.text || '').replace(/^Coach:\s*/, ''))}`,
-          card: listCard({
+          // The finding's OWN numbers, drawn. "Upper Body lists 9 but you
+          // finish 4.4" is a gap, and a gap is a picture — reading it aloud
+          // is the one format he cannot act on or remember.
+          card: findingCard(top.finding) || listCard({
             label: top.nudges ? `COACH · ASKED ${top.nudges + 1}×` : 'COACH · A CHANGE WORTH MAKING',
             items: [{ name: despeak(String(top.text || '').replace(/^Coach:\s*/, '')).slice(0, 46), note: waited > 0 ? `${waited}d open` : 'new', tone: top.nudges ? 'warn' : 'gold' }],
             foot: 'yes or no in your Inbox — or argue it with Coach',
@@ -410,7 +420,7 @@ export async function composeShow(vaultPath, { variant = 'morning', now: nowIn }
         const notYet = (audit.checks || []).filter((c) => c.status === 'not-yet').length;
         steps.push({
           say: despeak(audit.summary),
-          card: listCard({
+          card: auditCard(audit) || listCard({
             label: `PROGRAM AUDIT · WEEK OF ${audit.weekOf}`,
             items: (audit.checks || []).slice(0, 5).map((c) => ({
               name: c.label,
