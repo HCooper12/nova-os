@@ -156,6 +156,14 @@ export async function buildAskContext(vaultPath, sessionId, { fast = false } = {
       const top = (m.byCategory || []).sort((a, b) => b.spent - a.spent).slice(0, 3).map((c) => `${c.category} $${Math.round(c.spent)}`);
       return `Money this month: $${Math.round(m.spent)} spent (last month $${Math.round(m.prevSpent)}); top: ${top.join(', ')}.`;
     },
+    async () => {
+      // the Leader's idea of the day — Nova mentions it in the morning brief
+      // conversation and can discuss it; the deeper sit-down lives in the
+      // Leader's own chat, and Nova should point there for real depth
+      const { readLeaderState, todayLead } = await import('./leader.js');
+      const t = todayLead(await readLeaderState());
+      return t ? `TODAY'S LEADERSHIP IDEA (from the Leader agent — mention it in a morning brief, engage if he raises it, and point him at the Leader chat for the deeper conversation): "${t.title}" — ${t.line}${t.why ? ` (${t.why})` : ''}` : null;
+    },
   ];
 
   const results = await Promise.all(sections.map((section) => {

@@ -11,6 +11,8 @@ import { libraryRouter } from './routes/library.js';
 import { parseWithEmptyValues } from './lib/jsonRepair.js';
 import { notesRouter } from './routes/notes.js';
 import { intentRouter } from './routes/intent.js';
+import { leaderRouter } from './routes/leader.js';
+import { startLeaderScheduler } from './lib/leader.js';
 import { calendarRouter } from './routes/calendar.js';
 import { ingestRouter } from './routes/ingest.js';
 import { recipesRouter } from './routes/recipes.js';
@@ -202,6 +204,7 @@ async function main() {
   app.use('/api', todosRouter(process.env.VAULT_PATH));
   app.use('/api', voiceRouter(process.env.VAULT_PATH));
   app.use('/api', moneyRouter(process.env.VAULT_PATH));
+  app.use('/api', leaderRouter(process.env.VAULT_PATH));
   app.get('/api/events', (req, res) => subscribe(res));
   app.get('/api/push/key', async (req, res) => {
     const { getPublicKey } = await import('./lib/push.js');
@@ -260,6 +263,7 @@ async function main() {
   startTrainingCheckScheduler(process.env.VAULT_PATH);
   startCoachCadenceScheduler(process.env.VAULT_PATH);
   startWeekPlanScheduler(process.env.VAULT_PATH);
+  startLeaderScheduler(process.env.VAULT_PATH);
   startHealthDropsScheduler(process.env.VAULT_PATH);
   startDailyReviewScheduler(process.env.VAULT_PATH);
   import('./lib/planToday.js').then(({ startPlanTodayScheduler }) => startPlanTodayScheduler(process.env.VAULT_PATH))

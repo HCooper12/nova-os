@@ -191,6 +191,21 @@ export const LANES = [
     off: 'No patterns are raised.',
   },
   {
+    id: 'leader-daily', label: 'Leader — daily idea', group: 'daily', def: 'sonnet',
+    hint: 'the one leadership idea on your homepage each morning',
+    off: 'No Try Today card is generated; the Leader’s library and your reflections are untouched.',
+  },
+  {
+    id: 'leader-research', label: 'Leader — weekly research', group: 'daily', def: 'opus',
+    hint: 'Saturday’s web-research run, steered by your stated struggles',
+    off: 'The research library stops growing; daily ideas keep drawing on the vault and what’s already gathered.',
+  },
+  {
+    id: 'leader-chat', label: 'Leader — conversation', group: 'conversation', def: 'opus',
+    hint: 'the leadership sit-down — struggles in, research directions out',
+    off: 'The Leader chat is refused with a plain message; the daily idea keeps arriving.',
+  },
+  {
     id: 'distill', label: 'Distill', group: 'daily', def: 'sonnet',
     hint: 'compresses a long thing into the part that matters',
     off: 'Distillation is refused; the source stays whole and readable.',

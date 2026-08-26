@@ -255,6 +255,10 @@ export const api = {
   journalPromptJob: (conn, jobId) => call(conn, `/api/journal/prompt/${encodeURIComponent(jobId)}`),
   startClaudeCodeMessage: (conn, text, sessionId, model, workspace) => post(conn, '/api/claude-code/message', { text, sessionId, model, workspace }),
   claudeCodeJob: (conn, jobId) => call(conn, `/api/claude-code/message/${encodeURIComponent(jobId)}`),
+  // the Leader — leadership development: daily idea, chat, reflection intake
+  leader: (conn) => call(conn, '/api/leader'),
+  leaderRun: (conn, kind, force) => post(conn, '/api/leader/run', { kind, force }),
+  askLeader: (conn, question, sessionId) => post(conn, '/api/leader/chat', { question, sessionId }),
   healthInsight: (conn) => call(conn, '/api/health-insight'),
   streaks: (conn) => call(conn, '/api/streaks'),
   healthData: (conn, days) => call(conn, `/api/health-data${days ? '?days=' + days : ''}`),

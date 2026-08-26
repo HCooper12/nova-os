@@ -90,6 +90,19 @@ export function MissionStructured({ v }) {
       </Group>
     ),
 
+    lead: v.leaderToday ? (
+      <Group key="lead" label="Lead · try today" trailing={<span style={{ font: `500 10px ${M}`, letterSpacing: '.12em', color: 'var(--nv-gold)' }}>{v.leaderToday.chip}</span>}>
+        <div style={{ padding: '13px 16px' }}>
+          <div style={{ font: `400 21px/1.25 ${S}`, textWrap: 'pretty' }}>{v.leaderToday.title}</div>
+          <p style={{ margin: '9px 0 0', font: `450 13.5px/1.55 ${UI}`, color: 'var(--nv-ink)' }}>{v.leaderToday.line}</p>
+          {v.leaderToday.why && <p style={{ margin: '7px 0 0', font: `450 12.5px/1.5 ${UI}`, color: 'var(--nv-ink60)' }}>{v.leaderToday.why}</p>}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '9px', marginTop: '12px' }}>
+            <Pill label="Open the Leader ›" onClick={v.openLeader} tone="quiet" />
+          </div>
+        </div>
+      </Group>
+    ) : null,
+
     plan: v.planToday ? (
       <Group key="plan" label="Today's top 3" trailing={<span style={{ font: `500 10px ${M}`, letterSpacing: '.12em', color: v.planToday.state === 'pending' ? 'var(--nv-gold)' : 'var(--nv-ink40)' }}>{v.planToday.meta}</span>}>
         {v.planToday.state === 'classifying' ? (
@@ -229,10 +242,10 @@ export function MissionStructured({ v }) {
   // the day decides the order: morning = body first; after that, what to DO
   // (focus + calendar) leads and the vitals step back
   const order = morning
-    ? ['hero', 'vitals', 'plan', 'focus', 'today', 'deck', 'review', 'noticed', 'shortcuts', 'agents']
+    ? ['hero', 'vitals', 'plan', 'lead', 'focus', 'today', 'deck', 'review', 'noticed', 'shortcuts', 'agents']
     : hour < 17
-      ? ['focus', 'plan', 'today', 'deck', 'hero', 'vitals', 'noticed', 'review', 'shortcuts', 'agents']
-      : ['focus', 'plan', 'today', 'deck', 'vitals', 'review', 'hero', 'noticed', 'shortcuts', 'agents'];
+      ? ['focus', 'lead', 'plan', 'today', 'deck', 'hero', 'vitals', 'noticed', 'review', 'shortcuts', 'agents']
+      : ['focus', 'plan', 'lead', 'today', 'deck', 'vitals', 'review', 'hero', 'noticed', 'shortcuts', 'agents'];
 
   return (
     <div style={v.wrapMission} data-screen-label="Mission Control">

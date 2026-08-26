@@ -44,6 +44,8 @@ const FEATURES = [
   // (posted to the app's own origin). This one exists only in the fixed code.
   ['Book upload · reaches the right server', 'never left the browser'],
   ['Update banner', 'A newer Nova is ready'],
+  ['Leader · homepage Try Today card', 'Lead · try today'],
+  ['Leader · the screen and sit-down', 'LEADERSHIP · DAILY PRACTICE'],
 ];
 
 const SERVER_ROUTES = [

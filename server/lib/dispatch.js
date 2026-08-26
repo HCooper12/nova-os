@@ -284,6 +284,15 @@ async function composeMorning(vaultPath, now) {
     if (streaks) lines.push(streaks);
   } catch { /* optional garnish */ }
 
+  // The Leader's idea of the day — a stored receipt, read deterministically;
+  // no model sits in the brief path. Absent (not generated yet, lane off)
+  // means absent: the brief never invents leadership advice.
+  try {
+    const { leadLineForBrief } = await import('./leader.js');
+    const lead = await leadLineForBrief(now);
+    if (lead) lines.push(lead);
+  } catch { /* optional */ }
+
   // daily review concept
   try {
     const vault = new Vault(vaultPath);

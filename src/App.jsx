@@ -14,6 +14,7 @@ import { valsRecipes, CURRENT_VERSION } from './vals/valsRecipes.js';
 import { valsWorkouts } from './vals/valsWorkouts.js';
 import { valsNotes } from './vals/valsNotes.js';
 import { valsLibrary } from './vals/valsLibrary.js';
+import { valsLeader } from './vals/valsLeader.js';
 import { scaleMacros, portionName, validPortion } from './portion.js';
 import { valsMisc } from './vals/valsMisc.js';
 import { valsInbox } from './vals/valsInbox.js';
@@ -80,6 +81,7 @@ const SCREEN_LOADERS = {
   todos: () => import('./screens/Todos.jsx'),
   notes: () => import('./screens/Notes.jsx'),
   library: () => import('./screens/Library.jsx'),
+  leader: () => import('./screens/Leader.jsx'),
 };
 const Galaxy = lazyScreen(SCREEN_LOADERS.galaxy, 'Galaxy');
 const Money = lazyScreen(SCREEN_LOADERS.money, 'Money');
@@ -93,6 +95,7 @@ const ClaudeCode = lazyScreen(SCREEN_LOADERS.code, 'ClaudeCode');
 const Todos = lazyScreen(SCREEN_LOADERS.todos, 'Todos');
 const Notes = lazyScreen(SCREEN_LOADERS.notes, 'Notes');
 const Library = lazyScreen(SCREEN_LOADERS.library, 'Library');
+const Leader = lazyScreen(SCREEN_LOADERS.leader, 'Leader');
 
 // The OVERLAYS — every one is conditionally rendered (a modal, a sheet, an
 // overlay), so none of them is ever part of a first paint. RecipeOverlay
@@ -151,7 +154,7 @@ const WAKE_WORD = true;
 
 // Hash-routed screens (#/recipes etc.) so deep links and the back button work
 // on GitHub Pages without a server-side router.
-const SCREENS = ['mission', 'inbox', 'voice', 'galaxy', 'code', 'recipes', 'shopping', 'todos', 'workouts', 'notes', 'library', 'journal', 'money', 'settings'];
+const SCREENS = ['mission', 'inbox', 'voice', 'galaxy', 'code', 'recipes', 'shopping', 'todos', 'workouts', 'notes', 'library', 'leader', 'journal', 'money', 'settings'];
 
 const ACTIVE_SESSION_KEY = 'novaos.activeSession';
 const QUICK_PLAN_KEY = 'novaos.quickPlan';
@@ -228,7 +231,7 @@ function screenFromHash() {
 // Note details and photo blob URLs are deliberately excluded (blobs don't
 // serialize; details re-fetch on demand).
 const CACHED_LIVE_KEYS = [
-  'liveNotes', 'liveLibrary', 'liveCalendar', 'liveRecipes', 'liveRecipeProfile', 'liveRotation',
+  'liveNotes', 'liveLibrary', 'liveLeader', 'liveCalendar', 'liveRecipes', 'liveRecipeProfile', 'liveRotation',
   'liveFoodLog', 'liveFoodHistory', 'liveNutritionMonth', 'liveNutritionWeek', 'liveShoppingList', 'liveStash', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
   'liveWorkoutExercises', 'liveWorkoutMuscleGroups', 'liveWorkoutTrackingTypes',
   'liveWorkoutRoutines', 'liveWorkoutSchedule', 'liveWorkoutWeekdays', 'liveWorkoutProgressions', 'liveWorkoutGoals', 'liveCarryovers', 'liveTrainOverview',
@@ -276,6 +279,9 @@ export default class App extends Component {
     voiceSessionId: typeof localStorage === 'undefined' ? null : (localStorage.getItem('novaos.voiceSession') || null),
     speechVoices: [], speechVoiceURI: typeof localStorage === 'undefined' ? '' : (localStorage.getItem('novaos.speechVoiceURI') || ''),
     coachSessionId: typeof localStorage === 'undefined' ? null : (localStorage.getItem('novaos.coachSession') || null),
+    // the Leader — leadership development: state mirror + its conversation
+    liveLeader: null, leaderChat: [], leaderInput: '', leaderBusy: false,
+    leaderSessionId: typeof localStorage === 'undefined' ? null : (localStorage.getItem('novaos.leaderSession') || null),
     voiceSpeak: typeof localStorage === 'undefined' ? true : localStorage.getItem('novaos.voiceSpeak') !== '0',
     // opt-in (see setWakeWord) and remembered per device
     wakeWordOn: typeof localStorage === 'undefined' ? false : localStorage.getItem('novaos.wakeWord') === '1',
@@ -1177,6 +1183,7 @@ export default class App extends Component {
       this.refreshDailyReviewDetail(r.notes);
     });
     apply('library', (r) => { this.setState({ liveLibrary: r.items }); this.refreshBookCovers(r.items); });
+    apply('leader', (r) => this.setState({ liveLeader: r }));
     apply('journal', (r) => this.setState({ liveJournalEntries: r.entries }));
     apply('healthInsight', (r) => this.setState({ liveHealthInsight: r }));
     apply('healthData', (r) => this.setState({ liveHealthDays: r.days.length ? r.days : null }));
@@ -1287,6 +1294,7 @@ export default class App extends Component {
         this.refreshDailyReviewDetail(notesRes.notes);
       },
       async () => { const r = await api.library(conn); this.setState({ liveLibrary: r.items }); this.refreshBookCovers(r.items); },
+      async () => this.setState({ liveLeader: await api.leader(conn) }),
       async () => {
         const { entries } = await api.journalEntries(conn, 30);
         this.setState({ liveJournalEntries: entries });
@@ -4446,6 +4454,7 @@ export default class App extends Component {
       ...valsWorkouts(this, ctx),
       ...valsNotes(this, ctx),
       ...valsLibrary(this, ctx),
+      ...valsLeader(this, ctx),
       ...valsMisc(this, ctx),
       ...valsInbox(this, ctx),
       ...valsTodos(this, ctx),
@@ -5732,6 +5741,49 @@ export default class App extends Component {
     this.setState({ coachSessionId: null, coachChat: [] });
     this.toastMsg('Fresh coaching conversation');
   }
+  // ---------- the Leader ----------
+  refreshLeader() {
+    const conn = getConnection();
+    if (!conn) return;
+    api.leader(conn).then((r) => this.setState({ liveLeader: r })).catch(() => {});
+  }
+  doLeaderChat(preset) {
+    const q = (typeof preset === 'string' && preset.trim()) || this.state.leaderInput.trim();
+    if (!q || this.state.leaderBusy) return;
+    const conn = getConnection();
+    if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
+    this.setState((s) => ({ leaderChat: [...s.leaderChat, { at: Date.now(), who: 'you', text: q }], leaderInput: '', leaderBusy: true }));
+    // a trailing REFLECT line is a typed directive for the server, not prose
+    const stripDirective = (t) => t.replace(/(^|\n)\s*REFLECT\s*(\{[\s\S]*)?$/, '');
+    api.askLeader(conn, q, this.state.leaderSessionId || null).then(({ jobId }) => {
+      this.startPoll('leader', () => api.claudeCodeJob(conn, jobId), {
+        timeoutMs: 3 * 60_000,
+        intervalMs: 700,
+        onProgress: (job) => {
+          if (!job.partial) return;
+          const shown = stripDirective(job.partial);
+          if (shown) this.applyStreamPartial('leaderChat', 'leader', shown);
+        },
+        onReady: (job) => {
+          if (job.result.sessionId) {
+            localStorage.setItem('novaos.leaderSession', job.result.sessionId);
+            this.setState({ leaderSessionId: job.result.sessionId });
+          }
+          this.finalizeStream('leaderChat', { who: 'leader', text: job.result.text }, { leaderBusy: false });
+          // a reflection landed — the profile the daily idea steers by changed
+          if (job.result.reflected) this.refreshLeader();
+        },
+        onError: (msg) => this.setState((s) => ({ leaderBusy: false, leaderChat: [...s.leaderChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] })),
+      });
+    }).catch((e) => {
+      this.setState((s) => ({ leaderBusy: false, leaderChat: [...s.leaderChat, { at: Date.now(), who: 'system', text: 'Error: ' + e.message }] }));
+    });
+  }
+  newLeaderChat() {
+    localStorage.removeItem('novaos.leaderSession');
+    this.setState({ leaderSessionId: null, leaderChat: [] });
+    this.toastMsg('Fresh Leader conversation');
+  }
   saveFitnessGoals() {
     const conn = getConnection();
     const d = this.state.goalsDraft;
@@ -5860,6 +5912,7 @@ export default class App extends Component {
               {v.isWorkouts && <Workouts v={v} />}
               {v.isNotes && <Notes v={v} />}
               {v.isLibrary && <Library v={v} />}
+              {v.isLeader && <Leader v={v} />}
               {v.isJournal && <Journal v={v} />}
               {v.isMoney && <Money v={v} />}
               {v.isSettings && <Settings v={v} />}

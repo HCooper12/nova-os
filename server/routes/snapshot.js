@@ -48,6 +48,7 @@ export const SLICES = {
   overnight: '/api/overnight',
   skills: '/api/skills',
   pulse: '/api/pulse',
+  leader: '/api/leader',
 };
 
 // sentinel for a slice that lost its time-budget race — a unique object, so
@@ -83,6 +84,11 @@ export function snapshotRouter({ port, token }) {
       const { listRecords } = await import('../lib/inboxStore.js');
       out.pending = (await listRecords()).filter((r) => r.status === 'pending').length;
     } catch { out.pending = null; }
+    try {
+      // today's leadership idea — a stored receipt, absent is null
+      const { leadLineForWidget } = await import('../lib/leader.js');
+      out.lead = await leadLineForWidget();
+    } catch { out.lead = null; }
     try {
       // a widget must answer fast — a cold CalDAV fetch can take longer than
       // iOS will wait, so the calendar gets 5s or the slot is honestly null

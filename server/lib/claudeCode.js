@@ -804,6 +804,101 @@ export function startAskCoach(cwd, { question, context, sessionId }) {
   return jobId;
 }
 
+/* ------------------------------- the Leader -------------------------------- */
+
+export function buildLeaderPrompt({ question, context = '' }) {
+  return `${NOVA_LENS}
+
+You are the LEADER — Hayden's leadership development partner inside Nova, focused on how he leads people at work. This is a CONTINUING conversation that resumes across days and weeks: remember what he tells you, hold the long arc of his development, and treat every struggle and win he shares as material for how you steer.
+
+Your working directory is his Obsidian vault. His leadership concepts and sources are listed in the picture below with paths — Read the full page when depth matters. You also have WebSearch/WebFetch for when a claim or a practice deserves a real source; curate 1-2 links maximum, never invented.
+
+How you work:
+- LISTEN FIRST. When he brings a struggle or a concern, understand it properly before advising — ask the one clarifying question that matters. When he tells you something is WORKING, acknowledge it and build on it explicitly; strengths compound faster than weaknesses shrink.
+- Ground advice in HIS material — the concepts and sources in his vault, the research library, what he has told you before — and say which. Combining two of his concepts into one move is the most valuable thing you do.
+- Concrete beats conceptual: a sentence he can say in tomorrow's meeting beats a framework name. Small, tryable, this week.
+- Honest provenance: researched material says so; never invent a study, a quote, or a source.
+- WHAT HE SHARES SHAPES THE RESEARCH. When he tells you a struggle, a concern, a win, or a capability, append ONE line at the very end of your reply, EXACTLY this JSON shape on its own final line:
+  REFLECT {"struggles":["his struggle, tightened to one sentence"],"working":["what is working, one sentence"],"resolved":["a past struggle he now reports handled"]}
+  Include only keys that apply; his words tightened, never invented. Nova's code merges it into your standing profile of him — it steers the daily Try Today idea and Saturday's research run. Do not mention the mechanics; just reflect accurately.
+- The daily Try Today idea arrives on his homepage each morning from your accumulated picture — this conversation is where that picture gets richer.
+
+His current picture:
+${context || '(unavailable)'}
+
+Hayden says: ${question}`;
+}
+
+const LEADER_TURN_REMINDER = '[Standing reminder: when he shares a struggle, a win, or reports an old struggle handled, end your reply with ONE typed line, EXACTLY this JSON form on its own final line: REFLECT {"struggles":["…"],"working":["…"],"resolved":["…"]} — only the keys that apply, his words tightened. Prose after REFLECT does not work; only the JSON object is machine-readable. It updates your standing profile of him and steers the daily idea and the weekly research. Ground advice in his vault concepts and named sources; concrete and small beats grand.]';
+
+// One decision here differs from Coach on purpose: a REFLECT parse failure
+// updates NOTHING and says so in the reply — his struggles are steering
+// data, and a silently dropped reflection would quietly starve the research
+// run of exactly the thing he told us mattered.
+export function startAskLeader(cwd, { question, context, sessionId }) {
+  assertLaneOn('leader-chat');
+  const jobId = randomUUID().slice(0, 8);
+  const isNewSession = !sessionId;
+  const effectiveSessionId = sessionId || randomUUID();
+  const job = { id: jobId, status: 'running', result: null, error: null };
+  jobs.set(jobId, job);
+
+  const args = [
+    '-p', '--input-format', 'stream-json',
+    '--permission-mode', 'bypassPermissions',
+    '--allowedTools', 'Read Grep Glob WebSearch WebFetch',
+    '--disallowedTools', COACH_DISALLOWED,
+    '--strict-mcp-config',
+    '--output-format', 'stream-json',
+    '--include-partial-messages',
+    '--verbose',
+    '--max-budget-usd', MAX_BUDGET_USD,
+    // pinned, like every lane — opus by default, changeable in Settings
+    '--model', modelFor('leader-chat'),
+  ];
+  args.push(isNewSession ? '--session-id' : '--resume', effectiveSessionId);
+
+  const finishTurn = async (replyText, turnJob) => {
+    try {
+      const { parseLeaderReflect, applyLeaderReflection } = await import('./leader.js');
+      const { cleanText, reflect, parseError } = parseLeaderReflect(replyText);
+      let text = cleanText;
+      let reflected = null;
+      if (reflect) {
+        try {
+          await applyLeaderReflection(reflect);
+          reflected = {
+            struggles: reflect.struggles.length,
+            working: reflect.working.length,
+            resolved: reflect.resolved.length,
+          };
+        } catch (e) {
+          text += `\n\n(I heard that, but saving it to your profile failed: ${e.message})`;
+        }
+      } else if (parseError) {
+        text += `\n\n(I tried to note that in your profile but ${parseError} — tell me again and I'll get it down.)`;
+      }
+      turnJob.result = { text, sessionId: effectiveSessionId, reflected };
+      turnJob.status = 'ready';
+    } catch (e) {
+      turnJob.status = 'error';
+      turnJob.error = e.message;
+    }
+  };
+
+  warmTurn({
+    kind: 'leader',
+    sessionId: effectiveSessionId,
+    cwd,
+    args,
+    text: isNewSession ? buildLeaderPrompt({ question, context }) : `${LEADER_TURN_REMINDER}\n\n${question}`,
+    job,
+    finishTurn,
+  });
+
+  return jobId;
+}
+
 // Quick Session — the Coach designs a one-off, time-boxed workout for days
 // outside the program. Same read-only boundary; the output is a typed JSON
 // plan the client loads into the normal session editor, so logging, editing,

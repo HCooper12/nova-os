@@ -239,6 +239,7 @@ export function valsChrome(app, ctx) {
       Object.assign(mkNav('Train', 'IX.', 'workouts'), { count: usingLiveWorkouts ? String(liveRoutines.length) : '—' }),
       Object.assign(mkNav('Notes', 'X.', 'notes'), { count: usingLiveNotes ? String(st.liveNotes.length) : demoMode ? String(app.notes.length) : '—' }),
       Object.assign(mkNav('Library', 'XVI.', 'library'), { count: ctx.libraryCount != null && st.liveLibrary !== null ? String(ctx.libraryCount) : '—' }),
+      mkNav('Leader', 'XVII.', 'leader'),
       Object.assign(mkNav('Journal', 'XI.', 'journal'), { count: st.liveJournalEntries ? String(journalDays.length) : demoMode ? '0' : '—' }),
       mkNav('Money', 'XII.', 'money'),
       Object.assign(mkNav('Stash', 'XIII.', 'stash'), { count: st.liveStash ? String(st.liveStash.reduce((n, c) => n + c.items.length, 0)) : demoMode ? '0' : '—' }),

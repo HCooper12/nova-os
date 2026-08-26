@@ -85,6 +85,20 @@ export async function buildDebriefContext(vaultPath, now = new Date()) {
   });
   const weekStart = todayISO(mondayOf(now));
 
+  await add('leadership', async () => {
+    // the Leader's week: what was suggested each day and what he is working
+    // against — so the Sunday sit-down can close the leadership loop too
+    const { readLeaderState } = await import('./leader.js');
+    const s = await readLeaderState();
+    const week = s.daily.filter((d) => d.date >= weekStart);
+    const open = s.profile.struggles.filter((x) => !x.resolvedAt).slice(-4);
+    if (!week.length && !open.length) return null;
+    const lines = ['LEADERSHIP THIS WEEK (from the Leader agent):'];
+    if (week.length) lines.push('ideas suggested: ' + week.map((d) => `${d.date} "${d.title}"`).join(' · '));
+    if (open.length) lines.push('his open struggles: ' + open.map((x) => `"${x.text}"`).join(' · '));
+    return lines.join('\n');
+  });
+
   await add('profile', () => profileContext(vaultPath));
   await add('goals', async () => (await import('./fitnessGoals.js')).goalsContext(vaultPath));
   await add('tunes', async () => (await import('./progressionTunes.js')).tunesContext(vaultPath));
@@ -168,6 +182,7 @@ What to produce:
 - WINS (1-3): concrete, earned, from the data. Never manufactured.
 - CHANGES (1-3): what next week does differently, each one specific and small enough to actually happen, with a one-line why. If the week was on plan, one change or even none ("keep the pattern") is the honest answer.
 - QUESTION (exactly 1): the one reflective question a good coach would leave him with — about the week, not a platitude.
+- LEADERSHIP (only if the context carries a LEADERSHIP THIS WEEK section): 1-2 sentences holding his leadership week against the ideas the Leader suggested and his open struggles, plus ONE reflective leadership question. Tell him his answer belongs in the Leader chat, where it shapes the coming week's ideas and research. Omit the key entirely when there is no leadership context.
 
 Discipline:
 - Ground everything in the data below or the vault; name gaps honestly ("only 2 of 4 planned sessions logged — can't judge volume").
@@ -177,7 +192,7 @@ Discipline:
 The week:
 ${context || '(context unavailable — say so and keep it brief)'}
 
-Output ONLY a JSON object: {"read": "…", "wins": ["…"], "changes": [{"do": "…", "why": "…"}], "question": "…"}. No code fences, no commentary.`;
+Output ONLY a JSON object: {"read": "…", "wins": ["…"], "changes": [{"do": "…", "why": "…"}], "question": "…", "leadership": {"note": "…", "question": "…"}}. The leadership key only when leadership context exists. No code fences, no commentary.`;
 }
 
 export function composeDebriefText(parsed, now = new Date()) {
@@ -201,6 +216,13 @@ export function composeDebriefText(parsed, now = new Date()) {
   if (changes.length) {
     lines.push('**Next week.**');
     changes.forEach((c, i) => lines.push(`${i + 1}. ${c.do}${c.why ? ` — ${c.why}` : ''}`));
+    lines.push('');
+  }
+  const leadNote = String(parsed?.leadership?.note || '').trim();
+  const leadQuestion = String(parsed?.leadership?.question || '').trim();
+  if (leadNote || leadQuestion) {
+    lines.push('**Leading.**' + (leadNote ? ` ${leadNote}` : ''));
+    if (leadQuestion) lines.push(`- ${leadQuestion} (answer in the Leader chat — it shapes next week's ideas and research)`);
     lines.push('');
   }
   if (question) lines.push(`**To sit with.** ${question}`);
