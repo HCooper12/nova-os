@@ -692,6 +692,11 @@ ${context || '(unavailable)'}
 Hayden asks: ${question}`;
 }
 
+// Prepended to every RESUMED coach turn. Deliberately short — it is a
+// correction, not a second prompt — and it only restates what is already
+// true, so it can never teach Coach a capability it does not have.
+const COACH_TURN_REMINDER = '[Standing reminder: you CAN change his program. You do it by ending your reply with one PROPOSE line (swap/add/remove/targets/tune/injury/goal/learn/resource); it renders as APPLY IT / NOT NOW on your own message and applies deterministically with undo when he taps it. Never tell him you are unable to edit his program or that you lack write access — that is false and it blocks him. What you cannot do is write WITHOUT his yes.]';
+
 export function startAskCoach(cwd, { question, context, sessionId }) {
   assertLaneOn('coach');
   const jobId = randomUUID().slice(0, 8);
@@ -773,7 +778,18 @@ export function startAskCoach(cwd, { question, context, sessionId }) {
     sessionId: effectiveSessionId,
     cwd,
     args,
-    text: isNewSession ? buildCoachPrompt({ question, context }) : question,
+    // A RESUMED TURN CARRIES THE CAPABILITY LINE.
+    //
+    // The prompt is sent on turn 1 only, and his Coach conversation persists
+    // for days — so a session started before the rules changed keeps arguing
+    // from the old ones. That is exactly how he came to be told "I don't have
+    // write access in this session, no file-editing tool is available to me":
+    // TRUE about its tools, and entirely beside the point, because Coach
+    // changes the program by PROPOSING a typed edit that he accepts, not by
+    // editing files. One short standing line each turn corrects a
+    // conversation already in flight, without restarting it and losing his
+    // history.
+    text: isNewSession ? buildCoachPrompt({ question, context }) : `${COACH_TURN_REMINDER}\n\n${question}`,
     job,
     finishTurn,
   });

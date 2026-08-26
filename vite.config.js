@@ -1,6 +1,32 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { writeFileSync, mkdirSync } from 'node:fs'
+
+// THE BUILD STAMP — the thing that ends "is my phone even running your fix?"
+//
+// registerType is 'autoUpdate', which sounds like it means "always current"
+// and does not: the service worker fetches a new build in the background,
+// but the RUNNING app keeps its old JavaScript until a full reload. In an
+// installed PWA that is never properly closed, that can be days. Every
+// "I shipped it" / "it isn't there" round trip in this project traces back
+// to that gap.
+//
+// So the build id is compiled INTO the bundle and also written to a tiny
+// version.json beside it. The app compares the two and can say, out loud,
+// "you are running an old Nova — tap to update". No guessing, from either
+// side of the conversation.
+const BUILD_ID = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15);
+function buildStamp() {
+  return {
+    name: 'nova-build-stamp',
+    apply: 'build',
+    closeBundle() {
+      mkdirSync('dist', { recursive: true });
+      writeFileSync('dist/version.json', JSON.stringify({ buildId: BUILD_ID }), 'utf8');
+    },
+  };
+}
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -19,8 +45,10 @@ export default defineConfig({
       },
     },
   },
+  define: { __NOVA_BUILD__: JSON.stringify(BUILD_ID) },
   plugins: [
     react(),
+    buildStamp(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icons/apple-touch-icon.png'],
@@ -45,6 +73,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // the freshness oracle itself can never be served from cache
+        navigateFallbackDenylist: [/^\/nova-os\/version\.json$/],
         globPatterns: ['**/*.{js,css,html,png,svg}'],
         importScripts: ['push-sw.js'], // web-push + notification-click handlers
         // Offline cold start. Without a navigate fallback the browser asks

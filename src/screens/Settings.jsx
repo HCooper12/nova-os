@@ -297,6 +297,9 @@ export function Settings({ v }) {
                 </div>
               )}
             </div>
+            {/* the running build, so "am I on your fix?" is answerable */}
+            <div style={css("margin-top:14px;font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 32%, transparent)")}>BUILD {v.novaBuild}</div>
+
             <Interactive as="span" onClick={v.runVoiceTest}
               base={{ cursor: 'pointer', flex: 'none', font: '600 9px var(--nv-font-mono)', letterSpacing: '.1em', padding: '6px 13px', borderRadius: '7px', border: '1px solid var(--nv-acc-border)', color: 'var(--nv-acc)', background: 'var(--nv-acc-bg)' }}
             >{v.voiceTest?.running ? 'TESTING…' : 'TEST'}</Interactive>

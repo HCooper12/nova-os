@@ -3,6 +3,7 @@ import { orbReply } from '../mockAssistants.js';
 import { NOTE_TYPE_COLOR, mono } from './shared.js';
 import { speechRecognitionSupported } from '../useDictation.js';
 import { dtf } from './fmt.js';
+import { RUNNING_BUILD, applyUpdate } from '../buildCheck.js';
 
 // The smaller screens: Voice (concept preview), Memory Galaxy, Shopping List,
 // Claude Code, and transcript ingest. Adds to ctx: shoppingItems (nav count).
@@ -128,6 +129,13 @@ export function valsMisc(app, ctx) {
       label: st.briefQueue[st.briefQueueIdx]?.label || '',
       answer: (a) => app.answerBriefQuestion(st.briefQueue[st.briefQueueIdx]?.recordId, a),
       stop: () => app.endBriefQueue(),
+    } : null,
+    // "Am I running your fix?" — answered by the app, not by guesswork
+    novaBuild: RUNNING_BUILD,
+    updateReady: st.updateReady ? {
+      deployed: st.updateReady,
+      apply: () => applyUpdate(),
+      dismiss: () => app.setState({ updateReady: null }),
     } : null,
     stageCard: st.stageCard || null,
     stageHistory: st.stageHistory || [],
