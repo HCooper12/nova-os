@@ -605,6 +605,24 @@ export default class App extends Component {
     // than waiting for the next sync tick.
     this.onlineH = () => { if (getConnection()) { this.drainOutbox(); this.refreshLiveData(); } };
     window.addEventListener('online', this.onlineH);
+    // ANY FIRST TAP UNLOCKS THE VOICE — not just the one on the little bar.
+    //
+    // An automatic brief has no gesture behind it, so iOS refuses playback
+    // outright (NotAllowed) and the brief goes silent. The recovery already
+    // existed, but it depended on him NOTICING a thin "TAP TO HEAR" strip at
+    // the bottom of the screen and hitting it specifically — while the
+    // obvious thing to tap, and the thing the card itself tells him to tap,
+    // is anywhere at all. Every tap now re-primes the audio path inside the
+    // gesture (cheap and idempotent) and, if lines are sitting blocked,
+    // starts them. The guard stops a tap ON the bar from playing twice.
+    this.tapUnlockH = () => {
+      this.primeSpeech();
+      if (this.replayGuard || !this.state.speechBlocked) return;
+      this.replayGuard = true;
+      this.replayBlockedSpeech();
+      setTimeout(() => { this.replayGuard = false; }, 900);
+    };
+    window.addEventListener('pointerdown', this.tapUnlockH, { passive: true });
     // Back/forward navigation re-derives the screen from the hash.
     this.popH = () => this.setState({ screen: screenFromHash() });
     window.addEventListener('popstate', this.popH);
@@ -633,6 +651,7 @@ export default class App extends Component {
     window.removeEventListener('popstate', this.popH);
     window.removeEventListener('hashchange', this.popH);
     window.removeEventListener('online', this.onlineH);
+    window.removeEventListener('pointerdown', this.tapUnlockH);
     window.removeEventListener('pagehide', this.pagehideH);
     document.removeEventListener('visibilitychange', this.visH);
     try { if (this.swCtrlH) navigator.serviceWorker?.removeEventListener('controllerchange', this.swCtrlH); } catch { /* unsupported */ }

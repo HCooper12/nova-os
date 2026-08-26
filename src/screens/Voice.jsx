@@ -201,7 +201,7 @@ export function Voice({ v }) {
             // page. order:2 puts the core first and lands the composer at the
             // bottom, where a chat input belongs. Desktop is a real two-column
             // layout and keeps reading left-to-right.
-            ...(v.isMobile ? { order: 2 } : {}) }}>
+            ...(v.isMobile ? { order: 3 } : {}) }}>
           <div ref={logRef} style={css(`flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px;font:400 12.5px/1.7 ${M}`)}>
             {v.orbMsgs.length === 0 && (
               <div style={css("color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>Ask about anything in your vault — training, fuel, notes, the week. Answers come from what's actually written.</div>
@@ -275,7 +275,15 @@ export function Voice({ v }) {
         </Panel>
         <div style={{ flex: '1 1 420px', minWidth: '340px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px',
           ...(v.isMobile ? { order: 1 } : {}),
-          ...(v.stageFocus ? { position: 'relative', zIndex: 61 } : {}) }}>
+          // LIFTING THE CORE ABOVE THE SCRIM IS A DESKTOP-ONLY IDEA.
+          // On desktop the focused card sits BESIDE the core, so raising the
+          // core above the blur keeps it visible and tappable. On mobile the
+          // card is drawn INSIDE the scrim, centred — so the same z-index put
+          // the orb, the BRIEF ME / AMBIENT row and everything else in this
+          // column directly on top of the card being spotlit. That is both
+          // glitches he photographed: buttons printed across the calendar
+          // card, and the orb painted through the Coach card's text.
+          ...(v.stageFocus && !v.isMobile ? { position: 'relative', zIndex: 61 } : {}) }}>
           {/* the core in its reticle — a station's centre instrument: two
               counter-rotating rings, a state-lit halo, and tick marks that
               read as calibration rather than decoration */}
@@ -388,7 +396,13 @@ export function Voice({ v }) {
             )}
           </div>
         </div>
-        <div style={css(`width:246px;flex:none;align-self:stretch;display:flex;flex-direction:column;gap:12px;font:400 10.5px ${M};letter-spacing:.14em`)}>
+        <div style={{ width: '246px', flex: 'none', alignSelf: 'stretch', display: 'flex', flexDirection: 'column', gap: '12px',
+          font: `400 10.5px ${M}`, letterSpacing: '.14em',
+          // His order, explicitly: the core, then the station status beneath
+          // it, then the conversation. Without an order this rail defaulted
+          // to 0 and sorted ABOVE the two columns I had numbered — which is
+          // how the status panel ended up at the very top of the phone.
+          ...(v.isMobile ? { order: 2 } : {}) }}>
           <Panel label="STATION · STATUS">
             <div style={css('display:flex;flex-direction:column;gap:15px')}>
               <RailRow label="MIC" value={dict.supported ? (dict.on ? 'LISTENING' : 'READY') : 'NOT AVAILABLE'} tone={dict.on ? 'var(--nv-cy)' : undefined} barPct={dict.on ? 92 : dict.supported ? 12 : 0} />
