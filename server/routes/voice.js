@@ -338,7 +338,17 @@ export function voiceRouter(vaultPath) {
       // the model must know what its own voice said — see lib/spokenLog.js
       const { logSpoken } = await import('../lib/spokenLog.js');
       for (const s of show.steps) await logSpoken('brief', s.say);
-      res.json(show);
+      // THE CLOSE: the open decisions, in the order he should be asked, one
+      // at a time. Ships with the brief so the client never has to make a
+      // second round trip at the exact moment it starts talking.
+      let decisions = { decisions: [], total: 0, remaining: 0 };
+      if (variant === 'morning') {
+        try {
+          const { briefDecisions } = await import('../lib/briefDecisions.js');
+          decisions = await briefDecisions();
+        } catch (e) { console.log('brief decisions failed:', e.message); }
+      }
+      res.json({ ...show, ...decisions });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

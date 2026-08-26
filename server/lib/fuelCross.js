@@ -78,6 +78,7 @@ export function analyze({ sessions = [], days = [], profile = null, rotationTota
       findings.push({
         key: 'rotation-protein-floor',
         severity: 'high',
+        data: { kind: 'protein-floor', have: r0(rotationTotals.p), floor },
         line: `The rotation itself undershoots the protein floor: all four slots eaten in full give ${r0(rotationTotals.p)}g against the ${floor}g floor — ${r0(gap)}g must come from off-rotation food every single day.`,
       });
     }
@@ -94,6 +95,7 @@ export function analyze({ sessions = [], days = [], profile = null, rotationTota
       findings.push({
         key: 'training-day-protein',
         severity: 'high',
+        data: { kind: 'protein-split', trained: r0(tp), rest: r0(rp), floor },
         line: `Training days average ${r0(tp)}g protein over the last ${LOOKBACK_DAYS} days (${trained.length} logged) — under the ${floor}g floor and no better than rest days at ${r0(rp)}g. The days that need protein most are getting the same as the days that need it least.`,
       });
     }
@@ -103,6 +105,7 @@ export function analyze({ sessions = [], days = [], profile = null, rotationTota
         findings.push({
           key: 'training-day-kcal',
           severity: 'medium',
+          data: { kind: 'kcal-split', trained: r0(tk), target: targetKcal },
           line: `For a ${goal || 'gain'} goal, training days average ${r0(tk)} kcal against the ${targetKcal} target (${trained.length} logged days) — the surplus that pays for the sessions isn't there on the days he trains.`,
         });
       }

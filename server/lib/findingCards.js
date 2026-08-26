@@ -100,6 +100,42 @@ export function findingCard(finding) {
         ],
       });
 
+    // FUEL. The numbers live in the prose of the line; they are exposed on
+    // the finding so the picture is the same arithmetic, not a second guess.
+    case 'fuel:protein-split':
+      if (!(f.floor > 0)) return null;
+      return barsCard({
+        label: 'Protein · training vs rest days',
+        bars: [
+          { name: 'Training', value: f.trained, tone: f.trained >= f.floor ? 'good' : 'warn' },
+          { name: 'Rest', value: f.rest, tone: f.rest >= f.floor ? 'good' : 'warn' },
+          { name: 'Floor', value: f.floor, tone: 'cy' },
+        ],
+        foot: 'the days that need it most are getting the least',
+      });
+
+    case 'fuel:protein-floor':
+      if (!(f.floor > 0)) return null;
+      return barsCard({
+        label: 'Your rotation vs your floor',
+        bars: [
+          { name: 'Rotation', value: f.have, tone: 'warn' },
+          { name: 'Floor', value: f.floor, tone: 'cy' },
+        ],
+        foot: `${Math.max(0, Math.round(f.floor - f.have))}g must come from off-rotation food, every day`,
+      });
+
+    case 'fuel:kcal-split':
+      if (!(f.target > 0)) return null;
+      return barsCard({
+        label: 'Calories on training days',
+        bars: [
+          { name: 'You eat', value: f.trained, tone: 'warn' },
+          { name: 'Target', value: f.target, tone: 'cy' },
+        ],
+        foot: "the surplus that pays for the sessions isn't there",
+      });
+
     default:
       return null;
   }

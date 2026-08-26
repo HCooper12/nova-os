@@ -119,6 +119,16 @@ export function valsMisc(app, ctx) {
     runVoiceTest: () => app.runVoiceTest(),
     // the Voice screen's dictation is local to that screen — App needs to
     // know, so the wake word never competes with it for the microphone
+    briefQueue: st.briefQueue ? {
+      idx: st.briefQueueIdx + 1,
+      total: st.briefQueue.length,
+      remaining: st.briefQueueRemaining,
+      recordId: st.briefQueue[st.briefQueueIdx]?.recordId || null,
+      question: st.briefQueue[st.briefQueueIdx]?.question || '',
+      label: st.briefQueue[st.briefQueueIdx]?.label || '',
+      answer: (a) => app.answerBriefQuestion(st.briefQueue[st.briefQueueIdx]?.recordId, a),
+      stop: () => app.endBriefQueue(),
+    } : null,
     stageCard: st.stageCard || null,
     stageHistory: st.stageHistory || [],
     // count > 1 means a whole sequence (e.g. the morning brief) was blocked

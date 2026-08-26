@@ -156,7 +156,7 @@ export function Voice({ v }) {
           the glass, everything else recedes behind a blur, exactly like the
           reel. Click anywhere off the card (or the × on it) to come back. */}
       {v.stageFocus && (
-        <div onClick={v.dismissStage}
+        <div onClick={v.briefQueue ? undefined : v.dismissStage}
           style={css('position:fixed;inset:0;z-index:60;background:rgba(4,3,8,.55);backdrop-filter:blur(9px);animation:fadeIn .3s ease-out;display:flex;align-items:center;justify-content:center;padding:24px')}>
           {/* THE CARD MUST BE INSIDE THE SPOTLIGHT.
               The scrim is fixed to the viewport but the card it exists to
@@ -171,7 +171,18 @@ export function Voice({ v }) {
               <SafeVisual what="stage-card-focus" resetKey={v.stageCard?.label}>
                 <StageCard card={v.stageCard} />
               </SafeVisual>
-              <div style={css('margin-top:12px;text-align:center;font:500 9px var(--nv-font-mono);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)')}>TAP ANYWHERE TO DISMISS</div>
+              {/* During the close, the QUESTION belongs beside its chart. It
+                  is spoken, but it also lives in the comms log behind this
+                  blur — so a man reading rather than listening had the
+                  picture and no idea what he was being asked. */}
+              {v.briefQueue?.question ? (
+                <div style={css('margin-top:14px')}>
+                  <div style={css(`font:600 9px ${M};letter-spacing:.2em;color:var(--nv-acc)`)}>{v.briefQueue.label}</div>
+                  <div style={css('margin-top:6px;font-size:14px;line-height:1.5;color:var(--nv-ink)')}>{v.briefQueue.question}</div>
+                </div>
+              ) : (
+                <div style={css('margin-top:12px;text-align:center;font:500 9px var(--nv-font-mono);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)')}>TAP ANYWHERE TO DISMISS</div>
+              )}
             </div>
           )}
         </div>
@@ -287,6 +298,30 @@ export function Voice({ v }) {
           {/* HE HEARD NOTHING — say so, and make one tap fix it. A tap is a
               gesture, which is exactly what the device wants before it will
               make sound. */}
+          {/* THE CLOSE — the live question's answer bar. Pinned on mobile for
+              the same reason as everything else here: a control below the
+              comms log is a control he cannot reach mid-brief. Spoken "yes"
+              / "no" / "later" work too; these are for when he would rather
+              not talk. */}
+          {v.briefQueue && (
+            <div style={css(`display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:11px 14px;border-radius:12px;border:1px solid var(--nv-acc-border);background:${v.isMobile ? 'color-mix(in srgb, var(--nv-void) 95%, black)' : 'var(--nv-acc-bg)'}${v.isMobile ? ';position:fixed;left:12px;right:12px;bottom:calc(96px + env(safe-area-inset-bottom));z-index:114;box-shadow:0 14px 40px rgba(0,0,0,.6)' : ''}`)}>
+              <span style={css(`flex:none;font:600 9px ${M};letter-spacing:.16em;color:var(--nv-acc)`)}>{v.briefQueue.idx}/{v.briefQueue.total}</span>
+              <Interactive as="span" onClick={() => v.briefQueue.answer('yes')}
+                base={css(`cursor:pointer;font:600 10px ${M};letter-spacing:.08em;padding:8px 14px;border-radius:8px;background:var(--nv-cy);color:var(--nv-on-acc)`)}
+                hoverStyle="background:color-mix(in srgb, var(--nv-cy) 82%, white)">YES</Interactive>
+              <Interactive as="span" onClick={() => v.briefQueue.answer('no')}
+                base={css(`cursor:pointer;font:600 10px ${M};letter-spacing:.08em;padding:8px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 22%, transparent);color:color-mix(in srgb, var(--nv-ink) 70%, transparent)`)}
+                hoverStyle="border-color:var(--nv-warn);color:var(--nv-warn)">NO</Interactive>
+              <Interactive as="span" onClick={() => v.briefQueue.answer('later')}
+                base={css(`cursor:pointer;font:600 10px ${M};letter-spacing:.08em;padding:8px 12px;border-radius:8px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)`)}
+                hoverStyle="color:var(--nv-ink)">LATER</Interactive>
+              <span style={css('flex:1')}></span>
+              <Interactive as="span" onClick={v.briefQueue.stop}
+                base={css(`cursor:pointer;font:600 9px ${M};letter-spacing:.14em;color:color-mix(in srgb, var(--nv-ink) 35%, transparent)`)}
+                hoverStyle="color:var(--nv-ink)">STOP</Interactive>
+            </div>
+          )}
+
           {/* PINNED ON MOBILE. This lived in the layout below the comms log,
               which on a phone is below the fold — the same mistake as the
               stage card: a notice he can only see by scrolling past the

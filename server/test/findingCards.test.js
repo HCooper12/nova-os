@@ -72,3 +72,27 @@ test('protein needs at least two days to be a chart rather than a number', () =>
   assert.equal(proteinWeekCard(null), null);
   assert.equal(proteinWeekCard({ days: [] }), null);
 });
+
+// Fuel findings bake their numbers into prose; they are exposed on the
+// finding so the picture is the same arithmetic, never a second derivation.
+test('fuel: training vs rest days charted against the floor', () => {
+  const c = findingCard({ kind: 'fuel:protein-split', trained: 72, rest: 102, floor: 150 });
+  assert.equal(c.kind, 'bars');
+  assert.deepEqual(c.bars.map((b) => [b.name, b.value]), [['Training', 72], ['Rest', 102], ['Floor', 150]]);
+  assert.deepEqual(c.bars.map((b) => b.tone), ['warn', 'warn', 'cy'], 'both under the floor read as misses');
+});
+
+test('fuel: the rotation gap says how much must come from elsewhere', () => {
+  const c = findingCard({ kind: 'fuel:protein-floor', have: 118, floor: 150 });
+  assert.match(c.foot, /32g must come from off-rotation/);
+});
+
+test('fuel: training-day calories against the target', () => {
+  const c = findingCard({ kind: 'fuel:kcal-split', trained: 1461, target: 2200 });
+  assert.deepEqual(c.bars.map((b) => b.value), [1461, 2200]);
+});
+
+test('fuel findings without their numbers get no card', () => {
+  assert.equal(findingCard({ kind: 'fuel:protein-split', trained: 72 }), null);
+  assert.equal(findingCard({ kind: 'fuel:kcal-split', trained: 1461 }), null);
+});

@@ -269,6 +269,7 @@ export default class App extends Component {
     paletteOpen: false, recallResults: [],
     micOn: true, orbInput: '',
     voiceChat: [], voiceBusy: false, voiceSpeaking: false, liveTts: null,
+    briefQueue: null, briefQueueIdx: 0, briefQueueRemaining: 0,
     voiceConvMode: false, voiceConvPaused: false, voiceAutoListenTick: 0,
     voiceSessionId: typeof localStorage === 'undefined' ? null : (localStorage.getItem('novaos.voiceSession') || null),
     speechVoices: [], speechVoiceURI: typeof localStorage === 'undefined' ? '' : (localStorage.getItem('novaos.speechVoiceURI') || ''),
@@ -4567,6 +4568,75 @@ export default class App extends Component {
       this.refreshLiveData();
     }).catch((e) => this.toastMsg('Could not apply that: ' + e.message));
   }
+  // ——— THE BRIEF'S CLOSE: one question at a time ———
+  // Each step speaks its own question, puts its own card on the glass, and
+  // waits. Yes/no can be tapped or spoken (the existing spoken-yes gate
+  // handles the words). Answering files it on the rails — the same
+  // approve/discard the Inbox screen uses, same undo — and the next question
+  // follows. LATER leaves it pending and moves on, which has to stay
+  // frictionless or the whole ritual becomes something to dread.
+  startBriefQueue(decisions, remaining = 0) {
+    if (!decisions?.length) return;
+    // Ask from the setState CALLBACK, and hand the list down explicitly.
+    // Reading this.state.briefQueue straight after setState finds the OLD
+    // value (React has not committed yet), so the first question silently
+    // did nothing: no card, no words, just an answer bar for a question he
+    // was never asked.
+    this.setState(
+      { briefQueue: decisions, briefQueueIdx: 0, briefQueueRemaining: remaining },
+      () => this.askBriefQuestion(0, decisions),
+    );
+  }
+  askBriefQuestion(idx, list) {
+    const q = (list || this.state.briefQueue || [])[idx];
+    if (!q) return;
+    this.putCard(q.card);
+    this.setState((s) => ({
+      briefQueueIdx: idx,
+      voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: q.question, briefAsk: { recordId: q.recordId, idx } }],
+      // the spoken-yes gate already understands one pending proposal — point
+      // it at whichever question is live, so "yes" works without a tap
+      voicePendingProposal: { recordId: q.recordId, title: q.label },
+    }));
+    if (this.state.voiceSpeak) this.speakTtsSentence(q.question, () => {});
+  }
+  answerBriefQuestion(recordId, answer) {
+    const { briefQueue, briefQueueIdx } = this.state;
+    if (!briefQueue) return;
+    if (answer === 'later') {
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: 'Later' }] }));
+    } else {
+      this.resolveVoiceProposal(recordId, answer === 'yes');
+    }
+    this.advanceBriefQueue(briefQueueIdx + 1);
+  }
+  advanceBriefQueue(next) {
+    const { briefQueue, briefQueueRemaining } = this.state;
+    if (!briefQueue) return;
+    if (next < briefQueue.length) {
+      // a beat of air between answering and the next question, so it reads as
+      // a conversation rather than a form
+      clearTimeout(this.briefQueueT);
+      this.briefQueueT = setTimeout(() => this.askBriefQuestion(next), 700);
+      return;
+    }
+    const left = briefQueueRemaining;
+    const line = left > 0
+      ? `That's the important ones, sir. ${left} more ${left === 1 ? 'is' : 'are'} waiting in your Inbox whenever you want them.`
+      : "That's everything that needed you, sir. Nothing else is waiting.";
+    this.setState((s) => ({
+      briefQueue: null, briefQueueIdx: 0, briefQueueRemaining: 0,
+      voicePendingProposal: null,
+      voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }],
+    }));
+    this.clearStage();
+    if (this.state.voiceSpeak) this.speakTtsSentence(line, () => {});
+  }
+  endBriefQueue() {
+    clearTimeout(this.briefQueueT);
+    this.setState({ briefQueue: null, briefQueueIdx: 0, briefQueueRemaining: 0, voicePendingProposal: null });
+    this.clearStage();
+  }
   resolveVoiceProposal(recordId, approve) {
     const conn = getConnection(); if (!conn) return;
     const mark = (status, extra) => this.setState((s) => ({
@@ -4618,12 +4688,17 @@ export default class App extends Component {
     if (pending && getConnection() && this.state.connectionStatus !== 'offline') {
       const yes = /^(yes|yep|yeah|sure|ok|okay|do it|go ahead|confirm|approve|approved|yes please|please do|go for it|make it so|lock it in)[.!\s]*$/i.test(q);
       const no = /^(no|nope|nah|don't|dont|leave it|skip|skip it|cancel|not now|never mind|nevermind)[.!\s]*$/i.test(q);
-      if (yes || no) {
+      const later = /^(later|not now|skip|hold it|come back to (it|that)|leave it for now)[.!\s]*$/i.test(q);
+      if (yes || no || later) {
         this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q }], orbInput: '' }));
-        this.resolveVoiceProposal(pending.recordId, yes);
+        // during the brief's close, an answer also moves to the next question
+        if (this.state.briefQueue) this.answerBriefQuestion(pending.recordId, later ? 'later' : yes ? 'yes' : 'no');
+        else this.resolveVoiceProposal(pending.recordId, yes);
         return;
       }
-      // anything else moves the conversation on; the draft stays in the Inbox
+      // Anything else is a real remark, not an answer. The draft stays in the
+      // Inbox — and the close stands down rather than talking over him.
+      if (this.state.briefQueue) this.endBriefQueue();
       this.setState({ voicePendingProposal: null });
     }
     // a configured backend → the real Ask Nova pipeline, even while the
@@ -4854,7 +4929,7 @@ export default class App extends Component {
       this.setState({ voiceBusy: false });
       this.toastMsg('Brief timed out — press BRIEF to retry.');
     }, 40000);
-    api.show(conn, variant).then(({ steps, pending }) => {
+    api.show(conn, variant).then(({ steps, pending, decisions, remaining }) => {
       clearTimeout(this.showWatchdogT);
       this.setState({ voiceBusy: false });
       if (!steps?.length) { this.toastMsg('Nothing to brief right now.'); return; }
@@ -4891,7 +4966,14 @@ export default class App extends Component {
         if (spoken) this.speakTtsSentence(st.say, show);
         else show();
       }
-      if (pending) {
+      // THE CLOSE — his ask: rather than leaving him to remember a wall of
+      // analysis and act on it later, walk the open decisions one at a time.
+      // Queued behind the narration so the first question lands after Nova
+      // has finished speaking, not over the top of it.
+      if (steps.length && Array.isArray(decisions) && decisions.length) {
+        const startQueue = () => this.startBriefQueue(decisions, remaining || 0);
+        if (spoken) this.queueTtsFinalize(startQueue); else startQueue();
+      } else if (pending) {
         // The brief is the strongest nav signal in the app: when it ends on a
         // proposal, the next tap is almost always into the Inbox to answer it.
         // Warm that chunk while Nova is still talking, so the screen he was

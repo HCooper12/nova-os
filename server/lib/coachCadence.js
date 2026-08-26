@@ -115,6 +115,8 @@ export async function raiseFuelFindings(vaultPath) {
       id: randomUUID().slice(0, 8),
       kind: 'fuel-cross',
       findingKey: f.key,
+      // the numbers the line quotes, kept so the brief can DRAW the finding
+      finding: f.data ? { kind: `fuel:${f.data.kind}`, ...f.data } : undefined,
       text: `Fuel × training: ${f.line}`,
       source: 'coach',
       mode: 'draft',
