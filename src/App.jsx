@@ -51,7 +51,7 @@ import { haptic } from './haptics.js';
 const SILENT_WAV = 'data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQ4AAAAAAAAAAAAAAAAAAAAAAA==';
 
 import { attachSpeechElement, resumeAudioGraph, releaseAudioGraph, decodeSpeech, playSpeechBuffer, graphRunning, holdSyntheticSpeech } from './audioLevel.js';
-import { RUNNING_BUILD, watchForUpdate, applyUpdate } from './buildCheck.js';
+import { watchForUpdate } from './buildCheck.js';
 
 // Code-split: ZXing (barcode decoding) is a sizeable dependency that only
 // the food-log barcode flow needs — no reason to ship it in everyone's
