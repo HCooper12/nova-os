@@ -164,6 +164,13 @@ export async function buildAskContext(vaultPath, sessionId, { fast = false } = {
       const t = todayLead(await readLeaderState());
       return t ? `TODAY'S LEADERSHIP IDEA (from the Leader agent — mention it in a morning brief, engage if he raises it, and point him at the Leader chat for the deeper conversation): "${t.title}" — ${t.line}${t.why ? ` (${t.why})` : ''}` : null;
     },
+    // THE CEO READS THE ROOM. Coach and the Leader are Nova's own agents,
+    // and he expects talking to Nova to BE talking to the whole org — "what
+    // did Coach say", "pass this to the Leader". Their real recent
+    // exchanges (read from the CLI's own transcripts, never a second store)
+    // land here so Nova answers from what was actually said.
+    async () => (await import('./agentSessions.js')).agentConversationContext('coach', 'Coach'),
+    async () => (await import('./agentSessions.js')).agentConversationContext('leader', 'the Leader'),
   ];
 
   const results = await Promise.all(sections.map((section) => {

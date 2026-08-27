@@ -3050,6 +3050,16 @@ export default class App extends Component {
     if (/\.(epub|pdf)$/i.test(file.name)) {
       const conn = getConnection();
       if (!conn) { this.toastMsg('Connect a backend first'); return; }
+      // PDFs almost never carry usable title/author metadata (his Atomic
+      // Habits copy has neither), and the server rightly refuses to file a
+      // book it cannot name. Catch that HERE — before shipping megabytes to
+      // an error he then has to interpret. EPUBs carry their own metadata,
+      // so they pass through and the server's fallback handles them.
+      if (/\.pdf$/i.test(file.name) && (!this.state.ingestBookTitle.trim() || !this.state.ingestBookAuthor.trim())) {
+        this.setState({ ingestError: null });
+        this.toastMsg('Fill in the book title and author first, then pick the PDF again — a PDF rarely knows its own name.');
+        return;
+      }
       this.setState({ ingestStatus: 'researching', ingestError: null });
       api.uploadBookFile(conn, file, {
         title: this.state.ingestBookTitle.trim(),
