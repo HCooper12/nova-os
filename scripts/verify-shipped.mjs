@@ -46,6 +46,11 @@ const FEATURES = [
   ['Update banner', 'A newer Nova is ready'],
   ['Leader · homepage Try Today card', 'Lead · try today'],
   ['Leader · the screen and sit-down', 'LEADERSHIP · DAILY PRACTICE'],
+  ['Forge · a door at last (Ops)', 'A SENTENCE BECOMES SOMETHING THAT RUNS'],
+  ['Forge · client API', 'forgeStart'],
+  ['Scout · research a person', 'SCOUT RESEARCHES THEM'],
+  ['Scout · client API', 'researchPerson'],
+  ['Inbox · agents no longer render as TYPED', 'PROGRAM REVIEW'],
 ];
 
 const SERVER_ROUTES = [
