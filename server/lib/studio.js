@@ -85,8 +85,13 @@ export async function startOutline(vaultPath, id) {
 
   const { tasteContext } = await import('./taste.js');
   const taste = await tasteContext(vaultPath).catch(() => '');
+  // Studio writes in HIS voice, so his standing corrections about tone and
+  // wording are exactly the rules it must not miss.
+  const org = await import('./orgContext.js')
+    .then(({ orgContext }) => orgContext(vaultPath, 'studio'))
+    .catch(() => '');
   const child = spawn(CLAUDE_BIN, [
-    '-p', buildOutlinePrompt(page, page.raw.match(/format:\s*(\w+)/)?.[1], taste),
+    '-p', buildOutlinePrompt(page, page.raw.match(/format:\s*(\w+)/)?.[1], org ? `${taste}\n\n${org}` : taste),
     '--permission-mode', 'bypassPermissions',
     '--allowedTools', 'Read Grep Glob',
     '--disallowedTools', OUTLINE_DISALLOWED,

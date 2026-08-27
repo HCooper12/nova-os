@@ -601,6 +601,15 @@ export function workoutsRouter(vaultPath) {
         if (standing) parts.push(standing);
       } catch { failures.push('standing instructions'); }
       try {
+        // the org: what the Leader is working on with him, the health read,
+        // the rest of the fleet. Coach could not see any of it — so "I keep
+        // missing sessions" and "I'm struggling to hold a standard at work"
+        // could never be recognised as the same problem.
+        const { orgContext } = await import('../lib/orgContext.js');
+        const org = await orgContext(vaultPath, 'coach');
+        if (org) parts.push(org);
+      } catch { failures.push('the org block'); }
+      try {
         const { skillsContext } = await import('../lib/skills.js');
         const skills = await skillsContext(vaultPath);
         if (skills) parts.push(skills);

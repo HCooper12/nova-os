@@ -42,6 +42,24 @@ async function buildReflectionContext(vaultPath) {
   const add = async (label, fn) => {
     try { const v = await fn(); if (v) parts.push(v); } catch { failures.push(label); }
   };
+  await add('org', async () => (await import('./orgContext.js')).orgContext(vaultPath, 'coach-reflection'));
+  // Coach's own nightly outcome, read back. Written every night and read by
+  // nothing but itself — so the self-improvement loop never closed and the
+  // same lesson was re-learned daily instead of carried forward.
+  await add('last-reflection', async () => {
+    // shape read from the real writer below: {learnings: <count>, outreach:
+    // <string|null>, quietReason: <string|null>, at} — learnings is a NUMBER,
+    // not a list, so it is reported as one.
+    const prev = await loadState();
+    const r = prev?.lastResult;
+    if (!r) return null;
+    const bits = [];
+    if (r.learnings) bits.push(`you raised ${r.learnings} learning${r.learnings === 1 ? '' : 's'} for his approval`);
+    if (r.outreach) bits.push(`you reached out to him about: "${String(r.outreach).slice(0, 160)}"`);
+    if (r.quietReason) bits.push(`you deliberately stayed quiet because: ${String(r.quietReason).slice(0, 160)}`);
+    if (!bits.length) return null;
+    return `YOUR LAST REFLECTION (${prev.lastRun || 'recent'}) — do not repeat it; build on it or find something genuinely new:\n- ${bits.join('\n- ')}`;
+  });
   await add('knowledge', async () => (await import('./coachKnowledge.js')).knowledgeContext(vaultPath));
   await add('goals', async () => (await import('./fitnessGoals.js')).goalsContext(vaultPath));
   await add('analytics', async () => (await import('./trainingAnalytics.js')).analyticsContext(vaultPath));

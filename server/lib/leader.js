@@ -189,6 +189,11 @@ export function profileLines(profile, now = Date.now()) {
 
 export async function buildLeaderDailyContext(vaultPath, state, now = new Date()) {
   const parts = [];
+  try {
+    const { orgContext } = await import('./orgContext.js');
+    const org = await orgContext(vaultPath, 'leader');
+    if (org) parts.push(org);
+  } catch { /* honest absence */ }
   parts.push(...profileLines(state.profile, now.getTime()));
 
   const { concepts, sources } = await leaderCorpus(vaultPath);
@@ -451,6 +456,14 @@ export function parseLeaderReflect(text) {
 export async function buildLeaderChatContext(vaultPath, now = new Date()) {
   const state = await readLeaderState();
   const parts = [];
+  // How he is actually living this week — leadership advice given without
+  // knowing he has missed three sessions and slept badly is advice given
+  // blind. Inherited from the org block, not hand-wired here.
+  try {
+    const { orgContext } = await import('./orgContext.js');
+    const org = await orgContext(vaultPath, 'leader');
+    if (org) parts.push(org);
+  } catch { /* honest absence */ }
   parts.push(...profileLines(state.profile, now.getTime()));
   const today = todayLead(state, now);
   if (today) parts.push(`TODAY'S IDEA (already on his homepage — build on it, don't repeat it at him): "${today.title}" — ${today.line}`);

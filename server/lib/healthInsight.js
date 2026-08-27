@@ -31,6 +31,15 @@ function today() {
 async function buildContext(vaultPath, slot) {
   const lines = [];
 
+  // his standing rules and the rest of the fleet — this surface writes a
+  // health read that every other agent now sees, so it must at minimum obey
+  // the same corrections they do
+  try {
+    const { orgContext } = await import('./orgContext.js');
+    const org = await orgContext(vaultPath, 'health-insight');
+    if (org) lines.push(org);
+  } catch { /* honest absence */ }
+
   // who Hayden is — every model surface reasons from the same operating profile
   try {
     const profile = await profileContext(vaultPath);

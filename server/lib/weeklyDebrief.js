@@ -77,6 +77,9 @@ export async function setDebriefConfig(patch) {
 export async function buildDebriefContext(vaultPath, now = new Date()) {
   const parts = [];
   const add = (label, fn) => fn().then((v) => v && parts.push(v)).catch(() => {});
+  // the org block — standing rules, the fleet, and what his other agents are
+  // asking of him. Inherited, not hand-wired.
+  await add('org', async () => (await import('./orgContext.js')).orgContext(vaultPath, 'weekly-debrief'));
   await add('advice', async () => {
     // the Coach's recommendations this week and their fates — the debrief
     // holds the week against what was actually advised (audit item #11)
