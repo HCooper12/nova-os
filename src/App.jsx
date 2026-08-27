@@ -4780,7 +4780,12 @@ export default class App extends Component {
         this.askNova(q, preamble);
         return;
       }
-      this.setState({ voicePendingProposal: null });
+      // Outside the queue the pending draft used to be DISCARDED here — so a
+      // clarifying question about a proposal threw the proposal away, and
+      // the answer came back blind for the same reason the queue's did. It
+      // now stays live: the ask's situation block names it, and his yes/no
+      // still files it after the digression. The yes-regex is strict full-
+      // sentence matching, so a "yes" buried in a later remark can't trip it.
     }
     // a configured backend → the real Ask Nova pipeline, even while the
     // status is still 'connecting' (the ask itself proves the connection);
@@ -5097,10 +5102,47 @@ export default class App extends Component {
       this.toastMsg('Brief failed: ' + e.message);
     });
   }
-  // `context`, when present, is a bracketed situational preamble the CODE
-  // decided Nova needs (the live brief decision, for now). It travels with
-  // the request and never appears in the transcript — his words are what he
-  // said, not what the plumbing wrapped around them.
+  // WHAT IS ON HIS SCREEN, AS TEXT — the model's eyes.
+  //
+  // "Context and flow everywhere" fails at one specific joint: he says
+  // "this", "that", "the first one", and the model has never been told what
+  // is in front of him. Every surface that showed him something the voice
+  // couldn't answer questions about — the card on the glass, an undecided
+  // proposal, a workout in progress, the screen he's standing on — is
+  // assembled HERE, deterministically, and rides with every ask. The block
+  // is self-describing (its instruction travels inside it), so it works in
+  // sessions minted before this existed and needs no prompt-version dance.
+  // Code decides what Nova must know; the model never has to guess what
+  // "it" is again.
+  buildAskSituation({ skipProposal = false } = {}) {
+    const s = this.state;
+    const bits = [];
+    const card = s.stageCard;
+    if (card?.label) {
+      let detail = '';
+      if (card.kind === 'metric') detail = ` showing ${card.value ?? ''}${card.unit || ''}${card.caption ? ` (${card.caption})` : ''}`;
+      else if (card.kind === 'list' && card.items?.length) detail = `: ${card.items.slice(0, 7).map((it) => it.name + (it.note ? ` [${it.note}]` : '')).join('; ')}`;
+      else if (card.kind === 'bars' && card.bars?.length) detail = `, a chart of ${card.bars.slice(0, 8).map((b) => b.name).filter(Boolean).join(', ')}`;
+      bits.push(`A card titled "${card.label}" is on the glass${detail}${card.foot ? ` — footnote: ${card.foot}` : ''}`);
+    }
+    if (!skipProposal && s.voicePendingProposal?.title) {
+      bits.push(`An undecided draft is open: "${s.voicePendingProposal.title}" — his yes/no/later files it`);
+    }
+    const ws = s.workoutSession;
+    if (ws?.routineName) {
+      const done = ws.exercises.filter((e) => e.skipped || (e.sets || []).every((x) => x.done)).length;
+      const current = ws.exercises.find((e) => !e.skipped && (e.sets || []).some((x) => !x.done));
+      bits.push(`A live workout is in progress: ${ws.routineName}, ${done}/${ws.exercises.length} exercises done${current ? `, currently on ${current.name}` : ''}`);
+    }
+    if (s.screen && s.screen !== 'voice') bits.push(`He is on the ${s.screen} screen`);
+    if (!bits.length) return null;
+    return `[On his screen right now — resolve "this/that/it/the first one" against it and answer from it; never read this block back: ${bits.join('. ')}.]`;
+  }
+  // `context`, when present, is a bracketed situational preamble a CALLER
+  // decided Nova needs (the live brief decision). The screen situation is
+  // added here regardless — one choke point, every ask has eyes. Both travel
+  // with the request and never appear in the transcript: his words are what
+  // he said, not what the plumbing wrapped around them.
   askNova(question, context) {
     const conn = getConnection();
     if (!conn || this.state.voiceBusy) return;
@@ -5111,7 +5153,11 @@ export default class App extends Component {
     this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: question }], voiceBusy: true }));
     this.stopSpeaking();
     this.speakAck(question); // fills the 5-8s think-gap immediately
-    api.ask(conn, context ? `${context}\n\n${question}` : question, this.state.voiceSessionId || null).then((resp) => {
+    // caller context already names the pending decision when present —
+    // don't say it twice
+    const situation = this.buildAskSituation({ skipProposal: !!context });
+    const sent = [context, situation, question].filter(Boolean).join('\n\n');
+    api.ask(conn, sent, this.state.voiceSessionId || null).then((resp) => {
       if (resp.text) {
         // Reflex answer — code replied from the live record, no job to poll.
         // Voice leads here too: the text lands when the audio starts.
