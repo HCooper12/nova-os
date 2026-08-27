@@ -2,7 +2,7 @@ import { Router, raw } from 'express';
 import { writeFile, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { startIngest, getJob, approveJob, discardJob } from '../lib/ingest.js';
+import { startIngest, getJob, approveJob, discardJob, listOpenJobs } from '../lib/ingest.js';
 
 export function ingestRouter(vaultPath) {
   const router = Router();
@@ -114,6 +114,12 @@ export function ingestRouter(vaultPath) {
     } catch (e) {
       res.status(400).json({ error: e.message });
     }
+  });
+
+  // Anything still running or waiting for his yes — so a finished analysis
+  // is never stranded because the tab that started it is gone.
+  router.get('/ingest', async (req, res) => {
+    res.json({ jobs: await listOpenJobs() });
   });
 
   router.get('/ingest/:jobId', async (req, res) => {

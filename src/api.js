@@ -265,6 +265,7 @@ export const api = {
   forgeProofUrl: (conn, id) => `${conn.baseUrl.replace(/\/$/, '')}/api/forge/${encodeURIComponent(id)}/proof`,
   // the Scout — research a person or a social account into the vault
   researchPerson: (conn, subject, notes, model) => post(conn, '/api/ingest/person', { subject, notes, model }),
+  openIngestJobs: (conn) => call(conn, '/api/ingest'),
   browserStatus: (conn) => call(conn, '/api/browser/status'),
   browserSignIn: (conn, url) => post(conn, '/api/browser/sign-in', { url }),
   briefState: (conn) => call(conn, '/api/brief-state'),

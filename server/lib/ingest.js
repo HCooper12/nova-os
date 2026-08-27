@@ -435,6 +435,46 @@ function redact(job) {
     changes: (job.changes || []).map((c) => ({ path: c.path, kind: c.kind, content: c.content })) };
 }
 
+// EVERY JOB WORTH HIS ATTENTION, FROM ANY DEVICE.
+//
+// A finished analysis was only reachable if the client that STARTED it still
+// remembered its id, so a reload — or simply starting it on the phone and
+// opening the Mac — orphaned 22 staged pages he had paid $3.53 for. A ready
+// job is a fact about the platform, not about one browser tab; the server is
+// the only place that can say so.
+//
+// Deliberately light: ids and statuses, never the staged content (one job
+// file is 700KB — a list carrying those would be a slow, useless payload).
+export async function listOpenJobs() {
+  const out = [];
+  let names = [];
+  try { names = readdirSync(jobsDir()).filter((f) => f.endsWith('.json')); } catch { return out; }
+  for (const f of names) {
+    let d = null;
+    try { d = JSON.parse(readFileSync(path.join(jobsDir(), f), 'utf8')); } catch { continue; }
+    if (!d?.id) continue;
+    // In-memory beats disk: a job still running has a live status the file
+    // may not have caught up with yet.
+    const live = jobs.get(d.id);
+    const status = live?.status || d.status;
+    if (!['ready', 'running', 'staging', 'digesting', 'researching', 'fetching', 'reading'].includes(status)) continue;
+    // On disk but NOT in memory and not finished = its process died with a
+    // restart. Say so here too, rather than advertising a ghost as running.
+    const orphaned = !live && !['ready'].includes(status);
+    out.push({
+      id: d.id,
+      status: orphaned ? 'error' : status,
+      error: orphaned ? 'the server restarted mid-job — start it again (a cached digest makes the re-run cheap)' : (d.error || null),
+      createdAt: d.createdAt || null,
+      cost: d.cost || 0,
+      changes: (d.changes || []).length,
+      progress: live?.progress || d.progress || null,
+      label: d.book ? `${d.book.title} — ${d.book.author}` : d.person ? d.person.label : 'Pasted content',
+    });
+  }
+  return out.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+}
+
 export async function getJob(jobId) {
   const job = jobs.get(jobId);
   if (job) return redact(job);

@@ -486,6 +486,17 @@ export default class App extends Component {
       if (pending && getConnection()) {
         this.setState({ ingestStatus: 'reading', ingestJobId: pending });
         this.pollIngest(pending);
+      } else if (getConnection()) {
+        // Nothing remembered here — ask the SERVER. A job started on his
+        // phone, or before this device knew how to remember one, is still
+        // his job: 22 staged pages he paid for must not be stranded because
+        // a browser tab forgot an id.
+        api.openIngestJobs(getConnection()).then(({ jobs }) => {
+          const open = (jobs || []).find((j) => j.status === 'ready') || (jobs || [])[0];
+          if (!open || open.status === 'error') return;
+          this.setState({ ingestStatus: open.status, ingestJobId: open.id });
+          this.pollIngest(open.id);
+        }).catch(() => { /* offline — nothing to resume from */ });
       }
     } catch { /* private mode */ }
     Promise.all([minBootTime, dataReady]).then(() => this.setState({ booted: true }));
