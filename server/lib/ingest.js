@@ -4,12 +4,31 @@ import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { backupFile } from './backup.js';
 
 const SKIP = new Set(['.obsidian', '.claude', '.DS_Store']);
 const MAX_BUDGET_USD = '3';
+// Mirrors watcher.js's own threshold — imported lazily there, so name it
+// here rather than reaching into that module at load time.
+const SINGLE_PASS_MAX_CHARS_ING = 150_000;
+// A cache key must be a safe filename AND stable across re-uploads of the
+// same book, so a retry reads yesterday's notes instead of re-paying.
+const slugKey = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
+
+// The routing decision, pure and exported so it can be tested without
+// spawning a model: is this text too big for one vault pass, and what key
+// does its digest cache under? The bug this replaces was a decision buried
+// inside the video-fetch branch, where a book could never reach it.
+export function needsDigest(text) {
+  return !!text && text.length > SINGLE_PASS_MAX_CHARS_ING;
+}
+export function digestCacheKey(book, text) {
+  return book
+    ? `book-${slugKey(`${book.title}-${book.author}`)}`
+    : `text-${createHash('sha1').update(text).digest('hex').slice(0, 16)}`;
+}
 // A digested long video's weave reads condensed notes PLUS targeted slices
 // of the verbatim transcript — the extra headroom is what makes "nothing
 // lost" affordable to honor.
@@ -214,6 +233,37 @@ export function startIngest(vaultPath) {
         }
         job.status = 'staging';
       }
+      // LONG IS LONG, WHATEVER IT CAME FROM.
+      //
+      // The "too big for one pass" branch above lives inside the VIDEO
+      // fetch, so it could only ever fire for a link. A book he uploads
+      // arrives as text with no sourceUrl, skips it entirely, and gets the
+      // $3 single-pass cap — while a 4-hour podcast gets $8. Atomic Habits
+      // is 495,673 characters, over three times the single-pass threshold
+      // and comparable to that podcast: the weave died at $3.13 having
+      // written nothing, which is his money spent for zero pages.
+      //
+      // Any over-long text now takes the same condensed-notes path, with
+      // the verbatim kept for targeted reads. The digest is cached under a
+      // stable key so a retry NEVER re-pays for it — that lesson is already
+      // written in blood for videos.
+      if (!job.digested && needsDigest(transcriptText)) {
+        job.status = 'digesting';
+        job.digested = true;
+        persistJob(job);
+        const { digestTranscriptCached } = await import('./watcher.js');
+        const key = digestCacheKey(book ? job.book : null, transcriptText);
+        const notes = await digestTranscriptCached(
+          vaultPath,
+          { title: book ? `${job.book.title} — ${job.book.author}` : 'Pasted text', transcript: transcriptText },
+          path.join(workDir, 'digest'),
+          '',
+          key,
+        );
+        verbatimOverride = transcriptText; // Raw/ still gets every word
+        transcriptText = notes;
+        job.status = 'staging';
+      }
       // Already in the vault? A watch filing (or an earlier weave) may have
       // left a Source page and the verbatim transcript. Re-running must
       // DEEPEN those pages, never mint a parallel set.
@@ -259,7 +309,7 @@ export function startIngest(vaultPath) {
 
 The exact verbatim original text ${existing.transcriptRel ? 'is ALREADY in the vault' : 'is already saved in the vault'} at ${verbatimRelPath}${existing.transcriptRel ? ' (do NOT write another copy of it — it is not in this staged tree because Raw/ is not staged, and it must stay exactly as it is)' : ''}. If this is third-party copyrighted material needing the paraphrase treatment per CLAUDE.md's copyright rule, link to this file from whatever page you create (e.g. "Verbatim original: [[${verbatimName}]]" — the vault path is ${verbatimRelPath}). If it's Hayden's own writing, that rule already allows storing it verbatim directly — no need to paraphrase it, just fold it in or reference this file as you see fit.
 ${existing.pages.length ? `\nALREADY IN THE VAULT — DO NOT DUPLICATE. This exact ${book ? 'book' : 'video'} already has ${existing.pages.length === 1 ? 'this page' : 'these pages'}, present in the staged tree:\n${existing.pages.map((p) => `- ${p}`).join('\n')}\nRead ${existing.pages.length === 1 ? 'it' : 'them'} FIRST and EDIT in place to deepen ${existing.pages.length === 1 ? 'it' : 'them'} — never create a second page for the same ${book ? 'book' : 'video'} under a variant title. Preserve what is already written (and its frontmatter) while adding what is missing; the same rule applies to any Concept/Entity/Topic page that already exists — extend it rather than forking a near-duplicate.\n` : ''}
-${job.digested ? `\nThis video was LONG, so the text at ${transcriptPath} is Nova's condensed timestamped notes over the full transcript, structured in parts. Treat the notes as the map, not the territory: while drafting each page, Read the relevant sections of the full verbatim transcript at ${verbatimReadPath} (targeted slices around the notes' timestamps — never the whole file at once) so specifics, phrasings, and nuances survive into the paraphrase. Hayden's standing requirement: NO concept or idea from the conversation is lost — cover every idea the notes enumerate, including minor ones, not just the headline themes.\n` : ''}
+${job.digested ? `\nThis ${book ? 'BOOK' : 'video'} was LONG, so the text at ${transcriptPath} is Nova's condensed notes over the full ${book ? 'text' : 'transcript'}, structured in parts. Treat the notes as the map, not the territory: while drafting each page, Read the relevant sections of the full ${book ? 'book text' : 'verbatim transcript'} at ${verbatimReadPath} (targeted slices around the passages the notes point at — never the whole file at once) so specifics, phrasings, and nuances survive into the paraphrase. Hayden's standing requirement: NO concept or idea from the ${book ? 'book' : 'conversation'} is lost — cover every idea the notes enumerate, including minor ones, not just the headline themes.\n` : ''}
 ${sourceUrl ? `\nSource URL: ${sourceUrl} — include this as a \`url:\` field in whatever page's frontmatter is most relevant, so it's directly linkable.\n` : ''}
 When done, give a concise final summary: pages created, pages updated, and any contradictions or open questions flagged.`;
 
@@ -310,7 +360,14 @@ When done, give a concise final summary: pages created, pages updated, and any c
           job.status = 'error';
           job.error = (result?.is_error && result?.result)
             || (Number.isFinite(spent) && spent >= budget * 0.98
-              ? `the vault pass ran out of budget — $${spent.toFixed(2)} spent against a $${budget} cap`
+              // A dead end is not a report. Say what it cost, what it left
+              // behind, and the ONE setting that changes the outcome — he
+              // lost $3.13 to this message and had nothing to act on.
+              ? `the vault pass ran out of budget — $${spent.toFixed(2)} spent against a $${budget} cap, and nothing was written to your vault.`
+                + (job.digested ? ` The condensed notes ARE saved, so running it again skips that cost and re-tries only the weave.` : '')
+                + (job.digested && modelFor('ingest-digest') !== 'sonnet'
+                  ? ` This pass ran on ${modelFor('ingest-digest')}; Settings → Claude models → "Vault ingest · long transcripts" is designed for sonnet, which is the cheaper structured path and the reason this lane exists.`
+                  : '')
               : stderr.trim() || `claude exited with code ${code}${Number.isFinite(spent) ? ` after $${spent.toFixed(2)}` : ''}`);
         }
         if (!result) job.summary = stdout.trim();
