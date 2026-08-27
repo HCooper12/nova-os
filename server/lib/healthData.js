@@ -74,12 +74,44 @@ export function pickKnownMetrics(raw) {
     lower.steps = src.steps;
   }
 
+  // SLEEP, IN WHATEVER SHAPE THE PHONE CAN PRODUCE IT.
+  //
+  // Zero of 40 day files have ever carried sleep, so every recovery
+  // judgement Nova has made was made without it. The likeliest reason is
+  // friction on his side: Shortcuts hands you sleep as a duration or a
+  // decimal number of hours, and the server only accepted a key called
+  // sleepAsleepMinutes. Insisting on one spelling and one unit is how a
+  // metric quietly never arrives — the same failure mode as the weightKg
+  // casing bug that cost weeks.
+  //
+  // So: accept the names a person would naturally use, and accept HOURS as
+  // well as minutes. Anything under 20 for a sleep field is hours (nobody
+  // sleeps 7 minutes or 900 hours), which disambiguates without asking him
+  // to care.
+  const SLEEP_ALIASES = {
+    sleepAsleepMinutes: ['sleepasleepminutes', 'sleepasleep', 'asleepminutes', 'sleepminutes', 'sleep', 'asleep', 'sleepduration', 'timeasleep', 'sleephours', 'asleephours'],
+    sleepInBedMinutes: ['sleepinbedminutes', 'sleepinbed', 'inbedminutes', 'inbed', 'timeinbed', 'inbedhours', 'sleepinbedhours'],
+  };
+  for (const [canonical, aliases] of Object.entries(SLEEP_ALIASES)) {
+    if (src[canonical] != null || lower[canonical.toLowerCase()] != null) continue;
+    for (const a of aliases) {
+      const v = lower[a];
+      if (v == null || v === '') continue;
+      const n = Number(v);
+      if (!Number.isFinite(n) || n <= 0) continue;
+      src[canonical] = n < 20 ? Math.round(n * 60) : Math.round(n); // hours vs minutes
+      break;
+    }
+  }
+
   const out = {};
   for (const key of HEALTH_METRICS) {
     const val = src[key] != null ? src[key] : lower[key.toLowerCase()];
     if (val == null || Number.isNaN(Number(val))) continue;
-    const num = Number(val);
+    let num = Number(val);
     if (num === 0 && IMPOSSIBLE_ZERO.has(key)) continue; // "no samples yet", not a reading
+    // the same hours-vs-minutes rescue for the canonical spellings
+    if ((key === 'sleepAsleepMinutes' || key === 'sleepInBedMinutes') && num > 0 && num < 20) num = Math.round(num * 60);
     out[key] = num;
   }
   return out;
