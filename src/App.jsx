@@ -4762,9 +4762,24 @@ export default class App extends Component {
         else this.resolveVoiceProposal(pending.recordId, yes);
         return;
       }
-      // Anything else is a real remark, not an answer. The draft stays in the
-      // Inbox — and the close stands down rather than talking over him.
-      if (this.state.briefQueue) this.endBriefQueue();
+      // Anything else mid-close is a QUESTION ABOUT THE DECISION, not a
+      // change of subject. This used to (a) kill the whole queue, (b) drop
+      // the pending decision, and (c) hand his words to Ask Nova with no
+      // mention of the question Nova had asked FOUR SECONDS EARLIER — so
+      // "what's the point of leaving it on my list?" was answered with
+      // "what specifically? The drafts in Inbox, one of the pending
+      // videos…". A conversation that cannot follow its own question is
+      // the failure he named. Now: the queue PAUSES (the answer bar stays,
+      // yes/no/later still files it), and the ask carries the live decision
+      // as context — deterministically, code deciding what Nova must know,
+      // never hoping the model guesses.
+      if (this.state.briefQueue) {
+        const cur = this.state.briefQueue[this.state.briefQueueIdx];
+        const preamble = `[Mid-brief decision context: you just asked him — "${cur?.question || pending.title}" (pending draft: "${pending.title}"). His message below is a follow-up about THAT decision. Answer it directly from the real data, briefly. Then remind him a yes, no, or later files it — the question is still open.]`;
+        this.setState({ orbInput: '' });
+        this.askNova(q, preamble);
+        return;
+      }
       this.setState({ voicePendingProposal: null });
     }
     // a configured backend → the real Ask Nova pipeline, even while the
@@ -5082,7 +5097,11 @@ export default class App extends Component {
       this.toastMsg('Brief failed: ' + e.message);
     });
   }
-  askNova(question) {
+  // `context`, when present, is a bracketed situational preamble the CODE
+  // decided Nova needs (the live brief decision, for now). It travels with
+  // the request and never appears in the transcript — his words are what he
+  // said, not what the plumbing wrapped around them.
+  askNova(question, context) {
     const conn = getConnection();
     if (!conn || this.state.voiceBusy) return;
     if (this.maybeStandDown(question)) return;
@@ -5092,7 +5111,7 @@ export default class App extends Component {
     this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: question }], voiceBusy: true }));
     this.stopSpeaking();
     this.speakAck(question); // fills the 5-8s think-gap immediately
-    api.ask(conn, question, this.state.voiceSessionId || null).then((resp) => {
+    api.ask(conn, context ? `${context}\n\n${question}` : question, this.state.voiceSessionId || null).then((resp) => {
       if (resp.text) {
         // Reflex answer — code replied from the live record, no job to poll.
         // Voice leads here too: the text lands when the audio starts.
