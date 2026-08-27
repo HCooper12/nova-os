@@ -21,7 +21,7 @@ const SOURCE_LABEL = {
   // the four that fell through to TYPED
   'coach-program': 'PROGRAM REVIEW', 'coach-audit': 'PROGRAM AUDIT',
   'read-next': 'LIBRARIAN', 'forge-job': 'FORGE',
-  scout: 'SCOUT · PEOPLE',
+  scout: 'SCOUT · PEOPLE', 'leader-reflect': 'LEADER',
 };
 
 const ROUTE_META = {

@@ -127,6 +127,7 @@ export async function buildReviewContext(vaultPath, now = new Date()) {
     const d28 = await loadRecentDays(28);
     return ['BODYWEIGHT: ' + weightTrendLine(d28), sleepEfficiencyLine(d28), vo2MaxLine(d28)].filter(Boolean).join('\n');
   });
+  await add('food-patterns', async () => (await import('./foodPatterns.js')).foodPatternsContext({ days: 21 }));
   await add('week-ahead', async () => {
     const { fetchEventsForRange } = await import('./calendar.js');
     const events = await fetchEventsForRange(7);

@@ -30,6 +30,7 @@ const KIND_LABEL = {
   distill: 'distillations', 'brain-week': 'brain-week reports',
   study: 'study briefs', 'coach-audit': 'program audits',
   'read-next': 'read-next suggestions', scout: 'people researched',
+  'leader-reflect': 'leadership reflections',
 };
 const MIN_DECISIONS = 3;
 

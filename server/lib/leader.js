@@ -391,6 +391,30 @@ export async function runLeaderResearch(vaultPath, { force = false } = {}) {
   fresh.research = [...fresh.research, ...insights].slice(-200);
   fresh.lastResearchAt = now.toISOString();
   await writeLeaderState(fresh);
+
+  // RESEARCH HE PAID FOR SHOULD BE FINDABLE. Until now these insights lived
+  // only in leader.json, so the Library, the Galaxy, vault search and every
+  // agent that reads pages were blind to them — he was paying for knowledge
+  // that could never be searched, linked or resurfaced like every other
+  // source he owns. They now ride the ingest rail into real vault pages:
+  // staged, diffed, and waiting for his yes, exactly like a book or a
+  // person. Cheap and honest — the text is already written, so this is a
+  // weave, not a second research run.
+  if (insights.length) {
+    try {
+      const { startIngest } = await import('./ingest.js');
+      const body = [
+        `Leadership research — week of ${now.toISOString().slice(0, 10)}`,
+        '',
+        "Gathered by Nova's Leader agent from public sources, steered by what Hayden said he is working against. Each insight carries its own source; nothing here is his own writing.",
+        '',
+        ...insights.map((i) => `## ${i.topic || 'Insight'}\n\n${i.insight}\n\nSource: ${i.source}${i.url ? ` — ${i.url}` : ''}`),
+      ].join('\n');
+      startIngest(vaultPath)(body, undefined, null, null);
+    } catch (e) {
+      console.error('leader research weave failed (the insights are still saved):', e.message);
+    }
+  }
   return { added: insights.length, insights };
 }
 
@@ -406,20 +430,84 @@ export async function applyLeaderReflection({ struggles = [], working = [], reso
   const norm = (t) => String(t || '').trim();
   const has = (list, text) => list.some((x) => x.text.toLowerCase() === text.toLowerCase());
 
+  // Track exactly what THIS call added, so it can be taken back precisely —
+  // an undo that removed every matching line would also delete something he
+  // said last week.
+  const added = { struggles: [], working: [], resolved: [] };
+
   for (const s of struggles.map(norm).filter(Boolean)) {
-    if (!has(state.profile.struggles, s)) state.profile.struggles.push({ text: s, at: now });
+    if (!has(state.profile.struggles, s)) { state.profile.struggles.push({ text: s, at: now }); added.struggles.push(s); }
   }
   for (const w of working.map(norm).filter(Boolean)) {
-    if (!has(state.profile.working, w)) state.profile.working.push({ text: w, at: now });
+    if (!has(state.profile.working, w)) { state.profile.working.push({ text: w, at: now }); added.working.push(w); }
   }
   for (const r of resolved.map(norm).filter(Boolean)) {
     const hit = state.profile.struggles.find((x) => !x.resolvedAt && x.text.toLowerCase().includes(r.toLowerCase()));
-    if (hit) hit.resolvedAt = now;
+    if (hit) { hit.resolvedAt = now; added.resolved.push(hit.text); }
   }
   state.profile.struggles = state.profile.struggles.slice(-40);
   state.profile.working = state.profile.working.slice(-40);
   await writeLeaderState(state);
+
+  // ON THE RAILS, LIKE EVERYTHING ELSE THAT WRITES.
+  //
+  // This was the platform's only write that rode nothing: a misheard
+  // sentence became a standing fact about him, steering the daily idea and
+  // Saturday's research, with no way to see or undo it. Nova's founding rule
+  // is that everything writeable is undoable.
+  //
+  // FILED, not pending, deliberately: he says these things in the middle of
+  // a conversation and being asked to approve each one would make the Leader
+  // tiresome to talk to — and an approval he reflexively taps is not
+  // consent, it is friction pretending to be a gate. Auto-file with a real
+  // undo is the honest middle, and it is exactly what the trust ladder
+  // grants elsewhere for low-stakes writes.
+  const total = added.struggles.length + added.working.length + added.resolved.length;
+  if (total) {
+    try {
+      const { createRecord } = await import('./inboxStore.js');
+      const bits = [
+        added.struggles.length ? `${added.struggles.length} struggle${added.struggles.length === 1 ? '' : 's'}` : null,
+        added.working.length ? `${added.working.length} thing${added.working.length === 1 ? '' : 's'} working` : null,
+        added.resolved.length ? `${added.resolved.length} resolved` : null,
+      ].filter(Boolean).join(', ');
+      await createRecord({
+        id: randomUUID().slice(0, 8),
+        kind: 'leader-reflect',
+        text: `The Leader noted ${bits}: ${[...added.struggles, ...added.working].map((t) => `"${t}"`).join('; ') || added.resolved.map((t) => `"${t}" resolved`).join('; ')}`,
+        source: 'leader',
+        mode: 'auto',
+        status: 'filed',
+        createdAt: now,
+        filedAt: now,
+        auto: true,
+        destination: 'your leadership profile',
+        undoData: { route: 'leader-reflect', added },
+      });
+    } catch { /* the profile write already succeeded; a missing receipt must not undo it */ }
+  }
   return state.profile;
+}
+
+// The precise reversal: remove only what that reflection added, and un-resolve
+// only what it resolved.
+export async function undoLeaderReflection(added = {}) {
+  const state = await readLeaderState();
+  const lower = (a) => (a || []).map((t) => String(t).toLowerCase());
+  const dropS = lower(added.struggles);
+  const dropW = lower(added.working);
+  const unres = lower(added.resolved);
+  const before = state.profile.struggles.length + state.profile.working.length;
+  state.profile.struggles = state.profile.struggles.filter((x) => !dropS.includes(x.text.toLowerCase()));
+  state.profile.working = state.profile.working.filter((x) => !dropW.includes(x.text.toLowerCase()));
+  for (const x of state.profile.struggles) {
+    if (x.resolvedAt && unres.includes(x.text.toLowerCase())) delete x.resolvedAt;
+  }
+  await writeLeaderState(state);
+  const removed = before - (state.profile.struggles.length + state.profile.working.length);
+  return removed || unres.length
+    ? `took that back out of your leadership profile${unres.length ? ` and reopened ${unres.length} struggle${unres.length === 1 ? '' : 's'}` : ''}`
+    : 'that was already gone from your leadership profile';
 }
 
 // REFLECT directive — same contract shape as Coach's PROPOSE, same loud

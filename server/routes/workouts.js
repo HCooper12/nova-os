@@ -570,6 +570,13 @@ export function workoutsRouter(vaultPath) {
         // both stored daily since the health push existed and read by NOTHING
         // until now — time-in-bed never became sleep quality, and his aerobic
         // ceiling never informed a single word of coaching
+        try {
+          // 45 days of item-level eating had ONE consumer (recipe ideas);
+          // no agent could see that his day starts at 13:30 and 83% of his
+          // protein lands after 3pm — which is the shape of his floor misses
+          const { foodPatternsContext } = await import('../lib/foodPatterns.js');
+          parts.push(await foodPatternsContext({ days: 21 }));
+        } catch { failures.push('eating patterns'); }
         const sleepEff = sleepEfficiencyLine(days28);
         if (sleepEff) parts.push(sleepEff);
         const vo2 = vo2MaxLine(days28);

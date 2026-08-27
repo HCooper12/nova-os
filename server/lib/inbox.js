@@ -855,6 +855,10 @@ export async function undoFiling(vaultPath, undo) {
     await clearTune(vaultPath, undo.exerciseId, { restore: undo.prior });
     return undo.prior ? `restored ${undo.name}'s previous tune` : `cleared the tune — ${undo.name} progresses by the defaults again`;
   }
+  if (undo.route === 'leader-reflect') {
+    const { undoLeaderReflection } = await import('./leader.js');
+    return undoLeaderReflection(undo.added);
+  }
   if (undo.route === 'coach-learning') {
     const { removeLearning } = await import('./coachKnowledge.js');
     const r = await removeLearning(vaultPath, undo.line);

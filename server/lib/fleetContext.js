@@ -24,7 +24,7 @@ export const KIND_AGENT = {
   'coach-program': 'Program Review', 'coach-audit': 'Program Audit',
   'fuel-cross': 'Fuel × Training', 'read-next': 'Librarian',
   'brain-week': 'Brain Week', 'money-import': 'Money Import',
-  scout: 'Scout',
+  scout: 'Scout', 'leader-reflect': 'Leader',
 };
 
 const HOURS = 48;
