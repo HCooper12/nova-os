@@ -13,6 +13,10 @@ const POLL_MS = 25_000;
 export function startCalendarWatch() {
   let lastHash = null;
   const tick = async () => {
+    // beat before the early return, for the same reason briefWarm does: this
+    // watcher legitimately idles whenever no client is connected, and an
+    // idle scheduler must not be indistinguishable from a dead one.
+    import('./heartbeat.js').then(({ beat }) => beat('calendar-watch')).catch(() => {});
     if (clientCount() === 0) return; // nobody to notify — don't hammer iCloud
     try {
       // fresh: the watcher's whole job is spotting edits made elsewhere, and

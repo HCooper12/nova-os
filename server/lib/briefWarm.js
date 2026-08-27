@@ -88,6 +88,11 @@ const END_HOUR = 10;
 
 export function startBriefWarmScheduler(vaultPath) {
   const tick = async () => {
+    // beat FIRST, before the window check — a scheduler that only beats when
+    // it does work looks dead all afternoon, and the Guardian cannot tell
+    // "idle" from "died".
+    const { beat } = await import('./heartbeat.js');
+    beat('brief-warm');
     const h = new Date().getHours();
     if (h < START_HOUR || h >= END_HOUR) return;
     try {

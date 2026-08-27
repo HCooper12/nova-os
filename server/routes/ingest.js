@@ -57,6 +57,26 @@ export function ingestRouter(vaultPath) {
     }
   });
 
+  // THE SCOUT — research a person or a social account into the vault. Its
+  // own endpoint rather than a flag on /ingest, because "research this
+  // person" is a different intent with a different input (one string, not
+  // text + url + title + author) and deserves to fail with its own words.
+  router.post('/ingest/person', async (req, res) => {
+    try {
+      const subjectRaw = typeof req.body?.subject === 'string' ? req.body.subject : '';
+      const { parseSubject } = await import('../lib/scout.js');
+      const subject = parseSubject(subjectRaw); // throws its own plain message
+      const jobId = run(null, undefined, null, {
+        ...subject,
+        notes: String(req.body?.notes || '').trim(),
+        model: typeof req.body?.model === 'string' ? req.body.model : undefined,
+      });
+      res.json({ jobId, subject });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
   router.post('/ingest', (req, res) => {
     const { text, sourceUrl, book } = req.body || {};
     const url = sourceUrl && sourceUrl.trim() ? sourceUrl.trim() : undefined;

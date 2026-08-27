@@ -49,9 +49,9 @@ const jobsDir = () => path.join(process.env.NOVA_DATA_DIR || path.join(path.dirn
 async function persistJob(job) {
   try {
     await mkdir(jobsDir(), { recursive: true });
-    const { id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt, book } = job;
+    const { id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt, book, person } = job;
     await writeFile(path.join(jobsDir(), `${id}.json`),
-      JSON.stringify({ id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt, book }), 'utf8');
+      JSON.stringify({ id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt, book, person }), 'utf8');
   } catch (e) {
     console.error(`ingest job ${job.id} failed to persist:`, e.message);
   }
@@ -179,16 +179,20 @@ export function startIngest(vaultPath) {
   // `book` = {title, author, notes?}: no text and no URL — Nova's Librarian
   // researches the book first (lib/librarian.js) and the resulting dossier
   // rides this exact rail from there. One rail, one review UI, one undo.
-  return function run(transcriptText, sourceUrl, book = null) {
+  // `person` = a Scout subject (see lib/scout.js): the same shape of work as
+  // a book — research first, then this rail weaves it. One rail, one review
+  // UI, one undo, however the knowledge arrived.
+  return function run(transcriptText, sourceUrl, book = null, person = null) {
     if (!laneEnabled('ingest')) throw laneOffError('ingest');
     if (book && !laneEnabled('librarian')) throw laneOffError('librarian');
+    if (person && !laneEnabled('scout')) throw laneOffError('scout');
     if (book && (!String(book.title || '').trim() || !String(book.author || '').trim())) {
       throw new Error('a book needs both a title and an author');
     }
     const jobId = randomUUID().slice(0, 8);
     const workDir = path.join(os.tmpdir(), 'nova-ingest', jobId);
     const stagingVault = path.join(workDir, 'vault');
-    const job = { id: jobId, status: 'staging', summary: '', cost: 0, changes: [], error: null, stagingVault, workDir, vaultPath, createdAt: new Date().toISOString(), ...(book ? { book: { title: String(book.title).trim(), author: String(book.author).trim(), ...(book.reading ? { reading: book.reading } : {}) } } : {}) };
+    const job = { id: jobId, status: 'staging', summary: '', cost: 0, changes: [], error: null, stagingVault, workDir, vaultPath, createdAt: new Date().toISOString(), ...(book ? { book: { title: String(book.title).trim(), author: String(book.author).trim(), ...(book.reading ? { reading: book.reading } : {}) } } : {}), ...(person ? { person } : {}) };
     jobs.set(jobId, job);
     persistJob(job);
 
@@ -205,6 +209,21 @@ export function startIngest(vaultPath) {
         const { dossier, cost } = await runBookResearch({ ...job.book, notes: book.notes || '', model: book.model }, workDir);
         job.cost += cost;
         transcriptText = composeBookDossier(job.book, dossier);
+        job.status = 'staging';
+        persistJob(job);
+      }
+      // PERSON MODE: the Scout researches an individual or an account, and
+      // its dossier rides this same rail. Like the book dossier it is Nova's
+      // OWN synthesis — researched, never their work reproduced — so keeping
+      // it verbatim in Raw/ as provenance is both safe and right.
+      if (person) {
+        job.status = 'researching';
+        persistJob(job);
+        const { runPersonResearch, composePersonDossier } = await import('./scout.js');
+        await mkdir(workDir, { recursive: true });
+        const { dossier, cost } = await runPersonResearch(vaultPath, person, { notes: person.notes || '', model: person.model });
+        job.cost += cost;
+        transcriptText = composePersonDossier(person, dossier);
         job.status = 'staging';
         persistJob(job);
       }
@@ -274,6 +293,11 @@ export function startIngest(vaultPath) {
         // pages, never mint a parallel set under a variant title
         const { findExistingBookPages } = await import('./librarian.js');
         existing = { ...(findExistingBookPages(vaultPath, job.book.title, job.book.author)), transcriptRel: null };
+      } else if (person) {
+        // researching someone twice must deepen what he already holds on
+        // them — the same contract, extended to people
+        const { findExistingPersonPages } = await import('./scout.js');
+        existing = { ...findExistingPersonPages(vaultPath, person), transcriptRel: null };
       }
       job.existing = existing;
 
@@ -291,7 +315,7 @@ export function startIngest(vaultPath) {
       if (!existing.transcriptRel) {
         await writeFile(
           path.join(stagingVault, verbatimRelPath),
-          `${book ? (bookProvided ? "Text/notes of a book supplied by Hayden from his own copy via Nova OS" : "Research dossier authored by Nova's Librarian (Nova's own synthesis from public sources — not the book's text)") : fetched ? "Verbatim video transcript fetched by Nova's Watcher from the link Hayden submitted" : 'Verbatim original text pasted by Hayden via Nova OS'}, received ${new Date().toISOString().slice(0, 10)}.${sourceUrl ? `\nSource URL: ${sourceUrl}` : ''}\n\n---\n\n${verbatimOverride ?? transcriptText}`,
+          `${book ? (bookProvided ? "Text/notes of a book supplied by Hayden from his own copy via Nova OS" : "Research dossier authored by Nova's Librarian (Nova's own synthesis from public sources — not the book's text)") : person ? ("Research dossier authored by Nova's Scout (Nova's own synthesis about a person's public work — not their words reproduced)") : fetched ? "Verbatim video transcript fetched by Nova's Watcher from the link Hayden submitted" : 'Verbatim original text pasted by Hayden via Nova OS'}, received ${new Date().toISOString().slice(0, 10)}.${sourceUrl ? `\nSource URL: ${sourceUrl}` : ''}\n\n---\n\n${verbatimOverride ?? transcriptText}`,
           'utf8'
         );
       }
@@ -305,7 +329,8 @@ export function startIngest(vaultPath) {
       persistJob(job); // carries the digested flag into the durable copy
 
       const bookRules = book ? (await import('./librarian.js')).bookWeaveRules(job.book, bookProvided) : '';
-      const prompt = `New content to add to the vault — ${book ? bookProvided ? `the text/notes of the book "${job.book.title}" by ${job.book.author}, supplied by Hayden from his own copy` : `a research dossier Nova's Librarian compiled about the book "${job.book.title}" by ${job.book.author}, which Hayden asked to add to his vault` : fetched ? 'a timestamped video transcript Nova fetched from a link Hayden submitted' : 'pasted by Hayden via Nova OS'}, saved at ${transcriptPath}.${bookRules} This could be an external source (a podcast/video transcript, article, etc.) or it could be Hayden's own note, idea, or reflection that just came to mind — read it and use your own judgement, per this vault's root CLAUDE.md, to pick the right page type (Source, Concept, Entity, Topic, Journal, or Analysis) rather than assuming it's a Source. Follow CLAUDE.md exactly, in batch mode (process fully in one pass, no per-item discussion — just do the work).
+      const personRules = person ? (await import('./scout.js')).personWeaveRules(person) : '';
+      const prompt = `New content to add to the vault — ${book ? bookProvided ? `the text/notes of the book "${job.book.title}" by ${job.book.author}, supplied by Hayden from his own copy` : `a research dossier Nova's Librarian compiled about the book "${job.book.title}" by ${job.book.author}, which Hayden asked to add to his vault` : fetched ? 'a timestamped video transcript Nova fetched from a link Hayden submitted' : person ? `a research dossier Nova's Scout compiled about ${person.label}, whom Hayden asked to research` : 'pasted by Hayden via Nova OS'}, saved at ${transcriptPath}.${bookRules}${personRules} This could be an external source (a podcast/video transcript, article, etc.) or it could be Hayden's own note, idea, or reflection that just came to mind — read it and use your own judgement, per this vault's root CLAUDE.md, to pick the right page type (Source, Concept, Entity, Topic, Journal, or Analysis) rather than assuming it's a Source. Follow CLAUDE.md exactly, in batch mode (process fully in one pass, no per-item discussion — just do the work).
 
 The exact verbatim original text ${existing.transcriptRel ? 'is ALREADY in the vault' : 'is already saved in the vault'} at ${verbatimRelPath}${existing.transcriptRel ? ' (do NOT write another copy of it — it is not in this staged tree because Raw/ is not staged, and it must stay exactly as it is)' : ''}. If this is third-party copyrighted material needing the paraphrase treatment per CLAUDE.md's copyright rule, link to this file from whatever page you create (e.g. "Verbatim original: [[${verbatimName}]]" — the vault path is ${verbatimRelPath}). If it's Hayden's own writing, that rule already allows storing it verbatim directly — no need to paraphrase it, just fold it in or reference this file as you see fit.
 ${existing.pages.length ? `\nALREADY IN THE VAULT — DO NOT DUPLICATE. This exact ${book ? 'book' : 'video'} already has ${existing.pages.length === 1 ? 'this page' : 'these pages'}, present in the staged tree:\n${existing.pages.map((p) => `- ${p}`).join('\n')}\nRead ${existing.pages.length === 1 ? 'it' : 'them'} FIRST and EDIT in place to deepen ${existing.pages.length === 1 ? 'it' : 'them'} — never create a second page for the same ${book ? 'book' : 'video'} under a variant title. Preserve what is already written (and its frontmatter) while adding what is missing; the same rule applies to any Concept/Entity/Topic page that already exists — extend it rather than forking a near-duplicate.\n` : ''}

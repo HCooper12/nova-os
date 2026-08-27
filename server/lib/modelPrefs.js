@@ -238,6 +238,11 @@ export const LANES = [
     off: 'Video watching is refused; nothing is written about a video Nova has not read.',
   },
   {
+    id: 'scout', label: 'Scout · people research', group: 'research', def: 'sonnet',
+    hint: 'researches a person or a social account into a dossier your vault can weave',
+    off: 'Researching a person is refused with a plain message; nothing already in your vault changes.',
+  },
+  {
     id: 'librarian', label: 'Librarian · book research', group: 'research', def: 'sonnet',
     hint: 'a book title + author into a triangulated dossier — the weave into your vault then rides the ingest lane',
     off: 'Book requests are refused with a plain message; pasting your own notes about a book still works via ingest.',

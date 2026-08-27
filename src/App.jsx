@@ -444,7 +444,7 @@ export default class App extends Component {
 
     // transcript ingest
     ingestModalOpen: false, ingestText: '', ingestSourceUrl: '', ingestBookTitle: '', ingestBookAuthor: '',
-    ingestJobId: null, ingestStatus: 'idle', ingestPreview: null, ingestError: null, ingestFile: null,
+    ingestJobId: null, ingestStatus: 'idle', ingestPreview: null, ingestError: null, ingestFile: null, ingestPerson: '',
   };
 
   componentDidMount() {
@@ -3032,7 +3032,7 @@ export default class App extends Component {
   // ---------- transcript ingest ----------
   openIngestModal() {
     if (!getConnection()) { this.toastMsg('Connect a backend in Settings first'); return; }
-    this.setState({ ingestModalOpen: true, ingestText: '', ingestSourceUrl: '', ingestBookTitle: '', ingestBookAuthor: '', ingestFile: null });
+    this.setState({ ingestModalOpen: true, ingestText: '', ingestSourceUrl: '', ingestBookTitle: '', ingestBookAuthor: '', ingestFile: null, ingestPerson: '' });
   }
   closeIngestModal() {
     this.setState({ ingestModalOpen: false });
@@ -3090,6 +3090,21 @@ export default class App extends Component {
       });
       return;
     }
+    // A PERSON to research — checked before the book path, since a name in
+    // the person field is unambiguous about what he wants.
+    const person = this.state.ingestPerson.trim();
+    if (person && !text) {
+      this.gateModelChoice('scout', (model) => {
+        const conn = getConnection();
+        if (!conn) return;
+        this.setState({ ingestModalOpen: false, ingestStatus: 'researching', ingestError: null, ingestPreview: null });
+        api.researchPerson(conn, person, this.state.ingestText.trim(), model).then(({ jobId, subject }) => {
+          this.toastMsg(`Researching ${subject?.label || person} — this takes a few minutes`);
+          this.pollIngest(jobId);
+        }).catch((e) => this.setState({ ingestStatus: 'error', ingestError: e.message }));
+      });
+      return;
+    }
     // A book with no pasted text is a Librarian research run — model-gated
     // like research and watch (deep research is a cost decision, his call).
     if (title && author && !text && !sourceUrl) {
@@ -3100,6 +3115,20 @@ export default class App extends Component {
     // title+author WITH text = his own copy/notes of the book — no research
     // run (nothing to gate), and the weave marks the pages provenance: read
     this.beginIngestJob(text, sourceUrl, title && author ? { title, author } : undefined);
+  }
+  // THE SCOUT — "research this person / this account". Rides the same ingest
+  // rail as a book: research, stage, diff, his yes. The review sheet and undo
+  // are the ones he already knows.
+  researchPerson(subject, notes = '') {
+    const conn = getConnection();
+    if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
+    const who = String(subject || '').trim();
+    if (!who) { this.toastMsg('Give me a name, a handle, or a link'); return; }
+    this.setState({ ingestModalOpen: false, ingestJobId: null, ingestStatus: 'researching', ingestPreview: null, ingestError: null });
+    api.researchPerson(conn, who, notes).then(({ jobId, subject: s }) => {
+      this.toastMsg(`Researching ${s?.label || who} — this takes a few minutes`);
+      this.pollIngest(jobId);
+    }).catch((e) => this.setState({ ingestStatus: 'error', ingestError: e.message }));
   }
   // Watch & analyse: a video link straight into the deep vault weave — the
   // same job Add-to-vault runs, minus the modal.

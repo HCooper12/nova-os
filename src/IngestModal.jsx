@@ -60,6 +60,22 @@ export function IngestModal({ v }) {
           Nova reads the real thing, extracts everything, and the pages carry provenance: read.
         </div>
 
+        <div style={css("margin-top:16px;font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>OR A PERSON — NOVA&rsquo;S SCOUT RESEARCHES THEM (A NAME, @HANDLE, OR A LINK)</div>
+        <Interactive
+          as="input"
+          value={v.ingestPerson}
+          onChange={v.setIngestPerson}
+          placeholder="https://instagram.com/someone — or @handle, or a name"
+          base="margin-top:6px;width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-mono);outline:none"
+          focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
+        />
+        <div style={css("margin-top:6px;font-size:11px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent);line-height:1.5")}>
+          Their public work only — the ideas, the frameworks, how they think and how they argue,
+          woven into your vault as a person page with the ideas worth keeping promoted to their own
+          concepts. Honestly labelled as researched, and it says plainly when a platform blocked it
+          rather than inventing a profile. Anything in the box above becomes your steer on what to look for.
+        </div>
+
         <div style={css("margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap")}>
           <label style={css("cursor:pointer;font-size:12px;padding:9px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);color:color-mix(in srgb, var(--nv-ink) 70%, transparent)")}>
             Attach file (.pdf / .epub / .txt / .md)
@@ -79,7 +95,7 @@ export function IngestModal({ v }) {
           )}
           <div style={css("margin-left:auto;display:flex;gap:10px")}>
             <Interactive as="span" onClick={v.closeIngestModal} base="cursor:pointer;font-size:12.5px;padding:9px 16px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);color:color-mix(in srgb, var(--nv-ink) 70%, transparent)" hoverStyle="background:rgba(255,255,255,.05)">Cancel</Interactive>
-            <Interactive as="span" onClick={v.submitIngest} base="cursor:pointer;font-size:12.5px;font-weight:500;padding:9px 18px;border-radius:8px;background:var(--nv-gold);color:#1a1322" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 85%, white)">{v.ingestFile ? 'Read & add to vault' : 'Add to vault'}</Interactive>
+            <Interactive as="span" onClick={v.submitIngest} base="cursor:pointer;font-size:12.5px;font-weight:500;padding:9px 18px;border-radius:8px;background:var(--nv-gold);color:#1a1322" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 85%, white)">{v.ingestFile ? 'Read & add to vault' : v.ingestPerson.trim() ? 'Research & add to vault' : 'Add to vault'}</Interactive>
           </div>
         </div>
       </div>

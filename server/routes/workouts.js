@@ -496,7 +496,24 @@ export function workoutsRouter(vaultPath) {
         parts.push(`Routines: ${routines.map((r) => r.name).join(', ') || 'none'}. Schedule: ${JSON.stringify(schedule)}.`);
         const stepKeys = keys.filter((k) => progressions[k].kind !== 'outgrown');
         const outgrownKeys = keys.filter((k) => progressions[k].kind === 'outgrown');
-        if (stepKeys.length) parts.push(`Earned progressions: ${stepKeys.map((k) => `${k} +${progressions[k].delta}${progressions[k].kind === 'weight' ? 'kg' : ' rep'}`).join(', ')}.`);
+        // A QUALITY HOLD IS NOT A "+0 REP PROGRESSION". Entries come back as
+        // kind 'weight'/'reps' (a real earned step) or kind 'quality' (delta 0
+        // — the engine deliberately holding the load, usually because of HIS
+        // OWN note about form). Both were being flattened into one "Earned
+        // progressions: X +0 rep" line, which told Coach a hold was a
+        // progression of zero and dropped the sentence that caused it.
+        const stepEarned = stepKeys.filter((k) => progressions[k].kind !== 'quality');
+        const qualityHeld = stepKeys.filter((k) => progressions[k].kind === 'quality');
+        if (stepEarned.length) parts.push(`Earned progressions: ${stepEarned.map((k) => {
+          const p = progressions[k];
+          const note = p.note ? ` — his note${p.noteDate ? ` (${p.noteDate})` : ''}: "${String(p.note).slice(0, 160)}"` : '';
+          return `${k} +${p.delta}${p.kind === 'weight' ? 'kg' : ' rep'}${note}`;
+        }).join(', ')}.`);
+        if (qualityHeld.length) parts.push(`HELD ON PURPOSE — load NOT increased, quality prescribed instead (raise these in his own language, never as a number): ${qualityHeld.map((k) => {
+          const p = progressions[k];
+          const note = p.note ? ` his note${p.noteDate ? ` (${p.noteDate})` : ''}: "${String(p.note).slice(0, 160)}" —` : '';
+          return `${k}:${note} focus: ${p.focus || 'strict form'}`;
+        }).join(' | ')}.`);
         if (outgrownKeys.length) parts.push(`PRESCRIPTION CHANGES DUE (deterministic — the engine has STOPPED suggesting more reps here): ${outgrownKeys.map((k) => `${k}: ${progressions[k].evidence}`).join(' | ')}. RAISE THIS UNPROMPTED at the start of your next reply if you haven't already discussed it with him: present the reasoning briefly and PROPOSE the concrete fix — a routine-edit swap to a weighted/harder variation from his exercise library, or new targets. He asked for exactly this: a coach that reflects and brings the alternative, not one that adds reps forever.`);
       } catch { failures.push('e1RM estimates'); }
       try {

@@ -32,6 +32,17 @@ const SCHEDULED = [
   { id: 'autonomy', label: 'Trust Ladder', role: 'autonomy earned, proposed' },
   { id: 'distill', label: 'Distiller', role: 'captures woven into the graph' },
   { id: 'brain-week', label: 'Brain Week', role: 'what entered the second brain' },
+  // These three beat but were absent from the roster, so the fleet ring
+  // never showed them and Nova could not name them when asked how it works.
+  { id: 'coach-cadence', label: 'Coach Cadence', role: 'when Coach speaks up' },
+  { id: 'coach-reflection', label: 'Coach Reflection', role: 'Coach reviewing its own calls' },
+  { id: 'leader', label: 'Leader', role: 'the daily leadership idea' },
+  // And these two ran with no heartbeat at all — invisible to both the ring
+  // and the Guardian's staleness watch, so they could die unnoticed. The
+  // brief pre-warm dying silently is exactly the failure class that cost
+  // three days this week.
+  { id: 'brief-warm', label: 'Brief Warm', role: "the morning brief's voice, pre-built" },
+  { id: 'calendar-watch', label: 'Calendar Watch', role: 'CalDAV kept fresh' },
 ];
 
 // Self-knowledge for the conversation: when he asks "how do you work?",

@@ -256,6 +256,8 @@ export const api = {
   startClaudeCodeMessage: (conn, text, sessionId, model, workspace) => post(conn, '/api/claude-code/message', { text, sessionId, model, workspace }),
   claudeCodeJob: (conn, jobId) => call(conn, `/api/claude-code/message/${encodeURIComponent(jobId)}`),
   // the Leader — leadership development: daily idea, chat, reflection intake
+  // the Scout — research a person or a social account into the vault
+  researchPerson: (conn, subject, notes, model) => post(conn, '/api/ingest/person', { subject, notes, model }),
   leader: (conn) => call(conn, '/api/leader'),
   leaderRun: (conn, kind, force) => post(conn, '/api/leader/run', { kind, force }),
   askLeader: (conn, question, sessionId) => post(conn, '/api/leader/chat', { question, sessionId }),
