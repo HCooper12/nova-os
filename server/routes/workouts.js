@@ -8,7 +8,7 @@ import { startQuickSession } from '../lib/claudeCode.js';
 import { getFitnessGoals, setFitnessGoals, goalsContext } from '../lib/fitnessGoals.js';
 import { profileContext } from '../lib/profile.js';
 import { startAskCoach } from '../lib/claudeCode.js';
-import { loadRecentDays, weightTrendLine } from '../lib/healthData.js';
+import { loadRecentDays, weightTrendLine, sleepEfficiencyLine, vo2MaxLine } from '../lib/healthData.js';
 import { listCarryovers, addCarryover, rescheduleCarryover, removeCarryover, carryoverContext } from '../lib/workoutCarryover.js';
 import { loadRecentDays as loadRecentNutritionDays } from '../lib/nutritionLog.js';
 import { computeStreaks } from '../lib/streaks.js';
@@ -565,7 +565,15 @@ export function workoutsRouter(vaultPath) {
         if (wc) parts.push(wc);
       } catch { failures.push('watch workouts'); }
       try {
-        parts.push(weightTrendLine(await loadRecentDays(28)));
+        const days28 = await loadRecentDays(28);
+        parts.push(weightTrendLine(days28));
+        // both stored daily since the health push existed and read by NOTHING
+        // until now — time-in-bed never became sleep quality, and his aerobic
+        // ceiling never informed a single word of coaching
+        const sleepEff = sleepEfficiencyLine(days28);
+        if (sleepEff) parts.push(sleepEff);
+        const vo2 = vo2MaxLine(days28);
+        if (vo2) parts.push(vo2);
       } catch { failures.push('weight trend'); }
       try {
         const s = await computeStreaks(vaultPath);

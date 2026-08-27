@@ -123,8 +123,9 @@ export async function buildReviewContext(vaultPath, now = new Date()) {
     return carryoverContext(); // recorded training debt
   });
   await add('weight', async () => {
-    const { weightTrendLine } = await import('./healthData.js');
-    return 'BODYWEIGHT: ' + weightTrendLine(await loadRecentDays(28));
+    const { weightTrendLine, sleepEfficiencyLine, vo2MaxLine } = await import('./healthData.js');
+    const d28 = await loadRecentDays(28);
+    return ['BODYWEIGHT: ' + weightTrendLine(d28), sleepEfficiencyLine(d28), vo2MaxLine(d28)].filter(Boolean).join('\n');
   });
   await add('week-ahead', async () => {
     const { fetchEventsForRange } = await import('./calendar.js');

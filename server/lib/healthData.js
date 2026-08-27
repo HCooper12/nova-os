@@ -211,6 +211,69 @@ export function weightTrendLine(days) {
   return `Bodyweight: ${t.latestKg} kg (${t.latestDate}), ${dir}${t.deltaKg} kg over ${t.spanDays} days.`;
 }
 
+// SLEEP EFFICIENCY — the number that explains a bad night.
+//
+// sleepInBedMinutes has been ingested and stored in every single day file
+// since the health push existed, and read by NOTHING: grep found zero
+// consumers outside this module. Time asleep alone cannot distinguish "six
+// hours because I went to bed late" from "six hours because I lay awake for
+// two" — and those call for opposite advice. Efficiency = asleep ÷ in bed.
+//
+// Thresholds are the conventional sleep-medicine reading (≥85% normal,
+// <75% poor), stated rather than implied so the number is interpretable. A
+// single night is noise, so this reports the recent average and names how
+// many nights it had.
+export function computeSleepEfficiency(days) {
+  const nights = (days || [])
+    .filter((d) => d.sleepAsleepMinutes > 0 && d.sleepInBedMinutes > 0 && d.sleepAsleepMinutes <= d.sleepInBedMinutes)
+    .slice(-14);
+  if (!nights.length) return null;
+  const pct = (n) => (n.sleepAsleepMinutes / n.sleepInBedMinutes) * 100;
+  const avg = nights.reduce((s, n) => s + pct(n), 0) / nights.length;
+  const latest = nights[nights.length - 1];
+  return {
+    nights: nights.length,
+    avgPct: Math.round(avg),
+    latestPct: Math.round(pct(latest)),
+    latestDate: latest.date,
+    latestAwakeMins: Math.round(latest.sleepInBedMinutes - latest.sleepAsleepMinutes),
+  };
+}
+
+export function sleepEfficiencyLine(days) {
+  const e = computeSleepEfficiency(days);
+  if (e) {
+    const verdict = e.avgPct >= 85 ? 'normal' : e.avgPct >= 75 ? 'mildly fragmented' : 'poor — he is spending real time awake in bed';
+    return `Sleep efficiency: ${e.avgPct}% over ${e.nights} night${e.nights === 1 ? '' : 's'} (${verdict}; ≥85% is the conventional normal). Latest ${e.latestDate}: ${e.latestPct}%, ${e.latestAwakeMins} min awake in bed.`;
+  }
+  // NAME THE GAP RATHER THAN OMITTING IT. Checked against his real files:
+  // zero of 40 day files carry ANY sleep figure, asleep or in-bed — his
+  // health push has never sent Sleep Analysis. Every recovery judgement
+  // Nova has ever made (the deload signal, Coach's recovery series, the
+  // health read) was therefore made without the single biggest input, and
+  // said nothing about it because a missing metric was quietly skipped.
+  // Doctrine here is explicit: missing data says so.
+  const anySleep = (days || []).some((d) => d.sleepAsleepMinutes > 0);
+  if (!anySleep) {
+    return 'SLEEP: no sleep data is reaching Nova at all (no Sleep Analysis in the health push). Every recovery judgement below is made WITHOUT sleep — say so when recovery is the question, and do not infer sleep quality from HRV alone.';
+  }
+  return 'SLEEP: duration is arriving but time-in-bed is not, so sleep efficiency cannot be computed (add Time in Bed to the health push).';
+}
+
+// VO2 MAX — his cardiorespiratory ceiling, stored daily and read by nothing.
+// Apple recomputes it slowly, so the useful reading is the direction over
+// weeks, never a day-to-day delta.
+export function vo2MaxLine(days) {
+  const pts = (days || []).filter((d) => Number.isFinite(d.vo2Max)).slice(-90);
+  if (!pts.length) return null;
+  const latest = pts[pts.length - 1];
+  if (pts.length < 2) return `VO2 max: ${latest.vo2Max.toFixed(1)} (${latest.date}; single reading, no trend yet).`;
+  const first = pts[0];
+  const delta = latest.vo2Max - first.vo2Max;
+  const dir = Math.abs(delta) < 0.5 ? 'flat' : delta > 0 ? `up ${delta.toFixed(1)}` : `down ${Math.abs(delta).toFixed(1)}`;
+  return `VO2 max: ${latest.vo2Max.toFixed(1)} (${latest.date}), ${dir} across ${pts.length} readings since ${first.date}. Apple recomputes this slowly — read the direction, not the day.`;
+}
+
 // Receipts for the health feed: every push ATTEMPT (success or failure) is
 // logged, so "did the phone even try last night?" has an answer in evidence
 // instead of guesswork — the missing-steps saga kept recurring because
