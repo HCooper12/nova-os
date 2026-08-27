@@ -256,6 +256,13 @@ export const api = {
   startClaudeCodeMessage: (conn, text, sessionId, model, workspace) => post(conn, '/api/claude-code/message', { text, sessionId, model, workspace }),
   claudeCodeJob: (conn, jobId) => call(conn, `/api/claude-code/message/${encodeURIComponent(jobId)}`),
   // the Leader — leadership development: daily idea, chat, reflection intake
+  // THE FORGE — built, cost-capped, verified live in August with a real
+  // snake game, and until now reachable only by curl: src/api.js had no
+  // forge methods at all, so no screen could start, stop or read a job.
+  forgeJobs: (conn) => call(conn, '/api/forge'),
+  forgeStart: (conn, prompt, model) => post(conn, '/api/forge', { prompt, model }),
+  forgeStop: (conn, id) => post(conn, `/api/forge/${encodeURIComponent(id)}/stop`),
+  forgeProofUrl: (conn, id) => `${conn.baseUrl.replace(/\/$/, '')}/api/forge/${encodeURIComponent(id)}/proof`,
   // the Scout — research a person or a social account into the vault
   researchPerson: (conn, subject, notes, model) => post(conn, '/api/ingest/person', { subject, notes, model }),
   leader: (conn) => call(conn, '/api/leader'),

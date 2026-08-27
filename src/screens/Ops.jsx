@@ -174,6 +174,43 @@ export function Ops({ v }) {
         </>
       )}
 
+      {/* THE FORGE — one sentence becomes a running artifact. It has had a
+          sandbox, a cost cap, a stop and screenshot proof since August, and
+          no way in from the app until now. */}
+      <div style={css("margin-top:30px;display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px")}>
+        <span style={css(`font:500 9.5px ${M};letter-spacing:.24em;color:${dim(42)}`)}>THE FORGE · A SENTENCE BECOMES SOMETHING THAT RUNS</span>
+      </div>
+      <div style={css("margin-top:10px;display:flex;gap:9px;flex-wrap:wrap")}>
+        <Interactive as="input" value={v.forge.input} onChange={v.forge.setInput} onKeyDown={v.forge.onKey}
+          placeholder="Build me a… (it works in its own sandbox, never your vault)"
+          base={{ flex: '1 1 320px', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)', borderRadius: '10px', padding: '11px 14px', color: 'var(--nv-ink)', fontSize: '13px', outline: 'none' }}
+          focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)" />
+        <Interactive as="span" onClick={v.forge.busy ? undefined : v.forge.start}
+          base={css(`cursor:${v.forge.busy ? 'default' : 'pointer'};display:flex;align-items:center;font:600 11px ${M};letter-spacing:.1em;padding:0 18px;border-radius:10px;background:var(--nv-cy);color:var(--nv-on-acc);opacity:${v.forge.busy ? .6 : 1}`)}
+          hoverStyle={v.forge.busy ? '' : 'background:color-mix(in srgb, var(--nv-cy) 82%, white)'}>
+          {v.forge.busy ? 'STARTING…' : 'BUILD IT'}
+        </Interactive>
+      </div>
+      {v.forge.jobs.length > 0 && (
+        <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:8px")}>
+          {v.forge.jobs.map((j) => (
+            <div key={j.id} style={css("border:1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent);border-radius:11px;padding:11px 13px;background:var(--nv-well)")}>
+              <div style={css("display:flex;align-items:baseline;gap:10px;flex-wrap:wrap")}>
+                <span style={{ font: `600 8.5px ${M}`, letterSpacing: '.14em', color: j.running ? 'var(--nv-cy)' : j.state === 'error' ? 'var(--nv-warn)' : dim(45) }}>{j.state.toUpperCase()}</span>
+                <span style={css("flex:1;min-width:0;font-size:12.5px;color:var(--nv-ink)")}>{j.title}</span>
+                {j.cost && <span style={{ font: `400 10.5px ${M}`, color: dim(40) }}>{j.cost}</span>}
+                {j.running && (
+                  <Interactive as="span" onClick={j.stop}
+                    base={css(`cursor:pointer;font:600 8.5px ${M};letter-spacing:.12em;padding:4px 10px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-warn) 45%, transparent);color:var(--nv-warn)`)}
+                    hoverStyle="background:color-mix(in srgb, var(--nv-warn) 12%, transparent)">STOP</Interactive>
+                )}
+              </div>
+              {j.summary && <div style={css(`margin-top:6px;font-size:11.5px;line-height:1.5;color:${dim(55)}`)}>{j.summary}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* the overnight queue — work that runs while he sleeps */}
       <div style={css("margin-top:30px;display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px")}>
         <span style={css(`font:500 9.5px ${M};letter-spacing:.24em;color:${dim(42)}`)}>OVERNIGHT QUEUE · RUNS {v.overnightWindow} WHILE YOU SLEEP</span>

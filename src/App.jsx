@@ -281,6 +281,7 @@ export default class App extends Component {
     coachSessionId: typeof localStorage === 'undefined' ? null : (localStorage.getItem('novaos.coachSession') || null),
     // the Leader — leadership development: state mirror + its conversation
     liveLeader: null, leaderChat: [], leaderInput: '', leaderBusy: false,
+    liveForge: null, forgeInput: '', forgeBusy: false,
     leaderSessionId: typeof localStorage === 'undefined' ? null : (localStorage.getItem('novaos.leaderSession') || null),
     voiceSpeak: typeof localStorage === 'undefined' ? true : localStorage.getItem('novaos.voiceSpeak') !== '0',
     // opt-in (see setWakeWord) and remembered per device
@@ -501,6 +502,7 @@ export default class App extends Component {
     // opening straight onto the Code screen (a reload, a deep link) must
     // still show what's uncommitted — navigate() only fires on a CHANGE
     if (this.state.screen === 'code') this.refreshCodeChanges();
+    if (this.state.screen === 'ops') this.refreshForge();
     this.checkPushState();
     // Boot has settled — pull the lazy screen chunks in the background so the
     // first navigation to any of them never waits on a parse.
@@ -727,6 +729,7 @@ export default class App extends Component {
     if (changed) { this.withTransition(apply); this.noteScreenVisit(screen); } else apply();
     if (changed && screen === 'voice') this.maybeGreet('voice');
     if (changed && screen === 'code') this.refreshCodeChanges(); // the diff is the first thing he wants to see
+    if (changed && screen === 'ops') this.refreshForge(); // arriving at Ops is when the fleet's jobs matter
     const want = '#/' + screen;
     // pushState (not location.hash=) so this doesn't also fire hashchange and
     // double-set state; popstate covers the back button.
@@ -3115,6 +3118,34 @@ export default class App extends Component {
     // title+author WITH text = his own copy/notes of the book — no research
     // run (nothing to gate), and the weave marks the pages provenance: read
     this.beginIngestJob(text, sourceUrl, title && author ? { title, author } : undefined);
+  }
+  // ---------- the Forge ----------
+  refreshForge() {
+    const conn = getConnection();
+    if (!conn) return;
+    api.forgeJobs(conn).then(({ jobs }) => this.setState({ liveForge: jobs })).catch(() => {});
+  }
+  startForgeBuild(prompt) {
+    const conn = getConnection();
+    const p = String(prompt ?? this.state.forgeInput).trim();
+    if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
+    if (!p) { this.toastMsg('Describe what you want built'); return; }
+    this.setState({ forgeInput: '', forgeBusy: true });
+    api.forgeStart(conn, p).then(() => {
+      this.toastMsg('The Forge has it — it will tell you when it\'s built');
+      this.setState({ forgeBusy: false });
+      this.refreshForge();
+    }).catch((e) => {
+      this.setState({ forgeBusy: false });
+      this.toastMsg(`Couldn't start that build: ${e.message}`);
+    });
+  }
+  stopForgeBuild(id) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.forgeStop(conn, id)
+      .then(() => { this.toastMsg('Stopped — receipts kept'); this.refreshForge(); })
+      .catch((e) => this.toastMsg(`Couldn't stop it: ${e.message}`));
   }
   // THE SCOUT — "research this person / this account". Rides the same ingest
   // rail as a book: research, stage, diff, his yes. The review sheet and undo
@@ -6010,11 +6041,34 @@ export default class App extends Component {
     this.stopPoll('code');
     this.setState({ codeSessionId: null, codeChat: [], codeBusy: false });
   }
+  // THE RECIPE CHAT WAS A MOCK. It answered from mockAssistants.js whether
+  // or not he was connected — it looked like Nova and replied like a demo.
+  // Connected, it is now the real Ask Nova path, with the open recipe named
+  // as context so "can I make this higher protein?" resolves to THIS dish.
+  // Demo mode keeps the scripted preview, which is what demo mode is for.
   doRecipeAsk() {
     const q = this.state.recipeInput.trim(); if (!q) return;
-    const r = this.recipes.find(x => x.id === this.state.openRecipeId); if (!r) return;
-    this.setState(s => ({ recipeChat: [...s.recipeChat, { at: Date.now(), who: 'you', text: q }], recipeInput: '' }));
-    setTimeout(() => this.typeIn('recipeChat', 'nova', recipeReply(q, r)), 480);
+    const id = this.state.openRecipeId;
+    const live = (this.state.liveRecipes || []).find((x) => x.id === id);
+    const r = live || this.recipes.find((x) => x.id === id);
+    if (!r) return;
+    this.setState((s) => ({ recipeChat: [...s.recipeChat, { at: Date.now(), who: 'you', text: q }], recipeInput: '' }));
+    const conn = getConnection();
+    if (!conn || this.state.demoMode) {
+      setTimeout(() => this.typeIn('recipeChat', 'nova', recipeReply(q, r)), 480);
+      return;
+    }
+    const macros = r.macros ? ` (per serve: ${[r.macros.kcal && `${r.macros.kcal} kcal`, r.macros.p && `${r.macros.p}g protein`].filter(Boolean).join(', ')})` : '';
+    const context = `[He is looking at the recipe "${r.name || r.title}"${macros} in his Fuel screen and is asking about THAT dish. Answer for this recipe specifically; its full page is in his vault.]`;
+    api.ask(conn, `${context}\n\n${q}`, this.state.voiceSessionId || null).then((resp) => {
+      if (resp.text) { this.typeIn('recipeChat', 'nova', resp.text); return; }
+      if (!resp.jobId) { this.typeIn('recipeChat', 'nova', 'I could not reach the vault for that one, sir.'); return; }
+      this.startPoll('recipeAsk', () => api.claudeCodeJob(conn, resp.jobId), {
+        timeoutMs: 90_000, intervalMs: 700,
+        onReady: (job) => this.typeIn('recipeChat', 'nova', job.result?.text || 'Nothing came back for that, sir.'),
+        onError: (msg) => this.typeIn('recipeChat', 'nova', `That failed: ${msg}`),
+      });
+    }).catch((e) => this.typeIn('recipeChat', 'nova', `That failed: ${e.message}`));
   }
 
   render() {

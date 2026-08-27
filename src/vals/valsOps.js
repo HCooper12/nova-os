@@ -53,6 +53,33 @@ export function valsOps(app, ctx) {
 
   return {
     isOps: st.screen === 'ops',
+    // THE FORGE, given a door. One spoken sentence becomes a real running
+    // artifact in its own sandbox; it has had receipts, a stop and
+    // screenshot proof since August and no way in from the app at all.
+    forge: {
+      input: st.forgeInput,
+      setInput: (e) => app.setState({ forgeInput: e.target.value }),
+      busy: st.forgeBusy,
+      start: () => app.startForgeBuild(),
+      onKey: (e) => { if (e.key === 'Enter') app.startForgeBuild(); },
+      // field names read off a real job file, not assumed: `state` is the
+      // lifecycle (running/built/stopped/error), `status` is the human
+      // summary line, and the cost key is costUsd.
+      jobs: (st.liveForge || []).slice(0, 6).map((j) => ({
+        id: j.id,
+        title: j.prompt ? String(j.prompt).slice(0, 90) : j.id,
+        state: j.state || 'unknown',
+        running: j.state === 'running',
+        summary: j.status ? String(j.status).slice(0, 160) : null,
+        // a build that cost real money says so; one that didn't stays quiet
+        cost: Number.isFinite(j.costUsd) && j.costUsd > 0 ? `$${j.costUsd.toFixed(2)}` : null,
+        stop: () => app.stopForgeBuild(j.id),
+        // proof is an image the server only serves when it exists — the
+        // capture needs a one-time Screen Recording grant, so an absent
+        // proof is normal and must not render a broken image
+        proofId: j.proof ? j.id : null,
+      })),
+    },
     opsLive: !demoMode && !!ops,
     opsEmptyLine: demoMode
       ? 'Operations is a live-only surface — connect to the Mac to see the real machinery.'
