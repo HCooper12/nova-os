@@ -11,6 +11,12 @@ import { loadRecentDays as loadNutritionDays } from './nutritionLog.js';
 // degrades honestly below the evidence threshold rather than guessing a
 // personality.
 
+// WHAT HE REJECTS IS THE CLEAREST THING HE EVER SAYS. Of 332 records, 229
+// were discarded — and this map decided which of those decisions became a
+// "tends to". It covered 11 kinds and missed the busiest one on the board
+// (plan-today, 31 decisions), so the loudest signal in the system was being
+// dropped. A kind belongs here whenever accepting or rejecting it expresses
+// a preference rather than a one-off fact.
 const KIND_LABEL = {
   review: 'Daily Reviews', dispatch: 'morning briefs', 'meal-prep': 'meal-prep proposals',
   research: 'research briefs', video: 'video watches', studio: 'Studio outlines', cfo: 'CFO reports',
@@ -18,6 +24,12 @@ const KIND_LABEL = {
   // couldn't improve themselves
   'food-suggestion': 'food-to-recipe suggestions', 'training-check': 'training checks',
   calendar: 'calendar changes', coach: 'session receipts',
+  'plan-today': "the day's top three", pattern: 'automation suggestions',
+  'week-plan': 'week plans', 'coach-program': 'program-review findings',
+  'fuel-cross': 'fuel × training findings', 'weekly-debrief': 'weekly debriefs',
+  distill: 'distillations', 'brain-week': 'brain-week reports',
+  study: 'study briefs', 'coach-audit': 'program audits',
+  'read-next': 'read-next suggestions', scout: 'people researched',
 };
 const MIN_DECISIONS = 3;
 

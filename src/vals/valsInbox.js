@@ -5,6 +5,25 @@
 // Adds to ctx: inboxPendingCount (sidebar badge).
 import { dtf } from './fmt.js';
 
+// WHO MADE THIS. Was a 24-branch ternary ending in 'TYPED', so any kind it
+// didn't name was silently attributed to HIM — the program review, the
+// program audit, read-next and every Forge job all showed as "TYPED", as
+// though he'd written them himself. A map can be read at a glance and
+// audited by a test; a ternary chain cannot.
+const SOURCE_LABEL = {
+  review: 'DAILY REVIEW', dispatch: 'DISPATCH', compost: 'COMPOST', guardian: 'GUARDIAN',
+  cfo: 'CFO', 'money-import': 'CFO', 'meal-prep': 'MEAL PREP', 'food-suggestion': 'NUTRITION',
+  calendar: 'SCHEDULE', 'training-check': 'TRAINING', 'week-plan': 'COMMANDER',
+  'plan-today': 'PLANNER', pattern: 'SCOUT', autonomy: 'TRUST LADDER', distill: 'DISTILLER',
+  coach: 'COACH', 'weekly-debrief': 'COACH', research: 'RESEARCHER', video: 'WATCHER',
+  'model-choice': 'MODEL CHOICE', 'brain-week': 'BRAIN WEEK', followup: 'CALENDAR',
+  studio: 'STUDIO', 'fuel-cross': 'FUEL × TRAINING', study: 'STUDY',
+  // the four that fell through to TYPED
+  'coach-program': 'PROGRAM REVIEW', 'coach-audit': 'PROGRAM AUDIT',
+  'read-next': 'LIBRARIAN', 'forge-job': 'FORGE',
+  scout: 'SCOUT · PEOPLE',
+};
+
 const ROUTE_META = {
   shopping: { label: 'SHOPPING', hue: '95,232,168' },
   journal: { label: 'JOURNAL', hue: '143,123,255' },
@@ -292,7 +311,7 @@ export function valsInbox(app, ctx) {
     captured: r.text || '',
     previewShort: preview.length > PREVIEW_CLAMP ? `${preview.slice(0, PREVIEW_CLAMP)}…` : preview,
     toggleExpand: () => app.toggleInboxExpand(r.id),
-    source: r.kind === 'review' ? 'DAILY REVIEW' : r.kind === 'dispatch' ? 'DISPATCH' : r.kind === 'compost' ? 'COMPOST' : r.kind === 'guardian' ? 'GUARDIAN' : r.kind === 'cfo' || r.kind === 'money-import' ? 'CFO' : r.kind === 'meal-prep' ? 'MEAL PREP' : r.kind === 'food-suggestion' ? 'NUTRITION' : r.kind === 'calendar' ? 'SCHEDULE' : r.kind === 'training-check' ? 'TRAINING' : r.kind === 'week-plan' ? 'COMMANDER' : r.kind === 'plan-today' ? 'PLANNER' : r.kind === 'pattern' ? 'SCOUT' : r.kind === 'autonomy' ? 'TRUST LADDER' : r.kind === 'distill' ? 'DISTILLER' : r.kind === 'coach' || r.kind === 'weekly-debrief' ? 'COACH' : r.kind === 'research' ? 'RESEARCHER' : r.kind === 'video' ? 'WATCHER' : r.kind === 'model-choice' ? 'MODEL CHOICE' : r.kind === 'brain-week' ? 'BRAIN WEEK' : r.kind === 'followup' ? 'CALENDAR' : r.kind === 'studio' ? 'STUDIO' : r.kind === 'fuel-cross' ? 'FUEL × TRAINING' : r.kind === 'study' ? 'STUDY' : r.source === 'voice' ? 'VOICE' : 'TYPED',
+    source: SOURCE_LABEL[r.kind] || (r.source === 'voice' ? 'VOICE' : 'TYPED'),
     status: r.status,
     route: r.decision ? (ROUTE_META[r.decision.route] || ROUTE_META.note) : null,
     confidence: r.decision?.confidence || null,

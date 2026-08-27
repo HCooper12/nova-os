@@ -7,6 +7,11 @@ import { listRecords } from './inboxStore.js';
 
 // kind → the agent name Hayden knows from the Ops screen / sidebar.
 // Exported: the Stream (activity feed) attributes records with the same map.
+// THE FLEET'S SHARED AWARENESS. Every conversational agent reads this block,
+// so a kind missing from this map is an agent whose work NO other agent can
+// ever mention. Five were missing — the Watcher, the Study lane, the Forge
+// and the two deterministic coach detectors all did real work invisibly.
+// A kind belongs here whenever a person would say "an agent did that".
 export const KIND_AGENT = {
   dispatch: 'Dispatch', review: 'Daily Review', 'plan-today': 'Plan Today',
   'weekly-debrief': 'Weekly Debrief', 'week-plan': 'Week Plan',
@@ -15,6 +20,11 @@ export const KIND_AGENT = {
   money: 'Money', cfo: 'CFO', research: 'Researcher', studio: 'Studio',
   guardian: 'Guardian', compost: 'Compost', pattern: 'Pattern Scout',
   autonomy: 'Trust Ladder', distill: 'Distiller', followup: 'Commander',
+  video: 'Watcher', study: 'Study Lane', 'forge-job': 'Forge',
+  'coach-program': 'Program Review', 'coach-audit': 'Program Audit',
+  'fuel-cross': 'Fuel × Training', 'read-next': 'Librarian',
+  'brain-week': 'Brain Week', 'money-import': 'Money Import',
+  scout: 'Scout',
 };
 
 const HOURS = 48;
