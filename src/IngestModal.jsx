@@ -62,13 +62,24 @@ export function IngestModal({ v }) {
 
         <div style={css("margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap")}>
           <label style={css("cursor:pointer;font-size:12px;padding:9px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);color:color-mix(in srgb, var(--nv-ink) 70%, transparent)")}>
-            Upload .txt / .md
+            Attach file (.pdf / .epub / .txt / .md)
             <input type="file" accept=".txt,.md,.epub,.pdf" onChange={v.onIngestFile} style={css("display:none")} />
           </label>
-          <span style={css("font-size:11px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{v.ingestText.length.toLocaleString()} characters</span>
+          {/* A staged book file is VISIBLE — picking one used to fire the
+              upload instantly while the button ran a different path, so the
+              modal did things no button press asked for. The file waits
+              here; Add to vault is the one act that starts work. */}
+          {v.ingestFile ? (
+            <span style={css("display:flex;align-items:center;gap:8px;font-size:11.5px;padding:7px 12px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 07%, transparent)")}>
+              ⎘ {v.ingestFile.name} · {v.ingestFile.size}
+              <Interactive as="span" onClick={v.clearIngestFile} base="cursor:pointer;color:color-mix(in srgb, var(--nv-ink) 50%, transparent);padding:0 2px" hoverStyle="color:var(--nv-warn)">✕</Interactive>
+            </span>
+          ) : (
+            <span style={css("font-size:11px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{v.ingestText.length.toLocaleString()} characters</span>
+          )}
           <div style={css("margin-left:auto;display:flex;gap:10px")}>
             <Interactive as="span" onClick={v.closeIngestModal} base="cursor:pointer;font-size:12.5px;padding:9px 16px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);color:color-mix(in srgb, var(--nv-ink) 70%, transparent)" hoverStyle="background:rgba(255,255,255,.05)">Cancel</Interactive>
-            <Interactive as="span" onClick={v.submitIngest} base="cursor:pointer;font-size:12.5px;font-weight:500;padding:9px 18px;border-radius:8px;background:var(--nv-gold);color:#1a1322" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 85%, white)">Add to vault</Interactive>
+            <Interactive as="span" onClick={v.submitIngest} base="cursor:pointer;font-size:12.5px;font-weight:500;padding:9px 18px;border-radius:8px;background:var(--nv-gold);color:#1a1322" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 85%, white)">{v.ingestFile ? 'Read & add to vault' : 'Add to vault'}</Interactive>
           </div>
         </div>
       </div>

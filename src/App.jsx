@@ -444,7 +444,7 @@ export default class App extends Component {
 
     // transcript ingest
     ingestModalOpen: false, ingestText: '', ingestSourceUrl: '', ingestBookTitle: '', ingestBookAuthor: '',
-    ingestJobId: null, ingestStatus: 'idle', ingestPreview: null, ingestError: null,
+    ingestJobId: null, ingestStatus: 'idle', ingestPreview: null, ingestError: null, ingestFile: null,
   };
 
   componentDidMount() {
@@ -3032,7 +3032,7 @@ export default class App extends Component {
   // ---------- transcript ingest ----------
   openIngestModal() {
     if (!getConnection()) { this.toastMsg('Connect a backend in Settings first'); return; }
-    this.setState({ ingestModalOpen: true, ingestText: '', ingestSourceUrl: '', ingestBookTitle: '', ingestBookAuthor: '' });
+    this.setState({ ingestModalOpen: true, ingestText: '', ingestSourceUrl: '', ingestBookTitle: '', ingestBookAuthor: '', ingestFile: null });
   }
   closeIngestModal() {
     this.setState({ ingestModalOpen: false });
@@ -3048,32 +3048,11 @@ export default class App extends Component {
     // them, which is why picking a book here used to do nothing useful. They
     // go up as bytes and the server extracts the text (macOS PDFKit / unzip).
     if (/\.(epub|pdf)$/i.test(file.name)) {
-      const conn = getConnection();
-      if (!conn) { this.toastMsg('Connect a backend first'); return; }
-      // PDFs almost never carry usable title/author metadata (his Atomic
-      // Habits copy has neither), and the server rightly refuses to file a
-      // book it cannot name. Catch that HERE — before shipping megabytes to
-      // an error he then has to interpret. EPUBs carry their own metadata,
-      // so they pass through and the server's fallback handles them.
-      if (/\.pdf$/i.test(file.name) && (!this.state.ingestBookTitle.trim() || !this.state.ingestBookAuthor.trim())) {
-        this.setState({ ingestError: null });
-        this.toastMsg('Fill in the book title and author first, then pick the PDF again — a PDF rarely knows its own name.');
-        return;
-      }
-      this.setState({ ingestStatus: 'researching', ingestError: null });
-      api.uploadBookFile(conn, file, {
-        title: this.state.ingestBookTitle.trim(),
-        author: this.state.ingestBookAuthor.trim(),
-      }).then(({ jobId, title, author, chars }) => {
-        this.setState({ ingestModalOpen: false, ingestJobId: jobId, ingestStatus: 'reading', ingestPreview: null, ingestError: null });
-        this.toastMsg(`Reading “${title}” by ${author} — ${Math.round(chars / 1000)}k characters`);
-        this.pollIngest(jobId);
-      }).catch((err) => {
-        // 'error', NEVER null: null rendered the review sheet completely
-        // BLANK and threw the message away — three upload failures in a row
-        // showed him an empty box instead of a single word of why.
-        this.setState({ ingestStatus: 'error', ingestError: err.message });
-      });
+      // STAGED, NOT FIRED. Picking a file used to start the upload that
+      // instant — while "Add to vault" ran a completely different path.
+      // His stated mental model is the honest design: attach the file
+      // and/or fill the fields, then ONE button does the work.
+      this.setState({ ingestFile: file, ingestError: null });
       return;
     }
     const reader = new FileReader();
@@ -3085,6 +3064,32 @@ export default class App extends Component {
     const sourceUrl = this.state.ingestSourceUrl.trim();
     const title = this.state.ingestBookTitle.trim();
     const author = this.state.ingestBookAuthor.trim();
+    // A STAGED BOOK FILE is the deepest path — his own copy, read in full,
+    // pages carrying provenance: read. One button, like everything else.
+    const file = this.state.ingestFile;
+    if (file) {
+      const conn = getConnection();
+      if (!conn) { this.toastMsg('Connect a backend first'); return; }
+      // PDFs almost never carry usable title/author metadata (his Atomic
+      // Habits copy has neither) and the server rightly refuses to file a
+      // book it cannot name — say so HERE, before megabytes travel to an
+      // error. EPUBs carry their own; the server falls back to it.
+      if (/\.pdf$/i.test(file.name) && (!title || !author)) {
+        this.toastMsg('Give me the book title and author too, sir — a PDF rarely knows its own name.');
+        return;
+      }
+      this.setState({ ingestModalOpen: false, ingestStatus: 'reading', ingestError: null, ingestPreview: null });
+      api.uploadBookFile(conn, file, { title, author }).then(({ jobId, title: t, author: a, chars }) => {
+        this.setState({ ingestJobId: jobId, ingestFile: null });
+        this.toastMsg(`Reading “${t}” by ${a} — ${Math.round(chars / 1000)}k characters`);
+        this.pollIngest(jobId);
+      }).catch((err) => {
+        // 'error', NEVER null: null once rendered the review sheet blank
+        // with the reason thrown away — three failures with no words.
+        this.setState({ ingestStatus: 'error', ingestError: err.message });
+      });
+      return;
+    }
     // A book with no pasted text is a Librarian research run — model-gated
     // like research and watch (deep research is a cost decision, his call).
     if (title && author && !text && !sourceUrl) {

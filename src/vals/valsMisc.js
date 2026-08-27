@@ -317,6 +317,8 @@ export function valsMisc(app, ctx) {
     ingestBookAuthor: st.ingestBookAuthor,
     setIngestBookAuthor: (e) => app.setState({ ingestBookAuthor: e.target.value }),
     onIngestFile: (e) => app.onIngestFile(e),
+    ingestFile: st.ingestFile ? { name: st.ingestFile.name, size: `${(st.ingestFile.size / 1048576).toFixed(1)} MB` } : null,
+    clearIngestFile: () => app.setState({ ingestFile: null }),
     submitIngest: () => app.submitIngest(),
     ingestStatus: st.ingestStatus,
     ingestPreview: st.ingestPreview,
