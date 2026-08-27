@@ -330,6 +330,22 @@ export function voiceRouter(vaultPath) {
   // The Morning Show / Evening Debrief — deterministic receipts composed
   // as a spoken sequence; the client plays it through the TTS FIFO with
   // panes revealing per beat. Fast by construction (no model in the loop).
+  // WAS HE BRIEFED TODAY? One truth for every device.
+  //
+  // The flag lived in each device's localStorage, so hearing the brief on
+  // his phone did nothing to stop the Mac briefing him again — which is how
+  // Nova started reading the morning brief over the top of a book analysis
+  // he was running. A per-device memory of a once-a-day event is not a
+  // memory of it at all.
+  router.get('/brief-state', async (req, res) => {
+    const { getBriefState } = await import('../lib/briefState.js');
+    res.json(await getBriefState());
+  });
+  router.post('/brief-state/delivered', async (req, res) => {
+    const { markBriefDelivered } = await import('../lib/briefState.js');
+    res.json(await markBriefDelivered(typeof req.body?.variant === 'string' ? req.body.variant : 'morning'));
+  });
+
   router.post('/show', async (req, res) => {
     try {
       const variant = req.body?.variant === 'evening' ? 'evening' : 'morning';

@@ -49,9 +49,9 @@ const jobsDir = () => path.join(process.env.NOVA_DATA_DIR || path.join(path.dirn
 async function persistJob(job) {
   try {
     await mkdir(jobsDir(), { recursive: true });
-    const { id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt, book, person } = job;
+    const { id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt, book, person, progress, heartbeatAt } = job;
     await writeFile(path.join(jobsDir(), `${id}.json`),
-      JSON.stringify({ id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt, book, person }), 'utf8');
+      JSON.stringify({ id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt, book, person, progress, heartbeatAt }), 'utf8');
   } catch (e) {
     console.error(`ingest job ${job.id} failed to persist:`, e.message);
   }
@@ -278,6 +278,14 @@ export function startIngest(vaultPath) {
           path.join(workDir, 'digest'),
           '',
           key,
+          // A book digest is 15-40 minutes. Without this the job looked
+          // identical to a dead one, which is precisely how a WORKING
+          // analysis read as another failure to him.
+          ({ done, total }) => {
+            job.progress = { done, total, of: 'parts read' };
+            job.heartbeatAt = new Date().toISOString();
+            persistJob(job);
+          },
         );
         verbatimOverride = transcriptText; // Raw/ still gets every word
         transcriptText = notes;

@@ -370,13 +370,13 @@ export function digestNotesPath(videoId) {
   return path.join(dataRoot, 'watch', `${videoId}-notes.md`);
 }
 
-export async function digestTranscriptCached(vaultPath, report, digestDir, question, videoId) {
+export async function digestTranscriptCached(vaultPath, report, digestDir, question, videoId, onProgress) {
   const cachePath = videoId ? digestNotesPath(videoId) : null;
   if (cachePath) {
     const cached = await readFile(cachePath, 'utf8').catch(() => null);
     if (cached && cached.trim()) return cached;
   }
-  const notes = await digestTranscript(vaultPath, report, digestDir, question);
+  const notes = await digestTranscript(vaultPath, report, digestDir, question, undefined, onProgress);
   if (cachePath) {
     await mkdir(path.dirname(cachePath), { recursive: true });
     await writeFile(cachePath, notes, 'utf8').catch(() => {});
@@ -387,7 +387,11 @@ export async function digestTranscriptCached(vaultPath, report, digestDir, quest
 // The chunked extraction stage: split, write chunk files, run a bounded
 // number of cheap passes concurrently, join their notes with part headers.
 // Exported for the ingest pipeline, which has the same long-video problem.
-export async function digestTranscript(vaultPath, report, digestDir, question = '', model) {
+// `onProgress({done,total})` fires as each part lands. A digest is 15-40
+// minutes of silence otherwise, and silence is indistinguishable from a
+// dead job — which is exactly how a running book analysis looked like a
+// failure to him.
+export async function digestTranscript(vaultPath, report, digestDir, question = '', model, onProgress) {
   await mkdir(digestDir, { recursive: true });
   const chunks = chunkTranscript(report.transcript, CHUNK_CHARS);
   const notes = new Array(chunks.length);
@@ -406,6 +410,9 @@ export async function digestTranscript(vaultPath, report, digestDir, question = 
       const text = stripPreamble(raw);
       if (!text) throw new Error(`extraction pass ${i + 1}/${chunks.length} returned no notes`);
       notes[i] = `## Part ${i + 1} of ${chunks.length}\n\n${text}`;
+      if (onProgress) {
+        try { onProgress({ done: notes.filter(Boolean).length, total: chunks.length }); } catch { /* a receipt must never fail the work */ }
+      }
     }
   };
   await Promise.all(Array.from({ length: Math.min(CHUNK_CONCURRENCY, chunks.length) }, worker));

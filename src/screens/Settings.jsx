@@ -300,6 +300,25 @@ export function Settings({ v }) {
             {/* the running build, so "am I on your fix?" is answerable */}
             <div style={css("margin-top:14px;font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 32%, transparent)")}>BUILD {v.novaBuild}</div>
 
+            {/* RESEARCH BROWSER. Instagram, TikTok, X and LinkedIn refuse an
+                anonymous reader, so the Scout gets a Chrome profile of its
+                own that he signs into once. His hands type the password —
+                Nova never sees one, and this is the only place in the app
+                that opens a login page at all. */}
+            <div style={css("margin-top:16px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:14px")}>
+              <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>RESEARCH BROWSER</div>
+              <div style={css("margin-top:7px;font-size:11.5px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
+                Instagram, TikTok, X and LinkedIn refuse an anonymous reader. Sign in once here and the Scout
+                reads them as you. It uses its own browser profile, never your everyday Chrome, and only ever
+                reads — it never posts, follows or fills anything. You type the password; Nova never sees it.
+              </div>
+              <Interactive as="span" onClick={v.browserSignIn.busy ? undefined : v.browserSignIn.open}
+                base={{ cursor: v.browserSignIn.busy ? 'default' : 'pointer', display: 'inline-block', marginTop: '10px', font: '600 9px var(--nv-font-mono)', letterSpacing: '.1em', padding: '7px 14px', borderRadius: '7px', border: '1px solid var(--nv-acc-border)', color: 'var(--nv-acc)', background: 'var(--nv-acc-bg)', opacity: v.browserSignIn.busy ? 0.6 : 1 }}
+                hoverStyle={v.browserSignIn.busy ? '' : 'filter:brightness(1.2)'}>
+                {v.browserSignIn.busy ? 'OPENING…' : 'SIGN IN ON THE MAC'}
+              </Interactive>
+            </div>
+
             <Interactive as="span" onClick={v.runVoiceTest}
               base={{ cursor: 'pointer', flex: 'none', font: '600 9px var(--nv-font-mono)', letterSpacing: '.1em', padding: '6px 13px', borderRadius: '7px', border: '1px solid var(--nv-acc-border)', color: 'var(--nv-acc)', background: 'var(--nv-acc-bg)' }}
             >{v.voiceTest?.running ? 'TESTING…' : 'TEST'}</Interactive>

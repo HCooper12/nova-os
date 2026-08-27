@@ -316,6 +316,10 @@ export function valsMisc(app, ctx) {
     setIngestBookTitle: (e) => app.setState({ ingestBookTitle: e.target.value }),
     ingestBookAuthor: st.ingestBookAuthor,
     setIngestBookAuthor: (e) => app.setState({ ingestBookAuthor: e.target.value }),
+    ingestProgress: st.ingestProgress && st.ingestProgress.total
+      ? `part ${st.ingestProgress.done} of ${st.ingestProgress.total} read`
+      : null,
+    browserSignIn: { busy: !!st.browserSignInBusy, open: () => app.openBrowserSignIn() },
     ingestPerson: st.ingestPerson,
     setIngestPerson: (e) => app.setState({ ingestPerson: e.target.value }),
     onIngestFile: (e) => app.onIngestFile(e),

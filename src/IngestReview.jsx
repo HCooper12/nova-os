@@ -47,7 +47,13 @@ export function IngestReview({ v }) {
             <div style={css("font-size:13px;color:color-mix(in srgb, var(--nv-ink) 60%, transparent);text-align:center")}>{v.ingestStatus === 'researching' ? 'The Librarian is researching the book — triangulating public sources takes a few minutes…' : v.ingestStatus === 'fetching' ? 'Fetching the video transcript…' : v.ingestStatus === 'digesting' ? 'Condensing a long text in passes — a whole book runs 15–40 minutes…' : v.ingestStatus === 'reading' ? 'Reading your copy — a full book is several passes, 15–40 minutes…' : v.ingestStatus === 'staging' ? 'Preparing a scratch copy of your vault…' : 'Reading it and drafting pages — this can take a minute or two…'}</div>
             {/* It is safe to leave. Saying so is the difference between a long
                 job and a hostage situation. */}
-            <div style={css("font:400 11px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 38%, transparent);text-align:center")}>Cancel closes this — the work keeps running and lands in your Inbox.</div>
+            {/* REAL PROGRESS, not a spinner. A book runs 15-40 minutes and
+                the only honest way to say "still working" is to say how far
+                it has got. */}
+            {v.ingestProgress && (
+              <div style={css("font:600 11px var(--nv-font-mono);letter-spacing:.1em;color:var(--nv-gold);text-align:center")}>{v.ingestProgress.toUpperCase()}</div>
+            )}
+            <div style={css("font:400 11px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 38%, transparent);text-align:center")}>Cancel closes this — the work keeps running and lands in your Inbox. It also survives a reload.</div>
           </div>
         )}
 

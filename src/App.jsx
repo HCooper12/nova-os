@@ -281,7 +281,7 @@ export default class App extends Component {
     coachSessionId: typeof localStorage === 'undefined' ? null : (localStorage.getItem('novaos.coachSession') || null),
     // the Leader — leadership development: state mirror + its conversation
     liveLeader: null, leaderChat: [], leaderInput: '', leaderBusy: false,
-    liveForge: null, forgeInput: '', forgeBusy: false,
+    liveForge: null, forgeInput: '', forgeBusy: false, browserSignInBusy: false,
     leaderSessionId: typeof localStorage === 'undefined' ? null : (localStorage.getItem('novaos.leaderSession') || null),
     voiceSpeak: typeof localStorage === 'undefined' ? true : localStorage.getItem('novaos.voiceSpeak') !== '0',
     // opt-in (see setWakeWord) and remembered per device
@@ -445,7 +445,7 @@ export default class App extends Component {
 
     // transcript ingest
     ingestModalOpen: false, ingestText: '', ingestSourceUrl: '', ingestBookTitle: '', ingestBookAuthor: '',
-    ingestJobId: null, ingestStatus: 'idle', ingestPreview: null, ingestError: null, ingestFile: null, ingestPerson: '',
+    ingestJobId: null, ingestStatus: 'idle', ingestPreview: null, ingestError: null, ingestFile: null, ingestPerson: '', ingestProgress: null,
   };
 
   componentDidMount() {
@@ -476,6 +476,18 @@ export default class App extends Component {
         dataReady = Promise.race([fetchDone, fetchTimeout]);
       }
     }
+    // A BOOK ANALYSIS SURVIVES A RELOAD. A 15-40 minute read must not become
+    // invisible because he closed the app — resume the poll on boot so it
+    // reappears, still running, exactly where it got to. If the server
+    // restarted underneath it, getJob answers 'error' and he sees THAT
+    // rather than an eternal spinner.
+    try {
+      const pending = localStorage.getItem('novaos.ingestJob');
+      if (pending && getConnection()) {
+        this.setState({ ingestStatus: 'reading', ingestJobId: pending });
+        this.pollIngest(pending);
+      }
+    } catch { /* private mode */ }
     Promise.all([minBootTime, dataReady]).then(() => this.setState({ booted: true }));
     if (this.state.restoredSession) {
       setTimeout(() => this.toastMsg(this.state.workoutsView === 'session'
@@ -3119,6 +3131,21 @@ export default class App extends Component {
     // run (nothing to gate), and the weave marks the pages provenance: read
     this.beginIngestJob(text, sourceUrl, title && author ? { title, author } : undefined);
   }
+  // THE BROWSER SIGN-IN. Opens a real Chrome window on his Mac so HIS hands
+  // type the credentials — Nova never sees or enters one. After this, Scout
+  // reads Instagram/TikTok/X/LinkedIn as him instead of being refused.
+  openBrowserSignIn() {
+    const conn = getConnection();
+    if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
+    this.setState({ browserSignInBusy: true });
+    api.browserSignIn(conn).then((r) => {
+      this.setState({ browserSignInBusy: false });
+      this.toastMsg(r?.text || 'A browser window is open on your Mac — sign in there, then close it');
+    }).catch((e) => {
+      this.setState({ browserSignInBusy: false });
+      this.toastMsg(`Couldn't open the browser: ${e.message}`);
+    });
+  }
   // ---------- the Forge ----------
   refreshForge() {
     const conn = getConnection();
@@ -3189,18 +3216,24 @@ export default class App extends Component {
   pollIngest(jobId) {
     const conn = getConnection();
     if (!conn) return;
+    // REMEMBERED ACROSS RELOADS. The job id lived only in memory, so closing
+    // the sheet or reloading the app orphaned a RUNNING analysis from his
+    // view forever — a book that was working looked exactly like one that
+    // had failed, which is why a 40-minute read read as another failure.
+    try { localStorage.setItem('novaos.ingestJob', jobId); } catch { /* private mode */ }
     this.setState({ ingestJobId: jobId });
     this.startPoll('ingest', () => api.ingestJob(conn, jobId), {
       intervalMs: 3000,
       timeoutMs: 30 * 60_000, // a 4h video's digest + weave legitimately runs past 15m
       onReady: (job) => this.setState({ ingestStatus: 'ready', ingestPreview: { summary: job.summary, cost: job.cost, changes: job.changes } }),
       onError: (msg) => this.setState({ ingestStatus: 'error', ingestError: msg }),
-      onProgress: (job) => this.setState({ ingestStatus: job.status }),
+      onProgress: (job) => this.setState({ ingestStatus: job.status, ingestProgress: job.progress || null }),
     });
   }
   closeIngestReview() {
     if (this.state.ingestStatus === 'ready') { this.discardIngest(); return; }
     this.stopPoll('ingest');
+    try { localStorage.removeItem('novaos.ingestJob'); } catch { /* private mode */ }
     this.setState({ ingestStatus: 'idle', ingestJobId: null, ingestPreview: null, ingestError: null });
   }
   approveIngest() {
@@ -3209,7 +3242,8 @@ export default class App extends Component {
     if (!conn || !jobId) return;
     this.setState({ ingestStatus: 'applying' });
     api.approveIngest(conn, jobId).then(() => {
-      this.setState({ ingestStatus: 'idle', ingestJobId: null, ingestPreview: null });
+      try { localStorage.removeItem('novaos.ingestJob'); } catch { /* private mode */ }
+    this.setState({ ingestStatus: 'idle', ingestJobId: null, ingestPreview: null });
       this.toastMsg('Written to your vault ✓');
       this.refreshLiveData();
     }).catch((e) => {
@@ -3220,6 +3254,7 @@ export default class App extends Component {
   discardIngest() {
     const conn = getConnection();
     const jobId = this.state.ingestJobId;
+    try { localStorage.removeItem('novaos.ingestJob'); } catch { /* private mode */ }
     this.setState({ ingestStatus: 'idle', ingestJobId: null, ingestPreview: null, ingestError: null });
     if (conn && jobId) api.discardIngest(conn, jobId).catch(() => {});
     this.toastMsg('Discarded — nothing was written');
@@ -4968,6 +5003,19 @@ export default class App extends Component {
     let last = null;
     try { last = localStorage.getItem('novaos.morningBrief'); } catch { /* private mode */ }
     if (last === today) return;
+    // ONE TRUTH, NOT ONE PER DEVICE. This flag lived only in localStorage, so
+    // being briefed on his phone left the Mac certain he hadn't been — and it
+    // briefed him again, on top of a book analysis he was running. Ask the
+    // server, which is the only place that knows about every device.
+    const conn0 = getConnection();
+    if (conn0) {
+      api.briefState(conn0).then((st) => {
+        if (st?.briefedToday) {
+          try { localStorage.setItem('novaos.morningBrief', today); } catch { /* private mode */ }
+          clearTimeout(this.morningT);
+        }
+      }).catch(() => { /* offline: the local flag still guards the common case */ });
+    }
     const h = new Date().getHours();
     if (h < 4 || h >= 12) return; // a "morning" brief at 9pm is a nuisance, not a briefing
     // THE DAY IS NOT MARKED BRIEFED HERE. It used to be, and that is why he
@@ -4996,6 +5044,10 @@ export default class App extends Component {
   markBriefedToday() {
     const today = new Date().toDateString();
     try { localStorage.setItem('novaos.morningBrief', today); } catch { /* private mode */ }
+    // and tell the server, so his other devices stop counting down to a
+    // brief he has already heard
+    const conn = getConnection();
+    if (conn) api.markBriefDelivered(conn, 'morning').catch(() => {});
   }
   // iOS gates audio behind a user gesture: playing a muted element and an
   // empty utterance during the tap unlocks both paths for the async reply.
