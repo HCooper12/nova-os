@@ -221,7 +221,7 @@ export function startIngest(vaultPath) {
         persistJob(job);
         const { runPersonResearch, composePersonDossier } = await import('./scout.js');
         await mkdir(workDir, { recursive: true });
-        const { dossier, cost } = await runPersonResearch(vaultPath, person, { notes: person.notes || '', model: person.model });
+        const { dossier, cost } = await runPersonResearch(vaultPath, person, { notes: person.notes || '', model: person.model, workDir });
         job.cost += cost;
         transcriptText = composePersonDossier(person, dossier);
         job.status = 'staging';

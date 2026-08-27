@@ -77,6 +77,27 @@ export function ingestRouter(vaultPath) {
     }
   });
 
+  // The one-time sign-in for Nova's own browser profile. Opens a REAL window
+  // so his hands enter the credentials; Nova never sees or types them, and
+  // this is the only place in the platform that opens a login page.
+  router.get('/browser/status', async (req, res) => {
+    const { browserAvailable, profileExists, PROFILE_DIR } = await import('../lib/browserResearch.js');
+    // deliberately NOT called "signedIn": the profile existing proves only
+    // that a page has been loaded once. Which platforms accept it is proven
+    // by reading them, never by a flag.
+    res.json({ chrome: browserAvailable(), profileExists: profileExists(), profile: PROFILE_DIR });
+  });
+  router.post('/browser/sign-in', async (req, res) => {
+    try {
+      const { openSignInWindow } = await import('../lib/browserResearch.js');
+      const url = typeof req.body?.url === 'string' && req.body.url ? req.body.url : undefined;
+      openSignInWindow(url).catch(() => {}); // returns when he closes it
+      res.json({ ok: true, text: 'A browser window is open on your Mac — sign in there and close it when done.' });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
   router.post('/ingest', (req, res) => {
     const { text, sourceUrl, book } = req.body || {};
     const url = sourceUrl && sourceUrl.trim() ? sourceUrl.trim() : undefined;

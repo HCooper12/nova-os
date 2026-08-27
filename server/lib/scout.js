@@ -157,10 +157,36 @@ Every URL you actually opened, one per line, each with a few words on what it ga
 
 /* --------------------------------- runner -------------------------------- */
 
-export async function runPersonResearch(vaultPath, subject, { notes = '', model } = {}) {
+/**
+ * The URLs worth reading before the model starts. Code decides — the model
+ * never picks what to open. For an account this is the profile itself plus,
+ * when he supplied one, a specific piece of work.
+ */
+export function seedUrls(subject, notes = '') {
+  const urls = [];
+  if (subject.url) urls.push(subject.url);
+  // any link he pasted in his steer is a deliberate pointer — honour it
+  for (const m of String(notes).matchAll(/https?:\/\/\S+/g)) urls.push(m[0].replace(/[),.]+$/, ''));
+  return [...new Set(urls)];
+}
+
+export async function runPersonResearch(vaultPath, subject, { notes = '', model, workDir } = {}) {
   assertLaneOn('scout');
+
+  // READ IT PROPERLY FIRST. The first live run got the Instagram bio and one
+  // Reel; the YouTube video and LinkedIn both refused an anonymous fetch.
+  // Code now gathers the primary material — yt-dlp for video, his signed-in
+  // Nova browser profile for the walled platforms — and hands it over. The
+  // model interprets; it never chooses what to open.
+  let gathered = '';
+  try {
+    const { gather, gatheredContext } = await import('./browserResearch.js');
+    const results = await gather(seedUrls(subject, notes), workDir || path.join(os.tmpdir(), 'nova-scout'), { max: 4 });
+    gathered = gatheredContext(results);
+  } catch { /* a failed gather is a thinner dossier, never a failed run */ }
+
   const args = [
-    '-p', buildScoutPrompt(subject, notes),
+    '-p', `${buildScoutPrompt(subject, notes)}${gathered ? `\n\n${gathered}` : ''}`,
     '--permission-mode', 'bypassPermissions',
     '--allowedTools', 'Read Grep Glob WebSearch WebFetch',
     '--disallowedTools', SCOUT_DISALLOWED,
