@@ -281,6 +281,19 @@ export function valsChrome(app, ctx) {
             label: `${INGEST_LABEL[st.ingestStatus] || 'Working'}${p?.total ? ` — part ${p.done} of ${p.total}` : '…'}` });
         }
       }
+      // Staged work the SERVER knows about, from any device and any day —
+      // tappable, never forced open. This is what stops 26 pages sitting
+      // invisible for a fortnight without ambushing him at every launch.
+      for (const j of (st.liveIngestJobs || [])) {
+        if (j.status === 'ready') {
+          jobs.push({ id: `ing-${j.id}`, kind: 'ingest', done: true,
+            label: `Ready for review — ${j.label} (${j.changes} page${j.changes === 1 ? '' : 's'})`,
+            go: () => app.openIngestJob(j.id) });
+        } else if (j.status === 'error') {
+          jobs.push({ id: `ing-${j.id}`, kind: 'ingest', failed: true,
+            label: `${j.label} — ${String(j.error || 'failed').slice(0, 70)}` });
+        }
+      }
       if (st.leaderBusy) jobs.unshift({ id: 'leader', kind: 'leader', label: 'The Leader is thinking…', go: () => app.navigate('leader') });
       if (st.coachBusy) jobs.unshift({ id: 'coach', kind: 'coach', label: 'Coach is reading your history…', go: () => app.navigate('workouts') });
       if (st.forgeBusy) jobs.unshift({ id: 'forge', kind: 'forge', label: 'The Forge is starting a build…', go: () => app.navigate('ops') });

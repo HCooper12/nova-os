@@ -281,7 +281,7 @@ export default class App extends Component {
     coachSessionId: typeof localStorage === 'undefined' ? null : (localStorage.getItem('novaos.coachSession') || null),
     // the Leader — leadership development: state mirror + its conversation
     liveLeader: null, leaderChat: [], leaderInput: '', leaderBusy: false,
-    liveForge: null, forgeInput: '', forgeBusy: false, browserSignInBusy: false,
+    liveForge: null, forgeInput: '', forgeBusy: false, browserSignInBusy: false, liveIngestJobs: [],
     leaderSessionId: typeof localStorage === 'undefined' ? null : (localStorage.getItem('novaos.leaderSession') || null),
     voiceSpeak: typeof localStorage === 'undefined' ? true : localStorage.getItem('novaos.voiceSpeak') !== '0',
     // opt-in (see setWakeWord) and remembered per device
@@ -487,16 +487,17 @@ export default class App extends Component {
         this.setState({ ingestStatus: 'reading', ingestJobId: pending });
         this.pollIngest(pending);
       } else if (getConnection()) {
-        // Nothing remembered here — ask the SERVER. A job started on his
-        // phone, or before this device knew how to remember one, is still
-        // his job: 22 staged pages he paid for must not be stranded because
-        // a browser tab forgot an id.
-        api.openIngestJobs(getConnection()).then(({ jobs }) => {
-          const open = (jobs || []).find((j) => j.status === 'ready') || (jobs || [])[0];
-          if (!open || open.status === 'error') return;
-          this.setState({ ingestStatus: open.status, ingestJobId: open.id });
-          this.pollIngest(open.id);
-        }).catch(() => { /* offline — nothing to resume from */ });
+        // Nothing remembered here — ask the SERVER what is open, and put it
+        // in the WORKING panel. Deliberately NOT opened as a modal:
+        //   - Two ready jobs meant the "Approve — write to vault" sheet
+        //     ambushed him on EVERY launch, which is its own kind of broken.
+        //   - Worse, setting status 'ready' without a preview crashed the
+        //     app to a black screen (IngestReview read .summary off null).
+        // Work he can see and choose to open beats work that seizes the
+        // screen. He taps it in the panel when he wants it.
+        api.openIngestJobs(getConnection())
+          .then(({ jobs }) => this.setState({ liveIngestJobs: jobs || [] }))
+          .catch(() => { /* offline — the panel simply shows nothing */ });
       }
     } catch { /* private mode */ }
     Promise.all([minBootTime, dataReady]).then(() => this.setState({ booted: true }));
@@ -3157,6 +3158,15 @@ export default class App extends Component {
       this.toastMsg(`Couldn't open the browser: ${e.message}`);
     });
   }
+  // Open a staged job HE chose to look at. Goes through the poll, which
+  // fetches the changes and sets ingestPreview BEFORE the sheet is asked to
+  // render 'ready' — the ordering whose absence turned his phone black.
+  openIngestJob(jobId) {
+    const conn = getConnection();
+    if (!conn || !jobId) return;
+    this.setState({ ingestStatus: 'staging', ingestPreview: null, ingestError: null });
+    this.pollIngest(jobId);
+  }
   // ---------- the Forge ----------
   refreshForge() {
     const conn = getConnection();
@@ -5179,8 +5189,17 @@ export default class App extends Component {
       // simply never spoke. Marking on genuine playback means a blocked
       // morning retries on the next open instead of being written off.
       // When speech is off entirely, reading it IS the brief.
-      if (opts.auto && !spoken) this.markBriefedToday();
-      if (opts.auto && spoken) this.briefPendingMark = true;
+      // ONCE A DAY, FULL STOP — HIS INSTRUCTION.
+      //
+      // This used to mark the day briefed only when audio genuinely PLAYED,
+      // so that a morning iOS silently blocked would retry on the next open.
+      // Reasonable in theory; in practice an auto-brief on his phone has no
+      // gesture behind it and is blocked almost every time, so the retry
+      // fired on EVERY launch — reading the brief over the top of whatever
+      // he was doing, repeatedly. The content is on screen and one tap
+      // replays the audio; re-delivering the whole brief is the worse
+      // failure by far.
+      if (opts.auto) this.markBriefedToday();
       this.clearStage();
       // THE FIRST BEAT NEVER WAITS FOR AUDIO.
       //
@@ -5684,7 +5703,6 @@ export default class App extends Component {
     this.speechEverPlayed = true;
     this.speechBlockedTexts = [];
     // the automatic brief only counts as delivered once a line truly played
-    if (this.briefPendingMark) { this.briefPendingMark = false; this.markBriefedToday(); }
     if (this.state.speechBlocked) this.setState({ speechBlocked: null });
   }
   // It didn't. Say so, and keep the words so one tap can play them: a tap is

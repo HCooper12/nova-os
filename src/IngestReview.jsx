@@ -23,6 +23,12 @@ export function IngestReview({ v }) {
   // in state — a failure the user cannot see is a failure that gets retried
   // blind, three times, on camera.
   const errored = v.ingestStatus === 'error' || (!processing && !applying && v.ingestStatus !== 'ready');
+  // A 'ready' status with no preview took the WHOLE APP to a black screen
+  // (.summary read off null, thrown during render, nothing left to paint).
+  // A sheet that cannot draw its content must degrade to a sentence, never
+  // to a blank device.
+  const preview = v.ingestPreview;
+  const readyButEmpty = (v.ingestStatus === 'ready' || applying) && !preview;
   return (
     <div role="dialog" aria-modal="true" aria-label="Review ingest changes" onClick={processing ? undefined : v.closeIngestReview} style={css("position:fixed;inset:0;background:rgba(8,5,12,.72);backdrop-filter:blur(6px);z-index:60;display:flex;align-items:center;justify-content:center;padding:40px;overflow-y:auto")}>
       <div onClick={v.stopClick} style={css("width:700px;max-width:94vw;max-height:88vh;overflow-y:auto;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 40px 90px -30px rgba(0,0,0,.95),inset 0 1px 0 var(--nv-spec);animation:fadeUp .3s ease-out;padding:26px 28px")}>
@@ -66,14 +72,18 @@ export function IngestReview({ v }) {
           </div>
         )}
 
-        {(v.ingestStatus === 'ready' || applying) && (
+        {readyButEmpty && (
+          <div style={css("margin-top:20px;font-size:13px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 70%, transparent)")}>Loading the proposed changes…</div>
+        )}
+
+        {(v.ingestStatus === 'ready' || applying) && preview && (
           <>
             <h2 style={css("margin:16px 0 0;font:400 24px var(--nv-font-serif)")}>Proposed changes</h2>
-            <div style={css("margin-top:10px;font-size:13px;line-height:1.7;color:color-mix(in srgb, var(--nv-ink) 80%, transparent);white-space:pre-wrap")}>{v.ingestPreview.summary}</div>
-            <div style={css("margin-top:10px;font-size:11px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Cost: ${v.ingestPreview.cost.toFixed(3)}</div>
+            <div style={css("margin-top:10px;font-size:13px;line-height:1.7;color:color-mix(in srgb, var(--nv-ink) 80%, transparent);white-space:pre-wrap")}>{preview.summary}</div>
+            <div style={css("margin-top:10px;font-size:11px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Cost: ${preview.cost.toFixed(3)}</div>
 
             <div style={css("margin-top:18px;display:flex;flex-direction:column;gap:10px")}>
-              {v.ingestPreview.changes.map((c, i) => <ChangeCard key={i} change={c} />)}
+              {preview.changes.map((c, i) => <ChangeCard key={i} change={c} />)}
             </div>
 
             <div style={css("margin-top:20px;display:flex;gap:10px")}>
