@@ -232,6 +232,31 @@ export function MissionControl({ v }) {
         </div>
       </section>
 
+      {/* NOVA IS WORKING — the persistent, unmissable answer to "is anything
+          actually happening?". His standing requirement after a 40-minute
+          book analysis ran with no sign of life anywhere in the app. Placed
+          ABOVE the day's plan on purpose: work in flight outranks work
+          planned, and he must never have to go looking for it. */}
+      {v.jobTray.jobs.length > 0 && (
+        <section className="nv-pane" style={{ marginTop: mob ? '12px' : '18px', padding: mob ? '14px 16px' : '18px 22px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px' }}>
+            <span style={{ font: `500 9.5px ${M}`, letterSpacing: '.26em', color: 'var(--nv-cy)' }}>NOVA IS WORKING</span>
+            <span style={{ font: `500 8.5px ${M}`, letterSpacing: '.14em', color: 'var(--nv-ink40)' }}>{v.jobTray.jobs.length} IN FLIGHT</span>
+          </div>
+          <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {v.jobTray.jobs.map((j) => (
+              <div key={j.id} onClick={j.go || undefined}
+                style={{ display: 'flex', alignItems: 'baseline', gap: '10px', cursor: j.go ? 'pointer' : 'default' }}>
+                <span style={{ flex: 'none', font: `600 12px ${M}`, color: j.failed ? 'var(--nv-warn)' : j.done ? '#5aa87c' : 'var(--nv-cy)' }}>
+                  {j.failed ? '✕' : j.done ? '✓' : '◍'}
+                </span>
+                <span style={{ flex: 1, minWidth: 0, font: `450 13px/1.5 var(--nv-font-ui)`, color: 'var(--nv-ink)' }}>{j.label}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {(v.planToday || v.commandDeck.count > 0) && (
         <section style={{ marginTop: mob ? '12px' : '18px', display: mob ? 'flex' : 'grid', flexDirection: 'column', gridTemplateColumns: v.planToday && v.commandDeck.count > 0 ? '1.15fr .85fr' : '1fr', gap: mob ? '12px' : '18px' }}>
           {v.planToday && (

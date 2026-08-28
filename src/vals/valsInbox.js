@@ -57,6 +57,17 @@ const ROUTE_META = {
 // ROUTE_META.
 const MODEL_CHOICE_LANE_LABEL = { 'pattern-scout': 'PATTERN SCOUT', distill: 'DISTILL' };
 
+// THESE ARE BOTH CALLERS AND CLICK HANDLERS, and that broke them silently.
+//
+// Called from the palette they get a string; wired straight to onClick they
+// get a MouseEvent — which is not nullish, so `text ?? st.inboxInput` kept
+// the EVENT and `.trim()` threw before a single request was made. RESEARCH,
+// WATCH and WATCH + ANALYSE therefore did nothing at all when clicked, with
+// no error he could see: he pressed the button and the app sat there.
+// Reproduced in a real browser before fixing —
+// "TypeError: (text ?? st.inboxInput).trim is not a function".
+const asText = (v) => (typeof v === 'string' ? v : undefined);
+
 const MODE_LADDER = [
   { value: 'review-all', label: 'Review everything', hint: 'Nova drafts the filing — you approve every one' },
   { value: 'auto-high', label: 'Auto-file high confidence', hint: 'sure things file themselves; doubts wait for you' },
@@ -536,21 +547,21 @@ export function valsInbox(app, ctx) {
     // when a submit fires, so reading st.inboxInput here would drop the last
     // characters typed. A lost capture is a lost thought; the value travels
     // with the call instead of being looked up.
-    submitInboxCapture: (source, text) => app.captureToInbox(text ?? st.inboxInput, source),
+    submitInboxCapture: (source, text) => app.captureToInbox(asText(text) ?? st.inboxInput, source),
     submitResearch: (text) => {
-      const q = (text ?? st.inboxInput).trim();
+      const q = (asText(text) ?? st.inboxInput).trim();
       if (!q) { app.toastMsg('Type the research question first'); return; }
       app.setState({ inboxInput: '' });
       app.startResearch(q);
     },
     submitWatch: (text) => {
-      const t = (text ?? st.inboxInput).trim();
+      const t = (asText(text) ?? st.inboxInput).trim();
       if (!/https?:\/\//.test(t)) { app.toastMsg('Paste the video link first (a question alongside it is welcome)'); return; }
       app.setState({ inboxInput: '' });
       app.startVideoWatch(t);
     },
     submitWatchAnalyse: (text) => {
-      const t = (text ?? st.inboxInput).trim();
+      const t = (asText(text) ?? st.inboxInput).trim();
       const url = (t.match(/https?:\/\/\S+/) || [])[0];
       if (!url) { app.toastMsg('Paste the video link first'); return; }
       app.setState({ inboxInput: '' });

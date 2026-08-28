@@ -90,6 +90,21 @@ export function MissionStructured({ v }) {
       </Group>
     ),
 
+    // WORKING — the persistent answer to "is anything actually happening?".
+    // His standing requirement after a book analysis ran 40 minutes with no
+    // sign of life anywhere: any agent doing work is visible on the home
+    // screen, always, without him going to look for it.
+    working: v.jobTray.jobs.length > 0 ? (
+      <Group key="working" label="Nova is working" trailing={<span style={{ font: `500 10px ${M}`, letterSpacing: '.12em', color: 'var(--nv-cy)' }}>{v.jobTray.jobs.length} RUNNING</span>}>
+        {v.jobTray.jobs.map((j, i) => (
+          <GRow key={j.id} first={i === 0}
+            leading={<span style={{ font: `600 12px ${M}`, color: j.failed ? 'var(--nv-warn)' : j.done ? 'var(--nv-good, #5aa87c)' : 'var(--nv-cy)' }}>{j.failed ? '✕' : j.done ? '✓' : '◍'}</span>}
+            title={j.label}
+            onClick={j.go || undefined} />
+        ))}
+      </Group>
+    ) : null,
+
     lead: v.leaderToday ? (
       <Group key="lead" label="Lead · try today" trailing={<span style={{ font: `500 10px ${M}`, letterSpacing: '.12em', color: 'var(--nv-gold)' }}>{v.leaderToday.chip}</span>}>
         <div style={{ padding: '13px 16px' }}>
@@ -242,10 +257,10 @@ export function MissionStructured({ v }) {
   // the day decides the order: morning = body first; after that, what to DO
   // (focus + calendar) leads and the vitals step back
   const order = morning
-    ? ['hero', 'vitals', 'plan', 'lead', 'focus', 'today', 'deck', 'review', 'noticed', 'shortcuts', 'agents']
+    ? ['working', 'hero', 'vitals', 'plan', 'lead', 'focus', 'today', 'deck', 'review', 'noticed', 'shortcuts', 'agents']
     : hour < 17
-      ? ['focus', 'lead', 'plan', 'today', 'deck', 'hero', 'vitals', 'noticed', 'review', 'shortcuts', 'agents']
-      : ['focus', 'plan', 'lead', 'today', 'deck', 'vitals', 'review', 'hero', 'noticed', 'shortcuts', 'agents'];
+      ? ['working', 'focus', 'lead', 'plan', 'today', 'deck', 'hero', 'vitals', 'noticed', 'review', 'shortcuts', 'agents']
+      : ['working', 'focus', 'plan', 'lead', 'today', 'deck', 'vitals', 'review', 'hero', 'noticed', 'shortcuts', 'agents'];
 
   return (
     <div style={v.wrapMission} data-screen-label="Mission Control">

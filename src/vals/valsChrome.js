@@ -259,6 +259,31 @@ export function valsChrome(app, ctx) {
         .map((r) => ({ id: r.id, label: `${KIND_NAME[r.kind] || 'Filing'} — ${(r.text || '').slice(0, 60)}`, kind: r.kind || 'capture' }));
       if (st.codeBusy) jobs.unshift({ id: 'code', label: 'Claude Code — session running', kind: 'code', go: () => app.navigate('code') });
       if (st.verdictBusy) jobs.unshift({ id: 'verdict', label: 'Building a verdict…', kind: 'verdict' });
+      // EVERY LONG-RUNNING THING HE STARTED, not just the ones that happen to
+      // file an inbox record. A vault ingest (a book, a person, a video weave)
+      // runs 15-40 minutes entirely outside the record rails, so the tray —
+      // the one place that answers "is anything actually happening?" — showed
+      // nothing at all while the machine was working hardest.
+      const INGEST_LABEL = {
+        researching: 'Researching', fetching: 'Fetching the transcript', digesting: 'Reading it in parts',
+        staging: 'Preparing your vault', running: 'Drafting the pages', reading: 'Reading your copy',
+        applying: 'Writing to your vault',
+      };
+      if (st.ingestStatus && st.ingestStatus !== 'idle') {
+        if (st.ingestStatus === 'ready') {
+          jobs.unshift({ id: 'ingest', kind: 'ingest', done: true,
+            label: `Ready for your review — ${(st.ingestPreview?.changes || []).length} page${(st.ingestPreview?.changes || []).length === 1 ? '' : 's'}` });
+        } else if (st.ingestStatus === 'error') {
+          jobs.unshift({ id: 'ingest', kind: 'ingest', failed: true, label: `Ingest failed — ${String(st.ingestError || 'no reason given').slice(0, 60)}` });
+        } else {
+          const p = st.ingestProgress;
+          jobs.unshift({ id: 'ingest', kind: 'ingest',
+            label: `${INGEST_LABEL[st.ingestStatus] || 'Working'}${p?.total ? ` — part ${p.done} of ${p.total}` : '…'}` });
+        }
+      }
+      if (st.leaderBusy) jobs.unshift({ id: 'leader', kind: 'leader', label: 'The Leader is thinking…', go: () => app.navigate('leader') });
+      if (st.coachBusy) jobs.unshift({ id: 'coach', kind: 'coach', label: 'Coach is reading your history…', go: () => app.navigate('workouts') });
+      if (st.forgeBusy) jobs.unshift({ id: 'forge', kind: 'forge', label: 'The Forge is starting a build…', go: () => app.navigate('ops') });
       return {
         jobs,
         open: !!st.jobTrayOpen,
