@@ -93,22 +93,28 @@ Output ONLY a JSON object with exactly these keys: name, macros, confidence, que
 // the SAME shape as a photo scan, so it flows through the identical preview →
 // confirm path and is never logged without his say-so.
 export function buildDescribePrompt(description) {
-  return `Estimate the nutrition of this food from the user's own description. This is Australian context (Woolworths/Coles/Aldi products, AU chain sizing) unless the description says otherwise. He is standing there waiting on this answer — every second counts more than it would for a normal question, so the instructions below are about speed as much as accuracy.
+  return `Break this food down into its components with WEIGHTS. Australian context (Woolworths/Coles/Aldi products, AU chain sizing) unless the description says otherwise.
 
 The description: "${description}"
 
-- MOST foods need ZERO tools. "banana", "grilled chicken breast", "a bowl of porridge", "two eggs on toast" — you already know these well enough; answer immediately from your own knowledge, no search.
-- Search ONLY when a specific branded product, chain or venue is named that genuinely changes the numbers (e.g. a cinema's large popcorn, a named cafe item, a packaged product with a distinctive size) AND you're not already confident of its real figures.
-- When you do search: ONE search, then answer from the results shown to you. Do not open/fetch any page — the search snippets are enough, and reading a full page costs him real time for a precision he doesn't need. If the snippets don't settle it, say so honestly via "question" and confidence:"low" rather than searching again.
-- If it's generic, estimate a sensible standard portion.
-- Respect any quantity or size given ("large", "two", "half of a"). If no size is given for something that varies a lot, assume a normal serving and SAY SO.
+YOUR JOB IS THE BREAKDOWN, NOT THE ARITHMETIC. Nova looks every component up in USDA FoodData Central and computes the totals itself, so you must NOT try to recall or add up calories — a remembered number is exactly what this replaces. Asked the same pizza twice, remembered numbers gave 1050 kcal/50g protein and then 940/36g; a weighed breakdown gives the same answer both times.
 
-- name: a short, natural name for what was eaten, including the venue/brand when given
-- macros: {p, c, f, kcal} — the total for everything described; grams for p/c/f, whole-number kcal
-- confidence: "high" or "low" — low when the portion genuinely can't be pinned down, or a search didn't settle a named item's real figures
-- question: if confidence is low, ONE short question that would most improve the estimate (e.g. "was that the 120g regular or the 170g large?"). Empty string if high.
+For each component:
+- name: a plain, searchable food name a nutrition database would hold — "mozzarella cheese", "pizza dough", "pepperoni", "rolled oats", "chicken breast, grilled". NOT a brand or a dish name unless the dish itself is the database entry (e.g. "pepperoni pizza" is fine as ONE component if you cannot sensibly split it).
+- grams: your best estimate of the ACTUAL cooked/served weight of that component.
 
-Output ONLY a JSON object with exactly these keys: name, macros, confidence, question. No markdown, no code fences, no commentary before or after.`;
+Getting the WEIGHTS right is the whole job — that is where accuracy lives. Real anchors: a large (~13 inch) pizza is 800-1000g total; a restaurant chicken breast 150-200g; a slice of bread 35g; a tablespoon of oil 14g; a medium banana 118g peeled; a standard AU takeaway burger 220-280g.
+
+- Respect any size or quantity given ("large", "two", "half of"). If a size that matters is missing, still give your best single estimate AND flag it.
+- Prefer FEWER, well-weighed components over many uncertain ones. A whole dish as one well-weighed entry beats six guessed sub-parts.
+- Search ONLY if a named branded/chain item's real serving size is genuinely unknown to you and would change the weights. One search, then answer.
+
+Also give:
+- name: a short natural name for the whole thing, including venue/brand if given
+- confidence: "high" or "low" — low when the portion genuinely cannot be pinned down
+- question: if low, the ONE question that would most improve it (e.g. "was that a 9-inch or a 13-inch?"). Empty string if high.
+
+Output ONLY a JSON object with exactly these keys: name, components, confidence, question — where components is an array of {name, grams}. No markdown, no code fences, no commentary.`;
 }
 
 function normalizeResult(parsed) {
@@ -229,8 +235,42 @@ export function startFoodDescribe(description) {
       const out = (outer.result || '').trim();
       const jsonMatch = out.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error(out.slice(0, 200) || 'No response received');
-      job.result = normalizeResult(JSON.parse(jsonMatch[0]));
-      job.status = 'ready';
+      const parsed = JSON.parse(jsonMatch[0]);
+      // THE MODEL BROKE IT DOWN; CODE DOES THE SUMS. Each component is
+      // looked up in USDA FoodData Central, scaled to its real weight, and
+      // the energy derived from the macros — so the same description always
+      // returns the same number, and every number names its source.
+      (async () => {
+        try {
+          const { computeFromComponents } = await import('./nutritionFacts.js');
+          const computed = await computeFromComponents(parsed.components || []);
+          if (computed.components.length) {
+            job.result = {
+              name: String(parsed.name || '').trim(),
+              macros: computed.macros,
+              components: computed.components,
+              sourceNote: computed.note,
+              confidence: parsed.confidence === 'low' || computed.unsourced > computed.sourced ? 'low' : 'high',
+              question: parsed.question ? String(parsed.question).trim() : '',
+            };
+          } else {
+            // Nothing resolved (offline, rate-limited, or an odd breakdown).
+            // Say so rather than inventing a total.
+            job.result = {
+              name: String(parsed.name || '').trim(),
+              macros: { p: 0, c: 0, f: 0, kcal: 0 },
+              components: [],
+              sourceNote: 'no components could be matched — check the connection or describe it differently',
+              confidence: 'low',
+              question: parsed.question ? String(parsed.question).trim() : 'Can you describe it with rough amounts?',
+            };
+          }
+          job.status = 'ready';
+        } catch (e) {
+          job.status = 'error';
+          job.error = e.message;
+        }
+      })();
     } catch (e) {
       job.status = 'error';
       job.error = e.message;

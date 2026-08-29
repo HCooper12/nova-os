@@ -74,15 +74,20 @@ test('never re-proposes the same item on a later run', async () => {
   assert.equal(res.proposed, 0, 'already proposed once → no repeat, even after dismissal');
 });
 
-test('describe-it prompt: AU context, real lookups for named venues, honest confidence', async () => {
+test('describe-it prompt: decompose into weighed components, never recall totals', async () => {
   const { buildDescribePrompt } = await import('../lib/scanFood.js');
   const p = buildDescribePrompt('1 large movie popcorn from Village Cinemas');
   assert.match(p, /1 large movie popcorn from Village Cinemas/);
   assert.match(p, /Australian context/);
-  assert.match(p, /Search ONLY when a specific branded product, chain or venue is named/);
-  assert.match(p, /ONE search, then answer from the results/, 'speed: no full-page fetch for a search he is waiting on');
+  // THE CONTRACT CHANGED, deliberately. Asking the model to recall totals is
+  // what produced 1050 kcal/50g then 940/36g for one pizza. It now supplies
+  // WEIGHTS and code does the arithmetic against USDA.
+  assert.match(p, /NOT the arithmetic/i, 'the model must be told the sums are not its job');
+  assert.match(p, /grams: your best estimate/i, 'weights are the thing being asked for');
+  assert.match(p, /WEIGHTS right is the whole job/i, 'accuracy lives in the portion estimate');
+  assert.match(p, /Output ONLY a JSON object with exactly these keys: name, components, confidence, question/);
+  assert.doesNotMatch(p, /already know these well enough/, 'the recall instruction must be gone');
   assert.match(p, /confidence.*"high" or "low"/s);
-  assert.match(p, /Output ONLY a JSON object with exactly these keys: name, macros, confidence, question/);
 });
 
 test('describe-it refuses input too thin or too long to be honest about', async () => {

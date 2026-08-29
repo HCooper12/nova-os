@@ -9,7 +9,15 @@ import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { backupFile } from './backup.js';
 
 const SKIP = new Set(['.obsidian', '.claude', '.DS_Store']);
-const MAX_BUDGET_USD = '3';
+// NO MORE DYING NEARLY-DONE. A $3 ceiling was set for a pasted note and then
+// applied to full vault weaves, so a video with a lot of real ideas in it
+// spent $3.08, was killed, and wrote NOTHING — he paid for the work and got
+// none of it, twice. A cap that discards completed work is worse than no cap.
+//
+// These are now backstops against a runaway loop, not budgets: a normal weave
+// lands well under them (his book's was $3.53, the Scout's $2.36), and both
+// are overridable in server/.env if a job ever legitimately needs more.
+const MAX_BUDGET_USD = process.env.NOVA_INGEST_BUDGET_USD || '25';
 // Mirrors watcher.js's own threshold — imported lazily there, so name it
 // here rather than reaching into that module at load time.
 const SINGLE_PASS_MAX_CHARS_ING = 150_000;
@@ -32,7 +40,7 @@ export function digestCacheKey(book, text) {
 // A digested long video's weave reads condensed notes PLUS targeted slices
 // of the verbatim transcript — the extra headroom is what makes "nothing
 // lost" affordable to honor.
-const DIGEST_BUDGET_USD = '8';
+const DIGEST_BUDGET_USD = process.env.NOVA_INGEST_DIGEST_BUDGET_USD || '40';
 // launchd services don't inherit the interactive shell's PATH, so `claude` (installed
 // under ~/.local/bin) wouldn't resolve via a bare spawn('claude', ...) — use the
 // absolute path. Override with CLAUDE_BIN in .env if it lives somewhere else.
