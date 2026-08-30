@@ -14,205 +14,191 @@ the session log at the foot is append-only.
 ## CURRENT HANDOFF
 
 **25–26 AUG — THE SHIP-VERIFICATION CRISIS, EVIDENCE-ON-SCREEN, THE
-QUESTION-BY-QUESTION BRIEF CLOSE, AND COACH READING HIS OWN WORDS.**
+27–30 AUG — THE BLACK SCREEN, THE AMBUSH SHEET, THE ONCE-A-DAY BRIEF, THE
+INGEST CAP THAT ATE A JOB, AND FOOD MACROS THAT COMPUTE INSTEAD OF RECALL.**
 
-GOAL: a very long multi-thread session, mostly reactive to him hitting real
-gaps in real use. In rough order: (1) universal evidence-on-screen for
-anything Nova says out loud. (2) Diagnose and fix why the phone brief was
-silent/blank/looping. (3) Infographics for Coach/Fuel findings instead of
-paragraphs. (4) A question-by-question close to the morning brief so he
-doesn't have to remember what to act on. (5) Let Coach actually apply
-program edits from the CHAT, not just the Inbox. (6) **Stop telling him
-things are shipped when they are not** — this became the dominant thread
-after repeated real failures eroded his trust. (7) Make Coach read, hold
-load on, and coach from his per-exercise session notes.
+GOAL: reactive, from him hitting four separate real failures in real use.
+(1) Phone opened to a black screen. (2) The ingest review sheet seized the
+screen on every launch. (3) The morning brief re-read itself on every open
+instead of once a day. (4) A video ingest spent $3.08, hit a $3 cap, and
+was killed with nothing written to the vault — "I should be able to just
+add the video and it keeps going in the background." (5) Food-macro logging
+gave two different totals for the identical description of the same pizza
+— "this seems a big discrepancy... this capability needs to be improved
+profoundly."
 
 DONE CRITERIA:
-- Evidence-on-screen — MET. `inferPanelDirective` (deterministic, code
-  decides the panel from the question, never the model) wired into Ask Nova
-  AND Coach chat. `sessions` panel added (recent-workouts, didn't exist
-  before). Every render site wrapped in `SafeVisual` — an error boundary
-  that degrades to a small note instead of blanking the whole screen, which
-  is what a malformed panel used to do (no boundary existed anywhere in the
-  app before this session).
-- Phone voice diagnosis — MET, three DISTINCT root causes found by actually
-  watching his screen recordings frame-by-frame rather than guessing:
-  (a) the auto/manual brief raced `liveTts` fetched in the startup batch —
-  now waits (12s auto / 4s manual) before deciding it can't speak;
-  (b) `stageFocus`'s full-screen blur scrim spotlit a card rendered in
-  normal page flow below the fold on mobile — literally blurring nothing;
-  fixed by drawing the focused card INSIDE the scrim on mobile;
-  (c) `primeSpeech()`'s "unlock" element had its `.src` reassigned to every
-  TTS blob as it played, so unlocking replayed his LAST sentence at full
-  volume and blocked the mic ("Dictation: aborted", visible in his
-  recording) — now resets to silence first.
-- Infographics — MET. `findingCards.js` maps every coach/fuel finding kind
-  to a bars/metric card FROM THE SAME NUMBERS the spoken line quotes (never
-  invented). Fuel findings didn't expose their numbers before this session
-  (baked into prose) — now do (`data: {...}` on the finding, `finding:` on
-  the raised record).
-- Question-by-question close — MET. `briefDecisions.js`: existing pending
-  records (coach-program/fuel-cross/read-next/coach-audit), asked one at a
-  time, yes/no/later maps onto the EXISTING approve/discard rails. Capped at
-  5, ordered by consequence. Ships inside `/api/show`'s response.
-- Coach applies from chat — MET, but the deploy-verification crisis (below)
-  is WHY this took three tries to actually land for him.
-- Ship-verification failsafe — MET. This is now the load-bearing
-  infrastructure change of the session; see STATE and DECISIONS.
-- Session notes reach every surface — MET. `sessionNotes.js` (narrow signal
-  reader, suppress-only) wired into the progression engine (a note can HOLD
-  a load increase, quoting his sentence), a new `findNoteSignals` detector
-  (his own repeated report outranks every computed signal), the weekly
-  audit, the Sunday debrief (previously dropped notes/pain/cutShort
-  entirely), and both new+resumed Coach prompts.
+- Black screen — MET (`b6c1e51`). Reproduced at phone size before touching
+  anything: a stale boot-resume set `ingestStatus:'ready'` from the job
+  list WITHOUT loading the preview, so `IngestReview` rendered its ready
+  branch against a null preview and threw during render, taking the whole
+  app down. A sheet that can't draw its content now degrades to a sentence,
+  never a blank device.
+- Ambush review sheet — MET (`b6c1e51`), same root fix. Boot now surfaces
+  open ingest work in the WORKING panel — visible, tappable, never forced
+  — instead of seizing the screen. Tapping goes through the poll so the
+  preview loads BEFORE the sheet renders 'ready', the exact ordering whose
+  absence caused the crash above.
+- Brief once a day — MET (`b6c1e51`). It marked the day briefed only when
+  audio genuinely PLAYED; iOS blocks an auto-brief's autoplay almost every
+  time (no user gesture behind it), so the retry fired on every launch and
+  re-read the whole brief over whatever he was doing. Now marks on
+  delivery, and the flag is the server-side one every device shares.
+- Ingest budget cap — MET (`4330eaa`). `MAX_BUDGET_USD` / `DIGEST_BUDGET_USD`
+  in `server/lib/ingest.js` raised from hard-coded `'3'`/`'8'` to
+  env-overridable `25`/`40`, reframed in-code as backstops against a
+  runaway loop, not a spending control. The job was already genuinely
+  backgrounded (server spawns it and returns immediately; closing the app
+  never stopped it) — what was missing was visibility, which the WORKING
+  panel above now provides.
+- Food macro accuracy — MET (`4330eaa`). Root cause: the describe-prompt
+  told the model most foods it "already knows well enough — answer
+  immediately from your own knowledge, no search." LLMs are unreliable at
+  numeric recall, so the same description produced 1050 kcal/50g then
+  940/36g — neither was a calculation. Rebuilt along the platform's own
+  rule (models interpret, code computes): the model now outputs ONLY
+  component names + gram weights; `server/lib/nutritionFacts.js` looks
+  each up in USDA FoodData Central, scales to the real weight, sums, and
+  derives kcal from the Atwater factors. A model-stated kcal that
+  disagrees with its own macros is now impossible by construction.
 
 STATE (paths):
-- `src/buildCheck.js` — the whole ship-verification failsafe, client half.
-  `RUNNING_BUILD` (compiled in via vite `define`), `fetchDeployedBuild()`,
-  `watchForUpdate()` (polls `version.json` every 10min + on visibilitychange),
-  `applyUpdate()` (unregisters SW, clears every cache, hard-reloads with a
-  cache-busted URL). Wired in `src/App.jsx` (`updateReady` state, banner at
-  the very top of the render tree, z-200) and `src/vals/valsMisc.js`.
-- `vite.config.js` — `BUILD_ID` is `git rev-parse --short=9 HEAD` (NOT a
-  timestamp — see DECISIONS), written to `dist/version.json` by a custom
-  `buildStamp()` plugin, injected into the bundle via `define`.
-- `scripts/verify-shipped.mjs` — `npm run verify:shipped` (add `-- --server`
-  for backend route checks). Checks git push state (via `ls-remote`, not
-  `fetch` — sandbox-safe), deployed build id vs local, and a `FEATURES`
-  array of marker-strings fetched from the LIVE bundle (entry + every lazy
-  chunk it imports, discovered from the live entry's own text — NOT local
-  dist filenames, which 404 against a CI rebuild's different hashes).
-- `server/lib/sessionNotes.js` — `signalsIn()` (regex-based, suppress-only:
-  form-breakdown/pain/fatigue/too-easy), `readExerciseNote`,
-  `recurringSignal` (min=2 within=6, pain min=1), `recentNotes`,
-  `notesContextLines`. Consumed by `server/lib/coach.js`
-  (`computeProgressions` — holds load, attaches `.note`/`.noteDate` to every
-  suggestion), `server/lib/coachProgramReview.js` (`findNoteSignals`,
-  ranked ABOVE every other finding kind), `server/lib/coachProgramAudit.js`
-  (`reported-form` check), `server/lib/weeklyDebrief.js`,
-  `server/lib/claudeCode.js` (Coach prompt + `COACH_TURN_REMINDER` for
-  resumed turns).
-- `server/lib/findingCards.js` — `findingCard()`, `auditCard()`,
-  `proteinWeekCard()`. Fed by `.finding`/`.data` fields added to records in
-  `coachProgramReview.js` (`out.push({..., finding: {...f, line:undefined,
-  fix:undefined}})`) and `fuelCross.js` (`.data.kind`).
-- `server/lib/briefDecisions.js` — `buildQueue()` (pure), `questionFor()`,
-  `cardFor()`. Driven client-side by `App.jsx` `startBriefQueue` /
-  `askBriefQuestion` / `answerBriefQuestion` / `advanceBriefQueue`
-  (state: `briefQueue`, `briefQueueIdx`, `briefQueueRemaining`).
-- `src/SafeVisual.jsx` — the error boundary. Wraps every `<VoicePanel>` /
-  `<StageCard>` render site (6 of them found; 3 duplicate coach-message
-  renderers exist in `src/screens/Workouts.jsx` — mid-session, demo, AND
-  the actual Coach tab — a new coach-surface feature must patch ALL THREE
-  or it silently doesn't appear where he's actually looking).
-- `server/lib/claudeCode.js` — `COACH_TURN_REMINDER`, prepended to every
-  RESUMED coach turn (the prompt itself only sends on turn 1; his coach
-  conversation persists across days, so a session started before a prompt
-  change keeps arguing from the old rules — this is CONFIRMED as the cause
-  of him being told "I don't have write access in this session").
+- `src/App.jsx`, `src/IngestReview.jsx`, `src/vals/valsChrome.js` — the
+  black-screen/ambush/brief fixes (`b6c1e51`). Boot-resume no longer trusts
+  a job-list status without a loaded preview; WORKING panel surfaces open
+  jobs; brief-delivered flag set server-side on delivery.
+- `server/lib/ingest.js` — `MAX_BUDGET_USD = process.env.NOVA_INGEST_BUDGET_USD
+  || '25'`, `DIGEST_BUDGET_USD = process.env.NOVA_INGEST_DIGEST_BUDGET_USD
+  || '40'`. Override in `server/.env` without a code change.
+- `server/lib/nutritionFacts.js` (new) — `ATWATER`/`kcalFrom` (energy always
+  derived), `scaleTo` (linear per-100g → real weight), `lookupPer100g`
+  (USDA FDC search, ranked Foundation > SR Legacy > Survey > Branded, null
+  on any miss/network failure — never throws), `computeFromComponents`
+  (main entry, `{lookup:false}` bypass for hermetic tests), reproducibility
+  cache at `server/data/nutrition-cache/*.json` keyed by SHA1 of the
+  normalized food name, versioned `v:1`.
+- `server/lib/scanFood.js` — `buildDescribePrompt` rewritten to ask for
+  `components:[{name,grams}]` only (never `macros`/`kcal` directly);
+  `startFoodDescribe`'s child-process handler now calls
+  `computeFromComponents` and labels each component's source
+  ("USDA FoodData Central — X (dataType)" or "estimated, not matched").
+- `server/test/nutritionFacts.test.js` (new, 6 tests, all `{lookup:false}`
+  for hermeticity) and `server/test/foodSuggest.test.js` (updated to assert
+  the new prompt contract, explicitly asserts the old recall-encouraging
+  phrase is GONE).
+- `USDA_FDC_API_KEY` env var — optional; defaults to the public rate-limited
+  `DEMO_KEY` (~30/hour), not currently set in `server/.env`.
 
 DECISIONS (choice → reason → what it forecloses):
-- Build id is the git SHORT SHA, not a timestamp → a timestamp regenerates
-  on every CI rebuild of the SAME commit, so local-vs-deployed could NEVER
-  match and the freshness check would cry wolf forever → forecloses any
-  clock-based versioning scheme; the sha is the only thing guaranteed
-  identical between his machine and CI.
-- verify-shipped discovers lazy chunk names from the LIVE entry bundle's own
-  text, never from local `dist/` filenames → content hashes differ between
-  a local build and a CI rebuild of the same source, so local filenames
-  404 against the deployed site (this cost 3 false FAILs on three shipped
-  features on the FIRST run of the script) → forecloses trusting
-  `dist/assets/*.js` as a proxy for what's actually deployed.
-- `git ls-remote` instead of `git fetch` for the push check → `fetch`
-  writes to `.git` and is refused in some sandboxes; comparing SHAs
-  directly is also a stronger claim than a possibly-stale local ref →
-  forecloses relying on `origin/main` being fresh without an explicit sync.
-- `sessionNotes.js` signals may ONLY suppress a load increase, never create
-  one, and every regex has an explicit positive-report override ("form was
-  good" cancels the form-breakdown match) → a false positive costs one
-  cautious week, a false negative risks reinforcing an injury → forecloses
-  ANY signal in this file ever being read as grounds to increase load or
-  volume; that direction stays numeric-only.
-- `findNoteSignals` carries NO one-tap fix (`fix: null`), same as
-  junk-volume/routine-oversized → what to DO about his technique is a
-  Coach conversation, not a silent plan edit → forecloses auto-swapping an
-  exercise because a note pattern fired.
-- The brief's question queue reuses the EXISTING coach-program/fuel-cross
-  inbox records and their EXISTING approve/discard handlers rather than a
-  new write path → the apply/undo logic already existed and was tested;
-  duplicating it would be two things to keep in sync → forecloses any
-  future "decision" kind that doesn't already have an inbox route.
-- On mobile, `StageCard`'s focused rendering moved INSIDE the `stageFocus`
-  scrim rather than fixing its position in the normal-flow layout →
-  the normal-flow position is correct and used on desktop; only mobile's
-  viewport is short enough to push it below the fold → forecloses a single
-  shared DOM position for the focused card across breakpoints.
+- Ingest cost caps reframed from "budget" to "backstop against a runaway
+  loop" → a $3 ceiling sized for a pasted note was being applied
+  indiscriminately to full vault weaves, killing near-complete jobs and
+  discarding ALL their output — he paid for the work and got nothing →
+  forecloses ever treating `NOVA_INGEST_BUDGET_USD`/`DIGEST_BUDGET_USD` as
+  a cost-control lever for legitimate work again; they're a safety net
+  only, sized well above real observed costs (his book: $3.53, the Scout:
+  $2.36).
+- The model may output ONLY components + gram weights for food, never a
+  macro/kcal total directly → recall of a "known" food is not
+  deterministic (proven: same input, two different plausible totals) →
+  forecloses ever letting this feature accept a model-stated kcal again;
+  energy must always be code-derived from Atwater factors.
+- USDA FoodData Central chosen over any paid nutrition API → free, public,
+  no signup (works out of the box on `DEMO_KEY`) → forecloses building a
+  paid-API integration unless the ~30/hour rate limit becomes a real
+  bottleneck against his actual daily logging volume, which is UNTESTED
+  (see ASSUMED).
+- Nutrition lookups cached by SHA1 of the normalized name, versioned `v:1`
+  → reproducibility (same food, same answer) was the entire bug being
+  fixed → forecloses changing the per-100g computation shape without
+  bumping the cache version, or old-schema entries get silently reused.
+- `computeFromComponents({lookup:false})` bypass added for tests → the
+  real USDA endpoint is rate-limited/flaky and a unit test of
+  multiplication must never depend on the network (2 of 6 tests failed on
+  the first run before this existed) → forecloses any future arithmetic
+  test in this file ever making a real fetch call.
+- Brief marks delivered on delivery, not on successful playback, flag is
+  server-side/shared → an auto-brief has no gesture behind it so iOS
+  blocks it almost every time, and gating on playback caused the retry to
+  refire and re-read the whole brief on every open → forecloses ever
+  gating "briefed today" on playback success again; content-on-screen +
+  one-tap replay is the correct degrade, not re-delivery.
+- Boot puts open ingest work in the WORKING panel, never a forced review
+  sheet → work he can see and choose to open beats work that ambushes him
+  → forecloses auto-opening `IngestReview` at boot without the
+  poll-then-render ordering that avoids the null-preview crash.
 
 VERIFIED (with locators):
-- verify:shipped, full run this session: git clean+pushed, deployed build
-  `9e55ceb5b` == local, 21 live chunks fetched, ALL 13 feature markers PASS
-  in the live bundle he downloads, 6/6 backend routes 200. Independently
-  re-checked at close: `curl https://hcooper12.github.io/nova-os/version.json`
-  → `9e55ceb5b`, matching `git rev-parse --short=9 HEAD`.
-- Phone voice bugs: diagnosed from his actual screen recordings via the
-  `/watch` skill (frame-by-frame + Whisper transcript), not inferred. The
-  transcript proved audio hardware/routing was fine (ruled out several
-  wrong hypotheses) before the src-reassignment bug was found.
-- Panel inference + findingCards: run against his REAL vault read-only —
-  "pull up my recent upper body sessions" → 13 matched, 5 shown, real
-  weights (27.5kg×7 etc). Upper Body 9-listed/4.4-finished, Push 10/5, Pull
-  9/5.6 all charted from live data.
-- Session notes: `findNoteSignals` independently re-run at session close
-  (separate node invocation from the one that built it) → still fires
-  exactly once, on Cable Lateral Raise, same as when built. Progression
-  engine: Cable Lateral Raise (9.1kg) and Alternate Incline Dumbbell Curl
-  (20kg) both HELD citing his exact sentences, live on his real vault.
-- All mobile UI (update banner, brief-close answer bar, focused stage card,
-  Coach apply buttons) screenshotted at a REAL 375px device-emulated
-  viewport (not a style-injected clamp — the `stageFocus` scrim is
-  `position:fixed` and escapes a `#root` width clamp entirely, which
-  produced a false "it overflows" reading earlier in the session before
-  switching to `mcp__chrome-devtools__emulate`).
-- 671/671 server tests, lint 0 errors, build green at every ship point this
-  session (checked repeatedly, not just at close).
+- 709/709 server tests, lint 0 errors (only pre-existing unrelated
+  unused-var warnings), build green — re-checked fresh at this close, not
+  carried over from earlier in the session.
+- `git status --porcelain` clean, `HEAD` at `4330eaa`, no commits ahead of
+  or behind `origin/main`.
+- Backend health: `GET /api/health` → `200`, checked at close.
+- `launchctl list | grep novaos` shows `com.novaos.server` running; no
+  stray `vite preview` processes; no staged `dist/pc.json` token file.
+- `npm run verify:shipped -- --server` (run earlier this session, per
+  in-session record): PASS, "deployed build matches local (4330eaa68)".
+- Live food-log test: `POST /api/food-log/describe` with "a whole large
+  pepperoni pizza" → 2,408 kcal / 129g protein, 4/4 components matched to
+  USDA (pizza dough 450g, mozzarella 220g, pepperoni 130g, pizza sauce
+  100g), each individually weighed and source-attributed; repeat calls
+  returned byte-identical totals.
+- `b6c1e51` fixes verified in a real 375px browser per the commit's own
+  record: fresh phone open renders 3,949 characters, no modal, no render
+  errors; WORKING panel shows "Ready for review — Pasted content
+  (26 pages)"; tapping it opens the sheet with proposed changes intact.
 
 ASSUMED (not verified):
-- That he has actually seen the update banner and tapped UPDATE. The
-  mechanism is deployed and verified live; whether HIS device has crossed
-  the poll interval / foregrounded since is not observable from here.
-- That the Coach-tab proposal buttons read correctly on a REAL phone rather
-  than the emulated 375px viewport used this session — device emulation is
-  not the same hardware, and Safari/iOS PWA rendering has surprised this
-  project before (see prior DO NOT entries, now folded into memory).
-- That `findNoteSignals`' thresholds (min=2 within=6 sessions for form,
-  min=1 for pain) are the right cadence for HIM specifically — chosen from
-  first principles (twice is a pattern, pain is never worth waiting on),
-  not tuned against a real recurrence yet because he doesn't have one on
-  record besides the lateral raise.
+- That the 25/40 backstop is generous enough for every future vault weave
+  — sized against exactly two observed data points ($3.53 book, $2.36
+  Scout); a much larger future document could still hit it.
+- That USDA's `DEMO_KEY` ~30/hour rate limit is adequate for his real daily
+  food-logging volume — tested only against sequential test calls, not
+  sustained real use across a day.
+- That he has opened the app on his real device since `4330eaa` deployed
+  and actually seen the fixed behavior — deploy + `verify:shipped` confirm
+  the CODE is live, not that he has used it.
 
 OPEN QUESTIONS / BLOCKERS:
-- He was mid-way through re-adding the Atomic Habits PDF when this session
-  picked up the notes work — never confirmed whether the ingest actually
-  completed after the update banner should have refreshed his bundle.
-  Worth asking directly next session rather than assuming.
-- The existing coach-program/fuel-cross records raised BEFORE this
-  session's `.finding`/`.data` fields were added will show text-only cards
-  in the brief's question queue, not charts, until each is naturally
-  re-raised. Not a bug — just means the charted close won't look complete
-  on his very next brief for records already sitting in his Inbox.
-- `findNoteSignals` has fired exactly once, ever (Cable Lateral Raise). Like
-  the volume detectors before it, its behavior on a SECOND real recurrence
-  is unproven — worth watching, not re-tuning pre-emptively.
+- **The Atomic Habits PDF ingest never completed — this answers the
+  previous handoff's open question, and the answer is no.** Just checked
+  live (`GET /api/ingest`): job `816c8757` sits in `status:"error"`,
+  message "the server restarted mid-job — start it again (a cached digest
+  makes the re-run cheap)", `createdAt: 2026-08-27T22:53:55Z` — orphaned by
+  the `b6c1e51` restart. It needs to be manually restarted from the app;
+  the digest cache should make the re-run cheap rather than re-spending
+  the full cost. Not yet surfaced to him as of this close.
+- Previous handoff's other open item — whether the Coach-tab apply buttons
+  and the brief's question-by-question close read correctly on his REAL
+  phone (not the emulator) — still unconfirmed, carrying forward unanswered.
+- `findNoteSignals` still fired exactly once, ever (Cable Lateral Raise) as
+  of last check; unproven on a second recurrence.
 
-NEXT ACTION: ask him directly (a) did the Atomic Habits PDF ingest actually
-finish once his phone updated, and (b) how did the Coach-tab apply buttons
-and the brief's question-by-question close actually read on his real
-device. Both are the kind of claim this session's whole failsafe exists
-to stop taking on faith — confirm with him, don't assume from the emulator.
-Expected observation if the update banner is doing its job: he reports
-seeing "A newer Nova is ready" rather than a feature silently appearing.
+NEXT ACTION: tell him the Atomic Habits ingest errored out from the
+`b6c1e51` restart and needs restarting from the app (should be cheap, the
+digest is cached), and ask him to confirm on his real phone that (a)
+describing the same food twice now gives identical macros, and (b) a
+video/book add left running survives closing the app and finishes without
+hitting a cost wall. Expected observation if both hold: identical repeat
+totals, and a long job showing complete in the WORKING panel rather than
+erroring on cost.
 
 DO NOT:
+- Do not treat an ingest cost cap as a spending control. Hitting one
+  discarded a $3.08 job's ENTIRE output — a cap that costs him money and
+  gives back nothing is worse than no cap. If a cap is ever lowered again,
+  check real observed job costs first ($3.53 book, $2.36 Scout are the
+  known floor).
+- Do not let a food/nutrition prompt ask the model to state a calorie or
+  macro total directly. Recall of a "known" food is not deterministic —
+  proven by the same description giving 1050 kcal/50g then 940/36g. The
+  model may only output components + gram weights; kcal must always be
+  code-derived from Atwater factors.
+- Do not restart the server without checking `GET /api/ingest` for an empty
+  in-flight list first. Confirmed by this session's own evidence: job
+  `816c8757` (Atomic Habits) was orphaned by a prior restart and simply
+  errors out, requiring a manual re-run — it does not resume on its own.
 - Do not tell him ANYTHING is shipped without running `npm run
   verify:shipped` first and reading a clean pass. This is now written to
   memory (`never-claim-shipped-unverified.md`) because it was said,
@@ -276,6 +262,40 @@ DO NOT:
 
 
 ## SESSION LOG (append-only, newest first)
+
+### 27–30 August 2026 — the black screen, the ambush sheet, the once-a-day brief, an ingest cap that ate a job, and food macros that compute instead of recall
+Four real failures, fixed in two commits. The black screen and the ambush
+review sheet turned out to share one root cause: boot-resume trusted a
+job's status from the server's list without loading its preview, so
+`IngestReview` rendered a "ready" branch against null and threw, taking the
+whole app down — reproduced at phone size before touching anything. Open
+work now surfaces in the WORKING panel instead of seizing the screen, and
+the same load-before-render ordering that fixes the ambush also fixes the
+crash. The brief was marking itself "delivered" only when audio actually
+played, but an auto-brief has no user gesture behind it, so iOS blocked
+autoplay almost every time and the retry re-read the whole brief on every
+open — now marks on delivery, server-side, shared across devices.
+
+Then two complaints in one message. A vault-ingest video hit a $3 cost cap
+— sized for a pasted note, applied indiscriminately to full weaves — spent
+$3.08, and was killed with nothing written; raised both budget constants to
+env-overridable backstops (25/40) reframed explicitly as guards against a
+runaway loop, not spending controls. And food-macro logging gave two
+different totals for the identical pizza description (1050 kcal/50g, then
+940/36g) — traced to the prompt telling the model to answer "from your own
+knowledge, no search" for most foods, which guarantees a different
+plausible number every time since LLMs don't recall numbers reliably.
+Rebuilt along the platform's own line: the model now only decomposes food
+into components with gram weights; a new `nutritionFacts.js` looks each up
+in USDA FoodData Central, scales by weight, and derives kcal from the
+Atwater factors, so a stated kcal that disagrees with its own macros is now
+impossible by construction. Verified live: the same pizza returned
+identical totals (2,408 kcal/129g protein) across repeat calls, all four
+components matched and source-attributed. While confirming no jobs were
+in-flight before this session's own restart, found that a PRIOR restart had
+in fact orphaned an in-progress job — his Atomic Habits ingest — which
+directly answers, in the negative, the previous handoff's open question
+about whether it ever completed. 709/709, lint 0, build green both times.
 
 ### 25–26 August 2026 — evidence on screen, the phone-voice bugs, the ship-verification crisis, and Coach reading his own notes
 Started from his complaint that Nova speaks a lot without anything to look
