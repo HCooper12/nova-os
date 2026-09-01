@@ -76,6 +76,17 @@ async function walkBackupDirs(root, found = []) {
   return found;
 }
 
+// backupFile() names every snapshot <file>.<ISO stamp, : and . as ->.bak, so
+// the stamp — never the path — is the chronology. Sorting full paths ranked
+// folders alphabetically and crowned a 20-day-old Topics/ snapshot "newest"
+// while the vault was being written that same morning: the staleness warning
+// was fiction, and the restore-read sampled stale files instead of fresh ones.
+const STAMP_RE = /\.(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z\.bak$/;
+function snapshotTakenAt(name) {
+  const m = name.match(STAMP_RE);
+  return m ? Date.parse(`${m[1]}T${m[2]}:${m[3]}:${m[4]}.${m[5]}Z`) : null;
+}
+
 // Snapshots: do they exist, is the newest recent, and do the latest ones
 // actually read back (a backup that can't be restored is not a backup).
 async function checkBackups(vaultPath) {
@@ -83,20 +94,21 @@ async function checkBackups(vaultPath) {
   const baks = [];
   for (const dir of dirs) {
     for (const f of await readdir(dir)) {
-      if (f.endsWith('.bak')) baks.push(path.join(dir, f));
+      if (f.endsWith('.bak')) baks.push({ full: path.join(dir, f), at: snapshotTakenAt(f) });
     }
   }
   if (!baks.length) {
     return { id: 'backups', label: 'Vault snapshots', status: 'warn', detail: 'No snapshots found yet — they appear with the first vault write-back.' };
   }
-  baks.sort(); // ISO stamp in the name sorts oldest→newest
+  baks.sort((a, b) => (a.at ?? 0) - (b.at ?? 0)); // by stamp, oldest→newest; an unstamped name sinks to the front
   const newest = baks[baks.length - 1];
-  let newestAgeDays = null;
-  try {
-    newestAgeDays = Math.floor((Date.now() - (await stat(newest)).mtimeMs) / 86400000);
-  } catch { /* stat is best-effort */ }
+  let newestAt = newest.at;
+  if (newestAt == null) {
+    try { newestAt = (await stat(newest.full)).mtimeMs; } catch { /* stat is best-effort */ }
+  }
+  const newestAgeDays = newestAt != null ? Math.floor((Date.now() - newestAt) / 86400000) : null;
 
-  for (const sample of baks.slice(-3)) {
+  for (const { full: sample } of baks.slice(-3)) {
     try {
       const raw = await readFile(sample, 'utf8');
       if (!raw.trim()) {
@@ -107,12 +119,17 @@ async function checkBackups(vaultPath) {
     }
   }
 
-  const staleness = newestAgeDays != null && newestAgeDays > 7
-    ? { status: 'warn', tail: ` Newest is ${newestAgeDays} days old — write-backs may not be flowing.` }
-    : { status: 'ok', tail: '' };
+  // name the newest write so the claim can be checked against the vault —
+  // the false warning above stood for 20 days because nothing on the card
+  // said WHICH file it had judged
+  const written = newestAt != null ? todayISO(new Date(newestAt)) : null;
+  const stale = newestAgeDays != null && newestAgeDays > 7;
+  const tail = written == null ? ''
+    : stale ? ` Newest written ${written}, ${newestAgeDays} days old — write-backs may not be flowing.`
+    : ` Newest written ${written}.`;
   return {
-    id: 'backups', label: 'Vault snapshots', status: staleness.status,
-    detail: `${baks.length} snapshots across ${dirs.length} folders; latest 3 restore-read clean.${staleness.tail}`,
+    id: 'backups', label: 'Vault snapshots', status: stale ? 'warn' : 'ok',
+    detail: `${baks.length} snapshots across ${dirs.length} folders; latest 3 restore-read clean.${tail}`,
   };
 }
 

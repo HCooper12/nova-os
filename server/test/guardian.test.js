@@ -1,5 +1,5 @@
 // Guardian integrity checks — temp dirs BEFORE imports (ESM hoisting).
-import { mkdtemp, mkdir, readFile, writeFile, rm, unlink } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile, rm, unlink, utimes } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -15,6 +15,11 @@ const { runGuardian, getGuardian, runGuardianReport, listBackups, restoreBackup 
 const { undoFiling } = await import('../lib/inbox.js');
 const { beat } = await import('../lib/heartbeat.js');
 const { listRecords } = await import('../lib/inboxStore.js');
+
+// backupFile()'s naming: the ISO stamp with : and . flattened to -. Seeds are
+// stamped from the clock because the check now ages a snapshot by its stamp —
+// a hard-coded date would drift into "stale" and fail the suite one day.
+const stampOf = (d) => d.toISOString().replace(/[:.]/g, '-');
 
 test.after(async () => {
   await rm(dataDir, { recursive: true, force: true });
@@ -58,7 +63,7 @@ test('healthy vault with restorable snapshots reports ok/warn honestly', async (
   // add a healthy snapshot → ok, sample restore-read passes
   const bakDir = path.join(vault, 'Wiki/Inbox/.nova-backups');
   await mkdir(bakDir, { recursive: true });
-  await writeFile(path.join(bakDir, 'To-Do.md.2026-07-19T01-00-00-000Z.bak'), '# To-Do\n- [ ] thing\n', 'utf8');
+  await writeFile(path.join(bakDir, `To-Do.md.${stampOf(new Date(Date.now() - 60_000))}.bak`), '# To-Do\n- [ ] thing\n', 'utf8');
   report = await runGuardian(vault);
   assert.equal(report.checks.find((c) => c.id === 'backups').status, 'ok');
   assert.equal(report.checks.find((c) => c.id === 'vault').status, 'ok');
@@ -107,7 +112,7 @@ test('healthy vault with restorable snapshots reports ok/warn honestly', async (
 
 test('an empty snapshot or a quarantined store escalates to alert', async () => {
   const bakDir = path.join(vault, 'Wiki/Inbox/.nova-backups');
-  const empty = path.join(bakDir, 'To-Do.md.2026-07-19T02-00-00-000Z.bak');
+  const empty = path.join(bakDir, `To-Do.md.${stampOf(new Date())}.bak`);
   await writeFile(empty, '', 'utf8');
   let report = await runGuardian(vault);
   const backups = report.checks.find((c) => c.id === 'backups');
@@ -141,6 +146,46 @@ test('a stalled loop heartbeat is called out by name', async () => {
   assert.doesNotMatch(loops.detail, /dispatch last/);
 
   await beat('compost'); // restore for later tests
+});
+
+test('the newest snapshot is found by its stamp, not by where its folder sorts', async () => {
+  // A fresh write-back in a folder that sorts FIRST, a stale one in a folder
+  // that sorts LAST. Path order called the stale one "newest" and warned that
+  // write-backs had stopped — on the live card, for 20 days, while the vault
+  // was being written every morning.
+  const fresh = path.join(vault, 'Wiki/Aaa/.nova-backups');
+  const stale = path.join(vault, 'Wiki/Zzz/.nova-backups');
+  await mkdir(fresh, { recursive: true });
+  await mkdir(stale, { recursive: true });
+  await writeFile(path.join(fresh, `Fresh.md.${stampOf(new Date())}.bak`), '# fresh\n', 'utf8');
+  const old = path.join(stale, 'Old.md.2026-01-01T00-00-00-000Z.bak');
+  await writeFile(old, '# old\n', 'utf8');
+  await utimes(old, new Date('2026-01-01T00:00:00Z'), new Date('2026-01-01T00:00:00Z')); // as old on disk as in name
+  let backups = (await runGuardian(vault)).checks.find((c) => c.id === 'backups');
+  assert.equal(backups.status, 'ok');
+  assert.doesNotMatch(backups.detail, /days old/);
+  assert.match(backups.detail, /Newest written \d{4}-\d{2}-\d{2}\./);
+  await rm(path.join(vault, 'Wiki/Aaa'), { recursive: true, force: true });
+  await rm(path.join(vault, 'Wiki/Zzz'), { recursive: true, force: true });
+
+  // and when every snapshot really is old, the warning is real — aged from the
+  // NEWEST stamp, whichever folder holds it
+  const onlyOld = await mkdtemp(path.join(tmpdir(), 'nova-guardian-old-'));
+  try {
+    const older = path.join(onlyOld, 'Wiki/Aaa/.nova-backups');
+    const newer = path.join(onlyOld, 'Wiki/Zzz/.nova-backups');
+    await mkdir(older, { recursive: true });
+    await mkdir(newer, { recursive: true });
+    await writeFile(path.join(older, 'A.md.2026-01-01T00-00-00-000Z.bak'), '# a\n', 'utf8');
+    const twentyDaysAgo = new Date(Date.now() - 20 * 86400000);
+    await writeFile(path.join(newer, 'Z.md.2026-01-02T00-00-00-000Z.bak'), '# z\n', 'utf8');
+    await writeFile(path.join(older, `B.md.${stampOf(twentyDaysAgo)}.bak`), '# b\n', 'utf8');
+    backups = (await runGuardian(onlyOld)).checks.find((c) => c.id === 'backups');
+    assert.equal(backups.status, 'warn');
+    assert.match(backups.detail, /\b(19|20|21) days old — write-backs may not be flowing/);
+  } finally {
+    await rm(onlyOld, { recursive: true, force: true });
+  }
 });
 
 test('time machine: list snapshots, restore overwrites (after snapshotting current), undo puts it back', async () => {
