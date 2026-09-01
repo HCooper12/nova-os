@@ -3,6 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { modelFor, laneOffError, laneEnabled } from './modelPrefs.js';
+import { boundaryArgs } from './spawnBoundary.js';
 
 const MAX_BUDGET_USD = '0.3';
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
@@ -34,7 +35,7 @@ export function startPromptJob(seed) {
   const child = spawn(CLAUDE_BIN, [
     '-p', prompt,
     '--permission-mode', 'bypassPermissions',
-    '--allowedTools', '',
+    ...boundaryArgs(''),
     '--output-format', 'json',
     // named explicitly — an unpinned call silently inherits the account's
     // ambient default model, which cost him a Fable-5 usage-limit hit on a

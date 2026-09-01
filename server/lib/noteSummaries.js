@@ -6,6 +6,7 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
 import { modelFor, laneOffError, laneEnabled } from './modelPrefs.js';
+import { boundaryArgs } from './spawnBoundary.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // honors NOVA_DATA_DIR (it was one of two hard-coded paths that leaked test
@@ -71,7 +72,7 @@ export function startSummaryJob(noteId, title, bodyText) {
   const child = spawn(CLAUDE_BIN, [
     '-p', buildPrompt(title, bodyText),
     '--permission-mode', 'bypassPermissions',
-    '--allowedTools', '',
+    ...boundaryArgs(''),
     '--output-format', 'json',
     // named explicitly — an unpinned call silently inherits the account's
     // ambient default model, which cost him a Fable-5 usage-limit hit on a

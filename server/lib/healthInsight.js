@@ -15,6 +15,7 @@ import { loadRecentDays as loadRecentNutritionDays } from './nutritionLog.js';
 import { NOVA_LENS } from './lens.js';
 import { profileContext } from './profile.js';
 import { modelFor, laneSkipped, laneEnabled } from './modelPrefs.js';
+import { boundaryArgs } from './spawnBoundary.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // honors NOVA_DATA_DIR like every sibling store — it was the one hard-coded
@@ -186,7 +187,7 @@ function runClaude(prompt) {
     const child = spawn(CLAUDE_BIN, [
       '-p', prompt,
       '--permission-mode', 'bypassPermissions',
-      '--allowedTools', '',
+      ...boundaryArgs(''),
       '--output-format', 'json',
       // named explicitly — an unpinned call silently inherits the account's
       // ambient default model, which cost him a Fable-5 usage-limit hit on a

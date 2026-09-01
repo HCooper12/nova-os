@@ -4,6 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { boundaryArgs } from './spawnBoundary.js';
 
 const MAX_BUDGET_USD = '0.5';
 // Reading a label is OCR — the fast model handles it and the macros are always
@@ -15,21 +16,11 @@ const MAX_BUDGET_USD = '0.5';
 // account's ambient default — the exact hole the 21-Aug Coach fix closed.
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-// --allowedTools is NOT a real restriction under --permission-mode
-// bypassPermissions (verified empirically, see claudeCode.js) — dropping
-// WebFetch from the allow-list alone would do nothing. --disallowedTools IS
-// enforced regardless of permission mode, so it's the actual gate here: a
-// full-page fetch was the slowest single thing this lane could do (he's
-// standing there waiting on a search result, not a research brief), and the
-// prompt's own instruction not to fetch is backed up structurally rather
-// than trusted alone.
-const DESCRIBE_DISALLOWED = [
-  'Bash', 'Agent', 'Skill', 'ToolSearch', 'ScheduleWakeup', 'ReportFindings', 'Artifact',
-  'SendMessage', 'CronCreate', 'CronDelete', 'CronList', 'DesignSync',
-  'EnterWorktree', 'ExitWorktree', 'NotebookEdit', 'PushNotification', 'RemoteTrigger',
-  'TaskCreate', 'TaskGet', 'TaskList', 'TaskOutput', 'TaskStop', 'TaskUpdate', 'Monitor',
-  'Edit', 'Write', 'Grep', 'Glob', 'Read', 'WebFetch',
-].join(',');
+// The describe lane searches but must never FETCH: a full-page fetch was the
+// slowest single thing it could do (he's standing there waiting on a search
+// result, not a research brief), so the prompt's don't-fetch instruction is
+// backed structurally. boundaryArgs('WebSearch') denies everything else —
+// this list used to be spelled out here by hand (see spawnBoundary.js).
 const jobs = new Map();
 
 function buildPrompt(mode, imagePaths, note) {
@@ -149,9 +140,8 @@ export function startFoodScan(mode, imagePaths, workDir, note) {
   const args = [
     '-p', prompt,
     '--permission-mode', 'bypassPermissions',
-    '--allowedTools', 'Read',
-    // don't boot every configured MCP server just to read a photo — pure cold-start savings
-    '--strict-mcp-config',
+    // reads the photo and nothing else — MCP servers stay unbooted too
+    ...boundaryArgs('Read'),
     '--output-format', 'json',
     '--max-budget-usd', MAX_BUDGET_USD,
     '--no-session-persistence',
@@ -210,8 +200,7 @@ export function startFoodDescribe(description) {
   const child = spawn(CLAUDE_BIN, [
     '-p', buildDescribePrompt(text),
     '--permission-mode', 'bypassPermissions',
-    '--allowedTools', 'WebSearch',
-    '--disallowedTools', DESCRIBE_DISALLOWED,
+    ...boundaryArgs('WebSearch'),
     '--strict-mcp-config',
     '--output-format', 'json',
     '--max-budget-usd', MAX_BUDGET_USD,

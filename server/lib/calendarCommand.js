@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { fetchEventsForRangeRaw } from './calendar.js';
 import { createRecord } from './inboxStore.js';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { boundaryArgs } from './spawnBoundary.js';
 
 // Turn a spoken/typed request into ONE structured calendar op — add, move, or
 // delete — then file it as a confirm-first inbox proposal. The model only
@@ -42,7 +43,7 @@ function interpret(prompt) {
       '-p', prompt,
       '--permission-mode', 'bypassPermissions',
       '--model', modelFor('calendar-command'),
-      '--strict-mcp-config',
+      ...boundaryArgs(''),
       '--output-format', 'json',
       '--max-budget-usd', MAX_BUDGET_USD,
       '--no-session-persistence',

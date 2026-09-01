@@ -19,6 +19,7 @@ import * as foodLog from './foodLog.js';
 import { addStashItem, removeStashItem, formatStashItem } from './stash.js';
 import { addRecipe, removeRecipe } from './recipes.js';
 import { createEvent, deleteEventAt, moveEvent, moveOccurrence, putEventRaw } from './calendar.js';
+import { boundaryArgs } from './spawnBoundary.js';
 
 // The Nova Inbox: capture any loose thought, let a READ-ONLY classifier make
 // exactly one typed routing decision, then let deterministic code do the
@@ -171,7 +172,7 @@ function classify(text, onDone) {
     '-p', buildPrompt(text),
     '--model', modelFor('inbox-classify'),
     '--permission-mode', 'bypassPermissions',
-    '--allowedTools', '',
+    ...boundaryArgs(''),
     '--output-format', 'json',
     '--max-budget-usd', MAX_BUDGET_USD,
     '--no-session-persistence',

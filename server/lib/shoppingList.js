@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import matter from 'gray-matter';
 import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
 import { modelFor, laneSkipped, laneEnabled } from './modelPrefs.js';
+import { boundaryArgs } from './spawnBoundary.js';
 
 const LIST_REL_PATH = 'Wiki/Health/Shopping List.md';
 const CATEGORIES = ['Produce', 'Meat & Protein', 'Dairy & Eggs', 'Pantry & Seasonings', 'Frozen', 'Bakery', 'Beverages', 'Household & Other'];
@@ -258,7 +259,7 @@ Output ONLY a JSON array with exactly ${newItems.length} objects, one per item i
   const child = spawn(CLAUDE_BIN, [
     '-p', prompt,
     '--permission-mode', 'bypassPermissions',
-    '--allowedTools', '',
+    ...boundaryArgs(''),
     '--output-format', 'json',
     // named explicitly — an unpinned call silently inherits the account's
     // ambient default model, which cost him a Fable-5 usage-limit hit on a
