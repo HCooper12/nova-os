@@ -219,7 +219,13 @@ function runClaude(prompt) {
   });
 }
 
-const EMPTY_SLOT = { date: null, hasInsight: false, insight: null, generatedAt: null };
+// `tries`/`triesDate` cap the day's SPEND, not the day's ambition: the
+// "already ran" guard below is the success record's date, so before this a
+// failing compose left nothing behind and the hourly tick simply tried again
+// — from 06:00 to midnight, at MAX_BUDGET_USD a go, silently. Three attempts
+// is the same ceiling the daily review and the plan already keep.
+const EMPTY_SLOT = { date: null, hasInsight: false, insight: null, generatedAt: null, tries: 0, triesDate: null, lastError: null };
+export const MAX_TRIES_PER_DAY = 3;
 let cachedInsight = null;
 
 async function loadCachedInsight() {
@@ -273,19 +279,61 @@ async function generateAndStore(vaultPath, slot) {
 // after 6am and an evening (day-in-review) insight once per day after 6pm —
 // each independently, only once at least one day of health data exists, so
 // it stays quiet until the phone side (Shortcuts automation) sends data.
+// How many attempts this slot has already spent TODAY. A counter from an
+// earlier day is stale and reads as zero — the cap is per-day, not forever.
+export function triesToday(slotRecord, t) {
+  return slotRecord?.triesDate === t ? (slotRecord.tries || 0) : 0;
+}
+
+// A failed attempt has to leave a mark, or the cap cannot exist. Deliberately
+// does NOT touch `date`: that stays the last SUCCESS, so a later attempt today
+// can still succeed and the screen keeps showing yesterday's real insight
+// rather than a hole.
+export async function recordFailedAttempt(slot, t, message) {
+  const cached = await loadCachedInsight();
+  const prior = cached[slot] || { ...EMPTY_SLOT };
+  const updated = {
+    ...cached,
+    [slot]: { ...prior, triesDate: t, tries: triesToday(prior, t) + 1, lastError: String(message || '').slice(0, 200) },
+  };
+  await mkdir(path.dirname(INSIGHT_FILE()), { recursive: true });
+  await writeFile(INSIGHT_FILE(), JSON.stringify(updated, null, 2), 'utf8');
+  cachedInsight = updated;
+  return updated[slot].tries;
+}
+
+// Each slot is attempted independently — a morning failure used to abort the
+// whole tick and take the evening insight with it.
+async function attemptSlot(vaultPath, slot, t) {
+  const cached = await loadCachedInsight();
+  const spent = triesToday(cached[slot], t);
+  if (spent >= MAX_TRIES_PER_DAY) return; // the day's budget for this slot is gone
+  try {
+    await generateAndStore(vaultPath, slot);
+  } catch (err) {
+    const tries = await recordFailedAttempt(slot, t, err.message);
+    console.error(`Health insight (${slot}) failed, attempt ${tries}/${MAX_TRIES_PER_DAY}:`, err.message);
+    if (tries >= MAX_TRIES_PER_DAY) {
+      // Giving up silently is the failure mode this cap could easily create:
+      // he would just never get a morning insight and never learn why. Say it
+      // once, on the last attempt, the way a failed Forge build announces.
+      import('./telegram.js')
+        .then(({ sendTelegramText }) => sendTelegramText(
+          `◈ No ${slot} health insight today — ${MAX_TRIES_PER_DAY} attempts failed (${String(err.message || '').slice(0, 120)}). Nothing else is affected; it will try again tomorrow.`))
+        .catch(() => {});
+    }
+  }
+}
+
 async function checkAndGenerate(vaultPath) {
   try {
     const recentDays = await loadRecentDays(1);
     if (!recentDays.length) return;
     const hour = new Date().getHours();
     const t = today();
-    let cached = await loadCachedInsight();
-    if (cached.morning.date !== t && hour >= 6) {
-      cached = await generateAndStore(vaultPath, 'morning');
-    }
-    if (cached.evening.date !== t && hour >= 18) {
-      cached = await generateAndStore(vaultPath, 'evening');
-    }
+    const cached = await loadCachedInsight();
+    if (cached.morning.date !== t && hour >= 6) await attemptSlot(vaultPath, 'morning', t);
+    if (cached.evening.date !== t && hour >= 18) await attemptSlot(vaultPath, 'evening', t);
   } catch (err) {
     console.error('Health insight generation failed:', err.message);
   }
