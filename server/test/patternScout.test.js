@@ -33,8 +33,11 @@ test('scout context aggregates his captures with fates, keeps agent drafts separ
   await mk({ text: 'creatine taken again', decision: { route: 'food', title: 'Creatine again', confidence: 'high', payload: {} } });
   await mk({ text: 'a thought', status: 'discarded', decision: { route: 'note', title: 'A thought', confidence: 'low', payload: {} } });
   await mk({ kind: 'review', source: 'nova', status: 'discarded', text: 'Daily Review — x' });
+  // a scout proposal he declined last month, with his reason
+  await mk({ kind: 'pattern', source: 'scout', status: 'discarded', discardedAt: new Date().toISOString(), declineReason: 'I stopped taking it', text: 'x', decision: { route: 'preference', title: 'Standing: log creatine daily', confidence: 'high', payload: {} } });
 
   const ctx = await buildScoutContext(vault);
+  assert.match(ctx, /SCOUT PROPOSALS HE SAID NO TO[\s\S]*- Standing: log creatine daily — his reason: "I stopped taking it"/, 'the model is told what he declined');
   assert.match(ctx, /HIS CAPTURES, LAST 30 DAYS \(3 total\)/); // the review draft is NOT a capture
   assert.match(ctx, /food ×2 \(2 filed, 0 discarded\)/);
   assert.match(ctx, /note ×1 \(0 filed, 1 discarded\)/);

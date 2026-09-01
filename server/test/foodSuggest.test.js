@@ -95,3 +95,35 @@ test('describe-it refuses input too thin or too long to be honest about', async 
   assert.throws(() => startFoodDescribe('ok'), /few more words/);
   assert.throws(() => startFoodDescribe('x'.repeat(301)), /under 300 characters/);
 });
+
+
+test('a dismissed food asks once more only after 60 days AND a doubled habit — then never again', async () => {
+  const DAY = 86_400_000;
+  const { updateRecord } = await import('../lib/inboxStore.js');
+  const rec = (await listRecords()).find((r) => r.kind === 'food-suggestion' && r.decision.payload.name === 'New Snack');
+  assert.equal(rec.decision.payload.count, 3, 'the count rides the payload');
+  const t0 = Date.now();
+  await updateRecord(rec.id, { status: 'discarded', discardedAt: new Date(t0).toISOString(), declineReason: 'a snack, not a recipe' });
+
+  assert.equal((await runFoodSuggestions(vault, { now: t0 + 30 * DAY })).proposed, 0, 'inside the cooldown a no is a no');
+  assert.equal((await runFoodSuggestions(vault, { now: t0 + 61 * DAY })).proposed, 0, 'after it, the same three logs are not a changed habit');
+
+  // he now eats it twice as often as the bar that prompted the first ask
+  await day('2026-07-19', ['New Snack']);
+  await day('2026-07-22', ['New Snack']);
+  await day('2026-07-25', ['New Snack']);
+  const res = await runFoodSuggestions(vault, { now: t0 + 61 * DAY });
+  assert.equal(res.proposed, 1, 'a doubled habit earns exactly one more ask');
+  assert.match(res.records[0].decision.reason, /You passed on this on \d{1,2} \w{3,4} \("a snack, not a recipe"\); the number behind it has moved from 3 to 6, so asking once more/);
+  assert.equal(res.records[0].decision.payload.count, 6);
+
+  // he says no again → a standing no, however often he eats it
+  await updateRecord(res.records[0].id, { status: 'discarded', discardedAt: new Date(t0 + 61 * DAY).toISOString() });
+  await day('2026-07-28', ['New Snack']);
+  await day('2026-07-31', ['New Snack']);
+  await day('2026-08-03', ['New Snack']);
+  await day('2026-08-06', ['New Snack']);
+  await day('2026-08-09', ['New Snack']);
+  await day('2026-08-12', ['New Snack']);
+  assert.equal((await runFoodSuggestions(vault, { now: t0 + 200 * DAY })).proposed, 0, 'twice declined is a standing no');
+});

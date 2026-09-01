@@ -1,4 +1,5 @@
 import { readFile, writeFile, mkdir, rename, readdir, stat } from 'node:fs/promises';
+import { respectNo } from './respectTheNo.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,6 +22,12 @@ const INBOX_DIR_REL = 'Wiki/Inbox';
 const ARCHIVE_DIR_REL = 'Wiki/Inbox/Archive';
 const TODO_REL = 'Wiki/Inbox/To-Do.md';
 const STALE_DAYS = 14;
+// A dismissed proposal stays dismissed for this long, then may return —
+// naming the history. Replaces a 200-key slice whose memory expired by
+// displacement: when a no came back depended on how much else he had
+// dismissed since (lib/respectTheNo.js, the plain-cooldown form).
+const DISMISS_COOLDOWN_DAYS = 90;
+const DISMISS_KEEP_DAYS = 365;
 const MAX_ORPHANS = 8;
 
 let cache = null;
@@ -48,9 +55,15 @@ function load() {
           parsed = null;
         }
       }
-      cache = parsed && typeof parsed === 'object' ? parsed : { lastRunAt: null, proposals: [], dismissedKeys: [] };
+      cache = parsed && typeof parsed === 'object' ? parsed : { lastRunAt: null, proposals: [], dismissed: {} };
       if (!Array.isArray(cache.proposals)) cache.proposals = [];
-      if (!Array.isArray(cache.dismissedKeys)) cache.dismissedKeys = [];
+      if (!cache.dismissed || typeof cache.dismissed !== 'object') cache.dismissed = {};
+      // one-time migration from the undated key list: those no's take the
+      // last run's date, so their cooldown starts from the last time they held
+      if (Array.isArray(cache.dismissedKeys)) {
+        for (const k of cache.dismissedKeys) if (!cache.dismissed[k]) cache.dismissed[k] = cache.lastRunAt || new Date().toISOString();
+        delete cache.dismissedKeys;
+      }
       return cache;
     })();
     loadPromise.catch(() => { loadPromise = null; });
@@ -176,7 +189,7 @@ async function detectSweepableTodos(vaultPath) {
 
 /* --------------------------------- runs ---------------------------------- */
 
-export async function runCompost(vaultPath) {
+export async function runCompost(vaultPath, { now = Date.now() } = {}) {
   return withLock(async () => {
     const store = await load();
     const found = [
@@ -185,9 +198,15 @@ export async function runCompost(vaultPath) {
       ...(await detectStaleSeeds(vaultPath)),
       ...(await detectOrphans(vaultPath)),
     ];
-    const dismissed = new Set(store.dismissedKeys);
     store.proposals = found
-      .filter((p) => !dismissed.has(p.key))
+      .map((p) => {
+        const at = store.dismissed[p.key];
+        const no = respectNo({ declined: at ? { at: new Date(at).getTime(), metric: null, count: 1 } : null, now, cooldownDays: DISMISS_COOLDOWN_DAYS, materialChange: null });
+        if (!no.raise) return null;
+        // a return after the cooldown says so — he passed on it once
+        return no.history ? { ...p, detail: `${p.detail} (${no.history[0].toUpperCase()}${no.history.slice(1)}.)`, returned: true } : p;
+      })
+      .filter(Boolean)
       .map((p) => ({ id: randomUUID().slice(0, 8), status: 'open', createdAt: new Date().toISOString(), ...p }));
     store.lastRunAt = new Date().toISOString();
     await persist();
@@ -206,8 +225,10 @@ export async function dismissProposal(id) {
     const p = store.proposals.find((x) => x.id === id);
     if (!p) throw new Error('proposal not found');
     p.status = 'dismissed';
-    store.dismissedKeys.push(p.key);
-    if (store.dismissedKeys.length > 200) store.dismissedKeys = store.dismissedKeys.slice(-200);
+    store.dismissed[p.key] = new Date().toISOString();
+    // a year-old no has long since had its say — keep the file small
+    const keepFrom = Date.now() - DISMISS_KEEP_DAYS * 86_400_000;
+    for (const [k, at] of Object.entries(store.dismissed)) if (new Date(at).getTime() < keepFrom) delete store.dismissed[k];
     await persist();
     return p;
   });

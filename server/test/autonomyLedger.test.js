@@ -80,3 +80,29 @@ test('proposeEarnedAutonomy files a real proposal once, and the filer applies + 
   assert.match(note, /restored Daily Review to draft/);
   assert.equal((await getReviewConfig()).mode, 'draft');
 });
+
+
+test('a declined autonomy proposal stays quiet for 60 days, then returns only on materially more evidence — naming the history', async () => {
+  const day = 86_400_000;
+  const { listRecords, updateRecord } = await import('../lib/inboxStore.js');
+  // the review→auto proposal from the test above was applied (filed) and undone; seed a fresh dead-gate target: the morning brief
+  for (let i = 0; i < 16; i++) await createRecord(mkRec('dispatch', 'discarded', { slot: 'morning', expired: true }));
+  const t0 = Date.now();
+  const first = (await proposeEarnedAutonomy({ now: t0 })).find((p) => p.decision.payload.target === 'dispatch-morning');
+  assert.ok(first, 'the morning brief\'s gate is dead → proposed');
+  assert.equal(first.decision.payload.evidence.metric, 16, 'the evidence rides the payload');
+
+  // he declines it
+  await updateRecord(first.id, { status: 'discarded', discardedAt: new Date(t0).toISOString(), declineReason: 'I read them, I just don\'t tap' });
+  const during = await proposeEarnedAutonomy({ now: t0 + 7 * day });
+  assert.ok(!during.some((p) => p.decision.payload.target === 'dispatch-morning'), 'the next Sunday does NOT re-propose — this was the weekly nag');
+  const after = await proposeEarnedAutonomy({ now: t0 + 61 * day });
+  assert.ok(!after.some((p) => p.decision.payload.target === 'dispatch-morning'), 'after the cooldown, the same 16 is not new evidence');
+
+  // four more aged-out briefs: 20 vs 16 = +25% → it may return, and says so
+  for (let i = 0; i < 4; i++) await createRecord(mkRec('dispatch', 'discarded', { slot: 'morning', expired: true }));
+  const back = (await proposeEarnedAutonomy({ now: t0 + 61 * day })).find((p) => p.decision.payload.target === 'dispatch-morning');
+  assert.ok(back, 'materially more evidence re-proposes');
+  assert.match(back.decision.reason, /You passed on this on \d{1,2} \w{3,4} \("I read them, I just don't tap"\); the number behind it has moved from 16 to 20\./);
+  assert.equal((await listRecords()).filter((r) => r.kind === 'autonomy' && r.decision?.payload?.target === 'dispatch-morning').length, 2);
+});

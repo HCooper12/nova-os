@@ -4,6 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { NOVA_LENS } from './lens.js';
 import { createRecord, updateRecord, listRecords } from './inboxStore.js';
+import { declinedContext } from './respectTheNo.js';
 import { modelFor, laneSkipped } from './modelPrefs.js';
 import { isGateModel } from './modelChoice.js';
 
@@ -59,6 +60,12 @@ export async function buildScoutContext(vaultPath) {
       const byKind = {};
       for (const r of agentDrafts) byKind[r.kind] = (byKind[r.kind] || 0) + 1;
       parts.push(`AGENT DRAFTS HE DISCARDED (a pattern of discards means an agent is drafting the wrong thing): ${Object.entries(byKind).map(([k, n]) => `${k} ×${n}`).join('; ')}.`);
+    }
+    // his no's to THIS lane — a declined proposal used to come back verbatim
+    // the next week because nothing carried it into the context
+    const declined = declinedContext(records, { kind: 'pattern', days: 90 });
+    if (declined.length) {
+      parts.push(`SCOUT PROPOSALS HE SAID NO TO (last 90 days) — do not re-propose these unless the counts behind them have materially grown since, and if you do, name that history:\n${declined.join('\n')}`);
     }
   } catch { /* usage picture optional */ }
   try {

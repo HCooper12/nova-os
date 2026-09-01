@@ -1,4 +1,5 @@
 import { recurringSignal } from './sessionNotes.js';
+import { latestDeclines, respectNo } from './respectTheNo.js';
 // THE COACH'S PROGRAM REVIEW — the things a real coach notices between
 // sessions and raises unprompted.
 //
@@ -571,6 +572,34 @@ export async function reviewProgram(vaultPath, deps = {}) {
 //     an assistant becomes nagging rather than expert).
 export const NUDGE_DAYS = [3, 7];
 const MAX_OPEN = 2; // never more than two open asks at once — a list is noise
+const DECLINE_COOLDOWN_DAYS = 28;
+
+// The SUBJECT of a finding key, stable across weeks: `under:Chest:2026-08-24`
+// → `under:Chest`. The seen-set blocks exact keys, but under-volume and
+// junk keys embed the week, so a finding he argued down came back seven days
+// later under a new key — the contract break the module's own comments
+// stake its manners on. The subject is what remembers the no.
+export function subjectOfKey(key) {
+  const k = String(key || '');
+  return k.startsWith('effort:') ? 'effort' : k.split(':').slice(0, 2).join(':');
+}
+
+// The one number each kind can honestly compare — LARGER means more reason
+// to raise. Stable-keyed kinds (mapping, low-value) return null: their exact
+// key already makes a no permanent, which is the right answer for them.
+export function findingMetric(f) {
+  if (!f) return null;
+  const n = (x) => (x == null ? null : Math.round(Number(x) * 10) / 10);
+  switch (f.kind) {
+    case 'under-volume': return f.target != null && f.avg != null ? n(f.target - f.avg) : null;
+    case 'junk-volume': return f.ceiling != null && f.avg != null ? n(f.avg - f.ceiling) : null;
+    case 'stale': case 'tenure': return n(f.weeks);
+    case 'routine-oversized': return f.defined != null && f.avg != null ? n(f.defined - f.avg) : null;
+    case 'reported-pain': case 'reported-form': return n(f.times);
+    case 'effort-ceiling': return n(f.pct); // already a percentage on the finding
+    default: return null;
+  }
+}
 
 // Pure: given an open record and the clock, should it be nudged, and what is
 // the escalation number? Exported because the escalation is the part most
@@ -617,12 +646,23 @@ export async function raiseProgramFindings(vaultPath, deps = {}) {
   if (room > 0) {
     const { findings } = deps.review ? await deps.review() : await reviewProgram(vaultPath);
     // anything he has already seen — pending, acted on, or argued down —
-    // is never raised again
+    // is never raised again under the same key…
     const seen = new Set(records.filter((r) => r.kind === 'coach-program').map((r) => r.findingKey));
+    // …and a week-keyed SUBJECT he argued down stays down for 28 days, then
+    // returns only if its number has moved ≥20% — naming the history
+    // (lib/respectTheNo.js).
+    const declines = latestDeclines(records, {
+      kind: 'coach-program',
+      subjectOf: (r) => subjectOfKey(r.findingKey),
+      metricOf: (r) => findingMetric(r.finding),
+    });
     const { randomUUID } = await import('node:crypto');
     for (const f of findings) {
       if (seen.has(f.key)) continue;
+      const no = respectNo({ declined: declines.get(subjectOfKey(f.key)), now, cooldownDays: DECLINE_COOLDOWN_DAYS, metric: findingMetric(f), materialChange: 0.2 });
+      if (!no.raise) continue;
       if (raisedOut.length >= room) break;
+      const line = no.history ? `${f.line} (You ${no.history.replace(/^you /, '')}.)` : f.line;
       raisedOut.push(await createRecord({
         id: randomUUID().slice(0, 8),
         kind: 'coach-program',
@@ -633,7 +673,7 @@ export async function raiseProgramFindings(vaultPath, deps = {}) {
         // — the card and the sentence come from the same object.
         finding: { ...f, line: undefined, fix: undefined },
         fix: f.fix || null,
-        text: `Coach: ${f.line}`,
+        text: `Coach: ${line}`,
         source: 'coach',
         mode: 'draft',
         status: 'pending',

@@ -187,3 +187,36 @@ test('an unanswered ask is nudged, and the nudge rewrites the line rather than s
   assert.equal(rows[0].nudges, 1);
   assert.match(rows[0].text, /Still open/);
 });
+
+
+test('a finding he argued down does not return under next week\'s key — until its number has materially moved, and then it says so', async () => {
+  const { raiseProgramFindings, subjectOfKey, findingMetric } = await import('../lib/coachProgramReview.js');
+  assert.equal(subjectOfKey('under:Chest:2026-08-24'), 'under:Chest');
+  assert.equal(subjectOfKey('effort:89:2026-08-24'), 'effort');
+  assert.equal(findingMetric({ kind: 'under-volume', avg: 8, target: 12 }), 4);
+  assert.equal(findingMetric({ kind: 'mapping' }), null, 'stable keys carry no metric — their exact key already makes a no permanent');
+
+  const day = 86_400_000;
+  const t0 = Date.parse('2026-08-03T08:00:00Z');
+  const rows = [{
+    id: 'a', kind: 'coach-program', findingKey: 'under:Chest:2026-07-27', status: 'discarded', discardedAt: new Date(t0).toISOString(),
+    declineReason: 'shoulder is grumpy', finding: { kind: 'under-volume', muscle: 'Chest', avg: 8, target: 12 }, text: 'Coach: Chest under.', createdAt: new Date(t0).toISOString(),
+  }];
+  const store = {
+    listRecords: async () => rows,
+    createRecord: async (r) => { rows.push(r); return r; },
+    updateRecord: async (id, patch) => { Object.assign(rows.find((r) => r.id === id), patch); },
+  };
+  const finding = (week, avg) => ({ kind: 'under-volume', key: `under:Chest:${week}`, muscle: 'Chest', avg, target: 12, weeks: 3, line: `Chest has been under target — averaging ${avg} against 12.`, fix: null });
+
+  // next week, same picture → the no holds (this used to re-raise: new key, same subject)
+  let out = await raiseProgramFindings('/tmp/v', { store, review: async () => ({ findings: [finding('2026-08-03', 8)] }), now: t0 + 7 * day });
+  assert.equal(out.raised.length, 0, 'a new week key is not a new finding');
+  // five weeks on, the number barely moved → still no
+  out = await raiseProgramFindings('/tmp/v', { store, review: async () => ({ findings: [finding('2026-09-07', 7.5)] }), now: t0 + 35 * day });
+  assert.equal(out.raised.length, 0, 'a 12.5% move is not material');
+  // five weeks on and materially worse → it returns, naming the history
+  out = await raiseProgramFindings('/tmp/v', { store, review: async () => ({ findings: [finding('2026-09-07', 6)] }), now: t0 + 35 * day });
+  assert.equal(out.raised.length, 1);
+  assert.match(out.raised[0].text, /You passed on this on 3 Aug \("shoulder is grumpy"\); the number behind it has moved from 4 to 6\./);
+});

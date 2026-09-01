@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { createRecord, listRecords } from './inboxStore.js';
+import { latestDeclines, respectNo } from './respectTheNo.js';
 
 // The earned-autonomy engine — the trust ladder made real. Doctrine says
 // autonomy is EARNED from real history and PROPOSED, never assumed; until
@@ -17,6 +18,10 @@ import { createRecord, listRecords } from './inboxStore.js';
 const WINDOW_DAYS = 90;
 const MIN_SAMPLE = 14;      // no verdicts on thin evidence
 const DEAD_GATE_RATIO = 0.8; // ≥80% aged out or rejected, none approved
+const DECLINE_COOLDOWN_DAYS = 60;
+// the number a verdict rests on — LARGER means more reason: dead records for
+// a stuck gate, undone ones for a premature auto
+const metricFor = (row, to) => (to === 'auto' ? row.agedOut + row.rejected : row.undone);
 
 // The proposal targets: config-backed agents whose mode this engine may
 // touch. Each knows how to read its current mode and how to apply a new one
@@ -124,11 +129,21 @@ export async function computeAutonomyLedger() {
 }
 
 // File at most `cap` proposals; skip any target that already has one pending.
-export async function proposeEarnedAutonomy({ cap = 3 } = {}) {
+export async function proposeEarnedAutonomy({ cap = 3, now = Date.now() } = {}) {
   const records = await listRecords();
   const alreadyPending = new Set(records
     .filter((r) => r.kind === 'autonomy' && (r.status === 'pending' || r.status === 'classifying'))
     .map((r) => r.decision?.payload?.target));
+  // The same ledger produced the same verdict every Sunday after a no — the
+  // manners engine nagging. A declined target stays quiet for 60 days, then
+  // re-proposes only on ≥25% more evidence, naming the history
+  // (lib/respectTheNo.js). A decline filed before evidence rode the payload
+  // has no number to compare, so it stays a no.
+  const declines = latestDeclines(records, {
+    kind: 'autonomy',
+    subjectOf: (r) => r.decision?.payload?.target,
+    metricOf: (r) => r.decision?.payload?.evidence?.metric ?? null,
+  });
   const ledger = await computeAutonomyLedger();
   const proposals = [];
   for (const entry of ledger) {
@@ -136,6 +151,9 @@ export async function proposeEarnedAutonomy({ cap = 3 } = {}) {
     if (!entry.proposable || !entry.mode || alreadyPending.has(entry.id)) continue;
     const v = verdict(entry.row, entry.mode);
     if (!v) continue;
+    const metric = metricFor(entry.row, v.to);
+    const no = respectNo({ declined: declines.get(entry.id), now, cooldownDays: DECLINE_COOLDOWN_DAYS, metric, materialChange: 0.25 });
+    if (!no.raise) continue;
     const record = {
       id: randomUUID().slice(0, 8),
       kind: 'autonomy',
@@ -148,8 +166,10 @@ export async function proposeEarnedAutonomy({ cap = 3 } = {}) {
         route: 'agent-mode',
         confidence: 'high',
         title: `Earned autonomy: ${entry.label} → ${v.to}`,
-        reason: v.evidence,
-        payload: { target: entry.id, from: entry.mode, to: v.to },
+        reason: no.history ? `${v.evidence} You ${no.history.replace(/^you /, '')}.` : v.evidence,
+        // the numbers the verdict rested on, so a later run can tell "the
+        // same evidence" from "materially more of it"
+        payload: { target: entry.id, from: entry.mode, to: v.to, evidence: { ...entry.row, metric } },
       },
     };
     await createRecord(record);
