@@ -1,13 +1,13 @@
 import { spawn } from 'node:child_process';
-import { readFile, writeFile, mkdir, readdir, rm, unlink } from 'node:fs/promises';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFile, writeFile, mkdir, readdir, rm } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { stageVault, diffTrees } from './ingest.js';
 import { createRecord, listRecords } from './inboxStore.js';
-import { backupFile } from './backup.js';
+import { stampPriors, applyChanges, undoChanges } from './stagedPass.js';
 import { modelFor, laneSkipped } from './modelPrefs.js';
 import { isGateModel } from './modelChoice.js';
 import { boundaryArgs } from './spawnBoundary.js';
@@ -20,11 +20,13 @@ import { weeklyWindowOpen } from './cadence.js';
 // unlinked captures into the graph per the vault's own CLAUDE.md — links
 // added where genuinely related, nothing deleted, nothing invented — and
 // persists the resulting diff as a job on disk. A pending record carries it
-// to his gate (and his Telegram buttons); approval applies the diff, with
-// two safeties the vault-writer rules demand:
+// to his gate (and his Telegram buttons); approval applies the diff through
+// THE STAGED PASS (lib/stagedPass.js — shared with the deep-weave ingest and
+// Coach), with the safeties the vault-writer rules demand:
 //   - DRIFT REFUSAL: every change stores the exact prior content it was
 //     computed against; if the live file has moved since, apply refuses
 //     honestly instead of clobbering newer edits.
+//   - ALL OR NOTHING: a write failing mid-apply rolls the earlier files back.
 //   - FULL UNDO: priors are restored verbatim; files the job created are
 //     removed.
 
@@ -151,14 +153,7 @@ export async function runDistillation(vaultPath, { force = false, model } = {}) 
 
     // diff, and stamp each change with the exact prior it was computed
     // against — the drift check at apply time depends on it
-    const changes = diffTrees(vaultPath, stagingVault).map((c) => {
-      const livePath = path.join(vaultPath, c.path);
-      let prior = null;
-      if (c.kind === 'updated' && existsSync(livePath)) {
-        try { prior = readFileSync(livePath, 'utf8'); } catch { prior = null; }
-      }
-      return { ...c, prior };
-    });
+    const changes = stampPriors(vaultPath, diffTrees(vaultPath, stagingVault));
     if (!changes.length) return { skipped: true, reason: 'the model found nothing worth linking' };
 
     const job = { id: jobId, at: new Date().toISOString(), summary: summary.slice(0, 4000), status: 'ready', changes };
@@ -193,23 +188,9 @@ export async function applyDistillJob(vaultPath, jobId) {
   const job = await loadDistillJob(jobId);
   if (!job) throw new Error('that distillation job is gone (the server may have pruned it) — run distillation again');
   if (job.status !== 'ready') throw new Error(`that distillation was already ${job.status}`);
-  // drift refusal FIRST, across every file, before any write
-  for (const c of job.changes) {
-    const live = path.join(vaultPath, c.path);
-    if (c.kind === 'updated') {
-      const current = existsSync(live) ? await readFile(live, 'utf8') : null;
-      if (current !== c.prior) throw new Error(`the vault moved under this draft (${c.path} changed since the diff) — discard it and rerun distillation`);
-    } else if (c.kind === 'new' && existsSync(live)) {
-      throw new Error(`the vault moved under this draft (${c.path} now exists) — discard it and rerun distillation`);
-    }
-  }
-  for (const c of job.changes) {
-    const dest = path.join(vaultPath, c.path);
-    await mkdir(path.dirname(dest), { recursive: true });
-    await backupFile(dest);
-    await writeFile(dest, c.content, 'utf8');
-  }
+  await applyChanges(vaultPath, job.changes, { what: 'this draft', remedy: 'discard it and rerun distillation' });
   job.status = 'applied';
+  job.appliedAt = new Date().toISOString();
   await persistJob(job);
   return { applied: job.changes.length };
 }
@@ -218,15 +199,11 @@ export async function undoDistillJob(vaultPath, jobId) {
   const job = await loadDistillJob(jobId);
   if (!job) throw new Error('that distillation job is gone');
   if (job.status !== 'applied') throw new Error('only an applied distillation can be undone');
-  for (const c of job.changes) {
-    const live = path.join(vaultPath, c.path);
-    await backupFile(live);
-    if (c.kind === 'new') await unlink(live).catch(() => {});
-    else if (c.prior != null) await writeFile(live, c.prior, 'utf8');
-  }
+  const { restored } = await undoChanges(vaultPath, job.changes);
   job.status = 'undone';
+  job.undoneAt = new Date().toISOString();
   await persistJob(job);
-  return { restored: job.changes.length };
+  return { restored };
 }
 
 /* ------------------------------- scheduler ------------------------------- */

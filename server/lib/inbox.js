@@ -770,15 +770,25 @@ export async function undoFiling(vaultPath, undo) {
   // reference it — deleting history's foreign keys is never worth a tidier
   // library).
   if (undo.kind === 'coach-plan') {
-    const { loadExerciseLibrary } = await import('./exercises.js');
-    const { updateRoutine } = await import('./workouts.js');
-    const { clearMarkers } = await import('./coachPlan.js');
-    const { exercises } = await loadExerciseLibrary(vaultPath);
-    for (const r of undo.routines || []) {
-      await updateRoutine(vaultPath, exercises, r.routineId, { exercises: r.entries });
+    const { clearMarkers, commitVaultState } = await import('./coachPlan.js');
+    let n;
+    if (undo.changes) {
+      // the staged-pass shape: the routines file back verbatim, written
+      // through its owning module so the process cache follows the bytes
+      const { undoChanges } = await import('./stagedPass.js');
+      await undoChanges(vaultPath, undo.changes, { write: commitVaultState });
+      n = (undo.routineIds || []).length;
+    } else {
+      // records filed before the staged pass carry prior ENTRIES per routine
+      const { loadExerciseLibrary } = await import('./exercises.js');
+      const { updateRoutine } = await import('./workouts.js');
+      const { exercises } = await loadExerciseLibrary(vaultPath);
+      for (const r of undo.routines || []) {
+        await updateRoutine(vaultPath, exercises, r.routineId, { exercises: r.entries });
+      }
+      n = (undo.routines || []).length;
     }
     await clearMarkers(undo.markerKeys || []);
-    const n = (undo.routines || []).length;
     return `restored ${n} routine${n === 1 ? '' : 's'} to how they were before Coach's change`;
   }
   // put an exercise back where it was — the volume bars follow it back, since
@@ -827,6 +837,11 @@ export async function undoFiling(vaultPath, undo) {
     const { undoDistillJob } = await import('./distill.js');
     const { restored } = await undoDistillJob(vaultPath, undo.jobId);
     return `restored ${restored} file${restored === 1 ? '' : 's'} to their pre-distillation state`;
+  }
+  if (undo.route === 'ingest-apply') {
+    const { undoIngestJob } = await import('./ingest.js');
+    const { restored } = await undoIngestJob(vaultPath, undo.jobId);
+    return `restored ${restored} file${restored === 1 ? '' : 's'} to their pre-weave state`;
   }
   if (undo.route === 'profile') {
     const { setProfile } = await import('./profile.js');

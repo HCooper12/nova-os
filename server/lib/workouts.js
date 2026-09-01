@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import matter from 'gray-matter';
 import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
 
-const ROUTINES_REL_PATH = 'Wiki/Health/Workout Routines.md';
+export const ROUTINES_REL_PATH = 'Wiki/Health/Workout Routines.md';
 export const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 // A schedule day can hold a routine id, be empty (rest), or this sentinel:
 // "active rest" — no weight workout, but still active (a treadmill walk for
@@ -46,14 +46,24 @@ function bodyFor(routines, schedule, exercisesById) {
   return lines.join('\n');
 }
 
+function parseRoutines(raw) {
+  const data = matter(raw).data;
+  return { routines: Array.isArray(data.routines) ? data.routines : [], schedule: data.schedule || {} };
+}
+
+// The whole file from its data — the frontmatter is the truth, the body a
+// readable rendering of it. Pure, so a planner can compute the file it WOULD
+// write and hand it to the staged pass (lib/stagedPass.js) instead of writing.
+export function renderRoutinesFile(data, exercisesById) {
+  const frontmatter = { type: 'workout-routines', updated: new Date().toISOString().slice(0, 10), routines: data.routines, schedule: data.schedule };
+  return matter.stringify(bodyFor(data.routines, data.schedule, exercisesById), frontmatter);
+}
+
 // Cache + iCloud staleness handling + external-edit detection live in the
 // shared helper — see vaultStateFile.js.
 const stateFile = createVaultStateFile({
   relPath: ROUTINES_REL_PATH,
-  parse(raw) {
-    const data = matter(raw).data;
-    return { routines: Array.isArray(data.routines) ? data.routines : [], schedule: data.schedule || {} };
-  },
+  parse: parseRoutines,
   empty: () => ({ routines: [], schedule: {} }),
 });
 
@@ -61,13 +71,35 @@ function getData(vaultPath) {
   return stateFile.load(vaultPath);
 }
 
+// The raw { routines, schedule } — the cache's own object, so callers that
+// plan a change must work on a copy, never mutate it.
+export function loadRoutineData(vaultPath) {
+  return getData(vaultPath);
+}
+
 async function persist(vaultPath, data, exercisesById) {
-  const frontmatter = { type: 'workout-routines', updated: new Date().toISOString().slice(0, 10), routines: data.routines, schedule: data.schedule };
-  const content = matter.stringify(bodyFor(data.routines, data.schedule, exercisesById), frontmatter);
-  await stateFile.write(vaultPath, content, data);
+  await stateFile.write(vaultPath, renderRoutinesFile(data, exercisesById), data);
 }
 
 const withWriteLock = createWriteLock();
+
+// Whole-file write for the staged pass. Goes through the state file so the
+// process cache follows the bytes — a raw writeFile here would leave the next
+// read serving the OLD plan for up to the grace window.
+export function writeRoutinesRaw(vaultPath, raw) {
+  return withWriteLock(() => stateFile.write(vaultPath, raw, parseRoutines(raw)));
+}
+
+// One routine's entries replaced, validated, on a COPY of the data. Pure —
+// updateRoutine below and Coach's planner both build on it.
+export function replaceRoutineEntries(data, routineId, inputExercises, exercisesById) {
+  const entries = validateExerciseEntries(inputExercises, exercisesById);
+  const idx = data.routines.findIndex((r) => r.id === routineId);
+  if (idx === -1) throw new Error('routine not found');
+  const routines = [...data.routines];
+  routines[idx] = { ...routines[idx], exercises: entries };
+  return { routines, schedule: data.schedule };
+}
 
 export async function loadRoutines(vaultPath, exercises) {
   const exercisesById = new Map(exercises.map((e) => [e.id, e]));
@@ -109,20 +141,16 @@ export async function createRoutine(vaultPath, exercises, name, inputExercises) 
 
 export async function updateRoutine(vaultPath, exercises, routineId, { name, exercises: inputExercises }) {
   const exercisesById = new Map(exercises.map((e) => [e.id, e]));
-  const entries = inputExercises ? validateExerciseEntries(inputExercises, exercisesById) : null;
   return withWriteLock(async () => {
     const data = await getData(vaultPath);
     const idx = data.routines.findIndex((r) => r.id === routineId);
     if (idx === -1) throw new Error('routine not found');
-    const current = data.routines[idx];
-    const routine = {
-      ...current,
-      name: typeof name === 'string' && name.trim() ? name.trim() : current.name,
-      exercises: entries || current.exercises,
-    };
-    const routines = [...data.routines];
-    routines[idx] = routine;
-    const updated = { routines, schedule: data.schedule };
+    const updated = inputExercises
+      ? replaceRoutineEntries(data, routineId, inputExercises, exercisesById)
+      : { routines: [...data.routines], schedule: data.schedule };
+    const current = updated.routines[idx];
+    const routine = { ...current, name: typeof name === 'string' && name.trim() ? name.trim() : current.name };
+    updated.routines[idx] = routine;
     await persist(vaultPath, updated, exercisesById);
     return { id: routine.id, name: routine.name, createdAt: routine.createdAt, exercises: routine.exercises.map((e) => resolveExercise(e, exercisesById)) };
   });

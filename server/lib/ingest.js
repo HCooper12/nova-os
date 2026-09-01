@@ -6,7 +6,8 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { randomUUID, createHash } from 'node:crypto';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
-import { backupFile } from './backup.js';
+import { stampPriors, applyChanges, undoChanges } from './stagedPass.js';
+import { createRecord } from './inboxStore.js';
 import { boundaryArgs } from './spawnBoundary.js';
 
 const SKIP = new Set(['.obsidian', '.claude', '.DS_Store']);
@@ -58,9 +59,9 @@ const jobsDir = () => path.join(process.env.NOVA_DATA_DIR || path.join(path.dirn
 async function persistJob(job) {
   try {
     await mkdir(jobsDir(), { recursive: true });
-    const { id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt, book, person, progress, heartbeatAt } = job;
+    const { id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt, book, person, progress, heartbeatAt, appliedAt, undoneAt, receiptId } = job;
     await writeFile(path.join(jobsDir(), `${id}.json`),
-      JSON.stringify({ id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt, book, person, progress, heartbeatAt }), 'utf8');
+      JSON.stringify({ id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt, book, person, progress, heartbeatAt, appliedAt, undoneAt, receiptId }), 'utf8');
   } catch (e) {
     console.error(`ingest job ${job.id} failed to persist:`, e.message);
   }
@@ -415,7 +416,9 @@ When done, give a concise final summary: pages created, pages updated, and any c
         if (!result) job.summary = stdout.trim();
         if (job.status !== 'error') {
           try {
-            job.changes = diffTrees(vaultPath, stagingVault);
+            // each change carries the exact prior it was computed against —
+            // the staged pass's drift check at approval depends on it
+            job.changes = stampPriors(vaultPath, diffTrees(vaultPath, stagingVault));
             job.status = 'ready';
           } catch (e) {
             job.status = 'error';
@@ -492,7 +495,7 @@ export async function getJob(jobId) {
   // On disk but not in memory = the server restarted. A ready/error job is
   // fully recoverable (changes travel in the file); a mid-flight one lost
   // its process — say so instead of showing an eternal spinner.
-  if (!['ready', 'error', 'applied'].includes(disk.status)) {
+  if (!['ready', 'error', 'applied', 'undone'].includes(disk.status)) {
     return { ...redact(disk), status: 'error', error: 'the server restarted mid-job — start it again (a cached digest makes the re-run cheap)' };
   }
   return redact(disk);
@@ -502,22 +505,101 @@ async function loadJobAnywhere(jobId) {
   return jobs.get(jobId) || await loadJobFromDisk(jobId);
 }
 
+// THE STAGED PASS, at its most powerful consumer (lib/stagedPass.js). This
+// used to be the one vault write outside the rails: backup-first per file,
+// then a wholesale overwrite with no drift check, no priors, no undo and no
+// receipt — recovery from a regretted $6 weave was an evening in Guardian's
+// time machine, page by page. Now: every file drift-checked before any write,
+// all written or none, a receipt on the rails whose undo restores every prior
+// verbatim, and the job file kept as that undo's memory.
 export async function approveJob(jobId) {
   const job = await loadJobAnywhere(jobId);
   if (!job) throw new Error('job not found');
+  if (job.status === 'applied') throw new Error('that weave was already applied');
   if (job.status !== 'ready') throw new Error('job not ready');
-  for (const change of job.changes) {
-    const dest = path.join(job.vaultPath, change.path);
-    await mkdir(path.dirname(dest), { recursive: true });
-    // Same snapshot-before-overwrite policy as every other vault write path —
-    // an "updated" change replaces a real page wholesale.
-    await backupFile(dest);
-    await writeFile(dest, change.content, 'utf8');
-  }
+  // A weave staged by an older server carries no priors. Stamp it now: drift
+  // since its diff can't be detected, but undo still gets its priors — a paid
+  // weave is never discarded for having been staged before a deploy.
+  if (job.changes.some((c) => c.prior === undefined)) job.changes = stampPriors(job.vaultPath, job.changes);
+  await applyChanges(job.vaultPath, job.changes, {
+    what: 'this weave',
+    remedy: 'discard it and run the ingest again (a cached digest makes the re-run cheap)',
+  });
   job.status = 'applied';
+  job.appliedAt = new Date().toISOString();
+  await persistJob(job); // the truth about the vault first, durable
+  // RULE 2, NO EXCEPTIONS: the weave rides the rails like every other write
+  let receipt = null;
+  try {
+    receipt = await createRecord(receiptFor(job));
+    job.receiptId = receipt.id;
+    await persistJob(job);
+  } catch (e) {
+    // the vault IS written — say so truthfully rather than report a failure
+    console.error(`ingest ${job.id}: applied, but its receipt did not file:`, e.message);
+  }
   await cleanup(job);
   jobs.delete(jobId);
-  await removeJobFile(jobId);
+  await pruneSettledJobs().catch(() => {});
+  return { applied: job.changes.length, recordId: receipt?.id || null };
+}
+
+const labelOf = (job) => (job.book ? `${job.book.title} — ${job.book.author}` : job.person ? job.person.label : 'pasted content');
+
+function receiptFor(job) {
+  const n = job.changes.length;
+  const files = `${n} file${n === 1 ? '' : 's'}`;
+  const now = new Date().toISOString();
+  return {
+    id: randomUUID().slice(0, 8),
+    kind: 'ingest',
+    text: `Wove ${labelOf(job)} into the vault`,
+    source: 'nova',
+    mode: 'review-all', // every weave is approved in the review UI first
+    status: 'filed',
+    createdAt: now,
+    filedAt: now,
+    auto: false,
+    destination: `${files} written to the vault`,
+    decision: {
+      route: 'ingest-apply',
+      confidence: 'high',
+      title: `Vault ingest — ${labelOf(job)} (${files})`,
+      reason: String(job.summary || '').slice(0, 300),
+      payload: { jobId: job.id, paths: job.changes.map((c) => c.path), cost: job.cost || 0 },
+    },
+    undoData: { route: 'ingest-apply', jobId: job.id },
+  };
+}
+
+// The receipt's undo. Applied jobs live only on disk (approval drops the
+// in-memory copy), and they carry every prior.
+export async function undoIngestJob(vaultPath, jobId) {
+  const job = await loadJobFromDisk(jobId);
+  if (!job) throw new Error(`that weave's job file is gone — an applied weave keeps its undo for ${SETTLED_KEEP_DAYS} days; restore the pages from Guardian's time machine`);
+  if (job.status !== 'applied') throw new Error(`only an applied weave can be undone (this one is ${job.status})`);
+  const { restored } = await undoChanges(vaultPath, job.changes);
+  job.status = 'undone';
+  job.undoneAt = new Date().toISOString();
+  await persistJob(job);
+  return { restored };
+}
+
+// Applied and undone jobs are the undo's memory, so they stay — but not
+// forever: a weave file can be 700KB, and after a month the time machine's
+// snapshots are the honest fallback. Swept on each approval.
+const SETTLED_KEEP_DAYS = 30;
+async function pruneSettledJobs() {
+  let names = [];
+  try { names = readdirSync(jobsDir()).filter((f) => f.endsWith('.json')); } catch { return; }
+  const cutoff = Date.now() - SETTLED_KEEP_DAYS * 86400e3;
+  for (const f of names) {
+    let d = null;
+    try { d = JSON.parse(readFileSync(path.join(jobsDir(), f), 'utf8')); } catch { continue; }
+    if (!['applied', 'undone'].includes(d?.status)) continue;
+    const settledAt = new Date(d.undoneAt || d.appliedAt || d.createdAt || 0).getTime();
+    if (settledAt < cutoff) await rm(path.join(jobsDir(), f), { force: true }).catch(() => {});
+  }
 }
 
 export async function discardJob(jobId) {

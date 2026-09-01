@@ -14,7 +14,7 @@ const SOURCE_LABEL = {
   review: 'DAILY REVIEW', dispatch: 'DISPATCH', compost: 'COMPOST', guardian: 'GUARDIAN',
   cfo: 'CFO', 'money-import': 'CFO', 'meal-prep': 'MEAL PREP', 'food-suggestion': 'NUTRITION',
   calendar: 'SCHEDULE', 'training-check': 'TRAINING', 'week-plan': 'COMMANDER',
-  'plan-today': 'PLANNER', pattern: 'SCOUT', autonomy: 'TRUST LADDER', distill: 'DISTILLER',
+  'plan-today': 'PLANNER', pattern: 'SCOUT', autonomy: 'TRUST LADDER', distill: 'DISTILLER', ingest: 'VAULT INGEST',
   coach: 'COACH', 'weekly-debrief': 'COACH', research: 'RESEARCHER', video: 'WATCHER',
   'model-choice': 'MODEL CHOICE', 'brain-week': 'BRAIN WEEK', followup: 'CALENDAR',
   studio: 'STUDIO', 'fuel-cross': 'FUEL × TRAINING', study: 'STUDY',
@@ -46,6 +46,8 @@ const ROUTE_META = {
   'agent-mode': { label: 'TRUST LADDER', hue: '89,230,255' },
   profile: { label: 'ABOUT YOU', hue: '143,123,255' },
   'distill-apply': { label: 'DISTILL', hue: '95,232,168' },
+  // the deep weave's receipt — approving already happened in the review UI; this badge is its undo handle
+  'ingest-apply': { label: 'VAULT INGEST', hue: '224,178,106' },
   // approving writes TWO files — the badge says so
   'watch-note': { label: 'SOURCE + TRANSCRIPT', hue: '224,178,106' },
 };
@@ -93,7 +95,7 @@ function payloadPreview(decision) {
   if (decision.route === 'routine-edit') return `${p.action === 'swap' ? `${p.removeName} → ${p.addName}` : p.action === 'add' ? `+ ${p.addName}` : p.action === 'remove' ? `− ${p.removeName}` : `${p.removeName} targets`} in ${p.routineName}${p.reason ? ' — ' + p.reason : ''}`;
   if (decision.route === 'agent-mode') return `${p.target}: ${p.from} → ${p.to}`;
   if (decision.route === 'profile') return p.summary || '';
-  if (decision.route === 'distill-apply') return `${(p.paths || []).length} files: ${(p.paths || []).slice(0, 3).join(', ')}${(p.paths || []).length > 3 ? '…' : ''}`;
+  if (decision.route === 'distill-apply' || decision.route === 'ingest-apply') return `${(p.paths || []).length} files: ${(p.paths || []).slice(0, 3).join(', ')}${(p.paths || []).length > 3 ? '…' : ''}`;
   if (decision.route === 'progression-tune') return `${p.exerciseName}: ${[p.hold ? 'hold progressions' : null, p.stepKg != null ? `step ${p.stepKg}kg` : null, p.repStep != null ? `+${p.repStep} rep` : null, p.focus ? `focus — ${p.focus}` : null].filter(Boolean).join(', ')}${p.reason ? ' — ' + p.reason : ''}`;
   if (decision.route === 'idea') return `${p.title} — ${p.hook} (${p.format})`;
   if (decision.route === 'idea-outline') return (p.text || '').slice(0, 200);

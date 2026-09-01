@@ -4,8 +4,9 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { loadExerciseLibrary, addCustomExercise, setExerciseMuscleGroup } from './exercises.js';
-import { loadRoutines, updateRoutine } from './workouts.js';
+import { loadExerciseLibrary, addExerciseIn, setMuscleGroupIn, renderLibraryFile, writeLibraryRaw, LIBRARY_REL_PATH } from './exercises.js';
+import { loadRoutines, loadRoutineData, replaceRoutineEntries, renderRoutinesFile, writeRoutinesRaw, ROUTINES_REL_PATH } from './workouts.js';
+import { stampPriors, applyChanges } from './stagedPass.js';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 
 // COACH CHANGES THE PLAN — his ask, made real.
@@ -25,9 +26,11 @@ import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 // proposal to the Coach's model, which must answer in OPS — never in file
 // edits — and anything outside the op schema is refused, not improvised.
 //
-// Every application is UNDOABLE: the record carries the prior entries of
-// every routine it touched, and undo restores them and clears the
-// highlights. A plan change he regrets is one tap back.
+// Every application is UNDOABLE: the record carries the routines file's
+// prior bytes, and undo restores them verbatim and clears the highlights. A
+// plan change he regrets is one tap back. And every application is ALL OR
+// NOTHING — see applyOps: the ops are planned in memory and landed by the
+// staged pass, so a failure can never leave the plan half-changed.
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const AMEND_BUDGET_USD = '1';
@@ -102,49 +105,97 @@ export function swapEntry(entries, exerciseId, replaceWith) {
 
 /* ------------------------------- applier --------------------------------- */
 
-// Apply a list of ops. Returns { summary, undo } — undo carries the prior
-// entries of every routine touched, the markers set, and any exercise
-// created, so undoFiling can put ALL of it back.
+// Apply a list of ops — THE STAGED PASS, in memory (lib/stagedPass.js).
+//
+// The ops are PLANNED against the live plan without writing a byte: the
+// exercise library and the routines are copied, each op transforms the copy,
+// and the result is rendered into the two files Coach is allowed to touch.
+// Then the shared apply lands them: priors stamped, every file drift-checked
+// before any write, all written or none — a write that dies mid-way rolls the
+// earlier one back. The applier this replaces wrote through updateRoutine op
+// by op, so an op failing at position 3 of 5 left the plan torn, with no
+// receipt and no undo.
+//
+// Returns { summary, undo } — undo carries the routines file's prior bytes
+// (restored verbatim), the markers set, and any exercise created.
 export async function applyOps(vaultPath, ops, { why = 'Coach change' } = {}) {
   validateOps(ops);
+  const plan = await planOps(vaultPath, ops, { why });
+
+  // library first: were the impossible torn state ever to happen, an unused
+  // exercise is harmless while a routine naming a missing one is not
+  const drafts = [];
+  if (plan.libraryChanged) drafts.push({ path: LIBRARY_REL_PATH, kind: 'updated', content: renderLibraryFile(plan.exercises) });
+  if (plan.routineIds.length) drafts.push({ path: ROUTINES_REL_PATH, kind: 'updated', content: renderRoutinesFile(plan.data, byId(plan.exercises)) });
+  const changes = stampPriors(vaultPath, drafts).map((c) => (c.prior == null ? { ...c, kind: 'new' } : c));
+  await applyChanges(vaultPath, changes, { what: "Coach's change", remedy: 'try it again', write: commitVaultState });
+
+  for (const mk of plan.markers) await addMarker(mk.routineId, mk.exerciseId, { why: mk.why, ...(mk.startWeightKg ? { startWeightKg: mk.startWeightKg } : {}) });
+
+  return {
+    summary: plan.summary.join('; '),
+    undo: {
+      kind: 'coach-plan',
+      // the routines file back verbatim; the library keeps what was created —
+      // sessions may already reference a new exercise, and deleting history's
+      // foreign keys is never worth a tidier library
+      changes: changes.filter((c) => c.path === ROUTINES_REL_PATH),
+      routineIds: plan.routineIds,
+      markerKeys: plan.markers.map((m) => `${m.routineId}:${m.exerciseId}`),
+      createdExercises: plan.createdExercises,
+    },
+  };
+}
+
+// The two files Coach writes are owned by vaultStateFile modules — a write
+// must go through them or the process cache keeps serving the old plan (see
+// stagedPass.js). Shared by apply (above) and undo (inbox.undoFiling).
+export function commitVaultState(vaultPath, relPath, raw) {
+  if (relPath === ROUTINES_REL_PATH) return writeRoutinesRaw(vaultPath, raw);
+  if (relPath === LIBRARY_REL_PATH) return writeLibraryRaw(vaultPath, raw);
+  throw new Error(`Coach does not write ${relPath}`);
+}
+
+const byId = (exercises) => new Map(exercises.map((e) => [e.id, e]));
+const entriesOf = (routine) => routine.exercises.map((e) => ({ exerciseId: e.exerciseId, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh }));
+
+// Every op against an in-memory copy of the plan. Nothing here writes.
+async function planOps(vaultPath, ops, { why }) {
   let { exercises } = await loadExerciseLibrary(vaultPath);
+  // the cache's own object comes back — work on a copy, never mutate it
+  let data = structuredClone(await loadRoutineData(vaultPath));
   const summary = [];
-  const touched = new Map(); // routineId -> prior entries (first touch only)
+  const touched = new Set();
   const markers = [];
   const createdExercises = [];
+  let libraryChanged = false;
   const refs = {}; // `$new1` style references from new-exercise ops
-
   const resolveId = (id) => (typeof id === 'string' && id.startsWith('$') ? refs[id] : id) || id;
-
-  const routinesOf = async () => {
-    const { routines } = await loadRoutines(vaultPath, exercises);
-    return routines;
+  const routineNamed = (routineId) => {
+    const r = data.routines.find((x) => x.id === routineId);
+    if (!r) throw new Error('unknown routine');
+    return r;
   };
-
-  const rememberPrior = (routine) => {
-    if (!touched.has(routine.id)) {
-      touched.set(routine.id, routine.exercises.map((e) => ({
-        exerciseId: e.exerciseId, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh,
-      })));
-    }
-  };
-
-  const saveEntries = async (routine, entries) => {
-    await updateRoutine(vaultPath, exercises, routine.id, { exercises: entries });
+  const setEntries = (routine, entries) => {
+    data = replaceRoutineEntries(data, routine.id, entries, byId(exercises));
+    touched.add(routine.id);
   };
 
   for (const op of ops) {
     if (op.op === 'new-exercise') {
-      const ex = await addCustomExercise(vaultPath, String(op.name || '').trim(), op.muscleGroup, op.trackingType);
-      ({ exercises } = await loadExerciseLibrary(vaultPath));
-      if (op.ref) refs[op.ref] = ex.id;
-      createdExercises.push(ex.id);
-      summary.push(`added “${ex.name}” to the exercise library`);
+      const r = addExerciseIn(exercises, String(op.name || '').trim(), op.muscleGroup, op.trackingType);
+      exercises = r.exercises;
+      libraryChanged = libraryChanged || r.created;
+      if (op.ref) refs[op.ref] = r.exercise.id;
+      createdExercises.push(r.exercise.id);
+      summary.push(`added “${r.exercise.name}” to the exercise library`);
       continue;
     }
     if (op.op === 'remap') {
-      const { exercise, before } = await setExerciseMuscleGroup(vaultPath, resolveId(op.exerciseId), op.muscleGroup);
-      summary.push(`re-filed ${exercise.name} under ${op.muscleGroup} (was ${before})`);
+      const r = setMuscleGroupIn(exercises, resolveId(op.exerciseId), op.muscleGroup);
+      exercises = r.exercises;
+      libraryChanged = libraryChanged || !r.unchanged;
+      summary.push(`re-filed ${r.exercise.name} under ${op.muscleGroup} (was ${r.before})`);
       continue;
     }
     if (op.op === 'weighted-variant') {
@@ -153,16 +204,17 @@ export async function applyOps(vaultPath, ops, { why = 'Coach change' } = {}) {
       // and carry the starting-load guidance on the highlight
       const base = exercises.find((e) => e.id === resolveId(op.exerciseId));
       if (!base) throw new Error(`unknown exercise: ${op.exerciseId}`);
-      const variant = await addCustomExercise(vaultPath, `Weighted ${base.name}`, base.muscleGroup, 'weighted_bodyweight_reps');
-      ({ exercises } = await loadExerciseLibrary(vaultPath));
+      const r = addExerciseIn(exercises, `Weighted ${base.name}`, base.muscleGroup, 'weighted_bodyweight_reps');
+      exercises = r.exercises;
+      libraryChanged = libraryChanged || r.created;
+      const variant = r.exercise;
       createdExercises.push(variant.id);
       const startKg = Number(op.startWeightKg) > 0 ? Number(op.startWeightKg) : 5;
       let swapped = 0;
-      for (const routine of await routinesOf()) {
-        const next = swapEntry(routine.exercises.map((e) => ({ exerciseId: e.exerciseId, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh })), base.id, variant.id);
+      for (const routine of [...data.routines]) {
+        const next = swapEntry(entriesOf(routine), base.id, variant.id);
         if (!next) continue;
-        rememberPrior(routine);
-        await saveEntries(routine, next);
+        setEntries(routine, next);
         markers.push({ routineId: routine.id, exerciseId: variant.id, why, startWeightKg: startKg });
         swapped++;
       }
@@ -178,12 +230,11 @@ export async function applyOps(vaultPath, ops, { why = 'Coach change' } = {}) {
       if (!toEx) throw new Error(`unknown exercise: ${op.replaceWith}`);
       if (!fromEx) throw new Error(`unknown exercise: ${op.exerciseId}`);
       let swapped = 0;
-      for (const routine of await routinesOf()) {
+      for (const routine of [...data.routines]) {
         if (op.routineId && routine.id !== op.routineId) continue;
-        const next = swapEntry(routine.exercises.map((e) => ({ exerciseId: e.exerciseId, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh })), from, to);
+        const next = swapEntry(entriesOf(routine), from, to);
         if (!next) continue;
-        rememberPrior(routine);
-        await saveEntries(routine, next);
+        setEntries(routine, next);
         markers.push({ routineId: routine.id, exerciseId: to, why });
         swapped++;
       }
@@ -195,43 +246,34 @@ export async function applyOps(vaultPath, ops, { why = 'Coach change' } = {}) {
       const id = resolveId(op.exerciseId);
       const ex = exercises.find((e) => e.id === id);
       if (!ex) throw new Error(`unknown exercise: ${op.exerciseId}`);
-      const routines = await routinesOf();
-      const routine = routines.find((r) => r.id === op.routineId);
-      if (!routine) throw new Error('unknown routine');
+      const routine = routineNamed(op.routineId);
       if (routine.exercises.some((e) => e.exerciseId === id)) throw new Error(`${ex.name} is already in ${routine.name}`);
-      rememberPrior(routine);
-      const entries = routine.exercises.map((e) => ({ exerciseId: e.exerciseId, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh }));
+      const entries = entriesOf(routine);
       entries.push({ exerciseId: id, targetSets: Number(op.targetSets) || 3, targetRepsLow: Number(op.targetRepsLow) || 8, targetRepsHigh: Number(op.targetRepsHigh) || Number(op.targetRepsLow) || 12 });
-      await saveEntries(routine, entries);
+      setEntries(routine, entries);
       markers.push({ routineId: routine.id, exerciseId: id, why });
       summary.push(`added ${ex.name} to ${routine.name}`);
       continue;
     }
     if (op.op === 'remove') {
       const id = resolveId(op.exerciseId);
-      const routines = await routinesOf();
-      const routine = routines.find((r) => r.id === op.routineId);
-      if (!routine) throw new Error('unknown routine');
+      const routine = routineNamed(op.routineId);
       const ex = exercises.find((e) => e.id === id);
       if (!routine.exercises.some((e) => e.exerciseId === id)) throw new Error(`${ex?.name || id} is not in ${routine.name}`);
-      rememberPrior(routine);
-      await saveEntries(routine, routine.exercises.filter((e) => e.exerciseId !== id).map((e) => ({ exerciseId: e.exerciseId, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh })));
+      setEntries(routine, entriesOf(routine).filter((e) => e.exerciseId !== id));
       summary.push(`removed ${ex?.name || id} from ${routine.name}`);
       continue;
     }
     if (op.op === 'prescribe') {
       const id = resolveId(op.exerciseId);
-      const routines = await routinesOf();
-      const routine = routines.find((r) => r.id === op.routineId);
-      if (!routine) throw new Error('unknown routine');
-      const entries = routine.exercises.map((e) => ({ exerciseId: e.exerciseId, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh }));
+      const routine = routineNamed(op.routineId);
+      const entries = entriesOf(routine);
       const entry = entries.find((e) => e.exerciseId === id);
       if (!entry) throw new Error('that exercise is not in the routine');
       if (op.targetSets != null) entry.targetSets = Number(op.targetSets) || entry.targetSets;
       if (op.targetRepsLow != null) entry.targetRepsLow = Number(op.targetRepsLow) || entry.targetRepsLow;
       if (op.targetRepsHigh != null) entry.targetRepsHigh = Number(op.targetRepsHigh) || entry.targetRepsHigh;
-      rememberPrior(routine);
-      await saveEntries(routine, entries);
+      setEntries(routine, entries);
       const ex = exercises.find((e) => e.id === id);
       markers.push({ routineId: routine.id, exerciseId: id, why });
       summary.push(`re-prescribed ${ex?.name || id}: ${entry.targetSets}×${entry.targetRepsLow}-${entry.targetRepsHigh}`);
@@ -239,17 +281,7 @@ export async function applyOps(vaultPath, ops, { why = 'Coach change' } = {}) {
     }
   }
 
-  for (const mk of markers) await addMarker(mk.routineId, mk.exerciseId, { why: mk.why, ...(mk.startWeightKg ? { startWeightKg: mk.startWeightKg } : {}) });
-
-  return {
-    summary: summary.join('; '),
-    undo: {
-      kind: 'coach-plan',
-      routines: [...touched.entries()].map(([routineId, entries]) => ({ routineId, entries })),
-      markerKeys: markers.map((m) => `${m.routineId}:${m.exerciseId}`),
-      createdExercises,
-    },
-  };
+  return { exercises, data, summary, routineIds: [...touched], markers, createdExercises, libraryChanged };
 }
 
 // A structured fix (from the program review, or the outgrown focus) into

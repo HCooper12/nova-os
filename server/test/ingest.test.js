@@ -91,7 +91,7 @@ test('diffTrees: an existing Raw file reads as updated, and an identical rewrite
   }
 });
 
-test('a ready job survives a restart: served from disk, approvable, file removed after', async () => {
+test('a ready job survives a restart: served from disk, approvable — and its receipt and undo ride the rails', async () => {
   // fabricate what persistJob writes — the process that computed it is gone
   const vault = await mkdtemp(path.join(tmpdir(), 'nova-ingest-vault-'));
   try {
@@ -113,14 +113,83 @@ test('a ready job survives a restart: served from disk, approvable, file removed
     assert.equal(seen.changes.length, 2);
     assert.equal(seen.cost, 6.11);
 
-    await approveJob('deadb33f');
+    // this job was staged by an older server — no priors — and must still land
+    const result = await approveJob('deadb33f');
+    assert.equal(result.applied, 2);
     assert.match(await readFile(path.join(vault, 'Wiki/Concepts/Restart Survivor.md'), 'utf8'), /survived/);
     assert.match(await readFile(path.join(vault, 'Wiki/index.md'), 'utf8'), /new link/);
-    assert.ok(!existsSync(path.join(dataDir, 'ingest', 'deadb33f.json')), 'applied job file removed');
-    assert.equal(await getJob('deadb33f'), null, 'an applied job is gone, not a stale ready');
+    // the job file PERSISTS as the undo's memory; it reports applied, never a stale ready
+    assert.ok(existsSync(path.join(dataDir, 'ingest', 'deadb33f.json')), 'applied job file kept for undo');
+    assert.equal((await getJob('deadb33f')).status, 'applied');
+    await assert.rejects(() => approveJob('deadb33f'), /already applied/);
+
+    // the receipt: rule 2, no exceptions
+    const { listRecords } = await import('../lib/inboxStore.js');
+    const receipt = (await listRecords()).find((r) => r.kind === 'ingest' && r.decision?.payload?.jobId === 'deadb33f');
+    assert.ok(receipt, 'a receipt rides the rails');
+    assert.equal(receipt.status, 'filed');
+    assert.equal(receipt.id, result.recordId);
+    assert.deepEqual(receipt.undoData, { route: 'ingest-apply', jobId: 'deadb33f' });
+    assert.match(receipt.destination, /2 files written/);
+
+    // undo through the rails: the created page goes, the index gets its prior back verbatim
+    const { undoFiling } = await import('../lib/inbox.js');
+    const note = await undoFiling(vault, receipt.undoData);
+    assert.match(note, /restored 2 files/);
+    assert.ok(!existsSync(path.join(vault, 'Wiki/Concepts/Restart Survivor.md')), 'created page removed');
+    assert.equal(await readFile(path.join(vault, 'Wiki/index.md'), 'utf8'), '# Index\n', 'prior back byte-exact');
+    assert.equal((await getJob('deadb33f')).status, 'undone');
+    await assert.rejects(() => undoFiling(vault, receipt.undoData), /only an applied weave/);
   } finally {
     await rm(vault, { recursive: true, force: true });
   }
+});
+
+test('a weave refuses to land on a page edited since its diff — and writes nothing', async () => {
+  const vault = await mkdtemp(path.join(tmpdir(), 'nova-ingest-vault-'));
+  try {
+    await mkdir(path.join(dataDir, 'ingest'), { recursive: true });
+    await mkdir(path.join(vault, 'Wiki'), { recursive: true });
+    await writeFile(path.join(vault, 'Wiki/index.md'), '# Index\n', 'utf8');
+    const job = {
+      id: 'd41f7001', status: 'ready', summary: 'x', cost: 1, error: null, vaultPath: vault, createdAt: new Date().toISOString(),
+      changes: [
+        { path: 'Wiki/Concepts/Never.md', kind: 'new', prior: null, content: 'never lands\n' },
+        { path: 'Wiki/index.md', kind: 'updated', prior: '# Index\n', content: '# Index\n- woven\n' },
+      ],
+    };
+    await writeFile(path.join(dataDir, 'ingest', 'd41f7001.json'), JSON.stringify(job), 'utf8');
+    // he edits the index in Obsidian while the weave waits for review
+    await writeFile(path.join(vault, 'Wiki/index.md'), '# Index\n- his own line\n', 'utf8');
+    await assert.rejects(() => approveJob('d41f7001'), /vault moved under this weave \(Wiki\/index\.md changed since the diff\) — discard it and run the ingest again/);
+    assert.ok(!existsSync(path.join(vault, 'Wiki/Concepts/Never.md')), 'the first file was not written either');
+    assert.equal(await readFile(path.join(vault, 'Wiki/index.md'), 'utf8'), '# Index\n- his own line\n', 'his edit stands');
+    assert.equal((await getJob('d41f7001')).status, 'ready', 'the job stays reviewable');
+    await discardJob('d41f7001');
+  } finally { await rm(vault, { recursive: true, force: true }); }
+});
+
+test('settled job files are pruned after 30 days on the next approval, and never before', async () => {
+  const vault = await mkdtemp(path.join(tmpdir(), 'nova-ingest-vault-'));
+  try {
+    await mkdir(path.join(dataDir, 'ingest'), { recursive: true });
+    const old = new Date(Date.now() - 40 * 86400e3).toISOString();
+    await writeFile(path.join(dataDir, 'ingest', 'o1d00001.json'), JSON.stringify({ id: 'o1d00001', status: 'applied', appliedAt: old, createdAt: old, changes: [], vaultPath: vault }), 'utf8');
+    await writeFile(path.join(dataDir, 'ingest', 'o1d00002.json'), JSON.stringify({ id: 'o1d00002', status: 'undone', undoneAt: old, createdAt: old, changes: [], vaultPath: vault }), 'utf8');
+    await writeFile(path.join(dataDir, 'ingest', 'f4e50001.json'), JSON.stringify({ id: 'f4e50001', status: 'applied', appliedAt: new Date().toISOString(), createdAt: new Date().toISOString(), changes: [], vaultPath: vault }), 'utf8');
+    await writeFile(path.join(dataDir, 'ingest', 'a0000001.json'), JSON.stringify({
+      id: 'a0000001', status: 'ready', summary: 'tiny', cost: 0.1, error: null, vaultPath: vault, createdAt: new Date().toISOString(),
+      changes: [{ path: 'Wiki/Tiny.md', kind: 'new', prior: null, content: 'tiny\n' }],
+    }), 'utf8');
+    await approveJob('a0000001');
+    assert.ok(!existsSync(path.join(dataDir, 'ingest', 'o1d00001.json')), 'a 40-day-old applied job is pruned');
+    assert.ok(!existsSync(path.join(dataDir, 'ingest', 'o1d00002.json')), 'a 40-day-old undone job is pruned');
+    assert.ok(existsSync(path.join(dataDir, 'ingest', 'f4e50001.json')), 'a fresh applied job is kept');
+    assert.ok(existsSync(path.join(dataDir, 'ingest', 'a0000001.json')), 'the one just applied is kept');
+    // and undoing a pruned weave says so, instead of pretending
+    const { undoFiling } = await import('../lib/inbox.js');
+    await assert.rejects(() => undoFiling(vault, { route: 'ingest-apply', jobId: 'o1d00001' }), /job file is gone .* 30 days/);
+  } finally { await rm(vault, { recursive: true, force: true }); }
 });
 
 test('a mid-flight job found only on disk reports the restart honestly, and discard cleans it up', async () => {

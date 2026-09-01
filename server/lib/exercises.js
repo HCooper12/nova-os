@@ -1,7 +1,7 @@
 import matter from 'gray-matter';
 import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
 
-const LIBRARY_REL_PATH = 'Wiki/Health/Exercise Library.md';
+export const LIBRARY_REL_PATH = 'Wiki/Health/Exercise Library.md';
 
 export const MUSCLE_GROUPS = [
   'Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps',
@@ -120,22 +120,64 @@ function seedExercises() {
 // Cache + iCloud staleness handling + external-edit detection live in the
 // shared helper — see vaultStateFile.js. parse/empty return null for a
 // missing or invalid library so getExercises can seed it.
+function parseLibrary(raw) {
+  const exercises = matter(raw).data.exercises;
+  if (!Array.isArray(exercises)) return null;
+  // Older entries predate the trackingType field — default them rather than
+  // requiring a migration.
+  return exercises.map((e) => ({ ...e, trackingType: e.trackingType || DEFAULT_TRACKING_TYPE }));
+}
+
+// The whole file from its list — pure, so a planner can compute the library
+// it WOULD write and hand it to the staged pass (lib/stagedPass.js).
+export function renderLibraryFile(exercises) {
+  const frontmatter = { type: 'exercise-library', updated: new Date().toISOString().slice(0, 10), exercises };
+  return matter.stringify(bodyFor(exercises), frontmatter);
+}
+
 const stateFile = createVaultStateFile({
   relPath: LIBRARY_REL_PATH,
-  parse(raw) {
-    const exercises = matter(raw).data.exercises;
-    if (!Array.isArray(exercises)) return null;
-    // Older entries predate the trackingType field — default them rather than
-    // requiring a migration.
-    return exercises.map((e) => ({ ...e, trackingType: e.trackingType || DEFAULT_TRACKING_TYPE }));
-  },
+  parse: parseLibrary,
   empty: () => null,
 });
 
 async function persist(vaultPath, exercises) {
-  const frontmatter = { type: 'exercise-library', updated: new Date().toISOString().slice(0, 10), exercises };
-  const content = matter.stringify(bodyFor(exercises), frontmatter);
-  await stateFile.write(vaultPath, content, exercises);
+  await stateFile.write(vaultPath, renderLibraryFile(exercises), exercises);
+}
+
+// Whole-file write for the staged pass, through the state file so the cache
+// follows the bytes (see writeRoutinesRaw). A file that does not parse as a
+// library is refused — caching null would make the next read re-seed it.
+export function writeLibraryRaw(vaultPath, raw) {
+  const exercises = parseLibrary(raw);
+  if (!exercises) throw new Error('not an exercise library file');
+  return withWriteLock(() => stateFile.write(vaultPath, raw, exercises));
+}
+
+// Pure halves of the two writers below, for planners that must compute a
+// change without writing it. Same rules: a name already in the library is
+// that exercise (never a duplicate); an id is minted unique.
+export function addExerciseIn(exercises, name, muscleGroup, trackingType) {
+  if (!MUSCLE_GROUPS.includes(muscleGroup)) throw new Error('invalid muscle group');
+  const tt = trackingType || DEFAULT_TRACKING_TYPE;
+  if (!TRACKING_TYPES.includes(tt)) throw new Error('invalid tracking type');
+  const dupe = exercises.find((e) => e.name.toLowerCase() === String(name).toLowerCase());
+  if (dupe) return { exercises, exercise: dupe, created: false };
+  const taken = new Set(exercises.map((e) => e.id));
+  const exercise = { id: uniqueId(slugify(name), taken), name, muscleGroup, trackingType: tt };
+  return { exercises: [...exercises, exercise], exercise, created: true };
+}
+
+export function setMuscleGroupIn(exercises, id, muscleGroup) {
+  const group = String(muscleGroup || '').trim();
+  if (!MUSCLE_GROUPS.includes(group)) throw new Error(`muscleGroup must be one of: ${MUSCLE_GROUPS.join(', ')}`);
+  const idx = exercises.findIndex((e) => e.id === id);
+  if (idx === -1) throw new Error('no such exercise');
+  const before = exercises[idx].muscleGroup || 'Other';
+  if (before === group) return { exercises, exercise: exercises[idx], before, unchanged: true };
+  const next = [...exercises];
+  next[idx] = { ...next[idx], muscleGroup: group };
+  return { exercises: next, exercise: next[idx], before, unchanged: false };
 }
 
 async function getExercises(vaultPath) {
@@ -167,17 +209,11 @@ function withWriteLock(fn) {
 // exactly what makes it worth doing. Returns the previous group so the
 // change can be undone from the Inbox.
 export async function setExerciseMuscleGroup(vaultPath, id, muscleGroup) {
-  const group = String(muscleGroup || '').trim();
-  if (!MUSCLE_GROUPS.includes(group)) throw new Error(`muscleGroup must be one of: ${MUSCLE_GROUPS.join(', ')}`);
   return withWriteLock(async () => {
-    const existing = [...(await getExercises(vaultPath))];
-    const idx = existing.findIndex((e) => e.id === id);
-    if (idx === -1) throw new Error('no such exercise');
-    const before = existing[idx].muscleGroup || 'Other';
-    if (before === group) return { exercise: existing[idx], before, unchanged: true };
-    existing[idx] = { ...existing[idx], muscleGroup: group };
-    await persist(vaultPath, existing);
-    return { exercise: existing[idx], before, unchanged: false };
+    const result = setMuscleGroupIn(await getExercises(vaultPath), id, muscleGroup);
+    if (!result.unchanged) await persist(vaultPath, result.exercises);
+    const { exercise, before, unchanged } = result;
+    return { exercise, before, unchanged };
   });
 }
 
@@ -203,18 +239,12 @@ export async function setExerciseKnowledge(vaultPath, id, { cues, resourceUrl })
 }
 
 export async function addCustomExercise(vaultPath, name, muscleGroup, trackingType) {
+  // validate before taking the lock, as before
   if (!MUSCLE_GROUPS.includes(muscleGroup)) throw new Error('invalid muscle group');
-  const tt = trackingType || DEFAULT_TRACKING_TYPE;
-  if (!TRACKING_TYPES.includes(tt)) throw new Error('invalid tracking type');
+  if (!TRACKING_TYPES.includes(trackingType || DEFAULT_TRACKING_TYPE)) throw new Error('invalid tracking type');
   return withWriteLock(async () => {
-    const existing = [...(await getExercises(vaultPath))];
-    const dupe = existing.find((e) => e.name.toLowerCase() === name.toLowerCase());
-    if (dupe) return dupe;
-    const taken = new Set(existing.map((e) => e.id));
-    const id = uniqueId(slugify(name), taken);
-    const exercise = { id, name, muscleGroup, trackingType: tt };
-    const updated = [...existing, exercise];
-    await persist(vaultPath, updated);
+    const { exercises, exercise, created } = addExerciseIn(await getExercises(vaultPath), name, muscleGroup, trackingType);
+    if (created) await persist(vaultPath, exercises);
     return exercise;
   });
 }

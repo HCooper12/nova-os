@@ -130,8 +130,8 @@ export function ingestRouter(vaultPath) {
 
   router.post('/ingest/:jobId/approve', async (req, res) => {
     try {
-      await approveJob(req.params.jobId);
-      res.json({ ok: true });
+      const result = await approveJob(req.params.jobId);
+      res.json({ ok: true, ...result });
     } catch (e) {
       res.status(400).json({ error: e.message });
     }

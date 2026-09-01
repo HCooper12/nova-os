@@ -51,6 +51,9 @@ const FEATURES = [
   ['Scout · research a person', 'SCOUT RESEARCHES THEM'],
   ['Scout · client API', 'researchPerson'],
   ['Inbox · agents no longer render as TYPED', 'PROGRAM REVIEW'],
+  // the deep weave's receipt rides the rails with an undo — this label exists
+  // only in the code that files it
+  ['Inbox · vault-ingest receipt (staged pass)', 'VAULT INGEST'],
 ];
 
 const SERVER_ROUTES = [
