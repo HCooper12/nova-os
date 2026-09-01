@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { getMonthSummary } from './money.js';
 import { createRecord, listRecords } from './inboxStore.js';
+import { monthlyWindowOpen } from './cadence.js';
 
 // The CFO's monthly money report — deterministic composition over the
 // ledger, drafted onto the inbox rails on the 1st (covering the month just
@@ -73,7 +74,9 @@ export function startCfoScheduler() {
     const { beat } = await import('./heartbeat.js');
     beat('cfo'); // joins the watch-the-watcher net — a stalled CFO loop was invisible
     try {
-      if (new Date().getDate() === 1) await runCfoReport();
+      // the 1st onward — a slept 1st used to cost the whole month's report.
+      // runCfoReport's reportExistsThisMonth keeps it to one.
+      if (monthlyWindowOpen(new Date())) await runCfoReport();
     } catch (err) {
       console.error('cfo report failed:', err.message);
     }

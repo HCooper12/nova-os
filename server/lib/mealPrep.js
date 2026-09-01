@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { loadRecipeData } from './recipes.js';
 import { loadRotation } from './rotation.js';
 import { createRecord, listRecords } from './inboxStore.js';
+import { weeklyWindowOpen } from './cadence.js';
 
 // The meal-prep loop. Hayden's stated preference: the same meals week to
 // week with little variance — so the Thursday proposal KEEPS the current
@@ -156,7 +157,9 @@ export function startMealPrepScheduler(vaultPath) {
     beat('mealprep');
     try {
       const now = new Date();
-      if (now.getDay() === 4 && now.getHours() >= 17) await runMealPrep(vaultPath);
+      // Thursday 17:00 onward — and still Friday/Saturday/Sunday if the Mac
+      // slept through it. runMealPrep's recordExistsThisWeek keeps it to one.
+      if (weeklyWindowOpen(now, { day: 4, hour: 17 })) await runMealPrep(vaultPath);
     } catch (err) {
       console.error('meal prep failed:', err.message);
     }

@@ -11,6 +11,7 @@ import { backupFile } from './backup.js';
 import { modelFor, laneSkipped } from './modelPrefs.js';
 import { isGateModel } from './modelChoice.js';
 import { boundaryArgs } from './spawnBoundary.js';
+import { weeklyWindowOpen } from './cadence.js';
 
 // The distiller — captures become knowledge. Filed captures land as FLAT
 // pages (Wiki/Inbox, Studio ideas) with no wikilinks, so the graph never
@@ -239,7 +240,8 @@ export function startDistillScheduler(_vaultPath) {
     beat('distill');
     try {
       const now = new Date();
-      if (now.getDay() !== DISTILL_WEEKDAY || now.getHours() < DISTILL_HOUR) return;
+      // Saturday onward, so a slept Saturday no longer skips the week.
+      if (!weeklyWindowOpen(now, { day: DISTILL_WEEKDAY, hour: DISTILL_HOUR })) return;
       // The model-choice gate raises an Inbox card instead of running
       // directly — nobody is at the keyboard when a weekly cron fires to
       // answer a spoken question, so the run waits for a tap instead.

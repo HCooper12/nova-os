@@ -15,6 +15,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url'; // never URL.pathname — the repo path has a space
 import path from 'node:path';
+import { weeklyWindowOpen } from './cadence.js';
 
 const STATE_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'coach-cadence.json');
 
@@ -232,7 +233,8 @@ export function startCoachCadenceScheduler(vaultPath) {
         // week's decisions land before he trains it.
         try {
           const { auditedThisWeek, runWeeklyAudit } = await import('./coachProgramAudit.js');
-          if (new Date().getDay() === 1 && !(await auditedThisWeek())) {
+          // Monday onward — auditedThisWeek keeps the cadence weekly.
+          if (weeklyWindowOpen(new Date(), { day: 1 }) && !(await auditedThisWeek())) {
             const { audit } = await runWeeklyAudit(vaultPath);
             console.log(`coach weekly audit: ${audit.summary}`);
           }
@@ -242,7 +244,8 @@ export function startCoachCadenceScheduler(vaultPath) {
         // time. Rides the same Monday window; raiseReadNext keeps itself to
         // a single open proposal so it can never become a reading list.
         try {
-          if (new Date().getDay() === 1) {
+          // Monday onward; raiseReadNext keeps itself to one open proposal.
+          if (weeklyWindowOpen(new Date(), { day: 1 })) {
             const { raiseReadNext } = await import('./readNext.js');
             const { raised, gaps } = await raiseReadNext(vaultPath);
             if (raised) console.log(`read-next: raised "${raised.meta?.concept}" (${gaps} gap(s) in the graph)`);
