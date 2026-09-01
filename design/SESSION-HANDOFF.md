@@ -13,138 +13,118 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**30 AUG – 2 SEP — THE FULL-PLATFORM AUDIT, THEN SHIPPING ITS TOP FINDINGS.**
+**2 SEP (cont.) — EXECUTING THE AUDIT'S PROGRAMME: TIER 1 DONE, TIER 2 UNDER WAY.**
+*(Interim update mid-session; the session log entry is written at close.)*
 
-GOAL: audit all 66 agents and surfaces against NOVA-METHOD (read-only, one
-item per turn, evidence cited as file:line), synthesise a ranked work
-programme, then execute it in tier order.
+GOAL: execute `design/audits/2026-08-full-audit/99-SYNTHESIS.md` in tier
+order — Tier 1 (staged-pass unification), then Tier 2's nine shared-helper
+builds (#6–#14), then Tier 3's surface refines.
 
 DONE CRITERIA:
-- The 66-item audit — MET (`8d5ec82`). 21 clean keeps, 39 keep-with-refine,
-  6 refines, zero reworks. Index, per-item reports and `99-SYNTHESIS.md` in
-  `design/audits/2026-08-full-audit/`.
-- Tier 0, the spawn boundary — MET (`b8f70d4`). See DECISIONS.
-- Tier 1 idempotent session save — MET (`f80d823`).
-- Tier 1 health-insight spend cap — MET (`78f2f54`).
-- Tier 1 scheduler registry + windows — MET (`d8cdc97`, `cbc3b6d`).
-- Tier 1 staged-pass unification — **UNMET, not started.** The largest
-  remaining item; rewrites live vault-write paths.
-- Phone-width (375px) verification pass — **BLOCKED all audit.** The browser
-  tool reported resize success while screenshots stayed 1512px. Every UI
-  finding in all 66 reports is desktop-width or code-read only.
+- Guardian snapshot bug — MET (`c804179`). `checkBackups` sorted full paths
+  and crowned a 20-day-old Topics/ file "newest" (false warn for 20 days).
+  Now ordered by the ISO stamp; the card names the newest write's day.
+- Tier 1 staged-pass unification — MET (`5aa9b78`). `lib/stagedPass.js`;
+  distill uses it; ingest gains drift refusal + receipt + undo; coach
+  applyOps plans in memory and lands all-or-none.
+- Tier 2 #6 couldn't-look state — MET (`d51a2d0`). `lib/sources.js`;
+  seven sites (fuel cross, program audit 4th state, week plan, training
+  check + heartbeat notes, Ambient 'unknown', Mission plan 'error'; Guardian
+  already had it).
+- Tier 2 #7 respect-the-no — MET (`1db0765`). `lib/respectTheNo.js`;
+  program review (28d/20%), trust ladder (60d/25%), food scout (60d/2×,
+  once), pattern scout (declined context), compost (per-key dates, 90d).
+- Tier 2 #8 settle-timeout watchdog — **UNMET, recon started.**
+- Tier 2 #9–#14, Tier 3 — UNMET.
+- Phone-width (375px) pass — still BLOCKED (browser tool resize lies); every
+  client change this session is code-read + bundle-marker only.
 
 STATE:
-- `server/lib/spawnBoundary.js` (new) — `boundaryArgs(allowed)` returns the
-  allow-list, its enforced complement, and `--strict-mcp-config`. Consumed by
-  14 previously-unguarded spawn sites.
-- `server/lib/cadence.js` (new) — `weeklyWindowOpen` / `monthlyWindowOpen`.
-- `server/lib/ops.js` — `SCHEDULED` now carries `cadenceHours`; exports
-  `loopCadenceHours()` and `scheduledFleet()`. `guardian.js` derives its watch
-  from it.
-- `server/lib/workoutSessions.js` — `completeSession` accepts `clientKey`,
-  returns `{...session, replayed:true}` on a repeat. `routes/workouts.js`
-  skips outbound side effects when `replayed`. `src/App.jsx` stamps the key.
-- `server/lib/healthInsight.js` — `MAX_TRIES_PER_DAY=3`, `triesToday`,
-  `recordFailedAttempt`; slots now fail independently.
-- New tests: `spawnBoundary`, `cadence`, `healthInsight` (first ever for that
-  lane), plus registry contracts appended to `ops.test.js` and replay cases to
-  `workoutSessions.test.js`.
+- `server/lib/stagedPass.js` — stampPriors → checkDrift → applyChanges
+  (rollback on mid-write failure, pluggable `write`) → undoChanges.
+- `server/lib/sources.js` — loadSources (values + failed[]), unreadable().
+- `server/lib/respectTheNo.js` — latestDeclines, respectNo, declinedContext.
+- `server/lib/heartbeat.js` — note()/readNotes() in `heartbeat-notes.json`
+  (sibling file; the beats' shape is untouched). ops.js agents carry
+  `lastNote`.
+- `workouts.js`/`exercises.js` — pure halves exported (replaceRoutineEntries,
+  addExerciseIn, setMuscleGroupIn, render*File, write*Raw); writers are thin
+  wrappers.
+- Ingest jobs now PERSIST as 'applied'/'undone' (pruned after 30 days);
+  receipt `kind:'ingest'`, undo route `ingest-apply`. A ready weave staged by
+  the old server (`a25ae5e5`, 8 changes, 30 Aug) is stamped at approval.
+- Coach undo shape v2: `{ kind:'coach-plan', changes, routineIds, markerKeys,
+  createdExercises }`; legacy `routines:[…]` records still undo.
+- Compost store: `dismissed:{key:iso}` replaces `dismissedKeys:[]` (migrated
+  on load; live store had 0 legacy keys).
+- Tests 727 → 760, all green. verify:shipped has three new markers.
 
 DECISIONS:
-- Make `--allowedTools` real by DENYING ITS COMPLEMENT rather than curating
-  deny-lists per lane → hand-maintained lists had already drifted into three
-  variants and were missing `ListAgents`/`Workflow` → forecloses per-lane
-  tuning; a lane needing a tool not in `TOOL_UNIVERSE` must add it there, and
-  the list must be re-checked after a Claude Code upgrade.
-- Idempotency keyed on a CLIENT-stamped `clientKey`, not a content hash →
-  two identical workouts in one day are legitimately different sessions →
-  forecloses dedupe for older clients that send no key (they behave as before,
-  covered by a test).
-- Widen weekly windows rather than add catch-up state → every affected agent
-  already refuses to run twice → forecloses nothing; but it RELIES on those
-  guards, so removing one silently re-opens repeat runs.
-- Preserve the 13 existing Guardian cadences exactly while adding 16 →
-  adding coverage and re-tuning at once would confuse a false alarm's cause →
-  forecloses nothing; `guardian: 26h` is inherited and looks lax for an
-  hourly loop, deliberately left alone.
-- Did NOT widen the week plan's window → it composes for `nextMonday(now)`, so
-  a Monday run drafts the following week and skips the current one.
+- Coach could NOT sandbox by vault path → vaultStateFile keeps ONE cache per
+  module, not per vault; a staging copy would poison the live cache for the
+  10s grace window, and a raw write of its two files leaves the process
+  serving the old plan. So Coach plans in memory and commits through the
+  owning modules (`commitVaultState`). Forecloses path-sandboxing any
+  state-file-owned file; tests that seed several scratch vaults must set
+  NOVA_VAULT_GRACE_MS=0.
+- Legacy ingest changes (no `prior`) are stamped AT APPROVAL → a paid weave
+  is never discarded for predating a deploy → forecloses drift detection
+  for that one job only.
+- Coach undo restores the ROUTINES file only; the library keeps a created
+  exercise (sessions may reference it) — the standing decision, kept.
+- respectNo: the calendar alone never re-raises; no metric on either side →
+  a no stays a no. Legacy autonomy declines therefore stay permanent;
+  legacy food declines compare against MIN_COUNT.
+- Guardian's "check crashed" is the couldn't-look reference — unchanged.
+- Mission Control's failed plan points at the Inbox (no client run action
+  exists) rather than inventing one.
 
 VERIFIED (with locators):
-- Spawn boundary, functionally: with the old args a sealed lane WROTE a probe
-  file; with `boundaryArgs('')` it did not. Control lane allowed `Read`
-  returned the canary, proving the probe. Method recorded in
-  `spawnBoundary.js`.
-- Guardian coverage: `POST /api/guardian/run` → "29 loops ticking on cadence"
-  (was 13).
-- Health insight live: `GET /api/health-insight` returns today's real morning
-  insight, `hasInsight:true`.
-- Session save idempotency: `server/test/workoutSessions.test.js` — replay
-  files once, no `(2).md`, different keys still file separately.
-- Gates at close: lint 0 errors, build green, **727/727 tests**, tree clean,
-  `HEAD == origin/main` (`8d5ec82`), `/api/health` → 200, no `vite preview`,
-  no `dist/pc.json`, last Pages deploy success, `npm run verify:shipped` →
-  "Everything above is genuinely live on his devices."
+- Guardian live: `backups | ok | 338 snapshots … Newest written 2026-09-02`.
+- Staged pass: regression fails on old code (warn where ok); renderers
+  reproduce his real Workout Routines.md (4) and Exercise Library.md (135)
+  byte-identical (date normalised); the ready weave still listed after
+  reload.
+- Couldn't-look live: fuel-cross `sources.ok:true` (3 findings); audit
+  sources ok (4 fired · 4 clear · 1 not-yet); a standalone compose without
+  .env hit CalDAV "cannot find principalUrl" and drafted 0 clear days —
+  the running server reads 43 events fine.
+- Respect-the-no dry-run on real records: 1 declined program subject held,
+  unrelated routines still raise; no autonomy/scout declines on record; 12
+  food declines (8 = his 1 Sep clean-out) hold 60d; compost serves 11.
+- Gates each ship: lint 0, build green, suite green, CI success,
+  verify:shipped "genuinely live".
 
 ASSUMED:
-- That the 14 sealed lanes need no tools: verified by reading their prompts
-  for tool instructions (none found), NOT by watching each run in production.
-- That widened windows behave correctly in the wild — the arithmetic is
-  tested, but no widened agent has yet actually caught up from a slept day.
-- Cadence values for the 16 newly-watched loops are 2x their tick interval;
-  reasoned, not observed over time.
+- No live apply/undo has run through the new staged pass yet (the waiting
+  weave is his to approve; no Coach proposal pending) — proven on scratch
+  vaults only.
+- Client renders (Fuel couldn't-check card, Ambient unknown, Mission error
+  state) unseen at any width.
 
 OPEN QUESTIONS / BLOCKERS:
-- The week plan window (above) — needs its week semantics decided first.
-- Phone-width pass still owed for all 21 surfaces.
-- Tier 1's staged-pass unification, then Tier 2's nine shared-helper builds.
-- `guardian: 26h` cadence: keep or tighten?
+- `stores | alert | 15 filed records missing undo data` (8 Aug–1 Sep:
+  pattern×4, coach-program×4, fuel-cross×3, coach-audit×2, model-choice×2)
+  — real holes, or informational records the Guardian check shouldn't
+  count? Undecided; the check still alerts.
+- He has declined all 12 food-save proposals ever made — the lane's premise
+  may not fit; surfaced, not acted on.
+- Week-plan window semantics; `guardian: 26h`; phone-width pass — carried.
 
-NEXT ACTION: the staged-pass unification ([26]/[33]/[01]) — one apply/undo
-helper (sandbox write → diff → prior-stamped drift refusal → all-files-then-
-write → verbatim undo) shared by `distill.js` (has it), `ingest.js`
-approveJob (has NONE of it) and coach `applyOps` (torn-write). Expected
-observation if it worked: a deep-weave ingest that fails midway leaves the
-vault untouched and files an undo record, and `ingest` gains the drift
-refusal `distill` already has.
+NEXT ACTION: Tier 2 #8 — the settle-timeout watchdog ([24]): overnight's
+8-min poll timeout with the honest "may still land" message, extracted for
+every spawn-and-settle lane. Then #9 named-absent-context, #10 burn-on-
+landing, #11 twins, #12 path-discipline, #13 truth-in-copy, #14 TIME_VALUE.
 
 DO NOT:
-- Do not ask a model what tools it can reach. The same prompt returned two
-  different lists a minute apart, one naming "PowerShell" on a Mac. Use a
-  canary and check the filesystem. This is now written into
-  `spawnBoundary.js`.
-- Do not trust an item-by-item read for a class of defect. Reading lanes one
-  at a time found 3 unguarded spawn sites; a mechanical sweep found 14. If a
-  finding is a CLASS, enumerate every site programmatically before fixing.
-- Do not assume `--allowedTools` restricts anything under bypassPermissions;
-  only `--disallowedTools` is enforced. Compose args via `boundaryArgs()`.
-- Do not write a test whose seed data depends on today's date. The
-  health-mirror page test asserted a row for the 2nd of the current month and
-  so failed every 1st — it silently broke TWO Pages deploys before it was
-  caught. CI runs `server npm test` as a deploy gate.
-- Do not assume a green local suite means CI is green: check `gh run list`
-  after pushing, because the deploy can fail on a date-dependent test that
-  passes locally on most days.
-- Do not read `/api/guardian` to check a Guardian change — it returns the
-  LAST STORED report (hours old). `POST /api/guardian/run` for a fresh one.
-- `git commit <paths>` fails on files git has never seen; `git add` them
-  first. Chained `add && commit && push` was refused by the permission
-  classifier — run the steps separately.
-- Do not verify a UI change at desktop width only. The ASK button escaped its
-  card at phone width and he found it AFTER the feature was called live.
-- Do not trust a browser measurement without confirming the page runs the
-  code you just wrote. A hash-only navigation does NOT re-execute modules,
-  and the service worker serves the previous build.
-- Do not add a detector without running it against his REAL log first.
-- Do not let Coach propose cutting an exercise it added itself — guarded by
-  the 21-day `justAdded` marker.
-- Do not run a scratch server on port 4199 while `npm test` runs —
-  EADDRINUSE breaks the suite.
-- Do not write to inbox.json from a side process while the server runs; go
-  through its endpoints.
-- Do not grep NOVA_TOKEN in server/.env — it is API_TOKEN.
-- The Pages URL is hcooper12.github.io/nova-os (not haydencooper).
-
+- Do not sandbox a vaultStateFile-owned file by path, and do not write one
+  raw — go through the module (see stagedPass.js header).
+- Do not match `\w{3}` for an en-GB short month — September is "Sept".
+- Do not read a test's `applyOps` scratch vault as independent: the state
+  cache is per module; set NOVA_VAULT_GRACE_MS=0 or the second vault reads
+  the first's library.
+- (All prior DO NOTs stand — see the session log below and the previous
+  block's list, which this interim update does not repeat.)
 
 ## SESSION LOG (append-only, newest first)
 
