@@ -282,14 +282,23 @@ export function workoutsRouter(vaultPath) {
         const full = all.find((s2) => s2.date === session.date && s2.routineId === session.routineId) || session;
         prs = prsInSession(all, full).slice(0, 3);
       } catch { /* a missing celebration is a non-event */ }
-      // Coach's receipt rides the rails — never blocks the save
-      draftSessionSummary(vaultPath, session).catch(() => {});
-      // a PR detected on save is celebrated the moment it exists — the
-      // cadence engine's only event-driven (non-clock) message
-      import('../lib/coachCadence.js').then(({ celebratePRs }) => celebratePRs(vaultPath, session)).catch(() => {});
-      // the coach at the rack: one unprompted reaction to THIS session,
-      // composed from computed facts, delivered via Telegram (item 3)
-      import('../lib/coachCadence.js').then(({ sessionDebrief }) => sessionDebrief(vaultPath, session)).catch(() => {});
+      // A REPLAY (the offline outbox re-POSTing a save whose response was
+      // lost) must not re-fire anything outbound — the debrief and the PR
+      // ping already went out when the session was first committed, and a
+      // second buzz for a workout he finished once is exactly the kind of
+      // thing that teaches him to ignore Nova. The PRs above are recomputed
+      // and returned regardless: reading them changes nothing, and if the
+      // first response never arrived he has not yet had his moment.
+      if (!session.replayed) {
+        // Coach's receipt rides the rails — never blocks the save
+        draftSessionSummary(vaultPath, session).catch(() => {});
+        // a PR detected on save is celebrated the moment it exists — the
+        // cadence engine's only event-driven (non-clock) message
+        import('../lib/coachCadence.js').then(({ celebratePRs }) => celebratePRs(vaultPath, session)).catch(() => {});
+        // the coach at the rack: one unprompted reaction to THIS session,
+        // composed from computed facts, delivered via Telegram (item 3)
+        import('../lib/coachCadence.js').then(({ sessionDebrief }) => sessionDebrief(vaultPath, session)).catch(() => {});
+      }
       res.json({ session, prs });
     } catch (err) {
       res.status(400).json({ error: err.message });

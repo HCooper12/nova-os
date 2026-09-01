@@ -2679,6 +2679,11 @@ export default class App extends Component {
       .map((e) => ({ exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, trackingType: e.trackingType, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh }));
     const carryoverId = session.carryoverId || null;
     const payload = { routineId: session.routineId, routineName: session.routineName, exercises,
+      // Stamped ONCE per finish, before either send path can run: the direct
+      // POST and the offline-outbox replay below share this object, so the
+      // server sees the same key twice and files the workout once. Without it
+      // a lost RESPONSE (the request having landed) filed a second session.
+      clientKey: (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`),
       // the finishing-early reason (cockpit chips) rides the record so the
       // Coach can notice the pattern and open the restructure conversation
       ...(this.state.sessionCutShort ? { cutShort: this.state.sessionCutShort } : {}) };

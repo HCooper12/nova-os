@@ -159,3 +159,46 @@ test('an untouched session is not offered back (nothing was lost)', async () => 
     await rm(dataDir, { recursive: true, force: true });
   }
 });
+
+// The offline outbox replays a finished session when the RESPONSE is lost —
+// the request having already landed. Before clientKey the replay minted a new
+// id and filed a second "… (2).md", double-counting exercise state and
+// re-firing the PR ping and the Coach debrief.
+test('a replayed save files the workout once and says so', async () => {
+  const payload = {
+    clientKey: 'outbox-replay-key-1',
+    routineId: 'legs', routineName: 'Legs Replay',
+    exercises: [{ exerciseId: 'squat', name: 'Squat', sets: [{ weight: 100, reps: 5, done: true }] }],
+  };
+  const first = await completeSession(vault, payload);
+  const second = await completeSession(vault, { ...payload });
+
+  assert.equal(first.replayed, undefined, 'the first save is not a replay');
+  assert.equal(second.replayed, true, 'the replay identifies itself so the route stays silent outbound');
+  assert.equal(second.id, first.id, 'the replay returns the session already on disk');
+  assert.equal(second.finishedAt, first.finishedAt, 'the original timestamp is untouched');
+
+  const filed = (await loadSessions(vault, { routineId: 'legs' }));
+  assert.equal(filed.length, 1, 'exactly one session on disk');
+  const files = (await readdir(path.join(vault, 'Wiki', 'Health', 'Workouts'))).filter((f) => f.includes('Legs Replay'));
+  assert.equal(files.length, 1, 'no "(2).md" twin');
+});
+
+test('two real sessions of one routine on one day still both file', async () => {
+  const base = {
+    routineId: 'arms', routineName: 'Arms Twice',
+    exercises: [{ exerciseId: 'curl', name: 'Curl', sets: [{ weight: 20, reps: 10, done: true }] }],
+  };
+  await completeSession(vault, { ...base, clientKey: 'morning-key' });
+  await completeSession(vault, { ...base, clientKey: 'evening-key' });
+  assert.equal((await loadSessions(vault, { routineId: 'arms' })).length, 2, 'different keys are different workouts');
+});
+
+test('a save with no clientKey still works (older client, no idempotency)', async () => {
+  const s = await completeSession(vault, {
+    routineId: 'back', routineName: 'Back Legacy',
+    exercises: [{ exerciseId: 'row', name: 'Row', sets: [{ weight: 60, reps: 8, done: true }] }],
+  });
+  assert.ok(s.id);
+  assert.equal(s.clientKey, undefined, 'no key is stamped when the client sends none');
+});

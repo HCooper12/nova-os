@@ -225,11 +225,36 @@ export async function completeSession(vaultPath, input) {
   const exercises = validateSessionInput(input);
   if (!exercises.length) throw new Error('no logged sets to save');
 
+  // A finished session can legitimately arrive TWICE. The client's save rides
+  // the offline outbox, so it is a lost RESPONSE — not a lost request — that
+  // replays a write the server already committed. Nothing here used to notice:
+  // a fresh id was minted every call and the filename fallback below actively
+  // filed the twin as "… (2).md", double-counting the exercise state and
+  // re-firing the PR ping and the Coach's debrief.
+  //
+  // So the client stamps ONE clientKey per finish and both paths carry it —
+  // money.js's dedupeKey doctrine (an identity the write is idempotent over)
+  // applied to a write that had none. A replay returns the session already on
+  // disk, untouched, marked `replayed` so the route can stay silent outbound.
+  // Two genuinely separate sessions of the same routine on one day still file
+  // normally: they carry different keys.
+  const clientKey = typeof input.clientKey === 'string' && input.clientKey.trim()
+    ? input.clientKey.trim().slice(0, 64)
+    : null;
+
   return withWriteLock(async () => {
     // Snapshot the current list before touching disk — reading it after the
     // write would (on a cold cache) pick up the file this same call is about
     // to write, double-counting it once from disk and once from the append below.
     const current = await getSessions(vaultPath);
+
+    if (clientKey) {
+      const prior = current.find((s) => s.clientKey === clientKey);
+      if (prior) {
+        const { file, ...session } = prior;
+        return { ...session, replayed: true };
+      }
+    }
 
     const now = new Date();
     // LOCAL date, not UTC — toISOString() stamped yesterday's date on any
@@ -244,6 +269,7 @@ export async function completeSession(vaultPath, input) {
       routineName: input.routineName.trim(),
       exercises,
       ...(input.cutShort ? { cutShort: input.cutShort } : {}),
+      ...(clientKey ? { clientKey } : {}),
       finishedAt: now.toISOString(),
     };
 
