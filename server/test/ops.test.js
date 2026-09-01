@@ -99,3 +99,40 @@ test('fleet roster context: the real architecture, honestly stated', async () =>
   assert.match(ctx, /ONLY tested deterministic code writes/);
   assert.match(ctx, /never self-granted/);
 });
+
+// THE REGISTRY CONTRACT — the fleet roster in ops.js is the single list the
+// ring, Nova's self-knowledge, and the Guardian's staleness watch all read.
+// Guardian used to keep its own map of 13 loops beside a roster of 29, so
+// sixteen agents could stop ticking with nothing to notice. These tests are
+// what stop that list splitting in two again.
+test('every scheduled agent is watched, with a real cadence', async () => {
+  const { scheduledFleet, loopCadenceHours } = await import('../lib/ops.js');
+  const fleet = scheduledFleet();
+  const cadences = loopCadenceHours();
+
+  assert.ok(fleet.length >= 29, 'the roster should not shrink silently');
+  for (const agent of fleet) {
+    assert.ok(Number.isFinite(agent.cadenceHours) && agent.cadenceHours > 0,
+      `${agent.id} needs a cadence — an unwatched loop is one that can die quietly`);
+    assert.equal(cadences[agent.id], agent.cadenceHours, `${agent.id} must watch at its own cadence`);
+  }
+  assert.equal(Object.keys(cadences).length, fleet.length, 'the watch covers the roster exactly — no more, no less');
+});
+
+test('every heartbeat a scheduler actually stamps is on the roster', async () => {
+  const { readdir, readFile } = await import('node:fs/promises');
+  const { scheduledFleet } = await import('../lib/ops.js');
+  const libDir = new URL('../lib/', import.meta.url);
+  const known = new Set(scheduledFleet().map((a) => a.id));
+
+  const stamped = new Set();
+  for (const f of await readdir(libDir)) {
+    if (!f.endsWith('.js')) continue;
+    const src = await readFile(new URL(f, libDir), 'utf8');
+    for (const m of src.matchAll(/\bbeat\('([a-z-]+)'\)/g)) stamped.add(m[1]);
+  }
+
+  const unwatched = [...stamped].filter((id) => !known.has(id));
+  assert.deepEqual(unwatched, [],
+    `these loops beat but no one watches them: ${unwatched.join(', ')} — add them to SCHEDULED in ops.js`);
+});

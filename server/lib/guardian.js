@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { createRecord, listRecords } from './inboxStore.js';
 import { beat, readHeartbeats } from './heartbeat.js';
+import { loopCadenceHours } from './ops.js';
 import { loadRecentDays } from './healthData.js';
 
 // Guardian — the integrity agent. Everything else in Nova writes (filings,
@@ -157,7 +158,13 @@ async function checkStores() {
 // The loops themselves: every scheduler stamps data/heartbeat.json on each
 // tick; a stamp far past its cadence means a loop silently stalled — the
 // failure class nothing else would surface.
-const LOOP_CADENCE_HOURS = { dispatch: 2, todoist: 2, compost: 26, guardian: 26, money: 2, mealprep: 3, review: 2, 'food-suggest': 2, 'training-check': 2, cfo: 13, healthinsight: 2, 'week-plan': 2, 'health-drops': 1 };
+// Derived from the fleet roster in ops.js — the list the Ops ring and Nova's
+// own self-knowledge already draw from. This was a hand-written map of 13
+// loops sitting beside a roster of 29, so the other 16 could stop ticking
+// with nothing to notice; keeping one list is the fix, not a longer one.
+// (Loops with no beat at all are skipped below, so a lane that is switched
+// off or unconfigured — Telegram without a token — never false-alarms.)
+const LOOP_CADENCE_HOURS = loopCadenceHours();
 
 async function checkLoops() {
   const beats = await readHeartbeats();

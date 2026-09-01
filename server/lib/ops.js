@@ -6,44 +6,71 @@ import { readHeartbeats } from './heartbeat.js';
 // receipts), the heartbeat net (every scheduler's last tick), and nothing
 // else. No invented statuses; an agent that has never run says so.
 
-// The scheduled fleet — heartbeat key → who it is on screen.
+// The scheduled fleet — heartbeat key → who it is on screen, and how long it
+// may go silent before something is wrong.
+//
+// THIS IS THE REGISTRY. Three consumers read it: the fleet ring, Nova's
+// self-knowledge (fleetRosterContext, below), and — since the August 2026
+// audit — the Guardian's staleness watch, which used to keep its own
+// hand-written list of 13 loops beside this roster of 29. Seventeen agents
+// could therefore die completely unnoticed, which is the exact failure the
+// comments further down this file were written about. A loop that is not
+// listed here does not exist; a loop listed here is watched.
+//
+// `cadenceHours` is the longest gap between BEATS that is still healthy —
+// derived from each scheduler's real tick interval (a beat is stamped every
+// tick, whether or not the agent acts), with slack for a missed one. The
+// thirteen the Guardian already watched keep their original values exactly,
+// so this change adds coverage without re-tuning anything that worked.
 const SCHEDULED = [
-  { id: 'dispatch', label: 'Dispatch', role: 'morning & evening briefs' },
-  { id: 'review', label: 'Daily Review', role: 'the day, scored honestly' },
-  { id: 'plan-today', label: 'Plan Today', role: "the day's top 3, picked" },
-  { id: 'weekly-debrief', label: 'Weekly Debrief', role: "the Coach's Sunday sit-down" },
-  { id: 'reminders', label: 'Reminders', role: 'nudges fired on time' },
-  { id: 'guardian', label: 'Guardian', role: 'integrity, backups, alerts' },
-  { id: 'health-drops', label: 'Health Sync', role: 'iPhone health drops' },
-  { id: 'healthinsight', label: 'Health Insight', role: 'twice-daily noticing' },
-  { id: 'compost', label: 'Compost', role: 'inbox aging & decay' },
-  { id: 'food-suggest', label: 'Food Scout', role: 'food → recipe ideas' },
-  { id: 'mealprep', label: 'Meal Prep', role: 'weekly prep proposals' },
-  { id: 'training-check', label: 'Training Check', role: 'program drift watch' },
-  { id: 'week-plan', label: 'Week Plan', role: 'training week annotations' },
-  { id: 'money', label: 'Money', role: 'ledger import' },
-  { id: 'cfo', label: 'CFO', role: 'monthly money report' },
-  { id: 'todoist', label: 'Todoist', role: 'two-way to-do sync' },
-  { id: 'overnight', label: 'Overnight', role: 'queued work while he sleeps' },
-  { id: 'telegram', label: 'Telegram', role: 'Nova in his pocket' },
-  { id: 'pulse', label: 'Pulse', role: 'what\'s new on his topics' },
-  { id: 'health-mirror', label: 'Health Mirror', role: 'the numbers, into the vault' },
-  { id: 'pattern-scout', label: 'Pattern Scout', role: 'repeated acts → skill proposals' },
-  { id: 'autonomy', label: 'Trust Ladder', role: 'autonomy earned, proposed' },
-  { id: 'distill', label: 'Distiller', role: 'captures woven into the graph' },
-  { id: 'brain-week', label: 'Brain Week', role: 'what entered the second brain' },
+  { id: 'dispatch', label: 'Dispatch', role: 'morning & evening briefs', cadenceHours: 2 },
+  { id: 'review', label: 'Daily Review', role: 'the day, scored honestly', cadenceHours: 2 },
+  { id: 'plan-today', label: 'Plan Today', role: "the day's top 3, picked", cadenceHours: 2 },
+  { id: 'weekly-debrief', label: 'Weekly Debrief', role: "the Coach's Sunday sit-down", cadenceHours: 2 },
+  { id: 'reminders', label: 'Reminders', role: 'nudges fired on time', cadenceHours: 1 },
+  { id: 'guardian', label: 'Guardian', role: 'integrity, backups, alerts', cadenceHours: 26 },
+  { id: 'health-drops', label: 'Health Sync', role: 'iPhone health drops', cadenceHours: 1 },
+  { id: 'healthinsight', label: 'Health Insight', role: 'twice-daily noticing', cadenceHours: 2 },
+  { id: 'compost', label: 'Compost', role: 'inbox aging & decay', cadenceHours: 26 },
+  { id: 'food-suggest', label: 'Food Scout', role: 'food → recipe ideas', cadenceHours: 2 },
+  { id: 'mealprep', label: 'Meal Prep', role: 'weekly prep proposals', cadenceHours: 3 },
+  { id: 'training-check', label: 'Training Check', role: 'program drift watch', cadenceHours: 2 },
+  { id: 'week-plan', label: 'Week Plan', role: 'training week annotations', cadenceHours: 2 },
+  { id: 'money', label: 'Money', role: 'ledger import', cadenceHours: 2 },
+  { id: 'cfo', label: 'CFO', role: 'monthly money report', cadenceHours: 13 },
+  { id: 'todoist', label: 'Todoist', role: 'two-way to-do sync', cadenceHours: 2 },
+  { id: 'overnight', label: 'Overnight', role: 'queued work while he sleeps', cadenceHours: 2 },
+  { id: 'telegram', label: 'Telegram', role: 'Nova in his pocket', cadenceHours: 2 },
+  { id: 'pulse', label: 'Pulse', role: 'what\'s new on his topics', cadenceHours: 2 },
+  { id: 'health-mirror', label: 'Health Mirror', role: 'the numbers, into the vault', cadenceHours: 2 },
+  { id: 'pattern-scout', label: 'Pattern Scout', role: 'repeated acts → skill proposals', cadenceHours: 2 },
+  { id: 'autonomy', label: 'Trust Ladder', role: 'autonomy earned, proposed', cadenceHours: 2 },
+  { id: 'distill', label: 'Distiller', role: 'captures woven into the graph', cadenceHours: 2 },
+  { id: 'brain-week', label: 'Brain Week', role: 'what entered the second brain', cadenceHours: 2 },
   // These three beat but were absent from the roster, so the fleet ring
   // never showed them and Nova could not name them when asked how it works.
-  { id: 'coach-cadence', label: 'Coach Cadence', role: 'when Coach speaks up' },
-  { id: 'coach-reflection', label: 'Coach Reflection', role: 'Coach reviewing its own calls' },
-  { id: 'leader', label: 'Leader', role: 'the daily leadership idea' },
+  { id: 'coach-cadence', label: 'Coach Cadence', role: 'when Coach speaks up', cadenceHours: 2 },
+  { id: 'coach-reflection', label: 'Coach Reflection', role: 'Coach reviewing its own calls', cadenceHours: 2 },
+  { id: 'leader', label: 'Leader', role: 'the daily leadership idea', cadenceHours: 2 },
   // And these two ran with no heartbeat at all — invisible to both the ring
   // and the Guardian's staleness watch, so they could die unnoticed. The
   // brief pre-warm dying silently is exactly the failure class that cost
   // three days this week.
-  { id: 'brief-warm', label: 'Brief Warm', role: "the morning brief's voice, pre-built" },
-  { id: 'calendar-watch', label: 'Calendar Watch', role: 'CalDAV kept fresh' },
+  { id: 'brief-warm', label: 'Brief Warm', role: "the morning brief's voice, pre-built", cadenceHours: 2 },
+  { id: 'calendar-watch', label: 'Calendar Watch', role: 'CalDAV kept fresh', cadenceHours: 1 },
 ];
+
+// The staleness watch, derived rather than duplicated: Guardian imports this
+// instead of maintaining a second list that drifts out of step with the ring.
+export function loopCadenceHours() {
+  return Object.fromEntries(SCHEDULED.map((a) => [a.id, a.cadenceHours]));
+}
+
+// The roster itself, for anything that needs to name the fleet (tests assert
+// against it, so a new scheduler cannot quietly arrive unwatched).
+export function scheduledFleet() {
+  return SCHEDULED.map(({ id, label, role, cadenceHours }) => ({ id, label, role, cadenceHours }));
+}
 
 // Self-knowledge for the conversation: when he asks "how do you work?",
 // Nova answers from its REAL architecture, not a guess. One deterministic
