@@ -18,6 +18,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { modelFor, laneSkipped } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
+import { settleWatchdog } from './settle.js';
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const MAX_BUDGET_USD = '1.0';
@@ -137,6 +138,7 @@ function runModel(prompt) {
     ]);
     let stdout = '';
     let stderr = '';
+    settleWatchdog(child, { label: "the nightly reflection", minutes: 15 });
     child.stdout.on('data', (d) => { stdout += d; });
     child.stderr.on('data', (d) => { stderr += d; });
     child.on('close', (code) => {

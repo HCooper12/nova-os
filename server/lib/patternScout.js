@@ -7,6 +7,7 @@ import { createRecord, updateRecord, listRecords } from './inboxStore.js';
 import { declinedContext } from './respectTheNo.js';
 import { modelFor, laneSkipped } from './modelPrefs.js';
 import { isGateModel } from './modelChoice.js';
+import { settleWatchdog } from './settle.js';
 
 // The pattern scout — skill proposals (agents plan, build 3): once a week a
 // model reads what Hayden actually DID by hand — his captures, their routes,
@@ -200,6 +201,7 @@ export async function runPatternScout(vaultPath, { force = false, model } = {}) 
 
   let stdout = '';
   let stderr = '';
+  settleWatchdog(child, { label: "the pattern scout", minutes: 15 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', async (code) => {

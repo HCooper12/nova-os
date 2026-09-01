@@ -4,6 +4,7 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { NOVA_LENS } from './lens.js';
 import { modelFor, assertLaneOn, laneEnabled } from './modelPrefs.js';
+import { settleWatchdog } from './settle.js';
 
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
@@ -950,6 +951,7 @@ export function startQuickSession(cwd, { minutes, note, context }) {
 
   let stdout = '';
   let stderr = '';
+  settleWatchdog(child, { label: "the quick-session draft", minutes: 5 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', (code) => {
@@ -1009,6 +1011,7 @@ Report format: a short verdict line, then a numbered list of findings — each w
 
   let stdout = '';
   let stderr = '';
+  settleWatchdog(child, { label: "the breaker review", minutes: 15 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', (code) => {

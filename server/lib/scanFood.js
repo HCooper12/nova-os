@@ -5,6 +5,7 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
+import { settleWatchdog } from './settle.js';
 
 const MAX_BUDGET_USD = '0.5';
 // Reading a label is OCR — the fast model handles it and the macros are always
@@ -151,6 +152,7 @@ export function startFoodScan(mode, imagePaths, workDir, note) {
 
   let stdout = '';
   let stderr = '';
+  settleWatchdog(child, { label: "the food scan", minutes: 5 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', (code) => {
@@ -210,6 +212,7 @@ export function startFoodDescribe(description) {
 
   let stdout = '';
   let stderr = '';
+  settleWatchdog(child, { label: "the food estimate", minutes: 5 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', (code) => {

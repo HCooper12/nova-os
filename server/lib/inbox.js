@@ -20,6 +20,7 @@ import { addStashItem, removeStashItem, formatStashItem } from './stash.js';
 import { addRecipe, removeRecipe } from './recipes.js';
 import { createEvent, deleteEventAt, moveEvent, moveOccurrence, putEventRaw } from './calendar.js';
 import { boundaryArgs } from './spawnBoundary.js';
+import { settleWatchdog } from './settle.js';
 
 // The Nova Inbox: capture any loose thought, let a READ-ONLY classifier make
 // exactly one typed routing decision, then let deterministic code do the
@@ -179,6 +180,7 @@ function classify(text, onDone) {
   ]);
   let stdout = '';
   let stderr = '';
+  settleWatchdog(child, { label: "the classifier", minutes: 5 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', (code) => {

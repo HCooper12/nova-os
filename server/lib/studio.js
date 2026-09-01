@@ -10,6 +10,7 @@ import { Vault } from './vault.js';
 import { createRecord, updateRecord } from './inboxStore.js';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { NOVA_LENS } from './lens.js';
+import { settleWatchdog } from './settle.js';
 
 // Studio — the idea pipeline. Deterministic status moves on idea pages
 // (seed → outlining → scripting → shipped) and an ON-DEMAND outline
@@ -104,6 +105,7 @@ export async function startOutline(vaultPath, id) {
 
   let stdout = '';
   let stderr = '';
+  settleWatchdog(child, { label: "the studio draft", minutes: 15 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', async (code) => {

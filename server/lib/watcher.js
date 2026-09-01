@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { createRecord, updateRecord } from './inboxStore.js';
 import { NOVA_LENS } from './lens.js';
+import { settleWatchdog } from './settle.js';
 
 // The Watcher — Nova's eyes on video. Hayden hands it a link (a fitness
 // video, a podcast, a talk); the watch toolchain (yt-dlp + the bundled watch
@@ -496,6 +497,7 @@ function runClaude(vaultPath, prompt, { allowedTools, budget, model } = {}) {
 
     let stdout = '';
     let stderr = '';
+    settleWatchdog(child, { label: "the video weave", minutes: 60 });
     child.stdout.on('data', (d) => { stdout += d; });
     child.stderr.on('data', (d) => { stderr += d; });
     child.on('error', reject);

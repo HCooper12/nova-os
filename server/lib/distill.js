@@ -12,6 +12,7 @@ import { modelFor, laneSkipped } from './modelPrefs.js';
 import { isGateModel } from './modelChoice.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { weeklyWindowOpen } from './cadence.js';
+import { settleWatchdog } from './settle.js';
 
 // The distiller — captures become knowledge. Filed captures land as FLAT
 // pages (Wiki/Inbox, Studio ideas) with no wikilinks, so the graph never
@@ -135,6 +136,7 @@ export async function runDistillation(vaultPath, { force = false, model } = {}) 
     ], { cwd: stagingVault });
     let stdout = '';
     let stderr = '';
+    settleWatchdog(child, { label: "the distillation pass", minutes: 20 });
     child.stdout.on('data', (d) => { stdout += d; });
     child.stderr.on('data', (d) => { stderr += d; });
     child.on('close', (code) => resolve({ code, stdout, stderr }));

@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
 import { modelFor, laneOffError, laneEnabled } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
+import { settleWatchdog } from './settle.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // honors NOVA_DATA_DIR (it was one of two hard-coded paths that leaked test
@@ -85,6 +86,7 @@ export function startSummaryJob(noteId, title, bodyText) {
   ]);
   let stdout = '';
   let stderr = '';
+  settleWatchdog(child, { label: "the note summary", minutes: 5 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', async (code) => {

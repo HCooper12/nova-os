@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { modelFor } from './modelPrefs.js';
+import { settleWatchdog } from './settle.js';
 
 // THE LIBRARIAN — a book title + author into a triangulated research
 // dossier, which then rides the EXISTING ingest weave into the vault
@@ -123,6 +124,7 @@ export function runBookResearch({ title, author, notes, model: modelOverride }, 
     ], { cwd: workDir, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '';
     let err = '';
+    settleWatchdog(child, { label: "the librarian research", minutes: 30 });
     child.stdout.on('data', (d) => { out += d; });
     child.stderr.on('data', (d) => { err += d; });
     child.on('error', reject);

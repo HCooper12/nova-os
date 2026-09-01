@@ -4,6 +4,7 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { modelFor, laneOffError, laneEnabled } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
+import { settleWatchdog } from './settle.js';
 
 const MAX_BUDGET_USD = '0.3';
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
@@ -49,6 +50,7 @@ export function startPromptJob(seed) {
 
   let stdout = '';
   let stderr = '';
+  settleWatchdog(child, { label: "the journal prompt", minutes: 5 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', (code) => {

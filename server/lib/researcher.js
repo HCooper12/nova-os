@@ -6,6 +6,7 @@ import { createRecord, updateRecord } from './inboxStore.js';
 import { NOVA_LENS } from './lens.js';
 import { modelFor, laneOffError, laneEnabled } from './modelPrefs.js';
 import { isGateModel } from './modelChoice.js';
+import { settleWatchdog } from './settle.js';
 
 // The Researcher — Nova's first agent that reaches OUTSIDE the vault. The
 // boundaries are structural: it runs only on an explicit "research …" ask
@@ -127,6 +128,7 @@ function runResearchJob(vaultPath, recordId, q, model) {
 
   let stdout = '';
   let stderr = '';
+  settleWatchdog(child, { label: "the research", minutes: 20 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', async (code) => {

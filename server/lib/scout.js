@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { modelFor, assertLaneOn } from './modelPrefs.js';
+import { settleWatchdog } from './settle.js';
 
 // THE SCOUT — research a PERSON the way the Librarian researches a book.
 //
@@ -199,6 +200,7 @@ export async function runPersonResearch(vaultPath, subject, { notes = '', model,
   return new Promise((resolve, reject) => {
     const child = spawn(CLAUDE_BIN, args, { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '', stderr = '';
+    settleWatchdog(child, { label: "the scout research", minutes: 30 });
     child.stdout.on('data', (d) => { stdout += d; });
     child.stderr.on('data', (d) => { stderr += d; });
     child.on('error', reject);

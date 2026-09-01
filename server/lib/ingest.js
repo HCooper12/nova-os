@@ -9,6 +9,7 @@ import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { stampPriors, applyChanges, undoChanges } from './stagedPass.js';
 import { createRecord } from './inboxStore.js';
 import { boundaryArgs } from './spawnBoundary.js';
+import { settleWatchdog } from './settle.js';
 
 const SKIP = new Set(['.obsidian', '.claude', '.DS_Store']);
 // NO MORE DYING NEARLY-DONE. A $3 ceiling was set for a pasted note and then
@@ -381,6 +382,7 @@ When done, give a concise final summary: pages created, pages updated, and any c
 
       let stdout = '';
       let stderr = '';
+      settleWatchdog(child, { label: "the vault pass", minutes: 60 });
       child.stdout.on('data', (d) => { stdout += d; });
       child.stderr.on('data', (d) => { stderr += d; });
       child.on('close', (code) => {

@@ -8,6 +8,7 @@ import { loadExerciseLibrary, addExerciseIn, setMuscleGroupIn, renderLibraryFile
 import { loadRoutines, loadRoutineData, replaceRoutineEntries, renderRoutinesFile, writeRoutinesRaw, ROUTINES_REL_PATH } from './workouts.js';
 import { stampPriors, applyChanges } from './stagedPass.js';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { settleWatchdog } from './settle.js';
 
 // COACH CHANGES THE PLAN — his ask, made real.
 //
@@ -352,6 +353,7 @@ export function startCoachAmend(vaultPath, { proposal, note, fix, recordId = nul
       '--no-session-persistence',
     ], { stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '';
+    settleWatchdog(child, { label: "Coach's amend", minutes: 5 });
     child.stdout.on('data', (d) => { out += d; });
     child.on('close', async () => {
       try {

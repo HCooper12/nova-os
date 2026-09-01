@@ -6,6 +6,7 @@ import { fetchEventsForRangeRaw } from './calendar.js';
 import { createRecord } from './inboxStore.js';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
+import { settleWatchdog } from './settle.js';
 
 // Turn a spoken/typed request into ONE structured calendar op — add, move, or
 // delete — then file it as a confirm-first inbox proposal. The model only
@@ -50,6 +51,7 @@ function interpret(prompt) {
     ], { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
+    settleWatchdog(child, { label: "the calendar interpreter", minutes: 5 });
     child.stdout.on('data', (d) => { stdout += d; });
     child.stderr.on('data', (d) => { stderr += d; });
     child.on('close', (code) => {

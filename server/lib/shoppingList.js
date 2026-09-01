@@ -6,6 +6,7 @@ import matter from 'gray-matter';
 import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
 import { modelFor, laneSkipped, laneEnabled } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
+import { settleWatchdog } from './settle.js';
 
 const LIST_REL_PATH = 'Wiki/Health/Shopping List.md';
 const CATEGORIES = ['Produce', 'Meat & Protein', 'Dairy & Eggs', 'Pantry & Seasonings', 'Frozen', 'Bakery', 'Beverages', 'Household & Other'];
@@ -273,6 +274,7 @@ Output ONLY a JSON array with exactly ${newItems.length} objects, one per item i
 
   let stdout = '';
   let stderr = '';
+  settleWatchdog(child, { label: "the list categoriser", minutes: 5 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', (code) => {

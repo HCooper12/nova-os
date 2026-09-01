@@ -7,6 +7,7 @@ import { spawn } from 'node:child_process';
 import os from 'node:os';
 import { NOVA_LENS } from './lens.js';
 import { modelFor, laneSkipped } from './modelPrefs.js';
+import { settleWatchdog } from './settle.js';
 
 // THE LEADER — Hayden's leadership development agent. Its whole job is to
 // make the leadership knowledge he already collects (podcasts, books, notes,
@@ -283,6 +284,7 @@ function runClaude(args, cwd) {
   return new Promise((resolve, reject) => {
     const child = spawn(CLAUDE_BIN, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '', stderr = '';
+    settleWatchdog(child, { label: "the leader brief", minutes: 15 });
     child.stdout.on('data', (d) => { stdout += d; });
     child.stderr.on('data', (d) => { stderr += d; });
     child.on('error', reject);

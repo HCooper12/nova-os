@@ -5,6 +5,7 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
+import { settleWatchdog } from './settle.js';
 
 const MAX_BUDGET_USD = '0.5';
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
@@ -89,6 +90,7 @@ export function startTweak(recipe, request, prior = null, imagePaths = [], workD
 
   let stdout = '';
   let stderr = '';
+  settleWatchdog(child, { label: "the recipe tweak", minutes: 5 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', (code) => {

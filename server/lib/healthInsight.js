@@ -16,6 +16,7 @@ import { NOVA_LENS } from './lens.js';
 import { profileContext } from './profile.js';
 import { modelFor, laneSkipped, laneEnabled } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
+import { settleWatchdog } from './settle.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // honors NOVA_DATA_DIR like every sibling store — it was the one hard-coded
@@ -200,6 +201,7 @@ function runClaude(prompt) {
     ]);
     let stdout = '';
     let stderr = '';
+    settleWatchdog(child, { label: "the health insight", minutes: 10 });
     child.stdout.on('data', (d) => { stdout += d; });
     child.stderr.on('data', (d) => { stderr += d; });
     child.on('close', (code) => {

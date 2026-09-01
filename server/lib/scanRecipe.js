@@ -5,6 +5,7 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
+import { settleWatchdog } from './settle.js';
 
 const MAX_BUDGET_USD = '1';
 // Recipe/label extraction is OCR-shaped work the human always reviews before
@@ -63,6 +64,7 @@ export function startScan(imagePaths, workDir) {
 
   let stdout = '';
   let stderr = '';
+  settleWatchdog(child, { label: "the recipe scan", minutes: 5 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', (code) => {

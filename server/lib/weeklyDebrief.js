@@ -13,6 +13,7 @@ import { computeStreaks } from './streaks.js';
 import { createRecord, updateRecord, listRecords } from './inboxStore.js';
 import { fileDecision } from './inbox.js';
 import { modelFor, laneSkipped } from './modelPrefs.js';
+import { settleWatchdog } from './settle.js';
 
 // THE WEEKLY DEBRIEF — the Coach's Sunday sit-down. The Daily Review reads
 // one day; this reads the WEEK: training done vs planned, strength direction
@@ -258,6 +259,7 @@ function startDebriefJob(vaultPath, context, mode, recordId, now) {
 
   let stdout = '';
   let stderr = '';
+  settleWatchdog(child, { label: "the weekly debrief", minutes: 15 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', async (code) => {

@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { CATEGORIES, categorize } from './money.js';
 import { boundaryArgs } from './spawnBoundary.js';
+import { settleWatchdog } from './settle.js';
 
 // Photograph a statement page or receipt → the model extracts transaction
 // lines as typed JSON → they land as a pending money-import record on the
@@ -53,6 +54,7 @@ export function startStatementScan(imagePaths, workDir, note) {
 
   let stdout = '';
   let stderr = '';
+  settleWatchdog(child, { label: "the statement scan", minutes: 10 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', (code) => {

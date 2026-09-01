@@ -20,6 +20,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { boundaryArgs } from './spawnBoundary.js';
+import { settleWatchdog } from './settle.js';
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const YTDLP = process.env.YTDLP_BIN || '/opt/homebrew/bin/yt-dlp';
@@ -142,6 +143,7 @@ function runModel(prompt) {
       '--no-session-persistence',
     ]);
     let stdout = '', stderr = '';
+    settleWatchdog(child, { label: "the study synthesis", minutes: 15 });
     child.stdout.on('data', (d) => { stdout += d; });
     child.stderr.on('data', (d) => { stderr += d; });
     child.on('close', (code) => {

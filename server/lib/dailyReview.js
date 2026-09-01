@@ -19,6 +19,7 @@ import { preferencesContext } from './learning.js';
 import { createRecord, updateRecord, listRecords } from './inboxStore.js';
 import { fileDecision } from './inbox.js';
 import { modelFor, laneSkipped } from './modelPrefs.js';
+import { settleWatchdog } from './settle.js';
 
 // THE DAILY REVIEW — Nova's flagship intelligent surface. Once a day, a model
 // reasons across everything (profile, health, training, nutrition, calendar,
@@ -252,6 +253,7 @@ function startReviewJob(vaultPath, context, mode, recordId, now) {
 
   let stdout = '';
   let stderr = '';
+  settleWatchdog(child, { label: "the daily review", minutes: 15 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', async (code) => {

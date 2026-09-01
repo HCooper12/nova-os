@@ -7,6 +7,7 @@ import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { beat } from './heartbeat.js';
 import { modelFor, laneSkipped } from './modelPrefs.js';
+import { settleWatchdog } from './settle.js';
 
 // Topic Pulse — the brief that SHOWS. For each topic on Hayden's Interests
 // page (his to edit, in the vault), a small web-read-only run fetches a few
@@ -124,6 +125,7 @@ export async function refreshPulseTopic(topic, { runner } = {}) {
     ], { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
+    settleWatchdog(child, { label: "the pulse", minutes: 15 });
     child.stdout.on('data', (d) => { stdout += d; });
     child.stderr.on('data', (d) => { stderr += d; });
     child.on('close', (code) => {

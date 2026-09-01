@@ -12,6 +12,7 @@ import { listTodos } from './todos.js';
 import { createRecord, updateRecord, listRecords } from './inboxStore.js';
 import { fileDecision } from './inbox.js';
 import { modelFor, laneSkipped } from './modelPrefs.js';
+import { settleWatchdog } from './settle.js';
 
 // PLAN TODAY — each morning, one model pass turns the day's real picture
 // (calendar, recovery, fuel, carry-overs, open to-dos, standing instructions)
@@ -159,6 +160,7 @@ function startPlanJob(vaultPath, context, mode, recordId, now) {
 
   let stdout = '';
   let stderr = '';
+  settleWatchdog(child, { label: "the day plan", minutes: 15 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', async (code) => {
