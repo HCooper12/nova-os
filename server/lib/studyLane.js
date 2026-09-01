@@ -19,6 +19,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
+import { boundaryArgs } from './spawnBoundary.js';
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const YTDLP = process.env.YTDLP_BIN || '/opt/homebrew/bin/yt-dlp';
@@ -134,7 +135,7 @@ function runModel(prompt) {
     const child = spawn(CLAUDE_BIN, [
       '-p', prompt,
       '--permission-mode', 'bypassPermissions',
-      '--allowedTools', '',
+      ...boundaryArgs(''),
       '--output-format', 'json',
       '--max-budget-usd', MAX_BUDGET_USD,
       '--model', modelFor('study-lane'), // was unpinned until the model board

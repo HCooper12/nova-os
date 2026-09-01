@@ -4,6 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { boundaryArgs } from './spawnBoundary.js';
 
 const MAX_BUDGET_USD = '1';
 // Recipe/label extraction is OCR-shaped work the human always reviews before
@@ -53,10 +54,8 @@ export function startScan(imagePaths, workDir) {
   const child = spawn(CLAUDE_BIN, [
     '-p', prompt,
     '--permission-mode', 'bypassPermissions',
-    '--allowedTools', 'Read',
+    ...boundaryArgs('Read'),
     '--model', modelFor('scan-recipe'),
-    // don't boot every configured MCP server just to read a photo — pure cold-start savings
-    '--strict-mcp-config',
     '--output-format', 'json',
     '--max-budget-usd', MAX_BUDGET_USD,
     '--no-session-persistence',

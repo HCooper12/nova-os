@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url'; // never URL.pathname — the repo pat
 import path from 'node:path';
 import os from 'node:os';
 import { modelFor, laneSkipped } from './modelPrefs.js';
+import { boundaryArgs } from './spawnBoundary.js';
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const MAX_BUDGET_USD = '1.0';
@@ -123,7 +124,7 @@ function runModel(prompt) {
     const child = spawn(CLAUDE_BIN, [
       '-p', prompt,
       '--permission-mode', 'bypassPermissions',
-      '--allowedTools', '',
+      ...boundaryArgs(''),
       '--output-format', 'json',
       // named explicitly — an unpinned call silently inherits the account's
       // ambient default model, which cost him a Fable-5 usage-limit hit on a

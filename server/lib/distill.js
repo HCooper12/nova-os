@@ -10,6 +10,7 @@ import { createRecord, listRecords } from './inboxStore.js';
 import { backupFile } from './backup.js';
 import { modelFor, laneSkipped } from './modelPrefs.js';
 import { isGateModel } from './modelChoice.js';
+import { boundaryArgs } from './spawnBoundary.js';
 
 // The distiller — captures become knowledge. Filed captures land as FLAT
 // pages (Wiki/Inbox, Studio ideas) with no wikilinks, so the graph never
@@ -117,7 +118,7 @@ export async function runDistillation(vaultPath, { force = false, model } = {}) 
     const child = spawn(CLAUDE_BIN, [
       '-p', buildDistillPrompt(candidates),
       '--permission-mode', 'bypassPermissions',
-      '--allowedTools', 'Read,Write,Edit,Glob,Grep',
+      ...boundaryArgs('Read,Write,Edit,Glob,Grep'),
       '--output-format', 'json',
       // named explicitly — an unpinned call silently inherits the account's
       // ambient default model, which cost him a Fable-5 usage-limit hit on a

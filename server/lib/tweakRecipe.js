@@ -4,6 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { boundaryArgs } from './spawnBoundary.js';
 
 const MAX_BUDGET_USD = '0.5';
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
@@ -79,8 +80,7 @@ export function startTweak(recipe, request, prior = null, imagePaths = [], workD
   const child = spawn(CLAUDE_BIN, [
     '-p', prompt,
     '--permission-mode', 'bypassPermissions',
-    '--allowedTools', hasImages ? 'Read' : '',
-    ...(hasImages ? ['--strict-mcp-config'] : []),
+    ...boundaryArgs(hasImages ? 'Read' : ''),
     '--output-format', 'json',
     '--max-budget-usd', MAX_BUDGET_USD,
     '--model', modelFor('tweak-recipe'), // was unpinned until the model board

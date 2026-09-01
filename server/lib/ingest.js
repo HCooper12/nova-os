@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID, createHash } from 'node:crypto';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { backupFile } from './backup.js';
+import { boundaryArgs } from './spawnBoundary.js';
 
 const SKIP = new Set(['.obsidian', '.claude', '.DS_Store']);
 // NO MORE DYING NEARLY-DONE. A $3 ceiling was set for a pasted note and then
@@ -361,7 +362,7 @@ When done, give a concise final summary: pages created, pages updated, and any c
       const child = spawn(CLAUDE_BIN, [
         '-p', prompt,
         '--permission-mode', 'bypassPermissions',
-        '--allowedTools', 'Read,Write,Edit,Glob,Grep',
+        ...boundaryArgs('Read,Write,Edit,Glob,Grep'),
         '--output-format', 'json',
         '--max-budget-usd', job.digested ? DIGEST_BUDGET_USD : MAX_BUDGET_USD,
         // Digested weaves write pages FROM exhaustive notes — structured

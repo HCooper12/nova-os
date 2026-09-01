@@ -5,6 +5,7 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { CATEGORIES, categorize } from './money.js';
+import { boundaryArgs } from './spawnBoundary.js';
 
 // Photograph a statement page or receipt → the model extracts transaction
 // lines as typed JSON → they land as a pending money-import record on the
@@ -43,7 +44,7 @@ export function startStatementScan(imagePaths, workDir, note) {
   const child = spawn(CLAUDE_BIN, [
     '-p', buildPrompt(imagePaths, note),
     '--permission-mode', 'bypassPermissions',
-    '--allowedTools', 'Read',
+    ...boundaryArgs('Read'),
     '--output-format', 'json',
     '--max-budget-usd', MAX_BUDGET_USD,
     '--model', modelFor('scan-statement'), // was unpinned until the model board
