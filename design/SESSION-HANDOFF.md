@@ -13,255 +13,171 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**25–26 AUG — THE SHIP-VERIFICATION CRISIS, EVIDENCE-ON-SCREEN, THE
-27–30 AUG — THE BLACK SCREEN, THE AMBUSH SHEET, THE ONCE-A-DAY BRIEF, THE
-INGEST CAP THAT ATE A JOB, AND FOOD MACROS THAT COMPUTE INSTEAD OF RECALL.**
+**30 AUG – 2 SEP — THE FULL-PLATFORM AUDIT, THEN SHIPPING ITS TOP FINDINGS.**
 
-GOAL: reactive, from him hitting four separate real failures in real use.
-(1) Phone opened to a black screen. (2) The ingest review sheet seized the
-screen on every launch. (3) The morning brief re-read itself on every open
-instead of once a day. (4) A video ingest spent $3.08, hit a $3 cap, and
-was killed with nothing written to the vault — "I should be able to just
-add the video and it keeps going in the background." (5) Food-macro logging
-gave two different totals for the identical description of the same pizza
-— "this seems a big discrepancy... this capability needs to be improved
-profoundly."
+GOAL: audit all 66 agents and surfaces against NOVA-METHOD (read-only, one
+item per turn, evidence cited as file:line), synthesise a ranked work
+programme, then execute it in tier order.
 
 DONE CRITERIA:
-- Black screen — MET (`b6c1e51`). Reproduced at phone size before touching
-  anything: a stale boot-resume set `ingestStatus:'ready'` from the job
-  list WITHOUT loading the preview, so `IngestReview` rendered its ready
-  branch against a null preview and threw during render, taking the whole
-  app down. A sheet that can't draw its content now degrades to a sentence,
-  never a blank device.
-- Ambush review sheet — MET (`b6c1e51`), same root fix. Boot now surfaces
-  open ingest work in the WORKING panel — visible, tappable, never forced
-  — instead of seizing the screen. Tapping goes through the poll so the
-  preview loads BEFORE the sheet renders 'ready', the exact ordering whose
-  absence caused the crash above.
-- Brief once a day — MET (`b6c1e51`). It marked the day briefed only when
-  audio genuinely PLAYED; iOS blocks an auto-brief's autoplay almost every
-  time (no user gesture behind it), so the retry fired on every launch and
-  re-read the whole brief over whatever he was doing. Now marks on
-  delivery, and the flag is the server-side one every device shares.
-- Ingest budget cap — MET (`4330eaa`). `MAX_BUDGET_USD` / `DIGEST_BUDGET_USD`
-  in `server/lib/ingest.js` raised from hard-coded `'3'`/`'8'` to
-  env-overridable `25`/`40`, reframed in-code as backstops against a
-  runaway loop, not a spending control. The job was already genuinely
-  backgrounded (server spawns it and returns immediately; closing the app
-  never stopped it) — what was missing was visibility, which the WORKING
-  panel above now provides.
-- Food macro accuracy — MET (`4330eaa`). Root cause: the describe-prompt
-  told the model most foods it "already knows well enough — answer
-  immediately from your own knowledge, no search." LLMs are unreliable at
-  numeric recall, so the same description produced 1050 kcal/50g then
-  940/36g — neither was a calculation. Rebuilt along the platform's own
-  rule (models interpret, code computes): the model now outputs ONLY
-  component names + gram weights; `server/lib/nutritionFacts.js` looks
-  each up in USDA FoodData Central, scales to the real weight, sums, and
-  derives kcal from the Atwater factors. A model-stated kcal that
-  disagrees with its own macros is now impossible by construction.
+- The 66-item audit — MET (`8d5ec82`). 21 clean keeps, 39 keep-with-refine,
+  6 refines, zero reworks. Index, per-item reports and `99-SYNTHESIS.md` in
+  `design/audits/2026-08-full-audit/`.
+- Tier 0, the spawn boundary — MET (`b8f70d4`). See DECISIONS.
+- Tier 1 idempotent session save — MET (`f80d823`).
+- Tier 1 health-insight spend cap — MET (`78f2f54`).
+- Tier 1 scheduler registry + windows — MET (`d8cdc97`, `cbc3b6d`).
+- Tier 1 staged-pass unification — **UNMET, not started.** The largest
+  remaining item; rewrites live vault-write paths.
+- Phone-width (375px) verification pass — **BLOCKED all audit.** The browser
+  tool reported resize success while screenshots stayed 1512px. Every UI
+  finding in all 66 reports is desktop-width or code-read only.
 
-STATE (paths):
-- `src/App.jsx`, `src/IngestReview.jsx`, `src/vals/valsChrome.js` — the
-  black-screen/ambush/brief fixes (`b6c1e51`). Boot-resume no longer trusts
-  a job-list status without a loaded preview; WORKING panel surfaces open
-  jobs; brief-delivered flag set server-side on delivery.
-- `server/lib/ingest.js` — `MAX_BUDGET_USD = process.env.NOVA_INGEST_BUDGET_USD
-  || '25'`, `DIGEST_BUDGET_USD = process.env.NOVA_INGEST_DIGEST_BUDGET_USD
-  || '40'`. Override in `server/.env` without a code change.
-- `server/lib/nutritionFacts.js` (new) — `ATWATER`/`kcalFrom` (energy always
-  derived), `scaleTo` (linear per-100g → real weight), `lookupPer100g`
-  (USDA FDC search, ranked Foundation > SR Legacy > Survey > Branded, null
-  on any miss/network failure — never throws), `computeFromComponents`
-  (main entry, `{lookup:false}` bypass for hermetic tests), reproducibility
-  cache at `server/data/nutrition-cache/*.json` keyed by SHA1 of the
-  normalized food name, versioned `v:1`.
-- `server/lib/scanFood.js` — `buildDescribePrompt` rewritten to ask for
-  `components:[{name,grams}]` only (never `macros`/`kcal` directly);
-  `startFoodDescribe`'s child-process handler now calls
-  `computeFromComponents` and labels each component's source
-  ("USDA FoodData Central — X (dataType)" or "estimated, not matched").
-- `server/test/nutritionFacts.test.js` (new, 6 tests, all `{lookup:false}`
-  for hermeticity) and `server/test/foodSuggest.test.js` (updated to assert
-  the new prompt contract, explicitly asserts the old recall-encouraging
-  phrase is GONE).
-- `USDA_FDC_API_KEY` env var — optional; defaults to the public rate-limited
-  `DEMO_KEY` (~30/hour), not currently set in `server/.env`.
+STATE:
+- `server/lib/spawnBoundary.js` (new) — `boundaryArgs(allowed)` returns the
+  allow-list, its enforced complement, and `--strict-mcp-config`. Consumed by
+  14 previously-unguarded spawn sites.
+- `server/lib/cadence.js` (new) — `weeklyWindowOpen` / `monthlyWindowOpen`.
+- `server/lib/ops.js` — `SCHEDULED` now carries `cadenceHours`; exports
+  `loopCadenceHours()` and `scheduledFleet()`. `guardian.js` derives its watch
+  from it.
+- `server/lib/workoutSessions.js` — `completeSession` accepts `clientKey`,
+  returns `{...session, replayed:true}` on a repeat. `routes/workouts.js`
+  skips outbound side effects when `replayed`. `src/App.jsx` stamps the key.
+- `server/lib/healthInsight.js` — `MAX_TRIES_PER_DAY=3`, `triesToday`,
+  `recordFailedAttempt`; slots now fail independently.
+- New tests: `spawnBoundary`, `cadence`, `healthInsight` (first ever for that
+  lane), plus registry contracts appended to `ops.test.js` and replay cases to
+  `workoutSessions.test.js`.
 
-DECISIONS (choice → reason → what it forecloses):
-- Ingest cost caps reframed from "budget" to "backstop against a runaway
-  loop" → a $3 ceiling sized for a pasted note was being applied
-  indiscriminately to full vault weaves, killing near-complete jobs and
-  discarding ALL their output — he paid for the work and got nothing →
-  forecloses ever treating `NOVA_INGEST_BUDGET_USD`/`DIGEST_BUDGET_USD` as
-  a cost-control lever for legitimate work again; they're a safety net
-  only, sized well above real observed costs (his book: $3.53, the Scout:
-  $2.36).
-- The model may output ONLY components + gram weights for food, never a
-  macro/kcal total directly → recall of a "known" food is not
-  deterministic (proven: same input, two different plausible totals) →
-  forecloses ever letting this feature accept a model-stated kcal again;
-  energy must always be code-derived from Atwater factors.
-- USDA FoodData Central chosen over any paid nutrition API → free, public,
-  no signup (works out of the box on `DEMO_KEY`) → forecloses building a
-  paid-API integration unless the ~30/hour rate limit becomes a real
-  bottleneck against his actual daily logging volume, which is UNTESTED
-  (see ASSUMED).
-- Nutrition lookups cached by SHA1 of the normalized name, versioned `v:1`
-  → reproducibility (same food, same answer) was the entire bug being
-  fixed → forecloses changing the per-100g computation shape without
-  bumping the cache version, or old-schema entries get silently reused.
-- `computeFromComponents({lookup:false})` bypass added for tests → the
-  real USDA endpoint is rate-limited/flaky and a unit test of
-  multiplication must never depend on the network (2 of 6 tests failed on
-  the first run before this existed) → forecloses any future arithmetic
-  test in this file ever making a real fetch call.
-- Brief marks delivered on delivery, not on successful playback, flag is
-  server-side/shared → an auto-brief has no gesture behind it so iOS
-  blocks it almost every time, and gating on playback caused the retry to
-  refire and re-read the whole brief on every open → forecloses ever
-  gating "briefed today" on playback success again; content-on-screen +
-  one-tap replay is the correct degrade, not re-delivery.
-- Boot puts open ingest work in the WORKING panel, never a forced review
-  sheet → work he can see and choose to open beats work that ambushes him
-  → forecloses auto-opening `IngestReview` at boot without the
-  poll-then-render ordering that avoids the null-preview crash.
+DECISIONS:
+- Make `--allowedTools` real by DENYING ITS COMPLEMENT rather than curating
+  deny-lists per lane → hand-maintained lists had already drifted into three
+  variants and were missing `ListAgents`/`Workflow` → forecloses per-lane
+  tuning; a lane needing a tool not in `TOOL_UNIVERSE` must add it there, and
+  the list must be re-checked after a Claude Code upgrade.
+- Idempotency keyed on a CLIENT-stamped `clientKey`, not a content hash →
+  two identical workouts in one day are legitimately different sessions →
+  forecloses dedupe for older clients that send no key (they behave as before,
+  covered by a test).
+- Widen weekly windows rather than add catch-up state → every affected agent
+  already refuses to run twice → forecloses nothing; but it RELIES on those
+  guards, so removing one silently re-opens repeat runs.
+- Preserve the 13 existing Guardian cadences exactly while adding 16 →
+  adding coverage and re-tuning at once would confuse a false alarm's cause →
+  forecloses nothing; `guardian: 26h` is inherited and looks lax for an
+  hourly loop, deliberately left alone.
+- Did NOT widen the week plan's window → it composes for `nextMonday(now)`, so
+  a Monday run drafts the following week and skips the current one.
 
 VERIFIED (with locators):
-- 709/709 server tests, lint 0 errors (only pre-existing unrelated
-  unused-var warnings), build green — re-checked fresh at this close, not
-  carried over from earlier in the session.
-- `git status --porcelain` clean, `HEAD` at `4330eaa`, no commits ahead of
-  or behind `origin/main`.
-- Backend health: `GET /api/health` → `200`, checked at close.
-- `launchctl list | grep novaos` shows `com.novaos.server` running; no
-  stray `vite preview` processes; no staged `dist/pc.json` token file.
-- `npm run verify:shipped -- --server` (run earlier this session, per
-  in-session record): PASS, "deployed build matches local (4330eaa68)".
-- Live food-log test: `POST /api/food-log/describe` with "a whole large
-  pepperoni pizza" → 2,408 kcal / 129g protein, 4/4 components matched to
-  USDA (pizza dough 450g, mozzarella 220g, pepperoni 130g, pizza sauce
-  100g), each individually weighed and source-attributed; repeat calls
-  returned byte-identical totals.
-- `b6c1e51` fixes verified in a real 375px browser per the commit's own
-  record: fresh phone open renders 3,949 characters, no modal, no render
-  errors; WORKING panel shows "Ready for review — Pasted content
-  (26 pages)"; tapping it opens the sheet with proposed changes intact.
+- Spawn boundary, functionally: with the old args a sealed lane WROTE a probe
+  file; with `boundaryArgs('')` it did not. Control lane allowed `Read`
+  returned the canary, proving the probe. Method recorded in
+  `spawnBoundary.js`.
+- Guardian coverage: `POST /api/guardian/run` → "29 loops ticking on cadence"
+  (was 13).
+- Health insight live: `GET /api/health-insight` returns today's real morning
+  insight, `hasInsight:true`.
+- Session save idempotency: `server/test/workoutSessions.test.js` — replay
+  files once, no `(2).md`, different keys still file separately.
+- Gates at close: lint 0 errors, build green, **727/727 tests**, tree clean,
+  `HEAD == origin/main` (`8d5ec82`), `/api/health` → 200, no `vite preview`,
+  no `dist/pc.json`, last Pages deploy success, `npm run verify:shipped` →
+  "Everything above is genuinely live on his devices."
 
-ASSUMED (not verified):
-- That the 25/40 backstop is generous enough for every future vault weave
-  — sized against exactly two observed data points ($3.53 book, $2.36
-  Scout); a much larger future document could still hit it.
-- That USDA's `DEMO_KEY` ~30/hour rate limit is adequate for his real daily
-  food-logging volume — tested only against sequential test calls, not
-  sustained real use across a day.
-- That he has opened the app on his real device since `4330eaa` deployed
-  and actually seen the fixed behavior — deploy + `verify:shipped` confirm
-  the CODE is live, not that he has used it.
+ASSUMED:
+- That the 14 sealed lanes need no tools: verified by reading their prompts
+  for tool instructions (none found), NOT by watching each run in production.
+- That widened windows behave correctly in the wild — the arithmetic is
+  tested, but no widened agent has yet actually caught up from a slept day.
+- Cadence values for the 16 newly-watched loops are 2x their tick interval;
+  reasoned, not observed over time.
 
 OPEN QUESTIONS / BLOCKERS:
-- **The Atomic Habits PDF ingest never completed — this answers the
-  previous handoff's open question, and the answer is no.** Just checked
-  live (`GET /api/ingest`): job `816c8757` sits in `status:"error"`,
-  message "the server restarted mid-job — start it again (a cached digest
-  makes the re-run cheap)", `createdAt: 2026-08-27T22:53:55Z` — orphaned by
-  the `b6c1e51` restart. It needs to be manually restarted from the app;
-  the digest cache should make the re-run cheap rather than re-spending
-  the full cost. Not yet surfaced to him as of this close.
-- Previous handoff's other open item — whether the Coach-tab apply buttons
-  and the brief's question-by-question close read correctly on his REAL
-  phone (not the emulator) — still unconfirmed, carrying forward unanswered.
-- `findNoteSignals` still fired exactly once, ever (Cable Lateral Raise) as
-  of last check; unproven on a second recurrence.
+- The week plan window (above) — needs its week semantics decided first.
+- Phone-width pass still owed for all 21 surfaces.
+- Tier 1's staged-pass unification, then Tier 2's nine shared-helper builds.
+- `guardian: 26h` cadence: keep or tighten?
 
-NEXT ACTION: tell him the Atomic Habits ingest errored out from the
-`b6c1e51` restart and needs restarting from the app (should be cheap, the
-digest is cached), and ask him to confirm on his real phone that (a)
-describing the same food twice now gives identical macros, and (b) a
-video/book add left running survives closing the app and finishes without
-hitting a cost wall. Expected observation if both hold: identical repeat
-totals, and a long job showing complete in the WORKING panel rather than
-erroring on cost.
+NEXT ACTION: the staged-pass unification ([26]/[33]/[01]) — one apply/undo
+helper (sandbox write → diff → prior-stamped drift refusal → all-files-then-
+write → verbatim undo) shared by `distill.js` (has it), `ingest.js`
+approveJob (has NONE of it) and coach `applyOps` (torn-write). Expected
+observation if it worked: a deep-weave ingest that fails midway leaves the
+vault untouched and files an undo record, and `ingest` gains the drift
+refusal `distill` already has.
 
 DO NOT:
-- Do not treat an ingest cost cap as a spending control. Hitting one
-  discarded a $3.08 job's ENTIRE output — a cap that costs him money and
-  gives back nothing is worse than no cap. If a cap is ever lowered again,
-  check real observed job costs first ($3.53 book, $2.36 Scout are the
-  known floor).
-- Do not let a food/nutrition prompt ask the model to state a calorie or
-  macro total directly. Recall of a "known" food is not deterministic —
-  proven by the same description giving 1050 kcal/50g then 940/36g. The
-  model may only output components + gram weights; kcal must always be
-  code-derived from Atwater factors.
-- Do not restart the server without checking `GET /api/ingest` for an empty
-  in-flight list first. Confirmed by this session's own evidence: job
-  `816c8757` (Atomic Habits) was orphaned by a prior restart and simply
-  errors out, requiring a manual re-run — it does not resume on its own.
-- Do not tell him ANYTHING is shipped without running `npm run
-  verify:shipped` first and reading a clean pass. This is now written to
-  memory (`never-claim-shipped-unverified.md`) because it was said,
-  wrongly, MULTIPLE times this session before the failsafe existed — nine
-  commits sat unpushed behind a blocked permission classifier at one point
-  while "done" kept being reported.
-- Do not assume `registerType: 'autoUpdate'` means his device is current.
-  It updates the SERVICE WORKER in the background; the RUNNING app keeps
-  its old JS until a genuine reload, which in an installed PWA he doesn't
-  force-quit can be days. This is why the update banner exists — do not
-  remove it or downgrade it to something dismissable-forever.
-- Do not add a coach-chat-facing feature and patch only ONE renderer.
-  `src/screens/Workouts.jsx` has THREE separate coach-message render
-  blocks (mid-session / demo / the actual Coach tab) built from the same
-  `coachMsgs` view-model but rendered independently. This session shipped
-  a "fix" that only worked in the surface he wasn't looking at, TWICE
-  in one session (panels, then proposal buttons) before catching the
-  pattern. Grep for all render sites before calling a coach UI change done.
-- Do not verify a mobile overlay with a `#root` width-clamp style
-  injection if the overlay might be `position:fixed` — it escapes the
-  clamp entirely and produces a false "doesn't overflow" or false
-  "overflows" reading depending on which way you get unlucky. Use real
-  viewport emulation (`mcp__chrome-devtools__emulate`).
-- Do not read `this.state.X` immediately after calling `this.setState({X:
-  ...})` in the same synchronous block — React has not committed yet. Hit
-  this exact bug in `startBriefQueue`/`askBriefQuestion`: the first
-  question silently produced an answer bar with no card and no words asked.
-  Read from a `setState` callback or pass the value down explicitly.
-- Do not let a session-note signal regex match on the bare presence of a
-  word without a negative-report override. "Form was good" contains
-  "form"; matching on that alone would have inverted the entire feature's
-  meaning on a genuinely positive report.
-- Do not add a build-id scheme based on wall-clock time. It cannot equal
-  itself between a local build and a CI rebuild of the same commit.
-- Do not verify a UI change at desktop width only. The ASK button escaped
-  its card at phone width and he found it AFTER I called the feature live
-  — this class of miss recurred again this session (the update banner, the
-  brief answer bar) before every mobile check moved to real device
-  emulation. See the width-clamp DO NOT above for the deeper trap.
+- Do not ask a model what tools it can reach. The same prompt returned two
+  different lists a minute apart, one naming "PowerShell" on a Mac. Use a
+  canary and check the filesystem. This is now written into
+  `spawnBoundary.js`.
+- Do not trust an item-by-item read for a class of defect. Reading lanes one
+  at a time found 3 unguarded spawn sites; a mechanical sweep found 14. If a
+  finding is a CLASS, enumerate every site programmatically before fixing.
+- Do not assume `--allowedTools` restricts anything under bypassPermissions;
+  only `--disallowedTools` is enforced. Compose args via `boundaryArgs()`.
+- Do not write a test whose seed data depends on today's date. The
+  health-mirror page test asserted a row for the 2nd of the current month and
+  so failed every 1st — it silently broke TWO Pages deploys before it was
+  caught. CI runs `server npm test` as a deploy gate.
+- Do not assume a green local suite means CI is green: check `gh run list`
+  after pushing, because the deploy can fail on a date-dependent test that
+  passes locally on most days.
+- Do not read `/api/guardian` to check a Guardian change — it returns the
+  LAST STORED report (hours old). `POST /api/guardian/run` for a fresh one.
+- `git commit <paths>` fails on files git has never seen; `git add` them
+  first. Chained `add && commit && push` was refused by the permission
+  classifier — run the steps separately.
+- Do not verify a UI change at desktop width only. The ASK button escaped its
+  card at phone width and he found it AFTER the feature was called live.
 - Do not trust a browser measurement without confirming the page runs the
   code you just wrote. A hash-only navigation does NOT re-execute modules,
   and the service worker serves the previous build.
 - Do not add a detector without running it against his REAL log first.
-  `findNoteSignals` was checked against his 5 real notes AND a set of
-  negative cases before shipping, per this standing rule.
-- Do not let Coach propose cutting an exercise it added itself — guarded
-  by the 21-day `justAdded` marker check; keep that guard if the detector
-  is refactored.
-- Do not assume `--allowedTools` restricts anything under
-  bypassPermissions; only `--disallowedTools` is enforced.
+- Do not let Coach propose cutting an exercise it added itself — guarded by
+  the 21-day `justAdded` marker.
 - Do not run a scratch server on port 4199 while `npm test` runs —
   EADDRINUSE breaks the suite.
 - Do not write to inbox.json from a side process while the server runs; go
-  through its endpoints. (This session's `runWeeklyAudit` bug — a record
-  written via `createRecord` with no `id` and no `createdAt` — was caught
-  live and required stopping the server, patching the file, then
-  KICKSTARTING so it reloaded from disk rather than clobbering it from its
-  own stale in-memory state on next write.)
+  through its endpoints.
 - Do not grep NOVA_TOKEN in server/.env — it is API_TOKEN.
 - The Pages URL is hcooper12.github.io/nova-os (not haydencooper).
 
 
 ## SESSION LOG (append-only, newest first)
+
+### 30 August – 2 September 2026 — the full-platform audit, and shipping its top findings
+Audited all 66 agents and surfaces read-only, one per turn, then executed the
+synthesis in tier order. The audit's own headline finding got worse on
+contact: `--allowedTools` is not enforced under bypassPermissions, and where
+the item-by-item read had found three unguarded spawn sites, a mechanical
+sweep found fourteen — seven of them passing `--allowedTools ''`, meaning "no
+tools please", while the model could in fact write files and run shell. Fixed
+by denying the complement of what each lane asks for, so the allow-list is
+enforced by construction. Proved with a canary after the obvious check —
+asking the model to list its tools — returned two contradictory answers a
+minute apart, one naming "PowerShell"; that method note is now in the module,
+because it is the sort of thing that gets re-learned expensively.
+
+Then Tier 1. The workout save was replaying through the offline outbox and
+filing a second session — double-counting exercise state and re-firing the PR
+ping and the Coach debrief — now idempotent on a client-stamped key, with the
+PR celebration still returned on a replay since a lost response means he never
+saw it. Health Insight was retrying an uncapped $0.50 compose every hour from
+06:00 to midnight whenever it failed, silently; capped at three, with the last
+failure announcing itself, and the lane got its first test file. Guardian was
+watching 13 loops beside a roster of 29, so sixteen agents could die
+unnoticed; it now derives the watch from the roster — verified live at 29 —
+and five weekly agents whose exact-day windows a sleeping Mac could miss now
+stay open for the rest of their cycle.
+
+Corrected rather than added: a health-mirror test asserted a row for the 2nd
+of the current month, which the page builder correctly drops as future — so it
+failed every 1st, and had already broken two Pages deploys that day before it
+was noticed. The deploy pipeline, not just the test, was the casualty. Suite
+went 713-with-one-failing to 727 green.
 
 ### 27–30 August 2026 — the black screen, the ambush sheet, the once-a-day brief, an ingest cap that ate a job, and food macros that compute instead of recall
 Four real failures, fixed in two commits. The black screen and the ambush
