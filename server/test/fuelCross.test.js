@@ -94,3 +94,39 @@ test('crossContext: empty when nothing true to say, one line per finding otherwi
   assert.match(out, /\[high\] Line one\./);
   assert.equal(out.split('\n').length, 3); // header + two findings, no padding
 });
+
+// ---- the couldn't-look state: a source that could not be read is named,
+// never mistaken for an empty one -------------------------------------------
+test('crossCheck: an unreadable food log is named in couldntLook; findings from the sources that DID load still stand', async () => {
+  const { crossCheck } = await import('../lib/fuelCross.js');
+  const result = await crossCheck('/scratch', {
+    loadSessions: async () => [],
+    loadRecentDays: async () => { throw new Error('ENOENT: food-log.json'); },
+    loadRecipeData: async () => ({ profile: PROFILE, recipes: [] }),
+    getFitnessGoals: async () => ({ goal: '' }),
+    loadRotation: async () => ({ totals: { p: 120, c: 0, f: 0, kcal: 0 } }),
+  });
+  assert.equal(result.sources.ok, false);
+  assert.deepEqual(result.sources.failed.map((f) => f.source), ['foodLog']);
+  assert.match(result.couldntLook, /couldn't check fuel × training — food log unreadable \(ENOENT/);
+  assert.deepEqual(keys(result.findings), ['rotation-protein-floor'], 'the rotation join needs no food log — it still speaks');
+  // the model is told first, in capitals, before any finding
+  const ctx = crossContext(result);
+  assert.match(ctx, /^NOTE: couldn't check fuel × training/);
+  assert.match(ctx, /NOT checked today/);
+  assert.match(ctx, /rotation .* 120g against the 150g floor/s);
+});
+
+test('crossCheck: every source readable → ok, no couldntLook, and an empty result is still the silent empty string', async () => {
+  const { crossCheck } = await import('../lib/fuelCross.js');
+  const result = await crossCheck('/scratch', {
+    loadSessions: async () => [],
+    loadRecentDays: async () => [],
+    loadRecipeData: async () => null,
+    getFitnessGoals: async () => null,
+  });
+  assert.equal(result.sources.ok, true);
+  assert.equal(result.couldntLook, null);
+  assert.deepEqual(result.findings, []);
+  assert.equal(crossContext(result), '');
+});

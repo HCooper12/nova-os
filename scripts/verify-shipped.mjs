@@ -54,6 +54,9 @@ const FEATURES = [
   // the deep weave's receipt rides the rails with an undo — this label exists
   // only in the code that files it
   ['Inbox · vault-ingest receipt (staged pass)', 'VAULT INGEST'],
+  // the couldn't-look state on its two client faces: the Fuel card and the plan card
+  ["Fuel · couldn't-check card", "COULDN'T CHECK"],
+  ['Home · failed plan is not an empty morning', 'HIT AN ERROR — SEE INBOX'],
 ];
 
 const SERVER_ROUTES = [

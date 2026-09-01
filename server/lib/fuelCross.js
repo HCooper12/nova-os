@@ -20,6 +20,9 @@ import { loadRecentDays, totalsOf } from './foodLog.js';
 import { loadRotation } from './rotation.js';
 import { loadRecipeData } from './recipes.js';
 import { getFitnessGoals } from './fitnessGoals.js';
+import { loadSources, unreadable } from './sources.js';
+
+export const SOURCE_LABEL = { sessions: 'session history', foodLog: 'food log', recipes: 'recipe bank', goals: 'fitness goals', rotation: 'rotation' };
 
 const MIN_LOGGED_DAYS = 3; // per side (trained/rest) before day-type comparisons speak
 const LOOKBACK_DAYS = 14;
@@ -46,19 +49,34 @@ function splitDays(days, sessionDates) {
 
 const avg = (arr, key) => arr.reduce((s, x) => s + x[key], 0) / arr.length;
 
-export async function crossCheck(vaultPath) {
-  const [sessions, days, recipeData, goals] = await Promise.all([
-    loadSessions(vaultPath, { limit: 60 }).catch(() => []),
-    loadRecentDays(LOOKBACK_DAYS).catch(() => []),
-    loadRecipeData(vaultPath).catch(() => null),
-    getFitnessGoals(vaultPath).catch(() => null),
-  ]);
+// `deps` lets a test swap a loader for one that throws; production uses the
+// real ones.
+export async function crossCheck(vaultPath, deps = {}) {
+  // A SOURCE THAT COULD NOT BE READ IS NOT AN EMPTY SOURCE. These used to be
+  // `.catch(() => [])` — so "couldn't check" rendered exactly like "checked,
+  // all clear": the Recipes card hid, the morning line went quiet, and the
+  // weekly raise concluded cleanliness. The findings are still computed from
+  // what did load, but every consumer reads `couldntLook` first and the raise
+  // refuses to conclude (lib/sources.js).
+  const first = await loadSources({
+    sessions: { load: () => (deps.loadSessions || loadSessions)(vaultPath, { limit: 60 }), fallback: [] },
+    foodLog: { load: () => (deps.loadRecentDays || loadRecentDays)(LOOKBACK_DAYS), fallback: [] },
+    recipes: { load: () => (deps.loadRecipeData || loadRecipeData)(vaultPath), fallback: null },
+    goals: { load: () => (deps.getFitnessGoals || getFitnessGoals)(vaultPath), fallback: null },
+  });
+  const { sessions, foodLog: days, recipes: recipeData, goals } = first.values;
+  const failed = [...first.failed];
   const profile = recipeData?.profile || null;
-  const rotation = recipeData
-    ? await loadRotation(vaultPath, recipeData.recipes).catch(() => null)
-    : null;
+  let rotation = null;
+  if (recipeData) {
+    const r = await loadSources({ rotation: { load: () => (deps.loadRotation || loadRotation)(vaultPath, recipeData.recipes), fallback: null } });
+    rotation = r.values.rotation;
+    failed.push(...r.failed);
+  }
   return {
     findings: analyze({ sessions, days, profile, rotationTotals: rotation?.totals || null, goal: goals?.goal || '' }),
+    sources: { ok: !failed.length, failed },
+    couldntLook: failed.length ? `couldn't check fuel × training — ${unreadable(failed, SOURCE_LABEL)}` : null,
     computedAt: new Date().toISOString(),
   };
 }
@@ -134,6 +152,9 @@ export function analyze({ sessions = [], days = [], profile = null, rotationTota
 // The one-liners the Coach's prompt gets — empty string when there is
 // nothing true to say (never a placeholder).
 export function crossContext(result) {
-  if (!result?.findings?.length) return '';
-  return `FUEL × TRAINING CROSS-CHECK (deterministic, from his real logs — raise what matters, don't recite):\n${result.findings.map((f) => `- [${f.severity}] ${f.line}`).join('\n')}`;
+  // the model must never reason from a partial picture as if it were whole
+  const warn = result?.couldntLook ? `NOTE: ${result.couldntLook} — the fuel picture is NOT checked today; say so if asked, never assume it is fine.` : '';
+  if (!result?.findings?.length) return warn;
+  const body = `FUEL × TRAINING CROSS-CHECK (deterministic, from his real logs — raise what matters, don't recite):\n${result.findings.map((f) => `- [${f.severity}] ${f.line}`).join('\n')}`;
+  return warn ? `${warn}\n${body}` : body;
 }

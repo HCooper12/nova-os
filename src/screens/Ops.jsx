@@ -46,6 +46,7 @@ function AgentDetail({ d }) {
         {d.label} <span style={css(`letter-spacing:.06em;color:${dim(42)}`)}>— {d.role} · {d.stateLabel}</span>
       </div>
       <div style={css(`margin-top:10px;font:500 8.5px ${M};letter-spacing:.22em;color:${dim(42)}`)}>SKILLS OWNED</div>
+      {d.lastNote && <div style={css(`margin-top:5px;font:400 10.5px ${M};color:var(--nv-warn)`)}>{d.lastNote}</div>}
       {d.skillsNote && <div style={css(`margin-top:5px;font:400 10.5px ${M};color:${dim(42)}`)}>{d.skillsNote}</div>}
       {!d.skillsNote && d.skillGroups.map((g) => (
         <div key={g.name} style={css("margin-top:6px")}>

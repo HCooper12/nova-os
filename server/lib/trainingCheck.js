@@ -5,6 +5,7 @@ import { loadRoutines, WEEKDAYS, ACTIVE_REST } from './workouts.js';
 import { loadSessions } from './workoutSessions.js';
 import { listCarryovers } from './workoutCarryover.js';
 import { createRecord, listRecords } from './inboxStore.js';
+import { note } from './heartbeat.js';
 
 // "Did today's training happen?" Each evening Nova cross-checks the Train
 // schedule AND the calendar against what's actually logged, and — when a
@@ -40,9 +41,16 @@ export async function runTrainingCheck(vaultPath) {
     scheduledRoutine = val && !isActiveRest ? routines.find((r) => r.id === val) || null : null;
     const sessions = await loadSessions(vaultPath, { limit: 6 });
     loggedToday = sessions.some((s) => s.date === t);
-  } catch {
-    return { skipped: 'no workout data' };
+  } catch (e) {
+    // couldn't look is not "nothing to do": a dead vault read used to produce
+    // the same silence as a clean rest day. Say why, and leave the word where
+    // Ops shows it, until a run that could look clears it.
+    const why = `couldn't run — workout data unreadable (${e.message})`;
+    console.error(`training check: ${why}`);
+    await note('training-check', why);
+    return { skipped: why, couldntLook: true };
   }
+  await note('training-check', null);
 
   // a workout on the calendar today?
   let calWorkout = null;

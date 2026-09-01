@@ -2,6 +2,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadSources, unreadable } from './sources.js';
 
 // THE WEEKLY PROGRAM AUDIT — proof that Coach actually looked.
 //
@@ -29,10 +30,20 @@ import { fileURLToPath } from 'node:url';
 //                  every group's WORST movement was still gaining (+9%,
 //                  +8%, +2% e1RM). A true negative.
 //
-// So the audit reports three states, and the middle one is the point:
-//   fired   — findings raised, already on the inbox rails
-//   clear   — ran, found nothing, HERE IS THE NUMBER that makes it clear
-//   not-yet — cannot answer yet, here is what it still needs
+// So the audit reports four states, and the middle two are the point:
+//   fired        — findings raised, already on the inbox rails
+//   clear        — ran, found nothing, HERE IS THE NUMBER that makes it clear
+//   not-yet      — cannot answer yet, here is what it still needs
+//   couldnt-look — a source it needed could not be read; says which and why.
+//                  This one was missing: a volume engine that threw became
+//                  "needs 2 logged weeks, you have 0" — a failure wearing the
+//                  costume of early history, in the module whose one rule is
+//                  that a detector that cannot run must say so.
+
+const SOURCE_LABEL = {
+  sessions: 'session history', exercises: 'exercise library', goals: 'fitness goals', review: 'program review',
+  goalMuscles: 'goal muscles', weekly: 'weekly volume', routines: 'routines',
+};
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
@@ -58,24 +69,28 @@ export function buildChecks({ sessions, exercises, routines, weekly, goalMuscles
     {
       id: 'mapping',
       label: 'Lifts filed under the wrong muscle',
+      needs: ['exercises'],
       gate: () => (exercises.length ? null : 'no exercise library yet'),
       clear: () => `${exercises.length} lifts in the library, every name consistent with its filed muscle`,
     },
     {
       id: 'effort-ceiling',
       label: 'Training too close to failure, too often',
+      needs: ['sessions'],
       gate: () => (ratedSets >= 100 ? null : `needs 100 RPE-rated sets, you have ${ratedSets}`),
       clear: () => `${ratedSets} rated sets, share at RPE 9-10 below the ceiling`,
     },
     {
       id: 'under-volume',
       label: 'A goal muscle chronically short',
+      needs: ['goals', 'goalMuscles', 'sessions', 'exercises', 'weekly'],
       gate: () => (goalMuscles.length ? (weekly.length >= 3 ? null : `needs 3 logged weeks, you have ${weekly.length}`) : 'no goal muscles set'),
       clear: () => `${goalMuscles.length} goal muscle${goalMuscles.length === 1 ? '' : 's'} all at or above target for the last 3 weeks`,
     },
     {
       id: 'junk-volume',
       label: 'A muscle past the point more sets help',
+      needs: ['sessions', 'exercises', 'weekly'],
       gate: () => (weekly.length >= 2 ? null : `needs 2 logged weeks, you have ${weekly.length}`),
       // The headroom IS the reassurance — it says how far from the edge he is.
       clear: () => `peak was ${maxWeeklySet} hard sets in a week against a ceiling of ${ceiling} — ${Math.max(0, ceiling - maxWeeklySet)} sets of headroom`,
@@ -83,30 +98,35 @@ export function buildChecks({ sessions, exercises, routines, weekly, goalMuscles
     {
       id: 'routine-oversized',
       label: 'A routine bigger than the session you finish',
+      needs: ['sessions', 'routines'],
       gate: () => (sessions.length >= 3 ? null : `needs 3 logged sessions, you have ${sessions.length}`),
       clear: () => `every routine gets finished at the rate it was written for`,
     },
     {
       id: 'low-value',
       label: 'A movement not paying for its place',
+      needs: ['routines', 'sessions'],
       gate: () => (routines.length ? null : 'no routines defined'),
       clear: () => 'in every muscle group with enough movements to compare, the weakest is still gaining',
     },
     {
       id: 'reported-form',
       label: 'Something you flagged yourself',
+      needs: ['sessions'],
       gate: () => (sessions.length ? null : 'no sessions logged yet'),
       clear: () => 'nothing you have written about form or pain is repeating',
     },
     {
       id: 'stale',
       label: 'A lift flat for three weeks or more',
+      needs: ['sessions'],
       gate: () => (sessions.length >= 4 ? null : `needs 4 logged sessions, you have ${sessions.length}`),
       clear: () => 'no lift has gone three weeks without moving',
     },
     {
       id: 'tenure',
       label: 'Same lift long enough to be worth rotating',
+      needs: ['sessions'],
       gate: () => (spanWeeks >= tenureWeeks
         ? (longestRun >= 10 ? null : `needs one lift logged 10+ times, your most-logged is ${longestRun}`)
         : `needs ${tenureWeeks} weeks of history, you have ${spanWeeks.toFixed(1)}`),
@@ -130,12 +150,24 @@ export async function auditProgram(vaultPath, deps = {}) {
   } = deps;
 
   const { JUNK_VOLUME_CEILING, TENURE_WEEKS } = await import('./coachProgramReview.js');
-  const [sessions, exercises] = await Promise.all([loadSessions(), loadExercises()]);
-  const g = await goals().catch(() => null);
-  const goalMuscles = await focusOf(g).catch(() => []);
-  const weekly = await volume(sessions, exercises).catch(() => []);
-  const routines = await loadRoutinesFor(exercises).catch(() => []);
-  const { findings } = await review();
+  // every source keeps its fallback (the checks' code shape is unchanged) but
+  // a failure is KEPT, and every check that needed that source says so
+  const first = await loadSources({
+    sessions: { load: loadSessions, fallback: [] },
+    exercises: { load: loadExercises, fallback: [] },
+    goals: { load: goals, fallback: null },
+    review: { load: review, fallback: { findings: [] } },
+  });
+  const { sessions, exercises, goals: g } = first.values;
+  const second = await loadSources({
+    goalMuscles: { load: () => focusOf(g), fallback: [] },
+    weekly: { load: () => volume(sessions, exercises), fallback: [] },
+    routines: { load: () => loadRoutinesFor(exercises), fallback: [] },
+  });
+  const { goalMuscles, weekly, routines } = second.values;
+  const { findings } = first.values.review;
+  const failed = [...first.failed, ...second.failed];
+  const failedBy = new Map(failed.map((f) => [f.source, f.reason]));
 
   // the shared measurements every check reasons from — computed once so the
   // audit can never disagree with itself about what the week contained
@@ -166,6 +198,12 @@ export async function auditProgram(vaultPath, deps = {}) {
     sessions, exercises, routines, weekly, goalMuscles, spanWeeks, ratedSets,
     maxWeeklySet, longestRun, ceiling: JUNK_VOLUME_CEILING, tenureWeeks: TENURE_WEEKS,
   }).map((c) => {
+    // the review is every check's eyes; each check's own inputs are named on it
+    const blockedBy = ['review', ...(c.needs || [])].filter((s) => failedBy.has(s));
+    if (blockedBy.length) {
+      const detail = `couldn't look — ${unreadable(blockedBy.map((s) => ({ source: s, reason: failedBy.get(s) })), SOURCE_LABEL)}`;
+      return { id: c.id, label: c.label, status: 'couldnt-look', count: 0, detail };
+    }
     const hits = byKind.get(c.id) || [];
     if (hits.length) {
       return { id: c.id, label: c.label, status: 'fired', count: hits.length, detail: hits[0].line };
@@ -178,6 +216,7 @@ export async function auditProgram(vaultPath, deps = {}) {
   const fired = checks.filter((c) => c.status === 'fired');
   const clear = checks.filter((c) => c.status === 'clear');
   const notYet = checks.filter((c) => c.status === 'not-yet');
+  const couldntLook = checks.filter((c) => c.status === 'couldnt-look');
 
   return {
     at: now.toISOString(),
@@ -185,15 +224,16 @@ export async function auditProgram(vaultPath, deps = {}) {
     checks,
     findings,
     counts: { sessions: sessions.length, exercises: exercises.length, routines: routines.length, ratedSets },
-    summary: summarise({ fired, clear, notYet }),
+    sources: { ok: !failed.length, failed },
+    summary: summarise({ fired, clear, notYet, couldntLook, failed }),
   };
 }
 
 // The spoken/written line. Says all three states in one breath, because "I
 // checked eight things, six are clean" is the reassurance; naming only the
 // problems is what makes an assistant feel like it is inventing work.
-export function summarise({ fired, clear, notYet }) {
-  const total = fired.length + clear.length + notYet.length;
+export function summarise({ fired, clear, notYet, couldntLook = [], failed = [] }) {
+  const total = fired.length + clear.length + notYet.length + couldntLook.length;
   const bits = [`I ran ${total} checks over your program this week`];
   if (fired.length) {
     bits.push(`${fired.length} need${fired.length === 1 ? 's' : ''} a decision: ${fired.map((f) => f.label.toLowerCase()).join(', ')}`);
@@ -203,6 +243,10 @@ export function summarise({ fired, clear, notYet }) {
   if (clear.length) bits.push(`${clear.length} came back clean`);
   if (notYet.length) {
     bits.push(`${notYet.length} can't be answered yet (${notYet.map((n) => `${n.label.toLowerCase()} — ${n.detail}`).join('; ')})`);
+  }
+  // the fourth state, said plainly — never folded into "clean" or "not yet"
+  if (couldntLook.length) {
+    bits.push(`${couldntLook.length} couldn't be checked at all — ${unreadable(failed, SOURCE_LABEL) || 'a source could not be read'}`);
   }
   return `${bits.join('; ')}.`;
 }

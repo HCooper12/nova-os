@@ -151,14 +151,19 @@ export function auditCard(audit) {
   const fired = count('fired');
   const clear = count('clear');
   const notYet = count('not-yet');
+  const couldntLook = count('couldnt-look');
   return barsCard({
     label: `Program audit · week of ${audit.weekOf}`,
     bars: [
       { name: 'Decide', value: fired, tone: 'warn' },
       { name: 'Clean', value: clear, tone: 'good' },
       { name: 'Not yet', value: notYet, tone: 'cy' },
+      // only drawn when it happened — a zero bar would make the normal week noisier
+      ...(couldntLook ? [{ name: "Couldn't look", value: couldntLook, tone: 'warn' }] : []),
     ],
-    foot: fired ? checks.filter((c) => c.status === 'fired').map((c) => c.label).join(' · ') : 'nothing needs a decision',
+    foot: fired ? checks.filter((c) => c.status === 'fired').map((c) => c.label).join(' · ')
+      : couldntLook ? `${couldntLook} check${couldntLook === 1 ? '' : 's'} could not run — a source was unreadable`
+        : 'nothing needs a decision',
   });
 }
 

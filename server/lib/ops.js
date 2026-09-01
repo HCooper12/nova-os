@@ -1,5 +1,5 @@
 import { listRecords } from './inboxStore.js';
-import { readHeartbeats } from './heartbeat.js';
+import { readHeartbeats, readNotes } from './heartbeat.js';
 
 // Nova Operations — the machinery made visible. Everything here is REAL
 // state the platform already keeps: the inbox record ledger (every agent's
@@ -192,7 +192,7 @@ function freshness(iso, now) {
 
 export async function composeOps() {
   const now = Date.now();
-  const [records, beats] = await Promise.all([listRecords(), readHeartbeats()]);
+  const [records, beats, notes] = await Promise.all([listRecords(), readHeartbeats(), readNotes()]);
 
   const sorted = [...records].sort((a, b) =>
     String(b.filedAt || b.createdAt || '').localeCompare(String(a.filedAt || a.createdAt || '')));
@@ -220,6 +220,8 @@ export async function composeOps() {
   const agents = SCHEDULED.map((a) => ({
     ...a,
     lastBeat: beats[a.id] || null,
+    // the loop's own last word ("couldn't run — …"), or null when it could look
+    lastNote: notes[a.id] || null,
     ...freshness(beats[a.id], now),
     departments: AGENT_DEPARTMENTS[a.id] || [],
     receipts: agentReceipts(sorted, a),

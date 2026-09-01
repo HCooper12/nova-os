@@ -418,16 +418,17 @@ export async function composeShow(vaultPath, { variant = 'morning', now: nowIn }
         const fired = (audit.checks || []).filter((c) => c.status === 'fired').length;
         const clear = (audit.checks || []).filter((c) => c.status === 'clear').length;
         const notYet = (audit.checks || []).filter((c) => c.status === 'not-yet').length;
+        const couldntLook = (audit.checks || []).filter((c) => c.status === 'couldnt-look').length;
         steps.push({
           say: despeak(audit.summary),
           card: auditCard(audit) || listCard({
             label: `PROGRAM AUDIT · WEEK OF ${audit.weekOf}`,
             items: (audit.checks || []).slice(0, 5).map((c) => ({
               name: c.label,
-              note: c.status === 'fired' ? 'needs a decision' : c.status === 'clear' ? 'clean' : 'not yet answerable',
-              tone: c.status === 'fired' ? 'gold' : undefined,
+              note: c.status === 'fired' ? 'needs a decision' : c.status === 'clear' ? 'clean' : c.status === 'couldnt-look' ? "couldn't look" : 'not yet answerable',
+              tone: c.status === 'fired' || c.status === 'couldnt-look' ? 'gold' : undefined,
             })),
-            foot: `${fired} to decide · ${clear} clean · ${notYet} pending more history`,
+            foot: `${fired} to decide · ${clear} clean · ${notYet} pending more history${couldntLook ? ` · ${couldntLook} couldn't be checked` : ''}`,
           }),
         });
       }

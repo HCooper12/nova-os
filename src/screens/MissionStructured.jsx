@@ -119,9 +119,11 @@ export function MissionStructured({ v }) {
     ) : null,
 
     plan: v.planToday ? (
-      <Group key="plan" label="Today's top 3" trailing={<span style={{ font: `500 10px ${M}`, letterSpacing: '.12em', color: v.planToday.state === 'pending' ? 'var(--nv-gold)' : 'var(--nv-ink40)' }}>{v.planToday.meta}</span>}>
+      <Group key="plan" label="Today's top 3" trailing={<span style={{ font: `500 10px ${M}`, letterSpacing: '.12em', color: v.planToday.state === 'pending' ? 'var(--nv-gold)' : v.planToday.state === 'error' ? 'var(--nv-warn)' : 'var(--nv-ink40)' }}>{v.planToday.meta}</span>}>
         {v.planToday.state === 'classifying' ? (
           <GRow first title={<span style={{ color: 'var(--nv-ink60)', fontWeight: 450 }}>Nova is drawing up today's top 3…</span>} />
+        ) : v.planToday.state === 'error' ? (
+          <GRow first title={<span style={{ color: 'var(--nv-ink60)', fontWeight: 450 }}>Today's plan hit an error — {v.planToday.errorText}. The Inbox has the retry.</span>} />
         ) : (
           v.planToday.priorities.map((p, i) => (
             <GRow key={i} first={i === 0}
@@ -130,9 +132,9 @@ export function MissionStructured({ v }) {
               sub={p.why || null} />
           ))
         )}
-        {v.planToday.onApprove && (
+        {(v.planToday.onApprove || v.planToday.state === 'error') && (
           <div style={{ display: 'flex', gap: '9px', padding: '10px 16px', borderTop: '1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)' }}>
-            <Pill label={v.planToday.busy ? 'Filing…' : 'Approve — into the vault'} onClick={v.planToday.busy ? undefined : v.planToday.onApprove} />
+            {v.planToday.onApprove && <Pill label={v.planToday.busy ? 'Filing…' : 'Approve — into the vault'} onClick={v.planToday.busy ? undefined : v.planToday.onApprove} />}
             <Pill label="Open Inbox" onClick={v.planToday.onOpenInbox} tone="quiet" />
           </div>
         )}

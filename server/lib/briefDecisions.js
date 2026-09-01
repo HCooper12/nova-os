@@ -64,8 +64,8 @@ export function cardFor(record) {
       label: 'Program audit',
       value: n('fired'),
       caption: 'NEED A DECISION',
-      foot: `${n('clear')} clean · ${n('not-yet')} not answerable yet`,
-      tone: n('fired') ? 'warn' : 'good',
+      foot: `${n('clear')} clean · ${n('not-yet')} not answerable yet${n('couldnt-look') ? ` · ${n('couldnt-look')} couldn't be checked` : ''}`,
+      tone: n('fired') || n('couldnt-look') ? 'warn' : 'good',
     });
   }
   return listCard({

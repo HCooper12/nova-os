@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { fetchEventsForRange } from './calendar.js';
+import { loadSources } from './sources.js';
 import { loadExerciseLibrary } from './exercises.js';
 import { loadRoutines, WEEKDAYS, ACTIVE_REST } from './workouts.js';
 import { listCarryovers } from './workoutCarryover.js';
@@ -36,13 +37,19 @@ export function dayConflicts(events) {
     .map((e) => `${e.label} (${e.time}–${e.end}) overlaps ${workout.label} (${workout.time}–${workout.end})`);
 }
 
-export async function composeWeekPlan(vaultPath, now = new Date()) {
+// `deps.fetchEvents` lets a test hand in a calendar that fails.
+export async function composeWeekPlan(vaultPath, now = new Date(), deps = {}) {
   const monday = nextMonday(now);
   const mondayIso = iso(monday);
 
   const { exercises } = await loadExerciseLibrary(vaultPath);
   const { routines, schedule } = await loadRoutines(vaultPath, exercises);
-  const events = await fetchEventsForRange(7, monday).catch(() => []);
+  // A CalDAV outage used to render as a beautifully clear week (`.catch(() =>
+  // [])`), painting seven days of "Calendar: clear" he might plan around. The
+  // failure is kept and said — once at the top, and on every day it blinds.
+  const cal = await loadSources({ calendar: { load: () => (deps.fetchEvents || fetchEventsForRange)(7, monday), fallback: [] } });
+  const events = cal.values.calendar;
+  const calendarUnreadable = cal.failed[0]?.reason || null;
   const carryovers = await listCarryovers().catch(() => []);
   let floor = null;
   try { floor = (await loadRecipeData(vaultPath)).profile?.proteinFloorG || null; } catch { /* optional */ }
@@ -54,6 +61,9 @@ export async function composeWeekPlan(vaultPath, now = new Date()) {
   }
 
   const lines = [`# Week of ${monday.toLocaleDateString('en-GB', { day: '2-digit', month: 'long' })}`, '', 'Drafted by Nova from the training schedule, the calendar, and recorded carry-overs.', ''];
+  if (calendarUnreadable) {
+    lines.push(`> **Calendar: couldn't be read when this was drafted** (${calendarUnreadable}) — the days below show the training schedule only; the day-of briefs will carry the truth.`, '');
+  }
   const allConflicts = [];
   let trainingDays = 0;
 
@@ -85,7 +95,7 @@ export async function composeWeekPlan(vaultPath, now = new Date()) {
       const last = dayEvents[dayEvents.length - 1];
       lines.push(`- **Calendar:** ${dayEvents.length} event${dayEvents.length === 1 ? '' : 's'} (${first.time} ${first.label} → ${last.time} ${last.label})${dayEvents.length >= 5 ? ' — heavy day' : ''}`);
     } else {
-      lines.push('- **Calendar:** clear');
+      lines.push(calendarUnreadable ? "- **Calendar:** unknown — couldn't be read" : '- **Calendar:** clear');
     }
     if (conflicts.length) lines.push(`- ⚠ **Conflict:** ${conflicts.join('; ')}`);
     lines.push('');
@@ -102,6 +112,7 @@ export async function composeWeekPlan(vaultPath, now = new Date()) {
     text: lines.join('\n'),
     conflicts: allConflicts,
     trainingDays,
+    calendarUnreadable,
   };
 }
 
@@ -125,7 +136,7 @@ export async function runWeekPlan(vaultPath, { force = false } = {}) {
       route: 'plan-note',
       confidence: 'high',
       title: plan.title,
-      reason: `The week ahead, drafted: ${plan.trainingDays} training days${plan.conflicts.length ? `, ${plan.conflicts.length} conflict${plan.conflicts.length === 1 ? '' : 's'} flagged` : ', no conflicts'}. Approve to save it into Wiki/Plans/ — editable in Obsidian like everything else.`,
+      reason: `The week ahead, drafted: ${plan.trainingDays} training days${plan.calendarUnreadable ? ' — THE CALENDAR COULD NOT BE READ, so this is the training schedule only' : plan.conflicts.length ? `, ${plan.conflicts.length} conflict${plan.conflicts.length === 1 ? '' : 's'} flagged` : ', no conflicts'}. Approve to save it into Wiki/Plans/ — editable in Obsidian like everything else.`,
       payload: { relPath: plan.relPath, title: plan.title, text: plan.text },
     },
   };

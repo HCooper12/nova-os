@@ -150,6 +150,8 @@ export function valsOps(app, ctx) {
         label: a.label.toUpperCase(),
         role: a.role,
         stateLabel: a.stateLabel,
+        // the loop's own last word, when it could not look
+        lastNote: a.lastNote?.note ? `last run: ${a.lastNote.note}` : null,
         skillGroups: registry ? depts.map((name) => {
           const d = byName.get(name);
           return { name: name.toUpperCase(), skills: d ? d.skills.map(skillVal) : [], missing: !d };
@@ -194,7 +196,9 @@ export function valsOps(app, ctx) {
       st.liveNutritionMonth?.pct != null ? { key: 'fuel', label: 'PROTEIN MONTH', value: `${st.liveNutritionMonth.met}/${st.liveNutritionMonth.tracked}d` } : null,
       st.liveStreaks?.stepGoalStreak >= 1 ? { key: 'steps', label: 'STEP STREAK', value: `${st.liveStreaks.stepGoalStreak}d` } : null,
     ].filter(Boolean),
-    ambientState: (ops?.pending ?? 0) > 0 ? 'attention' : 'clear',
+    // 'unknown' when the ops slice is absent — a dead backend and a clear
+    // board used to be indistinguishable from across the room
+    ambientState: ops == null ? 'unknown' : (ops.pending ?? 0) > 0 ? 'attention' : 'clear',
     // the pulse strip: every cached item flattened; the screen rotates them
     ambientPulseItems: (st.livePulse || []).flatMap((t) => (t.items || []).map((i) => ({
       topic: t.topic, title: i.title, source: i.source,

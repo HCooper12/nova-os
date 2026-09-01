@@ -573,12 +573,15 @@ export function valsMission(app, ctx) {
     const d = new Date(iso);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` === todayKey;
   };
-  const planRec = inboxItems.find((r) => r.kind === 'plan-today' && isTodayISO(r.createdAt) && ['classifying', 'pending', 'filed'].includes(r.status));
+  // 'error' is in the filter on purpose: a failed plan used to render as no
+  // plan at all, so a broken morning read as an empty one on the home screen
+  const planRec = inboxItems.find((r) => r.kind === 'plan-today' && isTodayISO(r.createdAt) && ['classifying', 'pending', 'filed', 'error'].includes(r.status));
   const planToday = planRec
     ? {
         state: planRec.status,
-        priorities: (planRec.decision?.payload?.priorities || []).slice(0, 3),
-        meta: planRec.status === 'filed' ? 'IN THE VAULT' : planRec.status === 'pending' ? 'DRAFT — NEEDS YOUR YES' : 'BEING DRAWN UP',
+        priorities: planRec.status === 'error' ? [] : (planRec.decision?.payload?.priorities || []).slice(0, 3),
+        meta: planRec.status === 'filed' ? 'IN THE VAULT' : planRec.status === 'pending' ? 'DRAFT — NEEDS YOUR YES' : planRec.status === 'error' ? 'HIT AN ERROR — SEE INBOX' : 'BEING DRAWN UP',
+        errorText: planRec.status === 'error' ? (planRec.error || 'the plan could not be drawn up') : null,
         busy: !!st.inboxActionBusy?.[planRec.id],
         onApprove: planRec.status === 'pending' ? () => app.inboxAction(planRec.id, 'approve') : null,
         onOpenInbox: go('inbox'),

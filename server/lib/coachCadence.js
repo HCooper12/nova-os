@@ -85,9 +85,12 @@ export async function morningReadiness(vaultPath) {
     // the cross-reference agent's sharpest finding rides the morning card —
     // fuel advice lands best BEFORE the day's eating, not in a debrief
     const { crossCheck } = await import('./fuelCross.js');
-    const { findings } = await crossCheck(vaultPath);
-    const top = findings.find((f) => f.severity === 'high') || findings[0];
-    if (top) lines.push(`Fuel: ${top.line}`);
+    const result = await crossCheck(vaultPath);
+    const top = result.findings.find((f) => f.severity === 'high') || result.findings[0];
+    // a source that could not be read is the morning's fuel news, not a
+    // reason to go quiet — silence here used to read as "all clear"
+    if (result.couldntLook) lines.push(`Fuel: ${result.couldntLook}.`);
+    else if (top) lines.push(`Fuel: ${top.line}`);
   } catch { /* no findings, no line */ }
   const sent = await send(lines.join(' '));
   if (sent) await markSent('morning');
@@ -101,7 +104,14 @@ export async function morningReadiness(vaultPath) {
 export async function raiseFuelFindings(vaultPath) {
   const { crossCheck } = await import('./fuelCross.js');
   const { createRecord, listRecords } = await import('./inboxStore.js');
-  const { findings } = await crossCheck(vaultPath);
+  const result = await crossCheck(vaultPath);
+  // never conclude cleanliness — or raise a finding computed beside a hole —
+  // from a source that could not be read; the morning line already says so
+  if (!result.sources.ok) {
+    console.log(`fuel cross-check: not raising — ${result.couldntLook}`);
+    return [];
+  }
+  const { findings } = result;
   if (!findings.length) return [];
   const s = await loadState();
   const raised = s.fuelRaised || {};

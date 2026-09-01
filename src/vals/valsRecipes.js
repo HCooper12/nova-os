@@ -208,9 +208,16 @@ export function valsRecipes(app, ctx) {
     // the agent has nothing true to say — never filler.
     askProteinVerdict: usingLiveRecipes ? () => app.openVerdict('protein') : null,
     fuelCross: (() => {
-      const f = (st.liveFuelCross?.findings || [])[0];
-      if (!f || !usingLiveRecipes) return null;
+      if (!usingLiveRecipes) return null;
+      const xc = st.liveFuelCross;
+      // a source the agent could not read is the one thing this card must
+      // never hide — hidden used to mean "all clear", and "couldn't check"
+      // was indistinguishable from it
+      if (xc?.couldntLook) return { couldntLook: true, line: `${xc.couldntLook}. Not a clean bill — fix the source, or distrust the silence.`, draft: null };
+      const f = (xc?.findings || [])[0];
+      if (!f) return null;
       return {
+        couldntLook: false,
         line: f.line,
         draft: () => { app.navigate('workouts', { trainTab: 'coach' }); app.doCoach(`Your fuel cross-check flags: ${f.line} Draft the concrete fix — a rotation swap, a target change, whatever actually closes it — as a proposal I can approve.`); },
       };

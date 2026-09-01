@@ -67,7 +67,10 @@ export function Ambient({ v }) {
       style={css("position:fixed;inset:0;z-index:95;background:#04050a;display:flex;flex-direction:column;align-items:center;justify-content:space-between;cursor:pointer;padding:calc(24px + env(safe-area-inset-top)) 24px calc(28px + env(safe-area-inset-bottom));overflow:hidden")}>
       {/* the room reads the state before the numbers: gold wash = something
           waits on him; cyan = board clear */}
-      <div style={css(`position:absolute;inset:0;background:radial-gradient(ellipse at 50% 42%, color-mix(in srgb, ${v.ambientState === 'attention' ? 'var(--nv-gold)' : 'var(--nv-cy)'} 07%, transparent), transparent 62%);pointer-events:none;transition:background 2s`)} />
+      {/* no wash at all when the state is unknown — a room that glows "clear" with the server down is a lie on the wall */}
+      {v.ambientState !== 'unknown' && (
+        <div style={css(`position:absolute;inset:0;background:radial-gradient(ellipse at 50% 42%, color-mix(in srgb, ${v.ambientState === 'attention' ? 'var(--nv-gold)' : 'var(--nv-cy)'} 07%, transparent), transparent 62%);pointer-events:none;transition:background 2s`)} />
+      )}
 
       <div style={css("display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:8px")}>
         <div style={css(`font:200 96px/1 ${M};letter-spacing:.04em;color:${dim(92)};font-variant-numeric:tabular-nums`)}>
@@ -86,7 +89,9 @@ export function Ambient({ v }) {
           <Tile label="NEXT" value={v.ambientNext?.time} sub={v.ambientNext?.label} />
           <Tile label="STEPS" count={v.ambientSteps} />
           <Tile label="PROTEIN" count={v.ambientProtein?.p ?? null} format={(n) => `${Math.round(n)}g`} sub={v.ambientProtein?.floor ? `floor ${v.ambientProtein.floor}g` : null} />
-          <Tile label="GATE" count={v.ambientPending} sub={v.ambientPending > 0 ? 'awaiting your yes' : 'clear'} accent={v.ambientPending > 0 ? 'var(--nv-gold)' : 'var(--nv-good)'} />
+          <Tile label="GATE" count={v.ambientPending}
+            sub={v.ambientPending == null ? 'no signal' : v.ambientPending > 0 ? 'awaiting your yes' : 'clear'}
+            accent={v.ambientPending == null ? 'var(--nv-warn)' : v.ambientPending > 0 ? 'var(--nv-gold)' : 'var(--nv-good)'} />
         </div>
         {v.ambientObjectives?.length > 0 && (
           <div style={css("display:flex;gap:30px;flex-wrap:wrap;justify-content:center")}>

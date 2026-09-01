@@ -145,3 +145,37 @@ test('the weekly record is addressable: id, timestamps and the rails fields', as
   assert.ok(record.meta?.weekOf, 'the receipt knows which week it speaks for');
   assert.ok(Array.isArray(record.meta?.checks) && record.meta.checks.length >= 8);
 });
+
+// ---- the fourth state ------------------------------------------------------
+test("audit: a source that throws makes the checks that needed it say couldn't-look — never 'not yet' with a fake gap", async () => {
+  const a = await auditProgram('/tmp/v', baseDeps({ volume: async () => { throw new Error('volume engine: bad week key'); } }));
+  const junk = byId(a.checks, 'junk-volume');
+  assert.equal(junk.status, 'couldnt-look', 'a volume engine that threw is not "needs 2 logged weeks, you have 0"');
+  assert.match(junk.detail, /couldn't look — weekly volume unreadable \(volume engine: bad week key\)/);
+  assert.equal(byId(a.checks, 'under-volume').status, 'couldnt-look', 'every check that reasons from weekly volume');
+  // checks that did not need it are unaffected
+  assert.equal(byId(a.checks, 'tenure').status, 'not-yet');
+  assert.equal(byId(a.checks, 'mapping').status, 'clear');
+  assert.equal(a.sources.ok, false);
+  assert.match(a.summary, /2 couldn't be checked at all — weekly volume unreadable/);
+  assert.doesNotMatch(a.summary, /you have 0/);
+});
+
+test('audit: if the review itself cannot run, no check may claim clean', async () => {
+  const a = await auditProgram('/tmp/v', baseDeps({ review: async () => { throw new Error('review crashed'); } }));
+  assert.ok(a.checks.length > 0);
+  assert.ok(a.checks.every((c) => c.status === 'couldnt-look'), 'the review is every check\'s eyes');
+  assert.match(a.checks[0].detail, /program review unreadable \(review crashed\)/);
+  assert.match(a.summary, /couldn't be checked at all/);
+});
+
+test("audit card: the couldn't-look bar is drawn only when it happened", async () => {
+  const { auditCard } = await import('../lib/findingCards.js');
+  const clean = await auditProgram('/tmp/v', baseDeps());
+  assert.deepEqual(auditCard(clean).bars.map((b) => b.name), ['Decide', 'Clean', 'Not yet']);
+  const broken = await auditProgram('/tmp/v', baseDeps({ volume: async () => { throw new Error('x'); } }));
+  const card = auditCard(broken);
+  assert.deepEqual(card.bars.map((b) => b.name), ['Decide', 'Clean', 'Not yet', "Couldn't look"]);
+  assert.equal(card.bars[3].value, 2);
+  assert.match(card.foot, /2 checks could not run/);
+});

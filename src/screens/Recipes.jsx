@@ -120,11 +120,13 @@ export function Recipes({ v }) {
           has nothing true to say. */}
       {v.fuelCross && (
         <div style={css("margin-top:12px;border:1px solid color-mix(in srgb, var(--nv-vi) 38%, transparent);border-radius:14px;padding:14px 17px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-vi) 06%, transparent),transparent)")}>
-          <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.22em;color:var(--nv-vi)")}>◈ TRAINING × FUEL — CROSS-CHECK</div>
+          <div style={css(`font:500 9px var(--nv-font-mono);letter-spacing:.22em;color:${v.fuelCross.couldntLook ? 'var(--nv-warn)' : 'var(--nv-vi)'}`)}>◈ TRAINING × FUEL — {v.fuelCross.couldntLook ? "COULDN'T CHECK" : 'CROSS-CHECK'}</div>
           <div style={css("margin-top:8px;font-size:13px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 85%, transparent)")}>{v.fuelCross.line}</div>
-          <Interactive as="span" onClick={v.fuelCross.draft}
-            base={css("cursor:pointer;display:inline-block;margin-top:9px;font:600 11.5px var(--nv-font-ui);color:var(--nv-vi)")}
-            hoverStyle="filter:brightness(1.25)">Draft the fix with Coach →</Interactive>
+          {v.fuelCross.draft && (
+            <Interactive as="span" onClick={v.fuelCross.draft}
+              base={css("cursor:pointer;display:inline-block;margin-top:9px;font:600 11.5px var(--nv-font-ui);color:var(--nv-vi)")}
+              hoverStyle="filter:brightness(1.25)">Draft the fix with Coach →</Interactive>
+          )}
         </div>
       )}
 
