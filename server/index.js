@@ -242,6 +242,10 @@ async function main() {
   ).catch((e) => console.error('inbox expiry failed:', e.message));
   expireTick();
   setInterval(expireTick, 6 * 3600_000);
+  // the Forge's receipts, proofs and artifacts keep only the recent past
+  import('./lib/forge.js').then(({ pruneForge }) => pruneForge().then(({ receipts, artifacts }) => {
+    if (receipts || artifacts) console.log(`forge: pruned ${receipts} receipt(s), ${artifacts} artifact dir(s)`);
+  })).catch(() => {});
   // prune orphaned note-summary caches (deleted notes' files lived forever)
   import('./lib/noteSummaries.js').then(({ pruneStaleSummaries }) =>
     pruneStaleSummaries().then(({ pruned }) => {

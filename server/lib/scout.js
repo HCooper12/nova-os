@@ -87,19 +87,23 @@ export function findExistingPersonPages(vaultPath, subject) {
   const out = { pages: [] };
   const needle = String(subject.handle || subject.label || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   if (!needle) return out;
+  // A short handle ("ali", "dr") as a substring matches half the shelf — under
+  // five flattened characters only an exact filename match counts. A
+  // frontmatter URL or handle match is the stronger signal and is checked
+  // first; every candidate is returned so the weave's diff shows the choice.
+  const url = subject.url ? String(subject.url).toLowerCase() : null;
+  const handle = subject.handle ? String(subject.handle).toLowerCase() : null;
   for (const dir of ['Entities', 'Sources']) {
     const abs = path.join(vaultPath, 'Wiki', dir);
     if (!existsSync(abs)) continue;
     for (const f of readdirSync(abs).filter((n) => n.endsWith('.md'))) {
+      let head = '';
+      try { head = readFileSync(path.join(abs, f), 'utf8').slice(0, 600).toLowerCase(); } catch { /* unreadable page is not a match */ }
+      const strong = !!((url && head.includes(url)) || (handle && /^(handle|url|source|account):/m.test(head) && head.includes(handle)));
       const flat = f.toLowerCase().replace(/[^a-z0-9]/g, '');
-      let hit = flat.includes(needle);
-      if (!hit) {
-        try {
-          const head = readFileSync(path.join(abs, f), 'utf8').slice(0, 600).toLowerCase();
-          hit = !!(subject.url && head.includes(String(subject.url).toLowerCase()));
-        } catch { /* unreadable page is not a match */ }
-      }
-      if (hit) out.pages.push(path.join('Wiki', dir, f));
+      const weak = needle.length >= 5 ? flat.includes(needle) : flat === needle;
+      if (strong) out.pages.unshift(path.join('Wiki', dir, f)); // the stronger signal leads the list
+      else if (weak) out.pages.push(path.join('Wiki', dir, f));
     }
   }
   return out;

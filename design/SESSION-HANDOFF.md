@@ -397,7 +397,24 @@ DONE CRITERIA:
   cannot be walked is a skip with the reason on the heartbeat, never a
   partial digest that looks complete. [32] Study Lane §6 — already MET (1
   inventory path Tier 2 #12; 2 settle; 3 tests exist for enumerateSources
-  and rolling captions). Next in roster: [33] Watcher §6.
+  and rolling captions). [33] Watcher §6 — MET (3 Sep): 1 (staged pass) and 3
+  (settle) were in; built now: 2 the model-choice answer rides the video
+  record and a retry keeps it; 4 digest notes open with the ask they were
+  extracted under (a cached digest reused for another question no longer
+  reads neutral). [34] Forge §6 — MET: 1 proof hygiene — the receipt says
+  "full-screen capture" honestly (window-scoped capture needs a CGWindowID
+  the platform cannot get cheaply — not built), the proof PNG goes when the
+  artifacts are discarded, and PNGs ride the retention sweep; 2 the same
+  prompt twice, or a third build on two, is refused naming the running jobs
+  (duplicateRunning, MAX 2); 3 a 25-minute wall-clock backstop rides the
+  stopped path and the record says "timed out after 25 minutes"; 4 pruneForge
+  at boot keeps the newest 20 receipts + proofs and artifact dirs under 30
+  days (running ones aside). [35] Breaker §6 — MET: 1 the prompt carries the
+  repository's own record of the newest work (last commit subject + git
+  diff --stat HEAD; nothing for a vault workspace); 2 settle was in. [36]
+  Scout §6 — MET: 1 existing-page matching — a flattened needle under five
+  characters matches exactly only; a frontmatter URL/handle hit leads the
+  list; every candidate is returned. Next in roster: [37] Leader §6.
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised

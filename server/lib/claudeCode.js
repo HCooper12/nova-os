@@ -1,4 +1,5 @@
-import { spawn } from 'node:child_process';
+import { spawn , execSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -1006,6 +1007,22 @@ export function startQuickSession(cwd, { minutes, note, context }) {
 // (no --resume): the Breaker judges the work cold, like a reviewer should.
 const BREAKER_DISALLOWED = DISALLOWED_TOOLS + ',Edit,Write';
 
+// The repository's own record of the newest work — deterministic, cheap,
+// and the actual definition of "recent": uncommitted changes by file, and
+// the last commit's subject. Nothing for a vault workspace (no .git).
+export function repoFocus(cwd) {
+  try {
+    if (!cwd || !existsSync(path.join(cwd, '.git'))) return '';
+    const opts = { cwd, encoding: 'utf8', timeout: 4000, stdio: ['ignore', 'pipe', 'ignore'] };
+    const subject = execSync('git log -1 --format=%s', opts).trim();
+    const stat = execSync('git diff --stat HEAD', opts).trim();
+    const bits = [];
+    if (subject) bits.push(`Last commit: "${subject}".`);
+    bits.push(stat ? `Uncommitted changes (git diff --stat HEAD):\n${stat.slice(0, 1200)}` : 'No uncommitted changes — attack the last commit.');
+    return bits.join('\n');
+  } catch { return ''; }
+}
+
 export function startBreaker(cwd, { focus }) {
   assertLaneOn('breaker');
   const jobId = randomUUID().slice(0, 8);
@@ -1015,6 +1032,7 @@ export function startBreaker(cwd, { focus }) {
   const prompt = `You are the BREAKER in a builder/breaker sparring loop over this workspace. Your job is adversarial review: find what is genuinely broken, fragile, or wrong — then STOP. You cannot edit anything (your tools are read-only by design); the builder is the only one who can fix what you find.
 
 ${focus ? `The builder says the recent work to attack is: ${focus}` : 'No specific focus was given — inspect the most recently modified files and attack the newest work.'}
+${(() => { const r = repoFocus(cwd); return r ? `\nThe repository's own record of the newest work:\n${r}` : ''; })()}
 
 Method: read the relevant code carefully. Hunt for concrete failures — logic errors, unhandled edge cases, broken contracts between modules, regressions, data-loss risks. Trace real inputs through the code rather than pattern-matching on style. Do not report style nits, hypotheticals you couldn't trace, or praise.
 

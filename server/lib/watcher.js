@@ -290,6 +290,8 @@ export async function startVideoWatch(vaultPath, url, question = '', { model } =
     status: 'classifying', // shows as in-flight in the queue
     createdAt: new Date().toISOString(),
   });
+  // the gate's answer rides the record so a retry keeps it (the Researcher's same fix)
+  if (model) updateRecord(record.id, { model }).catch(() => {});
   runWatchJob(vaultPath, record.id, u, q, model);
   return record;
 }
@@ -300,7 +302,7 @@ export async function retryWatch(vaultPath, record) {
   const m = String(record.text || '').match(/^Watch:\s*(\S+)(?:\s+—\s+([\s\S]+))?$/);
   if (!m) throw new Error('this video record has no URL to re-run');
   const updated = await updateRecord(record.id, { status: 'classifying', error: null });
-  runWatchJob(vaultPath, record.id, m[1], (m[2] || '').trim());
+  runWatchJob(vaultPath, record.id, m[1], (m[2] || '').trim(), record.model || undefined);
   return updated;
 }
 
@@ -417,7 +419,12 @@ export async function digestTranscript(vaultPath, report, digestDir, question = 
     }
   };
   await Promise.all(Array.from({ length: Math.min(CHUNK_CONCURRENCY, chunks.length) }, worker));
-  return notes.join('\n\n');
+  // the notes name the ask they were extracted under — a cached digest
+  // reused for a different question would otherwise read as neutral
+  const header = question
+    ? `# Digest notes — extracted under the ask: “${String(question).trim().slice(0, 200)}”`
+    : '# Digest notes — no specific ask; extracted for the general verdict';
+  return [header, ...notes].join('\n\n');
 }
 
 async function runWatchModel(vaultPath, promptInputs, model) {

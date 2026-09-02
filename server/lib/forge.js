@@ -47,6 +47,17 @@ const DATA_ROOT = process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data'
 const JOBS_DIR = path.join(DATA_ROOT, 'forge');
 const MAX_BUDGET_USD = process.env.NOVA_FORGE_BUDGET || '4.00';
 const MAX_PROMPT_CHARS = 2000;
+const MAX_CONCURRENT_FORGE = 2;
+const FORGE_MAX_MINUTES = 25; // the wall-clock backstop — a build that runs this long is stuck, not thorough
+const FORGE_KEEP_JOBS = 20;
+const FORGE_ARTIFACT_DAYS = 30;
+const normPrompt = (p) => String(p || '').toLowerCase().replace(/\s+/g, ' ').trim();
+// Pure: the running job with the same normalized prompt, if any.
+export function duplicateRunning(runningJobs, prompt) {
+  const n = normPrompt(prompt);
+  for (const live of runningJobs) if (normPrompt(live?.job?.prompt) === n) return live.job;
+  return null;
+}
 
 // The Forge is the ONE agent with Bash, so the disallowed list is the real
 // safety boundary (--allowedTools is documentation only under
@@ -220,7 +231,8 @@ async function captureProof(job) {
       p.on('error', () => resolve(false));
     });
     if (!ok || !existsSync(png)) return { proof: null, proofNote: 'could not capture the screen (Screen Recording permission may be needed)' };
-    return { proof: `${job.id}.png`, proofNote: null };
+    // the whole screen is in the picture — said, rather than implied to be the window alone
+    return { proof: `${job.id}.png`, proofNote: 'full-screen capture — whatever else was on screen is in the picture' };
   } catch (e) {
     return { proof: null, proofNote: `proof capture failed: ${e.message}` };
   }
@@ -251,6 +263,14 @@ async function runForgeJob(job) {
   // `stopped` on it and the close handler below reads that same object, so a
   // deliberate stop is reported as a stop rather than as a crash.
   running.set(job.recordId, { child, startedAt: Date.now(), job });
+  // the wall-clock backstop rides the same stopped path stopForge uses
+  const backstop = setTimeout(() => {
+    if (!running.has(job.recordId)) return;
+    job.stopped = true;
+    job.stoppedReason = `timed out after ${FORGE_MAX_MINUTES} minutes`;
+    try { child.kill('SIGTERM'); } catch { /* already gone */ }
+  }, FORGE_MAX_MINUTES * 60_000);
+  backstop.unref?.();
 
   let buf = '';
   let stderr = '';
@@ -294,6 +314,7 @@ async function runForgeJob(job) {
   });
   const code = await done;
   running.delete(job.recordId);
+  clearTimeout(backstop);
 
   // stdout BEFORE stderr: the real reason for a failure is in the result
   // event (is_error + total_cost_usd); stderr routinely carries harmless
@@ -303,7 +324,7 @@ async function runForgeJob(job) {
     job.finishedAt = new Date().toISOString();
     job.costUsd = cost;
     await persistJob(job);
-    await updateRecord(job.recordId, { status: 'error', error: 'stopped by you', forgeStatus: null, forgeCostUsd: cost });
+    await updateRecord(job.recordId, { status: 'error', error: job.stoppedReason || 'stopped by you', forgeStatus: null, forgeCostUsd: cost });
     broadcast('forge');
     await announceForge(job);
     return;
@@ -359,6 +380,11 @@ export async function startForge(prompt, { model } = {}) {
   // running are deliberately left alone — stopping one is a separate act.
   if (!laneEnabled('forge')) throw laneOffError('forge');
   if (p.length > MAX_PROMPT_CHARS) throw new Error(`keep a spoken build request under ${MAX_PROMPT_CHARS} characters`);
+  // the same build twice, or a third build on top of two, is refused with
+  // the running jobs named — a stop is a separate, explicit act
+  const dup = duplicateRunning(running.values(), p);
+  if (dup) throw new Error(`that build is already going ("${dup.prompt.slice(0, 60)}") — say stop first if you want a fresh one`);
+  if (running.size >= MAX_CONCURRENT_FORGE) throw new Error(`${running.size} builds are already running (${[...running.values()].map((l) => `"${String(l.job.prompt).slice(0, 40)}"`).join(', ')}) — wait for one to finish or stop it first`);
 
   const id = randomUUID().slice(0, 8);
   const dir = path.join(FORGE_ROOT, `${slugify(p)}-${id}`);
@@ -414,7 +440,40 @@ export function _runningCount() { return running.size; }
 // it is safe and needs no undo. Used when he discards a forge record.
 export async function discardForgeArtifacts(dir) {
   if (!dir || !dir.startsWith(FORGE_ROOT)) return false; // never delete outside the sandbox root
+  // the proof PNG goes with the artifacts — the job id is the dir's suffix
+  const id = (path.basename(dir).match(/-([0-9a-f]{8})$/) || [])[1];
+  if (id) await rm(path.join(JOBS_DIR, `${id}.png`), { force: true }).catch(() => {});
   try { await rm(dir, { recursive: true, force: true }); return true; } catch { return false; }
+}
+
+// RETENTION. Receipts and proof PNGs beyond the newest FORGE_KEEP_JOBS, and
+// artifact directories older than FORGE_ARTIFACT_DAYS (running ones aside),
+// are pruned at boot beside the platform's other pruners. Returns counts.
+export async function pruneForge({ keepJobs = FORGE_KEEP_JOBS, artifactDays = FORGE_ARTIFACT_DAYS, now = Date.now(), jobsDir = JOBS_DIR, forgeRoot = FORGE_ROOT } = {}) {
+  const { readdir, stat } = await import('node:fs/promises');
+  let receipts = 0, artifacts = 0;
+  try {
+    const files = (await readdir(jobsDir)).filter((f) => /\.json$/.test(f));
+    const dated = [];
+    for (const f of files) { try { dated.push({ f, ms: (await stat(path.join(jobsDir, f))).mtimeMs }); } catch { /* gone */ } }
+    dated.sort((a, b) => b.ms - a.ms);
+    for (const { f } of dated.slice(keepJobs)) {
+      const id = f.replace(/\.json$/, '');
+      await rm(path.join(jobsDir, f), { force: true }).catch(() => {});
+      await rm(path.join(jobsDir, `${id}.png`), { force: true }).catch(() => {});
+      receipts++;
+    }
+  } catch { /* no receipts yet */ }
+  try {
+    const cutoff = now - artifactDays * 86_400_000;
+    const runningDirs = new Set([...running.values()].map((l) => l.job.dir));
+    for (const d of await readdir(forgeRoot)) {
+      const full = path.join(forgeRoot, d);
+      if (runningDirs.has(full)) continue;
+      try { const st = await stat(full); if (st.isDirectory() && st.mtimeMs < cutoff) { await rm(full, { recursive: true, force: true }); artifacts++; } } catch { /* gone */ }
+    }
+  } catch { /* no artifacts yet */ }
+  return { receipts, artifacts };
 }
 
 export { FORGE_ROOT, JOBS_DIR };
