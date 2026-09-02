@@ -1263,6 +1263,7 @@ export default class App extends Component {
     apply('learning', (r) => this.setState({ liveLearning: r }));
     apply('dailyReview', (r) => this.setState({ liveDailyReview: r }));
     apply('ops', (r) => this.setState({ liveOps: r }));
+    apply('modelPrefs', (r) => this.setState({ liveModelPrefs: r }));
     apply('opsStream', (r) => this.setState({ liveOpsStream: r }));
     apply('overnight', (r) => this.setState({ liveOvernight: r }));
     apply('skills', (r) => this.setState({ liveSkills: r.departments }));
@@ -2896,7 +2897,12 @@ export default class App extends Component {
   }
   dailyReviewIndex(pool) {
     if (!pool.length) return 0;
-    const dateStr = new Date().toISOString().slice(0, 10);
+    // THE SERVER'S TWIN — dispatch.js dateHashIndex, pinned there by
+    // twins.test.js ('2026-09-02' over 7 → 1). Local date, as the server
+    // uses: this hashed the UTC date, so before 10:00 the morning brief named
+    // one concept and this screen showed another.
+    const d = new Date();
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     let h = 0;
     for (let i = 0; i < dateStr.length; i++) h = (h * 31 + dateStr.charCodeAt(i)) | 0;
     return Math.abs(h) % pool.length;

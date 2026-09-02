@@ -1,4 +1,5 @@
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
+import { mondayOf } from './cadence.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -43,11 +44,6 @@ function todayISO(now = new Date()) {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 // Monday 00:00 of the week containing `now`, offset by whole weeks.
-function mondayOf(now, weeksBack = 0) {
-  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  d.setDate(d.getDate() - ((d.getDay() + 6) % 7) - weeksBack * 7);
-  return d;
-}
 
 function normalizeSlotConfig(raw, fallback) {
   return {
@@ -87,17 +83,24 @@ export async function setDispatchConfig(slot, patch) {
 
 /* ------------------------------ composition ------------------------------ */
 
-// Deterministic daily-review pick — same date-hash + title sort the client
-// uses, so the dispatch names the same concept Mission Control shows.
+// Deterministic daily-review pick — the SAME date-hash + title sort the
+// client uses (App.jsx dailyReviewIndex), so the dispatch names the concept
+// Mission Control shows. The hash is exported and pinned by a fixture test
+// (twins.test.js) because the two copies cannot share code — and they HAD
+// drifted: the client hashed the UTC date, so before 10:00 in Melbourne the
+// morning brief named one concept and the home screen showed another.
+export function dateHashIndex(dateStr, poolSize) {
+  if (!poolSize) return 0;
+  let h = 0;
+  for (let i = 0; i < dateStr.length; i++) h = (h * 31 + dateStr.charCodeAt(i)) | 0;
+  return Math.abs(h) % poolSize;
+}
 function reviewPick(pages) {
   const pool = pages
     .filter((p) => p.type === 'concept' || p.type === 'topic')
     .sort((a, b) => a.title.localeCompare(b.title));
   if (!pool.length) return null;
-  const dateStr = todayISO();
-  let h = 0;
-  for (let i = 0; i < dateStr.length; i++) h = (h * 31 + dateStr.charCodeAt(i)) | 0;
-  return pool[Math.abs(h) % pool.length];
+  return pool[dateHashIndex(todayISO(), pool.length)];
 }
 
 async function streakLine(vaultPath) {
@@ -152,16 +155,12 @@ async function composeMorning(vaultPath, now) {
       lines.push(`**Recovery.** ${bits.join(', ')}.${staleTag}`);
       // yesterday missing or only a mid-day partial → say so THIS morning,
       // with the fix path (the missed-steps saga hid because nothing spoke up)
-      const y = new Date(now); y.setDate(y.getDate() - 1);
-      const yIso = todayISO(y);
-      const yDay = days.find((d) => d.date === yIso);
-      if (!yDay || yDay.steps == null) {
-        lines.push(`**Steps gap.** Yesterday (${yIso}) never arrived — the overnight push didn't land. Tap the Steps ring → yesterday to enter it from Pedometer++.`);
-      } else if (yDay.receivedAt) {
-        const rec = new Date(yDay.receivedAt);
-        if (todayISO(rec) === yIso && rec.getHours() < 20) {
-          lines.push(`**Steps gap.** Yesterday shows ${yDay.steps.toLocaleString()} — a partial from ${String(rec.getHours()).padStart(2, '0')}:${String(rec.getMinutes()).padStart(2, '0')}, not the day's total. Tap the Steps ring to correct it.`);
-        }
+      const { yesterdayStepsShape } = await import('./healthData.js');
+      const yd = yesterdayStepsShape(days, now); // one rule with Guardian's health-feed check
+      if (yd.kind === 'missing') {
+        lines.push(`**Steps gap.** Yesterday (${yd.yIso}) never arrived — the overnight push didn't land. Tap the Steps ring → yesterday to enter it from Pedometer++.`);
+      } else if (yd.kind === 'partial') {
+        lines.push(`**Steps gap.** Yesterday shows ${yd.day.steps.toLocaleString()} — a partial from ${String(yd.receivedAt.getHours()).padStart(2, '0')}:${String(yd.receivedAt.getMinutes()).padStart(2, '0')}, not the day's total. Tap the Steps ring to correct it.`);
       }
     } else {
       lines.push('**Recovery.** No health data yet.');
@@ -387,7 +386,7 @@ async function composeEvening(vaultPath, now) {
 async function composeWeekly(vaultPath, now) {
   const lines = [];
   const thisMon = todayISO(mondayOf(now));
-  const lastMon = todayISO(mondayOf(now, 1));
+  const lastMon = todayISO(mondayOf(now, { weeksBack: 1 }));
   const inWeek = (dateStr, from, to) => dateStr && dateStr >= from && (!to || dateStr < to);
 
   // training volume

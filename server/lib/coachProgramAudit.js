@@ -1,4 +1,5 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { mondayOf } from './cadence.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -52,12 +53,9 @@ const KEEP = 26; // half a year of weekly receipts
 
 const pad = (n) => String(n).padStart(2, '0');
 const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-export function mondayOf(d) {
-  const m = new Date(d);
-  m.setDate(m.getDate() - ((m.getDay() + 6) % 7));
-  m.setHours(0, 0, 0, 0);
-  return m;
-}
+// the week boundary, from the fleet's one definition (re-exported: the test
+// and the audit's callers import it from here)
+export { mondayOf };
 
 /* ------------------------------ the checks -------------------------------- */
 

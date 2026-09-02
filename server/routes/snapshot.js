@@ -44,6 +44,7 @@ export const SLICES = {
   learning: '/api/learning',
   dailyReview: '/api/daily-review',
   ops: '/api/ops',
+  modelPrefs: '/api/model-prefs', // the model board rides the boot snapshot so the Code tab's list is never a hand copy
   opsStream: '/api/ops/stream',
   overnight: '/api/overnight',
   skills: '/api/skills',

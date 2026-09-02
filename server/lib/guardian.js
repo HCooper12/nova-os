@@ -256,19 +256,16 @@ async function checkHealthFeed() {
     return { id: 'health', label: 'Health feed', status: 'warn', detail: `Last health data is from ${latest.date} (${age} days ago) — the automation is stalled. Enter missing days from the Steps card.` + evidence };
   }
 
-  const yDay = days.find((d) => d.date === yesterdayIso);
-  if (!yDay || yDay.steps == null) {
+  // one rule with the morning brief's steps-gap line (healthData.js)
+  const { yesterdayStepsShape } = await import('./healthData.js');
+  const yd = yesterdayStepsShape(days);
+  if (yd.kind === 'missing') {
     return { id: 'health', label: 'Health feed', status: 'warn', detail: `Yesterday (${yesterdayIso}) never arrived — the 00:05 push didn't land. Check the phone automation ran (Shortcuts notification) and that the Mac was awake and plugged in. Tap the Steps card to enter it meanwhile.` + evidence };
   }
-  // received on its own calendar day before ~20:00 local = a mid-day snapshot
-  // that was never finalized — the count is honest-but-partial
-  if (yDay.receivedAt) {
-    const rec = new Date(yDay.receivedAt);
-    if (iso(rec) === yesterdayIso && rec.getHours() < 20) {
-      return { id: 'health', label: 'Health feed', status: 'warn', detail: `Yesterday's steps (${yDay.steps.toLocaleString()}) are a PARTIAL snapshot from ${pad2(rec.getHours())}:${pad2(rec.getMinutes())} — the end-of-day push never landed. Tap the Steps card to correct it.` + evidence };
-    }
+  if (yd.kind === 'partial') {
+    return { id: 'health', label: 'Health feed', status: 'warn', detail: `Yesterday's steps (${yd.day.steps.toLocaleString()}) are a PARTIAL snapshot from ${pad2(yd.receivedAt.getHours())}:${pad2(yd.receivedAt.getMinutes())} — the end-of-day push never landed. Tap the Steps card to correct it.` + evidence };
   }
-  return { id: 'health', label: 'Health feed', status: 'ok', detail: `Fresh — yesterday complete (${yDay.steps.toLocaleString()} steps), latest data ${latest.date}.` + evidence };
+  return { id: 'health', label: 'Health feed', status: 'ok', detail: `Fresh — yesterday complete (${yd.day.steps.toLocaleString()} steps), latest data ${latest.date}.` + evidence };
 }
 
 /* -------------------------------- runs ----------------------------------- */

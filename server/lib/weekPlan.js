@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { fetchEventsForRange } from './calendar.js';
+import { fetchEventsForRange, WORKOUT_RE } from './calendar.js';
 import { loadSources } from './sources.js';
 import { loadExerciseLibrary } from './exercises.js';
 import { loadRoutines, WEEKDAYS, ACTIVE_REST } from './workouts.js';
@@ -13,7 +13,6 @@ import { createRecord, listRecords } from './inboxStore.js';
 // vault note (Wiki/Plans/Week of <Monday>.md). Deterministic first: every
 // line comes from structured data; no model involved.
 
-const WORKOUT_RE = /\b(gym|workout|training|lift|session|push|pull|legs?|upper|lower|chest|back|shoulders?|cardio)\b/i;
 
 function pad(n) { return String(n).padStart(2, '0'); }
 function iso(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }

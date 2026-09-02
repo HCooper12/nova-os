@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { mondayOf } from './cadence.js';
 import { loadRecipeData } from './recipes.js';
 import { loadRotation } from './rotation.js';
 import { createRecord, listRecords } from './inboxStore.js';
@@ -16,15 +17,12 @@ function pad(n) {
 function todayISO(d = new Date()) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
-function mondayOf(now, weeksBack = 0) {
-  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  d.setDate(d.getDate() - ((d.getDay() + 6) % 7) - weeksBack * 7);
-  return d;
-}
 
 // Deterministic aisle guess for recipe ingredients — coarse on purpose;
 // wrong guesses are a drag-free fix on the Shopping screen.
-const AISLE = [
+// pinned to shoppingList's SHOPPING_CATEGORIES by test — an aisle name the
+// list does not know would file an ingredient under a heading it never renders
+export const AISLE = [
   ['Meat & Protein', ['chicken', 'beef', 'mince', 'steak', 'pork', 'lamb', 'salmon', 'tuna', 'fish', 'prawn', 'turkey', 'bacon', 'ham', 'tofu', 'protein powder']],
   ['Dairy & Eggs', ['milk', 'cheese', 'yoghurt', 'yogurt', 'butter', 'cream', 'egg']],
   ['Produce', ['onion', 'garlic', 'tomato', 'capsicum', 'spinach', 'lettuce', 'broccoli', 'carrot', 'potato', 'sweet potato', 'avocado', 'banana', 'apple', 'berr', 'lemon', 'lime', 'cucumber', 'zucchini', 'mushroom', 'ginger', 'chilli', 'herbs', 'coriander', 'parsley', 'basil']],
@@ -128,7 +126,7 @@ export async function runMealPrep(vaultPath, { force = false } = {}) {
   const { lines, items, slotCount } = await composeMealPrep(vaultPath);
   if (!slotCount) return { skipped: true, reason: 'rotation empty' };
 
-  const weekLong = mondayOf(new Date(), -1).toLocaleDateString('en-GB', { day: '2-digit', month: 'long' });
+  const weekLong = mondayOf(new Date(), { weeksBack: -1 }).toLocaleDateString('en-GB', { day: '2-digit', month: 'long' });
   const title = `Meal prep — week of ${weekLong}`;
   const record = {
     id: randomUUID().slice(0, 8),

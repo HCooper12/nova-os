@@ -1,4 +1,5 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { tableSchedule, nextDueAt } from './spacing.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -31,9 +32,10 @@ const STATE_PATH = () => path.join(dataRoot(), 'library-spacing.json');
 // Widening gaps. Not a flashcard app — five steps out to five weeks is
 // plenty for ideas from books, and the last interval repeats forever.
 export const INTERVALS = [1, 3, 7, 16, 35];
+export const SCHEDULE = tableSchedule(INTERVALS); // pinned beside the Leader's in twins.test.js
 const DAY = 86_400_000;
 
-export const intervalFor = (seen) => INTERVALS[Math.min(Math.max(0, seen), INTERVALS.length - 1)];
+export const intervalFor = (seen) => SCHEDULE(seen);
 
 /* --------------------------------- state ---------------------------------- */
 
@@ -76,7 +78,7 @@ export function pickForResurfacing(items = [], state = {}, now = Date.now()) {
     const seen = Number(st.seen) || 0;
     const last = new Date(st.lastSurfacedAt || 0).getTime();
     const gained = (s.backlinks || 0) - (Number(st.backlinksAtSurface) || 0);
-    const dueAt = last + intervalFor(seen - 1) * DAY;
+    const dueAt = nextDueAt(last, seen - 1, SCHEDULE);
     // a fresh connection makes it due now regardless of the interval
     if (gained > 0) { due.push({ s, kind: 'reconnected', score: gained }); continue; }
     if (now >= dueAt) due.push({ s, kind: 'due', score: (now - dueAt) / DAY });

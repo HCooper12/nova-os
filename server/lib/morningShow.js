@@ -12,13 +12,13 @@
 // rotation over randomness, same as the ack lines.
 
 import { metricCard, listCard } from './spokenCards.js';
+import { mondayOf as mondayOfLocal } from './cadence.js';
 import { findingCard, auditCard, proteinWeekCard } from './findingCards.js';
 
 const pad = (n) => String(n).padStart(2, '0');
 const localDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 // Monday of the week `d` falls in — matches coachProgramAudit's weekOf key
 // so "is this audit from this week" is one comparison, not a date range.
-const mondayOfLocal = (d) => { const m = new Date(d); m.setDate(m.getDate() - ((m.getDay() + 6) % 7)); m.setHours(0,0,0,0); return m; };
 
 let rot = 0;
 const pick = (arr) => arr[rot++ % arr.length];

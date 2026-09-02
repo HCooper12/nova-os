@@ -473,6 +473,13 @@ async function collectEventsUncached(rangeStart, rangeEnd) {
 const PUBLIC_FIELDS = ['id', 'date', 'time', 'end', 'label', 'calendar', 'recurring', 'startISO'];
 function publicEvent(e) { const o = {}; for (const f of PUBLIC_FIELDS) o[f] = e[f]; return o; }
 
+// The calendar's vocabulary for a training event — read by the training
+// check (did today's session happen?) and the week plan (which days train?).
+// Two identical copies had grown; a word added to one and not the other is a
+// session one surface sees and the other misses. Still unvalidated against
+// his real event history ([07] plan 6) — validate here, once, when done.
+export const WORKOUT_RE = /\b(gym|workout|training|lift|session|push|pull|legs?|upper|lower|chest|back|shoulders?|cardio)\b/i;
+
 export async function fetchEventsForDay(date = new Date(), { fresh = false } = {}) {
   const events = await collectEvents(startOfDay(date), endOfDay(date), { fresh });
   events.sort((a, b) => a.time.localeCompare(b.time));

@@ -43,3 +43,21 @@ export function monthlyWindowOpen(now, { dayOfMonth = 1, hour = 0 } = {}) {
   if (now.getDate() < dayOfMonth) return false;
   return now.getHours() >= hour;
 }
+
+// ONE MONDAY. Six copies of "the Monday of this week" had grown across the
+// fleet, in three semantics — a midnight Date, a time-preserving Date, a
+// noon-anchored ISO string — and a week boundary that disagrees between the
+// dispatch and the debrief is a week that silently fails to line up. Local
+// time throughout: his week starts where his calendar does. A 'YYYY-MM-DD'
+// string is read as that local day.
+export function mondayOf(date = new Date(), { weeksBack = 0 } = {}) {
+  const d = typeof date === 'string' ? new Date(`${date}T12:00:00`) : new Date(date);
+  const m = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  m.setDate(m.getDate() - ((m.getDay() + 6) % 7) - weeksBack * 7);
+  return m; // local midnight
+}
+export function mondayIso(date = new Date(), opts) {
+  const m = mondayOf(date, opts);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${m.getFullYear()}-${pad(m.getMonth() + 1)}-${pad(m.getDate())}`;
+}

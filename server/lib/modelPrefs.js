@@ -33,10 +33,12 @@ const PREFS_PATH = () => path.join(dataRoot(), 'model-prefs.json');
 // are for when he wants a version that CANNOT move under him. Both forms are
 // passed straight through to --model.
 export const MODEL_CHOICES = [
-  { value: 'opus', label: 'Opus 5', family: 'opus', hint: 'deepest reasoning — alias, follows the newest Opus' },
-  { value: 'sonnet', label: 'Sonnet 5', family: 'sonnet', hint: 'the balanced workhorse — alias, follows the newest Sonnet' },
-  { value: 'haiku', label: 'Haiku 4.5', family: 'haiku', hint: 'fastest and cheapest — alias, follows the newest Haiku' },
-  { value: 'fable', label: 'Fable 5', family: 'fable', hint: 'alias, follows the newest Fable' },
+  // `alias: true` marks the moving names the Code tab offers (the pinned
+  // versions are the Settings board's business)
+  { value: 'opus', label: 'Opus 5', family: 'opus', alias: true, hint: 'deepest reasoning — alias, follows the newest Opus' },
+  { value: 'sonnet', label: 'Sonnet 5', family: 'sonnet', alias: true, hint: 'the balanced workhorse — alias, follows the newest Sonnet' },
+  { value: 'haiku', label: 'Haiku 4.5', family: 'haiku', alias: true, hint: 'fastest and cheapest — alias, follows the newest Haiku' },
+  { value: 'fable', label: 'Fable 5', family: 'fable', alias: true, hint: 'alias, follows the newest Fable' },
   { value: 'claude-opus-5', label: 'Opus 5 · pinned', family: 'opus', hint: 'this exact version, never moves' },
   { value: 'claude-sonnet-5', label: 'Sonnet 5 · pinned', family: 'sonnet', hint: 'this exact version, never moves' },
   { value: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5 · pinned', family: 'haiku', hint: 'this exact version, never moves' },

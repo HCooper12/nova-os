@@ -1,4 +1,5 @@
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
+import { mondayOf } from './cadence.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -40,7 +41,6 @@ const DEFAULTS = { mode: 'draft', weekday: 0, hour: 17 }; // Sunday, 5pm
 
 function pad(n) { return String(n).padStart(2, '0'); }
 function todayISO(d = new Date()) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
-function mondayOf(d) { const m = new Date(d); m.setDate(m.getDate() - ((m.getDay() + 6) % 7)); return m; }
 
 /* -------------------------------- config --------------------------------- */
 

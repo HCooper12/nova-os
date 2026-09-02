@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { fetchEventsForDay } from './calendar.js';
+import { fetchEventsForDay, WORKOUT_RE } from './calendar.js';
 import { loadExerciseLibrary } from './exercises.js';
 import { loadRoutines, WEEKDAYS, ACTIVE_REST } from './workouts.js';
 import { loadSessions } from './workoutSessions.js';
@@ -13,7 +13,6 @@ import { note } from './heartbeat.js';
 // off-app (or a swap to a walk) gets reconciled instead of silently lost.
 // Approve notes it as done (a journal line, undoable); dismiss = didn't happen /
 // swapped for active rest. One check per day.
-const WORKOUT_RE = /\b(gym|workout|training|lift|session|push|pull|legs?|upper|lower|chest|back|shoulders?|cardio)\b/i;
 
 function todayISO(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

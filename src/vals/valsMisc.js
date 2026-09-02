@@ -295,12 +295,17 @@ export function valsMisc(app, ctx) {
     // model board's (server/lib/modelPrefs.js) — change both together.
     // ('Opus 4.8' sat here after Opus 5 shipped; that is the drift this
     // comment exists to prevent.)
-    codeModelOptions: [
-      { value: 'sonnet', label: 'Sonnet 5' },
-      { value: 'opus', label: 'Opus 5' },
-      { value: 'fable', label: 'Fable 5' },
-      { value: 'haiku', label: 'Haiku 4.5' },
-    ],
+    // served from the model board (MODEL_CHOICES, via the boot snapshot) — a
+    // hand copy here is what drifted; the list below stands in only until
+    // the first sync lands
+    codeModelOptions: (st.liveModelPrefs?.models || []).some((m) => m.alias)
+      ? st.liveModelPrefs.models.filter((m) => m.alias).map(({ value, label }) => ({ value, label }))
+      : [
+        { value: 'sonnet', label: 'Sonnet 5' },
+        { value: 'opus', label: 'Opus 5' },
+        { value: 'fable', label: 'Fable 5' },
+        { value: 'haiku', label: 'Haiku 4.5' },
+      ],
     codeSessionActive: !!st.codeSessionId,
     newCodeSession: () => app.newClaudeCodeSession(),
 

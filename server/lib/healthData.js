@@ -189,6 +189,27 @@ export function stepsCaptureIsComplete(date, capturedAtIso) {
   return localDay > date; // stamped on a later local day = the day was over
 }
 
+// YESTERDAY'S STEPS, AS THE MORNING SURFACES JUDGE THEM — one rule for the
+// brief's steps-gap line and Guardian's health-feed check, which had grown as
+// twins. 'missing': no row or no steps; 'partial': received on its own
+// calendar day before the evening — a mid-day snapshot the end-of-day push
+// never finalised; 'complete' otherwise. A different question from
+// stepsCaptureIsComplete above (is this NUMBER the day's total — stamped at
+// save time, strictly: only a later day counts): here an evening push on the
+// day itself is the day landing, which is what those two surfaces have always
+// asked and their tests pin.
+export function yesterdayStepsShape(days, now = new Date(), { eveningHour = 20 } = {}) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const y = new Date(now); y.setDate(y.getDate() - 1);
+  const yIso = iso(y);
+  const day = (days || []).find((d) => d.date === yIso) || null;
+  if (!day || day.steps == null) return { kind: 'missing', yIso, day, receivedAt: null };
+  const receivedAt = day.receivedAt ? new Date(day.receivedAt) : null;
+  if (receivedAt && iso(receivedAt) === yIso && receivedAt.getHours() < eveningHour) return { kind: 'partial', yIso, day, receivedAt };
+  return { kind: 'complete', yIso, day, receivedAt };
+}
+
 export async function saveDay(date, metrics, { manual = false } = {}) {
   if (!isValidDate(date)) throw new Error('date must be YYYY-MM-DD');
   await ensureDir();

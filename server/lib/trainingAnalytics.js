@@ -9,6 +9,7 @@
 // many consumers, per the shared-formats rule.
 
 import { loadSessions } from './workoutSessions.js';
+import { mondayIso } from './cadence.js';
 import { loadExerciseLibrary } from './exercises.js';
 import { loadRoutines } from './workouts.js';
 
@@ -143,19 +144,10 @@ export function rpeTrend(sessions, { recentN = 4 } = {}) {
 // caller must be able to ask for the CURRENT week specifically rather than
 // "the newest week that happens to have data" (see the bug note in
 // trainOverview.js).
-export function mondayOf(date = new Date()) {
-  const d = typeof date === 'string' ? new Date(`${date}T12:00:00`) : new Date(date);
-  d.setHours(12, 0, 0, 0);
-  const day = (d.getDay() + 6) % 7; // Monday=0
-  d.setDate(d.getDate() - day);
-  const pad = (n) => String(n).padStart(2, '0');
-  // Built from LOCAL parts rather than toISOString(). The old version was
-  // correct — but only because the noon anchor above absorbed the UTC shift
-  // (checked in Australia/Melbourne: identical output). Reading local parts
-  // doesn't depend on that subtlety holding, which matters now that this is
-  // also called with `new Date()` from a different caller.
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
+// the week key as a local 'YYYY-MM-DD' — the fleet's one Monday (cadence.js),
+// exported under this name because weeklyMuscleVolume, trainOverview and the
+// week-boundary test all key weeks by it
+export const mondayOf = (date = new Date()) => mondayIso(date);
 
 export function weeklyMuscleVolume(sessions, exercises, { weeks = 4 } = {}) {
   const groupOf = new Map(exercises.map((e) => [e.id, e.muscleGroup || 'Other']));
