@@ -36,6 +36,20 @@ export function weeklyWindowOpen(now, { day, hour = 0 }) {
   return now.getHours() >= hour;   // the day itself, once the hour arrives
 }
 
+// A SUNDAY-EVENING slot is the last of its week, so "later in the week" never
+// comes for it: a Mac asleep on Sunday night lost the trust ladder and the
+// brain-week digest for the week. These two say: Sunday from `hour`, or
+// Monday before noon — and the week the run is FOR is the one that ended on
+// that Sunday (weekOfSundayRun), so the dedupe and the digest key stay
+// truthful on a Monday catch-up.
+export function sundayCatchUpOpen(now, { hour = 18 } = {}) {
+  const day = now.getDay(), h = now.getHours();
+  return (day === 0 && h >= hour) || (day === 1 && h < 12);
+}
+export function weekOfSundayRun(now) {
+  return mondayOf(now, { weeksBack: now.getDay() === 1 ? 1 : 0 });
+}
+
 // The monthly equivalent. The CFO reports on the month that just closed, so a
 // run on the 3rd produces exactly the report the 1st would have.
 export function monthlyWindowOpen(now, { dayOfMonth = 1, hour = 0 } = {}) {

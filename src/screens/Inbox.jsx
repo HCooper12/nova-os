@@ -285,6 +285,13 @@ export function Inbox({ v }) {
                       hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' }}
                     >Deep weave</Interactive>
                   )}
+                  {item.researchBooks && (
+                    <Interactive as="span" onClick={item.researchBooks}
+                      title="Dispatch the Researcher: the best-regarded books on this concept, cited — the brief lands in your Inbox"
+                      base={{ cursor: 'pointer', font: `600 12.5px ${R}`, padding: '7px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-gold) 45%, transparent)', color: 'var(--nv-gold)' }}
+                      hoverStyle={{ background: 'color-mix(in srgb, var(--nv-gold) 08%, transparent)' }}
+                    >Research the books</Interactive>
+                  )}
                 </div>
               </div>
               </SwipeRow>

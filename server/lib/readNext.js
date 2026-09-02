@@ -123,6 +123,23 @@ export function readNextLine(gap, sourceTitles = []) {
   return `${gap.sourceCount} of your sources${which} keep reaching for ${gap.concept}, and ${held}. That is the gap in your second brain right now — a book on it would pay for itself faster than anything else on your shelf.`;
 }
 
+// MATERIAL-CHANGE RE-RAISE. A gap he answered (accepted → filed) stays
+// answered. One he passed on comes back only when the graph has grown around
+// it — two or more sources since the last raise — and says so ("noted on 12
+// Jun at 3 sources; now 5"). Never on the calendar alone. Pure, exported.
+export const REGROW_SOURCES = 2;
+export function readNextEligible(gap, records = [], now = new Date()) {
+  const mine = records.filter((r) => r.kind === 'read-next' && r.findingKey === gap.key)
+    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  if (!mine.length) return { gap, eligible: true, history: null };
+  const last = mine[0];
+  if (last.status === 'filed' || last.status === 'pending') return { gap, eligible: false, why: last.status === 'filed' ? 'he acted on it' : 'still open' };
+  const then = Number(last.meta?.sourceCount) || 0;
+  if (gap.sourceCount - then < REGROW_SOURCES) return { gap, eligible: false, why: `declined at ${then} sources, now ${gap.sourceCount} — not materially more` };
+  const when = new Date(last.createdAt || now).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  return { gap, eligible: true, history: `(You passed on this on ${when} at ${then} source${then === 1 ? '' : 's'}; it is now ${gap.sourceCount} — asking once more.)` };
+}
+
 /* --------------------------- raising on the rails -------------------------- */
 
 // One proposal at a time, keyed so a gap he has already answered never comes
@@ -139,15 +156,15 @@ export async function raiseReadNext(vaultPath, deps = {}) {
   if (!gaps.length) return { raised: null, gaps: 0 };
 
   const records = await listRecords();
-  const seen = new Set(records.filter((r) => r.kind === 'read-next').map((r) => r.findingKey));
   // never more than one open at a time — a reading list is not a proposal
   if (records.some((r) => r.kind === 'read-next' && r.status === 'pending')) return { raised: null, gaps: gaps.length };
 
-  const gap = gaps.find((g) => !seen.has(g.key));
-  if (!gap) return { raised: null, gaps: gaps.length };
+  const pick = gaps.map((g) => readNextEligible(g, records)).find((e) => e.eligible);
+  if (!pick) return { raised: null, gaps: gaps.length };
+  const gap = pick.gap;
 
   const titleOf = new Map(pages.map((p) => [p.id, p.title]));
-  const line = readNextLine(gap, gap.sourceIds.map((id) => titleOf.get(id)));
+  const line = readNextLine(gap, gap.sourceIds.map((id) => titleOf.get(id))) + (pick.history ? ` ${pick.history}` : '');
   const { randomUUID } = await import('node:crypto');
   const record = await createRecord({
     id: randomUUID().slice(0, 8),

@@ -124,3 +124,20 @@ test('a stub says how thin it actually is', () => {
   assert.match(line, /42 characters/);
   assert.match(line, /placeholder/);
 });
+
+// ---- [30] plan 3: a gap he passed on returns only when the graph has grown around it ----
+test('readNextEligible: never raised → eligible; acted on → never; declined → only at 2+ more sources, naming the history', async () => {
+  const { readNextEligible, REGROW_SOURCES } = await import('../lib/readNext.js');
+  const gap = { key: 'gap:sleep-debt', concept: 'Sleep debt', sourceCount: 5, sourceIds: [], state: 'missing' };
+  assert.equal(REGROW_SOURCES, 2);
+  assert.equal(readNextEligible(gap, []).eligible, true);
+  assert.equal(readNextEligible(gap, [{ kind: 'read-next', findingKey: 'gap:sleep-debt', status: 'filed', createdAt: '2026-06-12T09:00:00', meta: { sourceCount: 3 } }]).eligible, false, 'he acted on it');
+  assert.equal(readNextEligible(gap, [{ kind: 'read-next', findingKey: 'gap:sleep-debt', status: 'pending', createdAt: '2026-06-12T09:00:00', meta: { sourceCount: 3 } }]).eligible, false, 'still open');
+  const declinedRecently = readNextEligible({ ...gap, sourceCount: 4 }, [{ kind: 'read-next', findingKey: 'gap:sleep-debt', status: 'discarded', createdAt: '2026-06-12T09:00:00', meta: { sourceCount: 3 } }]);
+  assert.equal(declinedRecently.eligible, false);
+  assert.match(declinedRecently.why, /not materially more/);
+  const regrown = readNextEligible(gap, [{ kind: 'read-next', findingKey: 'gap:sleep-debt', status: 'discarded', createdAt: '2026-06-12T09:00:00', meta: { sourceCount: 3 } }]);
+  assert.equal(regrown.eligible, true);
+  assert.match(regrown.history, /You passed on this on 12 Jun at 3 sources; it is now 5 — asking once more/);
+  assert.equal(readNextEligible(gap, [{ kind: 'read-next', findingKey: 'gap:other', status: 'discarded', createdAt: '2026-06-12T09:00:00', meta: { sourceCount: 3 } }]).eligible, true, 'another gap\'s record is not this gap\'s history');
+});

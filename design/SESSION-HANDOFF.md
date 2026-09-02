@@ -382,8 +382,22 @@ DONE CRITERIA:
   (declined context) and 3 (watchdog) were in; built now: 2 discarded
   agent drafts carry his reasons grouped ("coach ×5 — "Too aggressive" ×3,
   "Not now" ×1") and the prompt aims at the stated why; 4 the Saturday
-  window is Saturday-onward (weeklyWindowOpen). Next in roster: [29] Trust
-  Ladder §6.
+  window is Saturday-onward (weeklyWindowOpen). [29] Trust Ladder §6 — MET (3 Sep): 1 (respectNo), 2
+  (registry + twins), 4 (round-trip test) were in; built now: 3 the Sunday
+  slot catches up on Monday morning (cadence.sundayCatchUpOpen — a Sunday
+  slot is the LAST of its week, so weeklyWindowOpen could never catch it
+  up; weekOfSundayRun keys a Monday run to the week that ended). [30]
+  Librarian §6 — MET: 1 (boundary sweep) and 4 (cadence) were in; built
+  now: 2 the read-next card carries RESEARCH THE BOOKS — one tap dispatches
+  the Researcher with the concept verbatim (the Library's add-book flow is
+  one step from that brief); 3 a declined gap re-raises only when the graph
+  has grown around it by ≥2 sources, naming the history (readNextEligible);
+  an accepted one never. [31] Brain Week §6 — MET: 1 the Sunday digest
+  catches up on Monday under LAST week's key; 2 a knowledge folder that
+  cannot be walked is a skip with the reason on the heartbeat, never a
+  partial digest that looks complete. [32] Study Lane §6 — already MET (1
+  inventory path Tier 2 #12; 2 settle; 3 tests exist for enumerateSources
+  and rolling captions). Next in roster: [33] Watcher §6.
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised

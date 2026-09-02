@@ -401,6 +401,12 @@ export function valsInbox(app, ctx) {
     retry: () => app.inboxAction(r.id, 'retry'),
     // a watched video can always go deeper — the full concept weave, from
     // the pending question or after it's filed
+    // the Librarian's gap → the Researcher, one tap: the accepted read-next
+    // names a concept; the best-regarded books on it are a research brief
+    // away, and from that brief the Library's add-book flow is one step
+    researchBooks: r.kind === 'read-next' && r.meta?.concept && ['pending', 'filed'].includes(r.status)
+      ? () => app.startResearch(`The best-regarded books on ${r.meta.concept} — which one should someone with a strong training and self-improvement bent read first, and why? Cite each recommendation.`)
+      : null,
     deepAnalyse: r.kind === 'video' && r.decision?.payload?.url && ['pending', 'filed'].includes(r.status)
       ? () => app.startVideoDeepIngest(r.decision.payload.url)
       : null,

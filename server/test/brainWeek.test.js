@@ -78,3 +78,19 @@ test('brain week: weekKey is stable within a week and ISO-shaped', () => {
   assert.equal(weekKey(new Date('2026-08-10T00:30:00')), weekKey(new Date('2026-08-16T23:30:00')), 'Mon and Sun share a key');
   assert.notEqual(weekKey(new Date('2026-08-10T00:30:00')), weekKey(new Date('2026-08-17T00:30:00')), 'next Monday rolls over');
 });
+
+// ---- [31] plans 1 + 2: a Monday catch-up is keyed to last week; a folder that cannot be walked is a skip with a reason, not a partial digest ----
+test('a Monday-morning run composes LAST week\'s digest under last week\'s key; an unwalkable knowledge folder skips honestly', async () => {
+  const { weekKey: wk } = await import('../lib/brainWeek.js');
+  const { weekOfSundayRun } = await import('../lib/cadence.js');
+  assert.equal(wk(weekOfSundayRun(new Date('2026-09-07T09:00:00'))), wk(new Date('2026-09-06T12:00:00')), 'Monday 7 Sep keys to the week of Sunday 6 Sep');
+  assert.notEqual(wk(weekOfSundayRun(new Date('2026-09-07T09:00:00'))), wk(new Date('2026-09-07T09:00:00')), 'and not to the new week');
+  const v = await mkdtemp(path.join(tmpdir(), 'nova-brainweek-walk-'));
+  await mkdir(path.join(v, 'Wiki'), { recursive: true });
+  const { writeFile: wf } = await import('node:fs/promises');
+  await wf(path.join(v, 'Wiki', 'Concepts'), 'a file where a folder should be', 'utf8'); // readdir → ENOTDIR
+  const r = await runBrainWeek(v, { force: true });
+  assert.equal(r.skipped, true);
+  assert.match(r.reason, /walk failed \(Wiki\/Concepts/);
+  await rm(v, { recursive: true, force: true });
+});

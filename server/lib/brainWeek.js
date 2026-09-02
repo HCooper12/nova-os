@@ -1,4 +1,5 @@
 import { readFile, readdir, stat } from 'node:fs/promises';
+import { sundayCatchUpOpen, weekOfSundayRun } from './cadence.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -22,7 +23,6 @@ const KNOWLEDGE_DIRS = [
   ['Raw', 'Raw originals'],
 ];
 const WEEK_MS = 7 * 24 * 3600e3;
-const BRAIN_WEEK_DAY = 0; // Sunday
 const BRAIN_WEEK_HOUR = 16;
 
 async function fileCreatedAt(full) {
@@ -50,7 +50,9 @@ export async function collectWeekAdditions(vaultPath, now = new Date()) {
     const dir = path.join(vaultPath, rel);
     if (!existsSync(dir)) continue;
     const titles = [];
-    for (const name of (await readdir(dir)).sort()) {
+    let names;
+    try { names = await readdir(dir); } catch (e) { const err = new Error(`${rel}: ${e.message}`); err.dir = rel; throw err; }
+    for (const name of names.sort()) {
       if (!name.endsWith('.md') || name === 'To-Do.md') continue;
       const createdAt = await fileCreatedAt(path.join(dir, name));
       if (createdAt != null && createdAt >= cutoff) titles.push(name.replace(/\.md$/, ''));
@@ -84,13 +86,25 @@ export function weekKey(now = new Date()) {
   return `${d.getFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
-export async function runBrainWeek(vaultPath, { force = false } = {}) {
-  const key = weekKey();
+export async function runBrainWeek(vaultPath, { force = false, now = new Date() } = {}) {
+  // keyed to the week the digest is FOR — a Monday-morning catch-up covers
+  // the week that ended last night, not the one that just began
+  const key = weekKey(weekOfSundayRun(now));
   const records = await listRecords();
   const already = records.find((r) => r.kind === 'brain-week' && r.weekKey === key && r.status !== 'error');
   if (already && !force) return { skipped: true, reason: 'already composed this week', recordId: already.id };
 
-  const groups = await collectWeekAdditions(vaultPath);
+  // a directory that could not be walked makes a digest that LOOKS complete
+  // and is not — skip with the reason and let the next touch retry
+  let groups;
+  try {
+    groups = await collectWeekAdditions(vaultPath);
+  } catch (e) {
+    const why = `walk failed (${e.dir || e.message})`;
+    import('./heartbeat.js').then(({ note }) => note('brain-week', why)).catch(() => {});
+    return { skipped: true, reason: why };
+  }
+  import('./heartbeat.js').then(({ note }) => note('brain-week', null)).catch(() => {});
   const text = composeBrainWeek(groups);
   if (!text) return { skipped: true, reason: 'nothing entered the second brain this week' };
 
@@ -120,8 +134,8 @@ export function startBrainWeekScheduler(vaultPath) {
     beat('brain-week');
     try {
       const now = new Date();
-      if (now.getDay() !== BRAIN_WEEK_DAY || now.getHours() < BRAIN_WEEK_HOUR) return;
-      await runBrainWeek(vaultPath);
+      if (!sundayCatchUpOpen(now, { hour: BRAIN_WEEK_HOUR })) return; // Sunday — or Monday morning if Sunday was slept through
+      await runBrainWeek(vaultPath, { now });
     } catch (err) {
       console.error('brain week failed:', err.message);
     }

@@ -47,3 +47,17 @@ test('the monthly window opens on the 1st and stays open all month', () => {
   assert.equal(monthlyWindowOpen(new Date(2026, 8, 28)), true);
   assert.equal(monthlyWindowOpen(new Date(2026, 8, 2), { dayOfMonth: 5 }), false, 'not due yet');
 });
+
+// ---- the Sunday-evening lanes catch up on Monday morning, keyed to the week that ended ----
+test('sundayCatchUpOpen: Sunday from the hour, Monday before noon, nothing else; weekOfSundayRun keys a Monday run to LAST week', async () => {
+  const { sundayCatchUpOpen, weekOfSundayRun } = await import('../lib/cadence.js');
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  assert.equal(sundayCatchUpOpen(new Date('2026-09-06T17:59:00'), { hour: 18 }), false, 'Sunday before the hour');
+  assert.equal(sundayCatchUpOpen(new Date('2026-09-06T18:00:00'), { hour: 18 }), true);
+  assert.equal(sundayCatchUpOpen(new Date('2026-09-07T09:00:00'), { hour: 18 }), true, 'Monday morning catches up');
+  assert.equal(sundayCatchUpOpen(new Date('2026-09-07T12:00:00'), { hour: 18 }), false, 'by Monday noon the moment has passed');
+  assert.equal(sundayCatchUpOpen(new Date('2026-09-05T20:00:00'), { hour: 18 }), false, 'Saturday is not Sunday');
+  assert.equal(iso(weekOfSundayRun(new Date('2026-09-06T18:30:00'))), '2026-08-31', 'a Sunday run is for its own week');
+  assert.equal(iso(weekOfSundayRun(new Date('2026-09-07T09:00:00'))), '2026-08-31', 'a Monday catch-up is for the week that ended last night');
+  assert.equal(iso(weekOfSundayRun(new Date('2026-09-09T09:00:00'))), '2026-09-07', 'any other day is its own week');
+});

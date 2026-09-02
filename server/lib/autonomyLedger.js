@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { sundayCatchUpOpen } from './cadence.js';
 import { createRecord, listRecords } from './inboxStore.js';
 import { latestDeclines, respectNo } from './respectTheNo.js';
 
@@ -194,7 +195,7 @@ export function startAutonomyScheduler() {
     beat('autonomy');
     try {
       const now = new Date();
-      if (now.getDay() !== 0 || now.getHours() < 18) return; // Sunday evening
+      if (!sundayCatchUpOpen(now, { hour: 18 })) return; // Sunday evening — or Monday morning if Sunday was slept through (cadence.js)
       const records = await listRecords();
       const cutoff = Date.now() - 6 * 86400e3;
       if (records.some((r) => r.kind === 'autonomy' && new Date(r.createdAt).getTime() >= cutoff)) return;
