@@ -81,6 +81,21 @@ DONE CRITERIA:
   legend filters, Nova overlays) NOT built.
 - Tier 3 #18 per-item remainder — UNMET; see OPEN below for the carried
   items already known; the rest is each report's §6 in roster order.
+- HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
+  (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
+  draft clear now carries finish|discard; legacy tombstones are recognised
+  by a saved session of the same routine within 30 min; live offer → null.
+  No data was lost or duplicated (checked the vault: one file per session;
+  the only same-day dupes are a 2 Aug bulk import). (2) Coach "tap APPLY IT"
+  with no card: the chat had no retag action, Coach bent `tune`, validation
+  refused. Now `remap` is a real action (route exercise-remap, undo kind
+  exercise-muscle-group), and `instructed:true` on a PROPOSE applies on the
+  spot through approveRecord — his standing grant, `coach-edits.json`
+  direct:true, GET/POST /api/train/coach-edits. (3) Music pausing on a tap:
+  tapUnlockH no longer primes on generic taps; `src/audioSession.js` asks
+  Safari 17+ for a 'transient' (mixing) session and yields to 'auto' while
+  the mic is open; `data-nova-audio` on <html> shows the live mode.
+  Device behaviour UNVERIFIED — he tests at the gym.
 - Phone-width (375px) pass — still BLOCKED (browser tool resize lies); every
   client change this session is code-read + bundle-marker only.
 
@@ -160,6 +175,13 @@ OPEN QUESTIONS / BLOCKERS:
   live use yet (he has not tapped either); their tests pass, their renders
   are unseen.
 - His phone's Scriptable widget still runs the OLD script until re-pasted.
+- The audio-session fix is spec-based (navigator.audioSession, Safari 17+);
+  if music still pauses on a tap, the next suspects are the wake-word
+  listener (a continuous mic holds the session by design) and the
+  speechSynthesis prime — both bracketed, neither tested on the device.
+- He asked to see what each exercise TARGETS before starting a workout: the
+  routine detail rows already show "<muscle> · last: …" under each
+  exercise; if he means the Home/Train list, that is unbuilt.
 - Week-plan window semantics; `guardian: 26h`; phone-width pass — carried.
 
 NEXT ACTION: either (a) the phone-width verification pass — every client
@@ -183,6 +205,10 @@ DO NOT:
   (correctly) fails the git check for the previous item — this bit twice.
 - Do not rebuild NovaBar without expecting the panel to pop on relaunch
   (it shows once on launch by design); tell him if he is at the Mac.
+- Do not use a plain function name as a verify:shipped marker — the
+  minifier renames it; use an object/dataset key or a string literal.
+- Do not run `npm run build` before the commit whose stamp verify:shipped
+  compares — build AFTER committing, or the version check fails falsely.
 - Do not read a test's `applyOps` scratch vault as independent: the state
   cache is per module; set NOVA_VAULT_GRACE_MS=0 or the second vault reads
   the first's library.
