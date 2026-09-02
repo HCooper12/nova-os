@@ -254,7 +254,16 @@ const INBOX_MODES = ['review-all', 'auto-high', 'auto-all'];
 export default class App extends Component {
   constructor(props) {
     super(props);
-    this.galaxyRef = createRef();
+    // A callback ref, not createRef: Galaxy is a lazy chunk, so on the
+    // componentDidUpdate that switches screens its canvas does not exist yet
+    // and startGalaxy bails — the first visit after a cold load stayed blank
+    // until some unrelated state change retried it. The ref fires when the
+    // canvas actually mounts, which is the moment the loop can start.
+    this.galaxyRef = (el) => {
+      this.galaxyRef.current = el;
+      if (el && this.state.screen === 'galaxy') this.startGalaxy();
+    };
+    this.galaxyRef.current = null;
     this.paletteRef = createRef();
     this.mainRef = createRef();
     this.ivs = [];
@@ -4387,6 +4396,14 @@ export default class App extends Component {
       // With a real vault (hundreds of stars) labels everywhere are unreadable
       // — draw them only on small graphs, on the selected star, and on its neighbours.
       const showLabels = this.gNodes.length <= 80;
+      // In a real vault a hub has dozens of neighbours and their labels pile
+      // into one unreadable heap. Name the selection and its best-connected
+      // neighbours only — the panel already says how many links there are.
+      const labelled = new Set();
+      if (selIdx >= 0) {
+        labelled.add(selIdx);
+        [...nbr].sort((a, b) => (this.gNodes[b].deg || 0) - (this.gNodes[a].deg || 0)).slice(0, 8).forEach(i => labelled.add(i));
+      }
       this.gNodes.forEach((n, i) => {
         const p = pos[i];
         const sel = i === selIdx;
@@ -4398,9 +4415,11 @@ export default class App extends Component {
         ctx.shadowBlur = 0;
         if (!dimmed) { ctx.globalAlpha = .18; ctx.beginPath(); ctx.arc(p.x, p.y, n.r + 9, 0, 6.29); ctx.strokeStyle = n.color; ctx.stroke(); }
         ctx.globalAlpha = 1;
-        if (showLabels || sel || isNbr) {
+        if (showLabels || labelled.has(i)) {
           ctx.font = '10px "JetBrains Mono", monospace'; ctx.fillStyle = sel ? '#ece5da' : 'rgba(236,229,218,.6)';
-          ctx.fillText(n.label, p.x + n.r + 8, p.y + 3);
+          // kept inside the canvas — a long name near either edge slides in rather than being cut
+          const tw = ctx.measureText(n.label).width;
+          ctx.fillText(n.label, Math.max(6, Math.min(w - 6 - tw, p.x + n.r + 8)), p.y + 3);
         }
       });
       this.gRaf = requestAnimationFrame(loop);

@@ -253,10 +253,12 @@ export function valsChrome(app, ctx) {
     // lane). Completion pings were already wired (push + Telegram fire
     // when a record flips pending); this makes the in-between VISIBLE.
     jobTray: (() => {
+      // a cut label says it was cut — "a cached digest makes t" is not a sentence
+      const clip = (s, n) => { s = String(s); return s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s; };
       const KIND_NAME = { research: 'Research', video: 'Watching', study: 'Study', distill: 'Distilling', 'brain-week': 'Brain week' };
       const jobs = (st.liveInbox?.items || [])
         .filter((r) => r.status === 'classifying')
-        .map((r) => ({ id: r.id, label: `${KIND_NAME[r.kind] || 'Filing'} — ${(r.text || '').slice(0, 60)}`, kind: r.kind || 'capture' }));
+        .map((r) => ({ id: r.id, label: `${KIND_NAME[r.kind] || 'Filing'} — ${clip(r.text || '', 60)}`, kind: r.kind || 'capture' }));
       if (st.codeBusy) jobs.unshift({ id: 'code', label: 'Claude Code — session running', kind: 'code', go: () => app.navigate('code') });
       if (st.verdictBusy) jobs.unshift({ id: 'verdict', label: 'Building a verdict…', kind: 'verdict' });
       // EVERY LONG-RUNNING THING HE STARTED, not just the ones that happen to
@@ -274,7 +276,7 @@ export function valsChrome(app, ctx) {
           jobs.unshift({ id: 'ingest', kind: 'ingest', done: true,
             label: `Ready for your review — ${(st.ingestPreview?.changes || []).length} page${(st.ingestPreview?.changes || []).length === 1 ? '' : 's'}` });
         } else if (st.ingestStatus === 'error') {
-          jobs.unshift({ id: 'ingest', kind: 'ingest', failed: true, label: `Ingest failed — ${String(st.ingestError || 'no reason given').slice(0, 60)}` });
+          jobs.unshift({ id: 'ingest', kind: 'ingest', failed: true, label: `Ingest failed — ${clip(st.ingestError || 'no reason given', 60)}` });
         } else {
           const p = st.ingestProgress;
           jobs.unshift({ id: 'ingest', kind: 'ingest',
@@ -291,7 +293,7 @@ export function valsChrome(app, ctx) {
             go: () => app.openIngestJob(j.id) });
         } else if (j.status === 'error') {
           jobs.push({ id: `ing-${j.id}`, kind: 'ingest', failed: true,
-            label: `${j.label} — ${String(j.error || 'failed').slice(0, 70)}` });
+            label: `${j.label} — ${clip(j.error || 'failed', 70)}` });
         }
       }
       if (st.leaderBusy) jobs.unshift({ id: 'leader', kind: 'leader', label: 'The Leader is thinking…', go: () => app.navigate('leader') });

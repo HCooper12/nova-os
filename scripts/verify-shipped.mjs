@@ -67,6 +67,7 @@ const FEATURES = [
   // the gym fix: a tap no longer claims the phone's audio session; Nova asks to mix
   // a property key, not a function name — the minifier renames functions
   ['Audio · mixing session, generic taps do not claim it', 'novaAudio'],
+  ['Galaxy · legend plurals (same commit as the first-visit paint fix)', 'analyses'],
 ];
 
 const SERVER_ROUTES = [

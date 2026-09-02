@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { stageVault, diffTrees } from './ingest.js';
+import { stageVault, diffTreesReport, conflictNote } from './ingest.js';
 import { createRecord, listRecords } from './inboxStore.js';
 import { stampPriors, applyChanges, undoChanges } from './stagedPass.js';
 import { modelFor, laneSkipped } from './modelPrefs.js';
@@ -156,10 +156,21 @@ export async function runDistillation(vaultPath, { force = false, model } = {}) 
       summary = (parsed.result || '').trim();
     }
 
-    // diff, and stamp each change with the exact prior it was computed
-    // against — the drift check at apply time depends on it
-    const changes = stampPriors(vaultPath, diffTrees(vaultPath, stagingVault));
-    if (!changes.length) return { skipped: true, reason: 'the model found nothing worth linking' };
+    // diff against the staging baseline (never the vault now — see
+    // diffTreesReport), and stamp each change with the exact prior it was
+    // computed against: the drift check at apply time depends on it
+    const { changes: diffed, conflicts } = diffTreesReport(vaultPath, stagingVault);
+    const changes = stampPriors(vaultPath, diffed);
+    if (!changes.length) {
+      return {
+        skipped: true,
+        reason: conflicts.length
+          ? `every page it touched moved in your vault while it ran (${conflicts.join(', ')}) — rerun`
+          : 'the model found nothing worth linking',
+      };
+    }
+    // pages left out are said first in the record he reviews
+    if (conflicts.length) summary = [conflictNote(conflicts), summary].filter(Boolean).join('\n\n');
 
     const job = { id: jobId, at: new Date().toISOString(), summary: summary.slice(0, 4000), status: 'ready', changes };
     await persistJob(job);

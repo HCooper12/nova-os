@@ -44,6 +44,7 @@ export function valsMisc(app, ctx) {
   const shoppingCheckedCount = shoppingItems.filter((i) => i.checked).length;
 
   // galaxy — real vault graph when available
+  const NOTE_TYPE_PLURAL = { entity: 'entities', analysis: 'analyses' }; // "entitys" is not a word
   const liveGraphOn = !!(st.liveGraph && st.liveGraph.nodes.length);
   const galaxyStatsLabel = liveGraphOn
     ? (st.liveGraph.nodes.length > GALAXY_MAX_NODES
@@ -51,7 +52,7 @@ export function valsMisc(app, ctx) {
       : `${st.liveGraph.nodes.length} STARS · ${st.liveGraph.links.length} LINKS`)
     : '385 STARS · 1,227 LINKS · DEMO';
   const galaxyLegend = liveGraphOn
-    ? Object.entries(NOTE_TYPE_COLOR).filter(([t]) => t !== 'raw').map(([t, color]) => ({ label: t + 's', color }))
+    ? Object.entries(NOTE_TYPE_COLOR).filter(([t]) => t !== 'raw').map(([t, color]) => ({ label: NOTE_TYPE_PLURAL[t] || t + 's', color }))
     : [
         { label: 'notes', color: 'var(--nv-ink)' }, { label: 'podcasts', color: 'var(--nv-vi)' }, { label: 'recipes', color: 'var(--nv-gold)' },
         { label: 'training', color: '#5aa87c' }, { label: 'agents', color: 'var(--nv-cy)' },

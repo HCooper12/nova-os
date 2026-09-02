@@ -13,7 +13,7 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**2 SEP (cont.) — THE AUDIT'S PROGRAMME: TIERS 1–3 SHIPPED; #18 (PER-ITEM REMAINDER) IS WHAT'S LEFT.**
+**2 SEP (cont.) — TIERS 1–3 SHIPPED; PHONE-WIDTH PASS DONE (it found the staged pass diffing against the live vault — fixed); #18 IS WHAT'S LEFT.**
 *(Interim update mid-session; the session log entry is written at close.)*
 
 GOAL: execute `design/audits/2026-08-full-audit/99-SYNTHESIS.md` in tier
@@ -107,8 +107,38 @@ DONE CRITERIA:
   Safari 17+ for a 'transient' (mixing) session and yields to 'auto' while
   the mic is open; `data-nova-audio` on <html> shows the live mode.
   Device behaviour UNVERIFIED — he tests at the gym.
-- Phone-width (375px) pass — still BLOCKED (browser tool resize lies); every
-  client change this session is code-read + bundle-marker only.
+- Phone-width (375px) pass — MET (chrome-devtools MCP `emulate` 375×812×3,
+  dev server at http://localhost:5173 — NOT 127.0.0.1, which the server's
+  CORS list does not allow). Seen live: Home (plan card DONE/SKIP, Command
+  Deck, Nova-is-working), Settings deterministic lanes (switch, no picker),
+  Galaxy, Train Today/GYM/routine detail (rows read "<muscle> · last: …";
+  Dead Hang now Forearms), Fuel, Inbox. Two defects found and fixed:
+  (1) GALAXY WAS BLANK ON THE FIRST VISIT after a cold load since the 23 Aug
+  bundle split — the screen is a lazy chunk, so componentDidUpdate's
+  startGalaxy ran before the canvas existed and bailed; now a callback ref
+  starts the loop when the canvas mounts (verified: cold load at #/galaxy
+  paints 1023×1254, ~17.8k lit samples). Also: neighbour labels capped to
+  the selection + its 8 best-connected (36 piled up unreadably) and clamped
+  inside the canvas; legend plurals (entitys→entities, analysiss→analyses);
+  job-tray labels end in … when cut.
+  (2) THE STAGED PASS DIFFED AGAINST THE VAULT *NOW* — the pending distill
+  record 652c45c8 (1 Sep, "17 files touched") would have REVERTED concurrent
+  live edits to five pages (the Journal's Guardian + CFO entries, five
+  "What Works" observations, a whole Studio outline, a standing instruction,
+  the Skills backlog) and written four .nova-backups/*.bak files. Root
+  cause: diffTrees compared staged vs live, so any live file that moved
+  during the pass read as a model change carrying the stale staged copy.
+  Fixed in ingest.js (shared by distill): stageVault writes a baseline
+  manifest (sha256 of every staged Wiki/ file + live Raw/), diffTreesReport
+  reports only files the MODEL changed and refuses — by name, first line of
+  the summary — any model-touched file whose live copy also moved
+  (conflicts); .nova-backups is never staged. Legacy stagings without a
+  manifest keep the old compare. Identity check on his real vault: 246
+  files staged in 280 ms, 0 changes, 0 conflicts, no backups. The unsafe
+  record was DISCARDED through the rails (reason recorded); today's drift
+  check would have refused it anyway (5 of 17 files moved since) — but two
+  of the reverted pages had NOT moved, so a quieter day would have applied
+  the deletions.
 
 STATE:
 - `server/lib/stagedPass.js` — stampPriors → checkDrift → applyChanges
@@ -175,8 +205,12 @@ ASSUMED:
 - No live apply/undo has run through the new staged pass yet (the waiting
   weave is his to approve; no Coach proposal pending) — proven on scratch
   vaults only.
-- Client renders (Fuel couldn't-check card, Ambient unknown, Mission error
-  state) unseen at any width.
+- Client renders of the ERROR states (Fuel couldn't-check card, Ambient
+  unknown, Mission plan error) still unseen — the live server had no
+  failures to show during the pass; the happy paths are seen at 375px.
+- Distill job file a26d3d1f.json stays 'ready' on disk after the record's
+  discard (distill has no discard hook the way ingest's discardJob has);
+  harmless, 245 KB, not pruned. Small follow-up.
 
 OPEN QUESTIONS / BLOCKERS:
 - `stores | alert | 15 filed records missing undo data` (8 Aug–1 Sep:
@@ -185,9 +219,10 @@ OPEN QUESTIONS / BLOCKERS:
   count? Undecided; the check still alerts.
 - He has declined all 12 food-save proposals ever made — the lane's premise
   may not fit; surfaced, not acted on.
-- The plan's DONE/SKIP marks and the Galaxy neighbourhood lighting have no
-  live use yet (he has not tapped either); their tests pass, their renders
-  are unseen.
+- The plan's DONE/SKIP marks have no live use yet (he has not tapped
+  them); their render is seen at 375px, the write path is test-only.
+- The rerun of the distillation (to redo the 1 Sep pass on the fixed diff)
+  is his call or the weekly scheduler's — not run; it costs a model pass.
 - His phone's Scriptable widget still runs the OLD script until re-pasted.
 - The audio-session fix is spec-based (navigator.audioSession, Safari 17+);
   if music still pauses on a tap, the next suspects are the wake-word
@@ -198,11 +233,10 @@ OPEN QUESTIONS / BLOCKERS:
   exercise; if he means the Home/Train list, that is unbuilt.
 - Week-plan window semantics; `guardian: 26h`; phone-width pass — carried.
 
-NEXT ACTION: either (a) the phone-width verification pass — every client
-change this session (Fuel couldn't-check card, Ambient unknown, Mission
-plan error state + DONE/SKIP marks, Settings deterministic lanes, Galaxy)
-is code-read only, and this is the largest unverified surface on the
-platform — or (b) #18 in roster order. Carried #18 items with the most
+NEXT ACTION: #18 in roster order (the phone-width pass is done). Before
+that, consider whether the conflict rule should extend to the drift check's
+message (it already refuses; the new baseline just stops stale copies ever
+entering a draft). Carried #18 items with the most
 value already identified: [17] nudge-text compounding (plan 2); [24]
 citation gate + retry keeps the model override (plans 1, 3); [66]
 photo→scan lane (plan 2); [60] Galaxy 6–8; [07] dismiss semantics (plan 2)
@@ -210,6 +244,14 @@ photo→scan lane (plan 2); [60] Galaxy 6–8; [07] dismiss semantics (plan 2)
 adjustment ✓/✗ UI; [29] AUTONOMY_TARGETS registry completeness (plan 2).
 
 DO NOT:
+- Do not diff a staged copy against the live vault to find "what the model
+  changed" — the live vault moves during a pass; diff against the staging
+  baseline (diffTreesReport) and treat a live move on a model-touched file
+  as a conflict, never a merge.
+- Do not open the dev app at http://127.0.0.1:5173 — the server's CORS list
+  has localhost:5173 only; everything reads OFFLINE and looks like a bug.
+- Do not start a canvas loop from componentDidUpdate when the screen is a
+  lazy chunk — the ref is null on that update; start it from the ref.
 - Do not sandbox a vaultStateFile-owned file by path, and do not write one
   raw — go through the module (see stagedPass.js header).
 - Do not match `\w{3}` for an en-GB short month — September is "Sept".

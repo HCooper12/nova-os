@@ -12,7 +12,7 @@ process.env.NOVA_DATA_DIR = dataDir;
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { composeFetchedTranscript, videoIdOf, findExistingVideoPages, diffTrees, getJob, approveJob, discardJob } = await import('../lib/ingest.js');
+const { composeFetchedTranscript, videoIdOf, findExistingVideoPages, diffTrees, diffTreesReport, stageVault, conflictNote, getJob, approveJob, discardJob } = await import('../lib/ingest.js');
 
 test.after(async () => { await rm(dataDir, { recursive: true, force: true }); });
 
@@ -88,6 +88,53 @@ test('diffTrees: an existing Raw file reads as updated, and an identical rewrite
   } finally {
     await rm(original, { recursive: true, force: true });
     await rm(staging, { recursive: true, force: true });
+  }
+});
+
+test('diffTrees: the live vault moving mid-pass is not a model change — and a model-touched page that moved is left out, by name', async () => {
+  // The September draft: the Guardian and Coach wrote to the live vault while
+  // the distillation ran, and the diff-against-live read each of those as a
+  // change the model made — carrying the stale staged copy that would have
+  // reverted them. The staging baseline is what stops it.
+  const root = await mkdtemp(path.join(tmpdir(), 'nova-baseline-'));
+  const original = path.join(root, 'vault');
+  const staging = path.join(root, 'staging');
+  try {
+    await mkdir(path.join(original, 'Wiki', '.nova-backups'), { recursive: true });
+    await mkdir(path.join(original, 'Raw'), { recursive: true });
+    await writeFile(path.join(original, 'Wiki/Journal.md'), 'day\n');
+    await writeFile(path.join(original, 'Wiki/Hub.md'), 'hub\n');
+    await writeFile(path.join(original, 'Wiki/.nova-backups/Hub.md.old.bak'), 'hub\n');
+    await stageVault(original, staging);
+    assert.ok(!existsSync(path.join(staging, 'Wiki/.nova-backups')), 'backups are never staged');
+
+    // the model links Hub; meanwhile the Guardian appends to the Journal, and
+    // the model's sandbox grows a backup of its own edit
+    await writeFile(path.join(staging, 'Wiki/Hub.md'), 'hub\n[[Journal]]\n');
+    await mkdir(path.join(staging, 'Wiki/.nova-backups'), { recursive: true });
+    await writeFile(path.join(staging, 'Wiki/.nova-backups/Hub.md.new.bak'), 'hub\n');
+    await writeFile(path.join(original, 'Wiki/Journal.md'), 'day\n## Guardian report\n');
+
+    const report = diffTreesReport(original, staging);
+    assert.deepEqual(report.changes.map((c) => [c.path, c.kind]), [['Wiki/Hub.md', 'updated']], 'only what the model changed; the Journal and the backup are not changes');
+    assert.deepEqual(report.conflicts, []);
+    assert.deepEqual(diffTrees(original, staging).map((c) => c.path), ['Wiki/Hub.md'], 'diffTrees stays the plain list');
+
+    // now Coach edits Hub live too — the model's copy is stale: refused, named
+    await writeFile(path.join(original, 'Wiki/Hub.md'), 'hub\ncoach observation\n');
+    const clash = diffTreesReport(original, staging);
+    assert.deepEqual(clash.changes, []);
+    assert.deepEqual(clash.conflicts, ['Wiki/Hub.md']);
+    const note = conflictNote(clash.conflicts);
+    assert.match(note, /Left out — 1 page changed in your vault/);
+    assert.match(note, /Wiki\/Hub\.md/);
+    assert.equal(conflictNote([]), '', 'nothing left out, nothing said');
+
+    // a staging made before the baseline existed still diffs (against live)
+    await rm(path.join(staging, '.nova-staging-manifest.json'));
+    assert.ok(diffTrees(original, staging).some((c) => c.path === 'Wiki/Journal.md'), 'legacy stagings keep the old compare');
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
 });
 

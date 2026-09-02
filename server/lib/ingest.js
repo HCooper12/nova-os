@@ -11,7 +11,10 @@ import { createRecord } from './inboxStore.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { settleWatchdog } from './settle.js';
 
-const SKIP = new Set(['.obsidian', '.claude', '.DS_Store']);
+// .nova-backups is Nova's own pre-write copies (backup.js): staging them let
+// the model's sandbox grow backups of its own edits, which the diff then
+// reported as "new pages". Internal artefacts, never a change.
+const SKIP = new Set(['.obsidian', '.claude', '.DS_Store', '.nova-backups']);
 // NO MORE DYING NEARLY-DONE. A $3 ceiling was set for a pasted note and then
 // applied to full vault weaves, so a video with a lot of real ideas in it
 // spent $3.08, was killed, and wrote NOTHING — he paid for the work and got
@@ -84,6 +87,11 @@ async function removeJobFile(jobId) {
 // Only Wiki/ + CLAUDE.md need to exist in the staging copy — the ingest workflow
 // reads/writes wiki pages, not old Raw/ transcripts. Copying the whole vault would
 // force iCloud to download every previously-evicted file, which can hang for minutes.
+// What the staging copied, hashed — the pass's baseline. It sits at the
+// staging root, outside Wiki/ and Raw/, so the diff never walks it.
+const MANIFEST = '.nova-staging-manifest.json';
+const sha = (s) => createHash('sha256').update(s).digest('hex');
+
 export async function stageVault(vaultPath, stagingVault) {
   await mkdir(stagingVault, { recursive: true });
   const claudeMd = path.join(vaultPath, 'CLAUDE.md');
@@ -96,6 +104,21 @@ export async function stageVault(vaultPath, stagingVault) {
     });
   }
   await mkdir(path.join(stagingVault, 'Raw', 'assets'), { recursive: true });
+  // The baseline. The live vault keeps moving while a pass runs — the
+  // Guardian files its report, Coach writes an observation — and a diff
+  // against the vault *now* read every one of those as a change the model
+  // made, carrying the stale staged copy that would have reverted them (a
+  // real September draft would have deleted five pages' worth). Wiki/ is
+  // hashed from the staged copies (exactly what the model starts from);
+  // Raw/ is not staged, so its live files are the baseline.
+  const manifest = {};
+  for (const rel of listFiles(path.join(stagingVault, 'Wiki'))) {
+    manifest[path.join('Wiki', rel)] = sha(readFileSync(path.join(stagingVault, 'Wiki', rel), 'utf8'));
+  }
+  for (const rel of listFiles(path.join(vaultPath, 'Raw'))) {
+    manifest[path.join('Raw', rel)] = sha(readFileSync(path.join(vaultPath, 'Raw', rel), 'utf8'));
+  }
+  await writeFile(path.join(stagingVault, MANIFEST), JSON.stringify(manifest), 'utf8');
 }
 
 function listFiles(dir, base = dir, out = []) {
@@ -109,7 +132,15 @@ function listFiles(dir, base = dir, out = []) {
   return out;
 }
 
-export function diffTrees(originalDir, stagingDir) {
+// The model's changes, and the files it must NOT land on. A staged file
+// identical to its baseline was never touched — whatever the live vault did
+// meanwhile is none of this pass's business. A file the model did change
+// whose live copy has ALSO moved since staging is a conflict: the staged
+// copy is stale and applying it would drop the concurrent edit, so it is
+// left out and named (conflictNote), never merged by guesswork.
+export function diffTreesReport(originalDir, stagingDir) {
+  let manifest = null;
+  try { manifest = JSON.parse(readFileSync(path.join(stagingDir, MANIFEST), 'utf8')); } catch { manifest = null; }
   // Raw/ is not staged (see stageVault), but the REAL Raw/ still decides
   // new-vs-updated: without it, rewriting an existing transcript reads as a
   // brand-new file and an identical rewrite shows as a change that isn't one.
@@ -122,18 +153,35 @@ export function diffTrees(originalDir, stagingDir) {
     ...listFiles(path.join(stagingDir, 'Raw')).map((p) => path.join('Raw', p)),
   ];
   const changes = [];
+  const conflicts = [];
   for (const rel of after) {
-    const stagedPath = path.join(stagingDir, rel);
-    const newContent = readFileSync(stagedPath, 'utf8');
-    if (!before.has(rel)) {
-      changes.push({ path: rel, kind: 'new', content: newContent });
-    } else {
-      const originalPath = path.join(originalDir, rel);
-      const oldContent = readFileSync(originalPath, 'utf8');
-      if (oldContent !== newContent) changes.push({ path: rel, kind: 'updated', content: newContent });
+    const newContent = readFileSync(path.join(stagingDir, rel), 'utf8');
+    const liveContent = before.has(rel) ? readFileSync(path.join(originalDir, rel), 'utf8') : null;
+    if (!manifest) {
+      // a staging made before the baseline existed: the old live compare
+      if (liveContent === null) changes.push({ path: rel, kind: 'new', content: newContent });
+      else if (liveContent !== newContent) changes.push({ path: rel, kind: 'updated', content: newContent });
+      continue;
     }
+    const base = manifest[rel]; // undefined → did not exist when staged
+    if (base !== undefined && base === sha(newContent)) continue; // the model left it alone
+    const liveHash = liveContent === null ? undefined : sha(liveContent);
+    if (liveHash !== base) { conflicts.push(rel); continue; } // moved in the live vault mid-pass
+    changes.push({ path: rel, kind: base === undefined ? 'new' : 'updated', content: newContent });
   }
-  return changes;
+  return { changes, conflicts };
+}
+export function diffTrees(originalDir, stagingDir) {
+  return diffTreesReport(originalDir, stagingDir).changes;
+}
+
+// The honest opening line for a summary when files were left out — it LEADS
+// the summary (a record's reason keeps only the first 300 characters, so a
+// tail would never be read); '' when nothing was.
+export function conflictNote(conflicts) {
+  if (!conflicts?.length) return '';
+  const n = conflicts.length;
+  return `⚠ Left out — ${n} page${n === 1 ? '' : 's'} changed in your vault while this pass ran, so the draft's cop${n === 1 ? 'y was' : 'ies were'} stale: ${conflicts.join(', ')}. Rerun to weave ${n === 1 ? 'it' : 'them'}.`;
 }
 
 // The header a fetched-video transcript carries into the ingest pass — the
@@ -420,7 +468,10 @@ When done, give a concise final summary: pages created, pages updated, and any c
           try {
             // each change carries the exact prior it was computed against —
             // the staged pass's drift check at approval depends on it
-            job.changes = stampPriors(vaultPath, diffTrees(vaultPath, stagingVault));
+            const report = diffTreesReport(vaultPath, stagingVault);
+            job.changes = stampPriors(vaultPath, report.changes);
+            job.conflicts = report.conflicts;
+            if (report.conflicts.length) job.summary = [conflictNote(report.conflicts), job.summary || ''].filter(Boolean).join('\n\n');
             job.status = 'ready';
           } catch (e) {
             job.status = 'error';
