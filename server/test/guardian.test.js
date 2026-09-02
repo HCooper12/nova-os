@@ -234,3 +234,58 @@ test('monthly report drafts once per month onto the inbox rails; force re-drafts
   // the restore receipt is also kind:'guardian' — count actual reports only
   assert.equal(records.filter((r) => r.kind === 'guardian' && r.text.startsWith('Guardian Report')).length, 2);
 });
+
+// ---- [22] plans 2, 3, 6: stores are found not listed; any worsened check speaks; the restore undo routes round-trip ----
+test('a broken store OUTSIDE the old hand list is found and named; the count of parsed stores is said', async () => {
+  const { listStoreFiles } = await import('../lib/guardian.js');
+  await mkdir(path.join(dataDir, 'money'), { recursive: true });
+  await writeFile(path.join(dataDir, 'money', '2025-03.json'), '{ nope', 'utf8');
+  await writeFile(path.join(dataDir, 'brand-new-store.json'), '{"ok":true}', 'utf8');
+  await writeFile(path.join(dataDir, 'scratch.json.tmp'), '{', 'utf8'); // a write temp is not a store
+  const files = await listStoreFiles(dataDir);
+  assert.ok(files.some((p) => p.endsWith('money/2025-03.json')), 'one level under money/ is scanned');
+  assert.ok(files.some((p) => p.endsWith('brand-new-store.json')), 'a store nobody listed is found');
+  assert.ok(!files.some((p) => p.endsWith('.tmp')), 'write temps are excluded');
+  const report = await runGuardian(vault);
+  const stores = report.checks.find((c) => c.id === 'stores');
+  assert.equal(stores.status, 'alert');
+  assert.match(stores.detail, /money\/2025-03\.json does not parse/);
+  await unlink(path.join(dataDir, 'money', '2025-03.json'));
+  const clean = await runGuardian(vault);
+  assert.match(clean.checks.find((c) => c.id === 'stores').detail, /\d+ stores? parsed/);
+});
+
+test('worsenedChecks: a second check going red while the first already was is named — the roll-up alone missed it', async () => {
+  const { worsenedChecks } = await import('../lib/guardian.js');
+  const prev = { status: 'alert', checks: [{ id: 'stores', status: 'alert' }, { id: 'loops', status: 'ok' }, { id: 'health', status: 'warn' }] };
+  const now = { status: 'alert', checks: [{ id: 'stores', status: 'alert', label: 'Data stores', detail: 'x' }, { id: 'loops', status: 'alert', label: 'Loops', detail: 'coach stalled' }, { id: 'health', status: 'ok', label: 'Health', detail: 'fine' }] };
+  assert.deepEqual(worsenedChecks(now, prev).map((c) => c.id), ['loops'], 'stores was already red; health improved; loops is the news');
+  assert.deepEqual(worsenedChecks(now, null).map((c) => c.id), ['stores', 'loops'], 'no prior report → every non-ok check is news');
+  assert.deepEqual(worsenedChecks({ checks: [{ id: 'a', status: 'ok' }] }, prev), []);
+});
+
+test('the time machine undoes both ways: a restore over an existing page puts the pre-restore state back; a restore that created a page removes it', async () => {
+  const { undoRecord } = await import('../lib/inbox.js');
+  const { backupFile } = await import('../lib/backup.js');
+  const pageRel = 'Wiki/Undo Me.md';
+  const pageFull = path.join(vault, pageRel);
+  await mkdir(path.dirname(pageFull), { recursive: true });
+  await writeFile(pageFull, 'version one\n', 'utf8');
+  const snap1 = await backupFile(pageFull); // snapshot of version one
+  await writeFile(pageFull, 'version two\n', 'utf8');
+  // restore version one over version two
+  const { record: r1 } = await restoreBackup(vault, path.relative(vault, snap1));
+  assert.equal(await readFile(pageFull, 'utf8'), 'version one\n');
+  assert.equal(r1.undoData.route, 'restore');
+  await undoRecord(vault, r1.id);
+  assert.equal(await readFile(pageFull, 'utf8'), 'version two\n', 'undo put the pre-restore state back');
+  // a restore that CREATES a page (the original is gone) is undone by removing it
+  const snap2 = await backupFile(pageFull);
+  await unlink(pageFull);
+  const { record: r2 } = await restoreBackup(vault, path.relative(vault, snap2));
+  assert.equal(r2.undoData.route, 'restore-created');
+  assert.equal(await readFile(pageFull, 'utf8'), 'version two\n');
+  await undoRecord(vault, r2.id);
+  const { existsSync } = await import('node:fs');
+  assert.equal(existsSync(pageFull), false, 'the created page is gone again — snapshotted first');
+});

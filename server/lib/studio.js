@@ -51,6 +51,17 @@ export async function setIdeaStatus(vaultPath, id, status) {
   return { id, status };
 }
 
+// The idea's format comes from its frontmatter (the same parse every other
+// reader uses), not a regex over the raw page that could match body text.
+export function formatOf(raw) {
+  try { const f = matter(String(raw || '')).data?.format; return typeof f === 'string' && f.trim() ? f.trim() : null; } catch { return null; }
+}
+// The Drawn-from contract: every outline says what it drew on, or that the
+// vault had nothing related. Pure, exported for the test.
+export function hasDrawnFrom(body) {
+  return /drawn from/i.test(String(body || ''));
+}
+
 export function buildOutlinePrompt(page, format, taste = '') {
   return `${NOVA_LENS}
 
@@ -92,7 +103,7 @@ export async function startOutline(vaultPath, id) {
     .then(({ orgContext }) => orgContext(vaultPath, 'studio'))
     .catch(() => '');
   const child = spawn(CLAUDE_BIN, [
-    '-p', buildOutlinePrompt(page, page.raw.match(/format:\s*(\w+)/)?.[1], org ? `${taste}\n\n${org}` : taste),
+    '-p', buildOutlinePrompt(page, formatOf(page.raw), org ? `${taste}\n\n${org}` : taste),
     '--permission-mode', 'bypassPermissions',
     '--allowedTools', 'Read Grep Glob',
     '--disallowedTools', OUTLINE_DISALLOWED,
@@ -117,6 +128,9 @@ export async function startOutline(vaultPath, id) {
       if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in outline response');
       const body = String(JSON.parse(jsonMatch[0]).text || '').trim();
       if (!body) throw new Error('empty outline');
+      // the lane's own contract, enforced like the Researcher's citation gate:
+      // an outline that names no sources is not filed as a draft
+      if (!hasDrawnFrom(body)) throw new Error("the outline names no sources — a Studio draft ends with 'Drawn from: …' (or says nothing related was found); retry from the idea page");
       await updateRecord(record.id, {
         status: 'pending',
         decision: {

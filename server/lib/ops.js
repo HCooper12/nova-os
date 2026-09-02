@@ -35,6 +35,7 @@ const SCHEDULED = [
   { id: 'food-suggest', label: 'Food Scout', role: 'food → recipe ideas', cadenceHours: 2 },
   { id: 'mealprep', label: 'Meal Prep', role: 'weekly prep proposals', cadenceHours: 3 },
   { id: 'training-check', label: 'Training Check', role: 'program drift watch', cadenceHours: 2 },
+  { id: 'followups', label: 'Calendar Follow-ups', role: 'did-it-happen questions', cadenceHours: 2 },
   { id: 'week-plan', label: 'Week Plan', role: 'training week annotations', cadenceHours: 2 },
   { id: 'money', label: 'Money', role: 'ledger import', cadenceHours: 2 },
   { id: 'cfo', label: 'CFO', role: 'monthly money report', cadenceHours: 13 },
@@ -111,6 +112,7 @@ export const AGENT_DEPARTMENTS = {
   'food-suggest': ['Fuel'],
   mealprep: ['Fuel'],
   'training-check': ['Train'],
+  followups: ['Logistics'], // calendar follow-ups are the day's logistics, like the plan
   'week-plan': ['Train'],
   money: ['Money'],
   cfo: ['Money'],
@@ -153,6 +155,7 @@ export const AGENT_RECORD_KINDS = {
   'food-suggest': ['food-suggestion'],
   mealprep: ['meal-prep'],
   'training-check': ['training-check'],
+  followups: ['followup'],
   'week-plan': ['week-plan'],
   money: ['money-import'],
   cfo: ['cfo'],

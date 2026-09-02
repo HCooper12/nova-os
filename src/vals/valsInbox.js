@@ -259,9 +259,12 @@ function computeProposals(app, st, items, dispatch, compost) {
   // journal receipt; Move to To-Do carries it forward; Skip lets it go.
   const TASK_HINTS = ['meal prep', 'prep', 'cook', 'clean', 'laundry', 'groceries', 'grocery', 'shopping', 'errand', 'organise', 'organize', 'admin', 'wash', 'tidy', 'pick up', 'drop off', 'book ', 'call ', 'pay ', 'renew', 'study', 'review notes'];
   if (now.getHours() >= 18 && Array.isArray(st.liveCalendar)) {
+    // a follow-up record for the event — answered, dismissed, or the server's
+    // own pending question (lib/followUps.js) — means the live proposal
+    // stands down: the record on the Inbox list is the one question
     const answeredToday = new Set(
       items.filter((r) => r.kind === 'followup' && r.createdAt && new Date(r.createdAt).toDateString() === now.toDateString())
-        .map((r) => (r.text || '').replace(/^✓ /, '').toLowerCase()),
+        .map((r) => (r.decision?.payload?.eventLabel || (r.text || '').replace(/^✓ /, '').replace(/^Did “(.*)” happen\??$/, '$1')).toLowerCase()),
     );
     const openTodos = new Set((st.liveTodos?.items || []).filter((t) => !t.checked).map((t) => t.text.toLowerCase()));
     for (const ev of st.liveCalendar) {

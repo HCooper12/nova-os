@@ -111,3 +111,14 @@ test('outline prompt carries his design taste when the page exists', async () =>
   const bare = buildOutlinePrompt({ relPath: 'x.md', raw: '# Idea' }, 'short');
   assert.ok(!bare.includes('HIS DESIGN TASTE'));
 });
+
+// ---- [25] plans 1 + 3: the Drawn-from contract, and format from frontmatter ----
+test('an outline without a Drawn-from line is refused; the format is read from frontmatter, never from body text', async () => {
+  const { hasDrawnFrom, formatOf } = await import('../lib/studio.js');
+  assert.equal(hasDrawnFrom('## Hook\n…\n\nDrawn from: [[Atomic Habits]], [[Identity-Based Habits]]'), true);
+  assert.equal(hasDrawnFrom('## Hook\n…\n\ndrawn from: nothing related in the vault yet'), true, 'saying the vault had nothing is honest and allowed');
+  assert.equal(hasDrawnFrom('## Hook\n…\n\nSources: none'), false);
+  assert.equal(formatOf('---\ntype: idea\nformat: long\n---\n# Idea\nformat: short appears in the body'), 'long', 'frontmatter wins over body text');
+  assert.equal(formatOf('# No frontmatter\nformat: short'), null, 'no frontmatter → no guess');
+  assert.equal(formatOf(''), null);
+});

@@ -1,4 +1,5 @@
 import { readFile, writeFile, mkdir, rename, readdir, stat } from 'node:fs/promises';
+import { monthlyWindowOpen } from './cadence.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,15 +19,23 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
 const STATE_PATH = () => path.join(dataRoot(), 'guardian.json');
 
-// Every root-level JSON store — the check claimed "all stores parse clean"
-// while reading only 4 of ~13. Absent files are skipped (stores appear on
-// first use), so listing generously is safe.
-const STORE_FILES = [
-  'inbox.json', 'dispatch.json', 'compost.json', 'todoist-sync.json',
-  'guardian.json', 'push.json', 'push-keys.json', 'calendar-prefs.json',
-  'workout-carryovers.json', 'daily-review.json', 'heartbeat.json',
-  'inbox-config.json', 'session-draft.json',
-];
+// Every JSON store is FOUND, not listed. A hand list claimed "all stores
+// parse clean" while reading 4 of ~13, was widened to 13, and had rotted
+// again to ~20 by the August audit. Now the check enumerates *.json at the
+// data root plus one level under money/ and health/; quarantined files and
+// write temps are excluded. An absent dir is fine (stores appear on first use).
+const STORE_SUBDIRS = ['money', 'health', 'distill'];
+const STORE_SKIP = /\.corrupt-|\.tmp$|^\./;
+export async function listStoreFiles(root = dataRoot()) {
+  const out = [];
+  const files = await readdir(root).catch(() => []);
+  for (const f of files) if (f.endsWith('.json') && !STORE_SKIP.test(f)) out.push(path.join(root, f));
+  for (const sub of STORE_SUBDIRS) {
+    const dir = path.join(root, sub);
+    for (const f of await readdir(dir).catch(() => [])) if (f.endsWith('.json') && !STORE_SKIP.test(f)) out.push(path.join(dir, f));
+  }
+  return out;
+}
 const SKIP_DIRS = new Set(['.obsidian', '.git', 'node_modules', '.trash']);
 
 function pad(n) {
@@ -146,15 +155,15 @@ async function checkStores() {
   const quarantined = rootFiles.filter((f) => f.includes('.corrupt-'));
   if (quarantined.length) problems.push(`quarantined: ${quarantined.join(', ')}`);
 
-  for (const f of STORE_FILES) {
-    const full = path.join(dataRoot(), f);
-    if (!existsSync(full)) continue; // stores appear on first use
+  const storeFiles = await listStoreFiles();
+  for (const full of storeFiles) {
     try {
       JSON.parse(await readFile(full, 'utf8'));
     } catch {
-      problems.push(`${f} does not parse`);
+      problems.push(`${path.relative(dataRoot(), full)} does not parse`);
     }
   }
+  notes.push(`${storeFiles.length} store${storeFiles.length === 1 ? '' : 's'} parsed`);
 
   try {
     const items = await listRecords();
@@ -271,6 +280,14 @@ async function checkHealthFeed() {
 /* -------------------------------- runs ----------------------------------- */
 
 const WORST = { ok: 0, warn: 1, alert: 2 };
+
+// The checks whose status got worse than in the previous report (a new
+// report against nothing counts every non-ok check). Pure, exported for the test.
+export function worsenedChecks(report, lastReport) {
+  const worst = { ok: 0, warn: 1, alert: 2 };
+  const prev = new Map((lastReport?.checks || []).map((c) => [c.id, c.status]));
+  return (report?.checks || []).filter((c) => (worst[c.status] || 0) > (worst[prev.get(c.id) || 'ok'] || 0));
+}
 
 export async function runGuardian(vaultPath) {
   const checks = [];
@@ -443,10 +460,12 @@ async function tick(vaultPath) {
       // doesn't re-fire daily. Warns count too — a quiet health feed is
       // exactly the thing worth hearing about the day it happens, not
       // discovering days later ("Nova doesn't know yesterday's steps").
-      const worst = { ok: 0, warn: 1, alert: 2 };
-      if (worst[report.status] > worst[lastReport?.status || 'ok']) {
-        const failing = report.checks.find((c) => c.status === report.status);
-        const body = failing?.detail || 'An integrity check degraded.';
+      // PER CHECK, not just the roll-up: a second check worsening while the
+      // first was already red used to be silent (the overall status had not
+      // changed). Any check that got worse than its predecessor speaks.
+      const worsened = worsenedChecks(report, lastReport);
+      if (worsened.length) {
+        const body = worsened.map((c) => `${c.label}: ${c.detail}`).join(' · ').slice(0, 300);
         import('./push.js').then(({ sendPush }) => sendPush({
           title: report.status === 'alert' ? 'Guardian ALERT — Nova' : 'Guardian — Nova noticed something',
           body,
@@ -464,7 +483,8 @@ async function tick(vaultPath) {
     console.error('guardian check failed:', err.message);
   }
   try {
-    if (new Date().getDate() === 1) await runGuardianReport(vaultPath);
+    // the 1st onward — a slept 1st used to cost the whole month's report; monthlyRecordExists keeps it to one
+    if (monthlyWindowOpen(new Date())) await runGuardianReport(vaultPath);
   } catch (err) {
     console.error('guardian report failed:', err.message);
   }

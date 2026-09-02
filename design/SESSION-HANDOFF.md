@@ -343,8 +343,31 @@ DONE CRITERIA:
   (confidence low) instead of stamped with today's date; 20.4 workDir
   cleanup was already there. 21.1 (any-day catch-up) and 21.4 (14d expiry)
   were in; 21.3 the off ramp — three empty closed months pause the report
-  (cfoPaused, heartbeat note; force still drafts). Next in roster: [22]
-  Guardian §6.
+  (cfoPaused, heartbeat note; force still drafts). [22] Guardian §6 — MET (3 Sep): 1 (loop watch from
+  the roster) and 5 (yesterday-partial twin) were Tier 1/2; built now: 2
+  stores are FOUND, not listed — every *.json at the data root plus one
+  level under money/, health/, distill/ (temps and quarantines excluded;
+  the hand list had rotted twice); 3 per-check degradation — any check
+  worse than its predecessor notifies (worsenedChecks), not just a worsened
+  roll-up; 4 the monthly report catches up any day from the 1st; 6 the
+  restore undo routes round-trip on a scratch vault (both 'restore' and
+  'restore-created'). [23] Commander §6 — MET: 3 (dismiss on the receipt)
+  was already so; 2 TASK_HINTS replayed on his real calendar — 744 events,
+  4 task labels, zero false positives — and now lives on the server
+  (lib/followUps.js) with a test pinning the client's list identical; 1 the
+  server-side follow-up sweep: evening (≥19:00) files pending 'followup'
+  records for today's task events, morning (07–11) asks once about
+  yesterday's leftovers; dedupe by key against any follow-up record and
+  open to-dos; the client's live proposal stands down when a record exists
+  (same records rail); registered in index.js and the ops roster
+  ('followups'). [24] Researcher §6 — already MET (citation
+  integrity, settle watchdog, retry keeps the model — all shipped 2 Sep).
+  [25] Studio §6 — MET (3 Sep): 2 (watchdog) was in; built now: 1 the
+  Drawn-from contract is enforced like the Researcher's citation gate — an
+  outline that names no sources (or does not say the vault had nothing) is
+  an error with the retry, not a draft; 3 the idea's format is read from
+  frontmatter (formatOf) instead of a regex over the raw page. Next in
+  roster: [26] Distiller §6.
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised

@@ -40,6 +40,7 @@ import { startFoodSuggestScheduler } from './lib/foodSuggest.js';
 import { startTrainingCheckScheduler } from './lib/trainingCheck.js';
 import { startCoachCadenceScheduler } from './lib/coachCadence.js';
 import { startCoachReflectionScheduler } from './lib/coachReflection.js';
+import { startFollowUpScheduler } from './lib/followUps.js';
 import { startWeekPlanScheduler } from './lib/weekPlan.js';
 import { startHealthDropsScheduler } from './lib/healthDrops.js';
 import { snapshotRouter } from './routes/snapshot.js';
@@ -250,6 +251,7 @@ async function main() {
 
   startHealthInsightScheduler(process.env.VAULT_PATH);
   startCoachReflectionScheduler(process.env.VAULT_PATH);
+  startFollowUpScheduler(process.env.VAULT_PATH); // calendar "did it happen?" — evening for today, morning for yesterday
   startDispatchScheduler(process.env.VAULT_PATH);
   startCompostScheduler(process.env.VAULT_PATH);
   startTodoistScheduler(process.env.VAULT_PATH);
