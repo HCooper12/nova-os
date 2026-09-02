@@ -48,3 +48,40 @@ test('degrees counts links per star, ignoring links past the cap', () => {
   assert.deepEqual(degrees(4, [[0, 1], [0, 2], [1, 2], [3, 9]]), [2, 2, 2, 1]);
   assert.deepEqual(forceLayout(0, [], { width: 10, height: 10 }), []);
 });
+
+// ---- the view: pinch-zoom + pan ----
+import { clampView, zoomAt, panBy, toWorld, recencyAlpha, GALAXY_ZOOM_MAX } from '../../src/galaxyLayout.js';
+
+const box = { width: 300, height: 400 };
+
+test('zoomAt keeps the world point under the fingers fixed, and clamps to the range', () => {
+  const v0 = { s: 1, tx: 0, ty: 0 };
+  const v1 = zoomAt(v0, 2, 100, 150, box);
+  assert.equal(v1.s, 2);
+  const w = toWorld(v1, 100, 150);
+  assert.ok(Math.abs(w.x - 100) < 1e-9 && Math.abs(w.y - 150) < 1e-9, 'the point under the pinch does not move');
+  const far = zoomAt(v1, 100, 100, 150, box);
+  assert.equal(far.s, GALAXY_ZOOM_MAX, 'zoom is capped');
+  const back = zoomAt(far, 0.0001, 10, 10, box);
+  assert.deepEqual(back, { s: 1, tx: 0, ty: 0 }, 'zooming out lands exactly on the unpanned 1× view');
+});
+
+test('panBy cannot lose the graph: no panning at 1×, and the world always covers the box', () => {
+  assert.deepEqual(panBy({ s: 1, tx: 0, ty: 0 }, 50, -30, box), { s: 1, tx: 0, ty: 0 });
+  const zoomed = zoomAt({ s: 1, tx: 0, ty: 0 }, 2, 150, 200, box); // centred 2×
+  const dragged = panBy(zoomed, 10_000, 10_000, box);
+  assert.deepEqual(dragged, { s: 2, tx: 0, ty: 0 }, 'left/top edge of the world stops at the box edge');
+  const other = panBy(zoomed, -10_000, -10_000, box);
+  assert.deepEqual(other, { s: 2, tx: -300, ty: -400 }, 'right/bottom edge of the world stops at the box edge');
+  assert.deepEqual(clampView({ s: 0.2, tx: 5, ty: 5 }, box), { s: 1, tx: 0, ty: 0 });
+});
+
+test('recencyAlpha: this week bright, older dimmer, undated dim without pretending', () => {
+  const now = Date.parse('2026-09-02T12:00:00Z');
+  assert.equal(recencyAlpha('2026-09-01', now), 1);
+  assert.equal(recencyAlpha('2026-08-10', now), 0.8);
+  assert.equal(recencyAlpha('2026-07-01', now), 0.55);
+  assert.equal(recencyAlpha('2025-01-01', now), 0.3);
+  assert.equal(recencyAlpha(null, now), 0.4);
+  assert.equal(recencyAlpha('not a date', now), 0.4);
+});

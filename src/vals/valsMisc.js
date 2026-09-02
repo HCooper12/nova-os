@@ -1,5 +1,5 @@
 import { getConnection } from '../api.js';
-import { GALAXY_MAX_NODES } from '../galaxyLayout.js';
+import { GALAXY_MAX_NODES, toWorld } from '../galaxyLayout.js';
 import { orbReply } from '../mockAssistants.js';
 import { NOTE_TYPE_COLOR, mono } from './shared.js';
 import { speechRecognitionSupported } from '../useDictation.js';
@@ -51,12 +51,37 @@ export function valsMisc(app, ctx) {
       ? `${GALAXY_MAX_NODES} OF ${st.liveGraph.nodes.length} STARS · ${st.liveGraph.links.length} LINKS` // the cap, said out loud
       : `${st.liveGraph.nodes.length} STARS · ${st.liveGraph.links.length} LINKS`)
     : '385 STARS · 1,227 LINKS · DEMO';
+  // LEGEND CHIPS ARE FILTERS — tap a type to fade the others (the smallest
+  // honest version of Obsidian's filter panel); tap it again to clear.
+  const galaxyTypes = st.galaxyTypes; // null = everything
+  const toggleType = (type) => {
+    const cur = st.galaxyTypes;
+    const next = !cur ? [type] : cur.includes(type) ? cur.filter((t) => t !== type) : [...cur, type];
+    app.setState({ galaxyTypes: next.length ? next : null });
+  };
+  const legendItem = (type, label, color) => ({ label, color, type, active: !galaxyTypes || galaxyTypes.includes(type), toggle: () => toggleType(type) });
   const galaxyLegend = liveGraphOn
-    ? Object.entries(NOTE_TYPE_COLOR).filter(([t]) => t !== 'raw').map(([t, color]) => ({ label: NOTE_TYPE_PLURAL[t] || t + 's', color }))
+    ? Object.entries(NOTE_TYPE_COLOR).filter(([t]) => t !== 'raw').map(([t, color]) => legendItem(t, NOTE_TYPE_PLURAL[t] || t + 's', color))
     : [
-        { label: 'notes', color: 'var(--nv-ink)' }, { label: 'podcasts', color: 'var(--nv-vi)' }, { label: 'recipes', color: 'var(--nv-gold)' },
-        { label: 'training', color: '#5aa87c' }, { label: 'agents', color: 'var(--nv-cy)' },
+        legendItem('note', 'notes', 'var(--nv-ink)'), legendItem('podcast', 'podcasts', 'var(--nv-vi)'), legendItem('recipe', 'recipes', 'var(--nv-gold)'),
+        legendItem('training', 'training', '#5aa87c'), legendItem('agent', 'agents', 'var(--nv-cy)'),
       ];
+  // OVERLAYS — Nova's edge over Obsidian's graph: recency from each page's
+  // own date, and the Compost's live candidates. A review-due overlay is NOT
+  // offered: no due data reaches the app yet, and a chip that never lights
+  // would be a dashboard lie.
+  const compostOpen = st.liveCompost ? (st.liveCompost.proposals || []).filter((p) => p.status === 'open').length : null;
+  const toggleOverlay = (key) => app.setState({ galaxyOverlay: st.galaxyOverlay === key ? null : key });
+  const galaxyOverlays = [
+    { key: 'recency', label: 'RECENCY', on: st.galaxyOverlay === 'recency', disabled: false, toggle: () => toggleOverlay('recency') },
+    {
+      key: 'compost',
+      label: compostOpen == null ? 'COMPOST · NOT LOADED' : `COMPOST · ${compostOpen}`,
+      on: st.galaxyOverlay === 'compost',
+      disabled: compostOpen == null,
+      toggle: () => toggleOverlay('compost'),
+    },
+  ];
 
   // shared with valsChrome (nav count)
   Object.assign(ctx, { shoppingItems });
@@ -248,12 +273,23 @@ export function valsMisc(app, ctx) {
     galaxyRef: app.galaxyRef,
     galaxyClick: (e) => {
       if (!app.gPos) return;
+      if (app.gSkipClick) { app.gSkipClick = false; return; } // the double-tap that reset the view
+      if (app.gMoved) return; // a drag or pinch is not a tap
       const r = e.currentTarget.getBoundingClientRect();
-      const x = e.clientX - r.left, y = e.clientY - r.top;
+      const { x, y } = toWorld(app.gView, e.clientX - r.left, e.clientY - r.top); // screen → world
+      const reach = 16 / app.gView.s; // a finger's worth, in world units
       let hit = null;
-      app.gPos.forEach((p, i) => { if (Math.hypot(p.x - x, p.y - y) < 16) hit = app.gNodes[i]; });
+      app.gPos.forEach((p, i) => { if (Math.hypot(p.x - x, p.y - y) < reach) hit = app.gNodes[i]; });
       app.setState({ galaxySel: hit ? { label: hit.label, type: hit.type.toUpperCase(), desc: hit.desc, color: hit.color, target: hit.target } : null });
     },
+    galaxyPointerDown: (e) => app.galaxyPointerDown(e),
+    galaxyPointerMove: (e) => app.galaxyPointerMove(e),
+    galaxyPointerUp: (e) => app.galaxyPointerUp(e),
+    galaxyZoomed: !!st.galaxyZoomed,
+    galaxyResetView: () => app.galaxyResetView(),
+    galaxyOverlays,
+    galaxyFilterOn: !!galaxyTypes,
+    galaxyClearFilter: () => app.setState({ galaxyTypes: null }),
     galaxySelOn: !!st.galaxySel,
     galaxySelLabel: st.galaxySel ? st.galaxySel.label : '',
     galaxySelType: st.galaxySel ? st.galaxySel.type : '',

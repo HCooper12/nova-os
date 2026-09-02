@@ -1,6 +1,6 @@
 import { Component, createRef, lazy, Suspense } from 'react';
 import { preferMixing } from './audioSession.js';
-import { forceLayout, degrees, GALAXY_MAX_NODES } from './galaxyLayout.js';
+import { forceLayout, degrees, GALAXY_MAX_NODES, zoomAt, panBy, recencyAlpha } from './galaxyLayout.js';
 import { flushSync } from 'react-dom';
 import { recipes, notes, basePlan, reviews, galaxyNamed, galaxyLinks } from './data.js';
 import { css } from './css.js';
@@ -264,6 +264,10 @@ export default class App extends Component {
       if (el && this.state.screen === 'galaxy') this.startGalaxy();
     };
     this.galaxyRef.current = null;
+    // the Galaxy's view (pinch-zoom + pan) lives here, not in state: a gesture
+    // moves it every frame and the whole app must not re-render for that
+    this.gView = { s: 1, tx: 0, ty: 0 };
+    this.gPtrs = new Map();
     this.paletteRef = createRef();
     this.mainRef = createRef();
     this.ivs = [];
@@ -342,7 +346,7 @@ export default class App extends Component {
     foodScanQAPhotos: [], foodScanQANote: '', foodScanAnswer: '',
     barcodeScannerOpen: false,
     noteQuery: '', noteType: 'All', openNoteId: 'n1',
-    galaxySel: null, toast: null, reviewIdx: 0,
+    galaxySel: null, galaxyTypes: null, galaxyOverlay: null, galaxyZoomed: false, toast: null, reviewIdx: 0,
     ctxMenu: null, // the long-press / right-click menu: { x, y, title?, items }
     verdict: null, verdictBusy: false, // A1 — a question answered as a card
     jobTrayOpen: false, // C3 — in-flight work, visible
@@ -4343,7 +4347,7 @@ export default class App extends Component {
         return {
           label: n.title, type, desc: `${type} · ${(n.date || '').slice(0, 10)} · ${deg[i]} link${deg[i] === 1 ? '' : 's'}`, target: 'note:' + n.id,
           color: NOTE_TYPE_COLOR[type] || '#ece5da',
-          bx: laid[i].x, by: laid[i].y, deg: deg[i],
+          bx: laid[i].x, by: laid[i].y, deg: deg[i], id: n.id, date: n.date || null,
           ph: rnd(0, 6.28), sp: rnd(.3, .8), r: base + Math.min(6, Math.sqrt(deg[i]) * 1.1) + rnd(0, .6),
         };
       });
@@ -4364,15 +4368,27 @@ export default class App extends Component {
     const dpr = window.devicePixelRatio || 1;
     const w = cv.clientWidth, h = cv.clientHeight;
     cv.width = w * dpr; cv.height = h * dpr;
-    const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+    const ctx = cv.getContext('2d');
+    this.gBox = { width: w, height: h };
+    this.gWarn = (getComputedStyle(cv).getPropertyValue('--nv-warn') || '').trim() || '#e08383';
     if (!this.gNodes) this.buildGalaxy(w, h);
     this.gPos = [];
+    // wheel zoom needs preventDefault, which React's passive wheel listener
+    // cannot give — so it is a native listener, removed in stopGalaxy
+    this.gWheel = (e) => {
+      e.preventDefault();
+      const r = cv.getBoundingClientRect();
+      this.setGalaxyView(zoomAt(this.gView, Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top, this.gBox));
+    };
+    cv.addEventListener('wheel', this.gWheel, { passive: false });
     const loop = () => {
       // A live-data refresh nulls gNodes to force a rebuild — rebuild inside
       // the frame loop so the swap to fresh graph data is seamless.
       if (!this.gNodes) this.buildGalaxy(w, h);
       const t = performance.now() / 1000;
-      ctx.clearRect(0, 0, w, h);
+      const { s, tx, ty } = this.gView;
+      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
+      ctx.setTransform(dpr * s, 0, 0, dpr * s, dpr * tx, dpr * ty); // world → screen: the view
       this.gDust.forEach(d => { ctx.globalAlpha = .25 + .45 * Math.abs(Math.sin(t * d.sp + d.ph)); ctx.fillStyle = '#ece5da'; ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, 6.29); ctx.fill(); });
       ctx.globalAlpha = 1;
       // the wobble rides on the frozen layout — a few pixels, so clusters stay clusters
@@ -4385,48 +4401,170 @@ export default class App extends Component {
       const selIdx = selLabel ? this.gNodes.findIndex(n => n.label === selLabel) : -1;
       const nbr = new Set();
       if (selIdx >= 0) for (const [a, b] of this.gLinks) { if (a === selIdx) nbr.add(b); else if (b === selIdx) nbr.add(a); }
-      ctx.lineWidth = 1;
+      // FILTERS AND OVERLAYS — what he asked to see. A legend type that is
+      // off fades to a ghost; the recency overlay brightens by the page's
+      // own date; the compost overlay lights the candidates and dims the rest.
+      const types = this.state.galaxyTypes;
+      const typeOn = (n) => !types || types.includes(n.type);
+      const overlay = this.state.galaxyOverlay;
+      const compost = overlay === 'compost' ? this.galaxyCompostSet() : null;
+      const nowMs = Date.now();
+      const starAlpha = (n, i) => {
+        if (!typeOn(n)) return .08;
+        let a = 1;
+        if (overlay === 'recency') a *= recencyAlpha(n.date, nowMs);
+        if (compost) a *= compost.has(i) ? 1 : .3;
+        return a;
+      };
+      ctx.lineWidth = 1 / s; // hairlines stay hairlines at any zoom
       this.gLinks.forEach(l => {
         const lit = selIdx >= 0 && (l[0] === selIdx || l[1] === selIdx);
+        const off = !typeOn(this.gNodes[l[0]]) || !typeOn(this.gNodes[l[1]]);
         ctx.strokeStyle = lit ? this.gNodes[selIdx].color : 'rgba(236,229,218,.13)';
-        ctx.globalAlpha = selIdx >= 0 ? (lit ? .7 : .05) : 1;
+        ctx.globalAlpha = off ? .03 : selIdx >= 0 ? (lit ? .7 : .05) : 1;
         ctx.beginPath(); ctx.moveTo(pos[l[0]].x, pos[l[0]].y); ctx.lineTo(pos[l[1]].x, pos[l[1]].y); ctx.stroke();
       });
       ctx.globalAlpha = 1;
-      // With a real vault (hundreds of stars) labels everywhere are unreadable
-      // — draw them only on small graphs, on the selected star, and on its neighbours.
-      const showLabels = this.gNodes.length <= 80;
-      // In a real vault a hub has dozens of neighbours and their labels pile
-      // into one unreadable heap. Name the selection and its best-connected
-      // neighbours only — the panel already says how many links there are.
-      const labelled = new Set();
-      if (selIdx >= 0) {
-        labelled.add(selIdx);
-        [...nbr].sort((a, b) => (this.gNodes[b].deg || 0) - (this.gNodes[a].deg || 0)).slice(0, 8).forEach(i => labelled.add(i));
-      }
+      // Stars grow with zoom, but slowly — linear scaling turned a 3× view
+      // into confetti. Screen radius = r × (1 + 0.25·(s−1)), expressed in
+      // world units for the transformed context.
+      const rs = (n) => (n.r * (1 + 0.25 * (s - 1))) / s;
+      const vx0 = -tx / s, vx1 = (w - tx) / s, vy0 = -ty / s, vy1 = (h - ty) / s; // the visible world
+      const faintIdx = new Set();
       this.gNodes.forEach((n, i) => {
         const p = pos[i];
         const sel = i === selIdx;
         const isNbr = nbr.has(i);
         const dimmed = selIdx >= 0 && !sel && !isNbr;
-        ctx.globalAlpha = dimmed ? .28 : 1;
-        ctx.shadowColor = n.color; ctx.shadowBlur = dimmed ? 0 : sel ? 26 : 14;
-        ctx.fillStyle = n.color; ctx.beginPath(); ctx.arc(p.x, p.y, sel ? n.r + 2 : n.r, 0, 6.29); ctx.fill();
+        const base = starAlpha(n, i);
+        const faint = dimmed || base < .5;
+        if (faint) faintIdx.add(i);
+        const color = compost && compost.has(i) ? this.gWarn : n.color;
+        const rr = rs(n);
+        ctx.globalAlpha = base * (dimmed ? .28 : 1);
+        ctx.shadowColor = color; ctx.shadowBlur = faint ? 0 : sel ? 26 : 14;
+        ctx.fillStyle = color; ctx.beginPath(); ctx.arc(p.x, p.y, sel ? rr + 2 / s : rr, 0, 6.29); ctx.fill();
         ctx.shadowBlur = 0;
-        if (!dimmed) { ctx.globalAlpha = .18; ctx.beginPath(); ctx.arc(p.x, p.y, n.r + 9, 0, 6.29); ctx.strokeStyle = n.color; ctx.stroke(); }
+        if (!faint) { ctx.globalAlpha = .18 * base; ctx.beginPath(); ctx.arc(p.x, p.y, rr + 9 / s, 0, 6.29); ctx.strokeStyle = color; ctx.stroke(); }
         ctx.globalAlpha = 1;
-        if (showLabels || labelled.has(i)) {
-          ctx.font = '10px "JetBrains Mono", monospace'; ctx.fillStyle = sel ? '#ece5da' : 'rgba(236,229,218,.6)';
-          // kept inside the canvas — a long name near either edge slides in rather than being cut
-          const tw = ctx.measureText(n.label).width;
-          ctx.fillText(n.label, Math.max(6, Math.min(w - 6 - tw, p.x + n.r + 8)), p.y + 3);
-        }
       });
+      // LABELS WITH ROOM. With a real vault (hundreds of stars) labels
+      // everywhere are unreadable, and turning them all on past a zoom
+      // threshold just made a heap at 3×. So: candidates in order of
+      // importance — the selection, its best-connected neighbours, then the
+      // hubs on screen (small graphs and zoomed views only) — placed greedily
+      // in screen space and skipped when they would overlap one already
+      // placed. A zoomed cluster names its hubs; the rest stay stars.
+      const byDeg = (a, b) => (this.gNodes[b].deg || 0) - (this.gNodes[a].deg || 0);
+      const onScreen = (i) => { const p = pos[i]; return p.x >= vx0 && p.x <= vx1 && p.y >= vy0 && p.y <= vy1; };
+      const candidates = [];
+      if (selIdx >= 0) { candidates.push(selIdx); [...nbr].sort(byDeg).slice(0, 8).forEach(i => candidates.push(i)); }
+      if (this.gNodes.length <= 80 || s >= 1.8) {
+        const chosen = new Set(candidates);
+        this.gNodes.map((_, i) => i).filter(i => !chosen.has(i) && !faintIdx.has(i) && onScreen(i)).sort(byDeg).slice(0, 40).forEach(i => candidates.push(i));
+      }
+      ctx.font = `${10 / s}px "JetBrains Mono", monospace`;
+      const lineH = 12 / s;
+      const placed = [];
+      for (const i of candidates) {
+        if (!onScreen(i) && i !== selIdx) continue;
+        const n = this.gNodes[i], p = pos[i];
+        const tw = ctx.measureText(n.label).width;
+        // kept inside the visible canvas — a long name near either edge slides in rather than being cut
+        const x = Math.max(vx0 + 6 / s, Math.min(vx1 - 6 / s - tw, p.x + rs(n) + 8 / s));
+        const y = p.y + 3 / s;
+        const rect = { x0: x, y0: y - lineH, x1: x + tw, y1: y + 2 / s };
+        if (i !== selIdx && placed.some(q => rect.x0 < q.x1 && rect.x1 > q.x0 && rect.y0 < q.y1 && rect.y1 > q.y0)) continue;
+        placed.push(rect);
+        ctx.fillStyle = i === selIdx ? '#ece5da' : 'rgba(236,229,218,.6)';
+        ctx.fillText(n.label, x, y);
+      }
+      // THE HUD, in screen space: what the view is doing, said on the canvas
+      // itself — no React render per frame.
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.font = '9.5px "JetBrains Mono", monospace';
+      const hud = (text, y) => {
+        const tw = ctx.measureText(text).width;
+        ctx.fillStyle = 'rgba(6,7,13,.62)'; ctx.beginPath(); ctx.roundRect(10, y - 11, tw + 12, 16, 5); ctx.fill();
+        ctx.fillStyle = 'rgba(236,229,218,.55)'; ctx.fillText(text, 16, y);
+      };
+      let hudY = h - 14;
+      if (s > 1.01) { hud(`${s.toFixed(1)}× · DOUBLE-TAP RESETS`, hudY); hudY -= 20; }
+      if (overlay === 'recency') hud('RECENCY · BRIGHT = THIS WEEK · DIM = OLD OR UNDATED', hudY);
+      if (compost) {
+        // a type filter can hide candidates — say so rather than claim they are lit
+        const inFilter = types ? [...compost].filter(i => typeOn(this.gNodes[i])).length : compost.size;
+        hud(`${compost.size} COMPOST CANDIDATE${compost.size === 1 ? '' : 'S'}${types ? ` · ${inFilter} IN THIS FILTER` : ' LIT'}`, hudY);
+      }
       this.gRaf = requestAnimationFrame(loop);
     };
     this.gRaf = requestAnimationFrame(loop);
   }
-  stopGalaxy() { if (this.gRaf) { cancelAnimationFrame(this.gRaf); this.gRaf = null; } }
+  stopGalaxy() {
+    if (this.gRaf) { cancelAnimationFrame(this.gRaf); this.gRaf = null; }
+    const cv = this.galaxyRef.current;
+    if (cv && this.gWheel) cv.removeEventListener('wheel', this.gWheel);
+    this.gWheel = null;
+    this.gPtrs.clear();
+  }
+  // Which stars the Compost currently proposes to prune — matched by page id,
+  // else by title; cached on the identity of both inputs so the frame loop
+  // never rebuilds it.
+  galaxyCompostSet() {
+    const src = this.state.liveCompost;
+    if (this.gCompostSrc === src && this.gCompostNodes === this.gNodes) return this.gCompost;
+    const open = (src?.proposals || []).filter((p) => p.status === 'open');
+    const ids = new Set(open.map((p) => p.data?.noteId).filter(Boolean));
+    const titles = new Set(open.map((p) => String(p.title || '').toLowerCase()));
+    const set = new Set();
+    this.gNodes.forEach((n, i) => { if ((n.id && ids.has(n.id)) || titles.has(String(n.label).toLowerCase())) set.add(i); });
+    this.gCompostSrc = src; this.gCompostNodes = this.gNodes; this.gCompost = set;
+    return set;
+  }
+  // ---- the view: pinch-zoom + pan (the arithmetic is galaxyLayout.js's, tested) ----
+  setGalaxyView(view) {
+    this.gView = view;
+    const zoomed = view.s > 1.01;
+    if (zoomed !== this.state.galaxyZoomed) this.setState({ galaxyZoomed: zoomed }); // one render per crossing, not per frame
+  }
+  galaxyResetView() { this.setGalaxyView({ s: 1, tx: 0, ty: 0 }); }
+  galaxyPointerDown(e) {
+    const r = e.currentTarget.getBoundingClientRect();
+    this.gPtrs.set(e.pointerId, { x: e.clientX - r.left, y: e.clientY - r.top });
+    if (this.gPtrs.size === 1) { this.gMoved = false; this.gTravel = 0; }
+    if (this.gPtrs.size === 2) {
+      const [a, b] = [...this.gPtrs.values()];
+      this.gPinch = { dist: Math.hypot(a.x - b.x, a.y - b.y) || 1, s: this.gView.s };
+    }
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* a pointer that does not capture */ }
+  }
+  galaxyPointerMove(e) {
+    const prev = this.gPtrs.get(e.pointerId);
+    if (!prev) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const cur = { x: e.clientX - r.left, y: e.clientY - r.top };
+    this.gPtrs.set(e.pointerId, cur);
+    if (this.gPtrs.size === 2 && this.gPinch) {
+      const [a, b] = [...this.gPtrs.values()];
+      const target = this.gPinch.s * (Math.hypot(a.x - b.x, a.y - b.y) / this.gPinch.dist);
+      this.setGalaxyView(zoomAt(this.gView, target / this.gView.s, (a.x + b.x) / 2, (a.y + b.y) / 2, this.gBox));
+      this.gMoved = true;
+    } else if (this.gPtrs.size === 1) {
+      const dx = cur.x - prev.x, dy = cur.y - prev.y;
+      this.gTravel += Math.hypot(dx, dy);
+      if (this.gTravel > 6) this.gMoved = true; // a drag is not a tap
+      if (this.gView.s > 1) this.setGalaxyView(panBy(this.gView, dx, dy, this.gBox));
+    }
+  }
+  galaxyPointerUp(e) {
+    this.gPtrs.delete(e.pointerId);
+    if (this.gPtrs.size < 2) this.gPinch = null;
+    if (this.gPtrs.size === 0 && !this.gMoved) {
+      const now = performance.now();
+      if (now - (this.gLastTap || 0) < 320 && this.gView.s > 1) { this.galaxyResetView(); this.gSkipClick = true; }
+      this.gLastTap = now;
+    }
+  }
 
   // ---------- helpers ----------
   toastMsg(text) {

@@ -77,8 +77,18 @@ DONE CRITERIA:
   the new binary).
 - Tier 3 #15 Galaxy — MET (`b66093a`). `src/galaxyLayout.js` seeded force
   layout at build time (tested from node), degree-sized stars, selection
-  lights its neighbourhood, honest cap label. Plan items 6–8 (zoom/pan,
-  legend filters, Nova overlays) NOT built.
+  lights its neighbourhood, honest cap label. Plan items 6–8 — MET (2 Sep,
+  after the phone pass): pinch-zoom + one-finger pan (pure view maths in
+  galaxyLayout.js, tested: the star under the fingers stays put, the graph
+  can never be panned out of frame, 1×–6×), wheel zoom on desktop, double-
+  tap or RESET VIEW to return; legend chips are filters (multi-select, CLEAR
+  FILTER); overlays RECENCY (each page's own date → brightness; undated dim,
+  said so) and COMPOST (the live candidates lit in the warn colour, count on
+  the HUD, honest under a filter). Stars scale sub-linearly with zoom;
+  labels are placed greedily without overlap (selection, its 8 best
+  neighbours, then on-screen hubs, ≤40). A REVIEW-DUE overlay is NOT
+  offered: no due data reaches the client (the study lane has none), and a
+  chip that never lights would be a dashboard lie — named gap.
 - Tier 3 #18 per-item remainder — IN PROGRESS. Shipped so far: [17] nudge
   text no longer compounds (`e3b99e4`); [24] citation gate checks integrity
   (every cited number → a Sources entry with a URL) + retry keeps the gate's
@@ -89,9 +99,11 @@ DONE CRITERIA:
   plan 2 Weekly Debrief on the trust ladder + twin notes on every mode
   config (`0d9e899`); [66] plan 3 Telegram voice note → Whisper (Groq first,
   OpenAI fallback, keys from ~/.config/watch/.env) → "Heard: …" → answerAsk
-  (`b06b449`). Remaining carried items are UI-shaped and gated on a
-  phone-width path: [60] Galaxy 6–8, [07] dismiss semantics, [02] review
-  adjustment ✓/✗; the rest is each report's §6 in roster order.
+  (`b06b449`). Phone-width path now exists (devtools emulate). [60]
+  Galaxy 6–8 shipped (see Tier 3 #15). Remaining carried items: [07] plan 2
+  dismiss-with-reason + consumers, [02] plan 7 ask-why-once on a discarded
+  review + the per-adjustment ✓/✗ rows; then each report's §6 in roster
+  order.
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised

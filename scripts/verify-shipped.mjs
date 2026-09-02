@@ -68,6 +68,7 @@ const FEATURES = [
   // a property key, not a function name — the minifier renames functions
   ['Audio · mixing session, generic taps do not claim it', 'novaAudio'],
   ['Galaxy · legend plurals (same commit as the first-visit paint fix)', 'analyses'],
+  ['Galaxy · pinch-zoom + pan, legend filters, recency/compost overlays', 'PINCH TO ZOOM'],
 ];
 
 const SERVER_ROUTES = [

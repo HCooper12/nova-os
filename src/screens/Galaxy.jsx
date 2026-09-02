@@ -1,5 +1,7 @@
 import { css } from '../css.js';
 
+const CHIP = "font:500 9.5px var(--nv-font-mono);letter-spacing:.18em;padding:5px 9px;border-radius:7px;border:1px solid;cursor:pointer;user-select:none";
+
 export function Galaxy({ v }) {
   return (
     <div style={v.wrapGalaxy} data-screen-label="Memory Galaxy">
@@ -13,17 +15,41 @@ export function Galaxy({ v }) {
       </div>
       <div style={css("display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:16px")}>
         <h1 style={css("margin:0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Everything you know, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>connected.</span></h1>
+        {/* legend chips are filters: tap a type to fade the others, tap again to clear */}
         <div style={css("display:flex;flex-wrap:wrap;gap:8px 14px;font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
           {v.galaxyLegend.map((item) => (
-            <span key={item.label} style={css("display:flex;align-items:center;gap:6px")}><span style={{ width: '7px', height: '7px', borderRadius: '50%', background: item.color }}></span>{item.label}</span>
+            <span key={item.label} onClick={item.toggle} title={item.active ? 'tap to show only this type' : 'tap to bring back'}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', userSelect: 'none', opacity: item.active ? 1 : .32, transition: 'opacity .18s' }}>
+              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: item.color }}></span>{item.label}
+            </span>
           ))}
+          {v.galaxyFilterOn && (
+            <span onClick={v.galaxyClearFilter} style={css("cursor:pointer;color:var(--nv-cy);letter-spacing:.14em")}>CLEAR FILTER</span>
+          )}
         </div>
       </div>
+      {/* overlays — recency from the pages' own dates, the Compost's candidates */}
+      <div style={css("display:flex;flex-wrap:wrap;gap:8px;margin-top:12px")}>
+        {v.galaxyOverlays.map((o) => (
+          <span key={o.key} onClick={o.disabled ? undefined : o.toggle}
+            style={{ ...css(CHIP), cursor: o.disabled ? 'default' : 'pointer',
+              color: o.on ? 'var(--nv-cy)' : o.disabled ? 'color-mix(in srgb, var(--nv-ink) 28%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)',
+              borderColor: o.on ? 'color-mix(in srgb, var(--nv-cy) 45%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 12%, transparent)',
+              background: o.on ? 'color-mix(in srgb, var(--nv-cy) 10%, transparent)' : 'transparent' }}>
+            {o.label}
+          </span>
+        ))}
+      </div>
       <div style={v.galaxyBox}>
-        <canvas ref={v.galaxyRef} onClick={v.galaxyClick} style={css("position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair")}></canvas>
-        <div style={css("position:absolute;top:14px;left:16px;font:400 9.5px var(--nv-font-mono);letter-spacing:.18em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent);pointer-events:none")}>CLICK A STAR</div>
+        <canvas ref={v.galaxyRef} onClick={v.galaxyClick}
+          onPointerDown={v.galaxyPointerDown} onPointerMove={v.galaxyPointerMove} onPointerUp={v.galaxyPointerUp} onPointerCancel={v.galaxyPointerUp}
+          style={css("position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair;touch-action:none")}></canvas>
+        {!v.galaxyZoomed && <div style={css("position:absolute;top:14px;left:16px;font:400 9.5px var(--nv-font-mono);letter-spacing:.18em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent);pointer-events:none")}>TAP A STAR · PINCH TO ZOOM</div>}
+        {v.galaxyZoomed && (
+          <span onClick={v.galaxyResetView} style={{ ...css(CHIP), position: 'absolute', top: '10px', right: '14px', color: 'var(--nv-cy)', borderColor: 'color-mix(in srgb, var(--nv-cy) 45%, transparent)', background: 'var(--nv-glass2)' }}>RESET VIEW</span>
+        )}
         {v.galaxySelOn && (
-          <div style={css("position:absolute;right:16px;bottom:16px;width:270px;border:1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent);border-radius:12px;padding:15px 17px;background:var(--nv-glass2);backdrop-filter:blur(14px);box-shadow:0 18px 40px -18px rgba(0,0,0,.9);animation:fadeUp .3s ease-out")}>
+          <div style={css("position:absolute;right:16px;bottom:16px;width:270px;max-width:calc(100% - 32px);border:1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent);border-radius:12px;padding:15px 17px;background:var(--nv-glass2);backdrop-filter:blur(14px);box-shadow:0 18px 40px -18px rgba(0,0,0,.9);animation:fadeUp .3s ease-out")}>
             <div style={css(`font:500 9px var(--nv-font-mono);letter-spacing:.22em;color:${v.galaxySelColor}`)}>{v.galaxySelType}</div>
             <div style={css("margin-top:7px;font:400 19px var(--nv-font-serif)")}>{v.galaxySelLabel}</div>
             <div style={css("margin-top:5px;font-size:12px;color:color-mix(in srgb, var(--nv-ink) 55%, transparent);line-height:1.5")}>{v.galaxySelDesc}</div>
