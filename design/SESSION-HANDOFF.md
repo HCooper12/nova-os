@@ -304,7 +304,18 @@ DONE CRITERIA:
   bug on the first pass (getDay() ordering read Saturday as "after a
   Sunday slot"; Monday-first indices fix it); 5 buildDebriefContext is on
   the gatherContext rail; 6 the third failed compose for a week pushes.
-  Next in roster: [16] Coach Reflection §6.
+  [16] Coach Reflection §6 — MET (3 Sep): 3 was
+  Tier 2 #12; built now: 1 the state round-trip is one pure reader
+  (lastReflectionLine) of the shape the writer now stores — outreach TEXT
+  + `delivered` — the old boolean-as-text ("reached out about: true") is
+  pinned by test; 2 compose-then-deliver: the outreach exists without
+  Telegram as a pending Inbox record (kind coach, journal route, "Coach — a
+  word for tonight"); sent ones leave a spokenLog receipt; 4 the window is
+  03:00–09:00; 5 validator-rejected learnings are counted and noted on the
+  heartbeat for Ops; 6 dedupe against the What Works page — normalised
+  containment either way (isKnownLearning), counted as learningsKnown;
+  fuzzy matching waits for evidence; 7 coachReflection.test.js. Next in
+  roster: [17] Program Review §6.
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised

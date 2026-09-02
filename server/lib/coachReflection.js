@@ -49,20 +49,7 @@ async function buildReflectionContext(vaultPath) {
   // Coach's own nightly outcome, read back. Written every night and read by
   // nothing but itself — so the self-improvement loop never closed and the
   // same lesson was re-learned daily instead of carried forward.
-  await add('last-reflection', async () => {
-    // shape read from the real writer below: {learnings: <count>, outreach:
-    // <string|null>, quietReason: <string|null>, at} — learnings is a NUMBER,
-    // not a list, so it is reported as one.
-    const prev = await loadState();
-    const r = prev?.lastResult;
-    if (!r) return null;
-    const bits = [];
-    if (r.learnings) bits.push(`you raised ${r.learnings} learning${r.learnings === 1 ? '' : 's'} for his approval`);
-    if (r.outreach) bits.push(`you reached out to him about: "${String(r.outreach).slice(0, 160)}"`);
-    if (r.quietReason) bits.push(`you deliberately stayed quiet because: ${String(r.quietReason).slice(0, 160)}`);
-    if (!bits.length) return null;
-    return `YOUR LAST REFLECTION (${prev.lastRun || 'recent'}) — do not repeat it; build on it or find something genuinely new:\n- ${bits.join('\n- ')}`;
-  });
+  await add('last-reflection', async () => lastReflectionLine(await loadState()));
   await add('knowledge', async () => (await import('./coachKnowledge.js')).knowledgeContext(vaultPath));
   await add('goals', async () => (await import('./fitnessGoals.js')).goalsContext(vaultPath));
   await add('analytics', async () => (await import('./trainingAnalytics.js')).analyticsContext(vaultPath));
@@ -102,6 +89,45 @@ Ground everything ONLY in the context below. Never invent numbers or events.
 
 HIS WEEK (deterministic, computed just now):
 ${context}`;
+}
+
+// THE STATE ROUND-TRIP, in one place. The writer used to store
+// `outreach: <boolean sent>` while this reader printed it as the outreach
+// TEXT — so the Coach was told it "reached out to him about: true". The
+// writer now stores the text and a separate `delivered`; this reads exactly
+// that shape and nothing else. Pure, exported for the test.
+export function lastReflectionLine(state) {
+  const r = state?.lastResult;
+  if (!r) return null;
+  const bits = [];
+  if (r.learnings) bits.push(`you raised ${r.learnings} learning${r.learnings === 1 ? '' : 's'} for his approval${r.learningsKnown ? ` (${r.learningsKnown} more were already on his What Works page and were not re-raised)` : ''}`);
+  if (typeof r.outreach === 'string' && r.outreach) bits.push(`you reached out to him about: "${r.outreach.slice(0, 160)}"${r.delivered === 'inbox' ? ' (it waits in his Inbox — Telegram was not configured)' : ''}`);
+  if (r.quietReason) bits.push(`you deliberately stayed quiet because: ${String(r.quietReason).slice(0, 160)}`);
+  if (!bits.length) return null;
+  return `YOUR LAST REFLECTION (${state.lastRun || 'recent'}) — do not repeat it; build on it or find something genuinely new:\n- ${bits.join('\n- ')}`;
+}
+
+// A learning already on his What Works page is not new. Normalised
+// containment either way (the page line inside the insight, or the insight
+// inside the page) — exact-ish on purpose; fuzzy matching waits for a real
+// replay showing near-duplicates slipping through. Pure, exported.
+const norm = (t) => String(t || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+export function isKnownLearning(insight, pageText) {
+  const a = norm(insight);
+  if (a.length < 12) return false;
+  const page = norm(pageText);
+  if (!page) return false;
+  if (page.includes(a)) return true;
+  return String(pageText || '').split('\n').some((line) => { const l = norm(line.replace(/^\s*-\s*(\d{4}-\d{2}-\d{2}\s*—\s*)?/, '')); return l.length >= 24 && a.includes(l); });
+}
+
+// 03:00–09:00, once a day (lastRun guards it): the day's data is complete
+// either way, and the prompt's do-not-cover-the-brief rule handles the
+// later-morning overlap. The old 03:00–05:00 window missed a Mac asleep
+// until six.
+export function reflectionWindowOpen(now = new Date()) {
+  const h = now.getHours();
+  return h >= 3 && h < 9;
 }
 
 // Pure + exported for tests: clamp whatever the model produced into a safe
@@ -164,9 +190,18 @@ export async function runReflection(vaultPath, { force = false } = {}) {
   const context = await buildReflectionContext(vaultPath);
   const reflection = normalizeReflection(await runModel(buildReflectionPrompt(context)));
 
-  // learnings → normal approval-gated proposals on the rails
+  // learnings → normal approval-gated proposals on the rails — minus what
+  // his What Works page already says (read unclipped: it is one file)
   const raised = [];
+  let learningsKnown = 0;
+  let learningsDropped = 0;
+  let playbook = '';
+  try {
+    const { PLAYBOOK_REL } = await import('./coachKnowledge.js');
+    playbook = await readFile(path.join(vaultPath, PLAYBOOK_REL), 'utf8');
+  } catch { playbook = ''; }
   for (const l of reflection.learnings) {
+    if (isKnownLearning(l.insight, playbook)) { learningsKnown++; continue; }
     try {
       const { validateCoachEdit } = await import('./coach.js');
       const { payload, title } = await validateCoachEdit(vaultPath, { action: 'learn', ...l });
@@ -182,32 +217,54 @@ export async function runReflection(vaultPath, { force = false } = {}) {
         createdAt: new Date().toISOString(),
         decision: { route: 'coach-learning', confidence: 'high', title, reason: l.reason || 'nightly reflection', payload },
       }));
-    } catch { /* an invalid learning is dropped, never guessed at */ }
+    } catch { learningsDropped++; /* an invalid learning is dropped, never guessed at — but counted */ }
   }
+  // a validator-rejection streak is visible in Ops, not swallowed
+  try {
+    const { note } = await import('./heartbeat.js');
+    await note('coach-reflection', learningsDropped ? `${learningsDropped} of ${reflection.learnings.length} learnings failed validation last night` : null);
+  } catch { /* the note is optional */ }
 
-  // outreach → ONE Telegram message, coach's voice
-  let sent = false;
+  // outreach → COMPOSED REGARDLESS, then delivered: Telegram when it is
+  // configured (with a spokenLog receipt), else a pending Inbox record so the
+  // conversation exists where he will see it instead of not at all
+  let delivered = null;
   if (reflection.outreach) {
     try {
       const { telegramConfigured, sendTelegramText } = await import('./telegram.js');
-      if (telegramConfigured()) { await sendTelegramText(`Coach — ${reflection.outreach}`); sent = true; }
-    } catch { /* silence over a crash */ }
+      if (telegramConfigured()) {
+        await sendTelegramText(`Coach — ${reflection.outreach}`);
+        delivered = 'telegram';
+        import('./spokenLog.js').then(({ logSpoken }) => logSpoken('coach-outreach', reflection.outreach)).catch(() => {});
+      } else {
+        const { createRecord } = await import('./inboxStore.js');
+        const { randomUUID } = await import('node:crypto');
+        await createRecord({
+          id: randomUUID().slice(0, 8), kind: 'coach', text: 'Coach — a word for tonight', source: 'nova', mode: 'draft', status: 'pending', createdAt: new Date().toISOString(),
+          decision: { route: 'journal', confidence: 'high', title: 'Coach — a word for tonight', reason: reflection.outreach,
+            payload: { text: `Coach reached out: ${reflection.outreach}`, category: 'training', label: 'Coach outreach' } },
+        });
+        delivered = 'inbox';
+      }
+    } catch { /* silence over a crash — the state below still records the text */ }
   }
 
-  await saveState({ ...state, lastRun: today(), lastResult: { learnings: raised.length, outreach: sent, quietReason: reflection.quietReason || null, at: new Date().toISOString() } });
-  return { skipped: false, learningsRaised: raised.length, outreachSent: sent, quietReason: reflection.quietReason || null };
+  await saveState({ ...state, lastRun: today(), lastResult: {
+    learnings: raised.length, learningsKnown, learningsDropped,
+    outreach: reflection.outreach ? reflection.outreach.slice(0, 300) : null, // the TEXT — what the reader prints
+    delivered, quietReason: reflection.quietReason || null, at: new Date().toISOString(),
+  } });
+  return { skipped: false, learningsRaised: raised.length, learningsKnown, learningsDropped, outreachDelivered: delivered, quietReason: reflection.quietReason || null };
 }
 
-// Nightly window: 03:00-05:00, once per day, alongside the other overnight
-// agents (the vault is quiet, the day's data complete).
+// Nightly window: 03:00-09:00 (reflectionWindowOpen), once per day.
 export function startCoachReflectionScheduler(vaultPath) {
   if (process.env.NOVA_COACH_CADENCE === 'off') return;
   const tick = async () => {
     const { beat } = await import('./heartbeat.js');
     beat('coach-reflection');
     try {
-      const h = new Date().getHours();
-      if (h >= 3 && h < 5) await runReflection(vaultPath);
+      if (reflectionWindowOpen(new Date())) await runReflection(vaultPath);
     } catch (err) {
       console.error('coach reflection failed:', err.message);
     }

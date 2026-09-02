@@ -19,7 +19,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 
 const PRINCIPLES_REL = 'Wiki/Health/Coaching Principles.md';
-const PLAYBOOK_REL = 'Wiki/Health/What Works For Hayden.md';
+export const PLAYBOOK_REL = 'Wiki/Health/What Works For Hayden.md'; // exported: the reflection dedupes against the same page
 const CONTEXT_BUDGET = 2600; // chars per page in the prompt — enough to matter, never a flood
 
 export const LEARN_KINDS = ['works', 'avoid', 'nutrition', 'decision'];
