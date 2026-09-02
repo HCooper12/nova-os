@@ -106,3 +106,22 @@ test('a declined autonomy proposal stays quiet for 60 days, then returns only on
   assert.match(back.decision.reason, /You passed on this on \d{1,2} \w{3,4} \("I read them, I just don't tap"\); the number behind it has moved from 16 to 20\./);
   assert.equal((await listRecords()).filter((r) => r.kind === 'autonomy' && r.decision?.payload?.target === 'dispatch-morning').length, 2);
 });
+
+
+test('the Weekly Debrief is on the ladder: its real mode config is read, applied, and undone through the agent-mode rail', async () => {
+  const { getDebriefConfig } = await import('../lib/weeklyDebrief.js');
+  const t = AUTONOMY_TARGETS['weekly-debrief'];
+  assert.ok(t && t.setMode, 'registered and proposable');
+  assert.equal(await t.getMode(), (await getDebriefConfig()).mode);
+  const { destination, undo } = await fileDecision(vault, { route: 'agent-mode', confidence: 'high', title: 'x', reason: 'x', payload: { target: 'weekly-debrief', from: 'draft', to: 'auto' } });
+  assert.match(destination, /Weekly training debrief — mode draft → auto/);
+  assert.equal((await getDebriefConfig()).mode, 'auto');
+  await undoFiling(vault, undo);
+  assert.equal((await getDebriefConfig()).mode, 'draft');
+  // every registered target with a setter reads a real mode
+  for (const [id, target] of Object.entries(AUTONOMY_TARGETS)) {
+    if (!target.setMode) continue;
+    const mode = await target.getMode();
+    assert.ok(typeof mode === 'string' && mode, `${id} has a setter but no readable mode`);
+  }
+});

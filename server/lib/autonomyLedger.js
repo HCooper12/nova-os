@@ -70,6 +70,16 @@ export const AUTONOMY_TARGETS = {
     getMode: async () => (await import('./coach.js')).getReceiptConfig().then((c) => c.mode),
     setMode: async (mode) => (await import('./coach.js')).setReceiptConfig({ mode }),
   },
+  // The Weekly Debrief had an off/draft/auto config all along and was absent
+  // here, so its gate could never earn auto — the registry had drifted from
+  // the configs (the audit's hand-list class, in the trust layer itself).
+  // Every mode-config module now names this registry as the place to join.
+  'weekly-debrief': {
+    label: 'Weekly training debrief',
+    match: (r) => r.kind === 'weekly-debrief',
+    getMode: async () => (await import('./weeklyDebrief.js')).getDebriefConfig().then((c) => c.mode),
+    setMode: async (mode) => (await import('./weeklyDebrief.js')).setDebriefConfig({ mode }),
+  },
 };
 
 // Pure: one target's history → its ledger row. Exported for tests.

@@ -424,6 +424,9 @@ const volumeOf = (session) => Math.round(session.exercises.reduce((v, e) => v + 
 // Session receipts get a mode of their own so the trust ladder can watch
 // (and one day propose changing) how they file — same off/draft/auto ladder
 // as the scheduled agents.
+// REGISTERED IN autonomyLedger.js AUTONOMY_TARGETS ('coach-receipt') — a mode config the
+// trust ladder cannot see can never earn (or lose) autonomy. A new mode-config
+// lane joins the registry in the same commit.
 export const RECEIPT_MODES = ['draft', 'auto'];
 const receiptConfigPath = async () => {
   const path = await import('node:path');

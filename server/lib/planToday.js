@@ -36,6 +36,9 @@ const PLAN_DISALLOWED = [
   'Edit', 'Write',
 ].join(',');
 
+// REGISTERED IN autonomyLedger.js AUTONOMY_TARGETS ('plan-today') — a mode config the
+// trust ladder cannot see can never earn (or lose) autonomy. A new mode-config
+// lane joins the registry in the same commit.
 export const PLAN_MODES = ['off', 'draft', 'auto'];
 const DEFAULTS = { mode: 'draft', hour: 7 };
 

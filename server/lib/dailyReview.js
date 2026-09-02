@@ -43,6 +43,9 @@ const REVIEW_DISALLOWED = [
   'Edit', 'Write',
 ].join(',');
 
+// REGISTERED IN autonomyLedger.js AUTONOMY_TARGETS ('review') — a mode config the
+// trust ladder cannot see can never earn (or lose) autonomy. A new mode-config
+// lane joins the registry in the same commit.
 export const REVIEW_MODES = ['off', 'draft', 'auto'];
 const DEFAULTS = { mode: 'draft', hour: 8 };
 
