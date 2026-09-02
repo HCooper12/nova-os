@@ -476,8 +476,12 @@ function publicEvent(e) { const o = {}; for (const f of PUBLIC_FIELDS) o[f] = e[
 // The calendar's vocabulary for a training event — read by the training
 // check (did today's session happen?) and the week plan (which days train?).
 // Two identical copies had grown; a word added to one and not the other is a
-// session one surface sees and the other misses. Still unvalidated against
-// his real event history ([07] plan 6) — validate here, once, when done.
+// session one surface sees and the other misses. VALIDATED against his real
+// history on 2026-09-02: 736 events over 120 days, 115 matches, every one
+// "Workout" or "Workout / Steps 👟" — zero false positives (the feared
+// "session"/"back" never occur in his calendar), and the only training-
+// looking miss was "Walk Tank 🐶🐾", a dog walk. Left as is, on evidence;
+// twins.test.js pins his real label shapes.
 export const WORKOUT_RE = /\b(gym|workout|training|lift|session|push|pull|legs?|upper|lower|chest|back|shoulders?|cardio)\b/i;
 
 export async function fetchEventsForDay(date = new Date(), { fresh = false } = {}) {

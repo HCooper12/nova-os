@@ -36,6 +36,10 @@ test('ONE Monday: local midnight, every weekday of a week, weeksBack, a date str
 test('WORKOUT_RE lives once, on the calendar, and still reads a session the way both surfaces did', () => {
   for (const label of ['Gym', 'Push day', 'Leg session', 'Upper body', 'cardio 6am']) assert.ok(WORKOUT_RE.test(label), label);
   for (const label of ['Dinner with Sam', 'Dentist', 'Pushkin lecture']) assert.ok(!WORKOUT_RE.test(label), label);
+  // his REAL calendar, replayed 2026-09-02 (736 events / 120 days): the two
+  // labels that train, and the dog walk that must not
+  for (const label of ['Workout', 'Workout / Steps 👟']) assert.ok(WORKOUT_RE.test(label), label);
+  assert.ok(!WORKOUT_RE.test('Walk Tank 🐶🐾'), 'a dog walk is not a session');
 });
 
 test('every aisle the meal-prep list files into is a heading the shopping list renders', () => {

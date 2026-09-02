@@ -61,11 +61,36 @@ export function parseResearchDirective(text) {
   }
 }
 
+// THE CITATION GATE CHECKS INTEGRITY, NOT PRESENCE. It used to pass any brief
+// with one "[1]" anywhere and the word "sources" — six claims and one
+// citation, numbers pointing at nothing, sources with no URL, all filed as
+// "citation-required research". Now every number cited in the body must
+// resolve to a Sources entry, and every entry must carry a URL. Pure.
+export function checkCitations(body) {
+  const text = String(body || '');
+  const at = text.search(/^\s*#{0,3}\s*sources\b/im);
+  const claims = at >= 0 ? text.slice(0, at) : text;
+  const sourcesBlock = at >= 0 ? text.slice(at) : '';
+  const cited = [...new Set([...claims.matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1])))];
+  const entries = new Map(); // number → has a URL
+  for (const line of sourcesBlock.split('\n')) {
+    const m = line.match(/^\s*(?:[-*]\s*)?(?:\[(\d+)\]|(\d+)[.)])\s*(.*)$/);
+    if (!m) continue;
+    entries.set(Number(m[1] || m[2]), /https?:\/\/\S+/i.test(m[3]));
+  }
+  const missing = cited.filter((n) => !entries.has(n));
+  const withoutUrl = [...entries.entries()].filter(([, ok]) => !ok).map(([n]) => n);
+  return { cited, entries: [...entries.keys()], missing, withoutUrl, ok: cited.length > 0 && !missing.length && !withoutUrl.length };
+}
+
 export function normalizeResearch(parsed) {
   const title = String(parsed.title || '').trim().slice(0, 120);
   const body = String(parsed.body || '').trim();
   if (!title || !body) throw new Error('researcher returned an incomplete brief');
-  if (!/\[\d+\]/.test(body) || !/sources/i.test(body)) throw new Error('brief is missing citations — refusing to file unsourced claims');
+  const c = checkCitations(body);
+  if (!c.cited.length || !c.entries.length) throw new Error('brief is missing citations — refusing to file unsourced claims');
+  if (c.missing.length) throw new Error(`brief cites [${c.missing.join('], [')}] but its Sources list has no such entr${c.missing.length === 1 ? 'y' : 'ies'} — refusing to file claims that point at nothing`);
+  if (c.withoutUrl.length) throw new Error(`source${c.withoutUrl.length === 1 ? '' : 's'} [${c.withoutUrl.join('], [')}] carr${c.withoutUrl.length === 1 ? 'ies' : 'y'} no URL — a source he cannot open is not a source`);
   return { title, body };
 }
 
@@ -90,6 +115,9 @@ export async function startResearch(vaultPath, question, { model } = {}) {
     mode: 'draft',
     status: 'classifying', // shows as in-flight in the queue
     createdAt: new Date().toISOString(),
+    // the gate's per-run answer rides the record so a RETRY runs on the model
+    // he chose — it used to fall back to the lane default silently
+    model: model || null,
   });
   runResearchJob(vaultPath, record.id, q, model);
   return record;
@@ -102,7 +130,7 @@ export async function retryResearch(vaultPath, record) {
   if (!q) throw new Error('this research record has no question to re-run');
   if (!laneEnabled('researcher')) throw laneOffError('researcher');
   const updated = await updateRecord(record.id, { status: 'classifying', error: null });
-  runResearchJob(vaultPath, record.id, q);
+  runResearchJob(vaultPath, record.id, q, record.model || undefined);
   return updated;
 }
 

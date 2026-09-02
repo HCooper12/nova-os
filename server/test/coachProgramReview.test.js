@@ -220,3 +220,26 @@ test('a finding he argued down does not return under next week\'s key — until 
   assert.equal(out.raised.length, 1);
   assert.match(out.raised[0].text, /You passed on this on 3 Aug \("shoulder is grumpy"\); the number behind it has moved from 4 to 6\./);
 });
+
+
+test('the second nudge speaks from the original line — nudges do not compound', async () => {
+  const { raiseProgramFindings, nudgeLine } = await import('../lib/coachProgramReview.js');
+  const day = 86_400_000;
+  const t0 = Date.parse('2026-08-01T08:00:00Z');
+  const rows = [];
+  const store = {
+    listRecords: async () => rows,
+    createRecord: async (r) => { rows.push(r); return r; },
+    updateRecord: async (id, patch) => { Object.assign(rows.find((r) => r.id === id), patch); },
+  };
+  const review = async () => ({ findings: [{ kind: 'stale', key: 'k9', line: 'swap the fly for a press.', fix: null }] });
+  await raiseProgramFindings('/tmp/v', { store, review, now: t0 });
+  assert.equal(rows[0].originalText, 'Coach: swap the fly for a press.');
+  await raiseProgramFindings('/tmp/v', { store, review, now: t0 + 4 * day });
+  assert.match(rows[0].text, /^Still open, sir: swap the fly for a press\./);
+  await raiseProgramFindings('/tmp/v', { store, review, now: t0 + 12 * day }); // NUDGE_DAYS[1] = 7 after the first nudge
+  assert.match(rows[0].text, /^Last time I'll raise it, sir: swap the fly for a press\./);
+  assert.doesNotMatch(rows[0].text, /Still open/, 'the first nudge\'s phrasing must not be inside the second');
+  // a record from before originalText existed still nudges from its text
+  assert.match(nudgeLine({ text: 'Coach: add a row.' }, 1), /^Still open, sir: add a row\./);
+});

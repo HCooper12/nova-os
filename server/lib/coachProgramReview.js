@@ -615,7 +615,10 @@ export function nudgeDue(record, now = Date.now()) {
 }
 
 export function nudgeLine(record, nudge) {
-  const what = String(record.text || 'that change').replace(/^Coach:\s*/, '');
+  // build from the ORIGINAL line, never the last nudge's rewrite — the
+  // rewrites compounded into "Last time I'll raise it, sir: Still open,
+  // sir: …", in the exact voice meant to sound like a coach
+  const what = String(record.originalText || record.text || 'that change').replace(/^Coach:\s*/, '');
   return nudge >= NUDGE_DAYS.length
     ? `Last time I'll raise it, sir: ${what} Tell me to drop it and I will.`
     : `Still open, sir: ${what} Worth a decision before the next block.`;
@@ -674,6 +677,7 @@ export async function raiseProgramFindings(vaultPath, deps = {}) {
         finding: { ...f, line: undefined, fix: undefined },
         fix: f.fix || null,
         text: `Coach: ${line}`,
+        originalText: `Coach: ${line}`, // nudges rewrite text; this stays what was first said
         source: 'coach',
         mode: 'draft',
         status: 'pending',

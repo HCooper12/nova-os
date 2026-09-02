@@ -36,3 +36,22 @@ test('normalize refuses unsourced briefs and incomplete output', () => {
   assert.throws(() => normalizeResearch({ title: 'X', body: 'claims with no citations at all, no sources section' }), /missing citations/);
   assert.throws(() => normalizeResearch({ title: '', body: 'x [1] ## Sources' }), /incomplete/);
 });
+
+
+test('the citation gate checks integrity: every cited number resolves to a source with a URL', async () => {
+  const { checkCitations, normalizeResearch } = await import('../lib/researcher.js');
+  const good = 'Creatine raises strength [1] and is safe long-term [2].\n\n## Sources\n[1] Kreider 2017 — https://example.org/kreider\n[2] ISSN position stand — https://example.org/issn';
+  assert.deepEqual(checkCitations(good), { cited: [1, 2], entries: [1, 2], missing: [], withoutUrl: [], ok: true });
+  assert.equal(normalizeResearch({ title: 'Creatine', body: good }).title, 'Creatine');
+  // a claim pointing at nothing
+  const dangling = good.replace('[2].', '[2]. It also aids sleep [3].');
+  assert.throws(() => normalizeResearch({ title: 'x', body: dangling }), /cites \[3\] but its Sources list has no such entry/);
+  // a source he cannot open
+  const noUrl = good.replace(' — https://example.org/issn', '');
+  assert.throws(() => normalizeResearch({ title: 'x', body: noUrl }), /source \[2\] carries no URL/);
+  // the old shallow pass: one "[1]" and the word "sources" with nothing behind it
+  assert.throws(() => normalizeResearch({ title: 'x', body: 'Claim [1]. See sources below.' }), /missing citations/);
+  // numbered-list sources are read too
+  const numbered = 'Fact [1].\n\nSources\n1. Title — https://example.org/a';
+  assert.equal(checkCitations(numbered).ok, true);
+});
