@@ -18,6 +18,7 @@ import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { boundaryArgs } from './spawnBoundary.js';
 import { settleWatchdog } from './settle.js';
@@ -29,6 +30,13 @@ const MAX_BUDGET_USD = '1.5';
 const MAX_TRANSCRIPTS = 10;       // depth cap — stated in the brief, never silent
 const TRANSCRIPT_CHARS = 6_000;   // per-video excerpt budget for the synthesis prompt
 const INVENTORY_REL = 'design/NOVA-CAPABILITY-INVENTORY.md';
+// Resolved from THIS file, never from process.cwd(): under launchd the
+// server's working directory is nova-os/server, so the cwd-relative read
+// silently missed the file in the one deployment that matters and the
+// capability-diff section — the brief's stated differentiator — ran empty in
+// production, honestly labelled and needlessly so. Exported for the
+// path-discipline test, which asserts it exists from any cwd.
+export const INVENTORY_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', INVENTORY_REL);
 
 function run(bin, args, { timeoutMs = 120_000 } = {}) {
   return new Promise((resolve, reject) => {
@@ -174,7 +182,7 @@ async function runStudyJob(vaultPath, record, { urls, prose }) {
     if (!transcripts.length) throw new Error('no transcripts could be fetched — nothing honest to synthesize from');
 
     let inventory = '(inventory unavailable — make NO Nova-side claims; list their capabilities only)';
-    try { inventory = (await readFile(path.join(process.cwd(), INVENTORY_REL), 'utf8')).slice(0, 9_000); } catch { /* stated in prompt */ }
+    try { inventory = (await readFile(INVENTORY_PATH, 'utf8')).slice(0, 9_000); } catch { /* stated in prompt */ }
 
     const coverage = `enumerated ${items.length} items; transcribed ${transcripts.length} of ${toTranscribe.length} attempted (most recent long-form first; shorts listed but not transcribed)${noCaptions.length ? `; no captions: ${noCaptions.slice(0, 5).join(', ')}` : ''}${failures.length ? `; enumeration gaps: ${failures.join('; ')}` : ''}`;
 

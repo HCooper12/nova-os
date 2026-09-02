@@ -17,7 +17,10 @@ import { fileURLToPath } from 'node:url'; // never URL.pathname — the repo pat
 import path from 'node:path';
 import { weeklyWindowOpen } from './cadence.js';
 
-const STATE_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'coach-cadence.json');
+// honors NOVA_DATA_DIR like every sibling store (the healthInsight precedent)
+// — this was one of three hard-coded paths, so tests with the env override
+// still wrote the REAL data dir
+const STATE_PATH = path.join(process.env.NOVA_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data'), 'coach-cadence.json');
 
 const pad = (n) => String(n).padStart(2, '0');
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };

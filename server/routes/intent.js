@@ -1,5 +1,8 @@
 import { Router } from 'express';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import { routeIntent, LANE_LABEL } from '../lib/intentRouter.js';
+const REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..'); // the same root claudeCodeRouter's 'repo' workspace uses
 
 // The front door — one endpoint behind one input, anywhere in Nova.
 //
@@ -57,7 +60,9 @@ export function intentRouter(vaultPath) {
         out.said = 'Study running — enumerating their whole catalogue, then transcribing and comparing. Nova pings you when the brief lands.';
       } else if (lane === 'code') {
         const { startMessage } = await import('../lib/claudeCode.js');
-        const { jobId, sessionId } = startMessage(process.cwd(), { text });
+        // the repo, resolved from this file — process.cwd() under launchd is
+        // nova-os/server, so a spoken build ran in the wrong directory
+        const { jobId, sessionId } = startMessage(REPO_ROOT, { text });
         out.jobId = jobId; out.sessionId = sessionId;
         out.said = 'Running it as a Claude Code session — watch it on the Code screen.';
       } else if (lane === 'play') {

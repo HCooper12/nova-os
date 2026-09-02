@@ -13,7 +13,10 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url'; // never URL.pathname — repo path has a space
 import path from 'node:path';
 
-const FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'spoken-log.json');
+// honors NOVA_DATA_DIR like every sibling store (the healthInsight precedent)
+// — the third hard-coded path the mechanical sweep found; the item-by-item
+// audit had seen two
+const FILE = path.join(process.env.NOVA_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data'), 'spoken-log.json');
 const CAP = 60;
 
 async function load() {

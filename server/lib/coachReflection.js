@@ -22,7 +22,8 @@ import { settleWatchdog } from './settle.js';
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const MAX_BUDGET_USD = '1.0';
-const STATE_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'coach-reflection.json');
+// honors NOVA_DATA_DIR like every sibling store (the healthInsight precedent)
+const STATE_PATH = path.join(process.env.NOVA_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data'), 'coach-reflection.json');
 const MAX_LEARNINGS = 3;
 
 const pad = (n) => String(n).padStart(2, '0');
