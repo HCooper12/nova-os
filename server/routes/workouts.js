@@ -665,8 +665,11 @@ export function workoutsRouter(vaultPath) {
 
       if (failures.length) {
         // Silent context loss made the Coach blame his logging for a code
-        // failure ("if history is thin, say what to log"). Name what's gone.
-        parts.push(`NOTE — these context sections FAILED to load this turn (an error, NOT thin logging): ${failures.join(', ')}. If one matters to the question, say the data could not be loaded — never tell him to log more because of it.`);
+        // failure ("if history is thin, say what to log"). Name what's gone —
+        // in the fleet's one wording (lib/contextSections.js), which this
+        // lane donated.
+        const { ABSENT_NOTE } = await import('../lib/contextSections.js');
+        parts.push(ABSENT_NOTE(failures.map((label) => ({ label }))));
       }
       res.json({ jobId: startAskCoach(vaultPath, { question, context: parts.join('\n\n') }) });
     } catch (e) {
@@ -682,44 +685,46 @@ export function workoutsRouter(vaultPath) {
       const minutes = Math.min(180, Math.max(10, Number(req.body?.minutes) || 45));
       const note = typeof req.body?.note === 'string' ? req.body.note.trim().slice(0, 300) : '';
 
-      const parts = [];
-      try {
-        parts.push(await profileContext(vaultPath)); // who he is, first
-      } catch { /* optional */ }
-      try {
-        parts.push(await goalsContext(vaultPath));
-      } catch { /* optional */ }
-      try {
-        const { exercises } = await loadExerciseLibrary(vaultPath);
-        parts.push(`Exercise library (use these exact names where possible): ${exercises.map((e) => e.name).join('; ')}`);
-        const { routines, schedule } = await loadRoutines(vaultPath, exercises);
-        const dayKey = (d) => WEEKDAYS[(d.getDay() + 6) % 7];
-        const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-        const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
-        // active-rest is a schedule value, not a routine — name it honestly
-        const dayName = (d) => { const v = schedule?.[dayKey(d)]; return v === 'active-rest' ? 'active rest' : (routines.find((r) => r.id === v)?.name || 'rest'); };
-        parts.push(`Week context — yesterday: ${dayName(yesterday)}, today's program: ${dayName(new Date())}, tomorrow: ${dayName(tomorrow)}.`);
-        const progressions = await computeProgressions(vaultPath, routines).catch(() => ({}));
-        const keys = Object.keys(progressions);
-        if (keys.length) parts.push(`Earned progressions (prefill these when the exercise appears): ${keys.map((k) => `${k} +${progressions[k].delta}${progressions[k].kind === 'weight' ? 'kg' : ' rep'}`).join(', ')}.`);
-      } catch { /* optional */ }
-      try {
-        // the gap the program leaves is RECORDED — a quick session should
-        // reach for the carried-over work first, not guess at it
-        const co = await carryoverContext();
-        if (co) parts.push(co + ' Consider building the session around clearing what is due or overdue.');
-      } catch { /* optional */ }
-      try {
-        const sessions = await loadSessions(vaultPath, { limit: 3 });
-        if (sessions.length) parts.push('Recent sessions:\n' + sessions.map((s) => `- ${s.date} ${s.routineName}: ${s.exercises.map((e) => e.name).join(', ')}`).join('\n'));
-      } catch { /* optional */ }
-      try {
-        const days = await loadRecentDays(7);
-        const latest = [...days].reverse().find((d) => d.hrv != null || d.sleepAsleepMinutes != null);
-        if (latest) parts.push(`Latest recovery: HRV ${latest.hrv ?? '—'}, sleep ${latest.sleepAsleepMinutes ? Math.round(latest.sleepAsleepMinutes / 60 * 10) / 10 + 'h' : '—'} (${latest.date}).`);
-      } catch { /* optional */ }
+      // a section that fails is NAMED to the model; one that is empty says
+      // nothing — these were six optional catches that swallowed both alike
+      const { gatherContext } = await import('../lib/contextSections.js');
+      const { text: context } = await gatherContext([
+        { label: 'profile', load: () => profileContext(vaultPath) }, // who he is, first
+        { label: 'goals', load: () => goalsContext(vaultPath) },
+        { label: 'the program (library, week, progressions)', load: async () => {
+          const out = [];
+          const { exercises } = await loadExerciseLibrary(vaultPath);
+          out.push(`Exercise library (use these exact names where possible): ${exercises.map((e) => e.name).join('; ')}`);
+          const { routines, schedule } = await loadRoutines(vaultPath, exercises);
+          const dayKey = (d) => WEEKDAYS[(d.getDay() + 6) % 7];
+          const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+          const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+          // active-rest is a schedule value, not a routine — name it honestly
+          const dayName = (d) => { const v = schedule?.[dayKey(d)]; return v === 'active-rest' ? 'active rest' : (routines.find((r) => r.id === v)?.name || 'rest'); };
+          out.push(`Week context — yesterday: ${dayName(yesterday)}, today's program: ${dayName(new Date())}, tomorrow: ${dayName(tomorrow)}.`);
+          const progressions = await computeProgressions(vaultPath, routines).catch(() => ({}));
+          const keys = Object.keys(progressions);
+          if (keys.length) out.push(`Earned progressions (prefill these when the exercise appears): ${keys.map((k) => `${k} +${progressions[k].delta}${progressions[k].kind === 'weight' ? 'kg' : ' rep'}`).join(', ')}.`);
+          return out.join('\n\n');
+        } },
+        { label: 'carry-overs', load: async () => {
+          // the gap the program leaves is RECORDED — a quick session should
+          // reach for the carried-over work first, not guess at it
+          const co = await carryoverContext();
+          return co ? co + ' Consider building the session around clearing what is due or overdue.' : null;
+        } },
+        { label: 'recent sessions', load: async () => {
+          const sessions = await loadSessions(vaultPath, { limit: 3 });
+          return sessions.length ? 'Recent sessions:\n' + sessions.map((s) => `- ${s.date} ${s.routineName}: ${s.exercises.map((e) => e.name).join(', ')}`).join('\n') : null;
+        } },
+        { label: 'recovery', load: async () => {
+          const days = await loadRecentDays(7);
+          const latest = [...days].reverse().find((d) => d.hrv != null || d.sleepAsleepMinutes != null);
+          return latest ? `Latest recovery: HRV ${latest.hrv ?? '—'}, sleep ${latest.sleepAsleepMinutes ? Math.round(latest.sleepAsleepMinutes / 60 * 10) / 10 + 'h' : '—'} (${latest.date}).` : null;
+        } },
+      ]);
 
-      res.json({ jobId: startQuickSession(vaultPath, { minutes, note, context: parts.join('\n\n') }) });
+      res.json({ jobId: startQuickSession(vaultPath, { minutes, note, context }) });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

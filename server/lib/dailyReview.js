@@ -1,4 +1,5 @@
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
+import { gatherContext } from './contextSections.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -82,54 +83,57 @@ export async function setReviewConfig(patch) {
 // composers (which already gather health/fuel/training/calendar/money) and
 // adds the coaching-specific specifics the model needs to reason well.
 export async function buildReviewContext(vaultPath, now = new Date()) {
-  const parts = [];
-  const add = (label, fn) => fn().then((v) => v && parts.push(v)).catch(() => {});
+  // a section that FAILS is named to the model, one that is empty says
+  // nothing — the add() used to swallow both the same way, so a crashed money
+  // read became "no money logged" (lib/contextSections.js)
+  const sections = [];
+  const add = (label, load) => sections.push({ label, load });
 
-  await add('profile', () => profileContext(vaultPath));
-  await add('learning', () => preferencesContext(vaultPath)); // what he tends to do
-  await add('standing', async () => (await import('./standing.js')).standingContext(vaultPath)); // what he has SAID
-  await add('morning', async () => `TODAY'S PICTURE (computed now):\n${(await composeDispatch(vaultPath, 'morning', now)).text}`);
-  await add('evening', async () => `HOW TODAY IS GOING:\n${(await composeDispatch(vaultPath, 'evening', now)).text}`);
-  await add('sessions', async () => {
+  add('profile', () => profileContext(vaultPath));
+  add('learning', () => preferencesContext(vaultPath)); // what he tends to do
+  add('standing', async () => (await import('./standing.js')).standingContext(vaultPath)); // what he has SAID
+  add('morning', async () => `TODAY'S PICTURE (computed now):\n${(await composeDispatch(vaultPath, 'morning', now)).text}`);
+  add('evening', async () => `HOW TODAY IS GOING:\n${(await composeDispatch(vaultPath, 'evening', now)).text}`);
+  add('sessions', async () => {
     const s = await loadSessions(vaultPath, { limit: 4 });
     return s.length ? 'RECENT TRAINING:\n' + s.map((x) => `- ${x.date} ${x.routineName}: ${x.exercises.map((e) => `${e.name} ${e.sets.map((y) => `${y.weight}x${y.reps}`).join(',')}`).join(' | ')}`).join('\n') : null;
   });
-  await add('progressions', async () => {
+  add('progressions', async () => {
     const { exercises } = await loadExerciseLibrary(vaultPath);
     const { routines } = await loadRoutines(vaultPath, exercises);
     const prog = await computeProgressions(vaultPath, routines);
     const keys = Object.keys(prog);
     return keys.length ? `EARNED PROGRESSIONS: ${keys.map((k) => `${k} +${prog[k].delta}${prog[k].kind === 'weight' ? 'kg' : ' rep'}`).join(', ')}.` : null;
   });
-  await add('deload', async () => {
+  add('deload', async () => {
     const signal = computeDeloadSignal(await loadRecentDays(7));
     return `RECOVERY/DELOAD SIGNAL: ${signal.advise ? `advise easing — ${signal.reason}` : signal.reason}.`;
   });
-  await add('streaks', async () => {
+  add('streaks', async () => {
     const s = await computeStreaks(vaultPath);
     return `STREAKS: workout ${s.workoutStreak}d, step-goal ${s.stepGoalStreak}d, sleep-goal ${s.sleepGoalStreak}d${s.lastWorkoutDate ? `; last session ${s.lastWorkoutDate}` : ''}.`;
   });
-  await add('todos', async () => {
+  add('todos', async () => {
     const { items } = await listTodos(vaultPath);
     const open = items.filter((t) => !t.checked);
     return open.length ? `OPEN TO-DOS (${open.length}): ${open.slice(0, 8).map((t) => t.text).join('; ')}.` : null;
   });
   // ---- the connections the July sweep found missing ----------------------
-  await add('goals', async () => {
+  add('goals', async () => {
     const { goalsContext } = await import('./fitnessGoals.js');
     return goalsContext(vaultPath); // the review reasons TOWARD these — it never had them
   });
-  await add('carryovers', async () => {
+  add('carryovers', async () => {
     const { carryoverContext } = await import('./workoutCarryover.js');
     return carryoverContext(); // recorded training debt
   });
-  await add('weight', async () => {
+  add('weight', async () => {
     const { weightTrendLine, sleepEfficiencyLine, vo2MaxLine } = await import('./healthData.js');
     const d28 = await loadRecentDays(28);
     return ['BODYWEIGHT: ' + weightTrendLine(d28), sleepEfficiencyLine(d28), vo2MaxLine(d28)].filter(Boolean).join('\n');
   });
-  await add('food-patterns', async () => (await import('./foodPatterns.js')).foodPatternsContext({ days: 21 }));
-  await add('week-ahead', async () => {
+  add('food-patterns', async () => (await import('./foodPatterns.js')).foodPatternsContext({ days: 21 }));
+  add('week-ahead', async () => {
     const { fetchEventsForRange } = await import('./calendar.js');
     const events = await fetchEventsForRange(7);
     if (!events.length) return 'WEEK AHEAD: nothing on the calendar for the next 7 days.';
@@ -139,7 +143,7 @@ export async function buildReviewContext(vaultPath, now = new Date()) {
     return `WEEK AHEAD (${events.length} events over ${byDate.size} days; busiest ${busiest[0]} with ${busiest[1]}): ` +
       [...byDate.entries()].map(([d, n]) => `${d}:${n}`).join(' · ') + '.';
   });
-  await add('library', async () => {
+  add('library', async () => {
     // Resurfacing — the library only compounds if its ideas come back.
     // This used to pick the first and last items by list position, which
     // meant the same two sources every day and everything in the middle
@@ -166,7 +170,7 @@ export async function buildReviewContext(vaultPath, now = new Date()) {
     return `FROM HIS LIBRARY (weave it in ONLY if it genuinely connects to today — an idea he stored, coming back when it matters; ${pick.due} source${pick.due === 1 ? '' : 's'} were due, this is the one):\n`
       + `- [${why}] "${s.title}"${s.author ? ` (${s.author})` : ''} — ideas: ${(s.concepts || []).slice(0, 4).join(', ') || String(s.excerpt || '').slice(0, 80)}${s.provenance === 'researched' ? ' [researched, not read]' : ''}`;
   });
-  await add('money', async () => {
+  add('money', async () => {
     const { getMonthSummary } = await import('./money.js');
     const m = await getMonthSummary();
     if (!m || !m.count) return null;
@@ -174,7 +178,7 @@ export async function buildReviewContext(vaultPath, now = new Date()) {
     const vsPrev = m.prevSpent ? ` (last month $${Math.round(m.prevSpent)})` : '';
     return `MONEY THIS MONTH: $${Math.round(m.spent)} spent${vsPrev}${over.length ? '; ' + over.join(', ') : ''}.`;
   });
-  return parts.join('\n\n');
+  return (await gatherContext(sections)).text;
 }
 
 /* ------------------------------- compose --------------------------------- */

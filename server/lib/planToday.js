@@ -1,4 +1,5 @@
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
+import { gatherContext } from './contextSections.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -74,22 +75,24 @@ export async function setPlanConfig(patch) {
 // Leaner than the review's context on purpose: the plan needs the shape of
 // TODAY (schedule, body, debts, open loops), not the month's trends.
 export async function buildPlanContext(vaultPath, now = new Date()) {
-  const parts = [];
-  const add = (label, fn) => fn().then((v) => v && parts.push(v)).catch(() => {});
+  // a section that FAILS is named to the model, one that is empty says
+  // nothing — the add() used to swallow both the same way (lib/contextSections.js)
+  const sections = [];
+  const add = (label, load) => sections.push({ label, load });
 
-  await add('profile', () => profileContext(vaultPath));
-  await add('standing', async () => (await import('./standing.js')).standingContext(vaultPath));
-  await add('morning', async () => `TODAY'S PICTURE (computed now):\n${(await composeDispatch(vaultPath, 'morning', now)).text}`);
-  await add('carryovers', async () => {
+  add('profile', () => profileContext(vaultPath));
+  add('standing', async () => (await import('./standing.js')).standingContext(vaultPath));
+  add('morning', async () => `TODAY'S PICTURE (computed now):\n${(await composeDispatch(vaultPath, 'morning', now)).text}`);
+  add('carryovers', async () => {
     const { carryoverContext } = await import('./workoutCarryover.js');
     return carryoverContext();
   });
-  await add('todos', async () => {
+  add('todos', async () => {
     const { items } = await listTodos(vaultPath);
     const open = items.filter((t) => !t.checked);
     return open.length ? `OPEN TO-DOS (${open.length}): ${open.slice(0, 12).map((t) => t.text).join('; ')}.` : null;
   });
-  return parts.join('\n\n');
+  return (await gatherContext(sections)).text;
 }
 
 /* ------------------------------- compose --------------------------------- */

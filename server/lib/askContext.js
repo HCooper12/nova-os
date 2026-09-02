@@ -2,6 +2,7 @@ import { composeDispatch } from './dispatch.js';
 import { profileContext } from './profile.js';
 import { preferencesContext } from './learning.js';
 import { standingContext } from './standing.js';
+import { gatherContext } from './contextSections.js';
 
 // The shared first-turn context for every conversational surface (Voice
 // screen, Siri sync ask, Telegram bridge). One builder so the surfaces can
@@ -13,7 +14,9 @@ import { standingContext } from './standing.js';
 // running them together costs nothing in freshness and bounds the wait at
 // the slowest one — while a per-section timeout stops a stalled CalDAV or
 // vault read from holding the whole conversation hostage. A section that
-// times out is simply absent, which the prompts already handle honestly.
+// times out or throws is NAMED to the model (lib/contextSections.js) — it
+// used to be simply absent, and the front door answered "nothing" from a
+// ledger it had not actually read.
 const SECTION_TIMEOUT_MS = 25_000;
 // A SPOKEN ask (Siri, Telegram) is a conversation, not a report: it must
 // come back in seconds. The only slow section is the brief, because it
@@ -22,13 +25,6 @@ const SECTION_TIMEOUT_MS = 25_000;
 // making him stand there. The cheap today-block below always goes, so a
 // fast answer still knows his real numbers.
 const FAST_DISPATCH_TIMEOUT_MS = 6500;
-
-function withDeadline(promise, ms = SECTION_TIMEOUT_MS) {
-  return Promise.race([
-    promise,
-    new Promise((resolve) => setTimeout(() => resolve(null), ms)),
-  ]).catch(() => null);
-}
 
 // Today from local files only — no network, always instant. This is what
 // keeps a fast spoken answer honest about steps, fuel and what's waiting.
@@ -90,12 +86,15 @@ export async function todayLocalContext() {
 // turn; this is the same idea for the PWA ask — today's live numbers plus
 // the platform ledger, both local-disk instant.
 export async function resumedRefreshContext() {
-  const [today, activity, drafts] = await Promise.all([
-    withDeadline(todayLocalContext(), 3000),
-    withDeadline((async () => (await import('./platformActivity.js')).platformActivityContext())(), 3000),
-    withDeadline((async () => (await import('./platformActivity.js')).inboxDigestContext())(), 3000),
-  ]);
-  return [today, activity, drafts].filter((s) => typeof s === 'string' && s.trim()).join('\n\n');
+  // together, on a short leash — and a section that fails is NAMED, not
+  // dropped: a resumed turn answering "nothing" from an unread ledger is the
+  // exact confident wrongness this refresh exists to prevent
+  const { text } = await gatherContext([
+    { label: 'today (local)', load: todayLocalContext },
+    { label: 'the platform ledger (what he gave Nova)', load: async () => (await import('./platformActivity.js')).platformActivityContext() },
+    { label: 'the inbox digest', load: async () => (await import('./platformActivity.js')).inboxDigestContext() },
+  ], { parallel: true, ms: 3000 });
+  return text;
 }
 
 // Turn-1 context costs ~2.4s to assemble (measured), almost all of it the
@@ -114,14 +113,15 @@ export async function buildAskContext(vaultPath, sessionId, { fast = false } = {
   // Order here is the order in the prompt — who he is, what he's said, what
   // today looks like, then the reflective surfaces.
   const sections = [
-    () => profileContext(vaultPath),
-    () => preferencesContext(vaultPath),
-    () => standingContext(vaultPath),
-    async () => (await import('./skills.js')).skillsContext(vaultPath),
-    todayLocalContext,
+    { label: 'profile', load: () => profileContext(vaultPath) },
+    { label: 'learned preferences', load: () => preferencesContext(vaultPath) },
+    { label: 'standing rules', load: () => standingContext(vaultPath) },
+    { label: 'skills', load: async () => (await import('./skills.js')).skillsContext(vaultPath) },
+    { label: 'today (local)', load: todayLocalContext },
     {
+      label: 'the brief',
       ms: fast ? FAST_DISPATCH_TIMEOUT_MS : SECTION_TIMEOUT_MS,
-      run: async () => {
+      load: async () => {
         const [morning, evening] = await Promise.all([
           composeDispatch(vaultPath, 'morning'),
           composeDispatch(vaultPath, 'evening'),
@@ -129,61 +129,56 @@ export async function buildAskContext(vaultPath, sessionId, { fast = false } = {
         return `${morning.text}\n\n${evening.text}`;
       },
     },
-    async () => (await import('./openLoops.js')).openLoopsContext(vaultPath),
+    { label: 'open loops', load: async () => (await import('./openLoops.js')).openLoopsContext(vaultPath) },
     // the shared brain: what the rest of the fleet did lately, off the rails
-    async () => (await import('./fleetContext.js')).fleetContext(),
+    { label: 'fleet activity', load: async () => (await import('./fleetContext.js')).fleetContext() },
     // the front door's ledger: what HE gave the platform (videos, studies,
     // research) — "what was the last video I gave you?" answers from here
-    async () => (await import('./platformActivity.js')).platformActivityContext(),
+    { label: 'the platform ledger (what he gave Nova)', load: async () => (await import('./platformActivity.js')).platformActivityContext() },
     // the drafts themselves — so "open that Fuel draft and read it" works
-    async () => (await import('./platformActivity.js')).inboxDigestContext(),
+    { label: 'the inbox digest', load: async () => (await import('./platformActivity.js')).inboxDigestContext() },
     // self-knowledge: "how do you work?" gets the real architecture
-    async () => (await import('./ops.js')).fleetRosterContext(),
-    async () => (await import('./reminders.js')).remindersContext(),
+    { label: 'the fleet roster', load: async () => (await import('./ops.js')).fleetRosterContext() },
+    { label: 'reminders', load: async () => (await import('./reminders.js')).remindersContext() },
     // the reflective surfaces are for DISCUSSING out loud, not just reading —
     // hand the latest ones to the conversation so "let's talk about the
     // debrief" needs no re-summarising
-    async () => (await import('./weeklyDebrief.js')).latestDebriefContext(),
-    async () => {
+    { label: 'the weekly debrief', load: async () => (await import('./weeklyDebrief.js')).latestDebriefContext() },
+    { label: 'the daily review', load: async () => {
       const { getDailyReviewStatus } = await import('./dailyReview.js');
       const review = await getDailyReviewStatus();
       return review?.today?.text ? `TODAY'S DAILY REVIEW (engage with its specifics if he brings it up):\n${review.today.text}` : null;
-    },
-    async () => {
+    } },
+    { label: 'money this month', load: async () => {
       const { getMonthSummary } = await import('./money.js');
       const m = await getMonthSummary();
       if (!m?.count) return null;
       const top = (m.byCategory || []).sort((a, b) => b.spent - a.spent).slice(0, 3).map((c) => `${c.category} $${Math.round(c.spent)}`);
-      return `Money this month: $${Math.round(m.spent)} spent (last month $${Math.round(m.prevSpent)}); top: ${top.join(', ')}.`;
-    },
-    async () => {
+      return `Money this month: ${Math.round(m.spent)} spent (last month ${Math.round(m.prevSpent)}); top: ${top.join(', ')}.`;
+    } },
+    { label: "the Leader's idea of the day", load: async () => {
       // the Leader's idea of the day — Nova mentions it in the morning brief
       // conversation and can discuss it; the deeper sit-down lives in the
       // Leader's own chat, and Nova should point there for real depth
       const { readLeaderState, todayLead } = await import('./leader.js');
       const t = todayLead(await readLeaderState());
       return t ? `TODAY'S LEADERSHIP IDEA (from the Leader agent — mention it in a morning brief, engage if he raises it, and point him at the Leader chat for the deeper conversation): "${t.title}" — ${t.line}${t.why ? ` (${t.why})` : ''}` : null;
-    },
+    } },
     // THE CEO READS THE ROOM. Coach and the Leader are Nova's own agents,
     // and he expects talking to Nova to BE talking to the whole org — "what
     // did Coach say", "pass this to the Leader". Their real recent
     // exchanges (read from the CLI's own transcripts, never a second store)
     // land here so Nova answers from what was actually said.
-    async () => (await import('./agentSessions.js')).agentConversationContext('coach', 'Coach'),
-    async () => (await import('./agentSessions.js')).agentConversationContext('leader', 'the Leader'),
+    { label: "Coach's recent conversation", load: async () => (await import('./agentSessions.js')).agentConversationContext('coach', 'Coach') },
+    { label: "the Leader's recent conversation", load: async () => (await import('./agentSessions.js')).agentConversationContext('leader', 'the Leader') },
   ];
 
-  const results = await Promise.all(sections.map((section) => {
-    const run = typeof section === 'function' ? section : section.run;
-    const ms = typeof section === 'function' ? SECTION_TIMEOUT_MS : section.ms;
-    let started;
-    try { started = run(); } catch { return null; } // a synchronous throw is just an absent section
-    return withDeadline(Promise.resolve(started), ms);
-  }));
-
-  const text = results.filter((s) => typeof s === 'string' && s.trim()).join('\n\n');
-  // never cache a failed assembly — an empty block would be served as
-  // though it were his context for the next 90 seconds
-  if (text) contextCache = { at: Date.now(), text };
+  // together, on a deadline; a section that throws or times out is NAMED in
+  // the NOTE rather than dropped as if it were empty
+  const { text, failed } = await gatherContext(sections, { parallel: true, ms: SECTION_TIMEOUT_MS });
+  // never cache a failed assembly — an empty block would be served as though
+  // it were his context for the next 90 seconds, and a transient timeout
+  // would stay named for that long instead of being retried
+  if (text && !failed.length) contextCache = { at: Date.now(), text };
   return text;
 }
