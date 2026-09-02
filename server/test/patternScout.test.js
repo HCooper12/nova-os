@@ -93,3 +93,14 @@ test('the skill-backlog route files to the registry and undoes cleanly', async (
   // the other backlog entry from the previous test survives untouched
   assert.match(raw, /Recurring supplement logging/);
 });
+
+// ---- [28] plan 2: his stated reasons ride the discard signal ----
+test('discarded agent drafts are grouped with the reasons he gave, most common first', async () => {
+  const mk = (over) => createRecord({ id: Math.random().toString(36).slice(2, 10), text: 'x', source: 'text', mode: 'auto-high', createdAt: new Date().toISOString(), status: 'filed', ...over });
+  for (let i = 0; i < 3; i++) await mk({ kind: 'coach', source: 'coach', status: 'discarded', discardedAt: new Date().toISOString(), declineReason: 'Too aggressive', text: `c${i}`, decision: { route: 'progression-tune', title: `Tune ${i}`, confidence: 'high', payload: {} } });
+  await mk({ kind: 'coach', source: 'coach', status: 'discarded', discardedAt: new Date().toISOString(), declineReason: 'Not now', text: 'c9', decision: { route: 'progression-tune', title: 'Tune 9', confidence: 'high', payload: {} } });
+  await mk({ kind: 'coach', source: 'coach', status: 'discarded', discardedAt: new Date().toISOString(), text: 'c10', decision: { route: 'progression-tune', title: 'Tune 10', confidence: 'high', payload: {} } });
+  const ctx = await buildScoutContext(vault);
+  assert.match(ctx, /coach ×5 — "Too aggressive" ×3, "Not now" ×1/);
+  assert.match(ctx, /where he said why, aim at that/);
+});

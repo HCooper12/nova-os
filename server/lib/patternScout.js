@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { weeklyWindowOpen } from './cadence.js';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import os from 'node:os';
@@ -58,9 +59,19 @@ export async function buildScoutContext(vaultPath) {
     if (titles.length) parts.push(`MOST RECENT CAPTURES (title per line — look for the same act repeated):\n${titles.join('\n')}`);
     const agentDrafts = recent.filter((r) => r.kind && r.status === 'discarded');
     if (agentDrafts.length) {
+      // his stated WHY rides the signal — a standing-rule proposal aims at the
+      // reason he gave, not the one inferred from a count
       const byKind = {};
-      for (const r of agentDrafts) byKind[r.kind] = (byKind[r.kind] || 0) + 1;
-      parts.push(`AGENT DRAFTS HE DISCARDED (a pattern of discards means an agent is drafting the wrong thing): ${Object.entries(byKind).map(([k, n]) => `${k} ×${n}`).join('; ')}.`);
+      for (const r of agentDrafts) {
+        const k = byKind[r.kind] || (byKind[r.kind] = { n: 0, reasons: {} });
+        k.n += 1;
+        if (r.declineReason) k.reasons[r.declineReason] = (k.reasons[r.declineReason] || 0) + 1;
+      }
+      const line = (kind, k) => {
+        const reasons = Object.entries(k.reasons).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([why, n]) => `"${why}" ×${n}`);
+        return `${kind} ×${k.n}${reasons.length ? ` — ${reasons.join(', ')}` : ''}`;
+      };
+      parts.push(`AGENT DRAFTS HE DISCARDED (a pattern of discards means an agent is drafting the wrong thing; where he said why, aim at that): ${Object.entries(byKind).map(([kind, k]) => line(kind, k)).join('; ')}.`);
     }
     // his no's to THIS lane — a declined proposal used to come back verbatim
     // the next week because nothing carried it into the context
@@ -231,7 +242,8 @@ export function startPatternScoutScheduler(_vaultPath) {
     beat('pattern-scout');
     try {
       const now = new Date();
-      if (now.getDay() !== SCOUT_WEEKDAY || now.getHours() < SCOUT_HOUR) return;
+      // Saturday onward (the Distiller's shape) — a slept Saturday no longer skips the week
+      if (!weeklyWindowOpen(now, { day: SCOUT_WEEKDAY, hour: SCOUT_HOUR })) return;
       // The model-choice gate raises an Inbox card instead of running
       // directly — this is exactly the connect-the-dots-across-the-vault
       // work he asked to be offered Opus for, and nobody is at the keyboard

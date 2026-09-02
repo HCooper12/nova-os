@@ -366,8 +366,24 @@ DONE CRITERIA:
   Drawn-from contract is enforced like the Researcher's citation gate — an
   outline that names no sources (or does not say the vault had nothing) is
   an error with the retry, not a draft; 3 the idea's format is read from
-  frontmatter (formatOf) instead of a regex over the raw page. Next in
-  roster: [26] Distiller §6.
+  frontmatter (formatOf) instead of a regex over the raw page. [26] Distiller §6 — MET (3 Sep): 2 (oldest-first),
+  3 (rollback), 4 (Sat window), 5 (pruner), 6 (test file) were in; built now:
+  1 leave-alone memory — a job records its candidate list; a candidate not
+  among the job's changes was read and left alone and is skipped for 4
+  weeks (leftAloneRecently, from the job files); the cap is said ("8 of 19
+  orphans this pass — the rest queue for next week", title "Distill 8 of
+  19 captures"). [27] Compost §6 — MET: 3 (per-key 90d) and 5 (tests) were
+  in; built now: 1 Compost runs BEHIND the Distiller — an unlinked capture
+  the distiller has not read waits 28 days (two cycles); one it has seen
+  and left alone, or a linked one, composts at 14; 2 the whole idea
+  pipeline is guarded (outlining/scripting stall at 45 days, status-aware
+  wording; resolves 25's flag); 4 the orphan cap is said on the first
+  island ("8 of 23 islands shown"). [28] Pattern Scout §6 — MET: 1
+  (declined context) and 3 (watchdog) were in; built now: 2 discarded
+  agent drafts carry his reasons grouped ("coach ×5 — "Too aggressive" ×3,
+  "Not now" ×1") and the prompt aims at the stated why; 4 the Saturday
+  window is Saturday-onward (weeklyWindowOpen). Next in roster: [29] Trust
+  Ladder §6.
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised

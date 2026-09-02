@@ -48,6 +48,40 @@ const CANDIDATE_SKIP = new Set(['To-Do.md']);
 // page with any [[wikilink]] already participates in the graph and is left
 // alone. The sort was alphabetical while this comment said oldest — with more
 // orphans than the cap, late-alphabet captures could starve indefinitely.
+// LEAVE-ALONE MEMORY. A page the model read and deliberately left alone
+// ("no genuine relations") came straight back as a candidate the next
+// week, and the week after — the same read paid for again. A candidate in a
+// job within `weeks` weeks that is NOT among that job's changes was left
+// alone; it re-enters after the window, when the vault around it may have
+// grown. Derived from the job files — no new store. Pure, exported.
+export const LEAVE_ALONE_WEEKS = 4;
+export function leftAloneRecently(jobs, now = new Date(), weeks = LEAVE_ALONE_WEEKS) {
+  const cutoff = now.getTime() - weeks * 7 * 86_400_000;
+  const out = new Set();
+  for (const job of jobs || []) {
+    if (!job || !Array.isArray(job.candidates) || new Date(job.at || 0).getTime() < cutoff) continue;
+    if (!['ready', 'applied', 'undone'].includes(job.status)) continue;
+    const touched = new Set((job.changes || []).map((c) => c.path));
+    for (const rel of job.candidates) if (!touched.has(rel)) out.add(rel);
+  }
+  return out;
+}
+export async function loadRecentJobs() {
+  let names = [];
+  try { names = (await readdir(jobsDir())).filter((f) => f.endsWith('.json')); } catch { return []; }
+  const jobs = [];
+  for (const f of names) { try { jobs.push(JSON.parse(await readFile(path.join(jobsDir(), f), 'utf8'))); } catch { /* unreadable job */ } }
+  return jobs;
+}
+
+// The candidate SET: the capped list, the true total, and what the memory
+// skipped — so the cap can be said instead of silently biting.
+export async function findCandidateSet(vaultPath, { cap = MAX_TARGETS, skip = new Set() } = {}) {
+  const all = await findCandidates(vaultPath, { cap: Infinity });
+  const eligible = all.filter((c) => !skip.has(c.relPath));
+  return { list: eligible.slice(0, cap), total: eligible.length, skipped: all.length - eligible.length };
+}
+
 export async function findCandidates(vaultPath, { cap = MAX_TARGETS } = {}) {
   const out = [];
   for (const rel of CANDIDATE_DIRS) {
@@ -108,13 +142,14 @@ export async function loadDistillJob(jobId) {
 export async function runDistillation(vaultPath, { force = false, model } = {}) {
   if (model !== undefined && !isGateModel(model)) throw new Error("model must be 'opus' or 'sonnet'");
   if (laneSkipped('distill', 'the weekly distillation')) return { skipped: true, reason: 'lane switched off in Settings' };
+  const leftAlone = leftAloneRecently(await loadRecentJobs());
   const records = await listRecords();
   const cutoff = Date.now() - 6 * 86400e3;
   if (!force && records.some((r) => r.kind === 'distill' && new Date(r.createdAt).getTime() >= cutoff)) {
     return { skipped: true, reason: 'ran this week' };
   }
-  const candidates = await findCandidates(vaultPath);
-  if (!candidates.length) return { skipped: true, reason: 'no unlinked captures' };
+  const { list: candidates, total: candidateTotal, skipped: leftAloneCount } = await findCandidateSet(vaultPath, { skip: leftAlone });
+  if (!candidates.length) return { skipped: true, reason: leftAloneCount ? `no unlinked captures the model has not already read and left alone (${leftAloneCount} on the ${LEAVE_ALONE_WEEKS}-week leave-alone list)` : 'no unlinked captures' };
 
   const jobId = randomUUID().slice(0, 8);
   const workDir = path.join(os.tmpdir(), 'nova-distill', jobId);
@@ -172,7 +207,10 @@ export async function runDistillation(vaultPath, { force = false, model } = {}) 
     // pages left out are said first in the record he reviews
     if (conflicts.length) summary = [conflictNote(conflicts), summary].filter(Boolean).join('\n\n');
 
-    const job = { id: jobId, at: new Date().toISOString(), summary: summary.slice(0, 4000), status: 'ready', changes };
+    // the CAP, said out loud — and the candidate list on the job is the leave-alone memory
+    const capNote = candidateTotal > candidates.length ? `${candidates.length} of ${candidateTotal} orphans this pass — the rest queue for next week.` : '';
+    if (capNote) summary = [capNote, summary].filter(Boolean).join('\n\n');
+    const job = { id: jobId, at: new Date().toISOString(), summary: summary.slice(0, 4000), status: 'ready', changes, candidates: candidates.map((c) => c.relPath) };
     await persistJob(job);
 
     const record = {
@@ -186,7 +224,7 @@ export async function runDistillation(vaultPath, { force = false, model } = {}) 
       decision: {
         route: 'distill-apply',
         confidence: 'high',
-        title: `Distill ${candidates.length} capture${candidates.length === 1 ? '' : 's'} into the graph (${changes.length} file${changes.length === 1 ? '' : 's'} touched)`,
+        title: `Distill ${candidates.length}${candidateTotal > candidates.length ? ` of ${candidateTotal}` : ''} capture${candidateTotal === 1 ? '' : 's'} into the graph (${changes.length} file${changes.length === 1 ? '' : 's'} touched)`,
         reason: summary.slice(0, 300),
         payload: { jobId, paths: changes.map((c) => c.path) },
       },

@@ -72,3 +72,28 @@ test('the old undated dismissedKeys list migrates: the no is honoured and dated 
     await rm(vault, { recursive: true, force: true });
   }
 });
+
+// ---- [27] plans 1, 2, 4: behind the Distiller; the whole idea pipeline; the orphan cap said ----
+test('an unlinked capture the distiller has not read waits 28 days; a linked one composts at 14; an idea stalled in outlining is named at 45', async () => {
+  const { runCompost } = await import('../lib/compost.js');
+  const v = await mkdtemp(path.join(tmpdir(), 'nova-compost-seq-'));
+  await mkdir(path.join(v, 'Wiki/Inbox'), { recursive: true });
+  await mkdir(path.join(v, 'Wiki/Studio/Ideas'), { recursive: true });
+  const daysAgo = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+  await writeFile(path.join(v, 'Wiki/Inbox/Unlinked 20d.md'), `---\ncreated: ${daysAgo(20)}\n---\n# Unlinked\n\nNo wikilinks here yet, twenty days old.\n`, 'utf8');
+  await writeFile(path.join(v, 'Wiki/Inbox/Linked 20d.md'), `---\ncreated: ${daysAgo(20)}\n---\n# Linked\n\nSee [[Somewhere]] — twenty days old.\n`, 'utf8');
+  await writeFile(path.join(v, 'Wiki/Inbox/Unlinked 30d.md'), `---\ncreated: ${daysAgo(30)}\n---\n# Old unlinked\n\nThirty days, never read by the distiller.\n`, 'utf8');
+  await writeFile(path.join(v, 'Wiki/Studio/Ideas/Stalled Outline.md'), `---\ntype: idea\nstatus: outlining\nupdated: ${daysAgo(50)}\n---\n# Stalled\n`, 'utf8');
+  await writeFile(path.join(v, 'Wiki/Studio/Ideas/Fresh Outline.md'), `---\ntype: idea\nstatus: outlining\nupdated: ${daysAgo(35)}\n---\n# Fresh\n`, 'utf8');
+  const { proposals } = await runCompost(v);
+  const keys = proposals.map((p) => p.key);
+  assert.ok(!keys.includes('stale:Wiki/Inbox/Unlinked 20d.md'), 'unread and unlinked at 20 days is next week\'s distillation, not compost');
+  assert.ok(keys.includes('stale:Wiki/Inbox/Linked 20d.md'), 'linked captures keep the 14-day rule');
+  assert.ok(keys.includes('stale:Wiki/Inbox/Unlinked 30d.md'), 'two distill cycles later it is honest compost');
+  const stalled = proposals.find((p) => p.key === 'seed:Stalled Outline.md');
+  assert.ok(stalled, 'an idea stalled in outlining for 50 days is named');
+  assert.match(stalled.detail, /stalled in outlining since/);
+  assert.equal(stalled.data.status, 'outlining');
+  assert.ok(!keys.includes('seed:Fresh Outline.md'), '35 days in outlining is still working, not stalled');
+  await rm(v, { recursive: true, force: true });
+});

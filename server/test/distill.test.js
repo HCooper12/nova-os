@@ -121,3 +121,28 @@ test('settled distillation jobs are pruned after 30 days on the next apply — t
   await assert.rejects(() => undoDistillJob(vault, 'oldjob01'), /keeps its undo for 30 days/);
   await assert.rejects(() => applyDistillJob(vault, 'nope0000'), /file is gone — run distillation again/);
 });
+
+// ---- [26] plans 1 + 2: the leave-alone memory, and a cap that is said ----
+test('leftAloneRecently: a recent job\'s candidate that was not changed is remembered; changed, old, or errored ones are not', async () => {
+  const { leftAloneRecently, findCandidateSet, LEAVE_ALONE_WEEKS } = await import('../lib/distill.js');
+  const now = new Date('2026-09-03T12:00:00');
+  const jobs = [
+    { id: 'j1', at: '2026-08-30T12:00:00', status: 'ready', candidates: ['Wiki/Inbox/A.md', 'Wiki/Inbox/B.md'], changes: [{ path: 'Wiki/Inbox/A.md' }, { path: 'Wiki/log.md' }] },
+    { id: 'j2', at: '2026-07-01T12:00:00', status: 'applied', candidates: ['Wiki/Inbox/C.md'], changes: [] }, // too old
+    { id: 'j3', at: '2026-09-01T12:00:00', status: 'error', candidates: ['Wiki/Inbox/D.md'], changes: [] }, // never ran
+    { id: 'legacy', at: '2026-09-01T12:00:00', status: 'applied', changes: [{ path: 'Wiki/Inbox/E.md' }] }, // no candidate list on record
+  ];
+  assert.equal(LEAVE_ALONE_WEEKS, 4);
+  assert.deepEqual([...leftAloneRecently(jobs, now)], ['Wiki/Inbox/B.md'], 'B was read and left alone last week');
+  assert.deepEqual([...leftAloneRecently(jobs, new Date('2026-10-15T12:00:00'))], [], 'after the window it re-enters');
+  // the set: skip is honoured and the true total survives the cap
+  const dir = await mkdtemp(path.join(tmpdir(), 'nova-distill-set-'));
+  await mkdir(path.join(dir, 'Wiki/Inbox'), { recursive: true });
+  for (const n of ['One', 'Two', 'Three']) await writeFile(path.join(dir, 'Wiki/Inbox', `${n}.md`), `# ${n}\n\nA capture with enough words to be worth weaving into the graph today.\n`, 'utf8');
+  const set = await findCandidateSet(dir, { cap: 1, skip: new Set(['Wiki/Inbox/One.md']) });
+  assert.equal(set.total, 2, 'three orphans, one left alone recently');
+  assert.equal(set.skipped, 1);
+  assert.equal(set.list.length, 1, 'the cap still bites…');
+  assert.ok(set.list[0].relPath !== 'Wiki/Inbox/One.md', '…but never on the left-alone page');
+  await rm(dir, { recursive: true, force: true });
+});

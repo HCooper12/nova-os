@@ -82,7 +82,12 @@ async function persist() {
 
 // Studio's graveyard guard: idea seeds untouched for 30 days deserve one
 // "archive or promote" nudge instead of quietly rotting.
+// The whole idea pipeline is guarded, not just seeds: a seed goes stale at
+// 30 days; an idea stalled in outlining or scripting at 45 (there was work
+// in it — give it longer), with status-aware wording.
 const SEED_STALE_DAYS = 30;
+const PIPELINE_STALE_DAYS = 45;
+const PIPELINE_STATUSES = new Set(['outlining', 'scripting']);
 async function detectStaleSeeds(vaultPath) {
   const dir = path.join(vaultPath, 'Wiki/Studio/Ideas');
   if (!existsSync(dir)) return [];
@@ -99,39 +104,64 @@ async function detectStaleSeeds(vaultPath) {
     } catch {
       continue;
     }
-    if (data.type !== 'idea' || data.status !== 'seed') continue;
+    if (data.type !== 'idea') continue;
+    const status = String(data.status || '').toLowerCase();
+    const inPipeline = PIPELINE_STATUSES.has(status);
+    if (status !== 'seed' && !inPipeline) continue;
     const updatedMs = data.updated ? new Date(data.updated).getTime() : st.mtimeMs;
-    if (updatedMs < cutoff) {
+    const limit = inPipeline ? Date.now() - PIPELINE_STALE_DAYS * 24 * 60 * 60 * 1000 : cutoff;
+    if (updatedMs < limit) {
       out.push({
         type: 'stale-seed',
         key: `seed:${name}`,
         title: name.replace(/\.md$/, ''),
-        detail: `An idea seed untouched since ${data.updated || 'over a month ago'} — archive it, or open it and move it along the pipeline.`,
-        data: { relPath: `Wiki/Studio/Ideas/${name}` },
+        detail: inPipeline
+          ? `An idea stalled in ${status} since ${data.updated || 'over six weeks ago'} — finish the ${status === 'outlining' ? 'outline' : 'script'}, park it, or archive it.`
+          : `An idea seed untouched since ${data.updated || 'over a month ago'} — archive it, or open it and move it along the pipeline.`,
+        data: { relPath: `Wiki/Studio/Ideas/${name}`, status },
       });
     }
   }
   return out;
 }
 
+// COMPOST RUNS BEHIND THE DISTILLER. An unlinked capture the distiller has
+// not read yet is not compost material — it is next week's distillation.
+// A capture the distiller has SEEN and left alone (its leave-alone memory,
+// lib/distill.js) is honest compost at the normal 14 days; an unlinked one
+// it has not read waits two distill cycles (28 days). Linked captures keep
+// the 14-day rule: the graph already has them.
+const UNSEEN_STALE_DAYS = 28;
 async function detectStaleCaptures(vaultPath) {
   const dir = path.join(vaultPath, INBOX_DIR_REL);
   if (!existsSync(dir)) return [];
   const out = [];
   const cutoff = Date.now() - STALE_DAYS * 24 * 60 * 60 * 1000;
+  const unseenCutoff = Date.now() - UNSEEN_STALE_DAYS * 24 * 60 * 60 * 1000;
+  let leftAlone = new Set();
+  try {
+    const { leftAloneRecently, loadRecentJobs } = await import('./distill.js');
+    leftAlone = leftAloneRecently(await loadRecentJobs(), new Date(), 52); // ever seen, this year
+  } catch { /* no memory → the longer rule applies to every unlinked capture */ }
   for (const name of await readdir(dir)) {
     if (!name.endsWith('.md') || name === 'To-Do.md') continue;
     const full = path.join(dir, name);
     const st = await stat(full);
     if (st.isDirectory()) continue;
     let created = null;
+    let linked = true;
     try {
-      created = matter(await readFile(full, 'utf8')).data.created || null;
+      const raw = await readFile(full, 'utf8');
+      created = matter(raw).data.created || null;
+      linked = raw.includes('[[');
     } catch {
       /* unreadable file — skip */
     }
+    const rel = `${INBOX_DIR_REL}/${name}`;
+    const seenByDistiller = leftAlone.has(rel);
     const createdMs = created ? new Date(created).getTime() : st.mtimeMs;
-    if (createdMs < cutoff) {
+    const limit = linked || seenByDistiller ? cutoff : unseenCutoff;
+    if (createdMs < limit) {
       out.push({
         type: 'stale-capture',
         key: `stale:${INBOX_DIR_REL}/${name}`,
@@ -163,11 +193,14 @@ async function detectOrphans(vaultPath) {
     && !p.relPath.startsWith('Wiki/Studio/Ideas') // seeds have their own stale-seed lifecycle
     && (backlinks.get(p.id) || 0) === 0
     && p.links.length === 0);
-  return orphans.slice(0, MAX_ORPHANS).map((p) => ({
+  // the cap is said, on the first island, instead of biting silently
+  const shown = orphans.slice(0, MAX_ORPHANS);
+  const capNote = orphans.length > shown.length ? ` (${shown.length} of ${orphans.length} islands shown — the rest come forward as these clear.)` : '';
+  return shown.map((p, i) => ({
     type: 'orphan',
     key: `orphan:${p.relPath}`,
     title: p.title,
-    detail: `No links in, no links out — an island in the galaxy. Worth linking into the graph, or leaving deliberately.`,
+    detail: `No links in, no links out — an island in the galaxy. Worth linking into the graph, or leaving deliberately.${i === 0 ? capNote : ''}`,
     data: { noteId: p.id, relPath: p.relPath },
   }));
 }
