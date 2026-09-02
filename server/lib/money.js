@@ -32,6 +32,11 @@ const CATEGORY_KEYWORDS = [
 ];
 
 export function categorize(text) {
+  // a merchant he has corrected once is filed his way from then on
+  if (overridesCache) {
+    const key = merchantKey(text);
+    if (key && overridesCache[key]) return overridesCache[key];
+  }
   // statement descriptions carry merchant-processor noise ("UBER *EATS",
   // "SQ *CAFE") — collapse punctuation so keywords match the real merchant
   const t = (text || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ');
@@ -53,13 +58,23 @@ function todayISO() {
 }
 const monthPath = (month) => path.join(MONEY_DIR(), `${month}.json`);
 
+// A month file that will not parse is QUARANTINED (renamed .corrupt-<stamp>,
+// so the next write cannot silently overwrite the evidence) and said out
+// loud on the heartbeat — it used to read exactly like an empty month.
+const corruptMonths = new Set();
+export const listCorruptMonths = () => [...corruptMonths].sort();
 async function readMonth(month) {
-  if (!existsSync(monthPath(month))) return { month, transactions: [] };
+  if (!existsSync(monthPath(month))) return { month, transactions: [], corrupt: corruptMonths.has(month) };
   try {
     const raw = JSON.parse(await readFile(monthPath(month), 'utf8'));
     return { month, transactions: Array.isArray(raw.transactions) ? raw.transactions : [] };
-  } catch {
-    return { month, transactions: [] };
+  } catch (e) {
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    try { await rename(monthPath(month), `${monthPath(month)}.corrupt-${stamp}`); } catch { /* leave it; still report */ }
+    corruptMonths.add(month);
+    console.error(`money: ${month}.json unreadable — quarantined as .corrupt-${stamp} (${e.message})`);
+    import('./heartbeat.js').then(({ note }) => note('money', `${month}.json was unreadable and has been quarantined (.corrupt-${stamp}) — that month's totals are missing until it is restored`)).catch(() => {});
+    return { month, transactions: [], corrupt: true };
   }
 }
 
@@ -148,6 +163,8 @@ export async function setTransactionCategory(id, category) {
     if (t) {
       t.category = category;
       await writeMonth(month, data);
+      // the fix holds for the merchant — the correct-once rail
+      await setMerchantOverride(t.merchant, category).catch(() => {});
       return t;
     }
   }
@@ -170,26 +187,60 @@ export async function listTransactions({ month, sinceMonths } = {}) {
   return all.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 }
 
-export async function getBudgets() {
-  if (!existsSync(CONFIG_PATH())) return {};
+// One config file: budgets AND merchant overrides. Read and written whole,
+// so setting a budget can never wipe an override (or the reverse).
+async function readConfig() {
+  if (!existsSync(CONFIG_PATH())) return { budgets: {}, merchantOverrides: {} };
   try {
-    return JSON.parse(await readFile(CONFIG_PATH(), 'utf8')).budgets || {};
+    const raw = JSON.parse(await readFile(CONFIG_PATH(), 'utf8'));
+    return { budgets: raw.budgets || {}, merchantOverrides: raw.merchantOverrides || {} };
   } catch {
-    return {};
+    return { budgets: {}, merchantOverrides: {} };
   }
+}
+async function writeConfig(cfg) {
+  await mkdir(MONEY_DIR(), { recursive: true });
+  const tmp = CONFIG_PATH() + '.tmp';
+  await writeFile(tmp, JSON.stringify(cfg, null, 2), 'utf8');
+  await rename(tmp, CONFIG_PATH());
+  overridesCache = cfg.merchantOverrides || {};
+}
+
+export async function getBudgets() {
+  return (await readConfig()).budgets;
 }
 
 export async function setBudget(category, amount) {
   if (!CATEGORIES.includes(category)) throw new Error('unknown category');
-  const budgets = await getBudgets();
+  const cfg = await readConfig();
   const value = Math.round(Number(amount));
-  if (value > 0) budgets[category] = value;
-  else delete budgets[category];
-  await mkdir(MONEY_DIR(), { recursive: true });
-  const tmp = CONFIG_PATH() + '.tmp';
-  await writeFile(tmp, JSON.stringify({ budgets }, null, 2), 'utf8');
-  await rename(tmp, CONFIG_PATH());
-  return budgets;
+  if (value > 0) cfg.budgets[category] = value;
+  else delete cfg.budgets[category];
+  await writeConfig(cfg);
+  return cfg.budgets;
+}
+
+// MERCHANT OVERRIDES — the correct-once rail, applied to money. A category he
+// fixes on one transaction holds for that merchant from then on: categorize()
+// consults the overrides before its keywords. Kept in a module cache so the
+// synchronous categorize() (the CSV parser calls it per row) can read it;
+// loadOverrides() refreshes the cache before a parse.
+let overridesCache = null;
+export async function loadOverrides() {
+  overridesCache = (await readConfig()).merchantOverrides;
+  return overridesCache;
+}
+export async function getOverrides() {
+  return loadOverrides();
+}
+export async function setMerchantOverride(merchant, category) {
+  if (!CATEGORIES.includes(category)) throw new Error('unknown category');
+  const key = merchantKey(merchant);
+  if (!key) return null;
+  const cfg = await readConfig();
+  cfg.merchantOverrides[key] = category;
+  await writeConfig(cfg);
+  return { key, category };
 }
 
 /* ----------------------------- subscriptions ----------------------------- */

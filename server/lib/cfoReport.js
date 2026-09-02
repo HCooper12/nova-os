@@ -32,6 +32,19 @@ export async function runCfoReport({ force = false } = {}) {
   const s = await getMonthSummary(month);
 
   const monthLong = prev.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  // THE OFF RAMP. Three closed months with nothing in the ledger is not a
+  // month worth a report — the same "nothing recorded" draft every month is
+  // the drift the audit named. The report pauses (said on the heartbeat) and
+  // resumes the moment a month has a transaction; `force` still runs it.
+  if (!s.count && !force) {
+    const before = [1, 2].map((k) => { const d = new Date(prev); d.setDate(1); d.setMonth(d.getMonth() - k); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; });
+    const earlier = await Promise.all(before.map((m) => getMonthSummary(m).then((x) => x.count).catch(() => 0)));
+    if (cfoPaused(s.count, earlier)) {
+      import('./heartbeat.js').then(({ note }) => note('cfo', `paused — the ledger has been empty for ${monthLong} and the two months before; the report resumes when a transaction lands`)).catch(() => {});
+      return { skipped: true, reason: 'ledger empty three months running — paused until it moves' };
+    }
+  }
+  import('./heartbeat.js').then(({ note }) => note('cfo', null)).catch(() => {});
   const lines = [];
   if (!s.count) {
     lines.push(`**Ledger.** No transactions recorded for ${monthLong} — captures, CSV drops into Money/Imports, and statement scans all feed it.`);
@@ -85,4 +98,10 @@ export function startCfoScheduler() {
   };
   tick();
   setInterval(tick, 6 * 3600_000);
+}
+
+// Pure: the closing month AND the two before it empty → the report pauses.
+// One empty month is a quiet month; three is a ledger nobody is using.
+export function cfoPaused(closingCount, earlierCounts) {
+  return !closingCount && (earlierCounts || []).length >= 2 && earlierCounts.every((n) => !n);
 }

@@ -1,9 +1,10 @@
 import { readFile, readdir, mkdir, rename } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { listTransactions, dedupeKey, categorize } from './money.js';
-import { createRecord, listRecords } from './inboxStore.js';
+import { listTransactions, dedupeKey, categorize, loadOverrides } from './money.js';
+import { createRecord, listRecords, updateRecord } from './inboxStore.js';
 
 // Bank-CSV ingestion — the automatic pipeline. Drop a bank export into the
 // vault's Money/Imports folder (iCloud-synced, so "save to folder" on the
@@ -88,6 +89,7 @@ export function parseBankCsv(raw) {
 
   const transactions = [];
   let skipped = 0;
+  const skippedLines = []; // the first few, so a recurring format quirk is visible on the first approval
   for (const line of lines.slice(start)) {
     const cells = splitCsvLine(line);
     const date = parseDate(cells[idx.date]);
@@ -98,19 +100,30 @@ export function parseBankCsv(raw) {
       const credit = idx.credit !== -1 ? parseAmount(cells[idx.credit]) : null;
       amount = debit != null ? -Math.abs(debit) : credit != null ? Math.abs(credit) : null;
     }
-    if (!date || !desc || amount == null) { skipped++; continue; }
+    if (!date || !desc || amount == null) { skipped++; if (skippedLines.length < 3) skippedLines.push(line.trim().slice(0, 80)); continue; }
     transactions.push({ date, amount, merchant: desc, category: categorize(desc), source: 'import' });
   }
-  return { transactions, skipped };
+  return { transactions, skipped, skippedLines };
 }
 
 /* ------------------------------- the watcher ------------------------------ */
 
+// pending AND error records block a re-scan of the SAME CONTENT of a file — a
+// broken CSV used to spawn a fresh error record every 5-minute tick until the
+// file was removed by hand. Keyed on file + content hash: replacing a broken
+// export with a corrected one re-scans naturally and supersedes the old record.
+async function pendingImportRecords() {
+  const items = await listRecords();
+  const out = new Map();
+  for (const r of items) {
+    if (r.kind !== 'money-import' || !(r.status === 'pending' || r.status === 'error')) continue;
+    const file = r.decision?.payload?.file;
+    if (file) out.set(file, { id: r.id, hash: r.decision?.payload?.contentHash || null, status: r.status });
+  }
+  return out;
+}
 async function pendingImportFiles() {
   const items = await listRecords();
-  // pending AND error records block a re-scan of the same file — a broken CSV
-  // used to spawn a fresh error record every 5-minute tick until the file was
-  // removed by hand. One record per file until it's resolved or discarded.
   return new Set(
     items
       .filter((r) => r.kind === 'money-import' && (r.status === 'pending' || r.status === 'error'))
@@ -126,14 +139,22 @@ export async function scanImports(vaultPath) {
   if (!files.length) return { found: 0, records: [] };
 
   const existing = new Set((await listTransactions({ sinceMonths: 26 })).map(dedupeKey));
-  const alreadyPending = await pendingImportFiles();
+  const alreadyPending = await pendingImportRecords();
+  await loadOverrides().catch(() => {}); // his merchant corrections apply to every row parsed below
   const records = [];
 
   for (const file of files) {
-    if (alreadyPending.has(file)) continue; // one pending record per file, ever
+    const raw = await readFile(path.join(dir, file), 'utf8');
+    const contentHash = createHash('sha256').update(raw).digest('hex').slice(0, 16);
+    const prior = alreadyPending.get(file);
+    if (prior) {
+      if (!prior.hash || prior.hash === contentHash) continue; // the same content already has its record
+      // the file was REPLACED — the old record is superseded with a receipt, and the new content is scanned
+      await updateRecord(prior.id, { status: 'discarded', discardedAt: new Date().toISOString(), declineReason: `superseded — ${file} was replaced with new content` }).catch(() => {});
+    }
     let parsed;
     try {
-      parsed = parseBankCsv(await readFile(path.join(dir, file), 'utf8'));
+      parsed = parseBankCsv(raw);
     } catch (e) {
       records.push(await createRecord({
         id: randomUUID().slice(0, 8),
@@ -144,7 +165,7 @@ export async function scanImports(vaultPath) {
         status: 'error',
         createdAt: new Date().toISOString(),
         error: e.message,
-        decision: { route: 'money-import', confidence: 'low', title: `Import failed — ${file}`, reason: e.message, payload: { file, transactions: [] } },
+        decision: { route: 'money-import', confidence: 'low', title: `Import failed — ${file}`, reason: e.message, payload: { file, contentHash, transactions: [] } },
       }));
       // born-error skips 'pending' so the normal push never fires — but a CSV
       // that won't parse is worth exactly one notification (deduped per file)
@@ -177,8 +198,8 @@ export async function scanImports(vaultPath) {
         route: 'money-import',
         confidence: 'high',
         title,
-        reason: `Parsed from ${IMPORTS_DIR_REL}/${file} — ${fresh.length} new after dedupe (${parsed.transactions.length - fresh.length} already in the ledger${parsed.skipped ? `, ${parsed.skipped} unparseable lines skipped` : ''}). ~$${spend} spend.`,
-        payload: { file, transactions: fresh },
+        reason: `Parsed from ${IMPORTS_DIR_REL}/${file} — ${fresh.length} new after dedupe (${parsed.transactions.length - fresh.length} already in the ledger${parsed.skipped ? `, ${parsed.skipped} unparseable line${parsed.skipped === 1 ? '' : 's'} skipped: ${parsed.skippedLines.map((l) => `'${l}'`).join(' · ')}${parsed.skipped > parsed.skippedLines.length ? ' …' : ''}` : ''}). ~${spend} spend.`,
+        payload: { file, contentHash, transactions: fresh, skippedLines: parsed.skippedLines },
       },
     }));
   }

@@ -325,7 +325,26 @@ DONE CRITERIA:
   on clear lines — the junk-volume check carries a metric on its receipt
   and a ≥20% move or crossing half the headroom appends "— was N last week,
   trending toward the ceiling" (or "easing off"); steady weeks stay silent.
-  Next in roster: [19] Money §6.
+  [19]/[20]/[21] Money family — MET where the data
+  allows (3 Sep). THE LEDGER IS EMPTY: 0 transactions in 14 months, no
+  budgets — so the two detector-tuning items (19.2 subscription gap
+  consistency, 21.2 mid-month pace) have nothing to tune against and are
+  DEFERRED with that reason (build them when a month of data exists; both
+  are pure-arithmetic additions). Built now: 19.1 merchant overrides — a
+  category fix on one transaction holds for the merchant (one config file
+  for budgets + overrides, read/written whole; categorize consults the cache
+  first; the CSV scan loads it before parsing); 19.3 a month file that
+  will not parse is quarantined (.corrupt-<stamp>), said on the heartbeat,
+  never read as an empty month; 19.4 no client copy of the categories
+  exists (checked). 20.1 the import record names the first skipped raw
+  lines; 20.2 the pending/error block keys on file + content hash — a
+  replaced export re-scans and supersedes the old record with a receipt;
+  20.3 a statement-scan row with an unreadable date is DROPPED and named
+  (confidence low) instead of stamped with today's date; 20.4 workDir
+  cleanup was already there. 21.1 (any-day catch-up) and 21.4 (14d expiry)
+  were in; 21.3 the off ramp — three empty closed months pause the report
+  (cfoPaused, heartbeat note; force still drafts). Next in roster: [22]
+  Guardian §6.
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised

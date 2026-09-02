@@ -162,3 +162,67 @@ test('CFO monthly report drafts once per month; FY export covers the AU financia
   assert.ok(fyExport.count >= 1);
   assert.match(fyExport.filename, /nova-money-FY\d{2}-\d{2}\.csv/);
 });
+
+// ---- [19] plan 1: a category fix teaches the merchant ----
+test('merchant override: fixing one transaction files that merchant his way from then on; setBudget keeps the overrides', async () => {
+  const { setTransactionCategory, loadOverrides, getBudgets } = await import('../lib/money.js');
+  const [t] = await addTransactions([{ date: otherDayThisMonth(), amount: -18.5, merchant: 'SQ *ZEPHYR HOLDINGS 88', category: 'Other' }], 'import');
+  assert.equal(categorize('SQ *ZEPHYR HOLDINGS 88'), 'Other', 'no keyword knows this cafe');
+  await setTransactionCategory(t.id, 'Eating Out');
+  await loadOverrides();
+  assert.equal(categorize('SQ *ZEPHYR HOLDINGS 88'), 'Eating Out', 'the fix holds for the merchant');
+  assert.equal(categorize('sq-zephyr HOLDINGS  88'), 'Eating Out', 'case and punctuation do not defeat the key (merchantKey is exact on words)');
+  await setBudget('Eating Out', 250);
+  await loadOverrides();
+  assert.equal(categorize('SQ *ZEPHYR HOLDINGS 88'), 'Eating Out', 'setting a budget did not wipe the override');
+  assert.equal((await getBudgets())['Eating Out'], 250);
+});
+
+// ---- [19] plan 3: a corrupt month is quarantined and said, never read as empty ----
+test('a month file that will not parse is quarantined with its evidence kept, and named', async () => {
+  const { listCorruptMonths } = await import('../lib/money.js');
+  const moneyDir = path.join(dataDir, 'money');
+  await mkdir(moneyDir, { recursive: true });
+  await writeFile(path.join(moneyDir, '2025-02.json'), '{ this is not json', 'utf8');
+  await listTransactions({ sinceMonths: 30 }); // the read that trips over it
+  assert.ok(!existsSync(path.join(moneyDir, '2025-02.json')), 'the broken file is moved aside');
+  const { readdir } = await import('node:fs/promises');
+  assert.ok((await readdir(moneyDir)).some((f) => /^2025-02\.json\.corrupt-/.test(f)), 'the evidence is kept');
+  assert.deepEqual(listCorruptMonths(), ['2025-02']);
+});
+
+// ---- [20] plans 1 + 2: skipped lines are shown; a replaced file supersedes its old record ----
+test('parseBankCsv names the first skipped lines; scanImports re-scans replaced content and supersedes the old record', async () => {
+  const csv = 'Date,Description,Amount\n01/08/2026,WOOLWORTHS 1234,-84.20\nPENDING AUTH — NOT SETTLED\n02/08/2026,,-5.00\n03/08/2026,COLES EXPRESS,-40.00\n';
+  const parsed = parseBankCsv(csv);
+  assert.equal(parsed.skipped, 2);
+  assert.deepEqual(parsed.skippedLines, ['PENDING AUTH — NOT SETTLED', '02/08/2026,,-5.00']);
+  const { listRecords, getRecord } = await import('../lib/inboxStore.js');
+  const dir = path.join(vault, 'Money', 'Imports');
+  await mkdir(dir, { recursive: true });
+  await writeFile(path.join(dir, 'replace-me.csv'), 'Date,Description,Amount\n05/01/2024,FIRST EXPORT SHOP,-10.00\nBROKEN LINE HERE\n', 'utf8');
+  const first = await scanImports(vault);
+  const rec1 = first.records.find((r) => r.decision.payload.file === 'replace-me.csv');
+  assert.ok(rec1, 'a pending record for the file');
+  assert.match(rec1.decision.reason, /1 unparseable line skipped: 'BROKEN LINE HERE'/);
+  assert.ok(rec1.decision.payload.contentHash, 'the content is fingerprinted');
+  const again = await scanImports(vault);
+  assert.ok(!again.records.some((r) => r.decision.payload.file === 'replace-me.csv'), 'the same content is not re-scanned');
+  await writeFile(path.join(dir, 'replace-me.csv'), 'Date,Description,Amount\n05/01/2024,FIRST EXPORT SHOP,-10.00\n06/01/2024,SECOND EXPORT SHOP,-20.00\n', 'utf8');
+  const third = await scanImports(vault);
+  const rec2 = third.records.find((r) => r.decision.payload.file === 'replace-me.csv');
+  assert.ok(rec2 && rec2.id !== rec1.id, 'the corrected export gets a new record');
+  assert.equal((await getRecord(rec1.id)).status, 'discarded', 'the old one is superseded');
+  assert.match((await getRecord(rec1.id)).declineReason, /superseded — replace-me.csv was replaced/);
+  assert.equal((await listRecords()).filter((r) => r.kind === 'money-import' && r.decision?.payload?.file === 'replace-me.csv' && r.status === 'pending').length, 1);
+});
+
+// ---- [21] plan 3: the off ramp — three empty closed months pause the report ----
+test('cfoPaused: the closing month and the two before it empty → pause; any transaction in the three → report', async () => {
+  const { cfoPaused } = await import('../lib/cfoReport.js');
+  assert.equal(cfoPaused(0, [0, 0]), true);
+  assert.equal(cfoPaused(0, [0, 3]), false, 'a ledger that was alive two months ago is not abandoned');
+  assert.equal(cfoPaused(4, [0, 0]), false, 'the closing month has entries — report it');
+  assert.equal(cfoPaused(0, [0]), false, 'not enough history to call it abandoned');
+  assert.equal(cfoPaused(0, []), false);
+});

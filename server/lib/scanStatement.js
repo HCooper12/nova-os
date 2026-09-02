@@ -65,19 +65,31 @@ export function startStatementScan(imagePaths, workDir, note) {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in scan response');
       const parsed = JSON.parse(jsonMatch[0]);
+      // a row whose date cannot be read is DROPPED and named — it used to be
+      // stamped with today's date, a fabricated fact in his ledger
+      const unreadableDates = [];
       const transactions = (Array.isArray(parsed.transactions) ? parsed.transactions : [])
+        .filter((t) => {
+          if (/^\d{4}-\d{2}-\d{2}$/.test(t.date || '')) return true;
+          unreadableDates.push(String(t.merchant || 'a row').trim().slice(0, 40));
+          return false;
+        })
         .map((t) => ({
-          date: /^\d{4}-\d{2}-\d{2}$/.test(t.date || '') ? t.date : new Date().toISOString().slice(0, 10),
+          date: t.date,
           amount: Math.round(Number(t.amount) * 100) / 100,
           merchant: String(t.merchant || '').trim().slice(0, 120),
           category: CATEGORIES.includes(t.category) ? t.category : categorize(t.merchant || ''),
           source: 'scan',
         }))
         .filter((t) => Number.isFinite(t.amount) && t.amount !== 0 && t.merchant);
+      const dateNote = unreadableDates.length
+        ? `${unreadableDates.length} row${unreadableDates.length === 1 ? ' had an' : 's had'} unreadable date${unreadableDates.length === 1 ? '' : 's'} — not filed: ${unreadableDates.slice(0, 3).join(', ')}${unreadableDates.length > 3 ? ' …' : ''}.`
+        : '';
       job.result = {
         transactions,
-        confidence: parsed.confidence === 'low' ? 'low' : 'high',
-        question: parsed.question ? String(parsed.question).trim() : '',
+        confidence: parsed.confidence === 'low' || unreadableDates.length ? 'low' : 'high',
+        question: [parsed.question ? String(parsed.question).trim() : '', dateNote].filter(Boolean).join(' '),
+        unreadableDates,
       };
       job.status = 'ready';
     } catch (e) {
