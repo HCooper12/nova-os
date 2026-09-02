@@ -275,6 +275,7 @@ export const api = {
   leader: (conn) => call(conn, '/api/leader'),
   leaderRun: (conn, kind, force) => post(conn, '/api/leader/run', { kind, force }),
   askLeader: (conn, question, sessionId) => post(conn, '/api/leader/chat', { question, sessionId }),
+  leaderReflect: (conn, body) => post(conn, '/api/leader/reflect', body),
   healthInsight: (conn) => call(conn, '/api/health-insight'),
   streaks: (conn) => call(conn, '/api/streaks'),
   healthData: (conn, days) => call(conn, `/api/health-data${days ? '?days=' + days : ''}`),

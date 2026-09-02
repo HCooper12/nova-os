@@ -7,6 +7,8 @@ import { nf } from './fmt.js';
 // sidebar would be noise).
 
 const fmtMoney = (n) => `$${nf('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(n))}`;
+// the ledger list on screen — the newest this many; the export has the rest
+const MONEY_LIST_CAP = 120;
 
 export function valsMoney(app, ctx) {
   const st = app.state;
@@ -52,7 +54,9 @@ export function valsMoney(app, ctx) {
     };
   });
 
-  const transactions = (money?.transactions || []).slice(0, 120).map((t) => ({
+  // the list shows the newest MONEY_LIST_CAP; the cap is said, never implied
+  const allTransactions = money?.transactions || [];
+  const transactions = allTransactions.slice(0, MONEY_LIST_CAP).map((t) => ({
     id: t.id,
     date: t.date.slice(5).split('-').reverse().join('/'),
     merchant: t.merchant,
@@ -71,6 +75,9 @@ export function valsMoney(app, ctx) {
 
   return {
     isMoney: st.screen === 'money',
+    moneyListNote: allTransactions.length > MONEY_LIST_CAP
+      ? `showing ${MONEY_LIST_CAP} of ${allTransactions.length} · older in the export`
+      : null,
     moneyHeaderLabel: demoMode
       ? 'CONNECT A BACKEND TO SEE THE LEDGER'
       : isOffline

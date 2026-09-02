@@ -483,7 +483,43 @@ DONE CRITERIA:
   refresh failed: …" (outranking "nothing new"), every successful run logs
   its cost/searches/seconds receipt (entry.run), and the prompt caps the
   model at 8 searches. NOT raised: the budget itself — his call (see OPEN).
-  Next in roster: [47] Voice §6 (owned items only) → [48] Inbox → …
+  SURFACES [47]–[66] — CLOSED (3 Sep). [47] Voice, [52] Journal, [53]
+  Library, [54] Notes, [56] Stash, [58] Settings: owned/nothing — no action.
+  [48] Inbox: 3 phone pass at 375 OK (capture card, wrapped action row, step
+  cards); history is already capped honestly (historyLimit + hidden count).
+  [49] To-dos: 1 is a synthesis flag (due dates — his call); 2 DEFERRED — no
+  shared keyword-detector module exists to join (CATEGORY_HINTS stays in
+  todos.js; TASK_HINTS in followUps.js). [50] Recipes: 2 phone pass — the
+  rotation cards are 172×140 with a 44px tick, but CLEAR under each slot
+  measured 26×11px (the action taken 4× a day was the smallest thing on the
+  screen) → CLEAR and UNDO VARIANT are now 32px-tall targets (measured
+  49×32 after). [51] Money: 1 "showing 120 of N · older in the export" line
+  above the list (moneyListNote, MONEY_LIST_CAP) — a missing const here
+  black-screened the dev app for one reload; caught by the devtools console,
+  fixed; 2 (HUD idiom) left for the next touch. [55] Shopping: 1 MET by the
+  [12] route already shipped — toShoppingItems keeps and aggregates amounts
+  (the audit's "pass raw lines" was the cheaper alternative to the same end).
+  [57] Ops: 1 was MET by d8cdc97 (one roster, Guardian consumes it); 2 the
+  three conversational match-lines exist — study (kind study), read-next
+  (kind read-next), scout (an ingest receipt whose payload names a person;
+  receiptFor now stamps payload.person / payload.book so Ops can attribute a
+  weave), all mapped to Knowledge. [59] Leader screen: 1 chips carry age
+  ("· 12d", "today"); 2 tap a WORKING AGAINST chip → HANDLED → the reflect
+  route's resolved path (api.leaderReflect, app.leaderResolve; same undoable
+  receipt as the chat). [61] Ambient: 1 was in ('unknown' → no wash); 2
+  sync age in the TOP-right corner ("SYNCED 3M AGO"; past 15 min the tiles
+  dim to .55 and it reads "LAST SYNCED 23M AGO" in warn) — first placed
+  bottom-right, where at 375 it sat on the pulse strip; 3 a 3600s translate
+  drift of ±3px against OLED burn-in. [62] Claude Code: 1 was MET
+  (codeModelOptions derives from liveModelPrefs.models). [63] Structured
+  home: 1 ORDERS + assertOrdersCover — the dev build logs any section a
+  morning/day/evening order drops or invents. [64] NovaBar: not in this
+  repository (the macOS shell) — nothing done here. [65] Widget: 1 and 2 were
+  MET (large renders top3; accessory sizes deep-link #/leader). [66]
+  Telegram: 1–3 were MET earlier; 4 the at-most-once offset choice is now a
+  comment at the poll loop. THE ROSTER (#18) IS COMPLETE — every report
+  01→66 has its §6 items shipped, met by another item, or deferred with the
+  reason above / in OPEN.
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised

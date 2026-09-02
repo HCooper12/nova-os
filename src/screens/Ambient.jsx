@@ -55,9 +55,14 @@ function Tile({ label, value, count, format, sub, accent }) {
   );
 }
 
+// Past this many minutes without a successful sync the wall stops
+// pretending its numbers are live.
+const AMBIENT_STALE_MIN = 15;
+
 export function Ambient({ v }) {
   const now = useClock();
   useWakeLock();
+  const stale = v.ambientSyncMin != null && v.ambientSyncMin >= AMBIENT_STALE_MIN;
   const hh = String(now.getHours()).padStart(2, '0');
   const mm = String(now.getMinutes()).padStart(2, '0');
   const dateLine = now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase();
@@ -84,7 +89,10 @@ export function Ambient({ v }) {
         <div style={css(`font:400 16px var(--nv-font-serif), serif;font-style:italic;color:${dim(62)};text-align:center;max-width:560px;padding:0 12px`)}>{v.heroTagline}</div>
       </div>
 
-      <div style={css("display:flex;flex-direction:column;align-items:center;gap:26px;width:100%")}>
+      {/* a slow drift of a few pixels over an hour — a wall face on an OLED
+          panel must never hold one pixel pattern all night */}
+      <style>{`@keyframes nvDrift{0%{transform:translate(0,0)}25%{transform:translate(3px,-2px)}50%{transform:translate(0,3px)}75%{transform:translate(-3px,1px)}100%{transform:translate(0,0)}}`}</style>
+      <div style={css(`display:flex;flex-direction:column;align-items:center;gap:26px;width:100%;animation:nvDrift 3600s linear infinite;${stale ? 'opacity:.55;' : ''}transition:opacity 1.2s`)}>
         <div style={css("display:flex;gap:44px;flex-wrap:wrap;justify-content:center;align-items:flex-end")}>
           <Tile label="NEXT" value={v.ambientNext?.time} sub={v.ambientNext?.label} />
           <Tile label="STEPS" count={v.ambientSteps} />
@@ -106,6 +114,13 @@ export function Ambient({ v }) {
         <PulseStrip items={v.ambientPulseItems} />
         <StreamStrip items={v.ambientStream} />
       </div>
+      {/* the sync age, faint, in the TOP corner — the bottom edge belongs to
+          the pulse strip at phone width (measured 3 Sep) — and plain when old */}
+      {v.ambientSyncMin != null && (
+        <div style={css(`position:absolute;right:calc(18px + env(safe-area-inset-right));top:calc(16px + env(safe-area-inset-top));font:400 9px ${M};letter-spacing:.14em;color:${stale ? 'var(--nv-warn)' : dim(24)}`)}>
+          {stale ? `LAST SYNCED ${v.ambientSyncMin}M AGO` : v.ambientSyncMin === 0 ? 'SYNCED JUST NOW' : `SYNCED ${v.ambientSyncMin}M AGO`}
+        </div>
+      )}
     </div>
   );
 }

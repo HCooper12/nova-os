@@ -19,6 +19,27 @@ const M = 'var(--nv-font-mono)';
 const UI = 'var(--nv-font-ui)';
 const S = 'var(--nv-font-serif)';
 
+// One place for the three orders, so a new section is added to all three or
+// the dev assert below names the one it was left out of (audit [63]).
+const ORDERS = {
+  morning: ['working', 'hero', 'vitals', 'plan', 'lead', 'focus', 'today', 'deck', 'review', 'noticed', 'shortcuts', 'agents'],
+  day: ['working', 'focus', 'lead', 'plan', 'today', 'deck', 'hero', 'vitals', 'noticed', 'review', 'shortcuts', 'agents'],
+  evening: ['working', 'focus', 'plan', 'lead', 'today', 'deck', 'vitals', 'review', 'hero', 'noticed', 'shortcuts', 'agents'],
+};
+let ordersChecked = false;
+export function assertOrdersCover(sectionKeys, orders = ORDERS) {
+  const problems = [];
+  for (const [name, arr] of Object.entries(orders)) {
+    const missing = sectionKeys.filter((k) => !arr.includes(k));
+    const extra = arr.filter((k) => !sectionKeys.includes(k));
+    if (missing.length) problems.push(`${name} order drops section(s): ${missing.join(', ')}`);
+    if (extra.length) problems.push(`${name} order names unknown section(s): ${extra.join(', ')}`);
+  }
+  if (problems.length && !ordersChecked) console.error('[MissionStructured] ' + problems.join(' · '));
+  ordersChecked = true;
+  return problems;
+}
+
 export function MissionStructured({ v }) {
   const mob = v.isMobile;
   const hour = new Date().getHours();
@@ -264,11 +285,10 @@ export function MissionStructured({ v }) {
 
   // the day decides the order: morning = body first; after that, what to DO
   // (focus + calendar) leads and the vitals step back
-  const order = morning
-    ? ['working', 'hero', 'vitals', 'plan', 'lead', 'focus', 'today', 'deck', 'review', 'noticed', 'shortcuts', 'agents']
-    : hour < 17
-      ? ['working', 'focus', 'lead', 'plan', 'today', 'deck', 'hero', 'vitals', 'noticed', 'review', 'shortcuts', 'agents']
-      : ['working', 'focus', 'plan', 'lead', 'today', 'deck', 'vitals', 'review', 'hero', 'noticed', 'shortcuts', 'agents'];
+  const order = morning ? ORDERS.morning : hour < 17 ? ORDERS.day : ORDERS.evening;
+  // a section key missing from ANY order array would vanish silently for
+  // part of the day — the dev build says so the moment it happens
+  if (import.meta.env?.DEV) assertOrdersCover(Object.keys(sections));
 
   return (
     <div style={v.wrapMission} data-screen-label="Mission Control">

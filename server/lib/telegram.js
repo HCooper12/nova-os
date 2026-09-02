@@ -313,6 +313,11 @@ export function startTelegramBridge(vaultPath) {
       try {
         const updates = await tg('getUpdates', { offset: state.offset, timeout: 50, allowed_updates: ['message', 'callback_query'] });
         for (const u of updates) {
+          // AT-MOST-ONCE, on purpose: the offset is advanced and persisted
+          // BEFORE the update is handled, so a crash mid-handling drops that
+          // one message rather than replaying it on restart — a duplicated
+          // "log 40g protein" or a second scan proposal is the worse failure
+          // in a bridge whose replies file real records (audit [66] item 4).
           state.offset = u.update_id + 1;
           await saveState(state);
           try { await handleUpdate(vaultPath, state, u); } catch (e) { console.error('telegram update failed:', e.message); }

@@ -188,6 +188,10 @@ export function valsOps(app, ctx) {
       ? { p: Math.round(st.liveRotation.consumedTotals.p), floor: st.liveRecipeProfile?.proteinFloorG ?? null }
       : null,
     ambientPending: ops?.pending ?? null,
+    // Stale self-labels, wall edition: minutes since the last successful
+    // sync. Past AMBIENT_STALE_MIN the tiles dim and the corner says so —
+    // numbers from 40 minutes ago must not glow like live ones.
+    ambientSyncMin: st.lastSyncAt ? Math.max(0, Math.floor((Date.now() - new Date(st.lastSyncAt).getTime()) / 60000)) : null,
     // the objectives row — momentum stated as fact (real streaks + the month
     // scored), and one overall state the core's glow reflects: gold when
     // something waits or the day is drifting, cyan when the board is clear

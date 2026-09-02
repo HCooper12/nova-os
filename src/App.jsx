@@ -6306,6 +6306,22 @@ export default class App extends Component {
     if (!conn) return;
     api.leader(conn).then((r) => this.setState({ liveLeader: r })).catch(() => {});
   }
+  // "Mark handled" from a WORKING AGAINST chip — the same resolved path the
+  // chat's REFLECT directive uses, so it files the same undoable receipt.
+  async leaderResolve(text) {
+    const conn = getConnection();
+    if (!conn || !text || this.state.leaderResolving) return;
+    this.setState({ leaderResolving: text });
+    try {
+      await api.leaderReflect(conn, { resolved: [text] });
+      this.toastMsg('Marked handled — undo is in the Inbox history');
+      this.refreshLeader();
+    } catch (e) {
+      this.toastMsg(`Couldn't mark that handled: ${e.message}`);
+    } finally {
+      this.setState({ leaderResolving: null });
+    }
+  }
   doLeaderChat(preset) {
     const q = (typeof preset === 'string' && preset.trim()) || this.state.leaderInput.trim();
     if (!q || this.state.leaderBusy) return;

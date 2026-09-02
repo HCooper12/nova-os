@@ -619,7 +619,10 @@ function receiptFor(job) {
       confidence: 'high',
       title: `Vault ingest — ${labelOf(job)} (${files})`,
       reason: String(job.summary || '').slice(0, 300),
-      payload: { jobId: job.id, paths: job.changes.map((c) => c.path), cost: job.cost || 0 },
+      // who did the work rides the receipt, so Ops can attribute it: a book
+      // weave is the Librarian's, a person dossier the Scout's — the text
+      // alone ("Wove X into the vault") could not say (audit [57] item 2)
+      payload: { jobId: job.id, paths: job.changes.map((c) => c.path), cost: job.cost || 0, ...(job.book ? { book: job.book.title } : {}), ...(job.person ? { person: job.person.label } : {}) },
     },
     undoData: { route: 'ingest-apply', jobId: job.id },
   };

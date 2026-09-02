@@ -91,6 +91,11 @@ const CONVERSATIONAL = [
   { id: 'researcher', label: 'Researcher', role: 'cited web briefs', match: (r) => r.kind === 'research' },
   { id: 'watcher', label: 'Watcher', role: 'videos watched & weighed', match: (r) => r.kind === 'video' },
   { id: 'forge', label: 'Forge', role: 'builds what he asks for', match: (r) => r.kind === 'forge-job' },
+  // Three lanes that left receipts but had no match-line, so the Ops screen
+  // showed them as recordless and Nova could not name their last act.
+  { id: 'study', label: 'Study Lane', role: 'sources studied into notes', match: (r) => r.kind === 'study' },
+  { id: 'scout', label: 'Scout', role: 'people & accounts researched', match: (r) => r.kind === 'ingest' && !!r.decision?.payload?.person },
+  { id: 'read-next', label: 'Librarian · Read Next', role: 'the gap, and the book for it', match: (r) => r.kind === 'read-next' },
 ];
 
 // The map drawn (AGENT-SKILL-MAP build 2) — which life department(s) each
@@ -129,6 +134,9 @@ export const AGENT_DEPARTMENTS = {
   // thing in the registry seed, and inventing one would break the contract
   // the ops test enforces between this map and Wiki/Library/Nova Skills.md.)
   forge: ['Platform'],
+  study: ['Knowledge'],
+  scout: ['Knowledge'],
+  'read-next': ['Knowledge'],
   // reminders deliberately unmapped: it fires nudges but owns no registry
   // skill yet — the screen says "no skills mapped yet", which is the truth.
   'health-mirror': ['Platform'],

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { ChatMarkdown } from '../ChatMarkdown.jsx';
@@ -30,17 +30,35 @@ function useAutoScrollBottom(len, busy) {
   return ref;
 }
 
-function ChipList({ label, items, color }) {
+// Each chip carries its age (what the model already sees) and, for a
+// struggle, a "mark handled" affordance: tap the chip to reveal it, tap
+// HANDLED to resolve — the reflect route files the undoable receipt.
+function ChipList({ label, items, color, hint, resolving }) {
+  const [open, setOpen] = useState(null);
   if (!items.length) return null;
   return (
     <div style={css('margin-top:12px')}>
-      <div style={{ font: `500 9px ${M}`, letterSpacing: '.2em', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>{label}</div>
+      <div style={css('display:flex;justify-content:space-between;align-items:baseline;gap:10px')}>
+        <span style={{ font: `500 9px ${M}`, letterSpacing: '.2em', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>{label}</span>
+        {hint && <span style={{ font: `500 8.5px ${M}`, letterSpacing: '.14em', color: 'color-mix(in srgb, var(--nv-ink) 32%, transparent)' }}>{hint}</span>}
+      </div>
       <div style={css('margin-top:7px;display:flex;flex-wrap:wrap;gap:7px')}>
-        {items.map((t, i) => (
-          <span key={i} style={{ font: `450 11.5px ${UI}`, padding: '5px 11px', borderRadius: '8px', color, border: `1px solid color-mix(in srgb, ${color} 28%, transparent)`, background: `color-mix(in srgb, ${color} 06%, transparent)`, lineHeight: 1.4 }}>
-            {t}
-          </span>
-        ))}
+        {items.map((it, i) => {
+          const isOpen = open === it.text;
+          const busy = resolving === it.text;
+          return (
+            <span key={i} onClick={it.resolve ? () => setOpen(isOpen ? null : it.text) : undefined}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', font: `450 11.5px ${UI}`, padding: '5px 11px', minHeight: '30px', borderRadius: '8px', color, border: `1px solid color-mix(in srgb, ${color} ${isOpen ? 55 : 28}%, transparent)`, background: `color-mix(in srgb, ${color} 06%, transparent)`, lineHeight: 1.4, cursor: it.resolve ? 'pointer' : 'default', opacity: busy ? 0.6 : 1 }}>
+              {it.text}
+              {it.age && <span style={{ font: `500 9px ${M}`, letterSpacing: '.08em', color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}>· {it.age}</span>}
+              {isOpen && it.resolve && (
+                <Interactive as="span" onClick={(e) => { e.stopPropagation(); if (!busy) it.resolve(); }}
+                  base={css(`font:600 9px ${M};letter-spacing:.14em;padding:3px 8px;border-radius:6px;border:1px solid var(--nv-good, #5aa87c);color:var(--nv-good, #5aa87c)`)}
+                  hoverStyle={{ filter: 'brightness(1.15)' }}>{busy ? 'MARKING…' : 'HANDLED'}</Interactive>
+              )}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
@@ -76,7 +94,7 @@ export function Leader({ v }) {
       )}
 
       {/* his standing picture — what the ideas and research steer by */}
-      <ChipList label="WORKING AGAINST" items={v.leaderProfile.struggles} color="var(--nv-warn)" />
+      <ChipList label="WORKING AGAINST" items={v.leaderProfile.struggles} color="var(--nv-warn)" hint="TAP ONE TO MARK IT HANDLED" resolving={v.leaderResolving} />
       <ChipList label="WORKING FOR HIM" items={v.leaderProfile.working} color="var(--nv-good, #5aa87c)" />
 
       {/* the sit-down */}

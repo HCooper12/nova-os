@@ -134,6 +134,9 @@ export function Money({ v }) {
               <div style={css(`margin-top:14px;font:500 12px ${R};color:color-mix(in srgb, var(--nv-ink) 45%, transparent)`)}>The ledger is empty — capture an expense, drop a bank CSV, or scan a receipt.</div>
             ) : (
               <div style={css("margin-top:12px;display:flex;flex-direction:column")}>
+                {v.moneyListNote && (
+                  <div style={css(`font:500 8.5px ${M};letter-spacing:.14em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent);padding:0 4px 6px`)}>{v.moneyListNote.toUpperCase()}</div>
+                )}
                 {v.moneyTransactions.map((t) => (
                   <div key={t.id} style={css("display:flex;align-items:center;gap:10px;padding:7px 4px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent)")}>
                     <span style={css(`flex:none;width:42px;font:400 10px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>{t.date}</span>

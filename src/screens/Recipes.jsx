@@ -176,9 +176,10 @@ export function Recipes({ v }) {
                         {s.consumed ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--nv-good)" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg> : null}
                       </span>
                     </Interactive>
-                    <div style={css("display:flex;gap:8px;margin-top:8px")}>
-                      {s.clearVariant && <Interactive as="span" onClick={s.clearVariant} base="cursor:pointer;font:500 8.5px var(--nv-font-mono);color:var(--nv-gold)" hoverStyle="text-decoration:underline">UNDO VARIANT</Interactive>}
-                      <Interactive as="span" onClick={s.clear} base="cursor:pointer;font:500 8.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 35%, transparent)" hoverStyle="color:var(--nv-warn)">CLEAR</Interactive>
+                    {/* 32px-tall targets: CLEAR measured 26×11px at 375px on 3 Sep — the action taken 4× a day was the smallest thing on the screen */}
+                    <div style={css("display:flex;gap:18px;margin-top:4px;align-items:center")}>
+                      {s.clearVariant && <Interactive as="span" onClick={s.clearVariant} base="cursor:pointer;display:inline-flex;align-items:center;min-height:32px;padding:0 10px;margin:0 -10px;font:500 8.5px var(--nv-font-mono);letter-spacing:.08em;color:var(--nv-gold)" hoverStyle="text-decoration:underline">UNDO VARIANT</Interactive>}
+                      <Interactive as="span" onClick={s.clear} base="cursor:pointer;display:inline-flex;align-items:center;min-height:32px;padding:0 10px;margin:0 -10px;font:500 8.5px var(--nv-font-mono);letter-spacing:.08em;color:color-mix(in srgb, var(--nv-ink) 35%, transparent)" hoverStyle="color:var(--nv-warn)">CLEAR</Interactive>
                     </div>
                   </>
                 ) : (

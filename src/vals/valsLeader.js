@@ -6,6 +6,14 @@ import { mono, bubble } from './shared.js';
 
 const KIND_LABEL = { action: 'TRY TODAY', reminder: 'REMEMBER', idea: 'CONSIDER' };
 
+// Whole days since he said it; today reads "today", never "0d".
+export function chipAge(iso, now = Date.now()) {
+  if (!iso) return null;
+  const d = Math.floor((now - new Date(iso).getTime()) / 86400000);
+  if (!Number.isFinite(d) || d < 0) return null;
+  return d === 0 ? 'today' : `${d}d`;
+}
+
 export function valsLeader(app, _ctx) {
   const st = app.state;
   const L = st.liveLeader;
@@ -21,10 +29,14 @@ export function valsLeader(app, _ctx) {
     } : null,
     leaderRecent: (L?.recent || []).filter((d) => !today || d.date !== today.date).slice(0, 5)
       .map((d) => ({ date: d.date, chip: KIND_LABEL[d.kind] || 'CONSIDER', title: d.title })),
+    // Age rides every chip ("· 12d") — the model has always seen it, he
+    // never did — and a struggle can be marked handled from the chip itself
+    // (the reflect route's resolved path: rails + undo already there).
     leaderProfile: {
-      struggles: (L?.profile?.struggles || []).map((s) => s.text),
-      working: (L?.profile?.working || []).map((w) => w.text),
+      struggles: (L?.profile?.struggles || []).map((s) => ({ text: s.text, age: chipAge(s.at), resolve: () => app.leaderResolve(s.text) })),
+      working: (L?.profile?.working || []).map((w) => ({ text: w.text, age: chipAge(w.at), resolve: null })),
     },
+    leaderResolving: st.leaderResolving || null,
     leaderResearchMeta: L
       ? `${L.researchCount || 0} researched insight${L.researchCount === 1 ? '' : 's'}${L.lastResearchAt ? ` · last run ${String(L.lastResearchAt).slice(0, 10)}` : ' · no run yet'}`
       : null,

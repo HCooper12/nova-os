@@ -136,3 +136,19 @@ test('every heartbeat a scheduler actually stamps is on the roster', async () =>
   assert.deepEqual(unwatched, [],
     `these loops beat but no one watches them: ${unwatched.join(', ')} — add them to SCHEDULED in ops.js`);
 });
+
+test('ops: study, scout and read-next have match-lines — a Scout weave is told apart from a pasted one by its receipt', async () => {
+  const { createRecord } = await import('../lib/inboxStore.js');
+  const now = new Date().toISOString();
+  await createRecord({ id: 'op333333', kind: 'ingest', text: 'Wove Andrew Huberman into the vault', source: 'nova', mode: 'review-all', status: 'filed', createdAt: now, filedAt: now, destination: '3 files written to the vault', decision: { route: 'ingest-apply', title: 'Vault ingest — Andrew Huberman (3 files)', confidence: 'high', payload: { jobId: 'j1', paths: [], cost: 0.4, person: 'Andrew Huberman' } } });
+  await createRecord({ id: 'op444444', kind: 'ingest', text: 'Wove pasted content into the vault', source: 'nova', mode: 'review-all', status: 'filed', createdAt: now, filedAt: now, destination: '1 file written to the vault', decision: { route: 'ingest-apply', title: 'Vault ingest — pasted content (1 file)', confidence: 'high', payload: { jobId: 'j2', paths: [], cost: 0.1 } } });
+  await createRecord({ id: 'op555555', kind: 'read-next', text: 'Read next: a book on delegation', source: 'librarian', mode: 'draft', status: 'pending', createdAt: now, decision: { route: 'read-next', title: 'Read next — delegation', confidence: 'medium', payload: {} } });
+  const ops = await composeOps();
+  const scout = ops.conversational.find((a) => a.id === 'scout');
+  assert.equal(scout.receipts.length, 1, 'only the person weave is the Scout\'s');
+  assert.equal(scout.receipts[0].title, 'Vault ingest — Andrew Huberman (3 files)');
+  const readNext = ops.conversational.find((a) => a.id === 'read-next');
+  assert.equal(readNext.receipts.length, 1);
+  const study = ops.conversational.find((a) => a.id === 'study');
+  assert.deepEqual(study.receipts, [], 'a lane with a match-line and no records shows an honest empty list, not null');
+});
