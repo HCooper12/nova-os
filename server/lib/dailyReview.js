@@ -17,7 +17,7 @@ import { loadRecentDays } from './healthData.js';
 import { computeStreaks } from './streaks.js';
 import { listTodos } from './todos.js';
 import { preferencesContext } from './learning.js';
-import { createRecord, updateRecord, listRecords } from './inboxStore.js';
+import { createRecord, updateRecord, listRecords, getRecord } from './inboxStore.js';
 import { fileDecision } from './inbox.js';
 import { modelFor, laneSkipped } from './modelPrefs.js';
 import { settleWatchdog } from './settle.js';
@@ -133,7 +133,12 @@ export async function buildReviewContext(vaultPath, now = new Date()) {
     const fate = rec.status === 'filed' ? 'he took it into his journal'
       : rec.status === 'discarded' ? (rec.expired ? 'it expired unread' : `he declined it${rec.declineReason ? ` — his reason: "${rec.declineReason}"` : ''}`)
         : rec.status === 'pending' ? 'still unanswered' : rec.status;
-    return `YESTERDAY'S REVIEW (${fate}) — hold today against it: for each adjustment it set, say plainly from today's data whether it happened, before today's read:\n${String(rec.decision.payload.text).slice(0, 900)}`;
+    // his own marks on each adjustment (done / not today) are facts to quote, not to re-derive
+    const adj = Array.isArray(rec.decision.payload.adjustments) ? rec.decision.payload.adjustments : [];
+    const marks = adj.some((a) => a.outcome)
+      ? `\nHIS MARKS ON THEM: ${adj.map((a, i) => `${i + 1} — ${a.outcome === 'done' ? 'DONE' : a.outcome === 'skipped' ? 'NOT TODAY' : 'unmarked'}`).join(' · ')} (a NOT TODAY is his call — ask about it once, at most, and never re-issue it unchanged).`
+      : '';
+    return `YESTERDAY'S REVIEW (${fate}) — hold today against it: for each adjustment it set, say plainly from today's data whether it happened, before today's read:\n${String(rec.decision.payload.text).slice(0, 900)}${marks}`;
   });
   // ---- the connections the July sweep found missing ----------------------
   add('goals', async () => {
@@ -238,7 +243,9 @@ export function composeReviewText(parsed, now = new Date()) {
     lines.push('**Adjustments.**');
     adjustments.forEach((a, i) => lines.push(`${i + 1}. ${a.do}${a.why ? ` — ${a.why}` : ''}`));
   }
-  return { title, text: lines.join('\n') };
+  // the adjustments ride the record structured too, so each can be marked
+  // done / not today on the card and read back tomorrow
+  return { title, text: lines.join('\n'), read, adjustments };
 }
 
 /* ------------------------------ orchestration ---------------------------- */
@@ -285,7 +292,7 @@ function startReviewJob(vaultPath, context, mode, recordId, now) {
       const text = (outer.result || '').trim();
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in review response');
-      const { title, text: body } = composeReviewText(JSON.parse(jsonMatch[0]), now);
+      const { title, text: body, read, adjustments } = composeReviewText(JSON.parse(jsonMatch[0]), now);
       const decision = {
         route: 'journal',
         confidence: 'high',
@@ -293,7 +300,7 @@ function startReviewJob(vaultPath, context, mode, recordId, now) {
         reason: 'Daily Review — reasoned across your whole day through the Nova lens.',
         // personal category, labelled — it lives with Hayden's own reflections
         // but is always distinguishable from them
-        payload: { text: body, category: 'personal', label: 'Daily review reflection' },
+        payload: { text: body, category: 'personal', label: 'Daily review reflection', read, adjustments },
       };
       if (mode === 'auto') {
         const { destination, undo } = await fileDecision(vaultPath, decision);
@@ -367,4 +374,23 @@ export function startDailyReviewScheduler(vaultPath) {
   };
   tick();
   setInterval(tick, 30 * 60 * 1000);
+}
+
+// THE ADJUSTMENT'S COMPLETION LOOP — twin of planToday.setPriorityOutcome,
+// over the review's adjustments. 'done' | 'skipped' (= not today) | null
+// (clear), written onto the record's own payload through the record-update
+// rail; the yesterday-review context section reads it back next morning.
+export async function setAdjustmentOutcome(recordId, index, outcome) {
+  const rec = await getRecord(recordId);
+  if (!rec || rec.kind !== 'review') throw new Error('that record is not a daily review');
+  const adjustments = rec.decision?.payload?.adjustments;
+  const i = Number(index);
+  if (!Array.isArray(adjustments) || !Number.isInteger(i) || !adjustments[i]) throw new Error('no such adjustment');
+  if (![ 'done', 'skipped', null ].includes(outcome)) throw new Error("outcome must be 'done', 'skipped' or null");
+  const next = adjustments.map((a, k) => {
+    if (k !== i) return a;
+    const { outcome: _o, outcomeAt: _a, ...rest } = a;
+    return outcome ? { ...rest, outcome, outcomeAt: new Date().toISOString() } : rest;
+  });
+  return updateRecord(recordId, { decision: { ...rec.decision, payload: { ...rec.decision.payload, adjustments: next } } });
 }

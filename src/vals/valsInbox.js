@@ -330,6 +330,15 @@ export function valsInbox(app, ctx) {
     route: r.decision ? (ROUTE_META[r.decision.route] || ROUTE_META.note) : null,
     confidence: r.decision?.confidence || null,
     reason: r.decision?.reason || '',
+    // a daily review's 1–3 adjustments as markable rows — done / not today
+    // write onto the record (POST /inbox/:id/priority dispatches by kind) and
+    // tomorrow's review quotes the marks; shown while the review is live
+    adjustments: r.kind === 'review' && Array.isArray(r.decision?.payload?.adjustments) && r.decision.payload.adjustments.length && ['pending', 'filed'].includes(r.status)
+      ? r.decision.payload.adjustments.map((a, i) => ({
+        text: a.do, why: a.why || '', outcome: a.outcome || null,
+        mark: (o) => app.setPlanOutcome(r.id, i, a.outcome === o ? null : o),
+      }))
+      : null,
     title: r.decision?.title || r.text.slice(0, 60),
     preview: payloadPreview(r.decision),
     destination: r.destination || null,
@@ -354,15 +363,23 @@ export function valsInbox(app, ctx) {
       // the server (server/lib/trainingCheck.js TRAINING_CHECK_REASONS — the
       // same four strings; a shared format).
       const isTrainingCheck = r.kind === 'training-check';
+      // A discarded review is the loudest feedback the flagship gets — ask
+      // why once; tomorrow's review reads the reason (dailyReview.js
+      // yesterday-review section).
+      const isReview = r.kind === 'review';
       const asking = st.inboxAskWhy === r.id;
       return {
-        discard: () => (isAdvice || isTrainingCheck ? app.setState({ inboxAskWhy: r.id, inboxWhyText: '' }) : app.inboxAction(r.id, 'discard')),
+        discard: () => (isAdvice || isTrainingCheck || isReview ? app.setState({ inboxAskWhy: r.id, inboxWhyText: '' }) : app.inboxAction(r.id, 'discard')),
         askingWhy: asking,
-        whyTitle: isTrainingCheck ? 'WHAT HAPPENED? — ONE TAP KEEPS THE RECORD STRAIGHT' : 'WHY PASS? — THE COACH LEARNS FROM THIS',
+        whyTitle: isTrainingCheck ? 'WHAT HAPPENED? — ONE TAP KEEPS THE RECORD STRAIGHT'
+          : isReview ? "WHY PASS? — TOMORROW'S REVIEW READS THIS"
+            : 'WHY PASS? — THE COACH LEARNS FROM THIS',
         whyChips: asking
           ? (isTrainingCheck
             ? ["Didn't happen", 'Swapped for active rest', 'Doing it tonight', 'Logged elsewhere']
-            : ['Not now', 'Too aggressive', 'No equipment for it', 'I disagree — my call'])
+            : isReview
+              ? ['Off-base', 'Already knew', 'Not actionable', 'Too busy today']
+              : ['Not now', 'Too aggressive', 'No equipment for it', 'I disagree — my call'])
           : null,
         whyText: asking ? (st.inboxWhyText || '') : '',
         onWhyText: (e) => app.setState({ inboxWhyText: typeof e === 'string' ? e : e.target.value }),

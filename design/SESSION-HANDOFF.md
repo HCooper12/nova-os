@@ -115,9 +115,19 @@ DONE CRITERIA:
   context and the Week Plan). Free text stays a plain declineReason. Legacy
   checks parse name/date from title/createdAt. Card render at 375 UNSEEN
   (no pending check existed during the pass — the panel is the existing
-  why-chips UI with new strings). Remaining: [02] plan 7 ask-why-once on a
-  discarded review + the per-adjustment ✓/✗ rows; then each report's §6 in
-  roster order.
+  why-chips UI with new strings). [02] plan 7 + the §7 per-adjustment rows — MET (2 Sep):
+  discarding a review asks why once (Off-base / Already knew / Not
+  actionable / Too busy today; free text too) — the reason already rode the
+  yesterday-review section; the review record now carries
+  payload.adjustments structured (compose returns them), each row on the
+  Inbox card takes DONE / NOT TODAY through the same POST
+  /inbox/:id/priority (dispatched by kind → dailyReview.setAdjustmentOutcome,
+  twin of planToday's), and tomorrow's context quotes HIS MARKS with a
+  never-re-issue-a-NOT-TODAY-unchanged rule. Reviews composed before 2 Sep
+  have no structured adjustments → no rows (nothing to mark). Card render
+  at 375 UNSEEN (today's review predates the change). Remaining #18: each
+  report's §6 in roster order (01 coach → 66 telegram), skipping what is
+  shipped.
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised

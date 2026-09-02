@@ -13,7 +13,7 @@ process.env.NOVA_VAULT_GRACE_MS = '0';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { getReviewConfig, setReviewConfig, buildReviewPrompt, composeReviewText, buildReviewContext } = await import('../lib/dailyReview.js');
+const { getReviewConfig, setReviewConfig, buildReviewPrompt, composeReviewText, buildReviewContext, setAdjustmentOutcome } = await import('../lib/dailyReview.js');
 const { saveDay } = await import('../lib/healthData.js');
 const { setProfile } = await import('../lib/profile.js');
 
@@ -89,4 +89,34 @@ test("the review remembers itself: yesterday's review and its fate ride into tod
   assert.match(buildReviewPrompt(ctx), /A review that forgets what it said yesterday is not a review/);
   // the day after, with no review the day before, the section is honestly absent
   assert.doesNotMatch(await buildReviewContext(vault, new Date('2026-07-21T08:00:00')), /YESTERDAY'S REVIEW/);
+});
+
+test('adjustments ride the record structured, take a done / not-today mark, and tomorrow quotes the marks', async () => {
+  const { createRecord, getRecord } = await import('../lib/inboxStore.js');
+  const composed = composeReviewText({ read: 'Steady.', adjustments: [{ do: 'Bed by 22:30', why: 'sleep debt' }, { do: 'Walk at lunch', why: '' }] });
+  assert.deepEqual(composed.adjustments, [{ do: 'Bed by 22:30', why: 'sleep debt' }, { do: 'Walk at lunch', why: '' }], 'compose hands the structured list back');
+  assert.equal(composed.read, 'Steady.');
+  await createRecord({
+    id: 'rev00801', kind: 'review', status: 'filed', text: 'Daily Review — Saturday 01 August', source: 'nova', mode: 'auto', createdAt: '2026-08-01T08:05:00',
+    decision: { route: 'journal', confidence: 'high', title: 'Daily Review — Saturday 01 August', reason: 'x', payload: { text: composed.text, category: 'personal', label: 'Daily review reflection', read: composed.read, adjustments: composed.adjustments } },
+  });
+  await setAdjustmentOutcome('rev00801', 0, 'done');
+  await setAdjustmentOutcome('rev00801', 1, 'skipped');
+  let rec = await getRecord('rev00801');
+  assert.equal(rec.decision.payload.adjustments[0].outcome, 'done');
+  assert.ok(rec.decision.payload.adjustments[0].outcomeAt, 'the mark is stamped');
+  assert.equal(rec.decision.payload.adjustments[1].outcome, 'skipped');
+  assert.equal(rec.status, 'filed', 'marking never touches the filing');
+  await setAdjustmentOutcome('rev00801', 1, null);
+  rec = await getRecord('rev00801');
+  assert.equal(rec.decision.payload.adjustments[1].outcome, undefined, 'null clears the mark');
+  await assert.rejects(setAdjustmentOutcome('rev00801', 5, 'done'), /no such adjustment/);
+  await assert.rejects(setAdjustmentOutcome('rev00801', 0, 'maybe'), /outcome must be/);
+  await assert.rejects(setAdjustmentOutcome('rev00718', 0, 'done'), /not a daily review|no such adjustment/, 'a legacy review without structured adjustments has nothing to mark');
+  // tomorrow's context quotes his marks as facts
+  await setAdjustmentOutcome('rev00801', 1, 'skipped');
+  const ctx = await buildReviewContext(vault, new Date('2026-08-02T08:00:00'));
+  assert.match(ctx, /YESTERDAY'S REVIEW \(he took it into his journal\)/);
+  assert.match(ctx, /HIS MARKS ON THEM: 1 — DONE · 2 — NOT TODAY/);
+  assert.match(ctx, /never re-issue it unchanged/);
 });

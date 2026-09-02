@@ -70,6 +70,7 @@ const FEATURES = [
   ['Galaxy · legend plurals (same commit as the first-visit paint fix)', 'analyses'],
   ['Galaxy · pinch-zoom + pan, legend filters, recency/compost overlays', 'PINCH TO ZOOM'],
   ['Inbox · training-check dismiss asks what happened (four chips)', 'ONE TAP KEEPS THE RECORD STRAIGHT'],
+  ['Inbox · review discard asks why once; adjustments take DONE / NOT TODAY', "TOMORROW'S REVIEW READS THIS"],
 ];
 
 const SERVER_ROUTES = [

@@ -242,8 +242,15 @@ export function inboxRouter(vaultPath) {
   // the day plan's completion loop: done / skipped per priority, on the record itself
   router.post('/inbox/:id/priority', async (req, res) => {
     try {
-      const { setPriorityOutcome } = await import('../lib/planToday.js');
       const outcome = req.body?.outcome == null ? null : String(req.body.outcome);
+      const rec = await getRecord(req.params.id);
+      if (rec?.kind === 'review') {
+        // the same loop for a daily review's adjustments (dailyReview.setAdjustmentOutcome)
+        const { setAdjustmentOutcome } = await import('../lib/dailyReview.js');
+        res.json({ record: await setAdjustmentOutcome(req.params.id, req.body?.index, outcome) });
+        return;
+      }
+      const { setPriorityOutcome } = await import('../lib/planToday.js');
       res.json({ record: await setPriorityOutcome(req.params.id, req.body?.index, outcome) });
     } catch (e) {
       res.status(400).json({ error: e.message });

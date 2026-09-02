@@ -3319,7 +3319,8 @@ export default class App extends Component {
     this.toastMsg('Discarded — nothing was written');
   }
 
-  // the day plan's completion loop — a mark is a receipt, so it is never
+  // the day plan's completion loop (and the daily review's adjustments —
+  // same route, dispatched by kind) — a mark is a receipt, so it is never
   // optimistic: the row changes when the server's record comes back
   setPlanOutcome(id, index, outcome) {
     const conn = getConnection();
