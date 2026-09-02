@@ -31,8 +31,11 @@ const DIGEST_CHARS = 420;
 export async function inboxDigestContext() {
   try {
     const { listRecords } = await import('./inboxStore.js');
-    const pending = (await listRecords()).filter((r) => r.status === 'pending').slice(0, DIGEST_MAX);
+    const allPending = (await listRecords()).filter((r) => r.status === 'pending');
+    const pending = allPending.slice(0, DIGEST_MAX);
     if (!pending.length) return null;
+    // count BEFORE slicing: 14 drafts rendered as "10 shown" with the total lost
+    const shownOf = allPending.length > pending.length ? `${pending.length} of ${allPending.length} shown — the rest are in his Inbox` : `${pending.length} shown`;
     const lines = pending.map((r) => {
       const title = r.decision?.title || String(r.text || '').split('\n')[0];
       const body = r.decision?.payload?.body || r.text || '';
@@ -40,7 +43,7 @@ export async function inboxDigestContext() {
       const shown = flat.slice(0, DIGEST_CHARS);
       return `- [${r.kind} · ${String(r.createdAt || '').slice(0, 10)}] ${String(title).slice(0, 90)}\n  ${shown}${flat.length > DIGEST_CHARS ? ' …(truncated — say so if he wants the rest; it is in his Inbox)' : ''}`;
     });
-    return `HIS PENDING DRAFTS, IN FULL ENOUGH TO READ OUT (newest first, ${pending.length} shown). When he asks you to open, read, summarise or discuss one of these, DO IT FROM HERE — read the actual words back, quote the number that matters, answer follow-ups about it. Never say you cannot open a draft: these are the drafts.\n${lines.join('\n')}`;
+    return `HIS PENDING DRAFTS, IN FULL ENOUGH TO READ OUT (newest first, ${shownOf}). When he asks you to open, read, summarise or discuss one of these, DO IT FROM HERE — read the actual words back, quote the number that matters, answer follow-ups about it. Never say you cannot open a draft: these are the drafts.\n${lines.join('\n')}`;
   } catch {
     return null;
   }
@@ -49,8 +52,10 @@ export async function inboxDigestContext() {
 export async function platformActivityContext() {
   try {
     const { listRecords } = await import('./inboxStore.js');
-    const items = (await listRecords()).filter((r) => LANE[r.kind]).slice(0, MAX_ITEMS);
+    const all = (await listRecords()).filter((r) => LANE[r.kind]);
+    const items = all.slice(0, MAX_ITEMS);
     if (!items.length) return null;
+    const capNote = all.length > items.length ? ` ${items.length} of ${all.length} shown — the rest are on the Ops screen.` : '';
     const lines = items.map((r) => {
       const when = String(r.createdAt || '').slice(0, 10);
       const status = STATUS[r.status] || r.status;
@@ -59,7 +64,7 @@ export async function platformActivityContext() {
       const what = String(r.text || '').replace(/\s+/g, ' ').trim().slice(0, 150);
       return `- ${when} · ${LANE[r.kind]} · ${status}${err}: ${what}${result}`;
     });
-    return `WHAT HE HAS GIVEN THE PLATFORM LATELY (newest first — the platform's own record, independent of this conversation). Questions like "what was the last video I gave you?" or "what have you watched/studied/researched for me?" are answered from THIS list — the whole platform is your memory, never just the current chat:\n${lines.join('\n')}`;
+    return `WHAT HE HAS GIVEN THE PLATFORM LATELY (newest first — the platform's own record, independent of this conversation). Questions like "what was the last video I gave you?" or "what have you watched/studied/researched for me?" are answered from THIS list — the whole platform is your memory, never just the current chat:\n${lines.join('\n')}${capNote}`;
   } catch {
     return null; // an absent section, never a broken conversation
   }

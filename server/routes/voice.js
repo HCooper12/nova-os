@@ -39,16 +39,23 @@ export function voiceRouter(vaultPath) {
       if (reflex) {
         console.log(`reflex hit [${reflex.matched}] q=${JSON.stringify(question.slice(0, 80))} reply=${reflex.text.length}ch`);
         import('../lib/spokenLog.js').then(({ logSpoken }) => logSpoken('reflex', reflex.text)).catch(() => {});
-        return res.json({ text: reflex.text, reflex: true });
+        return res.json({ text: reflex.text, reflex: true, card: reflex.card || null });
       }
-      const sessionId = typeof req.body?.sessionId === 'string' && req.body.sessionId ? req.body.sessionId : null;
+      // THE PWA SESSION IS GUARDED like the spoken one (lib/askSession.js):
+      // a conversation older than a day, from another day, or past forty
+      // turns starts fresh — its deep context would be a snapshot of some
+      // other day. The client persists whatever id comes back.
+      const { guardAskSession } = await import('../lib/askSession.js');
+      const guard = guardAskSession(typeof req.body?.sessionId === 'string' && req.body.sessionId ? req.body.sessionId : null);
+      if (guard.reason) console.log(`ask: fresh session — ${guard.reason}`);
+      const sessionId = guard.sessionId;
       // Resumed turns get the volatile refresh (today's numbers + the
-      // platform ledger) as a live line — his PWA conversation persists for
-      // days, and turn-1 context alone left Nova blind to everything handed
-      // to the platform since (observed 20 Aug: "what's the last video I
-      // gave you?" answered from chat memory).
+      // platform ledger + his current standing rules) as a live line — his
+      // PWA conversation persists for days, and turn-1 context alone left
+      // Nova blind to everything handed to the platform since (observed 20
+      // Aug: "what's the last video I gave you?" answered from chat memory).
       const { resumedRefreshContext } = await import('../lib/askContext.js');
-      const liveLine = sessionId ? await resumedRefreshContext().catch(() => '') : '';
+      const liveLine = sessionId ? await resumedRefreshContext(vaultPath).catch(() => '') : '';
       const jobId = startAskNova(vaultPath, { question, context: await askContext(sessionId), sessionId, liveLine });
       res.json({ jobId });
     } catch (e) {

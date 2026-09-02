@@ -168,8 +168,25 @@ DONE CRITERIA:
   clock time; REAL-DATA RUN: fires on 5 of 8 timed training days, and the
   cut join fires at 872 kcal (rest 2888 vs training 2017). Three cards added
   (floor-pattern, kcal-days, post-training). Both new findings will land in
-  his Inbox on tomorrow's 07–12h cadence tick. Next in roster: [04] Ask Nova
-  §6, then [05]…
+  his Inbox on tomorrow's 07–12h cadence tick. [04] Ask Nova §6 — MET (2 Sep): 1 was Tier
+  2's gatherContext; 6 (CODE directive) DECLINED by the synthesis (the Forge
+  is the front door); built now: 2 PLAY says "FOUND — COULDN'T OPEN" (warn
+  tone, link in the foot, prose says so) when the browser open fails
+  instead of NOW PLAYING; 3 the PWA /ask session is guarded like the spoken
+  one (lib/askSession.js: new day / >24h / 40 turns → fresh session, id
+  dropped, client persists the minted one) and resumed turns now carry his
+  CURRENT standing rules + learned preferences (resumedRefreshContext takes
+  vaultPath); 4 reflexes for sleep last night, resting heart rate, and
+  "what's on today" / "what's next" from the WARM calendar cache only
+  (calendar.peekCachedEventsForDay; cold → the model) — the server log shows
+  his real reflex asks were HRV ×2, steps, protein; 5 every numeric reflex
+  carries a metricCard the client puts on the glass (resp.card on the two
+  voice call sites); 7 ledger/digest say "8 of N shown — the rest are on the
+  Ops screen" / "10 of M shown — the rest are in his Inbox"; 8
+  dropAskContextCache() on every successful write (index.js chokepoint).
+  Live reflex replies and the reflex card render UNSEEN at 375 (a live
+  /ask check follows the deploy). Next in roster: [05] Dispatch §6, then
+  [06]…
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised

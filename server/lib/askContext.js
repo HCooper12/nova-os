@@ -85,7 +85,7 @@ export async function todayLocalContext() {
 // started Monday. The spoken lane already re-states the volatile block each
 // turn; this is the same idea for the PWA ask — today's live numbers plus
 // the platform ledger, both local-disk instant.
-export async function resumedRefreshContext() {
+export async function resumedRefreshContext(vaultPath = null) {
   // together, on a short leash — and a section that fails is NAMED, not
   // dropped: a resumed turn answering "nothing" from an unread ledger is the
   // exact confident wrongness this refresh exists to prevent
@@ -93,8 +93,23 @@ export async function resumedRefreshContext() {
     { label: 'today (local)', load: todayLocalContext },
     { label: 'the platform ledger (what he gave Nova)', load: async () => (await import('./platformActivity.js')).platformActivityContext() },
     { label: 'the inbox digest', load: async () => (await import('./platformActivity.js')).inboxDigestContext() },
+    // what he has SAID and what he tends to do reach a live session the
+    // turn after he says it — a correction made on Monday used to wait for
+    // a new conversation (twin of the turn-1 sections above)
+    ...(vaultPath ? [
+      { label: 'standing rules (current)', load: () => standingContext(vaultPath) },
+      { label: 'learned preferences (current)', load: () => preferencesContext(vaultPath) },
+    ] : []),
   ], { parallel: true, ms: 3000 });
   return text;
+}
+
+// A WRITE MAKES THE SNAPSHOT A LIE. The 90s TTL bounded it; now every
+// successful write (server/index.js's broadcast chokepoint) drops it, so the
+// next new conversation starts from the vault as it is, not as it was a
+// minute ago. Cheap: the mic-open prewarm rebuilds it.
+export function dropAskContextCache() {
+  contextCache = null;
 }
 
 // Turn-1 context costs ~2.4s to assemble (measured), almost all of it the

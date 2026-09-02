@@ -4644,7 +4644,7 @@ export default class App extends Component {
         this.setState((s2) => ({ voiceChat: [...s2.voiceChat, { at: Date.now(), who: 'you', text: q }, { at: Date.now(), who: 'nova', text }] }));
         if (this.state.voiceSpeak) this.speakTtsSentence(text, () => {}); else this.maybeAutoListen();
       };
-      if (resp.text) { land(resp.text); return; }
+      if (resp.text) { if (resp.card) this.putCard(resp.card); land(resp.text); return; } // a reflex: code spoke, code drew
       this.startPoll('ask', () => api.claudeCodeJob(conn, resp.jobId), {
         timeoutMs: 3 * 60_000, intervalMs: 400,
         onReady: (job) => land(job.result.text, job.result.sessionId),
@@ -5548,8 +5548,10 @@ export default class App extends Component {
     api.ask(conn, sent, this.state.voiceSessionId || null).then((resp) => {
       if (resp.text) {
         // Reflex answer — code replied from the live record, no job to poll.
-        // Voice leads here too: the text lands when the audio starts.
+        // Voice leads here too: the text lands when the audio starts. The
+        // number it spoke is drawn by the same code (resp.card).
         this.setState({ voiceBusy: false });
+        if (resp.card) this.putCard(resp.card);
         const show = () => this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: resp.text, evidence: this.offerVerdictFor(resp.text) }] }));
         if (this.state.voiceSpeak) this.speakTtsSentence(resp.text, show);
         else { show(); this.maybeAutoListen(); }

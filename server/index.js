@@ -178,6 +178,8 @@ async function main() {
     res.on('finish', () => {
       if (res.statusCode >= 200 && res.statusCode < 300) {
         import('./lib/events.js').then(({ broadcast }) => broadcast('write', slices ? { slices } : null)).catch(() => {});
+        // the ask context is a snapshot of the vault — a write makes it stale (lib/askContext.js)
+        import('./lib/askContext.js').then(({ dropAskContextCache }) => dropAskContextCache()).catch(() => {});
       }
     });
     next();

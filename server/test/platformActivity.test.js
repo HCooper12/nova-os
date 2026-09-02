@@ -44,3 +44,22 @@ test('a resumed turn gets the ledger as its live refresh — the fix for the lon
   const out = await resumedRefreshContext();
   assert.ok(out.includes('WHAT HE HAS GIVEN THE PLATFORM LATELY'), 'resumed turns see the platform record');
 });
+
+// ---- [04] plan 7: honest totals — count before slicing, name the cap ----
+test('the ledger and the digest say "N of M shown" when the cap bites, and where the rest are', async () => {
+  const { listRecords } = await import('../lib/inboxStore.js');
+  const { inboxDigestContext } = await import('../lib/platformActivity.js');
+  const iso = (hoursAgo) => new Date(Date.now() - hoursAgo * 3600e3).toISOString();
+  for (let i = 0; i < 12; i++) {
+    await createRecord({ id: `cap${i}`, kind: 'video', text: `Watch: https://youtu.be/cap${i}`, status: 'pending', createdAt: iso(100 + i), decision: { title: `Verdict ${i}`, payload: { body: `body ${i}` } } });
+  }
+  const all = await listRecords();
+  const laneTotal = all.filter((r) => ['video', 'study', 'research'].includes(r.kind)).length;
+  const pendingTotal = all.filter((r) => r.status === 'pending').length;
+  assert.ok(laneTotal > 8 && pendingTotal > 10, 'the fixtures exceed both caps');
+  const ledger = await platformActivityContext();
+  assert.match(ledger, new RegExp(`8 of ${laneTotal} shown — the rest are on the Ops screen`));
+  assert.equal((ledger.match(/^- /gm) || []).length, 8, 'still only eight lines');
+  const digest = await inboxDigestContext();
+  assert.match(digest, new RegExp(`10 of ${pendingTotal} shown — the rest are in his Inbox`));
+});

@@ -425,6 +425,22 @@ async function collectEvents(rangeStart, rangeEnd, { fresh = false } = {}) {
   return promise;
 }
 
+// The WARM cache only — for the Reflex Layer, which must answer in under a
+// second or not at all. A day whose events are cached (fresh or within the
+// stale-but-served window) comes back as public events; a cold cache is
+// null, and the reflex falls through to the model, which can wait on iCloud
+// honestly. Never fetches.
+export async function peekCachedEventsForDay(date = new Date()) {
+  const key = `${startOfDay(date).toISOString()}|${endOfDay(date).toISOString()}`;
+  const hit = eventCache.get(key);
+  if (!hit || Date.now() - hit.at >= CALENDAR_MAX_STALE_MS) return null;
+  try {
+    return (await hit.promise).map(publicEvent);
+  } catch {
+    return null;
+  }
+}
+
 // Boot prewarm: the one remaining cold case is a server restart — pay the
 // CalDAV round trip once now, in the background, so the first sync after a
 // reload/reboot doesn't. Fire-and-forget; a failure just means the old

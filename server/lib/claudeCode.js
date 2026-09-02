@@ -499,8 +499,12 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
         try {
           const { resolveLatestVideo, openInBrowser } = await import('./mediaLane.js');
           const found = await resolveLatestVideo(pd.play.query);
-          await openInBrowser(found.url).catch(() => {}); // resolving still helps even if opening fails
-          played = found;
+          // resolving still helps when opening fails — but the card must not
+          // say NOW PLAYING over a video that never opened
+          let opened = true;
+          try { await openInBrowser(found.url); } catch { opened = false; }
+          played = { ...found, opened };
+          if (!opened) text = `${text} (I found it but couldn't open it here — the link is on the glass.)`;
         } catch (e) {
           text = `${text} (I couldn't pull that up: ${e.message}.)`;
         }
@@ -527,9 +531,9 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
       }
       // a played video takes the glass unless the model named its own card
       const playedCard = played ? (await import('./spokenCards.js')).metricCard({
-        label: played.channel.slice(0, 42), value: played.title.slice(0, 28), caption: 'NOW PLAYING',
-        foot: `${played.durationMin ? `${played.durationMin} min · ` : ''}${played.exact ? 'newest upload' : 'closest match — not certain it is the newest'}`,
-        tone: 'gold',
+        label: played.channel.slice(0, 42), value: played.title.slice(0, 28), caption: played.opened === false ? "FOUND — COULDN'T OPEN" : 'NOW PLAYING',
+        foot: `${played.durationMin ? `${played.durationMin} min · ` : ''}${played.exact ? 'newest upload' : 'closest match — not certain it is the newest'}${played.opened === false ? ` · ${played.url}` : ''}`,
+        tone: played.opened === false ? 'warn' : 'gold',
       }) : null;
       turnJob.result = { text, sessionId: effectiveSessionId, panel, proposal, research, watch, modelChoicePending, card: card || playedCard, played };
       turnJob.status = 'ready';
