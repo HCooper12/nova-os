@@ -1,4 +1,6 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
+import os from 'node:os';
+import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -155,9 +157,9 @@ async function handleUpdate(vaultPath, state, update) {
   const chatId = String(msg.chat.id);
   const authorized = !!CHAT_ID() && chatId === CHAT_ID();
   if (!msg.text) {
-    // a photo or a voice note used to vanish without a word — the one silent
-    // class in a bridge whose every other tap lands on the rails. Say so; the
-    // photo→scan and voice→ask lanes are named capability gaps, not this.
+    // A PHOTO IS A FOOD SCAN (his highest-value pocket ask); anything else
+    // without text gets one honest line rather than the silence it used to.
+    if (msg.photo && authorized) { await scanPhoto(vaultPath, chatId, msg); return; }
     const line = nonTextReply(msg);
     if (line && authorized) await tg('sendMessage', { chat_id: chatId, text: line }).catch(() => {});
     return;
@@ -194,11 +196,78 @@ async function handleUpdate(vaultPath, state, update) {
 // Pure: what to say to a message that carries no text. null for a message
 // with nothing recognisable (a service message, a chat-member change).
 export function nonTextReply(msg) {
-  if (!msg || msg.text) return null;
-  const kind = msg.photo ? 'a photo' : (msg.voice || msg.audio) ? 'a voice note' : msg.video || msg.video_note ? 'a video'
+  if (!msg || msg.text || msg.photo) return null; // photos are scanned (scanPhoto), not answered here
+  const kind = (msg.voice || msg.audio) ? 'a voice note' : msg.video || msg.video_note ? 'a video'
     : msg.document ? 'a file' : msg.sticker ? 'a sticker' : msg.location ? 'a location' : null;
   if (!kind) return null;
-  return `Text only here for now, sir — ${kind} doesn't reach Nova yet. Type it, or use the app for photos.`;
+  return `Text and photos here, sir — ${kind} doesn't reach Nova yet. Type it instead.`;
+}
+
+// Telegram sends several sizes of one photo; the scan reads the largest.
+export function pickLargestPhoto(photos) {
+  return [...(photos || [])].sort((a, b) => (b.file_size || (b.width || 0) * (b.height || 0)) - (a.file_size || (a.width || 0) * (a.height || 0)))[0] || null;
+}
+
+// The scan's answer as a pending food-log capture — the same 'food' route the
+// app's own scan and the classifier file through; approving logs it, undo
+// removes it. Pure, so the shape is pinned.
+export function foodRecordFromScan(result, caption = '') {
+  const name = String(result?.name || caption || 'photographed food').trim().slice(0, 120);
+  const m = result?.macros || {};
+  const macros = { p: Math.round(m.p || 0), c: Math.round(m.c || 0), f: Math.round(m.f || 0), kcal: Math.round(m.kcal || 0) };
+  const low = result?.confidence === 'low';
+  return {
+    id: randomUUID().slice(0, 8),
+    text: `Photo — ${name}${caption ? ` (${String(caption).slice(0, 120)})` : ''}`,
+    source: 'telegram',
+    mode: 'draft',
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+    decision: {
+      route: 'food',
+      confidence: low ? 'low' : 'high',
+      title: `Log ${name} — ${macros.p}P · ${macros.c}C · ${macros.f}F · ${macros.kcal} kcal`,
+      reason: `Read from your photo${low ? ' — LOW confidence, check the numbers' : ''}${result?.question ? `. ${String(result.question).trim()}` : ''}.`,
+      payload: { name, macros },
+    },
+  };
+}
+
+// Download → the app's own scan lane → a pending record, which announces
+// itself in this chat with ✓ Yes / ✕ Leave (inboxStore's notifyIfPending).
+// Nothing is logged until he taps. Failures say so; the work dir is cleaned.
+async function scanPhoto(vaultPath, chatId, msg) {
+  const workDir = path.join(os.tmpdir(), 'nova-telegram', randomUUID().slice(0, 8));
+  try {
+    const photo = pickLargestPhoto(msg.photo);
+    if (!photo) throw new Error('no usable photo size');
+    await tg('sendChatAction', { chat_id: chatId, action: 'typing' }).catch(() => {});
+    const file = await tg('getFile', { file_id: photo.file_id });
+    const r = await fetch(`https://api.telegram.org/file/bot${TOKEN()}/${file.file_path}`, { signal: AbortSignal.timeout(30_000) });
+    if (!r.ok) throw new Error(`photo download failed (${r.status})`);
+    await mkdir(workDir, { recursive: true });
+    const imgPath = path.join(workDir, `photo${path.extname(file.file_path || '') || '.jpg'}`);
+    await writeFile(imgPath, Buffer.from(await r.arrayBuffer()));
+    const { startFoodScan, getFoodScanJob } = await import('./scanFood.js');
+    const caption = String(msg.caption || '').trim();
+    const jobId = startFoodScan('auto', [imgPath], workDir, caption);
+    const deadline = Date.now() + 120_000;
+    while (Date.now() < deadline) {
+      const job = getFoodScanJob(jobId);
+      if (job?.status === 'ready') {
+        const { createRecord } = await import('./inboxStore.js');
+        await createRecord(foodRecordFromScan(job.result, caption));
+        return;
+      }
+      if (job?.status === 'error') throw new Error(job.error || 'the scan failed');
+      await new Promise((res) => setTimeout(res, 1500));
+    }
+    throw new Error('the scan took too long — try the app');
+  } catch (e) {
+    await tg('sendMessage', { chat_id: chatId, text: `Couldn't read that photo, sir: ${e.message}` }).catch(() => {});
+  } finally {
+    await rm(workDir, { recursive: true, force: true }).catch(() => {});
+  }
 }
 
 export function startTelegramBridge(vaultPath) {
