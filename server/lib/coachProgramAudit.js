@@ -92,6 +92,8 @@ export function buildChecks({ sessions, exercises, routines, weekly, goalMuscles
       gate: () => (weekly.length >= 2 ? null : `needs 2 logged weeks, you have ${weekly.length}`),
       // The headroom IS the reassurance — it says how far from the edge he is.
       clear: () => `peak was ${maxWeeklySet} hard sets in a week against a ceiling of ${ceiling} — ${Math.max(0, ceiling - maxWeeklySet)} sets of headroom`,
+      // the number next week compares against (weekOverWeekNote)
+      metric: () => ({ value: maxWeeklySet, ceiling }),
     },
     {
       id: 'routine-oversized',
@@ -208,7 +210,7 @@ export async function auditProgram(vaultPath, deps = {}) {
     }
     const blocked = c.gate();
     if (blocked) return { id: c.id, label: c.label, status: 'not-yet', count: 0, detail: blocked };
-    return { id: c.id, label: c.label, status: 'clear', count: 0, detail: c.clear() };
+    return { id: c.id, label: c.label, status: 'clear', count: 0, detail: c.clear(), metric: c.metric ? c.metric() : null };
   });
 
   const fired = checks.filter((c) => c.status === 'fired');
@@ -277,12 +279,33 @@ export async function auditedThisWeek(now = new Date()) {
 
 /* ------------------------- the weekly run + raise -------------------------- */
 
+// A CLEAR LINE THAT MOVED says so — the longitudinal read in the module that
+// owns the history. Material = a 20% move on the metric, or crossing half
+// the headroom toward the ceiling. Steady weeks stay silent. Pure.
+export function weekOverWeekNote(current, previous) {
+  const cur = current?.metric, prev = previous?.metric;
+  if (!cur || !prev || !(prev.value > 0) || cur.value == null) return null;
+  const rel = (cur.value - prev.value) / prev.value;
+  const half = cur.ceiling ? cur.ceiling / 2 : null;
+  const crossedUp = half != null && prev.value < half && cur.value >= half;
+  if (rel >= 0.2 || crossedUp) return `— was ${prev.value} last week, trending toward the ceiling`;
+  if (rel <= -0.2) return `— was ${prev.value} last week, easing off`;
+  return null;
+}
+
 export async function runWeeklyAudit(vaultPath, deps = {}) {
   const now = deps.now || new Date();
   const audit = await auditProgram(vaultPath, { ...deps, now });
+  // last week's receipt is the comparison; this week's rows keep their metric
+  const previous = (await readAuditLog()).find((a) => a.weekOf !== audit.weekOf) || null;
+  for (const c of audit.checks) {
+    if (c.status !== 'clear' || !c.metric) continue;
+    const note = weekOverWeekNote(c, previous?.checks?.find((p) => p.id === c.id));
+    if (note) c.detail = `${c.detail} ${note}`;
+  }
   await writeAudit({
     at: audit.at, weekOf: audit.weekOf, counts: audit.counts, summary: audit.summary,
-    checks: audit.checks.map(({ id, status, count, detail }) => ({ id, status, count, detail })),
+    checks: audit.checks.map(({ id, status, count, detail, metric }) => ({ id, status, count, detail, ...(metric ? { metric } : {}) })),
   });
 
   // ONE record a week, never one per detector — the findings themselves are

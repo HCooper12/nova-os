@@ -179,3 +179,16 @@ test("audit card: the couldn't-look bar is drawn only when it happened", async (
   assert.equal(card.bars[3].value, 2);
   assert.match(card.foot, /2 checks could not run/);
 });
+
+// ---- [18] plan 3: a clear line that moved says so ----
+test('weekOverWeekNote: a 20% move or crossing half the headroom speaks; a steady week is silent', async () => {
+  const { weekOverWeekNote } = await import('../lib/coachProgramAudit.js');
+  const cur = (value, ceiling = 20) => ({ metric: { value, ceiling } });
+  assert.equal(weekOverWeekNote(cur(12), cur(10)), '— was 10 last week, trending toward the ceiling');
+  assert.equal(weekOverWeekNote(cur(11), cur(9)), '— was 9 last week, trending toward the ceiling', 'crossed half the headroom (10)');
+  assert.equal(weekOverWeekNote(cur(11), cur(10)), null, 'steady — one set above half is not a trend');
+  assert.equal(weekOverWeekNote(cur(7), cur(10)), '— was 10 last week, easing off');
+  assert.equal(weekOverWeekNote(cur(12), { metric: null }), null, 'no last week, nothing to compare');
+  assert.equal(weekOverWeekNote({ metric: null }, cur(10)), null);
+  assert.equal(weekOverWeekNote(cur(12), cur(0)), null, 'a zero baseline is not a ratio');
+});

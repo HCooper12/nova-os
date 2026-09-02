@@ -314,8 +314,18 @@ DONE CRITERIA:
   03:00–09:00; 5 validator-rejected learnings are counted and noted on the
   heartbeat for Ops; 6 dedupe against the What Works page — normalised
   containment either way (isKnownLearning), counted as learningsKnown;
-  fuzzy matching waits for evidence; 7 coachReflection.test.js. Next in
-  roster: [17] Program Review §6.
+  fuzzy matching waits for evidence; 7 coachReflection.test.js. [17] Program Review §6 — MET (3 Sep): 1 (respectNo
+  28d/20%), 2 (nudge text), 4 (flagged → 18's couldn't-look) were in; built
+  now: 3 GATED → exact-match shipped: alternatives named in the What Works
+  "Avoid / does not land" section sink to the bottom with the file's reason
+  ("skipping X — your file says: …"); his real page names two shoulder
+  lifts, and today's six stale findings (arms/chest/back) demote none —
+  correctly. [18] Program Audit §6 — MET: 1 (fourth state), 2 (Monday-onward
+  window), 4 (8d expiry), 5 (mondayOf) were in; built now: 3 week-over-week
+  on clear lines — the junk-volume check carries a metric on its receipt
+  and a ≥20% move or crossing half the headroom appends "— was N last week,
+  trending toward the ceiling" (or "easing off"); steady weeks stay silent.
+  Next in roster: [19] Money §6.
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised

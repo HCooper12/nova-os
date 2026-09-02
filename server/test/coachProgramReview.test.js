@@ -243,3 +243,18 @@ test('the second nudge speaks from the original line — nudges do not compound'
   // a record from before originalText existed still nudges from its text
   assert.match(nudgeLine({ text: 'Coach: add a row.' }, 1), /^Still open, sir: add a row\./);
 });
+
+// ---- [17] plan 3 (gated → exact match): the client file ranks the alternatives ----
+test('demoteAverted: a candidate named in the What Works Avoid section sinks to the bottom with the reason; nothing fuzzy', async () => {
+  const { demoteAverted } = await import('../lib/coachProgramReview.js');
+  const page = `# What Works For Hayden\n\n## Responds to\n- 2026-09-01 — Direct arm isolation work is where he is progressing.\n\n## Avoid / does not land\n- 2026-08-29 — Cable Lateral Raise (behind back) form breaks down specifically on his left side under load.\n- 2026-09-01 — Left-side shoulder instability now shows up on Dumbbell Shoulder Press (Single Arm) too.\n\n## Nutrition patterns\n- Protein lands late.`;
+  const alts = [{ id: 'a', name: 'Cable Lateral Raise (behind back)' }, { id: 'b', name: 'Machine Lateral Raise' }, { id: 'c', name: 'Dumbbell Shoulder Press (Single Arm)' }, { id: 'd', name: 'Arnold Press' }];
+  const r = demoteAverted(alts, page);
+  assert.deepEqual(r.ordered.map((x) => x.id), ['b', 'd', 'a', 'c']);
+  assert.equal(r.skipped.length, 2);
+  assert.match(r.skipped[0].reason, /^Cable Lateral Raise \(behind back\) form breaks down/);
+  // a lift mentioned only under "Responds to" is not averted
+  assert.deepEqual(demoteAverted([{ id: 'x', name: 'Direct arm isolation work' }], page).skipped, []);
+  assert.deepEqual(demoteAverted(alts, '').ordered.map((x) => x.id), ['a', 'b', 'c', 'd'], 'no file, no change');
+  assert.deepEqual(demoteAverted(alts, '# Page\n\n## Responds to\n- nothing').skipped, [], 'no Avoid section, nothing skipped');
+});

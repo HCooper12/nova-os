@@ -110,7 +110,32 @@ const bestSet = (sets = []) => {
 // outings spanning at least `minDays`. That is the moment a coach changes
 // the stimulus rather than repeating it — and the swap should hit the SAME
 // muscle, which is why the candidate list is filtered by group.
-export function findStaleLifts(sessions = [], exercises = [], { minSessions = 4, minDays = 21, now = new Date() } = {}) {
+// CLIENT-FILE-AWARE ALTERNATIVES. His What Works page names lifts under
+// "Avoid / does not land" ("Cable Lateral Raise (behind back) form breaks
+// down on the left…"); a candidate swap named there sinks to the bottom with
+// the reason attached rather than being offered as the fix. Exact,
+// case-insensitive name match on purpose — fuzzy matching waits for a real
+// replay showing aversions slipping through. Pure, exported for the test.
+export function demoteAverted(alternatives, avoidText) {
+  const text = String(avoidText || '');
+  if (!text.trim() || !alternatives?.length) return { ordered: alternatives || [], skipped: [] };
+  const section = (text.match(/##\s*Avoid[^\n]*\n([\s\S]*?)(?=\n##\s|$)/i) || [])[1] || '';
+  const lower = section.toLowerCase();
+  if (!lower.trim()) return { ordered: alternatives, skipped: [] };
+  const skipped = [];
+  const kept = [];
+  for (const a of alternatives) {
+    const name = String(a.name || '').toLowerCase();
+    if (name.length >= 4 && lower.includes(name)) {
+      const line = section.split('\n').find((l) => l.toLowerCase().includes(name)) || '';
+      skipped.push({ ...a, reason: line.replace(/^\s*-\s*(\d{4}-\d{2}-\d{2}\s*—\s*)?/, '').trim().slice(0, 140) });
+    } else kept.push(a);
+  }
+  return { ordered: [...kept, ...skipped], skipped };
+}
+const skipNote = (skipped) => (skipped.length ? ` (skipping ${skipped.map((s) => s.name).join(', ')} — your file says: "${skipped[0].reason}")` : '');
+
+export function findStaleLifts(sessions = [], exercises = [], { minSessions = 4, minDays = 21, now = new Date(), avoidText = '' } = {}) {
   const byId = new Map(exercises.map((e) => [e.id, e]));
   const history = new Map();
   for (const s of sessions) {
@@ -143,11 +168,12 @@ export function findStaleLifts(sessions = [], exercises = [], { minSessions = 4,
     if (peak > first * 1.02) continue; // still climbing — leave it alone
 
     const group = byId.get(exerciseId)?.muscleGroup || 'Other';
-    const alternatives = exercises
+    const ranked = demoteAverted(exercises
       .filter((e) => e.id !== exerciseId && (e.muscleGroup || 'Other') === group && group !== 'Other' && group !== 'Mobility')
       .sort((a, b) => Number(recent.has(a.id)) - Number(recent.has(b.id))) // unused first
-      .slice(0, 3);
-    if (!alternatives.length) continue; // nothing honest to offer instead
+      .slice(0, 4), avoidText);
+    const alternatives = ranked.ordered.slice(0, 3);
+    if (!alternatives.length || ranked.skipped.includes(alternatives[0])) continue; // nothing honest to offer instead
 
     out.push({
       kind: 'stale',
@@ -157,7 +183,7 @@ export function findStaleLifts(sessions = [], exercises = [], { minSessions = 4,
       group,
       weeks: Math.round(spanDays / 7),
       alternatives: alternatives.map((a) => ({ id: a.id, name: a.name, fresh: !recent.has(a.id) })),
-      line: `${window[0].name} hasn't moved in ${Math.round(spanDays / 7)} weeks across ${window.length} sessions. Same stimulus, same result — swap it for ${alternatives[0].name} for a block and let ${group.toLowerCase()} see a different angle.`,
+      line: `${window[0].name} hasn't moved in ${Math.round(spanDays / 7)} weeks across ${window.length} sessions. Same stimulus, same result — swap it for ${alternatives[0].name} for a block and let ${group.toLowerCase()} see a different angle.${skipNote(ranked.skipped)}`,
       fix: { action: 'swap', exerciseId, replaceWith: alternatives[0].id, group },
     });
   }
@@ -375,7 +401,7 @@ export function findLowValueExercises(sessions = [], exercises = [], routines = 
 // that stopped progressing. This is the variation argument — he has been
 // doing it for months, and a block on something else is worth taking even
 // while it still creeps.
-export function findLongTenure(sessions = [], exercises = [], { weeks = TENURE_WEEKS, minSessions = 10, now = new Date() } = {}) {
+export function findLongTenure(sessions = [], exercises = [], { weeks = TENURE_WEEKS, minSessions = 10, now = new Date(), avoidText = '' } = {}) {
   const byId = new Map(exercises.map((e) => [e.id, e]));
   const hist = new Map();
   for (const s of sessions) {
@@ -396,7 +422,8 @@ export function findLongTenure(sessions = [], exercises = [], { weeks = TENURE_W
     if (spanWeeks < weeks) continue;
     const group = byId.get(id)?.muscleGroup || 'Other';
     if (group === 'Other' || group === 'Mobility') continue;
-    const alternatives = exercises.filter((e) => e.id !== id && (e.muscleGroup || 'Other') === group).slice(0, 2);
+    const rankedT = demoteAverted(exercises.filter((e) => e.id !== id && (e.muscleGroup || 'Other') === group).slice(0, 3), avoidText);
+    const alternatives = rankedT.ordered.filter((a) => !rankedT.skipped.includes(a)).slice(0, 2);
     out.push({
       kind: 'tenure',
       key: `tenure:${id}:${Math.floor(spanWeeks / 4)}`, // re-raisable at most monthly
@@ -405,7 +432,7 @@ export function findLongTenure(sessions = [], exercises = [], { weeks = TENURE_W
       group,
       weeks: spanWeeks,
       sessions: d.length,
-      line: `You've been doing ${d[0].name} for ${spanWeeks} weeks straight — ${d.length} sessions. Even when a lift is still creeping, a block on something else for the same muscle tends to come back stronger${alternatives.length ? `; ${alternatives[0].name} would do it` : ''}.`,
+      line: `You've been doing ${d[0].name} for ${spanWeeks} weeks straight — ${d.length} sessions. Even when a lift is still creeping, a block on something else for the same muscle tends to come back stronger${alternatives.length ? `; ${alternatives[0].name} would do it` : ''}.${skipNote(rankedT.skipped)}`,
       fix: alternatives.length ? { action: 'swap', exerciseId: id, replaceWith: alternatives[0].id, group } : null,
     });
   }
@@ -530,8 +557,16 @@ export async function reviewProgram(vaultPath, deps = {}) {
     // routines are needed to judge "too many exercises" and "which movement
     // isn't paying" — both are questions about the PROGRAM, not just history
     loadRoutinesFor = async (exercises) => (await import('./workouts.js')).loadRoutines(vaultPath, exercises).then((r) => r.routines),
+    // his client file, unclipped — the alternatives are ranked against its Avoid section
+    loadPlaybook = async () => {
+      const { readFile } = await import('node:fs/promises');
+      const path = await import('node:path');
+      const { PLAYBOOK_REL } = await import('./coachKnowledge.js');
+      return readFile(path.join(vaultPath, PLAYBOOK_REL), 'utf8');
+    },
     now = new Date(),
   } = deps;
+  const avoidText = await loadPlaybook().catch(() => '');
 
   const [sessions, exercises, g] = await Promise.all([loadSessions(), loadExercises(), goals().catch(() => null)]);
   const goalMuscles = await focusOf(g).catch(() => []);
@@ -554,8 +589,8 @@ export async function reviewProgram(vaultPath, deps = {}) {
     ...findJunkVolume(weekly),
     ...findOversizedRoutines(sessions, routines, { now, justAdded }),
     ...findLowValueExercises(sessions, exercises, routines),
-    ...findStaleLifts(sessions, exercises, { now }),
-    ...findLongTenure(sessions, exercises, { now }),
+    ...findStaleLifts(sessions, exercises, { now, avoidText }),
+    ...findLongTenure(sessions, exercises, { now, avoidText }),
     // what he told Nova himself — the highest-quality signal there is
     ...findNoteSignals(sessions, exercises),
   ];
