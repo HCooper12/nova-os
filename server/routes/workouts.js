@@ -726,7 +726,8 @@ export function workoutsRouter(vaultPath) {
         { label: 'the program (library, week, progressions)', load: async () => {
           const out = [];
           const { exercises } = await loadExerciseLibrary(vaultPath);
-          out.push(`Exercise library (use these exact names where possible): ${exercises.map((e) => e.name).join('; ')}`);
+          // muscle groups ride the names — the deterministic fact the don't-hammer rule needs
+          out.push(`Exercise library (use these exact names where possible; muscle group in brackets): ${exercises.map((e) => `${e.name}${e.muscleGroup ? ` (${e.muscleGroup})` : ''}`).join('; ')}`);
           const { routines, schedule } = await loadRoutines(vaultPath, exercises);
           const dayKey = (d) => WEEKDAYS[(d.getDay() + 6) % 7];
           const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
@@ -747,13 +748,26 @@ export function workoutsRouter(vaultPath) {
         } },
         { label: 'recent sessions', load: async () => {
           const sessions = await loadSessions(vaultPath, { limit: 3 });
-          return sessions.length ? 'Recent sessions:\n' + sessions.map((s) => `- ${s.date} ${s.routineName}: ${s.exercises.map((e) => e.name).join(', ')}`).join('\n') : null;
+          const { exercises: lib } = await loadExerciseLibrary(vaultPath);
+          const group = (e) => e.muscleGroup || lib.find((x) => x.id === e.exerciseId || x.name === e.name)?.muscleGroup || null;
+          return sessions.length ? 'Recent sessions (what was hit, by muscle group):\n' + sessions.map((s) => `- ${s.date} ${s.routineName}: ${s.exercises.map((e) => `${e.name}${group(e) ? ` (${group(e)})` : ''}`).join(', ')}`).join('\n') : null;
         } },
         { label: 'recovery', load: async () => {
           const days = await loadRecentDays(7);
           const latest = [...days].reverse().find((d) => d.hrv != null || d.sleepAsleepMinutes != null);
-          return latest ? `Latest recovery: HRV ${latest.hrv ?? '—'}, sleep ${latest.sleepAsleepMinutes ? Math.round(latest.sleepAsleepMinutes / 60 * 10) / 10 + 'h' : '—'} (${latest.date}).` : null;
+          // the verdict the prompt is told to honour, not just the raw numbers
+          const { computeDeloadSignal } = await import('../lib/coach.js');
+          const signal = computeDeloadSignal(days);
+          const bits = [];
+          if (latest) bits.push(`Latest recovery: HRV ${latest.hrv ?? '—'}, sleep ${latest.sleepAsleepMinutes ? Math.round(latest.sleepAsleepMinutes / 60 * 10) / 10 + 'h' : '—'} (${latest.date}).`);
+          bits.push(`Deload signal: ${signal.advise ? `YES — ${signal.reason}. Design LIGHT: fewer hard sets, stop 2-3 reps short.` : `no — ${signal.reason}.`}`);
+          return bits.join(' ');
         } },
+        // a designer checks the injury log before prescribing — the page a
+        // real coach checks first (twin: the Coach chat's injuriesContext)
+        { label: 'injuries', load: async () => (await import('../lib/injuryLog.js')).injuriesContext(vaultPath) },
+        // a deload week or a block phase changes what a good session is
+        { label: 'training block', load: async () => (await import('../lib/trainingBlocks.js')).blockContext(vaultPath) },
       ]);
 
       res.json({ jobId: startQuickSession(vaultPath, { minutes, note, context }) });

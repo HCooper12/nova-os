@@ -288,6 +288,7 @@ export async function sessionDebrief(vaultPath, session) {
     facts.push(`- ${ex.name}: ${line || 'no sets'}${flags.length ? ` [${flags.join('; ')}]` : ''}`);
   }
   if (full.cutShort) facts.push(`Session CUT SHORT — his reason: ${full.cutShort}.`);
+  if (full.rationale) facts.push(`Why this session existed (the quick-session design's rationale): ${full.rationale}`);
   if (prev) facts.push(`Previous ${full.routineName} (${prev.date}): ${volumeOf(prev).toLocaleString()}kg volume.`);
   try {
     const { prsInSession } = await import('./trainingAnalytics.js');

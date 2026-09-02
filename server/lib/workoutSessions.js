@@ -269,6 +269,8 @@ export async function completeSession(vaultPath, input) {
       routineName: input.routineName.trim(),
       exercises,
       ...(input.cutShort ? { cutShort: input.cutShort } : {}),
+      // a quick session's WHY is part of its record (Coach's rationale, ≤300 chars)
+      ...(typeof input.rationale === 'string' && input.rationale.trim() ? { rationale: input.rationale.trim().slice(0, 300) } : {}),
       ...(clientKey ? { clientKey } : {}),
       finishedAt: now.toISOString(),
     };

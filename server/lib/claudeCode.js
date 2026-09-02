@@ -942,6 +942,8 @@ You are Nova's Coach designing an IMPROMPTU session for Hayden — a one-off wor
 Design rules (think like a real coach):
 - Fit the time box honestly: warm-up included in the budget, ~2-3 min per working set with rests. ${minutes} minutes ≈ ${Math.max(3, Math.round(minutes / 8))}-${Math.max(4, Math.round(minutes / 6))} working exercises.
 - Serve his stated goals and RESPECT the week's context below — don't hammer what yesterday's session hammered or steal tomorrow's scheduled work; fill the gap the program leaves.
+- Work AROUND any active injury or limitation listed below — never prescribe into pain; name the substitution and say it is because of the injury.
+- If the deload signal says YES or the block is a deload week, design LIGHT and say so in the rationale.
 - Prefer exercises FROM HIS LIBRARY (exact names below) so his history and prefills attach; only invent an exercise if the library truly lacks the pattern.
 - Give concrete prescriptions: sets × reps and a weight hint from his logged numbers where the library has history ("~80kg — last time 80×8"), or "start light" where it doesn't.
 - One line of rationale: why THIS session today, tied to goals/recovery/context.

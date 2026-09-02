@@ -202,3 +202,20 @@ test('a save with no clientKey still works (older client, no idempotency)', asyn
   assert.ok(s.id);
   assert.equal(s.clientKey, undefined, 'no key is stamped when the client sends none');
 });
+
+// ---- [08] plan 4: a quick session's WHY is part of its record ----
+test('a rationale on the save is persisted (clamped) and absent when not given', async () => {
+  const withWhy = await completeSession(vault, {
+    routineId: 'impromptu', routineName: 'Quick Pull', rationale: '  Shoulders were hammered yesterday, so back and biceps carry today.  ' + 'x'.repeat(400),
+    exercises: [{ exerciseId: 'row', name: 'Row', sets: [{ weight: 60, reps: 10, done: true }] }],
+  });
+  assert.ok(withWhy.rationale.startsWith('Shoulders were hammered yesterday'));
+  assert.equal(withWhy.rationale.length, 300, 'clamped to 300 characters');
+  const reloaded = (await loadSessions(vault, { limit: 20 })).find((s) => s.id === withWhy.id);
+  assert.equal(reloaded.rationale, withWhy.rationale, 'it is in the vault file, not just the response');
+  const without = await completeSession(vault, {
+    routineId: 'push', routineName: 'Push',
+    exercises: [{ exerciseId: 'bench', name: 'Bench Press', sets: [{ weight: 80, reps: 8, done: true }] }],
+  });
+  assert.equal(without.rationale, undefined, 'no rationale, no field');
+});

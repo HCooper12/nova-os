@@ -218,7 +218,16 @@ DONE CRITERIA:
   shipped 2 Sep; built now: 4 the check waits while today's calendar
   workout is ahead or under way (90 min assumed without an end), capped at
   21:30 — the likely cause of his 15-for-15 dismissals (asked at 19:00
-  before an evening session). Next in roster: [08] Quick Session §6.
+  before an evening session). [08] Quick Session §6 — MET (3 Sep): 5 was the
+  gatherContext rail; built now: 1 the injury log rides the design context
+  (twin of the Coach chat's) and the prompt says work AROUND it and name the
+  substitution; 2 the recovery section carries the deload VERDICT (design
+  LIGHT when yes) and the training-block phase; 3 muscle groups on every
+  library and recent-session exercise line (the don't-hammer rule's fact);
+  4 the Coach's one-line rationale rides the session — client session
+  object → finish payload → completeSession persists it (≤300) → the
+  session debrief quotes "why this session existed". Next in roster: [09]
+  Session Debrief §6.
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised

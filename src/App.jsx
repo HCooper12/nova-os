@@ -2712,7 +2712,9 @@ export default class App extends Component {
       clientKey: (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`),
       // the finishing-early reason (cockpit chips) rides the record so the
       // Coach can notice the pattern and open the restructure conversation
-      ...(this.state.sessionCutShort ? { cutShort: this.state.sessionCutShort } : {}) };
+      ...(this.state.sessionCutShort ? { cutShort: this.state.sessionCutShort } : {}),
+      // a quick session's WHY (Coach's one-line rationale) is part of its record
+      ...(session.rationale ? { rationale: session.rationale } : {}) };
     api.completeWorkoutSession(conn, payload).then(({ prs } = {}) => {
       if (prs?.length) {
         this.setState({ prCelebration: prs });
@@ -6264,7 +6266,8 @@ export default class App extends Component {
     this.setState({
       workoutsView: 'session',
       editingSessionId: null,
-      workoutSession: { routineId: 'impromptu', routineName: plan.name, exercises: plan.exercises },
+      // the WHY rides the session into the record — the debrief quotes it (server persists ≤300 chars)
+      workoutSession: { routineId: 'impromptu', routineName: plan.name, exercises: plan.exercises, ...(plan.rationale ? { rationale: plan.rationale } : {}) },
       quickPlan: null, quickNote: '',
       sessionCancelConfirm: false,
     });
