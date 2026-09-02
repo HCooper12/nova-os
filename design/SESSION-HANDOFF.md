@@ -100,10 +100,24 @@ DONE CRITERIA:
   config (`0d9e899`); [66] plan 3 Telegram voice note → Whisper (Groq first,
   OpenAI fallback, keys from ~/.config/watch/.env) → "Heard: …" → answerAsk
   (`b06b449`). Phone-width path now exists (devtools emulate). [60]
-  Galaxy 6–8 shipped (see Tier 3 #15). Remaining carried items: [07] plan 2
-  dismiss-with-reason + consumers, [02] plan 7 ask-why-once on a discarded
-  review + the per-adjustment ✓/✗ rows; then each report's §6 in roster
-  order.
+  Galaxy 6–8 shipped (see Tier 3 #15). [07] plan 2 + a minimal plan 3 — MET (2 Sep): the
+  training-check card's Discard asks WHAT HAPPENED with four chips, each
+  consumed on the server (trainingCheck.resolveTrainingCheck via
+  inbox.discardRecord, which now takes { vaultPath }): "Swapped for active
+  rest" journals an undoable active-rest receipt (kind journal, parentId =
+  the check) while the check stays declined (a walk is not a session);
+  "Logged elsewhere" files the check as trained with the truth in the line;
+  "Doing it tonight" carries — tomorrow's check names the promise, and with
+  nothing planned tomorrow a check is still raised for yesterday's session
+  (payload.date = yesterday; streaks read payload.date, twin note); "Didn't
+  happen" feeds the MISS MEMORY (missMemory: scheduled weekday vs
+  logged-or-reconciled over 4 weeks, ≥2 misses → a line for the Coach chat
+  context and the Week Plan). Free text stays a plain declineReason. Legacy
+  checks parse name/date from title/createdAt. Card render at 375 UNSEEN
+  (no pending check existed during the pass — the panel is the existing
+  why-chips UI with new strings). Remaining: [02] plan 7 ask-why-once on a
+  discarded review + the per-adjustment ✓/✗ rows; then each report's §6 in
+  roster order.
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised

@@ -100,6 +100,19 @@ export async function composeWeekPlan(vaultPath, now = new Date(), deps = {}) {
     lines.push('');
   }
 
+  // the training check's miss memory — a weekday that keeps not happening is
+  // a planning fact, not a coaching one, so the week plan says it plainly
+  try {
+    const { missMemory } = await import('./trainingCheck.js');
+    const { listRecords } = await import('./inboxStore.js');
+    const { loadSessions } = await import('./workoutSessions.js');
+    const sess = await loadSessions(vaultPath, { limit: 60 });
+    const items = missMemory({ schedule, sessionDates: new Set(sess.map((s) => s.date)), records: await listRecords() });
+    if (items.length) {
+      const names = Object.fromEntries(routines.map((r) => [r.id, r.name]));
+      lines.push(`> **Pattern:** ${items.map((it) => `${it.weekday} ${names[it.routineId] || it.routineId} missed ${it.missed} of the last ${it.of}`).join(' · ')} — schedule or life?`, '');
+    }
+  } catch { /* the plan stands without it */ }
   lines.push('---', '');
   lines.push(`**Week shape:** ${trainingDays} training day${trainingDays === 1 ? '' : 's'} scheduled${floor ? ` · protein floor ${floor}g/day` : ''}${carryovers.length ? ` · ${carryovers.length} carry-over${carryovers.length === 1 ? '' : 's'} outstanding` : ''}.`);
   if (allConflicts.length) lines.push('', `**Conflicts to resolve:** ${allConflicts.join(' · ')} — a move can be asked of Nova on Home ("move gym to …").`);

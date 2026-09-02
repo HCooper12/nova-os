@@ -607,6 +607,19 @@ export function workoutsRouter(vaultPath) {
         if (s.lastWorkoutDate) bits.push(`last logged session ${s.lastWorkoutDate}`);
         if (bits.length) parts.push(`Streaks: ${bits.join('; ')}.`);
       } catch { failures.push('streaks'); }
+      // DAYS that keep not happening — the training check's "didn't happen"
+      // consumer (trainingCheck.missMemory): schedule vs logged-or-reconciled
+      try {
+        const { missMemory, missMemoryContext } = await import('../lib/trainingCheck.js');
+        const { listRecords } = await import('../lib/inboxStore.js');
+        const { exercises: lib0 } = await loadExerciseLibrary(vaultPath);
+        const { routines: rs, schedule } = await loadRoutines(vaultPath, lib0);
+        const sess = await loadSessions(vaultPath, { limit: 60 });
+        const items = missMemory({ schedule, sessionDates: new Set(sess.map((s) => s.date)), records: await listRecords() });
+        const names = Object.fromEntries(rs.map((r) => [r.id, r.name]));
+        const mm = missMemoryContext(items, names);
+        if (mm) parts.push(mm);
+      } catch { failures.push('missed training days'); }
       // work that keeps not happening — the Coach asks why before proposing
       let markRaised = null; // stamped when the answer lands (startAskCoach onReady), never here
       try {

@@ -76,7 +76,9 @@ export async function computeStreaks(vaultPath) {
   const workoutDates = new Set(sessions.map((s) => s.date));
   // a training check he approved is a trained day — the reconciliation reconciles
   const localDate = (iso) => { const d = new Date(iso); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
-  for (const r of records) if (r.kind === 'training-check' && r.status === 'filed' && r.createdAt) workoutDates.add(localDate(r.createdAt));
+  // the reconciled date rides the payload (a check can reconcile YESTERDAY's
+  // promised session) — twin: trainingCheck.checkDateOf
+  for (const r of records) if (r.kind === 'training-check' && r.status === 'filed') { const d = r.decision?.payload?.date || (r.createdAt ? localDate(r.createdAt) : null); if (d) workoutDates.add(d); }
   const workout = scheduledStreak(workoutDates, schedule);
   const stepDates = new Set(healthDays.filter((d) => d.steps != null && d.steps >= STEP_GOAL).map((d) => d.date));
   const sleepDates = new Set(healthDays.filter((d) => d.sleepAsleepMinutes != null && d.sleepAsleepMinutes >= SLEEP_GOAL_MIN).map((d) => d.date));

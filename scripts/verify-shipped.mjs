@@ -69,6 +69,7 @@ const FEATURES = [
   ['Audio · mixing session, generic taps do not claim it', 'novaAudio'],
   ['Galaxy · legend plurals (same commit as the first-visit paint fix)', 'analyses'],
   ['Galaxy · pinch-zoom + pan, legend filters, recency/compost overlays', 'PINCH TO ZOOM'],
+  ['Inbox · training-check dismiss asks what happened (four chips)', 'ONE TAP KEEPS THE RECORD STRAIGHT'],
 ];
 
 const SERVER_ROUTES = [

@@ -350,11 +350,20 @@ export function valsInbox(app, ctx) {
     ...(() => {
       const COACH_ADVICE = new Set(['progression-tune', 'routine-edit', 'injury-log', 'goal-target', 'training-block']);
       const isAdvice = COACH_ADVICE.has(r.decision?.route) || r.kind === 'fuel-cross';
+      // A training check's dismiss is one of four realities, each consumed on
+      // the server (server/lib/trainingCheck.js TRAINING_CHECK_REASONS — the
+      // same four strings; a shared format).
+      const isTrainingCheck = r.kind === 'training-check';
       const asking = st.inboxAskWhy === r.id;
       return {
-        discard: () => (isAdvice ? app.setState({ inboxAskWhy: r.id, inboxWhyText: '' }) : app.inboxAction(r.id, 'discard')),
+        discard: () => (isAdvice || isTrainingCheck ? app.setState({ inboxAskWhy: r.id, inboxWhyText: '' }) : app.inboxAction(r.id, 'discard')),
         askingWhy: asking,
-        whyChips: asking ? ['Not now', 'Too aggressive', 'No equipment for it', 'I disagree — my call'] : null,
+        whyTitle: isTrainingCheck ? 'WHAT HAPPENED? — ONE TAP KEEPS THE RECORD STRAIGHT' : 'WHY PASS? — THE COACH LEARNS FROM THIS',
+        whyChips: asking
+          ? (isTrainingCheck
+            ? ["Didn't happen", 'Swapped for active rest', 'Doing it tonight', 'Logged elsewhere']
+            : ['Not now', 'Too aggressive', 'No equipment for it', 'I disagree — my call'])
+          : null,
         whyText: asking ? (st.inboxWhyText || '') : '',
         onWhyText: (e) => app.setState({ inboxWhyText: typeof e === 'string' ? e : e.target.value }),
         submitWhy: (reason) => { app.setState({ inboxAskWhy: null, inboxWhyText: '' }); app.inboxAction(r.id, 'discard', (reason || st.inboxWhyText || '').trim() || undefined); },

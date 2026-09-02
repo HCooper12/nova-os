@@ -14,6 +14,122 @@ import { note } from './heartbeat.js';
 // Approve notes it as done (a journal line, undoable); dismiss = didn't happen /
 // swapped for active rest. One check per day.
 
+// THREE REALITIES BEHIND A DISMISS, EACH WITH A CONSUMER. The card's why-chips
+// (src/vals/valsInbox.js keeps the same four strings — a shared format) land
+// here as the discard reason, and each one changes something:
+//   didn't happen      → the miss memory below counts it (Coach + Week Plan read it)
+//   swapped for active rest → a journal line, undoable, as its own filed receipt
+//   doing it tonight   → tomorrow's check carries the promise and asks again
+//   logged elsewhere   → the day is reconciled as trained (filed, streak counts it)
+// A free-text reason stays on the record as before.
+export const TRAINING_CHECK_REASONS = {
+  didnt: "Didn't happen",
+  swapped: 'Swapped for active rest',
+  tonight: 'Doing it tonight',
+  elsewhere: 'Logged elsewhere',
+};
+export function classifyReason(reason) {
+  const r = String(reason || '').toLowerCase();
+  if (!r) return null;
+  if (/active rest|swapp?ed|walk|stretch/.test(r)) return 'swapped';
+  if (/tonight|later today|this evening/.test(r)) return 'tonight';
+  if (/logged elsewhere|elsewhere|other app|another app/.test(r)) return 'elsewhere';
+  if (/didn.?t happen|did not happen|skipped|missed/.test(r)) return 'didnt';
+  return null;
+}
+
+// What the check asked about — on the payload since 2 Sep; older records
+// parse it back out of their own title.
+export function plannedNameOf(record) {
+  const p = record?.decision?.payload || {};
+  if (p.plannedName) return p.plannedName;
+  const m = /^Did (yesterday's )?(.+?) happen/.exec(record?.text || record?.decision?.title || '');
+  return m ? m[2] : 'your workout';
+}
+export function checkDateOf(record) {
+  const p = record?.decision?.payload || {};
+  if (p.date) return p.date;
+  return record?.createdAt ? todayISO(new Date(record.createdAt)) : null;
+}
+
+// The dismiss-with-reason, consumed. Returns the record as it now stands.
+// Called by inbox.discardRecord for this kind; the plain discard (reason
+// on record, nothing else) is the fallback for free text.
+export async function resolveTrainingCheck(vaultPath, record, reason) {
+  const { fileDecision } = await import('./inbox.js');
+  const { updateRecord, createRecord: create } = await import('./inboxStore.js');
+  const kind = classifyReason(reason);
+  const name = plannedNameOf(record);
+  const date = checkDateOf(record) || todayISO();
+  const now = new Date().toISOString();
+  if (kind === 'elsewhere' && vaultPath) {
+    // reconciled as trained — the same filing as approve, with the truth in the line
+    const decision = { ...record.decision, payload: { ...record.decision.payload, text: `Training reconciled ${date}: completed ${name} (logged elsewhere).` } };
+    const { destination, undo } = await fileDecision(vaultPath, decision);
+    return updateRecord(record.id, { status: 'filed', destination, undoData: undo, filedAt: now, auto: false, error: null, outcome: 'logged-elsewhere', decision });
+  }
+  if (kind === 'swapped' && vaultPath) {
+    // the swap is a fact worth a line of its own — filed as its own receipt
+    // (kind journal, undoable), while the check itself stays declined so
+    // the streak does not count a walk as a session
+    const decision = {
+      route: 'journal', confidence: 'high', title: `Active rest ${date} — swapped ${name}`,
+      reason: 'From the training check: he swapped the session for a walk or stretch.',
+      payload: { text: `Training reconciled ${date}: swapped ${name} for active rest (a walk or stretch).`, category: 'training', label: 'Active rest' },
+    };
+    const { destination, undo } = await fileDecision(vaultPath, decision);
+    await create({
+      id: randomUUID().slice(0, 8), kind: 'journal', text: decision.title, source: 'nova', mode: 'draft',
+      status: 'filed', createdAt: now, filedAt: now, auto: false, decision, destination, undoData: undo, parentId: record.id,
+    });
+  }
+  const declineReason = String(reason).trim().slice(0, 300);
+  return updateRecord(record.id, { status: 'discarded', discardedAt: now, error: null, declineReason, outcome: kind || 'other' });
+}
+
+// "Doing it tonight" yesterday, nothing logged since: the promise carries
+// into today. Pure — records + dates in, the carry (or null) out.
+export function carryFromYesterday(records, { yesterday, sessionDates }) {
+  const promised = records.find((r) => r.kind === 'training-check' && r.status === 'discarded'
+    && classifyReason(r.declineReason) === 'tonight' && checkDateOf(r) === yesterday);
+  if (!promised) return null;
+  const reconciled = records.some((r) => r.kind === 'training-check' && r.status === 'filed' && checkDateOf(r) === yesterday);
+  if (reconciled || sessionDates.has(yesterday)) return null;
+  return { name: plannedNameOf(promised), date: yesterday };
+}
+
+// MISS MEMORY — the skipped-days detector ([07] plan 3, the "didn't happen"
+// consumer). Deterministic: over the last `weeks` weeks, each scheduled
+// training weekday is done if a session was logged or a check was filed for
+// that date, missed otherwise (a dismissed check and a silent day both count
+// — the session did not happen). Two or more misses on the same weekday is
+// the pattern worth a question. The same shape as detectSkippedExercises.
+export function missMemory({ schedule = {}, sessionDates = new Set(), records = [], today = todayISO(), weeks = 4 } = {}) {
+  const filed = new Set(records.filter((r) => r.kind === 'training-check' && r.status === 'filed').map(checkDateOf).filter(Boolean));
+  const done = (d) => sessionDates.has(d) || filed.has(d);
+  const out = [];
+  const [y, m, dd] = today.split('-').map(Number);
+  for (let i = 0; i < 7; i++) {
+    const key = WEEKDAYS[i];
+    const val = schedule[key];
+    if (!val || val === ACTIVE_REST || val === 'rest') continue;
+    let missed = 0, of = 0;
+    for (let back = 1; back <= weeks * 7; back++) {
+      const d = new Date(y, m - 1, dd - back);
+      if ((d.getDay() + 6) % 7 !== i) continue;
+      of++;
+      if (!done(todayISO(d))) missed++;
+    }
+    if (of >= 2 && missed >= 2) out.push({ weekday: key[0].toUpperCase() + key.slice(1), routineId: val, missed, of });
+  }
+  return out.sort((a, b) => b.missed - a.missed || a.weekday.localeCompare(b.weekday));
+}
+export function missMemoryContext(items, routineNames = {}) {
+  if (!items?.length) return '';
+  const line = (it) => `- ${it.weekday} (${routineNames[it.routineId] || it.routineId}) — missed ${it.missed} of the last ${it.of}`;
+  return `TRAINING DAYS THAT KEEP NOT HAPPENING (schedule vs what was logged or reconciled, last 4 weeks — ask whether it is the schedule or life; do not just prescribe more):\n${items.map(line).join('\n')}`;
+}
+
 function todayISO(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
@@ -31,6 +147,7 @@ export async function runTrainingCheck(vaultPath) {
   let scheduledRoutine = null;
   let isActiveRest = false;
   let loggedToday = false;
+  let sessions = [];
   try {
     const { exercises } = await loadExerciseLibrary(vaultPath);
     const { routines, schedule } = await loadRoutines(vaultPath, exercises);
@@ -38,7 +155,7 @@ export async function runTrainingCheck(vaultPath) {
     const val = schedule?.[dayKey];
     isActiveRest = val === ACTIVE_REST;
     scheduledRoutine = val && !isActiveRest ? routines.find((r) => r.id === val) || null : null;
-    const sessions = await loadSessions(vaultPath, { limit: 6 });
+    sessions = await loadSessions(vaultPath, { limit: 40 });
     loggedToday = sessions.some((s) => s.date === t);
   } catch (e) {
     // couldn't look is not "nothing to do": a dead vault read used to produce
@@ -58,10 +175,29 @@ export async function runTrainingCheck(vaultPath) {
     calWorkout = evs.find((e) => WORKOUT_RE.test(e.label || '')) || null;
   } catch { /* calendar optional */ }
 
+  // yesterday's "doing it tonight", still unlogged — the promise carries
+  const sessionDates = new Set(sessions.map((s) => s.date));
+  const yesterday = todayISO(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1));
+  const carry = carryFromYesterday(records, { yesterday, sessionDates });
+
   // Nothing to reconcile if it's already logged, or nothing was planned (plain
-  // rest / active rest with no session expected).
+  // rest / active rest with no session expected) — unless a promise carries.
   const planned = scheduledRoutine || calWorkout;
-  if (loggedToday || !planned) return { skipped: 'nothing to reconcile' };
+  if (loggedToday || (!planned && !carry)) return { skipped: 'nothing to reconcile' };
+  if (!planned && carry) {
+    // nothing planned today, but yesterday's promised session is unaccounted for
+    const title = `Did yesterday's ${carry.name} happen in the end?`;
+    const record = {
+      id: randomUUID().slice(0, 8), kind: 'training-check', text: title, source: 'nova', mode: 'draft', status: 'pending', createdAt: now.toISOString(),
+      decision: {
+        route: 'journal', confidence: 'high', title,
+        reason: `Yesterday you said you'd do ${carry.name} that night, and nothing was logged for it. Approve to note it as done; otherwise say what happened.`,
+        payload: { text: `Training reconciled ${carry.date}: completed ${carry.name} (confirmed the day after).`, category: 'training', label: 'Training check', plannedName: carry.name, date: carry.date },
+      },
+    };
+    await createRecord(record);
+    return { proposed: true, record, carried: true };
+  }
 
   const plannedName = scheduledRoutine ? scheduledRoutine.name : (calWorkout ? calWorkout.label : 'a workout');
   const trainBit = scheduledRoutine
@@ -94,8 +230,8 @@ export async function runTrainingCheck(vaultPath) {
       route: 'journal',
       confidence: 'high',
       title,
-      reason: `${trainBit}${calBit}${mismatch}, but nothing's logged in Train yet. Approve to note it as done; if you swapped it for a walk or stretch, dismiss this — that counts as active rest.${carryBit}`,
-      payload: { text: `Training reconciled ${t}: completed ${plannedName} (confirmed from the schedule).`, category: 'training', label: 'Training check' },
+      reason: `${trainBit}${calBit}${mismatch}, but nothing's logged in Train yet. Approve to note it as done; otherwise dismiss and say what happened — swapped for a walk, doing it tonight, logged elsewhere, or didn't happen.${carryBit}${carry ? ` (Yesterday you said you'd do ${carry.name} that night — nothing was logged for it either.)` : ''}`,
+      payload: { text: `Training reconciled ${t}: completed ${plannedName} (confirmed from the schedule).`, category: 'training', label: 'Training check', plannedName, date: t },
     },
   };
   await createRecord(record);

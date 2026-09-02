@@ -237,7 +237,7 @@ export function Inbox({ v }) {
                   >{item.isModelChoice ? 'Skip this week' : 'Discard'}</Interactive>
                   {item.askingWhy && (
                     <div style={css("flex-basis:100%;margin-top:10px;padding:12px 14px;border:1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent);border-radius:10px;background:color-mix(in srgb, var(--nv-gold) 04%, transparent)")}>
-                      <div style={css(`font:500 10px ${M};letter-spacing:.2em;color:var(--nv-gold);margin-bottom:9px`)}>WHY PASS? — THE COACH LEARNS FROM THIS</div>
+                      <div style={css(`font:500 10px ${M};letter-spacing:.2em;color:var(--nv-gold);margin-bottom:9px`)}>{item.whyTitle}</div>
                       <div style={css("display:flex;gap:7px;flex-wrap:wrap;margin-bottom:9px")}>
                         {item.whyChips.map((c) => (
                           <Interactive key={c} as="span" onClick={() => item.submitWhy(c)}

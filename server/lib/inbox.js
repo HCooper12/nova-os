@@ -1242,9 +1242,15 @@ export async function approveRecord(vaultPath, id) {
   return updateRecord(id, { status: 'filed', destination, undoData: undo, filedAt: new Date().toISOString(), auto: false, error: null });
 }
 
-export async function discardRecord(id, reason) {
+export async function discardRecord(id, reason, { vaultPath = null } = {}) {
   const record = await getRecord(id);
   if (!record) throw new Error('inbox record not found');
+  // a training check's dismiss carries a reality (swapped / tonight / logged
+  // elsewhere / didn't happen) and each one has a consumer — see trainingCheck.js
+  if (record.kind === 'training-check' && record.status === 'pending' && typeof reason === 'string' && reason.trim()) {
+    const { resolveTrainingCheck } = await import('./trainingCheck.js');
+    return resolveTrainingCheck(vaultPath, record, reason);
+  }
   // error records need an exit too — before this, a failed capture/import was
   // unkillable: no endpoint accepted it and it accumulated forever
   if (record.status !== 'pending' && record.status !== 'error') throw new Error('only pending or errored captures can be discarded');
