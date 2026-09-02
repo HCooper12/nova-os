@@ -367,19 +367,25 @@ export function valsInbox(app, ctx) {
       // why once; tomorrow's review reads the reason (dailyReview.js
       // yesterday-review section).
       const isReview = r.kind === 'review';
+      // a declined day plan steers tomorrow's planner (planToday.js
+      // yesterday-plan section quotes the reason)
+      const isPlan = r.kind === 'plan-today';
       const asking = st.inboxAskWhy === r.id;
       return {
-        discard: () => (isAdvice || isTrainingCheck || isReview ? app.setState({ inboxAskWhy: r.id, inboxWhyText: '' }) : app.inboxAction(r.id, 'discard')),
+        discard: () => (isAdvice || isTrainingCheck || isReview || isPlan ? app.setState({ inboxAskWhy: r.id, inboxWhyText: '' }) : app.inboxAction(r.id, 'discard')),
         askingWhy: asking,
         whyTitle: isTrainingCheck ? 'WHAT HAPPENED? — ONE TAP KEEPS THE RECORD STRAIGHT'
           : isReview ? "WHY PASS? — TOMORROW'S REVIEW READS THIS"
-            : 'WHY PASS? — THE COACH LEARNS FROM THIS',
+            : isPlan ? "WHY PASS? — TOMORROW'S PLAN READS THIS"
+              : 'WHY PASS? — THE COACH LEARNS FROM THIS',
         whyChips: asking
           ? (isTrainingCheck
             ? ["Didn't happen", 'Swapped for active rest', 'Doing it tonight', 'Logged elsewhere']
             : isReview
               ? ['Off-base', 'Already knew', 'Not actionable', 'Too busy today']
-              : ['Not now', 'Too aggressive', 'No equipment for it', 'I disagree — my call'])
+              : isPlan
+                ? ['Too ambitious', 'Wrong focus', 'Already planned', 'Not today']
+                : ['Not now', 'Too aggressive', 'No equipment for it', 'I disagree — my call'])
           : null,
         whyText: asking ? (st.inboxWhyText || '') : '',
         onWhyText: (e) => app.setState({ inboxWhyText: typeof e === 'string' ? e : e.target.value }),

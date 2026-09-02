@@ -14,7 +14,7 @@ process.env.NOVA_VAULT_GRACE_MS = '0';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { classifyReason, plannedNameOf, checkDateOf, carryFromYesterday, missMemory, missMemoryContext, resolveTrainingCheck, TRAINING_CHECK_REASONS } = await import('../lib/trainingCheck.js');
+const { classifyReason, plannedNameOf, checkDateOf, carryFromYesterday, missMemory, missMemoryContext, resolveTrainingCheck, TRAINING_CHECK_REASONS, shouldWaitForWorkout } = await import('../lib/trainingCheck.js');
 const { createRecord, getRecord, listRecords } = await import('../lib/inboxStore.js');
 const { discardRecord } = await import('../lib/inbox.js');
 
@@ -131,4 +131,17 @@ test('miss memory: a weekday that keeps not happening is named; reconciled days 
   assert.match(ctx, /schedule or life/);
   assert.equal(missMemoryContext([]), '', 'no pattern, no line');
   assert.deepEqual(missMemory({ schedule: {}, sessionDates, records, today }), [], 'no schedule, nothing to miss');
+});
+
+// ---- [07] plan 4: don't ask about a session the day hasn't reached yet ----
+test('the check waits while the calendar workout is ahead or under way, asks once it has ended, and never waits past 21:30', () => {
+  const at = (hhmm) => new Date(`2026-09-02T${hhmm}:00`);
+  const ev = { time: '19:30', end: '20:30', label: 'Workout' };
+  assert.equal(shouldWaitForWorkout(ev, at('19:00')), true, 'ahead — wait');
+  assert.equal(shouldWaitForWorkout(ev, at('20:00')), true, 'under way — wait');
+  assert.equal(shouldWaitForWorkout(ev, at('20:45')), false, 'ended — ask');
+  assert.equal(shouldWaitForWorkout({ time: '21:00', label: 'Workout' }, at('21:15')), true, 'no end → 90 minutes assumed');
+  assert.equal(shouldWaitForWorkout({ time: '22:00', label: 'Workout' }, at('21:30')), false, 'the 21:30 cap: a late session is still asked about');
+  assert.equal(shouldWaitForWorkout(null, at('19:00')), false, 'no calendar workout → nothing to wait for');
+  assert.equal(shouldWaitForWorkout({ time: null, label: 'Workout' }, at('19:00')), false, 'an all-day/untimed event cannot be waited on');
 });

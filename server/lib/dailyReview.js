@@ -127,6 +127,15 @@ export async function buildReviewContext(vaultPath, now = new Date()) {
   // whether last week's changes happened"), applied daily. Without this the
   // one surface built for continuity restarted from zero every morning and
   // its adjustments were fire-and-forget.
+  // THE MORNING SIBLINGS CROSS-FEED: today's plan, already picked — the
+  // review scores the day against it rather than re-planning it
+  add('today-plan', async () => {
+    const { getPlanTodayStatus } = await import('./planToday.js');
+    const { today } = await getPlanTodayStatus();
+    if (!today?.priorities?.length) return null;
+    const lines = today.priorities.map((p, i) => `${i + 1}. ${p.do}${p.outcome ? ` — ${p.outcome === 'done' ? 'DONE' : 'SKIPPED'}` : ''}`);
+    return `TODAY'S PLAN (already picked this morning — score the day against it, don't re-plan it):\n${lines.join('\n')}`;
+  });
   add('yesterday-review', async () => {
     const y = new Date(now); y.setDate(y.getDate() - 1);
     const yIso = todayISO(y);

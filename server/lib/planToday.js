@@ -85,6 +85,7 @@ export async function buildPlanContext(vaultPath, now = new Date()) {
 
   add('profile', () => profileContext(vaultPath));
   add('standing', async () => (await import('./standing.js')).standingContext(vaultPath));
+  add('learning', async () => (await import('./learning.js')).preferencesContext(vaultPath)); // what he tends to do (twin: the review's)
   add('morning', async () => `TODAY'S PICTURE (computed now):\n${(await composeDispatch(vaultPath, 'morning', now)).text}`);
   add('carryovers', async () => {
     const { carryoverContext } = await import('./workoutCarryover.js');
@@ -95,6 +96,22 @@ export async function buildPlanContext(vaultPath, now = new Date()) {
     const open = items.filter((t) => !t.checked);
     return open.length ? `OPEN TO-DOS (${open.length}): ${open.slice(0, 12).map((t) => t.text).join('; ')}.` : null;
   });
+  // the plan reasons TOWARD his goals — the same rail the review reads
+  // (dailyReview.js 'goals' is the twin)
+  add('goals', async () => (await import('./fitnessGoals.js')).goalsContext(vaultPath));
+  // THE MORNING SIBLINGS CROSS-FEED: the plan sees the last review's read and
+  // adjustments (yesterday evening's, or this morning's if it ran first), so
+  // the day's three are picked against what the review already said
+  add('latest-review', async () => {
+    const rec = (await listRecords())
+      .filter((r) => r.kind === 'review' && r.decision?.payload?.text && ['filed', 'pending'].includes(r.status))
+      .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
+    if (!rec) return null;
+    // calendar days, not rounded hours: last night's review at 20:05 is 'yesterday' at 07:00
+    const age = Math.round((new Date(todayISO(now)) - new Date(todayISO(new Date(rec.createdAt)))) / 86400000);
+    if (age > 2) return null; // an old review is not this morning's frame
+    return `THE LAST DAILY REVIEW (${age === 0 ? 'today' : age === 1 ? 'yesterday' : `${age} days ago`} — pick today's three so they move what it said; don't re-argue it):\n${String(rec.decision.payload.text).slice(0, 700)}`;
+  });
   // THE PLAN REMEMBERS ITSELF. Yesterday's three commitments and what he
   // marked against them ride into today's context — without this, planning
   // could never improve his planning, and a skipped priority simply vanished.
@@ -104,7 +121,8 @@ export async function buildPlanContext(vaultPath, now = new Date()) {
     const rec = (await listRecords()).find((r) => r.kind === 'plan-today' && r.createdAt && todayISO(new Date(r.createdAt)) === yIso && Array.isArray(r.decision?.payload?.priorities) && r.decision.payload.priorities.length);
     if (!rec) return null;
     const ps = rec.decision.payload.priorities;
-    const fate = rec.status === 'filed' ? 'approved' : rec.status === 'discarded' ? (rec.expired ? 'expired unread' : 'declined') : rec.status;
+    // his reason for declining a plan is the loudest steer the planner gets (the why-chips on the card)
+    const fate = rec.status === 'filed' ? 'approved' : rec.status === 'discarded' ? (rec.expired ? 'expired unread' : `declined${rec.declineReason ? ` — his reason: "${rec.declineReason}" (plan accordingly; never re-issue what he declined unchanged)` : ''}`) : rec.status;
     const done = ps.filter((p) => p.outcome === 'done').length;
     const lines = ps.map((p, i) => `${i + 1}. ${p.do} — ${p.outcome === 'done' ? 'DONE' : p.outcome === 'skipped' ? 'SKIPPED' : 'no word'}`);
     return `YESTERDAY'S TOP 3 (plan ${fate}; ${done} of ${ps.length} marked done) — one clause on what happened, then today; carry a skipped one forward only if it still matters today:\n${lines.join('\n')}`;
@@ -136,12 +154,29 @@ If yesterday's plan is in the picture, its outcomes are real data: build on what
 Output ONLY a JSON object: {"priorities": [{"do": "the concrete action", "why": "one line tied to the data"}]}. No code fences, no commentary.`;
 }
 
-export function composePlanText(parsed, now = new Date()) {
+// PRIORITY → TO-DO LINKAGE, containment only. Replayed on his real record
+// (28 plans, 84 priorities, 2 Sep): every correct match was a priority that
+// named the to-do verbatim ("Clear the 2 open to-dos (swipe verification
+// item, …)"), and every looser token-overlap match was a paraphrase not
+// worth a write. So: an open to-do whose whole text sits inside the
+// priority's text is linked; nothing fuzzier. Pure, exported for the test.
+const norm = (s) => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+export function linkPrioritiesToTodos(priorities, todoItems) {
+  const open = (todoItems || []).filter((t) => !t.checked && t.text && t.text.length >= 8);
+  return priorities.map((p) => {
+    const hay = norm(p.do);
+    const lines = open.filter((t) => hay.includes(norm(t.text))).map((t) => t.raw || t.text);
+    return lines.length ? { ...p, todoLines: lines } : p;
+  });
+}
+
+export function composePlanText(parsed, now = new Date(), { todos = null } = {}) {
   const dateLong = now.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long' });
-  const priorities = (Array.isArray(parsed?.priorities) ? parsed.priorities : [])
+  let priorities = (Array.isArray(parsed?.priorities) ? parsed.priorities : [])
     .map((p) => ({ do: String(p?.do || '').trim(), why: String(p?.why || '').trim() }))
     .filter((p) => p.do)
     .slice(0, 3);
+  if (todos) priorities = linkPrioritiesToTodos(priorities, todos);
   if (!priorities.length) throw new Error('the plan came back empty');
   const title = `Plan Today — ${dateLong}`;
   const lines = [title, '', "**Today's Top 3.**"];
@@ -192,7 +227,9 @@ function startPlanJob(vaultPath, context, mode, recordId, now) {
       const text = (outer.result || '').trim();
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in plan response');
-      const { title, text: body, priorities } = composePlanText(JSON.parse(jsonMatch[0]), now);
+      let todos = null;
+      try { todos = (await listTodos(vaultPath)).items; } catch { /* no linkage without the list — the plan still stands */ }
+      const { title, text: body, priorities } = composePlanText(JSON.parse(jsonMatch[0]), now, { todos });
       const decision = {
         route: 'journal',
         confidence: 'high',
@@ -215,12 +252,30 @@ function startPlanJob(vaultPath, context, mode, recordId, now) {
         await updateRecord(recordId, { status: 'pending', decision });
       }
     } catch (e) {
-      await updateRecord(recordId, { status: 'error', error: e.message }).catch(() => {});
+      await planFailed(recordId, e.message, now);
     }
   });
   child.on('error', async (err) => {
-    await updateRecord(recordId, { status: 'error', error: err.message }).catch(() => {});
+    await planFailed(recordId, err.message, now);
   });
+}
+
+// THE DAY'S FINAL FAILURE IS SAID OUT LOUD — parity with the review
+// (dailyReview.reviewFailed): the third errored plan of the day sends one
+// push naming the retry, instead of an empty morning.
+export const PLAN_MAX_ATTEMPTS = 3;
+export function failedPlansToday(records, now = new Date()) {
+  const t = todayISO(now);
+  return records.filter((r) => r.kind === 'plan-today' && r.status === 'error' && r.createdAt && todayISO(new Date(r.createdAt)) === t).length;
+}
+async function planFailed(recordId, message, now) {
+  await updateRecord(recordId, { status: 'error', error: message }).catch(() => {});
+  try {
+    if (failedPlansToday(await listRecords(), now) >= PLAN_MAX_ATTEMPTS) {
+      const { sendPush } = await import('./push.js');
+      await sendPush({ title: 'Plan Today — Nova', body: "Today's plan couldn't compose, three times over — tap to run it from the Inbox.", tag: 'plan-failed' });
+    }
+  } catch { /* the push is the courtesy; the error record is the truth */ }
 }
 
 export async function runPlanToday(vaultPath, { force = false } = {}) {
@@ -250,7 +305,7 @@ export async function runPlanToday(vaultPath, { force = false } = {}) {
 // 'done' | 'skipped' | null (clear), written onto the record's own
 // priorities payload through the record-update rail; buildPlanContext reads
 // it back the next morning.
-export async function setPriorityOutcome(recordId, index, outcome) {
+export async function setPriorityOutcome(recordId, index, outcome, { vaultPath = null } = {}) {
   const rec = await getRecord(recordId);
   if (!rec || rec.kind !== 'plan-today') throw new Error('that record is not a day plan');
   const priorities = rec.decision?.payload?.priorities;
@@ -262,6 +317,20 @@ export async function setPriorityOutcome(recordId, index, outcome) {
     const { outcome: _o, outcomeAt: _a, ...rest } = p;
     return outcome ? { ...rest, outcome, outcomeAt: new Date().toISOString() } : rest;
   });
+  // a priority that named a to-do checks it when done — through the to-do
+  // rail (its own lock, sync and receipt). Never unchecks: a tick is his.
+  let checkedTodos = [];
+  if (outcome === 'done' && vaultPath && Array.isArray(priorities[i].todoLines) && priorities[i].todoLines.length) {
+    try {
+      const { listTodos: list, toggleTodo } = await import('./todos.js');
+      const { items } = await list(vaultPath);
+      for (const line of priorities[i].todoLines) {
+        const item = items.find((t) => (t.raw === line || t.text === line) && !t.checked);
+        if (item) { await toggleTodo(vaultPath, item.raw); checkedTodos.push(item.text); }
+      }
+    } catch (e) { console.error('plan priority → to-do check failed: ' + e.message); }
+  }
+  if (checkedTodos.length) next[i] = { ...next[i], checkedTodos };
   return updateRecord(recordId, { decision: { ...rec.decision, payload: { ...rec.decision.payload, priorities: next } } });
 }
 

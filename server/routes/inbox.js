@@ -251,7 +251,7 @@ export function inboxRouter(vaultPath) {
         return;
       }
       const { setPriorityOutcome } = await import('../lib/planToday.js');
-      res.json({ record: await setPriorityOutcome(req.params.id, req.body?.index, outcome) });
+      res.json({ record: await setPriorityOutcome(req.params.id, req.body?.index, outcome, { vaultPath }) });
     } catch (e) {
       res.status(400).json({ error: e.message });
     }

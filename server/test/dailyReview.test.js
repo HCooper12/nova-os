@@ -167,3 +167,18 @@ test('calendarDetailLines: today and tomorrow as HH:MM lines, all-day said, the 
   assert.match(capped, /- tomorrow 07:00 Early tomorrow/, 'tomorrow survives a busy today');
   assert.equal((capped.match(/^- /gm) || []).length, 5);
 });
+
+// ---- [06] plan 2: the review sees today's plan ----
+test("today's plan, already picked, rides into the review's context to be scored against", async () => {
+  const { createRecord } = await import('../lib/inboxStore.js');
+  const { setPlanConfig } = await import('../lib/planToday.js');
+  await setPlanConfig({ mode: 'draft', hour: 7 });
+  await createRecord({
+    id: 'pltoday1', kind: 'plan-today', status: 'filed', text: 'Plan Today', source: 'nova', mode: 'auto', createdAt: new Date().toISOString(),
+    decision: { route: 'journal', confidence: 'high', title: 'Plan Today', reason: 'x', payload: { text: 'x', priorities: [{ do: 'Front-load 60g protein by 14:00', why: 'x', outcome: 'done' }, { do: 'Walk Tank at 09:45', why: 'x' }] } },
+  });
+  const ctx = await buildReviewContext(vault, new Date());
+  assert.match(ctx, /TODAY'S PLAN \(already picked this morning — score the day against it/);
+  assert.match(ctx, /1\. Front-load 60g protein by 14:00 — DONE/);
+  assert.match(ctx, /2\. Walk Tank at 09:45\n/);
+});

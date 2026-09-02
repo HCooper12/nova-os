@@ -201,8 +201,24 @@ DONE CRITERIA:
   it would have fired on 22–25 of 25 logged days (his protein lands late;
   the floor is missed 21 of 25 days regardless) — daily nagging with no
   discriminating signal; the weekly floor-most-days finding and the Fuel
-  hero's gap coaching already carry the truth. Next in roster: [06] Plan
-  Today §6, then [07]… (07 plans 2, 3, 7 shipped; 1, 4–6 to check).
+  hero's gap coaching already carry the truth. [06] Plan Today §6 — MET (3 Sep): 1, 3, 6 were
+  in; built now: 2 the morning siblings cross-feed both ways (the review's
+  context carries TODAY'S PLAN with marks; the plan's context carries THE
+  LAST DAILY REVIEW, ≤2 calendar days old); 4 goals in the plan context; 5
+  learned preferences in the plan context + why-chips on a declined plan
+  (Too ambitious / Wrong focus / Already planned / Not today) consumed by
+  the yesterday-plan section ("his reason: … never re-issue what he
+  declined unchanged"); 7 the third failed plan of the day pushes (parity
+  with the review); 8 GATED → shipped containment-only: replayed on his 28
+  real plans (84 priorities), every correct match was a to-do named
+  verbatim inside a priority and every token-overlap match was a paraphrase,
+  so a priority carries todoLines only by whole-text containment and a DONE
+  tap ticks those to-dos through the to-do rail (never unticks; the record
+  says checkedTodos). [07] — MET: 1, 5, 6 were in (Tier 2/3), 2, 3, 7
+  shipped 2 Sep; built now: 4 the check waits while today's calendar
+  workout is ahead or under way (90 min assumed without an end), capped at
+  21:30 — the likely cause of his 15-for-15 dismissals (asked at 19:00
+  before an evening session). Next in roster: [08] Quick Session §6.
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised

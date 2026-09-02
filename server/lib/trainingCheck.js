@@ -130,6 +130,19 @@ export function missMemoryContext(items, routineNames = {}) {
   return `TRAINING DAYS THAT KEEP NOT HAPPENING (schedule vs what was logged or reconciled, last 4 weeks — ask whether it is the schedule or life; do not just prescribe more):\n${items.map(line).join('\n')}`;
 }
 
+// Pure: true while the calendar workout has not ended yet and it is before
+// the 21:30 cap. An event without an end is given 90 minutes.
+export function shouldWaitForWorkout(calWorkout, now = new Date()) {
+  if (!calWorkout?.time) return false;
+  const mins = (hhmm) => { const [h, m] = String(hhmm).split(':').map(Number); return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : null; };
+  const start = mins(calWorkout.time);
+  if (start == null) return false;
+  const end = mins(calWorkout.end) ?? start + 90;
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  if (nowMin >= 21 * 60 + 30) return false;
+  return nowMin < end;
+}
+
 function todayISO(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
@@ -174,6 +187,11 @@ export async function runTrainingCheck(vaultPath) {
     const evs = await fetchEventsForDay(now);
     calWorkout = evs.find((e) => WORKOUT_RE.test(e.label || '')) || null;
   } catch { /* calendar optional */ }
+  // Don't ask a question the day hasn't answered: a calendar workout still
+  // ahead (or under way) waits for the next hourly tick — capped at 21:30
+  // so a late session is still asked about before the record goes stale.
+  // Fifteen dismissals in a row on record, every one before he had trained.
+  if (shouldWaitForWorkout(calWorkout, now)) return { skipped: `the calendar workout is at ${calWorkout.time} — asking after it` };
 
   // yesterday's "doing it tonight", still unlogged — the promise carries
   const sessionDates = new Set(sessions.map((s) => s.date));
