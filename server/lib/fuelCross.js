@@ -33,6 +33,16 @@ const r0 = (n) => Math.round(n);
 function goalWantsGain(goal) {
   return /muscle|gain|bulk|mass|strength|size|hypertroph/i.test(goal || '');
 }
+// The joins must check the goal he actually has, not only gain. A recomp
+// ("lean muscle gain with fat loss") matches BOTH — each side's findings
+// are exclusive on the same numbers, so nothing contradictory fires.
+export function goalWantsCut(goal) {
+  return /\b(cut|cutting|diet|lean(er)?|lose|losing|loss|deficit|shred|drop)\b/i.test(goal || '');
+}
+// Protein after the session — the window that pays for the work.
+export const POST_WINDOW_MIN = 180;
+export const POST_PROTEIN_G = 25;
+const MIN_TIMED_TRAINING_DAYS = 5;
 
 // Split the last LOOKBACK_DAYS of genuinely-logged days into trained vs
 // rest using the session history's dates (local YYYY-MM-DD on both sides).
@@ -87,6 +97,7 @@ export function analyze({ sessions = [], days = [], profile = null, rotationTota
   const floor = profile?.proteinFloorG || null;
   const targetKcal = profile?.targetKcal || null;
   const wantsGain = goalWantsGain(goal);
+  const wantsCut = goalWantsCut(goal);
   const findings = [];
 
   // 1 — structural: does the rotation, eaten in full, even reach the floor?
@@ -96,6 +107,7 @@ export function analyze({ sessions = [], days = [], profile = null, rotationTota
       findings.push({
         key: 'rotation-protein-floor',
         severity: 'high',
+        metric: r0(gap),
         data: { kind: 'protein-floor', have: r0(rotationTotals.p), floor },
         line: `The rotation itself undershoots the protein floor: all four slots eaten in full give ${r0(rotationTotals.p)}g against the ${floor}g floor — ${r0(gap)}g must come from off-rotation food every single day.`,
       });
@@ -113,6 +125,7 @@ export function analyze({ sessions = [], days = [], profile = null, rotationTota
       findings.push({
         key: 'training-day-protein',
         severity: 'high',
+        metric: r0(floor - tp),
         data: { kind: 'protein-split', trained: r0(tp), rest: r0(rp), floor },
         line: `Training days average ${r0(tp)}g protein over the last ${LOOKBACK_DAYS} days (${trained.length} logged) — under the ${floor}g floor and no better than rest days at ${r0(rp)}g. The days that need protein most are getting the same as the days that need it least.`,
       });
@@ -123,10 +136,67 @@ export function analyze({ sessions = [], days = [], profile = null, rotationTota
         findings.push({
           key: 'training-day-kcal',
           severity: 'medium',
+          metric: r0(targetKcal - tk),
           data: { kind: 'kcal-split', trained: r0(tk), target: targetKcal },
           line: `For a ${goal || 'gain'} goal, training days average ${r0(tk)} kcal against the ${targetKcal} target (${trained.length} logged days) — the surplus that pays for the sessions isn't there on the days he trains.`,
         });
       }
+    }
+
+    if (targetKcal && wantsCut) {
+      const tk = avg(trained, 'kcal');
+      const rk = avg(rest, 'kcal');
+      if (tk >= targetKcal + 250) {
+        findings.push({
+          key: 'cut-training-kcal-over',
+          severity: 'medium',
+          metric: r0(tk - targetKcal),
+          data: { kind: 'kcal-split', trained: r0(tk), target: targetKcal },
+          line: `For a ${goal} goal, training days average ${r0(tk)} kcal — ${r0(tk - targetKcal)} over the ${targetKcal} target (${trained.length} logged days). The deficit is being spent on the days that could carry it.`,
+        });
+      }
+      if (rk - tk >= 300) {
+        findings.push({
+          key: 'rest-outeats-training',
+          severity: 'medium',
+          metric: r0(rk - tk),
+          data: { kind: 'kcal-days', trained: r0(tk), rest: r0(rk) },
+          line: `Rest days out-eat training days by ${r0(rk - tk)} kcal (${r0(rk)} vs ${r0(tk)}; ${rest.length} rest and ${trained.length} training days logged). On a ${goal} goal that is the fuel landing on the days that don't use it.`,
+        });
+      }
+    }
+  }
+
+  // 4 — timing: does protein land after the session? Timed entries only —
+  // a retro log has no clock time and cannot be placed, so it is not
+  // evidence either way (the line says so). One session per day counts.
+  const timedDays = new Map(days.filter((d) => (d.entries || []).some((e) => e.time)).map((d) => [d.date, d]));
+  const post = [];
+  for (const s of sessions) {
+    if (!s.finishedAt || !s.date || s.date < cutoff || post.some((x) => x.date === s.date)) continue;
+    const d = timedDays.get(s.date);
+    if (!d) continue;
+    const fin = new Date(s.finishedAt);
+    if (Number.isNaN(fin.getTime())) continue;
+    const finMin = fin.getHours() * 60 + fin.getMinutes();
+    const within = (d.entries || []).filter((e) => {
+      if (!e.time) return false;
+      const [h, m] = String(e.time).split(':').map(Number);
+      const t = h * 60 + m;
+      return t >= finMin - 30 && t <= finMin + POST_WINDOW_MIN;
+    });
+    post.push({ date: s.date, protein: totalsOf(within).p });
+  }
+  if (post.length >= MIN_TIMED_TRAINING_DAYS) {
+    const low = post.filter((x) => x.protein < POST_PROTEIN_G);
+    if (low.length / post.length >= 0.5) {
+      findings.push({
+        key: 'post-training-protein',
+        severity: 'medium',
+        metric: Math.round((low.length / post.length) * 100),
+        data: { kind: 'post-training', low: low.length, of: post.length, grams: POST_PROTEIN_G },
+        line: `On ${low.length} of ${post.length} timed training days, under ${POST_PROTEIN_G}g protein landed within 3h of finishing the session — the window that pays for the work is going empty (timed food entries only; retro logs can't be placed).`,
+      });
     }
   }
 
@@ -140,6 +210,8 @@ export function analyze({ sessions = [], days = [], profile = null, rotationTota
         findings.push({
           key: 'floor-most-days',
           severity: 'medium',
+          metric: Math.round((under.length / full.length) * 100),
+          data: { kind: 'floor-pattern', under: under.length, of: full.length, floor },
           line: `The ${floor}g protein floor was missed on ${under.length} of the last ${full.length} fully-logged days — the floor is currently a ceiling.`,
         });
       }

@@ -446,3 +446,20 @@ test('effort (autoregulated tune): grinding at RPE 10 with the work flat is held
   const prog2 = await progFor('rpe-tuned-headroom', easy, easy);
   assert.equal(prog2['pull:row'].kind, 'weight', 'RPE 7 at target still earns the step under the tune');
 });
+
+// ---- [03] plans 3 + 4: how long a fuel finding has been true, and the severity lift ----
+test('consecutiveWeeklyRaises counts the weekly rhythm back from now; a fortnight of silence breaks it', async () => {
+  const { consecutiveWeeklyRaises, liftSeverity } = await import('../lib/coachCadence.js');
+  const now = Date.parse('2026-09-02T09:00:00Z');
+  const daysAgo = (n) => new Date(now - n * 86_400_000).toISOString();
+  assert.equal(consecutiveWeeklyRaises([], now), 0);
+  assert.equal(consecutiveWeeklyRaises([daysAgo(1)], now), 1);
+  assert.equal(consecutiveWeeklyRaises([daysAgo(1), daysAgo(8), daysAgo(15)], now), 3, 'three weekly raises');
+  assert.equal(consecutiveWeeklyRaises([daysAgo(1), daysAgo(9), daysAgo(17)], now), 3, 'a raise every 8 days is still weekly');
+  assert.equal(consecutiveWeeklyRaises([daysAgo(1), daysAgo(20)], now), 1, 'a two-week gap breaks the streak');
+  assert.equal(consecutiveWeeklyRaises([daysAgo(10)], now), 0, 'nothing this week → no streak now');
+  assert.equal(liftSeverity('medium'), 'high');
+  assert.equal(liftSeverity('high'), 'high');
+  assert.equal(liftSeverity('low'), 'medium');
+  assert.equal(liftSeverity('odd'), 'odd');
+});

@@ -152,8 +152,24 @@ DONE CRITERIA:
   8 the day's third failed compose sends one push naming the retry
   (reviewFailed → failedAttemptsToday, REVIEW_MAX_ATTEMPTS=3). Live context
   build (read-only, env loaded): calendar detail present, debrief present,
-  fleet present, zero FAILED sections. Next in roster: [03] fuel-cross §6,
-  then [04]…
+  fleet present, zero FAILED sections. [03] Fuel-cross §6 — MET (2 Sep): 1 was Tier 2's
+  couldn't-look; built now: 2 cut-goal joins (goalWantsCut — a recomp
+  matches both sides; rest days out-eating training days ≥300 kcal, and
+  training days ≥250 over target on a cut); 3 persistence — every raise is
+  remembered (coach-cadence.json fuelRaisedHistory), three consecutive
+  weekly raises append "Nth week running" and lift severity one step, and a
+  finding red ≥2 weeks that stops firing earns one filed "closed" receipt
+  (fuelClosed, once per closing); 4 his reasoned no waits 28 days unless the
+  finding's own metric moved ≥15% (respectNo; every finding now carries
+  `metric`), and fuel-cross records ride the Coach's advice-outcome context;
+  5 floor-most-days carries data + a card; 6 the protein-timing join
+  (post-training-protein: timed entries only, ≥5 timed training days, ≥50%
+  under 25g within 3h) — FEASIBILITY READ FIRST: 111 of 137 entries carry a
+  clock time; REAL-DATA RUN: fires on 5 of 8 timed training days, and the
+  cut join fires at 872 kcal (rest 2888 vs training 2017). Three cards added
+  (floor-pattern, kcal-days, post-training). Both new findings will land in
+  his Inbox on tomorrow's 07–12h cadence tick. Next in roster: [04] Ask Nova
+  §6, then [05]…
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised

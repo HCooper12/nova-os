@@ -136,6 +136,42 @@ export function findingCard(finding) {
         foot: "the surplus that pays for the sessions isn't there",
       });
 
+    // The floor as a ceiling: days missed against days logged.
+    case 'fuel:floor-pattern':
+      if (!(f.of > 0) || !(f.floor > 0)) return null;
+      return barsCard({
+        label: `${f.floor}g protein floor · last ${f.of} logged days`,
+        bars: [
+          { name: 'Missed', value: f.under, tone: 'warn' },
+          { name: 'Met', value: Math.max(0, f.of - f.under), tone: 'good' },
+        ],
+        foot: 'the floor is currently a ceiling',
+      });
+
+    // Rest days out-eating training days.
+    case 'fuel:kcal-days':
+      if (!(f.rest > 0) || !(f.trained > 0)) return null;
+      return barsCard({
+        label: 'Calories · training vs rest days',
+        bars: [
+          { name: 'Training', value: f.trained, tone: 'cy' },
+          { name: 'Rest', value: f.rest, tone: 'warn' },
+        ],
+        foot: "the fuel lands on the days that don't use it",
+      });
+
+    // Protein after the session: days that missed the window vs days that hit it.
+    case 'fuel:post-training':
+      if (!(f.of > 0)) return null;
+      return barsCard({
+        label: `Under ${f.grams}g protein within 3h of training`,
+        bars: [
+          { name: 'Missed', value: f.low, tone: 'warn' },
+          { name: 'Hit', value: Math.max(0, f.of - f.low), tone: 'good' },
+        ],
+        foot: `of your last ${f.of} timed training days`,
+      });
+
     default:
       return null;
   }

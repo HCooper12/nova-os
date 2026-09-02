@@ -134,36 +134,122 @@ export async function raiseFuelFindings(vaultPath) {
     return [];
   }
   const { findings } = result;
-  if (!findings.length) return [];
   const s = await loadState();
   const raised = s.fuelRaised || {};
-  const cutoff = Date.now() - 7 * 86_400_000;
-  const existing = (await listRecords()).filter((r) => r.kind === 'fuel-cross' && r.status === 'pending');
+  const history = s.fuelRaisedHistory || {}; // key → every raise, newest last (the persistence memory)
+  const closed = s.fuelClosed || {};          // key → when its win receipt was written
+  const now = Date.now();
+  const nowIso = new Date(now).toISOString();
+  const cutoff = now - 7 * 86_400_000;
+  const records = await listRecords();
+  const existing = records.filter((r) => r.kind === 'fuel-cross' && r.status === 'pending');
+  // HIS NO IS ON RECORD. A finding he declined with a reason waits 28 days
+  // unless its own number has moved ≥15% — the same helper every lane uses
+  // (lib/respectTheNo.js); without a reason the 7-day rhythm stands.
+  const { latestDeclines, respectNo } = await import('./respectTheNo.js');
+  const declines = latestDeclines(records, { kind: 'fuel-cross', subjectOf: (r) => r.findingKey, metricOf: (r) => r.finding?.metric ?? null });
+  const { randomUUID } = await import('node:crypto');
   const out = [];
+  let dirty = false;
   for (const f of findings) {
     if (raised[f.key] && new Date(raised[f.key]).getTime() > cutoff) continue;
     if (existing.some((r) => r.findingKey === f.key)) continue; // still unread — don't stack duplicates
-    const { randomUUID } = await import('node:crypto');
+    const declined = declines.get(f.key);
+    if (declined?.reason) {
+      const verdict = respectNo({ declined, now, cooldownDays: 28, metric: f.metric ?? null, materialChange: 0.15 });
+      if (!verdict.raise) { console.log(`fuel cross-check: ${f.key} not raised — ${verdict.why}`); continue; }
+    }
+    // HOW LONG HAS THIS BEEN TRUE — the monthly signal. Three consecutive
+    // weekly raises and the line says so and the severity lifts one step.
+    const weeks = consecutiveWeeklyRaises(history[f.key] || [], now) + 1; // this raise included
+    const severity = weeks >= 3 ? liftSeverity(f.severity) : f.severity;
+    const line = weeks >= 3 ? `${f.line} — ${ordinal(weeks)} week running.` : f.line;
     out.push(await createRecord({
       id: randomUUID().slice(0, 8),
       kind: 'fuel-cross',
       findingKey: f.key,
-      // the numbers the line quotes, kept so the brief can DRAW the finding
-      finding: f.data ? { kind: `fuel:${f.data.kind}`, ...f.data } : undefined,
-      text: `Fuel × training: ${f.line}`,
+      severity,
+      weeksRunning: weeks,
+      // the numbers the line quotes, kept so the brief can DRAW the finding —
+      // and the metric respect-the-no compares against his last no
+      finding: f.data ? { kind: `fuel:${f.data.kind}`, ...f.data, metric: f.metric ?? null } : { metric: f.metric ?? null },
+      text: `Fuel × training: ${line}`,
       source: 'coach',
       mode: 'draft',
       status: 'pending',
-      createdAt: new Date().toISOString(),
+      createdAt: nowIso,
     }));
-    raised[f.key] = new Date().toISOString();
+    raised[f.key] = nowIso;
+    history[f.key] = [...(history[f.key] || []).slice(-11), nowIso];
+    dirty = true;
   }
-  if (out.length) {
+  // THE WIN RECEIPT. A finding that was red for two or more weeks running
+  // and has now stopped firing earns one filed line — the closing of the
+  // loop is a fact worth a receipt, not silence. Once per closing.
+  const firing = new Set(findings.map((f) => f.key));
+  for (const [key, dates] of Object.entries(history)) {
+    if (firing.has(key) || !dates.length) continue;
+    const lastRaise = new Date(dates[dates.length - 1]).getTime();
+    if (closed[key] && new Date(closed[key]).getTime() >= lastRaise) continue; // already closed since it last fired
+    if (now - lastRaise < 7 * 86_400_000) continue; // give the weekly rhythm one beat before calling it closed
+    if (consecutiveWeeklyRaises(dates, lastRaise + 1) < 2) continue; // a one-week blip closes quietly
+    out.push(await createRecord({
+      id: randomUUID().slice(0, 8),
+      kind: 'fuel-cross',
+      findingKey: key,
+      closedFinding: true,
+      text: `Fuel × training — closed: "${FINDING_LABEL[key] || key}" is no longer true this week, after ${consecutiveWeeklyRaises(dates, lastRaise + 1)} weeks red.`,
+      source: 'coach',
+      mode: 'auto',
+      status: 'filed',
+      auto: true,
+      destination: 'noted — nothing to file',
+      createdAt: nowIso,
+      filedAt: nowIso,
+    }));
+    closed[key] = nowIso;
+    dirty = true;
+  }
+  if (dirty) {
     s.fuelRaised = raised;
+    s.fuelRaisedHistory = history;
+    s.fuelClosed = closed;
     await mkdir(path.dirname(STATE_PATH), { recursive: true }).catch(() => {});
     await writeFile(STATE_PATH, JSON.stringify(s, null, 2));
   }
   return out;
+}
+
+// Plain-English names for the closing receipt — twins of the keys in
+// lib/fuelCross.js analyze().
+const FINDING_LABEL = {
+  'rotation-protein-floor': 'the rotation undershoots the protein floor',
+  'training-day-protein': 'training days under-eat protein',
+  'training-day-kcal': 'training days short of the kcal target',
+  'cut-training-kcal-over': 'training days over the kcal target on a cut',
+  'rest-outeats-training': 'rest days out-eat training days',
+  'floor-most-days': 'the protein floor missed most days',
+  'post-training-protein': 'protein missing after training',
+};
+const SEVERITY_ORDER = ['low', 'medium', 'high'];
+export function liftSeverity(sev) {
+  const i = SEVERITY_ORDER.indexOf(sev);
+  return i < 0 ? sev : SEVERITY_ORDER[Math.min(SEVERITY_ORDER.length - 1, i + 1)];
+}
+const ordinal = (n) => `${n}${n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th'}`;
+// How many consecutive weekly windows back from `now` hold a raise — the
+// weekly rhythm is the unit, so a raise every 7–9 days still counts as a
+// streak and a fortnight's silence breaks it. Pure, exported for the test.
+export function consecutiveWeeklyRaises(dates, now = Date.now()) {
+  const ts = (dates || []).map((d) => new Date(d).getTime()).filter(Number.isFinite);
+  let weeks = 0;
+  for (let k = 0; k < 52; k++) {
+    const hi = now - k * 7 * 86_400_000;
+    const lo = hi - 7 * 86_400_000;
+    if (ts.some((t) => t > lo && t <= hi)) weeks++;
+    else break;
+  }
+  return weeks;
 }
 
 // ---- the missed-session rescue (the audit's ghost comment, made real) ----

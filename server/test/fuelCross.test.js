@@ -72,8 +72,10 @@ test('gain goal + training days short of the kcal target → medium finding; no 
   const gain = analyze({ sessions, days, profile: PROFILE, goal: 'build muscle' });
   assert.deepEqual(keys(gain), ['training-day-kcal']);
   assert.equal(gain[0].severity, 'medium');
+  // a cut goal has no gain finding — but the same numbers (rest days 2600 vs
+  // training ~2100) are exactly the cut join: rest days out-eating training days
   const cut = analyze({ sessions, days, profile: PROFILE, goal: 'lean out' });
-  assert.deepEqual(cut, []);
+  assert.deepEqual(keys(cut), ['rest-outeats-training']);
 });
 
 test('floor missed on 60%+ of fully-logged days → pattern finding', () => {
@@ -129,4 +131,56 @@ test('crossCheck: every source readable → ok, no couldntLook, and an empty res
   assert.equal(result.couldntLook, null);
   assert.deepEqual(result.findings, []);
   assert.equal(crossContext(result), '');
+});
+
+// ---- [03] plan 2: the joins for a CUT goal; a recomp matches both sides ----
+test('cut goal: rest days out-eating training days by 300+ kcal, and training days 250+ over target, each earn a medium finding; a gain goal stays silent on both', async () => {
+  const { analyze, goalWantsCut } = await import('../lib/fuelCross.js');
+  assert.equal(goalWantsCut('Lean muscle gain with simultaneous fat loss'), true, 'a recomp is a cut too');
+  assert.equal(goalWantsCut('Build muscle and strength'), false);
+  const day = (date, kcal, p) => ({ date, entries: [{ name: 'x', macros: { kcal, p, c: 0, f: 0 } }] });
+  const iso = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+  const sessions = [1, 3, 5].map((n) => ({ date: iso(n) }));
+  const days = [day(iso(1), 1900, 150), day(iso(3), 1850, 150), day(iso(5), 1950, 150), day(iso(2), 2800, 150), day(iso(4), 2900, 150), day(iso(6), 2950, 150)];
+  const cut = analyze({ sessions, days, profile: { proteinFloorG: 150, targetKcal: 2200 }, goal: 'fat loss' });
+  const rest = cut.find((f) => f.key === 'rest-outeats-training');
+  assert.ok(rest, 'rest days 2883 vs training 1900');
+  assert.equal(rest.severity, 'medium');
+  assert.equal(rest.data.kind, 'kcal-days');
+  assert.ok(rest.metric >= 900);
+  assert.ok(!cut.find((f) => f.key === 'cut-training-kcal-over'), 'training days are UNDER target here');
+  const over = analyze({ sessions, days: [day(iso(1), 2600, 150), day(iso(3), 2550, 150), day(iso(5), 2500, 150), day(iso(2), 2500, 150), day(iso(4), 2450, 150), day(iso(6), 2500, 150)], profile: { proteinFloorG: 150, targetKcal: 2200 }, goal: 'cutting' });
+  assert.ok(over.find((f) => f.key === 'cut-training-kcal-over'), 'training days 350 over target on a cut');
+  const gain = analyze({ sessions, days, profile: { proteinFloorG: 150, targetKcal: 2200 }, goal: 'build muscle' });
+  assert.ok(!gain.find((f) => f.key === 'rest-outeats-training') && !gain.find((f) => f.key === 'cut-training-kcal-over'), 'no cut goal, no cut findings');
+});
+
+// ---- [03] plan 5: the floor pattern draws its own numbers ----
+test('floor-most-days carries data + metric like its siblings', async () => {
+  const { analyze } = await import('../lib/fuelCross.js');
+  const iso = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+  const days = [1, 2, 3, 4, 5].map((n) => ({ date: iso(n), entries: [{ name: 'x', macros: { kcal: 2000, p: n === 1 ? 160 : 100, c: 0, f: 0 } }] }));
+  const [f] = analyze({ sessions: [], days, profile: { proteinFloorG: 150 }, goal: '' }).filter((x) => x.key === 'floor-most-days');
+  assert.deepEqual(f.data, { kind: 'floor-pattern', under: 4, of: 5, floor: 150 });
+  assert.equal(f.metric, 80);
+});
+
+// ---- [03] plan 6: protein after the session, timed entries only ----
+test('post-training protein: half or more of timed training days under 25g within 3h → finding; untimed days are not evidence; fewer than 5 timed days stays silent', async () => {
+  const { analyze } = await import('../lib/fuelCross.js');
+  const iso = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+  const finishedAt = (n, h) => { const d = new Date(); d.setDate(d.getDate() - n); d.setHours(h, 0, 0, 0); return d.toISOString(); };
+  const entry = (time, p) => ({ name: 'x', time, macros: { kcal: 400, p, c: 0, f: 0 } });
+  // 6 training days, finish 14:00; protein lands at 19:00 on five of them, at 15:00 on one
+  const sessions = [1, 2, 3, 4, 5, 6].map((n) => ({ date: iso(n), finishedAt: finishedAt(n, 14) }));
+  const days = [1, 2, 3, 4, 5].map((n) => ({ date: iso(n), entries: [entry('09:00', 30), entry('19:00', 60)] }));
+  days.push({ date: iso(6), entries: [entry('15:00', 40)] });
+  const out = analyze({ sessions, days, profile: null, goal: '' });
+  const f = out.find((x) => x.key === 'post-training-protein');
+  assert.ok(f, 'five of six timed training days missed the window');
+  assert.deepEqual(f.data, { kind: 'post-training', low: 5, of: 6, grams: 25 });
+  assert.match(f.line, /timed food entries only/);
+  // retro logs (no time) are not evidence: with only 3 timed days the join stays silent
+  const untimed = days.map((d, i) => (i < 3 ? d : { date: d.date, entries: [{ name: 'x', macros: { kcal: 400, p: 10, c: 0, f: 0 } }] }));
+  assert.ok(!analyze({ sessions, days: untimed, profile: null, goal: '' }).find((x) => x.key === 'post-training-protein'));
 });

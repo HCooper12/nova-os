@@ -96,3 +96,14 @@ test('fuel findings without their numbers get no card', () => {
   assert.equal(findingCard({ kind: 'fuel:protein-split', trained: 72 }), null);
   assert.equal(findingCard({ kind: 'fuel:kcal-split', trained: 1461 }), null);
 });
+
+test('the three newer fuel pictures render, and refuse without their numbers', () => {
+  const floor = findingCard({ kind: 'fuel:floor-pattern', under: 9, of: 13, floor: 150 });
+  assert.ok(floor && /150g protein floor/i.test(JSON.stringify(floor)));
+  assert.equal(findingCard({ kind: 'fuel:floor-pattern', under: 9, of: 0, floor: 150 }), null);
+  const days = findingCard({ kind: 'fuel:kcal-days', trained: 1890, rest: 2888 });
+  assert.ok(days && /Rest/.test(JSON.stringify(days)));
+  const post = findingCard({ kind: 'fuel:post-training', low: 12, of: 16, grams: 25 });
+  assert.ok(post && /within 3h of training/i.test(JSON.stringify(post)));
+  assert.equal(findingCard({ kind: 'fuel:post-training', low: 0, of: 0, grams: 25 }), null);
+});
