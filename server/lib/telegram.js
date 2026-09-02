@@ -160,6 +160,10 @@ async function handleUpdate(vaultPath, state, update) {
     // A PHOTO IS A FOOD SCAN (his highest-value pocket ask); anything else
     // without text gets one honest line rather than the silence it used to.
     if (msg.photo && authorized) { await scanPhoto(vaultPath, chatId, msg); return; }
+    // A VOICE NOTE IS AN ASK: transcribed the way the watcher transcribes a
+    // video's audio, echoed back so he sees what was heard, then answered
+    // exactly as if he had typed it.
+    if ((msg.voice || msg.audio) && authorized) { await askVoice(vaultPath, state, chatId, msg); return; }
     const line = nonTextReply(msg);
     if (line && authorized) await tg('sendMessage', { chat_id: chatId, text: line }).catch(() => {});
     return;
@@ -196,11 +200,36 @@ async function handleUpdate(vaultPath, state, update) {
 // Pure: what to say to a message that carries no text. null for a message
 // with nothing recognisable (a service message, a chat-member change).
 export function nonTextReply(msg) {
-  if (!msg || msg.text || msg.photo) return null; // photos are scanned (scanPhoto), not answered here
-  const kind = (msg.voice || msg.audio) ? 'a voice note' : msg.video || msg.video_note ? 'a video'
-    : msg.document ? 'a file' : msg.sticker ? 'a sticker' : msg.location ? 'a location' : null;
+  if (!msg || msg.text || msg.photo || msg.voice || msg.audio) return null; // photos are scanned, voice notes asked
+  const kind = msg.video || msg.video_note ? 'a video' : msg.document ? 'a file' : msg.sticker ? 'a sticker' : msg.location ? 'a location' : null;
   if (!kind) return null;
-  return `Text and photos here, sir — ${kind} doesn't reach Nova yet. Type it instead.`;
+  return `Text, photos and voice notes here, sir — ${kind} doesn't reach Nova yet. Type it instead.`;
+}
+
+// download the note, transcribe it, echo what was heard, answer it
+async function askVoice(vaultPath, state, chatId, msg) {
+  const workDir = path.join(os.tmpdir(), 'nova-telegram', randomUUID().slice(0, 8));
+  try {
+    const media = msg.voice || msg.audio;
+    await tg('sendChatAction', { chat_id: chatId, action: 'typing' }).catch(() => {});
+    const file = await tg('getFile', { file_id: media.file_id });
+    const r = await fetch(`https://api.telegram.org/file/bot${TOKEN()}/${file.file_path}`, { signal: AbortSignal.timeout(30_000) });
+    if (!r.ok) throw new Error(`voice download failed (${r.status})`);
+    await mkdir(workDir, { recursive: true });
+    const ext = path.extname(file.file_path || '') || '.ogg';
+    const audioPath = path.join(workDir, `voice${ext}`);
+    await writeFile(audioPath, Buffer.from(await r.arrayBuffer()));
+    const { transcribeAudio } = await import('./transcribe.js');
+    const { text } = await transcribeAudio(audioPath, { mime: media.mime_type || 'audio/ogg' });
+    if (!text) throw new Error('nothing was heard in that note');
+    // he sees what was heard BEFORE the answer — a mishearing is visible, not silent
+    await tg('sendMessage', { chat_id: chatId, text: `Heard: “${text.slice(0, 600)}”` }).catch(() => {});
+    await answerAsk(vaultPath, state, chatId, text);
+  } catch (e) {
+    await tg('sendMessage', { chat_id: chatId, text: `Couldn't take that voice note, sir: ${e.message} — type it instead.` }).catch(() => {});
+  } finally {
+    await rm(workDir, { recursive: true, force: true }).catch(() => {});
+  }
 }
 
 // Telegram sends several sizes of one photo; the scan reads the largest.

@@ -35,8 +35,8 @@ test('without a token the bridge is dormant', () => {
 test('a non-text message gets one honest line naming what it was — never silence, never a guess', async () => {
   const { nonTextReply } = await import('../lib/telegram.js');
   assert.equal(nonTextReply({ photo: [{ file_id: 'x' }] }), null, 'a photo is scanned, not answered here');
-  assert.match(nonTextReply({ voice: { file_id: 'x' } }), /Text and photos here, sir — a voice note doesn't reach Nova yet/);
-  assert.match(nonTextReply({ document: { file_id: 'x' } }), /a file doesn't reach Nova yet/);
+  assert.equal(nonTextReply({ voice: { file_id: 'x' } }), null, 'a voice note is transcribed and asked, not answered here');
+  assert.match(nonTextReply({ document: { file_id: 'x' } }), /Text, photos and voice notes here, sir — a file doesn't reach Nova yet/);
   assert.equal(nonTextReply({ text: 'hello' }), null, 'text is routed, not answered here');
   assert.equal(nonTextReply({ new_chat_members: [] }), null, 'a service message is not answered at all');
 });
