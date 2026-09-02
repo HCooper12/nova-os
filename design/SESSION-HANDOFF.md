@@ -13,7 +13,7 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**2 SEP (cont.) — EXECUTING THE AUDIT'S PROGRAMME: TIERS 1 AND 2 DONE, TIER 3 NEXT.**
+**2 SEP (cont.) — THE AUDIT'S PROGRAMME: TIERS 1–3 SHIPPED; #18 (PER-ITEM REMAINDER) IS WHAT'S LEFT.**
 *(Interim update mid-session; the session log entry is written at close.)*
 
 GOAL: execute `design/audits/2026-08-full-audit/99-SYNTHESIS.md` in tier
@@ -63,9 +63,24 @@ DONE CRITERIA:
 - Tier 2 #14 time-value + parity — MET (`9578a06`). meal-prep/coach-audit
   8d, cfo 14d expiries; cfo + meal-prep are DETERMINISTIC lanes on the model
   board (switch, no picker; setLanePref rejects a model for them).
-- Tier 3 (#15 Galaxy rebuild, #16 follow-through loops, #17 pocket set,
-  #18 per-item remainder) — UNMET. #16 recon started (streaks reconcile,
-  review continuity, plan completion loop).
+- Tier 3 #16 follow-through — MET (`eb5b930`, `b6870b7`). Streaks count
+  approved training checks and walk SCHEDULED days (rest days neither count
+  nor break; unit 'sessions' vs 'days' on every reader — his real streak
+  reads 5 sessions); the Daily Review reads yesterday's review + fate; the
+  plan's top 3 can be marked DONE/SKIP on the record (POST
+  /api/inbox/:id/priority) and tomorrow's plan reads the outcomes.
+- Tier 3 #17 pocket set — MET (`76bab3c`). Telegram answers non-text with
+  one honest line (photo→scan and voice→ask remain named gaps); large
+  widget renders top3 (his phone's script must be re-pasted — mac/README);
+  NovaBar: origin-scoped mic grant, right-click Reload · URL · Quit, inline
+  "NOVA UNREACHABLE — Retry". Rebuilt with swiftc, relaunched (running from
+  the new binary).
+- Tier 3 #15 Galaxy — MET (`b66093a`). `src/galaxyLayout.js` seeded force
+  layout at build time (tested from node), degree-sized stars, selection
+  lights its neighbourhood, honest cap label. Plan items 6–8 (zoom/pan,
+  legend filters, Nova overlays) NOT built.
+- Tier 3 #18 per-item remainder — UNMET; see OPEN below for the carried
+  items already known; the rest is each report's §6 in roster order.
 - Phone-width (375px) pass — still BLOCKED (browser tool resize lies); every
   client change this session is code-read + bundle-marker only.
 
@@ -87,7 +102,7 @@ STATE:
   createdExercises }`; legacy `routines:[…]` records still undo.
 - Compost store: `dismissed:{key:iso}` replaces `dismissedKeys:[]` (migrated
   on load; live store had 0 legacy keys).
-- Tests 727 → 783, all green. verify:shipped has six new markers.
+- Tests 727 → 792, all green. verify:shipped has eight new markers.
 - New helpers this session: stagedPass, sources, respectTheNo, settle,
   contextSections, spacing; heartbeat notes; briefState greet/rituals.
 
@@ -141,13 +156,22 @@ OPEN QUESTIONS / BLOCKERS:
   count? Undecided; the check still alerts.
 - He has declined all 12 food-save proposals ever made — the lane's premise
   may not fit; surfaced, not acted on.
+- The plan's DONE/SKIP marks and the Galaxy neighbourhood lighting have no
+  live use yet (he has not tapped either); their tests pass, their renders
+  are unseen.
+- His phone's Scriptable widget still runs the OLD script until re-pasted.
 - Week-plan window semantics; `guardian: 26h`; phone-width pass — carried.
 
-NEXT ACTION: Tier 3 — recommended order #16 server-side first (streaks
-count approved training checks + schedule-aware; the Daily Review reads
-yesterday's review and its fate), then #16's plan-completion loop and #17
-(UI — needs a phone-width path), then #15 Galaxy rebuild (UI, gated on
-verification), then #18 per-item remainder.
+NEXT ACTION: either (a) the phone-width verification pass — every client
+change this session (Fuel couldn't-check card, Ambient unknown, Mission
+plan error state + DONE/SKIP marks, Settings deterministic lanes, Galaxy)
+is code-read only, and this is the largest unverified surface on the
+platform — or (b) #18 in roster order. Carried #18 items with the most
+value already identified: [17] nudge-text compounding (plan 2); [24]
+citation gate + retry keeps the model override (plans 1, 3); [66]
+photo→scan lane (plan 2); [60] Galaxy 6–8; [07] dismiss semantics (plan 2)
++ WORKOUT_RE validation against his real calendar (plan 6); [02] review
+adjustment ✓/✗ UI; [29] AUTONOMY_TARGETS registry completeness (plan 2).
 
 DO NOT:
 - Do not sandbox a vaultStateFile-owned file by path, and do not write one
@@ -156,7 +180,9 @@ DO NOT:
 - Do not write a source-scanning test whose forbidden literal appears in
   your own explanatory comment — scan code lines only.
 - Do not run verify:shipped with the next item's changes uncommitted: it
-  (correctly) fails the git check for the previous item.
+  (correctly) fails the git check for the previous item — this bit twice.
+- Do not rebuild NovaBar without expecting the panel to pop on relaunch
+  (it shows once on launch by design); tell him if he is at the Mac.
 - Do not read a test's `applyOps` scratch vault as independent: the state
   cache is per module; set NOVA_VAULT_GRACE_MS=0 or the second vault reads
   the first's library.
