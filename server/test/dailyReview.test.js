@@ -73,3 +73,20 @@ test('context assembly: composes the cross-domain picture, honestly, without thr
   assert.match(ctx, /TODAY'S PICTURE/); // deterministic composer folded in
   assert.match(ctx, /RECOVERY\/DELOAD SIGNAL/);
 });
+
+test("the review remembers itself: yesterday's review and its fate ride into today's context", async () => {
+  const { createRecord } = await import('../lib/inboxStore.js');
+  await createRecord({
+    id: 'rev00718', kind: 'review', status: 'discarded', discardedAt: '2026-07-18T20:00:00', declineReason: 'the sleep read was off — I was up with the dog',
+    text: 'Daily Review — Saturday 18 July', source: 'nova', mode: 'draft', createdAt: '2026-07-18T08:05:00',
+    decision: { route: 'journal', confidence: 'high', title: 'Daily Review — Saturday 18 July', reason: 'x', payload: { text: 'Daily Review — Saturday 18 July\n\n**Read.** Short night.\n\n**Adjustments.**\n1. Bed by 22:30 — sleep debt', category: 'personal', label: 'Daily review reflection' } },
+  });
+  const ctx = await buildReviewContext(vault, new Date('2026-07-19T08:00:00'));
+  assert.match(ctx, /YESTERDAY'S REVIEW \(he declined it — his reason: "the sleep read was off — I was up with the dog"\)/);
+  assert.match(ctx, /Bed by 22:30/, 'the adjustments it set are in front of the model');
+  assert.match(ctx, /say plainly from today's data whether it happened/);
+  // and the prompt holds the model to it
+  assert.match(buildReviewPrompt(ctx), /A review that forgets what it said yesterday is not a review/);
+  // the day after, with no review the day before, the section is honestly absent
+  assert.doesNotMatch(await buildReviewContext(vault, new Date('2026-07-21T08:00:00')), /YESTERDAY'S REVIEW/);
+});

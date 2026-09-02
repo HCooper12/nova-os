@@ -111,12 +111,26 @@ export async function buildReviewContext(vaultPath, now = new Date()) {
   });
   add('streaks', async () => {
     const s = await computeStreaks(vaultPath);
-    return `STREAKS: workout ${s.workoutStreak}d, step-goal ${s.stepGoalStreak}d, sleep-goal ${s.sleepGoalStreak}d${s.lastWorkoutDate ? `; last session ${s.lastWorkoutDate}` : ''}.`;
+    return `STREAKS: workout ${s.workoutStreak}${s.workoutStreakUnit === 'sessions' ? ' scheduled sessions in a row' : 'd'}, step-goal ${s.stepGoalStreak}d, sleep-goal ${s.sleepGoalStreak}d${s.lastWorkoutDate ? `; last session ${s.lastWorkoutDate}` : ''}.`;
   });
   add('todos', async () => {
     const { items } = await listTodos(vaultPath);
     const open = items.filter((t) => !t.checked);
     return open.length ? `OPEN TO-DOS (${open.length}): ${open.slice(0, 8).map((t) => t.text).join('; ')}.` : null;
+  });
+  // THE REVIEW REMEMBERS ITSELF — the weekly debrief's contract ("say plainly
+  // whether last week's changes happened"), applied daily. Without this the
+  // one surface built for continuity restarted from zero every morning and
+  // its adjustments were fire-and-forget.
+  add('yesterday-review', async () => {
+    const y = new Date(now); y.setDate(y.getDate() - 1);
+    const yIso = todayISO(y);
+    const rec = (await listRecords()).find((r) => r.kind === 'review' && r.createdAt && todayISO(new Date(r.createdAt)) === yIso && r.decision?.payload?.text);
+    if (!rec) return null;
+    const fate = rec.status === 'filed' ? 'he took it into his journal'
+      : rec.status === 'discarded' ? (rec.expired ? 'it expired unread' : `he declined it${rec.declineReason ? ` — his reason: "${rec.declineReason}"` : ''}`)
+        : rec.status === 'pending' ? 'still unanswered' : rec.status;
+    return `YESTERDAY'S REVIEW (${fate}) — hold today against it: for each adjustment it set, say plainly from today's data whether it happened, before today's read:\n${String(rec.decision.payload.text).slice(0, 900)}`;
   });
   // ---- the connections the July sweep found missing ----------------------
   add('goals', async () => {
@@ -197,6 +211,7 @@ Discipline (this is what makes it worth opening every day):
 - Only surface what genuinely warrants attention. If the day is unremarkable, say so plainly and give at most ONE gentle nudge — never manufacture problems to look useful.
 - Ground every claim in the data below or the vault. Name gaps honestly ("no protein logged — can't tell if you skipped or didn't log"). Never invent.
 - Adjustments are concrete and today-actionable, not platitudes. "Log breakfast before you leave" beats "focus on nutrition".
+- If yesterday's review is in the picture, open with one clause per adjustment it set — did it happen, from the data, never assumed — then today's read. A review that forgets what it said yesterday is not a review.
 - Warm, direct, on his side. Say the useful hard thing kindly.
 
 The whole picture:

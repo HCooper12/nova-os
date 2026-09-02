@@ -192,7 +192,7 @@ export function valsOps(app, ctx) {
     // scored), and one overall state the core's glow reflects: gold when
     // something waits or the day is drifting, cyan when the board is clear
     ambientObjectives: [
-      st.liveStreaks?.workoutStreak >= 1 ? { key: 'train', label: 'TRAIN STREAK', value: `${st.liveStreaks.workoutStreak}d` } : null,
+      st.liveStreaks?.workoutStreak >= 1 ? { key: 'train', label: 'TRAIN STREAK', value: st.liveStreaks.workoutStreakUnit === 'sessions' ? `${st.liveStreaks.workoutStreak}×` : `${st.liveStreaks.workoutStreak}d` } : null,
       st.liveNutritionMonth?.pct != null ? { key: 'fuel', label: 'PROTEIN MONTH', value: `${st.liveNutritionMonth.met}/${st.liveNutritionMonth.tracked}d` } : null,
       st.liveStreaks?.stepGoalStreak >= 1 ? { key: 'steps', label: 'STEP STREAK', value: `${st.liveStreaks.stepGoalStreak}d` } : null,
     ].filter(Boolean),

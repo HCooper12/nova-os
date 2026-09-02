@@ -106,7 +106,7 @@ function reviewPick(pages) {
 async function streakLine(vaultPath) {
   const s = await computeStreaks(vaultPath);
   const bits = [
-    s.workoutStreak >= 2 ? `${s.workoutStreak}-day workout streak` : null,
+    s.workoutStreak >= 2 ? `${s.workoutStreak}-${s.workoutStreakUnit === 'sessions' ? 'session' : 'day'} workout streak` : null,
     s.stepGoalStreak >= 2 ? `${s.stepGoalStreak}-day step-goal streak` : null,
     s.sleepGoalStreak >= 2 ? `${s.sleepGoalStreak}-day sleep-goal streak` : null,
   ].filter(Boolean);

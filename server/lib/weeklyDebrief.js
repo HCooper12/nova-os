@@ -156,7 +156,7 @@ export async function buildDebriefContext(vaultPath, now = new Date()) {
   });
   await add('streaks', async () => {
     const s = await computeStreaks(vaultPath);
-    return `STREAKS: workout ${s.workoutStreak}d, step-goal ${s.stepGoalStreak}d, sleep-goal ${s.sleepGoalStreak}d${s.lastWorkoutDate ? `; last session ${s.lastWorkoutDate}` : ''}.`;
+    return `STREAKS: workout ${s.workoutStreak}${s.workoutStreakUnit === 'sessions' ? ' scheduled sessions in a row' : 'd'}, step-goal ${s.stepGoalStreak}d, sleep-goal ${s.sleepGoalStreak}d${s.lastWorkoutDate ? `; last session ${s.lastWorkoutDate}` : ''}.`;
   });
   await add('journal-week', async () => {
     const journal = await import('./journal.js');

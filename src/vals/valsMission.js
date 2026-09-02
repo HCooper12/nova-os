@@ -193,7 +193,7 @@ export function valsMission(app, ctx) {
     : `${todayRoutine.name} is on today's plan.`;
   else if (todayActiveRest) heroTagline = 'Active rest — move easy today.';
   else if (isOffline) heroTagline = 'Waiting for the link to come back.';
-  else if ((st.liveStreaks?.workoutStreak || 0) >= 3) heroTagline = `${st.liveStreaks.workoutStreak}-day streak intact. Rest is part of it.`;
+  else if ((st.liveStreaks?.workoutStreak || 0) >= 3) heroTagline = `${st.liveStreaks.workoutStreak}-${st.liveStreaks.workoutStreakUnit === 'sessions' ? 'session' : 'day'} streak intact. Rest is part of it.`;
   else if (hour < 12) heroTagline = 'The morning is wide open — claim it.';
   else if (hour < 18) heroTagline = 'The afternoon is clear. Build something.';
   else heroTagline = 'The evening is yours. Land it well.';
@@ -651,7 +651,7 @@ export function valsMission(app, ctx) {
     // honest and free to show regardless of whether an insight generated
     streakBadges: st.liveStreaks
       ? [
-          st.liveStreaks.workoutStreak >= 2 ? { key: 'workout', label: `${st.liveStreaks.workoutStreak}-DAY WORKOUT STREAK`, hue: '224,178,106' } : null,
+          st.liveStreaks.workoutStreak >= 2 ? { key: 'workout', label: `${st.liveStreaks.workoutStreak}-${st.liveStreaks.workoutStreakUnit === 'sessions' ? 'SESSION' : 'DAY'} WORKOUT STREAK`, hue: '224,178,106' } : null,
           st.liveStreaks.stepGoalStreak >= 2 ? { key: 'steps', label: `${st.liveStreaks.stepGoalStreak}-DAY STEP GOAL STREAK`, hue: '95,232,168' } : null,
           st.liveStreaks.sleepGoalStreak >= 2 ? { key: 'sleep', label: `${st.liveStreaks.sleepGoalStreak}-DAY SLEEP GOAL STREAK`, hue: '89,230,255' } : null,
         ].filter(Boolean)
