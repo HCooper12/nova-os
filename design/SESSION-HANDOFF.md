@@ -263,7 +263,23 @@ DONE CRITERIA:
   came up "connected" within a second with no degraded banner, so the
   hours-long OFFLINE was the stale document (HMR-patched across several
   service reloads), not a clean reproduction — the fix stands on the
-  mechanism, not on that tab. Next in roster: [12] Meal Prep §6.
+  mechanism, not on that tab. [12] Meal Prep §6 — MET (3 Sep): 1 (Thu→Sun
+  catch-up window), 4 (expiry, 8d), 6 (aisle twin pinned) were in; built now:
+  2 the SHORT warning carries a computed fix (floorFix: the one swap from the
+  bank or the slot's alternates that closes the most gap, suggested only
+  when it clears the gap or half of it — else "the gap stands"); 3 off-plan
+  regulars join the items labelled source "off-plan regular ×N", excluding
+  anything already a chosen recipe (his yoghurt-pouch snack is on-plan, not
+  a regular); 5 quantities, GATED and shipped: his lines carry a leading
+  amount 78% of the time; the same ingredient is summed only when every
+  occurrence shares a unit (1kg+500g → ~1.5kg; 10+2 slices → 12 slices),
+  otherwise no number; amounts ride the shopping list's own `amount` field
+  and the card preview. AND A BUG the real compose exposed: recipe
+  ingredient lines are { qty, name } objects, and toShoppingItems treated
+  them as strings — every meal-prep list would have been one "[object
+  Object]" item (no meal-prep record has ever been filed, so nobody saw
+  it). Real compose now: 34 items, 30 with amounts, 2 regulars. Next in
+  roster: [13] Food Scout §6.
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised
@@ -416,6 +432,10 @@ photo→scan lane (plan 2); [60] Galaxy 6–8; [07] dismiss semantics (plan 2)
 adjustment ✓/✗ UI; [29] AUTONOMY_TARGETS registry completeness (plan 2).
 
 DO NOT:
+- Do not edit source with `perl -0pi` and a hand-escaped multi-line pattern:
+  a pattern that fails to match can insert the replacement at byte 0 (it
+  did — mealPrep.js line 1, caught by the suite). Use a node script with
+  exact-string anchors that throw when missing.
 - Do not diff a staged copy against the live vault to find "what the model
   changed" — the live vault moves during a pass; diff against the staging
   baseline (diffTreesReport) and treat a live move on a model-touched file

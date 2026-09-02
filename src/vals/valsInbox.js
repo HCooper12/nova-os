@@ -83,7 +83,8 @@ function payloadPreview(decision) {
   // just repeat it (or, without this branch, print an empty " — ")
   if (decision.route === 'model-choice') return '';
   const p = decision.payload || {};
-  if (decision.route === 'shopping') return (p.items || []).map((i) => i.name).join(' · ');
+  // an item's amount and its provenance ride the preview — "~1.2kg Chicken breast", "Greek yoghurt (off-plan regular ×4)"
+  if (decision.route === 'shopping') return (p.items || []).map((i) => `${i.amount ? `${i.amount} ` : ''}${i.name}${i.source ? ` (${i.source})` : ''}`).join(' · ');
   if (decision.route === 'todo') return (p.items || []).map((it) => (typeof it === 'string' ? it : `${it.text}${it.category ? ` #${it.category}` : ''}`)).join(' · ');
   if (decision.route === 'food') {
     if (p.slot) return `Mark today's ${p.slot} eaten — the planned meal, its real macros`;
@@ -131,7 +132,7 @@ function fullPayload(decision) {
   if (route === 'idea-outline') return p.text || '';
   if (route === 'idea') return [p.title, p.hook, p.format ? `format: ${p.format}` : null].filter(Boolean).join('\n');
   if (route === 'todo') return (p.items || []).map((it) => (typeof it === 'string' ? `• ${it}` : `• ${it.text}${it.category ? `  #${it.category}` : ''}`)).join('\n');
-  if (route === 'shopping') return (p.items || []).map((i) => `• ${i.name}${i.category ? `  (${i.category})` : ''}`).join('\n');
+  if (route === 'shopping') return (p.items || []).map((i) => `• ${i.amount ? `${i.amount} ` : ''}${i.name}${i.category ? `  (${i.category})` : ''}${i.source ? `  — ${i.source}` : ''}`).join('\n');
   if (route === 'preference') return p.rule || '';
   if (route === 'stash') return [p.name, p.url, p.category && `→ ${p.category}`, p.note].filter(Boolean).join('\n');
   return payloadPreview(decision);

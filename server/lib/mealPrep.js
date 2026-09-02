@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { splitAmount } from './shoppingList.js';
 import { laneSkipped } from './modelPrefs.js';
 import { mondayOf } from './cadence.js';
 import { loadRecipeData } from './recipes.js';
@@ -43,22 +44,111 @@ export function aisleFor(ingredient) {
 
 // Strip quantities so the list reads as shopping items, not recipe lines
 // ("200g chicken breast" → "chicken breast"), and dedupe across recipes.
+// QUANTITIES, GATED BY HONESTY. His recipe lines carry a leading amount 78%
+// of the time (replayed 3 Sep: 149 of 190 lines; the rest are "to taste"
+// spices and section headings). The same ingredient across chosen recipes
+// is summed ONLY when every occurrence carries an amount in the same unit —
+// "1kg" + "500g" → "1.5kg", "10 slices" + "2 slices" → "12 slices". Mixed
+// units, a missing amount on one line, or a "2 x 250g" pack form → no
+// number at all, because a wrong quantity is worse than none. A single
+// occurrence keeps its amount verbatim. Amounts ride the shopping list's own
+// `amount` field (shoppingList.splitAmount is the contract), which the
+// meal-prep list used to strip.
+const SUMMABLE = /^(\d+(?:\.\d+)?)\s*(kg|g|ml|l|slices?|cloves?|cans?|tins?|rashers?|fillets?)?$/i;
+const BASE_UNIT = { kg: ['g', 1000], g: ['g', 1], l: ['ml', 1000], ml: ['ml', 1] };
+function parseAmount(amount) {
+  const m = SUMMABLE.exec(String(amount || '').trim());
+  if (!m) return null;
+  const n = Number(m[1]);
+  const unit = (m[2] || '').toLowerCase().replace(/s$/, '');
+  if (!unit) return { n, unit: '', base: '' };
+  const conv = BASE_UNIT[unit];
+  return conv ? { n: n * conv[1], unit: conv[0], base: conv[0] } : { n, unit, base: unit };
+}
+function renderAmount(total, unit) {
+  if (unit === 'g') return total >= 1000 ? `~${(total / 1000).toFixed(total % 1000 === 0 ? 0 : 1)}kg` : `${Math.round(total)}g`;
+  if (unit === 'ml') return total >= 1000 ? `~${(total / 1000).toFixed(total % 1000 === 0 ? 0 : 1)}L` : `${Math.round(total)}ml`;
+  if (!unit) return String(total);
+  return `${total} ${unit}${total === 1 ? '' : 's'}`;
+}
+export function aggregateAmounts(amounts) {
+  const list = (amounts || []).filter(Boolean);
+  if (!list.length) return null;
+  if (list.length === 1) return String(list[0]).trim().slice(0, 24);
+  const parsed = list.map(parseAmount);
+  if (parsed.some((p) => !p)) return null; // one occurrence not summable → no number
+  const base = parsed[0].base;
+  if (parsed.some((p) => p.base !== base)) return null; // mixed units → no number
+  return renderAmount(parsed.reduce((s, p) => s + p.n, 0), base).slice(0, 24);
+}
+
+// Ingredient lines arrive as the recipe parser's { qty, name } objects (or
+// plain strings from older callers) — the old string-only path turned every
+// object into "[object Object]", one item per list.
+const lineText = (line) => (typeof line === 'string' ? line : [line?.qty, line?.name].filter(Boolean).join(' '));
 export function toShoppingItems(ingredientLines) {
-  const seen = new Set();
-  const items = [];
-  for (const line of ingredientLines) {
-    const name = line
-      .replace(/^[\d/.,]+\s*(g|kg|ml|l|cup|cups|tbsp|tsp|x|slice|slices|clove|cloves|tin|tins|can|cans)?\.?\s*(of\s+)?/i, '')
-      .replace(/\([^)]*\)/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-    if (!name) continue;
+  const byKey = new Map();
+  for (const raw of ingredientLines || []) {
+    const line = lineText(raw);
+    if (!line) continue;
+    const { amount, name: rest } = splitAmount(line);
+    const name = String(rest || '').replace(/\([^)]*\)/g, '').replace(/\s+,/g, ',').replace(/\s+/g, ' ').trim();
+    if (!name || /^—/.test(name)) continue; // section headings ("— Assembly —") are not ingredients
     const key = name.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    items.push({ name: name[0].toUpperCase() + name.slice(1), category: aisleFor(name) });
+    const entry = byKey.get(key) || { name: name[0].toUpperCase() + name.slice(1), category: aisleFor(name), amounts: [], lines: 0 };
+    entry.lines += 1;
+    if (amount) entry.amounts.push(amount);
+    byKey.set(key, entry);
   }
-  return items;
+  return [...byKey.values()].map(({ name, category, amounts, lines }) => ({
+    name, category,
+    // every occurrence must have carried an amount for a total to be honest
+    amount: amounts.length === lines ? aggregateAmounts(amounts) : null,
+  }));
+}
+
+// ---- off-plan regulars join the list, labelled — his approval still gates ----
+// `exclude` names the chosen recipes: a rotation slot he logs as eaten shows
+// up in the food history too, and it is on-plan, not an off-plan regular.
+export function appendRegulars(items, recurring, { exclude = [] } = {}) {
+  const have = new Set(items.map((i) => i.name.toLowerCase()));
+  const planned = exclude.map((n) => String(n || '').toLowerCase()).filter(Boolean);
+  const out = [...items];
+  for (const r of recurring || []) {
+    const name = String(r.name || '').trim();
+    if (!name || have.has(name.toLowerCase())) continue;
+    const lower = name.toLowerCase();
+    if (planned.some((p) => p === lower || p.includes(lower) || lower.includes(p))) continue; // on the plan already
+    have.add(name.toLowerCase());
+    out.push({ name: name[0].toUpperCase() + name.slice(1), category: aisleFor(name), amount: null, source: `off-plan regular ×${r.count}` });
+  }
+  return out;
+}
+
+// ---- the SHORT warning carries its own fix — one swap, computed, or nothing ----
+// Candidates for a slot are the bank's other recipes (and the current one's
+// alternates when they carry macros); the swap suggested is the single one
+// that closes the most protein gap, and only when it clears the gap or
+// closes at least half of it. Otherwise the gap is stated and that is all —
+// a swap that barely moves the number is noise wearing a suggestion.
+export function floorFix({ slots, recipes, gap }) {
+  if (!(gap > 0)) return null;
+  let best = null;
+  for (const [slot, current] of Object.entries(slots || {})) {
+    if (!current?.macros) continue;
+    const curP = Number(current.macros.p) || 0;
+    const candidates = [
+      ...(recipes || []).filter((r) => r.id !== current.id && r.macros?.p != null).map((r) => ({ name: r.name, p: Number(r.macros.p) })),
+      ...((recipes || []).find((r) => r.id === current.id)?.alternates || []).filter((a) => a.macros?.p != null).map((a) => ({ name: `${current.name} (${a.label})`, p: Number(a.macros.p) })),
+    ];
+    for (const c of candidates) {
+      const gain = Math.round(c.p - curP);
+      if (gain <= 0) continue;
+      if (!best || gain > best.gain) best = { slot, from: current.name, to: c.name, gain };
+    }
+  }
+  if (!best || best.gain < gap / 2) return null;
+  return { ...best, clears: best.gain >= gap, line: `closest fix: ${best.slot} → ${best.to} (+${best.gain}g${best.gain >= gap ? ', clears it' : ` of the ${gap}g gap`})` };
 }
 
 export async function composeMealPrep(vaultPath) {
@@ -79,18 +169,20 @@ export async function composeMealPrep(vaultPath) {
     if (floor) {
       lines.push(planned >= floor
         ? `Protein plan: ${planned}g against the ${floor}g floor ✓`
-        : `⚠ Protein plan: ${planned}g against the ${floor}g floor — ${floor - planned}g SHORT. Worth swapping one slot up.`);
+        : `⚠ Protein plan: ${planned}g against the ${floor}g floor — ${floor - planned}g SHORT.${(() => { const fix = floorFix({ slots: rotation.slots, recipes, gap: floor - planned }); return fix ? ` ${fix.line[0].toUpperCase()}${fix.line.slice(1)}.` : ' No single swap in the bank closes half of that — the gap stands.'; })()}`);
     }
   }
 
   // What he ACTUALLY ate (the sweep: meal prep re-proposed the rotation with
   // no view of reality). Recurring off-plan foods are worth stocking for;
   // floor adherence says whether the plan is even being executed.
+  let recurring = [];
   try {
     const { recurringFoods } = await import('./foodHistory.js');
-    const recurring = (await recurringFoods({ days: 21, minCount: 2 })).slice(0, 3);
+    recurring = (await recurringFoods({ days: 21, minCount: 2 })).slice(0, 3);
     if (recurring.length) {
-      lines.push(`Off-plan regulars (worth stocking for): ${recurring.map((r) => `${r.name} ×${r.count}`).join(' · ')}.`);
+      const offPlan = recurring.filter((r) => !chosen.some((c) => { const a = c.name.toLowerCase(), b = String(r.name).toLowerCase(); return a === b || a.includes(b) || b.includes(a); }));
+      if (offPlan.length) lines.push(`Off-plan regulars (added to the list, labelled — drop any you don't want): ${offPlan.map((r) => `${r.name} ×${r.count}`).join(' · ')}.`);
     }
   } catch { /* optional */ }
   try {
@@ -112,7 +204,7 @@ export async function composeMealPrep(vaultPath) {
     if (heavy.length) lines.push(`Heavy calendar day${heavy.length === 1 ? '' : 's'} ahead (${heavy.join(', ')}) — grab-and-go portions matter there.`);
   } catch { /* optional */ }
 
-  const items = toShoppingItems(chosen.flatMap((r) => r.ingredients || []));
+  const items = appendRegulars(toShoppingItems(chosen.flatMap((r) => r.ingredients || [])), recurring, { exclude: chosen.map((r) => r.name) });
   return { lines, items, slotCount: chosen.length, planned, floor };
 }
 
