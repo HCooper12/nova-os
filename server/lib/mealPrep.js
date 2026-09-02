@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { laneSkipped } from './modelPrefs.js';
 import { mondayOf } from './cadence.js';
 import { loadRecipeData } from './recipes.js';
 import { loadRotation } from './rotation.js';
@@ -122,6 +123,7 @@ async function recordExistsThisWeek() {
 }
 
 export async function runMealPrep(vaultPath, { force = false } = {}) {
+  if (laneSkipped('meal-prep', 'the weekly prep list')) return { skipped: true, reason: 'lane switched off in Settings' };
   if (!force && (await recordExistsThisWeek())) return { skipped: true };
   const { lines, items, slotCount } = await composeMealPrep(vaultPath);
   if (!slotCount) return { skipped: true, reason: 'rotation empty' };

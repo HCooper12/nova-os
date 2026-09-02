@@ -60,6 +60,8 @@ const FEATURES = [
   // once-a-day marks written on delivery and shared across devices
   ['Greeting · stamped on delivery, cross-device', 'markGreeted'],
   ['Rituals · done on delivery, cross-device', 'markRitualDone'],
+  // the CFO and meal-prep off switches: deterministic lanes on the model board
+  ['Settings · deterministic lanes have a switch, no picker', 'THE SWITCH IS THE SETTING'],
 ];
 
 const SERVER_ROUTES = [

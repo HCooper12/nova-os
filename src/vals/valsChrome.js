@@ -586,6 +586,7 @@ export function valsChrome(app, ctx) {
               offEffect: l.off,
               model: l.model,
               defaultModel: l.defaultModel,
+              deterministic: !!l.deterministic,
               customised: l.customised,
               enabled: l.enabled,
               busy: st.modelPrefsBusy === l.id,

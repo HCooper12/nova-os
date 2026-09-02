@@ -30,7 +30,8 @@ test('every lane has a real default model, a group that exists, and an honest of
   for (const lane of LANES) {
     assert.ok(lane.id && !ids.has(lane.id), `duplicate or missing lane id: ${lane.id}`);
     ids.add(lane.id);
-    assert.ok(valid.has(lane.def), `${lane.id} defaults to an unrecognised model: ${lane.def}`);
+    if (lane.deterministic) assert.equal(lane.def, null, `${lane.id} runs no model and must say so`);
+    else assert.ok(valid.has(lane.def), `${lane.id} defaults to an unrecognised model: ${lane.def}`);
     assert.ok(groups.has(lane.group), `${lane.id} is in an unknown group: ${lane.group}`);
     assert.ok(lane.label && lane.hint && lane.off, `${lane.id} is missing its label/hint/off text`);
   }
@@ -41,6 +42,7 @@ test('modelFor never returns empty — an unset, unknown or corrupt pref falls b
   for (const lane of LANES) {
     const m = modelFor(lane.id);
     assert.equal(m, lane.def);
+    if (lane.deterministic) continue; // no model to fall back to — the switch is the setting
     assert.ok(typeof m === 'string' && m.length > 0, `${lane.id} produced a blank model`);
   }
 
@@ -114,6 +116,7 @@ test('getModelPrefs returns the whole board, each lane resolved', async () => {
   assert.equal(board.lanes.length, LANES.length);
   assert.deepEqual(board.models, MODEL_CHOICES);
   for (const lane of board.lanes) {
+    if (lane.deterministic) { assert.equal(lane.model, null, `${lane.id} runs no model and must say so`); continue; }
     assert.ok(lane.model, `${lane.id} came back without a model`);
     assert.equal(lane.enabled, true);
   }
@@ -149,4 +152,19 @@ test('every spawn site in server/lib names its model through the board', async (
   }
   assert.deepEqual(offenders, [], `these files spawn the CLI without reading the model board: ${offenders.join(', ')}`);
   assert.deepEqual(literals, [], `these files hard-code a model literal instead of using modelFor(): ${literals.join(', ')}`);
+});
+
+
+test('a deterministic lane is a switch, not a model choice: it can be turned off, and a model cannot be set on it', async () => {
+  const { setLanePref, laneEnabled, laneSkipped } = await import('../lib/modelPrefs.js');
+  const board = await setLanePref('cfo', { enabled: false });
+  const cfo = board.lanes.find((l) => l.id === 'cfo');
+  assert.equal(cfo.deterministic, true);
+  assert.equal(cfo.enabled, false);
+  assert.equal(cfo.model, null);
+  assert.equal(laneEnabled('cfo'), false);
+  assert.equal(laneSkipped('cfo', 'the monthly report'), true, 'the scheduler sees the switch');
+  await assert.rejects(() => setLanePref('cfo', { model: 'opus' }), /runs no model/);
+  await setLanePref('cfo', { enabled: true });
+  assert.equal(laneEnabled('meal-prep'), true, 'unset means on, as for every lane');
 });

@@ -271,6 +271,20 @@ export const LANES = [
     hint: 'the autonomous build lane — its own sandbox, proof required. Forge jobs may name their own model.',
     off: 'New Forge jobs are refused. Jobs already running are left alone.',
   },
+  // ---- deterministic lanes: no model runs, the switch is the whole setting.
+  // Every sibling scheduled lane had an off ramp here; the CFO and the meal
+  // prep drafted forever (an unused ledger meant a monthly no-data record for
+  // ever). `deterministic: true` hides the model picker on the board.
+  {
+    id: 'cfo', label: 'Monthly CFO report', group: 'daily', def: null, deterministic: true,
+    hint: 'the first-of-the-month money report — computed from the ledger, no model',
+    off: 'No monthly CFO report is drafted. The ledger, imports and the Money screen keep working; nothing is summarised for you.',
+  },
+  {
+    id: 'meal-prep', label: 'Weekly meal-prep list', group: 'daily', def: null, deterministic: true,
+    hint: 'Thursday\u2019s prep list from the rotation — computed, no model',
+    off: 'No weekly prep list is drafted. The rotation and the shopping list keep working; you build the prep list yourself.',
+  },
 ];
 
 const LANE_BY_ID = new Map(LANES.map((l) => [l.id, l]));
@@ -362,6 +376,7 @@ export function getModelPrefs() {
       off: l.off,
       model: modelFor(l.id),
       defaultModel: l.def,
+      deterministic: !!l.deterministic,
       customised: !!(saved[l.id]?.model && saved[l.id].model !== l.def),
       enabled: laneEnabled(l.id),
     })),
@@ -374,6 +389,7 @@ export function getModelPrefs() {
 export async function setLanePref(laneId, { model, enabled } = {}) {
   const lane = LANE_BY_ID.get(laneId);
   if (!lane) throw new Error(`unknown lane: ${laneId}`);
+  if (model !== undefined && lane.deterministic) throw new Error(`${lane.label} runs no model — only its switch can be set`);
   if (model !== undefined && !VALID_MODELS.has(model)) {
     throw new Error(`model must be one of: ${[...VALID_MODELS].join(', ')}`);
   }

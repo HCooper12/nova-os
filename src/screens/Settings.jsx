@@ -458,7 +458,10 @@ export function Settings({ v }) {
                         >{l.enabled ? 'ON' : 'OFF'}</Interactive>
                       </div>
 
-                      {l.enabled ? (
+                      {l.enabled && l.deterministic ? (
+                        // a computed lane: nothing to pick — the switch above is the whole setting
+                        <div style={css("margin-top:10px;font:400 10px var(--nv-font-mono);letter-spacing:.06em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>DETERMINISTIC — NO MODEL RUNS; THE SWITCH IS THE SETTING</div>
+                      ) : l.enabled ? (
                         <div style={css("margin-top:10px;display:flex;align-items:center;gap:9px;flex-wrap:wrap")}>
                           <select value={l.model} onChange={l.setModel} disabled={l.busy}
                             style={{ flex: '1 1 220px', background: 'var(--nv-well)', border: `1px solid ${l.customised ? 'color-mix(in srgb, var(--nv-gold) 45%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 15%, transparent)'}`, borderRadius: '7px', color: 'var(--nv-ink)', font: '500 11px var(--nv-font-mono)', padding: '8px 9px', outline: 'none' }}>

@@ -60,3 +60,20 @@ test('time-value drafts expire; real content never does', async () => {
   assert.equal((await getRecord('exp22222')).status, 'pending', 'research never expires');
   assert.equal((await getRecord('exp33333')).status, 'pending', 'fresh time-value drafts stay');
 });
+
+
+test('the once-a-week and once-a-month receipts expire too: meal-prep, coach-audit (8 days), cfo (14 days)', async () => {
+  const { expireStaleDrafts } = await import('../lib/inbox.js');
+  const mk = (id, kind, hoursOld) => createRecord({ id, kind, text: kind, source: 'nova', mode: 'draft', status: 'pending', createdAt: new Date(Date.now() - hoursOld * 3600e3).toISOString(), decision: { route: 'note', title: kind, confidence: 'high', payload: {} } });
+  await mk('mp000old', 'meal-prep', 9 * 24);
+  await mk('mp000new', 'meal-prep', 6 * 24);
+  await mk('ca000old', 'coach-audit', 9 * 24);
+  await mk('cf000old', 'cfo', 15 * 24);
+  await mk('cf000new', 'cfo', 13 * 24);
+  await expireStaleDrafts();
+  assert.equal((await getRecord('mp000old')).status, 'discarded', "last week's prep list is gone");
+  assert.equal((await getRecord('mp000new')).status, 'pending', "this week's stays");
+  assert.equal((await getRecord('ca000old')).status, 'discarded', "last week's audit receipt is gone");
+  assert.equal((await getRecord('cf000old')).status, 'discarded', 'a fortnight-old CFO report is gone');
+  assert.equal((await getRecord('cf000new')).status, 'pending', 'a 13-day CFO report still waits');
+});

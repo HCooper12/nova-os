@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { laneSkipped } from './modelPrefs.js';
 import { getMonthSummary } from './money.js';
 import { createRecord, listRecords } from './inboxStore.js';
 import { monthlyWindowOpen } from './cadence.js';
@@ -21,6 +22,7 @@ async function reportExistsThisMonth() {
 }
 
 export async function runCfoReport({ force = false } = {}) {
+  if (laneSkipped('cfo', 'the monthly CFO report')) return { skipped: true, reason: 'lane switched off in Settings' };
   if (!force && (await reportExistsThisMonth())) return { skipped: true };
 
   // report on the PREVIOUS month — the one that just closed

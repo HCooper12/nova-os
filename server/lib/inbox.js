@@ -1151,7 +1151,15 @@ export async function retryRecord(vaultPath, id) {
 // is a marked discard (expired: true) — visible in the stream as a receipt,
 // never a silent deletion — and only touches kinds whose worth is bound to
 // a moment. Real content (captures, research, coach receipts) never expires.
-const TIME_VALUE_HOURS = { dispatch: 48, review: 48, 'training-check': 48, 'week-plan': 8 * 24, 'plan-today': 24, 'weekly-debrief': 8 * 24, distill: 7 * 24, 'brain-week': 8 * 24, 'fuel-cross': 7 * 24 };
+// meal-prep, coach-audit and cfo were missing: a Thursday's prep list, last
+// week's audit receipt and a stale month's CFO report all sat pending forever
+// beside this week's (the audit's config-parity finding).
+const TIME_VALUE_HOURS = {
+  dispatch: 48, review: 48, 'training-check': 48, 'plan-today': 24,
+  'week-plan': 8 * 24, 'weekly-debrief': 8 * 24, 'brain-week': 8 * 24, 'meal-prep': 8 * 24, 'coach-audit': 8 * 24,
+  distill: 7 * 24, 'fuel-cross': 7 * 24,
+  cfo: 14 * 24,
+};
 export async function expireStaleDrafts() {
   const records = await listRecords();
   const now = Date.now();
