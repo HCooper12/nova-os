@@ -23,6 +23,12 @@ const CACHE_PATH = () => path.join(dataRoot(), 'pulse.json');
 export const INTERESTS_REL = 'Wiki/Library/Interests.md';
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const MAX_BUDGET_USD = '0.5';
+// Measured 3 Sep 2026 (one real run, haiku): the Hypertrophy topic cost
+// $1.06 over 20 web searches — twice the cap — which is why 1–2 of 3 topics
+// "exited 1" most nights with nothing to show and the $0.50 spent anyway.
+// The prompt now caps the searching; the budget itself is his call and is
+// surfaced, not raised quietly (NOVA-METHOD: model cost discipline).
+export const MAX_SEARCHES = 8;
 export const MAX_TOPICS = 6;
 const MAX_ITEMS = 5;
 export const STALE_HOURS = 24;
@@ -81,6 +87,7 @@ Topic: ${topic}
 Rules:
 - Every item needs a REAL working URL you actually found — never construct or guess one. No URL, no item. Fewer honest items beat five padded ones.
 - "note" is one plain sentence on why it matters — no hype.
+- Spend at most ${MAX_SEARCHES} web searches in total, then stop and return what you have — a short honest list beats a long expensive one.
 ${exclude.length ? `- ALREADY SHOWN — return only items NOT in this list; an empty list is the honest answer when nothing new exists:\n${exclude.map((u) => `  ${u}`).join('\n')}\n` : ''}
 Output ONLY a JSON object: {"items":[{"title":"…","url":"https://…","source":"site or publication name","note":"…"}]}. No code fences, no commentary.`;
 }
@@ -100,6 +107,27 @@ export function normalizePulseItems(parsed) {
     });
   }
   return out;
+}
+
+// What the CLI envelope says when a run fails — "exited 1" told him nothing
+// for a fortnight. The budget error carries no result text, only a subtype.
+export function describeRunFailure(outer, code, stderr = '') {
+  const sub = String(outer?.subtype || '');
+  const cost = typeof outer?.total_cost_usd === 'number' ? ` after $${outer.total_cost_usd.toFixed(2)}` : '';
+  const searches = outer?.modelUsage ? Object.values(outer.modelUsage).reduce((a, m) => a + (m.webSearchRequests || 0), 0) : null;
+  const searched = searches ? ` and ${searches} searches` : '';
+  if (/budget/i.test(sub)) return `budget of $${MAX_BUDGET_USD} exhausted${cost}${searched} — the run was cut off before it answered`;
+  if (/max_turns/i.test(sub)) return `turn limit hit${cost}${searched}`;
+  return outer?.result || stderr.trim() || (sub ? `${sub}${cost}` : `exited ${code}${cost}`);
+}
+
+export function runReceipt(outer) {
+  const searches = outer?.modelUsage ? Object.values(outer.modelUsage).reduce((a, m) => a + (m.webSearchRequests || 0), 0) : null;
+  return {
+    costUsd: typeof outer?.total_cost_usd === 'number' ? outer.total_cost_usd : null,
+    searches,
+    seconds: typeof outer?.duration_ms === 'number' ? Math.round(outer.duration_ms / 1000) : null,
+  };
 }
 
 async function loadCache() {
@@ -145,10 +173,13 @@ export async function refreshPulseTopic(topic, { runner } = {}) {
     child.on('close', (code) => {
       try {
         const outer = JSON.parse(stdout);
-        if (outer.is_error || code !== 0) throw new Error(outer.result || stderr.trim() || `exited ${code}`);
+        if (outer.is_error || code !== 0) throw new Error(describeRunFailure(outer, code, stderr));
         const m = (outer.result || '').match(/\{[\s\S]*\}/);
         if (!m) throw new Error('no JSON in pulse response');
-        resolve(JSON.parse(m[0]));
+        const parsed = JSON.parse(m[0]);
+        // the receipt he needs to set the budget: what a run really costs
+        parsed.__run = runReceipt(outer);
+        resolve(parsed);
       } catch (e) { reject(e); }
     });
     child.on('error', reject);
@@ -156,7 +187,21 @@ export async function refreshPulseTopic(topic, { runner } = {}) {
 
   const prev = (await loadCache()).topics[topic] || null;
   const seen = new Set([...(prev?.seen || []), ...(prev?.items || []).map((i) => i.url)]);
-  const fetched = normalizePulseItems(await run(buildPulsePrompt(topic, { exclude: [...seen].slice(-SEEN_CAP) })));
+  let raw;
+  try {
+    raw = await run(buildPulsePrompt(topic, { exclude: [...seen].slice(-SEEN_CAP) }));
+  } catch (e) {
+    // the previous items stay; the failure is written where the panel and the
+    // ops list can read it, not only into a log nobody opens
+    const cache = await loadCache();
+    if (cache.topics[topic]) cache.topics[topic].lastError = { at: new Date().toISOString(), message: String(e.message).slice(0, 200) };
+    else cache.topics[topic] = { at: null, items: [], newCount: 0, lastError: { at: new Date().toISOString(), message: String(e.message).slice(0, 200) } };
+    await saveCache(cache);
+    throw e;
+  }
+  const receipt = raw?.__run || null;
+  const fetched = normalizePulseItems(raw);
+  if (receipt) console.log(`pulse "${topic}": ${fetched.length} item(s), $${receipt.costUsd?.toFixed(2) ?? '?'}, ${receipt.searches ?? '?'} searches, ${receipt.seconds ?? '?'}s`);
   // Code decides what counts as new. The model is asked to exclude what was
   // shown, but a reprint wearing a fresh label is exactly the failure this
   // guards against — so the URL memory is the judge, not the prompt.
@@ -168,6 +213,7 @@ export async function refreshPulseTopic(topic, { runner } = {}) {
     // nothing new: yesterday's items stay, each marked seen, and the panel
     // says so instead of presenting them as today's
     : { at: now, items: (prev?.items || []).map((i) => ({ ...i, seen: true })), newCount: 0, lastNewAt: prev?.lastNewAt || prev?.at || null, seen: seenList };
+  if (receipt) entry.run = receipt; // a success clears any lastError by omission
   const cache = await loadCache(); // re-read: the run took a while
   cache.topics[topic] = entry;
   await saveCache(cache);

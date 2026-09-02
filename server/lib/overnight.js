@@ -19,6 +19,10 @@ const QUEUE_PATH = () => path.join(dataRoot(), 'overnight-queue.json');
 // Honest caps: each item is a real model run with a real budget.
 const MAX_QUEUED = 8;
 const KEEP_HISTORY_DAYS = 7;
+// A failed item gets ONE more night, then stays failed and says so. The old
+// morning line promised "still queued thinking, not lost" about an item that
+// was never going to run again (audit [43]).
+export const MAX_ATTEMPTS = 2;
 // The run window: 03:30–06:30 local. The Mac's scheduled wake (05:55)
 // catches the tail even if it slept through the start; a missed night just
 // leaves items queued for the next one. Run-now exists for demos and
@@ -108,6 +112,19 @@ export async function removeOvernightItem(id) {
   });
 }
 
+// The failed-item story, in code rather than comments: an errored item that
+// has attempts left goes back to 'queued' for the next night; one that has
+// used them stays 'error' with failedTwice set. Pure; the runner calls it
+// after its own pass so the re-queue is visible in Ops all day.
+export function requeueFailed(items, now = new Date()) {
+  return items.map((i) => {
+    if (i.status !== 'error' || i.failedTwice) return i;
+    const attempts = i.attempts || 1;
+    if (attempts >= MAX_ATTEMPTS) return { ...i, failedTwice: true };
+    return { ...i, status: 'queued', attempts: attempts + 1, lastError: i.error, error: null, requeuedAt: now.toISOString() };
+  });
+}
+
 // Pure so the window logic is testable to the minute.
 export function shouldRunNow(now, state, queuedCount) {
   if (!queuedCount) return false;
@@ -154,6 +171,19 @@ export async function runOvernightQueue(vaultPath, { startJob, pollRecord, pollM
   const poll = pollRecord || (async (id) => (await import('./inboxStore.js')).getRecord(id));
 
   for (const item of queued) {
+    // Reconcile BEFORE re-running: a retry whose first run's brief landed
+    // after the poll gave up would spend a second run on a question already
+    // answered — the record is the truth, the queue only remembers.
+    if (item.recordId) {
+      try {
+        const r = await poll(item.recordId);
+        if (r && ['pending', 'filed', 'discarded'].includes(r.status)) {
+          await markItem(item.id, { status: 'done', ranAt: new Date().toISOString(), title: r.decision?.title || null, landedLate: true, error: null });
+          summary.landedLate = (summary.landedLate || 0) + 1;
+          continue;
+        }
+      } catch { /* unreadable record — run it */ }
+    }
     summary.ran++;
     await markItem(item.id, { status: 'running', startedAt: new Date().toISOString() });
     try {
@@ -165,7 +195,11 @@ export async function runOvernightQueue(vaultPath, { startJob, pollRecord, pollM
         if (r && r.status !== 'classifying') { final = r; break; }
         await new Promise((res) => setTimeout(res, pollMs));
       }
-      if (!final) throw new Error('timed out waiting for the brief — check the Inbox; it may still land');
+      if (!final) {
+        // keep the record id: tomorrow's reconcile can find a late landing
+        await markItem(item.id, { recordId: record.id });
+        throw new Error('timed out waiting for the brief — check the Inbox; it may still land');
+      }
       if (final.status === 'error') throw new Error(final.error || 'the agent run failed');
       await markItem(item.id, { status: 'done', recordId: record.id, ranAt: new Date().toISOString(), title: final.decision?.title || null });
       summary.done++;
@@ -174,6 +208,12 @@ export async function runOvernightQueue(vaultPath, { startJob, pollRecord, pollM
       summary.errors++;
     }
   }
+  // the failed-item story: one automatic retry, then honest rest
+  await locked(async () => {
+    const s = await load();
+    s.items = requeueFailed(s.items);
+    await persist(s);
+  });
   return summary;
 }
 
@@ -182,8 +222,10 @@ export async function overnightMorningLine() {
   const { items } = await listOvernight();
   const since = Date.now() - 12 * 3600e3;
   const landed = items.filter((i) => i.status === 'done' && new Date(i.ranAt).getTime() > since);
+  // failed tonight: either re-queued for one more night, or out of attempts
+  const retrying = items.filter((i) => i.status === 'queued' && i.requeuedAt && new Date(i.requeuedAt).getTime() > since);
   const failed = items.filter((i) => i.status === 'error' && new Date(i.ranAt).getTime() > since);
-  if (!landed.length && !failed.length) return null;
+  if (!landed.length && !failed.length && !retrying.length) return null;
   const bits = [];
   if (landed.length) {
     const briefs = landed.filter((i) => i.kind !== 'outline').length;
@@ -192,9 +234,11 @@ export async function overnightMorningLine() {
       briefs ? `${briefs} research brief${briefs === 1 ? '' : 's'}` : null,
       outlines ? `${outlines} Studio outline${outlines === 1 ? '' : 's'}` : null,
     ].filter(Boolean).join(' and ');
-    bits.push(`${what} landed for review: ${landed.map((i) => i.title || i.question.slice(0, 50)).join('; ')}`);
+    const late = landed.filter((i) => i.landedLate).length;
+    bits.push(`${what} landed for review${late ? ` (${late} from an earlier night, landed late)` : ''}: ${landed.map((i) => i.title || i.question.slice(0, 50)).join('; ')}`);
   }
-  if (failed.length) bits.push(`${failed.length} run${failed.length === 1 ? '' : 's'} failed — still queued thinking, not lost: ${failed.map((i) => i.question.slice(0, 40)).join('; ')}`);
+  if (retrying.length) bits.push(`${retrying.length} run${retrying.length === 1 ? '' : 's'} failed — ${retrying.length === 1 ? 'it' : 'they'} will retry tonight: ${retrying.map((i) => i.question.slice(0, 40)).join('; ')}`);
+  if (failed.length) bits.push(`${failed.length} run${failed.length === 1 ? '' : 's'} failed twice — re-queue ${failed.length === 1 ? 'it' : 'them'} from Ops if ${failed.length === 1 ? 'it' : 'they'} still matter${failed.length === 1 ? 's' : ''}: ${failed.map((i) => i.question.slice(0, 40)).join('; ')}`);
   return `**Overnight.** ${bits.join('. ')}.`;
 }
 

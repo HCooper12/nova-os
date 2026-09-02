@@ -414,7 +414,76 @@ DONE CRITERIA:
   diff --stat HEAD; nothing for a vault workspace); 2 settle was in. [36]
   Scout §6 — MET: 1 existing-page matching — a flattened needle under five
   characters matches exactly only; a frontmatter URL/handle hit leads the
-  list; every candidate is returned. Next in roster: [37] Leader §6.
+  list; every candidate is returned. [37] Leader §6 — MET (3 Sep,
+  `fb2d294`): 1 leaderLiveLine — a resumed chat turn prepends today's idea
+  + why, open struggles (count + newest) and the latest resolution, the
+  Coach's fix twinned; 2 research runs Sat OR Sun (researchWindowOpen; the
+  6-day gap dedupes); 3 was already in (spacing.js twins); 4 every research
+  URL is HEAD-checked (GET when HEAD is refused, 5s) — failures KEPT and
+  marked "(link unverified)" in the woven page (verifyInsightUrls,
+  researchBody). [38] Pulse §6 — MET: 1 novelty memory — the URLs already
+  shown ride the prompt as an exclude list AND code judges novelty against
+  them; nothing new → yesterday's items stay marked seen, newCount 0, and
+  the panel ("nothing new — last items from <date>"), the morning line
+  ("nothing new since <date>") and the ops list say so; 2 late catch-up —
+  pulseRunDue: 03:30–06:30 once, else once after 09:00; lastRunDay lives IN
+  pulse.json (claimed before the run); 3 over-cap topics are listed in the
+  cache (overCap), never run, and the panel says "past the 6-topic limit".
+  REAL FINDING while here: the lane fails 1–2 of 3 topics most nights —
+  log says only `pulse "Hypertrophy…" failed: exited 1` (result and stderr
+  both empty); haiku at $0.50 budget. Diagnostic run in flight (see OPEN).
+  [39] Brief Warm §6 — MET: 1 warmBrief(vaultPath,{variant}) with an evening
+  window 19–22 beside the morning 05–10 (warmVariantFor); 2 three
+  consecutive all-failed runs put ONE heartbeat note ("brief warm has failed
+  since 05:30 — first open will be slow"), cleared by the first warm. [40]
+  Health Mirror §6 — MET: 1 healthData.saveDay and nutritionLog.saveDay note
+  the date; a month that is not the current one is regenerated on the next
+  mirror tick (noteHealthWrite / drainPendingMirrors); daysBackTo makes the
+  loaders reach the first of ANY month (62 was only right for this month);
+  2 Processed/ drop archives older than 60 days are pruned at boot
+  (pruneProcessedDrops — his two real Processed folders hold one file each,
+  both recent). [41] Reminders §6 — MET: reminderFireText — more than 90
+  minutes late reads "⏰ from 16:00, missed while the Mac slept: …" (day
+  named when it is not today), push title "Missed reminder — Nova";
+  firedAt/firedLate on the record. [42] Todoist §6 — MET, gate OPENED by a
+  real probe (2 scratch tasks in his "Old" project, created/closed/deleted
+  and confirmed gone): v1 GET /tasks/{id} answers 200 for completed AND
+  deleted — checked:true vs is_deleted:true; moved = neither. taskFate →
+  deleted leaves the vault line OPEN and holds it back from re-push
+  (state.heldBack, released when the line closes/changes; lastResult.note
+  "1 task deleted in Todoist — its line stays open in the vault"); moved
+  keeps the pair; unknown (404/network) falls back to checking the line.
+  [43] Overnight §6 — MET (3 Sep): (a) an errored item goes back to queued
+  with attempts 2 and runs once more the next night, then stays error with
+  failedTwice (requeueFailed, MAX_ATTEMPTS 2); (b) before re-running, the
+  runner reconciles — a kept recordId that now reads pending/filed is marked
+  done "landed late", no second run spent; (c) the morning line matches
+  reality: "1 run failed — it will retry tonight" / "failed twice — re-queue
+  it from Ops if it still matters" (the "still queued thinking, not lost"
+  fiction is gone). [44] Calendar Watch — clean keep, nothing to do. [45]
+  Mission Control §6 — MET: 1, 2, 5 were landed by their owners; 3 the
+  concept card is CONCEPT REVISIT (freeing "DAILY REVIEW" for the Inbox's
+  review card); 4 phone-width pass DONE at 375×812 (devtools emulate) —
+  hero, TODAY list, DRAFT row, single-column body all read right; one real
+  defect found and fixed: the PROTEIN satellite (bottom:64px) sat across the
+  core's "NOVA · LISTENING" label — both lower satellites now sit at
+  bottom:8px on phones, verified clear by screenshot. [46] Workouts §6 —
+  1 and 2 were landed by their owners; 3 phone pass: TODAY tab (readiness
+  ring + HRV/Sleep/RHR, STALLED/STREAK two-up, hard-sets bars) and GYM tab
+  (week strip scrolls horizontally inside its own container, routine cards
+  full-width) read right at 375; the live cockpit's set rows and long-press
+  targets were NOT exercised (starting a session writes a draft — not done
+  on his real vault). PULSE, REAL FINDING RESOLVED TO A DECISION (3 Sep):
+  one real run of the Hypertrophy topic on haiku cost $1.06 over 20 web
+  searches in 267s — twice the $0.50 cap — so 1–2 of 3 topics died most
+  nights as "exited 1" with the $0.50 spent for nothing. Shipped: the CLI
+  envelope's subtype is now words ("budget of $0.5 exhausted after $0.50
+  and 11 searches — the run was cut off before it answered"), the failure
+  is written on the topic's cache entry (lastError) so the panel says "last
+  refresh failed: …" (outranking "nothing new"), every successful run logs
+  its cost/searches/seconds receipt (entry.run), and the prompt caps the
+  model at 8 searches. NOT raised: the budget itself — his call (see OPEN).
+  Next in roster: [47] Voice §6 (owned items only) → [48] Inbox → …
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised

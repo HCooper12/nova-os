@@ -145,3 +145,27 @@ test('run window: overnight once, a late catch-up after 09:00, never twice a day
   assert.equal(pulseRunDue(d(15, 0), localDay(d(15, 0))), false, 'already ran today — from the cache file, so a restart cannot double it');
   assert.equal(pulseRunDue(d(4, 0), '2026-09-02'), true, "yesterday's run does not count");
 });
+
+test('a failed refresh is legible: the budget subtype becomes words, the cache remembers it, the panel says it', async () => {
+  const { describeRunFailure, runReceipt } = await import('../lib/pulse.js');
+  const envelope = { is_error: true, subtype: 'error_max_budget_usd', total_cost_usd: 0.5012, modelUsage: { 'claude-haiku-4-5': { webSearchRequests: 11 } } };
+  assert.equal(describeRunFailure(envelope, 1), 'budget of $0.5 exhausted after $0.50 and 11 searches — the run was cut off before it answered');
+  assert.equal(describeRunFailure({ subtype: 'error_max_turns', total_cost_usd: 0.2 }, 1), 'turn limit hit after $0.20');
+  assert.equal(describeRunFailure({}, 1, ''), 'exited 1');
+  assert.equal(describeRunFailure({ result: 'API down' }, 1), 'API down');
+  assert.deepEqual(runReceipt({ total_cost_usd: 1.064, duration_ms: 267400, modelUsage: { a: { webSearchRequests: 20 } } }), { costUsd: 1.064, searches: 20, seconds: 267 });
+
+  await assert.rejects(() => refreshPulseTopic('Espresso gear', { runner: async () => { throw new Error('budget of $0.5 exhausted after $0.50 and 9 searches — the run was cut off before it answered'); } }), /budget/);
+  const entry = (await getPulse('espresso'))[0];
+  assert.equal(entry.items.length, 1, 'the previous items survive the failure');
+  assert.match(entry.lastError.message, /budget of \$0\.5 exhausted/);
+  const { buildPanel } = await import('../lib/panels.js');
+  const panel = await buildPanel(vault, { panel: 'pulse', topic: 'espresso' });
+  assert.match(panel.data.freshness, /^last refresh failed: budget of/);
+
+  // a later success clears the failure and carries the run receipt
+  const ok = await refreshPulseTopic('Espresso gear', { runner: async () => ({ items: [{ title: 'Brand new', url: 'https://ex.com/c', source: 'Ex' }], __run: { costUsd: 0.41, searches: 6, seconds: 90 } }) });
+  assert.equal(ok.lastError, undefined);
+  assert.deepEqual(ok.run, { costUsd: 0.41, searches: 6, seconds: 90 });
+  assert.match((await import('../lib/pulse.js')).buildPulsePrompt('x'), /at most 8 web searches/);
+});

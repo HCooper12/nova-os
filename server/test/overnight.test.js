@@ -61,16 +61,20 @@ test('runner: sequential, review-gated results recorded; failures honest; force 
 
   const list = await listOvernight();
   const done = list.items.find((i) => i.status === 'done');
-  const failed = list.items.find((i) => i.status === 'error');
+  // the failed item is back in the queue for ONE more night (audit [43])
+  const failed = list.items.find((i) => i.requeuedAt);
   assert.equal(done.recordId, 'rec-1');
   assert.equal(done.title, 'Creatine Brief');
-  assert.match(failed.error, /web went dark/);
+  assert.equal(failed.status, 'queued');
+  assert.match(failed.lastError, /web went dark/);
   assert.equal(list.lastRunDay, null, 'a forced run must not consume the nightly window');
 
   const line = await overnightMorningLine();
   assert.match(line, /^\*\*Overnight\.\*\*/);
   assert.match(line, /1 research brief landed for review: Creatine Brief/);
-  assert.match(line, /1 run failed/);
+  assert.match(line, /1 run failed — it will retry tonight/);
+  // the retry is not spent inside THIS test's story
+  await removeOvernightItem(failed.id);
 });
 
 test('outline kind: queued from a real idea, dispatched with its ideaId, counted in the morning line', async () => {
@@ -94,4 +98,68 @@ test('outline kind: queued from a real idea, dispatched with its ideaId, counted
 
   const line = await overnightMorningLine();
   assert.match(line, /1 research brief and 1 Studio outline landed for review/);
+});
+
+// ---- audit [43]: the failed-item story ----------------------------------------
+
+test('a failed item gets ONE more night, then rests honestly; the morning line matches each state', async () => {
+  const { requeueFailed, MAX_ATTEMPTS } = await import('../lib/overnight.js');
+  const now = new Date();
+  // fresh queue
+  for (const i of (await listOvernight()).items) { if (i.status === 'queued') await removeOvernightItem(i.id); }
+  await enqueueOvernight({ question: 'Does creatine help sleep-deprived lifting?' });
+  const failing = async () => ({ id: 'rec-fail-' + Math.random().toString(36).slice(2, 6) });
+  const pollError = async (id) => ({ id, status: 'error', error: 'the web went dark' });
+
+  let summary = await runOvernightQueue('/tmp/nowhere', { startJob: failing, pollRecord: pollError, pollMs: 1, force: true });
+  assert.equal(summary.errors, 1);
+  let item = (await listOvernight()).items.find((i) => i.question.startsWith('Does creatine'));
+  assert.equal(item.status, 'queued', 'first failure: back in the queue for one more night');
+  assert.equal(item.attempts, 2);
+  assert.match(item.lastError, /web went dark/);
+  assert.ok(item.requeuedAt);
+  let line = await overnightMorningLine();
+  assert.match(line, /1 run failed — it will retry tonight: Does creatine/);
+  assert.ok(!/still queued thinking/.test(line), 'the old fiction is gone');
+
+  summary = await runOvernightQueue('/tmp/nowhere', { startJob: failing, pollRecord: pollError, pollMs: 1, force: true });
+  assert.equal(summary.errors, 1);
+  item = (await listOvernight()).items.find((i) => i.question.startsWith('Does creatine'));
+  assert.equal(item.status, 'error', 'second failure stays failed');
+  assert.equal(item.failedTwice, true);
+  line = await overnightMorningLine();
+  assert.match(line, /1 run failed twice — re-queue it from Ops if it still matters: Does creatine/);
+
+  // pure: an item already re-queued once is never re-queued again by the pass
+  assert.equal(MAX_ATTEMPTS, 2);
+  const twice = requeueFailed([{ id: 'x', status: 'error', attempts: 2, error: 'e' }], now)[0];
+  assert.equal(twice.status, 'error');
+  assert.equal(twice.failedTwice, true);
+  const once = requeueFailed([{ id: 'y', status: 'error', error: 'e' }], now)[0];
+  assert.equal(once.status, 'queued');
+  assert.equal(once.attempts, 2);
+});
+
+test('reconcile before re-running: a brief that landed late is marked done, not run twice', async () => {
+  for (const i of (await listOvernight()).items) { if (i.status === 'queued') await removeOvernightItem(i.id); }
+  await enqueueOvernight({ question: 'What does zone 2 do for lifters, really?' });
+  const started = [];
+  const startJob = async (vp, it) => { started.push(it.question); return { id: 'rec-late' }; };
+  // night 1: the poll times out (the brief is still classifying)
+  let summary = await runOvernightQueue('/tmp/nowhere', { startJob, pollRecord: async (id) => ({ id, status: 'classifying' }), pollMs: 1, itemTimeoutMs: 5, force: true });
+  assert.equal(summary.errors, 1);
+  let item = (await listOvernight()).items.find((i) => i.question.startsWith('What does zone 2'));
+  assert.equal(item.status, 'queued', 're-queued for tonight');
+  assert.equal(item.recordId, 'rec-late', 'the record id is kept so tomorrow can look');
+  // night 2: the record is pending in the Inbox — it landed after the poll gave up
+  summary = await runOvernightQueue('/tmp/nowhere', { startJob, pollRecord: async (id) => ({ id, status: 'pending', decision: { title: 'Zone 2 for lifters' } }), pollMs: 1, force: true });
+  assert.equal(summary.ran, 0, 'no second run was spent');
+  assert.equal(summary.landedLate, 1);
+  assert.equal(started.length, 1);
+  item = (await listOvernight()).items.find((i) => i.question.startsWith('What does zone 2'));
+  assert.equal(item.status, 'done');
+  assert.equal(item.landedLate, true);
+  assert.equal(item.title, 'Zone 2 for lifters');
+  const line = await overnightMorningLine();
+  assert.match(line, /landed for review \(1 from an earlier night, landed late\)/);
 });

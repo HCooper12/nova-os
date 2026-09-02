@@ -61,8 +61,11 @@ function Cluster({ v }) {
         <div style={{ position: 'absolute', bottom: Math.round(core * 0.135), font: `500 7.5px ${M}`, letterSpacing: '.34em', color: 'var(--nv-cy)' }}>{v.coreLabel}</div>
       </Interactive>
       <Sat pos={{ top: '10px', right: 0 }} colorVar="--nv-cy" glowVar="--nv-glow-sat1" d={v.satSleep} />
-      <Sat pos={{ bottom: '16px', left: mob ? 0 : '-6px' }} colorVar="--nv-mg" glowVar="--nv-glow-sat2" d={v.satSteps} />
-      <Sat pos={{ bottom: '64px', right: mob ? 0 : '-10px' }} colorVar="--nv-vi" glowVar="--nv-glow-sat3" d={v.satProtein} />
+      {/* At 375px the 232px core leaves no side room, so the two lower
+          satellites sit in the bottom corners UNDER the core's status label
+          (measured 3 Sep: bottom:64px put PROTEIN across "NOVA · LISTENING"). */}
+      <Sat pos={{ bottom: mob ? '8px' : '16px', left: mob ? 0 : '-6px' }} colorVar="--nv-mg" glowVar="--nv-glow-sat2" d={v.satSteps} />
+      <Sat pos={{ bottom: mob ? '8px' : '64px', right: mob ? 0 : '-10px' }} colorVar="--nv-vi" glowVar="--nv-glow-sat3" d={v.satProtein} />
     </div>
   );
 }
@@ -213,10 +216,13 @@ export function MissionControl({ v }) {
 
         <div className="nv-pane" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', marginBottom: '10px' }}>
-            <span style={phH('--nv-vi', '--nv-tsh-head-vi')}>DAILY REVIEW</span>
+            {/* CONCEPT REVISIT, not "DAILY REVIEW": that name belongs to the
+                day's actual review (the Inbox card), and this card wearing it
+                let a spaced concept impersonate the flagship artefact. */}
+            <span style={phH('--nv-vi', '--nv-tsh-head-vi')}>CONCEPT REVISIT</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span style={phMeta}>{v.reviewMeta}</span>
-              <Interactive as="span" onClick={v.shuffleReview} aria-label="Shuffle daily review" base={{ cursor: 'pointer', font: `400 13px ${M}`, color: 'var(--nv-ink40)' }} hoverStyle={{ color: 'var(--nv-ink)' }}>⟳</Interactive>
+              <Interactive as="span" onClick={v.shuffleReview} aria-label="Shuffle concept revisit" base={{ cursor: 'pointer', font: `400 13px ${M}`, color: 'var(--nv-ink40)' }} hoverStyle={{ color: 'var(--nv-ink)' }}>⟳</Interactive>
             </span>
           </div>
           <div style={{ font: `400 16px/1.45 ${S}`, textWrap: 'pretty', color: 'rgba(232,236,246,.92)', maxHeight: '132px', overflowY: 'auto' }}>{v.reviewConcept}</div>

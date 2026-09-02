@@ -155,7 +155,8 @@ async function buildPulse(topic) {
     throw new Error(`"${entry.topic}" is not refreshed — it sits past the ${MAX_TOPICS}-topic limit on his Interests page; say so plainly and offer to RESEARCH it now instead`);
   }
   if (!entry || !entry.items?.length) {
-    throw new Error(`no pulse cached${topic ? ` for "${topic}"` : ''} — pulses refresh overnight from his Interests page; offer to RESEARCH it now instead`);
+    const why = entry?.lastError ? ` (the last refresh failed: ${entry.lastError.message})` : '';
+    throw new Error(`no pulse cached${topic ? ` for "${topic}"` : ''}${why} — pulses refresh overnight from his Interests page; offer to RESEARCH it now instead`);
   }
   const ageH = Math.round((Date.now() - new Date(entry.at).getTime()) / 3600e3);
   // a refresh that found nothing new is labelled as such — the items are
@@ -163,7 +164,11 @@ async function buildPulse(topic) {
   const freshness = entry.newCount === 0
     ? `nothing new — last items from ${entry.lastNewAt ? String(entry.lastNewAt).slice(0, 10) : 'an earlier run'}`
     : null;
-  return { topic: entry.topic, ageLabel: ageH < 1 ? 'fresh' : `${ageH}h old`, items: entry.items, freshness };
+  // a failed refresh since these items were fetched is said, not hidden —
+  // and it outranks "nothing new", which would otherwise dress a failure up
+  // as a quiet day
+  const failedSince = entry.lastError && (!entry.at || entry.lastError.at > entry.at) ? `last refresh failed: ${entry.lastError.message}` : null;
+  return { topic: entry.topic, ageLabel: ageH < 1 ? 'fresh' : `${ageH}h old`, items: entry.items, freshness: failedSince || freshness };
 }
 
 // RECENT SESSIONS — what he actually did, session by session.
