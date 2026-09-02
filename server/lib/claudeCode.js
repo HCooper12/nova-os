@@ -714,7 +714,7 @@ Hayden asks: ${question}`;
 // on his phone.
 const COACH_TURN_REMINDER = '[Standing reminder: you CAN change his program. You do it by ending your reply with ONE typed line, EXACTLY this JSON form on its own final line: PROPOSE {"action":"swap","routine":"Push","remove":"Exact Old Name","add":"Exact New Name","targetSets":3,"targetRepsLow":8,"targetRepsHigh":12,"reason":"why"} — actions: swap/add/remove/targets/tune/injury/goal/learn/resource. Prose after PROPOSE does not work; only the JSON object is machine-readable. It renders as APPLY IT / NOT NOW on your own message and applies deterministically with undo when he taps it. Never tell him you are unable to edit his program or that you lack write access — that is false and it blocks him. What you cannot do is write WITHOUT his yes. His session notes are in your context tagged [form-breakdown]/[pain]/[fatigue]/[too-easy] — treat them as your best evidence, coach the technique properly from what the research supports, and quote his sentence back.]';
 
-export function startAskCoach(cwd, { question, context, sessionId }) {
+export function startAskCoach(cwd, { question, context, sessionId, onReady }) {
   assertLaneOn('coach');
   const jobId = randomUUID().slice(0, 8);
   const isNewSession = !sessionId;
@@ -784,6 +784,9 @@ export function startAskCoach(cwd, { question, context, sessionId }) {
       } catch { /* no panel rather than a wrong one */ }
       turnJob.result = { text, sessionId: effectiveSessionId, proposal: proposalOut, panel: coachPanel };
       turnJob.status = 'ready';
+      // landing-side markers (the skipped-work cooldown) burn only on a
+      // delivered answer — a failed job used to consume the window silently
+      if (onReady) Promise.resolve().then(onReady).catch(() => {});
     } catch (e) {
       turnJob.status = 'error';
       turnJob.error = e.message;

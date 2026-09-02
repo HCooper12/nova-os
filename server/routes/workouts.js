@@ -599,6 +599,7 @@ export function workoutsRouter(vaultPath) {
         if (bits.length) parts.push(`Streaks: ${bits.join('; ')}.`);
       } catch { failures.push('streaks'); }
       // work that keeps not happening — the Coach asks why before proposing
+      let markRaised = null; // stamped when the answer lands (startAskCoach onReady), never here
       try {
         const { detectSkippedExercises, skippedContext } = await import('../lib/coach.js');
         const { exercises: lib } = await loadExerciseLibrary(vaultPath);
@@ -621,8 +622,17 @@ export function workoutsRouter(vaultPath) {
         if (skipped) {
           parts.push(skipped + (stale.length ? `
 (Already raised recently — do NOT re-raise unless he brings them up: ${stale.map((x) => x.name).join(', ')}.)` : ''));
-          raised[fresh[0].exerciseId] = new Date().toISOString();
-          wf(raisedPath, JSON.stringify(raised, null, 2)).catch(() => {});
+          // the 7-day cooldown used to be written HERE, during context
+          // assembly — before the model had answered — so a failed job
+          // consumed the window and the exercise went a week unraised
+          // without ever having been raised. Stamp it on the answer.
+          const candidate = fresh[0].exerciseId;
+          markRaised = async () => {
+            let latest = {};
+            try { latest = JSON.parse(await rf(raisedPath, 'utf8')); } catch { /* first run */ }
+            latest[candidate] = new Date().toISOString();
+            await wf(raisedPath, JSON.stringify(latest, null, 2));
+          };
         } else if (stale.length) {
           parts.push(`Repeatedly-skipped work was raised with him recently (${stale.map((x) => x.name).join(', ')}) — don't re-raise unless he brings it up.`);
         }
@@ -671,7 +681,7 @@ export function workoutsRouter(vaultPath) {
         const { ABSENT_NOTE } = await import('../lib/contextSections.js');
         parts.push(ABSENT_NOTE(failures.map((label) => ({ label }))));
       }
-      res.json({ jobId: startAskCoach(vaultPath, { question, context: parts.join('\n\n') }) });
+      res.json({ jobId: startAskCoach(vaultPath, { question, context: parts.join('\n\n'), onReady: markRaised || undefined }) });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

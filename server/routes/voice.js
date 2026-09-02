@@ -345,6 +345,19 @@ export function voiceRouter(vaultPath) {
     const { markBriefDelivered } = await import('../lib/briefState.js');
     res.json(await markBriefDelivered(typeof req.body?.variant === 'string' ? req.body.variant : 'morning'));
   });
+  // the sibling once-a-day memories, same rail: greeted today, a ritual done
+  // today — each written by the client ON DELIVERY, so his other devices stop
+  // greeting and inviting him for things that already happened
+  router.post('/brief-state/greeted', async (req, res) => {
+    const { markGreeted } = await import('../lib/briefState.js');
+    res.json(await markGreeted());
+  });
+  router.post('/brief-state/ritual-done', async (req, res) => {
+    try {
+      const { markRitualDone } = await import('../lib/briefState.js');
+      res.json(await markRitualDone(req.body?.kind));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
 
   router.post('/show', async (req, res) => {
     try {

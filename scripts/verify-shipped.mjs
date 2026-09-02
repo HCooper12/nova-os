@@ -57,6 +57,9 @@ const FEATURES = [
   // the couldn't-look state on its two client faces: the Fuel card and the plan card
   ["Fuel · couldn't-check card", "COULDN'T CHECK"],
   ['Home · failed plan is not an empty morning', 'HIT AN ERROR — SEE INBOX'],
+  // once-a-day marks written on delivery and shared across devices
+  ['Greeting · stamped on delivery, cross-device', 'markGreeted'],
+  ['Rituals · done on delivery, cross-device', 'markRitualDone'],
 ];
 
 const SERVER_ROUTES = [

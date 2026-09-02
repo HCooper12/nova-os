@@ -3358,8 +3358,9 @@ export default class App extends Component {
   answerFollowupDone(label, time, key) {
     const conn = getConnection();
     if (!conn) return;
-    this.dismissInboxProposal(key);
+    // dismissed on the RECEIPT, not the tap — a failed POST used to lose the question
     api.followupDone(conn, label, time).then(() => {
+      this.dismissInboxProposal(key);
       this.toastMsg(`Logged ✓ ${label} — journaled (undoable in history)`);
       this.refreshInbox();
     }).catch((e) => this.toastMsg('Could not log it: ' + e.message));
@@ -3367,8 +3368,8 @@ export default class App extends Component {
   moveFollowupToTodo(label, key) {
     const conn = getConnection();
     if (!conn) return;
-    this.dismissInboxProposal(key);
     api.todoAdd(conn, label).then((data) => {
+      this.dismissInboxProposal(key);
       this.setState({ liveTodos: data });
       this.toastMsg(`"${label}" moved to the To-Do list`);
     }).catch((e) => this.toastMsg(e.message));
@@ -3844,7 +3845,7 @@ export default class App extends Component {
 
   // The ask poll, attachable from a fresh boot too — an iOS reclaim used to
   // eat the in-flight answer along with the poll.
-  attachAskPoll(conn, jobId) {
+  attachAskPoll(conn, jobId, { onDelivered } = {}) {
     const clearJob = () => { try { localStorage.removeItem('novaos.askJob'); } catch { /* best-effort */ } };
     // STREAMING: the reply renders word-by-word from job.partial, and (on
     // the browser speech path) complete sentences are spoken AS they arrive
@@ -3943,6 +3944,8 @@ export default class App extends Component {
           // already cleared its receipt, so boot had nothing to re-attach.
           // Watched happen live 18 Aug: reply + panel vanished silently.
           clearJob();
+          // the reply is on screen — the one moment a once-a-day mark may burn
+          try { onDelivered?.(); } catch { /* best-effort */ }
           this.setState((s) => {
             const chat = [...s.voiceChat];
             const idx = chat.map((m) => !!m.streaming).lastIndexOf(true);
@@ -5040,6 +5043,19 @@ export default class App extends Component {
           try { localStorage.setItem('novaos.morningBrief', today); } catch { /* private mode */ }
           clearTimeout(this.morningT);
         }
+        // the sibling once-a-day memories ride the same answer: greeted today
+        // on any device stands the doorman down here; a ritual done anywhere
+        // is done here
+        if (st?.greet?.date === st?.today) {
+          try { localStorage.setItem('novaos.voiceGreet', JSON.stringify({ date: today, at: Date.parse(st.greet.at) || Date.now() })); } catch { /* private mode */ }
+        }
+        const doneElsewhere = Object.entries(st?.rituals || {}).filter(([, d]) => d === st?.today).map(([k]) => k);
+        if (doneElsewhere.length) {
+          const done = { ...(this.state.ritualDone || {}) };
+          for (const k of doneElsewhere) done[k] = today;
+          try { localStorage.setItem('novaos.ritualDone', JSON.stringify(done)); } catch { /* private mode */ }
+          this.setState({ ritualDone: done });
+        }
       }).catch(() => { /* offline: the local flag still guards the common case */ });
     }
     const h = new Date().getHours();
@@ -5353,6 +5369,9 @@ export default class App extends Component {
     // lands in the transcript for when he opens Voice).
     if (this.state.demoMode || !getConnection() || this.state.connectionStatus === 'offline') return;
     if (this.greetInFlight) return;
+    // a greeting that FAILED does not consume the morning any more — but it
+    // does not retry on every screen change either: one attempt a quarter hour
+    if (this.greetFailedAt && Date.now() - this.greetFailedAt < 15 * 60e3) return;
     const now = Date.now();
     const today = new Date().toDateString();
     let last = {};
@@ -5360,9 +5379,29 @@ export default class App extends Component {
     const gap = last.date !== today ? 'new-day'
       : (last.at && now - last.at > 3 * 3600e3) ? 'return' : null;
     if (!gap) return;
-    try { localStorage.setItem('novaos.voiceGreet', JSON.stringify({ date: today, at: now })); } catch { /* best-effort */ }
     this.greetInFlight = true;
     const conn = getConnection();
+    // GREETED-STATE IS WRITTEN ON DELIVERY, NOT HERE. It used to be stamped
+    // before the job ran, so a failed new-day greeting silenced the doorman
+    // until a 3h gap re-armed it. And a new day asks the SERVER first: the
+    // once-a-day memory lived in this device's localStorage, so the Mac said
+    // hello again after his phone already had — the brief's own documented
+    // lesson (briefState.js), finally applied to its sibling. Offline, the
+    // local memory decides, as before.
+    const stoodDown = (st) => !!st && (st.greet?.date === st.today || st.briefedToday);
+    const decide = gap === 'new-day'
+      ? api.briefState(conn).then((st) => (stoodDown(st) ? 'stand-down' : gap)).catch(() => gap)
+      : Promise.resolve(gap);
+    decide.then((verdict) => {
+      if (verdict === 'stand-down') {
+        this.greetInFlight = false;
+        try { localStorage.setItem('novaos.voiceGreet', JSON.stringify({ date: today, at: now })); } catch { /* best-effort */ }
+        return;
+      }
+      this.greetJob(conn, verdict, origin, today);
+    });
+  }
+  greetJob(conn, gap, origin, today) {
     api.greet(conn, gap).then(({ jobId }) => {
       this.startPoll('greet', () => api.claudeCodeJob(conn, jobId), {
         timeoutMs: 45_000,
@@ -5372,6 +5411,9 @@ export default class App extends Component {
         },
         onReady: (job) => {
           this.greetInFlight = false;
+          // delivered — NOW it counts, here and for his other devices
+          try { localStorage.setItem('novaos.voiceGreet', JSON.stringify({ date: today, at: Date.now() })); } catch { /* best-effort */ }
+          if (gap === 'new-day') api.markGreeted(conn).catch(() => {});
           const text = job.result.text;
           this.finalizeStream('voiceChat', { at: Date.now(), who: 'nova', text });
           if (this.state.screen !== 'voice') {
@@ -5385,10 +5427,11 @@ export default class App extends Component {
         },
         onError: () => {
           this.greetInFlight = false;
+          this.greetFailedAt = Date.now();
           this.setState((s) => ({ voiceChat: s.voiceChat.filter((m) => !m.streaming) }));
         },
       });
-    }).catch(() => { this.greetInFlight = false; /* quiet — never a scripted stand-in */ });
+    }).catch(() => { this.greetInFlight = false; this.greetFailedAt = Date.now(); /* quiet — never a scripted stand-in */ });
   }
   // Rituals — tapped invitations, never interruptions. The transcript shows
   // a clean label; the structured instruction is composed server-side.
@@ -5397,15 +5440,25 @@ export default class App extends Component {
     if (!conn || this.state.voiceBusy || this.state.connectionStatus === 'offline') return;
     this.primeSpeech();
     api.askRitual(conn, kind, this.state.voiceSessionId || null).then(({ jobId, label }) => {
-      const done = { ...(this.state.ritualDone || {}), [kind]: new Date().toDateString() };
-      try { localStorage.setItem('novaos.ritualDone', JSON.stringify(done)); } catch { /* best-effort */ }
       try { localStorage.setItem('novaos.askJob', JSON.stringify({ jobId, askedAt: Date.now() })); } catch { /* best-effort */ }
-      this.setState((s) => ({ ritualDone: done, voiceBusy: true, voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: label }] }));
+      this.setState((s) => ({ voiceBusy: true, voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: label }] }));
       this.stopSpeaking();
-      this.attachAskPoll(conn, jobId);
+      // done when the reply is ON SCREEN, not when the job was dispatched — a
+      // failed morning brief used to consume the day's invitation
+      this.attachAskPoll(conn, jobId, { onDelivered: () => this.markRitualDone(kind) });
     }).catch((e) => {
       this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: 'Error: ' + e.message }] }));
     });
+  }
+  // A ritual counts as done when its reply landed — and for every device, not
+  // this one: per-device localStorage was the brief's documented lesson
+  // (briefState.js), here applied to its sibling.
+  markRitualDone(kind) {
+    const done = { ...(this.state.ritualDone || {}), [kind]: new Date().toDateString() };
+    try { localStorage.setItem('novaos.ritualDone', JSON.stringify(done)); } catch { /* best-effort */ }
+    this.setState({ ritualDone: done });
+    const conn = getConnection();
+    if (conn) api.markRitualDone(conn, kind).catch(() => {});
   }
   newVoiceChat() {
     localStorage.removeItem('novaos.voiceSession');
