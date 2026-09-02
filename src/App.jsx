@@ -1424,9 +1424,15 @@ export default class App extends Component {
       // any failure falls back to the individual fetches unchanged.
       let okCount = 0;
       let total = tasks.length;
+      // REACHABLE IS NOT THE SAME AS FULLY SYNCED. A snapshot that answered
+      // 200 with half its slices missing (a cold server after a reload — each
+      // slice has a 6s budget) used to read as "Backend unreachable" for up
+      // to five minutes, which was a lie about a server that had just spoken.
+      let reachable = false;
       try {
         const startedAt = Date.now();
         const { slices } = await api.snapshot(conn);
+        reachable = true;
         okCount = this.applySnapshot(slices, startedAt);
         // The snapshot no longer waits on a slow slice (a cold CalDAV
         // calendar was holding EVERY sync to ~5-10s) — a slice that missed
@@ -1443,13 +1449,14 @@ export default class App extends Component {
         const results = await Promise.allSettled(tasks.map((t) => t()));
         okCount = results.filter((r) => r.status === 'fulfilled').length;
         total = results.length;
+        reachable = okCount > 0;
       }
       // Honest chip: LIVE requires most slices actually syncing. One lucky
       // fetch out of 24 used to keep the chip green while everything else
       // (calendar included) silently failed.
       if (okCount > total / 2) {
         const now = new Date().toISOString();
-        this.setState({ connectionStatus: 'connected', lastSyncAt: now }, () => {
+        this.setState({ connectionStatus: 'connected', lastSyncAt: now, syncDegraded: null }, () => {
           const slices = {};
           for (const key of CACHED_LIVE_KEYS) slices[key] = this.state[key];
           saveLiveCache(slices);
@@ -1493,6 +1500,14 @@ export default class App extends Component {
             }).catch(() => { this.serverDraftChecked = false; /* retry next sync */ });
           }
         });
+      } else if (reachable) {
+        // the backend spoke but most sections did not make it: say THAT, keep
+        // the chip live, and come back for the rest in a few seconds rather
+        // than waiting a whole sync cycle (bounded so a genuinely broken
+        // server cannot hold a retry loop)
+        const tries = (this.state.syncDegraded?.tries || 0) + 1;
+        this.setState({ connectionStatus: 'connected', syncDegraded: { ok: okCount, total, tries } });
+        if (tries <= 3) { clearTimeout(this.degradedT); this.degradedT = setTimeout(() => { if (getConnection()) this.refreshLiveData(); }, 5000); }
       } else {
         this.setState({ connectionStatus: 'offline' });
       }
@@ -4631,6 +4646,14 @@ export default class App extends Component {
     if (/\bprotein|floor\b/.test(t)) return { kind: 'protein', label: 'Protein this week — the maths' };
     if (/\bpeak|sharpest|best time|schedule|focus block/.test(t)) return { kind: 'peak', label: 'Your peak window today' };
     return null;
+  }
+  // "Talk it through" on a health insight: the observation becomes a
+  // conversation in one tap — the insight text IS the question's subject,
+  // so the transcript reads honestly as what he asked.
+  askAboutInsight(text) {
+    if (!text) return;
+    this.navigate('voice');
+    this.setState({ liveInput: `Talk me through this insight: "${text}" — what does it mean for today, and what's the one thing to do about it?` }, () => this.sendLiveTalk());
   }
   sendLiveTalk() {
     const q = (this.state.liveInput || '').trim();

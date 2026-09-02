@@ -72,6 +72,7 @@ const FEATURES = [
   ['Inbox · training-check dismiss asks what happened (four chips)', 'ONE TAP KEEPS THE RECORD STRAIGHT'],
   ['Inbox · review discard asks why once; adjustments take DONE / NOT TODAY', "TOMORROW'S REVIEW READS THIS"],
   ['Train · history rows carry the Coach\'s reaction', 'COACH SAID'],
+  ['Home · a health insight can be talked through in one tap', 'TALK IT THROUGH'],
 ];
 
 const SERVER_ROUTES = [

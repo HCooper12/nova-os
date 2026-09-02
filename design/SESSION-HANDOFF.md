@@ -236,7 +236,34 @@ DONE CRITERIA:
   (+ a CUT SHORT line); 3 one recovery line in the facts; 4 a cut-short
   session names what was pushed forward and when it is due. debriefFacts is
   extracted and tested with injected deps. History render at 375 UNSEEN.
-  Next in roster: [10] Greeting §6.
+  [10] Greeting §6 — already MET (1, 2 in Tier 2
+  #10; 3 the banner already opens Voice on tap). [11] Health Insight §6 —
+  MET (3 Sep): 1 (retry cap) and 6 (test file) were in; built now: 4 insight
+  memory — the last insights ride the same insight.json (history, keep 6)
+  and the context carries the last three with the never-repeat / follow-up-
+  once rule; 2 three honest empty states on the Home card (no health data ·
+  "Nothing worth flagging today — signals look steady." on a fresh quiet run
+  · not yet today); 3 age chips on insight items (fresh = none; "YESTERDAY
+  EVENING"); 5 TALK IT THROUGH → opens Voice with the insight as the
+  question's subject (askAboutInsight → sendLiveTalk). Card render at 375
+  checked on the dev server — and that check surfaced an honesty gap
+  in the client's connection rule, PARTLY explained: the dev tab (a long-
+  lived document — hash-only navigations never reload; use type:'reload')
+  sat on "OFFLINE · Backend unreachable — showing data saved 23:45" for
+  hours while every request answered 200 and full snapshots kept landing
+  every 5 min. The rule: okCount > tasks/2 (30 tasks; the snapshot serves 38
+  slices, each on a 6s budget — a cold server's calendar slice took 7.9s in
+  the log). A snapshot that ANSWERED can therefore still read as
+  "unreachable" — a lie about a server that spoke. FIXED (3 Sep): reachable
+  ≠ fully synced — a 200 snapshot keeps the chip LIVE; if most slices missed
+  the banner says "Backend answering slowly — N of M sections refreshed,
+  fetching the rest…" (st.syncDegraded) and a bounded 5s re-sync (≤3)
+  fetches the rest; only a failed snapshot AND a fan-out with nothing
+  fulfilled reads offline. A REAL reload against a freshly restarted server
+  came up "connected" within a second with no degraded banner, so the
+  hours-long OFFLINE was the stale document (HMR-patched across several
+  service reloads), not a clean reproduction — the fix stands on the
+  mechanism, not on that tab. Next in roster: [12] Meal Prep §6.
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised

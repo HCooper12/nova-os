@@ -337,7 +337,16 @@ export function MissionControl({ v }) {
               v.healthInsightItems.map((item, i) => (
                 <div key={item.key} style={noticedRow(i === v.healthInsightItems.length - 1)}>
                   <span style={{ color: 'var(--nv-gold)', flex: 'none' }}>✦</span>
-                  <span><span style={{ font: `600 8.5px ${M}`, letterSpacing: '.14em', color: 'rgba(224,178,106,.8)', marginRight: '9px' }}>{item.label}</span>{item.text}</span>
+                  <span>
+                    <span style={{ font: `600 8.5px ${M}`, letterSpacing: '.14em', color: 'rgba(224,178,106,.8)', marginRight: '9px' }}>{item.label}</span>
+                    {item.text}
+                    {(item.age || item.talk) && (
+                      <span style={{ display: 'flex', gap: '12px', alignItems: 'baseline', marginTop: '5px', flexWrap: 'wrap' }}>
+                        {item.age && <span style={{ font: `500 8.5px ${M}`, letterSpacing: '.12em', color: 'var(--nv-ink40)', whiteSpace: 'nowrap' }}>{item.age.toUpperCase()}</span>}
+                        {item.talk && <Interactive as="span" onClick={item.talk} base={{ cursor: 'pointer', font: `600 8.5px ${M}`, letterSpacing: '.14em', color: 'var(--nv-cy)', whiteSpace: 'nowrap' }} hoverStyle={{ textDecoration: 'underline' }}>TALK IT THROUGH →</Interactive>}
+                      </span>
+                    )}
+                  </span>
                 </div>
               ))
             ) : !v.noticedShowDemo ? (

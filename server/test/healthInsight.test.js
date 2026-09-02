@@ -50,3 +50,25 @@ test('a failure never overwrites the last real insight, and never fakes a run', 
   assert.equal(onDisk.evening.tries, 0, 'one slot failing does not spend the other slot\'s budget');
   assert.equal(onDisk.evening.triesDate, null);
 });
+
+// ---- [11] plan 4: insight memory — the last few insights ride the context, dated ----
+test('insightMemoryLines: the last three insights with dates and the never-repeat rule; nothing when there is no history', async () => {
+  const { insightMemoryLines, INSIGHT_HISTORY_KEEP } = await import('../lib/healthInsight.js');
+  assert.equal(insightMemoryLines([]), '');
+  assert.equal(insightMemoryLines(null), '');
+  const hist = [
+    { slot: 'morning', date: '2026-08-30', insight: 'HRV dipped after two late nights.' },
+    { slot: 'evening', date: '2026-08-30', insight: 'Protein landed late again.' },
+    { slot: 'morning', date: '2026-08-31', insight: 'Sleep debt is compounding.' },
+    { slot: 'evening', date: '2026-08-31', insight: 'Rest day out-ate the training day.' },
+  ];
+  const lines = insightMemoryLines(hist);
+  assert.match(lines, /## Your last insights \(do NOT repeat an observation unless the data has moved/);
+  assert.doesNotMatch(lines, /HRV dipped/, 'only the last three');
+  assert.match(lines, /- 2026-08-30 evening: Protein landed late again\./);
+  assert.match(lines, /- 2026-08-31 evening: Rest day out-ate the training day\./);
+  assert.equal(INSIGHT_HISTORY_KEEP, 6);
+  // the file keeps a history array alongside the two slots (a failed attempt adds nothing)
+  const latest = await getLatestInsight();
+  assert.ok(Array.isArray(latest.history), 'history rides the same file');
+});

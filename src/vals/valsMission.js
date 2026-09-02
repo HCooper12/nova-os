@@ -538,9 +538,12 @@ export function valsMission(app, ctx) {
 
   const statusBanner = isOffline
     ? { tone: 'warn', text: `Backend unreachable — showing data saved ${lastSyncLabel || 'earlier'}` }
-    : demoMode && st.screen !== 'settings'
-      ? { tone: 'info', text: 'Demo data — connect your backend in Settings' }
-      : null;
+    : st.syncDegraded
+      // reachable but slow — the truth is "partly refreshed", not "unreachable"
+      ? { tone: 'info', text: `Backend answering slowly — ${st.syncDegraded.ok} of ${st.syncDegraded.total} sections refreshed${st.syncDegraded.tries <= 3 ? ', fetching the rest…' : '; the rest show what Nova last saved'}` }
+      : demoMode && st.screen !== 'settings'
+        ? { tone: 'info', text: 'Demo data — connect your backend in Settings' }
+        : null;
 
   // shared with valsChrome (sidebar status card reuses the same truth)
   Object.assign(ctx, { statusChip, missionStatusItems, agentsLiveCount });
@@ -647,11 +650,28 @@ export function valsMission(app, ctx) {
     // the scripted demo insights only ever render in demo mode — a connected
     // session with no insight yet gets the honest empty text instead
     noticedShowDemo: demoMode,
-    healthInsightItems: [
-      st.liveHealthInsight?.morning?.hasInsight ? { key: 'morning', label: 'MORNING', text: st.liveHealthInsight.morning.insight } : null,
-      st.liveHealthInsight?.evening?.hasInsight ? { key: 'evening', label: 'EVENING', text: st.liveHealthInsight.evening.insight } : null,
-    ].filter(Boolean),
-    healthInsightEmptyText: "Nova hasn't spotted a pattern yet — connect your Apple Health data to start getting daily insights here.",
+    // each insight says how old it is (the metric tiles' staleness idiom:
+    // fresh = no chip) and can be talked through in one tap
+    healthInsightItems: ['morning', 'evening'].map((slot) => {
+      const rec = st.liveHealthInsight?.[slot];
+      if (!rec?.hasInsight) return null;
+      const gen = rec.generatedAt ? new Date(rec.generatedAt) : null;
+      const genDay = gen ? `${gen.getFullYear()}-${String(gen.getMonth() + 1).padStart(2, '0')}-${String(gen.getDate()).padStart(2, '0')}` : null;
+      const yesterdayKey = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
+      const age = !genDay || genDay === todayKey ? '' : genDay === yesterdayKey ? `yesterday ${slot}` : `${genDay} ${slot}`;
+      return { key: slot, label: slot.toUpperCase(), text: rec.insight, age, talk: () => app.askAboutInsight(rec.insight) };
+    }).filter(Boolean),
+    // THREE HONEST EMPTY STATES, not one: no health data connected; a fresh
+    // run that found nothing worth raising (a success — it reads like one);
+    // and simply not yet today
+    healthInsightEmptyText: (() => {
+      if (!st.liveHealthDays?.length) return "Nova hasn't spotted a pattern yet — connect your Apple Health data to start getting daily insights here.";
+      const slots = ['morning', 'evening'].map((s) => st.liveHealthInsight?.[s]).filter(Boolean);
+      const freshQuiet = slots.some((r) => r.generatedAt && r.date === todayKey && !r.hasInsight);
+      if (freshQuiet) return 'Nothing worth flagging today — signals look steady.';
+      const h = new Date().getHours();
+      return h < 6 ? 'No insight yet today — the morning read arrives after 06:00.' : 'No insight yet today — the morning read lands after 06:00, the evening one after 18:00.';
+    })(),
     // streaks — pure computed momentum, no AI involved, so it's always
     // honest and free to show regardless of whether an insight generated
     streakBadges: st.liveStreaks

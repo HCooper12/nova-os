@@ -160,6 +160,10 @@ async function buildContext(vaultPath, slot) {
     lines.push('\n## Recent journal entries\n- Unavailable.');
   }
 
+  try {
+    lines.push(insightMemoryLines((await loadCachedInsight()).history));
+  } catch { /* no memory, no line */ }
+
   return lines.join('\n');
 }
 
@@ -235,17 +239,28 @@ async function loadCachedInsight() {
   if (existsSync(INSIGHT_FILE())) {
     const raw = JSON.parse(await readFile(INSIGHT_FILE(), 'utf8'));
     if (raw.morning || raw.evening) {
-      cachedInsight = { morning: raw.morning || { ...EMPTY_SLOT }, evening: raw.evening || { ...EMPTY_SLOT } };
+      cachedInsight = { morning: raw.morning || { ...EMPTY_SLOT }, evening: raw.evening || { ...EMPTY_SLOT }, history: Array.isArray(raw.history) ? raw.history : [] };
     } else if (raw.date !== undefined) {
       // migrate the old single-insight file shape (from before morning/evening existed)
-      cachedInsight = { morning: { ...EMPTY_SLOT }, evening: raw };
+      cachedInsight = { morning: { ...EMPTY_SLOT }, evening: raw, history: [] };
     } else {
-      cachedInsight = { morning: { ...EMPTY_SLOT }, evening: { ...EMPTY_SLOT } };
+      cachedInsight = { morning: { ...EMPTY_SLOT }, evening: { ...EMPTY_SLOT }, history: [] };
     }
   } else {
-    cachedInsight = { morning: { ...EMPTY_SLOT }, evening: { ...EMPTY_SLOT } };
+    cachedInsight = { morning: { ...EMPTY_SLOT }, evening: { ...EMPTY_SLOT }, history: [] };
   }
   return cachedInsight;
+}
+
+// INSIGHT MEMORY. The model used to see the data and nothing of what it had
+// already said about it — so the same observation could come back day after
+// day, and a pattern it flagged yesterday was never followed up. The last
+// few insights ride the context, with dates. Same file, no new store.
+export const INSIGHT_HISTORY_KEEP = 6;
+export function insightMemoryLines(history) {
+  const recent = (history || []).filter((h) => h && h.insight).slice(-3);
+  if (!recent.length) return '';
+  return `\n## Your last insights (do NOT repeat an observation unless the data has moved; when yesterday's flagged pattern has resolved or held, say so once, briefly, then move on)\n${recent.map((h) => `- ${h.date} ${h.slot}: ${h.insight}`).join('\n')}`;
 }
 
 export async function getLatestInsight() {
@@ -270,7 +285,10 @@ async function generateAndStore(vaultPath, slot) {
     generatedAt: new Date().toISOString(),
   };
   const cached = await loadCachedInsight();
-  const updated = { ...cached, [slot]: record };
+  const history = record.hasInsight
+    ? [...(cached.history || []), { slot, date: record.date, insight: record.insight }].slice(-INSIGHT_HISTORY_KEEP)
+    : (cached.history || []);
+  const updated = { ...cached, [slot]: record, history };
   await mkdir(path.dirname(INSIGHT_FILE()), { recursive: true });
   await writeFile(INSIGHT_FILE(), JSON.stringify(updated, null, 2), 'utf8');
   cachedInsight = updated;
