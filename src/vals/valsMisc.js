@@ -1,4 +1,5 @@
 import { getConnection } from '../api.js';
+import { GALAXY_MAX_NODES } from '../galaxyLayout.js';
 import { orbReply } from '../mockAssistants.js';
 import { NOTE_TYPE_COLOR, mono } from './shared.js';
 import { speechRecognitionSupported } from '../useDictation.js';
@@ -45,7 +46,9 @@ export function valsMisc(app, ctx) {
   // galaxy — real vault graph when available
   const liveGraphOn = !!(st.liveGraph && st.liveGraph.nodes.length);
   const galaxyStatsLabel = liveGraphOn
-    ? `${st.liveGraph.nodes.length} STARS · ${st.liveGraph.links.length} LINKS`
+    ? (st.liveGraph.nodes.length > GALAXY_MAX_NODES
+      ? `${GALAXY_MAX_NODES} OF ${st.liveGraph.nodes.length} STARS · ${st.liveGraph.links.length} LINKS` // the cap, said out loud
+      : `${st.liveGraph.nodes.length} STARS · ${st.liveGraph.links.length} LINKS`)
     : '385 STARS · 1,227 LINKS · DEMO';
   const galaxyLegend = liveGraphOn
     ? Object.entries(NOTE_TYPE_COLOR).filter(([t]) => t !== 'raw').map(([t, color]) => ({ label: t + 's', color }))

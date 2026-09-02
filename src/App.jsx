@@ -1,4 +1,5 @@
 import { Component, createRef, lazy, Suspense } from 'react';
+import { forceLayout, degrees, GALAXY_MAX_NODES } from './galaxyLayout.js';
 import { flushSync } from 'react-dom';
 import { recipes, notes, basePlan, reviews, galaxyNamed, galaxyLinks } from './data.js';
 import { css } from './css.js';
@@ -4305,21 +4306,25 @@ export default class App extends Component {
     const graph = this.state.liveGraph;
     if (graph && graph.nodes.length) {
       // Real vault graph: every page a star, wikilinks as constellation lines.
-      // Capped so a huge vault stays renderable on a phone canvas.
-      const MAX_NODES = 400;
-      const nodes = graph.nodes.slice(0, MAX_NODES);
+      // Capped so a huge vault stays renderable on a phone canvas (the stats
+      // label says so when the cap bites). Positions come from a seeded force
+      // layout run ONCE here (src/galaxyLayout.js) — clusters, hubs and fringe
+      // orphans emerge instead of a random ring; stars are sized by their
+      // link count, so a hub reads as a hub.
+      const nodes = graph.nodes.slice(0, GALAXY_MAX_NODES);
+      this.gLinks = graph.links.filter(([a, b]) => a < nodes.length && b < nodes.length);
+      const laid = forceLayout(nodes.length, this.gLinks, { width: w, height: h, seed: nodes.length * 31 + this.gLinks.length });
+      const deg = degrees(nodes.length, this.gLinks);
+      const base = nodes.length > 120 ? 2.4 : 3.8;
       this.gNodes = nodes.map((n, i) => {
-        const ang = (i / nodes.length) * Math.PI * 2 + rnd(-.4, .4);
-        const rad = rnd(.16, .44) * Math.min(w, h);
         const type = (n.type || 'note').toLowerCase();
         return {
-          label: n.title, type, desc: `${type} · ${(n.date || '').slice(0, 10)}`, target: 'note:' + n.id,
+          label: n.title, type, desc: `${type} · ${(n.date || '').slice(0, 10)} · ${deg[i]} link${deg[i] === 1 ? '' : 's'}`, target: 'note:' + n.id,
           color: NOTE_TYPE_COLOR[type] || '#ece5da',
-          bx: w / 2 + Math.cos(ang) * rad * (w / h), by: h / 2 + Math.sin(ang) * rad,
-          ph: rnd(0, 6.28), sp: rnd(.3, .8), r: nodes.length > 120 ? rnd(2.5, 4) : rnd(4, 6.5),
+          bx: laid[i].x, by: laid[i].y, deg: deg[i],
+          ph: rnd(0, 6.28), sp: rnd(.3, .8), r: base + Math.min(6, Math.sqrt(deg[i]) * 1.1) + rnd(0, .6),
         };
       });
-      this.gLinks = graph.links.filter(([a, b]) => a < nodes.length && b < nodes.length);
     } else {
       const types = { note: '#ece5da', podcast: '#8a6ad1', recipe: '#d8b573', training: '#5aa87c', agent: '#6be5f5', idea: '#e08f6f' };
       this.gNodes = galaxyNamed.map((n, i) => {
@@ -4348,21 +4353,39 @@ export default class App extends Component {
       ctx.clearRect(0, 0, w, h);
       this.gDust.forEach(d => { ctx.globalAlpha = .25 + .45 * Math.abs(Math.sin(t * d.sp + d.ph)); ctx.fillStyle = '#ece5da'; ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, 6.29); ctx.fill(); });
       ctx.globalAlpha = 1;
-      const pos = this.gNodes.map(n => ({ x: n.bx + Math.sin(t * n.sp * .5 + n.ph) * 12, y: n.by + Math.cos(t * n.sp * .4 + n.ph) * 9 }));
+      // the wobble rides on the frozen layout — a few pixels, so clusters stay clusters
+      const pos = this.gNodes.map(n => ({ x: n.bx + Math.sin(t * n.sp * .5 + n.ph) * 5, y: n.by + Math.cos(t * n.sp * .4 + n.ph) * 4 }));
       this.gPos = pos;
-      ctx.strokeStyle = 'rgba(236,229,218,.13)'; ctx.lineWidth = 1;
-      this.gLinks.forEach(l => { ctx.beginPath(); ctx.moveTo(pos[l[0]].x, pos[l[0]].y); ctx.lineTo(pos[l[1]].x, pos[l[1]].y); ctx.stroke(); });
+      // SELECTION LIGHTS ITS NEIGHBOURHOOD — the local-graph question ("what
+      // does this connect to?") answered in place: its edges and neighbours
+      // at full strength, everything else dimmed.
+      const selLabel = this.state.galaxySel?.label;
+      const selIdx = selLabel ? this.gNodes.findIndex(n => n.label === selLabel) : -1;
+      const nbr = new Set();
+      if (selIdx >= 0) for (const [a, b] of this.gLinks) { if (a === selIdx) nbr.add(b); else if (b === selIdx) nbr.add(a); }
+      ctx.lineWidth = 1;
+      this.gLinks.forEach(l => {
+        const lit = selIdx >= 0 && (l[0] === selIdx || l[1] === selIdx);
+        ctx.strokeStyle = lit ? this.gNodes[selIdx].color : 'rgba(236,229,218,.13)';
+        ctx.globalAlpha = selIdx >= 0 ? (lit ? .7 : .05) : 1;
+        ctx.beginPath(); ctx.moveTo(pos[l[0]].x, pos[l[0]].y); ctx.lineTo(pos[l[1]].x, pos[l[1]].y); ctx.stroke();
+      });
+      ctx.globalAlpha = 1;
       // With a real vault (hundreds of stars) labels everywhere are unreadable
-      // — draw them only on small graphs, plus always on the selected star.
+      // — draw them only on small graphs, on the selected star, and on its neighbours.
       const showLabels = this.gNodes.length <= 80;
       this.gNodes.forEach((n, i) => {
         const p = pos[i];
-        const sel = this.state.galaxySel && this.state.galaxySel.label === n.label;
-        ctx.shadowColor = n.color; ctx.shadowBlur = sel ? 26 : 14;
+        const sel = i === selIdx;
+        const isNbr = nbr.has(i);
+        const dimmed = selIdx >= 0 && !sel && !isNbr;
+        ctx.globalAlpha = dimmed ? .28 : 1;
+        ctx.shadowColor = n.color; ctx.shadowBlur = dimmed ? 0 : sel ? 26 : 14;
         ctx.fillStyle = n.color; ctx.beginPath(); ctx.arc(p.x, p.y, sel ? n.r + 2 : n.r, 0, 6.29); ctx.fill();
         ctx.shadowBlur = 0;
-        ctx.globalAlpha = .18; ctx.beginPath(); ctx.arc(p.x, p.y, n.r + 9, 0, 6.29); ctx.strokeStyle = n.color; ctx.stroke(); ctx.globalAlpha = 1;
-        if (showLabels || sel) {
+        if (!dimmed) { ctx.globalAlpha = .18; ctx.beginPath(); ctx.arc(p.x, p.y, n.r + 9, 0, 6.29); ctx.strokeStyle = n.color; ctx.stroke(); }
+        ctx.globalAlpha = 1;
+        if (showLabels || sel || isNbr) {
           ctx.font = '10px "JetBrains Mono", monospace'; ctx.fillStyle = sel ? '#ece5da' : 'rgba(236,229,218,.6)';
           ctx.fillText(n.label, p.x + n.r + 8, p.y + 3);
         }
