@@ -3292,6 +3292,15 @@ export default class App extends Component {
     this.toastMsg('Discarded — nothing was written');
   }
 
+  // the day plan's completion loop — a mark is a receipt, so it is never
+  // optimistic: the row changes when the server's record comes back
+  setPlanOutcome(id, index, outcome) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.planPriorityOutcome(conn, id, index, outcome)
+      .then(() => this.refreshInbox())
+      .catch((e) => this.toastMsg('Could not mark it: ' + e.message));
+  }
   // ---------- nova inbox (capture → classify → file) ----------
   refreshInbox() {
     const conn = getConnection();

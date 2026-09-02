@@ -377,6 +377,7 @@ export const api = {
   inboxItem: (conn, id) => call(conn, `/api/inbox/item/${encodeURIComponent(id)}`),
   inboxCapture: (conn, text, mode, source) => post(conn, '/api/inbox/capture', { text, mode, source }),
   inboxApprove: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/approve`),
+  planPriorityOutcome: (conn, id, index, outcome) => post(conn, `/api/inbox/${encodeURIComponent(id)}/priority`, { index, outcome }),
   inboxDiscard: (conn, id, reason) => post(conn, `/api/inbox/${encodeURIComponent(id)}/discard`, reason ? { reason } : undefined),
   inboxRetry: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/retry`),
   // the scheduled-lane half of the model-choice gate (Pattern Scout, Distill)

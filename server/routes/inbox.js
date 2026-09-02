@@ -239,6 +239,17 @@ export function inboxRouter(vaultPath) {
     }
   });
 
+  // the day plan's completion loop: done / skipped per priority, on the record itself
+  router.post('/inbox/:id/priority', async (req, res) => {
+    try {
+      const { setPriorityOutcome } = await import('../lib/planToday.js');
+      const outcome = req.body?.outcome == null ? null : String(req.body.outcome);
+      res.json({ record: await setPriorityOutcome(req.params.id, req.body?.index, outcome) });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
   router.post('/inbox/:id/undo', async (req, res) => {
     try {
       const record = await undoRecord(vaultPath, req.params.id);

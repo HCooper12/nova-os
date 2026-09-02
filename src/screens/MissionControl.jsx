@@ -274,10 +274,16 @@ export function MissionControl({ v }) {
                   {v.planToday.priorities.map((p, i) => (
                     <div key={i} style={css(`display:flex;gap:12px;align-items:baseline;padding:8px 0${i < v.planToday.priorities.length - 1 ? ';border-bottom:1px solid rgba(130,175,255,.09)' : ''}`)}>
                       <span style={{ font: `600 13px ${M}`, color: 'var(--nv-gold)', flex: 'none' }}>{i + 1}</span>
-                      <span style={{ minWidth: 0 }}>
-                        <span style={{ display: 'block', font: `500 14px/1.45 ${R}` }}>{p.do}</span>
+                      <span style={{ minWidth: 0, flex: '1 1 auto', opacity: p.outcome ? 0.55 : 1 }}>
+                        <span style={{ display: 'block', font: `500 14px/1.45 ${R}`, textDecoration: p.outcome === 'done' ? 'line-through' : 'none' }}>{p.do}</span>
                         {p.why && <span style={{ display: 'block', font: `500 12px/1.5 ${R}`, color: 'var(--nv-ink60)' }}>{p.why}</span>}
                       </span>
+                      {p.mark && (
+                        <span style={{ flex: 'none', display: 'flex', gap: '6px' }}>
+                          <Interactive as="span" onClick={() => p.mark('done')} base={css(`cursor:pointer;font:600 9px ${M};letter-spacing:.12em;padding:3px 7px;border-radius:6px;border:1px solid ${p.outcome === 'done' ? 'var(--nv-good)' : 'rgba(232,236,246,.18)'};color:${p.outcome === 'done' ? 'var(--nv-good)' : 'var(--nv-ink60)'}`)} hoverStyle={{ filter: 'brightness(1.15)' }}>DONE</Interactive>
+                          <Interactive as="span" onClick={() => p.mark('skipped')} base={css(`cursor:pointer;font:600 9px ${M};letter-spacing:.12em;padding:3px 7px;border-radius:6px;border:1px solid ${p.outcome === 'skipped' ? 'var(--nv-warn)' : 'rgba(232,236,246,.18)'};color:${p.outcome === 'skipped' ? 'var(--nv-warn)' : 'var(--nv-ink60)'}`)} hoverStyle={{ filter: 'brightness(1.15)' }}>SKIP</Interactive>
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>

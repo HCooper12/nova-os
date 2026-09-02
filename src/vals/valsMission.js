@@ -579,7 +579,12 @@ export function valsMission(app, ctx) {
   const planToday = planRec
     ? {
         state: planRec.status,
-        priorities: planRec.status === 'error' ? [] : (planRec.decision?.payload?.priorities || []).slice(0, 3),
+        // each row carries its outcome and, while the plan is live today, a
+        // mark(outcome) that toggles it (marking the same outcome again clears it)
+        priorities: planRec.status === 'error' ? [] : (planRec.decision?.payload?.priorities || []).slice(0, 3).map((p, i) => ({
+          ...p,
+          mark: ['pending', 'filed'].includes(planRec.status) ? (outcome) => app.setPlanOutcome(planRec.id, i, p.outcome === outcome ? null : outcome) : null,
+        })),
         meta: planRec.status === 'filed' ? 'IN THE VAULT' : planRec.status === 'pending' ? 'DRAFT — NEEDS YOUR YES' : planRec.status === 'error' ? 'HIT AN ERROR — SEE INBOX' : 'BEING DRAWN UP',
         errorText: planRec.status === 'error' ? (planRec.error || 'the plan could not be drawn up') : null,
         busy: !!st.inboxActionBusy?.[planRec.id],

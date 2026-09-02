@@ -10,7 +10,7 @@ import { NOVA_LENS } from './lens.js';
 import { profileContext } from './profile.js';
 import { composeDispatch } from './dispatch.js';
 import { listTodos } from './todos.js';
-import { createRecord, updateRecord, listRecords } from './inboxStore.js';
+import { createRecord, updateRecord, listRecords, getRecord } from './inboxStore.js';
 import { fileDecision } from './inbox.js';
 import { modelFor, laneSkipped } from './modelPrefs.js';
 import { settleWatchdog } from './settle.js';
@@ -92,6 +92,20 @@ export async function buildPlanContext(vaultPath, now = new Date()) {
     const open = items.filter((t) => !t.checked);
     return open.length ? `OPEN TO-DOS (${open.length}): ${open.slice(0, 12).map((t) => t.text).join('; ')}.` : null;
   });
+  // THE PLAN REMEMBERS ITSELF. Yesterday's three commitments and what he
+  // marked against them ride into today's context — without this, planning
+  // could never improve his planning, and a skipped priority simply vanished.
+  add('yesterday-plan', async () => {
+    const y = new Date(now); y.setDate(y.getDate() - 1);
+    const yIso = todayISO(y);
+    const rec = (await listRecords()).find((r) => r.kind === 'plan-today' && r.createdAt && todayISO(new Date(r.createdAt)) === yIso && Array.isArray(r.decision?.payload?.priorities) && r.decision.payload.priorities.length);
+    if (!rec) return null;
+    const ps = rec.decision.payload.priorities;
+    const fate = rec.status === 'filed' ? 'approved' : rec.status === 'discarded' ? (rec.expired ? 'expired unread' : 'declined') : rec.status;
+    const done = ps.filter((p) => p.outcome === 'done').length;
+    const lines = ps.map((p, i) => `${i + 1}. ${p.do} — ${p.outcome === 'done' ? 'DONE' : p.outcome === 'skipped' ? 'SKIPPED' : 'no word'}`);
+    return `YESTERDAY'S TOP 3 (plan ${fate}; ${done} of ${ps.length} marked done) — one clause on what happened, then today; carry a skipped one forward only if it still matters today:\n${lines.join('\n')}`;
+  });
   return (await gatherContext(sections)).text;
 }
 
@@ -113,6 +127,8 @@ Discipline:
 
 The day:
 ${context || '(context unavailable — say so and keep it brief)'}
+
+If yesterday's plan is in the picture, its outcomes are real data: build on what got done, and carry a skipped priority forward only if it still matters today — never re-list it out of habit.
 
 Output ONLY a JSON object: {"priorities": [{"do": "the concrete action", "why": "one line tied to the data"}]}. No code fences, no commentary.`;
 }
@@ -224,6 +240,26 @@ export async function runPlanToday(vaultPath, { force = false } = {}) {
   });
   startPlanJob(vaultPath, context, config.mode, record.id, now);
   return { record };
+}
+
+// THE COMPLETION LOOP. The day's three commitments were closeable nowhere,
+// and tomorrow's plan never knew what happened to today's. `outcome` is
+// 'done' | 'skipped' | null (clear), written onto the record's own
+// priorities payload through the record-update rail; buildPlanContext reads
+// it back the next morning.
+export async function setPriorityOutcome(recordId, index, outcome) {
+  const rec = await getRecord(recordId);
+  if (!rec || rec.kind !== 'plan-today') throw new Error('that record is not a day plan');
+  const priorities = rec.decision?.payload?.priorities;
+  const i = Number(index);
+  if (!Array.isArray(priorities) || !Number.isInteger(i) || !priorities[i]) throw new Error('no such priority');
+  if (![ 'done', 'skipped', null ].includes(outcome)) throw new Error("outcome must be 'done', 'skipped' or null");
+  const next = priorities.map((p, k) => {
+    if (k !== i) return p;
+    const { outcome: _o, outcomeAt: _a, ...rest } = p;
+    return outcome ? { ...rest, outcome, outcomeAt: new Date().toISOString() } : rest;
+  });
+  return updateRecord(recordId, { decision: { ...rec.decision, payload: { ...rec.decision.payload, priorities: next } } });
 }
 
 export async function getPlanTodayStatus() {

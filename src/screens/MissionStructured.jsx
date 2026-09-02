@@ -128,8 +128,14 @@ export function MissionStructured({ v }) {
           v.planToday.priorities.map((p, i) => (
             <GRow key={i} first={i === 0}
               leading={<span style={{ font: `600 13px ${M}`, color: 'var(--nv-gold)' }}>{i + 1}</span>}
-              title={p.do}
-              sub={p.why || null} />
+              title={<span style={{ opacity: p.outcome ? 0.55 : 1, textDecoration: p.outcome === 'done' ? 'line-through' : 'none' }}>{p.do}</span>}
+              sub={p.why || null}
+              trailing={p.mark ? (
+                <span style={{ display: 'flex', gap: '6px' }}>
+                  <Interactive as="span" onClick={() => p.mark('done')} base={css(`cursor:pointer;font:600 9px ${M};letter-spacing:.12em;padding:3px 7px;border-radius:6px;border:1px solid ${p.outcome === 'done' ? 'var(--nv-good)' : 'color-mix(in srgb, var(--nv-ink) 18%, transparent)'};color:${p.outcome === 'done' ? 'var(--nv-good)' : 'var(--nv-ink60)'}`)} hoverStyle={{ filter: 'brightness(1.15)' }}>DONE</Interactive>
+                  <Interactive as="span" onClick={() => p.mark('skipped')} base={css(`cursor:pointer;font:600 9px ${M};letter-spacing:.12em;padding:3px 7px;border-radius:6px;border:1px solid ${p.outcome === 'skipped' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 18%, transparent)'};color:${p.outcome === 'skipped' ? 'var(--nv-warn)' : 'var(--nv-ink60)'}`)} hoverStyle={{ filter: 'brightness(1.15)' }}>SKIP</Interactive>
+                </span>
+              ) : null} />
           ))
         )}
         {(v.planToday.onApprove || v.planToday.state === 'error') && (

@@ -62,6 +62,8 @@ const FEATURES = [
   ['Rituals · done on delivery, cross-device', 'markRitualDone'],
   // the CFO and meal-prep off switches: deterministic lanes on the model board
   ['Settings · deterministic lanes have a switch, no picker', 'THE SWITCH IS THE SETTING'],
+  // the day plan's completion loop: done / skipped per priority
+  ['Home · plan priorities can be marked done or skipped', 'planPriorityOutcome'],
 ];
 
 const SERVER_ROUTES = [

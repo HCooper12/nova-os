@@ -65,3 +65,34 @@ test('context: assembles without throwing on an empty vault and names the day', 
   const ctx = await buildPlanContext(vault, new Date('2026-08-04T07:00:00'));
   assert.equal(typeof ctx, 'string'); // parts that fail are skipped, never fatal
 });
+
+test('the completion loop: a priority is marked on the record, and tomorrow\'s plan reads what happened', async () => {
+  const { setPriorityOutcome } = await import('../lib/planToday.js');
+  const { createRecord, getRecord } = await import('../lib/inboxStore.js');
+  await createRecord({
+    id: 'plan0803', kind: 'plan-today', status: 'filed', text: 'Plan Today — Monday 03 August', source: 'nova', mode: 'draft', createdAt: '2026-08-03T07:05:00',
+    decision: { route: 'journal', confidence: 'high', title: 'Plan Today — Monday 03 August', reason: 'x',
+      payload: { text: 'x', category: 'personal', label: 'Plan today', priorities: [{ do: 'Ship the brief', why: 'deadline' }, { do: 'Legs at 17:30', why: 'scheduled' }, { do: 'Call the dentist', why: 'overdue' }] } },
+  });
+  await setPriorityOutcome('plan0803', 0, 'done');
+  await setPriorityOutcome('plan0803', 1, 'skipped');
+  let ps = (await getRecord('plan0803')).decision.payload.priorities;
+  assert.equal(ps[0].outcome, 'done'); assert.ok(ps[0].outcomeAt);
+  assert.equal(ps[1].outcome, 'skipped');
+  assert.equal(ps[2].outcome, undefined, 'unmarked stays unmarked');
+  await setPriorityOutcome('plan0803', 1, null); // clearing a mark
+  ps = (await getRecord('plan0803')).decision.payload.priorities;
+  assert.equal(ps[1].outcome, undefined); assert.equal(ps[1].outcomeAt, undefined);
+  await setPriorityOutcome('plan0803', 1, 'skipped');
+  await assert.rejects(() => setPriorityOutcome('plan0803', 7, 'done'), /no such priority/);
+  await assert.rejects(() => setPriorityOutcome('plan0803', 0, 'meh'), /outcome must be/);
+  await assert.rejects(() => setPriorityOutcome('nope', 0, 'done'), /not a day plan/);
+
+  // the next morning, the plan's context carries yesterday's outcomes
+  const ctx = await buildPlanContext(vault, new Date('2026-08-04T07:00:00'));
+  assert.match(ctx, /YESTERDAY'S TOP 3 \(plan approved; 1 of 3 marked done\)/);
+  assert.match(ctx, /1\. Ship the brief — DONE\n2\. Legs at 17:30 — SKIPPED\n3\. Call the dentist — no word/);
+  assert.match(buildPlanPrompt(ctx), /carry a skipped priority forward only if it still matters today/);
+  // two days on, no plan the day before → honestly absent
+  assert.doesNotMatch(await buildPlanContext(vault, new Date('2026-08-05T07:00:00')), /YESTERDAY'S TOP 3/);
+});
