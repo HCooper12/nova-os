@@ -148,14 +148,22 @@ async function buildNote(vaultPath, name) {
 // The cached pulse for a topic — deterministic render of what the nightly
 // runs fetched, self-labelling its age. Fresh research is a different verb.
 async function buildPulse(topic) {
-  const { getPulse } = await import('./pulse.js');
+  const { getPulse, MAX_TOPICS } = await import('./pulse.js');
   const matches = await getPulse(topic || null);
-  const entry = topic ? matches[0] : (await getPulse())[0];
+  const entry = topic ? matches[0] : (await getPulse()).find((e) => !e.overCap);
+  if (entry?.overCap) {
+    throw new Error(`"${entry.topic}" is not refreshed — it sits past the ${MAX_TOPICS}-topic limit on his Interests page; say so plainly and offer to RESEARCH it now instead`);
+  }
   if (!entry || !entry.items?.length) {
     throw new Error(`no pulse cached${topic ? ` for "${topic}"` : ''} — pulses refresh overnight from his Interests page; offer to RESEARCH it now instead`);
   }
   const ageH = Math.round((Date.now() - new Date(entry.at).getTime()) / 3600e3);
-  return { topic: entry.topic, ageLabel: ageH < 1 ? 'fresh' : `${ageH}h old`, items: entry.items };
+  // a refresh that found nothing new is labelled as such — the items are
+  // yesterday's, not reprints wearing a fresh label
+  const freshness = entry.newCount === 0
+    ? `nothing new — last items from ${entry.lastNewAt ? String(entry.lastNewAt).slice(0, 10) : 'an earlier run'}`
+    : null;
+  return { topic: entry.topic, ageLabel: ageH < 1 ? 'fresh' : `${ageH}h old`, items: entry.items, freshness };
 }
 
 // RECENT SESSIONS — what he actually did, session by session.

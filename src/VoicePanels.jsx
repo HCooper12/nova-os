@@ -115,6 +115,11 @@ function Pulse({ d }) {
   return (
     <Card label={`PULSE · ${d.topic.toUpperCase()} · ${d.ageLabel.toUpperCase()}`}>
       <div style={css("display:flex;flex-direction:column;gap:6px")}>
+        {d.freshness && (
+          // the refresh ran and found nothing new — these are the last items,
+          // said plainly, not reprints wearing a fresh label
+          <span style={css(`font:500 8.5px ${M};letter-spacing:.18em;color:var(--nv-gold)`)}>{d.freshness.toUpperCase()}</span>
+        )}
         {(d.items || []).map((l) => (
           <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer"
             style={css(`display:flex;flex-direction:column;gap:2px;text-decoration:none;border:1px solid ${dim(10)};border-radius:8px;padding:8px 11px;background:${dim(3)}`)}>

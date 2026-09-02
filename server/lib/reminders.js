@@ -159,11 +159,14 @@ export async function removeReminder(id) {
   return removed;
 }
 
-export async function markReminder(id, status) {
+export async function markReminder(id, status, { late } = {}) {
   await withLock(async () => {
     const store = await loadStore();
     const r = store.items.find((x) => x.id === id);
-    if (r) r.status = status;
+    if (r) {
+      r.status = status;
+      if (status === 'fired') { r.firedAt = new Date().toISOString(); if (late) r.firedLate = true; }
+    }
     await saveStore(store);
   });
 }
@@ -178,17 +181,39 @@ export async function remindersContext() {
 
 /* ------------------------------- scheduler ------------------------------- */
 
+// LATE-FIRE HONESTY (audit [41]). The Apple alarm covered the live moment;
+// when this Mac slept through the time, the echo's job is honest catch-up —
+// "from 16:00, missed while the Mac slept" — never a fresh-sounding nudge
+// two hours after the fact. Pure, so the age branch is tested.
+export const LATE_MINUTES = 90;
+
+export function reminderFireText(r, now = Date.now()) {
+  const when = new Date(r.when);
+  const lateBy = (now - when.getTime()) / 60000;
+  if (!(lateBy > LATE_MINUTES)) return { late: false, title: 'Reminder — Nova', body: r.text, telegram: `⏰ ${r.text}` };
+  const sameDay = new Date(now).toDateString() === when.toDateString();
+  const at = when.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const from = sameDay ? at : `${when.toLocaleDateString('en-GB', { weekday: 'short' })} ${at}`;
+  return {
+    late: true,
+    title: 'Missed reminder — Nova',
+    body: `From ${from}, missed while the Mac slept: ${r.text}`,
+    telegram: `⏰ from ${from}, missed while the Mac slept: ${r.text}`,
+  };
+}
+
 async function fireDue() {
   const now = Date.now();
   const { items } = await loadStore();
   const due = items.filter((r) => r.status === 'scheduled' && new Date(r.when).getTime() <= now);
   for (const r of due) {
+    const say = reminderFireText(r, now);
     const { sendPush } = await import('./push.js');
-    sendPush({ title: 'Reminder — Nova', body: r.text, tag: `reminder-${r.id}` }).catch(() => {});
+    sendPush({ title: say.title, body: say.body, tag: `reminder-${r.id}` }).catch(() => {});
     import('./telegram.js').then(({ telegramConfigured, sendTelegramText }) => {
-      if (telegramConfigured()) return sendTelegramText(`⏰ ${r.text}`);
+      if (telegramConfigured()) return sendTelegramText(say.telegram);
     }).catch(() => {});
-    await markReminder(r.id, 'fired');
+    await markReminder(r.id, 'fired', { late: say.late });
   }
   // reminders older than 30 days that fired are pruned quietly
   const cutoff = now - 30 * 86400e3;

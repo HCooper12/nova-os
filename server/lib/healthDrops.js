@@ -1,4 +1,4 @@
-import { readFile, readdir, mkdir, rename } from 'node:fs/promises';
+import { readFile, readdir, mkdir, rename, stat, unlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -98,6 +98,28 @@ async function drainDropsDir(dirAbs) {
   return ingested;
 }
 
+// Processed drops are archived duplicates of pushes already in the health
+// store; they used to accumulate forever in his vault and iCloud folders.
+// Files older than PROCESSED_KEEP_DAYS go at boot — the same shape as the
+// Forge's sweep (audit [40] item 2). Only *.json under Processed/ is touched.
+export const PROCESSED_KEEP_DAYS = 60;
+
+export async function pruneProcessedDrops(dirAbs, { days = PROCESSED_KEEP_DAYS, now = Date.now() } = {}) {
+  const processed = path.join(dirAbs, 'Processed');
+  if (!existsSync(processed)) return { pruned: 0 };
+  let files = [];
+  try { files = (await readdir(processed)).filter((f) => f.toLowerCase().endsWith('.json') && !f.startsWith('.')); } catch { return { pruned: 0 }; }
+  let pruned = 0;
+  for (const f of files) {
+    const full = path.join(processed, f);
+    try {
+      const st = await stat(full);
+      if (now - st.mtimeMs > days * 86400e3) { await unlink(full); pruned++; }
+    } catch { /* a vanished file is already pruned */ }
+  }
+  return { pruned };
+}
+
 export async function scanHealthDrops(vaultPath) {
   let ingested = 0;
   for (const dir of [path.join(vaultPath, DROPS_DIR_REL), ...extraDropDirs()]) {
@@ -112,6 +134,10 @@ export async function scanHealthDrops(vaultPath) {
 // Every 2 minutes — iCloud sync latency means the file may land a beat after
 // the Mac wakes; a tight loop drains the queue the moment it appears.
 export function startHealthDropsScheduler(vaultPath) {
+  // one boot-time sweep of the archives, not a recurring one
+  Promise.all([path.join(vaultPath, DROPS_DIR_REL), ...extraDropDirs()].map((d) => pruneProcessedDrops(d)))
+    .then((rs) => { const n = rs.reduce((a, r) => a + r.pruned, 0); if (n) console.log(`health drops: pruned ${n} processed file(s) older than ${PROCESSED_KEEP_DAYS} days`); })
+    .catch(() => {});
   const tick = async () => {
     const { beat } = await import('./heartbeat.js');
     beat('health-drops');

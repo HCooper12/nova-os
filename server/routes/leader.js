@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
   readLeaderState, todayLead, generateDailyLead, runLeaderResearch,
-  buildLeaderChatContext, applyLeaderReflection,
+  buildLeaderChatContext, applyLeaderReflection, leaderLiveLine,
 } from '../lib/leader.js';
 import { startAskLeader } from '../lib/claudeCode.js';
 
@@ -47,8 +47,16 @@ export function leaderRouter(vaultPath) {
       const question = typeof req.body?.question === 'string' ? req.body.question.trim() : '';
       if (!question) return res.status(400).json({ error: 'question is required' });
       const sessionId = typeof req.body?.sessionId === 'string' && req.body.sessionId ? req.body.sessionId : null;
-      const context = sessionId ? undefined : await buildLeaderChatContext(vaultPath);
-      res.json({ jobId: startAskLeader(vaultPath, { question, context, sessionId }) });
+      if (sessionId) {
+        // Resumed conversation: the session carries the deep picture, but the
+        // VOLATILE picture — today's idea, the open struggles — is recomputed
+        // every turn, exactly as the Coach's route does.
+        const fresh = await leaderLiveLine().catch(() => '');
+        const q = fresh ? `[Live now — trust this over anything earlier in this conversation: ${fresh}]\n\n${question}` : question;
+        return res.json({ jobId: startAskLeader(vaultPath, { question: q, sessionId }) });
+      }
+      const context = await buildLeaderChatContext(vaultPath);
+      res.json({ jobId: startAskLeader(vaultPath, { question, context, sessionId: null }) });
     } catch (err) { res.status(400).json({ error: err.message }); }
   });
 

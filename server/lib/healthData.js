@@ -235,6 +235,8 @@ export async function saveDay(date, metrics, { manual = false } = {}) {
     merged.stepsComplete = stepsCaptureIsComplete(date, merged.stepsAt);
   }
   await writeFile(full, JSON.stringify(merged, null, 2), 'utf8');
+  // an old month's page regenerates on the mirror's next tick
+  import('./healthMirror.js').then(({ noteHealthWrite }) => noteHealthWrite(date)).catch(() => {});
   return merged;
 }
 

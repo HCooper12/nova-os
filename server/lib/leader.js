@@ -358,7 +358,7 @@ export async function generateDailyLead(vaultPath, { force = false } = {}) {
 
 const RESEARCH_GAP_DAYS = 6;
 
-export async function runLeaderResearch(vaultPath, { force = false } = {}) {
+export async function runLeaderResearch(vaultPath, { force = false, fetchImpl } = {}) {
   if (laneSkipped('leader-research', 'the weekly leadership research')) return { skipped: true, reason: 'lane switched off in Settings' };
   const state = await readLeaderState();
   const now = new Date();
@@ -389,6 +389,7 @@ export async function runLeaderResearch(vaultPath, { force = false } = {}) {
     }))
     .filter((i) => i.insight && i.source)
     .slice(0, 6);
+  await verifyInsightUrls(insights, fetchImpl ? { fetchImpl } : {});
 
   const fresh = await readLeaderState();
   fresh.research = [...fresh.research, ...insights].slice(-200);
@@ -406,19 +407,53 @@ export async function runLeaderResearch(vaultPath, { force = false } = {}) {
   if (insights.length) {
     try {
       const { startIngest } = await import('./ingest.js');
-      const body = [
-        `Leadership research — week of ${now.toISOString().slice(0, 10)}`,
-        '',
-        "Gathered by Nova's Leader agent from public sources, steered by what Hayden said he is working against. Each insight carries its own source; nothing here is his own writing.",
-        '',
-        ...insights.map((i) => `## ${i.topic || 'Insight'}\n\n${i.insight}\n\nSource: ${i.source}${i.url ? ` — ${i.url}` : ''}`),
-      ].join('\n');
-      startIngest(vaultPath)(body, undefined, null, null);
+      startIngest(vaultPath)(researchBody(insights, now), undefined, null, null);
     } catch (e) {
       console.error('leader research weave failed (the insights are still saved):', e.message);
     }
   }
-  return { added: insights.length, insights };
+  return { added: insights.length, insights, unverified: insights.filter((i) => i.linkOk === false).length };
+}
+
+// The woven page's body — pure, so the "(link unverified)" marker is tested
+// rather than trusted.
+export function researchBody(insights, now = new Date()) {
+  return [
+    `Leadership research — week of ${now.toISOString().slice(0, 10)}`,
+    '',
+    "Gathered by Nova's Leader agent from public sources, steered by what Hayden said he is working against. Each insight carries its own source; nothing here is his own writing.",
+    '',
+    ...insights.map((i) => `## ${i.topic || 'Insight'}\n\n${i.insight}\n\nSource: ${i.source}${i.url ? ` — ${i.url}${i.linkOk === false ? ' (link unverified)' : ''}` : ''}`),
+  ].join('\n');
+}
+
+/* ------------------------------ link checking ------------------------------ */
+
+// A researched insight is only as good as the source he can open. The model
+// is told to cite URLs it actually opened; this is the cheap, deterministic
+// check that it did — one HEAD per link (a GET when the host refuses HEAD),
+// five seconds each. A link that fails is KEPT and marked "(link
+// unverified)", never dropped: the insight may still be right, and an
+// honest label beats a silent hole (audit [37] item 4).
+export const LINK_TIMEOUT_MS = 5000;
+const HEAD_REFUSED = new Set([403, 405, 501]);
+
+export async function verifyInsightUrls(insights, { fetchImpl = globalThis.fetch, timeoutMs = LINK_TIMEOUT_MS } = {}) {
+  const probe = async (url, method) => {
+    const res = await fetchImpl(url, { method, redirect: 'follow', signal: AbortSignal.timeout(timeoutMs), headers: { 'user-agent': 'NovaOS link check' } });
+    return Number(res?.status) || 0;
+  };
+  await Promise.all(insights.map(async (i) => {
+    if (!i.url) { i.linkOk = null; return; }
+    try {
+      let status = await probe(i.url, 'HEAD');
+      if (HEAD_REFUSED.has(status)) status = await probe(i.url, 'GET');
+      i.linkOk = status >= 200 && status < 400;
+    } catch {
+      i.linkOk = false;
+    }
+  }));
+  return insights;
 }
 
 /* ------------------------------- reflection -------------------------------- */
@@ -544,6 +579,23 @@ export function parseLeaderReflect(text) {
 
 /* ------------------------------- chat context ------------------------------ */
 
+// The resumed turn's volatile line — twin of the Coach's fix. A Leader chat
+// resumed days later carried its FIRST turn's picture: that day's idea, that
+// day's struggles, under a prompt that says to trust them. Recomputed from
+// local state every turn; the route prepends it (audit [37] item 1).
+export async function leaderLiveLine(now = new Date()) {
+  const state = await readLeaderState();
+  const bits = [];
+  const today = todayLead(state, now);
+  bits.push(today ? `today's idea is "${today.title}"${today.why ? ` — ${today.why}` : ''}` : 'no idea has landed yet today');
+  const struggles = state.profile.struggles || [];
+  const open = struggles.filter((s) => !s.resolvedAt);
+  bits.push(open.length ? `${open.length} open struggle${open.length === 1 ? '' : 's'}, newest "${open[open.length - 1].text}"` : 'no open struggles on file');
+  const resolved = struggles.filter((s) => s.resolvedAt).sort((a, b) => (a.resolvedAt < b.resolvedAt ? 1 : -1));
+  if (resolved.length) bits.push(`latest resolved "${resolved[0].text}" (${ageDays(resolved[0].resolvedAt, now.getTime())}d ago)`);
+  return `${now.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short' })}: ${bits.join('; ')}.`;
+}
+
 export async function buildLeaderChatContext(vaultPath, now = new Date()) {
   const state = await readLeaderState();
   const parts = [];
@@ -573,8 +625,15 @@ export async function buildLeaderChatContext(vaultPath, now = new Date()) {
 // this runs from 6). Research runs Saturday morning so the new material is
 // in the library before Sunday's debrief and the week ahead.
 const DAILY_HOUR = 6;
-const RESEARCH_WEEKDAY = 6; // Saturday
+// Saturday first; Sunday is the catch-up — a slept Mac or a failed Saturday
+// run used to cost the whole week (audit [37] item 2). The 6-day gap guard
+// inside runLeaderResearch is what keeps the two mornings from doubling.
+const RESEARCH_WEEKDAYS = [6, 0];
 const RESEARCH_HOUR = 7;
+
+export function researchWindowOpen(now = new Date()) {
+  return RESEARCH_WEEKDAYS.includes(now.getDay()) && now.getHours() >= RESEARCH_HOUR;
+}
 
 export function startLeaderScheduler(vaultPath) {
   const tick = async () => {
@@ -588,7 +647,7 @@ export function startLeaderScheduler(vaultPath) {
       }
     } catch (err) { console.error('leader daily failed:', err.message); }
     try {
-      if (now.getDay() === RESEARCH_WEEKDAY && now.getHours() >= RESEARCH_HOUR) {
+      if (researchWindowOpen(now)) {
         await runLeaderResearch(vaultPath); // internally skips if run this week
       }
     } catch (err) { console.error('leader research failed:', err.message); }

@@ -24,6 +24,8 @@ export async function saveDay(date, totals, floorG) {
     updatedAt: new Date().toISOString(),
   };
   await writeFile(path.join(LOG_DIR(), `${date}.json`), JSON.stringify(record, null, 2), 'utf8');
+  // an old month's page regenerates on the mirror's next tick
+  import('./healthMirror.js').then(({ noteHealthWrite }) => noteHealthWrite(date)).catch(() => {});
   return record;
 }
 

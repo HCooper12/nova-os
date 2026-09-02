@@ -80,3 +80,28 @@ test('filing a reminder decision schedules it; undo cancels it', async () => {
   assert.match(note, /cancelled the reminder/);
   assert.equal((await listReminders()).length, 0);
 });
+
+// ---- audit [41]: late-fire honesty -----------------------------------------
+
+test('a reminder fired on time speaks plainly; one the Mac slept through says so, with the time it was for', async () => {
+  const { reminderFireText, LATE_MINUTES } = await import('../lib/reminders.js');
+  const when = new Date(2026, 8, 2, 16, 0); // Wed 16:00 local
+  const r = { id: 'x', text: 'call the bank', when: when.toISOString() };
+
+  const onTime = reminderFireText(r, when.getTime() + 30e3);
+  assert.equal(onTime.late, false);
+  assert.equal(onTime.title, 'Reminder — Nova');
+  assert.equal(onTime.telegram, '⏰ call the bank');
+
+  const justUnder = reminderFireText(r, when.getTime() + (LATE_MINUTES - 1) * 60e3);
+  assert.equal(justUnder.late, false, 'inside the grace it is still the live nudge');
+
+  const sameDayLate = reminderFireText(r, when.getTime() + (LATE_MINUTES + 5) * 60e3);
+  assert.equal(sameDayLate.late, true);
+  assert.equal(sameDayLate.title, 'Missed reminder — Nova');
+  assert.equal(sameDayLate.body, 'From 16:00, missed while the Mac slept: call the bank');
+  assert.equal(sameDayLate.telegram, '⏰ from 16:00, missed while the Mac slept: call the bank');
+
+  const nextDay = reminderFireText(r, new Date(2026, 8, 3, 8, 0).getTime());
+  assert.match(nextDay.body, /^From Wed 16:00, missed while the Mac slept: call the bank$/, 'a different day names the day');
+});

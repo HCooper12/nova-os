@@ -41,12 +41,19 @@ function todayISO() {
 /* ------------------------------- state ---------------------------------- */
 
 async function loadState() {
-  if (!existsSync(STATE_PATH())) return { links: [], lastSyncAt: null, lastResult: null };
+  const empty = { links: [], heldBack: [], lastSyncAt: null, lastResult: null };
+  if (!existsSync(STATE_PATH())) return empty;
   try {
     const raw = JSON.parse(await readFile(STATE_PATH(), 'utf8'));
-    return { links: Array.isArray(raw.links) ? raw.links : [], lastSyncAt: raw.lastSyncAt || null, lastResult: raw.lastResult || null };
+    return {
+      links: Array.isArray(raw.links) ? raw.links : [],
+      // vault lines whose Todoist task HE DELETED — kept open, not re-pushed
+      heldBack: Array.isArray(raw.heldBack) ? raw.heldBack : [],
+      lastSyncAt: raw.lastSyncAt || null,
+      lastResult: raw.lastResult || null,
+    };
   } catch {
-    return { links: [], lastSyncAt: null, lastResult: null };
+    return empty;
   }
 }
 
@@ -86,6 +93,24 @@ async function tdList(pathname) {
     cursor = page?.next_cursor || null;
   } while (cursor);
   return items;
+}
+
+// What became of a linked task that left the active list: 'completed' |
+// 'deleted' | 'moved' | 'unknown'. One GET by id. Verified on his real
+// account, 2 Sep 2026: a completed task reads back checked:true, a deleted
+// one is_deleted:true (still 200, not 404), and a task moved to another
+// project is neither. Any failure is 'unknown' and falls back to the old
+// behaviour (check the line) — the API not answering is not evidence.
+async function taskFate(taskId) {
+  try {
+    const t = await td(`/tasks/${encodeURIComponent(taskId)}`);
+    if (!t) return 'unknown';
+    if (t.checked || t.is_completed) return 'completed';
+    if (t.is_deleted) return 'deleted';
+    return 'moved';
+  } catch {
+    return 'unknown';
+  }
 }
 
 async function inboxProjectId() {
@@ -158,7 +183,7 @@ export async function syncTodoist(vaultPath) {
 
 async function doSync(vaultPath) {
   const state = await loadState();
-  const summary = { configured: true, at: new Date().toISOString(), pushed: 0, pulled: 0, closedInTodoist: 0, checkedInVault: 0, error: null };
+  const summary = { configured: true, at: new Date().toISOString(), pushed: 0, pulled: 0, closedInTodoist: 0, checkedInVault: 0, deletedInTodoist: 0, movedInTodoist: 0, note: null, error: null };
 
   try {
     const projectId = await inboxProjectId();
@@ -179,6 +204,10 @@ async function doSync(vaultPath) {
     // re-pulled into the vault.
     const resolvedTexts = new Set();
     const closedTaskIds = new Set();
+    // Lines whose task he deleted stay held back while the line is still open
+    // and unchanged; editing the words makes a new item, as everywhere here.
+    const heldBack = state.heldBack.filter((h) => openByText.has(h.text));
+    const heldBackTexts = new Set(heldBack.map((h) => h.text));
 
     for (const link of state.links) {
       const task = activeById.get(String(link.taskId));
@@ -194,9 +223,27 @@ async function doSync(vaultPath) {
         resolvedTexts.add(link.text);
         closedTaskIds.add(String(link.taskId));
       } else if (!task && openLine) {
-        // completed (or deleted) in Todoist → check the vault line
-        summary.checkedInVault += await checkVaultTodos(vaultPath, [openLine.raw]);
-        resolvedTexts.add(link.text);
+        // Left the active list — but completed and DELETED looked identical
+        // from here, and a line he deleted the task for was being checked as
+        // done (audit [42]). One GET by id tells them apart.
+        const fate = await taskFate(link.taskId);
+        if (fate === 'deleted') {
+          // his deletion is not a completion: the vault line stays OPEN and
+          // is not pushed back — that would undo what he just did
+          summary.deletedInTodoist++;
+          resolvedTexts.add(link.text);
+          if (!heldBackTexts.has(link.text)) { heldBack.push({ text: link.text, taskId: String(link.taskId), at: summary.at }); heldBackTexts.add(link.text); }
+        } else if (fate === 'moved') {
+          // still live, just outside this project — keep the pair so the line
+          // is neither checked nor duplicated into the Inbox
+          nextLinks.push(link);
+          linkedTaskIds.add(String(link.taskId));
+          linkedTexts.add(link.text);
+          summary.movedInTodoist++;
+        } else {
+          summary.checkedInVault += await checkVaultTodos(vaultPath, [openLine.raw]);
+          resolvedTexts.add(link.text);
+        }
       }
       // neither side open → the pair is resolved; the link just drops
     }
@@ -204,7 +251,7 @@ async function doSync(vaultPath) {
     // vault-only open items → push to Todoist with the category as a label
     // (link instead of duplicating when an identical active task exists)
     for (const [text, line] of openByText) {
-      if (linkedTexts.has(text) || resolvedTexts.has(text)) continue;
+      if (linkedTexts.has(text) || resolvedTexts.has(text) || heldBackTexts.has(text)) continue;
       const existing = activeByText.get(text);
       if (existing) {
         nextLinks.push({ taskId: String(existing.id), text });
@@ -231,7 +278,11 @@ async function doSync(vaultPath) {
       summary.pulled = toPull.length;
     }
 
-    await saveState({ links: nextLinks, lastSyncAt: summary.at, lastResult: summary });
+    if (summary.deletedInTodoist || heldBack.length) {
+      const n = heldBack.length;
+      summary.note = `${n} task${n === 1 ? '' : 's'} deleted in Todoist — ${n === 1 ? 'its line stays' : 'their lines stay'} open in the vault`;
+    }
+    await saveState({ links: nextLinks, heldBack, lastSyncAt: summary.at, lastResult: summary });
   } catch (e) {
     summary.error = e.message;
     await saveState({ ...state, lastSyncAt: summary.at, lastResult: summary });
@@ -244,6 +295,7 @@ export async function getTodoistStatus() {
   return {
     configured: todoistConfigured(),
     linkCount: state.links.length,
+    heldBackCount: state.heldBack.length,
     lastSyncAt: state.lastSyncAt,
     lastResult: state.lastResult,
   };

@@ -61,11 +61,22 @@ export function buildMirrorPage(monthKey, healthDays, nutritionDays) {
   });
 }
 
-export async function writeMirror(vaultPath, monthKey) {
+// How many day-files reach back to the first of the month: the loaders walk
+// files newest-first, so a count of calendar days from the month's start to
+// today is always ENOUGH (gaps only make it reach further back), and the
+// month filter below does the rest. 62 was only ever right for this month
+// and last — a correction landing on July in September needs July.
+export function daysBackTo(monthKey, now = new Date()) {
+  const [y, m] = monthKey.split('-').map(Number);
+  const start = new Date(y, m - 1, 1);
+  return Math.max(62, Math.ceil((now - start) / 86400000) + 2);
+}
+
+export async function writeMirror(vaultPath, monthKey, now = new Date()) {
   const { loadRecentDays } = await import('./healthData.js');
   const { loadRecentDays: loadNutritionDays } = await import('./nutritionLog.js');
-  // 62 days covers the current month fully however the files are spread
-  const [health, nutrition] = await Promise.all([loadRecentDays(62), loadNutritionDays(62)]);
+  const n = daysBackTo(monthKey, now);
+  const [health, nutrition] = await Promise.all([loadRecentDays(n), loadNutritionDays(n)]);
   const inMonth = (d) => d.date && d.date.startsWith(monthKey);
   const page = buildMirrorPage(monthKey, health.filter(inMonth), nutrition.filter(inMonth));
 
@@ -83,6 +94,34 @@ export async function writeMirror(vaultPath, monthKey) {
   return { unchanged: false, relPath: `${MIRROR_DIR_REL}/${monthKey}.md` };
 }
 
+// A correction that lands on an OLD month must reach that month's page —
+// "if it's not in the vault, it didn't happen" was only true for this month
+// and the first three days of the last one (audit [40] item 1). The health
+// and nutrition writers note the date they touched; the next tick regenerates
+// every noted month that is not the current one. The unchanged-skip in
+// writeMirror makes a spurious note free.
+const pendingMonths = new Set();
+
+export function noteHealthWrite(date, now = new Date()) {
+  const m = String(date || '').slice(0, 7);
+  if (!/^\d{4}-\d{2}$/.test(m)) return false;
+  if (m === `${now.getFullYear()}-${pad(now.getMonth() + 1)}`) return false;
+  pendingMonths.add(m);
+  return true;
+}
+
+export function pendingMirrorMonths() { return [...pendingMonths].sort(); }
+
+export async function drainPendingMirrors(vaultPath, now = new Date()) {
+  const out = [];
+  for (const monthKey of pendingMirrorMonths()) {
+    pendingMonths.delete(monthKey);
+    try { out.push({ monthKey, ...(await writeMirror(vaultPath, monthKey, now)) }); }
+    catch (e) { out.push({ monthKey, error: e.message }); }
+  }
+  return out;
+}
+
 export function startHealthMirrorScheduler(vaultPath) {
   const tick = async () => {
     const { beat } = await import('./heartbeat.js');
@@ -97,6 +136,9 @@ export function startHealthMirrorScheduler(vaultPath) {
         const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         await writeMirror(vaultPath, `${prev.getFullYear()}-${pad(prev.getMonth() + 1)}`);
       }
+      // and any older month a correction just touched
+      const drained = await drainPendingMirrors(vaultPath, now);
+      for (const d of drained) if (d.error) console.error(`health mirror ${d.monthKey} failed:`, d.error);
     } catch (err) {
       console.error('health mirror failed:', err.message);
     }

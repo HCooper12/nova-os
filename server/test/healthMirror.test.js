@@ -72,3 +72,34 @@ test('writeMirror creates the page, then skips an unchanged rewrite', async () =
   const raw = await readFile(path.join(vault, MIRROR_DIR_REL, `${monthKey}.md`), 'utf8');
   assert.match(raw, /regenerated/i); // the page states its own contract
 });
+
+// ---- audit [40]: a correction on an old month reaches that month's page ----
+
+test('daysBackTo reaches the first of any month, never less than the old 62', async () => {
+  const { daysBackTo } = await import('../lib/healthMirror.js');
+  const now = new Date(2026, 8, 3);
+  assert.equal(daysBackTo('2026-09', now), 62);
+  assert.ok(daysBackTo('2026-07', now) >= 66, 'July from 3 September needs more than two months of files');
+});
+
+test('an old-month write is noted, drained on the next tick, and lands on that month\'s page', async () => {
+  const { noteHealthWrite, pendingMirrorMonths, drainPendingMirrors } = await import('../lib/healthMirror.js');
+  const now = new Date(2026, 8, 3);
+  assert.equal(noteHealthWrite('2026-09-02', now), false, 'this month is mirrored anyway');
+  assert.equal(noteHealthWrite('garbage', now), false);
+  assert.equal(noteHealthWrite('2026-07-15', now), true);
+  assert.deepEqual(pendingMirrorMonths(), ['2026-07']);
+
+  // the real writer queues it by itself — no caller has to remember
+  const { saveDay } = await import('../lib/healthData.js');
+  await saveDay('2026-06-20', { steps: 9876 });
+  await new Promise((r) => setTimeout(r, 50)); // the note rides a dynamic import
+  assert.deepEqual(pendingMirrorMonths(), ['2026-06', '2026-07']);
+
+  const drained = await drainPendingMirrors(vault, now);
+  assert.deepEqual(drained.map((d) => d.monthKey), ['2026-06', '2026-07']);
+  assert.ok(drained.every((d) => !d.error), JSON.stringify(drained));
+  assert.deepEqual(pendingMirrorMonths(), [], 'drained');
+  const june = await readFile(path.join(vault, MIRROR_DIR_REL, '2026-06.md'), 'utf8');
+  assert.match(june, /\| 2026-06-20 \| 9,876/, 'the corrected day is on the June page');
+});

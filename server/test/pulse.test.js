@@ -67,3 +67,81 @@ test('the pulse panel renders only the cache and says so when empty', async () =
   assert.match(panel.data.ageLabel, /fresh|\dh old/);
   await assert.rejects(() => buildPanel(vault, { panel: 'pulse', topic: 'quantum knitting' }), /no pulse cached.*offer to RESEARCH/s);
 });
+
+// ---- audit [38]: novelty memory, the named cap, the late catch-up ----------
+
+test('novelty memory: a reprint is not news — items carry over marked seen, and the prompt names the exclusions', async () => {
+  const { buildPulsePrompt } = await import('../lib/pulse.js');
+  const before = (await getPulse('espresso'))[0];
+  assert.equal(before.items[0].url, 'https://ex.com/a');
+
+  let promptSeen = '';
+  const reprint = async (p) => { promptSeen = p; return { items: [{ title: 'Fresh item (again)', url: 'https://ex.com/a', source: 'Ex' }] }; };
+  const entry = await refreshPulseTopic('Espresso gear', { runner: reprint });
+  assert.match(promptSeen, /ALREADY SHOWN[\s\S]*https:\/\/ex\.com\/a/, 'the exclude list rode the prompt');
+  assert.equal(entry.newCount, 0);
+  assert.equal(entry.items.length, 1, "yesterday's item stays rather than vanishing");
+  assert.equal(entry.items[0].seen, true);
+  assert.equal(entry.items[0].title, 'Fresh item', 'the ORIGINAL item, not the reprint wearing a new title');
+  assert.equal(entry.lastNewAt, before.at, 'last-new points at the run that actually found it');
+
+  const line = await pulseMorningLine();
+  assert.match(line, /Espresso gear: nothing new since \d{4}-\d{2}-\d{2}/);
+
+  const { buildPanel } = await import('../lib/panels.js');
+  const panel = await buildPanel(vault, { panel: 'pulse', topic: 'espresso' });
+  assert.match(panel.data.freshness, /^nothing new — last items from \d{4}-\d{2}-\d{2}$/);
+
+  // one genuinely new URL among the old: only the new one is today's
+  const mixed = async () => ({ items: [
+    { title: 'Fresh item', url: 'https://ex.com/a', source: 'Ex' },
+    { title: 'New grinder study', url: 'https://ex.com/b', source: 'Ex' },
+  ] });
+  const next = await refreshPulseTopic('Espresso gear', { runner: mixed });
+  assert.equal(next.newCount, 1);
+  assert.deepEqual(next.items.map((i) => i.title), ['New grinder study']);
+  assert.ok(next.seen.includes('https://ex.com/a'), 'the memory keeps growing');
+  const panel2 = await buildPanel(vault, { panel: 'pulse', topic: 'espresso' });
+  assert.equal(panel2.data.freshness, null);
+  assert.equal(buildPulsePrompt('x').includes('ALREADY SHOWN'), false, 'no memory, no exclusion block');
+});
+
+test('the cap is named where it bites: over-cap topics are listed, never refreshed, and the panel says why', async () => {
+  const { loadInterestsReport, MAX_TOPICS } = await import('../lib/pulse.js');
+  const full = path.join(vault, INTERESTS_REL);
+  const extra = ['Sourdough', 'Sim racing', 'Bonsai', 'Fountain pens'];
+  await writeFile(full, (await readFile(full, 'utf8')) + extra.map((t) => `- ${t}\n`).join(''), 'utf8');
+  const report = await loadInterestsReport(vault);
+  assert.equal(report.topics.length, MAX_TOPICS);
+  assert.deepEqual(report.overCap, ['Bonsai', 'Fountain pens']);
+
+  const ran = [];
+  const summary = await refreshAllPulses(vault, { runner: async (p) => { ran.push(p); return { items: [] }; } });
+  assert.equal(summary.overCap, 2);
+  assert.equal(summary.refreshed, MAX_TOPICS);
+  assert.ok(!ran.some((p) => p.includes('Bonsai')), 'the over-cap topic never spent a run');
+
+  const entries = await getPulse();
+  const bonsai = entries.find((e) => e.topic === 'Bonsai');
+  assert.equal(bonsai.overCap, true);
+  assert.equal(bonsai.at, null);
+  const { buildPanel } = await import('../lib/panels.js');
+  await assert.rejects(() => buildPanel(vault, { panel: 'pulse', topic: 'bonsai' }), /past the 6-topic limit/);
+  // the topic-less panel skips over-cap entries rather than failing on one
+  const first = await buildPanel(vault, { panel: 'pulse' });
+  assert.ok(!first.data.topic.includes('Bonsai'));
+});
+
+test('run window: overnight once, a late catch-up after 09:00, never twice a day', async () => {
+  const { pulseRunDue, localDay } = await import('../lib/pulse.js');
+  const d = (h, m) => new Date(2026, 8, 3, h, m);
+  assert.equal(pulseRunDue(d(3, 29), null), false);
+  assert.equal(pulseRunDue(d(3, 30), null), true);
+  assert.equal(pulseRunDue(d(6, 29), null), true);
+  assert.equal(pulseRunDue(d(6, 30), null), false, 'between the window and the catch-up: wait');
+  assert.equal(pulseRunDue(d(8, 59), null), false);
+  assert.equal(pulseRunDue(d(9, 0), null), true, 'the catch-up');
+  assert.equal(pulseRunDue(d(15, 0), null), true);
+  assert.equal(pulseRunDue(d(15, 0), localDay(d(15, 0))), false, 'already ran today — from the cache file, so a restart cannot double it');
+  assert.equal(pulseRunDue(d(4, 0), '2026-09-02'), true, "yesterday's run does not count");
+});
