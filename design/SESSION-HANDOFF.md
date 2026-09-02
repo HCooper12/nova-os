@@ -79,8 +79,17 @@ DONE CRITERIA:
   layout at build time (tested from node), degree-sized stars, selection
   lights its neighbourhood, honest cap label. Plan items 6–8 (zoom/pan,
   legend filters, Nova overlays) NOT built.
-- Tier 3 #18 per-item remainder — UNMET; see OPEN below for the carried
-  items already known; the rest is each report's §6 in roster order.
+- Tier 3 #18 per-item remainder — IN PROGRESS. Shipped so far: [17] nudge
+  text no longer compounds (`e3b99e4`); [24] citation gate checks integrity
+  (every cited number → a Sources entry with a URL) + retry keeps the gate's
+  model (`e3b99e4`); [07] plan 6 WORKOUT_RE VALIDATED on his real calendar
+  (736 events/120d, 115 matches, all "Workout"/"Workout / Steps 👟", zero
+  false positives — left as is, pinned) (`e3b99e4`); [66] plan 2 Telegram
+  photo → food scan → pending 'food' record with ✓/✕ (`11abed0`); [29]
+  plan 2 Weekly Debrief on the trust ladder + twin notes on every mode
+  config (`0d9e899`). Remaining carried items: [60] Galaxy 6–8 (UI), [07]
+  dismiss semantics (UI), [02] review adjustment ✓/✗ (UI), [66] plan 3
+  voice note → ask; the rest is each report's §6 in roster order.
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised
@@ -117,7 +126,7 @@ STATE:
   createdExercises }`; legacy `routines:[…]` records still undo.
 - Compost store: `dismissed:{key:iso}` replaces `dismissedKeys:[]` (migrated
   on load; live store had 0 legacy keys).
-- Tests 727 → 792, all green. verify:shipped has eight new markers.
+- Tests 727 → 799, all green. verify:shipped has nine new markers.
 - New helpers this session: stagedPass, sources, respectTheNo, settle,
   contextSections, spacing; heartbeat notes; briefState greet/rituals.
 
