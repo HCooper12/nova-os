@@ -628,6 +628,16 @@ VERIFIED (with locators):
   food declines (8 = his 1 Sep clean-out) hold 60d; compost serves 11.
 - Gates each ship: lint 0, build green, suite green, CI success,
   verify:shipped "genuinely live".
+- 3 Sep, on his real accounts and data: Todoist v1 `GET /tasks/{id}` →
+  200 for both a completed task (`checked:true`) and a deleted one
+  (`is_deleted:true`) — two scratch tasks in his "Old" project, confirmed
+  gone afterwards (0 probe tasks active). Pulse: one real Hypertrophy run on
+  haiku = $1.06 / 20 searches / 267 s (the lane's log said only "exited 1").
+  Phone-width at 375×812 via devtools emulate: Mission Control (satellite
+  overlap found + fixed), Workouts TODAY + GYM, Inbox top, Recipes rotation
+  (CLEAR 26×11 → 49×32 measured), Ambient (sync line top-right). Leader
+  live line on his real state: "Thursday 03 Sept: no idea has landed yet
+  today; no open struggles on file." — absence stated, not invented.
 
 ASSUMED:
 - No live apply/undo has run through the new staged pass yet (the waiting
@@ -659,17 +669,30 @@ OPEN QUESTIONS / BLOCKERS:
 - He asked to see what each exercise TARGETS before starting a workout: the
   routine detail rows already show "<muscle> · last: …" under each
   exercise; if he means the Home/Train list, that is unbuilt.
-- Week-plan window semantics; `guardian: 26h`; phone-width pass — carried.
+- Week-plan window semantics; `guardian: 26h` — carried.
+- PULSE BUDGET — HIS CALL (3 Sep). One measured run of the Hypertrophy topic
+  on haiku: $1.06, 20 web searches, 267 s; the lane's cap is $0.50, so 1–2
+  of 3 topics have failed most nights since ~20 Aug with the $0.50 spent
+  anyway (~$1.50/night for one topic's worth of news). Shipped: the prompt
+  caps searching at 8 and the failure is now legible (panel, ops, log with
+  cost receipts). Options he can pick: (a) raise MAX_BUDGET_USD to 1.0 with
+  the 8-search cap (~$2.4/night worst case); (b) keep $0.50 and watch the
+  new cost receipts for a few nights to see whether the search cap alone
+  lands the science topics; (c) drop to two topics. Not changed.
+- Todoist held-back lines (state.heldBack) never expire — a line he leaves
+  open forever stays out of Todoist forever; edit the words to re-push.
+  Fine for now; a "held back N" chip in Settings would make it visible.
+- The Recipes rotation's CLEAR is now 32px tall but the live cockpit's set
+  rows and long-press targets (46 §6 item 3) were not exercised — starting a
+  session writes a draft to his real vault; check on the phone during a
+  real session instead.
 
-NEXT ACTION: #18 in roster order (the phone-width pass is done). Before
-that, consider whether the conflict rule should extend to the drift check's
-message (it already refuses; the new baseline just stops stale copies ever
-entering a draft). Carried #18 items with the most
-value already identified: [17] nudge-text compounding (plan 2); [24]
-citation gate + retry keeps the model override (plans 1, 3); [66]
-photo→scan lane (plan 2); [60] Galaxy 6–8; [07] dismiss semantics (plan 2)
-+ WORKOUT_RE validation against his real calendar (plan 6); [02] review
-adjustment ✓/✗ UI; [29] AUTONOMY_TARGETS registry completeness (plan 2).
+NEXT ACTION: the roster (#18) is complete. The one open engineering thread
+is the pulse budget above (his decision, then a one-line change). After
+that: the stores alert (15 filed records without undo data — decide
+informational vs hole), the 12/12 food-save declines (retire or reshape the
+lane), and the device-side checks that only his phone can do (Telegram
+photo/voice, widget re-paste, audio session at the gym).
 
 DO NOT:
 - Do not edit source with `perl -0pi` and a hand-escaped multi-line pattern:
