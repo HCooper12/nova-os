@@ -125,9 +125,26 @@ DONE CRITERIA:
   twin of planToday's), and tomorrow's context quotes HIS MARKS with a
   never-re-issue-a-NOT-TODAY-unchanged rule. Reviews composed before 2 Sep
   have no structured adjustments → no rows (nothing to mark). Card render
-  at 375 UNSEEN (today's review predates the change). Remaining #18: each
-  report's §6 in roster order (01 coach → 66 telegram), skipping what is
-  shipped.
+  at 375 UNSEEN (today's review predates the change). #18 roster: [01] Coach §6 — MET
+  (2 Sep): items 1, 2, 6 were already shipped (idempotent save + replay
+  guard, atomic applyOps, raise-marker on the answer); built now: 3 the
+  resumed-turn live line carries open injuries, active tunes (held lifts
+  named), the last 7 days' proposal outcomes with his decline reasons, and
+  the progression engine's current earned/held counts (each read names its
+  own failure); 4 every cadence send leaves a spokenLog receipt
+  (coach-morning / coach-missed / coach-pr) and the scheduler notes ARMED,
+  NO CHANNEL on the heartbeat when Telegram is unconfigured; 5 the quality
+  hold-and-coach reaches RPE-tuned lifts (grinding at RPE 10 with flat or
+  backwards e1RM); 7 the auto session receipt is write-then-flip and a
+  failed flip after a successful write marks the record 'error' naming the
+  torn state (settleAutoReceipt, injected fns, tested) — approving can
+  never write the line twice; 8 resting heart rate joins the deload signal
+  at ≥8% (3-day avg vs 7-day baseline; REPLAYED on his real history first:
+  fired 21 Aug beside a 13% HRV drop and 28 Aug alone, while 4–6% caught
+  single-day noise); 9 the morning card names an open moderate/serious
+  injury (niggles stay chat-only). Next in roster: [02] remaining §6 items
+  (1 named failures — check, 3 calendar lines, 4 hour-honest sections, 5
+  latest debrief, 6 fleet receipts, 8 final-failure push), then [03]…
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised

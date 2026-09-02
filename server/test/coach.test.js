@@ -369,3 +369,80 @@ test('every suggestion carries his latest note for that lift', async () => {
   assert.equal(prog['pull:row'].note, 'done first today', 'the number arrives beside what he said about the lift');
   assert.equal(prog['pull:row'].noteDate, '2026-07-10');
 });
+
+// ---- [01] plan 8: resting heart rate is the third overreach signal ----
+test('deload: a resting heart rate 8%+ above baseline advises lighter; a smaller rise or thin RHR data does not', () => {
+  const iso = (daysAgo) => { const d = new Date(); d.setDate(d.getDate() - daysAgo); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  const day = (daysAgo, hrv, rhr) => ({ date: iso(daysAgo), hrv, sleepAsleepMinutes: 420, restingHeartRate: rhr });
+  // HRV steady, RHR up ~12% over the last three days
+  const rising = computeDeloadSignal([day(7, 85, 56), day(6, 85, 55), day(5, 86, 57), day(4, 85, 56), day(3, 85, 63), day(2, 86, 62), day(1, 85, 64), day(0, 85, 63)]);
+  assert.equal(rising.advise, true);
+  assert.match(rising.reason, /resting heart rate is up 1\d%/);
+  assert.match(rising.reason, /6[23] vs 56 bpm/);
+  // a 4% rise is his day-to-day noise — no advisory
+  const noise = computeDeloadSignal([day(7, 85, 56), day(6, 85, 55), day(5, 86, 57), day(4, 85, 56), day(3, 85, 58), day(2, 86, 58), day(1, 85, 59), day(0, 85, 58)]);
+  assert.equal(noise.advise, false);
+  // one recent RHR day is not a trend — the HRV verdict stands alone
+  const thin = computeDeloadSignal([day(7, 85, 56), day(6, 85, 55), day(5, 86, 57), day(4, 85, 56), day(3, 85), day(2, 86), day(1, 85), day(0, 85, 70)]);
+  assert.equal(thin.advise, false);
+  assert.match(thin.reason, /steady/);
+});
+
+// ---- [01] plan 7: the auto receipt cannot double-file ----
+test('auto receipt: write-then-flip; a failed flip after a successful write closes the record instead of leaving a re-fileable draft', async () => {
+  const { settleAutoReceipt } = await import('../lib/coach.js');
+  const record = { id: 'r1', status: 'pending' };
+  // the write fails → nothing happened, the draft stays pending
+  const a = await settleAutoReceipt(record, { file: async () => { throw new Error('journal locked'); }, update: async () => { throw new Error('should not be called'); } });
+  assert.equal(a.filed, false);
+  assert.equal(a.record.status, 'pending');
+  // the happy path
+  const patches = [];
+  const b = await settleAutoReceipt(record, { file: async () => ({ destination: 'Journal — 2026-09-02 19:10 (training)', undo: { route: 'journal' } }), update: async (p) => { patches.push(p); return { ...record, ...p }; } });
+  assert.equal(b.filed, true);
+  assert.equal(b.record.status, 'filed');
+  assert.equal(patches[0].undoData.route, 'journal');
+  // the torn state: written, but the flip throws → 'error', never pending
+  let calls = 0;
+  const c = await settleAutoReceipt(record, {
+    file: async () => ({ destination: 'Journal — 2026-09-02 19:10 (training)', undo: { route: 'journal' } }),
+    update: async (p) => { calls++; if (p.status === 'filed') throw new Error('store hiccup'); return { ...record, ...p }; },
+  });
+  assert.equal(c.filed, true);
+  assert.equal(c.torn, true);
+  assert.equal(c.record.status, 'error', 'an approve later must find nothing to file');
+  assert.match(c.record.error, /written .* but the receipt could not be marked filed — approving would write it twice/);
+  assert.equal(calls, 2);
+});
+
+// ---- [01] plan 9: the morning card names an open injury ----
+test('morning card: an open moderate/serious injury gets one line; niggles and resolved entries stay off the card', async () => {
+  const { injuryLine } = await import('../lib/coachCadence.js');
+  assert.equal(injuryLine([]), null);
+  assert.equal(injuryLine([{ area: 'left wrist', severity: 'niggle' }]), null, 'niggles are chat-only');
+  assert.equal(injuryLine([{ area: 'right knee', severity: 'serious', resolvedAt: '2026-08-20' }]), null, 'resolved is resolved');
+  assert.equal(injuryLine([{ area: 'right knee', severity: 'moderate' }]), 'Open injury on file: right knee (moderate) — train around it.');
+  assert.equal(injuryLine([{ area: 'right knee', severity: 'moderate' }, { area: 'lower back', severity: 'serious' }, { area: 'thumb', severity: 'niggle' }]),
+    'Open injuries on file: right knee (moderate), lower back (serious) — train around them.');
+});
+
+// ---- [01] plan 5: the quality path reaches RPE-tuned lifts ----
+test('effort (autoregulated tune): grinding at RPE 10 with the work flat is held at quality, not silently skipped; headroom still earns the step', async () => {
+  const { setTune } = await import('../lib/progressionTunes.js');
+  const flat = Array.from({ length: 3 }, () => ({ weight: 60, reps: 10, rpe: 10 }));
+  const dir = path.join(vault, 'rpe-tuned-grind');
+  await mkdir(path.join(dir, 'Wiki/Health/Workouts'), { recursive: true });
+  await setTune(dir, { exerciseId: 'row', name: 'Row', model: 'rpe' });
+  const prog = await progFor('rpe-tuned-grind', flat, flat);
+  assert.equal(prog['pull:row'].kind, 'quality', 'an autoregulated lift at its ceiling with flat work gets the same hold-and-coach');
+  assert.equal(prog['pull:row'].delta, 0);
+  assert.match(prog['pull:row'].evidence, /autoregulated lift and the work is flat/);
+  assert.ok(prog['pull:row'].focus);
+
+  const dir2 = path.join(vault, 'rpe-tuned-headroom');
+  await mkdir(path.join(dir2, 'Wiki/Health/Workouts'), { recursive: true });
+  await setTune(dir2, { exerciseId: 'row', name: 'Row', model: 'rpe' });
+  const easy = Array.from({ length: 3 }, () => ({ weight: 60, reps: 10, rpe: 7 }));
+  const prog2 = await progFor('rpe-tuned-headroom', easy, easy);
+  assert.equal(prog2['pull:row'].kind, 'weight', 'RPE 7 at target still earns the step under the tune');
+});

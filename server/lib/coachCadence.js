@@ -38,11 +38,24 @@ async function sentToday(kind) {
   return (await loadState())[kind] === today();
 }
 
-async function send(text) {
+// Every proactive send leaves a receipt in the spoken log — the same rail
+// the debrief and the greeting write (claudeCode.js logSpoken calls are the
+// twins), so "did Coach actually say that this morning?" has an answer.
+async function send(text, kind = 'coach-cadence') {
   const { telegramConfigured, sendTelegramText } = await import('./telegram.js');
   if (!telegramConfigured()) return false;
   await sendTelegramText(text);
+  import('./spokenLog.js').then(({ logSpoken }) => logSpoken(kind, text)).catch(() => {});
   return true;
+}
+
+// The injury line for the morning card — moderate or worse, open, and only
+// on a training day (the caller decides that). Niggles stay chat-only so
+// the card stays lean. Pure, exported for the test.
+export function injuryLine(injuries) {
+  const active = (injuries || []).filter((i) => !i.resolvedAt && i.severity && i.severity !== 'niggle');
+  if (!active.length) return null;
+  return `Open injur${active.length === 1 ? 'y' : 'ies'} on file: ${active.map((i) => `${i.area} (${i.severity})`).join(', ')} — train around ${active.length === 1 ? 'it' : 'them'}.`;
 }
 
 const WEEKDAY = () => ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][new Date().getDay()];
@@ -85,6 +98,12 @@ export async function morningReadiness(vaultPath) {
     if (latest) lines.push(`Recovery looks ready (HRV ${Math.round(latest.hrv)}).`);
   }
   try {
+    // an open injury meets him where he plans the session, not only in a chat he may not open
+    const { listInjuries } = await import('./injuryLog.js');
+    const inj = injuryLine(await listInjuries(vaultPath));
+    if (inj) lines.push(inj);
+  } catch { /* no read, no line */ }
+  try {
     // the cross-reference agent's sharpest finding rides the morning card —
     // fuel advice lands best BEFORE the day's eating, not in a debrief
     const { crossCheck } = await import('./fuelCross.js');
@@ -95,7 +114,7 @@ export async function morningReadiness(vaultPath) {
     if (result.couldntLook) lines.push(`Fuel: ${result.couldntLook}.`);
     else if (top) lines.push(`Fuel: ${top.line}`);
   } catch { /* no findings, no line */ }
-  const sent = await send(lines.join(' '));
+  const sent = await send(lines.join(' '), 'coach-morning');
   if (sent) await markSent('morning');
   return sent ? lines.join(' ') : null;
 }
@@ -157,7 +176,7 @@ export async function missedSessionNudge(vaultPath) {
   const streaks = await computeStreaks(vaultPath).catch(() => null);
   const streakLine = streaks?.workoutStreak >= 3 ? ` Your ${streaks.workoutStreak}-session streak is on the line.` : '';
   const msg = `Coach — ${routine.name} hasn't been logged yet today.${streakLine} An evening slot still works; even a trimmed session beats a zero. Want me to hold you to it?`;
-  const sent = await send(msg);
+  const sent = await send(msg, 'coach-missed');
   if (sent) await markSent('missed');
   return sent ? msg : null;
 }
@@ -208,7 +227,7 @@ export async function celebratePRs(vaultPath, session) {
     ? `${p.name}: ${p.value}kg × ${p.reps} — heaviest ever${p.previous ? ` (was ${p.previous}kg)` : ''}`
     : `${p.name}: e1RM ${p.value}kg${p.previous ? ` (was ${p.previous})` : ''}`);
   const msg = `Coach — PR${prs.length > 1 ? 's' : ''} today. ${lines.join(' · ')}. Earned, sir.`;
-  await send(msg);
+  await send(msg, 'coach-pr');
   return { prs, message: msg };
 }
 
@@ -216,8 +235,14 @@ export async function celebratePRs(vaultPath, session) {
 export function startCoachCadenceScheduler(vaultPath) {
   if (process.env.NOVA_COACH_CADENCE === 'off') return;
   const tick = async () => {
-    const { beat } = await import('./heartbeat.js');
+    const { beat, note } = await import('./heartbeat.js');
     beat('coach-cadence');
+    // ARMED BUT MUTE is a state, not silence: without Telegram every window
+    // below ticks and sends nothing, and Ops used to show a healthy beat.
+    try {
+      const { telegramConfigured } = await import('./telegram.js');
+      await note('coach-cadence', telegramConfigured() ? null : 'armed, no channel — Telegram is not configured, so the morning card, PR pings and debriefs go nowhere');
+    } catch { /* the note is optional */ }
     try {
       const h = new Date().getHours();
       if (h >= 7 && h < 12) await morningReadiness(vaultPath);

@@ -115,6 +115,25 @@ export async function computeProgressions(vaultPath, routines) {
         const rpes = last.sets.map((s) => s.rpe).filter((r) => r != null);
         if (!rpes.length) continue; // no effort data logged — the model can't run
         const top = Math.max(...rpes);
+        // THE QUALITY PATH, for tuned lifts too. Grinding (RPE at his true
+        // ceiling) with the work flat or backwards used to fall through this
+        // branch as a silent "no progression" — the default path's hold-and-
+        // coach never reached an autoregulated lift. Same rule, same shape.
+        if (top >= GRIND_RPE && recent.length >= 2) {
+          const loadNow = bestSetLoad(recent[0]);
+          const loadPrev = bestSetLoad(recent[1]);
+          if (!(loadNow > loadPrev)) {
+            const lastW0 = maxOf(recent[0], (s) => s.weight);
+            const backwards = loadPrev > 0 && loadNow < loadPrev * (1 - REGRESSION_MARGIN);
+            out[`${routine.id}:${entry.exerciseId}`] = {
+              kind: 'quality',
+              delta: 0,
+              focus: backwards ? 'same weight, full range — rebuild your best set before adding anything' : '3s lowering, no bounce out of the bottom, full range — same weight',
+              evidence: `top set RPE ${top} on an autoregulated lift and the work ${backwards ? 'went BACKWARDS' : 'is flat'} (${Math.round(loadPrev)} → ${Math.round(loadNow)} est. 1RM${lastW0 ? `, now ${lastW0}kg` : ''}) — ${backwards ? 'that reads as recovery, not technique: hold the load and rebuild' : 'hold the load and own the reps before the step'}`,
+            };
+            continue;
+          }
+        }
         if (!toppedOut(last, entry) || top > 8) continue;
         const lastW = Math.max(...last.sets.map((s) => Number(s.weight) || 0));
         const step = tune?.stepKg ?? WEIGHT_STEP_KG;
@@ -287,6 +306,7 @@ export async function computeProgressions(vaultPath, routines) {
 // after automation misses those can span weeks — "the last 3 days" must mean
 // the last 3 CALENDAR days or the advisory claims recency the data doesn't
 // have (the honest-degradation rule; see the steps incident).
+export const RHR_RISE_THRESHOLD = 0.08;
 export function computeDeloadSignal(healthDays) {
   const dayAge = (d) => Math.round((new Date(new Date().toDateString()) - new Date(`${d.date}T12:00:00`)) / 86400000);
   const all = (healthDays || []).filter((d) => d.date);
@@ -302,8 +322,22 @@ export function computeDeloadSignal(healthDays) {
   const recentSleep = all.filter((d) => d.sleepAsleepMinutes != null && dayAge(d) <= 3);
   const sleepShort = recentSleep.length >= 3 && avg(recentSleep, 'sleepAsleepMinutes') < 360;
 
+  // The third classic overreach signal, replayed on his real history before
+  // shipping (Aug 2026, 24 RHR days): a 3-day average ≥ 8% above the 7-day
+  // baseline fired twice in six weeks — once beside a 13% HRV drop — while
+  // anything lower caught single-day noise (49 → 70 → 59). Thin data refuses.
+  const withRhr = all.filter((d) => d.restingHeartRate != null && dayAge(d) <= 10);
+  const rhrRecent = withRhr.filter((d) => dayAge(d) <= 3);
+  const rhrBase = withRhr.filter((d) => dayAge(d) > 3);
+  const rhrRise = rhrRecent.length >= 2 && rhrBase.length >= 3
+    ? (avg(rhrRecent, 'restingHeartRate') - avg(rhrBase, 'restingHeartRate')) / avg(rhrBase, 'restingHeartRate')
+    : null;
+
   if (hrvDrop >= 0.1) {
     return { advise: true, reason: `HRV is down ${Math.round(hrvDrop * 100)}% on your baseline across the last ${recent.length} logged day${recent.length === 1 ? '' : 's'} — a lighter session (−15% loads, stop 2-3 reps short) protects the trend` };
+  }
+  if (rhrRise != null && rhrRise >= RHR_RISE_THRESHOLD) {
+    return { advise: true, reason: `resting heart rate is up ${Math.round(rhrRise * 100)}% on your baseline (${avg(rhrRecent, 'restingHeartRate').toFixed(0)} vs ${avg(rhrBase, 'restingHeartRate').toFixed(0)} bpm over the last ${rhrRecent.length} logged days) — the body is still paying for something; go lighter today` };
   }
   if (sleepShort) {
     return { advise: true, reason: 'under 6h sleep three nights running — cap intensity today and bank an early night' };
@@ -335,6 +369,43 @@ export async function coachLiveLine(vaultPath) {
     const sessions = await loadSessions(vaultPath, { limit: 1 });
     if (sessions.length) bits.push(`last session ${sessions[0].date} — ${sessions[0].routineName}`);
   } catch { bits.push('session history FAILED to load this turn'); }
+  // THE DELTAS a days-old chat cannot know: a new injury, a tune, what he
+  // said to the last proposals, where the progression engine stands now.
+  // Each read names its own failure, like the two above.
+  try {
+    const { listInjuries } = await import('./injuryLog.js');
+    const open = (await listInjuries(vaultPath)).filter((i) => !i.resolvedAt);
+    bits.push(open.length ? `open injuries: ${open.map((i) => `${i.area} (${i.severity}, since ${i.startedAt})`).join(', ')}` : 'no open injuries');
+  } catch { bits.push('injury log FAILED to load this turn'); }
+  try {
+    const { getTunes } = await import('./progressionTunes.js');
+    const tunes = await getTunes(vaultPath);
+    const held = tunes.filter((t) => t.hold).map((t) => t.name);
+    bits.push(tunes.length ? `${tunes.length} progression tune${tunes.length === 1 ? '' : 's'} active${held.length ? ` (held: ${held.join(', ')})` : ''}` : 'no progression tunes');
+  } catch { bits.push('progression tunes FAILED to load this turn'); }
+  try {
+    const { listRecords } = await import('./inboxStore.js');
+    const COACH_ROUTES = new Set(['progression-tune', 'routine-edit', 'injury-log', 'goal-target', 'training-block', 'exercise-resource', 'coach-learning', 'exercise-remap']);
+    const cutoff = Date.now() - 7 * 86400000;
+    const recent = (await listRecords()).filter((r) => COACH_ROUTES.has(r.decision?.route) && new Date(r.createdAt || 0).getTime() > cutoff);
+    if (recent.length) {
+      const n = (s) => recent.filter((r) => r.status === s).length;
+      const declined = recent.filter((r) => r.status === 'discarded' && r.declineReason).map((r) => `"${r.declineReason}"`).slice(0, 3);
+      bits.push(`your proposals last 7d: ${n('filed')} approved, ${n('discarded')} declined${declined.length ? ` (his reasons: ${declined.join(', ')})` : ''}, ${n('pending')} pending`);
+    } else bits.push('no proposals of yours in the last 7d');
+  } catch { bits.push('proposal outcomes FAILED to load this turn'); }
+  try {
+    const { loadExerciseLibrary } = await import('./exercises.js');
+    const { loadRoutines } = await import('./workouts.js');
+    const { exercises } = await loadExerciseLibrary(vaultPath);
+    const { routines } = await loadRoutines(vaultPath, exercises);
+    const prog = await computeProgressions(vaultPath, routines);
+    const kinds = Object.values(prog).map((p) => p.kind);
+    const count = (k) => kinds.filter((x) => x === k).length;
+    bits.push(kinds.length
+      ? `progression now: ${count('weight') + count('reps') + count('outgrown')} step${count('weight') + count('reps') + count('outgrown') === 1 ? '' : 's'} earned, ${count('quality')} held for quality`
+      : 'progression now: nothing earned or held');
+  } catch { bits.push('progression state FAILED to compute this turn'); }
   return `LIVE UPDATE (recomputed this turn — supersedes earlier numbers in this conversation): ${bits.join('; ')}.`;
 }
 
@@ -502,15 +573,42 @@ export async function draftSessionSummary(vaultPath, session) {
   };
   await createRecord(record);
   if (mode === 'auto') {
-    try {
-      const { fileDecision } = await import('./inbox.js');
-      const { updateRecord } = await import('./inboxStore.js');
-      const { destination, undo } = await fileDecision(vaultPath, record.decision);
-      import('./telegram.js').then(({ sendTelegramText }) => sendTelegramText(`${title}\n\n${body}`)).catch(() => {});
-      return updateRecord(record.id, { status: 'filed', destination, undoData: undo, filedAt: new Date().toISOString(), auto: true });
-    } catch { /* fall back to the pending draft — the gate still works */ }
+    const { fileDecision } = await import('./inbox.js');
+    const { updateRecord } = await import('./inboxStore.js');
+    const settled = await settleAutoReceipt(record, {
+      file: () => fileDecision(vaultPath, record.decision),
+      update: (patch) => updateRecord(record.id, patch),
+    });
+    if (settled.filed) import('./telegram.js').then(({ sendTelegramText }) => sendTelegramText(`${title}\n\n${body}`)).catch(() => {});
+    return settled.record;
   }
   return record;
+}
+
+// THE AUTO RECEIPT CANNOT DOUBLE-FILE. The journal line is written, then the
+// record is flipped to filed. If the write fails nothing happened and the
+// draft stays pending — a later approve files it once. If the write
+// SUCCEEDS and the flip fails, the old code fell back to pending too, and
+// approving that draft wrote the same line a second time. Now that path
+// marks the record 'error' naming the torn state, so approval is closed.
+// Injected fns so the torn state is testable without a broken store.
+export async function settleAutoReceipt(record, { file, update }) {
+  let filing;
+  try {
+    filing = await file();
+  } catch {
+    return { filed: false, record }; // nothing written — the pending draft is safe to approve later
+  }
+  try {
+    const updated = await update({ status: 'filed', destination: filing.destination, undoData: filing.undo, filedAt: new Date().toISOString(), auto: true });
+    return { filed: true, record: updated || { ...record, status: 'filed' } };
+  } catch (e) {
+    const torn = `journal line written (${filing.destination}) but the receipt could not be marked filed — approving would write it twice, so this is closed: ${e.message}`;
+    let errored = null;
+    try { errored = await update({ status: 'error', error: torn }); } catch { /* the store is down; the log is the receipt */ }
+    console.error('coach auto receipt: ' + torn);
+    return { filed: true, torn: true, record: errored || { ...record, status: 'error', error: torn } };
+  }
 }
 
 /* --------------------------- live session ask ---------------------------- */
