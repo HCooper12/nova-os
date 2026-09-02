@@ -226,8 +226,17 @@ DONE CRITERIA:
   library and recent-session exercise line (the don't-hammer rule's fact);
   4 the Coach's one-line rationale rides the session — client session
   object → finish payload → completeSession persists it (≤300) → the
-  session debrief quotes "why this session existed". Next in roster: [09]
-  Session Debrief §6.
+  session debrief quotes "why this session existed". [09] Session Debrief §6 — MET (3 Sep): 5 was the
+  replay guard; built now: 1 carry-forward memory (lib/debriefMemory.js,
+  server/data/debrief-memory.json: per routine + per session; the next
+  same-routine fact sheet quotes YOUR LAST DEBRIEF FOR THIS ROUTINE, never
+  its own; the Coach chat gets WHAT YOU SAID AT THE RACK); 2 in-app delivery
+  — the debrief composes regardless of Telegram (kill-switch kept), GET
+  /workouts/sessions attaches coachSaid, the history row renders COACH SAID
+  (+ a CUT SHORT line); 3 one recovery line in the facts; 4 a cut-short
+  session names what was pushed forward and when it is due. debriefFacts is
+  extracted and tested with injected deps. History render at 375 UNSEEN.
+  Next in roster: [10] Greeting §6.
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised

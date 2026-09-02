@@ -270,7 +270,10 @@ export function workoutsRouter(vaultPath) {
     try {
       const { routineId, exerciseId, limit } = req.query;
       const sessions = await loadSessions(vaultPath, { routineId, exerciseId, limit: limit ? Number(limit) : undefined });
-      res.json({ sessions });
+      // the Coach's reaction to each session, where the session was logged
+      let said = {};
+      try { said = await (await import('../lib/debriefMemory.js')).debriefsForSessions(sessions.map((s) => s.id)); } catch { /* none */ }
+      res.json({ sessions: sessions.map((s) => (said[s.id] ? { ...s, coachSaid: said[s.id].text } : s)) });
     } catch (err) {
       next(err);
     }
@@ -607,6 +610,13 @@ export function workoutsRouter(vaultPath) {
         if (s.lastWorkoutDate) bits.push(`last logged session ${s.lastWorkoutDate}`);
         if (bits.length) parts.push(`Streaks: ${bits.join('; ')}.`);
       } catch { failures.push('streaks'); }
+      // what the Coach said at the rack after his last session (debriefMemory)
+      try {
+        const { debriefMemoryContext } = await import('../lib/debriefMemory.js');
+        const last = (await loadSessions(vaultPath, { limit: 1 }))[0];
+        const dm = last ? await debriefMemoryContext(last.routineId) : null;
+        if (dm) parts.push(dm);
+      } catch { failures.push('last debrief'); }
       // DAYS that keep not happening — the training check's "didn't happen"
       // consumer (trainingCheck.missMemory): schedule vs logged-or-reconciled
       try {

@@ -755,6 +755,13 @@ function HistoryView({ v }) {
                   <div key={i} style={css("font-size:12px;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}><span style={css("color:var(--nv-ink)")}>{e.name}:</span> {e.setsLabel}</div>
                 ))}
               </div>
+              {s.cutShort && <div style={css("margin-top:8px;font:400 10px var(--nv-font-mono);letter-spacing:.1em;color:var(--nv-warn)")}>CUT SHORT — {s.cutShort}</div>}
+              {s.coachSaid && (
+                <div style={css("margin-top:10px;padding:10px 12px;border-left:2px solid color-mix(in srgb, var(--nv-gold) 55%, transparent);background:color-mix(in srgb, var(--nv-gold) 6%, transparent);border-radius:0 8px 8px 0")}>
+                  <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-gold)")}>COACH SAID</div>
+                  <div style={css("margin-top:4px;font:400 12.5px/1.5 var(--nv-font-ui);color:color-mix(in srgb, var(--nv-ink) 80%, transparent)")}>{s.coachSaid}</div>
+                </div>
+              )}
               <div style={css("margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap")}>
                 <Interactive as="span" onClick={s.onEdit} base="cursor:pointer;font:500 9.5px var(--nv-font-mono);letter-spacing:.08em;padding:4px 11px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);color:var(--nv-cy)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 08%, transparent)">EDIT</Interactive>
                 {!s.deleteConfirm ? (

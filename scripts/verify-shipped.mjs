@@ -71,6 +71,7 @@ const FEATURES = [
   ['Galaxy · pinch-zoom + pan, legend filters, recency/compost overlays', 'PINCH TO ZOOM'],
   ['Inbox · training-check dismiss asks what happened (four chips)', 'ONE TAP KEEPS THE RECORD STRAIGHT'],
   ['Inbox · review discard asks why once; adjustments take DONE / NOT TODAY', "TOMORROW'S REVIEW READS THIS"],
+  ['Train · history rows carry the Coach\'s reaction', 'COACH SAID'],
 ];
 
 const SERVER_ROUTES = [

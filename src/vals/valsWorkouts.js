@@ -336,6 +336,8 @@ export function valsWorkouts(app, ctx) {
     totalSets: s.exercises.reduce((n, e) => n + e.sets.length, 0),
     totalVolume: Math.round(s.exercises.reduce((v, e) => v + e.sets.reduce((sv, set) => sv + set.weight * set.reps, 0), 0)),
     exercises: s.exercises.map((e) => ({ name: e.name, setsLabel: setsLabel((exercisesById.get(e.exerciseId) || {}).trackingType || 'weight_reps', e.sets) })),
+    coachSaid: s.coachSaid || null, // the Coach's reaction, where the session was logged (server: debriefMemory)
+    cutShort: s.cutShort || null,
     onEdit: () => app.editHistorySession(s),
     deleteConfirm: st.sessionDeleteConfirmId === s.id,
     requestDelete: () => app.setState({ sessionDeleteConfirmId: s.id }),

@@ -271,12 +271,11 @@ export async function missedSessionNudge(vaultPath) {
 // Event-driven on save (like PR pings). Deterministic code computes every
 // fact; the model only reacts to them; Telegram delivers. Silent on any
 // failure — a missing debrief is a non-event, never an error he sees.
-export async function sessionDebrief(vaultPath, session) {
-  if (process.env.NOVA_COACH_CADENCE === 'off') return null;
-  const { telegramConfigured } = await import('./telegram.js');
-  if (!telegramConfigured()) return null;
-  const { loadSessions } = await import('./workoutSessions.js');
-  const sessions = await loadSessions(vaultPath, { limit: 10 });
+// The fact sheet, on its own so it can be tested: what the Coach reacts to.
+// `deps` lets a test hand in sessions, health days, carry-overs and the
+// last debrief; production reads the real ones.
+export async function debriefFacts(vaultPath, session, deps = {}) {
+  const sessions = deps.sessions || await (await import('./workoutSessions.js')).loadSessions(vaultPath, { limit: 10 });
   const full = sessions.find((s) => s.date === session.date && s.routineId === session.routineId) || session;
   const prev = sessions.filter((s) => s.routineId === session.routineId && s.id !== full.id)[0] || null;
   const volumeOf = (s) => Math.round((s.exercises || []).reduce((v, e) => v + (e.sets || []).reduce((x, st2) => x + (st2.weight || 0) * (st2.reps || 0), 0), 0));
@@ -287,7 +286,20 @@ export async function sessionDebrief(vaultPath, session) {
     const flags = [ex.anomaly ? 'ANOMALY (off day — not evidence)' : null, ex.pain ? `PAIN: ${ex.pain}` : null, ex.note ? `his note: "${ex.note}"` : null, ex.skipped ? 'skipped today' : null].filter(Boolean);
     facts.push(`- ${ex.name}: ${line || 'no sets'}${flags.length ? ` [${flags.join('; ')}]` : ''}`);
   }
-  if (full.cutShort) facts.push(`Session CUT SHORT — his reason: ${full.cutShort}.`);
+  if (full.cutShort) {
+    facts.push(`Session CUT SHORT — his reason: ${full.cutShort}.`);
+    // the loop closes in words: what was pushed forward, and to when
+    try {
+      const carry = deps.carryovers || await (await import('./workoutCarryover.js')).listCarryovers();
+      // a carry-over record is { forDate, sourceRoutineName, exercises:[{name}], createdAt } (workoutCarryover.js)
+      const pushed = carry.filter((c) => c.sourceRoutineName === full.routineName && (String(c.createdAt || '').slice(0, 10) === full.date || (c.forDate && c.forDate >= full.date)));
+      if (pushed.length) {
+        const names = pushed.flatMap((c) => (c.exercises || []).map((e) => e.name)).filter(Boolean);
+        const due = [...new Set(pushed.map((c) => c.forDate).filter(Boolean))].sort();
+        facts.push(`Pushed forward from this session: ${names.join(', ')}${due.length ? ` (due ${due.join(', ')})` : ''}.`);
+      }
+    } catch { /* no carry facts, no line */ }
+  }
   if (full.rationale) facts.push(`Why this session existed (the quick-session design's rationale): ${full.rationale}`);
   if (prev) facts.push(`Previous ${full.routineName} (${prev.date}): ${volumeOf(prev).toLocaleString()}kg volume.`);
   try {
@@ -295,9 +307,32 @@ export async function sessionDebrief(vaultPath, session) {
     const prs = prsInSession(sessions, full);
     if (prs.length) facts.push(`PRs this session (already celebrated separately — acknowledge, don't re-announce): ${prs.map((p) => p.name).join(', ')}.`);
   } catch { /* no PR facts, no line */ }
+  // one recovery line — the same fact the quick-session designer reads
+  try {
+    const days = deps.recentDays || await (await import('./healthData.js')).loadRecentDays(3);
+    const latest = [...days].reverse().find((d) => d.hrv != null || d.sleepAsleepMinutes != null);
+    if (latest) facts.push(`Recovery today: HRV ${latest.hrv != null ? Math.round(latest.hrv) : '—'} (${latest.date}), sleep ${latest.sleepAsleepMinutes ? (latest.sleepAsleepMinutes / 60).toFixed(1) + 'h' : '—'}.`);
+  } catch { /* no recovery line */ }
+  // CARRY-FORWARD MEMORY: what you said after his last session of this routine
+  try {
+    const { lastDebriefFor, lastDebriefLine } = await import('./debriefMemory.js');
+    const last = deps.lastDebrief !== undefined ? deps.lastDebrief : await lastDebriefFor(full.routineId);
+    if (last && last.sessionId !== full.id) { const line = lastDebriefLine(last); if (line) facts.push(line); }
+  } catch { /* cold compose — today's behaviour */ }
+  return { facts, full };
+}
+
+export async function sessionDebrief(vaultPath, session) {
+  if (process.env.NOVA_COACH_CADENCE === 'off') return null; // the kill-switch stays
+  // composed REGARDLESS of Telegram: the reaction exists where the session
+  // was logged (history's "Coach said") and is remembered for the next one;
+  // Telegram remains the push mouth when configured
+  const { facts, full } = await debriefFacts(vaultPath, session);
   const { startSessionDebrief } = await import('./claudeCode.js');
   startSessionDebrief(vaultPath, { facts: facts.join('\n') }, (text) => {
-    if (text) send(`Coach — ${text}`).catch(() => {});
+    if (!text) return;
+    import('./debriefMemory.js').then(({ rememberDebrief }) => rememberDebrief({ routineId: full.routineId, routineName: full.routineName, sessionId: full.id, date: full.date, text })).catch(() => {});
+    send(`Coach — ${text}`, 'coach-debrief').catch(() => {});
   });
   return true;
 }
