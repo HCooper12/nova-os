@@ -25,6 +25,9 @@ function apply(type) {
   try {
     const s = navigator.audioSession;
     if (s && s.type !== type) s.type = type;
+    // the mode, readable on the root element — verifiable from Safari's
+    // inspector on the phone, and the marker verify:shipped checks for
+    document.documentElement.dataset.novaAudio = s ? type : 'unsupported';
   } catch { /* the API exists on few browsers; absent is fine */ }
 }
 

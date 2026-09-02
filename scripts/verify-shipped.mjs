@@ -65,7 +65,8 @@ const FEATURES = [
   // the day plan's completion loop: done / skipped per priority
   ['Home · plan priorities can be marked done or skipped', 'planPriorityOutcome'],
   // the gym fix: a tap no longer claims the phone's audio session; Nova asks to mix
-  ['Audio · mixing session, generic taps do not claim it', 'preferMixing'],
+  // a property key, not a function name — the minifier renames functions
+  ['Audio · mixing session, generic taps do not claim it', 'novaAudio'],
 ];
 
 const SERVER_ROUTES = [
