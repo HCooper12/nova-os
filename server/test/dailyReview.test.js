@@ -13,7 +13,7 @@ process.env.NOVA_VAULT_GRACE_MS = '0';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { getReviewConfig, setReviewConfig, buildReviewPrompt, composeReviewText, buildReviewContext, setAdjustmentOutcome } = await import('../lib/dailyReview.js');
+const { getReviewConfig, setReviewConfig, buildReviewPrompt, composeReviewText, buildReviewContext, setAdjustmentOutcome, failedAttemptsToday, REVIEW_MAX_ATTEMPTS, calendarDetailLines } = await import('../lib/dailyReview.js');
 const { saveDay } = await import('../lib/healthData.js');
 const { setProfile } = await import('../lib/profile.js');
 
@@ -119,4 +119,51 @@ test('adjustments ride the record structured, take a done / not-today mark, and 
   assert.match(ctx, /YESTERDAY'S REVIEW \(he took it into his journal\)/);
   assert.match(ctx, /HIS MARKS ON THEM: 1 — DONE · 2 — NOT TODAY/);
   assert.match(ctx, /never re-issue it unchanged/);
+});
+
+// ---- [02] plans 4, 5, 6: hour-honest sections, the week's frame, the fleet's receipts ----
+test("an 8am review does not reason from an 'evening' composition; a late run does — and the debrief/fleet sections ride along honestly", async () => {
+  const morning = await buildReviewContext(vault, new Date('2026-07-19T08:00:00'));
+  assert.doesNotMatch(morning, /HOW TODAY IS GOING/, 'the day has not happened at 8am');
+  assert.match(morning, /TODAY'S PICTURE/);
+  const late = await buildReviewContext(vault, new Date('2026-07-19T16:30:00'));
+  assert.match(late, /HOW TODAY IS GOING/, 'a late manual run keeps the evening picture');
+  // the new sections never throw the build; with nothing on record they are absent or say so, never invented
+  for (const ctx of [morning, late]) {
+    assert.doesNotMatch(ctx, /debrief FAILED|fleet FAILED/, 'the two new reads must not fail on an empty vault');
+  }
+});
+
+// ---- [02] plan 8: the third failed attempt of the day is the one that pushes ----
+test('failedAttemptsToday counts only today\'s errored reviews; the cap is three', () => {
+  const now = new Date('2026-08-05T09:00:00');
+  const rec = (id, status, at) => ({ id, kind: 'review', status, createdAt: at });
+  assert.equal(REVIEW_MAX_ATTEMPTS, 3);
+  assert.equal(failedAttemptsToday([], now), 0);
+  assert.equal(failedAttemptsToday([rec('a', 'error', '2026-08-05T08:00:00'), rec('b', 'error', '2026-08-05T08:20:00'), rec('c', 'pending', '2026-08-05T08:40:00')], now), 2, 'a live attempt is not a failure');
+  assert.equal(failedAttemptsToday([rec('a', 'error', '2026-08-04T08:00:00'), rec('b', 'error', '2026-08-05T08:20:00')], now), 1, "yesterday's failures are yesterday's");
+  assert.equal(failedAttemptsToday([rec('a', 'error', '2026-08-05T08:00:00'), rec('b', 'error', '2026-08-05T08:20:00'), rec('c', 'error', '2026-08-05T08:40:00')], now), 3);
+  assert.equal(failedAttemptsToday([{ id: 'x', kind: 'plan-today', status: 'error', createdAt: '2026-08-05T08:00:00' }], now), 0, 'another lane\'s error is not a review failure');
+});
+
+// ---- [02] plan 3: real calendar lines, capped and honest about the cap ----
+test('calendarDetailLines: today and tomorrow as HH:MM lines, all-day said, the cap named, nothing invented', () => {
+  const now = new Date('2026-08-05T08:00:00');
+  assert.equal(calendarDetailLines([], now), 'TODAY & TOMORROW ON THE CALENDAR: nothing.');
+  const ev = (date, time, label, end) => ({ date, time, end, label });
+  const out = calendarDetailLines([ev('2026-08-05', '09:30', 'Cook block', '10:30'), ev('2026-08-05', null, 'Bin day'), ev('2026-08-06', '15:30', 'Work 💰'), ev('2026-08-09', '10:00', 'Far away')], now);
+  assert.match(out, /^TODAY & TOMORROW ON THE CALENDAR:\n/);
+  assert.match(out, /- today 09:30–10:30 Cook block/);
+  assert.match(out, /- today all day Bin day/);
+  assert.match(out, /- tomorrow 15:30 Work 💰/);
+  assert.doesNotMatch(out, /Far away/, 'later days stay in the week-ahead counts');
+  // a busy today must not push tomorrow off the list — the cap is per day, and named
+  const many = [
+    ...Array.from({ length: 9 }, (_, i) => ev('2026-08-05', `${String(8 + i).padStart(2, '0')}:00`, `Event ${i + 1}`)),
+    ev('2026-08-06', '07:00', 'Early tomorrow'),
+  ];
+  const capped = calendarDetailLines(many, now);
+  assert.match(capped, /\(today: first 4 of 9\)/, 'a silent cap is a lie about his day');
+  assert.match(capped, /- tomorrow 07:00 Early tomorrow/, 'tomorrow survives a busy today');
+  assert.equal((capped.match(/^- /gm) || []).length, 5);
 });

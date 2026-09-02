@@ -96,7 +96,9 @@ export async function buildReviewContext(vaultPath, now = new Date()) {
   add('learning', () => preferencesContext(vaultPath)); // what he tends to do
   add('standing', async () => (await import('./standing.js')).standingContext(vaultPath)); // what he has SAID
   add('morning', async () => `TODAY'S PICTURE (computed now):\n${(await composeDispatch(vaultPath, 'morning', now)).text}`);
-  add('evening', async () => `HOW TODAY IS GOING:\n${(await composeDispatch(vaultPath, 'evening', now)).text}`);
+  // an 8am review must not reason from an "evening" composition of a day
+  // that has not happened — the section rides only on late runs (≥ 15:00)
+  if (now.getHours() >= 15) add('evening', async () => `HOW TODAY IS GOING:\n${(await composeDispatch(vaultPath, 'evening', now)).text}`);
   add('sessions', async () => {
     const s = await loadSessions(vaultPath, { limit: 4 });
     return s.length ? 'RECENT TRAINING:\n' + s.map((x) => `- ${x.date} ${x.routineName}: ${x.exercises.map((e) => `${e.name} ${e.sets.map((y) => `${y.weight}x${y.reps}`).join(',')}`).join(' | ')}`).join('\n') : null;
@@ -140,6 +142,13 @@ export async function buildReviewContext(vaultPath, now = new Date()) {
       : '';
     return `YESTERDAY'S REVIEW (${fate}) — hold today against it: for each adjustment it set, say plainly from today's data whether it happened, before today's read:\n${String(rec.decision.payload.text).slice(0, 900)}${marks}`;
   });
+  // the week's frame — Ask Nova already reasons inside it (askContext.js
+  // latestDebriefContext is the twin); the surface built for cross-domain
+  // reads did not
+  add('debrief', async () => (await import('./weeklyDebrief.js')).latestDebriefContext());
+  // the fleet's receipts — "the Watcher's verdict landed overnight" is the
+  // cross-domain connection this review exists to make
+  add('fleet', async () => (await import('./fleetContext.js')).fleetContext({ now: now.getTime() }));
   // ---- the connections the July sweep found missing ----------------------
   add('goals', async () => {
     const { goalsContext } = await import('./fitnessGoals.js');
@@ -155,6 +164,12 @@ export async function buildReviewContext(vaultPath, now = new Date()) {
     return ['BODYWEIGHT: ' + weightTrendLine(d28), sleepEfficiencyLine(d28), vo2MaxLine(d28)].filter(Boolean).join('\n');
   });
   add('food-patterns', async () => (await import('./foodPatterns.js')).foodPatternsContext({ days: 21 }));
+  // cross-domain adjustments need event NAMES and TIMES for today and
+  // tomorrow, not day-counts — the counts stay for the rest of the week
+  add('calendar-detail', async () => {
+    const { fetchEventsForRange } = await import('./calendar.js');
+    return calendarDetailLines(await fetchEventsForRange(2, now), now);
+  });
   add('week-ahead', async () => {
     const { fetchEventsForRange } = await import('./calendar.js');
     const events = await fetchEventsForRange(7);
@@ -317,11 +332,11 @@ function startReviewJob(vaultPath, context, mode, recordId, now) {
         await updateRecord(recordId, { status: 'pending', decision });
       }
     } catch (e) {
-      await updateRecord(recordId, { status: 'error', error: e.message }).catch(() => {});
+      await reviewFailed(recordId, e.message, now);
     }
   });
   child.on('error', async (err) => {
-    await updateRecord(recordId, { status: 'error', error: err.message }).catch(() => {});
+    await reviewFailed(recordId, err.message, now);
   });
 }
 
@@ -393,4 +408,46 @@ export async function setAdjustmentOutcome(recordId, index, outcome) {
     return outcome ? { ...rest, outcome, outcomeAt: new Date().toISOString() } : rest;
   });
   return updateRecord(recordId, { decision: { ...rec.decision, payload: { ...rec.decision.payload, adjustments: next } } });
+}
+
+// THE DAY'S FINAL FAILURE IS SAID OUT LOUD. In auto mode a review that errors
+// three times dies silently and he learns at night that the flagship never
+// spoke. The third error record of the day (todayReviewRecord's cap) sends
+// one push — the existing rail — pointing at the retry.
+export const REVIEW_MAX_ATTEMPTS = 3;
+export function failedAttemptsToday(records, now = new Date()) {
+  const t = todayISO(now);
+  return records.filter((r) => r.kind === 'review' && r.status === 'error' && r.createdAt && todayISO(new Date(r.createdAt)) === t).length;
+}
+async function reviewFailed(recordId, message, now) {
+  await updateRecord(recordId, { status: 'error', error: message }).catch(() => {});
+  try {
+    if (failedAttemptsToday(await listRecords(), now) >= REVIEW_MAX_ATTEMPTS) {
+      const { sendPush } = await import('./push.js');
+      await sendPush({ title: 'Daily Review — Nova', body: "Today's review couldn't compose, three times over — tap to retry from the Inbox.", tag: 'review-failed' });
+    }
+  } catch { /* the push is the courtesy; the error record is the truth */ }
+}
+
+// Today's and tomorrow's events as `HH:MM label` lines, capped PER DAY and
+// honest about the cap ("today: first 4 of 8") — one shared cap let a busy
+// today push tomorrow off the list entirely (his real 2 Sep: 8 events by
+// noon, tomorrow unseen). Pure; the section above feeds it what the
+// calendar returned. An all-day event has no time and says so.
+export const CALENDAR_DETAIL_CAP_PER_DAY = 4;
+export function calendarDetailLines(events, now = new Date()) {
+  const today = todayISO(now);
+  const tomorrow = todayISO(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
+  const all = (events || []).filter((e) => e && (e.date === today || e.date === tomorrow));
+  if (!all.length) return 'TODAY & TOMORROW ON THE CALENDAR: nothing.';
+  const line = (e) => `- ${e.date === today ? 'today' : 'tomorrow'} ${e.time || 'all day'}${e.end && e.time ? `–${e.end}` : ''} ${e.label || '(untitled)'}`;
+  const out = [];
+  const caps = [];
+  for (const [name, date] of [['today', today], ['tomorrow', tomorrow]]) {
+    const day = all.filter((e) => e.date === date);
+    const shown = day.slice(0, CALENDAR_DETAIL_CAP_PER_DAY);
+    if (day.length > shown.length) caps.push(`${name}: first ${shown.length} of ${day.length}`);
+    out.push(...shown.map(line));
+  }
+  return `TODAY & TOMORROW ON THE CALENDAR${caps.length ? ` (${caps.join('; ')})` : ''}:\n${out.join('\n')}`;
 }

@@ -142,9 +142,18 @@ DONE CRITERIA:
   at ≥8% (3-day avg vs 7-day baseline; REPLAYED on his real history first:
   fired 21 Aug beside a 13% HRV drop and 28 Aug alone, while 4–6% caught
   single-day noise); 9 the morning card names an open moderate/serious
-  injury (niggles stay chat-only). Next in roster: [02] remaining §6 items
-  (1 named failures — check, 3 calendar lines, 4 hour-honest sections, 5
-  latest debrief, 6 fleet receipts, 8 final-failure push), then [03]…
+  injury (niggles stay chat-only). [02] Daily Review §6 — MET (2 Sep): 1 was
+  already the gatherContext rail, 2 and 7 shipped earlier today; built now:
+  3 today + tomorrow as HH:MM lines, capped PER DAY (4) and naming the cap
+  (his real 2 Sep had 8 events by noon — one shared cap hid tomorrow
+  entirely; caught on the live context build); 4 the "HOW TODAY IS GOING"
+  evening section rides only on runs ≥ 15:00; 5 the latest weekly debrief
+  section (twin: askContext.js); 6 the fleet's 48h receipts (fleetContext);
+  8 the day's third failed compose sends one push naming the retry
+  (reviewFailed → failedAttemptsToday, REVIEW_MAX_ATTEMPTS=3). Live context
+  build (read-only, env loaded): calendar detail present, debrief present,
+  fleet present, zero FAILED sections. Next in roster: [03] fuel-cross §6,
+  then [04]…
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised
