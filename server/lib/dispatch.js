@@ -361,7 +361,7 @@ async function composeEvening(vaultPath, now) {
     const bits = [];
     try {
       const events = await fetchEventsForDay(tomorrow);
-      if (events.length) bits.push(events.slice(0, 3).map((e) => `${e.time || '—'} ${e.label}`).join(' · '));
+      if (events.length) bits.push(events.slice(0, 3).map((e) => `${e.time || '—'} ${e.label}`).join(' · ') + (events.length > 3 ? ` · +${events.length - 3} more` : ''));
     } catch { /* calendar optional here */ }
     try {
       const { exercises } = await loadExerciseLibrary(vaultPath);
@@ -371,6 +371,21 @@ async function composeEvening(vaultPath, now) {
       else if (isActiveRestDay(schedule, tomorrow)) bits.push('training: active rest (walk / stretch)');
     } catch { /* optional */ }
     if (bits.length) lines.push(`**Tomorrow.** ${bits.join(' · ')}.`);
+  } catch { /* optional */ }
+
+  // to-dos — the open loops, where the day closes. The line format records
+  // when a to-do was ADDED but not when it was ticked (todoLine.js), so
+  // "checked today" is not knowable and is not claimed.
+  try {
+    const { listTodos } = await import('./todos.js');
+    const { items } = await listTodos(vaultPath);
+    const open = items.filter((x) => !x.checked);
+    const ticked = items.filter((x) => x.checked).length;
+    if (items.length) {
+      const dated = open.filter((x) => x.added).sort((a, b) => a.added.localeCompare(b.added));
+      const oldest = dated[0];
+      lines.push(`**To-dos.** ${open.length} still open${oldest ? ` — oldest: "${oldest.text}" (added ${oldest.added})` : ''}${ticked ? ` · ${ticked} ticked off on the list` : ''}.`);
+    }
   } catch { /* optional */ }
 
   try {
@@ -437,13 +452,32 @@ async function composeWeekly(vaultPath, now) {
     }
   } catch { /* optional */ }
 
+  // recovery + bodyweight: the week's mirror shows the body, not just the
+  // work. Honest below three logged days on either side, like every sibling.
+  try {
+    const days = await loadRecentDays(28);
+    const wow = (key, from, to) => {
+      const rows = days.filter((d) => inWeek(d.date, from, to) && d[key] != null);
+      return rows.length >= 3 ? { avg: rows.reduce((s, d) => s + d[key], 0) / rows.length, n: rows.length } : null;
+    };
+    const bits = [];
+    const hrv = wow('hrv', thisMon), hrvPrev = wow('hrv', lastMon, thisMon);
+    if (hrv) bits.push(`HRV averaging ${Math.round(hrv.avg)} ms${hrvPrev ? ` (last week ${Math.round(hrvPrev.avg)})` : ''} over ${hrv.n} days`);
+    const sl = wow('sleepAsleepMinutes', thisMon), slPrev = wow('sleepAsleepMinutes', lastMon, thisMon);
+    if (sl) bits.push(`sleep ${(sl.avg / 60).toFixed(1)}h a night${slPrev ? ` (last week ${(slPrev.avg / 60).toFixed(1)}h)` : ''}`);
+    if (bits.length) lines.push(`**Recovery.** ${bits.join('; ')}.`);
+    const { weightTrendLine } = await import('./healthData.js');
+    const wt = weightTrendLine(days);
+    if (wt && !/no weight|not enough|no data/i.test(wt)) lines.push(`**Bodyweight.** ${wt.replace(/^Bodyweight:\s*/, '')}`);
+  } catch { /* optional */ }
+
   // vault activity (pages touched, via updated/created frontmatter)
   try {
     const vault = new Vault(vaultPath);
     const pages = (await vault.listPages()).filter((p) => inWeek(p.date, thisMon));
     if (pages.length) {
       const names = pages.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3).map((p) => p.title);
-      lines.push(`**Vault.** ${pages.length} page${pages.length === 1 ? '' : 's'} touched this week — latest: ${names.join(', ')}.`);
+      lines.push(`**Vault.** ${pages.length} page${pages.length === 1 ? '' : 's'} touched this week — latest${pages.length > 3 ? ` ${names.length} of ${pages.length}` : ''}: ${names.join(', ')}.`);
     }
   } catch { /* optional */ }
 
@@ -559,6 +593,14 @@ export async function runDispatch(vaultPath, { slot = 'morning', force = false }
         sendTelegramText(`${title}\n\n${text.replace(/\*\*/g, '')}`)).catch(() => {});
       return { record: await updateRecord(record.id, { status: 'filed', destination, undoData: undo, filedAt: new Date().toISOString(), auto: true }) };
     } catch (e) {
+      // auto mode skips the pending push — so a brief that failed to file
+      // used to sit in the Inbox unannounced; the whole point of auto is that
+      // it reaches him
+      import('./push.js').then(({ sendPush }) => sendPush({
+        title: `${title} — Nova`,
+        body: "Today's brief hit a snag filing — it's waiting in your Inbox.",
+        tag: `record-${record.id}`,
+      })).catch(() => {});
       return { record: await updateRecord(record.id, { status: 'pending', error: 'auto-filing failed: ' + e.message }) };
     }
   }

@@ -245,3 +245,39 @@ test('compost dismiss remembers the key across re-runs; orphans are informationa
   ({ proposals } = await runCompost(vault));
   assert.ok(!proposals.some((p) => p.type === 'orphan' && p.title === 'Lonely Island'));
 });
+
+// ---- [05] plans 3 + 4: the evening closes the day's open loops; the weekly mirror shows the body ----
+test('evening brief names the open to-dos and the oldest one; the weekly brief carries recovery only with three logged days a side', async () => {
+  const { addTodo } = await import('../lib/todos.js');
+  await addTodo(vault, 'swipe verification item', 'admin');
+  await addTodo(vault, 'book the dentist', 'admin');
+  const evening = await composeDispatch(vault, 'evening');
+  const todoLine = evening.text.split('\n').find((l) => l.startsWith('**To-dos.**'));
+  assert.ok(todoLine, 'the evening has a to-do line once there are to-dos');
+  // derived from the list itself — earlier tests in this file seed to-dos too
+  const { listTodos } = await import('../lib/todos.js');
+  const { items } = await listTodos(vault);
+  const open = items.filter((x) => !x.checked);
+  const oldest = open.filter((x) => x.added).sort((a, b) => a.added.localeCompare(b.added))[0];
+  assert.match(todoLine, new RegExp(`^\\*\\*To-dos\\.\\*\\* ${open.length} still open — oldest: "${oldest.text}" \\(added ${oldest.added}\\)`));
+  assert.match(todoLine, new RegExp(`${items.length - open.length} ticked off on the list`));
+  assert.doesNotMatch(todoLine, /checked today/, 'a completion date is not recorded, so it is not claimed');
+
+  // weekly recovery — derived from the data dir as it stands (earlier tests
+  // in this file seed health days too), so the assertion is about the maths
+  const monday = (() => { const d = new Date(); const off = (d.getDay() + 6) % 7; d.setDate(d.getDate() - off); d.setHours(12, 0, 0, 0); return d; })();
+  const dayN = (n) => { const d = new Date(monday); d.setDate(monday.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  await saveDay(dayN(0), { hrv: 70, sleepAsleepMinutes: 420 });
+  await saveDay(dayN(1), { hrv: 66, sleepAsleepMinutes: 400 });
+  await saveDay(dayN(2), { hrv: 62, sleepAsleepMinutes: 380 });
+  const { loadRecentDays } = await import('../lib/healthData.js');
+  const thisMon = dayN(0);
+  const weekRows = (await loadRecentDays(28)).filter((d) => d.date >= thisMon && d.hrv != null);
+  const avgHrv = Math.round(weekRows.reduce((t, d) => t + d.hrv, 0) / weekRows.length);
+  const at = new Date(Math.max(Date.now(), new Date(`${dayN(2)}T12:00:00`).getTime()));
+  const weekly = await composeDispatch(vault, 'weekly', at);
+  const rec = weekly.text.split('\n').find((l) => l.startsWith('**Recovery.**'));
+  assert.ok(rec, 'three or more logged days make an average worth saying');
+  assert.match(rec, new RegExp(`HRV averaging ${avgHrv} ms.* over ${weekRows.length} days`));
+  assert.match(rec, /sleep \d\.\dh a night/);
+});

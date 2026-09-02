@@ -185,8 +185,24 @@ DONE CRITERIA:
   Ops screen" / "10 of M shown — the rest are in his Inbox"; 8
   dropAskContextCache() on every successful write (index.js chokepoint).
   Live reflex replies and the reflex card render UNSEEN at 375 (a live
-  /ask check follows the deploy). Next in roster: [05] Dispatch §6, then
-  [06]…
+  /ask check follows the deploy). [05] Dispatch §6 — MET with one REJECTION (2–3 Sep): 1
+  an auto brief that fails to file now pushes "hit a snag — waiting in your
+  Inbox"; 3 the evening brief closes the day's loops ("N still open —
+  oldest: … (added …) · M ticked off"; "checked today" is NOT claimed — the
+  to-do line records no completion date); 4 the weekly brief shows the body
+  (HRV + sleep averages week-on-week at ≥3 logged days a side; bodyweight
+  trend line) — live: "HRV averaging 65 ms (last week 66) over 3 days",
+  "82 kg, −0.7 kg over 26 days"; 5 was already pinned (twins.test.js); 6
+  tomorrow's events say "+N more" and the weekly vault line says "latest 3
+  of N"; 7 GATED — the real-morning diff of composeDispatch vs composeShow
+  showed no shared fact diverging (steps identical; the show simply speaks
+  fewer beats), so no helper extraction. 2 (afternoon protein-pace nudge)
+  REJECTED ON HIS REAL LOG: at every hour 16:00–21:00 and threshold 40–70%
+  it would have fired on 22–25 of 25 logged days (his protein lands late;
+  the floor is missed 21 of 25 days regardless) — daily nagging with no
+  discriminating signal; the weekly floor-most-days finding and the Fuel
+  hero's gap coaching already carry the truth. Next in roster: [06] Plan
+  Today §6, then [07]… (07 plans 2, 3, 7 shipped; 1, 4–6 to check).
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised
