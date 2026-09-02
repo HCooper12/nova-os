@@ -13,7 +13,7 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**2 SEP (cont.) — EXECUTING THE AUDIT'S PROGRAMME: TIER 1 DONE, TIER 2 UNDER WAY.**
+**2 SEP (cont.) — EXECUTING THE AUDIT'S PROGRAMME: TIERS 1 AND 2 DONE, TIER 3 NEXT.**
 *(Interim update mid-session; the session log entry is written at close.)*
 
 GOAL: execute `design/audits/2026-08-full-audit/99-SYNTHESIS.md` in tier
@@ -34,8 +34,38 @@ DONE CRITERIA:
 - Tier 2 #7 respect-the-no — MET (`1db0765`). `lib/respectTheNo.js`;
   program review (28d/20%), trust ladder (60d/25%), food scout (60d/2×,
   once), pattern scout (declined context), compost (per-key dates, 90d).
-- Tier 2 #8 settle-timeout watchdog — **UNMET, recon started.**
-- Tier 2 #9–#14, Tier 3 — UNMET.
+- Tier 2 #8 settle watchdog — MET (`b19cf8d`). `lib/settle.js`; 29 spawn
+  sites in 27 files, per-lane minutes visible at each site; the honest
+  reason lands on stderr where every site reads its failure. Interactive
+  Code tab, Forge, study runner and watch script keep their own.
+- Tier 2 #9 named absence — MET (`a3395af`). `lib/contextSections.js`
+  (gatherContext: EMPTY vs FAILED); Daily Review, Plan Today, Ask Nova (+
+  resumed refresh), quick session; Coach chat keeps its shape, shared NOTE.
+- Tier 2 #10 burn on landing — MET (`b490c83`). briefState gains
+  greet + rituals (server-side, cross-device); greeting asks the server on
+  a new day and stamps on delivery (15-min retry backoff); rituals mark on
+  reply-on-screen (onDelivered hook); Coach skipped-work cooldown stamps on
+  the answer (startAskCoach onReady); follow-ups dismiss on the receipt.
+- Tier 2 #11 twins — MET (`36d43ef`). cadence.js mondayOf/mondayIso (six
+  copies → one); calendar.js WORKOUT_RE; dispatch.js dateHashIndex pinned
+  (the client hashed the UTC date — real drift before 10:00); healthData
+  yesterdayStepsShape; spacing.js (schedules pinned); Code tab's models from
+  the board via a snapshot slice. `twins.test.js`.
+- Tier 2 #12 path discipline — MET (`c0117df`). Three stores (not two)
+  honor NOVA_DATA_DIR; studyLane's inventory resolves from import.meta.url
+  (launchd cwd is nova-os/server — confirmed live; the section had run
+  empty in production); intent's code job runs at the repo root.
+  `pathDiscipline.test.js` scans the source.
+- Tier 2 #13 truth in copy — MET (`adbe89d`). Debrief week window real
+  (`|| true` gone), nutrition says LAST 7 DAYS; distill oldest-first + a
+  real 30-day pruner + true messages; Galaxy caption no longer promises
+  recency.
+- Tier 2 #14 time-value + parity — MET (`9578a06`). meal-prep/coach-audit
+  8d, cfo 14d expiries; cfo + meal-prep are DETERMINISTIC lanes on the model
+  board (switch, no picker; setLanePref rejects a model for them).
+- Tier 3 (#15 Galaxy rebuild, #16 follow-through loops, #17 pocket set,
+  #18 per-item remainder) — UNMET. #16 recon started (streaks reconcile,
+  review continuity, plan completion loop).
 - Phone-width (375px) pass — still BLOCKED (browser tool resize lies); every
   client change this session is code-read + bundle-marker only.
 
@@ -57,7 +87,9 @@ STATE:
   createdExercises }`; legacy `routines:[…]` records still undo.
 - Compost store: `dismissed:{key:iso}` replaces `dismissedKeys:[]` (migrated
   on load; live store had 0 legacy keys).
-- Tests 727 → 760, all green. verify:shipped has three new markers.
+- Tests 727 → 783, all green. verify:shipped has six new markers.
+- New helpers this session: stagedPass, sources, respectTheNo, settle,
+  contextSections, spacing; heartbeat notes; briefState greet/rituals.
 
 DECISIONS:
 - Coach could NOT sandbox by vault path → vaultStateFile keeps ONE cache per
@@ -111,15 +143,20 @@ OPEN QUESTIONS / BLOCKERS:
   may not fit; surfaced, not acted on.
 - Week-plan window semantics; `guardian: 26h`; phone-width pass — carried.
 
-NEXT ACTION: Tier 2 #8 — the settle-timeout watchdog ([24]): overnight's
-8-min poll timeout with the honest "may still land" message, extracted for
-every spawn-and-settle lane. Then #9 named-absent-context, #10 burn-on-
-landing, #11 twins, #12 path-discipline, #13 truth-in-copy, #14 TIME_VALUE.
+NEXT ACTION: Tier 3 — recommended order #16 server-side first (streaks
+count approved training checks + schedule-aware; the Daily Review reads
+yesterday's review and its fate), then #16's plan-completion loop and #17
+(UI — needs a phone-width path), then #15 Galaxy rebuild (UI, gated on
+verification), then #18 per-item remainder.
 
 DO NOT:
 - Do not sandbox a vaultStateFile-owned file by path, and do not write one
   raw — go through the module (see stagedPass.js header).
 - Do not match `\w{3}` for an en-GB short month — September is "Sept".
+- Do not write a source-scanning test whose forbidden literal appears in
+  your own explanatory comment — scan code lines only.
+- Do not run verify:shipped with the next item's changes uncommitted: it
+  (correctly) fails the git check for the previous item.
 - Do not read a test's `applyOps` scratch vault as independent: the state
   cache is per module; set NOVA_VAULT_GRACE_MS=0 or the second vault reads
   the first's library.
