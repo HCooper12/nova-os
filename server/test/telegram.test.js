@@ -30,3 +30,13 @@ test('without a token the bridge is dormant', () => {
   assert.equal(telegramConfigured(), false);
   if (prev) process.env.TELEGRAM_BOT_TOKEN = prev;
 });
+
+
+test('a non-text message gets one honest line naming what it was — never silence, never a guess', async () => {
+  const { nonTextReply } = await import('../lib/telegram.js');
+  assert.match(nonTextReply({ photo: [{ file_id: 'x' }] }), /Text only here for now, sir — a photo doesn't reach Nova yet/);
+  assert.match(nonTextReply({ voice: { file_id: 'x' } }), /a voice note doesn't reach Nova yet/);
+  assert.match(nonTextReply({ document: { file_id: 'x' } }), /a file doesn't reach Nova yet/);
+  assert.equal(nonTextReply({ text: 'hello' }), null, 'text is routed, not answered here');
+  assert.equal(nonTextReply({ new_chat_members: [] }), null, 'a service message is not answered at all');
+});

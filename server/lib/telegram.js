@@ -151,9 +151,17 @@ async function handleUpdate(vaultPath, state, update) {
   }
 
   const msg = update.message;
-  if (!msg?.text) return;
+  if (!msg) return;
   const chatId = String(msg.chat.id);
   const authorized = !!CHAT_ID() && chatId === CHAT_ID();
+  if (!msg.text) {
+    // a photo or a voice note used to vanish without a word — the one silent
+    // class in a bridge whose every other tap lands on the rails. Say so; the
+    // photo→scan and voice→ask lanes are named capability gaps, not this.
+    const line = nonTextReply(msg);
+    if (line && authorized) await tg('sendMessage', { chat_id: chatId, text: line }).catch(() => {});
+    return;
+  }
   const route = routeIncoming(msg.text, { authorized });
 
   if (route.type === 'unauthorized') {
@@ -181,6 +189,16 @@ async function handleUpdate(vaultPath, state, update) {
     return;
   }
   await answerAsk(vaultPath, state, chatId, route.question);
+}
+
+// Pure: what to say to a message that carries no text. null for a message
+// with nothing recognisable (a service message, a chat-member change).
+export function nonTextReply(msg) {
+  if (!msg || msg.text) return null;
+  const kind = msg.photo ? 'a photo' : (msg.voice || msg.audio) ? 'a voice note' : msg.video || msg.video_note ? 'a video'
+    : msg.document ? 'a file' : msg.sticker ? 'a sticker' : msg.location ? 'a location' : null;
+  if (!kind) return null;
+  return `Text only here for now, sir — ${kind} doesn't reach Nova yet. Type it, or use the app for photos.`;
 }
 
 export function startTelegramBridge(vaultPath) {

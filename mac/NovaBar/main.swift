@@ -69,9 +69,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
             } else {
                 button.title = "◉"          // last resort: always something to click
             }
-            button.toolTip = "Nova — ⌥Space"
+            button.toolTip = "Nova — ⌥Space · right-click for Reload / Quit"
             button.action = #selector(toggle)
             button.target = self
+            // right-click reaches the shell's own three verbs (see showMenu)
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
         statusItem.isVisible = true
         // NOTE: on a notched Mac with a full menu bar, macOS may place this
@@ -114,17 +116,58 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
         panel.contentView = vis
     }
 
-    // Grant the mic once, at the OS prompt, rather than on every summon.
+    // Grant the mic once, at the OS prompt, rather than on every summon — but
+    // only to Nova's own origin. The grant used to be unconditional, so any
+    // page the web view was ever steered to could have opened the mic.
     func webView(_ webView: WKWebView,
                  requestMediaCapturePermissionFor origin: WKSecurityOrigin,
                  initiatedByFrame frame: WKFrameInfo,
                  type: WKMediaCaptureType,
                  decisionHandler: @escaping (WKPermissionDecision) -> Void) {
-        decisionHandler(.grant)
+        let ours = novaURL.host?.lowercased()
+        decisionHandler(ours != nil && origin.host.lowercased() == ours ? .grant : .deny)
+    }
+
+    // A failed load used to leave a blank panel — running, reachable, and
+    // apparently dead. Say what happened, in the panel, with the one action.
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        let target = novaURL.absoluteString
+        let why = error.localizedDescription
+            .replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;")
+        let html = """
+        <!doctype html><meta name="viewport" content="width=device-width,initial-scale=1">
+        <body style="margin:0;height:100vh;display:flex;align-items:center;justify-content:center;background:transparent;color:#e8ecf6;font:14px/1.6 -apple-system,system-ui">
+        <div style="text-align:center;max-width:300px;padding:24px">
+          <div style="font:600 9px Menlo,monospace;letter-spacing:.22em;color:#e0b26a">NOVA UNREACHABLE</div>
+          <div style="margin:12px 0 18px;opacity:.75">\(why)</div>
+          <a href="\(target)" style="display:inline-block;padding:9px 16px;border-radius:8px;border:1px solid rgba(232,236,246,.25);color:#59e6ff;text-decoration:none;font:600 12px -apple-system,system-ui">Retry</a>
+        </div></body>
+        """
+        webView.loadHTMLString(html, baseURL: nil)
     }
 
     @objc func toggle() {
+        if NSApp.currentEvent?.type == .rightMouseUp { showMenu(); return }
         if panel.isVisible { panel.orderOut(nil); return }
+        showPanel()
+    }
+
+    // The shell's own three verbs — everything else is the web app's.
+    func showMenu() {
+        let menu = NSMenu()
+        menu.addItem(withTitle: "Reload Nova", action: #selector(reloadNova), keyEquivalent: "r").target = self
+        let where_ = NSMenuItem(title: novaURL.absoluteString, action: nil, keyEquivalent: "")
+        where_.isEnabled = false
+        menu.addItem(where_)
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(withTitle: "Quit Nova", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        statusItem.menu = menu
+        statusItem.button?.performClick(nil)
+        statusItem.menu = nil   // left-click keeps toggling the panel
+    }
+
+    @objc func reloadNova() {
+        web.load(URLRequest(url: novaURL))
         showPanel()
     }
 

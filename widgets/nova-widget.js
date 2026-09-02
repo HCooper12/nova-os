@@ -21,6 +21,8 @@
 // everything says nothing:
 //   small     — the numbers (steps, protein, kcal, next, gate)
 //   medium    — the numbers PLUS today's leadership idea
+//   large     — the numbers, the idea, AND today's top 3 (the plan's payload,
+//               which /widget already shipped and no size drew)
 //   lock rect — today's leadership idea alone
 //   lock line — the idea's title alone
 
@@ -107,6 +109,21 @@ try {
 
     // The leadership idea only on the sizes with room for it. On a small
     // widget it would either truncate to nonsense or crowd out the numbers.
+    // TODAY'S TOP 3 — large only; on smaller sizes it would crowd the numbers
+    if (family === 'large' && Array.isArray(d.top3) && d.top3.length) {
+      widget.addSpacer(8);
+      const ph = widget.addText(d.planStatus === 'pending' ? 'TOP 3 · DRAFT — NEEDS YOUR YES' : 'TOP 3');
+      ph.font = new Font('Menlo-Bold', 8);
+      ph.textColor = d.planStatus === 'pending' ? GOLD : CY;
+      widget.addSpacer(3);
+      d.top3.slice(0, 3).forEach((t, i) => {
+        const row = widget.addText(`${i + 1}  ${t}`);
+        row.font = Font.systemFont(11);
+        row.textColor = INK;
+        row.lineLimit = 1;
+      });
+    }
+
     if (lead && (family === 'medium' || family === 'large')) {
       widget.addSpacer(8);
       const lh = widget.addText('TRY TODAY');
@@ -146,7 +163,8 @@ try {
   }
 }
 
-widget.url = 'https://hcooper12.github.io/nova-os/'; // tap opens the app
+// tap opens the app — the idea-only sizes open the Leader, where the idea lives
+widget.url = isAccessory ? 'https://hcooper12.github.io/nova-os/#/leader' : 'https://hcooper12.github.io/nova-os/';
 if (config.runsInWidget) Script.setWidget(widget);
 else await widget.presentMedium(); // in-app preview shows the size with the idea
 Script.complete();
