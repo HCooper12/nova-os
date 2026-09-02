@@ -291,7 +291,20 @@ DONE CRITERIA:
   and a Monday-morning plan targets THIS Monday (planTargetMonday — the old
   nextMonday would have planned the week after); 5 a discarded draft no
   longer blocks a re-run; 6 tests for the window, the target Monday and the
-  discarded-draft guard. Next in roster: [15] Weekly Debrief §6.
+  discarded-draft guard. [15] Weekly Debrief §6 — MET (3 Sep): 3 was Tier
+  2 #13; built now: 1 the drafted week plan rides the debrief's context for
+  its week (discarded drafts excluded) and the prompt holds the week against
+  it; 2 the debrief's CHANGES ride the record structured (payload.changes)
+  and Plan Today reads STANDING CHANGES THIS WEEK (the Daily Review already
+  carries the whole debrief); 4 the missed-week catch-up, GATED ON TESTS
+  and shipped: debriefWeekFor is pure — this week once the slot has passed,
+  LAST week for two days after a slept-through slot (title and context keyed
+  to the week it is FOR: record.weekStart, payload.weekStart; legacy
+  records key by their own Monday) — and the test caught a real ordering
+  bug on the first pass (getDay() ordering read Saturday as "after a
+  Sunday slot"; Monday-first indices fix it); 5 buildDebriefContext is on
+  the gatherContext rail; 6 the third failed compose for a week pushes.
+  Next in roster: [16] Coach Reflection §6.
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised

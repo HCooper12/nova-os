@@ -12,7 +12,7 @@ process.env.NOVA_VAULT_GRACE_MS = '0';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { getDebriefConfig, setDebriefConfig, buildDebriefPrompt, composeDebriefText, buildDebriefContext, latestDebriefContext } = await import('../lib/weeklyDebrief.js');
+const { getDebriefConfig, setDebriefConfig, buildDebriefPrompt, composeDebriefText, buildDebriefContext, latestDebriefContext, debriefWeekFor, recordWeekStart, weekChangesContext } = await import('../lib/weeklyDebrief.js');
 const { createRecord } = await import('../lib/inboxStore.js');
 
 await mkdir(path.join(vault, 'Wiki'), { recursive: true });
@@ -99,4 +99,54 @@ test('"RECOVERY THIS WEEK" is this week — and the rolling nutrition window say
   assert.match(ctx, /RECOVERY THIS WEEK \(avgs over 2 logged days\)/, 'a `|| true` used to make this a rolling last-7 under a "THIS WEEK" label');
   assert.match(ctx, /NUTRITION, LAST 7 DAYS/, 'the nutrition log has no week key — the label says what the window is');
   assert.doesNotMatch(ctx, /NUTRITION THIS WEEK/);
+});
+
+// ---- [15] plans 1, 2, 4: the drafted week plan in the context; changes ride the record; the missed-week catch-up ----
+test('debriefWeekFor: this week once the slot has passed, last week for two days after a missed slot, otherwise nothing', () => {
+  const cfg = { weekday: 0, hour: 17 }; // Sunday 17:00
+  const at = (s) => new Date(s);
+  assert.equal(debriefWeekFor(at('2026-09-05T18:00:00'), cfg, []), null, 'Saturday — not yet');
+  assert.equal(debriefWeekFor(at('2026-09-06T16:59:00'), cfg, []), null, 'Sunday before the hour — not yet');
+  // the week of Mon 31 Aug → Sun 6 Sep
+  assert.deepEqual(debriefWeekFor(at('2026-09-06T17:00:00'), cfg, []), { weekStart: '2026-08-31', weekEnd: '2026-09-06', catchUp: false });
+  const done = [{ kind: 'weekly-debrief', status: 'pending', weekStart: '2026-08-31', createdAt: '2026-09-06T17:20:00' }];
+  assert.equal(debriefWeekFor(at('2026-09-06T19:00:00'), cfg, done), null, 'already debriefed this week');
+  // the Mac slept through Sunday: Monday and Tuesday catch up for LAST week
+  assert.deepEqual(debriefWeekFor(at('2026-09-07T08:30:00'), cfg, []), { weekStart: '2026-08-31', weekEnd: '2026-09-06', catchUp: true }, 'Monday → last week');
+  assert.deepEqual(debriefWeekFor(at('2026-09-08T08:30:00'), cfg, []), { weekStart: '2026-08-31', weekEnd: '2026-09-06', catchUp: true }, 'Tuesday still catches up');
+  assert.equal(debriefWeekFor(at('2026-09-09T08:30:00'), cfg, []), null, 'Wednesday — the moment has passed');
+  assert.equal(debriefWeekFor(at('2026-09-07T08:30:00'), cfg, done), null, 'last week was debriefed — nothing to catch up');
+  const legacy = [{ kind: 'weekly-debrief', status: 'filed', createdAt: '2026-09-06T17:20:00' }]; // no weekStart stamp
+  assert.equal(recordWeekStart(legacy[0]), '2026-08-31', 'a legacy record is keyed by the Monday of its own week');
+  assert.equal(debriefWeekFor(at('2026-09-07T08:30:00'), cfg, legacy), null);
+  const failed = [{ kind: 'weekly-debrief', status: 'error', weekStart: '2026-08-31', createdAt: '2026-09-06T17:20:00' }];
+  assert.ok(debriefWeekFor(at('2026-09-07T08:30:00'), cfg, failed)?.catchUp, 'an errored attempt is not a debrief');
+});
+
+test('compose returns the structured changes and titles a catch-up by the week it is FOR; the daily lanes read the standing changes', async () => {
+  const parsed = { read: 'Solid week.', wins: ['Four sessions'], changes: [{ do: 'Front-load protein', why: 'floor missed 5 of 7' }, { do: 'Bed by 22:30', why: '' }], question: 'What would make Thursdays stick?' };
+  const composed = composeDebriefText(parsed, new Date('2026-09-08T08:30:00'), { weekEnd: '2026-09-06' });
+  assert.match(composed.title, /week ending Sunday 06 September/, 'the catch-up is titled by the week it debriefs, not the day it ran');
+  assert.deepEqual(composed.changes, [{ do: 'Front-load protein', why: 'floor missed 5 of 7' }, { do: 'Bed by 22:30', why: '' }]);
+  assert.equal(await weekChangesContext(new Date('2026-09-08T08:30:00')), '', 'no debrief on record → nothing');
+  await createRecord({
+    id: 'wdb0906', kind: 'weekly-debrief', weekStart: '2026-08-31', status: 'filed', text: composed.title, source: 'coach', mode: 'auto', createdAt: '2026-09-06T17:20:00',
+    decision: { route: 'journal', confidence: 'high', title: composed.title, reason: 'x', payload: { text: composed.text, category: 'training', label: 'Weekly debrief', changes: composed.changes, weekStart: '2026-08-31' } },
+  });
+  const ctx = await weekChangesContext(new Date('2026-09-08T08:30:00'));
+  assert.match(ctx, /STANDING CHANGES THIS WEEK \(set by the weekly debrief — check adherence, don't re-litigate them\):/);
+  assert.match(ctx, /1\. Front-load protein — floor missed 5 of 7\n2\. Bed by 22:30/);
+  assert.equal(await weekChangesContext(new Date('2026-09-20T08:30:00')), '', 'a fortnight later it is no longer this week\'s standing set');
+});
+
+test('the drafted week plan rides the debrief context for its week, and a discarded draft does not', async () => {
+  await createRecord({
+    id: 'wpl0907', kind: 'week-plan', status: 'filed', text: 'Week plan — 07 September', source: 'nova', mode: 'draft', createdAt: '2026-09-06T16:10:00',
+    decision: { route: 'vault-note', confidence: 'high', title: 'Week plan — 07 September', reason: 'x', payload: { relPath: 'Wiki/Plans/Week of 2026-09-07.md', text: '# Week of 07 September\n- **Training:** Pull (9 exercises)\n- ⚠ **Conflict:** Workout 13:20 overlaps Work' } },
+  });
+  const ctx = await buildDebriefContext(vault, new Date('2026-09-13T17:00:00'));
+  assert.match(ctx, /THE WEEK PLAN NOVA DRAFTED FOR THIS WEEK \(he approved it\)/);
+  assert.match(ctx, /Conflict:\*\* Workout 13:20 overlaps Work/);
+  assert.doesNotMatch(await buildDebriefContext(vault, new Date('2026-09-06T17:00:00')), /THE WEEK PLAN NOVA DRAFTED/, 'a plan for next week is not this week\'s');
+  assert.doesNotMatch(await buildDebriefContext(vault, new Date('2026-09-13T17:00:00')), /week-plan FAILED/);
 });

@@ -99,6 +99,9 @@ export async function buildPlanContext(vaultPath, now = new Date()) {
   // the plan reasons TOWARD his goals — the same rail the review reads
   // (dailyReview.js 'goals' is the twin)
   add('goals', async () => (await import('./fitnessGoals.js')).goalsContext(vaultPath));
+  // the weekly debrief's standing changes reach the day — the daily lane
+  // inherits the debrief's memory instead of building its own
+  add('week-changes', async () => (await import('./weeklyDebrief.js')).weekChangesContext(now));
   // THE MORNING SIBLINGS CROSS-FEED: the plan sees the last review's read and
   // adjustments (yesterday evening's, or this morning's if it ran first), so
   // the day's three are picked against what the review already said

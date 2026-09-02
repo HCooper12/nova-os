@@ -1,4 +1,5 @@
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
+import { gatherContext } from './contextSections.js';
 import { mondayOf } from './cadence.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -78,21 +79,34 @@ export async function setDebriefConfig(patch) {
 
 /* ------------------------------- context --------------------------------- */
 
-export async function buildDebriefContext(vaultPath, now = new Date()) {
-  const parts = [];
-  const add = (label, fn) => fn().then((v) => v && parts.push(v)).catch(() => {});
+// `weekStart` may be overridden for a missed-week catch-up (see debriefWeekFor).
+export async function buildDebriefContext(vaultPath, now = new Date(), { weekStart: weekStartOverride = null } = {}) {
+  // a section that FAILS is named to the model, one that is empty says
+  // nothing — the add() used to swallow both (lib/contextSections.js)
+  const sections = [];
+  const add = (label, fn) => sections.push({ label, load: fn });
   // the org block — standing rules, the fleet, and what his other agents are
   // asking of him. Inherited, not hand-wired.
-  await add('org', async () => (await import('./orgContext.js')).orgContext(vaultPath, 'weekly-debrief'));
-  await add('advice', async () => {
+  add('org', async () => (await import('./orgContext.js')).orgContext(vaultPath, 'weekly-debrief'));
+  add('advice', async () => {
     // the Coach's recommendations this week and their fates — the debrief
     // holds the week against what was actually advised (audit item #11)
     const { adviceContext } = await import('./coach.js');
     return adviceContext(7);
   });
-  const weekStart = todayISO(mondayOf(now));
+  const weekStart = weekStartOverride || todayISO(mondayOf(now));
+  // THE DRAFTED WEEK PLAN — the last link of the week-plan chain: the
+  // debrief holds the week against what Nova drafted for it
+  add('week-plan', async () => {
+    const records = await listRecords();
+    const plan = records
+      .filter((r) => r.kind === 'week-plan' && r.status !== 'discarded' && r.decision?.payload?.text && String(r.decision.payload.relPath || '').includes(weekStart))
+      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))[0];
+    if (!plan) return null;
+    return `THE WEEK PLAN NOVA DRAFTED FOR THIS WEEK (${plan.status === 'filed' ? 'he approved it' : plan.status}) — hold the week against it: training days planned vs done, flagged conflicts vs what actually collided, carry-overs placed vs cleared:\n${String(plan.decision.payload.text).slice(0, 1600)}`;
+  });
 
-  await add('leadership', async () => {
+  add('leadership', async () => {
     // the Leader's week: what was suggested each day and what he is working
     // against — so the Sunday sit-down can close the leadership loop too
     const { readLeaderState } = await import('./leader.js');
@@ -106,30 +120,30 @@ export async function buildDebriefContext(vaultPath, now = new Date()) {
     return lines.join('\n');
   });
 
-  await add('profile', () => profileContext(vaultPath));
-  await add('goals', async () => (await import('./fitnessGoals.js')).goalsContext(vaultPath));
-  await add('tunes', async () => (await import('./progressionTunes.js')).tunesContext(vaultPath));
-  await add('week-sessions', async () => {
+  add('profile', () => profileContext(vaultPath));
+  add('goals', async () => (await import('./fitnessGoals.js')).goalsContext(vaultPath));
+  add('tunes', async () => (await import('./progressionTunes.js')).tunesContext(vaultPath));
+  add('week-sessions', async () => {
     const sessions = (await loadSessions(vaultPath, { limit: 14 })).filter((s) => s.date >= weekStart);
     if (!sessions.length) return `TRAINING THIS WEEK (since ${weekStart}): no sessions logged.`;
     return `TRAINING THIS WEEK (since ${weekStart}, ${sessions.length} session${sessions.length === 1 ? '' : 's'}):\n` +
       sessions.map((s) => `- ${s.date} ${s.routineName}: ${s.exercises.map((e) => `${e.name} ${e.sets.map((x) => `${x.weight}x${x.reps}${x.rpe ? '@' + x.rpe : ''}`).join(',')}${e.note ? ` — his note: "${e.note}"` : ''}${e.pain ? ` — PAIN: ${e.pain}` : ''}`).join(' | ')}${s.cutShort ? ` [CUT SHORT: ${s.cutShort}]` : ''}`).join('\n');
   });
-  await add('schedule', async () => {
+  add('schedule', async () => {
     const { loadExerciseLibrary } = await import('./exercises.js');
     const { loadRoutines } = await import('./workouts.js');
     const { exercises } = await loadExerciseLibrary(vaultPath);
     const { routines, schedule } = await loadRoutines(vaultPath, exercises);
     return `THE PROGRAM: routines ${routines.map((r) => r.name).join(', ') || 'none'}; weekly schedule ${JSON.stringify(schedule)}.`;
   });
-  await add('e1rms', async () => {
+  add('e1rms', async () => {
     const { estimateE1RMs } = await import('./coach.js');
     const trends = estimateE1RMs(await loadSessions(vaultPath, { limit: 12 }));
     return trends.length
       ? 'STRENGTH DIRECTION (e1RM, recent vs prior): ' + trends.slice(0, 10).map((x) => `${x.name} ${x.e1rm}kg${x.delta != null ? ` (${x.delta >= 0 ? '+' : ''}${x.delta})` : ''}`).join('; ') + '.'
       : null;
   });
-  await add('skipped', async () => {
+  add('skipped', async () => {
     const { detectSkippedExercises, skippedContext } = await import('./coach.js');
     const { loadExerciseLibrary } = await import('./exercises.js');
     const { loadRoutines } = await import('./workouts.js');
@@ -137,7 +151,7 @@ export async function buildDebriefContext(vaultPath, now = new Date()) {
     const { routines } = await loadRoutines(vaultPath, exercises);
     return skippedContext(detectSkippedExercises(routines, await loadSessions(vaultPath, { limit: 30 })));
   });
-  await add('recovery-week', async () => {
+  add('recovery-week', async () => {
     // genuinely week-bounded: a `|| true` debugging leftover had made this a
     // rolling last-7 under a "THIS WEEK" label — right by accident on Sundays,
     // wrong on any forced mid-week run
@@ -147,8 +161,8 @@ export async function buildDebriefContext(vaultPath, now = new Date()) {
     const hrv = avg('hrv'); const sleep = avg('sleepAsleepMinutes'); const steps = avg('steps');
     return `RECOVERY THIS WEEK (avgs over ${days.length} logged days): HRV ${hrv ?? '—'} ms; sleep ${sleep ? Math.round(sleep / 6) / 10 + 'h' : '—'}; steps ${steps ? steps.toLocaleString() : '—'}/day.`;
   });
-  await add('weight', async () => 'BODYWEIGHT: ' + weightTrendLine(await loadRecentDays(28)));
-  await add('nutrition-week', async () => {
+  add('weight', async () => 'BODYWEIGHT: ' + weightTrendLine(await loadRecentDays(28)));
+  add('nutrition-week', async () => {
     const { loadRecentDays: loadRecentNutritionDays } = await import('./nutritionLog.js');
     const days = (await loadRecentNutritionDays(7)) || [];
     if (!days.length) return 'NUTRITION, LAST 7 DAYS: no tracked days.';
@@ -157,11 +171,11 @@ export async function buildDebriefContext(vaultPath, now = new Date()) {
     const avgP = Math.round(days.reduce((s, d) => s + (d.p || 0), 0) / days.length);
     return `NUTRITION, LAST 7 DAYS: protein floor met ${met}/${tracked} tracked days; avg ${avgP}g protein/day.`;
   });
-  await add('streaks', async () => {
+  add('streaks', async () => {
     const s = await computeStreaks(vaultPath);
     return `STREAKS: workout ${s.workoutStreak}${s.workoutStreakUnit === 'sessions' ? ' scheduled sessions in a row' : 'd'}, step-goal ${s.stepGoalStreak}d, sleep-goal ${s.sleepGoalStreak}d${s.lastWorkoutDate ? `; last session ${s.lastWorkoutDate}` : ''}.`;
   });
-  await add('journal-week', async () => {
+  add('journal-week', async () => {
     const journal = await import('./journal.js');
     const days = (await journal.listEntries(vaultPath, { limit: 10 })).filter((d) => d.date >= weekStart);
     const lines = days.flatMap((d) => (d.sections || []).map((s) =>
@@ -169,14 +183,14 @@ export async function buildDebriefContext(vaultPath, now = new Date()) {
     if (!lines.length) return null;
     return `HIS WEEK IN THE JOURNAL (what he and Nova filed — his own words outrank any metric):\n${lines.slice(0, 15).join('\n')}`;
   });
-  await add('last-debrief', async () => {
+  add('last-debrief', async () => {
     const records = await listRecords();
     const prior = records
       .filter((r) => r.kind === 'weekly-debrief' && (r.status === 'filed' || r.status === 'pending') && r.decision?.payload?.text)
       .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))[0];
     return prior ? `LAST WEEK'S DEBRIEF (hold this week against what it said):\n${prior.decision.payload.text}` : null;
   });
-  return parts.join('\n\n');
+  return (await gatherContext(sections)).text;
 }
 
 /* ------------------------------- compose --------------------------------- */
@@ -188,7 +202,7 @@ export function buildDebriefPrompt(context, now = new Date()) {
 You are Nova's Coach closing out Hayden's training week — the WEEKLY DEBRIEF for the week ending ${dateLong}. This is the sit-down a serious coach does with a serious client: step back from the day-to-day, hold the week against the plan and the goals, and be honest about both wins and drift. You may read his vault (sessions, journal, goals) for depth.
 
 What to produce:
-- READ (2-4 sentences): the true shape of the week — training done vs planned, strength direction, recovery, fuel — connected to what he's working toward. If last week's debrief set changes, say plainly whether they happened.
+- READ (2-4 sentences): the true shape of the week — training done vs planned, strength direction, recovery, fuel — connected to what he's working toward. If last week's debrief set changes, say plainly whether they happened. If Nova drafted a week plan, hold the week against it: training days planned vs done, conflicts flagged vs what actually collided, carry-overs placed vs cleared.
 - WINS (1-3): concrete, earned, from the data. Never manufactured.
 - CHANGES (1-3): what next week does differently, each one specific and small enough to actually happen, with a one-line why. If the week was on plan, one change or even none ("keep the pattern") is the honest answer.
 - QUESTION (exactly 1): the one reflective question a good coach would leave him with — about the week, not a platitude.
@@ -205,8 +219,8 @@ ${context || '(context unavailable — say so and keep it brief)'}
 Output ONLY a JSON object: {"read": "…", "wins": ["…"], "changes": [{"do": "…", "why": "…"}], "question": "…", "leadership": {"note": "…", "question": "…"}}. The leadership key only when leadership context exists. No code fences, no commentary.`;
 }
 
-export function composeDebriefText(parsed, now = new Date()) {
-  const dateLong = now.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long' });
+export function composeDebriefText(parsed, now = new Date(), { weekEnd = null } = {}) {
+  const dateLong = (weekEnd ? new Date(`${weekEnd}T12:00:00`) : now).toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long' });
   const read = String(parsed?.read || '').trim();
   const wins = (Array.isArray(parsed?.wins) ? parsed.wins : []).map((w) => String(w || '').trim()).filter(Boolean).slice(0, 3);
   const changes = (Array.isArray(parsed?.changes) ? parsed.changes : [])
@@ -236,7 +250,8 @@ export function composeDebriefText(parsed, now = new Date()) {
     lines.push('');
   }
   if (question) lines.push(`**To sit with.** ${question}`);
-  return { title, text: lines.join('\n').trim() };
+  // the changes ride the record structured too — the daily lanes read them
+  return { title, text: lines.join('\n').trim(), changes };
 }
 
 /* ------------------------------ orchestration ---------------------------- */
@@ -250,7 +265,7 @@ async function thisWeekDebriefRecord() {
   return thisWeek.length >= 3 ? thisWeek[0] : null; // 3 failed attempts cap the week
 }
 
-function startDebriefJob(vaultPath, context, mode, recordId, now) {
+function startDebriefJob(vaultPath, context, mode, recordId, now, { weekStart = null, weekEnd = null } = {}) {
   const child = spawn(CLAUDE_BIN, [
     '-p', buildDebriefPrompt(context, now),
     '--permission-mode', 'bypassPermissions',
@@ -275,13 +290,13 @@ function startDebriefJob(vaultPath, context, mode, recordId, now) {
       const text = (outer.result || '').trim();
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in debrief response');
-      const { title, text: body } = composeDebriefText(JSON.parse(jsonMatch[0]), now);
+      const { title, text: body, changes } = composeDebriefText(JSON.parse(jsonMatch[0]), now, { weekEnd });
       const decision = {
         route: 'journal',
         confidence: 'high',
         title,
         reason: "The Coach's weekly sit-down — the week held against the plan.",
-        payload: { text: body, category: 'training', label: 'Weekly debrief' },
+        payload: { text: body, category: 'training', label: 'Weekly debrief', changes, weekStart },
       };
       if (mode === 'auto') {
         const { destination, undo } = await fileDecision(vaultPath, decision);
@@ -296,34 +311,99 @@ function startDebriefJob(vaultPath, context, mode, recordId, now) {
         await updateRecord(recordId, { status: 'pending', decision });
       }
     } catch (e) {
-      await updateRecord(recordId, { status: 'error', error: e.message }).catch(() => {});
+      await debriefFailed(recordId, e.message, weekStart);
     }
   });
   child.on('error', async (err) => {
-    await updateRecord(recordId, { status: 'error', error: err.message }).catch(() => {});
+    await debriefFailed(recordId, err.message, weekStart);
   });
 }
 
-export async function runWeeklyDebrief(vaultPath, { force = false } = {}) {
+// THE WEEK'S FINAL FAILURE IS SAID OUT LOUD — parity with the review and
+// the plan: the third errored compose for a week sends one push.
+export const DEBRIEF_MAX_ATTEMPTS = 3;
+async function debriefFailed(recordId, message, weekStart) {
+  await updateRecord(recordId, { status: 'error', error: message }).catch(() => {});
+  try {
+    const records = await listRecords();
+    const failed = records.filter((r) => r.kind === 'weekly-debrief' && r.status === 'error' && recordWeekStart(r) === (weekStart || todayISO(mondayOf(new Date())))).length;
+    if (failed >= DEBRIEF_MAX_ATTEMPTS) {
+      const { sendPush } = await import('./push.js');
+      await sendPush({ title: 'Weekly Debrief — Nova', body: "The week's debrief couldn't compose, three times over — tap to run it from the Inbox.", tag: 'debrief-failed' });
+    }
+  } catch { /* the push is the courtesy; the error record is the truth */ }
+}
+
+// Which week a debrief record is FOR: stamped since 3 Sep 2026; older
+// records are keyed by the Monday of the week they were created in.
+export function recordWeekStart(r) {
+  return r.weekStart || r.decision?.payload?.weekStart || (r.createdAt ? todayISO(mondayOf(new Date(r.createdAt))) : null);
+}
+
+// THE WEEK THE DEBRIEF SHOULD BE FOR, from the clock and the config — pure,
+// because week boundaries are where this platform has been burned.
+// - on/after the configured weekday+hour this week → THIS week (Monday of now)
+// - within two days after LAST week's slot with no debrief for last week →
+//   LAST week, the catch-up (a Mac asleep through Sunday evening)
+// - otherwise null: nothing is due
+export function debriefWeekFor(now, config, records = []) {
+  // Monday-first indices: the week runs Mon→Sun, so a Sunday slot (getDay 0)
+  // is the END of the week, not its start — plain getDay() ordering read
+  // Saturday as "after Sunday's slot" (caught by the test)
+  const idx = (now.getDay() + 6) % 7;
+  const slotIdx = ((config.weekday ?? 0) + 6) % 7;
+  const h = now.getHours();
+  const thisMonday = todayISO(mondayOf(now));
+  const lastMonday = todayISO(mondayOf(now, { weeksBack: 1 }));
+  const slotPassedThisWeek = idx > slotIdx || (idx === slotIdx && h >= config.hour);
+  const hasFor = (ws) => records.some((r) => r.kind === 'weekly-debrief' && r.status !== 'error' && recordWeekStart(r) === ws);
+  if (slotPassedThisWeek) return hasFor(thisMonday) ? null : { weekStart: thisMonday, weekEnd: todayISO(new Date(mondayOf(now).getTime() + 6 * 86400000)), catchUp: false };
+  // before this week's slot: last week's slot was this many days ago — within two, catch up
+  const daysSinceLastSlot = idx + 7 - slotIdx;
+  if (daysSinceLastSlot <= 2 && !hasFor(lastMonday)) {
+    return { weekStart: lastMonday, weekEnd: todayISO(new Date(mondayOf(now, { weeksBack: 1 }).getTime() + 6 * 86400000)), catchUp: true };
+  }
+  return null;
+}
+
+export async function runWeeklyDebrief(vaultPath, { force = false, weekStart = null, weekEnd = null } = {}) {
   const config = await getDebriefConfig();
   if (config.mode === 'off' && !force) return { skipped: true, reason: 'off' };
   if (laneSkipped('weekly-debrief', 'the weekly training debrief')) return { skipped: true, reason: 'lane switched off in Settings' };
-  const existing = await thisWeekDebriefRecord();
-  if (existing && !force) return { skipped: true, record: existing };
-
   const now = new Date();
-  const context = await buildDebriefContext(vaultPath, now);
+  const ws = weekStart || todayISO(mondayOf(now));
+  const we = weekEnd || todayISO(new Date(mondayOf(now).getTime() + 6 * 86400000));
+  const existing = (await listRecords()).filter((r) => r.kind === 'weekly-debrief' && recordWeekStart(r) === ws);
+  const live = existing.find((r) => r.status !== 'error') || (existing.length >= DEBRIEF_MAX_ATTEMPTS ? existing[0] : null);
+  if (live && !force) return { skipped: true, record: live };
+
+  const context = await buildDebriefContext(vaultPath, now, { weekStart: ws });
   const record = await createRecord({
     id: randomUUID().slice(0, 8),
     kind: 'weekly-debrief',
-    text: `Weekly Debrief — week ending ${now.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long' })}`,
+    weekStart: ws,
+    text: `Weekly Debrief — week ending ${new Date(`${we}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long' })}`,
     source: 'coach',
     mode: config.mode,
     status: 'classifying',
     createdAt: now.toISOString(),
   });
-  startDebriefJob(vaultPath, context, config.mode, record.id, now);
+  startDebriefJob(vaultPath, context, config.mode, record.id, now, { weekStart: ws, weekEnd: we });
   return { record };
+}
+
+// STANDING CHANGES THIS WEEK — the debrief's memory, handed to the daily
+// lanes (Plan Today reads it; the Daily Review already carries the whole
+// debrief). Reads the latest debrief with structured changes from the last
+// eight days; '' when there is none.
+export async function weekChangesContext(now = new Date()) {
+  const records = await listRecords();
+  const cutoff = now.getTime() - 8 * 86400000;
+  const latest = records
+    .filter((r) => r.kind === 'weekly-debrief' && ['filed', 'pending'].includes(r.status) && Array.isArray(r.decision?.payload?.changes) && r.decision.payload.changes.length && new Date(r.createdAt || 0).getTime() >= cutoff)
+    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))[0];
+  if (!latest) return '';
+  return `STANDING CHANGES THIS WEEK (set by the weekly debrief — check adherence, don't re-litigate them):\n${latest.decision.payload.changes.map((c, i) => `${i + 1}. ${c.do}${c.why ? ` — ${c.why}` : ''}`).join('\n')}`;
 }
 
 export async function getWeeklyDebriefStatus() {
@@ -354,9 +434,10 @@ export function startWeeklyDebriefScheduler(vaultPath) {
       const config = await getDebriefConfig();
       if (config.mode === 'off') return;
       const now = new Date();
-      if (now.getDay() !== config.weekday || now.getHours() < config.hour) return;
-      if (await thisWeekDebriefRecord()) return;
-      await runWeeklyDebrief(vaultPath);
+      // this week's slot, or the catch-up for a week the Mac slept through
+      const due = debriefWeekFor(now, config, await listRecords());
+      if (!due) return;
+      await runWeeklyDebrief(vaultPath, { weekStart: due.weekStart, weekEnd: due.weekEnd });
     } catch (err) {
       console.error('weekly debrief failed:', err.message);
     }
