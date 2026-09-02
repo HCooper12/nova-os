@@ -135,7 +135,10 @@ export async function buildDebriefContext(vaultPath, now = new Date()) {
     return skippedContext(detectSkippedExercises(routines, await loadSessions(vaultPath, { limit: 30 })));
   });
   await add('recovery-week', async () => {
-    const days = (await loadRecentDays(8)).filter((d) => d.date >= weekStart || true).slice(-7);
+    // genuinely week-bounded: a `|| true` debugging leftover had made this a
+    // rolling last-7 under a "THIS WEEK" label — right by accident on Sundays,
+    // wrong on any forced mid-week run
+    const days = (await loadRecentDays(8)).filter((d) => d.date >= weekStart).slice(-7);
     if (!days.length) return null;
     const avg = (key) => { const w = days.filter((d) => d[key] != null); return w.length ? Math.round(w.reduce((s, d) => s + d[key], 0) / w.length) : null; };
     const hrv = avg('hrv'); const sleep = avg('sleepAsleepMinutes'); const steps = avg('steps');
@@ -145,11 +148,11 @@ export async function buildDebriefContext(vaultPath, now = new Date()) {
   await add('nutrition-week', async () => {
     const { loadRecentDays: loadRecentNutritionDays } = await import('./nutritionLog.js');
     const days = (await loadRecentNutritionDays(7)) || [];
-    if (!days.length) return 'NUTRITION THIS WEEK: no tracked days.';
+    if (!days.length) return 'NUTRITION, LAST 7 DAYS: no tracked days.';
     const met = days.filter((d) => d.floorMet === true).length;
     const tracked = days.filter((d) => d.floorMet != null).length;
     const avgP = Math.round(days.reduce((s, d) => s + (d.p || 0), 0) / days.length);
-    return `NUTRITION THIS WEEK: protein floor met ${met}/${tracked} tracked days; avg ${avgP}g protein/day.`;
+    return `NUTRITION, LAST 7 DAYS: protein floor met ${met}/${tracked} tracked days; avg ${avgP}g protein/day.`;
   });
   await add('streaks', async () => {
     const s = await computeStreaks(vaultPath);

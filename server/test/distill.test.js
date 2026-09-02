@@ -90,3 +90,34 @@ test('drift refusal: a vault edit after the diff blocks the whole apply', async 
   // and nothing was written
   assert.match(await readFile(orphanPath, 'utf8'), /His own newer edit/);
 });
+
+// ---- truth in copy: the comment said oldest-first; the code sorted by name --
+test('candidates come oldest first by file time, so a late-alphabet capture cannot starve', async () => {
+  const { utimes } = await import('node:fs/promises');
+  const old = path.join(vault, 'Wiki/Inbox/Zebra Thought.md');
+  const young = path.join(vault, 'Wiki/Inbox/Alpha Thought.md');
+  await writeFile(old, '# Zebra\n\nAn old capture about cadence and recovery windows.', 'utf8');
+  await writeFile(young, '# Alpha\n\nA brand-new capture about the taste library.', 'utf8');
+  const monthAgo = new Date(Date.now() - 30 * 86400e3);
+  await utimes(old, monthAgo, monthAgo);
+  const picked = await findCandidates(vault, { cap: 1 });
+  assert.equal(picked[0].relPath, 'Wiki/Inbox/Zebra Thought.md', 'the OLDEST orphan is woven first, not the first by name');
+  await rm(old); await rm(young);
+});
+
+test('settled distillation jobs are pruned after 30 days on the next apply — the old message spoke of a pruner that did not exist', async () => {
+  const old = new Date(Date.now() - 40 * 86400e3).toISOString();
+  await writeFile(path.join(dataDir, 'distill', 'oldjob01.json'), JSON.stringify({ id: 'oldjob01', at: old, appliedAt: old, status: 'applied', summary: 'x', changes: [] }), 'utf8');
+  await writeFile(path.join(dataDir, 'distill', 'oldjob02.json'), JSON.stringify({ id: 'oldjob02', at: old, undoneAt: old, status: 'undone', summary: 'x', changes: [] }), 'utf8');
+  await writeFile(path.join(dataDir, 'distill', 'freshjob.json'), JSON.stringify({ id: 'freshjob', at: new Date().toISOString(), appliedAt: new Date().toISOString(), status: 'applied', summary: 'x', changes: [] }), 'utf8');
+  // a ready job whose apply triggers the sweep
+  const target = path.join(vault, 'Wiki/Inbox/Sweep Trigger.md');
+  await writeFile(target, '# trigger\n', 'utf8');
+  await writeFile(path.join(dataDir, 'distill', 'sweep001.json'), JSON.stringify({ id: 'sweep001', at: new Date().toISOString(), status: 'ready', summary: 'x', changes: [{ path: 'Wiki/Inbox/Sweep Trigger.md', kind: 'updated', prior: '# trigger\n', content: '# trigger\n\n[[Link]]\n' }] }), 'utf8');
+  await applyDistillJob(vault, 'sweep001');
+  assert.ok(!existsSync(path.join(dataDir, 'distill', 'oldjob01.json')), 'a 40-day-old applied job is pruned');
+  assert.ok(!existsSync(path.join(dataDir, 'distill', 'oldjob02.json')), 'a 40-day-old undone job is pruned');
+  assert.ok(existsSync(path.join(dataDir, 'distill', 'freshjob.json')), 'a fresh applied job is kept');
+  await assert.rejects(() => undoDistillJob(vault, 'oldjob01'), /keeps its undo for 30 days/);
+  await assert.rejects(() => applyDistillJob(vault, 'nope0000'), /file is gone — run distillation again/);
+});

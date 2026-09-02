@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { readFile, writeFile, mkdir, readdir, rm } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, readdir, rm, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -44,8 +44,10 @@ const jobsDir = () => path.join(process.env.NOVA_DATA_DIR || path.join(path.dirn
 const CANDIDATE_DIRS = ['Wiki/Inbox', 'Wiki/Studio/Ideas'];
 const CANDIDATE_SKIP = new Set(['To-Do.md']);
 
-// Pure-ish: unlinked capture pages, oldest first, capped. A page with any
-// [[wikilink]] already participates in the graph and is left alone.
+// Pure-ish: unlinked capture pages, OLDEST FIRST (by file time), capped. A
+// page with any [[wikilink]] already participates in the graph and is left
+// alone. The sort was alphabetical while this comment said oldest — with more
+// orphans than the cap, late-alphabet captures could starve indefinitely.
 export async function findCandidates(vaultPath, { cap = MAX_TARGETS } = {}) {
   const out = [];
   for (const rel of CANDIDATE_DIRS) {
@@ -58,11 +60,12 @@ export async function findCandidates(vaultPath, { cap = MAX_TARGETS } = {}) {
         const raw = await readFile(full, 'utf8');
         if (raw.includes('[[')) continue; // already in the graph
         if (raw.trim().length < 40) continue; // nothing to weave
-        out.push({ relPath: path.join(rel, name), size: raw.length });
+        const { mtimeMs } = await stat(full);
+        out.push({ relPath: path.join(rel, name), size: raw.length, mtimeMs });
       } catch { /* unreadable → not a candidate */ }
     }
   }
-  return out.sort((a, b) => a.relPath.localeCompare(b.relPath)).slice(0, cap);
+  return out.sort((a, b) => (a.mtimeMs - b.mtimeMs) || a.relPath.localeCompare(b.relPath)).slice(0, cap);
 }
 
 /* -------------------------------- the job -------------------------------- */
@@ -188,18 +191,36 @@ export async function runDistillation(vaultPath, { force = false, model } = {}) 
 
 export async function applyDistillJob(vaultPath, jobId) {
   const job = await loadDistillJob(jobId);
-  if (!job) throw new Error('that distillation job is gone (the server may have pruned it) — run distillation again');
+  if (!job) throw new Error("that distillation job's file is gone — run distillation again");
   if (job.status !== 'ready') throw new Error(`that distillation was already ${job.status}`);
   await applyChanges(vaultPath, job.changes, { what: 'this draft', remedy: 'discard it and rerun distillation' });
   job.status = 'applied';
   job.appliedAt = new Date().toISOString();
   await persistJob(job);
+  await pruneSettledJobs().catch(() => {});
   return { applied: job.changes.length };
+}
+
+// Applied and undone jobs are the undo's memory, so they stay — for a month,
+// like the ingest's (the same rail). The old apply-time message speculated
+// about a pruner that did not exist while the job dir grew forever.
+const SETTLED_KEEP_DAYS = 30;
+async function pruneSettledJobs() {
+  let names = [];
+  try { names = (await readdir(jobsDir())).filter((f) => f.endsWith('.json')); } catch { return; }
+  const cutoff = Date.now() - SETTLED_KEEP_DAYS * 86400e3;
+  for (const f of names) {
+    let d = null;
+    try { d = JSON.parse(await readFile(path.join(jobsDir(), f), 'utf8')); } catch { continue; }
+    if (!['applied', 'undone'].includes(d?.status)) continue;
+    const settledAt = new Date(d.undoneAt || d.appliedAt || d.at || 0).getTime();
+    if (settledAt < cutoff) await rm(path.join(jobsDir(), f), { force: true }).catch(() => {});
+  }
 }
 
 export async function undoDistillJob(vaultPath, jobId) {
   const job = await loadDistillJob(jobId);
-  if (!job) throw new Error('that distillation job is gone');
+  if (!job) throw new Error(`that distillation job is gone — an applied distillation keeps its undo for ${SETTLED_KEEP_DAYS} days; restore the pages from Guardian's time machine`);
   if (job.status !== 'applied') throw new Error('only an applied distillation can be undone');
   const { restored } = await undoChanges(vaultPath, job.changes);
   job.status = 'undone';

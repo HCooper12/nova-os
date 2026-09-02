@@ -21,7 +21,7 @@ export function Galaxy({ v }) {
       </div>
       <div style={v.galaxyBox}>
         <canvas ref={v.galaxyRef} onClick={v.galaxyClick} style={css("position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair")}></canvas>
-        <div style={css("position:absolute;top:14px;left:16px;font:400 9.5px var(--nv-font-mono);letter-spacing:.18em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent);pointer-events:none")}>CLICK A STAR · BRIGHTER = RECENTLY TOUCHED</div>
+        <div style={css("position:absolute;top:14px;left:16px;font:400 9.5px var(--nv-font-mono);letter-spacing:.18em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent);pointer-events:none")}>CLICK A STAR</div>
         {v.galaxySelOn && (
           <div style={css("position:absolute;right:16px;bottom:16px;width:270px;border:1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent);border-radius:12px;padding:15px 17px;background:var(--nv-glass2);backdrop-filter:blur(14px);box-shadow:0 18px 40px -18px rgba(0,0,0,.9);animation:fadeUp .3s ease-out")}>
             <div style={css(`font:500 9px var(--nv-font-mono);letter-spacing:.22em;color:${v.galaxySelColor}`)}>{v.galaxySelType}</div>
