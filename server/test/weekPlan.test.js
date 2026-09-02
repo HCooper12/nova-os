@@ -50,3 +50,34 @@ test('a readable, empty calendar is genuinely clear', async () => {
     assert.equal((plan.text.match(/Calendar:\*\* clear/g) || []).length, 7);
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
+
+// ---- [14] plans 2 + 5: the catch-up window, the target Monday, and a discarded draft that must not block ----
+test('the plan targets NEXT Monday from any day but THIS Monday on a Monday morning; the window is Sunday from 16:00 or Monday before noon', async () => {
+  const { planTargetMonday, weekPlanWindowOpen } = await import('../lib/weekPlan.js');
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  assert.equal(iso(planTargetMonday(new Date('2026-09-06T16:30:00'))), '2026-09-07', 'Sunday → tomorrow');
+  assert.equal(iso(planTargetMonday(new Date('2026-09-07T09:00:00'))), '2026-09-07', 'Monday morning → today, not the week after');
+  assert.equal(iso(planTargetMonday(new Date('2026-09-08T09:00:00'))), '2026-09-14', 'Tuesday → next Monday');
+  assert.equal(iso(planTargetMonday(new Date('2026-09-13T23:59:00'))), '2026-09-14', 'late Sunday → tomorrow');
+  assert.equal(weekPlanWindowOpen(new Date('2026-09-06T15:59:00')), false);
+  assert.equal(weekPlanWindowOpen(new Date('2026-09-06T16:00:00')), true);
+  assert.equal(weekPlanWindowOpen(new Date('2026-09-07T08:00:00')), true, 'Monday morning catch-up');
+  assert.equal(weekPlanWindowOpen(new Date('2026-09-07T12:00:00')), false, 'by noon the week is under way');
+  assert.equal(weekPlanWindowOpen(new Date('2026-09-09T17:00:00')), false);
+});
+
+test('a discarded week-plan draft does not block a re-run; a live one does', async () => {
+  const { runWeekPlan, planTargetMonday } = await import('../lib/weekPlan.js');
+  const { createRecord } = await import('../lib/inboxStore.js');
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const vault = await mkdtemp(path.join(tmpdir(), 'weekplan-vault-'));
+  await mkdir(path.join(vault, 'Wiki'), { recursive: true });
+  const mondayIso = iso(planTargetMonday(new Date()));
+  await createRecord({ id: 'wpdisc1', kind: 'week-plan', status: 'discarded', text: 'x', source: 'nova', mode: 'draft', createdAt: new Date().toISOString(),
+    decision: { route: 'vault-note', confidence: 'high', title: 'x', reason: 'x', payload: { relPath: `Wiki/Plans/Week of ${mondayIso}.md`, text: 'x' } } });
+  const first = await runWeekPlan(vault);
+  assert.ok(first.record, 'the rejected draft did not stand in the way');
+  const second = await runWeekPlan(vault);
+  assert.equal(second.skipped, 'already drafted', 'the live draft does');
+  await rm(vault, { recursive: true, force: true });
+});

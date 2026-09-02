@@ -81,3 +81,14 @@ test('concurrent logs all survive — the read-modify-write race that dropped en
   const after = await getToday();
   assert.equal(after.entries.length, before, 'every concurrent removal applied');
 });
+
+// ---- [13] plan 2: a saved recipe confesses when the portions disagreed ----
+test('portionVariance: >30% spread between the smallest and largest logged portion is varied; two alike or one alone is not', async () => {
+  const { portionVariance, PORTION_VARIANCE } = await import('../lib/foodHistory.js');
+  assert.equal(PORTION_VARIANCE, 0.3);
+  assert.deepEqual(portionVariance([400, 610, 540]), { varied: true, min: 400, max: 610 });
+  assert.deepEqual(portionVariance([430, 450]), { varied: false, min: 430, max: 450 });
+  assert.deepEqual(portionVariance([430]), { varied: false, min: null, max: null });
+  assert.deepEqual(portionVariance([]), { varied: false, min: null, max: null });
+  assert.deepEqual(portionVariance([0, 500, 520]).varied, false, 'a zero-kcal entry is not a portion');
+});

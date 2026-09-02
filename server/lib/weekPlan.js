@@ -16,11 +16,21 @@ import { createRecord, listRecords } from './inboxStore.js';
 
 function pad(n) { return String(n).padStart(2, '0'); }
 function iso(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
-function nextMonday(from = new Date()) {
+// The week being planned. From Sunday (or any other day) that is the NEXT
+// Monday; on a Monday morning — the catch-up window for a Sunday the Mac
+// slept through — it is TODAY, not the week after. Pure, exported for tests.
+export function planTargetMonday(from = new Date()) {
   const d = new Date(from);
-  d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); // always the NEXT Monday
+  if (d.getDay() !== 1) d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7));
   d.setHours(0, 0, 0, 0);
   return d;
+}
+const nextMonday = planTargetMonday;
+// Sunday from 16:00, and still Monday before noon if Sunday was missed —
+// the per-week guard (planExistsForWeek) keeps it to one draft.
+export function weekPlanWindowOpen(now = new Date()) {
+  const day = now.getDay(), h = now.getHours();
+  return (day === 0 && h >= 16) || (day === 1 && h < 12);
 }
 const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
 
@@ -130,7 +140,8 @@ export async function composeWeekPlan(vaultPath, now = new Date(), deps = {}) {
 
 async function planExistsForWeek(mondayIso) {
   const records = await listRecords();
-  return records.some((r) => r.kind === 'week-plan' && r.decision?.payload?.relPath?.includes(mondayIso));
+  // a discarded draft must not block a re-run — a rejected plan is not a plan
+  return records.some((r) => r.kind === 'week-plan' && r.status !== 'discarded' && r.decision?.payload?.relPath?.includes(mondayIso));
 }
 
 export async function runWeekPlan(vaultPath, { force = false } = {}) {
@@ -164,7 +175,7 @@ export function startWeekPlanScheduler(vaultPath) {
     beat('week-plan');
     try {
       const now = new Date();
-      if (now.getDay() === 0 && now.getHours() >= 16) await runWeekPlan(vaultPath);
+      if (weekPlanWindowOpen(now)) await runWeekPlan(vaultPath);
     } catch (err) {
       console.error('week plan failed:', err.message);
     }

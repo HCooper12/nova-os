@@ -44,8 +44,12 @@ export async function runFoodSuggestions(vaultPath, { now = Date.now() } = {}) {
   if (!candidates.length) return { proposed: 0, records: [] };
 
   const created = [];
+  const { portionVariance } = await import('./foodHistory.js');
   for (const it of candidates) {
     const macros = { p: Math.round(it.macros.p), c: Math.round(it.macros.c), f: Math.round(it.macros.f), kcal: Math.round(it.macros.kcal) };
+    // the numbers confess when the group disagreed — the payload stays the latest portion's
+    const pv = portionVariance(it.kcals);
+    const portionNote = pv.varied ? ` Portions varied across your logs (${pv.min}–${pv.max} kcal) — this saves the latest (${macros.kcal} kcal).` : '';
     const title = `Save “${it.name}” to your recipe bank?`;
     const record = {
       id: randomUUID().slice(0, 8),
@@ -59,7 +63,7 @@ export async function runFoodSuggestions(vaultPath, { now = Date.now() } = {}) {
         route: 'recipe',
         confidence: 'high',
         title,
-        reason: `You've logged ${it.name} ${it.count} times in the last few weeks (${macros.p}P · ${macros.c}C · ${macros.f}F · ${macros.kcal} kcal). ${it.history ? `${it.history[0].toUpperCase()}${it.history.slice(1)}, so asking once more — want` : 'Want'} it saved so it's one tap next time?`,
+        reason: `You've logged ${it.name} ${it.count} times in the last few weeks (${macros.p}P · ${macros.c}C · ${macros.f}F · ${macros.kcal} kcal). ${it.history ? `${it.history[0].toUpperCase()}${it.history.slice(1)}, so asking once more — want` : 'Want'} it saved so it's one tap next time?${portionNote}`,
         // the count rides the payload so a later run can tell "the same habit" from "twice the habit"
         payload: { key: it.key, name: it.name, category: 'ROTATION / SWAP MEALS', macros, count: it.count },
       },

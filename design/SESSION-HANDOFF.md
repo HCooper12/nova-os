@@ -278,8 +278,20 @@ DONE CRITERIA:
   ingredient lines are { qty, name } objects, and toShoppingItems treated
   them as strings — every meal-prep list would have been one "[object
   Object]" item (no meal-prep record has ever been filed, so nobody saw
-  it). Real compose now: 34 items, 30 with amounts, 2 regulars. Next in
-  roster: [13] Food Scout §6.
+  it). Real compose now: 34 items, 30 with amounts, 2 regulars. [13] Food Scout §6 — MET (3 Sep): 1 was Tier 2's
+  respectNo (60d / 2× / once); built now: 2 the portion-variance flag — the
+  food history keeps every logged portion's kcal and carries the LATEST
+  portion's macros (it used to keep the first seen); a >30% spread appends
+  "Portions varied across your logs (min–max kcal) — this saves the latest";
+  REPLAYED on his real recurring foods: every one is steady (rotation slots
+  log fixed macros), so it will rarely fire — correctly. [14] Week Plan §6 —
+  MET: 1 (couldn't-read calendar), 4 (shared WORKOUT_RE) were in; 3 flagged
+  to [15]; 7 (deadline to-dos) DROPPED by the synthesis; built now: 2 the
+  Sunday-16:00 window extends to Monday before noon (weekPlanWindowOpen)
+  and a Monday-morning plan targets THIS Monday (planTargetMonday — the old
+  nextMonday would have planned the week after); 5 a discarded draft no
+  longer blocks a re-run; 6 tests for the window, the target Monday and the
+  discarded-draft guard. Next in roster: [15] Weekly Debrief §6.
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised
