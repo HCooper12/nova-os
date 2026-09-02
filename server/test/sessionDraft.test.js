@@ -45,3 +45,28 @@ test('rejects a shapeless draft and expires an ancient one', async () => {
   }), 'utf8');
   assert.equal(await getSessionDraft(), null, 'stale drafts do not resurrect');
 });
+
+
+test('a finish is not a discard: only a discarded draft is offered back, and a legacy tombstone is recognised by its saved session', async () => {
+  const { getDiscardedDraft } = await import('../lib/sessionDraft.js');
+  const session = { routineName: 'Push — makeup', routineId: 'push', exercises: [{ exerciseId: 'bench', name: 'Bench', sets: [{ weight: 60, reps: 8, done: true }] }] };
+  // finished → not offered
+  await saveSessionDraft({ workoutSession: session });
+  const fin = await clearSessionDraft({ reason: 'finished' });
+  assert.equal(fin.recoverable, false, 'a saved workout is not "recoverable" — it is in the vault');
+  assert.equal(await getDiscardedDraft(), null, 'no false alarm after a finish');
+  // discarded → offered
+  await saveSessionDraft({ workoutSession: session });
+  const dis = await clearSessionDraft({ reason: 'discarded' });
+  assert.equal(dis.recoverable, true);
+  assert.equal((await getDiscardedDraft()).tickedSets, 1);
+  // a tombstone from before the reason existed: the saved session says it was a finish
+  const { writeFile: wf } = await import('node:fs/promises');
+  const clearedAt = Date.now() - 60_000;
+  await wf(path.join(dataDir, 'session-draft.discarded.json'), JSON.stringify({ workoutSession: session, clearedAt }), 'utf8');
+  assert.ok(await getDiscardedDraft(), 'with no sessions to check, the safe side is to offer');
+  const saved = [{ routineId: 'push', routineName: 'Push — makeup', finishedAt: new Date(clearedAt - 45_000).toISOString() }];
+  assert.equal(await getDiscardedDraft({ sessions: saved }), null, 'the same routine saved 45s before the clear IS that workout');
+  const other = [{ routineId: 'pull', routineName: 'Pull', finishedAt: new Date(clearedAt).toISOString() }];
+  assert.ok(await getDiscardedDraft({ sessions: other }), 'a different routine saved then is not this one');
+});

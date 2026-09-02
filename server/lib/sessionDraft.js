@@ -68,23 +68,43 @@ export async function getSessionDraft() {
 
 // The discarded draft, if one is still inside the recovery window and
 // actually holds logged work (an untouched session isn't worth offering).
-export async function getDiscardedDraft() {
+//
+// A FINISH IS NOT A DISCARD. Every clear used to archive as a discard, so a
+// workout he had just saved came back a minute later as "DISCARDED WORKOUT —
+// STILL RECOVERABLE" for seven days — which read as Nova having lost or
+// duplicated it. The clear now carries its reason; and because older
+// tombstones carry none, `sessions` (the vault's saved sessions, passed by
+// the route) lets a legacy archive be recognised as a finish: a saved
+// session of the same routine within half an hour of the clear IS that
+// workout, safely in the vault.
+const FINISH_MATCH_MS = 30 * 60_000;
+export async function getDiscardedDraft({ sessions = [] } = {}) {
   const a = await readArchive();
   if (!a?.workoutSession || Date.now() - (a.clearedAt || 0) > ARCHIVE_KEEP_MS) return null;
+  if (a.reason === 'finished') return null;
   const ticked = (a.workoutSession.exercises || []).reduce((n, e) => n + (e.sets || []).filter((s) => s.done).length, 0);
   if (!ticked) return null;
+  const saved = (sessions || []).some((s) => {
+    const sameRoutine = (s.routineId && s.routineId === a.workoutSession.routineId) || (s.routineName && s.routineName === a.workoutSession.routineName);
+    const at = new Date(s.finishedAt || 0).getTime();
+    return sameRoutine && at && Math.abs(at - a.clearedAt) < FINISH_MATCH_MS;
+  });
+  if (saved) return null; // it was a finish that predates the reason stamp
   return { ...a, tickedSets: ticked };
 }
 
-export async function clearSessionDraft() {
+// reason: 'finished' (the session was saved — the archive is only the echo
+// tombstone) or 'discarded' (recoverable for a week). Unknown → discarded,
+// the safe side.
+export async function clearSessionDraft({ reason } = {}) {
   const draft = await getSessionDraft();
   try { await unlink(DRAFT_PATH()); } catch { /* already gone */ }
   try {
     await mkdir(dataRoot(), { recursive: true });
     // the archive doubles as the tombstone — one file, one truth
-    await writeFile(ARCHIVE_PATH(), JSON.stringify({ ...(draft || {}), clearedAt: Date.now() }, null, 2), 'utf8');
+    await writeFile(ARCHIVE_PATH(), JSON.stringify({ ...(draft || {}), clearedAt: Date.now(), reason: reason === 'finished' ? 'finished' : 'discarded' }, null, 2), 'utf8');
   } catch { /* best-effort — worst case is the old race, not a new failure */ }
-  return { cleared: true, recoverable: !!draft };
+  return { cleared: true, recoverable: !!draft && reason !== 'finished' };
 }
 
 // Undo a discard: the archived draft becomes the live draft again.

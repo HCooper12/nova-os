@@ -64,6 +64,8 @@ const FEATURES = [
   ['Settings · deterministic lanes have a switch, no picker', 'THE SWITCH IS THE SETTING'],
   // the day plan's completion loop: done / skipped per priority
   ['Home · plan priorities can be marked done or skipped', 'planPriorityOutcome'],
+  // the gym fix: a tap no longer claims the phone's audio session; Nova asks to mix
+  ['Audio · mixing session, generic taps do not claim it', 'preferMixing'],
 ];
 
 const SERVER_ROUTES = [

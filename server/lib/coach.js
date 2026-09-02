@@ -560,7 +560,37 @@ export function parseCoachProposal(text) {
   }
 }
 
-const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets', 'tune', 'injury', 'goal', 'block', 'resource', 'learn'];
+const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets', 'tune', 'injury', 'goal', 'block', 'resource', 'learn', 'remap'];
+
+// HOW COACH'S EDITS FILE. `direct: true` — his standing grant, given more
+// than once ("just do it when I tell you") — means a change HE INSTRUCTED
+// applies immediately on the rails (filed, undoable in the Inbox); Coach's
+// OWN suggestions always wait for his yes. false → everything waits.
+const editsConfigPath = async () => {
+  const path = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const dir = process.env.NOVA_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data');
+  return path.join(dir, 'coach-edits.json');
+};
+export async function getCoachEditConfig() {
+  const { readFile } = await import('node:fs/promises');
+  try {
+    const raw = JSON.parse(await readFile(await editsConfigPath(), 'utf8'));
+    return { direct: raw.direct !== false };
+  } catch {
+    return { direct: true };
+  }
+}
+export async function setCoachEditConfig(patch) {
+  const { writeFile, mkdir, rename } = await import('node:fs/promises');
+  const path = await import('node:path');
+  const next = { direct: patch?.direct !== false };
+  const file = await editsConfigPath();
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(file + '.tmp', JSON.stringify(next, null, 2), 'utf8');
+  await rename(file + '.tmp', file);
+  return next;
+}
 
 export async function validateCoachEdit(vaultPath, raw) {
   const { loadExerciseLibrary } = await import('./exercises.js');
@@ -571,6 +601,25 @@ export async function validateCoachEdit(vaultPath, raw) {
   const { exercises } = await loadExerciseLibrary(vaultPath);
   const { routines } = await loadRoutines(vaultPath, exercises);
   const ci = (s) => String(s || '').trim().toLowerCase();
+
+  // "remap" re-files ONE exercise under the muscle it actually trains —
+  // every past set moves with it, because volume is computed from the
+  // library at read time. Coach had no such action and bent "tune" to
+  // fit ("Retag's below — tap APPLY IT" over a card that never rendered).
+  if (action === 'remap') {
+    const { MUSCLE_GROUPS } = await import('./exercises.js');
+    const name = String(raw.exercise || raw.remove || '').trim();
+    const ex = exercises.find((e) => ci(e.name) === ci(name));
+    if (!ex) throw new Error(`"${name}" isn't in the exercise library`);
+    const group = String(raw.muscleGroup || '').trim();
+    if (!MUSCLE_GROUPS.includes(group)) throw new Error(`muscleGroup must be one of: ${MUSCLE_GROUPS.join(', ')}`);
+    const before = ex.muscleGroup || 'Other';
+    if (before === group) throw new Error(`${ex.name} is already filed under ${group}`);
+    return {
+      payload: { action, exerciseId: ex.id, exerciseName: ex.name, muscleGroup: group, before, reason: String(raw.reason || '').slice(0, 300) },
+      title: `Coach: re-file ${ex.name} under ${group} (was ${before})`,
+    };
+  }
 
   // "tune" needs no routine — it adjusts the progression engine for ONE
   // exercise, wherever it appears. This is how his feedback ("that jump is
@@ -713,9 +762,14 @@ export async function createCoachEditRecord(vaultPath, { question, proposal, sou
     source,
     mode: 'review-all',
     status: 'pending',
+    // HE asked for this exact change (an imperative) vs Coach suggesting it —
+    // the model marks it; startAskCoach applies an instructed one directly
+    // when his standing grant (getCoachEditConfig) says so
+    instructed: proposal?.instructed === true,
     createdAt: new Date().toISOString(),
     decision: {
-      route: payload.action === 'tune' ? 'progression-tune'
+      route: payload.action === 'remap' ? 'exercise-remap'
+        : payload.action === 'tune' ? 'progression-tune'
         : payload.action === 'injury' ? 'injury-log'
           : payload.action === 'goal' ? 'goal-target'
             : payload.action === 'block' ? 'training-block'

@@ -41,6 +41,7 @@ const ROUTE_META = {
   stash: { label: 'STASH', hue: '224,178,106' },
   'routine-edit': { label: 'TRAIN EDIT', hue: '89,230,255' },
   'progression-tune': { label: 'COACH TUNE', hue: '224,178,106' },
+  'exercise-remap': { label: 'RE-FILED', hue: '89,230,255' },
   reminder: { label: 'REMINDER', hue: '89,230,255' },
   'skill-backlog': { label: 'SKILL IDEA', hue: '224,178,106' },
   'agent-mode': { label: 'TRUST LADDER', hue: '89,230,255' },

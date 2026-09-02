@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { micStarted, micStopped } from './audioSession.js';
 
 // "HEY NOVA" — the wake word. A headless listener that runs wherever he is
 // in Nova and starts the conversation when it hears its name, so talking
@@ -53,6 +54,7 @@ export function WakeWord({ enabled, blocked, onWake, onError }) {
         }
       };
       rec.onend = () => {
+        micStopped();
         if (recRef.current === rec) recRef.current = null;
         clearTimeout(restartT);
         if (wantRef.current) restartT = setTimeout(start, RESTART_MS);
@@ -64,7 +66,7 @@ export function WakeWord({ enabled, blocked, onWake, onError }) {
           errRef.current?.(kind);
         }
       };
-      try { rec.start(); recRef.current = rec; } catch { /* already running */ }
+      try { micStarted(); rec.start(); recRef.current = rec; } catch { micStopped(); /* already running */ }
     };
 
     // poll the gate rather than re-subscribing: while he dictates or Nova

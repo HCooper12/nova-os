@@ -1,4 +1,5 @@
 import { Component, createRef, lazy, Suspense } from 'react';
+import { preferMixing } from './audioSession.js';
 import { forceLayout, degrees, GALAXY_MAX_NODES } from './galaxyLayout.js';
 import { flushSync } from 'react-dom';
 import { recipes, notes, basePlan, reviews, galaxyNamed, galaxyLinks } from './data.js';
@@ -643,8 +644,12 @@ export default class App extends Component {
     // gesture (cheap and idempotent) and, if lines are sitting blocked,
     // starts them. The guard stops a tap ON the bar from playing twice.
     this.tapUnlockH = () => {
-      this.primeSpeech();
+      // ONLY when there is blocked speech to replay. Priming on every tap
+      // claimed the phone's audio session and paused his music at the gym —
+      // a gesture that LEADS to speech (mic, send, brief, ritual) primes on
+      // its own; a tap on the Train screen must not.
       if (this.replayGuard || !this.state.speechBlocked) return;
+      this.primeSpeech();
       this.replayGuard = true;
       this.replayBlockedSpeech();
       setTimeout(() => { this.replayGuard = false; }, 900);
@@ -1193,10 +1198,14 @@ export default class App extends Component {
           }, 1500);
         } else {
           localStorage.removeItem(ACTIVE_SESSION_KEY);
-          // the session ended on purpose (finish/discard) — clear the server draft too
+          // the session ended on purpose (finish/discard) — clear the server
+          // draft too, saying WHICH: a finished workout is in the vault and
+          // must not come back as "discarded — still recoverable"
           clearTimeout(this.draftUploadT);
           const conn = getConnection();
-          if (conn) api.clearSessionDraft(conn).catch(() => {});
+          const reason = this.sessionEndReason || 'discarded';
+          this.sessionEndReason = null;
+          if (conn) api.clearSessionDraft(conn, reason).catch(() => {});
         }
       } catch { /* storage full/blocked — in-memory still works */ }
     }
@@ -2628,6 +2637,7 @@ export default class App extends Component {
     }).catch((e) => this.toastMsg('Could not restore: ' + e.message));
   }
   discardWorkoutSession() {
+    this.sessionEndReason = 'discarded';
     const routineId = this.state.workoutSession?.routineId;
     // abandoning a history edit returns to history untouched
     if (this.state.editingSessionId) {
@@ -2668,6 +2678,7 @@ export default class App extends Component {
     }
     if (this.state.editingSessionId) {
       api.updateWorkoutSession(conn, this.state.editingSessionId, { exercises }).then(() => {
+        this.sessionEndReason = 'finished';
         this.setState({ workoutsView: 'history', workoutSession: null, editingSessionId: null, sessionCancelConfirm: false });
         this.openWorkoutHistory(this.state.historyRoutineId);
         this.refreshWorkoutRoutines();
@@ -2700,6 +2711,7 @@ export default class App extends Component {
       if (carryoverId) api.removeCarryover(conn, carryoverId).then(() => this.loadCarryovers()).catch(() => {});
       const t = new Date(); t.setDate(t.getDate() + 1);
       const tomorrow = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+      this.sessionEndReason = 'finished'; // saved — the draft is a tombstone, not a discard
       this.setState({
         workoutsView: 'routines', openRoutineId: null, workoutSession: null, sessionCancelConfirm: false,
         finishMissed: missed.length ? missed : null,
@@ -2714,6 +2726,7 @@ export default class App extends Component {
         // close the active-session UI; it files the moment Nova reconnects.
         // (The missed-exercise push-forward needs the server, so it's skipped
         // for an offline finish — the record itself loses nothing.)
+        this.sessionEndReason = 'finished';
         this.setState({ workoutsView: 'routines', openRoutineId: null, workoutSession: null, sessionCancelConfirm: false });
         this.enqueueOutbox('session', `${session.routineName} session`, { payload, carryoverId });
         return;
@@ -5133,6 +5146,7 @@ export default class App extends Component {
   // empty utterance during the tap unlocks both paths for the async reply.
   primeSpeech() {
     try {
+      preferMixing(); // duck his music for Nova's sentence, don't stop it (see audioSession.js)
       resumeAudioGraph(); // inside the gesture — the one moment iOS lets a suspended graph wake
       if (!this.sharedAudio) {
         // THE UNLOCK MUST PLAY SOMETHING REAL. `new Audio()` with no src
@@ -6033,9 +6047,11 @@ export default class App extends Component {
             this.finalizeStream('coachChat', {
               who: 'coach', text: job.result.text,
               panel: job.result.panel || undefined,
-              proposal: job.result.proposal ? { ...job.result.proposal, status: 'open' } : undefined,
+              // an INSTRUCTED change arrives already applied (status 'done'); a suggestion is open for his tap
+              proposal: job.result.proposal ? { ...job.result.proposal, status: job.result.proposal.status || 'open' } : undefined,
             }, { coachBusy: false });
             if (job.result.proposal) this.refreshInbox();
+            if (job.result.proposal?.status === 'done') this.refreshLiveData(); // the program changed under him — redraw it
           },
           onError: (msg) => this.setState((s) => ({ coachBusy: false, coachChat: [...s.coachChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] })),
         });

@@ -242,7 +242,7 @@ export const api = {
   resetModelLane: (conn, lane) => post(conn, '/api/model-prefs/reset', lane ? { lane } : {}),
   saveSessionDraft: (conn, body) => put(conn, '/api/workouts/session-draft', body),
   getSessionDraft: (conn) => call(conn, '/api/workouts/session-draft'),
-  clearSessionDraft: (conn) => del(conn, '/api/workouts/session-draft'),
+  clearSessionDraft: (conn, reason) => del(conn, `/api/workouts/session-draft${reason ? `?reason=${encodeURIComponent(reason)}` : ''}`),
   getDiscardedDraft: (conn) => call(conn, '/api/workouts/session-draft/discarded'),
   restoreDiscardedDraft: (conn) => post(conn, '/api/workouts/session-draft/restore'),
   workoutCarryovers: (conn) => call(conn, '/api/workouts/carryovers'),

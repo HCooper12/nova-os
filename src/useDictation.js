@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { micStarted, micStopped } from './audioSession.js';
 import { attachMicStream } from './audioLevel.js';
 
 // The mic tap below is desktop-only on purpose: SpeechRecognition on iOS
@@ -47,10 +48,11 @@ export function useDictation(getBase, onText, onDone, { continuous = true, onErr
       meter.stream = null;
       meter.detach = null;
     };
-    rec.onend = () => { stopMeter(); setOn(false); onDone?.(); };
+    rec.onend = () => { stopMeter(); micStopped(); setOn(false); onDone?.(); };
     // a denied mic permission used to just silently flip the button off
-    rec.onerror = (e) => { stopMeter(); setOn(false); onError?.(e?.error || 'dictation failed'); };
+    rec.onerror = (e) => { stopMeter(); micStopped(); setOn(false); onError?.(e?.error || 'dictation failed'); };
     recRef.current = rec;
+    micStarted(); // the browser picks the recording session while he talks
     rec.start();
     setOn(true);
     // best-effort audio-level tap so the core visibly hears him while he

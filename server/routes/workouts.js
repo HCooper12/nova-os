@@ -62,6 +62,13 @@ export function workoutsRouter(vaultPath) {
       res.json(await runReflection(vaultPath, { force: req.body?.force === true }));
     } catch (err) { next(err); }
   });
+  // how Coach's edits file — his standing grant (direct) or confirm-first
+  router.get('/train/coach-edits', async (req, res, next) => {
+    try { const { getCoachEditConfig } = await import('../lib/coach.js'); res.json(await getCoachEditConfig()); } catch (err) { next(err); }
+  });
+  router.post('/train/coach-edits', async (req, res, next) => {
+    try { const { setCoachEditConfig } = await import('../lib/coach.js'); res.json(await setCoachEditConfig(req.body || {})); } catch (err) { next(err); }
+  });
   router.post('/train/fuel-cross/raise', async (req, res, next) => {
     try {
       const { raiseFuelFindings } = await import('../lib/coachCadence.js');
@@ -329,7 +336,9 @@ export function workoutsRouter(vaultPath) {
   router.get('/workouts/session-draft/discarded', async (req, res, next) => {
     try {
       const { getDiscardedDraft } = await import('../lib/sessionDraft.js');
-      res.json({ draft: await getDiscardedDraft() });
+      // the saved sessions let a legacy tombstone be recognised as a finish
+      const sessions = await loadSessions(vaultPath, { limit: 12 }).catch(() => []);
+      res.json({ draft: await getDiscardedDraft({ sessions }) });
     } catch (err) { next(err); }
   });
   router.post('/workouts/session-draft/restore', async (req, res) => {
@@ -342,7 +351,7 @@ export function workoutsRouter(vaultPath) {
   router.delete('/workouts/session-draft', async (req, res, next) => {
     try {
       const { clearSessionDraft } = await import('../lib/sessionDraft.js');
-      res.json(await clearSessionDraft());
+      res.json(await clearSessionDraft({ reason: req.query.reason }));
     } catch (err) {
       next(err);
     }

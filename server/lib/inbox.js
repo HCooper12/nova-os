@@ -315,6 +315,17 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  // Coach's remap — the exercise moves under the muscle it actually trains,
+  // every past set with it; undo is the existing exercise-muscle-group kind
+  if (route === 'exercise-remap') {
+    const { setExerciseMuscleGroup } = await import('./exercises.js');
+    const { exercise, before } = await setExerciseMuscleGroup(vaultPath, payload.exerciseId, payload.muscleGroup);
+    return {
+      destination: `Exercise library — ${exercise.name} filed under ${payload.muscleGroup} (was ${before})`,
+      undo: { kind: 'exercise-muscle-group', exerciseId: payload.exerciseId, muscleGroup: before },
+    };
+  }
+
   if (route === 'distill-apply') {
     const { applyDistillJob } = await import('./distill.js');
     const { applied } = await applyDistillJob(vaultPath, payload.jobId);
