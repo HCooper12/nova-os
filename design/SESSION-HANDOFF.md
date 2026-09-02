@@ -87,9 +87,11 @@ DONE CRITERIA:
   false positives — left as is, pinned) (`e3b99e4`); [66] plan 2 Telegram
   photo → food scan → pending 'food' record with ✓/✕ (`11abed0`); [29]
   plan 2 Weekly Debrief on the trust ladder + twin notes on every mode
-  config (`0d9e899`). Remaining carried items: [60] Galaxy 6–8 (UI), [07]
-  dismiss semantics (UI), [02] review adjustment ✓/✗ (UI), [66] plan 3
-  voice note → ask; the rest is each report's §6 in roster order.
+  config (`0d9e899`); [66] plan 3 Telegram voice note → Whisper (Groq first,
+  OpenAI fallback, keys from ~/.config/watch/.env) → "Heard: …" → answerAsk
+  (`b06b449`). Remaining carried items are UI-shaped and gated on a
+  phone-width path: [60] Galaxy 6–8, [07] dismiss semantics, [02] review
+  adjustment ✓/✗; the rest is each report's §6 in roster order.
 - HIS THREE LIVE ISSUES (2 Sep afternoon) — MET (`8ef99b1`, `127b55c`):
   (1) "DISCARDED WORKOUT — STILL RECOVERABLE" was a FINISHED session — the
   draft clear now carries finish|discard; legacy tombstones are recognised
@@ -126,7 +128,10 @@ STATE:
   createdExercises }`; legacy `routines:[…]` records still undo.
 - Compost store: `dismissed:{key:iso}` replaces `dismissedKeys:[]` (migrated
   on load; live store had 0 legacy keys).
-- Tests 727 → 799, all green. verify:shipped has nine new markers.
+- Tests 727 → 801, all green. verify:shipped has nine new markers.
+- Telegram now handles TEXT, PHOTO (→ food scan → pending 'food' record) and
+  VOICE (→ Whisper → ask). Neither the photo nor the voice path has been
+  exercised with a real message from his phone yet.
 - New helpers this session: stagedPass, sources, respectTheNo, settle,
   contextSections, spacing; heartbeat notes; briefState greet/rituals.
 
