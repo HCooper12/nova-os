@@ -135,6 +135,36 @@ function RoutinesView({ v }) {
           <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.22em;color:var(--nv-cy)")}>ON TODAY'S CARD</div>
           <div style={css("margin-top:7px;font:700 30px/1.05 var(--nv-font-ui);letter-spacing:.01em")}>{v.gymHero.name.toUpperCase()}</div>
           <div style={css("margin-top:7px;font:400 12px var(--nv-font-mono);color:var(--nv-ink60)")}>{v.gymHero.meta}</div>
+          {/* WHAT IT HITS — the muscles this session trains, before he
+              commits to it. Collapsed to chips; tap for the per-exercise
+              breakdown, which is the thing he actually asked to see. */}
+          {v.gymHero.targets && (
+            <div style={css("margin-top:12px")}>
+              <div style={css("display:flex;flex-wrap:wrap;gap:6px;align-items:center")}>
+                {v.gymHero.targets.map((t) => (
+                  <span key={t.muscle} style={css("font:600 9px var(--nv-font-mono);letter-spacing:.14em;padding:5px 9px;border-radius:7px;color:var(--nv-cy);border:1px solid color-mix(in srgb, var(--nv-cy) 26%, transparent);background:color-mix(in srgb, var(--nv-cy) 07%, transparent)")}>
+                    {t.muscle.toUpperCase()} ×{t.count}
+                  </span>
+                ))}
+                {v.gymHero.targetRows && (
+                  <Interactive as="span" onClick={v.gymHero.toggleTargets}
+                    base={css("cursor:pointer;display:inline-flex;align-items:center;min-height:30px;padding:0 8px;font:600 9px var(--nv-font-mono);letter-spacing:.14em;color:color-mix(in srgb, var(--nv-ink) 50%, transparent)")}
+                    hoverStyle={{ color: 'var(--nv-ink)' }}
+                  >{v.gymHero.targetsOpen ? 'HIDE ▴' : 'PER EXERCISE ▾'}</Interactive>
+                )}
+              </div>
+              {v.gymHero.targetsOpen && v.gymHero.targetRows && (
+                <div style={css("margin-top:9px;display:flex;flex-direction:column")}>
+                  {v.gymHero.targetRows.map((row, i) => (
+                    <div key={i} style={css(`display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:6px 0${i === 0 ? '' : ';border-top:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)'}`)}>
+                      <span style={css("min-width:0;font:450 13px var(--nv-font-ui);overflow-wrap:anywhere")}>{row.name}</span>
+                      <span style={css("flex:none;font:500 9.5px var(--nv-font-mono);letter-spacing:.1em;color:color-mix(in srgb, var(--nv-ink) 50%, transparent)")}>{row.muscle.toUpperCase()}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           {v.gymHero.begin && (
             <Interactive as="span" onClick={v.gymHero.begin}
               base={{ cursor: 'pointer', display: 'inline-block', marginTop: '15px', font: "600 11.5px var(--nv-font-mono)", letterSpacing: '.1em', padding: '12px 26px', borderRadius: '10px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)' }}
@@ -329,6 +359,10 @@ function RoutinesView({ v }) {
                 {r.completedCount > 0 && <span style={css("font:500 9px var(--nv-font-mono);color:var(--nv-gold)")}>◆ {r.completedCount}×</span>}
               </div>
               <div style={css("margin-top:8px;font-size:12px;color:color-mix(in srgb, var(--nv-ink) 50%, transparent);line-height:1.5")}>{r.exercisesPreview}</div>
+              {/* what the routine trains, so browsing says more than names */}
+              {r.targetsLine && (
+                <div style={css("margin-top:6px;font:500 9px var(--nv-font-mono);letter-spacing:.13em;color:color-mix(in srgb, var(--nv-cy) 62%, transparent)")}>{r.targetsLine}</div>
+              )}
             </Interactive>
           ))}
         </div>

@@ -143,6 +143,8 @@ export function valsWorkouts(app, ctx) {
     exercisesPreview: r.exercises.length
       ? r.exercises.slice(0, 3).map((e) => e.name).join(', ') + (r.exercises.length > 3 ? ` +${r.exercises.length - 3} more` : '')
       : 'No exercises yet',
+    // what it trains, before he commits to it
+    targetsLine: targetSummary(r.exercises).chips.map((c) => `${c.muscle.toUpperCase()} ×${c.count}`).join(' · ') || null,
     completedCount: r.completedCount,
     onOpen: () => app.openRoutine(r.id),
     // spec #13: hold a routine card for its secondary actions
@@ -156,6 +158,29 @@ export function valsWorkouts(app, ctx) {
       ],
     }),
   }));
+
+  // WHAT THIS SESSION TRAINS — he asked to see what each exercise targets
+  // BEFORE starting, and every pre-start surface showed names only. The
+  // routine's own exercises already carry muscleGroup from the server (the
+  // same field the weekly volume bars are counted from), so this is a read of
+  // an existing truth, not a second source for it. An exercise the library
+  // has not mapped reads UNMAPPED rather than being folded into a muscle it
+  // might not train.
+  function targetSummary(exercises = []) {
+    const counts = new Map();
+    const rows = [];
+    for (const e of exercises) {
+      const muscle = String(e.muscleGroup || '').trim() || 'Unmapped';
+      counts.set(muscle, (counts.get(muscle) || 0) + 1);
+      rows.push({ name: e.name, muscle });
+    }
+    const chips = [...counts.entries()]
+      .map(([muscle, count]) => ({ muscle, count }))
+      // most-trained first, alphabetical to break ties so the row never
+      // reshuffles between renders
+      .sort((a, b) => b.count - a.count || a.muscle.localeCompare(b.muscle));
+    return { chips, rows };
+  }
 
   // The mockup's GYM hero: today's card, front and centre — the day's most
   // important action must never hide behind a routine tile. Rest days say
@@ -171,11 +196,18 @@ export function valsWorkouts(app, ctx) {
     if (!o.today) return null;
     const r = liveRoutines.find((x) => x.id === o.today.routineId);
     const estMin = Math.round((o.today.exerciseCount * 8 + 4) / 5) * 5;
+    const summary = targetSummary(r?.exercises || []);
     return {
       rest: false,
       name: o.today.name,
       meta: `${o.today.exerciseCount} exercises · ~${estMin} min${o.today.lastVolume ? ` · last time ${o.today.lastVolume.toLocaleString()} kg` : ''}`,
       begin: r ? () => app.startWorkoutSession(r) : null,
+      // absent when the routine can't be resolved — an empty chip row would
+      // read as "this session trains nothing"
+      targets: summary.chips.length ? summary.chips : null,
+      targetRows: summary.rows.length ? summary.rows : null,
+      targetsOpen: !!st.gymTargetsOpen,
+      toggleTargets: () => app.setState({ gymTargetsOpen: !st.gymTargetsOpen }),
     };
   })();
 

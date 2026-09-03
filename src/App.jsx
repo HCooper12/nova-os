@@ -438,6 +438,9 @@ export default class App extends Component {
     liveWorkoutExercises: null, liveWorkoutMuscleGroups: null, liveWorkoutTrackingTypes: null,
     liveWorkoutRoutines: null, liveWorkoutSchedule: null, liveWorkoutWeekdays: null, liveWorkoutProgressions: null,
     workoutsView: 'routines', openRoutineId: null,
+    // "what does this session actually train?" — collapsed by default so
+    // today's card stays a card, expandable to the per-exercise breakdown
+    gymTargetsOpen: false,
     routineCreating: false, routineNewName: '',
     routineDeleteConfirm: false,
     exercisePickerOpen: false, exercisePickerQuery: '', exercisePickerMuscle: 'Any',
