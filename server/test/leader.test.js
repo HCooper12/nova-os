@@ -173,3 +173,66 @@ test('links are checked, not trusted: HEAD (GET when refused), failures kept and
   assert.match(body, /Source: S5\n|Source: S5$/, 'no URL, no marker either way');
   assert.equal((body.match(/link unverified/g) || []).length, 2);
 });
+
+// ---- the corpus filter, tuned on his real shelf (3 Sep) ---------------------
+// Fixtures are REAL page titles from his vault. The two-tier filter admitted
+// six body pages out of seventeen title matches, and the daily idea welded an
+// RPE statistic to "Stress Management & Parasympathetic Switching". He said
+// it plainly: that is not managing, leading, inspiring or directing a team.
+
+test('corpus: a body page never counts as leadership, whatever word its title contains', async () => {
+  const { isLeadership } = await import('../lib/leader.js');
+  // each of these was ADMITTED by the old filter, by the word in brackets
+  assert.equal(isLeadership('Stress Management & Parasympathetic Switching'), false, '[manage]');
+  assert.equal(isLeadership('Waist Management & Digestion'), false, '[manage]');
+  assert.equal(isLeadership('The X-Frame & High-Value Aesthetic Muscles'), false, '[frame]');
+  assert.equal(isLeadership('The Habit Loop & Four Laws Framework'), false, '[frame], and personal habits are not team leadership');
+  assert.equal(isLeadership('Self-Love as Higher Standard'), false, '[standard]');
+  assert.equal(isLeadership('Wearables — Strengths and Limitations for Sleep Tracking'), false);
+  // "people" is a human word, not a work-relationship word: this physiology
+  // page says "people come to Galpin's company" and got in on that alone
+  assert.equal(isLeadership('Energy Management as the Top-Performer Differentiator', 'Energy is probably the #1 reason people come to Andy Galpin\'s company.'), false);
+});
+
+test('corpus: pages about other people are admitted on the title alone', async () => {
+  const { isLeadership } = await import('../lib/leader.js');
+  for (const t of [
+    'Delegation as a Feedback Generator',
+    'Future-Focused Feedback',
+    'Feedback Filter',
+    'Respect Frameworks — POWERS & HEARTED',
+    'Dominance vs Prestige',
+    'Charisma as a Trainable Skill',
+    'Specific Recognition',
+  ]) assert.equal(isLeadership(t), true, t);
+});
+
+test('corpus: an ambiguous word needs a work-relationship signal to corroborate it', async () => {
+  const { isLeadership } = await import('../lib/leader.js');
+  assert.equal(isLeadership('Decision Velocity'), false, 'no signal — personal decision speed');
+  assert.equal(isLeadership('Decision Velocity', 'How fast a manager moves from deciding to acting with their team.'), true, 'corroborated');
+  assert.equal(isLeadership('Ownership'), false);
+  assert.equal(isLeadership('Ownership', 'What it takes for direct reports to own an outcome end to end.'), true);
+  // body text alone admits nothing: that is how the biology shelf got in
+  assert.equal(isLeadership('Mitochondrial Signalling', 'Cells communicate; leadership of the organism, in a sense.'), false);
+});
+
+test('corpus: a source is judged by its own title first, then its concepts', async () => {
+  const { isLeadershipSource } = await import('../lib/leader.js');
+  // real case: an exercise video linked to the concept "Feedback Filter"
+  assert.equal(isLeadershipSource('We Ranked the BEST Exercises for Every Muscle (Janicki × Tennyson)', ['Feedback Filter', 'Lats vs Upper Back in Pulling']), false);
+  assert.equal(isLeadershipSource('Leadership Research — Week of 2026-08-28', ['Future-Focused Feedback']), true);
+  assert.equal(isLeadershipSource('33 Brutal Truths (Hormozi × Williamson)', ['Feedback Filter', 'Decision Velocity']), true, 'admitted by a concept, and its own title is not body-domain');
+  assert.equal(isLeadershipSource('The Recovery Protocol I Wish I Had Known In My 20s', ['Stress Management & Parasympathetic Switching']), false);
+});
+
+test("the daily idea's context carries standing rules but not the fleet's training receipts", async () => {
+  const { orgContext } = await import('../lib/orgContext.js');
+  const scoped = await orgContext(vault, 'leader', { only: ['standing'] });
+  // nothing to say in a bare temp vault is honest; what matters is that the
+  // trailer never describes sections that were not included
+  if (scoped) {
+    assert.ok(!/what your colleagues are doing/.test(scoped), 'the trailer must not claim colleagues it did not include');
+    assert.ok(!/fleet has done lately/.test(scoped));
+  }
+});

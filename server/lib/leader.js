@@ -90,16 +90,53 @@ async function writeLeaderState(state) {
 
 /* -------------------------------- corpus ---------------------------------- */
 
-// What counts as leadership material in HIS vault. Two tiers, tested
-// against his real Concepts shelf before shipping: the BROAD list applies
-// to TITLES only (his leadership inputs arrive as psychology and
-// self-mastery concepts, not files labelled "leadership"), while body text
-// only counts on STRONG words — mitochondria pages talk about "signals",
-// "influence" and "communication" too, and the first cut of this filter
-// pulled his whole biology shelf into the leadership corpus.
-const LEAD_TITLE_WORDS = /leader|leadership|manage|manager|management|team|influen|communicat|delegat|feedback|account|conflict|negotiat|decision|deleg|respect|trust|coach|mentor|persuas|authorit|dominance|prestige|status\b|frame|confidence|discipline|ownership|responsib|blame|coura|charisma|meeting|one.on.one|culture|motivat|standard/i;
-const LEAD_STRONG_WORDS = /leadership|\blead(ing|s)? (people|a team|teams)|manager|management|delegat|one.on.one|difficult conversation|team culture|accountab|performance review/i;
-const isLeadership = (title, body = '') => LEAD_TITLE_WORDS.test(title) || LEAD_STRONG_WORDS.test(body);
+// What counts as leadership material in HIS vault. THREE tiers, tuned
+// against his real 127-page Concepts shelf, because the two-tier version
+// shipped a visible failure: a single word anywhere in a TITLE admitted the
+// page, so "Manage" let in "Stress Management & Parasympathetic Switching"
+// and "Waist Management & Digestion", and "Frame" let in "The X-Frame &
+// High-Value Aesthetic Muscles". Six of seventeen matches were body pages,
+// and the daily idea duly welded an RPE statistic to a physiology concept
+// and called it leadership. He said it plainly: that is not managing,
+// leading, inspiring or directing a team.
+//
+//   1. BODY_DOMAIN wins outright. A page about muscles, digestion, sleep or
+//      recovery is never leadership material, whatever else its title says.
+//   2. LEAD_CLEAR words are unambiguously about other people — they admit a
+//      page on the title alone.
+//   3. LEAD_AMBIGUOUS words ("manage", "frame", "standard", "decision") mean
+//      one thing in a boardroom and another in a gym, so they need a PEOPLE
+//      signal in the title or the opening lines to corroborate them.
+//   4. LEAD_STRONG phrases in the BODY still admit a page whose title gives
+//      nothing away ("Quiet Hobby", opening "notes on leading people at
+//      work"). This tier is why the filter reads bodies at all; it is safe
+//      because tier 1 has already thrown out anything about his body, and
+//      because the phrases are whole and unambiguous, never single words.
+const BODY_DOMAIN = /muscle|hypertroph|\bwaist\b|digest|parasympath|mitochondri|\bsleep|wearable|protein|calorie|kcal|macro|nutrition|\bdiet|cardio|workout|exercise|lifting|\brpe\b|soreness|tendon|physique|aesthetic|testosterone|hormone|creatine|supplement|fasting|glucose|insulin|circadian|hydration|posture|mobility|physiolog|\bfat loss|\bbody fat/i;
+// Deliberately NOT "people" or "others": a physiology page says "people come
+// to Galpin's company with this", and that admitted "Energy Management as the
+// Top-Performer Differentiator" on the first pass. The signal has to be a
+// WORK-RELATIONSHIP word, not merely a human one.
+const PEOPLE_SIGNAL = /\b(teams?|employees?|staff|colleagues?|direct reports?|managers?|leaders?|leadership|workplace|meetings?|hiring|subordinates?|stakeholders?)\b/i;
+const LEAD_CLEAR = /leader|leadership|delegat|one.on.one|manager|\bteam\b|feedback|conflict|negotiat|mentor|charisma|dominance|prestige|persuas|communicat|accountab|\bculture\b|meeting|performance review|recognition|\brespect/i;
+const LEAD_AMBIGUOUS = /manage|management|frame|standard|decision|discipline|confidence|\bcoach|trust|status\b|motivat|ownership|responsib|coura|blame|authorit|influen/i;
+// A source: its own title decides first, then the concepts it links.
+export function isLeadershipSource(title, concepts = []) {
+  if (BODY_DOMAIN.test(title)) return false;
+  return isLeadership(title) || concepts.some((c) => isLeadership(c));
+}
+
+const LEAD_STRONG = /leadership|\blead(ing|s)? (people|a team|teams)|manager|management|delegat|one.on.one|difficult conversation|team culture|accountab|performance review|direct reports?/i;
+
+export function isLeadership(title, body = '') {
+  const head = `${title} ${body}`;
+  if (BODY_DOMAIN.test(head)) return false;
+  if (LEAD_CLEAR.test(title)) return true;
+  if (LEAD_AMBIGUOUS.test(title)) return PEOPLE_SIGNAL.test(head);
+  // A whole phrase in the body, never a single broad word: "influence" and
+  // "communication" appear on mitochondria pages, "leading a team" does not.
+  return LEAD_STRONG.test(body);
+}
 
 // Concept pages: filename + first lines are enough to decide relevance and
 // give the model a scent — it can Read the full page itself if it wants depth.
@@ -129,8 +166,13 @@ async function scanSources(vaultPath) {
     const { Vault } = await import('./vault.js');
     const { buildLibrary } = await import('./library.js');
     const items = await buildLibrary(vaultPath, new Vault(vaultPath));
+    // Same three-tier judgement as the concepts. A source is admitted by its
+    // own title OR by a concept it was woven into — but BODY_DOMAIN still
+    // wins outright, because "Feedback Filter" is a perfectly good concept to
+    // link from a video about exercise form, and on the first pass it put
+    // "We Ranked the BEST Exercises for Every Muscle" on the leadership shelf.
     return items
-      .filter((s) => LEAD_TITLE_WORDS.test(s.title || '') || (s.concepts || []).some((c) => LEAD_TITLE_WORDS.test(c)))
+      .filter((s) => isLeadershipSource(s.title || '', s.concepts || []))
       .map((s) => ({
         key: `source:${s.title}`,
         title: s.title,
@@ -192,8 +234,14 @@ export function profileLines(profile, now = Date.now()) {
 export async function buildLeaderDailyContext(vaultPath, state, now = new Date()) {
   const parts = [];
   try {
+    // STANDING RULES ONLY for the day's idea. The fleet and health sections
+    // are real and useful in a conversation, but as raw material for one
+    // unprompted leadership idea they are a trap: they are almost entirely
+    // training and nutrition receipts, so the idea gets built out of gym data
+    // and arrives as a metaphor about sets. His words: that is not managing,
+    // leading, inspiring or directing a team. The chat still gets all of it.
     const { orgContext } = await import('./orgContext.js');
-    const org = await orgContext(vaultPath, 'leader');
+    const org = await orgContext(vaultPath, 'leader', { only: ['standing'] });
     if (org) parts.push(org);
   } catch { /* honest absence */ }
   parts.push(...profileLines(state.profile, now.getTime()));
@@ -241,7 +289,7 @@ export function buildDailyPrompt(context, now = new Date()) {
   const dateLong = now.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long' });
   return `${NOVA_LENS}
 
-You are the LEADER — the leadership-development voice inside Nova, focused on how Hayden leads people at work. Compose his ONE leadership idea for ${dateLong}: the single thing worth trying, remembering or considering today. You may Read his vault pages for depth (paths are given below).
+You are the LEADER — the leadership-development voice inside Nova. Your ONE subject is how Hayden MANAGES, LEADS, INSPIRES AND DIRECTS HIS TEAM at work: the conversations he has with his people, the decisions he hands down, the standards he sets, the way he gets the best out of the people who report to him. Compose his ONE leadership idea for ${dateLong}: the single thing worth trying, remembering or considering today. You may Read his vault pages for depth (paths are given below).
 
 What to produce — exactly one of these kinds:
 - "action": a concrete behaviour to TRY TODAY, small enough to actually do ("In today's 15:30, state the decision first, then take questions").
@@ -249,7 +297,9 @@ What to produce — exactly one of these kinds:
 - "idea": a way of SEEING a situation (a reframe) worth holding this week.
 
 Discipline:
-- Ground it in HIS material below — his concepts, his sources, his stated struggles, what is working for him. Combining two concepts into one move is high value. Never invent a source or a quote.
+- Ground it in HIS material below — his concepts, his sources, his stated struggles, what is working for him. Combining two LEADERSHIP concepts into one move is high value. Never invent a source or a quote.
+- IT MUST BE ABOUT LEADING PEOPLE. Not his training, not his body, not his nutrition, not his personal habits or routines. If material about his own performance, recovery, effort or diet reaches you, it is background on his capacity for the day — never the subject, and never a metaphor to build the idea on. He has said outright that a leadership idea derived from his gym data does not help him lead a team; an analogy between his training and his management is exactly the failure to avoid.
+- If nothing in his material supports a genuine idea about leading people today, say so and give ONE well-attributed fundamental of leading a small team instead. An honest fundamental beats a clever bridge from an unrelated domain.
 - If it serves a CURRENT STRUGGLE, say so plainly — that is the connection that makes it land.
 - One idea only. Small beats grand. Specific beats general. It must survive being read in ten seconds at 7am.
 - Repetition over time is EXPECTED and good — but a repeat must be deliberate and freshly angled, never a lazy rerun of this week.

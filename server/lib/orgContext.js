@@ -117,15 +117,37 @@ async function siblingsSection(self, now) {
 /**
  * @param {string} vaultPath
  * @param {string} self  the calling agent's own id — its section is skipped
+ * @param {{only?: string[]}} [opts]  which sections to include; default all
+ *
+ * `only` exists because awareness is not always relevance. The fleet's
+ * receipts are overwhelmingly training and nutrition — that is simply what
+ * Nova does most of — and an agent asked for ONE unprompted idea a day will
+ * ground it in whatever concrete material it was handed. The Leader's daily
+ * idea did exactly that and produced a leadership tip built from an RPE
+ * statistic. A conversation can afford the whole org; a single generated
+ * artefact should be handed only what bears on its subject.
  */
-export async function orgContext(vaultPath, self = '') {
+export async function orgContext(vaultPath, self = '', { only } = {}) {
+  const want = (name) => !only || only.includes(name);
   const now = Date.now();
   const [standing, fleet, siblings] = await Promise.all([
-    withTimeout(standingSection(vaultPath)),
-    withTimeout(fleetSection()),
-    withTimeout(siblingsSection(self, now)),
+    want('standing') ? withTimeout(standingSection(vaultPath)) : null,
+    want('fleet') ? withTimeout(fleetSection()) : null,
+    want('siblings') ? withTimeout(siblingsSection(self, now)) : null,
   ]);
   const parts = [standing, siblings, fleet].filter((p) => p && String(p).trim());
   if (!parts.length) return '';
-  return `${parts.join('\n\n')}\n\nYou are one agent inside Nova. The block above is the rest of the platform — his standing rules, what your colleagues are doing, and what they are currently asking of him. Treat it as fact, use it when it bears on your work, and never read it back to him as a list.`;
+  // The trailer must describe what is actually above it. With `only` in play
+  // it can be standing rules alone, and telling an agent it is looking at
+  // "what your colleagues are doing" when it is not is the same class of
+  // small lie this file exists to prevent.
+  const described = [
+    standing ? 'his standing rules' : null,
+    siblings ? 'what your colleagues are doing' : null,
+    fleet ? 'what the fleet has done lately' : null,
+  ].filter(Boolean);
+  const list = described.length > 1
+    ? `${described.slice(0, -1).join(', ')} and ${described[described.length - 1]}`
+    : described[0];
+  return `${parts.join('\n\n')}\n\nYou are one agent inside Nova. The block above is ${list}. Treat it as fact, use it when it bears on your work, and never read it back to him as a list.`;
 }
