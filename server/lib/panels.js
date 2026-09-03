@@ -1,4 +1,6 @@
 import { loadExerciseLibrary } from './exercises.js';
+import { atlasFor } from './data/exerciseAtlas.js';
+import { resolveMuscles } from './muscles.js';
 import { loadRoutines } from './workouts.js';
 import { loadSessions } from './workoutSessions.js';
 import { estimateE1RMs } from './coach.js';
@@ -84,6 +86,12 @@ async function buildExercise(vaultPath, name) {
   const e1rms = estimateE1RMs(await loadSessions(vaultPath, { limit: 12 }));
   const e1 = e1rms.find((x) => x.exerciseId === ex.id) || null;
 
+  // Anatomy: what the lift actually trains, for the body diagram. Absent
+  // rather than guessed when the atlas has no entry — a diagram with nothing
+  // lit reads as "this trains nothing", so the client shows none at all.
+  const a = atlasFor(ex.id);
+  const anatomy = a ? resolveMuscles(a.primary, a.secondary) : null;
+
   return {
     name: ex.name,
     muscleGroup: ex.muscleGroup,
@@ -94,6 +102,9 @@ async function buildExercise(vaultPath, name) {
     // knowledge base: form cues + the one curated resource
     cues: ex.cues || null,
     resourceUrl: ex.resourceUrl || null,
+    equipment: a?.equipment || null,
+    muscles: anatomy && { primary: anatomy.primary, secondary: anatomy.secondary,
+      primaryLabels: anatomy.primaryLabels, secondaryLabels: anatomy.secondaryLabels, views: anatomy.views },
   };
 }
 

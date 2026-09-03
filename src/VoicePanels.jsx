@@ -1,4 +1,5 @@
 import { css } from './css.js';
+import { BodyMap, MuscleLegend } from './BodyMap.jsx';
 
 const M = "var(--nv-font-mono)";
 
@@ -42,6 +43,20 @@ function TrainingWeek({ d }) {
 function Exercise({ d }) {
   return (
     <Card label={`${d.name.toUpperCase()} · ${d.muscleGroup?.toUpperCase() || ''}`}>
+      {/* Anatomy first: the question "what does this actually train" is the
+          one he opened the card to answer. Absent when the atlas has no
+          entry — a blank silhouette would read as "trains nothing". */}
+      {d.muscles && (
+        <div style={css('display:flex;gap:14px;align-items:center;margin-bottom:10px')}>
+          <BodyMap muscles={d.muscles} height={118} />
+          <div style={css('flex:1;min-width:0')}>
+            {d.equipment && (
+              <div style={css(`font:500 10px ${M};letter-spacing:.1em;color:${dim(45)}`)}>EQUIPMENT · {d.equipment.toUpperCase()}</div>
+            )}
+            <MuscleLegend muscles={d.muscles} />
+          </div>
+        </div>
+      )}
       {d.e1rm && (
         <div style={css(`display:flex;align-items:baseline;gap:10px;margin-bottom:8px`)}>
           <span style={css(`font:600 22px ${M};color:var(--nv-cy)`)}>{d.e1rm.value}<span style={css(`font-size:11px;color:${dim(45)}`)}> kg e1RM</span></span>
