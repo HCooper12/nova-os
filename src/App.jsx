@@ -6599,7 +6599,7 @@ export default class App extends Component {
 
         {v.statusBanner && (
           <div style={{
-            position: 'fixed', left: '50%', transform: 'translateX(-50%)',
+            position: 'fixed', left: 0, right: 0, marginInline: 'auto', width: 'fit-content',
             bottom: v.isMobile ? 'calc(76px + env(safe-area-inset-bottom))' : '18px', zIndex: 80,
             font: "500 10.5px var(--nv-font-mono2)", letterSpacing: '.06em', padding: '8px 16px',
             borderRadius: '20px', whiteSpace: 'nowrap', maxWidth: '92vw', overflow: 'hidden', textOverflow: 'ellipsis',
@@ -6613,8 +6613,16 @@ export default class App extends Component {
         {v.floatingCore && <FloatingCore s={v.floatingCore} />}
         {v.greetBanner && (
           <div onClick={v.greetBanner.open} role="status"
+            // Centred by auto margins, not by shifting it half its own width.
+            // A fixed element with a left offset gets only the space from that
+            // offset to the edge as its available width, so this banner could
+            // never grow past half the screen and long text stacked into a
+            // narrow column (measured: 188px of an intended 345px at 375px
+            // wide). Auto margins hand it the whole viewport to size against —
+            // and leave the transform free, which matters because fadeUp
+            // animates transform and would otherwise un-centre it mid-flight.
             style={{
-              position: 'fixed', left: '50%', transform: 'translateX(-50%)',
+              position: 'fixed', left: 0, right: 0, marginInline: 'auto', width: 'fit-content',
               top: v.isMobile ? 'calc(58px + env(safe-area-inset-top))' : '16px', zIndex: 85,
               maxWidth: 'min(560px, 92vw)', cursor: 'pointer',
               display: 'flex', alignItems: 'baseline', gap: '10px',

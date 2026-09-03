@@ -8,7 +8,7 @@ import { Interactive } from './Interactive.jsx';
 // screen rather than auto-dismissing like NudgeCard's suggestions do.
 export function ModelChoicePrompt({ v }) {
   return (
-    <div style={css("position:fixed;top:calc(54px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:67;width:min(460px, calc(100vw - 24px));animation:fadeUp .3s ease-out")}>
+    <div style={css("position:fixed;top:calc(54px + env(safe-area-inset-top));left:0;right:0;margin-inline:auto;z-index:67;width:min(460px, calc(100vw - 24px));animation:fadeUp .3s ease-out")}>
       <div className="nv-pane" style={{ padding: '14px 16px', borderColor: 'color-mix(in srgb, var(--nv-gold) 40%, transparent)' }}>
         <div style={css("display:flex;align-items:flex-start;gap:10px")}>
           <span style={{ flex: 'none', fontSize: '15px', color: 'var(--nv-gold)' }}>◈</span>

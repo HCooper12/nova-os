@@ -7,7 +7,7 @@ import { Interactive } from './Interactive.jsx';
 // the user decides, dismiss means gone for this app session.
 export function NudgeCard({ v }) {
   return (
-    <div style={css("position:fixed;top:calc(54px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:66;width:min(480px, calc(100vw - 24px));animation:fadeUp .3s ease-out")}>
+    <div style={css("position:fixed;top:calc(54px + env(safe-area-inset-top));left:0;right:0;margin-inline:auto;z-index:66;width:min(480px, calc(100vw - 24px));animation:fadeUp .3s ease-out")}>
       <div className="nv-pane" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 15px', borderColor: 'color-mix(in srgb, var(--nv-gold) 35%, transparent)' }}>
         <span style={{ flex: 'none', fontSize: '16px', color: 'var(--nv-gold)' }}>{v.icon}</span>
         <span style={{ minWidth: 0, flex: 1 }}>
