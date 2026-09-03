@@ -73,6 +73,7 @@ const FEATURES = [
   ['Inbox · review discard asks why once; adjustments take DONE / NOT TODAY', "TOMORROW'S REVIEW READS THIS"],
   ['Train · history rows carry the Coach\'s reaction', 'COACH SAID'],
   ['Home · a health insight can be talked through in one tap', 'TALK IT THROUGH'],
+  ["Train · today's card says what the session trains, before he starts", 'PER EXERCISE'],
 ];
 
 const SERVER_ROUTES = [

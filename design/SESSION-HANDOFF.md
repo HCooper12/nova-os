@@ -687,6 +687,54 @@ OPEN QUESTIONS / BLOCKERS:
   session writes a draft to his real vault; check on the phone during a
   real session instead.
 
+3 SEP, AFTER THE ROSTER — his three asks:
+- THE LEADER WAS TALKING ABOUT HIS SETS (`ea10aab`). He screenshotted
+  "Budget Your Stress Like Your Sets" and said it is not managing, leading,
+  inspiring or directing a team. Three causes, all ours. (1) The corpus
+  filter admitted a page on ONE word anywhere in its title, so "Manage" let
+  in Stress Management & Parasympathetic Switching and Waist Management &
+  Digestion, "Frame" let in The X-Frame & High-Value Aesthetic Muscles: six
+  of seventeen matches on his real 127-page shelf were body pages. Now three
+  tiers — BODY_DOMAIN wins outright, unambiguous people words admit on the
+  title, ambiguous words need a work-relationship signal ("people" does not
+  count: a physiology page says "people come to Galpin's company"), and the
+  strong-body phrase tier survives for pages like "Quiet Hobby" opening
+  "notes on leading people at work". A source is judged by its own title
+  first — "Feedback Filter" is a fine concept to link from a form video and
+  it was putting an exercise-ranking video on the shelf. 19 concepts + 8
+  sources → 7 + 3, no body pages. (2) The org block: the fleet's receipts
+  are overwhelmingly training and nutrition, so the daily idea was built
+  from gym data. orgContext takes `only` now; the daily idea gets standing
+  rules alone, the chat still gets everything. The trailer names only the
+  sections actually present. (3) The prompt names the job in his words and
+  forbids the bridge: his training/body/nutrition are background on his
+  capacity, never the subject, never a metaphor. VERIFIED by regenerating
+  today's idea on the real vault — context went from 8 gym references to 0,
+  card now reads "Delegate The Decision, Not Just The Task".
+- PLAN DONE/SKIP — ALREADY BUILT, NOW VERIFIED LIVE. The handoff called it
+  unbuilt; it was not. Exercised over the real HTTP route against today's
+  plan record (8071a462): POST /inbox/:id/priority → 200, outcome +
+  outcomeAt written, read-back confirmed, reverted to null. Both consumers
+  exist and read it: the review's today-plan section renders "— DONE /
+  SKIPPED", and the next day's plan gets "DONE / SKIPPED / no word" with
+  "carry a skipped one forward only if it still matters". Chose a priority
+  with no todoLines so no vault to-do was ticked by the test.
+- EXERCISE TARGETS BEFORE STARTING (`402ef72`). Today's card carries the
+  muscles it trains as chips (most-trained first, alphabetical tiebreak so
+  the row is stable), PER EXERCISE expands to every lift with its target,
+  and each routine card gets the same line. Pure client work — routines
+  already carry muscleGroup from the server, the field the volume bars
+  count. UNMAPPED is shown honestly; chips are omitted when the routine
+  cannot be resolved. Verified at 375px on his real Upper Body.
+
+VERIFICATION GOTCHA (3 Sep): the devtools MCP browser's clock runs ~5h
+behind his real local time, so a time read off one of those screenshots is
+NOT his. It cost a detour chasing a schedule that had "changed" — it had
+not; a long-lived tab was rendering cached state while the vault and a fresh
+load both said Upper Body. Also noted, not chased: Workout Routines.md took
+four writes in 19 seconds at 08:26 local (the week-plan annotation pass);
+each is backed up, but that is chattier than it needs to be.
+
 NEXT ACTION: the roster (#18) is complete. The one open engineering thread
 is the pulse budget above (his decision, then a one-line change). After
 that: the stores alert (15 filed records without undo data — decide
