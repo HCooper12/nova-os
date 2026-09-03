@@ -48,7 +48,7 @@ function Exercise({ d }) {
           entry — a blank silhouette would read as "trains nothing". */}
       {d.muscles && (
         <div style={css('display:flex;gap:14px;align-items:center;margin-bottom:10px')}>
-          <BodyMap muscles={d.muscles} height={118} />
+          <BodyMap muscles={d.muscles} height={118} pattern={d.motion} />
           <div style={css('flex:1;min-width:0')}>
             {d.equipment && (
               <div style={css(`font:500 10px ${M};letter-spacing:.1em;color:${dim(45)}`)}>EQUIPMENT · {d.equipment.toUpperCase()}</div>

@@ -1,6 +1,7 @@
 import { loadExerciseLibrary } from './exercises.js';
 import { atlasFor } from './data/exerciseAtlas.js';
 import { resolveMuscles } from './muscles.js';
+import { patternFor } from '../../src/exerciseMotion.js';
 import { loadRoutines } from './workouts.js';
 import { loadSessions } from './workoutSessions.js';
 import { estimateE1RMs } from './coach.js';
@@ -105,6 +106,9 @@ async function buildExercise(vaultPath, name) {
     equipment: a?.equipment || null,
     muscles: anatomy && { primary: anatomy.primary, secondary: anatomy.secondary,
       primaryLabels: anatomy.primaryLabels, secondaryLabels: anatomy.secondaryLabels, views: anatomy.views },
+    // how the lift MOVES — null for an isometric hold or a shape we cannot
+    // classify, which the client renders as a still diagram
+    motion: patternFor(ex.name, a?.primary || []),
   };
 }
 
