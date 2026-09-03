@@ -74,6 +74,7 @@ const FEATURES = [
   ['Train · history rows carry the Coach\'s reaction', 'COACH SAID'],
   ['Home · a health insight can be talked through in one tap', 'TALK IT THROUGH'],
   ["Train · today's card says what the session trains, before he starts", 'PER EXERCISE'],
+  ['Voice · a brief killed by leaving the app is replayable, not lost', 'the audio stopped when you left'],
 ];
 
 const SERVER_ROUTES = [

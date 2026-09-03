@@ -1,5 +1,6 @@
 import { Component, createRef, lazy, Suspense } from 'react';
 import { preferMixing } from './audioSession.js';
+import { unspokenTexts, resumeVerdict } from './speechResume.js';
 import { forceLayout, degrees, GALAXY_MAX_NODES, zoomAt, panBy, recencyAlpha } from './galaxyLayout.js';
 import { flushSync } from 'react-dom';
 import { recipes, notes, basePlan, reviews, galaxyNamed, galaxyLinks } from './data.js';
@@ -588,11 +589,18 @@ export default class App extends Component {
         // for days. Ask the SW to check on every resume; when a new version
         // takes control, the controllerchange reload below applies it.
         try { navigator.serviceWorker?.getRegistration().then((r) => r?.update()).catch(() => {}); } catch { /* unsupported */ }
+        this.settleSpeechAcrossBackground();
         if (getConnection()) {
           this.refreshLiveData();
           this.startEventStream();
         }
       } else {
+        // He may be walking away mid-brief. Record what is still unspoken —
+        // whether the audio survives the background is the device's call, and
+        // settleSpeechAcrossBackground() measures the answer on the way back
+        // rather than guessing it here.
+        const left = unspokenTexts(this.ttsNowSaying, this.ttsQueue);
+        this.leftMidSpeech = left.length ? left : null;
         this.stopEventStream(); // save battery while backgrounded
         // a deferred update applies now — backgrounded, nothing to interrupt
         if (this.swPendingReload && !this.state.workoutSession && !this.swReloading) {
@@ -5856,7 +5864,7 @@ export default class App extends Component {
     }
     this.ttsGen = (this.ttsGen || 0) + 1;
     this.ttsQueue = [];
-    this.ttsPlaying = false;
+    this.ttsPlaying = false; this.ttsNowSaying = null;
   }
   // onPlay fires when this sentence's AUDIO starts (or when it provably
   // can't) — it is how text is revealed in sync with speech instead of
@@ -5908,6 +5916,9 @@ export default class App extends Component {
       this.endSpeech(); this.drainTtsQueue(gen); return;
     }
     this.ttsPlaying = true;
+    // the sentence in the air — half of what an interrupted brief still owes
+    // him (the queue behind it is the other half)
+    this.ttsNowSaying = head.said || null;
     resumeAudioGraph(); // a suspended graph plays SILENTLY — resume before every chunk
     // ...but resume() only lands near a gesture, and a reply arrives from the
     // network. If the graph is still not running, the decoded buffer CANNOT
@@ -5919,7 +5930,7 @@ export default class App extends Component {
       const src = playSpeechBuffer(head.buffer, () => {
         if (this.currentSource === src) this.currentSource = null;
         if (gen !== (this.ttsGen || 0)) return;
-        this.ttsPlaying = false; this.endSpeech();
+        this.ttsPlaying = false; this.ttsNowSaying = null; this.endSpeech();
         this.drainTtsQueue(gen);
       });
       this.currentSource = src;
@@ -5941,7 +5952,7 @@ export default class App extends Component {
       if (synthetic) holdSyntheticSpeech(false);
       URL.revokeObjectURL(url); detachMeter();
       if (gen !== (this.ttsGen || 0)) return; // a stop flushed this generation — don't touch live state
-      this.ttsPlaying = false; this.endSpeech();
+      this.ttsPlaying = false; this.ttsNowSaying = null; this.endSpeech();
       this.drainTtsQueue(gen);
     };
     audio.src = url;
@@ -6033,6 +6044,26 @@ export default class App extends Component {
     this.speechBlockedTexts = texts.slice();
     this.speechBlockedGen = this.ttsGen || 0;
     this.setState({ speechBlocked: { texts: texts.slice(), reason } });
+  }
+  // He left mid-brief and came back. Whether iOS kept the audio running while
+  // the app was backgrounded is not knowable from here — so this measures it
+  // instead of assuming: if not one queued sentence advanced while he was
+  // away, the audio is dead and those words are owed to him. It earns the
+  // SAME bar as blocked speech, because it costs him the same silence.
+  //
+  // A stalled queue is also a queue that will never drain on its own — the
+  // 'ended' event that would advance it is never coming — so it is cleared
+  // before the replay is offered, or the next reply would queue behind a
+  // corpse. Order matters: stopSpeaking() bumps ttsGen, and the replay must
+  // be stamped with the NEW generation to survive.
+  settleSpeechAcrossBackground() {
+    const before = this.leftMidSpeech;
+    this.leftMidSpeech = null;
+    if (!before) return;
+    const after = unspokenTexts(this.ttsNowSaying, this.ttsQueue);
+    if (resumeVerdict(before, after) !== 'stalled') return; // still talking, or finished
+    this.stopSpeaking();
+    this.noteSpeechUnavailable(before, 'the audio stopped when you left');
   }
   // Replay what he never heard, from inside the tap.
   replayBlockedSpeech() {
