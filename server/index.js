@@ -186,7 +186,14 @@ async function main() {
     next();
   });
 
-  app.use('/api', intentRouter(vault)); // the front door — one input, deterministic routing
+  // The front door — one input, deterministic routing. Takes the vault PATH,
+  // not the Vault object: every lane it dispatches into (Watcher, Researcher,
+  // Study, the planner) spawns a CLI with `cwd: vaultPath`, and node throws
+  // on a non-string cwd. It was mounted with the object, which meant the
+  // watch/research/study lanes were unreachable THROUGH THIS ROUTE — masked
+  // because the client bypasses it for those three and calls their own
+  // endpoints. Found 4 Sep when the planner became its first real caller.
+  app.use('/api', intentRouter(process.env.VAULT_PATH));
   app.use('/api', notesRouter(vault));
   app.use('/api', libraryRouter(process.env.VAULT_PATH, vault)); // the visual Library — read-only view over Sources
   app.use('/api', calendarRouter(process.env.VAULT_PATH));

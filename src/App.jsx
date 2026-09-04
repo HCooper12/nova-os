@@ -1,5 +1,5 @@
 import { Component, createRef, lazy, Suspense } from 'react';
-import { chatStartsAJob } from './chatLanes.js';
+import { chatStartsAJob, planWorthy } from './chatLanes.js';
 import { preferMixing } from './audioSession.js';
 import { unspokenTexts, resumeVerdict } from './speechResume.js';
 import { forceLayout, degrees, GALAXY_MAX_NODES, zoomAt, panBy, recencyAlpha } from './galaxyLayout.js';
@@ -4771,6 +4771,22 @@ export default class App extends Component {
   routeFromChat(q) {
     const conn = getConnection();
     if (!conn || this.state.connectionStatus === 'offline') return false;
+    // Several jobs, not one. His example — watch it, analyse it, compare it
+    // against the research — is three agents and a synthesis, and the
+    // single-lane router would call it 'watch' and drop the rest of the
+    // sentence. A plan is PROPOSED and waits: his decision, because it spends
+    // real money across several agents.
+    if (planWorthy(q)) {
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q }], orbInput: '' }));
+      api.proposePlan(conn, q)
+        .then((r) => this.setState((st) => ({
+          voiceChat: [...st.voiceChat, { at: Date.now(), who: 'nova', text: r.said || 'Working out who should do what — I will show you the plan before anything runs.' }],
+        })))
+        .catch((e) => this.setState((st) => ({
+          voiceChat: [...st.voiceChat, { at: Date.now(), who: 'nova', text: `I couldn't plan that: ${e.message}` }],
+        })));
+      return true;
+    }
     const preview = this.routeIntentLocal(q);
     if (!preview || !chatStartsAJob(preview.lane)) return false;
 

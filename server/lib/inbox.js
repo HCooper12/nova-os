@@ -1202,6 +1202,23 @@ export async function approveRecord(vaultPath, id) {
   // "I looked at this and I'm keeping it", so it resolves the record without
   // filing anything and without undoData (there is no vault change to undo).
   // Routing it through fileDecision would throw on the missing decision.
+  // A PLAN. Approving it is the yes that lets Nova put several agents on one
+  // request — his decision, 4 Sep: a plan is proposed and never runs on Nova's
+  // own say-so, because it spends real money across several lanes.
+  //
+  // A plan that failed its checks cannot be approved into running. Approving
+  // one files the refusal as read — the blockers are the answer he wanted
+  // ("that would need a new agent"), not a job to retry.
+  if (record.kind === 'plan') {
+    if (!record.planOk) {
+      return updateRecord(id, { status: 'filed', filedAt: new Date().toISOString(), auto: false, error: null });
+    }
+    const { runPlan } = await import('./planner.js');
+    // the steps take minutes; the record carries its own progress, so this is
+    // deliberately not awaited
+    runPlan(vaultPath, id).catch(() => {});
+    return updateRecord(id, { status: 'classifying', approvedAt: new Date().toISOString(), error: null });
+  }
   if (record.kind === 'forge-job') {
     return updateRecord(id, {
       status: 'filed',

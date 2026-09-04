@@ -29,3 +29,40 @@ export const CHAT_DEFERRED_LANES = ['code', 'play', 'capture'];
 export function chatStartsAJob(lane) {
   return CHAT_JOB_LANES.includes(lane);
 }
+
+// ---------------------------------------------------------------------------
+// IS THIS ONE JOB, OR SEVERAL?
+// ---------------------------------------------------------------------------
+//
+// His example — "watch and analyse this, as well as compare it against other
+// empirical research" — is three agents and a synthesis. The single-lane
+// router calls it 'watch' and discards the rest of the sentence, because the
+// first matching rule wins.
+//
+// Deterministic, and deliberately RELUCTANT. A plan costs several dollars and
+// waits for his approval, so a false positive turns a quick question into a
+// form to fill in. A false negative just does what Nova did yesterday. The
+// asymmetry says: only call it a plan when the request names work from two
+// genuinely different families.
+const FAMILIES = {
+  watch: /(youtube\.com|youtu\.be|vimeo\.com|tiktok\.com)|\b(watch|video|transcript|episode|podcast)\b/i,
+  research: /\b(research|evidence|empirical|literature|sources?|studies|stud(y|ies)|science|scientific|fact.?check|verify|peer.?reviewed)\b/i,
+  compare: /\b(compare|contrast|cross.?reference|against|versus|\bvs\b|corroborate|hold up|overstat)/i,
+  shelf: /\b(my (notes|shelf|vault|library|research)|what I (have|know|already))\b/i,
+};
+
+export function familiesIn(text) {
+  const t = String(text || '');
+  return Object.keys(FAMILIES).filter((k) => FAMILIES[k].test(t));
+}
+
+// A request earns a plan when it names at least two families AND at least one
+// of them is real work rather than only a comparison word — "compare my bench
+// to last month" is a question about his own data, not a delegation.
+export function planWorthy(text) {
+  const t = String(text || '').trim();
+  if (t.length < 25) return false; // too short to be a compound brief
+  const fams = familiesIn(t);
+  if (fams.length < 2) return false;
+  return fams.some((f) => f === 'watch' || f === 'research' || f === 'shelf');
+}

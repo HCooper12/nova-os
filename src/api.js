@@ -314,6 +314,9 @@ export const api = {
   codeUnshelve: (conn, workspace) => post(conn, '/api/claude-code/unshelve', { workspace }),
   verdict: (conn, kind, of) => call(conn, `/api/verdict/${encodeURIComponent(kind)}${of ? `?of=${encodeURIComponent(of)}` : ''}`),
   sendIntent: (conn, text, lane) => post(conn, '/api/intent', lane ? { text, lane } : { text }),
+  // a request that is several jobs — proposes a plan, never runs one
+  proposePlan: (conn, text, model) => post(conn, '/api/plan', model ? { text, model } : { text }),
+  runPlan: (conn, id) => post(conn, `/api/plan/${encodeURIComponent(id)}/run`),
   // 60s: the brief reads health, calendar (CalDAV), the vault and the rails.
   // At the 20s default it aborted mid-compose and the morning brief silently
   // never arrived — observed in the harness, ERR_ABORTED on /api/show.

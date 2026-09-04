@@ -15,6 +15,33 @@ const REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 
 export function intentRouter(vaultPath) {
   const router = Router();
 
+  // ---- PLANS: a request that is several jobs, not one ---------------------
+  //
+  // His decision, 4 Sep: a plan never runs on Nova's own say-so. POST /plan
+  // PROPOSES one — decompose, validate, and land it pending with its ceiling.
+  // POST /plan/:id/run is the separate, explicit yes.
+  router.post('/plan', async (req, res) => {
+    try {
+      const { startPlan } = await import('../lib/planner.js');
+      const record = await startPlan(vaultPath, req.body?.text, { model: req.body?.model });
+      res.json({ record, said: 'Working out who should do what — I will show you the plan before anything runs.' });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  router.post('/plan/:id/run', async (req, res) => {
+    try {
+      const { runPlan } = await import('../lib/planner.js');
+      // fire and forget: the plan record carries its own progress, and the
+      // steps take minutes — holding the request open would time out
+      runPlan(vaultPath, req.params.id).catch(() => {});
+      res.json({ ok: true, said: 'Running it now — I will come back with one report.' });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
   router.post('/intent/route', (req, res) => {
     const decision = routeIntent(req.body?.text);
     res.json({ ...decision, label: decision.lane ? LANE_LABEL[decision.lane] : null });

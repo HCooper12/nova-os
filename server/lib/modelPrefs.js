@@ -225,6 +225,11 @@ export const LANES = [
 
   // ---- research -----------------------------------------------------------
   {
+    id: 'planner', label: 'Planner · delegation', group: 'research', def: 'sonnet',
+    hint: 'breaks a multi-part request into steps and puts an agent on each — and writes the report at the end. Never runs a plan without showing it to you first.',
+    off: 'Multi-step requests are answered as ordinary questions instead of being planned out; single-lane requests are unaffected.',
+  },
+  {
     id: 'researcher', label: 'Researcher', group: 'research', def: 'sonnet',
     hint: 'web-read-only, citation-required — the brief always lands in your Inbox for review',
     off: 'Research requests (including “research this” from Ask Nova and the overnight queue) are refused with a plain message.',
