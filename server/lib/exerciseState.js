@@ -1,4 +1,5 @@
 import matter from 'gray-matter';
+import { localDateISO } from './localDate.js';
 import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
 
 const STATE_REL_PATH = 'Wiki/Health/Exercise State.md';
@@ -35,7 +36,7 @@ function getState(vaultPath) {
 }
 
 async function persist(vaultPath, state) {
-  const frontmatter = { type: 'exercise-state', updated: new Date().toISOString().slice(0, 10), state };
+  const frontmatter = { type: 'exercise-state', updated: localDateISO(), state };
   const content = matter.stringify(bodyFor(state), frontmatter);
   await stateFile.write(vaultPath, content, state);
 }

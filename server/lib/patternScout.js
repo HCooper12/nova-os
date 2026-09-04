@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { localDateISO } from './localDate.js';
 import { weeklyWindowOpen } from './cadence.js';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
@@ -184,7 +185,7 @@ export async function runPatternScout(vaultPath, { force = false, model } = {}) 
   const marker = await createRecord({
     id: randomUUID().slice(0, 8),
     kind: 'pattern',
-    text: `Pattern scout — week of ${new Date().toISOString().slice(0, 10)}`,
+    text: `Pattern scout — week of ${localDateISO()}`,
     source: 'scout',
     mode: 'auto',
     status: 'classifying',

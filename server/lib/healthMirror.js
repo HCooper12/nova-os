@@ -1,4 +1,5 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { localDateISO } from './localDate.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
@@ -56,7 +57,7 @@ export function buildMirrorPage(monthKey, healthDays, nutritionDays) {
   return matter.stringify(body, {
     type: 'health-log',
     month: monthKey,
-    generated: new Date().toISOString().slice(0, 10),
+    generated: localDateISO(),
     tags: ['health', 'generated'],
   });
 }

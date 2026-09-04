@@ -15,6 +15,7 @@
 // reads/writes; the model only reasons and proposes.
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { localDateISO } from './localDate.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
@@ -127,7 +128,7 @@ export async function appendLearning(vaultPath, { insight, kind }) {
   const k = LEARN_KINDS.includes(kind) ? kind : 'works';
   const full = path.join(vaultPath, PLAYBOOK_REL);
   const raw = await readFile(full, 'utf8');
-  const line = `- ${new Date().toISOString().slice(0, 10)} — ${String(insight).trim()}`;
+  const line = `- ${localDateISO()} — ${String(insight).trim()}`;
   const heading = KIND_HEADING[k];
   const idx = raw.indexOf(heading);
   let next;

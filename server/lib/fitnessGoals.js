@@ -1,4 +1,5 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { localDateISO } from './localDate.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
@@ -51,7 +52,7 @@ export async function setFitnessGoals(vaultPath, input) {
   }
   await mkdir(path.dirname(full), { recursive: true });
   if (existsSync(full)) await backupFile(full);
-  const updated = new Date().toISOString().slice(0, 10);
+  const updated = localDateISO();
   const frontmatter = { type: 'fitness-goals', goal, focus, updated };
   if (daysPerWeek) frontmatter.daysPerWeek = daysPerWeek;
   if (equipment) frontmatter.equipment = equipment;
@@ -72,7 +73,7 @@ export async function addGoalTarget(vaultPath, { metric, value, unit, by, note }
     unit: String(unit || '').trim().slice(0, 12),
     by: by || null,
     note: String(note || '').trim().slice(0, 200),
-    setAt: new Date().toISOString().slice(0, 10),
+    setAt: localDateISO(),
   };
   await setFitnessGoals(vaultPath, { ...g, targets: [...(g.targets || []), target] });
   return target;

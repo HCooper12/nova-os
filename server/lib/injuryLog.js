@@ -8,6 +8,7 @@
 // EVERY coach context; resolved ones stay as history.
 
 import path from 'node:path';
+import { localDateISO } from './localDate.js';
 import { randomUUID } from 'node:crypto';
 import matter from 'gray-matter';
 import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
@@ -33,7 +34,7 @@ function serialize(state) {
     ['# Injury Log', '', 'Managed via Nova OS — the Coach reads the active list before every answer.', '',
       '## Active', '', ...(active.length ? active.map(line) : ['_none — clear_']), '',
       '## Resolved', '', ...(resolved.length ? resolved.map(line) : ['_none yet_']), ''].join('\n'),
-    { type: 'injury-log', updated: new Date().toISOString().slice(0, 10), injuries: state.injuries },
+    { type: 'injury-log', updated: localDateISO(), injuries: state.injuries },
   );
 }
 
@@ -58,7 +59,7 @@ export async function addInjury(vaultPath, { area, note, severity }) {
     area: String(area || '').trim().slice(0, 60),
     note: String(note || '').trim().slice(0, 300),
     severity: SEVERITIES.includes(severity) ? severity : 'niggle',
-    startedAt: new Date().toISOString().slice(0, 10),
+    startedAt: localDateISO(),
   };
   if (!clean.area) throw new Error('the affected area is required');
   await mutate(vaultPath, (state) => { state.injuries.push(clean); });
@@ -69,7 +70,7 @@ export async function resolveInjury(vaultPath, id) {
   return mutate(vaultPath, (state) => {
     const inj = state.injuries.find((i) => i.id === id);
     if (!inj) throw new Error('no such injury entry');
-    inj.resolvedAt = new Date().toISOString().slice(0, 10);
+    inj.resolvedAt = localDateISO();
   });
 }
 

@@ -1,4 +1,5 @@
 import matter from 'gray-matter';
+import { localDateISO } from './localDate.js';
 import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
 
 export const LIBRARY_REL_PATH = 'Wiki/Health/Exercise Library.md';
@@ -131,7 +132,7 @@ function parseLibrary(raw) {
 // The whole file from its list — pure, so a planner can compute the library
 // it WOULD write and hand it to the staged pass (lib/stagedPass.js).
 export function renderLibraryFile(exercises) {
-  const frontmatter = { type: 'exercise-library', updated: new Date().toISOString().slice(0, 10), exercises };
+  const frontmatter = { type: 'exercise-library', updated: localDateISO(), exercises };
   return matter.stringify(bodyFor(exercises), frontmatter);
 }
 
