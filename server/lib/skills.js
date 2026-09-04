@@ -154,7 +154,14 @@ export async function removeBacklogItem(vaultPath, line) {
 // truthful, current answer instead of a guess.
 export async function skillsContext(vaultPath) {
   const departments = await loadSkills(vaultPath);
-  if (!departments.length) return '';
+  // The DELEGABLE half comes from capabilities.js — the same list the planner
+  // is given and the validator enforces. Answering "what can you do" from a
+  // hand-kept second copy is how Nova ends up offering an agent it does not
+  // have, so the two are generated from one source by construction.
+  const { describeForHim } = await import('./capabilities.js');
+  const agents = describeForHim();
+  const agentBlock = `WHO NOVA CAN PUT ON A JOB (every agent it can dispatch, and the ones that are yours to ask directly):\n${agents.map((a) => `- ${a}`).join('\n')}`;
+  if (!departments.length) return agentBlock;
   const lines = departments.map((d) => `${d.name}: ${d.skills.map((s) => `${s.text} [${s.autonomy}]`).join('; ')}`);
-  return `WHAT NOVA CAN DO TODAY (the skill registry — answer capability questions from THIS, and say plainly when something isn't on it yet):\n${lines.join('\n')}`;
+  return `WHAT NOVA CAN DO TODAY (the skill registry — answer capability questions from THIS, and say plainly when something isn't on it yet):\n${lines.join('\n')}\n\n${agentBlock}`;
 }
