@@ -146,6 +146,39 @@ export async function reapOrphanedClassifying() {
   });
 }
 
+// STALE FAILURES AGE OUT. A record that errored keeps its place in the queue
+// forever: twelve were sitting there on 4 Sep, five of them over a fortnight
+// old, four of those ENOTFOUND from 9 August — network blips from a morning
+// nobody will ever retry. They are not information, they are silt, and they
+// make the real failures harder to see.
+//
+// Aged to 'discarded' rather than deleted, because that is the reversible
+// state the rails already understand and it keeps the history honest. The
+// reason says why, so a record that turns up in history explains itself.
+//
+// Pure, so the threshold is testable without a store.
+export function isStaleError(record, now = Date.now(), days = 21) {
+  if (!record || record.status !== 'error' || !record.createdAt) return false;
+  const at = Date.parse(record.createdAt);
+  return Number.isFinite(at) && now - at > days * 86400000;
+}
+
+export async function reapStaleErrors({ now = Date.now(), days = 21 } = {}) {
+  return withLock(async () => {
+    const store = await load();
+    let reaped = 0;
+    for (const r of store.items) {
+      if (!isStaleError(r, now, days)) continue;
+      r.status = 'discarded';
+      r.discardReason = `aged out — this failed over ${days} days ago and was never retried`;
+      r.discardedAt = new Date(now).toISOString();
+      reaped++;
+    }
+    if (reaped) await persist();
+    return { reaped };
+  });
+}
+
 // test hook — drops the in-memory cache so a fresh NOVA_DATA_DIR is re-read
 export function _resetInboxStore() {
   cache = null;

@@ -1,4 +1,5 @@
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
+import { salvageJson, failureExcerpt } from './jsonSalvage.js';
 import { gatherContext } from './contextSections.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -228,11 +229,23 @@ function startPlanJob(vaultPath, context, mode, recordId, now) {
       const outer = JSON.parse(stdout);
       if (outer.is_error || code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
       const text = (outer.result || '').trim();
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in plan response');
+      // Seven identical failures between 22 and 31 August — "Expected ',' or
+      // ']' after array element" — and no morning plan on any of those days.
+      // The cause is a model writing an unescaped quote inside a string while
+      // describing his calendar. salvageJson repairs that ONLY after an honest
+      // parse has already failed, and only if the repair itself parses.
+      const salvage = salvageJson(text);
+      if (!salvage.value) {
+        // keep the offending text this time, so an eighth failure names its
+        // own cause instead of teaching nothing
+        throw Object.assign(new Error(salvage.error || 'no JSON in plan response'), {
+          excerpt: failureExcerpt(text, salvage.error),
+        });
+      }
+      if (salvage.repaired) console.log('plan-today: the model\'s JSON needed repairing before it would parse');
       let todos = null;
       try { todos = (await listTodos(vaultPath)).items; } catch { /* no linkage without the list — the plan still stands */ }
-      const { title, text: body, priorities } = composePlanText(JSON.parse(jsonMatch[0]), now, { todos });
+      const { title, text: body, priorities } = composePlanText(salvage.value, now, { todos });
       const decision = {
         route: 'journal',
         confidence: 'high',
@@ -255,7 +268,7 @@ function startPlanJob(vaultPath, context, mode, recordId, now) {
         await updateRecord(recordId, { status: 'pending', decision });
       }
     } catch (e) {
-      await planFailed(recordId, e.message, now);
+      await planFailed(recordId, e.message, now, e.excerpt || null);
     }
   });
   child.on('error', async (err) => {
@@ -271,8 +284,8 @@ export function failedPlansToday(records, now = new Date()) {
   const t = todayISO(now);
   return records.filter((r) => r.kind === 'plan-today' && r.status === 'error' && r.createdAt && todayISO(new Date(r.createdAt)) === t).length;
 }
-async function planFailed(recordId, message, now) {
-  await updateRecord(recordId, { status: 'error', error: message }).catch(() => {});
+async function planFailed(recordId, message, now, excerpt = null) {
+  await updateRecord(recordId, { status: 'error', error: message, ...(excerpt ? { rawExcerpt: excerpt } : {}) }).catch(() => {});
   try {
     if (failedPlansToday(await listRecords(), now) >= PLAN_MAX_ATTEMPTS) {
       const { sendPush } = await import('./push.js');

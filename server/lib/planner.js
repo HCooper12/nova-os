@@ -23,6 +23,7 @@ import { boundaryArgs } from './spawnBoundary.js';
 import { settleWatchdog } from './settle.js';
 import { describeForPlanner, CAPABILITIES } from './capabilities.js';
 import { validatePlan, schedule, planProgress, describePlan, MAX_STEPS, MAX_PLAN_USD } from './plan.js';
+import { salvageJson } from './jsonSalvage.js';
 import path from 'node:path';
 import os from 'node:os';
 
@@ -64,13 +65,10 @@ Reply with ONLY this JSON:
 // Pure: model text in, a plan-shaped object out (or null). Exported so the
 // parse is testable without spawning anything.
 export function parsePlan(text) {
-  // The model is asked for bare JSON and mostly obliges, but a stray
-  // sentence before the brace is the commonest way a lane's parse dies — the
-  // researcher takes the same first-object approach for the same reason.
-  const m = String(text || '').match(/\{[\s\S]*\}/);
-  if (!m) return null;
-  let parsed;
-  try { parsed = JSON.parse(m[0]); } catch { return null; }
+  // Balanced-object extraction plus post-failure repair — the same treatment
+  // plan-today needed after seven identical parse failures. A planner that
+  // dies on one unescaped quote would refuse work it could plainly do.
+  const { value: parsed } = salvageJson(text);
   if (!parsed || typeof parsed !== 'object') return null;
   const steps = Array.isArray(parsed.steps) ? parsed.steps : [];
   return {

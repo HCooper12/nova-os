@@ -237,11 +237,14 @@ async function main() {
 
   // Reap orphans BEFORE the schedulers tick: a record stuck in 'classifying'
   // from before the restart can never resolve and would block today's loops.
-  import('./lib/inboxStore.js').then(({ reapOrphanedClassifying }) =>
-    reapOrphanedClassifying().then(({ reaped }) => {
-      if (reaped) console.log(`inbox reaper: flipped ${reaped} orphaned record(s) to error`);
-    })
-  ).catch((e) => console.error('inbox reaper failed:', e.message));
+  import('./lib/inboxStore.js').then(async ({ reapOrphanedClassifying, reapStaleErrors }) => {
+    const { reaped } = await reapOrphanedClassifying();
+    if (reaped) console.log(`inbox reaper: flipped ${reaped} orphaned record(s) to error`);
+    // and age out failures nobody will retry — twelve were sitting in the
+    // queue on 4 Sep, four of them ENOTFOUND blips from 9 August
+    const stale = await reapStaleErrors();
+    if (stale.reaped) console.log(`inbox reaper: aged out ${stale.reaped} stale failure(s)`);
+  }).catch((e) => console.error('inbox reaper failed:', e.message));
   // and expire stale time-value drafts (old dispatches/reviews/today-checks)
   // at boot + every 6h, so the pending queue holds only things worth a yes
   const expireTick = () => import('./lib/inbox.js').then(({ expireStaleDrafts }) =>
