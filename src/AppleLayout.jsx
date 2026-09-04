@@ -1,4 +1,5 @@
 import { css } from './css.js';
+import { absentHintStyle, absentValueStyle } from './vitalsAbsence.js';
 import { Interactive } from './Interactive.jsx';
 
 // Grouped-layout primitives for the "Apple layout" (cupertino) style —
@@ -54,10 +55,10 @@ export function MetricTile({ m }) {
   return (
     <Interactive key={m.key} onClick={m.onOpen} base={{ cursor: m.onOpen ? 'pointer' : 'default', borderRadius: '12px', padding: '10px 12px' }} hoverStyle={m.onOpen ? { background: 'rgba(255,255,255,.04)' } : {}}>
       <div style={{ font: `600 10.5px ${UI}`, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--nv-ink60)' }}>{m.label}</div>
-      <div style={{ font: `700 23px ${UI}`, letterSpacing: '-.02em', marginTop: '3px', fontVariantNumeric: 'tabular-nums', color: `var(${m.color})` }}>
+      <div style={{ font: `700 23px ${UI}`, letterSpacing: '-.02em', marginTop: '3px', fontVariantNumeric: 'tabular-nums', ...absentValueStyle(m, m.color) }}>
         {m.value}{m.small ? <small style={{ fontSize: '12px', fontWeight: 600, color: 'var(--nv-ink40)', marginLeft: '2px' }}>{m.small}</small> : null}
       </div>
-      <div style={{ font: `400 10px ${M}`, marginTop: '1px', letterSpacing: '.02em', color: 'var(--nv-ink40)' }}>{m.hint}</div>
+      <div style={absentHintStyle(m, M)}>{m.hint}</div>
     </Interactive>
   );
 }

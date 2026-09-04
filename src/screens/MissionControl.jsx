@@ -1,4 +1,5 @@
 import { css } from '../css.js';
+import { absentHintStyle, absentValueStyle } from '../vitalsAbsence.js';
 import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
 import { Clock } from '../Clock.jsx';
@@ -28,10 +29,10 @@ function Sat({ pos, colorVar, glowVar, d }) {
     <div onClick={d.onOpen} style={{ position: 'absolute', ...pos, borderRadius: '11px', padding: '2px', background: `conic-gradient(from 210deg, var(${colorVar}) ${d.pct}%, var(--nv-edge) 0)`, boxShadow: `var(${glowVar})`, cursor: d.onOpen ? 'pointer' : 'default' }}>
       <div style={{ borderRadius: '9px', background: 'var(--nv-glass2)', backdropFilter: 'blur(14px)', padding: '10px 15px' }}>
         <div style={{ font: `500 8px ${M}`, letterSpacing: '.22em', color: 'var(--nv-ink60)' }}>{d.label}</div>
-        <div style={{ font: `700 24px ${R}`, marginTop: '2px', fontVariantNumeric: 'tabular-nums', color: `var(${colorVar})` }}>
+        <div style={{ font: `700 24px ${R}`, marginTop: '2px', fontVariantNumeric: 'tabular-nums', ...absentValueStyle(d, colorVar) }}>
           {d.value}{d.small ? <small style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--nv-ink40)' }}>{d.small}</small> : null}
         </div>
-        <div style={{ font: `400 8px ${M}`, marginTop: '1px', letterSpacing: '.04em', color: 'var(--nv-ink40)' }}>{d.hint}</div>
+        <div style={absentHintStyle(d, M)}>{d.hint}</div>
       </div>
     </div>
   );
@@ -137,10 +138,10 @@ export function MissionControl({ v }) {
             {v.bodyMetrics.map((m) => (
               <Interactive key={m.key} onClick={m.onOpen} base={{ cursor: m.onOpen ? 'pointer' : 'default', borderRadius: '8px', padding: '6px 2px 2px' }} hoverStyle={m.onOpen ? { background: 'rgba(255,255,255,.04)' } : {}}>
                 <div style={{ font: `500 8px ${M}`, letterSpacing: '.22em', color: 'var(--nv-ink60)' }}>{m.label}</div>
-                <div style={{ font: `700 24px ${R}`, marginTop: '2px', fontVariantNumeric: 'tabular-nums', color: `var(${m.color})` }}>
+                <div style={{ font: `700 24px ${R}`, marginTop: '2px', fontVariantNumeric: 'tabular-nums', ...absentValueStyle(m, m.color) }}>
                   {m.value}{m.small ? <small style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--nv-ink40)', marginLeft: '2px' }}>{m.small}</small> : null}
                 </div>
-                <div style={{ font: `400 8px ${M}`, marginTop: '1px', letterSpacing: '.04em', color: 'var(--nv-ink40)' }}>{m.hint}</div>
+                <div style={absentHintStyle(m, M)}>{m.hint}</div>
               </Interactive>
             ))}
           </div>

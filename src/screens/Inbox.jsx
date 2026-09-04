@@ -44,6 +44,7 @@ export function Inbox({ v }) {
     null,
   );
   const [dictated, setDictated] = useState(false);
+  const [modesOpen, setModesOpen] = useState(false);
   // History is unbounded and he has 246 records — rendering every one cost
   // ~211ms on EVERY inbox change (3,239 DOM nodes reconciled to tick one
   // box). The recent slice is what anyone actually reads; the rest are one
@@ -129,23 +130,42 @@ export function Inbox({ v }) {
         </div>
       </div>
 
-      {/* autonomy ladder */}
-      <div style={css("margin-top:16px;display:flex;gap:8px;flex-wrap:wrap")}>
-        {v.inboxModes.map((m) => (
-          <Interactive key={m.value} onClick={m.pick}
-            base={{
-              cursor: 'pointer', flex: '1 1 200px', padding: '10px 14px', borderRadius: '9px',
-              border: m.active ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent)',
-              background: m.active ? 'var(--nv-acc-bg)' : 'rgba(0,0,0,.2)',
-              boxShadow: m.active ? 'var(--nv-glow-tab)' : 'none',
-            }}
-            hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}
-          >
-            <span style={{ display: 'block', font: `600 9px ${M}`, letterSpacing: '.18em', color: m.active ? 'var(--nv-acc)' : 'var(--nv-ink40)' }}>STEP {m.step}</span>
-            <span style={{ display: 'block', marginTop: '3px', font: `600 13.5px ${R}`, color: m.active ? 'var(--nv-acc)' : 'var(--nv-ink)' }}>{m.label}</span>
-            <span style={{ display: 'block', marginTop: '2px', font: `500 11px ${R}`, color: 'var(--nv-ink60)' }}>{m.hint}</span>
-          </Interactive>
-        ))}
+      {/* FILING MODE. Three cards, ~230px of the first screen, for a setting
+          he changes a handful of times a year — while the nine items the tab
+          badge points at started below the fold. It stays a real control (it
+          always was one, not an explainer), but collapsed to the one line
+          that answers "what is Nova allowed to do right now". */}
+      <div style={{ marginTop: '14px' }}>
+        <Interactive as="div" onClick={() => setModesOpen(!modesOpen)}
+          base={css(`cursor:pointer;display:flex;align-items:center;gap:10px;padding:9px 13px;border-radius:9px;border:1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent);background:rgba(0,0,0,.2)`)}
+          hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}>
+          <span style={{ font: `600 9px ${M}`, letterSpacing: '.18em', color: 'var(--nv-ink40)' }}>FILING</span>
+          <span style={{ font: `600 12.5px ${R}`, color: 'var(--nv-acc)' }}>
+            {(v.inboxModes.find((m) => m.active) || {}).label || '—'}
+          </span>
+          <span style={{ marginLeft: 'auto', font: `500 9px ${M}`, letterSpacing: '.14em', color: 'var(--nv-ink40)' }}>
+            {modesOpen ? '▾ CLOSE' : '▸ CHANGE'}
+          </span>
+        </Interactive>
+        {modesOpen && (
+          <div style={css("margin-top:8px;display:flex;gap:8px;flex-wrap:wrap")}>
+            {v.inboxModes.map((m) => (
+              <Interactive key={m.value} onClick={() => { m.pick(); setModesOpen(false); }}
+                base={{
+                  cursor: 'pointer', flex: '1 1 200px', padding: '10px 14px', borderRadius: '9px',
+                  border: m.active ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent)',
+                  background: m.active ? 'var(--nv-acc-bg)' : 'rgba(0,0,0,.2)',
+                  boxShadow: m.active ? 'var(--nv-glow-tab)' : 'none',
+                }}
+                hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}
+              >
+                <span style={{ display: 'block', font: `600 9px ${M}`, letterSpacing: '.18em', color: m.active ? 'var(--nv-acc)' : 'var(--nv-ink40)' }}>STEP {m.step}</span>
+                <span style={{ display: 'block', marginTop: '3px', font: `600 13.5px ${R}`, color: m.active ? 'var(--nv-acc)' : 'var(--nv-ink)' }}>{m.label}</span>
+                <span style={{ display: 'block', marginTop: '2px', font: `500 11px ${R}`, color: 'var(--nv-ink60)' }}>{m.hint}</span>
+              </Interactive>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Skeleton ONLY while the inbox has genuinely never loaded — never
@@ -186,10 +206,18 @@ export function Inbox({ v }) {
                 </div>
                 <div onClick={item.canExpand ? item.toggleExpand : undefined} style={{ cursor: item.canExpand ? 'pointer' : 'default' }}
                   title={item.canExpand ? (item.expanded ? 'Collapse' : 'Tap to see exactly what approving will file') : undefined}>
-                  <div style={css(`margin-top:9px;font:600 15px ${R}`)}>
+                  {/* Two lines, then a real ellipsis. A decision title can be
+                      any length and an unclamped one pushed the actions off
+                      the card; a character-clamped one cut mid-word. */}
+                  <div style={css(`margin-top:9px;font:600 15px ${R};display:-webkit-box;-webkit-line-clamp:${item.expanded ? 'unset' : '2'};-webkit-box-orient:vertical;overflow:hidden`)}>
                     {item.title}
-                    {item.canExpand && <span style={css(`margin-left:7px;font:400 10px ${M};color:color-mix(in srgb, var(--nv-ink) 38%, transparent)`)}>{item.expanded ? '▾' : '▸'}</span>}
                   </div>
+                  {/* The bare ▸ said nothing about what tapping would do. */}
+                  {item.canExpand && (
+                    <div style={css(`margin-top:5px;font:500 9px ${M};letter-spacing:.14em;color:var(--nv-cy)`)}>
+                      {item.expanded ? '▾ SHOW LESS' : '▸ SEE WHAT GETS FILED'}
+                    </div>
+                  )}
                   {!item.expanded && item.previewShort && <div style={css(`margin-top:3px;font:500 13px/1.5 ${R};color:var(--nv-ink60);white-space:pre-wrap`)}>{item.previewShort}</div>}
                   {item.expanded && (
                     <div style={css("margin-top:8px;display:flex;flex-direction:column;gap:8px")}>
@@ -208,7 +236,12 @@ export function Inbox({ v }) {
                     </div>
                   )}
                 </div>
-                {item.reason && <div style={css(`margin-top:6px;font:italic 400 13px ${S};color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`)}>{item.reason}</div>}
+                {/* The reason is the densest text in the product — 40-60 words
+                    on every card, nine cards deep. Italic serif is Nova's
+                    speaking voice and earns one or two lines; at this length
+                    it was the slowest possible setting for the text he has to
+                    read most. Same colour and weight, UI face, wider leading. */}
+                {item.reason && <div style={css(`margin-top:7px;font:400 13px/1.55 ${R};color:color-mix(in srgb, var(--nv-ink) 62%, transparent)`)}>{item.reason}</div>}
                 {item.adjustments && (
                   <div style={css("margin-top:10px;display:flex;flex-direction:column")}>
                     {item.adjustments.map((a, i) => (

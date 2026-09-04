@@ -1,4 +1,5 @@
 import { readFile, writeFile, mkdir, unlink } from 'node:fs/promises';
+import { clampWords } from '../../src/textClamp.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -83,7 +84,13 @@ Output ONLY a JSON object with exactly these keys: route, confidence, title, rea
 export function normalizeDecision(parsed) {
   const route = ROUTES.includes(parsed.route) ? parsed.route : 'note';
   const confidence = parsed.confidence === 'high' ? 'high' : 'low';
-  const title = String(parsed.title || '').trim().slice(0, 80) || 'Captured thought';
+  // A hard character cut is applied to PROSE here, and the result is STORED —
+  // so a title clipped mid-word ("…new or actionable s") is baked into the
+  // record and no amount of client-side care can recover it. His screenshot,
+  // 4 Sep, was exactly this. Clamp on a word boundary, with an ellipsis that
+  // says the title was cut. Existing records keep their old titles; only new
+  // ones are written cleanly.
+  const title = clampWords(parsed.title, 80) || 'Captured thought';
   const reason = String(parsed.reason || '').trim().slice(0, 300);
   const p = parsed.payload || {};
   let payload;

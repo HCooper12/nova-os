@@ -1,4 +1,5 @@
 import { AGENTS } from './shared.js';
+import { clampWords } from '../textClamp.js';
 import { dtf } from './fmt.js';
 
 // Mission Control domain (Command Core layout): connection status chips and
@@ -605,7 +606,9 @@ export function valsMission(app, ctx) {
       .slice(0, 3)
       .map((r) => ({
         id: r.id,
-        title: r.decision?.title || (r.text || '').slice(0, 60) || 'Untitled',
+        // the same mid-word cut as the Inbox list had — this is the card he
+        // screenshotted showing "...something new or actionable s"
+        title: r.decision?.title || clampWords(r.text, 60) || 'Untitled',
         kindLabel: (r.kind || r.source || 'capture').replace(/-/g, ' ').toUpperCase(),
       })),
     onOpen: go('inbox'),

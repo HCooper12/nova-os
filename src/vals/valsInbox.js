@@ -4,6 +4,7 @@
 // you Accept or Skip; it never changes its own autonomy).
 // Adds to ctx: inboxPendingCount (sidebar badge).
 import { dtf } from './fmt.js';
+import { clampWords } from '../textClamp.js';
 
 // WHO MADE THIS. Was a 24-branch ternary ending in 'TYPED', so any kind it
 // didn't name was silently attributed to HIM — the program review, the
@@ -343,7 +344,9 @@ export function valsInbox(app, ctx) {
         mark: (o) => app.setPlanOutcome(r.id, i, a.outcome === o ? null : o),
       }))
       : null,
-    title: r.decision?.title || r.text.slice(0, 60),
+    // a bare slice(0, 60) cut mid-word and left no ellipsis, so a clipped
+    // title read as a rendering fault rather than a clamp (his report, 4 Sep)
+    title: r.decision?.title || clampWords(r.text, 60),
     preview: payloadPreview(r.decision),
     destination: r.destination || null,
     auto: !!r.auto,

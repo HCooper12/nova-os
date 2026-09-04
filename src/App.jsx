@@ -157,7 +157,25 @@ const WAKE_WORD = true;
 
 // Hash-routed screens (#/recipes etc.) so deep links and the back button work
 // on GitHub Pages without a server-side router.
-const SCREENS = ['mission', 'inbox', 'voice', 'galaxy', 'code', 'recipes', 'shopping', 'todos', 'workouts', 'notes', 'library', 'leader', 'journal', 'money', 'settings'];
+// EVERY screen the render block below can actually draw. This list and that
+// block are one contract: a key here with no renderer, or a renderer whose key
+// is missing here, is a blank page — the chrome and the dock draw, nothing sits
+// between them, and NOTHING is logged. Found on 4 Sep by navigating to 'fuel'
+// (the Fuel tab's real key is 'recipes'): an empty main and a silent console.
+//
+// It previously omitted 'ops', 'stash' and 'ambient', all of which DO render —
+// so their hashes did not survive a reload even though the screens worked.
+const SCREENS = ['mission', 'inbox', 'voice', 'galaxy', 'code', 'recipes', 'shopping', 'stash',
+  'ops', 'ambient', 'todos', 'workouts', 'notes', 'library', 'leader', 'journal', 'money', 'settings'];
+
+// An unknown key is a bug in the caller, not something to render around. Send
+// him somewhere real, and say so in the console so the bad call is findable —
+// silence is what made the original take a screenshot to notice.
+export function resolveScreen(key) {
+  if (SCREENS.includes(key)) return key;
+  console.warn(`navigate: no screen called "${key}" — falling back to mission`);
+  return 'mission';
+}
 
 const ACTIVE_SESSION_KEY = 'novaos.activeSession';
 const QUICK_PLAN_KEY = 'novaos.quickPlan';
@@ -749,7 +767,8 @@ export default class App extends Component {
       t?.updateCallbackDone?.catch(() => {});
     } catch { fn(); }
   }
-  navigate(screen, extra = {}) {
+  navigate(rawScreen, extra = {}) {
+    const screen = resolveScreen(rawScreen);
     const changed = this.state.screen !== screen;
     // SCROLL RESTORATION. One shared scroller means leaving a screen loses
     // your place in it — a reset to 0 was the old fix, and it's why coming

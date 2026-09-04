@@ -2,6 +2,8 @@ import { css } from './css.js';
 import { BodyMap, MuscleLegend } from './BodyMap.jsx';
 
 const M = "var(--nv-font-mono)";
+// the UI face — for prose inside a panel, where mono is a label voice
+const R = "var(--nv-font-ui)";
 
 // The Companion canvas — panels Nova puts on screen mid-conversation.
 // Every number here came from the server's deterministic builders
@@ -87,29 +89,67 @@ function Exercise({ d }) {
 
 function NutritionWeek({ d }) {
   const max = Math.max(d.floor || 0, ...(d.days || []).map((x) => x.p || 0), 1);
+  const days = d.days || [];
+  // TODAY IS NOT A MISS. It is 09:00 and he has eaten 59 of 150g — counting
+  // that as a failed day, in the bar colour and in "met 0 of 7", tells him he
+  // has already lost a day that has barely started. The last day in the
+  // series is in progress; it is scored, and coloured, differently.
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const isToday = (day) => day.date === todayISO;
+  const settled = days.filter((day) => !isToday(day) && day.p != null);
+  const metCount = settled.filter((day) => day.floorMet).length;
+  const gap = d.floor != null && d.avgP != null ? d.floor - d.avgP : null;
+
+  const barColour = (day) => {
+    if (day.p == null) return dim(12);                       // never logged
+    if (isToday(day)) return 'color-mix(in srgb, var(--nv-cy) 45%, transparent)';
+    return day.floorMet
+      ? 'color-mix(in srgb, var(--nv-good) 62%, transparent)'
+      // A missed day used to render as plain dim grey — the same treatment as
+      // a day with no data — so a week of misses looked like a week of gaps.
+      // Missing the floor is a RESULT and now has a colour of its own.
+      : 'color-mix(in srgb, var(--nv-warn) 52%, transparent)';
+  };
+
   return (
     <Card label="PROTEIN · LAST 7 DAYS">
-      {d.days.length === 0 && <div style={css(`font:400 11px ${M};color:${dim(40)}`)}>No tracked days yet.</div>}
+      {days.length === 0 && <div style={css(`font:400 11px ${M};color:${dim(40)}`)}>No tracked days yet.</div>}
+      {/* The verdict, before the chart. It used to live in a caption BELOW the
+          bars, which meant the chart needed a sentence to explain its own
+          result — a table with extra steps. */}
+      {days.length > 0 && d.floor != null && (
+        <div style={css('display:flex;align-items:baseline;gap:9px;margin-bottom:11px')}>
+          <span style={css(`font:600 24px ${M};color:${metCount ? 'var(--nv-good)' : 'var(--nv-warn)'}`)}>
+            {metCount}<span style={css(`font-size:13px;color:${dim(45)}`)}>/{settled.length}</span>
+          </span>
+          <span style={css(`font:400 12px/1.35 ${R};color:${dim(72)}`)}>
+            days over the {d.floor}g floor.
+            {gap > 0 && <> Average {d.avgP}g — a {gap}g nightly gap.</>}
+          </span>
+        </div>
+      )}
       <div style={css("display:flex;align-items:flex-end;gap:6px;height:64px;position:relative")}>
         {d.floor != null && (
-          <div style={css(`position:absolute;left:0;right:0;bottom:${(d.floor / max) * 76}%;border-top:1px dashed ${dim(28)}`)} />
+          <div style={css(`position:absolute;left:0;right:0;bottom:${(d.floor / max) * 76}%;border-top:1px dashed color-mix(in srgb, var(--nv-good) 50%, transparent)`)} />
         )}
-        {(d.days || []).map((day) => (
+        {days.map((day) => (
           <div key={day.date} style={css("flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end")}>
-            <span style={css(`font:500 9px ${M};color:${day.floorMet ? 'var(--nv-good)' : dim(55)}`)}>{day.p ?? '·'}</span>
-            <div style={css(`width:100%;max-width:26px;border-radius:4px 4px 0 0;height:${day.p ? Math.max(6, (day.p / max) * 76) : 3}%;background:${day.p == null ? dim(12) : day.floorMet ? 'color-mix(in srgb, var(--nv-good) 55%, transparent)' : dim(25)}`)} />
+            <span style={css(`font:500 9px ${M};color:${day.floorMet ? 'var(--nv-good)' : isToday(day) ? 'var(--nv-cy)' : dim(55)}`)}>{day.p ?? '·'}</span>
+            <div style={css(`width:100%;max-width:26px;border-radius:4px 4px 0 0;height:${day.p ? Math.max(6, (day.p / max) * 76) : 3}%;background:${barColour(day)}${isToday(day) ? ';outline:1px solid var(--nv-cy);outline-offset:-1px' : ''}`)} />
           </div>
         ))}
       </div>
       <div style={css("display:flex;gap:6px;margin-top:4px")}>
-        {(d.days || []).map((day) => (
-          <span key={day.date} style={css(`flex:1;text-align:center;font:400 8.5px ${M};color:${dim(38)}`)}>{day.date.slice(8)}</span>
+        {days.map((day) => (
+          <span key={day.date} style={css(`flex:1;text-align:center;font:400 8.5px ${M};color:${isToday(day) ? 'var(--nv-cy)' : dim(38)}`)}>{day.date.slice(8)}</span>
         ))}
       </div>
-      <div style={css(`margin-top:8px;font:400 10.5px ${M};color:${dim(55)}`)}>
-        {d.floor != null ? `Floor ${d.floor}g — met ${d.metCount} of ${d.days.length}` : 'No protein floor set'}
-        {d.avgP != null && ` · avg ${d.avgP}g`}
-      </div>
+      {d.floor == null && (
+        <div style={css(`margin-top:8px;font:400 10.5px ${M};color:${dim(55)}`)}>No protein floor set</div>
+      )}
+      {days.some((day) => isToday(day)) && (
+        <div style={css(`margin-top:7px;font:400 9.5px ${M};color:${dim(42)}`)}>Today is still open — not counted above.</div>
+      )}
     </Card>
   );
 }

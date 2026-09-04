@@ -485,6 +485,69 @@ async function collectEventsUncached(rangeStart, rangeEnd) {
   return events;
 }
 
+// THE SAME EVENT, TWICE. On 4 Sep his calendar carried both "Virgin Australia
+// flight 825 to Sydney" and "Flight: VA 825 from MEL to SYD" at 08:50-10:15 —
+// the airline's own entry and Apple's detected copy of the same booking. Nova
+// showed both, counted both in "3 timed things", and reasoned over both.
+//
+// Deliberately CONSERVATIVE. Two events collapse only when they occupy exactly
+// the same slot AND one title is recognisably the other: a shared flight
+// designator, or one title contained in the other once both are reduced to
+// their letters and digits. Overlap alone is never enough — back-to-back
+// meetings and a workout inside a gym booking are different events that share
+// a slot, and silently hiding one would be a far worse bug than showing two.
+//
+// The survivor is the LONGER title, which is the one carrying the detail
+// (route, terminal, booking); the shorter is usually the auto-detected stub.
+// A flight shows up in two shapes on his calendar: the airline's own wording
+// ("Virgin Australia flight 825 to Sydney") and Apple's detected form
+// ("Flight: VA 825 from MEL to SYD"). Only the second carries a designator, so
+// matching on designators alone missed the exact pair this exists for.
+const DESIGNATOR_RE = /\b([A-Z]{2})\s?(\d{1,4})\b/;
+const BARE_FLIGHT_RE = /\bFLIGHT\s*(?:NO\.?|NUMBER)?\s*:?\s*(\d{1,4})\b/;
+function flightOf(title) {
+  const t = String(title || '').toUpperCase();
+  if (!/\bFLIGHT\b/.test(t) && !DESIGNATOR_RE.test(t)) return null;
+  const d = t.match(DESIGNATOR_RE);
+  if (d) return { code: d[1], num: Number(d[2]) };
+  const b = t.match(BARE_FLIGHT_RE);
+  return b ? { code: null, num: Number(b[1]) } : null;
+}
+const letters = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+export function sameEventTwice(a, b) {
+  if (a.startISO !== b.startISO || a.endISO !== b.endISO) return false;
+  const ta = String(a.label || '');
+  const tb = String(b.label || '');
+  if (!ta || !tb) return false;
+  if (letters(ta) === letters(tb)) return true;
+  // A shared flight number, in the same slot, is the strongest signal there is.
+  // Where both titles name an airline the codes must agree; where only one
+  // does, the number plus the identical slot carries it — two different
+  // airlines' flight 825 leaving at the same minute is not a case worth
+  // protecting against at the cost of missing the real one.
+  const fa = flightOf(ta);
+  const fb = flightOf(tb);
+  if (fa && fb && fa.num === fb.num && (!fa.code || !fb.code || fa.code === fb.code)) return true;
+  // otherwise one title must genuinely contain the other, and the shorter one
+  // must be substantial — "Gym" inside "Gym session with Dan" is not a dupe
+  const la = letters(ta);
+  const lb = letters(tb);
+  const [short, long] = la.length <= lb.length ? [la, lb] : [lb, la];
+  return short.length >= 12 && long.includes(short);
+}
+
+export function dedupeEvents(events = []) {
+  const kept = [];
+  for (const ev of events) {
+    const twinIdx = kept.findIndex((k) => sameEventTwice(k, ev));
+    if (twinIdx === -1) { kept.push(ev); continue; }
+    // keep whichever carries more detail; the stub is the one that goes
+    if (String(ev.label || '').length > String(kept[twinIdx].label || '').length) kept[twinIdx] = ev;
+  }
+  return kept;
+}
+
 // Client-facing shape — drops the internal CalDAV url/etag/raw.
 const PUBLIC_FIELDS = ['id', 'date', 'time', 'end', 'label', 'calendar', 'recurring', 'startISO'];
 function publicEvent(e) { const o = {}; for (const f of PUBLIC_FIELDS) o[f] = e[f]; return o; }
@@ -501,7 +564,7 @@ function publicEvent(e) { const o = {}; for (const f of PUBLIC_FIELDS) o[f] = e[
 export const WORKOUT_RE = /\b(gym|workout|training|lift|session|push|pull|legs?|upper|lower|chest|back|shoulders?|cardio)\b/i;
 
 export async function fetchEventsForDay(date = new Date(), { fresh = false } = {}) {
-  const events = await collectEvents(startOfDay(date), endOfDay(date), { fresh });
+  const events = dedupeEvents(await collectEvents(startOfDay(date), endOfDay(date), { fresh }));
   events.sort((a, b) => a.time.localeCompare(b.time));
   return events.map(publicEvent);
 }
@@ -510,7 +573,7 @@ export async function fetchEventsForDay(date = new Date(), { fresh = false } = {
 // month view and any range-aware reasoning.
 export async function fetchEventsForRange(days = 14, from = new Date()) {
   const end = endOfDay(new Date(startOfDay(from).getTime() + (days - 1) * 86400000));
-  const events = await collectEvents(startOfDay(from), end);
+  const events = dedupeEvents(await collectEvents(startOfDay(from), end));
   events.sort((a, b) => (a.startISO < b.startISO ? -1 : a.startISO > b.startISO ? 1 : 0));
   return events.map(publicEvent);
 }
