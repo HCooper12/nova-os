@@ -218,6 +218,35 @@ export async function setExerciseMuscleGroup(vaultPath, id, muscleGroup) {
   });
 }
 
+// MANY AT ONCE, ONE WRITE. Filling the 105 exercises that had no form video
+// through setExerciseKnowledge would take 105 write locks and leave 105
+// backups of the same file — the batch is one lock, one backup, one undo.
+//
+// Same validation as the single writer, applied before anything is written: a
+// bad URL in entry 90 refuses the whole batch rather than leaving the library
+// half-updated.
+export async function setExerciseResources(vaultPath, entries = []) {
+  return withWriteLock(async () => {
+    const existing = [...(await getExercises(vaultPath))];
+    const byId = new Map(existing.map((e, i) => [e.id, i]));
+    const clean = [];
+    for (const { id, resourceUrl } of entries) {
+      const idx = byId.get(id);
+      if (idx === undefined) throw new Error(`no exercise "${id}"`);
+      const url = String(resourceUrl || '').trim();
+      if (url && !/^https?:\/\//.test(url)) throw new Error(`"${id}" has a resourceUrl that is not an http(s) link`);
+      clean.push({ idx, url: url.slice(0, 300) });
+    }
+    for (const { idx, url } of clean) {
+      const e = { ...existing[idx] };
+      if (url) e.resourceUrl = url; else delete e.resourceUrl;
+      existing[idx] = e;
+    }
+    await persist(vaultPath, existing);
+    return { written: clean.length };
+  });
+}
+
 export async function setExerciseKnowledge(vaultPath, id, { cues, resourceUrl }) {
   return withWriteLock(async () => {
     const existing = [...(await getExercises(vaultPath))];
