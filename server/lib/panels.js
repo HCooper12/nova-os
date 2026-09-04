@@ -1,5 +1,6 @@
 import { loadExerciseLibrary } from './exercises.js';
 import { atlasFor } from './data/exerciseAtlas.js';
+import { cuesFor } from './data/exerciseCues.js';
 import { resolveMuscles } from './muscles.js';
 import { patternFor } from '../../src/exerciseMotion.js';
 import { loadRoutines } from './workouts.js';
@@ -100,8 +101,12 @@ async function buildExercise(vaultPath, name) {
     inRoutines,
     recent,
     e1rm: e1 ? { value: e1.e1rm, delta: e1.delta ?? null } : null,
-    // knowledge base: form cues + the one curated resource
-    cues: ex.cues || null,
+    // Form cues: HIS come first, always. The seed in exerciseCues.js exists
+    // because the field rendered empty on all 135 exercises; a cue he has
+    // written for himself is worth more than any default and must never be
+    // shadowed by one.
+    cues: ex.cues || cuesFor(ex.id) || null,
+    cuesAreHis: !!ex.cues,
     resourceUrl: ex.resourceUrl || null,
     equipment: a?.equipment || null,
     muscles: anatomy && { primary: anatomy.primary, secondary: anatomy.secondary,
