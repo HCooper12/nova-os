@@ -198,6 +198,14 @@ export function valsMisc(app, ctx) {
     reportScreenMic: (on) => { if (!!st.voiceScreenMic !== !!on) app.setState({ voiceScreenMic: !!on }); },
     orbMsgs: (!demoMode ? st.voiceChat : st.orbChat).map((m, i, arr) => ({
       text: m.text, typing: m.typing, panel: m.panel || null,
+      // The announcement strip on a message where the chat STARTED A JOB
+      // rather than answered. It names the lane it chose and offers the one
+      // way back — because routing that is invisible until it matters still
+      // has to be visible the moment it gets it wrong.
+      notice: m.notice ? {
+        label: m.notice.label, why: m.notice.why,
+        undo: () => app.undoChatRoute(m.notice),
+      } : null,
       evidence: m.evidence ? { ...m.evidence, open: () => app.openVerdict(m.evidence.kind, m.evidence.of) } : null,
       // when this was said — only for messages that carry a real stamp
       // (restored pre-stamp history shows nothing rather than a guess)

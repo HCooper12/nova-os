@@ -26,6 +26,10 @@ export function absentHintStyle(m, monoVar) {
 
 export function absentValueStyle(m, colorVar) {
   return isAbsent(m)
-    ? { color: 'var(--nv-ink40)', borderBottom: '1px dashed color-mix(in srgb, var(--nv-warn) 45%, transparent)', display: 'inline-block', lineHeight: 1.15 }
+    // NO lineHeight here: the tiles set `font` as a shorthand, and adding the
+    // longhand back on only some renders makes React drop it on the others —
+    // it warns about exactly this, and the result is a tile that shifts height
+    // when data arrives.
+    ? { color: 'var(--nv-ink40)', borderBottom: '1px dashed color-mix(in srgb, var(--nv-warn) 45%, transparent)', display: 'inline-block' }
     : { color: `var(${colorVar})` };
 }

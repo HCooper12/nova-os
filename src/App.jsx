@@ -1,4 +1,5 @@
 import { Component, createRef, lazy, Suspense } from 'react';
+import { chatStartsAJob } from './chatLanes.js';
 import { preferMixing } from './audioSession.js';
 import { unspokenTexts, resumeVerdict } from './speechResume.js';
 import { forceLayout, degrees, GALAXY_MAX_NODES, zoomAt, panBy, recencyAlpha } from './galaxyLayout.js';
@@ -4748,6 +4749,76 @@ export default class App extends Component {
     if (/^(remind me|remember|note:|todo:|add|buy|log)\b/i.test(raw)) return L('capture', 'INBOX', 'a thing to file');
     return L('ask', 'ASK NOVA', 'answered from your vault');
   }
+  // ---------- THE FRONT DOOR, FROM THE CONVERSATION ----------
+  //
+  // His ask: "I want to be able to just go to the Nova chat and either
+  // verbally ask it or copy and paste links and the command for it to then
+  // do it." Until now the deterministic router (server/lib/intentRouter.js,
+  // mirrored in routeIntentLocal) had exactly ONE caller — the command
+  // palette — so pasting a video link into the conversation did nothing
+  // agentic. The machinery was built; the chat simply never reached it.
+  //
+  // Only the lanes that START A JOB are dispatched from here. 'ask' and
+  // 'coach' are conversation and stay conversation; 'code' and 'play' change
+  // screens, which would yank him out of a chat he is in the middle of;
+  // 'capture' is deliberately excluded because its rule fires on a bare
+  // leading "add", and "add some context on why that happened" is a question,
+  // not a shopping item. Those follow once the plan layer can ask.
+  //
+  // HIS DECISION, 4 Sep: the chat stays a conversation and routing is
+  // invisible until it matters. So a job lane does not stop to ask
+  // permission — it announces what it did and leaves an undo.
+  routeFromChat(q) {
+    const conn = getConnection();
+    if (!conn || this.state.connectionStatus === 'offline') return false;
+    const preview = this.routeIntentLocal(q);
+    if (!preview || !chatStartsAJob(preview.lane)) return false;
+
+    const say = (text, notice) => this.setState((s) => ({
+      voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text, notice: notice || null }],
+    }));
+    // his words land in the log first, exactly as they would for a question
+    this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q }], orbInput: '' }));
+
+    // The model-choice gate is not bypassed here. It exists because these
+    // lanes cost real money (his ask, 24 Aug) and the Inbox composer and the
+    // palette both honour it — a third entry point that quietly skipped it
+    // would make the gate meaningless.
+    const dispatch = (model) => {
+      const notice = (recordId) => ({ label: preview.label, why: preview.why, recordId: recordId || null, text: q });
+      if (preview.lane === 'book' && preview.book) {
+        this.beginIngestJob(null, null, { ...preview.book, model });
+        say(`On it — the Librarian is researching “${preview.book.title}”. The draft pages land for your review.`, notice(null));
+        return;
+      }
+      if (preview.lane === 'study') {
+        api.sendIntent(conn, q, 'study')
+          .then((r) => say(r.said || 'Study running — I compare their whole catalogue and ping you when the brief lands.', notice(r.record?.id)))
+          .catch((e) => say(`I couldn't start that: ${e.message}`));
+        return;
+      }
+      const call = preview.lane === 'research' ? api.research(conn, q, model) : api.videoWatch(conn, q, model);
+      const line = preview.lane === 'research'
+        ? 'Researching now — the brief lands in your Inbox with citations.'
+        : 'On it — pulling the transcript. The verdict lands in your Inbox.';
+      call.then((r) => { say(line, notice(r?.record?.id || r?.id)); this.refreshInbox?.(); })
+        .catch((e) => say(`I couldn't start that: ${e.message}`));
+    };
+    this.gateModelChoice(preview.lane === 'book' ? 'book' : preview.lane, dispatch);
+    return true;
+  }
+
+  // "Not that — just answer it." The undo half of the announcement: bin the
+  // record the dispatch created (so a job he did not want leaves no trace on
+  // the rails) and hand the same words to Ask Nova instead.
+  undoChatRoute(notice) {
+    const conn = getConnection();
+    if (notice?.recordId && conn) api.inboxDiscard(conn, notice.recordId, 'routed from chat by mistake').catch(() => {});
+    this.setState((s) => ({
+      voiceChat: s.voiceChat.map((m) => (m.notice === notice ? { ...m, notice: null, text: 'Understood — answering it instead.' } : m)),
+    }), () => { this.refreshInbox?.(); this.askNova(notice.text); });
+  }
+
   sendIntent(text) {
     const conn = getConnection();
     if (!conn) { this.toastMsg('Connect a backend first'); return; }
@@ -5199,6 +5270,9 @@ export default class App extends Component {
         this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q }, { at: Date.now(), who: 'system', text: 'Offline — reconnect to the Mac to ask Nova.' }], orbInput: '' }));
         return;
       }
+      // the front door first: a link or a command starts the job it names,
+      // and only what is left is a question for Ask Nova
+      if (this.routeFromChat(q)) return;
       this.setState({ orbInput: '' });
       this.askNova(q);
       return;

@@ -243,6 +243,19 @@ export function Voice({ v }) {
                   </div>
                 )}
                 {m.panel && <SafeVisual what={`panel:${m.panel.type}`} resetKey={m.at}><VoicePanel panel={m.panel} /></SafeVisual>}
+                {/* The chat started a job instead of answering. Say which lane
+                    and why, and offer the one way back — his decision was that
+                    routing stays invisible until it matters, which only works
+                    if it is unmissable the moment it is wrong. */}
+                {m.notice && (
+                  <div style={css(`margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 11px;border-radius:9px;border:1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent);background:color-mix(in srgb, var(--nv-cy) 6%, transparent)`)}>
+                    <span style={css(`font:600 9px ${M};letter-spacing:.16em;color:var(--nv-cy);flex:none`)}>{m.notice.label}</span>
+                    <span style={css(`flex:1;min-width:0;font:400 11.5px/1.4 var(--nv-font-ui);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`)}>{m.notice.why}</span>
+                    <Interactive as="span" onClick={m.notice.undo}
+                      base={css(`cursor:pointer;flex:none;font:600 9px ${M};letter-spacing:.12em;padding:5px 9px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent);color:color-mix(in srgb, var(--nv-ink) 60%, transparent)`)}
+                      hoverStyle={{ color: 'var(--nv-warn)', borderColor: 'var(--nv-warn)' }}>JUST ANSWER IT</Interactive>
+                  </div>
+                )}
                 {/* the evidence card Nova is referring to, one tap away */}
                 {m.evidence && (
                   <Interactive onClick={m.evidence.open}
