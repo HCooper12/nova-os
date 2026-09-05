@@ -1214,6 +1214,25 @@ export async function approveRecord(vaultPath, id) {
     if (!record.planOk) {
       return updateRecord(id, { status: 'filed', filedAt: new Date().toISOString(), auto: false, error: null });
     }
+    // A plan that has ALREADY RUN is a report waiting to be kept, not a job
+    // to start again. Approving it files the report as a note (6 Sep 2026 —
+    // before this, approve re-ran the plan: another ~US$4). Records written
+    // before reportDecision existed carry a bare title/body; normalise them.
+    if (record.finishedAt || (record.plan?.steps || []).some((s) => s.status && s.status !== 'waiting')) {
+      const d = record.decision || {};
+      const { reportTitle } = await import('./planner.js');
+      const title = reportTitle(record.goal || record.text || d.title);
+      // the title is recomputed even for an already-shaped decision, so a report
+      // filed once under a URL-shaped name is not filed under it again
+      const decision = {
+        route: 'note', confidence: 'high', title,
+        reason: d.reason || "Nova's report on the plan you approved.",
+        payload: { title, body: String(d.payload?.body || d.body || '').trim() },
+      };
+      if (!decision.payload.body) throw new Error('this plan has no report to file yet');
+      const { destination, undo } = await fileDecision(vaultPath, decision);
+      return updateRecord(id, { status: 'filed', decision, destination, undoData: undo, filedAt: new Date().toISOString(), auto: false, error: null });
+    }
     const { runPlan } = await import('./planner.js');
     // the steps take minutes; the record carries its own progress, so this is
     // deliberately not awaited

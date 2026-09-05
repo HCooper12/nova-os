@@ -335,3 +335,25 @@ test('declining with a reason stores it; adviceContext holds the Coach to it', a
   const ctx2 = await adviceContext();
   assert.match(ctx2, /Start a deload block → declined \(no reason recorded — ask why once/);
 });
+
+
+// 6 Sep 2026: a plan that has run is a report to KEEP, not a job to start
+// again. Approving it files the report; it must never reach runPlan.
+test('approving a finished plan files its report as a note instead of re-running it', async () => {
+  await _resetInboxStore();
+  const rec = await createRecord({
+    id: 'plan-done-1', kind: 'plan', text: 'Plan: watch X then check claims', source: 'planner', mode: 'draft', status: 'pending',
+    createdAt: new Date().toISOString(), goal: 'watch X then check claims', planOk: true,
+    plan: { steps: [{ id: 's1', capability: 'watch', status: 'done', output: 'verdict' }, { id: 's2', capability: 'research', status: 'done', output: 'brief' }], report: 'compare' },
+    approvedAt: new Date().toISOString(), startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(), coverage: '2 of 2 steps completed',
+    // the LEGACY shape — a bare title/body, as records before 6 Sep carried
+    decision: { title: 'Report: watch X then check claims', body: 'Both steps completed. The claim about rest periods is overstated.' },
+  });
+  const filed = await approveRecord(vault, rec.id);
+  assert.equal(filed.status, 'filed', 'approve files — it does not put the plan back into classifying');
+  assert.ok(filed.destination, 'a vault destination is recorded');
+  assert.ok(filed.undoData, 'and the filing is undoable like every other');
+  assert.equal(filed.decision.route, 'note');
+  const again = await getRecord(rec.id);
+  assert.equal(again.status, 'filed');
+});

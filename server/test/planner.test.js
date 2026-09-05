@@ -135,3 +135,22 @@ test('what one agent hands the next is the substance, not the headline', () => {
   // no body at all: fall back to the record's own words rather than nothing
   assert.equal(summarise({ text: 'Research: q', decision: { title: 'T' } }), 'T\nResearch: q');
 });
+
+
+// 6 Sep 2026: approving a FINISHED plan re-ran it, because the report was a
+// bare title/body the filer could not file. The report is now a fileable note.
+import { reportDecision, reportTitle } from '../lib/planner.js';
+test('the report decision is a note the inbox filer understands', () => {
+  const d = reportDecision('Watch X then check each claim', '**Both steps completed.** …');
+  assert.equal(d.route, 'note');
+  assert.equal(d.confidence, 'high');
+  assert.ok(d.title.startsWith('Report: Watch X'));
+  assert.equal(d.payload.title, d.title);
+  assert.equal(d.payload.body, '**Both steps completed.** …');
+});
+
+test('the report title drops the goal\'s URL — it becomes the vault filename', () => {
+  assert.equal(reportTitle('Watch https://www.youtube.com/watch?v=abc and list every claim'), 'Report: Watch and list every claim');
+  assert.equal(reportTitle('https://x.y/z — compare the claims'), 'Report: compare the claims');
+  assert.equal(reportTitle(''), 'Report: plan');
+});

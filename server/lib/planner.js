@@ -343,6 +343,30 @@ RULES
 - Plain English. No headings-for-the-sake-of-headings.`;
 }
 
+// The report is the plan's artefact, and approving the finished plan FILES
+// it — so the decision has to be one the inbox filer understands (route +
+// payload), not a bare title/body. Before 6 Sep 2026 it was bare, and
+// approving a finished plan re-ran the plan instead: another ~US$4 and a
+// second set of records. Normalising here (and in approveRecord for records
+// written before this) closes that.
+// The title becomes the vault filename, so the goal's URL comes out of it —
+// the first filed report was named after a YouTube address.
+export function reportTitle(goal) {
+  const clean = String(goal || '').replace(/https?:\/\/\S+/g, '').replace(/\s+/g, ' ').replace(/^[\s—–\-:·]+/, '').trim();
+  return `Report: ${(clean || 'plan').slice(0, 70).trim()}`;
+}
+
+export function reportDecision(goal, body) {
+  const title = reportTitle(goal);
+  return {
+    route: 'note',
+    confidence: 'high',
+    title,
+    reason: "Nova's report on the plan you approved — approve to keep it in the vault as a note.",
+    payload: { title, body: String(body || '').trim() },
+  };
+}
+
 function writeReport(vaultPath, recordId, goal, plan, progress) {
   return new Promise((resolve) => {
     const child = spawn(CLAUDE_BIN, [
@@ -363,7 +387,7 @@ function writeReport(vaultPath, recordId, goal, plan, progress) {
         if (outer.is_error) throw new Error(outer.result || 'the report failed');
         await updateRecord(recordId, {
           status: 'pending',
-          decision: { title: `Report: ${goal.slice(0, 70)}`, body: String(outer.result || '').trim() },
+          decision: reportDecision(goal, String(outer.result || '').trim()),
           finishedAt: new Date().toISOString(),
         });
         resolve({ ok: true });
