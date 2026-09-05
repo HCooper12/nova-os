@@ -1,5 +1,5 @@
 import { spawn , execSync } from 'node:child_process';
-import { firstBalancedObjectMatch } from './jsonSalvage.js';
+import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -986,7 +986,7 @@ export function startQuickSession(cwd, { minutes, note, context }) {
       const text = (outer.result || '').trim();
       const jsonMatch = firstBalancedObjectMatch(text);
       if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in plan response');
-      job.result = { plan: JSON.parse(jsonMatch[0]) };
+      job.result = { plan: parseModelJson(jsonMatch[0]) };
       job.status = 'ready';
     } catch (e) {
       job.status = 'error';

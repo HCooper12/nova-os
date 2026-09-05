@@ -1,5 +1,5 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { firstBalancedObjectMatch } from './jsonSalvage.js';
+import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -177,7 +177,7 @@ export async function refreshPulseTopic(topic, { runner } = {}) {
         if (outer.is_error || code !== 0) throw new Error(describeRunFailure(outer, code, stderr));
         const m = firstBalancedObjectMatch((outer.result || ''));
         if (!m) throw new Error('no JSON in pulse response');
-        const parsed = JSON.parse(m[0]);
+        const parsed = parseModelJson(m[0]);
         // the receipt he needs to set the budget: what a run really costs
         parsed.__run = runReceipt(outer);
         resolve(parsed);

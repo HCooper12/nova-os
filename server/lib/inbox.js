@@ -1,5 +1,5 @@
 import { readFile, writeFile, mkdir, unlink } from 'node:fs/promises';
-import { firstBalancedObjectMatch } from './jsonSalvage.js';
+import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { clampWords } from '../../src/textClamp.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -199,7 +199,7 @@ function classify(text, onDone) {
       const body = (outer.result || '').trim();
       const jsonMatch = firstBalancedObjectMatch(body);
       if (!jsonMatch) throw new Error(body.slice(0, 200) || 'no JSON in classifier response');
-      onDone(null, normalizeDecision(JSON.parse(jsonMatch[0])));
+      onDone(null, normalizeDecision(parseModelJson(jsonMatch[0])));
     } catch (e) {
       onDone(e);
     }

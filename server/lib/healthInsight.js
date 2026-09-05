@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { firstBalancedObjectMatch } from './jsonSalvage.js';
+import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -217,7 +217,7 @@ function runClaude(prompt) {
         const text = (outer.result || '').trim();
         const jsonMatch = firstBalancedObjectMatch(text);
         if (!jsonMatch) throw new Error('No JSON object found in the response');
-        resolve(JSON.parse(jsonMatch[0]));
+        resolve(parseModelJson(jsonMatch[0]));
       } catch (e) {
         reject(e);
       }

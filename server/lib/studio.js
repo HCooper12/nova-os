@@ -1,5 +1,5 @@
 import { readFile, writeFile } from 'node:fs/promises';
-import { firstBalancedObjectMatch } from './jsonSalvage.js';
+import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
@@ -127,7 +127,7 @@ export async function startOutline(vaultPath, id) {
       const text = (outer.result || '').trim();
       const jsonMatch = firstBalancedObjectMatch(text);
       if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in outline response');
-      const body = String(JSON.parse(jsonMatch[0]).text || '').trim();
+      const body = String(parseModelJson(jsonMatch[0]).text || '').trim();
       if (!body) throw new Error('empty outline');
       // the lane's own contract, enforced like the Researcher's citation gate:
       // an outline that names no sources is not filed as a draft

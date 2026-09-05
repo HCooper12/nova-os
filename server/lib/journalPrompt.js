@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { firstBalancedObjectMatch } from './jsonSalvage.js';
+import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -66,7 +66,7 @@ export function startPromptJob(seed) {
       const text = (outer.result || '').trim();
       const jsonMatch = firstBalancedObjectMatch(text);
       if (!jsonMatch) throw new Error('No JSON object found in the response');
-      const parsed = JSON.parse(jsonMatch[0]);
+      const parsed = parseModelJson(jsonMatch[0]);
       const promptText = String(parsed.prompt || '').trim();
       if (!promptText) throw new Error('Empty prompt in response');
       job.result = { prompt: promptText };

@@ -7,6 +7,7 @@ import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
 import { modelFor, laneSkipped, laneEnabled } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { settleWatchdog } from './settle.js';
+import { parseModelJson } from './jsonSalvage.js';
 
 const LIST_REL_PATH = 'Wiki/Health/Shopping List.md';
 const CATEGORIES = ['Produce', 'Meat & Protein', 'Dairy & Eggs', 'Pantry & Seasonings', 'Frozen', 'Bakery', 'Beverages', 'Household & Other'];
@@ -290,7 +291,7 @@ Output ONLY a JSON array with exactly ${newItems.length} objects, one per item i
         const text = (outer.result || '').trim();
         const jsonMatch = text.match(/\[[\s\S]*\]/);
         if (!jsonMatch) throw new Error('No JSON array found in the response');
-        const parsed = JSON.parse(jsonMatch[0]);
+        const parsed = parseModelJson(jsonMatch[0]);
         const categorized = parsed.map((p, i) => ({
           id: randomUUID().slice(0, 8),
           name: String(p.name || split[i]?.name || '').trim(),

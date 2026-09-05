@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { firstBalancedObjectMatch } from './jsonSalvage.js';
+import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -177,7 +177,7 @@ function runResearchJob(vaultPath, recordId, q, model, context = '') {
       const text = (outer.result || '').trim();
       const jsonMatch = firstBalancedObjectMatch(text);
       if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in researcher response');
-      const { title, body } = normalizeResearch(JSON.parse(jsonMatch[0]));
+      const { title, body } = normalizeResearch(parseModelJson(jsonMatch[0]));
       // ALWAYS pending — web content never files itself
       await updateRecord(recordId, {
         status: 'pending',

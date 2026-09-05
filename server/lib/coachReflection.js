@@ -12,7 +12,7 @@
 // model reflects; the rails act.
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { firstBalancedObjectMatch } from './jsonSalvage.js';
+import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url'; // never URL.pathname — the repo path has a space
 import path from 'node:path';
@@ -176,7 +176,7 @@ function runModel(prompt) {
         if (outer.is_error) throw new Error(outer.result || 'reflection failed');
         const m = firstBalancedObjectMatch((outer.result || ''));
         if (!m) throw new Error('no JSON in reflection output');
-        resolve(JSON.parse(m[0]));
+        resolve(parseModelJson(m[0]));
       } catch (e) { reject(e); }
     });
     child.on('error', reject);

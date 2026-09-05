@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { firstBalancedObjectMatch } from './jsonSalvage.js';
+import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { localDateISO } from './localDate.js';
 import { weeklyWindowOpen } from './cadence.js';
 import { spawn } from 'node:child_process';
@@ -224,7 +224,7 @@ export async function runPatternScout(vaultPath, { force = false, model } = {}) 
       const text = (outer.result || '').trim();
       const jsonMatch = firstBalancedObjectMatch(text);
       if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in scout response');
-      await fileProposals(normalizeScoutProposals(JSON.parse(jsonMatch[0])), marker);
+      await fileProposals(normalizeScoutProposals(parseModelJson(jsonMatch[0])), marker);
     } catch (e) {
       await updateRecord(marker.id, { status: 'error', error: e.message }).catch(() => {});
     }

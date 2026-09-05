@@ -105,13 +105,54 @@ export function escapeRawNewlines(json) {
 //   error    — the ORIGINAL parse error when nothing worked, never the
 //              repaired one, because the original is what describes the model's
 //              actual output
+// Any control character (tab, form feed, a stray U+0001) inside a string
+// literal is as fatal to JSON.parse as a raw newline — "Bad control character
+// in string literal" killed a Researcher step on 5 Sep 2026 (record 3bf010e2).
+// Same walk as escapeRawNewlines, wider net.
+export function escapeControlChars(json) {
+  let out = '';
+  let inStr = false;
+  let esc = false;
+  for (const ch of String(json || '')) {
+    if (inStr) {
+      if (esc) { out += ch; esc = false; continue; }
+      if (ch === '\\') { out += ch; esc = true; continue; }
+      if (ch === '"') { inStr = false; out += ch; continue; }
+      const code = ch.charCodeAt(0);
+      if (code < 0x20) {
+        out += code === 0x0a ? '\\n' : code === 0x0d ? '\\r' : code === 0x09 ? '\\t' : '\\u' + code.toString(16).padStart(4, '0');
+        continue;
+      }
+      out += ch;
+      continue;
+    }
+    if (ch === '"') inStr = true;
+    out += ch;
+  }
+  return out;
+}
+
+// THE one way a lane should turn a model's JSON block into a value. Plain
+// JSON.parse first; then the repairs, cheapest first; then the ORIGINAL error,
+// so a failure still names its true cause. 18 lanes called JSON.parse on the
+// balanced block directly until 6 Sep 2026.
+export function parseModelJson(block) {
+  const text = String(block || '');
+  try { return JSON.parse(text); } catch (first) {
+    for (const repair of [escapeControlChars, escapeStrayQuotes, (t) => escapeStrayQuotes(escapeControlChars(t))]) {
+      try { return JSON.parse(repair(text)); } catch { /* next */ }
+    }
+    throw first;
+  }
+}
+
 export function salvageJson(text) {
   const block = firstBalancedObject(text);
   if (!block) return { value: null, repaired: false, error: 'no complete JSON object in the reply' };
   try {
     return { value: JSON.parse(block), repaired: false, error: null };
   } catch (first) {
-    for (const repair of [escapeRawNewlines, escapeStrayQuotes, (t) => escapeStrayQuotes(escapeRawNewlines(t))]) {
+    for (const repair of [escapeRawNewlines, escapeControlChars, escapeStrayQuotes, (t) => escapeStrayQuotes(escapeControlChars(t))]) {
       try {
         const value = JSON.parse(repair(block));
         return { value, repaired: true, error: null };

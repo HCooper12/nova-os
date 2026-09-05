@@ -85,3 +85,19 @@ test('the failure excerpt points at the offending character', () => {
 test('an excerpt is still produced when the error names no position', () => {
   assert.ok(failureExcerpt('some output', 'no position here').length > 0);
 });
+
+// 6 Sep 2026: a Researcher step died on "Bad control character in string
+// literal" — a tab inside a string. parseModelJson is now the one entry point
+// for every lane's model JSON, and it repairs that before giving up.
+import { escapeControlChars, parseModelJson } from '../lib/jsonSalvage.js';
+
+test('a raw tab or form feed inside a string is escaped, structure untouched', () => {
+  const raw = '{"title": "A' + String.fromCharCode(9) + 'B", "body": "line' + String.fromCharCode(12) + 'break"}';
+  assert.equal(escapeControlChars(raw), '{"title": "A\\tB", "body": "line\\u000cbreak"}');
+  assert.deepEqual(parseModelJson(raw), { title: 'A' + String.fromCharCode(9) + 'B', body: 'line' + String.fromCharCode(12) + 'break' });
+});
+
+test('parseModelJson takes clean JSON as-is and rethrows the ORIGINAL error when nothing helps', () => {
+  assert.deepEqual(parseModelJson('{"a": 1}'), { a: 1 });
+  assert.throws(() => parseModelJson('{"a": '), /JSON/);
+});

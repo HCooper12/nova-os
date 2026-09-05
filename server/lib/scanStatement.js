@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { firstBalancedObjectMatch } from './jsonSalvage.js';
+import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -65,7 +65,7 @@ export function startStatementScan(imagePaths, workDir, note) {
       const text = (outer.result || '').trim();
       const jsonMatch = firstBalancedObjectMatch(text);
       if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in scan response');
-      const parsed = JSON.parse(jsonMatch[0]);
+      const parsed = parseModelJson(jsonMatch[0]);
       // a row whose date cannot be read is DROPPED and named — it used to be
       // stamped with today's date, a fabricated fact in his ledger
       const unreadableDates = [];

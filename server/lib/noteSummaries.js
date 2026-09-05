@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { firstBalancedObjectMatch } from './jsonSalvage.js';
+import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -102,7 +102,7 @@ export function startSummaryJob(noteId, title, bodyText) {
       const text = (outer.result || '').trim();
       const jsonMatch = firstBalancedObjectMatch(text);
       if (!jsonMatch) throw new Error('No JSON object found in the response');
-      const parsed = JSON.parse(jsonMatch[0]);
+      const parsed = parseModelJson(jsonMatch[0]);
       const summary = String(parsed.summary || '').trim();
       if (!summary) throw new Error('Empty summary in response');
       await mkdir(CACHE_DIR(), { recursive: true });

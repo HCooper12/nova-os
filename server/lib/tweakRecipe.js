@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { firstBalancedObjectMatch } from './jsonSalvage.js';
+import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -107,7 +107,7 @@ export function startTweak(recipe, request, prior = null, imagePaths = [], workD
       const text = (outer.result || '').trim();
       const jsonMatch = firstBalancedObjectMatch(text);
       if (!jsonMatch) throw new Error('No JSON object found in the response');
-      const parsed = JSON.parse(jsonMatch[0]);
+      const parsed = parseModelJson(jsonMatch[0]);
       const macros = parsed.macros || {};
       job.result = {
         label: String(parsed.label || 'Suggested tweak').trim(),

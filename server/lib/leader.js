@@ -1,5 +1,5 @@
 import { readFile, writeFile, mkdir, rename, readdir } from 'node:fs/promises';
-import { firstBalancedObjectMatch } from './jsonSalvage.js';
+import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { doublingSchedule, nextDueAt } from './spacing.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -346,7 +346,7 @@ function runClaude(args, cwd) {
         if (outer.is_error || code !== 0) return reject(new Error(outer.result || stderr.trim() || `claude exited ${code}`));
         const m = firstBalancedObjectMatch((outer.result || ''));
         if (!m) return reject(new Error((outer.result || '').slice(0, 200) || 'no JSON in response'));
-        resolve(JSON.parse(m[0]));
+        resolve(parseModelJson(m[0]));
       } catch (e) { reject(new Error(`${e.message}${stderr ? ` — ${stderr.slice(0, 200)}` : ''}`)); }
     });
   });

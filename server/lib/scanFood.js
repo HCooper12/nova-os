@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { firstBalancedObjectMatch } from './jsonSalvage.js';
+import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -170,7 +170,7 @@ export function startFoodScan(mode, imagePaths, workDir, note) {
         // ever breaks that (e.g. an unusual photo) fall back to its own plain-text
         // explanation rather than a generic parse-failure message.
         if (!jsonMatch) throw new Error(text.slice(0, 200) || 'No response received');
-        job.result = normalizeResult(JSON.parse(jsonMatch[0]));
+        job.result = normalizeResult(parseModelJson(jsonMatch[0]));
         job.status = 'ready';
       } catch (e) {
         job.status = 'error';
@@ -228,7 +228,7 @@ export function startFoodDescribe(description) {
       const out = (outer.result || '').trim();
       const jsonMatch = firstBalancedObjectMatch(out);
       if (!jsonMatch) throw new Error(out.slice(0, 200) || 'No response received');
-      const parsed = JSON.parse(jsonMatch[0]);
+      const parsed = parseModelJson(jsonMatch[0]);
       // THE MODEL BROKE IT DOWN; CODE DOES THE SUMS. Each component is
       // looked up in USDA FoodData Central, scaled to its real weight, and
       // the energy derived from the macros — so the same description always
