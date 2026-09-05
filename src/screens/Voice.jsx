@@ -10,6 +10,16 @@ import { LocalInput } from '../LocalInput.jsx';
 import { VoiceWaveform } from '../VoiceWaveform.jsx';
 import { StageCard } from '../StageCard.jsx';
 import { SafeVisual } from '../SafeVisual.jsx';
+import { TextAction, Chip, Tag, Meta, isAppleStyle } from '../Controls.jsx';
+
+// THE STATION FRAME STAYS — the bracketed panels and the reticle were his
+// explicit ask (20 Aug: "a station, not a chat page"). What changes in the
+// material pass (5–6 Sep) is what he READS and TAPS inside the frame: the
+// transcript and the composer in the UI face at reading size under the Apple
+// styles, and the controls as sentence-case chips and text actions.
+// sentence case for a label the view model hands up in caps — the first LETTER
+// (a leading glyph like ◈ is left alone) and the product name kept as a name
+const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpperCase()).replace(/\bnova\b/g, 'Nova');
 
 // iOS dictation has no mic tap (SpeechRecognition owns the microphone), so
 // its listening indicator stays the state bars; everywhere a real meter
@@ -191,7 +201,7 @@ export function Voice({ v }) {
         <Panel glow
           label={v.voiceContinuing ? 'COMMS LOG · CONTINUES ACROSS DAYS' : 'COMMS LOG'}
           right={v.voiceContinuing ? (
-            <Interactive as="span" onClick={v.newVoiceChat} base={`cursor:pointer;font:var(--nv-micro-s);letter-spacing:.1em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`} hoverStyle="color:var(--nv-cy)">NEW CHAT</Interactive>
+            <TextAction compact tone="faint" onClick={v.newVoiceChat}>New chat</TextAction>
           ) : null}
           style={{ flex: '1 1 330px', minWidth: '300px', maxWidth: '430px', minHeight: '380px', maxHeight: '600px',
             // ON A PHONE THE TRANSCRIPT GOES LAST. flex-wrap stacks these in
@@ -202,7 +212,7 @@ export function Voice({ v }) {
             // bottom, where a chat input belongs. Desktop is a real two-column
             // layout and keeps reading left-to-right.
             ...(v.isMobile ? { order: 3 } : {}) }}>
-          <div ref={logRef} style={css(`flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px;font:400 12.5px/1.7 ${M}`)}>
+          <div ref={logRef} style={css(`flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px;font:${isAppleStyle() ? '400 15px/1.55 var(--nv-font-ui)' : `400 12.5px/1.7 ${M}`}`)}>
             {v.orbMsgs.length === 0 && (
               <div style={css("color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>Ask about anything in your vault — training, fuel, notes, the week. Answers come from what's actually written.</div>
             )}
@@ -213,33 +223,30 @@ export function Voice({ v }) {
                 )}
                 <span style={m.tagStyle}>{m.tag}</span>{m.time && <span style={css(`margin-left:6px;font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 32%, transparent)`)}>{m.time}</span>} <span style={css("color:color-mix(in srgb, var(--nv-ink) 90%, transparent)")}><TypeText text={m.text} active={m.typing} /></span>
                 {m.remember && (
-                  <Interactive as="span" onClick={m.remember} title="File this into the vault via the Inbox"
-                    base={`cursor:pointer;display:inline-block;margin-left:8px;font:var(--nv-micro-s);letter-spacing:.1em;padding:1px 7px;border-radius:5px;border:1px solid color-mix(in srgb, var(--nv-gold) 35%, transparent);color:var(--nv-gold)`}
-                    hoverStyle="background:color-mix(in srgb, var(--nv-gold) 08%, transparent)"
-                  >REMEMBER</Interactive>
+                  <TextAction compact tone="gold" onClick={m.remember} title="File this into the vault via the Inbox" style={{ marginLeft: '6px' }}>Remember</TextAction>
                 )}
                 {m.research?.status === 'queued' && (
-                  <div style={css(`margin-top:8px;font:var(--nv-micro-m);letter-spacing:.1em;color:var(--nv-vi)`)}>◇ QUEUED FOR TONIGHT — THE BRIEF LANDS IN YOUR INBOX BY MORNING</div>
+                  <Meta as="div" tone="violet" style={{ marginTop: '8px' }}>◇ Queued for tonight — the brief lands in your Inbox by morning</Meta>
                 )}
                 {m.research?.status === 'running' && (
-                  <div style={css(`margin-top:8px;font:var(--nv-micro-m);letter-spacing:.1em;color:var(--nv-vi);animation:dotBlink 2s ease-in-out infinite`)}>◇ RESEARCHING — THE BRIEF LANDS HERE AND IN YOUR INBOX</div>
+                  <Meta as="div" tone="violet" style={{ marginTop: '8px', animation: 'dotBlink 2s ease-in-out infinite' }}>◇ Researching — the brief lands here and in your Inbox</Meta>
                 )}
                 {m.research?.status === 'error' && (
-                  <div style={css(`margin-top:8px;font:var(--nv-micro-m);color:var(--nv-warn)`)}>RESEARCH DIDN’T COMPLETE — {m.research.error || 'check the Inbox'}</div>
+                  <Meta as="div" tone="warn" style={{ marginTop: '8px' }}>Research didn’t complete — {m.research.error || 'check the Inbox'}</Meta>
                 )}
                 {m.research?.status === 'done' && <SafeVisual what="sources" resetKey={m.at}><SourcesPanel r={m.research} /></SafeVisual>}
                 {m.proposal && (
                   <div style={css("margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent);border-radius:9px;padding:8px 12px;background:color-mix(in srgb, var(--nv-gold) 05%, transparent)")}>
-                    <span style={css(`font:var(--nv-micro-m);color:var(--nv-gold)`)}>◈ {m.proposal.title}</span>
+                    <span style={css(`font:${isAppleStyle() ? '600 13.5px var(--nv-font-ui)' : 'var(--nv-micro-m)'};color:var(--nv-gold)`)}>◈ {m.proposal.title}</span>
                     {m.proposal.status === 'pending' && (
                       <span style={css("display:flex;gap:8px")}>
-                        <Interactive as="span" onClick={m.proposal.approve} base={`cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:3px 10px;border-radius:6px;background:var(--nv-cy);color:var(--nv-on-acc)`} hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">YES, DO IT</Interactive>
-                        <Interactive as="span" onClick={m.proposal.dismiss} base={`cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:3px 10px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-ink) 20%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`} hoverStyle="border-color:var(--nv-warn);color:var(--nv-warn)">LEAVE IT</Interactive>
+                        <Chip tone="cyan" active onClick={m.proposal.approve}>Yes, do it</Chip>
+                        <TextAction compact tone="quiet" onClick={m.proposal.dismiss}>Leave it</TextAction>
                       </span>
                     )}
-                    {m.proposal.status === 'done' && <span style={css(`font:var(--nv-micro-m);color:var(--nv-good)`)}>✓ DONE — UNDO IN INBOX</span>}
-                    {m.proposal.status === 'dismissed' && <span style={css(`font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>✕ DISMISSED</span>}
-                    {m.proposal.status === 'error' && <span style={css(`font:var(--nv-micro-m);color:var(--nv-warn)`)}>STILL PENDING IN INBOX</span>}
+                    {m.proposal.status === 'done' && <Meta tone="good">✓ Done — undo in Inbox</Meta>}
+                    {m.proposal.status === 'dismissed' && <Meta tone="faint">✕ Dismissed</Meta>}
+                    {m.proposal.status === 'error' && <Meta tone="warn">Still pending in Inbox</Meta>}
                   </div>
                 )}
                 {m.panel && <SafeVisual what={`panel:${m.panel.type}`} resetKey={m.at}><VoicePanel panel={m.panel} /></SafeVisual>}
@@ -249,11 +256,9 @@ export function Voice({ v }) {
                     if it is unmissable the moment it is wrong. */}
                 {m.notice && (
                   <div style={css(`margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 11px;border-radius:9px;border:1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent);background:color-mix(in srgb, var(--nv-cy) 6%, transparent)`)}>
-                    <span style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:var(--nv-cy);flex:none`)}>{m.notice.label}</span>
-                    <span style={css(`flex:1;min-width:0;font:400 11.5px/1.4 var(--nv-font-ui);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`)}>{m.notice.why}</span>
-                    <Interactive as="span" onClick={m.notice.undo}
-                      base={css(`cursor:pointer;flex:none;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);padding:5px 9px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent);color:color-mix(in srgb, var(--nv-ink) 60%, transparent)`)}
-                      hoverStyle={{ color: 'var(--nv-warn)', borderColor: 'var(--nv-warn)' }}>JUST ANSWER IT</Interactive>
+                    <Tag tone="cyan" style={{ flex: 'none' }}>{m.notice.label}</Tag>
+                    <span style={css(`flex:1;min-width:0;font:400 ${isAppleStyle() ? '13px' : '11.5px'}/1.4 var(--nv-font-ui);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`)}>{m.notice.why}</span>
+                    <TextAction compact tone="quiet" onClick={m.notice.undo} style={{ flex: 'none' }}>Just answer it</TextAction>
                   </div>
                 )}
                 {/* the evidence card Nova is referring to, one tap away */}
@@ -261,7 +266,7 @@ export function Voice({ v }) {
                   <Interactive onClick={m.evidence.open}
                     base={css("cursor:pointer;margin-top:9px;display:flex;align-items:center;gap:10px;border:1px solid color-mix(in srgb, var(--nv-cy) 35%, transparent);border-radius:12px;padding:10px 13px;background:color-mix(in srgb, var(--nv-cy) 07%, transparent)")}
                     hoverStyle="background:color-mix(in srgb, var(--nv-cy) 15%, transparent)">
-                    <span style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:var(--nv-cy)`)}>◆ EVIDENCE</span>
+                    <Tag tone="cyan">◆ Evidence</Tag>
                     <span style={css("flex:1;min-width:0;font-size:12.5px;color:var(--nv-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{m.evidence.label}</span>
                     <span style={css("flex:none;color:var(--nv-cy)")}>→</span>
                   </Interactive>
@@ -281,16 +286,16 @@ export function Voice({ v }) {
                 not "Ask Nova": a question needs no label, and a chip on every
                 keystroke would be noise. */}
             {(() => { const r = v.routePreview?.(v.orbInput); return r && r.lane !== 'ask' ? (
-              <span title={r.why} style={css(`position:absolute;top:-22px;left:2px;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:var(--nv-cy);opacity:.85`)}>→ {r.label}</span>
+              <Meta title={r.why} tone="cyan" style={{ position: 'absolute', top: '-22px', left: '2px', opacity: .85 }}>→ {cap(r.label)}</Meta>
             ) : null; })()}
             <LocalInput
               value={v.orbInput}
               onChange={(text) => v.setOrbInputValue(text)}
               onSubmit={(text) => v.sendOrb(text)}
               placeholder="Speak or type to Nova…"
-              style={css(`flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font:400 12.5px ${M};outline:none`)}
+              style={css(`flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:${isAppleStyle() ? '999px' : '9px'};padding:10px 14px;color:var(--nv-ink);font:400 ${isAppleStyle() ? '15px var(--nv-font-ui)' : `12.5px ${M}`};outline:none`)}
             />
-            <Interactive as="span" onClick={() => v.sendOrb()} base={`cursor:pointer;display:flex;align-items:center;font:var(--nv-micro-l);padding:0 16px;border-radius:9px;background:var(--nv-cy);color:var(--nv-on-acc)`} hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">SEND</Interactive>
+            <Interactive as="span" onClick={() => v.sendOrb()} base={`cursor:pointer;display:flex;align-items:center;font:${isAppleStyle() ? '600 15px var(--nv-font-ui)' : 'var(--nv-micro-l)'};padding:0 18px;border-radius:${isAppleStyle() ? '999px' : '9px'};background:var(--nv-cy);color:var(--nv-on-acc)`} hoverStyle="filter:brightness(1.08)">{isAppleStyle() ? 'Send' : 'SEND'}</Interactive>
           </div>
         </Panel>
         <div style={{ flex: '1 1 420px', minWidth: '340px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px',
@@ -330,7 +335,7 @@ export function Voice({ v }) {
               <NovaCore size={coreSize} engine={v.coreStyle} speaking={v.voiceSpeaking} listening={dict.on} style={{ pointerEvents: 'none' }} />
             </Interactive>
           </div>
-          <div style={css(`font:var(--nv-micro-m);letter-spacing:.42em;color:${dict.on ? 'var(--nv-vi)' : v.voiceSpeaking ? 'var(--nv-gold)' : 'color-mix(in srgb, var(--nv-ink) 60%, transparent)'};transition:color .4s`)}>{caption}</div>
+          <div style={css(`font:var(--nv-micro-m);letter-spacing:${isAppleStyle() ? '.14em' : '.42em'};text-align:center;color:${dict.on ? 'var(--nv-vi)' : v.voiceSpeaking ? 'var(--nv-gold)' : 'color-mix(in srgb, var(--nv-ink) 60%, transparent)'};transition:color .4s`)}>{caption}</div>
 
           {/* HE HEARD NOTHING — say so, and make one tap fix it. A tap is a
               gesture, which is exactly what the device wants before it will
@@ -342,20 +347,12 @@ export function Voice({ v }) {
               not talk. */}
           {v.briefQueue && (
             <div style={css(`display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:11px 14px;border-radius:12px;border:1px solid var(--nv-acc-border);background:${v.isMobile ? 'color-mix(in srgb, var(--nv-void) 95%, black)' : 'var(--nv-acc-bg)'}${v.isMobile ? ';position:fixed;left:12px;right:12px;bottom:calc(96px + env(safe-area-inset-bottom));z-index:114;box-shadow:0 14px 40px rgba(0,0,0,.6)' : ''}`)}>
-              <span style={css(`flex:none;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:var(--nv-acc)`)}>{v.briefQueue.idx}/{v.briefQueue.total}</span>
-              <Interactive as="span" onClick={() => v.briefQueue.answer('yes')}
-                base={css(`cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 14px;border-radius:8px;background:var(--nv-cy);color:var(--nv-on-acc)`)}
-                hoverStyle="background:color-mix(in srgb, var(--nv-cy) 82%, white)">YES</Interactive>
-              <Interactive as="span" onClick={() => v.briefQueue.answer('no')}
-                base={css(`cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 22%, transparent);color:color-mix(in srgb, var(--nv-ink) 70%, transparent)`)}
-                hoverStyle="border-color:var(--nv-warn);color:var(--nv-warn)">NO</Interactive>
-              <Interactive as="span" onClick={() => v.briefQueue.answer('later')}
-                base={css(`cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 12px;border-radius:8px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)`)}
-                hoverStyle="color:var(--nv-ink)">LATER</Interactive>
+              <Meta tone="accent" style={{ flex: 'none' }}>{v.briefQueue.idx}/{v.briefQueue.total}</Meta>
+              <Chip tone="cyan" active onClick={() => v.briefQueue.answer('yes')}>Yes</Chip>
+              <Chip tone="quiet" onClick={() => v.briefQueue.answer('no')}>No</Chip>
+              <TextAction compact tone="faint" onClick={() => v.briefQueue.answer('later')}>Later</TextAction>
               <span style={css('flex:1')}></span>
-              <Interactive as="span" onClick={v.briefQueue.stop}
-                base={css(`cursor:pointer;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 35%, transparent)`)}
-                hoverStyle="color:var(--nv-ink)">STOP</Interactive>
+              <TextAction compact tone="faint" onClick={v.briefQueue.stop}>Stop</TextAction>
             </div>
           )}
 
@@ -367,7 +364,7 @@ export function Voice({ v }) {
             <Interactive onClick={v.speechBlocked.replay} aria-label="Play the reply you didn't hear"
               base={css(`cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:10px;border:1px solid color-mix(in srgb, var(--nv-warn) 55%, transparent);background:${v.isMobile ? 'color-mix(in srgb, var(--nv-void) 94%, black)' : 'color-mix(in srgb, var(--nv-warn) 08%, transparent)'};animation:popIn .3s cubic-bezier(.2,.9,.25,1)${v.isMobile ? ';position:fixed;left:12px;right:12px;bottom:calc(96px + env(safe-area-inset-bottom));z-index:113;box-shadow:0 14px 40px rgba(0,0,0,.6)' : ''}`)}
               hoverStyle="background:color-mix(in srgb, var(--nv-warn) 16%, transparent)">
-              <span style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:var(--nv-warn);flex:none`)}>▶ TAP TO HEAR</span>
+              <Tag tone="warn" style={{ flex: 'none' }}>▶ Tap to hear</Tag>
               <span style={css('flex:1;min-width:0;font-size:11.5px;color:color-mix(in srgb, var(--nv-ink) 60%, transparent)')}>{v.speechBlocked.message}</span>
             </Interactive>
           )}
@@ -400,19 +397,15 @@ export function Voice({ v }) {
             </div>
           )}
           {v.ritualInvite && v.voiceLive && (
-            <Interactive as="span" onClick={() => v.startRitual(v.ritualInvite.kind)}
-              title="A guided conversation for this time of day — starts only when you tap"
-              base={`cursor:pointer;display:inline-block;margin-bottom:10px;font:var(--nv-micro-l);letter-spacing:var(--nv-micro-track);padding:10px 18px;border-radius:9px;border:1px solid color-mix(in srgb, ${v.ritualInvite.kind === 'morning' ? 'var(--nv-gold)' : 'var(--nv-vi)'} 45%, transparent);color:${v.ritualInvite.kind === 'morning' ? 'var(--nv-gold)' : 'var(--nv-vi)'};background:color-mix(in srgb, ${v.ritualInvite.kind === 'morning' ? 'var(--nv-gold)' : 'var(--nv-vi)'} 07%, transparent);animation:fadeUp .4s ease-out`}
-              hoverStyle={`background:color-mix(in srgb, ${v.ritualInvite.kind === 'morning' ? 'var(--nv-gold)' : 'var(--nv-vi)'} 14%, transparent)`}
-            >{v.ritualInvite.label} — TAP TO START</Interactive>
+            <Chip tone={v.ritualInvite.kind === 'morning' ? 'gold' : 'violet'} onClick={() => v.startRitual(v.ritualInvite.kind)}
+              title="A guided conversation for this time of day — starts only when you tap" style={{ marginBottom: '10px' }}>
+              {cap(v.ritualInvite.label)} — tap to start
+            </Chip>
           )}
           <div style={css("display:flex;gap:10px;flex-wrap:wrap;justify-content:center;white-space:nowrap")}>
-            <Interactive as="span" onClick={v.briefMe} base={`cursor:pointer;font:var(--nv-micro-m);padding:9px 16px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);border-radius:8px;color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 06%, transparent)`} hoverStyle="background:color-mix(in srgb, var(--nv-gold) 12%, transparent)">☰ BRIEF ME</Interactive>
+            <Chip tone="gold" onClick={v.briefMe}>≡ Brief me</Chip>
             {v.voiceLive && (
-              <Interactive as="span" onClick={v.goAmbient} title="Fullscreen presence — the core, the time, the day's numbers; tap to exit"
-                base={`cursor:pointer;font:var(--nv-micro-m);padding:9px 16px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);border-radius:8px;color:color-mix(in srgb, var(--nv-ink) 50%, transparent);background:rgba(0,0,0,.25)`}
-                hoverStyle="border-color:color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)"
-              >◐ AMBIENT</Interactive>
+              <Chip tone="quiet" onClick={v.goAmbient} title="Fullscreen presence — the core, the time, the day's numbers; tap to exit">◐ Ambient</Chip>
             )}
           </div>
         </div>
