@@ -5,6 +5,7 @@
 // Adds to ctx: inboxPendingCount (sidebar badge).
 import { dtf } from './fmt.js';
 import { clampWords } from '../textClamp.js';
+import { digestPending } from '../inboxDigest.js';
 
 // WHO MADE THIS. Was a 24-branch ternary ending in 'TYPED', so any kind it
 // didn't name was silently attributed to HIM — the program review, the
@@ -604,6 +605,21 @@ export function valsInbox(app, ctx) {
     })),
     inboxProposals,
     inboxPending: pendingItems,
+    // A3 — Nova triages first. Deterministic grouping of what is waiting
+    // (src/inboxDigest.js): routine filings clear in one tap, a repeating
+    // subject is shown as one pattern, the rest are decided one at a time.
+    // null when there is nothing to triage (fewer than two items).
+    inboxDigest: (() => {
+      const d = digestPending(pendingItems);
+      if (!d) return null;
+      return {
+        ...d,
+        // every routine filing goes through the same approve path as a
+        // swipe — same rails, same undo, nothing new can write
+        fileRoutine: () => d.routine.forEach((i) => i.approve && i.approve()),
+        routineBusy: d.routine.some((i) => i.busy),
+      };
+    })(),
     inboxHistory: historyItems,
     inboxLoaded: inbox != null, // null = still loading — never renders as "nothing captured yet"
     // the skeleton needs to know NOT to shimmer offline (last-known history

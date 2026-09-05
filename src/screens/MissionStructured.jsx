@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { css } from '../css.js';
 import { RingTile } from '../RingTile.jsx';
+import { resolveFolds, foldStatus, FOLD_LABELS, loadFolds, saveFolds } from '../missionFold.js';
 import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
 import { Clock } from '../Clock.jsx';
@@ -41,10 +43,32 @@ export function assertOrdersCover(sectionKeys, orders = ORDERS) {
   return problems;
 }
 
+// C1 — a folded section: its label, one line of status derived from the same
+// view model the open section renders, and a chevron. Tap to open. The open
+// state is remembered per section (src/missionFold.js).
+function FoldRow({ label, status, onOpen }) {
+  return (
+    <Interactive as="section" onClick={onOpen} role="button" aria-expanded="false" aria-label={`Open ${label}`}
+      base={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 14px', borderRadius: '13px', cursor: 'pointer', background: 'var(--nv-glass)', border: '1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)' }}
+      hoverStyle={{ borderColor: 'color-mix(in srgb, var(--nv-ink) 16%, transparent)' }}>
+      <span style={{ flex: 'none', font: `600 11px ${UI}`, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--nv-ink40)' }}>{label}</span>
+      <span style={{ flex: 1, minWidth: 0, font: `450 13px ${UI}`, color: 'var(--nv-ink60)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right' }}>{status}</span>
+      <span aria-hidden="true" style={{ flex: 'none', color: 'var(--nv-ink40)', font: `400 12px ${M}` }}>▸</span>
+    </Interactive>
+  );
+}
+
 export function MissionStructured({ v }) {
   const mob = v.isMobile;
   const hour = new Date().getHours();
   const morning = hour < 10;
+  // C1 — what he has opened or folded himself, over the hour's default
+  const [remembered, setRemembered] = useState(loadFolds);
+  const setFold = (k, state) => {
+    const next = { ...remembered, [k]: state };
+    setRemembered(next);
+    saveFolds(next);
+  };
   const vitals = [
     { key: 'sleep', color: '--nv-cy', ...v.satSleep },
     { key: 'steps', color: '--nv-mg', ...v.satSteps },
@@ -372,7 +396,33 @@ export function MissionStructured({ v }) {
             </div>
           </section>
         )}
-        {order.map((k) => sections[k]).filter(Boolean)}
+        {/* C1 — THE FOLD. The first two sections of the hour's order (plus
+            WORKING and PLAN, which never fold) render in full; everything
+            after them is a header and one line of status until tapped. A
+            section he opens gets a slim FOLD caption so it can be put away
+            again; both choices are remembered per section. */}
+        {(() => {
+          const present = order.filter((k) => sections[k]);
+          const folds = resolveFolds(present, remembered);
+          return present.map((k) => {
+            if (folds[k] === 'fold') {
+              return <FoldRow key={`fold-${k}`} label={FOLD_LABELS[k] || k} status={foldStatus(k, v)} onOpen={() => setFold(k, 'open')} />;
+            }
+            const canFold = !['working', 'plan'].includes(k);
+            return (
+              <div key={`sec-${k}`}>
+                {sections[k]}
+                {canFold && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '4px 8px 0' }}>
+                    <Interactive as="span" onClick={() => setFold(k, 'fold')} aria-label={`Fold ${FOLD_LABELS[k] || k}`}
+                      base={{ cursor: 'pointer', font: `600 8.5px ${M}`, letterSpacing: '.14em', color: 'var(--nv-ink40)', padding: '2px 4px' }}
+                      hoverStyle={{ color: 'var(--nv-ink)' }}>▴ FOLD</Interactive>
+                  </div>
+                )}
+              </div>
+            );
+          });
+        })()}
       </div>
     </div>
   );
