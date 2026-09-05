@@ -98,3 +98,40 @@ test('every delegable capability has a dispatcher clause in the planner', async 
     assert.ok(CAPABILITIES[id], `${id} vanished from the registry`);
   }
 });
+
+// --- The handoff. Found by the first real plan (7bf8cee7, 5 Sep): the
+// Researcher's brief was titled "Watcher Claims Not Received" because the
+// planner wrote the dependency in prose, not as {{s1}}, and the step output
+// it would have received was a title line anyway.
+import { handoffFor, stripPlaceholders, summarise } from '../lib/planner.js';
+
+test('a declared need is handed over even when the plan forgot the placeholder', () => {
+  const step = { id: 's2', input: 'Check the claims from the Watcher\'s verdict against the literature', needs: ['s1'] };
+  const out = handoffFor(step, { s1: 'Claim 1: heavy loads for strength. Claim 2: 6-12 reps for size.' });
+  assert.ok(out.startsWith('FROM S1:\n'));
+  assert.ok(out.includes('Claim 2'));
+});
+
+test('an already-interpolated need is not handed over twice — unless the lane takes context separately', () => {
+  const step = { id: 's2', input: 'Check {{s1}} against the literature', needs: ['s1'] };
+  assert.equal(handoffFor(step, { s1: 'verdict' }), '', 'inline lanes already have it in the input');
+  assert.equal(handoffFor(step, { s1: 'verdict' }, { all: true }), 'FROM S1:\nverdict');
+});
+
+test('a need whose step produced nothing is skipped, not handed over as "undefined"', () => {
+  assert.equal(handoffFor({ id: 's3', input: 'x', needs: ['s1', 's2'] }, { s2: 'only this' }), 'FROM S2:\nonly this');
+});
+
+test('the Researcher\'s question loses its placeholders but keeps its sense', () => {
+  assert.equal(stripPlaceholders('Compare {{s1}} against the research, and {{ s2 }}.'), 'Compare against the research, and.');
+  assert.equal(stripPlaceholders('   plain   '), 'plain');
+});
+
+test('what one agent hands the next is the substance, not the headline', () => {
+  const watcher = { text: 'Watch: https://x — instruction', decision: { title: 'Solid Physiology, One Outdated Claim', payload: { title: 't', body: '**Verdict:** rest periods claim is outdated…' } } };
+  const out = summarise(watcher);
+  assert.ok(out.includes('rest periods claim is outdated'), 'the payload body must travel');
+  assert.ok(!out.includes('Watch: https://x'), 'the instruction echo is noise once there is a body');
+  // no body at all: fall back to the record's own words rather than nothing
+  assert.equal(summarise({ text: 'Research: q', decision: { title: 'T' } }), 'T\nResearch: q');
+});

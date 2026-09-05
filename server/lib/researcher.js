@@ -27,7 +27,12 @@ const RESEARCH_DISALLOWED = [
   'Edit', 'Write', 'Grep', 'Glob',
 ].join(',');
 
-export function buildResearchPrompt(question) {
+export function buildResearchPrompt(question, context = '') {
+  // MATERIAL: what an earlier agent found, when this brief is one step of a
+  // plan. Plan 7bf8cee7 (5 Sep) asked the Researcher to check "the Watcher's
+  // claims" and handed it none — the question is capped at 500 characters,
+  // so a verdict can never travel inside it. It travels here instead.
+  const material = String(context || '').trim();
   return `${NOVA_LENS}
 
 You are Nova's Researcher, building a short web-research brief for Hayden's second brain (an Obsidian vault). Research the question below using web search, then write the brief.
@@ -40,7 +45,10 @@ Rules:
 - This files into the vault as a note for review — write it timelessly (dates absolute, no "recently").
 
 The question: ${question}
-
+${material ? `
+MATERIAL FROM AN EARLIER AGENT — this is what the question refers to. Check THESE claims; do not go looking for a different list, and say so if the material does not actually contain what the question assumes:
+${material.slice(0, 8000)}
+` : ''}
 Output ONLY a JSON object: {"title": "Short Note Title", "body": "the full brief in markdown — summary, key points, ## Sources list"}. No code fences, no commentary.`;
 }
 
@@ -99,7 +107,7 @@ export function normalizeResearch(parsed) {
 // caller already asked "Opus or Sonnet?" before reaching here) — 'opus' or
 // 'sonnet' only, never the full model board. Omitted, this run just uses
 // the lane's standing default (modelFor('researcher')), same as always.
-export async function startResearch(vaultPath, question, { model } = {}) {
+export async function startResearch(vaultPath, question, { model, context } = {}) {
   const q = (question || '').trim();
   if (!q) throw new Error('a research question is required');
   if (q.length > 500) throw new Error('keep the research question under 500 characters');
@@ -119,8 +127,10 @@ export async function startResearch(vaultPath, question, { model } = {}) {
     // the gate's per-run answer rides the record so a RETRY runs on the model
     // he chose — it used to fall back to the lane default silently
     model: model || null,
+    // the plan's handoff rides the record too, so a RETRY checks the same material
+    context: context ? String(context).slice(0, 8000) : null,
   });
-  runResearchJob(vaultPath, record.id, q, model);
+  runResearchJob(vaultPath, record.id, q, model, context);
   return record;
 }
 
@@ -131,14 +141,14 @@ export async function retryResearch(vaultPath, record) {
   if (!q) throw new Error('this research record has no question to re-run');
   if (!laneEnabled('researcher')) throw laneOffError('researcher');
   const updated = await updateRecord(record.id, { status: 'classifying', error: null });
-  runResearchJob(vaultPath, record.id, q, record.model || undefined);
+  runResearchJob(vaultPath, record.id, q, record.model || undefined, record.context || '');
   return updated;
 }
 
 // The spawn-and-settle step, shared by first runs and retries.
-function runResearchJob(vaultPath, recordId, q, model) {
+function runResearchJob(vaultPath, recordId, q, model, context = '') {
   const child = spawn(CLAUDE_BIN, [
-    '-p', buildResearchPrompt(q),
+    '-p', buildResearchPrompt(q, context),
     '--permission-mode', 'bypassPermissions',
     '--allowedTools', 'WebSearch WebFetch Read',
     '--disallowedTools', RESEARCH_DISALLOWED,

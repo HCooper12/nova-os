@@ -187,15 +187,23 @@ async function dispatchStep(vaultPath, step, priorOutputs) {
   const input = interpolate(step.input, priorOutputs);
   if (step.capability === 'watch') {
     const { startVideoWatch } = await import('./watcher.js');
+    // a Watcher needs a URL, which interpolation supplies; its question is
+    // capped at 500 chars, so no prior verdict is folded into it
     return startVideoWatch(vaultPath, extractFirstUrl(input) || input, step.what);
   }
   if (step.capability === 'research') {
     const { startResearch } = await import('./researcher.js');
-    return startResearch(vaultPath, clampQuestion(input || step.what));
+    // The question stays short and re-runnable; EVERYTHING this step depends
+    // on travels as context. Interpolating a 4k verdict into a 500-char
+    // question was how plan 7bf8cee7 lost the Watcher's claims on the way.
+    return startResearch(vaultPath, clampQuestion(stripPlaceholders(step.input) || step.what), {
+      context: handoffFor(step, priorOutputs, { all: true }) || undefined,
+    });
   }
   if (step.capability === 'study') {
     const { startStudy } = await import('./studyLane.js');
-    return startStudy(vaultPath, { urls: [extractFirstUrl(input)].filter(Boolean), prose: step.what });
+    const handoff = handoffFor(step, priorOutputs);
+    return startStudy(vaultPath, { urls: [extractFirstUrl(input)].filter(Boolean), prose: [step.what, handoff].filter(Boolean).join('\n\n') });
   }
   if (step.capability === 'book') {
     const { startIngest } = await import('./ingest.js');
@@ -221,6 +229,29 @@ export function interpolate(input, outputs = {}) {
   return String(input || '').replace(/\{\{\s*(\w+)\s*\}\}/g, (whole, id) => (outputs[id] ? outputs[id] : whole));
 }
 
+// What a step INHERITS from the steps it declared it needs. The model writing
+// the plan may or may not remember the {{s1}} placeholder — plan 7bf8cee7 on
+// 5 Sep wrote "using the list of claims from the Watcher's verdict" in prose,
+// so interpolate had nothing to do and the Researcher was told to check claims
+// it did not hold. A declared dependency is honoured by CODE: every output a
+// step `needs` (or names) and did not already interpolate is handed over here.
+// `all` hands over the named ones too, for lanes that take context separately
+// from the instruction (the Researcher) rather than inline.
+export function handoffFor(step, outputs = {}, { all = false } = {}) {
+  const raw = String(step?.input || '');
+  const named = [...raw.matchAll(/\{\{\s*(\w+)\s*\}\}/g)].map((m) => m[1]);
+  const needs = Array.isArray(step?.needs) ? step.needs : [];
+  const ids = [...new Set([...needs, ...named])].filter((id) => outputs[id]);
+  const wanted = all ? ids : ids.filter((id) => !named.includes(id));
+  return wanted.map((id) => `FROM ${String(id).toUpperCase()}:\n${outputs[id]}`).join('\n\n');
+}
+
+// The instruction with its placeholders removed — for a lane that receives
+// the referenced material through its own context channel instead.
+export function stripPlaceholders(s) {
+  return String(s || '').replace(/\{\{\s*\w+\s*\}\}/g, '').replace(/[ \t]{2,}/g, ' ').replace(/\s+([,.;:])/g, '$1').trim();
+}
+
 // Wait for a dispatched record to settle. A step that never finishes must not
 // hold the plan open forever — it fails with a reason, and the report says so.
 async function awaitRecord(id, { timeoutMs = STEP_TIMEOUT_MS } = {}) {
@@ -239,9 +270,13 @@ async function awaitRecord(id, { timeoutMs = STEP_TIMEOUT_MS } = {}) {
 
 // What one agent hands the next, and eventually the report. Deliberately the
 // record's own words — no re-summarising, which is where detail goes to die.
-function summarise(record) {
-  const d = record.decision || {};
-  return [d.title, d.body || d.summary, record.text].filter(Boolean).join('\n').slice(0, 6000);
+export function summarise(record) {
+  const d = record?.decision || {};
+  // Every lane files its substance under payload.body (the Watcher's verdict,
+  // the Researcher's brief, the Study note). Reading d.body — which no lane
+  // sets — is how the first real plan handed on a title and nothing else.
+  const body = d.payload?.body || d.body || d.summary || '';
+  return [d.title, body || record?.text].filter(Boolean).join('\n').slice(0, 6000);
 }
 
 export async function runPlan(vaultPath, recordId) {

@@ -55,3 +55,12 @@ test('the citation gate checks integrity: every cited number resolves to a sourc
   const numbered = 'Fact [1].\n\nSources\n1. Title — https://example.org/a';
   assert.equal(checkCitations(numbered).ok, true);
 });
+
+test('a plan handoff rides the prompt as MATERIAL, and is absent when there is none', () => {
+  const plain = buildResearchPrompt('Is creatine safe long-term?');
+  assert.ok(!plain.includes('MATERIAL FROM AN EARLIER AGENT'));
+  const withContext = buildResearchPrompt('Check these claims', 'Claim 1: 3-minute rests for strength.');
+  assert.ok(withContext.includes('MATERIAL FROM AN EARLIER AGENT'));
+  assert.ok(withContext.includes('Claim 1: 3-minute rests'));
+  assert.ok(withContext.indexOf('The question:') < withContext.indexOf('MATERIAL FROM'), 'question first, then what it refers to');
+});
