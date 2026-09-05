@@ -1,6 +1,11 @@
 import { css } from '../css.js';
 import { SwipeRow } from '../SwipeRow.jsx';
 import { Interactive } from '../Interactive.jsx';
+import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle } from '../Controls.jsx';
+// the material pass (6 Sep 2026): labels and controls through Controls.jsx
+const btn = (bg, ink, extra = {}) => (isAppleStyle()
+  ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '10px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }
+  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-l)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
 
 export function Shopping({ v }) {
   return (
@@ -26,10 +31,10 @@ export function Shopping({ v }) {
         <Interactive
           as="span"
           onClick={v.shoppingAddBusy ? undefined : v.submitShoppingAdd}
-          base={{ cursor: 'pointer', display: 'flex', alignItems: 'center', height: '60px', font: 'var(--nv-micro-m)', padding: '0 16px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1322', opacity: v.shoppingAddBusy ? .6 : 1 }}
-          hoverStyle={{ background: 'color-mix(in srgb, var(--nv-gold) 85%, white)' }}
+          base={btn('var(--nv-gold)', '#1a1322', { display: 'flex', height: '60px', padding: '0 18px', borderRadius: isAppleStyle() ? '16px' : '8px', opacity: v.shoppingAddBusy ? .6 : 1 })}
+          hoverStyle={{ filter: 'brightness(1.08)' }}
         >
-          {v.shoppingAddBusy ? 'ADDING…' : '+ ADD'}
+          {v.shoppingAddBusy ? 'Adding…' : '+ Add'}
         </Interactive>
       </div>
       {v.shoppingAddError && (
@@ -45,12 +50,8 @@ export function Shopping({ v }) {
             Cleared {v.shoppingClearedCount} item{v.shoppingClearedCount === 1 ? '' : 's'}.
           </span>
           <span style={css("display:flex;gap:8px;flex:none")}>
-            <Interactive as="span" onClick={v.undoShoppingClear}
-              base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:.1em;padding:7px 13px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-good) 50%, transparent);color:var(--nv-good)"
-              hoverStyle="background:color-mix(in srgb, var(--nv-good) 14%, transparent)">UNDO</Interactive>
-            <Interactive as="span" onClick={v.dismissShoppingClearUndo}
-              base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:.1em;padding:7px 11px;border-radius:8px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)"
-              hoverStyle="color:var(--nv-ink)">DISMISS</Interactive>
+            <TextAction compact tone="good" onClick={v.undoShoppingClear}>Undo</TextAction>
+            <TextAction compact tone="faint" onClick={v.dismissShoppingClearUndo}>Dismiss</TextAction>
           </span>
         </div>
       ) : v.shoppingClearArmed ? (
@@ -59,21 +60,13 @@ export function Shopping({ v }) {
             Clear the whole list, ticked or not?
           </span>
           <span style={css("display:flex;gap:8px;flex:none")}>
-            <Interactive as="span" onClick={v.shoppingClearBusy ? undefined : v.confirmShoppingClear}
-              base={{ cursor: 'pointer', font: 'var(--nv-micro-m)', letterSpacing: '.1em', padding: '7px 13px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-warn) 55%, transparent)', color: 'var(--nv-warn)', opacity: v.shoppingClearBusy ? .6 : 1 }}
-              hoverStyle="background:color-mix(in srgb, var(--nv-warn) 14%, transparent)">
-              {v.shoppingClearBusy ? 'CLEARING…' : 'CLEAR IT'}
-            </Interactive>
-            <Interactive as="span" onClick={v.cancelShoppingClear}
-              base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:.1em;padding:7px 11px;border-radius:8px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)"
-              hoverStyle="color:var(--nv-ink)">KEEP</Interactive>
+            <Chip tone="warn" disabled={v.shoppingClearBusy} onClick={v.shoppingClearBusy ? undefined : v.confirmShoppingClear}>{v.shoppingClearBusy ? 'Clearing…' : 'Clear it'}</Chip>
+            <TextAction compact tone="faint" onClick={v.cancelShoppingClear}>Keep</TextAction>
           </span>
         </div>
       ) : v.shoppingCanClear ? (
         <div style={css("margin-top:12px;display:flex;justify-content:flex-end")}>
-          <Interactive as="span" onClick={v.armShoppingClear} title="Empty the whole shopping list"
-            base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:.1em;padding:7px 13px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);color:color-mix(in srgb, var(--nv-ink) 50%, transparent)"
-            hoverStyle="border-color:color-mix(in srgb, var(--nv-warn) 45%, transparent);color:var(--nv-warn)">CLEAR ALL</Interactive>
+          <TextAction compact tone="faint" onClick={v.armShoppingClear} title="Empty the whole shopping list">Clear all</TextAction>
         </div>
       ) : null}
 
@@ -85,7 +78,7 @@ export function Shopping({ v }) {
         <div style={css("margin-top:26px;display:flex;flex-direction:column;gap:24px")}>
           {v.shoppingCategories.map((cat) => (
             <div key={cat.name}>
-              <div style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-gold)")}>{cat.name.toUpperCase()}</div>
+              <Eyebrow tone="gold">{cat.name}</Eyebrow>
               {/* Apple layout: the category becomes one grouped card of rows */}
               <div className={v.structured ? 'nv-pane' : undefined} style={v.structured ? { marginTop: '8px', padding: '3px 0', overflow: 'hidden' } : css("margin-top:10px;display:flex;flex-direction:column")}>
                 {cat.items.map((item) => (
@@ -146,8 +139,8 @@ export function Shopping({ v }) {
           <Interactive
             as="span"
             onClick={v.confirmShoppingCompletion}
-            base="cursor:pointer;font:var(--nv-micro-l);padding:10px 18px;border-radius:8px;background:var(--nv-cy);color:var(--nv-on-acc)"
-            hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 80%, white)' }}
+            base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { textTransform: 'none' })}
+            hoverStyle={{ filter: 'brightness(1.08)' }}
           >
             Confirm completion — {v.shoppingCheckedCount} collected
           </Interactive>

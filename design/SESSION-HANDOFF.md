@@ -13,8 +13,11 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**5 SEP (night) — THE MATERIAL PASS: "Nova feels stiff" answered by
-measurement and a sweep. The daily screens are set in a shared control
+**6 SEP — EVERYTHING VERIFIED LIVE ON THE URL HIS PHONE LOADS, THE PLAN
+HANDOFF PROVEN ON A REAL RUN, AND THE MATERIAL PASS EXTENDED TO EVERY SCREEN
+(tokens everywhere; hand sweeps on Voice, Fuel, Notes, To-Do, Shopping on
+top of the daily four). Earlier, 5 Sep night — THE MATERIAL PASS: "Nova
+feels stiff" answered by measurement and a sweep. The daily screens are set in a shared control
 vocabulary (src/Controls.jsx), cupertino cards lost their outlines, 15
 toasts that restated a visible change are gone, tab hops are instant,
 sheets drag to dismiss, the deck's next card rises. Verified on his data at
@@ -93,10 +96,41 @@ data and confirmed live by `scripts/verify-shipped.mjs --server`:
     cross-fade stays for programmatic navigations); `src/useSheetDrag.js`
     on ExerciseSheet and PortionSheet (grab zone = handle row, imperative
     transform, throw past 110px or fast); `.nv-deck-rise` on a new top card.
+  · 6 Sep, TIER ONE everywhere: 582 mono micro-label fonts + 277 trackings in
+    49 files became per-style tokens (`--nv-micro-s/m/l`, `--nv-micro-track`,
+    `--nv-micro-track-wide`; Command = the console, Apple = UI face 11–13.5px)
+    — one mechanical codemod, syntax untouched. Case, borders and hit areas
+    on those screens are the hand sweep's job.
+  · 6 Sep, HAND SWEEPS on top: Voice (station frame kept — his 20 Aug ask;
+    transcript + composer in the UI face at reading size; Brief me / Ambient
+    / ritual / Yes-No-Later / Remember / Just answer it / Send as controls),
+    Fuel (hero chips, rotation, log bar, edit-entry, recipe-card Log this),
+    Notes (Studio chips, review summary, Linked in Galaxy), To-Do (Add,
+    category, Stale, Done eyebrow), Shopping (Add, Clear/Undo/Keep, category
+    eyebrows, Confirm completion). verify-shipped markers updated with the
+    strings they read ("Apply it", "Coach said", "Per exercise", "couldn't
+    check") — the checker is a reader of a contract the sweep changes.
+- THE PLAN HANDOFF, PROVEN (6 Sep). Run `ad94d16a` (same vague phrasing)
+  produced two independent steps and its Researcher died on a raw tab in the
+  model's JSON → `parseModelJson()` in `lib/jsonSalvage.js` is now the one
+  entry point for 20 lanes (control-char repair, then stray quotes, then the
+  ORIGINAL error), pinned in jsonSalvage.test.js. Run `7a4d70b3` ("list every
+  claim … THEN check each of THOSE") declared `s2.needs=["s1"]`, the research
+  record carried 3,953 chars of context, the brief says so itself, and the
+  report is a claim-by-claim verdict with an honest gap. Six failed-run
+  artefacts discarded; the good run's report, Watcher audit and Researcher
+  brief are PENDING for him.
 
-STATE (the material pass was committed after this handoff was written — see
-`git log -3`; run `npm run build && node scripts/verify-shipped.mjs --server`
-to stamp it):
+STATE (HEAD = the Notes/To-Do/Shopping sweep commit; every earlier commit
+of 5–6 Sep was verified live by `verify-shipped --server` after its deploy —
+the deployed GitHub Pages bundle carried the new strings and none of the old
+caps ones, checked from a fresh isolated browser context at 375×812):
+- The live URL cannot show HIS data from the MCP Chrome (Tailscale fetches
+  hang there — memory nova-frontend-verification); proof of "live with data"
+  is verify-shipped's marker fetch + the same bundle hash + localhost with
+  his connection. His phone needs one reopen for the service worker to swap.
+- Server process started after the last server edit (planner/researcher/
+  jsonSalvage + 20 lanes); health 200; exercise-videos on the roster.
 - Inbox holds the first plan's artefacts, all PENDING and his to judge: the
   plan report (`7bf8cee7`, honest: "only the Watcher's part was done"), the
   Watcher's verdict (`13938dcb`, sound) and the Researcher's defective brief
@@ -145,15 +179,19 @@ the running app — see the commit bodies from `e91eac2` to `fff89ae`.
   scripted fold taps.
 
 ASSUMED:
-- The handoff fix works on a REAL run. dispatch → await → report is now proven
-  (plan `7bf8cee7`, 2/2 steps, ~$4); the fix that makes step 2 actually
-  receive step 1's material is unit-tested only. A second run is his money.
+- (The handoff is no longer assumed — proven on run `7a4d70b3`, see DONE.)
+- The Tier-one token pass reads well on every screen. Verified visually on
+  Voice, Fuel, Settings-adjacent and Notes at 375×812; the long tail (Ops,
+  Library, Money, Leader, Journal, Stash, Galaxy, Ambient, Claude Code,
+  classic MissionControl, Sidebar, overlays) was checked by build + lint +
+  the 42-marker sweep, not by eye.
 - The name-tap path on Today's card (no plan rows were rendered when checked).
 - The Leader's daily card stays on-domain (two good scheduled runs seen).
 
 OPEN — HIS:
-- Re-run a plan to see the Researcher hold the Watcher's claims (~$4), and
-  clear the three pending artefacts of the first run from the Inbox.
+- Approve or discard the good plan run's three artefacts (report `7a4d70b3`,
+  Watcher audit `ab0e8c13`, Researcher brief `3cef76ad`) in the Inbox.
+- Reopen Nova on the phone once so the service worker takes the new bundle.
 - `Wiki/Profile.md` — four answers; the planner reasons without it.
 - Hand-pick a Carter Extension video (the search cannot find one that names
   the movement; the rule is right to refuse).
@@ -163,10 +201,13 @@ OPEN — HIS:
 OPEN — MINE, when asked: the fold for `MissionControl.jsx` (the non-phone
 layout); a model naming the digest's themes ON TOP of the deterministic
 groups, never instead of them; the remaining audit mockups he has not picked;
-the material pass on the screens NOT yet swept (Fuel/Recipes, Notes, Voice,
-Settings, Money, To-Do, the classic `MissionControl.jsx`) and the
-screen-identity header row (numeral · SECTION · label) that every classic
-screen still sets in tracked mono.
+the HAND sweep (case, borders, hit areas) on the screens that so far have only
+the token pass: Settings (its ON/OFF toggles, ENABLE/TEST/SIGN IN, ACTIVE
+badges), Money, Leader, Library, Ops, Journal, Stash, Galaxy, Ambient, Claude
+Code, the classic `MissionControl.jsx` and Sidebar, RecipeOverlay,
+AddRecipeModal, VoicePanels, VerdictCard; the vals-built chip styles (note
+type filters in valsNotes, recipe filters in valsRecipes); and the classic
+screen-identity header row (numeral · SECTION · label).
 
 DO NOT:
 - Do not write a test that assumes his timezone. `localDate.test.js` built
@@ -210,6 +251,18 @@ DO NOT:
 - Earlier DO NOTs (3 Sep) all still stand.
 
 ## SESSION LOG (append-only, newest first)
+
+### 6 September 2026 — live-proof, the plan handoff proven, the material pass everywhere
+
+Checked the deployed bundle from a fresh isolated context (new strings
+present, old caps absent) and the server process against its code's mtimes.
+Re-ran the plan twice: the first re-run exposed twenty lanes parsing model
+JSON without repair (a raw tab killed the Researcher) — fixed with one entry
+point; the second, phrased to force the dependency, proved the handoff with
+3,953 chars of context and an honest claim-by-claim report. Then the token
+codemod (582 fonts, 277 trackings, 49 files) and hand sweeps on Voice, Fuel,
+Notes, To-Do, Shopping, each deployed and verified live in turn; the
+verify-shipped markers moved with the strings they read.
 
 ### 5 September 2026 (night) — the material pass
 

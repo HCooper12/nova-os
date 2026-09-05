@@ -1,6 +1,11 @@
 import { css } from '../css.js';
 import { SwipeRow } from '../SwipeRow.jsx';
 import { Interactive } from '../Interactive.jsx';
+import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle } from '../Controls.jsx';
+// the material pass (6 Sep 2026): labels and controls through Controls.jsx
+const btn = (bg, ink, extra = {}) => (isAppleStyle()
+  ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '10px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }
+  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-l)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
 
 const M = "var(--nv-font-mono)";
 const R = "var(--nv-font-ui)";
@@ -12,10 +17,10 @@ const R = "var(--nv-font-ui)";
 export function Todos({ v }) {
   return (
     <div style={v.wrapTodos}>
-      <div style={css(`font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-ink40)`)}>NOVA · TO-DO</div>
+      <Eyebrow>Nova · To-Do</Eyebrow>
       <div style={css("display:flex;align-items:baseline;gap:14px;flex-wrap:wrap")}>
         <h1 style={css(`margin:6px 0 0;font:700 30px/1.05 ${R};letter-spacing:.02em`)}>To-Do</h1>
-        <span style={css(`font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-ink40)`)}>{v.todosHeaderLabel}</span>
+        <Meta tone="faint">{v.todosHeaderLabel}</Meta>
       </div>
 
       {v.todosConnected && (
@@ -29,12 +34,12 @@ export function Todos({ v }) {
               style={{ flex: 1, minWidth: 0, background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '9px', color: 'var(--nv-ink)', font: `500 13.5px ${R}`, padding: '11px 14px', outline: 'none' }}
             />
             <Interactive as="span" onClick={v.submitTodo}
-              base={{ cursor: 'pointer', flex: 'none', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', padding: '11px 18px', borderRadius: '9px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)' }}
+              base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { flex: 'none', padding: isAppleStyle() ? '11px 18px' : '11px 18px' })}
               hoverStyle={{ filter: 'brightness(1.08)' }}
-            >ADD</Interactive>
+            >Add</Interactive>
           </div>
           {v.todosSyncNote && (
-            <div style={css(`margin-top:9px;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 35%, transparent)`)}>{v.todosSyncNote}</div>
+            <Meta as="div" tone="faint" style={{ marginTop: '9px' }}>{v.todosSyncNote}</Meta>
           )}
         </div>
       )}
@@ -45,7 +50,7 @@ export function Todos({ v }) {
 
       {v.todosOpenGroups.map((g) => (
         <div key={g.key} style={{ marginTop: '20px' }}>
-          <div style={css(`font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)`)}>{g.label} · {g.items.length}</div>
+          <Eyebrow>{g.label} · {g.items.length}</Eyebrow>
           {/* Apple layout: one grouped card with hairline rows; classic keeps a pane per item. Same nodes either way. */}
           <div className={v.structured ? 'nv-pane' : undefined} style={v.structured ? { marginTop: '8px', padding: '3px 0', overflow: 'hidden' } : css("margin-top:8px;display:flex;flex-direction:column;gap:8px")}>
             {g.items.map((t, ti) => (
@@ -71,13 +76,10 @@ export function Todos({ v }) {
                     {v.todoCategories.map((c) => <option key={c.value} value={c.value} style={{ background: '#141019' }}>{c.label}</option>)}
                   </select>
                 ) : (
-                  <Interactive as="span" onClick={t.startEditCategory} title="Change category (syncs to Todoist as a label)"
-                    base={{ cursor: 'pointer', flex: 'none', font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', padding: '2px 8px', borderRadius: '5px', color: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', border: '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)' }}
-                    hoverStyle={{ borderColor: 'color-mix(in srgb, var(--nv-cy) 40%, transparent)', color: 'var(--nv-cy)' }}
-                  >{t.categoryLabel}</Interactive>
+                  <TextAction compact tone="quiet" onClick={t.startEditCategory} title="Change category (syncs to Todoist as a label)" style={{ flex: 'none' }}>{t.categoryLabel}</TextAction>
                 )}
-                {t.stale && <span style={css(`flex:none;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);padding:2px 7px;border-radius:5px;color:var(--nv-gold);border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent)`)}>STALE</span>}
-                <span style={css(`flex:none;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 35%, transparent)`)}>{t.addedLabel}</span>
+                {t.stale && <Tag tone="gold" style={{ flex: 'none' }}>Stale</Tag>}
+                <Meta tone="faint" style={{ flex: 'none' }}>{t.addedLabel}</Meta>
               </div>
               </SwipeRow>
             ))}
@@ -87,7 +89,7 @@ export function Todos({ v }) {
 
       {v.todosDone.length > 0 && (
         <div style={{ marginTop: '26px' }}>
-          <div style={css(`font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>DONE · {v.todosDone.length} — THE COMPOST LOOP SWEEPS THESE</div>
+          <Eyebrow>Done · {v.todosDone.length} — the compost loop sweeps these</Eyebrow>
           <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:6px")}>
             {v.todosDone.map((t) => (
               <div key={t.key} style={css("display:flex;align-items:center;gap:13px;padding:9px 15px;border-radius:11px;border:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent);opacity:.55")}>
@@ -95,7 +97,7 @@ export function Todos({ v }) {
                   base={{ cursor: 'pointer', width: '21px', height: '21px', flex: 'none', borderRadius: '7px', border: '1px solid var(--nv-cy)', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700 }}
                 >✓</Interactive>
                 <span style={css(`flex:1;min-width:0;font:500 13.5px ${R};text-decoration:line-through;overflow-wrap:anywhere`)}>{t.text}</span>
-                <span style={css(`flex:none;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 30%, transparent)`)}>{t.addedLabel}</span>
+                <Meta tone="faint" style={{ flex: 'none', opacity: .8 }}>{t.addedLabel}</Meta>
               </div>
             ))}
           </div>

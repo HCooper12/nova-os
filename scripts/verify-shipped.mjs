@@ -55,7 +55,7 @@ const FEATURES = [
   // only in the code that files it
   ['Inbox · vault-ingest receipt (staged pass)', 'VAULT INGEST'],
   // the couldn't-look state on its two client faces: the Fuel card and the plan card
-  ["Fuel · couldn't-check card", "COULDN'T CHECK"],
+  ["Fuel · couldn't-check card", "couldn't check"],
   ['Home · failed plan is not an empty morning', 'HIT AN ERROR — SEE INBOX'],
   // once-a-day marks written on delivery and shared across devices
   ['Greeting · stamped on delivery, cross-device', 'markGreeted'],
