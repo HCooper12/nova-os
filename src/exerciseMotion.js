@@ -84,3 +84,49 @@ export function patternFor(name, primary = []) {
 }
 
 export function patternLabel(id) { return PATTERNS[id]?.label || null; }
+
+// ---------------------------------------------------------------------------
+// THE SAME MOVEMENTS, AS JOINT ANGLES — for the 3D figure.
+// ---------------------------------------------------------------------------
+//
+// PATTERNS above drive the 2D SVG with CSS transforms. A rigged 3D body needs
+// the movement as JOINT ANGLES instead: how far the shoulder flexes, the elbow
+// bends, the hip and knee fold, the torso pitches. One pattern id, two
+// renderings — the ids are shared so a lift resolved by patternFor() animates
+// identically in both, and a pattern added here without a pose is caught by
+// the test.
+//
+// Degrees, describing the START and END of one repetition from a neutral
+// standing pose. Positive shoulderPitch raises the arm forward; abduct raises
+// it sideways; elbow, hip and knee are flexion; torsoPitch leans forward;
+// lift is a vertical rise in body-height units (calf raise, shrug).
+const P = (from, to) => ({ from, to });
+export const POSES = {
+  curl: P({ elbow: 10 }, { elbow: 125 }),
+  pushdown: P({ shoulderPitch: 15, elbow: 95 }, { shoulderPitch: 15, elbow: 5 }),
+  'overhead-extension': P({ shoulderPitch: 170, elbow: 115 }, { shoulderPitch: 170, elbow: 10 }),
+  'press-overhead': P({ abduct: 85, elbow: 95 }, { abduct: 170, elbow: 5 }),
+  'press-horizontal': P({ shoulderPitch: 85, elbow: 95 }, { shoulderPitch: 85, elbow: 5 }),
+  row: P({ torsoPitch: 45, shoulderPitch: 95, elbow: 10 }, { torsoPitch: 45, shoulderPitch: 25, elbow: 105 }),
+  pulldown: P({ abduct: 165, elbow: 10 }, { abduct: 95, elbow: 105 }),
+  fly: P({ shoulderPitch: 80, abduct: 85, elbow: 15 }, { shoulderPitch: 80, abduct: 10, elbow: 15 }),
+  'raise-lateral': P({ abduct: 10 }, { abduct: 90 }),
+  'raise-front': P({ shoulderPitch: 10 }, { shoulderPitch: 90 }),
+  shrug: P({ lift: 0 }, { shoulderLift: 1 }),
+  squat: P({}, { hip: 95, knee: 105, torsoPitch: 25 }),
+  hinge: P({}, { hip: 80, knee: 15, torsoPitch: 70 }),
+  'leg-curl': P({ torsoPitch: 90, hip: 0 }, { torsoPitch: 90, hip: 0, knee: 115 }),
+  'leg-extension': P({ hip: 90, knee: 90 }, { hip: 90, knee: 5 }),
+  'calf-raise': P({}, { lift: 1 }),
+  crunch: P({ hip: 60, knee: 90 }, { hip: 60, knee: 90, torsoPitch: 35 }),
+};
+
+// Interpolate a pose at t ∈ [0,1]. Missing fields are 0 — neutral.
+export function poseAt(patternId, t) {
+  const p = POSES[patternId];
+  if (!p) return null;
+  const keys = new Set([...Object.keys(p.from), ...Object.keys(p.to)]);
+  const out = {};
+  for (const k of keys) out[k] = (p.from[k] || 0) + ((p.to[k] || 0) - (p.from[k] || 0)) * t;
+  return out;
+}

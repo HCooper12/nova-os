@@ -1,4 +1,6 @@
+import { lazy, Suspense, useState } from 'react';
 import { css } from './css.js';
+const Body3D = lazy(() => import('./Body3D.jsx'));
 import { BodyMap, MuscleLegend } from './BodyMap.jsx';
 
 const M = "var(--nv-font-mono)";
@@ -43,20 +45,36 @@ function TrainingWeek({ d }) {
 }
 
 function Exercise({ d }) {
+  // 2D by default — instant, no bundle cost. 3D on request: a body he can
+  // turn, performing the lift, muscles lit. His ask, 5 Sep.
+  const [threeD, setThreeD] = useState(false);
   return (
     <Card label={`${d.name.toUpperCase()} · ${d.muscleGroup?.toUpperCase() || ''}`}>
       {/* Anatomy first: the question "what does this actually train" is the
           one he opened the card to answer. Absent when the atlas has no
           entry — a blank silhouette would read as "trains nothing". */}
       {d.muscles && (
-        <div style={css('display:flex;gap:14px;align-items:center;margin-bottom:10px')}>
-          <BodyMap muscles={d.muscles} height={118} pattern={d.motion} />
-          <div style={css('flex:1;min-width:0')}>
-            {d.equipment && (
-              <div style={css(`font:500 10px ${M};letter-spacing:.1em;color:${dim(45)}`)}>EQUIPMENT · {d.equipment.toUpperCase()}</div>
-            )}
-            <MuscleLegend muscles={d.muscles} />
+        <div style={css('margin-bottom:10px')}>
+          <div style={css('display:flex;gap:14px;align-items:center')}>
+            {!threeD && <BodyMap muscles={d.muscles} height={118} pattern={d.motion} />}
+            <div style={css('flex:1;min-width:0')}>
+              {d.equipment && (
+                <div style={css(`font:500 10px ${M};letter-spacing:.1em;color:${dim(45)}`)}>EQUIPMENT · {d.equipment.toUpperCase()}</div>
+              )}
+              <MuscleLegend muscles={d.muscles} />
+              <button type="button" onClick={() => setThreeD((v) => !v)}
+                style={css(`margin-top:8px;cursor:pointer;font:600 8.5px ${M};letter-spacing:.14em;padding:5px 9px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);background:transparent;color:var(--nv-cy)`)}>
+                {threeD ? '◐ FLAT VIEW' : '◉ TURN IT IN 3D'}
+              </button>
+            </div>
           </div>
+          {threeD && (
+            <div style={css('margin-top:10px')}>
+              <Suspense fallback={<div style={css(`height:260px;display:flex;align-items:center;justify-content:center;font:500 9px ${M};letter-spacing:.14em;color:${dim(40)}`)}>BUILDING THE FIGURE…</div>}>
+                <Body3D muscles={d.muscles} pattern={d.motion} height={260} />
+              </Suspense>
+            </div>
+          )}
         </div>
       )}
       {d.e1rm && (

@@ -268,6 +268,9 @@ async function main() {
   startFollowUpScheduler(process.env.VAULT_PATH); // calendar "did it happen?" — evening for today, morning for yesterday
   startDispatchScheduler(process.env.VAULT_PATH);
   startCompostScheduler(process.env.VAULT_PATH);
+  // form videos: any exercise without one gets one found and written — his
+  // explicit grant of autonomy for this lane, 5 Sep (see exerciseVideos.js)
+  import('./lib/exerciseVideos.js').then(({ startVideoScheduler }) => startVideoScheduler(process.env.VAULT_PATH));
   startTodoistScheduler(process.env.VAULT_PATH);
   startGuardianScheduler(process.env.VAULT_PATH);
   startOvernightScheduler(process.env.VAULT_PATH);

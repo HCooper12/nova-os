@@ -44,6 +44,8 @@ const SCHEDULED = [
   { id: 'telegram', label: 'Telegram', role: 'Nova in his pocket', cadenceHours: 2 },
   { id: 'pulse', label: 'Pulse', role: 'what\'s new on his topics', cadenceHours: 2 },
   { id: 'health-mirror', label: 'Health Mirror', role: 'the numbers, into the vault', cadenceHours: 2 },
+  // daily, first pass an hour after boot — so 26h is the honest "it has gone quiet" line
+  { id: 'exercise-videos', label: 'Form Videos', role: 'every lift keeps a demo link', cadenceHours: 26 },
   { id: 'pattern-scout', label: 'Pattern Scout', role: 'repeated acts → skill proposals', cadenceHours: 2 },
   { id: 'autonomy', label: 'Trust Ladder', role: 'autonomy earned, proposed', cadenceHours: 2 },
   { id: 'distill', label: 'Distiller', role: 'captures woven into the graph', cadenceHours: 2 },

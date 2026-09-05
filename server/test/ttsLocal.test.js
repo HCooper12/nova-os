@@ -5,7 +5,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 
-process.env.NOVA_TTS_PORT = '4199'; // test stub, never the real sidecar
+// 4299, NOT 4199: 4199 is the real Kokoro sidecar's port, and the stub collided
+// with it (EADDRINUSE) whenever his voice engine was running — which, on his
+// Mac, is always. A test that only passes when production is down is a test
+// of the wrong thing.
+process.env.NOVA_TTS_PORT = '4299';
 
 const { rewriteForSpeech, localVoices, synthesizeLocal } = await import('../lib/ttsLocal.js');
 const { ttsEngine, ttsConfigured, listVoices } = await import('../lib/tts.js');
@@ -69,7 +73,7 @@ test('local synthesis: stub sidecar wav → real ffmpeg → mp3 bytes; -jarvis m
       res.end(wav);
     });
   });
-  await new Promise((r) => stub.listen(4199, '127.0.0.1', r));
+  await new Promise((r) => stub.listen(4299, '127.0.0.1', r));
   try {
     const mp3 = await synthesizeLocal('Your heart rate is steady, sir.', 'nova-jarvis');
     assert.equal(seen[0].voice, 'nova', 'the -jarvis suffix selects FX, not a sidecar voice');
