@@ -1,4 +1,5 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { firstBalancedObjectMatch } from './jsonSalvage.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -174,7 +175,7 @@ export async function refreshPulseTopic(topic, { runner } = {}) {
       try {
         const outer = JSON.parse(stdout);
         if (outer.is_error || code !== 0) throw new Error(describeRunFailure(outer, code, stderr));
-        const m = (outer.result || '').match(/\{[\s\S]*\}/);
+        const m = firstBalancedObjectMatch((outer.result || ''));
         if (!m) throw new Error('no JSON in pulse response');
         const parsed = JSON.parse(m[0]);
         // the receipt he needs to set the budget: what a run really costs

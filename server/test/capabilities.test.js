@@ -33,10 +33,14 @@ test('every capability has a dispatch label', () => {
   }
 });
 
-test('what the chat may start and what a plan may delegate are the same set', () => {
-  // they answer the same question — "can Nova start this without being told
-  // to, on its own judgement" — so a difference between them is a bug in one
-  assert.deepEqual([...DELEGABLE_IDS].sort(), [...CHAT_JOB_LANES].sort());
+test('everything a plan may delegate, the chat may start — but not the reverse', () => {
+  // A plan reaches only for the cheap, self-contained lanes. The chat may ALSO
+  // start the weave ($25, his to ask for by name) and a code session (which
+  // changes screens) — both fine when he says so, neither a step Nova should
+  // take on its own inside a plan.
+  for (const id of DELEGABLE_IDS) assert.ok(CHAT_JOB_LANES.includes(id), `${id} is delegable but the chat cannot start it`);
+  assert.ok(CHAT_JOB_LANES.includes('weave') && !DELEGABLE_IDS.includes('weave'));
+  assert.ok(CHAT_JOB_LANES.includes('code') && !DELEGABLE_IDS.includes('code'));
 });
 
 test('Coach and Claude Code are reachable but never delegated', () => {

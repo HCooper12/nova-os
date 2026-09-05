@@ -1,4 +1,5 @@
 import { readFile, writeFile } from 'node:fs/promises';
+import { firstBalancedObjectMatch } from './jsonSalvage.js';
 import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
@@ -124,7 +125,7 @@ export async function startOutline(vaultPath, id) {
       const outer = JSON.parse(stdout);
       if (outer.is_error || code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
       const text = (outer.result || '').trim();
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const jsonMatch = firstBalancedObjectMatch(text);
       if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in outline response');
       const body = String(JSON.parse(jsonMatch[0]).text || '').trim();
       if (!body) throw new Error('empty outline');

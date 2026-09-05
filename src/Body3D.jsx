@@ -167,8 +167,11 @@ export function Body3D({ muscles, pattern, height = 260 }) {
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(32, width / height, 0.1, 50);
-    camera.position.set(1.6, 1.25, 2.6);
-    camera.lookAt(0, 0.95, 0);
+    // Higher and more to the side than the first cut, which looked up at the
+    // figure from below its hips and made a hinge read as a body tilting.
+    // From here the pelvis is the visible pivot before he drags at all.
+    camera.position.set(2.5, 1.85, 2.3);
+    camera.lookAt(0, 0.9, 0);
 
     scene.add(new THREE.HemisphereLight(0xbfd8ff, 0x101426, 0.9));
     const key = new THREE.DirectionalLight(0xffffff, 1.1); key.position.set(2, 3, 2); scene.add(key);
@@ -183,11 +186,11 @@ export function Body3D({ muscles, pattern, height = 260 }) {
     tint(segs, muscles);
 
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.set(0, 0.95, 0);
+    controls.target.set(0, 0.9, 0);
     controls.enablePan = false;
     controls.enableZoom = false;
     controls.autoRotate = false;
-    controls.minPolarAngle = 0.6; controls.maxPolarAngle = 1.7;
+    controls.minPolarAngle = 0.75; controls.maxPolarAngle = 1.55; // never from underneath
     controls.update();
 
     const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;

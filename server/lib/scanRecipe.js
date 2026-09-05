@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { firstBalancedObjectMatch } from './jsonSalvage.js';
 import { rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -76,7 +77,7 @@ export function startScan(imagePaths, workDir) {
         const outer = JSON.parse(stdout);
         if (outer.is_error) throw new Error(outer.result || 'analysis failed');
         const text = (outer.result || '').trim();
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        const jsonMatch = firstBalancedObjectMatch(text);
         if (!jsonMatch) throw new Error('No JSON object found in the response');
         job.result = normalizeResult(JSON.parse(jsonMatch[0]));
         job.status = 'ready';

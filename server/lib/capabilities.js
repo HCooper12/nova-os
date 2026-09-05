@@ -32,6 +32,18 @@ export const CAPABILITIES = {
     autonomy: 'propose',
     delegable: true,
   },
+  weave: {
+    agent: 'Librarian · weave',
+    summary: 'Fetch a video\'s transcript and weave every concept and person in it into the vault as draft pages.',
+    input: 'one video URL',
+    output: 'draft vault pages for review',
+    produces: 'ingest',
+    costUsd: 25.0,
+    autonomy: 'propose',
+    // the same $25 ceiling as a book, for the same reason — the whole weave
+    // is one long job. His to ask for by name; a plan never reaches for it.
+    delegable: false,
+  },
   study: {
     agent: 'Study',
     summary: 'Enumerate a creator\'s whole body of work, transcribe what fits the budget, and compare it against Nova\'s own inventory.',

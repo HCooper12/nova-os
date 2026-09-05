@@ -65,6 +65,14 @@ export function intentRouter(vaultPath) {
         if (!url) return res.status(400).json({ error: 'no video link found' });
         out.record = await startVideoWatch(vaultPath, url, decision.prose || found?.question || '');
         out.said = 'On it — pulling the transcript. The verdict lands in your Inbox.';
+      } else if (lane === 'weave') {
+        // the deep vault weave for a video — the same job the ingest modal
+        // runs, reached by words now that the Inbox button is gone
+        const url = decision.urls?.[0];
+        if (!url) return res.status(400).json({ error: 'no video link found to weave' });
+        const { startIngest } = await import('../lib/ingest.js');
+        out.jobId = startIngest(vaultPath)('', url);
+        out.said = 'Weaving it in — transcript first, then every concept and person as draft pages for your review.';
       } else if (lane === 'book') {
         // A book from the front door (voice, Telegram, the palette). The
         // model-gated UI path calls /api/ingest directly with its choice;

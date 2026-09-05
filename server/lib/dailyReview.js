@@ -1,4 +1,5 @@
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
+import { firstBalancedObjectMatch } from './jsonSalvage.js';
 import { gatherContext } from './contextSections.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -314,7 +315,7 @@ function startReviewJob(vaultPath, context, mode, recordId, now) {
       const outer = JSON.parse(stdout);
       if (outer.is_error || code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
       const text = (outer.result || '').trim();
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const jsonMatch = firstBalancedObjectMatch(text);
       if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in review response');
       const { title, text: body, read, adjustments } = composeReviewText(JSON.parse(jsonMatch[0]), now);
       const decision = {

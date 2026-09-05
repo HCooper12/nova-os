@@ -596,25 +596,6 @@ export function valsInbox(app, ctx) {
     // characters typed. A lost capture is a lost thought; the value travels
     // with the call instead of being looked up.
     submitInboxCapture: (source, text) => app.captureToInbox(asText(text) ?? st.inboxInput, source),
-    submitResearch: (text) => {
-      const q = (asText(text) ?? st.inboxInput).trim();
-      if (!q) { app.toastMsg('Type the research question first'); return; }
-      app.setState({ inboxInput: '' });
-      app.startResearch(q);
-    },
-    submitWatch: (text) => {
-      const t = (asText(text) ?? st.inboxInput).trim();
-      if (!/https?:\/\//.test(t)) { app.toastMsg('Paste the video link first (a question alongside it is welcome)'); return; }
-      app.setState({ inboxInput: '' });
-      app.startVideoWatch(t);
-    },
-    submitWatchAnalyse: (text) => {
-      const t = (asText(text) ?? st.inboxInput).trim();
-      const url = (t.match(/https?:\/\/\S+/) || [])[0];
-      if (!url) { app.toastMsg('Paste the video link first'); return; }
-      app.setState({ inboxInput: '' });
-      app.startVideoDeepIngest(url);
-    },
     inboxModes: MODE_LADDER.map((m, i) => ({
       ...m,
       step: i + 1,

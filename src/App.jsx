@@ -39,7 +39,6 @@ import { Recipes } from './screens/Recipes.jsx';
 import { Workouts } from './screens/Workouts.jsx';
 import { MobileChrome } from './MobileChrome.jsx';
 import { FloatingCore } from './FloatingCore.jsx';
-import { CommandPalette } from './CommandPalette.jsx';
 import { Toast } from './Toast.jsx';
 import { ContextMenuHost } from './ContextMenu.jsx';
 import { VoicePresence } from './VoicePresence.jsx';
@@ -288,7 +287,6 @@ export default class App extends Component {
     // moves it every frame and the whole app must not re-render for that
     this.gView = { s: 1, tx: 0, ty: 0 };
     this.gPtrs = new Map();
-    this.paletteRef = createRef();
     this.mainRef = createRef();
     this.ivs = [];
     this.pollers = {};
@@ -703,7 +701,10 @@ export default class App extends Component {
     window.addEventListener('popstate', this.popH);
     window.addEventListener('hashchange', this.popH);
     this.keyH = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); this.setState(s => ({ paletteOpen: !s.paletteOpen, recallResults: [] })); }
+      // ⌘K keeps its meaning — "summon Nova" — and now opens the conversation,
+      // which is the front door (Phase 4, 5 Sep). The palette it used to open
+      // was a parallel door only it could reach.
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); this.navigate('voice'); }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') { e.preventDefault(); this.toggleSidebar(); }
       else if (e.key === 'Escape') { this.stopPoll('recipeTweak'); this.setState({ paletteOpen: false, openRecipeId: null, galaxySel: null }); }
     };
@@ -1182,7 +1183,6 @@ export default class App extends Component {
   }
   componentDidUpdate(prevProps, prevState) {
     if (this.state.screen === 'galaxy') this.startGalaxy(); else this.stopGalaxy();
-    if (this.state.paletteOpen && !prevState.paletteOpen && this.paletteRef.current) this.paletteRef.current.focus();
     // entering Settings — pull the calendar list once so the toggles are ready
     if (this.state.screen === 'settings' && prevState.screen !== 'settings' && this.state.liveCalendarList == null && getConnection()) {
       this.loadCalendarList();
@@ -4731,7 +4731,15 @@ export default class App extends Component {
       const u = urls[0];
       const channel = /youtube\.com\/(@|c\/|channel\/|user\/)|tiktok\.com\/@[^/]+\/?$/i.test(u) && !/watch\?v=|youtu\.be\/|\/reel\/|\/shorts\//i.test(u);
       if (study || channel || urls.length > 1) return L('study', 'STUDY', 'a body of work — Nova enumerates it, then compares');
-      if (/(youtube\.com|youtu\.be|vimeo|tiktok|instagram|twitch|x\.com|twitter)/i.test(u) && /watch\?v=|youtu\.be\/|\/reel\/|\/shorts\/|\/video\/|\/p\/|\/status\//i.test(u)) return L('watch', 'WATCH', 'a video — the Watcher pulls the transcript and drafts a verdict');
+      if (/(youtube\.com|youtu\.be|vimeo|tiktok|instagram|twitch|x\.com|twitter)/i.test(u) && /watch\?v=|youtu\.be\/|\/reel\/|\/shorts\/|\/video\/|\/p\/|\/status\//i.test(u)) {
+        // mirrors server/lib/intentRouter.js WEAVE_RE — "watch and analyse
+        // fully" is the deep vault weave, reachable by words since the Inbox
+        // button went (Phase 4, 5 Sep)
+        if (/\b(weave|into (my|the) vault|every (concept|idea|person)|deep[- ]?dive|full (breakdown|analysis)|analy[sz]e (this |it |the video )?(fully|deeply|in depth|properly)|add (this|it) to (my|the) vault)\b/i.test(raw)) {
+          return L('weave', 'WEAVE INTO VAULT', 'a video to weave into the vault — transcript, then every concept and person as draft pages for review');
+        }
+        return L('watch', 'WATCH', 'a video — the Watcher pulls the transcript and drafts a verdict');
+      }
       return L('research', 'RESEARCH', 'a link to read — the Researcher cites what it finds');
     }
     // mirrors server/lib/intentRouter.js parseBookIntent — before research
@@ -4807,6 +4815,22 @@ export default class App extends Component {
         say(`On it — the Librarian is researching “${preview.book.title}”. The draft pages land for your review.`, notice(null));
         return;
       }
+      if (preview.lane === 'weave') {
+        const url = (q.match(/https?:\/\/\S+/) || [])[0];
+        if (!url) { say('I need the video link to weave it in.'); return; }
+        this.startVideoDeepIngest(url);
+        say('Weaving it in — transcript first, then every concept and person as draft pages for your review.', notice(null));
+        return;
+      }
+      if (preview.lane === 'code') {
+        // the palette's one screen-changing dispatch, inherited by the chat
+        // when the palette was folded in: the diff is the first thing he
+        // wants to see, so the session runs on the Code screen
+        say(`Taking that to the Code screen — the session runs there so you can see the diff.`, notice(null));
+        this.navigate('code');
+        this.setState({ codeInput: q }, () => this.doCode());
+        return;
+      }
       if (preview.lane === 'study') {
         api.sendIntent(conn, q, 'study')
           .then((r) => say(r.said || 'Study running — I compare their whole catalogue and ping you when the brief lands.', notice(r.record?.id)))
@@ -4820,7 +4844,8 @@ export default class App extends Component {
       call.then((r) => { say(line, notice(r?.record?.id || r?.id)); this.refreshInbox?.(); })
         .catch((e) => say(`I couldn't start that: ${e.message}`));
     };
-    this.gateModelChoice(preview.lane === 'book' ? 'book' : preview.lane, dispatch);
+    if (preview.lane === 'code') { dispatch(); return true; } // Claude Code picks its own model on its screen
+    this.gateModelChoice(preview.lane === 'book' || preview.lane === 'weave' ? 'book' : preview.lane, dispatch);
     return true;
   }
 
@@ -6756,7 +6781,6 @@ export default class App extends Component {
             <BarcodeScanner onDetected={v.onBarcodeDetected} onClose={v.closeBarcodeScanner} />
           </Suspense>
         )}
-        {v.paletteOpen && <CommandPalette v={v} />}
         {v.ingestModalOpen && <Suspense fallback={null}><IngestModal v={v} /></Suspense>}
         {v.ingestStatus !== 'idle' && <Suspense fallback={null}><IngestReview v={v} /></Suspense>}
         {v.nudge && <NudgeCard v={v.nudge} />}

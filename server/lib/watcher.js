@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { firstBalancedObjectMatch } from './jsonSalvage.js';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { isGateModel } from './modelChoice.js';
 import { readdirSync, existsSync } from 'node:fs';
@@ -478,7 +479,7 @@ function runClaudeText(vaultPath, prompt, opts = {}) {
 // typed fields (lane/title/verdict/body).
 async function runClaudeJson(vaultPath, prompt, opts = {}) {
   const text = await runClaude(vaultPath, prompt, opts);
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  const jsonMatch = firstBalancedObjectMatch(text);
   if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in Watcher response');
   try {
     return JSON.parse(jsonMatch[0]);

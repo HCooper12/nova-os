@@ -46,6 +46,15 @@ export function firstBalancedObject(text) {
   return null; // never closed — a truncated reply, which is a real failure
 }
 
+// Drop-in for `text.match(/\{[\s\S]*\}/)`: same shape back (an array whose [0]
+// is the object, or null) so the nineteen call sites that read `m[0]` did not
+// each need rewriting — only the match did. The greedy form swallowed any
+// prose after the JSON that contained a closing brace.
+export function firstBalancedObjectMatch(text) {
+  const block = firstBalancedObject(text);
+  return block ? [block] : null;
+}
+
 // A `"` inside a string is legitimate only when it CLOSES that string, and it
 // closes the string only if the next meaningful character is structural. Any
 // other quote is one the model forgot to escape.

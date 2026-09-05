@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { firstBalancedObjectMatch } from './jsonSalvage.js';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -214,7 +215,7 @@ function runClaude(prompt) {
         const outer = JSON.parse(stdout);
         if (outer.is_error) throw new Error(outer.result || 'insight generation failed');
         const text = (outer.result || '').trim();
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        const jsonMatch = firstBalancedObjectMatch(text);
         if (!jsonMatch) throw new Error('No JSON object found in the response');
         resolve(JSON.parse(jsonMatch[0]));
       } catch (e) {

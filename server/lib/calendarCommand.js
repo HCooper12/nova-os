@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { firstBalancedObjectMatch } from './jsonSalvage.js';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -60,7 +61,7 @@ function interpret(prompt) {
         const outer = JSON.parse(stdout);
         if (outer.is_error) throw new Error(outer.result || 'interpretation failed');
         const raw = outer.result || '';
-        const m = raw.match(/\[[\s\S]*\]/) || raw.match(/\{[\s\S]*\}/);
+        const m = raw.match(/\[[\s\S]*\]/) || firstBalancedObjectMatch(raw);
         if (!m) throw new Error('no JSON found in the response');
         resolve(JSON.parse(m[0]));
       } catch (e) {

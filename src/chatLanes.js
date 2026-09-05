@@ -10,21 +10,28 @@
 //
 //   ask, coach   — conversation. Answering is what the chat is FOR; routing a
 //                  question into a job would be the regression.
-//   code, play   — both change screens. Yanking him out of a chat he is in
-//                  the middle of is a worse failure than not routing at all.
+//   play         — changes screens for something that is not work.
+//   (code moved to the job lanes on 5 Sep when the palette was folded in —
+//   see CHAT_NAVIGATING_LANES.)
 //   capture      — its rule fires on a bare leading "add", and "add some
 //                  context on why that happened" is a question, not a
 //                  shopping item. Too eager to run without asking.
 //
 // Separate from App.jsx so the rule can be tested without a browser, and so
 // the planner in the next phase reads the same list rather than a copy.
-export const CHAT_JOB_LANES = ['watch', 'study', 'research', 'book'];
+export const CHAT_JOB_LANES = ['watch', 'weave', 'study', 'research', 'book', 'code'];
+
+// Phase 4, 5 Sep: with the palette folded into the chat, the chat inherits the
+// palette's one screen-changing dispatch — a build request opens the Code
+// screen and starts the session there, because the diff is the first thing
+// he wants to see. Announced like every other lane, so it is never a surprise.
+export const CHAT_NAVIGATING_LANES = ['code'];
 
 // Lanes that are deliberately NOT dispatched from the chat. Kept explicit
 // rather than implied by absence: a lane added to the router later shows up
 // in neither list, and this is where someone will look to find out why.
 export const CHAT_CONVERSATION_LANES = ['ask', 'coach'];
-export const CHAT_DEFERRED_LANES = ['code', 'play', 'capture'];
+export const CHAT_DEFERRED_LANES = ['play', 'capture'];
 
 export function chatStartsAJob(lane) {
   return CHAT_JOB_LANES.includes(lane);

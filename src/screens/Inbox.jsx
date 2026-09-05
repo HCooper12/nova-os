@@ -108,21 +108,15 @@ export function Inbox({ v }) {
               hoverStyle={{ background: 'var(--nv-acc-bg)' }}
             >{dict.on ? '◉ LISTENING — TAP TO STOP' : '● DICTATE'}</Interactive>
           )}
-          <Interactive as="span" onClick={v.inboxConnected ? v.submitResearch : undefined}
-            title="Send this as a question to the Researcher — a cited web brief lands here for review"
-            base={{ cursor: 'pointer', marginLeft: 'auto', font: `600 10.5px ${M}`, letterSpacing: '.1em', padding: '9px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-vi) 45%, transparent)', color: 'var(--nv-vi)', opacity: v.inboxConnected ? 1 : 0.4 }}
-            hoverStyle={{ background: 'color-mix(in srgb, var(--nv-vi) 08%, transparent)' }}
-          >🔭 RESEARCH</Interactive>
-          <Interactive as="span" onClick={v.inboxConnected ? v.submitWatch : undefined}
-            title="Paste a video link (plus an optional question) — the Watcher pulls the transcript and drafts the Coach's verdict or a distilled note for review"
-            base={{ cursor: 'pointer', font: `600 10.5px ${M}`, letterSpacing: '.1em', padding: '9px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent)', color: 'var(--nv-cy)', opacity: v.inboxConnected ? 1 : 0.4 }}
-            hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' }}
-          >▶ WATCH</Interactive>
-          <Interactive as="span" onClick={v.inboxConnected ? v.submitWatchAnalyse : undefined}
-            title="Paste a video link — the full second-brain weave: transcript fetched, every concept, person, and idea drafted into vault pages for one review"
-            base={{ cursor: 'pointer', font: `600 10.5px ${M}`, letterSpacing: '.1em', padding: '9px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-gold) 50%, transparent)', color: 'var(--nv-gold)', opacity: v.inboxConnected ? 1 : 0.4 }}
-            hoverStyle={{ background: 'color-mix(in srgb, var(--nv-gold) 08%, transparent)' }}
-          >▶▶ WATCH + ANALYSE</Interactive>
+          {/* RESEARCH / WATCH / WATCH + ANALYSE used to live here — three ways to
+              start work that the conversation now starts by itself (Phase 4,
+              5 Sep). They also forced the lane decision before he had finished
+              describing the task. Capture stays: it is the two-second "buy
+              tomatoes" path and routing it through a chat would make the
+              fastest thing in Nova slower. */}
+          <span style={css(`margin-left:auto;font:400 9.5px ${M};letter-spacing:.08em;color:color-mix(in srgb, var(--nv-ink) 38%, transparent)`)}>
+            links · research · videos → just say it in the chat
+          </span>
           <Interactive as="span" onClick={v.inboxConnected && !v.inboxCaptureBusy ? submit : undefined}
             base={{ cursor: 'pointer', font: `600 11px ${M}`, letterSpacing: '.14em', padding: '10px 22px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1206', opacity: v.inboxConnected && !v.inboxCaptureBusy ? 1 : 0.5 }}
             hoverStyle={{ filter: 'brightness(1.1)' }}

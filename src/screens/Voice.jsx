@@ -276,6 +276,13 @@ export function Voice({ v }) {
             {/* local echo — see LocalInput.jsx. Enter hands the live text
                 straight to sendOrb so nothing can be lost to the debounce;
                 dictation still writes in through the value prop. */}
+            {/* Where this will go, before Enter sends it — the one thing worth
+                keeping from the command palette. Only shown when the answer is
+                not "Ask Nova": a question needs no label, and a chip on every
+                keystroke would be noise. */}
+            {(() => { const r = v.routePreview?.(v.orbInput); return r && r.lane !== 'ask' ? (
+              <span title={r.why} style={css(`position:absolute;top:-22px;left:2px;font:600 8.5px ${M};letter-spacing:.14em;color:var(--nv-cy);opacity:.85`)}>→ {r.label}</span>
+            ) : null; })()}
             <LocalInput
               value={v.orbInput}
               onChange={(text) => v.setOrbInputValue(text)}

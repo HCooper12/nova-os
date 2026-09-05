@@ -1,4 +1,5 @@
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
+import { firstBalancedObjectMatch } from './jsonSalvage.js';
 import { gatherContext } from './contextSections.js';
 import { mondayOf } from './cadence.js';
 import { existsSync } from 'node:fs';
@@ -288,7 +289,7 @@ function startDebriefJob(vaultPath, context, mode, recordId, now, { weekStart = 
       const outer = JSON.parse(stdout);
       if (outer.is_error || code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
       const text = (outer.result || '').trim();
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const jsonMatch = firstBalancedObjectMatch(text);
       if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in debrief response');
       const { title, text: body, changes } = composeDebriefText(JSON.parse(jsonMatch[0]), now, { weekEnd });
       const decision = {

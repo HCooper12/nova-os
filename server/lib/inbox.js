@@ -1,4 +1,5 @@
 import { readFile, writeFile, mkdir, unlink } from 'node:fs/promises';
+import { firstBalancedObjectMatch } from './jsonSalvage.js';
 import { clampWords } from '../../src/textClamp.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -196,7 +197,7 @@ function classify(text, onDone) {
       const outer = JSON.parse(stdout);
       if (outer.is_error) throw new Error(outer.result || 'classification failed');
       const body = (outer.result || '').trim();
-      const jsonMatch = body.match(/\{[\s\S]*\}/);
+      const jsonMatch = firstBalancedObjectMatch(body);
       if (!jsonMatch) throw new Error(body.slice(0, 200) || 'no JSON in classifier response');
       onDone(null, normalizeDecision(JSON.parse(jsonMatch[0])));
     } catch (e) {

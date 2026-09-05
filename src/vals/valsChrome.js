@@ -34,84 +34,12 @@ export function valsChrome(app, ctx) {
     .map((x) => x.n);
 
   // palette
-  const cmds = [
-    { icon: 'I.', iconColor: 'var(--nv-gold)', label: 'Mission Control', hint: 'GO', run: go('mission') },
-    { icon: 'II.', iconColor: 'var(--nv-gold)', label: 'Voice — talk to Nova', hint: 'GO', run: go('voice') },
-    { icon: 'III.', iconColor: 'var(--nv-gold)', label: 'Memory Galaxy', hint: 'GO', run: go('galaxy') },
-    { icon: 'IV.', iconColor: 'var(--nv-gold)', label: 'Claude Code', hint: 'GO', run: go('code') },
-    { icon: 'V.', iconColor: 'var(--nv-gold)', label: 'Inbox — capture anything', hint: 'GO', run: go('inbox') },
-    { icon: 'VI.', iconColor: 'var(--nv-gold)', label: 'Fuel', hint: 'GO', run: go('recipes') },
-    { icon: 'VII.', iconColor: 'var(--nv-gold)', label: 'Shopping List', hint: 'GO', run: go('shopping') },
-    { icon: 'VIII.', iconColor: 'var(--nv-gold)', label: 'To-Do — synced with Todoist', hint: 'GO', run: go('todos') },
-    { icon: 'IX.', iconColor: 'var(--nv-gold)', label: 'Train — workouts', hint: 'GO', run: go('workouts') },
-    { icon: 'X.', iconColor: 'var(--nv-gold)', label: 'Notes', hint: 'GO', run: go('notes') },
-    { icon: 'XI.', iconColor: 'var(--nv-gold)', label: 'Journal', hint: 'GO', run: go('journal') },
-    { icon: 'XII.', iconColor: 'var(--nv-gold)', label: 'Money — the CFO', hint: 'GO', run: go('money') },
-    { icon: 'XIII.', iconColor: 'var(--nv-gold)', label: 'Stash — restock & reference links', hint: 'GO', run: go('stash') },
-    { icon: 'XIV.', iconColor: 'var(--nv-gold)', label: 'Operations — the agent fleet, live', hint: 'GO', run: go('ops') },
-    { icon: '◐', iconColor: 'var(--nv-cy)', label: 'Ambient mode — Nova on the wall (tap to exit)', hint: 'GO', run: go('ambient') },
-    { icon: 'XV.', iconColor: 'var(--nv-gold)', label: 'Settings', hint: 'GO', run: go('settings') },
-    // the scripted "Nova actions" only exist in demo mode — in live mode the
-    // palette offers nothing it can't really do
-    ...(demoMode ? [
-      { icon: '✦', iconColor: 'var(--nv-cy)', label: 'Scale burrito bowl to 2 servings', hint: 'NOVA', run: () => { app.navigate('recipes', { openRecipeId: 'r1', servings: 2, recipeChat: [], paletteOpen: false }); app.toastMsg('Nova scaled the burrito bowl ×2 — macros updated'); } },
-      { icon: '✦', iconColor: 'var(--nv-cy)', label: 'Ask Coach to ease today’s session', hint: 'COACH', run: () => { app.navigate('workouts', { paletteOpen: false }); setTimeout(() => app.doCoach('Make it a bit shorter today'), 300); } },
-      { icon: '✦', iconColor: 'var(--nv-cy)', label: 'Run vault backup — Guardian', hint: 'GUARDIAN', run: () => { app.setState({ paletteOpen: false }); app.toastMsg('Guardian: snapshot complete — 186 notes · 0 conflicts ✓'); } },
-    ] : []),
-    { icon: '✦', iconColor: 'var(--nv-cy)', label: 'Start a voice session', hint: 'VOICE', run: () => { app.navigate('voice', { micOn: true, paletteOpen: false }); } },
-  ];
-  // P8: the palette input owns its text locally — a keystroke re-renders
-  // the overlay only, never the whole app. The component calls this with
-  // its live query; recall results still ride App state (debounced fetch).
-  const paletteResultsFor = (query) => {
-  const pq = query.toLowerCase();
-  const paletteResults = cmds.filter(c => !pq || c.label.toLowerCase().includes(pq));
-  // Summon becomes a capture surface: any non-empty query can be sent
-  // straight to the Inbox — Nova routes it from there.
-  const rawQuery = query.trim();
-  if (rawQuery) {
-    // The button says ASK — it must actually be able to ask. A question-shaped
-    // query (multiple words, or ends with ?) puts Ask FIRST so Enter asks Nova
-    // instead of substring-jumping to whatever screen name it grazes.
-    const askEntry = {
-      icon: '✦', iconColor: 'var(--nv-cy)',
-      label: `Ask Nova — “${rawQuery.length > 44 ? rawQuery.slice(0, 41) + '…' : rawQuery}”`,
-      hint: 'ASK',
-      run: () => { app.navigate('voice', { paletteOpen: false }); setTimeout(() => app.askNova(rawQuery), 120); },
-    };
-    const questionShaped = /\s/.test(rawQuery) || rawQuery.endsWith('?');
-    if (questionShaped) paletteResults.unshift(askEntry);
-    else paletteResults.push(askEntry);
-    paletteResults.push({
-      icon: '✦', iconColor: 'var(--nv-cy)',
-      label: `Capture to Inbox — “${rawQuery.length > 44 ? rawQuery.slice(0, 41) + '…' : rawQuery}”`,
-      hint: 'CAPTURE',
-      run: () => { app.setState({ paletteOpen: false }); app.captureToInbox(rawQuery, 'text'); },
-    });
-    paletteResults.push({
-      icon: '🔭', iconColor: 'var(--nv-vi)',
-      label: `Research the web — “${rawQuery.length > 40 ? rawQuery.slice(0, 37) + '…' : rawQuery}”`,
-      hint: 'RESEARCHER',
-      run: () => { app.setState({ paletteOpen: false }); app.startResearch(rawQuery); },
-    });
-    // Recall — real vault pages matching the query (debounced fetch)
-    for (const r of st.recallResults) {
-      paletteResults.push({
-        icon: '◈', iconColor: NOTE_TYPE_COLOR[r.type] || 'var(--nv-ink)',
-        label: `${r.title}${r.snippet ? ` — ${r.snippet.slice(0, 70)}${r.snippet.length > 70 ? '…' : ''}` : ''}`,
-        hint: 'RECALL',
-        run: () => { app.setState({ paletteOpen: false }); app.selectNote(r.id); app.navigate('notes'); },
-      });
-    }
-  }
-  if (pq.length >= 2 && 'about you profile'.includes(pq)) {
-    paletteResults.push({
-      icon: '◆', iconColor: 'var(--nv-gold)', label: 'About You — your profile', hint: 'PROFILE',
-      run: () => { app.navigate('settings', { paletteOpen: false }); setTimeout(() => app.startProfileEdit(), 60); },
-    });
-  }
-  return paletteResults;
-  };
+  // The command palette lived here until 5 Sep (Phase 4). It was a second,
+  // better front door that only it could reach — a route preview, vault
+  // recall, screen-jumping. The chat is the front door now, the preview
+  // moved onto its composer (routePreview below), and ✦ ASK / ⌘K simply open
+  // the conversation. Screen-jumping by typing is gone: the dock and sidebar
+  // are the way between screens, and one navigation system is enough.
 
   // responsive
   const mob = st.isMobile;
@@ -482,7 +410,7 @@ export function valsChrome(app, ctx) {
     goVoice: go('voice'), goWorkouts: go('workouts'), goSettings: go('settings'), goHome: go('mission'),
     orbCardTitle: st.micOn ? 'Nova is listening' : 'Nova is muted',
     orbCardSub: wakeWord ? 'VOICE · WAKE WORD ON' : 'VOICE · PUSH TO TALK',
-    openPalette: () => app.setState({ paletteOpen: true, recallResults: [] }),
+    openPalette: () => app.navigate('voice'), // ✦ ASK opens the conversation — it IS the front door now
     stopClick: (e) => e.stopPropagation(),
 
     // appearance (Settings)
@@ -624,10 +552,7 @@ export function valsChrome(app, ctx) {
     // palette — the input's text lives in the component (P8); these give it
     // the results for any query plus the debounced vault-recall trigger
     paletteOpen: st.paletteOpen,
-    paletteRef: app.paletteRef,
-    paletteResultsFor,
     queueRecall: (q) => app.queueRecall(q),
-    closePalette: () => app.setState({ paletteOpen: false }),
 
     // offline outbox — chip shows in the chrome whenever writes are waiting;
     // never rendered as part of any synced list or total

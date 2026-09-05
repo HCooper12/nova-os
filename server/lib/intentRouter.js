@@ -12,7 +12,15 @@
 // The router only DECIDES. Dispatch lives in the route, so a decision can
 // always be shown to him before anything runs.
 
-export const LANES = ['watch', 'study', 'research', 'code', 'coach', 'capture', 'play', 'ask', 'book'];
+export const LANES = ['watch', 'weave', 'study', 'research', 'code', 'coach', 'capture', 'play', 'ask', 'book'];
+
+// "watch AND analyse" — the deep vault weave (transcript fetched, every
+// concept and person drafted into pages) as opposed to the Watcher's verdict.
+// Until 5 Sep this was reachable only from a button on the Inbox composer;
+// the button is gone, so the words have to carry it. Deliberately demanding:
+// "analyse" alone is what people say about any video, so it needs the weave
+// vocabulary — into the vault, every concept, deep dive, weave.
+const WEAVE_RE = /\b(weave|into (my|the) vault|every (concept|idea|person)|deep[- ]?dive|full (breakdown|analysis)|analy[sz]e (this |it |the video )?(fully|deeply|in depth|properly)|add (this|it) to (my|the) vault)\b/i;
 
 // "add the book Atomic Habits by James Clear" — a Librarian research run.
 // Deliberately narrow: needs the word "book" AND a "<title> by <author>"
@@ -77,6 +85,7 @@ export function routeIntent(text) {
       return { lane: 'study', urls, prose, why: looksChannel ? 'a channel/profile link is a body of work, not one video' : hasStudyWords ? 'you asked for an analysis of a creator or their whole catalogue' : 'several media links in one request' };
     }
     if (isMediaHost && VIDEO_PATH_RE.test(u)) {
+      if (WEAVE_RE.test(prose)) return { lane: 'weave', urls, prose, why: 'a video to weave into the vault — transcript fetched, every concept and person drafted as pages for review' };
       return { lane: 'watch', urls, prose, why: 'a single video link — the Watcher pulls the transcript and drafts a verdict' };
     }
     return { lane: 'research', urls, prose, why: 'a link to read — the Researcher reads it and cites what it finds' };
@@ -95,6 +104,6 @@ export function routeIntent(text) {
 
 export const LANE_LABEL = {
   play: 'PLAY',
-  watch: 'WATCH', study: 'STUDY', research: 'RESEARCH',
+  watch: 'WATCH', weave: 'WEAVE INTO VAULT', study: 'STUDY', research: 'RESEARCH',
   code: 'CLAUDE CODE', coach: 'COACH', capture: 'INBOX', ask: 'ASK NOVA', book: 'LIBRARIAN',
 };

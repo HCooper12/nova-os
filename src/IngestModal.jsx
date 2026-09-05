@@ -34,31 +34,10 @@ export function IngestModal({ v }) {
           focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
         />
 
-        <div style={css("margin-top:16px;font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>OR A BOOK — NOVA'S LIBRARIAN RESEARCHES IT FOR YOU (LEAVE TEXT AND URL EMPTY)</div>
-        <div style={css("margin-top:6px;display:flex;gap:10px;flex-wrap:wrap")}>
-          <Interactive
-            as="input"
-            value={v.ingestBookTitle}
-            onChange={v.setIngestBookTitle}
-            placeholder="Book title…"
-            base="flex:2;min-width:200px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-mono);outline:none"
-            focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
-          />
-          <Interactive
-            as="input"
-            value={v.ingestBookAuthor}
-            onChange={v.setIngestBookAuthor}
-            placeholder="Author…"
-            base="flex:1;min-width:140px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-mono);outline:none"
-            focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
-          />
-        </div>
-        <div style={css("margin-top:6px;font-size:11px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent);line-height:1.5")}>
-          On its own: researched from public sources — key ideas, frameworks, claims and connections,
-          honestly labelled as researched (not read); Nova never fetches a book's actual text.
-          With the title <em>and</em> the book's text pasted or uploaded above (your own copy or notes):
-          Nova reads the real thing, extracts everything, and the pages carry provenance: read.
-        </div>
+        {/* The book title/author fields lived here until 5 Sep (Phase 4).
+            "add the book Atomic Habits by James Clear" is a sentence the chat
+            routes to the Librarian; this modal keeps only what a sentence
+            cannot carry — a file, a long paste, a person's handle. */}
 
         <div style={css("margin-top:16px;font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>OR A PERSON — NOVA&rsquo;S SCOUT RESEARCHES THEM (A NAME, @HANDLE, OR A LINK)</div>
         <Interactive
