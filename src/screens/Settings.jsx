@@ -17,9 +17,9 @@ export function Settings({ v }) {
     <div style={v.wrapSettings} data-screen-label="Settings">
       <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>
         <div style={css("display:flex;align-items:center;gap:14px")}>
-          <span style={css("font:500 11px var(--nv-font-mono);letter-spacing:.14em;color:var(--nv-acc)")}>XIV.</span>
+          <span style={css("font:var(--nv-micro-l);letter-spacing:var(--nv-micro-track);color:var(--nv-acc)")}>XIV.</span>
           <span style={css("width:50px;height:1px;background:linear-gradient(90deg,var(--nv-acc-border),transparent)")}></span>
-          <span style={css("font:500 10px var(--nv-font-mono);letter-spacing:.32em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>SYSTEM · SETTINGS</span>
+          <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>SYSTEM · SETTINGS</span>
         </div>
       </div>
       <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Connect the <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>real vault.</span></h1>
@@ -30,7 +30,7 @@ export function Settings({ v }) {
       </div>
 
       <div style={css("margin-top:28px;max-width:520px;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);padding:24px 26px;background:var(--nv-glass);box-shadow:inset 0 1px 0 var(--nv-spec)")}>
-        <label htmlFor="settings-base-url" style={css("display:block;font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>BACKEND URL</label>
+        <label htmlFor="settings-base-url" style={css("display:block;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>BACKEND URL</label>
         <Interactive
           as="input"
           id="settings-base-url"
@@ -42,7 +42,7 @@ export function Settings({ v }) {
           focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
         />
 
-        <label htmlFor="settings-token" style={css("display:block;margin-top:16px;font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>API TOKEN</label>
+        <label htmlFor="settings-token" style={css("display:block;margin-top:16px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>API TOKEN</label>
         <Interactive
           as="input"
           id="settings-token"
@@ -69,46 +69,46 @@ export function Settings({ v }) {
       {v.profile && (
         <div style={{ marginTop: '34px' }}>
           <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
-            <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:var(--nv-gold)")}>ABOUT YOU</span>
-            <span style={css("font:400 9px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>THE ROOT CONTEXT EVERY NOVA AGENT REASONS FROM · LIVES IN YOUR VAULT</span>
+            <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-gold)")}>ABOUT YOU</span>
+            <span style={css("font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>THE ROOT CONTEXT EVERY NOVA AGENT REASONS FROM · LIVES IN YOUR VAULT</span>
             {!v.profile.editing && (
-              <Interactive as="span" onClick={v.profile.startEdit} base="cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.08em;padding:5px 12px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold)" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 08%, transparent)">{v.profile.set ? 'EDIT' : 'SET UP'}</Interactive>
+              <Interactive as="span" onClick={v.profile.startEdit} base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:5px 12px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold)" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 08%, transparent)">{v.profile.set ? 'EDIT' : 'SET UP'}</Interactive>
             )}
           </div>
 
           {v.profile.editing ? (
             <div className="nv-pane" style={{ marginTop: '12px', padding: '18px 20px', maxWidth: '620px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <label style={css("display:block")}>
-                <span style={css("font:500 9px var(--nv-font-mono);letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>CURRENT FOCUS · what this season of life is about</span>
+                <span style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>CURRENT FOCUS · what this season of life is about</span>
                 <input value={v.profile.draft.focus} onChange={v.profile.setField('focus')} placeholder="e.g. Building my body and my content while holding down full-time work"
                   style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-ui)", padding: '9px 12px', outline: 'none' }} />
               </label>
               <label style={css("display:block")}>
-                <span style={css("font:500 9px var(--nv-font-mono);letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>PRIORITIES · one per line, the handful that matter most now</span>
+                <span style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>PRIORITIES · one per line, the handful that matter most now</span>
                 <textarea value={v.profile.draft.priorities} onChange={v.profile.setField('priorities')} rows={4} placeholder={"Get to 78kg lean\nShip one video a week\nProtein consistency\nSleep before 11"}
                   style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-ui)", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
               </label>
               <label style={css("display:block")}>
-                <span style={css("font:500 9px var(--nv-font-mono);letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>PERFORMING AT YOUR BEST · what that looks and feels like for you</span>
+                <span style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>PERFORMING AT YOUR BEST · what that looks and feels like for you</span>
                 <textarea value={v.profile.draft.bestSelf} onChange={v.profile.setField('bestSelf')} rows={2} placeholder="Disciplined but not rigid — training hard, eating well, creating consistently, present with people."
                   style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-ui)", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
               </label>
               <label style={css("display:block")}>
-                <span style={css("font:500 9px var(--nv-font-mono);letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>CONTEXT &amp; CONSTRAINTS · anything Nova should always know</span>
+                <span style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>CONTEXT &amp; CONSTRAINTS · anything Nova should always know</span>
                 <textarea value={v.profile.draft.notes} onChange={v.profile.setField('notes')} rows={3} placeholder="Work 9-5 Mon-Fri. Gym has only dumbbells (to 40kg) on weekends. Left shoulder flares under heavy overhead. Prefer training evenings."
                   style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-ui)", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
               </label>
               <div style={css("display:flex;gap:10px;align-items:center")}>
-                <Interactive as="span" onClick={v.profile.saving ? undefined : v.profile.save} base={{ cursor: 'pointer', font: "600 10.5px var(--nv-font-mono)", letterSpacing: '.08em', padding: '9px 18px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1322', opacity: v.profile.saving ? 0.5 : 1 }} hoverStyle="filter:brightness(1.08)">{v.profile.saving ? 'SAVING…' : 'SAVE'}</Interactive>
-                <Interactive as="span" onClick={v.profile.cancelEdit} base="cursor:pointer;font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-ink)">cancel</Interactive>
+                <Interactive as="span" onClick={v.profile.saving ? undefined : v.profile.save} base={{ cursor: 'pointer', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', padding: '9px 18px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1322', opacity: v.profile.saving ? 0.5 : 1 }} hoverStyle="filter:brightness(1.08)">{v.profile.saving ? 'SAVING…' : 'SAVE'}</Interactive>
+                <Interactive as="span" onClick={v.profile.cancelEdit} base="cursor:pointer;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-ink)">cancel</Interactive>
               </div>
             </div>
           ) : v.profile.set ? (
             <div className="nv-pane" style={{ marginTop: '12px', padding: '18px 20px', maxWidth: '620px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {v.profile.view.focus && <div><div style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>CURRENT FOCUS</div><div style={css("margin-top:3px;font:500 14px var(--nv-font-ui)")}>{v.profile.view.focus}</div></div>}
-              {v.profile.view.priorities.length > 0 && <div><div style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>PRIORITIES</div><div style={css("margin-top:4px;display:flex;flex-direction:column;gap:3px")}>{v.profile.view.priorities.map((p, i) => <div key={i} style={css("font:500 13px var(--nv-font-ui);color:var(--nv-ink60)")}>· {p}</div>)}</div></div>}
-              {v.profile.view.bestSelf && <div><div style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>AT YOUR BEST</div><div style={css("margin-top:3px;font:500 12.5px/1.55 var(--nv-font-ui);color:var(--nv-ink60)")}>{v.profile.view.bestSelf}</div></div>}
-              {v.profile.view.notes && <div><div style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>CONTEXT &amp; CONSTRAINTS</div><div style={css("margin-top:3px;font:500 12.5px/1.55 var(--nv-font-ui);color:var(--nv-ink60);white-space:pre-wrap")}>{v.profile.view.notes}</div></div>}
+              {v.profile.view.focus && <div><div style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>CURRENT FOCUS</div><div style={css("margin-top:3px;font:500 14px var(--nv-font-ui)")}>{v.profile.view.focus}</div></div>}
+              {v.profile.view.priorities.length > 0 && <div><div style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>PRIORITIES</div><div style={css("margin-top:4px;display:flex;flex-direction:column;gap:3px")}>{v.profile.view.priorities.map((p, i) => <div key={i} style={css("font:500 13px var(--nv-font-ui);color:var(--nv-ink60)")}>· {p}</div>)}</div></div>}
+              {v.profile.view.bestSelf && <div><div style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>AT YOUR BEST</div><div style={css("margin-top:3px;font:500 12.5px/1.55 var(--nv-font-ui);color:var(--nv-ink60)")}>{v.profile.view.bestSelf}</div></div>}
+              {v.profile.view.notes && <div><div style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>CONTEXT &amp; CONSTRAINTS</div><div style={css("margin-top:3px;font:500 12.5px/1.55 var(--nv-font-ui);color:var(--nv-ink60);white-space:pre-wrap")}>{v.profile.view.notes}</div></div>}
             </div>
           ) : (
             <div style={css("margin-top:10px;max-width:620px;font:500 12.5px/1.7 var(--nv-font-ui);color:var(--nv-ink60)")}>Nova knows your data but not yet your intentions. Tell it what you're working toward and it reasons through that in every answer, coaching session, and brief — the difference between a tool and a companion. Two minutes, editable anytime in Obsidian.</div>
@@ -119,8 +119,8 @@ export function Settings({ v }) {
       {v.learning && v.learning.enoughData && (
         <div style={{ marginTop: '28px' }}>
           <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
-            <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:var(--nv-cy)")}>WHAT NOVA HAS NOTICED</span>
-            <span style={css("font:400 9px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>LEARNED FROM YOUR REAL DECISIONS · SHAPES EVERY SUGGESTION</span>
+            <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-cy)")}>WHAT NOVA HAS NOTICED</span>
+            <span style={css("font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>LEARNED FROM YOUR REAL DECISIONS · SHAPES EVERY SUGGESTION</span>
           </div>
           <div className="nv-pane" style={{ marginTop: '12px', padding: '16px 18px', maxWidth: '620px', display: 'flex', flexDirection: 'column', gap: '7px' }}>
             {v.learning.noticed.map((n, i) => (
@@ -130,9 +130,9 @@ export function Settings({ v }) {
         </div>
       )}
 
-      <div style={css("margin-top:34px;font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>APPEARANCE</div>
+      <div style={css("margin-top:34px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>APPEARANCE</div>
       <div style={css("margin-top:12px;max-width:520px;display:flex;flex-direction:column;gap:10px")}>
-        <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.18em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>DESIGN STYLE · SAME DATA, SAME FEATURES — TWO SKINS</div>
+        <div style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>DESIGN STYLE · SAME DATA, SAME FEATURES — TWO SKINS</div>
         {v.novaStyleOptions.map((s) => (
           <Interactive
             key={s.value}
@@ -157,11 +157,11 @@ export function Settings({ v }) {
               <span style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: s.active ? 'var(--nv-acc)' : 'var(--nv-ink)' }}>{s.label}</span>
               <span style={{ display: 'block', marginTop: '2px', fontSize: '11.5px', color: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>{s.hint}</span>
             </span>
-            {s.active && <span style={{ marginLeft: 'auto', font: "500 9.5px var(--nv-font-mono)", letterSpacing: '.14em', color: 'var(--nv-acc)' }}>ACTIVE</span>}
+            {s.active && <span style={{ marginLeft: 'auto', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-acc)' }}>ACTIVE</span>}
           </Interactive>
         ))}
 
-        <div style={css("margin-top:14px;font:500 9px var(--nv-font-mono);letter-spacing:.18em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>THEME · THE PALETTE, IN EITHER STYLE</div>
+        <div style={css("margin-top:14px;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>THEME · THE PALETTE, IN EITHER STYLE</div>
         {v.novaThemeOptions.map((t) => (
           <Interactive
             key={t.value}
@@ -183,11 +183,11 @@ export function Settings({ v }) {
               <span style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: t.active ? 'var(--nv-acc)' : 'var(--nv-ink)' }}>{t.label}</span>
               <span style={{ display: 'block', marginTop: '2px', fontSize: '11.5px', color: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>{t.hint}</span>
             </span>
-            {t.active && <span style={{ marginLeft: 'auto', font: "500 9.5px var(--nv-font-mono)", letterSpacing: '.14em', color: 'var(--nv-acc)' }}>ACTIVE</span>}
+            {t.active && <span style={{ marginLeft: 'auto', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-acc)' }}>ACTIVE</span>}
           </Interactive>
         ))}
 
-        <div style={css("margin-top:14px;font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>NOVA CORE</div>
+        <div style={css("margin-top:14px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>NOVA CORE</div>
         {v.novaCoreOptions.map((c) => (
           <Interactive
             key={c.value}
@@ -210,7 +210,7 @@ export function Settings({ v }) {
               <span style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: c.active ? 'var(--nv-acc)' : 'var(--nv-ink)' }}>{c.label}</span>
               <span style={{ display: 'block', marginTop: '2px', fontSize: '11.5px', color: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>{c.hint}</span>
             </span>
-            {c.active && <span style={{ marginLeft: 'auto', font: "500 9.5px var(--nv-font-mono)", letterSpacing: '.14em', color: 'var(--nv-acc)' }}>ACTIVE</span>}
+            {c.active && <span style={{ marginLeft: 'auto', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-acc)' }}>ACTIVE</span>}
           </Interactive>
         ))}
 
@@ -223,23 +223,23 @@ export function Settings({ v }) {
             <span style={{ display: 'block', fontSize: '14px', fontWeight: 600 }}>Calm mode</span>
             <span style={{ display: 'block', marginTop: '2px', fontSize: '11.5px', color: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>dims the glow and pauses ambient motion — same layout, lower voltage</span>
           </span>
-          <span style={{ marginLeft: 'auto', flex: 'none', font: "500 9.5px var(--nv-font-mono)", letterSpacing: '.14em', padding: '6px 12px', borderRadius: '14px', border: v.calmMode ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent)', color: v.calmMode ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', background: v.calmMode ? 'var(--nv-acc-bg)' : 'none' }}>{v.calmMode ? 'ON' : 'OFF'}</span>
+          <span style={{ marginLeft: 'auto', flex: 'none', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', padding: '6px 12px', borderRadius: '14px', border: v.calmMode ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent)', color: v.calmMode ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', background: v.calmMode ? 'var(--nv-acc-bg)' : 'none' }}>{v.calmMode ? 'ON' : 'OFF'}</span>
         </Interactive>
       </div>
 
       {v.pushSettings && (
         <div style={{ marginTop: '34px' }}>
-          <div style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>NOTIFICATIONS</div>
+          <div style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>NOTIFICATIONS</div>
           <div className="nv-pane" style={{ marginTop: '12px', padding: '14px 18px', maxWidth: '520px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <span style={{ minWidth: 0, flex: '1 1 240px' }}>
               <span style={{ display: 'block', fontSize: '14px', fontWeight: 600 }}>Phone & Watch notifications</span>
-              <span style={{ display: 'block', marginTop: '2px', font: "500 9.5px var(--nv-font-mono)", letterSpacing: '.06em', color: v.pushSettings.state === 'on' ? 'var(--nv-good)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>{v.pushSettings.label}</span>
+              <span style={{ display: 'block', marginTop: '2px', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', color: v.pushSettings.state === 'on' ? 'var(--nv-good)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>{v.pushSettings.label}</span>
             </span>
             {v.pushSettings.state !== 'on' && v.pushSettings.state !== 'unsupported' && (
-              <Interactive as="span" onClick={v.pushSettings.enable} base="cursor:pointer;font:600 10.5px var(--nv-font-mono);letter-spacing:.08em;padding:9px 16px;border-radius:8px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle="filter:brightness(1.08)">ENABLE</Interactive>
+              <Interactive as="span" onClick={v.pushSettings.enable} base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:9px 16px;border-radius:8px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle="filter:brightness(1.08)">ENABLE</Interactive>
             )}
             {v.pushSettings.state === 'on' && (
-              <Interactive as="span" onClick={v.pushSettings.test} base="cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.08em;padding:8px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);color:var(--nv-cy)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 08%, transparent)">TEST</Interactive>
+              <Interactive as="span" onClick={v.pushSettings.test} base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);color:var(--nv-cy)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 08%, transparent)">TEST</Interactive>
             )}
           </div>
           <div style={css("margin-top:8px;max-width:520px;font-size:11px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Pushes fire when something needs your call — a drafted brief, a research outline, a Guardian alert. iPhone mirrors them to the Apple Watch automatically. Requires Nova installed to the Home Screen (Safari → Share → Add to Home Screen).</div>
@@ -250,8 +250,8 @@ export function Settings({ v }) {
           a preferences page. Everything that only gets set once lives here. */}
       <div style={{ marginTop: '34px' }}>
         <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
-          <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>VOICE</span>
-          <span style={css("font:400 9px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>HOW NOVA SPEAKS, AND HOW IT HEARS YOU</span>
+          <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>VOICE</span>
+          <span style={css("font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>HOW NOVA SPEAKS, AND HOW IT HEARS YOU</span>
         </div>
         <div style={css("margin-top:12px;max-width:520px;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);padding:20px 22px;background:var(--nv-glass);display:flex;flex-direction:column;gap:16px")}>
           <div style={css("display:flex;justify-content:space-between;align-items:center;gap:12px")}>
@@ -260,7 +260,7 @@ export function Settings({ v }) {
               <div style={css("margin-top:2px;font-size:11px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.voiceEngineLabel === 'BROWSER' ? 'Using the browser voice' : `Engine: ${v.voiceEngineLabel}`}</div>
             </div>
             <Interactive as="span" onClick={v.toggleSpeak}
-              base={{ cursor: 'pointer', font: '600 9px var(--nv-font-mono)', letterSpacing: '.1em', padding: '6px 13px', borderRadius: '7px', border: v.speakOn ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', color: v.speakOn ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: v.speakOn ? 'var(--nv-acc-bg)' : 'transparent' }}
+              base={{ cursor: 'pointer', font: 'var(--nv-micro-s)', letterSpacing: '.1em', padding: '6px 13px', borderRadius: '7px', border: v.speakOn ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', color: v.speakOn ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: v.speakOn ? 'var(--nv-acc-bg)' : 'transparent' }}
             >{v.speakOn ? 'ON' : 'OFF'}</Interactive>
           </div>
 
@@ -275,7 +275,7 @@ export function Settings({ v }) {
             </div>
             {v.wakeWordSupported && (
               <Interactive as="span" onClick={() => v.setWakeWord(!v.wakeWordOn)}
-                base={{ cursor: 'pointer', flex: 'none', font: '600 9px var(--nv-font-mono)', letterSpacing: '.1em', padding: '6px 13px', borderRadius: '7px', border: v.wakeWordOn ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', color: v.wakeWordOn ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: v.wakeWordOn ? 'var(--nv-acc-bg)' : 'transparent' }}
+                base={{ cursor: 'pointer', flex: 'none', font: 'var(--nv-micro-s)', letterSpacing: '.1em', padding: '6px 13px', borderRadius: '7px', border: v.wakeWordOn ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', color: v.wakeWordOn ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: v.wakeWordOn ? 'var(--nv-acc-bg)' : 'transparent' }}
               >{v.wakeWordOn ? 'ON' : 'OFF'}</Interactive>
             )}
           </div>
@@ -288,7 +288,7 @@ export function Settings({ v }) {
               {v.voiceTest?.stages?.length > 0 && (
                 <div style={css("margin-top:9px;display:flex;flex-direction:column;gap:5px")}>
                   {v.voiceTest.stages.map((st, i) => (
-                    <div key={i} style={css("display:flex;gap:8px;align-items:baseline;font:400 11px var(--nv-font-mono)")}>
+                    <div key={i} style={css("display:flex;gap:8px;align-items:baseline;font:var(--nv-micro-l)")}>
                       <span style={{ color: st.ok ? 'var(--nv-good)' : 'var(--nv-warn)', flex: 'none' }}>{st.ok ? '✓' : '✕'}</span>
                       <span style={{ color: 'var(--nv-ink)', flex: 'none' }}>{st.stage}</span>
                       <span style={{ color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)', minWidth: 0 }}>{st.detail}</span>
@@ -298,7 +298,7 @@ export function Settings({ v }) {
               )}
             </div>
             {/* the running build, so "am I on your fix?" is answerable */}
-            <div style={css("margin-top:14px;font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 32%, transparent)")}>BUILD {v.novaBuild}</div>
+            <div style={css("margin-top:14px;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 32%, transparent)")}>BUILD {v.novaBuild}</div>
 
             {/* RESEARCH BROWSER. Instagram, TikTok, X and LinkedIn refuse an
                 anonymous reader, so the Scout gets a Chrome profile of its
@@ -306,29 +306,29 @@ export function Settings({ v }) {
                 Nova never sees one, and this is the only place in the app
                 that opens a login page at all. */}
             <div style={css("margin-top:16px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:14px")}>
-              <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>RESEARCH BROWSER</div>
+              <div style={css("font:var(--nv-micro-s);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>RESEARCH BROWSER</div>
               <div style={css("margin-top:7px;font-size:11.5px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
                 Instagram, TikTok, X and LinkedIn refuse an anonymous reader. Sign in once here and the Scout
                 reads them as you. It uses its own browser profile, never your everyday Chrome, and only ever
                 reads — it never posts, follows or fills anything. You type the password; Nova never sees it.
               </div>
               <Interactive as="span" onClick={v.browserSignIn.busy ? undefined : v.browserSignIn.open}
-                base={{ cursor: v.browserSignIn.busy ? 'default' : 'pointer', display: 'inline-block', marginTop: '10px', font: '600 9px var(--nv-font-mono)', letterSpacing: '.1em', padding: '7px 14px', borderRadius: '7px', border: '1px solid var(--nv-acc-border)', color: 'var(--nv-acc)', background: 'var(--nv-acc-bg)', opacity: v.browserSignIn.busy ? 0.6 : 1 }}
+                base={{ cursor: v.browserSignIn.busy ? 'default' : 'pointer', display: 'inline-block', marginTop: '10px', font: 'var(--nv-micro-s)', letterSpacing: '.1em', padding: '7px 14px', borderRadius: '7px', border: '1px solid var(--nv-acc-border)', color: 'var(--nv-acc)', background: 'var(--nv-acc-bg)', opacity: v.browserSignIn.busy ? 0.6 : 1 }}
                 hoverStyle={v.browserSignIn.busy ? '' : 'filter:brightness(1.2)'}>
                 {v.browserSignIn.busy ? 'OPENING…' : 'SIGN IN ON THE MAC'}
               </Interactive>
             </div>
 
             <Interactive as="span" onClick={v.runVoiceTest}
-              base={{ cursor: 'pointer', flex: 'none', font: '600 9px var(--nv-font-mono)', letterSpacing: '.1em', padding: '6px 13px', borderRadius: '7px', border: '1px solid var(--nv-acc-border)', color: 'var(--nv-acc)', background: 'var(--nv-acc-bg)' }}
+              base={{ cursor: 'pointer', flex: 'none', font: 'var(--nv-micro-s)', letterSpacing: '.1em', padding: '6px 13px', borderRadius: '7px', border: '1px solid var(--nv-acc-border)', color: 'var(--nv-acc)', background: 'var(--nv-acc-bg)' }}
             >{v.voiceTest?.running ? 'TESTING…' : 'TEST'}</Interactive>
           </div>
 
           {v.voiceOptions.length > 0 && (
             <div style={css("border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:16px")}>
-              <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{v.voicePickerLabel}</div>
+              <div style={css("font:var(--nv-micro-s);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{v.voicePickerLabel}</div>
               <select value={v.voiceVoiceId} onChange={v.setVoiceId}
-                style={{ marginTop: '7px', width: '100%', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: '500 11px var(--nv-font-mono)', padding: '8px 9px', outline: 'none' }}>
+                style={{ marginTop: '7px', width: '100%', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: 'var(--nv-micro-l)', padding: '8px 9px', outline: 'none' }}>
                 <option value="" style={{ background: '#141019' }}>{v.voiceDefaultLabel}</option>
                 {v.voiceOptions.map((o) => <option key={o.id} value={o.id} style={{ background: '#141019' }}>{o.name}</option>)}
               </select>
@@ -337,9 +337,9 @@ export function Settings({ v }) {
 
           {v.usingBrowserVoice && v.systemVoices.length > 0 && (
             <div style={css("border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:16px")}>
-              <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>VOICE · FREE ON-DEVICE</div>
+              <div style={css("font:var(--nv-micro-s);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>VOICE · FREE ON-DEVICE</div>
               <select value={v.speechVoiceURI} onChange={v.setSpeechVoice}
-                style={{ marginTop: '7px', width: '100%', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: '500 11px var(--nv-font-mono)', padding: '8px 9px', outline: 'none' }}>
+                style={{ marginTop: '7px', width: '100%', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: 'var(--nv-micro-l)', padding: '8px 9px', outline: 'none' }}>
                 <option value="" style={{ background: '#141019' }}>System default</option>
                 {v.systemVoices.map((o) => <option key={o.uri} value={o.uri} style={{ background: '#141019' }}>{o.name}</option>)}
               </select>
@@ -355,8 +355,8 @@ export function Settings({ v }) {
       {v.tabOrderItems && (
         <div style={{ marginTop: '34px' }}>
           <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
-            <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>NAVIGATION ORDER</span>
-            <span style={css("font:400 9px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>DRAG TO REORDER THE TAB BAR AND THE SIDEBAR</span>
+            <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>NAVIGATION ORDER</span>
+            <span style={css("font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>DRAG TO REORDER THE TAB BAR AND THE SIDEBAR</span>
           </div>
           <div style={{ marginTop: '12px' }}>
             <TabOrderEditor items={v.tabOrderItems} onReorder={v.setTabOrder} />
@@ -368,9 +368,9 @@ export function Settings({ v }) {
       {v.calendarSettings && (
         <div style={{ marginTop: '34px' }}>
           <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
-            <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>CALENDARS</span>
-            <span style={css("font:400 9px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>TURN OFF ANY YOU DON'T WANT NOVA READING</span>
-            <Interactive as="span" onClick={v.calendarSettings.load} base="cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.08em;padding:5px 12px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 20%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)" hoverStyle="color:var(--nv-ink)">REFRESH</Interactive>
+            <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>CALENDARS</span>
+            <span style={css("font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>TURN OFF ANY YOU DON'T WANT NOVA READING</span>
+            <Interactive as="span" onClick={v.calendarSettings.load} base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:5px 12px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 20%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)" hoverStyle="color:var(--nv-ink)">REFRESH</Interactive>
           </div>
           {v.calendarSettings.error && (
             <div style={css("margin-top:10px;max-width:520px;font-size:12px;line-height:1.6;color:var(--nv-warn)")}>Couldn't load the calendar list — a connection problem, not "no calendars". Tap REFRESH to retry.</div>
@@ -387,7 +387,7 @@ export function Settings({ v }) {
                 {v.calendarSettings.calendars.map((c) => (
                   <div key={c.url} className="nv-pane" style={{ padding: '11px 15px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <span style={{ flex: 1, minWidth: 0, fontSize: '14px', fontWeight: 500, opacity: c.hidden ? 0.5 : 1, textDecoration: c.hidden ? 'line-through' : 'none', overflowWrap: 'anywhere' }}>{c.name}</span>
-                    <Interactive as="span" onClick={c.toggle} base={{ cursor: 'pointer', flex: 'none', font: "600 9.5px var(--nv-font-mono)", letterSpacing: '.1em', padding: '6px 15px', borderRadius: '14px', border: c.hidden ? '1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent)' : '1px solid var(--nv-acc-border)', color: c.hidden ? 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' : 'var(--nv-acc)', background: c.hidden ? 'none' : 'var(--nv-acc-bg)' }} hoverStyle={{ filter: 'brightness(1.12)' }}>{c.hidden ? 'HIDDEN' : 'SHOWN'}</Interactive>
+                    <Interactive as="span" onClick={c.toggle} base={{ cursor: 'pointer', flex: 'none', font: 'var(--nv-micro-m)', letterSpacing: '.1em', padding: '6px 15px', borderRadius: '14px', border: c.hidden ? '1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent)' : '1px solid var(--nv-acc-border)', color: c.hidden ? 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' : 'var(--nv-acc)', background: c.hidden ? 'none' : 'var(--nv-acc-bg)' }} hoverStyle={{ filter: 'brightness(1.12)' }}>{c.hidden ? 'HIDDEN' : 'SHOWN'}</Interactive>
                   </div>
                 ))}
               </div>
@@ -403,17 +403,17 @@ export function Settings({ v }) {
       {v.modelSettings && (
         <div style={{ marginTop: '34px' }}>
           <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
-            <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:var(--nv-gold)")}>CLAUDE MODELS</span>
-            <span style={css("font:400 9px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>EVERY AGENT AND FEATURE · PICK THE MODEL, OR SWITCH IT OFF</span>
+            <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-gold)")}>CLAUDE MODELS</span>
+            <span style={css("font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>EVERY AGENT AND FEATURE · PICK THE MODEL, OR SWITCH IT OFF</span>
             {v.modelSettings.loaded && v.modelSettings.customisedCount + v.modelSettings.offCount > 0 && (
-              <Interactive as="span" onClick={v.modelSettings.busyAll ? undefined : v.modelSettings.resetAll} base="cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.08em;padding:5px 12px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 20%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)" hoverStyle="color:var(--nv-ink)">{v.modelSettings.busyAll ? 'RESETTING…' : 'RESET ALL'}</Interactive>
+              <Interactive as="span" onClick={v.modelSettings.busyAll ? undefined : v.modelSettings.resetAll} base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:5px 12px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 20%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)" hoverStyle="color:var(--nv-ink)">{v.modelSettings.busyAll ? 'RESETTING…' : 'RESET ALL'}</Interactive>
             )}
           </div>
 
           {v.modelSettings.error && (
             <div style={css("margin-top:10px;max-width:640px;font-size:12px;line-height:1.6;color:var(--nv-warn)")}>
               Couldn't load the model board — a connection problem, not “no lanes”. Nothing has changed on the server.
-              <Interactive as="span" onClick={v.modelSettings.load} base="cursor:pointer;margin-left:10px;font:600 10px var(--nv-font-mono);letter-spacing:.08em;color:var(--nv-gold)">RETRY</Interactive>
+              <Interactive as="span" onClick={v.modelSettings.load} base="cursor:pointer;margin-left:10px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-gold)">RETRY</Interactive>
             </div>
           )}
           {!v.modelSettings.error && !v.modelSettings.loaded && (
@@ -435,9 +435,9 @@ export function Settings({ v }) {
                     base="cursor:pointer;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding-bottom:7px;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent)"
                     hoverStyle="border-bottom-color:var(--nv-acc-border)"
                   >
-                    <span style={css("font:500 9px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-cy)")}>{g.open ? '▾' : '▸'} {g.label}</span>
-                    <span style={css("font:400 9px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>{g.hint}</span>
-                    <span style={{ marginLeft: 'auto', font: "500 9px var(--nv-font-mono)", color: g.offCount ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 35%, transparent)' }}>
+                    <span style={css("font:var(--nv-micro-s);letter-spacing:.2em;color:var(--nv-cy)")}>{g.open ? '▾' : '▸'} {g.label}</span>
+                    <span style={css("font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>{g.hint}</span>
+                    <span style={{ marginLeft: 'auto', font: 'var(--nv-micro-s)', color: g.offCount ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 35%, transparent)' }}>
                       {g.offCount ? `${g.offCount}/${g.count} OFF` : `${g.count}`}
                     </span>
                   </Interactive>
@@ -450,7 +450,7 @@ export function Settings({ v }) {
                           <span style={{ display: 'block', marginTop: '3px', fontSize: '11px', lineHeight: 1.55, color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>{l.hint}</span>
                         </span>
                         <Interactive as="span" onClick={l.busy ? undefined : l.toggle}
-                          base={{ cursor: 'pointer', flex: 'none', font: '600 9px var(--nv-font-mono)', letterSpacing: '.1em', padding: '6px 13px', borderRadius: '14px',
+                          base={{ cursor: 'pointer', flex: 'none', font: 'var(--nv-micro-s)', letterSpacing: '.1em', padding: '6px 13px', borderRadius: '14px',
                             border: l.enabled ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-warn) 40%, transparent)',
                             color: l.enabled ? 'var(--nv-acc)' : 'var(--nv-warn)',
                             background: l.enabled ? 'var(--nv-acc-bg)' : 'color-mix(in srgb, var(--nv-warn) 08%, transparent)' }}
@@ -460,11 +460,11 @@ export function Settings({ v }) {
 
                       {l.enabled && l.deterministic ? (
                         // a computed lane: nothing to pick — the switch above is the whole setting
-                        <div style={css("margin-top:10px;font:400 10px var(--nv-font-mono);letter-spacing:.06em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>DETERMINISTIC — NO MODEL RUNS; THE SWITCH IS THE SETTING</div>
+                        <div style={css("margin-top:10px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>DETERMINISTIC — NO MODEL RUNS; THE SWITCH IS THE SETTING</div>
                       ) : l.enabled ? (
                         <div style={css("margin-top:10px;display:flex;align-items:center;gap:9px;flex-wrap:wrap")}>
                           <select value={l.model} onChange={l.setModel} disabled={l.busy}
-                            style={{ flex: '1 1 220px', background: 'var(--nv-well)', border: `1px solid ${l.customised ? 'color-mix(in srgb, var(--nv-gold) 45%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 15%, transparent)'}`, borderRadius: '7px', color: 'var(--nv-ink)', font: '500 11px var(--nv-font-mono)', padding: '8px 9px', outline: 'none' }}>
+                            style={{ flex: '1 1 220px', background: 'var(--nv-well)', border: `1px solid ${l.customised ? 'color-mix(in srgb, var(--nv-gold) 45%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 15%, transparent)'}`, borderRadius: '7px', color: 'var(--nv-ink)', font: 'var(--nv-micro-l)', padding: '8px 9px', outline: 'none' }}>
                             {v.modelSettings.models.map((m) => (
                               <option key={m.value} value={m.value} style={{ background: '#141019' }}>
                                 {m.label}{m.value === l.defaultModel ? ' · default' : ''}
@@ -472,7 +472,7 @@ export function Settings({ v }) {
                             ))}
                           </select>
                           {l.reset && (
-                            <Interactive as="span" onClick={l.busy ? undefined : l.reset} base="cursor:pointer;flex:none;font:400 9px var(--nv-font-mono);letter-spacing:.06em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-gold)">reset</Interactive>
+                            <Interactive as="span" onClick={l.busy ? undefined : l.reset} base="cursor:pointer;flex:none;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-gold)">reset</Interactive>
                           )}
                         </div>
                       ) : (
@@ -494,10 +494,10 @@ export function Settings({ v }) {
       {v.timeMachine && (
         <div style={{ marginTop: '34px' }}>
           <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
-            <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:var(--nv-gold)")}>TIME MACHINE · GUARDIAN</span>
-            <span style={css("font:400 9px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>EVERY VAULT WRITE SNAPSHOTS FIRST — RESTORE ANY FILE, UNDOABLY</span>
+            <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-gold)")}>TIME MACHINE · GUARDIAN</span>
+            <span style={css("font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>EVERY VAULT WRITE SNAPSHOTS FIRST — RESTORE ANY FILE, UNDOABLY</span>
             {!v.timeMachine.loaded && (
-              <Interactive as="span" onClick={v.timeMachine.load} base="cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.08em;padding:5px 12px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold)" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 08%, transparent)">BROWSE SNAPSHOTS</Interactive>
+              <Interactive as="span" onClick={v.timeMachine.load} base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:5px 12px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold)" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 08%, transparent)">BROWSE SNAPSHOTS</Interactive>
             )}
           </div>
           {v.timeMachine.loaded && v.timeMachine.files.length === 0 && (
@@ -508,20 +508,20 @@ export function Settings({ v }) {
               {v.timeMachine.files.map((f) => (
                 <div key={f.file} className="nv-pane" style={{ padding: '12px 15px' }}>
                   <div style={css("display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap")}>
-                    <span style={css("font:600 13px var(--nv-font-ui);overflow-wrap:anywhere")}>{f.file}{!f.exists && <span style={css("color:var(--nv-warn);font:500 9px var(--nv-font-mono)")}> · DELETED</span>}</span>
+                    <span style={css("font:600 13px var(--nv-font-ui);overflow-wrap:anywhere")}>{f.file}{!f.exists && <span style={css("color:var(--nv-warn);font:var(--nv-micro-s)")}> · DELETED</span>}</span>
                   </div>
                   <div style={css("margin-top:6px;display:flex;flex-direction:column;gap:4px")}>
                     {f.backups.map((b) => (
                       <div key={b.backupRel} style={css("display:flex;justify-content:space-between;gap:10px;align-items:center")}>
-                        <span style={css("font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 50%, transparent)")}>{b.stamp}</span>
+                        <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 50%, transparent)")}>{b.stamp}</span>
                         {v.timeMachine.confirming === b.backupRel ? (
                           <span style={css("display:flex;gap:8px;align-items:center")}>
                             <span style={css("font-size:11px;color:var(--nv-warn)")}>Overwrite the current file with this snapshot?</span>
-                            <Interactive as="span" onClick={() => v.timeMachine.restore(b.backupRel)} base="cursor:pointer;font:600 9px var(--nv-font-mono);padding:3px 10px;border-radius:6px;background:color-mix(in srgb, var(--nv-warn) 15%, transparent);color:var(--nv-warn);border:1px solid color-mix(in srgb, var(--nv-warn) 40%, transparent)">RESTORE</Interactive>
-                            <Interactive as="span" onClick={v.timeMachine.cancelConfirm} base="cursor:pointer;font:400 9px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)">cancel</Interactive>
+                            <Interactive as="span" onClick={() => v.timeMachine.restore(b.backupRel)} base="cursor:pointer;font:var(--nv-micro-s);padding:3px 10px;border-radius:6px;background:color-mix(in srgb, var(--nv-warn) 15%, transparent);color:var(--nv-warn);border:1px solid color-mix(in srgb, var(--nv-warn) 40%, transparent)">RESTORE</Interactive>
+                            <Interactive as="span" onClick={v.timeMachine.cancelConfirm} base="cursor:pointer;font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)">cancel</Interactive>
                           </span>
                         ) : (
-                          <Interactive as="span" onClick={() => v.timeMachine.askConfirm(b.backupRel)} base="cursor:pointer;font:600 9px var(--nv-font-mono);letter-spacing:.08em;padding:3px 10px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)" hoverStyle="border-color:color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold)">RESTORE…</Interactive>
+                          <Interactive as="span" onClick={() => v.timeMachine.askConfirm(b.backupRel)} base="cursor:pointer;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);padding:3px 10px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)" hoverStyle="border-color:color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold)">RESTORE…</Interactive>
                         )}
                       </div>
                     ))}

@@ -206,7 +206,7 @@ export function TrainToday({ o, actions, resume }) {
                   )}
                   <span style={css('position:absolute;top:-2px;bottom:-2px;width:2px;background:rgba(232,236,246,.35);left:100%')} />
                 </div>
-                <span style={css(`width:44px;text-align:right;font:600 10px ${M};color:${low ? 'var(--nv-warn)' : 'var(--nv-ink60)'};font-variant-numeric:tabular-nums`)}>{v.sets}/{v.target}</span>
+                <span style={css(`width:44px;text-align:right;font:var(--nv-micro-m);color:${low ? 'var(--nv-warn)' : 'var(--nv-ink60)'};font-variant-numeric:tabular-nums`)}>{v.sets}/{v.target}</span>
               </div>
             );
           })}

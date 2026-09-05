@@ -29,7 +29,7 @@ function Sat({ pos, colorVar, glowVar, d }) {
   return (
     <div onClick={d.onOpen} style={{ position: 'absolute', ...pos, borderRadius: '11px', padding: '2px', background: `conic-gradient(from 210deg, var(${colorVar}) ${d.pct}%, var(--nv-edge) 0)`, boxShadow: `var(${glowVar})`, cursor: d.onOpen ? 'pointer' : 'default' }}>
       <div style={{ borderRadius: '9px', background: 'var(--nv-glass2)', backdropFilter: 'blur(14px)', padding: '10px 15px' }}>
-        <div style={{ font: `500 8px ${M}`, letterSpacing: '.22em', color: 'var(--nv-ink60)' }}>{d.label}</div>
+        <div style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track-wide)', color: 'var(--nv-ink60)' }}>{d.label}</div>
         <div style={{ font: `700 24px ${R}`, marginTop: '2px', fontVariantNumeric: 'tabular-nums', ...absentValueStyle(d, colorVar) }}>
           {d.value}{d.small ? <small style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--nv-ink40)' }}>{d.small}</small> : null}
         </div>
@@ -73,7 +73,7 @@ function Cluster({ v }) {
 }
 
 const phH = (colorVar, tshVar) => ({ font: `700 19px ${R}`, letterSpacing: '.16em', color: `var(${colorVar})`, textShadow: `var(${tshVar})` });
-const phMeta = { font: `500 8.5px ${M}`, letterSpacing: '.2em', color: 'var(--nv-ink40)' };
+const phMeta = { font: 'var(--nv-micro-s)', letterSpacing: '.2em', color: 'var(--nv-ink40)' };
 const noticedRow = (last) => css(`display:flex;gap:12px;align-items:baseline;padding:9px 0;font:500 14px/1.55 ${R};color:var(--nv-ink60)${last ? '' : ';border-bottom:1px solid rgba(130,175,255,.09)'}`);
 
 export function MissionControl({ v }) {
@@ -101,7 +101,7 @@ export function MissionControl({ v }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <div style={{ flex: 'none', width: 62, height: 62, borderRadius: '50%', border: '1.5px dashed color-mix(in srgb, var(--nv-mg) 70%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: `600 24px ${M}`, color: 'var(--nv-ink)', boxShadow: '0 0 30px -8px var(--nv-mg)' }}>{v.prMoment.prs.length}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ font: `500 8.5px ${M}`, letterSpacing: '.22em', color: 'var(--nv-mg)' }}>{v.prMoment.prs.length === 1 ? 'A RECORD' : 'RECORDS'} · {v.prMoment.date.slice(5).replace('-', '/')}</div>
+              <div style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track-wide)', color: 'var(--nv-mg)' }}>{v.prMoment.prs.length === 1 ? 'A RECORD' : 'RECORDS'} · {v.prMoment.date.slice(5).replace('-', '/')}</div>
               <div style={css(`margin-top:4px;font:italic 400 ${mob ? '18px' : '21px'}/1.2 ${S};color:var(--nv-ink)`)}>
                 {v.prMoment.prs.length === 1 ? 'One lift went further than it ever has.' : `${v.prMoment.prs.length} lifts went further than they ever have.`}
               </div>
@@ -116,14 +116,14 @@ export function MissionControl({ v }) {
             </div>
           </div>
           <div style={{ marginTop: '12px', display: 'flex', gap: '10px' }}>
-            <Interactive as="span" onClick={v.prMoment.openTrain} base={css(`cursor:pointer;font:600 9.5px ${M};letter-spacing:.14em;padding:8px 13px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)`)} hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 12%, transparent)' }}>SEE THE BLOCK</Interactive>
-            <Interactive as="span" onClick={v.prMoment.dismiss} base={css(`cursor:pointer;font:600 9.5px ${M};letter-spacing:.14em;padding:8px 13px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);color:var(--nv-ink60)`)} hoverStyle={{ color: 'var(--nv-ink)' }}>NOTED</Interactive>
+            <Interactive as="span" onClick={v.prMoment.openTrain} base={css(`cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 13px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)`)} hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 12%, transparent)' }}>SEE THE BLOCK</Interactive>
+            <Interactive as="span" onClick={v.prMoment.dismiss} base={css(`cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 13px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);color:var(--nv-ink60)`)} hoverStyle={{ color: 'var(--nv-ink)' }}>NOTED</Interactive>
           </div>
         </section>
       )}
       <section style={heroGrid}>
         <div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 10px', font: `500 10px ${M}`, letterSpacing: '.28em', color: 'var(--nv-ink60)', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 10px', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track-wide)', color: 'var(--nv-ink60)', marginBottom: '16px' }}>
             <span>{v.heroDate}</span>
             <span style={{ color: 'var(--nv-ink40)' }}>·</span>
             <span style={{ color: 'var(--nv-gold)', fontVariantNumeric: 'tabular-nums' }}><Clock /></span>
@@ -146,11 +146,11 @@ export function MissionControl({ v }) {
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '24px' }}>
             <Interactive as="span" onClick={v.onEngage}
-              base={css(`cursor:pointer;font:600 11px ${M};letter-spacing:.16em;padding:13px 24px;border-radius:7px;border:1px solid var(--nv-cta-border);background:var(--nv-cta-bg);color:var(--nv-cta-ink);box-shadow:var(--nv-glow-cta);text-shadow:var(--nv-tsh-cta)`)}
+              base={css(`cursor:pointer;font:var(--nv-micro-l);letter-spacing:var(--nv-micro-track);padding:13px 24px;border-radius:7px;border:1px solid var(--nv-cta-border);background:var(--nv-cta-bg);color:var(--nv-cta-ink);box-shadow:var(--nv-glow-cta);text-shadow:var(--nv-tsh-cta)`)}
               hoverStyle={{ filter: 'brightness(1.18)' }}
             >ENGAGE NEXT BLOCK</Interactive>
             <Interactive as="span" onClick={v.openPalette}
-              base={css(`cursor:pointer;font:600 11px ${M};letter-spacing:.16em;padding:13px 20px;border-radius:7px;border:1px solid rgba(232,236,246,.16);color:var(--nv-ink60);background:transparent`)}
+              base={css(`cursor:pointer;font:var(--nv-micro-l);letter-spacing:var(--nv-micro-track);padding:13px 20px;border-radius:7px;border:1px solid rgba(232,236,246,.16);color:var(--nv-ink60);background:transparent`)}
               hoverStyle={{ borderColor: 'var(--nv-acc-border)', color: 'var(--nv-ink)' }}
             ><b style={{ color: 'var(--nv-ink)', fontWeight: 600 }}>⌘K</b>&nbsp;&nbsp;SUMMON</Interactive>
           </div>
@@ -173,7 +173,7 @@ export function MissionControl({ v }) {
           <div style={{ display: 'grid', gridTemplateColumns: mob ? '1fr 1fr' : 'repeat(4,1fr)', gap: mob ? '14px 12px' : '16px' }}>
             {v.bodyMetrics.map((m) => (
               <Interactive key={m.key} onClick={m.onOpen} base={{ cursor: m.onOpen ? 'pointer' : 'default', borderRadius: '8px', padding: '6px 2px 2px' }} hoverStyle={m.onOpen ? { background: 'rgba(255,255,255,.04)' } : {}}>
-                <div style={{ font: `500 8px ${M}`, letterSpacing: '.22em', color: 'var(--nv-ink60)' }}>{m.label}</div>
+                <div style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track-wide)', color: 'var(--nv-ink60)' }}>{m.label}</div>
                 <div style={{ font: `700 24px ${R}`, marginTop: '2px', fontVariantNumeric: 'tabular-nums', ...absentValueStyle(m, m.color) }}>
                   {m.value}{m.small ? <small style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--nv-ink40)', marginLeft: '2px' }}>{m.small}</small> : null}
                 </div>
@@ -187,7 +187,7 @@ export function MissionControl({ v }) {
       <section style={rowA}>
         <div className="nv-pane nv-focus" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', marginBottom: '10px' }}>
-            <span style={{ font: `500 9.5px ${M}`, letterSpacing: '.26em', color: 'var(--nv-gold)' }}>SUGGESTED FOCUS</span>
+            <span style={{ font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track-wide)', color: 'var(--nv-gold)' }}>SUGGESTED FOCUS</span>
             <span style={{ font: `italic 400 13.5px ${S}`, color: 'rgba(224,178,106,.85)' }}>{v.suggestedFocus.source}</span>
           </div>
           <div style={{ font: `400 26px/1.18 ${S}`, textWrap: 'pretty' }}>
@@ -219,21 +219,21 @@ export function MissionControl({ v }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', marginBottom: '10px' }}>
             <span style={phH('--nv-cy', '--nv-tsh-head-cy')}>TODAY</span>
             {v.todayIsLive && (
-              <Interactive as="span" onClick={v.openCalendarView} base={{ cursor: 'pointer', font: `500 8.5px ${M}`, letterSpacing: '.14em', color: 'var(--nv-ink40)' }} hoverStyle={{ color: 'var(--nv-cy)' }}>NEXT 14 DAYS →</Interactive>
+              <Interactive as="span" onClick={v.openCalendarView} base={{ cursor: 'pointer', font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-ink40)' }} hoverStyle={{ color: 'var(--nv-cy)' }}>NEXT 14 DAYS →</Interactive>
             )}
-            {v.todayStaleLabel && <span style={{ font: `500 8.5px ${M}`, letterSpacing: '.14em', color: 'var(--nv-warn)' }}>{v.todayStaleLabel}</span>}
+            {v.todayStaleLabel && <span style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-warn)' }}>{v.todayStaleLabel}</span>}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '218px', overflowY: 'auto' }}>
             {v.todayEvents.map((ev, i) => (
               <div key={i} style={css(`display:flex;gap:12px;align-items:baseline;padding:8px 0;font:500 14px ${R}${i < v.todayEvents.length - 1 ? ';border-bottom:1px solid rgba(130,175,255,.09)' : ''}`)}>
-                <span style={{ font: `500 10.5px ${M}`, fontVariantNumeric: 'tabular-nums', width: '52px', flex: 'none', color: ev.now ? 'var(--nv-cy)' : 'var(--nv-ink40)', fontWeight: ev.now ? 600 : 500 }}>
+                <span style={{ font: 'var(--nv-micro-m)', fontVariantNumeric: 'tabular-nums', width: '52px', flex: 'none', color: ev.now ? 'var(--nv-cy)' : 'var(--nv-ink40)', fontWeight: ev.now ? 600 : 500 }}>
                   {ev.now && <span style={{ color: 'var(--nv-mg)' }}>▸ </span>}{ev.time}
                 </span>
                 <span style={{ color: ev.now ? 'var(--nv-cy)' : ev.past ? 'var(--nv-ink40)' : 'var(--nv-ink)', fontWeight: ev.now ? 600 : 500, minWidth: 0 }}>
                   {ev.label}
-                  {ev.until && <span style={{ font: `400 10px ${M}`, color: 'var(--nv-cy)', marginLeft: '8px' }}>{ev.until}</span>}
+                  {ev.until && <span style={{ font: 'var(--nv-micro-m)', color: 'var(--nv-cy)', marginLeft: '8px' }}>{ev.until}</span>}
                 </span>
-                {ev.category && <span style={{ marginLeft: 'auto', font: `500 9px ${M}`, letterSpacing: '.06em', padding: '2px 7px', borderRadius: '5px', flex: 'none', color: `rgba(${ev.categoryHue},.9)`, background: `rgba(${ev.categoryHue},.12)` }}>{ev.category.toUpperCase()}</span>}
+                {ev.category && <span style={{ marginLeft: 'auto', font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', padding: '2px 7px', borderRadius: '5px', flex: 'none', color: `rgba(${ev.categoryHue},.9)`, background: `rgba(${ev.categoryHue},.12)` }}>{ev.category.toUpperCase()}</span>}
               </div>
             ))}
           </div>
@@ -246,7 +246,7 @@ export function MissionControl({ v }) {
                 placeholder="Ask Nova… “dentist Thu 2pm”, “move gym to Fri 6pm”, “cancel…”"
                 style={{ flex: 1, minWidth: 0, background: 'var(--nv-well)', border: '1px solid rgba(130,175,255,.16)', borderRadius: '9px', padding: '10px 13px', color: 'var(--nv-ink)', fontSize: '13px', fontFamily: "var(--nv-font-ui)", outline: 'none' }}
               />
-              <Interactive as="span" onClick={v.calCmdBusy ? undefined : v.sendCalCmd} base={{ cursor: v.calCmdBusy ? 'default' : 'pointer', flex: 'none', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '10px 15px', borderRadius: '9px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)', opacity: v.calCmdBusy ? 0.6 : 1 }} hoverStyle={{ filter: 'brightness(1.08)' }}>{v.calCmdBusy ? 'DRAFTING…' : 'DRAFT'}</Interactive>
+              <Interactive as="span" onClick={v.calCmdBusy ? undefined : v.sendCalCmd} base={{ cursor: v.calCmdBusy ? 'default' : 'pointer', flex: 'none', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', padding: '10px 15px', borderRadius: '9px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)', opacity: v.calCmdBusy ? 0.6 : 1 }} hoverStyle={{ filter: 'brightness(1.08)' }}>{v.calCmdBusy ? 'DRAFTING…' : 'DRAFT'}</Interactive>
             </div>
           )}
         </div>
@@ -283,8 +283,8 @@ export function MissionControl({ v }) {
       {v.jobTray.jobs.length > 0 && (
         <section className="nv-pane" style={{ marginTop: mob ? '12px' : '18px', padding: mob ? '14px 16px' : '18px 22px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px' }}>
-            <span style={{ font: `500 9.5px ${M}`, letterSpacing: '.26em', color: 'var(--nv-cy)' }}>NOVA IS WORKING</span>
-            <span style={{ font: `500 8.5px ${M}`, letterSpacing: '.14em', color: 'var(--nv-ink40)' }}>{v.jobTray.jobs.length} IN FLIGHT</span>
+            <span style={{ font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track-wide)', color: 'var(--nv-cy)' }}>NOVA IS WORKING</span>
+            <span style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-ink40)' }}>{v.jobTray.jobs.length} IN FLIGHT</span>
           </div>
           <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {v.jobTray.jobs.map((j) => (
@@ -308,7 +308,7 @@ export function MissionControl({ v }) {
                this screen drops a level so hierarchy stops coming from
                reading order alone. */
             <div className="nv-pane" style={{ padding: mob ? '18px 18px 16px' : '22px 24px 20px', border: '1px solid color-mix(in srgb, var(--nv-gold) 50%, transparent)', boxShadow: '0 0 54px -18px color-mix(in srgb, var(--nv-gold) 75%, transparent)', background: 'linear-gradient(160deg, color-mix(in srgb, var(--nv-gold) 12%, transparent), var(--nv-glass2))' }}>
-              <div style={{ font: `500 8.5px ${M}`, letterSpacing: '.24em', color: 'var(--nv-gold)' }}>THE ONE THING</div>
+              <div style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track-wide)', color: 'var(--nv-gold)' }}>THE ONE THING</div>
               <div style={{ marginTop: '7px', font: `600 ${mob ? '17px' : '19px'}/1.25 ${R}` }}>{v.oneThing.text}</div>
               {v.oneThing.why && <div style={{ marginTop: '6px', font: `500 13px/1.5 ${R}`, color: 'var(--nv-ink60)' }}>{v.oneThing.why}</div>}
               {v.oneThing.mark && (
@@ -322,8 +322,8 @@ export function MissionControl({ v }) {
           {v.planToday && (
             <div className="nv-pane" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', ...(v.oneThing ? { border: 'none', background: 'transparent', boxShadow: 'none', paddingTop: '8px' } : {}) }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', marginBottom: '10px' }}>
-                <span style={{ font: `500 9.5px ${M}`, letterSpacing: '.26em', color: 'var(--nv-gold)' }}>TODAY'S TOP 3</span>
-                <span style={{ font: `500 8.5px ${M}`, letterSpacing: '.14em', color: v.planToday.state === 'pending' ? 'var(--nv-gold)' : v.planToday.state === 'error' ? 'var(--nv-warn)' : 'var(--nv-ink40)' }}>{v.planToday.meta}</span>
+                <span style={{ font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track-wide)', color: 'var(--nv-gold)' }}>TODAY'S TOP 3</span>
+                <span style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: v.planToday.state === 'pending' ? 'var(--nv-gold)' : v.planToday.state === 'error' ? 'var(--nv-warn)' : 'var(--nv-ink40)' }}>{v.planToday.meta}</span>
               </div>
               {v.planToday.state === 'classifying' ? (
                 <div style={{ font: `500 14px/1.6 ${R}`, color: 'var(--nv-ink60)' }}>Nova is drawing up today's top 3…</div>
@@ -340,8 +340,8 @@ export function MissionControl({ v }) {
                       </span>
                       {p.mark && (
                         <span style={{ flex: 'none', display: 'flex', gap: '6px' }}>
-                          <Interactive as="span" onClick={() => p.mark('done')} base={css(`cursor:pointer;font:600 9px ${M};letter-spacing:.12em;padding:3px 7px;border-radius:6px;border:1px solid ${p.outcome === 'done' ? 'var(--nv-good)' : 'rgba(232,236,246,.18)'};color:${p.outcome === 'done' ? 'var(--nv-good)' : 'var(--nv-ink60)'}`)} hoverStyle={{ filter: 'brightness(1.15)' }}>DONE</Interactive>
-                          <Interactive as="span" onClick={() => p.mark('skipped')} base={css(`cursor:pointer;font:600 9px ${M};letter-spacing:.12em;padding:3px 7px;border-radius:6px;border:1px solid ${p.outcome === 'skipped' ? 'var(--nv-warn)' : 'rgba(232,236,246,.18)'};color:${p.outcome === 'skipped' ? 'var(--nv-warn)' : 'var(--nv-ink60)'}`)} hoverStyle={{ filter: 'brightness(1.15)' }}>SKIP</Interactive>
+                          <Interactive as="span" onClick={() => p.mark('done')} base={css(`cursor:pointer;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);padding:3px 7px;border-radius:6px;border:1px solid ${p.outcome === 'done' ? 'var(--nv-good)' : 'rgba(232,236,246,.18)'};color:${p.outcome === 'done' ? 'var(--nv-good)' : 'var(--nv-ink60)'}`)} hoverStyle={{ filter: 'brightness(1.15)' }}>DONE</Interactive>
+                          <Interactive as="span" onClick={() => p.mark('skipped')} base={css(`cursor:pointer;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);padding:3px 7px;border-radius:6px;border:1px solid ${p.outcome === 'skipped' ? 'var(--nv-warn)' : 'rgba(232,236,246,.18)'};color:${p.outcome === 'skipped' ? 'var(--nv-warn)' : 'var(--nv-ink60)'}`)} hoverStyle={{ filter: 'brightness(1.15)' }}>SKIP</Interactive>
                         </span>
                       )}
                     </div>
@@ -366,14 +366,14 @@ export function MissionControl({ v }) {
             <div className="nv-pane" style={{ padding: '20px 24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', marginBottom: '10px' }}>
                 <span style={phH('--nv-cy', '--nv-tsh-head-cy')}>COMMAND DECK</span>
-                <Interactive as="span" onClick={v.commandDeck.onOpen} base={{ cursor: 'pointer', font: `500 8.5px ${M}`, letterSpacing: '.14em', color: 'var(--nv-ink40)' }} hoverStyle={{ color: 'var(--nv-cy)' }}>{v.commandDeck.count} WAITING →</Interactive>
+                <Interactive as="span" onClick={v.commandDeck.onOpen} base={{ cursor: 'pointer', font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-ink40)' }} hoverStyle={{ color: 'var(--nv-cy)' }}>{v.commandDeck.count} WAITING →</Interactive>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {v.commandDeck.items.map((item, i) => (
                   <Interactive key={item.id} onClick={v.commandDeck.onOpen}
                     base={{ display: 'flex', gap: '12px', alignItems: 'baseline', padding: '8px 0', cursor: 'pointer', borderBottom: i < v.commandDeck.items.length - 1 ? '1px solid rgba(130,175,255,.09)' : 'none' }}
                     hoverStyle={{ background: 'rgba(255,255,255,.03)' }}>
-                    <span style={{ font: `500 8.5px ${M}`, letterSpacing: '.1em', color: 'var(--nv-ink40)', flex: 'none', width: '86px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.kindLabel}</span>
+                    <span style={{ font: 'var(--nv-micro-s)', letterSpacing: '.1em', color: 'var(--nv-ink40)', flex: 'none', width: '86px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.kindLabel}</span>
                     <span style={{ font: `500 14px ${R}`, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</span>
                     <span style={{ marginLeft: 'auto', color: 'var(--nv-ink40)', flex: 'none' }}>›</span>
                   </Interactive>
@@ -398,12 +398,12 @@ export function MissionControl({ v }) {
                 <div key={item.key} style={noticedRow(i === v.healthInsightItems.length - 1)}>
                   <span style={{ color: 'var(--nv-gold)', flex: 'none' }}>✦</span>
                   <span>
-                    <span style={{ font: `600 8.5px ${M}`, letterSpacing: '.14em', color: 'rgba(224,178,106,.8)', marginRight: '9px' }}>{item.label}</span>
+                    <span style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'rgba(224,178,106,.8)', marginRight: '9px' }}>{item.label}</span>
                     {item.text}
                     {(item.age || item.talk) && (
                       <span style={{ display: 'flex', gap: '12px', alignItems: 'baseline', marginTop: '5px', flexWrap: 'wrap' }}>
-                        {item.age && <span style={{ font: `500 8.5px ${M}`, letterSpacing: '.12em', color: 'var(--nv-ink40)', whiteSpace: 'nowrap' }}>{item.age.toUpperCase()}</span>}
-                        {item.talk && <Interactive as="span" onClick={item.talk} base={{ cursor: 'pointer', font: `600 8.5px ${M}`, letterSpacing: '.14em', color: 'var(--nv-cy)', whiteSpace: 'nowrap' }} hoverStyle={{ textDecoration: 'underline' }}>TALK IT THROUGH →</Interactive>}
+                        {item.age && <span style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-ink40)', whiteSpace: 'nowrap' }}>{item.age.toUpperCase()}</span>}
+                        {item.talk && <Interactive as="span" onClick={item.talk} base={{ cursor: 'pointer', font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-cy)', whiteSpace: 'nowrap' }} hoverStyle={{ textDecoration: 'underline' }}>TALK IT THROUGH →</Interactive>}
                       </span>
                     )}
                   </span>
@@ -422,7 +422,7 @@ export function MissionControl({ v }) {
           {v.streakBadges.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
               {v.streakBadges.map((b) => (
-                <span key={b.key} style={{ font: `500 9px ${M}`, letterSpacing: '.07em', padding: '5px 11px', borderRadius: '5px', color: `rgb(${b.hue})`, background: `rgba(${b.hue},.07)`, border: `1px solid rgba(${b.hue},.4)` }}>{b.label}</span>
+                <span key={b.key} style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', padding: '5px 11px', borderRadius: '5px', color: `rgb(${b.hue})`, background: `rgba(${b.hue},.07)`, border: `1px solid rgba(${b.hue},.4)` }}>{b.label}</span>
               ))}
             </div>
           )}
@@ -431,12 +431,12 @@ export function MissionControl({ v }) {
 
       <section style={cardsGrid}>
         <Interactive className="nv-pane" onClick={v.goWorkouts} base={{ padding: '14px 20px', borderRadius: '8px', cursor: 'pointer' }} hoverStyle={{ boxShadow: '0 0 28px -10px rgba(89,230,255,.6)' }}>
-          <div style={{ font: `500 8.5px ${M}`, letterSpacing: '.24em', color: 'var(--nv-cy)' }}>{v.workoutCardK}</div>
+          <div style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track-wide)', color: 'var(--nv-cy)' }}>{v.workoutCardK}</div>
           <div style={{ font: `700 20px ${R}`, letterSpacing: '.04em', marginTop: '5px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.workoutCardLabel}</div>
           <div style={{ font: `500 12.5px ${R}`, color: 'var(--nv-ink60)', marginTop: '2px' }}>{v.workoutCardMeta}</div>
         </Interactive>
         <Interactive className="nv-pane" onClick={v.noteCard.onOpen} base={{ padding: '14px 20px', borderRadius: '8px', cursor: 'pointer' }} hoverStyle={{ boxShadow: '0 0 28px -10px rgba(255,122,217,.55)' }}>
-          <div style={{ font: `500 8.5px ${M}`, letterSpacing: '.24em', color: 'var(--nv-mg)' }}>VAULT · LATEST ENTRY</div>
+          <div style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track-wide)', color: 'var(--nv-mg)' }}>VAULT · LATEST ENTRY</div>
           <div style={{ font: `700 20px ${R}`, letterSpacing: '.04em', marginTop: '5px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.noteCard.title}</div>
           <div style={{ font: `500 12.5px ${R}`, color: 'var(--nv-ink60)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.noteCard.meta}</div>
         </Interactive>
@@ -444,7 +444,7 @@ export function MissionControl({ v }) {
 
       {mob && (
         <div className="nv-pane" style={{ marginTop: '12px', padding: '16px 18px' }}>
-          <div style={{ font: `500 8.5px ${M}`, letterSpacing: '.24em', color: 'var(--nv-ink40)' }}>{v.agentsGroupLabel}</div>
+          <div style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track-wide)', color: 'var(--nv-ink40)' }}>{v.agentsGroupLabel}</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
             {v.agents.map((ag) => (
               <span key={ag.name} style={{ display: 'flex', alignItems: 'center', gap: '8px', font: `600 12.5px ${R}`, padding: '7px 12px', borderRadius: '8px', border: '1px solid var(--nv-edge)', color: ag.on ? 'var(--nv-ink)' : 'var(--nv-ink40)' }}>{ag.name}<span style={ag.dotStyle}></span></span>

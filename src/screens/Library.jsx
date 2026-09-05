@@ -29,7 +29,7 @@ function ChipRow({ label, chips }) {
   if (!chips.length) return null;
   return (
     <div style={css('margin-top:14px')}>
-      <div style={{ font: `500 9px ${M}`, letterSpacing: '.2em', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>{label}</div>
+      <div style={{ font: 'var(--nv-micro-s)', letterSpacing: '.2em', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>{label}</div>
       <div style={css('margin-top:7px;display:flex;flex-wrap:wrap;gap:7px')}>
         {chips.map((c) => (
           <Interactive key={c.id} as="span" onClick={c.go}
@@ -49,7 +49,7 @@ function Shelf({ v }) {
       <div style={css('display:flex;align-items:center;gap:10px;flex-wrap:wrap')}>
         {v.libraryChips.map((c) => (
           <Interactive key={c.key} as="span" onClick={c.pick}
-            base={{ cursor: 'pointer', font: `600 9.5px ${M}`, letterSpacing: '.16em', padding: '7px 13px', borderRadius: '9px',
+            base={{ cursor: 'pointer', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', padding: '7px 13px', borderRadius: '9px',
               color: c.active ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)',
               border: c.active ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)',
               background: c.active ? 'var(--nv-acc-bg)' : 'none' }}
@@ -66,7 +66,7 @@ function Shelf({ v }) {
             reasonably reported the feature as missing. Same modal, put where
             the intent actually forms. */}
         <Interactive as="span" onClick={v.openIngestModal}
-          base={`flex:0 0 auto;cursor:pointer;font:600 9.5px ${M};letter-spacing:.16em;padding:8px 14px;border-radius:9px;color:var(--nv-gold);border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);background:color-mix(in srgb, var(--nv-gold) 06%, transparent);white-space:nowrap`}
+          base={`flex:0 0 auto;cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 14px;border-radius:9px;color:var(--nv-gold);border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);background:color-mix(in srgb, var(--nv-gold) 06%, transparent);white-space:nowrap`}
           hoverStyle="background:color-mix(in srgb, var(--nv-gold) 14%, transparent)">
           ＋ ADD SOURCE
         </Interactive>
@@ -92,21 +92,21 @@ function Shelf({ v }) {
                     style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', animation: 'fadeIn .35s ease-out' }} />
                 )}
                 <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  {!b.jacket && <span style={{ font: `600 8px ${M}`, letterSpacing: '.18em', color: 'rgba(255,255,255,.5)' }}>{b.kindLabel}</span>}
+                  {!b.jacket && <span style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track-wide)', color: 'rgba(255,255,255,.5)' }}>{b.kindLabel}</span>}
                   {!b.isBook && <span style={css('font-size:13px;color:rgba(255,255,255,.55)')}>{b.glyph}</span>}
                 </div>
                 {!b.jacket && (
                   <>
                     <div style={{ marginTop: 'auto', font: `400 ${b.isBook ? 17 : 14.5}px ${S}`, lineHeight: 1.18, color: 'rgba(255,255,255,.94)', textShadow: '0 1px 6px rgba(0,0,0,.4)', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{b.title}</div>
-                    {b.author && <div style={{ marginTop: '7px', font: `500 8.5px ${M}`, letterSpacing: '.12em', color: 'rgba(255,255,255,.55)', textTransform: 'uppercase' }}>{b.author}</div>}
+                    {b.author && <div style={{ marginTop: '7px', font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'rgba(255,255,255,.55)', textTransform: 'uppercase' }}>{b.author}</div>}
                   </>
                 )}
               </div>
             </Interactive>
             <div style={css('margin-top:8px;display:flex;align-items:center;gap:7px;min-height:16px')}>
               <ProvenanceBadge p={b.provenance} />
-              {b.conceptCount > 0 && <span style={{ font: `500 8.5px ${M}`, color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>{b.conceptCount} idea{b.conceptCount === 1 ? '' : 's'}</span>}
-              {b.backlinks > 0 && <span style={{ font: `500 8.5px ${M}`, color: 'color-mix(in srgb, var(--nv-ink) 35%, transparent)' }}>· {b.backlinks} echo{b.backlinks === 1 ? '' : 'es'}</span>}
+              {b.conceptCount > 0 && <span style={{ font: 'var(--nv-micro-s)', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>{b.conceptCount} idea{b.conceptCount === 1 ? '' : 's'}</span>}
+              {b.backlinks > 0 && <span style={{ font: 'var(--nv-micro-s)', color: 'color-mix(in srgb, var(--nv-ink) 35%, transparent)' }}>· {b.backlinks} echo{b.backlinks === 1 ? '' : 'es'}</span>}
             </div>
           </div>
         ))}
@@ -120,7 +120,7 @@ function Detail({ v }) {
   return (
     <div style={css('animation:fadeUp .3s ease-out')}>
       <Interactive as="span" onClick={d.close}
-        base={`cursor:pointer;display:inline-flex;align-items:center;gap:7px;font:600 10px ${M};letter-spacing:.18em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent);padding:7px 12px;border:1px solid color-mix(in srgb, var(--nv-ink) 13%, transparent);border-radius:9px`}
+        base={`cursor:pointer;display:inline-flex;align-items:center;gap:7px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 55%, transparent);padding:7px 12px;border:1px solid color-mix(in srgb, var(--nv-ink) 13%, transparent);border-radius:9px`}
         hoverStyle="color:var(--nv-ink);background:rgba(255,255,255,.05)">‹ LIBRARY</Interactive>
 
       {d.loading && <div style={css('margin-top:40px;text-align:center;font-size:13px;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)')}>Opening…</div>}
@@ -137,19 +137,19 @@ function Detail({ v }) {
               )}
               {!d.item.jacket && (
                 <>
-                  <span style={{ font: `600 8px ${M}`, letterSpacing: '.18em', color: 'rgba(255,255,255,.5)' }}>{d.item.kindLabel}</span>
+                  <span style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track-wide)', color: 'rgba(255,255,255,.5)' }}>{d.item.kindLabel}</span>
                   <span style={{ marginTop: 'auto', font: `400 19px ${S}`, lineHeight: 1.16, color: 'rgba(255,255,255,.95)' }}>{d.item.title}</span>
-                  {d.item.author && <span style={{ marginTop: '8px', font: `500 9px ${M}`, letterSpacing: '.12em', color: 'rgba(255,255,255,.55)', textTransform: 'uppercase' }}>{d.item.author}</span>}
+                  {d.item.author && <span style={{ marginTop: '8px', font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'rgba(255,255,255,.55)', textTransform: 'uppercase' }}>{d.item.author}</span>}
                 </>
               )}
             </div>
             <div style={css('flex:1;min-width:250px')}>
               <h2 style={{ margin: 0, font: `400 30px ${S}`, lineHeight: 1.12 }}>{d.item.title}</h2>
-              {d.item.author && <div style={{ marginTop: '6px', font: `500 11px ${M}`, letterSpacing: '.14em', color: 'color-mix(in srgb, var(--nv-ink) 60%, transparent)', textTransform: 'uppercase' }}>{d.item.author}</div>}
+              {d.item.author && <div style={{ marginTop: '6px', font: 'var(--nv-micro-l)', letterSpacing: 'var(--nv-micro-track)', color: 'color-mix(in srgb, var(--nv-ink) 60%, transparent)', textTransform: 'uppercase' }}>{d.item.author}</div>}
               <div style={css('margin-top:12px;display:flex;align-items:center;gap:9px;flex-wrap:wrap')}>
                 <ProvenanceBadge p={d.item.provenance} big />
-                {d.item.updated && <span style={{ font: `500 9px ${M}`, color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}>UPDATED {d.item.updated}</span>}
-                {d.backlinkCount > 0 && <span style={{ font: `500 9px ${M}`, color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}>· ECHOED BY {d.backlinkCount} PAGE{d.backlinkCount === 1 ? '' : 'S'}</span>}
+                {d.item.updated && <span style={{ font: 'var(--nv-micro-s)', color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}>UPDATED {d.item.updated}</span>}
+                {d.backlinkCount > 0 && <span style={{ font: 'var(--nv-micro-s)', color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}>· ECHOED BY {d.backlinkCount} PAGE{d.backlinkCount === 1 ? '' : 'S'}</span>}
               </div>
               {d.item.provenanceNote && (
                 <div style={css('margin-top:10px;font-size:12px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 55%, transparent);max-width:520px')}>{d.item.provenanceNote}</div>
@@ -157,16 +157,16 @@ function Detail({ v }) {
               <div style={css('margin-top:12px;display:flex;gap:9px;flex-wrap:wrap')}>
                 {d.item.url && (
                   <Interactive as="a" href={d.item.url} target="_blank" rel="noreferrer"
-                    base={`cursor:pointer;text-decoration:none;font:600 9.5px ${M};letter-spacing:.12em;color:var(--nv-cy);padding:6px 11px;border:1px solid color-mix(in srgb, var(--nv-cy) 35%, transparent);border-radius:8px`}
+                    base={`cursor:pointer;text-decoration:none;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-cy);padding:6px 11px;border:1px solid color-mix(in srgb, var(--nv-cy) 35%, transparent);border-radius:8px`}
                     hoverStyle="background:color-mix(in srgb, var(--nv-cy) 10%, transparent)">OPEN SOURCE ↗</Interactive>
                 )}
                 {d.raw && (
                   <Interactive as="span" onClick={d.raw.open || undefined}
-                    base={`cursor:${d.raw.open ? 'pointer' : 'default'};font:600 9.5px ${M};letter-spacing:.12em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent);padding:6px 11px;border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:8px`}
+                    base={`cursor:${d.raw.open ? 'pointer' : 'default'};font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 55%, transparent);padding:6px 11px;border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:8px`}
                     hoverStyle={d.raw.open ? 'background:rgba(255,255,255,.06)' : undefined}>⧉ ORIGINAL · {d.raw.label}</Interactive>
                 )}
                 <Interactive as="span" onClick={d.openGalaxy}
-                  base={`cursor:pointer;font:600 9.5px ${M};letter-spacing:.12em;color:var(--nv-vi);padding:6px 11px;border:1px solid color-mix(in srgb, var(--nv-vi) 35%, transparent);border-radius:8px`}
+                  base={`cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-vi);padding:6px 11px;border:1px solid color-mix(in srgb, var(--nv-vi) 35%, transparent);border-radius:8px`}
                   hoverStyle="background:color-mix(in srgb, var(--nv-vi) 10%, transparent)">✦ SEE IN GALAXY</Interactive>
               </div>
 
@@ -179,7 +179,7 @@ function Detail({ v }) {
 
           {d.related.length > 0 && (
             <div style={css('margin-top:30px')}>
-              <div style={{ font: `500 9.5px ${M}`, letterSpacing: '.22em', color: 'var(--nv-gold)' }}>CONNECTED IN YOUR SECOND BRAIN</div>
+              <div style={{ font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track-wide)', color: 'var(--nv-gold)' }}>CONNECTED IN YOUR SECOND BRAIN</div>
               <div style={css('margin-top:12px;display:flex;gap:12px;overflow-x:auto;padding-bottom:8px')}>
                 {d.related.map((r, i) => (
                   <Interactive key={r.id} onClick={r.open}
@@ -187,7 +187,7 @@ function Detail({ v }) {
                     hoverStyle={{ transform: 'translateY(-4px)' }}>
                     <div style={{ ...r.coverStyle, borderRadius: '10px', border: '1px solid rgba(255,255,255,.09)', padding: '12px', minHeight: '76px', display: 'flex', flexDirection: 'column' }}>
                       <span style={{ font: `400 14px ${S}`, lineHeight: 1.2, color: 'rgba(255,255,255,.93)' }}>{r.title}</span>
-                      <span style={{ marginTop: 'auto', paddingTop: '8px', font: `500 8.5px ${M}`, letterSpacing: '.06em', color: 'rgba(255,255,255,.55)' }}>shares: {r.shared}</span>
+                      <span style={{ marginTop: 'auto', paddingTop: '8px', font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'rgba(255,255,255,.55)' }}>shares: {r.shared}</span>
                     </div>
                   </Interactive>
                 ))}
@@ -196,7 +196,7 @@ function Detail({ v }) {
           )}
 
           <div style={css('margin-top:30px;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);background:var(--nv-glass);padding:22px 24px')}>
-            <div style={{ font: `500 9.5px ${M}`, letterSpacing: '.22em', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>WHAT NOVA HOLDS</div>
+            <div style={{ font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track-wide)', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>WHAT NOVA HOLDS</div>
             <div style={css('margin-top:12px;font-size:13.5px;line-height:1.75')}>
               <ChatMarkdown text={d.body} />
             </div>
@@ -212,11 +212,11 @@ export function Library({ v }) {
     <div style={v.wrapLibrary} data-screen-label="Library">
       <div style={css('display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px')}>
         <div style={css('display:flex;align-items:center;gap:14px')}>
-          <span style={css('font:500 11px var(--nv-font-mono);letter-spacing:.14em;color:var(--nv-acc)')}>XVI.</span>
+          <span style={css('font:var(--nv-micro-l);letter-spacing:var(--nv-micro-track);color:var(--nv-acc)')}>XVI.</span>
           <span style={css('width:50px;height:1px;background:linear-gradient(90deg,var(--nv-acc-border),transparent)')}></span>
-          <span style={css('font:500 10px var(--nv-font-mono);letter-spacing:.32em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)')}>THE LIBRARY</span>
+          <span style={css('font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)')}>THE LIBRARY</span>
         </div>
-        <span style={{ font: `400 10px ${M}`, letterSpacing: '.12em', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>{v.libraryHeaderLabel}</span>
+        <span style={{ font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>{v.libraryHeaderLabel}</span>
       </div>
       <div style={css('margin-top:18px')}>
         {v.libraryDetail ? <Detail v={v} /> : <Shelf v={v} />}

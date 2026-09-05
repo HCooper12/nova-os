@@ -25,8 +25,8 @@ export function SwipeRow({ right, left, children, style }) {
           padding: '0 18px', borderRadius: '12px',
           background: `linear-gradient(90deg, color-mix(in srgb, ${right?.tone || 'var(--nv-good)'} 26%, transparent), transparent 42%, transparent 58%, color-mix(in srgb, ${left?.tone || 'var(--nv-warn)'} 26%, transparent))`,
         }}>
-        <span style={css(`font:600 10px var(--nv-font-mono);letter-spacing:.14em;color:${right?.tone || 'var(--nv-good)'}`)}>{right ? `${right.icon || '✓'} ${right.label}` : ''}</span>
-        <span style={css(`font:600 10px var(--nv-font-mono);letter-spacing:.14em;color:${left?.tone || 'var(--nv-warn)'}`)}>{left ? `${left.label} ${left.icon || '✕'}` : ''}</span>
+        <span style={css(`font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:${right?.tone || 'var(--nv-good)'}`)}>{right ? `${right.icon || '✓'} ${right.label}` : ''}</span>
+        <span style={css(`font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:${left?.tone || 'var(--nv-warn)'}`)}>{left ? `${left.label} ${left.icon || '✕'}` : ''}</span>
       </div>
       <div ref={swipe.ref} {...swipe.handlers} style={{ position: 'relative', willChange: 'transform', touchAction: 'pan-y' }}>
         {children}

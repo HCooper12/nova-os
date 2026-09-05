@@ -39,8 +39,8 @@ function ChipList({ label, items, color, hint, resolving }) {
   return (
     <div style={css('margin-top:12px')}>
       <div style={css('display:flex;justify-content:space-between;align-items:baseline;gap:10px')}>
-        <span style={{ font: `500 9px ${M}`, letterSpacing: '.2em', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>{label}</span>
-        {hint && <span style={{ font: `500 8.5px ${M}`, letterSpacing: '.14em', color: 'color-mix(in srgb, var(--nv-ink) 32%, transparent)' }}>{hint}</span>}
+        <span style={{ font: 'var(--nv-micro-s)', letterSpacing: '.2em', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>{label}</span>
+        {hint && <span style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'color-mix(in srgb, var(--nv-ink) 32%, transparent)' }}>{hint}</span>}
       </div>
       <div style={css('margin-top:7px;display:flex;flex-wrap:wrap;gap:7px')}>
         {items.map((it, i) => {
@@ -50,10 +50,10 @@ function ChipList({ label, items, color, hint, resolving }) {
             <span key={i} onClick={it.resolve ? () => setOpen(isOpen ? null : it.text) : undefined}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', font: `450 11.5px ${UI}`, padding: '5px 11px', minHeight: '30px', borderRadius: '8px', color, border: `1px solid color-mix(in srgb, ${color} ${isOpen ? 55 : 28}%, transparent)`, background: `color-mix(in srgb, ${color} 06%, transparent)`, lineHeight: 1.4, cursor: it.resolve ? 'pointer' : 'default', opacity: busy ? 0.6 : 1 }}>
               {it.text}
-              {it.age && <span style={{ font: `500 9px ${M}`, letterSpacing: '.08em', color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}>· {it.age}</span>}
+              {it.age && <span style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}>· {it.age}</span>}
               {isOpen && it.resolve && (
                 <Interactive as="span" onClick={(e) => { e.stopPropagation(); if (!busy) it.resolve(); }}
-                  base={css(`font:600 9px ${M};letter-spacing:.14em;padding:3px 8px;border-radius:6px;border:1px solid var(--nv-good, #5aa87c);color:var(--nv-good, #5aa87c)`)}
+                  base={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);padding:3px 8px;border-radius:6px;border:1px solid var(--nv-good, #5aa87c);color:var(--nv-good, #5aa87c)`)}
                   hoverStyle={{ filter: 'brightness(1.15)' }}>{busy ? 'MARKING…' : 'HANDLED'}</Interactive>
               )}
             </span>
@@ -70,19 +70,19 @@ export function Leader({ v }) {
     <div style={v.wrapLibrary} data-screen-label="Leader">
       <div style={css('display:flex;align-items:baseline;gap:12px;flex-wrap:wrap')}>
         <h1 style={{ margin: 0, font: `400 30px ${S}` }}>Leader</h1>
-        <span style={{ font: `500 9.5px ${M}`, letterSpacing: '.2em', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>LEADERSHIP · DAILY PRACTICE</span>
-        {v.leaderResearchMeta && <span style={{ marginLeft: 'auto', font: `400 10.5px ${M}`, color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}>{v.leaderResearchMeta}</span>}
+        <span style={{ font: 'var(--nv-micro-m)', letterSpacing: '.2em', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>LEADERSHIP · DAILY PRACTICE</span>
+        {v.leaderResearchMeta && <span style={{ marginLeft: 'auto', font: 'var(--nv-micro-m)', color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}>{v.leaderResearchMeta}</span>}
       </div>
 
       {/* the day's idea — the same receipt the homepage card and brief read */}
       {v.leaderToday ? (
         <div style={css('margin-top:18px;border:1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent);border-radius:var(--nv-radius);background:color-mix(in srgb, var(--nv-gold) 05%, transparent);padding:18px 20px')}>
-          <span style={{ font: `600 9.5px ${M}`, letterSpacing: '.2em', color: 'var(--nv-gold)' }}>{v.leaderToday.chip}</span>
+          <span style={{ font: 'var(--nv-micro-m)', letterSpacing: '.2em', color: 'var(--nv-gold)' }}>{v.leaderToday.chip}</span>
           <div style={{ marginTop: '8px', font: `400 24px/1.25 ${S}`, textWrap: 'pretty' }}>{v.leaderToday.title}</div>
           <p style={{ margin: '9px 0 0', font: `450 14px/1.6 ${UI}` }}>{v.leaderToday.line}</p>
           {v.leaderToday.why && <p style={{ margin: '8px 0 0', font: `450 12.5px/1.5 ${UI}`, color: 'color-mix(in srgb, var(--nv-ink) 55%, transparent)' }}>{v.leaderToday.why}</p>}
           {v.leaderToday.refs.length > 0 && (
-            <div style={{ marginTop: '9px', font: `400 10.5px ${M}`, color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}>
+            <div style={{ marginTop: '9px', font: 'var(--nv-micro-m)', color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}>
               from: {v.leaderToday.refs.join(' · ')}
             </div>
           )}
@@ -99,10 +99,10 @@ export function Leader({ v }) {
 
       {/* the sit-down */}
       <div style={css('margin-top:20px;display:flex;align-items:center;gap:10px')}>
-        <span style={{ font: `500 9.5px ${M}`, letterSpacing: '.2em', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>THE SIT-DOWN</span>
+        <span style={{ font: 'var(--nv-micro-m)', letterSpacing: '.2em', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>THE SIT-DOWN</span>
         {v.leaderContinuing && (
           <Interactive as="span" onClick={v.newLeaderChat}
-            base={{ cursor: 'pointer', font: `500 9px ${M}`, letterSpacing: '.1em', padding: '4px 9px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', color: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}
+            base={{ cursor: 'pointer', font: 'var(--nv-micro-s)', letterSpacing: '.1em', padding: '4px 9px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', color: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}
             hoverStyle="color:var(--nv-ink)">NEW CONVERSATION</Interactive>
         )}
       </div>
@@ -120,7 +120,7 @@ export function Leader({ v }) {
             </div>
           </div>
         ))}
-        {v.leaderBusy && <div style={css('color:var(--nv-gold);font:400 11px var(--nv-font-mono)')}>» LEADER thinking it through…▍</div>}
+        {v.leaderBusy && <div style={css('color:var(--nv-gold);font:var(--nv-micro-l)')}>» LEADER thinking it through…▍</div>}
       </div>
       <div style={css('margin-top:10px;display:flex;gap:9px')}>
         <Interactive as="input" value={v.leaderInput} onChange={v.setLeaderInput} onKeyDown={v.leaderKey}
@@ -135,12 +135,12 @@ export function Leader({ v }) {
       {/* the trail — this week's ideas, repetition made visible */}
       {v.leaderRecent.length > 0 && (
         <div style={css('margin-top:22px')}>
-          <div style={{ font: `500 9px ${M}`, letterSpacing: '.2em', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>RECENT IDEAS</div>
+          <div style={{ font: 'var(--nv-micro-s)', letterSpacing: '.2em', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>RECENT IDEAS</div>
           <div style={css('margin-top:8px;display:flex;flex-direction:column;gap:6px')}>
             {v.leaderRecent.map((d) => (
               <div key={d.date} style={css('display:flex;gap:10px;align-items:baseline;font-size:12.5px')}>
-                <span style={{ font: `400 10.5px ${M}`, color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)', flex: 'none' }}>{d.date}</span>
-                <span style={{ font: `600 8.5px ${M}`, letterSpacing: '.12em', color: 'var(--nv-gold)', flex: 'none' }}>{d.chip}</span>
+                <span style={{ font: 'var(--nv-micro-m)', color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)', flex: 'none' }}>{d.date}</span>
+                <span style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-gold)', flex: 'none' }}>{d.chip}</span>
                 <span style={{ color: 'color-mix(in srgb, var(--nv-ink) 75%, transparent)' }}>{d.title}</span>
               </div>
             ))}

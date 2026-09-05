@@ -46,11 +46,11 @@ function Tile({ label, value, count, format, sub, accent }) {
   const numStyle = css(`font:300 34px ${M};color:${accent || dim(85)};font-variant-numeric:tabular-nums`);
   return (
     <div style={css("display:flex;flex-direction:column;align-items:center;gap:6px;min-width:120px")}>
-      <span style={css(`font:500 10px ${M};letter-spacing:.3em;color:${dim(32)}`)}>{label}</span>
+      <span style={css(`font:var(--nv-micro-m);letter-spacing:.3em;color:${dim(32)}`)}>{label}</span>
       {count !== undefined
         ? <CountUp value={count} format={format} style={numStyle} />
         : <span style={numStyle}>{value ?? '—'}</span>}
-      {sub && <span style={css(`font:400 10px ${M};color:${dim(30)}`)}>{sub}</span>}
+      {sub && <span style={css(`font:var(--nv-micro-m);color:${dim(30)}`)}>{sub}</span>}
     </div>
   );
 }
@@ -81,7 +81,7 @@ export function Ambient({ v }) {
         <div style={css(`font:200 96px/1 ${M};letter-spacing:.04em;color:${dim(92)};font-variant-numeric:tabular-nums`)}>
           {hh}<span style={css(`color:${dim(35)};animation:dotBlink 2s infinite`)}>:</span>{mm}
         </div>
-        <div style={css(`font:500 11px ${M};letter-spacing:.42em;color:${dim(35)}`)}>{dateLine}</div>
+        <div style={css(`font:var(--nv-micro-l);letter-spacing:.42em;color:${dim(35)}`)}>{dateLine}</div>
       </div>
 
       <div style={css("display:flex;flex-direction:column;align-items:center;gap:22px")}>
@@ -105,7 +105,7 @@ export function Ambient({ v }) {
           <div style={css("display:flex;gap:30px;flex-wrap:wrap;justify-content:center")}>
             {v.ambientObjectives.map((o) => (
               <div key={o.key} style={css("display:flex;align-items:baseline;gap:9px")}>
-                <span style={css(`font:500 9px ${M};letter-spacing:.26em;color:${dim(30)}`)}>{o.label}</span>
+                <span style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:${dim(30)}`)}>{o.label}</span>
                 <span style={css(`font:300 16px ${M};color:${dim(70)};font-variant-numeric:tabular-nums`)}>{o.value}</span>
               </div>
             ))}
@@ -117,7 +117,7 @@ export function Ambient({ v }) {
       {/* the sync age, faint, in the TOP corner — the bottom edge belongs to
           the pulse strip at phone width (measured 3 Sep) — and plain when old */}
       {v.ambientSyncMin != null && (
-        <div style={css(`position:absolute;right:calc(18px + env(safe-area-inset-right));top:calc(16px + env(safe-area-inset-top));font:400 9px ${M};letter-spacing:.14em;color:${stale ? 'var(--nv-warn)' : dim(24)}`)}>
+        <div style={css(`position:absolute;right:calc(18px + env(safe-area-inset-right));top:calc(16px + env(safe-area-inset-top));font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:${stale ? 'var(--nv-warn)' : dim(24)}`)}>
           {stale ? `LAST SYNCED ${v.ambientSyncMin}M AGO` : v.ambientSyncMin === 0 ? 'SYNCED JUST NOW' : `SYNCED ${v.ambientSyncMin}M AGO`}
         </div>
       )}
@@ -134,8 +134,8 @@ function StreamStrip({ items }) {
     <div style={css("display:flex;flex-direction:column;align-items:center;gap:3px;max-width:720px;width:100%")}>
       {items.slice(0, 3).map((e) => (
         <div key={e.id} style={css("display:flex;align-items:baseline;gap:10px;max-width:100%")}>
-          <span style={css(`flex:none;font:400 8.5px ${M};color:${dim(24)};font-variant-numeric:tabular-nums`)}>{e.when}</span>
-          <span style={css(`font:400 10.5px ${M};color:${dim(38)};overflow:hidden;text-overflow:ellipsis;white-space:nowrap`)}>{e.label}</span>
+          <span style={css(`flex:none;font:var(--nv-micro-s);color:${dim(24)};font-variant-numeric:tabular-nums`)}>{e.when}</span>
+          <span style={css(`font:var(--nv-micro-m);color:${dim(38)};overflow:hidden;text-overflow:ellipsis;white-space:nowrap`)}>{e.label}</span>
         </div>
       ))}
     </div>
@@ -155,9 +155,9 @@ function PulseStrip({ items }) {
   const item = items[idx % items.length];
   return (
     <div key={idx} style={css(`display:flex;align-items:baseline;gap:10px;max-width:720px;padding:0 10px;animation:fadeUp .6s ease-out`)}>
-      <span style={css(`flex:none;font:500 8.5px ${M};letter-spacing:.22em;color:${dim(30)}`)}>PULSE · {item.topic.split(' ').slice(0, 3).join(' ').toUpperCase()}</span>
+      <span style={css(`flex:none;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:${dim(30)}`)}>PULSE · {item.topic.split(' ').slice(0, 3).join(' ').toUpperCase()}</span>
       <span style={css(`font:400 12px ${M};color:${dim(55)};overflow:hidden;text-overflow:ellipsis;white-space:nowrap`)}>{item.title}</span>
-      <span style={css(`flex:none;font:400 8.5px ${M};color:${dim(28)}`)}>{item.source}</span>
+      <span style={css(`flex:none;font:var(--nv-micro-s);color:${dim(28)}`)}>{item.source}</span>
     </div>
   );
 }

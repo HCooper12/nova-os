@@ -17,10 +17,10 @@ import { Eyebrow, TextAction, Chip, Tag, Meta, Segmented, isAppleStyle } from '.
 const cap = (s) => { const t = String(s || '').toLowerCase(); return t.charAt(0).toUpperCase() + t.slice(1); };
 const btn = (bg, ink, extra = {}) => (isAppleStyle()
   ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '11px 20px', borderRadius: '999px', background: bg, color: ink, ...extra }
-  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 10.5px var(--nv-font-mono)', letterSpacing: '.08em', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
+  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
 const outline = (color, extra = {}) => (isAppleStyle()
   ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 14px var(--nv-font-ui)', padding: '10px 16px', borderRadius: '999px', background: `color-mix(in srgb, ${color} 12%, transparent)`, color, border: '1px solid transparent', ...extra }
-  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '500 10.5px var(--nv-font-mono)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', border: `1px solid color-mix(in srgb, ${color} 35%, transparent)`, color, background: `color-mix(in srgb, ${color} 06%, transparent)`, ...extra });
+  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-m)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', border: `1px solid color-mix(in srgb, ${color} 35%, transparent)`, color, background: `color-mix(in srgb, ${color} 06%, transparent)`, ...extra });
 
 // Inputs render at 16px (global rule in index.css) so iOS never zoom-jumps on
 // focus — widths/padding here are sized for that, not the old 11–12px text.
@@ -80,7 +80,7 @@ function ExercisePicker({ v }) {
             as="span"
             onClick={() => v.setExercisePickerMuscle(m)}
             base={{
-              cursor: 'pointer', font: "500 9.5px var(--nv-font-mono)", padding: '5px 10px', borderRadius: '6px',
+              cursor: 'pointer', font: 'var(--nv-micro-m)', padding: '5px 10px', borderRadius: '6px',
               border: m === v.exercisePickerMuscle ? '1px solid color-mix(in srgb, var(--nv-cy) 50%, transparent)' : '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)',
               color: m === v.exercisePickerMuscle ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)',
               background: m === v.exercisePickerMuscle ? 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' : 'transparent',
@@ -93,7 +93,7 @@ function ExercisePicker({ v }) {
         {v.exercisePickerResults.map((r) => (
           <Interactive key={r.id} as="div" onClick={r.onAdd} onLongPress={r.onOpen} title="Tap to add · hold to see the lift" base="cursor:pointer;display:flex;justify-content:space-between;padding:8px 6px;border-radius:6px" hoverStyle="background:rgba(255,255,255,.04)">
             <span style={css("font-size:12.5px")}>{r.name}</span>
-            <span style={css("font:400 9.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>{r.muscleGroup}</span>
+            <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>{r.muscleGroup}</span>
           </Interactive>
         ))}
         {v.exercisePickerResults.length === 0 && !v.exercisePickerShowCreate && (
@@ -121,7 +121,7 @@ function ExercisePicker({ v }) {
           <Interactive
             as="span"
             onClick={v.exercisePickerCreateMuscle ? v.createExercise : undefined}
-            base={{ cursor: v.exercisePickerCreateMuscle ? 'pointer' : 'default', font: "500 10px var(--nv-font-mono)", padding: '6px 12px', borderRadius: '6px', background: 'var(--nv-gold)', color: '#1a1322', opacity: v.exercisePickerCreateMuscle ? 1 : .4 }}
+            base={{ cursor: v.exercisePickerCreateMuscle ? 'pointer' : 'default', font: 'var(--nv-micro-m)', padding: '6px 12px', borderRadius: '6px', background: 'var(--nv-gold)', color: '#1a1322', opacity: v.exercisePickerCreateMuscle ? 1 : .4 }}
             hoverStyle={v.exercisePickerCreateMuscle ? { background: 'color-mix(in srgb, var(--nv-gold) 85%, white)' } : {}}
           >ADD</Interactive>
         </div>
@@ -198,7 +198,7 @@ function RoutinesView({ v }) {
                 >
                   {d.options.map((o) => <option key={o.value || 'rest'} value={o.value} style={{ background: '#141019', color: 'var(--nv-ink)' }}>{o.label}</option>)}
                 </select>
-                {d.carryoverNote && <span style={css("font:500 10px var(--nv-font-mono);color:var(--nv-gold)")}>{d.carryoverNote}</span>}
+                {d.carryoverNote && <span style={css("font:var(--nv-micro-m);color:var(--nv-gold)")}>{d.carryoverNote}</span>}
               </span>
             </div>
           ))}
@@ -216,7 +216,7 @@ function RoutinesView({ v }) {
               >
                 {d.options.map((o) => <option key={o.value || 'rest'} value={o.value} style={{ background: '#141019', color: 'var(--nv-ink)' }}>{o.label}</option>)}
               </select>
-              {d.carryoverNote && <div style={css("margin-top:3px;font:500 8px var(--nv-font-mono);color:var(--nv-gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis")} title={d.carryoverNote}>{d.carryoverNote}</div>}
+              {d.carryoverNote && <div style={css("margin-top:3px;font:var(--nv-micro-s);color:var(--nv-gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis")} title={d.carryoverNote}>{d.carryoverNote}</div>}
             </div>
           ))}
         </div>
@@ -263,7 +263,7 @@ function RoutinesView({ v }) {
           <div style={css("margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap")}>
             <span style={css("font-size:11.5px;color:var(--nv-ink60)")}>Push to</span>
             <select value={v.finishMissed.date} onChange={v.finishMissed.setDate}
-              style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 11px var(--nv-font-mono)", padding: '9px 10px', outline: 'none' }}>
+              style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: 'var(--nv-micro-l)', padding: '9px 10px', outline: 'none' }}>
               {v.finishMissed.dayOptions.map((o) => <option key={o.value} value={o.value} style={{ background: '#141019' }}>{o.label}</option>)}
             </select>
             <Interactive as="span" onClick={v.finishMissed.push}
@@ -298,7 +298,7 @@ function RoutinesView({ v }) {
                   <div style={css("margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap")}>
                     <span style={css("font-size:11px;color:var(--nv-ink60)")}>Move to</span>
                     <select defaultValue="" onChange={c.reschedule}
-                      style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 11px var(--nv-font-mono)", padding: '8px 10px', outline: 'none' }}>
+                      style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: 'var(--nv-micro-l)', padding: '8px 10px', outline: 'none' }}>
                       <option value="" disabled style={{ background: '#141019' }}>Pick a day…</option>
                       {c.dayOptions.map((o) => <option key={o.value} value={o.value} style={{ background: '#141019' }}>{o.label}</option>)}
                     </select>
@@ -375,7 +375,7 @@ function RoutinesView({ v }) {
         {!v.quickPlan ? (
           <div style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
             <select value={v.quickMinutes} onChange={v.setQuickMinutes}
-              style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 11px var(--nv-font-mono)", padding: '9px 10px', outline: 'none' }}>
+              style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: 'var(--nv-micro-l)', padding: '9px 10px', outline: 'none' }}>
               {['20', '30', '45', '60', '90'].map((m) => <option key={m} value={m} style={{ background: '#141019' }}>{m} MIN</option>)}
             </select>
             <input value={v.quickNote} onChange={v.setQuickNote} placeholder="Optional — “hotel gym, dumbbells only”, “feeling beat”, “arms”…"
@@ -442,7 +442,7 @@ function RoutineDetailView({ v }) {
                 <Meta as="div" tone="faint" style={{ marginTop: '2px' }}>{e.muscleGroup} · last: {e.lastLabel}</Meta>
                 {e.coachEvidence && <Meta as="div" tone="color-mix(in srgb, var(--nv-cy) 70%, transparent)" style={{ marginTop: '2px' }}>Coach: {e.coachEvidence} — next session prefills the step up.</Meta>}
               </div>
-              <div style={css("display:flex;align-items:center;gap:4px;font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>
+              <div style={css("display:flex;align-items:center;gap:4px;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>
                 <input type="number" inputMode="numeric" min="1" defaultValue={e.targetSets} onBlur={e.onTargetSetsBlur} style={numInputStyle} />
                 <span>×</span>
                 <input type="number" inputMode="numeric" min="1" defaultValue={e.targetRepsLow} onBlur={e.onTargetLowBlur} style={numInputStyle} />
@@ -519,7 +519,7 @@ function SessionView({ v }) {
                 so it describes the number he is actually looking at. Mobility
                 says so plainly, because it is deliberately not volume. */}
             {!e.skipped && (e.muscleGroup || e.lastLabel) && (
-              <div style={css("margin-top:6px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;font:400 10.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>
+              <div style={css("margin-top:6px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>
                 {e.muscleGroup && (
                   <span
                     title={e.muscleGroup === 'Mobility'
@@ -557,7 +557,7 @@ function SessionView({ v }) {
               </div>
               {e.sets.map((s, i) => (
                 <div key={i} style={{ display: 'grid', gridTemplateColumns: setCols(e.isBodyweight), gap: '6px', alignItems: 'center' }}>
-                  <span style={{ width: '20px', flex: 'none', font: "400 11px var(--nv-font-mono)", color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}>{i + 1}</span>
+                  <span style={{ width: '20px', flex: 'none', font: 'var(--nv-micro-l)', color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}>{i + 1}</span>
                   {/* gym-proof: number pad instead of the full keyboard, and the
                       tick — the app's most-repeated tap — at a 40px target */}
                   {!e.isBodyweight && <LocalInput type="number" inputMode="decimal" step="0.5" min="0" value={s.weight} onChange={s.onWeight} submitOnEnter={false} style={{ ...setInputStyle, width: '100%', minWidth: 0 }} />}
@@ -799,14 +799,14 @@ function MockWorkouts({ v }) {
       <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Push day, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>week six.</span></h1>
       <div style={css("display:flex;gap:8px;margin-top:18px;overflow-x:auto;padding-bottom:4px")}>
         {v.week.map((d) => (
-          <div key={d.day} style={d.style}><div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.14em")}>{d.day}</div><div style={css("margin-top:4px;font-size:11.5px")}>{d.label}</div></div>
+          <div key={d.day} style={d.style}><div style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track)")}>{d.day}</div><div style={css("margin-top:4px;font-size:11.5px")}>{d.label}</div></div>
         ))}
       </div>
       <div style={v.gridWork}>
         <div style={css("border:1px solid var(--nv-edge);border-radius:var(--nv-radius);padding:20px 24px;background:var(--nv-glass);box-shadow:inset 0 1px 0 var(--nv-spec),0 14px 34px -20px rgba(0,0,0,.9)")}>
           <div style={css("display:flex;justify-content:space-between;align-items:baseline")}>
             <span style={css("font:italic 400 20px var(--nv-font-serif);color:var(--nv-gold)")}>Today's session</span>
-            <span style={css("font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.planMeta}</span>
+            <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.planMeta}</span>
           </div>
           {v.planNoteOn && (
             <div style={css("margin-top:12px;display:flex;align-items:center;gap:9px;font-size:12px;color:var(--nv-cy);border:1px solid color-mix(in srgb, var(--nv-cy) 25%, transparent);border-radius:8px;padding:8px 12px;background:color-mix(in srgb, var(--nv-cy) 05%, transparent);animation:fadeUp .3s ease-out")}><span>◆</span><span>{v.planNote}</span></div>
@@ -814,9 +814,9 @@ function MockWorkouts({ v }) {
           <div style={css("margin-top:14px;display:flex;flex-direction:column")}>
             {v.plan.map((ex) => (
               <div key={ex.idx} style={css("display:flex;align-items:baseline;gap:14px;padding:11px 0;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent)")}>
-                <span style={css("font:500 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-gold) 60%, transparent);width:20px")}>{ex.idx}</span>
+                <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-gold) 60%, transparent);width:20px")}>{ex.idx}</span>
                 <span onClick={ex.onOpen} title="See the lift — anatomy, form, history" style={css("font-size:14px;font-weight:500;cursor:pointer;text-decoration:underline dotted color-mix(in srgb, var(--nv-cy) 45%, transparent);text-underline-offset:3px")}>{ex.name}</span>
-                {ex.pr && <span style={css("font:500 9px var(--nv-font-mono);letter-spacing:.1em;color:var(--nv-gold);border:1px solid color-mix(in srgb, var(--nv-gold) 35%, transparent);border-radius:5px;padding:2px 7px")}>PR WATCH</span>}
+                {ex.pr && <span style={css("font:var(--nv-micro-s);letter-spacing:.1em;color:var(--nv-gold);border:1px solid color-mix(in srgb, var(--nv-gold) 35%, transparent);border-radius:5px;padding:2px 7px")}>PR WATCH</span>}
                 <span style={css("margin-left:auto;font:400 12px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 60%, transparent);font-variant-numeric:tabular-nums")}>{ex.scheme}</span>
               </div>
             ))}
@@ -825,7 +825,7 @@ function MockWorkouts({ v }) {
         <div style={css("border:1px solid color-mix(in srgb, var(--nv-cy) 18%, transparent);border-radius:14px;padding:20px 22px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-cy) 05%, transparent),color-mix(in srgb, var(--nv-cy) 01%, transparent));box-shadow:inset 0 1px 0 var(--nv-spec);display:flex;flex-direction:column;min-height:420px")}>
           <div style={css("display:flex;justify-content:space-between;align-items:baseline")}>
             <span style={css("font:italic 400 20px var(--nv-font-serif);color:var(--nv-cy)")}>Ask Coach</span>
-            <span style={css("font:400 9px var(--nv-font-mono);letter-spacing:.18em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>EDITS WRITE BACK TO VAULT</span>
+            <span style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>EDITS WRITE BACK TO VAULT</span>
           </div>
           <div ref={demoLogRef} style={css("flex:1;overflow-y:auto;margin-top:14px;display:flex;flex-direction:column;gap:12px")}>
             {v.coachMsgs.map((m, i) => (
@@ -842,7 +842,7 @@ function MockWorkouts({ v }) {
               base="flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
               focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)"
             />
-            <Interactive as="span" onClick={v.sendCoach} base="cursor:pointer;display:flex;align-items:center;font:500 11px var(--nv-font-mono);padding:0 16px;border-radius:9px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">SEND</Interactive>
+            <Interactive as="span" onClick={v.sendCoach} base="cursor:pointer;display:flex;align-items:center;font:var(--nv-micro-l);padding:0 16px;border-radius:9px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">SEND</Interactive>
           </div>
         </div>
       </div>
@@ -875,7 +875,7 @@ function GoalsCoachPane({ v }) {
               <div style={css("display:flex;gap:8px;align-items:center")}>
                 <Meta tone="faint">Days/week</Meta>
                 <select value={v.goalsDraft.daysPerWeek} onChange={v.setGoalsField('daysPerWeek')}
-                  style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: "500 11px var(--nv-font-mono)", padding: '5px 8px', outline: 'none' }}>
+                  style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: 'var(--nv-micro-l)', padding: '5px 8px', outline: 'none' }}>
                   <option value="" style={{ background: '#141019' }}>—</option>
                   {[1, 2, 3, 4, 5, 6, 7].map((n) => <option key={n} value={n} style={{ background: '#141019' }}>{n}</option>)}
                 </select>
@@ -988,14 +988,14 @@ export function Workouts({ v }) {
     <div style={v.wrapWorkouts} data-screen-label="Workouts">
       <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>
         <div style={css("display:flex;align-items:center;gap:14px")}>
-          <span style={css("font:500 11px var(--nv-font-mono);letter-spacing:.14em;color:var(--nv-acc)")}>IX.</span>
+          <span style={css("font:var(--nv-micro-l);letter-spacing:var(--nv-micro-track);color:var(--nv-acc)")}>IX.</span>
           <span style={css("width:50px;height:1px;background:linear-gradient(90deg,var(--nv-acc-border),transparent)")}></span>
-          <span style={css("font:500 10px var(--nv-font-mono);letter-spacing:.32em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>VAULT · TRAINING</span>
+          <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>VAULT · TRAINING</span>
         </div>
         {v.usingLiveWorkouts ? (
-          <span style={css("display:flex;align-items:center;gap:8px;font:500 10px var(--nv-font-mono);letter-spacing:.14em;color:var(--nv-cy)")}><span style={css("width:5px;height:5px;border-radius:50%;background:var(--nv-cy);animation:novaPulse 2s infinite")}></span>{v.workoutHeaderLabel}</span>
+          <span style={css("display:flex;align-items:center;gap:8px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-cy)")}><span style={css("width:5px;height:5px;border-radius:50%;background:var(--nv-cy);animation:novaPulse 2s infinite")}></span>{v.workoutHeaderLabel}</span>
         ) : (
-          <span style={css("font:400 10px var(--nv-font-mono);letter-spacing:.12em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.workoutsDemo ? 'DEMO PLAN — CONNECT A BACKEND IN SETTINGS' : 'SYNCING…'}</span>
+          <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.workoutsDemo ? 'DEMO PLAN — CONNECT A BACKEND IN SETTINGS' : 'SYNCING…'}</span>
         )}
       </div>
 

@@ -62,7 +62,7 @@ export function valsChrome(app, ctx) {
       // shows must exist inside the app too
       count: screen === 'inbox' && inboxPendingCount > 0 ? inboxPendingCount : null,
       style: { flex: 'none', minWidth: '52px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', padding: '5px 9px', cursor: 'pointer', borderRadius: '9px', color: act ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: act ? 'var(--nv-acc-bg)' : 'none', textShadow: act ? 'var(--nv-tsh-tab)' : 'none' },
-      numStyle: { font: "500 8.5px var(--nv-font-mono)", letterSpacing: '.06em', color: act ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 32%, transparent)' } };
+      numStyle: { font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: act ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 32%, transparent)' } };
   });
 
   // Frequent screens, from real local visit counts — the More sheet leads with

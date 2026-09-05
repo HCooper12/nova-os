@@ -30,14 +30,14 @@ export function RecipeOverlay({ v }) {
         ...(v.recipeOvVtName ? { viewTransitionName: v.recipeOvVtName } : {}),
         animation: v.supportsViewTransitions ? undefined : (v.recipeOvMobile ? 'fadeUp .25s ease-out' : 'fadeUp .3s ease-out') }}>
         <div style={css(`position:sticky;top:0;z-index:3;display:flex;justify-content:space-between;align-items:center;padding:${v.recipeOvMobile ? 'calc(12px + env(safe-area-inset-top)) 18px 12px' : '18px 26px'};border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent);background:var(--nv-glass2);backdrop-filter:blur(22px)`)}>
-          <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.24em;color:var(--nv-gold)")}>RECIPE · FROM OBSIDIAN</span>
+          <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-gold)")}>RECIPE · FROM OBSIDIAN</span>
           {v.orDelete && (
             <Interactive as="span" onClick={v.orDelete}
-              base={`cursor:pointer;font:500 11px var(--nv-font-mono);border-radius:9px;padding:9px 16px;margin-right:8px;border:1px solid color-mix(in srgb, var(--nv-warn) ${v.orDeleteArmed ? '55' : '22'}%, transparent);color:${v.orDeleteArmed ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-warn) 60%, transparent)'};background:${v.orDeleteArmed ? 'color-mix(in srgb, var(--nv-warn) 12%, transparent)' : 'transparent'}`}
+              base={`cursor:pointer;font:var(--nv-micro-l);border-radius:9px;padding:9px 16px;margin-right:8px;border:1px solid color-mix(in srgb, var(--nv-warn) ${v.orDeleteArmed ? '55' : '22'}%, transparent);color:${v.orDeleteArmed ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-warn) 60%, transparent)'};background:${v.orDeleteArmed ? 'color-mix(in srgb, var(--nv-warn) 12%, transparent)' : 'transparent'}`}
               hoverStyle="color:var(--nv-warn)"
             >{v.orDeleteArmed ? 'TAP AGAIN TO DELETE' : '✕ DELETE'}</Interactive>
           )}
-          <Interactive as="span" onClick={v.closeRecipe} base="cursor:pointer;font:500 11px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 50%, transparent);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:9px;padding:9px 16px" hoverStyle="color:var(--nv-ink)">✕ CLOSE</Interactive>
+          <Interactive as="span" onClick={v.closeRecipe} base="cursor:pointer;font:var(--nv-micro-l);color:color-mix(in srgb, var(--nv-ink) 50%, transparent);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:9px;padding:9px 16px" hoverStyle="color:var(--nv-ink)">✕ CLOSE</Interactive>
         </div>
         <div style={v.gridRecipeOv}>
           <div>
@@ -46,14 +46,14 @@ export function RecipeOverlay({ v }) {
                 <img src={v.orPhotoUrl} alt={v.orName} style={css("width:100%;height:100%;object-fit:cover;display:block")} />
               </div>
             ) : (
-              <div style={v.orPhStyle}><span style={css("font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>{v.orPhLabel}</span></div>
+              <div style={v.orPhStyle}><span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>{v.orPhLabel}</span></div>
             )}
-            <label style={css("cursor:pointer;display:block;margin-top:8px;text-align:center;font:500 10px var(--nv-font-mono);letter-spacing:.08em;color:var(--nv-cy);border:1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent);border-radius:8px;padding:8px;background:color-mix(in srgb, var(--nv-cy) 05%, transparent)")}>
+            <label style={css("cursor:pointer;display:block;margin-top:8px;text-align:center;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-cy);border:1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent);border-radius:8px;padding:8px;background:color-mix(in srgb, var(--nv-cy) 05%, transparent)")}>
               {v.orPhotoUploadBusy ? 'Saving…' : (v.orPhotoUrl ? 'Change photo' : '+ Add a photo of this dish')}
               <input type="file" accept="image/*" onChange={v.onRecipePhotoFile} disabled={v.orPhotoUploadBusy} style={css("display:none")} />
             </label>
             <div style={css("margin-top:14px;border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:12px;padding:15px 17px;background:var(--nv-well)")}>
-              <div style={css("display:flex;justify-content:space-between;align-items:baseline")}><span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>MACROS</span><span style={css("font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>× {v.servings}</span></div>
+              <div style={css("display:flex;justify-content:space-between;align-items:baseline")}><span style={css("font:var(--nv-micro-m);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>MACROS</span><span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>× {v.servings}</span></div>
               <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:9px;font:400 12px var(--nv-font-mono)")}>
                 <div style={css("display:flex;justify-content:space-between")}><span style={css("color:var(--nv-cy)")}>PROTEIN</span><span style={css("font-variant-numeric:tabular-nums")}>{v.orP}g</span></div>
                 <div style={css("display:flex;justify-content:space-between")}><span style={css("color:var(--nv-gold)")}>CARBS</span><span style={css("font-variant-numeric:tabular-nums")}>{v.orC}g</span></div>
@@ -63,7 +63,7 @@ export function RecipeOverlay({ v }) {
             </div>
             {v.orShowServings && (
               <div style={css("margin-top:14px;display:flex;align-items:center;gap:12px")}>
-                <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.18em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>SERVINGS</span>
+                <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>SERVINGS</span>
                 <Interactive as="span" onClick={v.decServ} base="cursor:pointer;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);border-radius:8px;color:var(--nv-ink)" hoverStyle="border:1px solid color-mix(in srgb, var(--nv-gold) 50%, transparent)">−</Interactive>
                 <span style={css("font:500 16px var(--nv-font-mono);font-variant-numeric:tabular-nums")}>{v.servings}</span>
                 <Interactive as="span" onClick={v.incServ} base="cursor:pointer;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);border-radius:8px;color:var(--nv-ink)" hoverStyle="border:1px solid color-mix(in srgb, var(--nv-gold) 50%, transparent)">+</Interactive>
@@ -72,7 +72,7 @@ export function RecipeOverlay({ v }) {
           </div>
           <div>
             <h2 style={css("margin:0;font:400 34px/1.1 var(--nv-font-serif)")}>{v.orName}</h2>
-            <div style={css("margin-top:7px;font:400 10.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.orMeta}</div>
+            <div style={css("margin-top:7px;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.orMeta}</div>
             {v.orAlternates.length > 1 && (
               <div style={css("margin-top:12px;display:flex;flex-wrap:wrap;gap:7px")}>
                 {v.orAlternates.map((a) => (
@@ -81,7 +81,7 @@ export function RecipeOverlay({ v }) {
                     as="span"
                     onClick={a.onClick}
                     base={{
-                      cursor: 'pointer', font: "500 10px var(--nv-font-mono)", padding: '6px 12px', borderRadius: '7px',
+                      cursor: 'pointer', font: 'var(--nv-micro-m)', padding: '6px 12px', borderRadius: '7px',
                       border: a.active ? '1px solid color-mix(in srgb, var(--nv-cy) 50%, transparent)' : '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)',
                       color: a.active ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)',
                       background: a.active ? 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' : 'rgba(0,0,0,.2)',
@@ -100,9 +100,9 @@ export function RecipeOverlay({ v }) {
             {v.orLogActive && (
               <div style={css("margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
                 <Interactive as="span" onClick={v.orLogActive}
-                  base="cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.06em;padding:8px 15px;border-radius:8px;background:var(--nv-good);color:#122015"
+                  base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 15px;border-radius:8px;background:var(--nv-good);color:#122015"
                   hoverStyle={{ filter: 'brightness(1.08)' }}>＋ LOG THIS VERSION</Interactive>
-                <span style={css("font:400 9.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>adds it to your food log — pick a portion, recipe unchanged</span>
+                <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>adds it to your food log — pick a portion, recipe unchanged</span>
               </div>
             )}
             {v.renameAltId && (
@@ -113,22 +113,22 @@ export function RecipeOverlay({ v }) {
                   focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)" />
                 <Interactive as="span" onClick={v.commitRename} base="cursor:pointer;font:600 11px var(--nv-font-ui);padding:8px 16px;border-radius:980px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 85%, white)">Save name</Interactive>
                 <Interactive as="span" onClick={v.cancelRename} base="cursor:pointer;font:500 11px var(--nv-font-ui);padding:8px 14px;border-radius:980px;color:color-mix(in srgb, var(--nv-ink) 50%, transparent)" hoverStyle={{ color: 'var(--nv-ink)' }}>Cancel</Interactive>
-                {v.renameError && <span style={css("font:400 10px var(--nv-font-mono);color:var(--nv-warn)")}>{v.renameError}</span>}
+                {v.renameError && <span style={css("font:var(--nv-micro-m);color:var(--nv-warn)")}>{v.renameError}</span>}
               </div>
             )}
             {!v.renameAltId && v.orAlternates.filter((a) => a.active && (a.useToday || a.makePrimary || a.rename)).map((a) => (
               <div key={'act' + (a.id ?? 'orig')} style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
                 {a.rename && (
-                  <Interactive as="span" onClick={a.rename} title="Rename this variant" base="cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.06em;padding:7px 12px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)" hoverStyle="border-color:color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)">✎ RENAME</Interactive>
+                  <Interactive as="span" onClick={a.rename} title="Rename this variant" base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:7px 12px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)" hoverStyle="border-color:color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)">✎ RENAME</Interactive>
                 )}
                 {a.useToday && (
-                  <Interactive as="span" onClick={a.useToday} base="cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.06em;padding:7px 14px;border-radius:8px;background:var(--nv-gold);color:#1a1322" hoverStyle={{ filter: 'brightness(1.08)' }}>USE FOR TODAY</Interactive>
+                  <Interactive as="span" onClick={a.useToday} base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:7px 14px;border-radius:8px;background:var(--nv-gold);color:#1a1322" hoverStyle={{ filter: 'brightness(1.08)' }}>USE FOR TODAY</Interactive>
                 )}
-                {a.isToday && <span style={css("font:500 9.5px var(--nv-font-mono);color:var(--nv-gold)")}>✓ today's version — recipe unchanged</span>}
+                {a.isToday && <span style={css("font:var(--nv-micro-m);color:var(--nv-gold)")}>✓ today's version — recipe unchanged</span>}
                 {a.makePrimary && (
-                  <Interactive as="span" onClick={a.makePrimary} base="cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.06em;padding:7px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 08%, transparent)">MAKE PRIMARY</Interactive>
+                  <Interactive as="span" onClick={a.makePrimary} base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:7px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 08%, transparent)">MAKE PRIMARY</Interactive>
                 )}
-                {a.makePrimary && <span style={css("font:400 9.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>replaces the recipe — the old version stays as "Original"</span>}
+                {a.makePrimary && <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>replaces the recipe — the old version stays as "Original"</span>}
               </div>
             ))}
             {v.orDescription && (
@@ -136,7 +136,7 @@ export function RecipeOverlay({ v }) {
             )}
             {v.orCanEdit && !v.orEditing && (
               <Interactive as="span" onClick={v.startEdit} title="Change what's in this meal and how it's made"
-                base="cursor:pointer;display:inline-block;margin-top:14px;font:600 10px var(--nv-font-mono);letter-spacing:.08em;padding:7px 13px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent);color:color-mix(in srgb, var(--nv-ink) 58%, transparent)"
+                base="cursor:pointer;display:inline-block;margin-top:14px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:7px 13px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent);color:color-mix(in srgb, var(--nv-ink) 58%, transparent)"
                 hoverStyle="border-color:color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)">✎ EDIT THIS MEAL</Interactive>
             )}
             {v.orEditing && <MealEditor v={v} />}
@@ -149,7 +149,7 @@ export function RecipeOverlay({ v }) {
                 </span>
                 <Interactive as="span" onClick={v.addWholeItemToShoppingList}
                   title="Add this item to the shopping list"
-                  base="cursor:pointer;flex:none;white-space:nowrap;font:600 9.5px var(--nv-font-mono);letter-spacing:.1em;padding:8px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-gold) 45%, transparent);color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 08%, transparent)"
+                  base="cursor:pointer;flex:none;white-space:nowrap;font:var(--nv-micro-m);letter-spacing:.1em;padding:8px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-gold) 45%, transparent);color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 08%, transparent)"
                   hoverStyle="background:color-mix(in srgb, var(--nv-gold) 18%, transparent)">
                   ＋ ADD TO SHOPPING LIST
                 </Interactive>
@@ -158,9 +158,9 @@ export function RecipeOverlay({ v }) {
             {!v.orEditing && v.orIngredients.length > 0 && (
               <>
                 <div style={css("margin-top:18px;display:flex;justify-content:space-between;align-items:baseline")}>
-                  <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>INGREDIENTS</span>
+                  <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>INGREDIENTS</span>
                   {v.orShowAddToShoppingList && (
-                    <Interactive as="span" onClick={v.addRecipeToShoppingList} base="cursor:pointer;font:500 9.5px var(--nv-font-mono);letter-spacing:.06em;color:var(--nv-gold)" hoverStyle={{ color: 'color-mix(in srgb, var(--nv-gold) 85%, white)' }}>+ ADD TO SHOPPING LIST</Interactive>
+                    <Interactive as="span" onClick={v.addRecipeToShoppingList} base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-gold)" hoverStyle={{ color: 'color-mix(in srgb, var(--nv-gold) 85%, white)' }}>+ ADD TO SHOPPING LIST</Interactive>
                   )}
                 </div>
                 <div style={css("margin-top:10px;display:flex;flex-direction:column")}>
@@ -168,7 +168,7 @@ export function RecipeOverlay({ v }) {
                     const marked = v.ingredientRemovals?.includes(ing.name);
                     return (
                       <div key={i} style={css("display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 05%, transparent);font-size:13.5px")}>
-                        <span style={css("font:400 11.5px var(--nv-font-mono);color:var(--nv-gold);width:74px;font-variant-numeric:tabular-nums")}>{ing.qty}</span>
+                        <span style={css("font:var(--nv-micro-l);color:var(--nv-gold);width:74px;font-variant-numeric:tabular-nums")}>{ing.qty}</span>
                         <span style={css(`flex:1;color:color-mix(in srgb, var(--nv-ink) ${marked ? 35 : 85}%, transparent);${marked ? 'text-decoration:line-through;' : ''}`)}>{ing.name}</span>
                         {v.addIngredientToShopping && !ing.group && (
                           <Interactive as="span" onClick={() => v.addIngredientToShopping(ing.name)} title="Add just this item to the shopping list"
@@ -216,7 +216,7 @@ export function RecipeOverlay({ v }) {
             )}
             {!v.orEditing && v.orSteps.length > 0 && (
               <>
-                <div style={css("margin-top:18px;font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>METHOD</div>
+                <div style={css("margin-top:18px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>METHOD</div>
                 <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:9px")}>
                   {v.orSteps.map((st, i) => (
                     <div key={i} style={css("display:flex;gap:12px;font-size:13.5px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 80%, transparent)")}><span style={css("font:italic 400 14px var(--nv-font-serif);color:color-mix(in srgb, var(--nv-gold) 70%, transparent)")}>{st.n}</span><span>{st.text}</span></div>
@@ -228,7 +228,7 @@ export function RecipeOverlay({ v }) {
               <>
                 {v.orNotes.length > 0 && (
                   <div style={css("margin-top:20px;border:1px solid color-mix(in srgb, var(--nv-gold) 20%, transparent);border-radius:12px;padding:14px 16px;background:color-mix(in srgb, var(--nv-gold) 04%, transparent)")}>
-                    <div style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-gold)")}>NOTES</div>
+                    <div style={css("font:var(--nv-micro-m);letter-spacing:.2em;color:var(--nv-gold)")}>NOTES</div>
                     <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:8px")}>
                       {v.orNotes.map((n, i) => (
                         <div key={i} style={css("font-size:12.5px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 80%, transparent)")}>◆ {n}</div>
@@ -237,7 +237,7 @@ export function RecipeOverlay({ v }) {
                   </div>
                 )}
                 <div style={css("margin-top:20px;border:1px solid color-mix(in srgb, var(--nv-cy) 20%, transparent);border-radius:12px;padding:14px 16px;background:color-mix(in srgb, var(--nv-cy) 04%, transparent)")}>
-                  <div style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-cy)")}>ASK NOVA FOR A TWEAK</div>
+                  <div style={css("font:var(--nv-micro-m);letter-spacing:.2em;color:var(--nv-cy)")}>ASK NOVA FOR A TWEAK</div>
                   <div style={css("margin-top:8px;font-size:12px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
                     Out of an ingredient? Want it lighter? Ask — type it or tap the mic and say it. Attach a photo of a different ingredient (its label, its packaging, the thing itself) and Nova reads it before recalculating. Nova suggests a version, saved as an alternative you can switch back from any time, and you can keep talking to refine it.
                   </div>
@@ -275,7 +275,7 @@ export function RecipeOverlay({ v }) {
                     <Interactive
                       as="span"
                       onClick={v.recipeTweakBusy ? undefined : v.submitRecipeTweak}
-                      base={{ cursor: 'pointer', display: 'flex', alignItems: 'center', font: "500 10.5px var(--nv-font-mono)", padding: '0 14px', borderRadius: '8px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)', opacity: v.recipeTweakBusy ? .6 : 1 }}
+                      base={{ cursor: 'pointer', display: 'flex', alignItems: 'center', font: 'var(--nv-micro-m)', padding: '0 14px', borderRadius: '8px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)', opacity: v.recipeTweakBusy ? .6 : 1 }}
                       hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 80%, white)' }}
                     >
                       {v.recipeTweakBusy ? 'THINKING…' : 'ASK'}
@@ -298,9 +298,9 @@ export function RecipeOverlay({ v }) {
                   )}
                   {v.recipeTweakPreview && (
                     <div style={css("margin-top:14px;border-top:1px solid color-mix(in srgb, var(--nv-cy) 15%, transparent);padding-top:12px")}>
-                      <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 38%, transparent);margin-bottom:6px")}>SUGGESTION · ASK AGAIN ABOVE TO REFINE IT</div>
+                      <div style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 38%, transparent);margin-bottom:6px")}>SUGGESTION · ASK AGAIN ABOVE TO REFINE IT</div>
                       <div style={css("font-size:13.5px;font-weight:500;color:var(--nv-ink)")}>{v.recipeTweakPreview.label}</div>
-                      <div style={css("margin-top:7px;display:flex;gap:12px;font:400 11px var(--nv-font-mono)")}>
+                      <div style={css("margin-top:7px;display:flex;gap:12px;font:var(--nv-micro-l)")}>
                         <span style={css("color:var(--nv-cy)")}>{v.recipeTweakPreview.macros.p}P</span>
                         <span style={css("color:var(--nv-gold)")}>{v.recipeTweakPreview.macros.c}C</span>
                         <span style={css("color:var(--nv-vi)")}>{v.recipeTweakPreview.macros.f}F</span>
@@ -324,7 +324,7 @@ export function RecipeOverlay({ v }) {
               </>
             ) : v.orShowAskNova && (
               <div style={css("margin-top:20px;border:1px solid color-mix(in srgb, var(--nv-cy) 20%, transparent);border-radius:12px;padding:14px 16px;background:color-mix(in srgb, var(--nv-cy) 04%, transparent)")}>
-                <div style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-cy)")}>ASK NOVA</div>
+                <div style={css("font:var(--nv-micro-m);letter-spacing:.2em;color:var(--nv-cy)")}>ASK NOVA</div>
                 {v.recipeMsgs.map((m, i) => (
                   <div key={i} style={css("margin-top:10px;font-size:13px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 85%, transparent);animation:fadeUp .3s ease-out")}><span style={m.tagStyle}>{m.tag}</span> <TypeText text={m.text} active={m.typing} /></div>
                 ))}
@@ -338,7 +338,7 @@ export function RecipeOverlay({ v }) {
                     base="flex:1;min-width:0;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
                     focusStyle="border:1px solid color-mix(in srgb, var(--nv-cy) 50%, transparent)"
                   />
-                  <Interactive as="span" onClick={v.sendRecipe} base="cursor:pointer;display:flex;align-items:center;font:500 10.5px var(--nv-font-mono);padding:0 14px;border-radius:8px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 80%, white)' }}>ASK</Interactive>
+                  <Interactive as="span" onClick={v.sendRecipe} base="cursor:pointer;display:flex;align-items:center;font:var(--nv-micro-m);padding:0 14px;border-radius:8px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 80%, white)' }}>ASK</Interactive>
                 </div>
               </div>
             )}
@@ -349,7 +349,7 @@ export function RecipeOverlay({ v }) {
   );
 }
 
-const EDIT_LABEL = "font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)";
+const EDIT_LABEL = "font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)";
 const EDIT_FIELD = "width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 13px;color:var(--nv-ink);font:400 13px/1.7 var(--nv-font-ui);outline:none;resize:vertical";
 
 // One line per ingredient, one per step — the same shape the file stores, so
@@ -360,8 +360,8 @@ function MealEditor({ v }) {
   return (
     <div style={css("margin-top:16px;border:1px solid color-mix(in srgb, var(--nv-cy) 24%, transparent);border-radius:12px;padding:16px;background:color-mix(in srgb, var(--nv-cy) 04%, transparent)")}>
       <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:10px")}>
-        <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-cy)")}>EDITING · {String(v.orEditTarget || '').toUpperCase()}</span>
-        <span style={css("font:400 9.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>writes to Obsidian</span>
+        <span style={css("font:var(--nv-micro-m);letter-spacing:.2em;color:var(--nv-cy)")}>EDITING · {String(v.orEditTarget || '').toUpperCase()}</span>
+        <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>writes to Obsidian</span>
       </div>
 
       <div style={css("margin-top:14px")}>
@@ -383,7 +383,7 @@ function MealEditor({ v }) {
         <div style={css("margin-top:8px;display:grid;grid-template-columns:repeat(4, minmax(0,1fr));gap:8px")}>
           {[['p', 'P', 'var(--nv-cy)'], ['c', 'C', 'var(--nv-gold)'], ['f', 'F', 'var(--nv-vi)'], ['kcal', 'KCAL', 'var(--nv-good)']].map(([key, label, colour]) => (
             <label key={key} style={css("display:flex;flex-direction:column;gap:5px")}>
-              <span style={css(`font:500 9px var(--nv-font-mono);letter-spacing:.14em;color:${colour}`)}>{label}</span>
+              <span style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:${colour}`)}>{label}</span>
               <Interactive as="input" type="number" inputMode="decimal" min="0"
                 value={key === 'p' ? v.orEditP : key === 'c' ? v.orEditC : key === 'f' ? v.orEditF : v.orEditKcal}
                 onChange={v.setEditField(key)}

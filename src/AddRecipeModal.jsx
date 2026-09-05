@@ -3,7 +3,7 @@ import { Interactive } from './Interactive.jsx';
 
 const macroField = (label, value, onChange) => (
   <div style={css("flex:1")}>
-    <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.14em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{label}</div>
+    <div style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{label}</div>
     <Interactive
       as="input"
       type="number"
@@ -22,8 +22,8 @@ export function AddRecipeModal({ v }) {
     <div role="dialog" aria-modal="true" aria-label="Add a recipe" onClick={v.closeAddRecipe} style={css("position:fixed;inset:0;background:rgba(8,5,12,.72);backdrop-filter:blur(6px);z-index:60;display:flex;align-items:center;justify-content:center;padding:40px;overflow-y:auto")}>
       <div onClick={v.stopClick} style={css("width:640px;max-width:94vw;max-height:88vh;overflow-y:auto;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 40px 90px -30px rgba(0,0,0,.95),inset 0 1px 0 var(--nv-spec);animation:fadeUp .3s ease-out;padding:26px 28px")}>
         <div style={css("display:flex;justify-content:space-between;align-items:center")}>
-          <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.24em;color:var(--nv-gold)")}>NEW RECIPE</span>
-          <Interactive as="span" onClick={v.closeAddRecipe} base="cursor:pointer;font:500 11px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 50%, transparent);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:7px;padding:5px 10px" hoverStyle="color:var(--nv-ink)">ESC</Interactive>
+          <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-gold)")}>NEW RECIPE</span>
+          <Interactive as="span" onClick={v.closeAddRecipe} base="cursor:pointer;font:var(--nv-micro-l);color:color-mix(in srgb, var(--nv-ink) 50%, transparent);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:7px;padding:5px 10px" hoverStyle="color:var(--nv-ink)">ESC</Interactive>
         </div>
         <h2 style={css("margin:14px 0 0;font:400 26px var(--nv-font-serif)")}>Add a recipe</h2>
         <div style={css("margin-top:8px;font-size:12.5px;color:color-mix(in srgb, var(--nv-ink) 55%, transparent);line-height:1.6")}>
@@ -31,7 +31,7 @@ export function AddRecipeModal({ v }) {
         </div>
 
         <div style={css("margin-top:16px;border:1px solid color-mix(in srgb, var(--nv-cy) 20%, transparent);border-radius:12px;padding:14px 16px;background:color-mix(in srgb, var(--nv-cy) 04%, transparent)")}>
-          <div style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-cy)")}>SCAN FROM PHOTOS — OPTIONAL</div>
+          <div style={css("font:var(--nv-micro-m);letter-spacing:.2em;color:var(--nv-cy)")}>SCAN FROM PHOTOS — OPTIONAL</div>
           <div style={css("margin-top:6px;font-size:12px;color:color-mix(in srgb, var(--nv-ink) 55%, transparent);line-height:1.5")}>
             A nutrition label, a recipe card, or a screenshot — Nova reads it and fills in the fields below for you to check over.
           </div>
@@ -48,7 +48,7 @@ export function AddRecipeModal({ v }) {
         </div>
 
         <div style={css("margin-top:16px")}>
-          <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.14em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>DISH PHOTO (OPTIONAL)</div>
+          <div style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>DISH PHOTO (OPTIONAL)</div>
           <div style={css("margin-top:6px;display:flex;align-items:center;gap:12px;flex-wrap:wrap")}>
             {v.recipeAddPhotoDataUrl && (
               <div style={css("width:64px;height:64px;border-radius:8px;overflow:hidden;flex:none")}>
@@ -67,7 +67,7 @@ export function AddRecipeModal({ v }) {
 
         <div style={css("margin-top:16px;display:flex;gap:12px")}>
           <div style={css("flex:2")}>
-            <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.14em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>NAME</div>
+            <div style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>NAME</div>
             <Interactive
               as="input"
               value={v.recipeAddName}
@@ -78,7 +78,7 @@ export function AddRecipeModal({ v }) {
             />
           </div>
           <div style={css("flex:1")}>
-            <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.14em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>CATEGORY</div>
+            <div style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>CATEGORY</div>
             <select
               value={v.recipeAddCategory}
               onChange={v.setRecipeAddCategory}
@@ -90,7 +90,7 @@ export function AddRecipeModal({ v }) {
         </div>
 
         <div style={css("margin-top:12px")}>
-          <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.14em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>MAKES (OPTIONAL)</div>
+          <div style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>MAKES (OPTIONAL)</div>
           <Interactive
             as="input"
             value={v.recipeAddMakes}
@@ -115,7 +115,7 @@ export function AddRecipeModal({ v }) {
         </div>
 
         <div style={css("margin-top:12px")}>
-          <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.14em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>INGREDIENTS — ONE PER LINE</div>
+          <div style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>INGREDIENTS — ONE PER LINE</div>
           <textarea
             value={v.recipeAddIngredients}
             onChange={v.setRecipeAddIngredients}
@@ -125,7 +125,7 @@ export function AddRecipeModal({ v }) {
         </div>
 
         <div style={css("margin-top:12px")}>
-          <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.14em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>METHOD — ONE STEP PER LINE</div>
+          <div style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>METHOD — ONE STEP PER LINE</div>
           <textarea
             value={v.recipeAddMethod}
             onChange={v.setRecipeAddMethod}

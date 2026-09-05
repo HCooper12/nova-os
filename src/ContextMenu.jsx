@@ -24,7 +24,7 @@ export function ContextMenuHost({ menu, isMobile, close }) {
       hoverStyle={item.disabled ? {} : { background: 'rgba(255,255,255,.05)' }}
     >
       <span>{item.label}</span>
-      {item.hint && <span style={css(`font:400 10.5px ${M};color:color-mix(in srgb, var(--nv-ink) 42%, transparent);white-space:nowrap`)}>{item.hint}</span>}
+      {item.hint && <span style={css(`font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 42%, transparent);white-space:nowrap`)}>{item.hint}</span>}
     </Interactive>
   );
 
@@ -34,7 +34,7 @@ export function ContextMenuHost({ menu, isMobile, close }) {
         <div style={css("position:absolute;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(3px);animation:fadeIn .18s ease-out")} />
         <div onClick={(e) => e.stopPropagation()}
           style={css("position:absolute;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));border-radius:18px;overflow:hidden;background:color-mix(in srgb, var(--nv-bg2) 92%, black);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);box-shadow:0 18px 60px rgba(0,0,0,.55);animation:sheetUp .22s cubic-bezier(.32,.72,0,1)")}>
-          {menu.title && <div style={css(`padding:13px 20px 9px;font:500 9.5px ${M};letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent);border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)`)}>{menu.title}</div>}
+          {menu.title && <div style={css(`padding:13px 20px 9px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent);border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)`)}>{menu.title}</div>}
           {menu.items.map(itemRow)}
         </div>
       </div>
@@ -50,7 +50,7 @@ export function ContextMenuHost({ menu, isMobile, close }) {
     <div style={css("position:fixed;inset:0;z-index:120")} onClick={close} onContextMenu={(e) => { e.preventDefault(); close(); }}>
       <div onClick={(e) => e.stopPropagation()}
         style={{ position: 'absolute', left: x, top: y, width: W, borderRadius: '13px', overflow: 'hidden', background: 'color-mix(in srgb, var(--nv-bg2) 94%, black)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', boxShadow: '0 14px 44px rgba(0,0,0,.5)', animation: 'fadeUp .16s ease-out' }}>
-        {menu.title && <div style={css(`padding:10px 16px 7px;font:500 9px ${M};letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent);border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)`)}>{menu.title}</div>}
+        {menu.title && <div style={css(`padding:10px 16px 7px;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent);border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)`)}>{menu.title}</div>}
         {menu.items.map(itemRow)}
       </div>
     </div>

@@ -44,7 +44,7 @@ export class SafeVisual extends Component {
     if (!this.state.failed) return this.props.children;
     return (
       <div style={css(`margin-top:10px;border:1px solid color-mix(in srgb, var(--nv-warn) 34%, transparent);border-radius:12px;padding:10px 13px;background:color-mix(in srgb, var(--nv-warn) 05%, transparent)`)}>
-        <div style={css(`font:600 8.5px ${M};letter-spacing:.2em;color:var(--nv-warn)`)}>VISUAL UNAVAILABLE</div>
+        <div style={css(`font:var(--nv-micro-s);letter-spacing:.2em;color:var(--nv-warn)`)}>VISUAL UNAVAILABLE</div>
         <div style={css('margin-top:5px;font-size:11.5px;line-height:1.5;color:color-mix(in srgb, var(--nv-ink) 60%, transparent)')}>
           Nova couldn’t draw this one — the answer above still stands.
         </div>

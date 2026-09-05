@@ -12,10 +12,10 @@ const R = "var(--nv-font-ui)";
 export function Todos({ v }) {
   return (
     <div style={v.wrapTodos}>
-      <div style={css(`font:500 10px ${M};letter-spacing:.24em;color:var(--nv-ink40)`)}>NOVA · TO-DO</div>
+      <div style={css(`font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-ink40)`)}>NOVA · TO-DO</div>
       <div style={css("display:flex;align-items:baseline;gap:14px;flex-wrap:wrap")}>
         <h1 style={css(`margin:6px 0 0;font:700 30px/1.05 ${R};letter-spacing:.02em`)}>To-Do</h1>
-        <span style={css(`font:500 10px ${M};letter-spacing:.14em;color:var(--nv-ink40)`)}>{v.todosHeaderLabel}</span>
+        <span style={css(`font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-ink40)`)}>{v.todosHeaderLabel}</span>
       </div>
 
       {v.todosConnected && (
@@ -29,12 +29,12 @@ export function Todos({ v }) {
               style={{ flex: 1, minWidth: 0, background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '9px', color: 'var(--nv-ink)', font: `500 13.5px ${R}`, padding: '11px 14px', outline: 'none' }}
             />
             <Interactive as="span" onClick={v.submitTodo}
-              base={{ cursor: 'pointer', flex: 'none', font: `600 10.5px ${M}`, letterSpacing: '.08em', padding: '11px 18px', borderRadius: '9px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)' }}
+              base={{ cursor: 'pointer', flex: 'none', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', padding: '11px 18px', borderRadius: '9px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)' }}
               hoverStyle={{ filter: 'brightness(1.08)' }}
             >ADD</Interactive>
           </div>
           {v.todosSyncNote && (
-            <div style={css(`margin-top:9px;font:400 10px ${M};color:color-mix(in srgb, var(--nv-ink) 35%, transparent)`)}>{v.todosSyncNote}</div>
+            <div style={css(`margin-top:9px;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 35%, transparent)`)}>{v.todosSyncNote}</div>
           )}
         </div>
       )}
@@ -45,7 +45,7 @@ export function Todos({ v }) {
 
       {v.todosOpenGroups.map((g) => (
         <div key={g.key} style={{ marginTop: '20px' }}>
-          <div style={css(`font:500 9.5px ${M};letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)`)}>{g.label} · {g.items.length}</div>
+          <div style={css(`font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)`)}>{g.label} · {g.items.length}</div>
           {/* Apple layout: one grouped card with hairline rows; classic keeps a pane per item. Same nodes either way. */}
           <div className={v.structured ? 'nv-pane' : undefined} style={v.structured ? { marginTop: '8px', padding: '3px 0', overflow: 'hidden' } : css("margin-top:8px;display:flex;flex-direction:column;gap:8px")}>
             {g.items.map((t, ti) => (
@@ -66,18 +66,18 @@ export function Todos({ v }) {
                 <span style={css(`flex:1;min-width:0;font:500 14.5px ${R};overflow-wrap:anywhere`)}>{t.text}</span>
                 {t.editingCategory ? (
                   <select autoFocus value={t.category || ''} onChange={t.pickCategory}
-                    style={{ flex: 'none', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent)', borderRadius: '6px', color: 'var(--nv-ink)', font: `500 9px ${M}`, padding: '3px 6px', outline: 'none' }}>
+                    style={{ flex: 'none', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent)', borderRadius: '6px', color: 'var(--nv-ink)', font: 'var(--nv-micro-s)', padding: '3px 6px', outline: 'none' }}>
                     {!t.category && <option value="" style={{ background: '#141019' }}>—</option>}
                     {v.todoCategories.map((c) => <option key={c.value} value={c.value} style={{ background: '#141019' }}>{c.label}</option>)}
                   </select>
                 ) : (
                   <Interactive as="span" onClick={t.startEditCategory} title="Change category (syncs to Todoist as a label)"
-                    base={{ cursor: 'pointer', flex: 'none', font: `500 8px ${M}`, letterSpacing: '.12em', padding: '2px 8px', borderRadius: '5px', color: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', border: '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)' }}
+                    base={{ cursor: 'pointer', flex: 'none', font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', padding: '2px 8px', borderRadius: '5px', color: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', border: '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)' }}
                     hoverStyle={{ borderColor: 'color-mix(in srgb, var(--nv-cy) 40%, transparent)', color: 'var(--nv-cy)' }}
                   >{t.categoryLabel}</Interactive>
                 )}
-                {t.stale && <span style={css(`flex:none;font:500 8px ${M};letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-gold);border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent)`)}>STALE</span>}
-                <span style={css(`flex:none;font:400 9.5px ${M};color:color-mix(in srgb, var(--nv-ink) 35%, transparent)`)}>{t.addedLabel}</span>
+                {t.stale && <span style={css(`flex:none;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);padding:2px 7px;border-radius:5px;color:var(--nv-gold);border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent)`)}>STALE</span>}
+                <span style={css(`flex:none;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 35%, transparent)`)}>{t.addedLabel}</span>
               </div>
               </SwipeRow>
             ))}
@@ -87,7 +87,7 @@ export function Todos({ v }) {
 
       {v.todosDone.length > 0 && (
         <div style={{ marginTop: '26px' }}>
-          <div style={css(`font:500 9.5px ${M};letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>DONE · {v.todosDone.length} — THE COMPOST LOOP SWEEPS THESE</div>
+          <div style={css(`font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>DONE · {v.todosDone.length} — THE COMPOST LOOP SWEEPS THESE</div>
           <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:6px")}>
             {v.todosDone.map((t) => (
               <div key={t.key} style={css("display:flex;align-items:center;gap:13px;padding:9px 15px;border-radius:11px;border:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent);opacity:.55")}>
@@ -95,7 +95,7 @@ export function Todos({ v }) {
                   base={{ cursor: 'pointer', width: '21px', height: '21px', flex: 'none', borderRadius: '7px', border: '1px solid var(--nv-cy)', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700 }}
                 >✓</Interactive>
                 <span style={css(`flex:1;min-width:0;font:500 13.5px ${R};text-decoration:line-through;overflow-wrap:anywhere`)}>{t.text}</span>
-                <span style={css(`flex:none;font:400 9.5px ${M};color:color-mix(in srgb, var(--nv-ink) 30%, transparent)`)}>{t.addedLabel}</span>
+                <span style={css(`flex:none;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 30%, transparent)`)}>{t.addedLabel}</span>
               </div>
             ))}
           </div>

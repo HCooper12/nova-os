@@ -44,7 +44,7 @@ function Panel({ label, right, children, glow = false, style }) {
       <B pos={{ bottom: '-1px', right: '-1px', b: { borderBottomWidth: '1px', borderRightWidth: '1px', borderBottomRightRadius: '12px' } }} />
       {label && (
         <div style={css(`display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid color-mix(in srgb, var(--nv-cy) 14%, transparent)`)}>
-          <span style={css(`font:600 8.5px ${M};letter-spacing:.26em;color:color-mix(in srgb, var(--nv-cy) 78%, transparent)`)}>{label}</span>
+          <span style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-cy) 78%, transparent)`)}>{label}</span>
           <span style={css('flex:1')}></span>
           {right}
         </div>
@@ -144,10 +144,10 @@ export function Voice({ v }) {
     <div style={v.wrapVoice} data-screen-label="Voice">
       <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>
         <div style={css("display:flex;align-items:center;gap:14px;flex-wrap:wrap")}>
-          <span style={css(`font:500 11px ${M};letter-spacing:.14em;color:var(--nv-acc)`)}>II.</span>
+          <span style={css(`font:var(--nv-micro-l);letter-spacing:var(--nv-micro-track);color:var(--nv-acc)`)}>II.</span>
           <span style={css("width:50px;height:1px;background:linear-gradient(90deg,var(--nv-acc-border),transparent)")}></span>
-          <span style={css(`font:500 10px ${M};letter-spacing:.32em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`)}>NEURAL LINK · VOICE</span>
-          <span style={{ font: `500 9px ${M}`, letterSpacing: '.14em', padding: '5px 10px', borderRadius: '7px', border: `1px solid color-mix(in srgb, ${v.voiceBadge.tone} 45%, transparent)`, color: v.voiceBadge.tone, background: `color-mix(in srgb, ${v.voiceBadge.tone} 08%, transparent)` }}>{v.voiceBadge.text}</span>
+          <span style={css(`font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`)}>NEURAL LINK · VOICE</span>
+          <span style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', padding: '5px 10px', borderRadius: '7px', border: `1px solid color-mix(in srgb, ${v.voiceBadge.tone} 45%, transparent)`, color: v.voiceBadge.tone, background: `color-mix(in srgb, ${v.voiceBadge.tone} 08%, transparent)` }}>{v.voiceBadge.text}</span>
         </div>
         <div style={css(`font:400 26px ${M};font-variant-numeric:tabular-nums;color:color-mix(in srgb, var(--nv-ink) 85%, transparent)`)}><Clock /></div>
       </div>
@@ -177,11 +177,11 @@ export function Voice({ v }) {
                   picture and no idea what he was being asked. */}
               {v.briefQueue?.question ? (
                 <div style={css('margin-top:14px')}>
-                  <div style={css(`font:600 9px ${M};letter-spacing:.2em;color:var(--nv-acc)`)}>{v.briefQueue.label}</div>
+                  <div style={css(`font:var(--nv-micro-s);letter-spacing:.2em;color:var(--nv-acc)`)}>{v.briefQueue.label}</div>
                   <div style={css('margin-top:6px;font-size:14px;line-height:1.5;color:var(--nv-ink)')}>{v.briefQueue.question}</div>
                 </div>
               ) : (
-                <div style={css('margin-top:12px;text-align:center;font:500 9px var(--nv-font-mono);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)')}>TAP ANYWHERE TO DISMISS</div>
+                <div style={css('margin-top:12px;text-align:center;font:var(--nv-micro-s);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)')}>TAP ANYWHERE TO DISMISS</div>
               )}
             </div>
           )}
@@ -191,7 +191,7 @@ export function Voice({ v }) {
         <Panel glow
           label={v.voiceContinuing ? 'COMMS LOG · CONTINUES ACROSS DAYS' : 'COMMS LOG'}
           right={v.voiceContinuing ? (
-            <Interactive as="span" onClick={v.newVoiceChat} base={`cursor:pointer;font:500 9px ${M};letter-spacing:.1em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`} hoverStyle="color:var(--nv-cy)">NEW CHAT</Interactive>
+            <Interactive as="span" onClick={v.newVoiceChat} base={`cursor:pointer;font:var(--nv-micro-s);letter-spacing:.1em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`} hoverStyle="color:var(--nv-cy)">NEW CHAT</Interactive>
           ) : null}
           style={{ flex: '1 1 330px', minWidth: '300px', maxWidth: '430px', minHeight: '380px', maxHeight: '600px',
             // ON A PHONE THE TRANSCRIPT GOES LAST. flex-wrap stacks these in
@@ -209,37 +209,37 @@ export function Voice({ v }) {
             {v.orbMsgs.map((m, i) => (
               <div key={i} style={css("animation:fadeUp .4s ease-out")}>
                 {m.daySep && (
-                  <div style={css(`margin:10px 0 8px;text-align:center;font:500 8.5px ${M};letter-spacing:.14em;color:color-mix(in srgb, var(--nv-ink) 38%, transparent)`)}>— {m.daySep.toUpperCase()} —</div>
+                  <div style={css(`margin:10px 0 8px;text-align:center;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 38%, transparent)`)}>— {m.daySep.toUpperCase()} —</div>
                 )}
-                <span style={m.tagStyle}>{m.tag}</span>{m.time && <span style={css(`margin-left:6px;font:400 8px ${M};color:color-mix(in srgb, var(--nv-ink) 32%, transparent)`)}>{m.time}</span>} <span style={css("color:color-mix(in srgb, var(--nv-ink) 90%, transparent)")}><TypeText text={m.text} active={m.typing} /></span>
+                <span style={m.tagStyle}>{m.tag}</span>{m.time && <span style={css(`margin-left:6px;font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 32%, transparent)`)}>{m.time}</span>} <span style={css("color:color-mix(in srgb, var(--nv-ink) 90%, transparent)")}><TypeText text={m.text} active={m.typing} /></span>
                 {m.remember && (
                   <Interactive as="span" onClick={m.remember} title="File this into the vault via the Inbox"
-                    base={`cursor:pointer;display:inline-block;margin-left:8px;font:500 8px ${M};letter-spacing:.1em;padding:1px 7px;border-radius:5px;border:1px solid color-mix(in srgb, var(--nv-gold) 35%, transparent);color:var(--nv-gold)`}
+                    base={`cursor:pointer;display:inline-block;margin-left:8px;font:var(--nv-micro-s);letter-spacing:.1em;padding:1px 7px;border-radius:5px;border:1px solid color-mix(in srgb, var(--nv-gold) 35%, transparent);color:var(--nv-gold)`}
                     hoverStyle="background:color-mix(in srgb, var(--nv-gold) 08%, transparent)"
                   >REMEMBER</Interactive>
                 )}
                 {m.research?.status === 'queued' && (
-                  <div style={css(`margin-top:8px;font:500 10px ${M};letter-spacing:.1em;color:var(--nv-vi)`)}>◇ QUEUED FOR TONIGHT — THE BRIEF LANDS IN YOUR INBOX BY MORNING</div>
+                  <div style={css(`margin-top:8px;font:var(--nv-micro-m);letter-spacing:.1em;color:var(--nv-vi)`)}>◇ QUEUED FOR TONIGHT — THE BRIEF LANDS IN YOUR INBOX BY MORNING</div>
                 )}
                 {m.research?.status === 'running' && (
-                  <div style={css(`margin-top:8px;font:500 10px ${M};letter-spacing:.1em;color:var(--nv-vi);animation:dotBlink 2s ease-in-out infinite`)}>◇ RESEARCHING — THE BRIEF LANDS HERE AND IN YOUR INBOX</div>
+                  <div style={css(`margin-top:8px;font:var(--nv-micro-m);letter-spacing:.1em;color:var(--nv-vi);animation:dotBlink 2s ease-in-out infinite`)}>◇ RESEARCHING — THE BRIEF LANDS HERE AND IN YOUR INBOX</div>
                 )}
                 {m.research?.status === 'error' && (
-                  <div style={css(`margin-top:8px;font:500 10px ${M};color:var(--nv-warn)`)}>RESEARCH DIDN’T COMPLETE — {m.research.error || 'check the Inbox'}</div>
+                  <div style={css(`margin-top:8px;font:var(--nv-micro-m);color:var(--nv-warn)`)}>RESEARCH DIDN’T COMPLETE — {m.research.error || 'check the Inbox'}</div>
                 )}
                 {m.research?.status === 'done' && <SafeVisual what="sources" resetKey={m.at}><SourcesPanel r={m.research} /></SafeVisual>}
                 {m.proposal && (
                   <div style={css("margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent);border-radius:9px;padding:8px 12px;background:color-mix(in srgb, var(--nv-gold) 05%, transparent)")}>
-                    <span style={css(`font:500 10.5px ${M};color:var(--nv-gold)`)}>◈ {m.proposal.title}</span>
+                    <span style={css(`font:var(--nv-micro-m);color:var(--nv-gold)`)}>◈ {m.proposal.title}</span>
                     {m.proposal.status === 'pending' && (
                       <span style={css("display:flex;gap:8px")}>
-                        <Interactive as="span" onClick={m.proposal.approve} base={`cursor:pointer;font:500 9.5px ${M};letter-spacing:.08em;padding:3px 10px;border-radius:6px;background:var(--nv-cy);color:var(--nv-on-acc)`} hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">YES, DO IT</Interactive>
-                        <Interactive as="span" onClick={m.proposal.dismiss} base={`cursor:pointer;font:500 9.5px ${M};letter-spacing:.08em;padding:3px 10px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-ink) 20%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`} hoverStyle="border-color:var(--nv-warn);color:var(--nv-warn)">LEAVE IT</Interactive>
+                        <Interactive as="span" onClick={m.proposal.approve} base={`cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:3px 10px;border-radius:6px;background:var(--nv-cy);color:var(--nv-on-acc)`} hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">YES, DO IT</Interactive>
+                        <Interactive as="span" onClick={m.proposal.dismiss} base={`cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:3px 10px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-ink) 20%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`} hoverStyle="border-color:var(--nv-warn);color:var(--nv-warn)">LEAVE IT</Interactive>
                       </span>
                     )}
-                    {m.proposal.status === 'done' && <span style={css(`font:500 9.5px ${M};color:var(--nv-good)`)}>✓ DONE — UNDO IN INBOX</span>}
-                    {m.proposal.status === 'dismissed' && <span style={css(`font:500 9.5px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>✕ DISMISSED</span>}
-                    {m.proposal.status === 'error' && <span style={css(`font:500 9.5px ${M};color:var(--nv-warn)`)}>STILL PENDING IN INBOX</span>}
+                    {m.proposal.status === 'done' && <span style={css(`font:var(--nv-micro-m);color:var(--nv-good)`)}>✓ DONE — UNDO IN INBOX</span>}
+                    {m.proposal.status === 'dismissed' && <span style={css(`font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>✕ DISMISSED</span>}
+                    {m.proposal.status === 'error' && <span style={css(`font:var(--nv-micro-m);color:var(--nv-warn)`)}>STILL PENDING IN INBOX</span>}
                   </div>
                 )}
                 {m.panel && <SafeVisual what={`panel:${m.panel.type}`} resetKey={m.at}><VoicePanel panel={m.panel} /></SafeVisual>}
@@ -249,10 +249,10 @@ export function Voice({ v }) {
                     if it is unmissable the moment it is wrong. */}
                 {m.notice && (
                   <div style={css(`margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 11px;border-radius:9px;border:1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent);background:color-mix(in srgb, var(--nv-cy) 6%, transparent)`)}>
-                    <span style={css(`font:600 9px ${M};letter-spacing:.16em;color:var(--nv-cy);flex:none`)}>{m.notice.label}</span>
+                    <span style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:var(--nv-cy);flex:none`)}>{m.notice.label}</span>
                     <span style={css(`flex:1;min-width:0;font:400 11.5px/1.4 var(--nv-font-ui);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`)}>{m.notice.why}</span>
                     <Interactive as="span" onClick={m.notice.undo}
-                      base={css(`cursor:pointer;flex:none;font:600 9px ${M};letter-spacing:.12em;padding:5px 9px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent);color:color-mix(in srgb, var(--nv-ink) 60%, transparent)`)}
+                      base={css(`cursor:pointer;flex:none;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);padding:5px 9px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent);color:color-mix(in srgb, var(--nv-ink) 60%, transparent)`)}
                       hoverStyle={{ color: 'var(--nv-warn)', borderColor: 'var(--nv-warn)' }}>JUST ANSWER IT</Interactive>
                   </div>
                 )}
@@ -261,7 +261,7 @@ export function Voice({ v }) {
                   <Interactive onClick={m.evidence.open}
                     base={css("cursor:pointer;margin-top:9px;display:flex;align-items:center;gap:10px;border:1px solid color-mix(in srgb, var(--nv-cy) 35%, transparent);border-radius:12px;padding:10px 13px;background:color-mix(in srgb, var(--nv-cy) 07%, transparent)")}
                     hoverStyle="background:color-mix(in srgb, var(--nv-cy) 15%, transparent)">
-                    <span style={css(`font:600 8.5px ${M};letter-spacing:.16em;color:var(--nv-cy)`)}>◆ EVIDENCE</span>
+                    <span style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:var(--nv-cy)`)}>◆ EVIDENCE</span>
                     <span style={css("flex:1;min-width:0;font-size:12.5px;color:var(--nv-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{m.evidence.label}</span>
                     <span style={css("flex:none;color:var(--nv-cy)")}>→</span>
                   </Interactive>
@@ -281,7 +281,7 @@ export function Voice({ v }) {
                 not "Ask Nova": a question needs no label, and a chip on every
                 keystroke would be noise. */}
             {(() => { const r = v.routePreview?.(v.orbInput); return r && r.lane !== 'ask' ? (
-              <span title={r.why} style={css(`position:absolute;top:-22px;left:2px;font:600 8.5px ${M};letter-spacing:.14em;color:var(--nv-cy);opacity:.85`)}>→ {r.label}</span>
+              <span title={r.why} style={css(`position:absolute;top:-22px;left:2px;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:var(--nv-cy);opacity:.85`)}>→ {r.label}</span>
             ) : null; })()}
             <LocalInput
               value={v.orbInput}
@@ -290,7 +290,7 @@ export function Voice({ v }) {
               placeholder="Speak or type to Nova…"
               style={css(`flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font:400 12.5px ${M};outline:none`)}
             />
-            <Interactive as="span" onClick={() => v.sendOrb()} base={`cursor:pointer;display:flex;align-items:center;font:500 11px ${M};padding:0 16px;border-radius:9px;background:var(--nv-cy);color:var(--nv-on-acc)`} hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">SEND</Interactive>
+            <Interactive as="span" onClick={() => v.sendOrb()} base={`cursor:pointer;display:flex;align-items:center;font:var(--nv-micro-l);padding:0 16px;border-radius:9px;background:var(--nv-cy);color:var(--nv-on-acc)`} hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">SEND</Interactive>
           </div>
         </Panel>
         <div style={{ flex: '1 1 420px', minWidth: '340px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px',
@@ -330,7 +330,7 @@ export function Voice({ v }) {
               <NovaCore size={coreSize} engine={v.coreStyle} speaking={v.voiceSpeaking} listening={dict.on} style={{ pointerEvents: 'none' }} />
             </Interactive>
           </div>
-          <div style={css(`font:400 10px ${M};letter-spacing:.42em;color:${dict.on ? 'var(--nv-vi)' : v.voiceSpeaking ? 'var(--nv-gold)' : 'color-mix(in srgb, var(--nv-ink) 60%, transparent)'};transition:color .4s`)}>{caption}</div>
+          <div style={css(`font:var(--nv-micro-m);letter-spacing:.42em;color:${dict.on ? 'var(--nv-vi)' : v.voiceSpeaking ? 'var(--nv-gold)' : 'color-mix(in srgb, var(--nv-ink) 60%, transparent)'};transition:color .4s`)}>{caption}</div>
 
           {/* HE HEARD NOTHING — say so, and make one tap fix it. A tap is a
               gesture, which is exactly what the device wants before it will
@@ -342,19 +342,19 @@ export function Voice({ v }) {
               not talk. */}
           {v.briefQueue && (
             <div style={css(`display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:11px 14px;border-radius:12px;border:1px solid var(--nv-acc-border);background:${v.isMobile ? 'color-mix(in srgb, var(--nv-void) 95%, black)' : 'var(--nv-acc-bg)'}${v.isMobile ? ';position:fixed;left:12px;right:12px;bottom:calc(96px + env(safe-area-inset-bottom));z-index:114;box-shadow:0 14px 40px rgba(0,0,0,.6)' : ''}`)}>
-              <span style={css(`flex:none;font:600 9px ${M};letter-spacing:.16em;color:var(--nv-acc)`)}>{v.briefQueue.idx}/{v.briefQueue.total}</span>
+              <span style={css(`flex:none;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:var(--nv-acc)`)}>{v.briefQueue.idx}/{v.briefQueue.total}</span>
               <Interactive as="span" onClick={() => v.briefQueue.answer('yes')}
-                base={css(`cursor:pointer;font:600 10px ${M};letter-spacing:.08em;padding:8px 14px;border-radius:8px;background:var(--nv-cy);color:var(--nv-on-acc)`)}
+                base={css(`cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 14px;border-radius:8px;background:var(--nv-cy);color:var(--nv-on-acc)`)}
                 hoverStyle="background:color-mix(in srgb, var(--nv-cy) 82%, white)">YES</Interactive>
               <Interactive as="span" onClick={() => v.briefQueue.answer('no')}
-                base={css(`cursor:pointer;font:600 10px ${M};letter-spacing:.08em;padding:8px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 22%, transparent);color:color-mix(in srgb, var(--nv-ink) 70%, transparent)`)}
+                base={css(`cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 22%, transparent);color:color-mix(in srgb, var(--nv-ink) 70%, transparent)`)}
                 hoverStyle="border-color:var(--nv-warn);color:var(--nv-warn)">NO</Interactive>
               <Interactive as="span" onClick={() => v.briefQueue.answer('later')}
-                base={css(`cursor:pointer;font:600 10px ${M};letter-spacing:.08em;padding:8px 12px;border-radius:8px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)`)}
+                base={css(`cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 12px;border-radius:8px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)`)}
                 hoverStyle="color:var(--nv-ink)">LATER</Interactive>
               <span style={css('flex:1')}></span>
               <Interactive as="span" onClick={v.briefQueue.stop}
-                base={css(`cursor:pointer;font:600 9px ${M};letter-spacing:.14em;color:color-mix(in srgb, var(--nv-ink) 35%, transparent)`)}
+                base={css(`cursor:pointer;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 35%, transparent)`)}
                 hoverStyle="color:var(--nv-ink)">STOP</Interactive>
             </div>
           )}
@@ -367,7 +367,7 @@ export function Voice({ v }) {
             <Interactive onClick={v.speechBlocked.replay} aria-label="Play the reply you didn't hear"
               base={css(`cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:10px;border:1px solid color-mix(in srgb, var(--nv-warn) 55%, transparent);background:${v.isMobile ? 'color-mix(in srgb, var(--nv-void) 94%, black)' : 'color-mix(in srgb, var(--nv-warn) 08%, transparent)'};animation:popIn .3s cubic-bezier(.2,.9,.25,1)${v.isMobile ? ';position:fixed;left:12px;right:12px;bottom:calc(96px + env(safe-area-inset-bottom));z-index:113;box-shadow:0 14px 40px rgba(0,0,0,.6)' : ''}`)}
               hoverStyle="background:color-mix(in srgb, var(--nv-warn) 16%, transparent)">
-              <span style={css(`font:600 9px ${M};letter-spacing:.16em;color:var(--nv-warn);flex:none`)}>▶ TAP TO HEAR</span>
+              <span style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:var(--nv-warn);flex:none`)}>▶ TAP TO HEAR</span>
               <span style={css('flex:1;min-width:0;font-size:11.5px;color:color-mix(in srgb, var(--nv-ink) 60%, transparent)')}>{v.speechBlocked.message}</span>
             </Interactive>
           )}
@@ -402,22 +402,22 @@ export function Voice({ v }) {
           {v.ritualInvite && v.voiceLive && (
             <Interactive as="span" onClick={() => v.startRitual(v.ritualInvite.kind)}
               title="A guided conversation for this time of day — starts only when you tap"
-              base={`cursor:pointer;display:inline-block;margin-bottom:10px;font:500 11px ${M};letter-spacing:.06em;padding:10px 18px;border-radius:9px;border:1px solid color-mix(in srgb, ${v.ritualInvite.kind === 'morning' ? 'var(--nv-gold)' : 'var(--nv-vi)'} 45%, transparent);color:${v.ritualInvite.kind === 'morning' ? 'var(--nv-gold)' : 'var(--nv-vi)'};background:color-mix(in srgb, ${v.ritualInvite.kind === 'morning' ? 'var(--nv-gold)' : 'var(--nv-vi)'} 07%, transparent);animation:fadeUp .4s ease-out`}
+              base={`cursor:pointer;display:inline-block;margin-bottom:10px;font:var(--nv-micro-l);letter-spacing:var(--nv-micro-track);padding:10px 18px;border-radius:9px;border:1px solid color-mix(in srgb, ${v.ritualInvite.kind === 'morning' ? 'var(--nv-gold)' : 'var(--nv-vi)'} 45%, transparent);color:${v.ritualInvite.kind === 'morning' ? 'var(--nv-gold)' : 'var(--nv-vi)'};background:color-mix(in srgb, ${v.ritualInvite.kind === 'morning' ? 'var(--nv-gold)' : 'var(--nv-vi)'} 07%, transparent);animation:fadeUp .4s ease-out`}
               hoverStyle={`background:color-mix(in srgb, ${v.ritualInvite.kind === 'morning' ? 'var(--nv-gold)' : 'var(--nv-vi)'} 14%, transparent)`}
             >{v.ritualInvite.label} — TAP TO START</Interactive>
           )}
           <div style={css("display:flex;gap:10px;flex-wrap:wrap;justify-content:center;white-space:nowrap")}>
-            <Interactive as="span" onClick={v.briefMe} base={`cursor:pointer;font:500 10.5px ${M};padding:9px 16px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);border-radius:8px;color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 06%, transparent)`} hoverStyle="background:color-mix(in srgb, var(--nv-gold) 12%, transparent)">☰ BRIEF ME</Interactive>
+            <Interactive as="span" onClick={v.briefMe} base={`cursor:pointer;font:var(--nv-micro-m);padding:9px 16px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);border-radius:8px;color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 06%, transparent)`} hoverStyle="background:color-mix(in srgb, var(--nv-gold) 12%, transparent)">☰ BRIEF ME</Interactive>
             {v.voiceLive && (
               <Interactive as="span" onClick={v.goAmbient} title="Fullscreen presence — the core, the time, the day's numbers; tap to exit"
-                base={`cursor:pointer;font:500 10.5px ${M};padding:9px 16px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);border-radius:8px;color:color-mix(in srgb, var(--nv-ink) 50%, transparent);background:rgba(0,0,0,.25)`}
+                base={`cursor:pointer;font:var(--nv-micro-m);padding:9px 16px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);border-radius:8px;color:color-mix(in srgb, var(--nv-ink) 50%, transparent);background:rgba(0,0,0,.25)`}
                 hoverStyle="border-color:color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)"
               >◐ AMBIENT</Interactive>
             )}
           </div>
         </div>
         <div style={{ width: '246px', flex: 'none', alignSelf: 'stretch', display: 'flex', flexDirection: 'column', gap: '12px',
-          font: `400 10.5px ${M}`, letterSpacing: '.14em',
+          font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)',
           // His order, explicitly: the core, then the station status beneath
           // it, then the conversation. Without an order this rail defaulted
           // to 0 and sorted ABOVE the two columns I had numbered — which is

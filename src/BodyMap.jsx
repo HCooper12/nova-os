@@ -130,7 +130,7 @@ function Figure({ view, primary, secondary, height, motion, cycle }) {
           );
         })}
       </svg>
-      <span style={css('font:500 8px var(--nv-font-mono);letter-spacing:.14em;opacity:.4')}>{view.toUpperCase()}</span>
+      <span style={css('font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);opacity:.4')}>{view.toUpperCase()}</span>
     </div>
   );
 }
@@ -176,7 +176,7 @@ export function BodyMap({ muscles, height = 128, pattern = null, animate = true 
 export function MuscleLegend({ muscles }) {
   if (!muscles) return null;
   const chip = (label, colour) => (
-    <span key={label} style={css(`display:inline-flex;align-items:center;gap:5px;font:500 10px var(--nv-font-mono);color:${colour}`)}>
+    <span key={label} style={css(`display:inline-flex;align-items:center;gap:5px;font:var(--nv-micro-m);color:${colour}`)}>
       <span style={css(`width:7px;height:7px;border-radius:2px;background:${colour}`)} />{label}
     </span>
   );

@@ -7,11 +7,11 @@ export function Shopping({ v }) {
     <div style={v.wrapShopping} data-screen-label="Shopping List">
       <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>
         <div style={css("display:flex;align-items:center;gap:14px")}>
-          <span style={css("font:500 11px var(--nv-font-mono);letter-spacing:.14em;color:var(--nv-acc)")}>VII.</span>
+          <span style={css("font:var(--nv-micro-l);letter-spacing:var(--nv-micro-track);color:var(--nv-acc)")}>VII.</span>
           <span style={css("width:50px;height:1px;background:linear-gradient(90deg,var(--nv-acc-border),transparent)")}></span>
-          <span style={css("font:500 10px var(--nv-font-mono);letter-spacing:.32em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>VAULT · SHOPPING LIST</span>
+          <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>VAULT · SHOPPING LIST</span>
         </div>
-        <span style={css("font:400 10px var(--nv-font-mono);letter-spacing:.12em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.shoppingHeaderLabel}</span>
+        <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.shoppingHeaderLabel}</span>
       </div>
       <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Shop <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>once, cleanly.</span></h1>
 
@@ -26,7 +26,7 @@ export function Shopping({ v }) {
         <Interactive
           as="span"
           onClick={v.shoppingAddBusy ? undefined : v.submitShoppingAdd}
-          base={{ cursor: 'pointer', display: 'flex', alignItems: 'center', height: '60px', font: "500 10.5px var(--nv-font-mono)", padding: '0 16px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1322', opacity: v.shoppingAddBusy ? .6 : 1 }}
+          base={{ cursor: 'pointer', display: 'flex', alignItems: 'center', height: '60px', font: 'var(--nv-micro-m)', padding: '0 16px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1322', opacity: v.shoppingAddBusy ? .6 : 1 }}
           hoverStyle={{ background: 'color-mix(in srgb, var(--nv-gold) 85%, white)' }}
         >
           {v.shoppingAddBusy ? 'ADDING…' : '+ ADD'}
@@ -46,10 +46,10 @@ export function Shopping({ v }) {
           </span>
           <span style={css("display:flex;gap:8px;flex:none")}>
             <Interactive as="span" onClick={v.undoShoppingClear}
-              base="cursor:pointer;font:600 9.5px var(--nv-font-mono);letter-spacing:.1em;padding:7px 13px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-good) 50%, transparent);color:var(--nv-good)"
+              base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:.1em;padding:7px 13px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-good) 50%, transparent);color:var(--nv-good)"
               hoverStyle="background:color-mix(in srgb, var(--nv-good) 14%, transparent)">UNDO</Interactive>
             <Interactive as="span" onClick={v.dismissShoppingClearUndo}
-              base="cursor:pointer;font:600 9.5px var(--nv-font-mono);letter-spacing:.1em;padding:7px 11px;border-radius:8px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)"
+              base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:.1em;padding:7px 11px;border-radius:8px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)"
               hoverStyle="color:var(--nv-ink)">DISMISS</Interactive>
           </span>
         </div>
@@ -60,19 +60,19 @@ export function Shopping({ v }) {
           </span>
           <span style={css("display:flex;gap:8px;flex:none")}>
             <Interactive as="span" onClick={v.shoppingClearBusy ? undefined : v.confirmShoppingClear}
-              base={{ cursor: 'pointer', font: '600 9.5px var(--nv-font-mono)', letterSpacing: '.1em', padding: '7px 13px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-warn) 55%, transparent)', color: 'var(--nv-warn)', opacity: v.shoppingClearBusy ? .6 : 1 }}
+              base={{ cursor: 'pointer', font: 'var(--nv-micro-m)', letterSpacing: '.1em', padding: '7px 13px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-warn) 55%, transparent)', color: 'var(--nv-warn)', opacity: v.shoppingClearBusy ? .6 : 1 }}
               hoverStyle="background:color-mix(in srgb, var(--nv-warn) 14%, transparent)">
               {v.shoppingClearBusy ? 'CLEARING…' : 'CLEAR IT'}
             </Interactive>
             <Interactive as="span" onClick={v.cancelShoppingClear}
-              base="cursor:pointer;font:600 9.5px var(--nv-font-mono);letter-spacing:.1em;padding:7px 11px;border-radius:8px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)"
+              base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:.1em;padding:7px 11px;border-radius:8px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)"
               hoverStyle="color:var(--nv-ink)">KEEP</Interactive>
           </span>
         </div>
       ) : v.shoppingCanClear ? (
         <div style={css("margin-top:12px;display:flex;justify-content:flex-end")}>
           <Interactive as="span" onClick={v.armShoppingClear} title="Empty the whole shopping list"
-            base="cursor:pointer;font:600 9.5px var(--nv-font-mono);letter-spacing:.1em;padding:7px 13px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);color:color-mix(in srgb, var(--nv-ink) 50%, transparent)"
+            base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:.1em;padding:7px 13px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);color:color-mix(in srgb, var(--nv-ink) 50%, transparent)"
             hoverStyle="border-color:color-mix(in srgb, var(--nv-warn) 45%, transparent);color:var(--nv-warn)">CLEAR ALL</Interactive>
         </div>
       ) : null}
@@ -85,7 +85,7 @@ export function Shopping({ v }) {
         <div style={css("margin-top:26px;display:flex;flex-direction:column;gap:24px")}>
           {v.shoppingCategories.map((cat) => (
             <div key={cat.name}>
-              <div style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:var(--nv-gold)")}>{cat.name.toUpperCase()}</div>
+              <div style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-gold)")}>{cat.name.toUpperCase()}</div>
               {/* Apple layout: the category becomes one grouped card of rows */}
               <div className={v.structured ? 'nv-pane' : undefined} style={v.structured ? { marginTop: '8px', padding: '3px 0', overflow: 'hidden' } : css("margin-top:10px;display:flex;flex-direction:column")}>
                 {cat.items.map((item) => (
@@ -112,7 +112,7 @@ export function Shopping({ v }) {
                         {/* the amount the recipe called for — the number he
                             actually needs standing at the shelf */}
                         {item.amount && (
-                          <span style={css("font:600 11.5px var(--nv-font-mono);color:var(--nv-gold);margin-right:5px")}>{item.amount}</span>
+                          <span style={css("font:var(--nv-micro-l);color:var(--nv-gold);margin-right:5px")}>{item.amount}</span>
                         )}
                         {item.name}
                       </div>
@@ -146,7 +146,7 @@ export function Shopping({ v }) {
           <Interactive
             as="span"
             onClick={v.confirmShoppingCompletion}
-            base="cursor:pointer;font:500 11px var(--nv-font-mono);padding:10px 18px;border-radius:8px;background:var(--nv-cy);color:var(--nv-on-acc)"
+            base="cursor:pointer;font:var(--nv-micro-l);padding:10px 18px;border-radius:8px;background:var(--nv-cy);color:var(--nv-on-acc)"
             hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 80%, white)' }}
           >
             Confirm completion — {v.shoppingCheckedCount} collected

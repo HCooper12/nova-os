@@ -76,7 +76,7 @@ export function VoicePresence({ v }) {
         <Interactive onClick={v.speechBlocked.replay} aria-label="Play the reply you didn't hear"
           base={css(`pointer-events:auto;cursor:pointer;display:flex;align-items:center;gap:9px;width:min(430px,100%);padding:10px 14px;border-radius:12px;border:1px solid color-mix(in srgb, var(--nv-warn) 55%, transparent);background:color-mix(in srgb, var(--nv-void) 92%, black);animation:popIn .3s cubic-bezier(.2,.9,.25,1)`)}
           hoverStyle="background:color-mix(in srgb, var(--nv-warn) 14%, transparent)">
-          <span style={css(`font:600 8.5px ${M};letter-spacing:.16em;color:var(--nv-warn);flex:none`)}>▶ TAP TO HEAR</span>
+          <span style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:var(--nv-warn);flex:none`)}>▶ TAP TO HEAR</span>
           <span style={css('flex:1;min-width:0;font-size:11.5px;color:color-mix(in srgb, var(--nv-ink) 65%, transparent)')}>{v.speechBlocked.message}</span>
         </Interactive>
       )}
@@ -94,7 +94,7 @@ export function VoicePresence({ v }) {
         <Interactive onClick={s.openEvidence}
           base={css('pointer-events:auto;display:flex;align-items:center;gap:10px;width:min(560px,100%);border:1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent);border-radius:13px;padding:11px 15px;background:color-mix(in srgb, var(--nv-void) 92%, black);box-shadow:0 0 22px -6px color-mix(in srgb, var(--nv-cy) 45%, transparent),0 16px 40px rgba(0,0,0,.55);animation:popIn .3s cubic-bezier(.2,.9,.25,1)')}
           hoverStyle="border-color:var(--nv-cy)">
-          <span style={css(`font:600 8.5px ${M};letter-spacing:.16em;color:var(--nv-cy);flex:none`)}>◆ EVIDENCE</span>
+          <span style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:var(--nv-cy);flex:none`)}>◆ EVIDENCE</span>
           <span style={css('flex:1;min-width:0;font-size:12.5px;color:var(--nv-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{s.evidence.label}</span>
           <span style={css('flex:none;color:var(--nv-cy)')}>→</span>
         </Interactive>
@@ -105,7 +105,7 @@ export function VoicePresence({ v }) {
       {s.textOpen && (
         <div style={css(`pointer-events:auto;width:min(620px,100%);border:1px solid color-mix(in srgb, var(--nv-cy) 55%, transparent);border-radius:16px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-cy) 06%, transparent),color-mix(in srgb, var(--nv-void) 94%, black));backdrop-filter:blur(16px);box-shadow:0 0 30px -4px color-mix(in srgb, var(--nv-cy) 50%, transparent),inset 0 1px 0 color-mix(in srgb, var(--nv-cy) 22%, transparent),0 24px 60px rgba(0,0,0,.6);animation:popIn .32s cubic-bezier(.2,.9,.25,1);overflow:hidden`)}>
           <div style={css(`display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid color-mix(in srgb, var(--nv-cy) 20%, transparent);background:color-mix(in srgb, var(--nv-cy) 07%, transparent)`)}>
-            <span style={css(`font:600 8.5px ${M};letter-spacing:.22em;color:${tone}`)}>NOVA · {state}</span>
+            <span style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:${tone}`)}>NOVA · {state}</span>
             <span style={css('flex:1')}></span>
             <Interactive as="span" onClick={dict.supported ? () => { v.primeSpeech(); dict.toggle(); } : undefined} aria-label={dict.on ? 'Stop listening' : 'Listen'}
               base={css(`cursor:pointer;flex:none;width:30px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;border:1px solid ${dict.on ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-cy) 25%, transparent)'};background:color-mix(in srgb, var(--nv-cy) ${dict.on ? 20 : 5}%, transparent)`)}
@@ -117,7 +117,7 @@ export function VoicePresence({ v }) {
               hoverStyle="color:var(--nv-ink)">×</Interactive>
           </div>
           <div style={css('padding:13px 16px 15px;max-height:38vh;overflow-y:auto')}>
-            {s.ask && <div style={css(`font:400 11px ${M};letter-spacing:.04em;color:color-mix(in srgb, var(--nv-ink) 42%, transparent);margin-bottom:7px`)}>» {s.ask}</div>}
+            {s.ask && <div style={css(`font:var(--nv-micro-l);letter-spacing:.04em;color:color-mix(in srgb, var(--nv-ink) 42%, transparent);margin-bottom:7px`)}>» {s.ask}</div>}
             <div style={css('font-size:14px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 94%, transparent)')}>
               {s.reply || s.input || (s.busy ? 'Reading the vault…' : 'Listening — speak, and it appears here.')}
             </div>

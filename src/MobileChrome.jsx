@@ -25,7 +25,7 @@ function DockTab({ t, size = 21 }) {
       <TabIcon name={t.screen} size={size} />
       <span style={css(`font:600 9px ${R};letter-spacing:.01em;white-space:nowrap`)}>{t.label}</span>
       {t.count != null && (
-        <span style={css("position:absolute;top:1px;right:3px;min-width:15px;height:15px;padding:0 4px;border-radius:8px;background:var(--nv-gold);color:#1a1206;font:700 9px var(--nv-font-mono);display:flex;align-items:center;justify-content:center")}>{t.count}</span>
+        <span style={css("position:absolute;top:1px;right:3px;min-width:15px;height:15px;padding:0 4px;border-radius:8px;background:var(--nv-gold);color:#1a1206;font:var(--nv-micro-s);display:flex;align-items:center;justify-content:center")}>{t.count}</span>
       )}
     </div>
   );
@@ -105,7 +105,7 @@ export function MobileChrome({ v }) {
                   <TabIcon name={t.screen} size={24} />
                   <span style={css(`font:550 10.5px ${R};white-space:nowrap`)}>{t.label}</span>
                   {t.count != null && (
-                    <span style={css("position:absolute;top:6px;right:calc(50% - 26px);min-width:15px;height:15px;padding:0 4px;border-radius:8px;background:var(--nv-gold);color:#1a1206;font:700 9px var(--nv-font-mono);display:flex;align-items:center;justify-content:center")}>{t.count}</span>
+                    <span style={css("position:absolute;top:6px;right:calc(50% - 26px);min-width:15px;height:15px;padding:0 4px;border-radius:8px;background:var(--nv-gold);color:#1a1206;font:var(--nv-micro-s);display:flex;align-items:center;justify-content:center")}>{t.count}</span>
                   )}
                 </div>
               ))}

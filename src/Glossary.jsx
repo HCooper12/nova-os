@@ -40,7 +40,7 @@ export function Term({ k, children }) {
       >{children || k}</span>
       {open && (
         <span style={css('position:absolute;left:0;bottom:calc(100% + 8px);z-index:60;width:min(240px,72vw);background:var(--nv-bg2, #111a32);border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);border-radius:12px;padding:10px 12px;font:400 12px var(--nv-font-ui);color:var(--nv-ink);letter-spacing:0;text-transform:none;line-height:1.5;box-shadow:0 18px 50px -12px rgba(0,0,0,.9)')}>
-          <b style={css('display:block;font:600 9.5px var(--nv-font-mono);letter-spacing:.14em;color:var(--nv-cy);margin-bottom:4px;text-transform:uppercase')}>{k}</b>
+          <b style={css('display:block;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-cy);margin-bottom:4px;text-transform:uppercase')}>{k}</b>
           {def}
         </span>
       )}

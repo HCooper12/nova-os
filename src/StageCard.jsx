@@ -71,7 +71,7 @@ export function StageCard({ card, size = 'full' }) {
       )}
 
       {card.foot && !mini && (
-        <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)', font: `400 9.5px ${M}`, letterSpacing: '.06em', color: 'color-mix(in srgb, var(--nv-ink) 38%, transparent)' }}>{card.foot}</div>
+        <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', color: 'color-mix(in srgb, var(--nv-ink) 38%, transparent)' }}>{card.foot}</div>
       )}
     </div>
   );

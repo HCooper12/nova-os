@@ -77,6 +77,11 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   --nv-font-ui:'Rajdhani','Instrument Sans',system-ui,sans-serif;
   --nv-font-serif:'Instrument Serif',serif;
   --nv-font-mono:'IBM Plex Mono',monospace;
+  /* MICRO-LABEL TOKENS (5 Sep 2026): the tracked mono label is a MATERIAL —
+     Command keeps it; the Apple styles below swap it for the UI face at a
+     readable size. Three sizes keep the hierarchy the screens already had. */
+  --nv-micro-s:500 8.5px var(--nv-font-mono); --nv-micro-m:500 9.5px var(--nv-font-mono); --nv-micro-l:500 11px var(--nv-font-mono);
+  --nv-micro-track:.14em; --nv-micro-track-wide:.2em;
   --nv-font-mono2:'JetBrains Mono',monospace;
   /* recessed input/well surfaces + the ink used ON accent-filled buttons —
      tokens so the light palette can invert them */
@@ -191,6 +196,8 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   --nv-font-serif:ui-serif,'New York',Georgia,serif;
   --nv-font-mono:ui-monospace,'SF Mono','IBM Plex Mono',monospace;
   --nv-font-mono2:ui-monospace,'SF Mono','JetBrains Mono',monospace;
+  --nv-micro-s:600 11px var(--nv-font-ui); --nv-micro-m:600 12.5px var(--nv-font-ui); --nv-micro-l:600 13.5px var(--nv-font-ui);
+  --nv-micro-track:.03em; --nv-micro-track-wide:.05em;
   --nv-radius:20px;
   --nv-edge:rgba(255,255,255,.09);
   --nv-glass:rgba(255,255,255,.05); --nv-glass2:rgba(15,17,26,.82);

@@ -14,11 +14,11 @@ export function Stash({ v }) {
     <div style={v.wrapStash} data-screen-label="Stash">
       <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>
         <div style={css("display:flex;align-items:center;gap:14px")}>
-          <span style={css(`font:500 11px ${M};letter-spacing:.14em;color:var(--nv-acc)`)}>XIII.</span>
+          <span style={css(`font:var(--nv-micro-l);letter-spacing:var(--nv-micro-track);color:var(--nv-acc)`)}>XIII.</span>
           <span style={css("width:50px;height:1px;background:linear-gradient(90deg,var(--nv-acc-border),transparent)")}></span>
-          <span style={css(`font:500 10px ${M};letter-spacing:.32em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`)}>VAULT · STASH</span>
+          <span style={css(`font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`)}>VAULT · STASH</span>
         </div>
-        <span style={css(`font:400 10px ${M};letter-spacing:.12em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)`)}>{v.stashHeaderLabel}</span>
+        <span style={css(`font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)`)}>{v.stashHeaderLabel}</span>
       </div>
       <h1 style={css(`margin:18px 0 0;font:700 30px/1.1 ${R};letter-spacing:.02em`)}>Stash it, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>find it fast.</span></h1>
       <div style={css("margin-top:8px;font-size:13px;color:color-mix(in srgb, var(--nv-ink) 55%, transparent);max-width:600px;line-height:1.6")}>
@@ -27,7 +27,7 @@ export function Stash({ v }) {
 
       {v.stashConnected && (
         <div className="nv-pane" style={{ marginTop: '20px', padding: '16px 18px' }}>
-          <div style={css(`font:500 9.5px ${M};letter-spacing:.22em;color:var(--nv-gold)`)}>ADD A LINK</div>
+          <div style={css(`font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-gold)`)}>ADD A LINK</div>
           <div style={css("margin-top:11px;display:flex;gap:8px;flex-wrap:wrap")}>
             <span style={css("flex:1 1 150px;min-width:0")}>
               <input list="stash-cats" value={v.stashAddCategory} onChange={v.setStashField('stashAddCategory')} placeholder="Category — e.g. Skincare"
@@ -43,7 +43,7 @@ export function Stash({ v }) {
             <input value={v.stashAddNote} onChange={v.setStashField('stashAddNote')} placeholder="Note (optional) — e.g. restock monthly"
               style={css(`flex:1 1 150px;min-width:0;${inputBase}`)} />
             <Interactive as="span" onClick={v.stashAddBusy ? undefined : v.submitStashAdd}
-              base={{ cursor: 'pointer', flex: 'none', display: 'flex', alignItems: 'center', font: `600 10.5px ${M}`, letterSpacing: '.08em', padding: '0 18px', borderRadius: '9px', background: 'var(--nv-gold)', color: '#1a1322', opacity: v.stashAddBusy ? 0.5 : 1 }}
+              base={{ cursor: 'pointer', flex: 'none', display: 'flex', alignItems: 'center', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', padding: '0 18px', borderRadius: '9px', background: 'var(--nv-gold)', color: '#1a1322', opacity: v.stashAddBusy ? 0.5 : 1 }}
               hoverStyle={{ filter: 'brightness(1.08)' }}>{v.stashAddBusy ? 'STASHING…' : 'STASH IT'}</Interactive>
           </div>
           {v.stashAddError && <div style={css("margin-top:8px;font-size:12px;color:var(--nv-warn)")}>{v.stashAddError}</div>}
@@ -58,22 +58,22 @@ export function Stash({ v }) {
 
       {v.stashCategories.map((cat) => (
         <div key={cat.name} style={{ marginTop: '22px' }}>
-          <div style={css(`font:500 9.5px ${M};letter-spacing:.22em;color:var(--nv-gold)`)}>{cat.name.toUpperCase()} · {cat.items.length}</div>
+          <div style={css(`font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-gold)`)}>{cat.name.toUpperCase()} · {cat.items.length}</div>
           <div className="nv-pane" style={{ marginTop: '8px', padding: '3px 0', overflow: 'hidden' }}>
             {cat.items.map((it, i) => (
               <div key={it.raw} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 16px', borderTop: i === 0 ? 'none' : '1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)' }}>
                 <a href={it.url} target="_blank" rel="noopener noreferrer" style={{ minWidth: 0, flex: 1, textDecoration: 'none' }}>
                   <span style={{ display: 'block', font: `550 15px ${R}`, letterSpacing: '-.01em', color: 'var(--nv-ink)' }}>{it.name}</span>
-                  <span style={{ display: 'block', marginTop: '1px', font: `400 11px ${M}`, color: 'var(--nv-ink40)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ display: 'block', marginTop: '1px', font: 'var(--nv-micro-l)', color: 'var(--nv-ink40)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {it.host}{it.note ? ` · ${it.note}` : ''}
                   </span>
                 </a>
                 <a href={it.url} target="_blank" rel="noopener noreferrer"
-                  style={css(`flex:none;font:600 10px ${M};letter-spacing:.08em;padding:7px 14px;border-radius:999px;text-decoration:none;color:var(--nv-acc);border:1px solid var(--nv-acc-border);background:var(--nv-acc-bg)`)}>OPEN ↗</a>
+                  style={css(`flex:none;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:7px 14px;border-radius:999px;text-decoration:none;color:var(--nv-acc);border:1px solid var(--nv-acc-border);background:var(--nv-acc-bg)`)}>OPEN ↗</a>
                 {it.confirming ? (
                   <span style={css("flex:none;display:flex;gap:8px;align-items:center")}>
-                    <Interactive as="span" onClick={it.remove} base={css(`cursor:pointer;font:600 9px ${M};padding:5px 10px;border-radius:6px;background:color-mix(in srgb, var(--nv-warn) 15%, transparent);color:var(--nv-warn);border:1px solid color-mix(in srgb, var(--nv-warn) 40%, transparent)`)}>REMOVE</Interactive>
-                    <Interactive as="span" onClick={it.cancelRemove} base={css(`cursor:pointer;font:400 9px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>keep</Interactive>
+                    <Interactive as="span" onClick={it.remove} base={css(`cursor:pointer;font:var(--nv-micro-s);padding:5px 10px;border-radius:6px;background:color-mix(in srgb, var(--nv-warn) 15%, transparent);color:var(--nv-warn);border:1px solid color-mix(in srgb, var(--nv-warn) 40%, transparent)`)}>REMOVE</Interactive>
+                    <Interactive as="span" onClick={it.cancelRemove} base={css(`cursor:pointer;font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>keep</Interactive>
                   </span>
                 ) : (
                   <Interactive as="span" onClick={it.askRemove} aria-label={`Remove ${it.name}`}

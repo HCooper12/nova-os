@@ -116,7 +116,7 @@ export function MissionStructured({ v }) {
     ),
 
     vitals: (
-      <Group key="vitals" label="Vitals" trailing={<span style={{ font: `400 10px ${M}`, letterSpacing: '.08em', color: 'var(--nv-ink40)' }}>{v.bodyMetricsMeta}</span>}>
+      <Group key="vitals" label="Vitals" trailing={<span style={{ font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-ink40)' }}>{v.bodyMetricsMeta}</span>}>
         {/* B1 — the ring, everywhere. Readiness was the best object in the
             product and appeared on one screen; here it sits with protein,
             steps and sleep, colour carrying the verdict (missionFocus.ringState)
@@ -246,8 +246,8 @@ export function MissionStructured({ v }) {
         {v.todayEvents.map((ev, i) => (
           <GRow key={i} first={i === 0}
             leading={<span style={{ font: `600 12px ${M}`, fontVariantNumeric: 'tabular-nums', width: '46px', color: ev.now ? 'var(--nv-cy)' : 'var(--nv-ink40)' }}>{ev.now ? '▸ ' : ''}{ev.time}</span>}
-            title={<span style={{ color: ev.now ? 'var(--nv-cy)' : ev.past ? 'var(--nv-ink40)' : 'var(--nv-ink)' }}>{ev.label}{ev.until && <span style={{ font: `400 10.5px ${M}`, color: 'var(--nv-cy)', marginLeft: '8px' }}>{ev.until}</span>}</span>}
-            trailing={ev.category ? <span style={{ font: `500 9.5px ${M}`, letterSpacing: '.05em', padding: '3px 8px', borderRadius: '999px', color: `rgba(${ev.categoryHue},.9)`, background: `rgba(${ev.categoryHue},.12)` }}>{ev.category.toUpperCase()}</span> : null}
+            title={<span style={{ color: ev.now ? 'var(--nv-cy)' : ev.past ? 'var(--nv-ink40)' : 'var(--nv-ink)' }}>{ev.label}{ev.until && <span style={{ font: 'var(--nv-micro-m)', color: 'var(--nv-cy)', marginLeft: '8px' }}>{ev.until}</span>}</span>}
+            trailing={ev.category ? <span style={{ font: 'var(--nv-micro-m)', letterSpacing: '.05em', padding: '3px 8px', borderRadius: '999px', color: `rgba(${ev.categoryHue},.9)`, background: `rgba(${ev.categoryHue},.12)` }}>{ev.category.toUpperCase()}</span> : null}
           />
         ))}
         {v.calCmdEnabled && (
@@ -304,7 +304,7 @@ export function MissionStructured({ v }) {
         {v.streakBadges.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px', padding: '10px 16px', borderTop: '1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)' }}>
             {v.streakBadges.map((b) => (
-              <span key={b.key} style={{ font: `500 9.5px ${M}`, letterSpacing: '.05em', padding: '4px 10px', borderRadius: '999px', color: `rgb(${b.hue})`, background: `rgba(${b.hue},.09)`, border: `1px solid rgba(${b.hue},.35)` }}>{b.label}</span>
+              <span key={b.key} style={{ font: 'var(--nv-micro-m)', letterSpacing: '.05em', padding: '4px 10px', borderRadius: '999px', color: `rgb(${b.hue})`, background: `rgba(${b.hue},.09)`, border: `1px solid rgba(${b.hue},.35)` }}>{b.label}</span>
             ))}
           </div>
         )}
@@ -331,7 +331,7 @@ export function MissionStructured({ v }) {
         {v.agents.map((ag, i) => (
           <GRow key={ag.name} first={i === 0}
             title={<span style={{ color: ag.on ? 'var(--nv-ink)' : 'var(--nv-ink40)' }}>{ag.name}</span>}
-            trailing={<><span style={{ font: `400 9px ${M}`, letterSpacing: '.08em', color: 'var(--nv-ink40)' }}>{ag.role}</span><span style={ag.dotStyle}></span></>} />
+            trailing={<><span style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-ink40)' }}>{ag.role}</span><span style={ag.dotStyle}></span></>} />
         ))}
       </Group>
     ) : null,

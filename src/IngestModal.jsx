@@ -6,8 +6,8 @@ export function IngestModal({ v }) {
     <div role="dialog" aria-modal="true" aria-label="Ingest a transcript" onClick={v.closeIngestModal} style={css("position:fixed;inset:0;background:rgba(8,5,12,.72);backdrop-filter:blur(6px);z-index:60;display:flex;align-items:center;justify-content:center;padding:40px;overflow-y:auto")}>
       <div onClick={v.stopClick} style={css("width:640px;max-width:94vw;max-height:88vh;overflow-y:auto;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 40px 90px -30px rgba(0,0,0,.95),inset 0 1px 0 var(--nv-spec);animation:fadeUp .3s ease-out;padding:26px 28px")}>
         <div style={css("display:flex;justify-content:space-between;align-items:center")}>
-          <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.24em;color:var(--nv-gold)")}>ADD · NEW CONTENT</span>
-          <Interactive as="span" onClick={v.closeIngestModal} base="cursor:pointer;font:500 11px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 50%, transparent);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:7px;padding:5px 10px" hoverStyle="color:var(--nv-ink)">ESC</Interactive>
+          <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-gold)")}>ADD · NEW CONTENT</span>
+          <Interactive as="span" onClick={v.closeIngestModal} base="cursor:pointer;font:var(--nv-micro-l);color:color-mix(in srgb, var(--nv-ink) 50%, transparent);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:7px;padding:5px 10px" hoverStyle="color:var(--nv-ink)">ESC</Interactive>
         </div>
         <h2 style={css("margin:14px 0 0;font:400 26px var(--nv-font-serif)")}>Add to your vault</h2>
         <div style={css("margin-top:8px;font-size:12.5px;color:color-mix(in srgb, var(--nv-ink) 55%, transparent);line-height:1.6")}>
@@ -24,7 +24,7 @@ export function IngestModal({ v }) {
           style={css("margin-top:16px;width:100%;box-sizing:border-box;height:260px;resize:vertical;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:14px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-mono);line-height:1.6;outline:none")}
         />
 
-        <div style={css("margin-top:12px;font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>SOURCE URL (A VIDEO LINK ALONE IS ENOUGH — OPTIONAL FOR YOUR OWN NOTES)</div>
+        <div style={css("margin-top:12px;font:var(--nv-micro-m);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>SOURCE URL (A VIDEO LINK ALONE IS ENOUGH — OPTIONAL FOR YOUR OWN NOTES)</div>
         <Interactive
           as="input"
           value={v.ingestSourceUrl}
@@ -39,7 +39,7 @@ export function IngestModal({ v }) {
             routes to the Librarian; this modal keeps only what a sentence
             cannot carry — a file, a long paste, a person's handle. */}
 
-        <div style={css("margin-top:16px;font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>OR A PERSON — NOVA&rsquo;S SCOUT RESEARCHES THEM (A NAME, @HANDLE, OR A LINK)</div>
+        <div style={css("margin-top:16px;font:var(--nv-micro-m);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>OR A PERSON — NOVA&rsquo;S SCOUT RESEARCHES THEM (A NAME, @HANDLE, OR A LINK)</div>
         <Interactive
           as="input"
           value={v.ingestPerson}

@@ -225,7 +225,7 @@ export function Body3D({ muscles, pattern, height = 260 }) {
   return (
     <div style={css('position:relative;width:100%')}>
       <div ref={mount} style={{ width: '100%', height, borderRadius: '10px', overflow: 'hidden', background: 'radial-gradient(ellipse at 50% 40%, rgba(89,230,255,.07), transparent 65%)', touchAction: 'none' }} />
-      <span style={css('position:absolute;left:10px;bottom:8px;font:500 8px var(--nv-font-mono);letter-spacing:.14em;opacity:.45')}>
+      <span style={css('position:absolute;left:10px;bottom:8px;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);opacity:.45')}>
         {ready ? 'DRAG TO TURN' : 'LOADING'}
       </span>
     </div>

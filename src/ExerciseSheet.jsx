@@ -36,7 +36,7 @@ export function ExerciseSheet({ v }) {
           <TextAction tone="quiet" onClick={v.closeExerciseCard} ariaLabel="Close">Close</TextAction>
         </div>
         {s.loading && (
-          <div style={css(`padding:26px 6px;font:500 9.5px ${M};letter-spacing:.16em;color:var(--nv-ink40)`)}>PULLING UP {String(s.name).toUpperCase()}…</div>
+          <div style={css(`padding:26px 6px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-ink40)`)}>PULLING UP {String(s.name).toUpperCase()}…</div>
         )}
         {s.error && (
           <div style={css(`padding:18px 6px;font:500 13px var(--nv-font-ui);color:var(--nv-warn)`)}>Couldn't pull that up — {s.error}</div>

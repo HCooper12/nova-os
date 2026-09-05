@@ -9,7 +9,7 @@ import { TabIcon } from './TabIcon.jsx';
 
 const M = "var(--nv-font-mono)";
 const R = "var(--nv-font-ui)";
-const groupLabel = css(`font:500 8px ${M};letter-spacing:.26em;color:var(--nv-ink40);margin:0 10px 7px`);
+const groupLabel = css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-ink40);margin:0 10px 7px`);
 
 export function Sidebar({ v }) {
   return (
@@ -29,8 +29,8 @@ export function Sidebar({ v }) {
               {v.appleStyle ? <TabIcon name={nav.screen} size={16} /> : <span style={nav.numStyle}>{nav.numeral}</span>}<span>{nav.label}</span>
               {nav.count != null && (
                 <span style={nav.countHot
-                  ? css(`margin-left:auto;font:600 9px ${M};padding:1px 7px;border-radius:8px;color:var(--nv-acc);border:1px solid var(--nv-acc-border);background:var(--nv-acc-bg)`)
-                  : css(`margin-left:auto;font:400 9px ${M};color:var(--nv-ink40)`)}>{nav.count}</span>
+                  ? css(`margin-left:auto;font:var(--nv-micro-s);padding:1px 7px;border-radius:8px;color:var(--nv-acc);border:1px solid var(--nv-acc-border);background:var(--nv-acc-bg)`)
+                  : css(`margin-left:auto;font:var(--nv-micro-s);color:var(--nv-ink40)`)}>{nav.count}</span>
               )}
             </Interactive>
           ))}
@@ -43,7 +43,7 @@ export function Sidebar({ v }) {
           {v.navVault.map((nav) => (
             <Interactive key={nav.label} onClick={nav.go} onPointerDown={nav.warm} base={nav.style} hoverStyle="background:rgba(255,255,255,.05)">
               {v.appleStyle ? <TabIcon name={nav.screen} size={16} /> : <span style={nav.numStyle}>{nav.numeral}</span>}<span>{nav.label}</span>
-              <span style={css(`margin-left:auto;font:400 9px ${M};color:var(--nv-ink40)`)}>{nav.count}</span>
+              <span style={css(`margin-left:auto;font:var(--nv-micro-s);color:var(--nv-ink40)`)}>{nav.count}</span>
             </Interactive>
           ))}
         </div>
@@ -80,14 +80,14 @@ export function Sidebar({ v }) {
         base={css("margin-top:auto;cursor:pointer;border-radius:12px;padding:12px 14px")}
         hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}
       >
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', font: `500 9px ${M}`, letterSpacing: '.12em', color: v.sideStatus.color }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: v.sideStatus.color }}>
           <NovaCore size={30} variant="mini" style={{ flex: 'none', marginRight: '2px' }} />
           <span style={{ width: '6px', height: '6px', borderRadius: '50%', flex: 'none', background: v.sideStatus.color, boxShadow: `0 0 9px ${v.sideStatus.color}`, animation: v.sideStatus.pulse ? 'novaPulse 2.2s infinite var(--nv-anim)' : 'none' }}></span>
           <span>{v.sideStatus.row1}</span>
         </div>
-        <div style={{ marginTop: '7px', font: `400 8.5px ${M}`, letterSpacing: '.08em', lineHeight: 1.5, color: 'var(--nv-ink40)' }}>{v.sideStatus.row2}</div>
+        <div style={{ marginTop: '7px', font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', lineHeight: 1.5, color: 'var(--nv-ink40)' }}>{v.sideStatus.row2}</div>
         {v.outboxCount > 0 && (
-          <div onClick={(e) => { e.stopPropagation(); v.openOutbox(); }} style={{ marginTop: '7px', font: `600 8.5px ${M}`, letterSpacing: '.1em', color: 'var(--nv-gold)', cursor: 'pointer' }}>⇪ OUTBOX · {v.outboxCount} WAITING</div>
+          <div onClick={(e) => { e.stopPropagation(); v.openOutbox(); }} style={{ marginTop: '7px', font: 'var(--nv-micro-s)', letterSpacing: '.1em', color: 'var(--nv-gold)', cursor: 'pointer' }}>⇪ OUTBOX · {v.outboxCount} WAITING</div>
         )}
       </Interactive>
     </aside>

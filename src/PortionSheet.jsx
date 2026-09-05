@@ -27,11 +27,11 @@ export function PortionSheet({ p }) {
         </div>
         <Eyebrow tone="good">Log it · how much?</Eyebrow>
         <div style={css('margin-top:9px;font-size:15px;line-height:1.35')}>{p.name}</div>
-        <div style={{ marginTop: '4px', font: `400 11px ${M}`, color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>
+        <div style={{ marginTop: '4px', font: 'var(--nv-micro-l)', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>
           full serving: {p.base.p}P · {p.base.c}C · {p.base.f}F · {p.base.kcal} kcal
         </div>
         {p.dayLabel && (
-          <div style={{ marginTop: '6px', font: `500 10px ${M}`, letterSpacing: '.08em', color: 'var(--nv-gold)' }}>{p.dayLabel}</div>
+          <div style={{ marginTop: '6px', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-gold)' }}>{p.dayLabel}</div>
         )}
 
         <div style={css('margin-top:14px;display:flex;gap:6px;flex-wrap:wrap;align-items:center')}>
@@ -51,13 +51,13 @@ export function PortionSheet({ p }) {
         <div style={css('margin-top:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap')}>
           <div style={css('flex:1;min-width:170px')}>
             <div style={css('font-size:13px')}>{p.loggedName || p.name}</div>
-            <div style={{ marginTop: '3px', font: `400 11.5px ${M}`, color: p.valid ? 'var(--nv-good)' : '#e08f6f' }}>{p.preview}</div>
+            <div style={{ marginTop: '3px', font: 'var(--nv-micro-l)', color: p.valid ? 'var(--nv-good)' : '#e08f6f' }}>{p.preview}</div>
           </div>
           <Interactive as="span" onClick={p.cancel}
-            base={`cursor:pointer;font:600 10.5px ${M};padding:11px 15px;border-radius:10px;border:1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`}
+            base={`cursor:pointer;font:var(--nv-micro-m);padding:11px 15px;border-radius:10px;border:1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`}
             hoverStyle="background:rgba(255,255,255,.05)">CANCEL</Interactive>
           <Interactive as="span" onClick={p.valid ? p.confirm : undefined}
-            base={{ cursor: p.valid ? 'pointer' : 'default', font: `600 10.5px ${M}`, letterSpacing: '.06em', padding: '11px 20px', borderRadius: '10px', background: 'var(--nv-good)', color: '#122015', opacity: p.valid ? 1 : 0.45 }}
+            base={{ cursor: p.valid ? 'pointer' : 'default', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', padding: '11px 20px', borderRadius: '10px', background: 'var(--nv-good)', color: '#122015', opacity: p.valid ? 1 : 0.45 }}
             hoverStyle={p.valid ? { background: 'color-mix(in srgb, var(--nv-good) 82%, white)' } : undefined}>LOG IT</Interactive>
         </div>
       </div>

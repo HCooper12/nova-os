@@ -93,11 +93,11 @@ export function Inbox({ v }) {
     <div style={v.wrapInbox} data-screen-label="Inbox">
       <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>
         <div style={css("display:flex;align-items:center;gap:14px")}>
-          <span style={css("font:500 11px var(--nv-font-mono);letter-spacing:.14em;color:var(--nv-acc)")}>V.</span>
+          <span style={css("font:var(--nv-micro-l);letter-spacing:var(--nv-micro-track);color:var(--nv-acc)")}>V.</span>
           <span style={css("width:50px;height:1px;background:linear-gradient(90deg,var(--nv-acc-border),transparent)")}></span>
-          <span style={css("font:500 10px var(--nv-font-mono);letter-spacing:.32em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>SELF · INBOX</span>
+          <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>SELF · INBOX</span>
         </div>
-        <span style={css("font:400 10px var(--nv-font-mono);letter-spacing:.12em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.inboxHeaderLabel}</span>
+        <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.inboxHeaderLabel}</span>
       </div>
       <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Drop the thought, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>Nova files it.</span></h1>
 
@@ -432,7 +432,7 @@ export function Inbox({ v }) {
                 <Chip key={m.value} tone={m.active ? 'accent' : 'quiet'} active={m.active} onClick={m.pick}>{m.label}</Chip>
               ))}
               <select value={v.dailyReview.hour} onChange={v.dailyReview.setHour}
-                style={{ marginLeft: 'auto', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: `500 11px ${M}`, padding: '4px 6px', outline: 'none' }}>
+                style={{ marginLeft: 'auto', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: 'var(--nv-micro-l)', padding: '4px 6px', outline: 'none' }}>
                 {v.dailyReview.hourOptions.map((h) => <option key={h} value={h} style={{ background: '#141019' }}>{String(h).padStart(2, '0')}:00</option>)}
               </select>
             </div>
@@ -457,7 +457,7 @@ export function Inbox({ v }) {
                       <Chip key={m.value} tone={m.active ? 'accent' : 'quiet'} active={m.active} onClick={m.pick}>{m.label}</Chip>
                     ))}
                     <select value={s.hour} onChange={s.setHour}
-                      style={{ marginLeft: 'auto', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: `500 11px ${M}`, padding: '4px 6px', outline: 'none' }}>
+                      style={{ marginLeft: 'auto', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: 'var(--nv-micro-l)', padding: '4px 6px', outline: 'none' }}>
                       {s.hourOptions.map((h) => <option key={h} value={h} style={{ background: '#141019' }}>{String(h).padStart(2, '0')}:00</option>)}
                     </select>
                   </div>
@@ -523,7 +523,7 @@ export function Inbox({ v }) {
                 )}
               </div>
               {v.todoist.configured && (
-                <div style={css(`margin-top:8px;font:400 10px ${M};color:color-mix(in srgb, var(--nv-ink) 35%, transparent)`)}>To-dos filed here appear in Todoist's Inbox; tasks added or completed there flow back. Nothing is ever deleted on either side.</div>
+                <div style={css(`margin-top:8px;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 35%, transparent)`)}>To-dos filed here appear in Todoist's Inbox; tasks added or completed there flow back. Nothing is ever deleted on either side.</div>
               )}
             </div>
 

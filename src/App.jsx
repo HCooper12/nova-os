@@ -6708,7 +6708,7 @@ export default class App extends Component {
             style={css('position:fixed;inset:0;z-index:125;display:flex;align-items:center;justify-content:center;background:rgba(4,3,8,.7);backdrop-filter:blur(6px);animation:fadeIn .2s ease-out')}>
             <div style={css('text-align:center;animation:prPop .5s cubic-bezier(.2,.8,.2,1)')}>
               <div style={css('font-size:56px;line-height:1;color:var(--nv-gold);text-shadow:0 0 40px color-mix(in srgb, var(--nv-gold) 80%, transparent);animation:prStar 1.4s ease-in-out infinite')}>◆</div>
-              <div style={css('margin-top:14px;font:600 11px var(--nv-font-mono);letter-spacing:.3em;color:var(--nv-gold)')}>PERSONAL RECORD</div>
+              <div style={css('margin-top:14px;font:var(--nv-micro-l);letter-spacing:.3em;color:var(--nv-gold)')}>PERSONAL RECORD</div>
               {this.state.prCelebration.map((p, i) => (
                 <div key={i} style={css('margin-top:8px;font:600 20px var(--nv-font-ui);color:var(--nv-ink)')}>
                   {p.name} — {p.kind === 'weight' ? `${p.value} kg × ${p.reps}` : `e1RM ${p.value} kg`}
@@ -6734,10 +6734,10 @@ export default class App extends Component {
           <div style={css(`position:fixed;top:0;left:0;right:0;z-index:200;display:flex;align-items:center;gap:10px;padding:calc(8px + env(safe-area-inset-top)) 14px 10px;background:color-mix(in srgb, var(--nv-gold) 16%, var(--nv-void));border-bottom:1px solid color-mix(in srgb, var(--nv-gold) 45%, transparent);box-shadow:0 10px 30px rgba(0,0,0,.5)`)}>
             <span style={css('flex:1;min-width:0;font-size:12.5px;line-height:1.4;color:var(--nv-ink)')}>A newer Nova is ready — you’re running an older build.</span>
             <Interactive as="span" onClick={v.updateReady.apply}
-              base={css('cursor:pointer;flex:none;font:600 9.5px var(--nv-font-mono);letter-spacing:.1em;padding:8px 14px;border-radius:8px;background:var(--nv-gold);color:#1a1322')}
+              base={css('cursor:pointer;flex:none;font:var(--nv-micro-m);letter-spacing:.1em;padding:8px 14px;border-radius:8px;background:var(--nv-gold);color:#1a1322')}
               hoverStyle="background:color-mix(in srgb, var(--nv-gold) 85%, white)">UPDATE</Interactive>
             <Interactive as="span" onClick={v.updateReady.dismiss}
-              base={css('cursor:pointer;flex:none;font:600 9.5px var(--nv-font-mono);letter-spacing:.1em;padding:8px 10px;border-radius:8px;color:color-mix(in srgb, var(--nv-ink) 50%, transparent)')}
+              base={css('cursor:pointer;flex:none;font:var(--nv-micro-m);letter-spacing:.1em;padding:8px 10px;border-radius:8px;color:color-mix(in srgb, var(--nv-ink) 50%, transparent)')}
               hoverStyle="color:var(--nv-ink)">LATER</Interactive>
           </div>
         )}
@@ -6780,7 +6780,7 @@ export default class App extends Component {
             }}>
             <span style={{ font: '400 13px var(--nv-font-serif)', fontStyle: 'italic', lineHeight: 1.55, color: 'var(--nv-ink)' }}>{v.greetBanner.text}</span>
             <span onClick={v.greetBanner.dismiss} aria-label="Dismiss greeting"
-              style={{ flex: 'none', font: '500 11px var(--nv-font-mono)', color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)', padding: '2px 4px' }}>✕</span>
+              style={{ flex: 'none', font: 'var(--nv-micro-l)', color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)', padding: '2px 4px' }}>✕</span>
           </div>
         )}
         {/* fallback={null}: an overlay appearing a frame later reads as

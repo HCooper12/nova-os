@@ -14,7 +14,7 @@ export function Boot({ info }) {
         <NovaCore size={112} engine={getCoreStyle()} />
       </div>
       <div style={css("font:700 26px var(--nv-font-ui);letter-spacing:.34em;color:var(--nv-ink);padding-left:.34em")}>NOVA<span style={css("background:linear-gradient(90deg,var(--nv-cy),var(--nv-vi));-webkit-background-clip:text;background-clip:text;color:transparent")}>·OS</span></div>
-      <div style={css("display:flex;flex-direction:column;gap:7px;font:400 10px var(--nv-font-mono);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent);text-align:center")}>
+      <div style={css("display:flex;flex-direction:column;gap:7px;font:var(--nv-micro-m);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent);text-align:center")}>
         {lines.map((line, i) => (
           <div key={i} style={{ animation: `fadeUp .5s ease-out ${i * 0.35}s both` }}>{line}</div>
         ))}
