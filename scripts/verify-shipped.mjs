@@ -38,7 +38,7 @@ const FEATURES = [
   ['Voice · crash boundary', 'VISUAL UNAVAILABLE'],
   ['Voice · speech unavailable notice', 'TAP TO HEAR'],
   ['Brief · question-by-question close', 'startBriefQueue'],
-  ['Coach · apply from the chat', 'APPLY IT'],
+  ['Coach · apply from the chat', 'Apply it'],
   ['Book upload (EPUB/PDF)', 'uploadBookFile'],
   // the marker above only proves the FUNCTION shipped — it shipped broken
   // (posted to the app's own origin). This one exists only in the fixed code.
@@ -71,9 +71,9 @@ const FEATURES = [
   ['Galaxy · pinch-zoom + pan, legend filters, recency/compost overlays', 'PINCH TO ZOOM'],
   ['Inbox · training-check dismiss asks what happened (four chips)', 'ONE TAP KEEPS THE RECORD STRAIGHT'],
   ['Inbox · review discard asks why once; adjustments take DONE / NOT TODAY', "TOMORROW'S REVIEW READS THIS"],
-  ['Train · history rows carry the Coach\'s reaction', 'COACH SAID'],
+  ['Train · history rows carry the Coach\'s reaction', 'Coach said'],
   ['Home · a health insight can be talked through in one tap', 'TALK IT THROUGH'],
-  ["Train · today's card says what the session trains, before he starts", 'PER EXERCISE'],
+  ["Train · today's card says what the session trains, before he starts", 'Per exercise'],
   ['Voice · a brief killed by leaving the app is replayable, not lost', 'the audio stopped when you left'],
 ];
 

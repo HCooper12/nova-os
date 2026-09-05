@@ -135,7 +135,9 @@ DECISIONS (his, 4–5 Sep):
 VERIFIED (this session, with locators): every item above was exercised on
 the running app — see the commit bodies from `e91eac2` to `fff89ae`.
 - Material pass: before/after screenshots at 375×812 on his data (Inbox,
-  Mission Control top + folds, Train Today); console clean; production
+  Mission Control top + folds, Train Today) — published for him at
+  https://claude.ai/code/artifact/4b7c2823-ee15-429c-9142-5a8b88b2049d ;
+  console clean; production
   preview on the same origin measured click→second-rAF at 12–22ms for
   twelve interactions (deck/list, see-all, expand, fold, tab hops, Train
   segments), DOM 644 nodes. The trace's 69ms forced reflow was my probe's
