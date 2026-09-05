@@ -5,6 +5,14 @@ import { LocalInput } from '../LocalInput.jsx';
 import { VoicePanel } from '../VoicePanels.jsx';
 import { useDictation } from '../useDictation.js';
 import { SafeVisual } from '../SafeVisual.jsx';
+import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle } from '../Controls.jsx';
+
+// the material pass (6 Sep 2026): labels and controls through Controls.jsx;
+// filled buttons sentence-case in the UI face under the Apple styles
+const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpperCase()).replace(/\bnova\b/g, 'Nova');
+const btn = (bg, ink, extra = {}) => (isAppleStyle()
+  ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '10px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }
+  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-l)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
 
 // Apple-layout twin for the eaten-today strip: same dayMacros object,
 // rendered as four stat tiles instead of the inline HUD strip.
@@ -75,13 +83,11 @@ export function Recipes({ v }) {
               <b style={css("font-variant-numeric:tabular-nums")}><span style={css("color:var(--nv-gold)")}>{v.fuelHero.c}C</span> · <span style={css("color:var(--nv-vi)")}>{v.fuelHero.f}F</span></b>
             </div>
             {v.fuelHero.kcalLeft != null && (
-              <span style={css("align-self:flex-start;font:var(--nv-micro-s);letter-spacing:.1em;padding:4px 10px;border-radius:99px;border:1px solid color-mix(in srgb, var(--nv-good) 40%, transparent);color:var(--nv-good)")}>FITS {v.fuelHero.kcalLeft} KCAL LEFT</span>
+              <Tag tone="good" style={{ alignSelf: 'flex-start' }}>Fits {v.fuelHero.kcalLeft} kcal left</Tag>
             )}
             <span style={css("font-size:12px;color:color-mix(in srgb, var(--nv-ink) 62%, transparent);line-height:1.45")}>Coach: {v.fuelHero.gapText}</span>
             {v.askProteinVerdict && (
-              <Interactive as="span" onClick={v.askProteinVerdict}
-                base={css("align-self:flex-start;cursor:pointer;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);padding:5px 11px;border-radius:99px;border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);color:var(--nv-cy)")}
-                hoverStyle="background:color-mix(in srgb, var(--nv-cy) 12%, transparent)">WHERE DID MY PROTEIN GO?</Interactive>
+              <Chip tone="cyan" onClick={v.askProteinVerdict} style={{ alignSelf: 'flex-start' }}>Where did my protein go?</Chip>
             )}
           </div>
         </div>
@@ -91,7 +97,7 @@ export function Recipes({ v }) {
       {!v.fuelHero && v.dayMacros && v.structured && <EatenTiles m={v.dayMacros} />}
       {!v.fuelHero && v.dayMacros && !v.structured && (
         <div style={css("margin-top:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border:1px solid color-mix(in srgb, var(--nv-cy) 22%, transparent);border-radius:12px;padding:11px 16px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-cy) 05%, transparent),transparent)")}>
-          <span style={css("font:var(--nv-micro-s);letter-spacing:.2em;color:var(--nv-cy);flex:none")}>EATEN TODAY</span>
+          <Eyebrow as="span" tone="cyan" style={{ flex: 'none' }}>Eaten today</Eyebrow>
           {v.dayMacros.proteinPct != null && (
             <span style={css("flex:none;display:flex;align-items:center;gap:7px")}>
               <span style={{ width: '30px', height: '30px', borderRadius: '50%', padding: '2px', flex: 'none', background: `conic-gradient(var(--nv-cy) ${v.dayMacros.proteinPct}%, var(--nv-edge) 0)` }}>
@@ -120,7 +126,7 @@ export function Recipes({ v }) {
           has nothing true to say. */}
       {v.fuelCross && (
         <div style={css("margin-top:12px;border:1px solid color-mix(in srgb, var(--nv-vi) 38%, transparent);border-radius:14px;padding:14px 17px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-vi) 06%, transparent),transparent)")}>
-          <div style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:${v.fuelCross.couldntLook ? 'var(--nv-warn)' : 'var(--nv-vi)'}`)}>◈ TRAINING × FUEL — {v.fuelCross.couldntLook ? "COULDN'T CHECK" : 'CROSS-CHECK'}</div>
+          <Eyebrow tone={v.fuelCross.couldntLook ? 'warn' : 'violet'}>◈ Training × fuel — {v.fuelCross.couldntLook ? "couldn't check" : 'cross-check'}</Eyebrow>
           <div style={css("margin-top:8px;font-size:13px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 85%, transparent)")}>{v.fuelCross.line}</div>
           {v.fuelCross.draft && (
             <Interactive as="span" onClick={v.fuelCross.draft}
@@ -137,7 +143,7 @@ export function Recipes({ v }) {
       {v.rotationVisible && (
         <div style={css("margin-top:18px")}>
           <div style={css("display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin:0 2px 8px")}>
-            <span style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>TODAY'S ROTATION — TAP TO EAT · HOLD FOR MORE</span>
+            <Eyebrow as="span">Today's rotation — tap to eat · hold for more</Eyebrow>
             <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
               <span style={css("color:var(--nv-cy)")}>{v.rotationTotals.p}P</span> · <span style={css("color:var(--nv-gold)")}>{v.rotationTotals.c}C</span> · <span style={css("color:var(--nv-vi)")}>{v.rotationTotals.f}F</span> · <span style={css("color:var(--nv-good)")}>{v.rotationTotals.kcal}</span>
             </span>
@@ -148,7 +154,7 @@ export function Recipes({ v }) {
                 base={{ flex: '0 0 172px', borderRadius: '16px', padding: '12px', position: 'relative', cursor: s.recipeName ? 'pointer' : 'default',
                 border: s.consumed ? '1px solid color-mix(in srgb, var(--nv-good) 50%, transparent)' : '1px solid var(--nv-edge)',
                 background: 'var(--nv-glass)', transition: 'border-color .2s' }}>
-                <span style={css(`font:var(--nv-micro-s);letter-spacing:.2em;color:var(--nv-vi)`)}>{s.name.toUpperCase()}</span>
+                <Eyebrow as="span" tone="violet">{s.name}</Eyebrow>
                 {s.recipeName ? (
                   <>
                     <Interactive as="div" onClick={s.open} base="cursor:pointer;font:600 14px var(--nv-font-ui);margin-top:3px;line-height:1.25;color:var(--nv-ink)" hoverStyle="color:var(--nv-cy)">{s.recipeName}{s.variant ? ` · ${s.variant}` : ''}</Interactive>
@@ -178,8 +184,8 @@ export function Recipes({ v }) {
                     </Interactive>
                     {/* 32px-tall targets: CLEAR measured 26×11px at 375px on 3 Sep — the action taken 4× a day was the smallest thing on the screen */}
                     <div style={css("display:flex;gap:18px;margin-top:4px;align-items:center")}>
-                      {s.clearVariant && <Interactive as="span" onClick={s.clearVariant} base="cursor:pointer;display:inline-flex;align-items:center;min-height:32px;padding:0 10px;margin:0 -10px;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:var(--nv-gold)" hoverStyle="text-decoration:underline">UNDO VARIANT</Interactive>}
-                      <Interactive as="span" onClick={s.clear} base="cursor:pointer;display:inline-flex;align-items:center;min-height:32px;padding:0 10px;margin:0 -10px;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 35%, transparent)" hoverStyle="color:var(--nv-warn)">CLEAR</Interactive>
+                      {s.clearVariant && <TextAction compact tone="gold" onClick={s.clearVariant} style={{ marginLeft: '-8px' }}>Undo variant</TextAction>}
+                      <TextAction compact tone="faint" onClick={s.clear}>Clear</TextAction>
                     </div>
                   </>
                 ) : (
@@ -210,7 +216,7 @@ export function Recipes({ v }) {
             ))}
           </div>
           {v.foodLogViewingLabel && (
-            <div style={css("margin-top:8px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-gold)")}>{v.foodLogViewingLabel}</div>
+            <Meta as="div" tone="gold" style={{ marginTop: '8px' }}>{v.foodLogViewingLabel}</Meta>
           )}
           {/* ONE bar, four senses (mockup): type it, shoot it, scan it —
               icons inline, no separate sections. Enter or the arrow submits;
@@ -272,15 +278,9 @@ export function Recipes({ v }) {
           {/* which day this lands on — compact, below the bar (mockup keeps
               the bar clean); off-plan totals ride along when they exist */}
           <div style={css("margin-top:9px;display:flex;gap:6px;flex-wrap:wrap;align-items:center")}>
-            <span style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 38%, transparent)")}>FOR</span>
+            <Meta tone="faint">For</Meta>
             {v.foodLogDays.map((d) => (
-              <Interactive key={d.key} as="span" onClick={d.pick}
-                base={{ cursor: 'pointer', font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', padding: '4px 9px', borderRadius: '6px',
-                  border: d.active ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent)',
-                  color: d.active ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 38%, transparent)',
-                  background: d.active ? 'var(--nv-acc-bg)' : 'none' }}
-                hoverStyle={{ color: 'var(--nv-ink)' }}
-              >{d.label}</Interactive>
+              <Chip key={d.key} tone={d.active ? 'accent' : 'quiet'} active={d.active} onClick={d.pick}>{cap(d.label)}</Chip>
             ))}
             {v.foodLogEntries.length > 0 && (
               <span style={css("margin-left:auto;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
@@ -292,11 +292,9 @@ export function Recipes({ v }) {
               stored as one full serving, eaten a third at a time, without
               re-entering it as a new food. */}
           <div style={css("margin-top:10px")}>
-            <Interactive as="span" onClick={v.foodRecipePickerOpen ? v.closeFoodRecipePicker : v.openFoodRecipePicker}
-              base={`cursor:pointer;display:inline-flex;align-items:center;gap:7px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:7px 12px;border-radius:8px;border:1px solid ${v.foodRecipePickerOpen ? 'var(--nv-acc-border)' : 'color-mix(in srgb, var(--nv-ink) 14%, transparent)'};color:${v.foodRecipePickerOpen ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)'};background:${v.foodRecipePickerOpen ? 'var(--nv-acc-bg)' : 'none'}`}
-              hoverStyle="background:rgba(255,255,255,.05)">
-              {v.foodRecipePickerOpen ? '× FROM YOUR RECIPES' : '＋ FROM YOUR RECIPES'}
-            </Interactive>
+            <Chip tone={v.foodRecipePickerOpen ? 'accent' : 'quiet'} active={v.foodRecipePickerOpen} onClick={v.foodRecipePickerOpen ? v.closeFoodRecipePicker : v.openFoodRecipePicker}>
+              {v.foodRecipePickerOpen ? '× From your recipes' : '＋ From your recipes'}
+            </Chip>
           </div>
           {v.foodRecipePickerOpen && (
             <div style={css("margin-top:10px;border:1px solid var(--nv-edge);border-radius:12px;background:rgba(0,0,0,.22);padding:12px;animation:fadeUp .22s ease-out")}>
@@ -319,7 +317,7 @@ export function Recipes({ v }) {
               </div>
               {v.foodRecipePick && (
                 <div style={css("margin-top:12px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent);padding-top:12px")}>
-                  <div style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>HOW MUCH OF IT?</div>
+                  <Eyebrow>How much of it?</Eyebrow>
                   <div style={css("margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center")}>
                     {v.foodRecipePick.portions.map((pn) => (
                       <Interactive key={pn.label} as="span" onClick={pn.pick}
@@ -340,9 +338,9 @@ export function Recipes({ v }) {
                       <div style={{ marginTop: '3px', font: 'var(--nv-micro-l)', color: v.foodRecipePick.valid ? 'var(--nv-good)' : '#e08f6f' }}>{v.foodRecipePick.preview}</div>
                     </div>
                     <Interactive as="span" onClick={v.foodRecipePick.valid ? v.foodRecipePick.confirm : undefined}
-                      base={{ cursor: v.foodRecipePick.valid ? 'pointer' : 'default', flex: 'none', font: 'var(--nv-micro-l)', padding: '10px 18px', borderRadius: '9px', background: 'var(--nv-good)', color: '#122015', opacity: v.foodRecipePick.valid ? 1 : 0.45 }}
-                      hoverStyle={v.foodRecipePick.valid ? { background: 'color-mix(in srgb, var(--nv-good) 82%, white)' } : undefined}>
-                      LOG IT
+                      base={btn('var(--nv-good)', '#122015', { cursor: v.foodRecipePick.valid ? 'pointer' : 'default', flex: 'none', opacity: v.foodRecipePick.valid ? 1 : 0.45 })}
+                      hoverStyle={v.foodRecipePick.valid ? { filter: 'brightness(1.08)' } : undefined}>
+                      Log it
                     </Interactive>
                   </div>
                 </div>
@@ -362,7 +360,7 @@ export function Recipes({ v }) {
                   <Interactive as="span" onClick={ph.remove} base="cursor:pointer;position:absolute;top:1px;right:1px;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:11px;line-height:1;border-radius:5px;background:rgba(0,0,0,.6);color:#fff" hoverStyle="background:var(--nv-warn)">×</Interactive>
                 </div>
               ))}
-              <Interactive as="span" onClick={v.canRunFoodScan ? v.runFoodScan : undefined} base={{ cursor: v.canRunFoodScan ? 'pointer' : 'default', flex: 'none', font: 'var(--nv-micro-l)', padding: '9px 16px', borderRadius: '8px', background: 'var(--nv-good)', color: '#122015', opacity: v.foodScanBusy ? 0.6 : 1 }} hoverStyle={{ background: 'color-mix(in srgb, var(--nv-good) 80%, white)' }}>{v.foodScanBusy ? 'Analyzing…' : `Analyze ${v.foodScanCount} photo${v.foodScanCount === 1 ? '' : 's'}`}</Interactive>
+              <Interactive as="span" onClick={v.canRunFoodScan ? v.runFoodScan : undefined} base={btn('var(--nv-good)', '#122015', { cursor: v.canRunFoodScan ? 'pointer' : 'default', flex: 'none', opacity: v.foodScanBusy ? 0.6 : 1 })} hoverStyle={{ background: 'color-mix(in srgb, var(--nv-good) 80%, white)' }}>{v.foodScanBusy ? 'Analyzing…' : `Analyze ${v.foodScanCount} photo${v.foodScanCount === 1 ? '' : 's'}`}</Interactive>
             </div>
           )}
           {v.foodScanCount > 0 && <div style={css("margin-top:8px;font-size:11px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent);line-height:1.5")}>Add up to 5 — nutrition labels and/or the food itself. More photos + a note give a sharper estimate.</div>}
@@ -378,11 +376,9 @@ export function Recipes({ v }) {
                     base="flex:1;min-width:170px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 12px;color:var(--nv-ink);font-family:var(--nv-font-ui);outline:none"
                     focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)" />
                   <Interactive as="span" onClick={v.foodScanBusy || !v.foodScanAnswer.trim() ? undefined : v.answerFoodScan}
-                    base={{ cursor: 'pointer', flex: 'none', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', padding: '9px 14px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1322', opacity: v.foodScanBusy || !v.foodScanAnswer.trim() ? 0.5 : 1 }}
-                    hoverStyle={{ filter: 'brightness(1.08)' }}>{v.foodScanBusy ? 'REFINING…' : 'REFINE ESTIMATE'}</Interactive>
-                  <Interactive as="span" onClick={v.dismissFoodScanQuestion}
-                    base="cursor:pointer;flex:none;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 42%, transparent)"
-                    hoverStyle="color:var(--nv-ink)">keep as is</Interactive>
+                    base={btn('var(--nv-gold)', '#1a1322', { flex: 'none', opacity: v.foodScanBusy || !v.foodScanAnswer.trim() ? 0.5 : 1 })}
+                    hoverStyle={{ filter: 'brightness(1.08)' }}>{v.foodScanBusy ? 'Refining…' : 'Refine estimate'}</Interactive>
+                  <TextAction compact tone="faint" onClick={v.dismissFoodScanQuestion}>Keep as is</TextAction>
                 </div>
               ) : (
                 <div style={css("margin-top:5px;font-size:11px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>Adjust the numbers below if needed — saving works either way.</div>
@@ -392,16 +388,14 @@ export function Recipes({ v }) {
           )}
           {/* manual macros are the fallback, not the feature — folded away
               (mockup: one bar, four senses; numbers only when he wants them) */}
-          <Interactive as="span" onClick={() => setManualOpen(!manualOpen)}
-            base="cursor:pointer;display:inline-block;margin-top:10px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)"
-            hoverStyle="color:var(--nv-good)">{manualVisible ? '▾' : '▸'} ENTER MACROS MYSELF</Interactive>
+          <TextAction compact tone="quiet" onClick={() => setManualOpen(!manualOpen)} style={{ marginTop: '10px', marginLeft: '-8px' }}>{manualVisible ? '▾' : '▸'} Enter macros myself</TextAction>
           {manualVisible && <div style={css("margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
             <Interactive as="input" value={v.foodLogName} onChange={v.setFoodLogName} placeholder="What did you eat?" base="flex:1;min-width:140px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 12px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
             <Interactive as="input" type="number" inputMode="numeric" value={v.foodLogP} onChange={v.setFoodLogP} placeholder="P" base="width:52px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 8px;color:var(--nv-cy);font-size:12.5px;font-family:var(--nv-font-mono);outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
             <Interactive as="input" type="number" inputMode="numeric" value={v.foodLogC} onChange={v.setFoodLogC} placeholder="C" base="width:52px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 8px;color:var(--nv-gold);font-size:12.5px;font-family:var(--nv-font-mono);outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
             <Interactive as="input" type="number" inputMode="numeric" value={v.foodLogF} onChange={v.setFoodLogF} placeholder="F" base="width:52px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 8px;color:var(--nv-vi);font-size:12.5px;font-family:var(--nv-font-mono);outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
             <Interactive as="input" type="number" inputMode="numeric" value={v.foodLogKcal} onChange={v.setFoodLogKcal} placeholder="kcal" base="width:62px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 8px;color:var(--nv-good);font-size:12.5px;font-family:var(--nv-font-mono);outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
-            <Interactive as="span" onClick={v.foodLogBusy ? undefined : v.submitFoodLog} base={{ cursor: 'pointer', flex: 'none', font: 'var(--nv-micro-l)', padding: '9px 16px', borderRadius: '8px', background: 'var(--nv-good)', color: '#122015', opacity: v.foodLogBusy ? .6 : 1 }} hoverStyle={{ background: 'color-mix(in srgb, var(--nv-good) 80%, white)' }}>{v.foodLogBusy ? 'Adding…' : '+ Add'}</Interactive>
+            <Interactive as="span" onClick={v.foodLogBusy ? undefined : v.submitFoodLog} base={btn('var(--nv-good)', '#122015', { flex: 'none', opacity: v.foodLogBusy ? .6 : 1 })} hoverStyle={{ background: 'color-mix(in srgb, var(--nv-good) 80%, white)' }}>{v.foodLogBusy ? 'Adding…' : '+ Add'}</Interactive>
           </div>}
           {v.canSaveScanToRecipe && (
             <div style={css("margin-top:8px")}>
@@ -416,7 +410,7 @@ export function Recipes({ v }) {
                   <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 40%, transparent);width:40px;flex:none")}>{e.time}</span>
                   <span style={css("flex:1")}>{e.name}</span>
                   <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 50%, transparent);flex:none")}>{e.p}P · {e.c}C · {e.f}F · {e.kcal}kcal</span>
-                  {e.edited && <span title="amended after logging" style={css("flex:none;font:var(--nv-micro-s);letter-spacing:.1em;color:color-mix(in srgb, var(--nv-gold) 75%, transparent)")}>EDITED</span>}
+                  {e.edited && <Tag tone="gold" title="amended after logging" style={{ flex: 'none' }}>Edited</Tag>}
                   {/* a 44px tap target either side — these rows sit close together */}
                   <Interactive as="span" onClick={e.edit} aria-label={`Edit ${e.name}`}
                     base="cursor:pointer;flex:none;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:12px;color:color-mix(in srgb, var(--nv-ink) 35%, transparent)"
@@ -428,7 +422,7 @@ export function Recipes({ v }) {
               ))}
               {v.foodEdit && (
                 <div style={css("margin-top:6px;border:1px solid color-mix(in srgb, var(--nv-cy) 32%, transparent);border-radius:11px;padding:12px;background:color-mix(in srgb, var(--nv-cy) 05%, transparent);animation:fadeUp .2s ease-out")}>
-                  <div style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-cy)")}>EDIT THIS ENTRY</div>
+                  <Eyebrow tone="cyan">Edit this entry</Eyebrow>
                   <Interactive as="input" value={v.foodEdit.name} onChange={v.foodEdit.setName}
                     base="margin-top:9px;width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:9px 12px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-ui);outline:none"
                     focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 55%, transparent)" />
@@ -443,19 +437,17 @@ export function Recipes({ v }) {
                     ))}
                   </div>
                   <div style={css("margin-top:9px;display:flex;gap:7px;align-items:center;flex-wrap:wrap")}>
-                    <span style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>ATE LESS —</span>
+                    <Meta tone="faint">Ate less —</Meta>
                     {v.foodEdit.quick.map((q) => (
                       <Interactive key={q.label} as="span" onClick={q.apply}
                         base="cursor:pointer;font:600 12px var(--nv-font-ui);padding:6px 11px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 13%, transparent);color:color-mix(in srgb, var(--nv-ink) 60%, transparent)"
                         hoverStyle="background:rgba(255,255,255,.06);color:var(--nv-ink)">{q.label}</Interactive>
                     ))}
                     <div style={css("margin-left:auto;display:flex;gap:8px")}>
-                      <Interactive as="span" onClick={v.foodEdit.cancel}
-                        base="cursor:pointer;font:var(--nv-micro-m);padding:9px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)"
-                        hoverStyle="background:rgba(255,255,255,.05)">CANCEL</Interactive>
+                      <TextAction compact tone="quiet" onClick={v.foodEdit.cancel}>Cancel</TextAction>
                       <Interactive as="span" onClick={v.foodEdit.save}
-                        base="cursor:pointer;font:var(--nv-micro-m);padding:9px 16px;border-radius:8px;background:var(--nv-cy);color:var(--nv-on-acc)"
-                        hoverStyle="background:color-mix(in srgb, var(--nv-cy) 82%, white)">SAVE</Interactive>
+                        base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { padding: isAppleStyle() ? '8px 16px' : '9px 16px' })}
+                        hoverStyle={{ filter: 'brightness(1.08)' }}>Save</Interactive>
                     </div>
                   </div>
                 </div>
@@ -463,7 +455,7 @@ export function Recipes({ v }) {
             </div>
           )}
           <div style={css("margin-top:14px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:10px")}>
-            <Interactive as="span" onClick={v.toggleFoodHistory} base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)" hoverStyle="color:var(--nv-good)">{v.foodHistoryOpen ? '▾' : '▸'} RECENT FOODS</Interactive>
+            <TextAction compact tone="quiet" onClick={v.toggleFoodHistory} style={{ marginLeft: '-8px' }}>{v.foodHistoryOpen ? '▾' : '▸'} Recent foods</TextAction>
             {v.foodHistoryOpen && (
               <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:5px")}>
                 {!v.foodHistoryLoaded && <div style={css("font-size:12px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Loading…</div>}
@@ -472,7 +464,7 @@ export function Recipes({ v }) {
                   <div key={it.key} style={css("display:flex;align-items:center;gap:9px;font-size:12.5px;padding:4px 0")}>
                     <span style={css("flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{it.name}{it.seen && <span style={css("margin-left:6px;font:var(--nv-micro-m);color:var(--nv-gold)")}>{it.seen}</span>}</span>
                     <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 42%, transparent);flex:none")}>{it.macroLabel}</span>
-                    <Interactive as="span" onClick={it.relog} base="cursor:pointer;flex:none;font:var(--nv-micro-m);padding:4px 9px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-good) 30%, transparent);color:var(--nv-good)" hoverStyle="background:color-mix(in srgb, var(--nv-good) 14%, transparent)">＋ log</Interactive>
+                    <TextAction compact tone="good" onClick={it.relog} style={{ flex: 'none' }}>＋ Log</TextAction>
                     <Interactive as="span" onClick={it.toRecipe} aria-label="Save to recipe bank" base="cursor:pointer;flex:none;font-size:15px;line-height:1;color:color-mix(in srgb, var(--nv-ink) 38%, transparent)" hoverStyle="color:var(--nv-gold)">☆</Interactive>
                   </div>
                 ))}
@@ -493,14 +485,11 @@ export function Recipes({ v }) {
           <LocalInput value={v.recipeSearch} onChange={(t) => v.setRecipeSearch(t)} submitOnEnter={false} placeholder="Search recipes or ingredients…"
             style={css("width:190px;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:7px 11px;color:var(--nv-ink);font:400 12px var(--nv-font-ui);outline:none")} />
           {v.recipeFitsAvailable && (
-            <Interactive as="span" onClick={v.toggleRecipeFits}
-              base={`cursor:pointer;font:var(--nv-micro-s);letter-spacing:.1em;padding:6px 11px;border-radius:8px;border:1px solid ${v.recipeFitsOn ? 'var(--nv-acc-border)' : 'color-mix(in srgb, var(--nv-good) 30%, transparent)'};color:${v.recipeFitsOn ? 'var(--nv-acc)' : 'var(--nv-good)'};background:${v.recipeFitsOn ? 'var(--nv-acc-bg)' : 'transparent'}`}
-              hoverStyle="background:color-mix(in srgb, var(--nv-good) 10%, transparent)"
-            >{v.recipeFitsLabel}</Interactive>
+            <Chip tone={v.recipeFitsOn ? 'accent' : 'good'} active={v.recipeFitsOn} onClick={v.toggleRecipeFits}>{cap(v.recipeFitsLabel)}</Chip>
           )}
         </div>
         {v.recipeAddVisible && (
-          <Interactive as="span" onClick={v.openAddRecipe} base="cursor:pointer;font:var(--nv-micro-m);padding:8px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-gold) 35%, transparent);color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 06%, transparent)" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 14%, transparent)">+ Add recipe</Interactive>
+          <Chip tone="gold" onClick={v.openAddRecipe}>{cap('+ Add recipe')}</Chip>
         )}
       </div>
       {/* NO SKELETON HERE, deliberately. The recipe grid falls back to the
@@ -526,7 +515,7 @@ export function Recipes({ v }) {
             <div style={css("padding:14px 17px")}>
               <div style={css("display:flex;justify-content:space-between;align-items:baseline")}>
                 <div style={css("font-size:15.5px;font-weight:500")}>{r.name}</div>
-                <span style={css("font:var(--nv-micro-m);color:var(--nv-gold)")}>{r.tag}</span>
+                <Meta tone="gold">{r.tag}</Meta>
               </div>
               <div style={css("margin-top:7px;display:flex;gap:12px;font:var(--nv-micro-l);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
                 <span style={css("color:var(--nv-cy)")}>{r.p}P</span><span>{r.c}C</span><span>{r.f}F</span><span style={css("margin-left:auto")}><span style={css("color:var(--nv-good)")}>{r.kcal} kcal</span>{r.time ? ` · ${r.time}` : ''}</span>
@@ -561,9 +550,7 @@ export function Recipes({ v }) {
                   stopPropagation, or the tap opens the recipe instead. */}
               {r.logIt && (
                 <div style={css("margin-top:8px")} onClick={(e) => e.stopPropagation()}>
-                  <Interactive as="span" onClick={r.logIt}
-                    base="cursor:pointer;display:block;text-align:center;font:var(--nv-micro-m);letter-spacing:.1em;padding:7px 0;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-good) 35%, transparent);color:var(--nv-good);background:color-mix(in srgb, var(--nv-good) 06%, transparent)"
-                    hoverStyle="background:color-mix(in srgb, var(--nv-good) 15%, transparent)">＋ LOG THIS</Interactive>
+                  <Chip tone="good" onClick={r.logIt} style={{ display: 'flex', justifyContent: 'center', width: '100%', boxSizing: 'border-box' }}>＋ Log this</Chip>
                 </div>
               )}
             </div>
