@@ -6,8 +6,15 @@
 import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
 import { Term } from './Glossary.jsx';
+import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle } from './Controls.jsx';
 
 const M = 'var(--nv-font-mono)';
+// the material pass (5 Sep 2026): labels through Controls.jsx; a filled
+// button is sentence case in the UI face under the Apple styles
+const btn = (bg, ink, extra = {}) => (isAppleStyle()
+  ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '11px 20px', borderRadius: '999px', background: bg, color: ink, ...extra }
+  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', font: '600 12px var(--nv-font-mono)', letterSpacing: '.14em', textTransform: 'uppercase', padding: '11px 18px', borderRadius: '12px', background: bg, color: ink, ...extra });
+const cap = (s) => { const t = String(s || '').toLowerCase(); return t.charAt(0).toUpperCase() + t.slice(1); };
 
 function Ring({ score, basis }) {
   const r = 52;
@@ -23,7 +30,7 @@ function Ring({ score, basis }) {
       </svg>
       <div style={css('position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center')}>
         <b style={css('font-size:26px;font-weight:600;color:var(--nv-cy);text-shadow:0 0 14px rgba(89,230,255,.5);font-variant-numeric:tabular-nums')}>{score != null ? score : '—'}</b>
-        <span style={css(`font:600 8px ${M};letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>READY</span>
+        <Eyebrow as="span" style={{ fontSize: isAppleStyle() ? '10px' : '8px' }}>Ready</Eyebrow>
       </div>
     </div>
   );
@@ -50,20 +57,16 @@ export function TrainToday({ o, actions, resume }) {
             <div style={css('display:flex;justify-content:space-between;font-size:13px;color:var(--nv-ink60)')}><span>Sleep</span><b style={css('color:var(--nv-ink);font-variant-numeric:tabular-nums')}>{sleepH != null ? `${sleepH} h` : '—'}</b></div>
             <div style={css('display:flex;justify-content:space-between;font-size:13px;color:var(--nv-ink60)')}><span>Resting HR</span><b style={css('color:var(--nv-ink);font-variant-numeric:tabular-nums')}>{o.recovery?.restingHr ?? '—'}</b></div>
             {o.block && !o.block.ended && (
-              <span style={css(`align-self:flex-start;font:600 9px ${M};letter-spacing:.12em;padding:4px 10px;border-radius:99px;border:1px solid color-mix(in srgb, var(--nv-gold) 45%, transparent);color:var(--nv-gold)`)}>
-                <Term k={o.block.isDeloadWeek ? 'deload' : o.block.phase}>{`${o.block.phase.toUpperCase()} · WK ${o.block.week}/${o.block.lengthWeeks}`}</Term>
-              </span>
+              <Tag tone="gold" style={{ alignSelf: 'flex-start' }}>
+                <Term k={o.block.isDeloadWeek ? 'deload' : o.block.phase}>{`${o.block.phase} · wk ${o.block.week}/${o.block.lengthWeeks}`}</Term>
+              </Tag>
             )}
             {o.deload?.advise && <span style={css('font-size:11px;color:var(--nv-warn)')}>{o.deload.reason}</span>}
             {actions?.askTired && (
-              <Interactive as="span" onClick={actions.askTired}
-                base={`align-self:flex-start;cursor:pointer;font:600 9px ${M};letter-spacing:.12em;padding:5px 11px;border-radius:99px;border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);color:var(--nv-cy)`}
-                hoverStyle="background:color-mix(in srgb, var(--nv-cy) 12%, transparent)">WHY AM I TIRED?</Interactive>
+              <Chip tone="cyan" onClick={actions.askTired} style={{ alignSelf: 'flex-start' }}>Why am I tired?</Chip>
             )}
             {actions?.askPeak && (
-              <Interactive as="span" onClick={actions.askPeak}
-                base={`align-self:flex-start;cursor:pointer;font:600 9px ${M};letter-spacing:.12em;padding:5px 11px;border-radius:99px;border:1px solid color-mix(in srgb, var(--nv-gold) 42%, transparent);color:var(--nv-gold)`}
-                hoverStyle="background:color-mix(in srgb, var(--nv-gold) 12%, transparent)">WHEN AM I AT MY BEST?</Interactive>
+              <Chip tone="gold" onClick={actions.askPeak} style={{ alignSelf: 'flex-start' }}>When am I at my best?</Chip>
             )}
             {o.watch?.length > 0 && (
               <div style={css('display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--nv-ink60)')}>
@@ -78,21 +81,21 @@ export function TrainToday({ o, actions, resume }) {
 
         {resume && (
           <div style={css('flex:1 1 300px;border-radius:18px;padding:16px;position:relative;overflow:hidden;border:1px solid color-mix(in srgb, var(--nv-gold) 45%, transparent);background:linear-gradient(135deg,color-mix(in srgb, var(--nv-gold) 12%, transparent),transparent)')}>
-            <div style={css(`font:600 9px ${M};letter-spacing:.22em;color:var(--nv-gold)`)}>SESSION IN PROGRESS</div>
-            <div style={css('font-size:24px;font-weight:600;letter-spacing:.04em;margin-top:2px')}>{resume.name.toUpperCase()}</div>
+            <Eyebrow tone="gold">Session in progress</Eyebrow>
+            <div style={css('font-size:24px;font-weight:600;letter-spacing:.04em;margin-top:2px')}>{isAppleStyle() ? resume.name : resume.name.toUpperCase()}</div>
             <div style={css('color:var(--nv-ink60);font-size:12.5px;margin-top:2px;font-variant-numeric:tabular-nums')}>
               {resume.done} set{resume.done === 1 ? '' : 's'} ticked — pick up where you left off
             </div>
             <Interactive as="span" onClick={resume.go}
-              base={`margin-top:12px;display:inline-flex;align-items:center;gap:8px;cursor:pointer;font:600 12px ${M};letter-spacing:.14em;color:#1a1322;padding:11px 18px;border-radius:12px;background:var(--nv-gold);box-shadow:0 0 26px -8px color-mix(in srgb, var(--nv-gold) 70%, transparent)`}
+              base={btn('var(--nv-gold)', '#1a1322', { marginTop: '12px', boxShadow: '0 0 26px -8px color-mix(in srgb, var(--nv-gold) 70%, transparent)' })}
               hoverStyle="filter:brightness(1.08)"
-            >▶ RESUME</Interactive>
+            >▶ Resume</Interactive>
           </div>
         )}
         {!resume && (o.today || o.restDay) && (
           <div style={css('flex:1 1 300px;border-radius:18px;padding:16px;position:relative;overflow:hidden;border:1px solid color-mix(in srgb, var(--nv-cy) 35%, transparent);background:linear-gradient(135deg,color-mix(in srgb, var(--nv-cy) 10%, transparent),color-mix(in srgb, var(--nv-vi) 06%, transparent))')}>
-            <div style={css(`font:600 9px ${M};letter-spacing:.22em;color:var(--nv-cy)`)}>{o.today ? "ON TODAY'S CARD" : 'TODAY'}</div>
-            <div style={css('font-size:24px;font-weight:600;letter-spacing:.04em;margin-top:2px')}>{o.today ? o.today.name.toUpperCase() : 'REST DAY'}</div>
+            <Eyebrow tone="cyan">{o.today ? "On today's card" : 'Today'}</Eyebrow>
+            <div style={css('font-size:24px;font-weight:600;letter-spacing:.04em;margin-top:2px')}>{o.today ? (isAppleStyle() ? o.today.name : o.today.name.toUpperCase()) : (isAppleStyle() ? 'Rest day' : 'REST DAY')}</div>
             {o.today && (
               <div style={css('color:var(--nv-ink60);font-size:12.5px;margin-top:2px;font-variant-numeric:tabular-nums')}>
                 {o.today.exerciseCount} exercises{o.today.lastVolume ? ` · last time ${o.today.lastVolume.toLocaleString()} kg` : ''}
@@ -100,9 +103,9 @@ export function TrainToday({ o, actions, resume }) {
             )}
             {o.today && actions?.begin && (
               <Interactive as="span" onClick={actions.begin}
-                base={`margin-top:12px;display:inline-flex;align-items:center;gap:8px;cursor:pointer;font:600 12px ${M};letter-spacing:.14em;color:var(--nv-cy);padding:11px 18px;border-radius:12px;border:1px solid color-mix(in srgb, var(--nv-cy) 55%, transparent);background:linear-gradient(180deg,color-mix(in srgb, var(--nv-cy) 18%, transparent),color-mix(in srgb, var(--nv-cy) 4%, transparent));box-shadow:0 0 26px -8px color-mix(in srgb, var(--nv-cy) 70%, transparent)`}
-                hoverStyle="box-shadow:0 0 34px -6px color-mix(in srgb, var(--nv-cy) 90%, transparent)"
-              >▶ BEGIN SESSION</Interactive>
+                base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { marginTop: '12px', boxShadow: '0 0 22px -6px color-mix(in srgb, var(--nv-cy) 70%, transparent)' })}
+                hoverStyle="filter:brightness(1.08)"
+              >▶ Begin session</Interactive>
             )}
           </div>
         )}
@@ -111,13 +114,13 @@ export function TrainToday({ o, actions, resume }) {
       {/* focus for today — only when something meaningful exists */}
       {o?.focus && (
         <div style={css('border-radius:16px;padding:13px 14px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);background:linear-gradient(135deg,color-mix(in srgb, var(--nv-gold) 10%, transparent),color-mix(in srgb, var(--nv-gold) 2%, transparent))')}>
-          <span style={css(`font:600 9px ${M};letter-spacing:.22em;color:var(--nv-gold)`)}>◈ FOCUS FOR TODAY</span>
+          <Eyebrow as="span" tone="gold">◈ Focus for today</Eyebrow>
           <div style={css('font-size:13.5px;color:var(--nv-ink);margin-top:5px;line-height:1.5')}>{o.focus.text}</div>
           {o.focus.fix && actions?.applyFocusFix && (
             <div style={css('margin-top:10px')}>
               <Interactive as="span" onClick={() => actions.applyFocusFix(o.focus.fix, o.focus.text)}
-                base={css(`cursor:pointer;font:600 10px ${M};letter-spacing:.1em;padding:7px 14px;border-radius:8px;background:var(--nv-gold);color:#1a1322`)}
-                hoverStyle={{ filter: 'brightness(1.08)' }}>MAKE THE CHANGE</Interactive>
+                base={btn('var(--nv-gold)', '#1a1322', { padding: isAppleStyle() ? '9px 16px' : '7px 14px' })}
+                hoverStyle={{ filter: 'brightness(1.08)' }}>Make the change</Interactive>
             </div>
           )}
         </div>
@@ -128,7 +131,7 @@ export function TrainToday({ o, actions, resume }) {
         <div style={css('display:flex;gap:10px;overflow-x:auto;padding:2px 2px 6px;scrollbar-width:none')}>
           {o.momentum.prs.map((p) => (
             <div key={p.name + p.kind} style={css(fcardBase('color-mix(in srgb, var(--nv-gold) 50%, transparent)') + ';background:linear-gradient(160deg,color-mix(in srgb, var(--nv-gold) 10%, transparent),var(--nv-glass))')}>
-              <span style={css(`font:600 8.5px ${M};letter-spacing:.18em;color:var(--nv-gold);display:block;margin-bottom:6px`)}>◆ PR{p.date ? ` · ${p.date.slice(5)}` : ''}</span>
+              <Eyebrow tone="gold" style={{ marginBottom: '6px' }}>◆ PR{p.date ? ` · ${p.date.slice(5)}` : ''}</Eyebrow>
               <div style={css('font-size:14.5px;font-weight:600;line-height:1.25')}>{p.name}</div>
               <div style={css('font-size:10.5px;color:var(--nv-ink40);margin-top:4px;font-variant-numeric:tabular-nums')}>
                 {p.kind === 'weight' ? `${p.value}kg × ${p.reps} — heaviest ever` : <span><Term k="e1RM">e1RM</Term> {`${p.value}kg`}</span>}{p.previous ? ` · was ${Math.round(p.previous * 10) / 10}` : ''}
@@ -138,14 +141,14 @@ export function TrainToday({ o, actions, resume }) {
           {o.momentum.plateau && (
             <Interactive as="div" onClick={actions?.askPlateau ? () => actions.askPlateau(o.momentum.plateau.name) : undefined}
               base={fcardBase('color-mix(in srgb, var(--nv-warn) 45%, transparent)')} hoverStyle="transform:translateY(-2px);border-color:var(--nv-warn)">
-              <span style={css(`font:600 8.5px ${M};letter-spacing:.18em;color:var(--nv-warn);display:block;margin-bottom:6px`)}>▲ <Term k="stalled">STALLED</Term> · {o.momentum.plateau.spanDays}D</span>
+              <Eyebrow tone="warn" style={{ marginBottom: '6px' }}>▲ <Term k="stalled">Stalled</Term> · {o.momentum.plateau.spanDays}d</Eyebrow>
               <div style={css('font-size:14.5px;font-weight:600;line-height:1.25')}>{o.momentum.plateau.name}</div>
               <div style={css('font-size:10.5px;color:var(--nv-ink40);margin-top:4px')}>no strength gain — tap for Coach's fix</div>
             </Interactive>
           )}
           {o.momentum.streak >= 2 && (
             <div style={css(fcardBase('var(--nv-edge)'))}>
-              <span style={css(`font:600 8.5px ${M};letter-spacing:.18em;color:var(--nv-good);display:block;margin-bottom:6px`)}>● STREAK</span>
+              <Eyebrow tone="good" style={{ marginBottom: '6px' }}>● Streak</Eyebrow>
               <div style={css('font-size:14.5px;font-weight:600;font-variant-numeric:tabular-nums')}>{o.momentum.streak} sessions</div>
             </div>
           )}
@@ -157,25 +160,21 @@ export function TrainToday({ o, actions, resume }) {
           argue it with Coach, or leave it (and it will ask again, twice). */}
       {o?.coachAsk && (
         <div style={css(`background:color-mix(in srgb, ${o.coachAsk.nudges ? 'var(--nv-warn)' : 'var(--nv-gold)'} 07%, transparent);border:1px solid color-mix(in srgb, ${o.coachAsk.nudges ? 'var(--nv-warn)' : 'var(--nv-gold)'} 40%, transparent);border-radius:16px;padding:14px`)}>
-          <div style={css(`font:600 9px ${M};letter-spacing:.22em;color:${o.coachAsk.nudges ? 'var(--nv-warn)' : 'var(--nv-gold)'}`)}>
-            ◆ COACH{o.coachAsk.nudges ? ` · ASKED ${o.coachAsk.nudges + 1}× · ${o.coachAsk.daysOpen}D OPEN` : ' · A CHANGE WORTH MAKING'}
-          </div>
+          <Eyebrow tone={o.coachAsk.nudges ? 'warn' : 'gold'}>
+            ◆ Coach{o.coachAsk.nudges ? ` · asked ${o.coachAsk.nudges + 1}× · ${o.coachAsk.daysOpen}d open` : ' · a change worth making'}
+          </Eyebrow>
           <div style={css('margin-top:7px;font-size:13.5px;line-height:1.5')}>{o.coachAsk.text}</div>
           <div style={css('margin-top:11px;display:flex;gap:8px;flex-wrap:wrap')}>
             {o.coachAsk.applies && actions?.applyCoachAsk && (
               <Interactive as="span" onClick={() => actions.applyCoachAsk(o.coachAsk.recordId, o.coachAsk.fix, o.coachAsk.text)}
-                base={css(`cursor:pointer;font:600 10px ${M};letter-spacing:.1em;padding:7px 14px;border-radius:8px;background:var(--nv-gold);color:#1a1322`)}
-                hoverStyle={{ filter: 'brightness(1.08)' }}>DO IT</Interactive>
+                base={btn('var(--nv-gold)', '#1a1322', { padding: isAppleStyle() ? '9px 16px' : '7px 14px' })}
+                hoverStyle={{ filter: 'brightness(1.08)' }}>Do it</Interactive>
             )}
             {actions?.askVolume && (
-              <Interactive as="span" onClick={() => actions.askVolume(`About your suggestion: ${o.coachAsk.text} — talk me through it.`)}
-                base={css(`cursor:pointer;font:600 10px ${M};letter-spacing:.1em;padding:7px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)`)}
-                hoverStyle="background:color-mix(in srgb, var(--nv-cy) 12%, transparent)">DISCUSS IT</Interactive>
+              <TextAction tone="cyan" onClick={() => actions.askVolume(`About your suggestion: ${o.coachAsk.text} — talk me through it.`)}>Discuss it</TextAction>
             )}
             {actions?.dismissCoachAsk && (
-              <Interactive as="span" onClick={() => actions.dismissCoachAsk(o.coachAsk.recordId)}
-                base={css(`cursor:pointer;font:600 10px ${M};letter-spacing:.1em;padding:7px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent);color:color-mix(in srgb, var(--nv-ink) 50%, transparent)`)}
-                hoverStyle="border-color:var(--nv-warn);color:var(--nv-warn)">NOT THIS</Interactive>
+              <TextAction tone="faint" onClick={() => actions.dismissCoachAsk(o.coachAsk.recordId)}>Not this</TextAction>
             )}
           </div>
         </div>
@@ -186,17 +185,17 @@ export function TrainToday({ o, actions, resume }) {
       {o?.volume?.length > 0 && (
         <div style={css('background:var(--nv-glass);border:1px solid var(--nv-edge);border-radius:16px;padding:14px')}>
           <div style={css('display:flex;justify-content:space-between;align-items:baseline')}>
-            <span style={css(`font:600 9px ${M};letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}><Term k="hard sets">HARD SETS THIS WEEK</Term></span>
+            <Eyebrow as="span"><Term k="hard sets">Hard sets this week</Term></Eyebrow>
             {liveNow > 0
-              ? <span style={css(`font:600 9px ${M};letter-spacing:.14em;color:var(--nv-gold)`)}>◆ {liveNow} LIVE THIS SESSION</span>
-              : under.length > 0 && <span style={css(`font:600 9px ${M};letter-spacing:.14em;color:var(--nv-warn)`)}>GOAL MUSCLES UNDER ▲</span>}
+              ? <Meta tone="gold">◆ {liveNow} live this session</Meta>
+              : under.length > 0 && <Meta tone="warn">Goal muscles under ▲</Meta>}
           </div>
           {o.volume.slice(0, 6).map((v) => {
             const pct = Math.min(100, Math.round((v.sets / v.target) * 100));
             const low = v.goalMuscle && v.sets < v.target;
             return (
               <div key={v.muscle} style={css('display:flex;align-items:center;gap:8px;margin-top:7px')}>
-                <span style={css(`width:76px;font:600 9px ${M};letter-spacing:.08em;color:${v.goalMuscle ? 'var(--nv-gold)' : 'color-mix(in srgb, var(--nv-ink) 40%, transparent)'}`)}>{v.muscle.toUpperCase()}</span>
+                <Meta tone={v.goalMuscle ? 'gold' : 'faint'} style={{ width: '76px', flex: 'none', fontWeight: 600 }}>{cap(v.muscle)}</Meta>
                 <div style={css('flex:1;height:8px;border-radius:4px;background:rgba(130,175,255,.08);overflow:hidden;position:relative')}>
                   <i style={css(`display:block;height:100%;width:${pct}%;border-radius:4px;background:${low ? 'linear-gradient(90deg,rgba(224,131,131,.8),rgba(224,131,131,.5))' : 'linear-gradient(90deg,var(--nv-vi),var(--nv-cy))'}`)} />
                   {/* what he has ticked in THIS session, lit at the head of the

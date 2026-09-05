@@ -6,6 +6,7 @@ import { useDictation } from '../useDictation.js';
 import { SkeletonList } from '../Skeleton.jsx';
 import { LocalInput } from '../LocalInput.jsx';
 import { SwipeRow } from '../SwipeRow.jsx';
+import { Eyebrow, TextAction, Chip, Tag, Meta, Segmented, isAppleStyle } from '../Controls.jsx';
 
 // The Nova Inbox: one place to drop any loose thought — typed or dictated —
 // and let Nova route it (shopping / journal / to-do / note / food log).
@@ -18,24 +19,35 @@ const M = "var(--nv-font-mono)";
 const R = "var(--nv-font-ui)";
 const S = "var(--nv-font-serif)";
 
+// Sentence case for a word the view model hands up in caps ("RESEARCHER",
+// "MORNING") — the Apple styles read it as a word, Command re-uppercases.
+const cap = (s) => { const t = String(s || '').toLowerCase(); return t.charAt(0).toUpperCase() + t.slice(1); };
+
+// A secondary button: under the Apple styles a tinted fill (iOS spends no
+// outline on a button); under Command the hairline it always had.
+const secondary = (color, extra = {}) => (isAppleStyle()
+  ? { cursor: 'pointer', font: `600 14px ${R}`, padding: '9px 16px', borderRadius: '999px', background: `color-mix(in srgb, ${color} 12%, transparent)`, color, border: '1px solid transparent', ...extra }
+  : { cursor: 'pointer', font: `600 12.5px ${R}`, padding: '7px 16px', borderRadius: '8px', border: `1px solid color-mix(in srgb, ${color} 40%, transparent)`, color, ...extra });
+const primary = (extra = {}) => (isAppleStyle()
+  ? { cursor: 'pointer', font: `600 14px ${R}`, padding: '9px 18px', borderRadius: '999px', background: 'var(--nv-gold)', color: '#1a1206', ...extra }
+  : { cursor: 'pointer', font: `600 12.5px ${R}`, padding: '7px 16px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1206', ...extra });
+
 function RouteBadge({ route, confidence }) {
   if (!route) return null;
   return (
     <span style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
-      <span style={{ font: `600 8.5px ${M}`, letterSpacing: '.14em', padding: '3px 8px', borderRadius: '5px', color: `rgb(${route.hue})`, background: `rgba(${route.hue},.08)`, border: `1px solid rgba(${route.hue},.4)` }}>{route.label}</span>
-      {confidence === 'low' && (
-        <span style={{ font: `600 8.5px ${M}`, letterSpacing: '.14em', padding: '3px 8px', borderRadius: '5px', color: 'var(--nv-warn)', background: 'color-mix(in srgb, var(--nv-warn) 08%, transparent)', border: '1px solid color-mix(in srgb, var(--nv-warn) 40%, transparent)' }}>LOW CONFIDENCE</span>
-      )}
+      <Tag hue={route.hue}>{route.label}</Tag>
+      {confidence === 'low' && <Tag tone="warn">Low confidence</Tag>}
     </span>
   );
 }
 
 const STATUS_META = {
-  classifying: { label: 'ROUTING…', color: 'var(--nv-ink60)' },
-  filed: { label: 'FILED', color: 'var(--nv-good)' },
-  discarded: { label: 'DISCARDED', color: 'var(--nv-ink40)' },
-  undone: { label: 'UNDONE', color: 'var(--nv-gold)' },
-  error: { label: 'ERROR', color: 'var(--nv-warn)' },
+  classifying: { label: 'Routing…', color: 'var(--nv-ink60)' },
+  filed: { label: 'Filed', color: 'var(--nv-good)' },
+  discarded: { label: 'Discarded', color: 'var(--nv-ink40)' },
+  undone: { label: 'Undone', color: 'var(--nv-gold)' },
+  error: { label: 'Error', color: 'var(--nv-warn)' },
 };
 
 export function Inbox({ v }) {
@@ -92,8 +104,8 @@ export function Inbox({ v }) {
       {/* capture composer */}
       <div className="nv-pane" style={{ marginTop: '20px', padding: '18px 20px' }}>
         <div style={css("display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px")}>
-          <span style={css(`font:500 9.5px ${M};letter-spacing:.22em;color:var(--nv-cy)`)}>CAPTURE</span>
-          <span style={css(`font:400 8.5px ${M};letter-spacing:.14em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>ROUTES · SHOPPING / JOURNAL / TO-DO / NOTE / FOOD LOG</span>
+          <Eyebrow as="span" tone="cyan">Capture</Eyebrow>
+          <Meta tone="faint">Routes · shopping / journal / to-do / note / food log</Meta>
         </div>
         {/* LOCAL ECHO: the text lives in this component while typing, so a
             keystroke no longer re-renders ~300 inbox rows (measured 37ms
@@ -113,15 +125,9 @@ export function Inbox({ v }) {
         />
         <div style={css("margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap")}>
           {dict.supported && (
-            <Interactive as="span" onClick={v.inboxConnected ? micToggle : undefined}
-              base={{
-                cursor: 'pointer', font: `600 10.5px ${M}`, letterSpacing: '.1em', padding: '9px 16px', borderRadius: '8px',
-                border: dict.on ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent)',
-                color: 'var(--nv-cy)', background: dict.on ? 'var(--nv-acc-bg)' : 'transparent',
-                opacity: v.inboxConnected ? 1 : 0.4,
-              }}
-              hoverStyle={{ background: 'var(--nv-acc-bg)' }}
-            >{dict.on ? '◉ LISTENING — TAP TO STOP' : '● DICTATE'}</Interactive>
+            <Chip tone="cyan" active={dict.on} disabled={!v.inboxConnected} onClick={v.inboxConnected ? micToggle : undefined}>
+              {dict.on ? '◉ Listening — tap to stop' : '● Dictate'}
+            </Chip>
           )}
           {/* RESEARCH / WATCH / WATCH + ANALYSE used to live here — three ways to
               start work that the conversation now starts by itself (Phase 4,
@@ -129,13 +135,11 @@ export function Inbox({ v }) {
               describing the task. Capture stays: it is the two-second "buy
               tomatoes" path and routing it through a chat would make the
               fastest thing in Nova slower. */}
-          <span style={css(`margin-left:auto;font:400 9.5px ${M};letter-spacing:.08em;color:color-mix(in srgb, var(--nv-ink) 38%, transparent)`)}>
-            links · research · videos → just say it in the chat
-          </span>
+          <Meta tone="faint" style={{ marginLeft: 'auto' }}>links · research · videos → just say it in the chat</Meta>
           <Interactive as="span" onClick={v.inboxConnected && !v.inboxCaptureBusy ? submit : undefined}
-            base={{ cursor: 'pointer', font: `600 11px ${M}`, letterSpacing: '.14em', padding: '10px 22px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1206', opacity: v.inboxConnected && !v.inboxCaptureBusy ? 1 : 0.5 }}
+            base={primary({ opacity: v.inboxConnected && !v.inboxCaptureBusy ? 1 : 0.5 })}
             hoverStyle={{ filter: 'brightness(1.1)' }}
-          >{v.inboxCaptureBusy ? 'ROUTING…' : '✦ CAPTURE'}</Interactive>
+          >{v.inboxCaptureBusy ? 'Routing…' : '✦ Capture'}</Interactive>
         </div>
       </div>
 
@@ -146,15 +150,13 @@ export function Inbox({ v }) {
           that answers "what is Nova allowed to do right now". */}
       <div style={{ marginTop: '14px' }}>
         <Interactive as="div" onClick={() => setModesOpen(!modesOpen)}
-          base={css(`cursor:pointer;display:flex;align-items:center;gap:10px;padding:9px 13px;border-radius:9px;border:1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent);background:rgba(0,0,0,.2)`)}
-          hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}>
-          <span style={{ font: `600 9px ${M}`, letterSpacing: '.18em', color: 'var(--nv-ink40)' }}>FILING</span>
-          <span style={{ font: `600 12.5px ${R}`, color: 'var(--nv-acc)' }}>
+          base={css(`cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:12px;background:var(--nv-glass)`)}
+          hoverStyle={{ background: 'color-mix(in srgb, var(--nv-ink) 10%, transparent)' }}>
+          <Eyebrow as="span">Filing</Eyebrow>
+          <span style={{ font: `600 14px ${R}`, color: 'var(--nv-acc)' }}>
             {(v.inboxModes.find((m) => m.active) || {}).label || '—'}
           </span>
-          <span style={{ marginLeft: 'auto', font: `500 9px ${M}`, letterSpacing: '.14em', color: 'var(--nv-ink40)' }}>
-            {modesOpen ? '▾ CLOSE' : '▸ CHANGE'}
-          </span>
+          <Meta tone="faint" style={{ marginLeft: 'auto' }}>{modesOpen ? 'Close' : 'Change ›'}</Meta>
         </Interactive>
         {modesOpen && (
           <div style={css("margin-top:8px;display:flex;gap:8px;flex-wrap:wrap")}>
@@ -168,7 +170,7 @@ export function Inbox({ v }) {
                 }}
                 hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}
               >
-                <span style={{ display: 'block', font: `600 9px ${M}`, letterSpacing: '.18em', color: m.active ? 'var(--nv-acc)' : 'var(--nv-ink40)' }}>STEP {m.step}</span>
+                <Eyebrow tone={m.active ? 'accent' : 'faint'}>Step {m.step}</Eyebrow>
                 <span style={{ display: 'block', marginTop: '3px', font: `600 13.5px ${R}`, color: m.active ? 'var(--nv-acc)' : 'var(--nv-ink)' }}>{m.label}</span>
                 <span style={{ display: 'block', marginTop: '2px', font: `500 11px ${R}`, color: 'var(--nv-ink60)' }}>{m.hint}</span>
               </Interactive>
@@ -184,7 +186,7 @@ export function Inbox({ v }) {
           "nothing captured yet" copy rather than shimmering forever. */}
       {!v.inboxLoaded && v.inboxConnected && !v.isOffline && (
         <div style={{ marginTop: '18px' }}>
-          <div style={css(`font:500 9.5px ${M};letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 35%, transparent)`)}>LOADING…</div>
+          <Eyebrow>Loading…</Eyebrow>
           <div style={{ marginTop: '10px' }}><SkeletonList rows={3} lines={2} /></div>
         </div>
       )}
@@ -195,13 +197,9 @@ export function Inbox({ v }) {
       {v.inboxPending.length > 0 && (
         <div style={{ marginTop: '18px' }}>
           <div style={css("display:flex;align-items:center;gap:10px")}>
-            <div style={css(`font:500 9.5px ${M};letter-spacing:.22em;color:var(--nv-gold)`)}>WAITING FOR YOUR CALL · {v.inboxPending.length}</div>
-            <span style={css("margin-left:auto;display:flex;gap:4px")}>
-              {[['deck', 'DECK'], ['list', 'LIST']].map(([mode, label]) => (
-                <Interactive key={mode} as="span" onClick={() => setDeckMode(mode === 'deck')}
-                  base={css(`cursor:pointer;font:600 8.5px ${M};letter-spacing:.14em;padding:4px 8px;border-radius:6px;border:1px solid ${(deck ? 'deck' : 'list') === mode ? 'var(--nv-acc-border)' : 'color-mix(in srgb, var(--nv-ink) 12%, transparent)'};color:${(deck ? 'deck' : 'list') === mode ? 'var(--nv-acc)' : 'var(--nv-ink40)'}`)}
-                  hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}>{label}</Interactive>
-              ))}
+            <Eyebrow tone="gold">Waiting for your call · {v.inboxPending.length}</Eyebrow>
+            <span style={css("margin-left:auto;display:flex")}>
+              <Segmented ariaLabel="How the queue is shown" options={[['deck', 'Deck'], ['list', 'List']]} value={deck ? 'deck' : 'list'} onChange={(mode) => setDeckMode(mode === 'deck')} />
             </span>
           </div>
           {/* A3 — THE TRIAGE STRIP. Before the first card, what the pile IS:
@@ -209,37 +207,29 @@ export function Inbox({ v }) {
               repeat (one look answers the pattern), how many need a real
               decision. Deterministic — see src/inboxDigest.js. */}
           {v.inboxDigest && !showingFocus && (
-            <div style={css("margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--nv-glass);border:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)")}>
-              <div style={css(`font:500 12px var(--nv-font-ui);color:var(--nv-ink80);line-height:1.4`)}>{v.inboxDigest.summary}</div>
-              <div style={css("display:flex;flex-wrap:wrap;gap:6px;margin-top:8px")}>
+            <div style={css("margin-top:10px;padding:12px 14px;border-radius:14px;background:var(--nv-glass)")}>
+              <div style={css(`font:500 13.5px/1.45 var(--nv-font-ui);color:var(--nv-ink80)`)}>{v.inboxDigest.summary}</div>
+              <div style={css("display:flex;flex-wrap:wrap;gap:8px;margin-top:10px")}>
                 {v.inboxDigest.routine.length > 0 && (
-                  <Interactive as="span" onClick={v.inboxDigest.routineBusy ? undefined : v.inboxDigest.fileRoutine}
-                    base={css(`cursor:pointer;font:600 8.5px ${M};letter-spacing:.14em;padding:5px 9px;border-radius:7px;border:1px solid var(--nv-acc-border);color:var(--nv-acc);opacity:${v.inboxDigest.routineBusy ? '.5' : '1'}`)}
-                    hoverStyle={{ background: 'var(--nv-acc-dim)' }}>
-                    {v.inboxDigest.routineBusy ? 'FILING…' : `FILE ${v.inboxDigest.routine.length} ROUTINE`}
-                  </Interactive>
+                  <Chip tone="accent" disabled={v.inboxDigest.routineBusy} onClick={v.inboxDigest.routineBusy ? undefined : v.inboxDigest.fileRoutine}>
+                    {v.inboxDigest.routineBusy ? 'Filing…' : `File ${v.inboxDigest.routine.length} routine`}
+                  </Chip>
                 )}
                 {v.inboxDigest.patterns.map((p) => (
-                  <Interactive key={p.subject} as="span" onClick={() => { setFocus(p.subject); }}
-                    base={css(`cursor:pointer;font:600 8.5px ${M};letter-spacing:.14em;padding:5px 9px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-gold) 45%, transparent);color:var(--nv-gold)`)}
-                    hoverStyle={{ borderColor: 'var(--nv-gold)' }}>
-                    {p.members.length} × {p.subject.toUpperCase()} · SEE ALL
-                  </Interactive>
+                  <Chip key={p.subject} tone="gold" onClick={() => { setFocus(p.subject); }}>
+                    {p.members.length} × {cap(p.subject)} · See all
+                  </Chip>
                 ))}
                 {v.inboxDigest.decide.length > 0 && (
-                  <span style={css(`font:600 8.5px ${M};letter-spacing:.14em;padding:5px 9px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);color:var(--nv-ink40)`)}>
-                    {v.inboxDigest.decide.length} TO DECIDE
-                  </span>
+                  <Chip tone="faint">{v.inboxDigest.decide.length} to decide</Chip>
                 )}
               </div>
             </div>
           )}
           {showingFocus && (
             <div style={css("display:flex;align-items:center;gap:8px;margin-top:10px")}>
-              <span style={css(`font:600 8.5px ${M};letter-spacing:.14em;color:var(--nv-gold)`)}>SHOWING {focus.toUpperCase()} · {focused.length}</span>
-              <Interactive as="span" onClick={() => setFocus(null)}
-                base={css(`cursor:pointer;margin-left:auto;font:600 8.5px ${M};letter-spacing:.14em;padding:4px 8px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);color:var(--nv-ink60)`)}
-                hoverStyle={{ color: 'var(--nv-ink)' }}>▸ BACK TO THE DECK</Interactive>
+              <Eyebrow as="span" tone="gold">Showing {focus} · {focused.length}</Eyebrow>
+              <TextAction tone="quiet" onClick={() => setFocus(null)} style={{ marginLeft: 'auto' }}>Back to the deck</TextAction>
             </div>
           )}
           {/* THE DECK: only the top card is live. The two behind it are drawn
@@ -261,15 +251,17 @@ export function Inbox({ v }) {
                  discard-with-a-reason cards route through their ask-why
                  panel exactly as the button does. Safety: a gesture that
                  locks vertical can never commit (swipeCore.js + its test). */
+              /* the deck: a card that has just risen to the top settles in
+                 (keyed by record, so only a NEW top card animates) */
+              <div key={item.id} className={deck && !showingFocus ? 'nv-deck-rise' : undefined}>
               <SwipeRow
-                key={item.id}
                 right={item.isModelChoice ? null : { label: 'FILE', icon: '✓', tone: 'var(--nv-good)', run: () => { if (!item.busy) item.approve(); } }}
                 left={{ label: 'DISCARD', icon: '✕', tone: 'var(--nv-warn)', run: () => { if (!item.busy) item.discard(); } }}
               >
               <div className="nv-pane" style={{ padding: '14px 18px' }}>
                 <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px")}>
                   <RouteBadge route={item.route} confidence={item.confidence} />
-                  <span style={css(`font:400 9px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>{item.time} · {item.source}</span>
+                  <Meta tone="faint">{item.time} · {cap(item.source)}</Meta>
                 </div>
                 <div onClick={item.canExpand ? item.toggleExpand : undefined} style={{ cursor: item.canExpand ? 'pointer' : 'default' }}
                   title={item.canExpand ? (item.expanded ? 'Collapse' : 'Tap to see exactly what approving will file') : undefined}>
@@ -281,22 +273,22 @@ export function Inbox({ v }) {
                   </div>
                   {/* The bare ▸ said nothing about what tapping would do. */}
                   {item.canExpand && (
-                    <div style={css(`margin-top:5px;font:500 9px ${M};letter-spacing:.14em;color:var(--nv-cy)`)}>
-                      {item.expanded ? '▾ SHOW LESS' : '▸ SEE WHAT GETS FILED'}
-                    </div>
+                    <Meta as="div" tone="cyan" style={{ marginTop: '5px' }}>
+                      {item.expanded ? '▾ Show less' : '▸ See what gets filed'}
+                    </Meta>
                   )}
                   {!item.expanded && item.previewShort && <div style={css(`margin-top:3px;font:500 13px/1.5 ${R};color:var(--nv-ink60);white-space:pre-wrap`)}>{item.previewShort}</div>}
                   {item.expanded && (
                     <div style={css("margin-top:8px;display:flex;flex-direction:column;gap:8px")}>
                       {item.captured && (
                         <div>
-                          <div style={css(`font:500 8.5px ${M};letter-spacing:.18em;color:color-mix(in srgb, var(--nv-ink) 42%, transparent)`)}>YOU CAPTURED</div>
+                          <Eyebrow>You captured</Eyebrow>
                           <div style={css(`margin-top:3px;font:500 13px/1.55 ${R};color:var(--nv-ink60);white-space:pre-wrap`)}>{item.captured}</div>
                         </div>
                       )}
                       {item.full && (
                         <div>
-                          <div style={css(`font:500 8.5px ${M};letter-spacing:.18em;color:var(--nv-gold)`)}>WILL BE FILED</div>
+                          <Eyebrow tone="gold">Will be filed</Eyebrow>
                           <div style={css(`margin-top:3px;font:500 13px/1.55 ${R};white-space:pre-wrap;overflow-wrap:break-word`)}>{item.full}</div>
                         </div>
                       )}
@@ -319,8 +311,8 @@ export function Inbox({ v }) {
                           {a.why && <span style={{ display: 'block', font: `500 12px/1.5 ${R}`, color: 'var(--nv-ink60)' }}>{a.why}</span>}
                         </span>
                         <span style={{ flex: 'none', display: 'flex', gap: '6px' }}>
-                          <Interactive as="span" onClick={() => a.mark('done')} base={css(`cursor:pointer;font:600 9px ${M};letter-spacing:.12em;padding:3px 7px;border-radius:6px;border:1px solid ${a.outcome === 'done' ? 'var(--nv-good)' : 'rgba(232,236,246,.14)'};color:${a.outcome === 'done' ? 'var(--nv-good)' : 'var(--nv-ink60)'}`)} hoverStyle={{ color: 'var(--nv-good)', borderColor: 'var(--nv-good)' }}>DONE</Interactive>
-                          <Interactive as="span" onClick={() => a.mark('skipped')} base={css(`cursor:pointer;font:600 9px ${M};letter-spacing:.12em;padding:3px 7px;border-radius:6px;border:1px solid ${a.outcome === 'skipped' ? 'var(--nv-warn)' : 'rgba(232,236,246,.14)'};color:${a.outcome === 'skipped' ? 'var(--nv-warn)' : 'var(--nv-ink60)'}`)} hoverStyle={{ color: 'var(--nv-warn)', borderColor: 'var(--nv-warn)' }}>NOT TODAY</Interactive>
+                          <TextAction compact tone={a.outcome === 'done' ? 'good' : 'quiet'} onClick={() => a.mark('done')}>Done</TextAction>
+                          <TextAction compact tone={a.outcome === 'skipped' ? 'warn' : 'quiet'} onClick={() => a.mark('skipped')}>Not today</TextAction>
                         </span>
                       </div>
                     ))}
@@ -334,27 +326,27 @@ export function Inbox({ v }) {
                   {item.isModelChoice ? (
                     <>
                       <Interactive as="span" onClick={item.busy ? undefined : item.pickOpus}
-                        base={{ cursor: 'pointer', font: `600 12.5px ${R}`, padding: '7px 16px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1206', opacity: item.busy ? 0.5 : 1 }}
+                        base={primary({ opacity: item.busy ? 0.5 : 1 })}
                         hoverStyle={{ filter: 'brightness(1.1)' }}
                       >{item.busy ? 'Working…' : 'Opus — deeper'}</Interactive>
                       <Interactive as="span" onClick={item.busy ? undefined : item.pickSonnet}
-                        base={{ cursor: 'pointer', font: `600 12.5px ${R}`, padding: '7px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent)', color: 'var(--nv-ink)', opacity: item.busy ? 0.5 : 1 }}
-                        hoverStyle={{ background: 'rgba(255,255,255,.05)' }}
+                        base={secondary('var(--nv-ink)', { opacity: item.busy ? 0.5 : 1 })}
+                        hoverStyle={{ filter: 'brightness(1.1)' }}
                       >Sonnet — default</Interactive>
                     </>
                   ) : (
                     <Interactive as="span" onClick={item.busy ? undefined : item.approve}
-                      base={{ cursor: 'pointer', font: `600 12.5px ${R}`, padding: '7px 16px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1206', opacity: item.busy ? 0.5 : 1 }}
+                      base={primary({ opacity: item.busy ? 0.5 : 1 })}
                       hoverStyle={{ filter: 'brightness(1.1)' }}
                     >{item.busy ? 'Working…' : 'Approve & file'}</Interactive>
                   )}
                   <Interactive as="span" onClick={item.busy ? undefined : item.discard}
-                    base={{ cursor: 'pointer', font: `600 12.5px ${R}`, padding: '7px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent)', color: 'var(--nv-ink60)', opacity: item.busy ? 0.5 : 1 }}
-                    hoverStyle={{ background: 'rgba(255,255,255,.05)' }}
+                    base={secondary('var(--nv-ink60)', { opacity: item.busy ? 0.5 : 1 })}
+                    hoverStyle={{ filter: 'brightness(1.1)' }}
                   >{item.isModelChoice ? 'Skip this week' : 'Discard'}</Interactive>
                   {item.askingWhy && (
                     <div style={css("flex-basis:100%;margin-top:10px;padding:12px 14px;border:1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent);border-radius:10px;background:color-mix(in srgb, var(--nv-gold) 04%, transparent)")}>
-                      <div style={css(`font:500 10px ${M};letter-spacing:.2em;color:var(--nv-gold);margin-bottom:9px`)}>{item.whyTitle}</div>
+                      <Eyebrow tone="gold" style={{ marginBottom: '9px' }}>{item.whyTitle}</Eyebrow>
                       <div style={css("display:flex;gap:7px;flex-wrap:wrap;margin-bottom:9px")}>
                         {item.whyChips.map((c) => (
                           <Interactive key={c} as="span" onClick={() => item.submitWhy(c)}
@@ -381,28 +373,29 @@ export function Inbox({ v }) {
                   {item.deepAnalyse && (
                     <Interactive as="span" onClick={item.busy ? undefined : item.deepAnalyse}
                       title="Run the full vault weave on this video — every concept, person, and idea into your second brain, shown as a diff to approve"
-                      base={{ cursor: 'pointer', font: `600 12.5px ${R}`, padding: '7px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent)', color: 'var(--nv-cy)', opacity: item.busy ? 0.5 : 1 }}
-                      hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' }}
+                      base={secondary('var(--nv-cy)', { opacity: item.busy ? 0.5 : 1 })}
+                      hoverStyle={{ filter: 'brightness(1.1)' }}
                     >Deep weave</Interactive>
                   )}
                   {item.researchBooks && (
                     <Interactive as="span" onClick={item.researchBooks}
                       title="Dispatch the Researcher: the best-regarded books on this concept, cited — the brief lands in your Inbox"
-                      base={{ cursor: 'pointer', font: `600 12.5px ${R}`, padding: '7px 16px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-gold) 45%, transparent)', color: 'var(--nv-gold)' }}
-                      hoverStyle={{ background: 'color-mix(in srgb, var(--nv-gold) 08%, transparent)' }}
+                      base={secondary('var(--nv-gold)')}
+                      hoverStyle={{ filter: 'brightness(1.1)' }}
                     >Research the books</Interactive>
                   )}
                 </div>
               </div>
               </SwipeRow>
+              </div>
             ))}
           </div>
           {deck && !showingFocus && (
-            <div style={css(`margin-top:10px;text-align:center;font:500 8.5px ${M};letter-spacing:.16em;color:var(--nv-ink40)`)}>
+            <Meta as="div" tone="faint" style={{ marginTop: '10px', textAlign: 'center' }}>
               {/* a model-choice card has no right swipe — it needs a model picked —
                   so the footer must not promise one */}
-              1 OF {v.inboxPending.length} · {v.inboxPending[0]?.isModelChoice ? 'PICK A MODEL ABOVE' : 'SWIPE RIGHT TO FILE'} · LEFT TO DISCARD{v.inboxPending.length > 1 ? ' · THE NEXT RISES' : ''}
-            </div>
+              1 of {v.inboxPending.length} · {v.inboxPending[0]?.isModelChoice ? 'pick a model above' : 'swipe right to file'} · left to discard{v.inboxPending.length > 1 ? ' · the next rises' : ''}
+            </Meta>
           )}
           </div>
         </div>
@@ -411,7 +404,7 @@ export function Inbox({ v }) {
       {/* proposed rules — Nova asks to change its own operating rules; you ratify */}
       {v.inboxProposals.map((p) => (
         <div key={p.key} className="nv-pane nv-focus" style={{ marginTop: '16px', padding: '16px 20px' }}>
-          <div style={css(`font:500 9.5px ${M};letter-spacing:.26em;color:var(--nv-gold)`)}>PROPOSED RULE</div>
+          <Eyebrow tone="gold">Proposed rule</Eyebrow>
           <div style={css(`margin-top:8px;font:400 17px/1.4 ${S};text-wrap:pretty`)}>{p.text}</div>
           <div style={css("margin-top:12px;display:flex;gap:10px")}>
             <Interactive as="span" onClick={p.accept} base={css(`cursor:pointer;font:600 13px ${R};padding:7px 16px;border-radius:8px;background:var(--nv-gold);color:#1a1206`)} hoverStyle={{ filter: 'brightness(1.1)' }}>{p.acceptLabel || 'Accept'}</Interactive>
@@ -426,22 +419,17 @@ export function Inbox({ v }) {
       {/* the loops — dispatch and compost run on schedules; controls live here */}
       {v.inboxConnected && (
         <div style={{ marginTop: '24px' }}>
-          <div style={css(`font:500 9.5px ${M};letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)`)}>LOOPS</div>
+          <Eyebrow>Loops</Eyebrow>
 
           {/* the flagship: the Daily Review reasons across everything, once a day */}
           <div className="nv-pane" style={{ marginTop: '10px', padding: '16px 18px', border: '1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent)', background: 'color-mix(in srgb, var(--nv-cy) 04%, transparent)' }}>
             <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap")}>
-              <span style={css(`font:500 9.5px ${M};letter-spacing:.2em;color:var(--nv-cy)`)}>◆ DAILY REVIEW</span>
-              <span style={css(`font:400 8.5px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>NOVA REASONS ACROSS YOUR WHOLE DAY · ONE COACHED READ + ADJUSTMENTS</span>
+              <Eyebrow as="span" tone="cyan">◆ Daily review</Eyebrow>
+              <Meta tone="faint">Nova reasons across your whole day · one coached read + adjustments</Meta>
             </div>
             <div style={css("margin-top:11px;display:flex;gap:6px;flex-wrap:wrap;align-items:center")}>
               {v.dailyReview.modes.map((m) => (
-                <Interactive key={m.value} as="span" onClick={m.pick}
-                  base={{ cursor: 'pointer', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '5px 11px', borderRadius: '7px',
-                    border: m.active ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)',
-                    color: m.active ? 'var(--nv-acc)' : 'var(--nv-ink60)', background: m.active ? 'var(--nv-acc-bg)' : 'transparent' }}
-                  hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}
-                >{m.label}</Interactive>
+                <Chip key={m.value} tone={m.active ? 'accent' : 'quiet'} active={m.active} onClick={m.pick}>{m.label}</Chip>
               ))}
               <select value={v.dailyReview.hour} onChange={v.dailyReview.setHour}
                 style={{ marginLeft: 'auto', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: `500 11px ${M}`, padding: '4px 6px', outline: 'none' }}>
@@ -450,10 +438,7 @@ export function Inbox({ v }) {
             </div>
             <div style={css("margin-top:9px;display:flex;justify-content:space-between;align-items:center;gap:8px")}>
               <span style={css(`font:500 11.5px ${R};color:var(--nv-ink60)`)}>{v.dailyReview.status}</span>
-              <Interactive as="span" onClick={v.dailyReview.busy ? undefined : v.dailyReview.run}
-                base={{ cursor: 'pointer', flex: 'none', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '6px 13px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent)', color: 'var(--nv-cy)', opacity: v.dailyReview.busy ? 0.5 : 1 }}
-                hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' }}
-              >{v.dailyReview.busy ? 'REASONING…' : 'RUN NOW'}</Interactive>
+              <TextAction tone="cyan" disabled={v.dailyReview.busy} onClick={v.dailyReview.run} style={{ flex: 'none' }}>{v.dailyReview.busy ? 'Reasoning…' : 'Run now'}</TextAction>
             </div>
           </div>
 
@@ -461,20 +446,15 @@ export function Inbox({ v }) {
 
             <div className="nv-pane" style={{ flex: '1 1 320px', padding: '16px 18px' }}>
               <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>
-                <span style={css(`font:500 9.5px ${M};letter-spacing:.2em;color:var(--nv-cy)`)}>BRIEFS</span>
-                <span style={css(`font:400 8.5px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>REAL DATA ONLY</span>
+                <Eyebrow as="span" tone="cyan">Briefs</Eyebrow>
+                <Meta tone="faint">Real data only</Meta>
               </div>
               {v.dispatchSlots.map((s, i) => (
                 <div key={s.slot} style={i > 0 ? { marginTop: '12px', paddingTop: '12px', borderTop: '1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)' } : { marginTop: '10px' }}>
                   <div style={css(`display:flex;gap:6px;flex-wrap:wrap;align-items:center`)}>
-                    <span style={css(`font:600 8.5px ${M};letter-spacing:.16em;color:color-mix(in srgb, var(--nv-ink) 55%, transparent);margin-right:2px`)}>{s.label}</span>
+                    <Meta tone="quiet" style={{ marginRight: '2px' }}>{cap(s.label)}</Meta>
                     {s.modes.map((m) => (
-                      <Interactive key={m.value} as="span" onClick={m.pick}
-                        base={{ cursor: 'pointer', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '5px 11px', borderRadius: '7px',
-                          border: m.active ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)',
-                          color: m.active ? 'var(--nv-acc)' : 'var(--nv-ink60)', background: m.active ? 'var(--nv-acc-bg)' : 'transparent' }}
-                        hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}
-                      >{m.label}</Interactive>
+                      <Chip key={m.value} tone={m.active ? 'accent' : 'quiet'} active={m.active} onClick={m.pick}>{m.label}</Chip>
                     ))}
                     <select value={s.hour} onChange={s.setHour}
                       style={{ marginLeft: 'auto', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: `500 11px ${M}`, padding: '4px 6px', outline: 'none' }}>
@@ -483,10 +463,7 @@ export function Inbox({ v }) {
                   </div>
                   <div style={css(`margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px`)}>
                     <span style={css(`font:500 11.5px ${R};color:var(--nv-ink60)`)}>{s.status}</span>
-                    <Interactive as="span" onClick={v.dispatchBusy ? undefined : s.run}
-                      base={{ cursor: 'pointer', flex: 'none', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '5px 12px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent)', color: 'var(--nv-cy)', opacity: v.dispatchBusy ? 0.5 : 1 }}
-                      hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' }}
-                    >{v.dispatchBusy ? 'COMPOSING…' : 'RUN NOW'}</Interactive>
+                    <TextAction tone="cyan" disabled={v.dispatchBusy} onClick={s.run} style={{ flex: 'none' }}>{v.dispatchBusy ? 'Composing…' : 'Run now'}</TextAction>
                   </div>
                 </div>
               ))}
@@ -494,22 +471,19 @@ export function Inbox({ v }) {
 
             <div className="nv-pane" style={{ flex: '1 1 320px', padding: '16px 18px' }}>
               <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>
-                <span style={css(`font:500 9.5px ${M};letter-spacing:.2em;color:var(--nv-good)`)}>COMPOST LOOP</span>
-                <span style={css(`font:400 8.5px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>WEEKLY · READ-ONLY SCAN</span>
+                <Eyebrow as="span" tone="good">Compost loop</Eyebrow>
+                <Meta tone="faint">Weekly · read-only scan</Meta>
               </div>
               <div style={css(`margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px`)}>
                 <span style={css(`font:500 11.5px ${R};color:var(--nv-ink60)`)}>last pass {v.compostLastRun} · {v.compostProposals.length} open proposal{v.compostProposals.length === 1 ? '' : 's'}</span>
-                <Interactive as="span" onClick={v.compostBusy ? undefined : v.runCompostNow}
-                  base={{ cursor: 'pointer', flex: 'none', font: `600 10.5px ${M}`, letterSpacing: '.08em', padding: '6px 13px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-good) 40%, transparent)', color: 'var(--nv-good)', opacity: v.compostBusy ? 0.5 : 1 }}
-                  hoverStyle={{ background: 'color-mix(in srgb, var(--nv-good) 08%, transparent)' }}
-                >{v.compostBusy ? 'SCANNING…' : 'RUN NOW'}</Interactive>
+                <TextAction tone="good" disabled={v.compostBusy} onClick={v.runCompostNow} style={{ flex: 'none' }}>{v.compostBusy ? 'Scanning…' : 'Run now'}</TextAction>
               </div>
               {v.compostProposals.length > 0 && (
                 <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:8px")}>
                   {v.compostProposals.map((p) => (
                     <div key={p.id} style={css("padding:10px 12px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);background:var(--nv-well)")}>
                       <div style={css("display:flex;align-items:center;gap:8px;flex-wrap:wrap")}>
-                        <span style={{ font: `600 8px ${M}`, letterSpacing: '.14em', padding: '2px 7px', borderRadius: '4px', color: `rgb(${p.badge.hue})`, background: `rgba(${p.badge.hue},.08)`, border: `1px solid rgba(${p.badge.hue},.4)` }}>{p.badge.label}</span>
+                        <Tag hue={p.badge.hue}>{p.badge.label}</Tag>
                         <span style={css(`font:600 13px ${R}`)}>{p.title}</span>
                       </div>
                       <div style={css(`margin-top:4px;font:500 11.5px/1.5 ${R};color:var(--nv-ink60)`)}>{p.detail}</div>
@@ -539,16 +513,13 @@ export function Inbox({ v }) {
 
             <div className="nv-pane" style={{ flex: '1 1 320px', padding: '16px 18px' }}>
               <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>
-                <span style={css(`font:500 9.5px ${M};letter-spacing:.2em;color:var(--nv-vi)`)}>TODOIST SYNC</span>
-                <span style={css(`font:400 8.5px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>{v.todoist.configured ? 'TWO-WAY · EVERY 10 MIN' : 'NOT CONNECTED'}</span>
+                <Eyebrow as="span" tone="violet">Todoist sync</Eyebrow>
+                <Meta tone="faint">{v.todoist.configured ? 'Two-way · every 10 min' : 'Not connected'}</Meta>
               </div>
               <div style={css(`margin-top:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px`)}>
                 <span style={css(`font:500 11.5px/1.5 ${R};color:var(--nv-ink60)`)}>{v.todoist.status}</span>
                 {v.todoist.configured && (
-                  <Interactive as="span" onClick={v.todoist.busy ? undefined : v.todoist.sync}
-                    base={{ cursor: 'pointer', flex: 'none', font: `600 10.5px ${M}`, letterSpacing: '.08em', padding: '6px 13px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-vi) 45%, transparent)', color: 'var(--nv-vi)', opacity: v.todoist.busy ? 0.5 : 1 }}
-                    hoverStyle={{ background: 'color-mix(in srgb, var(--nv-vi) 08%, transparent)' }}
-                  >{v.todoist.busy ? 'SYNCING…' : 'SYNC NOW'}</Interactive>
+                  <TextAction tone="violet" disabled={v.todoist.busy} onClick={v.todoist.sync} style={{ flex: 'none' }}>{v.todoist.busy ? 'Syncing…' : 'Sync now'}</TextAction>
                 )}
               </div>
               {v.todoist.configured && (
@@ -558,22 +529,19 @@ export function Inbox({ v }) {
 
             <div className="nv-pane" style={{ flex: '1 1 320px', padding: '16px 18px' }}>
               <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>
-                <span style={css(`font:500 9.5px ${M};letter-spacing:.2em;color:var(--nv-pk, #ff7ad9)`)}>MEAL PREP</span>
-                <span style={css(`font:400 8.5px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>THURSDAYS · SAME MEALS BY DESIGN</span>
+                <Eyebrow as="span" tone="var(--nv-pk, #ff7ad9)">Meal prep</Eyebrow>
+                <Meta tone="faint">Thursdays · same meals by design</Meta>
               </div>
               <div style={css(`margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px`)}>
                 <span style={css(`font:500 11.5px/1.5 ${R};color:var(--nv-ink60)`)}>Keeps this week's rotation, checks the protein floor, and drafts the shopping list those meals need — one Accept fills the list.</span>
-                <Interactive as="span" onClick={v.mealPrep.busy ? undefined : v.mealPrep.run}
-                  base={{ cursor: 'pointer', flex: 'none', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '5px 12px', borderRadius: '7px', border: '1px solid color-mix(in srgb, #ff7ad9 45%, transparent)', color: '#ff7ad9', opacity: v.mealPrep.busy ? 0.5 : 1 }}
-                  hoverStyle={{ background: 'color-mix(in srgb, #ff7ad9 08%, transparent)' }}
-                >{v.mealPrep.busy ? 'COMPOSING…' : 'RUN NOW'}</Interactive>
+                <TextAction tone="#ff7ad9" disabled={v.mealPrep.busy} onClick={v.mealPrep.run} style={{ flex: 'none' }}>{v.mealPrep.busy ? 'Composing…' : 'Run now'}</TextAction>
               </div>
             </div>
 
             <div className="nv-pane" style={{ flex: '1 1 320px', padding: '16px 18px' }}>
               <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>
-                <span style={css(`font:500 9.5px ${M};letter-spacing:.2em;color:var(--nv-gold)`)}>GUARDIAN</span>
-                <span style={css(`font:400 8.5px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>DAILY · READ-ONLY CHECKS</span>
+                <Eyebrow as="span" tone="gold">Guardian</Eyebrow>
+                <Meta tone="faint">Daily · read-only checks</Meta>
               </div>
               <div style={css(`margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px`)}>
                 <span style={css(`display:flex;align-items:center;gap:8px;font:500 11.5px ${R};color:var(--nv-ink60)`)}>
@@ -581,25 +549,16 @@ export function Inbox({ v }) {
                   {v.guardian.loaded ? `${v.guardian.status.toUpperCase()} · ${v.guardian.checkedLabel}` : v.guardian.checkedLabel}
                 </span>
                 <span style={css("display:flex;gap:6px;flex:none")}>
-                  <Interactive as="span" onClick={v.guardian.busy ? undefined : v.guardian.run}
-                    base={{ cursor: 'pointer', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '5px 11px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent)', color: 'var(--nv-gold)', opacity: v.guardian.busy ? 0.5 : 1 }}
-                    hoverStyle={{ background: 'color-mix(in srgb, var(--nv-gold) 08%, transparent)' }}
-                  >{v.guardian.busy ? 'CHECKING…' : 'RUN CHECKS'}</Interactive>
-                  <Interactive as="span" onClick={v.guardian.busy ? undefined : v.guardian.report}
-                    base={{ cursor: 'pointer', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '5px 11px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent)', color: 'var(--nv-ink60)', opacity: v.guardian.busy ? 0.5 : 1 }}
-                    hoverStyle={{ background: 'rgba(255,255,255,.05)' }}
-                  >REPORT</Interactive>
-                  <Interactive as="span" onClick={v.guardian.busy ? undefined : v.guardian.exportVault} title={`Zip vault + data to the Desktop · ${v.guardian.lastExportLabel}`}
-                    base={{ cursor: 'pointer', font: `600 10px ${M}`, letterSpacing: '.08em', padding: '5px 11px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent)', color: 'var(--nv-ink60)', opacity: v.guardian.busy ? 0.5 : 1 }}
-                    hoverStyle={{ background: 'rgba(255,255,255,.05)' }}
-                  >EXPORT</Interactive>
+                  <TextAction tone="gold" disabled={v.guardian.busy} onClick={v.guardian.run}>{v.guardian.busy ? 'Checking…' : 'Run checks'}</TextAction>
+                  <TextAction tone="quiet" disabled={v.guardian.busy} onClick={v.guardian.report}>Report</TextAction>
+                  <TextAction tone="quiet" disabled={v.guardian.busy} onClick={v.guardian.exportVault} title={`Zip vault + data to the Desktop · ${v.guardian.lastExportLabel}`}>Export</TextAction>
                 </span>
               </div>
               {v.guardian.checks.length > 0 && (
                 <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:7px")}>
                   {v.guardian.checks.map((c) => (
                     <div key={c.id} style={css("display:flex;gap:9px;align-items:baseline")}>
-                      <span style={{ font: `600 8px ${M}`, letterSpacing: '.1em', flex: 'none', width: '44px', color: c.color }}>{c.statusLabel}</span>
+                      <Meta tone={c.color} style={{ flex: 'none', width: '44px' }}>{c.statusLabel}</Meta>
                       <span style={css(`font:500 11.5px/1.5 ${R};color:var(--nv-ink60)`)}><span style={css("color:var(--nv-ink)")}>{c.label}.</span> {c.detail}</span>
                     </div>
                   ))}
@@ -613,8 +572,8 @@ export function Inbox({ v }) {
       {/* history */}
       <div style={{ marginTop: '26px' }}>
         <div style={css(`display:flex;justify-content:space-between;align-items:baseline`)}>
-          <span style={css(`font:500 9.5px ${M};letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)`)}>HISTORY</span>
-          <span style={css(`font:400 8.5px ${M};letter-spacing:.1em;color:color-mix(in srgb, var(--nv-ink) 35%, transparent)`)}>EVERY FILING IS ON THE RECORD — AND UNDOABLE</span>
+          <Eyebrow as="span">History</Eyebrow>
+          <Meta tone="faint">Every filing is on the record — and undoable</Meta>
         </div>
         {v.inboxHistory.length === 0 ? (
           <div style={css(`margin-top:20px;text-align:center;font:500 13px ${R};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>
@@ -629,7 +588,7 @@ export function Inbox({ v }) {
               return (
                 <div key={item.id} style={css(`padding:10px 4px${i < shownHistory.length - 1 ? ';border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent)' : ''}`)}>
                 <div style={css('display:flex;gap:12px;align-items:baseline')}>
-                  <span style={css(`font:400 9.5px ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent);width:76px;flex:none`)}>{item.time}</span>
+                  <Meta tone="faint" style={{ width: '76px', flex: 'none' }}>{item.time}</Meta>
                   <span style={{ flex: 'none' }}><RouteBadge route={item.route} confidence={null} /></span>
                   <span onClick={item.canExpand ? item.toggleExpand : undefined} style={{ minWidth: 0, flex: 1, cursor: item.canExpand ? 'pointer' : 'default' }}
                     title={item.canExpand ? (item.expanded ? 'Collapse' : 'Tap to see what was captured and filed') : undefined}>
@@ -642,7 +601,7 @@ export function Inbox({ v }) {
                       {item.status === 'discarded' ? 'discarded without writing' : ''}
                     </span>
                   </span>
-                  <span style={{ font: `600 8.5px ${M}`, letterSpacing: '.14em', color: meta.color, flex: 'none' }}>{meta.label}</span>
+                  <Meta tone={meta.color} style={{ flex: 'none' }}>{meta.label}</Meta>
                   {item.canUndo && (
                     <Interactive as="span" onClick={item.busy ? undefined : item.undo}
                       base={{ cursor: 'pointer', flex: 'none', font: `600 11px ${R}`, padding: '4px 12px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent)', color: 'var(--nv-ink60)', opacity: item.busy ? 0.5 : 1 }}
@@ -673,13 +632,13 @@ export function Inbox({ v }) {
                   <div style={css("margin:8px 0 2px 88px;display:flex;flex-direction:column;gap:8px")}>
                     {item.captured && (
                       <div>
-                        <div style={css(`font:500 8.5px ${M};letter-spacing:.18em;color:color-mix(in srgb, var(--nv-ink) 42%, transparent)`)}>YOU CAPTURED</div>
+                        <Eyebrow>You captured</Eyebrow>
                         <div style={css(`margin-top:3px;font:500 12.5px/1.55 ${R};color:var(--nv-ink60);white-space:pre-wrap`)}>{item.captured}</div>
                       </div>
                     )}
                     {item.full && (
                       <div>
-                        <div style={css(`font:500 8.5px ${M};letter-spacing:.18em;color:var(--nv-gold)`)}>{item.status === 'filed' ? 'WHAT WAS FILED' : 'THE FILING'}</div>
+                        <Eyebrow tone="gold">{item.status === 'filed' ? 'What was filed' : 'The filing'}</Eyebrow>
                         <div style={css(`margin-top:3px;font:500 12.5px/1.55 ${R};white-space:pre-wrap;overflow-wrap:break-word`)}>{item.full}</div>
                       </div>
                     )}
@@ -689,10 +648,9 @@ export function Inbox({ v }) {
               );
             })}
             {hiddenHistoryCount > 0 && (
-              <Interactive as="span" onClick={() => setHistoryLimit((n) => n + 100)}
-                base={css(`cursor:pointer;align-self:flex-start;margin-top:12px;font:600 10px ${M};letter-spacing:.1em;padding:8px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`)}
-                hoverStyle="color:var(--nv-ink);border-color:var(--nv-acc-border)"
-              >SHOW {Math.min(100, hiddenHistoryCount)} MORE · {hiddenHistoryCount} OLDER</Interactive>
+              <TextAction tone="quiet" onClick={() => setHistoryLimit((n) => n + 100)} style={{ alignSelf: 'flex-start', marginTop: '12px' }}>
+                Show {Math.min(100, hiddenHistoryCount)} more · {hiddenHistoryCount} older
+              </TextAction>
             )}
           </div>
         )}

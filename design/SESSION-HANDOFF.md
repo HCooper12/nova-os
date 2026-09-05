@@ -13,11 +13,14 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**5 SEP (late) — A PLAN HAS NOW RUN ON HIS ACCOUNT AND EXPOSED A HANDOFF BUG,
-FIXED THE SAME DAY BUT NOT RE-RUN (his $4, his call). A3 (Inbox triage) and
-C1 (the Mission Control fold) are built and verified on his data. Carter
-Extension still has no honest form video, and three things still need his
-phone in his hand.**
+**5 SEP (night) — THE MATERIAL PASS: "Nova feels stiff" answered by
+measurement and a sweep. The daily screens are set in a shared control
+vocabulary (src/Controls.jsx), cupertino cards lost their outlines, 15
+toasts that restated a visible change are gone, tab hops are instant,
+sheets drag to dismiss, the deck's next card rises. Verified on his data at
+375×812 with before/after shots; tap→paint measured at 12–22ms on the
+production build, so the deferred memoization stays deferred. Earlier the
+same day: the first plan run and its handoff fix, A3 and C1.**
 
 GOAL (this session, 4–5 Sep): (1) the UI audit and its unambiguous fixes;
 (2) Nova as chief of staff — chat as the front door, a capability registry,
@@ -68,10 +71,32 @@ data and confirmed live by `scripts/verify-shipped.mjs --server`:
 - Quick fixes: deck footer says PICK A MODEL ABOVE on a model-choice card; the
   0% ring's label carries its tone; the video fill job retries a miss with the
   muscle group in the query.
+- THE MATERIAL PASS (his "Nova still feels stiff", answered first by counting:
+  897 mono vs 180 UI-font declarations, 376 tracked 8–10px micro-labels used
+  as tap targets, 413 one-pixel borders, 266 toasts).
+  · `src/Controls.jsx` — Eyebrow / TextAction / Chip / Tag / Meta / Segmented:
+    a label is a MATERIAL decision like fonts and radius; Apple styles get
+    sentence case in the UI face at thumb size, Command keeps the console
+    idiom (CSS uppercases). Screens write the words once, in sentence case.
+  · Swept: Inbox.jsx (43→5 labels; what remains is the screen-identity
+    header), MissionStructured.jsx (12→0), Workouts.jsx (41→6: header +
+    demo-only MockWorkouts), TrainToday.jsx (20→1), MobileChrome.jsx (✦ Ask,
+    tinted chips). Filled buttons are style-aware via local `btn/outline`
+    (Workouts, TrainToday) and `primary/secondary` (Inbox) helpers.
+  · index.css: under cupertino `.nv-pane` has no border and a slightly
+    firmer fill; the edge token stays for inputs and separators.
+  · Toast diet: 15 removed (discard, "Updated ✓", routine deleted, session
+    updated, carry-over moves, focus-block start, three "fresh conversation",
+    wake-word toggle, loop mode set, two "rule updated"). The other ~250 are
+    errors, guards and background receipts and stay.
+  · Motion: `navigate(screen, { instant: true })` for tab/sidebar hops (the
+    cross-fade stays for programmatic navigations); `src/useSheetDrag.js`
+    on ExerciseSheet and PortionSheet (grab zone = handle row, imperative
+    transform, throw past 110px or fast); `.nv-deck-rise` on a new top card.
 
-STATE (HEAD `368e27f` verified live: deploy 33954799071 green, `verify-shipped
---server` all PASS bar the then-uncommitted handoff; the handoff commit after
-it is docs-only):
+STATE (the material pass was committed after this handoff was written — see
+`git log -3`; run `npm run build && node scripts/verify-shipped.mjs --server`
+to stamp it):
 - Inbox holds the first plan's artefacts, all PENDING and his to judge: the
   plan report (`7bf8cee7`, honest: "only the Watcher's part was done"), the
   Watcher's verdict (`13938dcb`, sound) and the Researcher's defective brief
@@ -99,9 +124,23 @@ DECISIONS (his, 4–5 Sep):
   would file: high-confidence captures. An agent's product is never routine,
   whatever confidence the agent stamped on it (the first cut would have filed
   two research briefs and two video verdicts unread).
+- Labels are material (5 Sep). Under the Apple styles a control is a
+  sentence-case word in the UI face with a 40px hit area, a card is a fill
+  not an outline, and Nova does not toast what he can already see. Command
+  keeps its console idiom through the same components. New daily-screen UI
+  goes through Controls.jsx, not a fresh `font:600 8.5px mono` string.
+- The PWA cannot do haptics (WebKit has no vibrate); a native wrapper is the
+  only route and is HIS call — not started.
 
 VERIFIED (this session, with locators): every item above was exercised on
 the running app — see the commit bodies from `e91eac2` to `fff89ae`.
+- Material pass: before/after screenshots at 375×812 on his data (Inbox,
+  Mission Control top + folds, Train Today); console clean; production
+  preview on the same origin measured click→second-rAF at 12–22ms for
+  twelve interactions (deck/list, see-all, expand, fold, tab hops, Train
+  segments), DOM 644 nodes. The trace's 69ms forced reflow was my probe's
+  `innerText` scan, not the app; its two 0.06 layout shifts were my
+  scripted fold taps.
 
 ASSUMED:
 - The handoff fix works on a REAL run. dispatch → await → report is now proven
@@ -121,7 +160,11 @@ OPEN — HIS:
   + voice from his phone; Scriptable widget re-paste.
 OPEN — MINE, when asked: the fold for `MissionControl.jsx` (the non-phone
 layout); a model naming the digest's themes ON TOP of the deterministic
-groups, never instead of them; the remaining audit mockups he has not picked.
+groups, never instead of them; the remaining audit mockups he has not picked;
+the material pass on the screens NOT yet swept (Fuel/Recipes, Notes, Voice,
+Settings, Money, To-Do, the classic `MissionControl.jsx`) and the
+screen-identity header row (numeral · SECTION · label) that every classic
+screen still sets in tracked mono.
 
 DO NOT:
 - Do not write a test that assumes his timezone. `localDate.test.js` built
@@ -157,9 +200,26 @@ DO NOT:
   the lane's `payload.body`, not the record title.
 - Do not pipe `npm run dev` through `head` in a background task — it killed
   the dev server mid-verification. Start it detached with a log file.
+- Do not measure interaction cost with a probe that reads `innerText` on
+  every element — it forces layout and shows up as the app's reflow. Find
+  elements with `textContent`, then time click→second rAF.
+- Do not add a new tracked-mono micro-label to a daily screen; use
+  Controls.jsx. The console idiom is Command's material, not the default.
 - Earlier DO NOTs (3 Sep) all still stand.
 
 ## SESSION LOG (append-only, newest first)
+
+### 5 September 2026 (night) — the material pass
+
+"Nova still feels stiff." Measured before diagnosing: five of six type
+declarations were the tracked mono micro-label and those were the tap
+targets; four hundred one-pixel borders; a toast for every action. Built
+`src/Controls.jsx` so the label is a material decision per style, swept the
+four daily surfaces, unbordered cupertino cards, removed the toasts that
+restated visible change, made tab hops instant, gave sheets drag-to-dismiss
+and the deck a rise. Measured after: 12–22ms per tap on the production
+build — no jank case, so P8 stays deferred. Left for him: the native
+wrapper (haptics), and the remaining screens.
 
 ### 5 September 2026 (late) — the first plan run, its handoff bug, A3 and C1
 

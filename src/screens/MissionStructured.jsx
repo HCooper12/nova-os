@@ -2,6 +2,10 @@ import { useState } from 'react';
 import { css } from '../css.js';
 import { RingTile } from '../RingTile.jsx';
 import { resolveFolds, foldStatus, FOLD_LABELS, loadFolds, saveFolds } from '../missionFold.js';
+import { Eyebrow, TextAction, Tag, Meta } from '../Controls.jsx';
+
+// a word the view model hands up in caps ("CONSIDER") read as a word
+const cap = (s) => { const t = String(s || '').toLowerCase(); return t.charAt(0).toUpperCase() + t.slice(1); };
 import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
 import { Clock } from '../Clock.jsx';
@@ -84,7 +88,7 @@ export function MissionStructured({ v }) {
           <NovaCore size={mob ? 84 : 104} engine={v.coreStyle} />
         </Interactive>
         <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ font: `600 10.5px ${M}`, letterSpacing: '.22em', color: 'var(--nv-cy)' }}>{v.coreLabel}</div>
+          <Eyebrow tone="cyan">{v.coreLabel}</Eyebrow>
           <p style={{ margin: '6px 0 0', font: `450 14.5px/1.55 ${UI}`, color: 'var(--nv-ink60)' }}>
             {v.heroStand.map((seg, i) => (
               <span key={i} style={seg.b ? { color: 'var(--nv-ink)', fontWeight: 650 } : seg.cy ? { color: 'var(--nv-cy)', fontWeight: 650 } : undefined}>{seg.t}</span>
@@ -148,7 +152,7 @@ export function MissionStructured({ v }) {
     // sign of life anywhere: any agent doing work is visible on the home
     // screen, always, without him going to look for it.
     working: v.jobTray.jobs.length > 0 ? (
-      <Group key="working" label="Nova is working" trailing={<span style={{ font: `500 10px ${M}`, letterSpacing: '.12em', color: 'var(--nv-cy)' }}>{v.jobTray.jobs.length} RUNNING</span>}>
+      <Group key="working" label="Nova is working" trailing={<Meta tone="cyan">{v.jobTray.jobs.length} running</Meta>}>
         {v.jobTray.jobs.map((j, i) => (
           <GRow key={j.id} first={i === 0}
             leading={<span style={{ font: `600 12px ${M}`, color: j.failed ? 'var(--nv-warn)' : j.done ? 'var(--nv-good, #5aa87c)' : 'var(--nv-cy)' }}>{j.failed ? '✕' : j.done ? '✓' : '◍'}</span>}
@@ -159,7 +163,7 @@ export function MissionStructured({ v }) {
     ) : null,
 
     lead: v.leaderToday ? (
-      <Group key="lead" label="Lead · try today" trailing={<span style={{ font: `500 10px ${M}`, letterSpacing: '.12em', color: 'var(--nv-gold)' }}>{v.leaderToday.chip}</span>}>
+      <Group key="lead" label="Lead · try today" trailing={<Meta tone="gold">{cap(v.leaderToday.chip)}</Meta>}>
         <div style={{ padding: '13px 16px' }}>
           <div style={{ font: `400 21px/1.25 ${S}`, textWrap: 'pretty' }}>{v.leaderToday.title}</div>
           <p style={{ margin: '9px 0 0', font: `450 13.5px/1.55 ${UI}`, color: 'var(--nv-ink)' }}>{v.leaderToday.line}</p>
@@ -189,7 +193,7 @@ export function MissionStructured({ v }) {
             )}
           </section>
         )}
-      <Group key="plan-group" label="Today's top 3" trailing={<span style={{ font: `500 10px ${M}`, letterSpacing: '.12em', color: v.planToday.state === 'pending' ? 'var(--nv-gold)' : v.planToday.state === 'error' ? 'var(--nv-warn)' : 'var(--nv-ink40)' }}>{v.planToday.meta}</span>}>
+      <Group key="plan-group" label="Today's top 3" trailing={<Meta tone={v.planToday.state === 'pending' ? 'gold' : v.planToday.state === 'error' ? 'warn' : 'faint'}>{v.planToday.meta}</Meta>}>
         {v.planToday.state === 'classifying' ? (
           <GRow first title={<span style={{ color: 'var(--nv-ink60)', fontWeight: 450 }}>Nova is drawing up today's top 3…</span>} />
         ) : v.planToday.state === 'error' ? (
@@ -202,8 +206,8 @@ export function MissionStructured({ v }) {
               sub={p.why || null}
               trailing={p.mark ? (
                 <span style={{ display: 'flex', gap: '6px' }}>
-                  <Interactive as="span" onClick={() => p.mark('done')} base={css(`cursor:pointer;font:600 9px ${M};letter-spacing:.12em;padding:3px 7px;border-radius:6px;border:1px solid ${p.outcome === 'done' ? 'var(--nv-good)' : 'color-mix(in srgb, var(--nv-ink) 18%, transparent)'};color:${p.outcome === 'done' ? 'var(--nv-good)' : 'var(--nv-ink60)'}`)} hoverStyle={{ filter: 'brightness(1.15)' }}>DONE</Interactive>
-                  <Interactive as="span" onClick={() => p.mark('skipped')} base={css(`cursor:pointer;font:600 9px ${M};letter-spacing:.12em;padding:3px 7px;border-radius:6px;border:1px solid ${p.outcome === 'skipped' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 18%, transparent)'};color:${p.outcome === 'skipped' ? 'var(--nv-warn)' : 'var(--nv-ink60)'}`)} hoverStyle={{ filter: 'brightness(1.15)' }}>SKIP</Interactive>
+                  <TextAction compact tone={p.outcome === 'done' ? 'good' : 'quiet'} onClick={() => p.mark('done')}>Done</TextAction>
+                  <TextAction compact tone={p.outcome === 'skipped' ? 'warn' : 'quiet'} onClick={() => p.mark('skipped')}>Skip</TextAction>
                 </span>
               ) : null} />
           ))
@@ -226,7 +230,7 @@ export function MissionStructured({ v }) {
       }>
         {v.commandDeck.items.map((item, i) => (
           <GRow key={item.id} first={i === 0} onClick={v.commandDeck.onOpen}
-            leading={<span style={{ font: `600 8.5px ${M}`, letterSpacing: '.1em', color: 'var(--nv-ink40)' }}>{item.kindLabel}</span>}
+            leading={<Tag>{item.kindLabel}</Tag>}
             title={<span style={{ fontWeight: 500 }}>{item.title}</span>}
             trailing={<span style={{ color: 'var(--nv-ink40)' }}>›</span>} />
         ))}
@@ -237,7 +241,7 @@ export function MissionStructured({ v }) {
       <Group key="today" label="Today" trailing={
         v.todayIsLive
           ? <Interactive as="span" onClick={v.openCalendarView} base={{ cursor: 'pointer', font: `600 12px ${UI}`, color: 'var(--nv-acc)' }} hoverStyle={{ filter: 'brightness(1.15)' }}>Next 14 days ›</Interactive>
-          : v.todayStaleLabel ? <span style={{ font: `500 10px ${M}`, letterSpacing: '.1em', color: 'var(--nv-warn)' }}>{v.todayStaleLabel}</span> : null
+          : v.todayStaleLabel ? <Meta tone="warn">{v.todayStaleLabel}</Meta> : null
       }>
         {v.todayEvents.map((ev, i) => (
           <GRow key={i} first={i === 0}
@@ -260,7 +264,7 @@ export function MissionStructured({ v }) {
     review: (
       <Group key="review" label="Daily review" trailing={
         <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ font: `500 10px ${M}`, letterSpacing: '.12em', color: 'var(--nv-ink40)' }}>{v.reviewMeta}</span>
+          <Meta tone="faint">{v.reviewMeta}</Meta>
           <Interactive as="span" onClick={v.shuffleReview} aria-label="Shuffle daily review" base={{ cursor: 'pointer', font: `400 13px ${M}`, color: 'var(--nv-ink40)' }} hoverStyle={{ color: 'var(--nv-ink)' }}>⟳</Interactive>
         </span>
       }>
@@ -277,12 +281,12 @@ export function MissionStructured({ v }) {
     ),
 
     noticed: (
-      <Group key="noticed" label="Nova noticed" trailing={<span style={{ font: `400 10px ${M}`, letterSpacing: '.1em', color: 'var(--nv-ink40)' }}>WHILE YOU SLEPT</span>}>
+      <Group key="noticed" label="Nova noticed" trailing={<Meta tone="faint">While you slept</Meta>}>
         {v.usingLiveHealthInsight && v.healthInsightItems.length > 0 ? (
           v.healthInsightItems.map((item, i) => (
             <GRow key={item.key} first={i === 0}
               leading={<span style={{ color: 'var(--nv-gold)' }}>✦</span>}
-              title={<span style={{ fontWeight: 450, fontSize: '13.5px', lineHeight: 1.5, color: 'var(--nv-ink60)' }}><span style={{ font: `600 9.5px ${M}`, letterSpacing: '.12em', color: 'var(--nv-gold)', marginRight: '8px' }}>{item.label}</span>{item.text}</span>} />
+              title={<span style={{ fontWeight: 450, fontSize: '13.5px', lineHeight: 1.5, color: 'var(--nv-ink60)' }}><Tag tone="gold" style={{ marginRight: '8px' }}>{item.label}</Tag>{item.text}</span>} />
           ))
         ) : !v.noticedShowDemo ? (
           <GRow first leading={<span style={{ color: 'var(--nv-gold)' }}>✦</span>}
@@ -414,9 +418,7 @@ export function MissionStructured({ v }) {
                 {sections[k]}
                 {canFold && (
                   <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '4px 8px 0' }}>
-                    <Interactive as="span" onClick={() => setFold(k, 'fold')} aria-label={`Fold ${FOLD_LABELS[k] || k}`}
-                      base={{ cursor: 'pointer', font: `600 8.5px ${M}`, letterSpacing: '.14em', color: 'var(--nv-ink40)', padding: '2px 4px' }}
-                      hoverStyle={{ color: 'var(--nv-ink)' }}>▴ FOLD</Interactive>
+                    <TextAction tone="faint" onClick={() => setFold(k, 'fold')} ariaLabel={`Fold ${FOLD_LABELS[k] || k}`} style={{ minHeight: '32px', padding: '4px 10px', margin: 0 }}>▴ Fold</TextAction>
                   </div>
                 )}
               </div>

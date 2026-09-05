@@ -8,6 +8,19 @@ import { ChatMarkdown } from '../ChatMarkdown.jsx';
 import { TrainToday } from '../TrainToday.jsx';
 import { SafeVisual } from '../SafeVisual.jsx';
 import { VoicePanel } from '../VoicePanels.jsx';
+import { Eyebrow, TextAction, Chip, Tag, Meta, Segmented, isAppleStyle } from '../Controls.jsx';
+
+// THE MATERIAL PASS (5 Sep 2026, "Nova feels stiff"): labels and tap targets
+// on this screen are set through src/Controls.jsx — sentence case in the UI
+// face under the Apple styles, the console idiom under Command. The two
+// button helpers below do the same for filled/outlined buttons.
+const cap = (s) => { const t = String(s || '').toLowerCase(); return t.charAt(0).toUpperCase() + t.slice(1); };
+const btn = (bg, ink, extra = {}) => (isAppleStyle()
+  ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '11px 20px', borderRadius: '999px', background: bg, color: ink, ...extra }
+  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 10.5px var(--nv-font-mono)', letterSpacing: '.08em', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
+const outline = (color, extra = {}) => (isAppleStyle()
+  ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 14px var(--nv-font-ui)', padding: '10px 16px', borderRadius: '999px', background: `color-mix(in srgb, ${color} 12%, transparent)`, color, border: '1px solid transparent', ...extra }
+  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '500 10.5px var(--nv-font-mono)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', border: `1px solid color-mix(in srgb, ${color} 35%, transparent)`, color, background: `color-mix(in srgb, ${color} 06%, transparent)`, ...extra });
 
 // Inputs render at 16px (global rule in index.css) so iOS never zoom-jumps on
 // focus — widths/padding here are sized for that, not the old 11–12px text.
@@ -126,15 +139,15 @@ function RoutinesView({ v }) {
           in progress replaces it with the resume card below */}
       {v.gymHero && !v.resumeSession && (v.gymHero.rest ? (
         <div style={css("margin-top:18px;border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:16px;padding:18px 22px;background:linear-gradient(180deg,rgba(255,255,255,.03),transparent)")}>
-          <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>ON TODAY'S CARD</div>
+          <Eyebrow>On today's card</Eyebrow>
           <div style={css("margin-top:7px;font:700 24px/1.1 var(--nv-font-ui)")}>Active rest</div>
           <div style={css("margin-top:7px;font-size:12.5px;color:var(--nv-ink60);line-height:1.55;max-width:520px")}>{v.gymHero.focusText}</div>
         </div>
       ) : (
         <div style={css("margin-top:18px;border:1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent);border-radius:16px;padding:20px 22px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-cy) 09%, transparent),transparent);box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 18px 44px -26px color-mix(in srgb, var(--nv-cy) 55%, transparent)")}>
-          <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.22em;color:var(--nv-cy)")}>ON TODAY'S CARD</div>
-          <div style={css("margin-top:7px;font:700 30px/1.05 var(--nv-font-ui);letter-spacing:.01em")}>{v.gymHero.name.toUpperCase()}</div>
-          <div style={css("margin-top:7px;font:400 12px var(--nv-font-mono);color:var(--nv-ink60)")}>{v.gymHero.meta}</div>
+          <Eyebrow tone="cyan">On today's card</Eyebrow>
+          <div style={css("margin-top:7px;font:700 30px/1.05 var(--nv-font-ui);letter-spacing:.01em")}>{isAppleStyle() ? v.gymHero.name : v.gymHero.name.toUpperCase()}</div>
+          <Meta as="div" tone="quiet" style={{ marginTop: '7px' }}>{v.gymHero.meta}</Meta>
           {/* WHAT IT HITS — the muscles this session trains, before he
               commits to it. Collapsed to chips; tap for the per-exercise
               breakdown, which is the thing he actually asked to see. */}
@@ -142,15 +155,10 @@ function RoutinesView({ v }) {
             <div style={css("margin-top:12px")}>
               <div style={css("display:flex;flex-wrap:wrap;gap:6px;align-items:center")}>
                 {v.gymHero.targets.map((t) => (
-                  <span key={t.muscle} style={css("font:600 9px var(--nv-font-mono);letter-spacing:.14em;padding:5px 9px;border-radius:7px;color:var(--nv-cy);border:1px solid color-mix(in srgb, var(--nv-cy) 26%, transparent);background:color-mix(in srgb, var(--nv-cy) 07%, transparent)")}>
-                    {t.muscle.toUpperCase()} ×{t.count}
-                  </span>
+                  <Tag key={t.muscle} tone="cyan">{t.muscle} ×{t.count}</Tag>
                 ))}
                 {v.gymHero.targetRows && (
-                  <Interactive as="span" onClick={v.gymHero.toggleTargets}
-                    base={css("cursor:pointer;display:inline-flex;align-items:center;min-height:30px;padding:0 8px;font:600 9px var(--nv-font-mono);letter-spacing:.14em;color:color-mix(in srgb, var(--nv-ink) 50%, transparent)")}
-                    hoverStyle={{ color: 'var(--nv-ink)' }}
-                  >{v.gymHero.targetsOpen ? 'HIDE ▴' : 'PER EXERCISE ▾'}</Interactive>
+                  <TextAction tone="quiet" onClick={v.gymHero.toggleTargets}>{v.gymHero.targetsOpen ? 'Hide ▴' : 'Per exercise ▾'}</TextAction>
                 )}
               </div>
               {v.gymHero.targetsOpen && v.gymHero.targetRows && (
@@ -158,7 +166,7 @@ function RoutinesView({ v }) {
                   {v.gymHero.targetRows.map((row, i) => (
                     <div key={i} style={css(`display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:6px 0${i === 0 ? '' : ';border-top:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)'}`)}>
                       <span style={css("min-width:0;font:450 13px var(--nv-font-ui);overflow-wrap:anywhere")}>{row.name}</span>
-                      <span style={css("flex:none;font:500 9.5px var(--nv-font-mono);letter-spacing:.1em;color:color-mix(in srgb, var(--nv-ink) 50%, transparent)")}>{row.muscle.toUpperCase()}</span>
+                      <Meta tone="faint" style={{ flex: 'none' }}>{cap(row.muscle)}</Meta>
                     </div>
                   ))}
                 </div>
@@ -167,9 +175,9 @@ function RoutinesView({ v }) {
           )}
           {v.gymHero.begin && (
             <Interactive as="span" onClick={v.gymHero.begin}
-              base={{ cursor: 'pointer', display: 'inline-block', marginTop: '15px', font: "600 11.5px var(--nv-font-mono)", letterSpacing: '.1em', padding: '12px 26px', borderRadius: '10px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)' }}
+              base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { marginTop: '15px' })}
               hoverStyle={{ filter: 'brightness(1.1)' }}
-            >▶ BEGIN SESSION</Interactive>
+            >▶ Begin session</Interactive>
           )}
         </div>
       ))}
@@ -199,7 +207,7 @@ function RoutinesView({ v }) {
         <div style={css("margin-top:20px;display:flex;gap:8px;overflow-x:auto;padding-bottom:4px")}>
           {v.weekStrip.map((d) => (
             <div key={d.day} style={d.style}>
-              <div style={{ font: "500 9px var(--nv-font-mono)", letterSpacing: '.14em', color: d.labelColor }}>{d.dayLabel}</div>
+              <Meta as="div" tone={d.labelColor}>{d.dayLabel}</Meta>
               <select
                 className="nv-compact"
                 value={d.value}
@@ -218,17 +226,15 @@ function RoutinesView({ v }) {
       {v.discardedDraft && (
         <div style={css("margin-top:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border:1px solid color-mix(in srgb, var(--nv-warn) 42%, transparent);border-radius:14px;padding:15px 18px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-warn) 09%, transparent),transparent)")}>
           <div>
-            <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-warn)")}>DISCARDED WORKOUT — STILL RECOVERABLE</div>
+            <Eyebrow tone="warn">Discarded workout — still recoverable</Eyebrow>
             <div style={css("margin-top:5px;font:600 16px var(--nv-font-ui)")}>{v.discardedDraft.name}</div>
             <div style={css("margin-top:2px;font-size:11.5px;color:var(--nv-ink60)")}>{v.discardedDraft.sets} set{v.discardedDraft.sets === 1 ? '' : 's'} logged · discarded {v.discardedDraft.when}</div>
           </div>
           <div style={css("display:flex;gap:10px;align-items:center")}>
             <Interactive as="span" onClick={v.discardedDraft.restore}
-              base={{ cursor: 'pointer', font: "600 10.5px var(--nv-font-mono)", letterSpacing: '.06em', padding: '10px 18px', borderRadius: '9px', background: 'var(--nv-warn)', color: '#1a1206' }}
-              hoverStyle={{ filter: 'brightness(1.08)' }}>RESTORE IT</Interactive>
-            <Interactive as="span" onClick={v.discardedDraft.dismiss}
-              base="cursor:pointer;font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)"
-              hoverStyle="color:var(--nv-ink)">dismiss</Interactive>
+              base={btn('var(--nv-warn)', '#1a1206')}
+              hoverStyle={{ filter: 'brightness(1.08)' }}>Restore it</Interactive>
+            <TextAction tone="faint" onClick={v.discardedDraft.dismiss}>Dismiss</TextAction>
           </div>
         </div>
       )}
@@ -241,18 +247,18 @@ function RoutinesView({ v }) {
           hoverStyle="border-color:color-mix(in srgb, var(--nv-gold) 65%, transparent)"
         >
           <div>
-            <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-gold)")}>WORKOUT IN PROGRESS</div>
+            <Eyebrow tone="gold">Workout in progress</Eyebrow>
             <div style={css("margin-top:5px;font:600 16px var(--nv-font-ui)")}>{v.resumeSession.routineName}</div>
             <div style={css("margin-top:2px;font-size:11.5px;color:var(--nv-ink60)")}>{v.resumeSession.done} set{v.resumeSession.done === 1 ? '' : 's'} logged · {v.resumeSession.ageLabel}</div>
           </div>
-          <span style={css("font:600 10.5px var(--nv-font-mono);letter-spacing:.06em;padding:10px 18px;border-radius:9px;background:var(--nv-gold);color:#1a1322;white-space:nowrap")}>RESUME →</span>
+          <span style={btn('var(--nv-gold)', '#1a1322', { whiteSpace: 'nowrap' })}>Resume →</span>
         </Interactive>
       )}
 
       {/* just finished, but left exercises undone — offer to push them forward */}
       {v.finishMissed && (
         <div style={css("margin-top:18px;border:1px solid color-mix(in srgb, var(--nv-cy) 34%, transparent);border-radius:14px;padding:16px 18px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-cy) 08%, transparent),transparent)")}>
-          <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-cy)")}>{v.finishMissed.count} EXERCISE{v.finishMissed.count === 1 ? '' : 'S'} NOT DONE</div>
+          <Eyebrow tone="cyan">{v.finishMissed.count} exercise{v.finishMissed.count === 1 ? '' : 's'} not done</Eyebrow>
           <div style={css("margin-top:6px;font-size:12.5px;color:color-mix(in srgb, var(--nv-ink) 78%, transparent);line-height:1.5")}>{v.finishMissed.names}</div>
           <div style={css("margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap")}>
             <span style={css("font-size:11.5px;color:var(--nv-ink60)")}>Push to</span>
@@ -261,11 +267,9 @@ function RoutinesView({ v }) {
               {v.finishMissed.dayOptions.map((o) => <option key={o.value} value={o.value} style={{ background: '#141019' }}>{o.label}</option>)}
             </select>
             <Interactive as="span" onClick={v.finishMissed.push}
-              base={{ cursor: 'pointer', font: "600 10.5px var(--nv-font-mono)", letterSpacing: '.06em', padding: '9px 16px', borderRadius: '8px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)' }}
-              hoverStyle={{ filter: 'brightness(1.08)' }}>PUSH THESE FORWARD</Interactive>
-            <Interactive as="span" onClick={v.finishMissed.dismiss}
-              base={{ cursor: 'pointer', font: "400 10px var(--nv-font-mono)", color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}
-              hoverStyle={{ color: 'var(--nv-ink)' }}>no thanks</Interactive>
+              base={btn('var(--nv-cy)', 'var(--nv-on-acc)')}
+              hoverStyle={{ filter: 'brightness(1.08)' }}>Push these forward</Interactive>
+            <TextAction tone="faint" onClick={v.finishMissed.dismiss}>No thanks</TextAction>
           </div>
         </div>
       )}
@@ -273,26 +277,22 @@ function RoutinesView({ v }) {
       {/* carry-overs — makeup exercises Nova is holding for a day */}
       {v.carryovers.length > 0 && (
         <div style={css("margin-top:22px")}>
-          <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>CARRY-OVERS</span>
+          <Eyebrow as="span">Carry-overs</Eyebrow>
           <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:10px")}>
             {v.carryovers.map((c) => (
               <div key={c.id} style={{ border: `1px solid ${c.overdue ? 'color-mix(in srgb, var(--nv-mag,#e0607e) 42%, transparent)' : c.dueSoon ? 'color-mix(in srgb, var(--nv-gold) 38%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 10%, transparent)'}`, borderRadius: '13px', padding: '15px 17px', background: 'linear-gradient(180deg,rgba(255,255,255,.035),transparent)' }}>
                 <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:10px")}>
                   <span style={css("font:600 15px var(--nv-font-ui)")}>{c.title}</span>
-                  <span style={{ font: "500 8.5px var(--nv-font-mono)", letterSpacing: '.1em', color: c.overdue ? 'var(--nv-mag,#e0607e)' : c.dueSoon ? 'var(--nv-gold)' : 'color-mix(in srgb, var(--nv-ink) 45%, transparent)', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>{c.when}</span>
+                  <Meta tone={c.overdue ? 'var(--nv-mag,#e0607e)' : c.dueSoon ? 'gold' : 'faint'} style={{ whiteSpace: 'nowrap' }}>{cap(c.when)}</Meta>
                 </div>
                 <div style={css("margin-top:5px;font-size:11.5px;color:var(--nv-ink60);line-height:1.5")}>{c.count} exercise{c.count === 1 ? '' : 's'} · {c.names}</div>
                 {!c.rescheduling ? (
                   <div style={css("margin-top:12px;display:flex;gap:12px;align-items:center")}>
                     <Interactive as="span" onClick={c.start}
-                      base={{ cursor: 'pointer', font: "600 10px var(--nv-font-mono)", letterSpacing: '.06em', padding: '9px 16px', borderRadius: '8px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)' }}
-                      hoverStyle={{ filter: 'brightness(1.08)' }}>DO IT NOW</Interactive>
-                    <Interactive as="span" onClick={c.startReschedule}
-                      base={{ cursor: 'pointer', font: "500 10px var(--nv-font-mono)", color: 'var(--nv-ink60)' }}
-                      hoverStyle={{ color: 'var(--nv-gold)' }}>reschedule</Interactive>
-                    <Interactive as="span" onClick={c.remove}
-                      base={{ cursor: 'pointer', font: "400 10px var(--nv-font-mono)", color: 'color-mix(in srgb, var(--nv-ink) 38%, transparent)' }}
-                      hoverStyle={{ color: 'var(--nv-mag,#e0607e)' }}>remove</Interactive>
+                      base={btn('var(--nv-cy)', 'var(--nv-on-acc)')}
+                      hoverStyle={{ filter: 'brightness(1.08)' }}>Do it now</Interactive>
+                    <TextAction tone="quiet" onClick={c.startReschedule}>Reschedule</TextAction>
+                    <TextAction tone="faint" onClick={c.remove}>Remove</TextAction>
                   </div>
                 ) : (
                   <div style={css("margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap")}>
@@ -302,9 +302,7 @@ function RoutinesView({ v }) {
                       <option value="" disabled style={{ background: '#141019' }}>Pick a day…</option>
                       {c.dayOptions.map((o) => <option key={o.value} value={o.value} style={{ background: '#141019' }}>{o.label}</option>)}
                     </select>
-                    <Interactive as="span" onClick={c.cancelReschedule}
-                      base={{ cursor: 'pointer', font: "400 10px var(--nv-font-mono)", color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}
-                      hoverStyle={{ color: 'var(--nv-ink)' }}>cancel</Interactive>
+                    <TextAction tone="faint" onClick={c.cancelReschedule}>Cancel</TextAction>
                   </div>
                 )}
               </div>
@@ -315,11 +313,11 @@ function RoutinesView({ v }) {
 
       <div style={css("margin-top:22px;display:flex;justify-content:space-between;align-items:baseline")}>
         <span style={css("display:flex;align-items:baseline;gap:12px")}>
-          <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>ROUTINES</span>
-          <Interactive as="span" onClick={v.openAllSessions} base="cursor:pointer;font:500 9px var(--nv-font-mono);letter-spacing:.1em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-cy)">ALL SESSIONS →</Interactive>
+          <Eyebrow as="span">Routines</Eyebrow>
+          <TextAction tone="faint" onClick={v.openAllSessions}>All sessions →</TextAction>
         </span>
         {!v.routineCreating && (
-          <Interactive as="span" onClick={v.startCreateRoutine} base="cursor:pointer;font:500 10.5px var(--nv-font-mono);padding:8px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-gold) 35%, transparent);color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 06%, transparent)" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 14%, transparent)">+ New routine</Interactive>
+          <Interactive as="span" onClick={v.startCreateRoutine} base={outline('var(--nv-gold)')} hoverStyle={{ filter: 'brightness(1.1)' }}>+ New routine</Interactive>
         )}
       </div>
 
@@ -335,8 +333,8 @@ function RoutinesView({ v }) {
             base="flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:10px 14px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-ui);outline:none"
             focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
           />
-          <Interactive as="span" onClick={v.submitCreateRoutine} base="cursor:pointer;display:flex;align-items:center;font:500 10.5px var(--nv-font-mono);padding:0 16px;border-radius:8px;background:var(--nv-gold);color:#1a1322" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 85%, white)">CREATE</Interactive>
-          <Interactive as="span" onClick={v.cancelCreateRoutine} base="cursor:pointer;display:flex;align-items:center;font:500 10.5px var(--nv-font-mono);padding:0 14px;border-radius:8px;color:color-mix(in srgb, var(--nv-ink) 50%, transparent)" hoverStyle="color:var(--nv-ink)">CANCEL</Interactive>
+          <Interactive as="span" onClick={v.submitCreateRoutine} base={btn('var(--nv-gold)', '#1a1322')} hoverStyle={{ filter: 'brightness(1.08)' }}>Create</Interactive>
+          <TextAction tone="quiet" onClick={v.cancelCreateRoutine}>Cancel</TextAction>
         </div>
       )}
 
@@ -356,12 +354,12 @@ function RoutinesView({ v }) {
             >
               <div style={css("display:flex;justify-content:space-between;align-items:baseline")}>
                 <span style={css("font-size:15.5px;font-weight:500")}>{r.name}</span>
-                {r.completedCount > 0 && <span style={css("font:500 9px var(--nv-font-mono);color:var(--nv-gold)")}>◆ {r.completedCount}×</span>}
+                {r.completedCount > 0 && <Meta tone="gold">◆ {r.completedCount}×</Meta>}
               </div>
               <div style={css("margin-top:8px;font-size:12px;color:color-mix(in srgb, var(--nv-ink) 50%, transparent);line-height:1.5")}>{r.exercisesPreview}</div>
               {/* what the routine trains, so browsing says more than names */}
               {r.targetsLine && (
-                <div style={css("margin-top:6px;font:500 9px var(--nv-font-mono);letter-spacing:.13em;color:color-mix(in srgb, var(--nv-cy) 62%, transparent)")}>{r.targetsLine}</div>
+                <Meta as="div" tone="color-mix(in srgb, var(--nv-cy) 70%, transparent)" style={{ marginTop: '6px' }}>{r.targetsLine}</Meta>
               )}
             </Interactive>
           ))}
@@ -371,8 +369,8 @@ function RoutinesView({ v }) {
       {/* the Coach's impromptu session builder */}
       <div className="nv-pane" style={{ marginTop: '26px', padding: '16px 18px' }}>
         <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap")}>
-          <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-cy)")}>QUICK SESSION</span>
-          <span style={css("font:400 8.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>OFF-PROGRAM DAYS · BUILT FOR YOUR GOALS + TIME</span>
+          <Eyebrow as="span" tone="cyan">Quick session</Eyebrow>
+          <Meta tone="faint">Off-program days · built for your goals + time</Meta>
         </div>
         {!v.quickPlan ? (
           <div style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
@@ -383,9 +381,9 @@ function RoutinesView({ v }) {
             <input value={v.quickNote} onChange={v.setQuickNote} placeholder="Optional — “hotel gym, dumbbells only”, “feeling beat”, “arms”…"
               style={{ flex: '1 1 240px', minWidth: 0, background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px var(--nv-font-ui)", padding: '9px 12px', outline: 'none' }} />
             <Interactive as="span" onClick={v.quickBusy ? undefined : v.buildQuickSession}
-              base={{ cursor: 'pointer', font: "600 10.5px var(--nv-font-mono)", letterSpacing: '.08em', padding: '9px 16px', borderRadius: '8px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)', opacity: v.quickBusy ? 0.5 : 1 }}
+              base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { opacity: v.quickBusy ? 0.5 : 1 })}
               hoverStyle={{ filter: 'brightness(1.08)' }}
-            >{v.quickBusy ? 'COACH IS PLANNING…' : 'BUILD MY SESSION'}</Interactive>
+            >{v.quickBusy ? 'Coach is planning…' : 'Build my session'}</Interactive>
           </div>
         ) : (
           <div style={css("margin-top:10px")}>
@@ -398,11 +396,9 @@ function RoutinesView({ v }) {
             </div>
             <div style={css("margin-top:12px;display:flex;gap:10px;align-items:center")}>
               <Interactive as="span" onClick={v.quickPlan.start}
-                base={{ cursor: 'pointer', font: "600 10.5px var(--nv-font-mono)", letterSpacing: '.08em', padding: '10px 20px', borderRadius: '9px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)' }}
-                hoverStyle={{ filter: 'brightness(1.08)' }}>START THIS SESSION</Interactive>
-              <Interactive as="span" onClick={v.quickPlan.dismiss}
-                base={{ cursor: 'pointer', font: "400 10px var(--nv-font-mono)", color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}
-                hoverStyle={{ color: 'var(--nv-ink)' }}>discard</Interactive>
+                base={btn('var(--nv-cy)', 'var(--nv-on-acc)')}
+                hoverStyle={{ filter: 'brightness(1.08)' }}>Start this session</Interactive>
+              <TextAction tone="faint" onClick={v.quickPlan.dismiss}>Discard</TextAction>
             </div>
           </div>
         )}
@@ -416,17 +412,17 @@ function RoutinesView({ v }) {
 function RoutineDetailView({ v }) {
   return (
     <>
-      <Interactive as="span" onClick={v.backToRoutines} base="cursor:pointer;display:inline-block;margin-top:18px;font:500 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 50%, transparent)" hoverStyle="color:var(--nv-gold)">← ROUTINES</Interactive>
+      <TextAction tone="quiet" onClick={v.backToRoutines} style={{ marginTop: '18px', marginLeft: '-8px' }}>← Routines</TextAction>
       <h1 style={css("margin:10px 0 0;font:700 28px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>{v.openRoutineName}</h1>
 
       <div style={css("margin-top:18px;display:flex;gap:10px;flex-wrap:wrap")}>
         <Interactive
           as="span"
           onClick={v.startWorkoutDisabled ? undefined : v.startWorkout}
-          base={{ cursor: v.startWorkoutDisabled ? 'default' : 'pointer', font: "500 11px var(--nv-font-mono)", padding: '11px 22px', borderRadius: '9px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)', opacity: v.startWorkoutDisabled ? .4 : 1 }}
-          hoverStyle={v.startWorkoutDisabled ? {} : { background: 'color-mix(in srgb, var(--nv-cy) 80%, white)' }}
-        >START WORKOUT</Interactive>
-        <Interactive as="span" onClick={v.viewWorkoutHistory} base="cursor:pointer;display:flex;align-items:center;font:500 10.5px var(--nv-font-mono);padding:0 16px;border-radius:9px;border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);color:color-mix(in srgb, var(--nv-ink) 60%, transparent)" hoverStyle="border-color:color-mix(in srgb, var(--nv-cy) 40%, transparent);color:var(--nv-cy)">VIEW HISTORY</Interactive>
+          base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { cursor: v.startWorkoutDisabled ? 'default' : 'pointer', opacity: v.startWorkoutDisabled ? .4 : 1 })}
+          hoverStyle={v.startWorkoutDisabled ? {} : { filter: 'brightness(1.08)' }}
+        >Start workout</Interactive>
+        <Interactive as="span" onClick={v.viewWorkoutHistory} base={outline('var(--nv-ink60)')} hoverStyle={{ filter: 'brightness(1.1)' }}>View history</Interactive>
       </div>
 
       {v.routineDetailExercises.length === 0 && (
@@ -440,11 +436,11 @@ function RoutineDetailView({ v }) {
               <div>
                 <div style={css("display:flex;align-items:center;gap:8px;flex-wrap:wrap")}>
                   <span style={css("font-size:14.5px;font-weight:500")}>{e.name}</span>
-                  {e.coachLabel && <span title={e.coachEvidence || ''} style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-cy);border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);background:color-mix(in srgb, var(--nv-cy) 08%, transparent)")}>{e.coachLabel}</span>}
-                  {e.coachAdded && <span title={e.coachAdded.why || ''} style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-gold);border:1px solid color-mix(in srgb, var(--nv-gold) 45%, transparent);background:color-mix(in srgb, var(--nv-gold) 09%, transparent)")}>◆ COACH{e.coachAdded.startWeightKg ? ` · START ~${e.coachAdded.startWeightKg}KG` : ''}</span>}
+                  {e.coachLabel && <Tag tone="cyan" title={e.coachEvidence || ''}>{e.coachLabel}</Tag>}
+                  {e.coachAdded && <Tag tone="gold" title={e.coachAdded.why || ''}>◆ Coach{e.coachAdded.startWeightKg ? ` · start ~${e.coachAdded.startWeightKg}kg` : ''}</Tag>}
                 </div>
-                <div style={css("margin-top:2px;font:400 10.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{e.muscleGroup} · last: {e.lastLabel}</div>
-                {e.coachEvidence && <div style={css("margin-top:2px;font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-cy) 60%, transparent)")}>Coach: {e.coachEvidence} — next session prefills the step up.</div>}
+                <Meta as="div" tone="faint" style={{ marginTop: '2px' }}>{e.muscleGroup} · last: {e.lastLabel}</Meta>
+                {e.coachEvidence && <Meta as="div" tone="color-mix(in srgb, var(--nv-cy) 70%, transparent)" style={{ marginTop: '2px' }}>Coach: {e.coachEvidence} — next session prefills the step up.</Meta>}
               </div>
               <div style={css("display:flex;align-items:center;gap:4px;font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>
                 <input type="number" inputMode="numeric" min="1" defaultValue={e.targetSets} onBlur={e.onTargetSetsBlur} style={numInputStyle} />
@@ -458,7 +454,7 @@ function RoutineDetailView({ v }) {
             <div style={css("margin-top:10px;display:flex;align-items:center;gap:6px")}>
               <Interactive as="span" onClick={e.canMoveUp ? e.onMoveUp : undefined} base={{ cursor: e.canMoveUp ? 'pointer' : 'default', fontSize: '11px', color: e.canMoveUp ? 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 15%, transparent)', padding: '2px 6px' }} hoverStyle={e.canMoveUp ? { color: 'var(--nv-ink)' } : {}}>↑</Interactive>
               <Interactive as="span" onClick={e.canMoveDown ? e.onMoveDown : undefined} base={{ cursor: e.canMoveDown ? 'pointer' : 'default', fontSize: '11px', color: e.canMoveDown ? 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 15%, transparent)', padding: '2px 6px' }} hoverStyle={e.canMoveDown ? { color: 'var(--nv-ink)' } : {}}>↓</Interactive>
-              <Interactive as="span" onClick={e.onRemove} base="cursor:pointer;font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-warn) 60%, transparent);padding:2px 6px;margin-left:auto" hoverStyle="color:var(--nv-warn)">REMOVE</Interactive>
+              <TextAction tone="warn" onClick={e.onRemove} style={{ marginLeft: 'auto' }}>Remove</TextAction>
             </div>
           </div>
         ))}
@@ -467,17 +463,17 @@ function RoutineDetailView({ v }) {
       {v.exercisePickerOpen ? (
         <ExercisePicker v={v} />
       ) : (
-        <Interactive as="span" onClick={v.openExercisePicker} base="cursor:pointer;display:inline-block;margin-top:14px;font:500 10.5px var(--nv-font-mono);padding:9px 16px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-gold) 35%, transparent);color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 06%, transparent)" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 14%, transparent)">+ Add exercise</Interactive>
+        <Interactive as="span" onClick={v.openExercisePicker} base={outline('var(--nv-gold)', { marginTop: '14px' })} hoverStyle={{ filter: 'brightness(1.1)' }}>+ Add exercise</Interactive>
       )}
 
       <div style={css("margin-top:36px;padding-top:16px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)")}>
         {!v.routineDeleteConfirm ? (
-          <Interactive as="span" onClick={v.requestDeleteRoutine} base="cursor:pointer;font:400 10.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 30%, transparent)" hoverStyle="color:var(--nv-warn)">Delete routine</Interactive>
+          <TextAction tone="faint" onClick={v.requestDeleteRoutine}>Delete routine</TextAction>
         ) : (
           <div style={css("display:flex;align-items:center;gap:10px;flex-wrap:wrap")}>
             <span style={css("font-size:12px;color:var(--nv-warn)")}>Delete "{v.openRoutineName}" and unschedule it? History stays.</span>
-            <Interactive as="span" onClick={v.confirmDeleteRoutine} base="cursor:pointer;font:500 10px var(--nv-font-mono);padding:6px 12px;border-radius:6px;background:color-mix(in srgb, var(--nv-warn) 15%, transparent);color:var(--nv-warn);border:1px solid color-mix(in srgb, var(--nv-warn) 40%, transparent)" hoverStyle="background:color-mix(in srgb, var(--nv-warn) 25%, transparent)">CONFIRM DELETE</Interactive>
-            <Interactive as="span" onClick={v.cancelDeleteRoutine} base="cursor:pointer;font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-ink)">cancel</Interactive>
+            <Interactive as="span" onClick={v.confirmDeleteRoutine} base={outline('var(--nv-warn)')} hoverStyle={{ filter: 'brightness(1.1)' }}>Confirm delete</Interactive>
+            <TextAction tone="faint" onClick={v.cancelDeleteRoutine}>Cancel</TextAction>
           </div>
         )}
       </div>
@@ -490,7 +486,7 @@ function SessionView({ v }) {
   return (
     <>
       <h1 style={css("margin:18px 0 0;font:700 28px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>{v.sessionRoutineName}{v.sessionEditing && <span style={css("font:italic 400 26px var(--nv-font-serif);color:var(--nv-gold)")}> — editing the record.</span>}</h1>
-      <div style={css("margin-top:4px;font:400 11px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{v.sessionEditing ? 'Untick anything that didn’t actually happen — only ticked sets stay in history.' : 'Session in progress — sets auto-fill from last time. Only ticked sets are saved.'}</div>
+      <Meta as="div" tone="faint" style={{ marginTop: '4px', textTransform: 'none', letterSpacing: 0 }}>{v.sessionEditing ? 'Untick anything that didn’t actually happen — only ticked sets stay in history.' : 'Session in progress — sets auto-fill from last time. Only ticked sets are saved.'}</Meta>
 
       <div style={css("margin-top:20px;display:flex;flex-direction:column;gap:14px")}>
         {v.sessionExercises.map((e) => (
@@ -499,23 +495,19 @@ function SessionView({ v }) {
               <Interactive as="span" onLongPress={e.onLongPress} base={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <span style={css(`font-size:15px;font-weight:500${e.skipped ? ';text-decoration:line-through' : ''}`)}>{e.name}</span>
                 {!e.skipped && (
-                  <Interactive as="span" onClick={() => window.open(e.formUrl, '_blank', 'noopener')}
-                    title={e.formCurated ? 'Curated form clip for this lift — Coach-approved' : 'Technique videos for this lift (no curated pick yet — hold the exercise name to have Coach curate one)'}
-                    base={css(`cursor:pointer;font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;padding:2px 7px;border-radius:5px;${e.formCurated ? 'color:var(--nv-cy);border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);background:color-mix(in srgb, var(--nv-cy) 07%, transparent)' : 'color:color-mix(in srgb, var(--nv-ink) 55%, transparent);border:1px solid color-mix(in srgb, var(--nv-ink) 22%, transparent);background:rgba(255,255,255,.03)'}`)}
-                    hoverStyle="color:var(--nv-cy);border-color:color-mix(in srgb, var(--nv-cy) 45%, transparent)">▶ FORM</Interactive>
+                  <Chip tone={e.formCurated ? 'cyan' : 'quiet'} onClick={() => window.open(e.formUrl, '_blank', 'noopener')}
+                    title={e.formCurated ? 'Curated form clip for this lift — Coach-approved' : 'Technique videos for this lift (no curated pick yet — hold the exercise name to have Coach curate one)'}>▶ Form</Chip>
                 )}
-                {e.skipped && <span style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;color:var(--nv-warn)")}>SKIPPED TODAY</span>}
+                {e.skipped && <Tag tone="warn">Skipped today</Tag>}
                 {!e.skipped && e.coachLabel && (e.coachAsk ? (
-                  <Interactive as="span" onClick={e.coachAsk} title={e.coachEvidence || ''}
-                    base={css("cursor:pointer;font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-gold);border:1px solid color-mix(in srgb, var(--nv-gold) 45%, transparent);background:color-mix(in srgb, var(--nv-gold) 08%, transparent)")}
-                    hoverStyle={{ filter: 'brightness(1.15)' }}>{e.coachLabel}</Interactive>
+                  <Chip tone="gold" onClick={e.coachAsk} title={e.coachEvidence || ''}>{e.coachLabel}</Chip>
                 ) : (
-                  <span title={e.coachEvidence || ''} style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-cy);border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);background:color-mix(in srgb, var(--nv-cy) 08%, transparent)")}>{e.coachLabel}</span>
+                  <Tag tone="cyan" title={e.coachEvidence || ''}>{e.coachLabel}</Tag>
                 ))}
-                {!e.skipped && e.focusNote && <span style={css("font:500 8.5px var(--nv-font-mono);letter-spacing:.12em;padding:2px 7px;border-radius:5px;color:var(--nv-gold);border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);background:color-mix(in srgb, var(--nv-gold) 08%, transparent)")}>FOCUS: {e.focusNote}</span>}
+                {!e.skipped && e.focusNote && <Tag tone="gold">Focus: {e.focusNote}</Tag>}
               </Interactive>
               <span style={css("display:flex;align-items:center;gap:10px")}>
-                {!e.skipped && <span style={css("font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{e.targetLabel}{e.weightHint ? ` · Coach: ${e.weightHint}` : ''}</span>}
+                {!e.skipped && <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>{e.targetLabel}{e.weightHint ? ` · Coach: ${e.weightHint}` : ''}</Meta>}
                 <Interactive as="span" onClick={e.onToggleSkip} title={e.skipped ? 'Put it back in today\'s session' : 'Drop this exercise for today only — your program stays as it is'}
                   base={`cursor:pointer;flex:none;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:500 13px/1 var(--nv-font-ui);border:1.3px solid color-mix(in srgb, var(--nv-warn) ${e.skipped ? 75 : 40}%, transparent);color:var(--nv-warn);background:color-mix(in srgb, var(--nv-warn) ${e.skipped ? 18 : 5}%, transparent)`}
                   hoverStyle="background:color-mix(in srgb, var(--nv-warn) 16%, transparent)">{e.skipped ? '↺' : '✕'}</Interactive>
@@ -533,15 +525,13 @@ function SessionView({ v }) {
                     title={e.muscleGroup === 'Mobility'
                       ? 'Mobility is tracked for adherence — it never counts toward hypertrophy volume.'
                       : `Every working set here counts toward ${e.muscleGroup} in this week's hard sets.`}
-                    style={css(`font:600 8.5px var(--nv-font-mono);letter-spacing:.14em;padding:2px 7px;border-radius:5px;color:${e.muscleGroup === 'Mobility' ? 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' : 'var(--nv-vi)'};border:1px solid color-mix(in srgb, ${e.muscleGroup === 'Mobility' ? 'var(--nv-ink)' : 'var(--nv-vi)'} 30%, transparent);background:color-mix(in srgb, ${e.muscleGroup === 'Mobility' ? 'var(--nv-ink)' : 'var(--nv-vi)'} 07%, transparent)`)}
-                  >{e.muscleGroup.toUpperCase()}{e.muscleGroup === 'Mobility' ? ' · NOT VOLUME' : ''}</span>
+                    style={{ display: 'contents' }}
+                  ><Tag tone={e.muscleGroup === 'Mobility' ? 'faint' : 'violet'}>{e.muscleGroup}{e.muscleGroup === 'Mobility' ? ' · not volume' : ''}</Tag></span>
                 )}
                 {/* a temporary, this-session-only lift — never part of the
                     program, held apart from anything he actually planned */}
                 {e.adhoc && (
-                  <span title="Added mid-session — not part of your program"
-                    style={css("font:600 8.5px var(--nv-font-mono);letter-spacing:.14em;padding:2px 7px;border-radius:5px;color:var(--nv-gold);border:1px dashed color-mix(in srgb, var(--nv-gold) 40%, transparent);background:color-mix(in srgb, var(--nv-gold) 06%, transparent)")}
-                  >EXTRA · TODAY ONLY</span>
+                  <Tag tone="gold" dashed title="Added mid-session — not part of your program">Extra · today only</Tag>
                 )}
                 {e.lastLabel && <span>{e.lastLabel}</span>}
               </div>
@@ -555,7 +545,7 @@ function SessionView({ v }) {
                   sitting over the wrong column mid-workout. One template for
                   both makes drift impossible. */}
               <div style={{ display: 'grid', gridTemplateColumns: setCols(e.isBodyweight), gap: '6px', alignItems: 'center',
-                font: '500 9px var(--nv-font-mono)', letterSpacing: '.1em', color: 'color-mix(in srgb, var(--nv-ink) 35%, transparent)' }}>
+                font: isAppleStyle() ? '600 10.5px var(--nv-font-ui)' : '500 9px var(--nv-font-mono)', letterSpacing: isAppleStyle() ? '.04em' : '.1em', color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}>
                 <span>SET</span>
                 {!e.isBodyweight && <span>{e.weightLabel}</span>}
                 <span>{e.amountLabel}</span>
@@ -578,7 +568,7 @@ function SessionView({ v }) {
                   {/* set type cycles working → backoff → warm-up; warm-ups are
                       excluded from volume counts and PRs */}
                   <Interactive as="span" onClick={s.cycleType} title="Tap to cycle: working / backoff / warm-up"
-                    base={`cursor:pointer;text-align:center;font:600 8px var(--nv-font-mono);letter-spacing:.08em;padding:5px 7px;border-radius:6px;border:1px solid ${s.setType === 'warmup' ? 'color-mix(in srgb, var(--nv-gold) 45%, transparent)' : s.setType === 'backoff' ? 'color-mix(in srgb, var(--nv-vi) 45%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 18%, transparent)'};color:${s.setType === 'warmup' ? 'var(--nv-gold)' : s.setType === 'backoff' ? 'var(--nv-vi)' : 'color-mix(in srgb, var(--nv-ink) 45%, transparent)'}`}
+                    base={`cursor:pointer;text-align:center;font:600 ${isAppleStyle() ? '10.5px var(--nv-font-ui)' : '8px var(--nv-font-mono)'};letter-spacing:.08em;padding:5px 7px;border-radius:6px;border:1px solid ${s.setType === 'warmup' ? 'color-mix(in srgb, var(--nv-gold) 45%, transparent)' : s.setType === 'backoff' ? 'color-mix(in srgb, var(--nv-vi) 45%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 18%, transparent)'};color:${s.setType === 'warmup' ? 'var(--nv-gold)' : s.setType === 'backoff' ? 'var(--nv-vi)' : 'color-mix(in srgb, var(--nv-ink) 45%, transparent)'}`}
                   >{s.setType === 'warmup' ? 'WU' : s.setType === 'backoff' ? 'BO' : 'WK'}</Interactive>
                   <Interactive
                     as="span"
@@ -593,7 +583,7 @@ function SessionView({ v }) {
               ))}
             </div>
             {!e.skipped && (
-              <Interactive as="span" onClick={e.onAddSet} base="cursor:pointer;display:inline-block;margin-top:10px;font:500 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-gold)">+ Extra set</Interactive>
+              <TextAction tone="faint" onClick={e.onAddSet} style={{ marginTop: '10px', marginLeft: '-8px' }}>+ Extra set</TextAction>
             )}
             {!e.skipped && (
               <div style={css("margin-top:10px;display:flex;gap:7px;align-items:center;flex-wrap:wrap")}>
@@ -603,22 +593,16 @@ function SessionView({ v }) {
                   onChange={(ev) => { ev.target.style.height = 'auto'; ev.target.style.height = `${ev.target.scrollHeight}px`; e.onNote(ev); }}
                   ref={(el) => { if (el && el.scrollHeight > el.clientHeight) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; } }}
                   style={{ flex: 1, minWidth: '150px', resize: 'none', overflow: 'hidden', lineHeight: 1.5, background: 'rgba(0,0,0,.22)', border: '1px dashed color-mix(in srgb, var(--nv-ink) 20%, transparent)', borderRadius: '9px', padding: '8px 11px', color: 'var(--nv-ink)', fontSize: '12px', fontFamily: 'var(--nv-font-ui)', outline: 'none', boxSizing: 'border-box' }} />
-                <Interactive as="span" onClick={e.toggleAnomaly} title={'Off day — exclude today from progression and plateau signals'}
-                  base={`cursor:pointer;font:600 8.5px var(--nv-font-mono);letter-spacing:.08em;padding:7px 10px;border-radius:99px;border:1px solid ${e.anomaly ? 'color-mix(in srgb, var(--nv-gold) 55%, transparent)' : 'var(--nv-edge)'};color:${e.anomaly ? 'var(--nv-gold)' : 'color-mix(in srgb, var(--nv-ink) 45%, transparent)'};background:${e.anomaly ? 'color-mix(in srgb, var(--nv-gold) 10%, transparent)' : 'transparent'}`}
-                >{e.anomaly ? 'OFF DAY ✓' : 'ANOMALY'}</Interactive>
-                <Interactive as="span" onClick={e.painOpen ? e.closePain : e.openPain}
-                  base={`cursor:pointer;font:600 8.5px var(--nv-font-mono);letter-spacing:.08em;padding:7px 10px;border-radius:99px;border:1px solid color-mix(in srgb, var(--nv-warn) ${e.painOpen || e.painLogged ? 60 : 35}%, transparent);color:var(--nv-warn);background:${e.painLogged ? 'color-mix(in srgb, var(--nv-warn) 10%, transparent)' : 'transparent'}`}
-                >{e.painLogged ? '⚠ PAIN LOGGED' : 'PAIN?'}</Interactive>
+                <Chip tone={e.anomaly ? 'gold' : 'quiet'} active={e.anomaly} onClick={e.toggleAnomaly} title={'Off day — exclude today from progression and plateau signals'}>{e.anomaly ? 'Off day ✓' : 'Anomaly'}</Chip>
+                <Chip tone="warn" active={e.painLogged} onClick={e.painOpen ? e.closePain : e.openPain}>{e.painLogged ? '⚠ Pain logged' : 'Pain?'}</Chip>
               </div>
             )}
             {e.painOpen && e.painState && (
               <div style={css("margin-top:10px;border:1px solid color-mix(in srgb, var(--nv-warn) 45%, transparent);border-radius:13px;padding:12px;background:color-mix(in srgb, var(--nv-warn) 05%, transparent)")}>
-                <span style={css("font:600 9px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-warn)")}>⚠ PAIN — WHERE?</span>
+                <Eyebrow as="span" tone="warn">⚠ Pain — where?</Eyebrow>
                 <div style={css("display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center")}>
                   {e.painAreas.map((a) => (
-                    <Interactive key={a} as="span" onClick={() => e.setPainField('area')(a)}
-                      base={`cursor:pointer;font:600 9px var(--nv-font-mono);padding:6px 11px;border-radius:99px;border:1px solid ${e.painState.area === a ? 'var(--nv-warn)' : 'var(--nv-edge)'};color:${e.painState.area === a ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)'}`}
-                    >{a.toUpperCase()}</Interactive>
+                    <Chip key={a} tone={e.painState.area === a ? 'warn' : 'quiet'} active={e.painState.area === a} onClick={() => e.setPainField('area')(a)}>{cap(a)}</Chip>
                   ))}
                   <select value={e.painState.area && !e.painAreas.includes(e.painState.area) ? e.painState.area : ''} onChange={(ev) => ev.target.value && e.setPainField('area')(ev.target.value)}
                     style={{ background: 'var(--nv-well)', border: '1px solid var(--nv-edge)', borderRadius: '8px', color: 'var(--nv-ink)', font: '500 11px var(--nv-font-ui)', padding: '6px 8px', outline: 'none' }}>
@@ -630,23 +614,19 @@ function SessionView({ v }) {
                   <>
                     <div style={css("display:flex;gap:6px;flex-wrap:wrap;margin-top:9px")}>
                       {['left', 'right', 'both/centre'].map((sd) => (
-                        <Interactive key={sd} as="span" onClick={() => e.setPainField('side')(sd)}
-                          base={`cursor:pointer;font:600 9px var(--nv-font-mono);padding:6px 11px;border-radius:99px;border:1px solid ${e.painState.side === sd ? 'var(--nv-warn)' : 'var(--nv-edge)'};color:${e.painState.side === sd ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)'}`}
-                        >{sd.toUpperCase()}</Interactive>
+                        <Chip key={sd} tone={e.painState.side === sd ? 'warn' : 'quiet'} active={e.painState.side === sd} onClick={() => e.setPainField('side')(sd)}>{cap(sd)}</Chip>
                       ))}
                       {['during the rep', 'after sets', 'constant'].map((w) => (
-                        <Interactive key={w} as="span" onClick={() => e.setPainField('when')(w)}
-                          base={`cursor:pointer;font:600 9px var(--nv-font-mono);padding:6px 11px;border-radius:99px;border:1px solid ${e.painState.when === w ? 'var(--nv-warn)' : 'var(--nv-edge)'};color:${e.painState.when === w ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)'}`}
-                        >{w.toUpperCase()}</Interactive>
+                        <Chip key={w} tone={e.painState.when === w ? 'warn' : 'quiet'} active={e.painState.when === w} onClick={() => e.setPainField('when')(w)}>{cap(w)}</Chip>
                       ))}
                     </div>
                     <input value={e.painState.detail} onChange={(ev) => e.setPainField('detail')(ev.target.value)} placeholder="Exact spot + anything else — optional"
                       style={{ marginTop: '9px', width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,.22)', border: '1px solid var(--nv-edge)', borderRadius: '9px', padding: '8px 11px', color: 'var(--nv-ink)', fontSize: '12px', fontFamily: 'var(--nv-font-ui)', outline: 'none' }} />
                     <div style={css("display:flex;gap:8px;margin-top:10px")}>
                       <Interactive as="span" onClick={e.submitPain}
-                        base="cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.1em;padding:9px 16px;border-radius:9px;background:var(--nv-warn);color:#2a1214"
-                        hoverStyle="background:color-mix(in srgb, var(--nv-warn) 80%, white)">ASK COACH — TRIAGE THIS</Interactive>
-                      <Interactive as="span" onClick={e.closePain} base="cursor:pointer;font:500 10px var(--nv-font-mono);padding:9px 12px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)" hoverStyle="color:var(--nv-ink)">CANCEL</Interactive>
+                        base={btn('var(--nv-warn)', '#2a1214')}
+                        hoverStyle={{ filter: 'brightness(1.08)' }}>Ask Coach — triage this</Interactive>
+                      <TextAction tone="faint" onClick={e.closePain}>Cancel</TextAction>
                     </div>
                   </>
                 )}
@@ -663,34 +643,32 @@ function SessionView({ v }) {
         <ExercisePicker v={v} />
       ) : (
         <Interactive as="span" onClick={v.openSessionExercisePicker}
-          base="cursor:pointer;display:inline-block;margin-top:14px;font:500 10.5px var(--nv-font-mono);padding:9px 16px;border-radius:8px;border:1px dashed color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 05%, transparent)"
-          hoverStyle="background:color-mix(in srgb, var(--nv-gold) 12%, transparent)">+ Add exercise — this session only</Interactive>
+          base={outline('var(--nv-gold)', { marginTop: '14px' })}
+          hoverStyle={{ filter: 'brightness(1.1)' }}>+ Add exercise — this session only</Interactive>
       )}
 
       {v.sessionHasUndone && !v.sessionEditing && (
         <div style={css("margin-top:18px;border:1px solid color-mix(in srgb, var(--nv-gold) 35%, transparent);border-radius:13px;padding:11px 13px")}>
-          <span style={css("font:600 9px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-gold)")}>FINISHING EARLY? ONE TAP TELLS COACH WHY</span>
+          <Eyebrow as="span" tone="gold">Finishing early? One tap tells Coach why</Eyebrow>
           <div style={css("display:flex;gap:7px;flex-wrap:wrap;margin-top:8px")}>
             {['out of time', 'low energy', 'gym busy', 'pain'].map((r) => (
-              <Interactive key={r} as="span" onClick={() => v.setSessionCutShort(r)}
-                base={`cursor:pointer;font:600 9px var(--nv-font-mono);letter-spacing:.08em;padding:7px 12px;border-radius:99px;border:1px solid ${v.sessionCutShort === r ? 'color-mix(in srgb, var(--nv-gold) 55%, transparent)' : 'var(--nv-edge)'};color:${v.sessionCutShort === r ? 'var(--nv-gold)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)'};background:${v.sessionCutShort === r ? 'color-mix(in srgb, var(--nv-gold) 10%, transparent)' : 'transparent'}`}
-              >{r.toUpperCase()}</Interactive>
+              <Chip key={r} tone={v.sessionCutShort === r ? 'gold' : 'quiet'} active={v.sessionCutShort === r} onClick={() => v.setSessionCutShort(r)}>{cap(r)}</Chip>
             ))}
           </div>
         </div>
       )}
       <div style={css("margin-top:24px;display:flex;gap:14px;align-items:center;flex-wrap:wrap")}>
-        <Interactive as="span" onClick={v.finishSession} base="cursor:pointer;font:500 11px var(--nv-font-mono);padding:11px 22px;border-radius:9px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">{v.sessionEditing ? 'SAVE CHANGES' : 'FINISH WORKOUT'}</Interactive>
+        <Interactive as="span" onClick={v.finishSession} base={btn('var(--nv-cy)', 'var(--nv-on-acc)')} hoverStyle={{ filter: 'brightness(1.08)' }}>{v.sessionEditing ? 'Save changes' : 'Finish workout'}</Interactive>
         {v.canSaveForLater && (
-          <Interactive as="span" onClick={v.saveForLater} base="cursor:pointer;font:500 10.5px var(--nv-font-mono);padding:11px 18px;border-radius:9px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 06%, transparent)" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 12%, transparent)">SAVE FOR LATER</Interactive>
+          <Interactive as="span" onClick={v.saveForLater} base={outline('var(--nv-gold)')} hoverStyle={{ filter: 'brightness(1.1)' }}>Save for later</Interactive>
         )}
         {!v.sessionCancelConfirm ? (
-          <Interactive as="span" onClick={v.requestCancelSession} base="cursor:pointer;font:400 10.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-warn)">Cancel session</Interactive>
+          <TextAction tone="faint" onClick={v.requestCancelSession}>Cancel session</TextAction>
         ) : (
           <>
             <span style={css("font-size:12px;color:var(--nv-warn)")}>Discard this session?</span>
-            <Interactive as="span" onClick={v.discardSession} base="cursor:pointer;font:500 10px var(--nv-font-mono);padding:6px 12px;border-radius:6px;background:color-mix(in srgb, var(--nv-warn) 15%, transparent);color:var(--nv-warn);border:1px solid color-mix(in srgb, var(--nv-warn) 40%, transparent)" hoverStyle="background:color-mix(in srgb, var(--nv-warn) 25%, transparent)">DISCARD</Interactive>
-            <Interactive as="span" onClick={v.cancelSessionCancel} base="cursor:pointer;font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-ink)">keep going</Interactive>
+            <Interactive as="span" onClick={v.discardSession} base={outline('var(--nv-warn)')} hoverStyle={{ filter: 'brightness(1.1)' }}>Discard</Interactive>
+            <TextAction tone="faint" onClick={v.cancelSessionCancel}>Keep going</TextAction>
           </>
         )}
       </div>
@@ -700,8 +678,8 @@ function SessionView({ v }) {
       {!v.sessionEditing && (
         <div className="nv-pane" style={{ marginTop: '20px', padding: '16px 18px', display: 'flex', flexDirection: 'column', maxHeight: '340px' }}>
           <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap")}>
-            <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-cy)")}>ASK COACH — MID-SESSION</span>
-            <span style={css("font:400 8.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>SEES THIS SESSION LIVE</span>
+            <Eyebrow as="span" tone="cyan">Ask Coach — mid-session</Eyebrow>
+            <Meta tone="faint">Sees this session live</Meta>
           </div>
           <div ref={midSessionLogRef} style={css("flex:1;overflow-y:auto;margin-top:10px;display:flex;flex-direction:column;gap:10px;font:500 12.5px/1.6 var(--nv-font-ui)")}>
             {v.coachMsgs.length === 0 && !v.coachBusy && (
@@ -730,23 +708,21 @@ function SessionView({ v }) {
                     {m.proposal.status === 'open' && (
                       <>
                         <Interactive as="span" onClick={m.proposal.apply}
-                          base={css("cursor:pointer;font:600 9.5px var(--nv-font-mono);letter-spacing:.08em;padding:7px 13px;border-radius:8px;background:var(--nv-cy);color:var(--nv-on-acc)")}
-                          hoverStyle="background:color-mix(in srgb, var(--nv-cy) 82%, white)">APPLY IT</Interactive>
-                        <Interactive as="span" onClick={m.proposal.decline}
-                          base={css("cursor:pointer;font:600 9.5px var(--nv-font-mono);letter-spacing:.08em;padding:7px 11px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 20%, transparent);color:color-mix(in srgb, var(--nv-ink) 60%, transparent)")}
-                          hoverStyle="border-color:var(--nv-warn);color:var(--nv-warn)">NOT NOW</Interactive>
+                          base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { padding: isAppleStyle() ? '9px 16px' : '7px 13px' })}
+                          hoverStyle={{ filter: 'brightness(1.08)' }}>Apply it</Interactive>
+                        <TextAction tone="quiet" onClick={m.proposal.decline}>Not now</TextAction>
                       </>
                     )}
-                    {m.proposal.status === 'working' && <span style={css("font:600 9.5px var(--nv-font-mono);color:var(--nv-cy)")}>APPLYING…</span>}
-                    {m.proposal.status === 'done' && <span style={css("font:600 9.5px var(--nv-font-mono);color:var(--nv-good)")}>✓ APPLIED — UNDO IN INBOX</span>}
-                    {m.proposal.status === 'dismissed' && <span style={css("font:600 9.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>✕ LEFT ALONE</span>}
-                    {m.proposal.status === 'error' && <span style={css("font:600 9.5px var(--nv-font-mono);color:var(--nv-warn)")}>STILL PENDING IN INBOX</span>}
+                    {m.proposal.status === 'working' && <Meta tone="cyan">Applying…</Meta>}
+                    {m.proposal.status === 'done' && <Meta tone="good">✓ Applied — undo in Inbox</Meta>}
+                    {m.proposal.status === 'dismissed' && <Meta tone="faint">✕ Left alone</Meta>}
+                    {m.proposal.status === 'error' && <Meta tone="warn">Still pending in Inbox</Meta>}
                     </div>
                   </div>
                 )}
               </div>
             ))}
-            {v.coachBusy && <div style={css("color:var(--nv-cy);font:400 11px var(--nv-font-mono)")}>» COACH looking at your session…▍</div>}
+            {v.coachBusy && <Meta as="div" tone="cyan" style={{ textTransform: 'none', letterSpacing: 0 }}>» Coach looking at your session…▍</Meta>}
           </div>
           <div style={css("display:flex;gap:8px;margin-top:10px")}>
             <Interactive
@@ -758,7 +734,7 @@ function SessionView({ v }) {
               base="flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font:500 12.5px var(--nv-font-ui);outline:none"
               focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)"
             />
-            <Interactive as="span" onClick={v.sendCoach} base="cursor:pointer;display:flex;align-items:center;font:500 11px var(--nv-font-mono);padding:0 16px;border-radius:9px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">ASK</Interactive>
+            <Interactive as="span" onClick={v.sendCoach} base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { padding: '0 16px' })} hoverStyle={{ filter: 'brightness(1.08)' }}>Ask</Interactive>
           </div>
         </div>
       )}
@@ -769,7 +745,7 @@ function SessionView({ v }) {
 function HistoryView({ v }) {
   return (
     <>
-      <Interactive as="span" onClick={v.backFromWorkoutHistory} base="cursor:pointer;display:inline-block;margin-top:18px;font:500 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 50%, transparent)" hoverStyle="color:var(--nv-gold)">← BACK</Interactive>
+      <TextAction tone="quiet" onClick={v.backFromWorkoutHistory} style={{ marginTop: '18px', marginLeft: '-8px' }}>← Back</TextAction>
       <h1 style={css("margin:10px 0 0;font:700 28px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>{v.historyRoutineName} <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>history.</span></h1>
 
       {v.historyLoading ? (
@@ -782,29 +758,29 @@ function HistoryView({ v }) {
             <div key={s.id} style={css("border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:12px;padding:14px 18px;background:rgba(255,255,255,.02)")}>
               <div style={css("display:flex;justify-content:space-between;align-items:baseline")}>
                 <span style={css("font-size:13.5px;font-weight:500")}>{s.date}</span>
-                <span style={css("font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{s.totalSets} sets · {s.totalVolume}kg volume</span>
+                <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>{s.totalSets} sets · {s.totalVolume}kg volume</Meta>
               </div>
               <div style={css("margin-top:8px;display:flex;flex-direction:column;gap:3px")}>
                 {s.exercises.map((e, i) => (
                   <div key={i} style={css("font-size:12px;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}><span style={css("color:var(--nv-ink)")}>{e.name}:</span> {e.setsLabel}</div>
                 ))}
               </div>
-              {s.cutShort && <div style={css("margin-top:8px;font:400 10px var(--nv-font-mono);letter-spacing:.1em;color:var(--nv-warn)")}>CUT SHORT — {s.cutShort}</div>}
+              {s.cutShort && <Meta as="div" tone="warn" style={{ marginTop: '8px' }}>Cut short — {s.cutShort}</Meta>}
               {s.coachSaid && (
                 <div style={css("margin-top:10px;padding:10px 12px;border-left:2px solid color-mix(in srgb, var(--nv-gold) 55%, transparent);background:color-mix(in srgb, var(--nv-gold) 6%, transparent);border-radius:0 8px 8px 0")}>
-                  <div style={css("font:500 9px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-gold)")}>COACH SAID</div>
+                  <Eyebrow tone="gold">Coach said</Eyebrow>
                   <div style={css("margin-top:4px;font:400 12.5px/1.5 var(--nv-font-ui);color:color-mix(in srgb, var(--nv-ink) 80%, transparent)")}>{s.coachSaid}</div>
                 </div>
               )}
               <div style={css("margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap")}>
-                <Interactive as="span" onClick={s.onEdit} base="cursor:pointer;font:500 9.5px var(--nv-font-mono);letter-spacing:.08em;padding:4px 11px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);color:var(--nv-cy)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 08%, transparent)">EDIT</Interactive>
+                <TextAction tone="cyan" onClick={s.onEdit}>Edit</TextAction>
                 {!s.deleteConfirm ? (
-                  <Interactive as="span" onClick={s.requestDelete} base="cursor:pointer;font:400 9.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 30%, transparent);padding:4px 6px" hoverStyle="color:var(--nv-warn)">Delete</Interactive>
+                  <TextAction tone="faint" onClick={s.requestDelete}>Delete</TextAction>
                 ) : (
                   <>
                     <span style={css("font-size:11.5px;color:var(--nv-warn)")}>Remove this session from history?</span>
-                    <Interactive as="span" onClick={s.confirmDelete} base="cursor:pointer;font:500 9.5px var(--nv-font-mono);padding:4px 11px;border-radius:6px;background:color-mix(in srgb, var(--nv-warn) 15%, transparent);color:var(--nv-warn);border:1px solid color-mix(in srgb, var(--nv-warn) 40%, transparent)" hoverStyle="background:color-mix(in srgb, var(--nv-warn) 25%, transparent)">CONFIRM</Interactive>
-                    <Interactive as="span" onClick={s.cancelDelete} base="cursor:pointer;font:400 9.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-ink)">keep</Interactive>
+                    <Interactive as="span" onClick={s.confirmDelete} base={outline('var(--nv-warn)')} hoverStyle={{ filter: 'brightness(1.1)' }}>Confirm</Interactive>
+                    <TextAction tone="faint" onClick={s.cancelDelete}>Keep</TextAction>
                   </>
                 )}
               </div>
@@ -885,9 +861,9 @@ function GoalsCoachPane({ v }) {
       <div style={{ display: 'flex', gap: '14px', marginTop: '14px', flexWrap: 'wrap' }}>
         <div className="nv-pane" style={{ flex: '1 1 300px', padding: '16px 18px', alignSelf: 'flex-start' }}>
           <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>
-            <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-gold)")}>GOALS</span>
+            <Eyebrow as="span" tone="gold">Goals</Eyebrow>
             {!v.goalsEditing && (
-              <Interactive as="span" onClick={v.startGoalsEdit} base="cursor:pointer;font:500 9.5px var(--nv-font-mono);letter-spacing:.08em;padding:4px 11px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold)" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 08%, transparent)">{v.goalsSet ? 'EDIT' : 'SET GOALS'}</Interactive>
+              <TextAction tone="gold" onClick={v.startGoalsEdit}>{v.goalsSet ? 'Edit' : 'Set goals'}</TextAction>
             )}
           </div>
           {v.goalsEditing ? (
@@ -897,7 +873,7 @@ function GoalsCoachPane({ v }) {
               <input value={v.goalsDraft.focus} onChange={v.setGoalsField('focus')} placeholder="Focus — e.g. upper-body strength, protein consistency"
                 style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px var(--nv-font-ui)", padding: '9px 12px', outline: 'none' }} />
               <div style={css("display:flex;gap:8px;align-items:center")}>
-                <span style={css("font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>DAYS/WEEK</span>
+                <Meta tone="faint">Days/week</Meta>
                 <select value={v.goalsDraft.daysPerWeek} onChange={v.setGoalsField('daysPerWeek')}
                   style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: "500 11px var(--nv-font-mono)", padding: '5px 8px', outline: 'none' }}>
                   <option value="" style={{ background: '#141019' }}>—</option>
@@ -911,15 +887,15 @@ function GoalsCoachPane({ v }) {
               <textarea value={v.goalsDraft.notes} onChange={v.setGoalsField('notes')} rows={3} placeholder="Anything else the Coach should always know — preferences, schedule quirks…"
                 style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px var(--nv-font-ui)", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
               <div style={css("display:flex;gap:8px")}>
-                <Interactive as="span" onClick={v.saveGoals} base="cursor:pointer;font:600 10.5px var(--nv-font-mono);letter-spacing:.08em;padding:8px 16px;border-radius:8px;background:var(--nv-gold);color:#1a1322" hoverStyle="filter:brightness(1.08)">SAVE</Interactive>
-                <Interactive as="span" onClick={v.cancelGoalsEdit} base="cursor:pointer;font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent);padding:8px 6px" hoverStyle="color:var(--nv-ink)">cancel</Interactive>
+                <Interactive as="span" onClick={v.saveGoals} base={btn('var(--nv-gold)', '#1a1322')} hoverStyle={{ filter: 'brightness(1.08)' }}>Save</Interactive>
+                <TextAction tone="faint" onClick={v.cancelGoalsEdit}>Cancel</TextAction>
               </div>
             </div>
           ) : v.goalsSet ? (
             <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:6px")}>
               <div style={css("font:600 14px var(--nv-font-ui)")}>{v.goalsView.goal}</div>
               {v.goalsView.focus && <div style={css("font:500 12px var(--nv-font-ui);color:var(--nv-ink60)")}>Focus: {v.goalsView.focus}</div>}
-              {v.goalsView.meta && <div style={css("font:400 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{v.goalsView.meta}</div>}
+              {v.goalsView.meta && <Meta as="div" tone="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>{v.goalsView.meta}</Meta>}
               {v.goalsView.notes && <div style={css("font:500 11.5px/1.55 var(--nv-font-ui);color:var(--nv-ink60);white-space:pre-wrap")}>{v.goalsView.notes}</div>}
             </div>
           ) : (
@@ -929,11 +905,11 @@ function GoalsCoachPane({ v }) {
 
         <div className="nv-pane" style={{ flex: '1.4 1 340px', padding: '16px 18px', display: 'flex', flexDirection: 'column', maxHeight: '420px' }}>
           <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap")}>
-            <span style={css("font:500 9.5px var(--nv-font-mono);letter-spacing:.2em;color:var(--nv-cy)")}>ASK COACH</span>
-            <span style={css("display:flex;gap:10px;align-items:baseline")}>
-              <span style={css("font:400 8.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{v.coachContinuing ? 'REMEMBERS ACROSS DAYS' : 'EVIDENCE-BASED · READS YOUR REAL DATA'}</span>
+            <Eyebrow as="span" tone="cyan">Ask Coach</Eyebrow>
+            <span style={css("display:flex;gap:10px;align-items:center")}>
+              <Meta tone="faint">{v.coachContinuing ? 'Remembers across days' : 'Evidence-based · reads your real data'}</Meta>
               {v.coachContinuing && (
-                <Interactive as="span" onClick={v.newCoachChat} base="cursor:pointer;font:500 8.5px var(--nv-font-mono);letter-spacing:.08em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-cy)">NEW</Interactive>
+                <TextAction tone="faint" onClick={v.newCoachChat}>New</TextAction>
               )}
             </span>
           </div>
@@ -965,32 +941,27 @@ function GoalsCoachPane({ v }) {
                     {m.proposal.status === 'open' && (
                       <>
                         <Interactive as="span" onClick={m.proposal.apply}
-                          base={css("cursor:pointer;font:600 9.5px var(--nv-font-mono);letter-spacing:.08em;padding:7px 13px;border-radius:8px;background:var(--nv-cy);color:var(--nv-on-acc)")}
-                          hoverStyle="background:color-mix(in srgb, var(--nv-cy) 82%, white)">APPLY IT</Interactive>
-                        <Interactive as="span" onClick={m.proposal.decline}
-                          base={css("cursor:pointer;font:600 9.5px var(--nv-font-mono);letter-spacing:.08em;padding:7px 11px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 20%, transparent);color:color-mix(in srgb, var(--nv-ink) 60%, transparent)")}
-                          hoverStyle="border-color:var(--nv-warn);color:var(--nv-warn)">NOT NOW</Interactive>
+                          base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { padding: isAppleStyle() ? '9px 16px' : '7px 13px' })}
+                          hoverStyle={{ filter: 'brightness(1.08)' }}>Apply it</Interactive>
+                        <TextAction tone="quiet" onClick={m.proposal.decline}>Not now</TextAction>
                       </>
                     )}
-                    {m.proposal.status === 'working' && <span style={css("font:600 9.5px var(--nv-font-mono);color:var(--nv-cy)")}>APPLYING…</span>}
-                    {m.proposal.status === 'done' && <span style={css("font:600 9.5px var(--nv-font-mono);color:var(--nv-good)")}>✓ APPLIED — UNDO IN INBOX</span>}
-                    {m.proposal.status === 'dismissed' && <span style={css("font:600 9.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>✕ LEFT ALONE</span>}
-                    {m.proposal.status === 'error' && <span style={css("font:600 9.5px var(--nv-font-mono);color:var(--nv-warn)")}>STILL PENDING IN INBOX</span>}
+                    {m.proposal.status === 'working' && <Meta tone="cyan">Applying…</Meta>}
+                    {m.proposal.status === 'done' && <Meta tone="good">✓ Applied — undo in Inbox</Meta>}
+                    {m.proposal.status === 'dismissed' && <Meta tone="faint">✕ Left alone</Meta>}
+                    {m.proposal.status === 'error' && <Meta tone="warn">Still pending in Inbox</Meta>}
                     </div>
                   </div>
                 )}
                 </div>
               </div>
             ))}
-            {v.coachBusy && <div style={css("color:var(--nv-cy);font:400 11px var(--nv-font-mono)")}>» COACH reading your training history…▍</div>}
+            {v.coachBusy && <Meta as="div" tone="cyan" style={{ textTransform: 'none', letterSpacing: 0 }}>» Coach reading your training history…▍</Meta>}
           </div>
           {v.coachChips?.length > 0 && (
             <div style={css("display:flex;gap:7px;flex-wrap:wrap;margin-top:10px")}>
               {v.coachChips.map((c) => (
-                <Interactive key={c.label} as="span" onClick={c.go}
-                  base={`cursor:pointer;font:600 9.5px var(--nv-font-mono);letter-spacing:.08em;padding:7px 12px;border-radius:99px;border:1px solid ${c.tone === 'gold' ? 'color-mix(in srgb, var(--nv-gold) 45%, transparent)' : c.tone === 'warn' ? 'color-mix(in srgb, var(--nv-warn) 45%, transparent)' : 'var(--nv-edge)'};color:${c.tone === 'gold' ? 'var(--nv-gold)' : c.tone === 'warn' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 60%, transparent)'}`}
-                  hoverStyle="border-color:var(--nv-cy);color:var(--nv-cy)"
-                >{c.label}</Interactive>
+                <Chip key={c.label} tone={c.tone === 'gold' ? 'gold' : c.tone === 'warn' ? 'warn' : 'quiet'} onClick={c.go}>{c.label}</Chip>
               ))}
             </div>
           )}
@@ -1004,7 +975,7 @@ function GoalsCoachPane({ v }) {
               base="flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font:500 12.5px var(--nv-font-ui);outline:none"
               focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)"
             />
-            <Interactive as="span" onClick={v.sendCoach} base="cursor:pointer;display:flex;align-items:center;font:500 11px var(--nv-font-mono);padding:0 16px;border-radius:9px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">ASK</Interactive>
+            <Interactive as="span" onClick={v.sendCoach} base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { padding: '0 16px' })} hoverStyle={{ filter: 'brightness(1.08)' }}>Ask</Interactive>
           </div>
         </div>
       </div>
@@ -1031,13 +1002,11 @@ export function Workouts({ v }) {
       {/* the mockup's structure, for real: TODAY / GYM / COACH tabs.
           Demo mode keeps the scripted plan below; live mode IS the tabs. */}
       {(v.usingLiveWorkouts || v.sessionLive) && (
-        <div style={css('display:flex;gap:6px;margin-top:14px')}>
-          {v.trainTabs.map((t) => (
-            <Interactive key={t.key} as="span" onClick={t.go}
-              base={`flex:1;text-align:center;cursor:pointer;font:600 10px var(--nv-font-mono);letter-spacing:.16em;padding:10px 0;border-radius:12px;border:1px solid ${t.on ? 'color-mix(in srgb, var(--nv-cy) 40%, transparent)' : 'transparent'};color:${t.on ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 40%, transparent)'};background:${t.on ? 'color-mix(in srgb, var(--nv-cy) 06%, transparent)' : 'transparent'};text-shadow:${t.on ? '0 0 10px color-mix(in srgb, var(--nv-cy) 60%, transparent)' : 'none'}`}
-              hoverStyle="color:var(--nv-cy)"
-            >{t.label}{t.live && <span style={css("margin-left:6px;color:var(--nv-good);text-shadow:0 0 8px color-mix(in srgb, var(--nv-good) 70%, transparent)")}>●</span>}</Interactive>
-          ))}
+        <div style={css('margin-top:14px')}>
+          {/* one segmented control, not three bordered words (Controls.jsx) */}
+          <Segmented stretch ariaLabel="Train" value={v.trainTab}
+            onChange={(k) => v.trainTabs.find((t) => t.key === k)?.go()}
+            options={v.trainTabs.map((t) => [t.key, <>{cap(t.label)}{t.live && <span style={css("margin-left:6px;color:var(--nv-good)")}>●</span>}</>])} />
         </div>
       )}
       {(v.usingLiveWorkouts || v.sessionLive) && v.trainTab === 'today' && (

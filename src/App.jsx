@@ -773,6 +773,9 @@ export default class App extends Component {
   }
   navigate(rawScreen, extra = {}) {
     const screen = resolveScreen(rawScreen);
+    // `instant` is a navigation option, not state: it skips the view
+    // transition for a hop he made himself (tabs, sidebar)
+    const { instant = false, ...extraState } = extra;
     const changed = this.state.screen !== screen;
     // SCROLL RESTORATION. One shared scroller means leaving a screen loses
     // your place in it — a reset to 0 was the old fix, and it's why coming
@@ -791,7 +794,7 @@ export default class App extends Component {
     }
     // screens cross-fade rather than cut; anything carrying a shared
     // view-transition-name across the two screens morphs instead
-    const apply = () => this.setState({ screen, ...extra }, () => {
+    const apply = () => this.setState({ screen, ...extraState }, () => {
       if (!changed || !this.mainRef?.current) return;
       const saved = NO_RESTORE.has(screen) ? 0 : (this.scrollPositions?.[screen] || 0);
       this.mainRef.current.scrollTop = saved;
@@ -803,7 +806,7 @@ export default class App extends Component {
         if (this.state.screen === screen && this.mainRef?.current) this.mainRef.current.scrollTop = saved;
       });
     });
-    if (changed) { this.withTransition(apply); this.noteScreenVisit(screen); } else apply();
+    if (changed) { if (instant) apply(); else this.withTransition(apply); this.noteScreenVisit(screen); } else apply();
     if (changed && screen === 'voice') this.maybeGreet('voice');
     if (changed && screen === 'code') this.refreshCodeChanges(); // the diff is the first thing he wants to see
     if (changed && screen === 'ops') this.refreshForge(); // arriving at Ops is when the fleet's jobs matter
@@ -1921,7 +1924,7 @@ export default class App extends Component {
     const date = this.state.foodLogDate || undefined;
     this.setState({ foodEditId: null });
     api.editFoodLogEntry(conn, id, { name, macros, date })
-      .then((day) => { this.noteLocalWrite('foodLog'); this.applyFoodLogDay(day); this.toastMsg('Updated ✓'); })
+      .then((day) => { this.noteLocalWrite('foodLog'); this.applyFoodLogDay(day); })
       .catch((e) => this.toastMsg('Could not update: ' + e.message));
   }
   relogFoodItem(item) {
@@ -2441,7 +2444,6 @@ export default class App extends Component {
     api.deleteWorkoutRoutine(conn, id).then(() => {
       this.setState({ workoutsView: 'routines', openRoutineId: null, routineDeleteConfirm: false });
       this.refreshWorkoutRoutines();
-      this.toastMsg('Routine deleted');
     }).catch((e) => this.toastMsg('Could not delete routine: ' + e.message));
   }
   updateRoutineExercises(entries) {
@@ -2743,7 +2745,6 @@ export default class App extends Component {
         this.setState({ workoutsView: 'history', workoutSession: null, editingSessionId: null, sessionCancelConfirm: false });
         this.openWorkoutHistory(this.state.historyRoutineId);
         this.refreshWorkoutRoutines();
-        this.toastMsg('Session updated ✓');
       }).catch((e) => this.toastMsg('Could not update session: ' + e.message));
       return;
     }
@@ -2842,13 +2843,13 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn) return;
     this.setState({ carryoverRescheduleId: null });
-    api.rescheduleCarryover(conn, id, forDate).then(() => { this.loadCarryovers(); this.toastMsg(`Moved to ${forDate}`); })
+    api.rescheduleCarryover(conn, id, forDate).then(() => { this.loadCarryovers(); })
       .catch((e) => this.toastMsg('Could not reschedule: ' + e.message));
   }
   removeCarryoverItem(id) {
     const conn = getConnection();
     if (!conn) return;
-    api.removeCarryover(conn, id).then(() => { this.loadCarryovers(); this.toastMsg('Carry-over cleared'); })
+    api.removeCarryover(conn, id).then(() => { this.loadCarryovers(); })
       .catch((e) => this.toastMsg('Could not clear: ' + e.message));
   }
   editHistorySession(session) {
@@ -3366,7 +3367,7 @@ export default class App extends Component {
     try { localStorage.removeItem('novaos.ingestJob'); } catch { /* private mode */ }
     this.setState({ ingestStatus: 'idle', ingestJobId: null, ingestPreview: null, ingestError: null });
     if (conn && jobId) api.discardIngest(conn, jobId).catch(() => {});
-    this.toastMsg('Discarded — nothing was written');
+    // the proposal leaving the screen is the receipt — no toast
   }
 
   // the day plan's completion loop (and the daily review's adjustments —
@@ -3620,7 +3621,6 @@ export default class App extends Component {
     api.dispatchConfig(conn, slot, patch).then(({ config }) => {
       this.setState((s) => ({ liveDispatch: { ...(s.liveDispatch || {}), config } }));
       const name = slot === 'evening' ? 'Debrief' : 'Dispatch';
-      this.toastMsg(name + ' ' + (patch.mode ? 'set to ' + patch.mode : 'now runs at ' + String(patch.hour).padStart(2, '0') + ':00'));
     }).catch((e) => this.toastMsg('Could not update: ' + e.message));
   }
   runDispatchNow(slot) {
@@ -4113,7 +4113,6 @@ export default class App extends Component {
     const focusSession = { label: label.slice(0, 80), startedAt: Date.now(), endsAt };
     this.setState({ focusSession });
     try { localStorage.setItem('novaos.focus', JSON.stringify(focusSession)); } catch { /* best-effort */ }
-    this.toastMsg(`Focus block started — ${label} (${Math.round(minutes)} min)`);
   }
   logFocusBlock() {
     const f = this.state.focusSession;
@@ -4340,7 +4339,7 @@ export default class App extends Component {
           : s.liveInbox,
       }));
       if (kind === 'approve') this.toastMsg('Filed ✓ — ' + record.destination);
-      else if (kind === 'discard') this.toastMsg('Discarded — nothing was written');
+      else if (kind === 'discard') { /* the card leaving is the receipt — no toast */ }
       else if (kind === 'retry') this.toastMsg('Retrying — Nova is running this again…');
       else this.toastMsg('Undone ✓ — ' + (record.undoSummary || 'reverted'));
     }).catch((e) => {
@@ -4977,7 +4976,10 @@ export default class App extends Component {
       // them at once. Called on the CLICK — by then idle prefetch has almost
       // always already loaded it and this is a no-op (import() is memoized);
       // it only earns its keep on a tap that beat the prefetch.
-      go: (screen) => () => { warmScreen(screen); this.navigate(screen, { paletteOpen: false }); },
+      // a tab or sidebar hop is INSTANT, the way iOS switches tabs — the
+      // cross-fade stays for programmatic navigations (a chat route landing
+      // on Code, a job tray row), where the app is moving him, not he it
+      go: (screen) => () => { warmScreen(screen); this.navigate(screen, { paletteOpen: false, instant: true }); },
       // …and again on pointerdown, which lands ~100ms before the click. Idle
       // prefetch has usually loaded everything already, so both are normally
       // no-ops (import() is memoized) — this only earns its keep on a tap
@@ -5860,7 +5862,6 @@ export default class App extends Component {
     localStorage.removeItem('novaos.voiceSession');
     this.stopSpeaking();
     this.setState({ voiceSessionId: null, voiceChat: [] });
-    this.toastMsg('Fresh conversation — Nova starts clean');
   }
   rememberFromChat(text) {
     const conn = getConnection();
@@ -6336,7 +6337,6 @@ export default class App extends Component {
   setWakeWord(on) {
     localStorage.setItem('novaos.wakeWord', on ? '1' : '0');
     this.setState({ wakeWordOn: on });
-    if (on) this.toastMsg('Listening for "Hey Nova".');
   }
   // Heard its name. Two jobs, in this order: CUT NOVA OFF (barge-in — the
   // whole point of being able to say its name mid-reply), then open the mic
@@ -6480,7 +6480,6 @@ export default class App extends Component {
   newCoachChat() {
     localStorage.removeItem('novaos.coachSession');
     this.setState({ coachSessionId: null, coachChat: [] });
-    this.toastMsg('Fresh coaching conversation');
   }
   // ---------- the Leader ----------
   refreshLeader() {
@@ -6539,7 +6538,6 @@ export default class App extends Component {
   newLeaderChat() {
     localStorage.removeItem('novaos.leaderSession');
     this.setState({ leaderSessionId: null, leaderChat: [] });
-    this.toastMsg('Fresh Leader conversation');
   }
   saveFitnessGoals() {
     const conn = getConnection();

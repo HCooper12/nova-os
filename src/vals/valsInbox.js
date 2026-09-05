@@ -183,7 +183,7 @@ function computeProposals(app, st, items, dispatch, compost) {
         key: `inbox-auto-all@${recent[0].id}`,
         text: `You've approved Nova's last ${recent.length} review calls without changing a thing — let it file everything on its own?`,
         acceptLabel: 'Accept',
-        accept: () => { app.setInboxMode('auto-all'); app.toastMsg('Rule updated — Nova now auto-files everything'); },
+        accept: () => app.setInboxMode('auto-all'),
       });
     }
   }
@@ -196,7 +196,7 @@ function computeProposals(app, st, items, dispatch, compost) {
         key: `inbox-auto-high@${autoFiled[0].id}`,
         text: `${undone} of Nova's last ${autoFiled.length} auto-filings had to be undone — step back to reviewing the uncertain ones?`,
         acceptLabel: 'Accept',
-        accept: () => { app.setInboxMode('auto-high'); app.toastMsg('Rule updated — uncertain captures wait for you again'); },
+        accept: () => app.setInboxMode('auto-high'),
       });
     }
   }

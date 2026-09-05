@@ -4,6 +4,7 @@ import { TabIcon } from './TabIcon.jsx';
 import { Interactive } from './Interactive.jsx';
 import { VoiceHalo } from './VoiceHalo.jsx';
 import { NovaCore } from './NovaCore.jsx';
+import { Eyebrow, isAppleStyle } from './Controls.jsx';
 
 const M = "var(--nv-font-mono)";
 const R = "var(--nv-font-ui)";
@@ -32,6 +33,12 @@ function DockTab({ t, size = 21 }) {
 
 export function MobileChrome({ v }) {
   const [moreOpen, setMoreOpen] = useState(false);
+  // the top bar's chips: under the Apple styles a tinted pill in the UI face,
+  // under Command the bordered mono chip they always were (see Controls.jsx)
+  const apple = isAppleStyle();
+  const chip = (color) => (apple
+    ? `cursor:pointer;display:flex;align-items:center;gap:6px;font:600 12.5px ${R};padding:7px 12px;border:1px solid transparent;border-radius:999px;color:${color};background:color-mix(in srgb, ${color} 14%, transparent)`
+    : `cursor:pointer;display:flex;align-items:center;gap:6px;font:600 9px ${M};letter-spacing:.08em;padding:6px 10px;border:1px solid color-mix(in srgb, ${color} 45%, transparent);border-radius:8px;color:${color};background:color-mix(in srgb, ${color} 08%, transparent)`);
   const dockTabs = v.tabs.slice(0, 5);
   const activeInDock = dockTabs.some((t) => t.active);
 
@@ -41,10 +48,10 @@ export function MobileChrome({ v }) {
         <span onClick={v.goHome} style={css(`cursor:pointer;font:700 17px ${R};letter-spacing:.16em;color:var(--nv-ink)`)}>
           NOVA<span style={css("background:linear-gradient(90deg,var(--nv-cy),var(--nv-vi));-webkit-background-clip:text;background-clip:text;color:transparent")}>·OS</span>
         </span>
-        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '7px', font: `500 9px ${M}`, letterSpacing: '.12em', color: v.statusChip.color }}><span style={{ width: '5px', height: '5px', borderRadius: '50%', background: v.statusChip.color, animation: v.statusChip.label === 'LIVE' ? 'novaPulse 2s infinite var(--nv-anim)' : 'none' }}></span>{v.statusChip.label}</span>
+        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '7px', font: apple ? `600 11px ${R}` : `500 9px ${M}`, letterSpacing: apple ? '.02em' : '.12em', color: v.statusChip.color }}><span style={{ width: '5px', height: '5px', borderRadius: '50%', background: v.statusChip.color, animation: v.statusChip.label === 'LIVE' ? 'novaPulse 2s infinite var(--nv-anim)' : 'none' }}></span>{v.statusChip.label}</span>
         {/* C3 — in-flight work, visible: a spinner chip while agents run */}
         {v.jobTray.jobs.length > 0 && (
-          <span onClick={v.jobTray.toggle} style={css(`cursor:pointer;display:flex;align-items:center;gap:6px;font:600 9px ${M};letter-spacing:.08em;padding:6px 10px;border:1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent);border-radius:8px;color:var(--nv-cy);background:color-mix(in srgb, var(--nv-cy) 08%, transparent)`)}>
+          <span onClick={v.jobTray.toggle} style={css(`${chip('var(--nv-cy)')}`)}>
             <span style={css("width:9px;height:9px;border-radius:50%;border:1.5px solid var(--nv-cy);border-top-color:transparent;animation:spin 1s linear infinite")}></span>
             {v.jobTray.jobs.length}
           </span>
@@ -52,7 +59,7 @@ export function MobileChrome({ v }) {
         {v.jobTray.open && v.jobTray.jobs.length > 0 && (
           <div onClick={v.jobTray.toggle} style={css("position:fixed;inset:0;z-index:110")}>
             <div onClick={(e) => e.stopPropagation()} style={css("position:absolute;top:56px;right:12px;width:min(340px,92vw);border:1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent);border-radius:14px;background:color-mix(in srgb, var(--nv-bg2) 94%, black);box-shadow:0 18px 60px rgba(0,0,0,.55);overflow:hidden;animation:fadeUp .18s ease-out")}>
-              <div style={css(`padding:11px 15px 8px;font:500 9px ${M};letter-spacing:.22em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)`)}>RUNNING NOW — NOVA PINGS YOU WHEN EACH LANDS</div>
+              <Eyebrow style={{ padding: '11px 15px 8px' }}>Running now — Nova pings you when each lands</Eyebrow>
               {v.jobTray.jobs.map((j) => (
                 <div key={j.id} onClick={j.go || v.jobTray.goInbox} style={css("cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 15px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent);font:400 12.5px var(--nv-font-ui);color:var(--nv-ink)")}>
                   <span style={css("flex:none;width:9px;height:9px;border-radius:50%;border:1.5px solid var(--nv-cy);border-top-color:transparent;animation:spin 1s linear infinite")}></span>
@@ -63,10 +70,14 @@ export function MobileChrome({ v }) {
           </div>
         )}
         {v.outboxCount > 0 && (
-          <span onClick={v.openOutbox} style={css(`cursor:pointer;font:600 9px ${M};letter-spacing:.08em;padding:6px 10px;border:1px solid color-mix(in srgb, var(--nv-gold) 45%, transparent);border-radius:8px;color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 08%, transparent)`)}>⇪ {v.outboxCount}</span>
+          <span onClick={v.openOutbox} style={css(chip('var(--nv-gold)'))}>⇪ {v.outboxCount}</span>
         )}
-        <span onClick={v.openPalette} style={css(`cursor:pointer;font:500 10px ${M};padding:7px 12px;border:1px solid var(--nv-acc-border);border-radius:8px;color:var(--nv-acc);background:var(--nv-acc-bg)`)}>✦ ASK</span>
-        <span onClick={v.goSettings} aria-label="Settings" style={css(`cursor:pointer;font-size:14px;line-height:1;padding:7px 10px;border:1px solid ${v.isSettings ? 'var(--nv-acc-border)' : 'var(--nv-edge)'};border-radius:8px;color:${v.isSettings ? 'var(--nv-acc)' : 'var(--nv-ink60)'}`)}>⚙</span>
+        <span onClick={v.openPalette} style={css(apple
+          ? `cursor:pointer;font:600 13px ${R};padding:8px 14px;border:1px solid transparent;border-radius:999px;color:var(--nv-acc);background:var(--nv-acc-bg)`
+          : `cursor:pointer;font:500 10px ${M};padding:7px 12px;border:1px solid var(--nv-acc-border);border-radius:8px;color:var(--nv-acc);background:var(--nv-acc-bg)`)}>{apple ? '✦ Ask' : '✦ ASK'}</span>
+        <span onClick={v.goSettings} aria-label="Settings" style={css(apple
+          ? `cursor:pointer;font-size:15px;line-height:1;padding:8px 11px;border:1px solid transparent;border-radius:999px;color:${v.isSettings ? 'var(--nv-acc)' : 'var(--nv-ink60)'};background:${v.isSettings ? 'var(--nv-acc-bg)' : 'color-mix(in srgb, var(--nv-ink) 8%, transparent)'}`
+          : `cursor:pointer;font-size:14px;line-height:1;padding:7px 10px;border:1px solid ${v.isSettings ? 'var(--nv-acc-border)' : 'var(--nv-edge)'};border-radius:8px;color:${v.isSettings ? 'var(--nv-acc)' : 'var(--nv-ink60)'}`)}>⚙</span>
       </div>
 
       {/* the More sheet — every screen, grid of silhouettes, one tap */}
@@ -76,7 +87,7 @@ export function MobileChrome({ v }) {
             <div style={css("width:36px;height:4px;border-radius:2px;background:color-mix(in srgb, var(--nv-ink) 22%, transparent);margin:0 auto 14px")}></div>
             {v.frequentTabs?.length > 0 && (
               <>
-                <div style={css(`font:600 9px ${M};letter-spacing:.22em;color:var(--nv-ink40);padding:0 6px 8px`)}>FREQUENT</div>
+                <Eyebrow style={{ padding: '0 6px 8px' }}>Frequent</Eyebrow>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '6px 2px', marginBottom: '14px' }}>
                   {v.frequentTabs.map((t) => (
                     <div key={'f' + t.screen} onClick={() => { setMoreOpen(false); t.go(); }} style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', padding: '11px 4px', cursor: 'pointer', borderRadius: '14px', color: 'var(--nv-acc)', background: 'var(--nv-acc-bg)' }}>
@@ -85,7 +96,7 @@ export function MobileChrome({ v }) {
                     </div>
                   ))}
                 </div>
-                <div style={css(`font:600 9px ${M};letter-spacing:.22em;color:var(--nv-ink40);padding:0 6px 8px`)}>ALL SCREENS</div>
+                <Eyebrow style={{ padding: '0 6px 8px' }}>All screens</Eyebrow>
               </>
             )}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '6px 2px' }}>

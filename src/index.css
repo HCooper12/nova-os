@@ -54,6 +54,10 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 @keyframes prStar { 0%,100% { transform: scale(1) rotate(0deg); } 50% { transform: scale(1.18) rotate(8deg); } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes sheetUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+/* the next card rising to the top of the Inbox deck (Inbox.jsx) — a spring-ish settle, not a cut */
+@keyframes deckRise { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+.nv-deck-rise { animation: deckRise .34s cubic-bezier(.32,.72,0,1) both; }
+@media (prefers-reduced-motion: reduce) { .nv-deck-rise { animation: none; } }
 @keyframes auroraDrift { from { transform: translate3d(-2%,-1%,0); } to { transform: translate3d(2%,2%,0); } }
 @keyframes barSweep { from { width: 4%; } to { width: 100%; } }
 @keyframes dotBlink { 0%, 100% { opacity: .2; } 50% { opacity: 1; } }
@@ -208,6 +212,19 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   --nv-radius:22px;
   --nv-glass:rgba(255,255,255,.055); --nv-glass2:rgba(17,19,28,.86);
   --nv-edge:rgba(255,255,255,.08);
+}
+/* SOFTER MATERIAL (5 Sep 2026, his "Nova feels stiff"): under cupertino a
+   card is a FILL, not an outline — iOS grouped surfaces have no border and
+   spend a hairline only on the separators between rows. 413 one-pixel
+   borders across the app were the single biggest reason it read as an
+   instrument panel. The fill steps up a notch so the surface still reads
+   against the ground, and the inset specular line goes; the edge token stays
+   for inputs and separators, which still want their hairline. Daylight keeps
+   its white cards (declared later, wins). */
+:root[data-nv-style="cupertino"] .nv-pane {
+  border-color: transparent;
+  background: rgba(255,255,255,.075);
+  box-shadow: 0 18px 44px -30px #000;
 }
 /* Daylight × Apple: the style blocks above assume a dark ground — on the
    light palette the cards are WHITE with soft shadow (the mockup-A look).
