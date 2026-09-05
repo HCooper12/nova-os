@@ -13,237 +13,124 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**3 SEP — THE AUGUST AUDIT IS COMPLETE (all 66 reports), AND THE THREE ASKS
-HE MADE AFTER SEEING IT ARE SHIPPED. Nothing is half-finished.**
+**5 SEP — THE DELEGATION LOOP, THE EXERCISE ATLAS, THE AUDIT'S FIXES AND ITS
+FIRST MOCKUPS ARE ALL SHIPPED AND VERIFIED LIVE. One thing is unproven (a plan
+has never RUN), one is honestly empty (Carter Extension has no form video),
+and three need his phone in his hand.**
 
-GOAL: execute `design/audits/2026-08-full-audit/99-SYNTHESIS.md` end to end —
-Tier 1, Tier 2's shared-helper builds, Tier 3's surface refines, then #18
-(every report's §6 plan in roster order 01→66) — and then act on what he
-said when he saw the result.
+GOAL (this session, 4–5 Sep): (1) the UI audit and its unambiguous fixes;
+(2) Nova as chief of staff — chat as the front door, a capability registry,
+multi-step plans; (3) the Lyfta-style exercise library — anatomy, cues, form
+videos with timecodes, a 3D figure; (4) his picks from the audit mockups.
 
-DONE CRITERIA:
-- The audit programme — MET. Every §6 item across all 66 reports is shipped,
-  met by another item, or deferred with a written reason. The per-item record
-  (547 lines, which used to live in this block) is now
-  `design/audits/2026-08-full-audit/00-COMPLETION-RECORD.md`.
-- The Leader talking about his training instead of his team — MET
-  (`ea10aab`). He screenshotted "Budget Your Stress Like Your Sets" and said
-  it is not managing, leading, inspiring or directing a team. Three causes,
-  all ours: (1) the corpus filter admitted a page on ONE word anywhere in its
-  title, so "Manage" let in Stress Management & Parasympathetic Switching and
-  Waist Management & Digestion, and "Frame" let in The X-Frame & High-Value
-  Aesthetic Muscles — six of seventeen title matches on his real 127-page
-  shelf were body pages; (2) the daily idea was handed the fleet's receipts,
-  which are overwhelmingly training and nutrition, so it built the idea from
-  the only concrete material it had; (3) the prompt told it to ground the
-  idea in "HIS material" and that combining concepts is high value. Fixed as
-  three tiers (BODY_DOMAIN wins outright · unambiguous people words admit on
-  the title · ambiguous words need a work-relationship signal, where "people"
-  does NOT count because a physiology page says "people come to Galpin's
-  company" · the strong-body PHRASE tier survives for a page called "Quiet
-  Hobby" opening "notes on leading people at work"), plus `orgContext(…,
-  {only})` so the daily idea gets standing rules alone while the chat still
-  gets the whole org, plus a prompt that names the job in his words and
-  forbids the training metaphor outright.
-- Exercise targets before starting a workout — MET (`402ef72`). Today's card
-  carries the muscles the session trains as chips, PER EXERCISE expands to
-  every lift with its target, and each routine card gets the same line.
-- The plan's DONE/SKIP marks — MET BY VERIFICATION, NOT BY BUILDING. The
-  previous handoff called this unbuilt and was wrong: the client action, the
-  route, the record write and the linked to-do tick all existed. What it had
-  never had was a live run.
+DONE CRITERIA — all MET, each verified in the browser at 375×812 on his real
+data and confirmed live by `scripts/verify-shipped.mjs --server`:
+- Audit fixes: notification width, clamped titles (also at the WRITE site in
+  inbox.js), protein chart verdict + today excluded, absence states across all
+  THREE vitals renderers, calendar dedupe, blank-screen fallback, filing ladder
+  collapsed, Plan Today's JSON salvage, stale-error reaper, local dates.
+- Phases 1–4 of `design/` "Nova as Chief of Staff": chat routes to job lanes
+  (watch/weave/study/research/book/code) with an announce+undo strip;
+  `lib/capabilities.js` is the three-way contract (router ↔ route ↔ registry,
+  tested); `lib/plan.js` + `lib/planner.js` propose, validate (his-language
+  refusals), schedule in waves, run, report; Phase 4 removed the Inbox lane
+  buttons, folded the palette into the chat (⌘K/✦ ASK open Voice; route chip
+  on the composer), thinned the ingest modal.
+- Exercise atlas: `lib/muscles.js` (18-region closed vocabulary),
+  `lib/data/exerciseAtlas.js` (135/135 anatomy+equipment), `exerciseCues.js`
+  (135/135 seeds, HIS vault cues win), `src/BodyMap.jsx` (2D, animated by 17
+  movement patterns), `src/Body3D.jsx` (three.js, lazy 512K chunk, same
+  patterns as joint angles), `lib/exerciseVideos.js` (free yt-dlp search,
+  timecodes via chapters, daily fill job with granted autonomy).
+- Mockups he picked: A1 deck (Inbox), C2 one thing + C3 record moment + B1
+  rings (Mission Control) — built into BOTH `MissionControl.jsx` and
+  `MissionStructured.jsx`; his phone renders the STRUCTURED one.
+- The exercise card is reachable from Train (`src/ExerciseSheet.jsx`,
+  `POST /api/panel`): long-press a library row, or tap a name on Today's card.
 
-STATE:
-- `server/lib/leader.js` — `isLeadership(title, body)` / `isLeadershipSource(
-  title, concepts)` are exported and tested; BODY_DOMAIN · LEAD_CLEAR ·
-  LEAD_AMBIGUOUS · PEOPLE_SIGNAL · LEAD_STRONG are the five lists.
-  `leaderLiveLine()`, `researchWindowOpen()`, `verifyInsightUrls()`,
-  `researchBody()` from the [37] work.
-- `server/lib/orgContext.js` — `orgContext(vaultPath, self, { only })`;
-  sections are `standing` · `siblings` · `fleet`, and the trailer names only
-  the ones actually included.
-- `src/vals/valsWorkouts.js` — `targetSummary(exercises)` → `{chips, rows}`,
-  feeding `gymHero.targets` / `.targetRows` / `.targetsOpen` and each
-  `routinesList[].targetsLine`. State key `gymTargetsOpen` in `src/App.jsx`.
-- `src/vals/valsLeader.js` — `chipAge()`; chips carry `{text, age, resolve}`.
-  `app.leaderResolve()` in App.jsx, `api.leaderReflect` in api.js.
-- `server/lib/pulse.js` — novelty memory (`seen`, `newCount`, `lastNewAt`),
-  `pulseRunDue`, `loadInterestsReport`, `describeRunFailure`, `runReceipt`,
-  MAX_SEARCHES 8.
-- `server/lib/overnight.js` — `requeueFailed`, MAX_ATTEMPTS 2, reconcile
-  before re-running (`landedLate`).
-- `server/lib/todoistSync.js` — `taskFate()`, `state.heldBack`.
-- `server/lib/briefWarm.js` — `warmBrief({variant})`, WARM_WINDOWS,
-  `warmFailureState`/`warmFailureNote`.
-- `server/lib/healthMirror.js` — `noteHealthWrite`/`drainPendingMirrors`/
-  `daysBackTo`; `server/lib/healthDrops.js` — `pruneProcessedDrops`.
-- `design/audits/2026-08-full-audit/00-COMPLETION-RECORD.md` — the audit's
-  per-item record.
-- Suite 894 green; `scripts/verify-shipped.mjs` has the 'PER EXERCISE'
-  marker added this session.
+STATE (HEAD `fff89ae`; last verified-live stamp `9ed8e5d`; the sheet
+commit was deploying at close — check `gh run list --limit 1`):
+- Vault: 134/135 exercises carry a resourceUrl (19 deep-linked `&t=`);
+  Fitness Goals has equipment + limitations; `Wiki/Profile.md` STILL MISSING.
+- Server: `startVideoScheduler` runs daily, first pass 60 min after boot,
+  registered on the Guardian roster as `exercise-videos` (26h).
+- Suite 1059 green — RUN IT UNDER `TZ=UTC` (the deploy's zone) before
+  pushing; see DO NOT.
 
-DECISIONS:
-- The Leader's DAILY IDEA gets standing rules only; the CHAT keeps the whole
-  org block. Reason: a conversation can afford awareness (knowing he slept
-  badly genuinely helps an answer), but one unprompted generated artefact
-  grounds itself in whatever concrete material it holds, and that material is
-  mostly gym receipts. Forecloses the daily idea ever referencing what the
-  Coach or the health insight is currently saying — if that is wanted later,
-  add a section to `only`, do not remove the scoping.
-- "people" is deliberately NOT a work-relationship signal in the corpus
-  filter. Forecloses admitting pages that discuss humans generally; a
-  genuinely people-leadership page with none of team/employees/staff/
-  colleagues/reports/managers/leaders/workplace/meetings/hiring in its title
-  or opening lines will be missed until one of those words appears.
-- The pulse's search cap (8) shipped; the BUDGET was NOT raised — his call,
-  with the measured numbers in OPEN below. Forecloses nothing.
-- A deleted Todoist task holds its vault line open indefinitely
-  (`state.heldBack`) rather than expiring. Forecloses a line being re-pushed
-  after he deletes its task; editing the words is the way back in.
-- Prior decisions all stand: Coach plans in memory and commits through owning
-  modules (no path-sandboxing a vaultStateFile file; NOVA_VAULT_GRACE_MS=0 in
-  multi-vault tests); legacy ingest changes stamped at approval; Coach undo
-  restores the routines file only; respectNo means a no stays a no;
-  Guardian's "check crashed" is the couldn't-look reference; Mission
-  Control's failed plan points at the Inbox rather than inventing a run
-  action.
+DECISIONS (his, 4–5 Sep):
+- Chat stays a conversation; routing invisible until it matters; a job lane
+  announces + offers JUST ANSWER IT rather than asking first.
+- A PLAN never runs without showing him: proposed → his approve → run.
+  Ceiling $6 / 6 steps (I first said $3; the real per-lane ceilings summed his
+  own example to $5). Coach and Claude Code are reachable but never delegated.
+- Form videos: the daily job may WRITE links unasked (a link cannot corrupt,
+  backed up, undoable) — the one lane with granted autonomy; the reasoning
+  lives in exerciseVideos.js so it is not read as precedent.
+- Pulse budget stays $0.50: the 8-search cap already fixed it ($0.20–0.29/run).
+- A1 now, A3 later; C2+B1 for a fortnight before deciding C1.
 
-VERIFIED (with locators):
-- At close, re-run not remembered: `npm run lint` exit 0 · `npm run build`
-  green · `cd server && npm test` → tests 894 / pass 894 / fail 0 ·
-  `curl /api/health` → 200 · `git status --porcelain` empty · HEAD ==
-  origin/main == `9ede8da` with 0 unpushed · no vite listener on 5173 ·
-  `dist/pc.json` absent · `node scripts/verify-shipped.mjs --server` →
-  "deployed build matches local (9ede8da3b)" and "Everything above is
-  genuinely live on his devices", including the new marker "Train · today's
-  card says what the session trains, before he starts".
-- The Leader fix, on his real vault: corpus went 19 concepts + 8 sources → 7
-  + 3 with no body pages; the daily context went from 8 gym-data references
-  to 0; a forced regeneration produced "Delegate The Decision, Not Just The
-  Task", grounded in the delegation research already on his shelf.
-- Exercise targets, at 375×812 on his real data: Upper Body renders BACK ×2 ·
-  BICEPS ×2 · CHEST ×2 · TRICEPS ×2 · SHOULDERS ×1, expanding to all nine
-  lifts above BEGIN SESSION; all four routines summarise with 0 unmapped.
-- DONE/SKIP live: `POST /api/inbox/8071a462/priority` → 200, `outcome` +
-  `outcomeAt` written, read-back confirmed, reverted to null. Both consumers
-  read it (`dailyReview.js` today-plan section renders "— DONE / SKIPPED";
-  `planToday.js` yesterday-plan renders "DONE / SKIPPED / no word").
-- 3 Sep, on his real accounts: Todoist v1 `GET /tasks/{id}` → 200 for a
-  completed task (`checked:true`) AND a deleted one (`is_deleted:true`); two
-  scratch tasks in his "Old" project, confirmed gone afterwards. Pulse: one
-  real Hypertrophy run on haiku = $1.06 / 20 searches / 267 s.
-- Earlier phone-width pass at 375×812: Mission Control (satellite overlap
-  found and fixed), Workouts TODAY + GYM, Inbox top, Recipes rotation (CLEAR
-  26×11 → 49×32 measured), Ambient (sync line top-right).
-- Guardian live: `backups | ok | 338 snapshots … Newest written 2026-09-02`.
-- Staged pass: regression fails on old code; renderers reproduce his real
-  Workout Routines.md (4) and Exercise Library.md (135) byte-identical.
-- Respect-the-no dry-run on real records: 1 declined program subject held;
-  12 food declines hold 60d; compost serves 11.
+VERIFIED (this session, with locators): every item above was exercised on
+the running app — see the commit bodies from `e91eac2` to `fff89ae`.
 
 ASSUMED:
-- The Leader's NEXT daily idea (the scheduled 06:00 one, not today's forced
-  run) has not been seen. One good generation is evidence, not a pattern —
-  read tomorrow's card before calling the relevance problem closed.
-- No live apply/undo has run through the staged pass yet — proven on scratch
-  vaults only; the waiting weave is his to approve.
-- Client renders of the ERROR states (Fuel couldn't-check card, Ambient
-  unknown, Mission plan error) are still unseen; the live server had no
-  failures to show. Happy paths are seen at 375px.
-- Distill job file a26d3d1f.json stays 'ready' on disk after its record was
-  discarded (distill has no discard hook the way ingest's discardJob has);
-  harmless, 245 KB, unpruned.
-- The evening brief-warm window (19–22) and the health mirror's old-month
-  drain are unit-tested but have not been observed firing on the real clock.
+- A plan runs end to end (dispatch → await → report). Proposal/validation/
+  scheduling are proven; `runPlan` has never executed on his account (~$4).
+- The name-tap path on Today's card (no plan rows were rendered when checked).
+- The Leader's daily card stays on-domain (two good scheduled runs seen).
 
-OPEN QUESTIONS / BLOCKERS:
-- PULSE BUDGET — HIS CALL. One measured run of the Hypertrophy topic on haiku
-  cost $1.06 over 20 searches in 267 s against a $0.50 cap, so 1–2 of 3
-  topics have failed most nights since ~20 Aug with the $0.50 spent anyway.
-  Shipped: an 8-search cap and legible failures with cost receipts. Options:
-  (a) raise MAX_BUDGET_USD to 1.0 (~$2.4/night worst case); (b) keep $0.50
-  and read the new receipts for a few nights to see whether the search cap
-  alone lands the science topics; (c) drop to two topics. Not changed.
-- `stores | alert | 15 filed records missing undo data` (8 Aug–1 Sep:
-  pattern×4, coach-program×4, fuel-cross×3, coach-audit×2, model-choice×2) —
-  real holes, or informational records the check should not count? The check
-  still alerts.
-- He has declined all 12 food-save proposals ever made — retire or reshape
-  the lane. Surfaced repeatedly, not acted on.
-- About You (`Wiki/Profile.md`) does not exist, and Fitness Goals still has
-  no equipment or injuries/limitations fields — both checked on the real
-  vault 3 Sep. Every agent reasoning about his training or priorities is
-  blind on both. HE SAID he will fill these in "in the next couple of days".
-- Todoist held-back lines never expire; a "held back N" chip in Settings
-  would make them visible.
-- The live workout cockpit's set rows and long-press targets were not
-  exercised — starting a session writes a draft to his real vault, so this
-  wants checking on his phone during a real session.
-- The rerun of the distillation (to redo the 1 Sep pass on the fixed diff) is
-  his call or the weekly scheduler's — costs a model pass.
-- His phone's Scriptable widget still runs the OLD script until re-pasted.
-- The audio-session fix is spec-based (navigator.audioSession, Safari 17+);
-  if music still pauses on a tap, the next suspects are the wake-word
-  listener and the speechSynthesis prime — both bracketed, neither tested on
-  the device.
-- Telegram photo and voice paths have never been exercised from his phone.
-- Week-plan window semantics; `guardian: 26h` — carried.
-- Not chased: `Workout Routines.md` took four writes in 19 seconds at 08:26
-  local (the week-plan annotation pass). Each is backed up, but that is
-  chattier than it needs to be.
-
-NEXT ACTION: nothing is mid-flight, so this is his pick rather than a
-resumption. The cheapest high-leverage item is the About You page and the
-Goals equipment/injuries fields, which he has said he will do — after that,
-re-run any agent that reasons about training and the advice should visibly
-sharpen. The one open engineering thread is the pulse budget (a decision,
-then a one-line change). If instead you want a signal that today's Leader fix
-held: read tomorrow's 06:00 card — expect a people-leadership idea citing one
-of his seven leadership concepts, and NO reference to sets, RPE, protein or
-recovery. If it reaches for his body again, the corpus is clean, so look at
-the prompt and at what `orgContext` is returning.
+OPEN — HIS:
+- RUN A PLAN (the one unproven loop). Approve one in the Inbox.
+- `Wiki/Profile.md` — four answers; the planner reasons without it.
+- Hand-pick a Carter Extension video (the search cannot find one that names
+  the movement; the rule is right to refuse).
+- KEEP REMINDING (his instruction 5 Sep, logged in memory
+  `nova-open-threads`): live cockpit mid-session on his phone; Telegram photo
+  + voice from his phone; Scriptable widget re-paste.
+OPEN — MINE, when asked: deck footer says SWIPE RIGHT even on a model-choice
+card (no right swipe); protein ring at 0% shows no colour; A3 after a few
+plans; C1's fold beneath C2 after a fortnight.
 
 DO NOT:
-- Do not treat a keyword-in-title filter as domain classification. "Manage"
-  matches Stress Management, "Frame" matches The X-Frame & High-Value
-  Aesthetic Muscles. Test any such filter against his REAL shelf and print
-  what it admits before believing it.
-- Do not let a catch that exists for honest degradation swallow a
-  ReferenceError: deleting LEAD_TITLE_WORDS while `scanSources` still
-  referenced it turned into a silent "0 sources" instead of a crash. When a
-  count drops to zero after a refactor, suspect the catch.
-- Do not read a time off a devtools-MCP screenshot as his local time — that
-  browser's clock ran ~5h behind on 3 Sep and cost a detour chasing a
-  training schedule that had not changed (a long-lived tab was rendering
-  cached state).
-- Do not run `node scripts/verify-shipped.mjs` without rebuilding after the
-  final commit — it compares the deployed stamp with the LOCAL build and
-  fails falsely. This bit twice today.
-- Do not edit source with `perl -0pi` and a hand-escaped multi-line pattern:
-  a failed match can insert the replacement at byte 0 (it did — mealPrep.js
-  line 1). Use a node script with exact-string anchors that throw when
-  missing, and that refuse when the anchor matches more than once.
-- Do not diff a staged copy against the live vault to find "what the model
-  changed" — the live vault moves during a pass; diff against the staging
-  baseline (diffTreesReport) and treat a live move on a model-touched file as
-  a conflict, never a merge.
-- Do not open the dev app at http://127.0.0.1:5173 — the CORS list has
-  localhost:5173 only; everything reads OFFLINE and looks like a bug.
-- Do not start a canvas loop from componentDidUpdate when the screen is a
-  lazy chunk — the ref is null on that update; start it from the ref.
-- Do not sandbox a vaultStateFile-owned file by path, and do not write one
-  raw — go through the module (see stagedPass.js header).
-- Do not match `\w{3}` for an en-GB short month — September is "Sept".
-- Do not write a source-scanning test whose forbidden literal appears in your
-  own explanatory comment — scan code lines only.
-- Do not use a plain function name as a verify:shipped marker — the minifier
-  renames it; use an object/dataset key or a string literal.
-- Do not read a test's scratch vault as independent: the state cache is per
-  module; set NOVA_VAULT_GRACE_MS=0.
-- Do not rebuild NovaBar without expecting the panel to pop on relaunch; tell
-  him if he is at the Mac.
+- Do not write a test that assumes his timezone. `localDate.test.js` built
+  dates from "+10:00" strings and asserted the Melbourne answer; GitHub's UTC
+  runner failed it and FIVE deploys silently died — he noticed before I did.
+  Build test dates from LOCAL components; run `TZ=UTC npm test` before push.
+- Do not edit one Mission Control renderer and call it done: his phone draws
+  `MissionStructured.jsx` (novaStyle 'cupertino'); `MissionControl.jsx` is the
+  other layout; the vitals tile also lives in `AppleLayout.jsx`. Three
+  renderers bit twice today. Check the DOM's Group labels ("Vitals") to know
+  which is mounted — and match case-insensitively; "Body" matched "Upper Body".
+- Do not let one shared word match a form video: "Carter" matched a bandsaw
+  setup guide. A title must name the MOVEMENT (stem of the last word) or share
+  two words — `titleIsAboutThisLift`, applied at every pick.
+- Do not run yt-dlp searches back to back with a short timeout: 19 "misses"
+  were throttle timeouts, not absences. 90s window + 1.5s pause, and keep
+  "nothing found" separate from "never came back".
+- Do not read `curl --max-time 5` failing as the server being down: the Mac
+  was at load 91 from Chrome renderers (my own devtools pages among them).
+  Check `uptime` and `lsof -iTCP -sTCP:LISTEN` before touching the service.
+- Do not bind test stubs to 4199 — it is his live Kokoro sidecar's port.
+- Do not tell the planner its CLI budget: it read `--max-budget-usd 0.5` as
+  the money available for the work and refused his example.
+- Do not mount `intentRouter` with the Vault OBJECT — every lane spawns with
+  `cwd: vaultPath` and needs the string.
+- Do not `git add -A` a half-built feature when pushing an urgent fix; use a
+  targeted add (the deploy unblock was pushed alone this way).
+- Earlier DO NOTs (3 Sep) all still stand.
 
 ## SESSION LOG (append-only, newest first)
+
+### 4–5 September 2026 — the delegation loop, the exercise atlas, the audit's fixes and its first mockups
+
+Twenty-one commits, `7cd9e16`→`fff89ae`. In order: the brief-audio replay bar;
+the notification-width fix; the exercise atlas and animated figure; the UI
+audit (artifact) and its unambiguous fixes; the chief-of-staff plan (artifact)
+and Phases 1–4; Plan Today's JSON salvage and the stale-error reaper; form
+cues; local dates; form videos found free (not $105) with timecodes and a
+daily fill job; the 3D figure; the bandsaw rule; A1/C2/C3/B1; the exercise
+sheet on Train. Two things he caught that I had not: five deploys had died on
+my timezone-bound test, and the 3D figure existed only as a chat panel. Both
+fixed the same day. The full per-commit reasoning is in the commit bodies.
 
 ### 3 September 2026 — the audit's last roster items, and the Leader learning to talk about his team
 Finished #18 — every §6 item across all 66 reports is now shipped, met by
