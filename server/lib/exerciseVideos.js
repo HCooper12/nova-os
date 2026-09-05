@@ -33,9 +33,12 @@ export const PREFERRED = ['ATHLEAN-X', 'Jeff Nippard', 'Renaissance Periodizatio
 
 // Pure: pick the best candidate from a parsed result set, or null. Exported so
 // the ranking is testable without touching the network.
-export function pickVideo(candidates = []) {
+export function pickVideo(candidates = [], exerciseName = '') {
   const usable = candidates.filter((c) =>
-    c && c.id && Number.isFinite(c.duration) && c.duration >= MIN_SECONDS && c.duration <= MAX_SECONDS);
+    c && c.id && Number.isFinite(c.duration) && c.duration >= MIN_SECONDS && c.duration <= MAX_SECONDS
+    // a search result that does not name the movement is not a form video,
+    // however well it ranks — the bandsaw ranked first
+    && (!exerciseName || titleIsAboutThisLift(c.title, exerciseName)));
   if (!usable.length) return null;
   const preferred = usable.find((c) => PREFERRED.some((p) => String(c.channel || '').toLowerCase().includes(p.toLowerCase())));
   const chosen = preferred || usable[0];
@@ -75,7 +78,7 @@ function runSearch(name, { timeoutMs = SEARCH_TIMEOUT_MS } = {}) {
     let out = '';
     const timer = setTimeout(() => { try { child.kill('SIGKILL'); } catch { /* gone */ } }, timeoutMs);
     child.stdout.on('data', (d) => { out += d; });
-    child.on('close', () => { clearTimeout(timer); resolve(pickVideo(parseResults(out))); });
+    child.on('close', () => { clearTimeout(timer); resolve(pickVideo(parseResults(out), name)); });
     child.on('error', () => { clearTimeout(timer); resolve(null); });
   });
 }
@@ -139,13 +142,30 @@ export function matchChapter(chapters = [], exerciseName = '') {
   return best;
 }
 
-const COMPILATION_RE = /\b(\d+\s+(best|top|exercises?|moves|variations)|top\s+\d+|full (workout|routine|session)|every|all the|complete guide to (chest|back|legs?|arms?|shoulders?))\b/i;
+// "Full Push Workout", "Complete Leg Day", "Entire Upper Body Session" — a
+// body-part word often sits between the adjective and the noun, so allow one.
+const COMPILATION_RE = /\b(\d+\s+(best|top|exercises?|moves|variations)|top\s+\d+|(full|complete|entire|whole)\s+(\w+\s+)?(workout|routine|session|day)|every|all the|complete guide to (chest|back|legs?|arms?|shoulders?))\b/i;
 // Pure: does the title name this lift, and only this lift?
+//
+// THE BANDSAW. On 5 Sep the daily job linked "Master Your Bandsaw: The
+// Ultimate 6-Step Setup Guide" by Carter Products to the Carter Extension —
+// a triceps exercise. Word overlap on "carter" was enough for the old rule.
+// A brand, a person, a place: any proper noun in an exercise name can match a
+// title about something else entirely. So the title now has to name the
+// MOVEMENT — the exercise name's last word (extension, raise, curl, press,
+// row, squat…), stem-tolerant so "raises" covers "raise" — or share at least
+// two words. One shared word is a coincidence, not a match.
+const MOVEMENT_STEM = (name) => { const w = words(name); return w.length ? w[w.length - 1].replace(/(es|s)$/, '') : ''; };
 export function titleIsAboutThisLift(title, exerciseName) {
   const want = new Set(words(exerciseName));
   if (!want.size) return false;
-  const overlap = words(title).filter((w) => want.has(w)).length;
-  return overlap > 0 && !COMPILATION_RE.test(String(title || ''));
+  const t = String(title || '');
+  if (COMPILATION_RE.test(t)) return false;
+  const titleWords = words(t);
+  const overlap = titleWords.filter((w) => want.has(w)).length;
+  const stem = MOVEMENT_STEM(exerciseName);
+  const namesTheMovement = !!stem && titleWords.some((w) => w.startsWith(stem));
+  return namesTheMovement || overlap >= 2;
 }
 
 export function deepLink(url, startSeconds) {
@@ -191,7 +211,7 @@ export async function resolveDemo(video, exerciseName) {
     child.stdout.on('data', (d) => { out += d; });
     child.on('close', () => {
       clearTimeout(timer);
-      const short = parseResults(out).filter((c) => Number.isFinite(c.duration) && c.duration >= MIN_SECONDS && c.duration <= SHORT_SECONDS).sort((a, b) => a.duration - b.duration)[0];
+      const short = parseResults(out).filter((c) => Number.isFinite(c.duration) && c.duration >= MIN_SECONDS && c.duration <= SHORT_SECONDS && titleIsAboutThisLift(c.title, exerciseName)).sort((a, b) => a.duration - b.duration)[0];
       resolve(short || null);
     });
     child.on('error', () => { clearTimeout(timer); resolve(null); });
