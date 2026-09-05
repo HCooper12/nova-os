@@ -1,4 +1,5 @@
 import { Component, createRef, lazy, Suspense } from 'react';
+import { ExerciseSheet } from './ExerciseSheet.jsx';
 import { chatStartsAJob, planWorthy } from './chatLanes.js';
 import { preferMixing } from './audioSession.js';
 import { unspokenTexts, resumeVerdict } from './speechResume.js';
@@ -388,6 +389,7 @@ export default class App extends Component {
     // ones it has already spoken past (newest first). Set as each beat's
     // audio starts, never before: the visual must track the voice.
     stageCard: null, stageHistory: [], stageFocus: false,
+    exerciseSheet: null, // { name, loading, panel, error } — the Train screen's exercise card
     isMobile: typeof window !== 'undefined' && window.innerWidth < 760,
     novaTheme: getNovaTheme(), calmMode: getCalm(), coreStyle: getCoreStyle(), novaStyle: getNovaStyle(),
 
@@ -5373,6 +5375,18 @@ export default class App extends Component {
   clearStage() { this.setState({ stageCard: null, stageHistory: [], stageFocus: false }); }
   // Tap a spent card in the rail to bring it back to the middle. The one it
   // displaces goes into the rail, so nothing is ever lost by looking.
+  // THE EXERCISE SHEET. His report, 5 Sep: the 3D figure was nowhere in the
+  // exercise library — it existed only as a chat panel. This pulls the same
+  // panel from the same builder and shows it in a sheet over Train.
+  openExerciseCard(name) {
+    const conn = getConnection();
+    if (!conn || !name) return;
+    this.setState({ exerciseSheet: { name, loading: true, panel: null, error: null } });
+    api.panel(conn, { panel: 'exercise', name })
+      .then((panel) => this.setState((s) => (s.exerciseSheet?.name === name ? { exerciseSheet: { name, loading: false, panel, error: null } } : null)))
+      .catch((e) => this.setState((s) => (s.exerciseSheet?.name === name ? { exerciseSheet: { name, loading: false, panel: null, error: e.message } } : null)));
+  }
+  closeExerciseCard() { this.setState({ exerciseSheet: null }); }
   focusCard(card) {
     if (!card) return;
     this.setState((s) => ({
@@ -6774,6 +6788,7 @@ export default class App extends Component {
         {/* fallback={null}: an overlay appearing a frame later reads as
             normal modal timing — a placeholder card would be worse than
             nothing. Idle prefetch means they're almost always already in. */}
+        {v.exerciseSheet && <ExerciseSheet v={v} />}
         {v.recipeOpen && <Suspense fallback={null}><RecipeOverlay v={v} /></Suspense>}
         {v.recipeAddOpen && <Suspense fallback={null}><AddRecipeModal v={v} /></Suspense>}
         {v.barcodeScannerOpen && (

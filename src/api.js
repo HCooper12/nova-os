@@ -316,6 +316,8 @@ export const api = {
   sendIntent: (conn, text, lane) => post(conn, '/api/intent', lane ? { text, lane } : { text }),
   // a request that is several jobs — proposes a plan, never runs one
   proposePlan: (conn, text, model) => post(conn, '/api/plan', model ? { text, model } : { text }),
+  // a chat panel on demand — the exercise sheet on Train uses the same builder the chat does
+  panel: (conn, directive) => post(conn, '/api/panel', directive),
   runPlan: (conn, id) => post(conn, `/api/plan/${encodeURIComponent(id)}/run`),
   // 60s: the brief reads health, calendar (CalDAV), the vault and the rails.
   // At the 20s default it aborted mid-compose and the morning brief silently

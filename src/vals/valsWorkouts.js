@@ -270,7 +270,9 @@ export function valsWorkouts(app, ctx) {
     .filter((e) => pickerMuscle === 'Any' || e.muscleGroup === pickerMuscle)
     .filter((e) => !pickerQuery || e.name.toLowerCase().includes(pickerQuery))
     .slice(0, 60)
-    .map((e) => ({ id: e.id, name: e.name, muscleGroup: e.muscleGroup, onAdd: () => (pickerMode === 'session' ? app.addExerciseToSession(e.id) : app.addExerciseToRoutine(e.id)) }));
+    .map((e) => ({ id: e.id, name: e.name, muscleGroup: e.muscleGroup, onAdd: () => (pickerMode === 'session' ? app.addExerciseToSession(e.id) : app.addExerciseToRoutine(e.id)),
+      // hold to see the lift — anatomy, 3D figure, cues, form video, history
+      onOpen: () => app.openExerciseCard(e.name) }));
   const exercisePickerExactMatch = libraryExercises.some((e) => e.name.toLowerCase() === pickerQuery);
   const exercisePickerShowCreate = pickerQuery.length > 0 && !exercisePickerExactMatch;
   const TRACKING_TYPE_LABEL = { weight_reps: 'Weight × Reps', bodyweight_reps: 'Bodyweight × Reps', weight_time: 'Weight × Time', bodyweight_time: 'Bodyweight × Time', weighted_bodyweight_reps: 'Weighted Bodyweight × Reps' };
@@ -410,7 +412,10 @@ export function valsWorkouts(app, ctx) {
     usingLiveWorkouts,
     workoutsView: st.workoutsView,
     week,
-    plan: plan.map((ex, i) => ({ idx: String(i + 1).padStart(2, '0'), name: ex.name, scheme: ex.scheme, pr: ex.pr })),
+    // the Train screen's exercise card — the same panel the chat shows
+    exerciseSheet: st.exerciseSheet || null,
+    closeExerciseCard: () => app.closeExerciseCard(),
+    plan: plan.map((ex, i) => ({ idx: String(i + 1).padStart(2, '0'), name: ex.name, onOpen: () => app.openExerciseCard(ex.name), scheme: ex.scheme, pr: ex.pr })),
     planMeta: plan.length + ' LIFTS · ' + (st.planNote ? 'EDITED BY COACH' : '~42 MIN · AS PLANNED'),
     planNoteOn: !!st.planNote, planNote: st.planNote,
     coachMsgs: st.coachChat.map(m => Object.assign({

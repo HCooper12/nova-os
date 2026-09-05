@@ -413,5 +413,18 @@ export function voiceRouter(vaultPath) {
     }
   });
 
+  // A panel on demand — the same deterministic builders the chat uses, so
+  // the Train screen's exercise sheet and a chat card can never show
+  // different facts about a lift. Added 5 Sep when he could not find the 3D
+  // figure: it existed only as a chat panel.
+  router.post('/panel', async (req, res) => {
+    try {
+      const { buildPanel } = await import('../lib/panels.js');
+      res.json(await buildPanel(vaultPath, req.body || {}));
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
   return router;
 }

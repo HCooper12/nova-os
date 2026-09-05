@@ -78,7 +78,7 @@ function ExercisePicker({ v }) {
       </div>
       <div style={css("margin-top:12px;max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:2px")}>
         {v.exercisePickerResults.map((r) => (
-          <Interactive key={r.id} as="div" onClick={r.onAdd} base="cursor:pointer;display:flex;justify-content:space-between;padding:8px 6px;border-radius:6px" hoverStyle="background:rgba(255,255,255,.04)">
+          <Interactive key={r.id} as="div" onClick={r.onAdd} onLongPress={r.onOpen} title="Tap to add · hold to see the lift" base="cursor:pointer;display:flex;justify-content:space-between;padding:8px 6px;border-radius:6px" hoverStyle="background:rgba(255,255,255,.04)">
             <span style={css("font-size:12.5px")}>{r.name}</span>
             <span style={css("font:400 9.5px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>{r.muscleGroup}</span>
           </Interactive>
@@ -839,7 +839,7 @@ function MockWorkouts({ v }) {
             {v.plan.map((ex) => (
               <div key={ex.idx} style={css("display:flex;align-items:baseline;gap:14px;padding:11px 0;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent)")}>
                 <span style={css("font:500 10px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-gold) 60%, transparent);width:20px")}>{ex.idx}</span>
-                <span style={css("font-size:14px;font-weight:500")}>{ex.name}</span>
+                <span onClick={ex.onOpen} title="See the lift — anatomy, form, history" style={css("font-size:14px;font-weight:500;cursor:pointer;text-decoration:underline dotted color-mix(in srgb, var(--nv-cy) 45%, transparent);text-underline-offset:3px")}>{ex.name}</span>
                 {ex.pr && <span style={css("font:500 9px var(--nv-font-mono);letter-spacing:.1em;color:var(--nv-gold);border:1px solid color-mix(in srgb, var(--nv-gold) 35%, transparent);border-radius:5px;padding:2px 7px")}>PR WATCH</span>}
                 <span style={css("margin-left:auto;font:400 12px var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 60%, transparent);font-variant-numeric:tabular-nums")}>{ex.scheme}</span>
               </div>
