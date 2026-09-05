@@ -1,4 +1,5 @@
 import { css } from '../css.js';
+import { RingTile } from '../RingTile.jsx';
 import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
 import { Clock } from '../Clock.jsx';
@@ -88,6 +89,13 @@ export function MissionStructured({ v }) {
 
     vitals: (
       <Group key="vitals" label="Vitals" trailing={<span style={{ font: `400 10px ${M}`, letterSpacing: '.08em', color: 'var(--nv-ink40)' }}>{v.bodyMetricsMeta}</span>}>
+        {/* B1 — the ring, everywhere. Readiness was the best object in the
+            product and appeared on one screen; here it sits with protein,
+            steps and sleep, colour carrying the verdict (missionFocus.ringState)
+            and a dashed ring for a metric that was not reported. */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', padding: '12px 10px 10px', borderBottom: '1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)' }}>
+          {v.ringVitals.map((r) => <RingTile key={r.key} {...r} size={mob ? 56 : 62} />)}
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: mob ? '1fr 1fr' : 'repeat(4,1fr)', gap: '2px', padding: '6px 8px' }}>
           {vitals.map((m) => <MetricTile key={m.key} m={m} />)}
         </div>
@@ -140,14 +148,31 @@ export function MissionStructured({ v }) {
     ) : null,
 
     plan: v.planToday ? (
-      <Group key="plan" label="Today's top 3" trailing={<span style={{ font: `500 10px ${M}`, letterSpacing: '.12em', color: v.planToday.state === 'pending' ? 'var(--nv-gold)' : v.planToday.state === 'error' ? 'var(--nv-warn)' : 'var(--nv-ink40)' }}>{v.planToday.meta}</span>}>
+      <div key="plan">
+        {v.oneThing && (
+          /* C2 — THE ONE THING. Border, glow and fill spent on exactly one
+             card: the day's most important open act. Everything else drops a
+             level so hierarchy stops coming from reading order alone. */
+          <section style={{ marginTop: '18px', padding: mob ? '16px 16px 14px' : '20px 22px 18px', borderRadius: '16px', border: '1px solid color-mix(in srgb, var(--nv-gold) 50%, transparent)', boxShadow: '0 0 54px -18px color-mix(in srgb, var(--nv-gold) 75%, transparent)', background: 'linear-gradient(160deg, color-mix(in srgb, var(--nv-gold) 12%, transparent), var(--nv-glass2))' }}>
+            <div style={{ font: `600 10.5px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--nv-gold)' }}>The one thing</div>
+            <div style={{ marginTop: '6px', font: `600 ${mob ? '17px' : '19px'}/1.25 ${UI}`, letterSpacing: '-.01em' }}>{v.oneThing.text}</div>
+            {v.oneThing.why && <div style={{ marginTop: '5px', font: `450 13px/1.5 ${UI}`, color: 'var(--nv-ink60)' }}>{v.oneThing.why}</div>}
+            {v.oneThing.mark && (
+              <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+                <Pill label="Done" onClick={() => v.oneThing.mark('done')} />
+                <Pill label="Skip" onClick={() => v.oneThing.mark('skipped')} tone="quiet" />
+              </div>
+            )}
+          </section>
+        )}
+      <Group key="plan-group" label="Today's top 3" trailing={<span style={{ font: `500 10px ${M}`, letterSpacing: '.12em', color: v.planToday.state === 'pending' ? 'var(--nv-gold)' : v.planToday.state === 'error' ? 'var(--nv-warn)' : 'var(--nv-ink40)' }}>{v.planToday.meta}</span>}>
         {v.planToday.state === 'classifying' ? (
           <GRow first title={<span style={{ color: 'var(--nv-ink60)', fontWeight: 450 }}>Nova is drawing up today's top 3…</span>} />
         ) : v.planToday.state === 'error' ? (
           <GRow first title={<span style={{ color: 'var(--nv-ink60)', fontWeight: 450 }}>Today's plan hit an error — {v.planToday.errorText}. The Inbox has the retry.</span>} />
         ) : (
-          v.planToday.priorities.map((p, i) => (
-            <GRow key={i} first={i === 0}
+          v.planToday.priorities.map((p, i) => v.oneThing && i === v.oneThing.index ? null : (
+            <GRow key={i} first={i === 0 || (v.oneThing?.index === 0 && i === 1)}
               leading={<span style={{ font: `600 13px ${M}`, color: 'var(--nv-gold)' }}>{i + 1}</span>}
               title={<span style={{ opacity: p.outcome ? 0.55 : 1, textDecoration: p.outcome === 'done' ? 'line-through' : 'none' }}>{p.do}</span>}
               sub={p.why || null}
@@ -166,6 +191,7 @@ export function MissionStructured({ v }) {
           </div>
         )}
       </Group>
+      </div>
     ) : null,
 
     deck: v.commandDeck.count > 0 ? (
@@ -315,6 +341,37 @@ export function MissionStructured({ v }) {
           <div style={css(`margin-top:4px;font:italic 400 ${mob ? '20px' : '23px'}/1.25 ${S};background:linear-gradient(90deg,var(--nv-cy),var(--nv-vi) 55%,var(--nv-mg));-webkit-background-clip:text;background-clip:text;color:transparent;text-wrap:balance`)}>{v.heroTagline}</div>
         </div>
 
+        {/* C3 — THE RECORD MOMENT. Two PRs on 3 Sep rendered as two small
+            cards identical in weight to a rest-day notice. A system built to
+            make him better should be visibly pleased when he gets better.
+            Shown once, the morning after; then it stands down. Ahead of the
+            hour's order on purpose — a moment that has to be scrolled to is
+            not a moment. */}
+        {v.prMoment && (
+          <section style={{ marginTop: '18px', padding: mob ? '16px 16px 14px' : '20px 22px 18px', borderRadius: '16px', border: '1px solid color-mix(in srgb, var(--nv-mg) 45%, transparent)', boxShadow: '0 0 60px -20px color-mix(in srgb, var(--nv-mg) 70%, transparent)', background: 'linear-gradient(160deg, color-mix(in srgb, var(--nv-mg) 10%, transparent), var(--nv-glass2))' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div style={{ flex: 'none', width: 58, height: 58, borderRadius: '50%', border: '1.5px dashed color-mix(in srgb, var(--nv-mg) 70%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: `600 22px ${M}`, boxShadow: '0 0 30px -8px var(--nv-mg)' }}>{v.prMoment.prs.length}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ font: `600 10.5px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--nv-mg)' }}>{v.prMoment.prs.length === 1 ? 'A record' : 'Records'} · {v.prMoment.date.slice(5).replace('-', '/')}</div>
+                <div style={{ marginTop: '3px', font: `italic 400 ${mob ? '18px' : '21px'}/1.2 ${S}` }}>
+                  {v.prMoment.prs.length === 1 ? 'One lift went further than it ever has.' : `${v.prMoment.prs.length} lifts went further than they ever have.`}
+                </div>
+                <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  {v.prMoment.prs.slice(0, 3).map((p) => (
+                    <div key={p.name} style={{ display: 'flex', gap: '10px', alignItems: 'baseline', font: `450 13px ${UI}` }}>
+                      <span style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                      <span style={{ flex: 'none', font: `600 12px ${M}`, color: 'var(--nv-mg)' }}>{p.value}{p.kind === 'e1rm' ? 'kg' : ''}{p.previous != null && p.value > p.previous ? ` ▲${(p.value - p.previous).toFixed(1)}` : ''}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+              <Pill label="See the block" onClick={v.prMoment.openTrain} tone="quiet" />
+              <Pill label="Noted" onClick={v.prMoment.dismiss} tone="quiet" />
+            </div>
+          </section>
+        )}
         {order.map((k) => sections[k]).filter(Boolean)}
       </div>
     </div>

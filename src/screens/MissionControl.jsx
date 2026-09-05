@@ -1,4 +1,5 @@
 import { css } from '../css.js';
+import { RingTile } from '../RingTile.jsx';
 import { absentHintStyle, absentValueStyle } from '../vitalsAbsence.js';
 import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
@@ -91,6 +92,35 @@ export function MissionControl({ v }) {
       {v.stepsOverlay && <StepsHistory v={v.stepsOverlay} />}
       {v.calendarView && <CalendarView v={v.calendarView} />}
       {v.focusChip && <div style={{ marginTop: '10px' }}><FocusChip v={v.focusChip} /></div>}
+      {/* C3 — THE RECORD MOMENT. Two PRs landed on 3 Sep and rendered as
+          two small bordered cards identical in weight to a rest-day notice. A
+          system built to make him better should be visibly pleased when he
+          gets better. Shown once, the morning after; then it stands down. */}
+      {v.prMoment && (
+        <section className="nv-pane" style={{ marginBottom: mob ? '12px' : '18px', padding: mob ? '18px 18px 16px' : '22px 26px 20px', border: '1px solid color-mix(in srgb, var(--nv-mg) 45%, transparent)', boxShadow: '0 0 60px -20px color-mix(in srgb, var(--nv-mg) 70%, transparent)', background: 'linear-gradient(160deg, color-mix(in srgb, var(--nv-mg) 10%, transparent), var(--nv-glass2))' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ flex: 'none', width: 62, height: 62, borderRadius: '50%', border: '1.5px dashed color-mix(in srgb, var(--nv-mg) 70%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: `600 24px ${M}`, color: 'var(--nv-ink)', boxShadow: '0 0 30px -8px var(--nv-mg)' }}>{v.prMoment.prs.length}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ font: `500 8.5px ${M}`, letterSpacing: '.22em', color: 'var(--nv-mg)' }}>{v.prMoment.prs.length === 1 ? 'A RECORD' : 'RECORDS'} · {v.prMoment.date.slice(5).replace('-', '/')}</div>
+              <div style={css(`margin-top:4px;font:italic 400 ${mob ? '18px' : '21px'}/1.2 ${S};color:var(--nv-ink)`)}>
+                {v.prMoment.prs.length === 1 ? 'One lift went further than it ever has.' : `${v.prMoment.prs.length} lifts went further than they ever have.`}
+              </div>
+              <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {v.prMoment.prs.slice(0, 3).map((p) => (
+                  <div key={p.name} style={{ display: 'flex', gap: '10px', alignItems: 'baseline', font: `500 13px ${R}` }}>
+                    <span style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                    <span style={{ flex: 'none', font: `600 12px ${M}`, color: 'var(--nv-mg)' }}>{p.value}{p.kind === 'e1rm' ? 'kg' : ''} ▲{p.previous != null ? ` ${(p.value - p.previous).toFixed(1)}` : ''}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div style={{ marginTop: '12px', display: 'flex', gap: '10px' }}>
+            <Interactive as="span" onClick={v.prMoment.openTrain} base={css(`cursor:pointer;font:600 9.5px ${M};letter-spacing:.14em;padding:8px 13px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)`)} hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 12%, transparent)' }}>SEE THE BLOCK</Interactive>
+            <Interactive as="span" onClick={v.prMoment.dismiss} base={css(`cursor:pointer;font:600 9.5px ${M};letter-spacing:.14em;padding:8px 13px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);color:var(--nv-ink60)`)} hoverStyle={{ color: 'var(--nv-ink)' }}>NOTED</Interactive>
+          </div>
+        </section>
+      )}
       <section style={heroGrid}>
         <div>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 10px', font: `500 10px ${M}`, letterSpacing: '.28em', color: 'var(--nv-ink60)', marginBottom: '16px' }}>
@@ -133,6 +163,12 @@ export function MissionControl({ v }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', marginBottom: '4px' }}>
             <span style={{ font: `700 19px ${R}`, letterSpacing: '.16em' }}>BODY</span>
             <span style={phMeta}>{v.bodyMetricsMeta}</span>
+          </div>
+          {/* B1 — the ring, everywhere. Readiness was the best object in the
+              product and appeared on one screen; here it sits with protein,
+              steps and sleep, colour carrying the verdict. */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginBottom: '16px', paddingBottom: '14px', borderBottom: '1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)' }}>
+            {v.ringVitals.map((r) => <RingTile key={r.key} {...r} size={mob ? 56 : 64} />)}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: mob ? '1fr 1fr' : 'repeat(4,1fr)', gap: mob ? '14px 12px' : '16px' }}>
             {v.bodyMetrics.map((m) => (
@@ -266,8 +302,25 @@ export function MissionControl({ v }) {
 
       {(v.planToday || v.commandDeck.count > 0) && (
         <section style={{ marginTop: mob ? '12px' : '18px', display: mob ? 'flex' : 'grid', flexDirection: 'column', gridTemplateColumns: v.planToday && v.commandDeck.count > 0 ? '1.15fr .85fr' : '1fr', gap: mob ? '12px' : '18px' }}>
+          {v.oneThing && (
+            /* C2 — THE ONE THING. Border, glow and fill spent on exactly one
+               card: the day's most important open act. Everything else on
+               this screen drops a level so hierarchy stops coming from
+               reading order alone. */
+            <div className="nv-pane" style={{ padding: mob ? '18px 18px 16px' : '22px 24px 20px', border: '1px solid color-mix(in srgb, var(--nv-gold) 50%, transparent)', boxShadow: '0 0 54px -18px color-mix(in srgb, var(--nv-gold) 75%, transparent)', background: 'linear-gradient(160deg, color-mix(in srgb, var(--nv-gold) 12%, transparent), var(--nv-glass2))' }}>
+              <div style={{ font: `500 8.5px ${M}`, letterSpacing: '.24em', color: 'var(--nv-gold)' }}>THE ONE THING</div>
+              <div style={{ marginTop: '7px', font: `600 ${mob ? '17px' : '19px'}/1.25 ${R}` }}>{v.oneThing.text}</div>
+              {v.oneThing.why && <div style={{ marginTop: '6px', font: `500 13px/1.5 ${R}`, color: 'var(--nv-ink60)' }}>{v.oneThing.why}</div>}
+              {v.oneThing.mark && (
+                <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+                  <Interactive as="span" onClick={() => v.oneThing.mark('done')} base={css(`cursor:pointer;font:600 12px ${R};padding:8px 16px;border-radius:8px;background:var(--nv-gold);color:#20160a`)} hoverStyle={{ filter: 'brightness(1.1)' }}>Done</Interactive>
+                  <Interactive as="span" onClick={() => v.oneThing.mark('skipped')} base={css(`cursor:pointer;font:600 12px ${R};padding:8px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);color:var(--nv-ink60)`)} hoverStyle={{ color: 'var(--nv-ink)' }}>Skip</Interactive>
+                </div>
+              )}
+            </div>
+          )}
           {v.planToday && (
-            <div className="nv-pane" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column' }}>
+            <div className="nv-pane" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', ...(v.oneThing ? { border: 'none', background: 'transparent', boxShadow: 'none', paddingTop: '8px' } : {}) }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', marginBottom: '10px' }}>
                 <span style={{ font: `500 9.5px ${M}`, letterSpacing: '.26em', color: 'var(--nv-gold)' }}>TODAY'S TOP 3</span>
                 <span style={{ font: `500 8.5px ${M}`, letterSpacing: '.14em', color: v.planToday.state === 'pending' ? 'var(--nv-gold)' : v.planToday.state === 'error' ? 'var(--nv-warn)' : 'var(--nv-ink40)' }}>{v.planToday.meta}</span>
@@ -278,7 +331,7 @@ export function MissionControl({ v }) {
                 <div style={{ font: `500 14px/1.6 ${R}`, color: 'var(--nv-ink60)' }}>Today's plan hit an error — {v.planToday.errorText}. The Inbox has the retry.</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {v.planToday.priorities.map((p, i) => (
+                  {v.planToday.priorities.map((p, i) => v.oneThing && i === v.oneThing.index ? null : (
                     <div key={i} style={css(`display:flex;gap:12px;align-items:baseline;padding:8px 0${i < v.planToday.priorities.length - 1 ? ';border-bottom:1px solid rgba(130,175,255,.09)' : ''}`)}>
                       <span style={{ font: `600 13px ${M}`, color: 'var(--nv-gold)', flex: 'none' }}>{i + 1}</span>
                       <span style={{ minWidth: 0, flex: '1 1 auto', opacity: p.outcome ? 0.55 : 1 }}>

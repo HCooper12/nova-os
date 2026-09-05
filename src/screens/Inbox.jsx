@@ -45,6 +45,12 @@ export function Inbox({ v }) {
   );
   const [dictated, setDictated] = useState(false);
   const [modesOpen, setModesOpen] = useState(false);
+  // A1, his pick from the 4 Sep audit (5 Sep): one card at a time. Nine
+  // items used to be nine full reads and eighteen buttons; the deck makes
+  // them nine thumb-flicks on the swipe engine that already existed. LIST is
+  // one tap away for when he wants the overview, and the choice sticks.
+  const [deck, setDeck] = useState(() => { try { return localStorage.getItem('novaos.inboxDeck') !== 'list'; } catch { return true; } });
+  const setDeckMode = (on) => { setDeck(on); try { localStorage.setItem('novaos.inboxDeck', on ? 'deck' : 'list'); } catch { /* best-effort */ } };
   // History is unbounded and he has 246 records — rendering every one cost
   // ~211ms on EVERY inbox change (3,239 DOM nodes reconciled to tick one
   // box). The recent slice is what anyone actually reads; the rest are one
@@ -179,9 +185,29 @@ export function Inbox({ v }) {
           badge points at must be the first thing the screen shows. */}
       {v.inboxPending.length > 0 && (
         <div style={{ marginTop: '18px' }}>
-          <div style={css(`font:500 9.5px ${M};letter-spacing:.22em;color:var(--nv-gold)`)}>WAITING FOR YOUR CALL · {v.inboxPending.length}</div>
-          <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:10px")}>
-            {v.inboxPending.map((item) => (
+          <div style={css("display:flex;align-items:center;gap:10px")}>
+            <div style={css(`font:500 9.5px ${M};letter-spacing:.22em;color:var(--nv-gold)`)}>WAITING FOR YOUR CALL · {v.inboxPending.length}</div>
+            <span style={css("margin-left:auto;display:flex;gap:4px")}>
+              {[['deck', 'DECK'], ['list', 'LIST']].map(([mode, label]) => (
+                <Interactive key={mode} as="span" onClick={() => setDeckMode(mode === 'deck')}
+                  base={css(`cursor:pointer;font:600 8.5px ${M};letter-spacing:.14em;padding:4px 8px;border-radius:6px;border:1px solid ${(deck ? 'deck' : 'list') === mode ? 'var(--nv-acc-border)' : 'color-mix(in srgb, var(--nv-ink) 12%, transparent)'};color:${(deck ? 'deck' : 'list') === mode ? 'var(--nv-acc)' : 'var(--nv-ink40)'}`)}
+                  hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}>{label}</Interactive>
+              ))}
+            </span>
+          </div>
+          {/* THE DECK: only the top card is live. The two behind it are drawn
+              as edges so the depth of the queue is visible without being
+              readable — what is left, not what it says. Filing or discarding
+              removes the record, the next one rises, no state to manage. */}
+          <div style={css(`margin-top:10px;position:relative;${deck ? 'padding-top:12px' : ''}`)}>
+            {deck && v.inboxPending.length > 1 && (
+              <div aria-hidden="true" style={css("position:absolute;left:6px;right:6px;top:6px;height:40px;border-radius:12px;background:var(--nv-glass);border:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);opacity:.55")} />
+            )}
+            {deck && v.inboxPending.length > 2 && (
+              <div aria-hidden="true" style={css("position:absolute;left:12px;right:12px;top:0;height:40px;border-radius:12px;background:var(--nv-glass);border:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent);opacity:.3")} />
+            )}
+          <div style={css("position:relative;display:flex;flex-direction:column;gap:10px")}>
+            {(deck ? v.inboxPending.slice(0, 1) : v.inboxPending).map((item) => (
               /* SWIPE: right approves, left discards — additive, the buttons
                  below are untouched. A model-choice card has no single
                  "approve" (it needs a model picked), so it gets no swipe;
@@ -323,6 +349,12 @@ export function Inbox({ v }) {
               </div>
               </SwipeRow>
             ))}
+          </div>
+          {deck && (
+            <div style={css(`margin-top:10px;text-align:center;font:500 8.5px ${M};letter-spacing:.16em;color:var(--nv-ink40)`)}>
+              1 OF {v.inboxPending.length} · SWIPE RIGHT TO FILE · LEFT TO DISCARD{v.inboxPending.length > 1 ? ' · THE NEXT RISES' : ''}
+            </div>
+          )}
           </div>
         </div>
       )}

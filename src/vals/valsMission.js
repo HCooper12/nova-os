@@ -1,4 +1,6 @@
 import { AGENTS } from './shared.js';
+import { pickOneThing, prMomentFor, ringState } from '../missionFocus.js';
+import { localDateISO } from '../localDate.js';
 import { clampWords } from '../textClamp.js';
 import { dtf } from './fmt.js';
 
@@ -622,6 +624,35 @@ export function valsMission(app, ctx) {
     statusBanner,
     suggestedFocus,
     planToday,
+    // C2 — THE one thing. The first priority he has not settled becomes the
+    // only card on the screen allowed to be loud; the rest drop to rows.
+    oneThing: (() => {
+      if (!planToday || !['pending', 'filed'].includes(planToday.state)) return null;
+      const pick = pickOneThing(planToday.priorities);
+      return pick ? { ...pick.priority, index: pick.index } : null;
+    })(),
+    // C3 — the record moment: the morning after a PR, shown once. The date
+    // shown is remembered per device; a moment is not a badge.
+    prMoment: (() => {
+      if (demoMode) return null;
+      let seen = null;
+      try { seen = localStorage.getItem('novaos.prMomentSeen'); } catch { /* best-effort */ }
+      const m = prMomentFor(st.liveTrainOverview?.momentum?.prs || [], seen, localDateISO());
+      return m ? { ...m, dismiss: () => { try { localStorage.setItem('novaos.prMomentSeen', m.date); } catch { /* best-effort */ } app.setState({ prMomentTick: (st.prMomentTick || 0) + 1 }); }, openTrain: go('workouts') } : null;
+    })(),
+    // B1 — the ring cluster. Colour is the verdict (missionFocus.ringState);
+    // the readiness ring comes from the same overview Train draws it from.
+    ringVitals: [
+      { key: 'protein', ...satProtein, state: ringState(satProtein) },
+      { key: 'steps', ...satSteps, state: ringState(satSteps) },
+      { key: 'sleep', ...satSleep, state: ringState(satSleep) },
+      (() => {
+        const r = st.liveTrainOverview?.readiness;
+        const score = r?.score;
+        return { key: 'readiness', label: 'READY', value: score != null ? String(score) : '—', small: '', pct: score ?? 0,
+          hint: r?.basis || (usingLiveHealthData ? 'NO READINESS YET' : ''), state: score != null ? ringState({ value: String(score), pct: score }, { goodFrom: 80, behindFrom: 55 }) : 'absent', onOpen: go('workouts') };
+      })(),
+    ],
     commandDeck,
     noteCard,
     bootInfo: {
