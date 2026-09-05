@@ -13,10 +13,11 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**5 SEP — THE DELEGATION LOOP, THE EXERCISE ATLAS, THE AUDIT'S FIXES AND ITS
-FIRST MOCKUPS ARE ALL SHIPPED AND VERIFIED LIVE. One thing is unproven (a plan
-has never RUN), one is honestly empty (Carter Extension has no form video),
-and three need his phone in his hand.**
+**5 SEP (late) — A PLAN HAS NOW RUN ON HIS ACCOUNT AND EXPOSED A HANDOFF BUG,
+FIXED THE SAME DAY BUT NOT RE-RUN (his $4, his call). A3 (Inbox triage) and
+C1 (the Mission Control fold) are built and verified on his data. Carter
+Extension still has no honest form video, and three things still need his
+phone in his hand.**
 
 GOAL (this session, 4–5 Sep): (1) the UI audit and its unambiguous fixes;
 (2) Nova as chief of staff — chat as the front door, a capability registry,
@@ -47,15 +48,40 @@ data and confirmed live by `scripts/verify-shipped.mjs --server`:
   `MissionStructured.jsx`; his phone renders the STRUCTURED one.
 - The exercise card is reachable from Train (`src/ExerciseSheet.jsx`,
   `POST /api/panel`): long-press a library row, or tap a name on Today's card.
+- A3 — `src/inboxDigest.js` (pure, tested) + a triage strip above the deck:
+  routine (high-confidence CAPTURES only → FILE N ROUTINE through the same
+  approve rails), patterns (≥2 on one subject → SEE ALL focuses the list),
+  decide. His real inbox read "16 waiting — 12 on 5 repeating subjects, 4 to
+  decide" with nothing offered as routine — correctly.
+- C1 — `src/missionFold.js` (pure, tested) + `FoldRow` in
+  `MissionStructured.jsx`: after the first two sections of the hour's order,
+  each section is a header + one status line derived from the same view model
+  (a missing value is a dash); WORKING and PLAN never fold; opened/folded is
+  remembered per section (`novaos.mcFold`). Built in the STRUCTURED renderer
+  only — `MissionControl.jsx` (the other layout) does not fold; add it there
+  if he ever switches novaStyle.
+- The planner handoff: `handoffFor()` hands every needed prior output over by
+  code (the model forgot `{{s1}}`), `summarise()` carries `payload.body`
+  (it read `d.body`, which no lane sets — the Watcher handed on its title),
+  and `startResearch(…, { context })` carries material the 500-char question
+  cannot. Pinned in planner.test.js + researcher.test.js.
+- Quick fixes: deck footer says PICK A MODEL ABOVE on a model-choice card; the
+  0% ring's label carries its tone; the video fill job retries a miss with the
+  muscle group in the query.
 
-STATE (HEAD `fff89ae`; last verified-live stamp `9ed8e5d`; the sheet
-commit was deploying at close — check `gh run list --limit 1`):
+STATE (HEAD `368e27f` verified live: deploy 33954799071 green, `verify-shipped
+--server` all PASS bar the then-uncommitted handoff; the handoff commit after
+it is docs-only):
+- Inbox holds the first plan's artefacts, all PENDING and his to judge: the
+  plan report (`7bf8cee7`, honest: "only the Watcher's part was done"), the
+  Watcher's verdict (`13938dcb`, sound) and the Researcher's defective brief
+  (`4aee28c1`, titled "Watcher Claims Not Received" — discard it).
 - Vault: 134/135 exercises carry a resourceUrl (19 deep-linked `&t=`);
   Fitness Goals has equipment + limitations; `Wiki/Profile.md` STILL MISSING.
 - Server: `startVideoScheduler` runs daily, first pass 60 min after boot,
   registered on the Guardian roster as `exercise-videos` (26h).
-- Suite 1059 green — RUN IT UNDER `TZ=UTC` (the deploy's zone) before
-  pushing; see DO NOT.
+- Suite 1081 green under `TZ=UTC` (the deploy's zone) — always run it that
+  way before pushing; see DO NOT.
 
 DECISIONS (his, 4–5 Sep):
 - Chat stays a conversation; routing invisible until it matters; a job lane
@@ -67,28 +93,35 @@ DECISIONS (his, 4–5 Sep):
   backed up, undoable) — the one lane with granted autonomy; the reasoning
   lives in exerciseVideos.js so it is not read as precedent.
 - Pulse budget stays $0.50: the 8-search cap already fixed it ($0.20–0.29/run).
-- A1 now, A3 later; C2+B1 for a fortnight before deciding C1.
+- A1 first, then (his "proceed with the next builds", 5 Sep) A3 and C1 the
+  same day rather than after a fortnight.
+- "Routine" in the Inbox means what the auto-high rung of HIS filing ladder
+  would file: high-confidence captures. An agent's product is never routine,
+  whatever confidence the agent stamped on it (the first cut would have filed
+  two research briefs and two video verdicts unread).
 
 VERIFIED (this session, with locators): every item above was exercised on
 the running app — see the commit bodies from `e91eac2` to `fff89ae`.
 
 ASSUMED:
-- A plan runs end to end (dispatch → await → report). Proposal/validation/
-  scheduling are proven; `runPlan` has never executed on his account (~$4).
+- The handoff fix works on a REAL run. dispatch → await → report is now proven
+  (plan `7bf8cee7`, 2/2 steps, ~$4); the fix that makes step 2 actually
+  receive step 1's material is unit-tested only. A second run is his money.
 - The name-tap path on Today's card (no plan rows were rendered when checked).
 - The Leader's daily card stays on-domain (two good scheduled runs seen).
 
 OPEN — HIS:
-- RUN A PLAN (the one unproven loop). Approve one in the Inbox.
+- Re-run a plan to see the Researcher hold the Watcher's claims (~$4), and
+  clear the three pending artefacts of the first run from the Inbox.
 - `Wiki/Profile.md` — four answers; the planner reasons without it.
 - Hand-pick a Carter Extension video (the search cannot find one that names
   the movement; the rule is right to refuse).
 - KEEP REMINDING (his instruction 5 Sep, logged in memory
   `nova-open-threads`): live cockpit mid-session on his phone; Telegram photo
   + voice from his phone; Scriptable widget re-paste.
-OPEN — MINE, when asked: deck footer says SWIPE RIGHT even on a model-choice
-card (no right swipe); protein ring at 0% shows no colour; A3 after a few
-plans; C1's fold beneath C2 after a fortnight.
+OPEN — MINE, when asked: the fold for `MissionControl.jsx` (the non-phone
+layout); a model naming the digest's themes ON TOP of the deterministic
+groups, never instead of them; the remaining audit mockups he has not picked.
 
 DO NOT:
 - Do not write a test that assumes his timezone. `localDate.test.js` built
@@ -116,9 +149,28 @@ DO NOT:
   `cwd: vaultPath` and needs the string.
 - Do not `git add -A` a half-built feature when pushing an urgent fix; use a
   targeted add (the deploy unblock was pushed alone this way).
+- Do not treat a record's `confidence` as his confidence. It is the AGENT's
+  confidence in its own product; a bulk action must be gated on provenance
+  (capture vs agent product), never on that field.
+- Do not let a plan's step wiring depend on the model writing `{{s1}}`. A
+  declared `needs` is honoured by code (`handoffFor`); a step's output is
+  the lane's `payload.body`, not the record title.
+- Do not pipe `npm run dev` through `head` in a background task — it killed
+  the dev server mid-verification. Start it detached with a log file.
 - Earlier DO NOTs (3 Sep) all still stand.
 
 ## SESSION LOG (append-only, newest first)
+
+### 5 September 2026 (late) — the first plan run, its handoff bug, A3 and C1
+
+Three commits, `1b023f4`→`368e27f`. The plan loop ran for real (Watcher →
+Researcher) and the report's first line was that the comparison had not been
+done: the Researcher never received the Watcher's claims. Root causes were a
+placeholder the planning model forgot and a summariser that read a field no
+lane sets; both fixed by code, the Researcher gained a context channel, all
+pinned in tests, not re-run (his money). Then A3 — whose first cut exposed
+that agent confidence is not his confidence — and C1, both verified on his
+data at 375×812 on the layout his phone draws.
 
 ### 4–5 September 2026 — the delegation loop, the exercise atlas, the audit's fixes and its first mockups
 
