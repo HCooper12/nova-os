@@ -55,8 +55,14 @@ export function parseResults(stdout) {
   }).filter(Boolean);
 }
 
-export function searchQuery(name) {
-  return `ytsearch5:${name} proper form technique tutorial`;
+export function searchQuery(name, muscleGroup) {
+  // "Carter Extension proper form technique tutorial" found a bandsaw guide;
+  // "Carter Extension triceps exercise proper form" finds the lift. A name
+  // carrying a proper noun needs the body part in the query, so the second
+  // attempt adds it — the first stays specific for names that need no help.
+  return muscleGroup
+    ? `ytsearch5:${name} ${muscleGroup} exercise proper form`
+    : `ytsearch5:${name} proper form technique tutorial`;
 }
 
 // 45s was not enough. A search run ALONE returns in about 20 seconds, but a
@@ -69,10 +75,10 @@ export function searchQuery(name) {
 export const SEARCH_TIMEOUT_MS = 90_000;
 export const PAUSE_BETWEEN_MS = 1_500;
 
-function runSearch(name, { timeoutMs = SEARCH_TIMEOUT_MS } = {}) {
+function runSearch(name, { timeoutMs = SEARCH_TIMEOUT_MS, muscleGroup } = {}) {
   return new Promise((resolve) => {
     const child = spawn(YTDLP, [
-      searchQuery(name), '--skip-download', '--no-warnings',
+      searchQuery(name, muscleGroup), '--skip-download', '--no-warnings',
       '--print', '%(id)s|%(channel)s|%(duration)s|%(title)s',
     ], { stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '';
@@ -242,7 +248,10 @@ export async function fillMissingVideos(vaultPath, { onProgress } = {}) {
   const noWayIn = [];
   for (const [i, ex] of missing.entries()) {
     if (i) await new Promise((r) => setTimeout(r, PAUSE_BETWEEN_MS));
-    const pick = await runSearch(ex.name);
+    // first the specific query; if nothing names the movement, once more
+    // with the muscle group in it (the Carter Extension case)
+    let pick = await runSearch(ex.name);
+    if (!pick && ex.muscleGroup) { await new Promise((r) => setTimeout(r, PAUSE_BETWEEN_MS)); pick = await runSearch(ex.name, { muscleGroup: ex.muscleGroup }); }
     if (!pick) { noWayIn.push(ex.name); continue; }
     const demo = await resolveDemo(pick, ex.name);
     if (demo.noWayIn) noWayIn.push(ex.name);

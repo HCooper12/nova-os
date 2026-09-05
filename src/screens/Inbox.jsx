@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { subjectOf } from '../inboxDigest.js';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { useDictation } from '../useDictation.js';
@@ -51,6 +52,14 @@ export function Inbox({ v }) {
   // one tap away for when he wants the overview, and the choice sticks.
   const [deck, setDeck] = useState(() => { try { return localStorage.getItem('novaos.inboxDeck') !== 'list'; } catch { return true; } });
   const setDeckMode = (on) => { setDeck(on); try { localStorage.setItem('novaos.inboxDeck', on ? 'deck' : 'list'); } catch { /* best-effort */ } };
+  // A3: SEE ALL on a pattern shows just that subject's items, as a list —
+  // the pattern gets one read and one set of answers instead of surfacing
+  // one card at a time between unrelated ones. Session-only; a focus that
+  // outlived the items would be a filter on nothing.
+  const [focus, setFocus] = useState(null);
+  const focused = focus ? v.inboxPending.filter((i) => subjectOf(i) === focus) : null;
+  const shown = focused && focused.length ? focused : (deck ? v.inboxPending.slice(0, 1) : v.inboxPending);
+  const showingFocus = !!(focused && focused.length);
   // History is unbounded and he has 246 records — rendering every one cost
   // ~211ms on EVERY inbox change (3,239 DOM nodes reconciled to tick one
   // box). The recent slice is what anyone actually reads; the rest are one
@@ -195,19 +204,57 @@ export function Inbox({ v }) {
               ))}
             </span>
           </div>
+          {/* A3 — THE TRIAGE STRIP. Before the first card, what the pile IS:
+              how many are routine (one tap files them all), which subjects
+              repeat (one look answers the pattern), how many need a real
+              decision. Deterministic — see src/inboxDigest.js. */}
+          {v.inboxDigest && !showingFocus && (
+            <div style={css("margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--nv-glass);border:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)")}>
+              <div style={css(`font:500 12px var(--nv-font-ui);color:var(--nv-ink80);line-height:1.4`)}>{v.inboxDigest.summary}</div>
+              <div style={css("display:flex;flex-wrap:wrap;gap:6px;margin-top:8px")}>
+                {v.inboxDigest.routine.length > 0 && (
+                  <Interactive as="span" onClick={v.inboxDigest.routineBusy ? undefined : v.inboxDigest.fileRoutine}
+                    base={css(`cursor:pointer;font:600 8.5px ${M};letter-spacing:.14em;padding:5px 9px;border-radius:7px;border:1px solid var(--nv-acc-border);color:var(--nv-acc);opacity:${v.inboxDigest.routineBusy ? '.5' : '1'}`)}
+                    hoverStyle={{ background: 'var(--nv-acc-dim)' }}>
+                    {v.inboxDigest.routineBusy ? 'FILING…' : `FILE ${v.inboxDigest.routine.length} ROUTINE`}
+                  </Interactive>
+                )}
+                {v.inboxDigest.patterns.map((p) => (
+                  <Interactive key={p.subject} as="span" onClick={() => { setFocus(p.subject); }}
+                    base={css(`cursor:pointer;font:600 8.5px ${M};letter-spacing:.14em;padding:5px 9px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-gold) 45%, transparent);color:var(--nv-gold)`)}
+                    hoverStyle={{ borderColor: 'var(--nv-gold)' }}>
+                    {p.members.length} × {p.subject.toUpperCase()} · SEE ALL
+                  </Interactive>
+                ))}
+                {v.inboxDigest.decide.length > 0 && (
+                  <span style={css(`font:600 8.5px ${M};letter-spacing:.14em;padding:5px 9px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);color:var(--nv-ink40)`)}>
+                    {v.inboxDigest.decide.length} TO DECIDE
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+          {showingFocus && (
+            <div style={css("display:flex;align-items:center;gap:8px;margin-top:10px")}>
+              <span style={css(`font:600 8.5px ${M};letter-spacing:.14em;color:var(--nv-gold)`)}>SHOWING {focus.toUpperCase()} · {focused.length}</span>
+              <Interactive as="span" onClick={() => setFocus(null)}
+                base={css(`cursor:pointer;margin-left:auto;font:600 8.5px ${M};letter-spacing:.14em;padding:4px 8px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);color:var(--nv-ink60)`)}
+                hoverStyle={{ color: 'var(--nv-ink)' }}>▸ BACK TO THE DECK</Interactive>
+            </div>
+          )}
           {/* THE DECK: only the top card is live. The two behind it are drawn
               as edges so the depth of the queue is visible without being
               readable — what is left, not what it says. Filing or discarding
               removes the record, the next one rises, no state to manage. */}
-          <div style={css(`margin-top:10px;position:relative;${deck ? 'padding-top:12px' : ''}`)}>
-            {deck && v.inboxPending.length > 1 && (
+          <div style={css(`margin-top:10px;position:relative;${deck && !showingFocus ? 'padding-top:12px' : ''}`)}>
+            {deck && !showingFocus && v.inboxPending.length > 1 && (
               <div aria-hidden="true" style={css("position:absolute;left:6px;right:6px;top:6px;height:40px;border-radius:12px;background:var(--nv-glass);border:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);opacity:.55")} />
             )}
-            {deck && v.inboxPending.length > 2 && (
+            {deck && !showingFocus && v.inboxPending.length > 2 && (
               <div aria-hidden="true" style={css("position:absolute;left:12px;right:12px;top:0;height:40px;border-radius:12px;background:var(--nv-glass);border:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent);opacity:.3")} />
             )}
           <div style={css("position:relative;display:flex;flex-direction:column;gap:10px")}>
-            {(deck ? v.inboxPending.slice(0, 1) : v.inboxPending).map((item) => (
+            {shown.map((item) => (
               /* SWIPE: right approves, left discards — additive, the buttons
                  below are untouched. A model-choice card has no single
                  "approve" (it needs a model picked), so it gets no swipe;
@@ -350,9 +397,11 @@ export function Inbox({ v }) {
               </SwipeRow>
             ))}
           </div>
-          {deck && (
+          {deck && !showingFocus && (
             <div style={css(`margin-top:10px;text-align:center;font:500 8.5px ${M};letter-spacing:.16em;color:var(--nv-ink40)`)}>
-              1 OF {v.inboxPending.length} · SWIPE RIGHT TO FILE · LEFT TO DISCARD{v.inboxPending.length > 1 ? ' · THE NEXT RISES' : ''}
+              {/* a model-choice card has no right swipe — it needs a model picked —
+                  so the footer must not promise one */}
+              1 OF {v.inboxPending.length} · {v.inboxPending[0]?.isModelChoice ? 'PICK A MODEL ABOVE' : 'SWIPE RIGHT TO FILE'} · LEFT TO DISCARD{v.inboxPending.length > 1 ? ' · THE NEXT RISES' : ''}
             </div>
           )}
           </div>

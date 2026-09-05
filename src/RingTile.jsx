@@ -51,8 +51,11 @@ export function RingTile({ label, value, small, pct, state = 'absent', hint, onO
           </b>
         </div>
       </div>
-      <span style={css(`font:600 8px ${M};letter-spacing:.14em;color:${state === 'absent' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)'};text-align:center;white-space:nowrap`)}>
-        {label}{state !== 'absent' && shown ? ` · ${shown}%` : ''}
+      {/* At 0% the arc has no length, so the state colour has nowhere to
+          show — the LABEL carries it instead, or "nothing logged yet at 4pm"
+          looks identical to "not reported". */}
+      <span style={css(`font:600 8px ${M};letter-spacing:.14em;color:${state === 'absent' ? 'var(--nv-warn)' : shown === 0 ? tone : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)'};text-align:center;white-space:nowrap`)}>
+        {label}{state !== 'absent' && shown ? ` · ${shown}%` : state !== 'absent' ? ' · 0%' : ''}
       </span>
     </div>
   );
