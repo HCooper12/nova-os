@@ -8,7 +8,7 @@ import { ChatMarkdown } from '../ChatMarkdown.jsx';
 import { TrainToday } from '../TrainToday.jsx';
 import { SafeVisual } from '../SafeVisual.jsx';
 import { VoicePanel } from '../VoicePanels.jsx';
-import { Eyebrow, TextAction, Chip, Tag, Meta, Segmented, isAppleStyle, ScreenHead } from '../Controls.jsx';
+import { Eyebrow, TextAction, Chip, Tag, Meta, Segmented, isAppleStyle, ScreenHead, AttachStrip, AttachPending } from '../Controls.jsx';
 
 // THE MATERIAL PASS (5 Sep 2026, "Nova feels stiff"): labels and tap targets
 // on this screen are set through src/Controls.jsx — sentence case in the UI
@@ -965,7 +965,9 @@ function GoalsCoachPane({ v }) {
               ))}
             </div>
           )}
-          <div style={css("display:flex;gap:8px;margin-top:10px")}>
+          <AttachPending attach={v.attach} />
+          <div style={css("display:flex;gap:8px;margin-top:10px;align-items:center")}>
+            <AttachStrip attach={v.attach} tone="cyan" />
             <Interactive
               as="input"
               value={v.coachInput}

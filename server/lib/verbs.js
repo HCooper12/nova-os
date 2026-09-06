@@ -314,6 +314,121 @@ verb({
   },
 });
 
+// ---- phase 2: the rest of the read-model state ----
+
+verb({
+  id: 'todo.add', tier: 'act',
+  describe: 'add a to-do to his list', args: { text: 'the to-do, in his words', category: 'optional: ' + TODO_CATS.join('|') },
+  async run(vaultPath, args) {
+    const { addTodo } = await todoLib();
+    const cat = args.category ? String(args.category).toLowerCase().replace(/^errand$/, 'errands') : undefined;
+    if (cat && !TODO_CATS.includes(cat)) throw new Error(`"${args.category}" isn't a to-do category (${TODO_CATS.join(', ')})`);
+    const after = await addTodo(vaultPath, args.text, cat);
+    const clean = String(args.text).trim().replace(/\s+/g, ' ');
+    const item = after.items.find((t) => t.text === clean && !t.checked);
+    return { destination: `To-Do — added "${clean}" (${item?.category || cat || 'personal'})`, said: `Added "${clean}" to ${item?.category || 'your list'}.`, undo: { verb: 'todo.add', raw: item?.raw || null, text: clean } };
+  },
+  async undo(vaultPath, u) {
+    const { listTodos } = await todoLib();
+    const { withTodoLock, TODO_REL } = await import('./todoLine.js');
+    const { readFile, writeFile } = await import('node:fs/promises');
+    const pathMod = await import('node:path');
+    const { items } = await listTodos(vaultPath);
+    const item = items.find((t) => t.raw === u.raw) || items.find((t) => t.text === u.text);
+    if (!item) throw new Error(`"${u.text}" is no longer on the list`);
+    return withTodoLock(async () => {
+      const full = pathMod.join(vaultPath, TODO_REL);
+      const raw = await readFile(full, 'utf8');
+      if (!raw.includes(item.raw)) throw new Error('that line changed since');
+      await writeFile(full, raw.includes(item.raw + '\n') ? raw.replace(item.raw + '\n', '') : raw.replace(item.raw, ''), 'utf8');
+      return `removed "${u.text}" again`;
+    });
+  },
+});
+
+verb({
+  id: 'recipe.slot', tier: 'act',
+  describe: "put one of his recipes into a rotation slot for today's plan", args: { slot: SLOTS.join('|'), recipe: 'the recipe, in his words' },
+  async run(vaultPath, args) {
+    const slot = String(args.slot || '').toLowerCase().trim();
+    if (!SLOTS.includes(slot)) throw new Error(`"${args.slot}" isn't a meal slot (${SLOTS.join(', ')})`);
+    const { loadRecipeData, loadRotation, setRotationSlot } = await rotationLibs();
+    const { recipes } = await loadRecipeData(vaultPath);
+    const m = matchName(recipes, args.recipe);
+    if (!m.hit) throw new Error(m.ambiguous ? m.why : `there's no recipe called "${say(args.recipe)}"`);
+    const before = await loadRotation(vaultPath, recipes);
+    const prior = before.slots?.[slot]?.id || null;
+    if (prior === m.hit.id) throw new Error(`${slot} is already ${m.hit.name}`);
+    await setRotationSlot(vaultPath, recipes, slot, m.hit.id);
+    return { destination: `Rotation — ${slot}: ${m.hit.name}`, said: `${slot[0].toUpperCase()}${slot.slice(1)} is now ${m.hit.name}.`, undo: { verb: 'recipe.slot', slot, prior, priorName: before.slots?.[slot]?.name || null, name: m.hit.name } };
+  },
+  async undo(vaultPath, u) {
+    const { loadRecipeData, setRotationSlot } = await rotationLibs();
+    const { recipes } = await loadRecipeData(vaultPath);
+    await setRotationSlot(vaultPath, recipes, u.slot, u.prior);
+    return u.prior ? `${u.slot} back to ${u.priorName}` : `${u.slot} cleared again`;
+  },
+});
+
+verb({
+  id: 'journal.add', tier: 'act',
+  describe: "write a line into today's journal", args: { text: 'the entry, in his words' },
+  async run(vaultPath, args) {
+    const { addEntry } = await import('./journal.js');
+    const text = String(args.text).trim();
+    await addEntry(vaultPath, { text, category: 'personal', label: 'Said to Nova' });
+    return { destination: `Journal — "${text.slice(0, 60)}${text.length > 60 ? '…' : ''}"`, said: 'In your journal.', undo: { verb: 'journal.add', text, date: new Date().toISOString().slice(0, 10) } };
+  },
+  async undo(vaultPath, u) {
+    const { removeEntry } = await import('./journal.js');
+    await removeEntry(vaultPath, { date: u.date, text: u.text });
+    return 'removed it from the journal';
+  },
+});
+
+verb({
+  id: 'stash.add', tier: 'act',
+  describe: 'stash a link under one of his Stash categories', args: { url: 'the link', name: 'what it is, a few words', category: 'the Stash category, in his words' },
+  async run(vaultPath, args) {
+    const { loadStash, addStashItem } = await import('./stash.js');
+    const { categories } = await loadStash(vaultPath);
+    const m = matchName(categories, args.category);
+    if (!m.hit) throw new Error(m.ambiguous ? m.why : `there's no Stash category called "${say(args.category)}"${categories.length ? ` (you have ${categories.map((c) => c.name).join(', ')})` : ''}`);
+    const url = String(args.url).trim();
+    await addStashItem(vaultPath, { category: m.hit.name, name: args.name, url });
+    const after = await loadStash(vaultPath);
+    const item = (after.categories.find((c) => c.name === m.hit.name)?.items || []).find((i) => i.url === url);
+    return { destination: `Stash — ${m.hit.name}: ${args.name}`, said: `Stashed under ${m.hit.name}.`, undo: item?.raw ? { verb: 'stash.add', raw: item.raw, name: String(args.name) } : null };
+  },
+  async undo(vaultPath, u) {
+    const { removeStashItem } = await import('./stash.js');
+    await removeStashItem(vaultPath, u.raw);
+    return `took "${u.name}" back out of the Stash`;
+  },
+});
+
+verb({
+  id: 'money.category', tier: 'act',
+  describe: 'file a recent transaction under a different category (and remember the merchant)', args: { merchant: 'the transaction, by merchant or words', category: 'Groceries|Eating Out|Transport|Health & Fitness|Subscriptions|Utilities & Bills|Shopping|Entertainment|Income|Other' },
+  async run(vaultPath, args) {
+    const { listTransactions, setTransactionCategory, CATEGORIES } = await import('./money.js');
+    const cat = CATEGORIES.find((c) => c.toLowerCase() === String(args.category || '').toLowerCase().trim());
+    if (!cat) throw new Error(`"${args.category}" isn't a money category (${CATEGORIES.join(', ')})`);
+    const recent = await listTransactions({ sinceMonths: 2 });
+    const m = matchName(recent, args.merchant, { label: (t) => t.merchant || t.description || '' });
+    if (!m.hit) throw new Error(m.ambiguous ? m.why : `no recent transaction looks like "${say(args.merchant)}"`);
+    if (m.hit.category === cat) throw new Error(`${m.hit.merchant || 'that'} is already under ${cat}`);
+    const prior = m.hit.category;
+    await setTransactionCategory(m.hit.id, cat);
+    return { destination: `Money — ${m.hit.merchant || m.hit.description}: ${prior} → ${cat}`, said: `${m.hit.merchant || 'Done'} filed under ${cat} — and remembered.`, undo: { verb: 'money.category', id: m.hit.id, prior, merchant: m.hit.merchant || '' } };
+  },
+  async undo(vaultPath, u) {
+    const { setTransactionCategory } = await import('./money.js');
+    await setTransactionCategory(u.id, u.prior);
+    return `${u.merchant || 'it'} back under ${u.prior}`;
+  },
+});
+
 // THE FIRST HAND — his own Shortcuts (lib/hands.js). Confirm-first unless
 // he has listed the name as immediate; no undo Nova can do, said plainly.
 let handsMod = null;
@@ -479,6 +594,17 @@ export function parseCommand(text) {
 
   if ((m = q.match(/^(?:clear|empty|wipe)\s+(?:the\s+|my\s+)?(?:whole\s+|entire\s+)?(?:shopping\s+)?list$/))) return { verb: 'shopping.clear', args: {} };
 
+  if ((m = q.match(/^(?:add|put)\s+(.+?)\s+(?:to|on|onto)\s+(?:my\s+)?(?:to-?dos?|to-?do list|todo list|list of to-?dos)$/)) || (m = q.match(/^(?:to-?do|todo):\s*(.+)$/))) {
+    return { verb: 'todo.add', args: { text: m[1] } };
+  }
+  if ((m = q.match(/^(?:journal|diary):\s*(.+)$/)) || (m = q.match(/^(?:write|put|note)\s+(?:in|into)\s+(?:my\s+)?journal:?\s+(.+)$/))) {
+    return { verb: 'journal.add', args: { text: m[1] } };
+  }
+  if ((m = q.match(new RegExp(`^(?:make|set|put|swap|change)\\s+${MEAL}\\s+(?:(?:to|as|=)\\s+)?(.+)$`))) || (m = q.match(new RegExp(`^(?:put|use)\\s+(.+?)\\s+(?:in|for|as)\\s+${MEAL}$`)))) {
+    const slot = SLOTS.includes(m[1]) ? m[1] : m[2];
+    const recipe = SLOTS.includes(m[1]) ? m[2] : m[1];
+    return { verb: 'recipe.slot', args: { slot, recipe } };
+  }
   if ((m = q.match(/^(?:move|put|file|recategori[sz]e|change)\s+(.+?)\s+(?:to|into|under)\s+(personal|work|fitness|errands?|later)$/))) {
     return { verb: 'todo.move', args: { text: m[1], category: m[2] } };
   }

@@ -216,3 +216,34 @@ export function Segmented({ options, value, onChange, ariaLabel, stretch }) {
     </span>
   );
 }
+
+// PHOTOS AND VIDEOS WITH A QUESTION (his ask, 6 Sep 2026): a picker beside
+// the composer, thumbnails of what will ride with the next question, and a
+// way to drop one. The same list feeds Nova's composer and the Coach's.
+export function AttachStrip({ attach, tone = 'cyan' }) {
+  if (!attach) return null;
+  const inputId = `nv-attach-${tone}`;
+  return (
+    <>
+      <label htmlFor={inputId} title="Attach photos or a short video to your question"
+        style={{ cursor: 'pointer', flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: isAppleStyle() ? '40px' : '34px', height: isAppleStyle() ? '40px' : '34px', borderRadius: '999px', background: `color-mix(in srgb, var(--nv-${tone === 'gold' ? 'gold' : 'cy'}) 12%, transparent)`, color: `var(--nv-${tone === 'gold' ? 'gold' : 'cy'})`, opacity: attach.busy ? .6 : 1 }}>
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 12.5 12.6 21a5.5 5.5 0 0 1-7.8-7.8l9.2-9.2a3.7 3.7 0 0 1 5.2 5.2l-9.2 9.2a1.8 1.8 0 0 1-2.6-2.6l8.5-8.5"/></svg>
+        <input id={inputId} type="file" accept="image/*,video/*" multiple onChange={(e) => { attach.pick(e.target.files); e.target.value = ''; }} disabled={attach.busy} style={{ display: 'none' }} />
+      </label>
+    </>
+  );
+}
+export function AttachPending({ attach }) {
+  if (!attach?.pending?.length) return null;
+  return (
+    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '8px' }}>
+      {attach.pending.map((p, i) => (
+        <span key={i} style={{ position: 'relative', width: '52px', height: '52px', borderRadius: '10px', overflow: 'hidden', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} title={p.name}>
+          {p.thumb ? <img src={p.thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Meta tone="faint">video</Meta>}
+          <span onClick={p.remove} style={{ position: 'absolute', top: '2px', right: '2px', width: '18px', height: '18px', borderRadius: '6px', background: 'rgba(0,0,0,.65)', color: '#fff', font: '600 12px/18px var(--nv-font-ui)', textAlign: 'center', cursor: 'pointer' }}>×</span>
+        </span>
+      ))}
+      <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>rides with your next question</Meta>
+    </div>
+  );
+}

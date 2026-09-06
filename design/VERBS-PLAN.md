@@ -1,8 +1,10 @@
 # The Verbs — every feature reachable by one sentence
 
-**Status: Phase 1 BUILT and live-proven on his vault (6 Sep 2026). Phase 2
-(delegation invisible) BUILT the same evening. Hands: the Shortcuts hand
-BUILT; the browser hand DESIGNED, not built — see "The Hands".**
+**Status (6 Sep 2026, night): Phases 1, 2 and 3 BUILT. Phase 1 and the
+Coach handoff live-proven on his vault; attachments live-proven (Ask Nova
+read a screenshot off the real server). Hands: the Shortcuts hand BUILT
+(sessions may now run real Shortcuts — his grant); the browser hand
+DESIGNED, not built — see "The Hands".**
 
 ## The brief
 
@@ -95,21 +97,45 @@ parser, the generated catalogue) and the status reflex in `reflex.test.js`.
 - `leader` is a router lane now (LEADER_RE is tight on purpose — "delegate"
   alone is a word he uses about Nova), with a capability entry and the
   contract test pinning router ↔ route ↔ registry.
-- Still to do in this phase: the verbs for the rest of the read-model state
-  (`todo.add`, `recipe.slot`, `journal.add`, `stash.add`, `money.category`,
-  `reminder.set`) and the few settings that are words.
+- Done later the same night: `todo.add`, `recipe.slot` ("make lunch works
+  burger", "put protein oats in breakfast"), `journal.add` ("journal: …"),
+  `stash.add`, `money.category` (refile a transaction and remember the
+  merchant) — each with undo, each in verbs.test.js. NOT done: reminders by
+  voice (the capture classifier already files "remind me …"; a deterministic
+  time parser is a later build) and settings-as-words (settings are CLIENT
+  state — a server verb cannot reach them; if wanted, they go the gym's way,
+  client-side).
+
+### Attachments — BUILT (6 Sep, night)
+`lib/attachments.js` + `POST /api/attachments`: photos are downscaled and
+stored, a video becomes evenly spaced stills (ffmpeg; no transcript, said
+so); the question carries `[ATTACHED MATERIAL]` naming absolute paths the
+model reads with its Read tool — the tool boundary the conversational lanes
+already had, so no new model path. Both composers (Voice, Coach) have the
+paperclip; thumbnails show what rides with the message; material prunes
+after seven days (a photo he wants kept is a capture). Reflex and verbs are
+skipped when material is attached. His use case — "which of these menu
+screenshots is the best option for my goals?" — goes to the Coach when the
+words are the Coach's, with its full context, or to Nova otherwise.
 - Verbs for the rest of the read-model state: `todo.add` (today a capture
   round-trip), `recipe.slot` (put X in lunch), `journal.add`, `stash.add`,
   `money.category`, `reminder.set`, `calendar.*` via the existing command.
 - `settings.*` verbs for the few settings that are words (theme, voice on/off,
   wake word, calm mode).
 
-### Phase 3 — the gym by voice
-A session mode on the Voice screen: "start push day" → the live cockpit's
-state machine driven by verbs (`session.start / set / skip / next / finish /
-later`), numbers parsed deterministically ("80 for 8", "same again", "drop
-to 70"), every set receipted to the draft the cockpit already persists.
-Wants his phone in hand at the gym to verify (standing reminder).
+### Phase 3 — the gym by voice — BUILT (6 Sep, night)
+`src/gymVoice.js` (pure; tested in `server/test/gymVoice.test.js`) +
+`tryGymVoice` in App.jsx, the FIRST gate in `doOrb`. A live workout is
+client state, so these run with no server round trip at all. Outside a
+session: "start push day" / "start today's session" resolves the routine
+strictly (a tie asks; a miss falls through to the front door). Inside:
+"80 for 8", "82.5 kg x 6 at rpe 8", "12 reps", "drop to 70", "same again",
+"add a set", "next", "skip it", "what's next", "undo that", "save it for
+later", and "finish" — which sets a pending offer so only his "yes" logs the
+session through `finishWorkoutSession` (the same path as the button). A
+separator between weight and reps is required: "12" alone can never read as
+1×2. Every ticked set appears in the cockpit on Train as it is spoken. NOT
+verified on the gym floor — that is his standing phone-in-hand item.
 
 ### Phase 4 — the ceiling movers
 Editing existing records by voice (recipe ingredients, food-log entries,

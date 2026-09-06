@@ -10,7 +10,7 @@ import { LocalInput } from '../LocalInput.jsx';
 import { VoiceWaveform } from '../VoiceWaveform.jsx';
 import { StageCard } from '../StageCard.jsx';
 import { SafeVisual } from '../SafeVisual.jsx';
-import { TextAction, Chip, Tag, Meta, isAppleStyle, ScreenHead } from '../Controls.jsx';
+import { TextAction, Chip, Tag, Meta, isAppleStyle, ScreenHead, AttachStrip, AttachPending } from '../Controls.jsx';
 
 // THE STATION FRAME STAYS — the bracketed panels and the reticle were his
 // explicit ask (20 Aug: "a station, not a chat page"). What changes in the
@@ -219,6 +219,13 @@ export function Voice({ v }) {
                   <div style={css(`margin:10px 0 8px;text-align:center;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 38%, transparent)`)}>— {m.daySep.toUpperCase()} —</div>
                 )}
                 <span style={m.tagStyle}>{m.tag}</span>{m.time && <span style={css(`margin-left:6px;font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 32%, transparent)`)}>{m.time}</span>} <span style={css("color:color-mix(in srgb, var(--nv-ink) 90%, transparent)")}><TypeText text={m.text} active={m.typing} /></span>
+                {m.attached && (
+                  <div style={css("margin-top:6px;display:flex;gap:6px;flex-wrap:wrap")}>
+                    {m.attached.map((a, k) => a.thumb
+                      ? <img key={k} src={a.thumb} alt="" style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '10px' }} />
+                      : <Tag key={k} tone="faint">video · {a.name}</Tag>)}
+                  </div>
+                )}
                 {m.remember && (
                   <TextAction compact tone="gold" onClick={m.remember} title="File this into the vault via the Inbox" style={{ marginLeft: '6px' }}>Remember</TextAction>
                 )}
@@ -285,6 +292,7 @@ export function Voice({ v }) {
             {/* local echo — see LocalInput.jsx. Enter hands the live text
                 straight to sendOrb so nothing can be lost to the debounce;
                 dictation still writes in through the value prop. */}
+            <AttachPending attach={v.attach} />
             {/* Where this will go, before Enter sends it — the one thing worth
                 keeping from the command palette. Only shown when the answer is
                 not "Ask Nova": a question needs no label, and a chip on every
@@ -292,11 +300,12 @@ export function Voice({ v }) {
             {(() => { const r = v.routePreview?.(v.orbInput); return r && r.lane !== 'ask' ? (
               <Meta title={r.why} tone="cyan" style={{ position: 'absolute', top: '-22px', left: '2px', opacity: .85 }}>→ {cap(r.label)}</Meta>
             ) : null; })()}
+            <AttachStrip attach={v.attach} tone="cyan" />
             <LocalInput
               value={v.orbInput}
               onChange={(text) => v.setOrbInputValue(text)}
               onSubmit={(text) => v.sendOrb(text)}
-              placeholder="Speak or type to Nova…"
+              placeholder={v.attach?.pending?.length ? 'Ask about what you attached…' : 'Speak or type to Nova…'}
               style={css(`flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:${isAppleStyle() ? '999px' : '9px'};padding:10px 14px;color:var(--nv-ink);font:400 ${isAppleStyle() ? '15px var(--nv-font-ui)' : `12.5px ${M}`};outline:none`)}
             />
             <Interactive as="span" onClick={() => v.sendOrb()} base={`cursor:pointer;display:flex;align-items:center;font:${isAppleStyle() ? '600 15px var(--nv-font-ui)' : 'var(--nv-micro-l)'};padding:0 18px;border-radius:${isAppleStyle() ? '999px' : '9px'};background:var(--nv-cy);color:var(--nv-on-acc)`} hoverStyle="filter:brightness(1.08)">{isAppleStyle() ? 'Send' : 'SEND'}</Interactive>

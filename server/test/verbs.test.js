@@ -223,3 +223,45 @@ test('the first hand: a Shortcut runs only by its resolved exact name, confirm-f
     hands._setRunnerForTests(null);
   }
 });
+
+test('phase 2: add a to-do, set a slot, journal a line, stash a link, refile a transaction — each undone', async () => {
+  // to-do
+  assert.deepEqual(parseCommand('make lunch works burger'), { verb: 'recipe.slot', args: { slot: 'lunch', recipe: 'works burger' } });
+  const add = await runVerb(vault, 'q', { verb: 'todo.add', args: { text: 'Renew passport', category: 'errands' } });
+  let { items } = await listTodos(vault);
+  assert.ok(items.find((t) => t.text === 'Renew passport' && t.category === 'errands'));
+  await undoRecord(vault, add.acted.recordId);
+  ({ items } = await listTodos(vault));
+  assert.ok(!items.find((t) => t.text === 'Renew passport'));
+  // rotation slot (Works Burger exists from the meals test)
+  const recipes = await loadRecipes(vault);
+  const slot = await runVerb(vault, 'q', { verb: 'recipe.slot', args: { slot: 'dinner', recipe: 'works burger' } });
+  assert.match(slot.acted.said, /Dinner is now Works Burger/);
+  assert.equal((await loadRotation(vault, recipes)).slots.dinner.name, 'Works Burger');
+  await assert.rejects(() => runVerb(vault, 'q', { verb: 'recipe.slot', args: { slot: 'dinner', recipe: 'works burger' } }), /already/);
+  await undoRecord(vault, slot.acted.recordId);
+  assert.equal((await loadRotation(vault, recipes)).slots.dinner, null);
+  // journal
+  const j = await runVerb(vault, 'q', { verb: 'journal.add', args: { text: 'Slept badly, felt it in the session' } });
+  const { listEntries } = await import('../lib/journal.js');
+  assert.ok((await listEntries(vault, { limit: 5 })).some((e) => /Slept badly/.test(e.text || e.summary || JSON.stringify(e))));
+  await undoRecord(vault, j.acted.recordId);
+  // stash: needs a category page
+  const { addStashItem, loadStash } = await import('../lib/stash.js');
+  await addStashItem(vault, { category: 'Skincare', name: 'seed', url: 'https://example.com/seed' });
+  const st = await runVerb(vault, 'q', { verb: 'stash.add', args: { url: 'https://example.com/serum', name: 'the serum', category: 'skin care' } });
+  assert.match(st.acted.said, /Skincare/);
+  assert.ok((await loadStash(vault)).categories.find((c) => c.name === 'Skincare').items.some((i) => i.url === 'https://example.com/serum'));
+  await undoRecord(vault, st.acted.recordId);
+  assert.ok(!(await loadStash(vault)).categories.find((c) => c.name === 'Skincare').items.some((i) => i.url === 'https://example.com/serum'));
+  await assert.rejects(() => runVerb(vault, 'q', { verb: 'stash.add', args: { url: 'https://x.y', name: 'x', category: 'unicorns' } }), /no Stash category/);
+  // money
+  const { addTransactions, listTransactions } = await import('../lib/money.js');
+  await addTransactions([{ date: new Date().toISOString().slice(0, 10), merchant: 'UBER EATS', amount: -32.5, description: 'UBER *EATS' }], 'test');
+  const before = (await listTransactions({ sinceMonths: 1 })).find((t) => t.merchant === 'UBER EATS');
+  const mc = await runVerb(vault, 'q', { verb: 'money.category', args: { merchant: 'uber eats', category: 'transport' } });
+  assert.match(mc.acted.said, /Transport/);
+  assert.equal((await listTransactions({ sinceMonths: 1 })).find((t) => t.id === before.id).category, 'Transport');
+  await undoRecord(vault, mc.acted.recordId);
+  assert.equal((await listTransactions({ sinceMonths: 1 })).find((t) => t.id === before.id).category, before.category);
+});

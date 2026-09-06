@@ -27,15 +27,37 @@ export function voiceRouter(vaultPath) {
   // screen, the Siri sync ask, and the Telegram bridge can never drift.
   const askContext = (sessionId, opts) => buildAskContext(vaultPath, sessionId, opts);
 
+  // PHOTOS AND VIDEOS WITH A QUESTION (lib/attachments.js): stored here,
+  // then named by id on the ask that follows. The question carries the
+  // material as a preamble the model reads with its Read tool.
+  router.post('/attachments', async (req, res) => {
+    try {
+      const { storeAttachments } = await import('../lib/attachments.js');
+      const stored = await storeAttachments(req.body?.files);
+      res.json({ id: stored.id, count: stored.items.length, items: stored.items.map((i) => ({ kind: i.kind, frames: i.frames?.length || 0, error: i.error || null })) });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
   router.post('/ask', async (req, res) => {
     try {
-      const question = typeof req.body?.question === 'string' ? req.body.question.trim() : '';
+      let question = typeof req.body?.question === 'string' ? req.body.question.trim() : '';
       if (!question) return res.status(400).json({ error: 'question is required' });
+      // attached material rides in front of the words; a reflex or a verb
+      // never sees it (they answer from the record, not from a photo)
+      let attachmentPreamble = '';
+      if (typeof req.body?.attachmentId === 'string' && req.body.attachmentId) {
+        const { loadAttachment, attachmentPreamble: pre } = await import('../lib/attachments.js');
+        const att = await loadAttachment(req.body.attachmentId);
+        if (!att) return res.status(400).json({ error: 'those attachments are gone — attach them again' });
+        attachmentPreamble = pre(att);
+      }
       if (question.length > 1000) return res.status(400).json({ error: 'keep a spoken question under 1000 characters' });
       // The Reflex Layer: a direct question the live record already answers
       // never reaches the model. Code answers in <1s; a miss falls through
       // silently to the normal ask. (lib/reflex.js; MORNING-SHOW-PLAN.md)
-      const reflex = await tryReflex(question).catch(() => null);
+      const reflex = attachmentPreamble ? null : await tryReflex(question).catch(() => null);
       if (reflex) {
         console.log(`reflex hit [${reflex.matched}] q=${JSON.stringify(question.slice(0, 80))} reply=${reflex.text.length}ch`);
         import('../lib/spokenLog.js').then(({ logSpoken }) => logSpoken('reflex', reflex.text)).catch(() => {});
@@ -46,7 +68,7 @@ export function voiceRouter(vaultPath) {
       // his real lists — no model, a receipt with undo, honest "which one?"
       // when his words fit two things. (lib/verbs.js)
       const { tryCommand } = await import('../lib/verbs.js');
-      const command = await tryCommand(vaultPath, question).catch(() => null);
+      const command = attachmentPreamble ? null : await tryCommand(vaultPath, question).catch(() => null);
       if (command) {
         console.log(`verb ${command.miss ? 'miss' : 'hit'} [${command.matched}] q=${JSON.stringify(question.slice(0, 80))}`);
         import('../lib/spokenLog.js').then(({ logSpoken }) => logSpoken('verb', command.text)).catch(() => {});
@@ -59,6 +81,7 @@ export function voiceRouter(vaultPath) {
       // in this transcript. No screen change; the reply says who spoke.
       const { routeIntent } = await import('../lib/intentRouter.js');
       const lane = routeIntent(question).lane;
+      if (attachmentPreamble) question = `${attachmentPreamble}\n\n${question}`;
       if (lane === 'coach') {
         const { startCoachTurn } = await import('../lib/coachTurn.js');
         const coachSession = typeof req.body?.coachSessionId === 'string' && req.body.coachSessionId ? req.body.coachSessionId : null;

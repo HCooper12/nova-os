@@ -13,6 +13,25 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**6 SEP (late night) — PHASE 3, ATTACHMENTS, THE COACH-TAB GLITCH, THE
+GRANT.** His grant: `.claude/settings.local.json` now allows
+`Bash(node scripts/nova-api.mjs:*)`, `Bash(shortcuts list)`,
+`Bash(shortcuts run:*)`, `Bash(launchctl kickstart:*)` — sessions may drive
+the server, run his real Shortcuts and reload the service without the
+classifier. Built tonight: ATTACHMENTS (photos/videos with a question, both
+composers, live-proven: Ask Nova read a screenshot off the real server and
+named the screen and its protein figure); the remaining PHASE-2 VERBS
+(todo.add, recipe.slot, journal.add, stash.add, money.category, all with
+undo); PHASE 3, THE GYM BY VOICE (`src/gymVoice.js`, client-side, zero
+round trip; finish needs his yes); the COACH-TAB "screen moves around"
+glitch (his recording: the content panned sideways — `main` is now
+`overflow-x:hidden` and chat bubbles are shrinkable; the 16px-input rule
+and the scale-locked viewport were already there, so this was a wide child,
+now clipped at the scroller). Read `design/VERBS-PLAN.md` for the whole
+shape. NOT built: the browser hand (designed); reminders by voice;
+settings-as-words. NOT verified: the gym flow on the gym floor; the Coach
+tab visually with live data (demo has no Coach tab).
+
 **6 SEP (night) — THE VERBS, PHASE 2 + THE FIRST HAND, LIVE-PROVEN.** The
 permission wall is solved: `scripts/nova-api.mjs` reads API_TOKEN in-process
 and prints only the response, so a session can drive the real server
@@ -328,6 +347,13 @@ DO NOT:
 - Earlier DO NOTs (3 Sep) all still stand.
 
 ## SESSION LOG (append-only, newest first)
+
+### 6 September 2026 (late night) — phase 3, attachments, the glitch, the grant
+His four asks after phase 2: grant sessions real Shortcuts + the browser lane
+(→ the allow rules, his instruction); photos/videos to Nova and the Coach
+(→ attachments, live-proven); the Coach-tab glitch from his recording (→
+main clips horizontal overflow; bubbles shrink); then the remaining phase-2
+verbs and the gym by voice (→ built, tested). Suite 1106 green under TZ=UTC.
 
 ### 6 September 2026 (night) — phase 2, the first Hand, and the permission wall
 His three asks: fix the permission layer (→ nova-api.mjs, in-process token);

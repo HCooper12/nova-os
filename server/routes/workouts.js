@@ -442,7 +442,14 @@ export function workoutsRouter(vaultPath) {
       // the whole assembly lives in lib/coachTurn.js so the front door can
       // hand a question to the Coach in the same conversation
       const { startCoachTurn } = await import('../lib/coachTurn.js');
-      res.json({ jobId: await startCoachTurn(vaultPath, { question, sessionId, liveSession: req.body?.liveSession }) });
+      let q = question;
+      if (typeof req.body?.attachmentId === 'string' && req.body.attachmentId) {
+        const { loadAttachment, attachmentPreamble } = await import('../lib/attachments.js');
+        const att = await loadAttachment(req.body.attachmentId);
+        if (!att) return res.status(400).json({ error: 'those attachments are gone — attach them again' });
+        q = `${attachmentPreamble(att)}\n\n${question}`;
+      }
+      res.json({ jobId: await startCoachTurn(vaultPath, { question: q, sessionId, liveSession: req.body?.liveSession }) });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

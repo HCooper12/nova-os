@@ -198,6 +198,7 @@ export function valsMisc(app, ctx) {
     reportScreenMic: (on) => { if (!!st.voiceScreenMic !== !!on) app.setState({ voiceScreenMic: !!on }); },
     orbMsgs: (!demoMode ? st.voiceChat : st.orbChat).map((m, i, arr) => ({
       text: m.text, typing: m.typing, panel: m.panel || null,
+      attached: m.attached || null,
       // The announcement strip on a message where the chat STARTED A JOB
       // rather than answered. It names the lane it chose and offers the one
       // way back — because routing that is invisible until it matters still
@@ -252,6 +253,12 @@ export function valsMisc(app, ctx) {
       return null;
     })(),
     startRitual: (kind) => app.startRitual(kind),
+    // photos/videos for the next question (both composers read the same list)
+    attach: {
+      pending: (st.pendingAttach || []).map((p, i) => ({ kind: p.kind, thumb: p.thumb, name: p.name, remove: () => app.removePendingAttach(i) })),
+      busy: !!st.attachBusy,
+      pick: (fileList) => app.attachFiles(fileList),
+    },
     orbInput: st.orbInput,
     setOrbInput: (e) => app.setState({ orbInput: e.target.value }),
     setOrbInputValue: (t) => app.setState({ orbInput: t }),

@@ -77,6 +77,8 @@ const FEATURES = [
   ['Voice · a brief killed by leaving the app is replayable, not lost', 'the audio stopped when you left'],
   ['Voice · verbs — done-by-voice receipts (6 Sep)', 'BY VOICE'],
   ['Voice · the Coach and Leader answer in the conversation (6 Sep)', 'Handing that to the Coach.'],
+  ['Voice + Coach · photos and videos ride with a question (6 Sep)', 'rides with your next question'],
+  ['Voice · the gym by voice — start, sets, next, skip, finish (6 Sep)', 'Say the weight and reps as you go'],
 ];
 
 const SERVER_ROUTES = [

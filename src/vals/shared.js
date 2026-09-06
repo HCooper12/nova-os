@@ -22,5 +22,5 @@ export const AGENTS = [
 ];
 
 export const bubble = (who) => who === 'you'
-  ? { wrapStyle: { display: 'flex', justifyContent: 'flex-end' }, bubbleStyle: { maxWidth: '85%', fontSize: '13px', fontWeight: 500, lineHeight: 1.55, padding: '9px 13px', borderRadius: '11px 11px 3px 11px', background: 'var(--nv-acc-bg)', border: '1px solid var(--nv-acc-border)', color: 'var(--nv-ink)' } }
-  : { wrapStyle: { display: 'flex' }, bubbleStyle: { maxWidth: '90%', fontSize: '13px', fontWeight: 500, lineHeight: 1.55, padding: '9px 13px', borderRadius: '11px 11px 11px 3px', background: 'color-mix(in srgb, var(--nv-cy) 07%, transparent)', border: '1px solid color-mix(in srgb, var(--nv-cy) 20%, transparent)', color: 'color-mix(in srgb, var(--nv-ink) 92%, transparent)' } };
+  ? { wrapStyle: { display: 'flex', justifyContent: 'flex-end' }, bubbleStyle: { maxWidth: '85%', minWidth: 0, overflowWrap: 'anywhere', fontSize: '13px', fontWeight: 500, lineHeight: 1.55, padding: '9px 13px', borderRadius: '11px 11px 3px 11px', background: 'var(--nv-acc-bg)', border: '1px solid var(--nv-acc-border)', color: 'var(--nv-ink)' } }
+  : { wrapStyle: { display: 'flex' }, bubbleStyle: { maxWidth: '90%', minWidth: 0, overflowWrap: 'anywhere', fontSize: '13px', fontWeight: 500, lineHeight: 1.55, padding: '9px 13px', borderRadius: '11px 11px 11px 3px', background: 'color-mix(in srgb, var(--nv-cy) 07%, transparent)', border: '1px solid color-mix(in srgb, var(--nv-cy) 20%, transparent)', color: 'color-mix(in srgb, var(--nv-ink) 92%, transparent)' } };

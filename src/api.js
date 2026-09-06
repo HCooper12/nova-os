@@ -220,7 +220,7 @@ export const api = {
   completeWorkoutSession: (conn, session) => post(conn, '/api/workouts/sessions', session),
   workoutGoals: (conn) => call(conn, '/api/workouts/goals'),
   setWorkoutGoals: (conn, body) => put(conn, '/api/workouts/goals', body),
-  askCoach: (conn, question, sessionId, liveSession) => post(conn, '/api/workouts/coach', { question, sessionId, liveSession }),
+  askCoach: (conn, question, sessionId, liveSession, attachmentId = null) => post(conn, '/api/workouts/coach', { question, sessionId, liveSession, attachmentId }),
   quickSession: (conn, minutes, note) => post(conn, '/api/workouts/quick-session', { minutes, note }),
   quickSessionPrepare: (conn, plan) => post(conn, '/api/workouts/quick-session/prepare', { plan }),
   updateWorkoutSession: (conn, id, body) => put(conn, `/api/workouts/sessions/${encodeURIComponent(id)}`, body),
@@ -304,6 +304,8 @@ export const api = {
   // the specialists' session ids ride along so the front door can hand a
   // question to the Coach or the Leader IN the conversation (Verbs, phase 2)
   ask: (conn, question, sessionId, agents = {}) => post(conn, '/api/ask', { question, sessionId, ...agents }),
+  // photos/videos with a question — stored first, named by id on the ask
+  attach: (conn, files) => post(conn, '/api/attachments', { files }, { timeoutMs: 180_000 }),
   // fired the moment the mic opens, before a question exists — boots the
   // conversation's process (and a cold session's context) while he talks.
   // Failure is silently fine: it only ever costs him latency, never an answer.

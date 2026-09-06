@@ -51,6 +51,7 @@ import { CoachApplySheet } from './CoachApplySheet.jsx';
 import { PortionSheet } from './PortionSheet.jsx';
 import { Boot } from './Boot.jsx';
 import { haptic } from './haptics.js';
+import { parseInSession, parseStart, applyInSession, matchRoutine } from './gymVoice.js';
 // 0.05s of silence — a REAL source, so iOS accepts the gesture and unlocks
 // the element for the reply that arrives seconds later.
 const SILENT_WAV = 'data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQ4AAAAAAAAAAAAAAAAAAAAAAA==';
@@ -313,6 +314,10 @@ export default class App extends Component {
     voiceSessionId: typeof localStorage === 'undefined' ? null : (localStorage.getItem('novaos.voiceSession') || null),
     speechVoices: [], speechVoiceURI: typeof localStorage === 'undefined' ? '' : (localStorage.getItem('novaos.speechVoiceURI') || ''),
     coachSessionId: typeof localStorage === 'undefined' ? null : (localStorage.getItem('novaos.coachSession') || null),
+    // photos/videos waiting to ride with the next question (data URLs + a
+    // thumbnail each); one list, whichever composer he is in
+    pendingAttach: [],
+    attachBusy: false,
     // the Leader — leadership development: state mirror + its conversation
     liveLeader: null, leaderChat: [], leaderInput: '', leaderBusy: false,
     liveForge: null, forgeInput: '', forgeBusy: false, browserSignInBusy: false, liveIngestJobs: [],
@@ -2028,6 +2033,34 @@ export default class App extends Component {
   // accuracy cost — but a multi-MB Instagram screenshot becomes a few hundred KB,
   // and the slow leg (phone → Tailscale) shrinks with it. Falls back to the raw
   // file if anything about canvas encoding fails — a speedup must never cost a scan.
+  // ATTACH photos or a short video to the next question — Nova's or the
+  // Coach's. Images are downscaled like every other photo path; a video is
+  // sent as-is (the server extracts stills). Nothing is sent until he asks.
+  attachFiles(fileList) {
+    const files = Array.from(fileList || []).slice(0, 6);
+    if (!files.length) return;
+    const tooBig = files.find((f) => f.size > 25 * 1024 * 1024);
+    if (tooBig) { this.toastMsg(`${tooBig.name} is over 25MB`); return; }
+    this.setState({ attachBusy: true });
+    Promise.all(files.map(async (f) => {
+      const isVideo = /^video\//.test(f.type || '');
+      const dataUrl = isVideo ? await this.readFileAsDataUrl(f) : await this.downscaleImageFile(f);
+      return dataUrl ? { name: f.name, kind: isVideo ? 'video' : 'image', dataUrl, thumb: isVideo ? null : dataUrl } : null;
+    })).then((items) => {
+      this.setState((s) => ({ attachBusy: false, pendingAttach: [...s.pendingAttach, ...items.filter(Boolean)].slice(0, 6) }));
+    }).catch((e) => { this.setState({ attachBusy: false }); this.toastMsg('Could not read that file: ' + e.message); });
+  }
+  removePendingAttach(i) { this.setState((s) => ({ pendingAttach: s.pendingAttach.filter((_, k) => k !== i) })); }
+  // upload what is pending, hand back the id (or null when nothing pending)
+  async flushAttachments(conn) {
+    const pending = this.state.pendingAttach;
+    if (!pending.length) return null;
+    const r = await api.attach(conn, pending.map((p) => p.dataUrl));
+    this.setState({ pendingAttach: [] });
+    const failed = (r.items || []).filter((i) => i.error);
+    if (failed.length) this.toastMsg('A video could not be read into frames — Nova will say so');
+    return r.id;
+  }
   downscaleImageFile(file, maxEdge = 1568) {
     if (!file || !/^image\//.test(file.type || '')) return this.readFileAsDataUrl(file);
     return new Promise((resolve) => {
@@ -5265,6 +5298,57 @@ export default class App extends Component {
       this.refreshInbox?.();
     }).catch((e) => this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: `Couldn't undo that: ${e.message}` }] })));
   }
+  // THE GYM BY VOICE (src/gymVoice.js — phase 3 of the Verbs plan). A live
+  // workout is this client's state, so "80 for 8", "next", "skip it",
+  // "finish" run HERE, instantly, and the cockpit on Train shows the set as
+  // it is spoken. Outside a session, "start push day" starts one. Anything
+  // the parser is not sure about falls through to the normal front door.
+  tryGymVoice(q) {
+    const s = this.state;
+    const say = (text, extra = {}) => {
+      this.setState((st) => ({ voiceChat: [...st.voiceChat, { at: Date.now(), who: 'you', text: q }, { at: Date.now() + 1, who: 'nova', text, ...extra }], orbInput: '' }));
+      if (s.voiceSpeak) this.speakTtsSentence(text);
+    };
+    const live = s.workoutSession && !s.editingSessionId;
+    if (live) {
+      const cmd = parseInSession(q);
+      if (!cmd) return false;
+      const out = applyInSession(cmd, s.workoutSession);
+      if (out.finish) {
+        this.setState({ voicePendingOffer: { kind: 'gym-finish' } });
+        say(out.said);
+        return true;
+      }
+      if (out.later) { this.saveWorkoutForLater(); say(out.said); return true; }
+      if (!out.said) return false;
+      if (out.session !== s.workoutSession) {
+        this.setState({ workoutSession: out.session });
+        haptic(out.undoable ? 'commit' : 'tick');
+      }
+      say(out.said, { gym: true });
+      return true;
+    }
+    const start = parseStart(q);
+    if (!start) return false;
+    const routines = s.liveWorkoutRoutines || [];
+    if (!routines.length) return false; // demo or offline — the front door answers
+    let routine = null;
+    if (start.today) {
+      const day = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][new Date().getDay()];
+      const id = s.liveWorkoutSchedule?.[day];
+      routine = routines.find((r) => r.id === id) || null;
+      if (!routine) { say(id === 'active-rest' ? 'Today is an active-rest day — nothing scheduled to start.' : "Nothing is scheduled today — name the routine and I'll start it."); return true; }
+    } else {
+      const m = matchRoutine(routines, start.name);
+      if (!m.hit) { if (/which one/.test(m.why)) { say(m.why); return true; } return false; } // a miss is not a gym command
+      routine = m.hit;
+    }
+    this.startWorkoutSession(routine);
+    haptic('commit');
+    const first = routine.exercises?.[0];
+    say(`${routine.name} started${first ? ` — ${first.name} first` : ''}. Say the weight and reps as you go; "next", "skip it", "finish".`, { gym: true });
+    return true;
+  }
   resolveVoiceProposal(recordId, approve) {
     const conn = getConnection(); if (!conn) return;
     const mark = (status, extra) => this.setState((s) => ({
@@ -5302,7 +5386,8 @@ export default class App extends Component {
       const no = /^(no|nope|nah|don't|dont|leave it|skip|skip it|not now|no thanks)[.!\s]*$/i.test(q);
       if (yes || no) {
         this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q }], orbInput: '', voicePendingOffer: null }));
-        if (yes) this.acceptWatchOffer(offer);
+        if (yes && offer.kind === 'gym-finish') this.finishWorkoutSession();
+        else if (yes) this.acceptWatchOffer(offer);
         else {
           const line = 'As you wish, sir.';
           this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
@@ -5312,6 +5397,7 @@ export default class App extends Component {
       }
       this.setState({ voicePendingOffer: null });
     }
+    if (this.tryGymVoice(q)) return;
     const pending = this.state.voicePendingProposal;
     if (pending && getConnection() && this.state.connectionStatus !== 'offline') {
       const yes = /^(yes|yep|yeah|sure|ok|okay|do it|go ahead|confirm|approve|approved|yes please|please do|go for it|make it so|lock it in)[.!\s]*$/i.test(q);
@@ -5767,14 +5853,15 @@ export default class App extends Component {
     // Answering the model-choice gate is not a new question for Nova to
     // reason about — intercept it here, before it ever reaches Ask Nova.
     if (this.state.modelChoicePending) { this.resolveModelChoiceFromSpeech(question); return; }
-    this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: question }], voiceBusy: true }));
+    const attached = this.state.pendingAttach.map((p) => ({ kind: p.kind, thumb: p.thumb, name: p.name }));
+    this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: question, attached: attached.length ? attached : undefined }], voiceBusy: true }));
     this.stopSpeaking();
     this.speakAck(question); // fills the 5-8s think-gap immediately
     // caller context already names the pending decision when present —
     // don't say it twice
     const situation = this.buildAskSituation({ skipProposal: !!context });
     const sent = [context, situation, question].filter(Boolean).join('\n\n');
-    api.ask(conn, sent, this.state.voiceSessionId || null, { coachSessionId: this.state.coachSessionId || null, leaderSessionId: this.state.leaderSessionId || null }).then((resp) => {
+    this.flushAttachments(conn).then((attachmentId) => api.ask(conn, sent, this.state.voiceSessionId || null, { coachSessionId: this.state.coachSessionId || null, leaderSessionId: this.state.leaderSessionId || null, attachmentId })).then((resp) => {
       if (resp.text) {
         // Reflex answer — code replied from the live record, no job to poll.
         // Voice leads here too: the text lands when the audio starts. The
@@ -6441,7 +6528,7 @@ export default class App extends Component {
       // a trailing PROPOSE line is a typed directive for the server, not
       // prose — keep it out of the streamed render
       const stripDirective = (t) => t.replace(/(^|\n)\s*(SHOW|PROPOSE|RESEARCH)\s*(\{[\s\S]*)?$/, '');
-      api.askCoach(conn, q, this.state.coachSessionId || null, liveSession).then(({ jobId }) => {
+      this.flushAttachments(conn).then((attachmentId) => api.askCoach(conn, q, this.state.coachSessionId || null, liveSession, attachmentId)).then(({ jobId }) => {
         this.startPoll('coach', () => api.claudeCodeJob(conn, jobId), {
           timeoutMs: 3 * 60_000,
           intervalMs: 700,
@@ -6720,7 +6807,7 @@ export default class App extends Component {
               base={css('position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:74;cursor:pointer;width:18px;height:66px;display:flex;align-items:center;justify-content:center;border:1px solid var(--nv-edge);border-left:none;border-radius:0 9px 9px 0;background:color-mix(in srgb, var(--nv-void) 88%, black);color:color-mix(in srgb, var(--nv-cy) 65%, transparent);font:400 12px var(--nv-font-mono)')}
               hoverStyle="border-color:var(--nv-acc-border);color:var(--nv-cy)">{v.sidebarToggle.open ? '‹' : '›'}</Interactive>
           )}
-          <main ref={this.mainRef} style={css("flex:1;overflow-y:auto;min-width:0;overscroll-behavior-y:contain;touch-action:manipulation")}>
+          <main ref={this.mainRef} style={css("flex:1;overflow-y:auto;overflow-x:hidden;min-width:0;overscroll-behavior-y:contain;touch-action:manipulation")}>
             {/* ONE boundary around the screen switch. The daily five are
                 static so they never reach it; the lazy nine hit it only on a
                 navigation that beat the idle prefetch. ScreenFallback is a
