@@ -1,5 +1,6 @@
 import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
+import { Eyebrow, Chip, Meta } from './Controls.jsx';
 
 const M = 'var(--nv-font-mono)';
 
@@ -24,7 +25,7 @@ export function VerdictCard({ v: verdict, onClose, onSpeak }) {
 
         <div style={css('display:flex;justify-content:space-between;align-items:flex-start;gap:12px')}>
           <div>
-            <div style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)`)}>{verdict.question.toUpperCase()} // NOVA VERDICT</div>
+            <Eyebrow>{verdict.question} · Nova verdict</Eyebrow>
             <h2 style={css('margin:6px 0 0;font:700 clamp(21px,5vw,32px)/1.08 var(--nv-font-ui);letter-spacing:.01em')}>{verdict.title}</h2>
           </div>
           <Interactive as="span" onClick={onClose} aria-label="Close"
@@ -44,7 +45,7 @@ export function VerdictCard({ v: verdict, onClose, onSpeak }) {
             </svg>
             <div style={css('position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center')}>
               <b style={css('font:600 clamp(28px,8vw,44px)/1 var(--nv-font-ui);color:var(--nv-cy);font-variant-numeric:tabular-nums')}>{m.value}<span style={css('font-size:.45em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)')}>{m.unit}</span></b>
-              <span style={css(`margin-top:5px;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 42%, transparent)`)}>{m.caption}</span>
+              <Meta tone="faint" style={{ marginTop: '5px' }}>{m.caption}</Meta>
             </div>
           </div>
         )}
@@ -83,7 +84,7 @@ export function VerdictCard({ v: verdict, onClose, onSpeak }) {
           <div style={css('margin-top:16px;display:flex;gap:10px;flex-wrap:wrap')}>
             {verdict.evidence.map((e) => (
               <div key={e.n} style={{ flex: '1 1 200px', minWidth: 0, border: `1px solid color-mix(in srgb, ${tone(e.tone)} 32%, transparent)`, borderRadius: '13px', padding: '13px 15px', background: 'rgba(0,0,0,.25)' }}>
-                <div style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>{String(e.n).padStart(2, '0')} // {e.label}</div>
+                <Meta as="div" tone="faint">{String(e.n).padStart(2, '0')} · {e.label}</Meta>
                 <div style={{ font: '600 22px var(--nv-font-ui)', marginTop: '4px', color: tone(e.tone), fontVariantNumeric: 'tabular-nums' }}>{e.value}</div>
                 <div style={css('margin-top:3px;font-size:11.5px;line-height:1.45;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)')}>{e.note}</div>
               </div>
@@ -92,7 +93,7 @@ export function VerdictCard({ v: verdict, onClose, onSpeak }) {
         )}
 
         <div style={css('margin-top:18px;border-left:2px solid var(--nv-cy);padding:2px 0 2px 14px')}>
-          <div style={css(`font:var(--nv-micro-s);letter-spacing:.2em;color:var(--nv-cy)`)}>NOVA VERDICT{verdict.insufficient ? ' // INSUFFICIENT EVIDENCE' : ' // EVIDENCE COMPLETE'}</div>
+          <Eyebrow tone="cyan">Nova verdict{verdict.insufficient ? ' · insufficient evidence' : ' · evidence complete'}</Eyebrow>
           <p style={css('margin:7px 0 0;font-size:14.5px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 92%, transparent)')}>{verdict.verdict}</p>
         </div>
 
@@ -100,14 +101,12 @@ export function VerdictCard({ v: verdict, onClose, onSpeak }) {
             is NOT. Their card says "not a diagnosis"; ours says that AND
             shows its sources and blind spots. */}
         <div style={css('margin-top:18px;padding-top:13px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);display:flex;gap:12px;flex-wrap:wrap;align-items:center')}>
-          <span style={css(`font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 38%, transparent);flex:1;min-width:200px;line-height:1.5`)}>
+          <Meta tone="faint" style={{ flex: 1, minWidth: '200px', lineHeight: 1.5, ...{ textTransform: 'none', letterSpacing: 0 } }}>
             {verdict.basis}{verdict.asOf ? ` · as of ${verdict.asOf}` : ''}
             {verdict.caveats?.length ? ` · ${verdict.caveats.join(' ')}` : ''}
-          </span>
+          </Meta>
           {onSpeak && !verdict.insufficient && (
-            <Interactive as="span" onClick={() => onSpeak(verdict.verdict)}
-              base={css(`cursor:pointer;flex:none;font:var(--nv-micro-m);letter-spacing:.1em;padding:8px 14px;border-radius:9px;border:1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)`)}
-              hoverStyle="background:color-mix(in srgb, var(--nv-cy) 12%, transparent)">▶ SPEAK IT</Interactive>
+            <Chip tone="cyan" onClick={() => onSpeak(verdict.verdict)}>▶ Speak it</Chip>
           )}
         </div>
       </div>

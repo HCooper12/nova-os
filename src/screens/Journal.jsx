@@ -1,5 +1,11 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
+import { Eyebrow, Chip, Tag, Meta, isAppleStyle } from '../Controls.jsx';
+// the material pass (6 Sep 2026): labels and controls through Controls.jsx
+const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpperCase()).replace(/\bnova\b/g, 'Nova');
+const btn = (bg, ink, extra = {}) => (isAppleStyle()
+  ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '10px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }
+  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-l)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
 
 export function Journal({ v }) {
   return (
@@ -16,15 +22,10 @@ export function Journal({ v }) {
 
       <div style={css("margin-top:20px;border:1px solid color-mix(in srgb, var(--nv-vi) 25%, transparent);border-radius:14px;padding:18px 20px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-vi) 06%, transparent),color-mix(in srgb, var(--nv-vi) 01%, transparent))")}>
         <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px")}>
-          <span style={css("font:var(--nv-micro-m);letter-spacing:.2em;color:var(--nv-vi)")}>NEW ENTRY</span>
-          <Interactive
-            as="span"
-            onClick={v.journalPromptBusy ? undefined : v.generateJournalPrompt}
-            base={{ cursor: 'pointer', font: 'var(--nv-micro-m)', padding: '7px 13px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-vi) 40%, transparent)', color: '#cbb6f2', background: 'color-mix(in srgb, var(--nv-vi) 08%, transparent)', opacity: v.journalPromptBusy ? .6 : 1 }}
-            hoverStyle={{ background: 'color-mix(in srgb, var(--nv-vi) 18%, transparent)' }}
-          >
-            {v.journalPromptBusy ? 'THINKING…' : '✦ Generate a prompt'}
-          </Interactive>
+          <Eyebrow as="span" tone="violet">New entry</Eyebrow>
+          <Chip tone="#cbb6f2" disabled={v.journalPromptBusy} onClick={v.journalPromptBusy ? undefined : v.generateJournalPrompt}>
+            {v.journalPromptBusy ? 'Thinking…' : '✦ Generate a prompt'}
+          </Chip>
         </div>
         {v.journalPromptText && (
           <div style={css("margin-top:12px;font:italic 400 15px/1.5 var(--nv-font-serif);color:#cbb6f2")}>{v.journalPromptText}</div>
@@ -42,8 +43,8 @@ export function Journal({ v }) {
           <Interactive
             as="span"
             onClick={v.journalSaveBusy ? undefined : v.submitJournalEntry}
-            base={{ cursor: 'pointer', font: 'var(--nv-micro-l)', padding: '9px 18px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1322', opacity: v.journalSaveBusy ? .6 : 1 }}
-            hoverStyle={{ background: 'color-mix(in srgb, var(--nv-gold) 85%, white)' }}
+            base={btn('var(--nv-gold)', '#1a1322', { opacity: v.journalSaveBusy ? .6 : 1, textTransform: 'none' })}
+            hoverStyle={{ filter: 'brightness(1.08)' }}
           >
             {v.journalSaveBusy ? 'Saving…' : 'Save entry'}
           </Interactive>
@@ -59,9 +60,7 @@ export function Journal({ v }) {
           {/* category filter — personal reflections never lost among training logs */}
           <div style={css("display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px")}>
             {v.journalFilters.map((f) => (
-              <Interactive key={f.key} as="span" onClick={f.go}
-                base={{ cursor: 'pointer', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', padding: '7px 14px', borderRadius: '14px', border: f.active ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', color: f.active ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', background: f.active ? 'var(--nv-acc-bg)' : 'none' }}
-                hoverStyle={{ color: 'var(--nv-ink)' }}>{f.label}</Interactive>
+              <Chip key={f.key} tone={f.active ? 'accent' : 'quiet'} active={f.active} onClick={f.go}>{cap(f.label)}</Chip>
             ))}
           </div>
           {v.journalDays.length === 0 && v.journalFilterActive && (
@@ -71,20 +70,18 @@ export function Journal({ v }) {
             <div key={d.date} className={v.structured ? 'nv-pane' : undefined} style={v.structured ? { padding: '14px 18px' } : css("border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:12px;padding:14px 18px;background:rgba(255,255,255,.02)")}>
               <Interactive as="div" onClick={d.toggle} base="cursor:pointer;display:flex;justify-content:space-between;align-items:baseline;gap:10px" hoverStyle={{}}>
                 <span style={css("font-size:13.5px;font-weight:500")}>{d.date}</span>
-                <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 40%, transparent);text-align:right;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:0 10px")}>{d.open ? '' : d.preview}</span>
-                <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{d.count} {d.count === 1 ? 'entry' : 'entries'} {d.open ? '▲' : '▼'}</span>
+                <Meta tone="faint" style={{ textAlign: 'right', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: '0 10px', textTransform: 'none', letterSpacing: 0 }}>{d.open ? '' : d.preview}</Meta>
+                <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>{d.count} {d.count === 1 ? 'entry' : 'entries'} {d.open ? '▲' : '▼'}</Meta>
               </Interactive>
               {d.open && (
                 <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:12px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent);padding-top:12px")}>
                   {d.sections.map((s, i) => (
                     <div key={i}>
-                      <div style={css("display:flex;align-items:center;gap:8px;flex-wrap:wrap;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>
+                      <Meta as="div" tone="faint" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', textTransform: 'none', letterSpacing: 0 }}>
                         <span>{s.time}</span>
-                        {s.categoryMeta && (
-                          <span style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', padding: '2px 8px', borderRadius: '5px', color: `rgba(${s.categoryMeta.hue},.95)`, background: `rgba(${s.categoryMeta.hue},.12)` }}>{s.categoryMeta.label}</span>
-                        )}
+                        {s.categoryMeta && <Tag hue={s.categoryMeta.hue}>{s.categoryMeta.label}</Tag>}
                         {s.heading && <span>— {s.heading}</span>}
-                      </div>
+                      </Meta>
                       <div style={css("margin-top:4px;font-size:13px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 85%, transparent)")}>{s.text}</div>
                     </div>
                   ))}

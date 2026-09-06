@@ -3,6 +3,12 @@ import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
 import { useDictation } from './useDictation.js';
 import { TypeText } from './TypeText.jsx';
+import { Eyebrow, TextAction, Chip, Meta, isAppleStyle } from './Controls.jsx';
+// the material pass (6 Sep 2026): labels and controls through Controls.jsx
+const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpperCase());
+const btn = (bg, ink, extra = {}) => (isAppleStyle()
+  ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '10px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }
+  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-l)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
 
 export function RecipeOverlay({ v }) {
   // Talking about a meal, in the place the meal is. One-shot dictation: a
@@ -30,14 +36,13 @@ export function RecipeOverlay({ v }) {
         ...(v.recipeOvVtName ? { viewTransitionName: v.recipeOvVtName } : {}),
         animation: v.supportsViewTransitions ? undefined : (v.recipeOvMobile ? 'fadeUp .25s ease-out' : 'fadeUp .3s ease-out') }}>
         <div style={css(`position:sticky;top:0;z-index:3;display:flex;justify-content:space-between;align-items:center;padding:${v.recipeOvMobile ? 'calc(12px + env(safe-area-inset-top)) 18px 12px' : '18px 26px'};border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent);background:var(--nv-glass2);backdrop-filter:blur(22px)`)}>
-          <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-gold)")}>RECIPE · FROM OBSIDIAN</span>
-          {v.orDelete && (
-            <Interactive as="span" onClick={v.orDelete}
-              base={`cursor:pointer;font:var(--nv-micro-l);border-radius:9px;padding:9px 16px;margin-right:8px;border:1px solid color-mix(in srgb, var(--nv-warn) ${v.orDeleteArmed ? '55' : '22'}%, transparent);color:${v.orDeleteArmed ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-warn) 60%, transparent)'};background:${v.orDeleteArmed ? 'color-mix(in srgb, var(--nv-warn) 12%, transparent)' : 'transparent'}`}
-              hoverStyle="color:var(--nv-warn)"
-            >{v.orDeleteArmed ? 'TAP AGAIN TO DELETE' : '✕ DELETE'}</Interactive>
-          )}
-          <Interactive as="span" onClick={v.closeRecipe} base="cursor:pointer;font:var(--nv-micro-l);color:color-mix(in srgb, var(--nv-ink) 50%, transparent);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:9px;padding:9px 16px" hoverStyle="color:var(--nv-ink)">✕ CLOSE</Interactive>
+          <Eyebrow as="span" tone="gold">Recipe · from Obsidian</Eyebrow>
+          <span style={css("display:flex;gap:8px;align-items:center")}>
+            {v.orDelete && (
+              <Chip tone="warn" active={!!v.orDeleteArmed} onClick={v.orDelete}>{v.orDeleteArmed ? 'Tap again to delete' : '✕ Delete'}</Chip>
+            )}
+            <Chip tone="quiet" onClick={v.closeRecipe}>✕ Close</Chip>
+          </span>
         </div>
         <div style={v.gridRecipeOv}>
           <div>
@@ -53,17 +58,17 @@ export function RecipeOverlay({ v }) {
               <input type="file" accept="image/*" onChange={v.onRecipePhotoFile} disabled={v.orPhotoUploadBusy} style={css("display:none")} />
             </label>
             <div style={css("margin-top:14px;border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:12px;padding:15px 17px;background:var(--nv-well)")}>
-              <div style={css("display:flex;justify-content:space-between;align-items:baseline")}><span style={css("font:var(--nv-micro-m);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>MACROS</span><span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>× {v.servings}</span></div>
-              <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:9px;font:400 12px var(--nv-font-mono)")}>
-                <div style={css("display:flex;justify-content:space-between")}><span style={css("color:var(--nv-cy)")}>PROTEIN</span><span style={css("font-variant-numeric:tabular-nums")}>{v.orP}g</span></div>
-                <div style={css("display:flex;justify-content:space-between")}><span style={css("color:var(--nv-gold)")}>CARBS</span><span style={css("font-variant-numeric:tabular-nums")}>{v.orC}g</span></div>
-                <div style={css("display:flex;justify-content:space-between")}><span style={css("color:var(--nv-vi)")}>FAT</span><span style={css("font-variant-numeric:tabular-nums")}>{v.orF}g</span></div>
-                <div style={css("display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)")}><span style={css("color:var(--nv-good)")}>ENERGY</span><span style={css("font-variant-numeric:tabular-nums;color:var(--nv-good)")}>{v.orKcal} kcal</span></div>
+              <div style={css("display:flex;justify-content:space-between;align-items:baseline")}><Eyebrow as="span">Macros</Eyebrow><Meta tone="faint">× {v.servings}</Meta></div>
+              <div style={css(`margin-top:12px;display:flex;flex-direction:column;gap:9px;font:400 ${isAppleStyle() ? '13px var(--nv-font-ui)' : '12px var(--nv-font-mono)'}`)}>
+                <div style={css("display:flex;justify-content:space-between")}><Meta tone="cyan">Protein</Meta><span style={css("font-variant-numeric:tabular-nums")}>{v.orP}g</span></div>
+                <div style={css("display:flex;justify-content:space-between")}><Meta tone="gold">Carbs</Meta><span style={css("font-variant-numeric:tabular-nums")}>{v.orC}g</span></div>
+                <div style={css("display:flex;justify-content:space-between")}><Meta tone="violet">Fat</Meta><span style={css("font-variant-numeric:tabular-nums")}>{v.orF}g</span></div>
+                <div style={css("display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)")}><Meta tone="good">Energy</Meta><span style={css("font-variant-numeric:tabular-nums;color:var(--nv-good)")}>{v.orKcal} kcal</span></div>
               </div>
             </div>
             {v.orShowServings && (
               <div style={css("margin-top:14px;display:flex;align-items:center;gap:12px")}>
-                <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>SERVINGS</span>
+                <Eyebrow as="span">Servings</Eyebrow>
                 <Interactive as="span" onClick={v.decServ} base="cursor:pointer;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);border-radius:8px;color:var(--nv-ink)" hoverStyle="border:1px solid color-mix(in srgb, var(--nv-gold) 50%, transparent)">−</Interactive>
                 <span style={css("font:500 16px var(--nv-font-mono);font-variant-numeric:tabular-nums")}>{v.servings}</span>
                 <Interactive as="span" onClick={v.incServ} base="cursor:pointer;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);border-radius:8px;color:var(--nv-ink)" hoverStyle="border:1px solid color-mix(in srgb, var(--nv-gold) 50%, transparent)">+</Interactive>
@@ -72,24 +77,13 @@ export function RecipeOverlay({ v }) {
           </div>
           <div>
             <h2 style={css("margin:0;font:400 34px/1.1 var(--nv-font-serif)")}>{v.orName}</h2>
-            <div style={css("margin-top:7px;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.orMeta}</div>
+            <Meta as="div" tone="faint" style={{ marginTop: '7px', ...{ textTransform: 'none', letterSpacing: 0 } }}>{v.orMeta}</Meta>
             {v.orAlternates.length > 1 && (
               <div style={css("margin-top:12px;display:flex;flex-wrap:wrap;gap:7px")}>
                 {v.orAlternates.map((a) => (
-                  <Interactive
-                    key={a.id ?? 'original'}
-                    as="span"
-                    onClick={a.onClick}
-                    base={{
-                      cursor: 'pointer', font: 'var(--nv-micro-m)', padding: '6px 12px', borderRadius: '7px',
-                      border: a.active ? '1px solid color-mix(in srgb, var(--nv-cy) 50%, transparent)' : '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)',
-                      color: a.active ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)',
-                      background: a.active ? 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' : 'rgba(0,0,0,.2)',
-                    }}
-                    hoverStyle={{ border: '1px solid color-mix(in srgb, var(--nv-cy) 50%, transparent)' }}
-                  >
-                    {a.label}{a.isToday ? ' · TODAY' : ''}
-                  </Interactive>
+                  <Chip key={a.id ?? 'original'} tone={a.active ? 'cyan' : 'quiet'} active={a.active} onClick={a.onClick}>
+                    {a.label}{a.isToday ? ' · today' : ''}
+                  </Chip>
                 ))}
               </div>
             )}
@@ -100,9 +94,9 @@ export function RecipeOverlay({ v }) {
             {v.orLogActive && (
               <div style={css("margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
                 <Interactive as="span" onClick={v.orLogActive}
-                  base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 15px;border-radius:8px;background:var(--nv-good);color:#122015"
-                  hoverStyle={{ filter: 'brightness(1.08)' }}>＋ LOG THIS VERSION</Interactive>
-                <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>adds it to your food log — pick a portion, recipe unchanged</span>
+                  base={btn('var(--nv-good)', '#122015')}
+                  hoverStyle={{ filter: 'brightness(1.08)' }}>＋ Log this version</Interactive>
+                <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>adds it to your food log — pick a portion, recipe unchanged</Meta>
               </div>
             )}
             {v.renameAltId && (
@@ -113,31 +107,29 @@ export function RecipeOverlay({ v }) {
                   focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)" />
                 <Interactive as="span" onClick={v.commitRename} base="cursor:pointer;font:600 11px var(--nv-font-ui);padding:8px 16px;border-radius:980px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 85%, white)">Save name</Interactive>
                 <Interactive as="span" onClick={v.cancelRename} base="cursor:pointer;font:500 11px var(--nv-font-ui);padding:8px 14px;border-radius:980px;color:color-mix(in srgb, var(--nv-ink) 50%, transparent)" hoverStyle={{ color: 'var(--nv-ink)' }}>Cancel</Interactive>
-                {v.renameError && <span style={css("font:var(--nv-micro-m);color:var(--nv-warn)")}>{v.renameError}</span>}
+                {v.renameError && <Meta tone="warn" style={{ textTransform: 'none', letterSpacing: 0 }}>{v.renameError}</Meta>}
               </div>
             )}
             {!v.renameAltId && v.orAlternates.filter((a) => a.active && (a.useToday || a.makePrimary || a.rename)).map((a) => (
               <div key={'act' + (a.id ?? 'orig')} style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
                 {a.rename && (
-                  <Interactive as="span" onClick={a.rename} title="Rename this variant" base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:7px 12px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)" hoverStyle="border-color:color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)">✎ RENAME</Interactive>
+                  <Chip tone="quiet" onClick={a.rename} title="Rename this variant">✎ Rename</Chip>
                 )}
                 {a.useToday && (
-                  <Interactive as="span" onClick={a.useToday} base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:7px 14px;border-radius:8px;background:var(--nv-gold);color:#1a1322" hoverStyle={{ filter: 'brightness(1.08)' }}>USE FOR TODAY</Interactive>
+                  <Interactive as="span" onClick={a.useToday} base={btn('var(--nv-gold)', '#1a1322')} hoverStyle={{ filter: 'brightness(1.08)' }}>Use for today</Interactive>
                 )}
-                {a.isToday && <span style={css("font:var(--nv-micro-m);color:var(--nv-gold)")}>✓ today's version — recipe unchanged</span>}
+                {a.isToday && <Meta tone="gold" style={{ textTransform: 'none', letterSpacing: 0 }}>✓ today's version — recipe unchanged</Meta>}
                 {a.makePrimary && (
-                  <Interactive as="span" onClick={a.makePrimary} base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:7px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 08%, transparent)">MAKE PRIMARY</Interactive>
+                  <Chip tone="cyan" onClick={a.makePrimary}>Make primary</Chip>
                 )}
-                {a.makePrimary && <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>replaces the recipe — the old version stays as "Original"</span>}
+                {a.makePrimary && <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>replaces the recipe — the old version stays as "Original"</Meta>}
               </div>
             ))}
             {v.orDescription && (
               <div style={css("margin-top:16px;font-size:14px;line-height:1.7;color:color-mix(in srgb, var(--nv-ink) 85%, transparent)")}>{v.orDescription}</div>
             )}
             {v.orCanEdit && !v.orEditing && (
-              <Interactive as="span" onClick={v.startEdit} title="Change what's in this meal and how it's made"
-                base="cursor:pointer;display:inline-block;margin-top:14px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:7px 13px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent);color:color-mix(in srgb, var(--nv-ink) 58%, transparent)"
-                hoverStyle="border-color:color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)">✎ EDIT THIS MEAL</Interactive>
+              <div style={css("margin-top:14px")}><Chip tone="quiet" onClick={v.startEdit} title="Change what's in this meal and how it's made">✎ Edit this meal</Chip></div>
             )}
             {v.orEditing && <MealEditor v={v} />}
             {/* An item that IS the thing you buy gets its own way onto the
@@ -147,20 +139,15 @@ export function RecipeOverlay({ v }) {
                 <span style={css("font-size:12.5px;line-height:1.5;color:color-mix(in srgb, var(--nv-ink) 60%, transparent)")}>
                   A whole item — no ingredients to shop for, just the thing itself.
                 </span>
-                <Interactive as="span" onClick={v.addWholeItemToShoppingList}
-                  title="Add this item to the shopping list"
-                  base="cursor:pointer;flex:none;white-space:nowrap;font:var(--nv-micro-m);letter-spacing:.1em;padding:8px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-gold) 45%, transparent);color:var(--nv-gold);background:color-mix(in srgb, var(--nv-gold) 08%, transparent)"
-                  hoverStyle="background:color-mix(in srgb, var(--nv-gold) 18%, transparent)">
-                  ＋ ADD TO SHOPPING LIST
-                </Interactive>
+                <Chip tone="gold" onClick={v.addWholeItemToShoppingList} title="Add this item to the shopping list">＋ Add to shopping list</Chip>
               </div>
             )}
             {!v.orEditing && v.orIngredients.length > 0 && (
               <>
                 <div style={css("margin-top:18px;display:flex;justify-content:space-between;align-items:baseline")}>
-                  <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>INGREDIENTS</span>
+                  <Eyebrow as="span">Ingredients</Eyebrow>
                   {v.orShowAddToShoppingList && (
-                    <Interactive as="span" onClick={v.addRecipeToShoppingList} base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-gold)" hoverStyle={{ color: 'color-mix(in srgb, var(--nv-gold) 85%, white)' }}>+ ADD TO SHOPPING LIST</Interactive>
+                    <TextAction compact tone="gold" onClick={v.addRecipeToShoppingList}>+ Add to shopping list</TextAction>
                   )}
                 </div>
                 <div style={css("margin-top:10px;display:flex;flex-direction:column")}>
@@ -216,7 +203,7 @@ export function RecipeOverlay({ v }) {
             )}
             {!v.orEditing && v.orSteps.length > 0 && (
               <>
-                <div style={css("margin-top:18px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>METHOD</div>
+                <Eyebrow style={{ marginTop: '18px' }}>Method</Eyebrow>
                 <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:9px")}>
                   {v.orSteps.map((st, i) => (
                     <div key={i} style={css("display:flex;gap:12px;font-size:13.5px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 80%, transparent)")}><span style={css("font:italic 400 14px var(--nv-font-serif);color:color-mix(in srgb, var(--nv-gold) 70%, transparent)")}>{st.n}</span><span>{st.text}</span></div>
@@ -228,7 +215,7 @@ export function RecipeOverlay({ v }) {
               <>
                 {v.orNotes.length > 0 && (
                   <div style={css("margin-top:20px;border:1px solid color-mix(in srgb, var(--nv-gold) 20%, transparent);border-radius:12px;padding:14px 16px;background:color-mix(in srgb, var(--nv-gold) 04%, transparent)")}>
-                    <div style={css("font:var(--nv-micro-m);letter-spacing:.2em;color:var(--nv-gold)")}>NOTES</div>
+                    <Eyebrow tone="gold">Notes</Eyebrow>
                     <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:8px")}>
                       {v.orNotes.map((n, i) => (
                         <div key={i} style={css("font-size:12.5px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 80%, transparent)")}>◆ {n}</div>
@@ -237,7 +224,7 @@ export function RecipeOverlay({ v }) {
                   </div>
                 )}
                 <div style={css("margin-top:20px;border:1px solid color-mix(in srgb, var(--nv-cy) 20%, transparent);border-radius:12px;padding:14px 16px;background:color-mix(in srgb, var(--nv-cy) 04%, transparent)")}>
-                  <div style={css("font:var(--nv-micro-m);letter-spacing:.2em;color:var(--nv-cy)")}>ASK NOVA FOR A TWEAK</div>
+                  <Eyebrow tone="cyan">Ask Nova for a tweak</Eyebrow>
                   <div style={css("margin-top:8px;font-size:12px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
                     Out of an ingredient? Want it lighter? Ask — type it or tap the mic and say it. Attach a photo of a different ingredient (its label, its packaging, the thing itself) and Nova reads it before recalculating. Nova suggests a version, saved as an alternative you can switch back from any time, and you can keep talking to refine it.
                   </div>
@@ -275,10 +262,10 @@ export function RecipeOverlay({ v }) {
                     <Interactive
                       as="span"
                       onClick={v.recipeTweakBusy ? undefined : v.submitRecipeTweak}
-                      base={{ cursor: 'pointer', display: 'flex', alignItems: 'center', font: 'var(--nv-micro-m)', padding: '0 14px', borderRadius: '8px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)', opacity: v.recipeTweakBusy ? .6 : 1 }}
-                      hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 80%, white)' }}
+                      base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { display: 'flex', padding: '0 14px', opacity: v.recipeTweakBusy ? .6 : 1 })}
+                      hoverStyle={{ filter: 'brightness(1.08)' }}
                     >
-                      {v.recipeTweakBusy ? 'THINKING…' : 'ASK'}
+                      {v.recipeTweakBusy ? 'Thinking…' : 'Ask'}
                     </Interactive>
                   </div>
                   {v.recipeTweakPhotos?.length > 0 && (
@@ -298,7 +285,7 @@ export function RecipeOverlay({ v }) {
                   )}
                   {v.recipeTweakPreview && (
                     <div style={css("margin-top:14px;border-top:1px solid color-mix(in srgb, var(--nv-cy) 15%, transparent);padding-top:12px")}>
-                      <div style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 38%, transparent);margin-bottom:6px")}>SUGGESTION · ASK AGAIN ABOVE TO REFINE IT</div>
+                      <Eyebrow style={{ marginBottom: '6px' }}>Suggestion · ask again above to refine it</Eyebrow>
                       <div style={css("font-size:13.5px;font-weight:500;color:var(--nv-ink)")}>{v.recipeTweakPreview.label}</div>
                       <div style={css("margin-top:7px;display:flex;gap:12px;font:var(--nv-micro-l)")}>
                         <span style={css("color:var(--nv-cy)")}>{v.recipeTweakPreview.macros.p}P</span>
@@ -324,7 +311,7 @@ export function RecipeOverlay({ v }) {
               </>
             ) : v.orShowAskNova && (
               <div style={css("margin-top:20px;border:1px solid color-mix(in srgb, var(--nv-cy) 20%, transparent);border-radius:12px;padding:14px 16px;background:color-mix(in srgb, var(--nv-cy) 04%, transparent)")}>
-                <div style={css("font:var(--nv-micro-m);letter-spacing:.2em;color:var(--nv-cy)")}>ASK NOVA</div>
+                <Eyebrow tone="cyan">Ask Nova</Eyebrow>
                 {v.recipeMsgs.map((m, i) => (
                   <div key={i} style={css("margin-top:10px;font-size:13px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 85%, transparent);animation:fadeUp .3s ease-out")}><span style={m.tagStyle}>{m.tag}</span> <TypeText text={m.text} active={m.typing} /></div>
                 ))}
@@ -338,7 +325,7 @@ export function RecipeOverlay({ v }) {
                     base="flex:1;min-width:0;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
                     focusStyle="border:1px solid color-mix(in srgb, var(--nv-cy) 50%, transparent)"
                   />
-                  <Interactive as="span" onClick={v.sendRecipe} base="cursor:pointer;display:flex;align-items:center;font:var(--nv-micro-m);padding:0 14px;border-radius:8px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 80%, white)' }}>ASK</Interactive>
+                  <Interactive as="span" onClick={v.sendRecipe} base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { display: 'flex', padding: '0 14px' })} hoverStyle={{ filter: 'brightness(1.08)' }}>Ask</Interactive>
                 </div>
               </div>
             )}
@@ -349,7 +336,6 @@ export function RecipeOverlay({ v }) {
   );
 }
 
-const EDIT_LABEL = "font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)";
 const EDIT_FIELD = "width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 13px;color:var(--nv-ink);font:400 13px/1.7 var(--nv-font-ui);outline:none;resize:vertical";
 
 // One line per ingredient, one per step — the same shape the file stores, so
@@ -360,30 +346,30 @@ function MealEditor({ v }) {
   return (
     <div style={css("margin-top:16px;border:1px solid color-mix(in srgb, var(--nv-cy) 24%, transparent);border-radius:12px;padding:16px;background:color-mix(in srgb, var(--nv-cy) 04%, transparent)")}>
       <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:10px")}>
-        <span style={css("font:var(--nv-micro-m);letter-spacing:.2em;color:var(--nv-cy)")}>EDITING · {String(v.orEditTarget || '').toUpperCase()}</span>
-        <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>writes to Obsidian</span>
+        <Eyebrow as="span" tone="cyan">Editing · {cap(v.orEditTarget)}</Eyebrow>
+        <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>writes to Obsidian</Meta>
       </div>
 
       <div style={css("margin-top:14px")}>
-        <div style={css(EDIT_LABEL)}>INGREDIENTS — ONE PER LINE</div>
+        <Eyebrow>Ingredients — one per line</Eyebrow>
         <Interactive as="textarea" rows={7} value={v.orEditIngredients} onChange={v.setEditField('ingredients')}
           placeholder={'2 eggs\n100g egg whites'}
           style={css("margin-top:8px")} base={EDIT_FIELD} focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)" />
       </div>
 
       <div style={css("margin-top:14px")}>
-        <div style={css(EDIT_LABEL)}>METHOD — ONE STEP PER LINE</div>
+        <Eyebrow>Method — one step per line</Eyebrow>
         <Interactive as="textarea" rows={6} value={v.orEditMethod} onChange={v.setEditField('method')}
           placeholder={'Leave blank for a variant cooked the same way as the original'}
           style={css("margin-top:8px")} base={EDIT_FIELD} focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)" />
       </div>
 
       <div style={css("margin-top:14px")}>
-        <div style={css(EDIT_LABEL)}>MACROS</div>
+        <Eyebrow>Macros</Eyebrow>
         <div style={css("margin-top:8px;display:grid;grid-template-columns:repeat(4, minmax(0,1fr));gap:8px")}>
-          {[['p', 'P', 'var(--nv-cy)'], ['c', 'C', 'var(--nv-gold)'], ['f', 'F', 'var(--nv-vi)'], ['kcal', 'KCAL', 'var(--nv-good)']].map(([key, label, colour]) => (
+          {[['p', 'P', 'var(--nv-cy)'], ['c', 'C', 'var(--nv-gold)'], ['f', 'F', 'var(--nv-vi)'], ['kcal', 'kcal', 'var(--nv-good)']].map(([key, label, colour]) => (
             <label key={key} style={css("display:flex;flex-direction:column;gap:5px")}>
-              <span style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:${colour}`)}>{label}</span>
+              <Meta tone={colour} style={{ textTransform: 'none', letterSpacing: 0 }}>{label}</Meta>
               <Interactive as="input" type="number" inputMode="decimal" min="0"
                 value={key === 'p' ? v.orEditP : key === 'c' ? v.orEditC : key === 'f' ? v.orEditF : v.orEditKcal}
                 onChange={v.setEditField(key)}

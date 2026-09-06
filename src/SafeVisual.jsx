@@ -1,7 +1,6 @@
 import { Component } from 'react';
 import { css } from './css.js';
 
-const M = 'var(--nv-font-mono)';
 
 // A VISUAL MUST NEVER TAKE DOWN THE SCREEN.
 //

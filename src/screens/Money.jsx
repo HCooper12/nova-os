@@ -1,6 +1,11 @@
 import { useRef } from 'react';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
+import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle } from '../Controls.jsx';
+// the material pass (6 Sep 2026): labels and controls through Controls.jsx
+const btn = (bg, ink, extra = {}) => (isAppleStyle()
+  ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '10px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }
+  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-l)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
 
 const M = "var(--nv-font-mono)";
 const R = "var(--nv-font-ui)";
@@ -14,10 +19,10 @@ export function Money({ v }) {
   const fileRef = useRef(null);
   return (
     <div style={v.wrapMoney}>
-      <div style={css(`font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-ink40)`)}>NOVA · CFO</div>
+      <Eyebrow>Nova · CFO</Eyebrow>
       <div style={css("display:flex;align-items:baseline;gap:14px;flex-wrap:wrap")}>
         <h1 style={css(`margin:6px 0 0;font:700 30px/1.05 ${R};letter-spacing:.02em`)}>Money</h1>
-        <span style={css(`font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-ink40)`)}>{v.moneyHeaderLabel}</span>
+        <Meta tone="faint">{v.moneyHeaderLabel}</Meta>
         {v.moneyMonths.length > 1 && (
           <select value={v.moneyMonth} onChange={v.setMoneyMonth}
             style={{ marginLeft: 'auto', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: 'var(--nv-micro-l)', padding: '5px 8px', outline: 'none' }}>
@@ -31,39 +36,31 @@ export function Money({ v }) {
           {/* summary + feeds row */}
           <div style={{ display: 'flex', gap: '12px', marginTop: '18px', flexWrap: 'wrap' }}>
             <div className="nv-pane" style={{ flex: '1 1 250px', padding: '16px 18px' }}>
-              <div style={css(`font:var(--nv-micro-m);letter-spacing:.2em;color:var(--nv-gold)`)}>THIS MONTH</div>
+              <Eyebrow tone="gold">This month</Eyebrow>
               <div style={css(`margin-top:8px;font:700 34px/1 ${R};font-variant-numeric:tabular-nums`)}>{v.moneySpentLabel}</div>
-              <div style={css(`margin-top:6px;font:var(--nv-micro-m);color:var(--nv-ink60)`)}>
+              <Meta as="div" tone="quiet" style={{ marginTop: '6px' }}>
                 spent{v.moneySpentDelta && <span style={{ color: v.moneySpentDelta.up ? 'var(--nv-warn)' : 'var(--nv-good)' }}> · {v.moneySpentDelta.label}</span>}
                 {v.moneyIncomeLabel && <span> · {v.moneyIncomeLabel} in</span>}
-              </div>
+              </Meta>
               <div style={css("margin-top:12px;display:flex;gap:8px;flex-wrap:wrap")}>
-                <Interactive as="span" onClick={v.moneyBusy ? undefined : v.cfoReportNow}
-                  base={{ cursor: 'pointer', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', padding: '5px 11px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent)', color: 'var(--nv-gold)', opacity: v.moneyBusy ? 0.5 : 1 }}
-                  hoverStyle={{ background: 'color-mix(in srgb, var(--nv-gold) 08%, transparent)' }}>MONTHLY REPORT</Interactive>
-                <Interactive as="span" onClick={v.moneyExport}
-                  base={{ cursor: 'pointer', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', padding: '5px 11px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent)', color: 'var(--nv-ink60)' }}
-                  hoverStyle={{ background: 'rgba(255,255,255,.05)' }}>EXPORT {v.moneyFyLabel}</Interactive>
+                <Chip tone="gold" disabled={v.moneyBusy} onClick={v.moneyBusy ? undefined : v.cfoReportNow}>Monthly report</Chip>
+                <Chip tone="quiet" onClick={v.moneyExport}>Export {v.moneyFyLabel}</Chip>
               </div>
             </div>
 
             <div className="nv-pane" style={{ flex: '1 1 300px', padding: '16px 18px' }}>
-              <div style={css(`font:var(--nv-micro-m);letter-spacing:.2em;color:var(--nv-cy)`)}>FEEDS</div>
+              <Eyebrow tone="cyan">Feeds</Eyebrow>
               <div style={css(`margin-top:9px;font:500 11.5px/1.6 ${R};color:var(--nv-ink60)`)}>
                 Drop bank CSVs into <span style={css("color:var(--nv-ink)")}>{v.moneyImportsDir}</span> in the vault (the same file Billroo takes) — checked every 5 minutes, deduped, drafted to the Inbox for approval.
               </div>
               <div style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
-                <Interactive as="span" onClick={v.moneyBusy ? undefined : v.runMoneyImportNow}
-                  base={{ cursor: 'pointer', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', padding: '5px 11px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent)', color: 'var(--nv-cy)', opacity: v.moneyBusy ? 0.5 : 1 }}
-                  hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' }}>{v.moneyBusy ? 'CHECKING…' : 'CHECK FOLDER NOW'}</Interactive>
-                <Interactive as="span" onClick={v.moneyScanBusy ? undefined : () => fileRef.current?.click()}
-                  base={{ cursor: 'pointer', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', padding: '5px 11px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-vi) 45%, transparent)', color: 'var(--nv-vi)', opacity: v.moneyScanBusy ? 0.5 : 1 }}
-                  hoverStyle={{ background: 'color-mix(in srgb, var(--nv-vi) 08%, transparent)' }}>{v.moneyScanBusy ? 'READING…' : '📷 SCAN STATEMENT / RECEIPT'}</Interactive>
+                <Chip tone="cyan" disabled={v.moneyBusy} onClick={v.moneyBusy ? undefined : v.runMoneyImportNow}>{v.moneyBusy ? 'Checking…' : 'Check folder now'}</Chip>
+                <Chip tone="violet" disabled={v.moneyScanBusy} onClick={v.moneyScanBusy ? undefined : () => fileRef.current?.click()}>{v.moneyScanBusy ? 'Reading…' : '📷 Scan statement / receipt'}</Chip>
                 <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={v.onStatementScanFiles} />
               </div>
               {v.moneyScanError && <div style={css(`margin-top:8px;font:500 11px ${R};color:var(--nv-warn)`)}>{v.moneyScanError}</div>}
               {v.moneyScanQuestion && <div style={css(`margin-top:8px;font:500 11px ${R};color:var(--nv-gold)`)}>Nova asks: {v.moneyScanQuestion}</div>}
-              <div style={css(`margin-top:9px;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 35%, transparent)`)}>Typing "coffee 6.50" into any capture surface files here too.</div>
+              <Meta as="div" tone="faint" style={{ marginTop: '9px', textTransform: 'none', letterSpacing: 0 }}>Typing "coffee 6.50" into any capture surface files here too.</Meta>
             </div>
           </div>
 
@@ -71,7 +68,7 @@ export function Money({ v }) {
           <div style={{ display: 'flex', gap: '12px', marginTop: '12px', flexWrap: 'wrap' }}>
             {v.moneyCategories.length > 0 && (
               <div className="nv-pane" style={{ flex: '1.2 1 320px', padding: '16px 18px' }}>
-                <div style={css(`font:var(--nv-micro-m);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)`)}>BY CATEGORY · TAP TO SET A BUDGET</div>
+                <Eyebrow>By category · tap to set a budget</Eyebrow>
                 <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:9px")}>
                   {v.moneyCategories.map((c) => (
                     <Interactive key={c.category} onClick={c.setBudget} base={{ cursor: 'pointer', borderRadius: '8px', padding: '6px 8px' }} hoverStyle={{ background: 'rgba(255,255,255,.04)' }}>
@@ -84,7 +81,7 @@ export function Money({ v }) {
                           <div style={{ width: `${c.pct}%`, height: '100%', borderRadius: '2px', background: c.over ? 'var(--nv-warn)' : 'var(--nv-cy)' }}></div>
                         </div>
                       )}
-                      <div style={css(`margin-top:3px;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 35%, transparent)`)}>{c.prevLabel}</div>
+                      <Meta as="div" tone="faint" style={{ marginTop: '3px', textTransform: 'none', letterSpacing: 0 }}>{c.prevLabel}</Meta>
                     </Interactive>
                   ))}
                 </div>
@@ -93,8 +90,8 @@ export function Money({ v }) {
 
             <div className="nv-pane" style={{ flex: '1 1 300px', padding: '16px 18px' }}>
               <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>
-                <span style={css(`font:var(--nv-micro-m);letter-spacing:.2em;color:var(--nv-vi)`)}>SUBSCRIPTION RADAR</span>
-                {v.moneySubsMonthly && <span style={css(`font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>~{v.moneySubsMonthly} ON MONTHLIES</span>}
+                <Eyebrow as="span" tone="violet">Subscription radar</Eyebrow>
+                {v.moneySubsMonthly && <Meta tone="faint">~{v.moneySubsMonthly} on monthlies</Meta>}
               </div>
               {v.moneySubscriptions.length === 0 ? (
                 <div style={css(`margin-top:10px;font:500 11.5px/1.6 ${R};color:var(--nv-ink60)`)}>Nothing recurring detected yet — it takes two charges from the same merchant at a steady interval.</div>
@@ -106,8 +103,8 @@ export function Money({ v }) {
                         <span style={css(`font:600 13px ${R}`)}>{s.merchant}</span>
                         <span style={css(`font:var(--nv-micro-l);font-variant-numeric:tabular-nums`)}>{s.amountLabel}</span>
                       </div>
-                      <div style={css(`font:var(--nv-micro-m);color:${s.soon ? 'var(--nv-gold)' : 'color-mix(in srgb, var(--nv-ink) 40%, transparent)'}`)}>{s.cadence} · {s.nextLabel}</div>
-                      {s.priceRise && <div style={css(`font:var(--nv-micro-m);color:var(--nv-warn)`)}>PRICE RISE {s.priceRise}</div>}
+                      <Meta as="div" tone={s.soon ? 'gold' : 'faint'} style={{ textTransform: 'none', letterSpacing: 0 }}>{s.cadence} · {s.nextLabel}</Meta>
+                      {s.priceRise && <Tag tone="warn" style={{ alignSelf: 'flex-start', marginTop: '2px' }}>Price rise {s.priceRise}</Tag>}
                     </div>
                   ))}
                 </div>
@@ -117,29 +114,27 @@ export function Money({ v }) {
 
           {/* ledger */}
           <div className="nv-pane" style={{ marginTop: '12px', padding: '16px 18px' }}>
-            <div style={css(`font:var(--nv-micro-m);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)`)}>LEDGER</div>
+            <Eyebrow>Ledger</Eyebrow>
             <div style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
               <input value={v.moneyAddMerchant} onChange={v.setMoneyAddMerchant} onKeyDown={v.moneyAddKey} placeholder="Merchant / description"
                 style={{ flex: '2 1 180px', minWidth: 0, background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: `500 12.5px ${R}`, padding: '9px 12px', outline: 'none' }} />
               <input value={v.moneyAddAmount} onChange={v.setMoneyAddAmount} onKeyDown={v.moneyAddKey} placeholder="0.00" type="number" inputMode="decimal" step="0.01" min="0"
                 style={{ flex: '0 1 110px', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: `500 12.5px ${M}`, padding: '9px 12px', outline: 'none' }} />
-              <Interactive as="span" onClick={v.toggleMoneyAddSign}
-                base={{ cursor: 'pointer', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', padding: '8px 12px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent)', color: v.moneyAddIsSpend ? 'var(--nv-warn)' : 'var(--nv-good)' }}
-              >{v.moneyAddIsSpend ? 'SPEND' : 'MONEY IN'}</Interactive>
+              <Chip tone={v.moneyAddIsSpend ? 'warn' : 'good'} onClick={v.toggleMoneyAddSign}>{v.moneyAddIsSpend ? 'Spend' : 'Money in'}</Chip>
               <Interactive as="span" onClick={v.moneyBusy ? undefined : v.submitMoneyAdd}
-                base={{ cursor: 'pointer', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', padding: '9px 16px', borderRadius: '8px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)', opacity: v.moneyBusy ? 0.5 : 1 }}
-                hoverStyle={{ filter: 'brightness(1.08)' }}>ADD</Interactive>
+                base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { opacity: v.moneyBusy ? 0.5 : 1 })}
+                hoverStyle={{ filter: 'brightness(1.08)' }}>Add</Interactive>
             </div>
             {v.moneyTransactions.length === 0 ? (
               <div style={css(`margin-top:14px;font:500 12px ${R};color:color-mix(in srgb, var(--nv-ink) 45%, transparent)`)}>The ledger is empty — capture an expense, drop a bank CSV, or scan a receipt.</div>
             ) : (
               <div style={css("margin-top:12px;display:flex;flex-direction:column")}>
                 {v.moneyListNote && (
-                  <div style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 40%, transparent);padding:0 4px 6px`)}>{v.moneyListNote.toUpperCase()}</div>
+                  <Eyebrow style={{ padding: '0 4px 6px' }}>{v.moneyListNote}</Eyebrow>
                 )}
                 {v.moneyTransactions.map((t) => (
                   <div key={t.id} style={css("display:flex;align-items:center;gap:10px;padding:7px 4px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent)")}>
-                    <span style={css(`flex:none;width:42px;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>{t.date}</span>
+                    <Meta tone="faint" style={{ flex: 'none', width: '42px' }}>{t.date}</Meta>
                     <span style={css(`flex:1;min-width:0;font:500 13px ${R};overflow-wrap:anywhere`)}>{t.merchant}{t.note && <span style={css("color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}> — {t.note}</span>}</span>
                     {t.editingCategory ? (
                       <select autoFocus value={t.category} onChange={t.pickCategory} onBlur={() => {}}
@@ -147,10 +142,7 @@ export function Money({ v }) {
                         {v.moneyAllCategories.map((c) => <option key={c} value={c} style={{ background: '#141019' }}>{c}</option>)}
                       </select>
                     ) : (
-                      <Interactive as="span" onClick={t.startEditCategory}
-                        base={{ cursor: 'pointer', flex: 'none', font: 'var(--nv-micro-s)', letterSpacing: '.1em', padding: '3px 8px', borderRadius: '5px', color: 'color-mix(in srgb, var(--nv-ink) 55%, transparent)', border: '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)' }}
-                        hoverStyle={{ borderColor: 'color-mix(in srgb, var(--nv-cy) 40%, transparent)', color: 'var(--nv-cy)' }}
-                      >{t.category.toUpperCase()}</Interactive>
+                      <TextAction compact tone="quiet" onClick={t.startEditCategory} style={{ flex: 'none' }}>{t.category}</TextAction>
                     )}
                     <span title={t.source} style={css(`flex:none;width:86px;text-align:right;font:500 12px ${M};font-variant-numeric:tabular-nums;color:${t.isSpend ? 'var(--nv-ink)' : 'var(--nv-good)'}`)}>{t.amountLabel}</span>
                     <Interactive as="span" onClick={t.remove} aria-label={`Remove ${t.merchant}`}

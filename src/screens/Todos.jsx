@@ -1,13 +1,12 @@
 import { css } from '../css.js';
 import { SwipeRow } from '../SwipeRow.jsx';
 import { Interactive } from '../Interactive.jsx';
-import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle } from '../Controls.jsx';
+import { Eyebrow, TextAction, Tag, Meta, isAppleStyle } from '../Controls.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 const btn = (bg, ink, extra = {}) => (isAppleStyle()
   ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '10px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }
   : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-l)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
 
-const M = "var(--nv-font-mono)";
 const R = "var(--nv-font-ui)";
 
 // The To-Do screen — the vault To-Do page as a checklist. Open items first,

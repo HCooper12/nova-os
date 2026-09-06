@@ -6,7 +6,6 @@ import { Interactive } from './Interactive.jsx';
 // type to nova to tell it more information". Nothing touches the plan until
 // CONFIRM; typing a note routes the change through Coach instead of the
 // one-tap deterministic apply, and his words win over the proposal.
-const M = 'var(--nv-font-mono)';
 
 export function CoachApplySheet({ c }) {
   return (

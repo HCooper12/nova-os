@@ -1,6 +1,11 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
+import { Eyebrow, TextAction, Tag, Meta, isAppleStyle } from '../Controls.jsx';
+// the material pass (6 Sep 2026): labels and controls through Controls.jsx
+const btn = (bg, ink, extra = {}) => (isAppleStyle()
+  ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '10px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }
+  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-l)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
 
 const M = "var(--nv-font-mono)";
 const dim = (pct) => `color-mix(in srgb, var(--nv-ink) ${pct}%, transparent)`;
@@ -19,15 +24,15 @@ const RING = 150; // ring radius (px) on desktop; the map scales down on mobile
 function TopoCol({ title, items }) {
   return (
     <div style={css("flex:0 1 175px;min-width:150px")}>
-      <div style={css(`font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:${dim(42)}`)}>{title}</div>
+      <Eyebrow>{title}</Eyebrow>
       {items.map((c) => (
         <div key={c.key} style={css(`display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid ${dim(5)}`)}>
           <span style={{ width: 7, height: 7, borderRadius: '50%', flex: 'none',
             background: c.working ? 'var(--nv-cy)' : c.on ? 'color-mix(in srgb, var(--nv-cy) 45%, transparent)' : dim(14),
             boxShadow: c.working ? '0 0 8px var(--nv-cy)' : 'none',
             ...(c.working ? { animation: 'novaPulse 1.2s infinite var(--nv-anim)' } : {}) }} />
-          <span style={css(`font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:${c.on ? dim(75) : dim(35)}`)}>{c.label}</span>
-          <span style={css(`margin-left:auto;font:var(--nv-micro-s);color:${dim(35)};white-space:nowrap`)}>{c.sub}</span>
+          <Meta tone={c.on ? dim(75) : dim(35)} style={{ textTransform: 'none', letterSpacing: 0 }}>{c.label}</Meta>
+          <Meta tone={dim(35)} style={{ marginLeft: 'auto', whiteSpace: 'nowrap', textTransform: 'none', letterSpacing: 0 }}>{c.sub}</Meta>
         </div>
       ))}
     </div>
@@ -42,31 +47,32 @@ function TopoCol({ title, items }) {
 function AgentDetail({ d }) {
   return (
     <div style={css(`margin:10px 0 4px;border:1px solid ${dim(10)};border-left:2px solid color-mix(in srgb, var(--nv-cy) 55%, transparent);border-radius:11px;padding:12px 14px;background:${dim(2)};text-align:left`)}>
-      <div style={css(`font:var(--nv-micro-m);letter-spacing:.2em;color:${dim(72)}`)}>
-        {d.label} <span style={css(`letter-spacing:.06em;color:${dim(42)}`)}>— {d.role} · {d.stateLabel}</span>
+      <div style={css("display:flex;align-items:baseline;gap:8px;flex-wrap:wrap")}>
+        <Eyebrow as="span" tone={dim(72)}>{d.label}</Eyebrow>
+        <Meta tone={dim(42)} style={{ textTransform: 'none', letterSpacing: 0 }}>— {d.role} · {d.stateLabel}</Meta>
       </div>
-      <div style={css(`margin-top:10px;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:${dim(42)}`)}>SKILLS OWNED</div>
-      {d.lastNote && <div style={css(`margin-top:5px;font:var(--nv-micro-m);color:var(--nv-warn)`)}>{d.lastNote}</div>}
-      {d.skillsNote && <div style={css(`margin-top:5px;font:var(--nv-micro-m);color:${dim(42)}`)}>{d.skillsNote}</div>}
+      <Eyebrow style={{ marginTop: '10px' }}>Skills owned</Eyebrow>
+      {d.lastNote && <Meta as="div" tone="warn" style={{ marginTop: '5px', textTransform: 'none', letterSpacing: 0 }}>{d.lastNote}</Meta>}
+      {d.skillsNote && <Meta as="div" tone={dim(42)} style={{ marginTop: '5px', textTransform: 'none', letterSpacing: 0 }}>{d.skillsNote}</Meta>}
       {!d.skillsNote && d.skillGroups.map((g) => (
         <div key={g.name} style={css("margin-top:6px")}>
-          <div style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-cy) 65%, var(--nv-ink))`)}>{g.name}</div>
-          {g.missing && <div style={css(`font:var(--nv-micro-m);color:${dim(40)};padding:2px 0`)}>not on the registry page</div>}
+          <Eyebrow tone="color-mix(in srgb, var(--nv-cy) 65%, var(--nv-ink))">{g.name}</Eyebrow>
+          {g.missing && <Meta as="div" tone={dim(40)} style={{ padding: '2px 0', textTransform: 'none', letterSpacing: 0 }}>not on the registry page</Meta>}
           {g.skills.map((s) => (
             <div key={s.text} style={css("display:flex;align-items:baseline;gap:8px;padding:2.5px 0")}>
-              <span style={css(`flex:1;font:var(--nv-micro-m);color:${dim(72)}`)}>{s.text}</span>
-              <span style={css(`flex:none;font:500 7.5px ${M};letter-spacing:.08em;color:${s.autonomyColor}`)}>{s.autonomy}</span>
+              <Meta tone={dim(72)} style={{ flex: 1, textTransform: 'none', letterSpacing: 0 }}>{s.text}</Meta>
+              <Tag tone={s.autonomyColor} style={{ flex: 'none' }}>{s.autonomy}</Tag>
             </div>
           ))}
         </div>
       ))}
-      <div style={css(`margin-top:12px;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:${dim(42)}`)}>LAST RECEIPTS</div>
-      {d.receiptsNote && <div style={css(`margin-top:5px;font:var(--nv-micro-m);color:${dim(42)}`)}>{d.receiptsNote}</div>}
+      <Eyebrow style={{ marginTop: '12px' }}>Last receipts</Eyebrow>
+      {d.receiptsNote && <Meta as="div" tone={dim(42)} style={{ marginTop: '5px', textTransform: 'none', letterSpacing: 0 }}>{d.receiptsNote}</Meta>}
       {d.receipts.map((r) => (
         <div key={r.id} style={css(`display:flex;align-items:baseline;gap:10px;padding:5px 0;border-bottom:1px solid ${dim(5)};font:var(--nv-micro-m)`)}>
           <span style={css(`flex:none;width:32px;text-align:right;color:${dim(35)};font-size:9px`)}>{r.when}</span>
           <span style={css(`flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${dim(78)}`)}>{r.title}</span>
-          <span style={css(`flex:none;font-size:8.5px;letter-spacing:.1em;color:${r.statusColor}`)}>{r.status}</span>
+          <Tag tone={r.statusColor} style={{ flex: 'none' }}>{r.status}</Tag>
         </div>
       ))}
     </div>
@@ -86,7 +92,7 @@ export function Ops({ v }) {
     <div style={css("padding:28px 28px 40px;max-width:1080px;margin:0 auto")}>
       <div style={css("display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px")}>
         <div style={css(`font:var(--nv-micro-l);letter-spacing:.3em;color:${dim(45)}`)}>XIV. OPERATIONS</div>
-        <div style={css(`font:var(--nv-micro-m);color:${dim(38)}`)}>records + heartbeats · nothing invented</div>
+        <Meta tone={dim(38)} style={{ textTransform: 'none', letterSpacing: 0 }}>records + heartbeats · nothing invented</Meta>
       </div>
 
       {/* the human gate — the only checkpoint, shown proudly */}
@@ -94,14 +100,14 @@ export function Ops({ v }) {
         base={`cursor:pointer;margin-top:18px;display:flex;align-items:center;gap:12px;border:1px solid color-mix(in srgb, var(--nv-gold) ${v.opsPending > 0 ? 45 : 18}%, transparent);border-radius:12px;padding:13px 16px;background:color-mix(in srgb, var(--nv-gold) ${v.opsPending > 0 ? 7 : 3}%, transparent)`}
         hoverStyle="background:color-mix(in srgb, var(--nv-gold) 12%, transparent)">
         <span style={css(`font:600 20px ${M};color:var(--nv-gold);min-width:28px;text-align:center`)}>{v.opsPending}</span>
-        <span style={css(`flex:1;font:var(--nv-micro-l);color:${dim(75)}`)}>{v.opsGateLine}</span>
-        <span style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:var(--nv-gold)`)}>OPEN INBOX →</span>
+        <Meta tone={dim(75)} style={{ flex: 1, textTransform: 'none', letterSpacing: 0, fontSize: isAppleStyle() ? '14px' : undefined }}>{v.opsGateLine}</Meta>
+        <Meta tone="gold" style={{ fontWeight: 600 }}>Open Inbox →</Meta>
       </Interactive>
 
       <div style={css("display:flex;flex-wrap:wrap;gap:30px;margin-top:26px;align-items:flex-start;justify-content:center")}>
         {/* channels → core/agents → connections: the real topology, framed
             the way the map reads — ways in on the left, hands on the right */}
-        <TopoCol title="CHANNELS · WAYS IN" items={v.opsChannels} />
+        <TopoCol title="Channels · ways in" items={v.opsChannels} />
         {/* the fleet ring — tap an agent to unfold its skills + receipts */}
         <div style={css(`flex:0 0 auto;width:${RING * 2 + 120}px;max-width:100%;margin:0 auto`)}>
           <div style={css(`position:relative;height:${RING * 2 + 110}px`)}>
@@ -117,40 +123,40 @@ export function Ops({ v }) {
                 activeStyle="transform:translate(-50%,-50%) scale(.94)"
                 hoverStyle={`background:${dim(4)}`}>
                 <span style={{ width: 9, height: 9, borderRadius: '50%', ...a.dotStyle, ...(a.state === 'today' ? { animation: 'novaPulse 2.6s infinite var(--nv-anim)' } : {}) }} />
-                <span style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:${a.open ? 'var(--nv-cy)' : a.state === 'never' ? dim(35) : dim(72)}`)}>{a.label.toUpperCase()}</span>
-                <span style={css(`font:var(--nv-micro-s);color:${a.state === 'stale' ? 'var(--nv-warn)' : dim(38)}`)}>{a.stateLabel}</span>
+                <Eyebrow as="span" tone={a.open ? 'var(--nv-cy)' : a.state === 'never' ? dim(35) : dim(72)} style={{ fontSize: isAppleStyle() ? '11px' : undefined }}>{a.label}</Eyebrow>
+                <Meta tone={a.state === 'stale' ? 'warn' : dim(38)} style={{ textTransform: 'none', letterSpacing: 0, fontSize: isAppleStyle() ? '11px' : undefined }}>{a.stateLabel}</Meta>
               </Interactive>
             ))}
           </div>
           {v.opsOpenAgent?.scheduled && <AgentDetail d={v.opsOpenAgent} />}
         </div>
 
-        <TopoCol title="CONNECTIONS · HANDS" items={v.opsConnections} />
+        <TopoCol title="Connections · hands" items={v.opsConnections} />
 
         {/* conversational agents + legend */}
         <div style={css("flex:1 1 280px;min-width:260px")}>
-          <div style={css(`font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:${dim(42)}`)}>IN CONVERSATION</div>
+          <Eyebrow>In conversation</Eyebrow>
           {v.opsConversational.map((a) => (
             <div key={a.id} style={css(`border-bottom:1px solid ${dim(6)}`)}>
               <Interactive as="div" onClick={a.toggle}
                 base="cursor:pointer;display:flex;align-items:baseline;gap:9px;padding:9px 2px"
                 hoverStyle={`background:${dim(4)}`}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', flex: 'none', alignSelf: 'center', ...a.dotStyle }} />
-                <span style={css(`font:var(--nv-micro-l);color:${a.open ? 'var(--nv-cy)' : dim(85)}`)}>{a.label}</span>
-                <span style={css(`font:var(--nv-micro-m);color:${dim(40)}`)}>{a.role}</span>
-                <span style={css(`flex:1;text-align:right;font:var(--nv-micro-m);color:${dim(45)};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0`)}>{a.last}</span>
+                <Meta tone={a.open ? 'var(--nv-cy)' : dim(85)} style={{ textTransform: 'none', letterSpacing: 0, fontSize: isAppleStyle() ? '14px' : undefined, fontWeight: 600 }}>{a.label}</Meta>
+                <Meta tone={dim(40)} style={{ textTransform: 'none', letterSpacing: 0 }}>{a.role}</Meta>
+                <Meta tone={dim(45)} style={{ flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, textTransform: 'none', letterSpacing: 0 }}>{a.last}</Meta>
               </Interactive>
               {a.open && v.opsOpenAgent && !v.opsOpenAgent.scheduled && <AgentDetail d={v.opsOpenAgent} />}
             </div>
           ))}
-          <div style={css(`margin-top:14px;font:var(--nv-micro-s);line-height:2;color:${dim(38)}`)}>
+          <Meta as="div" tone={dim(38)} style={{ marginTop: '14px', lineHeight: 2, textTransform: 'none', letterSpacing: 0 }}>
             <span style={css("color:var(--nv-cy)")}>●</span> ran today&nbsp;&nbsp;
             <span style={css(`color:color-mix(in srgb, var(--nv-cy) 55%, transparent)`)}>●</span> last 2 days&nbsp;&nbsp;
             <span style={css("color:var(--nv-warn)")}>●</span> gone quiet&nbsp;&nbsp;
             <span style={css(`color:${dim(18)}`)}>●</span> never run
-          </div>
+          </Meta>
           {v.opsFiledToday > 0 && (
-            <div style={css(`margin-top:8px;font:var(--nv-micro-m);color:${dim(55)}`)}>{v.opsFiledToday} thing{v.opsFiledToday === 1 ? '' : 's'} filed into the vault today.</div>
+            <Meta as="div" tone={dim(55)} style={{ marginTop: '8px', textTransform: 'none', letterSpacing: 0 }}>{v.opsFiledToday} thing{v.opsFiledToday === 1 ? '' : 's'} filed into the vault today.</Meta>
           )}
         </div>
       </div>
@@ -158,15 +164,15 @@ export function Ops({ v }) {
       {/* the skill map — what Nova can actually do, from the vault registry */}
       {v.skillDepartments.length > 0 && (
         <>
-          <div style={css(`margin-top:30px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:${dim(42)}`)}>THE SKILL MAP · WIKI/LIBRARY/NOVA SKILLS.MD — YOURS TO EDIT</div>
+          <Eyebrow style={{ marginTop: '30px' }}>The skill map · Wiki/Library/Nova Skills.md — yours to edit</Eyebrow>
           <div style={css("display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-top:12px")}>
             {v.skillDepartments.map((d) => (
               <div key={d.name} style={css(`border:1px solid ${dim(8)};border-radius:11px;padding:12px 14px;background:${dim(2)}`)}>
-                <div style={css(`font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:${dim(55)};margin-bottom:8px`)}>{d.name}</div>
+                <Eyebrow tone={dim(55)} style={{ marginBottom: '8px' }}>{d.name}</Eyebrow>
                 {d.skills.map((s) => (
                   <div key={s.text} style={css("display:flex;align-items:baseline;gap:8px;padding:3px 0")}>
-                    <span style={css(`flex:1;font:var(--nv-micro-m);color:${dim(72)}`)}>{s.text}</span>
-                    <span style={css(`flex:none;font:500 7.5px ${M};letter-spacing:.08em;color:${s.autonomyColor}`)}>{s.autonomy}</span>
+                    <Meta tone={dim(72)} style={{ flex: 1, textTransform: 'none', letterSpacing: 0 }}>{s.text}</Meta>
+                    <Tag tone={s.autonomyColor} style={{ flex: 'none' }}>{s.autonomy}</Tag>
                   </div>
                 ))}
               </div>
@@ -179,7 +185,7 @@ export function Ops({ v }) {
           sandbox, a cost cap, a stop and screenshot proof since August, and
           no way in from the app until now. */}
       <div style={css("margin-top:30px;display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px")}>
-        <span style={css(`font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:${dim(42)}`)}>THE FORGE · A SENTENCE BECOMES SOMETHING THAT RUNS</span>
+        <Eyebrow as="span">The Forge · a sentence becomes something that runs</Eyebrow>
       </div>
       <div style={css("margin-top:10px;display:flex;gap:9px;flex-wrap:wrap")}>
         <Interactive as="input" value={v.forge.input} onChange={v.forge.setInput} onKeyDown={v.forge.onKey}
@@ -187,9 +193,9 @@ export function Ops({ v }) {
           base={{ flex: '1 1 320px', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)', borderRadius: '10px', padding: '11px 14px', color: 'var(--nv-ink)', fontSize: '13px', outline: 'none' }}
           focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)" />
         <Interactive as="span" onClick={v.forge.busy ? undefined : v.forge.start}
-          base={css(`cursor:${v.forge.busy ? 'default' : 'pointer'};display:flex;align-items:center;font:var(--nv-micro-l);letter-spacing:.1em;padding:0 18px;border-radius:10px;background:var(--nv-cy);color:var(--nv-on-acc);opacity:${v.forge.busy ? .6 : 1}`)}
-          hoverStyle={v.forge.busy ? '' : 'background:color-mix(in srgb, var(--nv-cy) 82%, white)'}>
-          {v.forge.busy ? 'STARTING…' : 'BUILD IT'}
+          base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { cursor: v.forge.busy ? 'default' : 'pointer', display: 'flex', padding: '0 18px', opacity: v.forge.busy ? .6 : 1 })}
+          hoverStyle={v.forge.busy ? '' : 'filter:brightness(1.08)'}>
+          {v.forge.busy ? 'Starting…' : 'Build it'}
         </Interactive>
       </div>
       {v.forge.jobs.length > 0 && (
@@ -197,13 +203,11 @@ export function Ops({ v }) {
           {v.forge.jobs.map((j) => (
             <div key={j.id} style={css("border:1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent);border-radius:11px;padding:11px 13px;background:var(--nv-well)")}>
               <div style={css("display:flex;align-items:baseline;gap:10px;flex-wrap:wrap")}>
-                <span style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: j.running ? 'var(--nv-cy)' : j.state === 'error' ? 'var(--nv-warn)' : dim(45) }}>{j.state.toUpperCase()}</span>
+                <Tag tone={j.running ? 'cyan' : j.state === 'error' ? 'warn' : dim(45)}>{j.state}</Tag>
                 <span style={css("flex:1;min-width:0;font-size:12.5px;color:var(--nv-ink)")}>{j.title}</span>
-                {j.cost && <span style={{ font: 'var(--nv-micro-m)', color: dim(40) }}>{j.cost}</span>}
+                {j.cost && <Meta tone={dim(40)} style={{ textTransform: 'none', letterSpacing: 0 }}>{j.cost}</Meta>}
                 {j.running && (
-                  <Interactive as="span" onClick={j.stop}
-                    base={css(`cursor:pointer;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);padding:4px 10px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-warn) 45%, transparent);color:var(--nv-warn)`)}
-                    hoverStyle="background:color-mix(in srgb, var(--nv-warn) 12%, transparent)">STOP</Interactive>
+                  <TextAction compact tone="warn" onClick={j.stop}>Stop</TextAction>
                 )}
               </div>
               {j.summary && <div style={css(`margin-top:6px;font-size:11.5px;line-height:1.5;color:${dim(55)}`)}>{j.summary}</div>}
@@ -214,9 +218,9 @@ export function Ops({ v }) {
 
       {/* the overnight queue — work that runs while he sleeps */}
       <div style={css("margin-top:30px;display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px")}>
-        <span style={css(`font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:${dim(42)}`)}>OVERNIGHT QUEUE · RUNS {v.overnightWindow} WHILE YOU SLEEP</span>
+        <Eyebrow as="span">Overnight queue · runs {v.overnightWindow} while you sleep</Eyebrow>
         {v.overnightQueuedCount > 0 && (
-          <Interactive as="span" onClick={v.overnightRunNow} base={`cursor:pointer;font:var(--nv-micro-s);letter-spacing:.1em;color:${dim(40)}`} hoverStyle="color:var(--nv-vi)">RUN NOW ▸</Interactive>
+          <TextAction compact tone="faint" onClick={v.overnightRunNow}>Run now ▸</TextAction>
         )}
       </div>
       <div style={css("display:flex;gap:8px;margin-top:10px;max-width:640px")}>
@@ -225,32 +229,32 @@ export function Ops({ v }) {
           base={`flex:1;background:var(--nv-well);border:1px solid ${dim(12)};border-radius:9px;padding:9px 13px;color:var(--nv-ink);font:400 12px ${M};outline:none`}
           focusStyle="border-color:color-mix(in srgb, var(--nv-vi) 50%, transparent)" />
         <Interactive as="span" onClick={v.overnightAdd}
-          base={`cursor:pointer;display:flex;align-items:center;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:0 15px;border-radius:9px;background:var(--nv-vi);color:var(--nv-on-acc)`}
-          hoverStyle="background:color-mix(in srgb, var(--nv-vi) 80%, white)">QUEUE</Interactive>
+          base={btn('var(--nv-vi)', 'var(--nv-on-acc)', { display: 'flex', padding: '0 15px' })}
+          hoverStyle="filter:brightness(1.08)">Queue</Interactive>
       </div>
       <div style={css("margin-top:8px;max-width:820px")}>
-        {v.overnightItems.length === 0 && <div style={css(`font:var(--nv-micro-m);color:${dim(38)}`)}>Nothing queued — hand Nova a question here (or say “research this tonight” in conversation) and wake up to the brief.</div>}
+        {v.overnightItems.length === 0 && <Meta as="div" tone={dim(38)} style={{ textTransform: 'none', letterSpacing: 0 }}>Nothing queued — hand Nova a question here (or say “research this tonight” in conversation) and wake up to the brief.</Meta>}
         {v.overnightItems.map((i) => (
           <div key={i.id} style={css(`display:flex;align-items:baseline;gap:10px;padding:7px 0;border-bottom:1px solid ${dim(5)};font:var(--nv-micro-l)`)}>
-            <span style={css(`flex:none;font-size:8.5px;letter-spacing:.1em;color:${i.statusColor};${i.running ? 'animation:dotBlink 1.6s infinite' : ''}`)}>{i.status}</span>
+            <Tag tone={i.statusColor} style={{ flex: 'none', animation: i.running ? 'dotBlink 1.6s infinite' : 'none' }}>{i.status}</Tag>
             <span style={css(`flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${dim(80)}`)}>{i.question}</span>
-            {i.note && <span style={css(`flex:none;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9.5px;color:${dim(45)}`)}>{i.note}</span>}
-            <span style={css(`flex:none;font-size:9px;color:${dim(35)}`)}>{i.when}</span>
+            {i.note && <Meta tone={dim(45)} style={{ flex: 'none', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: 'none', letterSpacing: 0 }}>{i.note}</Meta>}
+            <Meta tone={dim(35)} style={{ flex: 'none', textTransform: 'none', letterSpacing: 0 }}>{i.when}</Meta>
             {i.remove && <Interactive as="span" onClick={i.remove} base={`cursor:pointer;flex:none;font-size:10px;color:${dim(35)}`} hoverStyle="color:var(--nv-warn)">✕</Interactive>}
           </div>
         ))}
       </div>
 
       {/* the stream — receipts, newest first */}
-      <div style={css(`margin-top:30px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:${dim(42)}`)}>THE STREAM · LAST {v.opsStream.length} RECEIPTS</div>
+      <Eyebrow style={{ marginTop: '30px' }}>The stream · last {v.opsStream.length} receipts</Eyebrow>
       <div style={css("margin-top:10px")}>
-        {v.opsStream.length === 0 && <div style={css(`font:var(--nv-micro-l);color:${dim(40)}`)}>Nothing on the ledger yet.</div>}
+        {v.opsStream.length === 0 && <Meta as="div" tone={dim(40)} style={{ textTransform: 'none', letterSpacing: 0 }}>Nothing on the ledger yet.</Meta>}
         {v.opsStream.map((r) => (
           <div key={r.id} style={css(`display:flex;align-items:baseline;gap:10px;padding:7px 0;border-bottom:1px solid ${dim(5)};font:var(--nv-micro-l)`)}>
-            <span style={css(`flex:none;width:36px;text-align:right;color:${dim(35)};font-size:9.5px`)}>{r.when}</span>
-            <span style={css(`flex:none;width:78px;font-size:8.5px;letter-spacing:.1em;color:${dim(45)}`)}>{r.kind}</span>
+            <Meta tone={dim(35)} style={{ flex: 'none', width: '36px', textAlign: 'right', textTransform: 'none', letterSpacing: 0 }}>{r.when}</Meta>
+            <Tag tone={dim(45)} style={{ flex: 'none', width: '78px', boxSizing: 'border-box', textAlign: 'center' }}>{r.kind}</Tag>
             <span style={css(`flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${dim(80)}`)}>{r.title}</span>
-            <span style={css(`flex:none;font-size:8.5px;letter-spacing:.1em;color:${r.statusColor}`)}>{r.status}</span>
+            <Tag tone={r.statusColor} style={{ flex: 'none' }}>{r.status}</Tag>
           </div>
         ))}
       </div>

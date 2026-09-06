@@ -2,6 +2,7 @@ import { lazy, Suspense, useState } from 'react';
 import { css } from './css.js';
 const Body3D = lazy(() => import('./Body3D.jsx'));
 import { BodyMap, MuscleLegend } from './BodyMap.jsx';
+import { Eyebrow, Chip, Meta } from './Controls.jsx';
 
 const M = "var(--nv-font-mono)";
 // the UI face — for prose inside a panel, where mono is a label voice
@@ -17,7 +18,7 @@ const dim = (pct) => `color-mix(in srgb, var(--nv-ink) ${pct}%, transparent)`;
 function Card({ label, children }) {
   return (
     <div style={css(`margin-top:10px;border:1px solid ${dim(10)};border-radius:12px;padding:12px 14px;background:${dim(3)};animation:fadeUp .4s ease-out`)}>
-      <div style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:${dim(45)};margin-bottom:9px`)}>{label}</div>
+      <Eyebrow style={{ marginBottom: '9px' }}>{label}</Eyebrow>
       {children}
     </div>
   );
@@ -25,7 +26,7 @@ function Card({ label, children }) {
 
 function TrainingWeek({ d }) {
   return (
-    <Card label="TRAINING WEEK · LIVE FROM YOUR LOG">
+    <Card label="Training week · live from your log">
       {(d.days || []).map((day) => (
         <div key={day.date} style={css(`display:flex;align-items:baseline;gap:10px;padding:4px 0;font:var(--nv-micro-l);${day.isToday ? 'color:var(--nv-cy)' : `color:${dim(80)}`}`)}>
           <span style={css(`width:34px;flex:none;font-size:9.5px;letter-spacing:.14em;color:${day.isToday ? 'var(--nv-cy)' : dim(45)}`)}>{day.weekday}</span>
@@ -49,7 +50,7 @@ function Exercise({ d }) {
   // turn, performing the lift, muscles lit. His ask, 5 Sep.
   const [threeD, setThreeD] = useState(false);
   return (
-    <Card label={`${d.name.toUpperCase()} · ${d.muscleGroup?.toUpperCase() || ''}`}>
+    <Card label={`${d.name} · ${d.muscleGroup || ''}`}>
       {/* Anatomy first: the question "what does this actually train" is the
           one he opened the card to answer. Absent when the atlas has no
           entry — a blank silhouette would read as "trains nothing". */}
@@ -59,18 +60,17 @@ function Exercise({ d }) {
             {!threeD && <BodyMap muscles={d.muscles} height={118} pattern={d.motion} />}
             <div style={css('flex:1;min-width:0')}>
               {d.equipment && (
-                <div style={css(`font:var(--nv-micro-m);letter-spacing:.1em;color:${dim(45)}`)}>EQUIPMENT · {d.equipment.toUpperCase()}</div>
+                <Meta as="div" tone="faint">Equipment · {d.equipment}</Meta>
               )}
               <MuscleLegend muscles={d.muscles} />
-              <button type="button" onClick={() => setThreeD((v) => !v)}
-                style={css(`margin-top:8px;cursor:pointer;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);padding:5px 9px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);background:transparent;color:var(--nv-cy)`)}>
-                {threeD ? '◐ FLAT VIEW' : '◉ TURN IT IN 3D'}
-              </button>
+              <div style={css('margin-top:8px')}>
+                <Chip tone="cyan" active={threeD} onClick={() => setThreeD((v) => !v)}>{threeD ? '◐ Flat view' : '◉ Turn it in 3D'}</Chip>
+              </div>
             </div>
           </div>
           {threeD && (
             <div style={css('margin-top:10px')}>
-              <Suspense fallback={<div style={css(`height:260px;display:flex;align-items:center;justify-content:center;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:${dim(40)}`)}>BUILDING THE FIGURE…</div>}>
+              <Suspense fallback={<Meta as="div" tone="faint" style={{ height: '260px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Building the figure…</Meta>}>
                 <Body3D muscles={d.muscles} pattern={d.motion} height={260} />
               </Suspense>
             </div>
@@ -86,7 +86,7 @@ function Exercise({ d }) {
         </div>
       )}
       {d.cues && (
-        <div style={css(`margin-bottom:6px;font:var(--nv-micro-l);color:var(--nv-gold)`)}>CUES: {d.cues}</div>
+        <Meta as="div" tone="gold" style={{ marginBottom: '6px', ...{ textTransform: 'none', letterSpacing: 0 } }}>Cues: {d.cues}</Meta>
       )}
       {d.resourceUrl && (
         <a href={d.resourceUrl} target="_blank" rel="noopener noreferrer" style={css(`display:block;margin-bottom:6px;font:var(--nv-micro-l);color:var(--nv-cy);text-decoration:underline;text-underline-offset:2px`)}>▶ form / technique resource</a>
@@ -99,7 +99,7 @@ function Exercise({ d }) {
         </div>
       ))}
       {(d.inRoutines || []).length > 0 && (
-        <div style={css(`margin-top:7px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:${dim(40)}`)}>IN: {(d.inRoutines || []).join(' · ')}</div>
+        <Meta as="div" tone="faint" style={{ marginTop: '7px', ...{ textTransform: 'none', letterSpacing: 0 } }}>In: {(d.inRoutines || []).join(' · ')}</Meta>
       )}
     </Card>
   );
@@ -130,7 +130,7 @@ function NutritionWeek({ d }) {
   };
 
   return (
-    <Card label="PROTEIN · LAST 7 DAYS">
+    <Card label="Protein · last 7 days">
       {days.length === 0 && <div style={css(`font:var(--nv-micro-l);color:${dim(40)}`)}>No tracked days yet.</div>}
       {/* The verdict, before the chart. It used to live in a caption BELOW the
           bars, which meant the chart needed a sentence to explain its own
@@ -174,10 +174,10 @@ function NutritionWeek({ d }) {
 
 function Note({ d }) {
   return (
-    <Card label={`NOTE · ${d.relPath.toUpperCase()}`}>
+    <Card label={`Note · ${d.relPath}`}>
       <div style={css(`font:600 13px ${M};color:var(--nv-ink);margin-bottom:6px`)}>{d.title}</div>
       <div style={css(`font:var(--nv-micro-l);color:${dim(72)};white-space:pre-wrap;max-height:260px;overflow-y:auto`)}>{d.excerpt}</div>
-      {d.truncated && <div style={css(`margin-top:6px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:${dim(38)}`)}>EXCERPT — THE FULL NOTE LIVES IN YOUR VAULT</div>}
+      {d.truncated && <Meta as="div" tone="faint" style={{ marginTop: '6px', ...{ textTransform: 'none', letterSpacing: 0 } }}>Excerpt — the full note lives in your vault</Meta>}
     </Card>
   );
 }
@@ -186,12 +186,12 @@ function Note({ d }) {
 // a real found URL he opens himself.
 function Pulse({ d }) {
   return (
-    <Card label={`PULSE · ${d.topic.toUpperCase()} · ${d.ageLabel.toUpperCase()}`}>
+    <Card label={`Pulse · ${d.topic} · ${d.ageLabel}`}>
       <div style={css("display:flex;flex-direction:column;gap:6px")}>
         {d.freshness && (
           // the refresh ran and found nothing new — these are the last items,
           // said plainly, not reprints wearing a fresh label
-          <span style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-gold)`)}>{d.freshness.toUpperCase()}</span>
+          <Meta tone="gold" style={{ textTransform: 'none', letterSpacing: 0 }}>{d.freshness}</Meta>
         )}
         {(d.items || []).map((l) => (
           <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer"
@@ -211,9 +211,9 @@ function Pulse({ d }) {
 // count) and the lifts under it with their real sets, so he can read along
 // while Nova talks instead of trying to hold numbers in his head.
 function Sessions({ d }) {
-  const label = d.filter ? `RECENT · ${String(d.filter).toUpperCase()}` : 'RECENT SESSIONS';
+  const label = d.filter ? `Recent · ${String(d.filter)}` : 'Recent sessions';
   return (
-    <Card label={`${label} · LIVE FROM YOUR LOG`}>
+    <Card label={`${label} · live from your log`}>
       {d.note && <div style={css(`font:var(--nv-micro-l);color:${dim(45)}`)}>{d.note}</div>}
       {(d.sessions || []).map((s) => (
         <div key={s.date + s.routineName} style={css(`padding:7px 0;border-top:1px solid ${dim(7)}`)}>
@@ -262,7 +262,7 @@ export function SourcesPanel({ r }) {
     links.push({ url: m[1], label: label || host || m[1], host });
   }
   return (
-    <Card label={`RESEARCH · ${(r.title || '').toUpperCase()}`}>
+    <Card label={`Research · ${r.title || ''}`}>
       <div style={css(`font:var(--nv-micro-l);color:${dim(78)};white-space:pre-wrap;max-height:220px;overflow-y:auto`)}>{summary}</div>
       {links.length > 0 && (
         <div style={css("display:flex;flex-direction:column;gap:6px;margin-top:10px")}>

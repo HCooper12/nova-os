@@ -8,7 +8,6 @@ import { Interactive } from './Interactive.jsx';
 import { Term } from './Glossary.jsx';
 import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle } from './Controls.jsx';
 
-const M = 'var(--nv-font-mono)';
 // the material pass (5 Sep 2026): labels through Controls.jsx; a filled
 // button is sentence case in the UI face under the Apple styles
 const btn = (bg, ink, extra = {}) => (isAppleStyle()

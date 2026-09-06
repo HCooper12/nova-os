@@ -2,14 +2,15 @@ import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
 import { NovaCore } from './NovaCore.jsx';
 import { TabIcon } from './TabIcon.jsx';
+import { Eyebrow, TextAction, Tag, Meta } from './Controls.jsx';
 
 // Command sidebar (design 45): NOVA·OS brand, grouped nav with glowing active
 // item, the agents roster, and a status card that tells the connection truth
 // (LIVE / OFFLINE / DEMO) beside a miniature of the Nova core.
 
-const M = "var(--nv-font-mono)";
 const R = "var(--nv-font-ui)";
-const groupLabel = css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-ink40);margin:0 10px 7px`);
+// group headings go through Eyebrow (the material pass, 6 Sep 2026)
+const groupLabel = { margin: '0 10px 7px' };
 
 export function Sidebar({ v }) {
   return (
@@ -22,15 +23,15 @@ export function Sidebar({ v }) {
       </div>
 
       <div>
-        <div style={groupLabel}>WORKSPACE</div>
+        <Eyebrow style={groupLabel}>Workspace</Eyebrow>
         <div style={css("display:flex;flex-direction:column;gap:2px")}>
           {v.navMain.map((nav) => (
             <Interactive key={nav.label} onClick={nav.go} onPointerDown={nav.warm} base={nav.style} hoverStyle="background:rgba(255,255,255,.05)">
               {v.appleStyle ? <TabIcon name={nav.screen} size={16} /> : <span style={nav.numStyle}>{nav.numeral}</span>}<span>{nav.label}</span>
               {nav.count != null && (
-                <span style={nav.countHot
-                  ? css(`margin-left:auto;font:var(--nv-micro-s);padding:1px 7px;border-radius:8px;color:var(--nv-acc);border:1px solid var(--nv-acc-border);background:var(--nv-acc-bg)`)
-                  : css(`margin-left:auto;font:var(--nv-micro-s);color:var(--nv-ink40)`)}>{nav.count}</span>
+                nav.countHot
+                  ? <Tag tone="accent" style={{ marginLeft: 'auto' }}>{nav.count}</Tag>
+                  : <Meta tone="faint" style={{ marginLeft: 'auto' }}>{nav.count}</Meta>
               )}
             </Interactive>
           ))}
@@ -38,19 +39,19 @@ export function Sidebar({ v }) {
       </div>
 
       <div>
-        <div style={groupLabel}>VAULT · OBSIDIAN</div>
+        <Eyebrow style={groupLabel}>Vault · Obsidian</Eyebrow>
         <div style={css("display:flex;flex-direction:column;gap:2px")}>
           {v.navVault.map((nav) => (
             <Interactive key={nav.label} onClick={nav.go} onPointerDown={nav.warm} base={nav.style} hoverStyle="background:rgba(255,255,255,.05)">
               {v.appleStyle ? <TabIcon name={nav.screen} size={16} /> : <span style={nav.numStyle}>{nav.numeral}</span>}<span>{nav.label}</span>
-              <span style={css(`margin-left:auto;font:var(--nv-micro-s);color:var(--nv-ink40)`)}>{nav.count}</span>
+              <Meta tone="faint" style={{ marginLeft: 'auto' }}>{nav.count}</Meta>
             </Interactive>
           ))}
         </div>
       </div>
 
       <div>
-        <div style={groupLabel}>SYSTEM</div>
+        <Eyebrow style={groupLabel}>System</Eyebrow>
         <div style={css("display:flex;flex-direction:column;gap:2px")}>
           {v.navSystem.map((nav) => (
             <Interactive key={nav.label} onClick={nav.go} onPointerDown={nav.warm} base={nav.style} hoverStyle="background:rgba(255,255,255,.05)">
@@ -61,12 +62,12 @@ export function Sidebar({ v }) {
       </div>
 
       <div>
-        <div style={groupLabel}>{v.agentsGroupLabel}</div>
+        <Eyebrow style={groupLabel}>{v.agentsGroupLabel}</Eyebrow>
         <div style={css("display:flex;flex-direction:column;padding:0 4px")}>
           {v.agents.map((ag) => (
             <div key={ag.name} title={ag.hint} style={{ display: 'flex', gap: '9px', alignItems: 'center', padding: '5.5px 6px', font: `600 13px ${R}`, color: ag.on ? 'var(--nv-ink)' : 'var(--nv-ink40)' }}>
               <span>{ag.name}</span>
-              <span style={{ marginLeft: 'auto', font: `400 7.5px ${M}`, letterSpacing: '.1em', color: 'var(--nv-ink40)' }}>{ag.role}</span>
+              <Meta tone="faint" style={{ marginLeft: 'auto', fontSize: '10.5px' }}>{ag.role}</Meta>
               <span style={ag.dotStyle}></span>
             </div>
           ))}
@@ -80,14 +81,14 @@ export function Sidebar({ v }) {
         base={css("margin-top:auto;cursor:pointer;border-radius:12px;padding:12px 14px")}
         hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}
       >
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: v.sideStatus.color }}>
+        <Meta as="div" tone={v.sideStatus.color} style={{ display: 'flex', gap: '8px', alignItems: 'center', fontWeight: 600 }}>
           <NovaCore size={30} variant="mini" style={{ flex: 'none', marginRight: '2px' }} />
           <span style={{ width: '6px', height: '6px', borderRadius: '50%', flex: 'none', background: v.sideStatus.color, boxShadow: `0 0 9px ${v.sideStatus.color}`, animation: v.sideStatus.pulse ? 'novaPulse 2.2s infinite var(--nv-anim)' : 'none' }}></span>
           <span>{v.sideStatus.row1}</span>
-        </div>
-        <div style={{ marginTop: '7px', font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', lineHeight: 1.5, color: 'var(--nv-ink40)' }}>{v.sideStatus.row2}</div>
+        </Meta>
+        <Meta as="div" tone="faint" style={{ marginTop: '7px', lineHeight: 1.5, textTransform: 'none', letterSpacing: 0 }}>{v.sideStatus.row2}</Meta>
         {v.outboxCount > 0 && (
-          <div onClick={(e) => { e.stopPropagation(); v.openOutbox(); }} style={{ marginTop: '7px', font: 'var(--nv-micro-s)', letterSpacing: '.1em', color: 'var(--nv-gold)', cursor: 'pointer' }}>⇪ OUTBOX · {v.outboxCount} WAITING</div>
+          <TextAction compact tone="gold" onClick={(e) => { e.stopPropagation(); v.openOutbox(); }} style={{ marginTop: '4px', marginLeft: '-8px' }}>⇪ Outbox · {v.outboxCount} waiting</TextAction>
         )}
       </Interactive>
     </aside>

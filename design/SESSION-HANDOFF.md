@@ -15,8 +15,11 @@ the session log at the foot is append-only.
 
 **6 SEP — EVERYTHING VERIFIED LIVE ON THE URL HIS PHONE LOADS, THE PLAN
 HANDOFF PROVEN ON A REAL RUN, AND THE MATERIAL PASS EXTENDED TO EVERY SCREEN
-(tokens everywhere; hand sweeps on Voice, Fuel, Notes, To-Do, Shopping on
-top of the daily four). Earlier, 5 Sep night — THE MATERIAL PASS: "Nova
+(tokens everywhere; and, as of 6 Sep midday, HAND SWEEPS ON EVERY SCREEN —
+the last fourteen files went through Controls.jsx in three scripted
+batches; what remains is the classic MissionControl fold, the
+screen-identity header rows, vals-built chip styles, and Ambient, which is
+a wall face and was left alone on purpose). Earlier, 5 Sep night — THE MATERIAL PASS: "Nova
 feels stiff" answered by measurement and a sweep. The daily screens are set in a shared control
 vocabulary (src/Controls.jsx), cupertino cards lost their outlines, 15
 toasts that restated a visible change are gone, tab hops are instant,
@@ -101,6 +104,26 @@ data and confirmed live by `scripts/verify-shipped.mjs --server`:
     `--nv-micro-track-wide`; Command = the console, Apple = UI face 11–13.5px)
     — one mechanical codemod, syntax untouched. Case, borders and hit areas
     on those screens are the hand sweep's job.
+  · 6 Sep (midday), THE HAND SWEEPS ARE COMPLETE: Money, Leader, Journal,
+    Stash, Galaxy (batch A), Library, Ops, Claude Code, the classic Sidebar
+    (batch B), RecipeOverlay + MealEditor, AddRecipeModal, the Companion
+    panels (VoicePanels), VerdictCard (batch C) — scripted edits with
+    exact-string anchors (scratch batchA/B/C.mjs), never sed on JSX. The
+    Claude Code workspace pair became a `Segmented`; Ops' receipt/status
+    micro-strings are `Tag`s; the Companion cards' labels are sentence-case
+    once and Command's CSS uppercases them. Ambient (the wall face) was read
+    and deliberately left: its tracked caps are the design. Cleaned every
+    unused import/const the sweeps left (incl. five stale `M` constants), and
+    the RingTile `key`-in-spread React warning in both Mission layouts.
+    Four verify-shipped markers followed their strings ("Recent sessions",
+    "Leadership · daily practice", "a sentence becomes something that runs",
+    "pinch to zoom"); all 42 UI markers present in the fresh dist. Visually
+    checked at 375×812 cupertino: Library, Claude Code (Segmented, Run),
+    Fuel + the recipe overlay (Macros/Servings/Ingredients, × Close). NOT
+    visually checked: Ops (live-only — the auto-mode classifier refused to
+    read API_TOKEN for the isolated dev page, so demo mode was all I had),
+    Journal/Stash/Money/Leader/Galaxy renders, VerdictCard, VoicePanels —
+    they build and lint clean; look at them on the phone.
   · 6 Sep, HAND SWEEPS on top: Voice (station frame kept — his 20 Aug ask;
     transcript + composer in the UI face at reading size; Brief me / Ambient
     / ritual / Yes-No-Later / Remember / Just answer it / Send as controls),
@@ -266,6 +289,13 @@ DO NOT:
 - Earlier DO NOTs (3 Sep) all still stand.
 
 ## SESSION LOG (append-only, newest first)
+
+### 6 September 2026 (midday) — the hand sweeps finished, every screen off tokens-only
+His "Proceed with the remaining hand sweeps": fourteen files in three
+scripted batches (see CURRENT HANDOFF bullet). Build/lint/1086 tests green
+under TZ=UTC; markers updated; visual check limited to demo mode for the
+live-only screens because the token read was refused by the auto-mode
+classifier. Dev server stopped, isolated devtools pages closed.
 
 ### 6 September 2026 (still later) — Settings hand-swept, a latent layout bug fixed
 

@@ -1,6 +1,8 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { ChatMarkdown } from '../ChatMarkdown.jsx';
+import { Eyebrow, TextAction, Chip, Tag, Meta } from '../Controls.jsx';
+const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpperCase());
 
 // THE LIBRARY — the second brain's sources as a shelf you can walk.
 // Books stand as generated covers; videos/podcasts/articles lie as cards.
@@ -19,9 +21,7 @@ const S = 'var(--nv-font-serif)';
 function ProvenanceBadge({ p, big }) {
   if (!p) return null;
   return (
-    <span style={{ font: `600 ${big ? 9.5 : 8}px ${M}`, letterSpacing: '.14em', color: p.color, border: `1px solid color-mix(in srgb, ${p.color} 40%, transparent)`, borderRadius: '5px', padding: big ? '3px 7px' : '2px 5px', background: `color-mix(in srgb, ${p.color} 09%, transparent)` }}>
-      {p.label}
-    </span>
+    <Tag tone={p.color} style={big ? undefined : { fontSize: '9.5px', padding: '2px 6px' }}>{p.label}</Tag>
   );
 }
 
@@ -29,7 +29,7 @@ function ChipRow({ label, chips }) {
   if (!chips.length) return null;
   return (
     <div style={css('margin-top:14px')}>
-      <div style={{ font: 'var(--nv-micro-s)', letterSpacing: '.2em', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>{label}</div>
+      <Eyebrow>{label}</Eyebrow>
       <div style={css('margin-top:7px;display:flex;flex-wrap:wrap;gap:7px')}>
         {chips.map((c) => (
           <Interactive key={c.id} as="span" onClick={c.go}
@@ -48,14 +48,7 @@ function Shelf({ v }) {
     <>
       <div style={css('display:flex;align-items:center;gap:10px;flex-wrap:wrap')}>
         {v.libraryChips.map((c) => (
-          <Interactive key={c.key} as="span" onClick={c.pick}
-            base={{ cursor: 'pointer', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', padding: '7px 13px', borderRadius: '9px',
-              color: c.active ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)',
-              border: c.active ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)',
-              background: c.active ? 'var(--nv-acc-bg)' : 'none' }}
-            hoverStyle="background:rgba(255,255,255,.06)">
-            {c.label}
-          </Interactive>
+          <Chip key={c.key} tone={c.active ? 'accent' : 'quiet'} active={c.active} onClick={c.pick}>{cap(c.label)}</Chip>
         ))}
         <Interactive as="input" value={v.libraryQuery} onChange={v.setLibraryQuery} placeholder="Search the shelf…"
           base={`margin-left:auto;min-width:120px;flex:1 1 120px;max-width:230px;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:8px 13px;color:var(--nv-ink);font:400 12px ${M};outline:none`}
@@ -65,11 +58,7 @@ function Shelf({ v }) {
             Code screen behind "⇪ Add to vault" — findable by nobody, and he
             reasonably reported the feature as missing. Same modal, put where
             the intent actually forms. */}
-        <Interactive as="span" onClick={v.openIngestModal}
-          base={`flex:0 0 auto;cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 14px;border-radius:9px;color:var(--nv-gold);border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);background:color-mix(in srgb, var(--nv-gold) 06%, transparent);white-space:nowrap`}
-          hoverStyle="background:color-mix(in srgb, var(--nv-gold) 14%, transparent)">
-          ＋ ADD SOURCE
-        </Interactive>
+        <Chip tone="gold" onClick={v.openIngestModal} style={{ flex: '0 0 auto' }}>＋ Add source</Chip>
       </div>
 
       {v.libraryEmpty && (
@@ -105,8 +94,8 @@ function Shelf({ v }) {
             </Interactive>
             <div style={css('margin-top:8px;display:flex;align-items:center;gap:7px;min-height:16px')}>
               <ProvenanceBadge p={b.provenance} />
-              {b.conceptCount > 0 && <span style={{ font: 'var(--nv-micro-s)', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>{b.conceptCount} idea{b.conceptCount === 1 ? '' : 's'}</span>}
-              {b.backlinks > 0 && <span style={{ font: 'var(--nv-micro-s)', color: 'color-mix(in srgb, var(--nv-ink) 35%, transparent)' }}>· {b.backlinks} echo{b.backlinks === 1 ? '' : 'es'}</span>}
+              {b.conceptCount > 0 && <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>{b.conceptCount} idea{b.conceptCount === 1 ? '' : 's'}</Meta>}
+              {b.backlinks > 0 && <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0, opacity: .8 }}>· {b.backlinks} echo{b.backlinks === 1 ? '' : 'es'}</Meta>}
             </div>
           </div>
         ))}
@@ -119,9 +108,7 @@ function Detail({ v }) {
   const d = v.libraryDetail;
   return (
     <div style={css('animation:fadeUp .3s ease-out')}>
-      <Interactive as="span" onClick={d.close}
-        base={`cursor:pointer;display:inline-flex;align-items:center;gap:7px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 55%, transparent);padding:7px 12px;border:1px solid color-mix(in srgb, var(--nv-ink) 13%, transparent);border-radius:9px`}
-        hoverStyle="color:var(--nv-ink);background:rgba(255,255,255,.05)">‹ LIBRARY</Interactive>
+      <TextAction tone="quiet" onClick={d.close} style={{ marginLeft: '-8px' }}>‹ Library</TextAction>
 
       {d.loading && <div style={css('margin-top:40px;text-align:center;font-size:13px;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)')}>Opening…</div>}
       {d.error && (
@@ -145,41 +132,35 @@ function Detail({ v }) {
             </div>
             <div style={css('flex:1;min-width:250px')}>
               <h2 style={{ margin: 0, font: `400 30px ${S}`, lineHeight: 1.12 }}>{d.item.title}</h2>
-              {d.item.author && <div style={{ marginTop: '6px', font: 'var(--nv-micro-l)', letterSpacing: 'var(--nv-micro-track)', color: 'color-mix(in srgb, var(--nv-ink) 60%, transparent)', textTransform: 'uppercase' }}>{d.item.author}</div>}
+              {d.item.author && <Meta as="div" tone="quiet" style={{ marginTop: '6px', textTransform: 'none', letterSpacing: 0, fontSize: '13.5px' }}>{d.item.author}</Meta>}
               <div style={css('margin-top:12px;display:flex;align-items:center;gap:9px;flex-wrap:wrap')}>
                 <ProvenanceBadge p={d.item.provenance} big />
-                {d.item.updated && <span style={{ font: 'var(--nv-micro-s)', color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}>UPDATED {d.item.updated}</span>}
-                {d.backlinkCount > 0 && <span style={{ font: 'var(--nv-micro-s)', color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}>· ECHOED BY {d.backlinkCount} PAGE{d.backlinkCount === 1 ? '' : 'S'}</span>}
+                {d.item.updated && <Meta tone="faint">Updated {d.item.updated}</Meta>}
+                {d.backlinkCount > 0 && <Meta tone="faint">· echoed by {d.backlinkCount} page{d.backlinkCount === 1 ? '' : 's'}</Meta>}
               </div>
               {d.item.provenanceNote && (
                 <div style={css('margin-top:10px;font-size:12px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 55%, transparent);max-width:520px')}>{d.item.provenanceNote}</div>
               )}
               <div style={css('margin-top:12px;display:flex;gap:9px;flex-wrap:wrap')}>
                 {d.item.url && (
-                  <Interactive as="a" href={d.item.url} target="_blank" rel="noreferrer"
-                    base={`cursor:pointer;text-decoration:none;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-cy);padding:6px 11px;border:1px solid color-mix(in srgb, var(--nv-cy) 35%, transparent);border-radius:8px`}
-                    hoverStyle="background:color-mix(in srgb, var(--nv-cy) 10%, transparent)">OPEN SOURCE ↗</Interactive>
+                  <Chip tone="cyan" onClick={() => window.open(d.item.url, '_blank', 'noopener,noreferrer')}>Open source ↗</Chip>
                 )}
                 {d.raw && (
-                  <Interactive as="span" onClick={d.raw.open || undefined}
-                    base={`cursor:${d.raw.open ? 'pointer' : 'default'};font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 55%, transparent);padding:6px 11px;border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:8px`}
-                    hoverStyle={d.raw.open ? 'background:rgba(255,255,255,.06)' : undefined}>⧉ ORIGINAL · {d.raw.label}</Interactive>
+                  <Chip tone="quiet" disabled={!d.raw.open} onClick={d.raw.open || undefined}>⧉ Original · {cap(d.raw.label)}</Chip>
                 )}
-                <Interactive as="span" onClick={d.openGalaxy}
-                  base={`cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-vi);padding:6px 11px;border:1px solid color-mix(in srgb, var(--nv-vi) 35%, transparent);border-radius:8px`}
-                  hoverStyle="background:color-mix(in srgb, var(--nv-vi) 10%, transparent)">✦ SEE IN GALAXY</Interactive>
+                <Chip tone="violet" onClick={d.openGalaxy}>✦ See in Galaxy</Chip>
               </div>
 
-              <ChipRow label={`CONCEPTS · ${d.concepts.length}`} chips={d.concepts} />
-              <ChipRow label={`PEOPLE & WORKS · ${d.entities.length}`} chips={d.entities} />
-              <ChipRow label={`TOPICS · ${d.topics.length}`} chips={d.topics} />
-              <ChipRow label={`ALSO LINKED · ${d.otherLinks.length}`} chips={d.otherLinks} />
+              <ChipRow label={`Concepts · ${d.concepts.length}`} chips={d.concepts} />
+              <ChipRow label={`People & works · ${d.entities.length}`} chips={d.entities} />
+              <ChipRow label={`Topics · ${d.topics.length}`} chips={d.topics} />
+              <ChipRow label={`Also linked · ${d.otherLinks.length}`} chips={d.otherLinks} />
             </div>
           </div>
 
           {d.related.length > 0 && (
             <div style={css('margin-top:30px')}>
-              <div style={{ font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track-wide)', color: 'var(--nv-gold)' }}>CONNECTED IN YOUR SECOND BRAIN</div>
+              <Eyebrow tone="gold">Connected in your second brain</Eyebrow>
               <div style={css('margin-top:12px;display:flex;gap:12px;overflow-x:auto;padding-bottom:8px')}>
                 {d.related.map((r, i) => (
                   <Interactive key={r.id} onClick={r.open}
@@ -196,7 +177,7 @@ function Detail({ v }) {
           )}
 
           <div style={css('margin-top:30px;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);background:var(--nv-glass);padding:22px 24px')}>
-            <div style={{ font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track-wide)', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>WHAT NOVA HOLDS</div>
+            <Eyebrow>What Nova holds</Eyebrow>
             <div style={css('margin-top:12px;font-size:13.5px;line-height:1.75')}>
               <ChatMarkdown text={d.body} />
             </div>
@@ -216,7 +197,7 @@ export function Library({ v }) {
           <span style={css('width:50px;height:1px;background:linear-gradient(90deg,var(--nv-acc-border),transparent)')}></span>
           <span style={css('font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)')}>THE LIBRARY</span>
         </div>
-        <span style={{ font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>{v.libraryHeaderLabel}</span>
+        <Meta tone="faint">{v.libraryHeaderLabel}</Meta>
       </div>
       <div style={css('margin-top:18px')}>
         {v.libraryDetail ? <Detail v={v} /> : <Shelf v={v} />}

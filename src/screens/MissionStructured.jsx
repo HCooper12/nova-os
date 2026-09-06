@@ -124,7 +124,7 @@ export function MissionStructured({ v }) {
             steps and sleep, colour carrying the verdict (missionFocus.ringState)
             and a dashed ring for a metric that was not reported. */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', padding: '12px 10px 10px', borderBottom: '1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)' }}>
-          {v.ringVitals.map((r) => <RingTile key={r.key} {...r} size={mob ? 56 : 62} />)}
+          {v.ringVitals.map(({ key, ...r }) => <RingTile key={key} {...r} size={mob ? 56 : 62} />)}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: mob ? '1fr 1fr' : 'repeat(4,1fr)', gap: '2px', padding: '6px 8px' }}>
           {vitals.map((m) => <MetricTile key={m.key} m={m} />)}

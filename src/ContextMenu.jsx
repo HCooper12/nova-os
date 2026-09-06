@@ -1,7 +1,6 @@
 import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
 
-const M = "var(--nv-font-mono)";
 const R = "var(--nv-font-ui)";
 
 // The long-press menu — spec #13's other half. One host at the App root,

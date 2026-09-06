@@ -18,7 +18,6 @@ import { TextAction } from './Controls.jsx';
 // facts about a lift. Long-press an exercise in the library, or tap its name
 // on Today's card, and it slides up — and drags back down (useSheetDrag).
 
-const M = 'var(--nv-font-mono)';
 
 export function ExerciseSheet({ v }) {
   const s = v.exerciseSheet;

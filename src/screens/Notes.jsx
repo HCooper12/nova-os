@@ -1,6 +1,6 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
-import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle } from '../Controls.jsx';
+import { Eyebrow, Chip, Meta, isAppleStyle } from '../Controls.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 const btn = (bg, ink, extra = {}) => (isAppleStyle()
   ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '10px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }

@@ -168,7 +168,7 @@ export function MissionControl({ v }) {
               product and appeared on one screen; here it sits with protein,
               steps and sleep, colour carrying the verdict. */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginBottom: '16px', paddingBottom: '14px', borderBottom: '1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)' }}>
-            {v.ringVitals.map((r) => <RingTile key={r.key} {...r} size={mob ? 56 : 64} />)}
+            {v.ringVitals.map(({ key, ...r }) => <RingTile key={key} {...r} size={mob ? 56 : 64} />)}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: mob ? '1fr 1fr' : 'repeat(4,1fr)', gap: mob ? '14px 12px' : '16px' }}>
             {v.bodyMetrics.map((m) => (

@@ -1,6 +1,8 @@
 import { css } from '../css.js';
+import { Eyebrow, TextAction, Chip } from '../Controls.jsx';
+// the material pass (6 Sep 2026): labels and controls through Controls.jsx
+const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpperCase());
 
-const CHIP = "font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);padding:5px 9px;border-radius:7px;border:1px solid;cursor:pointer;user-select:none";
 
 export function Galaxy({ v }) {
   return (
@@ -24,33 +26,27 @@ export function Galaxy({ v }) {
             </span>
           ))}
           {v.galaxyFilterOn && (
-            <span onClick={v.galaxyClearFilter} style={css("cursor:pointer;color:var(--nv-cy);letter-spacing:.14em")}>CLEAR FILTER</span>
+            <TextAction compact tone="cyan" onClick={v.galaxyClearFilter}>Clear filter</TextAction>
           )}
         </div>
       </div>
       {/* overlays — recency from the pages' own dates, the Compost's candidates */}
       <div style={css("display:flex;flex-wrap:wrap;gap:8px;margin-top:12px")}>
         {v.galaxyOverlays.map((o) => (
-          <span key={o.key} onClick={o.disabled ? undefined : o.toggle}
-            style={{ ...css(CHIP), cursor: o.disabled ? 'default' : 'pointer',
-              color: o.on ? 'var(--nv-cy)' : o.disabled ? 'color-mix(in srgb, var(--nv-ink) 28%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)',
-              borderColor: o.on ? 'color-mix(in srgb, var(--nv-cy) 45%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 12%, transparent)',
-              background: o.on ? 'color-mix(in srgb, var(--nv-cy) 10%, transparent)' : 'transparent' }}>
-            {o.label}
-          </span>
+          <Chip key={o.key} tone={o.on ? 'cyan' : 'quiet'} active={o.on} disabled={o.disabled} onClick={o.disabled ? undefined : o.toggle}>{cap(o.label)}</Chip>
         ))}
       </div>
       <div style={v.galaxyBox}>
         <canvas ref={v.galaxyRef} onClick={v.galaxyClick}
           onPointerDown={v.galaxyPointerDown} onPointerMove={v.galaxyPointerMove} onPointerUp={v.galaxyPointerUp} onPointerCancel={v.galaxyPointerUp}
           style={css("position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair;touch-action:none")}></canvas>
-        {!v.galaxyZoomed && <div style={css("position:absolute;top:14px;left:16px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent);pointer-events:none")}>TAP A STAR · PINCH TO ZOOM</div>}
+        {!v.galaxyZoomed && <Eyebrow style={{ position: 'absolute', top: '14px', left: '16px', pointerEvents: 'none' }}>Tap a star · pinch to zoom</Eyebrow>}
         {v.galaxyZoomed && (
-          <span onClick={v.galaxyResetView} style={{ ...css(CHIP), position: 'absolute', top: '10px', right: '14px', color: 'var(--nv-cy)', borderColor: 'color-mix(in srgb, var(--nv-cy) 45%, transparent)', background: 'var(--nv-glass2)' }}>RESET VIEW</span>
+          <Chip tone="cyan" active onClick={v.galaxyResetView} style={{ position: 'absolute', top: '10px', right: '14px' }}>Reset view</Chip>
         )}
         {v.galaxySelOn && (
           <div style={css("position:absolute;right:16px;bottom:16px;width:270px;max-width:calc(100% - 32px);border:1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent);border-radius:12px;padding:15px 17px;background:var(--nv-glass2);backdrop-filter:blur(14px);box-shadow:0 18px 40px -18px rgba(0,0,0,.9);animation:fadeUp .3s ease-out")}>
-            <div style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:${v.galaxySelColor}`)}>{v.galaxySelType}</div>
+            <Eyebrow tone={v.galaxySelColor}>{v.galaxySelType}</Eyebrow>
             <div style={css("margin-top:7px;font:400 19px var(--nv-font-serif)")}>{v.galaxySelLabel}</div>
             <div style={css("margin-top:5px;font-size:12px;color:color-mix(in srgb, var(--nv-ink) 55%, transparent);line-height:1.5")}>{v.galaxySelDesc}</div>
             <div style={css("margin-top:12px;display:flex;gap:8px")}>
