@@ -237,6 +237,7 @@ export function valsWorkouts(app, ctx) {
   const routineDetailExercises = openRoutine ? openRoutine.exercises.map((e, i, arr) => ({
     exerciseId: e.exerciseId,
     name: e.name,
+    onOpen: () => app.openExerciseCard(e.name),
     muscleGroup: e.muscleGroup,
     trackingType: e.trackingType,
     targetUnit: targetUnit(e.trackingType),
@@ -289,6 +290,9 @@ export function valsWorkouts(app, ctx) {
   const libraryById = new Map(libraryExercises.map((x) => [x.id, x]));
   const sessionExercises = session ? session.exercises.map((e, exIdx) => ({
     exerciseId: e.exerciseId, name: e.name, trackingType: e.trackingType,
+    // the anatomy card (3D figure, muscles, cues, history) — a visible chip
+    // now, not a long-press nobody could find
+    onOpen: () => app.openExerciseCard(e.name),
     // THE LIBRARY IS THE AUTHORITY, not the copy frozen into the session when
     // it started. The weekly volume is counted server-side from the library
     // (groupOf.get(exerciseId)), so the note beside the exercise must read
@@ -535,6 +539,8 @@ export function valsWorkouts(app, ctx) {
     sessionRoutineName: session ? session.routineName : '',
     sessionEditing: !!st.editingSessionId,
     sessionExercises,
+    // the hint's tap: the Voice screen, where the words are heard
+    openVoiceForSession: () => app.navigate('voice', { instant: true }),
     // finishing-early chips (P2): visible only when something is undone
     sessionHasUndone: !!session && session.exercises.some((e2) => e2.skipped || !e2.sets.every((s2) => s2.done)),
     sessionCutShort: st.sessionCutShort || null,

@@ -436,6 +436,7 @@ function RoutineDetailView({ v }) {
               <div>
                 <div style={css("display:flex;align-items:center;gap:8px;flex-wrap:wrap")}>
                   <span style={css("font-size:14.5px;font-weight:500")}>{e.name}</span>
+                  {e.onOpen && <Chip tone="violet" onClick={e.onOpen} title="See the lift — the 3D figure, the muscles it trains, cues and your history">◉ 3D</Chip>}
                   {e.coachLabel && <Tag tone="cyan" title={e.coachEvidence || ''}>{e.coachLabel}</Tag>}
                   {e.coachAdded && <Tag tone="gold" title={e.coachAdded.why || ''}>◆ Coach{e.coachAdded.startWeightKg ? ` · start ~${e.coachAdded.startWeightKg}kg` : ''}</Tag>}
                 </div>
@@ -488,12 +489,30 @@ function SessionView({ v }) {
       <h1 style={css("margin:18px 0 0;font:700 28px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>{v.sessionRoutineName}{v.sessionEditing && <span style={css("font:italic 400 26px var(--nv-font-serif);color:var(--nv-gold)")}> — editing the record.</span>}</h1>
       <Meta as="div" tone="faint" style={{ marginTop: '4px', textTransform: 'none', letterSpacing: 0 }}>{v.sessionEditing ? 'Untick anything that didn’t actually happen — only ticked sets stay in history.' : 'Session in progress — sets auto-fill from last time. Only ticked sets are saved.'}</Meta>
 
+      {/* THE GYM BY VOICE (src/gymVoice.js) is invisible without this line.
+          A capability he cannot find is a capability he does not have — his
+          words, 6 Sep, about the 3D figure and this. */}
+      {!v.sessionEditing && (
+        <Interactive as="div" onClick={v.openVoiceForSession}
+          base={css("cursor:pointer;margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid color-mix(in srgb, var(--nv-cy) 26%, transparent);border-radius:11px;padding:10px 13px;background:color-mix(in srgb, var(--nv-cy) 05%, transparent)")}
+          hoverStyle="background:color-mix(in srgb, var(--nv-cy) 12%, transparent)">
+          <Tag tone="cyan" style={{ flex: 'none' }}>Hands free</Tag>
+          <span style={css(`flex:1;min-width:0;font:400 ${isAppleStyle() ? '13px' : '11.5px'}/1.45 var(--nv-font-ui);color:color-mix(in srgb, var(--nv-ink) 62%, transparent)`)}>
+            Log it by talking — say “80 for 8”, “same again”, “next”, “skip it”, “what’s next”, then “finish”.
+          </span>
+          <Meta tone="cyan" style={{ flex: 'none', fontWeight: 600 }}>Open →</Meta>
+        </Interactive>
+      )}
+
       <div style={css("margin-top:20px;display:flex;flex-direction:column;gap:14px")}>
         {v.sessionExercises.map((e) => (
           <div key={e.exerciseId} style={css(`border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:12px;padding:16px 18px;background:rgba(255,255,255,.02)${e.skipped ? ';opacity:.5' : ''}`)}>
             <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap")}>
               <Interactive as="span" onLongPress={e.onLongPress} base={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <span style={css(`font-size:15px;font-weight:500${e.skipped ? ';text-decoration:line-through' : ''}`)}>{e.name}</span>
+                {!e.skipped && e.onOpen && (
+                  <Chip tone="violet" onClick={e.onOpen} title="See the lift — the 3D figure, the muscles it trains, cues and your history">◉ 3D</Chip>
+                )}
                 {!e.skipped && (
                   <Chip tone={e.formCurated ? 'cyan' : 'quiet'} onClick={() => window.open(e.formUrl, '_blank', 'noopener')}
                     title={e.formCurated ? 'Curated form clip for this lift — Coach-approved' : 'Technique videos for this lift (no curated pick yet — hold the exercise name to have Coach curate one)'}>▶ Form</Chip>
@@ -859,7 +878,7 @@ function GoalsCoachPane({ v }) {
     <>
       {/* goals + the real coach, side by side */}
       <div style={{ display: 'flex', gap: '14px', marginTop: '14px', flexWrap: 'wrap' }}>
-        <div className="nv-pane" style={{ flex: '1 1 300px', padding: '16px 18px', alignSelf: 'flex-start' }}>
+        <div className="nv-pane" style={{ flex: '1 1 300px', minWidth: 0, padding: '16px 18px', alignSelf: 'flex-start' }}>
           <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>
             <Eyebrow as="span" tone="gold">Goals</Eyebrow>
             {!v.goalsEditing && (
@@ -903,7 +922,11 @@ function GoalsCoachPane({ v }) {
           )}
         </div>
 
-        <div className="nv-pane" style={{ flex: '1.4 1 340px', padding: '16px 18px', display: 'flex', flexDirection: 'column', maxHeight: '420px' }}>
+        {/* minWidth:0 — a flex item will not shrink past its content unless
+            told to, and this one holds panels with nowrap rows. Without it the
+            pane grew to 403px inside a 390px screen and the whole Train screen
+            panned sideways (his recording, 6 Sep). */}
+        <div className="nv-pane" style={{ flex: '1.4 1 340px', minWidth: 0, padding: '16px 18px', display: 'flex', flexDirection: 'column', maxHeight: '420px' }}>
           <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap")}>
             <Eyebrow as="span" tone="cyan">Ask Coach</Eyebrow>
             <span style={css("display:flex;gap:10px;align-items:center")}>
@@ -913,7 +936,7 @@ function GoalsCoachPane({ v }) {
               )}
             </span>
           </div>
-          <div ref={coachLogRef} style={css("flex:1;overflow-y:auto;margin-top:10px;display:flex;flex-direction:column;gap:10px;font:500 12.5px/1.6 var(--nv-font-ui)")}>
+          <div ref={coachLogRef} style={css("flex:1;min-width:0;overflow-y:auto;overflow-x:hidden;margin-top:10px;display:flex;flex-direction:column;gap:10px;font:500 12.5px/1.6 var(--nv-font-ui)")}>
             {v.coachMsgs.length === 0 && !v.coachBusy && (
               <div style={css("color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Ask anything a coach should answer — "should I deload?", "why is my bench stuck?", "build me a plan for a 4-day week."</div>
             )}

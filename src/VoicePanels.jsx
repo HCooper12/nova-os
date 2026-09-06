@@ -17,7 +17,7 @@ const dim = (pct) => `color-mix(in srgb, var(--nv-ink) ${pct}%, transparent)`;
 
 function Card({ label, children }) {
   return (
-    <div style={css(`margin-top:10px;border:1px solid ${dim(10)};border-radius:12px;padding:12px 14px;background:${dim(3)};animation:fadeUp .4s ease-out`)}>
+    <div style={css(`margin-top:10px;min-width:0;max-width:100%;box-sizing:border-box;overflow:hidden;border:1px solid ${dim(10)};border-radius:12px;padding:12px 14px;background:${dim(3)};animation:fadeUp .4s ease-out`)}>
       <Eyebrow style={{ marginBottom: '9px' }}>{label}</Eyebrow>
       {children}
     </div>

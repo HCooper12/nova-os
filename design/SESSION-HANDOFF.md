@@ -13,6 +13,34 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**7 SEP — THE COACH-TAB BUG, PROPERLY; AND THE DISCOVERABILITY LESSON.**
+He reported the sideways pan STILL there after the first fix, and asked
+where the 3D form figure was. Both were fair, and both taught the same
+thing.
+- **The pan, root-caused and fixed.** My first fix (overflow-x:hidden on
+  main) only CLIPPED it. Reproduced properly by connecting a devtools page
+  to the live server (a generated `public/_devconn.js`, deleted after —
+  the token never entered the transcript) and staging his REAL sessions
+  panel into the Coach chat: the `.nv-pane` measured **403px inside a 390px
+  viewport**. Cause: a flex item's `min-width` defaults to `auto`, so the
+  pane would not shrink below the panel's nowrap rows. Fix: `minWidth: 0`
+  on both panes and the chat log, `min-width/max-width/overflow` on the
+  VoicePanels Card. Measured after: natural width 390 = viewport, zero
+  offenders WITH clipping disabled.
+- **The 3D figure was built, shipped, and unreachable.** `Body3D.jsx` is in
+  the bundle and works on his data (verified live: Weighted Pull-Up, lats
+  and biceps lit, drag-to-turn). Its only doors were a dotted underline on
+  Today's plan list — WHICH TODAY HIDES ENTIRELY while a session is in
+  progress — and a long-press in the picker. Now: a visible **◉ 3D** chip on
+  every exercise row in the cockpit and the routine detail.
+- **The gym by voice had no door at all.** The cockpit now carries a
+  hands-free strip naming the actual phrases, tapping through to Voice.
+
+**THE LESSON, for every session after this one: a capability he cannot find
+is a capability he does not have.** When a build finishes, the last step is
+not "tests pass" — it is "point at the pixel he taps". If there isn't one,
+the feature is not done. Two of his three complaints this week were this.
+
 **6 SEP (late night) — PHASE 3, ATTACHMENTS, THE COACH-TAB GLITCH, THE
 GRANT.** His grant: `.claude/settings.local.json` now allows
 `Bash(node scripts/nova-api.mjs:*)`, `Bash(shortcuts list)`,
