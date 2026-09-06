@@ -212,6 +212,13 @@ export function valsMisc(app, ctx) {
       time: m.at ? dtf('', { hour: '2-digit', minute: '2-digit' }).format(new Date(m.at)) : null,
       daySep: m.at && (!arr[i - 1]?.at || new Date(arr[i - 1].at).toDateString() !== new Date(m.at).toDateString())
         ? dtf('', { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(m.at)) : null,
+      // Something Nova DID on his word — a verb from the registry, already
+      // written, receipted on the rails. The strip says what, and offers the
+      // undo that rides the same rail as the Inbox's.
+      acted: !demoMode && m.acted ? {
+        title: m.acted.title, status: m.acted.status || 'done',
+        undo: (m.acted.status || 'done') === 'done' && m.acted.undoable ? () => app.undoVoiceAct(m.acted.recordId, m.at) : null,
+      } : null,
       proposal: !demoMode && m.proposal ? {
         title: m.proposal.title, status: m.proposal.status,
         approve: m.proposal.status === 'pending' ? () => app.resolveVoiceProposal(m.proposal.recordId, true) : null,

@@ -42,7 +42,57 @@ const defaultDeps = {
   // the WARM calendar cache only — a cold cache is null, and null falls
   // through to the model rather than making him wait on iCloud for a reflex
   calendarToday: async () => (await import('./calendar.js')).peekCachedEventsForDay(new Date()),
+  // the ledger — for "what's going on with the X?" (lib/verbs.js's world)
+  records: async () => (await import('./inboxStore.js')).listRecords(),
 };
+
+// STATUS OF A JOB HE NAMED. The reel's "what's going on with my reservation?"
+// — answered from the record ledger, not from the model's memory of having
+// said it would do something. Matches the newest record from the last two
+// days whose title or goal his words fit; a miss falls through to the model
+// (which carries the fleet's activity in its context).
+const STATUS_RE = /^(?:(?:what(?:'s| is) (?:going on|happening|the (?:status|progress|update)) (?:with|on)|how(?:'s| is| are)|(?:any|what) (?:update|news|progress|word) on|status (?:of|on)|where(?:'s| is| are) (?:we|you|things)? ?(?:at|up to)? ?(?:with|on)|did (?:you|the [a-z]+) (?:finish|do|run))\s+(?:the |my |that )?(.+?)(?:\s+(?:going|doing|coming along|research|job|report|brief|thing|yet|now))?)$/;
+const RECORD_STATE = {
+  classifying: (age) => `is still running — started ${age}.`,
+  running: (age) => `is still running — started ${age}.`,
+  pending: (age) => `landed in your Inbox ${age}, waiting on your word.`,
+  approved: (age) => `was approved ${age} and is running.`,
+  filed: (age, r) => `is done — filed ${age}${r.destination ? ` to ${r.destination}` : ''}.`,
+  done: (age) => `finished ${age}.`,
+  error: (age, r) => `hit an error ${age}${r.error ? `: ${String(r.error).slice(0, 90)}` : ''}.`,
+  failed: (age, r) => `failed ${age}${r.error ? `: ${String(r.error).slice(0, 90)}` : ''}.`,
+  discarded: (age) => `was discarded ${age}.`,
+  undone: (age) => `was undone ${age}.`,
+};
+function ago(iso) {
+  const ms = Date.now() - new Date(iso).getTime();
+  const m = Math.round(ms / 60_000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m} minute${m === 1 ? '' : 's'} ago`;
+  const h = Math.round(m / 60);
+  if (h < 36) return `${h} hour${h === 1 ? '' : 's'} ago`;
+  return `${Math.round(h / 24)} days ago`;
+}
+async function statusReflex(q, deps) {
+  const m = q.match(STATUS_RE);
+  if (!m) return null;
+  const named = m[1].trim();
+  if (named.length < 3 || /^(?:it|that|this|things|everything|you|we)$/.test(named)) return null;
+  const records = await deps.records?.().catch(() => null);
+  if (!records) return null;
+  const cutoff = Date.now() - 2 * 86_400_000;
+  const { matchName } = await import('./verbs.js');
+  const recent = records.filter((r) => new Date(r.createdAt || 0).getTime() > cutoff && r.status !== 'expired');
+  const pool = recent.map((r) => ({ r, name: [r.decision?.title, r.goal, r.text, r.question].filter(Boolean).join(' · ') }));
+  const hit = matchName(pool, named);
+  // a status read must fit the job's name, not merely share a word with it
+  if (!hit.hit || hit.score < 2) return null; // no such job — the model can say so with more context
+  const r = hit.hit.r;
+  const say = RECORD_STATE[r.status];
+  if (!say) return null;
+  const title = (r.decision?.title || r.goal || r.text || 'that').replace(/^Plan: /, 'the plan to ');
+  return { matched: 'status', text: `"${title.slice(0, 80)}" ${say(ago(r.filedAt || r.updatedAt || r.createdAt), r)}` };
+}
 
 // THE GLASS FOR A REFLEX. The same code that speaks the number draws it —
 // his standing rule (show what it says), clamped by spokenCards like every
@@ -194,6 +244,9 @@ export async function tryReflex(question, deps = defaultDeps) {
       `${n} item${n === 1 ? '' : 's'} pending your word.`,
     ]), card: await card({ label: 'Inbox', value: n, caption: 'PENDING YOUR WORD', tone: 'gold' }) };
   }
+
+  const status = await statusReflex(q, deps);
+  if (status) return status;
 
   return null;
 }

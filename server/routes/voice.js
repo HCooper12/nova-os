@@ -41,6 +41,17 @@ export function voiceRouter(vaultPath) {
         import('../lib/spokenLog.js').then(({ logSpoken }) => logSpoken('reflex', reflex.text)).catch(() => {});
         return res.json({ text: reflex.text, reflex: true, card: reflex.card || null });
       }
+      // THE VERBS' FAST PATH: a command the grammar is sure about ("tick off
+      // the eggs", "had lunch", "move dentist to errands") runs here against
+      // his real lists — no model, a receipt with undo, honest "which one?"
+      // when his words fit two things. (lib/verbs.js)
+      const { tryCommand } = await import('../lib/verbs.js');
+      const command = await tryCommand(vaultPath, question).catch(() => null);
+      if (command) {
+        console.log(`verb ${command.miss ? 'miss' : 'hit'} [${command.matched}] q=${JSON.stringify(question.slice(0, 80))}`);
+        import('../lib/spokenLog.js').then(({ logSpoken }) => logSpoken('verb', command.text)).catch(() => {});
+        return res.json({ text: command.text, reflex: true, acted: command.acted || null, proposal: command.proposal || null });
+      }
       // THE PWA SESSION IS GUARDED like the spoken one (lib/askSession.js):
       // a conversation older than a day, from another day, or past forty
       // turns starts fresh — its deep context would be a snapshot of some
@@ -245,6 +256,12 @@ export function voiceRouter(vaultPath) {
         console.log(`ask/sync reflex hit [${reflex.matched}] q=${JSON.stringify(question.slice(0, 80))}`);
         import('../lib/spokenLog.js').then(({ logSpoken }) => logSpoken('reflex', reflex.text)).catch(() => {});
         return res.json({ text: reflex.text, sessionId: null });
+      }
+      const { tryCommand: trySyncCommand } = await import('../lib/verbs.js');
+      const command = await trySyncCommand(vaultPath, question).catch(() => null);
+      if (command) {
+        console.log(`ask/sync verb ${command.miss ? 'miss' : 'hit'} [${command.matched}]`);
+        return res.json({ text: command.text, reflex: true, acted: command.acted || null });
       }
       // iOS Shortcuts kills a request that sits SILENT for too long ("The
       // network connection was lost"), so a long think needs SOMETHING on the

@@ -110,3 +110,23 @@ test("reflex: today's calendar answers from the WARM cache only — a cold cache
   const cold = await tryReflex("what's on today", { ...deps, calendarToday: async () => null });
   assert.equal(cold, null, 'a cold cache is not an answer — the model waits on iCloud honestly');
 });
+
+test('reflex: "what\'s going on with X" answers from the record ledger, never from memory', async () => {
+  const now = Date.now();
+  const rec = { ...deps, records: async () => [
+    { id: 'a1', kind: 'research', status: 'classifying', createdAt: new Date(now - 4 * 60_000).toISOString(), decision: { title: 'Research: creatine timing and sleep' } },
+    { id: 'b2', kind: 'plan', status: 'pending', createdAt: new Date(now - 30 * 60_000).toISOString(), goal: 'watch the strength video then check its claims', decision: { title: 'Plan: watch the strength video then check its claims' } },
+    { id: 'c3', kind: 'video', status: 'filed', createdAt: new Date(now - 5 * 86_400_000).toISOString(), decision: { title: 'Verdict: old video' } },
+  ] };
+  const r = await tryReflex("what's going on with the creatine research?", rec);
+  assert.equal(r.matched, 'status');
+  assert.match(r.text, /creatine/);
+  assert.match(r.text, /still running — started 4 minutes ago/);
+  const p = await tryReflex("how's the strength video plan going", rec);
+  assert.match(p.text, /landed in your Inbox 30 minutes ago/);
+  // older than two days, or nothing that matches → the model takes it
+  assert.equal(await tryReflex("what's going on with the old video", rec), null);
+  assert.equal(await tryReflex("what's going on with my reservation", rec), null);
+  // an analytical question about a job is not a status read
+  assert.equal(await tryReflex('why is the creatine research taking so long', rec), null);
+});

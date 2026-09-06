@@ -537,6 +537,15 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  if (route === 'act') {
+    // A verb from the registry (lib/verbs.js) that needed his yes — the
+    // shopping-list clear, and anything the model marks confirm-first.
+    // The verb runs here, on approve, and hands back its own undo.
+    const { execute } = await import('./verbs.js');
+    const out = await execute(vaultPath, payload);
+    return { destination: out.destination, undo: out.undo ? { route, ...out.undo } : null };
+  }
+
   if (route === 'calendar') {
     // Only reached on the user's explicit approval. Writes to iCloud here.
     const action = payload.action || 'create';
@@ -940,6 +949,11 @@ export async function undoFiling(vaultPath, undo) {
     return undo.priorAltId
       ? `restored ${undo.slot}'s previous today-variant of ${undo.recipeName}`
       : `cleared the today-variant — ${undo.slot} is ${undo.recipeName} as written again`;
+  }
+
+  if (undo.route === 'act') {
+    const { undoVerb } = await import('./verbs.js');
+    return undoVerb(vaultPath, undo);
   }
 
   if (undo.route === 'plan-note') {

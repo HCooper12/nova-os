@@ -13,6 +13,27 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**6 SEP (evening) — THE VERBS, PHASE 1.** His brief after the Astra reel:
+every feature by one sentence, spoken or typed, delegation invisible, no
+dead air. The full plan is `design/VERBS-PLAN.md` (read it before touching
+this). Built and shipped today: `server/lib/verbs.js` — the action registry
+(11 verbs: to-do tick/reopen/move, shopping tick/untick/qty/clear, meal
+eaten/uneaten, plan priority done/skipped, run the plan), name resolution
+that never guesses (tie → "which one?", miss → says so), every act receipted
+on the rails with undo (route `act`), a strict grammar that runs the sure
+commands in under a second with no model (`tryCommand`, in `/api/ask` and
+the Siri lane after the reflex), and the `ACT` directive for the model
+(catalogue GENERATED into the prompt by `describeForModel`). The status
+reflex answers "what's going on with the X?" from the record ledger. A
+proposed plan now lands in the transcript with the yes/no chip, so a spoken
+"yes" runs it. Client: the Done strip with Undo on the message; BY VOICE
+receipts in the Inbox. Tests: `verbs.test.js` + the status reflex. NOT
+verified on his real vault from here — the auto-mode classifier refused to
+read API_TOKEN for a local curl; the suite covers the logic end-to-end on a
+temp vault. His first spoken "tick off X" is the live proof; the service log
+prints `verb hit [todo.done]`. NEXT: Phase 2 (Coach/Leader answer in the
+conversation; more verbs), Phase 3 (the gym by voice).
+
 **6 SEP — EVERYTHING VERIFIED LIVE ON THE URL HIS PHONE LOADS, THE PLAN
 HANDOFF PROVEN ON A REAL RUN, AND THE MATERIAL PASS EXTENDED TO EVERY SCREEN
 (tokens everywhere; and, as of 6 Sep midday, HAND SWEEPS ON EVERY SCREEN —
@@ -285,6 +306,16 @@ DO NOT:
 - Earlier DO NOTs (3 Sep) all still stand.
 
 ## SESSION LOG (append-only, newest first)
+
+### 6 September 2026 (evening) — the Verbs, phase 1: doing by voice
+Watched the Astra reel (frames + Whisper transcript via the watch skill —
+the Chrome extension was not connected, the reel was public). Mapped the
+command surface with an Explore agent (the evidence map is in this session;
+its shape: speech reached capture, dispatch and coaching edits only). Built
+the registry, the grammar fast path, the ACT directive, the status reflex,
+plan-approval-by-voice, and the client strip. 1096 tests green under TZ=UTC;
+the one failure on the first full run did not reproduce (flaky, not mine).
+Service reloaded. Plan doc: `design/VERBS-PLAN.md`.
 
 ### 6 September 2026 (late afternoon) — the type badges: the material pass is complete
 His "work on the type badges". The note list row's badge and the Fuel card's

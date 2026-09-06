@@ -24,6 +24,7 @@ const SOURCE_LABEL = {
   'coach-program': 'PROGRAM REVIEW', 'coach-audit': 'PROGRAM AUDIT',
   'read-next': 'LIBRARIAN', 'forge-job': 'FORGE',
   scout: 'SCOUT · PEOPLE', 'leader-reflect': 'LEADER',
+  act: 'BY VOICE',
 };
 
 const ROUTE_META = {

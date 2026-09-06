@@ -4027,6 +4027,7 @@ export default class App extends Component {
         }
         const panel = job.result.panel || undefined;
         const proposal = job.result.proposal ? { ...job.result.proposal, status: 'pending' } : undefined;
+        const acted = job.result.acted ? { ...job.result.acted, status: 'done' } : undefined;
         const research = job.result.research
           ? { ...job.result.research, status: job.result.research.queued ? 'queued' : 'running' }
           : undefined;
@@ -4046,8 +4047,8 @@ export default class App extends Component {
             // two of us are on the same page. A deterministic keyword match
             // offers the matching EVIDENCE card; code still computes it.
             const evidence = this.offerVerdictFor(text);
-            if (idx === -1) chat.push({ at: Date.now(), who: 'nova', text, panel, proposal, research, evidence });
-            else chat[idx] = { at: Date.now(), who: 'nova', text, panel, proposal, research, evidence };
+            if (idx === -1) chat.push({ at: Date.now(), who: 'nova', text, panel, proposal, acted, research, evidence });
+            else chat[idx] = { at: Date.now(), who: 'nova', text, panel, proposal, acted, research, evidence };
             return { voiceChat: chat, voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal };
           });
           // THE GLASS: any spoken answer with a shape puts its card up — his
@@ -4788,9 +4789,12 @@ export default class App extends Component {
     if (planWorthy(q)) {
       this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q }], orbInput: '' }));
       api.proposePlan(conn, q)
-        .then((r) => this.setState((st) => ({
-          voiceChat: [...st.voiceChat, { at: Date.now(), who: 'nova', text: r.said || 'Working out who should do what — I will show you the plan before anything runs.' }],
-        })))
+        .then((r) => {
+          this.setState((st) => ({
+            voiceChat: [...st.voiceChat, { at: Date.now(), who: 'nova', text: r.said || 'Working out who should do what — I will show you the plan before anything runs.' }],
+          }));
+          if (r.record?.id) this.watchPlanProposal(r.record.id);
+        })
         .catch((e) => this.setState((st) => ({
           voiceChat: [...st.voiceChat, { at: Date.now(), who: 'nova', text: `I couldn't plan that: ${e.message}` }],
         })));
@@ -5221,6 +5225,42 @@ export default class App extends Component {
     clearTimeout(this.briefQueueT);
     this.setState({ briefQueue: null, briefQueueIdx: 0, briefQueueRemaining: 0, voicePendingProposal: null });
     this.clearStage();
+  }
+  // A plan is decomposed by a model AFTER the chat acknowledged it. Watch
+  // the record until it is pending, then put the plan itself in the
+  // transcript with the same yes/no chip a proposal carries — so "yes"
+  // (spoken or typed) approves it, and nothing runs before he has read it.
+  watchPlanProposal(recordId) {
+    const conn = getConnection();
+    if (!conn) return;
+    const started = Date.now();
+    const tick = async () => {
+      if (Date.now() - started > 4 * 60_000) return;
+      let rec = null;
+      try { rec = await api.inboxItem(conn, recordId); } catch { /* keep polling */ }
+      rec = rec?.record || rec;
+      if (!rec || rec.status === 'classifying') { setTimeout(tick, 2000); return; }
+      if (rec.status !== 'pending') return; // errored: the Inbox says why
+      const title = rec.decision?.title || 'The plan';
+      const body = rec.decision?.body || '';
+      const proposal = rec.planOk ? { recordId, title, status: 'pending' } : undefined;
+      this.setState((s) => ({
+        voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: body ? `${title}\n${body}` : title, proposal }],
+        voicePendingProposal: proposal ? { recordId, title } : s.voicePendingProposal,
+      }));
+      if (this.state.voiceSpeak && rec.planOk) this.speakTtsSentence('The plan is on screen, sir — say yes to run it.');
+    };
+    setTimeout(tick, 1500);
+  }
+  // Undo something done by voice: the same rail as the Inbox's undo. The
+  // strip flips only when the server confirms the revert.
+  undoVoiceAct(recordId, at) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.inboxUndo(conn, recordId).then(() => {
+      this.setState((s) => ({ voiceChat: s.voiceChat.map((m) => (m.at === at && m.acted ? { ...m, acted: { ...m.acted, status: 'undone' } } : m)) }));
+      this.refreshInbox?.();
+    }).catch((e) => this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: `Couldn't undo that: ${e.message}` }] })));
   }
   resolveVoiceProposal(recordId, approve) {
     const conn = getConnection(); if (!conn) return;
@@ -5738,7 +5778,12 @@ export default class App extends Component {
         // number it spoke is drawn by the same code (resp.card).
         this.setState({ voiceBusy: false });
         if (resp.card) this.putCard(resp.card);
-        const show = () => this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: resp.text, evidence: this.offerVerdictFor(resp.text) }] }));
+        const acted = resp.acted ? { ...resp.acted, status: 'done' } : undefined;
+        const proposal = resp.proposal ? { ...resp.proposal, status: 'pending' } : undefined;
+        const show = () => this.setState((s) => ({
+          voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: resp.text, acted, proposal, evidence: this.offerVerdictFor(resp.text) }],
+          voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal,
+        }));
         if (this.state.voiceSpeak) this.speakTtsSentence(resp.text, show);
         else { show(); this.maybeAutoListen(); }
         return;

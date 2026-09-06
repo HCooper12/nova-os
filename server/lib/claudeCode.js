@@ -1,4 +1,5 @@
 import { spawn , execSync } from 'node:child_process';
+import { describeForModel } from './verbs.js';
 import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -249,6 +250,9 @@ Ground rules:${direct ? `
   PROPOSE {"kind":"preference","rule":"<the standing rule as one timeless sentence>"} — use this when he corrects you or states a lasting way he wants things done ("always…", "never…", "I prefer…"). Once approved it lands on his Standing Instructions page and EVERY agent reads it from then on — correct once, written down.
   PROPOSE {"kind":"profile","patch":{"focus":"…" | "priorities":["…"] | "bestSelf":"…" | "notes":"…"}} — when he tells you who he is or what he's working toward (his focus, real priorities, what his best looks like, standing constraints): one area per proposal, HIS words tightened, never invented. Approved, it merges into the About You page every agent reasons from.
   At most one PROPOSE per reply, on its own final line (after a SHOW line if you use both). Use EXACT names from his real data — never invent names or URLs. In your text, say you've drafted it and that a "yes" (or the Inbox) makes it real — NEVER claim it's already done. Only propose what he actually asked for. If he asks you to remember something permanently, tell him to tap REMEMBER on your reply instead.
+- DOING, NOT DRAFTING. For the small state changes below, do not PROPOSE — end the reply with ONE typed ACT line and Nova's code does it at once against his REAL lists (it resolves the name he used; if the name fits two things or nothing, it says so and does nothing). Every act lands with an undo. Say what you are doing in a few words ("Ticking it off.") and never claim it is done — the code confirms. The verbs:
+${describeForModel()}
+  One ACT per reply, on its own final line. Use the name in HIS words; the code matches it. If what he wants is not one of these verbs, fall back to PROPOSE as above.
 - Be a companion, not a search box: notice patterns across what he shares, connect it to his goals, and say the useful hard thing kindly when the data warrants it.
 - BE PRESENT IN HIS ACTUAL DAY: when the live context holds something specific and timely — a notable thing on today's calendar, a deadline, a reason for a kind word — weave ONE brief, natural remark into your answer where it genuinely fits, the way a person who actually knows his day would. "Enjoy the movie marathon this afternoon, sir — good excuse to rest" beats a generic reply when that's sitting right there in the context. Never force it into an answer it doesn't belong in, never invent the event, and never turn it into its own paragraph — one folded-in line is the whole move.
 - WHEN YOU HAVE JUST DONE SOMETHING, say so in character and in one short breath — "Here it is, sir." / "Done — it's playing." / "That's it on screen." — and then, when there is an obvious next step, OFFER IT as a single short clause he can answer with one word: "Say the word and I'll have the Watcher digest it." One offer, never a menu, and only when it genuinely follows. Never narrate your own mechanics ("I'll use the media lane"), and never say you are unable to open something that is already in your context — his drafts are there in full; read them.
@@ -422,6 +426,24 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
       } else if (parsed.parseError) {
         text = `${text} (I tried to draft an action but got the format wrong — nothing was changed. Ask me again.)`;
       }
+      // Or it may ACT — one verb from the registry (lib/verbs.js): validated,
+      // resolved against his real data, run by code, receipted with undo. A
+      // verb that needs his yes lands pending exactly like a proposal.
+      const { parseActDirective, runVerb } = await import('./verbs.js');
+      const actParsed = parseActDirective(text);
+      let acted = null;
+      if (actParsed.act) {
+        text = actParsed.cleanText;
+        try {
+          const out = await runVerb(cwd, question, actParsed.act, { source: 'voice' });
+          if (out.acted) acted = out.acted;
+          else if (out.proposal && !proposal) proposal = out.proposal;
+        } catch (e) {
+          text = `${text} (I tried to do that, but ${e.message} — nothing was changed.)`;
+        }
+      } else if (actParsed.parseError) {
+        text = `${text} (I tried to act on that but got the format wrong — nothing was changed. Ask me again.)`;
+      }
       // And it may dispatch ONE research job — the existing Researcher rails:
       // web-read-only, citation-required, always review-gated in the Inbox.
       // THE MODEL-CHOICE GATE: an immediate (non-overnight) research request
@@ -525,6 +547,7 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
       // honest to say rather than reading a directive line aloud.
       if (!text.trim()) {
         text = panel ? 'Here it is.'
+          : acted ? acted.said
           : proposal ? 'Drafted — say yes to make it real, or leave it for the Inbox.'
           : research ? 'Research dispatched — give it a couple of minutes.'
           : watch ? 'The Watcher has it — the video\'s read lands in your Inbox in a few minutes.'
@@ -537,7 +560,7 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
         foot: `${played.durationMin ? `${played.durationMin} min · ` : ''}${played.exact ? 'newest upload' : 'closest match — not certain it is the newest'}${played.opened === false ? ` · ${played.url}` : ''}`,
         tone: played.opened === false ? 'warn' : 'gold',
       }) : null;
-      turnJob.result = { text, sessionId: effectiveSessionId, panel, proposal, research, watch, modelChoicePending, card: card || playedCard, played };
+      turnJob.result = { text, sessionId: effectiveSessionId, panel, proposal, acted, research, watch, modelChoicePending, card: card || playedCard, played };
       turnJob.status = 'ready';
     } catch (e) {
       turnJob.status = 'error';

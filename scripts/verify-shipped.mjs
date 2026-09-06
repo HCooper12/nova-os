@@ -75,6 +75,7 @@ const FEATURES = [
   ['Home · a health insight can be talked through in one tap', 'TALK IT THROUGH'],
   ["Train · today's card says what the session trains, before he starts", 'Per exercise'],
   ['Voice · a brief killed by leaving the app is replayable, not lost', 'the audio stopped when you left'],
+  ['Voice · verbs — done-by-voice receipts (6 Sep)', 'BY VOICE'],
 ];
 
 const SERVER_ROUTES = [

@@ -232,6 +232,13 @@ export function Voice({ v }) {
                   <Meta as="div" tone="warn" style={{ marginTop: '8px' }}>Research didn’t complete — {m.research.error || 'check the Inbox'}</Meta>
                 )}
                 {m.research?.status === 'done' && <SafeVisual what="sources" resetKey={m.at}><SourcesPanel r={m.research} /></SafeVisual>}
+                {m.acted && (
+                  <div style={css("margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid color-mix(in srgb, var(--nv-good) 30%, transparent);border-radius:9px;padding:8px 12px;background:color-mix(in srgb, var(--nv-good) 05%, transparent)")}>
+                    <Tag tone="good" style={{ flex: 'none' }}>{m.acted.status === 'undone' ? 'Undone' : 'Done'}</Tag>
+                    <span style={css(`flex:1;min-width:0;font:400 ${isAppleStyle() ? '13px' : '11.5px'}/1.4 var(--nv-font-ui);color:color-mix(in srgb, var(--nv-ink) 70%, transparent)`)}>{m.acted.title}</span>
+                    {m.acted.undo && <TextAction compact tone="quiet" onClick={m.acted.undo}>Undo</TextAction>}
+                  </div>
+                )}
                 {m.proposal && (
                   <div style={css("margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent);border-radius:9px;padding:8px 12px;background:color-mix(in srgb, var(--nv-gold) 05%, transparent)")}>
                     <span style={css(`font:${isAppleStyle() ? '600 13.5px var(--nv-font-ui)' : 'var(--nv-micro-m)'};color:var(--nv-gold)`)}>◈ {m.proposal.title}</span>
