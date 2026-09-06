@@ -1,4 +1,4 @@
-import { NOTE_TYPE_COLOR, mono } from './shared.js';
+import { NOTE_TYPE_COLOR } from './shared.js';
 
 // Notes domain: the notes browser, the daily-review pick (+ reflect composer),
 // and the journal. Adds to ctx: usingLiveNotes, reviewPage, journalDays.
@@ -27,7 +27,7 @@ export function valsNotes(app, ctx) {
       // pointerdown on a row, which at worst spends one small cached GET per
       // flick; the read is free and the write path is untouched.
       warm: () => app.ensureNoteDetail(n.id),
-      typeStyle: { font: "500 8.5px " + mono, letterSpacing: '.08em', color: n.color, flex: 'none' },
+      typeColor: n.color,
       style: { cursor: 'pointer', padding: '10px 12px', borderRadius: '9px', background: st.openNoteId === n.id ? 'color-mix(in srgb, var(--nv-gold) 09%, transparent)' : 'none', border: st.openNoteId === n.id ? '1px solid color-mix(in srgb, var(--nv-gold) 22%, transparent)' : '1px solid transparent' } }));
 
   const rawDetail = usingLiveNotes ? st.liveNoteDetails[st.openNoteId] : null;
@@ -128,9 +128,9 @@ export function valsNotes(app, ctx) {
     noteFilters: noteFilters.map(f => ({ label: f, go: () => app.setState({ noteType: f }), active: st.noteType === f })),
     noteList,
     openNoteTitle: usingLiveNotes ? (liveDetail?.title ?? (allNotesNorm.find(n => n.id === st.openNoteId)?.title || 'Loading…')) : on.title,
-    openNoteType: (usingLiveNotes ? (liveDetail?.type || '').toUpperCase() : on.type) + ' · OBSIDIAN',
+    openNoteType: (usingLiveNotes ? (liveDetail?.type || '') : on.type) + ' · Obsidian',
     openNoteTypeColor: usingLiveNotes ? (NOTE_TYPE_COLOR[(liveDetail?.type || '').toLowerCase()] || 'var(--nv-ink)') : on.color,
-    openNoteMeta: usingLiveNotes ? (liveDetail ? `${liveDetail.date.slice(0, 10).toUpperCase()} · ${liveDetail.backlinks} BACKLINKS` : '') : on.date.toUpperCase(),
+    openNoteMeta: usingLiveNotes ? (liveDetail ? `${liveDetail.date.slice(0, 10)} · ${liveDetail.backlinks} backlink${liveDetail.backlinks === 1 ? '' : 's'}` : '') : on.date,
     openNoteUrl: usingLiveNotes ? (liveDetail?.url || null) : null,
     // Studio pipeline controls — only on idea pages
     openNoteStudio: usingLiveNotes && liveDetail && liveDetail.type === 'idea' ? {

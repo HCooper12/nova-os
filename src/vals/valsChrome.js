@@ -1,6 +1,6 @@
 import { NOVA_THEMES, NOVA_CORES, NOVA_STYLES } from '../theme.js';
 import { TAB_META, tabLabel, romanFor } from '../tabOrder.js';
-import { AGENTS, NOTE_TYPE_COLOR } from './shared.js';
+import { AGENTS } from './shared.js';
 import { dtf } from './fmt.js';
 
 // App chrome: sidebar nav, mobile tabs, per-screen wrappers and grids, the

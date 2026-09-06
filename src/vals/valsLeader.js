@@ -1,4 +1,4 @@
-import { mono, bubble } from './shared.js';
+import { bubble } from './shared.js';
 
 // THE LEADER SCREEN — the day's idea held large, the standing picture of
 // his leading (struggles / what's working), and the sit-down conversation.
@@ -44,7 +44,7 @@ export function valsLeader(app, _ctx) {
     leaderMsgs: st.leaderChat.map((m) => ({
       text: m.text, typing: m.typing, streaming: m.streaming, at: m.at,
       tag: m.who === 'leader' ? '» LEADER' : m.who === 'system' ? '» SYSTEM' : '» YOU',
-      tagStyle: { font: `500 10px ${mono}`, color: m.who === 'leader' ? 'var(--nv-gold)' : m.who === 'system' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' },
+      tagStyle: { font: 'var(--nv-micro-m)', color: m.who === 'leader' ? 'var(--nv-gold)' : m.who === 'system' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' },
       ...bubble(m.who),
     })),
     leaderBusy: st.leaderBusy && !st.leaderChat.some((m) => m.streaming),

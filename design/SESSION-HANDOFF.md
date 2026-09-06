@@ -239,10 +239,9 @@ OPEN — HIS:
 OPEN — MINE, when asked: the fold for `MissionControl.jsx` (the non-phone
 layout); a model naming the digest's themes ON TOP of the deterministic
 groups, never instead of them; the remaining audit mockups he has not picked;
-the vals-built TYPE BADGES that still carry mono styles under cupertino (the
-Notes reader's "PODCAST · OBSIDIAN" / "02 JUL · 14 BACKLINKS" and the list
-rows' `typeStyle`, the Recipes cards' category badge). The hand sweeps,
-the filter chips and the identity rows are DONE (6 Sep) — see the log.
+The hand sweeps, the filter chips, the identity rows and the type badges
+are all DONE (6 Sep) — see the log. Nothing on the material pass is
+outstanding; the next UI work is his to name.
 
 DO NOT:
 - Do not write a test that assumes his timezone. `localDate.test.js` built
@@ -287,7 +286,22 @@ DO NOT:
 
 ## SESSION LOG (append-only, newest first)
 
-### 6 September 2026 (afternoon) — the identity rows and the filter chips: the material pass's last two listed items
+### 6 September 2026 (late afternoon) — the type badges: the material pass is complete
+His "work on the type badges". The note list row's badge and the Fuel card's
+category badge are `Tag`s (tinted pill, UI face, 11px under the Apple styles;
+the bordered mono badge under Command is unchanged). Their strings, and the
+Notes reader's byline + backlink line and the recipe overlay's meta, are now
+written ONCE in sentence case — under cupertino `Meta` does not transform, so
+an ALL-CAPS literal was rendering literally ("02 JUL · 14 BACKLINKS",
+"HIGH PROTEIN · 25 min · FROM OBSIDIAN /RECIPES"). The demo fixtures in
+data.js follow the same rule. The Leader's speaker tag was the last hard
+`500 10px mono` literal in the vals and now takes the micro token. Five
+unused vals imports removed. Verified at 375×812 in BOTH styles (cupertino:
+tinted pills, "02 Jul · 14 backlinks", "High protein · 25 min · from Obsidian
+/Recipes"; command: bordered mono badges, everything uppercased by the
+controls), console clean, 1086 tests green under TZ=UTC.
+
+### 6 September 2026 (afternoon) — the identity rows and the filter chips
 His "Proceed with the next builds" → the two items still on OPEN — MINE.
 `ScreenHead` (Controls.jsx) replaces the twelve hand-written identity rows
 (numeral · hairline · tracked caps): Command renders exactly what it did;

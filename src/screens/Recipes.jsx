@@ -511,7 +511,7 @@ export function Recipes({ v }) {
             <div style={css("padding:14px 17px")}>
               <div style={css("display:flex;justify-content:space-between;align-items:baseline")}>
                 <div style={css("font-size:15.5px;font-weight:500")}>{r.name}</div>
-                <Meta tone="gold">{r.tag}</Meta>
+                <Tag tone="gold">{r.tag}</Tag>
               </div>
               <div style={css("margin-top:7px;display:flex;gap:12px;font:var(--nv-micro-l);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
                 <span style={css("color:var(--nv-cy)")}>{r.p}P</span><span>{r.c}C</span><span>{r.f}F</span><span style={css("margin-left:auto")}><span style={css("color:var(--nv-good)")}>{r.kcal} kcal</span>{r.time ? ` · ${r.time}` : ''}</span>

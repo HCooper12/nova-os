@@ -1,7 +1,7 @@
 import { getConnection } from '../api.js';
 import { GALAXY_MAX_NODES, toWorld } from '../galaxyLayout.js';
 import { orbReply } from '../mockAssistants.js';
-import { NOTE_TYPE_COLOR, mono } from './shared.js';
+import { NOTE_TYPE_COLOR } from './shared.js';
 import { speechRecognitionSupported } from '../useDictation.js';
 import { dtf } from './fmt.js';
 import { RUNNING_BUILD, applyUpdate } from '../buildCheck.js';

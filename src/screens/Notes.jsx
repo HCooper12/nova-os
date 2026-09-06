@@ -1,6 +1,6 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
-import { Eyebrow, Chip, Meta, isAppleStyle, ScreenHead } from '../Controls.jsx';
+import { Eyebrow, Chip, Meta, isAppleStyle, ScreenHead, Tag } from '../Controls.jsx';
 const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpperCase());
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 const btn = (bg, ink, extra = {}) => (isAppleStyle()
@@ -34,7 +34,7 @@ export function Notes({ v }) {
           <div style={css("flex:1;overflow-y:auto;padding:0 8px 10px;display:flex;flex-direction:column;gap:2px")}>
             {v.noteList.map((n, i) => (
               <Interactive key={i} onClick={n.select} onPointerDown={n.warm} base={n.style} hoverStyle="background:rgba(255,255,255,.05)">
-                <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}><span style={css("font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{n.title}</span><span style={n.typeStyle}>{n.type}</span></div>
+                <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}><span style={css("font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{n.title}</span><Tag tone={n.typeColor} style={{ flex: 'none' }}>{n.type}</Tag></div>
                 <Meta as="div" tone="faint" style={{ marginTop: '3px' }}>{n.date}</Meta>
               </Interactive>
             ))}

@@ -129,7 +129,7 @@ export function valsRecipes(app, ctx) {
           const tot = (r.macros.p + r.macros.c + r.macros.f) || 1;
           const hue = RECIPE_HUES[i % RECIPE_HUES.length];
           const bar = (v, col) => ({ flex: String(v / tot), borderRadius: '2px', background: col });
-          return { name: r.name, tag: (RECIPE_CATEGORY_LABEL[r.category] || r.category).toUpperCase(), p: r.macros.p, c: r.macros.c, f: r.macros.f, kcal: r.macros.kcal, time: r.makes || '',
+          return { name: r.name, tag: RECIPE_CATEGORY_LABEL[r.category] || r.category, p: r.macros.p, c: r.macros.c, f: r.macros.f, kcal: r.macros.kcal, time: r.makes || '',
             // the card carries the shared name ONLY while its overlay is shut —
             // two elements may never hold the same view-transition-name at once
             vtName: st.openRecipeId === r.id ? undefined : `recipe-${r.id}`,
@@ -468,8 +468,8 @@ export function valsRecipes(app, ctx) {
     } : null,
     orName: usingLiveRecipes ? (liveOr ? liveOr.name : '') : (or ? or.name : ''),
     orMeta: usingLiveRecipes
-      ? (liveOr ? `${activeAlt ? 'ALTERNATE: ' + activeAlt.label + ' · ' : ''}${(RECIPE_CATEGORY_LABEL[liveOr.category] || liveOr.category).toUpperCase()}${liveOr.makes ? ' · ' + liveOr.makes : ''} · FROM OBSIDIAN /HEALTH` : '')
-      : (or ? or.tag + ' · ' + or.time + ' · FROM OBSIDIAN /RECIPES' : ''),
+      ? (liveOr ? `${activeAlt ? 'Alternate: ' + activeAlt.label + ' · ' : ''}${RECIPE_CATEGORY_LABEL[liveOr.category] || liveOr.category}${liveOr.makes ? ' · ' + liveOr.makes : ''} · from Obsidian /Health` : '')
+      : (or ? or.tag + ' · ' + or.time + ' · from Obsidian /Recipes' : ''),
     orPhLabel: usingLiveRecipes ? (liveOr ? 'dish photo — ' + liveOr.name.toLowerCase() : '') : (or ? 'dish photo — ' + or.name.toLowerCase() : ''),
     orPhStyle: usingLiveRecipes
       ? (liveOr ? { height: '170px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, color-mix(in srgb, var(--nv-gold) 16%, transparent) 0 9px, color-mix(in srgb, var(--nv-gold) 05%, transparent) 9px 18px)', border: '1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)' } : {})
