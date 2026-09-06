@@ -8,7 +8,7 @@ import { ChatMarkdown } from '../ChatMarkdown.jsx';
 import { TrainToday } from '../TrainToday.jsx';
 import { SafeVisual } from '../SafeVisual.jsx';
 import { VoicePanel } from '../VoicePanels.jsx';
-import { Eyebrow, TextAction, Chip, Tag, Meta, Segmented, isAppleStyle } from '../Controls.jsx';
+import { Eyebrow, TextAction, Chip, Tag, Meta, Segmented, isAppleStyle, ScreenHead } from '../Controls.jsx';
 
 // THE MATERIAL PASS (5 Sep 2026, "Nova feels stiff"): labels and tap targets
 // on this screen are set through src/Controls.jsx — sentence case in the UI
@@ -987,15 +987,11 @@ export function Workouts({ v }) {
   return (
     <div style={v.wrapWorkouts} data-screen-label="Workouts">
       <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>
-        <div style={css("display:flex;align-items:center;gap:14px")}>
-          <span style={css("font:var(--nv-micro-l);letter-spacing:var(--nv-micro-track);color:var(--nv-acc)")}>IX.</span>
-          <span style={css("width:50px;height:1px;background:linear-gradient(90deg,var(--nv-acc-border),transparent)")}></span>
-          <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>VAULT · TRAINING</span>
-        </div>
+        <ScreenHead numeral="IX." label="Vault · Training" />
         {v.usingLiveWorkouts ? (
-          <span style={css("display:flex;align-items:center;gap:8px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-cy)")}><span style={css("width:5px;height:5px;border-radius:50%;background:var(--nv-cy);animation:novaPulse 2s infinite")}></span>{v.workoutHeaderLabel}</span>
+          <Meta tone="cyan" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={css("width:5px;height:5px;border-radius:50%;background:var(--nv-cy);animation:novaPulse 2s infinite")}></span>{v.workoutHeaderLabel}</Meta>
         ) : (
-          <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.workoutsDemo ? 'DEMO PLAN — CONNECT A BACKEND IN SETTINGS' : 'SYNCING…'}</span>
+          <Meta tone="faint">{v.workoutsDemo ? 'Demo plan — connect a backend in Settings' : 'Syncing…'}</Meta>
         )}
       </div>
 

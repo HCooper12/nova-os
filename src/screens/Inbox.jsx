@@ -6,7 +6,7 @@ import { useDictation } from '../useDictation.js';
 import { SkeletonList } from '../Skeleton.jsx';
 import { LocalInput } from '../LocalInput.jsx';
 import { SwipeRow } from '../SwipeRow.jsx';
-import { Eyebrow, TextAction, Chip, Tag, Meta, Segmented, isAppleStyle } from '../Controls.jsx';
+import { Eyebrow, TextAction, Chip, Tag, Meta, Segmented, isAppleStyle, ScreenHead } from '../Controls.jsx';
 
 // The Nova Inbox: one place to drop any loose thought — typed or dictated —
 // and let Nova route it (shopping / journal / to-do / note / food log).
@@ -92,12 +92,8 @@ export function Inbox({ v }) {
   return (
     <div style={v.wrapInbox} data-screen-label="Inbox">
       <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>
-        <div style={css("display:flex;align-items:center;gap:14px")}>
-          <span style={css("font:var(--nv-micro-l);letter-spacing:var(--nv-micro-track);color:var(--nv-acc)")}>V.</span>
-          <span style={css("width:50px;height:1px;background:linear-gradient(90deg,var(--nv-acc-border),transparent)")}></span>
-          <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>SELF · INBOX</span>
-        </div>
-        <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.inboxHeaderLabel}</span>
+        <ScreenHead numeral="V." label="Self · Inbox" />
+        <Meta tone="faint">{v.inboxHeaderLabel}</Meta>
       </div>
       <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Drop the thought, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>Nova files it.</span></h1>
 

@@ -1,5 +1,5 @@
 import { css } from '../css.js';
-import { Eyebrow, TextAction, Chip } from '../Controls.jsx';
+import { Eyebrow, TextAction, Chip, ScreenHead, Meta } from '../Controls.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpperCase());
 
@@ -8,12 +8,8 @@ export function Galaxy({ v }) {
   return (
     <div style={v.wrapGalaxy} data-screen-label="Memory Galaxy">
       <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>
-        <div style={css("display:flex;align-items:center;gap:14px")}>
-          <span style={css("font:var(--nv-micro-l);letter-spacing:var(--nv-micro-track);color:var(--nv-acc)")}>III.</span>
-          <span style={css("width:50px;height:1px;background:linear-gradient(90deg,var(--nv-acc-border),transparent)")}></span>
-          <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>SELF · MEMORY GALAXY</span>
-        </div>
-        <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 50%, transparent);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:7px 12px")}>{v.galaxyStatsLabel}</span>
+        <ScreenHead numeral="III." label="Self · Memory Galaxy" />
+        <Meta tone="faint">{v.galaxyStatsLabel}</Meta>
       </div>
       <div style={css("display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:16px")}>
         <h1 style={css("margin:0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Everything you know, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>connected.</span></h1>

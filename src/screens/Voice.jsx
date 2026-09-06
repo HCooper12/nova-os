@@ -10,7 +10,7 @@ import { LocalInput } from '../LocalInput.jsx';
 import { VoiceWaveform } from '../VoiceWaveform.jsx';
 import { StageCard } from '../StageCard.jsx';
 import { SafeVisual } from '../SafeVisual.jsx';
-import { TextAction, Chip, Tag, Meta, isAppleStyle } from '../Controls.jsx';
+import { TextAction, Chip, Tag, Meta, isAppleStyle, ScreenHead } from '../Controls.jsx';
 
 // THE STATION FRAME STAYS — the bracketed panels and the reticle were his
 // explicit ask (20 Aug: "a station, not a chat page"). What changes in the
@@ -153,12 +153,9 @@ export function Voice({ v }) {
   return (
     <div style={v.wrapVoice} data-screen-label="Voice">
       <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>
-        <div style={css("display:flex;align-items:center;gap:14px;flex-wrap:wrap")}>
-          <span style={css(`font:var(--nv-micro-l);letter-spacing:var(--nv-micro-track);color:var(--nv-acc)`)}>II.</span>
-          <span style={css("width:50px;height:1px;background:linear-gradient(90deg,var(--nv-acc-border),transparent)")}></span>
-          <span style={css(`font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`)}>NEURAL LINK · VOICE</span>
-          <span style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', padding: '5px 10px', borderRadius: '7px', border: `1px solid color-mix(in srgb, ${v.voiceBadge.tone} 45%, transparent)`, color: v.voiceBadge.tone, background: `color-mix(in srgb, ${v.voiceBadge.tone} 08%, transparent)` }}>{v.voiceBadge.text}</span>
-        </div>
+        <ScreenHead numeral="II." label="Neural link · Voice">
+          <Tag tone={v.voiceBadge.tone}>{v.voiceBadge.text}</Tag>
+        </ScreenHead>
         <div style={css(`font:400 26px ${M};font-variant-numeric:tabular-nums;color:color-mix(in srgb, var(--nv-ink) 85%, transparent)`)}><Clock /></div>
       </div>
       {/* THE GLASS TAKES THE ROOM. His note: the chat beside it is

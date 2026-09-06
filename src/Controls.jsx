@@ -24,6 +24,8 @@ import { haptic } from './haptics.js';
 //   <Chip>          a tappable pill in a tint — chips wrap, so they stay short
 //   <Tag>           a non-tappable badge (a route, a muscle, a kind)
 //   <Meta>          secondary information — a time, a source, a count
+//   <ScreenHead>    the screen's identity row — numeral · rule · label in
+//                   Command; the label alone, as an iOS group header, in Apple
 //
 // Numbers and receipts stay monospace everywhere: tabular digits are what
 // the mono face is FOR.
@@ -166,6 +168,23 @@ export function Meta({ children, tone: t = 'quiet', style, as: TagName = 'span',
       color: tone(t),
       ...(style || {}),
     }}>{children}</TagName>
+  );
+}
+
+// The identity row at the top of every classic screen. Command reads it as a
+// console section (roman numeral, hairline, tracked caps); the Apple styles
+// drop the numeral and the rule — a numbered section is the console's idiom,
+// not iOS's — and keep the label as a grouped-list header. Children sit
+// after the label (Voice puts its status badge there).
+export function ScreenHead({ numeral, label, children, style }) {
+  const apple = isAppleStyle();
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: apple ? '10px' : '14px', flexWrap: 'wrap', ...(style || {}) }}>
+      {!apple && <span style={{ font: `500 11px ${M}`, letterSpacing: '.14em', color: 'var(--nv-acc)' }}>{numeral}</span>}
+      {!apple && <span style={{ width: '50px', height: '1px', background: 'linear-gradient(90deg,var(--nv-acc-border),transparent)' }} />}
+      <Eyebrow as="span" tone="color-mix(in srgb, var(--nv-ink) 55%, transparent)" style={apple ? { fontSize: '12.5px' } : { letterSpacing: '.2em' }}>{label}</Eyebrow>
+      {children}
+    </div>
   );
 }
 

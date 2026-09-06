@@ -88,7 +88,7 @@ export function valsMisc(app, ctx) {
 
   return {
     // shopping list
-    shoppingHeaderLabel: st.liveShoppingList ? `${shoppingItems.length} ITEM${shoppingItems.length === 1 ? '' : 'S'} · LIVE FROM OBSIDIAN` : 'CONNECT A BACKEND IN SETTINGS',
+    shoppingHeaderLabel: st.liveShoppingList ? `${shoppingItems.length} item${shoppingItems.length === 1 ? '' : 's'} · live from Obsidian` : 'Connect a backend in Settings',
     shoppingCategories,
     shoppingCheckedCount,
     shoppingAddInput: st.shoppingAddInput,
@@ -389,12 +389,12 @@ export function valsMisc(app, ctx) {
     // stash — categorised restock/reference links (vault: Wiki/Library/Stash.md)
     stashLoaded: st.liveStash != null,
     stashHeaderLabel: ctx.demoMode
-      ? 'CONNECT A BACKEND TO STASH LINKS'
+      ? 'Connect a backend to stash links'
       : ctx.isOffline
-        ? 'OFFLINE — SHOWING LAST-KNOWN · ADDS QUEUE TO THE OUTBOX'
+        ? 'Offline — showing last-known · adds queue to the Outbox'
         : st.liveStash
-          ? `${st.liveStash.reduce((n, c) => n + c.items.length, 0)} LINK${st.liveStash.reduce((n, c) => n + c.items.length, 0) === 1 ? '' : 'S'} · LIVE FROM OBSIDIAN`
-          : 'LOADING…',
+          ? `${st.liveStash.reduce((n, c) => n + c.items.length, 0)} link${st.liveStash.reduce((n, c) => n + c.items.length, 0) === 1 ? '' : 's'} · live from Obsidian`
+          : 'Loading…',
     stashCategories: (st.liveStash || []).map((c) => ({
       name: c.name,
       items: c.items.map((it) => ({

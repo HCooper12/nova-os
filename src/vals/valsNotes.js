@@ -1,4 +1,4 @@
-import { NOTE_TYPE_COLOR, nchip, mono } from './shared.js';
+import { NOTE_TYPE_COLOR, mono } from './shared.js';
 
 // Notes domain: the notes browser, the daily-review pick (+ reflect composer),
 // and the journal. Adds to ctx: usingLiveNotes, reviewPage, journalDays.
@@ -122,10 +122,10 @@ export function valsNotes(app, ctx) {
     saveReviewReflection: () => app.saveReviewReflection(),
 
     // notes
-    notesHeaderLabel: usingLiveNotes ? `${st.liveNotes.length} NOTES · LIVE FROM OBSIDIAN` : `${app.notes.length} NOTES · DEMO DATA`,
+    notesHeaderLabel: usingLiveNotes ? `${st.liveNotes.length} notes · live from Obsidian` : `${app.notes.length} notes · demo data`,
     noteQuery: st.noteQuery,
     setNoteQuery: (e) => app.setState({ noteQuery: e.target.value }),
-    noteFilters: noteFilters.map(f => ({ label: f, go: () => app.setState({ noteType: f }), style: nchip(st.noteType === f) })),
+    noteFilters: noteFilters.map(f => ({ label: f, go: () => app.setState({ noteType: f }), active: st.noteType === f })),
     noteList,
     openNoteTitle: usingLiveNotes ? (liveDetail?.title ?? (allNotesNorm.find(n => n.id === st.openNoteId)?.title || 'Loading…')) : on.title,
     openNoteType: (usingLiveNotes ? (liveDetail?.type || '').toUpperCase() : on.type) + ' · OBSIDIAN',
@@ -158,7 +158,7 @@ export function valsNotes(app, ctx) {
         } })),
 
     // journal
-    journalHeaderLabel: usingLiveNotes ? `${journalDays.length} DAY${journalDays.length === 1 ? '' : 'S'} · LIVE FROM OBSIDIAN` : 'CONNECT A BACKEND IN SETTINGS',
+    journalHeaderLabel: usingLiveNotes ? `${journalDays.length} day${journalDays.length === 1 ? '' : 's'} · live from Obsidian` : 'Connect a backend in Settings',
     journalComposerText: st.journalComposerText,
     setJournalComposerText: (e) => app.setJournalComposerText(e),
     journalSaveBusy: st.journalSaveBusy,

@@ -140,8 +140,8 @@ export function valsLibrary(app, ctx) {
   return {
     isLibrary: st.screen === 'library',
     libraryHeaderLabel: st.liveLibrary
-      ? `${items.length} SOURCE${items.length === 1 ? '' : 'S'} · LIVE FROM OBSIDIAN`
-      : isOffline ? 'OFFLINE — SHOWING NOTHING RATHER THAN GUESSING' : 'CONNECT A BACKEND IN SETTINGS',
+      ? `${items.length} source${items.length === 1 ? '' : 's'} · live from Obsidian`
+      : isOffline ? 'Offline — showing nothing rather than guessing' : 'Connect a backend in Settings',
     libraryChips: chips,
     libraryShelf: shelf,
     libraryEmpty: st.liveLibrary && !items.length

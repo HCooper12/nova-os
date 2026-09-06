@@ -5,7 +5,7 @@ import { LocalInput } from '../LocalInput.jsx';
 import { VoicePanel } from '../VoicePanels.jsx';
 import { useDictation } from '../useDictation.js';
 import { SafeVisual } from '../SafeVisual.jsx';
-import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle } from '../Controls.jsx';
+import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle, ScreenHead } from '../Controls.jsx';
 
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx;
 // filled buttons sentence-case in the UI face under the Apple styles
@@ -46,12 +46,8 @@ export function Recipes({ v }) {
   return (
     <div style={v.wrapRecipes} data-screen-label="Recipes">
       <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>
-        <div style={css("display:flex;align-items:center;gap:14px")}>
-          <span style={css("font:var(--nv-micro-l);letter-spacing:var(--nv-micro-track);color:var(--nv-acc)")}>VI.</span>
-          <span style={css("width:50px;height:1px;background:linear-gradient(90deg,var(--nv-acc-border),transparent)")}></span>
-          <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>VAULT · FUEL</span>
-        </div>
-        <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.recipesHeaderLabel}</span>
+        <ScreenHead numeral="VI." label="Vault · Fuel" />
+        <Meta tone="faint">{v.recipesHeaderLabel}</Meta>
       </div>
       <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Fuel, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>macros first.</span></h1>
 
@@ -477,7 +473,7 @@ export function Recipes({ v }) {
       <div style={css("display:flex;flex-wrap:wrap;gap:8px;margin-top:18px;justify-content:space-between;align-items:center")}>
         <div style={css("display:flex;flex-wrap:wrap;gap:8px;align-items:center")}>
           {v.recipeFilters.map((f) => (
-            <Interactive key={f.label} as="span" onClick={f.go} base={f.style} hoverStyle="border:1px solid color-mix(in srgb, var(--nv-gold) 50%, transparent)">{f.label}</Interactive>
+            <Chip key={f.label} tone="accent" active={f.active} onClick={f.go}>{f.label}</Chip>
           ))}
           {/* local echo, filter-only (no submit): typing no longer
               re-renders the whole app per character; the 150ms debounce

@@ -1,6 +1,7 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
-import { Eyebrow, Chip, Meta, isAppleStyle } from '../Controls.jsx';
+import { Eyebrow, Chip, Meta, isAppleStyle, ScreenHead } from '../Controls.jsx';
+const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpperCase());
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 const btn = (bg, ink, extra = {}) => (isAppleStyle()
   ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '10px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }
@@ -10,12 +11,8 @@ export function Notes({ v }) {
   return (
     <div style={v.wrapNotes} data-screen-label="Notes">
       <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>
-        <div style={css("display:flex;align-items:center;gap:14px")}>
-          <span style={css("font:var(--nv-micro-l);letter-spacing:var(--nv-micro-track);color:var(--nv-acc)")}>X.</span>
-          <span style={css("width:50px;height:1px;background:linear-gradient(90deg,var(--nv-acc-border),transparent)")}></span>
-          <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>VAULT · NOTES</span>
-        </div>
-        <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.notesHeaderLabel}</span>
+        <ScreenHead numeral="X." label="Vault · Notes" />
+        <Meta tone="faint">{v.notesHeaderLabel}</Meta>
       </div>
       <div style={v.gridNotes}>
         <div style={v.noteListCard}>
@@ -30,7 +27,7 @@ export function Notes({ v }) {
             />
             <div style={css("display:flex;flex-wrap:wrap;gap:6px;margin-top:10px")}>
               {v.noteFilters.map((f) => (
-                <span key={f.label} onClick={f.go} style={f.style}>{f.label}</span>
+                <Chip key={f.label} tone="accent" active={f.active} onClick={f.go}>{cap(f.label)}</Chip>
               ))}
             </div>
           </div>

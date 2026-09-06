@@ -1,7 +1,7 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { ChatMarkdown } from '../ChatMarkdown.jsx';
-import { Eyebrow, TextAction, Chip, Tag, Meta } from '../Controls.jsx';
+import { Eyebrow, TextAction, Chip, Tag, Meta, ScreenHead } from '../Controls.jsx';
 const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpperCase());
 
 // THE LIBRARY — the second brain's sources as a shelf you can walk.
@@ -192,11 +192,7 @@ export function Library({ v }) {
   return (
     <div style={v.wrapLibrary} data-screen-label="Library">
       <div style={css('display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px')}>
-        <div style={css('display:flex;align-items:center;gap:14px')}>
-          <span style={css('font:var(--nv-micro-l);letter-spacing:var(--nv-micro-track);color:var(--nv-acc)')}>XVI.</span>
-          <span style={css('width:50px;height:1px;background:linear-gradient(90deg,var(--nv-acc-border),transparent)')}></span>
-          <span style={css('font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)')}>THE LIBRARY</span>
-        </div>
+        <ScreenHead numeral="XVI." label="The Library" />
         <Meta tone="faint">{v.libraryHeaderLabel}</Meta>
       </div>
       <div style={css('margin-top:18px')}>

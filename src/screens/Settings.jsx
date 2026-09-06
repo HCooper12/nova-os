@@ -1,7 +1,7 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { TabOrderEditor } from '../TabOrderEditor.jsx';
-import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle } from '../Controls.jsx';
+import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle, ScreenHead } from '../Controls.jsx';
 
 // the material pass (6 Sep 2026): labels through Controls.jsx; a filled
 // button is sentence-case in the UI face under the Apple styles
@@ -23,11 +23,7 @@ export function Settings({ v }) {
   return (
     <div style={v.wrapSettings} data-screen-label="Settings">
       <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>
-        <div style={css("display:flex;align-items:center;gap:14px")}>
-          <span style={css("font:var(--nv-micro-l);letter-spacing:var(--nv-micro-track);color:var(--nv-acc)")}>XIV.</span>
-          <span style={css("width:50px;height:1px;background:linear-gradient(90deg,var(--nv-acc-border),transparent)")}></span>
-          <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>SYSTEM · SETTINGS</span>
-        </div>
+        <ScreenHead numeral="XIV." label="System · Settings" />
       </div>
       <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Connect the <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>real vault.</span></h1>
       <div style={css("margin-top:8px;font-size:13px;color:color-mix(in srgb, var(--nv-ink) 60%, transparent);max-width:640px;line-height:1.6")}>

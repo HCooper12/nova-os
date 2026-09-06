@@ -239,13 +239,10 @@ OPEN — HIS:
 OPEN — MINE, when asked: the fold for `MissionControl.jsx` (the non-phone
 layout); a model naming the digest's themes ON TOP of the deterministic
 groups, never instead of them; the remaining audit mockups he has not picked;
-the HAND sweep (case, borders, hit areas) on the screens that so far have only
-the token pass: Settings (its ON/OFF toggles, ENABLE/TEST/SIGN IN, ACTIVE
-badges), Money, Leader, Library, Ops, Journal, Stash, Galaxy, Ambient, Claude
-Code, the classic `MissionControl.jsx` and Sidebar, RecipeOverlay,
-AddRecipeModal, VoicePanels, VerdictCard; the vals-built chip styles (note
-type filters in valsNotes, recipe filters in valsRecipes); and the classic
-screen-identity header row (numeral · SECTION · label).
+the vals-built TYPE BADGES that still carry mono styles under cupertino (the
+Notes reader's "PODCAST · OBSIDIAN" / "02 JUL · 14 BACKLINKS" and the list
+rows' `typeStyle`, the Recipes cards' category badge). The hand sweeps,
+the filter chips and the identity rows are DONE (6 Sep) — see the log.
 
 DO NOT:
 - Do not write a test that assumes his timezone. `localDate.test.js` built
@@ -289,6 +286,22 @@ DO NOT:
 - Earlier DO NOTs (3 Sep) all still stand.
 
 ## SESSION LOG (append-only, newest first)
+
+### 6 September 2026 (afternoon) — the identity rows and the filter chips: the material pass's last two listed items
+His "Proceed with the next builds" → the two items still on OPEN — MINE.
+`ScreenHead` (Controls.jsx) replaces the twelve hand-written identity rows
+(numeral · hairline · tracked caps): Command renders exactly what it did;
+the Apple styles drop the numeral and the rule — a numbered section is the
+console's idiom, not iOS's — and keep the label as a grouped-list header.
+Every header-label string in the vals is now written once in sentence case
+("6 recipes · live from Obsidian", "Connect a backend in Settings"); Command's
+Meta uppercases it. Voice's status badge is a `Tag`; Workouts' live dot rides
+a cyan `Meta`. The Fuel and Notes filter chips ride `Chip` (the vals hand over
+`active`, not a style); `chip`/`nchip` left shared.js. Verified at 375×812 in
+BOTH styles (cupertino: pill chips + "VAULT · FUEL" small-caps row; command:
+"X. — VAULT · NOTES" with bordered mono chips), console clean, all 42 UI
+markers in the dist. Not built: the MissionControl fold (his style never
+switched), the digest's model-named themes.
 
 ### 6 September 2026 (midday) — the hand sweeps finished, every screen off tokens-only
 His "Proceed with the remaining hand sweeps": fourteen files in three

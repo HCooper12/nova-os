@@ -54,12 +54,12 @@ export function valsTodos(app, ctx) {
   return {
     isTodos: st.screen === 'todos',
     todosHeaderLabel: demoMode
-      ? 'CONNECT A BACKEND TO SEE YOUR LIST'
+      ? 'Connect a backend to see your list'
       : isOffline
-        ? 'OFFLINE — SHOWING LAST-KNOWN LIST'
+        ? 'Offline — showing last-known list'
         : live
-          ? `${open.length} OPEN · ${done.length} DONE`
-          : 'LOADING…',
+          ? `${open.length} open · ${done.length} done`
+          : 'Loading…',
     // composer stays usable offline — adds queue to the outbox
     todosConnected: !demoMode,
     todosLoaded: !!live,

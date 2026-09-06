@@ -1,4 +1,4 @@
-import { chip, mono } from './shared.js';
+import { mono } from './shared.js';
 import { dtf } from './fmt.js';
 import { scaleMacros, portionName, validPortion, PORTIONS } from '../portion.js';
 
@@ -174,8 +174,8 @@ export function valsRecipes(app, ctx) {
 
   return {
     // recipes
-    recipesHeaderLabel: usingLiveRecipes ? `${st.liveRecipes.length} RECIPES · LIVE FROM OBSIDIAN` : `${app.recipes.length} RECIPES · DEMO DATA`,
-    recipeFilters: filters.map(f => ({ label: f, go: () => app.setState({ recipeFilter: f }), style: chip(st.recipeFilter === f) })),
+    recipesHeaderLabel: usingLiveRecipes ? `${st.liveRecipes.length} recipes · live from Obsidian` : `${app.recipes.length} recipes · demo data`,
+    recipeFilters: filters.map(f => ({ label: f, go: () => app.setState({ recipeFilter: f }), active: st.recipeFilter === f })),
     recipeSearch: st.recipeSearch || '',
     setRecipeSearch: (e) => app.setState({ recipeSearch: typeof e === 'string' ? e : e.target.value }),
     // "what can I still eat tonight?" — from real remaining kcal, or hidden

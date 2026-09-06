@@ -1,7 +1,7 @@
 import { css } from '../css.js';
 import { SwipeRow } from '../SwipeRow.jsx';
 import { Interactive } from '../Interactive.jsx';
-import { Eyebrow, TextAction, Chip, isAppleStyle } from '../Controls.jsx';
+import { Eyebrow, TextAction, Chip, isAppleStyle, ScreenHead, Meta } from '../Controls.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 const btn = (bg, ink, extra = {}) => (isAppleStyle()
   ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '10px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }
@@ -11,12 +11,8 @@ export function Shopping({ v }) {
   return (
     <div style={v.wrapShopping} data-screen-label="Shopping List">
       <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>
-        <div style={css("display:flex;align-items:center;gap:14px")}>
-          <span style={css("font:var(--nv-micro-l);letter-spacing:var(--nv-micro-track);color:var(--nv-acc)")}>VII.</span>
-          <span style={css("width:50px;height:1px;background:linear-gradient(90deg,var(--nv-acc-border),transparent)")}></span>
-          <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>VAULT · SHOPPING LIST</span>
-        </div>
-        <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.shoppingHeaderLabel}</span>
+        <ScreenHead numeral="VII." label="Vault · Shopping list" />
+        <Meta tone="faint">{v.shoppingHeaderLabel}</Meta>
       </div>
       <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Shop <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>once, cleanly.</span></h1>
 

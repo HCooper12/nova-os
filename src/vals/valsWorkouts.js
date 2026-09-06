@@ -478,7 +478,7 @@ export function valsWorkouts(app, ctx) {
     setGoalsField: (field) => (e) => app.setState((s) => ({ goalsDraft: { ...s.goalsDraft, [field]: e.target.value } })),
     saveGoals: () => app.saveFitnessGoals(),
 
-    workoutHeaderLabel: usingLiveWorkouts ? `${liveRoutines.length} ROUTINE${liveRoutines.length === 1 ? '' : 'S'} · LIVE FROM OBSIDIAN` : 'CONNECT A BACKEND IN SETTINGS',
+    workoutHeaderLabel: usingLiveWorkouts ? `${liveRoutines.length} routine${liveRoutines.length === 1 ? '' : 's'} · live from Obsidian` : 'Connect a backend in Settings',
     // demo fiction is demoMode-ONLY — a connected session whose workouts fetch
     // failed shows an honest unavailable state, never the scripted plan
     workoutsDemo: ctx.demoMode,

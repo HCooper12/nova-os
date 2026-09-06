@@ -79,12 +79,12 @@ export function valsMoney(app, ctx) {
       ? `showing ${MONEY_LIST_CAP} of ${allTransactions.length} · older in the export`
       : null,
     moneyHeaderLabel: demoMode
-      ? 'CONNECT A BACKEND TO SEE THE LEDGER'
+      ? 'Connect a backend to see the ledger'
       : isOffline
-        ? 'OFFLINE — SHOWING LAST-KNOWN LEDGER'
+        ? 'Offline — showing last-known ledger'
         : money
-          ? `${monthLabel(money.month).toUpperCase()} · ${money.count} TRANSACTION${money.count === 1 ? '' : 'S'}`
-          : 'LOADING…',
+          ? `${monthLabel(money.month)} · ${money.count} transaction${money.count === 1 ? '' : 's'}`
+          : 'Loading…',
     // the ledger renders read-only from cache when offline — the header used to
     // promise "SHOWING LAST-KNOWN LEDGER" above a blank page
     moneyConnected: !demoMode && (!isOffline || !!st.liveMoney),

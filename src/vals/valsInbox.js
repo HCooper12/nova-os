@@ -578,12 +578,12 @@ export function valsInbox(app, ctx) {
     isInbox: st.screen === 'inbox',
     wrapInbox: st.isMobile ? { padding: 'calc(48px + env(safe-area-inset-top)) 16px calc(46px + env(safe-area-inset-bottom))' } : { padding: '28px 40px 44px', maxWidth: '980px' },
     inboxHeaderLabel: demoMode
-      ? 'CONNECT A BACKEND TO CAPTURE'
+      ? 'Connect a backend to capture'
       : isOffline
-        ? 'OFFLINE — SHOWING LAST-KNOWN HISTORY'
+        ? 'Offline — showing last-known history'
         : inbox
-          ? `${items.length} CAPTURE${items.length === 1 ? '' : 'S'} · ROUTED BY NOVA`
-          : 'LOADING…',
+          ? `${items.length} capture${items.length === 1 ? '' : 's'} · routed by Nova`
+          : 'Loading…',
     // capture stays usable OFFLINE — the outbox queues it (a capture you can't
     // type is a thought lost; reachability is the outbox's problem now)
     inboxConnected: !demoMode,
