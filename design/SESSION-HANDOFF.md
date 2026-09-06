@@ -315,7 +315,7 @@ its shape: speech reached capture, dispatch and coaching edits only). Built
 the registry, the grammar fast path, the ACT directive, the status reflex,
 plan-approval-by-voice, and the client strip. 1096 tests green under TZ=UTC;
 the one failure on the first full run did not reproduce (flaky, not mine).
-Service reloaded. Plan doc: `design/VERBS-PLAN.md`.
+Service reloaded. Plan doc: `design/VERBS-PLAN.md`. FLAKE, not mine: guardian.test.js "the time machine undoes both ways" failed once locally and once on the CI runner, passed on rerun both times — likely two backupFile snapshots inside one second sharing a name; investigate if it recurs before blaming a change.
 
 ### 6 September 2026 (late afternoon) — the type badges: the material pass is complete
 His "work on the type badges". The note list row's badge and the Fuel card's
