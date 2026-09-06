@@ -1,6 +1,13 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { TabOrderEditor } from '../TabOrderEditor.jsx';
+import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle } from '../Controls.jsx';
+
+// the material pass (6 Sep 2026): labels through Controls.jsx; a filled
+// button is sentence-case in the UI face under the Apple styles
+const btn = (bg, ink, extra = {}) => (isAppleStyle()
+  ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '9px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }
+  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-l)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
 
 const statusColor = { idle: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', testing: 'var(--nv-gold)', ok: '#5aa87c', error: 'var(--nv-warn)' };
 
@@ -30,7 +37,7 @@ export function Settings({ v }) {
       </div>
 
       <div style={css("margin-top:28px;max-width:520px;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);padding:24px 26px;background:var(--nv-glass);box-shadow:inset 0 1px 0 var(--nv-spec)")}>
-        <label htmlFor="settings-base-url" style={css("display:block;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>BACKEND URL</label>
+        <Eyebrow as="label" htmlFor="settings-base-url">Backend URL</Eyebrow>
         <Interactive
           as="input"
           id="settings-base-url"
@@ -42,7 +49,7 @@ export function Settings({ v }) {
           focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
         />
 
-        <label htmlFor="settings-token" style={css("display:block;margin-top:16px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>API TOKEN</label>
+        <Eyebrow as="label" htmlFor="settings-token" style={{ marginTop: '16px' }}>API token</Eyebrow>
         <Interactive
           as="input"
           id="settings-token"
@@ -69,46 +76,46 @@ export function Settings({ v }) {
       {v.profile && (
         <div style={{ marginTop: '34px' }}>
           <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
-            <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-gold)")}>ABOUT YOU</span>
-            <span style={css("font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>THE ROOT CONTEXT EVERY NOVA AGENT REASONS FROM · LIVES IN YOUR VAULT</span>
+            <Eyebrow as="span" tone="gold">About you</Eyebrow>
+            <Meta tone="faint">The root context every Nova agent reasons from · lives in your vault</Meta>
             {!v.profile.editing && (
-              <Interactive as="span" onClick={v.profile.startEdit} base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:5px 12px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold)" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 08%, transparent)">{v.profile.set ? 'EDIT' : 'SET UP'}</Interactive>
+              <Chip tone="gold" onClick={v.profile.startEdit}>{v.profile.set ? 'Edit' : 'Set up'}</Chip>
             )}
           </div>
 
           {v.profile.editing ? (
             <div className="nv-pane" style={{ marginTop: '12px', padding: '18px 20px', maxWidth: '620px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <label style={css("display:block")}>
-                <span style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>CURRENT FOCUS · what this season of life is about</span>
+                <Eyebrow as="span">Current focus · what this season of life is about</Eyebrow>
                 <input value={v.profile.draft.focus} onChange={v.profile.setField('focus')} placeholder="e.g. Building my body and my content while holding down full-time work"
                   style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-ui)", padding: '9px 12px', outline: 'none' }} />
               </label>
               <label style={css("display:block")}>
-                <span style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>PRIORITIES · one per line, the handful that matter most now</span>
+                <Eyebrow as="span">Priorities · one per line, the handful that matter most now</Eyebrow>
                 <textarea value={v.profile.draft.priorities} onChange={v.profile.setField('priorities')} rows={4} placeholder={"Get to 78kg lean\nShip one video a week\nProtein consistency\nSleep before 11"}
                   style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-ui)", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
               </label>
               <label style={css("display:block")}>
-                <span style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>PERFORMING AT YOUR BEST · what that looks and feels like for you</span>
+                <Eyebrow as="span">Performing at your best · what that looks and feels like for you</Eyebrow>
                 <textarea value={v.profile.draft.bestSelf} onChange={v.profile.setField('bestSelf')} rows={2} placeholder="Disciplined but not rigid — training hard, eating well, creating consistently, present with people."
                   style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-ui)", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
               </label>
               <label style={css("display:block")}>
-                <span style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>CONTEXT &amp; CONSTRAINTS · anything Nova should always know</span>
+                <Eyebrow as="span">Context &amp; constraints · anything Nova should always know</Eyebrow>
                 <textarea value={v.profile.draft.notes} onChange={v.profile.setField('notes')} rows={3} placeholder="Work 9-5 Mon-Fri. Gym has only dumbbells (to 40kg) on weekends. Left shoulder flares under heavy overhead. Prefer training evenings."
                   style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-ui)", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
               </label>
               <div style={css("display:flex;gap:10px;align-items:center")}>
-                <Interactive as="span" onClick={v.profile.saving ? undefined : v.profile.save} base={{ cursor: 'pointer', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', padding: '9px 18px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1322', opacity: v.profile.saving ? 0.5 : 1 }} hoverStyle="filter:brightness(1.08)">{v.profile.saving ? 'SAVING…' : 'SAVE'}</Interactive>
-                <Interactive as="span" onClick={v.profile.cancelEdit} base="cursor:pointer;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-ink)">cancel</Interactive>
+                <Interactive as="span" onClick={v.profile.saving ? undefined : v.profile.save} base={btn('var(--nv-gold)', '#1a1322', { opacity: v.profile.saving ? 0.5 : 1 })} hoverStyle={{ filter: 'brightness(1.08)' }}>{v.profile.saving ? 'Saving…' : 'Save'}</Interactive>
+                <TextAction compact tone="faint" onClick={v.profile.cancelEdit}>Cancel</TextAction>
               </div>
             </div>
           ) : v.profile.set ? (
             <div className="nv-pane" style={{ marginTop: '12px', padding: '18px 20px', maxWidth: '620px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {v.profile.view.focus && <div><div style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>CURRENT FOCUS</div><div style={css("margin-top:3px;font:500 14px var(--nv-font-ui)")}>{v.profile.view.focus}</div></div>}
-              {v.profile.view.priorities.length > 0 && <div><div style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>PRIORITIES</div><div style={css("margin-top:4px;display:flex;flex-direction:column;gap:3px")}>{v.profile.view.priorities.map((p, i) => <div key={i} style={css("font:500 13px var(--nv-font-ui);color:var(--nv-ink60)")}>· {p}</div>)}</div></div>}
-              {v.profile.view.bestSelf && <div><div style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>AT YOUR BEST</div><div style={css("margin-top:3px;font:500 12.5px/1.55 var(--nv-font-ui);color:var(--nv-ink60)")}>{v.profile.view.bestSelf}</div></div>}
-              {v.profile.view.notes && <div><div style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>CONTEXT &amp; CONSTRAINTS</div><div style={css("margin-top:3px;font:500 12.5px/1.55 var(--nv-font-ui);color:var(--nv-ink60);white-space:pre-wrap")}>{v.profile.view.notes}</div></div>}
+              {v.profile.view.focus && <div><Eyebrow>Current focus</Eyebrow><div style={css("margin-top:3px;font:500 14px var(--nv-font-ui)")}>{v.profile.view.focus}</div></div>}
+              {v.profile.view.priorities.length > 0 && <div><Eyebrow>Priorities</Eyebrow><div style={css("margin-top:4px;display:flex;flex-direction:column;gap:3px")}>{v.profile.view.priorities.map((p, i) => <div key={i} style={css("font:500 13px var(--nv-font-ui);color:var(--nv-ink60)")}>· {p}</div>)}</div></div>}
+              {v.profile.view.bestSelf && <div><Eyebrow>At your best</Eyebrow><div style={css("margin-top:3px;font:500 12.5px/1.55 var(--nv-font-ui);color:var(--nv-ink60)")}>{v.profile.view.bestSelf}</div></div>}
+              {v.profile.view.notes && <div><Eyebrow>Context &amp; constraints</Eyebrow><div style={css("margin-top:3px;font:500 12.5px/1.55 var(--nv-font-ui);color:var(--nv-ink60);white-space:pre-wrap")}>{v.profile.view.notes}</div></div>}
             </div>
           ) : (
             <div style={css("margin-top:10px;max-width:620px;font:500 12.5px/1.7 var(--nv-font-ui);color:var(--nv-ink60)")}>Nova knows your data but not yet your intentions. Tell it what you're working toward and it reasons through that in every answer, coaching session, and brief — the difference between a tool and a companion. Two minutes, editable anytime in Obsidian.</div>
@@ -119,8 +126,8 @@ export function Settings({ v }) {
       {v.learning && v.learning.enoughData && (
         <div style={{ marginTop: '28px' }}>
           <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
-            <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-cy)")}>WHAT NOVA HAS NOTICED</span>
-            <span style={css("font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>LEARNED FROM YOUR REAL DECISIONS · SHAPES EVERY SUGGESTION</span>
+            <Eyebrow as="span" tone="cyan">What Nova has noticed</Eyebrow>
+            <Meta tone="faint">Learned from your real decisions · shapes every suggestion</Meta>
           </div>
           <div className="nv-pane" style={{ marginTop: '12px', padding: '16px 18px', maxWidth: '620px', display: 'flex', flexDirection: 'column', gap: '7px' }}>
             {v.learning.noticed.map((n, i) => (
@@ -130,9 +137,9 @@ export function Settings({ v }) {
         </div>
       )}
 
-      <div style={css("margin-top:34px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>APPEARANCE</div>
+      <Eyebrow style={{ marginTop: '34px' }}>Appearance</Eyebrow>
       <div style={css("margin-top:12px;max-width:520px;display:flex;flex-direction:column;gap:10px")}>
-        <div style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>DESIGN STYLE · SAME DATA, SAME FEATURES — TWO SKINS</div>
+        <Eyebrow>Design style · same data, same features — two skins</Eyebrow>
         {v.novaStyleOptions.map((s) => (
           <Interactive
             key={s.value}
@@ -157,11 +164,11 @@ export function Settings({ v }) {
               <span style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: s.active ? 'var(--nv-acc)' : 'var(--nv-ink)' }}>{s.label}</span>
               <span style={{ display: 'block', marginTop: '2px', fontSize: '11.5px', color: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>{s.hint}</span>
             </span>
-            {s.active && <span style={{ marginLeft: 'auto', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-acc)' }}>ACTIVE</span>}
+            {s.active && <Tag tone="accent" style={{ marginLeft: 'auto' }}>Active</Tag>}
           </Interactive>
         ))}
 
-        <div style={css("margin-top:14px;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>THEME · THE PALETTE, IN EITHER STYLE</div>
+        <Eyebrow style={{ marginTop: '14px' }}>Theme · the palette, in either style</Eyebrow>
         {v.novaThemeOptions.map((t) => (
           <Interactive
             key={t.value}
@@ -183,11 +190,11 @@ export function Settings({ v }) {
               <span style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: t.active ? 'var(--nv-acc)' : 'var(--nv-ink)' }}>{t.label}</span>
               <span style={{ display: 'block', marginTop: '2px', fontSize: '11.5px', color: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>{t.hint}</span>
             </span>
-            {t.active && <span style={{ marginLeft: 'auto', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-acc)' }}>ACTIVE</span>}
+            {t.active && <Tag tone="accent" style={{ marginLeft: 'auto' }}>Active</Tag>}
           </Interactive>
         ))}
 
-        <div style={css("margin-top:14px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>NOVA CORE</div>
+        <Eyebrow style={{ marginTop: '14px' }}>Nova core</Eyebrow>
         {v.novaCoreOptions.map((c) => (
           <Interactive
             key={c.value}
@@ -210,7 +217,7 @@ export function Settings({ v }) {
               <span style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: c.active ? 'var(--nv-acc)' : 'var(--nv-ink)' }}>{c.label}</span>
               <span style={{ display: 'block', marginTop: '2px', fontSize: '11.5px', color: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>{c.hint}</span>
             </span>
-            {c.active && <span style={{ marginLeft: 'auto', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-acc)' }}>ACTIVE</span>}
+            {c.active && <Tag tone="accent" style={{ marginLeft: 'auto' }}>Active</Tag>}
           </Interactive>
         ))}
 
@@ -223,23 +230,23 @@ export function Settings({ v }) {
             <span style={{ display: 'block', fontSize: '14px', fontWeight: 600 }}>Calm mode</span>
             <span style={{ display: 'block', marginTop: '2px', fontSize: '11.5px', color: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>dims the glow and pauses ambient motion — same layout, lower voltage</span>
           </span>
-          <span style={{ marginLeft: 'auto', flex: 'none', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', padding: '6px 12px', borderRadius: '14px', border: v.calmMode ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent)', color: v.calmMode ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', background: v.calmMode ? 'var(--nv-acc-bg)' : 'none' }}>{v.calmMode ? 'ON' : 'OFF'}</span>
+          <Chip tone={v.calmMode ? 'accent' : 'quiet'} active={v.calmMode} style={{ marginLeft: 'auto' }}>{v.calmMode ? 'On' : 'Off'}</Chip>
         </Interactive>
       </div>
 
       {v.pushSettings && (
         <div style={{ marginTop: '34px' }}>
-          <div style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>NOTIFICATIONS</div>
+          <Eyebrow>Notifications</Eyebrow>
           <div className="nv-pane" style={{ marginTop: '12px', padding: '14px 18px', maxWidth: '520px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <span style={{ minWidth: 0, flex: '1 1 240px' }}>
               <span style={{ display: 'block', fontSize: '14px', fontWeight: 600 }}>Phone & Watch notifications</span>
-              <span style={{ display: 'block', marginTop: '2px', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', color: v.pushSettings.state === 'on' ? 'var(--nv-good)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>{v.pushSettings.label}</span>
+              <Meta as="div" tone={v.pushSettings.state === 'on' ? 'good' : 'faint'} style={{ marginTop: '2px' }}>{v.pushSettings.label}</Meta>
             </span>
             {v.pushSettings.state !== 'on' && v.pushSettings.state !== 'unsupported' && (
-              <Interactive as="span" onClick={v.pushSettings.enable} base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:9px 16px;border-radius:8px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle="filter:brightness(1.08)">ENABLE</Interactive>
+              <Interactive as="span" onClick={v.pushSettings.enable} base={btn('var(--nv-cy)', 'var(--nv-on-acc)')} hoverStyle={{ filter: 'brightness(1.08)' }}>Enable</Interactive>
             )}
             {v.pushSettings.state === 'on' && (
-              <Interactive as="span" onClick={v.pushSettings.test} base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 14px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);color:var(--nv-cy)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 08%, transparent)">TEST</Interactive>
+              <Chip tone="cyan" onClick={v.pushSettings.test}>Test</Chip>
             )}
           </div>
           <div style={css("margin-top:8px;max-width:520px;font-size:11px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Pushes fire when something needs your call — a drafted brief, a research outline, a Guardian alert. iPhone mirrors them to the Apple Watch automatically. Requires Nova installed to the Home Screen (Safari → Share → Add to Home Screen).</div>
@@ -250,8 +257,8 @@ export function Settings({ v }) {
           a preferences page. Everything that only gets set once lives here. */}
       <div style={{ marginTop: '34px' }}>
         <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
-          <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>VOICE</span>
-          <span style={css("font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>HOW NOVA SPEAKS, AND HOW IT HEARS YOU</span>
+          <Eyebrow as="span">Voice</Eyebrow>
+          <Meta tone="faint">How Nova speaks, and how it hears you</Meta>
         </div>
         <div style={css("margin-top:12px;max-width:520px;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);padding:20px 22px;background:var(--nv-glass);display:flex;flex-direction:column;gap:16px")}>
           <div style={css("display:flex;justify-content:space-between;align-items:center;gap:12px")}>
@@ -259,9 +266,7 @@ export function Settings({ v }) {
               <div style={css("font:600 12.5px var(--nv-font-ui)")}>Speak replies</div>
               <div style={css("margin-top:2px;font-size:11px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.voiceEngineLabel === 'BROWSER' ? 'Using the browser voice' : `Engine: ${v.voiceEngineLabel}`}</div>
             </div>
-            <Interactive as="span" onClick={v.toggleSpeak}
-              base={{ cursor: 'pointer', font: 'var(--nv-micro-s)', letterSpacing: '.1em', padding: '6px 13px', borderRadius: '7px', border: v.speakOn ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', color: v.speakOn ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: v.speakOn ? 'var(--nv-acc-bg)' : 'transparent' }}
-            >{v.speakOn ? 'ON' : 'OFF'}</Interactive>
+            <Chip tone={v.speakOn ? 'accent' : 'quiet'} active={v.speakOn} onClick={v.toggleSpeak}>{v.speakOn ? 'On' : 'Off'}</Chip>
           </div>
 
           <div style={css("display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:16px")}>
@@ -274,9 +279,7 @@ export function Settings({ v }) {
               </div>
             </div>
             {v.wakeWordSupported && (
-              <Interactive as="span" onClick={() => v.setWakeWord(!v.wakeWordOn)}
-                base={{ cursor: 'pointer', flex: 'none', font: 'var(--nv-micro-s)', letterSpacing: '.1em', padding: '6px 13px', borderRadius: '7px', border: v.wakeWordOn ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', color: v.wakeWordOn ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: v.wakeWordOn ? 'var(--nv-acc-bg)' : 'transparent' }}
-              >{v.wakeWordOn ? 'ON' : 'OFF'}</Interactive>
+              <Chip tone={v.wakeWordOn ? 'accent' : 'quiet'} active={v.wakeWordOn} onClick={() => v.setWakeWord(!v.wakeWordOn)} style={{ flex: 'none' }}>{v.wakeWordOn ? 'On' : 'Off'}</Chip>
             )}
           </div>
 
@@ -296,37 +299,37 @@ export function Settings({ v }) {
                   ))}
                 </div>
               )}
-            </div>
-            {/* the running build, so "am I on your fix?" is answerable */}
-            <div style={css("margin-top:14px;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 32%, transparent)")}>BUILD {v.novaBuild}</div>
+              {/* the running build, so "am I on your fix?" is answerable — and
+                  the research-browser sign-in — belong WITH this block, not as
+                  flex siblings of it: four items across one flex row (this one,
+                  Build, Research Browser, Test) squeezed the first down to a
+                  one-word-wide column and printed Build\u2019s text over it. */}
+              <Meta as="div" tone="faint" style={{ marginTop: '14px' }}>Build {v.novaBuild}</Meta>
 
-            {/* RESEARCH BROWSER. Instagram, TikTok, X and LinkedIn refuse an
-                anonymous reader, so the Scout gets a Chrome profile of its
-                own that he signs into once. His hands type the password —
-                Nova never sees one, and this is the only place in the app
-                that opens a login page at all. */}
-            <div style={css("margin-top:16px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:14px")}>
-              <div style={css("font:var(--nv-micro-s);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>RESEARCH BROWSER</div>
-              <div style={css("margin-top:7px;font-size:11.5px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
-                Instagram, TikTok, X and LinkedIn refuse an anonymous reader. Sign in once here and the Scout
-                reads them as you. It uses its own browser profile, never your everyday Chrome, and only ever
-                reads — it never posts, follows or fills anything. You type the password; Nova never sees it.
+              {/* RESEARCH BROWSER. Instagram, TikTok, X and LinkedIn refuse an
+                  anonymous reader, so the Scout gets a Chrome profile of its
+                  own that he signs into once. His hands type the password —
+                  Nova never sees one, and this is the only place in the app
+                  that opens a login page at all. */}
+              <div style={css("margin-top:16px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:14px")}>
+                <Eyebrow>Research browser</Eyebrow>
+                <div style={css("margin-top:7px;font-size:11.5px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
+                  Instagram, TikTok, X and LinkedIn refuse an anonymous reader. Sign in once here and the Scout
+                  reads them as you. It uses its own browser profile, never your everyday Chrome, and only ever
+                  reads — it never posts, follows or fills anything. You type the password; Nova never sees it.
+                </div>
+                <Chip tone="accent" active disabled={v.browserSignIn.busy} onClick={v.browserSignIn.busy ? undefined : v.browserSignIn.open} style={{ marginTop: '10px' }}>
+                  {v.browserSignIn.busy ? 'Opening…' : 'Sign in on the Mac'}
+                </Chip>
               </div>
-              <Interactive as="span" onClick={v.browserSignIn.busy ? undefined : v.browserSignIn.open}
-                base={{ cursor: v.browserSignIn.busy ? 'default' : 'pointer', display: 'inline-block', marginTop: '10px', font: 'var(--nv-micro-s)', letterSpacing: '.1em', padding: '7px 14px', borderRadius: '7px', border: '1px solid var(--nv-acc-border)', color: 'var(--nv-acc)', background: 'var(--nv-acc-bg)', opacity: v.browserSignIn.busy ? 0.6 : 1 }}
-                hoverStyle={v.browserSignIn.busy ? '' : 'filter:brightness(1.2)'}>
-                {v.browserSignIn.busy ? 'OPENING…' : 'SIGN IN ON THE MAC'}
-              </Interactive>
             </div>
 
-            <Interactive as="span" onClick={v.runVoiceTest}
-              base={{ cursor: 'pointer', flex: 'none', font: 'var(--nv-micro-s)', letterSpacing: '.1em', padding: '6px 13px', borderRadius: '7px', border: '1px solid var(--nv-acc-border)', color: 'var(--nv-acc)', background: 'var(--nv-acc-bg)' }}
-            >{v.voiceTest?.running ? 'TESTING…' : 'TEST'}</Interactive>
+            <Chip tone="accent" active onClick={v.runVoiceTest} style={{ flex: 'none' }}>{v.voiceTest?.running ? 'Testing…' : 'Test'}</Chip>
           </div>
 
           {v.voiceOptions.length > 0 && (
             <div style={css("border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:16px")}>
-              <div style={css("font:var(--nv-micro-s);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{v.voicePickerLabel}</div>
+              <Eyebrow>{v.voicePickerLabel}</Eyebrow>
               <select value={v.voiceVoiceId} onChange={v.setVoiceId}
                 style={{ marginTop: '7px', width: '100%', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: 'var(--nv-micro-l)', padding: '8px 9px', outline: 'none' }}>
                 <option value="" style={{ background: '#141019' }}>{v.voiceDefaultLabel}</option>
@@ -337,7 +340,7 @@ export function Settings({ v }) {
 
           {v.usingBrowserVoice && v.systemVoices.length > 0 && (
             <div style={css("border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:16px")}>
-              <div style={css("font:var(--nv-micro-s);letter-spacing:.2em;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>VOICE · FREE ON-DEVICE</div>
+              <Eyebrow>Voice · free on-device</Eyebrow>
               <select value={v.speechVoiceURI} onChange={v.setSpeechVoice}
                 style={{ marginTop: '7px', width: '100%', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: 'var(--nv-micro-l)', padding: '8px 9px', outline: 'none' }}>
                 <option value="" style={{ background: '#141019' }}>System default</option>
@@ -355,8 +358,8 @@ export function Settings({ v }) {
       {v.tabOrderItems && (
         <div style={{ marginTop: '34px' }}>
           <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
-            <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>NAVIGATION ORDER</span>
-            <span style={css("font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>DRAG TO REORDER THE TAB BAR AND THE SIDEBAR</span>
+            <Eyebrow as="span">Navigation order</Eyebrow>
+            <Meta tone="faint">Drag to reorder the tab bar and the sidebar</Meta>
           </div>
           <div style={{ marginTop: '12px' }}>
             <TabOrderEditor items={v.tabOrderItems} onReorder={v.setTabOrder} />
@@ -368,9 +371,9 @@ export function Settings({ v }) {
       {v.calendarSettings && (
         <div style={{ marginTop: '34px' }}>
           <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
-            <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>CALENDARS</span>
-            <span style={css("font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>TURN OFF ANY YOU DON'T WANT NOVA READING</span>
-            <Interactive as="span" onClick={v.calendarSettings.load} base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:5px 12px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 20%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)" hoverStyle="color:var(--nv-ink)">REFRESH</Interactive>
+            <Eyebrow as="span">Calendars</Eyebrow>
+            <Meta tone="faint">Turn off any you don't want Nova reading</Meta>
+            <TextAction compact tone="quiet" onClick={v.calendarSettings.load}>Refresh</TextAction>
           </div>
           {v.calendarSettings.error && (
             <div style={css("margin-top:10px;max-width:520px;font-size:12px;line-height:1.6;color:var(--nv-warn)")}>Couldn't load the calendar list — a connection problem, not "no calendars". Tap REFRESH to retry.</div>
@@ -387,7 +390,7 @@ export function Settings({ v }) {
                 {v.calendarSettings.calendars.map((c) => (
                   <div key={c.url} className="nv-pane" style={{ padding: '11px 15px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <span style={{ flex: 1, minWidth: 0, fontSize: '14px', fontWeight: 500, opacity: c.hidden ? 0.5 : 1, textDecoration: c.hidden ? 'line-through' : 'none', overflowWrap: 'anywhere' }}>{c.name}</span>
-                    <Interactive as="span" onClick={c.toggle} base={{ cursor: 'pointer', flex: 'none', font: 'var(--nv-micro-m)', letterSpacing: '.1em', padding: '6px 15px', borderRadius: '14px', border: c.hidden ? '1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent)' : '1px solid var(--nv-acc-border)', color: c.hidden ? 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' : 'var(--nv-acc)', background: c.hidden ? 'none' : 'var(--nv-acc-bg)' }} hoverStyle={{ filter: 'brightness(1.12)' }}>{c.hidden ? 'HIDDEN' : 'SHOWN'}</Interactive>
+                    <Chip tone={c.hidden ? 'quiet' : 'accent'} active={!c.hidden} onClick={c.toggle} style={{ flex: 'none' }}>{c.hidden ? 'Hidden' : 'Shown'}</Chip>
                   </div>
                 ))}
               </div>
@@ -403,17 +406,17 @@ export function Settings({ v }) {
       {v.modelSettings && (
         <div style={{ marginTop: '34px' }}>
           <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
-            <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-gold)")}>CLAUDE MODELS</span>
-            <span style={css("font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>EVERY AGENT AND FEATURE · PICK THE MODEL, OR SWITCH IT OFF</span>
+            <Eyebrow as="span" tone="gold">Claude models</Eyebrow>
+            <Meta tone="faint">Every agent and feature · pick the model, or switch it off</Meta>
             {v.modelSettings.loaded && v.modelSettings.customisedCount + v.modelSettings.offCount > 0 && (
-              <Interactive as="span" onClick={v.modelSettings.busyAll ? undefined : v.modelSettings.resetAll} base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:5px 12px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 20%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)" hoverStyle="color:var(--nv-ink)">{v.modelSettings.busyAll ? 'RESETTING…' : 'RESET ALL'}</Interactive>
+              <TextAction compact tone="quiet" disabled={v.modelSettings.busyAll} onClick={v.modelSettings.busyAll ? undefined : v.modelSettings.resetAll}>{v.modelSettings.busyAll ? 'Resetting…' : 'Reset all'}</TextAction>
             )}
           </div>
 
           {v.modelSettings.error && (
             <div style={css("margin-top:10px;max-width:640px;font-size:12px;line-height:1.6;color:var(--nv-warn)")}>
               Couldn't load the model board — a connection problem, not “no lanes”. Nothing has changed on the server.
-              <Interactive as="span" onClick={v.modelSettings.load} base="cursor:pointer;margin-left:10px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-gold)">RETRY</Interactive>
+              <TextAction compact tone="gold" onClick={v.modelSettings.load} style={{ marginLeft: '10px' }}>Retry</TextAction>
             </div>
           )}
           {!v.modelSettings.error && !v.modelSettings.loaded && (
@@ -435,11 +438,11 @@ export function Settings({ v }) {
                     base="cursor:pointer;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding-bottom:7px;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent)"
                     hoverStyle="border-bottom-color:var(--nv-acc-border)"
                   >
-                    <span style={css("font:var(--nv-micro-s);letter-spacing:.2em;color:var(--nv-cy)")}>{g.open ? '▾' : '▸'} {g.label}</span>
-                    <span style={css("font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>{g.hint}</span>
-                    <span style={{ marginLeft: 'auto', font: 'var(--nv-micro-s)', color: g.offCount ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 35%, transparent)' }}>
-                      {g.offCount ? `${g.offCount}/${g.count} OFF` : `${g.count}`}
-                    </span>
+                    <Eyebrow as="span" tone="cyan">{g.open ? '▾' : '▸'} {g.label}</Eyebrow>
+                    <Meta tone="faint">{g.hint}</Meta>
+                    <Meta tone={g.offCount ? 'warn' : 'faint'} style={{ marginLeft: 'auto' }}>
+                      {g.offCount ? `${g.offCount}/${g.count} off` : `${g.count}`}
+                    </Meta>
                   </Interactive>
 
                   {g.open && g.lanes.map((l) => (
@@ -449,18 +452,12 @@ export function Settings({ v }) {
                           <span style={{ display: 'block', fontSize: '13.5px', fontWeight: 600, color: l.enabled ? 'var(--nv-ink)' : 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>{l.label}</span>
                           <span style={{ display: 'block', marginTop: '3px', fontSize: '11px', lineHeight: 1.55, color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>{l.hint}</span>
                         </span>
-                        <Interactive as="span" onClick={l.busy ? undefined : l.toggle}
-                          base={{ cursor: 'pointer', flex: 'none', font: 'var(--nv-micro-s)', letterSpacing: '.1em', padding: '6px 13px', borderRadius: '14px',
-                            border: l.enabled ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-warn) 40%, transparent)',
-                            color: l.enabled ? 'var(--nv-acc)' : 'var(--nv-warn)',
-                            background: l.enabled ? 'var(--nv-acc-bg)' : 'color-mix(in srgb, var(--nv-warn) 08%, transparent)' }}
-                          hoverStyle={{ filter: 'brightness(1.14)' }}
-                        >{l.enabled ? 'ON' : 'OFF'}</Interactive>
+                        <Chip tone={l.enabled ? 'accent' : 'warn'} active={l.enabled} disabled={l.busy} onClick={l.busy ? undefined : l.toggle} style={{ flex: 'none' }}>{l.enabled ? 'On' : 'Off'}</Chip>
                       </div>
 
                       {l.enabled && l.deterministic ? (
                         // a computed lane: nothing to pick — the switch above is the whole setting
-                        <div style={css("margin-top:10px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>DETERMINISTIC — NO MODEL RUNS; THE SWITCH IS THE SETTING</div>
+                        <Meta as="div" tone="faint" style={{ marginTop: '10px' }}>Deterministic — no model runs; the switch is the setting</Meta>
                       ) : l.enabled ? (
                         <div style={css("margin-top:10px;display:flex;align-items:center;gap:9px;flex-wrap:wrap")}>
                           <select value={l.model} onChange={l.setModel} disabled={l.busy}
@@ -472,7 +469,7 @@ export function Settings({ v }) {
                             ))}
                           </select>
                           {l.reset && (
-                            <Interactive as="span" onClick={l.busy ? undefined : l.reset} base="cursor:pointer;flex:none;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)" hoverStyle="color:var(--nv-gold)">reset</Interactive>
+                            <TextAction compact tone="faint" disabled={l.busy} onClick={l.busy ? undefined : l.reset} style={{ flex: 'none' }}>Reset</TextAction>
                           )}
                         </div>
                       ) : (
@@ -494,10 +491,10 @@ export function Settings({ v }) {
       {v.timeMachine && (
         <div style={{ marginTop: '34px' }}>
           <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
-            <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-gold)")}>TIME MACHINE · GUARDIAN</span>
-            <span style={css("font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>EVERY VAULT WRITE SNAPSHOTS FIRST — RESTORE ANY FILE, UNDOABLY</span>
+            <Eyebrow as="span" tone="gold">Time machine · Guardian</Eyebrow>
+            <Meta tone="faint">Every vault write snapshots first — restore any file, undoably</Meta>
             {!v.timeMachine.loaded && (
-              <Interactive as="span" onClick={v.timeMachine.load} base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:5px 12px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold)" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 08%, transparent)">BROWSE SNAPSHOTS</Interactive>
+              <Chip tone="gold" onClick={v.timeMachine.load}>Browse snapshots</Chip>
             )}
           </div>
           {v.timeMachine.loaded && v.timeMachine.files.length === 0 && (
@@ -508,20 +505,20 @@ export function Settings({ v }) {
               {v.timeMachine.files.map((f) => (
                 <div key={f.file} className="nv-pane" style={{ padding: '12px 15px' }}>
                   <div style={css("display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap")}>
-                    <span style={css("font:600 13px var(--nv-font-ui);overflow-wrap:anywhere")}>{f.file}{!f.exists && <span style={css("color:var(--nv-warn);font:var(--nv-micro-s)")}> · DELETED</span>}</span>
+                    <span style={css("font:600 13px var(--nv-font-ui);overflow-wrap:anywhere")}>{f.file}{!f.exists && <Tag tone="warn" style={{ marginLeft: '6px' }}>Deleted</Tag>}</span>
                   </div>
                   <div style={css("margin-top:6px;display:flex;flex-direction:column;gap:4px")}>
                     {f.backups.map((b) => (
                       <div key={b.backupRel} style={css("display:flex;justify-content:space-between;gap:10px;align-items:center")}>
-                        <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 50%, transparent)")}>{b.stamp}</span>
+                        <Meta tone="faint">{b.stamp}</Meta>
                         {v.timeMachine.confirming === b.backupRel ? (
                           <span style={css("display:flex;gap:8px;align-items:center")}>
                             <span style={css("font-size:11px;color:var(--nv-warn)")}>Overwrite the current file with this snapshot?</span>
-                            <Interactive as="span" onClick={() => v.timeMachine.restore(b.backupRel)} base="cursor:pointer;font:var(--nv-micro-s);padding:3px 10px;border-radius:6px;background:color-mix(in srgb, var(--nv-warn) 15%, transparent);color:var(--nv-warn);border:1px solid color-mix(in srgb, var(--nv-warn) 40%, transparent)">RESTORE</Interactive>
-                            <Interactive as="span" onClick={v.timeMachine.cancelConfirm} base="cursor:pointer;font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)">cancel</Interactive>
+                            <Chip tone="warn" active onClick={() => v.timeMachine.restore(b.backupRel)}>Restore</Chip>
+                            <TextAction compact tone="faint" onClick={v.timeMachine.cancelConfirm}>Cancel</TextAction>
                           </span>
                         ) : (
-                          <Interactive as="span" onClick={() => v.timeMachine.askConfirm(b.backupRel)} base="cursor:pointer;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);padding:3px 10px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)" hoverStyle="border-color:color-mix(in srgb, var(--nv-gold) 40%, transparent);color:var(--nv-gold)">RESTORE…</Interactive>
+                          <TextAction compact tone="quiet" onClick={() => v.timeMachine.askConfirm(b.backupRel)}>Restore…</TextAction>
                         )}
                       </div>
                     ))}

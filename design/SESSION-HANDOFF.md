@@ -267,6 +267,23 @@ DO NOT:
 
 ## SESSION LOG (append-only, newest first)
 
+### 6 September 2026 (still later) — Settings hand-swept, a latent layout bug fixed
+
+Settings.jsx was the last front-line screen still on tokens only. Full hand
+sweep: About You, What Nova Has Noticed, Appearance (style/theme/core/calm),
+Notifications, Voice, Navigation Order, Calendars, the Claude Models board,
+Time Machine — every ALL-CAPS toggle and button through Controls.jsx, ACTIVE
+badges as Tag, ON/OFF as Chip. Eyebrow/Tag/Meta gained `...rest` passthrough
+(htmlFor, etc.). Found and fixed on the way: the voice-test row had FOUR flex
+siblings under one `justify-content:space-between` (the content block, Build,
+Research Browser, Test), so "Can you hear Nova?" collapsed to a one-word
+column with Build's text printed over it — pre-existing, not caused by the
+sweep, visible only once the row was actually looked at. Verified in both
+styles at 375×812; MissionControl.jsx's (classic, non-cupertino) C1 fold is
+deliberately NOT done — it has no ORDERS/section-key mechanism at all (a
+linear JSX render, HUD satellites not grouped cards) and isn't his daily style
+(his phone runs cupertino); building it is a design decision, not a port.
+
 ### 6 September 2026 (later) — the artefacts filed, the native shell scaffolded
 
 Approving the finished plan would have re-run it: fixed so approve files the

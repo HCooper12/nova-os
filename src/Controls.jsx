@@ -56,10 +56,10 @@ const tone = (t) => TONES[t] || t || TONES.quiet;
 
 // A section heading. iOS sets grouped-list headers in small caps too, so
 // both styles agree on the case — only face, size and tracking differ.
-export function Eyebrow({ children, tone: t = 'faint', style, as: Tag = 'div' }) {
+export function Eyebrow({ children, tone: t = 'faint', style, as: Tag = 'div', ...rest }) {
   const apple = isAppleStyle();
   return (
-    <Tag style={{
+    <Tag {...rest} style={{
       font: apple ? `600 12px ${UI}` : `500 9.5px ${M}`,
       letterSpacing: apple ? '.05em' : '.22em',
       textTransform: 'uppercase',
@@ -132,12 +132,12 @@ export function Chip({ children, onClick, tone: t = 'accent', active, disabled, 
 
 // A badge that is read, not tapped — a route, a kind, a muscle. Small caps in
 // both styles; the Apple size is what iOS uses for a list badge.
-export function Tag({ children, tone: t = 'faint', hue, dashed, style, title }) {
+export function Tag({ children, tone: t = 'faint', hue, dashed, style, title, ...rest }) {
   const apple = isAppleStyle();
   const color = hue ? `rgb(${hue})` : tone(t);
   const bg = hue ? `rgba(${hue},.10)` : `color-mix(in srgb, ${color} 10%, transparent)`;
   return (
-    <span title={title} style={{
+    <span {...rest} title={title} style={{
       display: 'inline-block',
       font: apple ? `600 11px ${UI}` : `600 8.5px ${M}`,
       letterSpacing: apple ? '.04em' : '.14em',
@@ -155,10 +155,10 @@ export function Tag({ children, tone: t = 'faint', hue, dashed, style, title }) 
 
 // Secondary information: a time, a source, a count of what is left. Sentence
 // case under Apple; digits tabular in both.
-export function Meta({ children, tone: t = 'quiet', style, as: TagName = 'span' }) {
+export function Meta({ children, tone: t = 'quiet', style, as: TagName = 'span', ...rest }) {
   const apple = isAppleStyle();
   return (
-    <TagName style={{
+    <TagName {...rest} style={{
       font: apple ? `500 12.5px ${UI}` : `500 9px ${M}`,
       letterSpacing: apple ? '0' : '.14em',
       textTransform: apple ? 'none' : 'uppercase',
