@@ -230,6 +230,11 @@ export const LANES = [
     off: 'Multi-step requests are answered as ordinary questions instead of being planned out; single-lane requests are unaffected.',
   },
   {
+    id: 'browse', label: 'The browser hand', group: 'research', def: 'sonnet',
+    hint: 'drives Nova’s OWN Chrome profile: opens pages, reads them, fills forms — and stops before anything that buys, sends, posts or deletes. Every run lands in your Inbox with screenshots.',
+    off: 'Nova can still read the web through the Researcher; it just cannot open a browser and act in it.',
+  },
+  {
     id: 'researcher', label: 'Researcher', group: 'research', def: 'sonnet',
     hint: 'web-read-only, citation-required — the brief always lands in your Inbox for review',
     off: 'Research requests (including “research this” from Ask Nova and the overnight queue) are refused with a plain message.',

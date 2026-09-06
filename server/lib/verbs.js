@@ -429,6 +429,32 @@ verb({
   },
 });
 
+verb({
+  id: 'reminder.set', tier: 'act',
+  describe: 'set a reminder at a time (it fires on his phone and watch via iCloud when configured, and as a push here)',
+  args: { text: 'what to remind him of', when: 'when, in his words — "in 20 minutes", "at 6", "tomorrow at 7", "friday 9am"' },
+  async run(vaultPath, args) {
+    const { parseWhen } = await import('./whenParser.js');
+    const { createReminder } = await import('./reminders.js');
+    const read = parseWhen(String(args.when));
+    if (!read) throw new Error(`I couldn't read "${say(args.when)}" as a time — try "in 20 minutes", "at 6", or "tomorrow at 7"`);
+    const text = String(args.text).trim().replace(/^to\s+/i, '');
+    if (!text) throw new Error('a reminder needs something to remind you of');
+    const entry = await createReminder({ text, whenISO: read.when.toISOString() });
+    const when = read.when.toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+    return {
+      destination: `Reminder — "${text}" at ${when}`,
+      said: `I'll remind you at ${when}${entry?.apple ? '' : entry?.appleError ? ' — here, though iCloud refused it' : ''}.`,
+      undo: { verb: 'reminder.set', id: entry.id, text },
+    };
+  },
+  async undo(vaultPath, u) {
+    const { removeReminder } = await import('./reminders.js');
+    await removeReminder(u.id);
+    return `cancelled the reminder for "${u.text}"`;
+  },
+});
+
 // THE FIRST HAND — his own Shortcuts (lib/hands.js). Confirm-first unless
 // he has listed the name as immediate; no undo Nova can do, said plainly.
 let handsMod = null;
@@ -594,6 +620,13 @@ export function parseCommand(text) {
 
   if ((m = q.match(/^(?:clear|empty|wipe)\s+(?:the\s+|my\s+)?(?:whole\s+|entire\s+)?(?:shopping\s+)?list$/))) return { verb: 'shopping.clear', args: {} };
 
+  // "remind me to X at 6" — the deterministic path in front of the capture
+  // classifier: it only claims the sentence when the TIME is certain.
+  if ((m = q.match(/^remind me (?:to |about |that )?(.+)$/))) {
+    const rest = m[1];
+    return { any: [{ verb: 'reminder.set', args: { text: rest, when: rest } }], fallthrough: true };
+  }
+
   if ((m = q.match(/^(?:add|put)\s+(.+?)\s+(?:to|on|onto)\s+(?:my\s+)?(?:to-?dos?|to-?do list|todo list|list of to-?dos)$/)) || (m = q.match(/^(?:to-?do|todo):\s*(.+)$/))) {
     return { verb: 'todo.add', args: { text: m[1] } };
   }
@@ -666,6 +699,14 @@ async function probe(vaultPath, cand) {
     if (cand.verb === 'todo.reopen') { const t = await openTodo(vaultPath, cand.args.text, { wantChecked: true }); return { ok: true, label: `the to-do "${t.text}"` }; }
     if (cand.verb === 'shopping.done') { const i = await shoppingItem(vaultPath, cand.args.item, { wantChecked: false }); return { ok: true, label: `${i.name} on the shopping list` }; }
     if (cand.verb === 'shopping.undone') { const i = await shoppingItem(vaultPath, cand.args.item, { wantChecked: true }); return { ok: true, label: `${i.name} on the shopping list` }; }
+    if (cand.verb === 'reminder.set') {
+      const { parseWhen } = await import('./whenParser.js');
+      const read = parseWhen(String(cand.args.when || ''));
+      if (!read) return { ok: false, why: 'no time in it' };
+      cand.args.text = read.text || cand.args.text;
+      cand.args.when = String(cand.args.when);
+      return { ok: true, label: 'a reminder' };
+    }
     if (cand.verb === 'shortcut.run') {
       const { listShortcuts } = await import('./hands.js');
       const m = matchName((await listShortcuts()).map((n) => ({ name: n })), cand.args.name);

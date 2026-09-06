@@ -81,6 +81,8 @@ const FEATURES = [
   ['Voice · the gym by voice — start, sets, next, skip, finish (6 Sep)', 'Say the weight and reps as you go'],
   ['Train · the anatomy card is one visible tap (◉ 3D chip, 6 Sep)', 'See the lift — the 3D figure'],
   ['Train · the cockpit says the gym can be spoken (6 Sep)', 'Log it by talking'],
+  ['Chat · the browser hand has its own lane + chip (7 Sep)', 'Nova opens its own Chrome'],
+  ['Settings · the page answers to speech (7 Sep)', 'You can just say it'],
 ];
 
 const SERVER_ROUTES = [

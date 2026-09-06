@@ -249,6 +249,16 @@ export function Settings({ v }) {
         </div>
       )}
 
+      {/* SETTINGS BY VOICE has no button by definition — so it needs a line
+          that tells him it exists. (7 Sep: a capability he cannot find is a
+          capability he does not have.) */}
+      <div style={css("margin-top:26px;max-width:520px;border:1px solid color-mix(in srgb, var(--nv-cy) 26%, transparent);border-radius:12px;padding:13px 16px;background:color-mix(in srgb, var(--nv-cy) 05%, transparent)")}>
+        <Eyebrow tone="cyan">You can just say it</Eyebrow>
+        <div style={css("margin-top:6px;font:400 12.5px/1.6 var(--nv-font-ui);color:color-mix(in srgb, var(--nv-ink) 70%, transparent)")}>
+          Most of this page answers to speech, on Voice or the ✦ Ask bar: “dark mode”, “light mode”, “use the ember theme”, “apple layout”, “calm mode on”, “stop talking”, “hey nova off”. Nova changes it and says what it did.
+        </div>
+      </div>
+
       {/* VOICE — moved off the Voice screen, which is a command centre, not
           a preferences page. Everything that only gets set once lives here. */}
       <div style={{ marginTop: '34px' }}>

@@ -19,7 +19,7 @@
 //
 // Separate from App.jsx so the rule can be tested without a browser, and so
 // the planner in the next phase reads the same list rather than a copy.
-export const CHAT_JOB_LANES = ['watch', 'weave', 'study', 'research', 'book', 'code'];
+export const CHAT_JOB_LANES = ['watch', 'weave', 'study', 'research', 'browse', 'book', 'code'];
 
 // Phase 4, 5 Sep: with the palette folded into the chat, the chat inherits the
 // palette's one screen-changing dispatch — a build request opens the Code

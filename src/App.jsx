@@ -52,6 +52,7 @@ import { PortionSheet } from './PortionSheet.jsx';
 import { Boot } from './Boot.jsx';
 import { haptic } from './haptics.js';
 import { parseInSession, parseStart, applyInSession, matchRoutine } from './gymVoice.js';
+import { parseSettings } from './settingsVoice.js';
 // 0.05s of silence — a REAL source, so iOS accepts the gesture and unlocks
 // the element for the reply that arrives seconds later.
 const SILENT_WAV = 'data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQ4AAAAAAAAAAAAAAAAAAAAAAA==';
@@ -4765,6 +4766,11 @@ export default class App extends Component {
     const urls = raw.match(/https?:\/\/[^\s<>"']+/gi) || [];
     const study = /\b(analyse|analyze|study|research) (this |their |the )?(creator|channel|account|profile|competitor)\b|\bevery video\b/i.test(raw);
     const L = (lane, label, why) => ({ lane, label, why });
+    // mirrors server/lib/intentRouter.js BROWSE_RE — an explicit instruction
+    // to USE a browser, checked before the url→research fallback
+    if (/\b(?:go to|open)\s+(?:https?:\/\/|www\.|[a-z0-9-]+\.(?:com|com\.au|co\.uk|org|net|io|co|au)\b)|\b(?:in|on|using)\s+(?:the|my)\s+browser\b|\bbrowse\s+(?:to|for)\b|\bfill\s+(?:in|out)\b|\bcheck\s+(?:my|the)\s+(?:order|booking|reservation|delivery|account|balance)\b|\blog\s?in\s+to\b/i.test(raw)) {
+      return L('browse', 'BROWSER', "Nova opens its own Chrome — and stops before anything that buys, sends or deletes");
+    }
     if (urls.length) {
       const u = urls[0];
       const channel = /youtube\.com\/(@|c\/|channel\/|user\/)|tiktok\.com\/@[^/]+\/?$/i.test(u) && !/watch\?v=|youtu\.be\/|\/reel\/|\/shorts\//i.test(u);
@@ -4872,6 +4878,12 @@ export default class App extends Component {
         this.setState({ codeInput: q }, () => this.doCode());
         return;
       }
+      if (preview.lane === 'browse') {
+        api.sendIntent(conn, q, 'browse')
+          .then((r) => { say(r.said || 'Opening the browser — I will stop before anything that commits.', notice(r.record?.id)); this.refreshInbox?.(); })
+          .catch((e) => say(`I couldn't open the browser: ${e.message}`));
+        return;
+      }
       if (preview.lane === 'study') {
         api.sendIntent(conn, q, 'study')
           .then((r) => say(r.said || 'Study running — I compare their whole catalogue and ping you when the brief lands.', notice(r.record?.id)))
@@ -4886,6 +4898,7 @@ export default class App extends Component {
         .catch((e) => say(`I couldn't start that: ${e.message}`));
     };
     if (preview.lane === 'code') { dispatch(); return true; } // Claude Code picks its own model on its screen
+    if (preview.lane === 'browse') { dispatch(); return true; } // the browser lane runs on its own model board
     this.gateModelChoice(preview.lane === 'book' || preview.lane === 'weave' ? 'book' : preview.lane, dispatch);
     return true;
   }
@@ -5298,6 +5311,30 @@ export default class App extends Component {
       this.refreshInbox?.();
     }).catch((e) => this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: `Couldn't undo that: ${e.message}` }] })));
   }
+  // SETTINGS BY VOICE (src/settingsVoice.js). Appearance and speech are
+  // client state — no server verb can reach them — so they run here, through
+  // the same setters the Settings screen calls. Strict: only a phrasing that
+  // names a real setting AND a real value matches; everything else is a
+  // conversation and goes to Nova.
+  trySettingsVoice(q) {
+    const cmd = parseSettings(q);
+    if (!cmd) return false;
+    if (cmd.kind === 'theme') {
+      // Daylight is an Apple-family palette; asking for it carries the style
+      if (cmd.needsAppleStyle && this.state.novaStyle === 'command') this.setNovaStyle('cupertino');
+      this.setNovaTheme(cmd.value);
+    } else if (cmd.kind === 'style') this.setNovaStyle(cmd.value);
+    else if (cmd.kind === 'core') this.setCoreStyle(cmd.value);
+    else if (cmd.kind === 'calm') this.setCalmMode(cmd.value);
+    else if (cmd.kind === 'speak') this.setVoiceSpeak(cmd.value);
+    else if (cmd.kind === 'wake') this.setWakeWord(cmd.value);
+    else return false;
+    haptic('commit');
+    this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q }, { at: Date.now() + 1, who: 'nova', text: cmd.said }], orbInput: '' }));
+    // speaking the confirmation of "stop speaking" would be a joke at his expense
+    if (this.state.voiceSpeak && !(cmd.kind === 'speak' && cmd.value === false)) this.speakTtsSentence(cmd.said);
+    return true;
+  }
   // THE GYM BY VOICE (src/gymVoice.js — phase 3 of the Verbs plan). A live
   // workout is this client's state, so "80 for 8", "next", "skip it",
   // "finish" run HERE, instantly, and the cockpit on Train shows the set as
@@ -5398,6 +5435,7 @@ export default class App extends Component {
       this.setState({ voicePendingOffer: null });
     }
     if (this.tryGymVoice(q)) return;
+    if (this.trySettingsVoice(q)) return;
     const pending = this.state.voicePendingProposal;
     if (pending && getConnection() && this.state.connectionStatus !== 'offline') {
       const yes = /^(yes|yep|yeah|sure|ok|okay|do it|go ahead|confirm|approve|approved|yes please|please do|go for it|make it so|lock it in)[.!\s]*$/i.test(q);

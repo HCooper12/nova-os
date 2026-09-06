@@ -41,7 +41,10 @@ test('grammar: the sure commands parse; questions and prose do not', () => {
   assert.ok(Array.isArray(parseCommand('tick off buy eggs').any));
   assert.equal(parseCommand('why are my steps low'), null);
   assert.equal(parseCommand('what should I eat for lunch'), null);
-  assert.equal(parseCommand('remind me to call mum'), null);
+  // "remind me …" is handed over as a CANDIDATE (7 Sep): it becomes a verb
+  // only when the time reads, and a timeless one falls through to the
+  // capture classifier — proven in the reminders test below
+  assert.ok(parseCommand('remind me to call mum').any);
 });
 
 test('names: exact beats prefix beats tokens; a tie is an ambiguity, not a coin toss', () => {
@@ -264,4 +267,47 @@ test('phase 2: add a to-do, set a slot, journal a line, stash a link, refile a t
   assert.equal((await listTransactions({ sinceMonths: 1 })).find((t) => t.id === before.id).category, 'Transport');
   await undoRecord(vault, mc.acted.recordId);
   assert.equal((await listTransactions({ sinceMonths: 1 })).find((t) => t.id === before.id).category, before.category);
+});
+
+test('reminders by voice: the time is read deterministically, or the sentence is left to the classifier', async () => {
+  const { parseWhen } = await import('../lib/whenParser.js');
+  const now = new Date(2026, 8, 7, 10, 30);
+  assert.equal(parseWhen('call the bank at 6', now).when.getHours(), 18);
+  assert.equal(parseWhen('call mum in 20 minutes', now).when.getMinutes(), 50);
+  assert.equal(parseWhen('stretch tomorrow at 7', now).when.getDate(), 8);
+  assert.equal(parseWhen('pay rent on monday', now).getDay?.() ?? parseWhen('pay rent on monday', now).when.getDay(), 1);
+  assert.equal(parseWhen('call mum in 20 minutes', now).text, 'call mum');
+  assert.equal(parseWhen('water the plants', now), null);
+  // the grammar hands it over only as a candidate; a timeless sentence is not a command
+  assert.ok(parseCommand('remind me to call the bank at 6').any);
+  assert.equal(await tryCommand(vault, 'remind me to water the plants'), null);
+  const r = await tryCommand(vault, 'remind me to call the bank in 2 hours');
+  assert.equal(r.matched, 'reminder.set');
+  assert.match(r.text, /I'll remind you/);
+  const { listReminders } = await import('../lib/reminders.js');
+  assert.ok((await listReminders()).some((x) => /call the bank/.test(x.text)));
+  await undoRecord(vault, r.acted.recordId);
+  assert.ok(!(await listReminders()).some((x) => /call the bank/.test(x.text)));
+});
+
+test('the browser hand: its report is built from the model’s JSON, and a missing report is said, not invented', async () => {
+  const { parseBrowseResult, describeBrowse, buildBrowsePrompt } = await import('../lib/browse.js');
+  const good = parseBrowseResult('Here is what I found.\nBROWSE {"done":true,"summary":"The court is free at 5pm.","steps":["opened the booking page","filtered to today"],"stoppedBefore":"the Confirm booking button","cannot":null}');
+  assert.equal(good.done, true);
+  assert.equal(good.steps.length, 2);
+  assert.equal(good.stoppedBefore, 'the Confirm booking button');
+  const body = describeBrowse({ task: 'book a court', result: good, shots: 3 });
+  assert.match(body, /The court is free at 5pm/);
+  assert.match(body, /Stopped before: the Confirm booking button — that one is yours to press/);
+  assert.match(body, /3 screenshots saved/);
+  // no report at all: the record says so rather than inventing an outcome
+  assert.equal(parseBrowseResult('I had a look around.'), null);
+  const empty = describeBrowse({ task: 'x', result: null, shots: 0 });
+  assert.match(empty, /without a readable report/);
+  assert.match(empty, /No screenshots were taken/);
+  // the prompt carries the stop rule and the shot directory
+  const p = buildBrowsePrompt('book a court', '/tmp/shots');
+  assert.match(p, /BUYS, PAYS, BOOKS, SENDS, POSTS, APPLIES, SUBMITS/);
+  assert.match(p, /Never type a password/);
+  assert.match(p, /\/tmp\/shots\/shot-N\.png/);
 });

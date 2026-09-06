@@ -29,6 +29,8 @@ export const KIND_AGENT = {
   'fuel-cross': 'Fuel × Training', 'read-next': 'Librarian',
   'brain-week': 'Brain Week', 'money-import': 'Money Import',
   scout: 'Scout', 'leader-reflect': 'Leader',
+  // the Verbs (6-7 Sep): something Nova DID on his word, and the browser hand
+  act: 'Nova', browse: 'Hands · browser',
 };
 
 const HOURS = 48;

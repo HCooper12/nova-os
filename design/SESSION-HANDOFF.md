@@ -13,6 +13,24 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**7 SEP (later) — THE THREE OUTSTANDING BUILDS ARE DONE.** The browser hand
+(`lib/browse.js`, the `browse` lane): a Claude Code job with ONLY the Chrome
+DevTools MCP tools, on Nova's own `~/.nova-browser` profile, read/navigate/
+fill, $2 cap, screenshots, a pending record — and a hard stop before
+anything that commits. Proven live on example.com (read it, screenshotted
+it, reported accurately, left no Chrome running, used the right profile —
+checked). Reminders by voice (`lib/whenParser.js` + `reminder.set`): proven
+live and undone. Settings by voice (`src/settingsVoice.js`, client-side)
+with a "You can just say it" card in Settings so it has a door. All three
+carry their affordance: the composer's route chip shows BROWSER, the
+reminder answers "I'll remind you at …", Settings names the phrases.
+1109 tests green under TZ=UTC. **The honest caveat on the browser hand: in a
+browser the MODEL is the actor.** The protections are structural (its own
+profile, the tool boundary, the cap, the receipt, the stop rule) but they
+are not "tested code chooses the click" — `design/VERBS-PLAN.md` says so at
+length, and the next phase (resume-on-yes to press the button) is
+deliberately NOT built.
+
 **7 SEP — THE COACH-TAB BUG, PROPERLY; AND THE DISCOVERABILITY LESSON.**
 He reported the sideways pan STILL there after the first fix, and asked
 where the 3D form figure was. Both were fair, and both taught the same

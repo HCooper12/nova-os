@@ -87,6 +87,18 @@ export const CAPABILITIES = {
     // already raised. A planner may CONSULT it; it is not a task runner.
     delegable: false,
   },
+  browse: {
+    agent: 'Hands · browser',
+    summary: "Open pages in Nova's own Chrome, read them, and fill forms — stopping before anything that buys, sends, posts or deletes.",
+    input: 'a task naming a site or a thing to look up or fill in',
+    output: 'a report with the steps and screenshots, filed as a pending record',
+    produces: 'browse',
+    costUsd: 2.0,
+    autonomy: 'propose',
+    // never delegated inside a plan: a browser session is the one lane he
+    // should be able to watch, and a plan runs several at once
+    delegable: false,
+  },
   leader: {
     agent: 'Leader',
     summary: 'Leadership as a daily practice — the sit-down about his team, from HIS material; answers in the conversation.',

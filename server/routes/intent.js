@@ -106,6 +106,10 @@ export function intentRouter(vaultPath) {
         await openInBrowser(found.url).catch(() => {});
         out.played = found;
         out.said = `Here it is, sir — ${found.title}. Say the word and I'll have the Watcher digest it.`;
+      } else if (lane === 'browse') {
+        const { startBrowse } = await import('../lib/browse.js');
+        out.record = await startBrowse(vaultPath, text);
+        out.said = 'Opening the browser — I will stop before anything that commits and show you what I found.';
       } else if (lane === 'leader') {
         out.forward = { screen: 'leader', question: text };
         out.said = 'That one is the Leader’s — opening it with your question.';

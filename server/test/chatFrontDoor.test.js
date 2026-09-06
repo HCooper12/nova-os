@@ -21,7 +21,9 @@ test('the job lanes are the ones the chat may start', () => {
   // Phase 4 (5 Sep) added weave — the deep vault weave, reachable by words now
   // that the Inbox button is gone — and code, inherited from the folded-in
   // palette as the one dispatch that changes screens
-  assert.deepEqual(CHAT_JOB_LANES, ['watch', 'weave', 'study', 'research', 'book', 'code']);
+  // 'browse' joined 7 Sep 2026 — the browser hand, started from the chat like
+  // any other job and landing the same way: a pending record he reads
+  assert.deepEqual(CHAT_JOB_LANES, ['watch', 'weave', 'study', 'research', 'browse', 'book', 'code']);
   for (const l of CHAT_JOB_LANES) assert.equal(chatStartsAJob(l), true);
   assert.deepEqual(CHAT_NAVIGATING_LANES, ['code'], 'only a build request may move him to another screen');
 });
@@ -44,7 +46,7 @@ test('every lane the router can return is accounted for in exactly one list', ()
   // a lane added to the router later must be a deliberate decision here, not
   // an accident of omission
   // 'leader' joined 6 Sep 2026 (Verbs phase 2): a conversation lane, answered in the transcript, never a job
-  const { LANES } = { LANES: ['watch', 'weave', 'study', 'research', 'code', 'coach', 'leader', 'capture', 'play', 'ask', 'book'] };
+  const { LANES } = { LANES: ['watch', 'weave', 'study', 'research', 'browse', 'code', 'coach', 'leader', 'capture', 'play', 'ask', 'book'] };
   const all = [...CHAT_JOB_LANES, ...CHAT_CONVERSATION_LANES, ...CHAT_DEFERRED_LANES];
   assert.deepEqual([...all].sort(), [...LANES].sort(), 'a router lane is in no list, or a list names a lane that does not exist');
 });

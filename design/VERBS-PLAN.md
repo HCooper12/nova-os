@@ -97,7 +97,17 @@ parser, the generated catalogue) and the status reflex in `reflex.test.js`.
 - `leader` is a router lane now (LEADER_RE is tight on purpose — "delegate"
   alone is a word he uses about Nova), with a capability entry and the
   contract test pinning router ↔ route ↔ registry.
-- Done later the same night: `todo.add`, `recipe.slot` ("make lunch works
+- 7 Sep: `reminder.set` — `lib/whenParser.js` reads "in 20 minutes", "at 6"
+  (1–7 means the evening in his life), "tomorrow at 7", "friday 9am", "on
+  monday", and hands back the sentence with the time removed. It only claims
+  "remind me …" when the time is CERTAIN; anything else still goes to the
+  capture classifier. Undo cancels the reminder (local + iCloud).
+- 7 Sep: SETTINGS BY VOICE — `src/settingsVoice.js`, client-side like the
+  gym (appearance is client state; no server verb could reach it). Theme,
+  style, core, calm mode, speech, wake word. Strict: a real setting AND a
+  real value, or it falls through. Settings carries a "You can just say it"
+  card so the capability has a door.
+- Done 6 Sep: `todo.add`, `recipe.slot` ("make lunch works
   burger", "put protein oats in breakfast"), `journal.add` ("journal: …"),
   `stash.add`, `money.category` (refile a transaction and remember the
   merchant) — each with undo, each in verbs.test.js. NOT done: reminders by
@@ -155,7 +165,27 @@ is no undo Nova can do) until he lists it in `server/data/hands.json`
 `{"immediate":[…]}`. This is what puts Messages, HomeKit, Music, Maps and
 his health pushes one sentence away — through code he wrote.
 
-**Hand 2 — the browser (DESIGNED, not built).** The Nova Chrome profile
+**Hand 2 — the browser (BUILT 7 Sep 2026, phase 1: read · navigate · fill).**
+`lib/browse.js` + the `browse` router lane. A Claude Code job whose ONLY
+tools are the Chrome DevTools MCP server (`--strict-mcp-config`), pointed at
+`~/.nova-browser` — Nova's own profile, never his day-to-day Chrome.
+Read/navigate/fill tools only; `--disallowedTools` blocks Bash, every file
+tool, upload, dialogs and key presses. Budget $2, 8-minute watchdog,
+screenshots to `server/data/browse/<id>/`, and a pending record whose body is
+built by `describeBrowse()` from the model's typed `BROWSE {…}` line — a
+missing report is SAID, never invented. The prompt stops it before anything
+that buys, pays, books, sends, posts, applies, submits, cancels or deletes,
+and before any password, sign-up or captcha: it fills the form, screenshots
+the button, and names what it would press. **Proven live 7 Sep** on
+example.com: opened it in Nova's profile, read it, one screenshot, an
+accurate report, and no Chrome left running. The honest caveat stands — in a
+browser the MODEL is the actor; the protections are the profile, the tool
+boundary, the cap, the receipt and the stop rule, not tested code choosing
+each click. Reachable by words ("go to X and …", "check my order on …", "fill
+in …", "log in to …"), and the composer's route chip shows BROWSER before he
+sends. **Not built:** the resume-on-yes that would press the button.
+
+**Hand 2 — the original design (for reference).** The Nova Chrome profile
 (`~/.nova-browser`, the read-only research profile he signs into once) gets
 a WRITE-capable lane: a Claude Code job with `chrome-devtools-mcp` (cached
 on this Mac, v1.8.0) as its only tools, budget-capped, screenshots as

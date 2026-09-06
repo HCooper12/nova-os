@@ -86,3 +86,29 @@ test('apply: skip, weight-only, where, finish and later never write — they say
   assert.deepEqual(f.session, r.session);
   assert.equal(applyInSession({ kind: 'later' }, r.session).later, true);
 });
+
+// settings by voice — the same client-side shape as the gym
+import { parseSettings } from '../../src/settingsVoice.js';
+
+test('settings: a real setting AND a real value, or nothing', () => {
+  assert.deepEqual(parseSettings('light mode'), { kind: 'theme', value: 'daylight', needsAppleStyle: true, said: 'Daylight — the white study.' });
+  assert.equal(parseSettings('dark mode').value, 'command');
+  assert.equal(parseSettings('use the ember theme').value, 'ember');
+  assert.equal(parseSettings('switch to observatory theme').value, 'observatory');
+  assert.equal(parseSettings('apple layout').kind, 'style');
+  assert.equal(parseSettings('apple layout').value, 'cupertino');
+  assert.equal(parseSettings('command core style').value, 'command');
+  assert.deepEqual(parseSettings('calm mode on').value, true);
+  assert.deepEqual(parseSettings('turn calm mode off').value, false);
+  assert.equal(parseSettings('stop talking').kind, 'speak');
+  assert.equal(parseSettings('stop talking').value, false);
+  assert.equal(parseSettings('speak your answers').value, true);
+  assert.equal(parseSettings('voice off').value, false);
+  assert.equal(parseSettings('hey nova on').kind, 'wake');
+  assert.equal(parseSettings('wake word off').value, false);
+  // conversations, not commands
+  assert.equal(parseSettings('make it calmer'), null);
+  assert.equal(parseSettings('what themes are there'), null);
+  assert.equal(parseSettings('I like the dark one'), null);
+  assert.equal(parseSettings('use the unicorn theme'), null);
+});

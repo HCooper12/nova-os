@@ -12,7 +12,7 @@
 // The router only DECIDES. Dispatch lives in the route, so a decision can
 // always be shown to him before anything runs.
 
-export const LANES = ['watch', 'weave', 'study', 'research', 'code', 'coach', 'leader', 'capture', 'play', 'ask', 'book'];
+export const LANES = ['watch', 'weave', 'study', 'research', 'browse', 'code', 'coach', 'leader', 'capture', 'play', 'ask', 'book'];
 
 // "watch AND analyse" — the deep vault weave (transcript fetched, every
 // concept and person drafted into pages) as opposed to the Watcher's verdict.
@@ -56,6 +56,10 @@ const COACH_RE = /\b(my (bench|squat|deadlift|press|pull-?ups?|lift|program|rout
 // The Leader — leadership as a daily practice. Tight on purpose: "delegate"
 // alone is a word he uses about Nova; the lane wants the org in the sentence.
 const LEADER_RE = /\b(my (team|staff|people|reports?)|direct reports?|one[- ]on[- ]ones?|1:1s?|as a (leader|manager)|leadership|team meeting|performance review|difficult conversation|the leader\b)/i;
+// THE BROWSER HAND. Deliberately narrow: it must never steal the Researcher's
+// work. Only an explicit instruction to USE a browser — go to a site, log in
+// somewhere, fill something in, check an order/booking — reaches it.
+const BROWSE_RE = /\b(?:go to|open)\s+(?:https?:\/\/|www\.|[a-z0-9-]+\.(?:com|com\.au|co\.uk|org|net|io|co|au)\b)|\b(?:in|on|using)\s+(?:the|my)\s+browser\b|\bbrowse\s+(?:to|for)\b|\bfill\s+(?:in|out)\b|\bcheck\s+(?:my|the)\s+(?:order|booking|reservation|delivery|account|balance)\b|\blog\s?in\s+to\b/i;
 const CAPTURE_RE = /^(remind me|remember|note:|todo:|add|buy|log)\b/i;
 
 function urlsIn(text) {
@@ -100,6 +104,7 @@ export function routeIntent(text) {
   if (PLAY_RE.test(raw)) return { lane: 'play', urls: [], prose: raw, why: 'you asked to watch something — Nova finds the newest one and opens it playing' };
   if (CODE_RE.test(raw)) return { lane: 'code', urls: [], prose: raw, why: 'a build/change request — this runs as a Claude Code session inside Nova' };
   if (RESEARCH_RE.test(raw)) return { lane: 'research', urls: [], prose: raw, why: 'you asked for research — the Researcher answers with citations' };
+  if (BROWSE_RE.test(raw)) return { lane: 'browse', urls: [], prose: raw, why: 'this one wants a browser — Nova opens its own Chrome, and stops before anything that commits' };
   if (COACH_RE.test(raw)) return { lane: 'coach', urls: [], prose: raw, why: 'a training/nutrition question — the Coach has your full history' };
   if (LEADER_RE.test(raw)) return { lane: 'leader', urls: [], prose: raw, why: 'a question about leading your people — the Leader answers in the conversation' };
   if (CAPTURE_RE.test(raw)) return { lane: 'capture', urls: [], prose: raw, why: 'a thing to file — the Inbox classifies and routes it' };
@@ -110,4 +115,5 @@ export const LANE_LABEL = {
   play: 'PLAY',
   watch: 'WATCH', weave: 'WEAVE INTO VAULT', study: 'STUDY', research: 'RESEARCH',
   code: 'CLAUDE CODE', coach: 'COACH', leader: 'LEADER', capture: 'INBOX', ask: 'ASK NOVA', book: 'LIBRARIAN',
+  browse: 'BROWSER',
 };
