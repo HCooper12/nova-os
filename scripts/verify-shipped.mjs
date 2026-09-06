@@ -61,7 +61,7 @@ const FEATURES = [
   ['Greeting · stamped on delivery, cross-device', 'markGreeted'],
   ['Rituals · done on delivery, cross-device', 'markRitualDone'],
   // the CFO and meal-prep off switches: deterministic lanes on the model board
-  ['Settings · deterministic lanes have a switch, no picker', 'THE SWITCH IS THE SETTING'],
+  ['Settings · deterministic lanes have a switch, no picker', 'the switch is the setting'],
   // the day plan's completion loop: done / skipped per priority
   ['Home · plan priorities can be marked done or skipped', 'planPriorityOutcome'],
   // the gym fix: a tap no longer claims the phone's audio session; Nova asks to mix
