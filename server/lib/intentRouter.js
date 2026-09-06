@@ -12,7 +12,7 @@
 // The router only DECIDES. Dispatch lives in the route, so a decision can
 // always be shown to him before anything runs.
 
-export const LANES = ['watch', 'weave', 'study', 'research', 'code', 'coach', 'capture', 'play', 'ask', 'book'];
+export const LANES = ['watch', 'weave', 'study', 'research', 'code', 'coach', 'leader', 'capture', 'play', 'ask', 'book'];
 
 // "watch AND analyse" — the deep vault weave (transcript fetched, every
 // concept and person drafted into pages) as opposed to the Watcher's verdict.
@@ -53,6 +53,9 @@ const CODE_RE = /\b(build|implement|refactor|fix the bug|write a (script|test|fu
 const STUDY_RE = /\b(analyse|analyze|study|research) (this |their |the )?(creator|channel|account|profile|competitor|person|guy|team)\b|\bevery video\b|\ball (their|his|her) videos\b/i;
 const RESEARCH_RE = /\b(research|look up|find out|dig into|what does the (evidence|science) say|sources? on)\b/i;
 const COACH_RE = /\b(my (bench|squat|deadlift|press|pull-?ups?|lift|program|routine|volume|macros|protein|sleep|recovery|hrv)|should i (train|deload|lift|eat)|why (is|am) (my|i) .*(stalled|tired|sore|plateau)|reps?|sets?|rpe|deload|hypertrophy|cutting|bulking)\b/i;
+// The Leader — leadership as a daily practice. Tight on purpose: "delegate"
+// alone is a word he uses about Nova; the lane wants the org in the sentence.
+const LEADER_RE = /\b(my (team|staff|people|reports?)|direct reports?|one[- ]on[- ]ones?|1:1s?|as a (leader|manager)|leadership|team meeting|performance review|difficult conversation|the leader\b)/i;
 const CAPTURE_RE = /^(remind me|remember|note:|todo:|add|buy|log)\b/i;
 
 function urlsIn(text) {
@@ -98,6 +101,7 @@ export function routeIntent(text) {
   if (CODE_RE.test(raw)) return { lane: 'code', urls: [], prose: raw, why: 'a build/change request — this runs as a Claude Code session inside Nova' };
   if (RESEARCH_RE.test(raw)) return { lane: 'research', urls: [], prose: raw, why: 'you asked for research — the Researcher answers with citations' };
   if (COACH_RE.test(raw)) return { lane: 'coach', urls: [], prose: raw, why: 'a training/nutrition question — the Coach has your full history' };
+  if (LEADER_RE.test(raw)) return { lane: 'leader', urls: [], prose: raw, why: 'a question about leading your people — the Leader answers in the conversation' };
   if (CAPTURE_RE.test(raw)) return { lane: 'capture', urls: [], prose: raw, why: 'a thing to file — the Inbox classifies and routes it' };
   return { lane: 'ask', urls: [], prose: raw, why: 'a question for Nova, answered from your vault' };
 }
@@ -105,5 +109,5 @@ export function routeIntent(text) {
 export const LANE_LABEL = {
   play: 'PLAY',
   watch: 'WATCH', weave: 'WEAVE INTO VAULT', study: 'STUDY', research: 'RESEARCH',
-  code: 'CLAUDE CODE', coach: 'COACH', capture: 'INBOX', ask: 'ASK NOVA', book: 'LIBRARIAN',
+  code: 'CLAUDE CODE', coach: 'COACH', leader: 'LEADER', capture: 'INBOX', ask: 'ASK NOVA', book: 'LIBRARIAN',
 };

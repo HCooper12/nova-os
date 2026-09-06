@@ -76,6 +76,7 @@ const FEATURES = [
   ["Train · today's card says what the session trains, before he starts", 'Per exercise'],
   ['Voice · a brief killed by leaving the app is replayable, not lost', 'the audio stopped when you left'],
   ['Voice · verbs — done-by-voice receipts (6 Sep)', 'BY VOICE'],
+  ['Voice · the Coach and Leader answer in the conversation (6 Sep)', 'Handing that to the Coach.'],
 ];
 
 const SERVER_ROUTES = [

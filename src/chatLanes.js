@@ -30,7 +30,7 @@ export const CHAT_NAVIGATING_LANES = ['code'];
 // Lanes that are deliberately NOT dispatched from the chat. Kept explicit
 // rather than implied by absence: a lane added to the router later shows up
 // in neither list, and this is where someone will look to find out why.
-export const CHAT_CONVERSATION_LANES = ['ask', 'coach'];
+export const CHAT_CONVERSATION_LANES = ['ask', 'coach', 'leader'];
 export const CHAT_DEFERRED_LANES = ['play', 'capture'];
 
 export function chatStartsAJob(lane) {

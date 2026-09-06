@@ -13,6 +13,28 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**6 SEP (night) — THE VERBS, PHASE 2 + THE FIRST HAND, LIVE-PROVEN.** The
+permission wall is solved: `scripts/nova-api.mjs` reads API_TOKEN in-process
+and prints only the response, so a session can drive the real server
+without the token ever reaching the transcript (`node scripts/nova-api.mjs
+POST /api/ask '{"question":"…"}'`). With it, proven on HIS vault tonight:
+"I bought verb test item" → ticked in <1s, no model, receipt undone and the
+test item removed; "what is going on with the verb test item" → answered
+from the ledger; "should I deload this week" → routed to THE COACH'S OWN
+TURN (`lib/coachTurn.js`, the route's assembly moved untouched) and back
+into the front door as "» COACH", grounded in his real weeks. The Leader is
+a router lane (tight LEADER_RE) answering the same way. The first Hand:
+`lib/hands.js` runs his own Shortcuts (`shortcut.run`, confirm-first until
+listed in `server/data/hands.json` {"immediate":[…]}; "goodnight" as a
+whole utterance is the Shortcut of that name; tested with an injected
+runner — NO real Shortcut has been run from a session). The browser hand is
+designed in `design/VERBS-PLAN.md` ("The Hands"), not built: the model is
+the actor there, and the plan says so. Also fixed: two snapshots of one
+file in the same millisecond shared a name (the Guardian flake — real, now
+gone). NEXT: the remaining Phase-2 verbs (todo.add, recipe.slot, journal,
+stash, money category, reminders, word-settings), then Phase 3 (the gym by
+voice), then the browser hand read+navigate+fill first.
+
 **6 SEP (evening) — THE VERBS, PHASE 1.** His brief after the Astra reel:
 every feature by one sentence, spoken or typed, delegation invisible, no
 dead air. The full plan is `design/VERBS-PLAN.md` (read it before touching
@@ -306,6 +328,17 @@ DO NOT:
 - Earlier DO NOTs (3 Sep) all still stand.
 
 ## SESSION LOG (append-only, newest first)
+
+### 6 September 2026 (night) — phase 2, the first Hand, and the permission wall
+His three asks: fix the permission layer (→ nova-api.mjs, in-process token);
+proceed (→ Phase 2: Coach/Leader answer in the conversation; the Shortcuts
+hand); reach third-party apps and the web (→ Shortcuts built; browser hand
+designed with the honest doctrine note). The auto-mode classifier refused
+one command that created the Shortcut runner AND executed `shortcuts`; the
+file was written with the editor tool and tested with an injected runner
+instead — the capability is confirm-first by construction. Guardian
+time-machine flake root-caused (same-ms snapshot names) and fixed in
+backup.js. 1097 tests green under TZ=UTC. Service reloaded.
 
 ### 6 September 2026 (evening) — the Verbs, phase 1: doing by voice
 Watched the Astra reel (frames + Whisper transcript via the watch skill —

@@ -57,7 +57,7 @@ const RECORD_STATE = {
   running: (age) => `is still running — started ${age}.`,
   pending: (age) => `landed in your Inbox ${age}, waiting on your word.`,
   approved: (age) => `was approved ${age} and is running.`,
-  filed: (age, r) => `is done — filed ${age}${r.destination ? ` to ${r.destination}` : ''}.`,
+  filed: (age, r) => r.kind === 'act' ? `— done, ${age}. Undo is one word away.` : `is done — filed ${age}${r.destination && r.destination !== r.decision?.title ? ` to ${r.destination}` : ''}.`,
   done: (age) => `finished ${age}.`,
   error: (age, r) => `hit an error ${age}${r.error ? `: ${String(r.error).slice(0, 90)}` : ''}.`,
   failed: (age, r) => `failed ${age}${r.error ? `: ${String(r.error).slice(0, 90)}` : ''}.`,

@@ -43,7 +43,8 @@ test('conversation and deferred lanes are never dispatched from the chat', () =>
 test('every lane the router can return is accounted for in exactly one list', () => {
   // a lane added to the router later must be a deliberate decision here, not
   // an accident of omission
-  const { LANES } = { LANES: ['watch', 'weave', 'study', 'research', 'code', 'coach', 'capture', 'play', 'ask', 'book'] };
+  // 'leader' joined 6 Sep 2026 (Verbs phase 2): a conversation lane, answered in the transcript, never a job
+  const { LANES } = { LANES: ['watch', 'weave', 'study', 'research', 'code', 'coach', 'leader', 'capture', 'play', 'ask', 'book'] };
   const all = [...CHAT_JOB_LANES, ...CHAT_CONVERSATION_LANES, ...CHAT_DEFERRED_LANES];
   assert.deepEqual([...all].sort(), [...LANES].sort(), 'a router lane is in no list, or a list names a lane that does not exist');
 });

@@ -3938,7 +3938,7 @@ export default class App extends Component {
 
   // The ask poll, attachable from a fresh boot too — an iOS reclaim used to
   // eat the in-flight answer along with the poll.
-  attachAskPoll(conn, jobId, { onDelivered } = {}) {
+  attachAskPoll(conn, jobId, { onDelivered, agent = null } = {}) {
     const clearJob = () => { try { localStorage.removeItem('novaos.askJob'); } catch { /* best-effort */ } };
     // STREAMING: the reply renders word-by-word from job.partial, and (on
     // the browser speech path) complete sentences are spoken AS they arrive
@@ -3951,7 +3951,7 @@ export default class App extends Component {
     const applyPartial = (text) => this.setState((s) => {
       const chat = [...s.voiceChat];
       const idx = chat.map((m) => !!m.streaming).lastIndexOf(true);
-      if (idx === -1) chat.push({ at: Date.now(), who: 'nova', text, streaming: true });
+      if (idx === -1) chat.push({ at: Date.now(), who: agent || 'nova', text, streaming: true });
       else chat[idx] = { ...chat[idx], text };
       return { voiceChat: chat };
     });
@@ -4020,10 +4020,12 @@ export default class App extends Component {
       onReady: (job) => {
         clearTimeout(stream.thinkTimer);
         const text = job.result.text;
-        // the conversation continues across turns AND app restarts
+        // the conversation continues across turns AND app restarts — the
+        // specialist's session is its own thread, kept under its own key
         if (job.result.sessionId) {
-          localStorage.setItem('novaos.voiceSession', job.result.sessionId);
-          this.setState({ voiceSessionId: job.result.sessionId });
+          if (agent === 'coach') { localStorage.setItem('novaos.coachSession', job.result.sessionId); this.setState({ coachSessionId: job.result.sessionId }); }
+          else if (agent === 'leader') { localStorage.setItem('novaos.leaderSession', job.result.sessionId); this.setState({ leaderSessionId: job.result.sessionId }); }
+          else { localStorage.setItem('novaos.voiceSession', job.result.sessionId); this.setState({ voiceSessionId: job.result.sessionId }); }
         }
         const panel = job.result.panel || undefined;
         const proposal = job.result.proposal ? { ...job.result.proposal, status: 'pending' } : undefined;
@@ -4047,8 +4049,9 @@ export default class App extends Component {
             // two of us are on the same page. A deterministic keyword match
             // offers the matching EVIDENCE card; code still computes it.
             const evidence = this.offerVerdictFor(text);
-            if (idx === -1) chat.push({ at: Date.now(), who: 'nova', text, panel, proposal, acted, research, evidence });
-            else chat[idx] = { at: Date.now(), who: 'nova', text, panel, proposal, acted, research, evidence };
+            const who = agent || 'nova';
+            if (idx === -1) chat.push({ at: Date.now(), who, text, panel, proposal, acted, research, evidence });
+            else chat[idx] = { at: Date.now(), who, text, panel, proposal, acted, research, evidence };
             return { voiceChat: chat, voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal };
           });
           // THE GLASS: any spoken answer with a shape puts its card up — his
@@ -5771,7 +5774,7 @@ export default class App extends Component {
     // don't say it twice
     const situation = this.buildAskSituation({ skipProposal: !!context });
     const sent = [context, situation, question].filter(Boolean).join('\n\n');
-    api.ask(conn, sent, this.state.voiceSessionId || null).then((resp) => {
+    api.ask(conn, sent, this.state.voiceSessionId || null, { coachSessionId: this.state.coachSessionId || null, leaderSessionId: this.state.leaderSessionId || null }).then((resp) => {
       if (resp.text) {
         // Reflex answer — code replied from the live record, no job to poll.
         // Voice leads here too: the text lands when the audio starts. The
@@ -5788,11 +5791,14 @@ export default class App extends Component {
         else { show(); this.maybeAutoListen(); }
         return;
       }
-      const { jobId } = resp;
+      const { jobId, agent } = resp;
       // survive a reclaim mid-answer: the job id persists so boot can
       // re-attach the poll instead of losing the in-flight reply
-      try { localStorage.setItem('novaos.askJob', JSON.stringify({ jobId, askedAt: Date.now() })); } catch { /* best-effort */ }
-      this.attachAskPoll(conn, jobId);
+      try { localStorage.setItem('novaos.askJob', JSON.stringify({ jobId, askedAt: Date.now(), agent: agent || null })); } catch { /* best-effort */ }
+      // a specialist took the question: say so in one breath, then their
+      // answer lands in this same transcript under their own name
+      if (agent) this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: agent === 'coach' ? 'Handing that to the Coach.' : 'Handing that to the Leader.', handoff: true }] }));
+      this.attachAskPoll(conn, jobId, { agent });
     }).catch((e) => {
       this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: 'Error: ' + e.message }] }));
     });

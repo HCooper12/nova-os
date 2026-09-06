@@ -301,7 +301,9 @@ export const api = {
   moneyScanJob: (conn, jobId) => call(conn, `/api/money/scan/${encodeURIComponent(jobId)}`),
   moneyScanFile: (conn, transactions) => post(conn, '/api/money/scan-file', { transactions }),
   moneyExportUrl: (conn, fy) => `${conn.baseUrl.replace(/\/$/, '')}/api/money/export/${fy}`,
-  ask: (conn, question, sessionId) => post(conn, '/api/ask', { question, sessionId }),
+  // the specialists' session ids ride along so the front door can hand a
+  // question to the Coach or the Leader IN the conversation (Verbs, phase 2)
+  ask: (conn, question, sessionId, agents = {}) => post(conn, '/api/ask', { question, sessionId, ...agents }),
   // fired the moment the mic opens, before a question exists — boots the
   // conversation's process (and a cold session's context) while he talks.
   // Failure is silently fine: it only ever costs him latency, never an answer.

@@ -106,6 +106,9 @@ export function intentRouter(vaultPath) {
         await openInBrowser(found.url).catch(() => {});
         out.played = found;
         out.said = `Here it is, sir — ${found.title}. Say the word and I'll have the Watcher digest it.`;
+      } else if (lane === 'leader') {
+        out.forward = { screen: 'leader', question: text };
+        out.said = 'That one is the Leader’s — opening it with your question.';
       } else if (lane === 'coach') {
         out.forward = { screen: 'workouts', tab: 'coach', question: text };
         out.said = 'That one is the Coach’s — opening it with your question.';

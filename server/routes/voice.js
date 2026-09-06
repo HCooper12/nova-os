@@ -52,6 +52,35 @@ export function voiceRouter(vaultPath) {
         import('../lib/spokenLog.js').then(({ logSpoken }) => logSpoken('verb', command.text)).catch(() => {});
         return res.json({ text: command.text, reflex: true, acted: command.acted || null, proposal: command.proposal || null });
       }
+      // DELEGATION, INVISIBLE (Verbs phase 2). A training question is the
+      // Coach's and a question about his people is the Leader's — the same
+      // deterministic router the palette uses decides, and the specialist's
+      // OWN turn (its context, its proposal vocabulary, its session) answers
+      // in this transcript. No screen change; the reply says who spoke.
+      const { routeIntent } = await import('../lib/intentRouter.js');
+      const lane = routeIntent(question).lane;
+      if (lane === 'coach') {
+        const { startCoachTurn } = await import('../lib/coachTurn.js');
+        const coachSession = typeof req.body?.coachSessionId === 'string' && req.body.coachSessionId ? req.body.coachSessionId : null;
+        const jobId = await startCoachTurn(vaultPath, { question, sessionId: coachSession, liveSession: req.body?.liveSession || null });
+        console.log(`ask → coach (${coachSession ? 'resumed' : 'new'}) q=${JSON.stringify(question.slice(0, 60))}`);
+        return res.json({ jobId, agent: 'coach' });
+      }
+      if (lane === 'leader') {
+        const { startAskLeader } = await import('../lib/claudeCode.js');
+        const { leaderLiveLine, buildLeaderChatContext } = await import('../lib/leader.js');
+        const leaderSession = typeof req.body?.leaderSessionId === 'string' && req.body.leaderSessionId ? req.body.leaderSessionId : null;
+        let jobId;
+        if (leaderSession) {
+          const fresh = await leaderLiveLine().catch(() => '');
+          const q = fresh ? `[Live now — trust this over anything earlier in this conversation: ${fresh}]\n\n${question}` : question;
+          jobId = startAskLeader(vaultPath, { question: q, sessionId: leaderSession });
+        } else {
+          jobId = startAskLeader(vaultPath, { question, context: await buildLeaderChatContext(vaultPath), sessionId: null });
+        }
+        console.log(`ask → leader (${leaderSession ? 'resumed' : 'new'})`);
+        return res.json({ jobId, agent: 'leader' });
+      }
       // THE PWA SESSION IS GUARDED like the spoken one (lib/askSession.js):
       // a conversation older than a day, from another day, or past forty
       // turns starts fresh — its deep context would be a snapshot of some

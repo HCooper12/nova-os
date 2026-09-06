@@ -314,19 +314,47 @@ verb({
   },
 });
 
+// THE FIRST HAND — his own Shortcuts (lib/hands.js). Confirm-first unless
+// he has listed the name as immediate; no undo Nova can do, said plainly.
+let handsMod = null;
+const hands = () => handsMod;
+import('./hands.js').then((m) => { handsMod = m; m.listShortcuts().catch(() => {}); }).catch(() => {});
+verb({
+  id: 'shortcut.run', tier: 'confirm',
+  describe: 'run one of his Shortcuts on the Mac (Messages, HomeKit, Music, Maps — whatever that Shortcut does)',
+  args: { name: 'the Shortcut, exact name from the list', input: 'optional text input, or omit' },
+  tierFor(args) { return hands()?.immediateShortcuts().includes(String(args.name || '')) ? 'act' : 'confirm'; },
+  async resolve(args) {
+    const { listShortcuts } = await import('./hands.js');
+    const names = await listShortcuts();
+    if (!names.length) throw new Error('no Shortcuts are available on the Mac');
+    const m = matchName(names.map((n) => ({ name: n })), args.name);
+    if (!m.hit) throw new Error(m.ambiguous ? m.why : `there's no Shortcut called "${say(args.name)}"`);
+    return { ...args, name: m.hit.name };
+  },
+  async run(vaultPath, args) {
+    const { runShortcut } = await import('./hands.js');
+    const r = await runShortcut(args.name, { input: args.input });
+    const said = r.output ? `Ran "${r.name}" — it says: ${r.output.slice(0, 160)}` : `Ran "${r.name}".`;
+    return { destination: `Shortcut — ran "${r.name}"${r.output ? ` → ${r.output.slice(0, 80)}` : ''}`, said, undo: null };
+  },
+});
+
 export const VERB_IDS = Object.keys(VERBS);
 export const verbFor = (id) => VERBS[id] || null;
 
 // The model's view of the catalogue — one line per verb, the contract
 // generated from the registry so the prompt cannot drift from the code.
 export function describeForModel() {
+  const names = hands()?.knownShortcuts() || [];
+  const shortcuts = names.length ? `\n  His Shortcuts on the Mac (use the exact name): ${names.slice(0, 90).join(' · ')}` : '';
   return VERB_IDS.map((id) => {
     const v = VERBS[id];
     const args = Object.keys(v.args).length
       ? `,"args":{${Object.entries(v.args).map(([k, d]) => `"${k}":"<${d}>"`).join(',')}}`
       : '';
     return `  ACT {"verb":"${id}"${args}} — ${v.describe}${v.tier === 'confirm' ? ' (lands pending; his yes runs it)' : ''}`;
-  }).join('\n');
+  }).join('\n') + shortcuts;
 }
 
 // --------------------------------------------------------------- execute
@@ -338,10 +366,13 @@ export async function runVerb(vaultPath, question, raw, { source = 'voice' } = {
   const id = String(raw?.verb || '').trim();
   const v = VERBS[id];
   if (!v) throw new Error(`I don't have a verb called "${raw?.verb}"`);
-  const args = raw?.args && typeof raw.args === 'object' ? raw.args : {};
+  let args = raw?.args && typeof raw.args === 'object' ? raw.args : {};
   for (const k of Object.keys(v.args)) {
+    if (/optional/i.test(v.args[k])) continue;
     if (args[k] == null || String(args[k]).trim() === '') throw new Error(`"${id}" needs ${k}`);
   }
+  if (v.resolve) args = await v.resolve(args);
+  const tier = v.tierFor ? v.tierFor(args) : v.tier;
   const { createRecord } = await import('./inboxStore.js');
   const base = {
     id: randomUUID().slice(0, 8),
@@ -350,12 +381,13 @@ export async function runVerb(vaultPath, question, raw, { source = 'voice' } = {
     kind: 'act',
     createdAt: new Date().toISOString(),
   };
-  if (v.tier === 'confirm') {
+  if (tier === 'confirm') {
+    const title = id === 'shortcut.run' ? `Run the Shortcut "${args.name}"` : `${v.describe[0].toUpperCase()}${v.describe.slice(1)}`;
     const record = {
       ...base,
       mode: 'review-all',
       status: 'pending',
-      decision: { route: 'act', confidence: 'high', title: `${v.describe[0].toUpperCase()}${v.describe.slice(1)}`, reason: 'asked in conversation — a yes does it, and undo puts it back', payload: { verb: id, args } },
+      decision: { route: 'act', confidence: 'high', title, reason: id === 'shortcut.run' ? 'a Shortcut is your own code — a yes runs it; there is no undo Nova can do' : 'asked in conversation — a yes does it, and undo puts it back', payload: { verb: id, args } },
     };
     await createRecord(record);
     return { proposal: { recordId: record.id, title: record.decision.title, route: 'act' } };
@@ -436,6 +468,10 @@ export function parseCommand(text) {
 
   if ((m = q.match(/^(?:run|approve|go ahead with|start|launch)\s+(?:the\s+|that\s+)?plan$/))) return { verb: 'plan.run', args: {} };
 
+  if ((m = q.match(/^(?:run|trigger|fire|launch)\s+(?:the\s+|my\s+)?(?:shortcut\s+)?(.+?)(?:\s+shortcut)?$/))) {
+    return { any: [{ verb: 'shortcut.run', args: { name: m[1] } }], fallthrough: true };
+  }
+
   if ((m = q.match(new RegExp(`^(?:(?:i(?:'ve| have|'m)?\\s+)?(?:had|ate|eaten|finished|done with|done)\\s+(?:my\\s+|the\\s+)?${MEAL}|(?:mark|log|tick)\\s+${MEAL}\\s+(?:as\\s+)?(?:eaten|done|had))$`)))) {
     return { verb: 'meal.eaten', args: { slot: m[1] || m[2] } };
   }
@@ -476,6 +512,14 @@ export function parseCommand(text) {
     if (d.domain === 'plan') return { verb: 'plan.priority', args: { priority: body, outcome: 'done' } };
     return { any: [{ verb: 'todo.done', args: { text: body } }, { verb: 'shopping.done', args: { item: body } }, { verb: 'plan.priority', args: { priority: body, outcome: 'done' } }] };
   }
+  // the words ARE one of his Shortcuts — "goodnight", "turn on my bedroom
+  // lights", "I'm off to gym". Only an exact or prefix fit counts; anything
+  // short of that goes to the model.
+  const names = hands()?.knownShortcuts() || [];
+  if (names.length && q.length >= 4) {
+    const hit = matchName(names.map((n) => ({ name: n })), q);
+    if (hit.hit && hit.score >= 3) return { verb: 'shortcut.run', args: { name: hit.hit.name } };
+  }
   return null;
 }
 
@@ -496,6 +540,11 @@ async function probe(vaultPath, cand) {
     if (cand.verb === 'todo.reopen') { const t = await openTodo(vaultPath, cand.args.text, { wantChecked: true }); return { ok: true, label: `the to-do "${t.text}"` }; }
     if (cand.verb === 'shopping.done') { const i = await shoppingItem(vaultPath, cand.args.item, { wantChecked: false }); return { ok: true, label: `${i.name} on the shopping list` }; }
     if (cand.verb === 'shopping.undone') { const i = await shoppingItem(vaultPath, cand.args.item, { wantChecked: true }); return { ok: true, label: `${i.name} on the shopping list` }; }
+    if (cand.verb === 'shortcut.run') {
+      const { listShortcuts } = await import('./hands.js');
+      const m = matchName((await listShortcuts()).map((n) => ({ name: n })), cand.args.name);
+      return m.hit ? { ok: true, label: `the Shortcut "${m.hit.name}"` } : { ok: false, why: m.why };
+    }
     if (cand.verb === 'plan.priority') {
       const plan = await todaysPlan(); if (!plan) return { ok: false, why: 'no plan today' };
       const m = matchName(plan.decision.payload.priorities.map((p, i) => ({ i, name: p.text || p.title || p.label || String(p) })), cand.args.priority);
@@ -512,6 +561,9 @@ export async function resolveAny(vaultPath, parsed) {
   if (hits.length === 1) return hits[0].c;
   if (hits.length > 1) throw new Error(`that could be ${hits.map((h) => h.r.label).join(', or ')} — which one?`);
   const ambiguous = results.find((x) => /which one/.test(x.r.why));
+  // a fallthrough candidate that fit NOTHING was never a command; one that
+  // fit two things is still his to settle
+  if (!hits.length && parsed.fallthrough && !ambiguous) return null;
   throw new Error(ambiguous ? ambiguous.r.why : `I couldn't find "${parsed.any[0].args.text || parsed.any[0].args.item || parsed.any[0].args.priority}" on your to-dos, shopping list or today's plan`);
 }
 
@@ -524,6 +576,7 @@ export async function tryCommand(vaultPath, question) {
   if (!parsed) return null;
   try {
     const cmd = await resolveAny(vaultPath, parsed);
+    if (!cmd) return null; // the words fit no real thing — not a command after all
     const out = await runVerb(vaultPath, question, cmd, { source: 'voice' });
     if (out.acted) return { matched: cmd.verb, text: out.acted.said, acted: out.acted };
     return { matched: cmd.verb, text: `${out.proposal.title} — say yes and it's done.`, proposal: out.proposal };

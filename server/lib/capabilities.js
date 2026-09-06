@@ -87,6 +87,16 @@ export const CAPABILITIES = {
     // already raised. A planner may CONSULT it; it is not a task runner.
     delegable: false,
   },
+  leader: {
+    agent: 'Leader',
+    summary: 'Leadership as a daily practice — the sit-down about his team, from HIS material; answers in the conversation.',
+    input: 'a question about leading his people',
+    output: 'an answer in the transcript; a reflection can update the leadership profile',
+    produces: 'leader-reflect',
+    costUsd: 1.0,
+    autonomy: 'propose',
+    delegable: false,
+  },
   code: {
     agent: 'Claude Code',
     summary: 'Read and change Nova\'s own codebase, with a diff to review before anything commits.',

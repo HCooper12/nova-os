@@ -174,3 +174,52 @@ test('the catalogue the model reads is generated from the registry', () => {
   assert.rejects(() => runVerb(vault, 'q', { verb: 'wire.money', args: {} }), /don't have a verb/);
   assert.rejects(() => runVerb(vault, 'q', { verb: 'todo.done', args: {} }), /needs text/);
 });
+
+test('the first hand: a Shortcut runs only by its resolved exact name, confirm-first, immediate once he lists it', async () => {
+  const hands = await import('../lib/hands.js');
+  const calls = [];
+  hands._setRunnerForTests(async (bin, args) => {
+    calls.push(args);
+    if (args[0] === 'list') return { stdout: 'Goodnight\nTurn on my bedroom lights\nCool my room 1\nHeat my room 1\n' };
+    if (args[0] === 'run') { const out = args[args.indexOf('--output-path') + 1]; await writeFile(out, 'lights on', 'utf8'); return { stdout: '', stderr: '' }; }
+    throw new Error('unexpected');
+  });
+  try {
+    // the grammar: the whole utterance IS a Shortcut → the verb; a partial fit is not
+    await hands.listShortcuts({ force: true });
+    assert.deepEqual(parseCommand('goodnight'), { verb: 'shortcut.run', args: { name: 'Goodnight' } });
+    assert.deepEqual(parseCommand('turn on my bedroom lights'), { verb: 'shortcut.run', args: { name: 'Turn on my bedroom lights' } });
+    assert.equal(parseCommand('my room is too warm'), null);
+    // "run X" that names no Shortcut is NOT a command — it falls through to the model
+    assert.equal(await tryCommand(vault, 'run the numbers on my protein'), null);
+    // confirm-first by default: a pending record, nothing run
+    const r = await tryCommand(vault, 'run cool my room');
+    assert.ok(r.proposal?.recordId, 'lands pending');
+    assert.match(r.text, /Cool my room 1/);
+    assert.equal(calls.filter((a) => a[0] === 'run').length, 0);
+    // his yes runs it, and the receipt says there is no undo
+    await approveRecord(vault, r.proposal.recordId);
+    assert.equal(calls.filter((a) => a[0] === 'run').length, 1);
+    assert.equal(calls.find((a) => a[0] === 'run')[1], 'Cool my room 1');
+    const rec = await getRecord(r.proposal.recordId);
+    assert.equal(rec.status, 'filed');
+    assert.equal(rec.undoData, null);
+    await assert.rejects(() => undoRecord(vault, r.proposal.recordId), /only filed captures can be undone/);
+    // a tie asks, and nothing runs
+    const tie = await tryCommand(vault, 'run my room');
+    assert.equal(tie.miss, true);
+    assert.match(tie.text, /which one/);
+    // ACT from the model with an inexact name resolves the same way
+    const via = await runVerb(vault, 'q', { verb: 'shortcut.run', args: { name: 'bedroom lights' } });
+    assert.match(via.proposal.title, /Turn on my bedroom lights/);
+    // immediate once he lists it: runs at once, output spoken
+    await mkdir(process.env.NOVA_DATA_DIR, { recursive: true });
+    await writeFile(path.join(process.env.NOVA_DATA_DIR, 'hands.json'), JSON.stringify({ immediate: ['Turn on my bedroom lights'] }), 'utf8');
+    const now = await runVerb(vault, 'q', { verb: 'shortcut.run', args: { name: 'turn on my bedroom lights' } });
+    assert.ok(now.acted, 'ran immediately');
+    assert.match(now.acted.said, /lights on/);
+    assert.equal(now.acted.undoable, false);
+  } finally {
+    hands._setRunnerForTests(null);
+  }
+});
