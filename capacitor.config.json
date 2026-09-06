@@ -1,0 +1,21 @@
+{
+  "appId": "com.haydencooper.novaos",
+  "appName": "Nova OS",
+  "webDir": "dist",
+  "server": {
+    "url": "https://hcooper12.github.io/nova-os/",
+    "cleartext": false
+  },
+  "ios": {
+    "contentInset": "automatic",
+    "backgroundColor": "#0a0f1e",
+    "preferredContentMode": "mobile",
+    "limitsNavigationsToAppBoundDomains": false
+  },
+  "plugins": {
+    "StatusBar": {
+      "style": "DARK",
+      "overlaysWebView": true
+    }
+  }
+}

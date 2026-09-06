@@ -20,3 +20,11 @@ __pycache__/
 **/* 2.jsx
 # screen recordings dropped in for debugging — never repo content
 *.mov
+
+# native shell (Capacitor) — generated per sync/build
+ios/App/App/public/
+ios/App/build/
+ios/App/App.xcodeproj/xcuserdata/
+ios/App/App.xcworkspace/xcuserdata/
+ios/DerivedData/
+ios/App/CapApp-SPM/.build/

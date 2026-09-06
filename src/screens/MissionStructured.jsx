@@ -3,6 +3,7 @@ import { css } from '../css.js';
 import { RingTile } from '../RingTile.jsx';
 import { resolveFolds, foldStatus, FOLD_LABELS, loadFolds, saveFolds } from '../missionFold.js';
 import { Eyebrow, TextAction, Tag, Meta } from '../Controls.jsx';
+import { haptic } from '../haptics.js';
 
 // a word the view model hands up in caps ("CONSIDER") read as a word
 const cap = (s) => { const t = String(s || '').toLowerCase(); return t.charAt(0).toUpperCase() + t.slice(1); };
@@ -69,6 +70,7 @@ export function MissionStructured({ v }) {
   // C1 — what he has opened or folded himself, over the hour's default
   const [remembered, setRemembered] = useState(loadFolds);
   const setFold = (k, state) => {
+    haptic('tick'); // a fold is a toggle — the lightest tick iOS has (native shell only)
     const next = { ...remembered, [k]: state };
     setRemembered(next);
     saveFolds(next);

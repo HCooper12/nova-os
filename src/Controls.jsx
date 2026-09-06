@@ -1,5 +1,6 @@
 import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
+import { haptic } from './haptics.js';
 
 // THE CONTROL VOCABULARY — five small words the daily screens are set in.
 //
@@ -177,7 +178,7 @@ export function Segmented({ options, value, onChange, ariaLabel, stretch }) {
       {options.map(([val, label]) => {
         const on = val === value;
         return (
-          <Interactive key={val} as="span" role="tab" aria-selected={on} onClick={() => onChange(val)}
+          <Interactive key={val} as="span" role="tab" aria-selected={on} onClick={() => { if (!on) haptic('tick'); onChange(val); }}
             base={{
               cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: stretch ? 1 : 'none',
               minHeight: apple ? (stretch ? '36px' : '30px') : '24px', padding: apple ? '4px 12px' : '3px 9px',

@@ -110,6 +110,15 @@ data and confirmed live by `scripts/verify-shipped.mjs --server`:
     eyebrows, Confirm completion). verify-shipped markers updated with the
     strings they read ("Apply it", "Coach said", "Per exercise", "couldn't
     check") — the checker is a reader of a contract the sweep changes.
+- APPROVE ON A FINISHED PLAN FILES ITS REPORT (6 Sep). It used to re-run the
+  plan (~US$4 again): the report was a bare title/body the filer could not
+  file. `reportDecision()` makes it a note decision, `reportTitle()` drops
+  the goal's URL (the title is the vault filename — the first one was named
+  after a YouTube address), and `approveRecord` files a finished plan instead
+  of dispatching it, normalising older records. His three artefacts were
+  approved this way and are in the vault (Source + transcript, brief, report).
+  Lesson paid for: an undone record cannot be re-approved on the rails; the
+  only way back was a disk edit across a service restart.
 - THE PLAN HANDOFF, PROVEN (6 Sep). Run `ad94d16a` (same vague phrasing)
   produced two independent steps and its Researcher died on a raw tab in the
   model's JSON → `parseModelJson()` in `lib/jsonSalvage.js` is now the one
@@ -189,8 +198,14 @@ ASSUMED:
 - The Leader's daily card stays on-domain (two good scheduled runs seen).
 
 OPEN — HIS:
-- Approve or discard the good plan run's three artefacts (report `7a4d70b3`,
-  Watcher audit `ab0e8c13`, Researcher brief `3cef76ad`) in the Inbox.
+- THE NATIVE SHELL (his approval, 6 Sep): everything that does not need Xcode
+  is done and committed — `capacitor.config.json` (loads the LIVE URL, so
+  Pages deploys reach the app with no store release), `ios/` (SPM project,
+  Haptics + StatusBar plugins), `src/haptics.js` bridging the five patterns
+  to the Taptic Engine, `npm run native:ios`. This Mac has only the Command
+  Line Tools: he must install Xcode, run `npm run native:ios`, pick his team
+  under Signing, plug the iPhone in and press Run — `native/README.md` is the
+  runbook, including the free-team 7-day expiry.
 - Reopen Nova on the phone once so the service worker takes the new bundle.
 - `Wiki/Profile.md` — four answers; the planner reasons without it.
 - Hand-pick a Carter Extension video (the search cannot find one that names
@@ -251,6 +266,14 @@ DO NOT:
 - Earlier DO NOTs (3 Sep) all still stand.
 
 ## SESSION LOG (append-only, newest first)
+
+### 6 September 2026 (later) — the artefacts filed, the native shell scaffolded
+
+Approving the finished plan would have re-run it: fixed so approve files the
+report as a note (URL-free title), then his three artefacts approved into the
+vault. The native shell: Capacitor 8 around the live URL, SPM, Haptics +
+StatusBar, the web bridge in haptics.js, a runbook for the Xcode steps only
+he can do on a Mac that has no Xcode.
 
 ### 6 September 2026 — live-proof, the plan handoff proven, the material pass everywhere
 
