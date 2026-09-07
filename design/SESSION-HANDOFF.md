@@ -13,66 +13,71 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**7 SEP (night) — HIS UPLOADS BECAME USABLE, AND THE COACH BECAME A NUTRITION
-COACH.** Four commits, all live and verified on his real vault.
+**7 SEP (late night) — THE BRIEFING IS BUILT, LIVE, AND PROVEN END TO END.**
+His ask: say one sentence ("research the wavelengths of light Huberman
+discussed and synthesise it into a report — define the terminology"), agents
+fan out, a notification says it is ready, and he reads it or presses Play
+and Nova performs it with visuals on the glass and the transcript following.
+`design/BRIEFING-PLAN.md` has the design and the status; the
+`nova-briefing` memory has the lessons. Phases A–D shipped in five
+commits, then one real run and four fixes.
 
-**Uploads file themselves now (facc65b).** His decision, reversing "external
-content never files itself": a video he sends Nova is already his judgement
-that it matters, and a Source page behind an APPROVE tap is one the Coach
-cannot use tomorrow. The Watcher files the page + transcript, then starts the
-weave with `autoApply` so the concept and entity links land too. Both steps
-push a notification carrying `#/inbox?open=<recordId>`; the client's hash
-parser tolerates a query string and opens that record EXPANDED, then strips
-the query. Undo is unchanged — one tap still removes page and transcript.
+**The real run (record `9b1d22a8`):** the `brief` lane caught his exact
+sentence; 5 angles researched in parallel (~75 s); one compose pass wrote
+prose AND script together; 6 sections, 30 beats, 25 terms defined in plain
+words, 26 sources, two credited images; the summary says outright where two
+of his own saved podcasts disagree. About 4 minutes wall-clock.
 
-**THE AUDIT THAT MATTERED (e2d352e).** All thirteen model-based agents were
-audited. Eleven already stand INSIDE his vault with Read/Grep/Glob, and not
-one had ever been told `Wiki/Sources/` exists: nothing read a source page's
-body into a prompt, nothing read `Raw/` transcripts at all. The material was
-in the vault and out of reach at the same time. `server/lib/sourceShelf.js`
-is the fix — ranks the shelf against what the agent is doing (recall.js's
-index), carries Nova's earlier verdict, and names the real PATH of page and
-transcript, because a title cannot be opened. Wired into Coach, Ask Nova,
-Daily Review, Plan Today, Quick Session, Weekly Debrief, and the Leader
-(whose shelf lines were titles-only).
-- **The lens now separates two kinds of truth.** It used to flatten "his
-  vault" into one tier, so a podcaster's dose sat beside his logged HRV as
-  "real data". Now: logged history is fact; the shelf is what someone
-  CLAIMED — attribute it, check it, and say which you'd act on when they
-  disagree. NOVA-METHOD.md changed in the same commit (CLAUDE.md's rule).
-- **`server/lib/fuelContext.js`** gives the Coach his real rotation dish by
-  dish, what is ticked, what is cooked, and all 25 dishes he owns — so advice
-  names a real meal. It says "NONE SET" plainly when targets are missing.
-- **Proven live.** Asked what a Huberman episode he saved claimed about
-  sleep: the Coach read the page and transcript, separated three claims with
-  timestamps, backed one with a 17-study meta-analysis, REFUSED to launder a
-  mouse study into a dementia claim, said outright that no sleep data reaches
-  it at all, then crossed into Fuel and named the Animal Style Potato Bowl as
-  the meal to move. That is the behaviour the whole change was for.
+**Verified on the shipped bundle against his vault, 375×812 and 1280×900:**
+deep link → reader; Listen/Read; Play → beats advance, transcript
+highlights and follows, rail fills, progress moves; tap a beat to seek; the
+Commons image renders from Nova's cache with caption + credit; two-column
+desktop with sticky stage; resume-where-he-left-off across pages; "explain
+that again" pauses, hands the EXACT beat to Nova as a grounded question,
+Nova's answer comes first and THEN "shall I carry on?", and "yes" opens the
+briefing and resumes. The Read view: sections, glossary, sources, "Listen
+from here".
 
-**Coach notes survive Start (253d0b3).** His report: the reasoning is on the
-routine overview and gone the instant he taps Start — the cockpit put it in a
-`title` tooltip, which a phone cannot show. Both screens' chips now open the
-same sheet (decision, focus, evidence in his own words, what it means next)
-plus "Ask Coach about this". Mechanism is the existing context-menu host,
-taught to carry PROSE (`note`) above its actions — one host, so it feels like
-the rest of Nova. Two bugs found wiring it: `openContextMenu` dropped the new
-field, and refused any menu with no items.
+**Four bugs the run found, all fixed:** (1) the compose pass had no tools,
+announced it would read his shelf, then stopped — it now gets Read on the
+vault and never the web (a28a2b0); (2) `Briefing.jsx` was a default export
+and `lazyScreen` wants `m[name]` — React #306, black screen, no root
+error boundary, and it had DEPLOYED (0b07c1e); (3) the resume offer fired
+before the answer — anchored to the ask poll's delivery (e1db9c7); (4) a
+bare `#/briefing` reload hung on "Opening…" — it now reopens the last
+briefing, or says there is none (e1db9c7).
 
-**STILL HIS:** the stale ingest weave 9e994aae (discard + re-run; cached, so
-cheap); cook something and tell Nova so the fridge starts counting; the
-phone-in-hand gym check; a real browser commit; Xcode for the native shell.
+**Not yet exercised:** a briefing that produces a CLIP (this topic drew no
+clip hints — "clip sparingly" held); the push notification's tap on his
+actual phone (the deep link is verified in the browser, and the push
+receipt line is new so the next one shows in the log); a failed angle in a
+real run.
 
-**FLAGS FROM THE SWEEP, unaddressed:** 7 Sep weight reads 84.9 kg (+2.9 in a
-day from a weight-only push) — looks like bad data. The nightly health push
-lands ~20 days in 21 but mostly next morning, not 00:05. Eight duplicate
-pushes fired for 4 Sep within 2 s; a 28 Aug push carried
-`forDate: 2019-01-01`. Seven inbox errors are all the same `plan-today` job
-failing nightly 22–31 Aug. Inbox is the one screen still without an Apple
-layout. About You is still empty — which is why THE INTAKE leads
-`design/ATHLETE-AI-PLAN.md`.
+**Earlier today, also live:** every agent can read his shelf and the lens
+weighs his sources (e2d352e); the Coach is a nutrition coach
+(fuelContext); Coach notes survive the tap on Start (253d0b3); weight is
+one point per weigh-in, backfilled (841b84b); a pasted link watches itself
+and the tray is honest (34b57df); uploads file and weave themselves with a
+notification (facc65b).
+
+**NEXT IN THIS LINE — his stated vision:** the same stage grammar for the
+browser hand, shown LIVE: "open the Diary of a CEO channel", "show me the
+latest video", "find the most popular video with Chris Williamson and Alex
+Hormozi" — windows appearing on the glass as Nova does the work, not a
+report afterwards. The browse lane already takes screenshots; putting them
+on the stage as they happen is the build. Then THE INTAKE from
+`design/ATHLETE-AI-PLAN.md` (About You is still empty).
+
+**STILL HIS:** the stale ingest weave 9e994aae; cook something and tell
+Nova; the phone-in-hand gym check; a real browser commit; Xcode.
 
 ## SESSION LOG (append-only, newest first)
+
+### 7 September 2026 (late night) — the Briefing, built and proven
+design/BRIEFING-PLAN.md → phases A–D (8647722, 3fb2882, 94693a6, 2f6aecb),
+one real run on his light-wavelengths sentence, four bugs found and fixed
+(a28a2b0, 0b07c1e, e1db9c7), Commons ranking (eb21f35). Verified at both
+widths on the shipped bundle. 1166 tests green under TZ=UTC.
 
 ### 7 September 2026 (night) — auto-filing, the shelf audit, and the Coach mid-session
 Uploads file and weave themselves with a notification that deep-links to the
