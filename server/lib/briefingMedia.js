@@ -70,10 +70,15 @@ export async function searchWikimedia(query) {
 // pure, so the choice is testable: prefer real photos/diagrams over icons,
 // skip SVG (renders unpredictably as a bitmap thumb) and tiny files
 export function pickWikimedia(pages) {
+  // A diagram labelled in a script he cannot read is on-topic and useless: the
+  // first live run put a Chinese-labelled rod/cone chart on the glass. Files
+  // whose title or description carry CJK/Cyrillic/Arabic text rank behind
+  // ones that do not; they still win when nothing else fits.
+  const foreign = (p) => /[\u3000-\u9fff\uac00-\ud7af\u0400-\u04ff\u0600-\u06ff]/.test(`${p.title || ''} ${p.imageinfo?.[0]?.extmetadata?.ImageDescription?.value || ''}`);
   const good = pages
     .map((p) => ({ p, info: p.imageinfo?.[0] }))
     .filter(({ info }) => info && /^image\/(jpeg|png|webp)$/.test(info.mime || '') && (info.width || 0) >= 400)
-    .sort((a, b) => (b.p.index != null && a.p.index != null ? a.p.index - b.p.index : 0));
+    .sort((a, b) => (foreign(a.p) - foreign(b.p)) || (b.p.index != null && a.p.index != null ? a.p.index - b.p.index : 0));
   const hit = good[0];
   if (!hit) return null;
   const meta = hit.info.extmetadata || {};

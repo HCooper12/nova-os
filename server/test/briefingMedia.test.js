@@ -43,6 +43,15 @@ test('pickWikimedia prefers a real bitmap with its credit, and skips svg and tin
   assert.equal(M.pickWikimedia([]), null);
 });
 
+test('a diagram labelled in a script he cannot read ranks behind one he can', () => {
+  const pages = [
+    { index: 1, title: 'File:视锥细胞光谱.png', imageinfo: [{ mime: 'image/png', width: 900, url: 'cn', extmetadata: { ImageDescription: { value: '视杆细胞与视锥细胞' } } }] },
+    { index: 2, title: 'File:Cone-response.png', imageinfo: [{ mime: 'image/png', width: 900, url: 'en', extmetadata: { ImageDescription: { value: 'Spectral sensitivity of rods and cones' } } }] },
+  ];
+  assert.equal(M.pickWikimedia(pages).url, 'en', 'the English-labelled file wins despite ranking second');
+  assert.equal(M.pickWikimedia([pages[0]]).url, 'cn', 'but a foreign file still wins when it is all there is');
+});
+
 test('parseOgImage reads either attribute order and resolves a relative URL', () => {
   assert.equal(M.parseOgImage('<head><meta property="og:image" content="/img/a.jpg"></head>', 'https://ex.org/p/1'), 'https://ex.org/img/a.jpg');
   assert.equal(M.parseOgImage('<meta content="https://c.dn/b.png" property="og:image:secure_url">', 'https://ex.org'), 'https://c.dn/b.png');
