@@ -13,568 +13,73 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**7 SEP (night) — THE TWO FUEL PIECES, VERBS PHASE 4, AND THE OPEN-THREADS
-SWEEP.** Everything below is shipped, pushed and live on the deployed bundle.
+**7 SEP (night) — HIS UPLOADS BECAME USABLE, AND THE COACH BECAME A NUTRITION
+COACH.** Four commits, all live and verified on his real vault.
 
-**Fuel, the last two pieces (f635eae).** Swipe between a slot's options: the
-zone is the focused-dish HEADER of a multi-option card only, declaring
-`touch-action: pan-y`, so the rest of the strip still scrolls with a finger —
-the conflict that made this "deliberately not built" was solved by shrinking
-the zone, not by tuning a threshold. Paging is not a commit, so `shouldPage`
-takes a lower distance bar than `shouldCommit` but the SAME direction lock
-(six new cases in swipeCore.test.js). And a variant now belongs to the DISH:
-each option row shows its own variant and holds for its own menu (focus,
-eaten, swap, back to original, open, remove). Nested long-press had to be
-scoped — React bubbles to the root and the outer handler won, so a
-multi-option card's root no longer takes the menu.
+**Uploads file themselves now (facc65b).** His decision, reversing "external
+content never files itself": a video he sends Nova is already his judgement
+that it matters, and a Source page behind an APPROVE tap is one the Coach
+cannot use tomorrow. The Watcher files the page + transcript, then starts the
+weave with `autoApply` so the concept and entity links land too. Both steps
+push a notification carrying `#/inbox?open=<recordId>`; the client's hash
+parser tolerates a query string and opens that record EXPANDED, then strips
+the query. Undo is unchanged — one tap still removes page and transcript.
 
-**Verbs phase 4 — editing what is already written (414a934).**
-`foodlog.fix`, `foodlog.remove`, `workout.set`, `recipe.ingredient`. All
-confirm-tier; the pending title is the DIFF ("3.9P · 36.5C · 11.3F · 293 kcal
-→ 4.5P · …"), which is what `runVerb`'s new `titleFor` hook exists for, and
-`resolve()` now receives the vault path because an edit verb must FIND its
-subject first. Two honesty rules: resolve matches against what is actually
-written (so "that lasagne was 400 calories" is conversation when no lasagne is
-logged — the probe branch), and run() re-checks that what it is overwriting is
-still what it showed him, REFUSING a stale edit exactly as the staged pass
-refuses a stale weave. Undo restores verbatim (`restoreEntryOn` puts a removed
-entry back with its own id and time). Proven on his real log, both test
-proposals discarded, log untouched. Settings' "You can just say it" card names
-the four phrasings.
+**THE AUDIT THAT MATTERED (e2d352e).** All thirteen model-based agents were
+audited. Eleven already stand INSIDE his vault with Read/Grep/Glob, and not
+one had ever been told `Wiki/Sources/` exists: nothing read a source page's
+body into a prompt, nothing read `Raw/` transcripts at all. The material was
+in the vault and out of reach at the same time. `server/lib/sourceShelf.js`
+is the fix — ranks the shelf against what the agent is doing (recall.js's
+index), carries Nova's earlier verdict, and names the real PATH of page and
+transcript, because a title cannot be opened. Wired into Coach, Ask Nova,
+Daily Review, Plan Today, Quick Session, Weekly Debrief, and the Leader
+(whose shelf lines were titles-only).
+- **The lens now separates two kinds of truth.** It used to flatten "his
+  vault" into one tier, so a podcaster's dose sat beside his logged HRV as
+  "real data". Now: logged history is fact; the shelf is what someone
+  CLAIMED — attribute it, check it, and say which you'd act on when they
+  disagree. NOVA-METHOD.md changed in the same commit (CLAUDE.md's rule).
+- **`server/lib/fuelContext.js`** gives the Coach his real rotation dish by
+  dish, what is ticked, what is cooked, and all 25 dishes he owns — so advice
+  names a real meal. It says "NONE SET" plainly when targets are missing.
+- **Proven live.** Asked what a Huberman episode he saved claimed about
+  sleep: the Coach read the page and transcript, separated three claims with
+  timestamps, backed one with a 17-study meta-analysis, REFUSED to launder a
+  mouse study into a dementia claim, said outright that no sleep data reaches
+  it at all, then crossed into Fuel and named the Animal Style Potato Bowl as
+  the meal to move. That is the behaviour the whole change was for.
 
-**THE OPEN-THREADS SWEEP (7 Sep) — what is actually still true.** Verified by
-a second route, not by re-reading the list:
-- STILL TRUE: About You profile empty (`/api/profile` → null, no
-  `Wiki/Profile.md`); ElevenLabs key not set (NOVA_TTS_LOCAL carries voice);
-  Up Bank connector not built; P8 val-builder memoization deferred (no memo
-  anywhere in src/); recipe-step `**bold**` still lost on a rewritten line
-  (his undecided design question); the three phone-only items.
-- RESOLVED since it was written: equipment + limitations now filled (3 Sep);
-  22 July steps carry 14,385; bodyweight landing since 24 Aug; tab-bar
-  redesign shipped (MobileChrome floating dock + More sheet); P7 typeIn
-  closed (TypeText.jsx); stash IS a classifier route now.
-- CHANGED: inbox is 430 records — **12 pending, 7 error**, and all seven
-  errors are the SAME `plan-today` job failing nightly 22–31 Aug (not the two
-  old stuck ones). Apple layout now covers Todos, Journal and Shopping too;
-  **Inbox is the one named candidate still unconverted**.
-- FLAGS WORTH HIS EYES: 7 Sep weight reads **84.9 kg**, +2.9 kg in a day from
-  a weight-only push at 09:50 — looks anomalous, not real. The nightly health
-  push lands ~20 days in 21 but no longer at 00:05 (mostly next morning);
-  8 identical duplicate pushes fired for 4 Sep within 2 s, and a 28 Aug push
-  carried `forDate: 2019-01-01`.
+**Coach notes survive Start (253d0b3).** His report: the reasoning is on the
+routine overview and gone the instant he taps Start — the cockpit put it in a
+`title` tooltip, which a phone cannot show. Both screens' chips now open the
+same sheet (decision, focus, evidence in his own words, what it means next)
+plus "Ask Coach about this". Mechanism is the existing context-menu host,
+taught to carry PROSE (`note`) above its actions — one host, so it feels like
+the rest of Nova. Two bugs found wiring it: `openContextMenu` dropped the new
+field, and refused any menu with no items.
 
-**THE ATHLETE-AI QUEUE (design/ATHLETE-AI-PLAN.md).** Watched @krudd.jr's
-day-8 reel plus nine more of his builds. His shape: a strict protocol → a
-model that reads the input → an artefact that holds state → a plan grounded in
-real history. Scheduled, in order: (1) THE INTAKE — an interview whose
-arithmetic is CODE (Mifflin-St Jeor → TDEE → deficit → macro floors), landing
-as a pending card that writes his profile and targets; (2) WRAP THE DAY;
-(3) itemised plate breakdown; (4) FORM CHECK on his own filmed lifts, where
-the filming protocol is the feature and a bad clip is refused, not guessed;
-(5) the study lane joining Researcher to Coach. Deliberately not copied: his
-Garmin build asks for an account password in chat, and age-group percentiles
-Nova has no population for.
+**STILL HIS:** the stale ingest weave 9e994aae (discard + re-run; cached, so
+cheap); cook something and tell Nova so the fridge starts counting; the
+phone-in-hand gym check; a real browser commit; Xcode for the native shell.
 
-**7 SEP (late) — TWO THINGS HE REPORTED, BOTH REAL (34b57df).**
-- **A pasted video link did nothing.** The capture path ran the prose
-  classifier (no video route) and never asked `routeIntent`, which has known
-  what a video link is for weeks — so his "Research and analyse this video"
-  filed as an unclassified note. Every front door now routes media first:
-  a video link → the Watcher (carrying his words), a channel → Study, prose
-  unchanged. `captureLane()` is pure and pinned by captureLinks.test.js.
-- **"NOVA IS WORKING · 1 running" was a job that died on 27 August.** The tray
-  counted failed and ready cards as in-flight and gave a failed one no way
-  out. Counts are now honest (running / waiting for you / failed) and a
-  failed job carries CLEAR. The Atomic Habits card is gone.
-- **HIS CALL, OPEN:** a watched video files to `Wiki/Sources/<title>.md`
-  (typed `source`, tagged `video`, linked to its `Raw/` transcript) — but
-  only after his approve tap. He wants links in the second brain
-  automatically; auto-filing is defensible (it rides the rails and undoes),
-  it is simply a behaviour change he has not agreed to yet. NOT YET VERIFIED:
-  whether the daily review, Leader and Coach actually READ `Wiki/Sources` —
-  do not claim they do until someone checks.
-
-**STILL HIS:** the stale ingest weave 9e994aae (discard + re-run; the
-transcript is cached so it is cheap); cook something and tell Nova so the
-fridge starts counting; the phone-in-hand gym check; a real browser commit;
-Xcode for the native shell.
-
-**7 SEP (evening) — THE FUEL OVERHAUL, SHIPPED AND PROVEN ON HIS VAULT.**
-His whole Fuel ask is built, live, and verified on the exact deployed bundle
-against his real rotation at 375×812 (vite preview + generated bootstrap,
-deleted after; the method in the block below):
-- **Rotation v2** (`lib/rotation.js` rewrite, v1 files migrate on read). A
-  slot holds OPTIONS; the one in FOCUS (★, the ‹ › pair and the dots) is
-  what today's plan counts (`totals`); EVERY option has its own tick
-  (`eaten`, counted in `consumedTotals`, one food-log entry per
-  slot+recipe). "4 snacks, tick 3" works. Setting a slot the old way now
-  ADDS an option and focuses it — what he ate is never un-eaten by changing
-  the plan (rotation.test.js asserts this). Extra meals: `+ ADD A MEAL`
-  on the strip (custom slots `extra-N`, rename/remove); the old
-  `+ 4TH MEAL` button is retired.
-- **The fridge** (`lib/portions.js`, vault file
-  `Wiki/Health/Meal Prep Portions.md`). Ticking a meal eaten takes one
-  portion off; un-ticking gives it back; zero paints the rotation card red
-  with OUT. On the recipe itself: IN THE FRIDGE row (−1 / ＋ Cooked more /
-  Set / Stop counting). Voice: `meal.cooked` ("I cooked 8 portions of
-  burrito bowl", "made 4 works burgers") and `meal.portions` ("3 works
-  burgers left", "works burger portions to 3" — the "to N" form REQUIRES
-  the word portions, or "set eggs to 12" stops being a shopping edit; the
-  test caught exactly that). Both undo.
-- **Macros from the labels** (`lib/labelMacros.js`, `scanFood.js` mode
-  `label-per100`, routes `/api/recipes/label-macros`). In the recipe
-  editor under Macros: "Or work them out from the labels" → add label
-  photos, grams each, servings the recipe makes, "Work out the macros". The
-  model reads the per-100g column only; the server scales/sums/divides/
-  rounds and shows the breakdown; the result FILLS the four fields and Save
-  is still his press. Proven live with a rendered AU oats panel: 1590 kJ →
-  380 kcal/100 g, two parts, ÷4, 14 s.
-- **Verified live (7 Sep, real vault):** two snack options → tick the
-  second → "1/2 eaten", fridge 3→2, consumed kcal counted, the home fuel
-  line moved; un-tick → 3; dinner at zero → red OUT card and "out — cook
-  more" on the recipe. Everything restored afterwards (his rotation is as
-  it was; no portion counts exist yet — he has never counted a dish).
-- **One layout trap found:** nowrap option names bubble up as the flex
-  card's min-content and widened it to 407px at 375 — `minWidth: 0` on the
-  card (same family as the Coach-pane bug; memory updated).
-- 1122 tests green under TZ=UTC. verify-shipped carries four new markers.
-
-**STILL HIS:** cook something and say so ("I cooked 8 portions of …") — the
-fridge only starts counting on his word; the phone-in-hand gym check; a
-real browser commit; the Xcode shell; the "Simple Protein Shake" draft in
-his Inbox (approve or discard).
-
-**NOT BUILT (deliberately):** per-option variants in the UI (the server
-supports per-dish overrides via `recipeId` on /rotation/variant; the card
-still applies variants to the focused dish only); swiping between options
-(the strip scrolls on the same axis — the ‹ › pair and dots are the
-switch, see the comment in Recipes.jsx).
-
-**7 SEP (midday) — THE LIVE AUDIT, AND THE BUG IT FOUND.** He asked me to
-confirm the week's work live, not in demo. Method (repeatable, and the right
-one from now on): `npx vite preview --port 5173` serves the EXACT dist that
-GitHub Pages is serving (bundle filenames compared — identical), a generated
-`dist/_devconn.js` points it at the real server (token never in a
-transcript), and the audit drives that. Demo mode does not even render the
-Coach tab, which is why two bugs survived earlier "checks".
-
-VERIFIED LIVE on his vault, on the shipped bundle: Coach tab fits (natural
-scrollWidth == viewport, zero overflowing elements); ◉ 3D chips on all 9
-cockpit exercises + the anatomy card opens with the figure; the HANDS FREE
-strip; the gym by voice ("what's next" → "Weighted Pull-Up, set 1 of 3 —
-bodyweight for 12 is the plan. 9 exercises to go", "80 for 8" → ticked,
-"undo that" → unticked); settings by voice (ember theme + calm mode applied
-and reverted); the BROWSER route chip; the paperclip on both composers; the
-Leader answering IN the conversation ("Handing that to the Leader." → »
-LEADER, grounded in his own leadership material).
-
-**THE BUG THE AUDIT FOUND — and it was silently disabling most of the week's
-work.** The client prepends a situation block ("[On his screen right now —
-…]") whenever a card is up, a workout is live, or he is on another screen.
-The server matched the REFLEX, the VERBS and the LANE ROUTER against that
-whole blob, so with anything on screen: no sub-second answers, no verbs, no
-Coach/Leader handoff — everything fell through to the model. It worked via
-the API (no preamble) and failed in the app, which is exactly why the API
-proofs were not enough. Fixed: the client sends `raw` (his sentence
-undressed), every matcher reads it, only the model gets the dressed version.
-Re-verified live in the app.
-
-**Also 7 Sep:** Nova can now WRITE A RECIPE (his report: "I can't modify
-your logs directly — I'm read-only"). `PROPOSE {"kind":"recipe",…}` composes
-the fields, `voiceActions` validates them (real macros or an honest refusal,
-no duplicate names) and files a pending draft on the existing `recipe` rail,
-which already had a working undo. Proven live: "add a protein shake" →
-"Recipe: Simple Protein Shake — 31P 12C 9F · 262 kcal" waiting in his Inbox.
-
-**NEXT (his queue, in order):** the FUEL overhaul — several options per
-rotation slot he can flick between, unlimited extra meals, several dishes in
-one slot each individually tickable, per-recipe macro correction from
-uploaded nutrition labels, and a cooked-portions counter that decrements as
-he ticks meals off (red when a meal is out). That is a rotation SCHEMA change
-— `slots{slot:id}` + `consumed{slot:bool}` becomes a list per slot — so
-every reader must move together (valsRecipes, Recipes.jsx, panels, fuelCross,
-mealPrep, verbs meal.eaten/recipe.slot, dispatch lines).
-
-**7 SEP (later) — THE THREE OUTSTANDING BUILDS ARE DONE.** The browser hand
-(`lib/browse.js`, the `browse` lane): a Claude Code job with ONLY the Chrome
-DevTools MCP tools, on Nova's own `~/.nova-browser` profile, read/navigate/
-fill, $2 cap, screenshots, a pending record — and a hard stop before
-anything that commits. Proven live on example.com (read it, screenshotted
-it, reported accurately, left no Chrome running, used the right profile —
-checked). Reminders by voice (`lib/whenParser.js` + `reminder.set`): proven
-live and undone. Settings by voice (`src/settingsVoice.js`, client-side)
-with a "You can just say it" card in Settings so it has a door. All three
-carry their affordance: the composer's route chip shows BROWSER, the
-reminder answers "I'll remind you at …", Settings names the phrases.
-1109 tests green under TZ=UTC. **The honest caveat on the browser hand: in a
-browser the MODEL is the actor.** The protections are structural (its own
-profile, the tool boundary, the cap, the receipt, the stop rule) but they
-are not "tested code chooses the click" — `design/VERBS-PLAN.md` says so at
-length, and the next phase (resume-on-yes to press the button) is
-deliberately NOT built.
-
-**7 SEP — THE COACH-TAB BUG, PROPERLY; AND THE DISCOVERABILITY LESSON.**
-He reported the sideways pan STILL there after the first fix, and asked
-where the 3D form figure was. Both were fair, and both taught the same
-thing.
-- **The pan, root-caused and fixed.** My first fix (overflow-x:hidden on
-  main) only CLIPPED it. Reproduced properly by connecting a devtools page
-  to the live server (a generated `public/_devconn.js`, deleted after —
-  the token never entered the transcript) and staging his REAL sessions
-  panel into the Coach chat: the `.nv-pane` measured **403px inside a 390px
-  viewport**. Cause: a flex item's `min-width` defaults to `auto`, so the
-  pane would not shrink below the panel's nowrap rows. Fix: `minWidth: 0`
-  on both panes and the chat log, `min-width/max-width/overflow` on the
-  VoicePanels Card. Measured after: natural width 390 = viewport, zero
-  offenders WITH clipping disabled.
-- **The 3D figure was built, shipped, and unreachable.** `Body3D.jsx` is in
-  the bundle and works on his data (verified live: Weighted Pull-Up, lats
-  and biceps lit, drag-to-turn). Its only doors were a dotted underline on
-  Today's plan list — WHICH TODAY HIDES ENTIRELY while a session is in
-  progress — and a long-press in the picker. Now: a visible **◉ 3D** chip on
-  every exercise row in the cockpit and the routine detail.
-- **The gym by voice had no door at all.** The cockpit now carries a
-  hands-free strip naming the actual phrases, tapping through to Voice.
-
-**THE LESSON, for every session after this one: a capability he cannot find
-is a capability he does not have.** When a build finishes, the last step is
-not "tests pass" — it is "point at the pixel he taps". If there isn't one,
-the feature is not done. Two of his three complaints this week were this.
-
-**6 SEP (late night) — PHASE 3, ATTACHMENTS, THE COACH-TAB GLITCH, THE
-GRANT.** His grant: `.claude/settings.local.json` now allows
-`Bash(node scripts/nova-api.mjs:*)`, `Bash(shortcuts list)`,
-`Bash(shortcuts run:*)`, `Bash(launchctl kickstart:*)` — sessions may drive
-the server, run his real Shortcuts and reload the service without the
-classifier. Built tonight: ATTACHMENTS (photos/videos with a question, both
-composers, live-proven: Ask Nova read a screenshot off the real server and
-named the screen and its protein figure); the remaining PHASE-2 VERBS
-(todo.add, recipe.slot, journal.add, stash.add, money.category, all with
-undo); PHASE 3, THE GYM BY VOICE (`src/gymVoice.js`, client-side, zero
-round trip; finish needs his yes); the COACH-TAB "screen moves around"
-glitch (his recording: the content panned sideways — `main` is now
-`overflow-x:hidden` and chat bubbles are shrinkable; the 16px-input rule
-and the scale-locked viewport were already there, so this was a wide child,
-now clipped at the scroller). Read `design/VERBS-PLAN.md` for the whole
-shape. NOT built: the browser hand (designed); reminders by voice;
-settings-as-words. NOT verified: the gym flow on the gym floor; the Coach
-tab visually with live data (demo has no Coach tab).
-
-**6 SEP (night) — THE VERBS, PHASE 2 + THE FIRST HAND, LIVE-PROVEN.** The
-permission wall is solved: `scripts/nova-api.mjs` reads API_TOKEN in-process
-and prints only the response, so a session can drive the real server
-without the token ever reaching the transcript (`node scripts/nova-api.mjs
-POST /api/ask '{"question":"…"}'`). With it, proven on HIS vault tonight:
-"I bought verb test item" → ticked in <1s, no model, receipt undone and the
-test item removed; "what is going on with the verb test item" → answered
-from the ledger; "should I deload this week" → routed to THE COACH'S OWN
-TURN (`lib/coachTurn.js`, the route's assembly moved untouched) and back
-into the front door as "» COACH", grounded in his real weeks. The Leader is
-a router lane (tight LEADER_RE) answering the same way. The first Hand:
-`lib/hands.js` runs his own Shortcuts (`shortcut.run`, confirm-first until
-listed in `server/data/hands.json` {"immediate":[…]}; "goodnight" as a
-whole utterance is the Shortcut of that name; tested with an injected
-runner — NO real Shortcut has been run from a session). The browser hand is
-designed in `design/VERBS-PLAN.md` ("The Hands"), not built: the model is
-the actor there, and the plan says so. Also fixed: two snapshots of one
-file in the same millisecond shared a name (the Guardian flake — real, now
-gone). NEXT: the remaining Phase-2 verbs (todo.add, recipe.slot, journal,
-stash, money category, reminders, word-settings), then Phase 3 (the gym by
-voice), then the browser hand read+navigate+fill first.
-
-**6 SEP (evening) — THE VERBS, PHASE 1.** His brief after the Astra reel:
-every feature by one sentence, spoken or typed, delegation invisible, no
-dead air. The full plan is `design/VERBS-PLAN.md` (read it before touching
-this). Built and shipped today: `server/lib/verbs.js` — the action registry
-(11 verbs: to-do tick/reopen/move, shopping tick/untick/qty/clear, meal
-eaten/uneaten, plan priority done/skipped, run the plan), name resolution
-that never guesses (tie → "which one?", miss → says so), every act receipted
-on the rails with undo (route `act`), a strict grammar that runs the sure
-commands in under a second with no model (`tryCommand`, in `/api/ask` and
-the Siri lane after the reflex), and the `ACT` directive for the model
-(catalogue GENERATED into the prompt by `describeForModel`). The status
-reflex answers "what's going on with the X?" from the record ledger. A
-proposed plan now lands in the transcript with the yes/no chip, so a spoken
-"yes" runs it. Client: the Done strip with Undo on the message; BY VOICE
-receipts in the Inbox. Tests: `verbs.test.js` + the status reflex. NOT
-verified on his real vault from here — the auto-mode classifier refused to
-read API_TOKEN for a local curl; the suite covers the logic end-to-end on a
-temp vault. His first spoken "tick off X" is the live proof; the service log
-prints `verb hit [todo.done]`. NEXT: Phase 2 (Coach/Leader answer in the
-conversation; more verbs), Phase 3 (the gym by voice).
-
-**6 SEP — EVERYTHING VERIFIED LIVE ON THE URL HIS PHONE LOADS, THE PLAN
-HANDOFF PROVEN ON A REAL RUN, AND THE MATERIAL PASS EXTENDED TO EVERY SCREEN
-(tokens everywhere; and, as of 6 Sep midday, HAND SWEEPS ON EVERY SCREEN —
-the last fourteen files went through Controls.jsx in three scripted
-batches; what remains is the classic MissionControl fold, the
-screen-identity header rows, vals-built chip styles, and Ambient, which is
-a wall face and was left alone on purpose). Earlier, 5 Sep night — THE MATERIAL PASS: "Nova
-feels stiff" answered by measurement and a sweep. The daily screens are set in a shared control
-vocabulary (src/Controls.jsx), cupertino cards lost their outlines, 15
-toasts that restated a visible change are gone, tab hops are instant,
-sheets drag to dismiss, the deck's next card rises. Verified on his data at
-375×812 with before/after shots; tap→paint measured at 12–22ms on the
-production build, so the deferred memoization stays deferred. Earlier the
-same day: the first plan run and its handoff fix, A3 and C1.**
-
-GOAL (this session, 4–5 Sep): (1) the UI audit and its unambiguous fixes;
-(2) Nova as chief of staff — chat as the front door, a capability registry,
-multi-step plans; (3) the Lyfta-style exercise library — anatomy, cues, form
-videos with timecodes, a 3D figure; (4) his picks from the audit mockups.
-
-DONE CRITERIA — all MET, each verified in the browser at 375×812 on his real
-data and confirmed live by `scripts/verify-shipped.mjs --server`:
-- Audit fixes: notification width, clamped titles (also at the WRITE site in
-  inbox.js), protein chart verdict + today excluded, absence states across all
-  THREE vitals renderers, calendar dedupe, blank-screen fallback, filing ladder
-  collapsed, Plan Today's JSON salvage, stale-error reaper, local dates.
-- Phases 1–4 of `design/` "Nova as Chief of Staff": chat routes to job lanes
-  (watch/weave/study/research/book/code) with an announce+undo strip;
-  `lib/capabilities.js` is the three-way contract (router ↔ route ↔ registry,
-  tested); `lib/plan.js` + `lib/planner.js` propose, validate (his-language
-  refusals), schedule in waves, run, report; Phase 4 removed the Inbox lane
-  buttons, folded the palette into the chat (⌘K/✦ ASK open Voice; route chip
-  on the composer), thinned the ingest modal.
-- Exercise atlas: `lib/muscles.js` (18-region closed vocabulary),
-  `lib/data/exerciseAtlas.js` (135/135 anatomy+equipment), `exerciseCues.js`
-  (135/135 seeds, HIS vault cues win), `src/BodyMap.jsx` (2D, animated by 17
-  movement patterns), `src/Body3D.jsx` (three.js, lazy 512K chunk, same
-  patterns as joint angles), `lib/exerciseVideos.js` (free yt-dlp search,
-  timecodes via chapters, daily fill job with granted autonomy).
-- Mockups he picked: A1 deck (Inbox), C2 one thing + C3 record moment + B1
-  rings (Mission Control) — built into BOTH `MissionControl.jsx` and
-  `MissionStructured.jsx`; his phone renders the STRUCTURED one.
-- The exercise card is reachable from Train (`src/ExerciseSheet.jsx`,
-  `POST /api/panel`): long-press a library row, or tap a name on Today's card.
-- A3 — `src/inboxDigest.js` (pure, tested) + a triage strip above the deck:
-  routine (high-confidence CAPTURES only → FILE N ROUTINE through the same
-  approve rails), patterns (≥2 on one subject → SEE ALL focuses the list),
-  decide. His real inbox read "16 waiting — 12 on 5 repeating subjects, 4 to
-  decide" with nothing offered as routine — correctly.
-- C1 — `src/missionFold.js` (pure, tested) + `FoldRow` in
-  `MissionStructured.jsx`: after the first two sections of the hour's order,
-  each section is a header + one status line derived from the same view model
-  (a missing value is a dash); WORKING and PLAN never fold; opened/folded is
-  remembered per section (`novaos.mcFold`). Built in the STRUCTURED renderer
-  only — `MissionControl.jsx` (the other layout) does not fold; add it there
-  if he ever switches novaStyle.
-- The planner handoff: `handoffFor()` hands every needed prior output over by
-  code (the model forgot `{{s1}}`), `summarise()` carries `payload.body`
-  (it read `d.body`, which no lane sets — the Watcher handed on its title),
-  and `startResearch(…, { context })` carries material the 500-char question
-  cannot. Pinned in planner.test.js + researcher.test.js.
-- Quick fixes: deck footer says PICK A MODEL ABOVE on a model-choice card; the
-  0% ring's label carries its tone; the video fill job retries a miss with the
-  muscle group in the query.
-- THE MATERIAL PASS (his "Nova still feels stiff", answered first by counting:
-  897 mono vs 180 UI-font declarations, 376 tracked 8–10px micro-labels used
-  as tap targets, 413 one-pixel borders, 266 toasts).
-  · `src/Controls.jsx` — Eyebrow / TextAction / Chip / Tag / Meta / Segmented:
-    a label is a MATERIAL decision like fonts and radius; Apple styles get
-    sentence case in the UI face at thumb size, Command keeps the console
-    idiom (CSS uppercases). Screens write the words once, in sentence case.
-  · Swept: Inbox.jsx (43→5 labels; what remains is the screen-identity
-    header), MissionStructured.jsx (12→0), Workouts.jsx (41→6: header +
-    demo-only MockWorkouts), TrainToday.jsx (20→1), MobileChrome.jsx (✦ Ask,
-    tinted chips). Filled buttons are style-aware via local `btn/outline`
-    (Workouts, TrainToday) and `primary/secondary` (Inbox) helpers.
-  · index.css: under cupertino `.nv-pane` has no border and a slightly
-    firmer fill; the edge token stays for inputs and separators.
-  · Toast diet: 15 removed (discard, "Updated ✓", routine deleted, session
-    updated, carry-over moves, focus-block start, three "fresh conversation",
-    wake-word toggle, loop mode set, two "rule updated"). The other ~250 are
-    errors, guards and background receipts and stay.
-  · Motion: `navigate(screen, { instant: true })` for tab/sidebar hops (the
-    cross-fade stays for programmatic navigations); `src/useSheetDrag.js`
-    on ExerciseSheet and PortionSheet (grab zone = handle row, imperative
-    transform, throw past 110px or fast); `.nv-deck-rise` on a new top card.
-  · 6 Sep, TIER ONE everywhere: 582 mono micro-label fonts + 277 trackings in
-    49 files became per-style tokens (`--nv-micro-s/m/l`, `--nv-micro-track`,
-    `--nv-micro-track-wide`; Command = the console, Apple = UI face 11–13.5px)
-    — one mechanical codemod, syntax untouched. Case, borders and hit areas
-    on those screens are the hand sweep's job.
-  · 6 Sep (midday), THE HAND SWEEPS ARE COMPLETE: Money, Leader, Journal,
-    Stash, Galaxy (batch A), Library, Ops, Claude Code, the classic Sidebar
-    (batch B), RecipeOverlay + MealEditor, AddRecipeModal, the Companion
-    panels (VoicePanels), VerdictCard (batch C) — scripted edits with
-    exact-string anchors (scratch batchA/B/C.mjs), never sed on JSX. The
-    Claude Code workspace pair became a `Segmented`; Ops' receipt/status
-    micro-strings are `Tag`s; the Companion cards' labels are sentence-case
-    once and Command's CSS uppercases them. Ambient (the wall face) was read
-    and deliberately left: its tracked caps are the design. Cleaned every
-    unused import/const the sweeps left (incl. five stale `M` constants), and
-    the RingTile `key`-in-spread React warning in both Mission layouts.
-    Four verify-shipped markers followed their strings ("Recent sessions",
-    "Leadership · daily practice", "a sentence becomes something that runs",
-    "pinch to zoom"); all 42 UI markers present in the fresh dist. Visually
-    checked at 375×812 cupertino: Library, Claude Code (Segmented, Run),
-    Fuel + the recipe overlay (Macros/Servings/Ingredients, × Close). NOT
-    visually checked: Ops (live-only — the auto-mode classifier refused to
-    read API_TOKEN for the isolated dev page, so demo mode was all I had),
-    Journal/Stash/Money/Leader/Galaxy renders, VerdictCard, VoicePanels —
-    they build and lint clean; look at them on the phone.
-  · 6 Sep, HAND SWEEPS on top: Voice (station frame kept — his 20 Aug ask;
-    transcript + composer in the UI face at reading size; Brief me / Ambient
-    / ritual / Yes-No-Later / Remember / Just answer it / Send as controls),
-    Fuel (hero chips, rotation, log bar, edit-entry, recipe-card Log this),
-    Notes (Studio chips, review summary, Linked in Galaxy), To-Do (Add,
-    category, Stale, Done eyebrow), Shopping (Add, Clear/Undo/Keep, category
-    eyebrows, Confirm completion). verify-shipped markers updated with the
-    strings they read ("Apply it", "Coach said", "Per exercise", "couldn't
-    check") — the checker is a reader of a contract the sweep changes.
-- APPROVE ON A FINISHED PLAN FILES ITS REPORT (6 Sep). It used to re-run the
-  plan (~US$4 again): the report was a bare title/body the filer could not
-  file. `reportDecision()` makes it a note decision, `reportTitle()` drops
-  the goal's URL (the title is the vault filename — the first one was named
-  after a YouTube address), and `approveRecord` files a finished plan instead
-  of dispatching it, normalising older records. His three artefacts were
-  approved this way and are in the vault (Source + transcript, brief, report).
-  Lesson paid for: an undone record cannot be re-approved on the rails; the
-  only way back was a disk edit across a service restart.
-- THE PLAN HANDOFF, PROVEN (6 Sep). Run `ad94d16a` (same vague phrasing)
-  produced two independent steps and its Researcher died on a raw tab in the
-  model's JSON → `parseModelJson()` in `lib/jsonSalvage.js` is now the one
-  entry point for 20 lanes (control-char repair, then stray quotes, then the
-  ORIGINAL error), pinned in jsonSalvage.test.js. Run `7a4d70b3` ("list every
-  claim … THEN check each of THOSE") declared `s2.needs=["s1"]`, the research
-  record carried 3,953 chars of context, the brief says so itself, and the
-  report is a claim-by-claim verdict with an honest gap. Six failed-run
-  artefacts discarded; the good run's report, Watcher audit and Researcher
-  brief are PENDING for him.
-
-STATE (HEAD = the Notes/To-Do/Shopping sweep commit; every earlier commit
-of 5–6 Sep was verified live by `verify-shipped --server` after its deploy —
-the deployed GitHub Pages bundle carried the new strings and none of the old
-caps ones, checked from a fresh isolated browser context at 375×812):
-- The live URL cannot show HIS data from the MCP Chrome (Tailscale fetches
-  hang there — memory nova-frontend-verification); proof of "live with data"
-  is verify-shipped's marker fetch + the same bundle hash + localhost with
-  his connection. His phone needs one reopen for the service worker to swap.
-- Server process started after the last server edit (planner/researcher/
-  jsonSalvage + 20 lanes); health 200; exercise-videos on the roster.
-- Inbox holds the first plan's artefacts, all PENDING and his to judge: the
-  plan report (`7bf8cee7`, honest: "only the Watcher's part was done"), the
-  Watcher's verdict (`13938dcb`, sound) and the Researcher's defective brief
-  (`4aee28c1`, titled "Watcher Claims Not Received" — discard it).
-- Vault: 134/135 exercises carry a resourceUrl (19 deep-linked `&t=`);
-  Fitness Goals has equipment + limitations; `Wiki/Profile.md` STILL MISSING.
-- Server: `startVideoScheduler` runs daily, first pass 60 min after boot,
-  registered on the Guardian roster as `exercise-videos` (26h).
-- Suite 1081 green under `TZ=UTC` (the deploy's zone) — always run it that
-  way before pushing; see DO NOT.
-
-DECISIONS (his, 4–5 Sep):
-- Chat stays a conversation; routing invisible until it matters; a job lane
-  announces + offers JUST ANSWER IT rather than asking first.
-- A PLAN never runs without showing him: proposed → his approve → run.
-  Ceiling $6 / 6 steps (I first said $3; the real per-lane ceilings summed his
-  own example to $5). Coach and Claude Code are reachable but never delegated.
-- Form videos: the daily job may WRITE links unasked (a link cannot corrupt,
-  backed up, undoable) — the one lane with granted autonomy; the reasoning
-  lives in exerciseVideos.js so it is not read as precedent.
-- Pulse budget stays $0.50: the 8-search cap already fixed it ($0.20–0.29/run).
-- A1 first, then (his "proceed with the next builds", 5 Sep) A3 and C1 the
-  same day rather than after a fortnight.
-- "Routine" in the Inbox means what the auto-high rung of HIS filing ladder
-  would file: high-confidence captures. An agent's product is never routine,
-  whatever confidence the agent stamped on it (the first cut would have filed
-  two research briefs and two video verdicts unread).
-- Labels are material (5 Sep). Under the Apple styles a control is a
-  sentence-case word in the UI face with a 40px hit area, a card is a fill
-  not an outline, and Nova does not toast what he can already see. Command
-  keeps its console idiom through the same components. New daily-screen UI
-  goes through Controls.jsx, not a fresh `font:600 8.5px mono` string.
-- The PWA cannot do haptics (WebKit has no vibrate); a native wrapper is the
-  only route and is HIS call — not started.
-
-VERIFIED (this session, with locators): every item above was exercised on
-the running app — see the commit bodies from `e91eac2` to `fff89ae`.
-- Material pass: before/after screenshots at 375×812 on his data (Inbox,
-  Mission Control top + folds, Train Today) — published for him at
-  https://claude.ai/code/artifact/4b7c2823-ee15-429c-9142-5a8b88b2049d ;
-  console clean; production
-  preview on the same origin measured click→second-rAF at 12–22ms for
-  twelve interactions (deck/list, see-all, expand, fold, tab hops, Train
-  segments), DOM 644 nodes. The trace's 69ms forced reflow was my probe's
-  `innerText` scan, not the app; its two 0.06 layout shifts were my
-  scripted fold taps.
-
-ASSUMED:
-- (The handoff is no longer assumed — proven on run `7a4d70b3`, see DONE.)
-- The Tier-one token pass reads well on every screen. Verified visually on
-  Voice, Fuel, Settings-adjacent and Notes at 375×812; the long tail (Ops,
-  Library, Money, Leader, Journal, Stash, Galaxy, Ambient, Claude Code,
-  classic MissionControl, Sidebar, overlays) was checked by build + lint +
-  the 42-marker sweep, not by eye.
-- The name-tap path on Today's card (no plan rows were rendered when checked).
-- The Leader's daily card stays on-domain (two good scheduled runs seen).
-
-OPEN — HIS:
-- THE NATIVE SHELL (his approval, 6 Sep): everything that does not need Xcode
-  is done and committed — `capacitor.config.json` (loads the LIVE URL, so
-  Pages deploys reach the app with no store release), `ios/` (SPM project,
-  Haptics + StatusBar plugins), `src/haptics.js` bridging the five patterns
-  to the Taptic Engine, `npm run native:ios`. This Mac has only the Command
-  Line Tools: he must install Xcode, run `npm run native:ios`, pick his team
-  under Signing, plug the iPhone in and press Run — `native/README.md` is the
-  runbook, including the free-team 7-day expiry.
-- Reopen Nova on the phone once so the service worker takes the new bundle.
-- `Wiki/Profile.md` — four answers; the planner reasons without it.
-- Hand-pick a Carter Extension video (the search cannot find one that names
-  the movement; the rule is right to refuse).
-- KEEP REMINDING (his instruction 5 Sep, logged in memory
-  `nova-open-threads`): live cockpit mid-session on his phone; Telegram photo
-  + voice from his phone; Scriptable widget re-paste.
-OPEN — MINE, when asked: the fold for `MissionControl.jsx` (the non-phone
-layout); a model naming the digest's themes ON TOP of the deterministic
-groups, never instead of them; the remaining audit mockups he has not picked;
-The hand sweeps, the filter chips, the identity rows and the type badges
-are all DONE (6 Sep) — see the log. Nothing on the material pass is
-outstanding; the next UI work is his to name.
-
-DO NOT:
-- Do not write a test that assumes his timezone. `localDate.test.js` built
-  dates from "+10:00" strings and asserted the Melbourne answer; GitHub's UTC
-  runner failed it and FIVE deploys silently died — he noticed before I did.
-  Build test dates from LOCAL components; run `TZ=UTC npm test` before push.
-- Do not edit one Mission Control renderer and call it done: his phone draws
-  `MissionStructured.jsx` (novaStyle 'cupertino'); `MissionControl.jsx` is the
-  other layout; the vitals tile also lives in `AppleLayout.jsx`. Three
-  renderers bit twice today. Check the DOM's Group labels ("Vitals") to know
-  which is mounted — and match case-insensitively; "Body" matched "Upper Body".
-- Do not let one shared word match a form video: "Carter" matched a bandsaw
-  setup guide. A title must name the MOVEMENT (stem of the last word) or share
-  two words — `titleIsAboutThisLift`, applied at every pick.
-- Do not run yt-dlp searches back to back with a short timeout: 19 "misses"
-  were throttle timeouts, not absences. 90s window + 1.5s pause, and keep
-  "nothing found" separate from "never came back".
-- Do not read `curl --max-time 5` failing as the server being down: the Mac
-  was at load 91 from Chrome renderers (my own devtools pages among them).
-  Check `uptime` and `lsof -iTCP -sTCP:LISTEN` before touching the service.
-- Do not bind test stubs to 4199 — it is his live Kokoro sidecar's port.
-- Do not tell the planner its CLI budget: it read `--max-budget-usd 0.5` as
-  the money available for the work and refused his example.
-- Do not mount `intentRouter` with the Vault OBJECT — every lane spawns with
-  `cwd: vaultPath` and needs the string.
-- Do not `git add -A` a half-built feature when pushing an urgent fix; use a
-  targeted add (the deploy unblock was pushed alone this way).
-- Do not treat a record's `confidence` as his confidence. It is the AGENT's
-  confidence in its own product; a bulk action must be gated on provenance
-  (capture vs agent product), never on that field.
-- Do not let a plan's step wiring depend on the model writing `{{s1}}`. A
-  declared `needs` is honoured by code (`handoffFor`); a step's output is
-  the lane's `payload.body`, not the record title.
-- Do not pipe `npm run dev` through `head` in a background task — it killed
-  the dev server mid-verification. Start it detached with a log file.
-- Do not measure interaction cost with a probe that reads `innerText` on
-  every element — it forces layout and shows up as the app's reflow. Find
-  elements with `textContent`, then time click→second rAF.
-- Do not add a new tracked-mono micro-label to a daily screen; use
-  Controls.jsx. The console idiom is Command's material, not the default.
-- Earlier DO NOTs (3 Sep) all still stand.
+**FLAGS FROM THE SWEEP, unaddressed:** 7 Sep weight reads 84.9 kg (+2.9 in a
+day from a weight-only push) — looks like bad data. The nightly health push
+lands ~20 days in 21 but mostly next morning, not 00:05. Eight duplicate
+pushes fired for 4 Sep within 2 s; a 28 Aug push carried
+`forDate: 2019-01-01`. Seven inbox errors are all the same `plan-today` job
+failing nightly 22–31 Aug. Inbox is the one screen still without an Apple
+layout. About You is still empty — which is why THE INTAKE leads
+`design/ATHLETE-AI-PLAN.md`.
 
 ## SESSION LOG (append-only, newest first)
+
+### 7 September 2026 (night) — auto-filing, the shelf audit, and the Coach mid-session
+Uploads file and weave themselves with a notification that deep-links to the
+record (facc65b). The agent audit found eleven agents inside the vault that
+had never been told the shelf existed; sourceShelf.js + fuelContext.js + a new
+lens rule fixed it (e2d352e). The Coach's reasoning now survives the tap on
+Start (253d0b3). 1140 tests green under TZ=UTC.
 
 ### 7 September 2026 (night) — swipe + per-dish variants, phase 4 edits, the sweep, and the athlete-AI queue
 Fuel's last two pieces (f635eae), verbs phase 4 (414a934), a verified sweep of
