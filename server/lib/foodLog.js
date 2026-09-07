@@ -191,6 +191,21 @@ async function removeEntryUnlocked(entryId) {
   return day;
 }
 
+// Undo for a removal: the entry goes back VERBATIM — same id, same time, same
+// macros — so an undone delete leaves the day byte-identical to before it,
+// rather than a new entry that merely looks similar. Appended at the end if
+// its original position is gone; entries carry their own time.
+export async function restoreEntryOn(date, entry) {
+  return withWriteLock(async () => {
+    const target = resolveLogDate(date);
+    const day = await loadDay(target);
+    if (day.entries.some((e) => e.id === entry.id)) return day; // already back
+    day.entries.push(entry);
+    await saveDay(day);
+    return day;
+  });
+}
+
 // Date-addressed removal for inbox undo, which may run after midnight has
 // rolled the "today" file over.
 export async function removeEntryOn(date, entryId) {

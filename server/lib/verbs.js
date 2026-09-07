@@ -536,6 +536,295 @@ verb({
   },
 });
 
+
+// ---------------------------------------------------------------------------
+// PHASE 4 — EDITING WHAT IS ALREADY WRITTEN, BY VOICE.
+//
+// Every verb before this one CREATES a record. These four change records that
+// already exist, and that is a different risk: a wrong create leaves a stray
+// line he can see and delete, a wrong edit silently rewrites history and then
+// looks like the truth. So all four are `confirm` — they land pending with the
+// DIFF as the title ("Protein bar — 20P → 25P"), and only his yes writes.
+//
+// Two rules hold them honest:
+//   1. resolve() finds the thing FIRST, against what is actually written, so a
+//      miss is said before he is asked to confirm something Nova can't identify.
+//   2. run() re-checks that what it is about to overwrite is still what it
+//      showed him. A pending edit that has gone stale REFUSES rather than
+//      clobbering — the same rule the staged pass applies to a weave.
+
+const foodLib = () => import('./foodLog.js');
+const sessionLib = () => import('./workoutSessions.js');
+
+const g = (n) => { const x = Number(n || 0); return Number.isInteger(x) ? String(x) : String(Math.round(x * 10) / 10); };
+const macroLine = (m = {}) => `${g(m.p)}P · ${g(m.c)}C · ${g(m.f)}F · ${Math.round(m.kcal || 0)} kcal`;
+const sameMacros = (a = {}, b = {}) => ['p', 'c', 'f', 'kcal'].every((k) => Number(a[k] || 0) === Number(b[k] || 0));
+const localDay = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+// The named entry in a day's food log — his words against what is logged.
+async function findLogEntry(entryRaw, dateRaw) {
+  const { getDay } = await foodLib();
+  const day = await getDay(String(dateRaw || '').trim() || undefined);
+  const entries = day.entries || [];
+  if (!entries.length) throw new Error(`nothing is logged for ${day.date}`);
+  const want = say(entryRaw);
+  // "the last thing I logged" / "that" — the most recent entry, no matching
+  if (/^(the )?(last|latest|most recent)( (thing|one|entry|item))?( i logged)?$|^that$/i.test(want)) {
+    return { day, entry: entries[entries.length - 1] };
+  }
+  const m = matchName(entries.map((e) => ({ id: e.id, name: e.name })), want);
+  if (!m.hit) throw new Error(m.ambiguous ? m.why : `nothing called "${want}" is logged on ${day.date}`);
+  return { day, entry: entries.find((e) => e.id === m.hit.id) };
+}
+
+// The entry as it stands NOW — a pending edit that has gone stale must not write
+async function currentLogEntry(date, entryId) {
+  const { getDay } = await foodLib();
+  const day = await getDay(date);
+  return (day.entries || []).find((e) => e.id === entryId) || null;
+}
+
+verb({
+  id: 'foodlog.fix', tier: 'confirm',
+  describe: "correct a food log entry's macros or name (asks first, shows the change)",
+  args: {
+    entry: 'which logged item, in his words — or "the last one"',
+    p: 'optional new protein in grams', c: 'optional new carbs in grams',
+    f: 'optional new fat in grams', kcal: 'optional new calories',
+    name: 'optional new name', date: 'optional YYYY-MM-DD, defaults to today',
+  },
+  async resolve(args) {
+    const { day, entry } = await findLogEntry(args.entry, args.date);
+    const next = {};
+    for (const k of ['p', 'c', 'f', 'kcal']) {
+      if (args[k] != null && String(args[k]).trim() !== '') {
+        const n = Number(args[k]);
+        if (!Number.isFinite(n) || n < 0) throw new Error(`"${say(args[k])}" is not a number of ${k === 'kcal' ? 'calories' : 'grams'}`);
+        next[k] = n;
+      }
+    }
+    const name = say(args.name) || null;
+    if (!Object.keys(next).length && !name) throw new Error('say what to change it to — protein, carbs, fat, calories or the name');
+    return { entry: args.entry, date: day.date, entryId: entry.id, was: { name: entry.name, macros: { ...entry.macros } }, next, name };
+  },
+  titleFor(args) {
+    const after = { ...args.was.macros, ...args.next };
+    const label = args.name && args.name !== args.was.name ? `"${args.was.name}" → "${args.name}"` : args.was.name;
+    return `Food log · ${label} — ${macroLine(args.was.macros)} → ${macroLine(after)}`;
+  },
+  async run(vaultPath, args) {
+    const { editEntryOn } = await foodLib();
+    const now = await currentLogEntry(args.date, args.entryId);
+    if (!now) throw new Error('that entry is no longer in the log — nothing was changed');
+    if (!sameMacros(now.macros, args.was.macros) || now.name !== args.was.name) {
+      throw new Error(`"${now.name}" changed since you asked (it now reads ${macroLine(now.macros)}) — say the correction again`);
+    }
+    await editEntryOn(args.date, args.entryId, { name: args.name || undefined, macros: args.next });
+    const after = { ...args.was.macros, ...args.next };
+    return {
+      destination: `Food log — ${args.name || args.was.name}: ${macroLine(after)}`,
+      said: `Fixed. ${args.name || args.was.name} is now ${macroLine(after)}.`,
+      undo: { verb: 'foodlog.fix', date: args.date, entryId: args.entryId, was: args.was },
+    };
+  },
+  async undo(vaultPath, u) {
+    const { editEntryOn } = await foodLib();
+    await editEntryOn(u.date, u.entryId, { name: u.was.name, macros: u.was.macros });
+    return `${u.was.name} back to ${macroLine(u.was.macros)}`;
+  },
+});
+
+verb({
+  id: 'foodlog.remove', tier: 'confirm',
+  describe: 'take an entry out of the food log (asks first)',
+  args: { entry: 'which logged item, in his words — or "the last one"', date: 'optional YYYY-MM-DD, defaults to today' },
+  async resolve(args) {
+    const { day, entry } = await findLogEntry(args.entry, args.date);
+    return { entry: args.entry, date: day.date, entryId: entry.id, was: entry };
+  },
+  titleFor(args) { return `Food log · remove ${args.was.name} — ${macroLine(args.was.macros)}`; },
+  async run(vaultPath, args) {
+    const { removeEntryOn } = await foodLib();
+    const now = await currentLogEntry(args.date, args.entryId);
+    if (!now) throw new Error('that entry is already off the log');
+    if (!sameMacros(now.macros, args.was.macros)) throw new Error(`"${now.name}" changed since you asked (it now reads ${macroLine(now.macros)}) — check it before removing`);
+    await removeEntryOn(args.date, args.entryId);
+    return {
+      destination: `Food log — removed ${args.was.name}`,
+      said: `Taken out. ${args.was.name} — ${macroLine(args.was.macros)} — is off ${args.date === localDay() ? "today's" : `${args.date}'s`} log.`,
+      undo: { verb: 'foodlog.remove', date: args.date, was: args.was },
+    };
+  },
+  async undo(vaultPath, u) {
+    const { restoreEntryOn } = await foodLib();
+    await restoreEntryOn(u.date, u.was);
+    return `${u.was.name} back on the log`;
+  },
+});
+
+// A set in a session that is already written. The exercise is matched across
+// recent sessions, newest first, so "my bench press second set" means the last
+// time he actually benched — he never has to name the session.
+async function findLoggedSet(vaultPath, args) {
+  const { loadSessions } = await sessionLib();
+  const sessions = await loadSessions(vaultPath, { limit: 20 });
+  if (!sessions.length) throw new Error('there are no logged sessions yet');
+  const pool = [];
+  const seen = new Set();
+  for (const s of sessions) {
+    for (const e of s.exercises || []) {
+      if (seen.has(e.name)) continue; // newest session wins for a given exercise
+      seen.add(e.name);
+      pool.push({ id: `${s.id}|${e.exerciseId}`, name: e.name, session: s, ex: e });
+    }
+  }
+  const m = matchName(pool, args.exercise);
+  if (!m.hit) throw new Error(m.ambiguous ? m.why : `no logged session has an exercise called "${say(args.exercise)}"`);
+  const { session, ex } = pool.find((n) => n.id === m.hit.id);
+  const ORDINALS = { first: 1, '1st': 1, second: 2, '2nd': 2, third: 3, '3rd': 3, fourth: 4, '4th': 4, fifth: 5, '5th': 5 };
+  const raw = String(args.set ?? '').toLowerCase().trim();
+  let index;
+  if (!raw || /^(last|final)$/.test(raw)) index = ex.sets.length - 1;
+  else if (ORDINALS[raw]) index = ORDINALS[raw] - 1;
+  else if (/^\d+$/.test(raw)) index = Number(raw) - 1;
+  else throw new Error(`"${say(args.set)}" isn't a set number`);
+  if (index < 0 || index >= ex.sets.length) throw new Error(`${ex.name} has ${ex.sets.length} set${ex.sets.length === 1 ? '' : 's'} in that session, not ${index + 1}`);
+  return { session, ex, index };
+}
+
+const setLine = (x = {}) => `${x.weight}kg × ${x.reps}${x.rpe ? ` @RPE${x.rpe}` : ''}`;
+const sameSet = (a = {}, b = {}) => Number(a.weight) === Number(b.weight) && Number(a.reps) === Number(b.reps) && (a.rpe || null) === (b.rpe || null);
+
+verb({
+  id: 'workout.set', tier: 'confirm',
+  describe: 'correct a set in a session already logged (asks first, shows what changes)',
+  args: {
+    exercise: 'the exercise, in his words',
+    set: 'optional — which set: a number, an ordinal, or "last"',
+    weight: 'optional corrected weight in kg', reps: 'optional corrected reps',
+    rpe: 'optional corrected RPE',
+  },
+  async resolve(args, vaultPath) {
+    const { session, ex, index } = await findLoggedSet(vaultPath, args);
+    const was = { ...ex.sets[index] };
+    const next = { ...was };
+    if (args.weight != null && String(args.weight).trim() !== '') {
+      const w = Number(args.weight);
+      if (!Number.isFinite(w) || w < 0) throw new Error(`"${say(args.weight)}" is not a weight`);
+      next.weight = w;
+    }
+    if (args.reps != null && String(args.reps).trim() !== '') {
+      const r = Number(args.reps);
+      if (!Number.isInteger(r) || r <= 0) throw new Error(`"${say(args.reps)}" is not a rep count`);
+      next.reps = r;
+    }
+    if (args.rpe != null && String(args.rpe).trim() !== '') {
+      const r = Number(args.rpe);
+      if (!Number.isFinite(r) || r < 1 || r > 10) throw new Error(`"${say(args.rpe)}" is not an RPE`);
+      next.rpe = r;
+    }
+    if (sameSet(next, was)) throw new Error('say what to change it to — the weight, the reps or the RPE');
+    return {
+      exercise: args.exercise, sessionId: session.id,
+      sessionDate: session.date || String(session.finishedAt || '').slice(0, 10),
+      exerciseId: ex.exerciseId, exerciseName: ex.name, index, was, next,
+    };
+  },
+  titleFor(args) {
+    return `Training · ${args.exerciseName} set ${args.index + 1} on ${args.sessionDate} — ${setLine(args.was)} → ${setLine(args.next)}`;
+  },
+  async run(vaultPath, args) {
+    await writeSet(vaultPath, args.sessionId, args.exerciseId, args.index, args.next, args.was);
+    return {
+      destination: `Training — ${args.exerciseName} set ${args.index + 1} on ${args.sessionDate}: ${setLine(args.next)}`,
+      said: `Fixed. ${args.exerciseName}, set ${args.index + 1} on ${args.sessionDate} is now ${args.next.weight} for ${args.next.reps}.`,
+      undo: { verb: 'workout.set', sessionId: args.sessionId, exerciseId: args.exerciseId, index: args.index, was: args.was, exerciseName: args.exerciseName },
+    };
+  },
+  async undo(vaultPath, u) {
+    await writeSet(vaultPath, u.sessionId, u.exerciseId, u.index, u.was, null);
+    return `${u.exerciseName} set ${u.index + 1} back to ${setLine(u.was)}`;
+  },
+});
+
+// One set, rewritten in place — every other set and exercise travels through
+// untouched, which is what makes this an edit rather than a re-save of what
+// Nova happens to remember. `expect` (when given) is the drift check.
+async function writeSet(vaultPath, sessionId, exerciseId, index, set, expect) {
+  const { loadSessions, updateSession } = await sessionLib();
+  const session = (await loadSessions(vaultPath, { limit: 200 })).find((s) => s.id === sessionId);
+  if (!session) throw new Error('that session is no longer there — nothing was changed');
+  const ex = (session.exercises || []).find((e) => e.exerciseId === exerciseId);
+  if (!ex || !ex.sets[index]) throw new Error('that set is no longer there — nothing was changed');
+  if (expect && !sameSet(ex.sets[index], expect)) {
+    throw new Error(`that set changed since you asked (it now reads ${setLine(ex.sets[index])}) — say the correction again`);
+  }
+  const exercises = session.exercises.map((e) => (e.exerciseId !== exerciseId ? e : {
+    ...e, sets: e.sets.map((s, i) => (i === index ? { ...s, ...set } : s)),
+  }));
+  await updateSession(vaultPath, sessionId, { exercises });
+  return set;
+}
+
+verb({
+  id: 'recipe.ingredient', tier: 'confirm',
+  describe: 'add or remove ingredient lines on a recipe (asks first; the macros do NOT follow on their own)',
+  args: {
+    recipe: 'the recipe, in his words',
+    add: 'optional ingredient lines to add, e.g. "30g rolled oats"',
+    remove: 'optional ingredients to take out, in his words',
+  },
+  async resolve(args, vaultPath) {
+    const { loadRecipes } = await import('./recipes.js');
+    const recipes = await loadRecipes(vaultPath);
+    const m = matchName(recipes, args.recipe);
+    if (!m.hit) throw new Error(m.ambiguous ? m.why : `there's no recipe called "${say(args.recipe)}"`);
+    const recipe = recipes.find((r) => r.id === m.hit.id);
+    const lines = (recipe.ingredients || []).map((i) => (i.qty ? `${i.qty} ${i.name}` : i.name));
+    const asList = (v) => (Array.isArray(v) ? v : String(v || '').split(/\s*(?:,|;|\band\b)\s*/)).map((x) => say(x)).filter(Boolean);
+    const add = asList(args.add);
+    const removing = [];
+    for (const w of asList(args.remove)) {
+      const hit = matchName(lines.map((l, i) => ({ id: String(i), name: l })), w);
+      if (!hit.hit) throw new Error(hit.ambiguous ? hit.why : `"${recipe.name}" has no ingredient like "${w}"`);
+      removing.push(Number(hit.hit.id));
+    }
+    if (!add.length && !removing.length) throw new Error('say what to add or take out');
+    const next = lines.filter((_, i) => !removing.includes(i)).concat(add);
+    if (!next.length) throw new Error('a meal needs at least one ingredient');
+    return {
+      recipe: args.recipe, recipeId: recipe.id, recipeName: recipe.name,
+      was: lines, next, added: add, removed: removing.map((i) => lines[i]), macros: recipe.macros,
+    };
+  },
+  titleFor(args) {
+    const bits = [];
+    if (args.added.length) bits.push(`+ ${args.added.join(', ')}`);
+    if (args.removed.length) bits.push(`− ${args.removed.join(', ')}`);
+    // the macro warning belongs in the title, where he decides — not after
+    return `${args.recipeName}: ${bits.join(' · ')} — macros still say ${macroLine(args.macros)}, check them`;
+  },
+  async run(vaultPath, args) {
+    const { loadRecipes, editRecipe } = await import('./recipes.js');
+    const now = (await loadRecipes(vaultPath)).find((r) => r.id === args.recipeId);
+    if (!now) throw new Error('that recipe is no longer there — nothing was changed');
+    const lines = (now.ingredients || []).map((i) => (i.qty ? `${i.qty} ${i.name}` : i.name));
+    if (lines.join('\n') !== args.was.join('\n')) throw new Error(`"${now.name}" was edited since you asked — say the change again`);
+    await editRecipe(vaultPath, args.recipeId, { ingredients: args.next });
+    return {
+      destination: `Recipe — ${args.recipeName}: ${[args.added.length ? `+${args.added.length}` : '', args.removed.length ? `−${args.removed.length}` : ''].filter(Boolean).join(' ')} ingredient${args.added.length + args.removed.length === 1 ? '' : 's'}`,
+      // NEVER let an ingredient edit imply the numbers followed it
+      said: `Done. ${args.recipeName} now lists ${args.next.length} ingredients — the macros still say ${macroLine(args.macros)}, so correct them from the labels if that changed.`,
+      undo: { verb: 'recipe.ingredient', recipeId: args.recipeId, recipeName: args.recipeName, was: args.was },
+    };
+  },
+  async undo(vaultPath, u) {
+    const { editRecipe } = await import('./recipes.js');
+    await editRecipe(vaultPath, u.recipeId, { ingredients: u.was });
+    return `${u.recipeName}'s ingredients restored`;
+  },
+});
+
 export const VERB_IDS = Object.keys(VERBS);
 export const verbFor = (id) => VERBS[id] || null;
 
@@ -567,7 +856,9 @@ export async function runVerb(vaultPath, question, raw, { source = 'voice' } = {
     if (/optional/i.test(v.args[k])) continue;
     if (args[k] == null || String(args[k]).trim() === '') throw new Error(`"${id}" needs ${k}`);
   }
-  if (v.resolve) args = await v.resolve(args);
+  // resolve gets the vault too: an EDIT verb has to find the thing it is
+  // about (a logged entry, a set, an ingredient line) before it can be shown
+  if (v.resolve) args = await v.resolve(args, vaultPath);
   const tier = v.tierFor ? v.tierFor(args) : v.tier;
   const { createRecord } = await import('./inboxStore.js');
   const base = {
@@ -578,7 +869,9 @@ export async function runVerb(vaultPath, question, raw, { source = 'voice' } = {
     createdAt: new Date().toISOString(),
   };
   if (tier === 'confirm') {
-    const title = id === 'shortcut.run' ? `Run the Shortcut "${args.name}"` : `${v.describe[0].toUpperCase()}${v.describe.slice(1)}`;
+    // an EDIT verb writes its own title, because the only useful thing to show
+    // before a yes is the DIFF — "20P → 25P", not "correct a food log entry"
+    const title = v.titleFor ? v.titleFor(args) : (id === 'shortcut.run' ? `Run the Shortcut "${args.name}"` : `${v.describe[0].toUpperCase()}${v.describe.slice(1)}`);
     const record = {
       ...base,
       mode: 'review-all',
@@ -686,6 +979,32 @@ export function parseCommand(text) {
     return { verb: 'todo.add', args: { text: m[1] } };
   }
   // the fridge: "I cooked 8 burrito bowls" · "made 6 chilli beef" · "4 works burgers left"
+  // EDITS TO WHAT IS ALREADY WRITTEN (phase 4). All four are confirm verbs, so
+  // a grammar hit still only proposes — but the sentences below are the ones he
+  // actually says while looking at a wrong number, and they must not be handed
+  // to a model that might guess at which entry he means.
+  //
+  // "that protein bar was 25 grams of protein" / "the last one was 400 calories"
+  if ((m = q.match(/^(?:actually,?\s+)?(?:that|the)\s+(.+?)\s+(?:was|is|should be)\s+(\d{1,4}(?:\.\d+)?)\s*(?:g|grams?)?\s*(?:of\s+)?(protein|carbs?|carbohydrates?|fat|calories|kcal|cals?)$/))) {
+    const field = /^prot/.test(m[3]) ? 'p' : /^carb/.test(m[3]) ? 'c' : /^fat/.test(m[3]) ? 'f' : 'kcal';
+    return { any: [{ verb: 'foodlog.fix', args: { entry: m[1], [field]: Number(m[2]) } }], fallthrough: true };
+  }
+  // "take the protein bar off today's log" — a removal that names the log is
+  // sure; a bare "remove X" stays a shopping edit, which is what it usually is
+  if ((m = q.match(/^(?:take|get)\s+(?:the\s+)?(.+?)\s+(?:off|out of)\s+(?:the\s+|my\s+|today's\s+)*food\s*log$/))
+    || (m = q.match(/^(?:delete|remove)\s+(?:the\s+)?(.+?)\s+from\s+(?:the\s+|my\s+|today's\s+)*food\s*log$/))) {
+    return { verb: 'foodlog.remove', args: { entry: m[1] } };
+  }
+  // "my bench press second set was 80 for 8" / "bench press last set was 80 kg x 8"
+  if ((m = q.match(/^(?:my\s+|the\s+)?(.+?)\s+(first|second|third|fourth|fifth|last|\d{1,2}(?:st|nd|rd|th))\s+set\s+(?:was|is|should be)\s+(\d{1,3}(?:\.\d+)?)\s*(?:kg)?\s*(?:for|x|×|by)\s*(\d{1,3})$/))) {
+    const set = /^\d/.test(m[2]) ? m[2].replace(/\D/g, '') : m[2];
+    return { verb: 'workout.set', args: { exercise: m[1], set, weight: Number(m[3]), reps: Number(m[4]) } };
+  }
+  // "add 30g of oats to the banana bread baked oats"
+  if ((m = q.match(/^add\s+(.+?)\s+to\s+(?:the\s+|my\s+)?(.+?)\s*(?:recipe)?$/)) && !/shopping|list|to-?do|todo|calendar|journal/.test(q)) {
+    return { any: [{ verb: 'recipe.ingredient', args: { recipe: m[2], add: m[1] } }], fallthrough: true };
+  }
+
   if ((m = q.match(/^(?:i(?:'ve| have|'ve just| just)?\s+)?(?:cooked|made|prepped|batch[- ]cooked)\s+(\d{1,3})\s+(?:portions?\s+(?:of\s+)?|more\s+|x\s+)?(.+?)(?:\s+(?:portions?|meals?|serves?|servings?))?$/))) {
     return { verb: 'meal.cooked', args: { recipe: m[2], portions: Number(m[1]) } };
   }
@@ -768,6 +1087,19 @@ async function probe(vaultPath, cand) {
       const { recipes } = await loadRecipeData(vaultPath);
       const m = matchName(recipes, cand.args.recipe);
       return m.hit ? { ok: true, label: `the portions of ${m.hit.name}` } : { ok: false, why: m.why };
+    }
+    // the edit candidates: they only count as a command if the thing he is
+    // correcting is actually there — "that protein bar was 25 grams" is a
+    // command when a protein bar is logged, and ordinary conversation when
+    // it is not
+    if (cand.verb === 'foodlog.fix') {
+      const { entry } = await findLogEntry(cand.args.entry, cand.args.date);
+      return { ok: true, label: `the food log entry "${entry.name}"` };
+    }
+    if (cand.verb === 'recipe.ingredient') {
+      const { loadRecipes } = await import('./recipes.js');
+      const m = matchName(await loadRecipes(vaultPath), cand.args.recipe);
+      return m.hit ? { ok: true, label: `the recipe "${m.hit.name}"` } : { ok: false, why: m.why };
     }
     if (cand.verb === 'reminder.set') {
       const { parseWhen } = await import('./whenParser.js');

@@ -256,6 +256,10 @@ export function Settings({ v }) {
         <Eyebrow tone="cyan">You can just say it</Eyebrow>
         <div style={css("margin-top:6px;font:400 12.5px/1.6 var(--nv-font-ui);color:color-mix(in srgb, var(--nv-ink) 70%, transparent)")}>
           Most of this page answers to speech, on Voice or the ✦ Ask bar: “dark mode”, “light mode”, “use the ember theme”, “apple layout”, “calm mode on”, “stop talking”, “hey nova off”. Nova changes it and says what it did.
+        
+          <div style={css("margin-top:9px;padding-top:9px;border-top:1px solid color-mix(in srgb, var(--nv-cy) 18%, transparent)")}>
+            And Nova can now FIX what is already written, by voice — it always asks first and shows the change: “that protein bar was 25 grams of protein”, “take the mars bar off my food log”, “my bench press second set was 80 for 8”, “add 30g of oats to the banana bread baked oats”. Your yes writes it; undo puts back exactly what was there.
+          </div>
         </div>
       </div>
 

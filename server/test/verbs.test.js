@@ -365,3 +365,116 @@ test('fridge: cooked portions add up, eating a rotation meal takes one off, zero
   // unknown dish says so
   await assert.rejects(() => runVerb(vault, 'q', { verb: 'meal.cooked', args: { recipe: 'unicorn stew', portions: 2 } }), /no recipe|don't have|not.*recipe/i);
 });
+
+// PHASE 4 — editing what is already written. These verbs change records that
+// exist, so the rules under test are: the DIFF is what he is shown before the
+// yes; the write refuses if the record moved since he was asked; and undo puts
+// back exactly what was there.
+test('food log: a wrong number is corrected by voice — diff first, drift refused, undo exact', async () => {
+  const { addEntry, getToday } = await import('../lib/foodLog.js');
+  const { getRecord } = await import('../lib/inboxStore.js');
+  await addEntry({ name: 'Protein bar', macros: { p: 20, c: 24, f: 9, kcal: 250 } });
+
+  // grammar → a candidate, never a silent write
+  assert.deepEqual(parseCommand('that protein bar was 25 grams of protein'),
+    { any: [{ verb: 'foodlog.fix', args: { entry: 'protein bar', p: 25 } }], fallthrough: true });
+
+  const prop = await runVerb(vault, 'that protein bar was 25 grams of protein', { verb: 'foodlog.fix', args: { entry: 'protein bar', p: 25 } });
+  assert.ok(prop.proposal, 'an edit lands pending, never applied');
+  // the title carries the change, not the verb's description
+  assert.match(prop.proposal.title, /Protein bar — 20P · 24C · 9F · 250 kcal → 25P · 24C · 9F · 250 kcal/);
+  assert.equal((await getToday()).entries[0].macros.p, 20, 'nothing written before the yes');
+
+  await approveRecord(vault, prop.proposal.recordId);
+  let day = await getToday();
+  assert.equal(day.entries[0].macros.p, 25);
+  assert.equal(day.entries[0].edited, true, 'an amended number is marked, not passed off as the original');
+
+  // a stale pending edit REFUSES rather than clobbering (the weave rule)
+  const stale = await runVerb(vault, 'q', { verb: 'foodlog.fix', args: { entry: 'protein bar', kcal: 300 } });
+  const { editEntryOn } = await import('../lib/foodLog.js');
+  await editEntryOn(day.date, day.entries[0].id, { macros: { p: 31 } });
+  await assert.rejects(() => approveRecord(vault, stale.proposal.recordId), /changed since you asked/);
+  assert.equal((await getToday()).entries[0].macros.kcal, 250, 'the refusal wrote nothing');
+
+  // undo restores the prior verbatim
+  const rec = await getRecord(prop.proposal.recordId);
+  await undoRecord(vault, rec.id);
+  day = await getToday();
+  assert.equal(day.entries[0].macros.p, 20, 'undo puts the original number back');
+  assert.equal(day.entries[0].name, 'Protein bar');
+});
+
+test('food log: an entry is removed by voice and comes back verbatim', async () => {
+  const { addEntry, getToday } = await import('../lib/foodLog.js');
+  await addEntry({ name: 'Mars bar', macros: { p: 3, c: 35, f: 8, kcal: 230 } });
+  assert.deepEqual(parseCommand('take the mars bar off my food log'), { verb: 'foodlog.remove', args: { entry: 'mars bar' } });
+
+  const prop = await runVerb(vault, 'take the mars bar off my food log', { verb: 'foodlog.remove', args: { entry: 'mars bar' } });
+  assert.match(prop.proposal.title, /remove Mars bar — 3P · 35C · 8F · 230 kcal/);
+  const before = (await getToday()).entries.find((e) => e.name === 'Mars bar');
+  await approveRecord(vault, prop.proposal.recordId);
+  assert.ok(!(await getToday()).entries.some((e) => e.name === 'Mars bar'));
+
+  await undoRecord(vault, prop.proposal.recordId);
+  const back = (await getToday()).entries.find((e) => e.name === 'Mars bar');
+  assert.deepEqual(back, before, 'the entry returns byte-for-byte, same id and time');
+
+  // an entry that is not there is said, not guessed at
+  await assert.rejects(() => runVerb(vault, 'q', { verb: 'foodlog.remove', args: { entry: 'lasagne' } }), /nothing called "lasagne" is logged/);
+});
+
+test('training: a logged set is corrected by voice, other sets untouched, undo exact', async () => {
+  const { completeSession, loadSessions } = await import('../lib/workoutSessions.js');
+  await completeSession(vault, {
+    routineId: 'push', routineName: 'Push',
+    exercises: [
+      { exerciseId: 'bench-press', name: 'Bench Press', sets: [{ weight: 60, reps: 10 }, { weight: 70, reps: 8 }, { weight: 70, reps: 6 }] },
+      { exerciseId: 'lateral-raise', name: 'Lateral Raise', sets: [{ weight: 12, reps: 15 }] },
+    ],
+  });
+  assert.deepEqual(parseCommand('my bench press second set was 80 for 8'),
+    { verb: 'workout.set', args: { exercise: 'bench press', set: 'second', weight: 80, reps: 8 } });
+
+  const prop = await runVerb(vault, 'my bench press second set was 80 for 8', { verb: 'workout.set', args: { exercise: 'bench press', set: 'second', weight: 80, reps: 8 } });
+  assert.match(prop.proposal.title, /Bench Press set 2 .* — 70kg × 8 → 80kg × 8/);
+  await approveRecord(vault, prop.proposal.recordId);
+
+  let s = (await loadSessions(vault, { limit: 1 }))[0];
+  let bench = s.exercises.find((e) => e.exerciseId === 'bench-press');
+  assert.equal(bench.sets[1].weight, 80);
+  assert.deepEqual(bench.sets.map((x) => x.weight), [60, 80, 70], 'only the named set moved');
+  assert.equal(s.exercises.find((e) => e.exerciseId === 'lateral-raise').sets[0].weight, 12, 'the other exercise is untouched');
+
+  await undoRecord(vault, prop.proposal.recordId);
+  s = (await loadSessions(vault, { limit: 1 }))[0];
+  bench = s.exercises.find((e) => e.exerciseId === 'bench-press');
+  assert.deepEqual(bench.sets.map((x) => x.weight), [60, 70, 70]);
+
+  // set numbers that do not exist, and exercises he has never logged, say so
+  await assert.rejects(() => runVerb(vault, 'q', { verb: 'workout.set', args: { exercise: 'bench press', set: '9', weight: 80 } }), /has 3 sets in that session, not 9/);
+  await assert.rejects(() => runVerb(vault, 'q', { verb: 'workout.set', args: { exercise: 'zercher squat', set: 'last', weight: 80 } }), /no logged session has an exercise called/);
+  await assert.rejects(() => runVerb(vault, 'q', { verb: 'workout.set', args: { exercise: 'bench press', set: 'last' } }), /say what to change it to/);
+});
+
+test('recipes: ingredients edited by voice, and the macros are never implied to have followed', async () => {
+  const { loadRecipes } = await import('../lib/recipes.js');
+  const before = (await loadRecipes(vault)).find((r) => r.name === 'Works Burger');
+  const wasLines = before.ingredients.map((i) => (i.qty ? `${i.qty} ${i.name}` : i.name));
+
+  const prop = await runVerb(vault, 'q', { verb: 'recipe.ingredient', args: { recipe: 'works burger', add: '30g cheddar' } });
+  assert.match(prop.proposal.title, /Works Burger: \+ 30g cheddar — macros still say/);
+  await approveRecord(vault, prop.proposal.recordId);
+
+  const after = (await loadRecipes(vault)).find((r) => r.id === before.id);
+  assert.equal(after.ingredients.length, before.ingredients.length + 1);
+  assert.ok(after.ingredients.some((i) => /cheddar/i.test(i.name)));
+  assert.deepEqual(after.macros, before.macros, 'the numbers do NOT move on their own');
+
+  await undoRecord(vault, prop.proposal.recordId);
+  const restored = (await loadRecipes(vault)).find((r) => r.id === before.id);
+  assert.deepEqual(restored.ingredients.map((i) => (i.qty ? `${i.qty} ${i.name}` : i.name)), wasLines);
+
+  await assert.rejects(() => runVerb(vault, 'q', { verb: 'recipe.ingredient', args: { recipe: 'works burger', remove: 'unicorn' } }), /has no ingredient like "unicorn"/);
+  await assert.rejects(() => runVerb(vault, 'q', { verb: 'recipe.ingredient', args: { recipe: 'works burger' } }), /say what to add or take out/);
+});
