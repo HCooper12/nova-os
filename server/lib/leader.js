@@ -181,6 +181,10 @@ async function scanSources(vaultPath) {
         kind: s.kind || 'source',
         provenance: s.provenance || null,
         concepts: (s.concepts || []).slice(0, 6),
+        // the page itself, and the verbatim transcript behind it — without
+        // these the shelf was a list of titles it could not open (7 Sep 2026)
+        id: s.id,
+        raw: s.raw || null,
       }));
   } catch {
     return []; // honest degradation: no shelf, no source lines
@@ -263,8 +267,9 @@ export async function buildLeaderDailyContext(vaultPath, state, now = new Date()
       + pickedResearch.map((r) => `- ${r.insight}${r.source ? ` [${r.source}]` : ''}`).join('\n'));
   }
   if (sources.length) {
-    parts.push('HIS LEADERSHIP SHELF (sources he has absorbed; use for grounding and attribution):\n'
-      + sources.slice(0, 12).map((s) => `- "${s.title}"${s.author ? ` (${s.author})` : ''}${s.provenance === 'researched' ? ' [researched]' : ''} — ${s.concepts.join(', ')}`).join('\n'));
+    parts.push('HIS LEADERSHIP SHELF (what he has deliberately put into his second brain — read the page, and its Raw/ transcript, when a claim in it bears on today\'s idea):\n'
+      + sources.slice(0, 12).map((s) => `- "${s.title}"${s.author ? ` (${s.author})` : ''}${s.provenance === 'researched' ? ' [researched]' : ''}${s.id ? ` · \`${s.id}.md\`` : ''}${s.raw ? ` · transcript \`${s.raw}.md\`` : ''}${s.concepts.length ? ` — concepts: ${s.concepts.join(', ')}` : ''}`).join('\n')
+      + '\nAttribute what you take from one ("the episode he saved argues…"). A source records what someone CLAIMED — weigh it against what you know, and say so when they disagree.');
   }
 
   // the last week of ideas — so today VARIES unless a repeat is deliberate
@@ -665,7 +670,9 @@ export async function buildLeaderChatContext(vaultPath, now = new Date()) {
   if (recent.length > 1) parts.push('THIS WEEK\'S IDEAS: ' + recent.map((d) => `${d.date} "${d.title}"`).join(' · '));
   const { concepts, sources } = await leaderCorpus(vaultPath);
   if (concepts.length) parts.push('HIS LEADERSHIP CONCEPTS (Read the page when depth is needed):\n' + concepts.slice(0, 20).map((c) => `- "${c.title}" (${c.path})`).join('\n'));
-  if (sources.length) parts.push('HIS SHELF: ' + sources.slice(0, 10).map((s) => `"${s.title}"${s.author ? ` (${s.author})` : ''}`).join(' · '));
+  // the chat gets paths too — a conversation is exactly where he asks what a
+  // source actually said, and a title alone cannot answer that
+  if (sources.length) parts.push('HIS SHELF (Read the page when he asks what one says; attribute, and weigh a claim against what you know):\n' + sources.slice(0, 10).map((s) => `- "${s.title}"${s.author ? ` (${s.author})` : ''}${s.id ? ` · \`${s.id}.md\`` : ''}${s.raw ? ` · transcript \`${s.raw}.md\`` : ''}`).join('\n'));
   if (state.research.length) parts.push('RESEARCH LIBRARY (newest):\n' + state.research.slice(-8).reverse().map((r) => `- ${r.insight} [${r.source}]`).join('\n'));
   return parts.join('\n\n');
 }

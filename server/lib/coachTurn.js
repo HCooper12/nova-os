@@ -141,6 +141,22 @@ export async function startCoachTurn(vaultPath, { question, sessionId = null, li
         }
       } catch { failures.push('nutrition'); }
       try {
+        // HIS FUEL SYSTEM, not just its aggregates (7 Sep 2026, his ask that
+        // the Coach be as expert on nutrition and Fuel as on training): the
+        // real rotation, what is ticked, what is cooked, and the 25 dishes he
+        // actually owns — so advice can name one instead of inventing food.
+        const { fuelContext } = await import('./fuelContext.js');
+        parts.push(await fuelContext(vaultPath));
+      } catch { failures.push('fuel system'); }
+      try {
+        // HIS SHELF — the podcasts and videos he uploaded on purpose, ranked
+        // against what he is asking about. The lens says how to weigh them;
+        // this says which exist and where to read them in full.
+        const { shelfContext } = await import('./sourceShelf.js');
+        const shelf = await shelfContext(vaultPath, { topics: `${question || ''} training nutrition recovery protein hypertrophy sleep`, limit: 5 });
+        if (shelf) parts.push(shelf);
+      } catch { failures.push('his shelf'); }
+      try {
         // fuel × training joins — the cross-reference agent's findings
         const { crossCheck, crossContext } = await import('./fuelCross.js');
         const xc = crossContext(await crossCheck(vaultPath));

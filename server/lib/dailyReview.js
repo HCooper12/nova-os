@@ -190,6 +190,11 @@ export async function buildReviewContext(vaultPath, now = new Date()) {
     return `WEEK AHEAD (${events.length} events over ${byDate.size} days; busiest ${busiest[0]} with ${busiest[1]}): ` +
       [...byDate.entries()].map(([d, n]) => `${d}:${n}`).join(' · ') + '.';
   });
+  // The spaced resurfacing below picks ONE source a day regardless of what
+  // the day held. This picks the ones that bear on what he actually did: a
+  // heavy session and a missed protein floor should reach the recovery and
+  // nutrition material he saved, not whatever is next in the rotation.
+  add('shelf', async () => (await import('./sourceShelf.js')).shelfContext(vaultPath, { topics: 'training recovery protein sleep nutrition leadership', limit: 4 }));
   add('library', async () => {
     // Resurfacing — the library only compounds if its ideas come back.
     // This used to pick the first and last items by list position, which

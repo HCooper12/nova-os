@@ -88,6 +88,8 @@ export async function buildDebriefContext(vaultPath, now = new Date(), { weekSta
   const add = (label, fn) => sections.push({ label, load: fn });
   // the org block — standing rules, the fleet, and what his other agents are
   // asking of him. Inherited, not hand-wired.
+  // what he read and watched this week is part of what the week WAS
+  add('his shelf', async () => (await import('./sourceShelf.js')).shelfContext(vaultPath, { topics: 'training recovery nutrition protein sleep leadership', limit: 4 }));
   add('org', async () => (await import('./orgContext.js')).orgContext(vaultPath, 'weekly-debrief'));
   add('advice', async () => {
     // the Coach's recommendations this week and their fates — the debrief

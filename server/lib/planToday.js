@@ -85,6 +85,9 @@ export async function buildPlanContext(vaultPath, now = new Date()) {
   const add = (label, load) => sections.push({ label, load });
 
   add('profile', () => profileContext(vaultPath));
+  // what he has been putting into his own head belongs in the day's plan —
+  // a protocol he saved on Sunday is a candidate for Monday
+  add('his shelf', async () => (await import('./sourceShelf.js')).shelfContext(vaultPath, { topics: 'training recovery nutrition focus leadership', limit: 3 }));
   add('standing', async () => (await import('./standing.js')).standingContext(vaultPath));
   add('learning', async () => (await import('./learning.js')).preferencesContext(vaultPath)); // what he tends to do (twin: the review's)
   add('morning', async () => `TODAY'S PICTURE (computed now):\n${(await composeDispatch(vaultPath, 'morning', now)).text}`);

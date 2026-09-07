@@ -514,6 +514,9 @@ export function workoutsRouter(vaultPath) {
         { label: 'injuries', load: async () => (await import('../lib/injuryLog.js')).injuriesContext(vaultPath) },
         // a deload week or a block phase changes what a good session is
         { label: 'training block', load: async () => (await import('../lib/trainingBlocks.js')).blockContext(vaultPath) },
+        // his shelf: a technique cue from a video he saved is exactly what a
+        // session designed on the spot should be able to reach for
+        { label: 'his shelf', load: async () => (await import('../lib/sourceShelf.js')).shelfContext(vaultPath, { topics: 'training technique programming recovery', limit: 3 }) },
       ]);
 
       res.json({ jobId: startQuickSession(vaultPath, { minutes, note, context }) });

@@ -132,6 +132,10 @@ export async function buildAskContext(vaultPath, sessionId, { fast = false } = {
     { label: 'learned preferences', load: () => preferencesContext(vaultPath) },
     { label: 'standing rules', load: () => standingContext(vaultPath) },
     { label: 'skills', load: async () => (await import('./skills.js')).skillsContext(vaultPath) },
+    // his shelf, at the front door: "what did that Huberman episode say about
+    // sleep" must not need a special lane. Newest-first here rather than
+    // question-ranked, because this context is cached across questions.
+    { label: 'his shelf', load: async () => (await import('./sourceShelf.js')).shelfContext(vaultPath, { limit: 5 }) },
     { label: 'today (local)', load: todayLocalContext },
     {
       label: 'the brief',
