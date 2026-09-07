@@ -13,6 +13,57 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**7 SEP (evening) — THE FUEL OVERHAUL, SHIPPED AND PROVEN ON HIS VAULT.**
+His whole Fuel ask is built, live, and verified on the exact deployed bundle
+against his real rotation at 375×812 (vite preview + generated bootstrap,
+deleted after; the method in the block below):
+- **Rotation v2** (`lib/rotation.js` rewrite, v1 files migrate on read). A
+  slot holds OPTIONS; the one in FOCUS (★, the ‹ › pair and the dots) is
+  what today's plan counts (`totals`); EVERY option has its own tick
+  (`eaten`, counted in `consumedTotals`, one food-log entry per
+  slot+recipe). "4 snacks, tick 3" works. Setting a slot the old way now
+  ADDS an option and focuses it — what he ate is never un-eaten by changing
+  the plan (rotation.test.js asserts this). Extra meals: `+ ADD A MEAL`
+  on the strip (custom slots `extra-N`, rename/remove); the old
+  `+ 4TH MEAL` button is retired.
+- **The fridge** (`lib/portions.js`, vault file
+  `Wiki/Health/Meal Prep Portions.md`). Ticking a meal eaten takes one
+  portion off; un-ticking gives it back; zero paints the rotation card red
+  with OUT. On the recipe itself: IN THE FRIDGE row (−1 / ＋ Cooked more /
+  Set / Stop counting). Voice: `meal.cooked` ("I cooked 8 portions of
+  burrito bowl", "made 4 works burgers") and `meal.portions` ("3 works
+  burgers left", "works burger portions to 3" — the "to N" form REQUIRES
+  the word portions, or "set eggs to 12" stops being a shopping edit; the
+  test caught exactly that). Both undo.
+- **Macros from the labels** (`lib/labelMacros.js`, `scanFood.js` mode
+  `label-per100`, routes `/api/recipes/label-macros`). In the recipe
+  editor under Macros: "Or work them out from the labels" → add label
+  photos, grams each, servings the recipe makes, "Work out the macros". The
+  model reads the per-100g column only; the server scales/sums/divides/
+  rounds and shows the breakdown; the result FILLS the four fields and Save
+  is still his press. Proven live with a rendered AU oats panel: 1590 kJ →
+  380 kcal/100 g, two parts, ÷4, 14 s.
+- **Verified live (7 Sep, real vault):** two snack options → tick the
+  second → "1/2 eaten", fridge 3→2, consumed kcal counted, the home fuel
+  line moved; un-tick → 3; dinner at zero → red OUT card and "out — cook
+  more" on the recipe. Everything restored afterwards (his rotation is as
+  it was; no portion counts exist yet — he has never counted a dish).
+- **One layout trap found:** nowrap option names bubble up as the flex
+  card's min-content and widened it to 407px at 375 — `minWidth: 0` on the
+  card (same family as the Coach-pane bug; memory updated).
+- 1122 tests green under TZ=UTC. verify-shipped carries four new markers.
+
+**STILL HIS:** cook something and say so ("I cooked 8 portions of …") — the
+fridge only starts counting on his word; the phone-in-hand gym check; a
+real browser commit; the Xcode shell; the "Simple Protein Shake" draft in
+his Inbox (approve or discard).
+
+**NOT BUILT (deliberately):** per-option variants in the UI (the server
+supports per-dish overrides via `recipeId` on /rotation/variant; the card
+still applies variants to the focused dish only); swiping between options
+(the strip scrolls on the same axis — the ‹ › pair and dots are the
+switch, see the comment in Recipes.jsx).
+
 **7 SEP (midday) — THE LIVE AUDIT, AND THE BUG IT FOUND.** He asked me to
 confirm the week's work live, not in demo. Method (repeatable, and the right
 one from now on): `npx vite preview --port 5173` serves the EXACT dist that
@@ -438,6 +489,16 @@ DO NOT:
 - Earlier DO NOTs (3 Sep) all still stand.
 
 ## SESSION LOG (append-only, newest first)
+
+### 7 September 2026 (evening) — the Fuel overhaul: options, ticks, the fridge, and macros from labels
+Rotation v2 (options per slot, focus vs eaten, custom meals), the fridge
+(portions.js + Meal Prep Portions.md, red OUT cards, IN THE FRIDGE row on
+the recipe, meal.cooked / meal.portions verbs), and the editor's label pass
+(labelMacros.js, scanFood label-per100 mode). All proven on his real vault
+at 375×812 on the shipped bundle and restored. Two tests rewritten for the
+v2 contract (★ in the body; setting a slot adds, never un-eats). Grammar
+collision caught by the suite: "set eggs to 12" must stay shopping.qty.
+Commits 8d294d5, 852fc4e.
 
 ### 6 September 2026 (late night) — phase 3, attachments, the glitch, the grant
 His four asks after phase 2: grant sessions real Shortcuts + the browser lane

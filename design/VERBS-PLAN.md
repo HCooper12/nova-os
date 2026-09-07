@@ -147,6 +147,19 @@ separator between weight and reps is required: "12" alone can never read as
 1×2. Every ticked set appears in the cockpit on Train as it is spoken. NOT
 verified on the gym floor — that is his standing phone-in-hand item.
 
+### Fuel by voice — the fridge (BUILT, 7 Sep)
+`meal.cooked` ("I cooked 8 portions of burrito bowl", "made 4 works
+burgers") adds to `Wiki/Health/Meal Prep Portions.md`; `meal.portions`
+("3 works burgers left", "works burger portions to 3") sets the count
+outright — an `any` candidate with fallthrough, and the "X to N" form
+REQUIRES the word *portions*: without it "set eggs to 12" was hijacked from
+`shopping.qty` (the verbs suite caught it). Ticking a rotation option eaten
+takes one portion off (rotation.js → portions.js), zero paints the card red,
+and both verbs undo through the receipt. The recipe editor's label pass
+(`labelMacros.js`) is NOT a verb — it fills fields he then saves; a spoken
+"fix the macros from these labels" would be a Phase 4 confirm verb over the
+same lib.
+
 ### Phase 4 — the ceiling movers
 Editing existing records by voice (recipe ingredients, food-log entries,
 workout history) — each is a `confirm` verb whose pending record shows the
