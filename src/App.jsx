@@ -289,6 +289,10 @@ const CACHED_LIVE_KEYS = [
 const INBOX_MODE_KEY = 'novaos.inboxMode';
 const INBOX_MODES = ['review-all', 'auto-high', 'auto-all'];
 
+// "…and play it in the browser" — the hand's final page opens for real when the run lands
+const OPEN_WHEN_DONE_RE = /\b(?:play|open|put|watch|read|show)\b[^.?!]{0,80}?\bin (?:the|a|your|nova'?s|its own) browser\b|\bfor real\b|\bso i can (?:watch|read|see|listen)\b|\bplaying in (?:a|the|your) browser\b|\bopen(?:ed)? (?:it |that )?(?:up )?properly\b/i;
+const INTAKE_LABEL = { sex: 'Sex', age: 'Age', heightCm: 'Height (cm)', weightKg: 'Weight (kg)', activity: 'Activity', goal: 'Goal', pace: 'Pace', eating: 'Eating style' };
+
 export default class App extends Component {
   constructor(props) {
     super(props);
@@ -403,6 +407,7 @@ export default class App extends Component {
     // can colour itself listening without lying (the old `micOn` is a
     // settings flag that defaults on — it said "listening" permanently).
     liveTextOpen: false, liveMicOpen: false, voiceScreenMic: false, voicePendingOffer: null,
+    intake: null, // THE INTAKE interview in progress: { facts, idx, questions, known }
     // set when a reply was composed but the device refused to play it —
     // silence must never also be invisible
     speechBlocked: null,
@@ -5346,6 +5351,10 @@ export default class App extends Component {
     if (!id) return;
     this.browseSeen = this.browseSeen || {};
     this.browseSeen[id] = this.browseSeen[id] || { shots: new Set(), steps: 0, done: false };
+    // "…and play it in the browser" / "open it up so I can watch it": the
+    // final page opens for real, in Nova's own browser, the moment the run lands
+    this.browseOpenWhenDone = this.browseOpenWhenDone || {};
+    if (OPEN_WHEN_DONE_RE.test(task)) this.browseOpenWhenDone[id] = true;
     this.setState({ browseLive: { id, task, caption: 'Opening the browser…', done: false } });
     this.pullBrowseLive(id);
     clearInterval(this.browsePoll); this.browsePoll = null;
@@ -5374,9 +5383,12 @@ export default class App extends Component {
         const stem = file.replace(/\.\w+$/, '');
         const idx = steps.findIndex((s) => s.kind === 'shot' && String(s.shot || '').replace(/\.\w+$/, '') === stem);
         const before = idx > 0 ? [...steps.slice(0, idx)].reverse().find((s) => s.kind === 'say' || s.kind === 'navigate') : null;
-        this.putCard({ kind: 'shot', label: 'BROWSER', src, caption: (before || said)?.text || caption, foot: (live.task || '').slice(0, 90) });
+        // the page this window shows — the last place the hand went before it
+        const nav = idx > 0 ? [...steps.slice(0, idx)].reverse().find((s) => s.kind === 'navigate' && s.url) : null;
+        const url = nav?.url || live.lastUrl || null;
+        this.putCard({ kind: 'shot', label: 'BROWSER', src, caption: (before || said)?.text || caption, foot: (live.task || '').slice(0, 90), url, onOpen: url ? (u) => this.openBrowserUrl(u) : null });
       }
-      this.setState({ browseLive: { id, task: live.task || '', caption, done: !!live.done, error: live.error || null } });
+      this.setState({ browseLive: { id, task: live.task || '', caption, done: !!live.done, error: live.error || null, lastUrl: live.lastUrl || null, stoppedBefore: live.stoppedBefore || null } });
       if (live.done && !seen.done) {
         seen.done = true;
         clearInterval(this.browsePoll); this.browsePoll = null;
@@ -5388,9 +5400,142 @@ export default class App extends Component {
         this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
         if (this.state.voiceSpeak) this.speakTtsSentence(line.slice(0, 400), () => {});
         this.refreshInbox?.();
+        // stopped in front of a button: his "yes" presses it from the glass
+        if (live.stoppedBefore && !live.error) this.setState({ voicePendingOffer: { kind: 'browse-press', recordId: id, title: live.stoppedBefore } });
+        // he asked for it opened: open the final page for real, now
+        else if (this.browseOpenWhenDone?.[id] && live.lastUrl && !live.error) { delete this.browseOpenWhenDone[id]; this.openBrowserUrl(live.lastUrl); }
       }
     }).catch((e) => { console.warn('browse live pull:', e?.message || e); }).finally(() => { this.browsePulling = false; });
   }
+  // ---------- open it for real / press it from the glass (8 Sep 2026) ----------
+  openBrowserUrl(url) {
+    const conn = getConnection();
+    if (!conn || !url) return;
+    api.browseOpen(conn, url).then((r) => {
+      const line = r?.said || 'Open in Nova\'s browser.';
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
+      if (this.state.voiceSpeak) this.speakTtsSentence(line, () => {});
+    }).catch((e) => {
+      const line = `I could not open it: ${e?.message || e}`;
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
+    });
+  }
+  pressFromGlass(recordId, title) {
+    const conn = getConnection();
+    if (!conn || !recordId) return;
+    api.inboxApprove(conn, recordId).then(() => {
+      const line = `Pressing "${title}".`;
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
+      if (this.state.voiceSpeak) this.speakTtsSentence(line, () => {});
+      // the outcome lands on the same record — keep watching it
+      this.watchBrowse(recordId, this.state.browseLive?.task || '');
+      this.refreshInbox?.();
+    }).catch((e) => {
+      const line = `The press did not go through: ${e?.message || e}`;
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
+    });
+  }
+  // "open it" / "play it" / "open that in the browser" after the hand has a page
+  tryBrowseVoice(q) {
+    const live = this.state.browseLive;
+    if (!live?.lastUrl) return false;
+    if (!/^\s*(?:open|play|show|put)\s+(?:it|that|this|the (?:video|page|it))(?:\s+(?:up|for real|properly|in (?:the|a|your|nova'?s) browser|so i can (?:watch|read|see) it))?[.!\s]*$/i.test(q)) return false;
+    this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q }], orbInput: '' }));
+    this.openBrowserUrl(live.lastUrl);
+    return true;
+  }
+
+  // ---------- THE INTAKE (design/ATHLETE-AI-PLAN.md #1; server/lib/intake.js) ----------
+  // One question at a time, in the chat, by voice or typing. Code parses each
+  // answer; code computes the plan; the plan lands as a pending card whose
+  // body is the arithmetic, and his yes writes the targets every reader uses.
+  tryIntakeVoice(q) {
+    if (!/\b(?:(?:set|redo|work out|calculate|figure out|do|update|recalculate|fix) my (?:numbers|calories|macros|targets|intake|calorie target)|start (?:the|my) intake|what should my calories be|how many calories should i (?:eat|be eating))\b/i.test(q)) return false;
+    this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q }], orbInput: '' }));
+    this.startIntake();
+    return true;
+  }
+  startIntake() {
+    const conn = getConnection();
+    if (!conn) { this.sayLine('I need the Mac to be reachable to work your numbers out — they live in your vault.'); return; }
+    api.intakePrefill(conn).then((pre) => {
+      const known = pre.known || {};
+      const cur = known.currentTargets;
+      const intro = cur
+        ? `Let's work your numbers out properly. Right now the collection says ${cur.targetKcal} kcal and a ${cur.proteinFloorG} g protein floor — typed once, never derived. Seven quick questions; say "stop" any time.`
+        : 'Let\'s work your numbers out properly. Seven quick questions; say "stop" any time.';
+      this.sayLine(intro);
+      // the interview owns the chat: a brief-close queue running alongside would
+      // fight it for his yes (seen live, 8 Sep) — its questions stay in the Inbox
+      this.setState({ intake: { facts: {}, idx: 0, questions: pre.questions || [], known }, voicePendingProposal: null, briefQueue: null, briefQueueIdx: 0, briefQueueRemaining: 0 }, () => this.askIntake(0));
+    }).catch((e) => this.sayLine(`I could not start the intake: ${e?.message || e}`));
+  }
+  askIntake(idx) {
+    const it = this.state.intake;
+    if (!it) return;
+    const q = it.questions[idx];
+    if (!q) return this.finishIntake();
+    if (q.key === 'pace' && it.facts.goal === 'maintain') { this.setState({ intake: { ...it, idx: idx + 1 } }, () => this.askIntake(idx + 1)); return; }
+    let ask = q.ask;
+    const k = it.known?.[q.key];
+    if (k?.value != null) ask = `${q.ask.replace(/ I have your last weigh-in if you want to use it\./, '')} I have ${k.value}${q.unit === 'cm' ? ' cm' : q.unit === 'kg' ? ' kg' : ''} from ${k.from} — say "use it" or give me the number.`;
+    this.setState({ intake: { ...it, idx } });
+    const done = Object.keys(it.facts).length;
+    this.putCard({ kind: 'list', label: 'THE INTAKE', tone: 'gold', items: [...Object.entries(it.facts).map(([kk, v]) => ({ name: `${INTAKE_LABEL[kk] || kk}: ${v === '' ? '—' : v}`, note: '✓' })), { name: `${idx + 1}. ${INTAKE_LABEL[q.key] || q.key}`, note: 'NOW', tone: 'gold' }], foot: `${done} of ${it.questions.length} answered` });
+    this.sayLine(ask);
+  }
+  answerIntake(q) {
+    const it = this.state.intake;
+    if (!it) return false;
+    const text = String(q || '').trim();
+    if (/^(stop|cancel|quit|leave it|not now|never mind|nevermind)[.!\s]*$/i.test(text)) {
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text }], orbInput: '', intake: null }));
+      this.sayLine('Stopped — nothing was written. Say "set my numbers" whenever you want to pick it up.');
+      return true;
+    }
+    const question = it.questions[it.idx];
+    if (!question) return false;
+    this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text }], orbInput: '' }));
+    const known = it.known?.[question.key];
+    const useKnown = known?.value != null && /^(use it|use that|yes|yep|yeah|that's right|thats right|correct|same|keep it)[.!\s]*$/i.test(text);
+    const settle = (value) => {
+      const facts = { ...it.facts, [question.key]: value };
+      this.setState({ intake: { ...it, facts, idx: it.idx + 1 } }, () => this.askIntake(it.idx + 1));
+    };
+    if (useKnown) { settle(known.value); return true; }
+    const conn = getConnection();
+    if (!conn) { this.sayLine('The Mac is unreachable — I cannot check that answer.'); return true; }
+    api.intakeAnswer(conn, question.key, text).then((r) => {
+      if (r?.error) { this.sayLine(`I need ${r.error}.`); return; }
+      settle(r.value);
+    }).catch((e) => this.sayLine(`I could not read that: ${e?.message || e}`));
+    return true;
+  }
+  finishIntake() {
+    const it = this.state.intake;
+    if (!it) return;
+    const conn = getConnection();
+    this.setState({ intake: null });
+    if (!conn) return;
+    api.intakePropose(conn, it.facts).then((r) => {
+      const p = r.plan;
+      this.putCard({ kind: 'metric', label: 'YOUR NUMBERS · A YES WRITES THEM', tone: 'gold', value: p.targetKcal, unit: 'kcal', sub: `${p.proteinG} g protein · ${p.fatG} g fat · ${p.carbsG} g carbs · TDEE ${p.tdee}`, foot: 'the arithmetic is in the Inbox card' });
+      const lines = (r.lines || []).map((l) => `• ${l}`).join('\n');
+      const line = `Here they are: ${p.targetKcal} kcal a day, a ${p.proteinG} gram protein floor, ${p.fatG} grams of fat, ${p.carbsG} of carbs. Every step is written out — say yes and I write them to the recipe collection and your profile, or no to leave everything as it is.`;
+      this.setState((s) => ({
+        voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: `${line}\n\n${lines}` }],
+        voicePendingProposal: { recordId: r.record.id, title: r.title },
+      }));
+      if (this.state.voiceSpeak) this.speakTtsSentence(line, () => {});
+      this.refreshInbox?.();
+    }).catch((e) => this.sayLine(`I could not compute the plan: ${e?.message || e}`));
+  }
+  // one line from Nova into the chat, spoken if he has voice on
+  sayLine(line) {
+    this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
+    if (this.state.voiceSpeak) this.speakTtsSentence(line, () => {});
+  }
+
   // ---------- long-press / right-click context menus (spec #13) ----------
   openContextMenu(spec) {
     const items = (spec.items || []).filter(Boolean);
@@ -5648,6 +5793,8 @@ export default class App extends Component {
   // frictionless or the whole ritual becomes something to dread.
   startBriefQueue(decisions, remaining = 0) {
     if (!decisions?.length) return;
+    // never interrupt the Intake mid-interview — the questions stay in the Inbox
+    if (this.state.intake) return;
     // Ask from the setState CALLBACK, and hand the list down explicitly.
     // Reading this.state.briefQueue straight after setState finds the OLD
     // value (React has not committed yet), so the first question silently
@@ -5850,6 +5997,8 @@ export default class App extends Component {
     // an offer Nova just made ("shall I have the Watcher digest it?") takes
     // the yes first — it is the most recent thing said, so it is what "yes"
     // means. Anything else moves the conversation on and the offer lapses.
+    // mid-Intake, his words are answers — the interview owns them until it ends
+    if (this.state.intake && this.answerIntake(q)) return;
     const offer = this.state.voicePendingOffer;
     if (offer && getConnection() && this.state.connectionStatus !== 'offline') {
       const yes = /^(yes|yep|yeah|sure|ok|okay|do it|go ahead|please do|go on|yes please)[.!\s]*$/i.test(q);
@@ -5857,6 +6006,8 @@ export default class App extends Component {
       if (yes || no) {
         this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q }], orbInput: '', voicePendingOffer: null }));
         if (yes && offer.kind === 'gym-finish') this.finishWorkoutSession();
+        else if (yes && offer.kind === 'browse-press') this.pressFromGlass(offer.recordId, offer.title);
+        else if (yes && offer.kind === 'browse-open') this.openBrowserUrl(offer.url);
         else if (yes && offer.kind === 'briefing-resume') { this.navigate('briefing'); this.playBriefing(offer.from || 0); }
         else if (yes) this.acceptWatchOffer(offer);
         else {
@@ -5869,6 +6020,8 @@ export default class App extends Component {
       this.setState({ voicePendingOffer: null });
     }
     if (this.tryBriefingVoice(q)) return;
+    if (this.tryBrowseVoice(q)) return;
+    if (this.tryIntakeVoice(q)) return;
     if (this.tryGymVoice(q)) return;
     if (this.trySettingsVoice(q)) return;
     const pending = this.state.voicePendingProposal;

@@ -55,9 +55,22 @@ export function intentRouter(vaultPath) {
       const path = await import('node:path');
       const dir = shotDirFor(record.id);
       const shots = (await readdir(dir).catch(() => [])).filter((f) => /^(shot|press)-\d+\.(png|jpe?g|webp)$/i.test(f)).sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]));
-      res.json({ id: record.id, status: record.status, task: record.task || record.text, steps: feed?.steps || [], shots, done: record.status !== 'classifying', summary: record.decision?.payload?.body || null, stoppedBefore: record.stoppedBefore || null, error: record.error || null });
+      const { lastUrlOf } = await import('../lib/browse.js');
+      res.json({ id: record.id, status: record.status, task: record.task || record.text, steps: feed?.steps || [], shots, lastUrl: record.finalUrl || lastUrlOf(feed), done: record.status !== 'classifying', summary: record.decision?.payload?.body || null, stoppedBefore: record.stoppedBefore || null, error: record.error || null });
     } catch (e) {
       res.status(500).json({ error: e.message });
+    }
+  });
+
+  // OPEN IT FOR REAL — in Nova's own visible browser on the Mac. Queued if a
+  // headless run holds the profile; fires the moment it lands.
+  router.post('/browse/open', async (req, res) => {
+    try {
+      const { openInNovaBrowser } = await import('../lib/browse.js');
+      const out = await openInNovaBrowser(req.body?.url);
+      res.json({ ...out, said: out.queued ? 'As soon as the hand is finished, it opens in Nova\'s browser.' : 'Open in Nova\'s browser.' });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
     }
   });
 

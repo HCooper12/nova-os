@@ -22,6 +22,7 @@ export async function getProfile(vaultPath) {
       priorities: Array.isArray(data.priorities) ? data.priorities.map((p) => String(p).trim()).filter(Boolean) : [],
       bestSelf: String(data.bestSelf || '').trim(),
       notes: content.replace(/^#[^\n]*\n?/, '').trim(),
+      intake: data.intake && typeof data.intake === 'object' ? data.intake : null,
       updated: data.updated || null,
     };
   } catch {
@@ -44,8 +45,32 @@ export async function setProfile(vaultPath, input) {
   if (existsSync(full)) await backupFile(full);
   const frontmatter = { type: 'profile', focus, bestSelf, updated: new Date().toISOString().slice(0, 10) };
   if (priorities.length) frontmatter.priorities = priorities;
+  // the Intake's numbers live on this page too — never dropped by a prose edit
+  const prior = await getProfile(vaultPath);
+  if (prior?.intake) frontmatter.intake = prior.intake;
   await writeFile(full, matter.stringify(`# Profile\n\n${notes}\n`, frontmatter), 'utf8');
   return getProfile(vaultPath);
+}
+
+// THE INTAKE's facts and derived numbers (lib/intake.js), kept beside his
+// words on the same page. Everything else on the page is preserved; the
+// prior block comes back so the inbox can undo the write.
+export async function setIntake(vaultPath, intake) {
+  const full = path.join(vaultPath, PROFILE_REL);
+  const prior = await getProfile(vaultPath);
+  await mkdir(path.dirname(full), { recursive: true });
+  if (existsSync(full)) await backupFile(full);
+  const frontmatter = { type: 'profile', focus: prior?.focus || '', bestSelf: prior?.bestSelf || '', updated: new Date().toISOString().slice(0, 10) };
+  if (prior?.priorities?.length) frontmatter.priorities = prior.priorities;
+  if (intake) frontmatter.intake = intake;
+  await writeFile(full, matter.stringify(`# Profile\n\n${prior?.notes || ''}\n`, frontmatter), 'utf8');
+  return { prior: prior?.intake || null, profile: await getProfile(vaultPath) };
+}
+
+export function intakeLine(intake) {
+  if (!intake?.plan) return null;
+  const p = intake.plan, f = intake.facts || {};
+  return `- His numbers (Intake, ${intake.on || 'undated'}, code-computed from ${f.weightKg} kg / ${f.heightCm} cm / ${f.age}y, ${f.activity}, goal ${f.goal}): ${p.targetKcal} kcal, ${p.proteinG} g protein floor, ${p.fatG} g fat, ${p.carbsG} g carbs, TDEE ${p.tdee}. Treat these as HIS targets, not a suggestion.`;
 }
 
 // Compact block for the top of agent prompts. When empty, it tells the agent
@@ -53,7 +78,7 @@ export async function setProfile(vaultPath, input) {
 // gap the lens should surface, not paper over.
 export async function profileContext(vaultPath) {
   const p = await getProfile(vaultPath);
-  if (!p || (!p.focus && !p.priorities.length && !p.bestSelf && !p.notes)) {
+  if (!p || (!p.focus && !p.priorities.length && !p.bestSelf && !p.notes && !p.intake)) {
     return 'ABOUT HAYDEN: no profile set yet. Reason from his data as usual, and if knowing his broader goals or priorities would let you answer better, say so and point him to "About You" in Settings.';
   }
   return [
@@ -62,5 +87,6 @@ export async function profileContext(vaultPath) {
     p.priorities.length ? `- Priorities right now: ${p.priorities.join('; ')}` : null,
     p.bestSelf ? `- What performing at his best means to him: ${p.bestSelf}` : null,
     p.notes ? `- Context & constraints: ${p.notes}` : null,
+    intakeLine(p.intake),
   ].filter(Boolean).join('\n');
 }

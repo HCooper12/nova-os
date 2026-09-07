@@ -77,7 +77,17 @@ export function Settings({ v }) {
             {!v.profile.editing && (
               <Chip tone="gold" onClick={v.profile.startEdit}>{v.profile.set ? 'Edit' : 'Set up'}</Chip>
             )}
+            {!v.profile.editing && (
+              <Chip tone="blue" onClick={v.profile.setNumbers}>{v.profile.numbers ? 'Redo my numbers' : 'Set my numbers'}</Chip>
+            )}
           </div>
+          {!v.profile.editing && (
+            <Meta tone="faint" style={{ display: 'block', marginTop: '8px' }}>
+              {v.profile.numbers
+                ? `Your numbers (Intake, ${v.profile.numbers.on}): ${v.profile.numbers.plan?.targetKcal} kcal · ${v.profile.numbers.plan?.proteinG} g protein floor · TDEE ${v.profile.numbers.plan?.tdee} — from ${v.profile.numbers.facts?.weightKg} kg, ${v.profile.numbers.facts?.activity}, goal ${v.profile.numbers.facts?.goal}`
+                : 'No intake yet — every calorie target in Fuel rests on numbers typed once. Seven questions, by voice or typing, and code computes the rest.'}
+            </Meta>
+          )}
 
           {v.profile.editing ? (
             <div className="nv-pane" style={{ marginTop: '12px', padding: '18px 20px', maxWidth: '620px', display: 'flex', flexDirection: 'column', gap: '12px' }}>

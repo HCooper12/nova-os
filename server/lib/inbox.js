@@ -550,6 +550,25 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  if (route === 'intake') {
+    // THE INTAKE's yes (lib/intake.js): code recomputes the plan from the
+    // facts he answered — never trusting a number that rode in the payload —
+    // then writes the targets every reader already uses, and the facts to
+    // his profile page. Both priors ride the undo.
+    const { compute } = await import('./intake.js');
+    const { setTargets } = await import('./recipes.js');
+    const { setIntake } = await import('./profile.js');
+    const facts = payload.facts || {};
+    const plan = compute(facts);
+    const on = new Date().toISOString().slice(0, 10);
+    const t = await setTargets(vaultPath, { proteinFloorG: plan.proteinG, targetKcal: plan.targetKcal, weightKg: facts.weightKg, heightCm: facts.heightCm });
+    const p = await setIntake(vaultPath, { on, facts, plan: { bmr: plan.bmr, tdee: plan.tdee, targetKcal: plan.targetKcal, proteinG: plan.proteinG, fatG: plan.fatG, carbsG: plan.carbsG, waterL: plan.waterL } });
+    return {
+      destination: `Your numbers — ${plan.targetKcal} kcal, ${plan.proteinG} g protein (the recipe collection and your profile page)`,
+      undo: { route, priorTargets: t.prior, priorIntake: p.prior },
+    };
+  }
+
   if (route === 'act') {
     // A verb from the registry (lib/verbs.js) that needed his yes — the
     // shopping-list clear, and anything the model marks confirm-first.
@@ -964,6 +983,13 @@ export async function undoFiling(vaultPath, undo) {
       : `cleared the today-variant — ${undo.slot} is ${undo.recipeName} as written again`;
   }
 
+  if (undo.route === 'intake') {
+    const { restoreTargets } = await import('./recipes.js');
+    const { setIntake } = await import('./profile.js');
+    await restoreTargets(vaultPath, undo.priorTargets);
+    await setIntake(vaultPath, undo.priorIntake || null);
+    return 'restored the previous targets and profile numbers';
+  }
   if (undo.route === 'act') {
     const { undoVerb } = await import('./verbs.js');
     return undoVerb(vaultPath, undo);

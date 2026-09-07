@@ -47,6 +47,21 @@ does **not** have is the half that makes the numbers mean something.
 ## The queue, in order
 
 ### 1. THE INTAKE — an interview that ends in numbers he approved
+
+**BUILT — 8 Sep 2026.** `server/lib/intake.js` (questions, `parseAnswer`,
+`compute` = Mifflin-St Jeor × activity ± pace, protein 2.0/1.8 g/kg, fat
+0.8 g/kg, carbs the remainder, every line printed), `routes/intake.js`
+(prefill from the last weigh-in + the collection's height, answer parse,
+propose → pending record kind `intake`), inbox route `intake` (approve
+recomputes from the facts, writes `setTargets` — frontmatter keys AND the
+`**Profile:**` prose line in the recipe collection — and `setIntake` on
+`Wiki/Profile.md`; undo restores both files). The interview runs in the
+Voice chat ("set my numbers", or Settings → About you → Set my numbers):
+one question at a time, known answers offered as confirmations, the plan
+as a gold metric card with the arithmetic in the chat, his yes files it.
+Verified live 8 Sep: 188 cm and 84.9 kg (7 Sep weigh-in) offered, plan
+card 2767 kcal / 170 g for the test answers, record discarded unwritten.
+`profileContext` now carries "His numbers (Intake, date…)" to every agent.
 The sweep on 7 Sep confirmed `GET /api/profile` → `null` and no
 `Wiki/Profile.md`: every calorie target Nova shows rests on figures he never
 set. Fix it the way the reel does, but on Nova's rails.

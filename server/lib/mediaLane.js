@@ -106,6 +106,8 @@ export async function openInBrowser(url, { opener = run } = {}) {
   if (!/^https:\/\/(www\.)?youtube\.com\/watch\?v=[\w-]{6,}$/.test(String(url || ''))) {
     throw new Error('refusing to open anything but a resolved YouTube watch URL');
   }
+  // his ask (8 Sep): Nova's OWN browser, visibly — never his day-to-day one
+  if (opener === run) { const { openInNovaBrowser } = await import('./browse.js'); await openInNovaBrowser(url); return true; }
   await opener('/usr/bin/open', [url], { timeoutMs: 8000 });
   return true;
 }

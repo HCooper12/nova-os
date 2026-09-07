@@ -13,56 +13,66 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**8 SEP (small hours) — THE BROWSER HAND IS LIVE ON THE GLASS.** His vision:
-"open the Diary of a CEO channel" and WATCH it happen. Built in cdf0845 +
-the follow-up; verified on the shipped bundle at 375×812.
+**8 SEP (morning) — OPEN IT FOR REAL, AND THE INTAKE.** Two builds, both
+verified live on the rebuilt bundle against his real server.
 
-**What it is.** The browse lane runs the CLI with streamed output; every
-tool call becomes a step as it happens (`stepFromEvent` in browse.js — a
-navigation is "Opening youtube.com/@TheDiaryOfACEO/videos", a screenshot is
-a window, the model's own narration is the caption; it is told it is being
-watched and to screenshot after every navigation). Each step is one SSE
-nudge (`browseLive {id}`); the app pulls `/api/browse/:id/live`, fetches
-each new window from `/api/browse/:id/shot/<file>` as a blob, and
-`putCard({kind:'shot'})` — so the stage's history rail IS the Jarvis side
-rail. A final nudge fires when the record lands, and the pull arms its own
-2.5 s poll while a run is going. The router (server `BROWSE_MEDIA_RE` and
-its mirror in the client's `routeIntentLocal`) sends "open the X channel /
-show me the latest video / find the most popular video with A and B /
-open up youtube and…" to the hand, BEFORE play, so "play"/"put on" still
-opens the Mac's browser directly.
+**Open it for real.** When he wants a thing the hand found OPENED to watch
+or read — "…and play the latest video in the browser", "open it for real",
+"so I can read it" (`OPEN_WHEN_DONE_RE` in App.jsx), or the OPEN IT FOR
+REAL → chip on any window card, or "open it / play it" after a run
+(`tryBrowseVoice`) — Nova opens the page in ITS OWN visible Chrome on the
+Mac (`openInNovaBrowser` in browse.js; `POST /api/browse/open`). "play …"
+(mediaLane) now opens there too, never the system browser. The page a run
+finished on rides the hand's final `BROWSE {…url}` block (`record.finalUrl`;
+`lastUrl` on the live feed prefers it) because a CLICK changes the page
+without a navigate step — seen live: the card offered the channel, not the
+video. Verified: the sentence above → windows on the glass → run landed →
+Nova's browser opened `watch?v=AcK_zgJjnoo` at 60 s, "Open in Nova's
+browser." spoken. A run that stops in front of a control now arms a
+`browse-press` offer — his "yes" in the chat presses it (approve of the
+record). NOT yet exercised live: a real stopped-before-a-button run.
 
-**Verified live, from the composer:** "find me the most popular video that
-has both Chris Williamson and Alex Hormozi in it" → the YouTube search on
-the glass at 35 s, the sorted results, then the video page — "Be Ruthless
-About the Life You Want", 4.4M views — with the rest blurred back and "1
-running" in the header; the summary explained why two higher-viewed Hormozi
-interviews did not count (Bartlett, not Williamson). "show me the latest
-Diary of a CEO video" → first window at 18 s, two windows, and the finish
-spoken into the chat at 30 s ("…uploaded 6 hours ago with 491k views").
+**THE VISIBLE WINDOW HAS ITS OWN PROFILE (`~/.nova-browser-view`).** The
+first live run failed honestly: a visible window on the hand's profile
+holds Chrome's lock and the next headless run could not start ("profile is
+already running/locked"). Sign-ins do NOT carry between the two profiles
+— he signs into the view profile once. Opens asked for mid-run are queued
+until the run lands (`runsInFlight` in browse.js).
 
-**Four things the runs caught, all fixed:** the model names screenshots
-.png and headless Chrome saves .jpeg (matched by stem); the new routes
-resolved the data dir from `process.cwd()` (pathDiscipline refused it —
-use `shotDirFor`); the shot handler never imported `shotDirFor` (a
-ReferenceError swallowed as a 404); and the chat's browse dispatch is a
-DIFFERENT call site from the one hooked first, so `watchBrowse` never ran
-and the finish line was never seen — now hooked, self-arming, and the
-final nudge covers an SSE-only client.
+**The Intake (ATHLETE-AI-PLAN #1) is built** — see that file's status
+block. Server: `lib/intake.js`, `routes/intake.js`, inbox route `intake`
+(approve writes `setTargets` in recipes.js + `setIntake` in profile.js;
+undo restores both), `profileContext` carries his numbers to every agent.
+Client: `startIntake/askIntake/answerIntake/finishIntake` + `tryIntakeVoice`
+("set my numbers"…); Settings → About you → Set my numbers. The interview
+gate sits BEFORE the offer/proposal gates in doOrb and clears a brief-close
+queue — seen live: the morning brief's queue started mid-interview and
+fought for his yes. HE HAS NOT RUN IT FOR REAL YET: the collection still
+says 2200 kcal / 150 g typed once. Ask him to say "set my numbers".
 
-**Earlier the same night:** the Briefing built, run and proven (see the log
-below and `design/BRIEFING-PLAN.md`).
+**Verification traps this session:** the preview's service worker served
+the OLD bundle through a plain `reload` — unregister the SW + clear caches
++ `reload ignoreCache` before trusting `document.scripts[0].src`. Pretty-
+printed inbox JSON has spaces after colons — regexes on it must allow
+`\s*`. `pgrep -f` matches your own shell's command line — `grep -v zsh`.
 
-**NEXT in this line:** the same live stage for the plain `browse` lane's
-"stopped in front of a button" moment — show the button in the window and
-let his "yes" press it from the glass; the "open it for real" tap on the
-final window (the URL rides the navigate step already); and THE INTAKE
-from `design/ATHLETE-AI-PLAN.md` (About You is still empty).
+**NEXT in this line:** a real stopped-before-a-button run to exercise the
+`browse-press` yes; WRAP THE DAY, ITEMISED PLATE, FORM CHECK, STUDY LANE
+from ATHLETE-AI-PLAN.md in order; the rail shows one THE INTAKE card per
+question (history, but noisy) — update in place if it bothers him.
 
-**STILL HIS:** the stale ingest weave 9e994aae; cook something and tell
-Nova; the phone-in-hand gym check; a real browser commit; Xcode.
+**STILL HIS:** say "set my numbers" (7 questions, then yes); the stale
+ingest weave 9e994aae; cook something and tell Nova; the phone-in-hand gym
+check; a real browser commit; Xcode.
 
 ## SESSION LOG (append-only, newest first)
+
+### 8 September 2026 (morning) — open it for real, and the Intake
+Nova's own visible browser (own profile after the lock collision), the
+hand's final URL, yes-presses-it offer; the Intake end to end (server
+compute/write/undo, chat interview, Settings door). Three live browse runs
+(~$1.5), one intake interview, all test records discarded unwritten. 1184
+tests green under TZ=UTC.
 
 ### 8 September 2026 (small hours) — the browser hand, live on the glass
 Streamed browse runs → steps → SSE nudges → windows on the stage via the

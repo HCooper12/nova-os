@@ -34,6 +34,7 @@ import { moneyRouter } from './routes/money.js';
 import { subscribe } from './lib/events.js';
 import { studioRouter } from './routes/studio.js';
 import { profileRouter } from './routes/profile.js';
+import { intakeRouter } from './routes/intake.js';
 import { startMoneyImportScheduler } from './lib/moneyImport.js';
 import { startCfoScheduler } from './lib/cfoReport.js';
 import { startMealPrepScheduler } from './lib/mealPrep.js';
@@ -236,6 +237,7 @@ async function main() {
   });
   app.use('/api', studioRouter(process.env.VAULT_PATH));
   app.use('/api', profileRouter(process.env.VAULT_PATH));
+  app.use('/api', intakeRouter(process.env.VAULT_PATH)); // THE INTAKE — his numbers, computed by code, approved by him
 
   // Reap orphans BEFORE the schedulers tick: a record stuck in 'classifying'
   // from before the restart can never resolve and would block today's loops.

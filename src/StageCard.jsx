@@ -48,6 +48,12 @@ export function StageCard({ card, size = 'full' }) {
           <img src={card.src} alt={card.caption || 'the browser window'} style={{ display: 'block', width: '100%', maxHeight: mini ? '84px' : '52vh', objectFit: 'cover', objectPosition: 'top' }} />
         </div>
       )}
+      {card.kind === 'shot' && card.url && card.onOpen && !mini && (
+        <button type="button" onClick={() => card.onOpen(card.url)}
+          style={{ marginTop: '10px', font: `600 9px ${M}`, letterSpacing: '.18em', color: accent, background: 'transparent', border: `1px solid color-mix(in srgb, ${accent} 45%, transparent)`, borderRadius: '999px', padding: '6px 12px', cursor: 'pointer' }}>
+          OPEN IT FOR REAL →
+        </button>
+      )}
       {card.kind === 'shot' && card.caption && (
         <div style={{ marginTop: mini ? '5px' : '10px', font: `${mini ? 400 : 500} ${mini ? 10.5 : 13}px/1.45 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 84%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: mini ? 'nowrap' : 'normal' }}>{card.caption}</div>
       )}

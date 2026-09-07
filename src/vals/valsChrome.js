@@ -466,6 +466,9 @@ export function valsChrome(app, ctx) {
       cancelEdit: () => app.setState({ profileEditing: false }),
       setField: (field) => (e) => app.setProfileField(field, e.target.value),
       save: () => app.saveProfile(),
+      // THE INTAKE — the numbers under every calorie target, derived by code from his answers
+      numbers: st.liveProfile?.intake || null,
+      setNumbers: () => { if (isOffline) { app.toastMsg('Offline — reconnect to work out your numbers'); return; } app.navigate('voice'); app.startIntake(); },
     } : null,
     learning: !demoMode ? {
       noticed: st.liveLearning?.noticed || [],

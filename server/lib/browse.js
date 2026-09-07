@@ -35,7 +35,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRecord, updateRecord } from './inboxStore.js';
-import { PROFILE_DIR, browserAvailable, profileExists } from './browserResearch.js';
+import { PROFILE_DIR, browserAvailable, profileExists, CHROME } from './browserResearch.js';
 import { modelFor } from './modelPrefs.js';
 import { laneEnabled, laneOffError } from './modelPrefs.js';
 import { parseModelJson } from './jsonSalvage.js';
@@ -112,7 +112,7 @@ BE ECONOMICAL: a handful of steps, not a tour. If the task turns out to be
 impossible or the site refuses you, say so early rather than trying ten ways.
 
 Finish your reply with ONE line of JSON and nothing after it:
-BROWSE {"done": true|false, "summary": "<2-4 sentences, plain, what you found or did>", "steps": ["<each page or action, one short line>"], "stoppedBefore": "<the exact control you stopped in front of, or null>", "cannot": "<what you could not do and why, or null>"}`;
+BROWSE {"done": true|false, "url": "<the exact address of the page you finished on — the video, not the channel>", "summary": "<2-4 sentences, plain, what you found or did>", "steps": ["<each page or action, one short line>"], "stoppedBefore": "<the exact control you stopped in front of, or null>", "cannot": "<what you could not do and why, or null>"}`;
 }
 
 export function parseBrowseResult(text) {
@@ -126,6 +126,10 @@ export function parseBrowseResult(text) {
       steps: Array.isArray(o.steps) ? o.steps.map((s) => String(s).slice(0, 160)).slice(0, 20) : [],
       stoppedBefore: o.stoppedBefore ? String(o.stoppedBefore).slice(0, 200) : null,
       cannot: o.cannot ? String(o.cannot).slice(0, 300) : null,
+      // the page it finished on — a click changes the page without a
+      // navigate step (seen live: the card offered the channel, not the
+      // video it had clicked into), so the hand states it; only http(s) counts
+      url: OPEN_URL.test(String(o.url || '').trim()) ? String(o.url).trim() : null,
     };
   } catch { return null; }
 }
@@ -169,6 +173,7 @@ export async function startBrowse(vaultPath, task) {
 }
 
 async function run(recordId, task, server) {
+  noteRunStarted();
   const shotDir = path.join(dataRoot(), 'browse', recordId);
   await mkdir(shotDir, { recursive: true });
   const cfgPath = path.join(shotDir, 'mcp.json');
@@ -240,6 +245,7 @@ async function run(recordId, task, server) {
         await updateRecord(recordId, {
           status: 'pending',
           shots: shots.length,
+          finalUrl: result?.url || null,
           stoppedBefore: stopped,
           sessionId,
           // A run that stopped in front of a control is not a note to file —
@@ -266,9 +272,51 @@ async function run(recordId, task, server) {
       // the last nudge: the record has landed (pending or error) — the open app
       // pulls once more and shows the finish, without ever having to poll
       import('./events.js').then(({ broadcast }) => broadcast('browseLive', { id: recordId, done: true, slices: [] })).catch(() => {});
+      noteRunEnded();
       resolve();
     });
   });
+}
+
+/* ------------------------- open it, for real ------------------------- */
+
+// His ask, 8 Sep 2026: when he wants a thing the hand found OPENED — to watch
+// or read it himself — Nova opens it in ITS OWN browser, visibly, as a
+// separate window on the Mac; never his day-to-day Chrome. Only http(s).
+//
+// It gets its OWN profile (`~/.nova-browser-view`), not the hand's. Seen live
+// the first night: a visible window on the hand's profile holds Chrome's
+// profile lock, and the next headless run could not start at all ("profile
+// is already running/locked"). The price is that the hand's sign-ins do not
+// carry into the visible window — he signs in there once and it sticks.
+// An open asked for mid-run is still queued until the run lands, so the
+// window never lands on top of the glass while he is watching the hand work.
+const OPEN_URL = /^https?:\/\/[^\s"'<>]{4,2000}$/i;
+export const VIEW_PROFILE_DIR = `${PROFILE_DIR}-view`;
+let runsInFlight = 0;
+const pendingOpens = [];
+
+export function noteRunStarted() { runsInFlight++; }
+export function noteRunEnded() {
+  runsInFlight = Math.max(0, runsInFlight - 1);
+  if (!runsInFlight) { const q = pendingOpens.splice(0); for (const u of q) openInNovaBrowser(u).catch(() => {}); }
+}
+
+export async function openInNovaBrowser(url) {
+  const u = String(url || '').trim();
+  if (!OPEN_URL.test(u)) throw new Error('that is not a web address Nova will open');
+  if (!browserAvailable()) throw new Error('Chrome is not installed where Nova expects it');
+  if (runsInFlight) { pendingOpens.push(u); return { queued: true, url: u }; }
+  const { spawn } = await import('node:child_process');
+  const child = spawn(CHROME, [`--user-data-dir=${VIEW_PROFILE_DIR}`, '--new-window', '--no-first-run', '--no-default-browser-check', u], { detached: true, stdio: 'ignore' });
+  child.unref();
+  return { queued: false, url: u };
+}
+
+// the page the hand is on right now — the last place it navigated
+export function lastUrlOf(feed) {
+  const nav = [...(feed?.steps || [])].reverse().find((s) => s.kind === 'navigate' && s.url);
+  return nav ? nav.url : null;
 }
 
 /* ------------------------------ the live feed ------------------------------ */

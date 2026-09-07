@@ -218,6 +218,53 @@ export async function loadRecipeData(vaultPath) {
   return { recipes: parseRecipeCollection(raw), profile: parseProfile(raw) };
 }
 
+// THE TARGET WRITER — the Intake's yes lands here (lib/intake.js). Frontmatter
+// is what parseProfile reads first, so the keys go there (a block is added
+// if the file has none); the hand-written **Profile:** line is rewritten too
+// so what he reads in Obsidian and what Nova computes from are the same
+// numbers. Returns the prior state so the inbox can undo it exactly.
+const PROFILE_KEYS = ['proteinFloorG', 'targetKcal', 'weightKg', 'heightCm'];
+const PROSE_RE = /\*\*Profile:\*\*\s*[\d.]+kg,\s*[\d.]+cm([^|\n]*)\|\s*([^~\d\n]*?)~?[\d,.]+\s*kcal\/day([^|\n]*)\|\s*Protein floor\s*[\d.]+g\+?\/day/;
+export async function setTargets(vaultPath, values) {
+  const full = path.join(vaultPath, RECIPES_REL_PATH);
+  const raw = await readFile(full, 'utf8');
+  const prior = { profile: parseProfile(raw), hadFrontmatter: /^---\r?\n/.test(raw), prose: (raw.match(PROSE_RE) || [null])[0] };
+  const { backupFile } = await import('./backup.js');
+  await backupFile(full);
+  await writeFile(full, applyTargets(raw, values), 'utf8');
+  return { prior, profile: parseProfile(await readFile(full, 'utf8')) };
+}
+export function applyTargets(raw, values, { stripFrontmatter = false } = {}) {
+  const v = {};
+  for (const k of PROFILE_KEYS) if (values && values[k] != null && Number.isFinite(Number(values[k]))) v[k] = Number(values[k]);
+  let out = raw;
+  const fm = out.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+  if (stripFrontmatter && fm) out = out.slice(fm[0].length);
+  else if (fm) {
+    let body = fm[1];
+    for (const [k, n] of Object.entries(v)) {
+      body = new RegExp(`^${k}\\s*:.*$`, 'm').test(body) ? body.replace(new RegExp(`^${k}\\s*:.*$`, 'm'), `${k}: ${n}`) : `${body}\n${k}: ${n}`;
+    }
+    out = `---\n${body}\n---\n` + out.slice(fm[0].length);
+  } else if (Object.keys(v).length) {
+    out = `---\n${Object.entries(v).map(([k, n]) => `${k}: ${n}`).join('\n')}\n---\n` + out;
+  }
+  if (v.weightKg != null && v.heightCm != null && v.targetKcal != null && v.proteinFloorG != null) {
+    out = out.replace(PROSE_RE, (m, a, lead, b) => `**Profile:** ${v.weightKg}kg, ${v.heightCm}cm${a}| ${lead}~${v.targetKcal.toLocaleString('en-AU')} kcal/day${b}| Protein floor ${v.proteinFloorG}g+/day`);
+  }
+  return out;
+}
+export async function restoreTargets(vaultPath, prior) {
+  const full = path.join(vaultPath, RECIPES_REL_PATH);
+  const raw = await readFile(full, 'utf8');
+  const { backupFile } = await import('./backup.js');
+  await backupFile(full);
+  let out = applyTargets(raw, prior?.profile || {}, { stripFrontmatter: !prior?.hadFrontmatter });
+  if (prior?.prose) out = out.replace(PROSE_RE, () => prior.prose);
+  await writeFile(full, out, 'utf8');
+  return parseProfile(out);
+}
+
 function escapeRe(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

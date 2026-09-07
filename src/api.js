@@ -289,6 +289,12 @@ export const api = {
   briefing: (conn, id) => call(conn, `/api/briefing/${encodeURIComponent(id)}`),
   // the browser hand, live: its steps and the windows it has opened
   browseLive: (conn, id) => call(conn, `/api/browse/${encodeURIComponent(id)}/live`),
+  // open a page FOR REAL — in Nova's own visible browser on the Mac
+  browseOpen: (conn, url) => post(conn, '/api/browse/open', { url }),
+  // THE INTAKE — the interview runs on the glass; the server knows, parses, proposes
+  intakePrefill: (conn) => call(conn, '/api/intake/prefill'),
+  intakeAnswer: (conn, key, text) => post(conn, '/api/intake/answer', { key, text }),
+  intakePropose: (conn, facts) => post(conn, '/api/intake/propose', { facts }),
   browseShotBlobUrl: async (conn, id, file) => {
     const res = await fetch(baseOf(conn) + `/api/browse/${encodeURIComponent(id)}/shot/${encodeURIComponent(file)}`, { headers: { Authorization: `Bearer ${conn.token}` } });
     if (!res.ok) return null;

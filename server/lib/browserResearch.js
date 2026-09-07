@@ -30,7 +30,7 @@ import { mkdir } from 'node:fs/promises';
 // click, post, follow, or fill anything. The profile is his real session,
 // so the discipline has to live in the code rather than in good intentions.
 
-const CHROME = process.env.NOVA_CHROME_BIN
+export const CHROME = process.env.NOVA_CHROME_BIN
   || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 // His own Chrome profile is deliberately NOT used: Chrome refuses a second
 // process on a live profile, and copying it would clone his cookies into a
