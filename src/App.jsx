@@ -21,6 +21,7 @@ import { valsNotes } from './vals/valsNotes.js';
 import { valsLibrary } from './vals/valsLibrary.js';
 import { valsLeader } from './vals/valsLeader.js';
 import { valsBriefing } from './vals/valsBriefing.js';
+import { parseBriefingVoice, explainQuestion } from './briefingVoice.js';
 import { scaleMacros, portionName, validPortion } from './portion.js';
 import { valsMisc } from './vals/valsMisc.js';
 import { valsInbox } from './vals/valsInbox.js';
@@ -3447,6 +3448,58 @@ export default class App extends Component {
       window.history.replaceState(null, '', clean || '#/inbox');
     }
   }
+  // THE BRIEFING BY VOICE (src/briefingVoice.js). Only while a briefing is
+  // open — the transport words run here, instantly; "explain that again"
+  // pauses, hands the sentence he just heard to Nova as a grounded question,
+  // and the answer lands in the conversation. Anything else falls through.
+  tryBriefingVoice(q) {
+    const doc = this.state.briefing;
+    const play = this.state.briefingPlay;
+    const open = this.state.screen === 'briefing' || (play?.playing && play?.id === doc?.id);
+    if (!doc?.beats?.length || !open) return false;
+    const cmd = parseBriefingVoice(q);
+    if (!cmd) return false;
+    const cur = play?.id === doc.id ? (play.current ?? -1) : -1;
+    const beats = doc.beats;
+    const say = (line) => {
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q }, { at: Date.now() + 1, who: 'nova', text: line }], orbInput: '' }));
+    };
+    const sectionStart = (i) => { const sec = beats[Math.max(0, i)]?.section; return beats.findIndex((b) => b.section === sec); };
+    if (cmd.kind === 'pause') { this.pauseBriefing(); say('Paused.'); }
+    else if (cmd.kind === 'resume') { this.playBriefing(Math.max(0, cur)); say('Carrying on.'); }
+    else if (cmd.kind === 'restart') { this.playBriefing(0); say('From the top.'); }
+    else if (cmd.kind === 'again') { this.playBriefing(Math.max(0, cur)); say('Again.'); }
+    else if (cmd.kind === 'next') {
+      const sec = beats[Math.max(0, cur)]?.section ?? -1;
+      const next = beats.findIndex((b) => b.section > sec);
+      if (next < 0) { this.pauseBriefing(); say("That was the last part."); }
+      else { this.playBriefing(next); say(`Skipping to ${doc.briefing.sections[beats[next].section]?.heading || 'the next part'}.`); }
+    } else if (cmd.kind === 'back') {
+      const start = sectionStart(cur);
+      // "back" from the middle of a part goes to its start; from its start, to the previous part
+      const target = cur > start ? start : sectionStart(Math.max(0, start - 1));
+      this.playBriefing(Math.max(0, target));
+      say('Going back.');
+    } else if (cmd.kind === 'close') { this.closeBriefing(); say('Closed.'); }
+    else if (cmd.kind === 'explain') {
+      this.pauseBriefing();
+      const b = beats[Math.max(0, cur)];
+      const heading = b?.kind === 'summary' ? 'the summary' : (doc.briefing.sections[b?.section]?.heading || '');
+      this.setState({ orbInput: '' });
+      this.navigate('voice');
+      this.askNova(explainQuestion({ say: b?.say || '', heading, title: doc.briefing.title, ask: cmd.ask }));
+      // when the answer has been spoken, the briefing offers to carry on
+      this.queueTtsFinalize(() => {
+        if (this.state.briefing?.id !== doc.id) return;
+        this.setState({ voicePendingOffer: { kind: 'briefing-resume', id: doc.id, from: Math.max(0, cur) } });
+        const line = 'Shall I carry on with the briefing?';
+        this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
+        if (this.state.voiceSpeak) this.speakTtsSentence(line, () => {});
+      });
+    }
+    haptic('commit');
+    return true;
+  }
   // ---------- THE BRIEFING READER ----------
   // Playback rides the SAME queue as every other spoken thing: one mp3 per
   // beat, strict FIFO, and the beat's visual lands at the instant its audio
@@ -3461,7 +3514,17 @@ export default class App extends Component {
     if (!silent) this.setState({ screen: 'briefing', briefingLoading: true, briefingError: null, briefing: this.state.briefing?.id === id ? this.state.briefing : null });
     api.briefing(conn, id)
       .then((doc) => {
-        this.setState({ briefing: doc, briefingLoading: false });
+        // a briefing he left half-way opens with RESUME at that beat, not
+        // Play-from-the-top — the same courtesy a podcast app extends
+        let restored = null;
+        try {
+          const at = Number(localStorage.getItem(`novaos.briefing.${doc.id}`));
+          if (Number.isInteger(at) && at > 0 && doc.beats && at < doc.beats.length - 1) restored = at;
+        } catch { /* fine */ }
+        this.setState((s) => ({
+          briefing: doc, briefingLoading: false,
+          briefingPlay: s.briefingPlay?.id === doc.id ? s.briefingPlay : (restored != null ? { id: doc.id, playing: false, current: restored, gen: null } : s.briefingPlay),
+        }));
         this.prefetchBriefingMedia(doc);
       })
       .catch((e) => this.setState({ briefingLoading: false, briefingError: e.message }));
@@ -3505,6 +3568,7 @@ export default class App extends Component {
         // flushed by something else (a barge-in): do not fight it, just stop
         if ((this.ttsGen || 0) !== gen) return;
         this.setState({ briefingPlay: { id: doc.id, playing: true, current: i, gen } });
+        try { localStorage.setItem(`novaos.briefing.${doc.id}`, String(i)); } catch { /* best-effort */ }
         // keep the window full
         while (queued < Math.min(beats.length, i + 1 + WINDOW)) enqueue(queued++);
         if (i === beats.length - 1) {
@@ -5701,6 +5765,7 @@ export default class App extends Component {
       if (yes || no) {
         this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q }], orbInput: '', voicePendingOffer: null }));
         if (yes && offer.kind === 'gym-finish') this.finishWorkoutSession();
+        else if (yes && offer.kind === 'briefing-resume') { this.navigate('briefing'); this.playBriefing(offer.from || 0); }
         else if (yes) this.acceptWatchOffer(offer);
         else {
           const line = 'As you wish, sir.';
@@ -5711,6 +5776,7 @@ export default class App extends Component {
       }
       this.setState({ voicePendingOffer: null });
     }
+    if (this.tryBriefingVoice(q)) return;
     if (this.tryGymVoice(q)) return;
     if (this.trySettingsVoice(q)) return;
     const pending = this.state.voicePendingProposal;
