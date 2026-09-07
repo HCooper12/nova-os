@@ -53,7 +53,8 @@ export async function todayLocalContext() {
     // Without it, "what's my weight?" hedged ("I'd need you to check the
     // actual number") while the figure sat one field away — observed live.
     const withWeight = [...days].reverse().find((x) => x.weightKg != null);
-    if (withWeight) bits.push(`weight ${withWeight.weightKg}kg (${withWeight.date})`);
+    // dated by the weigh-in, never by the push that repeated it
+  if (withWeight) bits.push(`weight ${withWeight.weightKg}kg (last weighed ${withWeight.weightMeasuredOn || withWeight.date})`);
   } catch { /* optional */ }
   try {
     const { getToday } = await import('./foodLog.js');

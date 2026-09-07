@@ -234,36 +234,115 @@ export async function saveDay(date, metrics, { manual = false } = {}) {
     merged.stepsAt = new Date().toISOString();
     merged.stepsComplete = stepsCaptureIsComplete(date, merged.stepsAt);
   }
+
+  // WHEN HE ACTUALLY STOOD ON THE SCALE (7 Sep 2026, his report).
+  //
+  // The Shortcut asks Health for the most recent Body Mass sample, and Health
+  // answers with the last one he took — whether that was this morning or ten
+  // days ago. So Nova was writing 82.0 into 28 Aug, 1, 3, 5 and 6 Sep as if he
+  // had weighed himself on each of them, then read his first real weigh-in
+  // since as "+2.9 kg in a day". Every one of those middle numbers was fiction
+  // and the alarming one was an artefact.
+  //
+  // The fix costs him nothing. A weight identical to the last stored reading
+  // is treated as that SAME weigh-in carried forward: it keeps its original
+  // measurement date and is marked `weightCarried`. A weight that differs is a
+  // new weigh-in, dated today. If the Shortcut is ever taught to send the
+  // sample's own date as `weightDate`, that is exact and wins outright.
+  if (cleaned.weightKg != null && cleaned.weightKg !== 0) {
+    const given = typeof metrics?.weightDate === 'string' && isValidDate(metrics.weightDate) ? metrics.weightDate : null;
+    if (given) {
+      merged.weightMeasuredOn = given;
+      merged.weightCarried = given !== date;
+    } else {
+      const prior = await lastWeightBefore(date);
+      const same = prior && Math.abs(prior.weightKg - cleaned.weightKg) < 0.001;
+      merged.weightMeasuredOn = same ? prior.measuredOn : date;
+      merged.weightCarried = !!same;
+    }
+  }
   await writeFile(full, JSON.stringify(merged, null, 2), 'utf8');
   // an old month's page regenerates on the mirror's next tick
   import('./healthMirror.js').then(({ noteHealthWrite }) => noteHealthWrite(date)).catch(() => {});
   return merged;
 }
 
+// The most recent stored weight before `date`, with the day it was actually
+// measured on. Reads backwards a bounded number of days: a gap longer than
+// this means the last reading is too old to call the same weigh-in anyway.
+const CARRY_LOOKBACK_DAYS = 45;
+async function lastWeightBefore(date) {
+  const start = new Date(`${date}T12:00:00`);
+  for (let i = 1; i <= CARRY_LOOKBACK_DAYS; i++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() - i);
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const full = path.join(HEALTH_DIR, `${iso}.json`);
+    if (!existsSync(full)) continue;
+    try {
+      const day = JSON.parse(await readFile(full, 'utf8'));
+      if (day.weightKg == null || day.weightKg === 0) continue;
+      return { weightKg: day.weightKg, measuredOn: day.weightMeasuredOn || day.date };
+    } catch { /* a corrupt day is not a weigh-in */ }
+  }
+  return null;
+}
+
 // Bodyweight trend from dated day files — the nutrition loop-closer ("intake
 // vs goal vs the scale"). Pure and honest: null when no weight has ever
 // arrived; delta only when two points exist. days must be oldest-first (the
 // loadRecentDays shape).
-export function computeWeightTrend(days) {
+export function computeWeightTrend(days, today = null) {
   const withW = (days || []).filter((d) => d.weightKg != null && d.weightKg !== 0 && d.date);
   if (!withW.length) return null;
-  const latest = withW[withW.length - 1];
-  const out = { latestKg: Math.round(latest.weightKg * 10) / 10, latestDate: latest.date, deltaKg: null, spanDays: null };
-  if (withW.length >= 2) {
-    const first = withW[0];
-    out.deltaKg = Math.round((latest.weightKg - first.weightKg) * 10) / 10;
-    out.spanDays = Math.round((new Date(`${latest.date}T12:00:00`) - new Date(`${first.date}T12:00:00`)) / 86400000);
+  // one entry per WEIGH-IN. A carried-forward reading is the same event as the
+  // one before it, so counting both would invent a data point he never made —
+  // and, worse, make a real 10-day change look like a one-day spike.
+  const weighIns = [];
+  for (const d of withW) {
+    const on = d.weightMeasuredOn || d.date;
+    const last = weighIns[weighIns.length - 1];
+    if (last && last.on === on) { last.kg = d.weightKg; continue; }
+    weighIns.push({ on, kg: d.weightKg });
+  }
+  const latest = weighIns[weighIns.length - 1];
+  const ref = today || (withW[withW.length - 1].date);
+  const staleDays = Math.round((new Date(`${ref}T12:00:00`) - new Date(`${latest.on}T12:00:00`)) / 86400000);
+  const out = {
+    latestKg: Math.round(latest.kg * 10) / 10,
+    // the day he stood on the scale, not the day a push repeated the number
+    latestDate: latest.on,
+    // how long ago that was — so a surface can say "last weighed 6 days ago"
+    staleDays: Number.isFinite(staleDays) && staleDays > 0 ? staleDays : 0,
+    weighIns: weighIns.length,
+    deltaKg: null, spanDays: null,
+  };
+  if (weighIns.length >= 2) {
+    const first = weighIns[0];
+    out.deltaKg = Math.round((latest.kg - first.kg) * 10) / 10;
+    out.spanDays = Math.round((new Date(`${latest.on}T12:00:00`) - new Date(`${first.on}T12:00:00`)) / 86400000);
+    // the change since the PREVIOUS weigh-in, over its real interval — the
+    // number that was being misreported as a one-day jump
+    const prev = weighIns[weighIns.length - 2];
+    out.lastChangeKg = Math.round((latest.kg - prev.kg) * 10) / 10;
+    out.lastChangeDays = Math.round((new Date(`${latest.on}T12:00:00`) - new Date(`${prev.on}T12:00:00`)) / 86400000);
   }
   return out;
 }
 
 // One context line for agent prompts; honest about the missing-data case.
-export function weightTrendLine(days) {
-  const t = computeWeightTrend(days);
+export function weightTrendLine(days, today = null) {
+  const t = computeWeightTrend(days, today);
   if (!t) return 'Bodyweight: no data yet (Body Mass not in the health push).';
-  if (t.deltaKg == null) return `Bodyweight: ${t.latestKg} kg (${t.latestDate}; single reading, no trend yet).`;
-  const dir = t.deltaKg > 0 ? '+' : '';
-  return `Bodyweight: ${t.latestKg} kg (${t.latestDate}), ${dir}${t.deltaKg} kg over ${t.spanDays} days.`;
+  // He weighs himself when he weighs himself — every line says WHEN, so no
+  // agent can ever again read a gap between weigh-ins as an overnight change
+  const age = t.staleDays > 1 ? ` — last weighed ${t.staleDays} days ago` : t.staleDays === 1 ? ' — weighed yesterday' : ' — weighed today';
+  if (t.deltaKg == null) return `Bodyweight: ${t.latestKg} kg (${t.latestDate})${age}; one weigh-in only, no trend yet.`;
+  const dir = (n) => (n > 0 ? '+' : '');
+  const since = t.lastChangeDays > 0
+    ? ` Since the previous weigh-in ${t.lastChangeDays} day${t.lastChangeDays === 1 ? '' : 's'} earlier: ${dir(t.lastChangeKg)}${t.lastChangeKg} kg.`
+    : '';
+  return `Bodyweight: ${t.latestKg} kg (${t.latestDate})${age}, ${dir(t.deltaKg)}${t.deltaKg} kg across ${t.weighIns} weigh-ins over ${t.spanDays} days.${since} He does NOT weigh daily — never read the gap between two weigh-ins as a single day's change.`;
 }
 
 // SLEEP EFFICIENCY — the number that explains a bad night.

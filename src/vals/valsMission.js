@@ -310,13 +310,28 @@ export function valsMission(app, ctx) {
   // reading vs the first one in the 14-day window) so Nova's agents and the
   // home screen never tell two different stories from the same days.
   const dayLabel = (iso) => dtf('en-GB', { day: '2-digit', month: 'short' }).format(new Date(`${iso}T12:00:00`)).toUpperCase();
-  const weightDays = usingLiveHealthData ? st.liveHealthDays.filter((d) => d.date && hasMetric(d, 'weightKg')) : [];
+  // HE DOES NOT WEIGH DAILY, and Health answers the push with his LAST
+  // reading whichever day that was — so the same 82.0 landed in five day
+  // files and his first real weigh-in since read as a one-day +2.9 (7 Sep
+  // 2026, his report). Collapse to one point per weigh-in, dated by
+  // `weightMeasuredOn`, so the tile's delta spans real intervals.
+  const weightRaw = usingLiveHealthData ? st.liveHealthDays.filter((d) => d.date && hasMetric(d, 'weightKg')) : [];
+  const weightDays = weightRaw.reduce((acc, d) => {
+    const on = d.weightMeasuredOn || d.date;
+    if (acc.length && acc[acc.length - 1].date === on) { acc[acc.length - 1].weightKg = d.weightKg; return acc; }
+    acc.push({ date: on, weightKg: d.weightKg });
+    return acc;
+  }, []);
   const weightLatest = weightDays.length ? weightDays[weightDays.length - 1] : null;
   const weightDelta = weightDays.length >= 2 ? Math.round((weightLatest.weightKg - weightDays[0].weightKg) * 10) / 10 : null;
   const weightSpan = weightDays.length >= 2 ? Math.round((new Date(`${weightLatest.date}T12:00:00`) - new Date(`${weightDays[0].date}T12:00:00`)) / 86400000) : null;
   // weigh-ins are naturally sparse — an older reading gets a quiet date, not
-  // the steps-style "PUSH NOT RUNNING" alarm
-  const weightDated = weightLatest && weightLatest.date !== todayKey ? dayLabel(weightLatest.date) : null;
+  // the steps-style "PUSH NOT RUNNING" alarm. Past a week it says how long,
+  // because "27 AUG" reads as data and "11 DAYS AGO" reads as a nudge.
+  const weightAgeDays = weightLatest ? Math.round((new Date(`${todayKey}T12:00:00`) - new Date(`${weightLatest.date}T12:00:00`)) / 86400000) : null;
+  const weightDated = weightLatest && weightLatest.date !== todayKey
+    ? (weightAgeDays >= 7 ? `${weightAgeDays} DAYS AGO` : dayLabel(weightLatest.date))
+    : null;
   const bodyMetrics = demoMode
     ? [
         { key: 'weight', label: 'WEIGHT', value: '78.2', small: 'KG', hint: '−0.4 KG / 14D', color: '--nv-gold' },

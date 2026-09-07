@@ -214,9 +214,12 @@ export async function tryReflex(question, deps = defaultDeps) {
     const days = await deps.recentDays().catch(() => []);
     const d = [...days].reverse().find((x) => x.weightKg != null);
     if (!d) return null;
-    const dated = d.date === today ? '' : ` (logged ${d.date === yesterday ? 'yesterday' : d.date})`;
+    // the day he STOOD ON THE SCALE — a push repeating last week's number is
+    // not a weigh-in, and saying "logged today" about one would be a lie
+    const on = d.weightMeasuredOn || d.date;
+    const dated = on === today ? '' : ` (last weighed ${on === yesterday ? 'yesterday' : on})`;
     return { matched: 'weight', text: `${d.weightKg} kilograms${dated}.`,
-      card: await card({ label: 'Weight', value: d.weightKg, unit: 'kg', caption: d.date === today ? 'TODAY' : `LOGGED ${d.date === yesterday ? 'YESTERDAY' : d.date}`, tone: 'gold' }) };
+      card: await card({ label: 'Weight', value: d.weightKg, unit: 'kg', caption: on === today ? 'WEIGHED TODAY' : `LAST WEIGHED ${on === yesterday ? 'YESTERDAY' : on}`, tone: 'gold' }) };
   }
 
   // ---- fuel today: protein / calories ----
