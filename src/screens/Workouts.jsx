@@ -437,7 +437,9 @@ function RoutineDetailView({ v }) {
                 <div style={css("display:flex;align-items:center;gap:8px;flex-wrap:wrap")}>
                   <span style={css("font-size:14.5px;font-weight:500")}>{e.name}</span>
                   {e.onOpen && <Chip tone="violet" onClick={e.onOpen} title="See the lift — the 3D figure, the muscles it trains, cues and your history">◉ 3D</Chip>}
-                  {e.coachLabel && <Tag tone="cyan" title={e.coachEvidence || ''}>{e.coachLabel}</Tag>}
+                  {e.coachLabel && (e.coachOpen
+                    ? <Chip tone="cyan" onClick={(ev) => e.coachOpen({ x: ev.clientX, y: ev.clientY })} title="Why the Coach set this">{e.coachLabel}</Chip>
+                    : <Tag tone="cyan" title={e.coachEvidence || ''}>{e.coachLabel}</Tag>)}
                   {e.coachAdded && <Tag tone="gold" title={e.coachAdded.why || ''}>◆ Coach{e.coachAdded.startWeightKg ? ` · start ~${e.coachAdded.startWeightKg}kg` : ''}</Tag>}
                 </div>
                 <Meta as="div" tone="faint" style={{ marginTop: '2px' }}>{e.muscleGroup} · last: {e.lastLabel}</Meta>
@@ -518,11 +520,20 @@ function SessionView({ v }) {
                     title={e.formCurated ? 'Curated form clip for this lift — Coach-approved' : 'Technique videos for this lift (no curated pick yet — hold the exercise name to have Coach curate one)'}>▶ Form</Chip>
                 )}
                 {e.skipped && <Tag tone="warn">Skipped today</Tag>}
-                {!e.skipped && e.coachLabel && (e.coachAsk ? (
-                  <Chip tone="gold" onClick={e.coachAsk} title={e.coachEvidence || ''}>{e.coachLabel}</Chip>
+                {/* THE COACH CHIP IS A DOOR (7 Sep 2026). It used to carry its
+                    reasoning in a `title` tooltip, which a phone has no way
+                    to show — so the moment he tapped Start, the why behind
+                    every prescription vanished. Tapping it now opens the same
+                    sheet the overview opens: what the Coach decided, the
+                    evidence, and a way to argue with it. */}
+                {!e.skipped && e.coachLabel && (e.coachOpen ? (
+                  <Chip tone={e.coachAsk ? 'gold' : 'cyan'} onClick={(ev) => e.coachOpen({ x: ev.clientX, y: ev.clientY })} title="Why the Coach set this">{e.coachLabel}</Chip>
                 ) : (
                   <Tag tone="cyan" title={e.coachEvidence || ''}>{e.coachLabel}</Tag>
                 ))}
+                {!e.skipped && e.coachAdded && (
+                  <Chip tone="gold" onClick={(ev) => e.coachOpen?.({ x: ev.clientX, y: ev.clientY })} title={e.coachAdded.why || ''}>◆ Coach{e.coachAdded.startWeightKg ? ` · start ~${e.coachAdded.startWeightKg}kg` : ''}</Chip>
+                )}
                 {!e.skipped && e.focusNote && <Tag tone="gold">Focus: {e.focusNote}</Tag>}
               </Interactive>
               <span style={css("display:flex;align-items:center;gap:10px")}>

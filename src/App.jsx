@@ -5132,8 +5132,8 @@ export default class App extends Component {
   // ---------- long-press / right-click context menus (spec #13) ----------
   openContextMenu(spec) {
     const items = (spec.items || []).filter(Boolean);
-    if (!items.length) return;
-    this.setState({ ctxMenu: { x: spec.x ?? 0, y: spec.y ?? 0, title: spec.title || null, items } });
+    if (!items.length && !spec.note) return;
+    this.setState({ ctxMenu: { x: spec.x ?? 0, y: spec.y ?? 0, title: spec.title || null, note: spec.note || null, items } });
   }
   closeContextMenu() {
     this.setState({ ctxMenu: null });

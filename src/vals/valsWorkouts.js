@@ -234,6 +234,44 @@ export function valsWorkouts(app, ctx) {
     ? () => { app.setState({ trainTab: 'coach' }); app.doCoach(`My ${name} has outgrown its rep target (${c.evidence}) — propose the concrete change: weighted, a harder variation from my library, or new targets. Make the case.`); }
     : null;
 
+  // THE COACH'S REASONING, MID-SESSION (7 Sep 2026). His report: the note is
+  // readable on the routine overview and gone the instant he taps Start —
+  // the cockpit had the chip and put the reasoning in a `title` tooltip,
+  // which does not exist on a phone. This builds the sheet: what the Coach
+  // decided, why, what the evidence was, and what it means for the next
+  // session — plus a way to argue with it, because a prescription he cannot
+  // question is one he will silently ignore.
+  const coachSheet = (name, coach, added, extra = []) => {
+    if (!coach && !added) return null;
+    const lines = [];
+    if (coach) {
+      const what = coach.kind === 'outgrown' ? 'You have outgrown this rep target.'
+        : coach.kind === 'quality' ? 'Hold this weight and clean the reps up.'
+        : coach.kind === 'weight' ? `Step up ${coach.delta}kg.`
+        : coach.kind === 'reps' ? `Add ${coach.delta} rep${coach.delta === 1 ? '' : 's'} at this weight.` : 'A change is proposed.';
+      lines.push(what);
+      // the quality prescription IS the focus line — the most useful sentence
+      if (coach.focus) lines.push(coach.focus);
+      if (coach.evidence) lines.push(`Evidence: ${coach.evidence}`);
+      lines.push(coach.kind === 'quality'
+        ? 'Nothing prefills a jump until the reps are clean — the step is yours to take.'
+        : 'Next session prefills the step up.');
+    }
+    if (added) {
+      lines.push(`Coach put this lift in your routine${added.startWeightKg ? ` and suggests starting ~${added.startWeightKg}kg` : ''}.`);
+      if (added.why) lines.push(added.why);
+    }
+    return ({ x, y }) => app.openContextMenu({
+      x, y,
+      title: `COACH · ${name.toUpperCase()}`,
+      note: lines.join('\n\n'),
+      items: [
+        ...extra,
+        { label: 'Ask Coach about this', hint: 'opens the conversation', onSelect: () => { app.setState({ trainTab: 'coach' }); app.doCoach(`Mid-session on ${name}: ${coach?.evidence || added?.why || 'talk me through the prescription'} — why this, and what should I actually do with the next set?`); } },
+      ],
+    });
+  };
+
   const routineDetailExercises = openRoutine ? openRoutine.exercises.map((e, i, arr) => ({
     exerciseId: e.exerciseId,
     name: e.name,
@@ -245,6 +283,7 @@ export function valsWorkouts(app, ctx) {
     coachAdded: e.coachAdded ? { why: e.coachAdded.why, startWeightKg: e.coachAdded.startWeightKg } : null,
     coachLabel: coachChipLabel(progressions[`${openRoutine.id}:${e.exerciseId}`]),
     coachEvidence: progressions[`${openRoutine.id}:${e.exerciseId}`]?.evidence || null,
+    coachOpen: coachSheet(e.name, progressions[`${openRoutine.id}:${e.exerciseId}`], e.coachAdded),
     lastLabel: setsLabel(e.trackingType, e.lastSets),
     canMoveUp: i > 0, canMoveDown: i < arr.length - 1,
     onMoveUp: () => app.moveExerciseInRoutine(e.exerciseId, -1),
@@ -323,6 +362,12 @@ export function valsWorkouts(app, ctx) {
     }),
     coachLabel: coachChipLabel(e.coach), coachEvidence: e.coach?.evidence || null,
     coachAsk: coachChipAsk(e.coach, e.name),
+    // tapping the chip mid-session opens the full reasoning, not a tooltip
+    coachOpen: coachSheet(e.name, e.coach, e.coachAdded, e.coach?.kind === 'outgrown'
+      ? [{ label: 'Propose the change', hint: 'Coach rewrites the target', onSelect: () => { app.setState({ trainTab: 'coach' }); app.doCoach(`My ${e.name} has outgrown its rep target (${e.coach.evidence}) — propose the concrete change: weighted, a harder variation, or a new rep range.`); } }]
+      : []),
+    // Coach-added lifts were visible on the overview and invisible here
+    coachAdded: e.coachAdded ? { why: e.coachAdded.why, startWeightKg: e.coachAdded.startWeightKg } : null,
     weightHint: e.weightHint || null,
     // last session, verbatim — so a coach-raised prefill is a visible choice,
     // not a silent replacement of what he actually lifted
