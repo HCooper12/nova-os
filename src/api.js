@@ -287,6 +287,13 @@ export const api = {
   leader: (conn) => call(conn, '/api/leader'),
   // the briefing, ready to read or play (or its progress while agents run)
   briefing: (conn, id) => call(conn, `/api/briefing/${encodeURIComponent(id)}`),
+  // the browser hand, live: its steps and the windows it has opened
+  browseLive: (conn, id) => call(conn, `/api/browse/${encodeURIComponent(id)}/live`),
+  browseShotBlobUrl: async (conn, id, file) => {
+    const res = await fetch(baseOf(conn) + `/api/browse/${encodeURIComponent(id)}/shot/${encodeURIComponent(file)}`, { headers: { Authorization: `Bearer ${conn.token}` } });
+    if (!res.ok) return null;
+    return URL.createObjectURL(await res.blob());
+  },
   briefingMediaBlobUrl: async (conn, key) => {
     const res = await fetch(baseOf(conn) + `/api/briefing/media/${encodeURIComponent(key)}`, { headers: { Authorization: `Bearer ${conn.token}` } });
     if (!res.ok) return null;

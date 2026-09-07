@@ -42,6 +42,41 @@ export function intentRouter(vaultPath) {
     }
   });
 
+  // THE BROWSER HAND, LIVE: what it is doing right now, and the windows it
+  // has opened — polled by the glass while a browse record is in flight.
+  router.get('/browse/:id/live', async (req, res) => {
+    try {
+      const { liveFeed, shotDirFor } = await import('../lib/browse.js');
+      const { getRecord } = await import('../lib/inboxStore.js');
+      const record = await getRecord(req.params.id);
+      if (!record || record.kind !== 'browse') return res.status(404).json({ error: 'no such browse run' });
+      const feed = liveFeed(record.id);
+      const { readdir } = await import('node:fs/promises');
+      const path = await import('node:path');
+      const dir = shotDirFor(record.id);
+      const shots = (await readdir(dir).catch(() => [])).filter((f) => /^(shot|press)-\d+\.(png|jpe?g|webp)$/i.test(f)).sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]));
+      res.json({ id: record.id, status: record.status, task: record.task || record.text, steps: feed?.steps || [], shots, done: record.status !== 'classifying', summary: record.decision?.payload?.body || null, stoppedBefore: record.stoppedBefore || null, error: record.error || null });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  router.get('/browse/:id/shot/:file', async (req, res) => {
+    try {
+      if (!/^(shot|press)-\d+\.(png|jpe?g|webp)$/i.test(req.params.file)) return res.status(404).end();
+      const path = await import('node:path');
+      const { readFile } = await import('node:fs/promises');
+      const { shotDirFor } = await import('../lib/browse.js');
+      const dir = shotDirFor(req.params.id);
+      const buf = await readFile(path.join(dir, req.params.file));
+      const ext = req.params.file.split('.').pop().toLowerCase();
+      res.set({ 'Content-Type': ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg', 'Cache-Control': 'private, max-age=86400' });
+      res.end(buf);
+    } catch {
+      res.status(404).end();
+    }
+  });
+
   router.post('/intent/route', (req, res) => {
     const decision = routeIntent(req.body?.text);
     res.json({ ...decision, label: decision.lane ? LANE_LABEL[decision.lane] : null });

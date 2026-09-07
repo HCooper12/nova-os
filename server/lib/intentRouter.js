@@ -67,6 +67,13 @@ const LEADER_RE = /\b(my (team|staff|people|reports?)|direct reports?|one[- ]on[
 // work. Only an explicit instruction to USE a browser — go to a site, log in
 // somewhere, fill something in, check an order/booking — reaches it.
 const BROWSE_RE = /\b(?:go to|open)\s+(?:https?:\/\/|www\.|[a-z0-9-]+\.(?:com|com\.au|co\.uk|org|net|io|co|au)\b)|\b(?:in|on|using)\s+(?:the|my)\s+browser\b|\bbrowse\s+(?:to|for)\b|\bfill\s+(?:in|out)\b|\bcheck\s+(?:my|the)\s+(?:order|booking|reservation|delivery|account|balance)\b|\blog\s?in\s+to\b/i;
+// THE BROWSER, FOR THINGS HE WANTS TO SEE (7 Sep 2026). "Open the Diary of a
+// CEO channel", "show me the latest video", "find the most popular video with
+// Chris Williamson and Alex Hormozi" — a web task whose whole point is being
+// SHOWN it, live on the glass. Before PLAY_RE: "play"/"put on" still opens
+// the Mac's browser directly; "open"/"show me"/"find" means watch Nova do it.
+const BROWSE_MEDIA_RE = /\b(?:open(?: up)?|show me|find(?: me)?|search(?: for)?|look up|bring up)\b[\s\S]{0,80}?\b(?:youtube|channel|videos?|episodes?|podcasts?|clips?|website|site|page)\b/i;
+
 const CAPTURE_RE = /^(remind me|remember|note:|todo:|add|buy|log)\b/i;
 
 function urlsIn(text) {
@@ -108,6 +115,7 @@ export function routeIntent(text) {
   const bookMeta = parseBookIntent(raw);
   if (bookMeta) return { lane: 'book', urls: [], prose: raw, book: bookMeta, why: `a book — the Librarian researches "${bookMeta.title}" and weaves it into your vault` };
   if (hasStudyWords) return { lane: 'study', urls: [], prose: raw, why: 'you asked for a creator/catalogue analysis' };
+  if (BROWSE_MEDIA_RE.test(raw) && !/^\s*(?:play|put on)\b/i.test(raw)) return { lane: 'browse', urls: [], prose: raw, why: 'something to be shown — Nova opens its own browser and you watch it work on the glass' };
   if (PLAY_RE.test(raw)) return { lane: 'play', urls: [], prose: raw, why: 'you asked to watch something — Nova finds the newest one and opens it playing' };
   if (CODE_RE.test(raw)) return { lane: 'code', urls: [], prose: raw, why: 'a build/change request — this runs as a Claude Code session inside Nova' };
   // A briefing is research PLUS a deliverable, so it is tested BEFORE the

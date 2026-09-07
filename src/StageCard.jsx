@@ -12,7 +12,11 @@ const M = 'var(--nv-font-mono)';
 const TONE = { cy: 'var(--nv-cy)', gold: 'var(--nv-gold)', warn: 'var(--nv-warn)', good: 'var(--nv-good)', vi: 'var(--nv-vi)' };
 const toneOf = (t) => TONE[t] || TONE.cy;
 
-const DRAWABLE = new Set(['metric', 'bars', 'list']);
+// 'shot' (7 Sep 2026): a window Nova's browser hand has open, put on the
+// glass as it happens — the Iron Man grammar for "open the Diary of a CEO
+// channel": the page appears while Nova is on it, and slides into the rail
+// when the next one lands. `src` is a blob URL served from Nova's own origin.
+const DRAWABLE = new Set(['metric', 'bars', 'list', 'shot']);
 
 export function StageCard({ card, size = 'full' }) {
   if (!card) return null;
@@ -23,6 +27,7 @@ export function StageCard({ card, size = 'full' }) {
   // listCard returns null rather than an empty card.)
   if (!DRAWABLE.has(card.kind)) return null;
   if (card.kind === 'list' && !(card.items || []).length) return null;
+  if (card.kind === 'shot' && !card.src) return null;
   if (card.kind === 'bars' && !(card.bars || []).length) return null;
   const mini = size === 'mini';
   const accent = toneOf(card.tone);
@@ -37,6 +42,15 @@ export function StageCard({ card, size = 'full' }) {
       animation: mini ? 'none' : 'popIn .34s cubic-bezier(.2,.9,.25,1)',
     }}>
       <div style={{ font: `600 ${mini ? 7.5 : 8.5}px ${M}`, letterSpacing: '.2em', color: `color-mix(in srgb, ${accent} 85%, transparent)` }}>{card.label}</div>
+
+      {card.kind === 'shot' && (
+        <div style={{ marginTop: mini ? '6px' : '10px', borderRadius: mini ? '6px' : '10px', overflow: 'hidden', border: '1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent)', background: 'black' }}>
+          <img src={card.src} alt={card.caption || 'the browser window'} style={{ display: 'block', width: '100%', maxHeight: mini ? '84px' : '52vh', objectFit: 'cover', objectPosition: 'top' }} />
+        </div>
+      )}
+      {card.kind === 'shot' && card.caption && (
+        <div style={{ marginTop: mini ? '5px' : '10px', font: `${mini ? 400 : 500} ${mini ? 10.5 : 13}px/1.45 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 84%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: mini ? 'nowrap' : 'normal' }}>{card.caption}</div>
+      )}
 
       {card.kind === 'metric' && (
         <div style={css(`text-align:center;padding:${mini ? '6px 0 2px' : '14px 0 6px'}`)}>

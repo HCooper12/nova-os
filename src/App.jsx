@@ -1236,6 +1236,8 @@ export default class App extends Component {
           let payload = null;
           try { payload = JSON.parse(line.slice(5)); } catch { /* not JSON — treat as untagged */ }
           if (payload?.kind === 'hello') continue; // the stream handshake, not a write
+          // the browser hand took a step — put it on the glass, not in a resync
+          if (payload?.kind === 'browseLive' && payload.id) { this.pullBrowseLive(payload.id); continue; }
           this.queueStreamRefresh(payload);
         }
       }
@@ -5128,6 +5130,15 @@ export default class App extends Component {
     const urls = raw.match(/https?:\/\/[^\s<>"']+/gi) || [];
     const study = /\b(analyse|analyze|study|research) (this |their |the )?(creator|channel|account|profile|competitor)\b|\bevery video\b/i.test(raw);
     const L = (lane, label, why) => ({ lane, label, why });
+    // mirrors server/lib/intentRouter.js BROWSE_MEDIA_RE (7 Sep 2026): a thing
+    // he wants to SEE — "open the Diary of a CEO channel", "show me the latest
+    // video", "find the most popular video with X and Y" — goes to the browser
+    // hand and is shown live on the glass. "play"/"put on" still opens the
+    // Mac's browser directly; a sentence carrying a URL keeps its own lane.
+    if (!urls.length && !/^\s*(?:play|put on)\b/i.test(raw)
+      && /\b(?:open(?: up)?|show me|find(?: me)?|search(?: for)?|look up|bring up)\b[\s\S]{0,80}?\b(?:youtube|channel|videos?|episodes?|podcasts?|clips?|website|site|page)\b/i.test(raw)) {
+      return L('browse', 'BROWSER', 'something to be shown — Nova opens its own browser and you watch it work on the glass');
+    }
     // mirrors server/lib/intentRouter.js BROWSE_RE — an explicit instruction
     // to USE a browser, checked before the url→research fallback
     if (/\b(?:go to|open)\s+(?:https?:\/\/|www\.|[a-z0-9-]+\.(?:com|com\.au|co\.uk|org|net|io|co|au)\b)|\b(?:in|on|using)\s+(?:the|my)\s+browser\b|\bbrowse\s+(?:to|for)\b|\bfill\s+(?:in|out)\b|\bcheck\s+(?:my|the)\s+(?:order|booking|reservation|delivery|account|balance)\b|\blog\s?in\s+to\b/i.test(raw)) {
@@ -5314,12 +5325,68 @@ export default class App extends Component {
     }
     this.toastMsg(`${preview?.label || 'Routing'} — dispatching…`);
     api.sendIntent(conn, text).then((r) => {
+      if (r.record?.kind === 'browse') this.watchBrowse(r.record.id, r.record.task || text);
       if (r.forward?.screen === 'workouts') { this.navigate('workouts', { trainTab: 'coach' }); this.doCoach(r.forward.question); return; }
       if (r.forward?.screen === 'voice') { this.navigate('voice'); this.askNova(r.forward.question); return; }
       if (r.lane === 'code') { this.navigate('code'); }
       this.toastMsg(r.said || `${r.label} — on it`);
       this.refreshInbox?.();
     }).catch((e) => this.toastMsg('Could not route that: ' + e.message));
+  }
+  // ---------- THE BROWSER HAND, ON THE GLASS ----------
+  // His vision, 7 Sep: "open the Diary of a CEO channel" and WATCH it happen —
+  // windows appearing as Nova opens them, the last one sliding into the rail
+  // when the next lands. Each screenshot the hand takes becomes a 'shot' card
+  // via putCard, so the stage's own history rail is the Iron Man side rail.
+  // The live wire nudges a pull per step; a 2.5 s poll stands in when the
+  // stream is not connected, and stops the moment the run is done.
+  watchBrowse(id, task = '') {
+    if (!id) return;
+    this.browseSeen = this.browseSeen || {};
+    this.browseSeen[id] = this.browseSeen[id] || { shots: new Set(), steps: 0, done: false };
+    this.setState({ browseLive: { id, task, caption: 'Opening the browser…', done: false } });
+    this.pullBrowseLive(id);
+    clearInterval(this.browsePoll);
+    this.browsePoll = setInterval(() => this.pullBrowseLive(id), 2500);
+  }
+  pullBrowseLive(id) {
+    const conn = getConnection();
+    if (!conn || !id) return;
+    if (this.browsePulling) return; // one in flight — a slow shot fetch must not stack
+    this.browsePulling = true;
+    api.browseLive(conn, id).then(async (live) => {
+      const seen = (this.browseSeen = this.browseSeen || {})[id] || (this.browseSeen[id] = { shots: new Set(), steps: 0, done: false });
+      const steps = live.steps || [];
+      // the caption is the hand's latest own words, or its latest move
+      const said = [...steps].reverse().find((s) => s.kind === 'say' || s.kind === 'navigate');
+      const caption = said ? said.text : 'Working…';
+      // every NEW window lands on the glass, in order
+      for (const file of live.shots || []) {
+        if (seen.shots.has(file)) continue;
+        seen.shots.add(file);
+        const src = await api.browseShotBlobUrl(conn, id, file).catch(() => null);
+        if (!src) continue;
+        // the words spoken just before this window were about this window
+        // by stem: the model asks for shot-1.png, headless Chrome saves shot-1.jpeg
+        const stem = file.replace(/\.\w+$/, '');
+        const idx = steps.findIndex((s) => s.kind === 'shot' && String(s.shot || '').replace(/\.\w+$/, '') === stem);
+        const before = idx > 0 ? [...steps.slice(0, idx)].reverse().find((s) => s.kind === 'say' || s.kind === 'navigate') : null;
+        this.putCard({ kind: 'shot', label: 'BROWSER', src, caption: (before || said)?.text || caption, foot: (live.task || '').slice(0, 90) });
+      }
+      this.setState({ browseLive: { id, task: live.task || '', caption, done: !!live.done, error: live.error || null } });
+      if (live.done && !seen.done) {
+        seen.done = true;
+        clearInterval(this.browsePoll);
+        const line = live.error
+          ? `The browser run hit a problem: ${live.error}`
+          : live.stoppedBefore
+            ? `I stopped in front of "${live.stoppedBefore}" — it is in your Inbox; your yes presses it.`
+            : (String(live.summary || '').split('\n').find((l) => l.trim()) || 'Done — the run is in your Inbox.');
+        this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
+        if (this.state.voiceSpeak) this.speakTtsSentence(line.slice(0, 400), () => {});
+        this.refreshInbox?.();
+      }
+    }).catch(() => { /* the next nudge tries again */ }).finally(() => { this.browsePulling = false; });
   }
   // ---------- long-press / right-click context menus (spec #13) ----------
   openContextMenu(spec) {

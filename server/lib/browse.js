@@ -102,6 +102,8 @@ When the task needs one of those, do everything up to it — get to the page,
 fill the fields, and STOP with the button in view. Screenshot it. Report
 exactly what you would press and what it would do. He presses it himself.
 
+HE IS WATCHING. He sees each screenshot on his screen the moment you take it, so: take one IMMEDIATELY after every navigation and after every click that changes the page, before you read or decide anything — a step he cannot see did not happen for him. Say what you are doing in one short sentence before each action ("Opening the channel\x27s Videos tab.") — that line is shown beside the window.
+
 EVIDENCE: take a screenshot at each meaningful step with
 take_screenshot({ filePath: "${shotDir}/shot-N.png" }) numbering from 1 —
 what you saw is what he will read this by.
@@ -191,16 +193,35 @@ async function run(recordId, task, server) {
     '--strict-mcp-config',
     '--allowedTools', TOOLS.join(' '),
     '--disallowedTools', DISALLOWED,
-    '--output-format', 'json',
+    // STREAMED, not a single result at the end (7 Sep 2026): his ask is to
+    // WATCH the hand work — windows appearing on the glass as Nova opens
+    // them — so every tool call is read as it happens and becomes a step in
+    // the live feed (liveFeed below), and the final result is the last event.
+    '--output-format', 'stream-json', '--verbose',
     '--model', modelFor('browse'),
     '--max-budget-usd', MAX_BUDGET_USD,
     '--session-id', sessionId,
   ], { cwd: shotDir, stdio: ['ignore', 'pipe', 'pipe'] });
 
-  let stdout = '';
   let stderr = '';
+  let finalText = null;
+  let isError = false;
+  let buf = '';
   const watchdog = setTimeout(() => { try { child.kill('SIGKILL'); } catch { /* gone */ } }, WATCHDOG_MIN * 60_000);
-  child.stdout.on('data', (d) => { stdout += d; });
+  child.stdout.on('data', (d) => {
+    buf += d;
+    let nl;
+    while ((nl = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (!line) continue;
+      let ev;
+      try { ev = JSON.parse(line); } catch { continue; }
+      if (ev.type === 'result') { finalText = String(ev.result || ''); isError = !!ev.is_error; continue; }
+      const step = stepFromEvent(ev);
+      if (step) noteStep(recordId, step);
+    }
+  });
   child.stderr.on('data', (d) => { stderr += String(d).slice(0, 4000); });
 
   await new Promise((resolve) => {
@@ -208,14 +229,9 @@ async function run(recordId, task, server) {
       clearTimeout(watchdog);
       try {
         let text = '';
-        try {
-          const outer = JSON.parse(stdout);
-          if (outer.is_error) throw new Error(outer.result || 'the browser session failed');
-          text = String(outer.result || '');
-        } catch (e) {
-          if (!stdout.trim()) throw new Error(stderr.trim().split('\n').pop()?.slice(0, 200) || 'the browser session produced nothing');
-          throw e;
-        }
+        if (finalText == null) throw new Error(stderr.trim().split('\n').pop()?.slice(0, 200) || 'the browser session produced nothing');
+        if (isError) throw new Error(finalText || 'the browser session failed');
+        text = finalText;
         const result = parseBrowseResult(text);
         const shots = (await readdir(shotDir).catch(() => [])).filter((f) => /^shot-\d+\.(png|jpe?g|webp)$/i.test(f)).sort();
         const title = `Browser: ${task.slice(0, 60)}${task.length > 60 ? '…' : ''}`;
@@ -251,6 +267,60 @@ async function run(recordId, task, server) {
     });
   });
 }
+
+/* ------------------------------ the live feed ------------------------------ */
+
+// What the hand is doing, as it does it. One entry per tool call the model
+// makes — a navigation, a click, a screenshot — plus its own narration, so
+// the glass can show "Opening youtube.com…" with the window beside it. Kept
+// in memory per run (a run is minutes long) and served by /api/browse/:id/live.
+// Bounded: a runaway session cannot grow this without limit.
+const feeds = new Map();
+const MAX_STEPS = 120;
+
+export function liveFeed(recordId) { return feeds.get(recordId) || null; }
+// where a run keeps its windows — from THIS module's data root, never process.cwd()
+export function shotDirFor(recordId) { return path.join(dataRoot(), 'browse', String(recordId).replace(/[^a-z0-9]/gi, '')); }
+
+function noteStep(recordId, step) {
+  const feed = feeds.get(recordId) || { steps: [], at: Date.now() };
+  feed.steps.push({ at: Date.now(), ...step });
+  if (feed.steps.length > MAX_STEPS) feed.steps.splice(0, feed.steps.length - MAX_STEPS);
+  feed.at = Date.now();
+  feeds.set(recordId, feed);
+  // one SSE line per step: the open app pulls the feed within a second
+  import('./events.js').then(({ broadcast }) => broadcast('browseLive', { id: recordId, slices: [] })).catch(() => {});
+}
+
+// stream-json → a human step. Only the calls that MEAN something to him
+// become steps; snapshots and evaluations are the hand's own bookkeeping.
+export function stepFromEvent(ev) {
+  if (ev?.type !== 'assistant') return null;
+  const parts = ev.message?.content || [];
+  for (const p of parts) {
+    if (p.type === 'tool_use') {
+      const name = String(p.name || '').replace(/^mcp__chrome-devtools__/, '');
+      const input = p.input || {};
+      if (name === 'navigate_page' && input.url) return { kind: 'navigate', text: `Opening ${hostOf(input.url)}`, url: input.url };
+      if (name === 'new_page' && input.url) return { kind: 'navigate', text: `Opening ${hostOf(input.url)}`, url: input.url };
+      if (name === 'take_screenshot' && input.filePath) {
+        const m = String(input.filePath).match(/(shot-\d+)\.(png|jpe?g|webp)$/i);
+        return { kind: 'shot', text: 'Taking a look', shot: m ? `${m[1]}.${m[2]}` : null };
+      }
+      if (name === 'click') return { kind: 'click', text: 'Clicking' };
+      if (name === 'fill' || name === 'fill_form') return { kind: 'type', text: 'Typing' };
+      if (name === 'wait_for') return { kind: 'wait', text: 'Waiting for the page' };
+    }
+    if (p.type === 'text' && String(p.text || '').trim()) {
+      // the model's own running narration, minus the final BROWSE block
+      const t = String(p.text).replace(/BROWSE\s*\{[\s\S]*$/, '').replace(/\s+/g, ' ').trim();
+      if (t.length > 3) return { kind: 'say', text: t.slice(0, 240) };
+    }
+  }
+  return null;
+}
+
+const hostOf = (u) => { try { const x = new URL(u); const p = x.pathname === '/' ? '' : x.pathname.slice(0, 42); return x.hostname.replace(/^www\./, '') + p + (x.pathname.length > 42 ? '…' : ''); } catch { return u; } };
 
 /* ------------------------ the second half: his yes ------------------------ */
 
