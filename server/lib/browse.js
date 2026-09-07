@@ -263,6 +263,9 @@ async function run(recordId, task, server) {
       } catch (e) {
         await updateRecord(recordId, { status: 'error', error: e.message.slice(0, 300) }).catch(() => {});
       }
+      // the last nudge: the record has landed (pending or error) — the open app
+      // pulls once more and shows the finish, without ever having to poll
+      import('./events.js').then(({ broadcast }) => broadcast('browseLive', { id: recordId, done: true, slices: [] })).catch(() => {});
       resolve();
     });
   });

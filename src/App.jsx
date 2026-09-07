@@ -5253,7 +5253,9 @@ export default class App extends Component {
       }
       if (preview.lane === 'browse') {
         api.sendIntent(conn, q, 'browse')
-          .then((r) => { say(r.said || 'Opening the browser — I will stop before anything that commits.', notice(r.record?.id)); this.refreshInbox?.(); })
+          .then((r) => {
+            // the hand is being watched: start pulling its feed onto the glass
+            if (r.record?.kind === 'browse') this.watchBrowse(r.record.id, q); say(r.said || 'Opening the browser — I will stop before anything that commits.', notice(r.record?.id)); this.refreshInbox?.(); })
           .catch((e) => say(`I couldn't open the browser: ${e.message}`));
         return;
       }
@@ -5346,7 +5348,7 @@ export default class App extends Component {
     this.browseSeen[id] = this.browseSeen[id] || { shots: new Set(), steps: 0, done: false };
     this.setState({ browseLive: { id, task, caption: 'Opening the browser…', done: false } });
     this.pullBrowseLive(id);
-    clearInterval(this.browsePoll);
+    clearInterval(this.browsePoll); this.browsePoll = null;
     this.browsePoll = setInterval(() => this.pullBrowseLive(id), 2500);
   }
   pullBrowseLive(id) {
@@ -5355,6 +5357,7 @@ export default class App extends Component {
     if (this.browsePulling) return; // one in flight — a slow shot fetch must not stack
     this.browsePulling = true;
     api.browseLive(conn, id).then(async (live) => {
+      if (!live.done && !this.browsePoll) this.browsePoll = setInterval(() => this.pullBrowseLive(id), 2500);
       const seen = (this.browseSeen = this.browseSeen || {})[id] || (this.browseSeen[id] = { shots: new Set(), steps: 0, done: false });
       const steps = live.steps || [];
       // the caption is the hand's latest own words, or its latest move
@@ -5376,7 +5379,7 @@ export default class App extends Component {
       this.setState({ browseLive: { id, task: live.task || '', caption, done: !!live.done, error: live.error || null } });
       if (live.done && !seen.done) {
         seen.done = true;
-        clearInterval(this.browsePoll);
+        clearInterval(this.browsePoll); this.browsePoll = null;
         const line = live.error
           ? `The browser run hit a problem: ${live.error}`
           : live.stoppedBefore
@@ -5386,7 +5389,7 @@ export default class App extends Component {
         if (this.state.voiceSpeak) this.speakTtsSentence(line.slice(0, 400), () => {});
         this.refreshInbox?.();
       }
-    }).catch(() => { /* the next nudge tries again */ }).finally(() => { this.browsePulling = false; });
+    }).catch((e) => { console.warn('browse live pull:', e?.message || e); }).finally(() => { this.browsePulling = false; });
   }
   // ---------- long-press / right-click context menus (spec #13) ----------
   openContextMenu(spec) {
