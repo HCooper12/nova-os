@@ -74,6 +74,21 @@ export const CAPABILITIES = {
     autonomy: 'propose',
     delegable: true,
   },
+  brief: {
+    agent: 'Briefing',
+    summary: "Research a topic from several angles at once, then write it up as a report he can read or have Nova read to him, with every term defined.",
+    input: 'a topic in his own words, plus whatever he asked for in the report',
+    output: 'a report filed as a pending record — readable, and playable with voice and visuals',
+    produces: 'briefing',
+    // it runs 2-5 Researchers plus two of its own passes
+    costUsd: 6.0,
+    autonomy: 'propose',
+    // NOT delegable, deliberately: a briefing already fans out to several
+    // Researchers, so letting a plan delegate one would nest fan-out inside
+    // fan-out and make the cost ceiling a fiction. He starts a briefing; a
+    // plan that wants research uses the Researcher directly.
+    delegable: false,
+  },
   coach: {
     agent: 'Coach',
     summary: 'Answer a training or nutrition question with his full logged history, and propose program changes.',

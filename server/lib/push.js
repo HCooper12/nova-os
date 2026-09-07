@@ -102,6 +102,7 @@ export function pushForRecord(record) {
     review: 'Daily Review', dispatch: 'Brief ready', 'meal-prep': 'Meal prep', cfo: 'CFO report', guardian: 'Guardian',
     research: 'Research brief', studio: 'Studio outline', 'money-import': 'Ledger import', coach: 'Session receipt',
     // the daily-driver kinds must name themselves, not say "Waiting for review"
+    briefing: 'Your briefing is ready',
     'training-check': 'Training check', 'food-suggestion': 'Food suggestion', calendar: 'Calendar change', compost: 'Vault hygiene', 'week-plan': 'Week plan', 'plan-today': 'Plan today', 'weekly-debrief': 'Weekly debrief', pattern: 'Pattern noticed', autonomy: 'Trust ladder', distill: 'Distillation ready',
   };
   const label = KIND_LABEL[record.kind] || 'Waiting for review';

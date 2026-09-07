@@ -235,6 +235,20 @@ export const LANES = [
     off: 'Nova can still read the web through the Researcher; it just cannot open a browser and act in it.',
   },
   {
+    // The briefing runs the Researcher N times in parallel, so these two lanes
+    // are the ONLY model cost it adds on top: a cheap decompose and one
+    // expensive synthesis. The synthesis gets no tools at all — every fact it
+    // may use is already in the citation-checked findings it was handed.
+    id: 'briefing-plan', label: 'Briefing · the angles', group: 'research', def: 'haiku',
+    hint: 'breaks a topic into the 2-5 angles that get researched in parallel',
+    off: 'Briefings are refused with a plain message; nothing half-researched is filed.',
+  },
+  {
+    id: 'briefing-compose', label: 'Briefing · the report', group: 'research', def: 'sonnet',
+    hint: 'writes the report AND its spoken script from the research, defining every term',
+    off: 'Briefings are refused; the research angles are not started, so nothing is spent.',
+  },
+  {
     id: 'researcher', label: 'Researcher', group: 'research', def: 'sonnet',
     hint: 'web-read-only, citation-required — the brief always lands in your Inbox for review',
     off: 'Research requests (including “research this” from Ask Nova and the overnight queue) are refused with a plain message.',

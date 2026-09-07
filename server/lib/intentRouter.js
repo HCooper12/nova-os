@@ -12,7 +12,7 @@
 // The router only DECIDES. Dispatch lives in the route, so a decision can
 // always be shown to him before anything runs.
 
-export const LANES = ['watch', 'weave', 'study', 'research', 'browse', 'code', 'coach', 'leader', 'capture', 'play', 'ask', 'book'];
+export const LANES = ['brief', 'watch', 'weave', 'study', 'research', 'browse', 'code', 'coach', 'leader', 'capture', 'play', 'ask', 'book'];
 
 // "watch AND analyse" — the deep vault weave (transcript fetched, every
 // concept and person drafted into pages) as opposed to the Watcher's verdict.
@@ -51,6 +51,13 @@ const VIDEO_PATH_RE = /watch\?v=|youtu\.be\/|\/reel\/|\/shorts\/|\/video\/|vimeo
 
 const CODE_RE = /\b(build|implement|refactor|fix the bug|write a (script|test|function)|add a (feature|test)|deploy|commit|pull request|codebase|in nova|to nova|the repo)\b/i;
 const STUDY_RE = /\b(analyse|analyze|study|research) (this |their |the )?(creator|channel|account|profile|competitor|person|guy|team)\b|\bevery video\b|\ball (their|his|her) videos\b/i;
+// THE BRIEFING — research that comes BACK as a report, rather than an answer
+// now. The distinguishing feature is the deliverable: he asks for something to
+// be brought to him, read to him, or explained, not for a reply in the chat.
+// Deliberately demanding, because a plain "research X" must still reach the
+// Researcher: it needs the report noun, or an explain-it-to-me verb.
+const BRIEF_RE = /\b(?:brief me|briefing) (?:on|about)\b|\b(?:synthesi[sz]e|write|put together|compile|prepare|bring) (?:me |it |that |this )?(?:in)?to? ?a? ?(?:report|briefing|summary|write[- ]?up)\b|\b(?:a|the) (?:report|briefing|write[- ]?up) (?:on|about|for me)\b|\b(?:research|look into|dig into|read up on|investigate) [\s\S]{0,120}?\b(?:and|then) (?:synthesi[sz]e|explain|report|write|summari[sz]e|break)\b|\b(?:explain|break down|walk me through|teach me) [\s\S]{0,80}?\b(?:in depth|properly|from scratch|so i understand|like i)\b/i;
+
 const RESEARCH_RE = /\b(research|look up|find out|dig into|what does the (evidence|science) say|sources? on)\b/i;
 const COACH_RE = /\b(my (bench|squat|deadlift|press|pull-?ups?|lift|program|routine|volume|macros|protein|sleep|recovery|hrv)|should i (train|deload|lift|eat)|why (is|am) (my|i) .*(stalled|tired|sore|plateau)|reps?|sets?|rpe|deload|hypertrophy|cutting|bulking)\b/i;
 // The Leader — leadership as a daily practice. Tight on purpose: "delegate"
@@ -103,6 +110,9 @@ export function routeIntent(text) {
   if (hasStudyWords) return { lane: 'study', urls: [], prose: raw, why: 'you asked for a creator/catalogue analysis' };
   if (PLAY_RE.test(raw)) return { lane: 'play', urls: [], prose: raw, why: 'you asked to watch something — Nova finds the newest one and opens it playing' };
   if (CODE_RE.test(raw)) return { lane: 'code', urls: [], prose: raw, why: 'a build/change request — this runs as a Claude Code session inside Nova' };
+  // A briefing is research PLUS a deliverable, so it is tested BEFORE the
+  // Researcher — otherwise the more specific intent never fires.
+  if (BRIEF_RE.test(raw)) return { lane: 'brief', urls: [], prose: raw, why: 'a report to research and bring back — agents fan out, then Nova writes it and can read it to you' };
   if (RESEARCH_RE.test(raw)) return { lane: 'research', urls: [], prose: raw, why: 'you asked for research — the Researcher answers with citations' };
   if (BROWSE_RE.test(raw)) return { lane: 'browse', urls: [], prose: raw, why: 'this one wants a browser — Nova opens its own Chrome, and stops before anything that commits' };
   if (COACH_RE.test(raw)) return { lane: 'coach', urls: [], prose: raw, why: 'a training/nutrition question — the Coach has your full history' };
@@ -114,6 +124,7 @@ export function routeIntent(text) {
 export const LANE_LABEL = {
   play: 'PLAY',
   watch: 'WATCH', weave: 'WEAVE INTO VAULT', study: 'STUDY', research: 'RESEARCH',
+  brief: 'BRIEFING',
   code: 'CLAUDE CODE', coach: 'COACH', leader: 'LEADER', capture: 'INBOX', ask: 'ASK NOVA', book: 'LIBRARIAN',
   browse: 'BROWSER',
 };

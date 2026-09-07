@@ -82,6 +82,15 @@ export function intentRouter(vaultPath) {
         const { startIngest } = await import('../lib/ingest.js');
         out.jobId = startIngest(vaultPath)(null, undefined, meta);
         out.said = `On it — the Librarian is researching "${meta.title}" by ${meta.author}. The draft pages land for your review.`;
+      } else if (lane === 'brief') {
+        // THE WHOLE SENTENCE IS THE SPEC. The topic and his instructions are
+        // not separated by a parser — the model that decomposes the topic and
+        // the model that writes the report both get his words as he said
+        // them, because "make it simply understood" is the most important
+        // thing in the request and any split would drop it.
+        const { startBriefing } = await import('../lib/briefing.js');
+        out.record = await startBriefing(vaultPath, { topic: text, standing: text });
+        out.said = 'On it — I will research this from a few angles at once, then write it up. You will get a notification when it is ready to read or listen to.';
       } else if (lane === 'research') {
         const { startResearch } = await import('../lib/researcher.js');
         const q = decision.urls?.length ? `${decision.prose || 'Read and summarise this'}: ${decision.urls.join(' ')}` : text;
