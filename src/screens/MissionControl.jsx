@@ -284,7 +284,7 @@ export function MissionControl({ v }) {
         <section className="nv-pane" style={{ marginTop: mob ? '12px' : '18px', padding: mob ? '14px 16px' : '18px 22px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px' }}>
             <span style={{ font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track-wide)', color: 'var(--nv-cy)' }}>NOVA IS WORKING</span>
-            <span style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-ink40)' }}>{v.jobTray.jobs.length} IN FLIGHT</span>
+            <span style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-ink40)' }}>{v.jobTray.countLabel.toUpperCase()}</span>
           </div>
           <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {v.jobTray.jobs.map((j) => (
@@ -294,6 +294,11 @@ export function MissionControl({ v }) {
                   {j.failed ? '✕' : j.done ? '✓' : '◍'}
                 </span>
                 <span style={{ flex: 1, minWidth: 0, font: `450 13px/1.5 var(--nv-font-ui)`, color: 'var(--nv-ink)' }}>{j.label}</span>
+                {j.dismiss && (
+                  <Interactive as="span" onClick={(e) => { e.stopPropagation(); j.dismiss(); }} aria-label="Clear this failed job"
+                    base={{ flex: "none", cursor: "pointer", font: "600 11px var(--nv-font-ui)", letterSpacing: ".08em", color: "var(--nv-ink40)", padding: "6px 8px", marginRight: "-8px" }}
+                    hoverStyle={{ color: "var(--nv-warn)" }}>CLEAR</Interactive>
+                )}
               </div>
             ))}
           </div>

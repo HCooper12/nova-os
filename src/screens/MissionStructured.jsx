@@ -154,11 +154,14 @@ export function MissionStructured({ v }) {
     // sign of life anywhere: any agent doing work is visible on the home
     // screen, always, without him going to look for it.
     working: v.jobTray.jobs.length > 0 ? (
-      <Group key="working" label="Nova is working" trailing={<Meta tone="cyan">{v.jobTray.jobs.length} running</Meta>}>
+      <Group key="working" label="Nova is working" trailing={<Meta tone={v.jobTray.running ? 'cyan' : v.jobTray.waiting ? 'good' : 'warn'}>{v.jobTray.countLabel}</Meta>}>
         {v.jobTray.jobs.map((j, i) => (
           <GRow key={j.id} first={i === 0}
             leading={<span style={{ font: `600 12px ${M}`, color: j.failed ? 'var(--nv-warn)' : j.done ? 'var(--nv-good, #5aa87c)' : 'var(--nv-cy)' }}>{j.failed ? '✕' : j.done ? '✓' : '◍'}</span>}
             title={j.label}
+            trailing={j.dismiss ? <Interactive as="span" onClick={(e) => { e.stopPropagation(); j.dismiss(); }} aria-label="Clear this failed job"
+              base={{ cursor: "pointer", font: "600 11px var(--nv-font-ui)", letterSpacing: ".08em", color: "var(--nv-ink40)", padding: "6px 8px" }}
+              hoverStyle={{ color: "var(--nv-warn)" }}>CLEAR</Interactive> : undefined}
             onClick={j.go || undefined} />
         ))}
       </Group>

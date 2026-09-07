@@ -3407,6 +3407,26 @@ export default class App extends Component {
   // Open a staged job HE chose to look at. Goes through the poll, which
   // fetches the changes and sets ingestPreview BEFORE the sheet is asked to
   // render 'ready' — the ordering whose absence turned his phone black.
+  // Clear a job that FAILED. Nothing was written to the vault (an errored
+  // weave never reaches the apply step), so this is a card he is throwing
+  // away, not work — it just has to be possible, which it was not: an
+  // "Atomic Habits" job that died on 27 Aug was still on his home screen on
+  // 7 Sep, counted as running.
+  dismissIngestJob(jobId) {
+    const conn = getConnection();
+    if (!conn || !jobId) return;
+    this.setState((st) => ({ liveIngestJobs: (st.liveIngestJobs || []).filter((j) => j.id !== jobId) }));
+    api.discardIngest(conn, jobId)
+      .then(() => this.refreshIngestJobs())
+      .catch((e) => { this.toastMsg(e.message || "Could not clear that job"); this.refreshIngestJobs(); });
+  }
+  refreshIngestJobs() {
+    const conn = getConnection();
+    if (!conn) return;
+    api.openIngestJobs(conn)
+      .then(({ jobs }) => this.setState({ liveIngestJobs: jobs || [] }))
+      .catch(() => { /* offline — the panel simply shows nothing */ });
+  }
   openIngestJob(jobId) {
     const conn = getConnection();
     if (!conn || !jobId) return;

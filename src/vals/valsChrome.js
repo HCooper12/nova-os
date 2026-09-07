@@ -220,15 +220,32 @@ export function valsChrome(app, ctx) {
             label: `Ready for review — ${j.label} (${j.changes} page${j.changes === 1 ? '' : 's'})`,
             go: () => app.openIngestJob(j.id) });
         } else if (j.status === 'error') {
+          // a job that failed eleven days ago is not "1 running" — it is a
+          // dead card he has no way to clear, which is what he reported
           jobs.push({ id: `ing-${j.id}`, kind: 'ingest', failed: true,
-            label: `${j.label} — ${clip(j.error || 'failed', 70)}` });
+            label: `${j.label} — ${clip(j.error || 'failed', 70)}`,
+            dismiss: () => app.dismissIngestJob(j.id),
+            retry: () => app.openIngestJob(j.id) });
         }
       }
       if (st.leaderBusy) jobs.unshift({ id: 'leader', kind: 'leader', label: 'The Leader is thinking…', go: () => app.navigate('leader') });
       if (st.coachBusy) jobs.unshift({ id: 'coach', kind: 'coach', label: 'Coach is reading your history…', go: () => app.navigate('workouts') });
       if (st.forgeBusy) jobs.unshift({ id: 'forge', kind: 'forge', label: 'The Forge is starting a build…', go: () => app.navigate('ops') });
+      // IN FLIGHT means in flight. Ready-for-review and failed cards still
+      // show — they need him — but they are counted and labelled as what they
+      // are, so "1 running" can never again mean "one thing died last week".
+      const running = jobs.filter((j) => !j.done && !j.failed).length;
+      const waiting = jobs.filter((j) => j.done).length;
+      const failed = jobs.filter((j) => j.failed).length;
+      const countLabel = running
+        ? `${running} running`
+        : waiting ? `${waiting} waiting for you` : `${failed} failed`;
       return {
         jobs,
+        running,
+        waiting,
+        failed,
+        countLabel,
         open: !!st.jobTrayOpen,
         toggle: () => app.setState({ jobTrayOpen: !st.jobTrayOpen }),
         goInbox: () => { app.setState({ jobTrayOpen: false }); app.navigate('inbox'); },

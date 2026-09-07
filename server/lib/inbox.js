@@ -23,6 +23,7 @@ import { addRecipe, removeRecipe } from './recipes.js';
 import { createEvent, deleteEventAt, moveEvent, moveOccurrence, putEventRaw } from './calendar.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { settleWatchdog } from './settle.js';
+import { routeIntent } from './intentRouter.js';
 
 // The Nova Inbox: capture any loose thought, let a READ-ONLY classifier make
 // exactly one typed routing decision, then let deterministic code do the
@@ -1147,8 +1148,51 @@ function runClassification(vaultPath, record) {
   });
 }
 
+// A LINK IS NOT A NOTE (7 Sep 2026). His rule: "I shouldn't need to tell
+// Nova to watch and analyse a YouTube link — it should do it automatically
+// and add it to my second brain." Before today the capture box classified a
+// pasted video link as prose, so it landed as an unclassified note and
+// NOTHING watched it — the Pattern Scout even reported it ("2 of 12 captures
+// landed unclassified, and both were plain links"). The lane router already
+// knew what to do with a link; the capture path simply never asked it. Now
+// every front door that files a capture — the Inbox box, Telegram, the
+// widget, a spoken capture — goes through the same router the chat does.
+//
+// Only MEDIA lanes divert (a link is work, not a thought). Prose still
+// classifies exactly as before, so "milk" is still a shopping item.
+// The decision, pure and testable on its own: which media lane (if any) a
+// captured text belongs to. Only lanes that need a URL divert.
+export function captureLane(text) {
+  const decision = routeIntent(text);
+  const url = decision.urls?.[0];
+  if (!url) return null;
+  if (decision.lane !== 'watch' && decision.lane !== 'study') return null;
+  return { lane: decision.lane, url, urls: decision.urls, prose: decision.prose || '' };
+}
+
+async function mediaLaneFor(vaultPath, text) {
+  const decision = captureLane(text);
+  if (!decision) return null;
+  const { lane, url } = decision;
+  if (lane === 'watch') {
+    const { startVideoWatch } = await import('./watcher.js');
+    return startVideoWatch(vaultPath, url, decision.prose);
+  }
+  const { startStudy } = await import('./studyLane.js');
+  return startStudy(vaultPath, { urls: decision.urls, prose: decision.prose });
+}
+
 // Creates the record and kicks off async classification.
 export async function startCapture(vaultPath, { text, source = 'text', mode = 'auto-high' }) {
+  // a video link watches itself; a channel link studies itself. A lane that
+  // is switched off, or a transcript that cannot be fetched, falls through
+  // to the ordinary classifier rather than losing what he sent.
+  try {
+    const routed = await mediaLaneFor(vaultPath, text);
+    if (routed) return routed;
+  } catch (e) {
+    console.error('inbox: media routing failed, filing as a capture instead:', e.message);
+  }
   const record = {
     id: randomUUID().slice(0, 8),
     text,
