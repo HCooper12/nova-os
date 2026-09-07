@@ -616,10 +616,31 @@ export function valsRecipes(app, ctx) {
     orEditBusy: !!st.recipeEditBusy,
     orEditError: st.recipeEditError,
     setEditField: (field) => (e) => app.setRecipeEditField(field, e.target.value),
+    // macros from the labels (the editor's label pass)
+    orEditServings: st.recipeEdit?.servings ?? '1',
+    orEditLabels: (st.recipeEdit?.labels || []).map((l, i) => ({
+      key: i, image: l.image, name: l.name, grams: l.grams,
+      setGrams: (e) => app.setRecipeEditLabel(i, { grams: e.target.value }),
+      setName: (e) => app.setRecipeEditLabel(i, { name: e.target.value }),
+      remove: () => app.removeRecipeEditLabel(i),
+    })),
+    orEditLabelBusy: !!st.recipeEdit?.labelBusy,
+    orEditLabelError: st.recipeEdit?.labelError || null,
+    orEditLabelResult: st.recipeEdit?.labelResult ? {
+      servings: st.recipeEdit.labelResult.servings,
+      confidence: st.recipeEdit.labelResult.confidence,
+      warning: st.recipeEdit.labelResult.warning || null,
+      total: st.recipeEdit.labelResult.total,
+      parts: st.recipeEdit.labelResult.parts.map((p) => ({ name: p.name, grams: p.grams, low: p.confidence === 'low', question: p.question, ...p.contribution })),
+    } : null,
+    addEditLabels: (files) => app.addRecipeEditLabels(files),
+    computeFromLabels: () => app.computeRecipeEditFromLabels(),
     startEdit: () => app.startRecipeEdit({
       ingredients: effIngredients.map((i) => (i.qty ? `${i.qty} ${i.name}` : i.name)),
       method: effMethod,
       macros: effMacros,
+      // live recipes carry no servings field — the description often says "4 servings"; otherwise he types it
+      servings: Number((String(liveOr?.description || liveOr?.desc || liveOr?.summary || '').match(/(\d+)\s*serv/i) || [])[1]) || 1,
     }),
     cancelEdit: () => app.cancelRecipeEdit(),
     saveEdit: () => app.commitRecipeEdit(liveOr ? liveOr.id : null, activeAlt ? activeAlt.id : null),

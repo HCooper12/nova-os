@@ -11,6 +11,7 @@ import { setRotationEntry } from '../lib/foodLog.js';
 import { startScan, getScanJob } from '../lib/scanRecipe.js';
 import { startTweak, getTweakJob } from '../lib/tweakRecipe.js';
 import { savePhoto, getPhoto, listPhotoRecipeIds } from '../lib/recipePhotos.js';
+import { startLabelMacros, getLabelMacrosJob } from '../lib/labelMacros.js';
 
 const VALID_CATEGORIES = ['CORE DAILY MEALS', 'ROTATION / SWAP MEALS', 'TREATS'];
 const IMAGE_DATA_URL = /^data:image\/(jpeg|jpg|png|webp|gif);base64,(.+)$/;
@@ -107,6 +108,38 @@ export function recipesRouter(vaultPath) {
     }
   });
 
+  // Macros from the nutrition labels, for the recipe editor: one photo per
+  // ingredient + the grams the recipe uses + how many servings it makes.
+  // The model reads each per-100g column; labelMacros.js does the sums; the
+  // result only FILLS the four macro fields — he reviews and saves.
+  router.post('/recipes/label-macros', async (req, res, next) => {
+    try {
+      const { labels, servings } = req.body || {};
+      if (!Array.isArray(labels) || !labels.length) return res.status(400).json({ error: 'at least one label photo is required' });
+      if (labels.length > 12) return res.status(400).json({ error: 'up to 12 labels at a time' });
+      const prepared = [];
+      for (let i = 0; i < labels.length; i++) {
+        const m = String(labels[i]?.image || '').match(IMAGE_DATA_URL);
+        if (!m) return res.status(400).json({ error: `label ${i + 1} is not a supported image data URL` });
+        const [, ext, b64] = m;
+        const workDir = path.join(os.tmpdir(), 'nova-label-scan', randomUUID().slice(0, 8));
+        await mkdir(workDir, { recursive: true });
+        const imagePath = path.join(workDir, `label.${ext}`);
+        await writeFile(imagePath, Buffer.from(b64, 'base64'));
+        prepared.push({ imagePath, workDir, grams: labels[i].grams, name: String(labels[i].name || `label ${i + 1}`).slice(0, 80) });
+      }
+      res.json({ jobId: startLabelMacros(prepared, servings) });
+    } catch (err) {
+      if (/needs the grams|servings|label/.test(err.message)) return res.status(400).json({ error: err.message });
+      next(err);
+    }
+  });
+
+  router.get('/recipes/label-macros/:jobId', (req, res) => {
+    const job = getLabelMacrosJob(req.params.jobId);
+    if (!job) return res.status(404).json({ error: 'job not found' });
+    res.json({ status: job.status, result: job.result, error: job.error });
+  });
   router.post('/recipes/scan', async (req, res, next) => {
     try {
       const images = req.body?.images;

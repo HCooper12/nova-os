@@ -80,6 +80,7 @@ const FEATURES = [
   ['Fuel · rotation v2 — options per slot, per-option ticks, ‹ › focus (7 Sep)', 'Drop this one'],
   ['Fuel · the fridge — cooked portions on the recipe, red when out (7 Sep)', 'In the fridge'],
   ['Fuel · a meal beyond the five (7 Sep)', 'ADD A MEAL'],
+  ['Fuel · macros worked out from nutrition labels in the editor (7 Sep)', 'Or work them out from the labels'],
   ['Voice + Coach · photos and videos ride with a question (6 Sep)', 'rides with your next question'],
   ['Voice · the gym by voice — start, sets, next, skip, finish (6 Sep)', 'Say the weight and reps as you go'],
   ['Train · the anatomy card is one visible tap (◉ 3D chip, 6 Sep)', 'See the lift — the 3D figure'],

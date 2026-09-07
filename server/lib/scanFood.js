@@ -67,6 +67,19 @@ ${imageList}
 Output ONLY a JSON object with exactly these keys: name, macros, confidence, question. No markdown, no code fences, no commentary before or after.`;
   }
 
+  if (mode === 'label-per100') {
+    // the recipe editor's label pass: Nova does the arithmetic (labelMacros.js),
+    // so the model's whole job is the per-100g column, read precisely
+    return `Read the nutrition information panel in the photo at the path below and extract the PER 100 g (or per 100 mL) column exactly as printed. Do NOT scale, estimate a portion, or add anything up — the software does that.
+- name: the product name from the packaging (brand + product), or a reasonable generic description if no packaging is visible
+- per100: {p, c, f, kcal} — protein, carbohydrate (total, not "of which sugars") and fat in grams per 100 g/mL, and energy in kcal per 100 g/mL. If the panel only shows kJ (common on Australian labels), convert: kcal = kJ / 4.184, rounded to the nearest whole number. If there is genuinely no per-100 column, derive it from the per-serving column and the printed serving size in grams.
+- servingGrams: the printed serving size in grams (or mL), as a number, or null if not shown
+- confidence: "high" or "low" — low if any of the four per-100 values is blurry, cut off, or had to be derived
+- question: if confidence is low, ONE short question that would fix it (e.g. "can you retake with the whole panel in frame?"). Empty string if high.${notFoodInstruction}
+Image path(s):
+${imageList}
+Output ONLY a JSON object with exactly these keys: name, per100, servingGrams, confidence, question. No markdown, no code fences, no commentary before or after.`;
+  }
   return `Read the nutrition label in the photo(s) at the paths below and extract its macros.
 
 - name: a short name for the food (from the packaging if visible, otherwise a reasonable generic description)
@@ -122,12 +135,16 @@ function normalizeResult(parsed) {
     },
     confidence: parsed.confidence === 'low' ? 'low' : 'high',
     question: parsed.question ? String(parsed.question).trim() : '',
+    // label-per100 mode (the recipe editor) — absent on every other scan
+    ...(parsed.per100 && typeof parsed.per100 === 'object' ? { per100: { p: Number(parsed.per100.p) || 0, c: Number(parsed.per100.c) || 0, f: Number(parsed.per100.f) || 0, kcal: Number(parsed.per100.kcal) || 0 } } : {}),
+    ...(parsed.servingGrams != null && Number.isFinite(Number(parsed.servingGrams)) ? { servingGrams: Number(parsed.servingGrams) } : {}),
   };
 }
 
 export function startFoodScan(mode, imagePaths, workDir, note) {
-  const promptModeEarly = mode === 'meal' ? 'meal' : mode === 'label' ? 'label' : 'auto';
-  const lane = promptModeEarly === 'label' ? 'scan-food-label' : 'scan-food-meal';
+  const promptModeEarly = mode === 'meal' ? 'meal' : mode === 'label' ? 'label' : mode === 'label-per100' ? 'label-per100' : 'auto';
+  // both label modes are OCR — the fast lane
+  const lane = promptModeEarly.startsWith('label') ? 'scan-food-label' : 'scan-food-meal';
   if (!laneEnabled(lane)) throw laneOffError(lane);
   const jobId = randomUUID().slice(0, 8);
   const job = { id: jobId, status: 'running', result: null, error: null };

@@ -403,6 +403,63 @@ function MealEditor({ v }) {
         </div>
       </div>
 
+      {/* MACROS FROM THE LABELS. His ask (7 Sep): the numbers on some recipes
+          are wrong; let him photograph each ingredient's nutrition panel, say
+          the grams the recipe uses, and have Nova do the sums. The model reads
+          the per-100g column, the server scales/sums/divides by servings, and
+          the result only fills the four fields above — Save is still his. */}
+      <div style={css("margin-top:14px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:12px")}>
+        <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap")}>
+          <Eyebrow>Or work them out from the labels</Eyebrow>
+          <label style={css("cursor:pointer;font:600 12px var(--nv-font-ui);color:var(--nv-cy)")}>
+            ＋ Add label photos
+            <input type="file" accept="image/*" multiple style={css("display:none")} onChange={(e) => { v.addEditLabels(e.target.files); e.target.value = ''; }} />
+          </label>
+        </div>
+        {v.orEditLabels.length === 0 ? (
+          <Meta tone="faint" style={{ display: 'block', marginTop: '6px', textTransform: 'none', letterSpacing: 0 }}>One photo per ingredient's nutrition panel, then the grams this recipe uses of it.</Meta>
+        ) : (
+          <div style={css("display:flex;flex-direction:column;gap:8px;margin-top:10px")}>
+            {v.orEditLabels.map((l) => (
+              <div key={l.key} style={css("display:flex;align-items:center;gap:8px")}>
+                <img src={l.image} alt="" style={css("width:40px;height:40px;object-fit:cover;border-radius:8px;flex:none;border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)")} />
+                <Interactive as="input" type="text" value={l.name} onChange={l.setName} placeholder="what it is" aria-label="Ingredient"
+                  base="flex:1;min-width:0;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:9px 11px;color:var(--nv-ink);font:400 13px var(--nv-font-ui)"
+                  focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)" />
+                <Interactive as="input" type="number" inputMode="decimal" min="1" value={l.grams} onChange={l.setGrams} placeholder="grams" aria-label={`Grams of ${l.name} in the recipe`}
+                  base="width:84px;flex:none;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:9px 11px;color:var(--nv-ink);font:400 13px var(--nv-font-ui);font-variant-numeric:tabular-nums"
+                  focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)" />
+                <Interactive as="span" onClick={l.remove} aria-label={`Remove ${l.name}`} base="cursor:pointer;width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:color-mix(in srgb, var(--nv-ink) 40%, transparent);font:400 16px var(--nv-font-ui)" hoverStyle="color:var(--nv-warn)">×</Interactive>
+              </div>
+            ))}
+            <div style={css("display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:4px")}>
+              <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>The whole recipe makes</Meta>
+              <Interactive as="input" type="number" inputMode="decimal" min="1" value={v.orEditServings} onChange={v.setEditField('servings')} aria-label="Servings the recipe makes"
+                base="width:64px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:8px 10px;color:var(--nv-ink);font:400 13px var(--nv-font-ui);font-variant-numeric:tabular-nums"
+                focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)" />
+              <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>servings</Meta>
+              <Chip tone="good" onClick={v.orEditLabelBusy ? undefined : v.computeFromLabels} style={{ marginLeft: 'auto', opacity: v.orEditLabelBusy ? .6 : 1 }}>{v.orEditLabelBusy ? 'Reading the labels…' : 'Work out the macros'}</Chip>
+            </div>
+          </div>
+        )}
+        {v.orEditLabelError && <div style={css("margin-top:8px;font-size:12px;color:var(--nv-warn)")}>{v.orEditLabelError}</div>}
+        {v.orEditLabelResult && (
+          <div style={css("margin-top:10px;border-radius:10px;padding:10px 12px;background:var(--nv-well);font:400 12px var(--nv-font-ui);color:color-mix(in srgb, var(--nv-ink) 75%, transparent);line-height:1.5")}>
+            {v.orEditLabelResult.parts.map((p, i) => (
+              <div key={i} style={css("display:flex;justify-content:space-between;gap:10px")}>
+                <span style={css("min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{p.name} · {p.grams}g{p.low ? ' · hard to read' : ''}</span>
+                <span style={css("flex:none;font-variant-numeric:tabular-nums")}><span style={css("color:var(--nv-cy)")}>{p.p}P</span> · <span style={css("color:var(--nv-gold)")}>{p.c}C</span> · <span style={css("color:var(--nv-vi)")}>{p.f}F</span> · <span style={css("color:var(--nv-good)")}>{p.kcal}</span></span>
+              </div>
+            ))}
+            <div style={css("margin-top:6px;padding-top:6px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);display:flex;justify-content:space-between;gap:10px")}>
+              <span>Whole recipe → ÷ {v.orEditLabelResult.servings} · the fields above are per serving</span>
+              <span style={css("flex:none;font-variant-numeric:tabular-nums")}>{v.orEditLabelResult.total.p}P · {v.orEditLabelResult.total.c}C · {v.orEditLabelResult.total.f}F · {v.orEditLabelResult.total.kcal}</span>
+            </div>
+            {v.orEditLabelResult.warning && <div style={css("margin-top:6px;color:var(--nv-warn)")}>{v.orEditLabelResult.warning}</div>}
+          </div>
+        )}
+      </div>
+
       {v.orEditError && (
         <div style={css("margin-top:12px;font-size:12px;color:var(--nv-warn)")}>{v.orEditError}</div>
       )}

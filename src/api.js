@@ -121,6 +121,9 @@ export const api = {
   addRecipe: (conn, recipe) => post(conn, '/api/recipes', recipe),
   scanRecipe: (conn, images) => post(conn, '/api/recipes/scan', { images }, { timeoutMs: 90_000 }), // photo uploads over cellular need headroom
   scanRecipeJob: (conn, jobId) => call(conn, `/api/recipes/scan/${encodeURIComponent(jobId)}`),
+  // the recipe editor's label pass: photos + grams + servings → per-serving macros to review
+  labelMacros: (conn, labels, servings) => post(conn, '/api/recipes/label-macros', { labels, servings }, { timeoutMs: 90_000 }),
+  labelMacrosJob: (conn, jobId) => call(conn, `/api/recipes/label-macros/${encodeURIComponent(jobId)}`),
   editRecipe: (conn, id, body) => post(conn, `/api/recipes/${encodeURIComponent(id)}/edit`, body),
   tweakRecipe: (conn, id, request, prior, images) => post(conn, `/api/recipes/${encodeURIComponent(id)}/tweak`, { request, prior, ...(images?.length ? { images } : {}) }),
   tweakRecipeJob: (conn, jobId) => call(conn, `/api/recipes/tweak/${encodeURIComponent(jobId)}`),

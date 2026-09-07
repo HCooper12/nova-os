@@ -1005,11 +1005,57 @@ export default class App extends Component {
         method: (seed.method || []).join('\n'),
         p: String(seed.macros?.p ?? ''), c: String(seed.macros?.c ?? ''),
         f: String(seed.macros?.f ?? ''), kcal: String(seed.macros?.kcal ?? ''),
+        // macros from the labels: the photos he adds, grams each, servings the
+        // recipe makes, and the last result (kept so he can see the breakdown)
+        servings: String(seed.servings || 1), labels: [], labelBusy: false, labelResult: null, labelError: null,
       },
       recipeEditError: null, recipeEditBusy: false,
     });
   }
-  cancelRecipeEdit() { this.setState({ recipeEdit: null, recipeEditError: null, recipeEditBusy: false }); }
+  cancelRecipeEdit() { this.stopPoll('labelMacros'); this.setState({ recipeEdit: null, recipeEditError: null, recipeEditBusy: false }); }
+  // ---- macros from nutrition labels (the editor's label pass) ----
+  // Each label is downscaled like every other photo path; grams default to
+  // blank so he has to say how much the recipe uses — a guessed weight would
+  // be exactly the kind of number this feature exists to replace.
+  async addRecipeEditLabels(files) {
+    const list = Array.from(files || []).filter((f) => /^image\//.test(f.type || '')).slice(0, 12);
+    if (!list.length) return;
+    const dataUrls = await Promise.all(list.map((f) => this.downscaleImageFile(f)));
+    this.setState((s) => s.recipeEdit ? ({ recipeEdit: { ...s.recipeEdit, labelError: null,
+      labels: [...(s.recipeEdit.labels || []), ...dataUrls.map((image, i) => ({ image, name: list[i].name.replace(/\.[a-z0-9]+$/i, ''), grams: '' }))].slice(0, 12) } }) : null);
+  }
+  setRecipeEditLabel(index, patch) {
+    this.setState((s) => s.recipeEdit ? ({ recipeEdit: { ...s.recipeEdit, labelError: null, labels: s.recipeEdit.labels.map((l, i) => (i === index ? { ...l, ...patch } : l)) } }) : null);
+  }
+  removeRecipeEditLabel(index) {
+    this.setState((s) => s.recipeEdit ? ({ recipeEdit: { ...s.recipeEdit, labels: s.recipeEdit.labels.filter((_, i) => i !== index) } }) : null);
+  }
+  // model reads the per-100g columns, the server does the sums, and the
+  // result only FILLS the four fields — Save is still his press
+  computeRecipeEditFromLabels() {
+    const conn = getConnection();
+    const e = this.state.recipeEdit;
+    if (!conn || !e) return;
+    const setEdit = (patch) => this.setState((s) => s.recipeEdit ? ({ recipeEdit: { ...s.recipeEdit, ...patch } }) : null);
+    if (!e.labels?.length) return setEdit({ labelError: 'Add a photo of each nutrition label first.' });
+    const missing = e.labels.find((l) => !(Number(l.grams) > 0));
+    if (missing) return setEdit({ labelError: `How many grams of ${missing.name || 'that one'} go into the recipe?` });
+    const servings = Number(e.servings);
+    if (!(servings > 0)) return setEdit({ labelError: 'How many servings does the whole recipe make?' });
+    setEdit({ labelBusy: true, labelError: null, labelResult: null });
+    api.labelMacros(conn, e.labels.map((l) => ({ image: l.image, grams: Number(l.grams), name: l.name })), servings).then(({ jobId }) => {
+      this.startPoll('labelMacros', () => api.labelMacrosJob(conn, jobId), {
+        intervalMs: 900,
+        onReady: (job) => {
+          const r = job.result;
+          setEdit({ labelBusy: false, labelResult: r,
+            p: String(r.perServing.p), c: String(r.perServing.c), f: String(r.perServing.f), kcal: String(r.perServing.kcal) });
+          this.toastMsg(r.confidence === 'low' ? 'Worked out from the labels — one was hard to read, check the fields' : 'Worked out from the labels — check the fields, then Save');
+        },
+        onError: (err) => setEdit({ labelBusy: false, labelError: err.message || String(err) }),
+      });
+    }).catch((err) => setEdit({ labelBusy: false, labelError: err.message }));
+  }
   setRecipeEditField(field, value) {
     this.setState((s) => ({ recipeEdit: { ...s.recipeEdit, [field]: value }, recipeEditError: null }));
   }
