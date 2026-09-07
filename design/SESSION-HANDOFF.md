@@ -75,6 +75,25 @@ the filming protocol is the feature and a bad clip is refused, not guessed;
 Garmin build asks for an account password in chat, and age-group percentiles
 Nova has no population for.
 
+**7 SEP (late) — TWO THINGS HE REPORTED, BOTH REAL (34b57df).**
+- **A pasted video link did nothing.** The capture path ran the prose
+  classifier (no video route) and never asked `routeIntent`, which has known
+  what a video link is for weeks — so his "Research and analyse this video"
+  filed as an unclassified note. Every front door now routes media first:
+  a video link → the Watcher (carrying his words), a channel → Study, prose
+  unchanged. `captureLane()` is pure and pinned by captureLinks.test.js.
+- **"NOVA IS WORKING · 1 running" was a job that died on 27 August.** The tray
+  counted failed and ready cards as in-flight and gave a failed one no way
+  out. Counts are now honest (running / waiting for you / failed) and a
+  failed job carries CLEAR. The Atomic Habits card is gone.
+- **HIS CALL, OPEN:** a watched video files to `Wiki/Sources/<title>.md`
+  (typed `source`, tagged `video`, linked to its `Raw/` transcript) — but
+  only after his approve tap. He wants links in the second brain
+  automatically; auto-filing is defensible (it rides the rails and undoes),
+  it is simply a behaviour change he has not agreed to yet. NOT YET VERIFIED:
+  whether the daily review, Leader and Coach actually READ `Wiki/Sources` —
+  do not claim they do until someone checks.
+
 **STILL HIS:** the stale ingest weave 9e994aae (discard + re-run; the
 transcript is cached so it is cheap); cook something and tell Nova so the
 fridge starts counting; the phone-in-hand gym check; a real browser commit;
