@@ -1229,6 +1229,14 @@ export async function retryRecord(vaultPath, id) {
     const { retryStudy } = await import('./studyLane.js');
     return retryStudy(vaultPath, record);
   }
+  if (record.kind === 'briefing') {
+    // the topic rides in the text ("Briefing: …"), and his whole sentence was
+    // both topic and instruction — re-run it exactly as first asked
+    const { startBriefing } = await import('./briefing.js');
+    const topic = String(record.text || '').replace(/^Briefing:\s*/, '');
+    await updateRecord(id, { status: 'discarded', discardedAt: new Date().toISOString(), reason: 'retried' });
+    return startBriefing(vaultPath, { topic, standing: topic });
+  }
   if (record.kind) throw new Error('this draft comes from a scheduled agent — it re-runs on its own schedule; discard this copy');
   const updated = await updateRecord(id, { status: 'classifying', error: null });
   runClassification(vaultPath, updated);

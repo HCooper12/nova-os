@@ -360,7 +360,7 @@ export function valsInbox(app, ctx) {
     // retry only where the record still carries its full input: a capture's
     // text, a research question, or a video URL. Scheduled drafts re-run on
     // their own.
-    canRetry: r.status === 'error' && (!r.kind || r.kind === 'research' || r.kind === 'video' || r.kind === 'study'),
+    canRetry: r.status === 'error' && (!r.kind || r.kind === 'research' || r.kind === 'video' || r.kind === 'study' || r.kind === 'briefing'),
     approve: () => app.inboxAction(r.id, 'approve'),
     // Declining COACH advice asks why — the reason rides the record so the
     // Coach learns from it (and never re-asks). Everything else discards

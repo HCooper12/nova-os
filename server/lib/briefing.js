@@ -48,9 +48,9 @@ export const BRIEFING_KIND = 'briefing';
 // launchd services do not inherit the interactive shell PATH — absolute path
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 
-// One spawn. The compose pass needs NO tools at all — every fact it may use
-// is already in the findings it was handed, and a model that can search here
-// could quietly add a claim no citation gate ever saw.
+// One spawn. The decompose pass gets no tools; the compose pass gets Read on
+// the vault (his shelf is the cross-check) and never the web — every outside
+// fact it may use was already citation-gated by a Researcher upstream.
 function runClaude({ prompt, model: m, tools = '', budget = '1.0', vaultPath, minutes = 25 }) {
   return new Promise((resolve, reject) => {
     const args = [
@@ -147,6 +147,8 @@ RULES THAT ARE NOT NEGOTIABLE:
 Also give:
 - \`glossary\`: every term you defined, as {term, plain} — plain is one sentence, no jargon inside it.
 - \`sources\`: the sources actually drawn on, as {title, url}. Only ones that appear in the findings.
+
+You may Read the shelf pages named above (and their Raw/ transcripts) before writing — do that silently. Then your ENTIRE reply must be the JSON below: no preamble, no "I will check", no commentary of any kind before or after it.
 
 Output ONLY JSON with exactly these keys:
 {"title": "...", "summary": "2-3 sentences — what this is and what it concludes", "sections": [{"heading": "...", "body": "...", "beats": [{"say": "...", "visual": null}, {"say": "...", "visual": {"kind": "image", "query": "...", "caption": "..."}}]}], "glossary": [{"term": "...", "plain": "..."}], "sources": [{"title": "...", "url": "..."}]}
@@ -322,7 +324,11 @@ async function runBriefingJob(vaultPath, recordId, topic, standing, deps) {
     setStage('writing');
     const shelf = await deps.shelfContext(vaultPath, `${topic} ${angles.angles.map((a) => a.q).join(' ')}`).catch(() => null);
     const briefing = normalizeBriefing(
-      await model(deps, buildComposePrompt({ title: angles.title, topic, standing, findings, shelf }), { lane: 'briefing-compose', budget: '2.0', vaultPath }),
+      // Read only, no web: the shelf cross-check means opening HIS pages, and a
+      // pass that cannot open them announced it would and then stopped (the
+      // first live run). The web stays shut — every outside fact was already
+      // citation-gated upstream.
+      await model(deps, buildComposePrompt({ title: angles.title, topic, standing, findings, shelf }), { lane: 'briefing-compose', budget: '2.5', vaultPath, tools: 'Read' }),
       { title: angles.title },
     );
     if (missing.length) briefing.incomplete = missing;
