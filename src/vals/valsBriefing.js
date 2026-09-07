@@ -10,6 +10,15 @@
 // `current` is the beat index whose audio has STARTED — set by the TTS
 // queue's onPlay, the only honest clock (see design/BRIEFING-PLAN.md).
 
+// the same typographic glass the server would have chosen without the hint
+function fallbackFor(beat, briefing) {
+  const lower = String(beat.say || '').toLowerCase();
+  const term = (briefing.glossary || []).find((g) => g.term && lower.includes(g.term.toLowerCase()));
+  if (term) return { kind: 'term', term: term.term, plain: term.plain };
+  const section = briefing.sections[beat.section];
+  return { kind: 'heading', n: beat.section + 1, of: briefing.sections.length, heading: section?.heading || '' };
+}
+
 export function valsBriefing(app, _ctx) {
   const st = app.state;
   const doc = st.briefing;
@@ -21,10 +30,20 @@ export function valsBriefing(app, _ctx) {
 
   // the stage: the current beat's visual, and up to four before it receding
   // into a rail — the glass grammar the Morning Show already uses
+  const urls = st.briefingMediaUrls || {};
+  // an image whose bytes have not arrived yet shows as its typographic
+  // fallback rather than a broken frame — the prefetch normally wins the race
+  const resolve = (b) => {
+    const v = b?.visual;
+    if (!v) return null;
+    if (v.kind === 'image') return urls[v.key] ? { ...v, src: urls[v.key] } : fallbackFor(b, doc.briefing);
+    if (v.kind === 'clip') return { ...v, poster: v.posterKey ? urls[v.posterKey] || null : null, embed: `https://www.youtube-nocookie.com/embed/${v.videoId}?rel=0&modestbranding=1&playsinline=1` };
+    return v;
+  };
   const beats = ready ? doc.beats : [];
-  const stage = current >= 0 ? beats[current]?.visual || null : null;
+  const stage = current >= 0 ? resolve(beats[current]) : null;
   const rail = current > 0
-    ? beats.slice(Math.max(0, current - 4), current).map((b) => b.visual).reverse()
+    ? beats.slice(Math.max(0, current - 4), current).map(resolve).filter(Boolean).reverse()
     : [];
 
   return {
@@ -36,7 +55,8 @@ export function valsBriefing(app, _ctx) {
         stage: doc.stage, angles: doc.angles || [], done: doc.done || 0, title: doc.title,
         line: doc.stage === 'planning' ? 'Working out the angles worth researching…'
           : doc.stage === 'researching' ? `Researching ${doc.angles?.length || 'several'} angles at once — ${doc.done || 0} back so far`
-          : doc.stage === 'writing' ? 'Writing the report and its script…' : 'Working…',
+          : doc.stage === 'writing' ? 'Writing the report and its script…'
+          : doc.stage === 'illustrating' ? 'Finding and caching the visuals…' : 'Working…',
       } : null,
       error: doc?.status === 'error' ? doc.error : (st.briefingError || null),
       title: ready ? doc.briefing.title : (doc?.title || 'Briefing'),

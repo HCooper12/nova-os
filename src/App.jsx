@@ -338,6 +338,7 @@ export default class App extends Component {
     liveLeader: null, leaderChat: [], leaderInput: '', leaderBusy: false,
     // the briefing reader: the loaded document, its playback, listen|read
     briefing: null, briefingLoading: false, briefingError: null, briefingPlay: null, briefingMode: 'listen',
+    briefingMediaUrls: {}, // key → blob URL, fetched when the briefing opens so the glass never buffers
     liveForge: null, forgeInput: '', forgeBusy: false, browserSignInBusy: false, liveIngestJobs: [],
     leaderSessionId: typeof localStorage === 'undefined' ? null : (localStorage.getItem('novaos.leaderSession') || null),
     voiceSpeak: typeof localStorage === 'undefined' ? true : localStorage.getItem('novaos.voiceSpeak') !== '0',
@@ -3459,8 +3460,31 @@ export default class App extends Component {
     if (!conn || !id) return;
     if (!silent) this.setState({ screen: 'briefing', briefingLoading: true, briefingError: null, briefing: this.state.briefing?.id === id ? this.state.briefing : null });
     api.briefing(conn, id)
-      .then((doc) => this.setState({ briefing: doc, briefingLoading: false }))
+      .then((doc) => {
+        this.setState({ briefing: doc, briefingLoading: false });
+        this.prefetchBriefingMedia(doc);
+      })
       .catch((e) => this.setState({ briefingLoading: false, briefingError: e.message }));
+  }
+  // Every image and clip poster the briefing will show, fetched into memory
+  // now — a visual that arrives a second after its sentence is a visual that
+  // reads as broken. Served from Nova's own origin, so nothing leaks and it
+  // works offline once cached.
+  prefetchBriefingMedia(doc) {
+    const conn = getConnection();
+    if (!conn || !doc?.beats) return;
+    const keys = new Set();
+    for (const b of doc.beats) {
+      const v = b.visual;
+      if (v?.kind === 'image' && v.key) keys.add(v.key);
+      if (v?.kind === 'clip' && v.posterKey) keys.add(v.posterKey);
+    }
+    for (const key of keys) {
+      if (this.state.briefingMediaUrls[key]) continue;
+      api.briefingMediaBlobUrl(conn, key)
+        .then((url) => { if (url) this.setState((s) => ({ briefingMediaUrls: { ...s.briefingMediaUrls, [key]: url } })); })
+        .catch(() => { /* the typographic glass stands in for this beat */ });
+    }
   }
   closeBriefing() {
     this.pauseBriefing();

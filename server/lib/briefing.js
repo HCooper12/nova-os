@@ -129,7 +129,11 @@ ${findings}
 Write the briefing. Two things at once, from the same material:
 
 - \`body\`: the prose he READS. Full sentences, no bullet-point shorthand, no headings inside it (the heading is its own field). This is where nuance, caveats and numbers live.
-- \`beats\`: what Nova SAYS. Each beat is one or two sentences of natural speech that will be spoken aloud, one at a time, with a visual on screen. Speech is not prose read out: shorter sentences, no parentheses, no citation markers, numbers said the way a person says them.
+- \`beats\`: what Nova SAYS. Each beat is {"say": "...", "visual": ...}. \`say\` is one or two sentences of natural speech, spoken aloud one beat at a time. Speech is not prose read out: shorter sentences, no parentheses, no citation markers, numbers said the way a person says them.
+  \`visual\` is what should be on screen while that beat is spoken, and it is OPTIONAL — most beats should have none (the glass then shows the term being defined, or the section heading). Add one only where a picture or a clip would genuinely help him understand what is being said:
+    {"kind":"image","query":"<a 3-6 word search for a real diagram or photo, e.g. electromagnetic spectrum wavelength diagram>","caption":"<what he is looking at, one line>"}
+    {"kind":"clip","query":"<a search for a short explanatory video on this exact point>","caption":"<why this clip, one line>"}
+  Use image for mechanisms and anatomy; clip sparingly, for something better seen moving. Never more than one visual per beat, and never for a beat that is just a sentence of prose.
 
 The body and the beats of a section must cover the same ground. They are not copies of each other.
 
@@ -145,7 +149,7 @@ Also give:
 - \`sources\`: the sources actually drawn on, as {title, url}. Only ones that appear in the findings.
 
 Output ONLY JSON with exactly these keys:
-{"title": "...", "summary": "2-3 sentences — what this is and what it concludes", "sections": [{"heading": "...", "body": "...", "beats": ["...", "..."]}], "glossary": [{"term": "...", "plain": "..."}], "sources": [{"title": "...", "url": "..."}]}
+{"title": "...", "summary": "2-3 sentences — what this is and what it concludes", "sections": [{"heading": "...", "body": "...", "beats": [{"say": "...", "visual": null}, {"say": "...", "visual": {"kind": "image", "query": "...", "caption": "..."}}]}], "glossary": [{"term": "...", "plain": "..."}], "sources": [{"title": "...", "url": "..."}]}
 No markdown fences, no commentary before or after.`;
 }
 
@@ -156,7 +160,16 @@ export function normalizeBriefing(parsed, { title: fallbackTitle } = {}) {
     .map((s) => ({
       heading: clean(s?.heading, 120),
       body: String(s?.body || '').trim(),
-      beats: (Array.isArray(s?.beats) ? s.beats : []).map((b) => clean(b, 600)).filter(Boolean),
+      // a beat is {say, hint?} — a bare string is accepted for older records
+      beats: (Array.isArray(s?.beats) ? s.beats : []).map((b) => {
+        if (typeof b === 'string') return { say: clean(b, 600) };
+        const say = clean(b?.say, 600);
+        const v = b?.visual && typeof b.visual === 'object' ? b.visual : null;
+        const hint = v && (v.kind === 'image' || v.kind === 'clip') && String(v.query || '').trim()
+          ? { kind: v.kind, query: clean(v.query, 120), caption: clean(v.caption, 200) }
+          : null;
+        return hint ? { say, hint } : { say };
+      }).filter((b) => b.say),
     }))
     .filter((s) => s.heading && (s.body || s.beats.length));
   if (!sections.length) throw new Error('the briefing came back with no sections');
@@ -180,7 +193,7 @@ export function beatsOf(briefing) {
   const steps = [];
   if (briefing.summary) steps.push({ say: briefing.summary, section: -1, kind: 'summary' });
   briefing.sections.forEach((s, i) => {
-    s.beats.forEach((say, j) => steps.push({ say, section: i, kind: j === 0 ? 'section-open' : 'beat' }));
+    s.beats.forEach((b, j) => steps.push({ say: b.say, resolved: b.visual || null, section: i, kind: j === 0 ? 'section-open' : 'beat' }));
   });
   return steps;
 }
@@ -219,6 +232,7 @@ export const defaultDeps = {
   startResearch: async (vaultPath, q, opts) => (await import('./researcher.js')).startResearch(vaultPath, q, opts),
   getRecord,
   shelfContext: async (vaultPath, topics) => (await import('./sourceShelf.js')).shelfContext(vaultPath, { topics, limit: 4 }),
+  enrichVisuals: async (briefing) => (await import('./briefingMedia.js')).enrichVisuals(briefing),
 };
 
 async function model(deps, prompt, { lane, tools = '', budget = '1.0', vaultPath }) {
@@ -313,6 +327,11 @@ async function runBriefingJob(vaultPath, recordId, topic, standing, deps) {
     );
     if (missing.length) briefing.incomplete = missing;
 
+    // 4 — the visuals, fetched and cached NOW so playback never buffers. A
+    // hint that resolves to nothing is dropped; the briefing is ready either way.
+    setStage('illustrating');
+    try { await deps.enrichVisuals(briefing); } catch { /* the typographic glass stands in */ }
+
     const body = briefingMarkdown(briefing, topic);
     await updateRecord(recordId, {
       status: 'pending',
@@ -340,6 +359,8 @@ async function runBriefingJob(vaultPath, recordId, topic, standing, deps) {
 // one, the section's heading otherwise — so the stage is never blank and
 // never decorative. Phases B/C add image and clip kinds on top of these.
 export function visualFor(beat, briefing) {
+  // an image or clip the enricher resolved and cached wins outright
+  if (beat.resolved && (beat.resolved.kind === 'image' || beat.resolved.kind === 'clip')) return beat.resolved;
   const say = String(beat.say || '');
   const lower = say.toLowerCase();
   // the FIRST glossary term the beat mentions — its plain definition on the

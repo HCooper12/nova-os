@@ -30,5 +30,18 @@ export function briefingRouter() {
     }
   });
 
+  // a cached image, from Nova's own origin — the key is a hash, never a path
+  router.get('/briefing/media/:key', async (req, res) => {
+    try {
+      const { readCached } = await import('../lib/briefingMedia.js');
+      const hit = await readCached(req.params.key);
+      if (!hit) return res.status(404).end();
+      res.set({ 'Content-Type': hit.type, 'Cache-Control': 'public, max-age=2592000' });
+      res.end(hit.buf);
+    } catch {
+      res.status(404).end();
+    }
+  });
+
   return router;
 }

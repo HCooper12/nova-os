@@ -75,6 +75,30 @@ function Glass({ visual, mini = false }) {
       </div>
     );
   }
+  if (visual.kind === 'clip') {
+    // the rail shows the cached poster; the stage shows the embed itself,
+    // paused until he taps — a clip that auto-plays over Nova's voice is
+    // two things talking at once
+    if (mini) {
+      return (
+        <div style={{ ...frame, padding: 0, aspectRatio: '16 / 9', background: visual.poster ? `center / cover url(${visual.poster})` : 'color-mix(in srgb, var(--nv-void) 92%, black)' }}>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', font: `600 16px ${UI}`, color: 'white', textShadow: '0 1px 6px rgba(0,0,0,.8)' }}>▶</div>
+        </div>
+      );
+    }
+    return (
+      <div style={{ ...frame, padding: 0 }}>
+        <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', background: 'black' }}>
+          <iframe title={visual.title || 'clip'} src={visual.embed} allow="accelerometer; encrypted-media; picture-in-picture" allowFullScreen
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }} />
+        </div>
+        <div style={{ padding: '10px 14px 12px', display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'baseline' }}>
+          <span style={{ font: `400 12.5px/1.4 ${UI}`, color: 'color-mix(in srgb, var(--nv-ink) 80%, transparent)' }}>{visual.caption || visual.title}</span>
+          {visual.channel && <span style={{ flex: 'none', font: `500 8px ${M}`, letterSpacing: '.14em', color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}>{String(visual.channel).toUpperCase()}</span>}
+        </div>
+      </div>
+    );
+  }
   return null;
 }
 

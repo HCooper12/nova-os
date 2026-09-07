@@ -287,6 +287,11 @@ export const api = {
   leader: (conn) => call(conn, '/api/leader'),
   // the briefing, ready to read or play (or its progress while agents run)
   briefing: (conn, id) => call(conn, `/api/briefing/${encodeURIComponent(id)}`),
+  briefingMediaBlobUrl: async (conn, key) => {
+    const res = await fetch(baseOf(conn) + `/api/briefing/media/${encodeURIComponent(key)}`, { headers: { Authorization: `Bearer ${conn.token}` } });
+    if (!res.ok) return null;
+    return URL.createObjectURL(await res.blob());
+  },
   leaderRun: (conn, kind, force) => post(conn, '/api/leader/run', { kind, force }),
   askLeader: (conn, question, sessionId) => post(conn, '/api/leader/chat', { question, sessionId }),
   leaderReflect: (conn, body) => post(conn, '/api/leader/reflect', body),
