@@ -13,65 +13,62 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**7 SEP (late night) — THE BRIEFING IS BUILT, LIVE, AND PROVEN END TO END.**
-His ask: say one sentence ("research the wavelengths of light Huberman
-discussed and synthesise it into a report — define the terminology"), agents
-fan out, a notification says it is ready, and he reads it or presses Play
-and Nova performs it with visuals on the glass and the transcript following.
-`design/BRIEFING-PLAN.md` has the design and the status; the
-`nova-briefing` memory has the lessons. Phases A–D shipped in five
-commits, then one real run and four fixes.
+**8 SEP (small hours) — THE BROWSER HAND IS LIVE ON THE GLASS.** His vision:
+"open the Diary of a CEO channel" and WATCH it happen. Built in cdf0845 +
+the follow-up; verified on the shipped bundle at 375×812.
 
-**The real run (record `9b1d22a8`):** the `brief` lane caught his exact
-sentence; 5 angles researched in parallel (~75 s); one compose pass wrote
-prose AND script together; 6 sections, 30 beats, 25 terms defined in plain
-words, 26 sources, two credited images; the summary says outright where two
-of his own saved podcasts disagree. About 4 minutes wall-clock.
+**What it is.** The browse lane runs the CLI with streamed output; every
+tool call becomes a step as it happens (`stepFromEvent` in browse.js — a
+navigation is "Opening youtube.com/@TheDiaryOfACEO/videos", a screenshot is
+a window, the model's own narration is the caption; it is told it is being
+watched and to screenshot after every navigation). Each step is one SSE
+nudge (`browseLive {id}`); the app pulls `/api/browse/:id/live`, fetches
+each new window from `/api/browse/:id/shot/<file>` as a blob, and
+`putCard({kind:'shot'})` — so the stage's history rail IS the Jarvis side
+rail. A final nudge fires when the record lands, and the pull arms its own
+2.5 s poll while a run is going. The router (server `BROWSE_MEDIA_RE` and
+its mirror in the client's `routeIntentLocal`) sends "open the X channel /
+show me the latest video / find the most popular video with A and B /
+open up youtube and…" to the hand, BEFORE play, so "play"/"put on" still
+opens the Mac's browser directly.
 
-**Verified on the shipped bundle against his vault, 375×812 and 1280×900:**
-deep link → reader; Listen/Read; Play → beats advance, transcript
-highlights and follows, rail fills, progress moves; tap a beat to seek; the
-Commons image renders from Nova's cache with caption + credit; two-column
-desktop with sticky stage; resume-where-he-left-off across pages; "explain
-that again" pauses, hands the EXACT beat to Nova as a grounded question,
-Nova's answer comes first and THEN "shall I carry on?", and "yes" opens the
-briefing and resumes. The Read view: sections, glossary, sources, "Listen
-from here".
+**Verified live, from the composer:** "find me the most popular video that
+has both Chris Williamson and Alex Hormozi in it" → the YouTube search on
+the glass at 35 s, the sorted results, then the video page — "Be Ruthless
+About the Life You Want", 4.4M views — with the rest blurred back and "1
+running" in the header; the summary explained why two higher-viewed Hormozi
+interviews did not count (Bartlett, not Williamson). "show me the latest
+Diary of a CEO video" → first window at 18 s, two windows, and the finish
+spoken into the chat at 30 s ("…uploaded 6 hours ago with 491k views").
 
-**Four bugs the run found, all fixed:** (1) the compose pass had no tools,
-announced it would read his shelf, then stopped — it now gets Read on the
-vault and never the web (a28a2b0); (2) `Briefing.jsx` was a default export
-and `lazyScreen` wants `m[name]` — React #306, black screen, no root
-error boundary, and it had DEPLOYED (0b07c1e); (3) the resume offer fired
-before the answer — anchored to the ask poll's delivery (e1db9c7); (4) a
-bare `#/briefing` reload hung on "Opening…" — it now reopens the last
-briefing, or says there is none (e1db9c7).
+**Four things the runs caught, all fixed:** the model names screenshots
+.png and headless Chrome saves .jpeg (matched by stem); the new routes
+resolved the data dir from `process.cwd()` (pathDiscipline refused it —
+use `shotDirFor`); the shot handler never imported `shotDirFor` (a
+ReferenceError swallowed as a 404); and the chat's browse dispatch is a
+DIFFERENT call site from the one hooked first, so `watchBrowse` never ran
+and the finish line was never seen — now hooked, self-arming, and the
+final nudge covers an SSE-only client.
 
-**Not yet exercised:** a briefing that produces a CLIP (this topic drew no
-clip hints — "clip sparingly" held); the push notification's tap on his
-actual phone (the deep link is verified in the browser, and the push
-receipt line is new so the next one shows in the log); a failed angle in a
-real run.
+**Earlier the same night:** the Briefing built, run and proven (see the log
+below and `design/BRIEFING-PLAN.md`).
 
-**Earlier today, also live:** every agent can read his shelf and the lens
-weighs his sources (e2d352e); the Coach is a nutrition coach
-(fuelContext); Coach notes survive the tap on Start (253d0b3); weight is
-one point per weigh-in, backfilled (841b84b); a pasted link watches itself
-and the tray is honest (34b57df); uploads file and weave themselves with a
-notification (facc65b).
-
-**NEXT IN THIS LINE — his stated vision:** the same stage grammar for the
-browser hand, shown LIVE: "open the Diary of a CEO channel", "show me the
-latest video", "find the most popular video with Chris Williamson and Alex
-Hormozi" — windows appearing on the glass as Nova does the work, not a
-report afterwards. The browse lane already takes screenshots; putting them
-on the stage as they happen is the build. Then THE INTAKE from
-`design/ATHLETE-AI-PLAN.md` (About You is still empty).
+**NEXT in this line:** the same live stage for the plain `browse` lane's
+"stopped in front of a button" moment — show the button in the window and
+let his "yes" press it from the glass; the "open it for real" tap on the
+final window (the URL rides the navigate step already); and THE INTAKE
+from `design/ATHLETE-AI-PLAN.md` (About You is still empty).
 
 **STILL HIS:** the stale ingest weave 9e994aae; cook something and tell
 Nova; the phone-in-hand gym check; a real browser commit; Xcode.
 
 ## SESSION LOG (append-only, newest first)
+
+### 8 September 2026 (small hours) — the browser hand, live on the glass
+Streamed browse runs → steps → SSE nudges → windows on the stage via the
+existing putCard rail (cdf0845 + fixes). Router learned the media shape on
+both sides. Two live runs from the composer verified on the shipped bundle.
+1171 tests green under TZ=UTC.
 
 ### 7 September 2026 (late night) — the Briefing, built and proven
 design/BRIEFING-PLAN.md → phases A–D (8647722, 3fb2882, 94693a6, 2f6aecb),

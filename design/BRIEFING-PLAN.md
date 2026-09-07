@@ -212,3 +212,8 @@ video with Chris Williamson and Alex Hormozi" — shown live on the glass as
 Nova does it, rather than reported afterwards. The screenshots the browse
 lane already takes are the raw material; putting them on the stage as they
 happen is the build.
+
+**Update, 8 Sep 2026:** the browser-hand stage described above is BUILT
+(cdf0845): streamed steps, windows on the glass via the stage's rail, the
+media-shaped router rule on both server and client. Verified from the
+composer on two real runs. Lessons in the `nova-verbs` memory.
