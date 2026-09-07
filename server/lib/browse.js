@@ -182,6 +182,8 @@ async function run(recordId, task, server) {
     },
   }, null, 2), 'utf8');
 
+  // kept on the record: his yes resumes THIS session to press the control
+  const sessionId = randomUUID();
   const child = spawn(CLAUDE_BIN, [
     '-p', buildBrowsePrompt(task, shotDir),
     '--permission-mode', 'bypassPermissions',
@@ -192,7 +194,7 @@ async function run(recordId, task, server) {
     '--output-format', 'json',
     '--model', modelFor('browse'),
     '--max-budget-usd', MAX_BUDGET_USD,
-    '--session-id', randomUUID(),
+    '--session-id', sessionId,
   ], { cwd: shotDir, stdio: ['ignore', 'pipe', 'pipe'] });
 
   let stdout = '';
@@ -217,18 +219,29 @@ async function run(recordId, task, server) {
         const result = parseBrowseResult(text);
         const shots = (await readdir(shotDir).catch(() => [])).filter((f) => /^shot-\d+\.(png|jpe?g|webp)$/i.test(f)).sort();
         const title = `Browser: ${task.slice(0, 60)}${task.length > 60 ? '…' : ''}`;
+        const stopped = result?.stoppedBefore || null;
+        const body = describeBrowse({ task, result, shots: shots.length });
         await updateRecord(recordId, {
           status: 'pending',
           shots: shots.length,
-          stoppedBefore: result?.stoppedBefore || null,
-          decision: {
+          stoppedBefore: stopped,
+          sessionId,
+          // A run that stopped in front of a control is not a note to file —
+          // it is a DECISION. Approving presses that one control, in the same
+          // browser session, and nothing else. A run with nothing pending
+          // files as an ordinary note, exactly as before.
+          decision: stopped ? {
+            route: 'browse-commit',
+            confidence: 'high',
+            title,
+            reason: `approving PRESSES "${stopped}" — that is the point of the run, and it cannot be undone`,
+            payload: { title, body, recordId, sessionId, press: stopped, task, shotDir },
+          } : {
             route: 'note',
             confidence: 'high',
             title,
-            reason: result?.stoppedBefore
-              ? 'the browser stopped before the button that commits — read it, then press it yourself'
-              : 'what Nova saw and did in the browser — approve to keep it as a note, or discard',
-            payload: { title, body: describeBrowse({ task, result, shots: shots.length }) },
+            reason: 'what Nova saw and did in the browser — approve to keep it as a note, or discard',
+            payload: { title, body },
           },
         });
       } catch (e) {
@@ -237,4 +250,88 @@ async function run(recordId, task, server) {
       resolve();
     });
   });
+}
+
+/* ------------------------ the second half: his yes ------------------------ */
+
+// The first run stops in front of the control and reports it. This resumes
+// THAT session (`--resume`, so the model still knows the page it was on, and
+// the profile still holds the cookies), authorises exactly one control, and
+// nothing else. It cannot be undone — the record's reason and this prompt
+// both say so. Fire-and-forget: pressing can take a minute, and holding his
+// approve request open would time it out, so the outcome is appended to the
+// same record and the Inbox refreshes itself.
+export function buildPressPrompt(task, control, shotDir) {
+  return `You are Nova's hands in the browser, resuming the session you just ran.
+
+The original task: ${task}
+You stopped in front of: ${control}
+
+He has now approved EXACTLY that one control. Get back to it if the page has
+moved on, press it, and confirm what happened.
+
+Do NOT do anything else: no other button, no extra item, no settings, no
+sign-in, no second attempt at a different control. If the page has changed
+enough that the control is gone, or would now do something different from
+what you described to him, STOP and say so rather than pressing something
+that merely looks similar.
+
+Screenshot the result with take_screenshot({ filePath: "${shotDir}/press-1.png" }).
+
+Finish with ONE line of JSON and nothing after it:
+BROWSE {"done": true|false, "summary": "<what happened when you pressed it, or why you did not>", "steps": ["<each action>"], "stoppedBefore": null, "cannot": "<why not, or null>"}`;
+}
+
+export async function pressPending(payload) {
+  const { recordId, sessionId, press, task, shotDir } = payload || {};
+  if (!recordId || !sessionId || !press) throw new Error('that record has nothing waiting to be pressed');
+  const server = mcpServerPath();
+  if (!server) throw new Error('the Chrome DevTools MCP server is not installed');
+  const dir = shotDir || path.join(dataRoot(), 'browse', recordId);
+  const cfgPath = path.join(dir, 'mcp.json');
+  if (!existsSync(cfgPath)) throw new Error('that browser session is gone — run the task again');
+
+  const child = spawn(CLAUDE_BIN, [
+    '-p', buildPressPrompt(task || '', press, dir),
+    '--resume', sessionId,
+    '--permission-mode', 'bypassPermissions',
+    '--mcp-config', cfgPath,
+    '--strict-mcp-config',
+    '--allowedTools', TOOLS.join(' '),
+    '--disallowedTools', DISALLOWED,
+    '--output-format', 'json',
+    '--model', modelFor('browse'),
+    '--max-budget-usd', MAX_BUDGET_USD,
+  ], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
+
+  let stdout = '';
+  const watchdog = setTimeout(() => { try { child.kill('SIGKILL'); } catch { /* already gone */ } }, 6 * 60_000);
+  child.stdout.on('data', (d) => { stdout += d; });
+  child.on('close', async () => {
+    clearTimeout(watchdog);
+    let line;
+    try {
+      const outer = JSON.parse(stdout);
+      if (outer.is_error) throw new Error(outer.result || 'the session failed');
+      const done = parseBrowseResult(String(outer.result || ''));
+      line = done
+        ? `\n\n— Pressed "${press}": ${done.summary}${done.cannot ? ` (could not: ${done.cannot})` : ''}`
+        : `\n\n— Went back to press "${press}", but the session came back without a readable report. Check the site yourself before assuming it went through.`;
+    } catch (e) {
+      line = `\n\n— Tried to press "${press}" and the session failed: ${String(e.message).slice(0, 160)}. Nothing is confirmed — check the site yourself.`;
+    }
+    try {
+      const { getRecord } = await import('./inboxStore.js');
+      const rec = await getRecord(recordId);
+      if (rec?.decision?.payload) {
+        await updateRecord(recordId, {
+          pressed: true,
+          destination: `Browser — pressed "${press}"`,
+          decision: { ...rec.decision, payload: { ...rec.decision.payload, body: `${rec.decision.payload.body || ''}${line}` } },
+        });
+      }
+      (await import('./events.js')).broadcast('inbox');
+    } catch { /* the record moved on — the browser still did what it did */ }
+  });
+  return { press };
 }

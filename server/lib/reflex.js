@@ -78,7 +78,10 @@ async function statusReflex(q, deps) {
   if (!m) return null;
   const named = m[1].trim();
   if (named.length < 3 || /^(?:it|that|this|things|everything|you|we)$/.test(named)) return null;
-  const records = await deps.records?.().catch(() => null);
+  // an injected deps object may not carry every reader — a missing one means
+  // this reflex stays silent, never that tryReflex throws
+  if (typeof deps.records !== 'function') return null;
+  const records = await deps.records().catch(() => null);
   if (!records) return null;
   const cutoff = Date.now() - 2 * 86_400_000;
   const { matchName } = await import('./verbs.js');

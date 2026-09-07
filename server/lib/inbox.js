@@ -537,6 +537,18 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  if (route === 'browse-commit') {
+    // His yes on a browser run that stopped in front of a control: resume
+    // that session and press exactly it. There is no undo for a press, and
+    // the record's reason said so before he tapped.
+    const { pressPending } = await import('./browse.js');
+    const { press } = await pressPending(payload);
+    return {
+      destination: `Browser — pressing "${press}" (the outcome lands on this record)`,
+      undo: null,
+    };
+  }
+
   if (route === 'act') {
     // A verb from the registry (lib/verbs.js) that needed his yes — the
     // shopping-list clear, and anything the model marks confirm-first.

@@ -63,7 +63,12 @@ test('brain week: files one pending journal draft per week, dedupes, force re-ru
   assert.equal(rec.kind, 'brain-week');
   assert.equal(rec.decision.route, 'journal');
   assert.match(rec.decision.payload.text, /\[\[New Pod\]\]/);
-  assert.equal(rec.weekKey, weekKey());
+  // The digest is keyed to the week it is FOR, not the day it ran: a Monday
+  // catch-up covers the week that ended last night (cadence.weekOfSundayRun).
+  // Asserting weekKey() of *now* passed six days a week and failed every
+  // Monday — the same date-dependence trap as the timezone one.
+  const { weekOfSundayRun } = await import('../lib/cadence.js');
+  assert.equal(rec.weekKey, weekKey(weekOfSundayRun(new Date())));
 
   const second = await runBrainWeek(vault);
   assert.equal(second.skipped, true, 'same week composes once');

@@ -311,3 +311,16 @@ test('the browser hand: its report is built from the model’s JSON, and a missi
   assert.match(p, /Never type a password/);
   assert.match(p, /\/tmp\/shots\/shot-N\.png/);
 });
+
+test('the browser hand’s second half: a run that stopped becomes a decision, and the press prompt authorises exactly one control', async () => {
+  const { buildPressPrompt, pressPending } = await import('../lib/browse.js');
+  const p = buildPressPrompt('book a court at 5', 'the Confirm booking button', '/tmp/shots');
+  assert.match(p, /He has now approved EXACTLY that one control/);
+  assert.match(p, /Do NOT do anything else/);
+  assert.match(p, /STOP and say so rather than pressing something\s+that merely looks similar/);
+  assert.match(p, /press-1\.png/);
+  // nothing to press → an honest refusal, never a guess at which button
+  await assert.rejects(() => pressPending({}), /nothing waiting to be pressed/);
+  await assert.rejects(() => pressPending({ recordId: 'x', sessionId: 'y' }), /nothing waiting to be pressed/);
+  await assert.rejects(() => pressPending({ recordId: 'nope', sessionId: 'y', press: 'Buy now' }), /session is gone|MCP server is not installed/);
+});
