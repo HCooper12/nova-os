@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { haptic } from './haptics.js';
-import { decideDirection, shouldCommit, startsInEdgeGuard, COMMIT_FRACTION } from './swipeCore.js';
+import { decideDirection, shouldCommit, shouldPage, startsInEdgeGuard, COMMIT_FRACTION } from './swipeCore.js';
 
 // SWIPE ACTIONS — the iOS list grammar: drag a row sideways to act on it.
 // Additive only; every swipeable row keeps its buttons, so desktop, keyboard
@@ -115,6 +115,81 @@ export function useSwipeAction({ onRight, onLeft } = {}) {
       },
       onPointerCancel: () => { reset(); settle(); },
       onLostPointerCapture: () => { reset(); settle(false); },
+    },
+  };
+}
+
+// PAGING BETWEEN A MEAL SLOT'S OPTIONS (7 Sep 2026).
+//
+// The rotation strip scrolls horizontally, so for months the rule here was
+// "no swipe on these cards" — a sideways drag would fight the scroll on the
+// same axis, and the direction lock cannot separate two horizontal gestures.
+// What resolves it is not a smarter threshold but a smaller ZONE: only the
+// focused-dish header of a card that actually HAS several options takes the
+// gesture, and it declares `touch-action: pan-y` so the browser never starts
+// a scroll there. Everywhere else on the strip — single-option cards, the
+// option rows, the add-meal card, the gaps — still pans normally, so the
+// strip stays scrollable with a finger.
+//
+// Paging is also not a commit: it changes which option today's macros count,
+// it is visible immediately, and swiping back undoes it. Hence shouldPage's
+// lower distance bar — and the identical direction lock.
+export function useOptionPager({ onNext, onPrev, enabled = true } = {}) {
+  const zoneRef = useRef(null);
+  const s = useRef({ dir: null, startX: 0, startY: 0, startT: 0, dx: 0, active: false, id: null }).current;
+
+  if (!enabled || (!onNext && !onPrev)) return { ref: zoneRef, handlers: {}, enabled: false };
+
+  const paint = (dx) => {
+    if (zoneRef.current) zoneRef.current.style.transform = `translate3d(${dx * 0.35}px,0,0)`;
+  };
+  const settle = () => {
+    if (!zoneRef.current) return;
+    zoneRef.current.style.transition = 'transform .2s cubic-bezier(.32,.72,0,1)';
+    zoneRef.current.style.transform = 'translate3d(0,0,0)';
+    setTimeout(() => { if (zoneRef.current) zoneRef.current.style.transition = ''; }, 220);
+  };
+  const reset = () => { s.dir = null; s.active = false; s.dx = 0; s.id = null; };
+
+  return {
+    ref: zoneRef,
+    enabled: true,
+    handlers: {
+      onPointerDown: (e) => {
+        if (e.button != null && e.button !== 0) return;
+        if (startsInEdgeGuard(e.clientX)) { reset(); return; }
+        s.dir = null; s.active = true; s.dx = 0; s.id = e.pointerId;
+        s.startX = e.clientX; s.startY = e.clientY; s.startT = performance.now();
+        if (zoneRef.current) zoneRef.current.style.transition = '';
+      },
+      onPointerMove: (e) => {
+        if (!s.active || e.pointerId !== s.id) return;
+        const dx = e.clientX - s.startX;
+        const dy = e.clientY - s.startY;
+        if (!s.dir) {
+          const dir = decideDirection(dx, dy);
+          if (!dir) return;
+          s.dir = dir;
+          // a vertical verdict is final: this gesture is the page's scroll
+          if (dir === 'v') { s.active = false; return; }
+        }
+        if (s.dir !== 'h') return;
+        s.dx = dx;
+        paint(dx);
+      },
+      onPointerUp: (e) => {
+        if (!s.active || e.pointerId !== s.id) { reset(); return; }
+        const elapsedMs = performance.now() - s.startT;
+        const paged = shouldPage({ dir: s.dir, dx: s.dx, elapsedMs });
+        if (paged) {
+          haptic('light');
+          // drag left → the next option, like every carousel he has ever used
+          (s.dx < 0 ? onNext : onPrev)?.();
+        }
+        settle();
+        reset();
+      },
+      onPointerCancel: () => { settle(); reset(); },
     },
   };
 }

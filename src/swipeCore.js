@@ -40,3 +40,18 @@ export function shouldCommit({ dir, dx, rowWidth, elapsedMs, hasRight, hasLeft }
 export function startsInEdgeGuard(clientX) {
   return clientX < EDGE_GUARD_PX;
 }
+
+// PAGING (the rotation card's options, 7 Sep 2026). Switching which option is
+// in focus is not a commit — it writes a preference, is visible instantly and
+// is undone by swiping back — so it needs a lower bar than shouldCommit's
+// destructive-action threshold. What it does NOT get is a lower bar on the
+// direction lock: a gesture that started as a scroll can never page, same rule
+// and same mechanism as everything else in this file.
+export const PAGE_PX = 40;
+
+export function shouldPage({ dir, dx, elapsedMs }) {
+  if (dir !== 'h') return false;
+  const past = Math.abs(dx) > PAGE_PX;
+  const flick = Math.abs(dx) / Math.max(1, elapsedMs) > FLICK_VELOCITY;
+  return past || flick;
+}

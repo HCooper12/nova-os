@@ -4,6 +4,7 @@ import { Interactive } from '../Interactive.jsx';
 import { LocalInput } from '../LocalInput.jsx';
 import { VoicePanel } from '../VoicePanels.jsx';
 import { useDictation } from '../useDictation.js';
+import { useOptionPager } from '../swipeAction.js';
 import { SafeVisual } from '../SafeVisual.jsx';
 import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle, ScreenHead } from '../Controls.jsx';
 
@@ -16,6 +17,125 @@ const btn = (bg, ink, extra = {}) => (isAppleStyle()
 
 // Apple-layout twin for the eaten-today strip: same dayMacros object,
 // rendered as four stat tiles instead of the inline HUD strip.
+// ONE MEAL CARD. Its own component because a multi-option card takes a
+// gesture (useOptionPager), and a hook cannot live inside a .map().
+function RotationCard({ s }) {
+  const many = s.optionCount > 1;
+  // the swipe zone is ONLY the focused-dish header, and only when there is
+  // something to page between — see the note in swipeAction.js for why the
+  // zone, not the threshold, is what makes this safe on a scrolling strip
+  const pager = useOptionPager({ onNext: s.next, onPrev: s.prev, enabled: many });
+  return (
+    <Interactive as="div" onLongPress={many ? undefined : s.onLongPress}
+      base={{ flex: `0 0 ${many ? 196 : 172}px`, minWidth: 0, borderRadius: '16px', padding: '12px', position: 'relative', cursor: s.recipeName ? 'pointer' : 'default',
+        border: s.out ? '1px solid color-mix(in srgb, var(--nv-warn) 65%, transparent)'
+          : s.consumed ? '1px solid color-mix(in srgb, var(--nv-good) 50%, transparent)' : '1px solid var(--nv-edge)',
+        background: s.out ? 'linear-gradient(180deg,color-mix(in srgb, var(--nv-warn) 09%, transparent),var(--nv-glass))' : 'var(--nv-glass)', transition: 'border-color .2s' }}>
+      {s.recipeName ? (
+        <>
+          {/* the focused dish — and, when there are options, the swipe zone */}
+          <Interactive as="div" onLongPress={many ? s.onLongPress : undefined} base={{ minWidth: 0 }}>
+          <div ref={pager.ref} {...pager.handlers} style={pager.enabled ? { touchAction: 'pan-y' } : undefined}>
+            <div style={css("display:flex;align-items:baseline;gap:6px;padding-right:40px;flex-wrap:wrap")}>
+              <Eyebrow as="span" tone={s.custom ? 'faint' : 'violet'}>{s.name}</Eyebrow>
+              {many && <span style={css("font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{s.eatenCount}/{s.optionCount} eaten</span>}
+            </div>
+            <Interactive as="div" onClick={s.open} base="cursor:pointer;font:600 14px var(--nv-font-ui);margin-top:3px;line-height:1.25;color:var(--nv-ink)" hoverStyle="color:var(--nv-cy)">{s.recipeName}{s.variant ? ` · ${s.variant}` : ''}</Interactive>
+            <div style={css("font:var(--nv-micro-m);margin-top:6px;display:flex;align-items:center;gap:4px;flex-wrap:wrap")}>
+              <span style={css("color:var(--nv-cy)")}>{s.p}P</span> <span style={css("color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>·</span> <span style={css("color:var(--nv-gold)")}>{s.c}C</span> <span style={css("color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>·</span> <span style={css("color:var(--nv-vi)")}>{s.f}F</span> <span style={css("color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>·</span> <span style={css("color:var(--nv-good)")}>{s.kcal}</span>
+              {/* THE FRIDGE — cooked portions of the focused dish. Red and loud at zero: cook more before this slot comes round. */}
+              {s.portionsLeft != null && (
+                <span title={s.out ? 'None left — cook more' : `${s.portionsLeft} cooked portion${s.portionsLeft === 1 ? '' : 's'} in the fridge`}
+                  style={css(`margin-left:auto;font:600 10px var(--nv-font-ui);letter-spacing:.06em;padding:2px 7px;border-radius:999px;font-variant-numeric:tabular-nums;${s.out
+                    ? 'color:var(--nv-warn);border:1px solid color-mix(in srgb, var(--nv-warn) 60%, transparent);background:color-mix(in srgb, var(--nv-warn) 14%, transparent)'
+                    : 'color:color-mix(in srgb, var(--nv-ink) 70%, transparent);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)'}`)}>
+                  {s.out ? 'OUT' : `${s.portionsLeft} left`}
+                </span>
+              )}
+            </div>
+            {/* ‹ dots › — the tap route to the same switch the swipe does */}
+            {many && (
+              <div style={css("display:flex;align-items:center;gap:6px;margin-top:8px")}>
+                <Interactive as="span" onClick={s.prev} aria-label="Previous option" base={{ cursor: 'pointer', width: '32px', height: '32px', marginLeft: '-8px', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '600 16px var(--nv-font-ui)', color: 'var(--nv-acc)', borderRadius: '8px' }} hoverStyle={{ background: 'var(--nv-acc-bg)' }}>‹</Interactive>
+                <span style={css("display:flex;gap:5px;flex:1;justify-content:center")}>
+                  {s.options.map((o, i) => (
+                    <Interactive key={o.id} as="span" onClick={o.focusIt} aria-label={`Focus ${o.name}`} title={o.name}
+                      base={{ cursor: 'pointer', width: '8px', height: '8px', borderRadius: '50%', transition: 'all .2s',
+                        background: i === s.focusIndex ? 'var(--nv-acc)' : o.eaten ? 'var(--nv-good)' : 'color-mix(in srgb, var(--nv-ink) 22%, transparent)',
+                        boxShadow: i === s.focusIndex ? '0 0 8px -1px var(--nv-acc)' : 'none' }} />
+                  ))}
+                </span>
+                <Interactive as="span" onClick={s.next} aria-label="Next option" base={{ cursor: 'pointer', width: '32px', height: '32px', marginRight: '-8px', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '600 16px var(--nv-font-ui)', color: 'var(--nv-acc)', borderRadius: '8px' }} hoverStyle={{ background: 'var(--nv-acc-bg)' }}>›</Interactive>
+              </div>
+            )}
+          </div>
+          </Interactive>
+          {/* NO SWIPE outside that header, deliberately. These cards sit in a
+              horizontally-scrolling strip (measured: 904px of content in a
+              468px viewport), so a sideways drag anywhere else must stay the
+              strip's scroll — otherwise reaching dinner would mean fighting
+              the gesture. Paging lives in the header of a multi-option card
+              only, where the browser is told (touch-action: pan-y) not to
+              scroll, and it changes nothing destructive. */}
+          {/* 44x44 tap target on the action taken 4× a day; the ring stays 30px */}
+          <Interactive as="span" onClick={s.toggleConsumed} aria-label={s.consumed ? 'Mark not eaten' : 'Mark eaten'}
+            base={{ cursor: 'pointer', position: 'absolute', top: '3px', right: '3px', width: '44px', height: '44px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ width: '30px', height: '30px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              border: s.consumed ? '1.5px solid var(--nv-good)' : '1.5px solid var(--nv-edge)',
+              background: s.consumed ? 'color-mix(in srgb, var(--nv-good) 15%, transparent)' : 'transparent',
+              boxShadow: s.consumed ? '0 0 12px -2px color-mix(in srgb, var(--nv-good) 70%, transparent)' : 'none', transition: 'all .2s' }}>
+              {s.consumed ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--nv-good)" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg> : null}
+            </span>
+          </Interactive>
+          {/* every option, each with its own tick — 4 snacks, tick 3. Hold a
+              row for its own swaps: a variant belongs to the DISH, not the
+              slot, so the snack you swapped stays swapped when focus moves. */}
+          {many && (
+            <div style={css("display:flex;flex-direction:column;gap:2px;margin-top:4px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:6px")}>
+              {s.options.map((o) => (
+                <Interactive as="div" key={o.id} onLongPress={o.onLongPress} base={{ display: 'flex', alignItems: 'center', gap: '6px', minHeight: '28px' }}>
+                  <Interactive as="span" onClick={o.tick} aria-label={o.eaten ? `Mark ${o.name} not eaten` : `Mark ${o.name} eaten`}
+                    base={{ cursor: 'pointer', width: '28px', height: '28px', marginLeft: '-6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>
+                    <span style={{ width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      border: o.eaten ? '1.5px solid var(--nv-good)' : '1.5px solid color-mix(in srgb, var(--nv-ink) 25%, transparent)',
+                      background: o.eaten ? 'color-mix(in srgb, var(--nv-good) 18%, transparent)' : 'transparent', transition: 'all .2s' }}>
+                      {o.eaten ? <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--nv-good)" strokeWidth="3.5"><path d="M20 6L9 17l-5-5"/></svg> : null}
+                    </span>
+                  </Interactive>
+                  <Interactive as="span" onClick={o.focusIt} title={`${o.p}P · ${o.kcal} kcal — tap to make this the one that counts${o.alts.length ? ' · hold to swap' : ''}`}
+                    base={{ cursor: 'pointer', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', font: `${o.focus ? 600 : 400} 12px var(--nv-font-ui)`,
+                      color: o.out ? 'var(--nv-warn)' : o.focus ? 'var(--nv-ink)' : 'color-mix(in srgb, var(--nv-ink) 62%, transparent)', textDecoration: o.eaten && !o.focus ? 'line-through' : 'none' }}
+                    hoverStyle={{ color: 'var(--nv-cy)' }}>{o.focus ? '★ ' : ''}{o.name}{o.variant ? ` · ${o.variant}` : ''}{o.out ? ' · out' : ''}</Interactive>
+                  <Interactive as="span" onClick={o.remove} aria-label={`Remove ${o.name} from ${s.name}`}
+                    base={{ cursor: 'pointer', width: '28px', height: '28px', marginRight: '-8px', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '400 14px var(--nv-font-ui)', color: 'color-mix(in srgb, var(--nv-ink) 32%, transparent)', flex: '0 0 auto' }}
+                    hoverStyle={{ color: 'var(--nv-warn)' }}>×</Interactive>
+                </Interactive>
+              ))}
+            </div>
+          )}
+          {/* 32px-tall targets: CLEAR measured 26×11px at 375px on 3 Sep — the action taken 4× a day was the smallest thing on the screen */}
+          <div style={css("display:flex;gap:14px;margin-top:4px;align-items:center;flex-wrap:wrap")}>
+            {s.clearVariant && <TextAction compact tone="gold" onClick={s.clearVariant} style={{ marginLeft: '-8px' }}>Undo variant</TextAction>}
+            <TextAction compact tone="faint" onClick={s.clear}>{many ? 'Drop this one' : 'Clear'}</TextAction>
+            {s.rename && <TextAction compact tone="faint" onClick={() => { const l = window.prompt('Name this meal', s.name); if (l && l.trim()) s.rename(l.trim()); }}>Rename</TextAction>}
+          </div>
+        </>
+      ) : (
+        <>
+          <Eyebrow as="span" tone={s.custom ? 'faint' : 'violet'}>{s.name}</Eyebrow>
+          <div style={css("font:400 12px var(--nv-font-ui);color:color-mix(in srgb, var(--nv-ink) 35%, transparent);margin-top:8px")}>Empty — pick from the bank below (tap a recipe's {s.name[0].toUpperCase()} chip)</div>
+          {(s.rename || s.removeSlot) && (
+            <div style={css("display:flex;gap:14px;margin-top:6px;align-items:center")}>
+              {s.rename && <TextAction compact tone="faint" onClick={() => { const l = window.prompt('Name this meal', s.name); if (l && l.trim()) s.rename(l.trim()); }} style={{ marginLeft: '-8px' }}>Rename</TextAction>}
+              {s.removeSlot && <TextAction compact tone="faint" onClick={s.removeSlot}>Remove meal</TextAction>}
+            </div>
+          )}
+        </>
+      )}
+    </Interactive>
+  );
+}
+
 function EatenTiles({ m }) {
   const tiles = [
     { k: 'P', val: `${m.p}${m.proteinTarget ? '/' + m.proteinTarget : ''}`, sub: m.proteinPct != null ? `${m.proteinPct}% of floor` : 'grams', color: 'var(--nv-cy)' },
@@ -148,112 +268,7 @@ export function Recipes({ v }) {
             </span>
           </div>
           <div style={css("display:flex;gap:10px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:none;align-items:stretch")}>
-            {v.rotationSlots.map((s) => (
-              <Interactive as="div" key={s.key} onLongPress={s.onLongPress}
-                base={{ flex: `0 0 ${s.optionCount > 1 ? 196 : 172}px`, minWidth: 0, borderRadius: '16px', padding: '12px', position: 'relative', cursor: s.recipeName ? 'pointer' : 'default',
-                border: s.out ? '1px solid color-mix(in srgb, var(--nv-warn) 65%, transparent)'
-                  : s.consumed ? '1px solid color-mix(in srgb, var(--nv-good) 50%, transparent)' : '1px solid var(--nv-edge)',
-                background: s.out ? 'linear-gradient(180deg,color-mix(in srgb, var(--nv-warn) 09%, transparent),var(--nv-glass))' : 'var(--nv-glass)', transition: 'border-color .2s' }}>
-                <div style={css("display:flex;align-items:baseline;gap:6px;padding-right:40px;flex-wrap:wrap")}>
-                  <Eyebrow as="span" tone={s.custom ? 'faint' : 'violet'}>{s.name}</Eyebrow>
-                  {s.optionCount > 1 && <span style={css("font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{s.eatenCount}/{s.optionCount} eaten</span>}
-                </div>
-                {s.recipeName ? (
-                  <>
-                    <Interactive as="div" onClick={s.open} base="cursor:pointer;font:600 14px var(--nv-font-ui);margin-top:3px;line-height:1.25;color:var(--nv-ink)" hoverStyle="color:var(--nv-cy)">{s.recipeName}{s.variant ? ` · ${s.variant}` : ''}</Interactive>
-                    <div style={css("font:var(--nv-micro-m);margin-top:6px;display:flex;align-items:center;gap:4px;flex-wrap:wrap")}>
-                      <span style={css("color:var(--nv-cy)")}>{s.p}P</span> <span style={css("color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>·</span> <span style={css("color:var(--nv-gold)")}>{s.c}C</span> <span style={css("color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>·</span> <span style={css("color:var(--nv-vi)")}>{s.f}F</span> <span style={css("color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>·</span> <span style={css("color:var(--nv-good)")}>{s.kcal}</span>
-                      {/* THE FRIDGE — cooked portions of the focused dish. Red and loud at zero: cook more before this slot comes round. */}
-                      {s.portionsLeft != null && (
-                        <span title={s.out ? 'None left — cook more' : `${s.portionsLeft} cooked portion${s.portionsLeft === 1 ? '' : 's'} in the fridge`}
-                          style={css(`margin-left:auto;font:600 10px var(--nv-font-ui);letter-spacing:.06em;padding:2px 7px;border-radius:999px;font-variant-numeric:tabular-nums;${s.out
-                            ? 'color:var(--nv-warn);border:1px solid color-mix(in srgb, var(--nv-warn) 60%, transparent);background:color-mix(in srgb, var(--nv-warn) 14%, transparent)'
-                            : 'color:color-mix(in srgb, var(--nv-ink) 70%, transparent);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)'}`)}>
-                          {s.out ? 'OUT' : `${s.portionsLeft} left`}
-                        </span>
-                      )}
-                    </div>
-                    {/* NO SWIPE on these cards, deliberately. They sit in a
-                        horizontally-scrolling strip (904px of content in a
-                        468px viewport on a phone — measured), so a sideways
-                        swipe would fight the scroll on the SAME axis. The
-                        direction lock in swipeCore.js separates horizontal
-                        from vertical and cannot help here; adding it would
-                        recreate exactly the accidental-commit failure that
-                        design exists to prevent. Switching options is the
-                        ‹ › pair and the dots instead — explicit taps.
-                        What the goal actually needed was a usable tap
-                        target: this was 30x30, under Apple's 44pt minimum,
-                        on the control used every meal. Now 44x44 — the ring
-                        stays 30px visually, the touch area is the padding. */}
-                    <Interactive as="span" onClick={s.toggleConsumed} aria-label={s.consumed ? 'Mark not eaten' : 'Mark eaten'}
-                      base={{ cursor: 'pointer', position: 'absolute', top: '3px', right: '3px', width: '44px', height: '44px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <span style={{ width: '30px', height: '30px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        border: s.consumed ? '1.5px solid var(--nv-good)' : '1.5px solid var(--nv-edge)',
-                        background: s.consumed ? 'color-mix(in srgb, var(--nv-good) 15%, transparent)' : 'transparent',
-                        boxShadow: s.consumed ? '0 0 12px -2px color-mix(in srgb, var(--nv-good) 70%, transparent)' : 'none', transition: 'all .2s' }}>
-                        {s.consumed ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--nv-good)" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg> : null}
-                      </span>
-                    </Interactive>
-                    {/* several options: the switch (‹ dots ›) then the list,
-                        each with its own tick — 4 snacks, tick 3 */}
-                    {s.optionCount > 1 && (
-                      <>
-                        <div style={css("display:flex;align-items:center;gap:6px;margin-top:8px")}>
-                          <Interactive as="span" onClick={s.prev} aria-label="Previous option" base={{ cursor: 'pointer', width: '32px', height: '32px', marginLeft: '-8px', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '600 16px var(--nv-font-ui)', color: 'var(--nv-acc)', borderRadius: '8px' }} hoverStyle={{ background: 'var(--nv-acc-bg)' }}>‹</Interactive>
-                          <span style={css("display:flex;gap:5px;flex:1;justify-content:center")}>
-                            {s.options.map((o, i) => (
-                              <Interactive key={o.id} as="span" onClick={o.focusIt} aria-label={`Focus ${o.name}`} title={o.name}
-                                base={{ cursor: 'pointer', width: '8px', height: '8px', borderRadius: '50%', transition: 'all .2s',
-                                  background: i === s.focusIndex ? 'var(--nv-acc)' : o.eaten ? 'var(--nv-good)' : 'color-mix(in srgb, var(--nv-ink) 22%, transparent)',
-                                  boxShadow: i === s.focusIndex ? '0 0 8px -1px var(--nv-acc)' : 'none' }} />
-                            ))}
-                          </span>
-                          <Interactive as="span" onClick={s.next} aria-label="Next option" base={{ cursor: 'pointer', width: '32px', height: '32px', marginRight: '-8px', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '600 16px var(--nv-font-ui)', color: 'var(--nv-acc)', borderRadius: '8px' }} hoverStyle={{ background: 'var(--nv-acc-bg)' }}>›</Interactive>
-                        </div>
-                        <div style={css("display:flex;flex-direction:column;gap:2px;margin-top:4px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:6px")}>
-                          {s.options.map((o) => (
-                            <div key={o.id} style={css("display:flex;align-items:center;gap:6px;min-height:28px")}>
-                              <Interactive as="span" onClick={o.tick} aria-label={o.eaten ? `Mark ${o.name} not eaten` : `Mark ${o.name} eaten`}
-                                base={{ cursor: 'pointer', width: '28px', height: '28px', marginLeft: '-6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>
-                                <span style={{ width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  border: o.eaten ? '1.5px solid var(--nv-good)' : '1.5px solid color-mix(in srgb, var(--nv-ink) 25%, transparent)',
-                                  background: o.eaten ? 'color-mix(in srgb, var(--nv-good) 18%, transparent)' : 'transparent', transition: 'all .2s' }}>
-                                  {o.eaten ? <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--nv-good)" strokeWidth="3.5"><path d="M20 6L9 17l-5-5"/></svg> : null}
-                                </span>
-                              </Interactive>
-                              <Interactive as="span" onClick={o.focusIt} title={`${o.p}P · ${o.kcal} kcal — tap to make this the one that counts`}
-                                base={{ cursor: 'pointer', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', font: `${o.focus ? 600 : 400} 12px var(--nv-font-ui)`,
-                                  color: o.out ? 'var(--nv-warn)' : o.focus ? 'var(--nv-ink)' : 'color-mix(in srgb, var(--nv-ink) 62%, transparent)', textDecoration: o.eaten && !o.focus ? 'line-through' : 'none' }}
-                                hoverStyle={{ color: 'var(--nv-cy)' }}>{o.focus ? '★ ' : ''}{o.name}{o.out ? ' · out' : ''}</Interactive>
-                              <Interactive as="span" onClick={o.remove} aria-label={`Remove ${o.name} from ${s.name}`}
-                                base={{ cursor: 'pointer', width: '28px', height: '28px', marginRight: '-8px', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '400 14px var(--nv-font-ui)', color: 'color-mix(in srgb, var(--nv-ink) 32%, transparent)', flex: '0 0 auto' }}
-                                hoverStyle={{ color: 'var(--nv-warn)' }}>×</Interactive>
-                            </div>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                    {/* 32px-tall targets: CLEAR measured 26×11px at 375px on 3 Sep — the action taken 4× a day was the smallest thing on the screen */}
-                    <div style={css("display:flex;gap:14px;margin-top:4px;align-items:center;flex-wrap:wrap")}>
-                      {s.clearVariant && <TextAction compact tone="gold" onClick={s.clearVariant} style={{ marginLeft: '-8px' }}>Undo variant</TextAction>}
-                      <TextAction compact tone="faint" onClick={s.clear}>{s.optionCount > 1 ? 'Drop this one' : 'Clear'}</TextAction>
-                      {s.rename && <TextAction compact tone="faint" onClick={() => { const l = window.prompt('Name this meal', s.name); if (l && l.trim()) s.rename(l.trim()); }}>Rename</TextAction>}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div style={css("font:400 12px var(--nv-font-ui);color:color-mix(in srgb, var(--nv-ink) 35%, transparent);margin-top:8px")}>Empty — pick from the bank below (tap a recipe's {s.name[0].toUpperCase()} chip)</div>
-                    {(s.rename || s.removeSlot) && (
-                      <div style={css("display:flex;gap:14px;margin-top:6px;align-items:center")}>
-                        {s.rename && <TextAction compact tone="faint" onClick={() => { const l = window.prompt('Name this meal', s.name); if (l && l.trim()) s.rename(l.trim()); }} style={{ marginLeft: '-8px' }}>Rename</TextAction>}
-                        {s.removeSlot && <TextAction compact tone="faint" onClick={s.removeSlot}>Remove meal</TextAction>}
-                      </div>
-                    )}
-                  </>
-                )}
-              </Interactive>
-            ))}
+            {v.rotationSlots.map((s) => <RotationCard key={s.key} s={s} />)}
             {/* a meal beyond the five — pre-workout, second breakfast, whatever he calls it */}
             {v.rotationAddMeal && (
               <Interactive as="div" onClick={() => { const l = window.prompt('Name the meal (e.g. Pre-workout)', ''); if (l && l.trim()) v.rotationAddMeal(l.trim()); }}

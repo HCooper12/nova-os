@@ -8,7 +8,7 @@
 // runs on every `npm test` forever.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decideDirection, shouldCommit, startsInEdgeGuard, INTENT_PX } from '../../src/swipeCore.js';
+import { decideDirection, shouldCommit, startsInEdgeGuard, INTENT_PX, shouldPage, PAGE_PX } from '../../src/swipeCore.js';
 
 const ROW = 400;
 
@@ -91,4 +91,17 @@ test('simulated scrolling: 200 realistic scroll gestures, zero commits', () => {
     if (shouldCommit({ dir, dx: finalDx, rowWidth: ROW, elapsedMs: 60 + (i % 300), hasRight: true, hasLeft: true })) commits++;
   }
   assert.equal(commits, 0, 'not one scroll gesture may commit an action');
+});
+
+// Paging between a meal slot's options (7 Sep 2026). A lower distance bar than
+// a destructive commit, but the SAME direction lock — the rotation strip
+// scrolls horizontally, so a gesture the browser could read as a scroll must
+// never silently reorder his day's plan.
+test('paging needs a locked horizontal gesture, never a vertical one', () => {
+  assert.equal(shouldPage({ dir: 'v', dx: 300, elapsedMs: 80 }), false, 'a vertical lock can never page');
+  assert.equal(shouldPage({ dir: null, dx: 300, elapsedMs: 80 }), false, 'an undecided gesture can never page');
+  assert.equal(shouldPage({ dir: 'h', dx: PAGE_PX - 1, elapsedMs: 5000 }), false, 'a slow, short drag settles back');
+  assert.equal(shouldPage({ dir: 'h', dx: PAGE_PX + 1, elapsedMs: 5000 }), true, 'far enough pages even when slow');
+  assert.equal(shouldPage({ dir: 'h', dx: -20, elapsedMs: 20 }), true, 'a flick pages even when short');
+  assert.equal(shouldPage({ dir: 'h', dx: -60, elapsedMs: 300 }), true, 'backwards pages the same as forwards');
 });

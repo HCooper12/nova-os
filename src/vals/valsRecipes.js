@@ -67,16 +67,38 @@ export function valsRecipes(app, ctx) {
       eatenCount: options.filter((d) => d.eaten).length,
       prev: many ? () => app.cycleRotationFocus(s.key, -1) : null,
       next: many ? () => app.cycleRotationFocus(s.key, 1) : null,
-      options: options.map((d) => ({
-        id: d.id, name: d.name, focus: !!d.focus, eaten: !!d.eaten,
-        p: Math.round(d.macros?.p || 0), kcal: Math.round(d.macros?.kcal || 0),
-        portionsLeft: d.portionsLeft ?? null, out: !!d.out,
-        focusIt: () => app.setRotationFocus(s.key, d.id),
-        tick: () => app.toggleOptionEaten(s.key, d.id, !d.eaten),
-        remove: () => app.toggleRotationSlot(s.key, d.id),
-        open: () => app.openRecipe(d.id),
-      })),
-      clearVariant: filled?.variant ? () => app.setRotationVariant(s.key, null) : null,
+      // A VARIANT BELONGS TO THE DISH, NOT THE SLOT (7 Sep 2026). The server
+      // has always keyed overrides by recipe id; before today the UI could
+      // only reach the focused one, so swapping "the snack" meant swapping
+      // whichever snack happened to be in focus. Now every option carries its
+      // own variant and its own swap menu (hold the row).
+      options: options.map((d) => {
+        const recipe = (st.liveRecipes || []).find((r) => r.id === d.id);
+        const alts = (recipe?.alternates || []).filter((a) => a.id !== d.variantId);
+        return {
+          id: d.id, name: d.name, focus: !!d.focus, eaten: !!d.eaten,
+          p: Math.round(d.macros?.p || 0), kcal: Math.round(d.macros?.kcal || 0),
+          portionsLeft: d.portionsLeft ?? null, out: !!d.out,
+          variant: d.variant || null, variantId: d.variantId || null, alts,
+          focusIt: () => app.setRotationFocus(s.key, d.id),
+          tick: () => app.toggleOptionEaten(s.key, d.id, !d.eaten),
+          remove: () => app.toggleRotationSlot(s.key, d.id),
+          open: () => app.openRecipe(d.id),
+          setVariant: (altId) => app.setRotationVariant(s.key, altId, d.id),
+          onLongPress: ({ x, y }) => app.openContextMenu({
+            x, y, title: `${s.name.toUpperCase()} · ${d.name.toUpperCase()}`,
+            items: [
+              d.focus ? null : { label: 'Make this the one that counts', hint: `${Math.round(d.macros?.p || 0)}P · ${Math.round(d.macros?.kcal || 0)} kcal`, onSelect: () => app.setRotationFocus(s.key, d.id) },
+              { label: d.eaten ? 'Mark not eaten' : 'Mark eaten', hint: d.portionsLeft != null ? `${d.portionsLeft} in the fridge` : undefined, onSelect: () => app.toggleOptionEaten(s.key, d.id, !d.eaten) },
+              ...alts.slice(0, 3).map((a) => ({ label: `Swap → ${a.label}`, hint: a.macros ? `${Math.round(a.macros.p)}P` : undefined, onSelect: () => app.setRotationVariant(s.key, a.id, d.id) })),
+              d.variantId ? { label: `Back to ${d.name}`, onSelect: () => app.setRotationVariant(s.key, null, d.id) } : null,
+              { label: 'Open recipe', onSelect: () => app.openRecipe(d.id) },
+              { label: `Remove from ${s.name}`, danger: true, onSelect: () => app.toggleRotationSlot(s.key, d.id) },
+            ],
+          }),
+        };
+      }),
+      clearVariant: filled?.variant ? () => app.setRotationVariant(s.key, null, filled.id) : null,
       open: filled ? () => app.openRecipe(filled.id) : null,
       toggleConsumed: filled ? () => app.toggleOptionEaten(s.key, filled.id, !filled.consumed) : null,
       // extra meals he added can go again once they are empty
@@ -95,8 +117,8 @@ export function valsRecipes(app, ctx) {
           x, y, title: `${s.name.toUpperCase()} · ${filled.name.toUpperCase()}`,
           items: [
             { label: filled.consumed ? 'Mark not eaten' : 'Mark eaten', hint: `${Math.round(filled.macros.p)}P · ${Math.round(filled.macros.kcal)} kcal`, onSelect: () => app.toggleSlotConsumed(s.key, !filled.consumed) },
-            ...alts.slice(0, 3).map((a) => ({ label: `Swap → ${a.label}`, hint: a.macros ? `${Math.round(a.macros.p)}P` : undefined, onSelect: () => app.setRotationVariant(s.key, a.id) })),
-            filled.variant ? { label: `Back to ${filled.name}`, onSelect: () => app.setRotationVariant(s.key, null) } : null,
+            ...alts.slice(0, 3).map((a) => ({ label: `Swap → ${a.label}`, hint: a.macros ? `${Math.round(a.macros.p)}P` : undefined, onSelect: () => app.setRotationVariant(s.key, a.id, filled.id) })),
+            filled.variant ? { label: `Back to ${filled.name}`, onSelect: () => app.setRotationVariant(s.key, null, filled.id) } : null,
             { label: 'Open recipe', onSelect: () => app.openRecipe(filled.id) },
             { label: 'Clear slot', danger: true, onSelect: () => { app.toggleRotationSlot(s.key, filled.id); if (s.key === 'extra') app.setState({ rotationShowExtra: false }); } },
           ],
