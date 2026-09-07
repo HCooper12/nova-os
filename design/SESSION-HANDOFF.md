@@ -13,6 +13,73 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**7 SEP (night) — THE TWO FUEL PIECES, VERBS PHASE 4, AND THE OPEN-THREADS
+SWEEP.** Everything below is shipped, pushed and live on the deployed bundle.
+
+**Fuel, the last two pieces (f635eae).** Swipe between a slot's options: the
+zone is the focused-dish HEADER of a multi-option card only, declaring
+`touch-action: pan-y`, so the rest of the strip still scrolls with a finger —
+the conflict that made this "deliberately not built" was solved by shrinking
+the zone, not by tuning a threshold. Paging is not a commit, so `shouldPage`
+takes a lower distance bar than `shouldCommit` but the SAME direction lock
+(six new cases in swipeCore.test.js). And a variant now belongs to the DISH:
+each option row shows its own variant and holds for its own menu (focus,
+eaten, swap, back to original, open, remove). Nested long-press had to be
+scoped — React bubbles to the root and the outer handler won, so a
+multi-option card's root no longer takes the menu.
+
+**Verbs phase 4 — editing what is already written (414a934).**
+`foodlog.fix`, `foodlog.remove`, `workout.set`, `recipe.ingredient`. All
+confirm-tier; the pending title is the DIFF ("3.9P · 36.5C · 11.3F · 293 kcal
+→ 4.5P · …"), which is what `runVerb`'s new `titleFor` hook exists for, and
+`resolve()` now receives the vault path because an edit verb must FIND its
+subject first. Two honesty rules: resolve matches against what is actually
+written (so "that lasagne was 400 calories" is conversation when no lasagne is
+logged — the probe branch), and run() re-checks that what it is overwriting is
+still what it showed him, REFUSING a stale edit exactly as the staged pass
+refuses a stale weave. Undo restores verbatim (`restoreEntryOn` puts a removed
+entry back with its own id and time). Proven on his real log, both test
+proposals discarded, log untouched. Settings' "You can just say it" card names
+the four phrasings.
+
+**THE OPEN-THREADS SWEEP (7 Sep) — what is actually still true.** Verified by
+a second route, not by re-reading the list:
+- STILL TRUE: About You profile empty (`/api/profile` → null, no
+  `Wiki/Profile.md`); ElevenLabs key not set (NOVA_TTS_LOCAL carries voice);
+  Up Bank connector not built; P8 val-builder memoization deferred (no memo
+  anywhere in src/); recipe-step `**bold**` still lost on a rewritten line
+  (his undecided design question); the three phone-only items.
+- RESOLVED since it was written: equipment + limitations now filled (3 Sep);
+  22 July steps carry 14,385; bodyweight landing since 24 Aug; tab-bar
+  redesign shipped (MobileChrome floating dock + More sheet); P7 typeIn
+  closed (TypeText.jsx); stash IS a classifier route now.
+- CHANGED: inbox is 430 records — **12 pending, 7 error**, and all seven
+  errors are the SAME `plan-today` job failing nightly 22–31 Aug (not the two
+  old stuck ones). Apple layout now covers Todos, Journal and Shopping too;
+  **Inbox is the one named candidate still unconverted**.
+- FLAGS WORTH HIS EYES: 7 Sep weight reads **84.9 kg**, +2.9 kg in a day from
+  a weight-only push at 09:50 — looks anomalous, not real. The nightly health
+  push lands ~20 days in 21 but no longer at 00:05 (mostly next morning);
+  8 identical duplicate pushes fired for 4 Sep within 2 s, and a 28 Aug push
+  carried `forDate: 2019-01-01`.
+
+**THE ATHLETE-AI QUEUE (design/ATHLETE-AI-PLAN.md).** Watched @krudd.jr's
+day-8 reel plus nine more of his builds. His shape: a strict protocol → a
+model that reads the input → an artefact that holds state → a plan grounded in
+real history. Scheduled, in order: (1) THE INTAKE — an interview whose
+arithmetic is CODE (Mifflin-St Jeor → TDEE → deficit → macro floors), landing
+as a pending card that writes his profile and targets; (2) WRAP THE DAY;
+(3) itemised plate breakdown; (4) FORM CHECK on his own filmed lifts, where
+the filming protocol is the feature and a bad clip is refused, not guessed;
+(5) the study lane joining Researcher to Coach. Deliberately not copied: his
+Garmin build asks for an account password in chat, and age-group percentiles
+Nova has no population for.
+
+**STILL HIS:** the stale ingest weave 9e994aae (discard + re-run; the
+transcript is cached so it is cheap); cook something and tell Nova so the
+fridge starts counting; the phone-in-hand gym check; a real browser commit;
+Xcode for the native shell.
+
 **7 SEP (evening) — THE FUEL OVERHAUL, SHIPPED AND PROVEN ON HIS VAULT.**
 His whole Fuel ask is built, live, and verified on the exact deployed bundle
 against his real rotation at 375×812 (vite preview + generated bootstrap,
@@ -489,6 +556,11 @@ DO NOT:
 - Earlier DO NOTs (3 Sep) all still stand.
 
 ## SESSION LOG (append-only, newest first)
+
+### 7 September 2026 (night) — swipe + per-dish variants, phase 4 edits, the sweep, and the athlete-AI queue
+Fuel's last two pieces (f635eae), verbs phase 4 (414a934), a verified sweep of
+the standing open-threads list, and design/ATHLETE-AI-PLAN.md scheduling five
+builds off @krudd.jr's series. 1127 tests green under TZ=UTC.
 
 ### 7 September 2026 (evening) — the Fuel overhaul: options, ticks, the fridge, and macros from labels
 Rotation v2 (options per slot, focus vs eaten, custom meals), the fridge
