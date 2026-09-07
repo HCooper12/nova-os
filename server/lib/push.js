@@ -88,6 +88,8 @@ export async function sendPush({ title, body, tag, url }) {
     }
   }
   if (alive.length !== subs.length) await saveSubs(alive);
+  // a receipt in the log — "did the notification go?" was unanswerable before
+  console.log(`push ${sent}/${subs.length} — ${title}${url ? ` → ${url}` : ''}`);
   return { sent };
 }
 

@@ -104,7 +104,7 @@ function Glass({ visual, mini = false }) {
 
 /* ------------------------------ the screen ------------------------------- */
 
-export default function Briefing({ v }) {
+export function Briefing({ v }) {
   const b = v.briefing;
   const apple = isAppleStyle();
   const mob = v.isMobile;
