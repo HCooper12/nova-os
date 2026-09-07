@@ -19,7 +19,7 @@ const SOURCE_LABEL = {
   'plan-today': 'PLANNER', pattern: 'SCOUT', autonomy: 'TRUST LADDER', distill: 'DISTILLER', ingest: 'VAULT INGEST',
   coach: 'COACH', 'weekly-debrief': 'COACH', research: 'RESEARCHER', video: 'WATCHER',
   'model-choice': 'MODEL CHOICE', 'brain-week': 'BRAIN WEEK', followup: 'CALENDAR',
-  studio: 'STUDIO', 'fuel-cross': 'FUEL × TRAINING', study: 'STUDY',
+  studio: 'STUDIO', 'fuel-cross': 'FUEL × TRAINING', study: 'STUDY', briefing: 'BRIEFING',
   // the four that fell through to TYPED
   'coach-program': 'PROGRAM REVIEW', 'coach-audit': 'PROGRAM AUDIT',
   'read-next': 'LIBRARIAN', 'forge-job': 'FORGE',
@@ -412,6 +412,8 @@ export function valsInbox(app, ctx) {
     researchBooks: r.kind === 'read-next' && r.meta?.concept && ['pending', 'filed'].includes(r.status)
       ? () => app.startResearch(`The best-regarded books on ${r.meta.concept} — which one should someone with a strong training and self-improvement bent read first, and why? Cite each recommendation.`)
       : null,
+    // a briefing is READ or PLAYED, not skimmed in a card — the card is a door
+    openBriefing: r.kind === 'briefing' && ['pending', 'filed', 'classifying'].includes(r.status) ? () => app.openBriefing(r.id) : null,
     deepAnalyse: r.kind === 'video' && r.decision?.payload?.url && ['pending', 'filed'].includes(r.status)
       ? () => app.startVideoDeepIngest(r.decision.payload.url)
       : null,

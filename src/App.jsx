@@ -20,6 +20,7 @@ import { valsWorkouts } from './vals/valsWorkouts.js';
 import { valsNotes } from './vals/valsNotes.js';
 import { valsLibrary } from './vals/valsLibrary.js';
 import { valsLeader } from './vals/valsLeader.js';
+import { valsBriefing } from './vals/valsBriefing.js';
 import { scaleMacros, portionName, validPortion } from './portion.js';
 import { valsMisc } from './vals/valsMisc.js';
 import { valsInbox } from './vals/valsInbox.js';
@@ -88,6 +89,7 @@ const SCREEN_LOADERS = {
   notes: () => import('./screens/Notes.jsx'),
   library: () => import('./screens/Library.jsx'),
   leader: () => import('./screens/Leader.jsx'),
+  briefing: () => import('./screens/Briefing.jsx'),
 };
 const Galaxy = lazyScreen(SCREEN_LOADERS.galaxy, 'Galaxy');
 const Money = lazyScreen(SCREEN_LOADERS.money, 'Money');
@@ -102,6 +104,7 @@ const Todos = lazyScreen(SCREEN_LOADERS.todos, 'Todos');
 const Notes = lazyScreen(SCREEN_LOADERS.notes, 'Notes');
 const Library = lazyScreen(SCREEN_LOADERS.library, 'Library');
 const Leader = lazyScreen(SCREEN_LOADERS.leader, 'Leader');
+const Briefing = lazyScreen(SCREEN_LOADERS.briefing, 'Briefing');
 
 // The OVERLAYS — every one is conditionally rendered (a modal, a sheet, an
 // overlay), so none of them is ever part of a first paint. RecipeOverlay
@@ -169,7 +172,7 @@ const WAKE_WORD = true;
 // It previously omitted 'ops', 'stash' and 'ambient', all of which DO render —
 // so their hashes did not survive a reload even though the screens worked.
 const SCREENS = ['mission', 'inbox', 'voice', 'galaxy', 'code', 'recipes', 'shopping', 'stash',
-  'ops', 'ambient', 'todos', 'workouts', 'notes', 'library', 'leader', 'journal', 'money', 'settings'];
+  'ops', 'ambient', 'todos', 'workouts', 'notes', 'library', 'leader', 'journal', 'money', 'settings', 'briefing'];
 
 // An unknown key is a bug in the caller, not something to render around. Send
 // him somewhere real, and say so in the console so the bad call is findable —
@@ -333,6 +336,8 @@ export default class App extends Component {
     attachBusy: false,
     // the Leader — leadership development: state mirror + its conversation
     liveLeader: null, leaderChat: [], leaderInput: '', leaderBusy: false,
+    // the briefing reader: the loaded document, its playback, listen|read
+    briefing: null, briefingLoading: false, briefingError: null, briefingPlay: null, briefingMode: 'listen',
     liveForge: null, forgeInput: '', forgeBusy: false, browserSignInBusy: false, liveIngestJobs: [],
     leaderSessionId: typeof localStorage === 'undefined' ? null : (localStorage.getItem('novaos.leaderSession') || null),
     voiceSpeak: typeof localStorage === 'undefined' ? true : localStorage.getItem('novaos.voiceSpeak') !== '0',
@@ -3426,13 +3431,90 @@ export default class App extends Component {
   // without him hunting for it. The query is stripped afterwards so a reload
   // or a back-tap does not re-open it forever.
   consumeDeepLink() {
-    const { open } = hashParams();
+    const { open, id } = hashParams();
+    // "#/briefing?id=<recordId>" — the notification's tap lands on the
+    // briefing itself, loading it if this is a cold start
+    if (id && screenFromHash() === 'briefing') {
+      this.openBriefing(id);
+      if (typeof window !== 'undefined') window.history.replaceState(null, '', '#/briefing');
+      return;
+    }
     if (!open) return;
     this.setState((st) => ({ inboxExpanded: { ...(st.inboxExpanded || {}), [open]: true } }));
     if (typeof window !== 'undefined') {
       const clean = window.location.hash.split('?')[0];
       window.history.replaceState(null, '', clean || '#/inbox');
     }
+  }
+  // ---------- THE BRIEFING READER ----------
+  // Playback rides the SAME queue as every other spoken thing: one mp3 per
+  // beat, strict FIFO, and the beat's visual lands at the instant its audio
+  // starts (onPlay) — the honest clock. Beats are enqueued in a window of
+  // three rather than all at once, so a 40-beat briefing is not 40 parallel
+  // TTS fetches thrashing the sidecar, and pause is instant because little
+  // is in flight. A barge-in (talking to Nova) flushes the queue; the
+  // generation check turns that into a pause rather than a silent stall.
+  openBriefing(id, { silent = false } = {}) {
+    const conn = getConnection();
+    if (!conn || !id) return;
+    if (!silent) this.setState({ screen: 'briefing', briefingLoading: true, briefingError: null, briefing: this.state.briefing?.id === id ? this.state.briefing : null });
+    api.briefing(conn, id)
+      .then((doc) => this.setState({ briefing: doc, briefingLoading: false }))
+      .catch((e) => this.setState({ briefingLoading: false, briefingError: e.message }));
+  }
+  closeBriefing() {
+    this.pauseBriefing();
+    this.navigate('inbox');
+  }
+  playBriefing(from = 0) {
+    const doc = this.state.briefing;
+    if (!doc?.beats?.length) return;
+    this.stopSpeaking(); // clears anything else Nova was saying, and bumps ttsGen
+    const gen = this.ttsGen || 0;
+    const beats = doc.beats;
+    const WINDOW = 3;
+    let queued = from;
+    this.setState({ briefingPlay: { id: doc.id, playing: true, current: from, gen }, briefingMode: 'listen' });
+    const enqueue = (i) => {
+      if (i >= beats.length) return;
+      this.speakTtsSentence(beats[i].say, () => {
+        // flushed by something else (a barge-in): do not fight it, just stop
+        if ((this.ttsGen || 0) !== gen) return;
+        this.setState({ briefingPlay: { id: doc.id, playing: true, current: i, gen } });
+        // keep the window full
+        while (queued < Math.min(beats.length, i + 1 + WINDOW)) enqueue(queued++);
+        if (i === beats.length - 1) {
+          this.queueTtsFinalize(() => {
+            if ((this.ttsGen || 0) !== gen) return;
+            this.setState((s) => ({ briefingPlay: { ...(s.briefingPlay || {}), playing: false } }));
+          });
+        }
+      });
+    };
+    while (queued < Math.min(beats.length, from + WINDOW)) enqueue(queued++);
+    // a flush from elsewhere is a pause, not a stall: watch the generation
+    clearInterval(this.briefingWatch);
+    this.briefingWatch = setInterval(() => {
+      if ((this.ttsGen || 0) !== gen) {
+        clearInterval(this.briefingWatch);
+        this.setState((s) => (s.briefingPlay?.playing ? { briefingPlay: { ...s.briefingPlay, playing: false } } : null));
+      }
+    }, 500);
+  }
+  pauseBriefing() {
+    clearInterval(this.briefingWatch);
+    if (this.state.briefingPlay?.playing) {
+      this.stopSpeaking();
+      this.setState((s) => ({ briefingPlay: { ...(s.briefingPlay || {}), playing: false } }));
+    }
+  }
+  seekBriefing(i) { this.playBriefing(Math.max(0, i)); }
+  fileBriefing(id) {
+    const conn = getConnection();
+    if (!conn || !id) return;
+    api.inboxApprove(conn, id)
+      .then(() => { this.toastMsg('Kept — it is in your vault now'); this.openBriefing(id, { silent: true }); this.refreshInbox(); })
+      .catch((e) => this.toastMsg(e.message || 'Could not file it'));
   }
   // Clear a job that FAILED. Nothing was written to the vault (an errored
   // weave never reaches the apply step), so this is a card he is throwing
@@ -5216,6 +5298,7 @@ export default class App extends Component {
       ...valsNotes(this, ctx),
       ...valsLibrary(this, ctx),
       ...valsLeader(this, ctx),
+      ...valsBriefing(this, ctx),
       ...valsMisc(this, ctx),
       ...valsInbox(this, ctx),
       ...valsTodos(this, ctx),
@@ -7041,6 +7124,7 @@ export default class App extends Component {
               {v.isNotes && <Notes v={v} />}
               {v.isLibrary && <Library v={v} />}
               {v.isLeader && <Leader v={v} />}
+              {v.isBriefing && <Briefing v={v} />}
               {v.isJournal && <Journal v={v} />}
               {v.isMoney && <Money v={v} />}
               {v.isSettings && <Settings v={v} />}

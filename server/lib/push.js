@@ -106,5 +106,7 @@ export function pushForRecord(record) {
     'training-check': 'Training check', 'food-suggestion': 'Food suggestion', calendar: 'Calendar change', compost: 'Vault hygiene', 'week-plan': 'Week plan', 'plan-today': 'Plan today', 'weekly-debrief': 'Weekly debrief', pattern: 'Pattern noticed', autonomy: 'Trust ladder', distill: 'Distillation ready',
   };
   const label = KIND_LABEL[record.kind] || 'Waiting for review';
-  sendPush({ title: `${label} — Nova`, body: record.text || 'A draft is waiting in your Inbox.', tag: `record-${record.id}` }).catch(() => {});
+  // a briefing opens ITSELF, not the inbox list — the tap is "read it now"
+  const url = record.kind === 'briefing' ? `./#/briefing?id=${record.id}` : undefined;
+  sendPush({ title: `${label} — Nova`, body: record.kind === 'briefing' ? (record.decision?.title || record.text) : (record.text || 'A draft is waiting in your Inbox.'), tag: `record-${record.id}`, url }).catch(() => {});
 }

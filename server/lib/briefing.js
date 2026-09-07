@@ -332,3 +332,30 @@ async function runBriefingJob(vaultPath, recordId, topic, standing, deps) {
     await updateRecord(recordId, { status: 'error', error: e.message }).catch(() => {});
   }
 }
+
+/* ------------------------------ the visuals ------------------------------- */
+
+// What is on the glass while a beat is spoken. Phase A/B are deterministic
+// and built from the briefing itself — a defined term when the beat uses
+// one, the section's heading otherwise — so the stage is never blank and
+// never decorative. Phases B/C add image and clip kinds on top of these.
+export function visualFor(beat, briefing) {
+  const say = String(beat.say || '');
+  const lower = say.toLowerCase();
+  // the FIRST glossary term the beat mentions — its plain definition on the
+  // glass at the moment Nova says the word is his "define the terminology"
+  // ask made literal
+  const term = (briefing.glossary || []).find((g) => g.term && lower.includes(g.term.toLowerCase()));
+  if (term) return { kind: 'term', term: term.term, plain: term.plain };
+  if (beat.kind === 'summary') return { kind: 'title', title: briefing.title, sub: `${briefing.sections.length} parts · ${briefing.sources.length} sources` };
+  const section = briefing.sections[beat.section];
+  return { kind: 'heading', n: beat.section + 1, of: briefing.sections.length, heading: section?.heading || '' };
+}
+
+// Everything the player needs, in one shape: the beats with their visuals,
+// plus the document. Computed on read so a later phase can enrich visuals
+// (images, clips) without touching what is stored.
+export function playable(briefing) {
+  const beats = beatsOf(briefing).map((b, i) => ({ ...b, i, visual: visualFor(b, briefing) }));
+  return { briefing, beats };
+}

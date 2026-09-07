@@ -366,6 +366,13 @@ export function Inbox({ v }) {
                       </div>
                     </div>
                   )}
+                  {item.openBriefing && (
+                    <Interactive as="span" onClick={item.openBriefing}
+                      title="Read it, or have Nova read it to you with the visuals"
+                      base={secondary('var(--nv-cy)')}
+                      hoverStyle={{ filter: 'brightness(1.1)' }}
+                    >{item.status === 'classifying' ? 'Watch it being made' : '▶ Open the briefing'}</Interactive>
+                  )}
                   {item.deepAnalyse && (
                     <Interactive as="span" onClick={item.busy ? undefined : item.deepAnalyse}
                       title="Run the full vault weave on this video — every concept, person, and idea into your second brain, shown as a diff to approve"
