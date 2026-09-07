@@ -13,59 +13,61 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**8 SEP (morning) — OPEN IT FOR REAL, AND THE INTAKE.** Two builds, both
-verified live on the rebuilt bundle against his real server.
+**8 SEP — WRAP THE DAY IS BUILT (and open-it-for-real + the Intake landed
+earlier the same morning, d46fe90).**
 
-**Open it for real.** When he wants a thing the hand found OPENED to watch
-or read — "…and play the latest video in the browser", "open it for real",
-"so I can read it" (`OPEN_WHEN_DONE_RE` in App.jsx), or the OPEN IT FOR
-REAL → chip on any window card, or "open it / play it" after a run
-(`tryBrowseVoice`) — Nova opens the page in ITS OWN visible Chrome on the
-Mac (`openInNovaBrowser` in browse.js; `POST /api/browse/open`). "play …"
-(mediaLane) now opens there too, never the system browser. The page a run
-finished on rides the hand's final `BROWSE {…url}` block (`record.finalUrl`;
-`lastUrl` on the live feed prefers it) because a CLICK changes the page
-without a navigate step — seen live: the card offered the channel, not the
-video. Verified: the sentence above → windows on the glass → run landed →
-Nova's browser opened `watch?v=AcK_zgJjnoo` at 60 s, "Open in Nova's
-browser." spoken. A run that stops in front of a control now arms a
-`browse-press` offer — his "yes" in the chat presses it (approve of the
-record). NOT yet exercised live: a real stopped-before-a-button run.
+**Wrap the day (ATHLETE-AI-PLAN #2).** `server/lib/wrapDay.js`, no model:
+counts today's food against the collection's targets, names the ONE dish
+that still closes tonight's protein gap (fridge first; one that finishes
+the gap beats a smaller one that only dents it; never one that blows the
+calorie room), and ranks the one thing tomorrow needs — empty fridge →
+missed floor → stale scales → tomorrow's session → hold the line. It says
+what it could not read instead of guessing. `GET /api/wrap`. On the glass:
+the Home card above the hero (shows once the plan is ticked or after 6pm,
+dismissible for the day, READ IT TO ME / OPEN FUEL) and "wrap the day" in
+the chat — `WRAP_RE` also catches "how did today go" and "did I hit my
+protein", which would otherwise go to Coach and be answered by a model
+instead of counted. Refreshes on every food-log write and rotation tick.
 
-**THE VISIBLE WINDOW HAS ITS OWN PROFILE (`~/.nova-browser-view`).** The
-first live run failed honestly: a visible window on the hand's profile
-holds Chrome's lock and the next headless run could not start ("profile is
-already running/locked"). Sign-ins do NOT carry between the two profiles
-— he signs into the view profile once. Opens asked for mid-run are queued
-until the run lands (`runsInFlight` in browse.js).
+**Verified live 8 Sep:** the API against his real vault (targets 2200/150,
+3 counted fridge dishes, tomorrow "Pull", closer = Animal Style Potato
+Bowl); "wrap the day" in the composer → card on the glass + spoken line;
+the Home card's render, chips and dismissal checked with an INJECTED
+evening payload (client state only, nothing written) because the real
+evening had not happened yet. **The first real one is tonight** — after he
+logs a meal and 6pm passes, the card should appear on Home.
 
-**The Intake (ATHLETE-AI-PLAN #1) is built** — see that file's status
-block. Server: `lib/intake.js`, `routes/intake.js`, inbox route `intake`
-(approve writes `setTargets` in recipes.js + `setIntake` in profile.js;
-undo restores both), `profileContext` carries his numbers to every agent.
-Client: `startIntake/askIntake/answerIntake/finishIntake` + `tryIntakeVoice`
-("set my numbers"…); Settings → About you → Set my numbers. The interview
-gate sits BEFORE the offer/proposal gates in doOrb and clears a brief-close
-queue — seen live: the morning brief's queue started mid-interview and
-fought for his yes. HE HAS NOT RUN IT FOR REAL YET: the collection still
-says 2200 kcal / 150 g typed once. Ask him to say "set my numbers".
+**Two things the build caught:** `loadExerciseLibrary` returns `{exercises}`,
+not the array — passing the wrapper to `loadRoutines` threw and tomorrow
+silently went blank (honest degradation hid a bug; the test now pins the
+wrapper shape). And `--nv-blue` / `--nv-ink70` are NOT tokens — the chips
+rendered borderless. The house chip style is `--nv-cy` + `--nv-ink60`,
+radius 7px.
 
-**Verification traps this session:** the preview's service worker served
-the OLD bundle through a plain `reload` — unregister the SW + clear caches
-+ `reload ignoreCache` before trusting `document.scripts[0].src`. Pretty-
-printed inbox JSON has spaces after colons — regexes on it must allow
-`\s*`. `pgrep -f` matches your own shell's command line — `grep -v zsh`.
+**Earlier the same morning (d46fe90):** open it for real — a page the hand
+found opens in Nova's OWN visible Chrome, on its own profile
+(`~/.nova-browser-view`, because a visible window on the hand's profile
+locks the next headless run out); the page a run finished on rides the
+hand's final `BROWSE {…url}` block. And THE INTAKE — seven questions in the
+chat, Mifflin-St Jeor printed line by line, his yes writes the collection's
+targets and his profile page, both undoable.
 
-**NEXT in this line:** a real stopped-before-a-button run to exercise the
-`browse-press` yes; WRAP THE DAY, ITEMISED PLATE, FORM CHECK, STUDY LANE
-from ATHLETE-AI-PLAN.md in order; the rail shows one THE INTAKE card per
-question (history, but noisy) — update in place if it bothers him.
+**NEXT in this line:** ITEMISED PLATE, FORM CHECK, THE STUDY LANE from
+`design/ATHLETE-AI-PLAN.md`, in order. Also unexercised: a real
+stopped-before-a-button browse run (the `browse-press` yes).
 
-**STILL HIS:** say "set my numbers" (7 questions, then yes); the stale
-ingest weave 9e994aae; cook something and tell Nova; the phone-in-hand gym
-check; a real browser commit; Xcode.
+**STILL HIS:** say "set my numbers" (the collection still reads 2200 kcal /
+150 g, typed once, never derived); the stale ingest weave 9e994aae; cook
+something and tell Nova; the phone-in-hand gym check; a real browser
+commit; Xcode.
 
 ## SESSION LOG (append-only, newest first)
+
+### 8 September 2026 (morning, second pass) — wrap the day
+The end-of-day sentence: lib/wrapDay.js (facts, closer, ranked ask,
+composer), GET /api/wrap, the Home card and the "wrap the day" chat door.
+1195 tests green under TZ=UTC. Live-checked against his vault; the card's
+evening render checked with injected state.
 
 ### 8 September 2026 (morning) — open it for real, and the Intake
 Nova's own visible browser (own profile after the lock collision), the

@@ -670,6 +670,27 @@ export function valsMission(app, ctx) {
     ],
     commandDeck,
     noteCard,
+    // WRAP THE DAY (server/lib/wrapDay.js): the evening card. It waits for
+    // his last logged meal or 6pm, says the day in one counted sentence, and
+    // names the one thing that still fixes it — the moment the sweep found
+    // nobody was using. Dismissed once a day; back tomorrow.
+    wrapCard: (() => {
+      const w = st.liveWrap;
+      if (demoMode || !w?.show || !w.line) return null;
+      if (st.wrapDismissedOn && w.facts?.date && st.wrapDismissedOn === w.facts.date) return null;
+      const f = w.facts || {};
+      return {
+        line: w.line,
+        floorMet: f.floorMet,
+        kcal: f.targets?.kcal ? `${Math.round(f.eaten?.kcal || 0).toLocaleString()} / ${f.targets.kcal.toLocaleString()} kcal` : `${Math.round(f.eaten?.kcal || 0).toLocaleString()} kcal`,
+        protein: f.targets?.protein ? `${f.eaten?.p || 0} / ${f.targets.protein} g` : `${f.eaten?.p || 0} g`,
+        proteinNote: f.floorMet == null ? 'NO FLOOR SET' : f.floorMet ? 'FLOOR CLEARED' : `${f.proteinShort} G SHORT`,
+        fix: w.closer ? `${w.closer.name} ${w.closer.inFridge ? 'is in the fridge' : 'is on the plan'} · +${w.closer.protein} g for ${Math.round(w.closer.kcal).toLocaleString()} kcal` : null,
+        speak: () => app.speakWrap(),
+        openFuel: () => app.navigate('recipes'),
+        dismiss: () => app.dismissWrap(),
+      };
+    })(),
     bootInfo: {
       vaultLine: demoMode ? 'VAULT · DEMO DATA' : st.liveNotes ? `VAULT · ${st.liveNotes.length} NOTES LINKED` : 'VAULT · CONNECTING…',
       recipesLine: demoMode ? 'MODE · SHOWCASE' : st.liveRecipes ? `RECIPES · ${st.liveRecipes.length} LOADED` : 'RECIPES · CONNECTING…',

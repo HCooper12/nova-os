@@ -291,6 +291,21 @@ const INBOX_MODES = ['review-all', 'auto-high', 'auto-all'];
 
 // "…and play it in the browser" — the hand's final page opens for real when the run lands
 const OPEN_WHEN_DONE_RE = /\b(?:play|open|put|watch|read|show)\b[^.?!]{0,80}?\bin (?:the|a|your|nova'?s|its own) browser\b|\bfor real\b|\bso i can (?:watch|read|see|listen)\b|\bplaying in (?:a|the|your) browser\b|\bopen(?:ed)? (?:it |that )?(?:up )?properly\b/i;
+// "wrap the day" — a counting question, answered by code, never the model
+const WRAP_RE = /^\s*(?:hey nova[,\s]+)?(?:can you |could you |please )?(?:wrap (?:up )?(?:the |my |today'?s? )?day|wrap (?:it |things )?up|wrap today|how did (?:today|my day) go|how did i (?:do|go|eat) today|did i (?:hit|make) (?:my )?(?:the )?(?:protein|floor|protein floor|targets?)(?: today)?)[.?!\s]*$/i;
+// The wrap on the glass: the three numbers, then the one thing tomorrow needs.
+function wrapStageCard(w) {
+  const f = w?.facts || {};
+  const items = [];
+  if (f.targets?.kcal) items.push({ name: `${Math.round(f.eaten?.kcal || 0).toLocaleString()} / ${f.targets.kcal.toLocaleString()} kcal`, note: f.kcalLeft > 0 ? `${Math.round(f.kcalLeft).toLocaleString()} LEFT` : f.kcalLeft < 0 ? `${Math.round(-f.kcalLeft).toLocaleString()} OVER` : 'ON TARGET' });
+  else items.push({ name: `${Math.round(f.eaten?.kcal || 0).toLocaleString()} kcal logged`, note: 'NO TARGET' });
+  if (f.targets?.protein) items.push({ name: `${f.eaten?.p || 0} / ${f.targets.protein} g protein`, note: f.floorMet ? 'FLOOR' : `${f.proteinShort} G SHORT`, tone: f.floorMet ? 'good' : 'gold' });
+  else items.push({ name: `${f.eaten?.p || 0} g protein`, note: 'NO FLOOR' });
+  if (w?.closer) items.push({ name: `${w.closer.name} ${w.closer.inFridge ? '· in the fridge' : '· on the plan'}`, note: `+${w.closer.protein}G`, tone: 'good' });
+  if (w?.ask?.text) items.push({ name: `Tomorrow: ${w.ask.text}`, note: null });
+  return { kind: 'list', label: 'WRAP THE DAY', tone: f.floorMet === false ? 'gold' : 'good', items, foot: f.date || null };
+}
+
 const INTAKE_LABEL = { sex: 'Sex', age: 'Age', heightCm: 'Height (cm)', weightKg: 'Weight (kg)', activity: 'Activity', goal: 'Goal', pace: 'Pace', eating: 'Eating style' };
 
 export default class App extends Component {
@@ -408,6 +423,7 @@ export default class App extends Component {
     // settings flag that defaults on — it said "listening" permanently).
     liveTextOpen: false, liveMicOpen: false, voiceScreenMic: false, voicePendingOffer: null,
     intake: null, // THE INTAKE interview in progress: { facts, idx, questions, known }
+    liveWrap: null, wrapDismissedOn: null, // WRAP THE DAY — the evening card on Home
     // set when a reply was composed but the device refused to play it —
     // silence must never also be invisible
     speechBlocked: null,
@@ -517,6 +533,7 @@ export default class App extends Component {
   };
 
   componentDidMount() {
+    try { const d = localStorage.getItem('novaos.wrap.dismissed'); if (d) this.setState({ wrapDismissedOn: d }); } catch { /* private mode */ }
     if (import.meta.env.DEV) window.__novaApp = this; // dev-only introspection hook
     // Boot policy — stale-while-revalidate: a returning session with cached
     // real data boots straight onto it after a launch-screen blink, and the
@@ -949,6 +966,7 @@ export default class App extends Component {
     api.setRotationVariant(conn, slot, altId, recipeId).then((rotation) => {
       this.noteLocalWrite('rotation');
       this.setState({ liveRotation: rotation });
+      this.refreshWrap(); // ticking a meal changes what is left to close the floor
       this.toastMsg(altId ? "Applied as today's version — the stored recipe is untouched" : 'Back to the original for today');
     }).catch((e) => this.toastMsg('Could not set today’s version: ' + e.message));
   }
@@ -1500,6 +1518,7 @@ export default class App extends Component {
       },
       async () => this.setState({ liveRotation: await api.rotation(conn) }),
       async () => this.setState({ liveFoodLog: await api.foodLog(conn) }),
+      async () => this.setState({ liveWrap: await api.wrapDay(conn) }),
       async () => this.setState({ liveNutritionMonth: await api.nutritionMonth(conn) }),
       async () => this.setState({ liveNutritionWeek: await api.nutritionWeek(conn) }),
       async () => this.setState({ liveTrainOverview: await api.trainOverview(conn) }),
@@ -1648,6 +1667,7 @@ export default class App extends Component {
     return promise.then((rotation) => {
       this.noteLocalWrite('rotation');
       this.setState({ liveRotation: rotation });
+      this.refreshWrap(); // ticking a meal changes what is left to close the floor
       return rotation;
     }).catch((e) => this.toastMsg(`${failLabel}: ${e.message}`));
   }
@@ -1686,6 +1706,7 @@ export default class App extends Component {
     api.setRotationEaten(conn, slot, recipeId, eaten).then((rotation) => {
       this.noteLocalWrite('rotation');
       this.setState({ liveRotation: rotation });
+      this.refreshWrap(); // ticking a meal changes what is left to close the floor
     }).catch((e) => {
       if (isOfflineError(e)) { this.noteLocalWrite('rotation'); this.enqueueOutbox('rotationEaten', `${eaten ? 'Ate' : 'Un-ate'} ${slot}`, { slot, recipeId, eaten }); return; }
       this.toastMsg('Could not update: ' + e.message);
@@ -1715,6 +1736,7 @@ export default class App extends Component {
     api.setPortions(conn, recipeId, count, name).then(({ rotation }) => {
       this.noteLocalWrite('rotation');
       this.setState({ liveRotation: rotation });
+      this.refreshWrap(); // ticking a meal changes what is left to close the floor
     }).catch((e) => this.toastMsg('Could not set portions: ' + e.message));
   }
   adjustPortions(recipeId, delta, name) {
@@ -1724,6 +1746,7 @@ export default class App extends Component {
     api.adjustPortions(conn, recipeId, delta, name).then(({ rotation }) => {
       this.noteLocalWrite('rotation');
       this.setState({ liveRotation: rotation });
+      this.refreshWrap(); // ticking a meal changes what is left to close the floor
     }).catch((e) => this.toastMsg('Could not adjust portions: ' + e.message));
   }
   toggleSlotConsumed(slot, consumed) {
@@ -1739,6 +1762,7 @@ export default class App extends Component {
     api.setRotationConsumed(conn, slot, consumed).then((rotation) => {
       this.noteLocalWrite('rotation');
       this.setState({ liveRotation: rotation });
+      this.refreshWrap(); // ticking a meal changes what is left to close the floor
     }).catch((e) => {
       if (isOfflineError(e)) {
         this.noteLocalWrite('rotation');
@@ -1766,6 +1790,42 @@ export default class App extends Component {
   applyFoodLogDay(day) {
     if (this.state.foodLogDate && day.date === this.state.foodLogDate) this.setState({ liveFoodLogView: day });
     else if (!this.state.foodLogDate) this.setState({ liveFoodLog: day });
+    // every logged meal changes the wrap — a stale one would name a gap he
+    // has already closed, which is exactly the kind of fiction Nova refuses
+    this.refreshWrap();
+  }
+  refreshWrap() {
+    const conn = getConnection();
+    if (!conn || this.state.connectionStatus === 'offline') return;
+    api.wrapDay(conn).then((w) => this.setState({ liveWrap: w })).catch(() => {});
+  }
+  // "wrap the day" — spoken, and put on the glass as the same three numbers
+  tryWrapVoice(q) {
+    if (!WRAP_RE.test(q)) return false;
+    const conn = getConnection();
+    this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q }], orbInput: '' }));
+    if (!conn || this.state.connectionStatus === 'offline') {
+      this.sayLine('I need the Mac to wrap the day — the numbers live in your vault.');
+      return true;
+    }
+    api.wrapDay(conn).then((w) => {
+      this.setState({ liveWrap: w });
+      this.putCard(wrapStageCard(w));
+      this.sayLine(w.line);
+    }).catch((e) => this.sayLine(`I could not wrap the day: ${e?.message || e}`));
+    return true;
+  }
+  speakWrap() {
+    const w = this.state.liveWrap;
+    if (!w?.line) return;
+    this.navigate('voice');
+    this.putCard(wrapStageCard(w));
+    this.sayLine(w.line);
+  }
+  dismissWrap() {
+    const on = this.state.liveWrap?.facts?.date || new Date().toISOString().slice(0, 10);
+    try { localStorage.setItem('novaos.wrap.dismissed', on); } catch { /* private mode */ }
+    this.setState({ wrapDismissedOn: on });
   }
   submitFoodLog() {
     const conn = getConnection();
@@ -6021,6 +6081,7 @@ export default class App extends Component {
     }
     if (this.tryBriefingVoice(q)) return;
     if (this.tryBrowseVoice(q)) return;
+    if (this.tryWrapVoice(q)) return;
     if (this.tryIntakeVoice(q)) return;
     if (this.tryGymVoice(q)) return;
     if (this.trySettingsVoice(q)) return;

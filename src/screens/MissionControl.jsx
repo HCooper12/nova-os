@@ -121,6 +121,23 @@ export function MissionControl({ v }) {
           </div>
         </section>
       )}
+      {/* WRAP THE DAY — the evening sentence, on the surface he already opens.
+          Deliberately quiet: two numbers, the fix if there is one, and a door. */}
+      {v.wrapCard && (
+        <section className="nv-pane" style={{ marginBottom: mob ? '12px' : '18px', padding: mob ? '16px 18px 14px' : '18px 22px 16px', border: `1px solid color-mix(in srgb, ${v.wrapCard.floorMet === false ? 'var(--nv-gold)' : 'var(--nv-good)'} 34%, transparent)` }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
+            <div style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track-wide)', color: v.wrapCard.floorMet === false ? 'var(--nv-gold)' : 'var(--nv-good)' }}>WRAP THE DAY</div>
+            <div style={{ font: `600 12px ${M}`, letterSpacing: '.08em', color: 'var(--nv-ink60)', fontVariantNumeric: 'tabular-nums' }}>{v.wrapCard.kcal}</div>
+            <div style={{ font: `600 12px ${M}`, letterSpacing: '.08em', color: v.wrapCard.floorMet === false ? 'var(--nv-gold)' : 'var(--nv-good)', fontVariantNumeric: 'tabular-nums' }}>{v.wrapCard.protein} · {v.wrapCard.proteinNote}</div>
+          </div>
+          <div style={css(`margin-top:8px;font:400 ${mob ? '15px' : '16px'}/1.45 ${R};color:var(--nv-ink)`)}>{v.wrapCard.line}</div>
+          <div style={{ marginTop: '12px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <Interactive as="span" onClick={v.wrapCard.speak} base={css('cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 13px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)')}>READ IT TO ME</Interactive>
+            {v.wrapCard.fix && <Interactive as="span" onClick={v.wrapCard.openFuel} base={css('cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 13px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);color:var(--nv-ink60)')}>OPEN FUEL</Interactive>}
+            <Interactive as="span" onClick={v.wrapCard.dismiss} base={css('cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 13px;border-radius:7px;color:var(--nv-ink40)')}>DISMISS</Interactive>
+          </div>
+        </section>
+      )}
       <section style={heroGrid}>
         <div>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 10px', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track-wide)', color: 'var(--nv-ink60)', marginBottom: '16px' }}>

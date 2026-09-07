@@ -79,6 +79,21 @@ set. Fix it the way the reel does, but on Nova's rails.
   the diff, the same way the phase-4 edit verbs do.
 
 ### 2. WRAP THE DAY
+
+**BUILT — 8 Sep 2026.** `server/lib/wrapDay.js` — no model in it. `wrapFacts`
+counts (food log vs the collection's targets, the uneaten rotation, counted
+fridge portions, tomorrow's scheduled routine, weigh-in staleness);
+`closerFor` picks the one dish that closes tonight's protein gap — fridge
+first, one that FINISHES the gap over a smaller one that only dents it, and
+never one that blows the calorie room; `askFor` ranks the one thing tomorrow
+needs (empty fridge → missed floor → stale scales → tomorrow's session →
+hold); `composeWrap` writes the sentence, and says what it could not read.
+`GET /api/wrap`. On the glass: the Home card (appears once the plan is
+ticked or after 6pm, dismissible for the day, READ IT TO ME / OPEN FUEL) and
+"wrap the day" in the chat. Refreshes on every food-log write and rotation
+tick. Verified live 8 Sep against his vault (targets 2200/150, fridge 3
+dishes, tomorrow "Pull"); the Home card render was checked with an injected
+evening payload, since the real evening had not happened yet.
 One sentence at the end of the day: what he ate against target, what is left,
 whether the protein floor was hit, and the one thing tomorrow needs. Spoken
 ("wrap the day"), and on the home card after his last logged meal. The

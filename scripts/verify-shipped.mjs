@@ -89,6 +89,7 @@ const FEATURES = [
   ['Browser hand · live on the glass (7 Sep)', 'you watch it work on the glass'],
   ['Browser hand · open it for real, in Nova\'s own browser (8 Sep)', 'OPEN IT FOR REAL'],
   ['The Intake · your numbers, computed by code, approved by you (8 Sep)', 'Set my numbers'],
+  ['Wrap the day · the evening sentence, counted not composed (8 Sep)', 'WRAP THE DAY'],
   ['Voice + Coach · photos and videos ride with a question (6 Sep)', 'rides with your next question'],
   ['Voice · the gym by voice — start, sets, next, skip, finish (6 Sep)', 'Say the weight and reps as you go'],
   ['Train · the anatomy card is one visible tap (◉ 3D chip, 6 Sep)', 'See the lift — the 3D figure'],

@@ -291,6 +291,8 @@ export const api = {
   browseLive: (conn, id) => call(conn, `/api/browse/${encodeURIComponent(id)}/live`),
   // open a page FOR REAL — in Nova's own visible browser on the Mac
   browseOpen: (conn, url) => post(conn, '/api/browse/open', { url }),
+  // WRAP THE DAY — one counted sentence about today's food (server/lib/wrapDay.js)
+  wrapDay: (conn) => call(conn, '/api/wrap'),
   // THE INTAKE — the interview runs on the glass; the server knows, parses, proposes
   intakePrefill: (conn) => call(conn, '/api/intake/prefill'),
   intakeAnswer: (conn, key, text) => post(conn, '/api/intake/answer', { key, text }),
