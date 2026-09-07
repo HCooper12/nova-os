@@ -66,6 +66,29 @@ export function RecipeOverlay({ v }) {
                 <div style={css("display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)")}><Meta tone="good">Energy</Meta><span style={css("font-variant-numeric:tabular-nums;color:var(--nv-good)")}>{v.orKcal} kcal</span></div>
               </div>
             </div>
+            {/* THE FRIDGE — how many cooked portions of this are left. Ticking
+                the meal eaten in the rotation takes one off; here he corrects
+                the count, or logs a fresh batch. Red when it is out. */}
+            {v.orPortions && (
+              <div style={css(`margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-radius:12px;padding:12px 14px;border:1px solid ${v.orPortions.out ? 'color-mix(in srgb, var(--nv-warn) 55%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 09%, transparent)'};background:${v.orPortions.out ? 'color-mix(in srgb, var(--nv-warn) 08%, transparent)' : 'var(--nv-well)'}`)}>
+                <Eyebrow as="span" tone={v.orPortions.out ? 'warn' : 'faint'}>In the fridge</Eyebrow>
+                {v.orPortions.left == null ? (
+                  <>
+                    <Meta tone="faint" style={{ flex: 1, textTransform: 'none', letterSpacing: 0 }}>Not counted — say how many you cooked</Meta>
+                    <Chip tone="good" onClick={() => { const n = Number(window.prompt('How many portions did you cook?', '8')); if (Number.isInteger(n) && n > 0) v.orPortions.set(n); }}>＋ Cooked a batch</Chip>
+                  </>
+                ) : (
+                  <>
+                    <span style={css(`font:600 20px var(--nv-font-ui);font-variant-numeric:tabular-nums;color:${v.orPortions.out ? 'var(--nv-warn)' : 'var(--nv-ink)'}`)}>{v.orPortions.left}</span>
+                    <Meta tone={v.orPortions.out ? 'warn' : 'faint'} style={{ flex: 1, textTransform: 'none', letterSpacing: 0 }}>{v.orPortions.out ? 'out — cook more' : `portion${v.orPortions.left === 1 ? '' : 's'} left`}</Meta>
+                    <Chip tone="quiet" onClick={v.orPortions.ate} disabled={v.orPortions.out} title="Ate one outside the rotation">−1</Chip>
+                    <Chip tone="good" onClick={() => { const n = Number(window.prompt('How many more did you cook?', '8')); if (Number.isInteger(n) && n > 0) v.orPortions.cooked(n); }}>＋ Cooked more</Chip>
+                    <TextAction compact tone="faint" onClick={() => { const n = Number(window.prompt('Set the count', String(v.orPortions.left))); if (Number.isInteger(n) && n >= 0) v.orPortions.set(n); }}>Set</TextAction>
+                    <TextAction compact tone="faint" onClick={v.orPortions.stop}>Stop counting</TextAction>
+                  </>
+                )}
+              </div>
+            )}
             {v.orShowServings && (
               <div style={css("margin-top:14px;display:flex;align-items:center;gap:12px")}>
                 <Eyebrow as="span">Servings</Eyebrow>

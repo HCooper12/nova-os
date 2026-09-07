@@ -33,14 +33,23 @@ export function valsRecipes(app, ctx) {
     { key: 'snack', label: 'S', name: 'Snack', hue: '199,120,158' },
     { key: 'extra', label: 'E', name: 'Extra Meal', hue: '199,99,99' },
   ];
+  // ROTATION v2 (7 Sep): the slot list is the standard five plus any extra
+  // meals he has added — the server's `order` and `labels` are the truth;
+  // SLOT_DEFS only supplies a hue and a chip letter for the standard ones.
+  const CUSTOM_HUE = '199,99,99';
+  const rotationOrder = rotation?.order || SLOT_DEFS.map((s) => s.key);
   const rotationExtraVisible = st.rotationShowExtra || !!rotation?.slots?.extra;
-  const visibleSlotDefs = SLOT_DEFS.filter((s) => s.key !== 'extra' || rotationExtraVisible);
+  const slotDefFor = (key) => SLOT_DEFS.find((s) => s.key === key) || { key, label: '+', name: rotation?.labels?.[key] || key, hue: CUSTOM_HUE, custom: true };
+  const visibleSlotDefs = rotationOrder.map(slotDefFor).filter((s) => s.key !== 'extra' || rotationExtraVisible);
   const rotationSlots = visibleSlotDefs.map((s) => {
     const filled = rotation?.slots?.[s.key] || null;
+    const options = rotation?.options?.[s.key] || (filled ? [filled] : []);
+    const many = options.length > 1;
     return {
       key: s.key,
       name: s.name,
       hue: s.hue,
+      custom: !!s.custom,
       recipeName: filled ? filled.name : null,
       p: filled ? Math.round(filled.macros.p) : null,
       c: filled ? Math.round(filled.macros.c) : null,
@@ -48,9 +57,31 @@ export function valsRecipes(app, ctx) {
       kcal: filled ? Math.round(filled.macros.kcal) : null,
       consumed: !!filled?.consumed,
       variant: filled?.variant || null,
+      // the fridge: how many cooked portions of the FOCUSED dish are left
+      // (null = he has never counted it); zero reads red
+      portionsLeft: filled?.portionsLeft ?? null,
+      out: !!filled?.out,
+      // several options: which is in focus, and the flick between them
+      optionCount: options.length,
+      focusIndex: Math.max(0, options.findIndex((d) => d.focus)),
+      eatenCount: options.filter((d) => d.eaten).length,
+      prev: many ? () => app.cycleRotationFocus(s.key, -1) : null,
+      next: many ? () => app.cycleRotationFocus(s.key, 1) : null,
+      options: options.map((d) => ({
+        id: d.id, name: d.name, focus: !!d.focus, eaten: !!d.eaten,
+        p: Math.round(d.macros?.p || 0), kcal: Math.round(d.macros?.kcal || 0),
+        portionsLeft: d.portionsLeft ?? null, out: !!d.out,
+        focusIt: () => app.setRotationFocus(s.key, d.id),
+        tick: () => app.toggleOptionEaten(s.key, d.id, !d.eaten),
+        remove: () => app.toggleRotationSlot(s.key, d.id),
+        open: () => app.openRecipe(d.id),
+      })),
       clearVariant: filled?.variant ? () => app.setRotationVariant(s.key, null) : null,
       open: filled ? () => app.openRecipe(filled.id) : null,
-      toggleConsumed: filled ? () => app.toggleSlotConsumed(s.key, !filled.consumed) : null,
+      toggleConsumed: filled ? () => app.toggleOptionEaten(s.key, filled.id, !filled.consumed) : null,
+      // extra meals he added can go again once they are empty
+      removeSlot: s.custom && !options.length ? () => app.removeRotationSlot(s.key) : null,
+      rename: s.custom ? (label) => app.renameRotationSlot(s.key, label) : null,
       clear: filled ? () => {
         app.toggleRotationSlot(s.key, filled.id);
         if (s.key === 'extra') app.setState({ rotationShowExtra: false });
@@ -81,13 +112,16 @@ export function valsRecipes(app, ctx) {
   // entries, so their consumedTotals are added back once, for today only.
   const foodLogEntries = st.liveFoodLog?.entries || [];
   const sumOf = (list) => list.reduce((acc, e) => ({ p: acc.p + e.macros.p, c: acc.c + e.macros.c, f: acc.f + e.macros.f, kcal: acc.kcal + e.macros.kcal }), { p: 0, c: 0, f: 0, kcal: 0 });
-  const loggedRotationSlots = new Set(foodLogEntries.filter((e) => e.source === 'rotation').map((e) => e.slot));
-  // per-slot: count a consumed slot ONLY if the log doesn't already carry it
-  const rotConsumedTot = Object.entries(rotation?.slots || {}).reduce((acc, [slot, r]) => (
-    !r || !r.consumed || !r.macros || loggedRotationSlots.has(slot) ? acc : {
-      p: acc.p + r.macros.p, c: acc.c + r.macros.c, f: acc.f + r.macros.f, kcal: acc.kcal + r.macros.kcal,
+  // v2: the log carries one entry per (slot, recipe); a legacy entry with no
+  // recipeId covers the slot's focused dish
+  const logged = new Set(foodLogEntries.filter((e) => e.source === 'rotation').map((e) => `${e.slot}|${e.recipeId || ''}`));
+  const isLogged = (slot, id, focus) => logged.has(`${slot}|${id}`) || (focus && logged.has(`${slot}|`));
+  // per dish: count an eaten option ONLY if the log doesn't already carry it
+  const rotConsumedTot = Object.entries(rotation?.options || {}).reduce((acc, [slot, dishes]) => dishes.reduce((a, d) => (
+    !d.eaten || !d.macros || isLogged(slot, d.id, d.focus) ? a : {
+      p: a.p + d.macros.p, c: a.c + d.macros.c, f: a.f + d.macros.f, kcal: a.kcal + d.macros.kcal,
     }
-  ), { p: 0, c: 0, f: 0, kcal: 0 });
+  ), acc), { p: 0, c: 0, f: 0, kcal: 0 });
   const foodLogTot = sumOf(foodLogEntries);
   // retro tracking: when a past day is selected the log pane shows THAT
   // day's entries (loaded into liveFoodLogView); adds/removes go there too
@@ -139,7 +173,9 @@ export function valsRecipes(app, ctx) {
             phLabel: 'dish photo — ' + r.name.toLowerCase(),
             phStyle: { height: '104px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, rgba(' + hue + ',.13) 0 8px, rgba(' + hue + ',.04) 8px 16px)' },
             pBar: bar(r.macros.p, 'var(--nv-cy)'), cBar: bar(r.macros.c, 'var(--nv-gold)'), fBar: bar(r.macros.f, 'var(--nv-vi)'),
-            slotToggles: SLOT_DEFS.map((s) => ({ key: s.key, label: s.label, hue: s.hue, active: rotation?.slots?.[s.key]?.id === r.id, onClick: () => app.toggleRotationSlot(s.key, r.id) })) };
+            // v2: a chip is lit when the recipe is one of the slot's OPTIONS;
+            // tapping adds or removes it — it never replaces what is there
+            slotToggles: rotationOrder.map(slotDefFor).map((s) => ({ key: s.key, label: s.custom ? s.name.slice(0, 1).toUpperCase() : s.label, title: s.name, hue: s.hue, active: (rotation?.options?.[s.key] || []).some((d) => d.id === r.id), onClick: () => app.toggleRotationSlot(s.key, r.id) })) };
         })
     : app.recipes.filter(r => st.recipeFilter === 'All' || r.filter === st.recipeFilter).map(r => {
         const tot = r.p + r.c + r.f;
@@ -153,10 +189,11 @@ export function valsRecipes(app, ctx) {
 
   const liveOr = usingLiveRecipes ? (st.liveRecipes.find(r => r.id === st.openRecipeId) || null) : null;
   // if the open recipe sits in a rotation slot today, per-day variant actions apply
-  const openRecipeSlotKey = liveOr && rotation?.slots
-    ? (Object.entries(rotation.slots).find(([, v]) => v && v.id === liveOr.id)?.[0] || null)
+  // v2: the recipe may be one of several options in a slot, focused or not
+  const openRecipeSlotKey = liveOr && rotation?.options
+    ? (Object.entries(rotation.options).find(([, dishes]) => dishes.some((d) => d.id === liveOr.id))?.[0] || null)
     : null;
-  const openRecipeSlotVariantId = openRecipeSlotKey ? (rotation.slots[openRecipeSlotKey]?.variantId || null) : null;
+  const openRecipeSlotVariantId = openRecipeSlotKey ? (rotation.options[openRecipeSlotKey].find((d) => d.id === liveOr.id)?.variantId || null) : null;
   const or = usingLiveRecipes ? null : app.recipes.find(r => r.id === st.openRecipeId);
   const sv = usingLiveRecipes ? 1 : st.servings; // no serving-scaling for live recipes — ingredients are free text, not [qty,unit] tuples
 
@@ -258,7 +295,10 @@ export function valsRecipes(app, ctx) {
     rotationTotals: { p: Math.round(rotTot.p), c: Math.round(rotTot.c), f: Math.round(rotTot.f), kcal: Math.round(rotTot.kcal) },
     rotationTargetKcal: profile ? profile.targetKcal : null,
     rotationProteinFloor: profile ? profile.proteinFloorG : null,
-    rotationShowExtraButton: usingLiveRecipes && !rotationExtraVisible,
+    // the old + 4TH MEAL button is retired (7 Sep): ADD A MEAL below covers it and names the meal; the legacy extra slot still shows once it holds something
+    rotationShowExtraButton: false,
+    // v2: a meal beyond the five — the button is on the strip itself, so he can find it
+    rotationAddMeal: usingLiveRecipes ? (label) => app.addRotationSlot(label) : null,
     showExtraMealSlot: () => app.setState({ rotationShowExtra: true }),
 
     // off-plan food log — quick-add anything eaten that wasn't a rotation
@@ -467,6 +507,20 @@ export function valsRecipes(app, ctx) {
       else app.setState({ recipeDeleteArmed: liveOr.id });
     } : null,
     orName: usingLiveRecipes ? (liveOr ? liveOr.name : '') : (or ? or.name : ''),
+    // THE FRIDGE, on the recipe itself (his rule: inside Fuel, not another
+    // section). null = never counted; the buttons cook/eat one at a time,
+    // "Set" takes a number, "Stop counting" forgets it.
+    orPortions: usingLiveRecipes && liveOr ? (() => {
+      const dish = Object.values(rotation?.options || {}).flat().find((d) => d.id === liveOr.id);
+      const left = dish ? dish.portionsLeft : (rotation?.portions?.[liveOr.id] ?? null);
+      return {
+        left, out: left === 0,
+        cooked: (n) => app.adjustPortions(liveOr.id, n, liveOr.name),
+        ate: () => app.adjustPortions(liveOr.id, -1, liveOr.name),
+        set: (n) => app.setPortions(liveOr.id, n, liveOr.name),
+        stop: () => app.setPortions(liveOr.id, null, liveOr.name),
+      };
+    })() : null,
     orMeta: usingLiveRecipes
       ? (liveOr ? `${activeAlt ? 'Alternate: ' + activeAlt.label + ' · ' : ''}${RECIPE_CATEGORY_LABEL[liveOr.category] || liveOr.category}${liveOr.makes ? ' · ' + liveOr.makes : ''} · from Obsidian /Health` : '')
       : (or ? or.tag + ' · ' + or.time + ' · from Obsidian /Recipes' : ''),
@@ -504,11 +558,11 @@ export function valsRecipes(app, ctx) {
       // edit that name. It now shows what the recipe says it is called.
       { id: null, label: liveOr.versionLabel || 'Original', active: !st.recipeAltSelected, onClick: () => app.selectAlternate(null),
         isToday: openRecipeSlotKey ? !openRecipeSlotVariantId : false,
-        useToday: openRecipeSlotKey && openRecipeSlotVariantId ? () => app.setRotationVariant(openRecipeSlotKey, null) : null,
+        useToday: openRecipeSlotKey && openRecipeSlotVariantId ? () => app.setRotationVariant(openRecipeSlotKey, null, liveOr.id) : null,
         rename: () => app.startRenameAlternate(CURRENT_VERSION, liveOr.versionLabel || 'Original') },
       ...liveOr.alternates.map((a) => ({ id: a.id, label: a.label, active: st.recipeAltSelected === a.id, onClick: () => app.selectAlternate(a.id),
         isToday: openRecipeSlotVariantId === a.id,
-        useToday: openRecipeSlotKey && openRecipeSlotVariantId !== a.id ? () => app.setRotationVariant(openRecipeSlotKey, a.id) : null,
+        useToday: openRecipeSlotKey && openRecipeSlotVariantId !== a.id ? () => app.setRotationVariant(openRecipeSlotKey, a.id, liveOr.id) : null,
         makePrimary: a.macros ? () => app.promoteRecipeAlternate(liveOr.id, a.id) : null,
         rename: () => app.startRenameAlternate(a.id, a.label) })),
     ] : [],

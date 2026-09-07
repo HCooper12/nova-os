@@ -134,28 +134,44 @@ export function Recipes({ v }) {
 
       {/* the mockup's rotation: horizontal tick-cards — the action taken 4x
           a day gets the biggest targets on the screen. One component, both
-          layouts. Tick = eaten (writes the food log), name opens the recipe,
-          × clears the slot. */}
+          layouts. v2 (7 Sep): a slot holds OPTIONS. The one in FOCUS (★) is
+          what today's plan counts; each option has its own tick (✓ eaten →
+          the food log, and one portion off the fridge). The fridge count
+          rides the card and goes red when that dish is out. Extra meals
+          beyond the standard five are his to add and name. */}
       {v.rotationVisible && (
         <div style={css("margin-top:18px")}>
           <div style={css("display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin:0 2px 8px")}>
-            <Eyebrow as="span">Today's rotation — tap to eat · hold for more</Eyebrow>
+            <Eyebrow as="span">Today's rotation — tap to eat · ‹ › to switch · hold for more</Eyebrow>
             <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
               <span style={css("color:var(--nv-cy)")}>{v.rotationTotals.p}P</span> · <span style={css("color:var(--nv-gold)")}>{v.rotationTotals.c}C</span> · <span style={css("color:var(--nv-vi)")}>{v.rotationTotals.f}F</span> · <span style={css("color:var(--nv-good)")}>{v.rotationTotals.kcal}</span>
             </span>
           </div>
-          <div style={css("display:flex;gap:10px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:none")}>
+          <div style={css("display:flex;gap:10px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:none;align-items:stretch")}>
             {v.rotationSlots.map((s) => (
               <Interactive as="div" key={s.key} onLongPress={s.onLongPress}
-                base={{ flex: '0 0 172px', borderRadius: '16px', padding: '12px', position: 'relative', cursor: s.recipeName ? 'pointer' : 'default',
-                border: s.consumed ? '1px solid color-mix(in srgb, var(--nv-good) 50%, transparent)' : '1px solid var(--nv-edge)',
-                background: 'var(--nv-glass)', transition: 'border-color .2s' }}>
-                <Eyebrow as="span" tone="violet">{s.name}</Eyebrow>
+                base={{ flex: `0 0 ${s.optionCount > 1 ? 196 : 172}px`, minWidth: 0, borderRadius: '16px', padding: '12px', position: 'relative', cursor: s.recipeName ? 'pointer' : 'default',
+                border: s.out ? '1px solid color-mix(in srgb, var(--nv-warn) 65%, transparent)'
+                  : s.consumed ? '1px solid color-mix(in srgb, var(--nv-good) 50%, transparent)' : '1px solid var(--nv-edge)',
+                background: s.out ? 'linear-gradient(180deg,color-mix(in srgb, var(--nv-warn) 09%, transparent),var(--nv-glass))' : 'var(--nv-glass)', transition: 'border-color .2s' }}>
+                <div style={css("display:flex;align-items:baseline;gap:6px;padding-right:40px;flex-wrap:wrap")}>
+                  <Eyebrow as="span" tone={s.custom ? 'faint' : 'violet'}>{s.name}</Eyebrow>
+                  {s.optionCount > 1 && <span style={css("font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{s.eatenCount}/{s.optionCount} eaten</span>}
+                </div>
                 {s.recipeName ? (
                   <>
                     <Interactive as="div" onClick={s.open} base="cursor:pointer;font:600 14px var(--nv-font-ui);margin-top:3px;line-height:1.25;color:var(--nv-ink)" hoverStyle="color:var(--nv-cy)">{s.recipeName}{s.variant ? ` · ${s.variant}` : ''}</Interactive>
-                    <div style={css("font:var(--nv-micro-m);margin-top:6px")}>
+                    <div style={css("font:var(--nv-micro-m);margin-top:6px;display:flex;align-items:center;gap:4px;flex-wrap:wrap")}>
                       <span style={css("color:var(--nv-cy)")}>{s.p}P</span> <span style={css("color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>·</span> <span style={css("color:var(--nv-gold)")}>{s.c}C</span> <span style={css("color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>·</span> <span style={css("color:var(--nv-vi)")}>{s.f}F</span> <span style={css("color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>·</span> <span style={css("color:var(--nv-good)")}>{s.kcal}</span>
+                      {/* THE FRIDGE — cooked portions of the focused dish. Red and loud at zero: cook more before this slot comes round. */}
+                      {s.portionsLeft != null && (
+                        <span title={s.out ? 'None left — cook more' : `${s.portionsLeft} cooked portion${s.portionsLeft === 1 ? '' : 's'} in the fridge`}
+                          style={css(`margin-left:auto;font:600 10px var(--nv-font-ui);letter-spacing:.06em;padding:2px 7px;border-radius:999px;font-variant-numeric:tabular-nums;${s.out
+                            ? 'color:var(--nv-warn);border:1px solid color-mix(in srgb, var(--nv-warn) 60%, transparent);background:color-mix(in srgb, var(--nv-warn) 14%, transparent)'
+                            : 'color:color-mix(in srgb, var(--nv-ink) 70%, transparent);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)'}`)}>
+                          {s.out ? 'OUT' : `${s.portionsLeft} left`}
+                        </span>
+                      )}
                     </div>
                     {/* NO SWIPE on these cards, deliberately. They sit in a
                         horizontally-scrolling strip (904px of content in a
@@ -164,7 +180,8 @@ export function Recipes({ v }) {
                         direction lock in swipeCore.js separates horizontal
                         from vertical and cannot help here; adding it would
                         recreate exactly the accidental-commit failure that
-                        design exists to prevent.
+                        design exists to prevent. Switching options is the
+                        ‹ › pair and the dots instead — explicit taps.
                         What the goal actually needed was a usable tap
                         target: this was 30x30, under Apple's 44pt minimum,
                         on the control used every meal. Now 44x44 — the ring
@@ -178,19 +195,70 @@ export function Recipes({ v }) {
                         {s.consumed ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--nv-good)" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg> : null}
                       </span>
                     </Interactive>
+                    {/* several options: the switch (‹ dots ›) then the list,
+                        each with its own tick — 4 snacks, tick 3 */}
+                    {s.optionCount > 1 && (
+                      <>
+                        <div style={css("display:flex;align-items:center;gap:6px;margin-top:8px")}>
+                          <Interactive as="span" onClick={s.prev} aria-label="Previous option" base={{ cursor: 'pointer', width: '32px', height: '32px', marginLeft: '-8px', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '600 16px var(--nv-font-ui)', color: 'var(--nv-acc)', borderRadius: '8px' }} hoverStyle={{ background: 'var(--nv-acc-bg)' }}>‹</Interactive>
+                          <span style={css("display:flex;gap:5px;flex:1;justify-content:center")}>
+                            {s.options.map((o, i) => (
+                              <Interactive key={o.id} as="span" onClick={o.focusIt} aria-label={`Focus ${o.name}`} title={o.name}
+                                base={{ cursor: 'pointer', width: '8px', height: '8px', borderRadius: '50%', transition: 'all .2s',
+                                  background: i === s.focusIndex ? 'var(--nv-acc)' : o.eaten ? 'var(--nv-good)' : 'color-mix(in srgb, var(--nv-ink) 22%, transparent)',
+                                  boxShadow: i === s.focusIndex ? '0 0 8px -1px var(--nv-acc)' : 'none' }} />
+                            ))}
+                          </span>
+                          <Interactive as="span" onClick={s.next} aria-label="Next option" base={{ cursor: 'pointer', width: '32px', height: '32px', marginRight: '-8px', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '600 16px var(--nv-font-ui)', color: 'var(--nv-acc)', borderRadius: '8px' }} hoverStyle={{ background: 'var(--nv-acc-bg)' }}>›</Interactive>
+                        </div>
+                        <div style={css("display:flex;flex-direction:column;gap:2px;margin-top:4px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:6px")}>
+                          {s.options.map((o) => (
+                            <div key={o.id} style={css("display:flex;align-items:center;gap:6px;min-height:28px")}>
+                              <Interactive as="span" onClick={o.tick} aria-label={o.eaten ? `Mark ${o.name} not eaten` : `Mark ${o.name} eaten`}
+                                base={{ cursor: 'pointer', width: '28px', height: '28px', marginLeft: '-6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>
+                                <span style={{ width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  border: o.eaten ? '1.5px solid var(--nv-good)' : '1.5px solid color-mix(in srgb, var(--nv-ink) 25%, transparent)',
+                                  background: o.eaten ? 'color-mix(in srgb, var(--nv-good) 18%, transparent)' : 'transparent', transition: 'all .2s' }}>
+                                  {o.eaten ? <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--nv-good)" strokeWidth="3.5"><path d="M20 6L9 17l-5-5"/></svg> : null}
+                                </span>
+                              </Interactive>
+                              <Interactive as="span" onClick={o.focusIt} title={`${o.p}P · ${o.kcal} kcal — tap to make this the one that counts`}
+                                base={{ cursor: 'pointer', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', font: `${o.focus ? 600 : 400} 12px var(--nv-font-ui)`,
+                                  color: o.out ? 'var(--nv-warn)' : o.focus ? 'var(--nv-ink)' : 'color-mix(in srgb, var(--nv-ink) 62%, transparent)', textDecoration: o.eaten && !o.focus ? 'line-through' : 'none' }}
+                                hoverStyle={{ color: 'var(--nv-cy)' }}>{o.focus ? '★ ' : ''}{o.name}{o.out ? ' · out' : ''}</Interactive>
+                              <Interactive as="span" onClick={o.remove} aria-label={`Remove ${o.name} from ${s.name}`}
+                                base={{ cursor: 'pointer', width: '28px', height: '28px', marginRight: '-8px', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '400 14px var(--nv-font-ui)', color: 'color-mix(in srgb, var(--nv-ink) 32%, transparent)', flex: '0 0 auto' }}
+                                hoverStyle={{ color: 'var(--nv-warn)' }}>×</Interactive>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
                     {/* 32px-tall targets: CLEAR measured 26×11px at 375px on 3 Sep — the action taken 4× a day was the smallest thing on the screen */}
-                    <div style={css("display:flex;gap:18px;margin-top:4px;align-items:center")}>
+                    <div style={css("display:flex;gap:14px;margin-top:4px;align-items:center;flex-wrap:wrap")}>
                       {s.clearVariant && <TextAction compact tone="gold" onClick={s.clearVariant} style={{ marginLeft: '-8px' }}>Undo variant</TextAction>}
-                      <TextAction compact tone="faint" onClick={s.clear}>Clear</TextAction>
+                      <TextAction compact tone="faint" onClick={s.clear}>{s.optionCount > 1 ? 'Drop this one' : 'Clear'}</TextAction>
+                      {s.rename && <TextAction compact tone="faint" onClick={() => { const l = window.prompt('Name this meal', s.name); if (l && l.trim()) s.rename(l.trim()); }}>Rename</TextAction>}
                     </div>
                   </>
                 ) : (
-                  <div style={css("font:400 12px var(--nv-font-ui);color:color-mix(in srgb, var(--nv-ink) 35%, transparent);margin-top:8px")}>Empty — pick from the bank below (tap a recipe's {s.name[0]} chip)</div>
+                  <>
+                    <div style={css("font:400 12px var(--nv-font-ui);color:color-mix(in srgb, var(--nv-ink) 35%, transparent);margin-top:8px")}>Empty — pick from the bank below (tap a recipe's {s.name[0].toUpperCase()} chip)</div>
+                    {(s.rename || s.removeSlot) && (
+                      <div style={css("display:flex;gap:14px;margin-top:6px;align-items:center")}>
+                        {s.rename && <TextAction compact tone="faint" onClick={() => { const l = window.prompt('Name this meal', s.name); if (l && l.trim()) s.rename(l.trim()); }} style={{ marginLeft: '-8px' }}>Rename</TextAction>}
+                        {s.removeSlot && <TextAction compact tone="faint" onClick={s.removeSlot}>Remove meal</TextAction>}
+                      </div>
+                    )}
+                  </>
                 )}
               </Interactive>
             ))}
-            {v.rotationShowExtraButton && (
-              <Interactive as="div" onClick={v.showExtraMealSlot} base={{ flex: '0 0 120px', cursor: 'pointer', borderRadius: '16px', border: '1px dashed var(--nv-edge)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-l)', color: 'var(--nv-acc)', minHeight: '110px' }} hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}>+ 4TH MEAL</Interactive>
+            {/* a meal beyond the five — pre-workout, second breakfast, whatever he calls it */}
+            {v.rotationAddMeal && (
+              <Interactive as="div" onClick={() => { const l = window.prompt('Name the meal (e.g. Pre-workout)', ''); if (l && l.trim()) v.rotationAddMeal(l.trim()); }}
+                base={{ flex: '0 0 120px', cursor: 'pointer', borderRadius: '16px', border: '1px dashed var(--nv-edge)', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', font: 'var(--nv-micro-l)', color: 'var(--nv-acc)', minHeight: '110px', padding: '8px' }}
+                hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}>+ ADD A MEAL</Interactive>
             )}
           </div>
         </div>

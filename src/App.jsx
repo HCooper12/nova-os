@@ -847,6 +847,7 @@ export default class App extends Component {
         .then((r) => { if (p.carryoverId) api.removeCarryover(conn, p.carryoverId).catch(() => {}); return r; }),
       stash: (conn, p) => api.stashAdd(conn, p),
       rotationConsumed: (conn, p) => api.setRotationConsumed(conn, p.slot, p.consumed),
+      rotationEaten: (conn, p) => api.setRotationEaten(conn, p.slot, p.recipeId, p.eaten),
       recipe: (conn, p) => (p.macroOnly
         ? api.addQuickRecipe(conn, { name: p.name, category: p.category, makes: p.makes, macros: p.macros })
         : api.addRecipe(conn, { name: p.name, category: p.category, makes: p.makes, macros: p.macros, ingredients: p.ingredients, method: p.method })),
@@ -916,10 +917,10 @@ export default class App extends Component {
   }
 
   // ---------- rotation variants + promote (today's version vs the recipe) --
-  setRotationVariant(slot, altId) {
+  setRotationVariant(slot, altId, recipeId = null) {
     const conn = getConnection();
     if (!conn) return;
-    api.setRotationVariant(conn, slot, altId).then((rotation) => {
+    api.setRotationVariant(conn, slot, altId, recipeId).then((rotation) => {
       this.noteLocalWrite('rotation');
       this.setState({ liveRotation: rotation });
       this.toastMsg(altId ? "Applied as today's version — the stored recipe is untouched" : 'Back to the original for today');
@@ -1565,15 +1566,91 @@ export default class App extends Component {
       this.setState({ liveWorkoutRoutines: r.routines, liveWorkoutSchedule: r.schedule, liveWorkoutWeekdays: r.weekdays, liveWorkoutProgressions: r.progressions || {} });
     }).catch(() => {});
   }
+  // ROTATION v2 (7 Sep 2026): a slot holds OPTIONS. The recipe card's slot
+  // chip toggles membership; the rotation card flicks focus and ticks each
+  // option on its own; extra meals are slots he adds; the fridge count rides
+  // the tick. Every write lands the resolved rotation back into state.
+  applyRotation(promise, failLabel) {
+    return promise.then((rotation) => {
+      this.noteLocalWrite('rotation');
+      this.setState({ liveRotation: rotation });
+      return rotation;
+    }).catch((e) => this.toastMsg(`${failLabel}: ${e.message}`));
+  }
   toggleRotationSlot(slot, recipeId) {
     const conn = getConnection();
     if (!conn) return;
-    const current = this.state.liveRotation?.slots?.[slot];
-    const next = current && current.id === recipeId ? null : recipeId;
-    api.setRotationSlot(conn, slot, next).then((rotation) => {
+    const on = !(this.state.liveRotation?.options?.[slot] || []).some((d) => d.id === recipeId);
+    haptic('tick');
+    this.applyRotation(api.setRotationOption(conn, slot, recipeId, on), 'Rotation update failed');
+  }
+  setRotationFocus(slot, recipeId) {
+    const conn = getConnection();
+    if (!conn) return;
+    haptic('tick');
+    this.applyRotation(api.setRotationFocus(conn, slot, recipeId), 'Could not switch the meal');
+  }
+  // cycle the focused option by ±1 — the swipe / the arrows on the card
+  cycleRotationFocus(slot, dir = 1) {
+    const opts = this.state.liveRotation?.options?.[slot] || [];
+    if (opts.length < 2) return;
+    const i = Math.max(0, opts.findIndex((d) => d.focus));
+    const next = opts[(i + dir + opts.length) % opts.length];
+    this.setRotationFocus(slot, next.id);
+  }
+  toggleOptionEaten(slot, recipeId, eaten) {
+    const conn = getConnection();
+    if (!conn) return;
+    haptic(eaten ? 'commit' : 'tick');
+    // optimistic, like the slot tick: he is standing in a kitchen
+    const rot = this.state.liveRotation;
+    if (rot?.options?.[slot]) {
+      const options = rot.options[slot].map((d) => (d.id === recipeId ? { ...d, eaten, consumed: eaten } : d));
+      const focused = options.find((d) => d.focus) || options[0] || null;
+      this.setState({ liveRotation: { ...rot, options: { ...rot.options, [slot]: options }, slots: { ...rot.slots, [slot]: focused ? { ...focused, options, optionCount: options.length, eatenCount: options.filter((d) => d.eaten).length } : null } } });
+    }
+    api.setRotationEaten(conn, slot, recipeId, eaten).then((rotation) => {
       this.noteLocalWrite('rotation');
       this.setState({ liveRotation: rotation });
-    }).catch((e) => this.toastMsg('Rotation update failed: ' + e.message));
+    }).catch((e) => {
+      if (isOfflineError(e)) { this.noteLocalWrite('rotation'); this.enqueueOutbox('rotationEaten', `${eaten ? 'Ate' : 'Un-ate'} ${slot}`, { slot, recipeId, eaten }); return; }
+      this.toastMsg('Could not update: ' + e.message);
+    });
+  }
+  addRotationSlot(label) {
+    const conn = getConnection();
+    if (!conn) return;
+    haptic('commit');
+    this.applyRotation(api.addRotationSlot(conn, label || ''), 'Could not add a meal');
+  }
+  removeRotationSlot(key) {
+    const conn = getConnection();
+    if (!conn) return;
+    this.applyRotation(api.removeRotationSlot(conn, key), 'Could not remove that meal');
+  }
+  renameRotationSlot(key, label) {
+    const conn = getConnection();
+    if (!conn || !label) return;
+    this.applyRotation(api.renameRotationSlot(conn, key, label), 'Could not rename that meal');
+  }
+  // the fridge: an absolute count (null = stop counting) or a delta
+  setPortions(recipeId, count, name) {
+    const conn = getConnection();
+    if (!conn) return;
+    haptic('commit');
+    api.setPortions(conn, recipeId, count, name).then(({ rotation }) => {
+      this.noteLocalWrite('rotation');
+      this.setState({ liveRotation: rotation });
+    }).catch((e) => this.toastMsg('Could not set portions: ' + e.message));
+  }
+  adjustPortions(recipeId, delta, name) {
+    const conn = getConnection();
+    if (!conn || !delta) return;
+    haptic('tick');
+    api.adjustPortions(conn, recipeId, delta, name).then(({ rotation }) => {
+      this.noteLocalWrite('rotation');
+      this.setState({ liveRotation: rotation });
+    }).catch((e) => this.toastMsg('Could not adjust portions: ' + e.message));
   }
   toggleSlotConsumed(slot, consumed) {
     const conn = getConnection();

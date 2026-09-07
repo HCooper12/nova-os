@@ -105,7 +105,10 @@ export async function setRotationEntry({ date, slot, name, macros, recipeId, con
   return withWriteLock(async () => {
     const target = resolveLogDate(date);
     const day = await loadDay(target);
-    day.entries = day.entries.filter((e) => !(e.source === 'rotation' && e.slot === slot));
+    // v2 rotation (7 Sep): a slot can hold several dishes each ticked on its
+    // own, so the log carries ONE entry per (slot, recipe). A recipe-less
+    // legacy entry for the slot is replaced whichever recipe is named.
+    day.entries = day.entries.filter((e) => !(e.source === 'rotation' && e.slot === slot && (!recipeId || !e.recipeId || e.recipeId === recipeId)));
     if (consumed) {
       day.entries.push({
         id: randomUUID().slice(0, 8),

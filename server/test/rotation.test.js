@@ -33,7 +33,7 @@ test('setting a slot persists to the vault file and resolves macros', async () =
 
   const raw = await readFile(path.join(vault, 'Wiki/Health/Daily Rotation.md'), 'utf8');
   assert.match(raw, /lunch: burrito-bowl/);
-  assert.match(raw, /\*\*Lunch:\*\* Burrito Bowl/);
+  assert.match(raw, /\*\*Lunch:\*\* ★ Burrito Bowl/);
 });
 
 test('marking consumed counts toward consumedTotals today', async () => {
@@ -42,11 +42,13 @@ test('marking consumed counts toward consumedTotals today', async () => {
   assert.equal(rotation.consumedTotals.kcal, 560);
 });
 
-test('swapping a slot clears its consumed mark', async () => {
+test('setting a slot again ADDS an option and focuses it; what he ate stays eaten (v2)', async () => {
   const rotation = await setRotationSlot(vault, RECIPES, 'lunch', 'yogurt');
   assert.equal(rotation.slots.lunch.name, 'YoPro Yogurt');
   assert.equal(rotation.slots.lunch.consumed, false);
-  assert.equal(rotation.consumedTotals.kcal, 0);
+  assert.equal(rotation.options.lunch.length, 2);
+  // the burrito bowl was eaten today — swapping the plan does not un-eat it
+  assert.equal(rotation.consumedTotals.kcal, 560);
 });
 
 test('invalid slot and unknown recipe are rejected', async () => {

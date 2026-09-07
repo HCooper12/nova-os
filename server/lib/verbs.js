@@ -230,12 +230,23 @@ verb({
   async undo(vaultPath, u) { const { restoreItems } = await shopLib(); await restoreItems(vaultPath, u.items); return `restored ${u.items.length} item${u.items.length === 1 ? '' : 's'}`; },
 });
 
+// A spoken slot resolves against the day's real slots — the standard five
+// AND any extra meal he has added (rotation v2), by key or by label.
+function resolveSlot(rotation, slotRaw) {
+  const want = String(slotRaw || '').toLowerCase().trim();
+  if (!want) throw new Error('which meal?');
+  const keys = rotation.order || SLOTS;
+  if (keys.includes(want)) return want;
+  const m = matchName(keys.map((k) => ({ key: k, name: rotation.labels?.[k] || k })), want);
+  if (!m.hit) throw new Error(m.ambiguous ? m.why : `"${slotRaw}" isn't a meal slot (${keys.map((k) => rotation.labels?.[k] || k).join(', ')})`);
+  return m.hit.key;
+}
+
 async function setEaten(vaultPath, slotRaw, flag) {
-  const slot = String(slotRaw || '').toLowerCase().trim();
-  if (!SLOTS.includes(slot)) throw new Error(`"${slotRaw}" isn't a meal slot (${SLOTS.join(', ')})`);
   const { loadRecipeData, loadRotation, setSlotConsumed } = await rotationLibs();
   const { recipes } = await loadRecipeData(vaultPath);
   const before = await loadRotation(vaultPath, recipes);
+  const slot = resolveSlot(before, slotRaw);
   const s = before.slots?.[slot];
   if (!s) throw new Error(`${slot} has no recipe in today's rotation`);
   const prior = !!s.consumed;
@@ -350,13 +361,12 @@ verb({
   id: 'recipe.slot', tier: 'act',
   describe: "put one of his recipes into a rotation slot for today's plan", args: { slot: SLOTS.join('|'), recipe: 'the recipe, in his words' },
   async run(vaultPath, args) {
-    const slot = String(args.slot || '').toLowerCase().trim();
-    if (!SLOTS.includes(slot)) throw new Error(`"${args.slot}" isn't a meal slot (${SLOTS.join(', ')})`);
     const { loadRecipeData, loadRotation, setRotationSlot } = await rotationLibs();
     const { recipes } = await loadRecipeData(vaultPath);
     const m = matchName(recipes, args.recipe);
     if (!m.hit) throw new Error(m.ambiguous ? m.why : `there's no recipe called "${say(args.recipe)}"`);
     const before = await loadRotation(vaultPath, recipes);
+    const slot = resolveSlot(before, args.slot);
     const prior = before.slots?.[slot]?.id || null;
     if (prior === m.hit.id) throw new Error(`${slot} is already ${m.hit.name}`);
     await setRotationSlot(vaultPath, recipes, slot, m.hit.id);
@@ -367,6 +377,51 @@ verb({
     const { recipes } = await loadRecipeData(vaultPath);
     await setRotationSlot(vaultPath, recipes, u.slot, u.prior);
     return u.prior ? `${u.slot} back to ${u.priorName}` : `${u.slot} cleared again`;
+  },
+});
+
+// COOKED PORTIONS (rotation v2, 7 Sep): "I cooked eight burrito bowls" adds
+// to what is in the fridge; "six burrito bowls left" sets it. Ticking a meal
+// eaten takes one off (rotation.js); undo puts the count back as it was.
+async function portionTarget(vaultPath, recipeRaw) {
+  const { loadRecipeData } = await rotationLibs();
+  const { recipes } = await loadRecipeData(vaultPath);
+  const m = matchName(recipes, recipeRaw);
+  if (!m.hit) throw new Error(m.ambiguous ? m.why : `there's no recipe called "${say(recipeRaw)}"`);
+  return m.hit;
+}
+verb({
+  id: 'meal.cooked', tier: 'act',
+  describe: 'add cooked portions of a recipe to what is in the fridge', args: { recipe: 'the recipe, in his words', portions: 'how many, 1-500' },
+  async run(vaultPath, args) {
+    const n = Number(args.portions);
+    if (!Number.isInteger(n) || n < 1 || n > 500) throw new Error('how many portions? (1 to 500)');
+    const r = await portionTarget(vaultPath, args.recipe);
+    const { adjustPortions } = await import('./portions.js');
+    const out = await adjustPortions(vaultPath, r.id, n, { name: r.name, why: 'cooked' });
+    return { destination: `Portions — ${r.name}: ${out.prior ?? 0} → ${out.count}`, said: `${out.count} ${r.name} in the fridge${out.prior ? ` (was ${out.prior})` : ''}.`, undo: { verb: 'meal.cooked', recipeId: r.id, name: r.name, prior: out.prior } };
+  },
+  async undo(vaultPath, u) {
+    const { setPortions, clearPortions } = await import('./portions.js');
+    if (u.prior == null) { await clearPortions(vaultPath, u.recipeId); return `${u.name} is uncounted again`; }
+    await setPortions(vaultPath, u.recipeId, u.prior); return `${u.name} back to ${u.prior}`;
+  },
+});
+verb({
+  id: 'meal.portions', tier: 'act',
+  describe: 'set how many portions of a recipe are left', args: { recipe: 'the recipe, in his words', count: '0-500' },
+  async run(vaultPath, args) {
+    const n = Number(args.count);
+    if (!Number.isInteger(n) || n < 0 || n > 500) throw new Error('how many are left? (0 to 500)');
+    const r = await portionTarget(vaultPath, args.recipe);
+    const { setPortions } = await import('./portions.js');
+    const out = await setPortions(vaultPath, r.id, n, { name: r.name });
+    return { destination: `Portions — ${r.name}: ${n} left`, said: n === 0 ? `${r.name} is out — the rotation shows it red until you cook more.` : `${n} ${r.name} left.`, undo: { verb: 'meal.portions', recipeId: r.id, name: r.name, prior: out.prior } };
+  },
+  async undo(vaultPath, u) {
+    const { setPortions, clearPortions } = await import('./portions.js');
+    if (u.prior == null) { await clearPortions(vaultPath, u.recipeId); return `${u.name} is uncounted again`; }
+    await setPortions(vaultPath, u.recipeId, u.prior); return `${u.name} back to ${u.prior}`;
   },
 });
 
@@ -630,6 +685,15 @@ export function parseCommand(text) {
   if ((m = q.match(/^(?:add|put)\s+(.+?)\s+(?:to|on|onto)\s+(?:my\s+)?(?:to-?dos?|to-?do list|todo list|list of to-?dos)$/)) || (m = q.match(/^(?:to-?do|todo):\s*(.+)$/))) {
     return { verb: 'todo.add', args: { text: m[1] } };
   }
+  // the fridge: "I cooked 8 burrito bowls" · "made 6 chilli beef" · "4 works burgers left"
+  if ((m = q.match(/^(?:i(?:'ve| have|'ve just| just)?\s+)?(?:cooked|made|prepped|batch[- ]cooked)\s+(\d{1,3})\s+(?:portions?\s+(?:of\s+)?|more\s+|x\s+)?(.+?)(?:\s+(?:portions?|meals?|serves?|servings?))?$/))) {
+    return { verb: 'meal.cooked', args: { recipe: m[2], portions: Number(m[1]) } };
+  }
+  if ((m = q.match(/^(\d{1,3})\s+(?:portions?\s+(?:of\s+)?)?(.+?)\s+(?:left|remaining|in the fridge)$/)) || (m = q.match(/^(?:set\s+)?(.+?)\s+portions?\s+(?:to|=)\s+(\d{1,3})(?:\s+left)?$/))) {
+    const count = Number(m[1]) >= 0 && /^\d/.test(m[1]) ? Number(m[1]) : Number(m[2]);
+    const recipe = /^\d/.test(m[1]) ? m[2] : m[1];
+    return { any: [{ verb: 'meal.portions', args: { recipe, count } }], fallthrough: true };
+  }
   if ((m = q.match(/^(?:journal|diary):\s*(.+)$/)) || (m = q.match(/^(?:write|put|note)\s+(?:in|into)\s+(?:my\s+)?journal:?\s+(.+)$/))) {
     return { verb: 'journal.add', args: { text: m[1] } };
   }
@@ -699,6 +763,12 @@ async function probe(vaultPath, cand) {
     if (cand.verb === 'todo.reopen') { const t = await openTodo(vaultPath, cand.args.text, { wantChecked: true }); return { ok: true, label: `the to-do "${t.text}"` }; }
     if (cand.verb === 'shopping.done') { const i = await shoppingItem(vaultPath, cand.args.item, { wantChecked: false }); return { ok: true, label: `${i.name} on the shopping list` }; }
     if (cand.verb === 'shopping.undone') { const i = await shoppingItem(vaultPath, cand.args.item, { wantChecked: true }); return { ok: true, label: `${i.name} on the shopping list` }; }
+    if (cand.verb === 'meal.portions') {
+      const { loadRecipeData } = await rotationLibs();
+      const { recipes } = await loadRecipeData(vaultPath);
+      const m = matchName(recipes, cand.args.recipe);
+      return m.hit ? { ok: true, label: `the portions of ${m.hit.name}` } : { ok: false, why: m.why };
+    }
     if (cand.verb === 'reminder.set') {
       const { parseWhen } = await import('./whenParser.js');
       const read = parseWhen(String(cand.args.when || ''));

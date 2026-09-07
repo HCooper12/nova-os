@@ -4,7 +4,8 @@ import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { loadRecipeData, addRecipe, addAlternate, promoteAlternate, editRecipe } from '../lib/recipes.js';
-import { loadRotation, setRotationSlot, setSlotConsumed, setSlotVariant } from '../lib/rotation.js';
+import { loadRotation, setRotationSlot, setSlotConsumed, setSlotVariant, addSlotOption, removeSlotOption, setSlotFocus, setOptionEaten, addCustomSlot, removeCustomSlot, renameCustomSlot } from '../lib/rotation.js';
+import { getPortions, setPortions, adjustPortions, clearPortions } from '../lib/portions.js';
 import { recordTodaySnapshot } from '../lib/nutritionSnapshot.js';
 import { setRotationEntry } from '../lib/foodLog.js';
 import { startScan, getScanJob } from '../lib/scanRecipe.js';
@@ -358,7 +359,7 @@ export function recipesRouter(vaultPath) {
   router.post('/rotation/variant', async (req, res, next) => {
     try {
       const { recipes } = await loadRecipeData(vaultPath);
-      const rotation = await setSlotVariant(vaultPath, recipes, req.body?.slot, req.body?.altId || null);
+      const rotation = await setSlotVariant(vaultPath, recipes, req.body?.slot, req.body?.altId || null, req.body?.recipeId || null);
       res.json(rotation);
     } catch (err) {
       res.status(400).json({ error: err.message });
@@ -375,6 +376,7 @@ export function recipesRouter(vaultPath) {
       // entirely (his report: 54.6g shown against a real 149g).
       const chosen = rotation.slots?.[slot];
       if (chosen) {
+        // v2: the entry is keyed by (slot, recipe) — the focused dish here
         await setRotationEntry({
           slot,
           name: chosen.name,
@@ -388,6 +390,93 @@ export function recipesRouter(vaultPath) {
     } catch (err) {
       res.status(400).json({ error: err.message });
     }
+  });
+
+  // ---- rotation v2 (7 Sep 2026): options, focus, per-dish eaten, extra meals ----
+
+  // add or remove a recipe as one of a slot's options
+  router.post('/rotation/option', async (req, res) => {
+    try {
+      const { slot, recipeId, on } = req.body || {};
+      const { recipes } = await loadRecipeData(vaultPath);
+      const rotation = on === false
+        ? await removeSlotOption(vaultPath, recipes, slot, recipeId)
+        : await addSlotOption(vaultPath, recipes, slot, recipeId);
+      res.json(rotation);
+    } catch (err) { res.status(400).json({ error: err.message }); }
+  });
+
+  // which option is today's plan for the slot
+  router.post('/rotation/focus', async (req, res) => {
+    try {
+      const { slot, recipeId } = req.body || {};
+      const { recipes } = await loadRecipeData(vaultPath);
+      res.json(await setSlotFocus(vaultPath, recipes, slot, recipeId));
+    } catch (err) { res.status(400).json({ error: err.message }); }
+  });
+
+  // tick ONE option eaten (or not) — several per slot may be ticked; each
+  // lands its own food-log entry, and a counted dish loses a portion
+  router.post('/rotation/eaten', async (req, res) => {
+    try {
+      const { slot, recipeId, eaten } = req.body || {};
+      const { recipes } = await loadRecipeData(vaultPath);
+      const rotation = await setOptionEaten(vaultPath, recipes, slot, recipeId, !!eaten);
+      const dish = (rotation.options?.[slot] || []).find((d) => d.id === recipeId);
+      if (dish) {
+        await setRotationEntry({ slot, name: dish.name, macros: dish.macros, recipeId: dish.id, consumed: !!eaten }).catch(() => {});
+      }
+      recordTodaySnapshot(vaultPath).catch(() => {});
+      res.json(rotation);
+    } catch (err) { res.status(400).json({ error: err.message }); }
+  });
+
+  // extra meals beyond breakfast / lunch / dinner / snack / extra
+  router.post('/rotation/slot', async (req, res) => {
+    try {
+      const { recipes } = await loadRecipeData(vaultPath);
+      res.json(await addCustomSlot(vaultPath, recipes, req.body?.label));
+    } catch (err) { res.status(400).json({ error: err.message }); }
+  });
+  router.post('/rotation/slot/:key/rename', async (req, res) => {
+    try {
+      const { recipes } = await loadRecipeData(vaultPath);
+      res.json(await renameCustomSlot(vaultPath, recipes, req.params.key, req.body?.label));
+    } catch (err) { res.status(400).json({ error: err.message }); }
+  });
+  // the client's fetch helper only posts — same handler on a POST path
+  router.post('/rotation/slot/:key/remove', async (req, res) => {
+    try {
+      const { recipes } = await loadRecipeData(vaultPath);
+      res.json(await removeCustomSlot(vaultPath, recipes, req.params.key));
+    } catch (err) { res.status(400).json({ error: err.message }); }
+  });
+  router.delete('/rotation/slot/:key', async (req, res) => {
+    try {
+      const { recipes } = await loadRecipeData(vaultPath);
+      res.json(await removeCustomSlot(vaultPath, recipes, req.params.key));
+    } catch (err) { res.status(400).json({ error: err.message }); }
+  });
+
+  // ---- cooked portions ----
+  router.get('/portions', async (req, res) => {
+    try { res.json({ counts: await getPortions(vaultPath) }); } catch (err) { res.status(400).json({ error: err.message }); }
+  });
+  router.post('/portions', async (req, res) => {
+    try {
+      const { recipeId, count, name } = req.body || {};
+      const out = count == null ? await clearPortions(vaultPath, recipeId) : await setPortions(vaultPath, recipeId, count, { name });
+      const { recipes } = await loadRecipeData(vaultPath);
+      res.json({ ...out, rotation: await loadRotation(vaultPath, recipes) });
+    } catch (err) { res.status(400).json({ error: err.message }); }
+  });
+  router.post('/portions/adjust', async (req, res) => {
+    try {
+      const { recipeId, delta, name } = req.body || {};
+      const out = await adjustPortions(vaultPath, recipeId, delta, { name, why: Number(delta) > 0 ? 'cooked' : 'adjust' });
+      const { recipes } = await loadRecipeData(vaultPath);
+      res.json({ ...out, rotation: await loadRotation(vaultPath, recipes) });
+    } catch (err) { res.status(400).json({ error: err.message }); }
   });
 
   return router;

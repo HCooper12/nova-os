@@ -324,3 +324,44 @@ test('the browser hand’s second half: a run that stopped becomes a decision, a
   await assert.rejects(() => pressPending({ recordId: 'x', sessionId: 'y' }), /nothing waiting to be pressed/);
   await assert.rejects(() => pressPending({ recordId: 'nope', sessionId: 'y', press: 'Buy now' }), /session is gone|MCP server is not installed/);
 });
+
+test('fridge: cooked portions add up, eating a rotation meal takes one off, zero reads out, both undo', async () => {
+  const { getPortions } = await import('../lib/portions.js');
+  const { setOptionEaten } = await import('../lib/rotation.js');
+  const recipes = await loadRecipes(vault);
+  const burger = recipes.find((r) => r.name === 'Works Burger');
+  // grammar: the cooked sentence is sure; the count sentence is a candidate that needs the word "portions"
+  assert.deepEqual(parseCommand('I cooked 8 portions of works burger'), { verb: 'meal.cooked', args: { recipe: 'works burger', portions: 8 } });
+  assert.deepEqual(parseCommand('made 4 works burgers'), { verb: 'meal.cooked', args: { recipe: 'works burgers', portions: 4 } });
+  assert.deepEqual(parseCommand('set eggs to 12'), { verb: 'shopping.qty', args: { item: 'eggs', qty: 12 } });
+  assert.deepEqual(parseCommand('works burger portions to 3'), { any: [{ verb: 'meal.portions', args: { recipe: 'works burger', count: 3 } }], fallthrough: true });
+  assert.deepEqual(parseCommand('3 works burgers left'), { any: [{ verb: 'meal.portions', args: { recipe: 'works burgers', count: 3 } }], fallthrough: true });
+  // cooked 8 → 8; cooked 2 more → 10
+  const c1 = await runVerb(vault, 'q', { verb: 'meal.cooked', args: { recipe: 'works burger', portions: 8 } });
+  assert.match(c1.acted.said, /8 Works Burger in the fridge/);
+  const c2 = await runVerb(vault, 'q', { verb: 'meal.cooked', args: { recipe: 'works burger', portions: 2 } });
+  assert.match(c2.acted.said, /10 Works Burger/);
+  assert.equal((await getPortions(vault))[burger.id], 10);
+  // eating it in the rotation takes one off; un-eating gives it back
+  await setRotationSlot(vault, recipes, 'lunch', burger.id);
+  await setOptionEaten(vault, recipes, 'lunch', burger.id, true);
+  assert.equal((await getPortions(vault))[burger.id], 9);
+  await setOptionEaten(vault, recipes, 'lunch', burger.id, false);
+  assert.equal((await getPortions(vault))[burger.id], 10);
+  // set the count outright; zero says out, and the rotation shows it red
+  const z = await runVerb(vault, 'q', { verb: 'meal.portions', args: { recipe: 'works burger', count: 0 } });
+  assert.match(z.acted.said, /out/);
+  const rot = await loadRotation(vault, recipes);
+  assert.equal(rot.slots.lunch.out, true);
+  assert.equal(rot.slots.lunch.portionsLeft, 0);
+  // undo walks it back: 0 → 10 → 8 → never counted
+  await undoRecord(vault, z.acted.recordId);
+  assert.equal((await getPortions(vault))[burger.id], 10);
+  await undoRecord(vault, c2.acted.recordId);
+  assert.equal((await getPortions(vault))[burger.id], 8);
+  await undoRecord(vault, c1.acted.recordId);
+  assert.equal((await getPortions(vault))[burger.id], undefined);
+  assert.equal((await loadRotation(vault, recipes)).slots.lunch.portionsLeft, null);
+  // unknown dish says so
+  await assert.rejects(() => runVerb(vault, 'q', { verb: 'meal.cooked', args: { recipe: 'unicorn stew', portions: 2 } }), /no recipe|don't have|not.*recipe/i);
+});
