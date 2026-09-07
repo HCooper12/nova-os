@@ -127,6 +127,15 @@ export function Briefing({ v }) {
 
   if (!b) return null;
 
+  if (b.empty && !b.error) {
+    return (
+      <div style={css("padding:40px 20px;max-width:520px")}>
+        <Eyebrow tone="faint">Briefing</Eyebrow>
+        <div style={css("margin-top:10px;font:400 15px/1.6 var(--nv-font-ui);color:color-mix(in srgb, var(--nv-ink) 70%, transparent)")}>No briefing is open. Ask for one — “research X and write me a report” — or open a finished one from your Inbox.</div>
+        <div style={css("margin-top:14px")}><TextAction onClick={b.openInbox}>Open the Inbox</TextAction></div>
+      </div>
+    );
+  }
   if (b.loading && !b.working && !b.error) {
     return <div style={css("padding:40px 20px;font:400 14px var(--nv-font-ui);color:color-mix(in srgb, var(--nv-ink) 50%, transparent)")}>Opening the briefing…</div>;
   }

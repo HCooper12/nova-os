@@ -169,3 +169,46 @@ Each phase is usable on its own; nothing is a stub waiting on a later phase.
   him something true, is the exact failure the lens exists to prevent.
 - **Auto-playing on arrival.** He said *"I can choose when I am ready to view
   it"* — the notification opens the briefing, and he presses play.
+
+---
+
+## Status — 7 September 2026, end of the build
+
+All four phases are built and live. One real briefing has been run end to
+end on his light-wavelengths sentence (record `9b1d22a8`): 5 angles in
+parallel, ~75 s of research, ~4 min wall-clock in all; 6 sections, 30 beats,
+25 terms defined in plain words, 26 sources, two credited images, and a
+summary that says outright where two of his own saved podcasts disagree.
+
+**Verified on the shipped bundle, real vault, 375×812 and 1280×900:** the
+deep link opens the reader; Listen/Read; Play → beats advance, the
+transcript highlights and follows, the rail fills, the progress rule moves;
+tapping a beat seeks; the Commons image renders from Nova's own cache with
+caption and credit; the desktop two-column layout with the sticky stage;
+resume-where-he-left-off across pages; "explain that again" pauses, hands
+the exact beat to Nova as a grounded question, and Nova's answer is about
+that beat. The failing first run (compose pass with no Read) and the
+black-screen default export were both found by this run and fixed.
+
+**Learned, for the next builder:**
+- The compose pass must be able to READ the vault (his shelf is the
+  cross-check) and must never reach the web; a tool-less pass announced it
+  would read and then stopped.
+- A lazy screen must be a NAMED export (`lazyScreen` resolves `m[name]`);
+  a default export black-screens the whole app with no root error boundary.
+- In the preview, a hash-only navigation never reloads the document —
+  always `type: 'reload'` after a rebuild, and compare `document.scripts`
+  to `dist/assets` before believing a screenshot.
+- Commons returns foreign-labelled diagrams first for some queries; they
+  now rank behind Latin-labelled ones.
+
+**Not yet exercised:** a briefing that produces a clip (the compose pass
+emitted no clip hints for this topic — "clip sparingly" held); the push
+notification's tap on his phone (the deep link is verified in the browser).
+
+**Next in this line (his wider vision):** the same stage grammar for the
+*browser hand* — "open the Diary of a CEO channel", "find the most popular
+video with Chris Williamson and Alex Hormozi" — shown live on the glass as
+Nova does it, rather than reported afterwards. The screenshots the browse
+lane already takes are the raw material; putting them on the stage as they
+happen is the build.

@@ -50,7 +50,10 @@ export function valsBriefing(app, _ctx) {
     isBriefing,
     briefing: !isBriefing ? null : {
       id: doc?.id || null,
-      loading: !doc || st.briefingLoading,
+      loading: !!st.briefingLoading,
+      // nothing open and nothing loading: say so, never a permanent "Opening…"
+      empty: !doc && !st.briefingLoading,
+      openInbox: () => app.navigate('inbox'),
       working: doc?.status === 'working' ? {
         stage: doc.stage, angles: doc.angles || [], done: doc.done || 0, title: doc.title,
         line: doc.stage === 'planning' ? 'Working out the angles worth researching…'

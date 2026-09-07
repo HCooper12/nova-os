@@ -3436,9 +3436,16 @@ export default class App extends Component {
     const { open, id } = hashParams();
     // "#/briefing?id=<recordId>" — the notification's tap lands on the
     // briefing itself, loading it if this is a cold start
-    if (id && screenFromHash() === 'briefing') {
-      this.openBriefing(id);
-      if (typeof window !== 'undefined') window.history.replaceState(null, '', '#/briefing');
+    if (screenFromHash() === 'briefing') {
+      // A bare "#/briefing" — a reload, or a cold open — reopens the LAST
+      // briefing rather than sitting on "Opening…" forever (the live run: the
+      // hash change consumed the deep link and stripped its id, and the
+      // reload that followed booted with no id and no document).
+      let last = null;
+      try { last = localStorage.getItem('novaos.briefing.last'); } catch { /* fine */ }
+      const target = id || (!this.state.briefing ? last : null);
+      if (target) this.openBriefing(target);
+      if (id && typeof window !== 'undefined') window.history.replaceState(null, '', '#/briefing');
       return;
     }
     if (!open) return;
@@ -3455,7 +3462,12 @@ export default class App extends Component {
   tryBriefingVoice(q) {
     const doc = this.state.briefing;
     const play = this.state.briefingPlay;
-    const open = this.state.screen === 'briefing' || (play?.playing && play?.id === doc?.id);
+    // The briefing owns its transport words while it is on screen, OR while it
+    // was playing within the last ten minutes — leaving for the Voice screen
+    // flushes the speech queue and flips playback to paused a moment before
+    // "explain that again" arrives, which closed the old `playing` gate.
+    const recent = play?.id === doc?.id && play?.current >= 0 && Date.now() - (play?.at || 0) < 10 * 60_000;
+    const open = this.state.screen === 'briefing' || recent;
     if (!doc?.beats?.length || !open) return false;
     const cmd = parseBriefingVoice(q);
     if (!cmd) return false;
@@ -3487,15 +3499,12 @@ export default class App extends Component {
       const heading = b?.kind === 'summary' ? 'the summary' : (doc.briefing.sections[b?.section]?.heading || '');
       this.setState({ orbInput: '' });
       this.navigate('voice');
+      // The offer to carry on must land AFTER the answer, not now: the queue is
+      // empty at this instant, so a finalizer queued here fires immediately
+      // and the offer is buried under the reply (the first live run). The
+      // ask poll picks this up when the reply is on screen and queued.
+      this.briefingAfterAsk = { id: doc.id, from: Math.max(0, cur) };
       this.askNova(explainQuestion({ say: b?.say || '', heading, title: doc.briefing.title, ask: cmd.ask }));
-      // when the answer has been spoken, the briefing offers to carry on
-      this.queueTtsFinalize(() => {
-        if (this.state.briefing?.id !== doc.id) return;
-        this.setState({ voicePendingOffer: { kind: 'briefing-resume', id: doc.id, from: Math.max(0, cur) } });
-        const line = 'Shall I carry on with the briefing?';
-        this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
-        if (this.state.voiceSpeak) this.speakTtsSentence(line, () => {});
-      });
     }
     haptic('commit');
     return true;
@@ -3511,6 +3520,7 @@ export default class App extends Component {
   openBriefing(id, { silent = false } = {}) {
     const conn = getConnection();
     if (!conn || !id) return;
+    try { localStorage.setItem('novaos.briefing.last', id); } catch { /* best-effort */ }
     if (!silent) this.setState({ screen: 'briefing', briefingLoading: true, briefingError: null, briefing: this.state.briefing?.id === id ? this.state.briefing : null });
     api.briefing(conn, id)
       .then((doc) => {
@@ -3561,13 +3571,13 @@ export default class App extends Component {
     const beats = doc.beats;
     const WINDOW = 3;
     let queued = from;
-    this.setState({ briefingPlay: { id: doc.id, playing: true, current: from, gen }, briefingMode: 'listen' });
+    this.setState({ briefingPlay: { id: doc.id, playing: true, current: from, gen, at: Date.now() }, briefingMode: 'listen' });
     const enqueue = (i) => {
       if (i >= beats.length) return;
       this.speakTtsSentence(beats[i].say, () => {
         // flushed by something else (a barge-in): do not fight it, just stop
         if ((this.ttsGen || 0) !== gen) return;
-        this.setState({ briefingPlay: { id: doc.id, playing: true, current: i, gen } });
+        this.setState({ briefingPlay: { id: doc.id, playing: true, current: i, gen, at: Date.now() } });
         try { localStorage.setItem(`novaos.briefing.${doc.id}`, String(i)); } catch { /* best-effort */ }
         // keep the window full
         while (queued < Math.min(beats.length, i + 1 + WINDOW)) enqueue(queued++);
@@ -4416,6 +4426,18 @@ export default class App extends Component {
           clearJob();
           // the reply is on screen — the one moment a once-a-day mark may burn
           try { onDelivered?.(); } catch { /* best-effort */ }
+          // a briefing interrupted by "explain that again": offer to carry on
+          // once the explanation has actually been spoken
+          if (this.briefingAfterAsk) {
+            const resume = this.briefingAfterAsk;
+            this.briefingAfterAsk = null;
+            this.queueTtsFinalize(() => {
+              if (this.state.briefing?.id !== resume.id) return;
+              const line = 'Shall I carry on with the briefing?';
+              this.setState((s) => ({ voicePendingOffer: { kind: 'briefing-resume', id: resume.id, from: resume.from }, voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
+              if (this.state.voiceSpeak) this.speakTtsSentence(line, () => {});
+            });
+          }
           this.setState((s) => {
             const chat = [...s.voiceChat];
             const idx = chat.map((m) => !!m.streaming).lastIndexOf(true);

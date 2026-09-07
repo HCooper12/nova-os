@@ -85,6 +85,7 @@ const FEATURES = [
   ['Verbs phase 4 · fixing what is already written, by voice (7 Sep)', 'Nova can now FIX what is already written'],
   ['Train · the Coach reasoning is readable mid-session (7 Sep)', 'Why the Coach set this'],
   ['Briefing · the reader that plays it (7 Sep)', 'Play from here'],
+  ['Briefing · images on the glass, credited (7 Sep)', 'Keep in vault'],
   ['Voice + Coach · photos and videos ride with a question (6 Sep)', 'rides with your next question'],
   ['Voice · the gym by voice — start, sets, next, skip, finish (6 Sep)', 'Say the weight and reps as you go'],
   ['Train · the anatomy card is one visible tap (◉ 3D chip, 6 Sep)', 'See the lift — the 3D figure'],
