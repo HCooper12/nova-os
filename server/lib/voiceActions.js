@@ -12,7 +12,11 @@ import { createRecord } from './inboxStore.js';
 // Hayden approves — in the transcript ("yes, do it") or in the Inbox.
 // Models decide, code acts; every kind below reuses a tested filer + undo.
 
-export const PROPOSE_KINDS = ['capture', 'calendar', 'routine-edit', 'rotation-variant', 'preference', 'profile'];
+export const PROPOSE_KINDS = ['capture', 'calendar', 'routine-edit', 'rotation-variant', 'preference', 'profile', 'recipe'];
+
+// The categories his collection actually uses — a recipe filed under an
+// invented heading would land nowhere he looks.
+const RECIPE_CATEGORIES = ['CORE DAILY MEALS', 'ROTATION / SWAP MEALS', 'TREATS'];
 
 export async function createVoiceProposal(vaultPath, question, raw) {
   const kind = String(raw?.kind || '').toLowerCase();
@@ -93,6 +97,60 @@ export async function createVoiceProposal(vaultPath, question, raw) {
     };
     await createRecord(record);
     return { recordId: record.id, title: record.decision.title, route: 'profile' };
+  }
+
+  if (kind === 'recipe') {
+    // A RECIPE HE ASKED NOVA TO WRITE. He asked for a protein smoothie in
+    // conversation on 7 Sep and Nova answered "I'm read-only" — true at the
+    // time, and the wrong shape of true: the rails could already FILE a
+    // recipe (fileDecision route 'recipe', with a working undo), nothing
+    // could propose one. The model composes the fields; this validates them
+    // and lands a pending draft; his yes writes it to the collection.
+    const name = String(raw.name || '').replace(/\s+/g, ' ').trim();
+    if (!name) throw new Error('the recipe needs a name');
+    if (name.length > 80) throw new Error('keep a recipe name under 80 characters');
+    const category = RECIPE_CATEGORIES.includes(String(raw.category || '').toUpperCase())
+      ? String(raw.category).toUpperCase()
+      : 'ROTATION / SWAP MEALS';
+    const m = raw.macros || {};
+    const num = (v) => (v == null || v === '' ? null : Number(v));
+    const macros = { p: num(m.p), c: num(m.c), f: num(m.f), kcal: num(m.kcal) };
+    for (const [k, v] of Object.entries(macros)) {
+      if (v == null || !Number.isFinite(v) || v < 0 || v > 10_000) {
+        throw new Error(`the recipe needs a sensible ${k === 'kcal' ? 'calorie' : k.toUpperCase()} number — Nova never guesses macros into your collection`);
+      }
+    }
+    const list = (x, cap) => (Array.isArray(x) ? x : String(x || '').split('\n'))
+      .map((s) => String(s).trim()).filter(Boolean).slice(0, cap);
+    const ingredients = list(raw.ingredients, 40);
+    const method = list(raw.method, 30);
+    if (!ingredients.length) throw new Error('a recipe needs its ingredients');
+    const { loadRecipes } = await import('./recipes.js');
+    const existing = await loadRecipes(vaultPath).catch(() => []);
+    if (existing.some((r) => r.name.toLowerCase() === name.toLowerCase())) {
+      throw new Error(`"${name}" is already in your collection`);
+    }
+    const record = {
+      id: randomUUID().slice(0, 8),
+      text: question.slice(0, 300),
+      source: 'voice',
+      mode: 'review-all',
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      decision: {
+        route: 'recipe',
+        confidence: 'high',
+        title: `Recipe: ${name} — ${macros.p}P ${macros.c}C ${macros.f}F · ${macros.kcal} kcal`,
+        reason: 'drafted in conversation — your yes writes it into your recipe collection, and undo removes it',
+        payload: {
+          name, category, macros, ingredients, method,
+          makes: raw.makes ? String(raw.makes).trim().slice(0, 60) : null,
+          description: raw.description ? String(raw.description).trim().slice(0, 300) : null,
+        },
+      },
+    };
+    await createRecord(record);
+    return { recordId: record.id, title: record.decision.title, route: 'recipe' };
   }
 
   if (kind === 'routine-edit') {

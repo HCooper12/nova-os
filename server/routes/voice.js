@@ -44,6 +44,14 @@ export function voiceRouter(vaultPath) {
     try {
       let question = typeof req.body?.question === 'string' ? req.body.question.trim() : '';
       if (!question) return res.status(400).json({ error: 'question is required' });
+      // HIS WORDS, UNDRESSED. The client prepends a situation block ("[On his
+      // screen right now — …]") whenever a card is up, a workout is live, or
+      // he is on another screen. That block is for the MODEL. Matching the
+      // reflex, the verbs or the lane against it defeated all three the
+      // moment anything was on screen — found in the live audit, 7 Sep: "tick
+      // off X" answered from the API and reached the model in the app. Every
+      // matcher reads `raw`; only the model gets the dressed version.
+      const raw = typeof req.body?.raw === 'string' && req.body.raw.trim() ? req.body.raw.trim() : question;
       // attached material rides in front of the words; a reflex or a verb
       // never sees it (they answer from the record, not from a photo)
       let attachmentPreamble = '';
@@ -57,7 +65,7 @@ export function voiceRouter(vaultPath) {
       // The Reflex Layer: a direct question the live record already answers
       // never reaches the model. Code answers in <1s; a miss falls through
       // silently to the normal ask. (lib/reflex.js; MORNING-SHOW-PLAN.md)
-      const reflex = attachmentPreamble ? null : await tryReflex(question).catch(() => null);
+      const reflex = attachmentPreamble ? null : await tryReflex(raw).catch(() => null);
       if (reflex) {
         console.log(`reflex hit [${reflex.matched}] q=${JSON.stringify(question.slice(0, 80))} reply=${reflex.text.length}ch`);
         import('../lib/spokenLog.js').then(({ logSpoken }) => logSpoken('reflex', reflex.text)).catch(() => {});
@@ -68,7 +76,7 @@ export function voiceRouter(vaultPath) {
       // his real lists — no model, a receipt with undo, honest "which one?"
       // when his words fit two things. (lib/verbs.js)
       const { tryCommand } = await import('../lib/verbs.js');
-      const command = attachmentPreamble ? null : await tryCommand(vaultPath, question).catch(() => null);
+      const command = attachmentPreamble ? null : await tryCommand(vaultPath, raw).catch(() => null);
       if (command) {
         console.log(`verb ${command.miss ? 'miss' : 'hit'} [${command.matched}] q=${JSON.stringify(question.slice(0, 80))}`);
         import('../lib/spokenLog.js').then(({ logSpoken }) => logSpoken('verb', command.text)).catch(() => {});
@@ -80,7 +88,7 @@ export function voiceRouter(vaultPath) {
       // OWN turn (its context, its proposal vocabulary, its session) answers
       // in this transcript. No screen change; the reply says who spoke.
       const { routeIntent } = await import('../lib/intentRouter.js');
-      const lane = routeIntent(question).lane;
+      const lane = routeIntent(raw).lane;
       if (attachmentPreamble) question = `${attachmentPreamble}\n\n${question}`;
       if (lane === 'coach') {
         const { startCoachTurn } = await import('../lib/coachTurn.js');

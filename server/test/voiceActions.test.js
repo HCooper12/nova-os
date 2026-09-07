@@ -116,3 +116,33 @@ test('preference: a correction becomes a pending standing rule; approve writes, 
   await undoRecord(vault, out.recordId);
   assert.equal((await loadStanding(vault)).length, 0, 'undo removed the exact line');
 });
+
+test('a recipe he asked for in conversation: validated, filed pending, written on approve, removed by undo', async () => {
+  const { loadRecipes } = await import('../lib/recipes.js');
+  // the shape the model sends
+  const good = {
+    kind: 'recipe', name: 'Protein Smoothie', category: 'CORE DAILY MEALS',
+    macros: { p: 32, c: 28, f: 7, kcal: 310 },
+    ingredients: ['1 scoop whey (25g protein)', '200ml whole milk', '1 banana'],
+    method: ['Blend everything with ice.'], makes: '1 shake',
+  };
+  const out = await createVoiceProposal(vault, 'add a protein smoothie', good);
+  assert.equal(out.route, 'recipe');
+  assert.match(out.title, /Protein Smoothie — 32P 28C 7F · 310 kcal/);
+  // nothing is written until he says yes
+  assert.ok(!(await loadRecipes(vault)).some((r) => r.name === 'Protein Smoothie'));
+  await approveRecord(vault, out.recordId);
+  const added = (await loadRecipes(vault)).find((r) => r.name === 'Protein Smoothie');
+  assert.ok(added, 'the recipe is in the collection');
+  assert.equal(added.macros.p, 32);
+  await undoRecord(vault, out.recordId);
+  assert.ok(!(await loadRecipes(vault)).some((r) => r.name === 'Protein Smoothie'), 'undo takes it back out');
+
+  // Nova never guesses macros into the collection, and never files a twin
+  await assert.rejects(() => createVoiceProposal(vault, 'q', { ...good, macros: { p: 32, c: 28, f: 7 } }), /sensible calorie number/);
+  await assert.rejects(() => createVoiceProposal(vault, 'q', { ...good, macros: { p: 'lots', c: 28, f: 7, kcal: 310 } }), /sensible P number/);
+  await assert.rejects(() => createVoiceProposal(vault, 'q', { ...good, name: '' }), /needs a name/);
+  await assert.rejects(() => createVoiceProposal(vault, 'q', { ...good, ingredients: [] }), /needs its ingredients/);
+  const dupe = await createVoiceProposal(vault, 'q', { ...good, name: 'Works Burger' }).then(() => null, (e) => e);
+  assert.match(String(dupe), /already in your collection/);
+});

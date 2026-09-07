@@ -5899,7 +5899,11 @@ export default class App extends Component {
     // don't say it twice
     const situation = this.buildAskSituation({ skipProposal: !!context });
     const sent = [context, situation, question].filter(Boolean).join('\n\n');
-    this.flushAttachments(conn).then((attachmentId) => api.ask(conn, sent, this.state.voiceSessionId || null, { coachSessionId: this.state.coachSessionId || null, leaderSessionId: this.state.leaderSessionId || null, attachmentId })).then((resp) => {
+    // `raw` is his sentence undressed: the server matches the reflex, the
+    // verbs and the lane against it, while the model still gets the
+    // situation block. Without it, anything on screen silently disabled all
+    // three (live audit, 7 Sep).
+    this.flushAttachments(conn).then((attachmentId) => api.ask(conn, sent, this.state.voiceSessionId || null, { coachSessionId: this.state.coachSessionId || null, leaderSessionId: this.state.leaderSessionId || null, attachmentId, raw: question })).then((resp) => {
       if (resp.text) {
         // Reflex answer — code replied from the live record, no job to poll.
         // Voice leads here too: the text lands when the audio starts. The

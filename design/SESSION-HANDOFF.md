@@ -13,6 +13,51 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**7 SEP (midday) — THE LIVE AUDIT, AND THE BUG IT FOUND.** He asked me to
+confirm the week's work live, not in demo. Method (repeatable, and the right
+one from now on): `npx vite preview --port 5173` serves the EXACT dist that
+GitHub Pages is serving (bundle filenames compared — identical), a generated
+`dist/_devconn.js` points it at the real server (token never in a
+transcript), and the audit drives that. Demo mode does not even render the
+Coach tab, which is why two bugs survived earlier "checks".
+
+VERIFIED LIVE on his vault, on the shipped bundle: Coach tab fits (natural
+scrollWidth == viewport, zero overflowing elements); ◉ 3D chips on all 9
+cockpit exercises + the anatomy card opens with the figure; the HANDS FREE
+strip; the gym by voice ("what's next" → "Weighted Pull-Up, set 1 of 3 —
+bodyweight for 12 is the plan. 9 exercises to go", "80 for 8" → ticked,
+"undo that" → unticked); settings by voice (ember theme + calm mode applied
+and reverted); the BROWSER route chip; the paperclip on both composers; the
+Leader answering IN the conversation ("Handing that to the Leader." → »
+LEADER, grounded in his own leadership material).
+
+**THE BUG THE AUDIT FOUND — and it was silently disabling most of the week's
+work.** The client prepends a situation block ("[On his screen right now —
+…]") whenever a card is up, a workout is live, or he is on another screen.
+The server matched the REFLEX, the VERBS and the LANE ROUTER against that
+whole blob, so with anything on screen: no sub-second answers, no verbs, no
+Coach/Leader handoff — everything fell through to the model. It worked via
+the API (no preamble) and failed in the app, which is exactly why the API
+proofs were not enough. Fixed: the client sends `raw` (his sentence
+undressed), every matcher reads it, only the model gets the dressed version.
+Re-verified live in the app.
+
+**Also 7 Sep:** Nova can now WRITE A RECIPE (his report: "I can't modify
+your logs directly — I'm read-only"). `PROPOSE {"kind":"recipe",…}` composes
+the fields, `voiceActions` validates them (real macros or an honest refusal,
+no duplicate names) and files a pending draft on the existing `recipe` rail,
+which already had a working undo. Proven live: "add a protein shake" →
+"Recipe: Simple Protein Shake — 31P 12C 9F · 262 kcal" waiting in his Inbox.
+
+**NEXT (his queue, in order):** the FUEL overhaul — several options per
+rotation slot he can flick between, unlimited extra meals, several dishes in
+one slot each individually tickable, per-recipe macro correction from
+uploaded nutrition labels, and a cooked-portions counter that decrements as
+he ticks meals off (red when a meal is out). That is a rotation SCHEMA change
+— `slots{slot:id}` + `consumed{slot:bool}` becomes a list per slot — so
+every reader must move together (valsRecipes, Recipes.jsx, panels, fuelCross,
+mealPrep, verbs meal.eaten/recipe.slot, dispatch lines).
+
 **7 SEP (later) — THE THREE OUTSTANDING BUILDS ARE DONE.** The browser hand
 (`lib/browse.js`, the `browse` lane): a Claude Code job with ONLY the Chrome
 DevTools MCP tools, on Nova's own `~/.nova-browser` profile, read/navigate/
