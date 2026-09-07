@@ -344,20 +344,24 @@ async function runWatchJob(vaultPath, recordId, url, question, model) {
     await mkdir(path.join(dataRoot, 'watch'), { recursive: true });
     const transcriptRef = `${recordId}.txt`;
     await writeFile(path.join(dataRoot, 'watch', transcriptRef), report.transcript, 'utf8');
-    // ALWAYS pending — external content never files itself
-    await updateRecord(recordId, {
-      status: 'pending',
-      lane,
-      decision: {
-        route: 'watch-note',
-        confidence: 'high',
-        title,
-        reason: lane === 'coach'
-          ? "The Coach's read. Worth keeping? APPROVE files a Source page + the transcript. Want every concept woven into your second brain? DEEP WEAVE runs the full analysis."
-          : 'Watched and weighed. Worth keeping? APPROVE files a Source page + the transcript. Want every concept woven into your second brain? DEEP WEAVE runs the full analysis.',
-        payload: { title, body: note, url, lane, transcriptRef },
-      },
-    });
+    // HIS DECISION, 7 Sep 2026, reversing "external content never files
+    // itself": a video he chose to send Nova is already his judgement that it
+    // matters, and a Source page he has to approve is a Source page that sits
+    // in the Inbox instead of being usable by the Coach tomorrow morning. So
+    // it FILES ITSELF — and because a write he did not press deserves to be
+    // announced, it pushes a notification that opens the record.
+    // The rails are unchanged: undoData is stored, so one tap still removes
+    // the page and its transcript.
+    const decision = {
+      route: 'watch-note',
+      confidence: 'high',
+      title,
+      reason: lane === 'coach'
+        ? "The Coach's read — filed to your vault automatically. Undo removes the Source page and its transcript."
+        : 'Watched, weighed and filed to your vault automatically. Undo removes the Source page and its transcript.',
+      payload: { title, body: note, url, lane, transcriptRef },
+    };
+    await fileWatchNote(vaultPath, recordId, decision, url);
   } catch (e) {
     await updateRecord(recordId, { status: 'error', error: e.message }).catch(() => {});
   } finally {
@@ -537,4 +541,45 @@ function runClaude(vaultPath, prompt, { allowedTools, budget, model } = {}) {
       }
     });
   });
+}
+
+// Files the Source page, tells him, and sets the deep weave going — the three
+// steps that used to wait behind an APPROVE tap.
+//
+// Order matters: the vault write is what he actually asked for, so it happens
+// first and its failure is what gets reported. The notification and the weave
+// are additive; neither can cost him the note.
+async function fileWatchNote(vaultPath, recordId, decision, url) {
+  const { fileDecision } = await import('./inbox.js');
+  try {
+    const { destination, undo } = await fileDecision(vaultPath, decision);
+    await updateRecord(recordId, {
+      status: 'filed', decision, destination, undoData: undo,
+      filedAt: new Date().toISOString(), auto: true,
+    });
+    notifyFiled(recordId, decision.title, destination);
+  } catch (e) {
+    // filing failed — park it for review rather than losing the analysis
+    await updateRecord(recordId, { status: 'pending', decision, error: 'auto-filing failed: ' + e.message });
+    return;
+  }
+  // THE LINKS BETWEEN PEOPLE AND TOPICS — his words. The weave is what turns
+  // one Source page into concept and entity pages the rest of Nova can reach.
+  // It runs itself now and applies itself when it lands (autoApply), because
+  // an analysis waiting for approval is an analysis the Coach cannot use.
+  try {
+    const { startIngest } = await import('./ingest.js');
+    startIngest(vaultPath)('', url, null, null, { autoApply: true, notifyLabel: decision.title });
+  } catch (e) {
+    console.error('watcher: the weave did not start:', e.message);
+  }
+}
+
+function notifyFiled(recordId, title, destination) {
+  import('./push.js').then(({ sendPush }) => sendPush({
+    title: 'Watched and filed — Nova',
+    body: `${title}${destination ? ` → ${destination}` : ''}`,
+    tag: `watched-${recordId}`,
+    url: `./#/inbox?open=${recordId}`,
+  })).catch(() => {});
 }

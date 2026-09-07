@@ -109,7 +109,10 @@ export function ingestRouter(vaultPath) {
       : null;
     if ((!text || !text.trim()) && !url && !bookReq) return res.status(400).json({ error: 'paste some text, a video link, or a book title + author' });
     try {
-      const jobId = run(text && text.trim() ? text : null, url, bookReq);
+      // autoApply: the weave writes itself in and notifies, no review card.
+      // The Watcher sets it for a link he pasted (his decision, 7 Sep); the
+      // ingest modal does not, so a hand-started weave still gets its review.
+      const jobId = run(text && text.trim() ? text : null, url, bookReq, null, { autoApply: req.body?.autoApply === true, notifyLabel: typeof req.body?.label === 'string' ? req.body.label.slice(0, 120) : null });
       res.json({ jobId });
     } catch (e) {
       res.status(400).json({ error: e.message });

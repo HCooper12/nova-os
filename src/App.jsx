@@ -246,8 +246,20 @@ function restoreDrafts() {
 }
 
 function screenFromHash() {
-  const h = (typeof window !== 'undefined' ? window.location.hash : '').replace(/^#\/?/, '');
+  const h = (typeof window !== 'undefined' ? window.location.hash : '').replace(/^#\/?/, '').split('?')[0];
   return SCREENS.includes(h) ? h : 'mission';
+}
+
+// A notification carries a deep link — "#/inbox?open=<recordId>" — so tapping
+// "Watched and filed" lands ON the thing that was filed, not on a list he has
+// to search. Anything Nova files without asking has to be one tap from being
+// seen; that is the trade for not asking.
+function hashParams() {
+  const q = (typeof window !== 'undefined' ? window.location.hash : '').split('?')[1];
+  if (!q) return {};
+  const out = {};
+  for (const [k, v] of new URLSearchParams(q)) out[k] = v;
+  return out;
 }
 
 // The live* state keys that survive a backend outage: saved to localStorage on
@@ -705,9 +717,11 @@ export default class App extends Component {
     };
     window.addEventListener('pointerdown', this.tapUnlockH, { passive: true });
     // Back/forward navigation re-derives the screen from the hash.
-    this.popH = () => this.setState({ screen: screenFromHash() });
+    this.popH = () => { this.setState({ screen: screenFromHash() }); this.consumeDeepLink(); };
     window.addEventListener('popstate', this.popH);
     window.addEventListener('hashchange', this.popH);
+    // a notification tap lands here on a cold start too
+    this.consumeDeepLink();
     this.keyH = (e) => {
       // ⌘K keeps its meaning — "summon Nova" — and now opens the conversation,
       // which is the front door (Phase 4, 5 Sep). The palette it used to open
@@ -3407,6 +3421,19 @@ export default class App extends Component {
   // Open a staged job HE chose to look at. Goes through the poll, which
   // fetches the changes and sets ingestPreview BEFORE the sheet is asked to
   // render 'ready' — the ordering whose absence turned his phone black.
+  // "#/inbox?open=<recordId>" — where a notification tap lands. The record
+  // opens EXPANDED, because the point of the tap is to see what Nova wrote
+  // without him hunting for it. The query is stripped afterwards so a reload
+  // or a back-tap does not re-open it forever.
+  consumeDeepLink() {
+    const { open } = hashParams();
+    if (!open) return;
+    this.setState((st) => ({ inboxExpanded: { ...(st.inboxExpanded || {}), [open]: true } }));
+    if (typeof window !== 'undefined') {
+      const clean = window.location.hash.split('?')[0];
+      window.history.replaceState(null, '', clean || '#/inbox');
+    }
+  }
   // Clear a job that FAILED. Nothing was written to the vault (an errored
   // weave never reaches the apply step), so this is a card he is throwing
   // away, not work — it just has to be possible, which it was not: an

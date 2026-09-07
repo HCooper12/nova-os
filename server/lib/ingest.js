@@ -241,7 +241,7 @@ export function startIngest(vaultPath) {
   // `person` = a Scout subject (see lib/scout.js): the same shape of work as
   // a book — research first, then this rail weaves it. One rail, one review
   // UI, one undo, however the knowledge arrived.
-  return function run(transcriptText, sourceUrl, book = null, person = null) {
+  return function run(transcriptText, sourceUrl, book = null, person = null, opts = {}) {
     if (!laneEnabled('ingest')) throw laneOffError('ingest');
     if (book && !laneEnabled('librarian')) throw laneOffError('librarian');
     if (person && !laneEnabled('scout')) throw laneOffError('scout');
@@ -251,7 +251,7 @@ export function startIngest(vaultPath) {
     const jobId = randomUUID().slice(0, 8);
     const workDir = path.join(os.tmpdir(), 'nova-ingest', jobId);
     const stagingVault = path.join(workDir, 'vault');
-    const job = { id: jobId, status: 'staging', summary: '', cost: 0, changes: [], error: null, stagingVault, workDir, vaultPath, createdAt: new Date().toISOString(), ...(book ? { book: { title: String(book.title).trim(), author: String(book.author).trim(), ...(book.reading ? { reading: book.reading } : {}) } } : {}), ...(person ? { person } : {}) };
+    const job = { id: jobId, status: 'staging', summary: '', cost: 0, changes: [], error: null, stagingVault, workDir, vaultPath, autoApply: !!opts.autoApply, notifyLabel: opts.notifyLabel || null, createdAt: new Date().toISOString(), ...(book ? { book: { title: String(book.title).trim(), author: String(book.author).trim(), ...(book.reading ? { reading: book.reading } : {}) } } : {}), ...(person ? { person } : {}) };
     jobs.set(jobId, job);
     persistJob(job);
 
@@ -473,6 +473,11 @@ When done, give a concise final summary: pages created, pages updated, and any c
             job.conflicts = report.conflicts;
             if (report.conflicts.length) job.summary = [conflictNote(report.conflicts), job.summary || ''].filter(Boolean).join('\n\n');
             job.status = 'ready';
+            // A weave he never asked to review applies itself (his decision,
+            // 7 Sep) — and says so, with a link to what it wrote. Deferred to
+            // the next tick so the job is persisted as 'ready' first: if the
+            // apply throws, the review card is still there to fall back on.
+            if (job.autoApply) setImmediate(() => autoApply(job).catch(() => {}));
           } catch (e) {
             job.status = 'error';
             job.error = 'Failed to compute changes: ' + e.message;
@@ -669,4 +674,23 @@ export async function discardJob(jobId) {
 async function cleanup(job) {
   // the tmp workDir may already be gone after a restart or reboot — fine
   if (job.workDir) await rm(job.workDir, { recursive: true, force: true }).catch(() => {});
+}
+
+// The weave applies itself, then tells him what landed. Any failure leaves the
+// job exactly where it was — 'ready', with its review card — so the worst case
+// is the behaviour he had before.
+async function autoApply(job) {
+  try {
+    const out = await approveJob(job.id);
+    const { sendPush } = await import('./push.js');
+    const label = job.notifyLabel || labelOf(job);
+    await sendPush({
+      title: 'Woven into your vault — Nova',
+      body: `${label} — ${out.applied} page${out.applied === 1 ? '' : 's'} written. Tap to see them.`,
+      tag: `woven-${job.id}`,
+      url: out.recordId ? `./#/inbox?open=${out.recordId}` : './#/inbox',
+    });
+  } catch (e) {
+    console.error(`ingest ${job.id}: auto-apply failed, left for review:`, e.message);
+  }
 }
