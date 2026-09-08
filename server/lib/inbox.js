@@ -1290,6 +1290,10 @@ export async function retryRecord(vaultPath, id) {
     await updateRecord(id, { status: 'discarded', discardedAt: new Date().toISOString(), reason: 'retried' });
     return startBriefing(vaultPath, { topic, standing: topic });
   }
+  if (record.kind === 'paper') {
+    const { retryPaper } = await import('./paperLane.js');
+    return retryPaper(vaultPath, record);
+  }
   if (record.kind) throw new Error('this draft comes from a scheduled agent — it re-runs on its own schedule; discard this copy');
   const updated = await updateRecord(id, { status: 'classifying', error: null });
   runClassification(vaultPath, updated);

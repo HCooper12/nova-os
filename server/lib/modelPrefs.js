@@ -125,6 +125,11 @@ export const LANES = [
     off: 'Meal photo scanning is refused; log the meal by hand or from a recipe.',
   },
   {
+    id: 'paper', label: 'Study → program', group: 'coach', def: 'opus',
+    hint: 'a paper read into claims, then judged against his real block — a change lands as a Coach proposal',
+    off: 'Studies are refused; the Researcher can still read a link into a note.',
+  },
+  {
     id: 'form-check', label: 'Form check', group: 'coach', def: 'opus',
     hint: 'frames of one working set read against a written rubric — refuses a clip it cannot read',
     off: 'Form checks are refused; film the set and review it yourself.',

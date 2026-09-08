@@ -163,6 +163,33 @@ with ffmpeg.
   what it saw, not what it computed.
 
 ### 5. THE STUDY LANE — a paper becomes a change to his program
+
+**BUILT — 8 Sep 2026.** `server/lib/paperLane.js` (lane `paper`, kind
+`paper`). Two passes, joined by code. PASS 1 (Researcher's boundary —
+WebSearch/WebFetch/Read) reads THIS source into claims as data: population,
+intervention, outcomes with the paper's own numbers, limits, quotes, and an
+applicability line written about HIM (his intake, goals, training log)
+— an abstract-only read is labelled as one. PASS 2 (Coach's boundary,
+read-only, cwd vault) gets the claims beside his REAL block: routines with
+ids, schedule, goals, last sessions, his intake, the source shelf on the
+topic, the Coach's open proposals — and answers the only question: what
+would this change in his current block, and is he even the population.
+Verdict `change | hold | not-for-him`; "not for him" proposes nothing.
+CODE validates every change: ops through `validateOps`, routine and
+exercise ids against his real plan, no `new-exercise` by tap — a change
+that fails is kept as prose, labelled "a conversation, not a tap". The
+study files as a note (route `note`, undoable); each surviving change is
+raised as the SAME `coach-program` record the program review raises
+(`fix: {action:'ops', ops}`; `opsFromFix` now accepts it), so the Inbox's
+existing Apply → `/workouts/coach-apply` → `applyOps` path takes it,
+undoably. Router `PAPER_RE` (before creator-study and research); the Coach
+composer routes a pasted link through the lane; "Bring a study" chip.
+Verified live 8 Sep on Schoenfeld 2017 (PMID 27433992) against his real
+vault: abstract-only read labelled honestly, population "not reported",
+applicability judged unmeasurable and said so, verdict change (moderate),
+two one-tap proposals on his real routine ids (drop plate-pinch/dead-hang
+from Pull; Carter Extension 2→3 sets on Push) and five discussion points
+that cited his own files (the RPE finding, 5 lifting days vs a 4-day goal).
 His day-72 reel is a study of 14 elite Ethiopian marathoners turned into a
 plan. Nova's Researcher can already read a paper and the Coach can already
 edit the program; nothing joins them. Join them: a study or an article →

@@ -12,7 +12,7 @@
 // The router only DECIDES. Dispatch lives in the route, so a decision can
 // always be shown to him before anything runs.
 
-export const LANES = ['brief', 'watch', 'weave', 'study', 'research', 'browse', 'code', 'coach', 'leader', 'capture', 'play', 'ask', 'book'];
+export const LANES = ['brief', 'paper', 'watch', 'weave', 'study', 'research', 'browse', 'code', 'coach', 'leader', 'capture', 'play', 'ask', 'book'];
 
 // "watch AND analyse" — the deep vault weave (transcript fetched, every
 // concept and person drafted into pages) as opposed to the Watcher's verdict.
@@ -58,6 +58,9 @@ const STUDY_RE = /\b(analyse|analyze|study|research) (this |their |the )?(creato
 // Researcher: it needs the report noun, or an explain-it-to-me verb.
 const BRIEF_RE = /\b(?:brief me|briefing) (?:on|about)\b|\b(?:synthesi[sz]e|write|put together|compile|prepare|bring) (?:me |it |that |this )?(?:in)?to? ?a? ?(?:report|briefing|summary|write[- ]?up)\b|\b(?:a|the) (?:report|briefing|write[- ]?up) (?:on|about|for me)\b|\b(?:research|look into|dig into|read up on|investigate) [\s\S]{0,120}?\b(?:and|then) (?:synthesi[sz]e|explain|report|write|summari[sz]e|break)\b|\b(?:explain|break down|walk me through|teach me) [\s\S]{0,80}?\b(?:in depth|properly|from scratch|so i understand|like i)\b/i;
 
+// THE STUDY LANE — a paper or article, brought to bear on HIS program. Tested
+// before the creator 'study' lane and before research: "study" here is a noun.
+const PAPER_RE = /\b(?:(?:this|that|the|a) (?:study|paper|article|trial|meta[- ]analysis|research)\b[\s\S]{0,80}?\b(?:my|his) (?:program|programme|training|block|plan|routine|split)\b|\b(?:apply|bring|take|use) (?:this|that|the) (?:study|paper|article|findings?)\b[\s\S]{0,40}?\b(?:program|programme|training|block|plan|routine)\b|\bwhat (?:would|does|should) (?:this|that|it) (?:change|mean)\b[\s\S]{0,40}?\b(?:my )?(?:program|programme|training|block|plan|routine)\b)/i;
 const RESEARCH_RE = /\b(research|look up|find out|dig into|what does the (evidence|science) say|sources? on)\b/i;
 const COACH_RE = /\b(my (bench|squat|deadlift|press|pull-?ups?|lift|program|routine|volume|macros|protein|sleep|recovery|hrv)|should i (train|deload|lift|eat)|why (is|am) (my|i) .*(stalled|tired|sore|plateau)|reps?|sets?|rpe|deload|hypertrophy|cutting|bulking)\b/i;
 // The Leader — leadership as a daily practice. Tight on purpose: "delegate"
@@ -93,6 +96,8 @@ export function routeIntent(text) {
   const urls = urlsIn(raw);
   const prose = raw.replace(URL_RE, ' ').trim();
   const hasStudyWords = STUDY_RE.test(raw);
+  // a paper for his program — before the creator study and before plain research
+  if (PAPER_RE.test(raw) && !hasStudyWords) return { lane: 'paper', urls, prose, why: 'a study to read against your program — the Researcher reads it, the Coach says what it changes for you' };
 
   if (urls.length) {
     const u = urls[0];
@@ -130,7 +135,7 @@ export function routeIntent(text) {
 }
 
 export const LANE_LABEL = {
-  play: 'PLAY',
+  play: 'PLAY', paper: 'STUDY → PROGRAM',
   watch: 'WATCH', weave: 'WEAVE INTO VAULT', study: 'STUDY', research: 'RESEARCH',
   brief: 'BRIEFING',
   code: 'CLAUDE CODE', coach: 'COACH', leader: 'LEADER', capture: 'INBOX', ask: 'ASK NOVA', book: 'LIBRARIAN',

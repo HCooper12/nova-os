@@ -92,6 +92,7 @@ const FEATURES = [
   ['Wrap the day · the evening sentence, counted not composed (8 Sep)', 'WRAP THE DAY'],
   ['Itemised plate · a meal keeps its lines, each one droppable (8 Sep)', 'Broken down into'],
   ['Form check · one set read against a rubric, refused when unreadable (8 Sep)', 'Form check'],
+  ['Study lane · a paper judged against his block, a change as a Coach proposal (8 Sep)', 'STUDY → PROGRAM'],
   ['Voice + Coach · photos and videos ride with a question (6 Sep)', 'rides with your next question'],
   ['Voice · the gym by voice — start, sets, next, skip, finish (6 Sep)', 'Say the weight and reps as you go'],
   ['Train · the anatomy card is one visible tap (◉ 3D chip, 6 Sep)', 'See the lift — the 3D figure'],

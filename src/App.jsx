@@ -5285,6 +5285,8 @@ export default class App extends Component {
     const urls = raw.match(/https?:\/\/[^\s<>"']+/gi) || [];
     const study = /\b(analyse|analyze|study|research) (this |their |the )?(creator|channel|account|profile|competitor)\b|\bevery video\b/i.test(raw);
     const L = (lane, label, why) => ({ lane, label, why });
+    // mirror of the server's PAPER_RE — a study aimed at HIS program, before research
+    if (/\b(?:(?:this|that|the|a) (?:study|paper|article|trial|meta[- ]analysis|research)\b[\s\S]{0,80}?\b(?:my|his) (?:program|programme|training|block|plan|routine|split)\b|\b(?:apply|bring|take|use) (?:this|that|the) (?:study|paper|article|findings?)\b[\s\S]{0,40}?\b(?:program|programme|training|block|plan|routine)\b|\bwhat (?:would|does|should) (?:this|that|it) (?:change|mean)\b[\s\S]{0,40}?\b(?:my )?(?:program|programme|training|block|plan|routine)\b)/i.test(L) && !/\b(analyse|analyze|study|research) (this |their |the )?(creator|channel|account|profile|competitor|person|guy|team)\b/i.test(L)) return { lane: 'paper', label: 'STUDY → PROGRAM' };
     // mirrors server/lib/intentRouter.js BROWSE_MEDIA_RE (7 Sep 2026): a thing
     // he wants to SEE — "open the Diary of a CEO channel", "show me the latest
     // video", "find the most popular video with X and Y" — goes to the browser
@@ -7296,6 +7298,17 @@ export default class App extends Component {
   doCoach(preset) {
     const q = (preset || this.state.coachInput).trim(); if (!q) return;
     const conn = getConnection();
+    // THE STUDY LANE: a paper handed to the Coach with a link goes through the
+    // lane (Researcher reads it, Coach judges it against his block), not into
+    // a plain chat turn that would answer from memory of the abstract.
+    if (conn && this.state.connectionStatus !== 'demo' && /https?:\/\//.test(q) && this.routeIntentLocal(q)?.lane === 'paper') {
+      this.setState((s) => ({ coachChat: [...s.coachChat, { at: Date.now(), who: 'you', text: q }], coachInput: '' }));
+      api.sendIntent(conn, q, 'paper').then((r) => {
+        this.setState((s) => ({ coachChat: [...s.coachChat, { at: Date.now(), who: 'coach', text: r.said || 'On it — the study is being read against your block. Any change lands in the Inbox.' }] }));
+        this.refreshInbox?.();
+      }).catch((e) => this.setState((s) => ({ coachChat: [...s.coachChat, { at: Date.now(), who: 'coach', text: `I could not start on that study: ${e.message}` }] })));
+      return;
+    }
     // live backend → the real evidence-based coach; demo keeps the script
     if (conn && this.state.connectionStatus !== 'demo') {
       if (this.state.coachBusy) return;

@@ -183,7 +183,7 @@ export function valsChrome(app, ctx) {
     jobTray: (() => {
       // a cut label says it was cut — "a cached digest makes t" is not a sentence
       const clip = (s, n) => { s = String(s); return s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s; };
-      const KIND_NAME = { research: 'Research', video: 'Watching', study: 'Study', distill: 'Distilling', 'brain-week': 'Brain week', briefing: 'Briefing', browse: 'Browser', form: 'Form check', intake: 'Your numbers' };
+      const KIND_NAME = { research: 'Research', video: 'Watching', study: 'Study', distill: 'Distilling', 'brain-week': 'Brain week', briefing: 'Briefing', browse: 'Browser', form: 'Form check', intake: 'Your numbers', paper: 'Study' };
       const jobs = (st.liveInbox?.items || [])
         .filter((r) => r.status === 'classifying')
         .map((r) => ({ id: r.id, label: `${KIND_NAME[r.kind] || 'Filing'} — ${clip(r.text || '', 60)}`, kind: r.kind || 'capture' }));

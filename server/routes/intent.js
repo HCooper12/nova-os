@@ -130,6 +130,10 @@ export function intentRouter(vaultPath) {
         const { startIngest } = await import('../lib/ingest.js');
         out.jobId = startIngest(vaultPath)(null, undefined, meta);
         out.said = `On it — the Librarian is researching "${meta.title}" by ${meta.author}. The draft pages land for your review.`;
+      } else if (lane === 'paper') {
+        const { startPaper } = await import('../lib/paperLane.js');
+        out.record = await startPaper(vaultPath, { urls: decision.urls || [], prose: decision.prose || text });
+        out.said = 'On it — the Researcher reads the study into what it actually claims, then the Coach says what it would change in YOUR block, if anything. Any change lands in the Inbox as a proposal you can apply with one tap, or not.';
       } else if (lane === 'brief') {
         // THE WHOLE SENTENCE IS THE SPEC. The topic and his instructions are
         // not separated by a parser — the model that decomposes the topic and

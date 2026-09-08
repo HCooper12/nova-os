@@ -1005,7 +1005,11 @@ function GoalsCoachPane({ v }) {
             </div>
           )}
           <AttachPending attach={v.attach} />
-          <div style={css("display:flex;gap:8px;margin-top:10px;align-items:center")}>
+          {/* a study for the block — the sentence the router reads, then paste the link */}
+          <div style={css("margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center")}>
+            <Chip tone="quiet" onClick={v.bringStudy} title="Paste a paper's link after it — the Researcher reads it, the Coach says what it changes for you">Bring a study</Chip>
+          </div>
+          <div style={css("display:flex;gap:8px;margin-top:8px;align-items:center")}>
             <AttachStrip attach={v.attach} tone="cyan" />
             <Interactive
               as="input"

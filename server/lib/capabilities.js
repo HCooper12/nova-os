@@ -74,6 +74,19 @@ export const CAPABILITIES = {
     autonomy: 'propose',
     delegable: true,
   },
+  paper: {
+    agent: 'Researcher → Coach',
+    summary: 'Read a study or article into what it actually claims, then judge what it would change in his CURRENT block — grounded in his routines, schedule, goals and recent sessions, and honest when he is not the population it describes.',
+    input: 'a link to a paper or article (or its text), aimed at his program',
+    output: 'the study as a note he can keep, plus each applicable change as a Coach proposal he can apply with one tap — or "not for him", with why',
+    produces: 'coach-program',
+    // one Researcher read plus one Coach judgement, both on the strong model
+    costUsd: 3.0,
+    autonomy: 'propose',
+    // NOT delegable: two strong-model passes that end in a change to his
+    // program. He brings the study; a plan does not go looking for one.
+    delegable: false,
+  },
   brief: {
     agent: 'Briefing',
     summary: "Research a topic from several angles at once, then write it up as a report he can read or have Nova read to him, with every term defined.",

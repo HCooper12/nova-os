@@ -520,6 +520,9 @@ export function valsWorkouts(app, ctx) {
     newCoachChat: () => app.newCoachChat(),
     coachInput: st.coachInput,
     setCoachInput: (e) => app.setState({ coachInput: e.target.value }),
+    // THE STUDY LANE's visible door: prefills the sentence the router reads,
+    // so pasting a link after it goes to the lane and not to a chat turn
+    bringStudy: () => app.setState({ coachInput: 'What would this study change in my program: ' }),
     coachKey: (e) => { if (e.key === 'Enter') app.doCoach(); },
     sendCoach: () => app.doCoach(),
     quickMinutes: st.quickMinutes,

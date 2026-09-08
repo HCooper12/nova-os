@@ -13,62 +13,60 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**8 SEP — FIVE SHIPPED TODAY: open-it-for-real, the Intake, wrap the day,
-the itemised plate, and the FORM CHECK. Plus THE SURFACE STANDARD, which now
-governs every new build.**
+**8 SEP — THE ATHLETE-AI QUEUE IS COMPLETE. All five shipped today: the
+Intake, wrap the day, the itemised plate, the form check, and the STUDY
+LANE — plus open-it-for-real and THE SURFACE STANDARD.**
 
-**Form check (ATHLETE-AI-PLAN #4) — the refusal IS the feature.**
-`server/lib/formCheck.js`. Two gates before a review can exist: code measures
-what code can (`probeClip` → fps ≥ 48, 2–120 s, short side ≥ 540) and refuses
-with the fix in the reason and NO model call; then the model's FIRST job is a
-usability verdict on angle/framing/whole-body, and an unusable clip ends the
-run with nothing filed. Frames are deterministic (3/s, floor 12, cap 48).
-Rubrics are written per lift, and a test asserts no rubric point contains a
-degree — asking for one invites one. `scrubUnmeasurable` strips degrees, cm,
-percentages and m/s that survive the prompt, and the note DISCLOSES the count.
-The review is a proposal (kind `form`) whose body is the exact text he
-approved → `Wiki/Health/Form Checks/<date> <Exercise>.md`, undone by the same
-hash-checked delete notes use. Doors: `Form check` on every exercise in a
-routine AND mid-session, one shared `FormCheckPanel`, protocol stated BEFORE
-he films.
+**The study lane (ATHLETE-AI-PLAN #5), `server/lib/paperLane.js`, lane
+`paper`** (NOT `study` — that id was already the creator-catalogue lane).
+Pass 1: the Researcher's boundary reads THIS source into claims as data
+(population, intervention, outcomes with the paper's numbers, limits, an
+applicability line about HIM; an abstract-only read is labelled). Pass 2:
+the Coach's boundary judges it against his REAL block (routine ids,
+schedule, goals, last sessions, intake, shelf, open proposals) — verdict
+`change | hold | not-for-him`, and "not for him" proposes nothing. CODE
+validates every change (`validateOps` + real ids, no new-exercise by tap);
+survivors are raised as the SAME `coach-program` records the program review
+raises, `fix: {action:'ops', ops}` (`opsFromFix` accepts it), so the
+Inbox's existing Approve → coach-apply → applyOps path applies them,
+undoably. The study files as a note (route `note`). `delegable: false`.
+Doors: "what would this study change in my program <link>" in the chat;
+the Coach composer routes a pasted link through the lane (`doCoach` hook);
+"Bring a study" chip on the Coach tab.
 
-**Verified live:** a 30 fps clip refused by code (no model call); a 60 fps
-clip that was not a lift refused by the model — it named it as an ffmpeg test
-pattern with "nothing anatomical to judge"; and the client loop end to end at
-375 px. **NOT yet exercised: a real clip of his own lifting.**
+**VERIFIED LIVE against his vault (Schoenfeld 2017, PMID 27433992):** an
+abstract-only read labelled as such, population "not reported", the
+applicability judged unmeasurable AND SAID SO, verdict change (moderate),
+two one-tap proposals on his real routine ids, five discussion points that
+cited his own files (the RPE 89% finding, five lifting days against a
+four-day goal). **THOSE THREE RECORDS ARE IN HIS INBOX NOW, FROM MY TEST:**
+study `7708fab2`, proposals `7448c7ed` (drop plate-pinch + dead-hang from
+Pull) and `273d146c` (Carter Extension 2→3 on Push). Nothing applied. He
+keeps or discards them. In the Inbox deck they sit among the "to decide"
+singles and under "4 × Coach".
 
-**A LATENT BUG THIS CAUGHT, live since attachments shipped (6 Sep):**
-`attachments.js` and `hands.js` resolved their data directory through
-`new URL(import.meta.url).pathname`, which percent-encodes the space in
-"Claude Projects". Every attachment had been landing in a stray
-`/Users/haydencooper/Desktop/Files/Claude%20Projects/` tree — and ffmpeg
-reads `%2` as a format specifier, so VIDEO ATTACHMENTS HAD NEVER PRODUCED
-FRAMES (the preamble just said so honestly and nobody looked). Fixed with
-`fileURLToPath`, pinned by a test, stray tree removed. **Rule: never resolve
-a path through a URL pathname.**
+**Also today:** open it for real (d46fe90), the Intake (d46fe90), wrap the
+day (3f39dfe), the surface standard + wrap card rebuilt (31abe03), the
+itemised plate (fa548be), the form check (ff8ba03 — and the
+URL-pathname bug that had silently stopped video attachments producing
+frames since 6 Sep).
 
-**Earlier today:** open it for real (Nova's own visible Chrome, own profile);
-THE INTAKE (his numbers, code-derived, both files undoable) — d46fe90; wrap
-the day — 3f39dfe; the surface standard + the wrap card rebuilt on the house
-objects — 31abe03; the itemised plate — fa548be.
+**NEXT:** nothing queued from the plan. Candidates: a real form check on
+his own clip; the first real Wrap card tonight; a real stopped-before-a-
+button browse run; the deferred classic-Mission fold; P7/P8 perf levers.
 
-**THE SURFACE STANDARD (NOVA-METHOD.md §2b, from CLAUDE.md).** Seven rules;
-the one that bites: ship in BOTH Home idioms from ONE view model — his phone
-runs `cupertino`, so a card added only to the classic fold does not exist for
-him. Also: house objects only, sentence case in vals, real tokens only
-(`--nv-blue`/`--nv-ink70` do not exist and fail silently), an entrance
-animation, `minWidth: 0` + measure at 375, verify in both styles.
-
-**NEXT:** THE STUDY LANE (ATHLETE-AI-PLAN #5) is the last of the five.
-Unexercised elsewhere: a real stopped-before-a-button browse run.
-
-**STILL HIS:** film one working set at 60 fps and run a real form check; say
-"set my numbers" (the collection still reads 2200 kcal / 150 g, typed once);
-the first real Wrap card tonight; the stale ingest weave 9e994aae; cook
-something and tell Nova; the phone-in-hand gym check; a real browser commit;
-Xcode.
+**STILL HIS:** decide the three study records above; film one set at 60 fps
+and run a form check; say "set my numbers" (the collection still reads
+2200 kcal / 150 g, typed once); the stale ingest weave 9e994aae; cook
+something and tell Nova; the phone-in-hand gym check; Xcode.
 
 ## SESSION LOG (append-only, newest first)
+
+### 8 September 2026 (afternoon) — the study lane; the athlete-AI queue complete
+paperLane.js: Researcher read → Coach judgement against his real block →
+code-validated changes raised as coach-program proposals. Router, planner
+capability, Coach-composer door. Live on Schoenfeld 2017: honest
+abstract-only read, two proposals on real ids. 1225 tests green.
 
 ### 8 September 2026 (midday) — the form check
 ATHLETE-AI-PLAN #4: protocol gate in code, usability verdict by the model,

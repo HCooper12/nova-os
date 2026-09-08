@@ -21,7 +21,7 @@ const SOURCE_LABEL = {
   'model-choice': 'MODEL CHOICE', 'brain-week': 'BRAIN WEEK', followup: 'CALENDAR',
   studio: 'STUDIO', 'fuel-cross': 'FUEL × TRAINING', study: 'STUDY', briefing: 'BRIEFING',
   // the four that fell through to TYPED
-  'coach-program': 'PROGRAM REVIEW', 'coach-audit': 'PROGRAM AUDIT',
+  'coach-program': 'PROGRAM REVIEW', 'coach-audit': 'PROGRAM AUDIT', paper: 'STUDY → PROGRAM',
   'read-next': 'LIBRARIAN', 'forge-job': 'FORGE',
   scout: 'SCOUT · PEOPLE', 'leader-reflect': 'LEADER',
   act: 'BY VOICE', browse: 'BROWSER',
@@ -360,7 +360,7 @@ export function valsInbox(app, ctx) {
     // retry only where the record still carries its full input: a capture's
     // text, a research question, or a video URL. Scheduled drafts re-run on
     // their own.
-    canRetry: r.status === 'error' && (!r.kind || r.kind === 'research' || r.kind === 'video' || r.kind === 'study' || r.kind === 'briefing'),
+    canRetry: r.status === 'error' && (!r.kind || r.kind === 'research' || r.kind === 'video' || r.kind === 'study' || r.kind === 'briefing' || r.kind === 'paper'),
     approve: () => app.inboxAction(r.id, 'approve'),
     // Declining COACH advice asks why — the reason rides the record so the
     // Coach learns from it (and never re-asks). Everything else discards

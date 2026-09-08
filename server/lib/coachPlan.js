@@ -289,6 +289,9 @@ async function planOps(vaultPath, ops, { why }) {
 // ops — the deterministic path, no model anywhere.
 export function opsFromFix(fix) {
   if (!fix || !fix.action) return null;
+  // THE STUDY LANE (lib/paperLane.js): a change already validated against
+  // his real ids rides as the op list itself — validateOps is the vocabulary
+  if (fix.action === 'ops') { try { return validateOps(fix.ops); } catch { return null; } }
   if (fix.action === 'remap') return [{ op: 'remap', exerciseId: fix.exerciseId, muscleGroup: fix.muscleGroup }];
   if (fix.action === 'swap') return [{ op: 'swap', exerciseId: fix.exerciseId, replaceWith: fix.replaceWith }];
   if (fix.action === 'weighted-variant') return [{ op: 'weighted-variant', exerciseId: fix.exerciseId, startWeightKg: fix.startWeightKg }];
