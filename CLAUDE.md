@@ -34,6 +34,13 @@ Every model-based agent (Ask Nova, Coach, Quick Session, Researcher, Studio)
 prepends the shared `NOVA_LENS` from `server/lib/lens.js`. Change that file
 and NOVA-METHOD.md's "Runtime lens" section together — they must match.
 
+## Anything he can see
+Every new surface ships in **both** Home idioms from one view model (his
+phone runs `cupertino` → `MissionStructured`), wears the house objects
+(`RingTile`, the serif news line, `AppleLayout` groups, `Controls.jsx` for
+every label and action), uses only real `--nv-*` tokens, earns an entrance
+animation, and survives 375px. Full standard: NOVA-METHOD.md §2b.
+
 ## Ground rules for a change
 Find the real need under the request → read the existing pattern before
 writing → smallest honest solution → design the failure modes and write the

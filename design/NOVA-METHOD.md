@@ -125,6 +125,49 @@ looks like a shortcut.
 
 ---
 
+## 2b · The surface standard (every new thing he can see)
+
+His instruction, 8 Sep 2026: new builds must *feel* like Nova — "Apple-like,
+dynamic, unique, like the other aspects we have edited the last few weeks."
+A surface that works but looks bolted on is not finished. The standard, and
+it is not optional:
+
+1. **Ship it in BOTH Home idioms from ONE view model.** His phone runs the
+   `cupertino` style, and `MissionControl.jsx` returns `<MissionStructured/>`
+   when `v.structured` — so a card added only to the classic fold **does not
+   exist for him**. Build the view model in `vals/*`, render it twice. Never
+   a parallel data path. A new section in `MissionStructured` must join all
+   three `ORDERS` (morning/day/evening) or the dev assert names it.
+2. **Use the house objects, not new ones.** `RingTile` for any number against
+   a target (colour is the verdict: good / behind / missed, and a gap is a
+   *dashed* ring, never a zero). The serif face for the line that carries the
+   news. `Group`/`GRow`/`Pill` from `AppleLayout.jsx` under the Apple styles.
+   Every label and action through `Controls.jsx` (`Eyebrow`, `TextAction`,
+   `Chip`, `Tag`, `Meta`, `ScreenHead`) — never a hand-rolled
+   `font: 600 8.5px mono; letter-spacing: .14em` chip again.
+3. **Sentence case in the vals.** Command's CSS uppercases; an ALL-CAPS
+   literal handed to `Meta` renders literally and is a smell. (Ring labels
+   are the one exception — they match their neighbours in the vitals row.)
+4. **Tokens only.** `var(--nv-*)` for every colour, font and micro-label
+   size. `--nv-blue` and `--nv-ink70` do **not exist** — an invalid token
+   fails silently and renders a borderless, colourless control. The house
+   accents are `--nv-cy`, `--nv-gold`, `--nv-good`, `--nv-warn`, with
+   `--nv-ink`/`ink60`/`ink40` for text.
+5. **Motion is part of the object.** A card that appears earns an entrance
+   (`popIn`, `.nv-deck-rise`, `shelfIn`); rings animate their arc. Use the
+   `animation` shorthand only — a separate `animationPlayState` throws in
+   React — and let the existing `prefers-reduced-motion` rules do their job.
+6. **It must survive 375px.** Any flex item that can hold nowrap text or a
+   panel needs `minWidth: 0`; stack columns on mobile rather than squeezing
+   a paragraph into a nine-word-tall gutter. Verify by measuring
+   `scrollWidth`, not by eye.
+7. **Verify in both styles before shipping** — set `novaos.style` to
+   `cupertino` and to `command`, look at both, at 375 and at 1280.
+
+The failure this standard is written against: the first Wrap-the-Day card
+(8 Sep) shipped with hand-rolled chips, two non-existent tokens, and only in
+the classic fold — so on his actual phone it was invisible.
+
 ## 3 · The change process (for future Claude editing Nova)
 
 The mental sequence to run for any change, in order. Skipping steps is how

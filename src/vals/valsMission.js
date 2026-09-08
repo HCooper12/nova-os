@@ -674,17 +674,40 @@ export function valsMission(app, ctx) {
     // his last logged meal or 6pm, says the day in one counted sentence, and
     // names the one thing that still fixes it — the moment the sweep found
     // nobody was using. Dismissed once a day; back tomorrow.
+    //
+    // It wears the house objects: the ring (the best thing in the product —
+    // colour is the verdict, a gap is dashed not zero) and the serif line
+    // both screens use for news. Same view model feeds the classic HUD and
+    // the Apple twin, so they can never drift apart.
     wrapCard: (() => {
       const w = st.liveWrap;
       if (demoMode || !w?.show || !w.line) return null;
       if (st.wrapDismissedOn && w.facts?.date && st.wrapDismissedOn === w.facts.date) return null;
       const f = w.facts || {};
+      const eatenKcal = Math.round(f.eaten?.kcal || 0);
+      const eatenP = Math.round(f.eaten?.p || 0);
+      const target = f.targets?.kcal || null;
+      const floor = f.targets?.protein || null;
+      const pPct = floor ? Math.round((eatenP / floor) * 100) : 0;
+      const kPct = target ? Math.round((eatenKcal / target) * 100) : 0;
       return {
         line: w.line,
         floorMet: f.floorMet,
-        kcal: f.targets?.kcal ? `${Math.round(f.eaten?.kcal || 0).toLocaleString()} / ${f.targets.kcal.toLocaleString()} kcal` : `${Math.round(f.eaten?.kcal || 0).toLocaleString()} kcal`,
-        protein: f.targets?.protein ? `${f.eaten?.p || 0} / ${f.targets.protein} g` : `${f.eaten?.p || 0} g`,
-        proteinNote: f.floorMet == null ? 'NO FLOOR SET' : f.floorMet ? 'FLOOR CLEARED' : `${f.proteinShort} G SHORT`,
+        // Under target is not a miss on a cut — only going over is worth a
+        // colour. Protein keeps the real thresholds (90 / 50).
+        rings: [
+          {
+            key: 'protein', label: 'PROTEIN', value: String(eatenP), small: floor ? `/${floor}G` : '',
+            pct: pPct, state: floor ? ringState({ value: String(eatenP), pct: pPct }) : 'absent',
+            hint: floor ? (f.floorMet ? 'FLOOR CLEARED' : `${f.proteinShort}G SHORT`) : 'NO FLOOR SET',
+          },
+          {
+            key: 'fuel', label: 'EATEN', value: eatenKcal.toLocaleString(), small: target ? `/${target.toLocaleString()}` : '',
+            pct: target ? Math.min(kPct, 100) : 0, state: !target ? 'absent' : f.kcalLeft < -100 ? 'behind' : 'good',
+            hint: target ? (f.kcalLeft > 0 ? `${Math.round(f.kcalLeft).toLocaleString()} LEFT` : f.kcalLeft < 0 ? `${Math.round(-f.kcalLeft).toLocaleString()} OVER` : 'ON TARGET') : 'NO TARGET SET',
+          },
+        ],
+        note: f.floorMet == null ? 'No floor set' : f.floorMet ? 'Floor cleared' : `${f.proteinShort} g short`,
         fix: w.closer ? `${w.closer.name} ${w.closer.inFridge ? 'is in the fridge' : 'is on the plan'} · +${w.closer.protein} g for ${Math.round(w.closer.kcal).toLocaleString()} kcal` : null,
         speak: () => app.speakWrap(),
         openFuel: () => app.navigate('recipes'),

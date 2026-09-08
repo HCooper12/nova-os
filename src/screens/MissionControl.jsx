@@ -1,5 +1,6 @@
 import { css } from '../css.js';
 import { RingTile } from '../RingTile.jsx';
+import { Eyebrow, TextAction, Meta } from '../Controls.jsx';
 import { absentHintStyle, absentValueStyle } from '../vitalsAbsence.js';
 import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
@@ -121,20 +122,30 @@ export function MissionControl({ v }) {
           </div>
         </section>
       )}
-      {/* WRAP THE DAY — the evening sentence, on the surface he already opens.
-          Deliberately quiet: two numbers, the fix if there is one, and a door. */}
+      {/* WRAP THE DAY — the evening sentence on the surface he already opens,
+          in the same objects as the Apple twin (MissionStructured) from the
+          same view model: the rings carry the verdict, the serif carries the
+          news, and the fix he can still act on sits under it. */}
       {v.wrapCard && (
-        <section className="nv-pane" style={{ marginBottom: mob ? '12px' : '18px', padding: mob ? '16px 18px 14px' : '18px 22px 16px', border: `1px solid color-mix(in srgb, ${v.wrapCard.floorMet === false ? 'var(--nv-gold)' : 'var(--nv-good)'} 34%, transparent)` }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
-            <div style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track-wide)', color: v.wrapCard.floorMet === false ? 'var(--nv-gold)' : 'var(--nv-good)' }}>WRAP THE DAY</div>
-            <div style={{ font: `600 12px ${M}`, letterSpacing: '.08em', color: 'var(--nv-ink60)', fontVariantNumeric: 'tabular-nums' }}>{v.wrapCard.kcal}</div>
-            <div style={{ font: `600 12px ${M}`, letterSpacing: '.08em', color: v.wrapCard.floorMet === false ? 'var(--nv-gold)' : 'var(--nv-good)', fontVariantNumeric: 'tabular-nums' }}>{v.wrapCard.protein} · {v.wrapCard.proteinNote}</div>
+        <section className="nv-pane" style={{ marginBottom: mob ? '12px' : '18px', padding: mob ? '16px 18px 14px' : '18px 22px 16px', animation: 'popIn .38s cubic-bezier(.32,.72,0,1) both' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', marginBottom: '12px' }}>
+            <Eyebrow as="span" tone={v.wrapCard.floorMet === false ? 'gold' : 'good'}>Wrap the day</Eyebrow>
+            <Meta tone={v.wrapCard.floorMet === false ? 'gold' : 'good'}>{v.wrapCard.note}</Meta>
           </div>
-          <div style={css(`margin-top:8px;font:400 ${mob ? '15px' : '16px'}/1.45 ${R};color:var(--nv-ink)`)}>{v.wrapCard.line}</div>
-          <div style={{ marginTop: '12px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            <Interactive as="span" onClick={v.wrapCard.speak} base={css('cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 13px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)')}>READ IT TO ME</Interactive>
-            {v.wrapCard.fix && <Interactive as="span" onClick={v.wrapCard.openFuel} base={css('cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 13px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);color:var(--nv-ink60)')}>OPEN FUEL</Interactive>}
-            <Interactive as="span" onClick={v.wrapCard.dismiss} base={css('cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 13px;border-radius:7px;color:var(--nv-ink40)')}>DISMISS</Interactive>
+          {/* rings above the line on a phone; beside it with room to spare */}
+          <div style={{ display: 'flex', flexDirection: mob ? 'column' : 'row', alignItems: mob ? 'stretch' : 'center', gap: mob ? '14px' : '20px', minWidth: 0 }}>
+            <div style={{ display: 'flex', gap: '18px', flex: 'none' }}>
+              {v.wrapCard.rings.map(({ key, ...r }) => <RingTile key={key} {...r} size={mob ? 56 : 62} />)}
+            </div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={css(`font:400 ${mob ? '18px' : '19px'}/1.35 ${S};text-wrap:pretty;color:var(--nv-ink)`)}>{v.wrapCard.line}</div>
+            </div>
+          </div>
+          {v.wrapCard.fix && <div style={css(`margin-top:11px;font:450 12.5px/1.5 ${R};color:var(--nv-ink60)`)}>{v.wrapCard.fix}</div>}
+          <div style={{ marginTop: '13px', display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <TextAction onClick={v.wrapCard.speak}>Read it to me</TextAction>
+            {v.wrapCard.fix && <TextAction tone="quiet" onClick={v.wrapCard.openFuel}>Open Fuel</TextAction>}
+            <TextAction tone="faint" onClick={v.wrapCard.dismiss}>Dismiss</TextAction>
           </div>
         </section>
       )}

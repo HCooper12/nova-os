@@ -30,9 +30,10 @@ const S = 'var(--nv-font-serif)';
 // One place for the three orders, so a new section is added to all three or
 // the dev assert below names the one it was left out of (audit [63]).
 const ORDERS = {
-  morning: ['working', 'hero', 'vitals', 'plan', 'lead', 'focus', 'today', 'deck', 'review', 'noticed', 'shortcuts', 'agents'],
-  day: ['working', 'focus', 'lead', 'plan', 'today', 'deck', 'hero', 'vitals', 'noticed', 'review', 'shortcuts', 'agents'],
-  evening: ['working', 'focus', 'plan', 'lead', 'today', 'deck', 'vitals', 'review', 'hero', 'noticed', 'shortcuts', 'agents'],
+  morning: ['working', 'hero', 'vitals', 'wrap', 'plan', 'lead', 'focus', 'today', 'deck', 'review', 'noticed', 'shortcuts', 'agents'],
+  day: ['working', 'wrap', 'focus', 'lead', 'plan', 'today', 'deck', 'hero', 'vitals', 'noticed', 'review', 'shortcuts', 'agents'],
+  // by evening the wrap IS the news — it leads, under anything still running
+  evening: ['working', 'wrap', 'focus', 'plan', 'lead', 'today', 'deck', 'vitals', 'review', 'hero', 'noticed', 'shortcuts', 'agents'],
 };
 let ordersChecked = false;
 export function assertOrdersCover(sectionKeys, orders = ORDERS) {
@@ -164,6 +165,33 @@ export function MissionStructured({ v }) {
               hoverStyle={{ color: "var(--nv-warn)" }}>CLEAR</Interactive> : undefined}
             onClick={j.go || undefined} />
         ))}
+      </Group>
+    ) : null,
+
+    // WRAP THE DAY — the evening's news, in the house objects: two rings,
+    // the serif line, and the fix he can still act on tonight.
+    wrap: v.wrapCard ? (
+      <Group key="wrap" label="Wrap the day" trailing={<Meta tone={v.wrapCard.floorMet === false ? 'gold' : 'good'}>{v.wrapCard.note}</Meta>}>
+        <div style={{ padding: '14px 16px', animation: 'popIn .38s cubic-bezier(.32,.72,0,1) both' }}>
+          {/* on a phone the rings sit ABOVE the line — beside it the serif
+              was squeezed into a nine-word-tall column (seen at 375px) */}
+          <div style={{ display: 'flex', flexDirection: mob ? 'column' : 'row', alignItems: mob ? 'stretch' : 'center', gap: mob ? '14px' : '20px', minWidth: 0 }}>
+            <div style={{ display: 'flex', gap: '18px', flex: 'none' }}>
+              {v.wrapCard.rings.map(({ key, ...r }) => <RingTile key={key} {...r} size={58} />)}
+            </div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ font: `400 ${mob ? 18 : 19}px/1.35 ${S}`, textWrap: 'pretty', color: 'var(--nv-ink)' }}>{v.wrapCard.line}</div>
+            </div>
+          </div>
+          {v.wrapCard.fix && (
+            <p style={{ margin: '11px 0 0', font: `450 12.5px/1.5 ${UI}`, color: 'var(--nv-ink60)' }}>{v.wrapCard.fix}</p>
+          )}
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '9px', marginTop: '13px' }}>
+            <Pill label="Read it to me" onClick={v.wrapCard.speak} />
+            {v.wrapCard.fix && <Pill label="Open Fuel" onClick={v.wrapCard.openFuel} tone="quiet" />}
+            <TextAction tone="faint" onClick={v.wrapCard.dismiss}>Dismiss</TextAction>
+          </div>
+        </div>
       </Group>
     ) : null,
 
