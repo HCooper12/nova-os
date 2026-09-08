@@ -224,6 +224,16 @@ export async function buildTrainOverview(vaultPath) {
     deload: { advise: deload.advise, reason: deload.reason },
     coachAsk,
     block: block ? { phase: block.phase, week: block.week, lengthWeeks: block.lengthWeeks, isDeloadWeek: block.isDeloadWeek, ended: block.ended } : null,
+    // MAKE-UP DAY — his own plan for THIS DATE beats the weekday template.
+    // Before this, moving a session forward to finish it still had every
+    // surface recommending a standard day (his report, 8 Sep 2026).
+    makeup: await (async () => {
+      try {
+        const { makeupFor, todayIso, makeupLine } = await import('./makeupDay.js');
+        const m = await makeupFor(todayIso());
+        return m ? { id: m.id, sourceRoutineName: m.sourceRoutineName, sourceRoutineId: m.sourceRoutineId || null, sourceDate: m.sourceDate || null, exercises: m.exercises, line: makeupLine(m, { scheduledName: routine?.name || null }) } : null;
+      } catch { return null; }
+    })(),
     today: routine ? {
       routineId: routine.id, name: routine.name, exerciseCount: routine.exercises.length,
       lastVolume: (() => {

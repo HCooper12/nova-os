@@ -356,6 +356,34 @@ export function workoutsRouter(vaultPath) {
     }
   });
 
+  // MAKE-UP DAY — mark a date as finishing a prior session (lib/makeupDay.js).
+  // The leftovers are DERIVED from his real sessions; a routine he has no
+  // logged session for is refused with the reason, never guessed at.
+  router.post('/workouts/makeup', async (req, res) => {
+    try {
+      const { date, routineId } = req.body || {};
+      const { setMakeupDay } = await import('../lib/makeupDay.js');
+      const { exercises } = await loadExerciseLibrary(vaultPath);
+      const { routines } = await loadRoutines(vaultPath, exercises);
+      const routine = routines.find((r) => r.id === routineId);
+      if (!routine) return res.status(400).json({ error: 'pick one of your routines to finish' });
+      const { loadSessions } = await import('../lib/workoutSessions.js');
+      const sessions = await loadSessions(vaultPath, {});
+      res.json({ makeup: await setMakeupDay({ date, routine, sessions }) });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  router.delete('/workouts/makeup/:date', async (req, res) => {
+    try {
+      const { clearMakeupDay } = await import('../lib/makeupDay.js');
+      res.json(await clearMakeupDay(req.params.date));
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
   router.get('/workouts/carryovers', async (req, res, next) => {
     try {
       res.json({ carryovers: await listCarryovers() });

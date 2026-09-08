@@ -125,6 +125,9 @@ export async function startCoachTurn(vaultPath, { question, sessionId = null, li
       // the connections the sweep found missing — a coach that claims protein
       // expertise gets nutrition, bodyweight, debt, streaks, and learned habits
       try {
+        const { makeupContext } = await import('./makeupDay.js');
+        const mk = await makeupContext();
+        if (mk) parts.push(mk);
         const co = await carryoverContext();
         if (co) parts.push(co);
       } catch { failures.push('carryovers'); }

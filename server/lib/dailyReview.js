@@ -165,8 +165,10 @@ export async function buildReviewContext(vaultPath, now = new Date()) {
     return goalsContext(vaultPath); // the review reasons TOWARD these — it never had them
   });
   add('carryovers', async () => {
+    const { makeupContext } = await import('./makeupDay.js');
     const { carryoverContext } = await import('./workoutCarryover.js');
-    return carryoverContext(); // recorded training debt
+    const [mk, co] = await Promise.all([makeupContext().catch(() => null), carryoverContext()]);
+    return [mk, co].filter(Boolean).join(' ') || null; // the day's real plan + recorded debt
   });
   add('weight', async () => {
     const { weightTrendLine, sleepEfficiencyLine, vo2MaxLine } = await import('./healthData.js');

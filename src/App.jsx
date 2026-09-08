@@ -1982,6 +1982,26 @@ export default class App extends Component {
       if (job.status === 'done') { this.refreshInbox?.(); haptic('commit'); }
     }).catch(() => {});
   }
+  // MAKE-UP DAY — "today is finishing Monday's Pull", declared while planning
+  // the week. The leftovers come from his real sessions, server-side.
+  markMakeupDay(date, routineId) {
+    const conn = getConnection();
+    if (!conn || !date || !routineId) return;
+    api.setMakeupDay(conn, date, routineId)
+      .then((r) => {
+        this.loadCarryovers();
+        haptic('commit');
+        this.toastMsg(`${date}: make-up — ${r.makeup.exercises.length} left from ${r.makeup.sourceRoutineName}`);
+      })
+      .catch((e) => this.toastMsg(e.message));
+  }
+  clearMakeupDay(date) {
+    const conn = getConnection();
+    if (!conn || !date) return;
+    api.clearMakeupDay(conn, date)
+      .then(() => { this.loadCarryovers(); this.toastMsg('Back to the scheduled session'); })
+      .catch((e) => this.toastMsg(e.message));
+  }
   setFoodScanNote(e) {
     this.setState({ foodScanNote: e.target.value });
   }

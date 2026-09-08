@@ -213,6 +213,13 @@ async function composeMorning(vaultPath, now) {
     lines.push('**Training.** Schedule unavailable.');
   }
 
+  // A MAKE-UP DAY replaces the day's training line rather than adding to it
+  try {
+    const { makeupContext } = await import('./makeupDay.js');
+    const mk = await makeupContext(now);
+    if (mk) lines.push('**Today is a make-up.** ' + mk.replace(/^TODAY IS A MAKE-UP DAY, by his own plan\. /, ''));
+  } catch { /* optional */ }
+
   // carried-over exercises due today/overdue — recorded training debt the
   // day-ahead brief used to be blind to
   try {

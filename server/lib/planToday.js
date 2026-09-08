@@ -92,8 +92,10 @@ export async function buildPlanContext(vaultPath, now = new Date()) {
   add('learning', async () => (await import('./learning.js')).preferencesContext(vaultPath)); // what he tends to do (twin: the review's)
   add('morning', async () => `TODAY'S PICTURE (computed now):\n${(await composeDispatch(vaultPath, 'morning', now)).text}`);
   add('carryovers', async () => {
+    const { makeupContext } = await import('./makeupDay.js');
     const { carryoverContext } = await import('./workoutCarryover.js');
-    return carryoverContext();
+    const [mk, co] = await Promise.all([makeupContext().catch(() => null), carryoverContext()]);
+    return [mk, co].filter(Boolean).join(' ') || null;
   });
   add('todos', async () => {
     const { items } = await listTodos(vaultPath);

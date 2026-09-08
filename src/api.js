@@ -208,6 +208,9 @@ export const api = {
   addFoodLogEntry: (conn, entry) => post(conn, '/api/food-log', entry),
   editFoodLogEntry: (conn, id, body) => patch(conn, `/api/food-log/${encodeURIComponent(id)}`, body),
   deleteFoodLogEntry: (conn, id, date) => del(conn, `/api/food-log/${encodeURIComponent(id)}${date ? `?date=${encodeURIComponent(date)}` : ''}`),
+  // MAKE-UP DAY — this date is finishing a prior session, not a standard one
+  setMakeupDay: (conn, date, routineId) => post(conn, '/api/workouts/makeup', { date, routineId }),
+  clearMakeupDay: (conn, date) => del(conn, `/api/workouts/makeup/${encodeURIComponent(date)}`),
   // FORM CHECK — the protocol first, then one clip of one working set
   formCheckProtocol: (conn, exercise) => call(conn, `/api/form-check/protocol?exercise=${encodeURIComponent(exercise || '')}`),
   formCheckStart: (conn, body) => post(conn, '/api/form-check', body, { timeoutMs: 180_000 }),

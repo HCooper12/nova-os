@@ -91,7 +91,30 @@ export function TrainToday({ o, actions, resume }) {
             >▶ Resume</Interactive>
           </div>
         )}
-        {!resume && (o.today || o.restDay) && (
+        {/* MAKE-UP DAY — his own plan for today beats the weekday template.
+            Before this, a day he had moved forward to FINISH still offered a
+            full standard session (his report, 8 Sep 2026). */}
+        {!resume && o.makeup && (
+          <div style={css('flex:1 1 300px;border-radius:18px;padding:16px;position:relative;overflow:hidden;border:1px solid color-mix(in srgb, var(--nv-gold) 45%, transparent);background:color-mix(in srgb, var(--nv-gold) 06%, transparent)')}>
+            <Eyebrow tone="gold">Today is a make-up</Eyebrow>
+            <div style={css('font-size:22px;font-weight:600;letter-spacing:.03em;margin-top:2px')}>Finish {o.makeup.sourceRoutineName}</div>
+            <div style={css('color:var(--nv-ink60);font-size:12.5px;margin-top:3px;line-height:1.5')}>
+              {o.makeup.exercises.length} left{o.makeup.sourceDate ? ` from ${o.makeup.sourceDate}` : ''} — {o.makeup.exercises.map((e) => e.name).join(', ')}
+            </div>
+            {actions?.beginMakeup && (
+              <Interactive as="span" onClick={actions.beginMakeup}
+                base={btn('var(--nv-gold)', '#1a1322', { marginTop: '12px' })}
+                hoverStyle="filter:brightness(1.08)"
+              >▶ Finish the session</Interactive>
+            )}
+            {actions?.clearMakeup && (
+              <div style={{ marginTop: '10px' }}>
+                <TextAction compact tone="faint" onClick={actions.clearMakeup}>Not a make-up — run the scheduled session</TextAction>
+              </div>
+            )}
+          </div>
+        )}
+        {!resume && !o.makeup && (o.today || o.restDay) && (
           <div style={css('flex:1 1 300px;border-radius:18px;padding:16px;position:relative;overflow:hidden;border:1px solid color-mix(in srgb, var(--nv-cy) 35%, transparent);background:linear-gradient(135deg,color-mix(in srgb, var(--nv-cy) 10%, transparent),color-mix(in srgb, var(--nv-vi) 06%, transparent))')}>
             <Eyebrow tone="cyan">{o.today ? "On today's card" : 'Today'}</Eyebrow>
             <div style={css('font-size:24px;font-weight:600;letter-spacing:.04em;margin-top:2px')}>{o.today ? (isAppleStyle() ? o.today.name : o.today.name.toUpperCase()) : (isAppleStyle() ? 'Rest day' : 'REST DAY')}</div>

@@ -34,6 +34,12 @@ Every model-based agent (Ask Nova, Coach, Quick Session, Researcher, Studio)
 prepends the shared `NOVA_LENS` from `server/lib/lens.js`. Change that file
 and NOVA-METHOD.md's "Runtime lens" section together — they must match.
 
+## When you need a decision from him
+State it PLAINLY at the end of the response, in its own short list: what the
+decision is, and what happens either way. No decision buried in prose, no
+"still his" list of vague chores mixed in with it. If nothing needs deciding,
+say that. (His instruction, 8 Sep 2026.)
+
 ## Anything he can see
 Every new surface ships in **both** Home idioms from one view model (his
 phone runs `cupertino` → `MissionStructured`), wears the house objects

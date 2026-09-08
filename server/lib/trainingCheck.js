@@ -217,7 +217,13 @@ export async function runTrainingCheck(vaultPath) {
     return { proposed: true, record, carried: true };
   }
 
-  const plannedName = scheduledRoutine ? scheduledRoutine.name : (calWorkout ? calWorkout.label : 'a workout');
+  let plannedName = scheduledRoutine ? scheduledRoutine.name : (calWorkout ? calWorkout.label : 'a workout');
+  // a make-up day is not the scheduled session — ask about what he planned
+  try {
+    const { makeupFor } = await import('./makeupDay.js');
+    const makeup = await makeupFor(t);
+    if (makeup) plannedName = `the ${makeup.sourceRoutineName} make-up (${makeup.exercises.length} exercise${makeup.exercises.length === 1 ? '' : 's'})`;
+  } catch { /* optional */ }
   const trainBit = scheduledRoutine
     ? `${scheduledRoutine.name} is on your Train schedule`
     : isActiveRest ? 'Train has today as active rest' : 'Train has no routine set for today';

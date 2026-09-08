@@ -36,10 +36,18 @@ export function valsWorkouts(app, ctx) {
     done: st.workoutSession.exercises.reduce((n, e2) => n + e2.sets.filter((s2) => s2.done).length, 0),
     go: () => app.setState({ trainTab: 'gym', workoutsView: 'session' }),
   } : null;
+  const todayIsoDate = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
   const trainToday = {
     o: overview,
     resume: parked,
     actions: {
+      // MAKE-UP DAY: start the leftovers themselves, or drop back to the plan
+      beginMakeup: overview?.makeup ? () => {
+        const co = (st.liveCarryovers || []).find((c) => c.id === overview.makeup.id) || overview.makeup;
+        app.setState({ trainTab: 'gym' });
+        app.startCarryoverSession(co);
+      } : null,
+      clearMakeup: overview?.makeup ? () => app.clearMakeupDay(todayIsoDate) : null,
       // BEGIN lands you in the logger; feed cards land you in the Coach
       // with the question already asked — every card is a doorway
       begin: overviewRoutine ? () => { app.setState({ trainTab: 'gym' }); app.startWorkoutSession(overviewRoutine); } : null,
@@ -120,8 +128,17 @@ export function valsWorkouts(app, ctx) {
     const carryoverNote = dayCarryovers.length
       ? `+ ${dayCarryovers.map((c) => `${c.sourceRoutineName} round-up · ${c.exercises.length}`).join(' & ')}`
       : null;
+    // MAKE-UP DAY — declared while planning the week: this DATE finishes a
+    // prior session instead of running the scheduled one.
+    const dayDate = dateForWeekday(day);
+    const dayMakeup = dayCarryovers.find((c) => c.plannedAs === 'day') || null;
     return {
       day, dayLabel: WEEKDAY_SHORT[day], isToday, carryoverNote,
+      date: dayDate,
+      makeup: dayMakeup ? { sourceRoutineName: dayMakeup.sourceRoutineName, count: dayMakeup.exercises.length, sourceDate: dayMakeup.sourceDate || null } : null,
+      makeupOptions: liveRoutines.map((r) => ({ value: r.id, label: `Finish ${r.name}` })),
+      setMakeup: (e) => { const id = e.target.value; if (id) app.markMakeupDay(dayDate, id); e.target.value = ''; },
+      clearMakeup: () => app.clearMakeupDay(dayDate),
       style: { flex: '1', minWidth: '62px', textAlign: 'center', padding: '10px 6px', borderRadius: '10px',
         border: isToday ? '1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent)' : '1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)',
         background: isToday ? 'color-mix(in srgb, var(--nv-cy) 07%, transparent)' : 'rgba(0,0,0,.18)',

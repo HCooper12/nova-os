@@ -66,7 +66,7 @@ export async function carryoverContext() {
   return `Carried-over exercises (missed work pushed forward — real training debt): ${bits.join('; ')}.`;
 }
 
-export async function addCarryover({ forDate, sourceRoutineName, exercises }) {
+export async function addCarryover({ forDate, sourceRoutineName, exercises, plannedAs = null, sourceRoutineId = null, sourceDate = null, note = '' }) {
   if (!DATE_RE.test(forDate || '')) throw new Error('forDate must be YYYY-MM-DD');
   const ex = normalizeExercises(exercises);
   if (!ex.length) throw new Error('no exercises to carry over');
@@ -77,6 +77,9 @@ export async function addCarryover({ forDate, sourceRoutineName, exercises }) {
     sourceRoutineName: String(sourceRoutineName || '').trim().slice(0, 80) || 'Workout',
     exercises: ex,
     createdAt: new Date().toISOString(),
+    // MAKE-UP DAY (lib/makeupDay.js): 'day' means this IS the plan for that
+    // date, not extra debt waiting on it. Absent on every ordinary carry-over.
+    ...(plannedAs ? { plannedAs, sourceRoutineId, sourceDate, ...(note ? { note } : {}) } : {}),
   };
   carryovers.push(record);
   await save(carryovers);
