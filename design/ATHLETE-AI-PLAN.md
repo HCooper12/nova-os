@@ -102,6 +102,23 @@ last week at an 88g average against 150g, and nothing in Nova said so at the
 moment it could still be fixed.
 
 ### 3. ITEMISED PLATE
+
+**BUILT — 8 Sep 2026.** The contract: **when an entry has items, its macros
+ARE the sum of them** (`macrosOfItems` in `foodLog.js`) — that is what makes
+dropping one line arithmetically honest. `addEntry({items})` stores and sums
+them; `removeEntryItem` recomputes the meal and takes the meal with the last
+line; `restoreEntryItem` is the undo (it rebuilds an entry its last delete
+emptied, clock time and provenance intact); editing an entry's totals by hand
+DROPS its lines, because they no longer describe the number. Routes:
+`DELETE /api/food-log/:id/item/:itemId`, `POST …/item/restore`. The describe
+path already produced USDA-sourced components and threw them away at logging
+time — now they ride. The meal/auto scan prompts ask for the breakdown too
+(one line is not a breakdown, so a single component is dropped). On the
+glass: lines under the entry with their own tap target, the pending breakdown
+above the form before he logs, and a visible "Undo — put X back" for 30 s.
+Verified live 8 Sep on his real log: 3-line plate → total 510 (code-summed,
+not the model's), dropped a line → 350, undo → 510 with the line back in
+position; test entry removed and his day confirmed byte-identical to before.
 When a photo or a sentence is logged, keep the model's per-component
 breakdown (3 eggs · 19P · 21 kcal, sourdough 54g · 140 kcal …) instead of
 collapsing to a total. Each line individually deletable — which is what makes

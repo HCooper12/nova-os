@@ -48,12 +48,13 @@ export function foodLogRouter(vaultPath) {
 
   router.post('/food-log', async (req, res) => {
     try {
-      const { name, macros, source, date } = req.body || {};
+      const { name, macros, source, date, items } = req.body || {};
       if (typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'name is required' });
       if (!macros || [macros.p, macros.c, macros.f, macros.kcal].some((n) => typeof n !== 'number' || Number.isNaN(n) || n < 0)) {
         return res.status(400).json({ error: 'macros.p/c/f/kcal must be non-negative numbers' });
       }
-      const day = await addEntry({ name: name.trim(), macros, source, date });
+      // items ride through: when a plate is itemised, addEntry sums the lines
+      const day = await addEntry({ name: name.trim(), macros, source, date, items });
       // Snapshot the day that CHANGED, not just today: a retro edit used to
       // be skipped, so the archive (and every weekly/monthly scorecard built
       // on it) stayed permanently wrong for that date.
@@ -85,6 +86,26 @@ export function foodLogRouter(vaultPath) {
       res.json(day);
     } catch (err) {
       res.status(400).json({ error: err.message });
+    }
+  });
+
+  // one line off an itemised plate — and its undo
+  router.delete('/food-log/:id/item/:itemId', async (req, res) => {
+    try {
+      const { removeEntryItem } = await import('../lib/foodLog.js');
+      res.json(await removeEntryItem(req.query.date, req.params.id, req.params.itemId));
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  router.post('/food-log/:id/item/restore', async (req, res) => {
+    try {
+      const { restoreEntryItem } = await import('../lib/foodLog.js');
+      const b = req.body || {};
+      res.json({ day: await restoreEntryItem(b.date, req.params.id, b.item, b.index, b.entry) });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
     }
   });
 

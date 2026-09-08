@@ -44,13 +44,14 @@ How to combine the photos:
 
 - name: a short, natural name for what was eaten (use the product/packaging name when visible)
 - macros: {p, c, f, kcal} — the total for everything actually eaten across the photos; grams for p/c/f, whole-number kcal
+- components: the plate broken into the parts you can actually see, each {name, grams, p, c, f, kcal} — "3 eggs" 150g, "sourdough" 54g, "half an avocado" 70g. They MUST add up to the total above: Nova sums your lines and shows him the sum, and he can delete any single line he thinks is wrong. Prefer FEWER, well-judged lines over many guessed ones; when the thing eaten is genuinely one item (a labelled product, a single bar), return one line for it.
 - confidence: "high" or "low" — low if the portion or a key value genuinely can't be pinned down from the photos + note
 - question: if confidence is low, ONE short clarifying question that would most improve the estimate. Empty string if high.${noteLine}${notFoodInstruction}
 
 Image path(s):
 ${imageList}
 
-Output ONLY a JSON object with exactly these keys: name, macros, confidence, question. No markdown, no code fences, no commentary before or after.`;
+Output ONLY a JSON object with exactly these keys: name, macros, components, confidence, question. No markdown, no code fences, no commentary before or after.`;
   }
 
   if (mode === 'meal') {
@@ -58,13 +59,14 @@ Output ONLY a JSON object with exactly these keys: name, macros, confidence, que
 
 - name: a short, natural description of what's in the photo
 - macros: {p, c, f, kcal} — your best estimate for the portion shown (grams of protein/carbs/fat, whole-number kcal)
+- components: the plate broken into the parts you can actually see, each {name, grams, p, c, f, kcal} — "chicken thigh" 180g, "jasmine rice" 200g, "sauce" 40g. They MUST add up to the total above: Nova sums your lines and shows him the sum, and he can delete any single line he thinks is wrong. Prefer FEWER, well-judged lines over many guessed ones.
 - confidence: "high" or "low" — low if portion size, hidden ingredients (oil, sauce, dressing), or preparation are genuinely hard to judge from the photo
 - question: if confidence is low, ONE short clarifying question that would meaningfully improve the estimate. Empty string if confidence is high.${noteLine}${notFoodInstruction}
 
 Image path(s):
 ${imageList}
 
-Output ONLY a JSON object with exactly these keys: name, macros, confidence, question. No markdown, no code fences, no commentary before or after.`;
+Output ONLY a JSON object with exactly these keys: name, macros, components, confidence, question. No markdown, no code fences, no commentary before or after.`;
   }
 
   if (mode === 'label-per100') {
@@ -123,8 +125,25 @@ Also give:
 Output ONLY a JSON object with exactly these keys: name, components, confidence, question — where components is an array of {name, grams}. No markdown, no code fences, no commentary.`;
 }
 
+// THE ITEMISED PLATE (ATHLETE-AI-PLAN #3): a photo's breakdown is kept, not
+// collapsed. Shape matches the describe path's USDA components so the log,
+// the preview and the delete-one-line path all read one thing. A line with no
+// name or no energy is dropped rather than shown as a zero.
+function normalizeComponents(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((c) => {
+    const name = String(c?.name || '').trim().slice(0, 80);
+    const m = c?.macros && typeof c.macros === 'object' ? c.macros : c || {};
+    const macros = { p: Number(m.p) || 0, c: Number(m.c) || 0, f: Number(m.f) || 0, kcal: Math.round(Number(m.kcal) || 0) };
+    if (!name || macros.kcal <= 0) return null;
+    const grams = Number(c?.grams);
+    return { name, ...(Number.isFinite(grams) && grams > 0 ? { grams: Math.round(grams) } : {}), macros };
+  }).filter(Boolean).slice(0, 24);
+}
+
 function normalizeResult(parsed) {
   const macros = parsed.macros || {};
+  const components = normalizeComponents(parsed.components);
   return {
     name: String(parsed.name || '').trim(),
     macros: {
@@ -133,6 +152,8 @@ function normalizeResult(parsed) {
       f: Number(macros.f) || 0,
       kcal: Number(macros.kcal) || 0,
     },
+    // one line is not a breakdown — it is the same number twice
+    ...(components.length > 1 ? { components } : {}),
     confidence: parsed.confidence === 'low' ? 'low' : 'high',
     question: parsed.question ? String(parsed.question).trim() : '',
     // label-per100 mode (the recipe editor) — absent on every other scan

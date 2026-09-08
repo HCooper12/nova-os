@@ -331,14 +331,39 @@ export function valsRecipes(app, ctx) {
     fuelWeek: usingLiveRecipes ? (st.liveNutritionWeek || null) : null,
     // the pane renders the SELECTED day (today by default, a past day when
     // the retro strip picks one) — gauges elsewhere stay on today's numbers
+    // THE ITEMISED PLATE — the lines a photo or a sentence produced, kept
+    // instead of collapsed, each one droppable on its own (the entry's total
+    // is the server's sum of them, so the arithmetic can never drift).
     foodLogEntries: viewEntries.map((e) => ({
       id: e.id, time: e.time, name: e.name,
+      items: (e.items || []).map((it) => ({
+        id: it.id, name: it.name, grams: it.grams || null,
+        macros: `${Math.round(it.macros.p)}P · ${Math.round(it.macros.kcal)} kcal`,
+        source: it.source || null, sourced: !!it.sourced,
+        remove: () => app.deleteFoodLogItem(e.id, it.id),
+      })),
       p: Math.round(e.macros.p), c: Math.round(e.macros.c), f: Math.round(e.macros.f), kcal: Math.round(e.macros.kcal),
       remove: () => app.deleteFoodLogEntry(e.id),
       edited: !!e.edited,
       edit: () => app.startFoodEntryEdit({ id: e.id, name: e.name, p: Math.round(e.macros.p), c: Math.round(e.macros.c), f: Math.round(e.macros.f), kcal: Math.round(e.macros.kcal) }),
       editing: st.foodEditId === e.id,
     })),
+    // one tap back from a line he dropped — visible, not just a toast
+    foodItemUndo: st.foodItemUndo ? {
+      label: `Undo — put ${st.foodItemUndo.item?.name || 'that line'} back`,
+      run: () => app.undoFoodLogItem(),
+    } : null,
+    // the breakdown a scan produced, before he logs it
+    foodLogPending: st.foodLogItems?.length ? {
+      count: st.foodLogItems.length,
+      lines: st.foodLogItems.map((it, i) => ({
+        key: `${i}-${it.name}`,
+        name: it.name,
+        grams: it.grams || null,
+        macros: `${Math.round(it.macros?.p ?? it.p ?? 0)}P · ${Math.round(it.macros?.kcal ?? it.kcal ?? 0)} kcal`,
+        source: it.source || null,
+      })),
+    } : null,
     foodEdit: st.foodEditId ? {
       name: st.foodEditName,
       setName: (ev) => app.setState({ foodEditName: typeof ev === 'string' ? ev : ev.target.value }),

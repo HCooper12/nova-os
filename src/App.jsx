@@ -401,6 +401,7 @@ export default class App extends Component {
     // its adds/removes to that day, while today's gauges keep liveFoodLog
     foodLogDate: null, liveFoodLogView: null,
     liveStash: null, stashAddCategory: '', stashAddName: '', stashAddUrl: '', stashAddNote: '', stashAddBusy: false, stashAddError: null, stashRemoveConfirm: null,
+    foodLogItems: null, foodItemUndo: null, // THE ITEMISED PLATE: the lines a scan produced, and the last one dropped
     foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogBusy: false, foodLogError: null,
     foodScanNote: '', foodScanPhotos: [], foodScanBusy: false, foodScanSlow: false, foodScanError: null, foodScanQuestion: null, foodLogFillSource: null,
     foodDescribeInput: '',
@@ -1774,7 +1775,11 @@ export default class App extends Component {
     });
   }
   setFoodLogField(field, e) {
-    this.setState({ [field]: e.target.value });
+    // Typing over a macro makes the scan's lines a lie — they no longer add
+    // up to what he is about to log. Same rule the server applies on edit.
+    const drops = field !== 'foodLogName' && this.state.foodLogItems;
+    this.setState({ [field]: e.target.value, ...(drops ? { foodLogItems: null } : {}) });
+    if (drops) this.toastMsg('Your number now — the itemised lines were dropped');
   }
   // Retro tracking: flip the food log to a past day. The list, adds, and
   // removes all address THAT day; today's gauges keep reading liveFoodLog.
@@ -1834,6 +1839,8 @@ export default class App extends Component {
     const date = this.state.foodLogDate || undefined;
     if (!conn || !name) return;
     const source = this.state.foodLogFillSource || 'manual';
+    // the plate's lines, when a scan or a description produced them
+    const items = this.state.foodLogItems || undefined;
     // OPTIMISTIC: the entry appears (and the macro gauges move) in the same
     // frame, and the form clears so the next thing can be typed immediately.
     // Duplication is impossible by construction — the server's reply carries
@@ -1846,7 +1853,7 @@ export default class App extends Component {
       foodLogF: this.state.foodLogF, foodLogKcal: this.state.foodLogKcal, foodLogFillSource: this.state.foodLogFillSource,
     };
     const clearForm = {
-      foodLogBusy: false, foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogFillSource: null,
+      foodLogBusy: false, foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogFillSource: null, foodLogItems: null,
       foodScanQuestion: null, foodScanQAPhotos: [], foodScanQANote: '', foodScanAnswer: '',
     };
     if (previousDay?.entries) {
@@ -1855,7 +1862,7 @@ export default class App extends Component {
       this.applyFoodLogDay({ ...previousDay, entries: [...previousDay.entries, { id: `pending-${Date.now()}`, name, macros, source, pending: true }] });
     }
     this.setState({ ...clearForm, foodLogBusy: true, foodLogError: null });
-    api.addFoodLogEntry(conn, { name, macros, source, date }).then((day) => {
+    api.addFoodLogEntry(conn, { name, macros, source, date, items }).then((day) => {
       this.noteLocalWrite('foodLog');
       this.applyFoodLogDay(day); // whole-day replace — the temp row is gone
       this.setState({ foodLogBusy: false });
@@ -1893,6 +1900,37 @@ export default class App extends Component {
         if (previousDay) this.applyFoodLogDay(previousDay);
         this.toastMsg('Could not remove entry: ' + e.message);
       });
+  }
+  // THE ITEMISED PLATE — drop one line of a meal. The whole day comes back
+  // from the server, so the total on screen is always the server's sum.
+  deleteFoodLogItem(entryId, itemId) {
+    const conn = getConnection();
+    if (!conn) return;
+    const date = this.state.foodLogDate || undefined;
+    haptic('tick');
+    api.removeFoodLogItem(conn, entryId, itemId, date)
+      .then((out) => {
+        this.noteLocalWrite('foodLog');
+        this.applyFoodLogDay(out.day);
+        this.setState({ foodItemUndo: { entryId, date, item: out.removed, index: out.index, entry: out.entry, at: Date.now() } });
+        clearTimeout(this.foodItemUndoT);
+        this.foodItemUndoT = setTimeout(() => this.setState({ foodItemUndo: null }), 30000);
+        this.toastMsg(`Removed ${out.removed?.name || 'that line'}${out.entryRemoved ? ' — the meal went with it' : ''}`);
+      })
+      .catch((e) => this.toastMsg('Could not remove that line: ' + e.message));
+  }
+  undoFoodLogItem() {
+    const conn = getConnection();
+    const u = this.state.foodItemUndo;
+    if (!conn || !u) return;
+    api.restoreFoodLogItem(conn, u.entryId, { date: u.date, item: u.item, index: u.index, entry: u.entry })
+      .then((r) => {
+        this.noteLocalWrite('foodLog');
+        this.applyFoodLogDay(r.day);
+        this.setState({ foodItemUndo: null });
+        this.toastMsg(`${u.item?.name || 'That line'} is back`);
+      })
+      .catch((e) => this.toastMsg('Could not put it back: ' + e.message));
   }
   setFoodScanNote(e) {
     this.setState({ foodScanNote: e.target.value });
@@ -1950,6 +1988,7 @@ export default class App extends Component {
           this.setState({
             foodScanBusy: false, foodScanError: null, foodDescribeInput: '',
             foodLogFillSource: 'described',
+            foodLogItems: r.components?.length > 1 ? r.components : null,
             foodScanQuestion: asks ? r.question : null,
             foodScanQAPhotos: [], foodScanQANote: asks ? meta.text : '',
             foodLogName: r.name || meta.text,
@@ -1964,6 +2003,7 @@ export default class App extends Component {
             foodScanBusy: false, foodScanError: null,
             foodScanPhotos: [], foodScanNote: '',
             foodLogFillSource: 'scan', // provenance survives to the log entry
+            foodLogItems: r.components?.length > 1 ? r.components : null,
             foodScanQuestion: asks ? r.question : null,
             // keep what produced the question so an answer can re-estimate
             // (answering is optional — the fields below are always saveable)

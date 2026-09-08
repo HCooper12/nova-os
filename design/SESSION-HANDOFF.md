@@ -13,55 +13,60 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**8 SEP — WRAP THE DAY IS BUILT (and open-it-for-real + the Intake landed
-earlier the same morning, d46fe90).**
+**8 SEP — FOUR THINGS SHIPPED: open-it-for-real, the Intake, wrap the day,
+and the itemised plate. Plus THE SURFACE STANDARD, which now governs every
+new build.**
 
-**Wrap the day (ATHLETE-AI-PLAN #2).** `server/lib/wrapDay.js`, no model:
-counts today's food against the collection's targets, names the ONE dish
-that still closes tonight's protein gap (fridge first; one that finishes
-the gap beats a smaller one that only dents it; never one that blows the
-calorie room), and ranks the one thing tomorrow needs — empty fridge →
-missed floor → stale scales → tomorrow's session → hold the line. It says
-what it could not read instead of guessing. `GET /api/wrap`. On the glass:
-the Home card above the hero (shows once the plan is ticked or after 6pm,
-dismissible for the day, READ IT TO ME / OPEN FUEL) and "wrap the day" in
-the chat — `WRAP_RE` also catches "how did today go" and "did I hit my
-protein", which would otherwise go to Coach and be answered by a model
-instead of counted. Refreshes on every food-log write and rotation tick.
+**THE SURFACE STANDARD (NOVA-METHOD.md §2b, pointed at from CLAUDE.md).**
+His instruction: new builds must feel Apple-like, dynamic and unique like
+the rest of Nova, "standard moving forward for any new builds". Seven rules;
+the one that bites hardest: **ship it in BOTH Home idioms from ONE view
+model — his phone runs `cupertino`, where `MissionControl` returns
+`MissionStructured`, so a card added only to the classic fold does not exist
+for him.** That is exactly how the first wrap card shipped. Also: house
+objects only (`RingTile`, the serif news line, AppleLayout groups,
+`Controls.jsx` for every label/action), sentence case in vals, real tokens
+only (`--nv-blue` and `--nv-ink70` DO NOT EXIST and fail silently), an
+entrance animation, `minWidth: 0` + measure `scrollWidth` at 375, and verify
+in both styles before shipping.
 
-**Verified live 8 Sep:** the API against his real vault (targets 2200/150,
-3 counted fridge dishes, tomorrow "Pull", closer = Animal Style Potato
-Bowl); "wrap the day" in the composer → card on the glass + spoken line;
-the Home card's render, chips and dismissal checked with an INJECTED
-evening payload (client state only, nothing written) because the real
-evening had not happened yet. **The first real one is tonight** — after he
-logs a meal and 6pm passes, the card should appear on Home.
+**Itemised plate (ATHLETE-AI-PLAN #3, this session's last build).** The
+contract every reader depends on: **an entry with `items` has macros equal
+to the sum of them**. Drop one line → the meal recomputes; drop the last →
+the meal goes; undo rebuilds it. Editing totals by hand drops the lines.
+`DELETE /api/food-log/:id/item/:itemId` + `POST …/item/restore`. The
+describe path's USDA components used to be thrown away at logging time; the
+meal/auto scan prompts now return a breakdown too. Verified on his REAL log
+(logged a 3-line plate, dropped a line 510→350, undid it 350→510, deleted
+the test entry, confirmed his day matched byte-for-byte what it was).
 
-**Two things the build caught:** `loadExerciseLibrary` returns `{exercises}`,
-not the array — passing the wrapper to `loadRoutines` threw and tomorrow
-silently went blank (honest degradation hid a bug; the test now pins the
-wrapper shape). And `--nv-blue` / `--nv-ink70` are NOT tokens — the chips
-rendered borderless. The house chip style is `--nv-cy` + `--nv-ink60`,
-radius 7px.
+**A pre-existing bug this caught:** the food-log rows overflowed at 375px —
+the remove × sat outside the row (measured: scrollWidth 351 vs client 305).
+Rows are now title-over-macros in the iOS list idiom.
 
-**Earlier the same morning (d46fe90):** open it for real — a page the hand
-found opens in Nova's OWN visible Chrome, on its own profile
-(`~/.nova-browser-view`, because a visible window on the hand's profile
-locks the next headless run out); the page a run finished on rides the
-hand's final `BROWSE {…url}` block. And THE INTAKE — seven questions in the
-chat, Mifflin-St Jeor printed line by line, his yes writes the collection's
-targets and his profile page, both undoable.
+**Earlier today:** open it for real (Nova's own visible Chrome on its OWN
+profile `~/.nova-browser-view`, because a visible window on the hand's
+profile locks the next headless run out; the finished-on URL rides the
+hand's final `BROWSE {…url}` block) and THE INTAKE (seven questions,
+Mifflin-St Jeor printed line by line, his yes writes the collection's
+targets and his profile page, both undoable) — d46fe90. Wrap the day —
+3f39dfe. The restyle + standard — 31abe03.
 
-**NEXT in this line:** ITEMISED PLATE, FORM CHECK, THE STUDY LANE from
-`design/ATHLETE-AI-PLAN.md`, in order. Also unexercised: a real
-stopped-before-a-button browse run (the `browse-press` yes).
+**NEXT:** FORM CHECK, then THE STUDY LANE (ATHLETE-AI-PLAN #4, #5). Still
+unexercised: a real stopped-before-a-button browse run (`browse-press`).
 
 **STILL HIS:** say "set my numbers" (the collection still reads 2200 kcal /
-150 g, typed once, never derived); the stale ingest weave 9e994aae; cook
-something and tell Nova; the phone-in-hand gym check; a real browser
-commit; Xcode.
+150 g, typed once, never derived); the first real Wrap card tonight; the
+stale ingest weave 9e994aae; cook something and tell Nova; the
+phone-in-hand gym check; a real browser commit; Xcode.
 
 ## SESSION LOG (append-only, newest first)
+
+### 8 September 2026 (late morning) — the surface standard, and the itemised plate
+The wrap card rebuilt on the house objects and added to the Apple twin (it
+was invisible on his phone); the standard written up as NOVA-METHOD.md §2b.
+Then ATHLETE-AI-PLAN #3: per-line plates, each line droppable, undo, and the
+sum-owns-the-total contract. 1203 tests green; verified on his real log.
 
 ### 8 September 2026 (morning, second pass) — wrap the day
 The end-of-day sentence: lib/wrapDay.js (facts, closer, ranked ask,

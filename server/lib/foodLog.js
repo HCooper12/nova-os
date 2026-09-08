@@ -70,11 +70,51 @@ export async function getToday() {
 // which is exactly what "it didn't stay there" looked like.
 const withWriteLock = createWriteLock();
 
-export async function addEntry({ name, macros, source, date }) {
-  return withWriteLock(() => addEntryUnlocked({ name, macros, source, date }));
+// THE ITEMISED PLATE (design/ATHLETE-AI-PLAN.md #3). A photo or a sentence
+// arrives as a BREAKDOWN — 3 eggs, sourdough 54 g, half an avocado — and
+// Nova used to collapse it to one total the moment it was logged. A wrong
+// total is then a lie he has to accept whole: delete the meal and retype it,
+// or live with it. Keeping the lines makes it correctable instead.
+//
+// The contract, and every reader depends on it: WHEN AN ENTRY HAS ITEMS, ITS
+// MACROS ARE THE SUM OF THEM, computed here. That is what makes deleting one
+// line arithmetically honest. Editing an entry's totals by hand therefore
+// DROPS its items — they no longer describe the number.
+const ITEM_CAP = 24;
+export function normalizeItems(items) {
+  if (!Array.isArray(items)) return [];
+  return items.map((raw) => {
+    const name = String(raw?.name || '').trim().slice(0, 80);
+    if (!name) return null;
+    const m = raw?.macros || raw || {};
+    const macros = { p: round1(m.p), c: round1(m.c), f: round1(m.f), kcal: Math.round(Math.max(0, Number(m.kcal) || 0)) };
+    const grams = Number(raw?.grams);
+    return {
+      id: randomUUID().slice(0, 6),
+      name,
+      ...(Number.isFinite(grams) && grams > 0 ? { grams: Math.round(grams) } : {}),
+      macros,
+      // where the number came from — "USDA — egg, whole, raw (SR Legacy)" or
+      // "estimated, not matched to a database". Shown, never invented.
+      ...(raw?.source ? { source: String(raw.source).slice(0, 120) } : {}),
+      ...(raw?.sourced != null ? { sourced: !!raw.sourced } : {}),
+    };
+  }).filter(Boolean).slice(0, ITEM_CAP);
+}
+const round1 = (n) => Math.round(Math.max(0, Number(n) || 0) * 10) / 10;
+export function macrosOfItems(items = []) {
+  const t = items.reduce((a, it) => ({
+    p: a.p + (Number(it.macros?.p) || 0), c: a.c + (Number(it.macros?.c) || 0),
+    f: a.f + (Number(it.macros?.f) || 0), kcal: a.kcal + (Number(it.macros?.kcal) || 0),
+  }), { p: 0, c: 0, f: 0, kcal: 0 });
+  return { p: round1(t.p), c: round1(t.c), f: round1(t.f), kcal: Math.round(t.kcal) };
 }
 
-async function addEntryUnlocked({ name, macros, source, date }) {
+export async function addEntry({ name, macros, source, date, items }) {
+  return withWriteLock(() => addEntryUnlocked({ name, macros, source, date, items }));
+}
+
+async function addEntryUnlocked({ name, macros, source, date, items }) {
   const target = resolveLogDate(date);
   const day = await loadDay(target);
   const entry = {
@@ -88,6 +128,12 @@ async function addEntryUnlocked({ name, macros, source, date }) {
   // How it was logged — 'scan' | 'barcode' | 'manual' | 'history'. Optional and
   // additive: older entries simply lack it and every reader tolerates that.
   if (source) entry.source = String(source).slice(0, 20);
+  // the plate, itemised — and the total becomes the sum of its lines
+  const lines = normalizeItems(items);
+  if (lines.length) {
+    entry.items = lines;
+    entry.macros = macrosOfItems(lines);
+  }
   day.entries.push(entry);
   await saveDay(day);
   return day;
@@ -154,7 +200,55 @@ export async function editEntryOn(date, entryId, { name, macros }) {
         if (macros[k] != null) entry.macros[k] = Math.max(0, Number(macros[k]) || 0);
       }
     }
+    // His numbers now, not the breakdown's: keeping lines that no longer add
+    // up to the total would be the fiction this feature exists to remove.
+    if (macros && entry.items) delete entry.items;
     entry.edited = true; // an amended number is not the original estimate
+    await saveDay(day);
+    return day;
+  });
+}
+
+// Drop ONE line of a plate. The entry's total is recomputed from what is
+// left; when the last line goes so does the entry, because an empty plate is
+// not a meal. Everything needed to put it back rides in the return.
+export async function removeEntryItem(date, entryId, itemId) {
+  return withWriteLock(async () => {
+    const target = resolveLogDate(date);
+    const day = await loadDay(target);
+    const entry = day.entries.find((e) => e.id === entryId);
+    if (!entry) throw new Error('that entry is no longer there');
+    if (!entry.items?.length) throw new Error('that entry has no itemised lines');
+    const index = entry.items.findIndex((it) => it.id === itemId);
+    if (index < 0) throw new Error('that line is no longer there');
+    const [removed] = entry.items.splice(index, 1);
+    const entryRemoved = entry.items.length === 0;
+    if (entryRemoved) day.entries = day.entries.filter((e) => e.id !== entryId);
+    else entry.macros = macrosOfItems(entry.items);
+    await saveDay(day);
+    return { day, removed, index, entryRemoved, entry: entryRemoved ? { name: entry.name, source: entry.source, time: entry.time } : null };
+  });
+}
+
+// The undo. A line goes back where it was; a plate emptied by the last delete
+// comes back whole, with its clock time and provenance intact.
+export async function restoreEntryItem(date, entryId, item, index = -1, entryShell = null) {
+  return withWriteLock(async () => {
+    const target = resolveLogDate(date);
+    const day = await loadDay(target);
+    const line = normalizeItems([item])[0];
+    if (!line) throw new Error('nothing to put back');
+    if (item?.id) line.id = String(item.id).slice(0, 8);
+    let entry = day.entries.find((e) => e.id === entryId);
+    if (!entry) {
+      entry = { id: entryId, ...(entryShell?.time ? { time: entryShell.time } : {}), name: entryShell?.name || line.name, macros: { p: 0, c: 0, f: 0, kcal: 0 }, items: [] };
+      if (entryShell?.source) entry.source = entryShell.source;
+      day.entries.push(entry);
+    }
+    entry.items = entry.items || [];
+    const at = index >= 0 && index <= entry.items.length ? index : entry.items.length;
+    entry.items.splice(at, 0, line);
+    entry.macros = macrosOfItems(entry.items);
     await saveDay(day);
     return day;
   });

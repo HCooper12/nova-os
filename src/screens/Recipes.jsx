@@ -482,14 +482,43 @@ export function Recipes({ v }) {
             </div>
           )}
           {v.foodLogError && <div style={css("margin-top:8px;font-size:12px;color:#e08f6f")}>{v.foodLogError}</div>}
+          {v.foodLogPending && (
+            <div style={css("margin-top:10px;border:1px solid color-mix(in srgb, var(--nv-good) 30%, transparent);border-radius:11px;padding:11px 13px;background:color-mix(in srgb, var(--nv-good) 05%, transparent)")}>
+              <Eyebrow tone="good">Broken down into {v.foodLogPending.count} lines</Eyebrow>
+              <div style={css("margin-top:7px;display:flex;flex-direction:column;gap:3px")}>
+                {v.foodLogPending.lines.map((l) => (
+                  <div key={l.key} style={css("display:flex;align-items:baseline;gap:8px;min-width:0")}>
+                    <span style={css("min-width:0;flex:1;font-size:12.5px;color:color-mix(in srgb, var(--nv-ink) 80%, transparent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap")} title={l.source || undefined}>
+                      {l.name}{l.grams ? ` · ${l.grams} g` : ''}
+                    </span>
+                    <span style={css("flex:none;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{l.macros}</span>
+                  </div>
+                ))}
+              </div>
+              <Meta tone="faint" style={{ display: 'block', marginTop: '7px' }}>They ride with the entry — you can drop any single line after logging.</Meta>
+            </div>
+          )}
+          {v.foodItemUndo && (
+            <div style={css("margin-top:10px")}>
+              <TextAction onClick={v.foodItemUndo.run}>{v.foodItemUndo.label}</TextAction>
+            </div>
+          )}
           {v.foodLogEntries.length > 0 && (
             <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:6px")}>
               {v.foodLogEntries.map((e) => (
-                <div key={e.id} style={css("display:flex;align-items:center;gap:10px;font-size:12.5px;padding:6px 0;border-top:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent)")}>
+                <div key={e.id}>
+                <div style={css("display:flex;align-items:center;gap:10px;font-size:12.5px;padding:6px 0;border-top:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent)")}>
                   <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 40%, transparent);width:40px;flex:none")}>{e.time}</span>
-                  <span style={css("flex:1")}>{e.name}</span>
-                  <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 50%, transparent);flex:none")}>{e.p}P · {e.c}C · {e.f}F · {e.kcal}kcal</span>
-                  {e.edited && <Tag tone="gold" title="amended after logging" style={{ flex: 'none' }}>Edited</Tag>}
+                  {/* title over macros, iOS-list style: side by side, a long
+                      name plus four macro figures pushed the ✎ and × past the
+                      row's right edge at 375px (measured, not guessed) */}
+                  <span style={css("min-width:0;flex:1;display:flex;flex-direction:column;gap:1px")}>
+                    <span style={css("overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{e.name}</span>
+                    <span style={css("display:flex;align-items:center;gap:7px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 50%, transparent)")}>
+                      <span>{e.p}P · {e.c}C · {e.f}F · {e.kcal}kcal</span>
+                      {e.edited && <Tag tone="gold" title="amended after logging" style={{ flex: 'none' }}>Edited</Tag>}
+                    </span>
+                  </span>
                   {/* a 44px tap target either side — these rows sit close together */}
                   <Interactive as="span" onClick={e.edit} aria-label={`Edit ${e.name}`}
                     base="cursor:pointer;flex:none;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:12px;color:color-mix(in srgb, var(--nv-ink) 35%, transparent)"
@@ -497,6 +526,28 @@ export function Recipes({ v }) {
                   <Interactive as="span" onClick={e.remove} aria-label={`Remove ${e.name}`}
                     base="cursor:pointer;flex:none;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:13px;color:color-mix(in srgb, var(--nv-ink) 35%, transparent)"
                     hoverStyle="color:var(--nv-warn)">×</Interactive>
+                </div>
+                {/* THE ITEMISED PLATE — what the photo or the sentence was
+                    broken into. Each line goes on its own, and the meal's
+                    total is the server's sum of the ones that are left, so a
+                    wrong estimate is correctable instead of all-or-nothing. */}
+                {e.items.length > 0 && (
+                  <div style={css("margin:2px 0 4px 50px;display:flex;flex-direction:column;gap:2px")}>
+                    {e.items.map((it) => (
+                      <div key={it.id} style={css("display:flex;align-items:center;gap:8px;min-width:0")}>
+                        <span style={css("flex:none;color:color-mix(in srgb, var(--nv-ink) 26%, transparent);font-size:11px")}>└</span>
+                        <span style={css("min-width:0;flex:1;font-size:12px;color:color-mix(in srgb, var(--nv-ink) 72%, transparent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}
+                          title={it.source || undefined}>
+                          {it.name}{it.grams ? ` · ${it.grams} g` : ''}
+                        </span>
+                        <span style={css("flex:none;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 42%, transparent)")}>{it.macros}</span>
+                        <Interactive as="span" onClick={it.remove} aria-label={`Remove ${it.name} from ${e.name}`}
+                          base="cursor:pointer;flex:none;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;color:color-mix(in srgb, var(--nv-ink) 30%, transparent)"
+                          hoverStyle="color:var(--nv-warn)">×</Interactive>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 </div>
               ))}
               {v.foodEdit && (

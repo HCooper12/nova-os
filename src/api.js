@@ -208,6 +208,9 @@ export const api = {
   addFoodLogEntry: (conn, entry) => post(conn, '/api/food-log', entry),
   editFoodLogEntry: (conn, id, body) => patch(conn, `/api/food-log/${encodeURIComponent(id)}`, body),
   deleteFoodLogEntry: (conn, id, date) => del(conn, `/api/food-log/${encodeURIComponent(id)}${date ? `?date=${encodeURIComponent(date)}` : ''}`),
+  // THE ITEMISED PLATE — one line off a meal, and its undo
+  removeFoodLogItem: (conn, id, itemId, date) => del(conn, `/api/food-log/${encodeURIComponent(id)}/item/${encodeURIComponent(itemId)}${date ? `?date=${encodeURIComponent(date)}` : ''}`),
+  restoreFoodLogItem: (conn, id, body) => post(conn, `/api/food-log/${encodeURIComponent(id)}/item/restore`, body),
   startFoodScan: (conn, mode, images, note) => post(conn, '/api/food-log/scan', { mode, images, note }, { timeoutMs: 90_000 }),
   foodScanJob: (conn, jobId) => call(conn, `/api/food-log/scan/${encodeURIComponent(jobId)}`),
   lookupBarcode: (conn, code) => call(conn, `/api/food-log/barcode/${encodeURIComponent(code)}`),
