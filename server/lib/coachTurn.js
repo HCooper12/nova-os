@@ -124,6 +124,16 @@ export async function startCoachTurn(vaultPath, { question, sessionId = null, li
       } catch { failures.push('recovery/deload'); }
       // the connections the sweep found missing — a coach that claims protein
       // expertise gets nutrition, bodyweight, debt, streaks, and learned habits
+      // ANATOMY — his instruction, 8 Sep 2026: the Coach must have intricate
+      // expertise of the muscles, and it must be the SAME anatomy the 3D model
+      // is built from, so anything named here he can see highlighted on the
+      // figure. Narrowed to what the question is about; the whole atlas would
+      // crowd out his own history, which matters more.
+      try {
+        const { anatomyContext, focusFor } = await import('./anatomy.js');
+        const focus = focusFor(`${question || ''} ${liveSession ? JSON.stringify(liveSession).slice(0, 400) : ''}`);
+        if (focus.length) parts.push(anatomyContext(focus));
+      } catch { failures.push('anatomy'); }
       try {
         const { makeupContext } = await import('./makeupDay.js');
         const mk = await makeupContext();
