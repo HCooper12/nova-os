@@ -13,54 +13,58 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**8 SEP — THE ATHLETE-AI QUEUE IS COMPLETE. All five shipped today: the
-Intake, wrap the day, the itemised plate, the form check, and the STUDY
-LANE — plus open-it-for-real and THE SURFACE STANDARD.**
+**8 SEP — the athlete-AI queue is complete, MAKE-UP DAYS shipped, and every
+new feature was verified against the DEPLOYED build talking to his Mac.**
 
-**The study lane (ATHLETE-AI-PLAN #5), `server/lib/paperLane.js`, lane
-`paper`** (NOT `study` — that id was already the creator-catalogue lane).
-Pass 1: the Researcher's boundary reads THIS source into claims as data
-(population, intervention, outcomes with the paper's numbers, limits, an
-applicability line about HIM; an abstract-only read is labelled). Pass 2:
-the Coach's boundary judges it against his REAL block (routine ids,
-schedule, goals, last sessions, intake, shelf, open proposals) — verdict
-`change | hold | not-for-him`, and "not for him" proposes nothing. CODE
-validates every change (`validateOps` + real ids, no new-exercise by tap);
-survivors are raised as the SAME `coach-program` records the program review
-raises, `fix: {action:'ops', ops}` (`opsFromFix` accepts it), so the
-Inbox's existing Approve → coach-apply → applyOps path applies them,
-undoably. The study files as a note (route `note`). `delegable: false`.
-Doors: "what would this study change in my program <link>" in the chat;
-the Coach composer routes a pasted link through the lane (`doCoach` hook);
-"Bring a study" chip on the Coach tab.
+**Make-up days (his ask).** A date can be "finish Monday's Pull" instead of
+the scheduled session. `server/lib/makeupDay.js`: a make-up is a carry-over
+with `plannedAs: 'day'` (one store, one concept, every existing reader keeps
+working). Leftovers are DERIVED — the routine's exercises minus what the last
+logged session of it recorded, skipped counting as left over; no logged
+session = refused with the reason. Readers wired: `trainOverview.makeup`
+(Today's card leads with "Finish Pull · 6 left" + a button that starts those
+exercises), `dispatch` ("Today is a make-up"), `trainingCheck` (asks about the
+make-up, not the scheduled session), `coachTurn`/`planToday`/`dailyReview`
+(makeupContext says DO NOT program a full session). Doors: a "Make-up day…"
+picker on every day in BOTH week strips, and "Not a make-up" to undo.
 
-**VERIFIED LIVE against his vault (Schoenfeld 2017, PMID 27433992):** an
-abstract-only read labelled as such, population "not reported", the
-applicability judged unmeasurable AND SAID SO, verdict change (moderate),
-two one-tap proposals on his real routine ids, five discussion points that
-cited his own files (the RPE 89% finding, five lifting days against a
-four-day goal). **THOSE THREE RECORDS ARE IN HIS INBOX NOW, FROM MY TEST:**
-study `7708fab2`, proposals `7448c7ed` (drop plate-pinch + dead-hang from
-Pull) and `273d146c` (Carter Extension 2→3 on Push). Nothing applied. He
-keeps or discards them. In the Inbox deck they sit among the "to decide"
-singles and under "4 × Coach".
+**A gap that fix exposed:** carry-overs were only ever fetched by the
+finish-a-missed-session flow, so arriving at Train showed no carry-over note
+at all. They now ride the SYNC SNAPSHOT (`routes/snapshot.js` slice +
+`apply('carryovers')`) — note the fast path is the snapshot; a per-slice task
+in App.jsx's `tasks` array only runs in the FALLBACK branch.
 
-**Also today:** open it for real (d46fe90), the Intake (d46fe90), wrap the
-day (3f39dfe), the surface standard + wrap card rebuilt (31abe03), the
-itemised plate (fa548be), the form check (ff8ba03 — and the
-URL-pathname bug that had silently stopped video attachments producing
-frames since 6 Sep).
+**HIS LIVE SESSION, 13:45 today:** a "Push — makeup" draft with 2 sets ticked
+(Incline Barbell Bench 40×12, 60×9) — that is his, from his own device. I
+found it while verifying, did not touch it, and removed the test Pull make-up
+marker I had created for today. The ordinary Push carry-over (6 exercises)
+remains as it was.
 
-**NEXT:** nothing queued from the plan. Candidates: a real form check on
-his own clip; the first real Wrap card tonight; a real stopped-before-a-
-button browse run; the deferred classic-Mission fold; P7/P8 perf levers.
+**THE LIVE SWEEP (what "it is really live" means here).** The deployed page
+loads `index-U_DOGyIf.js`; `dist` builds the same file, and verify-shipped
+compares the hashes — so the bundle tested IS the bundle he runs. All 26
+deployed chunks were downloaded and grepped: wrap card, Intake door,
+itemised-plate lines + undo, form-check panel + refusal, study-lane label +
+"Bring a study", "OPEN IT FOR REAL", make-up card/picker/undo — all present,
+plus the client's calls to /api/wrap, /api/intake/propose, /api/form-check,
+/api/workouts/makeup, /api/browse/open. CORS preflight from
+`https://hcooper12.github.io` to the Tailscale URL returns 204 with the
+origin allowed, and every new endpoint answers 200 with that Origin header.
 
-**STILL HIS:** decide the three study records above; film one set at 60 fps
-and run a form check; say "set my numbers" (the collection still reads
-2200 kcal / 150 g, typed once); the stale ingest weave 9e994aae; cook
-something and tell Nova; the phone-in-hand gym check; Xcode.
+**A standing instruction (CLAUDE.md + memory `nova-decisions-plainly`):**
+when a decision is needed from him, state it PLAINLY in its own list at the
+end — never buried in prose or mixed with chores.
+
+**NEXT:** nothing queued. Candidates: a real form check on his own clip; the
+first real Wrap card tonight; a real stopped-before-a-button browse run; the
+deferred classic-Mission fold; P7/P8 perf levers.
 
 ## SESSION LOG (append-only, newest first)
+
+### 8 September 2026 (afternoon) — make-up days, and the live sweep
+makeupDay.js + every training surface; carry-overs joined the sync snapshot
+(they were never loaded on arrival). Verified the deployed bundle chunk by
+chunk and every endpoint over Tailscale with the Pages origin. 1230 tests.
 
 ### 8 September 2026 (afternoon) — the study lane; the athlete-AI queue complete
 paperLane.js: Researcher read → Coach judgement against his real block →
