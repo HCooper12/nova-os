@@ -71,7 +71,7 @@ function Exercise({ d }) {
           {threeD && (
             <div style={css('margin-top:10px')}>
               <Suspense fallback={<Meta as="div" tone="faint" style={{ height: '260px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Building the figure…</Meta>}>
-                <Body3D muscles={d.muscles} pattern={d.motion} height={260} />
+                <Body3D muscles={d.muscles} pattern={d.motion3d || d.motion} name={d.name || d.title || ''} height={300} />
               </Suspense>
             </div>
           )}

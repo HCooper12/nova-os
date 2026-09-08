@@ -28,3 +28,7 @@ ios/App/App.xcodeproj/xcuserdata/
 ios/App/App.xcworkspace/xcuserdata/
 ios/DerivedData/
 ios/App/CapApp-SPM/.build/
+
+# the CC0 base mesh the anatomy model is built from (50 MB, fetched on demand)
+tools/anatomy/.cache/
+tools/anatomy/__pycache__/
