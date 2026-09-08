@@ -13,6 +13,89 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**9 SEP — THE MODEL IS ANATOMY NOW, NOT A MANNEQUIN WEARING A COLOUR MAP.**
+He asked to keep refining and checking it: "anatomically accurate and detailed,
+with all muscles and aspects included." Checking is what found the faults —
+each one was visible in a render before it was reasoned about. Shipped as
+`893cc8c`, live, verified on his real Push routine at 390 px.
+
+**Four things were wrong, and only the first was the one I set out to fix.**
+
+1. *The table was too coarse.* 38 volumes with compound entries — one
+   "triceps", one "quadriceps", no forearm extensors at all. Now **82 muscles
+   a side, 159 volumes**: three pec heads, three triceps, four quads, three
+   hamstrings, five adductors, the rotator cuff, sartorius, TFL, ITB, peronei.
+   The abdominal segments and serratus digitations are `parts=True`, so their
+   divisions are real geometry rather than a texture.
+2. *The mesh had no resolution where the muscles are.* Measured: of the base
+   mesh's 10,582 vertices, **73% sat in the head, hands and feet** — parts the
+   app never highlights — and the entire thigh had **341**. `redistribute()`
+   subdivides once and collapses the extremities back: thigh 341 → ~6,800,
+   head 3,348 → ~2,600, total 24,264.
+3. *Every torso muscle was buried six centimetres inside the body.* The table
+   hand-wrote its `y` values against an assumed 9 cm half-depth; the mesh's
+   abdominal skin is at **14.2 cm**. Nothing on the trunk could ever have
+   shown. `calibrate.py` now measures a trunk **shell** (centre, half-depth,
+   half-width per 2 cm band) and `skeleton.skin()` places every torso muscle a
+   stated depth under the measured surface. Legs likewise, off a measured limb
+   radius — the adductors had been written 2.6 cm off a femur inside a thigh
+   7.9 cm thick.
+4. *The model could not be judged.* The muscle chart rendered as indistinguish-
+   able pastels — **AgX desaturates hard**, so lats and traps came out the same
+   blue — and soft studio light hides a 5 mm groove entirely. `render.py
+   --rake` plus a Standard view transform fixed the instrument. Every fault
+   above was found only after that. **Fix the instrument before adjusting the
+   thing you are measuring.**
+
+**What makes it read as anatomy.** `relief()` asks the muscle field two
+questions per vertex: how deep inside its own belly it sits (a bulge) and how
+nearly equidistant it is from a *different* muscle (a groove). Out come the
+linea alba, the tendinous inscriptions, the sternal groove, biceps against
+triceps, vastus lateralis against rectus femoris. Three guards, each paid for
+by a broken render: a groove needs a clean **pair** (five volumes meet at the
+sternum; cutting there tore it open), it needs muscle present but the
+threshold sits *below* the skin (an inscription is by definition where no
+belly reaches the surface), and the frame cuts at a third depth (a collarbone
+is a ridge, not a canyon).
+
+**Segmentation is region-aware now.** Live in the app the traps highlight
+painted his FACE and the forearms highlight put a cyan patch on each hip —
+"nearest volume wins" with no sense of where on the body it is, and in an
+A-pose a hand sits 5 cm from a thigh. A vertex may now only be claimed by a
+group its **nearest bone** allows (`bone_groups()`, the inverse of
+`GROUP_BONES`). Face released to frame; traps 5,294 → 1,885; front-delts
+56 → 409.
+
+**One deliberate fiction, stated in the code.** The rhomboids lie under the
+trapezius and own no skin, so a strict rule lit 23 vertices of 24,000 — a
+highlight that shows nothing. They are given the interscapular strip on
+purpose, one layer too shallow, with the lower trapezius held off it.
+
+**Verified:** 24,264 verts, 1.46 MB GLB, 19 group materials, 22 bones —
+`Body3D.jsx`'s contract unchanged. lint clean, build green, 1,235 server tests
+pass. Opened on his real Push routine at 390 px: the lateral raise lights both
+side delts, holds its equipment, the abdominal wall reads as a six-pack.
+
+**STILL CRUDE — he has been told:** shoulder flexion past ~140° distorts
+(linear blend skinning, no corrective shape keys); supine/incline/thrust
+stances use hand-tuned offsets so a bench press floats above the pad;
+equipment is primitives; the face is decimated and plain. Also noticed in
+passing: the Cable Lateral Raise renders **dumbbells** — the equipment mapping
+in `exercise3d.js` does not know "cable".
+
+**How to work on it.** `blender -b --python tools/anatomy/build.py -- --out
+DIR` then `blender -b DIR/body.blend --python tools/anatomy/render.py -- --out
+DIR --rake` (clay, raking light — shows relief) or `--muscles` (the chart).
+Re-run `calibrate.py -- --base --out joints.json` only if the base mesh
+changes. **Never edit `muscles.py` with blanket string replacement** — a
+`.replace()` on a coordinate fragment silently corrupted three unrelated
+lines this session and the later targeted edits then failed to match, costing
+two rebuild cycles that looked like anatomy problems.
+
+---
+
+### Previous — 8 Sep (evening)
+
 **8 SEP (evening) — THE FORM MODEL WAS REBUILT FROM NOTHING.** His verdict on
 the old one: "terrible… most of the exercises are completely wrong with how
 the movement is actually meant to be carried out." Both halves were true — it
