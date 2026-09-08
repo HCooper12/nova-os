@@ -4,6 +4,7 @@ import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
 import { Clock } from '../Clock.jsx';
 import { useDictation } from '../useDictation.js';
+import { useStickToBottom } from '../useStickToBottom.js';
 import { VoicePanel, SourcesPanel } from '../VoicePanels.jsx';
 import { TypeText } from '../TypeText.jsx';
 import { LocalInput } from '../LocalInput.jsx';
@@ -87,7 +88,12 @@ export function Voice({ v }) {
     (text) => v.setOrbInputValue(text),
     () => { if (inputRef.current.trim()) sendRef.current(); else v.notifyEmptyListen(); }, // recognition end = ask; silence feeds the loop
     {
-      continuous: false, // one-shot: silence ends the take (works on iOS)
+      // NOVA, NOT THE BROWSER, ENDS HIS TURN. `continuous: false` handed that
+      // to the engine's own endpointer, which cut him off mid-sentence and
+      // sent — and the API has no threshold to lengthen. holdMs runs the
+      // engine continuously and ends the turn on the pause HE chose.
+      holdMs: v.voiceHoldMs,
+      leadMs: v.voiceLeadMs,
       onError: (err) => v.dictationError(err),
     },
   );
@@ -110,20 +116,11 @@ export function Voice({ v }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [v.voiceAutoListenTick]);
 
-  // The transcript opens where the conversation IS — at the newest line.
-  // It continues across days, so landing at the top means scrolling past
-  // history every single time. Jumps on mount, animates on new messages,
-  // and leaves him alone if he has deliberately scrolled up to read back.
-  const logRef = useRef(null);
-  const firstPaint = useRef(true);
-  useEffect(() => {
-    const el = logRef.current;
-    if (!el) return;
-    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-    if (!firstPaint.current && !atBottom) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: firstPaint.current ? 'auto' : 'smooth' });
-    firstPaint.current = false;
-  }, [v.orbMsgs.length, v.voiceBusy]);
+  // The transcript opens where the conversation IS — at the newest line —
+  // and STAYS there while a reply is still being written, so he can read it
+  // forming as he hears it spoken. See useStickToBottom for why this cannot
+  // be keyed on the message count.
+  const logRef = useStickToBottom();
 
   // one gesture, everything it needs: unlock audio inside the tap (iOS),
   // stop any reply mid-sentence so he can interrupt, and open the mic in

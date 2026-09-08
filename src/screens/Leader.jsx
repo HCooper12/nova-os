@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { ChatMarkdown } from '../ChatMarkdown.jsx';
 import { Eyebrow, TextAction, Tag, Meta } from '../Controls.jsx';
+import { useStickToBottom } from '../useStickToBottom.js';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 
 // THE LEADER — leadership development as a daily practice, not a shelf of
@@ -14,22 +15,6 @@ import { Eyebrow, TextAction, Tag, Meta } from '../Controls.jsx';
 const S = 'var(--nv-font-serif)';
 const UI = 'var(--nv-font-ui)';
 
-// same behaviour as the Coach log: land at the bottom, follow new messages,
-// leave him alone when he has scrolled up to read back
-function useAutoScrollBottom(len, busy) {
-  const ref = useRef(null);
-  const firstPaint = useRef(true);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-    if (!firstPaint.current && !atBottom) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: firstPaint.current ? 'auto' : 'smooth' });
-    firstPaint.current = false;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [len, busy]);
-  return ref;
-}
 
 // Each chip carries its age (what the model already sees) and, for a
 // struggle, a "mark handled" affordance: tap the chip to reveal it, tap
@@ -64,7 +49,7 @@ function ChipList({ label, items, color, hint, resolving }) {
 }
 
 export function Leader({ v }) {
-  const logRef = useAutoScrollBottom(v.leaderMsgs.length, v.leaderBusy);
+  const logRef = useStickToBottom();
   return (
     <div style={v.wrapLibrary} data-screen-label="Leader">
       <div style={css('display:flex;align-items:baseline;gap:12px;flex-wrap:wrap')}>

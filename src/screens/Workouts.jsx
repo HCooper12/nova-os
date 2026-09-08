@@ -1,4 +1,3 @@
-import { useRef, useEffect } from 'react';
 import { css } from '../css.js';
 import { FormCheckPanel } from '../FormCheckPanel.jsx';
 import { LocalInput } from '../LocalInput.jsx';
@@ -10,6 +9,7 @@ import { TrainToday } from '../TrainToday.jsx';
 import { SafeVisual } from '../SafeVisual.jsx';
 import { VoicePanel } from '../VoicePanels.jsx';
 import { Eyebrow, TextAction, Chip, Tag, Meta, Segmented, isAppleStyle, ScreenHead, AttachStrip, AttachPending } from '../Controls.jsx';
+import { useStickToBottom } from '../useStickToBottom.js';
 
 // THE MATERIAL PASS (5 Sep 2026, "Nova feels stiff"): labels and tap targets
 // on this screen are set through src/Controls.jsx — sentence case in the UI
@@ -38,25 +38,6 @@ const setCols = (isBodyweight) =>
 
 const setInputStyle = { flex: '1 1 48px', width: 'auto', minWidth: '40px', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '6px', padding: '8px 6px', color: 'var(--nv-ink)', fontSize: '16px', fontFamily: "var(--nv-font-mono)", outline: 'none', boxSizing: 'border-box' };
 
-// The Coach's conversation always opens at the newest line — his 21-Aug
-// ask, same reasoning as the Voice screen's transcript: it continues
-// across days, so landing at the top means scrolling past history every
-// time. Jumps on mount, animates on a new message, and leaves him alone
-// if he has deliberately scrolled up to read back.
-function useAutoScrollBottom(len, busy) {
-  const ref = useRef(null);
-  const firstPaint = useRef(true);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-    if (!firstPaint.current && !atBottom) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: firstPaint.current ? 'auto' : 'smooth' });
-    firstPaint.current = false;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [len, busy]);
-  return ref;
-}
 
 function ExercisePicker({ v }) {
   return (
@@ -513,7 +494,7 @@ function RoutineDetailView({ v }) {
 }
 
 function SessionView({ v }) {
-  const midSessionLogRef = useAutoScrollBottom(v.coachMsgs.length, v.coachBusy);
+  const midSessionLogRef = useStickToBottom();
   return (
     <>
       <h1 style={css("margin:18px 0 0;font:700 28px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>{v.sessionRoutineName}{v.sessionEditing && <span style={css("font:italic 400 26px var(--nv-font-serif);color:var(--nv-gold)")}> — editing the record.</span>}</h1>
@@ -853,7 +834,7 @@ function HistoryView({ v }) {
 }
 
 function MockWorkouts({ v }) {
-  const demoLogRef = useAutoScrollBottom(v.coachMsgs.length, v.coachBusy);
+  const demoLogRef = useStickToBottom();
   return (
     <>
       <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Push day, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>week six.</span></h1>
@@ -914,7 +895,7 @@ function MockWorkouts({ v }) {
 // Goals + the Coach chat, extracted so the COACH tab can render it
 // standalone (previously buried inside RoutinesView).
 function GoalsCoachPane({ v }) {
-  const coachLogRef = useAutoScrollBottom(v.coachMsgs.length, v.coachBusy);
+  const coachLogRef = useStickToBottom();
   return (
     <>
       {/* goals + the real coach, side by side */}

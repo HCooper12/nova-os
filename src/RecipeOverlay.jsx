@@ -23,7 +23,7 @@ export function RecipeOverlay({ v }) {
     () => '',
     (text) => v.setRecipeTweakValue?.(text),
     () => { if (askRef.current?.trim()) askVoice.current?.(); },
-    { continuous: false, onError: (err) => v.recipeDictationError?.(err) },
+    { holdMs: v.voiceHoldMs, leadMs: v.voiceLeadMs, onError: (err) => v.recipeDictationError?.(err) },
   );
   return (
     <div role="dialog" aria-modal="true" aria-label="Recipe detail" onClick={v.closeRecipe} style={v.recipeOvWrap}>

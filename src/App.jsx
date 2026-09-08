@@ -3,6 +3,8 @@ import { ExerciseSheet } from './ExerciseSheet.jsx';
 import { chatStartsAJob, planWorthy } from './chatLanes.js';
 import { preferMixing } from './audioSession.js';
 import { unspokenTexts, resumeVerdict } from './speechResume.js';
+import { DEFAULT_HOLD, holdTiming } from './turnEnd.js';
+import { offerVerdictFor } from './verdictOffer.js';
 import { forceLayout, degrees, GALAXY_MAX_NODES, zoomAt, panBy, recencyAlpha } from './galaxyLayout.js';
 import { flushSync } from 'react-dom';
 import { recipes, notes, basePlan, reviews, galaxyNamed, galaxyLinks } from './data.js';
@@ -364,6 +366,9 @@ export default class App extends Component {
     voiceSpeak: typeof localStorage === 'undefined' ? true : localStorage.getItem('novaos.voiceSpeak') !== '0',
     // opt-in (see setWakeWord) and remembered per device
     wakeWordOn: typeof localStorage === 'undefined' ? false : localStorage.getItem('novaos.wakeWord') === '1',
+    // how long a pause has to be before it ends his turn — his choice, because
+    // the browser's own endpointer cut him off mid-sentence and offers no knob
+    voiceHold: typeof localStorage === 'undefined' ? DEFAULT_HOLD : (localStorage.getItem('novaos.voiceHold') || DEFAULT_HOLD),
     sidebarHidden: typeof localStorage === 'undefined' ? false : localStorage.getItem('novaos.sidebarHidden') === '1',
     voiceVoiceId: typeof localStorage === 'undefined' ? '' : (localStorage.getItem('novaos.voiceId') || ''),
     orbChat: [
@@ -4626,7 +4631,7 @@ export default class App extends Component {
             // his ask: show the information Nova is referring to, so the
             // two of us are on the same page. A deterministic keyword match
             // offers the matching EVIDENCE card; code still computes it.
-            const evidence = this.offerVerdictFor(text);
+            const evidence = this.offerVerdictFor(text, agent);
             const who = agent || 'nova';
             if (idx === -1) chat.push({ at: Date.now(), who, text, panel, proposal, acted, research, evidence });
             else chat[idx] = { at: Date.now(), who, text, panel, proposal, acted, research, evidence };
@@ -5253,13 +5258,10 @@ export default class App extends Component {
   // information card should appear while talking, so the thing being
   // referred to is on screen. Deterministic keyword match; the card itself
   // is still computed by code, never by the model.
-  offerVerdictFor(text) {
-    const t = `${text}`.toLowerCase();
-    if (/\btired|fatigue|exhaust|worn out|recovery\b/.test(t)) return { kind: 'tired', label: 'Why am I tired? — the evidence' };
-    if (/\bstall|plateau|flat|not progress/.test(t)) return { kind: 'stalled', label: 'The stall, with its numbers' };
-    if (/\bprotein|floor\b/.test(t)) return { kind: 'protein', label: 'Protein this week — the maths' };
-    if (/\bpeak|sharpest|best time|schedule|focus block/.test(t)) return { kind: 'peak', label: 'Your peak window today' };
-    return null;
+  // The rule lives in verdictOffer.js — an evidence card is a reading of his
+  // BODY, so it has to be earned by the subject, not by one matching word.
+  offerVerdictFor(text, agent) {
+    return offerVerdictFor(text, { agent });
   }
   // "Talk it through" on a health insight: the observation becomes a
   // conversation in one tap — the insight text IS the question's subject,
@@ -6679,7 +6681,7 @@ export default class App extends Component {
         const acted = resp.acted ? { ...resp.acted, status: 'done' } : undefined;
         const proposal = resp.proposal ? { ...resp.proposal, status: 'pending' } : undefined;
         const show = () => this.setState((s) => ({
-          voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: resp.text, acted, proposal, evidence: this.offerVerdictFor(resp.text) }],
+          voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: resp.text, acted, proposal, evidence: this.offerVerdictFor(resp.text, 'nova') }],
           voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal,
         }));
         if (this.state.voiceSpeak) this.speakTtsSentence(resp.text, show);
@@ -7283,6 +7285,13 @@ export default class App extends Component {
   setWakeWord(on) {
     localStorage.setItem('novaos.wakeWord', on ? '1' : '0');
     this.setState({ wakeWordOn: on });
+  }
+  // How long he may pause before Nova takes the pause as the end of his turn.
+  // Stored per device, because it is about how he talks on that device.
+  setVoiceHold(value) {
+    const chosen = holdTiming(value).value;
+    localStorage.setItem('novaos.voiceHold', chosen);
+    this.setState({ voiceHold: chosen });
   }
   // Heard its name. Two jobs, in this order: CUT NOVA OFF (barge-in — the
   // whole point of being able to say its name mid-reply), then open the mic

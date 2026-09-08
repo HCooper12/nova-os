@@ -3,6 +3,7 @@ import { GALAXY_MAX_NODES, toWorld } from '../galaxyLayout.js';
 import { orbReply } from '../mockAssistants.js';
 import { NOTE_TYPE_COLOR } from './shared.js';
 import { speechRecognitionSupported } from '../useDictation.js';
+import { holdTiming, HOLD_PRESETS } from '../turnEnd.js';
 import { dtf } from './fmt.js';
 import { RUNNING_BUILD, applyUpdate } from '../buildCheck.js';
 
@@ -145,6 +146,13 @@ export function valsMisc(app, ctx) {
     wakeWordOn: !!st.wakeWordOn,
     wakeWordSupported: speechRecognitionSupported(),
     setWakeWord: (on) => app.setWakeWord(on),
+    // How long a pause is allowed to last before it counts as the end of his
+    // turn. The surfaces read the milliseconds; Settings reads the choices.
+    voiceHold: holdTiming(st.voiceHold).value,
+    voiceHoldMs: holdTiming(st.voiceHold).holdMs,
+    voiceLeadMs: holdTiming(st.voiceHold).leadMs,
+    voiceHoldOptions: HOLD_PRESETS,
+    setVoiceHold: (value) => app.setVoiceHold(value),
     voiceTest: st.voiceTest || null,
     runVoiceTest: () => app.runVoiceTest(),
     // the Voice screen's dictation is local to that screen — App needs to

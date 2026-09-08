@@ -303,6 +303,28 @@ export function Settings({ v }) {
             )}
           </div>
 
+          {/* His 9-Sep report: "my speech is cut off and I feel like I am
+              rushing to keep speaking before it thinks I have stopped
+              talking." The browser's endpointer has no knob, so Nova ends
+              the turn itself and this is the length. */}
+          {v.wakeWordSupported && (
+            <div style={css("border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:16px")}>
+              <div style={css("font:600 12.5px var(--nv-font-ui)")}>How long a pause ends your turn</div>
+              <div style={css("margin-top:2px;max-width:400px;font-size:11px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>
+                Nova waits this long after you stop before it takes the turn and answers. Tap the core to send straight away.
+              </div>
+              <div style={css("margin-top:10px;display:flex;flex-wrap:wrap;gap:8px")}>
+                {v.voiceHoldOptions.map((o) => (
+                  <Chip key={o.value} tone={v.voiceHold === o.value ? 'accent' : 'quiet'} active={v.voiceHold === o.value}
+                    onClick={() => v.setVoiceHold(o.value)}>{o.label} · {(o.holdMs / 1000).toFixed(1)}s</Chip>
+                ))}
+              </div>
+              <div style={css("margin-top:8px;font:var(--nv-micro-l);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>
+                {v.voiceHoldOptions.find((o) => o.value === v.voiceHold)?.hint}
+              </div>
+            </div>
+          )}
+
           {/* "I heard nothing" is not a diagnosis — this makes it one. */}
           <div style={css("border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:16px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px")}>
             <div style={{ flex: 1, minWidth: 0 }}>

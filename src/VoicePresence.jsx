@@ -34,7 +34,9 @@ export function VoicePresence({ v }) {
     () => '',
     (text) => s.setInput(text),
     () => { if (inputRef.current.trim()) sendRef.current(); },
-    { continuous: false, onError: (err) => s.onError(err) },
+    // the same app-owned turn as the Voice screen — this is the mic he
+    // actually talks into from anywhere in Nova, so it must not cut him off
+    { holdMs: v.voiceHoldMs, leadMs: v.voiceLeadMs, onError: (err) => s.onError(err) },
   );
   const dictRef = useRef(dict);
   dictRef.current = dict;
