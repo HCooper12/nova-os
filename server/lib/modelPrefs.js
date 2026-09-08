@@ -125,6 +125,11 @@ export const LANES = [
     off: 'Meal photo scanning is refused; log the meal by hand or from a recipe.',
   },
   {
+    id: 'form-check', label: 'Form check', group: 'coach', def: 'opus',
+    hint: 'frames of one working set read against a written rubric — refuses a clip it cannot read',
+    off: 'Form checks are refused; film the set and review it yourself.',
+  },
+  {
     id: 'food-describe', label: 'Food from a description', group: 'capture', def: 'sonnet',
     hint: '“two eggs on sourdough” into macros — searches the web for real product numbers',
     off: 'Describing a meal in words is refused; scan, barcode and manual entry still work.',

@@ -208,6 +208,10 @@ export const api = {
   addFoodLogEntry: (conn, entry) => post(conn, '/api/food-log', entry),
   editFoodLogEntry: (conn, id, body) => patch(conn, `/api/food-log/${encodeURIComponent(id)}`, body),
   deleteFoodLogEntry: (conn, id, date) => del(conn, `/api/food-log/${encodeURIComponent(id)}${date ? `?date=${encodeURIComponent(date)}` : ''}`),
+  // FORM CHECK — the protocol first, then one clip of one working set
+  formCheckProtocol: (conn, exercise) => call(conn, `/api/form-check/protocol?exercise=${encodeURIComponent(exercise || '')}`),
+  formCheckStart: (conn, body) => post(conn, '/api/form-check', body, { timeoutMs: 180_000 }),
+  formCheckJob: (conn, jobId) => call(conn, `/api/form-check/${encodeURIComponent(jobId)}`),
   // THE ITEMISED PLATE — one line off a meal, and its undo
   removeFoodLogItem: (conn, id, itemId, date) => del(conn, `/api/food-log/${encodeURIComponent(id)}/item/${encodeURIComponent(itemId)}${date ? `?date=${encodeURIComponent(date)}` : ''}`),
   restoreFoodLogItem: (conn, id, body) => post(conn, `/api/food-log/${encodeURIComponent(id)}/item/restore`, body),

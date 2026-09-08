@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react';
 import { css } from '../css.js';
+import { FormCheckPanel } from '../FormCheckPanel.jsx';
 import { LocalInput } from '../LocalInput.jsx';
 import { Interactive } from '../Interactive.jsx';
 import { Term } from '../Glossary.jsx';
@@ -457,8 +458,10 @@ function RoutineDetailView({ v }) {
             <div style={css("margin-top:10px;display:flex;align-items:center;gap:6px")}>
               <Interactive as="span" onClick={e.canMoveUp ? e.onMoveUp : undefined} base={{ cursor: e.canMoveUp ? 'pointer' : 'default', fontSize: '11px', color: e.canMoveUp ? 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 15%, transparent)', padding: '2px 6px' }} hoverStyle={e.canMoveUp ? { color: 'var(--nv-ink)' } : {}}>↑</Interactive>
               <Interactive as="span" onClick={e.canMoveDown ? e.onMoveDown : undefined} base={{ cursor: e.canMoveDown ? 'pointer' : 'default', fontSize: '11px', color: e.canMoveDown ? 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 15%, transparent)', padding: '2px 6px' }} hoverStyle={e.canMoveDown ? { color: 'var(--nv-ink)' } : {}}>↓</Interactive>
-              <TextAction tone="warn" onClick={e.onRemove} style={{ marginLeft: 'auto' }}>Remove</TextAction>
+              <TextAction onClick={e.formCheck ? e.formCheck.close : e.formCheckOpen} style={{ marginLeft: 'auto' }}>Form check</TextAction>
+              <TextAction tone="warn" onClick={e.onRemove}>Remove</TextAction>
             </div>
+            {e.formCheck && <FormCheckPanel fc={e.formCheck} />}
           </div>
         ))}
       </div>
@@ -625,8 +628,10 @@ function SessionView({ v }) {
                   style={{ flex: 1, minWidth: '150px', resize: 'none', overflow: 'hidden', lineHeight: 1.5, background: 'rgba(0,0,0,.22)', border: '1px dashed color-mix(in srgb, var(--nv-ink) 20%, transparent)', borderRadius: '9px', padding: '8px 11px', color: 'var(--nv-ink)', fontSize: '12px', fontFamily: 'var(--nv-font-ui)', outline: 'none', boxSizing: 'border-box' }} />
                 <Chip tone={e.anomaly ? 'gold' : 'quiet'} active={e.anomaly} onClick={e.toggleAnomaly} title={'Off day — exclude today from progression and plateau signals'}>{e.anomaly ? 'Off day ✓' : 'Anomaly'}</Chip>
                 <Chip tone="warn" active={e.painLogged} onClick={e.painOpen ? e.closePain : e.openPain}>{e.painLogged ? '⚠ Pain logged' : 'Pain?'}</Chip>
+                <Chip tone={e.formCheck ? 'accent' : 'quiet'} active={!!e.formCheck} onClick={e.formCheck ? e.formCheck.close : e.formCheckOpen}>Form check</Chip>
               </div>
             )}
+            {e.formCheck && <FormCheckPanel fc={e.formCheck} />}
             {e.painOpen && e.painState && (
               <div style={css("margin-top:10px;border:1px solid color-mix(in srgb, var(--nv-warn) 45%, transparent);border-radius:13px;padding:12px;background:color-mix(in srgb, var(--nv-warn) 05%, transparent)")}>
                 <Eyebrow as="span" tone="warn">⚠ Pain — where?</Eyebrow>

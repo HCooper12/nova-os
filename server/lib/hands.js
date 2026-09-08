@@ -20,6 +20,7 @@ import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const exec = promisify(execFile);
 // tests swap the runner so the real Shortcuts app is never touched
@@ -31,7 +32,7 @@ const BIN = '/usr/bin/shortcuts';
 let cache = { at: 0, names: [] };
 
 function dataDir() {
-  return process.env.NOVA_DATA_DIR || path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'data');
+  return process.env.NOVA_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data');
 }
 
 // Which Shortcuts may run WITHOUT his yes. Nothing by default; he adds names

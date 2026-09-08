@@ -36,6 +36,7 @@ import { studioRouter } from './routes/studio.js';
 import { profileRouter } from './routes/profile.js';
 import { intakeRouter } from './routes/intake.js';
 import { wrapRouter } from './routes/wrap.js';
+import { formCheckRouter } from './routes/formCheck.js';
 import { startMoneyImportScheduler } from './lib/moneyImport.js';
 import { startCfoScheduler } from './lib/cfoReport.js';
 import { startMealPrepScheduler } from './lib/mealPrep.js';
@@ -240,6 +241,7 @@ async function main() {
   app.use('/api', profileRouter(process.env.VAULT_PATH));
   app.use('/api', intakeRouter(process.env.VAULT_PATH)); // THE INTAKE — his numbers, computed by code, approved by him
   app.use('/api', wrapRouter(process.env.VAULT_PATH)); // WRAP THE DAY — the end-of-day sentence, counted not composed
+  app.use('/api', formCheckRouter(process.env.VAULT_PATH)); // FORM CHECK — one set, read against a rubric, refused when unreadable
 
   // Reap orphans BEFORE the schedulers tick: a record stuck in 'classifying'
   // from before the restart can never resolve and would block today's loops.

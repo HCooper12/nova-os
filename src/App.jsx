@@ -402,6 +402,7 @@ export default class App extends Component {
     foodLogDate: null, liveFoodLogView: null,
     liveStash: null, stashAddCategory: '', stashAddName: '', stashAddUrl: '', stashAddNote: '', stashAddBusy: false, stashAddError: null, stashRemoveConfirm: null,
     foodLogItems: null, foodItemUndo: null, // THE ITEMISED PLATE: the lines a scan produced, and the last one dropped
+    formCheck: null, // FORM CHECK: { exerciseId, exerciseName, protocol, rubric, stage, jobId, result, error }
     foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogBusy: false, foodLogError: null,
     foodScanNote: '', foodScanPhotos: [], foodScanBusy: false, foodScanSlow: false, foodScanError: null, foodScanQuestion: null, foodLogFillSource: null,
     foodDescribeInput: '',
@@ -1931,6 +1932,55 @@ export default class App extends Component {
         this.toastMsg(`${u.item?.name || 'That line'} is back`);
       })
       .catch((e) => this.toastMsg('Could not put it back: ' + e.message));
+  }
+  // ---------- FORM CHECK (server/lib/formCheck.js) ----------
+  // The protocol comes FIRST — he reads what to film before he films it,
+  // because a clip shot the wrong way is refused, and being refused after
+  // the fact is the worst version of this feature.
+  openFormCheck(exerciseId, exerciseName) {
+    const conn = getConnection();
+    this.setState({ formCheck: { exerciseId, exerciseName, stage: 'protocol', protocol: [], rubric: null, jobId: null, result: null, error: null } });
+    if (!conn) return;
+    api.formCheckProtocol(conn, exerciseName)
+      .then((r) => this.setState((s) => (s.formCheck?.exerciseName === exerciseName
+        ? { formCheck: { ...s.formCheck, protocol: r.protocol || [], rubric: r.rubric || null } } : null)))
+      .catch(() => {});
+  }
+  closeFormCheck() {
+    clearInterval(this.formPoll); this.formPoll = null;
+    this.setState({ formCheck: null });
+  }
+  // one clip, one working set — read as a data URL like every other attachment
+  submitFormCheckClip(fileList, sessionId = null) {
+    const conn = getConnection();
+    const fc = this.state.formCheck;
+    const file = Array.from(fileList || [])[0];
+    if (!conn || !fc || !file) return;
+    if (!/^video\//.test(file.type || '')) { this.toastMsg('That is not a video — film the set first'); return; }
+    if (file.size > 25 * 1024 * 1024) { this.toastMsg(`${file.name} is over 25MB — trim it to one set`); return; }
+    this.setState({ formCheck: { ...fc, stage: 'uploading', error: null, result: null } });
+    this.readFileAsDataUrl(file)
+      .then((dataUrl) => api.formCheckStart(conn, { video: dataUrl, exerciseId: fc.exerciseId, exerciseName: fc.exerciseName, sessionId }))
+      .then((r) => {
+        this.setState((s) => (s.formCheck ? { formCheck: { ...s.formCheck, stage: 'checking the clip', jobId: r.jobId } } : null));
+        clearInterval(this.formPoll);
+        this.formPoll = setInterval(() => this.pollFormCheck(r.jobId), 2500);
+        this.pollFormCheck(r.jobId);
+      })
+      .catch((e) => this.setState((s) => (s.formCheck ? { formCheck: { ...s.formCheck, stage: 'idle', error: e.message } } : null)));
+  }
+  pollFormCheck(jobId) {
+    const conn = getConnection();
+    if (!conn || !jobId) return;
+    api.formCheckJob(conn, jobId).then((job) => {
+      if (job.status === 'running') {
+        this.setState((s) => (s.formCheck ? { formCheck: { ...s.formCheck, stage: job.stage || 'reading the set' } } : null));
+        return;
+      }
+      clearInterval(this.formPoll); this.formPoll = null;
+      this.setState((s) => (s.formCheck ? { formCheck: { ...s.formCheck, stage: job.status, result: job.result || null, error: job.error || null } } : null));
+      if (job.status === 'done') { this.refreshInbox?.(); haptic('commit'); }
+    }).catch(() => {});
   }
   setFoodScanNote(e) {
     this.setState({ foodScanNote: e.target.value });

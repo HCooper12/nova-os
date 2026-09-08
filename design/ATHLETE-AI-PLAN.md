@@ -126,6 +126,28 @@ a wrong estimate correctable rather than a lie he has to accept whole. Pairs
 with `foodlog.fix` from phase 4.
 
 ### 4. FORM CHECK — his own lifts, read back rep by rep
+
+**BUILT — 8 Sep 2026.** `server/lib/formCheck.js`, and the refusal is the
+feature. Two gates before any review exists: code measures what code can
+(`probeClip` → fps ≥ 48, 2–120 s, short side ≥ 540) and refuses with the fix
+in the reason and NO model call; then the model's first job is a usability
+verdict against the protocol (angle, framing, whole body) — an unusable clip
+ends the run with nothing filed. Frames are deterministic (`frameCountFor`:
+3/s, floor 12, cap 48, evenly spaced by ffmpeg). Rubrics are written per lift
+(squat / deadlift / bench / press / row / machine-hinge + a generic
+fallback), and a test asserts no rubric point contains a degree — asking for
+one invites one. `scrubUnmeasurable` strips any degrees, centimetres,
+percentages or m/s that survive the prompt and the note DISCLOSES how many
+were removed. The review is a proposal on the inbox rails (kind `form`,
+route `form`) whose body is the exact text he approved; it files to
+`Wiki/Health/Form Checks/<date> <Exercise>.md` and undo is the same
+hash-checked delete notes use. Doors: `Form check` on every exercise in a
+routine AND mid-session (one shared `FormCheckPanel`, one view model), which
+states the protocol BEFORE he films.
+Verified live 8 Sep: a 30 fps clip refused by code with no model call; a
+60 fps clip that was not a lift refused by the model ("a synthetic test
+pattern… nothing anatomical to judge"); the client loop end to end.
+NOT yet exercised: a real clip of his own lifting.
 The most valuable of the five for a lifter, and the one Nova is closest to
 being able to do honestly: attachments already accept video and cut stills
 with ffmpeg.

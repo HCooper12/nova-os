@@ -20,6 +20,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const exec = promisify(execFile);
 const IMAGE_DATA_URL = /^data:image\/(png|jpe?g|webp|heic|gif);base64,([A-Za-z0-9+/=]+)$/;
@@ -30,7 +31,7 @@ const KEEP_MS = 7 * 86_400_000;
 const FRAMES_PER_VIDEO = 8;
 
 function dir() {
-  return path.join(process.env.NOVA_DATA_DIR || path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'data'), 'attachments');
+  return path.join(process.env.NOVA_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data'), 'attachments');
 }
 
 async function extractFrames(videoPath, outDir, n = FRAMES_PER_VIDEO) {

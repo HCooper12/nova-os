@@ -13,54 +13,68 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**8 SEP — FOUR THINGS SHIPPED: open-it-for-real, the Intake, wrap the day,
-and the itemised plate. Plus THE SURFACE STANDARD, which now governs every
-new build.**
+**8 SEP — FIVE SHIPPED TODAY: open-it-for-real, the Intake, wrap the day,
+the itemised plate, and the FORM CHECK. Plus THE SURFACE STANDARD, which now
+governs every new build.**
 
-**THE SURFACE STANDARD (NOVA-METHOD.md §2b, pointed at from CLAUDE.md).**
-His instruction: new builds must feel Apple-like, dynamic and unique like
-the rest of Nova, "standard moving forward for any new builds". Seven rules;
-the one that bites hardest: **ship it in BOTH Home idioms from ONE view
-model — his phone runs `cupertino`, where `MissionControl` returns
-`MissionStructured`, so a card added only to the classic fold does not exist
-for him.** That is exactly how the first wrap card shipped. Also: house
-objects only (`RingTile`, the serif news line, AppleLayout groups,
-`Controls.jsx` for every label/action), sentence case in vals, real tokens
-only (`--nv-blue` and `--nv-ink70` DO NOT EXIST and fail silently), an
-entrance animation, `minWidth: 0` + measure `scrollWidth` at 375, and verify
-in both styles before shipping.
+**Form check (ATHLETE-AI-PLAN #4) — the refusal IS the feature.**
+`server/lib/formCheck.js`. Two gates before a review can exist: code measures
+what code can (`probeClip` → fps ≥ 48, 2–120 s, short side ≥ 540) and refuses
+with the fix in the reason and NO model call; then the model's FIRST job is a
+usability verdict on angle/framing/whole-body, and an unusable clip ends the
+run with nothing filed. Frames are deterministic (3/s, floor 12, cap 48).
+Rubrics are written per lift, and a test asserts no rubric point contains a
+degree — asking for one invites one. `scrubUnmeasurable` strips degrees, cm,
+percentages and m/s that survive the prompt, and the note DISCLOSES the count.
+The review is a proposal (kind `form`) whose body is the exact text he
+approved → `Wiki/Health/Form Checks/<date> <Exercise>.md`, undone by the same
+hash-checked delete notes use. Doors: `Form check` on every exercise in a
+routine AND mid-session, one shared `FormCheckPanel`, protocol stated BEFORE
+he films.
 
-**Itemised plate (ATHLETE-AI-PLAN #3, this session's last build).** The
-contract every reader depends on: **an entry with `items` has macros equal
-to the sum of them**. Drop one line → the meal recomputes; drop the last →
-the meal goes; undo rebuilds it. Editing totals by hand drops the lines.
-`DELETE /api/food-log/:id/item/:itemId` + `POST …/item/restore`. The
-describe path's USDA components used to be thrown away at logging time; the
-meal/auto scan prompts now return a breakdown too. Verified on his REAL log
-(logged a 3-line plate, dropped a line 510→350, undid it 350→510, deleted
-the test entry, confirmed his day matched byte-for-byte what it was).
+**Verified live:** a 30 fps clip refused by code (no model call); a 60 fps
+clip that was not a lift refused by the model — it named it as an ffmpeg test
+pattern with "nothing anatomical to judge"; and the client loop end to end at
+375 px. **NOT yet exercised: a real clip of his own lifting.**
 
-**A pre-existing bug this caught:** the food-log rows overflowed at 375px —
-the remove × sat outside the row (measured: scrollWidth 351 vs client 305).
-Rows are now title-over-macros in the iOS list idiom.
+**A LATENT BUG THIS CAUGHT, live since attachments shipped (6 Sep):**
+`attachments.js` and `hands.js` resolved their data directory through
+`new URL(import.meta.url).pathname`, which percent-encodes the space in
+"Claude Projects". Every attachment had been landing in a stray
+`/Users/haydencooper/Desktop/Files/Claude%20Projects/` tree — and ffmpeg
+reads `%2` as a format specifier, so VIDEO ATTACHMENTS HAD NEVER PRODUCED
+FRAMES (the preamble just said so honestly and nobody looked). Fixed with
+`fileURLToPath`, pinned by a test, stray tree removed. **Rule: never resolve
+a path through a URL pathname.**
 
-**Earlier today:** open it for real (Nova's own visible Chrome on its OWN
-profile `~/.nova-browser-view`, because a visible window on the hand's
-profile locks the next headless run out; the finished-on URL rides the
-hand's final `BROWSE {…url}` block) and THE INTAKE (seven questions,
-Mifflin-St Jeor printed line by line, his yes writes the collection's
-targets and his profile page, both undoable) — d46fe90. Wrap the day —
-3f39dfe. The restyle + standard — 31abe03.
+**Earlier today:** open it for real (Nova's own visible Chrome, own profile);
+THE INTAKE (his numbers, code-derived, both files undoable) — d46fe90; wrap
+the day — 3f39dfe; the surface standard + the wrap card rebuilt on the house
+objects — 31abe03; the itemised plate — fa548be.
 
-**NEXT:** FORM CHECK, then THE STUDY LANE (ATHLETE-AI-PLAN #4, #5). Still
-unexercised: a real stopped-before-a-button browse run (`browse-press`).
+**THE SURFACE STANDARD (NOVA-METHOD.md §2b, from CLAUDE.md).** Seven rules;
+the one that bites: ship in BOTH Home idioms from ONE view model — his phone
+runs `cupertino`, so a card added only to the classic fold does not exist for
+him. Also: house objects only, sentence case in vals, real tokens only
+(`--nv-blue`/`--nv-ink70` do not exist and fail silently), an entrance
+animation, `minWidth: 0` + measure at 375, verify in both styles.
 
-**STILL HIS:** say "set my numbers" (the collection still reads 2200 kcal /
-150 g, typed once, never derived); the first real Wrap card tonight; the
-stale ingest weave 9e994aae; cook something and tell Nova; the
-phone-in-hand gym check; a real browser commit; Xcode.
+**NEXT:** THE STUDY LANE (ATHLETE-AI-PLAN #5) is the last of the five.
+Unexercised elsewhere: a real stopped-before-a-button browse run.
+
+**STILL HIS:** film one working set at 60 fps and run a real form check; say
+"set my numbers" (the collection still reads 2200 kcal / 150 g, typed once);
+the first real Wrap card tonight; the stale ingest weave 9e994aae; cook
+something and tell Nova; the phone-in-hand gym check; a real browser commit;
+Xcode.
 
 ## SESSION LOG (append-only, newest first)
+
+### 8 September 2026 (midday) — the form check
+ATHLETE-AI-PLAN #4: protocol gate in code, usability verdict by the model,
+deterministic frames, per-lift rubrics, measurement scrub, review as a
+proposal. Caught and fixed the URL-pathname bug that had silently stopped
+video attachments producing frames since 6 Sep. 1216 tests green.
 
 ### 8 September 2026 (late morning) — the surface standard, and the itemised plate
 The wrap card rebuilt on the house objects and added to the Apple twin (it

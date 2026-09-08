@@ -284,6 +284,23 @@ export function valsWorkouts(app, ctx) {
     coachLabel: coachChipLabel(progressions[`${openRoutine.id}:${e.exerciseId}`]),
     coachEvidence: progressions[`${openRoutine.id}:${e.exerciseId}`]?.evidence || null,
     coachOpen: coachSheet(e.name, progressions[`${openRoutine.id}:${e.exerciseId}`], e.coachAdded),
+    // FORM CHECK reachable without starting a session — reviewing last
+    // night's clip on the couch is the same feature as doing it in the rack
+    formCheckOpen: () => app.openFormCheck(e.exerciseId, e.name),
+    formCheck: st.formCheck?.exerciseId === e.exerciseId ? {
+      exerciseName: st.formCheck.exerciseName,
+      protocol: st.formCheck.protocol || [],
+      rubric: st.formCheck.rubric,
+      stage: st.formCheck.stage,
+      busy: ['uploading', 'checking the clip', 'cutting frames', 'reading the set', 'filing the review'].includes(st.formCheck.stage),
+      error: st.formCheck.error,
+      result: st.formCheck.result,
+      refused: st.formCheck.stage === 'refused',
+      done: st.formCheck.stage === 'done',
+      pick: (ev) => app.submitFormCheckClip(ev.target.files, null),
+      close: () => app.closeFormCheck(),
+      openInbox: () => { app.closeFormCheck(); app.navigate('inbox'); },
+    } : null,
     lastLabel: setsLabel(e.trackingType, e.lastSets),
     canMoveUp: i > 0, canMoveDown: i < arr.length - 1,
     onMoveUp: () => app.moveExerciseInRoutine(e.exerciseId, -1),
@@ -354,12 +371,30 @@ export function valsWorkouts(app, ctx) {
         { label: e.anomaly ? 'Unflag anomaly' : 'Flag anomaly — off day', onSelect: () => app.updateSessionExerciseField(exIdx, 'anomaly', !e.anomaly) },
         { label: 'Report pain', danger: true, onSelect: () => app.setState({ sessionPain: { exIdx, area: null, side: null, when: null, detail: '' } }) },
         { label: e.skipped ? 'Un-skip today' : 'Skip today', onSelect: () => app.toggleSessionExerciseSkipped(exIdx) },
+        { label: 'Form check — film this set', hint: 'read rep by rep', onSelect: () => app.openFormCheck(e.exerciseId, e.name) },
         { label: 'Ask Coach about this lift', onSelect: () => { app.setState({ trainTab: 'coach' }); app.doCoach(`Mid-session — talk me through ${e.name}: cues, common mistakes, and what matters most for my goals.`); } },
         // only an EXTRA (this-session-only) exercise can be pulled out
         // whole — a programmed one is skipped, never deleted
         ...(e.adhoc ? [{ label: 'Remove — this session only', danger: true, onSelect: () => app.removeExerciseFromSession(exIdx) }] : []),
       ],
     }),
+    // FORM CHECK — the visible door, beside the pain chip, on the lift he is
+    // standing over. Opening it states the protocol BEFORE he films.
+    formCheckOpen: () => app.openFormCheck(e.exerciseId, e.name),
+    formCheck: st.formCheck?.exerciseId === e.exerciseId ? {
+      exerciseName: st.formCheck.exerciseName,
+      protocol: st.formCheck.protocol || [],
+      rubric: st.formCheck.rubric,
+      stage: st.formCheck.stage,
+      busy: ['uploading', 'checking the clip', 'cutting frames', 'reading the set', 'filing the review'].includes(st.formCheck.stage),
+      error: st.formCheck.error,
+      result: st.formCheck.result,
+      refused: st.formCheck.stage === 'refused',
+      done: st.formCheck.stage === 'done',
+      pick: (ev) => app.submitFormCheckClip(ev.target.files, st.workoutSession?.id || null),
+      close: () => app.closeFormCheck(),
+      openInbox: () => { app.closeFormCheck(); app.navigate('inbox'); },
+    } : null,
     coachLabel: coachChipLabel(e.coach), coachEvidence: e.coach?.evidence || null,
     coachAsk: coachChipAsk(e.coach, e.name),
     // tapping the chip mid-session opens the full reasoning, not a tooltip

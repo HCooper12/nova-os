@@ -550,6 +550,33 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  if (route === 'form') {
+    // A form check he approved (lib/formCheck.js). The body is the SAME text
+    // the record showed him — he approves the words that get written, not a
+    // summary of them. Filed under the lift, not in the inbox pile, because
+    // this is reference he will come back to before the next session.
+    const rel = `Wiki/Health/Form Checks/${sanitizeFilename(`${payload.date} ${payload.exerciseName}`)}.md`;
+    let relPath = rel;
+    if (existsSync(path.join(vaultPath, relPath))) relPath = rel.replace(/\.md$/, ` ${Date.now() % 10000}.md`);
+    const full = path.join(vaultPath, relPath);
+    await mkdir(path.dirname(full), { recursive: true });
+    const content = matter.stringify(`${payload.body}\n`, {
+      type: 'form-check',
+      exercise: payload.exerciseName,
+      exerciseId: payload.exerciseId || null,
+      ...(payload.sessionId ? { sessionId: payload.sessionId } : {}),
+      tags: ['form-check', 'training'],
+      created: payload.date,
+      updated: payload.date,
+    });
+    await writeFile(full, content, 'utf8');
+    const hash = createHash('sha256').update(content).digest('hex');
+    return {
+      destination: `Form Checks — ${payload.exerciseName} (${payload.date})`,
+      undo: { route: 'note', relPath, hash }, // the same hash-checked delete notes use
+    };
+  }
+
   if (route === 'intake') {
     // THE INTAKE's yes (lib/intake.js): code recomputes the plan from the
     // facts he answered — never trusting a number that rode in the payload —
