@@ -1400,6 +1400,7 @@ export default class App extends Component {
       this.refreshRecipePhotos(r.recipes);
     });
     apply('rotation', (r) => this.setState({ liveRotation: r }));
+    apply('carryovers', (r) => this.setState({ liveCarryovers: r.carryovers }));
     apply('foodLog', (r) => this.setState({ liveFoodLog: r }));
     apply('nutritionMonth', (r) => this.setState({ liveNutritionMonth: r }));
     apply('nutritionWeek', (r) => this.setState({ liveNutritionWeek: r }));
@@ -1521,6 +1522,10 @@ export default class App extends Component {
       async () => this.setState({ liveRotation: await api.rotation(conn) }),
       async () => this.setState({ liveFoodLog: await api.foodLog(conn) }),
       async () => this.setState({ liveWrap: await api.wrapDay(conn) }),
+      // carry-overs and make-up days ride the sync: the week strip and Today's
+      // card read them, and until now nothing loaded them on arrival — the
+      // marker existed server-side and the planner stayed blind to it
+      async () => this.setState({ liveCarryovers: (await api.workoutCarryovers(conn)).carryovers }),
       async () => this.setState({ liveNutritionMonth: await api.nutritionMonth(conn) }),
       async () => this.setState({ liveNutritionWeek: await api.nutritionWeek(conn) }),
       async () => this.setState({ liveTrainOverview: await api.trainOverview(conn) }),

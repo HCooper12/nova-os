@@ -25,6 +25,9 @@ export const SLICES = {
   nutritionMonth: '/api/nutrition-month',
   nutritionWeek: '/api/nutrition-week',
   trainOverview: '/api/train/overview',
+  // the week planner and Today's card read these; before 8 Sep 2026 nothing
+  // loaded them on arrival, so a make-up day marked on the server was invisible
+  carryovers: '/api/workouts/carryovers',
   fuelCross: '/api/train/fuel-cross',
   shoppingList: '/api/shopping-list',
   stash: '/api/stash',
