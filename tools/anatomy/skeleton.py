@@ -120,6 +120,73 @@ def joints(side=1):
     }
 
 
+def limb_r(kind, side, z):
+    """How thick the arm or leg is at height z, measured off the base mesh.
+
+    `kind` is 'arm' or 'leg'. Limb muscles are placed as a fraction of the way
+    out to this rather than at a fixed offset from the bone — the adductors were
+    written 2.6 cm medial of the femur on a thigh 9 cm thick, which buried the
+    whole group inside the leg where it could neither show nor be highlighted.
+    """
+    m = measured().get('sides', {}).get('L' if side > 0 else 'R', {})
+    rows = m.get(f'{kind}_radius') or []
+    if not rows or not isinstance(rows[0], list):
+        return (UPPER_ARM if kind == 'arm' else 0.10) * 0.30
+    rows = sorted(rows)
+    if z <= rows[0][0]:
+        return rows[0][1]
+    if z >= rows[-1][0]:
+        return rows[-1][1]
+    for a, b in zip(rows, rows[1:]):
+        if a[0] <= z <= b[0]:
+            t = (z - a[0]) / ((b[0] - a[0]) or 1.0)
+            return a[1] + (b[1] - a[1]) * t
+    return rows[-1][1]
+
+
+def shell(z):
+    """The trunk's cross-section at height z, MEASURED off the base mesh:
+    (centre_y, half_depth, half_width). Interpolated between 2 cm bands, held
+    flat past the ends. `calibrate.py` writes it.
+    """
+    rows = measured().get('trunk', {}).get('shell') or []
+    if not rows:
+        return (0.0, RIB_X * 0.78, RIB_X)
+    if z <= rows[0][0]:
+        return tuple(rows[0][1:4])
+    if z >= rows[-1][0]:
+        return tuple(rows[-1][1:4])
+    for a, b in zip(rows, rows[1:]):
+        if a[0] <= z <= b[0]:
+            t = (z - a[0]) / ((b[0] - a[0]) or 1.0)
+            return tuple(a[i] + (b[i] - a[i]) * t for i in (1, 2, 3))
+    return tuple(rows[-1][1:4])
+
+
+def skin(z, x=0.0, depth=0.014, back=False):
+    """A point `depth` metres beneath the trunk's skin, at height z, offset x.
+
+    The cross-section is treated as an ellipse of the measured half-depth and
+    half-width, so a muscle placed 6 cm off the midline sits where the chest
+    actually curves away rather than on a flat plane.
+
+    Every torso muscle goes through this. The first table hand-wrote its y
+    values against an assumed 9 cm half-depth; the mesh's skin is at 14 cm, so
+    the entire abdominal wall was built six centimetres inside the body, where
+    no amount of relief could ever reach the surface. The joints taught this
+    lesson once already: measure the body you are drawing on.
+    """
+    cy, hd, hw = shell(z)
+    t = min(1.0, abs(x) / max(hw, 1e-6))
+    r = hd * math.sqrt(max(0.0, 1.0 - t * t))
+    return (cy + r - depth) if back else (cy - r + depth)
+
+
+def trunk_x(z, frac=1.0):
+    """`frac` of the way out to the trunk's measured half-width at height z."""
+    return shell(z)[2] * frac
+
+
 MIDLINE = {
     'pelvis': (0.0, 0.010, Z['hip'] - 0.020),
     'sacrum': (0.0, 0.055, Z['hip'] + 0.010),

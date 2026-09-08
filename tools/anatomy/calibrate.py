@@ -98,6 +98,12 @@ def main():
     blend = argv[argv.index('--blend') + 1] if '--blend' in argv else None
     if blend:
         bpy.ops.wm.open_mainfile(filepath=blend)
+    elif '--base' in argv:
+        # measure the untouched base mesh, scaled and centred — the state the
+        # muscle table is written against
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import build as _B
+        _B.normalise(_B.load_base())
     ob = bpy.data.objects.get('nova_body') or next(o for o in bpy.data.objects if o.type == 'MESH')
     verts = [type('V', (), {'co': ob.matrix_world @ v.co, 'z': (ob.matrix_world @ v.co).z})() for v in ob.data.vertices]
     H = max(v.z for v in verts)
@@ -133,7 +139,10 @@ def main():
             if w:
                 j['wrist'] = [w['x'], w['y'], w['z']]
             j['hand'] = [arm[-1]['x'], arm[-1]['y'], arm[-1]['z']]
-            j['arm_radius'] = [p['r'] for p in arm]
+            # [height, radius] down the limb: how THICK the arm is at each
+            # level, so a muscle can be placed as a fraction of the way out
+            # to the skin instead of at a guessed offset from the bone
+            j['arm_radius'] = [[round(p['z'], 4), round(p['r'], 5)] for p in arm]
         if leg:
             # The hip JOINT is inside the pelvis, not at the top of the visible
             # thigh: measured height (0.53 stature) and half the measured pelvis
@@ -152,24 +161,56 @@ def main():
             if a:
                 j['ankle'] = [a['x'], a['y'], a['z']]
             j['toe'] = [leg[-1]['x'], leg[-1]['y'], leg[-1]['z']]
+            j['leg_radius'] = [[round(p['z'], 4), round(p['r'], 5)] for p in leg]
         res['sides'][tag] = j
 
-    # trunk landmarks: the narrowest band above the hips is the waist, the
-    # widest below the shoulders is the chest
-    trunk = []
-    for z, vs in bands([v for v in trunk_verts if H * 0.45 < v.z < H * 0.85]).items():
-        cl = clusters([v.co.x for v in vs])
-        mid = min(cl, key=lambda c: abs((c[0] + c[1]) / 2))
-        band_v = [v for v in vs if mid[0] - 1e-6 <= v.co.x <= mid[1] + 1e-6]
-        if len(band_v) < 8:
-            continue
-        trunk.append({'z': z, 'halfw': max(abs(v.co.x) for v in band_v),
-                      'halfd': max(abs(v.co.y) for v in band_v)})
-    if trunk:
-        waist = min([t for t in trunk if H * 0.55 < t['z'] < H * 0.68], key=lambda t: t['halfw'], default=None)
-        chest = max([t for t in trunk if H * 0.70 < t['z'] < H * 0.80], key=lambda t: t['halfw'], default=None)
-        res['trunk'] = {'waist': waist, 'chest': chest,
-                        'profile': [[t['z'], t['halfw'], t['halfd']] for t in trunk]}
+    # THE SHELL — the trunk's actual cross-section, band by band, as an ellipse:
+    # centre y, half-depth, half-width. Muscle volumes are placed relative to
+    # this rather than to absolute coordinates. The first table hand-wrote its
+    # y values on the assumption of a 9 cm half-depth; the mesh's skin is at
+    # 14 cm, so the entire abdominal wall was built six centimetres inside the
+    # body and no relief could reach the surface. Measure, don't assume — the
+    # same lesson the joints already taught.
+    shell = []
+    step = 0.020
+    z = round(H * 0.46 / step) * step
+    while z < H * 0.845:
+        vs = [v for v in trunk_verts if abs(v.co.z - z) < step * 0.75]
+        # only the vertices actually on the trunk: one x-cluster around the
+        # midline. Anything further out at this height is an arm we missed.
+        # keep only the x-cluster that spans the midline: at chest height the
+        # A-pose arms sit 30 cm out and would otherwise be read as shoulders
+        cl = [c for c in clusters([v.co.x for v in vs]) if c[0] <= 0.0 <= c[1]]
+        if cl:
+            lo, hi = cl[0][0], cl[0][1]
+            vs = [v for v in vs if lo - 1e-6 <= v.co.x <= hi + 1e-6]
+        vs = [v for v in vs if abs(v.co.x) < H * 0.15]
+        sag = [v for v in vs if abs(v.co.x) < 0.045]
+        if len(vs) >= 10 and len(sag) >= 4:
+            front, back = min(v.co.y for v in sag), max(v.co.y for v in sag)
+            shell.append([round(z, 4), round((front + back) / 2, 5),
+                          round((back - front) / 2, 5),
+                          round(max(abs(v.co.x) for v in vs), 5)])
+        z += step
+    # The half-width needs two repairs the depth does not. A single band can
+    # come out absurd where few vertices sit near the midline (a 2 cm "waist"
+    # at the collarbone), so median-filter it; and above the nipple the arm is
+    # genuinely joined to the torso, so the measurement flares to 27 cm — a
+    # torso does not widen 50% in one 2 cm band, a limb merging does. Carry the
+    # last honest width forward through those.
+    if len(shell) >= 3:
+        ws = [r[3] for r in shell]
+        for i in range(1, len(shell) - 1):
+            shell[i][3] = round(sorted(ws[i - 1:i + 2])[1], 5)
+    for i in range(1, len(shell)):
+        if shell[i][3] > shell[i - 1][3] * 1.12:
+            shell[i][3] = shell[i - 1][3]
+    if shell:
+        widest = max(shell, key=lambda r: r[3])
+        waist = min([r for r in shell if H * 0.55 < r[0] < H * 0.68], key=lambda r: r[3], default=widest)
+        res['trunk'] = {'shell': shell,
+                        'chest': {'z': widest[0], 'halfw': widest[3], 'halfd': widest[2]},
+                        'waist': {'z': waist[0], 'halfw': waist[3], 'halfd': waist[2]}}
 
     os.makedirs(os.path.dirname(out) or '.', exist_ok=True)
     with open(out, 'w') as fh:

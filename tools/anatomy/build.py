@@ -29,6 +29,7 @@ Deterministic: same inputs, same body, every run.
 """
 
 import bpy
+import math
 import os
 import sys
 from mathutils import Vector, kdtree
@@ -94,6 +95,150 @@ def normalise(ob):
     return ob
 
 
+def redistribute(ob):
+    """Put the mesh's resolution where the muscles are.
+
+    Measured on the base mesh: of its 10,582 vertices, 3,348 are in the head,
+    2,510 in the feet and 1,828 in the hands — 73% on the three regions this
+    app never highlights — while the ENTIRE THIGH gets 341 and the chest 734.
+    That is a face rig's budget, and it is why the first build read as a smooth
+    mannequin: there was no geometry left to carry a muscle.
+
+    So: subdivide everything once, then collapse the extremities back down to
+    what a silhouette needs. The trunk and limbs come out roughly four times
+    denser, the head/hands/feet lighter than they started, and the whole body
+    lands near the vertex count it began with.
+    """
+    z_jaw, z_ank = SK.Z['jaw'], SK.joints(1)['ankle'][2]
+    wr = [Vector(SK.joints(s)['wrist']) for s in (1, -1)]
+    el = [Vector(SK.joints(s)['elbow']) for s in (1, -1)]
+
+    def extremity(co):
+        """1 deep in an extremity, 0 in the body, ramped across the joint."""
+        def ramp(d, w=0.075):
+            # a wide ramp on purpose: a short one puts the whole change in
+            # triangle density into two centimetres and leaves a visible ring
+            # around each ankle and wrist where the shading breaks
+            return max(0.0, min(1.0, d / w))
+        w = ramp(co.z - (z_jaw + 0.010))                       # head, above the jaw
+        w = max(w, ramp((z_ank + 0.055) - co.z))               # foot, below the ankle
+        for wrist, elbow in zip(wr, el):
+            # the hand: past the wrist AND close to it. Without the distance
+            # gate the forearm's axis runs on down through the whole lower body
+            # and the first run decimated the legs and feet away.
+            if (co - wrist).length > 0.24:
+                continue
+            axis = (wrist - elbow).normalized()
+            w = max(w, ramp((co - wrist).dot(axis) + 0.010))
+        return w
+
+    bpy.context.view_layer.objects.active = ob
+    sub = ob.modifiers.new('subdiv', 'SUBSURF')
+    sub.levels = sub.render_levels = 1
+    bpy.ops.object.modifier_apply(modifier=sub.name)
+
+    g = ob.vertex_groups.new(name='_extremity')
+    for v in ob.data.vertices:
+        e = extremity(v.co)
+        if e > 0:
+            g.add([v.index], e, 'REPLACE')
+
+    # Decimate's ratio is a target for the WHOLE mesh, and the zero-weight body
+    # is protected — so a naive ratio makes the collapse take everything it is
+    # allowed to take. The first run asked for 0.10 and left the feet with eight
+    # vertices. Work out the ratio from the actual split instead: keep the body
+    # entire, keep KEEP of the extremities.
+    KEEP = 0.09
+    ext = sum(1 for p in ob.data.polygons if extremity(Vector(p.center)) > 0.5)
+    total = len(ob.data.polygons)
+    dec = ob.modifiers.new('decimate', 'DECIMATE')
+    dec.decimate_type = 'COLLAPSE'
+    dec.ratio = min(1.0, ((total - ext) + KEEP * ext) / max(1, total))
+    dec.vertex_group = g.name
+    dec.use_collapse_triangulate = False
+    bpy.ops.object.modifier_apply(modifier=dec.name)
+    ob.vertex_groups.remove(ob.vertex_groups['_extremity'])
+    ob.data.update()
+    return ob
+
+
+def relief(ob, muscles, samples, kd, amount=1.0):
+    """Cut the separations between muscles into the surface.
+
+    PHYSIQUE adds mass; this is what makes the mass read as anatomy. For every
+    vertex the muscle field is asked two questions: how deep inside its own
+    muscle's belly it sits — which becomes a bulge — and how nearly it is
+    equidistant from a DIFFERENT muscle, which becomes a groove. Out of those
+    two numbers come the lines a lean trained body actually has: the split
+    between the pectorals, the tendinous inscriptions across the abdominals,
+    the linea alba and the spinal furrow (both of them a left/right seam), the
+    groove between biceps and triceps, the separation of vastus lateralis from
+    rectus femoris.
+
+    A groove is a real depression, not a painted line — it survives being lit
+    from any angle and it shows in the silhouette, which is the whole point.
+    """
+    RIDGE, GROOVE, W = 0.0080, 0.0140, 0.013
+    ob.data.update()
+    normals = {v.index: v.normal.copy() for v in ob.data.vertices}
+    disp = [0.0] * len(ob.data.vertices)
+    for v in ob.data.vertices:
+        best = {}
+        for _co, idx, d in kd.find_n(v.co, 28):
+            p, r, mi, part = samples[idx]
+            pen = r - d                       # positive inside the belly
+            key = (mi, part)
+            if key not in best or pen > best[key]:
+                best[key] = pen
+        if not best:
+            continue
+        order = sorted(best.items(), key=lambda kv: -kv[1])
+        (own_mi, _own_part), own_pen = order[0]
+        if own_pen < -0.028:                  # nothing close: leave the skin alone
+            continue
+        scale = 0.45 if muscles[own_mi]['group'] == 'frame' else 1.0
+        # A bone landmark is a subtle feature of the skin — a collarbone reads
+        # as a ridge and a shallow hollow, never as the canyon a groove between
+        # two muscle bellies is. Cutting the frame like muscle tore the top of
+        # both shoulders open.
+        frame_pair = scale < 1.0 or (len(order) > 1 and
+                                     muscles[order[1][0][0]]['group'] == 'frame')
+        # Only cut where there is muscle to cut between — not out in the empty
+        # space over a collarbone. The threshold has to sit BELOW the surface,
+        # though: a tendinous inscription is by definition a place where no
+        # belly reaches the skin, and a stricter gate erased every one of them.
+        presence = max(0.0, min(1.0, (own_pen + 0.020) / 0.014))
+        bulge = RIDGE * max(0.0, min(1.0, (own_pen + 0.006) / 0.018))
+        seam = math.exp(-((own_pen - order[1][1]) / W) ** 2) if len(order) > 1 else 0.0
+        # A groove is the boundary between TWO muscles. Where a third is just as
+        # close the boundary has no direction, and cutting there tore the
+        # sternum and collarbones — five volumes meet inside two centimetres.
+        # So only cut in proportion to how cleanly the seam is a pair.
+        if len(order) > 2:
+            seam *= 1.0 - math.exp(-((order[1][1] - order[2][1]) / W) ** 2)
+        cut = GROOVE * seam * presence * (0.35 if frame_pair else 1.0)
+        disp[v.index] = (bulge - cut) * amount * scale
+
+    # Average the displacement with its neighbours before applying it. A groove
+    # is a broad valley and survives this; a one-vertex spike where the field
+    # is ambiguous does not.
+    adj = [[] for _ in range(len(ob.data.vertices))]
+    for e in ob.data.edges:
+        a, b = e.vertices
+        adj[a].append(b)
+        adj[b].append(a)
+    # one light pass only: at two passes with a heavy neighbour weight the blur
+    # radius reached 2.4 cm, wider than a groove, and flattened the whole body
+    disp = [d if not adj[i] else d * 0.70 + 0.30 * sum(disp[k] for k in adj[i]) / len(adj[i])
+            for i, d in enumerate(disp)]
+
+    moves = {i: normals[i] * d for i, d in enumerate(disp) if abs(d) > 1e-5}
+    for i, dv in moves.items():
+        ob.data.vertices[i].co += dv
+    ob.data.update()
+    return len(moves)
+
+
 def muscle_samples(muscles, step=0.010, surface_only=False):
     """Every muscle volume as a cloud of (point, radius, muscle index).
 
@@ -107,10 +252,15 @@ def muscle_samples(muscles, step=0.010, surface_only=False):
     for mi, m in enumerate(muscles):
         if surface_only and m.get('deep'):
             continue
-        for path in (m['paths'] if 'paths' in m else [m['path']]):
+        paths = m['paths'] if 'paths' in m else [m['path']]
+        for pi, path in enumerate(paths):
+            # `parts` muscles groove between their own strands — the abdominal
+            # inscriptions, the serratus digitations. For every other muscle the
+            # strands are one belly and must not be cut apart.
+            part = pi if m.get('parts') else 0
             if len(path) == 1:
                 c, a, b = path[0]
-                pts.append((Vector(c), (a + b) * 0.5, mi))
+                pts.append((Vector(c), (a + b) * 0.5, mi, part))
                 continue
             for k in range(len(path) - 1):
                 (p0, a0, b0), (p1, a1, b1) = path[k], path[k + 1]
@@ -119,13 +269,13 @@ def muscle_samples(muscles, step=0.010, surface_only=False):
                 for i in range(n + 1):
                     t = i / n
                     pts.append((Vector(p0).lerp(Vector(p1), t),
-                                (a0 + (a1 - a0) * t + b0 + (b1 - b0) * t) * 0.5, mi))
+                                (a0 + (a1 - a0) * t + b0 + (b1 - b0) * t) * 0.5, mi, part))
     return pts
 
 
 def kd_of(samples):
     kd = kdtree.KDTree(len(samples))
-    for i, (p, _r, _mi) in enumerate(samples):
+    for i, (p, _r, _mi, _part) in enumerate(samples):
         kd.insert(p, i)
     kd.balance()
     return kd
@@ -142,7 +292,7 @@ def physique(ob, muscles, samples, kd, strength=1.0):
     moves = {}
     for v in ob.data.vertices:
         _co, idx, _d = kd.find(v.co)
-        p, r, mi = samples[idx]
+        p, r, mi, _part = samples[idx]
         gain = muscle_gain(muscles[mi])
         if gain <= 0:
             continue
@@ -156,6 +306,32 @@ def physique(ob, muscles, samples, kd, strength=1.0):
     return len(moves)
 
 
+def nearest_bone(co, segs):
+    def d(seg):
+        _n, a, bb = seg
+        ab = bb - a
+        t = max(0.0, min(1.0, (co - a).dot(ab) / (ab.dot(ab) or 1e-9)))
+        return (co - (a + ab * t)).length
+    return min(segs, key=d)[0]
+
+
+def bone_groups():
+    """Which muscle groups may claim a vertex, by the bone it belongs to.
+
+    The inverse of GROUP_BONES, and the fix for two bugs visible the first time
+    the model ran in the app: the traps highlight painted his FACE, and the
+    forearms highlight put a cyan patch on each hip. Both are "nearest volume
+    wins" with no sense of where on the body it is — in the A-pose a hand sits
+    five centimetres from a thigh, and the neck muscles reach the jaw. A vertex
+    on the head is not eligible to be a trapezius no matter what is nearest.
+    """
+    inv = {}
+    for g, bones in GROUP_BONES.items():
+        for bn in (bones or []):
+            inv.setdefault(bn, set()).add(g)
+    return inv
+
+
 def segment(ob, muscles, samples, kd):
     groups = {g: ob.vertex_groups.new(name=g) for g in GROUPS}
     per_muscle = {}
@@ -164,15 +340,31 @@ def segment(ob, muscles, samples, kd):
         if key not in per_muscle:
             per_muscle[key] = ob.vertex_groups.new(name=key)
 
+    segs = [(n, Vector(h), Vector(t)) for n, _p, h, t in SK.BONES]
+    allow = bone_groups()
+
     by_group = {g: [] for g in GROUPS}
     by_muscle = {k: [] for k in per_muscle}
     vert_group = {}
     for v in ob.data.vertices:
-        _co, idx, _d = kd.find(v.co)
-        m = muscles[samples[idx][2]]
+        ok = allow.get(nearest_bone(v.co, segs), set())
+        m = None
+        for _co, idx, _d in kd.find_n(v.co, 24):
+            cand = muscles[samples[idx][2]]
+            if cand['group'] == 'frame' or cand['group'] in ok:
+                m = cand
+                break
+        if m is None:
+            m = muscles[samples[kd.find(v.co)[1]][2]]
         by_group[m['group']].append(v.index)
         by_muscle[f"{m['name']}.{'L' if m['side'] > 0 else 'R'}"].append(v.index)
         vert_group[v.index] = m['group']
+    face_group = {}
+    for poly in ob.data.polygons:
+        gs = [vert_group.get(i) for i in poly.vertices]
+        gs = [g for g in gs if g]
+        if gs:
+            face_group[poly.index] = max(set(gs), key=gs.count)
     for g, idx in by_group.items():
         if idx:
             groups[g].add(idx, 1.0, 'REPLACE')
@@ -190,10 +382,7 @@ def segment(ob, muscles, samples, kd):
         ob.data.materials.append(mat)
         slot[g] = len(ob.data.materials) - 1
     for poly in ob.data.polygons:
-        gs = [vert_group.get(i) for i in poly.vertices]
-        gs = [g for g in gs if g]
-        if gs:
-            poly.material_index = slot[max(set(gs), key=gs.count)]
+        poly.material_index = slot[face_group.get(poly.index, 'frame')]
     return {g: len(v) for g, v in by_group.items() if v}, vert_group
 
 
@@ -308,13 +497,15 @@ def main():
     argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
     out = argv[argv.index('--out') + 1] if '--out' in argv else '/tmp/anat'
     strength = float(argv[argv.index('--physique') + 1]) if '--physique' in argv else 1.0
+    relief_amount = float(argv[argv.index('--relief') + 1]) if '--relief' in argv else 1.0
     os.makedirs(out, exist_ok=True)
 
-    body = normalise(load_base())
+    body = redistribute(normalise(load_base()))
     muscles = all_muscles()
     samples = muscle_samples(muscles, surface_only=True)
     kd = kd_of(samples)
     moved = physique(body, muscles, samples, kd, strength) if strength > 0 else 0
+    cut = relief(body, muscles, samples, kd, relief_amount)
     counts, vert_group = segment(body, muscles, samples, kd)
     if '--norig' not in argv:
         build_rig(body, vert_group)
@@ -325,9 +516,12 @@ def main():
         o.select_set(False)
     for o in bpy.data.objects:
         o.select_set(True)
-    bpy.ops.export_scene.gltf(filepath=glb, export_format='GLB', use_selection=True, export_apply=False)
-    print(f'BUILT verts={len(body.data.vertices)} moved={moved} groups={len(counts)} '
-          f'glb={os.path.getsize(glb) / 1024:.0f}KB')
+    # no textures anywhere in this model — the app tints the per-group
+    # materials directly — so the UV channel is 8 bytes a vertex of nothing
+    bpy.ops.export_scene.gltf(filepath=glb, export_format='GLB', use_selection=True,
+                              export_apply=False, export_texcoords=False)
+    print(f'BUILT verts={len(body.data.vertices)} moved={moved} relief={cut} '
+          f'groups={len(counts)} glb={os.path.getsize(glb) / 1024:.0f}KB')
     for g in sorted(counts, key=lambda k: -counts[k]):
         print(f'   {g:14s} {counts[g]:5d}')
 
