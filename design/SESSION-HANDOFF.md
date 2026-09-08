@@ -13,53 +13,58 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**8 SEP — the athlete-AI queue is complete, MAKE-UP DAYS shipped, and every
-new feature was verified against the DEPLOYED build talking to his Mac.**
+**8 SEP (evening) — THE FORM MODEL WAS REBUILT FROM NOTHING.** His verdict on
+the old one: "terrible… most of the exercises are completely wrong with how
+the movement is actually meant to be carried out." Both halves were true — it
+was capsules, and it was driven by the flat figure's CSS transforms, so a
+squat was `scaleY(0.86)` and the legs shrank.
 
-**Make-up days (his ask).** A date can be "finish Monday's Pull" instead of
-the scheduled session. `server/lib/makeupDay.js`: a make-up is a carry-over
-with `plannedAs: 'day'` (one store, one concept, every existing reader keeps
-working). Leftovers are DERIVED — the routine's exercises minus what the last
-logged session of it recorded, skipped counting as left over; no logged
-session = refused with the reason. Readers wired: `trainOverview.makeup`
-(Today's card leads with "Finish Pull · 6 left" + a button that starts those
-exercises), `dispatch` ("Today is a make-up"), `trainingCheck` (asks about the
-make-up, not the scheduled session), `coachTurn`/`planToday`/`dailyReview`
-(makeupContext says DO NOT program a full session). Doors: a "Make-up day…"
-picker on every day in BOTH week strips, and "Not a make-up" to undo.
+**What it is now.** Blender's CC0 **Human Base Meshes** male (10,582 verts,
+real anatomy, clean quads) put through a headless pipeline in `tools/anatomy/`:
+scaled to 180 cm, grown where a trained lifter carries muscle (71 muscle
+volumes written from origins and insertions), segmented so every vertex
+belongs to a muscle (19 material groups — the highlight IS the anatomy),
+rigged from joint centres MEASURED off the mesh, and exported to
+`public/models/body.glb` (825 KB, lazy-loaded). `src/exercise3d.js` states
+each lift as joint angles a biomechanist would recognise, with a stance
+(supine / incline30 / hanging / seated / prone / thrust) and the equipment
+built and placed in the hands.
 
-**A gap that fix exposed:** carry-overs were only ever fetched by the
-finish-a-missed-session flow, so arriving at Train showed no carry-over note
-at all. They now ride the SYNC SNAPSHOT (`routes/snapshot.js` slice +
-`apply('carryovers')`) — note the fast path is the snapshot; a per-slice task
-in App.jsx's `tasks` array only runs in the FALLBACK branch.
+**Read `nova-anatomy-model` memory before touching any of it** — it carries
+the calibration method, the skinning constraints, and the two three.js traps
+(SkeletonUtils.clone; never assign a one-element material array).
 
-**HIS LIVE SESSION, 13:45 today:** a "Push — makeup" draft with 2 sets ticked
-(Incline Barbell Bench 40×12, 60×9) — that is his, from his own device. I
-found it while verifying, did not touch it, and removed the test Pull make-up
-marker I had created for today. The ordinary Push carry-over (6 exercises)
-remains as it was.
+**Verified live** on the preview against his vault: Cable Hammer Curls lights
+the biceps and forearms on a clean standing figure; Incline Barbell Bench
+Press lights chest/front delts/triceps on a 30° bench; Hack Squat resolves to
+the sled pattern. Deployed: b9caa74, and the live site serves the model.
 
-**THE LIVE SWEEP (what "it is really live" means here).** The deployed page
-loads `index-U_DOGyIf.js`; `dist` builds the same file, and verify-shipped
-compares the hashes — so the bundle tested IS the bundle he runs. All 26
-deployed chunks were downloaded and grepped: wrap card, Intake door,
-itemised-plate lines + undo, form-check panel + refusal, study-lane label +
-"Bring a study", "OPEN IT FOR REAL", make-up card/picker/undo — all present,
-plus the client's calls to /api/wrap, /api/intake/propose, /api/form-check,
-/api/workouts/makeup, /api/browse/open. CORS preflight from
-`https://hcooper12.github.io` to the Tailscale URL returns 204 with the
-origin allowed, and every new endpoint answers 200 with that Origin header.
+**THE COACH'S ANATOMY** (`server/lib/anatomy.js`) is the same 18 groups in
+prose — origin, insertion, joints crossed, actions, what trains it, what it
+looks like when it is the weak link — narrowed by `focusFor()` and injected
+into `coachTurn`. Asked live why his bench stalls off the chest and his
+shoulder pinches overhead, it separated the two, named the sternocostal head
+of pec major, then the lower trap / infraspinatus / short pec minor, and
+grounded all of it in his own numbers (chest hard sets 6-3-9-3, back
+18-12-6-3).
 
-**A standing instruction (CLAUDE.md + memory `nova-decisions-plainly`):**
-when a decision is needed from him, state it PLAINLY in its own list at the
-end — never buried in prose or mixed with chores.
+**STILL CRUDE, and he should hear it from us before he finds it:** shoulder
+flexion past ~140° still distorts (linear blend skinning, no corrective shape
+keys); the supine and incline stances place the body on hand-tuned offsets
+rather than fitting it to the pad, so a bench press floats; equipment is
+primitives. Next passes: corrective shape keys for the shoulder, fit-to-pad
+placement, per-exercise overrides where a pattern lies.
 
-**NEXT:** nothing queued. Candidates: a real form check on his own clip; the
-first real Wrap card tonight; a real stopped-before-a-button browse run; the
-deferred classic-Mission fold; P7/P8 perf levers.
+**Earlier today:** make-up days (he is USING them — today and tomorrow both
+marked as Push make-ups), the itemised plate, the form check, the study lane,
+the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+### 8 September 2026 (evening) — the anatomy model
+Procedural body attempted and abandoned; rebuilt on Blender's CC0 base mesh
+with a measured-joint rig, anatomy-constrained skin weights and joint-angle
+motion. Coach given the matching anatomy. 1235 tests green.
 
 ### 8 September 2026 (afternoon) — make-up days, and the live sweep
 makeupDay.js + every training surface; carry-overs joined the sync snapshot
