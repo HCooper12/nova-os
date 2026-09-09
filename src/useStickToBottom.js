@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 // A CHAT LOG THAT STAYS AT THE FOOT WHILE THE ANSWER IS STILL BEING WRITTEN.
 //
@@ -45,20 +45,26 @@ export function nextStuck(wasStuck, { top, lastTop, scrollHeight, clientHeight }
 }
 
 export function useStickToBottom() {
-  const ref = useRef(null);
   const stuck = useRef(true);
   const lastTop = useRef(0);
   const frame = useRef(0);
+  const off = useRef(null);
+  const followRef = useRef(null);
 
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return undefined;
+  // A CALLBACK REF, not a plain one. Four of the five logs this serves live
+  // behind a view switch (the Coach, the mid-session log, the demo log), so
+  // the element does not exist at the first commit — and `useRef` plus
+  // `useEffect([])` would then attach to nothing and stay dead for the life
+  // of the screen. This runs whenever the element actually appears.
+  const attach = useCallback((node) => {
+    if (off.current) { off.current(); off.current = null; }
+    if (!node) return;
 
     // Instant, never smooth. A smooth scroll restarted on every token never
     // arrives — the words slide out from under him while it animates.
     const toFoot = () => {
-      el.scrollTop = el.scrollHeight;
-      lastTop.current = el.scrollTop;
+      node.scrollTop = node.scrollHeight;
+      lastTop.current = node.scrollTop;
     };
     // one scroll per frame however many mutations a token burst caused
     const follow = () => {
@@ -68,36 +74,49 @@ export function useStickToBottom() {
         if (stuck.current) toFoot();
       });
     };
+    followRef.current = follow;
 
     const onScroll = () => {
-      const top = el.scrollTop;
+      const top = node.scrollTop;
       stuck.current = nextStuck(stuck.current, {
-        top, lastTop: lastTop.current, scrollHeight: el.scrollHeight, clientHeight: el.clientHeight,
+        top, lastTop: lastTop.current, scrollHeight: node.scrollHeight, clientHeight: node.clientHeight,
       });
       lastTop.current = top;
     };
 
-    el.addEventListener('scroll', onScroll, { passive: true });
+    node.addEventListener('scroll', onScroll, { passive: true });
     let mo = null;
     let ro = null;
     if (typeof MutationObserver !== 'undefined') {
       mo = new MutationObserver(follow);
-      mo.observe(el, { childList: true, subtree: true, characterData: true });
+      mo.observe(node, { childList: true, subtree: true, characterData: true });
     }
     if (typeof ResizeObserver !== 'undefined') {
       ro = new ResizeObserver(follow);
-      ro.observe(el);
+      ro.observe(node);
     }
-    toFoot();   // land on the newest line — his 21-Aug ask, unchanged
-
-    return () => {
-      el.removeEventListener('scroll', onScroll);
+    off.current = () => {
+      node.removeEventListener('scroll', onScroll);
       mo?.disconnect();
       ro?.disconnect();
-      if (frame.current) cancelAnimationFrame(frame.current);
-      frame.current = 0;
+      followRef.current = null;
     };
+    toFoot();   // land on the newest line — his 21-Aug ask, unchanged
   }, []);
 
-  return ref;
+  // BELT AND BRACES, added 9 Sep after he reported still having to scroll
+  // down himself. The observers catch what React does not cause — an image
+  // loading, a font settling, a card laying out. This catches everything
+  // React DOES cause, without depending on a text node being MUTATED rather
+  // than replaced. It costs one scrollTop write per render while he is at
+  // the foot, which is one layout operation and far cheaper than being wrong
+  // about the thing he is trying to read.
+  useEffect(() => { followRef.current?.(); });
+
+  useEffect(() => () => {
+    if (off.current) { off.current(); off.current = null; }
+    if (frame.current) { cancelAnimationFrame(frame.current); frame.current = 0; }
+  }, []);
+
+  return attach;
 }

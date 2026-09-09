@@ -6,6 +6,7 @@ import { unspokenTexts, resumeVerdict } from './speechResume.js';
 import { DEFAULT_HOLD, holdTiming } from './turnEnd.js';
 import { offerVerdictFor } from './verdictOffer.js';
 import { parseVisualStream } from './visualBeats.js';
+import { UNDO_KEY, stashOf, usableUndo } from './chatUndo.js';
 import { forceLayout, degrees, GALAXY_MAX_NODES, zoomAt, panBy, recencyAlpha } from './galaxyLayout.js';
 import { flushSync } from 'react-dom';
 import { recipes, notes, basePlan, reviews, galaxyNamed, galaxyLinks } from './data.js';
@@ -375,6 +376,12 @@ export default class App extends Component {
     // far, and `glassSpokenTo` how far the VOICE has got — which is what
     // decides which panel is the hero. See src/glassBeats.js.
     glassBeats: [], glassVisuals: {}, glassSpokenTo: 0,
+    // what "New chat" cleared, so the tap that ends a days-long conversation
+    // is undoable like everything else here (his 9 Sep report)
+    voiceChatUndo: (() => {
+      if (typeof localStorage === 'undefined') return null;
+      try { return usableUndo(JSON.parse(localStorage.getItem(UNDO_KEY) || 'null')); } catch { return null; }
+    })(),
     sidebarHidden: typeof localStorage === 'undefined' ? false : localStorage.getItem('novaos.sidebarHidden') === '1',
     voiceVoiceId: typeof localStorage === 'undefined' ? '' : (localStorage.getItem('novaos.voiceId') || ''),
     orbChat: [
@@ -6855,10 +6862,27 @@ export default class App extends Component {
     const conn = getConnection();
     if (conn) api.markRitualDone(conn, kind).catch(() => {});
   }
+  // ONE TAP IN THE CORNER used to end a conversation the label itself says
+  // CONTINUES ACROSS DAYS, with nothing to press afterwards. His 9 Sep
+  // report. It stashes now — the words AND the session id, because restoring
+  // the transcript without the session would leave Nova with no memory of a
+  // conversation he can still see.
   newVoiceChat() {
+    const stash = stashOf(this.state.voiceChat, this.state.voiceSessionId || localStorage.getItem('novaos.voiceSession'));
+    if (stash) { try { localStorage.setItem(UNDO_KEY, JSON.stringify(stash)); } catch { /* best-effort */ } }
     localStorage.removeItem('novaos.voiceSession');
     this.stopSpeaking();
-    this.setState({ voiceSessionId: null, voiceChat: [] });
+    this.setState({ voiceSessionId: null, voiceChat: [], voiceChatUndo: stash });
+  }
+  undoNewVoiceChat() {
+    let stash = this.state.voiceChatUndo;
+    if (!stash) { try { stash = JSON.parse(localStorage.getItem(UNDO_KEY) || 'null'); } catch { stash = null; } }
+    const ok = usableUndo(stash);
+    if (!ok) { this.toastMsg('That conversation is no longer recoverable here'); return; }
+    if (ok.sessionId) localStorage.setItem('novaos.voiceSession', ok.sessionId);
+    try { localStorage.removeItem(UNDO_KEY); } catch { /* fine */ }
+    this.setState({ voiceChat: ok.chat, voiceSessionId: ok.sessionId || null, voiceChatUndo: null });
+    this.toastMsg(ok.sessionId ? 'Conversation restored — Nova picks up where you left off' : 'Transcript restored');
   }
   rememberFromChat(text) {
     const conn = getConnection();

@@ -5,6 +5,7 @@ import { NovaCore } from '../NovaCore.jsx';
 import { Clock } from '../Clock.jsx';
 import { useDictation } from '../useDictation.js';
 import { useStickToBottom } from '../useStickToBottom.js';
+import { undoLabel } from '../chatUndo.js';
 import { VoicePanel, SourcesPanel } from '../VoicePanels.jsx';
 import { TypeText } from '../TypeText.jsx';
 import { LocalInput } from '../LocalInput.jsx';
@@ -194,7 +195,11 @@ export function Voice({ v }) {
       <div style={css("flex:1;display:flex;flex-wrap:wrap;gap:28px;align-items:center;justify-content:center;margin-top:10px;overflow-y:auto")}>
         <Panel glow
           label={v.voiceContinuing ? 'COMMS LOG · CONTINUES ACROSS DAYS' : 'COMMS LOG'}
-          right={v.voiceContinuing ? (
+          right={v.voiceChatUndo ? (
+            /* the undo sits exactly where the tap that caused it was — which
+               is where his eye already is — and names what comes back */
+            <TextAction compact tone="gold" onClick={v.undoNewVoiceChat}>{undoLabel(v.voiceChatUndo)}</TextAction>
+          ) : v.voiceContinuing ? (
             <TextAction compact tone="faint" onClick={v.newVoiceChat}>New chat</TextAction>
           ) : null}
           style={{ flex: '1 1 330px', minWidth: '300px', maxWidth: '430px', minHeight: '380px', maxHeight: '600px',

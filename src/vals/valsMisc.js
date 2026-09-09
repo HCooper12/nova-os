@@ -243,6 +243,9 @@ export function valsMisc(app, ctx) {
     })),
     voiceContinuing: !demoMode && !!st.voiceSessionId,
     newVoiceChat: () => app.newVoiceChat(),
+    // what that tap cleared, still there to be pressed back
+    voiceChatUndo: st.voiceChatUndo || null,
+    undoNewVoiceChat: () => app.undoNewVoiceChat(),
     // ritual invitations — time-windowed, once a day, tapped never pushed
     ritualInvite: (() => {
       if (demoMode || st.voiceBusy) return null;
