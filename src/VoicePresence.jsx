@@ -68,7 +68,7 @@ export function VoicePresence({ v }) {
 
   const state = dict.on ? 'LISTENING' : s.busy ? 'THINKING' : s.speaking ? 'SPEAKING' : 'YOUR TURN';
   const tone = dict.on ? 'var(--nv-vi)' : s.speaking ? 'var(--nv-gold)' : 'var(--nv-cy)';
-  if (!s.textOpen && !s.evidence && !s.card && !v.speechBlocked) return null;
+  if (!s.textOpen && !s.evidence && !s.card && !s.glass && !v.speechBlocked) return null;
 
   return (
     <div style={css(`position:fixed;left:0;right:0;bottom:${v.isMobile ? 'calc(96px + env(safe-area-inset-bottom))' : '26px'};z-index:112;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:10px;padding:0 12px`)}>
@@ -88,6 +88,26 @@ export function VoicePresence({ v }) {
       {s.card && (
         <div style={css('pointer-events:auto;width:min(430px,100%)')}>
           <SafeVisual what="stage-card" resetKey={s.card?.label}><StageCard card={s.card} /></SafeVisual>
+        </div>
+      )}
+
+      {/* THE GLASS, 9 Sep 2026 — his ask after a Leader answer he could not
+          keep up with by ear, with three Iron Man 2 clips as the reference:
+          panels that rise WITH the speech, one hero and a strip of spent
+          ones. His 20-Aug rule is untouched — these are pictures, not the
+          transcript, and the words still only appear on a long-press. */}
+      {s.glass && (
+        <div style={css('pointer-events:auto;width:min(560px,100%);display:flex;flex-direction:column;gap:7px')}>
+          <SafeVisual what="glass" resetKey={s.glass.hero.label}><StageCard card={s.glass.hero} /></SafeVisual>
+          {s.glass.rail.length > 0 && (
+            <div style={css('display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch')}>
+              {s.glass.rail.map((panel, i) => (
+                <div key={i} style={{ flex: '0 0 auto', width: '146px', opacity: 0.92 - i * 0.14 }}>
+                  <StageCard card={panel} size="mini" />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

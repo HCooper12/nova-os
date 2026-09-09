@@ -379,6 +379,24 @@ export function Voice({ v }) {
             </Interactive>
           )}
 
+          {/* THE GLASS GREW, 9 Sep 2026 — panels that rise WITH the speech,
+              one hero and a strip of spent ones beneath. Same view model as
+              the presence surface, so the phone and the Mac cannot drift. */}
+          {v.glass && (
+            <div style={css(`width:min(${v.stageFocus ? 560 : 460}px,100%);display:flex;flex-direction:column;gap:8px`)}>
+              <SafeVisual what="glass" resetKey={v.glass.hero.label}><StageCard card={v.glass.hero} /></SafeVisual>
+              {v.glass.rail.length > 0 && (
+                <div style={css('display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch')}>
+                  {v.glass.rail.map((panel, i) => (
+                    <div key={i} style={{ flex: '0 0 auto', width: '152px', opacity: 0.92 - i * 0.14 }}>
+                      <StageCard card={panel} size="mini" />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* THE GLASS — the figure for the line being spoken right now,
               centre stage, changing with the narration (his reference:
               "let me put it on the glass"). */}

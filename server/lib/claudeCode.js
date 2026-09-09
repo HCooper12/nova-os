@@ -8,6 +8,8 @@ import { randomUUID } from 'node:crypto';
 import { NOVA_LENS } from './lens.js';
 import { modelFor, assertLaneOn, laneEnabled } from './modelPrefs.js';
 import { settleWatchdog } from './settle.js';
+import { parseVisualStream } from '../../src/visualBeats.js';
+import { attachVisuals, GLASS_CONTRACT } from './visualStream.js';
 
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
@@ -76,6 +78,11 @@ const warmSweep = setInterval(() => {
 }, 60_000);
 warmSweep.unref?.();
 
+// A lane may watch its own stream (see visualStream.js — the glass starts
+// fetching its pictures the moment the model names them). A watcher that
+// throws must never take the reply down with it.
+const onPartial = (job, text) => { try { job.onPartial?.(text); } catch { /* the words matter more */ } };
+
 function spawnWarm(key, { cwd, args, env }) {
   const child = spawn(CLAUDE_BIN, args, { cwd, stdio: ['pipe', 'pipe', 'pipe'], env: env ? { ...process.env, ...env } : undefined });
   const w = { child, currentJob: null, finishTurn: null, streamed: '', stderr: '', lastUsed: Date.now() };
@@ -93,9 +100,10 @@ function spawnWarm(key, { cwd, args, env }) {
       if (ev.type === 'stream_event' && ev.event?.type === 'content_block_delta' && ev.event.delta?.type === 'text_delta') {
         w.streamed += ev.event.delta.text;
         w.currentJob.partial = w.streamed;
+        onPartial(w.currentJob, w.streamed);
       } else if (ev.type === 'assistant' && Array.isArray(ev.message?.content)) {
         const txt = ev.message.content.filter((c) => c.type === 'text').map((c) => c.text).join('');
-        if (txt) { w.streamed = txt; w.currentJob.partial = txt; } // authoritative snapshot
+        if (txt) { w.streamed = txt; w.currentJob.partial = txt; onPartial(w.currentJob, txt); } // authoritative snapshot
       } else if (ev.type === 'result') {
         const job = w.currentJob;
         const finish = w.finishTurn;
@@ -110,7 +118,11 @@ function spawnWarm(key, { cwd, args, env }) {
           job.error = errMsg;
           dropWarm(key); // a fresh process (and budget) next turn, via --resume
         } else {
-          Promise.resolve(finish(replyText, job)).catch((e) => { job.status = 'error'; job.error = e.message; });
+          // The glass directives are stripped HERE, once, for every lane: the
+          // final text becomes a chat record and is spoken by the flush-all
+          // path, and neither may ever contain `VIS {…}`.
+          const spoken = job.onPartial ? parseVisualStream(replyText).text : replyText;
+          Promise.resolve(finish(spoken, job)).catch((e) => { job.status = 'error'; job.error = e.message; });
         }
       }
     }
@@ -276,6 +288,8 @@ ${describeForModel()}
 Live context (deterministic, computed at conversation start — trust it over stale pages for today's numbers):
 ${context || '(unavailable)'}
 
+${GLASS_CONTRACT}
+
 Hayden asks: ${question}`;
 }
 
@@ -293,6 +307,11 @@ export function buildResumedAsk({ question, liveLine = '', direct = false }) {
   const parts = [];
   if (liveLine) parts.push(`[Live now — trust this over anything earlier in this conversation: ${liveLine}]`);
   if (direct) parts.push('[Hands-free one-shot: answer exactly what was asked, in one or two spoken sentences. Nothing else.]');
+  // NO GLASS REMINDER HERE, deliberately. The Coach and the Leader get one
+  // (they already carry a standing reminder, so it rides along free), but a
+  // resumed spoken turn sends ONLY the question — that minimalism is the
+  // whole reason the spoken session exists, and spokenSession.test.js guards
+  // it. Turn one's contract is still in the resumed process's context.
   parts.push(question);
   return parts.join('\n\n');
 }
@@ -369,6 +388,7 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
   const effectiveSessionId = sessionId || randomUUID();
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
+  attachVisuals(job, { vaultPath: cwd });   // the glass starts fetching as he is answered
 
   const args = askArgs(effectiveSessionId, isNewSession);
 
@@ -731,6 +751,8 @@ Ground rules:
 Hayden's current picture (computed at conversation start — trust it over stale pages):
 ${context || '(unavailable)'}
 
+${GLASS_CONTRACT}
+
 Hayden asks: ${question}`;
 }
 
@@ -743,7 +765,7 @@ Hayden asks: ${question}`;
 // ("PROPOSE swap: X → Y"), which the parser cannot see — Coach said "tap
 // APPLY IT below" over a button that never rendered, three turns in a row,
 // on his phone.
-const COACH_TURN_REMINDER = '[Standing reminder: you CAN change his program. You do it by ending your reply with ONE typed line, EXACTLY this JSON form on its own final line: PROPOSE {"action":"swap","routine":"Push","remove":"Exact Old Name","add":"Exact New Name","targetSets":3,"targetRepsLow":8,"targetRepsHigh":12,"reason":"why","instructed":true} — "instructed":true when HE told you to make the change (then say it is DONE, never "tap apply"); omit it for your own suggestion (then offer it). A retag is "remap" (fields exercise, muscleGroup), never "tune". Actions: swap/add/remove/targets/remap/tune/injury/goal/learn/resource. Prose after PROPOSE does not work; only the JSON object is machine-readable. It renders as APPLY IT / NOT NOW on your own message and applies deterministically with undo when he taps it. Never tell him you are unable to edit his program or that you lack write access — that is false and it blocks him. What you cannot do is write WITHOUT his yes. His session notes are in your context tagged [form-breakdown]/[pain]/[fatigue]/[too-easy] — treat them as your best evidence, coach the technique properly from what the research supports, and quote his sentence back.]';
+const COACH_TURN_REMINDER = '[Standing reminder: you CAN change his program. You do it by ending your reply with ONE typed line, EXACTLY this JSON form on its own final line: PROPOSE {"action":"swap","routine":"Push","remove":"Exact Old Name","add":"Exact New Name","targetSets":3,"targetRepsLow":8,"targetRepsHigh":12,"reason":"why","instructed":true} — "instructed":true when HE told you to make the change (then say it is DONE, never "tap apply"); omit it for your own suggestion (then offer it). A retag is "remap" (fields exercise, muscleGroup), never "tune". Actions: swap/add/remove/targets/remap/tune/injury/goal/learn/resource. Prose after PROPOSE does not work; only the JSON object is machine-readable. It renders as APPLY IT / NOT NOW on your own message and applies deterministically with undo when he taps it. Never tell him you are unable to edit his program or that you lack write access — that is false and it blocks him. What you cannot do is write WITHOUT his yes. His session notes are in your context tagged [form-breakdown]/[pain]/[fatigue]/[too-easy] — treat them as your best evidence, coach the technique properly from what the research supports, and quote his sentence back. KEEP THE RUNNING GLASS FED: a VIS {…} line on its own before each movement of your reply, as turn one set out (kinds: key, steps, image, media, metric, bars, list). Any reply longer than about three sentences carries at least one — a long spoken answer with nothing on screen is exactly what he asked us to fix.]';
 
 export function startAskCoach(cwd, { question, context, sessionId, onReady }) {
   assertLaneOn('coach');
@@ -752,6 +774,7 @@ export function startAskCoach(cwd, { question, context, sessionId, onReady }) {
   const effectiveSessionId = sessionId || randomUUID();
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
+  attachVisuals(job, { vaultPath: cwd });   // the glass starts fetching as he is answered
 
   const args = [
     // conversational input mode — the warm pool keeps this process alive
@@ -880,13 +903,15 @@ How you work:
   Include only keys that apply; his words tightened, never invented. Nova's code merges it into your standing profile of him — it steers the daily Try Today idea and Saturday's research run. Do not mention the mechanics; just reflect accurately.
 - The daily Try Today idea arrives on his homepage each morning from your accumulated picture — this conversation is where that picture gets richer.
 
+${GLASS_CONTRACT}
+
 His current picture:
 ${context || '(unavailable)'}
 
 Hayden says: ${question}`;
 }
 
-const LEADER_TURN_REMINDER = '[Standing reminder: when he shares a struggle, a win, or reports an old struggle handled, end your reply with ONE typed line, EXACTLY this JSON form on its own final line: REFLECT {"struggles":["…"],"working":["…"],"resolved":["…"]} — only the keys that apply, his words tightened. Prose after REFLECT does not work; only the JSON object is machine-readable. It updates your standing profile of him and steers the daily idea and the weekly research. Ground advice in his vault concepts and named sources; concrete and small beats grand.]';
+const LEADER_TURN_REMINDER = '[Standing reminder: when he shares a struggle, a win, or reports an old struggle handled, end your reply with ONE typed line, EXACTLY this JSON form on its own final line: REFLECT {"struggles":["…"],"working":["…"],"resolved":["…"]} — only the keys that apply, his words tightened. Prose after REFLECT does not work; only the JSON object is machine-readable. It updates your standing profile of him and steers the daily idea and the weekly research. Ground advice in his vault concepts and named sources; concrete and small beats grand. KEEP THE RUNNING GLASS FED: a VIS {…} line on its own before each movement of your reply, as turn one set out (kinds: key, steps, image, media, metric, bars, list). Any reply longer than about three sentences carries at least one — a long spoken answer with nothing on screen is exactly what he asked us to fix.]';
 
 // One decision here differs from Coach on purpose: a REFLECT parse failure
 // updates NOTHING and says so in the reply — his struggles are steering
@@ -899,6 +924,7 @@ export function startAskLeader(cwd, { question, context, sessionId }) {
   const effectiveSessionId = sessionId || randomUUID();
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
+  attachVisuals(job, { vaultPath: cwd });   // the glass starts fetching as he is answered
 
   const args = [
     '-p', '--input-format', 'stream-json',

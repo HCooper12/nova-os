@@ -5,6 +5,7 @@ import { preferMixing } from './audioSession.js';
 import { unspokenTexts, resumeVerdict } from './speechResume.js';
 import { DEFAULT_HOLD, holdTiming } from './turnEnd.js';
 import { offerVerdictFor } from './verdictOffer.js';
+import { parseVisualStream } from './visualBeats.js';
 import { forceLayout, degrees, GALAXY_MAX_NODES, zoomAt, panBy, recencyAlpha } from './galaxyLayout.js';
 import { flushSync } from 'react-dom';
 import { recipes, notes, basePlan, reviews, galaxyNamed, galaxyLinks } from './data.js';
@@ -369,6 +370,11 @@ export default class App extends Component {
     // how long a pause has to be before it ends his turn — his choice, because
     // the browser's own endpointer cut him off mid-sentence and offers no knob
     voiceHold: typeof localStorage === 'undefined' ? DEFAULT_HOLD : (localStorage.getItem('novaos.voiceHold') || DEFAULT_HOLD),
+    // THE GLASS: the panels a spoken reply raises as it talks. `glassBeats`
+    // is what the model named, `glassVisuals` what the server has fetched so
+    // far, and `glassSpokenTo` how far the VOICE has got — which is what
+    // decides which panel is the hero. See src/glassBeats.js.
+    glassBeats: [], glassVisuals: {}, glassSpokenTo: 0,
     sidebarHidden: typeof localStorage === 'undefined' ? false : localStorage.getItem('novaos.sidebarHidden') === '1',
     voiceVoiceId: typeof localStorage === 'undefined' ? '' : (localStorage.getItem('novaos.voiceId') || ''),
     orbChat: [
@@ -4515,6 +4521,7 @@ export default class App extends Component {
     // the browser speech path) complete sentences are spoken AS they arrive
     // — Nova starts talking while still thinking, like a person does.
     const stream = { spokenUpTo: 0 };
+    this.resetGlass();   // last turn's panels do not belong to this one
     const elevenPath = !!(this.state.liveTts?.configured);
     // Trailing SHOW/PROPOSE/RESEARCH lines are typed directives for the
     // server, not prose — keep them out of the render (and out of the voice)
@@ -4537,10 +4544,14 @@ export default class App extends Component {
     // something already written.
     const spokenReveal = elevenPath && this.state.voiceSpeak;
     const reveal = (t) => { stream.revealed = (stream.revealed || '') + t; applyPartial(stream.revealed); };
-    const say = (t) => {
+    // `from` is where this sentence starts in the reply, so the panel whose
+    // prose begins inside it can be raised at the instant its audio does —
+    // voice leads, glass follows, exactly as the text reveal already does.
+    const say = (t, from = null) => {
       clearTimeout(stream.thinkTimer); // a real sentence is here — no filler needed
-      if (elevenPath) this.speakTtsSentence(t, spokenReveal ? () => reveal(t) : undefined);
-      else this.speakIncremental(t);
+      const onPlay = () => { if (spokenReveal) reveal(t); if (from != null) this.raiseGlass(from + t.length); };
+      if (elevenPath) this.speakTtsSentence(t, onPlay);
+      else { this.speakIncremental(t); onPlay(); }
     };
     // The awkward-silence filler: a long think gets ONE quiet touch-point
     // ("Still with you, sir.") — cached server-side, so it costs ~50ms —
@@ -4558,6 +4569,7 @@ export default class App extends Component {
       if (!this.state.voiceSpeak) return;
       const fresh = text.slice(stream.spokenUpTo);
       if (!fresh) return;
+      const startedAt = stream.spokenUpTo;
       if (flushAll) {
         // Sentence-sized pieces even here: a whole brief in one /api/tts
         // call is 20-30s of synthesis — it hit the sidecar timeout and the
@@ -4565,13 +4577,14 @@ export default class App extends Component {
         // ~1s and CANNOT time out. (This path carries the entire reply when
         // a job never streamed partials.)
         const pieces = fresh.match(/[^.!?]*[.!?]+[\s]*|[^.!?]+$/g) || [fresh];
-        for (const p of pieces) { if (p.trim()) say(p); }
+        let off = startedAt;
+        for (const p of pieces) { if (p.trim()) say(p, off); off += p.length; }
         stream.spokenUpTo = text.length;
         return;
       }
       const m = fresh.match(/[\s\S]*[.!?](?=\s|$)/);
       if (m) {
-        say(m[0]);
+        say(m[0], startedAt);
         stream.spokenUpTo += m[0].length;
       }
     };
@@ -4582,8 +4595,14 @@ export default class App extends Component {
       // local requests and takes ~200ms off the wait.
       intervalMs: 150,
       onProgress: (job) => {
+        if (job.visuals) this.absorbVisuals(job.visuals);
         if (!job.partial) return;
-        const shown = stripShow(job.partial);
+        // ONE parser, shared with the server (src/visualBeats.js): it takes
+        // the VIS directives out — a half-typed one withheld whole, so Nova
+        // never reads JSON aloud — and says where each panel's prose begins.
+        const seen = parseVisualStream(job.partial);
+        this.setGlassBeats(seen.beats);
+        const shown = stripShow(seen.text);
         if (!shown) return;
         if (!spokenReveal) applyPartial(shown); // spoken path: reveal() renders, in step with the voice
         speakNewSentences(shown, false);
@@ -5727,6 +5746,36 @@ export default class App extends Component {
   // Streaming bubbles (shared by Coach + Code; Voice keeps its own variant
   // with speech): upsert the in-flight reply so the answer appears while
   // it's still being written — job.partial arrives from the shared poll.
+  // ---------- the glass (9 Sep 2026) ----------
+  // His report: a Leader answer full of research he did not want shortened,
+  // and no way to follow it by ear. Panels now rise as Nova speaks. These
+  // three keep the state small and quiet — each returns null from the
+  // updater when nothing actually changed, because they run on a 150ms poll
+  // and a whole-app re-render per tick is the thing P7 fixed.
+  resetGlass() {
+    this.setState({ glassBeats: [], glassVisuals: {}, glassSpokenTo: 0 });
+  }
+  setGlassBeats(beats) {
+    this.setState((s) => {
+      const cur = s.glassBeats || [];
+      if (cur.length === beats.length && cur.every((b, i) => b.key === beats[i].key && b.at === beats[i].at)) return null;
+      return { glassBeats: beats };
+    });
+  }
+  absorbVisuals(v) {
+    const keys = Object.keys(v || {});
+    if (!keys.length) return;
+    this.setState((s) => {
+      const cur = s.glassVisuals || {};
+      if (keys.every((k) => cur[k])) return null;
+      return { glassVisuals: { ...cur, ...v } };
+    });
+  }
+  // the VOICE moves the glass, never the clock: this is called from the TTS
+  // queue's onPlay, at the instant a sentence's audio begins
+  raiseGlass(spokenTo) {
+    this.setState((s) => ((s.glassSpokenTo || 0) >= spokenTo ? null : { glassSpokenTo: spokenTo }));
+  }
   applyStreamPartial(chatKey, who, text) {
     this.setState((s) => {
       const chat = [...s[chatKey]];

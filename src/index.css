@@ -327,3 +327,10 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
    count-up helper; the CSS only supplies the easing so a re-render mid-count
    never jumps. */
 @keyframes countPulse { from { opacity: .55; } to { opacity: 1; } }
+
+/* THE GLASS — a panel whose picture is still being fetched. His reference is
+   the JARVIS wall, where things are visibly LIVE rather than merely present:
+   the frame is already up and honestly says it is still filling, instead of
+   sitting blank or (worse) waiting off-screen until the sentence has passed. */
+@keyframes glassScan { from { transform: translateX(-100%); } to { transform: translateX(220%); } }
+@keyframes glassStep { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }

@@ -42,7 +42,11 @@ function snippetFor(page, terms) {
   return para.length > 180 ? para.slice(0, 177) + '…' : para;
 }
 
-export async function searchVault(vaultPath, query, { limit = 6 } = {}) {
+// `withText` returns each hit's whole body, not just its snippet — the
+// timecode finder has to read a Watcher note in full to find the stamp
+// sitting next to the idea, and re-reading the file would ignore an index
+// that already holds it.
+export async function searchVault(vaultPath, query, { limit = 6, withText = false } = {}) {
   const terms = tokenize(query);
   if (!terms.length) return [];
   const pages = await getIndex(vaultPath);
@@ -73,6 +77,7 @@ export async function searchVault(vaultPath, query, { limit = 6 } = {}) {
     title: page.title,
     type: page.type,
     snippet: snippetFor(page, terms),
+    ...(withText ? { text: page.paragraphs.join('\n') } : {}),
     score,
   }));
 }
