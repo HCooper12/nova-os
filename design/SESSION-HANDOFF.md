@@ -13,6 +13,68 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**9 SEP (late) — THE FIGURE IS A PERSON NOW.** He asked for the three known
+faults fixed and the model refined "so it essentially becomes photorealistic
+and the most accurate model it can be". Shipped as `8301658` + `558f969`,
+verified live on his real Pull routine at 390 px.
+
+**The three faults are gone**, each confirmed in the motion check: the leg
+press machine now sits under him with the sled at his feet; the overhead
+press's bar stays in frame at lockout (the framing box was taken from the body
+alone, so it cropped away the exact moment the lift is about); the deadlift's
+bar rests on its plates on the floor rather than hanging at the hands.
+
+**What made it look real, in the order the gain arrived:**
+
+1. **Image-based light + ACES.** Three lamps and a linear response is what
+   makes a real-time figure look like plastic. Every point on the skin now
+   gathers light from a whole room. Generated at runtime — no asset to ship.
+2. **Skin, not a swatch.** `MeshPhysicalMaterial` with sheen (the peach-fuzz
+   rim on a real arm against a light), low specular, and a faint red emissive
+   standing in for subsurface scatter.
+3. **Ambient occlusion baked into the mesh** as a vertex colour — the armpit,
+   the line under the pec, the furrow beside the spine. Per VERTEX, not to a
+   texture: four bytes a vertex, no image, no UV layout to keep valid through
+   a decimate.
+4. **Skin is not one colour** — it reddens at knuckles, elbows, knees and the
+   face. Baked into the same vertex colour.
+5. **A face.** The head was decimated as hard as the hands and came out a
+   smooth blob — the most obviously artificial thing on the body. It now keeps
+   roughly twice the geometry and has a brow, eyes and a mouth.
+6. **Borders stopped looking torn.** Nearest-volume is decided per face, so a
+   group boundary came out ragged. Four passes of majority vote over each
+   face's neighbours pull them onto the curves anatomy actually has.
+7. **A highlight that keeps its form.** Emissive is unlit by definition, so
+   leaning on it flattened a lit muscle into a pastel sticker. It now rides
+   mostly on sheen — view-dependent, so the shading survives.
+
+**Two more found only because it had become realistic enough to look at
+properly:** a hang pins ALL THREE axes (pinning only height let the hands
+drift forward, so at the top of a pull-up he gripped thin air); and the
+recorder must launch Chrome with its own `--user-data-dir`, or Chrome hands
+the command to his everyday profile and exits.
+
+**THE STANDING RULE STILL APPLIES TO EVERY CHANGE HERE** — see the
+`nova-motion-check` memory. All 26 patterns were swept as filmstrips against
+this model and recorded as GIFs into `tools/motion/out/` (gitignored).
+
+**Numbers:** 25,053 verts, 1.72 MB GLB, 19 group materials, 22 bones —
+`Body3D`'s contract unchanged. lint clean, build green, 1,330 server tests.
+
+**Where realism still stops:** the figure has no hair, no eyebrows and no
+eyelashes, because the CC0 base mesh has none and they are separate geometry,
+not a shading trick — that is the remaining gap between this and a photograph.
+Equipment is primitives. Skin has no pore-level detail (that wants a baked
+normal map, which wants a stable UV layout through the decimate).
+
+**NOTE — concurrent work in this repo all session** (visual beats, glass
+beats, chat undo, a Darwin study, make-up days). I staged only my own files
+every time; nothing of theirs was committed by me.
+
+---
+
+### Previous — 9 Sep (motion and equipment)
+
 **9 SEP (later) — THE FIGURE NOW STANDS ON THE FLOOR, LIES ON THE BENCH, AND
 HANGS FROM THE BAR.** He reported "some extra stretching… that does not make
 it look anatomically correct and like a human actually moves", set a standing
