@@ -311,10 +311,10 @@ export function secondary(bones, rest, frames, pose, dPose, phase = 0) {
     add(`forearm${side}`, 'lateral', clampTo(-(dPose.elbow || 0) * 0.045, [-3.5, 3.5]));
   }
 
-  // the eyes hold the horizon: the neck gives back most of the torso's pitch
-  const pitch = (pose.spine || 0) + (pose.chest || 0);
-  add('neck', 'lateral', clampTo(pitch * 0.42, [-40, 40]));
-  add('head', 'lateral', clampTo(pitch * 0.28, [-30, 30]));
+  // The eyes hold the horizon — but see levelGaze(): the pose's own spine
+  // value is only PART of the trunk's pitch, because the balance solver leans
+  // the trunk too. A front rack leans him back to sit under the load, and this
+  // estimate then had him staring at the ceiling for the whole set.
 
   // braced breathing: the ribs lift through the lowering half and hold through
   // the drive, which is what a working set actually looks like
@@ -431,3 +431,189 @@ export const LOAD_MASS = {
   'lat-pulldown': 0.55, 'cable-high': 0.30, 'cable-mid': 0.30,
   'cable-low': 0.30, 'cable-rope': 0.25,
 };
+
+/* ------------------------------ reaching ---------------------------------- */
+
+/* THE HANDS GO WHERE THE BAR IS.
+ *
+ * Every pose so far has been forward kinematics: name an angle for each joint
+ * and see where the hand lands. That is fine when the hand holds nothing, and
+ * wrong the moment it holds something whose position is already decided. A back
+ * squat is the clearest case — the bar sits on the traps, and the hands must be
+ * ON it, out wide, wherever that puts the elbows. Posed by angles, the figure
+ * held its hands in front of its chest with the fingers open and the bar
+ * floating behind its head, which is what the motion check showed.
+ *
+ * So: two-link inverse kinematics. Given the shoulder, the target, and the two
+ * segment lengths, the law of cosines gives exactly one elbow bend, and the
+ * elbow itself is free to swing around the shoulder-to-target line — that
+ * freedom is the `pole`, which says where a human would put their elbow.
+ *
+ * Both bones are then aimed in WORLD space rather than by joint angle. That is
+ * deliberate: the sign of an anatomical angle against its rotation has been the
+ * single most expensive bug in this rig, silently costing three separate
+ * sessions. A direction has no sign to get backwards.
+ */
+
+const Y_AXIS = new THREE.Vector3(0, 1, 0);
+
+// Point a bone's own axis along a world direction.
+//
+// setFromUnitVectors gives the SHORTEST rotation that does that — which leaves
+// the roll about the bone's own axis completely undetermined. On an upper arm
+// that is not a subtlety: an unpinned roll spins the humerus inside its own
+// skin, and the motion check showed each arm smeared into a flat sail from
+// shoulder to hand. So aim first, then roll about the bone's axis until its
+// hinge lies in the plane the limb is actually bending in.
+function aimBone(bone, dir) {
+  const parentQ = bone.parent.getWorldQuaternion(new THREE.Quaternion());
+  const want = new THREE.Quaternion().setFromUnitVectors(Y_AXIS, dir.clone().normalize());
+  bone.quaternion.copy(parentQ.invert().multiply(want));
+  bone.updateMatrixWorld(true);
+}
+
+function aimWithRoll(bone, dir, planeNormal, hingeAxis) {
+  const d = dir.clone().normalize();
+  aimBone(bone, d);
+  if (!hingeAxis) return;
+  const cur = hingeAxis.clone()
+    .applyQuaternion(bone.getWorldQuaternion(new THREE.Quaternion()))
+    .projectOnPlane(d);
+  const want = planeNormal.clone().projectOnPlane(d);
+  if (cur.lengthSq() < 1e-9 || want.lengthSq() < 1e-9) return;
+  cur.normalize(); want.normalize();
+  let ang = Math.acos(Math.min(1, Math.max(-1, cur.dot(want))));
+  if (new THREE.Vector3().crossVectors(cur, want).dot(d) < 0) ang = -ang;
+  bone.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(Y_AXIS, ang));
+  bone.updateMatrixWorld(true);
+}
+
+/* Put `side`'s hand at `target`, elbow toward `pole`. Returns the angles it
+ * actually achieved, in anatomical degrees, so the corrective shapes and the
+ * centre of mass see the arm that was drawn rather than the one that was asked
+ * for. */
+export function reachTo(bones, frames, side, target, pole) {
+  const up = bones[`upperarm${side}`];
+  const fo = bones[`forearm${side}`];
+  const hd = bones[`hand${side}`];
+  if (!up || !fo || !hd) return null;
+
+  // segment lengths straight off the rig — a bone's local offset from its
+  // parent IS its parent's length, so these cannot drift from the model
+  const a = fo.position.length();
+  const b = hd.position.length();
+  if (!(a > 1e-4 && b > 1e-4)) return null;
+
+  up.parent.updateMatrixWorld(true);
+  const S = up.getWorldPosition(new THREE.Vector3());
+  const toT = target.clone().sub(S);
+  // out of reach is not an error, it is a straight arm: clamp, do not fail
+  const d = Math.min(Math.max(toT.length(), Math.abs(a - b) + 1e-3), (a + b) * 0.999);
+  if (!(d > 1e-4)) return null;
+  toT.normalize();
+
+  const cosE = (a * a + b * b - d * d) / (2 * a * b);
+  const elbow = 180 - THREE.MathUtils.radToDeg(Math.acos(Math.min(1, Math.max(-1, cosE))));
+  const cosS = (a * a + d * d - b * b) / (2 * a * d);
+  const alpha = Math.acos(Math.min(1, Math.max(-1, cosS)));
+
+  // the plane the arm bends in: through the shoulder, the target and the pole
+  let n = new THREE.Vector3().crossVectors(toT, pole.clone().sub(S));
+  if (n.lengthSq() < 1e-8) n = new THREE.Vector3().crossVectors(toT, Y_AXIS);
+  if (n.lengthSq() < 1e-8) return null;
+  n.normalize();
+
+  // the elbow and wrist hinges both live in that plane on a real arm, so
+  // pinning each bone's own hinge to it is what keeps the limb untwisted
+  const elbowHinge = frames?.[`forearm${side}`]?.lateral;
+  const wristHinge = frames?.[`hand${side}`]?.lateral;
+  const dirE = toT.clone().applyAxisAngle(n, alpha);
+  aimWithRoll(up, dirE, n, elbowHinge);
+  const E = S.clone().addScaledVector(dirE, a);
+  const wrist = S.clone().addScaledVector(toT, d);
+  aimWithRoll(fo, wrist.clone().sub(E), n, wristHinge);
+  return { elbow, reach: d };
+}
+
+/* The closest a hand can come to its own shoulder: a fully folded elbow, and
+ * no further. Asking for less than this is what turned a front rack into two
+ * stumps — the solver happily folded the arm past the human limit and buried
+ * the hand inside the upper arm. */
+export function minReach(bones, side, maxFlexDeg = ROM.elbow[1]) {
+  const fo = bones[`forearm${side}`]; const hd = bones[`hand${side}`];
+  if (!fo || !hd) return 0;
+  const a = fo.position.length(); const b = hd.position.length();
+  const interior = THREE.MathUtils.degToRad(180 - maxFlexDeg);
+  return Math.sqrt(Math.max(0, a * a + b * b - 2 * a * b * Math.cos(interior)));
+}
+
+/* Slide a grip outboard along the bar until the shoulder can actually reach it
+ * — which is exactly what a lifter does when a rack position is too narrow. */
+export function slideOut(shoulder, origin, dir, dmin) {
+  const m = origin.clone().sub(shoulder);
+  const b = 2 * m.dot(dir);
+  const c = m.lengthSq() - dmin * dmin;
+  const disc = b * b - 4 * c;
+  if (disc <= 0) return null;
+  return origin.clone().addScaledVector(dir, (-b + Math.sqrt(disc)) / 2);
+}
+
+/* Where the hands go on a bar that is already placed: `out` metres either side
+ * of its centre, along the bar itself. */
+export function barGrip(barCentre, barAxis, out) {
+  const ax = barAxis.clone().normalize();
+  return {
+    L: barCentre.clone().addScaledVector(ax, -out),
+    R: barCentre.clone().addScaledVector(ax, out),
+  };
+}
+
+/* WHICH WAY THE BODY IS FACING, from the body.
+ *
+ * `fwd` elsewhere in this rig is the direction a TOE points, which is a
+ * different thing: a squat stance is toed out, so it sits about thirty degrees
+ * off the midline, and it turned out to disagree with the chest's own forward
+ * by more than a right angle. The older solvers are tuned around that and are
+ * left alone; anything new asks the torso instead. The chest's rest frame
+ * carries the body's anterior, so rotating it by the chest's parent gives a
+ * forward that follows the figure wherever it leans.
+ */
+export function bodyAnterior(bones, frames) {
+  const chest = bones.chest;
+  const f = frames?.chest?.anterior;
+  if (!chest || !f || !chest.parent) return null;
+  const v = f.clone()
+    .applyQuaternion(chest.parent.getWorldQuaternion(new THREE.Quaternion()));
+  v.y = 0;
+  return v.lengthSq() > 1e-8 ? v.normalize() : null;
+}
+
+/* THE EYES HOLD THE HORIZON, measured rather than guessed.
+ *
+ * Call this after the trunk has been settled and balanced: the pose's spine
+ * angle is only part of the story, because balance() leans the whole body to
+ * sit under the load. Estimating the compensation from the pose alone left the
+ * figure looking at the ceiling through an entire front squat.
+ */
+export function levelGaze(bones, frames, keep = 0.55) {
+  const chest = bones.chest; const neck = bones.neck;
+  if (!chest || !neck || !frames?.neck) return 0;
+  const axis = new THREE.Vector3(0, 1, 0)
+    .applyQuaternion(chest.getWorldQuaternion(new THREE.Quaternion()));
+  const ant = bodyAnterior(bones, frames);
+  if (!ant) return 0;
+  // signed: positive when the chest is pitched forward
+  const pitch = THREE.MathUtils.radToDeg(
+    Math.asin(Math.min(1, Math.max(-1, axis.dot(ant)))));
+  const give = clampTo(pitch * keep, [-42, 42]);
+  const turn = (name, deg) => {
+    const b = bones[name]; const f = frames[name];
+    if (!b || !f || !deg) return;
+    b.quaternion.premultiply(
+      new THREE.Quaternion().setFromAxisAngle(f.lateral, D(deg)));
+    b.updateMatrixWorld(true);
+  };
+  turn('neck', give * 0.62);
+  turn('head', give * 0.38);
+  return pitch;
+}

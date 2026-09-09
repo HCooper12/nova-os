@@ -65,7 +65,7 @@ const RIG = {
   'barbell-floor': () => ({ obj: GYM.barbell(), hold: 'hands', floorRests: true }),
   'barbell-ez': () => ({ obj: GYM.ezBar(), hold: 'hands' }),
   'trap-bar': () => ({ obj: GYM.trapBar(), hold: 'hands', floorRests: true }),
-  'smith-bar': () => ({ obj: GYM.barbell(1.5), hold: 'hands', extraProp: GYM.smithRack() }),
+  'smith-bar': () => ({ obj: GYM.barbell(10, { centreKnurl: false }), hold: 'hands', extraProp: GYM.smithRack() }),
   dumbbells: () => ({ obj: null, perHand: GYM.dumbbell }),
   'dumbbell-single': () => ({ obj: null, perHand: GYM.dumbbell, single: true }),
   'bench-flat': () => ({ obj: GYM.bench(0), prop: true, extra: GYM.barbell(), hold: 'hands' }),
@@ -342,6 +342,79 @@ const PAD = {
   seated: { bone: 'pelvis', into: [0, -0.095, 0], p: [0, 0.485, 0], n: [0, 1, 0] },
   'seated-back': { bone: 'pelvis', into: [0, -0.095, 0], p: [0, 0.400, 0], n: [0, 1, 0] },
 };
+
+/* A bar that rests on the body decides where the hands must go, not the other
+ * way round. Grip width and elbow direction are what actually distinguish a
+ * back squat from a front rack, so they are the only two things this varies.
+ *
+ *   traps       hands out wide, elbows down and back, fingers over the bar
+ *   front-rack  hands just outside the shoulders, elbows driven UP and forward,
+ *               the bar carried on the delts with the fingers under it
+ */
+// a switch for the motion check, not for the app: ?debug=rig prints where
+// each hand was ASKED to go and where it actually went
+const RIG_DEBUG = typeof location !== 'undefined'
+  && /(\?|&)debug=rig(&|$)/.test(location.search);
+
+const GRIP_WIDTH = { traps: 2.60, 'front-rack': 1.15 };
+
+function reachToBar(bones, frames, barCentre, hold, fwd) {
+  const up = new THREE.Vector3(0, 1, 0);
+  // ALONG THE BAR, and the bar lies across the SHOULDERS — so measure the
+  // lateral axis there, between the two of them. Deriving it from `fwd` put it
+  // 25 degrees out, because `fwd` is the direction a toe points and a squat
+  // stance is toed out; the right hand slid off the bar and forward, and that
+  // arm came back across his chest.
+  const shL = bones.upperarmL; const shR = bones.upperarmR;
+  if (!shL || !shR) return;
+  const lat = shL.getWorldPosition(new THREE.Vector3())
+    .sub(shR.getWorldPosition(new THREE.Vector3()));
+  lat.y = 0;
+  if (lat.lengthSq() < 1e-6) return;
+  lat.normalize();
+  // and forward comes from the torso, not from a toe — see bodyAnterior()
+  const ant = JOINT.bodyAnterior(bones, frames)
+    || fwd.clone().addScaledVector(lat, -fwd.dot(lat)).normalize();
+  const rack = hold === 'front-rack';
+  // HALF THE SHOULDER SPAN, once, for both hands — not each shoulder's own
+  // distance to the bar. The bar sits a couple of centimetres off centre, and
+  // measuring per side multiplied that by the grip factor into an eight
+  // centimetre difference: one hand out by the plate, the other near the knurl.
+  const span = Math.abs(
+    shL.getWorldPosition(new THREE.Vector3())
+      .sub(shR.getWorldPosition(new THREE.Vector3())).dot(lat)) / 2;
+  if (span < 1e-4) return;
+  const reach = span * (GRIP_WIDTH[hold] || 1.4);
+  for (const side of ['L', 'R']) {
+    const sh = bones[`upperarm${side}`];
+    if (!sh) continue;
+    const S = sh.getWorldPosition(new THREE.Vector3());
+    const sign = Math.sign(S.clone().sub(barCentre).dot(lat)) || (side === 'L' ? 1 : -1);
+    const out = lat.clone().multiplyScalar(sign);
+    let target = barCentre.clone().addScaledVector(out, reach);
+    // ...but never closer to the shoulder than a fully folded elbow reaches.
+    // A front rack asked for a hand almost at its own shoulder, and the solver
+    // obliged by folding the arm through itself into a pair of stumps.
+    const dmin = JOINT.minReach(bones, side) * 1.03;
+    if (target.distanceTo(S) < dmin) {
+      target = JOINT.slideOut(S, barCentre, out, dmin) || target;
+    }
+    // where the elbow wants to be: hanging down and back under a squat bar,
+    // driven forward and high under a front rack
+    const pole = rack
+      ? S.clone().addScaledVector(ant, 0.90).addScaledVector(up, 0.12)
+      : S.clone().addScaledVector(ant, -0.30).addScaledVector(up, -0.60);
+    const got = JOINT.reachTo(bones, frames, side, target, pole);
+    if (RIG_DEBUG) {
+      const h = bones[`hand${side}`].getWorldPosition(new THREE.Vector3());
+      console.log(`[rig] ${hold} ${side}`,
+        'shoulder', S.toArray().map((v) => v.toFixed(3)).join(','),
+        'target', target.toArray().map((v) => v.toFixed(3)).join(','),
+        'hand', h.toArray().map((v) => v.toFixed(3)).join(','),
+        'miss', h.distanceTo(target).toFixed(3), got);
+    }
+  }
+}
 
 function padContact(bones, stance, onFurniture = true) {
   const cfg = PAD[stance];
@@ -878,6 +951,8 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
           }
           else if (pad) rest_on(root, bones, pad);
           else if (spec.hangAt) hangFrom(root, bones, spec.hangAt, gripPoint);
+          // last, because it answers to where the trunk ACTUALLY ended up
+          JOINT.levelGaze(bones, frames);
         }
 
         // put whatever is held where the hands are
@@ -891,7 +966,14 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
             if (a && b2) {
               obj.position.copy(a).add(b2).multiplyScalar(0.5);
               const ride = anchor[spec.hold];
-              if (ride && bones.chest) obj.position.copy(bones.chest.localToWorld(ride.clone()));
+              if (ride && bones.chest) {
+                obj.position.copy(bones.chest.localToWorld(ride.clone()));
+                // The bar is placed by where it SITS — on the traps, on the
+                // front delts — so now the hands have to come to it. Posed by
+                // angle alone they sat in front of his chest with the fingers
+                // open and the bar floating behind his head.
+                reachToBar(bones, frames, obj.position, spec.hold, fwd);
+              }
               // A loaded bar rests on its plates: it cannot go below their
               // radius, and at the bottom of a deadlift it should be sitting
               // on the floor rather than sunk into it.
