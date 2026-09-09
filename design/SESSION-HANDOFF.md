@@ -13,6 +13,84 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**9 SEP (later) — THE FIGURE NOW STANDS ON THE FLOOR, LIES ON THE BENCH, AND
+HANGS FROM THE BAR.** He reported "some extra stretching… that does not make
+it look anatomically correct and like a human actually moves", set a standing
+rule about recording it, and asked for the cable equipment. Shipped as
+`2c8ac39`, verified live on his real Upper Body routine at 390 px.
+
+**THE STANDING RULE — this is now permanent.** *"You need to be making sure
+that you are screen recording and checking the fluid movement of every version
+of the model that is incorporated for any exercise. There are no exceptions
+and this must be a standing role moving forward for things like this."* Two
+tools exist so it is cheap:
+
+```bash
+npm run dev -- --port 5199     # a FRESH server; the long-running one goes stale
+open 'http://localhost:5199/nova-os/tools/motion/harness.html?frames=4&per=3&page=0&view=side'
+node tools/motion/record.mjs --frames 18 --size 420    # a GIF per pattern
+```
+
+The harness renders through the **same `Body3D` the app uses**, so what passes
+there is what he sees. Full detail and the traps are in the
+`nova-motion-check` memory — **read it before touching the figure again.**
+
+**Six faults, none of them visible in a still.**
+
+1. *A standing lift is a closed chain.* The rig is rooted at the pelvis, so
+   posing hip and knee folded the legs while the pelvis stayed put — the
+   figure squatted onto an invisible chair, torso upright, bar never
+   descending. `settle()` now leans the body until the shin matches the ankle
+   angle, flattens each foot (or lifts the heel for a calf raise), and drops
+   until the lowest contact touches. **A squat's forward torso lean falls out
+   of that — it is not a joint and was never in the data.**
+2. *Zero is a pose, not an absence.* `rotate()` returned early on 0° and left
+   the bone where it was, so any joint passing through neutral kept its last
+   angle. At the top of a squat the thigh still held the bottom's 100°.
+3. *Joints were rotated about the WORLD's axes* — the same as the body's only
+   while standing. Lying on a bench, knee flexion folded the legs at the
+   ceiling.
+4. *Lying lifts rest on a pad*, measured against the pad's real plane; a lift
+   with no bench lies on the floor.
+5. *The stretching itself was a hard weight seam*, not a limit of linear blend
+   skinning: chest vertices were forbidden the shoulder bones entirely, so at
+   90° of flexion one vertex was frozen and its neighbour moved with the arm.
+   The deltoid helper now bleeds across the boundary; 18 smoothing passes.
+6. *WebGL contexts leaked.* `dispose()` frees none and a browser keeps ~16, so
+   every opened-and-closed exercise sheet cost one and after a dozen the
+   figure stopped drawing — a white panel, no error.
+
+**THE GYM** (`src/gym3d.js`): cable stations with a visible weight stack, a
+turning pulley and a cable that actually runs to the hands; a lat pulldown
+with seat and thigh pad; a pull-up rig the body hangs from; EZ, trap and Smith
+bars; rope, D-handle and wide-bar attachments; leg curl, extension and press.
+`equipmentFor()` routes by the exercise's own NAME — a cable pushdown gets a
+high pulley, a cable curl a low one.
+
+**Data corrected where the check proved it wrong:** the lying presses had
+their arms along the torso, the bench press had a crunch's legs, the calf
+raise's ankle sign was inverted, the hip thrust rotated thighs against a
+pinned chest and moved nothing, the fly had no bench.
+
+**STILL WRONG, and he has been told:** the leg press machine sits beside him
+rather than under him; the overhead press's bar leaves frame at lockout; the
+deadlift's bar hangs at the hands instead of resting on the floor. Also
+unchanged from before: the face is decimated and plain.
+
+**A trap that cost two cycles:** `patternFor(name)` beats the `pattern` prop,
+so passing a pattern id as the name made `row-bent` resolve through the
+`/row/` rule back to `row` — the sheet showed the same lift twice under two
+labels and I catalogued faults that did not exist. The harness now passes no
+name unless `?name=` asks for one.
+
+**NOTE — this repo had concurrent work in it during the session** (visual
+beats, glass beats, recall, Voice screen). I staged only my own files; that
+work is still uncommitted in the tree.
+
+---
+
+### Previous — 9 Sep (anatomy detail)
+
 **9 SEP — THE MODEL IS ANATOMY NOW, NOT A MANNEQUIN WEARING A COLOUR MAP.**
 He asked to keep refining and checking it: "anatomically accurate and detailed,
 with all muscles and aspects included." Checking is what found the faults —
