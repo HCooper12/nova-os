@@ -13,6 +13,57 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**9 SEP (latest) — BALANCE, AND SIX HANDS INSTEAD OF ONE FIST.** The two parts
+after the correctives. Shipped as `9cb5cbb` and `1b727cb`.
+
+**BALANCE — the body answers to the load.** Posed from joint angles alone the
+figure's centre of mass could sit anywhere: a squatter over his heels, a man
+holding a barbell out in front and not moving an inch for it. Now the combined
+centre of mass (body AND bar, `centreOfMass()` with Dempster's fractions and a
+per-equipment `LOAD_MASS` as a share of his bodyweight) drives a bounded trunk
+lean. **Three traps, all paid for:**
+1. The COM came out **17 cm behind his feet** — each segment's centre was taken
+   as the midpoint to "its first bone child", and the chest's first child is a
+   collarbone, so half the body's mass sat out at the shoulder. Use bone HEADS.
+2. It must be measured **relative to the neutral stance**. The ankle sits behind
+   the middle of the foot, so a standing body's mass is always a few centimetres
+   back; chasing the absolute number bows the figure forward permanently.
+3. **The trunk answers, not the ankle.** An ankle has ~25° and it fights the
+   ground solver, which re-plants the feet and moves the reference with the
+   body — the correction had no authority and walked to its clamp.
+
+It is **bounded and proportional, not solved**, and the comments say so: segment
+fractions at bone heads say which way and roughly how much a load pulls him,
+not where his centre of mass truly is. What it buys is that the lean responds
+to load and depth instead of being a constant.
+
+**GRIP SHAPE.** Six styles as per-digit multipliers on the single curl — full,
+hook (thumb UNDER the fingers), thumbless, rope, open, hang — routed per lift by
+what it holds. **The thumb is the reason it matters:** it does not fold in the
+fingers' plane, it swings ACROSS the palm about a different axis, and how far
+it comes is the difference between a locked grip and a hand resting on a bar.
+It had been curling alongside the fingers like a sixth one.
+
+**Verified:** the pull-up's hang grip wraps the bar with the thumb along it;
+squat leans further the deeper it goes and stands nearly upright at lockout;
+pages 0, 1 and 7 swept. lint clean, build green, 1,330 tests.
+
+**NOTHING NAMED IS OUTSTANDING.** Everything he has asked for on the figure is
+built: closed-chain stance, body-relative joint axes, 50 bones with per-digit
+hands, ROM limits, secondary motion, rep shapes with sticking points, corrective
+shapes, balance, grip styles. Remaining known limits are ones he has accepted or
+not raised: no hair/brows/lashes; equipment is primitives; no facial animation;
+no ground-reaction or foot-pressure detail.
+
+**A RECURRING TRAP, THREE TIMES NOW:** two sign conventions meet wherever a
+joint has both a range of motion and a rotation direction. **Clamp the anatomy,
+then convert the sign.** It bit the elbow, then every finger joint, and it is
+silent every time.
+
+---
+
+### Previous — 9 Sep (corrective shapes)
+
 **9 SEP (latest) — CORRECTIVE SHAPES.** He asked for the most time-consuming of
 the two remaining builds first; this was it. Shipped as `0a1d4d0`.
 
