@@ -46,7 +46,11 @@ const port = opt('port', '5199');
 const view = opt('view', 'three-quarter');
 const asName = opt('name', '');
 const frames = Number(opt('frames', 24));
-const size = Number(opt('size', 420));
+// Software rendering costs pixels, and with 8 morph targets on 22,000
+// vertices a 440px frame took about six seconds. 360 is still legible and
+// roughly halves a full run — which matters, because a check nobody can
+// afford to run is a check nobody runs.
+const size = Number(opt('size', 360));
 const only = argv.filter((a) => !a.startsWith('--') && !/^\d+$/.test(a)
   && argv[argv.indexOf(a) - 1]?.startsWith('--') !== true);
 
@@ -149,7 +153,7 @@ async function record(id) {
     if (r.result.value) break;
     await new Promise((r2) => setTimeout(r2, 250));
   }
-  await new Promise((r) => setTimeout(r, 2500));
+  await new Promise((r) => setTimeout(r, 1600));
 
   for (let i = 0; i < frames; i++) {
     await send('Runtime.evaluate', { expression: `window.__setPhase(${i / frames})` });
