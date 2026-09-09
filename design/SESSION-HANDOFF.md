@@ -13,6 +13,58 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**9 SEP (latest) — SECONDARY MOTION, AND REPS THAT GRIND.** His two calls, in
+the order he made them. Shipped as `c899233` on top of the fifty-bone rig.
+
+**SECONDARY MOTION** (`secondary()` in `src/rig3d.js`) — what a body does that
+is not the lift, because joints alone never read as filmed:
+- **Scapular rhythm.** Past ~30° of elevation the shoulder blade rotates
+  upward and contributes about a third of the total. **That share is taken OUT
+  of the humerus, not stacked on it** — added on top, an overhead press stopped
+  going overhead, because 42° of scapula plus the full shoulder angle rotated
+  the arm chain past the pose and the bar came down. `scapularShare()` returns
+  both the scapular angle and the fraction the humerus keeps. Sharing it
+  properly also keeps the deltoid intact at high elevation.
+- **Head stabilisation** — the neck gives back most of the torso's pitch, so
+  the gaze stays level.
+- **Soft-tissue lag** — a few degrees on the deltoid, thigh and forearm,
+  proportional to how fast the joint is moving.
+- **Braced breathing** — ribs lift on the eccentric, held on the drive.
+
+All driven from the pose and its **rate of change with respect to the rep**,
+never wall-clock time — so it is deterministic and a frozen frame in the motion
+sheet shows the same secondary motion the moving figure has.
+
+**REPS HAVE A SHAPE.** Two keyframes eased between accelerate out of the hole
+and decelerate into lockout, which is exactly backwards. Every lift now runs on
+nine keys along one of two profiles in `exercise3d.js`, chosen by which half of
+the cycle is the hard one (`DRIVE_FIRST`): a squat lowers first and grinds on
+the way up; a bench press starts on the chest and grinds a hand's width off it.
+The sticking point is expressed the way it looks — keys close in pose and far
+apart in time. Verified: the squat barely moves between phase 0.50 and 0.63
+then finishes fast; the bench hangs at the chest through 0.00–0.25.
+
+Per-pattern override still exists: give a pattern its own `keys` array, or a
+`shape` of `[phase, progress]` pairs, and it wins over the profile.
+
+**Verified:** pages 0–8 swept against the fifty-bone rig; squat and bench at
+nine phases for the rep shape; overhead press, pulldown and pull-up re-checked
+after the scapular change. lint clean, build green, 1,330 tests.
+
+**WHAT IS STILL NOT REAL:**
+- **No weight shift or balance reaction.** The figure never adjusts its base
+  under load; a real lifter's centre of mass moves and the feet answer for it.
+- **Linear blend skinning** — extreme angles still lose volume, no corrective
+  shape keys.
+- Fingers close as one `curl` — they are individually articulated but not
+  individually posed, so an open palm, a hook grip and a thumbless grip still
+  come out as the same shape.
+- No hair, brows or lashes (agreed).
+
+---
+
+### Previous — 9 Sep (fifty bones)
+
 **9 SEP (latest) — FIFTY BONES, AND JOINTS THAT HINGE WHERE A BODY HINGES.**
 His standard, stated plainly: the figure must "fluidly perform and act
 precisely like a real human… as though it were a real human performing each
