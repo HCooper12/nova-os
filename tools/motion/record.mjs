@@ -181,5 +181,7 @@ try {
   }
 } finally {
   if (chrome) chrome.kill();
+  // the throwaway profile is ~80 MB and has done its job
+  await rm(path.join(OUT, '.chrome-profile'), { recursive: true, force: true });
 }
 console.log(`\n${(await readdir(OUT)).filter((f) => f.endsWith('.gif')).length} recordings in ${OUT}`);
