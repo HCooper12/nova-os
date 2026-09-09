@@ -364,12 +364,16 @@ function hangFrom(root, bones, bar, grip) {
 const PAD = {
   // plane the body rests on: a point on it and its normal. These come from
   // bench(), so if the bench moves the body moves with it.
-  supine: { bone: 'chest', into: [0, -0.105, 0], p: [0, 0.485, 0], n: [0, 1, 0] },
-  incline30: { bone: 'chest', into: [0, -0.100, 0.020], p: [0, 0.485, 0], n: [0, 0.866, 0.5] },
-  prone: { bone: 'chest', into: [0, -0.105, 0], p: [0, 0.485, 0], n: [0, 1, 0] },
-  thrust: { bone: 'chest', into: [0, -0.105, 0], p: [0, 0.485, 0], n: [0, 1, 0] },
-  seated: { bone: 'pelvis', into: [0, -0.095, 0], p: [0, 0.485, 0], n: [0, 1, 0] },
-  'seated-back': { bone: 'pelvis', into: [0, -0.095, 0], p: [0, 0.400, 0], n: [0, 1, 0] },
+  // `depth` is how far the bone sits INSIDE the body from the surface it
+  // rests on, measured along that surface's normal. It used to be a world
+  // offset, which is the same thing only while the surface is level: on a
+  // 30-degree incline the pad cut straight through his back.
+  supine: { bone: 'chest', depth: 0.105, p: [0, 0.485, 0], n: [0, 1, 0] },
+  incline30: { bone: 'chest', depth: 0.100, p: [0, 0.485, 0], n: [0, 0.866, 0.5] },
+  prone: { bone: 'chest', depth: 0.105, p: [0, 0.485, 0], n: [0, 1, 0] },
+  thrust: { bone: 'chest', depth: 0.105, p: [0, 0.485, 0], n: [0, 1, 0] },
+  seated: { bone: 'pelvis', depth: 0.095, p: [0, 0.485, 0], n: [0, 1, 0] },
+  'seated-back': { bone: 'pelvis', depth: 0.095, p: [0, 0.400, 0], n: [0, 1, 0] },
 };
 
 /* A bar that rests on the body decides where the hands must go, not the other
@@ -385,7 +389,7 @@ const PAD = {
 const RIG_DEBUG = typeof location !== 'undefined'
   && /(\?|&)debug=rig(&|$)/.test(location.search);
 
-const GRIP_WIDTH = { traps: 2.60, 'front-rack': 1.15 };
+const GRIP_WIDTH = { traps: 2.60, 'front-rack': 1.15, 'floor-bar': 1.35 };
 
 function reachToBar(bones, frames, barCentre, hold, fwd) {
   const up = new THREE.Vector3(0, 1, 0);
@@ -405,6 +409,7 @@ function reachToBar(bones, frames, barCentre, hold, fwd) {
   const ant = JOINT.bodyAnterior(bones, frames)
     || fwd.clone().addScaledVector(lat, -fwd.dot(lat)).normalize();
   const rack = hold === 'front-rack';
+  const floor = hold === 'floor-bar';
   // HALF THE SHOULDER SPAN, once, for both hands — not each shoulder's own
   // distance to the bar. The bar sits a couple of centimetres off centre, and
   // measuring per side multiplied that by the grip factor into an eight
@@ -430,9 +435,13 @@ function reachToBar(bones, frames, barCentre, hold, fwd) {
     }
     // where the elbow wants to be: hanging down and back under a squat bar,
     // driven forward and high under a front rack
-    const pole = rack
-      ? S.clone().addScaledVector(ant, 0.90).addScaledVector(up, 0.12)
-      : S.clone().addScaledVector(ant, -0.30).addScaledVector(up, -0.60);
+    let pole;
+    if (rack) pole = S.clone().addScaledVector(ant, 0.90).addScaledVector(up, 0.12);
+    // hanging off a floor bar the elbow points down and a little outward, and
+    // the arm is very nearly straight — the pole barely matters, but it must
+    // not send the elbow forward into his own shins
+    else if (floor) pole = S.clone().addScaledVector(up, -0.90).addScaledVector(out, 0.20);
+    else pole = S.clone().addScaledVector(ant, -0.30).addScaledVector(up, -0.60);
     const got = JOINT.reachTo(bones, frames, side, target, pole);
     if (RIG_DEBUG) {
       const h = bones[`hand${side}`].getWorldPosition(new THREE.Vector3());
@@ -445,15 +454,18 @@ function reachToBar(bones, frames, barCentre, hold, fwd) {
   }
 }
 
-function padContact(bones, stance, onFurniture = true) {
+function padContact(bones, stance, onFurniture = true, surface = null) {
   const cfg = PAD[stance];
   const b = cfg && bones[cfg.bone];
   if (!b) return null;
-  const world = b.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(...cfg.into));
-  const p = new THREE.Vector3(...cfg.p);
-  if (!onFurniture) p.set(0, 0.02, 0);      // the floor
-  return { local: b.worldToLocal(world.clone()), bone: cfg.bone,
-    p, n: new THREE.Vector3(...cfg.n).normalize() };
+  // The equipment publishes the surface it offers; PAD's own numbers are the
+  // fallback for anything that does not. Hand-written, they went stale the
+  // moment the bench was rebuilt and the incline press floated above its pad.
+  let p = surface ? surface.p.clone() : new THREE.Vector3(...cfg.p);
+  const n = (surface ? surface.n.clone() : new THREE.Vector3(...cfg.n)).normalize();
+  if (!onFurniture) { p = new THREE.Vector3(0, 0.02, 0); n.set(0, 1, 0); }
+  const world = b.getWorldPosition(new THREE.Vector3()).addScaledVector(n, -cfg.depth);
+  return { local: b.worldToLocal(world.clone()), bone: cfg.bone, p, n };
 }
 
 function rest_on(root, bones, pad) {
@@ -771,7 +783,6 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
       // A pad only exists if the lift actually has one. A crunch on 'supine'
       // was being seated on an invisible bench half a metre up.
       const onFurniture = /bench|machine|thrust/.test(equipmentFor(name, pat) || '');
-      const pad = PAD[stance] ? padContact(bones, stance, onFurniture) : null;
       // measured with the skeleton untouched, so a hinge can turn about an
       // axis that belongs to its limb rather than to the room
       const frames = JOINT.restFrames(bones, root);
@@ -864,6 +875,16 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
       // equipment
       const eq = equipmentFor(name, pat);
       const spec = (RIG[eq] || JOINT.none)();
+      // Where the equipment says its surface is, in world terms — and declared
+      // HERE, after `spec` exists. Reaching for it earlier is the same
+      // temporal-dead-zone trap that has cost this file three sessions:
+      // a bare ReferenceError, an empty panel, and a clean-looking console.
+      const surface = (() => {
+        const u = spec.obj?.userData?.pad;
+        if (!u) return null;
+        return { p: u.p.clone().add(spec.obj.position), n: u.n.clone() };
+      })();
+      const pad = PAD[stance] ? padContact(bones, stance, onFurniture, surface) : null;
       const hand = pat ? gripFor(pat, eq) : { grip: 0.18, forearmTwist: 0, wrist: 0 };
       const held = [];
       if (spec.obj) {
@@ -1016,7 +1037,16 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
               // A loaded bar rests on its plates: it cannot go below their
               // radius, and at the bottom of a deadlift it should be sitting
               // on the floor rather than sunk into it.
-              if (spec.floorRests) obj.position.y = Math.max(obj.position.y, 0.225);
+              // A LOADED BAR RESTS ON ITS PLATES. It cannot go below their
+              // radius — and when it stops there, the hands are what move: a
+              // deadlift starts from a bar that is already on the floor, so he
+              // reaches down to it rather than it floating up to meet him.
+              if (spec.floorRests && obj.position.y < 0.225) {
+                obj.position.y = 0.225;
+                reachToBar(bones, frames, obj.position, 'floor-bar', fwd);
+                const a2 = gripPoint('L'); const b3 = gripPoint('R');
+                if (a2 && b3) obj.position.copy(a2).add(b3).multiplyScalar(0.5);
+              }
               // ...and it lies along the line between the two fists. Left
               // world-horizontal, one hand higher than the other left the bar
               // passing through neither of them.

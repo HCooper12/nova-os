@@ -350,6 +350,11 @@ export function bench(angleDeg = 0, { uprights = false } = {}) {
     back.rotation.x = -THREE.MathUtils.degToRad(angleDeg);
     back.position.set(0, TOP + 0.031, angleDeg ? -0.28 : -0.24);
     g.add(back);
+    // THE SURFACE A BODY ACTUALLY LIES ON, published by the thing that owns
+    // it. Written out by hand elsewhere, it drifted the moment this bench was
+    // rebuilt, and the incline press floated 13 cm above its own pad.
+    const n = new THREE.Vector3(0, 1, 0).applyEuler(back.rotation);
+    g.userData.pad = { p: back.position.clone().addScaledVector(n, 0.031), n };
     // the stitched seam down the middle of a real pad
     const seam = box(0.008, 0.004, 0.70, pad(0x161b26));
     seam.rotation.x = back.rotation.x;
@@ -446,6 +451,7 @@ export function latPulldown() {
   g.userData.wheel = st.userData.wheel;
   // the seat, and the thigh pads that stop a pulldown lifting the lifter
   g.add(box(0.36, 0.075, 0.38, pad(), 0, 0.50, 0.64));
+  g.userData.pad = { p: new THREE.Vector3(0, 0.5375, 0.64), n: new THREE.Vector3(0, 1, 0) };
   g.add(box(0.30, 0.05, 0.34, powder(), 0, 0.455, 0.64));
   for (const x of [-0.13, 0.13]) g.add(box(0.05, 0.44, 0.05, powder(), x, 0.25, 0.64));
   g.add(box(0.34, 0.05, 0.34, powder(), 0, 0.028, 0.64));
@@ -487,6 +493,7 @@ export function pullupRig() {
 function legFrame() {
   const g = new THREE.Group();
   g.add(box(0.38, 0.08, 0.44, pad(), 0, 0.46, 0.10));
+  g.userData.pad = { p: new THREE.Vector3(0, 0.50, 0.10), n: new THREE.Vector3(0, 1, 0) };
   g.add(box(0.34, 0.05, 0.40, powder(), 0, 0.415, 0.10));
   for (const x of [-0.14, 0.14]) g.add(box(0.05, 0.42, 0.05, powder(), x, 0.21, 0.10));
   g.add(box(0.40, 0.05, 0.46, powder(), 0, 0.026, 0.10));
@@ -546,6 +553,7 @@ export function legCurl() {
 export function legPress() {
   const g = new THREE.Group();
   g.add(box(0.38, 0.08, 0.52, pad(), 0, 0.36, 0.30));
+  g.userData.pad = { p: new THREE.Vector3(0, 0.40, 0.30), n: new THREE.Vector3(0, 1, 0) };
   g.add(box(0.34, 0.05, 0.48, powder(), 0, 0.315, 0.30));
   const back = box(0.38, 0.56, 0.08, pad());
   back.rotation.x = THREE.MathUtils.degToRad(-38);

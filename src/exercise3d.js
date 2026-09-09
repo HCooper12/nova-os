@@ -51,7 +51,7 @@ export const PATTERNS = {
     label: 'Deadlift — hips and knees extend together from the floor',
     equipment: 'barbell-floor',
     cue: 'Hips set, lats tight, the bar leaves the floor over midfoot.',
-    start: { hip: -105, knee: 70, ankle: 20, spine: 12, shoulder: -10, elbow: 3 },
+    start: { hip: -120, knee: 98, ankle: 16, spine: 24, shoulder: -8, elbow: 3 },
     end: { hip: 0, knee: 0, ankle: 0, spine: 2, shoulder: 0, elbow: 3 },
   },
   'press-horizontal': {
