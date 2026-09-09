@@ -13,6 +13,56 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**9 SEP (latest) — CORRECTIVE SHAPES.** He asked for the most time-consuming of
+the two remaining builds first; this was it. Shipped as `0a1d4d0`.
+
+**The problem it solves.** Every real-time figure is skinned linearly: a vertex
+is the weighted average of where each bone would put it, and an average always
+falls INSIDE the arc the surface should follow. So a bent joint loses volume —
+an elbow at 135° pinches to a crease, a shoulder overhead flattens, a deep knee
+caves. **Better weights cannot fix this**; it is not a weighting error, it is
+what averaging rotations does.
+
+**How it is solved without a sculptor.** Blender's armature modifier will skin
+with **dual quaternions** ("preserve volume"), which is the volume-correct
+answer. So the corrective is simply
+
+    corrective = dual_quaternion_result − linear_blend_result
+
+taken at the extreme pose. Measured, not authored — same inputs, same
+correction, every build. `correctives()` in build.py.
+
+**Two details that make it work:**
+- Deltas come out in POSED space and a shape key lives in REST space, so each
+  is carried back through the inverse of its own vertex's **dominant bone**.
+  Approximate where two bones share a vertex evenly; good everywhere it
+  matters, because the vertices that collapse sit deep inside one bone.
+- Each joint's bend direction is found by **trying both signs and keeping the
+  one that folds the limb** (or raises it, for a shoulder), rather than
+  trusting the rig's axis convention.
+
+**Eight shapes** — shoulder overhead, deep elbow, deep knee, deep hip, per side.
+Each touches 2,300–4,500 vertices, all local to its joint, so every target
+exports as a **sparse accessor**: the whole set costs 450 KB. Driven in
+`applyCorrectives()` from an onset angle to the extreme with a smoothstep, so
+the correction never arrives as a step.
+
+**Verified:** the elbow at the top of a curl folds with mass instead of
+creasing; squat, front squat and hinge re-checked at depth. lint clean, build
+green, 1,330 tests. 1.94 MB, 50 bones, 8 morph targets.
+
+**NEXT, and the only structural gap left he has named:** weight shift and
+balance reaction. The figure never adjusts its base under load — a real
+lifter's centre of mass moves and the feet answer for it. He has asked for this
+after the correctives.
+
+Still true: fingers close from one `curl` (articulated but not individually
+posed), and no hair/brows/lashes (agreed).
+
+---
+
+### Previous — 9 Sep (secondary motion, rep shape)
+
 **9 SEP (latest) — SECONDARY MOTION, AND REPS THAT GRIND.** His two calls, in
 the order he made them. Shipped as `c899233` on top of the fifty-bone rig.
 
