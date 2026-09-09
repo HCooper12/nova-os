@@ -13,6 +13,60 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**9 SEP (latest) — FIFTY BONES, AND JOINTS THAT HINGE WHERE A BODY HINGES.**
+His standard, stated plainly: the figure must "fluidly perform and act
+precisely like a real human… as though it were a real human performing each
+movement as a video rather than a 3-D model", including "every potential area
+for articulation". Shipped as `65b8b85`.
+
+**Three faults, two causes — both answered in the new `src/rig3d.js`.**
+
+1. **Every joint was turned about one of the BODY's axes.** Right for a hip and
+   a shoulder, wrong for everything further down a limb. An elbow is a hinge
+   whose axis runs through the humerus from one epicondyle to the other and
+   **travels with the arm**; rotating the forearm about the body's lateral axis
+   swings it through a plane the elbow does not have. That is exactly what
+   "bent like spaghetti" is. Axes are now taken once, at rest, in each bone's
+   PARENT frame.
+2. **Nothing was bounded.** Every joint now carries the range a real one has
+   and is clamped to it — functional ranges, not passive maxima.
+3. Those two exposed a third: **two sign conventions meet in the pose code.**
+   The data says what the body does; the renderer needs which way to turn a
+   bone. Clamped against the rotation rather than the movement, 95° of elbow
+   flexion came out as 5° and every arm hung dead straight. **Clamp the
+   anatomy, then convert the sign** — this one is silent and will bite again.
+
+**FIVE FINGERS, FOUND IN THE MESH.** `digit_landmarks()` reads the digits off
+the hand as the clusters they form across the palm — thumb 44 mm, index 79,
+middle 97, ring 86, little 59, symmetric — and each gets its own knuckle and
+joints (three, two for the thumb). **50 bones.** `closeHand()` drives them from
+one `curl` in the proportions a hand closes in. The thumb branches off much
+further back than the fingers and needs its own looser search, or it comes out
+8 mm long.
+
+**THE BENCH PRESS IS A BENCH PRESS.** At the bottom the upper arm is out to the
+side and roughly horizontal with the forearm vertical under the bar. Written
+with the arm nearly overhead and the elbow folded, it read as an overhead
+triceps extension — because that is what those angles describe.
+
+**Verified:** all 26 patterns swept across all nine pages against this rig,
+plus the hand at 26 cm on a curl (`&focus=handL`) and the bench press from the
+front and in three-quarter. lint clean, build green, 1,330 tests.
+
+**WHAT IS STILL NOT REAL, and he should know before asking again:**
+- **No secondary motion.** Joints move, nothing else does: no scapular rhythm
+  beyond the deltoid helper, no rib-cage expansion, no soft-tissue wobble, no
+  weight shift or balance. A real lifter's whole body reacts to the load.
+- **Poses are two keyframes eased between**, not motion-captured paths. A real
+  bar path is not a smooth interpolation between a top and a bottom.
+- Linear blend skinning, so extreme angles still lose volume; no corrective
+  shape keys.
+- No hair, brows or lashes (agreed).
+
+---
+
+### Previous — 9 Sep (the elbow was at the wrist)
+
 **9 SEP (latest) — THE ELBOW WAS AT THE WRIST.** He said the figure had "no
 accurate joint flexing and natural movement like you would expect a real
 person to have", and specifically that it "did not actually seem to be
