@@ -88,7 +88,8 @@ const RIG = {
   },
   'pullup-bar': () => {
     const rig = GYM.pullupRig();
-    return { obj: rig, prop: true, hangY: rig.userData.bar.position.y - 0.035 };
+    const b = rig.userData.bar.position;
+    return { obj: rig, prop: true, hangAt: new THREE.Vector3(b.x, b.y - 0.035, b.z) };
   },
   'machine-legcurl': () => ({ obj: GYM.legCurl(), prop: true }),
   'machine-legext': () => ({ obj: GYM.legExtension(), prop: true }),
@@ -340,11 +341,16 @@ function turnUntil(obj, measure, target) {
  * hands are pinned to the bar and the body hangs from them — which makes the
  * chin clearing the bar the actual output of the joint angles, not a promise.
  */
-function hangFrom(root, bones, barY) {
+function hangFrom(root, bones, bar) {
   const l = bones.handL; const r = bones.handR;
-  if (!l || !r || barY == null) return;
-  const y = (l.getWorldPosition(new THREE.Vector3()).y + r.getWorldPosition(new THREE.Vector3()).y) / 2;
-  root.position.y += barY - y;
+  if (!l || !r || !bar) return;
+  // ALL THREE AXES. Pinning only the height let the hands drift forward as the
+  // shoulder angle closed, so at the top of a pull-up he was holding thin air
+  // a foot in front of the bar. The hands are the fixed point; the body is
+  // what travels.
+  const m = l.getWorldPosition(new THREE.Vector3())
+    .add(r.getWorldPosition(new THREE.Vector3())).multiplyScalar(0.5);
+  root.position.add(new THREE.Vector3(bar.x - m.x, bar.y - m.y, bar.z - m.z));
   root.updateMatrixWorld(true);
 }
 
@@ -715,7 +721,7 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
             applyPose(bones, rest, po, restAbduct, axes);
             if (GROUNDED) settle(root, bones, po, contacts, fwd, baseTransform);
             else if (pad) rest_on(root, bones, pad);
-            else if (spec.hangY != null) hangFrom(root, bones, spec.hangY);
+            else if (spec.hangAt) hangFrom(root, bones, spec.hangAt);
           }
           box.union(new THREE.Box3().setFromObject(root));
           // ...and what the hands are holding. Framed on the body alone, an
@@ -768,7 +774,7 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
           applyPose(bones, rest, pose, restAbduct, axes);
           if (GROUNDED) settle(root, bones, pose, contacts, fwd, baseTransform);
           else if (pad) rest_on(root, bones, pad);
-          else if (spec.hangY != null) hangFrom(root, bones, spec.hangY);
+          else if (spec.hangAt) hangFrom(root, bones, spec.hangAt);
         }
 
         // put whatever is held where the hands are

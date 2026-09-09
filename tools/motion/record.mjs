@@ -69,8 +69,16 @@ async function patterns() {
 let chrome = null; let wsUrl = null;
 
 async function startChrome() {
-  const port = 9333;
+  const port = 9330 + Math.floor(Math.random() * 60);
+  // Its OWN profile directory, always. Launched without one, Chrome hands the
+  // command to whatever instance is already running under his everyday profile
+  // and exits — no debugging port, no frames, and his browser wandering off to
+  // a harness page. This is also the standing rule: Nova's browser hand never
+  // touches the browser he uses.
+  const profile = path.join(OUT, '.chrome-profile');
+  await rm(profile, { recursive: true, force: true });
   chrome = spawn(CHROME, [
+    `--user-data-dir=${profile}`,
     '--headless=new', '--hide-scrollbars', '--mute-audio',
     // headless has no GPU: without SwiftShader the page renders with no WebGL
     // at all, and every frame comes out as empty background
@@ -79,16 +87,30 @@ async function startChrome() {
     `--remote-debugging-port=${port}`,
     `--window-size=${size},${size}`, 'about:blank',
   ], { stdio: 'ignore' });
-  for (let i = 0; i < 60; i++) {
+
+  const base_ = `http://127.0.0.1:${port}`;
+  const get = async (p) => {
     try {
-      const r = await fetch(`http://127.0.0.1:${port}/json/list`);
-      const tabs = await r.json();
-      const page = tabs.find((t) => t.type === 'page');
-      if (page) { wsUrl = page.webSocketDebuggerUrl; return; }
-    } catch { /* not up yet */ }
+      const r = await fetch(base_ + p);
+      return r.ok ? await r.json() : null;
+    } catch { return null; }
+  };
+  // wait for the BROWSER first — /json/list can answer before any page target
+  // exists, which is what "did not open a debugging port" really meant
+  let up = false;
+  for (let i = 0; i < 80 && !up; i++) {
+    up = Boolean(await get('/json/version'));
+    if (!up) await new Promise((r) => setTimeout(r, 250));
+  }
+  if (!up) throw new Error(`Chrome never answered on ${port} — is another headless copy stuck? try: pkill -f remote-debugging-port`);
+  for (let i = 0; i < 40; i++) {
+    const tabs = (await get('/json/list')) || [];
+    const page = tabs.find((t) => t.type === 'page' && t.webSocketDebuggerUrl);
+    if (page) { wsUrl = page.webSocketDebuggerUrl; return; }
+    await get('/json/new?about:blank');        // no page yet: ask for one
     await new Promise((r) => setTimeout(r, 250));
   }
-  throw new Error('Chrome did not open a debugging port');
+  throw new Error('Chrome opened a port but never produced a page target');
 }
 
 function cdp(ws) {
@@ -146,6 +168,7 @@ async function record(id) {
   return gif;
 }
 
+process.on('uncaughtException', (e) => { console.error(e.message); process.exit(1); });
 const ids = only.length ? only : await patterns();
 if (!existsSync(CHROME)) throw new Error(`Chrome not found at ${CHROME}`);
 await mkdir(OUT, { recursive: true });
