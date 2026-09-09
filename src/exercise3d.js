@@ -60,8 +60,8 @@ export const PATTERNS = {
     equipment: 'bench-flat',
     lying: true,
     cue: 'Shoulder blades set, bar to the sternum, elbows ~60° from the torso.',
-    start: { shoulder: 0, elbow: 0, shoulderAbduct: 60, hip: -85, knee: 85 },
-    end: { shoulder: 0, elbow: 95, shoulderAbduct: 60, hip: -85, knee: 85 },
+    start: { shoulder: 78, elbow: 100, shoulderAbduct: 42, hip: -8, knee: 76, ankle: 0 },
+    end: { shoulder: 92, elbow: 6, shoulderAbduct: 26, hip: -8, knee: 76, ankle: 0 },
   },
   'press-incline': {
     label: 'Incline press — the same press on a 30° bench',
@@ -69,8 +69,8 @@ export const PATTERNS = {
     equipment: 'bench-incline',
     lying: true,
     cue: 'Bench at 30°, bar to the upper chest just below the collarbone.',
-    start: { shoulder: 25, elbow: 0, shoulderAbduct: 55, hip: -70, knee: 85 },
-    end: { shoulder: 25, elbow: 95, shoulderAbduct: 55, hip: -70, knee: 85 },
+    start: { shoulder: 74, elbow: 100, shoulderAbduct: 40, hip: -14, knee: 74, ankle: 0 },
+    end: { shoulder: 90, elbow: 6, shoulderAbduct: 24, hip: -14, knee: 74, ankle: 0 },
   },
   'press-overhead': {
     label: 'Overhead press — shoulder flexion to lockout',
@@ -80,11 +80,12 @@ export const PATTERNS = {
     end: { shoulder: 170, elbow: 5, spine: 0 },
   },
   pulldown: {
+    stance: 'seated',
     label: 'Vertical pull — the elbow drives down and back',
-    equipment: 'cable-high',
+    equipment: 'lat-pulldown',
     cue: 'Chest up, drive the elbows to the ribs, no swing.',
-    start: { shoulder: 155, elbow: 10, spine: 4 },
-    end: { shoulder: 35, elbow: 105, spine: 10 },
+    start: { shoulder: 155, elbow: 10, spine: 4, hip: -88, knee: 82, ankle: 0 },
+    end: { shoulder: 35, elbow: 105, spine: 10, hip: -88, knee: 82, ankle: 0 },
   },
   'pull-up': {
     label: 'Pull-up — the body rises to the bar',
@@ -133,11 +134,13 @@ export const PATTERNS = {
   fly: {
     label: 'Shoulder horizontal adduction',
     stance: 'supine',
-    equipment: 'dumbbells',
+    // on a BENCH, not the floor — with 'dumbbells' the renderer had nothing to
+    // lay him on and put him on the ground with his knees up
+    equipment: 'bench-flat-db',
     lying: true,
     cue: 'A soft, fixed elbow angle; the arc is at the shoulder.',
-    start: { shoulderAbduct: 90, elbow: 20, shoulder: 0, hip: -85, knee: 85 },
-    end: { shoulderAbduct: 15, elbow: 20, shoulder: 0, hip: -85, knee: 85 },
+    start: { shoulder: 86, shoulderAbduct: 78, elbow: 22, hip: -8, knee: 76, ankle: 0 },
+    end: { shoulder: 90, shoulderAbduct: 12, elbow: 16, hip: -8, knee: 76, ankle: 0 },
   },
   'raise-lateral': {
     label: 'Shoulder abduction',
@@ -200,15 +203,15 @@ export const PATTERNS = {
     stance: 'thrust',
     equipment: 'bench-thrust',
     cue: 'Ribs down, chin tucked, finish with the glutes not the back.',
-    start: { hip: -70, knee: 90, spine: 2 },
-    end: { hip: 5, knee: 90, spine: 2 },
+    start: { hipTilt: -38, hip: -34, knee: 88, spine: 2 },
+    end: { hipTilt: 4, hip: 2, knee: 88, spine: 2 },
   },
   'calf-raise': {
     label: 'Ankle plantarflexion',
     equipment: 'none',
     cue: 'Full stretch at the bottom, pause at the top.',
-    start: { ankle: -18 },
-    end: { ankle: 30 },
+    start: { ankle: 0, knee: 2 },
+    end: { ankle: -34, knee: 2 },
   },
   crunch: {
     label: 'Spinal flexion',
@@ -278,8 +281,19 @@ export function equipmentFor(name = '', pattern = null) {
     if (base.startsWith('barbell')) return 'dumbbells';
     return base === 'none' ? 'dumbbells' : base;
   }
-  if (/\bcable\b/.test(n) && base.startsWith('barbell')) return 'cable-mid';
-  if (/\bmachine\b|\bsmith\b/.test(n) && base.startsWith('barbell')) return base;
+  if (/\blat[- ]?pull ?down\b|\bpull ?down\b/.test(n)) return 'lat-pulldown';
+  if (/\bez[- ]?bar\b|\bpreacher\b/.test(n)) return 'barbell-ez';
+  if (/\btrap[- ]?bar\b|\bhex[- ]?bar\b/.test(n)) return 'trap-bar';
+  if (/\bsmith\b/.test(n)) return 'smith-bar';
+  if (/\brope\b/.test(n)) return 'cable-rope';
+  if (/\bcable\b/.test(n)) {
+    // where the cable LEAVES the machine is the whole shape of the exercise:
+    // a pushdown comes from above, a curl and a kickback from the floor
+    if (/pull ?down|pushdown|push ?down|overhead|face ?pull|crossover/.test(n)) return 'cable-high';
+    if (/curl|kick ?back|lateral|side|shrug|row|pull ?through|abduction/.test(n)) return 'cable-low';
+    return 'cable-mid';
+  }
+  if (/\bmachine\b/.test(n) && base.startsWith('barbell')) return base;
   if (/\bbodyweight\b|\bpush[- ]?up\b/.test(n)) return 'none';
   return base;
 }

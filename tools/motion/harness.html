@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Nova — motion check</title>
+    <style>
+      :root { color-scheme: dark; }
+      body { margin: 0; background: #0a0d16; color: #dfe4f2;
+             font: 13px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+      h1 { font-size: 14px; letter-spacing: .12em; text-transform: uppercase; margin: 14px 16px 4px; color: #8d94ac; }
+      .strip { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 0; padding: 0 8px 10px; }
+      .strip > div { flex: 0 0 auto; }
+      .row { border-bottom: 1px solid #1b2233; padding-bottom: 6px; }
+      .lbl { font: 11px ui-monospace, monospace; color: #59e6ff; margin: 10px 16px 2px; }
+      .ph { font: 10px ui-monospace, monospace; color: #5c6480; text-align: center; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      // Nova is a PWA, and its service worker's navigateFallback answers ANY
+      // navigation under /nova-os/ with the app shell — including this page.
+      // The file on disk was correct, `curl` returned it, and the browser
+      // still showed Mission Control. Shed the worker once, then reload.
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.getRegistrations()
+          .then((rs) => Promise.all(rs.map((r) => r.unregister())))
+          .then(() => caches.keys())
+          .then((ks) => Promise.all(ks.map((k) => caches.delete(k))))
+          .then(() => location.reload());
+      }
+    </script>
+    <script type="module" src="./harness.jsx"></script>
+  </body>
+</html>

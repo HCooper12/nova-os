@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { poseAt, PATTERNS, equipmentFor, patternFor } from './exercise3d.js';
+import * as GYM from './gym3d.js';
 import { css } from './css.js';
 
 // THE FIGURE — a real body, performing the lift, with the muscles it trains lit.
@@ -27,7 +28,6 @@ const PRIMARY = new THREE.Color(0xff7ad9);   // --nv-mg
 const SECONDARY = new THREE.Color(0x59e6ff); // --nv-cy
 const RESTING = new THREE.Color(0x8d94ac);   // muscle at rest — a body, not a diagram
 const FRAME = new THREE.Color(0xa9a2b8);
-const STEEL = 0x9aa3b4;
 
 let cached = null;   // the parsed GLB, shared across every card that opens
 
@@ -40,110 +40,67 @@ function loadModel() {
   return cached;
 }
 
-/* ------------------------------- equipment ------------------------------- */
-// Built here rather than modelled: a barbell is a cylinder and some plates, and
-// a bar Nova draws is a bar Nova can place exactly in his hands.
-
-function metal(color = STEEL, rough = 0.35) {
-  return new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: 0.75 });
-}
-
-function barbell(len = 1.9) {
-  const g = new THREE.Group();
-  const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, len, 14), metal());
-  bar.rotation.z = Math.PI / 2;
-  g.add(bar);
-  for (const side of [-1, 1]) {
-    for (let i = 0; i < 2; i++) {
-      const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.225, 0.225, 0.035, 20), metal(0x2c3242, 0.6));
-      plate.rotation.z = Math.PI / 2;
-      plate.position.x = side * (len / 2 - 0.10 - i * 0.045);
-      g.add(plate);
-    }
-  }
-  return g;
-}
-
-function dumbbell() {
-  const g = new THREE.Group();
-  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.017, 0.16, 10), metal());
-  handle.rotation.z = Math.PI / 2;
-  g.add(handle);
-  for (const s of [-1, 1]) {
-    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.062, 0.085, 14), metal(0x2c3242, 0.6));
-    head.rotation.z = Math.PI / 2;
-    head.position.x = s * 0.105;
-    g.add(head);
-  }
-  return g;
-}
-
-function bench(angleDeg = 0) {
-  const g = new THREE.Group();
-  const pad = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.07, 1.15),
-    new THREE.MeshStandardMaterial({ color: 0x232a3c, roughness: 0.85 }));
-  pad.rotation.x = -THREE.MathUtils.degToRad(angleDeg);
-  pad.position.y = 0.45;
-  g.add(pad);
-  for (const z of [-0.45, 0.45]) {
-    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.42, 0.05), metal(0x39415a, 0.7));
-    leg.position.set(0, 0.21, z);
-    g.add(leg);
-  }
-  return g;
-}
-
-function cableTower(highAnchor = true) {
-  const g = new THREE.Group();
-  const post = new THREE.Mesh(new THREE.BoxGeometry(0.10, 2.15, 0.10), metal(0x39415a, 0.7));
-  post.position.y = 1.07;
-  g.add(post);
-  const stack = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.75, 0.16), metal(0x2c3242, 0.6));
-  stack.position.y = 0.42;
-  g.add(stack);
-  const armY = highAnchor ? 2.05 : 0.45;
-  const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.18, 8), metal());
-  arm.rotation.z = Math.PI / 2;
-  arm.position.set(-0.09, armY, 0);
-  g.add(arm);
-  return g;
-}
-
-function pullupBar() {
-  const g = new THREE.Group();
-  const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 1.2, 12), metal());
-  bar.rotation.z = Math.PI / 2;
-  bar.position.y = 2.25;
-  g.add(bar);
-  for (const s of [-1, 1]) {
-    const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, 2.25, 0.06), metal(0x39415a, 0.7));
-    post.position.set(s * 0.6, 1.12, 0);
-    g.add(post);
-  }
-  return g;
-}
-
-// what each equipment id puts in the scene, and whether the hands hold it
+/* ------------------------------- equipment -------------------------------
+ * What each equipment id puts in the scene, and how the body relates to it:
+ *   obj      a single object; `prop` means it stands in the world, otherwise
+ *            the hands carry it
+ *   perHand  one built per hand (dumbbells)
+ *   hold     'hands' | 'traps' | 'front-rack' — where a carried bar rides
+ *   cable    { from } — run a cable from that anchor to whatever is held, and
+ *            re-aim it every frame. A cable machine whose cable does not move
+ *            is furniture.
+ */
 const RIG = {
-  'barbell-back': () => ({ obj: barbell(), hold: 'traps' }),
-  'barbell-front': () => ({ obj: barbell(), hold: 'front-rack' }),
-  'barbell-hands': () => ({ obj: barbell(), hold: 'hands' }),
-  'barbell-floor': () => ({ obj: barbell(), hold: 'hands' }),
-  dumbbells: () => ({ obj: null, perHand: dumbbell }),
-  'dumbbell-single': () => ({ obj: null, perHand: dumbbell, single: true }),
-  'bench-flat': () => ({ obj: bench(0), prop: true, extra: barbell(), hold: 'hands' }),
-  'bench-flat-db': () => ({ obj: bench(0), prop: true, perHand: dumbbell }),
-  'bench-incline': () => ({ obj: bench(30), prop: true, extra: barbell(), hold: 'hands' }),
-  'bench-incline-db': () => ({ obj: bench(30), prop: true, perHand: dumbbell }),
-  'bench-thrust': () => ({ obj: bench(0), prop: true, extra: barbell(), hold: 'hands' }),
-  'cable-high': () => ({ obj: cableTower(true), prop: true }),
-  'cable-mid': () => ({ obj: cableTower(false), prop: true }),
-  'pullup-bar': () => ({ obj: pullupBar(), prop: true }),
-  'machine-legcurl': () => ({ obj: bench(0), prop: true }),
-  'machine-legext': () => ({ obj: bench(0), prop: true }),
-  'machine-legpress': () => ({ obj: bench(30), prop: true }),
+  'barbell-back': () => ({ obj: GYM.barbell(), hold: 'traps' }),
+  'barbell-front': () => ({ obj: GYM.barbell(), hold: 'front-rack' }),
+  'barbell-hands': () => ({ obj: GYM.barbell(), hold: 'hands' }),
+  'barbell-floor': () => ({ obj: GYM.barbell(), hold: 'hands' }),
+  'barbell-ez': () => ({ obj: GYM.ezBar(), hold: 'hands' }),
+  'trap-bar': () => ({ obj: GYM.trapBar(), hold: 'hands' }),
+  'smith-bar': () => ({ obj: GYM.barbell(1.5), hold: 'hands', extraProp: GYM.smithRack() }),
+  dumbbells: () => ({ obj: null, perHand: GYM.dumbbell }),
+  'dumbbell-single': () => ({ obj: null, perHand: GYM.dumbbell, single: true }),
+  'bench-flat': () => ({ obj: GYM.bench(0), prop: true, extra: GYM.barbell(), hold: 'hands' }),
+  'bench-flat-db': () => ({ obj: GYM.bench(0), prop: true, perHand: GYM.dumbbell }),
+  'bench-incline': () => ({ obj: GYM.bench(30), prop: true, extra: GYM.barbell(), hold: 'hands' }),
+  'bench-incline-db': () => ({ obj: GYM.bench(30), prop: true, perHand: GYM.dumbbell }),
+  'bench-thrust': () => ({ obj: GYM.bench(0), prop: true, extra: GYM.barbell(), hold: 'hands' }),
+  // cables: the station stands behind him, the handle is in his hands, and the
+  // cable runs between the two
+  'cable-high': () => cableRig(2.05, GYM.straightAttachment(0.5), -1.05),
+  'cable-mid': () => cableRig(1.20, GYM.dHandle(), -1.05),
+  'cable-low': () => cableRig(0.28, GYM.straightAttachment(0.5), -1.05),
+  'cable-rope': () => cableRig(2.05, GYM.ropeAttachment(), -1.05),
+  'lat-pulldown': () => {
+    const st = GYM.latPulldown();
+    st.position.set(0, 0, -0.62);
+    return {
+      obj: st, prop: true, extra: GYM.latBar(), hold: 'hands',
+      cableFrom: st.userData.anchor.clone().add(st.position), wheel: st.userData.wheel,
+    };
+  },
+  'pullup-bar': () => {
+    const rig = GYM.pullupRig();
+    return { obj: rig, prop: true, hangY: rig.userData.bar.position.y - 0.035 };
+  },
+  'machine-legcurl': () => ({ obj: GYM.legCurl(), prop: true }),
+  'machine-legext': () => ({ obj: GYM.legExtension(), prop: true }),
+  'machine-legpress': () => {
+    const m = GYM.legPress();
+    m.position.set(0, 0, 0.30);     // the seat under him, the sled at his feet
+    return { obj: m, prop: true };
+  },
   none: () => ({ obj: null }),
 };
+
+function cableRig(anchorY, attachment, z) {
+  const st = GYM.cableStation(anchorY);
+  st.position.set(0, 0, z);
+  return {
+    obj: st, prop: true, extra: attachment, hold: 'hands',
+    cableFrom: st.userData.anchor.clone().add(st.position), wheel: st.userData.wheel,
+  };
+}
 
 /* --------------------------------- posing -------------------------------- */
 
@@ -151,7 +108,18 @@ const RIG = {
 // in world terms means the data can say "the hip flexes 100°" and mean it,
 // whatever direction the bone happens to point in its rest orientation.
 function rotate(bone, rest, axis, deg) {
-  if (!bone || !deg) return;
+  if (!bone || !rest) return;
+  // ZERO IS A POSE, NOT AN ABSENCE. This used to return early on deg === 0 and
+  // leave the bone wherever it happened to be — so any joint passing through
+  // neutral kept the last angle it was given, and the figure drifted a little
+  // further from anatomy every frame. At the top of a squat the thigh still
+  // held the bottom's 100° of flexion, which is why a standing lockout
+  // rendered as a man reclining with his knees above his hips.
+  if (!deg) {
+    bone.quaternion.copy(rest);
+    bone.updateMatrixWorld(true);
+    return;
+  }
   const parentQ = new THREE.Quaternion();
   if (bone.parent) bone.parent.getWorldQuaternion(parentQ);
   const local = axis.clone().applyQuaternion(parentQ.clone().invert()).normalize();
@@ -160,26 +128,51 @@ function rotate(bone, rest, axis, deg) {
   bone.updateMatrixWorld(true);
 }
 
-const X = new THREE.Vector3(1, 0, 0);   // flexion / extension
-const Z = new THREE.Vector3(0, 0, 1);   // abduction / adduction
-const Y = new THREE.Vector3(0, 1, 0);   // rotation about the limb
+// THE BODY'S OWN AXES, not the world's.
+//
+// Every joint angle here is anatomical — "the hip flexes 85°" — and flexion
+// happens in the body's sagittal plane. Rotating about the WORLD x axis is the
+// same thing only while the body is standing up. Lay it on a bench and the
+// world axes no longer mean anything anatomical: a bench press folded its legs
+// the wrong way, shins pointing at the ceiling, because +85° of knee flexion
+// was applied about an axis that no longer ran through the body's hips.
+//
+// So the axes are taken from the root's own orientation in the stance the lift
+// is performed in, and every rotation below is expressed in them.
+const AXES_WORLD = {
+  X: new THREE.Vector3(1, 0, 0), Y: new THREE.Vector3(0, 1, 0), Z: new THREE.Vector3(0, 0, 1),
+};
+
+function bodyAxes(root) {
+  const q = root.getWorldQuaternion(new THREE.Quaternion());
+  return {
+    X: new THREE.Vector3(1, 0, 0).applyQuaternion(q).normalize(),   // flexion
+    Y: new THREE.Vector3(0, 1, 0).applyQuaternion(q).normalize(),   // twist
+    Z: new THREE.Vector3(0, 0, 1).applyQuaternion(q).normalize(),   // abduction
+  };
+}
 
 // The base mesh stands in an A-pose: each arm is already ~40° abducted. Pose
 // data is written in ANATOMICAL terms (0° = the arm hanging at the side), so
 // the rest abduction has to be subtracted or every overhead lift sweeps the
 // arms inward until they cross over the head — which is what it did.
-function restAbduction(bones, side) {
+function restAbduction(bones, side, root = null) {
   const sh = bones[`upperarm${side}`];
   const el = bones[`forearm${side}`];
   if (!sh || !el) return 0;
   const a = new THREE.Vector3(); const b = new THREE.Vector3();
   sh.getWorldPosition(a); el.getWorldPosition(b);
   const v = b.sub(a);
+  // in the BODY's frame, not the world's — measured against world x and y it
+  // read the wrong angle for every lift that is not performed standing up
+  if (root) v.applyQuaternion(root.getWorldQuaternion(new THREE.Quaternion()).invert());
   return THREE.MathUtils.radToDeg(Math.atan2(Math.abs(v.x), Math.abs(v.y)));
 }
 
-function applyPose(bones, rest, pose, restAbduct = { L: 0, R: 0 }) {
+function applyPose(bones, rest, pose, restAbduct = { L: 0, R: 0 }, axes = null) {
   if (!pose) return;
+  const X = (axes || AXES_WORLD).X;
+  const Z = (axes || AXES_WORLD).Z;
   const set = (name, axis, deg) => rotate(bones[name], rest[name], axis, deg);
   // trunk, root down — a child's world axis is only right once its parent is posed
   set('pelvis', X, (pose.hipTilt || 0));
@@ -238,17 +231,211 @@ function applyPose(bones, rest, pose, restAbduct = { L: 0, R: 0 }) {
     set(`thigh${side}`, X, back ? (pose.hipBack || 0) : (pose.hip || 0));
     set(`shin${side}`, X, back ? (pose.kneeBack || 0) : (pose.knee || 0));
     set(`foot${side}`, X, (pose.ankle || 0));
-    if (pose.shoulderShrug) {
-      const c = bones[`clavicle${side}`];
-      if (c) {
-        c.position.y = rest[`clavicle${side}_pos`].y + 0.035 * pose.shoulderShrug;
-        c.updateMatrixWorld(true);
-      }
+    // same rule for the shrug: absent means back to rest, not "leave it"
+    const c = bones[`clavicle${side}`];
+    if (c && rest[`clavicle${side}_pos`]) {
+      c.position.y = rest[`clavicle${side}_pos`].y + 0.035 * (pose.shoulderShrug || 0);
+      c.updateMatrixWorld(true);
     }
   }
 }
 
-export default function Body3D({ muscles, pattern, name = '', height = 260 }) {
+// `phase` freezes the rep at one point of its cycle instead of animating, and
+// `view` picks the camera. Both exist for tools/motion/harness.html — the
+// standing motion check runs THIS component, so what it passes is what ships.
+/* ------------------------------ standing on -------------------------------
+ * A STANDING LIFT IS A CLOSED CHAIN. The rig is rooted at the pelvis, so
+ * posing the hip and knee folds the legs while the pelvis stays exactly where
+ * it was — the figure squatted by sitting down onto an invisible chair, torso
+ * bolt upright, feet swinging in the air, the bar never descending. Hayden,
+ * 9 Sep 2026: "some extra stretching… that does not make it look anatomically
+ * correct and like a human actually moves."
+ *
+ * The body does not hang from its pelvis. It stands on the floor. So after
+ * every pose, the whole figure is rotated and dropped until the feet are back
+ * where physics puts them:
+ *
+ *   1. LEAN — turn the body about X until the shin sits at the angle the
+ *      ankle is dorsiflexed to. This is where a squat's forward torso lean
+ *      comes from; it was never in the joint data because it is not a joint.
+ *   2. PLANT — drop the body until the lower sole touches the floor, and slide
+ *      it so the feet stay over the same spot instead of walking away.
+ *
+ * Everything the lift moves then follows for free: the bar descends because
+ * the traps descend, the head stays over the feet, the hips travel back.
+ */
+function restContacts(bones) {
+  // Two points per foot, in the FOOT bone's own space: the floor under the
+  // ankle, and the floor under the toe. Two, because a calf raise pivots on
+  // the toe and a squat sits on the whole sole — tracking one point put the
+  // toes through the floor the moment the heel came up.
+  const out = { z0: 0 };
+  let z = 0; let n = 0;
+  for (const side of ['L', 'R']) {
+    const f = bones[`foot${side}`];
+    if (!f) continue;
+    const ankle = f.getWorldPosition(new THREE.Vector3());
+    const toe = f.localToWorld(new THREE.Vector3(0, 1, 0));
+    out[side] = {
+      heel: f.worldToLocal(new THREE.Vector3(ankle.x, 0, ankle.z)),
+      toe: f.worldToLocal(new THREE.Vector3(toe.x, 0, toe.z)),
+    };
+    z += ankle.z; n += 1;
+  }
+  out.z0 = n ? z / n : 0;
+  return out;
+}
+
+const WORLD_X = new THREE.Vector3(1, 0, 0);
+
+function pitchOf(v, fwd) {
+  // + when the far end points ANTERIOR of straight down
+  return Math.atan2(v.dot(fwd), -v.y);
+}
+
+function segPitch(bones, a, b, fwd) {
+  const A = bones[a]; const B = bones[b];
+  if (!A || !B) return 0;
+  return pitchOf(B.getWorldPosition(new THREE.Vector3()).sub(A.getWorldPosition(new THREE.Vector3())), fwd);
+}
+
+function footPitch(bones, side, fwd) {
+  const f = bones[`foot${side}`];
+  if (!f) return 0;
+  const head = f.getWorldPosition(new THREE.Vector3());
+  return pitchOf(f.localToWorld(new THREE.Vector3(0, 1, 0)).sub(head), fwd);
+}
+
+// Turn something about the world X axis until a measured angle hits its target.
+// Three sign conventions meet in this file — Blender's bone axes, the glTF
+// Y-up conversion, and this file's flexion signs — and reasoning through all
+// three produced a squat that reclined backwards. So the correction checks
+// itself: apply it, measure again, and if the error grew, take the other way.
+function turnUntil(obj, measure, target) {
+  const err = () => measure() - target;
+  const d = err();
+  if (Math.abs(d) < 1e-4) return;
+  obj.rotateOnWorldAxis(WORLD_X, -d);
+  obj.updateMatrixWorld(true);
+  if (Math.abs(err()) > Math.abs(d)) {
+    obj.rotateOnWorldAxis(WORLD_X, 2 * d);
+    obj.updateMatrixWorld(true);
+  }
+}
+
+/* A HANG IS A CONTACT TOO.
+ *
+ * A pull-up is the mirror of a squat: the hands are the fixed point and the
+ * body travels. Placed at a guessed height the figure stood beside the frame
+ * with its arms up, and nothing about the rep read as rising to a bar. So the
+ * hands are pinned to the bar and the body hangs from them — which makes the
+ * chin clearing the bar the actual output of the joint angles, not a promise.
+ */
+function hangFrom(root, bones, barY) {
+  const l = bones.handL; const r = bones.handR;
+  if (!l || !r || barY == null) return;
+  const y = (l.getWorldPosition(new THREE.Vector3()).y + r.getWorldPosition(new THREE.Vector3()).y) / 2;
+  root.position.y += barY - y;
+  root.updateMatrixWorld(true);
+}
+
+/* A LYING LIFT RESTS ON A PAD.
+ *
+ * The same fault as the standing one, wearing different clothes: the stances
+ * placed the body with hand-tuned offsets, so a bench press floated a hand's
+ * width above the bench and an incline press hung in the air beside it. A body
+ * on a bench is in contact with it. So the contact point — the back of the
+ * chest, or the glutes when seated — is measured once against the actual pad
+ * plane and held there through the whole lift.
+ */
+const PAD = {
+  // plane the body rests on: a point on it and its normal. These come from
+  // bench(), so if the bench moves the body moves with it.
+  supine: { bone: 'chest', into: [0, -0.105, 0], p: [0, 0.485, 0], n: [0, 1, 0] },
+  incline30: { bone: 'chest', into: [0, -0.100, 0.020], p: [0, 0.485, 0], n: [0, 0.866, 0.5] },
+  prone: { bone: 'chest', into: [0, -0.105, 0], p: [0, 0.485, 0], n: [0, 1, 0] },
+  thrust: { bone: 'chest', into: [0, -0.105, 0], p: [0, 0.485, 0], n: [0, 1, 0] },
+  seated: { bone: 'pelvis', into: [0, -0.095, 0], p: [0, 0.485, 0], n: [0, 1, 0] },
+  'seated-back': { bone: 'pelvis', into: [0, -0.095, 0], p: [0, 0.400, 0], n: [0, 1, 0] },
+};
+
+function padContact(bones, stance, onFurniture = true) {
+  const cfg = PAD[stance];
+  const b = cfg && bones[cfg.bone];
+  if (!b) return null;
+  const world = b.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(...cfg.into));
+  const p = new THREE.Vector3(...cfg.p);
+  if (!onFurniture) p.set(0, 0.02, 0);      // the floor
+  return { local: b.worldToLocal(world.clone()), bone: cfg.bone,
+    p, n: new THREE.Vector3(...cfg.n).normalize() };
+}
+
+function rest_on(root, bones, pad) {
+  if (!pad) return;
+  const b = bones[pad.bone];
+  if (!b) return;
+  const world = b.localToWorld(pad.local.clone());
+  // signed distance from the pad plane, pushed back along the normal
+  const gap = world.clone().sub(pad.p).dot(pad.n);
+  root.position.addScaledVector(pad.n, -gap);
+  root.updateMatrixWorld(true);
+}
+
+/* A STANDING LIFT IS A CLOSED CHAIN.
+ *
+ * The rig is rooted at the pelvis, so posing the hip and knee folds the legs
+ * while the pelvis stays exactly where it was: the figure squatted by sitting
+ * down onto an invisible chair, torso bolt upright, feet in the air, the bar
+ * never descending. Hayden, 9 Sep 2026 — "some extra stretching… that does not
+ * make it look anatomically correct and like a human actually moves."
+ *
+ * A body does not hang from its pelvis; it stands on the floor. So after every
+ * pose, three things are solved in order:
+ *
+ *   1. LEAN — turn the whole figure until the SHIN sits where the ankle angle
+ *      says it should. This is where a squat's forward torso lean comes from,
+ *      and it was never in the joint data because it is not a joint.
+ *   2. ANKLE — turn each foot until it is flat on the floor, or, when the lift
+ *      plantarflexes, until the heel has lifted by exactly that much.
+ *   3. PLANT — drop until the lowest contact point (heel or toe) touches, and
+ *      slide so the feet stay over the same spot instead of walking off.
+ *
+ * Everything else follows for free: the bar descends because the traps do, the
+ * hips travel back, the head stays over the feet.
+ */
+function settle(root, bones, pose, contacts, fwd, base) {
+  if (!contacts || !contacts.L || !bones.footL) return;
+  const ankle = pose?.ankle || 0;
+  // Positive `ankle` is DORSIFLEXION — the shin travels forward over a planted
+  // foot. Negative is plantarflexion, where the heel leaves the floor and the
+  // shin stays put; a squat's shin must lean, a calf raise's must not.
+  turnUntil(root, () => segPitch(bones, 'shinL', 'footL', fwd),
+    -THREE.MathUtils.degToRad(Math.max(ankle, 0)));
+
+  const heelLift = THREE.MathUtils.degToRad(Math.max(-ankle, 0));
+  for (const side of ['L', 'R']) {
+    const f = bones[`foot${side}`];
+    if (f) turnUntil(f, () => footPitch(bones, side, fwd), base.pitch[side] - heelLift);
+  }
+
+  let low = Infinity; let z = 0; let n = 0;
+  for (const side of ['L', 'R']) {
+    const f = bones[`foot${side}`];
+    if (!f || !contacts[side]) continue;
+    for (const k of ['heel', 'toe']) {
+      const p = f.localToWorld(contacts[side][k].clone());
+      low = Math.min(low, p.y);
+      if (k === 'heel') { z += p.z; n += 1; }
+    }
+  }
+  if (!n || !Number.isFinite(low)) return;
+  root.position.y -= low - base.floor;
+  root.position.z -= (z / n) - contacts.z0;
+  root.updateMatrixWorld(true);
+}
+
+export default function Body3D({ muscles, pattern, name = '', height = 260,
+  phase: frozen = null, view = 'three-quarter', chrome = true }) {
   // The flat figure's pattern ids overlap with these but are coarser (it has
   // one "squat" for squats, leg presses and lunges). When the name resolves to
   // a 3D pattern, that wins — the whole point is that the movement is right.
@@ -356,6 +543,34 @@ export default function Body3D({ muscles, pattern, name = '', height = 260 }) {
         root.position.set(0, BENCH_TOP - 0.06, 0.10);
       }
       root.updateMatrixWorld(true);
+      // measured in the rest pose, in the stance the lift is performed in
+      const GROUNDED = stance === 'standing';
+      // A pad only exists if the lift actually has one. A crunch on 'supine'
+      // was being seated on an invisible bench half a metre up.
+      const onFurniture = /bench|machine|thrust/.test(equipmentFor(name, pat) || '');
+      const pad = PAD[stance] ? padContact(bones, stance, onFurniture) : null;
+      const axes = bodyAxes(root);
+      const contacts = restContacts(bones);
+      const fwd = (() => {
+        // Which way the toes point, measured off the rig rather than assumed:
+        // a Blender bone's local +Y runs head → tail and the foot bone's tail
+        // is the toe. Guessing it from an axis convention is how a figure ends
+        // up squatting backwards.
+        const f = bones.footL || bones.footR;
+        if (!f) return new THREE.Vector3(0, 0, 1);
+        const d = f.localToWorld(new THREE.Vector3(0, 1, 0)).sub(f.getWorldPosition(new THREE.Vector3()));
+        d.y = 0;
+        return d.lengthSq() < 1e-9 ? new THREE.Vector3(0, 0, 1) : d.normalize();
+      })();
+      // MEASURED ON THE REST BODY, before a single joint is touched. When the
+      // framing pass started posing the figure, this line still sat after it
+      // and read the A-pose abduction off an arm already holding a barbell —
+      // every arm in every lift was then rotated from a fiction.
+      const restAbduct = { L: restAbduction(bones, 'L', root), R: restAbduction(bones, 'R', root) };
+      const baseTransform = {
+        pos: root.position.clone(), quat: root.quaternion.clone(), floor: 0,
+        pitch: { L: footPitch(bones, 'L', fwd), R: footPitch(bones, 'R', fwd) },
+      };
 
       // equipment
       const eq = equipmentFor(name, pat);
@@ -363,13 +578,13 @@ export default function Body3D({ muscles, pattern, name = '', height = 260 }) {
       const held = [];
       if (spec.obj) {
         scene.add(spec.obj);
-        if (spec.prop) {
-          if (eq === 'cable-high' || eq === 'cable-mid') spec.obj.position.set(0, 0, -1.05);
-          if (eq === 'pullup-bar') spec.obj.position.set(0, 0, 0);
-          if (eq.startsWith('bench')) spec.obj.position.set(0, 0, 0);
-        } else {
-          held.push(spec.obj);
-        }
+        if (!spec.prop) held.push(spec.obj);
+      }
+      if (spec.extraProp) scene.add(spec.extraProp);
+      let cableMesh = null;
+      if (spec.cableFrom) {
+        cableMesh = GYM.cable();
+        scene.add(cableMesh);
       }
       if (spec.extra) { scene.add(spec.extra); held.push(spec.extra); }
       if (spec.perHand) {
@@ -381,27 +596,79 @@ export default function Body3D({ muscles, pattern, name = '', height = 260 }) {
         }
       }
 
-      // frame what is actually there, so a lying figure is not half off-screen
+      // Frame what is actually there, so a lying figure is not half off-screen.
+      // The box is taken at the WORKING end of the rep, not the rest pose: a
+      // squat's rest pose is a standing man and framing on that cropped his
+      // head off at the bottom of the descent.
       {
-        const box = new THREE.Box3().setFromObject(root);
+        const box = new THREE.Box3();
+        for (const ph of [0, 0.5, 1]) {
+          root.position.copy(baseTransform.pos);
+          root.quaternion.copy(baseTransform.quat);
+          root.updateMatrixWorld(true);
+          if (pat) {
+            const po = poseAt(pat, ph);
+            applyPose(bones, rest, po, restAbduct, axes);
+            if (GROUNDED) settle(root, bones, po, contacts, fwd, baseTransform);
+            else if (pad) rest_on(root, bones, pad);
+            else if (spec.hangY != null) hangFrom(root, bones, spec.hangY);
+          }
+          box.union(new THREE.Box3().setFromObject(root));
+        }
         const c = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
         const radius = Math.max(size.x, size.y, size.z) * 0.62 + 0.35;
         controls.target.copy(c);
-        camera.position.set(c.x + radius * 1.15, c.y + radius * 0.45, c.z + radius * 1.75);
+        const DIR = {
+          'three-quarter': [1.15, 0.45, 1.75],
+          front: [0.0, 0.30, 2.1],
+          side: [2.1, 0.30, 0.0],
+          back: [0.0, 0.30, -2.1],
+        }[view] || [1.15, 0.45, 1.75];
+        camera.position.set(c.x + radius * DIR[0], c.y + radius * DIR[1], c.z + radius * DIR[2]);
         camera.near = 0.05;
         camera.far = 60;
         camera.updateProjectionMatrix();
         controls.update();
       }
-      const restAbduct = { L: restAbduction(bones, 'L'), R: restAbduction(bones, 'R') };
+      // The motion check needs to read the rig it is judging, not guess from
+      // pixels. Costs one array entry; makes every future check measurable.
+      if (typeof window !== 'undefined' && window.__NOVA_MOTION) {
+        window.__NOVA_MOTION.push({ root, bones, pat, frozen, contacts, fwd, base: baseTransform });
+      }
+      // Where a bar RIDES the body — across the traps, or racked on the front
+      // delts. Anchored in the chest bone's own space, worked out once from the
+      // rest pose, so the bar follows the torso through the lift instead of
+      // hanging at a fixed world height while the man squats away beneath it.
+      const anchor = {};
+      if (bones.chest) {
+        // measured off the body, not written as coordinates: a front rack is
+        // "in front of the collarbones", and hardcoding +Z for that put the bar
+        // behind his head
+        const c = bones.chest.getWorldPosition(new THREE.Vector3());
+        anchor.traps = bones.chest.worldToLocal(
+          c.clone().addScaledVector(axes.Y, 0.190).addScaledVector(fwd, -0.055));
+        anchor['front-rack'] = bones.chest.worldToLocal(
+          c.clone().addScaledVector(axes.Y, 0.140).addScaledVector(fwd, 0.105));
+      }
       const clock = new THREE.Clock();
       const period = 3.4;   // one controlled rep
       const tmp = new THREE.Vector3();
       const tick = () => {
         raf = requestAnimationFrame(tick);
-        const phase = pat ? (clock.getElapsedTime() % period) / period : 0;
-        if (pat) applyPose(bones, rest, poseAt(pat, phase), restAbduct);
+        const phase = frozen != null ? frozen : (pat ? (clock.getElapsedTime() % period) / period : 0);
+        if (pat) {
+          const pose = poseAt(pat, phase);
+          // from the same starting transform every frame, or the corrections
+          // below compound and the figure walks out of shot
+          root.position.copy(baseTransform.pos);
+          root.quaternion.copy(baseTransform.quat);
+          root.updateMatrixWorld(true);
+          applyPose(bones, rest, pose, restAbduct, axes);
+          if (GROUNDED) settle(root, bones, pose, contacts, fwd, baseTransform);
+          else if (pad) rest_on(root, bones, pad);
+          else if (spec.hangY != null) hangFrom(root, bones, spec.hangY);
+        }
 
         // put whatever is held where the hands are
         for (const obj of held) {
@@ -415,10 +682,20 @@ export default function Body3D({ muscles, pattern, name = '', height = 260 }) {
               const a = new THREE.Vector3(); const b2 = new THREE.Vector3();
               l.getWorldPosition(a); r.getWorldPosition(b2);
               obj.position.copy(a).add(b2).multiplyScalar(0.5);
-              if (spec.hold === 'traps') obj.position.set(0, bones.chest ? bones.chest.getWorldPosition(tmp).y + 0.10 : 1.5, 0.03);
-              if (spec.hold === 'front-rack') obj.position.set(0, bones.chest ? bones.chest.getWorldPosition(tmp).y + 0.06 : 1.45, -0.12);
+              const ride = anchor[spec.hold];
+              if (ride && bones.chest) obj.position.copy(bones.chest.localToWorld(ride.clone()));
               obj.quaternion.identity();
             }
+          }
+        }
+        // the cable follows the hands, and the pulley turns with it
+        if (cableMesh && spec.cableFrom) {
+          const l = bones.handL; const r = bones.handR;
+          if (l && r) {
+            const to = l.getWorldPosition(new THREE.Vector3())
+              .add(r.getWorldPosition(new THREE.Vector3())).multiplyScalar(0.5);
+            GYM.aimCable(cableMesh, spec.cableFrom, to);
+            if (spec.wheel) spec.wheel.rotation.x = -to.y * 6;
           }
         }
         controls.update();
@@ -450,21 +727,29 @@ export default function Body3D({ muscles, pattern, name = '', height = 260 }) {
       if (ro) ro.disconnect();
       controls.dispose();
       renderer.dispose();
+      // dispose() frees three.js's own objects but NOT the WebGL context, and a
+      // browser keeps only about sixteen. Every opened-and-closed exercise
+      // sheet leaked one, so after a dozen the figure simply stopped drawing —
+      // a white panel, no error. The motion sheet hit it first because React's
+      // StrictMode mounts each card twice.
+      renderer.forceContextLoss();
       if (renderer.domElement.parentNode === el) el.removeChild(renderer.domElement);
     };
-  }, [muscles, pat, name, height]);
+  }, [muscles, pat, name, height, frozen, view]);
 
   const p = pat ? PATTERNS[pat] : null;
   return (
     <div>
       <div ref={mount} style={{ width: '100%', height: `${height}px`, borderRadius: '12px', overflow: 'hidden' }} />
+      {!chrome ? null : (
       <div style={css('margin-top:6px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap')}>
         <span style={css('font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 38%, transparent)')}>
           {state === 'error' ? 'THE MODEL COULD NOT LOAD' : 'DRAG TO TURN'}
         </span>
         {p && <span style={css('font-size:11.5px;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)')}>{p.label}</span>}
       </div>
-      {p?.cue && (
+      )}
+      {chrome && p?.cue && (
         <div style={css('margin-top:4px;font-size:11.5px;line-height:1.5;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)')}>{p.cue}</div>
       )}
     </div>

@@ -391,11 +391,18 @@ def segment(ob, muscles, samples, kd):
 # what smeared the shoulders into sheets when an arm rotated. Anatomy is the
 # constraint a generic auto-rigger does not have.
 GROUP_BONES = {
-    'chest': ['chest', 'spine', 'clavicleL', 'clavicleR'],   # the pec stays on the sternum; letting it follow the deltoid folded the chest over the neck
+    # The pec stays on the sternum — letting it follow the UPPER ARM folded the
+    # chest over the neck. But forbidding it the shoulder entirely made the
+    # pec/deltoid boundary a hard seam: one vertex frozen, its neighbour moving
+    # with the arm, and at 90° of shoulder flexion the surface between them tore
+    # into spikes. The deltoid HELPER takes only half the humerus rotation, so
+    # letting a little of it bleed across the boundary blends the seam without
+    # dragging the chest.
+    'chest': ['chest', 'spine', 'clavicleL', 'clavicleR', 'deltoidL', 'deltoidR'],
     'abs': ['spine', 'pelvis', 'chest'],
     'obliques': ['spine', 'pelvis', 'chest'],
-    'lats': ['chest', 'spine', 'upperarmL', 'upperarmR'],
-    'traps': ['chest', 'neck', 'clavicleL', 'clavicleR'],
+    'lats': ['chest', 'spine', 'upperarmL', 'upperarmR', 'deltoidL', 'deltoidR'],
+    'traps': ['chest', 'neck', 'clavicleL', 'clavicleR', 'deltoidL', 'deltoidR'],
     'rhomboids': ['chest', 'spine'],
     'lower-back': ['spine', 'pelvis'],
     'front-delts': ['deltoidL', 'deltoidR', 'upperarmL', 'upperarmR', 'clavicleL', 'clavicleR'],
@@ -486,7 +493,10 @@ def build_rig(body, vert_group=None):
     body.select_set(True)
     bpy.context.view_layer.objects.active = body
     bpy.ops.object.mode_set(mode='WEIGHT_PAINT')
-    bpy.ops.object.vertex_group_smooth(group_select_mode='ALL', factor=0.65, repeat=8, expand=0.15)
+    # Smoothing is what turns a distance-based weight map into something that
+    # deforms like skin. Eight passes left visible seams at the shoulder under
+    # a bench press; the cost of more is a few seconds at build time.
+    bpy.ops.object.vertex_group_smooth(group_select_mode='ALL', factor=0.85, repeat=18, expand=0.25)
     bpy.ops.object.vertex_group_normalize_all(group_select_mode='ALL', lock_active=False)
     bpy.ops.object.mode_set(mode='OBJECT')
     bpy.context.view_layer.objects.active = arm
