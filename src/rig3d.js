@@ -173,7 +173,12 @@ export function closeHand(bones, rest, frames, side, curl, spread = 1) {
     joints.forEach(([name, range, full], i) => {
       const b = bones[name];
       if (!b) return;
-      hinge(b, rest[name], frames[name], 'lateral', -c * full * (share[i] ?? 0), range);
+      // Clamp the FLEXION, then turn it into a rotation — the same trap as the
+      // elbow. Clamped against the rotation, 68° of knuckle flexion came out
+      // as 30° and the two joints past it as ZERO, so a pull-up gripped the
+      // bar with a flat open hand.
+      const flex = clampTo(c * full * (share[i] ?? 0), range);
+      hinge(b, rest[name], frames[name], 'lateral', -flex, null);
       // the sideways set of a finger: the resting splay closes as the hand does
       if (i === 0 && DIGIT_SPREAD[d]) {
         b.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(

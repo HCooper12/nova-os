@@ -307,15 +307,18 @@ function turnUntil(obj, measure, target) {
  * hands are pinned to the bar and the body hangs from them — which makes the
  * chin clearing the bar the actual output of the joint angles, not a promise.
  */
-function hangFrom(root, bones, bar) {
-  const l = bones.handL; const r = bones.handR;
+function hangFrom(root, bones, bar, grip) {
+  const l = grip ? grip('L') : bones.handL;
+  const r = grip ? grip('R') : bones.handR;
   if (!l || !r || !bar) return;
   // ALL THREE AXES. Pinning only the height let the hands drift forward as the
   // shoulder angle closed, so at the top of a pull-up he was holding thin air
   // a foot in front of the bar. The hands are the fixed point; the body is
   // what travels.
-  const m = l.getWorldPosition(new THREE.Vector3())
-    .add(r.getWorldPosition(new THREE.Vector3())).multiplyScalar(0.5);
+  // the GRIP, not the wrist: pinned by the hand bone the bar ran through his
+  // forearm and the fingers hung in the air past it
+  const m = (l.isBone ? l.getWorldPosition(new THREE.Vector3()) : l.clone())
+    .add(r.isBone ? r.getWorldPosition(new THREE.Vector3()) : r.clone()).multiplyScalar(0.5);
   root.position.add(new THREE.Vector3(bar.x - m.x, bar.y - m.y, bar.z - m.z));
   root.updateMatrixWorld(true);
 }
@@ -707,7 +710,7 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
             JOINT.secondary(bones, rest, frames, po, {}, ph);
             if (GROUNDED) settle(root, bones, po, contacts, fwd, baseTransform);
             else if (pad) rest_on(root, bones, pad);
-            else if (spec.hangAt) hangFrom(root, bones, spec.hangAt);
+            else if (spec.hangAt) hangFrom(root, bones, spec.hangAt, gripPoint);
           }
           box.union(new THREE.Box3().setFromObject(root));
           // ...and what the hands are holding. Framed on the body alone, an
@@ -776,7 +779,7 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
           JOINT.secondary(bones, rest, frames, pose, dPose, phase);
           if (GROUNDED) settle(root, bones, pose, contacts, fwd, baseTransform);
           else if (pad) rest_on(root, bones, pad);
-          else if (spec.hangAt) hangFrom(root, bones, spec.hangAt);
+          else if (spec.hangAt) hangFrom(root, bones, spec.hangAt, gripPoint);
         }
 
         // put whatever is held where the hands are
