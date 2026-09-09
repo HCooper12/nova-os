@@ -13,7 +13,81 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**9 SEP (latest) — BALANCE, AND SIX HANDS INSTEAD OF ONE FIST.** The two parts
+**10 SEP (latest) — REAL GYM DIMENSIONS, AND THE FAULTS THEY EXPOSED.** He
+asked for two things: keep refining the model, and *"ensure that the equipment
+in all exercises is also exceptionally detailed and realistically accurate."*
+Shipped as `53c6590`, `bd0f1c9`, and the three that follow it.
+
+**THE EQUIPMENT IS BUILT TO REAL NUMBERS NOW** — 2.20 m bar, 28 mm shaft,
+50 mm sleeves, 1.31 m between collars, 450 mm bumper plates colour-coded red
+25 / blue 20 / yellow 15 / green 10, knurl only where the hands and the back
+go, a cable stack with a selector pin in the plate that was chosen, a pulldown
+with a seat and thigh pads, a bench with a stitched pad and J-hook uprights.
+
+**Getting the sizes right turned out to be a DIAGNOSTIC.** Correct plates
+immediately showed the hands had never been on the bar; correct bench geometry
+showed the body floating 13 cm above its own pad. A model whose parts are the
+wrong size hides the errors of everything it touches.
+
+**Six real faults, every one found by MEASURING and none by looking:**
+
+1. **The hands were never on the bar.** Poses were forward kinematics, so a
+   back squat put the fists in front of the chest with the fingers open while
+   the bar floated behind the head. `JOINT.reachTo()` is two-link IK; both
+   bones are aimed in WORLD space because a direction has no sign to get
+   backwards.
+2. **Aiming leaves ROLL undetermined** — each humerus spun inside its own skin
+   and the arms smeared into flat sails. Aim, then roll until the limb's hinge
+   lies in the plane it bends in.
+3. **`fwd` is a TOE direction, not the body's forward.** A squat stance is toed
+   out, so it sits 30 degrees off the midline — and it disagreed with the
+   chest's own forward by more than a right angle. New code calls
+   `JOINT.bodyAnterior()`.
+4. **The clavicle was DEPRESSING the shoulder.** The overhead press stopped at
+   ear height, 45 degrees short — exactly the scapula's share, being subtracted
+   instead of added. Measured: as the arm rose the shoulder joint fell 10 cm.
+5. **The bench pad was six stale constants.** Equipment now publishes the
+   surface it offers (`userData.pad`), and depth is measured along that
+   surface's NORMAL — as a world offset it is right only while the surface is
+   level, and a 30 degree incline cut the pad through his back.
+6. **A calf raise pivoted a METRE past his toes.** `localToWorld(0, 1, 0)` is
+   not the end of the foot bone; it lifted his whole body 27 cm instead of 11.
+   The pivot is the ball, 13 cm in front of the ankle.
+
+**THE LESSON OF THE SESSION, AND IT IS ABOUT METHOD.** Four faults were
+"found" by eye on still frames and NONE were real — a correctly-placed bar
+behind a plate that had just doubled in size, a stale render, a crop, and a
+lat highlight mistaken for a tear. Every fault that proved real came from a
+number or a moving image. **Measure the rig; do not look at it.** Two
+instruments now exist: `window.__NOVA_MOTION` (seed it with `[]` before load)
+collects `{root, bones, pat, frozen}` per canvas so a script can read joint
+world positions at any phase, and `?debug=rig` prints where each hand was
+ASKED to go versus where it went.
+
+**OPEN, WITH NUMBERS RATHER THAN ADJECTIVES:**
+- **The deadlift's last 20 cm.** His wrists reach 0.51 at the setup, putting
+  the bar at ~0.42 against a floor bar's true 0.225 — set up as if pulling
+  from low blocks. Needs the shoulders 15 cm lower, which `balance()` resists
+  because it holds his mass over his feet and does not know the load is in
+  front of him. That is a solver change, not a pose tweak. HIS CALL.
+- **No corrective shape for clavicle elevation.** The scapula is capped at 25
+  degrees of its anatomical ~60 because past that the trap and upper chest
+  tear into a sail. Fixing it means a Blender rebuild and a GLB re-export.
+  HIS CALL.
+- Trunk pitch at the deadlift setup was 21 degrees where a deadlift is 50-60;
+  depth had been standing in for a pitch that was never there. Improved, not
+  solved.
+
+**Verified:** all 26 recorded and watched; squat, front squat, deadlift, hinge,
+bench, incline, overhead press, pulldown, pull-up, row, curl, fly, lateral and
+front raise, shrug, lunge, leg press, leg extension, hip thrust, hanging knee
+raise checked in motion. Front raise measured 0.875 → 1.459 m; shrug measured
+3.5 cm of scapular elevation; lunge measured a 0.93 m split with the rear knee
+to 0.158. lint clean, build green, 1,363 tests.
+
+---
+
+**9 SEP — BALANCE, AND SIX HANDS INSTEAD OF ONE FIST.** The two parts
 after the correctives. Shipped as `9cb5cbb` and `1b727cb`.
 
 **BALANCE — the body answers to the load.** Posed from joint angles alone the
