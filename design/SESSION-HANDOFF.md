@@ -13,6 +13,61 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**9 SEP (latest) — THE ELBOW WAS AT THE WRIST.** He said the figure had "no
+accurate joint flexing and natural movement like you would expect a real
+person to have", and specifically that it "did not actually seem to be
+naturally and realistically gripping the bar… no proper wrist joint movements
+or flexing or function". Looking closely at one hand found something far worse
+than a missing grip. Shipped as `ab2a3ca`.
+
+**THE ARM'S JOINTS WERE ONE WHOLE SEGMENT OUT.** `calibrate.py` searched
+horizontal bands for the narrowest cross-section, but an A-pose arm hangs
+diagonally, so every slice cut it obliquely and the minima meant nothing. The
+**elbow was measured at the wrist** (a 58 cm upper arm on a 180 cm man), the
+**wrist at the fingertips**, and the hand bone ran from the fingertips back
+toward the body's midline. Every lift in the app has been flexing its elbow at
+his wrist with a forearm 60% too long — for as long as this model has existed.
+
+Fixed the way the knee already was: **a joint sits at a known FRACTION of the
+limb, so take the fraction from anatomy and only the position from the mesh.**
+Shoulder to fingertip is unambiguous — it is the farthest point of the arm.
+Upper arm now 0.324 m against a 0.335 m reference, symmetric.
+
+**A hand is three bones now** — wrist→knuckles, knuckles→mid, mid→tip. One
+bone left the fingers splayed in their A-pose and a bar passed between them;
+one finger JOINT could only swing them down past a bar to hang below it. The
+second joint is what brings the tips back up the far side and closes the fist.
+
+**A wrist that works**, derived per lift rather than written on 26 patterns
+(`gripFor()` in exercise3d.js): the forearm rolls (pronated to press,
+supinated for a curl or chin-up, neutral for a hammer or rope), the wrist sets
+slightly extended because a bar sits in the heel of the palm, and the fingers
+close. **Pronation is split between forearm and wrist** — a real forearm
+twists progressively, and all of it at the elbow corkscrews the mesh.
+
+**The bar goes in the fist.** It was placed at the hand BONE and left
+world-horizontal, so it passed behind the fingers, and with one hand higher
+than the other it passed through neither. It now sits at mid-palm and lies
+along the line between the two fists.
+
+**New on the instrument:** `&focus=<bone>` frames one joint at 26 cm. A wrist
+that does not work is invisible at full height and obvious close up — none of
+this would have been found without it.
+
+**Verified:** curl, bench press, overhead press, pulldown, pull-up, row and
+bent row re-checked against the corrected arm; live on his real Upper Body
+routine at 390 px. lint clean, build green, 1,330 tests. 26 bones, 21,853
+verts, 1.49 MB.
+
+**Watch for:** the corrected arm changes which bone every arm vertex belongs
+to, so the muscle segmentation shifted (front-delts 417 → 198, triceps
+2,276 → 1,197). It still reads correctly in the sheet, but if a highlight
+looks thin, that is where to look.
+
+---
+
+### Previous — 9 Sep (photorealism)
+
 **9 SEP (late) — THE FIGURE IS A PERSON NOW.** He asked for the three known
 faults fixed and the model refined "so it essentially becomes photorealistic
 and the most accurate model it can be". Shipped as `8301658` + `558f969`,
