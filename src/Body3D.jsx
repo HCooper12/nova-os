@@ -615,6 +615,9 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
       // measured with the skeleton untouched, so a hinge can turn about an
       // axis that belongs to its limb rather than to the room
       const frames = JOINT.restFrames(bones, root);
+      // and the corrective shapes, found once — declared here because the
+      // framing pass poses the figure and needs them too
+      const corrective = JOINT.correctiveTargets(root);
       const contacts = restContacts(bones);
       const fwd = (() => {
         // Which way the toes point, measured off the rig rather than assumed:
@@ -706,6 +709,7 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
           root.updateMatrixWorld(true);
           if (pat) {
             const po = Object.assign(poseAt(pat, ph), hand);
+            JOINT.applyCorrectives(corrective, po);
             applyPose(bones, rest, frames, po, restAbduct);
             JOINT.secondary(bones, rest, frames, po, {}, ph);
             if (GROUNDED) settle(root, bones, po, contacts, fwd, baseTransform);
@@ -775,6 +779,7 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
           root.position.copy(baseTransform.pos);
           root.quaternion.copy(baseTransform.quat);
           root.updateMatrixWorld(true);
+          JOINT.applyCorrectives(corrective, pose);
           applyPose(bones, rest, frames, pose, restAbduct);
           JOINT.secondary(bones, rest, frames, pose, dPose, phase);
           if (GROUNDED) settle(root, bones, pose, contacts, fwd, baseTransform);

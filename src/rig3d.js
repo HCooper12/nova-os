@@ -274,3 +274,47 @@ export function secondary(bones, rest, frames, pose, dPose, phase = 0) {
   const rise = Math.sin(Math.PI * 2 * phase) * 0.5 + 0.5;
   add('chest', 'lateral', -1.6 * rise);
 }
+
+
+/* --------------------------- CORRECTIVE SHAPES ----------------------------
+ * Linear blend skinning averages rotations, and an average always falls INSIDE
+ * the arc a surface should follow — so a bent joint loses volume. An elbow at
+ * 135° pinches to a crease, a shoulder overhead flattens, a deep knee caves.
+ * Better weights cannot fix it, because it is not a weighting error.
+ *
+ * `tools/anatomy/build.py` bakes one corrective per joint per side: the
+ * difference between volume-preserving skinning and linear skinning, captured
+ * at the extreme pose. Here they are blended back in as the joint approaches
+ * that pose — nothing below the onset, full weight at the extreme, and a
+ * smoothstep between so the correction never appears as a step.
+ */
+const CORRECTIVE = {
+  shoulder_up: { of: (p) => Math.max(p.shoulder || 0, p.shoulderAbduct || 0), onset: 65, full: 150 },
+  elbow_deep: { of: (p) => p.elbow || 0, onset: 55, full: 135 },
+  knee_deep: { of: (p) => p.knee || 0, onset: 55, full: 130 },
+  hip_deep: { of: (p) => -(p.hip || 0), onset: 45, full: 105 },
+};
+
+// Find every skinned mesh's morph targets once, so the per-frame work is a
+// handful of array writes rather than a search.
+export function correctiveTargets(root) {
+  const found = [];
+  root.traverse((o) => {
+    if (!o.isMesh || !o.morphTargetDictionary || !o.morphTargetInfluences) return;
+    for (const [name, idx] of Object.entries(o.morphTargetDictionary)) {
+      const m = /^([a-z_]+)_(L|R)$/.exec(name);
+      if (m && CORRECTIVE[m[1]]) found.push({ mesh: o, idx, key: m[1] });
+    }
+  });
+  return found;
+}
+
+export function applyCorrectives(targets, pose) {
+  if (!targets || !targets.length || !pose) return;
+  for (const t of targets) {
+    const c = CORRECTIVE[t.key];
+    const a = c.of(pose);
+    const u = Math.max(0, Math.min(1, (a - c.onset) / (c.full - c.onset)));
+    t.mesh.morphTargetInfluences[t.idx] = u * u * (3 - 2 * u);
+  }
+}

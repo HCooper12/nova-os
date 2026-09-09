@@ -32,7 +32,7 @@ import bpy
 import math
 import os
 import sys
-from mathutils import Vector, kdtree
+from mathutils import Vector, Quaternion, kdtree
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import skeleton as SK                             # noqa: E402
@@ -624,6 +624,128 @@ def build_rig(body, vert_group=None):
     return arm
 
 
+"""CORRECTIVE SHAPES — what linear blend skinning gets wrong, measured.
+ *
+ * Every real-time figure is skinned linearly: a vertex is the weighted average
+ * of where each bone would put it. That average always falls INSIDE the arc
+ * the surface should follow, so a bent joint loses volume — an elbow at 135°
+ * pinches to a crease, a shoulder overhead flattens, a deep knee caves. It is
+ * the last thing between this figure and a filmed one, and it cannot be fixed
+ * by better weights because it is not a weighting error; it is what averaging
+ * rotations does.
+ *
+ * The fix is pose-space deformation: store what the surface SHOULD look like
+ * at a few extreme poses and blend it back in as the joint approaches them.
+ * The hard part is normally that "should" has to be sculpted by hand. It does
+ * not here — Blender's armature modifier will skin with dual quaternions
+ * instead ("preserve volume"), which is the volume-correct answer. So the
+ * corrective is simply the difference between the two, taken at the pose:
+ *
+ *     corrective = dual_quaternion_result − linear_blend_result
+ *
+ * Deltas come out in POSED space and a shape key lives in REST space, so each
+ * is carried back through the inverse of its own vertex's dominant bone. That
+ * is an approximation where two bones share a vertex evenly, and a good one
+ * everywhere it matters, because the vertices that collapse are the ones deep
+ * inside a single bone's influence.
+"""
+CORRECTIVES = [
+    # name, bone, degrees, and the probe that says which way the joint bends
+    ('shoulder_up', 'upperarm', 150, 'elbow_high'),
+    ('elbow_deep', 'forearm', 135, 'fold'),
+    ('knee_deep', 'shin', 130, 'fold'),
+    ('hip_deep', 'thigh', 105, 'fold'),
+]
+
+
+def _eval_verts(body, dg):
+    ev = body.evaluated_get(dg)
+    me = ev.to_mesh()
+    out = [v.co.copy() for v in me.vertices]
+    ev.to_mesh_clear()
+    return out
+
+
+def _dominant_bone(body, arm):
+    """The bone that moves each vertex most — the frame its correction lives in."""
+    names = {g.index: g.name for g in body.vertex_groups}
+    bone_of = {}
+    for v in body.data.vertices:
+        best, w = None, 0.0
+        for g in v.groups:
+            n = names.get(g.group)
+            if n in arm.pose.bones and g.weight > w:
+                best, w = n, g.weight
+        bone_of[v.index] = best
+    return bone_of
+
+
+def correctives(body, arm):
+    """Build one shape key per joint per side, and return their names."""
+    me = body.data
+    if not me.shape_keys:
+        body.shape_key_add(name='Basis', from_mix=False)
+    mod = next((m for m in body.modifiers if m.type == 'ARMATURE'), None)
+    if not mod:
+        return []
+    bone_of = _dominant_bone(body, arm)
+    rest_co = [v.co.copy() for v in me.vertices]
+    made = []
+
+    for tag in ('L', 'R'):
+        for name, stem, deg, probe in CORRECTIVES:
+            bone = f'{stem}{tag}'
+            pb = arm.pose.bones.get(bone)
+            if not pb:
+                continue
+            # which way does this joint actually bend? Try both and keep the
+            # one that folds the limb (or, for a shoulder, raises it) — the
+            # same self-checking discipline the foot solver uses, because the
+            # bone axes here are whatever the rig builder happened to produce.
+            best = None
+            for sign in (1, -1):
+                pb.rotation_mode = 'QUATERNION'
+                pb.rotation_quaternion = Quaternion((1, 0, 0), math.radians(sign * deg))
+                bpy.context.view_layer.update()
+                dg = bpy.context.evaluated_depsgraph_get()
+                tip = arm.pose.bones[bone].tail.copy()
+                root = arm.pose.bones[bone].head.copy()
+                score = tip.z if probe == 'elbow_high' else -(tip - Vector((0, 0, root.z))).length
+                if best is None or score > best[0]:
+                    best = (score, sign)
+            pb.rotation_quaternion = Quaternion((1, 0, 0), math.radians(best[1] * deg))
+            bpy.context.view_layer.update()
+
+            mod.use_deform_preserve_volume = False
+            lbs = _eval_verts(body, bpy.context.evaluated_depsgraph_get())
+            mod.use_deform_preserve_volume = True
+            dqs = _eval_verts(body, bpy.context.evaluated_depsgraph_get())
+            mod.use_deform_preserve_volume = False
+
+            key = body.shape_key_add(name=f'{name}_{tag}', from_mix=False)
+            moved = 0
+            for i, _v in enumerate(me.vertices):
+                d = dqs[i] - lbs[i]
+                if d.length < 0.0008:            # below this it is noise, not shape
+                    continue
+                bn = bone_of.get(i)
+                pbn = arm.pose.bones.get(bn) if bn else None
+                if pbn:
+                    # posed space → rest space, through this vertex's own bone
+                    rot = (pbn.matrix @ arm.data.bones[bn].matrix_local.inverted()).to_3x3()
+                    d = rot.inverted() @ d
+                key.data[i].co = rest_co[i] + d
+                moved += 1
+            made.append((f'{name}_{tag}', moved))
+            pb.rotation_quaternion = Quaternion()
+            bpy.context.view_layer.update()
+
+    for pb in arm.pose.bones:
+        pb.rotation_quaternion = Quaternion()
+    bpy.context.view_layer.update()
+    return made
+
+
 def main():
     argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
     out = argv[argv.index('--out') + 1] if '--out' in argv else '/tmp/anat'
@@ -639,8 +761,10 @@ def main():
     cut = relief(body, muscles, samples, kd, relief_amount)
     counts, vert_group = segment(body, muscles, samples, kd)
     mean_ao = bake_occlusion(body)
+    shapes = []
     if '--norig' not in argv:
-        build_rig(body, vert_group)
+        arm = build_rig(body, vert_group)
+        shapes = correctives(body, arm)
 
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(out, 'body.blend'))
     glb = os.path.join(out, 'body.glb')
@@ -652,9 +776,14 @@ def main():
     # materials directly — so the UV channel is 8 bytes a vertex of nothing
     bpy.ops.export_scene.gltf(filepath=glb, export_format='GLB', use_selection=True,
                               export_apply=False, export_texcoords=False,
-                              export_vertex_color='ACTIVE')
+                              export_vertex_color='ACTIVE',
+                              export_morph=True, export_morph_normal=False,
+                              export_try_sparse_sk=True)
     print(f'BUILT verts={len(body.data.vertices)} moved={moved} relief={cut} '
-          f'groups={len(counts)} ao={mean_ao:.3f} glb={os.path.getsize(glb) / 1024:.0f}KB')
+          f'groups={len(counts)} ao={mean_ao:.3f} shapes={len(shapes)} '
+          f'glb={os.path.getsize(glb) / 1024:.0f}KB')
+    for n, k in shapes:
+        print(f'   shape {n:16s} {k:5d} verts')
     for g in sorted(counts, key=lambda k: -counts[k]):
         print(f'   {g:14s} {counts[g]:5d}')
 
