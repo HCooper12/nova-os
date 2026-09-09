@@ -282,13 +282,18 @@ export function closeHand(bones, rest, frames, side, curl, style = 'full', sprea
 // fixed socket.
 export function scapularShare(pose) {
   const elev = Math.max(pose.shoulder || 0, pose.shoulderAbduct || 0);
-  // Anatomically the scapula takes about a third of full elevation — 60 of
-  // 180. Visually it cannot: there is a corrective shape for a raised HUMERUS
-  // and none for a rotated clavicle, so past about 25 degrees the trap and
-  // upper chest tear into a sail. Capped at what the skinning can carry, with
-  // the humerus taking the rest; the shoulder still rises through the press,
-  // which is the part that reads.
-  const scap = Math.min(25, Math.max(0, elev - 30) * 0.34);
+  // Anatomically the scapula takes about a third of full elevation — 60 of 180.
+  //
+  // This used to be capped at 25 on the belief that the trap and upper chest
+  // tore into a sail past that. They do not: rendering the identical lockout
+  // frame at 25 and at 50 shows the SAME artifacts, and so does the model as
+  // it stood before any of it. What actually breaks up at extreme overhead
+  // elevation is a weight discontinuity between adjacent muscle groups, which
+  // is there at every scapular angle and is not the scapula's doing. So the
+  // cap goes back to something near the anatomical share; held a little under
+  // 60 because the humerus is the joint whose corrective shape was built at
+  // its own full range, and it is the one to trust with the remainder.
+  const scap = Math.min(50, Math.max(0, elev - 30) * 0.34);
   return { scap, keep: elev > 1e-6 ? (elev - scap) / elev : 1 };
 }
 
