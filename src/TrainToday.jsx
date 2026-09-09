@@ -7,6 +7,7 @@ import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
 import { Term } from './Glossary.jsx';
 import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle } from './Controls.jsx';
+import { todayPanels } from './trainPanels.js';
 
 // the material pass (5 Sep 2026): labels through Controls.jsx; a filled
 // button is sentence case in the UI face under the Apple styles
@@ -38,6 +39,8 @@ function Ring({ score, basis }) {
 const fcardBase = (edge) => `flex:0 0 160px;border-radius:14px;padding:12px;border:1px solid ${edge};background:var(--nv-glass);cursor:pointer;transition:transform .2s,border-color .2s`;
 
 export function TrainToday({ o, actions, resume }) {
+  // one rule for which cards are up, kept pure and tested (src/trainPanels.js)
+  const panels = todayPanels(o, resume);
   // the RESUME card renders from device state alone — it must appear
   // instantly on reopen, before the overview has even been fetched
   if (!o && !resume) return null;
@@ -94,7 +97,7 @@ export function TrainToday({ o, actions, resume }) {
         {/* MAKE-UP DAY — his own plan for today beats the weekday template.
             Before this, a day he had moved forward to FINISH still offered a
             full standard session (his report, 8 Sep 2026). */}
-        {!resume && o.makeup && (
+        {panels.makeup && (
           <div style={css('flex:1 1 300px;border-radius:18px;padding:16px;position:relative;overflow:hidden;border:1px solid color-mix(in srgb, var(--nv-gold) 45%, transparent);background:color-mix(in srgb, var(--nv-gold) 06%, transparent)')}>
             <Eyebrow tone="gold">Today is a make-up</Eyebrow>
             <div style={css('font-size:22px;font-weight:600;letter-spacing:.03em;margin-top:2px')}>Finish {o.makeup.sourceRoutineName}</div>
@@ -109,14 +112,18 @@ export function TrainToday({ o, actions, resume }) {
             )}
             {actions?.clearMakeup && (
               <div style={{ marginTop: '10px' }}>
-                <TextAction compact tone="faint" onClick={actions.clearMakeup}>Not a make-up — run the scheduled session</TextAction>
+                {/* the scheduled session is shown alongside now, so this no
+                    longer "reveals" it — it just says today is a normal day */}
+                <TextAction compact tone="faint" onClick={actions.clearMakeup}>Not a make-up after all</TextAction>
               </div>
             )}
           </div>
         )}
-        {!resume && !o.makeup && (o.today || o.restDay) && (
+        {(panels.scheduled || panels.rest) && (
           <div style={css('flex:1 1 300px;border-radius:18px;padding:16px;position:relative;overflow:hidden;border:1px solid color-mix(in srgb, var(--nv-cy) 35%, transparent);background:linear-gradient(135deg,color-mix(in srgb, var(--nv-cy) 10%, transparent),color-mix(in srgb, var(--nv-vi) 06%, transparent))')}>
-            <Eyebrow tone="cyan">{o.today ? "On today's card" : 'Today'}</Eyebrow>
+            {/* 9 Sep: when a make-up is also up, this one names itself as
+                the extra — two cards saying "today" is one thing said twice */}
+            <Eyebrow tone="cyan">{panels.alsoScheduled ? 'Also scheduled today' : o.today ? "On today's card" : 'Today'}</Eyebrow>
             <div style={css('font-size:24px;font-weight:600;letter-spacing:.04em;margin-top:2px')}>{o.today ? (isAppleStyle() ? o.today.name : o.today.name.toUpperCase()) : (isAppleStyle() ? 'Rest day' : 'REST DAY')}</div>
             {o.today && (
               <div style={css('color:var(--nv-ink60);font-size:12.5px;margin-top:2px;font-variant-numeric:tabular-nums')}>
