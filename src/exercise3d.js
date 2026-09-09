@@ -302,8 +302,6 @@ export function equipmentFor(name = '', pattern = null) {
   return base;
 }
 
-// The pose at a point in the rep. `phase` 0 → 1 → 0 over a cycle; the ease
-// makes the top and bottom of the rep linger the way a controlled rep does.
 // A hand holding a bar is doing three things the joint table never said: the
 // forearm is rolled to face the palms the right way, the wrist is set, and the
 // fingers are closed round it. Rather than repeat that on every one of the
@@ -328,17 +326,77 @@ export function gripFor(pattern, equipment = '') {
   };
 }
 
-export function poseAt(pattern, phase) {
-  const p = PATTERNS[pattern];
-  if (!p) return null;
-  const t = 0.5 - 0.5 * Math.cos(Math.PI * 2 * phase);   // 0→1→0, smooth at both ends
-  const eased = t * t * (3 - 2 * t);
+/* THE POSE AT A POINT IN THE REP.
+ *
+ * A rep is not a smooth interpolation between a top and a bottom. It has a
+ * shape: a controlled descent, a turnaround, a hard patch where the leverage
+ * is worst and the bar barely moves, then an easier finish. Two keyframes
+ * eased between give a bar path no lifter has ever produced — it accelerates
+ * out of the hole and decelerates into lockout, which is exactly backwards.
+ *
+ * So a pattern may give `keys`: four to six poses along the rep, each with the
+ * time `at` it happens. The STICKING POINT is expressed the way it actually
+ * looks — two keys close together in pose and far apart in time, so the figure
+ * hangs there. Patterns that still give only `start`/`end` are read as a
+ * two-key rep, so nothing breaks while they are converted.
+ */
+function lerpPose(a, b, t) {
   const out = {};
-  const keys = new Set([...Object.keys(p.start), ...Object.keys(p.end)]);
-  for (const k of keys) {
-    const a = p.start[k] ?? 0;
-    const b = p.end[k] ?? 0;
-    out[k] = a + (b - a) * eased;
+  for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    if (k === 'at') continue;
+    const x = a[k] ?? 0; const y = b[k] ?? 0;
+    if (typeof x === 'number' && typeof y === 'number') out[k] = x + (y - x) * t;
   }
   return out;
+}
+
+/* THE SHAPE OF A REP, as a path through the range rather than a smooth ease.
+ *
+ * `progress` is how far the lift has travelled from `start` toward `end`; the
+ * pairs below say how much of it has happened by each moment. Both profiles
+ * bunch their middle keys around the STICKING POINT — the patch where the
+ * leverage is worst, where a real bar slows almost to nothing and then speeds
+ * up once past it. Read them as [phase, progress].
+ *
+ * Which profile a lift uses depends on which half of its cycle is the hard
+ * one: a squat lowers first and grinds on the way up, a bench press starts on
+ * the chest and grinds a hand's width off it.
+ */
+const REP_ECCENTRIC_FIRST = [
+  [0, 0], [0.14, 0.28], [0.28, 0.68], [0.44, 1], [0.54, 0.94],
+  [0.66, 0.80], [0.76, 0.66], [0.88, 0.28], [1, 0],
+];
+const REP_CONCENTRIC_FIRST = [
+  [0, 0], [0.10, 0.10], [0.22, 0.24], [0.32, 0.38], [0.42, 0.74], [0.5, 1],
+  [0.62, 0.90], [0.76, 0.58], [0.9, 0.20], [1, 0],
+];
+// lifts whose START is the bottom of the rep, so the drive comes first
+const DRIVE_FIRST = new Set([
+  'deadlift', 'press-horizontal', 'press-incline', 'press-overhead', 'pulldown',
+  'pull-up', 'row', 'row-bent', 'curl', 'pushdown', 'overhead-extension', 'fly',
+  'raise-lateral', 'raise-front', 'shrug', 'leg-curl', 'leg-extension',
+  'hip-thrust', 'calf-raise', 'crunch', 'hanging-knee-raise',
+]);
+
+export function keyframes(pattern) {
+  const p = PATTERNS[pattern];
+  if (!p) return null;
+  if (p.keys && p.keys.length >= 2) return p.keys;
+  const shape = p.shape
+    || (DRIVE_FIRST.has(pattern) ? REP_CONCENTRIC_FIRST : REP_ECCENTRIC_FIRST);
+  return shape.map(([at, u]) => ({ at, ...lerpPose(p.start, p.end, u) }));
+}
+
+export function poseAt(pattern, phase) {
+  const keys = keyframes(pattern);
+  if (!keys) return null;
+  const t = ((phase % 1) + 1) % 1;
+  let i = 0;
+  while (i < keys.length - 2 && keys[i + 1].at <= t) i += 1;
+  const a = keys[i]; const b = keys[i + 1];
+  const span = Math.max(1e-6, (b.at ?? 1) - (a.at ?? 0));
+  const u = Math.max(0, Math.min(1, (t - (a.at ?? 0)) / span));
+  // eased within each leg, so the turnarounds are smooth and the middle of a
+  // leg moves at speed — a rep is not one long ease
+  return lerpPose(a, b, u * u * (3 - 2 * u));
 }

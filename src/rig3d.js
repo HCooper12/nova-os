@@ -183,3 +183,89 @@ export function closeHand(bones, rest, frames, side, curl, spread = 1) {
     });
   }
 }
+
+/* ------------------------------ SECONDARY MOTION --------------------------
+ * What a body does that is not the lift.
+ *
+ * Hayden, 9 Sep 2026: the figure should move "as though it were a real human
+ * performing each movement as a video rather than a 3-D model". Joints alone
+ * never get there, because a person under load is doing four other things at
+ * the same time and a puppet is doing none of them:
+ *
+ *   SCAPULAR RHYTHM.   The shoulder blade is not a spectator. Past about 30°
+ *                      of humeral elevation it rotates upward roughly 1° for
+ *                      every 2° the arm rises — the scapulohumeral rhythm —
+ *                      and it protracts to finish a press and retracts to
+ *                      finish a row. An arm that goes overhead on a frozen
+ *                      shoulder girdle is the clearest puppet tell there is.
+ *   HEAD STABILISATION. Eyes hold the horizon. When the torso pitches forward
+ *                      into a hinge the neck gives most of it back, so the
+ *                      gaze stays roughly level. A head welded to the chest
+ *                      reads as a mannequin on a stick.
+ *   SOFT TISSUE LAGS.  Flesh has mass. It arrives after the bone does and
+ *                      settles once the bone stops. This is small — a few
+ *                      degrees — and it is most of what separates "animated"
+ *                      from "filmed".
+ *   BREATHING.         Under a heavy set nobody breathes freely: the ribs lift
+ *                      on the way down and the breath is held on the way up.
+ *                      Braced, not idle — which is itself the tell.
+ *
+ * All of it is driven from the pose and its RATE OF CHANGE with respect to the
+ * rep, not from wall-clock time. That keeps it deterministic, and it means a
+ * frozen frame in the motion sheet shows the same secondary motion the moving
+ * figure has — a still that lies about this would be worse than none.
+ */
+// SCAPULOHUMERAL RHYTHM, and why it cannot simply be added on top.
+//
+// Raising an arm is a shared job: past about 30° the shoulder blade rotates
+// upward and contributes roughly a third of the total, while the humerus does
+// the rest. The pose data says how high the ARM is relative to the trunk —
+// which is the total — so the scapula's share has to be taken OUT of the
+// humerus, not stacked on it. Added on top, an overhead press stopped going
+// overhead: 42° of scapula plus the full shoulder angle rotated the whole arm
+// chain past the pose and the bar came down instead of up.
+//
+// Doing it properly is also what keeps the deltoid intact at high elevation:
+// the glenoid turns to face the arm instead of the humerus hinging against a
+// fixed socket.
+export function scapularShare(pose) {
+  const elev = Math.max(pose.shoulder || 0, pose.shoulderAbduct || 0);
+  const scap = Math.min(45, Math.max(0, elev - 30) * 0.34);
+  return { scap, keep: elev > 1e-6 ? (elev - scap) / elev : 1 };
+}
+
+export function secondary(bones, rest, frames, pose, dPose, phase = 0) {
+  if (!pose) return;
+  const q = (axis, deg) => new THREE.Quaternion().setFromAxisAngle(axis, D(deg));
+  const add = (name, axisName, deg) => {
+    const b = bones[name];
+    const f = frames[name];
+    if (!b || !f || !deg) return;
+    b.quaternion.premultiply(q(f[axisName] || f.lateral, deg));
+    b.updateMatrixWorld(true);
+  };
+
+  for (const side of ['L', 'R']) {
+    const s = side === 'L' ? 1 : -1;
+    // The protraction that finishes a press and the retraction that finishes a
+    // row. Small, and genuinely separate from elevation — unlike the upward
+    // rotation, which is NOT added here: see scapularShare().
+    const protract = Math.max(-1, Math.min(1, (pose.shoulder || 0) / 110));
+    add(`clavicle${side}`, 'up', s * protract * 8);
+
+    // the flesh of the upper arm and thigh arrives after the bone
+    add(`deltoid${side}`, 'lateral', clampTo(-(dPose.shoulder || 0) * 0.055, [-4, 4]));
+    add(`thigh${side}`, 'lateral', clampTo((dPose.hip || 0) * 0.035, [-3, 3]));
+    add(`forearm${side}`, 'lateral', clampTo(-(dPose.elbow || 0) * 0.045, [-3.5, 3.5]));
+  }
+
+  // the eyes hold the horizon: the neck gives back most of the torso's pitch
+  const pitch = (pose.spine || 0) + (pose.chest || 0);
+  add('neck', 'lateral', clampTo(pitch * 0.42, [-40, 40]));
+  add('head', 'lateral', clampTo(pitch * 0.28, [-30, 30]));
+
+  // braced breathing: the ribs lift through the lowering half and hold through
+  // the drive, which is what a working set actually looks like
+  const rise = Math.sin(Math.PI * 2 * phase) * 0.5 + 0.5;
+  add('chest', 'lateral', -1.6 * rise);
+}

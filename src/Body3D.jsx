@@ -167,12 +167,16 @@ function applyPose(bones, rest, frames, pose, restAbduct = { L: 0, R: 0 }) {
 
   for (const side of ['L', 'R']) {
     const s = side === 'L' ? 1 : -1;
-    const abd = (pose.shoulderAbduct != null ? pose.shoulderAbduct : 0) - restAbduct[side];
+    // the scapula takes its share of the elevation; the humerus takes the rest
+    const { scap, keep } = JOINT.scapularShare(pose);
+    JOINT.hinge(bones[`clavicle${side}`], rest[`clavicle${side}`], F(`clavicle${side}`),
+      'anterior', -s * scap, null);
+    const abd = ((pose.shoulderAbduct != null ? pose.shoulderAbduct : 0) * keep) - restAbduct[side];
 
     // SHOULDER — a ball joint, composed the way a clinician measures it:
     // flexion, then abduction, then rotation about the arm itself.
     const spec = [
-      ['lateral', -JOINT.clampTo(pose.shoulder || 0, JOINT.ROM.shoulder), null],
+      ['lateral', -JOINT.clampTo((pose.shoulder || 0) * keep, JOINT.ROM.shoulder), null],
       ['anterior', s * abd, null],
       ['long', s * JOINT.clampTo(pose.shoulderRotate || 0, JOINT.ROM.shoulderRotate), null],
     ];
@@ -700,6 +704,7 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
           if (pat) {
             const po = Object.assign(poseAt(pat, ph), hand);
             applyPose(bones, rest, frames, po, restAbduct);
+            JOINT.secondary(bones, rest, frames, po, {}, ph);
             if (GROUNDED) settle(root, bones, po, contacts, fwd, baseTransform);
             else if (pad) rest_on(root, bones, pad);
             else if (spec.hangAt) hangFrom(root, bones, spec.hangAt);
@@ -754,12 +759,21 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
         const phase = frozen != null ? frozen : (pat ? (clock.getElapsedTime() % period) / period : 0);
         if (pat) {
           const pose = Object.assign(poseAt(pat, phase), hand);
+          // how fast each joint is moving THROUGH THE REP, not through the
+          // clock — so a frozen frame in the motion sheet shows the same
+          // secondary motion the moving figure has
+          const back = poseAt(pat, (phase + 0.98) % 1);
+          const dPose = {};
+          for (const k of Object.keys(pose)) {
+            if (typeof pose[k] === 'number' && typeof back[k] === 'number') dPose[k] = pose[k] - back[k];
+          }
           // from the same starting transform every frame, or the corrections
           // below compound and the figure walks out of shot
           root.position.copy(baseTransform.pos);
           root.quaternion.copy(baseTransform.quat);
           root.updateMatrixWorld(true);
           applyPose(bones, rest, frames, pose, restAbduct);
+          JOINT.secondary(bones, rest, frames, pose, dPose, phase);
           if (GROUNDED) settle(root, bones, pose, contacts, fwd, baseTransform);
           else if (pad) rest_on(root, bones, pad);
           else if (spec.hangAt) hangFrom(root, bones, spec.hangAt);
