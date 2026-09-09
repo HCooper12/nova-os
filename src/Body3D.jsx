@@ -164,6 +164,14 @@ function applyPose(bones, rest, frames, pose, restAbduct = { L: 0, R: 0 }) {
   j('chest', 'lateral', pose.chest || 0, JOINT.ROM.chest);
   j('neck', 'lateral', pose.neck || 0, JOINT.ROM.neck);
   JOINT.roll(bones.neck, pose.neckTurn || 0, JOINT.ROM.neckTurn);
+  // The head goes through here too, even though no pose names it. Every bone
+  // this function touches gets reset to rest first; a bone it does not touch
+  // keeps whatever the last frame left on it — and levelGaze and secondary
+  // both PREMULTIPLY onto the head. It was accumulating a few degrees per
+  // frame for as long as the panel stayed open, so the longer he looked at
+  // the figure the further its head tipped back. Silent, and it looked like a
+  // posing fault every time.
+  j('head', 'lateral', pose.headPitch || 0, JOINT.ROM.neck);
 
   for (const side of ['L', 'R']) {
     const s = side === 'L' ? 1 : -1;
@@ -814,14 +822,37 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
       const corrective = JOINT.correctiveTargets(root);
       // where the load actually sits, and how heavy it is relative to him —
       // so a bar on the back leans him forward and a light dumbbell does not
-      const loadOf = (sp, bs, id) => {
+      /* WHEN THE BAR IS ON THE FLOOR, THE FLOOR IS CARRYING IT.
+       *
+       * Balance leans the trunk away from a load held in front — correct while
+       * he is holding it, and wrong at the bottom of a deadlift, where the bar
+       * is still on the ground and he has not taken its weight yet. The solver
+       * was leaning him back off a bar he was not yet carrying, which is
+       * exactly what stopped his shoulders getting over it.
+       *
+       * So the load transfers as the bar breaks the floor. Driven by HIP
+       * EXTENSION, not by the bar's own height — that was circular: the bar
+       * sat high because balance leaned him back, balance leaned him back
+       * because the load read as borne, and the load read as borne because the
+       * bar sat high. The hips are the thing that actually breaks a bar off
+       * the ground, and they are known before any of this is placed.
+       *
+       * Over the first quarter of the pull, because once a bar is moving the
+       * lifter has all of it.
+       */
+      const startHip = (pat && PATTERNS[pat]?.start?.hip) || 0;
+      const loadOf = (sp, bs, id, po) => {
         const mass = JOINT.LOAD_MASS[id] || 0;
         if (!mass) return null;
         const ride = anchor[sp.hold];
         const at = ride && bs.chest ? bs.chest.localToWorld(ride.clone())
           : (gripPoint('L') && gripPoint('R')
             ? gripPoint('L').add(gripPoint('R')).multiplyScalar(0.5) : null);
-        return at ? { mass, at } : null;
+        if (!at) return null;
+        if (!sp.floorRests || !startHip) return { mass, at };
+        const pulled = 1 - ((po?.hip || 0) / startHip);       // 0 at the floor
+        const borne = Math.max(0, Math.min(1, pulled / 0.25));
+        return borne > 0 ? { mass: mass * borne, at } : null;
       };
 
       const contacts = restContacts(bones);
@@ -947,10 +978,12 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
             JOINT.secondary(bones, rest, frames, po, {}, ph);
             if (GROUNDED) {
               settle(root, bones, po, contacts, fwd, baseTransform);
-              balance(root, bones, po, contacts, fwd, baseTransform, loadOf(spec, bones, eq));
+              balance(root, bones, po, contacts, fwd, baseTransform, loadOf(spec, bones, eq, po));
             }
             else if (pad) rest_on(root, bones, pad);
             else if (spec.hangAt) hangFrom(root, bones, spec.hangAt, gripPoint);
+            JOINT.levelGaze(bones, frames);
+            for (const side of ['L', 'R']) JOINT.plumbUpperArm(bones, frames, side, po);
           }
           box.union(new THREE.Box3().setFromObject(root));
           // ...and what the hands are holding. Framed on the body alone, an
@@ -1030,12 +1063,13 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
           JOINT.secondary(bones, rest, frames, pose, dPose, phase);
           if (GROUNDED) {
             settle(root, bones, pose, contacts, fwd, baseTransform);
-            balance(root, bones, pose, contacts, fwd, baseTransform, loadOf(spec, bones, eq));
+            balance(root, bones, pose, contacts, fwd, baseTransform, loadOf(spec, bones, eq, pose));
           }
           else if (pad) rest_on(root, bones, pad);
           else if (spec.hangAt) hangFrom(root, bones, spec.hangAt, gripPoint);
-          // last, because it answers to where the trunk ACTUALLY ended up
+          // last, because they answer to where the trunk ACTUALLY ended up
           JOINT.levelGaze(bones, frames);
+          for (const side of ['L', 'R']) JOINT.plumbUpperArm(bones, frames, side, pose);
         }
 
         // put whatever is held where the hands are

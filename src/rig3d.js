@@ -619,7 +619,34 @@ export function levelGaze(bones, frames, keep = 0.55) {
       new THREE.Quaternion().setFromAxisAngle(f.lateral, D(deg)));
     b.updateMatrixWorld(true);
   };
-  turn('neck', give * 0.62);
-  turn('head', give * 0.38);
+  // NEGATIVE: the neck GIVES BACK the trunk's pitch, it does not add to it.
+  // Measured with the trunk folded to 67 degrees, the neck was reaching 90 and
+  // the head 104 — his face pointing at his own shins. Fifth time this rig has
+  // met the same sign trap; found by measurement again, never by looking.
+  turn('neck', -give * 0.62);
+  turn('head', -give * 0.38);
   return pitch;
+}
+
+/* AN ARM THAT IS ONLY CARRYING SOMETHING HANGS PLUMB.
+ *
+ * Shoulder angles are measured against the TRUNK, which is the right way to
+ * describe a press. It is the wrong way to describe a deadlift: pitch the
+ * trunk to 52 degrees and an arm posed at "0" swings out in front of him,
+ * because it is faithfully staying 0 degrees from a chest that is no longer
+ * upright. Gravity does not care about the chest. So whenever the shoulder is
+ * not actually doing anything — no flexion, no abduction — the humerus is
+ * aimed straight down and the elbow keeps whatever the pose gave it.
+ *
+ * That is also true of a curl, where the humerus stays vertical and only the
+ * forearm moves, and of a shrug, and of anything carried at the side.
+ */
+export function plumbUpperArm(bones, frames, side, pose, gate = 15) {
+  const up = bones[`upperarm${side}`];
+  if (!up || !pose) return false;
+  if (Math.abs(pose.shoulder || 0) > gate) return false;
+  if (Math.abs(pose.shoulderAbduct || 0) > gate) return false;
+  const lat = frames?.[`forearm${side}`]?.lateral;
+  aimWithRoll(up, new THREE.Vector3(0, -1, 0), new THREE.Vector3(1, 0, 0), lat);
+  return true;
 }
