@@ -16,7 +16,7 @@ import {
   holdTiming, HOLD_PRESETS, DEFAULT_HOLD,
 } from '../../src/turnEnd.js';
 
-const OPTS = { holdMs: 2600, leadMs: 7000 };
+const OPTS = { holdMs: 2000, leadMs: 7000 };
 
 // ---- the bug itself ----
 
@@ -37,14 +37,14 @@ test('THE BUG: the engine quitting mid-thought reopens it instead of sending', (
 test('a pause he actually meant ends the turn', () => {
   let t = openTurn(0);
   t = sawSpeech(t, 1000);
-  assert.equal(nextAction(t, 1000 + 2600, OPTS), 'end');
+  assert.equal(nextAction(t, 1000 + 2000, OPTS), 'end');
 });
 
 test('an engine that ends after a real silence sends — it does not restart forever', () => {
   let t = openTurn(0);
   t = sawSpeech(t, 1000);
   t = sawEngineEnd(t);
-  assert.equal(nextAction(t, 1000 + 2600, OPTS), 'end');
+  assert.equal(nextAction(t, 1000 + 2000, OPTS), 'end');
 });
 
 // ---- the two silences mean different things ----
@@ -58,7 +58,7 @@ test('before he has said anything he gets the longer lead, not the hold', () => 
 test('the lead applies only until the first word', () => {
   let t = openTurn(0);
   t = sawSpeech(t, 500);
-  assert.equal(nextAction(t, 500 + 2600, OPTS), 'end');
+  assert.equal(nextAction(t, 500 + 2000, OPTS), 'end');
 });
 
 // ---- the guards, which is why they are checked first ----
@@ -111,4 +111,5 @@ test('a corrupt stored setting falls back to the default, never to zero', () => 
 
 test('a real stored setting is honoured', () => {
   assert.equal(holdTiming('patient').holdMs, 4200);
+  assert.equal(holdTiming('natural').holdMs, 2000, 'he reported 2.6s as too long a pause');
 });

@@ -26,14 +26,18 @@
 //          to outlast a breath and an "um" without outlasting a finished
 //          sentence.
 
-// What he can choose, in Settings. The middle one is the default because the
-// browser's own endpointer sits around 1–1.5s and that is the thing he says
-// is too short; 2.6s clears a breath without leaving a finished sentence
-// hanging. `holdMs` is the pause that ends the turn, `leadMs` the wait for
-// him to begin.
+// What he can choose, in Settings. `holdMs` is the pause that ends the turn,
+// `leadMs` the wait for him to begin.
+//
+// The default was 2.6s for one morning. He tried it: "the delay after I
+// finish speaking before it processes... is a little bit too long of a
+// pause." So the middle setting is 2.0s — still comfortably past the
+// browser's own ~1–1.5s endpointer, which is the thing that was cutting him
+// off, but 0.6s less dead air on every single turn. The two either side of
+// it are unchanged, so both directions are one tap away.
 export const HOLD_PRESETS = [
   { value: 'quick',   label: 'Quick',   holdMs: 1600, leadMs: 5000, hint: 'Sends soon after you stop. Closest to how it was.' },
-  { value: 'natural', label: 'Natural', holdMs: 2600, leadMs: 7000, hint: 'Room for a breath mid-sentence.' },
+  { value: 'natural', label: 'Natural', holdMs: 2000, leadMs: 7000, hint: 'Room for a breath mid-sentence.' },
   { value: 'patient', label: 'Patient', holdMs: 4200, leadMs: 10000, hint: 'For thinking out loud. Tap the core to send early.' },
 ];
 
