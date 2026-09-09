@@ -169,8 +169,12 @@ function applyPose(bones, rest, frames, pose, restAbduct = { L: 0, R: 0 }) {
     const s = side === 'L' ? 1 : -1;
     // the scapula takes its share of the elevation; the humerus takes the rest
     const { scap, keep } = JOINT.scapularShare(pose);
+    // sign MEASURED, not assumed: as the arm went up the shoulder joint fell
+    // ten centimetres, so the scapula's share was being subtracted from the
+    // elevation instead of added to it, and an overhead press topped out at
+    // ear height. See the note above hinge() about clamping the anatomy first.
     JOINT.hinge(bones[`clavicle${side}`], rest[`clavicle${side}`], F(`clavicle${side}`),
-      'anterior', -s * scap, null);
+      'anterior', s * scap, null);
     const abd = ((pose.shoulderAbduct != null ? pose.shoulderAbduct : 0) * keep) - restAbduct[side];
 
     // SHOULDER — a ball joint, composed the way a clinician measures it:
@@ -916,8 +920,12 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
             box.expandByPoint(bones.chest.localToWorld(anchor[spec.hold].clone()));
           }
         }
-        // a held bar is nearly two metres of steel and a plate is 45 cm across
-        if (spec.obj && !spec.prop) box.expandByScalar(0.24);
+        // A plate is 450 mm across, so leave its radius ABOVE and BELOW the
+        // hands — an overhead press must not have its bar clipped at the top.
+        // Sideways, no: the bar is 2.2 m of steel and framing all of it shrinks
+        // the lifter to nothing. A photograph of a squat lets the plates run
+        // off the edges, and so does this.
+        if (spec.obj && !spec.prop) box.expandByVector(new THREE.Vector3(0.06, 0.23, 0.06));
         let c = box.getCenter(new THREE.Vector3());
         const DIR = {
           'three-quarter': [1.15, 0.45, 1.75],

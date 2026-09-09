@@ -282,7 +282,13 @@ export function closeHand(bones, rest, frames, side, curl, style = 'full', sprea
 // fixed socket.
 export function scapularShare(pose) {
   const elev = Math.max(pose.shoulder || 0, pose.shoulderAbduct || 0);
-  const scap = Math.min(45, Math.max(0, elev - 30) * 0.34);
+  // Anatomically the scapula takes about a third of full elevation — 60 of
+  // 180. Visually it cannot: there is a corrective shape for a raised HUMERUS
+  // and none for a rotated clavicle, so past about 25 degrees the trap and
+  // upper chest tear into a sail. Capped at what the skinning can carry, with
+  // the humerus taking the rest; the shoulder still rises through the press,
+  // which is the part that reads.
+  const scap = Math.min(25, Math.max(0, elev - 30) * 0.34);
   return { scap, keep: elev > 1e-6 ? (elev - scap) / elev : 1 };
 }
 
