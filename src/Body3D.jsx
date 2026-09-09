@@ -240,6 +240,31 @@ function applyPose(bones, rest, frames, pose, restAbduct = { L: 0, R: 0 }) {
  * Everything the lift moves then follows for free: the bar descends because
  * the traps descend, the head stays over the feet, the hips travel back.
  */
+/* How far a camera has to stand from a box, along `eye`, for every corner of
+ * it to land inside the frustum. Exact rather than approximate: a point sits
+ * inside when its offsets across the view are within the frustum's half-widths
+ * at its own depth, so each corner sets a minimum distance and the largest of
+ * those wins. */
+function fitDistance(box, centre, eye, camera) {
+  const vTan = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+  const hTan = vTan * Math.max(0.2, camera.aspect);
+  const right = new THREE.Vector3().crossVectors(eye, new THREE.Vector3(0, 1, 0));
+  if (right.lengthSq() < 1e-8) right.set(1, 0, 0);
+  right.normalize();
+  const up = new THREE.Vector3().crossVectors(right, eye).normalize();
+  const p = new THREE.Vector3();
+  let need = 0.4;
+  for (let i = 0; i < 8; i++) {
+    p.set(i & 1 ? box.max.x : box.min.x,
+      i & 2 ? box.max.y : box.min.y,
+      i & 4 ? box.max.z : box.min.z).sub(centre);
+    need = Math.max(need,
+      p.dot(eye) + Math.abs(p.dot(right)) / hTan,
+      p.dot(eye) + Math.abs(p.dot(up)) / vTan);
+  }
+  return need;
+}
+
 function restContacts(bones) {
   // Two points per foot, in the FOOT bone's own space: the floor under the
   // ankle, and the floor under the toe. Two, because a calf raise pivots on
@@ -894,8 +919,20 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
         // a held bar is nearly two metres of steel and a plate is 45 cm across
         if (spec.obj && !spec.prop) box.expandByScalar(0.24);
         let c = box.getCenter(new THREE.Vector3());
-        const size = box.getSize(new THREE.Vector3());
-        let radius = Math.max(size.x, size.y, size.z) * 0.62 + 0.35;
+        const DIR = {
+          'three-quarter': [1.15, 0.45, 1.75],
+          front: [0.0, 0.30, 2.1],
+          side: [2.1, 0.30, 0.0],
+          back: [0.0, 0.30, -2.1],
+        }[view] || [1.15, 0.45, 1.75];
+        const eye = new THREE.Vector3(...DIR).normalize();
+        // How far back the camera has to stand for the whole box to be inside
+        // the frustum — worked out from the frustum, not from a factor on the
+        // box's longest side. That factor was tuned on standing lifts, where a
+        // held bar adds a quarter metre of slack in every direction; the lifts
+        // that sit or lie down get no such expansion, and it cropped their
+        // heads and feet off in every recording.
+        let radius = fitDistance(box, c, eye, camera) * 1.06;
         // `focus` frames one joint instead of the whole body. A wrist that does
         // not work is invisible at full height and obvious at arm's length,
         // and the check has to be able to get close enough to see it.
@@ -904,13 +941,7 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
           radius = 0.26;
         }
         controls.target.copy(c);
-        const DIR = {
-          'three-quarter': [1.15, 0.45, 1.75],
-          front: [0.0, 0.30, 2.1],
-          side: [2.1, 0.30, 0.0],
-          back: [0.0, 0.30, -2.1],
-        }[view] || [1.15, 0.45, 1.75];
-        camera.position.set(c.x + radius * DIR[0], c.y + radius * DIR[1], c.z + radius * DIR[2]);
+        camera.position.copy(c).addScaledVector(eye, radius);
         camera.near = 0.05;
         camera.far = 60;
         camera.updateProjectionMatrix();
