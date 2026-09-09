@@ -38,6 +38,7 @@ const asName = q.get('name') || '';
 // `at` pins the sheet to a single phase — the recorder steps it frame by frame
 // to build a real recording rather than a contact sheet.
 const at = q.has('at') ? Number(q.get('at')) : null;
+const focus = q.get('focus') || null;
 const size = Number(q.get('size') || 200);
 // A browser keeps only ~16 live WebGL contexts. Ask for all 26 patterns at
 // once and the oldest silently lose theirs and render pure white — which
@@ -66,6 +67,7 @@ function Strip({ id }) {
                 height={size}
                 phase={phase}
                 view={view}
+                focus={focus}
                 chrome={false}
               />
               {at == null && <div className="ph">{phase.toFixed(2)}</div>}
@@ -87,7 +89,7 @@ function Film({ id }) {
   window.__filmReady = true;
   return (
     <Body3D muscles={LIT} pattern={id} name={asName} height={size}
-      phase={phase} view={view} chrome={false} />
+      phase={phase} view={view} focus={focus} chrome={false} />
   );
 }
 

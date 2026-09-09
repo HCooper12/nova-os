@@ -300,6 +300,30 @@ export function equipmentFor(name = '', pattern = null) {
 
 // The pose at a point in the rep. `phase` 0 → 1 → 0 over a cycle; the ease
 // makes the top and bottom of the rep linger the way a controlled rep does.
+// A hand holding a bar is doing three things the joint table never said: the
+// forearm is rolled to face the palms the right way, the wrist is set, and the
+// fingers are closed round it. Rather than repeat that on every one of the
+// twenty-six patterns, it is derived — a lift that holds something grips it,
+// pronated unless the lift is a curl or a chin-up, which are supinated.
+const SUPINATED = /curl|chin|underhand|supinat/;
+const NEUTRAL = /hammer|neutral|rope|farmer|trap|shrug/;
+
+export function gripFor(pattern, equipment = '') {
+  const p = PATTERNS[pattern] || {};
+  const holds = equipment && equipment !== 'none' && !/^machine-/.test(equipment);
+  const id = `${pattern} ${p.equipment || ''} ${equipment}`;
+  return {
+    grip: p.grip != null ? p.grip : (holds ? 1 : 0.18),
+    // + rolls the palm to face down/away, which is how almost everything is
+    // held; a curl and a chin-up are the exceptions
+    forearmTwist: p.forearmTwist != null ? p.forearmTwist
+      : (SUPINATED.test(id) ? -62 : NEUTRAL.test(id) ? -14 : 58),
+    // the bar sits in the heel of the palm, so a loaded wrist is slightly
+    // extended, never bent forward
+    wrist: p.wrist != null ? p.wrist : (holds ? -12 : 0),
+  };
+}
+
 export function poseAt(pattern, phase) {
   const p = PATTERNS[pattern];
   if (!p) return null;

@@ -92,12 +92,15 @@ def joints(side=1):
         el = g('elbow', (sh[0] + side * 0.10, 0.0, sh[2] - UPPER_ARM))
         wr = g('wrist', (el[0] + side * 0.06, 0.0, el[2] - FOREARM))
         hnd = g('hand', (wr[0], wr[1], wr[2] - HAND * 0.55))
+        knu = g('knuckles', hnd)
+        tip = g('fingertip', (knu[0], knu[1], knu[2] - HAND * 0.40))
         hip = g('hip', (side * HIP_X, 0.0, Z['hip']))
         kne = g('knee', (side * KNEE_X, 0.0, Z['knee']))
         ank = g('ankle', (side * ANKLE_X, 0.0, Z['ankle']))
         toe = g('toe', (ank[0], ank[1] + 0.145, ank[2] - 0.045))
         return {
             'shoulder': sh, 'elbow': el, 'wrist': wr, 'hand': hnd,
+            'knuckles': knu, 'fingertip': tip,
             'hip': hip, 'knee': kne, 'ankle': ank, 'toe': toe,
             'acromion': (sh[0] * 1.16, sh[1], sh[2] + 0.030),
             'scapula': (sh[0] * 0.60, sh[1] + 0.060, sh[2] + 0.010),
@@ -111,8 +114,11 @@ def joints(side=1):
     kne = (side * KNEE_X, 0.010, Z['knee'])
     ank = (side * ANKLE_X, -0.010, Z['ankle'])
     toe = (side * ANKLE_X, 0.145, Z['ankle'] - 0.045)
+    knu = (hnd[0], hnd[1], hnd[2] - HAND * 0.10)
+    tip = (hnd[0], hnd[1], hnd[2] - HAND * 0.45)
     return {
         'shoulder': sh, 'elbow': el, 'wrist': wr, 'hand': hnd,
+        'knuckles': knu, 'fingertip': tip,
         'hip': hip, 'knee': kne, 'ankle': ank, 'toe': toe,
         'acromion': (side * SHOULDER_X * 1.08, 0.0, Z['shoulder'] + 0.030),
         'scapula': (side * RIB_X * 0.82, 0.055, Z['t4']),
@@ -221,7 +227,23 @@ for s, tag in ((1, 'L'), (-1, 'R')):
          tuple(j['shoulder'][i] + (j['elbow'][i] - j['shoulder'][i]) * 0.45 for i in range(3))),
         (f'upperarm{tag}', f'clavicle{tag}', j['shoulder'], j['elbow']),
         (f'forearm{tag}', f'upperarm{tag}', j['elbow'], j['wrist']),
-        (f'hand{tag}', f'forearm{tag}', j['wrist'], j['hand']),
+        # A HAND IS TWO BONES, not one. With a single wrist→hand bone the
+        # figure could not grip: the fingers stayed splayed in their A-pose
+        # rest and a barbell passed straight between them. Hayden, 9 Sep 2026:
+        # "the model did not actually seem to be naturally and realistically
+        # gripping the bar with their hands and they did not seem to have
+        # proper wrist joint movements or flexing or function."
+        (f'hand{tag}', f'forearm{tag}', j['wrist'], j['knuckles']),
+        # TWO segments, because a grip WRAPS. With one bone the fingers could
+        # only swing down past a bar and hang below it; a second joint is what
+        # brings the fingertips back up the far side and closes the hand round
+        # it. Anatomically these are the proximal and the middle/distal
+        # phalanges rolled into two.
+        (f'fingers{tag}', f'hand{tag}', j['knuckles'],
+         tuple(j['knuckles'][i] + (j['fingertip'][i] - j['knuckles'][i]) * 0.5 for i in range(3))),
+        (f'fingertip{tag}', f'fingers{tag}',
+         tuple(j['knuckles'][i] + (j['fingertip'][i] - j['knuckles'][i]) * 0.5 for i in range(3)),
+         j['fingertip']),
         (f'thigh{tag}', 'pelvis', j['hip'], j['knee']),
         (f'shin{tag}', f'thigh{tag}', j['knee'], j['ankle']),
         (f'foot{tag}', f'shin{tag}', j['ankle'], j['toe']),

@@ -19,6 +19,11 @@ against a tape measure rather than trusted.
 """
 
 import bpy
+from mathutils import Vector
+
+# segment lengths as fractions of stature (Drillis & Contini), the same
+# numbers skeleton.py builds its fallback skeleton from
+SEG_UPPER, SEG_FORE, SEG_HAND = 0.186, 0.146, 0.108
 import json
 import os
 import sys
@@ -92,6 +97,66 @@ def narrowest_between(pts, z_lo, z_hi):
     return min(window, key=lambda p: p['r']) if window else None
 
 
+def hand_landmarks(verts, elbow, wrist_guess, side):
+    """Wrist, knuckles and fingertip, found off the mesh along the arm's axis.
+
+    The radius profile down a forearm tells the whole story: it swells to the
+    flexor mass, drops hard at the wrist, runs roughly flat across the back of
+    the hand, then tapers away at the fingers. Reading that is reliable in a
+    way that slicing horizontally through an A-pose is not.
+    """
+    fwd = (wrist_guess - elbow)
+    if fwd.length < 1e-6:
+        return None
+    fwd.normalize()
+    pts = []
+    for v in verts:
+        t = (v.co - elbow).dot(fwd)
+        if t < 0.02:
+            continue
+        off = v.co - (elbow + fwd * t)
+        if off.length < 0.16:
+            pts.append((t, off.length, v.co.copy()))
+    if len(pts) < 60:
+        return None
+    tmax = max(p[0] for p in pts)
+    step = 0.01
+    prof = {}
+    for t, r, _c in pts:
+        k = round(t / step)
+        prof[k] = max(prof.get(k, 0.0), r)
+    keys = sorted(prof)
+
+    def at(t):
+        return elbow + fwd * t
+
+    def centre(t, w=0.012):
+        near = [c for tt, _r, c in pts if abs(tt - t) < w]
+        if not near:
+            return at(t)
+        m = Vector((0, 0, 0))
+        for c in near:
+            m += c
+        return m / len(near)
+
+    # the wrist: the sharpest narrowing in the outer half of the limb
+    lo = [k for k in keys if 0.50 * tmax <= k * step <= 0.78 * tmax]
+    if not lo:
+        return None
+    drop = max(lo, key=lambda k: prof.get(k - 1, 0) - prof[k])
+    t_w = drop * step
+    # the knuckles: where the flat of the hand starts tapering into fingers
+    hi = [k for k in keys if t_w + 0.02 < k * step < tmax - 0.005]
+    t_k = (max(hi, key=lambda k: prof.get(k - 1, 0) - prof[k]) * step) if hi else (t_w + (tmax - t_w) * 0.55)
+    c_w, c_k = centre(t_w), centre(t_k)
+    tip = max(pts, key=lambda p: p[0])[2]
+    return {
+        'wrist': [round(c_w.x, 5), round(c_w.y, 5), round(c_w.z, 5)],
+        'knuckles': [round(c_k.x, 5), round(c_k.y, 5), round(c_k.z, 5)],
+        'fingertip': [round(tip.x, 5), round(tip.y, 5), round(tip.z, 5)],
+    }
+
+
 def main():
     argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
     out = argv[argv.index('--out') + 1] if '--out' in argv else 'tools/anatomy/joints.json'
@@ -117,6 +182,7 @@ def main():
     for s, pts in arms.items():
         for p in pts:
             arm_pts.append((p['x'], p['y'], p['z'], p['r'] * 1.35))
+
     def is_arm(v):
         for (ax, ay, az, ar) in arm_pts:
             if abs(v.co.z - az) < BAND and ((v.co.x - ax) ** 2 + (v.co.y - ay) ** 2) ** 0.5 < ar:
@@ -132,16 +198,73 @@ def main():
         j = {}
         if arm:
             j['shoulder'] = [arm[0]['x'], arm[0]['y'], arm[0]['z']]
-            e = narrowest(arm, 0.38, 0.62)
+            # kept only as a DIRECTION estimate — see below for why it cannot
+            # be trusted as a position
             w = narrowest(arm, 0.74, 0.90)
-            if e:
-                j['elbow'] = [e['x'], e['y'], e['z']]
-            if w:
-                j['wrist'] = [w['x'], w['y'], w['z']]
-            j['hand'] = [arm[-1]['x'], arm[-1]['y'], arm[-1]['z']]
-            # [height, radius] down the limb: how THICK the arm is at each
-            # level, so a muscle can be placed as a fraction of the way out
-            # to the skin instead of at a guessed offset from the bone
+            # THE ARM, ALONG ITS OWN AXIS.
+            #
+            # Searching horizontal bands for "the narrowest cross-section"
+            # found the joints ONE SEGMENT OUT: the elbow landed at the wrist,
+            # the wrist at the fingertips, and the hand bone ran from the
+            # fingertips back toward the body's midline. Every lift's elbow
+            # flexion has been pivoting at his wrist. An A-pose arm is diagonal,
+            # so a horizontal slice cuts it obliquely and the minima it finds
+            # mean nothing.
+            #
+            # Same fix as the knee: a joint sits at a known FRACTION of the
+            # limb, so take the fraction from anatomy and only the position
+            # from the mesh. Shoulder to fingertip is measurable and
+            # unambiguous — it is the farthest point of the arm.
+            # The arm's own points, taken as a CONE down the limb rather than
+            # from the band clusters: at hand height those clusters brush the
+            # hip, and the "fingertip" came out next to his groin.
+            sh = Vector(j['shoulder'])
+            # The band search is unreliable for WHERE a joint is but fine for
+            # which way the arm points, so it supplies the direction and the
+            # mesh supplies the rest. The cone is also capped just past that
+            # estimate: run it further and it continues down the thigh, and
+            # the "fingertip" comes out on the floor.
+            aim = (Vector((w['x'], w['y'], w['z'])) - sh) if w else None
+            av = []
+            if aim and aim.length > 0.2:
+                reach = aim.length * 1.12
+                aim.normalize()
+                for v in verts:
+                    t = (v.co - sh).dot(aim)
+                    if t < 0.03 or t > reach:
+                        continue
+                    if (v.co - (sh + aim * t)).length < 0.17:
+                        av.append(v.co.copy())
+            if av:
+                tip = max(av, key=lambda p: (p - sh).dot(aim))
+                axis = (tip - sh)
+                L = axis.length
+                axis.normalize()
+
+                def along(f, w=0.020):
+                    t = L * f
+                    seat = sh + axis * t
+                    near = [p for p in av if abs((p - sh).dot(axis) - t) < w * L / 0.10]
+                    if not near:
+                        return seat
+                    m = Vector((0, 0, 0))
+                    for p in near:
+                        m += p
+                    return m / len(near)
+
+                # fractions of shoulder→fingertip, from the segment lengths in
+                # skeleton.py: upper arm .186H, forearm .146H, hand .108H
+                whole = SEG_UPPER + SEG_FORE + SEG_HAND
+                el = along(SEG_UPPER / whole)
+                wr = along((SEG_UPPER + SEG_FORE) / whole)
+                # the knuckles sit about 62% of the way down a hand — the palm is
+                # the long part, the fingers the short one
+                kn = along((SEG_UPPER + SEG_FORE + SEG_HAND * 0.62) / whole)
+                j['elbow'] = [round(c, 5) for c in el]
+                j['wrist'] = [round(c, 5) for c in wr]
+                j['knuckles'] = [round(c, 5) for c in kn]
+                j['fingertip'] = [round(c, 5) for c in tip]
+                j['hand'] = j['knuckles']
             j['arm_radius'] = [[round(p['z'], 4), round(p['r'], 5)] for p in arm]
         if leg:
             # The hip JOINT is inside the pelvis, not at the top of the visible

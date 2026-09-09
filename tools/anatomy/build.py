@@ -133,7 +133,11 @@ def redistribute(ob):
             if (co - wrist).length > 0.24:
                 continue
             axis = (wrist - elbow).normalized()
-            w = max(w, ramp((co - wrist).dot(axis) + 0.010))
+            # Hands are decimated less hard than feet now that they have
+            # fingers to articulate: at the old ratio a whole hand was 145
+            # vertices and a finger was three, which is not something you can
+            # curl around a bar.
+            w = max(w, ramp((co - wrist).dot(axis) + 0.010) * 0.5)
         return w
 
     bpy.context.view_layer.objects.active = ob
@@ -523,7 +527,8 @@ GROUP_BONES = {
     'rear-delts': ['deltoidL', 'deltoidR', 'upperarmL', 'upperarmR', 'clavicleL', 'clavicleR'],
     'biceps': ['upperarmL', 'upperarmR', 'forearmL', 'forearmR'],
     'triceps': ['upperarmL', 'upperarmR', 'forearmL', 'forearmR'],
-    'forearms': ['forearmL', 'forearmR', 'handL', 'handR', 'upperarmL', 'upperarmR'],
+    'forearms': ['forearmL', 'forearmR', 'handL', 'handR', 'fingersL', 'fingersR',
+                 'fingertipL', 'fingertipR', 'upperarmL', 'upperarmR'],
     'glutes': ['pelvis', 'thighL', 'thighR'],
     'quads': ['thighL', 'thighR', 'pelvis', 'shinL', 'shinR'],
     'hamstrings': ['thighL', 'thighR', 'pelvis', 'shinL', 'shinR'],

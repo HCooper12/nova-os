@@ -4,7 +4,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { poseAt, PATTERNS, equipmentFor, patternFor } from './exercise3d.js';
+import { poseAt, PATTERNS, equipmentFor, patternFor, gripFor } from './exercise3d.js';
 import * as GYM from './gym3d.js';
 import { css } from './css.js';
 
@@ -179,6 +179,20 @@ function restAbduction(bones, side, root = null) {
   return THREE.MathUtils.radToDeg(Math.atan2(Math.abs(v.x), Math.abs(v.y)));
 }
 
+// Rotate a bone about its OWN long axis. Pronation and supination are not
+// rotations in the body's sagittal or frontal plane — the radius rolls over
+// the ulna, along the forearm — so they cannot be expressed in the anatomical
+// axes the other joints use.
+function twist(bone, rest, deg) {
+  if (!bone || !rest) return;
+  bone.quaternion.copy(rest);
+  if (deg) {
+    bone.quaternion.multiply(
+      new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(deg)));
+  }
+  bone.updateMatrixWorld(true);
+}
+
 function applyPose(bones, rest, pose, restAbduct = { L: 0, R: 0 }, axes = null) {
   if (!pose) return;
   const X = (axes || AXES_WORLD).X;
@@ -232,6 +246,29 @@ function applyPose(bones, rest, pose, restAbduct = { L: 0, R: 0 }, axes = null) 
       }
     }
     set(`forearm${side}`, X, -(pose.elbow || 0));
+    // THE HAND. A wrist that never moves and fingers frozen in their A-pose
+    // splay is what made him say the figure "did not actually seem to be
+    // naturally and realistically gripping the bar". Three things move here:
+    // the forearm rolls (pronation — palms down for a press, up for a curl),
+    // the wrist flexes, and the fingers close.
+    // Pronation is progressive along a real forearm — the radius crosses the
+    // ulna over its whole length. With one forearm bone, all of it at the
+    // elbow corkscrews the mesh, so it is split with the wrist.
+    const roll = (b, deg) => {
+      const f = bones[b];
+      if (!f || !deg) return;
+      f.quaternion.multiply(new THREE.Quaternion()
+        .setFromAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(deg)));
+      f.updateMatrixWorld(true);
+    };
+    roll(`forearm${side}`, s * (pose.forearmTwist || 0) * 0.45);
+    set(`hand${side}`, X, -(pose.wrist || 0));
+    roll(`hand${side}`, s * (pose.forearmTwist || 0) * 0.55);
+    // Both finger joints, so the hand WRAPS rather than droops: the proximal
+    // sweep brings the fingers down onto the bar, the second brings the tips
+    // back up the far side of it.
+    rotate(bones[`fingers${side}`], rest[`fingers${side}`], X, -(pose.grip || 0) * 62);
+    rotate(bones[`fingertip${side}`], rest[`fingertip${side}`], X, -(pose.grip || 0) * 70);
     const back = side === 'R' && pose.hipBack != null;
     // About WORLD +X, a point below the joint swings POSTERIOR — which is knee
     // flexion and hip EXTENSION. So the hip takes the angle as written
@@ -450,7 +487,7 @@ function settle(root, bones, pose, contacts, fwd, base) {
 }
 
 export default function Body3D({ muscles, pattern, name = '', height = 260,
-  phase: frozen = null, view = 'three-quarter', chrome = true }) {
+  phase: frozen = null, view = 'three-quarter', chrome = true, focus = null }) {
   // The flat figure's pattern ids overlap with these but are coarser (it has
   // one "squat" for squats, leg presses and lunges). When the name resolves to
   // a 3D pattern, that wins — the whole point is that the movement is right.
@@ -665,6 +702,20 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
       // delts. Anchored in the chest bone's own space, worked out once from the
       // rest pose, so the bar follows the torso through the lift instead of
       // hanging at a fixed world height while the man squats away beneath it.
+      // Where a hand actually holds something: the middle of the closed fist,
+      // not the wrist and not the midpoint between the two hands. A bar placed
+      // at the hand BONE passes behind the fingers, which is what it had been
+      // doing.
+      const gripPoint = (sideTag) => {
+        const h = bones[`hand${sideTag}`]; const f = bones[`fingers${sideTag}`];
+        if (!h) return null;
+        const a = h.getWorldPosition(new THREE.Vector3());
+        if (!f) return a;
+        // mid-palm, not the fingertips: a bar sits across the heel of the
+        // hand and the fingers close over it, so 85% of the way to the
+        // knuckles put it out at the ends of his fingers
+        return a.lerp(f.getWorldPosition(new THREE.Vector3()), 0.5);
+      };
       const anchor = {};
       if (bones.chest) {
         // measured off the body, not written as coordinates: a front rack is
@@ -685,6 +736,7 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
       // equipment
       const eq = equipmentFor(name, pat);
       const spec = (RIG[eq] || RIG.none)();
+      const hand = pat ? gripFor(pat, eq) : { grip: 0.18, forearmTwist: 0, wrist: 0 };
       const held = [];
       if (spec.obj) {
         scene.add(spec.obj);
@@ -717,7 +769,7 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
           root.quaternion.copy(baseTransform.quat);
           root.updateMatrixWorld(true);
           if (pat) {
-            const po = poseAt(pat, ph);
+            const po = Object.assign(poseAt(pat, ph), hand);
             applyPose(bones, rest, po, restAbduct, axes);
             if (GROUNDED) settle(root, bones, po, contacts, fwd, baseTransform);
             else if (pad) rest_on(root, bones, pad);
@@ -737,9 +789,16 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
         }
         // a held bar is nearly two metres of steel and a plate is 45 cm across
         if (spec.obj && !spec.prop) box.expandByScalar(0.24);
-        const c = box.getCenter(new THREE.Vector3());
+        let c = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
-        const radius = Math.max(size.x, size.y, size.z) * 0.62 + 0.35;
+        let radius = Math.max(size.x, size.y, size.z) * 0.62 + 0.35;
+        // `focus` frames one joint instead of the whole body. A wrist that does
+        // not work is invisible at full height and obvious at arm's length,
+        // and the check has to be able to get close enough to see it.
+        if (focus && bones[focus]) {
+          c = bones[focus].getWorldPosition(new THREE.Vector3());
+          radius = 0.26;
+        }
         controls.target.copy(c);
         const DIR = {
           'three-quarter': [1.15, 0.45, 1.75],
@@ -765,7 +824,7 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
         raf = requestAnimationFrame(tick);
         const phase = frozen != null ? frozen : (pat ? (clock.getElapsedTime() % period) / period : 0);
         if (pat) {
-          const pose = poseAt(pat, phase);
+          const pose = Object.assign(poseAt(pat, phase), hand);
           // from the same starting transform every frame, or the corrections
           // below compound and the figure walks out of shot
           root.position.copy(baseTransform.pos);
@@ -781,13 +840,11 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
         for (const obj of held) {
           const hand = obj.userData.hand;
           if (hand) {
-            const b = bones[`hand${hand}`];
-            if (b) { b.getWorldPosition(tmp); obj.position.copy(tmp); obj.quaternion.identity(); }
+            const p = gripPoint(hand);
+            if (p) { obj.position.copy(p); obj.quaternion.identity(); }
           } else {
-            const l = bones.handL; const r = bones.handR;
-            if (l && r) {
-              const a = new THREE.Vector3(); const b2 = new THREE.Vector3();
-              l.getWorldPosition(a); r.getWorldPosition(b2);
+            const a = gripPoint('L'); const b2 = gripPoint('R');
+            if (a && b2) {
               obj.position.copy(a).add(b2).multiplyScalar(0.5);
               const ride = anchor[spec.hold];
               if (ride && bones.chest) obj.position.copy(bones.chest.localToWorld(ride.clone()));
@@ -795,7 +852,16 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
               // radius, and at the bottom of a deadlift it should be sitting
               // on the floor rather than sunk into it.
               if (spec.floorRests) obj.position.y = Math.max(obj.position.y, 0.225);
+              // ...and it lies along the line between the two fists. Left
+              // world-horizontal, one hand higher than the other left the bar
+              // passing through neither of them.
               obj.quaternion.identity();
+              if (!ride) {
+                const axis = b2.clone().sub(a);
+                if (axis.lengthSq() > 1e-6) {
+                  obj.quaternion.setFromUnitVectors(new THREE.Vector3(-1, 0, 0), axis.normalize());
+                }
+              }
             }
           }
         }
@@ -853,7 +919,7 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
       renderer.forceContextLoss();
       if (renderer.domElement.parentNode === el) el.removeChild(renderer.domElement);
     };
-  }, [muscles, pat, name, height, frozen, view]);
+  }, [muscles, pat, name, height, frozen, view, focus]);
 
   const p = pat ? PATTERNS[pat] : null;
   return (
