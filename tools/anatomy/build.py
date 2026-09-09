@@ -120,7 +120,11 @@ def redistribute(ob):
             # triangle density into two centimetres and leaves a visible ring
             # around each ankle and wrist where the shading breaks
             return max(0.0, min(1.0, d / w))
-        w = ramp(co.z - (z_jaw + 0.010))                       # head, above the jaw
+        # The head is decimated less hard than the hands and feet: nobody
+        # looks at a knuckle, everybody looks at a face, and a face collapsed
+        # to a smooth blob is the single most obviously artificial thing on an
+        # otherwise convincing body.
+        w = ramp(co.z - (z_jaw + 0.010)) * 0.55                # head, above the jaw
         w = max(w, ramp((z_ank + 0.055) - co.z))               # foot, below the ankle
         for wrist, elbow in zip(wr, el):
             # the hand: past the wrist AND close to it. Without the distance
@@ -148,8 +152,8 @@ def redistribute(ob):
     # allowed to take. The first run asked for 0.10 and left the feet with eight
     # vertices. Work out the ratio from the actual split instead: keep the body
     # entire, keep KEEP of the extremities.
-    KEEP = 0.09
-    ext = sum(1 for p in ob.data.polygons if extremity(Vector(p.center)) > 0.5)
+    KEEP = 0.13
+    ext = sum(1 for p in ob.data.polygons if extremity(Vector(p.center)) > 0.30)
     total = len(ob.data.polygons)
     dec = ob.modifiers.new('decimate', 'DECIMATE')
     dec.decimate_type = 'COLLAPSE'
@@ -332,6 +336,88 @@ def bone_groups():
     return inv
 
 
+def bake_occlusion(ob, rays=48, reach=0.22):
+    """Ambient occlusion, baked into the mesh as a vertex colour.
+
+    The single biggest step from "3D model" to "photograph of a person" after
+    the lighting itself. Every crease a body has — the armpit, the line under
+    the pectoral, the furrow beside the spine, the hollow behind the collarbone,
+    the gap between two heads of a muscle — is dark because less of the room
+    reaches it. Image-based light gets that right for the broad form and wrong
+    for the detail, because it cannot know the body occludes itself.
+
+    Baked per VERTEX rather than to a texture: at 24,000 vertices the mesh is
+    dense enough to carry the gradient, and it costs four bytes a vertex with
+    no image to ship, no UV layout to keep valid through a decimate, and
+    nothing to go stale. three.js multiplies it into the base colour, so it
+    darkens a highlighted muscle exactly as much as it darkens skin.
+    """
+    import random
+    from mathutils.bvhtree import BVHTree
+    bvh = BVHTree.FromObject(ob, bpy.context.evaluated_depsgraph_get())
+    rng = random.Random(7)                 # deterministic: same body every run
+    dirs = []
+    for _ in range(rays):
+        # cosine-weighted hemisphere around +Z, rotated per vertex to its normal
+        u1, u2 = rng.random(), rng.random()
+        r = math.sqrt(u1)
+        th = 2 * math.pi * u2
+        dirs.append(Vector((r * math.cos(th), r * math.sin(th), math.sqrt(max(0.0, 1 - u1)))))
+
+    me = ob.data
+    me.update()
+    up = Vector((0, 0, 1))
+    ao = [1.0] * len(me.vertices)
+    for v in me.vertices:
+        n = v.normal.copy()
+        if n.length_squared < 1e-9:
+            continue
+        n.normalize()
+        rot = up.rotation_difference(n)
+        origin = v.co + n * 0.0015          # off the surface, or every ray hits it
+        hits = 0
+        for d in dirs:
+            loc, _nr, _i, dist = bvh.ray_cast(origin, rot @ d, reach)
+            if loc is not None and dist is not None:
+                # near hits occlude fully, far ones barely
+                hits += 1.0 - min(1.0, dist / reach) ** 0.5
+        ao[v.index] = max(0.0, 1.0 - (hits / rays) * 1.35)
+
+    # WARMTH. Real skin is not one colour: it reddens where it is thin over
+    # bone and where the circulation is closest to the surface — knuckles,
+    # elbows, knees, the face — and cools over the big flat planes of the back
+    # and thigh. Baked into the same vertex colour as the occlusion, so it
+    # costs nothing extra and rides through every pose.
+    warm_at = []
+    for side in (1, -1):
+        j = SK.joints(side)
+        for k in ('elbow', 'knee', 'wrist', 'hand', 'ankle'):
+            if j.get(k):
+                warm_at.append((Vector(j[k]), 0.10))
+    warm_at.append((Vector((0, -0.06, SK.Z['head_c'] - 0.02)), 0.13))   # the face
+    warm = Vector((1.075, 0.945, 0.905))
+
+    col = me.color_attributes.get('ao') or me.color_attributes.new(
+        # BYTE, not FLOAT: an 8-bit occlusion term is indistinguishable by eye
+        # and costs a quarter of the bytes on a mesh this size
+        name='ao', type='BYTE_COLOR', domain='CORNER')
+    for loop in me.loops:
+        v = me.vertices[loop.vertex_index]
+        a = ao[loop.vertex_index]
+        # a floor, and a gentle curve: full black in an armpit is not what a
+        # body looks like, it is what a mistake looks like
+        a = 0.38 + 0.62 * (a ** 1.25)
+        t = 0.0
+        for p, r in warm_at:
+            t = max(t, max(0.0, 1.0 - (v.co - p).length / r))
+        t *= 0.55
+        col.data[loop.index].color = (
+            a * (1 + (warm.x - 1) * t),
+            a * (1 + (warm.y - 1) * t),
+            a * (1 + (warm.z - 1) * t), 1.0)
+    return sum(ao) / max(1, len(ao))
+
+
 def segment(ob, muscles, samples, kd):
     groups = {g: ob.vertex_groups.new(name=g) for g in GROUPS}
     per_muscle = {}
@@ -365,6 +451,33 @@ def segment(ob, muscles, samples, kd):
         gs = [g for g in gs if g]
         if gs:
             face_group[poly.index] = max(set(gs), key=gs.count)
+
+    # SMOOTH THE BORDERS. Nearest-volume is decided per face against a sampled
+    # field, so the boundary between two groups comes out ragged — single faces
+    # of one group stranded inside another, edges that zigzag along the
+    # topology. On the finished figure that reads as torn paper, which is the
+    # most obvious thing left saying "this is a diagram". A few passes of
+    # majority vote over each face's neighbours pulls the borders onto the
+    # smooth curves anatomy actually has, without moving any of them far.
+    nbr = {}
+    edge_faces = {}
+    for poly in ob.data.polygons:
+        for ek in poly.edge_keys:
+            edge_faces.setdefault(ek, []).append(poly.index)
+    for fs in edge_faces.values():
+        for a in fs:
+            for b in fs:
+                if a != b:
+                    nbr.setdefault(a, []).append(b)
+    for _ in range(4):
+        nxt = {}
+        for fi, g in face_group.items():
+            votes = [g, g]                       # a face keeps its own opinion twice
+            for n in nbr.get(fi, ()):
+                if n in face_group:
+                    votes.append(face_group[n])
+            nxt[fi] = max(set(votes), key=votes.count)
+        face_group = nxt
     for g, idx in by_group.items():
         if idx:
             groups[g].add(idx, 1.0, 'REPLACE')
@@ -517,6 +630,7 @@ def main():
     moved = physique(body, muscles, samples, kd, strength) if strength > 0 else 0
     cut = relief(body, muscles, samples, kd, relief_amount)
     counts, vert_group = segment(body, muscles, samples, kd)
+    mean_ao = bake_occlusion(body)
     if '--norig' not in argv:
         build_rig(body, vert_group)
 
@@ -529,9 +643,10 @@ def main():
     # no textures anywhere in this model — the app tints the per-group
     # materials directly — so the UV channel is 8 bytes a vertex of nothing
     bpy.ops.export_scene.gltf(filepath=glb, export_format='GLB', use_selection=True,
-                              export_apply=False, export_texcoords=False)
+                              export_apply=False, export_texcoords=False,
+                              export_vertex_color='ACTIVE')
     print(f'BUILT verts={len(body.data.vertices)} moved={moved} relief={cut} '
-          f'groups={len(counts)} glb={os.path.getsize(glb) / 1024:.0f}KB')
+          f'groups={len(counts)} ao={mean_ao:.3f} glb={os.path.getsize(glb) / 1024:.0f}KB')
     for g in sorted(counts, key=lambda k: -counts[k]):
         print(f'   {g:14s} {counts[g]:5d}')
 

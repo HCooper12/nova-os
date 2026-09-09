@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { poseAt, PATTERNS, equipmentFor, patternFor } from './exercise3d.js';
 import * as GYM from './gym3d.js';
 import { css } from './css.js';
@@ -26,8 +27,14 @@ const MODEL_URL = `${import.meta.env.BASE_URL}models/body.glb`;
 
 const PRIMARY = new THREE.Color(0xff7ad9);   // --nv-mg
 const SECONDARY = new THREE.Color(0x59e6ff); // --nv-cy
-const RESTING = new THREE.Color(0x8d94ac);   // muscle at rest — a body, not a diagram
-const FRAME = new THREE.Color(0xa9a2b8);
+// SKIN, not a swatch. A body rendered in flat lavender reads as a diagram of a
+// person; the point of this figure is that it IS a person, doing the lift. The
+// resting surface is a real mid skin tone under image-based light, and a lit
+// muscle is that skin pushed toward the highlight rather than replaced by it —
+// so the anatomy still reads and the body still looks like a body.
+const SKIN = new THREE.Color(0xb98a6d);
+const SKIN_DEEP = new THREE.Color(0x8f6047);  // frame: bone and joint, a shade under
+const SUBSURFACE = new THREE.Color(0xd8674a); // the red that light takes coming back out
 
 let cached = null;   // the parsed GLB, shared across every card that opens
 
@@ -54,9 +61,9 @@ const RIG = {
   'barbell-back': () => ({ obj: GYM.barbell(), hold: 'traps' }),
   'barbell-front': () => ({ obj: GYM.barbell(), hold: 'front-rack' }),
   'barbell-hands': () => ({ obj: GYM.barbell(), hold: 'hands' }),
-  'barbell-floor': () => ({ obj: GYM.barbell(), hold: 'hands' }),
+  'barbell-floor': () => ({ obj: GYM.barbell(), hold: 'hands', floorRests: true }),
   'barbell-ez': () => ({ obj: GYM.ezBar(), hold: 'hands' }),
-  'trap-bar': () => ({ obj: GYM.trapBar(), hold: 'hands' }),
+  'trap-bar': () => ({ obj: GYM.trapBar(), hold: 'hands', floorRests: true }),
   'smith-bar': () => ({ obj: GYM.barbell(1.5), hold: 'hands', extraProp: GYM.smithRack() }),
   dumbbells: () => ({ obj: null, perHand: GYM.dumbbell }),
   'dumbbell-single': () => ({ obj: null, perHand: GYM.dumbbell, single: true }),
@@ -87,7 +94,9 @@ const RIG = {
   'machine-legext': () => ({ obj: GYM.legExtension(), prop: true }),
   'machine-legpress': () => {
     const m = GYM.legPress();
-    m.position.set(0, 0, 0.30);     // the seat under him, the sled at his feet
+    // the machine is placed against the BODY, not the other way round: the
+    // seat under his hips, the sled where his feet actually end up
+    m.position.set(0, 0.10, -0.34);
     return { obj: m, prop: true };
   },
   none: () => ({ obj: null }),
@@ -453,6 +462,13 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(width, height);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    // ACES, not linear: three lamps and a linear response is what makes a
+    // real-time figure look like plastic. A film response curve rolls the
+    // highlights off the way skin actually behaves.
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     el.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -465,13 +481,45 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
     controls.maxDistance = 6;
     controls.enableDamping = true;
 
-    scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x0b0d16, 1.25));
-    const key = new THREE.DirectionalLight(0xffffff, 1.5);
-    key.position.set(2.4, 3.2, 2.6);
+    // IMAGE-BASED LIGHT. The single biggest step from "3D model" to
+    // "photograph of a person": every point on the skin gathers light from a
+    // whole room instead of from three lamps, so the shoulders, the ribs and
+    // the inside of an arm are all lit differently and correctly. Generated,
+    // not downloaded — no asset to ship and nothing to go stale.
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const envRT = pmrem.fromScene(new RoomEnvironment(), 0.04);
+    scene.environment = envRT.texture;
+    scene.environmentIntensity = 0.62;
+
+    const key = new THREE.DirectionalLight(0xfff2e2, 2.3);
+    key.position.set(2.4, 3.4, 2.2);
+    key.castShadow = true;
+    key.shadow.mapSize.set(1024, 1024);
+    key.shadow.camera.near = 0.5;
+    key.shadow.camera.far = 12;
+    key.shadow.camera.left = -1.6;
+    key.shadow.camera.right = 1.6;
+    key.shadow.camera.top = 2.6;
+    key.shadow.camera.bottom = -0.6;
+    key.shadow.bias = -0.0012;
+    key.shadow.normalBias = 0.018;
     scene.add(key);
-    const rim = new THREE.DirectionalLight(0x8fd8ff, 0.7);
-    rim.position.set(-2.2, 1.8, -2.4);
+    const fill = new THREE.DirectionalLight(0xbcd4ff, 0.45);
+    fill.position.set(-2.6, 1.4, 1.8);
+    scene.add(fill);
+    const rim = new THREE.DirectionalLight(0x9fdcff, 1.15);
+    rim.position.set(-1.6, 2.2, -2.8);
     scene.add(rim);
+
+    // A body with no shadow floats. This plane shows nothing but the shadow
+    // that lands on it, so the card's own background still shows through.
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(6, 6),
+      new THREE.ShadowMaterial({ opacity: 0.34 }),
+    );
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
 
     const primary = new Set(muscles?.primary || []);
     const secondary = new Set(muscles?.secondary || []);
@@ -489,16 +537,56 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
       root.traverse((o) => {
         if (!o.isMesh) return;
         o.frustumCulled = false;
+        o.castShadow = true;
+        o.receiveShadow = true;
         const wasArray = Array.isArray(o.material);
         const mats = wasArray ? o.material : [o.material];
         const tinted = mats.map((m) => {
-          const mat = m.clone();
           const group = (m.name || '').replace(/^mus_/, '');
           const lit = primary.has(group) ? PRIMARY : secondary.has(group) ? SECONDARY : null;
-          mat.color = (lit || (group === 'frame' ? FRAME : RESTING)).clone();
-          mat.roughness = 0.62;
-          mat.metalness = 0.0;
-          if (lit) mat.emissive = lit.clone().multiplyScalar(0.22);
+          // SKIN, physically. Sheen is the peach-fuzz rim you see on a real
+          // arm against a light; the low specular and high-ish roughness stop
+          // it reading as wet plastic; the faint red emissive stands in for
+          // subsurface scatter, which is what makes skin look alive and is far
+          // too expensive to compute per pixel on a phone.
+          const mat = new THREE.MeshPhysicalMaterial({
+            // Ambient occlusion is baked into the mesh as a vertex colour, and
+            // vertexColors multiplies it into the base — so the creases, the
+            // armpit, the line under the pec all darken the way they do on a
+            // real body, with no texture to ship.
+            vertexColors: true,
+            color: (group === 'frame' ? SKIN_DEEP : SKIN).clone(),
+            roughness: 0.58,
+            metalness: 0.0,
+            sheen: 0.5,
+            sheenRoughness: 0.75,
+            sheenColor: new THREE.Color(0xffd9c4),
+            specularIntensity: 0.32,
+            envMapIntensity: 0.95,
+            emissive: SUBSURFACE.clone(),
+            emissiveIntensity: 0.055,
+          });
+          mat.name = m.name;
+          if (lit) {
+            // A lit muscle is skin TINTED, not skin replaced. Emissive is
+            // unlit by definition, so leaning on it flattened the highlight
+            // into a pastel sticker with no form at all — the shoulder and the
+            // rib underneath it came out the same flat pink. Most of the
+            // highlight now rides on sheen, which is view-dependent and so
+            // keeps the shading, with just enough emissive to lift it.
+            // The base takes a DEEPER version of the highlight — the token
+            // colours are already light, so tinting light skin with them gave
+            // a pastel sticker with no shading. The brightness rides on sheen,
+            // which is view-dependent and so still shows the form underneath.
+            mat.color.lerp(lit.clone().multiplyScalar(0.52), 0.88);
+            mat.emissive = lit.clone();
+            mat.emissiveIntensity = 0.10;
+            mat.sheen = 0.95;
+            mat.sheenColor = lit.clone();
+            mat.sheenRoughness = 0.38;
+            mat.roughness = 0.44;
+            mat.envMapIntensity = 0.62;
+          }
           return mat;
         });
         // Keep the SHAPE of material: each mesh here carries exactly one, and
@@ -524,10 +612,10 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
       const BENCH_TOP = 0.49;      // pad height, matching bench()
       if (stance === 'supine') {
         root.rotation.x = -Math.PI / 2;      // on his back, head toward -Z
-        root.position.set(0, BENCH_TOP, 0.42);
+        root.position.set(0, BENCH_TOP, 0.30);
       } else if (stance === 'incline30') {
         root.rotation.x = -Math.PI / 2 + THREE.MathUtils.degToRad(30);
-        root.position.set(0, BENCH_TOP + 0.10, 0.30);
+        root.position.set(0, BENCH_TOP + 0.10, 0.20);
       } else if (stance === 'prone') {
         root.rotation.x = Math.PI / 2;
         root.position.set(0, BENCH_TOP, -0.42);
@@ -567,6 +655,22 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
       // and read the A-pose abduction off an arm already holding a barbell —
       // every arm in every lift was then rotated from a fiction.
       const restAbduct = { L: restAbduction(bones, 'L', root), R: restAbduction(bones, 'R', root) };
+      // Where a bar RIDES the body — across the traps, or racked on the front
+      // delts. Anchored in the chest bone's own space, worked out once from the
+      // rest pose, so the bar follows the torso through the lift instead of
+      // hanging at a fixed world height while the man squats away beneath it.
+      const anchor = {};
+      if (bones.chest) {
+        // measured off the body, not written as coordinates: a front rack is
+        // "in front of the collarbones", and hardcoding +Z for that put the bar
+        // behind his head
+        const c = bones.chest.getWorldPosition(new THREE.Vector3());
+        anchor.traps = bones.chest.worldToLocal(
+          c.clone().addScaledVector(axes.Y, 0.190).addScaledVector(fwd, -0.055));
+        anchor['front-rack'] = bones.chest.worldToLocal(
+          c.clone().addScaledVector(axes.Y, 0.140).addScaledVector(fwd, 0.105));
+      }
+
       const baseTransform = {
         pos: root.position.clone(), quat: root.quaternion.clone(), floor: 0,
         pitch: { L: footPitch(bones, 'L', fwd), R: footPitch(bones, 'R', fwd) },
@@ -614,7 +718,19 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
             else if (spec.hangY != null) hangFrom(root, bones, spec.hangY);
           }
           box.union(new THREE.Box3().setFromObject(root));
+          // ...and what the hands are holding. Framed on the body alone, an
+          // overhead press pushed its bar clean out of the top of the picture
+          // at exactly the moment the lift is about.
+          for (const side of ['L', 'R']) {
+            const h = bones[`hand${side}`];
+            if (h) box.expandByPoint(h.getWorldPosition(new THREE.Vector3()));
+          }
+          if (bones.chest && anchor[spec.hold]) {
+            box.expandByPoint(bones.chest.localToWorld(anchor[spec.hold].clone()));
+          }
         }
+        // a held bar is nearly two metres of steel and a plate is 45 cm across
+        if (spec.obj && !spec.prop) box.expandByScalar(0.24);
         const c = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
         const radius = Math.max(size.x, size.y, size.z) * 0.62 + 0.35;
@@ -635,21 +751,6 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
       // pixels. Costs one array entry; makes every future check measurable.
       if (typeof window !== 'undefined' && window.__NOVA_MOTION) {
         window.__NOVA_MOTION.push({ root, bones, pat, frozen, contacts, fwd, base: baseTransform });
-      }
-      // Where a bar RIDES the body — across the traps, or racked on the front
-      // delts. Anchored in the chest bone's own space, worked out once from the
-      // rest pose, so the bar follows the torso through the lift instead of
-      // hanging at a fixed world height while the man squats away beneath it.
-      const anchor = {};
-      if (bones.chest) {
-        // measured off the body, not written as coordinates: a front rack is
-        // "in front of the collarbones", and hardcoding +Z for that put the bar
-        // behind his head
-        const c = bones.chest.getWorldPosition(new THREE.Vector3());
-        anchor.traps = bones.chest.worldToLocal(
-          c.clone().addScaledVector(axes.Y, 0.190).addScaledVector(fwd, -0.055));
-        anchor['front-rack'] = bones.chest.worldToLocal(
-          c.clone().addScaledVector(axes.Y, 0.140).addScaledVector(fwd, 0.105));
       }
       const clock = new THREE.Clock();
       const period = 3.4;   // one controlled rep
@@ -684,6 +785,10 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
               obj.position.copy(a).add(b2).multiplyScalar(0.5);
               const ride = anchor[spec.hold];
               if (ride && bones.chest) obj.position.copy(bones.chest.localToWorld(ride.clone()));
+              // A loaded bar rests on its plates: it cannot go below their
+              // radius, and at the bottom of a deadlift it should be sitting
+              // on the floor rather than sunk into it.
+              if (spec.floorRests) obj.position.y = Math.max(obj.position.y, 0.225);
               obj.quaternion.identity();
             }
           }
@@ -703,7 +808,12 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
       };
       setState('ready');
       tick();
-    }).catch(() => setState('error'));
+    }).catch((err) => {
+      // This used to swallow the reason, so a plain ReferenceError in the
+      // setup showed up as an empty panel with a clean console.
+      console.error('[Body3D] could not build the figure', err);
+      setState('error');
+    });
 
     // The sheet animates in, so clientWidth at mount was 46px and the canvas
     // rendered as a 92px stamp. Watch the element instead of trusting one read.
@@ -726,6 +836,8 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
       window.removeEventListener('resize', onResize);
       if (ro) ro.disconnect();
       controls.dispose();
+      pmrem.dispose();
+      envRT.dispose();
       renderer.dispose();
       // dispose() frees three.js's own objects but NOT the WebGL context, and a
       // browser keeps only about sixteen. Every opened-and-closed exercise
