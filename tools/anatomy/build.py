@@ -527,8 +527,11 @@ GROUP_BONES = {
     'rear-delts': ['deltoidL', 'deltoidR', 'upperarmL', 'upperarmR', 'clavicleL', 'clavicleR'],
     'biceps': ['upperarmL', 'upperarmR', 'forearmL', 'forearmR'],
     'triceps': ['upperarmL', 'upperarmR', 'forearmL', 'forearmR'],
-    'forearms': ['forearmL', 'forearmR', 'handL', 'handR', 'fingersL', 'fingersR',
-                 'fingertipL', 'fingertipR', 'upperarmL', 'upperarmR'],
+    # the digits are generated, so the list is too — a hand vertex may be moved
+    # by the forearm, the hand, or any bone of any finger
+    'forearms': (['forearmL', 'forearmR', 'handL', 'handR', 'upperarmL', 'upperarmR']
+                 + [f'{d}{k}{t}' for t in 'LR' for d in SK.DIGITS
+                    for k in (1, 2, 3)]),
     'glutes': ['pelvis', 'thighL', 'thighR'],
     'quads': ['thighL', 'thighR', 'pelvis', 'shinL', 'shinR'],
     'hamstrings': ['thighL', 'thighR', 'pelvis', 'shinL', 'shinR'],

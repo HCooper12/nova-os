@@ -6,6 +6,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { poseAt, PATTERNS, equipmentFor, patternFor, gripFor } from './exercise3d.js';
 import * as GYM from './gym3d.js';
+import * as JOINT from './rig3d.js';
 import { css } from './css.js';
 
 // THE FIGURE — a real body, performing the lift, with the muscles it trains lit.
@@ -117,51 +118,6 @@ function cableRig(anchorY, attachment, z) {
 // Rotate a bone by `deg` about a WORLD axis, on top of its rest pose. Doing it
 // in world terms means the data can say "the hip flexes 100°" and mean it,
 // whatever direction the bone happens to point in its rest orientation.
-function rotate(bone, rest, axis, deg) {
-  if (!bone || !rest) return;
-  // ZERO IS A POSE, NOT AN ABSENCE. This used to return early on deg === 0 and
-  // leave the bone wherever it happened to be — so any joint passing through
-  // neutral kept the last angle it was given, and the figure drifted a little
-  // further from anatomy every frame. At the top of a squat the thigh still
-  // held the bottom's 100° of flexion, which is why a standing lockout
-  // rendered as a man reclining with his knees above his hips.
-  if (!deg) {
-    bone.quaternion.copy(rest);
-    bone.updateMatrixWorld(true);
-    return;
-  }
-  const parentQ = new THREE.Quaternion();
-  if (bone.parent) bone.parent.getWorldQuaternion(parentQ);
-  const local = axis.clone().applyQuaternion(parentQ.clone().invert()).normalize();
-  const delta = new THREE.Quaternion().setFromAxisAngle(local, THREE.MathUtils.degToRad(deg));
-  bone.quaternion.copy(delta).multiply(rest);
-  bone.updateMatrixWorld(true);
-}
-
-// THE BODY'S OWN AXES, not the world's.
-//
-// Every joint angle here is anatomical — "the hip flexes 85°" — and flexion
-// happens in the body's sagittal plane. Rotating about the WORLD x axis is the
-// same thing only while the body is standing up. Lay it on a bench and the
-// world axes no longer mean anything anatomical: a bench press folded its legs
-// the wrong way, shins pointing at the ceiling, because +85° of knee flexion
-// was applied about an axis that no longer ran through the body's hips.
-//
-// So the axes are taken from the root's own orientation in the stance the lift
-// is performed in, and every rotation below is expressed in them.
-const AXES_WORLD = {
-  X: new THREE.Vector3(1, 0, 0), Y: new THREE.Vector3(0, 1, 0), Z: new THREE.Vector3(0, 0, 1),
-};
-
-function bodyAxes(root) {
-  const q = root.getWorldQuaternion(new THREE.Quaternion());
-  return {
-    X: new THREE.Vector3(1, 0, 0).applyQuaternion(q).normalize(),   // flexion
-    Y: new THREE.Vector3(0, 1, 0).applyQuaternion(q).normalize(),   // twist
-    Z: new THREE.Vector3(0, 0, 1).applyQuaternion(q).normalize(),   // abduction
-  };
-}
-
 // The base mesh stands in an A-pose: each arm is already ~40° abducted. Pose
 // data is written in ANATOMICAL terms (0° = the arm hanging at the side), so
 // the rest abduction has to be subtracted or every overhead lift sweeps the
@@ -179,106 +135,78 @@ function restAbduction(bones, side, root = null) {
   return THREE.MathUtils.radToDeg(Math.atan2(Math.abs(v.x), Math.abs(v.y)));
 }
 
-// Rotate a bone about its OWN long axis. Pronation and supination are not
-// rotations in the body's sagittal or frontal plane — the radius rolls over
-// the ulna, along the forearm — so they cannot be expressed in the anatomical
-// axes the other joints use.
-function twist(bone, rest, deg) {
-  if (!bone || !rest) return;
-  bone.quaternion.copy(rest);
-  if (deg) {
-    bone.quaternion.multiply(
-      new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(deg)));
-  }
-  bone.updateMatrixWorld(true);
-}
-
-function applyPose(bones, rest, pose, restAbduct = { L: 0, R: 0 }, axes = null) {
+/* THE POSE, JOINT BY JOINT.
+ *
+ * Every rotation below goes through `src/rig3d.js`, which means two things it
+ * did not mean before: each joint turns about an axis belonging to the BONE
+ * ABOVE IT rather than to the room, and each is bounded by the range a real
+ * one has. An elbow is a hinge whose axis runs through the humerus from one
+ * epicondyle to the other and travels with the arm; rotating the forearm about
+ * the body's lateral axis instead swung it through a plane the elbow does not
+ * have, which is what "bent like spaghetti" looks like.
+ */
+function applyPose(bones, rest, frames, pose, restAbduct = { L: 0, R: 0 }) {
   if (!pose) return;
-  const X = (axes || AXES_WORLD).X;
-  const Z = (axes || AXES_WORLD).Z;
-  const set = (name, axis, deg) => rotate(bones[name], rest[name], axis, deg);
-  // trunk, root down — a child's world axis is only right once its parent is posed
-  set('pelvis', X, (pose.hipTilt || 0));
-  set('spine', X, -(pose.spine || 0));
-  set('chest', X, -(pose.chest || 0));
-  set('neck', X, -(pose.neck || 0));
+  const F = (n) => frames[n];
+  // TWO SIGN CONVENTIONS MEET HERE, and mixing them silently cost a rebuild.
+  // The DATA says what the body does — "the elbow flexes 95°", "the hip flexes
+  // 100°" (written negative, historically) — while the RENDERER needs which
+  // way to turn a bone. The range of motion belongs to the first: clamped
+  // against the rotation instead, 95° of elbow flexion came out as 5° and
+  // every arm in the app hung dead straight.
+  const j = (name, axis, anat, rom, dir = -1) =>
+    JOINT.hinge(bones[name], rest[name], F(name), axis, dir * JOINT.clampTo(anat, rom), null);
+
+  // TRUNK, root down — a child's frame is only meaningful once its parent is posed
+  j('pelvis', 'lateral', pose.hipTilt || 0, JOINT.ROM.spine, 1);
+  j('spine', 'lateral', pose.spine || 0, JOINT.ROM.spine);
+  JOINT.roll(bones.spine, pose.spineTwist || 0, JOINT.ROM.spineTwist);
+  j('chest', 'lateral', pose.chest || 0, JOINT.ROM.chest);
+  j('neck', 'lateral', pose.neck || 0, JOINT.ROM.neck);
+  JOINT.roll(bones.neck, pose.neckTurn || 0, JOINT.ROM.neckTurn);
+
   for (const side of ['L', 'R']) {
     const s = side === 'L' ? 1 : -1;
-    // shoulder: flexion about X, abduction about Z (mirrored)
-    const sh = bones[`upperarm${side}`];
-    if (sh) {
-      const parentQ = new THREE.Quaternion();
-      sh.parent.getWorldQuaternion(parentQ);
-      const inv = parentQ.clone().invert();
-      const q = new THREE.Quaternion();
-      if (pose.shoulder) {
-        q.multiply(new THREE.Quaternion().setFromAxisAngle(X.clone().applyQuaternion(inv).normalize(),
-          THREE.MathUtils.degToRad(-pose.shoulder)));
-      }
-      // always rotate FROM the rest abduction to the angle asked for
-      const abd = (pose.shoulderAbduct != null ? pose.shoulderAbduct : 0) - restAbduct[side];
-      if (abd) {
-        q.multiply(new THREE.Quaternion().setFromAxisAngle(Z.clone().applyQuaternion(inv).normalize(),
-          THREE.MathUtils.degToRad(s * abd)));
-      }
-      sh.quaternion.copy(q).multiply(rest[`upperarm${side}`]);
-      sh.updateMatrixWorld(true);
-      // the deltoid helper takes half the rotation — the cap follows the arm,
-      // the chest and trap stay where they belong
-      const dl = bones[`deltoid${side}`];
-      if (dl) {
-        const pq = new THREE.Quaternion();
-        dl.parent.getWorldQuaternion(pq);
-        const iv = pq.clone().invert();
-        const h = new THREE.Quaternion();
-        if (pose.shoulder) {
-          h.multiply(new THREE.Quaternion().setFromAxisAngle(X.clone().applyQuaternion(iv).normalize(),
-            THREE.MathUtils.degToRad(-pose.shoulder * 0.5)));
-        }
-        const abdH = ((pose.shoulderAbduct != null ? pose.shoulderAbduct : 0) - restAbduct[side]) * 0.5;
-        if (abdH) {
-          h.multiply(new THREE.Quaternion().setFromAxisAngle(Z.clone().applyQuaternion(iv).normalize(),
-            THREE.MathUtils.degToRad(s * abdH)));
-        }
-        dl.quaternion.copy(h).multiply(rest[`deltoid${side}`]);
-        dl.updateMatrixWorld(true);
-      }
-    }
-    set(`forearm${side}`, X, -(pose.elbow || 0));
-    // THE HAND. A wrist that never moves and fingers frozen in their A-pose
-    // splay is what made him say the figure "did not actually seem to be
-    // naturally and realistically gripping the bar". Three things move here:
-    // the forearm rolls (pronation — palms down for a press, up for a curl),
-    // the wrist flexes, and the fingers close.
-    // Pronation is progressive along a real forearm — the radius crosses the
-    // ulna over its whole length. With one forearm bone, all of it at the
-    // elbow corkscrews the mesh, so it is split with the wrist.
-    const roll = (b, deg) => {
-      const f = bones[b];
-      if (!f || !deg) return;
-      f.quaternion.multiply(new THREE.Quaternion()
-        .setFromAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(deg)));
-      f.updateMatrixWorld(true);
-    };
-    roll(`forearm${side}`, s * (pose.forearmTwist || 0) * 0.45);
-    set(`hand${side}`, X, -(pose.wrist || 0));
-    roll(`hand${side}`, s * (pose.forearmTwist || 0) * 0.55);
-    // Both finger joints, so the hand WRAPS rather than droops: the proximal
-    // sweep brings the fingers down onto the bar, the second brings the tips
-    // back up the far side of it.
-    rotate(bones[`fingers${side}`], rest[`fingers${side}`], X, -(pose.grip || 0) * 62);
-    rotate(bones[`fingertip${side}`], rest[`fingertip${side}`], X, -(pose.grip || 0) * 70);
+    const abd = (pose.shoulderAbduct != null ? pose.shoulderAbduct : 0) - restAbduct[side];
+
+    // SHOULDER — a ball joint, composed the way a clinician measures it:
+    // flexion, then abduction, then rotation about the arm itself.
+    const spec = [
+      ['lateral', -JOINT.clampTo(pose.shoulder || 0, JOINT.ROM.shoulder), null],
+      ['anterior', s * abd, null],
+      ['long', s * JOINT.clampTo(pose.shoulderRotate || 0, JOINT.ROM.shoulderRotate), null],
+    ];
+    JOINT.ball(bones[`upperarm${side}`], rest[`upperarm${side}`], F(`upperarm${side}`), spec);
+    // the deltoid helper takes half the rotation — the cap follows the arm,
+    // the chest and trap stay where they belong
+    JOINT.ball(bones[`deltoid${side}`], rest[`deltoid${side}`], F(`deltoid${side}`),
+      spec.map(([ax, d, r]) => [ax, d * 0.5, r]));
+
+    // ELBOW — a hinge on the humerus, and the reason rig3d.js exists
+    j(`forearm${side}`, 'lateral', pose.elbow || 0, JOINT.ROM.elbow);
+    // pronation is progressive along a real forearm; all of it at the elbow
+    // corkscrews the mesh, so it is split with the wrist
+    JOINT.roll(bones[`forearm${side}`], s * (pose.forearmTwist || 0) * 0.45, JOINT.ROM.forearmTwist);
+    j(`hand${side}`, 'lateral', pose.wrist || 0, JOINT.ROM.wrist);
+    JOINT.roll(bones[`hand${side}`], s * (pose.forearmTwist || 0) * 0.55, JOINT.ROM.forearmTwist);
+    JOINT.closeHand(bones, rest, frames, side, pose.grip, pose.gripSpread);
+
+    // HIP — a ball joint like the shoulder. The data writes flexion NEGATIVE
+    // here, so the range is read against its opposite.
     const back = side === 'R' && pose.hipBack != null;
-    // About WORLD +X, a point below the joint swings POSTERIOR — which is knee
-    // flexion and hip EXTENSION. So the hip takes the angle as written
-    // (flexion is negative) and the knee takes it positive. Getting this
-    // backwards bent the knee the wrong way, which is exactly the class of
-    // error that made the old figure wrong.
-    set(`thigh${side}`, X, back ? (pose.hipBack || 0) : (pose.hip || 0));
-    set(`shin${side}`, X, back ? (pose.kneeBack || 0) : (pose.knee || 0));
-    set(`foot${side}`, X, (pose.ankle || 0));
-    // same rule for the shrug: absent means back to rest, not "leave it"
+    const hipFlex = -(back ? (pose.hipBack || 0) : (pose.hip || 0));
+    JOINT.ball(bones[`thigh${side}`], rest[`thigh${side}`], F(`thigh${side}`), [
+      ['lateral', -JOINT.clampTo(hipFlex, JOINT.ROM.hip), null],
+      ['anterior', s * JOINT.clampTo(pose.hipAbduct || 0, JOINT.ROM.hipAbduct), null],
+      ['long', s * JOINT.clampTo(pose.hipRotate || 0, JOINT.ROM.hipRotate), null],
+    ]);
+    // KNEE and ANKLE — hinges on the bone above, so they bend in the leg's
+    // own plane however the leg is turned
+    j(`shin${side}`, 'lateral', back ? (pose.kneeBack || 0) : (pose.knee || 0), JOINT.ROM.knee, 1);
+    j(`foot${side}`, 'lateral', pose.ankle || 0, JOINT.ROM.ankle, 1);
+
+    // the shrug is a translation, not a rotation — and absent means back to
+    // rest, not "leave it"
     const c = bones[`clavicle${side}`];
     if (c && rest[`clavicle${side}_pos`]) {
       c.position.y = rest[`clavicle${side}_pos`].y + 0.035 * (pose.shoulderShrug || 0);
@@ -287,9 +215,6 @@ function applyPose(bones, rest, pose, restAbduct = { L: 0, R: 0 }, axes = null) 
   }
 }
 
-// `phase` freezes the rep at one point of its cycle instead of animating, and
-// `view` picks the camera. Both exist for tools/motion/harness.html — the
-// standing motion check runs THIS component, so what it passes is what ships.
 /* ------------------------------ standing on -------------------------------
  * A STANDING LIFT IS A CLOSED CHAIN. The rig is rooted at the pelvis, so
  * posing the hip and knee folds the legs while the pelvis stays exactly where
@@ -680,7 +605,9 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
       // was being seated on an invisible bench half a metre up.
       const onFurniture = /bench|machine|thrust/.test(equipmentFor(name, pat) || '');
       const pad = PAD[stance] ? padContact(bones, stance, onFurniture) : null;
-      const axes = bodyAxes(root);
+      // measured with the skeleton untouched, so a hinge can turn about an
+      // axis that belongs to its limb rather than to the room
+      const frames = JOINT.restFrames(bones, root);
       const contacts = restContacts(bones);
       const fwd = (() => {
         // Which way the toes point, measured off the rig rather than assumed:
@@ -707,25 +634,27 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
       // at the hand BONE passes behind the fingers, which is what it had been
       // doing.
       const gripPoint = (sideTag) => {
-        const h = bones[`hand${sideTag}`]; const f = bones[`fingers${sideTag}`];
+        const h = bones[`hand${sideTag}`];
         if (!h) return null;
         const a = h.getWorldPosition(new THREE.Vector3());
-        if (!f) return a;
-        // mid-palm, not the fingertips: a bar sits across the heel of the
-        // hand and the fingers close over it, so 85% of the way to the
-        // knuckles put it out at the ends of his fingers
-        return a.lerp(f.getWorldPosition(new THREE.Vector3()), 0.5);
+        // the middle finger's knuckle IS the grip: a bar crosses the palm
+        // there, and the fingers close over it from that line
+        const k = bones[`middle1${sideTag}`] || bones[`index1${sideTag}`];
+        if (!k) return a;
+        return a.lerp(k.getWorldPosition(new THREE.Vector3()), 0.92);
       };
       const anchor = {};
+      const bodyUp = new THREE.Vector3(0, 1, 0)
+        .applyQuaternion(root.getWorldQuaternion(new THREE.Quaternion())).normalize();
       if (bones.chest) {
         // measured off the body, not written as coordinates: a front rack is
         // "in front of the collarbones", and hardcoding +Z for that put the bar
         // behind his head
         const c = bones.chest.getWorldPosition(new THREE.Vector3());
         anchor.traps = bones.chest.worldToLocal(
-          c.clone().addScaledVector(axes.Y, 0.190).addScaledVector(fwd, -0.055));
+          c.clone().addScaledVector(bodyUp, 0.190).addScaledVector(fwd, -0.055));
         anchor['front-rack'] = bones.chest.worldToLocal(
-          c.clone().addScaledVector(axes.Y, 0.140).addScaledVector(fwd, 0.105));
+          c.clone().addScaledVector(bodyUp, 0.140).addScaledVector(fwd, 0.105));
       }
 
       const baseTransform = {
@@ -735,7 +664,7 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
 
       // equipment
       const eq = equipmentFor(name, pat);
-      const spec = (RIG[eq] || RIG.none)();
+      const spec = (RIG[eq] || JOINT.none)();
       const hand = pat ? gripFor(pat, eq) : { grip: 0.18, forearmTwist: 0, wrist: 0 };
       const held = [];
       if (spec.obj) {
@@ -770,7 +699,7 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
           root.updateMatrixWorld(true);
           if (pat) {
             const po = Object.assign(poseAt(pat, ph), hand);
-            applyPose(bones, rest, po, restAbduct, axes);
+            applyPose(bones, rest, frames, po, restAbduct);
             if (GROUNDED) settle(root, bones, po, contacts, fwd, baseTransform);
             else if (pad) rest_on(root, bones, pad);
             else if (spec.hangAt) hangFrom(root, bones, spec.hangAt);
@@ -830,7 +759,7 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
           root.position.copy(baseTransform.pos);
           root.quaternion.copy(baseTransform.quat);
           root.updateMatrixWorld(true);
-          applyPose(bones, rest, pose, restAbduct, axes);
+          applyPose(bones, rest, frames, pose, restAbduct);
           if (GROUNDED) settle(root, bones, pose, contacts, fwd, baseTransform);
           else if (pad) rest_on(root, bones, pad);
           else if (spec.hangAt) hangFrom(root, bones, spec.hangAt);

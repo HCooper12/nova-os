@@ -157,6 +157,119 @@ def hand_landmarks(verts, elbow, wrist_guess, side):
     }
 
 
+def digit_landmarks(verts, wrist, knuckles, tip, side):
+    """Five digits, found in the mesh: base, and two joints along each.
+
+    A hand that closes as one mitten is convincing on a barbell and nowhere
+    else — a rope, an open palm, a hook grip and a thumbless grip all come out
+    the same shape. So the fingers are found rather than assumed: take the
+    hand's points, build a frame from them, and read the digits off as the
+    clusters they form across the palm.
+    """
+    h = (tip - wrist)
+    if h.length < 0.02:
+        return None
+    span = h.length
+    h.normalize()
+    pts = []
+    for v in verts:
+        d = v.co - wrist
+        t = d.dot(h)
+        if t < -0.01 or t > span * 1.30:
+            continue
+        if (d - h * t).length < 0.115:
+            pts.append((t, v.co.copy()))
+    if len(pts) < 80:
+        return None
+
+    # the hand's own frame: `spread` is the widest direction across the palm,
+    # `norm` is through it. Taken from the points, not assumed, because the
+    # hand is at whatever angle the A-pose left it.
+    mid = Vector((0, 0, 0))
+    for _t, p in pts:
+        mid += p
+    mid /= len(pts)
+    perp = []
+    for _t, p in pts:
+        d = p - mid
+        perp.append(d - h * d.dot(h))
+    # principal direction of the perpendicular spread, by power iteration
+    spread = Vector((0, 0, 1)) - h * h.dot(Vector((0, 0, 1)))
+    if spread.length < 1e-6:
+        spread = Vector((1, 0, 0)) - h * h.dot(Vector((1, 0, 0)))
+    spread.normalize()
+    for _ in range(24):
+        acc = Vector((0, 0, 0))
+        for d in perp:
+            acc += d * d.dot(spread)
+        if acc.length < 1e-9:
+            break
+        acc.normalize()
+        spread = acc - h * acc.dot(h)
+        if spread.length < 1e-9:
+            break
+        spread.normalize()
+
+    t_k = (knuckles - wrist).dot(h)
+    distal = [(p, (p - wrist).dot(spread)) for t, p in pts if t > t_k * 0.94]
+    if len(distal) < 40:
+        return None
+    us = sorted(u for _p, u in distal)
+    lo, hi = us[0], us[-1]
+    # five lanes across the hand; the digit that is shortest and set furthest
+    # back along the hand is the thumb
+    lanes = [[] for _ in range(5)]
+    for p, u in distal:
+        k = min(4, max(0, int((u - lo) / max(1e-6, (hi - lo)) * 5)))
+        lanes[k].append(p)
+    out = {}
+    order = ['a', 'b', 'c', 'd', 'e']
+    for k, lane in enumerate(lanes):
+        if len(lane) < 6:
+            continue
+        far = max(lane, key=lambda p: (p - wrist).dot(h))
+        near = min(lane, key=lambda p: (p - wrist).dot(h))
+        base = Vector((0, 0, 0))
+        n = 0
+        for p in lane:
+            if (p - wrist).dot(h) < (near - wrist).dot(h) + span * 0.12:
+                base += p
+                n += 1
+        base = base / n if n else near
+        out[order[k]] = {'base': [round(c, 5) for c in base],
+                         'tip': [round(c, 5) for c in far],
+                         'len': round((far - base).length, 5)}
+    if len(out) < 4:
+        return None
+    # name them: the thumb is the shortest lane, the rest run across the hand
+    keys = [k for k in order if k in out]
+    thumb = min(keys, key=lambda k: out[k]['len'])
+    # ...and then found again properly. A thumb branches off the hand much
+    # further back than the fingers do, so the distal slice that isolates the
+    # four fingers catches only its very tip and gives it a length of 8 mm.
+    lo_t, hi_t = None, None
+    for u_lo, u_hi in [((lo + (hi - lo) * order.index(thumb) / 5),
+                        (lo + (hi - lo) * (order.index(thumb) + 1) / 5))]:
+        lo_t, hi_t = u_lo, u_hi
+    lane = [p for t, p in pts
+            if t > t_k * 0.45 and lo_t - 0.004 <= (p - wrist).dot(spread) <= hi_t + 0.004]
+    if len(lane) >= 6:
+        far = max(lane, key=lambda p: (p - wrist).dot(h))
+        near = min(lane, key=lambda p: (p - wrist).dot(h))
+        out[thumb] = {'base': [round(c, 5) for c in near],
+                      'tip': [round(c, 5) for c in far],
+                      'len': round((far - near).length, 5)}
+    rest_keys = [k for k in keys if k != thumb]
+    # index is the lane adjacent to the thumb
+    if order.index(thumb) > 2:
+        rest_keys = list(reversed(rest_keys))
+    names = ['index', 'middle', 'ring', 'little']
+    named = {'thumb': out[thumb]}
+    for i, k in enumerate(rest_keys[:4]):
+        named[names[i]] = out[k]
+    return named
+
+
 def main():
     argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
     out = argv[argv.index('--out') + 1] if '--out' in argv else 'tools/anatomy/joints.json'
@@ -265,6 +378,9 @@ def main():
                 j['knuckles'] = [round(c, 5) for c in kn]
                 j['fingertip'] = [round(c, 5) for c in tip]
                 j['hand'] = j['knuckles']
+                dig = digit_landmarks(verts, wr, kn, tip, side)
+                if dig:
+                    j['digits'] = dig
             j['arm_radius'] = [[round(p['z'], 4), round(p['r'], 5)] for p in arm]
         if leg:
             # The hip JOINT is inside the pelvis, not at the top of the visible

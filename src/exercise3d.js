@@ -60,8 +60,12 @@ export const PATTERNS = {
     equipment: 'bench-flat',
     lying: true,
     cue: 'Shoulder blades set, bar to the sternum, elbows ~60° from the torso.',
-    start: { shoulder: 78, elbow: 100, shoulderAbduct: 42, hip: -8, knee: 76, ankle: 0 },
-    end: { shoulder: 92, elbow: 6, shoulderAbduct: 26, hip: -8, knee: 76, ankle: 0 },
+    // At the BOTTOM the upper arm is out to the side and roughly horizontal,
+    // with the forearm vertical under the bar — that is what a bench press
+    // looks like. Written with the arm nearly overhead and the elbow folded,
+    // it read as an overhead triceps extension, which is what it was.
+    start: { shoulder: 60, shoulderAbduct: 62, elbow: 94, hip: -8, knee: 76, ankle: 0 },
+    end: { shoulder: 90, shoulderAbduct: 14, elbow: 4, hip: -8, knee: 76, ankle: 0 },
   },
   'press-incline': {
     label: 'Incline press — the same press on a 30° bench',
@@ -69,8 +73,8 @@ export const PATTERNS = {
     equipment: 'bench-incline',
     lying: true,
     cue: 'Bench at 30°, bar to the upper chest just below the collarbone.',
-    start: { shoulder: 74, elbow: 100, shoulderAbduct: 40, hip: -14, knee: 74, ankle: 0 },
-    end: { shoulder: 90, elbow: 6, shoulderAbduct: 24, hip: -14, knee: 74, ankle: 0 },
+    start: { shoulder: 56, shoulderAbduct: 58, elbow: 92, hip: -14, knee: 74, ankle: 0 },
+    end: { shoulder: 88, shoulderAbduct: 16, elbow: 4, hip: -14, knee: 74, ankle: 0 },
   },
   'press-overhead': {
     label: 'Overhead press — shoulder flexion to lockout',
@@ -139,8 +143,8 @@ export const PATTERNS = {
     equipment: 'bench-flat-db',
     lying: true,
     cue: 'A soft, fixed elbow angle; the arc is at the shoulder.',
-    start: { shoulder: 86, shoulderAbduct: 78, elbow: 22, hip: -8, knee: 76, ankle: 0 },
-    end: { shoulder: 90, shoulderAbduct: 12, elbow: 16, hip: -8, knee: 76, ankle: 0 },
+    start: { shoulder: 88, shoulderAbduct: 82, elbow: 24, hip: -8, knee: 76, ankle: 0 },
+    end: { shoulder: 90, shoulderAbduct: 10, elbow: 18, hip: -8, knee: 76, ankle: 0 },
   },
   'raise-lateral': {
     label: 'Shoulder abduction',

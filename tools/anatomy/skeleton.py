@@ -193,6 +193,41 @@ def trunk_x(z, frac=1.0):
     return shell(z)[2] * frac
 
 
+# THE DIGITS. Five per hand, each with its own knuckle, each bending at its
+# own joints — because a hand that closes as one mitten is convincing on a
+# barbell and nowhere else. A rope, an open palm, a hook grip and a thumbless
+# grip all come out the same shape without them.
+#
+# Proportions from the measured digit: the proximal phalanx is a little under
+# half a finger, the middle about a third, the distal the rest. The thumb has
+# two, not three.
+DIGITS = ('thumb', 'index', 'middle', 'ring', 'little')
+_SPLITS = {True: (0.55,), False: (0.45, 0.75)}     # thumb / finger
+
+
+def digit_bones(side, tag):
+    """Bones for the five digits of one hand, from the measured landmarks."""
+    j = joints(side)
+    dig = (measured().get('sides', {}).get(tag, {}) or {}).get('digits')
+    out = []
+    if not dig:
+        return out
+    for name in DIGITS:
+        d = dig.get(name)
+        if not d:
+            continue
+        base = tuple(d['base'])
+        tip = tuple(d['tip'])
+        is_thumb = name == 'thumb'
+        cuts = _SPLITS[is_thumb]
+        pts = [base] + [tuple(base[i] + (tip[i] - base[i]) * c for i in range(3)) for c in cuts] + [tip]
+        parent = f'hand{tag}'
+        for k in range(len(pts) - 1):
+            out.append((f'{name}{k + 1}{tag}', parent, pts[k], pts[k + 1]))
+            parent = f'{name}{k + 1}{tag}'
+    return out
+
+
 MIDLINE = {
     'pelvis': (0.0, 0.010, Z['hip'] - 0.020),
     'sacrum': (0.0, 0.055, Z['hip'] + 0.010),
@@ -234,16 +269,7 @@ for s, tag in ((1, 'L'), (-1, 'R')):
         # gripping the bar with their hands and they did not seem to have
         # proper wrist joint movements or flexing or function."
         (f'hand{tag}', f'forearm{tag}', j['wrist'], j['knuckles']),
-        # TWO segments, because a grip WRAPS. With one bone the fingers could
-        # only swing down past a bar and hang below it; a second joint is what
-        # brings the fingertips back up the far side and closes the hand round
-        # it. Anatomically these are the proximal and the middle/distal
-        # phalanges rolled into two.
-        (f'fingers{tag}', f'hand{tag}', j['knuckles'],
-         tuple(j['knuckles'][i] + (j['fingertip'][i] - j['knuckles'][i]) * 0.5 for i in range(3))),
-        (f'fingertip{tag}', f'fingers{tag}',
-         tuple(j['knuckles'][i] + (j['fingertip'][i] - j['knuckles'][i]) * 0.5 for i in range(3)),
-         j['fingertip']),
+    ] + digit_bones(s, tag) + [
         (f'thigh{tag}', 'pelvis', j['hip'], j['knee']),
         (f'shin{tag}', f'thigh{tag}', j['knee'], j['ankle']),
         (f'foot{tag}', f'shin{tag}', j['ankle'], j['toe']),
