@@ -271,16 +271,23 @@ function fitDistance(box, centre, eye, camera) {
 
 function restContacts(bones) {
   // Two points per foot, in the FOOT bone's own space: the floor under the
-  // ankle, and the floor under the toe. Two, because a calf raise pivots on
-  // the toe and a squat sits on the whole sole — tracking one point put the
+  // ankle, and the floor under the BALL. Two, because a calf raise pivots on
+  // the ball and a squat sits on the whole sole — tracking one point put the
   // toes through the floor the moment the heel came up.
+  //
+  // BALL, not tip, and not `localToWorld(0, 1, 0)` — that is a point one METRE
+  // along the foot bone, five times past the end of the foot. A calf raise
+  // pivoting there lifted him 27 cm off the ground instead of 11. The ball of
+  // the foot sits about 13 cm in front of the ankle on a 180 cm figure, and it
+  // is the joint a heel actually rises over.
+  const BALL = 0.13;
   const out = { z0: 0 };
   let z = 0; let n = 0;
   for (const side of ['L', 'R']) {
     const f = bones[`foot${side}`];
     if (!f) continue;
     const ankle = f.getWorldPosition(new THREE.Vector3());
-    const toe = f.localToWorld(new THREE.Vector3(0, 1, 0));
+    const toe = f.localToWorld(new THREE.Vector3(0, BALL, 0));
     out[side] = {
       heel: f.worldToLocal(new THREE.Vector3(ankle.x, 0, ankle.z)),
       toe: f.worldToLocal(new THREE.Vector3(toe.x, 0, toe.z)),
@@ -318,13 +325,29 @@ function footPitch(bones, side, fwd) {
 // itself: apply it, measure again, and if the error grew, take the other way.
 function turnUntil(obj, measure, target) {
   const err = () => measure() - target;
-  const d = err();
+  let d = err();
   if (Math.abs(d) < 1e-4) return;
+  // First step doubles as the sign check.
   obj.rotateOnWorldAxis(WORLD_X, -d);
   obj.updateMatrixWorld(true);
   if (Math.abs(err()) > Math.abs(d)) {
     obj.rotateOnWorldAxis(WORLD_X, 2 * d);
     obj.updateMatrixWorld(true);
+  }
+  // ...then converge. One step is exact only when the thing being turned lies
+  // square to world X, and a stance is toed out: a calf raise asked for 34
+  // degrees of plantarflexion and got 14, so he rose an inch onto his toes.
+  for (let i = 0; i < 5; i++) {
+    const e = err();
+    if (Math.abs(e) < 2e-3) break;
+    obj.rotateOnWorldAxis(WORLD_X, -e);
+    obj.updateMatrixWorld(true);
+    if (Math.abs(err()) > Math.abs(e)) {          // overshot: take it back
+      obj.rotateOnWorldAxis(WORLD_X, e);
+      obj.updateMatrixWorld(true);
+      break;
+    }
+    d = e;
   }
 }
 
