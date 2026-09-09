@@ -1,4 +1,5 @@
 import { Vault } from './vault.js';
+import { rankRecall } from './recallRank.js';
 
 // Recall — search the whole vault from the palette. Deterministic lexical
 // scoring, no model, no dependencies: at this vault's scale (~dozens to a
@@ -72,7 +73,16 @@ export async function searchVault(vaultPath, query, { limit = 6, withText = fals
   }
   scored.sort((a, b) => b.score - a.score || (a.page.date < b.page.date ? 1 : -1));
 
-  return scored.slice(0, limit).map(({ page, score }) => ({
+  // Lexical score alone handed 47% of every slot to `Raw/` transcript dumps,
+  // and led 10 of 14 real queries with one (measured 9 Sep 2026). Over-fetch,
+  // then let recallRank.js decide what survives — trust first, then the sieve.
+  // Ranked on light objects so `withText` still only materialises the winners.
+  const ranked = rankRecall(
+    scored.slice(0, Math.max(limit * 4, 24)).map(({ page, score }) => ({ page, score, type: page.type })),
+    limit,
+  );
+
+  return ranked.map(({ page, score }) => ({
     id: page.id,
     title: page.title,
     type: page.type,
