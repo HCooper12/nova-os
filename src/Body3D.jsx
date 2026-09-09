@@ -193,7 +193,7 @@ function applyPose(bones, rest, frames, pose, restAbduct = { L: 0, R: 0 }) {
     JOINT.roll(bones[`forearm${side}`], s * (pose.forearmTwist || 0) * 0.45, JOINT.ROM.forearmTwist);
     j(`hand${side}`, 'lateral', pose.wrist || 0, JOINT.ROM.wrist);
     JOINT.roll(bones[`hand${side}`], s * (pose.forearmTwist || 0) * 0.55, JOINT.ROM.forearmTwist);
-    JOINT.closeHand(bones, rest, frames, side, pose.grip, pose.gripSpread);
+    JOINT.closeHand(bones, rest, frames, side, pose.grip, pose.gripStyle, pose.gripSpread);
 
     // HIP — a ball joint like the shoulder. The data writes flexion NEGATIVE
     // here, so the range is read against its opposite.

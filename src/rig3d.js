@@ -162,10 +162,42 @@ const DIGIT_CURL = {
 // fingers do not close in a flat plane — they converge toward the middle
 const DIGIT_SPREAD = { thumb: -26, index: 7, middle: 0, ring: -6, little: -13 };
 
-export function closeHand(bones, rest, frames, side, curl, spread = 1) {
-  const c = Math.max(0, Math.min(1, curl || 0));
+/* HOW A HAND IS ACTUALLY HOLDING THE THING.
+ *
+ * Closing all five digits from one number gets a barbell right and everything
+ * else wrong: a hook grip, a thumbless press, a rope, an open machine handle
+ * and a flat palm all come out as the same fist. These are the shapes a lifter
+ * actually makes, as per-digit multipliers on that one curl — so the hand is
+ * still driven by one value, but the five fingers no longer have to agree.
+ *
+ * The thumb is the reason this matters. It does not fold in the fingers' plane
+ * at all; it swings ACROSS the palm to meet them, and how far it comes is the
+ * entire difference between a grip that is locked and one that is resting on
+ * the bar.
+ */
+export const GRIP_STYLE = {
+  // fingers wrapped, thumb over them — the default for a bar or a dumbbell
+  full: { per: {}, oppose: 1.0 },
+  // the thumb goes UNDER the fingers and they close on it: a heavy deadlift
+  hook: { per: { thumb: 1.35, index: 1.06, middle: 1.06 }, oppose: 1.25, under: true },
+  // thumb alongside the bar, not around it — a bench press habit
+  thumbless: { per: { thumb: 0.12 }, oppose: 0.08 },
+  // a rope has nothing rigid in it, so the fingers close further and the
+  // thumb meets them rather than lying over a bar
+  rope: { per: { thumb: 1.1, little: 1.12, ring: 1.06 }, oppose: 1.15 },
+  // a machine handle or a flat palm: barely closed at all
+  open: { per: {}, scale: 0.14, oppose: 0.3 },
+  // hanging from a bar: fingers do almost all of it, thumb along the bar
+  hang: { per: { thumb: 0.5, index: 1.1, middle: 1.12, ring: 1.1, little: 1.05 }, oppose: 0.55 },
+};
+
+export function closeHand(bones, rest, frames, side, curl, style = 'full', spread = 1) {
+  const st = GRIP_STYLE[style] || GRIP_STYLE.full;
+  const c = Math.max(0, Math.min(1, (curl || 0) * (st.scale != null ? st.scale : 1)));
+  const s = side === 'L' ? 1 : -1;
   for (const d of DIGITS) {
     const share = DIGIT_CURL[d];
+    const mult = (st.per && st.per[d]) || 1;
     const isThumb = d === 'thumb';
     const joints = isThumb
       ? [[`${d}1${side}`, ROM.thumbCmc, 55], [`${d}2${side}`, ROM.thumbMcp, 60]]
@@ -177,14 +209,29 @@ export function closeHand(bones, rest, frames, side, curl, spread = 1) {
       // elbow. Clamped against the rotation, 68° of knuckle flexion came out
       // as 30° and the two joints past it as ZERO, so a pull-up gripped the
       // bar with a flat open hand.
-      const flex = clampTo(c * full * (share[i] ?? 0), range);
+      const flex = clampTo(c * full * (share[i] ?? 0) * mult, range);
       hinge(b, rest[name], frames[name], 'lateral', -flex, null);
-      // the sideways set of a finger: the resting splay closes as the hand does
-      if (i === 0 && DIGIT_SPREAD[d]) {
-        b.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(
-          new THREE.Vector3(0, 1, 0), D(DIGIT_SPREAD[d] * (1 - c) * spread)));
-        b.updateMatrixWorld(true);
+      if (i > 0) return;
+      const f = frames[name];
+      if (!f) return;
+      if (isThumb) {
+        // OPPOSITION. A thumb does not fold in the fingers' plane; it swings
+        // across the palm to meet them, and how far it comes is the whole
+        // difference between a locked grip and a hand resting on a bar.
+        const across = (st.oppose != null ? st.oppose : 1) * (34 + 26 * c);
+        b.quaternion.multiply(new THREE.Quaternion()
+          .setFromAxisAngle(f.anterior, D(-s * across)));
+        if (st.under) {
+          // a hook grip tucks it under the fingers before they close on it
+          b.quaternion.multiply(new THREE.Quaternion()
+            .setFromAxisAngle(new THREE.Vector3(0, 1, 0), D(s * 22 * c)));
+        }
+      } else if (DIGIT_SPREAD[d]) {
+        // the resting splay of the fingers closes as the hand does
+        b.quaternion.multiply(new THREE.Quaternion()
+          .setFromAxisAngle(new THREE.Vector3(0, 1, 0), D(DIGIT_SPREAD[d] * (1 - c) * spread)));
       }
+      b.updateMatrixWorld(true);
     });
   }
 }

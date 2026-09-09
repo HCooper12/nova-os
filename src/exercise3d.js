@@ -310,11 +310,25 @@ export function equipmentFor(name = '', pattern = null) {
 const SUPINATED = /curl|chin|underhand|supinat/;
 const NEUTRAL = /hammer|neutral|rope|farmer|trap|shrug/;
 
+// Which SHAPE the hand makes, not just how far it closes. A hook grip, a
+// thumbless press, a rope, a machine handle and a hang are five different
+// hands, and closing all five digits from one number made them one.
+function gripStyle(id, holds) {
+  if (/hook/.test(id)) return 'hook';
+  if (/rope/.test(id)) return 'rope';
+  if (/deadlift|barbell-floor|trap-bar/.test(id)) return 'hook';
+  if (/thumbless|false grip/.test(id)) return 'thumbless';
+  if (/pull ?-?up|chin|hang/.test(id)) return 'hang';
+  if (!holds || /^machine-|push ?-?up|bodyweight/.test(id)) return 'open';
+  return 'full';
+}
+
 export function gripFor(pattern, equipment = '') {
   const p = PATTERNS[pattern] || {};
   const holds = equipment && equipment !== 'none' && !/^machine-/.test(equipment);
   const id = `${pattern} ${p.equipment || ''} ${equipment}`;
   return {
+    gripStyle: p.gripStyle || gripStyle(id, holds),
     grip: p.grip != null ? p.grip : (holds ? 1 : 0.18),
     // + rolls the palm to face down/away, which is how almost everything is
     // held; a curl and a chin-up are the exceptions
