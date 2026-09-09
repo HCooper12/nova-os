@@ -387,6 +387,64 @@ function rest_on(root, bones, pad) {
  * Everything else follows for free: the bar descends because the traps do, the
  * hips travel back, the head stays over the feet.
  */
+/* BALANCE — the ankle answers for the load.
+ *
+ * Posed from joint angles alone the figure's centre of mass can sit anywhere:
+ * a squatter over his heels, a man holding a barbell out in front and not
+ * moving an inch to answer for it. Nobody watching knows the physics and
+ * everybody sees the result. So the combined centre of mass — body AND bar —
+ * is computed, and a few degrees of ankle dorsiflexion bring it back over the
+ * middle of the foot. That is the ankle strategy, the first thing a standing
+ * person actually uses, and because the foot is planted the correction moves
+ * everything above it and nothing below.
+ */
+function balance(root, bones, pose, contacts, fwd, base, load) {
+  if (!contacts || !contacts.L) return 0;
+  const midfoot = () => {
+    const p = new THREE.Vector3();
+    let n = 0;
+    for (const side of ['L', 'R']) {
+      const f = bones[`foot${side}`];
+      if (!f || !contacts[side]) continue;
+      p.add(f.localToWorld(contacts[side].heel.clone()))
+        .add(f.localToWorld(contacts[side].toe.clone()));
+      n += 2;
+    }
+    return n ? p.divideScalar(n) : p;
+  };
+  // RELATIVE to how he stands with nothing in his hands. The ankle joint sits
+  // behind the middle of the foot, so a standing body's mass is always a few
+  // centimetres back of it — chase that absolute number and the figure bows
+  // forward permanently, which is what the first attempt did. What balance
+  // actually is, is not DRIFTING from your own neutral as the load moves.
+  // How far his mass has drifted from where it sits at rest, with the load
+  // included. Measured against the neutral stance because the ankle joint sits
+  // behind the middle of the foot — a standing body's mass is always a few
+  // centimetres back of it, and chasing that absolute number bows the figure
+  // forward permanently, which is what the first attempt did.
+  const baseline = base.comErr != null ? base.comErr : 0;
+  const drift = JOINT.centreOfMass(bones, load).sub(midfoot()).dot(fwd) - baseline;
+
+  // THE TRUNK ANSWERS, NOT THE ANKLE. An ankle has about 25° to give and it
+  // fights the ground solver, which re-plants the feet and moves the reference
+  // along with the body — so the loop just walked to its clamp with nothing to
+  // show. A lifter balances a loaded squat by leaning the trunk, and that is
+  // both the real mechanism and the one with the authority.
+  //
+  // Bounded and proportional rather than solved: the segment masses here are
+  // Dempster's fractions placed at bone heads, which is good enough to say
+  // WHICH WAY and ROUGHLY HOW MUCH a load pulls him, and not good enough to
+  // claim a true centre of mass. What it buys is the thing that was missing —
+  // the lean answers to the load and to the depth instead of being a constant.
+  const lean = THREE.MathUtils.clamp(-drift * 34, -13, 13);
+  if (Math.abs(lean) > 0.15) {
+    settle(root, bones, { ...pose, spine: (pose.spine || 0) + lean }, contacts, fwd, base);
+    JOINT.hinge(bones.spine, base.restSpine, base.frameSpine, 'lateral',
+      -((pose.spine || 0) + lean), JOINT.ROM.spine);
+  }
+  return lean;
+}
+
 function settle(root, bones, pose, contacts, fwd, base) {
   if (!contacts || !contacts.L || !bones.footL) return;
   const ankle = pose?.ankle || 0;
@@ -618,6 +676,18 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
       // and the corrective shapes, found once — declared here because the
       // framing pass poses the figure and needs them too
       const corrective = JOINT.correctiveTargets(root);
+      // where the load actually sits, and how heavy it is relative to him —
+      // so a bar on the back leans him forward and a light dumbbell does not
+      const loadOf = (sp, bs, id) => {
+        const mass = JOINT.LOAD_MASS[id] || 0;
+        if (!mass) return null;
+        const ride = anchor[sp.hold];
+        const at = ride && bs.chest ? bs.chest.localToWorld(ride.clone())
+          : (gripPoint('L') && gripPoint('R')
+            ? gripPoint('L').add(gripPoint('R')).multiplyScalar(0.5) : null);
+        return at ? { mass, at } : null;
+      };
+
       const contacts = restContacts(bones);
       const fwd = (() => {
         // Which way the toes point, measured off the rig rather than assumed:
@@ -671,6 +741,23 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
         pos: root.position.clone(), quat: root.quaternion.clone(), floor: 0,
         pitch: { L: footPitch(bones, 'L', fwd), R: footPitch(bones, 'R', fwd) },
       };
+      // how his own mass sits over his feet with nothing in his hands — the
+      // zero that balance is measured against
+      baseTransform.restSpine = rest.spine;
+      baseTransform.frameSpine = frames.spine;
+      baseTransform.comErr = (() => {
+        const p = new THREE.Vector3();
+        let n = 0;
+        for (const side of ['L', 'R']) {
+          const f = bones[`foot${side}`];
+          if (!f || !contacts[side]) continue;
+          p.add(f.localToWorld(contacts[side].heel.clone()))
+            .add(f.localToWorld(contacts[side].toe.clone()));
+          n += 2;
+        }
+        if (!n) return 0;
+        return JOINT.centreOfMass(bones, null).sub(p.divideScalar(n)).dot(fwd);
+      })();
 
       // equipment
       const eq = equipmentFor(name, pat);
@@ -712,7 +799,10 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
             JOINT.applyCorrectives(corrective, po);
             applyPose(bones, rest, frames, po, restAbduct);
             JOINT.secondary(bones, rest, frames, po, {}, ph);
-            if (GROUNDED) settle(root, bones, po, contacts, fwd, baseTransform);
+            if (GROUNDED) {
+              settle(root, bones, po, contacts, fwd, baseTransform);
+              balance(root, bones, po, contacts, fwd, baseTransform, loadOf(spec, bones, eq));
+            }
             else if (pad) rest_on(root, bones, pad);
             else if (spec.hangAt) hangFrom(root, bones, spec.hangAt, gripPoint);
           }
@@ -782,7 +872,10 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
           JOINT.applyCorrectives(corrective, pose);
           applyPose(bones, rest, frames, pose, restAbduct);
           JOINT.secondary(bones, rest, frames, pose, dPose, phase);
-          if (GROUNDED) settle(root, bones, pose, contacts, fwd, baseTransform);
+          if (GROUNDED) {
+            settle(root, bones, pose, contacts, fwd, baseTransform);
+            balance(root, bones, pose, contacts, fwd, baseTransform, loadOf(spec, bones, eq));
+          }
           else if (pad) rest_on(root, bones, pad);
           else if (spec.hangAt) hangFrom(root, bones, spec.hangAt, gripPoint);
         }

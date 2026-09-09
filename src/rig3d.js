@@ -318,3 +318,69 @@ export function applyCorrectives(targets, pose) {
     t.mesh.morphTargetInfluences[t.idx] = u * u * (3 - 2 * u);
   }
 }
+
+/* --------------------------- BALANCE AND WEIGHT ---------------------------
+ * A lifter does not stand still under a load; they stand OVER it.
+ *
+ * The figure has been posed from joint angles alone, which means its centre of
+ * mass could sit anywhere — a squatter leaning back over his heels, a man
+ * holding a barbell out in front and not moving an inch to answer for it.
+ * Nobody watching knows the physics, and everybody sees the result: it reads
+ * as a puppet held up from outside, because that is exactly what it is.
+ *
+ * So the combined centre of mass — body AND whatever is being held — is
+ * computed from segment masses, and the ankle answers for it. That is the
+ * "ankle strategy", the first thing a standing person actually uses: a few
+ * degrees of dorsiflexion moves the whole body forward over the feet. Because
+ * the foot is planted and the ground solver keeps it planted, adjusting that
+ * one angle shifts everything above it and nothing below.
+ *
+ * The consequence is that the lean now RESPONDS TO THE LOAD. A heavier bar on
+ * the back leans him further forward, because it has to.
+ */
+
+// Fraction of body mass per segment (Dempster). The bone is taken as the
+// segment and its midpoint as the segment's own centre.
+const SEGMENT_MASS = [
+  ['chest', 0.36], ['spine', 0.14], ['neck', 0.026], ['head', 0.055],
+  ['upperarmL', 0.028], ['upperarmR', 0.028],
+  ['forearmL', 0.016], ['forearmR', 0.016],
+  ['handL', 0.006], ['handR', 0.006],
+  ['thighL', 0.100], ['thighR', 0.100],
+  ['shinL', 0.0465], ['shinR', 0.0465],
+  ['footL', 0.0145], ['footR', 0.0145],
+];
+
+export function centreOfMass(bones, load) {
+  const acc = new THREE.Vector3();
+  let total = 0;
+  for (const [name, m] of SEGMENT_MASS) {
+    const b = bones[name];
+    if (!b) continue;
+    // The bone's HEAD, not a midpoint guessed from "the first bone child" —
+    // the chest's first child is a collarbone, so half the body's mass was
+    // being placed out at the shoulder and the centre of mass came out 17 cm
+    // behind the feet. Heads give a consistent centre that still moves
+    // correctly with the pose, and the constant offset is absorbed by the
+    // neutral-stance baseline.
+    acc.addScaledVector(b.getWorldPosition(new THREE.Vector3()), m);
+    total += m;
+  }
+  if (load && load.mass > 0 && load.at) {
+    acc.addScaledVector(load.at, load.mass);
+    total += load.mass;
+  }
+  return total > 0 ? acc.divideScalar(total) : acc;
+}
+
+// How much of his own bodyweight each thing weighs, so the lean answers to the
+// load rather than to nothing. Rough on purpose — the point is that a loaded
+// bar on the back moves him and a pair of light dumbbells does not.
+export const LOAD_MASS = {
+  'barbell-back': 0.95, 'barbell-front': 0.80, 'barbell-hands': 0.70,
+  'barbell-floor': 1.10, 'barbell-ez': 0.30, 'trap-bar': 1.10, 'smith-bar': 0.70,
+  dumbbells: 0.24, 'dumbbell-single': 0.12,
+  'bench-flat': 0.70, 'bench-incline': 0.55, 'bench-thrust': 1.00,
+  'lat-pulldown': 0.55, 'cable-high': 0.30, 'cable-mid': 0.30,
+  'cable-low': 0.30, 'cable-rope': 0.25,
+};
