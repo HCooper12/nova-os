@@ -137,3 +137,45 @@ test('fields are clamped, so a runaway model cannot blow up the glass', () => {
   assert.equal(spec.label.length, 42);
   assert.equal(spec.caption.length, 140);
 });
+
+// ---- what the Leader ACTUALLY sent, 10 Sep 2026 ----
+//
+// Taken verbatim from the session transcript of a conversation he had and
+// then reported as "I have not seen any visual displays appear". The Leader
+// emitted four panels. Every one was dropped: all four said `title` where
+// the contract says `label`, and two put `items` on a `kind:"key"`.
+//
+// The model's intent was never unclear. A parser that discards it over a
+// synonym is the bug.
+const REAL_LEADER_TURN = [
+  { kind: 'key', title: 'The read', items: ["Your goal is set to 'convince him' — that's the thing working against you", "For him this isn't a plan debate, it's about standing"] },
+  { kind: 'steps', title: 'The sequence', items: ['Before the room: one-on-one, ask for advice — do not pitch', 'Take the best piece of his idea and name it as his, out loud'] },
+  { kind: 'list', title: 'The honest check', items: ['Have you actually steelmanned his version, or only rehearsed why yours is better?'] },
+  { kind: 'key', title: 'Do this', items: ['Book 10 minutes with him alone, before the group meeting'] },
+];
+
+test('THE SECOND EMPTY GLASS: every panel that real turn sent now draws', () => {
+  const specs = REAL_LEADER_TURN.map((d) => normaliseSpec(d));
+  assert.equal(specs.filter(Boolean).length, 4, 'all four were being dropped');
+  assert.deepEqual(specs.map((s) => s.label), ['THE READ', 'THE SEQUENCE', 'THE HONEST CHECK', 'DO THIS']);
+});
+
+test('a panel of points is a list however it was announced', () => {
+  // "key" means the phrase itself; a key carrying items is a list, and
+  // drawing it as one is closer to what was meant than drawing nothing
+  assert.equal(normaliseSpec(REAL_LEADER_TURN[0]).kind, 'list');
+  assert.equal(normaliseSpec(REAL_LEADER_TURN[1]).kind, 'steps', 'but a declared sequence still BUILDS');
+});
+
+test('the words the model reaches for are accepted', () => {
+  assert.equal(normaliseSpec({ kind: 'key', title: 'Heading', text: 'the idea' }).label, 'HEADING');
+  assert.equal(normaliseSpec({ kind: 'key', heading: 'Heading', summary: 'the idea' }).caption, 'the idea');
+  assert.equal(normaliseSpec({ kind: 'key', name: 'Heading', body: 'the idea' }).label, 'HEADING');
+  assert.equal(normaliseSpec({ kind: 'media', title: 'An episode' }).title, 'An episode', 'media keeps its own title');
+});
+
+test('a kind left off entirely is inferred from what came with it', () => {
+  assert.equal(normaliseSpec({ title: 'X', items: ['a', 'b'] }).kind, 'list');
+  assert.equal(normaliseSpec({ title: 'X', value: '84', unit: 'g' }).kind, 'metric');
+  assert.equal(normaliseSpec({ title: 'X', caption: 'a line' }).kind, 'key');
+});

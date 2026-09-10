@@ -61,7 +61,14 @@ export function voiceRouter(vaultPath) {
         if (!att) return res.status(400).json({ error: 'those attachments are gone — attach them again' });
         attachmentPreamble = pre(att);
       }
-      if (question.length > 1000) return res.status(400).json({ error: 'keep a spoken question under 1000 characters' });
+      // NO LENGTH LIMIT ON WHAT HE SAYS. His instruction, 10 Sep 2026, after
+      // a long spoken turn was refused outright: "This should not be a
+      // limiting factor ever. If the cost ends up being higher than it is
+      // what it is but there should be no limit." The ceiling below is not a
+      // budget — it is the point past which the payload cannot be a person
+      // talking, and it exists only so a runaway client cannot post a
+      // megabyte into a prompt. Nothing he could say reaches it.
+      if (question.length > 200_000) return res.status(400).json({ error: 'that payload is far larger than anything spoken — it looks like a client fault' });
       // The Reflex Layer: a direct question the live record already answers
       // never reaches the model. Code answers in <1s; a miss falls through
       // silently to the normal ask. (lib/reflex.js; MORNING-SHOW-PLAN.md)
@@ -307,7 +314,14 @@ export function voiceRouter(vaultPath) {
           error: 'variable name sent instead of its value',
         });
       }
-      if (question.length > 1000) return res.status(400).json({ error: 'keep a spoken question under 1000 characters' });
+      // NO LENGTH LIMIT ON WHAT HE SAYS. His instruction, 10 Sep 2026, after
+      // a long spoken turn was refused outright: "This should not be a
+      // limiting factor ever. If the cost ends up being higher than it is
+      // what it is but there should be no limit." The ceiling below is not a
+      // budget — it is the point past which the payload cannot be a person
+      // talking, and it exists only so a runaway client cannot post a
+      // megabyte into a prompt. Nothing he could say reaches it.
+      if (question.length > 200_000) return res.status(400).json({ error: 'that payload is far larger than anything spoken — it looks like a client fault' });
       // The Reflex Layer, same as /ask: the Siri lane is where <1s matters
       // most — a reflex hit means Siri speaks the number before the CLI
       // would have finished booting. Miss → the session machinery below.

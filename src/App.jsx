@@ -6,6 +6,7 @@ import { unspokenTexts, resumeVerdict } from './speechResume.js';
 import { DEFAULT_HOLD, holdTiming } from './turnEnd.js';
 import { offerVerdictFor } from './verdictOffer.js';
 import { parseVisualStream } from './visualBeats.js';
+import { toSpokenProse } from './spokenProse.js';
 import { UNDO_KEY, stashOf, usableUndo } from './chatUndo.js';
 import { forceLayout, degrees, GALAXY_MAX_NODES, zoomAt, panBy, recencyAlpha } from './galaxyLayout.js';
 import { flushSync } from 'react-dom';
@@ -4557,8 +4558,12 @@ export default class App extends Component {
     const say = (t, from = null) => {
       clearTimeout(stream.thinkTimer); // a real sentence is here — no filler needed
       const onPlay = () => { if (spokenReveal) reveal(t); if (from != null) this.raiseGlass(from + t.length); };
-      if (elevenPath) this.speakTtsSentence(t, onPlay);
-      else { this.speakIncremental(t); onPlay(); }
+      // What is SPOKEN is stripped of markdown; what is stored stays raw, so
+      // the glass's character offsets into it never move. (spokenProse.js)
+      const heard = toSpokenProse(t);
+      if (!heard.trim()) { onPlay(); return; }   // a fenced block alone is nothing to say
+      if (elevenPath) this.speakTtsSentence(heard, onPlay);
+      else { this.speakIncremental(heard); onPlay(); }
     };
     // The awkward-silence filler: a long think gets ONE quiet touch-point
     // ("Still with you, sir.") — cached server-side, so it costs ~50ms —
@@ -4573,7 +4578,11 @@ export default class App extends Component {
       }, 4000);
     }
     const speakNewSentences = (text, flushAll) => {
-      if (!this.state.voiceSpeak) return;
+      // READING RATHER THAN LISTENING. The glass is driven by the voice, so
+      // with speech off nothing ever raised a panel — a silent reply showed
+      // an empty glass, which is the surface he is most likely to be reading
+      // carefully. Follow the TEXT instead when there is no audio to follow.
+      if (!this.state.voiceSpeak) { this.raiseGlass(text.length); return; }
       const fresh = text.slice(stream.spokenUpTo);
       if (!fresh) return;
       const startedAt = stream.spokenUpTo;

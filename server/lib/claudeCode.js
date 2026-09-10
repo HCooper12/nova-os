@@ -9,7 +9,7 @@ import { NOVA_LENS } from './lens.js';
 import { modelFor, assertLaneOn, laneEnabled } from './modelPrefs.js';
 import { settleWatchdog } from './settle.js';
 import { parseVisualStream } from '../../src/visualBeats.js';
-import { attachVisuals, GLASS_CONTRACT } from './visualStream.js';
+import { attachVisuals, GLASS_CONTRACT, SPOKEN_REGISTER } from './visualStream.js';
 
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
@@ -287,6 +287,8 @@ ${describeForModel()}
 
 Live context (deterministic, computed at conversation start — trust it over stale pages for today's numbers):
 ${context || '(unavailable)'}
+
+${SPOKEN_REGISTER}
 
 ${GLASS_CONTRACT}
 
@@ -751,6 +753,8 @@ Ground rules:
 Hayden's current picture (computed at conversation start — trust it over stale pages):
 ${context || '(unavailable)'}
 
+${SPOKEN_REGISTER}
+
 ${GLASS_CONTRACT}
 
 Hayden asks: ${question}`;
@@ -765,7 +769,7 @@ Hayden asks: ${question}`;
 // ("PROPOSE swap: X → Y"), which the parser cannot see — Coach said "tap
 // APPLY IT below" over a button that never rendered, three turns in a row,
 // on his phone.
-const COACH_TURN_REMINDER = '[Standing reminder: you CAN change his program. You do it by ending your reply with ONE typed line, EXACTLY this JSON form on its own final line: PROPOSE {"action":"swap","routine":"Push","remove":"Exact Old Name","add":"Exact New Name","targetSets":3,"targetRepsLow":8,"targetRepsHigh":12,"reason":"why","instructed":true} — "instructed":true when HE told you to make the change (then say it is DONE, never "tap apply"); omit it for your own suggestion (then offer it). A retag is "remap" (fields exercise, muscleGroup), never "tune". Actions: swap/add/remove/targets/remap/tune/injury/goal/learn/resource. Prose after PROPOSE does not work; only the JSON object is machine-readable. It renders as APPLY IT / NOT NOW on your own message and applies deterministically with undo when he taps it. Never tell him you are unable to edit his program or that you lack write access — that is false and it blocks him. What you cannot do is write WITHOUT his yes. His session notes are in your context tagged [form-breakdown]/[pain]/[fatigue]/[too-easy] — treat them as your best evidence, coach the technique properly from what the research supports, and quote his sentence back. KEEP THE RUNNING GLASS FED: a VIS {…} line on its own before each movement of your reply, as turn one set out (kinds: key, steps, image, media, metric, bars, list). Any reply longer than about three sentences carries at least one — a long spoken answer with nothing on screen is exactly what he asked us to fix.]';
+const COACH_TURN_REMINDER = '[Standing reminder: you CAN change his program. You do it by ending your reply with ONE typed line, EXACTLY this JSON form on its own final line: PROPOSE {"action":"swap","routine":"Push","remove":"Exact Old Name","add":"Exact New Name","targetSets":3,"targetRepsLow":8,"targetRepsHigh":12,"reason":"why","instructed":true} — "instructed":true when HE told you to make the change (then say it is DONE, never "tap apply"); omit it for your own suggestion (then offer it). A retag is "remap" (fields exercise, muscleGroup), never "tune". Actions: swap/add/remove/targets/remap/tune/injury/goal/learn/resource. Prose after PROPOSE does not work; only the JSON object is machine-readable. It renders as APPLY IT / NOT NOW on your own message and applies deterministically with undo when he taps it. Never tell him you are unable to edit his program or that you lack write access — that is false and it blocks him. What you cannot do is write WITHOUT his yes. His session notes are in your context tagged [form-breakdown]/[pain]/[fatigue]/[too-easy] — treat them as your best evidence, coach the technique properly from what the research supports, and quote his sentence back. SPEAK IT, DO NOT WRITE IT: no markdown, no [[wikilinks]], no parenthetical asides — he HEARS this. KEEP THE RUNNING GLASS FED: a VIS {…} line on its own before each movement of your reply, as turn one set out (kinds: key, steps, image, media, metric, bars, list). Any reply longer than about three sentences carries at least one — a long spoken answer with nothing on screen is exactly what he asked us to fix.]';
 
 export function startAskCoach(cwd, { question, context, sessionId, onReady }) {
   assertLaneOn('coach');
@@ -903,6 +907,8 @@ How you work:
   Include only keys that apply; his words tightened, never invented. Nova's code merges it into your standing profile of him — it steers the daily Try Today idea and Saturday's research run. Do not mention the mechanics; just reflect accurately.
 - The daily Try Today idea arrives on his homepage each morning from your accumulated picture — this conversation is where that picture gets richer.
 
+${SPOKEN_REGISTER}
+
 ${GLASS_CONTRACT}
 
 His current picture:
@@ -911,7 +917,7 @@ ${context || '(unavailable)'}
 Hayden says: ${question}`;
 }
 
-const LEADER_TURN_REMINDER = '[Standing reminder: when he shares a struggle, a win, or reports an old struggle handled, end your reply with ONE typed line, EXACTLY this JSON form on its own final line: REFLECT {"struggles":["…"],"working":["…"],"resolved":["…"]} — only the keys that apply, his words tightened. Prose after REFLECT does not work; only the JSON object is machine-readable. It updates your standing profile of him and steers the daily idea and the weekly research. Ground advice in his vault concepts and named sources; concrete and small beats grand. KEEP THE RUNNING GLASS FED: a VIS {…} line on its own before each movement of your reply, as turn one set out (kinds: key, steps, image, media, metric, bars, list). Any reply longer than about three sentences carries at least one — a long spoken answer with nothing on screen is exactly what he asked us to fix.]';
+const LEADER_TURN_REMINDER = '[Standing reminder: when he shares a struggle, a win, or reports an old struggle handled, end your reply with ONE typed line, EXACTLY this JSON form on its own final line: REFLECT {"struggles":["…"],"working":["…"],"resolved":["…"]} — only the keys that apply, his words tightened. Prose after REFLECT does not work; only the JSON object is machine-readable. It updates your standing profile of him and steers the daily idea and the weekly research. Ground advice in his vault concepts and named sources; concrete and small beats grand. SPEAK IT, DO NOT WRITE IT: no markdown, no [[wikilinks]], no parenthetical asides — he HEARS this. KEEP THE RUNNING GLASS FED: a VIS {…} line on its own before each movement of your reply, as turn one set out (kinds: key, steps, image, media, metric, bars, list). Any reply longer than about three sentences carries at least one — a long spoken answer with nothing on screen is exactly what he asked us to fix.]';
 
 // One decision here differs from Coach on purpose: a REFLECT parse failure
 // updates NOTHING and says so in the reply — his struggles are steering

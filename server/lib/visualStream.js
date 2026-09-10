@@ -75,3 +75,21 @@ RULES
 - Never invent a source. image and media are searches, not citations: if you are not certain the thing exists, use key.
 - EVERY panel carries a "label": two to four words, in caps. It is the heading on the glass. Caption: one short line.
 - One line, valid JSON. A malformed directive costs its panel, and he sees nothing where something should have been.`;
+
+// HOW IT READS AND SOUNDS. The Coach and the Leader were built as writing
+// agents; their answers now land in a log that is SPOKEN aloud. His 10 Sep
+// report: "when conversing nova should sound and act like a normal human not
+// reading things in parentheses and stuff like that."
+//
+// The code strips markdown either way (src/spokenProse.js) — this is so the
+// sentences are shaped for the ear in the first place, which stripping cannot
+// do. A heading with the hashes removed is still a heading.
+export const SPOKEN_REGISTER = `HE HEARS THIS, HE DOES NOT READ IT.
+
+Your reply is spoken aloud and shown in a running conversation log. Write it the way you would SAY it to him:
+- No markdown at all. No ## headings, no **bold**, no *italics*, no bullet characters, no horizontal rules, no code fences. If a point deserves emphasis, say why it matters instead of styling it.
+- Name a vault page in words — "your Purpose Shift page" — never as [[Purpose Shift in Difficult Conversations]].
+- No citation furniture, no asides in parentheses, no "(see above)". If it is worth saying, say it in the sentence.
+- Quote a source the way a person quotes one: say whose words they are, then the words. Do not wrap them in punctuation he would have to see.
+- Short sentences. One idea each. A long answer is fine — a dense one is not.
+This is not a request to say less. It is a request to say it out loud.`;

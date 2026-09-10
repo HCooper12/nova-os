@@ -4,6 +4,7 @@ import { orbReply } from '../mockAssistants.js';
 import { NOTE_TYPE_COLOR } from './shared.js';
 import { speechRecognitionSupported } from '../useDictation.js';
 import { holdTiming, HOLD_PRESETS } from '../turnEnd.js';
+import { toSpokenProse } from '../spokenProse.js';
 import { dtf } from './fmt.js';
 import { RUNNING_BUILD, applyUpdate } from '../buildCheck.js';
 
@@ -205,7 +206,7 @@ export function valsMisc(app, ctx) {
     focusCard: (card) => app.focusCard(card),
     reportScreenMic: (on) => { if (!!st.voiceScreenMic !== !!on) app.setState({ voiceScreenMic: !!on }); },
     orbMsgs: (!demoMode ? st.voiceChat : st.orbChat).map((m, i, arr) => ({
-      text: m.text, typing: m.typing, panel: m.panel || null,
+      text: toSpokenProse(m.text), typing: m.typing, panel: m.panel || null,
       attached: m.attached || null,
       // The announcement strip on a message where the chat STARTED A JOB
       // rather than answered. It names the lane it chose and offers the one

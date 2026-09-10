@@ -55,20 +55,41 @@ export function balancedFrom(s, start) {
   return -1;
 }
 
-// Every field clamped, an unknown kind dropped, a shape that cannot be drawn
-// returned as null. A malformed directive costs its visual, never the reply.
+// READ WHAT THE MODEL MEANT, NOT WHAT THE CONTRACT ASKED FOR.
+//
+// 10 Sep 2026, from a real Leader turn: four directives, and every one of
+// them said `title` where the contract says `label`, and two of them put
+// `items` on a `kind:"key"`. All four were dropped for it, so he watched a
+// long answer go by with an empty glass for the second time.
+//
+// The model's INTENT was never in doubt — a heading and some points. A
+// parser that discards that because of a synonym is brittle, and models will
+// keep varying. So the payload is trusted over the label put on it:
+//   title / heading / name → label
+//   text / summary / body  → caption
+//   items on a "key"       → it is a list; draw it as one
+// Every field is still clamped, an unknown shape still draws nothing, and a
+// malformed directive still costs its panel rather than the reply.
+const firstString = (d, keys) => {
+  for (const k of keys) if (typeof d[k] === 'string' && d[k].trim()) return d[k];
+  return '';
+};
+
 export function normaliseSpec(d) {
   if (!d || typeof d !== 'object') return null;
-  const kind = String(d.kind ?? '').toLowerCase();
-  if (!VISUAL_KINDS.includes(kind)) return null;
+  let kind = String(d.kind ?? '').toLowerCase();
+  const hasItems = Array.isArray(d.items) && d.items.length;
+  if (!VISUAL_KINDS.includes(kind)) kind = hasItems ? 'list' : (d.value != null ? 'metric' : 'key');
+  // a panel of points is a list however it was announced
+  if (kind === 'key' && hasItems) kind = 'list';
   // A missing label used to drop the panel entirely. Caught on the first real
   // run: the model copied the per-kind examples, which omitted `label`, and
   // all three of its panels vanished — the directive cost its text and put
   // nothing on the glass, which is the worst of both. The heading is
   // decoration; the content is the substance. So the panel stands without one
   // rather than being lost, and StageCard simply omits the line.
-  const label = clean(d.label, 42).toUpperCase();
-  const base = { kind, label, caption: clean(d.caption, 140) || null };
+  const label = clean(firstString(d, ['label', 'title', 'heading', 'name']), 42).toUpperCase();
+  const base = { kind, label, caption: clean(firstString(d, ['caption', 'text', 'summary', 'body']), 140) || null };
   if (kind === 'key') return base.caption ? base : null;
   if (kind === 'steps' || kind === 'list') {
     const items = (Array.isArray(d.items) ? d.items : [])
@@ -83,7 +104,7 @@ export function normaliseSpec(d) {
     return query ? { ...base, query } : null;
   }
   if (kind === 'media') {
-    const title = clean(d.title, 120);
+    const title = clean(firstString(d, ['title', 'episode', 'name']), 120);
     const url = clean(d.url, 400);
     if (!title && !url) return null;
     return { ...base, title: title || null, url: url || null, moment: clean(d.moment, 80) || null };
