@@ -115,12 +115,19 @@ test('the vault page carries the prose, the glossary and the sources', () => {
 
 // ---- the whole pipeline, with the model and the Researcher injected --------
 
-function fakeDeps({ failAngles = [], researchFails = false } = {}) {
+function fakeDeps({ failAngles = [], researchFails = false, hold = null } = {}) {
   const records = new Map();
   let n = 0;
   return {
     records,
-    runClaude: async ({ prompt }) => JSON.stringify(prompt.includes('Break a research topic') ? ANGLES : BRIEFING),
+    // `hold` lets a test see the record MID-FLIGHT deterministically. Asserting
+    // 'classifying' right after startBriefing is a race: the fakes resolve on
+    // the microtask queue, so under a loaded suite the whole job could finish
+    // before the assertion ran, and the run failed about one time in three.
+    runClaude: async ({ prompt }) => {
+      if (hold) await hold;
+      return JSON.stringify(prompt.includes('Break a research topic') ? ANGLES : BRIEFING);
+    },
     startResearch: async (vaultPath, q) => {
       if (researchFails) throw new Error('the researcher lane is off');
       const id = `r${++n}`;
@@ -145,9 +152,12 @@ const settle = async (id) => {
 };
 
 test('end to end: angles fan out in parallel, one pass writes it, it lands pending', async () => {
-  const rec = await startBriefing('/tmp/vault', { topic: TOPIC, standing: STANDING }, fakeDeps());
+  let release;
+  const hold = new Promise((r) => { release = r; });
+  const rec = await startBriefing('/tmp/vault', { topic: TOPIC, standing: STANDING }, fakeDeps({ hold }));
   assert.equal(rec.kind, 'briefing');
   assert.equal(rec.status, 'classifying', 'it shows as in flight while the agents work');
+  release();
 
   const done = await settle(rec.id);
   assert.equal(done.status, 'pending', 'it waits for him — he opens it when ready');

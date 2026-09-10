@@ -473,7 +473,13 @@ def segment(ob, muscles, samples, kd):
             for b in fs:
                 if a != b:
                     nbr.setdefault(a, []).append(b)
-    for _ in range(4):
+    # Eight, not four. Four left the borders visibly stair-stepped at the size
+    # the app actually draws him — the single most janky thing left on the
+    # figure, and the one he can see without zooming. Each pass only moves a
+    # face whose neighbours strongly disagree, so the borders round off without
+    # any region losing ground; a thin strip like the interscapular rhomboids
+    # keeps its own opinion at double weight and survives.
+    for _ in range(8):
         nxt = {}
         for fi, g in face_group.items():
             votes = [g, g]                       # a face keeps its own opinion twice
