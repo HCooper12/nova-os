@@ -59,11 +59,42 @@ test('drift refusal names the moved file and blocks the whole apply before any w
   } finally { await rm(vault, { recursive: true, force: true }); }
 });
 
+test('with merge on, a file that moved SOMEWHERE ELSE is reconciled, not refused', async () => {
+  const vault = await scratch();
+  try {
+    const changes = changesFor(vault);
+    // he appends to A in Obsidian; the weave replaces its body — different lines
+    await writeFile(path.join(vault, 'Wiki/Inbox/A.md'), '# A\n\noriginal a\n\nhis own note\n', 'utf8');
+    const r = await applyChanges(vault, changes, { what: 'this weave', remedy: 'run it again', merge: true });
+    assert.deepEqual(r.merged, ['Wiki/Inbox/A.md']);
+    const after = await readFile(path.join(vault, 'Wiki/Inbox/A.md'), 'utf8');
+    assert.match(after, /woven a/, "the weave's edit landed");
+    assert.match(after, /his own note/, 'and his newer line was not clobbered');
+
+    // undo restores the bytes the apply ACTUALLY replaced, not the older prior
+    await undoChanges(vault, changes);
+    assert.equal(await readFile(path.join(vault, 'Wiki/Inbox/A.md'), 'utf8'), '# A\n\noriginal a\n\nhis own note\n');
+  } finally { await rm(vault, { recursive: true, force: true }); }
+});
+
+test('merge on is not merge at any cost — the same passage rewritten twice still refuses', async () => {
+  const vault = await scratch();
+  try {
+    const changes = changesFor(vault);
+    await writeFile(path.join(vault, 'Wiki/Inbox/A.md'), '# A\n\nHIS rewrite\n', 'utf8');
+    await assert.rejects(
+      () => applyChanges(vault, changes, { what: 'this weave', remedy: 'run it again', merge: true }),
+      /Wiki\/Inbox\/A\.md changed since the diff, and both changed the same passage/,
+    );
+    assert.equal(await readFile(path.join(vault, 'Wiki/Inbox/A.md'), 'utf8'), '# A\n\nHIS rewrite\n', 'nothing written');
+  } finally { await rm(vault, { recursive: true, force: true }); }
+});
+
 test('apply writes every file snapshot-first; undo puts every prior back and removes what was created', async () => {
   const vault = await scratch();
   try {
     const changes = changesFor(vault);
-    assert.deepEqual(await applyChanges(vault, changes), { applied: 3 });
+    assert.deepEqual(await applyChanges(vault, changes), { applied: 3, merged: [] });
     assert.equal(await readFile(path.join(vault, 'Wiki/Inbox/A.md'), 'utf8'), '# A\n\nwoven a\n');
     assert.equal(await readFile(path.join(vault, 'Wiki/Concepts/New.md'), 'utf8'), '# New\n');
     const baks = await readdir(path.join(vault, 'Wiki/Inbox/.nova-backups'));

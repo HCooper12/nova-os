@@ -192,25 +192,60 @@ test('a ready job survives a restart: served from disk, approvable — and its r
   }
 });
 
-test('a weave refuses to land on a page edited since its diff — and writes nothing', async () => {
+test('a weave lands BESIDE an edit made since its diff, and loses neither', async () => {
+  // His report, 12 Sep 2026. Every weave rewrites Wiki/index.md and log.md, and
+  // so does every journal entry Nova files — in other sections. Refusing that
+  // threw away a paid pass over a collision that never happened.
   const vault = await mkdtemp(path.join(tmpdir(), 'nova-ingest-vault-'));
   try {
     await mkdir(path.join(dataDir, 'ingest'), { recursive: true });
     await mkdir(path.join(vault, 'Wiki'), { recursive: true });
-    await writeFile(path.join(vault, 'Wiki/index.md'), '# Index\n', 'utf8');
+    const base = '# Index\n\n## Journal\n- [[2026-09-10]] — 2 entries\n\n## Sources\n- [[A]] — first\n';
+    await writeFile(path.join(vault, 'Wiki/index.md'), base, 'utf8');
+    const job = {
+      id: 'd41f7002', status: 'ready', summary: 'x', cost: 1, error: null, vaultPath: vault, createdAt: new Date().toISOString(),
+      changes: [
+        { path: 'Wiki/Concepts/Landed.md', kind: 'new', prior: null, content: 'it lands\n' },
+        { path: 'Wiki/index.md', kind: 'updated', prior: base,
+          content: base.replace('- [[A]] — first\n', '- [[A]] — first\n- [[B]] — woven\n') },
+      ],
+    };
+    await writeFile(path.join(dataDir, 'ingest', 'd41f7002.json'), JSON.stringify(job), 'utf8');
+    // journal.js upserts its own bullet while the weave waits for his yes
+    await writeFile(path.join(vault, 'Wiki/index.md'),
+      base.replace('- [[2026-09-10]] — 2 entries\n', '- [[2026-09-10]] — 3 entries\n'), 'utf8');
+
+    const out = await approveJob('d41f7002');
+    assert.equal(out.applied, 2);
+    assert.deepEqual(out.merged, ['Wiki/index.md'], 'and it says which file it had to reconcile');
+    const after = await readFile(path.join(vault, 'Wiki/index.md'), 'utf8');
+    assert.match(after, /3 entries/, "Nova's newer journal bullet survived");
+    assert.match(after, /\[\[B\]\] — woven/, "and the weave's bullet landed");
+    assert.equal(await readFile(path.join(vault, 'Wiki/Concepts/Landed.md'), 'utf8'), 'it lands\n');
+    assert.equal((await getJob('d41f7002')).status, 'applied');
+  } finally { await rm(vault, { recursive: true, force: true }); }
+});
+
+test('a weave refuses when the SAME passage moved since its diff — and writes nothing', async () => {
+  const vault = await mkdtemp(path.join(tmpdir(), 'nova-ingest-vault-'));
+  try {
+    await mkdir(path.join(dataDir, 'ingest'), { recursive: true });
+    await mkdir(path.join(vault, 'Wiki'), { recursive: true });
+    const base = '# Index\n\n## Sources\n- [[A]] — first\n';
+    await writeFile(path.join(vault, 'Wiki/index.md'), base, 'utf8');
     const job = {
       id: 'd41f7001', status: 'ready', summary: 'x', cost: 1, error: null, vaultPath: vault, createdAt: new Date().toISOString(),
       changes: [
         { path: 'Wiki/Concepts/Never.md', kind: 'new', prior: null, content: 'never lands\n' },
-        { path: 'Wiki/index.md', kind: 'updated', prior: '# Index\n', content: '# Index\n- woven\n' },
+        { path: 'Wiki/index.md', kind: 'updated', prior: base, content: base.replace('— first', "— the weave's wording") },
       ],
     };
     await writeFile(path.join(dataDir, 'ingest', 'd41f7001.json'), JSON.stringify(job), 'utf8');
-    // he edits the index in Obsidian while the weave waits for review
-    await writeFile(path.join(vault, 'Wiki/index.md'), '# Index\n- his own line\n', 'utf8');
-    await assert.rejects(() => approveJob('d41f7001'), /vault moved under this weave \(Wiki\/index\.md changed since the diff\) — discard it and run the ingest again/);
+    // he rewrites the very bullet the weave rewrote
+    await writeFile(path.join(vault, 'Wiki/index.md'), base.replace('— first', '— HIS wording'), 'utf8');
+    await assert.rejects(() => approveJob('d41f7001'), /vault moved under this weave \(Wiki\/index\.md changed since the diff, and both changed the same passage, around line 4 of the version it was computed from\) — discard it and run the ingest again/);
     assert.ok(!existsSync(path.join(vault, 'Wiki/Concepts/Never.md')), 'the first file was not written either');
-    assert.equal(await readFile(path.join(vault, 'Wiki/index.md'), 'utf8'), '# Index\n- his own line\n', 'his edit stands');
+    assert.equal(await readFile(path.join(vault, 'Wiki/index.md'), 'utf8'), base.replace('— first', '— HIS wording'), 'his edit stands');
     assert.equal((await getJob('d41f7001')).status, 'ready', 'the job stays reviewable');
     await discardJob('d41f7001');
   } finally { await rm(vault, { recursive: true, force: true }); }

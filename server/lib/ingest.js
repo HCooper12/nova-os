@@ -63,9 +63,9 @@ const jobsDir = () => path.join(process.env.NOVA_DATA_DIR || path.join(path.dirn
 async function persistJob(job) {
   try {
     await mkdir(jobsDir(), { recursive: true });
-    const { id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt, book, person, progress, heartbeatAt, appliedAt, undoneAt, receiptId } = job;
+    const { id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt, book, person, progress, heartbeatAt, appliedAt, undoneAt, receiptId, merged } = job;
     await writeFile(path.join(jobsDir(), `${id}.json`),
-      JSON.stringify({ id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt, book, person, progress, heartbeatAt, appliedAt, undoneAt, receiptId }), 'utf8');
+      JSON.stringify({ id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt, book, person, progress, heartbeatAt, appliedAt, undoneAt, receiptId, merged }), 'utf8');
   } catch (e) {
     console.error(`ingest job ${job.id} failed to persist:`, e.message);
   }
@@ -579,10 +579,19 @@ export async function approveJob(jobId) {
   // since its diff can't be detected, but undo still gets its priors — a paid
   // weave is never discarded for having been staged before a deploy.
   if (job.changes.some((c) => c.prior === undefined)) job.changes = stampPriors(job.vaultPath, job.changes);
-  await applyChanges(job.vaultPath, job.changes, {
+  // MERGE, don't refuse, when the vault moved somewhere else (threeWayMerge.js).
+  // His report, 12 Sep 2026: a weave refused over Wiki/index.md because Nova's
+  // own journal bookkeeping had upserted a bullet in the `## Journal` section
+  // between the diff and his yes — a file the weave only ever adds bullets to,
+  // in other sections. Every weave touches index.md and log.md, and every
+  // journal entry touches both, so the race was structural and the price was a
+  // $2-3.50 pass thrown away. A real collision still refuses, naming the file.
+  const { merged } = await applyChanges(job.vaultPath, job.changes, {
     what: 'this weave',
     remedy: 'discard it and run the ingest again (a cached digest makes the re-run cheap)',
+    merge: true,
   });
+  job.merged = merged;
   job.status = 'applied';
   job.appliedAt = new Date().toISOString();
   await persistJob(job); // the truth about the vault first, durable
@@ -599,7 +608,7 @@ export async function approveJob(jobId) {
   await cleanup(job);
   jobs.delete(jobId);
   await pruneSettledJobs().catch(() => {});
-  return { applied: job.changes.length, recordId: receipt?.id || null };
+  return { applied: job.changes.length, merged, recordId: receipt?.id || null };
 }
 
 const labelOf = (job) => (job.book ? `${job.book.title} — ${job.book.author}` : job.person ? job.person.label : 'pasted content');
@@ -618,7 +627,8 @@ function receiptFor(job) {
     createdAt: now,
     filedAt: now,
     auto: false,
-    destination: `${files} written to the vault`,
+    destination: `${files} written to the vault`
+      + ((job.merged || []).length ? ` (${job.merged.length} merged with edits made since the diff: ${job.merged.join(', ')})` : ''),
     decision: {
       route: 'ingest-apply',
       confidence: 'high',
@@ -627,7 +637,7 @@ function receiptFor(job) {
       // who did the work rides the receipt, so Ops can attribute it: a book
       // weave is the Librarian's, a person dossier the Scout's — the text
       // alone ("Wove X into the vault") could not say (audit [57] item 2)
-      payload: { jobId: job.id, paths: job.changes.map((c) => c.path), cost: job.cost || 0, ...(job.book ? { book: job.book.title } : {}), ...(job.person ? { person: job.person.label } : {}) },
+      payload: { jobId: job.id, paths: job.changes.map((c) => c.path), cost: job.cost || 0, ...((job.merged || []).length ? { merged: job.merged } : {}), ...(job.book ? { book: job.book.title } : {}), ...(job.person ? { person: job.person.label } : {}) },
     },
     undoData: { route: 'ingest-apply', jobId: job.id },
   };

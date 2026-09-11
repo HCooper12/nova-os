@@ -2,6 +2,7 @@ import { readFile, writeFile, mkdir, unlink } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { backupFile } from './backup.js';
+import { mergeText } from './threeWayMerge.js';
 
 // THE STAGED PASS — one shape for every write that lands a computed set of
 // whole files on the vault.
@@ -15,7 +16,10 @@ import { backupFile } from './backup.js';
 //                     against (null for a file that did not exist).
 //   2. checkDrift   — before ANY write, every target is compared to its prior;
 //                     one moved file refuses the whole apply, naming the file.
-//                     Newer edits are never clobbered.
+//                     Newer edits are never clobbered. With `merge: true` a
+//                     file that moved somewhere ELSE is reconciled instead of
+//                     refused (threeWayMerge.js) — the guarantee is that
+//                     nothing is lost, never that the file sat still.
 //   3. applyChanges — snapshot-first writes, all of them; a failure mid-way
 //                     rolls the files already written back to their priors,
 //                     so the vault is never left half-applied.
@@ -51,17 +55,42 @@ export function stampPriors(vaultPath, changes) {
 
 // Every file, before any write. `what` names the draft in the refusal
 // ("this draft", "this weave"); `remedy` says what to do about it.
-export async function checkDrift(vaultPath, changes, { what = 'this draft', remedy = 'discard it and rerun' } = {}) {
+//
+// Returns the changes to WRITE: the same list, except that a merged file
+// carries the reconciled content and the live bytes as its prior — so undo
+// restores what was actually on disk, not the older version the pass was
+// computed against. `merged` names the files that had to be reconciled.
+//
+// `merge` is opt-in per consumer. The ingest weave turns it on because its
+// targets are prose, bullet lists and an append-only log, where a line-level
+// reconcile is the natural granularity and was measured against real jobs.
+// A consumer writing structured state (Coach's routines, the exercise library)
+// keeps the strict check until someone has verified those shapes the same way.
+export async function checkDrift(vaultPath, changes, { what = 'this draft', remedy = 'discard it and rerun', merge = false } = {}) {
+  const out = [];
+  const merged = [];
   for (const c of changes) {
     const live = path.join(vaultPath, c.path);
     if (c.kind === 'updated') {
       if (c.prior === undefined) throw new Error(`${c.path} was never stamped with its prior — stamp the changes before applying them`);
       const current = existsSync(live) ? await readFile(live, 'utf8') : null;
-      if (current !== c.prior) throw new Error(`the vault moved under ${what} (${c.path} changed since the diff) — ${remedy}`);
+      if (current === c.prior) { out.push(c); continue; }
+      if (!merge) throw new Error(`the vault moved under ${what} (${c.path} changed since the diff) — ${remedy}`);
+      const r = mergeText(c.prior, current, c.content);
+      if (!r.ok) throw new Error(`the vault moved under ${what} (${c.path} changed since the diff, and ${r.reason}) — ${remedy}`);
+      out.push({ ...c, content: r.text, prior: current });
+      if (r.merges) merged.push(c.path);
     } else if (c.kind === 'new' && existsSync(live)) {
+      const current = await readFile(live, 'utf8');
+      // it landed already, byte for byte — treat it as the update it now is,
+      // so undo puts those bytes back instead of deleting a file that existed
+      if (merge && current === c.content) { out.push({ ...c, kind: 'updated', prior: current }); continue; }
       throw new Error(`the vault moved under ${what} (${c.path} now exists) — ${remedy}`);
+    } else {
+      out.push(c);
     }
   }
+  return { changes: out, merged };
 }
 
 async function writeRaw(vaultPath, relPath, content) {
@@ -85,10 +114,13 @@ async function restoreOne(vaultPath, c, write) {
   if (c.prior != null) await write(vaultPath, c.path, c.prior);
 }
 
-export async function applyChanges(vaultPath, changes, { what, remedy, write = writeRaw } = {}) {
-  await checkDrift(vaultPath, changes, { what, remedy });
+export async function applyChanges(vaultPath, changes, { what, remedy, merge = false, write = writeRaw } = {}) {
+  const { changes: resolved, merged } = await checkDrift(vaultPath, changes, { what, remedy, merge });
+  // the caller's own list gets the reconciled content and priors, so the undo
+  // it persists restores the bytes this apply actually replaced
+  resolved.forEach((r, i) => Object.assign(changes[i], r));
   const written = [];
-  for (const c of changes) {
+  for (const c of resolved) {
     try {
       await write(vaultPath, c.path, c.content);
     } catch (e) {
@@ -107,7 +139,7 @@ export async function applyChanges(vaultPath, changes, { what, remedy, write = w
     }
     written.push(c);
   }
-  return { applied: changes.length };
+  return { applied: resolved.length, merged };
 }
 
 export async function undoChanges(vaultPath, changes, { write = writeRaw } = {}) {
