@@ -32,6 +32,8 @@ const SCHEDULED = [
   { id: 'health-drops', label: 'Health Sync', role: 'iPhone health drops', cadenceHours: 1 },
   { id: 'healthinsight', label: 'Health Insight', role: 'twice-daily noticing', cadenceHours: 2 },
   { id: 'compost', label: 'Compost', role: 'inbox aging & decay', cadenceHours: 26 },
+  // hourly, and free once the index exists — only changed pages are embedded
+  { id: 'embeddings', label: 'Meaning Index', role: 'the vault, searchable by meaning', cadenceHours: 2 },
   { id: 'food-suggest', label: 'Food Scout', role: 'food → recipe ideas', cadenceHours: 2 },
   { id: 'mealprep', label: 'Meal Prep', role: 'weekly prep proposals', cadenceHours: 3 },
   { id: 'training-check', label: 'Training Check', role: 'program drift watch', cadenceHours: 2 },

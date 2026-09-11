@@ -276,6 +276,11 @@ async function main() {
   startFollowUpScheduler(process.env.VAULT_PATH); // calendar "did it happen?" — evening for today, morning for yesterday
   startDispatchScheduler(process.env.VAULT_PATH);
   startCompostScheduler(process.env.VAULT_PATH);
+  // semantic recall: keep the derived vector index level with the vault, so a
+  // note written this morning answers by MEANING this morning. Only changed
+  // pages are embedded, so a tick is free once the index exists — and if
+  // Ollama is not running it says so and recall stays lexical.
+  import('./lib/embeddings.js').then(({ startEmbeddingScheduler }) => startEmbeddingScheduler(process.env.VAULT_PATH));
   // form videos: any exercise without one gets one found and written — his
   // explicit grant of autonomy for this lane, 5 Sep (see exerciseVideos.js)
   import('./lib/exerciseVideos.js').then(({ startVideoScheduler }) => startVideoScheduler(process.env.VAULT_PATH));

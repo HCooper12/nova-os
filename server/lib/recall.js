@@ -1,9 +1,8 @@
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { Vault } from './vault.js';
 import { rankRecall } from './recallRank.js';
 import {
-  embedQuery, loadIndex, refreshIndex, scoreAgainstIndex, pickSemantic, SEMANTIC_ONLY_FLOOR,
+  embedQuery, loadIndex, refreshIndex, scoreAgainstIndex, pickSemantic,
+  SEMANTIC_ONLY_FLOOR, dataRoot,
 } from './embeddings.js';
 
 // Recall — search the whole vault from the palette. Deterministic lexical
@@ -47,9 +46,6 @@ async function getIndex(vaultPath) {
 // "agreed". It is strictly additive: if Ollama is not running, or the index
 // has never been built, every line below no-ops and recall answers exactly as
 // it did before. Nothing here can make an answer worse, only wider.
-
-const dataRoot = () => process.env.NOVA_DATA_DIR
-  || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data');
 
 const VEC_TTL_MS = 5 * 60_000;
 let vecCache = { at: 0, vaultPath: null, index: null };
