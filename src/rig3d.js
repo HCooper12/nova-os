@@ -347,7 +347,14 @@ export function secondary(bones, rest, frames, pose, dPose, phase = 0) {
  * smoothstep between so the correction never appears as a step.
  */
 const CORRECTIVE = {
-  shoulder_up: { of: (p) => Math.max(p.shoulder || 0, p.shoulderAbduct || 0), onset: 65, full: 150 },
+  // NO shoulder_up, and it is off rather than merely absent — see above.
+  //
+  // A/B on this exact model at an overhead lockout: with it, the pec breaks
+  // into overlapping flaps; without it the surface is continuous. At 45% it
+  // still tore. The shoulder is the one joint where three bones' weights
+  // overlap heavily across 170 degrees of travel, and a pose-space correction
+  // stored for one pose does more harm there than the volume it restores.
+  // The elbow, knee and hip corrections stay: two-bone hinges, unambiguous.
   elbow_deep: { of: (p) => p.elbow || 0, onset: 55, full: 135 },
   knee_deep: { of: (p) => p.knee || 0, onset: 55, full: 130 },
   hip_deep: { of: (p) => -(p.hip || 0), onset: 45, full: 105 },
@@ -359,6 +366,12 @@ export function correctiveTargets(root) {
   const found = [];
   root.traverse((o) => {
     if (!o.isMesh || !o.morphTargetDictionary || !o.morphTargetInfluences) return;
+    // EVERY target off first. The GLB ships `mesh.weights: [1,1,1,1,1,1,1,1]`
+    // — every corrective at FULL strength by default — so a shape this table
+    // does not drive stays permanently on. That is how a disabled correction
+    // went on tearing the chest after it had been disabled, and why turning
+    // one off appeared to do nothing.
+    o.morphTargetInfluences.fill(0);
     for (const [name, idx] of Object.entries(o.morphTargetDictionary)) {
       const m = /^([a-z_]+)_(L|R)$/.exec(name);
       if (m && CORRECTIVE[m[1]]) found.push({ mesh: o, idx, key: m[1] });
