@@ -99,6 +99,10 @@ which files were reconciled), `src/App.jsx` (a carry-over session carries
   `cd server && npm test` **1433 pass, 0 fail**; `curl …/api/health` → 200;
   `git status --porcelain` empty; `HEAD == origin/main == 87de867`;
   no `vite preview` running; `dist/pc.json` absent.
+- The Pages deploy for the code commit `87de867` **completed success** in 1m09s
+  (`gh run list`, run 34655604622), so the mission-card change is live on the
+  deployed bundle. His phone still has to get past its service worker — see
+  [[nova-frontend-verification]].
 
 **ASSUMED**
 - That the two mission cards LOOK right. The markup is written and lint/build
