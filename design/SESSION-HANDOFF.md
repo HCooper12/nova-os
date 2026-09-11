@@ -358,7 +358,7 @@ silent every time.
 
 ### Previous — 9 Sep (corrective shapes)
 
-**9 SEP (latest) — CORRECTIVE SHAPES.** He asked for the most time-consuming of
+**9 SEP — CORRECTIVE SHAPES.** He asked for the most time-consuming of
 the two remaining builds first; this was it. Shipped as `0a1d4d0`.
 
 **The problem it solves.** Every real-time figure is skinned linearly: a vertex
@@ -408,7 +408,7 @@ posed), and no hair/brows/lashes (agreed).
 
 ### Previous — 9 Sep (secondary motion, rep shape)
 
-**9 SEP (latest) — SECONDARY MOTION, AND REPS THAT GRIND.** His two calls, in
+**9 SEP — SECONDARY MOTION, AND REPS THAT GRIND.** His two calls, in
 the order he made them. Shipped as `c899233` on top of the fifty-bone rig.
 
 **SECONDARY MOTION** (`secondary()` in `src/rig3d.js`) — what a body does that
@@ -460,7 +460,7 @@ after the scapular change. lint clean, build green, 1,330 tests.
 
 ### Previous — 9 Sep (fifty bones)
 
-**9 SEP (latest) — FIFTY BONES, AND JOINTS THAT HINGE WHERE A BODY HINGES.**
+**9 SEP — FIFTY BONES, AND JOINTS THAT HINGE WHERE A BODY HINGES.**
 His standard, stated plainly: the figure must "fluidly perform and act
 precisely like a real human… as though it were a real human performing each
 movement as a video rather than a 3-D model", including "every potential area
@@ -514,7 +514,7 @@ front and in three-quarter. lint clean, build green, 1,330 tests.
 
 ### Previous — 9 Sep (the elbow was at the wrist)
 
-**9 SEP (latest) — THE ELBOW WAS AT THE WRIST.** He said the figure had "no
+**9 SEP — THE ELBOW WAS AT THE WRIST.** He said the figure had "no
 accurate joint flexing and natural movement like you would expect a real
 person to have", and specifically that it "did not actually seem to be
 naturally and realistically gripping the bar… no proper wrist joint movements
