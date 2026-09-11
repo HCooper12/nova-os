@@ -219,7 +219,9 @@ function applyPose(bones, rest, frames, pose, restAbduct = { L: 0, R: 0 }) {
     // KNEE and ANKLE — hinges on the bone above, so they bend in the leg's
     // own plane however the leg is turned
     j(`shin${side}`, 'lateral', back ? (pose.kneeBack || 0) : (pose.knee || 0), JOINT.ROM.knee, 1);
-    j(`foot${side}`, 'lateral', pose.ankle || 0, JOINT.ROM.ankle, 1);
+    // Sign MEASURED, not assumed: with +1 a plantarflexed foot turned toes-UP,
+    // and a calf raise sank him two centimetres instead of lifting him.
+    j(`foot${side}`, 'lateral', pose.ankle || 0, JOINT.ROM.ankle, -1);
 
     // the shrug is a translation, not a rotation — and absent means back to
     // rest, not "leave it"
@@ -295,7 +297,16 @@ function restContacts(bones) {
     const f = bones[`foot${side}`];
     if (!f) continue;
     const ankle = f.getWorldPosition(new THREE.Vector3());
-    const toe = f.localToWorld(new THREE.Vector3(0, BALL, 0));
+    // BALL is 13 cm FORWARD of the ankle, measured horizontally — not 13 cm
+    // along the foot bone. This rig's foot bone drops steeply from the ankle
+    // and reaches the floor after about 15 cm, so a distance along it buys
+    // only 6.6 cm of lever, and a calf raise lifted him under two centimetres
+    // however far the foot turned. Anatomy puts the metatarsal heads roughly
+    // that far in front of the ankle, and that is the arm the heel rises over.
+    const fore = f.localToWorld(new THREE.Vector3(0, 1, 0)).sub(ankle);
+    fore.y = 0;
+    if (fore.lengthSq() > 1e-8) fore.normalize(); else fore.set(0, 0, 1);
+    const toe = ankle.clone().addScaledVector(fore, BALL);
     out[side] = {
       heel: f.worldToLocal(new THREE.Vector3(ankle.x, 0, ankle.z)),
       toe: f.worldToLocal(new THREE.Vector3(toe.x, 0, toe.z)),
@@ -599,10 +610,18 @@ function settle(root, bones, pose, contacts, fwd, base) {
   turnUntil(root, () => segPitch(bones, 'shinL', 'footL', fwd),
     -THREE.MathUtils.degToRad(Math.max(ankle, 0)));
 
-  const heelLift = THREE.MathUtils.degToRad(Math.max(-ankle, 0));
-  for (const side of ['L', 'R']) {
-    const f = bones[`foot${side}`];
-    if (f) turnUntil(f, () => footPitch(bones, side, fwd), base.pitch[side] - heelLift);
+  // FOOT FLAT is a constraint for a foot that is ON the floor, and that is the
+  // only case it belongs in. Dorsiflexed, the shin travels over a planted foot
+  // and the foot must be held to its rest pitch. PLANTARFLEXED, the heel has
+  // left the floor and the pose has already turned the foot — forcing an
+  // absolute pitch on top of that fought it, and a calf raise that asked for
+  // 34 degrees came out with 14, so he rose an inch onto his toes. Let the
+  // pose stand; the contact points below lift him over the ball.
+  if (ankle >= 0) {
+    for (const side of ['L', 'R']) {
+      const f = bones[`foot${side}`];
+      if (f) turnUntil(f, () => footPitch(bones, side, fwd), base.pitch[side]);
+    }
   }
 
   let low = Infinity; let z = 0; let n = 0;
