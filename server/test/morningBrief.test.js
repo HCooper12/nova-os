@@ -93,6 +93,33 @@ test('beats carry cards built from the same numbers they speak', async () => {
   assert.equal(stepsBeat.card.value, '8,000', 'the card shows exactly what the voice said');
 });
 
+test('an instrument takes the glass when it has something, and never when it does not', async () => {
+  const gauges = {
+    vitals: { ok: true, hrv: 84, verdict: 'recovered' },
+    week: { ok: true, series: [], total: 8000 },
+    fuel: { ok: false, reason: 'no rotation planned' },     // nothing to draw
+  };
+  const withGauges = { ...baseDeps, instruments: async () => gauges };
+  const { steps } = await composeShow('/tmp/vault', { variant: 'morning' }, withGauges);
+
+  const stepsBeat = steps.find((s) => /8,000 steps/.test(s.say));
+  assert.equal(stepsBeat.card.kind, 'instrument');
+  assert.equal(stepsBeat.card.instrument, 'week');
+  assert.equal(stepsBeat.card.data, gauges.week, 'the card carries the payload, not a copy of it');
+
+  // fuel said ok:false, so the beat keeps whatever card it had before —
+  // an empty instrument must never displace one that has something
+  const fuelBeat = steps.find((s) => /grams of protein/.test(s.say));
+  if (fuelBeat) assert.notEqual(fuelBeat.card?.kind, 'instrument');
+});
+
+test('the evening brief never draws the day ring — it speaks about tomorrow', async () => {
+  const gauges = { day: { ok: true, blocks: [{ t: 9, len: 1, label: 'A thing' }] } };
+  const { steps } = await composeShow('/tmp/vault', { variant: 'evening' },
+    { ...baseDeps, instruments: async () => gauges });
+  assert.equal(steps.some((s) => s.card?.instrument === 'day'), false);
+});
+
 test('card builders refuse to invent: no value, no card', () => {
   assert.equal(metricCard({ label: 'x', value: null }), null);
   assert.equal(barsCard({ label: 'x', bars: [{ name: 'only', value: 3 }] }), null, 'one bar is a number, not a chart');

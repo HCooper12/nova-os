@@ -503,7 +503,8 @@ export default class App extends Component {
     foodEditId: null, foodEditName: '', foodEditP: '', foodEditC: '', foodEditF: '', foodEditKcal: '',
     foodRecipePickerOpen: false, foodRecipePickerQuery: '', foodRecipePick: null, foodPortionFactor: 1, foodPortionCustom: '',
     liveNotes: null, liveNoteDetails: {},
-    liveLibrary: null, liveLibraryDetails: {}, liveBookCoverUrls: {}, libraryFilter: 'all', libraryQuery: '', libraryOpenId: null, liveCalendar: null, liveCalendarList: null, calCmdText: '', calCmdBusy: false,
+    liveLibrary: null, liveLibraryDetails: {}, liveBookCoverUrls: {}, libraryFilter: 'all', libraryQuery: '', libraryOpenId: null,
+    libraryView: (() => { try { return localStorage.getItem('novaos.libraryView') === 'spines' ? 'spines' : 'grid'; } catch { return 'grid'; } })(), liveCalendar: null, liveCalendarList: null, calCmdText: '', calCmdBusy: false,
     // the model board (Settings): null until loaded, so "not loaded" and
     // "loaded and empty" can never be confused
     // groups render OPEN by default — the whole point is seeing every lane's
@@ -4941,6 +4942,10 @@ export default class App extends Component {
     api.instruments(conn)
       .then((r) => this.setState({ liveInstruments: r, instrumentsBusy: false }))
       .catch((e) => this.setState({ instrumentsBusy: false, instrumentsError: e.message }));
+  }
+  setLibraryView(view) {
+    try { localStorage.setItem('novaos.libraryView', view); } catch { /* best effort */ }
+    this.setState({ libraryView: view });
   }
   startSpar() {
     const conn = getConnection();

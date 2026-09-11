@@ -50,6 +50,8 @@ const asName = opt('name', '');
 // full height and obvious at 26 cm, and cropping a finished GIF cannot get
 // there — the body is framed to fit, so the feet are a dozen pixels tall.
 const focus = opt('focus', '');
+// --layer muscle records the ecorche instead of the skinned figure
+const layer = opt('layer', '');
 const frames = Number(opt('frames', 24));
 // Software rendering costs pixels, and with 8 morph targets on 22,000
 // vertices a 440px frame took about six seconds. 360 is still legible and
@@ -148,7 +150,8 @@ async function record(id) {
   const url = `${base}/tools/motion/harness.html`
     + `?film=1&ex=${encodeURIComponent(id)}&size=${size}&view=${view}`
     + (asName ? `&name=${encodeURIComponent(asName)}` : '')
-    + (focus ? `&focus=${encodeURIComponent(focus)}` : '');
+    + (focus ? `&focus=${encodeURIComponent(focus)}` : '')
+    + (layer ? `&layer=${encodeURIComponent(layer)}` : '');
   await send('Page.navigate', { url });
   // wait for the model: it is fetched, parsed and skinned before it draws
   for (let i = 0; i < 80; i++) {

@@ -19,6 +19,16 @@ function hueOf(s) {
   return h % 360;
 }
 
+// A spine is a physical object: no two are the same height, and the row
+// reads as a shelf because of it. Derived from the id so it never reshuffles.
+export function spineShapeFor(id, kind) {
+  const h = hueOf(String(id));
+  return {
+    heightPct: 78 + (h % 22),            // 78–99% of the row
+    width: kind === 'book' ? 26 + (h % 12) : 34 + (h % 10),
+  };
+}
+
 export function coverStyleFor(title, kind) {
   const h1 = hueOf(String(title));
   const h2 = (h1 + 46) % 360;
@@ -73,6 +83,7 @@ export function valsLibrary(app, ctx) {
       conceptCount: it.concepts?.length || 0,
       backlinks: it.backlinks || 0,
       jacket: st.liveBookCoverUrls?.[it.id] || null,
+      spine: spineShapeFor(it.id, it.kind),
       coverStyle: {
         ...coverStyleFor(it.title, it.kind),
         // the morph target: the cover flies into the detail header
@@ -139,6 +150,8 @@ export function valsLibrary(app, ctx) {
 
   return {
     isLibrary: st.screen === 'library',
+    libraryView: st.libraryView || 'grid',
+    setLibraryView: (v) => app.setLibraryView(v),
     libraryHeaderLabel: st.liveLibrary
       ? `${items.length} source${items.length === 1 ? '' : 's'} · live from Obsidian`
       : isOffline ? 'Offline — showing nothing rather than guessing' : 'Connect a backend in Settings',

@@ -49,6 +49,8 @@ const page = Math.max(0, Number(q.get('page') || 0));
 // Every pattern lights something, so the highlight path is exercised too — a
 // muscle group that paints the wrong region is a fault of the same family.
 const LIT = { primary: ['quads', 'chest', 'lats'], secondary: ['abs', 'triceps'] };
+// ?layer=muscle shows the écorché — the same rig with the skin taken off
+const LAYER = new URLSearchParams(location.search).get('layer') || 'skin';
 
 function Strip({ id }) {
   const p = PATTERNS[id];
@@ -62,6 +64,7 @@ function Strip({ id }) {
             <div key={i} style={{ width: size }}>
               <Body3D
                 muscles={LIT}
+                layer={LAYER}
                 pattern={id}
                 name={asName}
                 height={size}
@@ -88,7 +91,7 @@ function Film({ id }) {
   window.__setPhase = (p) => setPhase(p);
   window.__filmReady = true;
   return (
-    <Body3D muscles={LIT} pattern={id} name={asName} height={size}
+    <Body3D muscles={LIT} pattern={id} name={asName} height={size} layer={LAYER}
       phase={phase} view={view} focus={focus} chrome={false} />
   );
 }

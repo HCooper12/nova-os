@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { css } from './css.js';
 
 const M = 'var(--nv-font-mono)';
@@ -28,10 +29,31 @@ const toneOf = (t) => TONE[t] || TONE.cy;
 //   steps — a list that BUILDS as he is read it, his most specific request.
 //   media — a podcast or talk, with the exact timecode when one can be
 //           proven. Never an estimate: see server/lib/visualMoment.js.
-const DRAWABLE = new Set(['metric', 'bars', 'list', 'shot', 'key', 'steps', 'media', 'image']);
+const DRAWABLE = new Set(['metric', 'bars', 'list', 'shot', 'key', 'steps', 'media', 'image', 'instrument']);
+
+// THE INSTRUMENTS, ON THE GLASS. The morning show already speaks each of
+// these lines; the instrument is the picture that belongs to the sentence —
+// a heart while it talks about his nervous system, the week while it talks
+// about steps. Lazy, because two of them pull three.js and the brief must
+// not pay for that before it starts speaking.
+const Instruments = lazy(() => import('./Instruments.jsx'));
+
+function InstrumentCard({ card }) {
+  const Comp = {
+    vitals: 'Vitals', day: 'Day', week: 'Week', body: 'BodyInstrument', fuel: 'Fuel',
+  }[card.instrument];
+  if (!Comp || !card.data) return null;
+  return (
+    <Suspense fallback={null}>
+      <Instruments render={Comp} d={card.data} />
+    </Suspense>
+  );
+}
 
 export function StageCard({ card, size = 'full' }) {
   if (!card) return null;
+  // an instrument draws itself, frame and all
+  if (card.kind === 'instrument') return <InstrumentCard card={card} />;
   // An unrecognised kind used to render the glass with a label and NOTHING
   // inside — a lit, empty box that reads as the app having broken. If we
   // cannot draw the shape, we draw nothing at all: honest silence beats a

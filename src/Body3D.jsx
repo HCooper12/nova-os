@@ -24,7 +24,38 @@ import { css } from './css.js';
 // thigh/shin/foot and clavicle/upperarm/forearm/hand per side — so a hip hinge
 // hinges at the hip.
 
+// TWO LAYERS OF THE SAME BODY, on the same rig: the skin, and the muscles
+// with the skin taken off. Same bones, same weighting rule, so switching is a
+// switch and not a jump — the figure keeps doing the lift underneath.
 const MODEL_URL = `${import.meta.env.BASE_URL}models/body.glb`;
+
+/* THE MUSCLE LAYER IS THE SAME BODY, READ AS MUSCLE.
+ *
+ * His reference was an anatomical figure — bellies, fibre direction, tendon at
+ * the attachments. The first attempt at it lofted the 159 muscle volumes into
+ * geometry and came out stringy, with daylight between every belly, because
+ * those volumes were authored to EMBOSS a skin surface: thin ridges just under
+ * it, not full bellies that fill a limb. Five iterations chasing that, and it
+ * is the same dead end this pipeline already paid for once.
+ *
+ * The form was never the missing part. The body mesh IS the right shape and
+ * the relief pass has already cut a groove between every muscle. What it
+ * lacked was colour and fibre — so the muscle layer is this same surface, read
+ * as meat instead of as skin. Nothing new to download, and it cannot drift
+ * away from the skinned figure because it IS the skinned figure.
+ *
+ * The feather does the anatomy: it is zero where two muscles meet and one deep
+ * in a belly, which is exactly where fascia runs and where the meat is.
+ */
+const MEAT = new THREE.Color(0x8e2b28);
+const MEAT_DEEP = new THREE.Color(0x5e1614);
+const FASCIA = new THREE.Color(0xd8cfb4);
+// A WORKING MUSCLE IS ENGORGED, NOT PINK. On skin the highlight can be any
+// colour the design language likes; on meat it has to stay meat, or the view
+// stops being anatomy and goes back to a diagram with stickers on it. Primary
+// is a muscle flushed with blood, secondary one doing quieter work.
+const MEAT_PRIMARY = new THREE.Color(0xe04a2a);
+const MEAT_SECONDARY = new THREE.Color(0xb03a3a);
 
 const PRIMARY = new THREE.Color(0xff7ad9);   // --nv-mg
 const SECONDARY = new THREE.Color(0x59e6ff); // --nv-cy
@@ -37,15 +68,15 @@ const SKIN = new THREE.Color(0xb98a6d);
 const SKIN_DEEP = new THREE.Color(0x8f6047);  // frame: bone and joint, a shade under
 const SUBSURFACE = new THREE.Color(0xd8674a); // the red that light takes coming back out
 
-let cached = null;   // the parsed GLB, shared across every card that opens
+const cached = {};   // the parsed GLBs, shared across every card that opens
 
 function loadModel() {
-  if (!cached) {
-    cached = new Promise((resolve, reject) => {
+  if (!cached.skin) {
+    cached.skin = new Promise((resolve, reject) => {
       new GLTFLoader().load(MODEL_URL, (g) => resolve(g), undefined, reject);
-    }).catch((e) => { cached = null; throw e; });
+    }).catch((e) => { delete cached.skin; throw e; });
   }
-  return cached;
+  return cached.skin;
 }
 
 /* ------------------------------- equipment -------------------------------
@@ -709,6 +740,10 @@ function settle(root, bones, pose, contacts, fwd, base) {
 
 export default function Body3D({ muscles, pattern, name = '', height = 260,
   phase: frozen = null, view = 'three-quarter', chrome = true, focus = null,
+  // LAYER — 'skin' is the body as you see it; 'muscle' takes the skin off and
+  // shows the muscles themselves, each belly with its own tendon and fibre
+  // direction. Same rig underneath, so the lift carries on either way.
+  layer = 'skin',
   // GLASS — the console's reading of the same figure. Everything that is not
   // being worked goes translucent and stops writing depth, so the lit muscles
   // read THROUGH the body from any angle instead of being occluded by skin.
@@ -820,19 +855,24 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
         const mats = wasArray ? o.material : [o.material];
         const tinted = mats.map((m) => {
           const group = (m.name || '').replace(/^mus_/, '');
-          const lit = primary.has(group) ? PRI : secondary.has(group) ? SEC : null;
+          const isMeat = layer === 'muscle';
+          const lit = primary.has(group) ? (isMeat ? MEAT_PRIMARY : PRI)
+            : secondary.has(group) ? (isMeat ? MEAT_SECONDARY : SEC) : null;
           // SKIN, physically. Sheen is the peach-fuzz rim you see on a real
           // arm against a light; the low specular and high-ish roughness stop
           // it reading as wet plastic; the faint red emissive stands in for
           // subsurface scatter, which is what makes skin look alive and is far
           // too expensive to compute per pixel on a phone.
+          const meat = isMeat;
           const mat = new THREE.MeshPhysicalMaterial({
             // Ambient occlusion is baked into the mesh as a vertex colour, and
             // vertexColors multiplies it into the base — so the creases, the
             // armpit, the line under the pec all darken the way they do on a
             // real body, with no texture to ship.
             vertexColors: true,
-            color: (group === 'frame' ? SKIN_DEEP : SKIN).clone(),
+            color: (meat
+              ? (group === 'frame' ? MEAT_DEEP : MEAT)
+              : (group === 'frame' ? SKIN_DEEP : SKIN)).clone(),
             roughness: 0.58,
             metalness: 0.0,
             sheen: 0.5,
@@ -844,6 +884,39 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
             emissiveIntensity: 0.055,
           });
           mat.name = m.name;
+          if (meat) {
+            // FASCIA AND FIBRE. The feather is zero where two muscles meet, so
+            // it draws the pale cord of connective tissue exactly along the
+            // line the relief pass already grooved — and fibres run along the
+            // belly, which is the thing that tells you which way a muscle
+            // pulls before you can name it. Both are procedural: no texture to
+            // ship, no UV layout to keep valid through a decimate.
+            mat.sheen = 0.25;
+            mat.sheenColor = new THREE.Color(0xd8a08a);
+            mat.roughness = 0.72;
+            mat.specularIntensity = 0.18;
+            mat.emissive = MEAT_DEEP.clone();
+            mat.emissiveIntensity = 0.10;
+            mat.onBeforeCompile = (shader) => {
+              shader.uniforms.uFascia = { value: FASCIA.clone() };
+              shader.vertexShader = shader.vertexShader
+                .replace('void main() {',
+                  'attribute float aFeather;\nvarying float vFeather;\nvarying vec3 vLocal;\nvoid main() {')
+                .replace('#include <begin_vertex>',
+                  '#include <begin_vertex>\n  vFeather = aFeather;\n  vLocal = position;');
+              shader.fragmentShader = shader.fragmentShader
+                .replace('void main() {',
+                  'uniform vec3 uFascia;\nvarying float vFeather;\nvarying vec3 vLocal;\nvoid main() {')
+                .replace('#include <color_fragment>', `
+                  #include <color_fragment>
+                  float fib = 0.90 + 0.10 * sin(dot(vLocal, vec3(210.0, 190.0, 230.0)));
+                  diffuseColor.rgb *= fib;
+                  float cord = 1.0 - smoothstep(0.0, 0.38, vFeather);
+                  diffuseColor.rgb = mix(diffuseColor.rgb, uFascia, 0.62 * cord);
+                `);
+            };
+            mat.customProgramCacheKey = () => 'meat';
+          }
           if (lit) {
             // A lit muscle is skin TINTED, not skin replaced. Emissive is
             // unlit by definition, so leaning on it flattened the highlight
@@ -1336,7 +1409,7 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
       renderer.forceContextLoss();
       if (renderer.domElement.parentNode === el) el.removeChild(renderer.domElement);
     };
-  }, [muscles, pat, name, height, frozen, view, focus, glass, palette?.primary, palette?.secondary]);
+  }, [muscles, pat, name, height, frozen, view, focus, glass, layer, palette?.primary, palette?.secondary]);
 
   const p = pat ? PATTERNS[pat] : null;
   return (

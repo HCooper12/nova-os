@@ -49,6 +49,11 @@ function Exercise({ d }) {
   // 2D by default — instant, no bundle cost. 3D on request: a body he can
   // turn, performing the lift, muscles lit. His ask, 5 Sep.
   const [threeD, setThreeD] = useState(false);
+  // SKIN OR MUSCLE. The same figure doing the same lift, read two ways: as a
+  // body, or with the skin off and every belly, tendon and fibre showing. His
+  // instruction, 12 Sep, against an anatomical reference — the detail the
+  // model should have.
+  const [layer, setLayer] = useState('skin');
   return (
     <Card label={`${d.name} · ${d.muscleGroup || ''}`}>
       {/* Anatomy first: the question "what does this actually train" is the
@@ -65,13 +70,23 @@ function Exercise({ d }) {
               <MuscleLegend muscles={d.muscles} />
               <div style={css('margin-top:8px')}>
                 <Chip tone="cyan" active={threeD} onClick={() => setThreeD((v) => !v)}>{threeD ? '◐ Flat view' : '◉ Turn it in 3D'}</Chip>
+                {threeD && (
+                  <Chip
+                    tone="rose"
+                    active={layer === 'muscle'}
+                    onClick={() => setLayer((v) => (v === 'muscle' ? 'skin' : 'muscle'))}
+                    title="Take the skin off — every muscle belly, its tendon and which way its fibres run"
+                  >
+                    {layer === 'muscle' ? '◍ Skin on' : '◍ Skin off'}
+                  </Chip>
+                )}
               </div>
             </div>
           </div>
           {threeD && (
             <div style={css('margin-top:10px')}>
               <Suspense fallback={<Meta as="div" tone="faint" style={{ height: '260px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Building the figure…</Meta>}>
-                <Body3D muscles={d.muscles} pattern={d.motion3d || d.motion} name={d.name || d.title || ''} height={300} />
+                <Body3D muscles={d.muscles} pattern={d.motion3d || d.motion} name={d.name || d.title || ''} height={300} layer={layer} />
               </Suspense>
             </div>
           )}

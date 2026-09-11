@@ -1,3 +1,4 @@
+import { useRef, useLayoutEffect } from 'react';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { ChatMarkdown } from '../ChatMarkdown.jsx';
@@ -43,7 +44,41 @@ function ChipRow({ label, chips }) {
   );
 }
 
+// FLIP, so the toggle MORPHS instead of cutting. Every item keeps its DOM
+// node across the two shapes; layout jumps in one frame and this animates
+// the difference on transform alone, which composites. Recording rects in a
+// layout effect means the map already holds the PREVIOUS positions when the
+// next one runs — that is the "first" of first-last-invert-play, for free.
+function useShelfFlip(view, count) {
+  const prev = useRef(new Map());
+  const lastView = useRef(view);
+  useLayoutEffect(() => {
+    const nodes = [...document.querySelectorAll('[data-flip]')];
+    const changed = lastView.current !== view;
+    for (const n of nodes) {
+      const key = n.dataset.flip;
+      const last = n.getBoundingClientRect();
+      const first = prev.current.get(key);
+      if (changed && first && last.width && first.width) {
+        const dx = first.left - last.left, dy = first.top - last.top;
+        const sx = first.width / last.width, sy = first.height / last.height;
+        if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5 || Math.abs(sx - 1) > 0.01) {
+          n.animate(
+            [{ transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, opacity: 0.75 },
+             { transform: 'none', opacity: 1 }],
+            { duration: 520, easing: 'cubic-bezier(.32,.72,0,1)', fill: 'both' },
+          );
+        }
+      }
+      prev.current.set(key, last);
+    }
+    lastView.current = view;
+  }, [view, count]);
+}
+
 function Shelf({ v }) {
+  const spines = v.libraryView === 'spines';
+  useShelfFlip(v.libraryView, v.libraryShelf.length);
   return (
     <>
       <div style={css('display:flex;align-items:center;gap:10px;flex-wrap:wrap')}>
@@ -59,6 +94,22 @@ function Shelf({ v }) {
             reasonably reported the feature as missing. Same modal, put where
             the intent actually forms. */}
         <Chip tone="gold" onClick={v.openIngestModal} style={{ flex: '0 0 auto' }}>＋ Add source</Chip>
+        {/* the corner toggle: covers out, or spines on a shelf */}
+        <div style={css('flex:0 0 auto;display:flex;gap:2px;padding:3px;border-radius:10px;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)')}>
+          {[['grid', '▦', 'Covers'], ['spines', '▥', 'Shelf']].map(([key, glyph, label]) => (
+            <Interactive key={key} as="span" onClick={() => v.setLibraryView(key)}
+              ariaLabel={label}
+              base={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px',
+                padding: '5px 10px', borderRadius: '7px', font: '600 11.5px var(--nv-font-ui)',
+                letterSpacing: '.02em',
+                color: v.libraryView === key ? 'var(--nv-acc)' : 'var(--nv-ink40)',
+                background: v.libraryView === key ? 'var(--nv-acc-bg)' : 'transparent',
+                transition: 'background var(--nv-dur-fast) var(--nv-ease), color var(--nv-dur-fast) var(--nv-ease)' }}
+              hoverStyle={{ color: 'var(--nv-acc)' }}>
+              <span style={css('font-size:12px')}>{glyph}</span>{label}
+            </Interactive>
+          ))}
+        </div>
       </div>
 
       {v.libraryEmpty && (
@@ -67,36 +118,82 @@ function Shelf({ v }) {
         </div>
       )}
 
-      <div style={css('margin-top:22px;display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:20px 16px;align-items:end')}>
+      {/* ONE set of nodes, two shapes. The grid and the shelf render the
+          SAME elements with different geometry, which is what lets the
+          toggle morph rather than cut: React keeps every node, layout
+          changes instantly, and useFlip animates the delta on the
+          compositor. Two separate trees would have meant an unmount and a
+          fade, which is exactly the cut the whole motion contract avoids. */}
+      <div style={spines
+        ? css('margin-top:22px;display:flex;align-items:flex-end;gap:5px;overflow-x:auto;padding:0 2px 16px;min-height:250px')
+        : css('margin-top:22px;display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:20px 16px;align-items:end')}>
         {v.libraryShelf.map((b) => (
-          <div key={b.id} style={b.entranceStyle}>
+          <div key={b.id} data-flip={b.id}
+            style={spines
+              ? { flex: 'none', width: `${b.spine.width}px`, height: `${b.spine.heightPct * 2.3}px` }
+              : b.entranceStyle}>
             <Interactive onClick={b.open}
-              base={{ cursor: 'pointer', transition: 'transform .32s cubic-bezier(.22,1,.36,1), box-shadow .32s ease' }}
-              hoverStyle={{ transform: 'translateY(-7px) scale(1.025)', boxShadow: '0 22px 44px -18px rgba(0,0,0,.85)' }}>
-              <div style={{ ...b.coverStyle, aspectRatio: b.isBook ? '2/3' : '16/10', borderRadius: b.isBook ? '4px 9px 9px 4px' : '11px', border: '1px solid rgba(255,255,255,.09)', boxShadow: '0 14px 30px -16px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.08)', padding: '13px 13px 11px', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+              base={{ cursor: 'pointer', height: spines ? '100%' : undefined, display: spines ? 'block' : undefined,
+                transition: 'transform .32s cubic-bezier(.22,1,.36,1), box-shadow .32s ease' }}
+              hoverStyle={spines
+                ? { transform: 'translateY(-12px)', boxShadow: '0 22px 44px -18px rgba(0,0,0,.85)' }
+                : { transform: 'translateY(-7px) scale(1.025)', boxShadow: '0 22px 44px -18px rgba(0,0,0,.85)' }}>
+              <div style={{ ...b.coverStyle,
+                aspectRatio: spines ? undefined : (b.isBook ? '2/3' : '16/10'),
+                height: spines ? '100%' : undefined,
+                borderRadius: spines ? '2px 4px 4px 2px' : (b.isBook ? '4px 9px 9px 4px' : '11px'),
+                border: '1px solid rgba(255,255,255,.09)',
+                boxShadow: spines
+                  ? 'inset -3px 0 7px -4px rgba(0,0,0,.9), inset 2px 0 0 rgba(255,255,255,.10), 0 12px 26px -14px rgba(0,0,0,.9)'
+                  : '0 14px 30px -16px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.08)',
+                padding: spines ? '9px 3px' : '13px 13px 11px',
+                display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
                 {b.jacket && (
-                  /* the real jacket, once it has loaded — the generated cover
-                     stays underneath as the frame and the permanent fallback */
+                  /* the real jacket or poster, once it has loaded — the
+                     generated cover stays underneath as the frame and the
+                     permanent fallback. On a spine it is the sliver of cover
+                     art you would actually see edge-on. */
                   <img src={b.jacket} alt="" loading="lazy"
-                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', animation: 'fadeIn var(--nv-dur-base) var(--nv-ease)' }} />
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%',
+                      objectFit: 'cover', opacity: spines ? .5 : 1,
+                      animation: 'fadeIn var(--nv-dur-base) var(--nv-ease)' }} />
                 )}
-                <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  {!b.jacket && <span style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track-wide)', color: 'rgba(255,255,255,.5)' }}>{b.kindLabel}</span>}
-                  {!b.isBook && <span style={css('font-size:13px;color:rgba(255,255,255,.55)')}>{b.glyph}</span>}
-                </div>
-                {!b.jacket && (
+                {spines ? (
+                  /* a spine is read side-on, so the title runs up it */
+                  <div style={{ position: 'relative', writingMode: 'vertical-rl', transform: 'rotate(180deg)',
+                    margin: '0 auto', font: `400 12px ${S}`, letterSpacing: '.01em',
+                    color: 'rgba(255,255,255,.96)', textShadow: '0 1px 5px rgba(0,0,0,.85)',
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxHeight: '100%' }}>
+                    {b.title}
+                  </div>
+                ) : (
                   <>
-                    <div style={{ marginTop: 'auto', font: `400 ${b.isBook ? 17 : 14.5}px ${S}`, lineHeight: 1.18, color: 'rgba(255,255,255,.94)', textShadow: '0 1px 6px rgba(0,0,0,.4)', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{b.title}</div>
-                    {b.author && <div style={{ marginTop: '7px', font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'rgba(255,255,255,.55)', textTransform: 'uppercase' }}>{b.author}</div>}
+                    <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      {!b.jacket && <span style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track-wide)', color: 'rgba(255,255,255,.5)' }}>{b.kindLabel}</span>}
+                      {!b.isBook && <span style={css('font-size:13px;color:rgba(255,255,255,.55)')}>{b.glyph}</span>}
+                    </div>
+                    {!b.jacket && (
+                      <>
+                        <div style={{ marginTop: 'auto', font: `400 ${b.isBook ? 17 : 14.5}px ${S}`, lineHeight: 1.18, color: 'rgba(255,255,255,.94)', textShadow: '0 1px 6px rgba(0,0,0,.4)', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{b.title}</div>
+                        {b.author && <div style={{ marginTop: '7px', font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'rgba(255,255,255,.55)', textTransform: 'uppercase' }}>{b.author}</div>}
+                      </>
+                    )}
                   </>
                 )}
               </div>
             </Interactive>
-            <div style={css('margin-top:8px;display:flex;align-items:center;gap:7px;min-height:16px')}>
-              <ProvenanceBadge p={b.provenance} />
-              {b.conceptCount > 0 && <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>{b.conceptCount} idea{b.conceptCount === 1 ? '' : 's'}</Meta>}
-              {b.backlinks > 0 && <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0, opacity: .8 }}>· {b.backlinks} echo{b.backlinks === 1 ? '' : 'es'}</Meta>}
-            </div>
+            {!spines && b.jacket && (
+              <div style={{ marginTop: '9px', font: `400 14.5px ${S}`, lineHeight: 1.2,
+                color: 'var(--nv-ink)', display: '-webkit-box', WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{b.title}</div>
+            )}
+            {!spines && (
+              <div style={css('margin-top:8px;display:flex;align-items:center;gap:7px;min-height:16px')}>
+                <ProvenanceBadge p={b.provenance} />
+                {b.conceptCount > 0 && <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>{b.conceptCount} idea{b.conceptCount === 1 ? '' : 's'}</Meta>}
+                {b.backlinks > 0 && <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0, opacity: .8 }}>· {b.backlinks} echo{b.backlinks === 1 ? '' : 'es'}</Meta>}
+              </div>
+            )}
           </div>
         ))}
       </div>

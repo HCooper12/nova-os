@@ -136,6 +136,7 @@ const defaultDeps = {
     return items.length ? briefResurfaceLine(items, now) : null;
   },
   panel: async (vaultPath, directive) => (await import('./panels.js')).buildPanel(vaultPath, directive),
+  instruments: async (vaultPath, now) => (await import('./instruments.js')).buildInstruments(vaultPath, { now }),
 };
 
 // Is this event a departure from his ordinary week? Deterministic: a label
@@ -185,6 +186,11 @@ export async function composeShow(vaultPath, { variant = 'morning', now: nowIn }
   // runs underneath every other read instead of after them.
   const historyP = (!evening && deps.eventsForRange) ? deps.eventsForRange(14).catch(() => null) : null;
 
+  // one build, five attachments — the console and the brief must never be
+  // able to disagree about his heart rate
+  const inst = deps.instruments ? await deps.instruments(vaultPath, now).catch(() => null) : null;
+  const gauge = (key) => (inst?.[key]?.ok ? { kind: 'instrument', instrument: key, data: inst[key] } : null);
+
   const days = await deps.recentDays().catch(() => []);
   const dToday = days.find((x) => x.date === today);
   const dYest = days.find((x) => x.date === yesterday);
@@ -198,15 +204,18 @@ export async function composeShow(vaultPath, { variant = 'morning', now: nowIn }
     const hrv = [...days].reverse().find((x) => x.hrv != null);
     if (hrv) bits.push(`${bits.length ? 'and ' : ''}HRV is ${Math.round(hrv.hrv)}`);
     steps.push({ say: bits.length ? `${open} ${bits.join(', ')}.` : open });
-    // the glass keeps up with the voice: sleep is the figure this line is about
-    if (!evening && sleepMin) {
-      const hrs = (sleepMin / 60);
-      steps[steps.length - 1].card = metricCard({
-        label: 'Slept', value: hrs.toFixed(1), unit: 'h', caption: 'LAST NIGHT',
-        foot: hrv ? `HRV ${Math.round(hrv.hrv)} ms · ${hrv.date}` : 'HRV not recorded',
-        tone: hrs < 6 ? 'warn' : hrs >= 7 ? 'good' : 'cy',
-      });
-    }
+    // The glass keeps up with the voice. This line is about his body, so the
+    // vitals instrument belongs to it whenever HRV is what was spoken —
+    // gating it behind sleep meant a night Nova never received took the
+    // heart off the glass along with it.
+    const hrs = sleepMin ? sleepMin / 60 : null;
+    const sleepCard = (!evening && hrs != null) ? metricCard({
+      label: 'Slept', value: hrs.toFixed(1), unit: 'h', caption: 'LAST NIGHT',
+      foot: hrv ? `HRV ${Math.round(hrv.hrv)} ms · ${hrv.date}` : 'HRV not recorded',
+      tone: hrs < 6 ? 'warn' : hrs >= 7 ? 'good' : 'cy',
+    }) : null;
+    const card = (hrv && gauge('vitals')) || sleepCard;
+    if (card) steps[steps.length - 1].card = card;
   }
 
   // — movement —
@@ -215,7 +224,7 @@ export async function composeShow(vaultPath, { variant = 'morning', now: nowIn }
     if (d?.steps != null) {
       steps.push({
         say: evening ? `${d.steps.toLocaleString()} steps today.` : `${d.steps.toLocaleString()} steps yesterday.`,
-        card: metricCard({ label: 'Steps', value: d.steps.toLocaleString(), caption: evening ? 'TODAY' : 'YESTERDAY', foot: d.date }),
+        card: gauge('week') || metricCard({ label: 'Steps', value: d.steps.toLocaleString(), caption: evening ? 'TODAY' : 'YESTERDAY', foot: d.date }),
       });
     }
   }
@@ -232,7 +241,7 @@ export async function composeShow(vaultPath, { variant = 'morning', now: nowIn }
         say: `${p} grams of protein and ${kcal.toLocaleString()} calories logged.`,
         // the week against his floor, day by day — the sentence says today,
         // the picture says whether today is typical
-        card: proteinWeekCard(panel?.data) || metricCard({ label: 'Protein today', value: p, unit: 'g', caption: `${kcal.toLocaleString()} KCAL LOGGED`, tone: 'cy' }),
+        card: gauge('fuel') || proteinWeekCard(panel?.data) || metricCard({ label: 'Protein today', value: p, unit: 'g', caption: `${kcal.toLocaleString()} KCAL LOGGED`, tone: 'cy' }),
         ...(panel ? { panel } : {}),
       });
     }
@@ -279,7 +288,7 @@ export async function composeShow(vaultPath, { variant = 'morning', now: nowIn }
         if (!parts.length) parts.push('nothing timed left on the calendar');
         steps.push({
           say: `${word}: ${parts.join('; ')}.`,
-          card: listCard({
+          card: (!evening && gauge('day')) || listCard({
             label: `${word} · ${events.length} ON THE CALENDAR`,
             items: events.slice(0, 5).map((e) => ({
               name: despeak(e.label),

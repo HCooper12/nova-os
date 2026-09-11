@@ -372,3 +372,11 @@ export function Console({ data, loading, error, onRefresh }) {
     </div>
   );
 }
+
+// A single lazy entry point for the glass: StageCard cannot lazily import a
+// NAMED export, so it asks for one by name and this dispatches.
+const BY_NAME = { Vitals, Day, Week, BodyInstrument, Fuel };
+export default function Instrument({ render, d }) {
+  const Comp = BY_NAME[render];
+  return Comp ? <Comp d={d} /> : null;
+}
