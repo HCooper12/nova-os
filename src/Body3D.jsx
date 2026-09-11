@@ -279,6 +279,73 @@ function fitDistance(box, centre, eye, camera) {
   return need;
 }
 
+/* SOFT EDGES ON THE MUSCLE HIGHLIGHTS.
+ *
+ * The body arrives split into one mesh per muscle group, and tinting a whole
+ * group at once makes every border a hard cut along quad edges — a staircase
+ * about a centimetre a step, which at the size the app actually draws him
+ * reads as a texture bug rather than as anatomy. Anatomy has no edges like
+ * that: a muscle fades into the fascia around it.
+ *
+ * So each vertex gets how deep inside its own group it sits, and the shader
+ * fades the highlight out with it. A vertex on a border is one that shares its
+ * position with a vertex in a DIFFERENT group's mesh — which is exactly what a
+ * shared border is once the surface has been split — and depth is how many
+ * edges away the nearest of those is.
+ *
+ * Done here rather than in the Blender pipeline on purpose: baked into the
+ * vertex colour's spare channel, the glTF exporter kept it for the first
+ * primitive and flattened it to 1 for the other eighteen. Computing it at load
+ * costs about fifty milliseconds once and cannot be silently dropped.
+ */
+function featherEdges(root, rings = 4) {
+  const meshes = [];
+  const seen = new Map();                       // quantised position -> mesh id
+  root.traverse((o) => { if (o.isMesh && o.geometry.getAttribute('position')) meshes.push(o); });
+  if (meshes.length < 2) return;
+  const key = (p, i) => `${Math.round(p.getX(i) * 2000)},${Math.round(p.getY(i) * 2000)},${Math.round(p.getZ(i) * 2000)}`;
+  meshes.forEach((m, mi) => {
+    const p = m.geometry.getAttribute('position');
+    for (let i = 0; i < p.count; i++) {
+      const k = key(p, i);
+      const had = seen.get(k);
+      if (had === undefined) seen.set(k, mi);
+      else if (had !== mi) seen.set(k, -1);      // -1: shared with another group
+    }
+  });
+  for (const m of meshes) {
+    const p = m.geometry.getAttribute('position');
+    const idx = m.geometry.getIndex();
+    const n = p.count;
+    const dist = new Int16Array(n).fill(-1);
+    const queue = [];
+    for (let i = 0; i < n; i++) {
+      if (seen.get(key(p, i)) === -1) { dist[i] = 0; queue.push(i); }
+    }
+    if (queue.length && idx) {
+      // neighbours straight off the triangle list — no adjacency to build
+      const adj = new Map();
+      const link = (a, b) => {
+        let l = adj.get(a); if (!l) { l = []; adj.set(a, l); } if (!l.includes(b)) l.push(b);
+      };
+      for (let t = 0; t < idx.count; t += 3) {
+        const a = idx.getX(t); const b = idx.getX(t + 1); const c = idx.getX(t + 2);
+        link(a, b); link(b, a); link(b, c); link(c, b); link(c, a); link(a, c);
+      }
+      for (let h = 0; h < queue.length; h++) {
+        const v = queue[h];
+        if (dist[v] >= rings) continue;
+        for (const w of adj.get(v) || []) {
+          if (dist[w] === -1) { dist[w] = dist[v] + 1; queue.push(w); }
+        }
+      }
+    }
+    const f = new Float32Array(n);
+    for (let i = 0; i < n; i++) f[i] = dist[i] === -1 ? 1 : Math.min(dist[i], rings) / rings;
+    m.geometry.setAttribute('aFeather', new THREE.BufferAttribute(f, 1));
+  }
+}
+
 function restContacts(bones) {
   // Two points per foot, in the FOOT bone's own space: the floor under the
   // ankle, and the floor under the BALL. Two, because a calf raise pivots on
@@ -728,6 +795,7 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
       // nothing — the model was in the scene, correctly scaled, and invisible.
       const root = cloneSkinned(gltf.scene);
       scene.add(root);
+      featherEdges(root);
 
       // tint each muscle group's own material — the segmentation the model was
       // built with IS the highlight, so a lit muscle is the real muscle
@@ -775,11 +843,42 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
             // colours are already light, so tinting light skin with them gave
             // a pastel sticker with no shading. The brightness rides on sheen,
             // which is view-dependent and so still shows the form underneath.
-            mat.color.lerp(lit.clone().multiplyScalar(0.52), 0.88);
+            // A HIGHLIGHT THAT FADES INTO THE SKIN AROUND IT.
+            //
+            // Tinting the whole group at once made every boundary a hard cut
+            // along quad edges — a staircase a centimetre a step, which reads
+            // as a texture bug at the size the app actually draws him. The
+            // mesh carries how deep each vertex sits inside its group in the
+            // alpha channel (zero on a boundary), so the mix rides that and a
+            // 1 cm staircase becomes a 3 cm gradient. Anatomy does not have
+            // edges like a cut-out; a muscle fades into the fascia around it.
+            mat.onBeforeCompile = (shader) => {
+              shader.uniforms.uLit = { value: lit.clone().multiplyScalar(0.52) };
+              shader.fragmentShader = shader.fragmentShader
+                .replace('#include <color_fragment>', `
+                  #include <color_fragment>
+                  diffuseColor.rgb = mix(diffuseColor.rgb, uLit, 0.92 * vFeather);
+                `)
+                // the glow has to fade with it too, or it paints the old hard
+                // edge straight back over the gradient
+                .replace('#include <emissivemap_fragment>', `
+                  #include <emissivemap_fragment>
+                  totalEmissiveRadiance *= vFeather;
+                `)
+                .replace('void main() {',
+                  'uniform vec3 uLit;\nvarying float vFeather;\nvoid main() {');
+              shader.vertexShader = shader.vertexShader
+                .replace('void main() {',
+                  'attribute float aFeather;\nvarying float vFeather;\nvoid main() {')
+                .replace('#include <begin_vertex>',
+                  '#include <begin_vertex>\n  vFeather = aFeather;');
+            };
+            mat.customProgramCacheKey = () => `lit-${lit.getHexString()}`;
             mat.emissive = lit.clone();
             mat.emissiveIntensity = 0.10;
-            mat.sheen = 0.95;
-            mat.sheenColor = lit.clone();
+            // sheen is a whole-material property with no per-vertex path, so it
+            // stays neutral: tinted, it redrew the hard border every frame
+            mat.sheen = 0.55;
             mat.sheenRoughness = 0.38;
             mat.roughness = 0.44;
             mat.envMapIntensity = 0.62;
@@ -1096,7 +1195,18 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
           const hand = obj.userData.hand;
           if (hand) {
             const p = gripPoint(hand);
-            if (p) { obj.position.copy(p); obj.quaternion.identity(); }
+            if (p) {
+              obj.position.copy(p);
+              // AND IT TURNS WITH THE HAND. Left world-aligned, a dumbbell
+              // stayed horizontal through 140 degrees of curl while the fist
+              // rotated around it — the handle sliding through the fingers
+              // rather than being held. Its handle runs along its own local X,
+              // which is across the palm, so the hand's own rotation is the
+              // right one to give it.
+              const hb = bones[`hand${hand}`];
+              if (hb) obj.quaternion.copy(hb.getWorldQuaternion(new THREE.Quaternion()));
+              else obj.quaternion.identity();
+            }
           } else {
             const a = gripPoint('L'); const b2 = gripPoint('R');
             if (a && b2) {
