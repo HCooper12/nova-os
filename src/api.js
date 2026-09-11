@@ -144,6 +144,12 @@ export const api = {
     if (!res.ok) return null; // no jacket — the generated cover stands
     return URL.createObjectURL(await res.blob());
   },
+  sourcePosterBlobUrl: async (conn, url) => {
+    const res = await fetch(baseOf(conn) + `/api/library/poster?url=${encodeURIComponent(url || '')}`,
+      { headers: { Authorization: `Bearer ${conn.token}` } });
+    if (!res.ok) return null; // no poster — the generated cover stands
+    return URL.createObjectURL(await res.blob());
+  },
   shoppingList: (conn) => call(conn, '/api/shopping-list'),
   stash: (conn) => call(conn, '/api/stash'),
   stashAdd: (conn, item) => post(conn, '/api/stash/items', item),

@@ -708,7 +708,17 @@ function settle(root, bones, pose, contacts, fwd, base) {
 }
 
 export default function Body3D({ muscles, pattern, name = '', height = 260,
-  phase: frozen = null, view = 'three-quarter', chrome = true, focus = null }) {
+  phase: frozen = null, view = 'three-quarter', chrome = true, focus = null,
+  // GLASS — the console's reading of the same figure. Everything that is not
+  // being worked goes translucent and stops writing depth, so the lit muscles
+  // read THROUGH the body from any angle instead of being occluded by skin.
+  // The rim comes free from the sheen this material already carries: sheen is
+  // view-dependent, which is exactly what a fresnel edge is.
+  glass = false,
+  // PALETTE — the same anatomy answers different questions. Training asks
+  // what today works; Fuel asks what is waiting to be rebuilt, and debt is
+  // not the same colour as a plan.
+  palette = null }) {
   // The flat figure's pattern ids overlap with these but are coarser (it has
   // one "squat" for squats, leg presses and lunges). When the name resolves to
   // a 3D pattern, that wins — the whole point is that the movement is right.
@@ -787,6 +797,8 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
 
     const primary = new Set(muscles?.primary || []);
     const secondary = new Set(muscles?.secondary || []);
+    const PRI = palette?.primary ? new THREE.Color(palette.primary) : PRIMARY;
+    const SEC = palette?.secondary ? new THREE.Color(palette.secondary) : SECONDARY;
 
     loadModel().then((gltf) => {
       if (disposed) return;
@@ -808,7 +820,7 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
         const mats = wasArray ? o.material : [o.material];
         const tinted = mats.map((m) => {
           const group = (m.name || '').replace(/^mus_/, '');
-          const lit = primary.has(group) ? PRIMARY : secondary.has(group) ? SECONDARY : null;
+          const lit = primary.has(group) ? PRI : secondary.has(group) ? SEC : null;
           // SKIN, physically. Sheen is the peach-fuzz rim you see on a real
           // arm against a light; the low specular and high-ish roughness stop
           // it reading as wet plastic; the faint red emissive stands in for
@@ -882,6 +894,30 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
             mat.sheenRoughness = 0.38;
             mat.roughness = 0.44;
             mat.envMapIntensity = 0.62;
+          }
+          // GLASS: the shell and the unworked tissue become something you see
+          // INTO. Only lit muscle keeps writing depth, which is what puts it
+          // in front of the body rather than behind it.
+          if (glass && !lit) {
+            mat.transparent = true;
+            mat.opacity = group === 'frame' ? 0.19 : 0.22;
+            mat.depthWrite = false;
+            mat.roughness = 0.30;
+            mat.metalness = 0.0;
+            mat.sheen = 1.0;                       // the rim, for free
+            mat.sheenRoughness = 0.18;
+            mat.sheenColor = new THREE.Color(0x9fc4ff);
+            mat.emissive = new THREE.Color(0x1b2450);
+            mat.emissiveIntensity = 0.5;
+            mat.envMapIntensity = 1.5;
+            o.castShadow = false;                  // glass does not throw a hard shadow
+          } else if (glass && lit) {
+            // the subject, and it should look lit from within rather than
+            // merely tinted, because it is the only solid thing left
+            mat.emissiveIntensity = 0.22;
+            mat.sheen = 0.85;
+            mat.envMapIntensity = 1.1;
+            o.renderOrder = 2;
           }
           return mat;
         });
@@ -1300,7 +1336,7 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
       renderer.forceContextLoss();
       if (renderer.domElement.parentNode === el) el.removeChild(renderer.domElement);
     };
-  }, [muscles, pat, name, height, frozen, view, focus]);
+  }, [muscles, pat, name, height, frozen, view, focus, glass, palette?.primary, palette?.secondary]);
 
   const p = pat ? PATTERNS[pat] : null;
   return (

@@ -36,5 +36,19 @@ export function libraryRouter(vaultPath, vault) {
     }
   });
 
+  // Real poster for a video source, or 404 so the client keeps its
+  // generated cover — the same contract as the book jacket above.
+  router.get('/library/poster', async (req, res) => {
+    try {
+      const { getSourcePoster } = await import('../lib/sourcePosters.js');
+      const buf = await getSourcePoster(req.query.url);
+      if (!buf) return res.status(404).end();
+      res.set({ 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=604800' });
+      res.end(buf);
+    } catch {
+      res.status(404).end();
+    }
+  });
+
   return router;
 }

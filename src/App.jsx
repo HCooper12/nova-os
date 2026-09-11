@@ -2347,13 +2347,21 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn) return;
     for (const it of items || []) {
-      if (it.kind !== 'book' || !it.title) continue;
+      // a book has a jacket; a video has the frame it actually opens on.
+      // Both land in the same slot, because the shelf only cares that a
+      // source has REAL art rather than a generated stand-in.
+      const wants = it.kind === 'book' && it.title ? 'jacket'
+        : it.url ? 'poster' : null;
+      if (!wants) continue;
       if (this.state.liveBookCoverUrls[it.id] !== undefined) continue; // done, or known-missing
       if (!this.bookCoverTried) this.bookCoverTried = new Set();
       if (this.bookCoverTried.has(it.id)) continue;
       this.bookCoverTried.add(it.id);
-      api.bookCoverBlobUrl(conn, it.title, it.author).then((url) => {
-        // null is a REAL answer ("no jacket exists") — store it so the shelf
+      const fetching = wants === 'jacket'
+        ? api.bookCoverBlobUrl(conn, it.title, it.author)
+        : api.sourcePosterBlobUrl(conn, it.url);
+      fetching.then((url) => {
+        // null is a REAL answer ("no art exists") — store it so the shelf
         // stops asking, and so the generated cover stands permanently
         this.setState((s) => ({ liveBookCoverUrls: { ...s.liveBookCoverUrls, [it.id]: url || null } }));
       }).catch(() => {});
