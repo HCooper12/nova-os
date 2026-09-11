@@ -2,37 +2,13 @@ import { NOVA_THEMES, NOVA_CORES, NOVA_STYLES } from '../theme.js';
 import { TAB_META, tabLabel, romanFor } from '../tabOrder.js';
 import { AGENTS } from './shared.js';
 import { dtf } from './fmt.js';
-import { activeBeat, railOf, stepsRevealed, mergeVisual } from '../glassBeats.js';
+import { glassOf } from '../glassBeats.js';
 
 // App chrome: sidebar nav, mobile tabs, per-screen wrappers and grids, the
 // command palette, settings (incl. appearance), agents (concept), and the
 // toast. Consumes ctx counts from the domain builders (usingLiveRecipes,
 // liveRoutines, usingLiveNotes, journalDays, shoppingItems) plus the
 // connection truth valsMission shares (statusChip, missionStatusItems).
-// THE GLASS — the panels a spoken reply raises as it talks (9 Sep 2026).
-//
-// The voice decides which one is the hero: `glassSpokenTo` is how far the
-// AUDIO has got, not how far the text has arrived. A `steps` panel needs the
-// prose spoken since it went up, so it can build a line at a time the way he
-// described — one alone while it is read to him, then one and two together.
-function glassOf(st) {
-  const beats = st.glassBeats || [];
-  if (!beats.length) return null;
-  const spokenTo = st.glassSpokenTo || 0;
-  const idx = activeBeat(beats, spokenTo);
-  if (idx < 0) return null;
-  const chat = st.voiceChat || [];
-  const lastSaid = [...chat].reverse().find((m) => m.who !== 'you')?.text || '';
-  const panel = (b) => {
-    const v = mergeVisual(b.spec, (st.glassVisuals || {})[b.key]);
-    if (!v) return null;
-    if (v.kind !== 'steps') return v;
-    return { ...v, revealed: stepsRevealed(v.items, lastSaid.slice(b.at, spokenTo)) };
-  };
-  const hero = panel(beats[idx]);
-  if (!hero) return null;
-  return { hero, rail: railOf(beats, idx).map(panel).filter(Boolean) };
-}
 
 export function valsChrome(app, ctx) {
   const st = app.state;

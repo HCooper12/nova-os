@@ -290,6 +290,28 @@ export function Voice({ v }) {
               <div style={css("color:var(--nv-cy)")}>» NOVA <span style={css("color:color-mix(in srgb, var(--nv-ink) 50%, transparent)")}>reading the vault…</span><span style={css("color:var(--nv-cy)")}>▍</span></div>
             )}
           </div>
+          {/* THE GLASS — panels that rise WITH the speech, one hero and a
+              strip of spent ones beneath.
+              11 Sep: they used to render up beside the core. On a phone the
+              core is order 1 and this log is order 3, so while he was reading
+              the conversation every panel was drawn off-screen ABOVE him — he
+              reported seeing none, on a build that was raising four. They
+              belong here, directly over the composer, which is both where he
+              chose to have them and where he is already looking. */}
+          {v.glass && (
+            <div style={css('margin-top:12px;display:flex;flex-direction:column;gap:7px')}>
+              <SafeVisual what="glass" resetKey={v.glass.hero.label}><StageCard card={v.glass.hero} /></SafeVisual>
+              {v.glass.rail.length > 0 && (
+                <div style={css('display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch')}>
+                  {v.glass.rail.map((panel, i) => (
+                    <div key={i} style={{ flex: '0 0 auto', width: '146px', opacity: 0.92 - i * 0.14 }}>
+                      <StageCard card={panel} size="mini" />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <div style={css("display:flex;gap:8px;margin-top:14px")}>
             {/* local echo — see LocalInput.jsx. Enter hands the live text
                 straight to sendOrb so nothing can be lost to the debounce;
@@ -382,24 +404,6 @@ export function Voice({ v }) {
               <Tag tone="warn" style={{ flex: 'none' }}>▶ Tap to hear</Tag>
               <span style={css('flex:1;min-width:0;font-size:11.5px;color:color-mix(in srgb, var(--nv-ink) 60%, transparent)')}>{v.speechBlocked.message}</span>
             </Interactive>
-          )}
-
-          {/* THE GLASS GREW, 9 Sep 2026 — panels that rise WITH the speech,
-              one hero and a strip of spent ones beneath. Same view model as
-              the presence surface, so the phone and the Mac cannot drift. */}
-          {v.glass && (
-            <div style={css(`width:min(${v.stageFocus ? 560 : 460}px,100%);display:flex;flex-direction:column;gap:8px`)}>
-              <SafeVisual what="glass" resetKey={v.glass.hero.label}><StageCard card={v.glass.hero} /></SafeVisual>
-              {v.glass.rail.length > 0 && (
-                <div style={css('display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch')}>
-                  {v.glass.rail.map((panel, i) => (
-                    <div key={i} style={{ flex: '0 0 auto', width: '152px', opacity: 0.92 - i * 0.14 }}>
-                      <StageCard card={panel} size="mini" />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           )}
 
           {/* THE GLASS — the figure for the line being spoken right now,

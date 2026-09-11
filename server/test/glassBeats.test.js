@@ -5,7 +5,7 @@
 // may be dropped. So the frame is raised on time and the picture fills in.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { activeBeat, railOf, stepsRevealed, mergeVisual } from '../../src/glassBeats.js';
+import { activeBeat, railOf, stepsRevealed, mergeVisual, glassOf } from '../../src/glassBeats.js';
 
 const beats = [{ at: 0 }, { at: 40 }, { at: 120 }, { at: 200 }];
 
@@ -87,4 +87,63 @@ test('a resolver that downgraded the kind wins over what the model asked for', (
 
 test('no spec, no panel', () => {
   assert.equal(mergeVisual(null, { src: 'x' }), null);
+});
+
+// ---- the whole path, on the shape of a real Leader turn ----
+//
+// 11 Sep 2026. He was on the current build and still saw nothing, which ruled
+// out the two bugs already fixed and left the layer nobody had tested: the
+// view model that turns beats into what is actually drawn. This runs a turn
+// shaped exactly like the one from his transcript — `title` instead of
+// `label`, `items` on a `key` — from raw model output to hero and rail.
+import { parseVisualStream } from '../../src/visualBeats.js';
+
+const TURN = [
+  'VIS {"kind":"key","title":"The read","items":["Your goal is set to convince him","For him this is about standing"]}',
+  'The word convince is the problem. You asked how to persuade him otherwise.',
+  'VIS {"kind":"steps","title":"The sequence","items":["Ask for advice, do not pitch","Name the best of his idea as his","Bring yours as a trial"]}',
+  'Before the room, get ten minutes alone. Then take the best piece of his idea and say it is his. Then offer yours as something to try.',
+  'VIS {"kind":"list","title":"The honest check","items":["Have you steelmanned his version?"]}',
+  'One question worth sitting with before any of it.',
+].join('\n');
+
+test('THE WHOLE PATH: a real-shaped turn raises its panels in order', () => {
+  const { text, beats } = parseVisualStream(TURN);
+  assert.equal(beats.length, 3, 'all three parsed despite title/items');
+  const st = { glassBeats: beats, glassVisuals: {}, voiceChat: [{ who: 'leader', text }] };
+
+  assert.equal(glassOf({ ...st, glassSpokenTo: 0 }), null, 'nothing before the first word is spoken');
+
+  const first = glassOf({ ...st, glassSpokenTo: 40 });
+  assert.equal(first.hero.label, 'THE READ');
+  assert.equal(first.hero.kind, 'list', 'a key carrying items is drawn as a list');
+  assert.equal(first.rail.length, 0);
+
+  const second = glassOf({ ...st, glassSpokenTo: beats[1].at + 60 });
+  assert.equal(second.hero.label, 'THE SEQUENCE');
+  assert.equal(second.rail.length, 1, 'the spent panel moved into the rail');
+
+  const last = glassOf({ ...st, glassSpokenTo: text.length });
+  assert.equal(last.hero.label, 'THE HONEST CHECK');
+  assert.equal(last.rail.length, 2);
+});
+
+test('THE WHOLE PATH: the sequence builds as it is read to him', () => {
+  const { text, beats } = parseVisualStream(TURN);
+  const st = { glassBeats: beats, glassVisuals: {}, voiceChat: [{ who: 'leader', text }] };
+  const at = (n) => glassOf({ ...st, glassSpokenTo: beats[1].at + n }).hero.revealed;
+  // his words: "number one on its own while it was written to me, which would
+  // then dynamically adjust to also display number two and number one
+  // together when it began reading number 2 to me"
+  assert.equal(at(20), 1, 'one on its own, as the passage opens');
+  assert.equal(at(45), 2, 'two joins it as he is read further');
+  assert.equal(at(130), 3, 'and all three by the end of its own passage');
+  assert.ok(at(20) < at(45) && at(45) < at(130), 'it only ever grows');
+});
+
+test('THE WHOLE PATH: a panel is drawable before its picture exists', () => {
+  const { text, beats } = parseVisualStream('VIS {"kind":"media","title":"Alex Hormozi on leverage","caption":"the bit worth hearing"}\nThere is an episode on exactly this.');
+  const g = glassOf({ glassBeats: beats, glassVisuals: {}, glassSpokenTo: 999, voiceChat: [{ who: 'nova', text }] });
+  assert.equal(g.hero.kind, 'media');
+  assert.equal(g.hero.pending, true, 'the frame is up in context while the cover is still coming');
 });
