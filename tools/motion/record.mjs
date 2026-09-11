@@ -45,6 +45,11 @@ const opt = (k, d) => {
 const port = opt('port', '5199');
 const view = opt('view', 'three-quarter');
 const asName = opt('name', '');
+// --focus BONE frames one joint at arm's length instead of the whole body, the
+// same switch the contact sheet has. A wrist that does not work is invisible at
+// full height and obvious at 26 cm, and cropping a finished GIF cannot get
+// there — the body is framed to fit, so the feet are a dozen pixels tall.
+const focus = opt('focus', '');
 const frames = Number(opt('frames', 24));
 // Software rendering costs pixels, and with 8 morph targets on 22,000
 // vertices a 440px frame took about six seconds. 360 is still legible and
@@ -142,7 +147,8 @@ async function record(id) {
   await send('Page.enable');
   const url = `${base}/tools/motion/harness.html`
     + `?film=1&ex=${encodeURIComponent(id)}&size=${size}&view=${view}`
-    + (asName ? `&name=${encodeURIComponent(asName)}` : '');
+    + (asName ? `&name=${encodeURIComponent(asName)}` : '')
+    + (focus ? `&focus=${encodeURIComponent(focus)}` : '');
   await send('Page.navigate', { url });
   // wait for the model: it is fetched, parsed and skinned before it draws
   for (let i = 0; i < 80; i++) {
