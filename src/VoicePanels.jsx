@@ -72,7 +72,7 @@ function Exercise({ d }) {
                 <Chip tone="cyan" active={threeD} onClick={() => setThreeD((v) => !v)}>{threeD ? '◐ Flat view' : '◉ Turn it in 3D'}</Chip>
                 {threeD && (
                   <Chip
-                    tone="rose"
+                    tone="warn"
                     active={layer === 'muscle'}
                     onClick={() => setLayer((v) => (v === 'muscle' ? 'skin' : 'muscle'))}
                     title="Take the skin off — every muscle belly, its tendon and which way its fibres run"
