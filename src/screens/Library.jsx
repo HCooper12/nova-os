@@ -78,7 +78,7 @@ function Shelf({ v }) {
                   /* the real jacket, once it has loaded — the generated cover
                      stays underneath as the frame and the permanent fallback */
                   <img src={b.jacket} alt="" loading="lazy"
-                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', animation: 'fadeIn .35s ease-out' }} />
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', animation: 'fadeIn var(--nv-dur-base) var(--nv-ease)' }} />
                 )}
                 <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   {!b.jacket && <span style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track-wide)', color: 'rgba(255,255,255,.5)' }}>{b.kindLabel}</span>}
@@ -107,7 +107,7 @@ function Shelf({ v }) {
 function Detail({ v }) {
   const d = v.libraryDetail;
   return (
-    <div style={css('animation:fadeUp .3s ease-out')}>
+    <div style={css('animation:fadeUp var(--nv-dur-base) var(--nv-ease)')}>
       <TextAction tone="quiet" onClick={d.close} style={{ marginLeft: '-8px' }}>‹ Library</TextAction>
 
       {d.loading && <div style={css('margin-top:40px;text-align:center;font-size:13px;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)')}>Opening…</div>}
@@ -118,9 +118,9 @@ function Detail({ v }) {
       {d.item && (
         <>
           <div style={css('margin-top:20px;display:flex;gap:24px;flex-wrap:wrap')}>
-            <div style={{ ...d.item.coverStyle, width: d.item.isBook ? '150px' : '210px', aspectRatio: d.item.isBook ? '2/3' : '16/10', flex: 'none', borderRadius: d.item.isBook ? '5px 11px 11px 5px' : '12px', border: '1px solid rgba(255,255,255,.1)', boxShadow: '0 26px 54px -20px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.08)', padding: '15px', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', animation: 'shelfIn .45s cubic-bezier(.22,1,.36,1) both' }}>
+            <div style={{ ...d.item.coverStyle, width: d.item.isBook ? '150px' : '210px', aspectRatio: d.item.isBook ? '2/3' : '16/10', flex: 'none', borderRadius: d.item.isBook ? '5px 11px 11px 5px' : '12px', border: '1px solid rgba(255,255,255,.1)', boxShadow: '0 26px 54px -20px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.08)', padding: '15px', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', animation: 'shelfIn var(--nv-dur-slow) var(--nv-ease) both' }}>
               {d.item.jacket && (
-                <img src={d.item.jacket} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit', animation: 'fadeIn .35s ease-out' }} />
+                <img src={d.item.jacket} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit', animation: 'fadeIn var(--nv-dur-base) var(--nv-ease)' }} />
               )}
               {!d.item.jacket && (
                 <>
@@ -164,7 +164,7 @@ function Detail({ v }) {
               <div style={css('margin-top:12px;display:flex;gap:12px;overflow-x:auto;padding-bottom:8px')}>
                 {d.related.map((r, i) => (
                   <Interactive key={r.id} onClick={r.open}
-                    base={{ cursor: 'pointer', flex: 'none', width: '190px', animation: 'shelfIn .45s cubic-bezier(.22,1,.36,1) both', animationDelay: `${i * 60}ms`, transition: 'transform .3s cubic-bezier(.22,1,.36,1)' }}
+                    base={{ cursor: 'pointer', flex: 'none', width: '190px', animation: 'shelfIn var(--nv-dur-slow) var(--nv-ease) both', animationDelay: `${i * 60}ms`, transition: 'transform .3s cubic-bezier(.22,1,.36,1)' }}
                     hoverStyle={{ transform: 'translateY(-4px)' }}>
                     <div style={{ ...r.coverStyle, borderRadius: '10px', border: '1px solid rgba(255,255,255,.09)', padding: '12px', minHeight: '76px', display: 'flex', flexDirection: 'column' }}>
                       <span style={{ font: `400 14px ${S}`, lineHeight: 1.2, color: 'rgba(255,255,255,.93)' }}>{r.title}</span>

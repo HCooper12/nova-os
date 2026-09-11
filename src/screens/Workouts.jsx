@@ -850,7 +850,7 @@ function MockWorkouts({ v }) {
             <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{v.planMeta}</span>
           </div>
           {v.planNoteOn && (
-            <div style={css("margin-top:12px;display:flex;align-items:center;gap:9px;font-size:12px;color:var(--nv-cy);border:1px solid color-mix(in srgb, var(--nv-cy) 25%, transparent);border-radius:8px;padding:8px 12px;background:color-mix(in srgb, var(--nv-cy) 05%, transparent);animation:fadeUp .3s ease-out")}><span>◆</span><span>{v.planNote}</span></div>
+            <div style={css("margin-top:12px;display:flex;align-items:center;gap:9px;font-size:12px;color:var(--nv-cy);border:1px solid color-mix(in srgb, var(--nv-cy) 25%, transparent);border-radius:8px;padding:8px 12px;background:color-mix(in srgb, var(--nv-cy) 05%, transparent);animation:fadeUp var(--nv-dur-base) var(--nv-ease)")}><span>◆</span><span>{v.planNote}</span></div>
           )}
           <div style={css("margin-top:14px;display:flex;flex-direction:column")}>
             {v.plan.map((ex) => (

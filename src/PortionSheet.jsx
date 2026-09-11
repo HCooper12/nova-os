@@ -21,7 +21,7 @@ export function PortionSheet({ p }) {
     <div role="dialog" aria-modal="true" aria-label={`Log ${p.name}`} onClick={p.cancel}
       style={css('position:fixed;inset:0;z-index:130;display:flex;align-items:flex-end;justify-content:center;background:rgba(8,5,12,.7);backdrop-filter:blur(6px)')}>
       <div ref={drag.sheetRef} onClick={(e) => e.stopPropagation()}
-        style={css('width:520px;max-width:100vw;border:1px solid color-mix(in srgb, var(--nv-good) 30%, transparent);border-radius:18px 18px 0 0;background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 -20px 60px -20px rgba(0,0,0,.9);padding:8px 20px calc(20px + env(safe-area-inset-bottom));animation:sheetUp .32s cubic-bezier(.32,.72,0,1)')}>
+        style={css('width:520px;max-width:100vw;border:1px solid color-mix(in srgb, var(--nv-good) 30%, transparent);border-radius:18px 18px 0 0;background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 -20px 60px -20px rgba(0,0,0,.9);padding:8px 20px calc(20px + env(safe-area-inset-bottom));animation:sheetUp var(--nv-dur-base) var(--nv-ease)')}>
         <div {...drag.handleProps} style={{ ...drag.handleProps.style, display: 'flex', justifyContent: 'center', padding: '6px 0 12px' }}>
           <span aria-hidden="true" style={css('width:36px;height:5px;border-radius:3px;background:color-mix(in srgb, var(--nv-ink) 22%, transparent)')} />
         </div>

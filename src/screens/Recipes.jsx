@@ -376,7 +376,7 @@ export function Recipes({ v }) {
             </Chip>
           </div>
           {v.foodRecipePickerOpen && (
-            <div style={css("margin-top:10px;border:1px solid var(--nv-edge);border-radius:12px;background:rgba(0,0,0,.22);padding:12px;animation:fadeUp .22s ease-out")}>
+            <div style={css("margin-top:10px;border:1px solid var(--nv-edge);border-radius:12px;background:rgba(0,0,0,.22);padding:12px;animation:fadeUp var(--nv-dur-base) var(--nv-ease)")}>
               <Interactive as="input" value={v.foodRecipePickerQuery} onChange={v.setFoodRecipePickerQuery}
                 placeholder="Search your recipes…"
                 base="width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
@@ -551,7 +551,7 @@ export function Recipes({ v }) {
                 </div>
               ))}
               {v.foodEdit && (
-                <div style={css("margin-top:6px;border:1px solid color-mix(in srgb, var(--nv-cy) 32%, transparent);border-radius:11px;padding:12px;background:color-mix(in srgb, var(--nv-cy) 05%, transparent);animation:fadeUp .2s ease-out")}>
+                <div style={css("margin-top:6px;border:1px solid color-mix(in srgb, var(--nv-cy) 32%, transparent);border-radius:11px;padding:12px;background:color-mix(in srgb, var(--nv-cy) 05%, transparent);animation:fadeUp var(--nv-dur-base) var(--nv-ease)")}>
                   <Eyebrow tone="cyan">Edit this entry</Eyebrow>
                   <Interactive as="input" value={v.foodEdit.name} onChange={v.foodEdit.setName}
                     base="margin-top:9px;width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:9px 12px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-ui);outline:none"

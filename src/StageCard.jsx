@@ -55,7 +55,7 @@ export function StageCard({ card, size = 'full' }) {
       border: `1px solid color-mix(in srgb, ${accent} ${mini ? 26 : 45}%, transparent)`,
       background: `linear-gradient(180deg, color-mix(in srgb, ${accent} 07%, transparent), color-mix(in srgb, var(--nv-void) 92%, black))`,
       boxShadow: mini ? 'none' : `0 0 30px -8px color-mix(in srgb, ${accent} 55%, transparent), 0 20px 50px -24px rgba(0,0,0,.85)`,
-      animation: mini ? 'none' : 'popIn .34s cubic-bezier(.2,.9,.25,1)',
+      animation: mini ? 'none' : 'popIn var(--nv-dur-base) var(--nv-ease)',
     }}>
       {card.label ? (
         <div style={{ font: `600 ${mini ? 7.5 : 8.5}px ${M}`, letterSpacing: '.2em', color: `color-mix(in srgb, ${accent} 85%, transparent)` }}>{card.label}</div>
@@ -137,7 +137,7 @@ export function StageCard({ card, size = 'full' }) {
       {card.kind === 'steps' && (
         <div style={css(`margin-top:${mini ? 7 : 14}px;display:flex;flex-direction:column;gap:${mini ? 6 : 11}px`)}>
           {(card.items || []).slice(0, Math.max(1, card.revealed ?? (card.items || []).length)).map((it, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: mini ? '7px' : '11px', animation: 'glassStep .3s cubic-bezier(.2,.9,.25,1)' }}>
+            <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: mini ? '7px' : '11px', animation: 'glassStep var(--nv-dur-base) var(--nv-ease)' }}>
               <span style={{ flex: 'none', font: `600 ${mini ? 8 : 10}px ${M}`, letterSpacing: '.1em', color: accent, fontVariantNumeric: 'tabular-nums' }}>{String(i + 1).padStart(2, '0')}</span>
               <span style={{ flex: 1, minWidth: 0, font: `500 ${mini ? 10.5 : 14}px/1.4 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 92%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: mini ? 'nowrap' : 'normal' }}>{it.name}</span>
             </div>

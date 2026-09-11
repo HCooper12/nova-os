@@ -41,7 +41,7 @@ export function Galaxy({ v }) {
           <Chip tone="cyan" active onClick={v.galaxyResetView} style={{ position: 'absolute', top: '10px', right: '14px' }}>Reset view</Chip>
         )}
         {v.galaxySelOn && (
-          <div style={css("position:absolute;right:16px;bottom:16px;width:270px;max-width:calc(100% - 32px);border:1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent);border-radius:12px;padding:15px 17px;background:var(--nv-glass2);backdrop-filter:blur(14px);box-shadow:0 18px 40px -18px rgba(0,0,0,.9);animation:fadeUp .3s ease-out")}>
+          <div style={css("position:absolute;right:16px;bottom:16px;width:270px;max-width:calc(100% - 32px);border:1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent);border-radius:12px;padding:15px 17px;background:var(--nv-glass2);backdrop-filter:blur(14px);box-shadow:0 18px 40px -18px rgba(0,0,0,.9);animation:fadeUp var(--nv-dur-base) var(--nv-ease)")}>
             <Eyebrow tone={v.galaxySelColor}>{v.galaxySelType}</Eyebrow>
             <div style={css("margin-top:7px;font:400 19px var(--nv-font-serif)")}>{v.galaxySelLabel}</div>
             <div style={css("margin-top:5px;font-size:12px;color:color-mix(in srgb, var(--nv-ink) 55%, transparent);line-height:1.5")}>{v.galaxySelDesc}</div>

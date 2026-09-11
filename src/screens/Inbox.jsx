@@ -514,6 +514,49 @@ export function Inbox({ v }) {
               )}
             </div>
 
+            <div className="nv-pane" style={{ flex: '1 1 320px', padding: '16px 18px', minWidth: 0 }}>
+              <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>
+                <Eyebrow as="span" tone="gold">Open promises</Eyebrow>
+                <Meta tone="faint">Fortnightly · read-only scan</Meta>
+              </div>
+              <div style={css(`margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px`)}>
+                <span style={css(`font:500 11.5px ${R};color:var(--nv-ink60);min-width:0`)}>last pass {v.commitmentsLastRun} · {v.commitmentProposals.length} still open</span>
+                <TextAction tone="gold" disabled={v.commitmentsBusy} onClick={v.runCommitmentsNow} style={{ flex: 'none' }}>{v.commitmentsBusy ? 'Scanning…' : 'Run now'}</TextAction>
+              </div>
+              {v.commitmentProposals.length === 0 && v.commitmentsLoaded && (
+                <div style={css(`margin-top:8px;font:500 11.5px/1.5 ${R};color:var(--nv-ink60)`)}>Nothing you wrote down has been left hanging — every promise is closed, tracked, or written about since.</div>
+              )}
+              {v.commitmentProposals.length > 0 && (
+                <div className="nv-stagger" style={css("margin-top:10px;display:flex;flex-direction:column;gap:8px")}>
+                  {v.commitmentProposals.map((p) => (
+                    <div key={p.id} style={css("padding:10px 12px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);background:var(--nv-well);min-width:0")}>
+                      <div style={css("display:flex;align-items:center;gap:8px;flex-wrap:wrap")}>
+                        <Tag hue={p.badge.hue}>{p.badge.label}</Tag>
+                        <span style={css(`font:600 13px ${R};min-width:0`)}>{p.title}</span>
+                      </div>
+                      <div style={css(`margin-top:4px;font:500 11.5px/1.5 ${R};color:var(--nv-ink60)`)}>{p.detail}</div>
+                      <div style={css("margin-top:8px;display:flex;gap:8px;flex-wrap:wrap")}>
+                        <Interactive as="span" onClick={p.busy ? undefined : p.accept}
+                          base={{ cursor: 'pointer', font: `600 11.5px ${R}`, padding: '4px 12px', borderRadius: '7px', background: 'var(--nv-gold)', color: 'var(--nv-on-acc)', opacity: p.busy ? 0.5 : 1 }}
+                          hoverStyle={{ filter: 'brightness(1.1)' }}
+                        >{p.busy ? '…' : p.acceptLabel}</Interactive>
+                        {p.open && (
+                          <Interactive as="span" onClick={p.open}
+                            base={{ cursor: 'pointer', font: `600 11.5px ${R}`, padding: '4px 12px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-vi) 45%, transparent)', color: 'var(--nv-vi)' }}
+                            hoverStyle={{ background: 'color-mix(in srgb, var(--nv-vi) 08%, transparent)' }}
+                          >Open the note</Interactive>
+                        )}
+                        <Interactive as="span" onClick={p.busy ? undefined : p.dismiss}
+                          base={{ cursor: 'pointer', font: `600 11.5px ${R}`, padding: '4px 12px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent)', color: 'var(--nv-ink60)', opacity: p.busy ? 0.5 : 1 }}
+                          hoverStyle={{ background: 'rgba(255,255,255,.05)' }}
+                        >Let it go</Interactive>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="nv-pane" style={{ flex: '1 1 320px', padding: '16px 18px' }}>
               <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}>
                 <Eyebrow as="span" tone="violet">Todoist sync</Eyebrow>

@@ -34,7 +34,7 @@ export function RecipeOverlay({ v }) {
         ? css("width:100%;height:100%;overflow-y:auto;background:var(--nv-glass2);padding-bottom:calc(24px + env(safe-area-inset-bottom))")
         : css("width:860px;max-width:94vw;max-height:88vh;overflow-y:auto;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 40px 90px -30px rgba(0,0,0,.95),inset 0 1px 0 var(--nv-spec)")),
         ...(v.recipeOvVtName ? { viewTransitionName: v.recipeOvVtName } : {}),
-        animation: v.supportsViewTransitions ? undefined : (v.recipeOvMobile ? 'fadeUp .25s ease-out' : 'fadeUp .3s ease-out') }}>
+        animation: v.supportsViewTransitions ? undefined : (v.recipeOvMobile ? 'fadeUp var(--nv-dur-base) var(--nv-ease)' : 'fadeUp var(--nv-dur-base) var(--nv-ease)') }}>
         <div style={css(`position:sticky;top:0;z-index:3;display:flex;justify-content:space-between;align-items:center;padding:${v.recipeOvMobile ? 'calc(12px + env(safe-area-inset-top)) 18px 12px' : '18px 26px'};border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent);background:var(--nv-glass2);backdrop-filter:blur(22px)`)}>
           <Eyebrow as="span" tone="gold">Recipe · from Obsidian</Eyebrow>
           <span style={css("display:flex;gap:8px;align-items:center")}>
@@ -336,7 +336,7 @@ export function RecipeOverlay({ v }) {
               <div style={css("margin-top:20px;border:1px solid color-mix(in srgb, var(--nv-cy) 20%, transparent);border-radius:12px;padding:14px 16px;background:color-mix(in srgb, var(--nv-cy) 04%, transparent)")}>
                 <Eyebrow tone="cyan">Ask Nova</Eyebrow>
                 {v.recipeMsgs.map((m, i) => (
-                  <div key={i} style={css("margin-top:10px;font-size:13px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 85%, transparent);animation:fadeUp .3s ease-out")}><span style={m.tagStyle}>{m.tag}</span> <TypeText text={m.text} active={m.typing} /></div>
+                  <div key={i} style={css("margin-top:10px;font-size:13px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 85%, transparent);animation:fadeUp var(--nv-dur-base) var(--nv-ease)")}><span style={m.tagStyle}>{m.tag}</span> <TypeText text={m.text} active={m.typing} /></div>
                 ))}
                 <div style={css("display:flex;gap:8px;margin-top:12px;flex-wrap:wrap")}>
                   <Interactive

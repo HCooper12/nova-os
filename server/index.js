@@ -53,6 +53,7 @@ import { startDailyReviewScheduler } from './lib/dailyReview.js';
 import { startHealthInsightScheduler } from './lib/healthInsight.js';
 import { startDispatchScheduler } from './lib/dispatch.js';
 import { startCompostScheduler } from './lib/compost.js';
+import { startCommitmentScheduler } from './lib/commitments.js';
 import { startTodoistScheduler } from './lib/todoistSync.js';
 import { startGuardianScheduler } from './lib/guardian.js';
 import { startOvernightScheduler } from './lib/overnight.js';
@@ -276,6 +277,7 @@ async function main() {
   startFollowUpScheduler(process.env.VAULT_PATH); // calendar "did it happen?" — evening for today, morning for yesterday
   startDispatchScheduler(process.env.VAULT_PATH);
   startCompostScheduler(process.env.VAULT_PATH);
+  startCommitmentScheduler(process.env.VAULT_PATH);
   // semantic recall: keep the derived vector index level with the vault, so a
   // note written this morning answers by MEANING this morning. Only changed
   // pages are embedded, so a tick is free once the index exists — and if

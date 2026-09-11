@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'react';
-import { css } from '../css.js';
+import { css, riseIn } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
 import { Clock } from '../Clock.jsx';
@@ -80,6 +80,12 @@ function RailRow({ label, value, tone, barPct }) {
 }
 
 export function Voice({ v }) {
+  // The log cascades only on the paint that mounts it. After that a new
+  // message is the ONLY row mounting, and it must land immediately rather
+  // than sit out a delay it would inherit purely for being last. See
+  // riseIn() in css.js.
+  const firstPaint = useRef(true);
+  useEffect(() => { firstPaint.current = false; }, []);
   const inputRef = useRef('');
   inputRef.current = v.orbInput;
   const sendRef = useRef(v.sendOrb);
@@ -162,7 +168,7 @@ export function Voice({ v }) {
           reel. Click anywhere off the card (or the × on it) to come back. */}
       {v.stageFocus && (
         <div onClick={v.briefQueue ? undefined : v.dismissStage}
-          style={css('position:fixed;inset:0;z-index:60;background:rgba(4,3,8,.55);backdrop-filter:blur(9px);animation:fadeIn .3s ease-out;display:flex;align-items:center;justify-content:center;padding:24px')}>
+          style={css('position:fixed;inset:0;z-index:60;background:rgba(4,3,8,.55);backdrop-filter:blur(9px);animation:fadeIn var(--nv-dur-base) var(--nv-ease);display:flex;align-items:center;justify-content:center;padding:24px')}>
           {/* THE CARD MUST BE INSIDE THE SPOTLIGHT.
               The scrim is fixed to the viewport but the card it exists to
               highlight sits in normal flow further down the Voice screen —
@@ -216,7 +222,7 @@ export function Voice({ v }) {
               <div style={css("color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>Ask about anything in your vault — training, fuel, notes, the week. Answers come from what's actually written.</div>
             )}
             {v.orbMsgs.map((m, i) => (
-              <div key={i} style={css("animation:fadeUp .4s ease-out")}>
+              <div key={i} style={css(`animation:${riseIn(i, v.orbMsgs.length, firstPaint.current)}`)}>
                 {m.daySep && (
                   <div style={css(`margin:10px 0 8px;text-align:center;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 38%, transparent)`)}>— {m.daySep.toUpperCase()} —</div>
                 )}
@@ -399,7 +405,7 @@ export function Voice({ v }) {
               thing he is waiting on is not a notice. */}
           {v.speechBlocked && (
             <Interactive onClick={v.speechBlocked.replay} aria-label="Play the reply you didn't hear"
-              base={css(`cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:10px;border:1px solid color-mix(in srgb, var(--nv-warn) 55%, transparent);background:${v.isMobile ? 'color-mix(in srgb, var(--nv-void) 94%, black)' : 'color-mix(in srgb, var(--nv-warn) 08%, transparent)'};animation:popIn .3s cubic-bezier(.2,.9,.25,1)${v.isMobile ? ';position:fixed;left:12px;right:12px;bottom:calc(96px + env(safe-area-inset-bottom));z-index:113;box-shadow:0 14px 40px rgba(0,0,0,.6)' : ''}`)}
+              base={css(`cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:10px;border:1px solid color-mix(in srgb, var(--nv-warn) 55%, transparent);background:${v.isMobile ? 'color-mix(in srgb, var(--nv-void) 94%, black)' : 'color-mix(in srgb, var(--nv-warn) 08%, transparent)'};animation:popIn var(--nv-dur-base) var(--nv-ease)${v.isMobile ? ';position:fixed;left:12px;right:12px;bottom:calc(96px + env(safe-area-inset-bottom));z-index:113;box-shadow:0 14px 40px rgba(0,0,0,.6)' : ''}`)}
               hoverStyle="background:color-mix(in srgb, var(--nv-warn) 16%, transparent)">
               <Tag tone="warn" style={{ flex: 'none' }}>▶ Tap to hear</Tag>
               <span style={css('flex:1;min-width:0;font-size:11.5px;color:color-mix(in srgb, var(--nv-ink) 60%, transparent)')}>{v.speechBlocked.message}</span>

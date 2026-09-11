@@ -512,6 +512,24 @@ export function valsInbox(app, ctx) {
         : null,
     }));
 
+  // loops — the commitment finder. Same card, same two verbs, its own store
+  // and its own badge, appended after compost's so the tidy-up proposals and
+  // the open promises read as one list of "things the loops noticed".
+  const commitmentProposals = (st.liveCommitments?.proposals || [])
+    .filter((p) => p.status === 'open')
+    .map((p) => ({
+      id: p.id,
+      badge: { label: 'OPEN PROMISE', hue: '224,178,106' },
+      title: p.title,
+      detail: p.detail,
+      actionable: true,
+      acceptLabel: 'Put it on the list',
+      busy: !!st.commitmentActionBusy[p.id],
+      accept: () => app.commitmentAction(p.id, 'accept'),
+      dismiss: () => app.commitmentAction(p.id, 'dismiss'),
+      open: p.data?.relPath ? () => { app.selectNote(p.data.relPath.replace(/\.md$/, '')); app.navigate('notes'); } : null,
+    }));
+
   // loops — todoist two-way sync (to-dos mirror into the Todoist Inbox)
   const todoist = st.liveTodoist;
   const tdLast = todoist?.lastResult;
@@ -641,6 +659,11 @@ export function valsInbox(app, ctx) {
     compostProposals,
     compostBusy: st.compostBusy,
     runCompostNow: () => app.runCompostNow(),
+    commitmentsLoaded: !!st.liveCommitments,
+    commitmentsLastRun: st.liveCommitments?.lastRunAt ? timeLabel(st.liveCommitments.lastRunAt) : 'never',
+    commitmentProposals,
+    commitmentsBusy: st.commitmentsBusy,
+    runCommitmentsNow: () => app.runCommitmentsNow(),
     todoist: todoistCard,
     guardian: guardianCard,
     mealPrep: mealPrepCard,

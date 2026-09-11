@@ -78,7 +78,7 @@ export function ClaudeCode({ v }) {
               <div style={css("color:color-mix(in srgb, var(--nv-ink) 40%, transparent);font-style:italic")}>Ask Claude to explain something, or to make a real change — it can read and edit files in the selected workspace.</div>
             )}
             {v.codeMsgs.map((m, i) => (
-              <div key={i} style={css("animation:fadeUp .3s ease-out")}><span style={m.tagStyle}>{m.tag}</span> <span style={css("color:color-mix(in srgb, var(--nv-ink) 88%, transparent);white-space:pre-wrap")}>{m.text}</span></div>
+              <div key={i} style={css("animation:fadeUp var(--nv-dur-base) var(--nv-ease)")}><span style={m.tagStyle}>{m.tag}</span> <span style={css("color:color-mix(in srgb, var(--nv-ink) 88%, transparent);white-space:pre-wrap")}>{m.text}</span></div>
             ))}
             {v.codeBusy && (
               <div style={css("display:flex;gap:5px;padding-left:2px")}><span style={css("width:5px;height:5px;border-radius:50%;background:var(--nv-gold);animation:dotBlink 1s infinite")}></span><span style={css("width:5px;height:5px;border-radius:50%;background:var(--nv-gold);animation:dotBlink 1s .2s infinite")}></span><span style={css("width:5px;height:5px;border-radius:50%;background:var(--nv-gold);animation:dotBlink 1s .4s infinite")}></span></div>

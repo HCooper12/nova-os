@@ -468,6 +468,7 @@ export default class App extends Component {
     liveDispatch: null, liveCompost: null, liveTodoist: null, liveTodos: null, liveGuardian: null, liveDailyReview: null, liveOps: null,
     liveOvernight: null, overnightInput: '', liveSkills: null, livePulse: null, opsOpenAgentId: null, liveOpsStream: null, greetBanner: null,
     dispatchBusy: false, compostBusy: false, compostActionBusy: {}, todoistBusy: false, guardianBusy: false, reviewBusy: false,
+    commitmentsBusy: false, commitmentActionBusy: {},
     todoInput: '', todoEditCategoryKey: null,
     editingSessionId: null, sessionDeleteConfirmId: null,
     liveCarryovers: null, finishMissed: null, finishMissedDate: '', finishMissedRoutine: '', carryoverRescheduleId: null,
@@ -1434,6 +1435,7 @@ export default class App extends Component {
     apply('inbox', (r) => this.setState({ liveInbox: r }));
     apply('dispatch', (r) => this.setState({ liveDispatch: r }));
     apply('compost', (r) => this.setState({ liveCompost: r }));
+    apply('commitments', (r) => this.setState({ liveCommitments: r }));
     apply('todoist', (r) => this.setState({ liveTodoist: r }));
     apply('todos', (r) => this.setState({ liveTodos: r }));
     apply('guardian', (r) => this.setState({ liveGuardian: r }));
@@ -1565,6 +1567,7 @@ export default class App extends Component {
       async () => this.setState({ liveInbox: await api.inbox(conn) }),
       async () => this.setState({ liveDispatch: await api.dispatchStatus(conn) }),
       async () => this.setState({ liveCompost: await api.compost(conn) }),
+      async () => this.setState({ liveCommitments: await api.commitments(conn) }),
       async () => this.setState({ liveTodoist: await api.todoistStatus(conn) }),
       async () => this.setState({ liveTodos: await api.todos(conn) }),
       async () => this.setState({ liveGuardian: await api.guardian(conn) }),
@@ -4883,6 +4886,40 @@ export default class App extends Component {
       this.toastMsg('Could not apply: ' + e.message);
     });
   }
+  // THE COMMITMENT FINDER — promises he made in writing and never closed.
+  // Same two verbs as compost, against its own store; accepting writes one
+  // undoable to-do server-side, so the client only has to refresh the inbox.
+  runCommitmentsNow() {
+    const conn = getConnection();
+    if (!conn || this.state.commitmentsBusy) return;
+    this.setState({ commitmentsBusy: true });
+    api.commitmentsRun(conn).then((data) => {
+      this.setState({ commitmentsBusy: false, liveCommitments: data });
+      const n = data.proposals.length;
+      this.toastMsg(n ? `${n} open promise${n === 1 ? '' : 's'} found` : 'Nothing left open — every promise is closed or tracked');
+    }).catch((e) => {
+      this.setState({ commitmentsBusy: false });
+      this.toastMsg('Commitment scan failed: ' + e.message);
+    });
+  }
+  commitmentAction(id, kind) {
+    const conn = getConnection();
+    if (!conn) return;
+    this.setState((s) => ({ commitmentActionBusy: { ...s.commitmentActionBusy, [id]: true } }));
+    const fn = kind === 'accept' ? api.commitmentAccept : api.commitmentDismiss;
+    fn(conn, id).then((res) => {
+      this.setState((s) => ({
+        commitmentActionBusy: { ...s.commitmentActionBusy, [id]: false },
+        liveCommitments: s.liveCommitments
+          ? { ...s.liveCommitments, proposals: s.liveCommitments.proposals.map((p) => (p.id === id ? res.proposal : p)) }
+          : s.liveCommitments,
+      }));
+      if (kind === 'accept') { this.refreshInbox(); this.refreshTodos?.(); this.toastMsg('Done ✓ — ' + (res.record?.destination || res.proposal.title)); }
+    }).catch((e) => {
+      this.setState((s) => ({ commitmentActionBusy: { ...s.commitmentActionBusy, [id]: false } }));
+      this.toastMsg('Could not apply: ' + e.message);
+    });
+  }
   startSpar() {
     const conn = getConnection();
     if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
@@ -7754,8 +7791,8 @@ export default class App extends Component {
         )}
         {this.state.prCelebration && (
           <div onClick={() => this.setState({ prCelebration: null })}
-            style={css('position:fixed;inset:0;z-index:125;display:flex;align-items:center;justify-content:center;background:rgba(4,3,8,.7);backdrop-filter:blur(6px);animation:fadeIn .2s ease-out')}>
-            <div style={css('text-align:center;animation:prPop .5s cubic-bezier(.2,.8,.2,1)')}>
+            style={css('position:fixed;inset:0;z-index:125;display:flex;align-items:center;justify-content:center;background:rgba(4,3,8,.7);backdrop-filter:blur(6px);animation:fadeIn var(--nv-dur-base) var(--nv-ease)')}>
+            <div style={css('text-align:center;animation:prPop var(--nv-dur-slow) var(--nv-ease)')}>
               <div style={css('font-size:56px;line-height:1;color:var(--nv-gold);text-shadow:0 0 40px color-mix(in srgb, var(--nv-gold) 80%, transparent);animation:prStar 1.4s ease-in-out infinite')}>◆</div>
               <div style={css('margin-top:14px;font:var(--nv-micro-l);letter-spacing:.3em;color:var(--nv-gold)')}>PERSONAL RECORD</div>
               {this.state.prCelebration.map((p, i) => (
@@ -7825,7 +7862,7 @@ export default class App extends Component {
               background: 'var(--nv-glass2)', backdropFilter: 'blur(18px)',
               border: '1px solid color-mix(in srgb, var(--nv-gold) 35%, transparent)',
               boxShadow: '0 18px 50px -18px rgba(0,0,0,.8)',
-              animation: 'fadeUp .4s ease-out',
+              animation: 'fadeUp var(--nv-dur-base) var(--nv-ease)',
             }}>
             <span style={{ font: '400 13px var(--nv-font-serif)', fontStyle: 'italic', lineHeight: 1.55, color: 'var(--nv-ink)' }}>{v.greetBanner.text}</span>
             <span onClick={v.greetBanner.dismiss} aria-label="Dismiss greeting"

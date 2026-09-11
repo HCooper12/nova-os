@@ -38,6 +38,7 @@ export const SLICES = {
   inbox: '/api/inbox',
   dispatch: '/api/dispatch',
   compost: '/api/compost',
+  commitments: '/api/commitments',
   todoist: '/api/todoist',
   todos: '/api/todos',
   guardian: '/api/guardian',

@@ -172,7 +172,7 @@ export function MissionStructured({ v }) {
     // the serif line, and the fix he can still act on tonight.
     wrap: v.wrapCard ? (
       <Group key="wrap" label="Wrap the day" trailing={<Meta tone={v.wrapCard.floorMet === false ? 'gold' : 'good'}>{v.wrapCard.note}</Meta>}>
-        <div style={{ padding: '14px 16px', animation: 'popIn .38s cubic-bezier(.32,.72,0,1) both' }}>
+        <div style={{ padding: '14px 16px', animation: 'popIn var(--nv-dur-base) var(--nv-ease) both' }}>
           {/* on a phone the rings sit ABOVE the line — beside it the serif
               was squeezed into a nine-word-tall column (seen at 375px) */}
           <div style={{ display: 'flex', flexDirection: mob ? 'column' : 'row', alignItems: mob ? 'stretch' : 'center', gap: mob ? '14px' : '20px', minWidth: 0 }}>

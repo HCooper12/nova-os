@@ -127,7 +127,7 @@ export function MissionControl({ v }) {
           same view model: the rings carry the verdict, the serif carries the
           news, and the fix he can still act on sits under it. */}
       {v.wrapCard && (
-        <section className="nv-pane" style={{ marginBottom: mob ? '12px' : '18px', padding: mob ? '16px 18px 14px' : '18px 22px 16px', animation: 'popIn .38s cubic-bezier(.32,.72,0,1) both' }}>
+        <section className="nv-pane" style={{ marginBottom: mob ? '12px' : '18px', padding: mob ? '16px 18px 14px' : '18px 22px 16px', animation: 'popIn var(--nv-dur-base) var(--nv-ease) both' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', marginBottom: '12px' }}>
             <Eyebrow as="span" tone={v.wrapCard.floorMet === false ? 'gold' : 'good'}>Wrap the day</Eyebrow>
             <Meta tone={v.wrapCard.floorMet === false ? 'gold' : 'good'}>{v.wrapCard.note}</Meta>

@@ -154,7 +154,7 @@ function PulseStrip({ items }) {
   if (!items?.length) return null;
   const item = items[idx % items.length];
   return (
-    <div key={idx} style={css(`display:flex;align-items:baseline;gap:10px;max-width:720px;padding:0 10px;animation:fadeUp .6s ease-out`)}>
+    <div key={idx} style={css(`display:flex;align-items:baseline;gap:10px;max-width:720px;padding:0 10px;animation:fadeUp var(--nv-dur-slow) var(--nv-ease)`)}>
       <span style={css(`flex:none;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:${dim(30)}`)}>PULSE · {item.topic.split(' ').slice(0, 3).join(' ').toUpperCase()}</span>
       <span style={css(`font:400 12px ${M};color:${dim(55)};overflow:hidden;text-overflow:ellipsis;white-space:nowrap`)}>{item.title}</span>
       <span style={css(`flex:none;font:var(--nv-micro-s);color:${dim(28)}`)}>{item.source}</span>

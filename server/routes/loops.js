@@ -1,6 +1,7 @@
 import express from 'express';
 import { getDispatchStatus, setDispatchConfig, runDispatch, DISPATCH_MODES, DISPATCH_SLOTS } from '../lib/dispatch.js';
 import { getCompost, runCompost, acceptProposal, dismissProposal } from '../lib/compost.js';
+import { getCommitments, runCommitments, acceptCommitment, dismissCommitment } from '../lib/commitments.js';
 import { getTodoistStatus, syncTodoist } from '../lib/todoistSync.js';
 import { getGuardian, runGuardian, runGuardianReport, exportVault, listBackups, restoreBackup } from '../lib/guardian.js';
 import { runMealPrep } from '../lib/mealPrep.js';
@@ -96,6 +97,41 @@ export function loopsRouter(vaultPath) {
   router.post('/compost/:id/dismiss', async (req, res) => {
     try {
       res.json({ proposal: await dismissProposal(req.params.id) });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // THE COMMITMENT FINDER — promises he made in writing and never closed.
+  // Same four verbs as compost: read, re-scan, accept (writes one to-do,
+  // undoable), dismiss (cools down for four months).
+  router.get('/commitments', async (req, res) => {
+    try {
+      res.json(await getCommitments());
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  router.post('/commitments/run', async (req, res) => {
+    try {
+      res.json(await runCommitments(vaultPath));
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  router.post('/commitments/:id/accept', async (req, res) => {
+    try {
+      res.json(await acceptCommitment(vaultPath, req.params.id));
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  router.post('/commitments/:id/dismiss', async (req, res) => {
+    try {
+      res.json({ proposal: await dismissCommitment(req.params.id) });
     } catch (e) {
       res.status(400).json({ error: e.message });
     }

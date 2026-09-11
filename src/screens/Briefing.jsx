@@ -31,7 +31,7 @@ function Glass({ visual, mini = false }) {
     border: `1px solid color-mix(in srgb, ${accent} ${mini ? 22 : 42}%, transparent)`,
     background: `linear-gradient(180deg, color-mix(in srgb, ${accent} 07%, transparent), color-mix(in srgb, var(--nv-void) 92%, black))`,
     boxShadow: mini ? 'none' : `0 0 34px -10px color-mix(in srgb, ${accent} 55%, transparent), 0 24px 60px -28px rgba(0,0,0,.85)`,
-    animation: mini ? 'none' : 'popIn .36s cubic-bezier(.2,.9,.25,1)',
+    animation: mini ? 'none' : 'popIn var(--nv-dur-base) var(--nv-ease)',
     overflow: 'hidden',
   };
   const eyebrow = (t) => <div style={{ font: `600 ${mini ? 7.5 : 8.5}px ${M}`, letterSpacing: '.22em', color: `color-mix(in srgb, ${accent} 85%, transparent)` }}>{t}</div>;

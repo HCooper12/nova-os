@@ -9,7 +9,7 @@ export function Toast({ v }) {
   // the right of that offset, so a long toast used to stack into a narrow
   // column instead of widening. See the greeting banner in App.jsx.
   return (
-    <div style={{ ...css("position:fixed;left:0;right:0;margin-inline:auto;width:fit-content;max-width:min(520px,92vw);z-index:90;display:flex;align-items:center;gap:10px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);border-radius:10px;padding:11px 18px;background:var(--nv-glass2);backdrop-filter:blur(14px);box-shadow:0 18px 44px -14px rgba(0,0,0,.9),0 0 30px -10px color-mix(in srgb, var(--nv-gold) 35%, transparent);animation:fadeUp .3s ease-out"), bottom }}>
+    <div style={{ ...css("position:fixed;left:0;right:0;margin-inline:auto;width:fit-content;max-width:min(520px,92vw);z-index:90;display:flex;align-items:center;gap:10px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);border-radius:10px;padding:11px 18px;background:var(--nv-glass2);backdrop-filter:blur(14px);box-shadow:0 18px 44px -14px rgba(0,0,0,.9),0 0 30px -10px color-mix(in srgb, var(--nv-gold) 35%, transparent);animation:fadeUp var(--nv-dur-base) var(--nv-ease)"), bottom }}>
       <span style={css("color:var(--nv-gold)")}>✦</span><span style={css("font:500 13px var(--nv-font-ui);color:color-mix(in srgb, var(--nv-ink) 90%, transparent)")}>{v.toast}</span>
     </div>
   );

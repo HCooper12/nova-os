@@ -58,7 +58,7 @@ export function MobileChrome({ v }) {
         )}
         {v.jobTray.open && v.jobTray.jobs.length > 0 && (
           <div onClick={v.jobTray.toggle} style={css("position:fixed;inset:0;z-index:110")}>
-            <div onClick={(e) => e.stopPropagation()} style={css("position:absolute;top:56px;right:12px;width:min(340px,92vw);border:1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent);border-radius:14px;background:color-mix(in srgb, var(--nv-bg2) 94%, black);box-shadow:0 18px 60px rgba(0,0,0,.55);overflow:hidden;animation:fadeUp .18s ease-out")}>
+            <div onClick={(e) => e.stopPropagation()} style={css("position:absolute;top:56px;right:12px;width:min(340px,92vw);border:1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent);border-radius:14px;background:color-mix(in srgb, var(--nv-bg2) 94%, black);box-shadow:0 18px 60px rgba(0,0,0,.55);overflow:hidden;animation:fadeUp var(--nv-dur-base) var(--nv-ease)")}>
               <Eyebrow style={{ padding: '11px 15px 8px' }}>Running now — Nova pings you when each lands</Eyebrow>
               {v.jobTray.jobs.map((j) => (
                 <div key={j.id} onClick={j.go || v.jobTray.goInbox} style={css("cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 15px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent);font:400 12.5px var(--nv-font-ui);color:var(--nv-ink)")}>
@@ -83,7 +83,7 @@ export function MobileChrome({ v }) {
       {/* the More sheet — every screen, grid of silhouettes, one tap */}
       {moreOpen && (
         <div onClick={() => setMoreOpen(false)} style={css("position:fixed;inset:0;z-index:74;background:rgba(8,5,12,.6);backdrop-filter:blur(4px)")}>
-          <div onClick={(e) => e.stopPropagation()} style={css("position:absolute;left:0;right:0;bottom:0;border-radius:22px 22px 0 0;border:1px solid var(--nv-edge);border-bottom:none;background:var(--nv-glass2);backdrop-filter:blur(26px);padding:18px 16px calc(20px + env(safe-area-inset-bottom));animation:fadeUp .22s ease-out")}>
+          <div onClick={(e) => e.stopPropagation()} style={css("position:absolute;left:0;right:0;bottom:0;border-radius:22px 22px 0 0;border:1px solid var(--nv-edge);border-bottom:none;background:var(--nv-glass2);backdrop-filter:blur(26px);padding:18px 16px calc(20px + env(safe-area-inset-bottom));animation:fadeUp var(--nv-dur-base) var(--nv-ease)")}>
             <div style={css("width:36px;height:4px;border-radius:2px;background:color-mix(in srgb, var(--nv-ink) 22%, transparent);margin:0 auto 14px")}></div>
             {v.frequentTabs?.length > 0 && (
               <>

@@ -79,7 +79,7 @@ export function valsLibrary(app, ctx) {
         viewTransitionName: `lib-${hueOf(it.id)}-${i}`,
       },
       // staggered entrance — the shelf assembles rather than appears
-      entranceStyle: { animation: 'shelfIn .5s cubic-bezier(.22,1,.36,1) both', animationDelay: `${Math.min(i * 45, 700)}ms` },
+      entranceStyle: { animation: 'shelfIn var(--nv-dur-slow) var(--nv-ease) both', animationDelay: `${Math.min(i * 45, 700)}ms` },
       open: () => app.openLibraryItem(it.id),
     };
   });

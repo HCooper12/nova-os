@@ -46,7 +46,7 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   50% { box-shadow: 0 0 58px 14px rgba(107,229,245,.45), 0 0 150px 40px rgba(107,229,245,.15), inset 0 0 40px rgba(255,233,196,.7); }
 }
 @keyframes wave { 0%, 100% { transform: scaleY(.3); } 50% { transform: scaleY(1); } }
-@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(var(--nv-rise)); } to { opacity: 1; transform: translateY(0); } }
 /* the Library shelf assembling — covers rise into place, staggered per index */
 @keyframes shelfIn { from { opacity: 0; transform: translateY(24px) scale(.955); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -55,8 +55,8 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes sheetUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
 /* the next card rising to the top of the Inbox deck (Inbox.jsx) — a spring-ish settle, not a cut */
-@keyframes deckRise { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
-.nv-deck-rise { animation: deckRise .34s cubic-bezier(.32,.72,0,1) both; }
+@keyframes deckRise { from { opacity: 0; transform: translateY(var(--nv-rise)) scale(.985); } to { opacity: 1; transform: none; } }
+.nv-deck-rise { animation: deckRise var(--nv-dur-base) var(--nv-ease) both; }
 @media (prefers-reduced-motion: reduce) { .nv-deck-rise { animation: none; } }
 @keyframes auroraDrift { from { transform: translate3d(-2%,-1%,0); } to { transform: translate3d(2%,2%,0); } }
 @keyframes barSweep { from { width: 4%; } to { width: 100%; } }
@@ -64,7 +64,30 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 /* skeleton shimmer — the sweep runs across a 200%-wide gradient (see Skeleton.jsx) */
 @keyframes skeletonSweep { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 /* the reference's pop-up: it arrives from the bottom edge and settles */
-@keyframes popIn { from { opacity: 0; transform: translateY(16px) scale(.965); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes popIn { from { opacity: 0; transform: translateY(var(--nv-rise)) scale(.965); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+/* THE STAGGER (11 Sep 2026). The thing the app had nowhere except the Library
+   shelf: a group that ASSEMBLES rather than landing as one slab. Measured
+   before this existed — opening Voice mounted 29 log rows all running
+   `fadeUp .4s` at delay 0, so the whole conversation appeared in one block.
+   Put `.nv-stagger` on the container; children enter one beat apart, oldest
+   first, and everything past the seventh lands together on the cap so a long
+   list can never crawl. nth-child covers the common case with no JS; where the
+   component knows better (a chat log wants the NEWEST rows to cascade last)
+   it sets `--i` per child itself and this still reads it. */
+@keyframes nvRise { from { opacity: 0; transform: translateY(var(--nv-rise)); } to { opacity: 1; transform: none; } }
+.nv-stagger > * {
+  animation: nvRise var(--nv-dur-base) var(--nv-ease) both;
+  animation-delay: min(calc(var(--i, 0) * var(--nv-stagger)), var(--nv-stagger-max));
+}
+.nv-stagger > *:nth-child(1) { --i: 0; }
+.nv-stagger > *:nth-child(2) { --i: 1; }
+.nv-stagger > *:nth-child(3) { --i: 2; }
+.nv-stagger > *:nth-child(4) { --i: 3; }
+.nv-stagger > *:nth-child(5) { --i: 4; }
+.nv-stagger > *:nth-child(6) { --i: 5; }
+.nv-stagger > *:nth-child(7) { --i: 6; }
+.nv-stagger > *:nth-child(n+8) { --i: 7; }
 
 /* ================================================================
    NOVA COMMAND DESIGN SYSTEM (design/mockups/45-command-final.html)
@@ -82,6 +105,20 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
      readable size. Three sizes keep the hierarchy the screens already had. */
   --nv-micro-s:500 8.5px var(--nv-font-mono); --nv-micro-m:500 9.5px var(--nv-font-mono); --nv-micro-l:500 11px var(--nv-font-mono);
   --nv-micro-track:.14em; --nv-micro-track-wide:.2em;
+  /* MOTION TOKENS (11 Sep 2026): one law, not five. Before this the app had
+     four easing curves, seven durations on `fadeUp` alone, and five different
+     rise distances doing the same job — each correct on its own, and visibly
+     disagreeing when two of them ran on the same screen. The curve here is the
+     one the press layer already used (Interactive.jsx, measured on 20 live
+     elements), so touch and entrance finally settle the same way.
+     Anything that ARRIVES uses --nv-ease; anything LEAVING accelerates away.
+     Never hardcode a duration or a curve in a component again. */
+  --nv-ease:cubic-bezier(.32,.72,0,1); --nv-ease-exit:cubic-bezier(.4,0,1,1);
+  --nv-dur-fast:.16s; --nv-dur-base:.28s; --nv-dur-slow:.44s;
+  --nv-rise:12px;
+  /* a group assembles instead of landing as a slab; the cap stops a long
+     list from crawling (7 beats, then everything remaining lands together) */
+  --nv-stagger:45ms; --nv-stagger-max:315ms;
   --nv-font-mono2:'JetBrains Mono',monospace;
   /* recessed input/well surfaces + the ink used ON accent-filled buttons —
      tokens so the light palette can invert them */
@@ -287,7 +324,7 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 @media (prefers-reduced-motion: reduce) {
   .nv-scan::after { animation: none; }
   /* entrance animations complete instantly; looping ambience stops after one pass */
-  * { animation-duration: .01s !important; animation-iteration-count: 1 !important; transition: none !important; }
+  * { animation-duration: .01s !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition: none !important; }
 }
 
 /* mobile tab bar: hide the horizontal scrollbar (all screens scroll in-bar) */
@@ -333,4 +370,4 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
    the frame is already up and honestly says it is still filling, instead of
    sitting blank or (worse) waiting off-screen until the sentence has passed. */
 @keyframes glassScan { from { transform: translateX(-100%); } to { transform: translateX(220%); } }
-@keyframes glassStep { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes glassStep { from { opacity: 0; transform: translateY(var(--nv-rise)); } to { opacity: 1; transform: none; } }
