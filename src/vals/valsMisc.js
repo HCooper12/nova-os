@@ -88,7 +88,17 @@ export function valsMisc(app, ctx) {
   // shared with valsChrome (nav count)
   Object.assign(ctx, { shoppingItems });
 
+  // THE CONSOLE — the morning brief drawn. The payload is derived on the
+  // server from live sources, so the client never computes a health number;
+  // it only arranges what arrived and shows absences as absences.
+  const instruments = st.liveInstruments || null;
+
   return {
+    isConsole: st.screen === 'console',
+    instruments,
+    instrumentsBusy: !!st.instrumentsBusy,
+    instrumentsError: st.instrumentsError || null,
+    refreshInstruments: () => app.refreshInstruments(),
     // shopping list
     shoppingHeaderLabel: st.liveShoppingList ? `${shoppingItems.length} item${shoppingItems.length === 1 ? '' : 's'} · live from Obsidian` : 'Connect a backend in Settings',
     shoppingCategories,

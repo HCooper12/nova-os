@@ -120,6 +120,7 @@ export function valsChrome(app, ctx) {
     wrapNotes: wrapTall || { padding: '28px 40px 44px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
     wrapJournal: mob ? mp : { padding: '28px 40px 44px' },
     wrapLibrary: mob ? mp : { padding: '28px 40px 44px' },
+    wrapConsole: mob ? mp : { padding: '28px 40px 44px' },
     wrapStash: mob ? mp : { padding: '28px 40px 44px', maxWidth: '900px' },
     gridStats: mob ? col('20px') : { display: 'grid', gridTemplateColumns: '1.7fr 1fr 1fr', gap: '14px', marginTop: '24px' },
     gridNoticed: mob ? col('12px') : { display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: '14px', marginTop: '14px' },
@@ -163,6 +164,7 @@ export function valsChrome(app, ctx) {
     navVault: sortByOrder([
       // counts: live numbers when synced, mock numbers only in demo mode,
       // and an honest "—" when configured but not yet synced (offline)
+      mkNav('Console', 'XVIII.', 'console'),
       Object.assign(mkNav('Fuel', 'VI.', 'recipes'), { count: usingLiveRecipes ? String(st.liveRecipes.length) : demoMode ? String(app.recipes.length) : '—' }),
       Object.assign(mkNav('Shopping', 'VII.', 'shopping'), { count: st.liveShoppingList ? String(shoppingItems.length) : demoMode ? '0' : '—' }),
       Object.assign(mkNav('To-Do', 'VIII.', 'todos'), { count: ctx.todosOpenCount != null ? String(ctx.todosOpenCount) : demoMode ? '0' : '—' }),

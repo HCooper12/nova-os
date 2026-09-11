@@ -4,7 +4,7 @@ import { listRecords } from './inboxStore.js';
 import { loadExerciseLibrary } from './exercises.js';
 import { loadRoutines, WEEKDAYS, ACTIVE_REST } from './workouts.js';
 
-const STEP_GOAL = 10000;
+export const STEP_GOAL = 10000;
 const SLEEP_GOAL_MIN = 480; // 8h
 
 function todayStr() {

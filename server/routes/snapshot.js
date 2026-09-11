@@ -39,6 +39,7 @@ export const SLICES = {
   dispatch: '/api/dispatch',
   compost: '/api/compost',
   commitments: '/api/commitments',
+  instruments: '/api/instruments',
   todoist: '/api/todoist',
   todos: '/api/todos',
   guardian: '/api/guardian',

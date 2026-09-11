@@ -428,6 +428,7 @@ export const api = {
   compostAccept: (conn, id) => post(conn, `/api/compost/${encodeURIComponent(id)}/accept`),
   compostDismiss: (conn, id) => post(conn, `/api/compost/${encodeURIComponent(id)}/dismiss`),
   commitments: (conn) => call(conn, '/api/commitments'),
+  instruments: (conn) => call(conn, '/api/instruments'),
   commitmentsRun: (conn) => post(conn, '/api/commitments/run'),
   commitmentAccept: (conn, id) => post(conn, `/api/commitments/${encodeURIComponent(id)}/accept`),
   commitmentDismiss: (conn, id) => post(conn, `/api/commitments/${encodeURIComponent(id)}/dismiss`),

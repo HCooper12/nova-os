@@ -2,6 +2,7 @@ import express from 'express';
 import { getDispatchStatus, setDispatchConfig, runDispatch, DISPATCH_MODES, DISPATCH_SLOTS } from '../lib/dispatch.js';
 import { getCompost, runCompost, acceptProposal, dismissProposal } from '../lib/compost.js';
 import { getCommitments, runCommitments, acceptCommitment, dismissCommitment } from '../lib/commitments.js';
+import { buildInstruments } from '../lib/instruments.js';
 import { getTodoistStatus, syncTodoist } from '../lib/todoistSync.js';
 import { getGuardian, runGuardian, runGuardianReport, exportVault, listBackups, restoreBackup } from '../lib/guardian.js';
 import { runMealPrep } from '../lib/mealPrep.js';
@@ -99,6 +100,17 @@ export function loopsRouter(vaultPath) {
       res.json({ proposal: await dismissProposal(req.params.id) });
     } catch (e) {
       res.status(400).json({ error: e.message });
+    }
+  });
+
+  // THE INSTRUMENTS — the morning brief as five typed readouts. Derived
+  // from live sources on every call, so there is nothing to store and
+  // nothing that can go stale without saying so in its own payload.
+  router.get('/instruments', async (req, res) => {
+    try {
+      res.json(await buildInstruments(vaultPath));
+    } catch (e) {
+      res.status(500).json({ error: e.message });
     }
   });
 

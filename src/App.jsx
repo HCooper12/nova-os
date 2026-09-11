@@ -96,6 +96,7 @@ const SCREEN_LOADERS = {
   library: () => import('./screens/Library.jsx'),
   leader: () => import('./screens/Leader.jsx'),
   briefing: () => import('./screens/Briefing.jsx'),
+  console: () => import('./screens/ConsoleScreen.jsx'),
 };
 const Galaxy = lazyScreen(SCREEN_LOADERS.galaxy, 'Galaxy');
 const Money = lazyScreen(SCREEN_LOADERS.money, 'Money');
@@ -111,6 +112,7 @@ const Notes = lazyScreen(SCREEN_LOADERS.notes, 'Notes');
 const Library = lazyScreen(SCREEN_LOADERS.library, 'Library');
 const Leader = lazyScreen(SCREEN_LOADERS.leader, 'Leader');
 const Briefing = lazyScreen(SCREEN_LOADERS.briefing, 'Briefing');
+const ConsoleScreen = lazyScreen(SCREEN_LOADERS.console, 'ConsoleScreen');
 
 // The OVERLAYS — every one is conditionally rendered (a modal, a sheet, an
 // overlay), so none of them is ever part of a first paint. RecipeOverlay
@@ -178,7 +180,7 @@ const WAKE_WORD = true;
 // It previously omitted 'ops', 'stash' and 'ambient', all of which DO render —
 // so their hashes did not survive a reload even though the screens worked.
 const SCREENS = ['mission', 'inbox', 'voice', 'galaxy', 'code', 'recipes', 'shopping', 'stash',
-  'ops', 'ambient', 'todos', 'workouts', 'notes', 'library', 'leader', 'journal', 'money', 'settings', 'briefing'];
+  'ops', 'ambient', 'todos', 'workouts', 'notes', 'library', 'leader', 'journal', 'money', 'settings', 'briefing', 'console'];
 
 // An unknown key is a bug in the caller, not something to render around. Send
 // him somewhere real, and say so in the console so the bad call is findable —
@@ -469,6 +471,7 @@ export default class App extends Component {
     liveOvernight: null, overnightInput: '', liveSkills: null, livePulse: null, opsOpenAgentId: null, liveOpsStream: null, greetBanner: null,
     dispatchBusy: false, compostBusy: false, compostActionBusy: {}, todoistBusy: false, guardianBusy: false, reviewBusy: false,
     commitmentsBusy: false, commitmentActionBusy: {},
+    instrumentsBusy: false, instrumentsError: null,
     todoInput: '', todoEditCategoryKey: null,
     editingSessionId: null, sessionDeleteConfirmId: null,
     liveCarryovers: null, finishMissed: null, finishMissedDate: '', finishMissedRoutine: '', carryoverRescheduleId: null,
@@ -1436,6 +1439,7 @@ export default class App extends Component {
     apply('dispatch', (r) => this.setState({ liveDispatch: r }));
     apply('compost', (r) => this.setState({ liveCompost: r }));
     apply('commitments', (r) => this.setState({ liveCommitments: r }));
+    apply('instruments', (r) => this.setState({ liveInstruments: r }));
     apply('todoist', (r) => this.setState({ liveTodoist: r }));
     apply('todos', (r) => this.setState({ liveTodos: r }));
     apply('guardian', (r) => this.setState({ liveGuardian: r }));
@@ -1568,6 +1572,7 @@ export default class App extends Component {
       async () => this.setState({ liveDispatch: await api.dispatchStatus(conn) }),
       async () => this.setState({ liveCompost: await api.compost(conn) }),
       async () => this.setState({ liveCommitments: await api.commitments(conn) }),
+      async () => this.setState({ liveInstruments: await api.instruments(conn) }),
       async () => this.setState({ liveTodoist: await api.todoistStatus(conn) }),
       async () => this.setState({ liveTodos: await api.todos(conn) }),
       async () => this.setState({ liveGuardian: await api.guardian(conn) }),
@@ -4920,6 +4925,15 @@ export default class App extends Component {
       this.toastMsg('Could not apply: ' + e.message);
     });
   }
+  // The console is derived on every call, so it is re-read rather than cached
+  refreshInstruments() {
+    const conn = getConnection();
+    if (!conn || this.state.instrumentsBusy) return;
+    this.setState({ instrumentsBusy: true, instrumentsError: null });
+    api.instruments(conn)
+      .then((r) => this.setState({ liveInstruments: r, instrumentsBusy: false }))
+      .catch((e) => this.setState({ instrumentsBusy: false, instrumentsError: e.message }));
+  }
   startSpar() {
     const conn = getConnection();
     if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
@@ -7777,6 +7791,7 @@ export default class App extends Component {
               {v.isLibrary && <Library v={v} />}
               {v.isLeader && <Leader v={v} />}
               {v.isBriefing && <Briefing v={v} />}
+              {v.isConsole && <ConsoleScreen v={v} />}
               {v.isJournal && <Journal v={v} />}
               {v.isMoney && <Money v={v} />}
               {v.isSettings && <Settings v={v} />}
