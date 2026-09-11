@@ -943,6 +943,12 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
                 .replace('#include <color_fragment>', `
                   #include <color_fragment>
                   diffuseColor.rgb = mix(diffuseColor.rgb, uLit, 0.92 * vFeather);
+                  // ...and the crease between two muscles. On a lean body the
+                  // separation between one belly and the next reads as a fine
+                  // shadow, not a colour change — the feather is zero exactly
+                  // there, so it draws the line the relief pass already carved
+                  // and the muscles stop being flat areas of tint.
+                  diffuseColor.rgb *= 1.0 - 0.22 * (1.0 - smoothstep(0.0, 0.30, vFeather));
                 `)
                 // the glow has to fade with it too, or it paints the old hard
                 // edge straight back over the gradient
@@ -967,6 +973,26 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
             mat.sheenRoughness = 0.38;
             mat.roughness = 0.44;
             mat.envMapIntensity = 0.62;
+          }
+          if (!lit && !meat) {
+            // The same crease on the tissue that is NOT being worked. Without
+            // it only the highlighted muscles had separation and the rest of
+            // the body went back to being a smooth mannequin — which is the
+            // half of the figure that carries the anatomy the rest of the time.
+            mat.onBeforeCompile = (shader) => {
+              shader.fragmentShader = shader.fragmentShader
+                .replace('#include <color_fragment>', `
+                  #include <color_fragment>
+                  diffuseColor.rgb *= 1.0 - 0.20 * (1.0 - smoothstep(0.0, 0.30, vFeather));
+                `)
+                .replace('void main() {', 'varying float vFeather;\nvoid main() {');
+              shader.vertexShader = shader.vertexShader
+                .replace('void main() {',
+                  'attribute float aFeather;\nvarying float vFeather;\nvoid main() {')
+                .replace('#include <begin_vertex>',
+                  '#include <begin_vertex>\n  vFeather = aFeather;');
+            };
+            mat.customProgramCacheKey = () => 'skin-crease';
           }
           // GLASS: the shell and the unworked tissue become something you see
           // INTO. Only lit muscle keeps writing depth, which is what puts it
