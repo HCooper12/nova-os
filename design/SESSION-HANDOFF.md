@@ -13,7 +13,154 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**10 SEP (latest) — REAL GYM DIMENSIONS, AND THE FAULTS THEY EXPOSED.** He
+**11 SEP — THE CONVERSATION ITSELF: BEING CUT OFF, KEEPING UP, AND A GLASS
+THAT KEEPS PACE.** A second session ran in parallel on the 3D model all day;
+that work is the block below this one and was not touched here.
+
+**GOAL.** Everything he reported about *talking to Nova*: it cut him off
+mid-sentence; the chat would not follow a streaming reply; the blue EVIDENCE
+button opened a training card under a leadership answer; a long spoken answer
+was impossible to follow by ear with nothing on screen; a 1000-character
+refusal when he spoke at length; markdown read aloud; a make-up day hiding the
+session that was also scheduled; and "New chat" wiping a days-long log in one
+unguarded tap.
+
+**DONE CRITERIA**
+- *met* — Nova, not the browser, ends his spoken turn (`src/turnEnd.js`), hold
+  2.0s, tunable in Settings → Voice.
+- *met* — the chat log sticks to the foot while a reply streams
+  (`src/useStickToBottom.js`). **Behaviour on his device never observed.**
+- *met* — an evidence card is only offered when the reply is about his BODY
+  (`src/verdictOffer.js`).
+- *met* — panels rise with the speech, above the composer, spent ones in a
+  strip (`src/visualBeats.js`, `src/glassBeats.js`, `server/lib/visualResolve.js`).
+  **Never seen on a screen by either of us.**
+- *met* — no length limit on what he says (`server/routes/voice.js`).
+- *met* — markdown and `[[wikilinks]]` never spoken or printed
+  (`src/spokenProse.js`).
+- *met* — make-up AND scheduled session both shown (`src/trainPanels.js`).
+- *met* — "New chat" is undoable (`src/chatUndo.js`).
+- *unmet* — **nothing visual has been confirmed by eye.** No browser ran in
+  this session at all; see DO NOT.
+
+**STATE (paths).** New: `src/turnEnd.js`, `src/useStickToBottom.js`,
+`src/verdictOffer.js`, `src/visualBeats.js`, `src/glassBeats.js`,
+`src/spokenProse.js`, `src/chatUndo.js`, `src/trainPanels.js`;
+`server/lib/visualMoment.js`, `visualResolve.js`, `visualStream.js`.
+Changed: `src/App.jsx` (turn clock, glass state, `raiseGlass` off the TTS
+queue), `src/StageCard.jsx` (key/steps/media/image), `src/screens/Voice.jsx`
+(glass above the composer, undo in the header), `src/VoicePresence.jsx`,
+`src/vals/{valsChrome,valsMisc,}.js`, `server/lib/claudeCode.js` (GLASS_CONTRACT
++ SPOKEN_REGISTER on ask/coach/leader), `server/lib/recall.js` (`withText`),
+`server/routes/claudeCode.js` (`visuals` on the job).
+
+**DECISIONS (choice → reason → what it forecloses)**
+- *The app owns the end of a spoken turn, not the engine* → the Web Speech API
+  exposes no silence threshold at all, so `continuous:false` was not a tuning
+  choice. **Forecloses** relying on the engine's own endpointing ever again;
+  every future change is to `turnEnd.js`.
+- *The model NAMES a panel, code BUILDS it* → same boundary as CARD/PROPOSE/
+  REFLECT. **Forecloses** letting a model put anything on screen the voice did
+  not say.
+- *A timecode is real or absent, never estimated* → his call, "real, or go and
+  find it". **Forecloses** ever showing an approximate chip, even labelled.
+- *The frame lands in context, the picture fills in* → his correction,
+  "visuals should always land in context, I'd rather them not dropped at all".
+  **Forecloses** withholding a panel until its media resolves.
+- *The parser reads the payload, not the vocabulary* → the model used `title`
+  for `label` 4/4 and put `items` on a `key`. **Forecloses** treating the
+  directive field names as a contract the model will honour.
+- *A rest day stays hidden behind a make-up* → it is the template having
+  nothing to say. **Forecloses** showing all three states at once.
+
+**VERIFIED (with locators)**
+- lint 0 errors · build green · **1377/1377 tests** (`cd server && npm test`,
+  11 Sep 11:2x) — includes the other session's `ops.test.js`, green again.
+- Deployed and live: `version.json` = **`5ed4293de`**; he confirmed Settings →
+  Build reads the same on his phone.
+- The live bundle carries the work: grepped `MOMENT NOT MARKED`,
+  `FROM YOUR NOTE`, `Also scheduled today`, `Not a make-up after all`,
+  `Undo · `, `Room for a breath mid-sentence`, `glassScan`/`glassStep`.
+- **His real Leader turn, replayed through the whole path** (transcript
+  `~/.claude/projects/…Hayden-s-Vault/2120c1d3-….jsonl`, 10 Sep 14:10): 4
+  panels at the right offsets, hero advancing, rail filling, `steps` building;
+  zero markdown and zero directives left in the spoken text.
+- Live server, 11 Sep: a **1480-character** question accepted (was refused at
+  1000); the turn emitted a correctly-formed panel and clean speech.
+- `resolveVisual` against real yt-dlp: real video found, poster cached on
+  Nova's own origin, **`stamp: null`** because the captions genuinely lacked
+  the idea — the honesty rule holding. Cold 17.4s, warm cover at **0.0s**.
+- `com.novaos.server` reloaded and healthy (`/api/health` 200) after every
+  server change.
+
+**ASSUMED (no locator — treat as unproven)**
+- That `continuous: true` behaves on iOS as on desktop. Reasoned from
+  `WakeWord.jsx` running continuously on his devices, never observed.
+- That the panels render legibly at 390 px, that the rail scrolls, that the
+  entrance animations read well. **Nobody has looked.**
+- That the stick-to-bottom fix actually fixes what he reported. One real bug
+  was found and fixed (a plain ref could not attach to a late-mounting
+  element) but it does NOT explain the Voice screen, whose `Panel` renders its
+  children immediately.
+- That `image` panels (Wikimedia / a cited page's og:image) resolve at all —
+  only `key`, `steps` and `media` have been exercised live.
+
+**OPEN QUESTIONS / BLOCKERS**
+- **He has not yet had a conversation on `5ed4293de`.** Every visual claim
+  above is waiting on that. A one-shot reminder was set for 11 Sep 14:23 and
+  **dies with the session that set it.**
+- Browser automation is unavailable: the chrome-devtools MCP refuses with
+  "browser is already running" even after the process was killed and the
+  Singleton locks removed; the Claude-in-Chrome extension is not connected.
+  Nothing visual can be checked until one of them works.
+- A **flaky** `briefing.test.js:147` ("angles fan out in parallel") failed one
+  CI deploy with `expected 'ready', got 'illustrating'` — a timing race. It
+  passes locally and passed on re-run. Unowned.
+- `c155655` (the other session's semantic recall) was committed locally but
+  unpushed at close; it goes out with this handoff commit. Suite is green with
+  it in.
+- A `vite preview` on :5173 (pid 55184/55202) predates this session and was
+  left running.
+
+**NEXT ACTION.** Have him open Nova on `5ed4293de` or later and hold one real
+Leader conversation. *Expected if it worked:* panels appear above the composer
+as it speaks, changing per movement, with spent ones in a strip beneath; a
+numbered list builds one item at a time; nothing reads `##` or `**` aloud. If
+panels do NOT appear, the next thing to check is whether `glassSpokenTo` is
+advancing — it is raised from the TTS queue's `onPlay`, and from the text
+length when speech is off.
+
+**DO NOT**
+- **Do not assume "deployed" means "on his phone".** Two rounds were lost to
+  this. `version.json` is the deployed build; Settings → Build is his. They
+  differed every time it mattered.
+- **Do not name a new prompt section after an existing one.** Ask Nova already
+  had "THE GLASS" (the single `CARD` line); adding a second section with that
+  name made the model obey the older one and emit nothing at all.
+- **Do not trust the model to use the contract's field names.** It used
+  `title` for `label` four times out of four and put `items` on a `key`. A
+  model-facing format needs a forgiving reader.
+- **Do not hang anything solely off the TTS queue.** It does not run when
+  speech is off — the glass was invisible in that mode for exactly that reason.
+- **Do not put a backtick inside a backtick-delimited template literal.** One
+  in `GLASS_CONTRACT` was a syntax error that took the live service down until
+  launchd was kicked. `node --check` every server file before `kickstart`.
+- **Do not believe a placement is fine because the component renders.** The
+  panels were built, shipped, running — and drawn beside the core, which on a
+  phone is `order: 1` while the log he is reading is `order: 3`. They were
+  off-screen above him for two rounds.
+- **Do not match a `steps` item against the prose by word overlap alone.** The
+  items are the model's summaries, not quotes; the list would never have built.
+- Do not chase the stick-to-bottom bug by re-reading `useStickToBottom.js`
+  again — that ground is covered. It needs a device or a browser.
+- Do not touch `server/lib/embeddings.js`, `recall.js` or `index.js` state
+  without checking whether the other session is still in them.
+
+---
+
+### Previous — 10 Sep (gym dimensions, the 3D model)
+
+**10 SEP — REAL GYM DIMENSIONS, AND THE FAULTS THEY EXPOSED.** He
 asked for two things: keep refining the model, and *"ensure that the equipment
 in all exercises is also exceptionally detailed and realistically accurate."*
 Shipped as `53c6590`, `bd0f1c9`, and the three that follow it.
@@ -619,6 +766,29 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+### 9-11 September 2026 — the conversation itself (parallel to the 3D model work)
+Everything about TALKING to Nova. The browser was ending his spoken turn at
+~1s of silence and sending on that instant, so a breath mid-sentence cut him
+off; the Web Speech API has no threshold to lengthen, so the decision moved
+into turnEnd.js (hold 2.0s after he reported 2.6s too long). The chat log was
+keyed on message COUNT and a streaming reply does not add a message, so it sat
+still for the whole of every answer. The EVIDENCE button offered a training
+card under a leadership reply — four regexes whose \b bound only to the first
+alternative, over a reply nothing checked the subject of.
+
+Then the big one: panels that rise as Nova speaks (his Iron Man 2 references),
+with real timecodes from the Watcher's own vault notes or from captions, and
+never an estimate. It took four rounds to become visible to him, and three of
+those were my faults stacking: a directive leaked as `VI` mid-stream; a second
+prompt section named "THE GLASS" made the model obey the older one; the model
+wrote `title` where the contract said `label` and every panel was dropped; and
+finally the panels were rendering beside the core, which on a phone sits above
+the log he was reading. Also corrected rather than added: a make-up day was
+hiding the session that was ALSO scheduled, "New chat" wiped a days-long log
+with no undo (63 turns recovered from the CLI session transcript), a 1000-char
+limit refused a long spoken turn, and the Leader was reading ## and [[links]]
+aloud. 1377 tests green; live on 5ed4293de, confirmed on his phone.
 
 ### 8 September 2026 (evening) — the anatomy model
 Procedural body attempted and abandoned; rebuilt on Blender's CC0 base mesh
