@@ -1306,15 +1306,25 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
             const p = gripPoint(hand);
             if (p) {
               obj.position.copy(p);
-              // AND IT TURNS WITH THE HAND. Left world-aligned, a dumbbell
-              // stayed horizontal through 140 degrees of curl while the fist
-              // rotated around it — the handle sliding through the fingers
-              // rather than being held. Its handle runs along its own local X,
-              // which is across the palm, so the hand's own rotation is the
-              // right one to give it.
-              const hb = bones[`hand${hand}`];
-              if (hb) obj.quaternion.copy(hb.getWorldQuaternion(new THREE.Quaternion()));
-              else obj.quaternion.identity();
+              // A HANDLE LIES ALONG THE KNUCKLES. That is the axis a fist
+              // closes around, and it is measurable: index knuckle to little
+              // knuckle. Left world-aligned the dumbbell stayed horizontal
+              // through 140 degrees of curl while the fist turned around it;
+              // taken from the hand bone's own frame it ran off into depth,
+              // because that frame's axes are the rig's convenience, not the
+              // palm's. A dumbbell is symmetric about its handle, so this one
+              // direction is the whole orientation — there is no roll to get
+              // wrong.
+              const kIn = bones[`index1${hand}`];
+              const kOut = bones[`little1${hand}`];
+              if (kIn && kOut) {
+                const axis = kOut.getWorldPosition(new THREE.Vector3())
+                  .sub(kIn.getWorldPosition(new THREE.Vector3()));
+                if (axis.lengthSq() > 1e-8) {
+                  obj.quaternion.setFromUnitVectors(
+                    new THREE.Vector3(1, 0, 0), axis.normalize());
+                } else obj.quaternion.identity();
+              } else obj.quaternion.identity();
             }
           } else {
             const a = gripPoint('L'); const b2 = gripPoint('R');

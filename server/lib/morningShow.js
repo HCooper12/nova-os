@@ -229,7 +229,13 @@ export async function composeShow(vaultPath, { variant = 'morning', now: nowIn }
     }
   }
 
-  // — fuel (evening leads with it; morning skips — nothing logged yet) —
+  // — fuel —
+  //
+  // The morning used to skip this entirely, on the reasoning that nothing is
+  // logged yet so there is nothing to say. The instrument changes that: what
+  // the rotation PLANS against his floor, with none of it down, is exactly
+  // the thing worth a picture at eight in the morning. The evening keeps its
+  // own beat, which reads the log rather than the plan.
   if (evening) {
     const log = await deps.foodToday().catch(() => null);
     const entries = log?.entries || [];
@@ -245,6 +251,41 @@ export async function composeShow(vaultPath, { variant = 'morning', now: nowIn }
         ...(panel ? { panel } : {}),
       });
     }
+  } else if (inst?.fuel?.ok && inst.fuel.planned > 0) {
+    // NOTHING LOGGED IS NOT NOTHING TO SAY. The plan is the news: what the
+    // rotation intends, against his floor, and the honest fact that none of
+    // it is down yet. Morning only — at night an empty log is a finished
+    // day, and the evening beat above has its own reckoning for that.
+    const { planned, floor, eaten } = inst.fuel;
+    steps.push({
+      say: floor
+        ? `The rotation plans ${planned} grams of protein against your ${floor} gram floor.${eaten > 0 ? ` ${eaten} already down.` : ' Nothing marked eaten yet.'}`
+        : `The rotation plans ${planned} grams of protein today.${eaten > 0 ? ` ${eaten} already down.` : ' Nothing marked eaten yet.'}`,
+      card: gauge('fuel') || metricCard({
+        label: 'Protein planned', value: String(planned), unit: 'g',
+        caption: eaten > 0 ? `${eaten} G DOWN` : 'NOTHING EATEN YET',
+        foot: floor ? `against a ${floor} g floor` : null, tone: 'warn',
+      }),
+    });
+  }
+
+  // — the session, and the body it works —
+  if (!evening && inst?.body?.ok) {
+    const b = inst.body;
+    const bits = [`${b.session} today — ${b.exercises} exercise${b.exercises === 1 ? '' : 's'}`];
+    if (b.carryovers.length) {
+      bits.push(`${b.carryovers.length} carry-over${b.carryovers.length === 1 ? '' : 's'} still waiting`);
+    }
+    if (b.streak >= 2) bits.push(`${b.streak} sessions in a row behind you`);
+    steps.push({
+      say: `${bits.join(', and ')}.`,
+      // the figure, with the muscles this session actually works lit — the
+      // sentence names the routine, the picture says what it costs
+      card: gauge('body') || listCard({
+        label: 'TODAY’S SESSION',
+        items: [{ name: b.session, note: `${b.exercises} exercises` }],
+      }),
+    });
   }
 
   // — the day's (or tomorrow's) shape —

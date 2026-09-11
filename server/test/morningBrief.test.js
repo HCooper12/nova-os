@@ -120,6 +120,43 @@ test('the evening brief never draws the day ring — it speaks about tomorrow', 
   assert.equal(steps.some((s) => s.card?.instrument === 'day'), false);
 });
 
+test('an empty food log in the morning is still news: the plan, and that none of it is down', async () => {
+  const inst = { fuel: { ok: true, planned: 171, floor: 150, eaten: 0 }, body: { ok: false } };
+  const { steps } = await composeShow('/tmp/vault', { variant: 'morning' },
+    { ...baseDeps, foodToday: async () => ({ entries: [] }), instruments: async () => inst });
+  const beat = steps.find((s) => /rotation plans/.test(s.say));
+  assert.ok(beat, 'the morning says what the plan is');
+  assert.match(beat.say, /171 grams .* against your 150 gram floor/);
+  assert.match(beat.say, /Nothing marked eaten yet/);
+  assert.equal(beat.card.instrument, 'fuel');
+});
+
+test('an empty food log at NIGHT is a finished day, not a plan to announce', async () => {
+  const inst = { fuel: { ok: true, planned: 171, floor: 150, eaten: 0 } };
+  const { steps } = await composeShow('/tmp/vault', { variant: 'evening' },
+    { ...baseDeps, foodToday: async () => ({ entries: [] }), instruments: async () => inst });
+  assert.equal(steps.some((s) => /rotation plans/.test(s.say)), false);
+});
+
+test("the session beat names the routine and what is still owed from the last one", async () => {
+  const inst = { body: { ok: true, session: 'Upper Body', exercises: 9,
+    carryovers: ['Bench', 'Cable fly'], streak: 5, muscles: { primary: ['chest'], secondary: [] } } };
+  const { steps } = await composeShow('/tmp/vault', { variant: 'morning' },
+    { ...baseDeps, instruments: async () => inst });
+  const beat = steps.find((s) => /Upper Body today/.test(s.say));
+  assert.ok(beat);
+  assert.match(beat.say, /9 exercises/);
+  assert.match(beat.say, /2 carry-overs still waiting/);
+  assert.match(beat.say, /5 sessions in a row/);
+  assert.equal(beat.card.instrument, 'body');
+});
+
+test('a rest day earns no session beat at all — never a daily formality', async () => {
+  const { steps } = await composeShow('/tmp/vault', { variant: 'morning' },
+    { ...baseDeps, instruments: async () => ({ body: { ok: false, reason: 'nothing scheduled today' } }) });
+  assert.equal(steps.some((s) => /today —.*exercise/.test(s.say)), false);
+});
+
 test('card builders refuse to invent: no value, no card', () => {
   assert.equal(metricCard({ label: 'x', value: null }), null);
   assert.equal(barsCard({ label: 'x', bars: [{ name: 'only', value: 3 }] }), null, 'one bar is a number, not a chart');

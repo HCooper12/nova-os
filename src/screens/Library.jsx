@@ -124,13 +124,14 @@ function Shelf({ v }) {
           changes instantly, and useFlip animates the delta on the
           compositor. Two separate trees would have meant an unmount and a
           fade, which is exactly the cut the whole motion contract avoids. */}
+      <div style={spines ? { position: 'relative', marginTop: '22px' } : undefined}>
       <div style={spines
-        ? css('margin-top:22px;display:flex;align-items:flex-end;gap:5px;overflow-x:auto;padding:0 2px 16px;min-height:250px')
+        ? css('display:flex;align-items:flex-end;gap:5px;overflow-x:auto;padding:0 2px 0;min-height:300px')
         : css('margin-top:22px;display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:20px 16px;align-items:end')}>
         {v.libraryShelf.map((b) => (
           <div key={b.id} data-flip={b.id}
             style={spines
-              ? { flex: 'none', width: `${b.spine.width}px`, height: `${b.spine.heightPct * 2.3}px` }
+              ? { flex: 'none', width: `${b.spine.width}px`, height: `${b.spine.heightPct * 2.8}px` }
               : b.entranceStyle}>
             <Interactive onClick={b.open}
               base={{ cursor: 'pointer', height: spines ? '100%' : undefined, display: spines ? 'block' : undefined,
@@ -196,6 +197,23 @@ function Shelf({ v }) {
             )}
           </div>
         ))}
+      </div>
+      {spines && (
+        <>
+          {/* the board: a lit edge where the spines meet it, the plank
+              beneath, and the shelf's own shadow falling away from it */}
+          <div aria-hidden="true" style={css(
+            'height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,'
+            + 'color-mix(in srgb, var(--nv-spec) 55%, transparent) 6%,'
+            + 'color-mix(in srgb, var(--nv-spec) 55%, transparent) 94%,transparent)')} />
+          <div aria-hidden="true" style={css(
+            'height:11px;border-radius:0 0 4px 4px;background:linear-gradient(180deg,'
+            + 'rgba(130,175,255,.14),rgba(6,7,13,.75));'
+            + 'box-shadow:0 16px 34px -16px rgba(0,0,0,.95)')} />
+          <div aria-hidden="true" style={css(
+            'height:26px;background:linear-gradient(180deg,rgba(130,175,255,.05),transparent)')} />
+        </>
+      )}
       </div>
     </>
   );
