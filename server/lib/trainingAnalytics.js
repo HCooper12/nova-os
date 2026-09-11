@@ -14,6 +14,19 @@ import { loadExerciseLibrary } from './exercises.js';
 import { loadRoutines } from './workouts.js';
 
 const e1rm = (w, reps) => (reps > 0 && reps <= 12 ? w * (1 + reps / 30) : null);
+// An e1RM is COMPARED at the resolution it is SHOWN at.
+//
+// His report, 12 Sep 2026: "2 lifts went further than they ever have" for a
+// Cable Lateral Raise at 11.2kg he had never lifted and an Incline Dumbbell
+// Bench at 34.8kg he doubted. Both were estimates — 9.1×7 and 27.5×8 — and
+// neither was a record: he had repeated the identical set. The raw estimate
+// (11.2233…) was being compared against the STORED, already-rounded best
+// (11.2), so every exact repeat of a lift cleared the bar by a rounding
+// remainder and announced itself as a new record, in the app and on Telegram.
+//
+// The rule that cannot do that: if the number he would be shown is the same
+// number, it is not a record. So round first, then compare.
+const shown = (n) => Math.round(n * 10) / 10;
 const bestE1rm = (sets) => Math.max(0, ...sets.map((s) => e1rm(s.weight, s.reps) || 0)) || null;
 
 /* ---------------- PRs: best weight, best e1RM, best reps@weight ---------- */
@@ -29,7 +42,10 @@ export function personalRecords(sessions) {
       for (const set of ex.sets || []) {
         if (set.weight > (b.weight?.value ?? 0)) b.weight = { value: set.weight, reps: set.reps, date: s.date };
         const e = e1rm(set.weight, set.reps);
-        if (e && e > (b.e1rm?.value ?? 0)) b.e1rm = { value: Math.round(e * 10) / 10, date: s.date };
+        const v = e == null ? null : shown(e);
+        // the set it came FROM rides along, so a surface can name the lift he
+        // actually did instead of only the estimate derived from it
+        if (v != null && v > (b.e1rm?.value ?? 0)) b.e1rm = { value: v, weight: set.weight, reps: set.reps, date: s.date };
       }
     }
   }
@@ -48,9 +64,10 @@ export function prsInSession(sessions, session) {
         b.weight = { value: set.weight }; // only the first crossing counts per session
       }
       const e = e1rm(set.weight, set.reps);
-      if (e && e > (b.e1rm?.value ?? 0)) {
-        out.push({ exerciseId: ex.exerciseId, name: ex.name, kind: 'e1rm', value: Math.round(e * 10) / 10, previous: b.e1rm?.value ?? null });
-        b.e1rm = { value: e };
+      const v = e == null ? null : shown(e);
+      if (v != null && v > (b.e1rm?.value ?? 0)) {
+        out.push({ exerciseId: ex.exerciseId, name: ex.name, kind: 'e1rm', value: v, weight: set.weight, reps: set.reps, previous: b.e1rm?.value ?? null });
+        b.e1rm = { value: v };
       }
     }
   }
@@ -64,8 +81,10 @@ export function prsInSession(sessions, session) {
   for (const p of filtered) {
     const k = `${p.exerciseId}|${p.kind}`;
     const cur = best.get(k);
+    // the day's best set wins WHOLE — keeping its weight and reps, against the
+    // pre-session previous the first crossing was measured from
     if (!cur) best.set(k, { ...p });
-    else { cur.value = Math.max(cur.value, p.value); }
+    else if (p.value > cur.value) best.set(k, { ...p, previous: cur.previous });
   }
   return [...best.values()];
 }

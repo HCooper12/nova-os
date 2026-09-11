@@ -28,6 +28,39 @@ test('PRs: first crossing celebrated once, echo e1RMs suppressed, history-aware'
   assert.ok(bests.bench.e1rm.value > 65);
 });
 
+test('repeating the identical set is NOT a record — his 12 Sep report', () => {
+  // 9.1kg × 7 gives an e1RM of 11.2233…, stored and shown as 11.2. Comparing
+  // the raw estimate against the rounded best made every exact repeat clear
+  // the bar by the rounding remainder and announce a record he had not set.
+  const first = S('2026-09-04', 'Cable Lateral Raise', [{ weight: 9.1, reps: 7 }], 'clr');
+  const again = S('2026-09-11', 'Cable Lateral Raise', [{ weight: 9.1, reps: 7 }], 'clr');
+  assert.deepEqual(prsInSession([first, again], again), [], 'same weight, same reps, no record');
+
+  // and the same lift genuinely improved still counts
+  const better = S('2026-09-18', 'Cable Lateral Raise', [{ weight: 9.1, reps: 9 }], 'clr');
+  const prs = prsInSession([first, again, better], better);
+  assert.equal(prs.length, 1);
+  assert.equal(prs[0].kind, 'e1rm');
+  assert.equal(prs[0].value, 11.8);
+  assert.equal(prs[0].previous, 11.2);
+});
+
+test('an e1RM record carries the set it came from, so nothing has to print an estimate as a weight', () => {
+  const before = S('2026-09-04', 'Carter Extension', [{ weight: 11.3, reps: 8 }], 'carter');
+  const today = S('2026-09-11', 'Carter Extension', [{ weight: 11.3, reps: 7 }, { weight: 11.3, reps: 9 }], 'carter');
+  const [pr] = prsInSession([before, today], today);
+  assert.equal(pr.kind, 'e1rm');
+  assert.equal(pr.value, 14.7);
+  assert.equal(pr.weight, 11.3, 'the weight he actually loaded');
+  assert.equal(pr.reps, 9, 'from the BEST set of the day, not the first crossing');
+  assert.equal(pr.previous, 14.3, 'measured against the pre-session best');
+
+  // the all-time table carries it too
+  const b = personalRecords([before, today]).carter;
+  assert.equal(b.e1rm.weight, 11.3);
+  assert.equal(b.e1rm.reps, 9);
+});
+
 test('plateau: flat e1RM across a real span flags; a progressing lift never does', () => {
   const flat = ['07-01', '07-08', '07-15', '07-22', '07-29'].map((d) =>
     S(`2026-${d}`, 'Curl', [{ weight: 20, reps: 10 }], 'curl'));

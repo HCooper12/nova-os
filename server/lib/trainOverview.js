@@ -256,7 +256,9 @@ export async function buildTrainOverview(vaultPath) {
     })(),
     focus,
     momentum: {
-      prs: recentPRs.map((p) => ({ name: p.name, kind: p.kind, value: p.value, reps: p.reps ?? null, previous: p.previous, date: last?.date })),
+      // weight+reps ride along so the card can name the SET he did, not only
+      // the estimate derived from it (trainingAnalytics.js: `shown`)
+      prs: recentPRs.map((p) => ({ name: p.name, kind: p.kind, value: p.value, weight: p.weight ?? null, reps: p.reps ?? null, previous: p.previous, date: last?.date })),
       plateau: plateaus[0] ? { name: plateaus[0].name, spanDays: plateaus[0].spanDays } : null,
       streak: streaks?.workoutStreak ?? null,
     },

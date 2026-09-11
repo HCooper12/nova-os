@@ -110,7 +110,12 @@ export function MissionControl({ v }) {
                 {v.prMoment.prs.slice(0, 3).map((p) => (
                   <div key={p.name} style={{ display: 'flex', gap: '10px', alignItems: 'baseline', font: `500 13px ${R}` }}>
                     <span style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                    <span style={{ flex: 'none', font: `600 12px ${M}`, color: 'var(--nv-mg)' }}>{p.value}{p.kind === 'e1rm' ? 'kg' : ''} ▲{p.previous != null ? ` ${(p.value - p.previous).toFixed(1)}` : ''}</span>
+                    <span style={{ flex: 'none', textAlign: 'right' }}>
+                      {/* same two lines as MissionStructured — one record,
+                          one wording, per the shared-formats rule */}
+                      <span style={{ font: `600 12px ${M}`, color: 'var(--nv-mg)' }}>{prLift(p)}</span>
+                      <span style={{ display: 'block', marginTop: '1px', font: `450 10px ${R}`, letterSpacing: '.04em', color: 'var(--nv-ink60)' }}>{prBasis(p)}</span>
+                    </span>
                   </div>
                 ))}
               </div>
@@ -487,4 +492,18 @@ export function MissionControl({ v }) {
       )}
     </div>
   );
+}
+
+// A RECORD, said in his units. The lift line is always a weight he actually
+// loaded and the reps he actually got; the basis line underneath says what
+// kind of record it is and by how much — an estimated 1RM is labelled as an
+// estimate, never printed as if he had lifted it.
+function prLift(p) {
+  if (p.weight != null && p.reps != null) return `${p.weight}kg × ${p.reps}`;
+  if (p.kind === 'weight' && p.reps != null) return `${p.value}kg × ${p.reps}`;
+  return p.kind === 'e1rm' ? `est. 1RM ${p.value}kg` : `${p.value}kg`;
+}
+function prBasis(p) {
+  const up = p.previous != null && p.value > p.previous ? ` ▲${(p.value - p.previous).toFixed(1)}` : '';
+  return p.kind === 'e1rm' ? `est. 1RM ${p.value}kg${up}` : `heaviest yet${up}`;
 }
