@@ -13,7 +13,155 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**11 SEP (latest) — SIX MORE FAULTS, ALL FOUND BY MEASURING.** He asked to
+**12 SEP (latest) — THREE BUG REPORTS, AND ALL THREE WERE NOVA LYING TO HIM
+RATHER THAN FAILING.** No new surface; three faults he found by reading his own
+screens, each of which had been telling him something untrue for days.
+
+**GOAL.** His three reports, verbatim: two Upper Body make-up sessions on 12 Sep
+when there should have been one; "2 lifts went further" naming a Cable Lateral
+Raise at 11.2kg he never lifted; and an ingest approval refusing with "the vault
+moved under this weave (Wiki/index.md changed since the diff)".
+
+**DONE CRITERIA**
+- *met* — one carry-over row for 12 Sep. `addCarryover` merges a restatement
+  instead of twinning it (`server/lib/workoutCarryover.js`); the live duplicate
+  is collapsed.
+- *met* — the 11 Sep session reports ONE record, the real one.
+  `prsInSession` rounds an e1RM before comparing it
+  (`server/lib/trainingAnalytics.js`).
+- *met* — both Home idioms show the SET he lifted, with the estimate labelled
+  beneath (`src/screens/MissionStructured.jsx`, `MissionControl.jsx`).
+  **Rendered output never seen by eye — no browser ran this session.**
+- *met* — a weave whose targets drifted elsewhere now merges
+  (`server/lib/threeWayMerge.js`, `stagedPass.js`), proven against real job data.
+- *unmet* — **no ingest approval has actually been run through the new path.**
+  There is no `ready` job to try it on; he had already discarded the one that
+  failed. The next real weave is the test.
+
+**STATE (paths).** New: `server/lib/threeWayMerge.js`,
+`server/test/threeWayMerge.test.js`. Changed: `server/lib/workoutCarryover.js`
+(the one-row invariant + merge on reschedule), `server/lib/trainingAnalytics.js`
+(`shown()`, weight/reps on an e1RM PR, whole-record collapse),
+`server/lib/trainOverview.js` (weight/reps into the payload),
+`server/lib/stagedPass.js` (`checkDrift` returns the changes to write; `merge`
+option), `server/lib/ingest.js` (`merge: true`, `job.merged`, the receipt says
+which files were reconciled), `src/App.jsx` (a carry-over session carries
+`sourceRoutineName`), `src/screens/MissionStructured.jsx`, `MissionControl.jsx`
+(`prLift`/`prBasis`). Tests: `workoutCarryover`, `trainingAnalytics`,
+`stagedPass`, `ingest`. Commits `6a4b44b`, `300a264`, `87de867`.
+
+**DECISIONS (choice → reason → what it forecloses)**
+- *One date + one source routine = one carry-over row; a second write merges,
+  and a `plannedAs` write PROMOTES the row already there* → the two writers
+  (the finish flow's push-forward and `setMakeupDay`) were both stating the
+  same debt, and he can do them in either order. **Forecloses** ever treating
+  a date+routine pair as able to hold two rows — any future writer must go
+  through `addCarryover` and accept the merge, and `setMakeupDay`'s own
+  remove-loop now only matters for changing WHICH routine a date makes up.
+- *An e1RM is compared at the resolution it is DISPLAYED at* → the raw estimate
+  was being compared against the already-rounded stored best, so every exact
+  repeat cleared the bar by its own rounding remainder. **Forecloses** keeping
+  more precision internally than the surface shows for any *thresholded*
+  number; if the number he'd be shown is the same number, it is not a change.
+- *A PR line leads with the weight he loaded, and labels the estimate* → he read
+  a bare "11.2kg" as a lift. **Forecloses** printing a derived number in the
+  same visual slot as a measured one.
+- *A drifted file is MERGED, not refused, when the two edits do not overlap* →
+  the guarantee the drift check exists for is that nothing is lost, never that
+  the file sat still. **Forecloses** the old blanket refusal for the weave; a
+  future session that wants strictness back must argue against the measurement
+  in the commit, not just restore the old line.
+- *`merge` is opt-in per consumer, and only the weave passes it* → its targets
+  are prose, bullet lists and an append-only log, checked against real jobs;
+  nobody has looked at whether a line-level merge is safe for the structured
+  files Coach writes. **Forecloses** treating the merge as a platform default.
+
+**VERIFIED (with locators)**
+- Two carry-over rows for 2026-09-12, 13s apart, different key sets —
+  `server/data/workout-carryovers.json` before the fix; backup at
+  `…/scratchpad/workout-carryovers.before.json`.
+- After the fix, live `GET /api/workouts/carryovers` returns
+  `2026-09-11 e782485b` and `2026-09-12 23010689 day` — one row for the 12th.
+- The 11.2 arithmetic: he logged `9.1kg × 7`; Epley gives 11.2233 → shown 11.2.
+  Bench: `27.5 × 8` → 34.8333 → 34.8. Read from the real vault via
+  `loadSessions`.
+- `prsInSession` on the real 11 Sep session BEFORE: three PRs, two with
+  `previous === value` (34.8/34.8 and 11.2/11.2). AFTER: one — Carter
+  Extension, 14.3 → 14.7. Both runs against the live vault.
+- Live `GET /api/train/overview` → `momentum.prs` is exactly that one PR,
+  carrying `weight: 11.3, reps: 9`.
+- The merge on REAL weave data: job `33121b5b`'s `Wiki/index.md` and
+  `Wiki/log.md` priors + a simulated journal write → merges, 10/10 and 53/53
+  weave lines kept, 1/1 and 2/2 live lines kept, nothing lost.
+- The weave's real index edit measured: 9 insertions across 4 sections, 1 bullet
+  updated, +54 lines appended to log.md — no overlap with the journal's.
+- Gates at close: `npm run lint` 0 errors; `npm run build` green;
+  `cd server && npm test` **1433 pass, 0 fail**; `curl …/api/health` → 200;
+  `git status --porcelain` empty; `HEAD == origin/main == 87de867`;
+  no `vite preview` running; `dist/pc.json` absent.
+
+**ASSUMED**
+- That the two mission cards LOOK right. The markup is written and lint/build
+  pass, but nothing was rendered — the two-line PR row at 375px is unobserved.
+- That his phone will pick up the frontend change on the next Pages deploy. Not
+  watched; the stale-service-worker trap in [[nova-frontend-verification]]
+  applies.
+- That the merge behaves on a live approval. Proven on real DATA, never through
+  `approveJob` against his vault, because no `ready` job exists.
+- That `sourceRoutineName` matching is enough for routine identity when one side
+  has no id. True for every row in the store today; a routine RENAMED between
+  the push and the make-up would fall back to two rows (safe, not merged).
+
+**OPEN QUESTIONS / BLOCKERS**
+- **`src/Body3D.jsx:1184` — `(RIG[eq] || JOINT.none)()` and `rig3d.js` exports
+  no `none`.** Any exercise whose equipment key is missing from `RIG` throws
+  `undefined is not a function` instead of falling back. The build has been
+  warning `IMPORT_IS_UNDEFINED` about it. Found, NOT fixed — out of scope, and
+  touching the figure triggers the record-and-watch protocol. HIS CALL.
+- **Coach and the Distiller still refuse on any drift.** Whether to enable
+  `merge: true` for them needs someone to check a line-level merge against the
+  structured files Coach writes. Not started.
+- **The `briefing.test.js` "angles fan out in parallel" flake** — offered twice,
+  never accepted, still unowned. (The 3D recorder's namesake flake WAS fixed on
+  11 Sep; this is the other one.)
+- He was never told which of his three reports was the *worst*: the phantom PRs
+  had also been firing the Telegram PR ping, so Nova congratulated him by
+  message for lifts he merely repeated. Worth saying if he asks why it mattered.
+
+**NEXT ACTION.** When a real ingest job reaches `ready`, approve it and read the
+receipt. **Expected if it worked:** the approval succeeds where it used to
+refuse, and the receipt's `destination` reads `N files written to the vault
+(1 merged with edits made since the diff: Wiki/index.md)` — or 2, with log.md.
+If it refuses instead, the message will now name the passage and the line, which
+is the diagnostic the old one lacked.
+
+**DO NOT**
+- **Do not chase the "meaning index" for anything touching `Wiki/index.md`.**
+  Commit `c155655`'s hourly loop is the SEMANTIC EMBEDDING index in
+  `server/data/`; it never writes the vault. I spent time on that wrong lead.
+  The real writer is `server/lib/journal.js` (lines 139 and 191).
+- **Do not assume a `ready` ingest job is on disk after a failed approval.**
+  `ls server/data/ingest/` showed six jobs and none `ready`; he had discarded
+  the failed one. The evidence for the diagnosis came from an *applied* job's
+  stored priors instead.
+- **Do not read `.env` at the repo root — it is `server/.env`.** And
+  `VAULT_PATH` contains an apostrophe (`Hayden's Vault`); quote-stripping with
+  `tr -d` destroys it. Parse with python.
+- **Do not probe ports to find the server.** It is `4173` (`PORT` is commented
+  out in `server/.env`, and 4173 is the default in `server/index.js:347`).
+  Probing started a `vite preview` on 5173 that had to be killed at close.
+- **Do not nest a parenthetical inside the drift refusal.** The first version
+  read `(… changed since the diff and both changed the same passage (around
+  line 4 …))`. It is now one flat clause; the tests pin the exact wording.
+- **Do not let `applyChanges` return `{applied}` alone** — it returns
+  `{applied, merged}`, and `stagedPass.test.js` pins that shape.
+- **Do not "fix" a same-day repeat showing as a PR by widening an epsilon.**
+  Rounding before the comparison is the whole fix; an epsilon on top would hide
+  the next instance of the same class.
+
+---
+
+**11 SEP — SIX MORE FAULTS, ALL FOUND BY MEASURING.** He asked to
 keep refining: *"no janky details… solid and look and perform accurately to
 real humans realistically."* Shipped across five commits.
 
@@ -839,6 +987,31 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+### 12 September 2026 — three bug reports, all of them Nova saying something untrue
+No new surface. He found all three by reading his own screens. Two identical
+"Upper Body — makeup" rows for the 12th turned out to be two writers stating the
+same debt thirteen seconds apart — he pushed the five exercises he missed forward
+and then marked the date a make-up for the same routine, and `leftoversOf`
+derived the same five because none had been logged; the store now holds one row
+per date and source routine, merging a restatement rather than twinning it. The
+"2 lifts went further than they ever have" card was worse than a labelling bug:
+the raw Epley estimate was compared against the already-ROUNDED stored best, so
+an exact repeat of a set cleared the bar by its own rounding remainder — in the
+app and on the Telegram PR ping. His 11 Sep session went from three PRs to one
+real one (Carter Extension, 14.3 → 14.7), which the two phantoms had been
+pushing off the card. The cards also printed the estimate wearing a "kg" while a
+real weight PR wore none; they now lead with the set he lifted and label the
+estimate beneath. Third: the ingest refusal over `Wiki/index.md` was a
+structural race, not an edit conflict — every weave rewrites index.md and log.md
+and so does every journal entry Nova files, in other sections; measured on job
+33121b5b, nine insertions across four sections with no line in common with the
+journal's. A line-based three-way merge now reconciles that and refuses only on
+real overlap, which stops a $2-3.50 pass being thrown away into the same race.
+Corrected rather than added: I chased commit c155655's "meaning index" first,
+which is the semantic embedding index and never touches the vault. Found and
+left alone: `Body3D.jsx:1184` calls a `JOINT.none` that does not exist. 1433
+tests green, live on 87de867; nothing rendered by eye this session.
 
 ### 9-11 September 2026 — the conversation itself (parallel to the 3D model work)
 Everything about TALKING to Nova. The browser was ending his spoken turn at
