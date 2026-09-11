@@ -13,6 +13,79 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**11 SEP (latest) — SIX MORE FAULTS, ALL FOUND BY MEASURING.** He asked to
+keep refining: *"no janky details… solid and look and perform accurately to
+real humans realistically."* Shipped across five commits.
+
+**THE HEAD WAS ACCUMULATING ROTATION FOR AS LONG AS THE PANEL STAYED OPEN.**
+`applyPose` resets every bone it touches to rest before posing it — and it
+never touched the head, while `levelGaze` and `secondary` both PREMULTIPLY
+onto it. Measured with the trunk at 8.7 degrees, the head had reached 121.
+**Anything that premultiplies needs a bone that gets reset.** This is the one
+a user would have seen.
+
+**THE GAZE WENT THE WRONG WAY** (trunk 67 → neck 90 → head 104: his face at
+his own shins). **THE ANKLE'S SIGN WAS INVERTED** (a plantarflexed foot turned
+toes UP). Fifth and sixth costumes of the same trap. It is always silent.
+
+**AN ARM THAT IS ONLY CARRYING SOMETHING HANGS PLUMB.** Shoulder angles are
+measured against the trunk, which is right for a press and wrong the moment
+the trunk pitches: an arm posed at 0 swings out in front, faithfully staying 0
+degrees from a chest that is no longer upright. `plumbUpperArm()` aims the
+humerus down whenever the shoulder is doing nothing — which is also what keeps
+a curl from swinging and a pushdown's elbows at his sides.
+
+**`spine` IN THIS RIG IS EXTENSION, NOT FLEXION** — how hard he holds his
+chest UP against the fold, matching the cues. Raising it to pitch the trunk
+forward does the opposite, and I spent several iterations fighting my own
+change before measuring it.
+
+**A BAR ON THE FLOOR IS CARRIED BY THE FLOOR.** Balance was leaning him back
+off a load he had not taken yet. The transfer follows hip extension over the
+first quarter of the pull. Deadlift setup: wrists 0.794 → 0.325, trunk 21 → 48
+degrees off vertical, bar within 2 cm of the floor.
+
+**CALF RAISE, three faults in one movement**: the sign above, `settle` forcing
+foot-flat onto a foot whose heel had left the floor, and a ball contact placed
+13 cm ALONG a foot bone that drops steeply — only 6.6 cm of horizontal lever.
+1.4 cm of rise → 4.3. And 4.3 is right: with the ball 13 cm forward of an
+ankle 12 cm up the geometry caps it at 5.7, and a flat-ground calf raise is
+that modest. I had been quoting 10 as the target; 10 is from a step.
+
+**SMOOTHER HIGHLIGHT BORDERS** — eight majority-vote passes instead of four.
+The stair-stepped edges were the jankiest thing at the size the app actually
+draws him, and the thing that still said "diagram".
+
+**THREE ATTEMPTS AT THE SEAM DISCONTINUITY, ALL REVERTED.** Do not repeat:
+a `clavicle_up` corrective (wrong instrument — a DQS-vs-LBS delta corrects
+lost VOLUME, not a discontinuity); taking the clavicle out of the chest and
+trap pools (made the chest-to-deltoid boundary worse); one shared bone pool
+across the upper body (torso vertices bound to a forearm that lies beside the
+ribs in an A-pose, and the arms melted into tubes with no elbow or hand). That
+last one also SILENTLY EMPTIED every corrective shape — smoother weights do
+not candy-wrap, so the delta fell under the noise floor and the exporter
+dropped all eight targets. **A 15% smaller GLB looked like a win and was a
+symptom: read the GLB's own contents after a rebuild, not just the render.**
+
+**THE SCAPULAR CAP WAS FIXING A FAULT IT DID NOT HAVE.** Rendering the same
+lockout at 25 and at 50 shows identical artifacts, and so does the model as it
+stood before any of it. Back to 50, near the anatomical share.
+
+**A ONE-IN-THREE TEST FLAKE, FIXED.** `end to end: angles fan out in parallel`
+asserted a transient state immediately after start — a race the fakes could
+win. They now take a `hold` the test releases.
+
+**OPEN:**
+- The seam discontinuity. Cosmetic, diagnostic-zoom only, three routes tried.
+  Only untried idea: weights on the unified mesh before the split. HIS CALL.
+- Foot roll and pressure; rep-to-rep fatigue. Neither raised by him.
+
+**Verified:** all 26 recorded and watched against this build; `--focus BONE`
+added to the recorder so a joint can be framed at arm's length without the
+browser. lint clean, build green, 1,377 server tests.
+
+---
+
 **11 SEP — THE CONVERSATION ITSELF: BEING CUT OFF, KEEPING UP, AND A GLASS
 THAT KEEPS PACE.** A second session ran in parallel on the 3D model all day;
 that work is the block below this one and was not touched here.
