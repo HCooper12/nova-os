@@ -66,19 +66,72 @@ export async function carryoverContext() {
   return `Carried-over exercises (missed work pushed forward — real training debt): ${bits.join('; ')}.`;
 }
 
+// ONE DATE + ONE SOURCE ROUTINE = ONE ROW.
+//
+// His report, 12 Sep 2026: two identical "Upper Body — makeup" sessions on
+// the 12th, written thirteen seconds apart. He had finished Monday's Upper
+// Body with five exercises untouched and pushed them forward (the finish
+// flow's "push them to a day"), then marked the same date a make-up day for
+// the same routine — and `leftoversOf` derived the same five exercises,
+// because none of them had been logged. Two writers, one statement, two rows.
+//
+// So a second write for the same date and routine is a RESTATEMENT of debt
+// already recorded, not new debt: it merges into the row that is there. A
+// write carrying `plannedAs` promotes that row (the day IS the make-up), so
+// the order he happens to take the two actions in cannot change the result.
+
+// Same routine? Ids decide when both rows have one — an ordinary carry-over
+// never does (the UI posts only a name), so a name match has to count.
+function sameRoutine(a, b) {
+  if (a.sourceRoutineId && b.sourceRoutineId) return a.sourceRoutineId === b.sourceRoutineId;
+  const na = String(a.sourceRoutineName || '').trim().toLowerCase();
+  const nb = String(b.sourceRoutineName || '').trim().toLowerCase();
+  return !!na && na === nb;
+}
+
+// Union by exerciseId. The incoming write is the fresher statement of intent,
+// so it wins on targets for an exercise both name; anything only the existing
+// row knows about is kept, never silently dropped.
+function mergeExercises(existing, incoming) {
+  const out = [...(existing || [])];
+  for (const e of incoming) {
+    const at = out.findIndex((x) => x.exerciseId === e.exerciseId);
+    if (at >= 0) out[at] = e; else out.push(e);
+  }
+  return out;
+}
+
 export async function addCarryover({ forDate, sourceRoutineName, exercises, plannedAs = null, sourceRoutineId = null, sourceDate = null, note = '' }) {
   if (!DATE_RE.test(forDate || '')) throw new Error('forDate must be YYYY-MM-DD');
   const ex = normalizeExercises(exercises);
   if (!ex.length) throw new Error('no exercises to carry over');
   const carryovers = await load();
+  const name = String(sourceRoutineName || '').trim().slice(0, 80) || 'Workout';
+
+  const twin = carryovers.find((c) => c.forDate === forDate && sameRoutine(c, { sourceRoutineId, sourceRoutineName: name }));
+  if (twin) {
+    twin.exercises = mergeExercises(twin.exercises, ex);
+    twin.sourceRoutineName = name;
+    if (plannedAs) {
+      // MAKE-UP DAY (lib/makeupDay.js): 'day' means this IS the plan for that
+      // date, and it subsumes ordinary debt for the same session.
+      twin.plannedAs = plannedAs;
+      twin.sourceRoutineId = sourceRoutineId || twin.sourceRoutineId || null;
+      twin.sourceDate = sourceDate || twin.sourceDate || null;
+      if (note) twin.note = String(note).slice(0, 200);
+    }
+    twin.mergedAt = new Date().toISOString();
+    await save(carryovers);
+    return twin;
+  }
+
   const record = {
     id: randomUUID().slice(0, 8),
     forDate,
-    sourceRoutineName: String(sourceRoutineName || '').trim().slice(0, 80) || 'Workout',
+    sourceRoutineName: name,
     exercises: ex,
     createdAt: new Date().toISOString(),
-    // MAKE-UP DAY (lib/makeupDay.js): 'day' means this IS the plan for that
-    // date, not extra debt waiting on it. Absent on every ordinary carry-over.
+    // Absent on every ordinary carry-over — see the note above.
     ...(plannedAs ? { plannedAs, sourceRoutineId, sourceDate, ...(note ? { note } : {}) } : {}),
   };
   carryovers.push(record);
@@ -93,6 +146,23 @@ export async function rescheduleCarryover(id, forDate) {
   if (!c) throw new Error('carry-over not found');
   c.forDate = forDate;
   c.rescheduledAt = new Date().toISOString();
+
+  // moving it onto a day that already holds this routine's debt is the same
+  // restatement as adding it there would be — one row, not two
+  const twin = carryovers.find((x) => x.id !== c.id && x.forDate === forDate && sameRoutine(x, c));
+  if (twin) {
+    twin.exercises = mergeExercises(twin.exercises, c.exercises || []);
+    if (c.plannedAs && !twin.plannedAs) {
+      twin.plannedAs = c.plannedAs;
+      twin.sourceRoutineId = c.sourceRoutineId || twin.sourceRoutineId || null;
+      twin.sourceDate = c.sourceDate || twin.sourceDate || null;
+    }
+    twin.rescheduledAt = c.rescheduledAt;
+    twin.mergedAt = new Date().toISOString();
+    await save(carryovers.filter((x) => x.id !== c.id));
+    return twin;
+  }
+
   await save(carryovers);
   return c;
 }

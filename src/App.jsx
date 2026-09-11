@@ -3176,7 +3176,7 @@ export default class App extends Component {
         workoutsView: 'routines', openRoutineId: null, workoutSession: null, sessionCancelConfirm: false,
         finishMissed: missed.length ? missed : null,
         finishMissedDate: tomorrow,
-        finishMissedRoutine: session.routineName,
+        finishMissedRoutine: session.sourceRoutineName || session.routineName,
       });
       this.refreshWorkoutRoutines();
       this.toastMsg(missed.length ? `Saved ✓ — ${missed.length} exercise${missed.length === 1 ? '' : 's'} not done; push ${missed.length === 1 ? 'it' : 'them'} to a day below` : 'Workout saved ✓');
@@ -3233,7 +3233,11 @@ export default class App extends Component {
         last: last && last.length ? { date: null, sets: last.map((s) => ({ weight: s.weight, reps: s.reps })) } : null,
         sets };
     });
-    this.setState({ workoutsView: 'session', editingSessionId: null, workoutSession: { routineId: 'carryover', routineName: `${carryover.sourceRoutineName} — makeup`, carryoverId: carryover.id, exercises }, sessionCancelConfirm: false });
+    this.setState({ workoutsView: 'session', editingSessionId: null, workoutSession: { routineId: 'carryover', routineName: `${carryover.sourceRoutineName} — makeup`,
+      // the UNDERLYING routine, so a second push-forward names the routine and
+      // not the display title — "Push — makeup — makeup" was breaking the
+      // one-row-per-date-and-routine match in workoutCarryover.js
+      sourceRoutineName: carryover.sourceRoutineName, carryoverId: carryover.id, exercises }, sessionCancelConfirm: false });
   }
   rescheduleCarryoverTo(id, forDate) {
     const conn = getConnection();

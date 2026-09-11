@@ -12,6 +12,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const { listCarryovers, addCarryover, rescheduleCarryover, removeCarryover } = await import('../lib/workoutCarryover.js');
+const { setMakeupDay } = await import('../lib/makeupDay.js');
 
 test.after(async () => {
   await rm(dataDir, { recursive: true, force: true });
@@ -75,4 +76,86 @@ test('removes a carry-over (and reports when nothing matched)', async () => {
   assert.deepEqual(await removeCarryover(rec.id), { removed: 1 });
   assert.equal((await listCarryovers()).length, before - 1);
   assert.deepEqual(await removeCarryover(rec.id), { removed: 0 }, 'idempotent — removing again is a no-op');
+});
+
+/* ------------------------------------------------ one row per date+routine ---
+
+His report, 12 Sep 2026: two identical "Upper Body — makeup" sessions on the
+same date, thirteen seconds apart. He pushed the exercises he missed forward,
+then marked that date a make-up day for the same routine — two writers, one
+statement. These pin the invariant that makes that impossible either way
+round, because the order he takes the two actions in is his business.       */
+
+const UPPER = [
+  { exerciseId: 'barbell-bench-press', name: 'Barbell Bench Press', targetSets: 3, targetRepsLow: 6, targetRepsHigh: 10 },
+  { exerciseId: 'wide-grip-lat-pulldown', name: 'Wide-Grip Lat Pulldown', targetSets: 3, targetRepsLow: 8, targetRepsHigh: 12 },
+];
+const forDate = (c) => c.forDate === '2026-10-05';
+
+test('pushing missed work forward, then marking that day a make-up, is ONE row', async () => {
+  // exactly the two payloads his two writers send
+  const pushed = await addCarryover({ forDate: '2026-10-05', sourceRoutineName: 'Upper Body', exercises: UPPER });
+  const madeUp = await setMakeupDay({
+    date: '2026-10-05',
+    routine: { id: 'f5a0c85d', name: 'Upper Body', exercises: UPPER },
+    sessions: [{ routineId: 'f5a0c85d', date: '2026-10-04', exercises: [] }],   // nothing logged
+  });
+
+  const rows = (await listCarryovers()).filter(forDate);
+  assert.equal(rows.length, 1, 'one statement of debt, not two');
+  assert.equal(madeUp.id, pushed.id, 'the make-up promoted the row already there');
+  assert.equal(rows[0].plannedAs, 'day', 'and the day IS the make-up');
+  assert.equal(rows[0].sourceRoutineId, 'f5a0c85d', 'gaining the identity the push could not send');
+  assert.equal(rows[0].exercises.length, 2, 'the same two exercises, not four');
+  await removeCarryover(rows[0].id);
+});
+
+test('and in the other order — the make-up absorbs a later push of the same session', async () => {
+  const madeUp = await setMakeupDay({
+    date: '2026-10-05',
+    routine: { id: 'f5a0c85d', name: 'Upper Body', exercises: UPPER },
+    sessions: [{ routineId: 'f5a0c85d', date: '2026-10-04', exercises: [] }],
+  });
+  // a push that adds a third exercise the make-up did not derive
+  const merged = await addCarryover({
+    forDate: '2026-10-05', sourceRoutineName: 'Upper Body',
+    exercises: [...UPPER, { exerciseId: 'cable-bicep-curl', name: 'Cable Bicep Curl', targetSets: 3, targetRepsLow: 10, targetRepsHigh: 15 }],
+  });
+
+  const rows = (await listCarryovers()).filter(forDate);
+  assert.equal(rows.length, 1);
+  assert.equal(merged.id, madeUp.id);
+  assert.equal(rows[0].plannedAs, 'day', 'ordinary debt never demotes a make-up day');
+  assert.deepEqual(rows[0].exercises.map((e) => e.exerciseId),
+    ['barbell-bench-press', 'wide-grip-lat-pulldown', 'cable-bicep-curl'], 'unioned, in order');
+  await removeCarryover(rows[0].id);
+});
+
+test('a double tap on "push to a day" is a no-op, not a twin', async () => {
+  const a = await addCarryover({ forDate: '2026-10-05', sourceRoutineName: 'Upper Body', exercises: UPPER });
+  const b = await addCarryover({ forDate: '2026-10-05', sourceRoutineName: 'upper body ', exercises: UPPER });
+  assert.equal(b.id, a.id, 'matched despite case and a stray space');
+  assert.equal((await listCarryovers()).filter(forDate).length, 1);
+  await removeCarryover(a.id);
+});
+
+test('debt from a DIFFERENT session on the same day is real, and survives', async () => {
+  const upper = await addCarryover({ forDate: '2026-10-05', sourceRoutineName: 'Upper Body', exercises: UPPER });
+  const legs = await addCarryover({ forDate: '2026-10-05', sourceRoutineName: 'Leg Day', exercises: [sampleExercises[0]] });
+  assert.notEqual(legs.id, upper.id, 'two routines is two rows — that is not a duplicate');
+  assert.equal((await listCarryovers()).filter(forDate).length, 2);
+  await removeCarryover(upper.id);
+  await removeCarryover(legs.id);
+});
+
+test('re-pushing onto a day that already holds that session folds into it', async () => {
+  const sitting = await addCarryover({ forDate: '2026-10-05', sourceRoutineName: 'Upper Body', exercises: [UPPER[0]] });
+  const moving = await addCarryover({ forDate: '2026-10-06', sourceRoutineName: 'Upper Body', exercises: [UPPER[1]] });
+  const survivor = await rescheduleCarryover(moving.id, '2026-10-05');
+
+  assert.equal(survivor.id, sitting.id, 'it merged rather than landing beside it');
+  assert.equal((await listCarryovers()).filter(forDate).length, 1);
+  assert.deepEqual(survivor.exercises.map((e) => e.exerciseId), ['barbell-bench-press', 'wide-grip-lat-pulldown']);
+  assert.deepEqual(await removeCarryover(moving.id), { removed: 0 }, 'the moved row is gone, not orphaned');
+  await removeCarryover(survivor.id);
 });
