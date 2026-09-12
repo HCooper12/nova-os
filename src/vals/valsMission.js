@@ -1,5 +1,6 @@
 import { AGENTS } from './shared.js';
 import { pickOneThing, prMomentFor, ringState } from '../missionFocus.js';
+import { plainLabel, liveBlock, isLiveBlock, blockCta, blockDetail, minsLeft, pickTagline } from '../missionLine.js';
 import { localDateISO } from '../localDate.js';
 import { clampWords } from '../textClamp.js';
 import { dtf } from './fmt.js';
@@ -170,36 +171,18 @@ export function valsMission(app, ctx) {
   const inWorkoutWindow = workoutEvent && workoutEvent.end
     && nowMin >= hm2min(workoutEvent.time) - 15 && nowMin < hm2min(workoutEvent.end);
   const overdueCarryover = (st.liveCarryovers || []).find((c) => new Date(`${c.forDate}T23:59:59`) < now);
-  const currentEvent = (st.liveCalendar || []).find((e) => e.time && e.end && hm2min(e.time) <= nowMin && nowMin < hm2min(e.end));
+  // What tomorrow already owes — the only honest thing to say about tomorrow,
+  // because it is the only part of it that is written down.
+  const tomorrowKey = (() => {
+    const d = new Date(); d.setDate(d.getDate() + 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  })();
+  const tomorrowOwed = (st.liveCarryovers || []).filter((c) => c.forDate === tomorrowKey);
+  // A block that ends before it starts crosses midnight — the old
+  // start<=now<end test could never match one, so Nova went quiet for the
+  // seven hours of his Recharge block. liveBlock() reads the wrap.
+  const currentEvent = liveBlock(st.liveCalendar, nowMin);
   const stepsFreshShort = stepsDay && stepsDay.date === todayKey && stepsCurrent < STEP_GOAL ? STEP_GOAL - stepsCurrent : null;
-
-  // ---- tagline ladder: one serif line, the most USEFUL true thing --------
-  // Changes through the day as reality does — a live session, the current
-  // block, banked wins, open loops — instead of parroting "Cleared for X".
-  let heroTagline;
-  if (demoMode) heroTagline = 'Cleared for deep work at 15:30.';
-  else if (st.workoutSession) {
-    const setsDone = st.workoutSession.exercises.reduce((n, e) => n + e.sets.filter((s) => s.done).length, 0);
-    heroTagline = `${st.workoutSession.routineName} is mid-flight — ${setsDone} set${setsDone === 1 ? '' : 's'} down.`;
-  }
-  else if (inWorkoutWindow && todayRoutine && !workoutDoneToday) heroTagline = `It's ${todayRoutine.name} o'clock.`;
-  else if (currentEvent) heroTagline = `In the thick of ${currentEvent.label} until ${currentEvent.end}.`;
-  else if (overdueCarryover) heroTagline = `${overdueCarryover.exercises.length} exercise${overdueCarryover.exercises.length === 1 ? '' : 's'} still owed from ${overdueCarryover.sourceRoutineName}.`;
-  else if (hour < 10 && (ctx.inboxPendingCount || 0) > 0) heroTagline = `${ctx.inboxPendingCount} capture${ctx.inboxPendingCount === 1 ? '' : 's'} waiting for your call.`;
-  else if (workoutDoneToday && todayRoutine && hour >= 17) heroTagline = `${todayRoutine.name} banked. Evening's yours.`;
-  else if (hour >= 17 && usingLiveRecipes && proteinTarget != null && proteinGap > 25) heroTagline = `${proteinGap} g of protein left to close tonight.`;
-  else if (hour >= 19 && stepsFreshShort && stepsFreshShort > 2000) heroTagline = `${stepsFreshShort.toLocaleString()} steps between you and the goal.`;
-  else if (nextEvent) heroTagline = `Cleared for ${nextEvent.label} at ${nextEvent.time}.`;
-  else if (workoutDoneToday && todayRoutine) heroTagline = `${todayRoutine.name} banked — the rest of the day is ahead.`;
-  else if (todayRoutine) heroTagline = workoutEvent
-    ? `${todayRoutine.name} ${workoutWhen} at ${workoutEvent.time}.`
-    : `${todayRoutine.name} is on today's plan.`;
-  else if (todayActiveRest) heroTagline = 'Active rest — move easy today.';
-  else if (isOffline) heroTagline = 'Waiting for the link to come back.';
-  else if ((st.liveStreaks?.workoutStreak || 0) >= 3) heroTagline = `${st.liveStreaks.workoutStreak}-${st.liveStreaks.workoutStreakUnit === 'sessions' ? 'session' : 'day'} streak intact. Rest is part of it.`;
-  else if (hour < 12) heroTagline = 'The morning is wide open — claim it.';
-  else if (hour < 18) heroTagline = 'The afternoon is clear. Build something.';
-  else heroTagline = 'The evening is yours. Land it well.';
 
   // standfirst — composed from whatever real data exists; segments carry
   // their own emphasis (b = bold ink, cy = accent) so the screen just maps
@@ -386,12 +369,26 @@ export function valsMission(app, ctx) {
     return mins < 60 ? `in ${mins}m` : `in ${Math.floor(mins / 60)}h ${pad2(mins % 60)}m`;
   };
 
+  // A live block's intent, resolved to the surface that serves it. The pure
+  // side (missionLine.js) never touches app state; this is the only place
+  // that knows an intent is a screen.
+  const blockAction = (intent, event) => ({
+    journal: () => app.navigate('journal'),
+    fuel: () => app.navigate('recipes'),
+    train: () => app.navigate('workouts'),
+    timer: () => {
+      if (st.focusSession) { app.toastMsg('A focus block is already running'); return; }
+      app.startFocusBlock(plainLabel(event.label), Math.max(5, Math.min(180, minsLeft(event, nowMin) || 45)));
+    },
+  }[intent] || null);
+
   // suggested focus — derived from real data when connected (next calendar
   // event, else today's training, else the daily-review concept); the
   // scripted demo card survives only in demo mode
   let suggestedFocus;
   if (demoMode) {
     suggestedFocus = {
+      topic: 'demo',
       source: 'from Commander',
       title: 'Finish the science video script — ',
       accent: 'Studio drafted the outline.',
@@ -411,6 +408,7 @@ export function valsMission(app, ctx) {
       // rung 1 — a session mid-flight beats everything
       const setsDone = st.workoutSession.exercises.reduce((n, e) => n + e.sets.filter((s) => s.done).length, 0);
       suggestedFocus = {
+        topic: 'session',
         source: 'session in progress',
         title: 'Pick it back up — ', accent: st.workoutSession.routineName,
         detail: `${setsDone} set${setsDone === 1 ? '' : 's'} logged and waiting. Nothing is lost — finish it when you're ready.`,
@@ -419,6 +417,7 @@ export function valsMission(app, ctx) {
     } else if (inWorkoutWindow && todayRoutine && !workoutDoneToday) {
       // rung 2 — the calendar says it's the workout slot RIGHT NOW
       suggestedFocus = {
+        topic: 'workout-now',
         source: 'from your calendar — now',
         title: `It's `, accent: `${todayRoutine.name} time.`,
         detail: `Your ${workoutEvent.time}–${workoutEvent.end} block is live. ${todayRoutine.exercises.length} exercises prefilled from last session — one tap starts logging.`,
@@ -429,28 +428,33 @@ export function valsMission(app, ctx) {
     } else if (overdueCarryover) {
       // rung 3 — promised exercises that slipped past their day
       suggestedFocus = {
+        topic: 'carryover',
         source: 'carry-over — overdue',
         title: 'Unfinished from ', accent: `${overdueCarryover.sourceRoutineName}.`,
         detail: `${overdueCarryover.exercises.length} exercise${overdueCarryover.exercises.length === 1 ? '' : 's'} you pushed to ${overdueCarryover.forDate} still waiting: ${overdueCarryover.exercises.map((e) => e.name).slice(0, 3).join(', ')}${overdueCarryover.exercises.length > 3 ? '…' : ''}.`,
         primaryLabel: 'Do it now', onPrimary: go('workouts'),
       };
     } else if (currentEvent) {
-      // rung 4 — a calendar block is live this minute: protect it
+      // rung 4 — a calendar block is live this minute. The button is the
+      // thing the block is FOR: the journal for a journalling block, Fuel for
+      // a meal, a timer only where a timer is the right tool. A block Nova
+      // doesn't recognise gets no button at all — the old one-size offer was
+      // a countdown that the vault shows he has never once completed.
+      const cta = blockCta(currentEvent);
       suggestedFocus = {
+        topic: 'block',
         source: 'happening now',
-        title: `Until ${currentEvent.end} — `, accent: currentEvent.label,
-        detail: 'This block is live. One tap locks a focus timer to the end of it — logged to your journal when it lands.',
-        primaryLabel: `Focus until ${currentEvent.end}`,
-        onPrimary: () => {
-          if (st.focusSession) { app.toastMsg('A focus block is already running'); return; }
-          app.startFocusBlock(currentEvent.label, Math.max(5, Math.min(180, hm2min(currentEvent.end) - nowMin)));
-        },
+        title: `Until ${currentEvent.end} — `, accent: plainLabel(currentEvent.label),
+        detail: blockDetail(currentEvent, nowMin),
+        primaryLabel: cta ? cta.label : null,
+        onPrimary: cta ? blockAction(cta.intent, currentEvent) : null,
       };
     } else if (nextEvent) {
       const runway = untilLabel(nextEvent.time);
       suggestedFocus = {
+        topic: 'next',
         source: 'from your calendar',
-        title: `${nextEvent.time} — `, accent: nextEvent.label,
+        title: `${nextEvent.time} — `, accent: plainLabel(nextEvent.label),
         detail: runway
           ? `The next ${runway.replace('in ', '')} is unscheduled — a clear runway until this block.`
           : 'This block is live right now.',
@@ -459,6 +463,7 @@ export function valsMission(app, ctx) {
     } else if (hour >= 17 && usingLiveRecipes && proteinTarget != null && proteinGap > 25) {
       // rung 6 — evening with a real protein gap: name the close
       suggestedFocus = {
+        topic: 'protein',
         source: 'from your food log',
         title: `${proteinGap} g of protein `, accent: 'still to close tonight.',
         detail: 'The day is winding down — pick something from the rotation or log what you ate.',
@@ -466,6 +471,7 @@ export function valsMission(app, ctx) {
       };
     } else if (todayRoutine && !workoutDoneToday) {
       suggestedFocus = {
+        topic: 'routine',
         source: 'from your training plan',
         title: 'Training today — ', accent: todayRoutine.name,
         detail: workoutEvent
@@ -476,6 +482,7 @@ export function valsMission(app, ctx) {
     } else if (todayRoutine && workoutDoneToday) {
       // the day's block is DONE — say so instead of re-suggesting it
       suggestedFocus = {
+        topic: 'workout-done',
         source: 'from your training log',
         title: `${todayRoutine.name} — `, accent: 'done for today. ✓',
         detail: 'Logged and in the books. Recovery, food, and tomorrow take it from here.',
@@ -483,6 +490,7 @@ export function valsMission(app, ctx) {
       };
     } else if (reviewPage) {
       suggestedFocus = {
+        topic: 'review',
         source: 'from your vault',
         title: 'Clear schedule — review a concept: ', accent: reviewPage.title,
         detail: 'A quiet day. Ten minutes with one idea compounds.',
@@ -491,6 +499,7 @@ export function valsMission(app, ctx) {
     } else if (isOffline) {
       // no cached data to plan from — say so instead of claiming a clear day
       suggestedFocus = {
+        topic: 'offline',
         source: 'connection lost',
         title: 'Backend unreachable — ', accent: 'Nova is flying blind.',
         detail: 'No live calendar, training, or vault data. Check the server on your Mac, then reconnect.',
@@ -498,6 +507,7 @@ export function valsMission(app, ctx) {
       };
     } else {
       suggestedFocus = {
+        topic: 'clear',
         source: 'from Nova',
         title: 'All clear. ', accent: 'Nothing queued right now.',
         detail: 'Add calendar events, a routine, or vault notes and Nova plans from them.',
@@ -506,10 +516,53 @@ export function valsMission(app, ctx) {
     }
   }
 
-  // the hero CTA acts on the suggested focus; when the focus is "stay here"
-  // (a calendar block), engaging starts a REAL focus timer for that block —
-  // countdown on Mission Control, journaled on completion (the plan's
-  // "Engage next block becomes a real timer", not just a toast)
+  // ---- the headline: the most useful true thing the CARD ISN'T SAYING ---
+  // His report, 12 Sep: the line "tends to be the same phrases and sometimes
+  // doesn't make sense in context with the calendar event it is stating". It
+  // ran the SAME ladder as the Suggested Focus card, in the same order, so at
+  // 22:07 the biggest line on the screen read "In the thick of Mindfulness or
+  // Journal 🧘📓 until 22:30." directly above a card saying the same thing.
+  // The card keeps the block — it is where the action lives — and the
+  // headline drops to the next rung that is still true. [[nova-method]]
+  const heroTagline = demoMode
+    ? 'Cleared for deep work at 15:30.'
+    : pickTagline({
+      hour,
+      nowMin,
+      dayIndex: Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000),
+      session: st.workoutSession ? {
+        routineName: st.workoutSession.routineName,
+        setsDone: st.workoutSession.exercises.reduce((n, e) => n + e.sets.filter((x) => x.done).length, 0),
+      } : null,
+      workoutNow: inWorkoutWindow && todayRoutine && !workoutDoneToday ? todayRoutine.name : null,
+      block: currentEvent,
+      next: nextEvent,
+      carryover: overdueCarryover
+        ? { count: overdueCarryover.exercises.length, source: overdueCarryover.sourceRoutineName }
+        : null,
+      inboxPending: ctx.inboxPendingCount || 0,
+      tomorrow: tomorrowOwed.length ? {
+        count: tomorrowOwed.reduce((n, c) => n + c.exercises.length, 0),
+        sources: tomorrowOwed.map((c) => c.sourceRoutineName),
+      } : null,
+      workoutDone: workoutDoneToday,
+      routineName: todayRoutine ? todayRoutine.name : null,
+      proteinGap: usingLiveRecipes && proteinTarget != null ? proteinGap : 0,
+      stepsShort: stepsFreshShort || 0,
+      routine: todayRoutine && !workoutDoneToday
+        ? { name: todayRoutine.name, when: workoutWhen, time: workoutEvent ? workoutEvent.time : null }
+        : null,
+      activeRest: todayActiveRest,
+      offline: isOffline,
+      streak: st.liveStreaks?.workoutStreak
+        ? { n: st.liveStreaks.workoutStreak, unit: st.liveStreaks.workoutStreakUnit }
+        : null,
+    }, suggestedFocus.topic).line;
+
+  // The hero CTA acts on the suggested focus. When the card has nothing to
+  // act on, "Engage" means "start on the runway you have" — a timer to the
+  // next block, or a plain 45 — which is the one place a bare timer is
+  // honest, because he asked for one by name.
   const onEngage = suggestedFocus.onPrimary
     ? suggestedFocus.onPrimary
     : () => {
@@ -517,9 +570,9 @@ export function valsMission(app, ctx) {
         if (nextEvent) {
           const [eh, em] = nextEvent.time.split(':').map(Number);
           const mins = Math.max(5, Math.min(180, (eh * 60 + em) - (now.getHours() * 60 + now.getMinutes())));
-          app.startFocusBlock(suggestedFocus.accent || `until ${nextEvent.time} ${nextEvent.label}`, mins);
+          app.startFocusBlock(`Until ${nextEvent.time} — ${plainLabel(nextEvent.label)}`, mins);
         } else {
-          app.startFocusBlock(suggestedFocus.accent || 'Deep work', 45);
+          app.startFocusBlock('Deep work', 45);
         }
       };
 
@@ -575,7 +628,9 @@ export function valsMission(app, ctx) {
   const markNow = (events) => {
     const hm2 = (hm) => { const [h, m] = String(hm).split(':').map(Number); return h * 60 + m; };
     const nowM = now.getHours() * 60 + now.getMinutes();
-    const curIdx = events.findIndex((e) => e.time && e.end && hm2(e.time) <= nowM && nowM < hm2(e.end));
+    // isLiveBlock, not a bare start<=now<end: an overnight row (22:30 → 06:00)
+    // could never win the highlight, so Today showed nothing live all night.
+    const curIdx = events.findIndex((e) => isLiveBlock(e, nowM));
     const nextIdx = events.findIndex((e) => e.time && hm2(e.time) > nowM);
     return events.map((e, i) => ({
       ...e,
@@ -800,7 +855,7 @@ export function valsMission(app, ctx) {
     // fictional schedule (global demo banner marks it).
     todayEvents: st.liveCalendar
       ? (st.liveCalendar.length
-          ? markNow(st.liveCalendar.map(e => ({ time: e.time, end: e.end, label: e.label, category: e.calendar, categoryHue: categoryHue(e.calendar) })))
+          ? markNow(st.liveCalendar.map(e => ({ time: e.time, end: e.end, label: e.label, recurring: e.recurring, category: e.calendar, categoryHue: categoryHue(e.calendar) })))
           : [{ time: '', label: 'Nothing on the calendar today' }])
       : !demoMode
         ? [{ time: '', label: 'Calendar not connected — set iCloud credentials in server/.env' }]
