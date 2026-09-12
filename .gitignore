@@ -33,3 +33,4 @@ ios/App/CapApp-SPM/.build/
 tools/anatomy/.cache/
 tools/anatomy/__pycache__/
 tools/motion/out/
+tools/motion/ref/

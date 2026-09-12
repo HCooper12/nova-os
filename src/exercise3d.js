@@ -51,7 +51,13 @@ export const PATTERNS = {
     label: 'Deadlift — hips and knees extend together from the floor',
     equipment: 'barbell-floor',
     cue: 'Hips set, lats tight, the bar leaves the floor over midfoot.',
-    start: { hip: -132, knee: 118, ankle: 24, spine: -16, shoulder: -4, elbow: 3 },
+    // Set against Zac Perna's side-view demo rather than against my own idea
+    // of it: a deadlift SETUP is a hinge with the hips high, not a squat with
+    // a bar in front. 118 degrees of knee put his hips at 0.58 — squat depth —
+    // where the reference has them well above the knees with the trunk pitched
+    // around fifty. Knee down, hip flexion up; the hands stay at the bar
+    // because the trunk carries them there instead of the depth.
+    start: { hip: -131, knee: 99, ankle: 18, spine: -18, shoulder: -4, elbow: 3 },
     end: { hip: 0, knee: 0, ankle: 0, spine: 2, shoulder: 0, elbow: 3 },
   },
   'press-horizontal': {
