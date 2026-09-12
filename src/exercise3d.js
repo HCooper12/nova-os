@@ -414,3 +414,57 @@ export function poseAt(pattern, phase) {
   // leg moves at speed — a rep is not one long ease
   return lerpPose(a, b, u * u * (3 - 2 * u));
 }
+
+/* A SET IS NOT ONE REP REPEATED.
+ *
+ * The figure has always looped a single perfect rep, which is the one thing in
+ * it that no body does. A real last rep is slower than the first, shallower by
+ * a few degrees at both ends, and it shakes where the leverage is worst — and
+ * a lifter reading a demonstration knows that difference on sight, because it
+ * is what their own eighth rep felt like.
+ *
+ * It is also the only part of this figure that can carry INFORMATION rather
+ * than polish: driven from the RPE he logged, the same lift demonstrates
+ * differently for a set he left three in the tank on and a set he emptied.
+ *
+ * Numbers chosen to be conservative, and then halved after measuring. Giving
+ * each joint a tenth of its range back sounds modest and is not: the closed
+ * chain amplifies it, and a squat came out 8.7 cm shallower on the last rep —
+ * a fifth of its whole travel. Measured again at half that it loses about 4 cm
+ * of depth, which is what a hard eighth rep actually looks like.
+ */
+export const REP_SECONDS = 3.4;
+
+export function fatigueAt(rep, reps, rpe = 8) {
+  if (!reps || reps < 2) return 0;
+  // effort decides how much of the set is spent tired: at RPE 10 the last rep
+  // is a grind, at RPE 6 he never gets there
+  const ceiling = Math.max(0, Math.min(1, (rpe - 5) / 5));
+  const through = Math.max(0, Math.min(1, rep / (reps - 1)));
+  return ceiling * through * through;      // the cost is not linear; it bites late
+}
+
+/* What fatigue does to a rep: less range, and a tremor where it is hardest. */
+export function tire(pose, pattern, f, phase) {
+  if (!f) return pose;
+  const p = PATTERNS[pattern];
+  if (!p || !p.start) return pose;
+  const out = { ...pose };
+  // ROM first. Every channel gives a little back toward where the rep began —
+  // the lockout is not quite reached and the bottom is not quite made.
+  for (const k of Object.keys(out)) {
+    if (typeof out[k] !== 'number' || typeof p.start[k] !== 'number') continue;
+    out[k] = out[k] + (p.start[k] - out[k]) * 0.055 * f;
+  }
+  // ...and the shake, only through the drive and only where the leverage is
+  // worst. A tremor at the top of a rep is not fatigue, it is a bad rig.
+  const grind = Math.max(0, Math.sin(Math.PI * Math.min(1, phase * 2))) ** 2;
+  const amp = 1.5 * f * grind;
+  if (amp > 0.02) {
+    const t = phase * 61.0;
+    for (const k of ['hip', 'knee', 'elbow', 'shoulder', 'spine']) {
+      if (typeof out[k] === 'number') out[k] += Math.sin(t + k.length) * amp;
+    }
+  }
+  return out;
+}

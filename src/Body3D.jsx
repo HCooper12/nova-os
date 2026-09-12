@@ -4,7 +4,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { poseAt, PATTERNS, equipmentFor, patternFor, gripFor } from './exercise3d.js';
+import { poseAt, PATTERNS, equipmentFor, patternFor, gripFor, fatigueAt, tire, REP_SECONDS } from './exercise3d.js';
 import * as GYM from './gym3d.js';
 import * as JOINT from './rig3d.js';
 import { css } from './css.js';
@@ -744,6 +744,10 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
   // shows the muscles themselves, each belly with its own tendon and fibre
   // direction. Same rig underneath, so the lift carries on either way.
   layer = 'skin',
+  // THE SET HE ACTUALLY DID. Reps and RPE shape how the demonstration tires:
+  // at RPE 10 the last rep grinds, at RPE 6 he never gets there. Defaults are
+  // a normal working set, so a card with no logged set still looks like one.
+  reps = 8, rpe = 8,
   // GLASS — the console's reading of the same figure. Everything that is not
   // being worked goes translucent and stops writing depth, so the lit muscles
   // read THROUGH the body from any angle instead of being occluded by skin.
@@ -1291,13 +1295,30 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
         window.__NOVA_MOTION.push({ root, bones, pat, frozen, contacts, fwd, base: baseTransform });
       }
       const clock = new THREE.Clock();
-      const period = 3.4;   // one controlled rep
+      // A SET, NOT A REP ON REPEAT. Each rep through the set is slower than
+      // the one before and gives back a little range, so the eighth looks like
+      // an eighth. Frozen frames (the motion sheet, the recorder) stay on the
+      // first rep, or every still would be a different lift.
       const tmp = new THREE.Vector3();
+      let phase = 0;
+      let repIndex = 0;
+      let lastT = 0;
       const tick = () => {
         raf = requestAnimationFrame(tick);
-        const phase = frozen != null ? frozen : (pat ? (clock.getElapsedTime() % period) / period : 0);
+        if (frozen != null) { phase = frozen; repIndex = 0; }
+        else if (pat) {
+          const now = clock.getElapsedTime();
+          const dt = Math.min(0.1, Math.max(0, now - lastT));
+          lastT = now;
+          // the concentric is what slows; a tired lifter still lowers the bar
+          // at much the same speed, they just cannot drive it back as fast
+          const tired = fatigueAt(repIndex, reps, rpe);
+          phase += dt / (REP_SECONDS * (1 + 0.34 * tired));
+          while (phase >= 1) { phase -= 1; repIndex = (repIndex + 1) % Math.max(1, reps); }
+        }
         if (pat) {
-          const pose = Object.assign(poseAt(pat, phase), hand);
+          const f = frozen != null ? 0 : fatigueAt(repIndex, reps, rpe);
+          const pose = Object.assign(tire(poseAt(pat, phase), pat, f, phase), hand);
           // how fast each joint is moving THROUGH THE REP, not through the
           // clock — so a frozen frame in the motion sheet shows the same
           // secondary motion the moving figure has
@@ -1445,7 +1466,7 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
       renderer.forceContextLoss();
       if (renderer.domElement.parentNode === el) el.removeChild(renderer.domElement);
     };
-  }, [muscles, pat, name, height, frozen, view, focus, glass, layer, palette?.primary, palette?.secondary]);
+  }, [muscles, pat, name, height, frozen, view, focus, glass, layer, reps, rpe, palette?.primary, palette?.secondary]);
 
   const p = pat ? PATTERNS[pat] : null;
   return (

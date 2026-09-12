@@ -51,6 +51,9 @@ const page = Math.max(0, Number(q.get('page') || 0));
 const LIT = { primary: ['quads', 'chest', 'lats'], secondary: ['abs', 'triceps'] };
 // ?layer=muscle shows the écorché — the same rig with the skin taken off
 const LAYER = new URLSearchParams(location.search).get('layer') || 'skin';
+const LIVE = new URLSearchParams(location.search).get('live') === '1';
+const REPS = Number(new URLSearchParams(location.search).get('reps') || 8);
+const RPE = Number(new URLSearchParams(location.search).get('rpe') || 8);
 
 function Strip({ id }) {
   const p = PATTERNS[id];
@@ -92,7 +95,11 @@ function Film({ id }) {
   window.__filmReady = true;
   return (
     <Body3D muscles={LIT} pattern={id} name={asName} height={size} layer={LAYER}
-      phase={phase} view={view} focus={focus} chrome={false} />
+      // ?live=1 lets the rep clock run, which is the only way to see a SET:
+      // fatigue is a property of which rep you are on, and every frozen frame
+      // is rep one by design.
+      phase={LIVE ? null : phase} view={view} focus={focus} chrome={false}
+      reps={REPS} rpe={RPE} />
   );
 }
 
