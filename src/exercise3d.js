@@ -70,7 +70,12 @@ export const PATTERNS = {
     // with the forearm vertical under the bar — that is what a bench press
     // looks like. Written with the arm nearly overhead and the elbow folded,
     // it read as an overhead triceps extension, which is what it was.
-    start: { shoulder: 60, shoulderAbduct: 62, elbow: 94, hip: -8, knee: 76, ankle: 0 },
+    // Bar to the CHEST, checked against side-view footage: the reference
+    // touches the sternum and the elbows drop below the line of the torso.
+    // At 94 degrees of elbow the bar stopped 10 cm short — wrist 0.800 against
+    // a chest surface at 0.617 — which is a press that never finishes its
+    // eccentric, the half of the rep the chest is actually built in.
+    start: { shoulder: 52, shoulderAbduct: 68, elbow: 122, hip: -8, knee: 76, ankle: 0 },
     end: { shoulder: 90, shoulderAbduct: 14, elbow: 4, hip: -8, knee: 76, ankle: 0 },
   },
   'press-incline': {

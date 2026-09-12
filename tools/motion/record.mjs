@@ -154,13 +154,29 @@ async function record(id) {
     + (layer ? `&layer=${encodeURIComponent(layer)}` : '');
   await send('Page.navigate', { url });
   // wait for the model: it is fetched, parsed and skinned before it draws
+  let ready = true;
   for (let i = 0; i < 80; i++) {
     const r = await send('Runtime.evaluate', {
       expression: 'Boolean(window.__filmReady && document.querySelector("canvas"))',
       returnByValue: true,
     });
     if (r.result.value) break;
+    ready = false;
     await new Promise((r2) => setTimeout(r2, 250));
+  }
+  // FAIL LOUDLY IF THE FIGURE NEVER ARRIVED. The dev server died mid-run once
+  // and this loop simply fell through its eighty tries and filmed the browser's
+  // "site can't be reached" page — twenty-six recordings of an error message,
+  // written over the good ones, reported as success. A check that cannot tell
+  // you it failed is worse than no check.
+  {
+    const r = await send('Runtime.evaluate', {
+      expression: 'Boolean(window.__filmReady && document.querySelector("canvas"))',
+      returnByValue: true,
+    });
+    if (!r.result.value) {
+      throw new Error(`${id}: the harness never became ready — is the dev server up on :${port}?`);
+    }
   }
   await new Promise((r) => setTimeout(r, 1600));
 
