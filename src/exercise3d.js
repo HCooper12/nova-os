@@ -108,8 +108,12 @@ export const PATTERNS = {
     equipment: 'pullup-bar',
     hanging: true,
     cue: 'Full hang to chin over the bar, ribs down.',
-    start: { shoulder: 170, elbow: 5, hip: 0, knee: 20 },
-    end: { shoulder: 55, elbow: 125, hip: 0, knee: 20 },
+    // A PULL-UP IS NOT A VERTICAL SLIDE. Checked against TylerPath's side-on
+    // demo: the chest travels toward the bar, so the trunk leans BACK through
+    // the pull and the knees fold behind — mine stayed bolt upright at 0.8
+    // degrees from top to bottom, which is a man being winched.
+    start: { shoulder: 170, elbow: 5, hip: 4, knee: 26, spine: 2 },
+    end: { shoulder: 42, elbow: 142, hip: -6, knee: 48, spine: 18 },
   },
   row: {
     label: 'Horizontal pull — the elbow drives past the ribs',

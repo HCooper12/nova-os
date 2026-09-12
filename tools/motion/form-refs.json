@@ -1,17 +1,159 @@
 {
+  "_note": "One demonstration per pattern, checked side-on where the source allows. Zac Perna and TylerPath by his request; `at`/`dur` are the window inside the video where the lift is actually performed, found with --scan. A form video opens with talking, so these are not zero.",
   "squat": {
-    "url": "https://www.youtube.com/shorts/ZaSetOZFo-k",
+    "url": "https://www.youtube.com/shorts/ffDcJeHVJUs",
     "at": 0,
-    "dur": 8
+    "dur": 10,
+    "who": "TylerPath"
+  },
+  "front-squat": {
+    "url": "https://www.youtube.com/shorts/p2k9xDLR8ew",
+    "at": 0,
+    "dur": 10,
+    "who": "TylerPath"
+  },
+  "hinge": {
+    "url": "https://www.youtube.com/shorts/_33zlyFbJRA",
+    "at": 0,
+    "dur": 10,
+    "who": "TylerPath"
   },
   "deadlift": {
     "url": "https://www.youtube.com/shorts/ZaTM37cfiDs",
     "at": 45,
-    "dur": 8
+    "dur": 8,
+    "who": "Zac Perna"
   },
   "press-horizontal": {
-    "url": "https://www.youtube.com/shorts/j9wdFZZs5DA",
+    "url": "https://www.youtube.com/shorts/E9zW0eSZ77w",
     "at": 0,
-    "dur": 12
+    "dur": 10,
+    "who": "TylerPath"
+  },
+  "press-incline": {
+    "url": "https://www.youtube.com/shorts/wo8HoSqikng",
+    "at": 0,
+    "dur": 10,
+    "who": "TylerPath"
+  },
+  "press-overhead": {
+    "url": "https://www.youtube.com/shorts/1uwo1bQseb8",
+    "at": 0,
+    "dur": 10,
+    "who": "TylerPath"
+  },
+  "pulldown": {
+    "url": "https://www.youtube.com/shorts/c4h4dMpw6PA",
+    "at": 0,
+    "dur": 10,
+    "who": "TylerPath"
+  },
+  "pull-up": {
+    "url": "https://www.youtube.com/shorts/eJSCB7DAVs0",
+    "at": 0,
+    "dur": 10,
+    "who": "TylerPath"
+  },
+  "row": {
+    "url": "https://www.youtube.com/shorts/8R-p13KUAoc",
+    "at": 0,
+    "dur": 10,
+    "who": "TylerPath"
+  },
+  "row-bent": {
+    "url": "https://www.youtube.com/shorts/2QmWgPtO5yc",
+    "at": 0,
+    "dur": 10,
+    "who": "TylerPath"
+  },
+  "curl": {
+    "url": "https://www.youtube.com/shorts/CYwyiUBTlLs",
+    "at": 0,
+    "dur": 10,
+    "who": "TylerPath"
+  },
+  "pushdown": {
+    "url": "https://www.youtube.com/shorts/DbmTUSZREbs",
+    "at": 0,
+    "dur": 10,
+    "who": "TylerPath"
+  },
+  "overhead-extension": {
+    "url": "https://www.youtube.com/shorts/4UQN1APzT-o",
+    "at": 0,
+    "dur": 10,
+    "who": "TylerPath"
+  },
+  "fly": {
+    "url": "https://www.youtube.com/shorts/vMhthid_yaY",
+    "at": 0,
+    "dur": 10,
+    "who": "TylerPath"
+  },
+  "raise-lateral": {
+    "url": "https://www.youtube.com/shorts/19MsjPSOmqg",
+    "at": 0,
+    "dur": 10,
+    "who": "TylerPath"
+  },
+  "raise-front": {
+    "url": "https://www.youtube.com/shorts/dditobyEu2s",
+    "at": 0,
+    "dur": 10,
+    "who": "TylerPath"
+  },
+  "shrug": {
+    "url": "https://www.youtube.com/shorts/EgNPHX7oQMY",
+    "at": 0,
+    "dur": 10,
+    "who": "TylerPath"
+  },
+  "leg-extension": {
+    "url": "https://www.youtube.com/shorts/QhhY_A-fjeY",
+    "at": 0,
+    "dur": 10,
+    "who": "TylerPath"
+  },
+  "leg-press": {
+    "url": "https://www.youtube.com/shorts/tg9_Ur7W_58",
+    "at": 0,
+    "dur": 10,
+    "who": "TylerPath"
+  },
+  "lunge": {
+    "url": "https://www.youtube.com/shorts/9nw0ZsQ-kAc",
+    "at": 0,
+    "dur": 10,
+    "who": "TylerPath"
+  },
+  "hip-thrust": {
+    "url": "https://www.youtube.com/shorts/s0sjBnRrJNQ",
+    "at": 0,
+    "dur": 10,
+    "who": "TylerPath"
+  },
+  "calf-raise": {
+    "url": "https://www.youtube.com/shorts/PLmYFSagwms",
+    "at": 0,
+    "dur": 10,
+    "who": "TylerPath"
+  },
+  "crunch": {
+    "url": "https://www.youtube.com/shorts/BupFluJjxb8",
+    "at": 0,
+    "dur": 10,
+    "who": "TylerPath"
+  },
+  "hanging-knee-raise": {
+    "url": "https://www.youtube.com/shorts/mc0IojJmpzQ",
+    "at": 0,
+    "dur": 10,
+    "who": "TylerPath"
+  },
+  "leg-curl": {
+    "url": "https://www.youtube.com/shorts/-m3bkZvElY8",
+    "at": 0,
+    "dur": 10,
+    "who": "TylerPath"
   }
 }
