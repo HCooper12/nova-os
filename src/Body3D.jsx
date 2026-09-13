@@ -1185,7 +1185,18 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
 
       // equipment
       const eq = equipmentFor(name, pat);
-      const spec = (RIG[eq] || JOINT.none)();
+      // RIG.none, not JOINT.none — rig3d.js has never exported `none`, so this
+      // fallback was `undefined is not a function`: the one path meant to
+      // survive an unknown lift was the one guaranteed to throw. (The build
+      // had been saying so, as IMPORT_IS_UNDEFINED, for as long as it existed.)
+      // Nothing reaches it today — every value equipmentFor can return has a
+      // rig, and all 26 patterns declare one — which is exactly why it went
+      // unnoticed, and exactly what makes it worth fixing: the next equipment
+      // key added without a rig draws the lift bare instead of blanking the
+      // figure. RIG.none is the no-equipment rig the bodyweight lifts already
+      // use, so "unknown" and "nothing to hold" render the same way.
+      if (!RIG[eq] && RIG_DEBUG) console.warn(`[rig] no equipment rig for "${eq}" — drawing it bare`);
+      const spec = (RIG[eq] || RIG.none)();
       // Where the equipment says its surface is, in world terms — and declared
       // HERE, after `spec` exists. Reaching for it earlier is the same
       // temporal-dead-zone trap that has cost this file three sessions:
