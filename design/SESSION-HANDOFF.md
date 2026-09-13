@@ -95,8 +95,11 @@ additions to `ttsLocal.test.js` and `ingest.test.js`. 1462 pass, 0 fail.
   weave's four section bullets on the staged side, and journal.js's OWN
   `upsertIndexBullet`/`appendLogEntry` as the live writer. BEFORE: both files in
   `conflicts`, zero changes — job 16f1ec46's exact loss. AFTER: both merged,
-  both sides' edits present, 167→171 and 650→654 lines. Script kept at
-  `…/scratchpad/real-race.mjs`.
+  both sides' edits present, 167→171 and 650→654 lines. The rehearsal was a
+  scratch script, not kept: copy the real `Wiki/` to a temp `original/`,
+  `stageVault` from it, edit the staged `index.md`/`log.md` as a weave does,
+  edit the temp original with journal.js's own writers, then compare
+  `diffTreesReport` with and without `{ merge: true }`.
 - Every equipment key resolves: all 26 patterns declare an `equipment`, and
   every value `equipmentFor` can return is a RIG key — so the `JOINT.none`
   branch was unreachable, which is why a guaranteed TypeError sat there unseen.
