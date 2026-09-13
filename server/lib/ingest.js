@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID, createHash } from 'node:crypto';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { stampPriors, applyChanges, undoChanges } from './stagedPass.js';
+import { mergeText } from './threeWayMerge.js';
 import { createRecord } from './inboxStore.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { settleWatchdog } from './settle.js';
@@ -63,9 +64,9 @@ const jobsDir = () => path.join(process.env.NOVA_DATA_DIR || path.join(path.dirn
 async function persistJob(job) {
   try {
     await mkdir(jobsDir(), { recursive: true });
-    const { id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt, book, person, progress, heartbeatAt, appliedAt, undoneAt, receiptId, merged } = job;
+    const { id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt, book, person, progress, heartbeatAt, appliedAt, undoneAt, receiptId, merged, stagedMerged } = job;
     await writeFile(path.join(jobsDir(), `${id}.json`),
-      JSON.stringify({ id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt, book, person, progress, heartbeatAt, appliedAt, undoneAt, receiptId, merged }), 'utf8');
+      JSON.stringify({ id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt, book, person, progress, heartbeatAt, appliedAt, undoneAt, receiptId, merged, stagedMerged }), 'utf8');
   } catch (e) {
     console.error(`ingest job ${job.id} failed to persist:`, e.message);
   }
@@ -91,6 +92,13 @@ async function removeJobFile(jobId) {
 // staging root, outside Wiki/ and Raw/, so the diff never walks it.
 const MANIFEST = '.nova-staging-manifest.json';
 const sha = (s) => createHash('sha256').update(s).digest('hex');
+
+// WHAT THE MODEL STARTED FROM, kept verbatim — a hash says a file moved, and
+// only the text says whether the two edits collide. A SIBLING of the staging
+// vault, never inside it: a second copy of the whole Wiki within the model's
+// own working tree is something a pass would read, grep, and occasionally
+// edit. It goes when the workDir goes (cleanup).
+export const stagingBaseDir = (stagingVault) => path.join(path.dirname(stagingVault), 'base');
 
 export async function stageVault(vaultPath, stagingVault) {
   await mkdir(stagingVault, { recursive: true });
@@ -119,6 +127,10 @@ export async function stageVault(vaultPath, stagingVault) {
     manifest[path.join('Raw', rel)] = sha(readFileSync(path.join(vaultPath, 'Raw', rel), 'utf8'));
   }
   await writeFile(path.join(stagingVault, MANIFEST), JSON.stringify(manifest), 'utf8');
+  // A local copy of a local copy: 6.5 MB of markdown, never an iCloud fetch,
+  // and it is the only thing that can tell a real collision from a race.
+  const stagedWiki = path.join(stagingVault, 'Wiki');
+  if (existsSync(stagedWiki)) await cp(stagedWiki, path.join(stagingBaseDir(stagingVault), 'Wiki'), { recursive: true });
 }
 
 function listFiles(dir, base = dir, out = []) {
@@ -138,7 +150,7 @@ function listFiles(dir, base = dir, out = []) {
 // whose live copy has ALSO moved since staging is a conflict: the staged
 // copy is stale and applying it would drop the concurrent edit, so it is
 // left out and named (conflictNote), never merged by guesswork.
-export function diffTreesReport(originalDir, stagingDir) {
+export function diffTreesReport(originalDir, stagingDir, { merge = false } = {}) {
   let manifest = null;
   try { manifest = JSON.parse(readFileSync(path.join(stagingDir, MANIFEST), 'utf8')); } catch { manifest = null; }
   // Raw/ is not staged (see stageVault), but the REAL Raw/ still decides
@@ -154,6 +166,7 @@ export function diffTreesReport(originalDir, stagingDir) {
   ];
   const changes = [];
   const conflicts = [];
+  const merged = [];
   for (const rel of after) {
     const newContent = readFileSync(path.join(stagingDir, rel), 'utf8');
     const liveContent = before.has(rel) ? readFileSync(path.join(originalDir, rel), 'utf8') : null;
@@ -166,10 +179,44 @@ export function diffTreesReport(originalDir, stagingDir) {
     const base = manifest[rel]; // undefined → did not exist when staged
     if (base !== undefined && base === sha(newContent)) continue; // the model left it alone
     const liveHash = liveContent === null ? undefined : sha(liveContent);
-    if (liveHash !== base) { conflicts.push(rel); continue; } // moved in the live vault mid-pass
+    if (liveHash !== base) {
+      // MOVED IN THE LIVE VAULT MID-PASS — and that is a race far more often
+      // than a collision. Every weave edits Wiki/index.md and Wiki/log.md;
+      // every journal entry edits both; a pass runs for minutes. On 13 Sep a
+      // real weave (job 16f1ec46) wrote seven pages and silently dropped both,
+      // so new Concepts and an Entity landed in the vault unlinked from the
+      // index and absent from the log.
+      //
+      // The 12 Sep merge fixed the refusal at APPROVAL and never reached here,
+      // one stage earlier, where the loss is quieter: no refusal to read, just
+      // a line in a summary. Same remedy, same code: reconcile against what
+      // the model started from, and refuse only a genuine collision.
+      const reconciled = merge ? mergeStaged(stagingDir, rel, base, liveContent, newContent) : null;
+      if (!reconciled) { conflicts.push(rel); continue; }
+      // merged against the LIVE text, so stampPriors' live read is the right
+      // prior for it and approval's own drift check still covers what happens
+      // between now and his yes
+      changes.push({ path: rel, kind: 'updated', content: reconciled.text });
+      if (reconciled.merges) merged.push(rel);
+      continue;
+    }
     changes.push({ path: rel, kind: base === undefined ? 'new' : 'updated', content: newContent });
   }
-  return { changes, conflicts };
+  return { changes, conflicts, merged };
+}
+
+// The three-way reconcile for one drifted file, or null to refuse it. Null
+// covers every case where the honest answer is "left out": no baseline kept
+// (a staging made by an older server, or a Raw/ file, which is never staged),
+// a file deleted live, or a real collision.
+function mergeStaged(stagingDir, rel, base, liveContent, newContent) {
+  if (base === undefined || liveContent === null) return null;
+  const baseFile = path.join(stagingBaseDir(stagingDir), rel);
+  if (!existsSync(baseFile)) return null;
+  let baseText;
+  try { baseText = readFileSync(baseFile, 'utf8'); } catch { return null; }
+  const r = mergeText(baseText, liveContent, newContent);
+  return r.ok ? r : null;
 }
 export function diffTrees(originalDir, stagingDir) {
   return diffTreesReport(originalDir, stagingDir).changes;
@@ -182,6 +229,15 @@ export function conflictNote(conflicts) {
   if (!conflicts?.length) return '';
   const n = conflicts.length;
   return `⚠ Left out — ${n} page${n === 1 ? '' : 's'} changed in your vault while this pass ran, so the draft's cop${n === 1 ? 'y was' : 'ies were'} stale: ${conflicts.join(', ')}. Rerun to weave ${n === 1 ? 'it' : 'them'}.`;
+}
+
+// The other half of the honest summary: what was RECONCILED rather than left
+// out. Silence here would be the same fault in a better disguise — he has no
+// other way to know a page he was reading changed under the weave.
+export function mergeNote(merged) {
+  if (!merged?.length) return '';
+  const n = merged.length;
+  return `✓ Reconciled — ${n} page${n === 1 ? '' : 's'} changed in your vault while this pass ran and ${n === 1 ? 'was' : 'were'} merged, keeping both sets of edits: ${merged.join(', ')}.`;
 }
 
 // The header a fetched-video transcript carries into the ingest pass — the
@@ -468,10 +524,14 @@ When done, give a concise final summary: pages created, pages updated, and any c
           try {
             // each change carries the exact prior it was computed against —
             // the staged pass's drift check at approval depends on it
-            const report = diffTreesReport(vaultPath, stagingVault);
+            // `merge: true` for the weave only — same opt-in as the approval
+            // check, for the same reason: its targets are prose, bullet lists
+            // and an append-only log. The Distiller keeps the strict compare.
+            const report = diffTreesReport(vaultPath, stagingVault, { merge: true });
             job.changes = stampPriors(vaultPath, report.changes);
             job.conflicts = report.conflicts;
-            if (report.conflicts.length) job.summary = [conflictNote(report.conflicts), job.summary || ''].filter(Boolean).join('\n\n');
+            job.stagedMerged = report.merged; // reconciled DURING the pass, distinct from at approval
+            job.summary = [conflictNote(report.conflicts), mergeNote(report.merged), job.summary || ''].filter(Boolean).join('\n\n');
             job.status = 'ready';
             // A weave he never asked to review applies itself (his decision,
             // 7 Sep) — and says so, with a link to what it wrote. Deferred to
@@ -591,7 +651,9 @@ export async function approveJob(jobId) {
     remedy: 'discard it and run the ingest again (a cached digest makes the re-run cheap)',
     merge: true,
   });
-  job.merged = merged;
+  // Both stages, one list. Merged-while-the-pass-ran and merged-at-approval
+  // are the same fact to him: this page moved, and nothing was lost.
+  job.merged = [...new Set([...(job.stagedMerged || []), ...merged])];
   job.status = 'applied';
   job.appliedAt = new Date().toISOString();
   await persistJob(job); // the truth about the vault first, durable
@@ -628,7 +690,7 @@ function receiptFor(job) {
     filedAt: now,
     auto: false,
     destination: `${files} written to the vault`
-      + ((job.merged || []).length ? ` (${job.merged.length} merged with edits made since the diff: ${job.merged.join(', ')})` : ''),
+      + ((job.merged || []).length ? ` (${job.merged.length} merged with edits made while this ran: ${job.merged.join(', ')})` : ''),
     decision: {
       route: 'ingest-apply',
       confidence: 'high',

@@ -12,7 +12,7 @@ process.env.NOVA_DATA_DIR = dataDir;
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { composeFetchedTranscript, videoIdOf, findExistingVideoPages, diffTrees, diffTreesReport, stageVault, conflictNote, getJob, approveJob, discardJob } = await import('../lib/ingest.js');
+const { composeFetchedTranscript, videoIdOf, findExistingVideoPages, diffTrees, diffTreesReport, stageVault, stagingBaseDir, conflictNote, mergeNote, getJob, approveJob, discardJob } = await import('../lib/ingest.js');
 
 test.after(async () => { await rm(dataDir, { recursive: true, force: true }); });
 
@@ -300,4 +300,121 @@ test('composeFetchedTranscript: a digest body is labeled as notes, never passed 
   assert.match(text, /verbatim transcript is stored separately/);
   assert.match(text, /## Part 1 of 4/);
   assert.doesNotMatch(text, /full full/, 'digest body replaces the raw transcript');
+});
+
+
+// ---------------------------------------------------------------------------
+// THE LOSS ONE STAGE EARLIER. Job 16f1ec46, 13 Sep: a real weave wrote seven
+// pages and left Wiki/index.md and Wiki/log.md out, so new Concepts and an
+// Entity landed in the vault unlinked from the index and absent from the log.
+// Nothing refused — the 12 Sep merge fixed the refusal at approval, and this
+// happens before that, in the staging diff, where the loss is a line in a
+// summary instead of an error.
+//
+// The shape is the real one: an index with sections the weave adds bullets to,
+// and a journal bullet Nova's own bookkeeping upserts in a different section
+// while the pass runs.
+// ---------------------------------------------------------------------------
+
+const INDEX = `# Index
+
+## Sources
+- [[Old Source]]
+
+## Concepts
+- [[Old Concept]]
+
+## Journal
+- [[2026-09-12]]
+`;
+
+async function raceTree() {
+  const root = await mkdtemp(path.join(tmpdir(), 'nova-stagemerge-'));
+  const original = path.join(root, 'vault');
+  const staging = path.join(root, 'work', 'vault');
+  await mkdir(path.join(original, 'Wiki'), { recursive: true });
+  await mkdir(path.join(original, 'Raw'), { recursive: true });
+  await writeFile(path.join(original, 'Wiki/index.md'), INDEX);
+  await stageVault(original, staging);
+  return { root, original, staging };
+}
+
+test('a page that moved elsewhere while the pass ran is MERGED into the diff, not dropped from it', async () => {
+  const { root, original, staging } = await raceTree();
+  try {
+    assert.ok(existsSync(path.join(stagingBaseDir(staging), 'Wiki/index.md')), 'the baseline text is kept beside the staging vault, not inside it');
+    assert.ok(!existsSync(path.join(staging, 'base')), 'and never within the model\'s own working tree');
+
+    // the weave adds its bullets, in its own sections
+    await writeFile(path.join(staging, 'Wiki/index.md'),
+      INDEX.replace('- [[Old Source]]', '- [[Old Source]]\n- [[Kian Deehan Reel]]')
+        .replace('- [[Old Concept]]', '- [[Old Concept]]\n- [[Three-Head Delt Training]]'));
+    // meanwhile Nova's journal bookkeeping upserts a bullet in ITS section
+    await writeFile(path.join(original, 'Wiki/index.md'),
+      INDEX.replace('- [[2026-09-12]]', '- [[2026-09-12]]\n- [[2026-09-13]]'));
+
+    const report = diffTreesReport(original, staging, { merge: true });
+    assert.deepEqual(report.conflicts, [], 'nothing left out');
+    assert.deepEqual(report.merged, ['Wiki/index.md']);
+    assert.deepEqual(report.changes.map((c) => c.path), ['Wiki/index.md']);
+    const out = report.changes[0].content;
+    assert.match(out, /\[\[Kian Deehan Reel\]\]/, "the weave's source bullet survives");
+    assert.match(out, /\[\[Three-Head Delt Training\]\]/, "the weave's concept bullet survives");
+    assert.match(out, /\[\[2026-09-13\]\]/, "and so does the journal's, which the old diff would have dropped the page to protect");
+    assert.match(out, /\[\[Old Source\]\]/);
+    assert.equal(report.changes[0].kind, 'updated');
+
+    const note = mergeNote(report.merged);
+    assert.match(note, /Reconciled — 1 page changed in your vault while this pass ran/);
+    assert.match(note, /Wiki\/index\.md/);
+    assert.equal(mergeNote([]), '', 'nothing reconciled, nothing said');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('merging at the staging diff is opt-in — the Distiller still refuses on any drift', async () => {
+  const { root, original, staging } = await raceTree();
+  try {
+    await writeFile(path.join(staging, 'Wiki/index.md'), INDEX.replace('- [[Old Source]]', '- [[Old Source]]\n- [[Woven]]'));
+    await writeFile(path.join(original, 'Wiki/index.md'), INDEX.replace('- [[2026-09-12]]', '- [[2026-09-12]]\n- [[2026-09-13]]'));
+
+    const strict = diffTreesReport(original, staging); // no merge: the 12 Sep decision, unchanged
+    assert.deepEqual(strict.changes, []);
+    assert.deepEqual(strict.conflicts, ['Wiki/index.md']);
+    assert.deepEqual(strict.merged, []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('a real collision is still left out and named — the merge drops the false alarm, not the guarantee', async () => {
+  const { root, original, staging } = await raceTree();
+  try {
+    // both sides rewrite the SAME line, two different ways
+    await writeFile(path.join(staging, 'Wiki/index.md'), INDEX.replace('- [[Old Concept]]', '- [[Renamed By The Weave]]'));
+    await writeFile(path.join(original, 'Wiki/index.md'), INDEX.replace('- [[Old Concept]]', '- [[Renamed By Him]]'));
+
+    const report = diffTreesReport(original, staging, { merge: true });
+    assert.deepEqual(report.changes, []);
+    assert.deepEqual(report.conflicts, ['Wiki/index.md'], 'named, so he knows exactly what to rerun');
+    assert.deepEqual(report.merged, []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('no baseline text, no merge: a staging from an older server refuses exactly as it used to', async () => {
+  const { root, original, staging } = await raceTree();
+  try {
+    await rm(stagingBaseDir(staging), { recursive: true, force: true }); // staged before this existed
+    await writeFile(path.join(staging, 'Wiki/index.md'), INDEX.replace('- [[Old Source]]', '- [[Old Source]]\n- [[Woven]]'));
+    await writeFile(path.join(original, 'Wiki/index.md'), INDEX.replace('- [[2026-09-12]]', '- [[2026-09-12]]\n- [[2026-09-13]]'));
+
+    const report = diffTreesReport(original, staging, { merge: true });
+    assert.deepEqual(report.conflicts, ['Wiki/index.md'], 'a guess is never better than saying so');
+    assert.deepEqual(report.merged, []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
