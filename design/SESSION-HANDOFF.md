@@ -13,7 +13,170 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**12 SEP (latest) — THREE BUG REPORTS, AND ALL THREE WERE NOVA LYING TO HIM
+**14 SEP (latest) — THREE FAULTS, EACH ONE A THING THAT REPORTED SUCCESS WHILE
+LOSING SOMETHING.** No new surface. He asked to resume, was given the state,
+and said "continue with all of them".
+
+**FIRST, WHAT THE LAST HANDOFF DID NOT SAY.** The 12 Sep block below was written
+before five more commits landed: `daab554`, `61355e9`, `bbcb4f0`, `1b3d492`
+(the 3D figure's motion-check work, through 13 Sep 08:10) and `f3ccb08` (the
+mission headline). None of it was handed off, and the 13 Sep session left the
+TTS work uncommitted on disk. **If a session ends without /nova-close, say so
+in the commit trail at least** — a successor reconstructing from `git log` is
+the expensive path.
+
+**GOAL.** The three items he chose from the opening report: finish the
+half-written TTS readiness fix; stop the ingest weave losing `index.md` and
+`log.md`; and the two stragglers (`JOINT.none`, the health push).
+
+**DONE CRITERIA**
+- *met* — a configured-but-dead voice engine says so, and the client falls back.
+  `ttsReady()`/`localReady()`, liveness from the `'exit'` event,
+  `ttsUsable()` on every client path, and a failed sentence now SPOKEN by the
+  browser instead of silently revealed. Commit `6b58b13`.
+- *met* — a weave whose targets drifted during the pass merges instead of being
+  dropped from the diff. `stagingBaseDir`, `diffTreesReport(..., {merge:true})`,
+  `mergeNote`. Commit `a2291a9`.
+- *met* — `RIG[eq] || RIG.none`; the `IMPORT_IS_UNDEFINED` build warning is gone
+  and the figure was looked at, not just built. Commit `af0424b`.
+- *met, no code* — the health push is ALIVE. The opening report called it
+  stopped; that was wrong (see VERIFIED).
+
+**STATE (paths).** Changed: `server/lib/tts.js` (`ttsReady`), `server/lib/ttsLocal.js`
+(`healthy`/`localReady` exported, `spawnSidecar`, shared in-flight boot,
+`NOVA_VOICE_DIR` seam, an installed check, fail-fast synthesis),
+`server/routes/voice.js` (`ready` on `/tts/status`), `src/App.jsx`
+(`ttsUsable()` + the browser fallback in `drainTtsQueue`),
+`server/lib/ingest.js` (`stagingBaseDir`, the merge branch in `diffTreesReport`,
+`mergeStaged`, `mergeNote`, `job.stagedMerged`, one `merged` list in the
+receipt), `src/Body3D.jsx:1188`. New tests: `server/test/ttsSidecarRespawn.test.js`;
+additions to `ttsLocal.test.js` and `ingest.test.js`. 1462 pass, 0 fail.
+
+**DECISIONS (choice → reason → what it forecloses)**
+- *Path decisions read `ready`; the engine LABEL still reads `configured`* →
+  which engine is installed and whether it can speak are different questions,
+  and only the second decides whether to fall back. **Forecloses** using
+  `configured` as a proxy for "will make a sound" anywhere in the client.
+- *An absent `ready` is not a false one* → the PWA deploys via Pages and the
+  server via launchd, so a phone can hold a newer bundle than the Mac runs.
+  Treating the missing field as false would drop the whole app onto the browser
+  voice until he reloads the service. **Forecloses** making `ready` required.
+- *A request never waits out a boot; it fails at once and the browser covers
+  that sentence* → he is looking at a screen that says Nova is speaking. A
+  different voice mid-reply is worth noticing; silence is the bug he reported.
+  **Forecloses** holding a reply for a model load.
+- *The staging diff keeps the base TEXT, not just its hash* → a hash says a
+  file moved; only the text says whether the two edits collide. **Forecloses**
+  answering a drift question from the manifest alone.
+- *It lives BESIDE the staging vault (`workDir/base`), never inside it* → a
+  second copy of the whole Wiki in the model's own tree is something a pass
+  would read, grep, and occasionally edit. **Forecloses** putting any
+  bookkeeping copy under `stagingVault/`.
+- *The staging merge is opt-in per consumer, exactly like the approval one* →
+  same reasoning as 12 Sep; the Distiller's structured targets are still
+  unverified for a line-level merge. **Forecloses** turning it on platform-wide
+  without measuring the Distiller's files.
+- *`RIG.none`, not a new export on rig3d.js* → an equipment spec belongs next
+  to RIG; rig3d.js is joints and ROM. **Forecloses** rig3d.js growing an
+  equipment vocabulary.
+
+**VERIFIED (with locators)**
+- SIGTERM on the LIVE sidecar (pid 18429, the exact 13 Sep condition): the
+  server log printed `tts sidecar exited (code null, signal SIGTERM)`,
+  `/api/tts/status` flipped to `ready:false` within 2s, a background boot fired,
+  and `ready:true` returned at t+8s. `POST /api/tts` then returned 33,165 bytes
+  of real MP3 (`file`: MPEG ADTS layer III, 24 kHz mono). Thirteen hours → eight
+  seconds.
+- A request landing INSIDE the boot window returned
+  `{"error":"local tts is still starting up"}` — the designed degradation, not
+  a failure.
+- The staging merge on HIS REAL PAGES: his 166-line `Wiki/index.md` and
+  645-line `Wiki/log.md` copied to a temp tree (the vault only ever read), the
+  weave's four section bullets on the staged side, and journal.js's OWN
+  `upsertIndexBullet`/`appendLogEntry` as the live writer. BEFORE: both files in
+  `conflicts`, zero changes — job 16f1ec46's exact loss. AFTER: both merged,
+  both sides' edits present, 167→171 and 650→654 lines. Script kept at
+  `…/scratchpad/real-race.mjs`.
+- Every equipment key resolves: all 26 patterns declare an `equipment`, and
+  every value `equipmentFor` can return is a RIG key — so the `JOINT.none`
+  branch was unreachable, which is why a guaranteed TypeError sat there unseen.
+- The figure was LOOKED at: a scratch harness against `vite dev` rendered five
+  lifts across four rigs (barbell-back, barbell-floor, cable-low, none) — five
+  canvases, correct poses, zero console errors and zero page errors. Harness
+  deleted, dev server killed.
+- **THE HEALTH PUSH IS NOT BROKEN.** The opening report of this session said it
+  had silently stopped; that was a misreading of UTC stamps as local, made
+  before the morning push landed. It arrived 14 Sep 07:00 AEST
+  (`2026-09-13T21:00:41Z`, steps 9846 for 2026-09-13) and wrote
+  `server/data/health/2026-09-13.json`. 50 attempts all time, 1 ever failed.
+  The real gap is two days with no reading at all: **2026-09-08 and
+  2026-09-12**. `/api/health-data` omits them rather than inventing zeros, and
+  `yesterdayStepsShape` (healthData.js:201) already reports a missing day to
+  both the brief (`dispatch.js:159`) and the Guardian (`guardian.js:270`),
+  pinned by `twins.test.js`. No Nova fault; his Shortcut automation did not fire
+  on those two mornings.
+- Gates at close: `npm run lint` 0 errors; `npm run build` green with **no
+  IMPORT_IS_UNDEFINED**; `cd server && npm test` **1462 pass, 0 fail**;
+  `git status --porcelain` empty; `HEAD == origin/main == af0424b`; service
+  reloaded and `/api/health` 200; the reloaded server answers
+  `configured:true ready:true engine:local`; no `vite` process left running.
+
+**ASSUMED**
+- That his PHONE picks up the client half. The Pages deploy for `af0424b` was
+  still `in_progress` at close — and the stale-service-worker trap in
+  [[nova-frontend-verification]] applies on top of it.
+- That the staging merge behaves on a LIVE weave. Proven on his real pages and
+  on the real failure's shape, never yet through an actual `ready` job — the
+  same gap the 12 Sep fix had, one stage along. The next real weave is the test.
+- That `ready:false` genuinely reaches the client's decisions in the browser.
+  The server contract is verified live; the App.jsx branches are not — no
+  browser drove a reply this session.
+
+**OPEN QUESTIONS / BLOCKERS**
+- **Coach and the Distiller still refuse on any drift, at BOTH stages now.**
+  Enabling `merge: true` for them needs someone to check a line-level merge
+  against the structured files Coach writes. Not started. HIS CALL.
+- **The `briefing.test.js` "angles fan out in parallel" flake** — offered three
+  times, never accepted, still unowned.
+- Two mornings (8 and 12 Sep) have no health reading. Nothing to fix in Nova;
+  whether the Shortcut automation is worth making more reliable is his call.
+
+**NEXT ACTION.** When a real ingest job reaches `ready`, approve it and read the
+receipt. **Expected if it worked:** where 16f1ec46 said "⚠ Left out — 2 pages
+changed in your vault while this pass ran", the summary now leads with "✓
+Reconciled — 2 pages changed in your vault while this pass ran and were merged,
+keeping both sets of edits: Wiki/index.md, Wiki/log.md", and the receipt's
+`destination` reads `N files written to the vault (2 merged with edits made
+while this ran: …)`. A genuine collision still says "Left out", and names it.
+
+**DO NOT**
+- **Do not read a pushlog timestamp as local time.** They are UTC (`…Z`) and he
+  is AEST (+10) — a 21:00Z push is 07:00 the NEXT morning. Reading them as local
+  is what made a working health push look like it had stopped two days ago. The
+  log at `~/Library/Logs/nova-os-server.log` is the second route, and it is UTC
+  too.
+- **Do not let a background boot leak across node:test tests.** `ensureSidecar`
+  shares one in-flight boot for up to three minutes, so a test that trips a boot
+  is joined by the next one and the spawn it expected never happens. The respawn
+  test has its OWN FILE for that reason; `ttsLocal.test.js` points
+  `NOVA_VOICE_DIR` at an EMPTY dir so any boot it trips dies instantly.
+- **Do not put the staging baseline inside `stagingVault/`.** The model works
+  there. It goes in `workDir/base` (`stagingBaseDir`), which `cleanup` already
+  removes — for the weave AND for the Distiller (`distill.js:235`).
+- **Do not re-stamp priors over a merged change.** The staging merge computes
+  against the LIVE text on purpose, so `stampPriors`' live read is the right
+  prior and approval's own drift check still covers the window after it. A merge
+  that carried the staged base as its prior would be clobbered by
+  `approveJob`'s re-stamp.
+- **Do not add an `equipment` vocabulary to `rig3d.js`.** That was the shape of
+  the `JOINT.none` bug.
+- **Do not trust `/tts/status` alone to say the engine works.** `ready` is
+  `healthy()`, an HTTP ping. The decisive check is `POST /api/tts` returning
+  MP3 bytes; a boot window can sit between the two, by design.
+
+---
+
+**12 SEP — THREE BUG REPORTS, AND ALL THREE WERE NOVA LYING TO HIM
 RATHER THAN FAILING.** No new surface; three faults he found by reading his own
 screens, each of which had been telling him something untrue for days.
 
@@ -991,6 +1154,17 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+### 14 September 2026 — three things that reported success while losing something
+Resumed from a handoff two sessions stale. Finished the TTS readiness fix left
+uncommitted on 13 Sep (a signal-killed sidecar read as alive; thirteen hours of
+silence) and wrote the client half that makes the fallback real. Stopped the
+ingest weave losing `index.md` and `log.md` — the 12 Sep merge fixed the
+refusal at approval, and the loss was happening one stage earlier, in the
+staging diff; proven on his real pages. Fixed `JOINT.none`, a fallback that was
+`undefined is not a function`, and looked at the figure to prove it. Found the
+health push alive, not stopped — and corrected the misreading that said
+otherwise. 1462 tests, lint and build clean, pushed, service reloaded.
 
 ### 12 September 2026 — three bug reports, all of them Nova saying something untrue
 No new surface. He found all three by reading his own screens. Two identical
