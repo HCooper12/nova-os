@@ -9,7 +9,11 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 // fileURLToPath, never URL.pathname — this repo's path contains a space.
-const VOICE_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'voice');
+// NOVA_VOICE_DIR overrides it, same idiom as NOVA_TTS_PORT below: a test must
+// be able to exercise the respawn rule without launching the real Kokoro
+// engine on his Mac, and a spawn is the one thing a stub sidecar cannot fake.
+const VOICE_DIR = process.env.NOVA_VOICE_DIR
+  || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'voice');
 const PORT = () => Number(process.env.NOVA_TTS_PORT || 4175);
 const BASE = () => `http://127.0.0.1:${PORT()}`;
 // brew's path when it exists (launchd PATH lacks /opt/homebrew/bin), plain
@@ -94,8 +98,9 @@ const TRIM_FX = 'silenceremove=start_periods=1:start_threshold=-55dB:start_silen
   + 'afade=t=in:d=0.008,areverse,afade=t=in:d=0.008,areverse';
 
 let sidecar = null; // the running child, if we spawned one
+let booting = null;  // the in-flight boot, shared by every caller waiting on it
 
-async function healthy() {
+export async function healthy() {
   try {
     const res = await fetch(`${BASE()}/health`, { signal: AbortSignal.timeout(1500) });
     return res.ok;
@@ -104,28 +109,69 @@ async function healthy() {
   }
 }
 
+// THE THIRTEEN-HOUR SILENCE. On 13 Sep the sidecar was killed by a signal at
+// 06:57 and Nova had no voice until 20:13, because a signal-killed child
+// leaves `exitCode === null` — the same value a RUNNING child has. The old
+// respawn test read `sidecar.exitCode !== null`, so it saw a corpse as alive,
+// never restarted it, and then polled it for the full three minutes before
+// throwing. Every reply after that did the same. Liveness is now taken from
+// the 'exit' event, which fires for a signal and a clean exit alike, and the
+// handle is dropped so the next call spawns a fresh one.
+function spawnSidecar() {
+  const python = path.join(VOICE_DIR, 'env', 'bin', 'python');
+  // Not installed is a different answer from died, and it has a different
+  // remedy. Spawning a path that isn't there buys an async 'error' event and
+  // a vaguer message; asking first says the true thing immediately.
+  if (!existsSync(python)) throw new Error('tts sidecar is not installed — run server/voice/setup.sh');
+  const child = spawn(python, [path.join(VOICE_DIR, 'sidecar.py')], {
+    env: { ...process.env, PATH: `/opt/homebrew/bin:${process.env.PATH || ''}` },
+    stdio: ['ignore', 'inherit', 'inherit'],
+  });
+  child.on('exit', (code, signal) => {
+    console.log(`tts sidecar exited (code ${code}, signal ${signal})`);
+    if (sidecar === child) sidecar = null; // dead is dead — the next call respawns
+  });
+  child.on('error', (e) => {
+    console.log(`tts sidecar failed to spawn: ${e.message}`);
+    if (sidecar === child) sidecar = null;
+  });
+  return child;
+}
+
 // Boot the sidecar if it isn't answering. Model load + warm pass is ~8s on
 // this machine, so the wait is generous once and free forever after.
-export async function ensureSidecar() {
+// Concurrent callers share ONE boot — a brief queues a dozen sentences at
+// once, and a dozen model loads would fight for the same cores.
+export function ensureSidecar() {
+  if (booting) return booting;
+  booting = bootSidecar().finally(() => { booting = null; });
+  return booting;
+}
+
+async function bootSidecar() {
   if (await healthy()) return true;
-  if (!sidecar || sidecar.exitCode !== null) {
-    const python = path.join(VOICE_DIR, 'env', 'bin', 'python');
-    sidecar = spawn(python, [path.join(VOICE_DIR, 'sidecar.py')], {
-      env: { ...process.env, PATH: `/opt/homebrew/bin:${process.env.PATH || ''}` },
-      stdio: ['ignore', 'inherit', 'inherit'],
-    });
-    sidecar.on('exit', (code) => console.log(`tts sidecar exited (${code})`));
-  }
+  if (!sidecar) sidecar = spawnSidecar();
   // 3 minutes, not 60s: model load measured 8-17s normally but >60s under
   // heavy machine load (a VM pinning cores while Chrome renders) — a boot
   // that is merely slow must not be declared dead.
   const deadline = Date.now() + 180_000;
   while (Date.now() < deadline) {
     if (await healthy()) return true;
-    if (sidecar.exitCode !== null) throw new Error(`tts sidecar died at boot (exit ${sidecar.exitCode}) — run server/voice/setup.sh`);
+    if (!sidecar) throw new Error('tts sidecar died at boot — run server/voice/setup.sh');
     await new Promise((r) => setTimeout(r, 500));
   }
   throw new Error('tts sidecar never became healthy — run server/voice/setup.sh');
+}
+
+// Can the local engine answer RIGHT NOW? Distinct from "is it configured" —
+// an engine that is set up but not running is a silence, and /tts/status has
+// to say so or the client commits to a dead path instead of falling back to
+// the browser's voice. Kicks off a boot in the background when it finds the
+// sidecar down, so the answer becomes true on its own.
+export async function localReady() {
+  if (await healthy()) return true;
+  ensureSidecar().catch(() => {}); // fire and forget — this call still reports false
+  return false;
 }
 
 function wavToMp3(wav, fx) {
@@ -192,7 +238,15 @@ export async function synthesizeLocal(text, voiceId) {
   const cacheKey = `${requested}|${speed}|${text}`;
   const hit = audioCache.get(cacheKey);
   if (hit) return hit;
-  await ensureSidecar();
+  // A REQUEST MUST NOT WAIT OUT A BOOT. The three-minute allowance above is
+  // right for the boot itself and wrong inside a reply: he is looking at a
+  // screen that says Nova is speaking. If the sidecar is not up, start it and
+  // fail THIS sentence immediately — the client falls back to the browser
+  // voice for it, and the sentence after the boot lands on the real one.
+  if (!(await healthy())) {
+    ensureSidecar().catch(() => {});
+    throw new Error('local tts is still starting up');
+  }
   const res = await fetch(`${BASE()}/tts`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

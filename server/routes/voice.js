@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { startAskNova, startGreeting, getMessageJob, prewarmAsk } from '../lib/claudeCode.js';
 import { composeDispatch } from '../lib/dispatch.js';
-import { ttsConfigured, ttsEngine, listVoices, synthesize } from '../lib/tts.js';
+import { ttsConfigured, ttsEngine, ttsReady, listVoices, synthesize } from '../lib/tts.js';
 import { buildAskContext, todayLocalContext } from '../lib/askContext.js';
 import { tryReflex } from '../lib/reflex.js';
 import { composeShow } from '../lib/morningShow.js';
@@ -483,9 +483,13 @@ export function voiceRouter(vaultPath) {
 
   router.get('/tts/status', async (req, res) => {
     try {
-      if (!ttsConfigured()) return res.json({ configured: false, voices: [] });
+      if (!ttsConfigured()) return res.json({ configured: false, ready: false, voices: [] });
       const voices = await listVoices().catch(() => []);
-      res.json({ configured: true, engine: ttsEngine(), voices });
+      // `ready` is the honest half: an engine can be configured and still be
+      // unable to make a sound. The client picks its path on `ready` and
+      // labels the engine from `configured`. [[nova-method]]
+      const ready = await ttsReady().catch(() => false);
+      res.json({ configured: true, ready, engine: ttsEngine(), voices });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

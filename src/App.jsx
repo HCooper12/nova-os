@@ -4551,7 +4551,7 @@ export default class App extends Component {
     // — Nova starts talking while still thinking, like a person does.
     const stream = { spokenUpTo: 0 };
     this.resetGlass();   // last turn's panels do not belong to this one
-    const elevenPath = !!(this.state.liveTts?.configured);
+    const elevenPath = this.ttsUsable();
     // Trailing SHOW/PROPOSE/RESEARCH lines are typed directives for the
     // server, not prose — keep them out of the render (and out of the voice)
     const stripShow = (t) => t.replace(/(^|\n)\s*(SHOW|PROPOSE|RESEARCH)\s*(\{[\s\S]*)?$/, '');
@@ -6652,7 +6652,7 @@ export default class App extends Component {
       clearTimeout(this.showWatchdogT);
       this.setState({ voiceBusy: false });
       if (!steps?.length) { this.toastMsg('Nothing to brief right now.'); return; }
-      const spoken = this.state.voiceSpeak && this.state.liveTts?.configured;
+      const spoken = this.state.voiceSpeak && this.ttsUsable();
       // A brief that cannot speak used to just... not speak. No sound, no
       // reason, nothing to tap — which is how "it didn't speak again" ends up
       // being the whole bug report. Say WHICH of the three reasons it was,
@@ -6663,7 +6663,9 @@ export default class App extends Component {
           ? 'spoken replies are switched off in Settings'
           : !this.state.liveTts
             ? "Nova hadn't heard back from your Mac about the voice engine yet"
-            : 'no speech engine is configured on your Mac';
+            : this.state.liveTts.ready === false
+              ? 'your Mac\'s voice is still starting up — this brief is in the browser\'s voice'
+              : 'no speech engine is configured on your Mac';
         this.noteSpeechUnavailable(steps.map((st) => st.say).filter(Boolean), why);
       }
       // THE DAY IS BRIEFED WHEN HE ACTUALLY HEARS IT — not when the steps
@@ -7037,7 +7039,7 @@ export default class App extends Component {
     // rotate rather than random: no repeat twice running, no randomness to debug
     this.ackIdx = ((this.ackIdx ?? -1) + 1) % this.ACK_LINES.length;
     const line = this.ACK_LINES[this.ackIdx];
-    if (this.state.liveTts?.configured) {
+    if (this.ttsUsable()) {
       // his own voice, ~0.5s local synth — and the FIFO guarantees the ack
       // lands BEFORE the reply's first sentence, never over it
       this.speakTtsSentence(line);
@@ -7045,6 +7047,21 @@ export default class App extends Component {
     }
     this.beginSpeech();
     this.speakFallback(line, () => this.endSpeech());
+  }
+  // CONFIGURED IS NOT READY, and the gap between them is thirteen hours of
+  // silence. `configured` says an engine is set up; `ready` says it can make a
+  // sound right now. On 13 Sep the local sidecar lay dead from 06:57 while
+  // `configured` stayed true, so every reply committed to an engine that could
+  // not answer instead of falling back to the browser's voice. Every PATH
+  // decision takes this; the engine LABEL still takes `configured`, because
+  // which engine is installed is a different question from whether it is up.
+  //
+  // A server too old to send `ready` omits the field: absent is not false, so
+  // it behaves exactly as it did rather than dropping the whole app onto the
+  // browser voice while he waits for a launchd reload.
+  ttsUsable() {
+    const t = this.state.liveTts;
+    return !!t?.configured && t.ready !== false;
   }
   speakIncremental(text) {
     if (!this.state.voiceSpeak || !text.trim()) return;
@@ -7121,7 +7138,7 @@ export default class App extends Component {
     const clean = (text || '').trim().slice(0, 2400);
     if (!clean) return;
     const conn = getConnection();
-    if (!conn || !this.state.liveTts?.configured) { onPlay?.(); this.speakIncremental(clean); return; }
+    if (!conn || !this.ttsUsable()) { onPlay?.(); this.speakIncremental(clean); return; }
     const gen = this.ttsGen || 0;
     // conversational output (replies, briefs, greetings) carries a reveal
     // callback; previews/acks/fillers don't — only the former earns a
@@ -7158,8 +7175,24 @@ export default class App extends Component {
     this.ttsQueue.shift();
     if (head.finalize) { try { head.finalize(); } catch { /* commit is best-effort */ } this.drainTtsQueue(gen); return; }
     if (head.failed || (!head.buffer && !head.blob)) {
-      // can't speak it — reveal the words anyway; text must never be lost
+      // THE SENTENCE THE ENGINE COULD NOT MAKE IS STILL SPOKEN OUT LOUD.
+      // Revealing the words and saying nothing was the old behaviour, and it
+      // is exactly what a booting sidecar now produces for every sentence in
+      // flight — the server fails such a request at once rather than holding
+      // a reply for a model load. The browser's voice carries those: a
+      // different voice mid-reply is worth noticing, a reply that scrolls
+      // past in silence is the bug he reported. [[nova-voice-turn]]
       try { head.onPlay?.(); head.revealed = true; } catch { /* best-effort */ }
+      if (this.state.voiceSpeak && head.said) {
+        this.ttsPlaying = true;          // the queue HOLDS: order survives a mixed-engine reply
+        this.ttsNowSaying = head.said;   // still owed to him if he leaves mid-sentence
+        this.speakFallback(head.said, () => {
+          if (gen !== (this.ttsGen || 0)) return; // a stop flushed this generation
+          this.ttsPlaying = false; this.ttsNowSaying = null;
+          this.endSpeech(); this.drainTtsQueue(gen);
+        });
+        return;
+      }
       this.endSpeech(); this.drainTtsQueue(gen); return;
     }
     this.ttsPlaying = true;
@@ -7232,7 +7265,15 @@ export default class App extends Component {
     set('Spoken replies', !!this.state.voiceSpeak, this.state.voiceSpeak ? 'on' : 'OFF — turn it on above');
     set('Connected to your Mac', !!conn, conn ? 'yes' : 'no — set the backend URL in Settings');
     if (!conn) { this.setState((s) => ({ voiceTest: { ...s.voiceTest, running: false } })); return; }
-    set('Speech engine', !!this.state.liveTts?.configured, this.state.liveTts?.configured ? (this.state.liveTts.engine || 'ready') : 'not configured — the browser voice will be used');
+    // CONFIGURED, NOT READY is its own stage result: the engine is installed
+    // and cannot speak. Reporting it as the engine's name is what let a dead
+    // sidecar pass this test all day.
+    const engineUp = this.ttsUsable();
+    set('Speech engine', engineUp,
+      engineUp ? (this.state.liveTts.engine || 'ready')
+        : this.state.liveTts?.configured
+          ? `${this.state.liveTts.engine || 'the local engine'} is installed but not answering — starting it now; the browser voice covers this reply`
+          : 'not configured — the browser voice will be used');
     let blob = null;
     try {
       blob = await api.ttsAudio(conn, 'Voice test. If you can hear this, sir, everything is working.', this.state.voiceVoiceId || undefined);
@@ -7369,7 +7410,7 @@ export default class App extends Component {
     this.beginSpeech();
     const finish = () => this.endSpeech();
     const conn = getConnection();
-    if (conn && this.state.liveTts?.configured) {
+    if (conn && this.ttsUsable()) {
       api.ttsAudio(conn, clean, this.state.voiceVoiceId || undefined).then((blob) => {
         const url = URL.createObjectURL(blob);
         // reuse the gesture-unlocked element (iOS blocks fresh ones)
@@ -7475,7 +7516,7 @@ export default class App extends Component {
       clearTimeout(this.voicePreviewTimer);
       this.voicePreviewTimer = setTimeout(() => {
         if (this.state.voiceVoiceId !== id) return; // he moved on — preview the final pick only
-        if (this.state.voiceSpeak && this.state.liveTts?.configured) this.speakTtsSentence('This is how I sound, sir.');
+        if (this.state.voiceSpeak && this.ttsUsable()) this.speakTtsSentence('This is how I sound, sir.');
       }, 300);
     });
   }
@@ -7841,7 +7882,7 @@ export default class App extends Component {
           <Suspense fallback={null}>
             <VerdictCard v={this.state.verdict}
               onClose={() => this.setState({ verdict: null })}
-              onSpeak={(text) => { if (this.state.liveTts?.configured) this.speakTtsSentence(text); else this.speakIncremental(text); }} />
+              onSpeak={(text) => { if (this.ttsUsable()) this.speakTtsSentence(text); else this.speakIncremental(text); }} />
           </Suspense>
         )}
         {/* A NEWER NOVA IS DEPLOYED THAN THE ONE RUNNING. Top of the screen,

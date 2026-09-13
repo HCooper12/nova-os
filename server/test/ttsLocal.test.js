@@ -11,8 +11,20 @@ import http from 'node:http';
 // of the wrong thing.
 process.env.NOVA_TTS_PORT = '4299';
 
-const { rewriteForSpeech, localVoices, synthesizeLocal } = await import('../lib/ttsLocal.js');
-const { ttsEngine, ttsConfigured, listVoices } = await import('../lib/tts.js');
+// A TEST MUST NEVER LAUNCH THE REAL ENGINE — on his Mac that is an 82M-parameter
+// model load. NOVA_VOICE_DIR points the spawn at an EMPTY scratch tree, so the
+// background boot every readiness check fires fails instantly on "not
+// installed" rather than lingering for three minutes and being joined by the
+// next test. (The respawn rule needs a real spawn, so it has its own file:
+// ttsSidecarRespawn.test.js.)
+import { mkdtempSync } from 'node:fs';
+import os from 'node:os';
+import nodePath from 'node:path';
+
+process.env.NOVA_VOICE_DIR = mkdtempSync(nodePath.join(os.tmpdir(), 'nova-voice-'));
+
+const { rewriteForSpeech, localVoices, synthesizeLocal, healthy } = await import('../lib/ttsLocal.js');
+const { ttsEngine, ttsConfigured, listVoices, ttsReady } = await import('../lib/tts.js');
 
 test('spoken rewrites: compounds hyphenated for the engine, display text untouched by anyone', () => {
   assert.equal(
@@ -93,3 +105,83 @@ test('local synthesis: stub sidecar wav → real ffmpeg → mp3 bytes; -jarvis m
 
 function u32(n) { const b = Buffer.alloc(4); b.writeUInt32LE(n); return b; }
 function u16(n) { const b = Buffer.alloc(2); b.writeUInt16LE(n); return b; }
+
+
+// ---------------------------------------------------------------------------
+// READY IS NOT CONFIGURED. His 13 Sep: the sidecar was signal-killed at 06:57
+// and Nova had no voice until 20:13. Nothing was misconfigured for a moment of
+// it — /tts/status kept answering `configured: true`, so every reply committed
+// to an engine that could not make a sound, and the browser voice that would
+// have covered it was never asked.
+// ---------------------------------------------------------------------------
+
+const DEAD_PORT = '4298'; // nothing listens here — the point of it
+
+test('a configured engine that cannot answer reports NOT ready, and says so without waiting out a boot', async () => {
+  const hadPort = process.env.NOVA_TTS_PORT;
+  const hadKey = process.env.ELEVENLABS_API_KEY;
+  const hadLocal = process.env.NOVA_TTS_LOCAL;
+  try {
+    delete process.env.ELEVENLABS_API_KEY;
+    process.env.NOVA_TTS_LOCAL = '1';
+    process.env.NOVA_TTS_PORT = DEAD_PORT;
+
+    assert.equal(ttsConfigured(), true, 'still configured — nothing is missing from the setup');
+    const started = Date.now();
+    assert.equal(await ttsReady(), false, 'and not ready, which is the half the client needed');
+    assert.equal(await healthy(), false);
+    // The answer must come back in the time a status poll has, not in the
+    // three minutes a model load is allowed.
+    assert.ok(Date.now() - started < 5000, `readiness answered in ${Date.now() - started}ms`);
+  } finally {
+    if (hadPort !== undefined) process.env.NOVA_TTS_PORT = hadPort; else delete process.env.NOVA_TTS_PORT;
+    if (hadKey !== undefined) process.env.ELEVENLABS_API_KEY = hadKey; else delete process.env.ELEVENLABS_API_KEY;
+    if (hadLocal !== undefined) process.env.NOVA_TTS_LOCAL = hadLocal; else delete process.env.NOVA_TTS_LOCAL;
+  }
+});
+
+test('readiness dispatch: unconfigured is never ready, a keyed cloud engine always is, local answers for itself', async () => {
+  const hadKey = process.env.ELEVENLABS_API_KEY;
+  const hadLocal = process.env.NOVA_TTS_LOCAL;
+  const hadPort = process.env.NOVA_TTS_PORT;
+  const stub = http.createServer((req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.end('{"ok":true}');
+  });
+  try {
+    delete process.env.ELEVENLABS_API_KEY;
+    delete process.env.NOVA_TTS_LOCAL;
+    assert.equal(await ttsReady(), false, 'no engine at all');
+
+    process.env.ELEVENLABS_API_KEY = 'k';
+    assert.equal(ttsEngine(), 'elevenlabs');
+    assert.equal(await ttsReady(), true, 'reachable-or-not per request, with its own timeout — not ours to probe');
+
+    delete process.env.ELEVENLABS_API_KEY;
+    process.env.NOVA_TTS_LOCAL = '1';
+    process.env.NOVA_TTS_PORT = '4297';
+    await new Promise((r) => stub.listen(4297, '127.0.0.1', r));
+    assert.equal(await ttsReady(), true, 'the local engine is answering, so it is ready');
+  } finally {
+    stub.close();
+    if (hadKey !== undefined) process.env.ELEVENLABS_API_KEY = hadKey; else delete process.env.ELEVENLABS_API_KEY;
+    if (hadLocal !== undefined) process.env.NOVA_TTS_LOCAL = hadLocal; else delete process.env.NOVA_TTS_LOCAL;
+    if (hadPort !== undefined) process.env.NOVA_TTS_PORT = hadPort; else delete process.env.NOVA_TTS_PORT;
+  }
+});
+
+test('a sentence is refused immediately while the engine boots — a reply never waits three minutes for one', async () => {
+  const hadPort = process.env.NOVA_TTS_PORT;
+  try {
+    process.env.NOVA_TTS_PORT = DEAD_PORT;
+    const started = Date.now();
+    await assert.rejects(
+      () => synthesizeLocal(`unique to this test ${Date.now()}`, 'nova'),
+      /starting up/,
+      'it names the state rather than failing blankly',
+    );
+    assert.ok(Date.now() - started < 5000, `refused in ${Date.now() - started}ms, not after a boot`);
+  } finally {
+    if (hadPort !== undefined) process.env.NOVA_TTS_PORT = hadPort; else delete process.env.NOVA_TTS_PORT;
+  }
+});

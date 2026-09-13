@@ -4,7 +4,7 @@
 // available, /tts/status says so and the client falls back to the browser's
 // built-in speech engine.
 
-import { localTtsEnabled, localVoices, synthesizeLocal } from './ttsLocal.js';
+import { localTtsEnabled, localVoices, synthesizeLocal, localReady } from './ttsLocal.js';
 
 const API_BASE = () => process.env.NOVA_ELEVENLABS_API || 'https://api.elevenlabs.io';
 const KEY = () => (process.env.ELEVENLABS_API_KEY || '').trim();
@@ -22,6 +22,20 @@ export function ttsEngine() {
 
 export function ttsConfigured() {
   return ttsEngine() !== null;
+}
+
+// CONFIGURED IS NOT READY, and the difference is thirteen hours of silence.
+// `ttsConfigured()` reads an env var; it was true all day on 13 Sep while the
+// local sidecar lay dead, so the client kept committing to an engine that
+// could not answer instead of falling back to the browser's voice. This asks
+// the engine. ElevenLabs is reachable-or-not per request and has its own
+// timeout, so it reports ready; only the local engine can be down while
+// still being configured.
+export async function ttsReady() {
+  const engine = ttsEngine();
+  if (!engine) return false;
+  if (engine === 'local') return localReady();
+  return true;
 }
 
 let voicesCache = { at: 0, voices: null };
