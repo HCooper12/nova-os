@@ -6321,6 +6321,7 @@ export default class App extends Component {
   // is correct there because a click blurs the field and flushes it first.
   doOrb(text) {
     const q = (typeof text === 'string' ? text : this.state.orbInput).trim(); if (!q) return;
+    this.noteHeardHim();  // he answered, so whatever opened this turn was right
     this.resumeConv(); // anything sent un-pauses the conversation loop
     this.primeSpeech(); // inside the user gesture — unlocks audio on iOS
     // A short plain yes/no right after a proposal is a CONFIRMATION, not a
@@ -7023,6 +7024,7 @@ export default class App extends Component {
     if (!this.state.bargeInOn) return;
     console.log(`[barge-in] ${why} — heard ${JSON.stringify(String(heard).slice(0, 80))}`);
     reportBargeIn(heard, why); // the console is not readable from a car
+    this.lastTurnWasBargeIn = true; // if the turn it opens hears nothing, this was wrong
     // his interrupting words start the turn: they are demonstrably not echo,
     // which is the whole reason this fired
     this.onWakeWord(heard);
@@ -7165,6 +7167,24 @@ export default class App extends Component {
   // two silent listens in a row → pause the loop politely (it's an offer,
   // not surveillance); anything sent resumes it
   notifyEmptyListen() {
+    // A BARGE-IN FOLLOWED BY SILENCE IS A BARGE-IN THAT WAS WRONG. Nova stopped
+    // mid-sentence, opened the microphone, and nobody was there — which means
+    // it cut itself off on its own echo. Once is a mishearing. Twice running is
+    // a room this filter cannot cope with (a loud speaker, a noisy car), and
+    // the honest thing is to stop doing it and SAY so, rather than keep
+    // interrupting itself while he wonders what is happening.
+    //
+    // It stays off until he turns it back on, because a setting that
+    // resurrects itself is worse than one that does not work.
+    if (this.lastTurnWasBargeIn) {
+      this.lastTurnWasBargeIn = false;
+      this.bargeMisses = (this.bargeMisses || 0) + 1;
+      if (this.bargeMisses >= 2 && this.state.bargeInOn) {
+        this.bargeMisses = 0;
+        this.setBargeIn(false);
+        this.toastMsg('Talking over Nova kept cutting it off with nobody there, so it’s off. Settings turns it back on.');
+      }
+    }
     this.convEmpties = (this.convEmpties || 0) + 1;
     if (this.convEmpties >= 2) {
       this.setState({ voiceConvPaused: true });
@@ -7580,6 +7600,11 @@ export default class App extends Component {
     const seed = this.pendingVoiceSeed || '';
     this.pendingVoiceSeed = '';
     return seed;
+  }
+  // He answered, so whatever opened that turn was right. Called on every send.
+  noteHeardHim() {
+    this.lastTurnWasBargeIn = false;
+    this.bargeMisses = 0;
   }
   onWakeWord(rest) {
     this.pendingVoiceSeed = String(rest || '').slice(0, 400);
