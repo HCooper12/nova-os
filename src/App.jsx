@@ -7969,7 +7969,12 @@ export default class App extends Component {
 
         {v.presence && <VoicePresence v={v} />}
         {/* "Hey Nova" — headless, opt-in, and never while a mic is already in use */}
-        {(v.wakeWord?.on || v.bargeIn?.on) && (
+        {/* THE WAKE WORD IS THE ONLY THING THAT OPENS A MICROPHONE HERE.
+            Barge-in rides it and cannot summon one of its own — rendering this
+            for barge-in alone left a component polling a gate that could never
+            open, and one edit away from asking his phone for the microphone
+            every time Nova spoke. Which is exactly what happened on 15 Sep. */}
+        {v.wakeWord?.on && (
           <WakeWord enabled blocked={v.wakeWord.blocked} onWake={v.wakeWord.wake} onError={v.wakeWord.error}
             bargeIn={v.bargeIn?.on} speaking={v.bargeIn?.speaking} saying={v.bargeIn?.saying} onBargeIn={v.bargeIn?.fire} />
         )}
