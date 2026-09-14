@@ -386,7 +386,7 @@ export function Voice({ v }) {
             <AttachStrip attach={v.attach} tone="cyan" />
             <LocalInput
               value={v.orbInput}
-              onChange={(text) => v.setOrbInputValue(text)}
+              onChange={(text) => v.setTypedInputValue(text)}
               onSubmit={(text) => v.sendOrb(text)}
               placeholder={v.attach?.pending?.length ? 'Ask about what you attached…' : 'Speak or type to Nova…'}
               style={css(`flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:${isAppleStyle() ? '999px' : '9px'};padding:10px 14px;color:var(--nv-ink);font:400 ${isAppleStyle() ? '15px var(--nv-font-ui)' : `12.5px ${M}`};outline:none`)}

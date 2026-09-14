@@ -94,3 +94,17 @@ test('without a key everything degrades honestly', async () => {
   await assert.rejects(() => synthesize('hello'), /no TTS engine/);
   process.env.ELEVENLABS_API_KEY = saved;
 });
+
+test('a spoken ask carries a harder length rule than a typed one — he is listening, not reading', async () => {
+  const { buildAskPrompt } = await import('../lib/claudeCode.js');
+  const typed = buildAskPrompt({ question: 'what did Coach say', context: 'ctx' });
+  const spoken = buildAskPrompt({ question: 'what did Coach say', context: 'ctx', spoken: true });
+  assert.ok(!/HE IS LISTENING, NOT READING/.test(typed), 'the keyboard gets the ordinary register');
+  assert.match(spoken, /HE IS LISTENING, NOT READING/);
+  assert.match(spoken, /TWO SENTENCES/);
+  // both still carry the rules that are not about the medium
+  for (const p of [typed, spoken]) {
+    assert.match(p, /ANSWER THE QUESTION HE ASKED/);
+    assert.match(p, /NEVER ASK PERMISSION TO DO YOUR OWN JOB/);
+  }
+});

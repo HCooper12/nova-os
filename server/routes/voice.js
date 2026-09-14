@@ -137,7 +137,7 @@ export function voiceRouter(vaultPath) {
       // Aug: "what's the last video I gave you?" answered from chat memory).
       const { resumedRefreshContext } = await import('../lib/askContext.js');
       const liveLine = sessionId ? await resumedRefreshContext(vaultPath).catch(() => '') : '';
-      const jobId = startAskNova(vaultPath, { question, context: await askContext(sessionId), sessionId, liveLine });
+      const jobId = startAskNova(vaultPath, { question, context: await askContext(sessionId), sessionId, liveLine, spoken: req.body?.spoken === true });
       res.json({ jobId });
     } catch (e) {
       res.status(500).json({ error: e.message });

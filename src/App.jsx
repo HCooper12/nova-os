@@ -6831,7 +6831,11 @@ export default class App extends Component {
     // answered him at 01:04; his 01:17 rebuttal went to Nova, who had never
     // seen it. Streaming placeholders don't count — only a reply that landed.
     const lastSpeaker = [...(this.state.voiceChat || [])].reverse().find((m) => m.who && m.who !== 'you' && m.who !== 'system' && !m.streaming) || null;
-    this.flushAttachments(conn).then((attachmentId) => api.ask(conn, sent, this.state.voiceSessionId || null, { coachSessionId: this.state.coachSessionId || null, leaderSessionId: this.state.leaderSessionId || null, attachmentId, raw: question, lastAgent: lastSpeaker?.who || null, lastAgentAt: lastSpeaker?.at || null })).then((resp) => {
+    // A reply he will HEAR has a harder length rule than one he will read — a
+    // hundred words is fifty seconds of being talked at. Spoken means: it came
+    // from the microphone and speech is on.
+    const spoken = !!this.spokenInput && !!this.state.voiceSpeak;
+    this.flushAttachments(conn).then((attachmentId) => api.ask(conn, sent, this.state.voiceSessionId || null, { coachSessionId: this.state.coachSessionId || null, leaderSessionId: this.state.leaderSessionId || null, attachmentId, raw: question, spoken, lastAgent: lastSpeaker?.who || null, lastAgentAt: lastSpeaker?.at || null })).then((resp) => {
       if (resp.text) {
         // Reflex answer — code replied from the live record, no job to poll.
         // Voice leads here too: the text lands when the audio starts. The

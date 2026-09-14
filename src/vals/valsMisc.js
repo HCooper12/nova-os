@@ -286,7 +286,12 @@ export function valsMisc(app, ctx) {
     },
     orbInput: st.orbInput,
     setOrbInput: (e) => app.setState({ orbInput: e.target.value }),
-    setOrbInputValue: (t) => app.setState({ orbInput: t }),
+    // SPOKEN OR TYPED. The same endpoint serves the Voice screen and the
+    // composer, so the prompt could not tell a conversation from a chat and
+    // one length rule had to serve both. Dictation marks its text as spoken;
+    // the keyboard marks its own as typed.
+    setOrbInputValue: (t) => { app.spokenInput = true; app.setState({ orbInput: t }); },
+    setTypedInputValue: (t) => { app.spokenInput = false; app.setState({ orbInput: t }); },
     dictationError: (err) => app.toastMsg(err === 'not-allowed'
       ? 'Microphone blocked — allow it in iOS Settings → Nova'
       : `Dictation stopped (${err}) — tap the mic to retry`),
