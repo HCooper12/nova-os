@@ -69,15 +69,14 @@ export function WakeWord({ enabled, blocked, onWake, onError }) {
       try { micStarted(); rec.start(); recRef.current = rec; } catch { micStopped(); /* already running */ }
     };
 
-    // poll the gate rather than re-subscribing: while he dictates or Nova
-    // speaks we stay out of the way, then quietly resume
+    // THE RESUME PATH ONLY. Stopping is handled reactively, by the effect
+    // below — see it for why. Coming back is not urgent in the same way:
+    // nothing is competing for the microphone while this one is off, so a
+    // beat of delay costs nothing and re-subscribing on every `blocked`
+    // flicker would cost a teardown.
     const gate = setInterval(() => {
-      if (!wantRef.current) return;
-      if (blockedRef.current) {
-        if (recRef.current) { try { recRef.current.stop(); } catch { /* fine */ } }
-        return;
-      }
-      if (!recRef.current) start();
+      if (!wantRef.current || blockedRef.current || recRef.current) return;
+      start();
     }, 900);
     start();
 
@@ -88,6 +87,22 @@ export function WakeWord({ enabled, blocked, onWake, onError }) {
       if (recRef.current) { try { recRef.current.stop(); } catch { /* fine */ } recRef.current = null; }
     };
   }, [enabled]);
+
+  // GETTING OUT OF THE WAY IS URGENT. The gate above used to do the stopping
+  // too, which meant that when the Voice screen or the bottom bar opened
+  // dictation, this recogniser kept running for up to 900ms — two
+  // SpeechRecognition sessions fighting over one iPhone microphone. His 12
+  // Sep report: "I was having bugs between the listening mode while on the
+  // voice screen and the listening mode from the bar at the bottom … a few
+  // times Nova began talking over me while it still said it was listening".
+  // So the handover is now on the same beat as the flip: `blocked` going true
+  // stops this recogniser immediately. `blockedRef` is assigned during render,
+  // so it is already true by the time this runs and the restart in `onend`
+  // will decline to reopen.
+  useEffect(() => {
+    if (!blocked || !recRef.current) return;
+    try { recRef.current.stop(); } catch { /* already stopping */ }
+  }, [blocked]);
 
   return null;
 }
