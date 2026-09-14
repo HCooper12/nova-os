@@ -26,6 +26,29 @@ const SECTION_TIMEOUT_MS = 25_000;
 // fast answer still knows his real numbers.
 const FAST_DISPATCH_TIMEOUT_MS = 6500;
 
+// THE BRIEF IS THE ONLY SLOW SECTION, AND IT WAS THE WHOLE WAIT. Measured on
+// 14 Sep by timing every section of a real cold build: 8,776ms total, of which
+// the brief was 8,775ms. Every one of the other eighteen came back in 101ms or
+// less. So a new conversation stood him in silence for nearly nine seconds
+// waiting on one CalDAV round trip to iCloud, before the model had even been
+// handed his question.
+//
+// It is cached on its own, apart from the rest, for two reasons. His calendar
+// and his brief do not change minute to minute, unlike the vault — so this
+// cache deliberately SURVIVES the write-invalidation that drops the main
+// snapshot (a logged meal does not move a meeting). And once there is one,
+// nobody waits for the next: the cached copy is served at once and a fresh one
+// is fetched behind it, so the cost is paid once per process rather than on
+// every cold turn.
+//
+// It says how old it is, because a snapshot that does not is a lie
+// (NOVA-METHOD: stale data self-labels). Past STALE_MAX it stops being worth
+// labelling and he waits for the truth.
+const BRIEF_TTL_MS = 10 * 60_000;
+const BRIEF_STALE_MAX_MS = 30 * 60_000;
+let briefCache = null; // { at, text }
+export function dropBriefCache() { briefCache = null; }
+
 // Today from local files only — no network, always instant. This is what
 // keeps a fast spoken answer honest about steps, fuel and what's waiting.
 //
@@ -142,11 +165,23 @@ export async function buildAskContext(vaultPath, sessionId, { fast = false } = {
       label: 'the brief',
       ms: fast ? FAST_DISPATCH_TIMEOUT_MS : SECTION_TIMEOUT_MS,
       load: async () => {
-        const [morning, evening] = await Promise.all([
-          composeDispatch(vaultPath, 'morning'),
-          composeDispatch(vaultPath, 'evening'),
-        ]);
-        return `${morning.text}\n\n${evening.text}`;
+        const age = briefCache ? Date.now() - briefCache.at : Infinity;
+        if (age < BRIEF_TTL_MS) return briefCache.text;   // fresh enough to say nothing about
+        const fresh = (async () => {
+          const [morning, evening] = await Promise.all([
+            composeDispatch(vaultPath, 'morning'),
+            composeDispatch(vaultPath, 'evening'),
+          ]);
+          const text = `${morning.text}\n\n${evening.text}`;
+          briefCache = { at: Date.now(), text };
+          return text;
+        })();
+        // nothing to fall back on, or what we have is too old to be worth
+        // labelling — he waits, on the leash above
+        if (age > BRIEF_STALE_MAX_MS) return fresh;
+        fresh.catch(() => {});   // refreshed behind him; a failure must not surface as this turn's
+        const mins = Math.round(age / 60_000);
+        return `${briefCache.text}\n\n(Brief and calendar as of ${mins} minute${mins === 1 ? '' : 's'} ago — say so if it matters to the answer.)`;
       },
     },
     { label: 'open loops', load: async () => (await import('./openLoops.js')).openLoopsContext(vaultPath) },
@@ -195,7 +230,14 @@ export async function buildAskContext(vaultPath, sessionId, { fast = false } = {
 
   // together, on a deadline; a section that throws or times out is NAMED in
   // the NOTE rather than dropped as if it were empty
-  const { text, failed } = await gatherContext(sections, { parallel: true, ms: SECTION_TIMEOUT_MS });
+  const startedAt = Date.now();
+  const { text, failed, timings } = await gatherContext(sections, { parallel: true, ms: SECTION_TIMEOUT_MS });
+  // ONE LINE PER COLD BUILD, slowest first. These run in parallel, so the wait
+  // he hears is the slowest section — this names it instead of leaving the
+  // next session to guess which of nineteen to blame.
+  const slowest = [...timings].sort((a, b) => b.ms - a.ms).slice(0, 6)
+    .map((t) => `${t.label} ${t.ms}ms${t.ok ? '' : ' FAILED'}`).join(', ');
+  console.log(`ask context: ${Date.now() - startedAt}ms for ${timings.length} sections — slowest: ${slowest}`);
   // never cache a failed assembly — an empty block would be served as though
   // it were his context for the next 90 seconds, and a transient timeout
   // would stay named for that long instead of being retried

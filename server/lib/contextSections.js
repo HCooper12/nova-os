@@ -37,14 +37,22 @@ function withDeadline(promise, ms) {
 //   note     — append the NOTE when anything failed (default). Off only for a
 //              caller that will name the failures in its own words.
 export async function gatherContext(sections, { parallel = false, ms = null, note = true } = {}) {
+  // HOW LONG EACH SECTION TOOK. Assembling a cold ask context was measured at
+  // 8.6 seconds of dead air before the model is even handed the question — and
+  // nothing anywhere recorded which of the nineteen sections spent it, so every
+  // proposal to make it faster was a guess. `ms` per section is the evidence.
+  // Parallel means the total is the SLOWEST section, not the sum: one slow
+  // reader holds the whole conversation up, and this says which one.
   const runOne = async (s) => {
+    const started = Date.now();
     try {
       let p = Promise.resolve().then(() => s.load());
       const limit = s.ms ?? ms;
       if (limit) p = withDeadline(p, limit);
-      return { ok: true, value: await p };
+      const value = await p;
+      return { ok: true, value, ms: Date.now() - started };
     } catch (e) {
-      return { ok: false, reason: String(e?.message || e || 'unknown error') };
+      return { ok: false, reason: String(e?.message || e || 'unknown error'), ms: Date.now() - started };
     }
   };
   const results = [];
@@ -53,7 +61,9 @@ export async function gatherContext(sections, { parallel = false, ms = null, not
 
   const parts = [];
   const failed = [];
+  const timings = [];
   results.forEach((r, i) => {
+    timings.push({ label: sections[i].label, ms: r.ms, ok: r.ok });
     if (r.ok) {
       if (typeof r.value === 'string' && r.value.trim()) parts.push(r.value);
     } else {
@@ -61,5 +71,5 @@ export async function gatherContext(sections, { parallel = false, ms = null, not
     }
   });
   const text = [...parts, ...(note && failed.length ? [ABSENT_NOTE(failed)] : [])].join('\n\n');
-  return { text, parts, failed };
+  return { text, parts, failed, timings };
 }
