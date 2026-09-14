@@ -142,10 +142,24 @@ function fakeDeps({ failAngles = [], researchFails = false, hold = null } = {}) 
   };
 }
 
+// SETTLED MEANS THE WHOLE OPERATION, NOT ITS FIRST HALF. Finishing is two
+// steps — `updateRecord` lands the record, then `setStage('ready')` marks the
+// job — and the record write is observable BEFORE the continuation that marks
+// the job runs. Waiting on the record alone therefore returned mid-finish, and
+// `stage` was still 'illustrating' when the next line asserted 'ready'. That is
+// the whole "angles fan out in parallel" flake: not the fan-out, the sampling.
+//
+// Measured, not guessed: putting a 120ms sleep between those two steps fails
+// the old wait every time (`actual: 'illustrating'`) and passes this one.
+// Production order is deliberately left alone — the job stage is only read
+// while the record says 'classifying' (routes/briefing.js), so 'ready' after
+// the record lands is the honest order there.
 const settle = async (id) => {
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 120; i++) {
     const r = await getRecord(id);
-    if (r && r.status !== 'classifying') return r;
+    const job = getBriefingJob(id);
+    const jobDone = !job || job.stage === 'ready' || job.stage === 'error';
+    if (r && r.status !== 'classifying' && jobDone) return r;
     await new Promise((res) => setTimeout(res, 50));
   }
   throw new Error('briefing never settled');
