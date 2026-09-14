@@ -13,7 +13,169 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**14 SEP (latest) — THREE FAULTS, EACH ONE A THING THAT REPORTED SUCCESS WHILE
+**14 SEP, SECOND HALF (latest) — THE DRIVING REPORT: NINE VOICE FAULTS, EIGHT
+FIXED, ONE OF THEM MINE.** He tried to hold a conversation with Nova in the car
+and it failed in every way a conversation can: cut him off without a pause,
+rambled without context, advised on the wrong half of a story, alternated
+voices sentence by sentence, talked over him while the screen said LISTENING,
+lost the thread between one turn and the next, and buried its panels below
+the fold. His standard, verbatim: *"Jarvis from Iron Man does not have this
+sort of problem and same with Claude AI and ChatGPT."* This is now the big
+focus, by his instruction.
+
+**GOAL.** Every fault in that report traced to a mechanism and fixed, with a
+receipt where the next report will need one — and the same lessons carried to
+Wren (`../atlas-partner`), which is built on Nova's foundation.
+
+**DONE CRITERIA**
+- *met* — one voice per reply (`4f06bcd`). The alternation was the morning's
+  fallback (`6b58b13`) doing what it was written to do: every sentence the
+  engine failed went to the browser voice, and over cellular the engine fails
+  sentences at random. `ttsVoiceLock` per generation, one retry first.
+- *met* — the mic waits for the END of a reply, not a gap in it (`0953427`).
+  `voiceBusy` clears at the first partial; between sentences `speechActive` hit
+  zero and `maybeAutoListen` opened the mic. `replyStreaming` (job id).
+- *met* — `api.ask` outlives a cold context assembly: 45s, was 20s against a
+  25s server ceiling (`ad36299`).
+- *met* — the spoken register: 2–3 sentences, hand the floor back if he is
+  still explaining, ONE question before assuming, two is the ceiling
+  (`1783433`). Applies to typed asks too — the prompt does not know its origin.
+- *met* — no wall-clock cap on a speaking turn; a restart that throws retries
+  before it submits; a 600ms hold floor after a restart; every held turn
+  reports WHY it ended to `POST /api/voice/turn` →
+  `server/data/voice/turns.json` (`39d77fc`).
+- *met* — the wake-word recogniser stops on the same beat dictation starts
+  (`d33ae13`), not up to 900ms later.
+- *met* — a follow-up stays with whoever just spoke (`1ca667a`). His
+  screenshots: the Leader at 01:04, his rebuttal at 01:17 routed to Nova, who
+  had never seen it. `intentRouter.followUpLane`, 20-minute window.
+- *met* — a rising panel scrolls into view clear of the dock; tap to enlarge
+  with a FLIP morph, scrim, swipe-down (`d812e07`).
+- *unmet* — **nothing here has run on his phone.** Every fix is verified by
+  reading, by tests, or in desktop Chrome at 375px. The device is the test.
+- *unmet* — **Wren.** Its `public/voice.js` carries the same per-sentence
+  browser fallback (line 190), the same 120s cap, and a polled wake-word gate.
+  Not touched — a separate repo with its own rules; HIS CALL to open it.
+
+**STATE (paths).** `src/App.jsx` (`ttsVoiceLock`, the retry, `replyStreaming`,
+`lastAgent`/`lastAgentAt` on the ask), `src/api.js`, `server/lib/claudeCode.js`
+(the register), `src/turnEnd.js` (`endReason`, `maxSpeakingMs`,
+`RESTART_GRACE_MS`), `src/useDictation.js` (`reportTurnEnd`, `spin(isRestart,
+attempt)`), `src/WakeWord.jsx`, `src/screens/Voice.jsx` (turn-end wiring,
+`glassRef`, `GlassSheet`), `src/VoicePresence.jsx`, NEW `src/GlassSheet.jsx`,
+NEW `server/lib/voiceTurns.js` + `server/routes/voiceTurns.js` (mounted in
+`server/index.js` after the token check), `server/lib/intentRouter.js`
+(`followUpLane`), `server/routes/voice.js`. Tests: `turnEnd` (22),
+`voiceTurns` (6), `intentRouter` (+5). **1482 pass, 0 fail.**
+
+**DECISIONS (choice → reason → what it forecloses)**
+- *One voice per reply, decided at the first sentence* → alternating voices is
+  worse than either voice, and worse than the silent gaps it replaced; in the
+  car, audible-and-consistent beats correct-voice-with-holes. **Forecloses**
+  any per-sentence engine choice; a whole reply in the browser voice is the
+  accepted worst case, and the voice test names the cause.
+- *The mic waits on the reply job, not on speech activity* → speech activity
+  has gaps by construction when sentences stream. **Forecloses** using
+  `speechActive === 0` alone as "Nova is done".
+- *The register rule applies to typed asks too* → the prompt has no origin
+  flag. **Forecloses** loosening the rule if the Mac chat reads terse; the
+  next step is an origin flag.
+- *No wall-clock cap while speech arrives; a 15-minute absolute ceiling* → the
+  120s cap existed for a television, and a person explaining a situation talks
+  for longer. The old test ENCODED the fault. **Forecloses** any future
+  "runaway mic" guard expressed in elapsed time rather than silence.
+- *A hold FLOOR after a restart (600ms), not a reset* → the agent's correction
+  of my brief: the commonest restart is iOS giving up because he genuinely
+  stopped, so a reset would add a whole hold of dead air to nearly every turn.
+  **Forecloses** resetting `lastHeardAt` on restart.
+- *Sticky lane: only the plain 'ask' fall-through, only Coach/Leader, 20
+  minutes, broken by naming Nova* → a wrong stick costs an answer from the
+  Leader instead of Nova; a wrong fall-through costs the whole thread; his gap
+  was thirteen minutes. **Forecloses** making the router stateless again.
+- *His mobile order stays; the panel scrolls to him* → "the core, then the
+  station status, then the conversation" is his explicit decision in the code.
+  **Forecloses** reordering the Voice screen to fix visibility; reopening it
+  is a decision he makes, not a fix I make.
+- *Wren is not touched from this repo* → separate codebase, "nothing here
+  imports from Nova at runtime", its own plan and rules. **Forecloses** a
+  shared module; the port is a re-implementation of the lessons.
+
+**VERIFIED (with locators)**
+- Kokoro is built from "British male packs" (`server/voice/sidecar.py:9`);
+  `resolveSpeechVoice` picks `lang === 'en-AU'` (App.jsx) — the alternation was
+  those two, sentence by sentence.
+- `App.jsx` `voiceBusy: false` at the first partial ("he can barge in the
+  moment the answer exists") — the survey agent had this wrong; re-verified.
+- `turnEnd.js` `maxTurnMs = 120000` checked FIRST in `nextAction`; the test
+  "the microphone is never held open forever" asserted speech-one-second-ago,
+  ended-at-120s.
+- `api.js` `REQUEST_TIMEOUT_MS = 20_000`, `ask` with no override; `askContext`
+  25s per section.
+- `routeIntent(raw).lane` per message, no state; fall-through is `'ask'`.
+  `restarts` resets on every heard word (`turnEnd.js:69`), so the restart
+  limit cannot end a speaker.
+- The sheet, in desktop Chrome at 375px via `window.__novaApp` (dev-only,
+  `App.jsx:563`): three tappable panels; hero scrolled into view; tap → dialog,
+  body overflow hidden; Escape → 0 dialogs, overflow restored. Without the
+  scroll margin the hero's bottom was 738 against a dock top of 737; with it,
+  704.
+- `/api/voice/turn` answers 401 unauthenticated on the reloaded service —
+  mounted behind the token check.
+- Gates at close: `npm run lint` 0 errors; `npm run build` **exit 0** (see DO
+  NOT); `cd server && npm test` 1482 pass; `HEAD == origin/main`; service
+  reloaded, `/api/health` 200; no `vite`, no `yes` processes left.
+
+**ASSUMED**
+- That the phone behaves like desktop Chrome for every client change. iOS
+  Safari's recognition, audio graph and `scrollIntoView` all differ. His next
+  drive is the real test, and `server/data/voice/turns.json` is the receipt.
+- That 20 minutes is the right follow-up window. Chosen from one data point.
+- That the register does not make the typed Mac chat feel clipped.
+- That a whole reply in the browser voice (engine failed the first sentence)
+  is acceptable to him. It is the designed worst case, and he dislikes that
+  voice.
+
+**OPEN QUESTIONS / BLOCKERS**
+- **Wren.** Three of these faults exist verbatim in `../atlas-partner/public/voice.js`.
+  Opening that repo is his call.
+- **The Voice screen order on the phone.** His decision stands; if he wants the
+  glass above the station rail, that is one `order` swap.
+- **An origin flag for the ask prompt** if the typed chat reads too terse.
+- Two mornings (8 and 12 Sep) still have no health reading — his Shortcut.
+
+**NEXT ACTION.** His next spoken conversation on the phone. **Expected if it
+worked:** one voice throughout; no reply starts while LISTENING shows; a long
+explanation is not cut at two minutes; a reply to the Leader stays with the
+Leader; a rising panel is on screen and grows when tapped. Then read
+`server/data/voice/turns.json` — every turn now says why it ended
+(`hold`/`lead`/`cap-idle`/`cap-absolute`/`restart-limit`/`engine`) — and the
+`ask →` lines in `~/Library/Logs/nova-os-server.log` for which lane took
+each turn. If it still cut him off, the reason is in the file, not in a guess.
+
+**DO NOT**
+- **Do not gate a build on a grep.** `npm run build 2>&1 | grep -E
+  "error|files generated"` printed `files generated` while the build exited 1:
+  oxc reports `PARSE_ERROR` in caps and the PWA plugin prints its line anyway.
+  Gate on `$?`. I nearly committed a `Voice.jsx` that did not parse.
+- **Do not put `{/* */}` directly inside `( … )` before a JSX element.** That
+  is the parse error above; a plain `/* */` goes there.
+- **Do not fall back to the browser voice per sentence.** That was this
+  morning's `6b58b13`, and he heard it. Per reply, or not at all.
+- **Do not read `voiceBusy` as "the reply is still coming".** It clears at the
+  first partial by design. `replyStreaming` is that flag.
+- **Do not express a runaway-mic guard in elapsed time.** Silence and engine
+  health only. The 120s cap looked reasonable for months.
+- **Do not reset the hold clock on a recognition restart.** Floor it (600ms).
+- **Do not "fix" the phone's Voice order.** It is his decision, in a comment
+  near `Voice.jsx:455`.
+- **Do not materialise the API token into the session to drive the connected
+  app in the MCP browser** — the classifier refuses it, correctly. The
+  dev-only `window.__novaApp` hook exercises real render paths in demo mode.
+- **Do not edit `../atlas-partner` from this session without his say-so.**
+
+---
+
+**14 SEP, FIRST HALF — THREE FAULTS, EACH ONE A THING THAT REPORTED SUCCESS WHILE
 LOSING SOMETHING.** No new surface. He asked to resume, was given the state,
 and said "continue with all of them".
 
@@ -1202,6 +1364,20 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+### 14 September 2026 (second half) — the driving report
+He tried to converse with Nova in the car and it failed in every way a
+conversation can. Nine faults traced and eight fixed in ten commits: one voice
+per reply (the alternation was mine, from the morning); the mic waits for the
+end of a reply; a 45s ask timeout; a register that talks in turns and asks
+before assuming; no wall-clock cap on a speaking turn, a retried restart, and a
+turn-end receipt log; the wake-word overlap; a sticky lane for follow-ups (his
+01:04 → 01:17 gap is a test); and phone panels that scroll into view and grow on
+tap with a FLIP morph. Two delegated agents (opus for the mic, sonnet for the
+sheet), both verified by reading and gates; the mic agent corrected my brief
+twice and was right both times. Caught my own build gate lying (grep, not exit
+code). Nothing has run on the phone yet. Wren shares three of the faults and is
+untouched, pending his call.
 
 ### 14 September 2026 — three things that reported success while losing something
 Resumed from a handoff two sessions stale. Finished the TTS readiness fix left
