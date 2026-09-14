@@ -139,6 +139,21 @@ const WEIGHT_RE = new RegExp([
   '^(?:what|how much) (?:do|did|am) i weigh(?:ing)?(?:\\s+(?:last|now|today|currently|at))?$',
   '^(?:my\\s+)?last weigh[- ]?in$',
 ].join('|'));
+// "how many steps did I do yesterday" cost 27 SECONDS in the model for a number
+// on disk, because the pattern allowed nothing between "steps" and the day.
+const DID_I = '(?:did i (?:do|take|walk|get|manage)|have i (?:done|taken|walked|got))';
+const WHEN = '(today|yesterday|so far(?: today)?)';
+const STEPS_RE = new RegExp(
+  `^(?:what(?:'?s| is| are| was| were)?|how many)?\\s*(?:my\\s+)?(?:step count|steps)(?:\\s+${DID_I})?\\s*${WHEN}?$`);
+// He asked "how far did I walk yesterday" and Nova answered with STEPS — a
+// different measurement presented as the one he asked for. The day files carry
+// walkingRunningDistanceKm; nothing was reading it.
+const DISTANCE_RE = new RegExp(
+  `^(?:how far|what(?:'?s| is| was)? (?:my )?(?:distance|walking distance))(?:\\s+${DID_I})?(?:\\s+(?:walk|run|go|travel))?\\s*${WHEN}?$`);
+// VO2 max is in every one of his day files and was read by NOTHING, so the
+// model answered "no VO2 max in your log yet" — Nova denying data it holds.
+const VO2_RE = /^(?:what(?:'?s| is)?\s*)?(?:my\s+)?vo2[\s-]?max(?:\s+(?:today|now|right now))?$/;
+
 const INBOX_RE = new RegExp([
   "^(?:what(?:'?s| is)?\\s*)?(?:in\\s+)?(?:my\\s+)?inbox$",
   `^how many ${THING}?\\s*(?:are\\s+)?(?:pending|waiting|in (?:my )?inbox)(?:\\s+(?:for me|in my inbox))?$`,
@@ -175,7 +190,7 @@ export async function tryReflex(question, deps = defaultDeps) {
   const yesterday = localDate(new Date(now.getTime() - 86_400_000));
 
   // ---- steps (today / yesterday) ----
-  const steps = q.match(/^(?:what(?:'s| is| are| was| were)?|how many)?\s*(?:my\s+)?(?:step count|steps)\s*(today|yesterday|so far)?$/);
+  const steps = q.match(STEPS_RE);
   if (steps) {
     const days = await deps.recentDays().catch(() => []);
     const which = steps[1] === 'yesterday' ? yesterday : today;
@@ -203,10 +218,11 @@ export async function tryReflex(question, deps = defaultDeps) {
     }
     const when = steps[1] === 'yesterday' ? 'yesterday' : 'so far today';
     return { matched: `steps-${steps[1] === 'yesterday' ? 'yesterday' : 'today'}`,
-      text: pick([
-        `${day.steps.toLocaleString()} steps ${when}, sir.`,
-        `You're at ${day.steps.toLocaleString()} steps ${when}.`,
-      ]),
+      // "You're at 9,846 steps yesterday" is not a sentence — the present-tense
+      // variant belongs to today only
+      text: when === 'yesterday'
+        ? pick([`${day.steps.toLocaleString()} steps yesterday, sir.`, `You did ${day.steps.toLocaleString()} steps yesterday.`])
+        : pick([`${day.steps.toLocaleString()} steps ${when}, sir.`, `You're at ${day.steps.toLocaleString()} steps ${when}.`]),
       card: await card({ label: 'Steps', value: day.steps.toLocaleString(), caption: when.toUpperCase(), tone: 'cy' }) };
   }
 
@@ -245,6 +261,45 @@ export async function tryReflex(question, deps = defaultDeps) {
     const when = d.date === today ? 'last night' : d.date === yesterday ? 'the night before last' : `on the night ending ${d.date}`;
     return { matched: 'sleep', text: `You slept ${hm(d.sleepAsleepMinutes)} ${when}, sir.`,
       card: await card({ label: 'Sleep', value: hm(d.sleepAsleepMinutes), caption: when.toUpperCase(), tone: 'vi' }) };
+  }
+
+  // ---- distance walked (today / yesterday) ----
+  const dist = q.match(DISTANCE_RE);
+  if (dist) {
+    const days = await deps.recentDays().catch(() => []);
+    const which = dist[1] === 'yesterday' ? yesterday : today;
+    const day = days.find((x) => x.date === which);
+    const km = day?.walkingRunningDistanceKm;
+    if (km == null) {
+      const last = [...days].reverse().find((x) => x.walkingRunningDistanceKm != null);
+      if (!last) return null;
+      const when = last.date === yesterday ? 'yesterday' : `on ${last.date}`;
+      return { matched: 'distance-absent',
+        text: `No distance has come through for ${dist[1] === 'yesterday' ? 'yesterday' : 'today'} yet, sir — the last was ${last.walkingRunningDistanceKm.toFixed(1)} kilometres ${when}.`,
+        card: await card({ label: 'Distance', value: last.walkingRunningDistanceKm.toFixed(1), unit: 'km', caption: `LAST READING · ${when.toUpperCase()}`, tone: 'ink' }) };
+    }
+    const when = dist[1] === 'yesterday' ? 'yesterday' : 'so far today';
+    return { matched: `distance-${dist[1] === 'yesterday' ? 'yesterday' : 'today'}`,
+      text: `${km.toFixed(1)} kilometres ${when}, sir.`,
+      card: await card({ label: 'Distance', value: km.toFixed(1), unit: 'km', caption: when.toUpperCase(), tone: 'cy' }) };
+  }
+
+  // ---- VO2 max ----
+  if (VO2_RE.test(q)) {
+    const days = await deps.recentDays().catch(() => []);
+    const withV = days.filter((x) => x.vo2Max != null);
+    const d = withV[withV.length - 1];
+    if (!d) return days.length ? absent({ key: 'vo2', noun: 'VO2 max reading', label: 'VO2 max' }) : null;
+    // Apple recomputes it slowly, so the honest extra is the DIRECTION across
+    // the window, never a day-to-day delta — a 0.1 move is not news.
+    const first = withV[0];
+    const delta = d.vo2Max - first.vo2Max;
+    const dir = withV.length > 2 && Math.abs(delta) >= 0.3
+      ? ` — ${delta > 0 ? 'up' : 'down'} ${Math.abs(delta).toFixed(1)} across these ${withV.length} readings`
+      : '';
+    const dated = d.date === today ? '' : `, from ${d.date === yesterday ? 'yesterday' : d.date}`;
+    return { matched: 'vo2max', text: `VO2 max is ${d.vo2Max.toFixed(1)}${dated}, sir${dir}.`,
+      card: await card({ label: 'VO2 max', value: d.vo2Max.toFixed(1), caption: d.date === today ? 'TODAY' : d.date === yesterday ? 'YESTERDAY' : d.date, tone: 'vi' }) };
   }
 
   // ---- today's calendar: what's on / what's next (warm cache only) ----

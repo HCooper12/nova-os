@@ -519,6 +519,11 @@ export async function ingestHealthPayload({ date, metrics, manual = false, skipD
 // 82-85. Nova repeated both back to him with a straight face: "HRV is 0
 // milliseconds" and "82200 kilograms".
 //
+// All THREE of that day's faults are the same mistake: base SI units where the
+// named unit was expected — seconds for milliseconds, grams for kilograms,
+// metres for kilometres. If a fourth metric ever reads a thousand times high or
+// low, look at the Shortcut before looking here.
+//
 // `rescue` is the deliberate part: ONE known unit slip per metric, applied only
 // when the raw value is outside living range and the rescued value is inside
 // it. Everything else outside the range is an instrument fault and becomes
@@ -530,7 +535,7 @@ const METRIC_RANGE = {
   restingHeartRate: { min: 25, max: 150 },
   vo2Max: { min: 15, max: 90 },
   steps: { min: 0, max: 200_000 },
-  walkingRunningDistanceKm: { min: 0, max: 200 },
+  walkingRunningDistanceKm: { min: 0, max: 200, rescue: (n) => (n > 200 ? n / 1000 : null) }, // metres → km
   activeEnergyKcal: { min: 0, max: 10_000 },
 };
 

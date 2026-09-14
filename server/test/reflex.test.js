@@ -225,3 +225,43 @@ test('widening the phrasings did not widen what counts as a direct ask', async (
     assert.equal(await tryReflex(q, deps), null, `must still go to the model: ${q}`);
   }
 });
+
+// Found by asking Nova across every domain (14 Sep). Three metrics it HELD and
+// could not answer about: steps in this phrasing cost 27s of model, "how far
+// did I walk" was answered with STEPS — a different measurement presented as
+// the one he asked for — and VO2 max, in every day file, drew "no VO2 max in
+// your log yet" because nothing read it.
+test('steps, distance and VO2 max answer here, in the shapes he says them', async () => {
+  const deps = { recentDays: async () => [
+    { date: '2026-09-12', vo2Max: 46.8 },
+    { date: YESTERDAY, steps: 9846, walkingRunningDistanceKm: 10.4, vo2Max: 47.0 },
+    { date: TODAY, vo2Max: 47.5 },
+  ] };
+  for (const q of ['how many steps did I do yesterday', 'how many steps yesterday', 'steps yesterday']) {
+    const r = await tryReflex(q, deps);
+    assert.match(r.text, /9,846/, q);
+    assert.ok(!/You're at .* yesterday/.test(r.text), `present tense must not describe yesterday: ${r.text}`);
+  }
+  const dist = await tryReflex('how far did I walk yesterday', deps);
+  assert.equal(dist.matched, 'distance-yesterday');
+  assert.match(dist.text, /10\.4 kilometres yesterday/);
+  assert.ok(!/steps/.test(dist.text), 'distance is not steps');
+
+  const vo2 = await tryReflex('what is my vo2 max', deps);
+  assert.equal(vo2.matched, 'vo2max');
+  assert.match(vo2.text, /47\.5/);
+  assert.match(vo2.text, /up 0\.7 across these 3 readings/, 'direction over the window, never a daily delta');
+
+  // today's distance missing → says so, with the last real one
+  const today = await tryReflex('how far did I walk today', deps);
+  assert.equal(today.matched, 'distance-absent');
+  assert.match(today.text, /10\.4 kilometres yesterday/);
+});
+
+test('and the analytical versions of all three still go to the model', async () => {
+  const deps = { recentDays: async () => [{ date: YESTERDAY, steps: 9846, walkingRunningDistanceKm: 10.4, vo2Max: 47 }] };
+  for (const q of ['why did I walk so far yesterday', 'what is my average vo2 max',
+    'should I be walking more', 'is 9846 steps good']) {
+    assert.equal(await tryReflex(q, deps), null, q);
+  }
+});
