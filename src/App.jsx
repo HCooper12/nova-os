@@ -4546,6 +4546,14 @@ export default class App extends Component {
   // eat the in-flight answer along with the poll.
   attachAskPoll(conn, jobId, { onDelivered, agent = null } = {}) {
     const clearJob = () => { try { localStorage.removeItem('novaos.askJob'); } catch { /* best-effort */ } };
+    // THE REPLY IS STILL ARRIVING. voiceBusy clears at the first partial so
+    // he can barge in, which left nothing saying "more sentences are coming":
+    // between one spoken sentence ending and the next being generated,
+    // speechActive hit zero, maybeAutoListen reopened the mic, and the next
+    // sentence talked over him while the screen said LISTENING. His report,
+    // 14 Sep. The job id, not a boolean, so a late delivery from an older
+    // job cannot clear a newer one's flag.
+    this.replyStreaming = jobId;
     // STREAMING: the reply renders word-by-word from job.partial, and (on
     // the browser speech path) complete sentences are spoken AS they arrive
     // — Nova starts talking while still thinking, like a person does.
@@ -4731,7 +4739,13 @@ export default class App extends Component {
             });
           }
         };
-        this.setState({ voiceBusy: false }); // he can barge in the moment the answer exists
+        if (this.replyStreaming === jobId) this.replyStreaming = null; // every sentence is now queued or spoken
+        this.setState({ voiceBusy: false }, () => {
+          // The last sentence may already have been spoken from a partial
+          // before delivery landed — then endSpeech ran while the flag was
+          // still up and nobody will call this again. Nudge it once.
+          if (spokenReveal && (this.speechActive || 0) === 0) this.maybeAutoListen();
+        });
         if (spokenReveal) {
           // remaining sentences queue with reveal-on-play; the commit rides
           // the queue as a barrier, landing when the last word is spoken
@@ -4746,7 +4760,7 @@ export default class App extends Component {
           else this.maybeAutoListen();
         }
       },
-      onError: (msg) => { clearJob(); clearTimeout(stream.thinkTimer); this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] })); },
+      onError: (msg) => { clearJob(); clearTimeout(stream.thinkTimer); if (this.replyStreaming === jobId) this.replyStreaming = null; this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] })); },
     });
   }
 
@@ -6989,7 +7003,7 @@ export default class App extends Component {
       // ~12s on the Voice screen; a reply routes like any spoken ask, and
       // silence closes it quietly. (He spoke back to a brief and nothing
       // registered — a voice that talks AT you is not a companion.)
-      if (this.replyWorthy && this.state.voiceSpeak && !this.state.voiceConvMode && !this.state.voiceBusy) {
+      if (this.replyWorthy && this.state.voiceSpeak && !this.state.voiceConvMode && !this.state.voiceBusy && !this.replyStreaming) {
         clearTimeout(this.replyWindowTimer);
         this.setState((s) => ({ voiceReplyWindow: true, voiceAutoListenTick: s.voiceAutoListenTick + 1 }));
         this.replyWindowTimer = setTimeout(() => this.setState({ voiceReplyWindow: false }), 12_000);
@@ -7075,6 +7089,7 @@ export default class App extends Component {
     this.prewarmAsk(); // his turn is starting — get the process ready for it
     if ((this.state.screen !== 'voice' && !this.state.liveTalkOn) || this.state.voiceBusy) return;
     if ((this.speechActive || 0) > 0) return;
+    if (this.replyStreaming) return; // more of the reply is coming — the mic waits for the end of it, not a gap in it
     this.setState((s) => ({ voiceAutoListenTick: s.voiceAutoListenTick + 1 }));
   }
   toggleConvMode() {
