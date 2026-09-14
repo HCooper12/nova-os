@@ -31,7 +31,7 @@ export function VoicePresence({ v }) {
   sendRef.current = s.send;
 
   const dict = useDictation(
-    () => '',
+    () => v.takeVoiceSeed(),
     (text) => s.setInput(text),
     () => { if (inputRef.current.trim()) sendRef.current(); },
     // the same app-owned turn as the Voice screen — this is the mic he

@@ -7021,7 +7021,9 @@ export default class App extends Component {
   onBargeIn(heard, why) {
     if (!this.state.bargeInOn) return;
     console.log(`[barge-in] ${why} — heard ${JSON.stringify(String(heard).slice(0, 80))}`);
-    this.onWakeWord();
+    // his interrupting words start the turn: they are demonstrably not echo,
+    // which is the whole reason this fired
+    this.onWakeWord(heard);
   }
   beginSpeech() {
     this.speechActive = (this.speechActive || 0) + 1;
@@ -7031,7 +7033,15 @@ export default class App extends Component {
   endSpeech() {
     this.speechActive = Math.max(0, (this.speechActive || 0) - 1);
     if (this.speechActive === 0) {
-      this.setState({ voiceSpeaking: false }, () => this.maybeAutoListen());
+      // A BEAT BEFORE THE MICROPHONE OPENS. Opening it on the same tick as the
+      // last word means the tail of Nova's own audio is still in the room, and
+      // the engine hears it as his first syllable — a turn that starts with
+      // Nova's words in it. Long enough for the speaker to fall quiet, short
+      // enough that the hand-back still feels immediate.
+      this.setState({ voiceSpeaking: false }, () => {
+        clearTimeout(this.handoverTimer);
+        this.handoverTimer = setTimeout(() => this.maybeAutoListen(), 300);
+      });
       // The reply window: Nova just finished SPEAKING to him — talking back
       // should need no button, conversation mode or not. One-shot mic for
       // ~12s on the Voice screen; a reply routes like any spoken ask, and
@@ -7560,7 +7570,17 @@ export default class App extends Component {
   // whole point of being able to say its name mid-reply), then open the mic
   // exactly as a tap on the core does. Nothing here starts listening on its
   // own: the mic opens because he said the words or touched the icon.
-  onWakeWord() {
+  // THE WORDS THAT OPENED THE TURN. Said after the wake word, or said over the
+  // top of Nova — either way they are the start of what he is telling it, and
+  // dropping them made him repeat himself. Consumed once, by whichever
+  // microphone opens next; a seed nobody collects is cleared by the next turn.
+  takeVoiceSeed() {
+    const seed = this.pendingVoiceSeed || '';
+    this.pendingVoiceSeed = '';
+    return seed;
+  }
+  onWakeWord(rest) {
+    this.pendingVoiceSeed = String(rest || '').slice(0, 400);
     this.stopSpeaking();
     this.prewarmAsk();
     if (this.state.liveTalkOn || this.state.screen === 'voice') {

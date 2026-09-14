@@ -221,7 +221,15 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     saidRef.current = '';
     finalsRef.current = '';
     interimRef.current = '';
-    turnRef.current = openTurn(Date.now());
+    // A SEEDED TURN HAS ALREADY HEARD HIM. "Hey Nova, what's the weather" and a
+    // barge-in both arrive with words in hand, and a fresh turn runs on the
+    // LEAD — the generous silence for someone who has not started yet — so
+    // Nova sat there for seven seconds after a question he had already
+    // finished asking. Words already said means the clock is the HOLD, which
+    // is five seconds off the front of every hands-free turn.
+    const now = Date.now();
+    turnRef.current = baseRef.current ? sawSpeech(openTurn(now), now) : openTurn(now);
+    if (baseRef.current) emit();   // he sees his own words land, not an empty box
     reasonRef.current = 'engine';          // until the clock or the engine says otherwise
     liveRef.current = true;
     wantRef.current = true;

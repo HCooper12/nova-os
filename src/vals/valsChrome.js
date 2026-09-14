@@ -418,7 +418,7 @@ export function valsChrome(app, ctx) {
       // nothing in Nova holds a mic open without a reason.
       blocked: !!(st.liveMicOpen || st.voiceScreenMic || st.screen === 'ambient')
         || (!st.wakeWordOn && !st.voiceSpeaking),
-      wake: () => app.onWakeWord(),
+      wake: (rest) => app.onWakeWord(rest),
       error: (kind) => {
         app.setWakeWord(false);
         app.toastMsg(kind === 'not-allowed' || kind === 'service-not-allowed'

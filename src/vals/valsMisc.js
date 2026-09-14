@@ -156,6 +156,7 @@ export function valsMisc(app, ctx) {
     // "Hey Nova" — the Settings toggle and the Voice screen's status row
     wakeWordOn: !!st.wakeWordOn,
     bargeInOn: !!st.bargeInOn,
+    takeVoiceSeed: () => app.takeVoiceSeed(),
     setBargeIn: (on) => app.setBargeIn(on),
     wakeWordSupported: speechRecognitionSupported(),
     setWakeWord: (on) => app.setWakeWord(on),

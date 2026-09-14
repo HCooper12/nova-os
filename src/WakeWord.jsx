@@ -65,10 +65,16 @@ export function WakeWord({ enabled, blocked, onWake, onError, speaking, saying, 
       rec.onresult = (e) => {
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const heard = e.results[i][0].transcript || '';
-          if (PHRASE.test(heard)) {
+          const named = heard.match(PHRASE);
+          if (named) {
+            // WHAT FOLLOWS THE NAME IS ALREADY THE QUESTION. "Hey Nova, what's
+            // the weather" used to open the mic and throw the question away,
+            // so he had to say it twice — the exact friction he is asking to
+            // be rid of. It rides into the turn instead.
+            const rest = heard.slice(named.index + named[0].length).replace(/^[\s,.!?-]+/, '').trim();
             // hand the mic over cleanly — dictation opens on the same beat
             try { rec.stop(); } catch { /* already stopping */ }
-            wakeRef.current?.();
+            wakeRef.current?.(rest);
             return;
           }
           // Anything else only matters while Nova is talking: that is the one

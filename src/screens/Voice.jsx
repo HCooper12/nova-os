@@ -92,7 +92,7 @@ export function Voice({ v }) {
   const sendRef = useRef(v.sendOrb);
   sendRef.current = v.sendOrb;
   const dict = useDictation(
-    () => '', // each spoken question starts clean
+    () => v.takeVoiceSeed(), // clean, unless the wake word or a barge-in already caught his first words
     (text) => v.setOrbInputValue(text),
     () => { if (inputRef.current.trim()) sendRef.current(); else v.notifyEmptyListen(); }, // recognition end = ask; silence feeds the loop
     {
