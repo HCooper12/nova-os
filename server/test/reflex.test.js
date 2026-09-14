@@ -130,3 +130,38 @@ test('reflex: "what\'s going on with X" answers from the record ledger, never fr
   // an analytical question about a job is not a status read
   assert.equal(await tryReflex('why is the creatine research taking so long', rec), null);
 });
+
+
+// 14 Sep 2026: his morning push had not landed, and "what are my steps today"
+// spent 41 SECONDS in the model and came back talking about protein. The step
+// store is the only place a step count lives, so absence is this layer's
+// answer, not the model's.
+test('no reading for today is answered here, with the last real one, instead of costing 41s of model', async () => {
+  const deps = {
+    recentDays: async () => [
+      { date: '2026-09-12', steps: 6121 },
+      { date: YESTERDAY, steps: 9846 },
+      { date: TODAY },                      // the row exists, the push has not landed
+    ],
+  };
+  const r = await tryReflex('what are my steps today', deps);
+  assert.ok(r, 'it answers rather than falling through');
+  assert.equal(r.matched, 'steps-today-absent');
+  assert.match(r.text, /No step count has come through for today yet/);
+  assert.match(r.text, /9,846/, 'and says what the last real reading was');
+  assert.match(r.text, /yesterday/);
+  assert.equal(r.card.value, '9,846');
+});
+
+test('asked about yesterday with nothing for yesterday, it says so and dates the last one', async () => {
+  const deps = { recentDays: async () => [{ date: '2026-09-12', steps: 6121 }] };
+  const r = await tryReflex('how many steps yesterday', deps);
+  assert.equal(r.matched, 'steps-yesterday-absent');
+  assert.match(r.text, /for yesterday yet/);
+  assert.match(r.text, /6,121 on 2026-09-12/);
+});
+
+test('but a store with no readings at all still goes to the model — that is a different problem', async () => {
+  assert.equal(await tryReflex('what are my steps today', { recentDays: async () => [] }), null);
+  assert.equal(await tryReflex('what are my steps today', { recentDays: async () => [{ date: TODAY }] }), null);
+});

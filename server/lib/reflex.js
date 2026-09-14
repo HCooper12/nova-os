@@ -148,7 +148,27 @@ export async function tryReflex(question, deps = defaultDeps) {
     const days = await deps.recentDays().catch(() => []);
     const which = steps[1] === 'yesterday' ? yesterday : today;
     const day = days.find((x) => x.date === which);
-    if (day?.steps == null) return null; // no record — the model can go looking
+    // NO READING IS AN ANSWER, AND IT IS THIS LAYER'S ANSWER TO GIVE.
+    // This used to return null on "the model can go looking". Measured on
+    // 14 Sep, when the morning's push had not landed yet: the model took
+    // 41 SECONDS and then answered a different question entirely — it talked
+    // about the day's protein instead of saying there was no step count. The
+    // premise was wrong. `server/data/health/<date>.json` is the only place a
+    // step count exists; when the row is not there, there is nothing to go
+    // looking for, and the true answer is cheap.
+    //
+    // It is not a guess: it states the absence and the last real reading, with
+    // its date. If the window holds nothing at all, something is wrong beyond
+    // one missing morning and the model still gets it.
+    if (day?.steps == null) {
+      const last = [...days].reverse().find((x) => x.steps != null);
+      if (!last) return null;
+      const ago = last.date === yesterday ? 'yesterday' : `on ${last.date}`;
+      const asked = steps[1] === 'yesterday' ? 'yesterday' : 'today';
+      return { matched: `steps-${asked}-absent`,
+        text: `No step count has come through for ${asked} yet, sir — the last reading was ${last.steps.toLocaleString()} ${ago}.`,
+        card: await card({ label: 'Steps', value: last.steps.toLocaleString(), caption: `LAST READING · ${ago.toUpperCase()}`, tone: 'ink' }) };
+    }
     const when = steps[1] === 'yesterday' ? 'yesterday' : 'so far today';
     return { matched: `steps-${steps[1] === 'yesterday' ? 'yesterday' : 'today'}`,
       text: pick([
