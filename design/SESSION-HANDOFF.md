@@ -41,6 +41,13 @@ half-written TTS readiness fix; stop the ingest weave losing `index.md` and
   and the figure was looked at, not just built. Commit `af0424b`.
 - *met, no code* — the health push is ALIVE. The opening report called it
   stopped; that was wrong (see VERIFIED).
+- *met* — the `briefing.test.js` flake, unowned for weeks, is fixed. It was
+  never the fan-out: `settle` called a two-step completion done after step one.
+  Commit `018def4`.
+- *met* — the Coach/Distiller drift question, deferred on 12 Sep for want of
+  someone looking, is ANSWERED: the Distiller merges (it is the weave's race on
+  the weave's files); Coach stays strict, on measured grounds recorded in
+  `coachPlan.js`. Commit `fe9c76d`.
 
 **STATE (paths).** Changed: `server/lib/tts.js` (`ttsReady`), `server/lib/ttsLocal.js`
 (`healthy`/`localReady` exported, `spawnSidecar`, shared in-flight boot,
@@ -79,6 +86,18 @@ additions to `ttsLocal.test.js` and `ingest.test.js`. 1462 pass, 0 fail.
 - *`RIG.none`, not a new export on rig3d.js* → an equipment spec belongs next
   to RIG; rig3d.js is joints and ROM. **Forecloses** rig3d.js growing an
   equipment vocabulary.
+- *The Distiller merges; Coach does not — and the split is cost and exposure,
+  not safety* → the merge was measured SAFE for Coach's files (16 scenarios, 0
+  corruptions). It stays off because Coach's race window is milliseconds and its
+  remedy is a free retry, while the weave and the Distiller spend minutes of
+  model time against pages another writer edits. **Forecloses** arguing for
+  Coach's merge from the merge's correctness; reopen it only on a real refusal
+  he actually hit.
+- *A test that races a two-step completion is fixed in the TEST, not by
+  reordering production* → the briefing's job stage is only read while the
+  record says 'classifying', so marking the job ready after the record lands is
+  the honest order. **Forecloses** reordering production code to settle a
+  sampling bug.
 
 **VERIFIED (with locators)**
 - SIGTERM on the LIVE sidecar (pid 18429, the exact 13 Sep condition): the
@@ -118,8 +137,25 @@ additions to `ttsLocal.test.js` and `ingest.test.js`. 1462 pass, 0 fail.
   both the brief (`dispatch.js:159`) and the Guardian (`guardian.js:270`),
   pinned by `twins.test.js`. No Nova fault; his Shortcut automation did not fire
   on those two mornings.
+- The briefing flake, MEASURED rather than guessed: a 120ms sleep inserted
+  between `updateRecord` and `setStage('ready')` fails the old wait every time
+  with the flake's exact symptom (`actual: 'illustrating'`), and passes the new
+  one 5/5. With the sleep removed and eight cores pinned: 40 runs, 0 failures;
+  the full suite ran 5× clean before that (~7,300 tests).
+- The Coach merge measurement: his real `Wiki/Health/Workout Routines.md` (220
+  lines) and `Wiki/Health/Exercise Library.md` (855 lines, 34% of its non-blank
+  lines exact duplicates — `trackingType: weight_reps` alone 125×), 16 scenarios
+  through `mergeText` using Coach's OWN renderers, parsed back and compared
+  against the union of both intents, with the routines file's derived prose body
+  re-rendered and checked against the frontmatter it sits with. **0 corruptions.**
+  Every genuine collision refused. The vault was only ever read.
+  *(First run of that harness reported 4 false refusals — it fed exercise IDs
+  where names belong, so both sides rewrote the prose body. Fix the instrument
+  before believing it.)*
+- The Distiller's exposure, from real jobs on disk: 3 of 4 in
+  `server/data/distill/` touched `Wiki/index.md` or `Wiki/log.md`.
 - Gates at close: `npm run lint` 0 errors; `npm run build` green with **no
-  IMPORT_IS_UNDEFINED**; `cd server && npm test` **1462 pass, 0 fail**;
+  IMPORT_IS_UNDEFINED**; `cd server && npm test` **1463 pass, 0 fail**;
   `git status --porcelain` empty; `HEAD == origin/main == af0424b`; service
   reloaded and `/api/health` 200; the reloaded server answers
   `configured:true ready:true engine:local`; no `vite` process left running.
@@ -136,13 +172,10 @@ additions to `ttsLocal.test.js` and `ingest.test.js`. 1462 pass, 0 fail.
   browser drove a reply this session.
 
 **OPEN QUESTIONS / BLOCKERS**
-- **Coach and the Distiller still refuse on any drift, at BOTH stages now.**
-  Enabling `merge: true` for them needs someone to check a line-level merge
-  against the structured files Coach writes. Not started. HIS CALL.
-- **The `briefing.test.js` "angles fan out in parallel" flake** — offered three
-  times, never accepted, still unowned.
 - Two mornings (8 and 12 Sep) have no health reading. Nothing to fix in Nova;
   whether the Shortcut automation is worth making more reliable is his call.
+- Nothing else is open. Both standing items — the Coach/Distiller drift
+  question and the briefing flake — are closed above, with their measurements.
 
 **NEXT ACTION.** When a real ingest job reaches `ready`, approve it and read the
 receipt. **Expected if it worked:** where 16f1ec46 said "⚠ Left out — 2 pages
@@ -176,6 +209,18 @@ while this ran: …)`. A genuine collision still says "Left out", and names it.
 - **Do not trust `/tts/status` alone to say the engine works.** `ready` is
   `healthy()`, an HTTP ping. The decisive check is `POST /api/tts` returning
   MP3 bytes; a boot window can sit between the two, by design.
+- **Do not re-argue Coach's merge from the merge being correct.** It IS correct
+  on his files; that was measured and is not the question. The question is
+  whether a millisecond race with a free retry is worth a merge over his
+  training plan. `coachPlan.js` carries both halves.
+- **Do not simulate a render with stand-in data.** The Coach harness fed
+  exercise IDs where names belong, so every scenario "refused" at the same line
+  — a fault in the instrument that looked exactly like a finding about the
+  merge. Round-trip the real file through the real renderer FIRST and confirm
+  it is identity before trusting a single result.
+- **Do not wait on the record alone to decide a briefing has finished.**
+  Finishing is `updateRecord` then `setStage('ready')`, and the record write is
+  observable before the continuation that marks the job.
 
 ---
 
@@ -1168,6 +1213,17 @@ staging diff; proven on his real pages. Fixed `JOINT.none`, a fallback that was
 `undefined is not a function`, and looked at the figure to prove it. Found the
 health push alive, not stopped — and corrected the misreading that said
 otherwise. 1462 tests, lint and build clean, pushed, service reloaded.
+
+Then the two standing items. Fixed the `briefing.test.js` flake that had been
+offered three times and never picked up — not the fan-out, a wait that called a
+two-step completion done after step one (proved it by widening the window, then
+40 runs under load). Answered the Coach/Distiller drift question the 12 Sep
+session deferred: measured the line merge against his real routines and exercise
+library across sixteen scenarios, nine adversarial, including whether the
+derived prose body still agrees with its own frontmatter — zero corruptions. The
+Distiller now merges (three of four real jobs touch index.md/log.md); Coach
+stays strict on cost, not safety, with the measurement recorded where the next
+session will find it.
 
 ### 12 September 2026 — three bug reports, all of them Nova saying something untrue
 No new surface. He found all three by reading his own screens. Two identical
