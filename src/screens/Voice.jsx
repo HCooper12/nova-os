@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { css, riseIn } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
@@ -11,6 +11,7 @@ import { TypeText } from '../TypeText.jsx';
 import { LocalInput } from '../LocalInput.jsx';
 import { VoiceWaveform } from '../VoiceWaveform.jsx';
 import { StageCard } from '../StageCard.jsx';
+import { GlassSheet } from '../GlassSheet.jsx';
 import { SafeVisual } from '../SafeVisual.jsx';
 import { TextAction, Chip, Tag, Meta, isAppleStyle, ScreenHead, AttachStrip, AttachPending } from '../Controls.jsx';
 
@@ -131,6 +132,37 @@ export function Voice({ v }) {
   // forming as he hears it spoken. See useStickToBottom for why this cannot
   // be keyed on the message count.
   const logRef = useStickToBottom();
+
+  // THE GLASS RISES BELOW THE FOLD ON A PHONE (14 Sep, from the car): the
+  // core fills the first screen at 375px, so a hero panel appearing lower
+  // down the stack was never clipped — it was simply never scrolled to. A
+  // ref on the glass block plus scrollIntoView finds whichever ancestor
+  // actually scrolls (the page-level flex column at line ~204, not the
+  // transcript's own overflow div — the glass sits below that, not inside
+  // it) without having to guess which one it is.
+  const glassRef = useRef(null);
+  useEffect(() => {
+    if (!v.isMobile) return;
+    const label = v.glass?.hero?.label;
+    if (!label) return;
+    const el = glassRef.current;
+    if (!el) return;
+    // he is typing — yanking the view to a rising panel would yank the
+    // keyboard's view with it, which is worse than a panel he has to scroll to
+    const active = typeof document !== 'undefined' ? document.activeElement : null;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+    const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'nearest' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [v.isMobile, v.glass?.hero?.label]);
+
+  // TAP TO ENLARGE (14 Sep, mobile only): a StageCard on the glass morphs
+  // into a full-width sheet — see GlassSheet.jsx for the FLIP mechanics.
+  // originEl is the exact DOM node tapped, so the sheet can grow from (and
+  // shrink back into) the real on-screen rect rather than a guessed one.
+  const [glassSheet, setGlassSheet] = useState(null); // { card, originEl } | null
+  const openGlassSheet = (card) => (e) => { if (card) setGlassSheet({ card, originEl: e.currentTarget }); };
+  const closeGlassSheet = () => setGlassSheet(null);
 
   // one gesture, everything it needs: unlock audio inside the tap (iOS),
   // stop any reply mid-sentence so he can interrupt, and open the mic in
@@ -308,14 +340,32 @@ export function Voice({ v }) {
               belong here, directly over the composer, which is both where he
               chose to have them and where he is already looking. */}
           {v.glass && (
-            <div style={css('margin-top:12px;display:flex;flex-direction:column;gap:7px')}>
-              <SafeVisual what="glass" resetKey={v.glass.hero.label}><StageCard card={v.glass.hero} /></SafeVisual>
+            /* scroll-margin: scrollIntoView does not know about the fixed dock,
+               so "in view" put the panel's bottom edge under it — measured at
+               375px. The house clearance for the dock is the page's own bottom
+               padding (valsChrome.js `mp`), and this is the same number. */
+            <div ref={glassRef} style={css('margin-top:12px;display:flex;flex-direction:column;gap:7px;scroll-margin-block-end:calc(108px + env(safe-area-inset-bottom))')}>
+              <SafeVisual what="glass" resetKey={v.glass.hero.label}>
+                {v.isMobile ? (
+                  <Interactive as="div" base="cursor:pointer;display:block;border-radius:14px"
+                    onClick={openGlassSheet(v.glass.hero)} aria-label={`Enlarge ${v.glass.hero.label || 'this panel'}`}>
+                    <StageCard card={v.glass.hero} />
+                  </Interactive>
+                ) : <StageCard card={v.glass.hero} />}
+              </SafeVisual>
               {v.glass.rail.length > 0 && (
                 <div style={css('display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch')}>
                   {v.glass.rail.map((panel, i) => (
-                    <div key={i} style={{ flex: '0 0 auto', width: '146px', opacity: 0.92 - i * 0.14 }}>
-                      <StageCard card={panel} size="mini" />
-                    </div>
+                    v.isMobile ? (
+                      <Interactive key={i} as="div" base={{ flex: '0 0 auto', width: '146px', opacity: 0.92 - i * 0.14, cursor: 'pointer' }}
+                        onClick={openGlassSheet(panel)} aria-label={`Enlarge ${panel.label || 'this panel'}`}>
+                        <StageCard card={panel} size="mini" />
+                      </Interactive>
+                    ) : (
+                      <div key={i} style={{ flex: '0 0 auto', width: '146px', opacity: 0.92 - i * 0.14 }}>
+                        <StageCard card={panel} size="mini" />
+                      </div>
+                    )
                   ))}
                 </div>
               )}
@@ -499,6 +549,9 @@ export function Voice({ v }) {
           )}
         </div>
       </div>
+      {v.isMobile && glassSheet && (
+        <GlassSheet card={glassSheet.card} originEl={glassSheet.originEl} onClose={closeGlassSheet} />
+      )}
     </div>
   );
 }
