@@ -64,6 +64,21 @@ export function reportTurnEnd(surface, preset, info) {
 export const speechRecognitionSupported = () => typeof window !== 'undefined'
   && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 
+// The same rail, for the moment he talks OVER Nova rather than the moment his
+// turn ends — see server/lib/voiceTurns.js for why they are read together.
+export function reportBargeIn(heard, why) {
+  const conn = getConnection();
+  if (!conn) return;
+  try {
+    fetch(`${conn.baseUrl}/api/voice/turn`, {
+      method: 'POST',
+      keepalive: true,
+      headers: { Authorization: `Bearer ${conn.token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: 'barge-in', surface: 'barge', heard: true, ms: 0, restarts: 0, why, text: heard, ua: navigator.userAgent }),
+    }).catch(() => {});
+  } catch { /* a receipt must never be in the way of the conversation */ }
+}
+
 export function useDictation(getBase, onText, onDone, { continuous = true, holdMs = 0, leadMs = 0, onError, onTurnEnd } = {}) {
   const recRef = useRef(null);
   const baseRef = useRef('');

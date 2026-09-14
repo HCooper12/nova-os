@@ -77,3 +77,24 @@ test('every reason turnEnd.js can produce is one this log accepts', () => {
 });
 
 test.after(() => rm(dataDir, { recursive: true, force: true }));
+
+
+test('a barge-in rides the same rail, carrying why it fired and what it heard', async () => {
+  const rec = turnRecord({
+    reason: 'barge-in', surface: 'barge', heard: true, ms: 0, restarts: 0,
+    why: '3 words Nova never said', text: 'no wait the site visit moved',
+  }, 'iPhone');
+  assert.equal(rec.reason, 'barge-in');
+  assert.equal(rec.surface, 'barge');
+  assert.equal(rec.why, '3 words Nova never said');
+  assert.equal(rec.text, 'no wait the site visit moved');
+});
+
+test('the excerpt and the reason are clamped, and absent when not sent', async () => {
+  const long = turnRecord({ reason: 'barge-in', why: 'w'.repeat(400), text: 't'.repeat(400) });
+  assert.equal(long.why.length, 120);
+  assert.equal(long.text.length, 80);
+  const plain = turnRecord({ reason: 'hold', surface: 'voice' });
+  assert.ok(!('why' in plain), 'an ordinary turn carries no excerpt of his speech');
+  assert.ok(!('text' in plain));
+});

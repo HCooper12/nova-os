@@ -52,6 +52,7 @@ import { ContextMenuHost } from './ContextMenu.jsx';
 import { VoicePresence } from './VoicePresence.jsx';
 import { Interactive } from './Interactive.jsx';
 import { WakeWord } from './WakeWord.jsx';
+import { reportBargeIn } from './useDictation.js';
 import { NudgeCard } from './NudgeCard.jsx';
 import { ModelChoicePrompt } from './ModelChoicePrompt.jsx';
 import { CoachApplySheet } from './CoachApplySheet.jsx';
@@ -7021,6 +7022,7 @@ export default class App extends Component {
   onBargeIn(heard, why) {
     if (!this.state.bargeInOn) return;
     console.log(`[barge-in] ${why} — heard ${JSON.stringify(String(heard).slice(0, 80))}`);
+    reportBargeIn(heard, why); // the console is not readable from a car
     // his interrupting words start the turn: they are demonstrably not echo,
     // which is the whole reason this fired
     this.onWakeWord(heard);

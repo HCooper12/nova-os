@@ -32,8 +32,13 @@ const TURNS_PATH = () => path.join(TURNS_DIR(), 'turns.json');
 // anything unrecognised is stored as 'unknown' rather than as whatever the
 // client happened to send. These are turnEnd.js's reasons, and the two names
 // must move together.
-export const END_REASONS = new Set(['hold', 'lead', 'cap-idle', 'cap-absolute', 'restart-limit', 'engine', 'unknown']);
-const SURFACES = new Set(['voice', 'presence']);
+// 'barge-in' is not a turn ENDING — it is a turn starting because he talked
+// over Nova. It rides the same rail because it answers the same question, and
+// because the two are read together: a barge-in immediately followed by a turn
+// that heard nothing is the signature of a FALSE one (Nova cut itself off on
+// its own echo, and there was no one there).
+export const END_REASONS = new Set(['hold', 'lead', 'cap-idle', 'cap-absolute', 'restart-limit', 'engine', 'barge-in', 'unknown']);
+const SURFACES = new Set(['voice', 'presence', 'barge']);
 
 export const MAX_TURNS = 500;
 
@@ -64,6 +69,13 @@ export function turnRecord(body = {}, ua = '') {
     heard: !!body.heard,
     surface: SURFACES.has(body.surface) ? body.surface : 'voice',
     preset: typeof body.preset === 'string' ? body.preset.slice(0, 24) : '',
+    // WHY, and WHAT IT HEARD. A false barge-in cannot be diagnosed from a count:
+    // the useful question is whether it misheard Nova's own echo or a passenger,
+    // and only the words answer that. Kept short, kept on his own Mac, in his
+    // own data directory, and deletable like any other file in it — a deliberate
+    // trade for being able to fix this rather than guess at it.
+    ...(typeof body.why === 'string' && body.why ? { why: body.why.slice(0, 120) } : {}),
+    ...(typeof body.text === 'string' && body.text ? { text: body.text.slice(0, 80) } : {}),
     ua: String(body.ua || ua || '').slice(0, 200),
   };
 }
