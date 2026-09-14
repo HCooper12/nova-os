@@ -110,6 +110,12 @@ export function pickKnownMetrics(raw) {
     if (val == null || Number.isNaN(Number(val))) continue;
     let num = Number(val);
     if (num === 0 && IMPOSSIBLE_ZERO.has(key)) continue; // "no samples yet", not a reading
+    if (key === 'hrv') {
+      const ms = normalizeHrv(num);   // seconds → milliseconds; nonsense → absent
+      if (ms == null) continue;
+      out[key] = ms;
+      continue;
+    }
     // the same hours-vs-minutes rescue for the canonical spellings
     if ((key === 'sleepAsleepMinutes' || key === 'sleepInBedMinutes') && num > 0 && num < 20) num = Math.round(num * 60);
     out[key] = num;
@@ -494,12 +500,39 @@ export async function ingestHealthPayload({ date, metrics, manual = false, skipD
   return { ok: true, day, date, stepsDropped, droppedKeys, dateShifted };
 }
 
+// HRV IN SECONDS, READ BACK AS ZERO. His 13 Sep push carried hrv 0.0878 where
+// every other day sat between 70 and 87 — that is 87.8 milliseconds sent in
+// SECONDS, and Nova read it straight back to him as "HRV is 0 milliseconds".
+// Found 14 Sep by asking Nova its own question and not believing the answer.
+//
+// Exactly the disambiguation the sleep fields already get above (under 20 is
+// hours, not minutes): nobody has an HRV of a tenth of a millisecond and
+// nobody has one of 88 seconds, so a value under 1 is seconds. Anything still
+// outside a living range afterwards is an instrument fault, not a reading, and
+// becomes absent rather than a number Nova would state with a straight face —
+// and a wrong HRV is not merely embarrassing, it is what the recovery and
+// deload judgements are built on.
+//
+// Applied on the way IN, so it never happens again, and on the way OUT, so the
+// rows already on disk are read correctly without rewriting what his phone
+// actually sent.
+const HRV_MIN_MS = 5;
+const HRV_MAX_MS = 250;
+export function normalizeHrv(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  const ms = n < 1 ? n * 1000 : n;
+  if (ms < HRV_MIN_MS || ms > HRV_MAX_MS) return null;
+  return ms;
+}
+const withNormalizedHrv = (day) => ('hrv' in day ? { ...day, hrv: normalizeHrv(day.hrv) } : day);
+
 export async function loadRecentDays(n = 14) {
   if (!existsSync(HEALTH_DIR)) return [];
   const files = (await readdir(HEALTH_DIR)).filter((f) => /^\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort().reverse();
   const days = [];
   for (const f of files.slice(0, n)) {
-    days.push(JSON.parse(await readFile(path.join(HEALTH_DIR, f), 'utf8')));
+    days.push(withNormalizedHrv(JSON.parse(await readFile(path.join(HEALTH_DIR, f), 'utf8'))));
   }
   return days.reverse(); // oldest-first, easier to read as a trend
 }

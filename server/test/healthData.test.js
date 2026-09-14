@@ -230,3 +230,24 @@ test('a manual correction is authoritative but not automatically "complete"', as
   const p = await saveDay(yday, { steps: 10218 }, { manual: true });
   assert.equal(p.stepsComplete, true, 'a finished day corrected later is complete');
 });
+
+// HRV IN SECONDS, READ BACK AS ZERO. His 13 Sep push carried hrv 0.0878 where
+// every other day sat between 70 and 87 — 87.8 milliseconds sent in seconds.
+// Nova answered "HRV is 0 milliseconds", and the recovery judgements are built
+// on that number.
+test('HRV sent in seconds is read as milliseconds, and nonsense becomes absent', async () => {
+  const { normalizeHrv, pickKnownMetrics } = await import('../lib/healthData.js');
+  assert.equal(Math.round(normalizeHrv(0.0878128) * 10) / 10, 87.8, 'his real 13 Sep value');
+  assert.equal(normalizeHrv(0.062), 62);
+  assert.equal(normalizeHrv(86.8), 86.8, 'a normal reading is untouched');
+  assert.equal(normalizeHrv(5), 5, 'the low end of living is kept');
+  // not readings
+  assert.equal(normalizeHrv(0), null);
+  assert.equal(normalizeHrv(-3), null);
+  assert.equal(normalizeHrv(0.0001), null, 'a tenth of a millisecond is an instrument fault');
+  assert.equal(normalizeHrv(900), null, 'and so is 900ms');
+  assert.equal(normalizeHrv('nonsense'), null);
+  // and it happens on the way in, so it cannot land on disk again
+  assert.equal(Math.round(pickKnownMetrics({ hrv: 0.0878128 }).hrv * 10) / 10, 87.8);
+  assert.ok(!('hrv' in pickKnownMetrics({ hrv: 0.0001 })), 'an impossible value is stored as no reading, not as a number');
+});
