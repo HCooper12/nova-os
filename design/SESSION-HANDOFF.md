@@ -50,6 +50,34 @@ path over a 7-day log window plus live probes. Ranked, as found:
 (1) and (2) are addressed. (3) is Claude Code's own latency and is not fixable
 from here. (4) and (5) are untouched and are the next levers.
 
+**FOURTH PASS — ASKING NOVA ITS OWN QUESTIONS.** After the speed fixes, the
+cheapest method in the session: ask through the live endpoint the way he speaks,
+and check every number against the file behind it. Three real faults in twenty
+minutes, none of which a test would have caught — see [[nova-ask-it-yourself]].
+
+- *"what are my steps today"* → **41s in the model, answered about protein.**
+  The reflex matched, found no row, returned null on "the model can go
+  looking" — but the day file is the only place a step count lives. Absence is
+  now this layer's answer, with the last real reading and its date (`40643ad`).
+  The prompt also now says: answer the question he asked, and if the exact
+  thing is not there, say THAT first.
+- *"what is my hrv"* → **"HRV is 0 milliseconds."** 13 Sep carried `hrv:
+  0.0878` against 70-87 all week: seconds sent as milliseconds. It feeds
+  `computeDeloadSignal`, which advises lighter at a 10% drop and would have
+  computed 99% (`a1a5ea1`).
+- *"what did I weigh last"* → **"82200 kilograms"**, and 16.4s to say it. The
+  SAME push sent grams as kilograms, and the phrase missed the weight pattern
+  entirely (`e21aca3`).
+- Sleep: **0 of 56 day files have ever carried a figure**, so every "how did I
+  sleep" went to the model to be told nothing. It now answers instantly and
+  names the switch — Sleep Analysis is not in his Shortcut.
+- `METRIC_RANGE` in `healthData.js` is the general guard now: what a living
+  person's reading can be, ONE known unit slip rescued per metric, anything
+  still outside becomes ABSENT. Applied on the way in and on the way out.
+
+All now instant and true: 82.2 kilograms · HRV 88 milliseconds · 4 drafts · no
+sleep reading, with the reason. **1502 pass.**
+
 **DECISIONS (choice → reason → what it forecloses)**
 - *Barge-in is filtered by comparing what was heard against WHAT NOVA IS
   SAYING* → the mic must be open during playback, so it hears the speaker; the
