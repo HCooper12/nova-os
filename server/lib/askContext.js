@@ -49,6 +49,26 @@ const BRIEF_STALE_MAX_MS = 30 * 60_000;
 let briefCache = null; // { at, text }
 export function dropBriefCache() { briefCache = null; }
 
+// THE FIRST CONVERSATION SHOULD NOT PAY IT EITHER. The cache above means the
+// cost is paid once per process instead of on every cold turn — but "once per
+// process" was still landing on him, because the process starts when he is not
+// looking and the first thing he does with it is ask a question. Boot fills it
+// while nobody is waiting. Fire and forget on purpose: if iCloud is not
+// reachable yet, the first real ask falls back to fetching it the slow way,
+// exactly as before, and nothing here is allowed to delay the server coming up.
+export function warmBriefCache(vaultPath) {
+  if (briefCache) return;
+  (async () => {
+    const started = Date.now();
+    const [morning, evening] = await Promise.all([
+      composeDispatch(vaultPath, 'morning'),
+      composeDispatch(vaultPath, 'evening'),
+    ]);
+    briefCache = { at: Date.now(), text: `${morning.text}\n\n${evening.text}` };
+    console.log(`brief cache warmed at boot in ${Date.now() - started}ms`);
+  })().catch((e) => console.log(`brief cache not warmed at boot (${e.message}) — the first ask will fetch it`));
+}
+
 // Today from local files only — no network, always instant. This is what
 // keeps a fast spoken answer honest about steps, fuel and what's waiting.
 //
