@@ -265,3 +265,69 @@ test('and the analytical versions of all three still go to the model', async () 
     assert.equal(await tryReflex(q, deps), null, q);
   }
 });
+
+// "What's on my to-do list" cost 9.5s of model for a file read; "what did I
+// train yesterday" cost 21s. Both are the live record, plainly asked.
+test('the to-do list and what he trained answer here, with the names and not just a count', async () => {
+  const deps = {
+    todos: async () => ({ items: [
+      { text: 'swipe verification item', done: false },
+      { text: 'optimistic probe 69959', done: false },
+      { text: 'research that video', done: false },
+      { text: 'already done', done: true },
+    ] }),
+    sessions: async () => [{
+      date: YESTERDAY, routineName: 'Upper Body — makeup',
+      exercises: [{ name: 'Barbell Bench Press' }, { name: 'Cable Bicep Curl' },
+        { name: 'Wide-Grip Lat Pulldown' }, { name: 'Spider Curl' }, { name: 'Plate Pinch' }],
+    }],
+  };
+  for (const q of ["what's on my to-do list", 'my todos', 'what do I need to do', 'todo list']) {
+    const r = await tryReflex(q, deps);
+    assert.equal(r.matched, 'todos', q);
+    assert.match(r.text, /3 open/);
+    assert.match(r.text, /swipe verification item/, 'the names, not just a count — a count sends him to look anyway');
+    assert.ok(!/already done/.test(r.text), 'a finished item is not open');
+  }
+  for (const q of ['what did I train yesterday', 'what was my last session']) {
+    const r = await tryReflex(q, deps);
+    assert.equal(r.matched, 'trained', q);
+    assert.match(r.text, /Upper Body — makeup yesterday/);
+    assert.match(r.text, /Barbell Bench Press/);
+    assert.match(r.text, /and 2 more/, 'five lifts, three named');
+  }
+  // a day he did not train is an answer, not a fall-through
+  const none = await tryReflex('what did I train today', deps);
+  assert.equal(none.matched, 'trained-none');
+  assert.match(none.text, /Nothing logged for today/);
+  assert.match(none.text, /last session was Upper Body — makeup yesterday/);
+});
+
+test('an empty to-do list says so, and the analytical versions still go to the model', async () => {
+  const empty = { todos: async () => ({ items: [{ text: 'done', done: true }] }), sessions: async () => [] };
+  assert.match((await tryReflex('my todos', empty)).text, /Nothing open/);
+  assert.equal(await tryReflex('what did I train yesterday', empty), null, 'no sessions at all → the model');
+  const deps = { todos: async () => ({ items: [] }), sessions: async () => [{ date: YESTERDAY, routineName: 'Push', exercises: [] }] };
+  for (const q of ['why is my to-do list so long', 'what should I train tomorrow', 'should I do my todos first']) {
+    assert.equal(await tryReflex(q, deps), null, q);
+  }
+});
+
+// EVERY WORD OF A REFLEX IS SPOKEN ALOUD. His real to-do list carries a raw
+// YouTube link, and the first version of the to-do reflex read it out
+// character by character.
+test('a link is never read out, and a long item is not recited whole', async () => {
+  const { speakable } = await import('../lib/reflex.js');
+  assert.equal(speakable('Research and analyse video podcast https://youtu.be/MGxcosNuC8k?si=ViCNnsot'),
+    'Research and analyse video podcast a YouTube link');
+  assert.equal(speakable('see https://instagram.com/p/abc'), 'see an Instagram link');
+  assert.equal(speakable('read https://example.org/a/b'), 'read a link');
+  assert.equal(speakable('short one'), 'short one', 'left alone when it is already sayable');
+  assert.match(speakable('x'.repeat(90)), /…$/, 'and trimmed when it is a paragraph');
+  assert.ok(speakable('x'.repeat(90)).length <= 60);
+
+  const deps = { todos: async () => ({ items: [{ text: 'Research this https://youtu.be/MGxcosNuC8k?si=Vi', done: false }] }) };
+  const r = await tryReflex('my todos', deps);
+  assert.ok(!/https?:/.test(r.text), `a spoken reply must carry no URL: ${r.text}`);
+  assert.match(r.text, /a YouTube link/);
+});

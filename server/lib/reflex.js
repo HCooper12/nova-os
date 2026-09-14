@@ -44,6 +44,10 @@ const defaultDeps = {
   calendarToday: async () => (await import('./calendar.js')).peekCachedEventsForDay(new Date()),
   // the ledger — for "what's going on with the X?" (lib/verbs.js's world)
   records: async () => (await import('./inboxStore.js')).listRecords(),
+  // "what's on my to-do list" cost 9.5s of model for a file read; "what did I
+  // train yesterday" cost 21s. Both are the live record, plainly asked.
+  todos: async () => (await import('./todos.js')).listTodos(process.env.VAULT_PATH),
+  sessions: async () => (await import('./workoutSessions.js')).loadSessions(process.env.VAULT_PATH, { limit: 14 }),
 };
 
 // STATUS OF A JOB HE NAMED. The reel's "what's going on with my reservation?"
@@ -107,6 +111,21 @@ async function card(fields) {
 }
 const hm = (mins) => `${Math.floor(mins / 60)}h ${pad(Math.round(mins % 60))}m`;
 
+// EVERY WORD OF A REFLEX IS SPOKEN ALOUD. His to-do list carries a raw YouTube
+// link, and the first version of the to-do reflex read it out —
+// "h-t-t-p-s-colon-slash-slash-y-o-u-t-u-dot-b-e-slash-M-G-x-c..." — for
+// eleven seconds. A link is a thing he tapped, never a thing to hear. Anything
+// that came from a file he typed into gets this before it is said.
+const HOSTS = { 'youtu.be': 'a YouTube link', 'youtube.com': 'a YouTube link', 'instagram.com': 'an Instagram link', 'tiktok.com': 'a TikTok link', 'x.com': 'an X link', 'twitter.com': 'an X link' };
+export function speakable(text, max = 60) {
+  let t = String(text || '').replace(/https?:\/\/\S+/g, (url) => {
+    const host = (url.match(/^https?:\/\/(?:www\.)?([^/?#]+)/) || [])[1] || '';
+    return HOSTS[host] || 'a link';
+  }).replace(/\s+/g, ' ').trim();
+  if (t.length > max) t = `${t.slice(0, max - 1).replace(/[\s,;:.-]+$/, '')}…`;
+  return t;
+}
+
 // NOTHING HAS ARRIVED — and that is an answer, not a reason to spend a model.
 // Steps, HRV, resting heart rate and sleep exist in exactly one place: the day
 // files his iPhone Shortcut writes. When the window holds none, there is
@@ -153,6 +172,16 @@ const DISTANCE_RE = new RegExp(
 // VO2 max is in every one of his day files and was read by NOTHING, so the
 // model answered "no VO2 max in your log yet" — Nova denying data it holds.
 const VO2_RE = /^(?:what(?:'?s| is)?\s*)?(?:my\s+)?vo2[\s-]?max(?:\s+(?:today|now|right now))?$/;
+const TODO_RE = new RegExp([
+  "^(?:what(?:'?s| is)?\\s*)?(?:on\\s+)?(?:my\\s+)?(?:to[- ]?do|todo)(?:\\s?list)?$",
+  '^(?:what|how many) (?:do i have|have i got|is) (?:to do|left to do|on my (?:to[- ]?do|todo)(?:\\s?list)?)$',
+  '^(?:my\\s+)?(?:to[- ]?dos|todos)$',
+  '^what do i (?:need to|have to) do$',
+].join('|'));
+const TRAINED_RE = new RegExp(
+  `^(?:what|which)(?:\\s+session)? did i (?:train|do|lift)(?:\\s+(?:in the gym|at the gym))?\\s*${WHEN}?$`
+  + "|^(?:what(?:'?s| is| was)?\\s*)?(?:my\\s+)?last (?:session|workout|training)$"
+  + `|^did i train ${WHEN}$`);
 
 const INBOX_RE = new RegExp([
   "^(?:what(?:'?s| is)?\\s*)?(?:in\\s+)?(?:my\\s+)?inbox$",
@@ -300,6 +329,46 @@ export async function tryReflex(question, deps = defaultDeps) {
     const dated = d.date === today ? '' : `, from ${d.date === yesterday ? 'yesterday' : d.date}`;
     return { matched: 'vo2max', text: `VO2 max is ${d.vo2Max.toFixed(1)}${dated}, sir${dir}.`,
       card: await card({ label: 'VO2 max', value: d.vo2Max.toFixed(1), caption: d.date === today ? 'TODAY' : d.date === yesterday ? 'YESTERDAY' : d.date, tone: 'vi' }) };
+  }
+
+  // ---- the to-do list ----
+  if (TODO_RE.test(q)) {
+    const list = await deps.todos?.().catch(() => null);
+    if (!list) return null;
+    const open = (list.items || []).filter((t) => !t.done);
+    if (!open.length) return { matched: 'todos', text: 'Nothing open on your to-do list, sir.',
+      card: await card({ label: 'To-do', value: 0, caption: 'OPEN', tone: 'good' }) };
+    // the names, not just the count — a count alone sends him to look anyway
+    const names = open.slice(0, 3).map((t) => speakable(t.text)).filter(Boolean);
+    const more = open.length - names.length;
+    return { matched: 'todos',
+      text: `${open.length} open, sir: ${names.join('; ')}${more > 0 ? `, and ${more} more` : ''}.`,
+      card: await card({ label: 'To-do', value: open.length, caption: 'OPEN', tone: 'gold' }) };
+  }
+
+  // ---- what he trained (today / yesterday / last) ----
+  const trained = q.match(TRAINED_RE);
+  if (trained) {
+    const sessions = await deps.sessions?.().catch(() => null);
+    if (!sessions || !sessions.length) return null;
+    const asked = trained[1] === 'today' ? today : trained[1] === 'yesterday' ? yesterday : null;
+    const s = asked ? sessions.find((x) => x.date === asked) : sessions[0];
+    if (!s) {
+      // he asked about a specific day and did not train it — that is an
+      // answer, and the last session is the useful thing to add
+      const last = sessions[0];
+      const when = last.date === yesterday ? 'yesterday' : `on ${last.date}`;
+      return { matched: 'trained-none',
+        text: `Nothing logged for ${trained[1]}, sir — your last session was ${last.routineName || 'a workout'} ${when}.`,
+        card: await card({ label: 'Training', value: '—', caption: String(trained[1] || '').toUpperCase(), tone: 'ink' }) };
+    }
+    const lifts = (s.exercises || []).map((e) => e.name).filter(Boolean);
+    const shown = lifts.slice(0, 3);
+    const more = lifts.length - shown.length;
+    const when = s.date === today ? 'today' : s.date === yesterday ? 'yesterday' : `on ${s.date}`;
+    return { matched: 'trained',
+      text: `${s.routineName || 'A session'} ${when}, sir — ${shown.join(', ')}${more > 0 ? `, and ${more} more` : ''}.`,
+      card: await card({ label: s.routineName || 'Session', value: `${lifts.length}`, unit: lifts.length === 1 ? 'lift' : 'lifts', caption: when.toUpperCase(), tone: 'cy' }) };
   }
 
   // ---- today's calendar: what's on / what's next (warm cache only) ----
