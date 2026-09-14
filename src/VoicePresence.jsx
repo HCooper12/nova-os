@@ -104,7 +104,7 @@ export function VoicePresence({ v }) {
           ones. His 20-Aug rule is untouched — these are pictures, not the
           transcript, and the words still only appear on a long-press. */}
       {s.glass && (
-        <div style={css('pointer-events:auto;width:min(560px,100%);display:flex;flex-direction:column;gap:7px')}>
+        <div style={css('pointer-events:auto;width:min(560px,100%);display:flex;flex-direction:column;gap:7px;max-height:min(52vh,420px);overflow-y:auto;-webkit-overflow-scrolling:touch')}>
           <SafeVisual what="glass" resetKey={s.glass.hero.label}><StageCard card={s.glass.hero} /></SafeVisual>
           {s.glass.rail.length > 0 && (
             <div style={css('display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch')}>

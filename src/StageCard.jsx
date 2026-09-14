@@ -75,7 +75,15 @@ export function StageCard({ card, size = 'full' }) {
     <div style={{
       position: 'relative', width: '100%', borderRadius: mini ? '10px' : '14px', padding: pad,
       border: `1px solid color-mix(in srgb, ${accent} ${mini ? 26 : 45}%, transparent)`,
-      background: `linear-gradient(180deg, color-mix(in srgb, ${accent} 07%, transparent), color-mix(in srgb, var(--nv-void) 92%, black))`,
+      // OPAQUE, NOT TRANSLUCENT. The top stop used to be `accent 07%,
+      // transparent` — glass, which reads beautifully on the dark Voice screen
+      // and is unreadable everywhere else. On 15 Sep the morning brief raised
+      // these over the FUEL screen and he got two sets of text through each
+      // other: the panel's words over a protein chart, a 3D figure and a macro
+      // ring. A panel that rises anywhere in Nova has to be legible against
+      // whatever is behind it, so the tint now sits ON the void rather than on
+      // nothing. Same look on the Voice screen; readable on every other.
+      background: `linear-gradient(180deg, color-mix(in srgb, ${accent} 09%, var(--nv-void)), color-mix(in srgb, var(--nv-void) 92%, black))`,
       boxShadow: mini ? 'none' : `0 0 30px -8px color-mix(in srgb, ${accent} 55%, transparent), 0 20px 50px -24px rgba(0,0,0,.85)`,
       animation: mini ? 'none' : 'popIn var(--nv-dur-base) var(--nv-ease)',
     }}>

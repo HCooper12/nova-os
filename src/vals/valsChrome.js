@@ -412,12 +412,18 @@ export function valsChrome(app, ctx) {
       // recital. (Nova's replies never contain the phrase, so it cannot
       // wake itself.) The Voice screen reports its own mic up through
       // voiceScreenMic, so the wake word now works there too.
-      // ...and, when the wake word itself is OFF, blocked unless Nova is
-      // actually speaking. Barge-in needs the microphone for exactly as long
-      // as there is something to interrupt, and not one second longer —
-      // nothing in Nova holds a mic open without a reason.
-      blocked: !!(st.liveMicOpen || st.voiceScreenMic || st.screen === 'ambient')
-        || (!st.wakeWordOn && !st.voiceSpeaking),
+      // BARGE-IN RIDES THIS MICROPHONE, IT NEVER OPENS ONE. Yesterday this
+      // read `|| (!wakeWordOn && !voiceSpeaking)`, which started a recognition
+      // session the moment Nova spoke and stopped it the moment it finished —
+      // a fresh microphone session per reply. On his iPhone that is a
+      // permission prompt every single time Nova opens its mouth, which is
+      // exactly what he got this morning. Talking over Nova is worth a lot;
+      // it is not worth that.
+      //
+      // So it is blocked whenever the wake word is off, full stop. With the
+      // wake word ON the microphone is already held, and barge-in costs
+      // nothing extra — which was always the reason it could live here.
+      blocked: !!(st.liveMicOpen || st.voiceScreenMic || st.screen === 'ambient' || !st.wakeWordOn),
       wake: (rest) => app.onWakeWord(rest),
       error: (kind) => {
         app.setWakeWord(false);

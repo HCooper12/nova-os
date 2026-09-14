@@ -310,7 +310,9 @@ export function Settings({ v }) {
               <div style={css("font:600 12.5px var(--nv-font-ui)")}>Talk over Nova</div>
               <div style={css("margin-top:2px;max-width:340px;font-size:11px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>
                 {v.wakeWordSupported
-                  ? 'Start talking while Nova is speaking and it stops and listens — no phrase, no tap. The microphone is open only while Nova is actually talking, and anything it hears that Nova is saying is ignored as its own echo, so it errs on the side of letting Nova finish.'
+                  ? (v.wakeWordOn
+                    ? 'Start talking while Nova is speaking and it stops and listens — no phrase, no tap. Anything it hears that Nova is saying is ignored as its own echo, so it errs on the side of letting Nova finish.'
+                    : 'Needs “Hey Nova” on — that is what holds the microphone open. Without it, listening for an interruption would mean opening a new microphone session every time Nova speaks, which your phone asks permission for each time.')
                   : 'This browser has no speech recognition, so this can’t run here.'}
               </div>
             </div>

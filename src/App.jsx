@@ -7512,32 +7512,19 @@ export default class App extends Component {
     if (this.state.voiceSpeak) this.speak(said);
     pending.run(model);
   }
+  // ONE PLAYER, ALWAYS. This used to fetch and play its own audio element,
+  // completely outside the sentence FIFO that every other spoken thing goes
+  // through — so the doorman's greeting and the morning brief were two
+  // independent players, and on 15 Sep he opened Nova and heard BOTH AT ONCE.
+  // Anything that can start while something else is speaking has to queue
+  // behind it, which is the entire point of the queue.
+  //
+  // speakTtsSentence carries the engine path, the one-retry, the
+  // one-voice-per-reply lock and the browser fallback — everything this hand-
+  // rolled copy had, minus the second player.
   speak(text) {
     if (!this.state.voiceSpeak) { this.maybeAutoListen(); return; }
-    const clean = text.slice(0, 2400);
-    this.beginSpeech();
-    const finish = () => this.endSpeech();
-    const conn = getConnection();
-    if (conn && this.ttsUsable()) {
-      api.ttsAudio(conn, clean, this.state.voiceVoiceId || undefined).then((blob) => {
-        const url = URL.createObjectURL(blob);
-        // reuse the gesture-unlocked element (iOS blocks fresh ones)
-        const audio = this.sharedAudio || new Audio();
-        this.currentAudio = audio;
-        // the core hears Nova speak: a Web Audio tap on this element drives
-        // the heart's swell (audioLevel) for the length of the reply
-        const detachMeter = attachSpeechElement(audio);
-        const synthetic = !graphRunning(); // unwired on iOS — the core still speaks
-        if (synthetic) holdSyntheticSpeech(true);
-        const release = () => { if (synthetic) holdSyntheticSpeech(false); URL.revokeObjectURL(url); detachMeter(); };
-        audio.src = url;
-        audio.onended = () => { release(); finish(); };
-        audio.onerror = () => { release(); finish(); };
-        audio.play().catch(() => { release(); this.speakFallback(clean, finish); });
-      }).catch(() => this.speakFallback(clean, finish));
-    } else {
-      this.speakFallback(clean, finish);
-    }
+    this.speakTtsSentence(String(text || '').slice(0, 2400));
   }
   // The chosen SpeechSynthesisVoice, resolved once and kept. getVoices() plus
   // three fallback scans ran on EVERY sentence of a spoken reply, and on this
