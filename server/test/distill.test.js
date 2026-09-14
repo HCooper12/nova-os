@@ -76,7 +76,12 @@ test('apply: writes changes with drift refusal; the rails route applies and undo
   assert.ok(!existsSync(path.join(vault, 'Wiki/Training Principles.md')));
 });
 
-test('drift refusal: a vault edit after the diff blocks the whole apply', async () => {
+// THE DISTILLER MERGES NOW, on the same evidence the weave got (14 Sep): three
+// of the four real distill jobs on disk touched Wiki/index.md or Wiki/log.md,
+// the two pages journal.js writes on every entry, and this pass stages the
+// vault and runs a model for minutes. The guarantee was never that the file sat
+// still — it is that nothing is lost.
+test('drift: an edit he made after the diff is KEPT, and so is the link the distiller adds', async () => {
   const orphanPath = path.join(vault, 'Wiki/Inbox/Orphan Note.md');
   const prior = await readFile(orphanPath, 'utf8');
   const job = {
@@ -84,11 +89,27 @@ test('drift refusal: a vault edit after the diff blocks the whole apply', async 
     changes: [{ path: 'Wiki/Inbox/Orphan Note.md', kind: 'updated', prior, content: prior + '\nlink' }],
   };
   await writeFile(path.join(dataDir, 'distill', 'testjob2.json'), JSON.stringify(job), 'utf8');
-  // he edits the page in Obsidian after the diff was computed
+  // he edits the page in Obsidian while the review card sits there
   await writeFile(orphanPath, prior + '\n\nHis own newer edit.', 'utf8');
-  await assert.rejects(() => applyDistillJob(vault, 'testjob2'), /vault moved under this draft/);
-  // and nothing was written
-  assert.match(await readFile(orphanPath, 'utf8'), /His own newer edit/);
+  const out = await applyDistillJob(vault, 'testjob2');
+  const after = await readFile(orphanPath, 'utf8');
+  assert.match(after, /His own newer edit/, 'his words are never the ones dropped');
+  assert.match(after, /link/, "and the distiller's link lands rather than the pass being thrown away");
+  assert.deepEqual(out.merged, ['Wiki/Inbox/Orphan Note.md'], 'and the job says which page had to be reconciled');
+});
+
+test('drift: a REAL collision still refuses, and still names the page', async () => {
+  const p = path.join(vault, 'Wiki/Inbox/Collision Note.md');
+  const prior = '# Note\n\nthe original line\n';
+  await writeFile(p, prior, 'utf8');
+  await writeFile(path.join(dataDir, 'distill', 'testjob3.json'), JSON.stringify({
+    id: 'testjob3', at: new Date().toISOString(), status: 'ready', summary: 'x',
+    changes: [{ path: 'Wiki/Inbox/Collision Note.md', kind: 'updated', prior, content: '# Note\n\nthe line as the distiller rewrote it\n' }],
+  }), 'utf8');
+  // he rewrote the SAME line, differently
+  await writeFile(p, '# Note\n\nthe line as he rewrote it\n', 'utf8');
+  await assert.rejects(() => applyDistillJob(vault, 'testjob3'), /vault moved under this draft/);
+  assert.match(await readFile(p, 'utf8'), /as he rewrote it/, 'nothing was written');
 });
 
 // ---- truth in copy: the comment said oldest-first; the code sorted by name --

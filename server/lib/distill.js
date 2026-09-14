@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { stageVault, diffTreesReport, conflictNote } from './ingest.js';
+import { stageVault, diffTreesReport, conflictNote, mergeNote } from './ingest.js';
 import { createRecord, listRecords } from './inboxStore.js';
 import { stampPriors, applyChanges, undoChanges } from './stagedPass.js';
 import { modelFor, laneSkipped } from './modelPrefs.js';
@@ -194,7 +194,13 @@ export async function runDistillation(vaultPath, { force = false, model } = {}) 
     // diff against the staging baseline (never the vault now — see
     // diffTreesReport), and stamp each change with the exact prior it was
     // computed against: the drift check at apply time depends on it
-    const { changes: diffed, conflicts } = diffTreesReport(vaultPath, stagingVault);
+    // `merge: true`, on the same evidence the weave got. Three of the four real
+    // distill jobs on disk touched Wiki/index.md or Wiki/log.md — the two files
+    // journal.js writes on every entry — and this pass stages the vault and runs
+    // a model for MINUTES, so the race is the weave's race, on the weave's
+    // files, in the weave's shapes (prose, bullet lists, an append-only log).
+    // Coach is the consumer that stays strict; coachPlan.js says why.
+    const { changes: diffed, conflicts, merged } = diffTreesReport(vaultPath, stagingVault, { merge: true });
     const changes = stampPriors(vaultPath, diffed);
     if (!changes.length) {
       return {
@@ -204,13 +210,14 @@ export async function runDistillation(vaultPath, { force = false, model } = {}) 
           : 'the model found nothing worth linking',
       };
     }
-    // pages left out are said first in the record he reviews
-    if (conflicts.length) summary = [conflictNote(conflicts), summary].filter(Boolean).join('\n\n');
+    // pages left out are said first in the record he reviews; pages reconciled
+    // are said too — silence about a merge is the same fault in better clothes
+    summary = [conflictNote(conflicts), mergeNote(merged), summary].filter(Boolean).join('\n\n');
 
     // the CAP, said out loud — and the candidate list on the job is the leave-alone memory
     const capNote = candidateTotal > candidates.length ? `${candidates.length} of ${candidateTotal} orphans this pass — the rest queue for next week.` : '';
     if (capNote) summary = [capNote, summary].filter(Boolean).join('\n\n');
-    const job = { id: jobId, at: new Date().toISOString(), summary: summary.slice(0, 4000), status: 'ready', changes, candidates: candidates.map((c) => c.relPath) };
+    const job = { id: jobId, at: new Date().toISOString(), summary: summary.slice(0, 4000), status: 'ready', changes, stagedMerged: merged, candidates: candidates.map((c) => c.relPath) };
     await persistJob(job);
 
     const record = {
@@ -242,12 +249,16 @@ export async function applyDistillJob(vaultPath, jobId) {
   const job = await loadDistillJob(jobId);
   if (!job) throw new Error("that distillation job's file is gone — run distillation again");
   if (job.status !== 'ready') throw new Error(`that distillation was already ${job.status}`);
-  await applyChanges(vaultPath, job.changes, { what: 'this draft', remedy: 'discard it and rerun distillation' });
+  // The window between his review and his yes is the second half of the same
+  // race — a journal entry filed while the card sat there used to throw the
+  // whole distillation away.
+  const { merged } = await applyChanges(vaultPath, job.changes, { what: 'this draft', remedy: 'discard it and rerun distillation', merge: true });
   job.status = 'applied';
   job.appliedAt = new Date().toISOString();
+  job.merged = [...new Set([...(job.stagedMerged || []), ...merged])];
   await persistJob(job);
   await pruneSettledJobs().catch(() => {});
-  return { applied: job.changes.length };
+  return { applied: job.changes.length, merged: job.merged };
 }
 
 // Applied and undone jobs are the undo's memory, so they stay — for a month,

@@ -128,6 +128,25 @@ export async function applyOps(vaultPath, ops, { why = 'Coach change' } = {}) {
   const drafts = [];
   if (plan.libraryChanged) drafts.push({ path: LIBRARY_REL_PATH, kind: 'updated', content: renderLibraryFile(plan.exercises) });
   if (plan.routineIds.length) drafts.push({ path: ROUTINES_REL_PATH, kind: 'updated', content: renderRoutinesFile(plan.data, byId(plan.exercises)) });
+  // NO `merge: true` HERE, AND THE REASON IS MEASURED, NOT ASSUMED.
+  // 14 Sep 2026: the line-level merge (threeWayMerge.js) was run against these
+  // exact two files — his real 220-line Workout Routines and 855-line Exercise
+  // Library — across sixteen concurrent scenarios, nine of them adversarial:
+  // deletes racing edits, a near-duplicate block inserted beside an edit, the
+  // whole library re-sorted under an append, two routines whose blocks render
+  // identically, and the derived prose body checked against the frontmatter it
+  // sits with. Zero corruptions. Every genuine collision refused.
+  //
+  // So it is SAFE, and it is still off, because safe is not the same as worth
+  // it. The weave earned the merge on cost and exposure: it stages the vault
+  // and runs a model for minutes while journal.js writes the same two pages, and
+  // a refusal throws away a $2-3.50 pass. Coach's window is the milliseconds
+  // between planOps and this line, and its remedy is a free retry. Turning a
+  // merge on over his TRAINING PLAN to save a retry that almost never happens
+  // is not the smaller solution; refusing is.
+  //
+  // If this is ever reopened, reopen it on new evidence — a real refusal he
+  // actually hit — not on the merge's availability.
   const changes = stampPriors(vaultPath, drafts).map((c) => (c.prior == null ? { ...c, kind: 'new' } : c));
   await applyChanges(vaultPath, changes, { what: "Coach's change", remedy: 'try it again', write: commitVaultState });
 
