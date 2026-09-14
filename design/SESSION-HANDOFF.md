@@ -78,6 +78,35 @@ minutes, none of which a test would have caught — see [[nova-ask-it-yourself]]
 All now instant and true: 82.2 kilograms · HRV 88 milliseconds · 4 drafts · no
 sleep reading, with the reason. **1502 pass.**
 
+**FIFTH PASS — THE SAME BATTERY, WIDENED.** Twelve questions across every
+domain, asked the way he says them. **Five were instant; now ten are.** The
+battery itself went from ~170 seconds to ~24.
+
+- *"what's my vo2 max"* → **"No VO2 max in your log yet."** It is in all eleven
+  September files. Nothing read it — the line to speak it had no caller — so
+  Nova denied holding data it holds. Worst direction to be wrong in.
+- *"how far did I walk yesterday"* → **"9,846 steps"**. Distance asked, steps
+  given: a different measurement handed over as the one he asked for.
+- *THIRD unit slip in the 13 Sep push*: `walkingRunningDistanceKm` 10401.48
+  (metres as kilometres). All three of that day's faults are ONE mistake — base
+  SI units where the named unit was expected. **If a fourth metric ever reads a
+  thousand times out, look at the Shortcut before looking at the code.**
+- Costs paid for numbers already on disk: steps-yesterday **27s** (the pattern
+  allowed nothing between "steps" and the day), to-do list **9.5s**, "what did I
+  train yesterday" **21s**, and the slowest of all, "what's my bench press PR"
+  at **30.9s**.
+- The PR answer leads with the SET he lifted and labels the estimate (the 12 Sep
+  rule), and an ambiguous lift — "bench press" fits three in his own library —
+  is **asked in 0.04s** rather than guessed or waited half a minute for.
+- Spoken register in the reflex layer: URLs are never read aloud
+  (`speakable`), and dates are said as "17 July", not as digits (`spokenDate`).
+
+Commits `a46c1b3`, `3b82f3a`, `3f16c6d`. **1511 pass.**
+
+Still going to the model, correctly: *"when did I last train legs"* (needs
+muscle-group interpretation) and *"what did I spend this month"* (the money
+ledger has no reflex).
+
 **DECISIONS (choice → reason → what it forecloses)**
 - *Barge-in is filtered by comparing what was heard against WHAT NOVA IS
   SAYING* → the mic must be open during playback, so it hears the speaker; the
