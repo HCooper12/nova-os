@@ -7129,6 +7129,7 @@ export default class App extends Component {
     this.ttsGen = (this.ttsGen || 0) + 1;
     this.ttsQueue = [];
     this.ttsPlaying = false; this.ttsNowSaying = null;
+    this.ttsVoiceLock = null; // the next reply chooses its voice afresh
   }
   // onPlay fires when this sentence's AUDIO starts (or when it provably
   // can't) — it is how text is revealed in sync with speech instead of
@@ -7147,7 +7148,16 @@ export default class App extends Component {
     const entry = { done: false, buffer: null, blob: null, onPlay, revealed: false, said: clean };
     (this.ttsQueue = this.ttsQueue || []).push(entry);
     this.beginSpeech(); // matched by endSpeech when the entry plays out or drops
-    api.ttsAudio(conn, clean, this.state.voiceVoiceId || undefined)
+    // A reply already committed to the browser voice does not go back to the
+    // engine sentence by sentence — see the ONE VOICE rule in drainTtsQueue.
+    if (this.ttsVoiceLock === 'browser') { entry.done = true; entry.failed = true; this.drainTtsQueue(gen); return; }
+    const fetchOnce = () => api.ttsAudio(conn, clean, this.state.voiceVoiceId || undefined);
+    fetchOnce()
+      // ONE RETRY. Over cellular in the car a single sentence's request can
+      // drop while the engine is perfectly healthy; a blip on one sentence must
+      // not be read as the engine being down, because the fallback for "down"
+      // is a different voice, and he heard that.
+      .catch((e) => { if (gen !== (this.ttsGen || 0)) throw e; return fetchOnce(); })
       .then(async (blob) => {
         // decode NOW, while earlier sentences play — playback then starts
         // from pre-decoded samples on the audio thread, jitter-proof
@@ -7174,17 +7184,26 @@ export default class App extends Component {
     if (!head || !head.done) return; // strict order: nothing plays past an unfinished head
     this.ttsQueue.shift();
     if (head.finalize) { try { head.finalize(); } catch { /* commit is best-effort */ } this.drainTtsQueue(gen); return; }
-    if (head.failed || (!head.buffer && !head.blob)) {
-      // THE SENTENCE THE ENGINE COULD NOT MAKE IS STILL SPOKEN OUT LOUD.
-      // Revealing the words and saying nothing was the old behaviour, and it
-      // is exactly what a booting sidecar now produces for every sentence in
-      // flight — the server fails such a request at once rather than holding
-      // a reply for a model load. The browser's voice carries those: a
-      // different voice mid-reply is worth noticing, a reply that scrolls
-      // past in silence is the bug he reported. [[nova-voice-turn]]
+    const engineFailed = head.failed || (!head.buffer && !head.blob);
+    if (engineFailed || this.ttsVoiceLock === 'browser') {
+      // ONE VOICE PER REPLY. His report, 14 Sep, driving: the voice "began to
+      // change in between each of the voices as it was responding" — Nova's
+      // British male one sentence, the phone's Australian female the next.
+      // That was the first version of this branch: it sent every sentence the
+      // engine failed to the browser voice, and over cellular the engine fails
+      // sentences at random. Alternating voices is worse than either voice.
+      //
+      // So a reply commits to one voice at its FIRST sentence and keeps it:
+      //   - the engine spoke first → a later failed sentence (after its retry)
+      //     is revealed as text and skipped; the voice never changes mid-reply.
+      //   - the engine failed first → the whole reply goes to the browser voice,
+      //     including sentences whose audio did arrive. Audible and consistent,
+      //     which in the car is what matters; the voice test names the cause.
       try { head.onPlay?.(); head.revealed = true; } catch { /* best-effort */ }
+      if (this.ttsVoiceLock === 'server') { this.endSpeech(); this.drainTtsQueue(gen); return; }
+      this.ttsVoiceLock = 'browser';
       if (this.state.voiceSpeak && head.said) {
-        this.ttsPlaying = true;          // the queue HOLDS: order survives a mixed-engine reply
+        this.ttsPlaying = true;          // the queue HOLDS: order survives
         this.ttsNowSaying = head.said;   // still owed to him if he leaves mid-sentence
         this.speakFallback(head.said, () => {
           if (gen !== (this.ttsGen || 0)) return; // a stop flushed this generation
@@ -7195,6 +7214,7 @@ export default class App extends Component {
       }
       this.endSpeech(); this.drainTtsQueue(gen); return;
     }
+    if (!this.ttsVoiceLock) this.ttsVoiceLock = 'server'; // the engine spoke first: this reply is his
     this.ttsPlaying = true;
     // the sentence in the air — half of what an interrupted brief still owes
     // him (the queue behind it is the other half)
