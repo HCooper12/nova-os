@@ -112,6 +112,11 @@ export function Chip({ children, onClick, tone: t = 'accent', active, disabled, 
       base={{
         cursor: disabled || !onClick ? 'default' : 'pointer',
         display: 'inline-flex', alignItems: 'center', gap: '6px',
+        // A LONG LABEL WRAPS INSTEAD OF LEAVING THE SCREEN. His Coach
+        // suggestions run to a full sentence — "WHY IS ROPE OVERHEAD TRICEP
+        // EXTENSION STALLED" — and a pill with nowhere to break ran off the
+        // right edge of his phone, unreadable and untappable at the end.
+        maxWidth: '100%', whiteSpace: 'normal', textAlign: 'left',
         minHeight: apple ? '34px' : '26px',
         padding: apple ? '6px 13px' : '4px 9px',
         borderRadius: '999px',

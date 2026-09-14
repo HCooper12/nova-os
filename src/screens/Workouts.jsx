@@ -948,7 +948,13 @@ function GoalsCoachPane({ v }) {
             told to, and this one holds panels with nowrap rows. Without it the
             pane grew to 403px inside a 390px screen and the whole Train screen
             panned sideways (his recording, 6 Sep). */}
-        <div className="nv-pane" style={{ flex: '1.4 1 340px', minWidth: 0, padding: '16px 18px', display: 'flex', flexDirection: 'column', maxHeight: '420px' }}>
+        {/* 420px WAS A DESKTOP COLUMN'S HEIGHT, APPLIED TO A PHONE. Once the
+            header, the chips, the study row and the composer had taken their
+            share, the reply itself had about five lines to live in — his
+            report, 15 Sep: "the coach field is small and clunky to try to
+            read", with the answer clipped at both ends. On a phone the reply
+            IS the panel, so it gets the room; the desktop column is unchanged. */}
+        <div className="nv-pane" style={{ flex: '1.4 1 340px', minWidth: 0, padding: '16px 18px', display: 'flex', flexDirection: 'column', maxHeight: v.isMobile ? 'min(72vh, 640px)' : '420px' }}>
           <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap")}>
             <Eyebrow as="span" tone="cyan">Ask Coach</Eyebrow>
             <span style={css("display:flex;gap:10px;align-items:center")}>
@@ -958,7 +964,9 @@ function GoalsCoachPane({ v }) {
               )}
             </span>
           </div>
-          <div ref={coachLogRef} style={css("flex:1;min-width:0;overflow-y:auto;overflow-x:hidden;margin-top:10px;display:flex;flex-direction:column;gap:10px;font:500 12.5px/1.6 var(--nv-font-ui)")}>
+          {/* and the reply is set to be READ, not scanned: a conversational
+              size on a phone rather than the 12.5px the dense tables use */}
+          <div ref={coachLogRef} style={css(`flex:1;min-width:0;overflow-y:auto;overflow-x:hidden;margin-top:10px;display:flex;flex-direction:column;gap:10px;font:500 ${v.isMobile ? '15px/1.65' : '12.5px/1.6'} var(--nv-font-ui)`)}>
             {v.coachMsgs.length === 0 && !v.coachBusy && (
               <div style={css("color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Ask anything a coach should answer — "should I deload?", "why is my bench stuck?", "build me a plan for a 4-day week."</div>
             )}
