@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { micStarted, micStopped } from './audioSession.js';
 import { attachMicStream } from './audioLevel.js';
-import { openTurn, sawSpeech, sawEngineEnd, sawRestart, nextAction } from './turnEnd.js';
+import { openTurn, sawSpeech, sawEngineEnd, sawRestart, nextAction, endReason } from './turnEnd.js';
+import { getConnection } from './api.js';
 
 // The mic tap below is desktop-only on purpose: SpeechRecognition on iOS
 // owns the microphone, and a parallel getUserMedia capture risks silently
@@ -17,6 +18,30 @@ const TICK_MS = 200;
 // — every pause longer than the browser's own patience — and surfacing them
 // would put an error banner under a turn that is going perfectly well.
 const SOFT_ERRORS = new Set(['no-speech', 'aborted']);
+
+// How long to wait before trying a thrown restart once more. Long enough for
+// the dying engine to have let go of the microphone, short enough that he
+// does not hear a hole in the middle of his own sentence.
+const RESTART_RETRY_MS = 300;
+
+// WHY THE TURN ENDED, WRITTEN DOWN. Fire-and-forget, awaited by nobody: the
+// next time he says "it cut me off" the answer is a line in
+// server/data/voice/turns.json instead of a guess. It is a receipt, not
+// analytics — nothing reads it but him and whoever is debugging with him.
+// A failed POST is a missing line and nothing else; it must never cost him
+// the send that is happening on the same beat.
+export function reportTurnEnd(surface, preset, info) {
+  try {
+    const conn = getConnection();
+    if (!conn) return;
+    fetch(`${conn.baseUrl.replace(/\/$/, '')}/api/voice/turn`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${conn.token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...info, surface, preset, ua: typeof navigator === 'undefined' ? '' : navigator.userAgent }),
+      keepalive: true,   // the screen may be closing on the same gesture
+    }).catch(() => { /* a receipt is never worth an error in his face */ });
+  } catch { /* no connection, no receipt */ }
+}
 
 // Real dictation via the browser's speech engine (on-device / OS-provided).
 // Feature-detected: mic buttons only render where it actually works.
@@ -39,7 +64,7 @@ const SOFT_ERRORS = new Set(['no-speech', 'aborted']);
 export const speechRecognitionSupported = () => typeof window !== 'undefined'
   && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 
-export function useDictation(getBase, onText, onDone, { continuous = true, holdMs = 0, leadMs = 0, onError } = {}) {
+export function useDictation(getBase, onText, onDone, { continuous = true, holdMs = 0, leadMs = 0, onError, onTurnEnd } = {}) {
   const recRef = useRef(null);
   const baseRef = useRef('');
   const saidRef = useRef('');      // words from earlier engines in THIS turn
@@ -49,6 +74,8 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
   const wantRef = useRef(false);   // he still has the floor
   const liveRef = useRef(false);   // a turn is open — makes closing idempotent
   const clockRef = useRef(0);
+  const retryRef = useRef(0);      // a pending second go at a thrown restart
+  const reasonRef = useRef('engine'); // why this turn is ending, for the receipt
   const meterRef = useRef({ stream: null, detach: null });
   const [on, setOn] = useState(false);
   const SR = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
@@ -80,22 +107,40 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     liveRef.current = false;
     wantRef.current = false;
     if (clockRef.current) { clearInterval(clockRef.current); clockRef.current = 0; }
+    if (retryRef.current) { clearTimeout(retryRef.current); retryRef.current = 0; }
+    const turn = turnRef.current;
     turnRef.current = null;
     recRef.current = null;
     stopMeter();
     micStopped();
     setOn(false);
+    // The receipt goes out BEFORE the send, because the send is what he
+    // remembers and the receipt is what explains it. Wrapped: a listener
+    // that throws must not swallow onDone and lose his words.
+    if (held && fireDone) {
+      try {
+        onTurnEnd?.({
+          reason: reasonRef.current,
+          ms: turn ? Date.now() - turn.startedAt : 0,
+          restarts: turn?.restartsTotal || 0,
+          heard: !!turn && turn.lastHeardAt !== null,
+        });
+      } catch { /* never at the cost of the turn */ }
+    }
     if (fireDone) onDone?.();
   };
 
   const restart = () => {
     carryOver();
-    turnRef.current = sawRestart(turnRef.current);
+    turnRef.current = sawRestart(turnRef.current, Date.now());
     recRef.current = null;
-    spin();
+    spin(true);
   };
 
-  function spin() {
+  // `isRestart` matters at the very bottom: a first start that throws is a
+  // microphone he never got, and a restart that throws is a sentence in
+  // progress. They cannot be handled the same way.
+  function spin(isRestart = false, attempt = 0) {
     let rec;
     try { rec = new SR(); } catch { closeOut(); return; }
     rec.continuous = held ? true : continuous;
@@ -118,7 +163,12 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
       if (recRef.current !== rec) return;               // already superseded
       if (!held || !wantRef.current) { closeOut(); return; }
       turnRef.current = sawEngineEnd(turnRef.current);
-      if (nextAction(turnRef.current, Date.now(), { holdMs, leadMs }) !== 'restart') { closeOut(); return; }
+      const now = Date.now();
+      if (nextAction(turnRef.current, now, { holdMs, leadMs }) !== 'restart') {
+        reasonRef.current = endReason(turnRef.current, now, { holdMs, leadMs }) || 'engine';
+        closeOut();
+        return;
+      }
       restart();
     };
     // a denied mic permission used to just silently flip the button off
@@ -129,15 +179,37 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
       closeOut();
     };
     recRef.current = rec;
-    try { rec.start(); } catch { closeOut(); }
+    try {
+      rec.start();
+    } catch {
+      // A RESTART THAT THROWS USED TO SUBMIT HIS RAMBLE. iOS ends a
+      // recognition session on its own every ~60s, and on a network hiccup —
+      // on cellular, in the car, constantly. The replacement is built inside
+      // that same `onend`, and `start()` can throw because the dying engine
+      // has not let go of the microphone yet. This line used to collapse
+      // straight to closeOut(), which fires onDone, which SENDS the
+      // half-finished thought as though he had stopped talking — his 12 Sep
+      // report, "I had to keep trying to cut it off so I could explain more".
+      // So a restart gets one more go 300ms later, and only then admits the
+      // engine is gone — by name, in the receipt, instead of as a mystery.
+      recRef.current = null;                            // a stray onend must not be believed
+      if (!isRestart || attempt > 0) { reasonRef.current = 'engine'; closeOut(); return; }
+      retryRef.current = setTimeout(() => {
+        retryRef.current = 0;
+        if (!liveRef.current || !wantRef.current) return;   // he left, or closeOut already ran
+        spin(true, attempt + 1);
+      }, RESTART_RETRY_MS);
+    }
   }
 
   // His turn is over when turnEnd.js says so — never when the engine says so.
   const tick = () => {
     if (!liveRef.current || !wantRef.current || !turnRef.current) return;
-    const act = nextAction(turnRef.current, Date.now(), { holdMs, leadMs });
+    const now = Date.now();
+    const act = nextAction(turnRef.current, now, { holdMs, leadMs });
     if (act === 'wait') return;
     if (act === 'restart') { restart(); return; }
+    reasonRef.current = endReason(turnRef.current, now, { holdMs, leadMs }) || 'engine';
     wantRef.current = false;               // stop() lands in onend, which closes
     const rec = recRef.current;
     if (!rec) { closeOut(); return; }
@@ -150,6 +222,7 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     finalsRef.current = '';
     interimRef.current = '';
     turnRef.current = openTurn(Date.now());
+    reasonRef.current = 'engine';          // until the clock or the engine says otherwise
     liveRef.current = true;
     wantRef.current = true;
     micStarted();  // the browser picks the recording session while he talks
@@ -181,6 +254,7 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
   // clock behind it that would also leave an interval ticking forever.
   useEffect(() => () => {
     if (clockRef.current) { clearInterval(clockRef.current); clockRef.current = 0; }
+    if (retryRef.current) { clearTimeout(retryRef.current); retryRef.current = 0; }
     wantRef.current = false;
     try { recRef.current?.stop(); } catch { /* already gone */ }
     recRef.current = null;

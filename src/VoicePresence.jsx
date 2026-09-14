@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
-import { useDictation } from './useDictation.js';
+import { useDictation, reportTurnEnd } from './useDictation.js';
 import { StageCard } from './StageCard.jsx';
 import { SafeVisual } from './SafeVisual.jsx';
 
@@ -36,7 +36,14 @@ export function VoicePresence({ v }) {
     () => { if (inputRef.current.trim()) sendRef.current(); },
     // the same app-owned turn as the Voice screen — this is the mic he
     // actually talks into from anywhere in Nova, so it must not cut him off
-    { holdMs: v.voiceHoldMs, leadMs: v.voiceLeadMs, onError: (err) => s.onError(err) },
+    {
+      holdMs: v.voiceHoldMs,
+      leadMs: v.voiceLeadMs,
+      onError: (err) => s.onError(err),
+      // same receipt as the Voice screen, tagged to the bar so the two mics
+      // can be told apart in the log when they misbehave around each other
+      onTurnEnd: (info) => reportTurnEnd('presence', v.voiceHold, info),
+    },
   );
   const dictRef = useRef(dict);
   dictRef.current = dict;

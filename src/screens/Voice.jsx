@@ -3,7 +3,7 @@ import { css, riseIn } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
 import { Clock } from '../Clock.jsx';
-import { useDictation } from '../useDictation.js';
+import { useDictation, reportTurnEnd } from '../useDictation.js';
 import { useStickToBottom } from '../useStickToBottom.js';
 import { undoLabel } from '../chatUndo.js';
 import { VoicePanel, SourcesPanel } from '../VoicePanels.jsx';
@@ -102,6 +102,9 @@ export function Voice({ v }) {
       holdMs: v.voiceHoldMs,
       leadMs: v.voiceLeadMs,
       onError: (err) => v.dictationError(err),
+      // a line per turn saying WHY it ended, so "it cut me off" has an
+      // answer next time. Fire and forget — never in the way of the send.
+      onTurnEnd: (info) => reportTurnEnd('voice', v.voiceHold, info),
     },
   );
 

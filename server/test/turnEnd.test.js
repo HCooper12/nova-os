@@ -12,8 +12,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  openTurn, sawSpeech, sawEngineEnd, sawRestart, nextAction,
-  holdTiming, HOLD_PRESETS, DEFAULT_HOLD,
+  openTurn, sawSpeech, sawEngineEnd, sawRestart, nextAction, endReason,
+  holdTiming, HOLD_PRESETS, DEFAULT_HOLD, RESTART_GRACE_MS,
 } from '../../src/turnEnd.js';
 
 const OPTS = { holdMs: 2000, leadMs: 7000 };
@@ -63,10 +63,99 @@ test('the lead applies only until the first word', () => {
 
 // ---- the guards, which is why they are checked first ----
 
-test('the microphone is never held open forever', () => {
+// THE FAULT, 12 Sep, driving: "it somehow thought that I was finished
+// talking even though I did not pause while speaking". The cap was a flat
+// wall clock checked before everything else, so two minutes of explaining
+// ended his turn mid-word. It is now a ceiling for a turn that has gone
+// QUIET, and the runaway case belongs to the absolute ceiling below.
+test('THE FAULT: two minutes of unbroken explaining does not end his turn', () => {
   let t = openTurn(0);
-  t = sawSpeech(t, 119000);                     // a television in the room
-  assert.equal(nextAction(t, 120000, OPTS), 'end');
+  t = sawSpeech(t, 119800);                     // still mid-sentence at 2:00
+  assert.equal(nextAction(t, 120000, OPTS), 'wait');
+  t = sawSpeech(t, 181000);                     // and still going at 3:01
+  assert.equal(nextAction(t, 181200, OPTS), 'wait');
+});
+
+test('but a turn past the cap that has gone quiet ends, and says which cap', () => {
+  let t = openTurn(0);
+  t = sawSpeech(t, 119000);
+  assert.equal(nextAction(t, 121000, OPTS), 'end');      // 2s of silence, past 120s
+  assert.equal(endReason(t, 121000, OPTS), 'cap-idle');
+});
+
+test('an idle engine past the cap is still ended', () => {
+  let t = openTurn(0);
+  t = sawSpeech(t, 100000);
+  t = sawEngineEnd(t);
+  assert.equal(nextAction(t, 130000, OPTS), 'end');
+});
+
+test('the absolute ceiling still closes a microphone nobody closed', () => {
+  // a television in the room: speech keeps arriving, so no silence ever
+  // ends the turn. Fifteen minutes is the thing that does.
+  let t = openTurn(0);
+  for (let ms = 1000; ms <= 900000; ms += 1000) t = sawSpeech(t, ms);
+  assert.equal(nextAction(t, 900000, OPTS), 'end');
+  assert.equal(endReason(t, 900000, OPTS), 'cap-absolute');
+  assert.equal(nextAction(t, 899000, OPTS), 'wait', 'and not a second before');
+});
+
+// ---- why a turn ended, so the next "it cut me off" has an answer ----
+
+test('endReason names each way a turn can end', () => {
+  let spoke = sawSpeech(openTurn(0), 1000);
+  assert.equal(endReason(spoke, 3000, OPTS), 'hold');
+  assert.equal(endReason(spoke, 2000, OPTS), null, 'still his');
+
+  assert.equal(endReason(openTurn(0), 7000, OPTS), 'lead');
+  assert.equal(endReason(openTurn(0), 6000, OPTS), null);
+
+  let failing = sawSpeech(openTurn(0), 100);
+  for (let i = 0; i < 40; i++) failing = sawRestart(failing);
+  failing = sawEngineEnd(failing);
+  assert.equal(endReason(failing, 600, OPTS), 'restart-limit');
+
+  assert.equal(endReason(null, 1, OPTS), 'engine', 'no turn left — the caller stopped it');
+});
+
+// ---- the restart seam (fault 2): the gap must not eat his hold ----
+
+test('an engine that died in the last moments of the hold gets time to hear him', () => {
+  let t = openTurn(0);
+  t = sawSpeech(t, 10000);
+  t = sawEngineEnd(t);
+  t = sawRestart(t, 11700);                     // 300ms of hold left, new engine deaf
+  assert.equal(nextAction(t, 12000, OPTS), 'wait', 'that silence was the seam, not him');
+  assert.equal(nextAction(t, 11700 + RESTART_GRACE_MS, OPTS), 'end');
+});
+
+test('the grace is a floor, never a reset — a restart adds no dead air of its own', () => {
+  // the commonest restart of all: iOS gives up ~1.5s in BECAUSE he stopped.
+  // Resetting the hold here would add a whole extra hold to nearly every turn.
+  let t = openTurn(0);
+  t = sawSpeech(t, 1000);
+  t = sawEngineEnd(t);
+  t = sawRestart(t, 2400);                      // grace ends at 3000, hold at 3000
+  assert.equal(nextAction(t, 3000, OPTS), 'end');
+  assert.equal(endReason(t, 3000, OPTS), 'hold');
+});
+
+test('the grace is spent once he speaks again', () => {
+  let t = openTurn(0);
+  t = sawSpeech(t, 10000);
+  t = sawRestart(t, 11900);
+  t = sawSpeech(t, 12100);                      // the new engine hears him
+  assert.equal(nextAction(t, 14100, OPTS), 'end', 'a normal hold from his last word');
+  assert.equal(nextAction(t, 14000, OPTS), 'wait');
+});
+
+test('the receipt counts every restart in the turn, not just since he spoke', () => {
+  let t = openTurn(0);
+  t = sawRestart(t, 100);
+  t = sawSpeech(t, 200);                        // resets the failing-engine budget
+  t = sawRestart(t, 300);
+  assert.equal(t.restarts, 1);
+  assert.equal(t.restartsTotal, 2);
 });
 
 test('an engine failing over and over stops being restarted', () => {

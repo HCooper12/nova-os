@@ -30,6 +30,7 @@ import { stashRouter } from './routes/stash.js';
 import { opsRouter } from './routes/ops.js';
 import { modelPrefsRouter } from './routes/modelPrefs.js';
 import { voiceRouter } from './routes/voice.js';
+import { voiceTurnsRouter } from './routes/voiceTurns.js';
 import { moneyRouter } from './routes/money.js';
 import { subscribe } from './lib/events.js';
 import { studioRouter } from './routes/studio.js';
@@ -219,6 +220,7 @@ async function main() {
   app.use('/api', loopsRouter(process.env.VAULT_PATH));
   app.use('/api', todosRouter(process.env.VAULT_PATH));
   app.use('/api', voiceRouter(process.env.VAULT_PATH));
+  app.use('/api', voiceTurnsRouter()); // why a spoken turn ended — the receipt behind "it cut me off"
   app.use('/api', moneyRouter(process.env.VAULT_PATH));
   app.use('/api', leaderRouter(process.env.VAULT_PATH));
   app.get('/api/events', (req, res) => subscribe(res));
