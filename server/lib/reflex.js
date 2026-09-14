@@ -117,6 +117,18 @@ const hm = (mins) => `${Math.floor(mins / 60)}h ${pad(Math.round(mins % 60))}m`;
 // eleven seconds. A link is a thing he tapped, never a thing to hear. Anything
 // that came from a file he typed into gets this before it is said.
 const HOSTS = { 'youtu.be': 'a YouTube link', 'youtube.com': 'a YouTube link', 'instagram.com': 'an Instagram link', 'tiktok.com': 'a TikTok link', 'x.com': 'an X link', 'twitter.com': 'an X link' };
+// A DATE IS SPOKEN TOO. "on 2026-07-17" is read out as a string of digits;
+// nobody says a year unless it is a different one.
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+export function spokenDate(iso, now = new Date()) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+  if (!m) return String(iso || '');
+  const [, y, mo, d] = m;
+  const month = MONTHS[Number(mo) - 1] || '';
+  const day = Number(d);
+  return Number(y) === now.getFullYear() ? `${day} ${month}` : `${day} ${month} ${y}`;
+}
+
 export function speakable(text, max = 60) {
   let t = String(text || '').replace(/https?:\/\/\S+/g, (url) => {
     const host = (url.match(/^https?:\/\/(?:www\.)?([^/?#]+)/) || [])[1] || '';
@@ -178,6 +190,51 @@ const TODO_RE = new RegExp([
   '^(?:my\\s+)?(?:to[- ]?dos|todos)$',
   '^what do i (?:need to|have to) do$',
 ].join('|'));
+// "What's my bench press PR" cost 30.9 SECONDS — the slowest question in the
+// battery — for a number personalRecords() computes from sessions already on
+// disk. Two shapes, and the lift he names is matched the same fuzzy way the
+// verbs match a job's name.
+// THE LIFT HE NAMED, IN HIS OWN LIBRARY. verbs.matchName is built for a job's
+// title and found nothing for "bench press" against "Barbell Bench Press", so
+// this is its own thing and deliberately simple: every word he said must appear
+// in the name. "bench press" reaches Barbell Bench Press and not "Incline
+// Dumbbell Bench With Palms Facing In", which has the bench and not the press.
+//
+// AMBIGUITY FALLS THROUGH. "squat" fits Hack Squat and Bulgarian Split Squat
+// equally, and picking the shorter one would be a guess dressed as an answer —
+// the model can ask him which. Only an exact name, or a single candidate,
+// answers here.
+export function matchLift(pool, named) {
+  const words = String(named || '').toLowerCase().split(/\s+/).filter((w) => w.length > 2);
+  if (!words.length) return { kind: 'none' };
+  const hits = pool.filter((p) => {
+    const n = String(p.name || '').toLowerCase();
+    return words.every((w) => n.includes(w));
+  });
+  if (!hits.length) return { kind: 'none' };
+  if (hits.length === 1) return { kind: 'one', lift: hits[0] };
+  const phrase = words.join(' ');
+  // naming it in full wins outright: "my barbell bench press pr" must not be
+  // asked back "which barbell bench press", when one of them IS that name
+  const spelledOut = hits.filter((p) => String(p.name || '').toLowerCase() === phrase);
+  if (spelledOut.length === 1) return { kind: 'one', lift: spelledOut[0] };
+  const exact = hits.filter((p) => String(p.name || '').toLowerCase().endsWith(` ${phrase}`));
+  if (exact.length === 1) return { kind: 'one', lift: exact[0] };
+  // ASKING IS AN ANSWER, AND IT IS FREE. "What's my bench press PR" fits
+  // Barbell, Dumbbell and Incline Barbell equally — picking one would be a
+  // guess dressed as a record. It cost 30.9 SECONDS of model to work that out
+  // and come back with a choice; this asks in a twentieth of a second, which
+  // is the difference between a conversation and a wait. More than four and
+  // reading the list aloud is worse than thinking about it — that goes to the
+  // model.
+  const choices = (exact.length > 1 ? exact : hits);
+  return choices.length <= 4 ? { kind: 'which', choices } : { kind: 'none' };
+}
+
+const PR_RE = [
+  /^(?:what(?:'?s| is)?\s*)?(?:my\s+)?(.+?)\s+(?:pr|p\.r\.|personal record|one[- ]?rep[- ]?max|1\s?rm)$/,
+  /^(?:what(?:'?s| is)?\s*)?(?:my\s+)?(?:best|heaviest)\s+(.+?)$/,
+];
 const TRAINED_RE = new RegExp(
   `^(?:what|which)(?:\\s+session)? did i (?:train|do|lift)(?:\\s+(?:in the gym|at the gym))?\\s*${WHEN}?$`
   + "|^(?:what(?:'?s| is| was)?\\s*)?(?:my\\s+)?last (?:session|workout|training)$"
@@ -239,7 +296,7 @@ export async function tryReflex(question, deps = defaultDeps) {
     if (day?.steps == null) {
       const last = [...days].reverse().find((x) => x.steps != null);
       if (!last) return null;
-      const ago = last.date === yesterday ? 'yesterday' : `on ${last.date}`;
+      const ago = last.date === yesterday ? 'yesterday' : `on ${spokenDate(last.date)}`;
       const asked = steps[1] === 'yesterday' ? 'yesterday' : 'today';
       return { matched: `steps-${asked}-absent`,
         text: `No step count has come through for ${asked} yet, sir — the last reading was ${last.steps.toLocaleString()} ${ago}.`,
@@ -302,7 +359,7 @@ export async function tryReflex(question, deps = defaultDeps) {
     if (km == null) {
       const last = [...days].reverse().find((x) => x.walkingRunningDistanceKm != null);
       if (!last) return null;
-      const when = last.date === yesterday ? 'yesterday' : `on ${last.date}`;
+      const when = last.date === yesterday ? 'yesterday' : `on ${spokenDate(last.date)}`;
       return { matched: 'distance-absent',
         text: `No distance has come through for ${dist[1] === 'yesterday' ? 'yesterday' : 'today'} yet, sir — the last was ${last.walkingRunningDistanceKm.toFixed(1)} kilometres ${when}.`,
         card: await card({ label: 'Distance', value: last.walkingRunningDistanceKm.toFixed(1), unit: 'km', caption: `LAST READING · ${when.toUpperCase()}`, tone: 'ink' }) };
@@ -357,7 +414,7 @@ export async function tryReflex(question, deps = defaultDeps) {
       // he asked about a specific day and did not train it — that is an
       // answer, and the last session is the useful thing to add
       const last = sessions[0];
-      const when = last.date === yesterday ? 'yesterday' : `on ${last.date}`;
+      const when = last.date === yesterday ? 'yesterday' : `on ${spokenDate(last.date)}`;
       return { matched: 'trained-none',
         text: `Nothing logged for ${trained[1]}, sir — your last session was ${last.routineName || 'a workout'} ${when}.`,
         card: await card({ label: 'Training', value: '—', caption: String(trained[1] || '').toUpperCase(), tone: 'ink' }) };
@@ -365,10 +422,52 @@ export async function tryReflex(question, deps = defaultDeps) {
     const lifts = (s.exercises || []).map((e) => e.name).filter(Boolean);
     const shown = lifts.slice(0, 3);
     const more = lifts.length - shown.length;
-    const when = s.date === today ? 'today' : s.date === yesterday ? 'yesterday' : `on ${s.date}`;
+    const when = s.date === today ? 'today' : s.date === yesterday ? 'yesterday' : `on ${spokenDate(s.date)}`;
     return { matched: 'trained',
       text: `${s.routineName || 'A session'} ${when}, sir — ${shown.join(', ')}${more > 0 ? `, and ${more} more` : ''}.`,
       card: await card({ label: s.routineName || 'Session', value: `${lifts.length}`, unit: lifts.length === 1 ? 'lift' : 'lifts', caption: when.toUpperCase(), tone: 'cy' }) };
+  }
+
+  // ---- a personal record on a named lift ----
+  const prNamed = PR_RE.map((re) => q.match(re)).find(Boolean);
+  if (prNamed) {
+    const named = prNamed[1].trim().replace(/^(?:the|a)\s+/, '');
+    if (named.length >= 3 && !/^(?:it|that|this|lift|weight|ever|day|week)$/.test(named)) {
+      const sessions = await deps.sessions?.().catch(() => null);
+      if (sessions && sessions.length) {
+        const { personalRecords } = await import('./trainingAnalytics.js');
+        const best = personalRecords(sessions);
+        const pool = Object.entries(best).map(([id, b]) => ({ id, b, name: b.name || id }));
+        const found = matchLift(pool, named);
+        if (found.kind === 'which') {
+          const names = found.choices.map((c) => c.name);
+          const last = names.pop();
+          return { matched: 'pr-which',
+            text: `Which ${named}, sir — ${names.join(', ')} or ${last}?`,
+            card: await card({ label: 'Which lift?', value: found.choices.length, caption: named.toUpperCase(), tone: 'gold' }) };
+        }
+        if (found.kind === 'one') {
+          const b = found.lift.b;
+          const top = b.e1rm || null;
+          if (top) {
+            // THE SET HE LOADED LEADS; THE ESTIMATE IS LABELLED. His 12 Sep
+            // report — he read a bare "11.2kg" as a lift he had done — and the
+            // rule that came out of it: never put a derived number in the slot
+            // a measured one belongs in.
+            const heavier = b.weight && b.weight.value > top.weight
+              ? ` Your heaviest single is ${b.weight.value} for ${b.weight.reps}.` : '';
+            return { matched: 'pr',
+              text: `Best ${b.name} is ${top.weight} kilos for ${top.reps}, on ${spokenDate(top.date)}, sir — an estimated ${top.value} kilo one-rep max.${heavier}`,
+              card: await card({ label: `${b.name} — best set`, value: `${top.weight} × ${top.reps}`, caption: `EST. 1RM ${top.value}KG · ${top.date}`, tone: 'gold' }) };
+          }
+          if (b.weight) {
+            return { matched: 'pr',
+              text: `Best ${b.name} is ${b.weight.value} kilos for ${b.weight.reps}, on ${spokenDate(b.weight.date)}, sir.`,
+              card: await card({ label: `${b.name} — best set`, value: `${b.weight.value} × ${b.weight.reps}`, caption: b.weight.date, tone: 'gold' }) };
+          }
+        }
+      }
+    }
   }
 
   // ---- today's calendar: what's on / what's next (warm cache only) ----

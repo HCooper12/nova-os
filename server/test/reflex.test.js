@@ -158,7 +158,7 @@ test('asked about yesterday with nothing for yesterday, it says so and dates the
   const r = await tryReflex('how many steps yesterday', deps);
   assert.equal(r.matched, 'steps-yesterday-absent');
   assert.match(r.text, /for yesterday yet/);
-  assert.match(r.text, /6,121 on 2026-09-12/);
+  assert.match(r.text, /6,121 on 12 September/, 'the date is spoken, not spelled out in digits');
 });
 
 test('but a store with no readings at all still goes to the model — that is a different problem', async () => {
@@ -330,4 +330,59 @@ test('a link is never read out, and a long item is not recited whole', async () 
   const r = await tryReflex('my todos', deps);
   assert.ok(!/https?:/.test(r.text), `a spoken reply must carry no URL: ${r.text}`);
   assert.match(r.text, /a YouTube link/);
+});
+
+// "What's my bench press PR" was the slowest question in the battery — 30.9
+// SECONDS — for a number personalRecords() computes from sessions on disk.
+const PR_SESSIONS = [
+  { date: '2026-07-17', routineName: 'Push', exercises: [
+    { exerciseId: 'bbb', name: 'Barbell Bench Press', sets: [{ weight: 75, reps: 8 }] },
+    { exerciseId: 'dbb', name: 'Dumbbell Bench Press', sets: [{ weight: 30, reps: 10 }] },
+    { exerciseId: 'ibb', name: 'Incline Barbell Bench Press', sets: [{ weight: 60, reps: 8 }] },
+    { exerciseId: 'lat', name: 'Wide-Grip Lat Pulldown', sets: [{ weight: 73, reps: 9 }, { weight: 75, reps: 6 }] },
+  ] },
+];
+
+test('a named lift answers with the SET he lifted, and the estimate is labelled as one', async () => {
+  const deps = { sessions: async () => PR_SESSIONS };
+  const r = await tryReflex('my barbell bench press pr', deps);
+  assert.equal(r.matched, 'pr');
+  assert.match(r.text, /Best Barbell Bench Press is 75 kilos for 8/, 'the weight he loaded leads');
+  assert.match(r.text, /estimated 95 kilo one-rep max/, 'and the derived number says it is derived');
+  assert.match(r.text, /on 17 July/, 'a date is spoken, not spelled out in digits');
+  assert.ok(!/2026-07-17/.test(r.text));
+  // the heaviest single is named when it is not the set behind the estimate
+  const lat = await tryReflex('my lat pulldown pr', deps);
+  assert.match(lat.text, /heaviest single is 75 for 6/);
+});
+
+test('an ambiguous lift is ASKED, instantly, instead of guessed or waited for', async () => {
+  const deps = { sessions: async () => PR_SESSIONS };
+  const r = await tryReflex("what's my bench press pr", deps);
+  assert.equal(r.matched, 'pr-which');
+  assert.match(r.text, /^Which bench press, sir — /);
+  for (const n of ['Barbell Bench Press', 'Dumbbell Bench Press', 'Incline Barbell Bench Press']) {
+    assert.ok(r.text.includes(n), `must offer ${n}`);
+  }
+});
+
+test('the lift matcher: every word must land, and it never picks for him', async () => {
+  const { matchLift } = await import('../lib/reflex.js');
+  const pool = PR_SESSIONS[0].exercises.map((e) => ({ name: e.name, b: e }));
+  assert.equal(matchLift(pool, 'lat pulldown').kind, 'one');
+  assert.equal(matchLift(pool, 'barbell bench press').lift.name, 'Barbell Bench Press', 'naming it in full wins outright');
+  assert.equal(matchLift(pool, 'bench press').kind, 'which');
+  assert.equal(matchLift(pool, 'bench press').choices.length, 3);
+  assert.equal(matchLift(pool, 'deadlift').kind, 'none', 'a lift he has never logged is not a PR');
+  assert.equal(matchLift(pool, '').kind, 'none');
+  // "bench" alone must not reach the press variants only — it reaches all of them
+  assert.equal(matchLift(pool, 'pulldown').lift.name, 'Wide-Grip Lat Pulldown');
+});
+
+test('a spoken date says the year only when it is not this one', async () => {
+  const { spokenDate } = await import('../lib/reflex.js');
+  const now = new Date('2026-09-14T12:00:00');
+  assert.equal(spokenDate('2026-07-17', now), '17 July');
+  assert.equal(spokenDate('2025-12-01', now), '1 December 2025');
+  assert.equal(spokenDate('nonsense', now), 'nonsense');
 });
