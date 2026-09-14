@@ -110,15 +110,11 @@ export function pickKnownMetrics(raw) {
     if (val == null || Number.isNaN(Number(val))) continue;
     let num = Number(val);
     if (num === 0 && IMPOSSIBLE_ZERO.has(key)) continue; // "no samples yet", not a reading
-    if (key === 'hrv') {
-      const ms = normalizeHrv(num);   // seconds → milliseconds; nonsense → absent
-      if (ms == null) continue;
-      out[key] = ms;
-      continue;
-    }
     // the same hours-vs-minutes rescue for the canonical spellings
     if ((key === 'sleepAsleepMinutes' || key === 'sleepInBedMinutes') && num > 0 && num < 20) num = Math.round(num * 60);
-    out[key] = num;
+    const sane = normalizeMetric(key, num);   // unit slips rescued; nonsense → absent
+    if (sane == null) continue;
+    out[key] = sane;
   }
   return out;
 }
@@ -516,23 +512,53 @@ export async function ingestHealthPayload({ date, metrics, manual = false, skipD
 // Applied on the way IN, so it never happens again, and on the way OUT, so the
 // rows already on disk are read correctly without rewriting what his phone
 // actually sent.
-const HRV_MIN_MS = 5;
-const HRV_MAX_MS = 250;
-export function normalizeHrv(value) {
+// WHAT A LIVING PERSON'S READING CAN ACTUALLY BE, and the one unit slip that
+// explains a value outside it. His 13 Sep push carried BOTH faults at once:
+// hrv 0.0878 (87.8 milliseconds sent in seconds) and weightKg 82200 (82.2
+// kilograms sent in grams) — where every other day that week read 70-87 and
+// 82-85. Nova repeated both back to him with a straight face: "HRV is 0
+// milliseconds" and "82200 kilograms".
+//
+// `rescue` is the deliberate part: ONE known unit slip per metric, applied only
+// when the raw value is outside living range and the rescued value is inside
+// it. Everything else outside the range is an instrument fault and becomes
+// ABSENT — a missing reading is honest, a wrong one is not, and these numbers
+// feed the deload signal and his calorie targets.
+const METRIC_RANGE = {
+  hrv: { min: 5, max: 250, rescue: (n) => (n < 1 ? n * 1000 : null) },            // seconds → ms
+  weightKg: { min: 30, max: 300, rescue: (n) => (n > 500 ? n / 1000 : null) },    // grams → kg
+  restingHeartRate: { min: 25, max: 150 },
+  vo2Max: { min: 15, max: 90 },
+  steps: { min: 0, max: 200_000 },
+  walkingRunningDistanceKm: { min: 0, max: 200 },
+  activeEnergyKcal: { min: 0, max: 10_000 },
+};
+
+export function normalizeMetric(key, value) {
+  const range = METRIC_RANGE[key];
   const n = Number(value);
-  if (!Number.isFinite(n) || n <= 0) return null;
-  const ms = n < 1 ? n * 1000 : n;
-  if (ms < HRV_MIN_MS || ms > HRV_MAX_MS) return null;
-  return ms;
+  if (!Number.isFinite(n)) return null;
+  if (!range) return n;                       // no opinion about this one
+  if (n >= range.min && n <= range.max) return n;
+  const rescued = range.rescue ? range.rescue(n) : null;
+  if (rescued != null && rescued >= range.min && rescued <= range.max) return rescued;
+  return null;                                // not a reading a person could have
 }
-const withNormalizedHrv = (day) => ('hrv' in day ? { ...day, hrv: normalizeHrv(day.hrv) } : day);
+
+const withNormalizedMetrics = (day) => {
+  const out = { ...day };
+  for (const key of Object.keys(METRIC_RANGE)) {
+    if (out[key] != null) out[key] = normalizeMetric(key, out[key]);
+  }
+  return out;
+};
 
 export async function loadRecentDays(n = 14) {
   if (!existsSync(HEALTH_DIR)) return [];
   const files = (await readdir(HEALTH_DIR)).filter((f) => /^\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort().reverse();
   const days = [];
   for (const f of files.slice(0, n)) {
-    days.push(withNormalizedHrv(JSON.parse(await readFile(path.join(HEALTH_DIR, f), 'utf8'))));
+    days.push(withNormalizedMetrics(JSON.parse(await readFile(path.join(HEALTH_DIR, f), 'utf8'))));
   }
   return days.reverse(); // oldest-first, easier to read as a trend
 }

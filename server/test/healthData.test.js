@@ -236,18 +236,45 @@ test('a manual correction is authoritative but not automatically "complete"', as
 // Nova answered "HRV is 0 milliseconds", and the recovery judgements are built
 // on that number.
 test('HRV sent in seconds is read as milliseconds, and nonsense becomes absent', async () => {
-  const { normalizeHrv, pickKnownMetrics } = await import('../lib/healthData.js');
-  assert.equal(Math.round(normalizeHrv(0.0878128) * 10) / 10, 87.8, 'his real 13 Sep value');
-  assert.equal(normalizeHrv(0.062), 62);
-  assert.equal(normalizeHrv(86.8), 86.8, 'a normal reading is untouched');
-  assert.equal(normalizeHrv(5), 5, 'the low end of living is kept');
-  // not readings
-  assert.equal(normalizeHrv(0), null);
-  assert.equal(normalizeHrv(-3), null);
-  assert.equal(normalizeHrv(0.0001), null, 'a tenth of a millisecond is an instrument fault');
-  assert.equal(normalizeHrv(900), null, 'and so is 900ms');
-  assert.equal(normalizeHrv('nonsense'), null);
-  // and it happens on the way in, so it cannot land on disk again
+  const { normalizeMetric, pickKnownMetrics } = await import('../lib/healthData.js');
+  const hrv = (v) => normalizeMetric('hrv', v);
+  assert.equal(Math.round(hrv(0.0878128) * 10) / 10, 87.8, 'his real 13 Sep value');
+  assert.equal(hrv(0.062), 62);
+  assert.equal(hrv(86.8), 86.8, 'a normal reading is untouched');
+  assert.equal(hrv(5), 5, 'the low end of living is kept');
+  assert.equal(hrv(0), null);
+  assert.equal(hrv(-3), null);
+  assert.equal(hrv(0.0001), null, 'a tenth of a millisecond is an instrument fault');
+  assert.equal(hrv(900), null, 'and so is 900ms');
+  assert.equal(hrv('nonsense'), null);
   assert.equal(Math.round(pickKnownMetrics({ hrv: 0.0878128 }).hrv * 10) / 10, 87.8);
   assert.ok(!('hrv' in pickKnownMetrics({ hrv: 0.0001 })), 'an impossible value is stored as no reading, not as a number');
+});
+
+
+// The SAME 13 Sep push carried a second unit slip: weightKg 82200, which is
+// 82.2 kilograms sent in grams. Nova answered "82200 kilograms".
+test('weight sent in grams is read as kilograms, and the guard covers every metric', async () => {
+  const { normalizeMetric, pickKnownMetrics } = await import('../lib/healthData.js');
+  assert.equal(normalizeMetric('weightKg', 82200), 82.2, 'his real 13 Sep value');
+  assert.equal(normalizeMetric('weightKg', 82.2), 82.2, 'a normal reading is untouched');
+  assert.equal(normalizeMetric('weightKg', 4), null, 'not a person');
+  assert.equal(normalizeMetric('weightKg', 900), null, 'and neither is this');
+  assert.equal(pickKnownMetrics({ weightKg: 82200 }).weightKg, 82.2);
+
+  // the rest of the table: implausible becomes absent rather than stated
+  assert.equal(normalizeMetric('restingHeartRate', 63), 63);
+  assert.equal(normalizeMetric('restingHeartRate', 4), null);
+  assert.equal(normalizeMetric('vo2Max', 48), 48);
+  assert.equal(normalizeMetric('vo2Max', 400), null);
+  assert.equal(normalizeMetric('steps', 9846), 9846);
+  assert.equal(normalizeMetric('steps', 9_000_000), null);
+  // a metric with no opinion is passed through untouched
+  assert.equal(normalizeMetric('sleepAsleepMinutes', 431), 431);
+});
+
+test('the hours-vs-minutes sleep rescue still runs — the range guard sits after it, not over it', async () => {
+  const { pickKnownMetrics } = await import('../lib/healthData.js');
+  assert.equal(pickKnownMetrics({ sleepAsleepMinutes: 7.2 }).sleepAsleepMinutes, 432, '7.2 hours, not 7 minutes');
+  assert.equal(pickKnownMetrics({ sleepAsleepMinutes: 431 }).sleepAsleepMinutes, 431, 'minutes stay minutes');
 });

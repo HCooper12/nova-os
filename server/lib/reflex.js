@@ -107,6 +107,22 @@ async function card(fields) {
 }
 const hm = (mins) => `${Math.floor(mins / 60)}h ${pad(Math.round(mins % 60))}m`;
 
+// NOTHING HAS ARRIVED — and that is an answer, not a reason to spend a model.
+// Steps, HRV, resting heart rate and sleep exist in exactly one place: the day
+// files his iPhone Shortcut writes. When the window holds none, there is
+// nothing for the model to go looking for, and sending it looking costs him
+// forty seconds and usually an answer to a different question (measured, 14
+// Sep). The wording stays inside what is actually known: what was asked for,
+// that nothing in the window carries it, and — only as a possibility — the one
+// cause that would explain it.
+async function absent(metric, { setupHint = '' } = {}) {
+  return {
+    matched: `${metric.key}-absent`,
+    text: `No ${metric.noun} has come through, sir — nothing in the last few days carries one.${setupHint}`,
+    card: await card({ label: metric.label, value: '—', caption: 'NO READING', tone: 'ink' }),
+  };
+}
+
 // Each reflex: match → load → speak-or-null. Order matters only for
 // overlapping phrasings; keep the list short and each pattern tight.
 // SMALL TALK. "Perfect, thanks Nova" is not a request for work, and Nova
@@ -115,6 +131,22 @@ const hm = (mins) => `${Math.floor(mins / 60)}h ${pad(Math.round(mins % 60))}m`;
 // note: it "feels off… it doesn't need to actually analyse anything".
 // Code answers these instantly, warmly, and briefly — and because it is a
 // reflex, no ack fires and no model is spawned.
+// The direct asks, in the shapes a person actually uses out loud. Every one of
+// these was either already handled or found missing by asking Nova itself.
+const THING = '(?:drafts?|items?|records?|things?|bits?)';
+const WEIGHT_RE = new RegExp([
+  "^(?:what(?:'?s| is| was)?\\s*)?(?:my\\s+)?(?:last|latest|current)?\\s*weight(?:\\s+(?:today|now|last|currently))?$",
+  '^(?:what|how much) (?:do|did|am) i weigh(?:ing)?(?:\\s+(?:last|now|today|currently|at))?$',
+  '^(?:my\\s+)?last weigh[- ]?in$',
+].join('|'));
+const INBOX_RE = new RegExp([
+  "^(?:what(?:'?s| is)?\\s*)?(?:in\\s+)?(?:my\\s+)?inbox$",
+  `^how many ${THING}?\\s*(?:are\\s+)?(?:pending|waiting|in (?:my )?inbox)(?:\\s+(?:for me|in my inbox))?$`,
+  `^how many (?:pending|waiting)(?:\\s+${THING})?$`,
+  "^(?:anything|what'?s?) (?:pending|waiting)(?:\\s+for me)?$",
+  `^(?:what|how many) ${THING} (?:are|do i have) (?:pending|waiting|in (?:my )?inbox)$`,
+].join('|'));
+
 const THANKS = /^(?:ok(?:ay)?|alright|perfect|great|nice|lovely|brilliant|awesome|cheers)?[,\s]*(?:thanks|thank you|ta|cheers|much appreciated|appreciate it)[,\s]*(?:mate|nova|jarvis|sir)?[.!]?$/i;
 const AFFIRM = /^(?:ok(?:ay)?|alright|right|got it|understood|noted|sounds good|perfect|great|nice|good|cool|lovely|brilliant)[.!]?$/i;
 const GREET = /^(?:hi|hey|hello|morning|good morning|afternoon|good afternoon|evening|good evening)[,\s]*(?:nova|jarvis)?[.!]?$/i;
@@ -182,7 +214,7 @@ export async function tryReflex(question, deps = defaultDeps) {
   if (/^(?:what(?:'s| is)?\s*)?(?:my\s+)?hrv(?:\s+today)?$/.test(q)) {
     const days = await deps.recentDays().catch(() => []);
     const d = [...days].reverse().find((x) => x.hrv != null);
-    if (!d) return null;
+    if (!d) return days.length ? absent({ key: 'hrv', noun: 'HRV reading', label: 'HRV' }) : null;
     const dated = d.date === today ? '' : ` — that's from ${d.date === yesterday ? 'yesterday' : d.date}`;
     return { matched: 'hrv', text: `HRV is ${Math.round(d.hrv)} milliseconds${dated}, sir.`,
       card: await card({ label: 'HRV', value: Math.round(d.hrv), unit: 'ms', caption: d.date === today ? 'TODAY' : d.date === yesterday ? 'YESTERDAY' : d.date, tone: 'cy' }) };
@@ -192,7 +224,7 @@ export async function tryReflex(question, deps = defaultDeps) {
   if (/^(?:what(?:'s| is)?\s*)?(?:my\s+)?(?:resting heart ?rate|rhr|resting hr)(?:\s+today)?$/.test(q)) {
     const days = await deps.recentDays().catch(() => []);
     const d = [...days].reverse().find((x) => x.restingHeartRate != null);
-    if (!d) return null;
+    if (!d) return days.length ? absent({ key: 'rhr', noun: 'resting heart rate reading', label: 'Resting heart rate' }) : null;
     const dated = d.date === today ? '' : ` — from ${d.date === yesterday ? 'yesterday' : d.date}`;
     return { matched: 'rhr', text: `Resting heart rate is ${Math.round(d.restingHeartRate)} beats per minute${dated}, sir.`,
       card: await card({ label: 'Resting heart rate', value: Math.round(d.restingHeartRate), unit: 'bpm', caption: d.date === today ? 'TODAY' : d.date === yesterday ? 'YESTERDAY' : d.date, tone: 'cy' }) };
@@ -202,7 +234,13 @@ export async function tryReflex(question, deps = defaultDeps) {
   if (/^(?:what(?:'s| is| was)?\s*)?(?:my\s+)?sleep(?:\s+(?:last night|score|time))?$|^how (?:did|long did|much did|well did) i sleep(?:\s+last night)?$|^how many hours did i sleep(?:\s+last night)?$/.test(q)) {
     const days = await deps.recentDays().catch(() => []);
     const d = [...days].reverse().find((x) => x.sleepAsleepMinutes != null);
-    if (!d) return null;
+    // This one is not an occasional gap: on 14 Sep, ZERO of his 56 day files
+    // had ever carried a sleep figure, because the health Shortcut does not
+    // send Sleep Analysis. So every "how did I sleep" went to the model, every
+    // time, to be told what this can say instantly — and the answer he needs is
+    // not a number, it is which switch to flick.
+    if (!d) return days.length ? absent({ key: 'sleep', noun: 'sleep reading', label: 'Sleep' },
+      { setupHint: ' If your health Shortcut is not sending Sleep Analysis, that would be why.' }) : null;
     // the night's sleep is filed under the morning it ended — today's row is last night
     const when = d.date === today ? 'last night' : d.date === yesterday ? 'the night before last' : `on the night ending ${d.date}`;
     return { matched: 'sleep', text: `You slept ${hm(d.sleepAsleepMinutes)} ${when}, sir.`,
@@ -230,7 +268,13 @@ export async function tryReflex(question, deps = defaultDeps) {
   }
 
   // ---- weight ----
-  if (/^(?:what(?:'s| is| do i weigh)?\s*)?(?:my\s+)?weight(?:\s+today)?$|^how much do i weigh$/.test(q)) {
+  // A PATTERN THAT MATCHES ONE PHRASING IS A REFLEX THAT MOSTLY DOES NOT FIRE.
+  // Measured 14 Sep by asking Nova the way a person asks: "what did I weigh
+  // last" missed this and cost 16.4 SECONDS in the model to read back a number
+  // sitting on disk. The strictness that matters is NEEDS_THOUGHT above — it
+  // already sends anything with why/should/trend/average to the model — so a
+  // direct ask may be phrased however he phrases it.
+  if (WEIGHT_RE.test(q)) {
     const days = await deps.recentDays().catch(() => []);
     const d = [...days].reverse().find((x) => x.weightKg != null);
     if (!d) return null;
@@ -261,7 +305,8 @@ export async function tryReflex(question, deps = defaultDeps) {
   }
 
   // ---- inbox pending ----
-  if (/^(?:what(?:'s| is)?\s*)?(?:in\s+)?(?:my\s+)?inbox$|^how many (?:drafts?|items?|records?)\s*(?:are\s+)?(?:pending|waiting)(?:\s+(?:for me|in my inbox))?$|^(?:anything|what'?s?) (?:pending|waiting)(?:\s+for me)?$/.test(q)) {
+  // same widening: "how many things are in my inbox" cost 4.5s in the model
+  if (INBOX_RE.test(q)) {
     const n = await deps.pendingCount().catch(() => null);
     if (n == null) return null;
     if (n === 0) return { matched: 'inbox', text: 'Your Inbox is clear, sir.', card: await card({ label: 'Inbox', value: 0, caption: 'PENDING', tone: 'good' }) };

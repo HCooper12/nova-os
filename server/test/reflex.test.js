@@ -165,3 +165,63 @@ test('but a store with no readings at all still goes to the model — that is a 
   assert.equal(await tryReflex('what are my steps today', { recentDays: async () => [] }), null);
   assert.equal(await tryReflex('what are my steps today', { recentDays: async () => [{ date: TODAY }] }), null);
 });
+
+
+test('sleep: zero of his 56 day files have ever carried a figure, so this stops going to the model', async () => {
+  const deps = { recentDays: async () => [{ date: YESTERDAY, steps: 9846 }, { date: TODAY, steps: 12 }] };
+  const r = await tryReflex('how did I sleep last night', deps);
+  assert.ok(r, 'answered here, not after five seconds of model');
+  assert.equal(r.matched, 'sleep-absent');
+  assert.match(r.text, /No sleep reading has come through/);
+  assert.match(r.text, /Sleep Analysis/, 'and names the switch that would fix it');
+  assert.equal(r.card.value, '—');
+});
+
+test('hrv and resting heart rate say the same thing, without guessing at a cause', async () => {
+  const deps = { recentDays: async () => [{ date: TODAY, steps: 12 }] };
+  const hrv = await tryReflex('what is my hrv', deps);
+  assert.equal(hrv.matched, 'hrv-absent');
+  assert.match(hrv.text, /No HRV reading has come through/);
+  assert.ok(!/Sleep Analysis/.test(hrv.text), 'the setup hint belongs only to the one it explains');
+  const rhr = await tryReflex('what is my resting heart rate', deps);
+  assert.equal(rhr.matched, 'rhr-absent');
+  assert.match(rhr.text, /resting heart rate reading/);
+});
+
+test('an empty store still goes to the model for all of them — no days is not the same as no reading', async () => {
+  const deps = { recentDays: async () => [] };
+  for (const q of ['how did I sleep last night', 'what is my hrv', 'what is my resting heart rate']) {
+    assert.equal(await tryReflex(q, deps), null, q);
+  }
+});
+
+// A PATTERN THAT MATCHES ONE PHRASING IS A REFLEX THAT MOSTLY DOES NOT FIRE.
+// Found 14 Sep by asking Nova the way a person asks out loud: "what did I weigh
+// last" missed and cost 16.4s of model to read back a number on disk; "how many
+// things are in my inbox" cost 4.5s.
+test('the direct asks fire however he phrases them', async () => {
+  const deps = {
+    recentDays: async () => [{ date: YESTERDAY, weightKg: 82.2, weightMeasuredOn: YESTERDAY }],
+    pendingCount: async () => 4,
+  };
+  for (const q of ['what did I weigh last', 'what do I weigh', 'my weight', "what's my weight",
+    'whats my weight', 'how much do I weigh', 'last weigh in', 'my last weight']) {
+    const r = await tryReflex(q, deps);
+    assert.ok(r && r.matched === 'weight', `weight should fire on: ${q}`);
+    assert.match(r.text, /82\.2/);
+  }
+  for (const q of ['how many things are in my inbox', 'my inbox', 'how many drafts are pending',
+    'anything pending', 'how many items do I have waiting', 'whats in my inbox']) {
+    const r = await tryReflex(q, deps);
+    assert.ok(r && r.matched === 'inbox', `inbox should fire on: ${q}`);
+    assert.match(r.text, /4/);
+  }
+});
+
+test('widening the phrasings did not widen what counts as a direct ask', async () => {
+  const deps = { recentDays: async () => [{ date: YESTERDAY, weightKg: 82.2 }], pendingCount: async () => 4 };
+  for (const q of ['why is my weight up', 'should I weigh less', 'what is my average weight',
+    'is my weight good', 'how does my weight compare to last month', 'why is my inbox so full']) {
+    assert.equal(await tryReflex(q, deps), null, `must still go to the model: ${q}`);
+  }
+});
