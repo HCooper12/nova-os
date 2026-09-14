@@ -13,7 +13,131 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**14 SEP, SECOND HALF (latest) — THE DRIVING REPORT: NINE VOICE FAULTS, EIGHT
+**14 SEP, THIRD PASS (latest) — "AS QUICK AND EFFECTIVE AS CLAUDE AND CHATGPT
+VOICE." His instruction after the driving report: fix Wren, then keep pushing
+on Nova's voice, knowledge, speed and understanding until it reaches that bar.
+
+**DONE CRITERIA**
+- *met* — **Wren** (`../atlas-partner`, commit `eaa9888`, **committed but NOT
+  pushed** — that repo has no CLAUDE.md, so the default "commits stay local"
+  applies). All three faults it shared with Nova: the wall-clock cap, the
+  per-sentence voice fallback, the polled wake gate. Plus the throwing restart.
+  89 tests pass. Its mirror (`lib/turnEnd.mjs` ↔ `public/voice.js`) is now
+  asserted by test, including that the wall-clock-first cap cannot come back.
+- *met* — **he can talk over Nova** (`9e7d3bc`). No phrase, no tap.
+- *met* — the words after the wake word, and the words he barges in with, now
+  START the turn instead of being thrown away (`932469a`).
+- *met* — a seeded turn runs on the HOLD, not the LEAD: **5 seconds off every
+  hands-free turn** (`932469a`).
+- *met* — 300ms before the mic reopens, so Nova's last syllable is not heard as
+  his first word (`932469a`).
+- *met* — barge-ins leave a receipt (`c4b1293`) and a false one switches itself
+  off (`f534583`).
+- *met* — **the cold-start stall is gone: 8,776ms → 101ms** (`56d699f`,
+  `9f294ba`).
+- *met* — TTS bytes cut to 40% (`927d4fd`).
+- *unmet* — **still nothing has run on his iPhone.** That is now true of three
+  sessions' work.
+
+**THE MEASUREMENT THAT MATTERED.** A delegated agent measured the whole spoken
+path over a 7-day log window plus live probes. Ranked, as found:
+1. per-sentence TTS over the tailnet — phone median 3,897ms vs 956ms localhost;
+2. cold context assembly blocking the ask response — 8.6s;
+3. CLI boot + first token — 8.7s cold, 5.9s warm;
+4. reflex misses falling through to the full cold path — 15.8s;
+5. the 150ms poll cadence — real but small, steady even over 100s waits.
+
+(1) and (2) are addressed. (3) is Claude Code's own latency and is not fixable
+from here. (4) and (5) are untouched and are the next levers.
+
+**DECISIONS (choice → reason → what it forecloses)**
+- *Barge-in is filtered by comparing what was heard against WHAT NOVA IS
+  SAYING* → the mic must be open during playback, so it hears the speaker; the
+  only certainty available is Nova's own words. **Forecloses** any barge-in
+  design that does not know what is being spoken.
+- *The filter is biased toward leaving Nova alone* → a missed barge-in costs a
+  tap (today's behaviour); a false one cuts Nova off for nothing.
+  **Forecloses** loosening it to catch more interruptions without evidence
+  from `turns.json` that it is missing real ones.
+- *A false barge-in switches barge-in OFF and says so* → it cannot be verified
+  on the device where the echo is loudest, so it has to fail safe.
+  **Forecloses** shipping it as unconditional behaviour.
+- *The brief is cached APART from the main snapshot and survives the
+  write-invalidation* → his calendar does not move when he logs a meal.
+  **Forecloses** treating all context sections as equally volatile.
+- *A stale brief is served with its age stated, not silently* → NOVA-METHOD:
+  stale data self-labels. **Forecloses** serving any cached snapshot unlabelled.
+- *64k, behind NOVA_TTS_BITRATE* → his ear is the judge, not mine.
+  **Forecloses** arguing about audio quality instead of turning the knob.
+
+**VERIFIED (with locators)**
+- **The whole cold stall was ONE section.** `ask context: 8776ms for 19
+  sections — slowest: the brief 8775ms, his shelf 101ms, learned preferences
+  32ms…`. Every other section ≤101ms. The instrumentation that found it is now
+  permanent (`gatherContext` times each section; `askContext` logs the slowest
+  six to `~/Library/Logs/nova-os-server.log`).
+- After the fix, with the main 90s cache deliberately expired so all nineteen
+  really rebuilt: `ask context: 101ms`, and the brief is no longer in the list.
+- After a real reload: `brief cache warmed at boot in 10294ms`, and the FIRST
+  ask after that restart returned in **211ms** (was 8.4s).
+- TTS bytes per second of audio, live endpoint: **20,006 before, 8,003 after**
+  (40%). Fidelity 23 dB SNR, measured on a pessimistic transcode of the
+  already-lossy 160k. The old '192k' was never honoured — 24 kHz mono is
+  MPEG-2 Layer III, capped at 160k.
+- Barge-in, driven live in a browser through `window.__novaApp`: the echo
+  sentence scored "100% of it is what Nova is saying" and did not fire; his
+  sentence scored "4 words Nova never said" and did; the turn that opened
+  collected the seed `"no wait the site visit moved"`.
+- Settings row "Talk over Nova" looked at under device emulation at 375×812 —
+  wraps, chip holds, no horizontal scroll (`scrollWidth === 375`).
+- Gates: `npm run lint` 0 errors; `npm run build` **exit 0**; `cd server &&
+  npm test` **1491 pass, 0 fail**; Wren `npm test` 89 pass; `HEAD ==
+  origin/main`; service reloaded, `/api/health` 200; no `vite` left running.
+
+**ASSUMED**
+- That barge-in survives iPhone echo. This is the big one. If it does not, the
+  valve turns it off after two false cut-offs and `turns.json` says why.
+- That 64k sounds the same to him. Measured, but his ear decides.
+- That a brief up to 30 minutes old, labelled, is acceptable in a reply. It is
+  the only stale thing now served on the cold path.
+- That the 300ms handover is enough for the speaker to fall quiet on iOS.
+
+**OPEN QUESTIONS / BLOCKERS**
+- **Wren is committed but not pushed.** HIS CALL.
+- **A receipt log for Wren?** Not ported; it is an endpoint plus a store.
+- **"Hey Nova" is OFF on his phone.** Barge-in does not need it (with the wake
+  word off the mic opens only while Nova speaks), but starting a conversation
+  hands-free does.
+- **Reflex misses (15.8s) and the 150ms poll** are the two measured levers left.
+- Two mornings (8 and 12 Sep) still have no health reading — his Shortcut.
+
+**NEXT ACTION.** His next spoken conversation in the car. **Expected if it
+worked:** a new conversation starts answering in about a fifth of a second
+instead of nine; talking over Nova stops it; "Hey Nova, what's the weather"
+answers without being said twice. Then read
+`server/data/voice/turns.json` — turn endings AND barge-ins are both in it, and
+a barge-in followed by a turn that heard nothing is a false one.
+
+**DO NOT**
+- **Do not optimise a context section without timing it first.** Nineteen
+  sections, eighteen of them ≤101ms, one of them 8,775ms. Every theory about
+  this path before the measurement was wrong, including mine.
+- **Do not drop the brief cache on a vault write.** It survives deliberately;
+  a logged meal does not move a meeting.
+- **Do not raise the TTS bitrate to "fix" audio without listening first.**
+  24 kHz mono caps at 160k, so anything above that is silently ignored — the
+  old 192k was a no-op that cost nothing and proved nothing.
+- **Do not loosen the barge-in filter from the armchair.** `turns.json` is the
+  evidence: missed barge-ins do not appear in it, false ones do (a barge-in
+  followed by a turn that heard nothing).
+- **Do not treat `stoppedSpeaking: 2` in a barge-in trace as a bug** — the path
+  legitimately stops speech twice (onWakeWord, then the turn opening).
+- Everything in the previous two blocks' DO NOT lists still stands, especially:
+  gate a build on `$?`, never on a grep.
+
+---
+
+**14 SEP, SECOND PASS — THE DRIVING REPORT: NINE VOICE FAULTS, EIGHT
 FIXED, ONE OF THEM MINE.** He tried to hold a conversation with Nova in the car
 and it failed in every way a conversation can: cut him off without a pause,
 rambled without context, advised on the wrong half of a story, alternated
@@ -1364,6 +1488,20 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+### 14 September 2026 (third pass) — Wren, and the hunt for the seconds
+Ported the three shared voice faults into Wren (committed, not pushed). Then on
+Nova: barge-in — he can talk over it, filtered by comparing what the open
+microphone hears against what Nova is actually saying, biased toward letting
+Nova finish, with a valve that switches it off after two false cut-offs. The
+words after the wake word and the words he interrupts with now start the turn,
+and a turn that already has words runs on the hold instead of the lead, which
+is five seconds off every hands-free turn. Then measured the whole spoken path
+and found the cold-start stall was ONE of nineteen context sections: the brief,
+8,775ms of an 8,776ms build, one CalDAV round trip. Cached apart, warmed at
+boot, self-labelling its age: 101ms, and the first ask after a restart is 211ms
+where it was 8.4s. TTS bytes cut to 40% — the old 192k was never even honoured.
+Nothing yet run on his phone.
 
 ### 14 September 2026 (second half) — the driving report
 He tried to converse with Nova in the car and it failed in every way a
