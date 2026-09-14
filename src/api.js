@@ -353,7 +353,11 @@ export const api = {
   moneyExportUrl: (conn, fy) => `${conn.baseUrl.replace(/\/$/, '')}/api/money/export/${fy}`,
   // the specialists' session ids ride along so the front door can hand a
   // question to the Coach or the Leader IN the conversation (Verbs, phase 2)
-  ask: (conn, question, sessionId, agents = {}) => post(conn, '/api/ask', { question, sessionId, ...agents }),
+  // 45s, not the 20s default: a NEW conversation assembles ~17 sections of
+  // live context on the server with a 25s ceiling (askContext.js), so the
+  // default aborted the request before the server had given up — a cold first
+  // turn in the car failed on the client while the Mac was still working.
+  ask: (conn, question, sessionId, agents = {}) => post(conn, '/api/ask', { question, sessionId, ...agents }, { timeoutMs: 45_000 }),
   // photos/videos with a question — stored first, named by id on the ask
   attach: (conn, files) => post(conn, '/api/attachments', { files }, { timeoutMs: 180_000 }),
   // fired the moment the mic opens, before a question exists — boots the
