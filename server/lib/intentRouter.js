@@ -134,6 +134,35 @@ export function routeIntent(text) {
   return { lane: 'ask', urls: [], prose: raw, why: 'a question for Nova, answered from your vault' };
 }
 
+// A FOLLOW-UP STAYS WITH WHOEVER JUST SPOKE. His screenshots, 14 Sep: at
+// 01:04 the Leader answered him about a situation at work; at 01:17 he said
+// "you're making some decent points but it isn't exactly all relevant" — a
+// rebuttal, addressed to the Leader, with no leadership keyword in it. The
+// router read it fresh and sent it to Nova, who had never seen the exchange:
+// "I'm not following what you're referring to, sir." He had not changed the
+// subject; the router had. Keyword filters are not conversation state
+// ([[nova-agent-relevance]]), so this rule carries the one bit of state that
+// matters: who spoke last, and how long ago.
+//
+// Only the plain 'ask' fall-through is sticky. A lane the router is sure
+// about (a link, a training question, a book) still wins, and so does naming
+// Nova — "Nova, what's the weather" mid-Leader-chat is a deliberate turn to
+// her. Twenty minutes: his 01:04 → 01:17 was thirteen, with driving in it.
+// A wrong stick costs him an answer from the Leader instead of Nova; a wrong
+// fall-through costs him the whole thread.
+export const FOLLOW_UP_WINDOW_MS = 20 * 60_000;
+const NAMES_NOVA_RE = /^\s*(?:hey|ok(?:ay)?|hi|right|so|and)?[,\s]*nova\b/i;
+export function followUpLane(routed, raw, { lastAgent, lastAgentAt } = {}, now = Date.now()) {
+  const plain = { lane: routed, sticky: false };
+  if (routed !== 'ask') return plain;
+  if (lastAgent !== 'coach' && lastAgent !== 'leader') return plain;
+  const at = Number(lastAgentAt);
+  if (!Number.isFinite(at) || now - at > FOLLOW_UP_WINDOW_MS) return plain;
+  if (NAMES_NOVA_RE.test(String(raw || ''))) return plain;
+  const who = lastAgent === 'coach' ? 'the Coach' : 'the Leader';
+  return { lane: lastAgent, sticky: true, why: `a follow-up ${Math.max(0, Math.round((now - at) / 1000))}s after ${who} spoke — it stays with them` };
+}
+
 export const LANE_LABEL = {
   play: 'PLAY', paper: 'STUDY → PROGRAM',
   watch: 'WATCH', weave: 'WEAVE INTO VAULT', study: 'STUDY', research: 'RESEARCH',

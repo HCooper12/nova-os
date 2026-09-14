@@ -94,8 +94,11 @@ export function voiceRouter(vaultPath) {
       // deterministic router the palette uses decides, and the specialist's
       // OWN turn (its context, its proposal vocabulary, its session) answers
       // in this transcript. No screen change; the reply says who spoke.
-      const { routeIntent } = await import('../lib/intentRouter.js');
-      const lane = routeIntent(raw).lane;
+      const { routeIntent, followUpLane } = await import('../lib/intentRouter.js');
+      // who spoke last rides with the ask; a plain follow-up stays with them
+      const routed = followUpLane(routeIntent(raw).lane, raw, { lastAgent: req.body?.lastAgent, lastAgentAt: req.body?.lastAgentAt });
+      const lane = routed.lane;
+      if (routed.sticky) console.log(`ask → ${lane} (sticky: ${routed.why})`);
       if (attachmentPreamble) question = `${attachmentPreamble}\n\n${question}`;
       if (lane === 'coach') {
         const { startCoachTurn } = await import('../lib/coachTurn.js');

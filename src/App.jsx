@@ -6820,7 +6820,12 @@ export default class App extends Component {
     // verbs and the lane against it, while the model still gets the
     // situation block. Without it, anything on screen silently disabled all
     // three (live audit, 7 Sep).
-    this.flushAttachments(conn).then((attachmentId) => api.ask(conn, sent, this.state.voiceSessionId || null, { coachSessionId: this.state.coachSessionId || null, leaderSessionId: this.state.leaderSessionId || null, attachmentId, raw: question })).then((resp) => {
+    // WHO SPOKE LAST rides with the ask, so a plain follow-up stays with the
+    // agent he is actually answering (intentRouter.followUpLane). The Leader
+    // answered him at 01:04; his 01:17 rebuttal went to Nova, who had never
+    // seen it. Streaming placeholders don't count — only a reply that landed.
+    const lastSpeaker = [...(this.state.voiceChat || [])].reverse().find((m) => m.who && m.who !== 'you' && m.who !== 'system' && !m.streaming) || null;
+    this.flushAttachments(conn).then((attachmentId) => api.ask(conn, sent, this.state.voiceSessionId || null, { coachSessionId: this.state.coachSessionId || null, leaderSessionId: this.state.leaderSessionId || null, attachmentId, raw: question, lastAgent: lastSpeaker?.who || null, lastAgentAt: lastSpeaker?.at || null })).then((resp) => {
       if (resp.text) {
         // Reflex answer — code replied from the live record, no job to poll.
         // Voice leads here too: the text lands when the audio starts. The

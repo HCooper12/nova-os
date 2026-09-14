@@ -53,3 +53,43 @@ test('every decision carries a human-readable why, and empty routes nowhere', ()
   }
   assert.equal(routeIntent('   ').lane, null);
 });
+
+
+// ---- a follow-up stays with whoever just spoke (his 14 Sep screenshots) ----
+import { followUpLane, FOLLOW_UP_WINDOW_MS } from '../lib/intentRouter.js';
+
+test('a plain follow-up thirteen minutes after the Leader spoke stays with the Leader', () => {
+  const now = Date.parse('2026-09-14T03:17:00Z');
+  const at = Date.parse('2026-09-14T03:04:00Z'); // 01:04 → 01:17 AEST, his exact gap
+  const r = followUpLane('ask', "Yeah okay you're making some decent points but it isn't exactly all relevant", { lastAgent: 'leader', lastAgentAt: at }, now);
+  assert.equal(r.lane, 'leader');
+  assert.equal(r.sticky, true);
+  assert.match(r.why, /780s after the Leader spoke/);
+});
+
+test('the window closes: the same follow-up half an hour later is a fresh question for Nova', () => {
+  const now = Date.now();
+  const r = followUpLane('ask', 'but what about the other thing', { lastAgent: 'leader', lastAgentAt: now - FOLLOW_UP_WINDOW_MS - 1 }, now);
+  assert.deepEqual(r, { lane: 'ask', sticky: false });
+});
+
+test('a lane the router is sure about still wins over the last speaker', () => {
+  const now = Date.now();
+  const r = followUpLane('coach', 'how many sets did I do on bench', { lastAgent: 'leader', lastAgentAt: now - 1000 }, now);
+  assert.deepEqual(r, { lane: 'coach', sticky: false });
+});
+
+test('naming Nova is a deliberate turn to her, mid-conversation with the Leader', () => {
+  const now = Date.now();
+  for (const q of ['Nova, what is the weather', 'hey nova what time is it', 'Okay Nova, different question']) {
+    assert.deepEqual(followUpLane('ask', q, { lastAgent: 'leader', lastAgentAt: now - 1000 }, now), { lane: 'ask', sticky: false }, q);
+  }
+});
+
+test('only the specialists are sticky; Nova herself, and garbage, are not', () => {
+  const now = Date.now();
+  assert.deepEqual(followUpLane('ask', 'and then?', { lastAgent: 'nova', lastAgentAt: now - 1000 }, now), { lane: 'ask', sticky: false });
+  assert.deepEqual(followUpLane('ask', 'and then?', { lastAgent: 'coach', lastAgentAt: 'yesterday' }, now), { lane: 'ask', sticky: false });
+  assert.deepEqual(followUpLane('ask', 'and then?', {}, now), { lane: 'ask', sticky: false });
+  assert.equal(followUpLane('ask', 'and then?', { lastAgent: 'coach', lastAgentAt: now - 30_000 }, now).lane, 'coach');
+});
