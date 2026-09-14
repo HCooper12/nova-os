@@ -174,11 +174,30 @@ export async function localReady() {
   return false;
 }
 
+// 192k WAS THE BIGGEST THING ON THE WIRE, AND IT WAS NEVER EVEN HONOURED.
+// Kokoro renders 24 kHz mono, which puts the encoder in MPEG-2 Layer III —
+// capped at 160 kbps — so the request quietly became 160k. For a single
+// channel of speech that is a near-CD music bitrate: a 7.7-second sentence
+// shipped 153 KB, and over Tailscale on cellular the phone's median /api/tts
+// was 3.9s against 0.96s from localhost. The gap is bytes, not synthesis:
+// identical compute, four times the wait. Measured on a real sentence, 64k is
+// 40% of the bytes (62 KB), and 23 dB SNR even when transcoded from the
+// already-lossy 160k — encoding straight from the WAV, as this does, is
+// better than that. Mono speech at 64k is broadcast-normal.
+//
+// NOVA_TTS_BITRATE is the knob: his ear is the judge, not mine, and turning it
+// back up is one env line and a reload.
+const BITRATE = () => process.env.NOVA_TTS_BITRATE || '64k';
+export function mp3Args(fx) {
+  const args = ['-loglevel', 'error', '-i', 'pipe:0'];
+  if (fx) args.push('-af', fx);
+  args.push('-f', 'mp3', '-b:a', BITRATE(), 'pipe:1');
+  return args;
+}
+
 function wavToMp3(wav, fx) {
   return new Promise((resolve, reject) => {
-    const args = ['-loglevel', 'error', '-i', 'pipe:0'];
-    if (fx) args.push('-af', fx);
-    args.push('-f', 'mp3', '-b:a', '192k', 'pipe:1');
+    const args = mp3Args(fx);
     const ff = spawn(FFMPEG, args);
     const out = [];
     const err = [];

@@ -23,7 +23,7 @@ import nodePath from 'node:path';
 
 process.env.NOVA_VOICE_DIR = mkdtempSync(nodePath.join(os.tmpdir(), 'nova-voice-'));
 
-const { rewriteForSpeech, localVoices, synthesizeLocal, healthy } = await import('../lib/ttsLocal.js');
+const { rewriteForSpeech, localVoices, synthesizeLocal, healthy, mp3Args } = await import('../lib/ttsLocal.js');
 const { ttsEngine, ttsConfigured, listVoices, ttsReady } = await import('../lib/tts.js');
 
 test('spoken rewrites: compounds hyphenated for the engine, display text untouched by anyone', () => {
@@ -183,5 +183,23 @@ test('a sentence is refused immediately while the engine boots — a reply never
     assert.ok(Date.now() - started < 5000, `refused in ${Date.now() - started}ms, not after a boot`);
   } finally {
     if (hadPort !== undefined) process.env.NOVA_TTS_PORT = hadPort; else delete process.env.NOVA_TTS_PORT;
+  }
+});
+
+
+test('the wire carries speech, not a music bitrate — and his ear gets a knob', () => {
+  // 24 kHz mono puts the encoder in MPEG-2 Layer III, capped at 160k, so the
+  // old '192k' silently became 160k: a near-CD rate for one channel of voice,
+  // and the largest thing on the wire for a phone on cellular.
+  assert.deepEqual(mp3Args(null), ['-loglevel', 'error', '-i', 'pipe:0', '-f', 'mp3', '-b:a', '64k', 'pipe:1']);
+  assert.deepEqual(mp3Args('afade=t=in:d=0.008'),
+    ['-loglevel', 'error', '-i', 'pipe:0', '-af', 'afade=t=in:d=0.008', '-f', 'mp3', '-b:a', '64k', 'pipe:1'],
+    'the treatment still rides in front of the encoder');
+  const had = process.env.NOVA_TTS_BITRATE;
+  try {
+    process.env.NOVA_TTS_BITRATE = '128k';
+    assert.equal(mp3Args(null).at(-2), '128k', 'turning it back up is one env line');
+  } finally {
+    if (had !== undefined) process.env.NOVA_TTS_BITRATE = had; else delete process.env.NOVA_TTS_BITRATE;
   }
 });
