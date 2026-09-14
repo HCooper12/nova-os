@@ -369,6 +369,10 @@ export default class App extends Component {
     liveForge: null, forgeInput: '', forgeBusy: false, browserSignInBusy: false, liveIngestJobs: [],
     leaderSessionId: typeof localStorage === 'undefined' ? null : (localStorage.getItem('novaos.leaderSession') || null),
     voiceSpeak: typeof localStorage === 'undefined' ? true : localStorage.getItem('novaos.voiceSpeak') !== '0',
+    // Talking over Nova. On by default: the whole point of a spoken assistant
+    // is that it can be interrupted, and the filter errs toward leaving Nova
+    // alone (bargeIn.js). Off is one tap away in Settings.
+    bargeInOn: typeof localStorage === 'undefined' ? true : localStorage.getItem('novaos.bargeIn') !== '0',
     // opt-in (see setWakeWord) and remembered per device
     wakeWordOn: typeof localStorage === 'undefined' ? false : localStorage.getItem('novaos.wakeWord') === '1',
     // how long a pause has to be before it ends his turn — his choice, because
@@ -6994,6 +6998,31 @@ export default class App extends Component {
   // ---- speech queue: one counter for whole-text AND incremental chunks,
   // so "finished speaking" is a single truthful event the conversation loop
   // can hang off (auto-reopen the mic when Nova stops talking).
+  // WHAT THE ROOM HAS HEARD NOVA SAY, this reply. The open microphone is
+  // picking this up through the speaker, so it is the yardstick barge-in
+  // measures against. A rolling window rather than just the current sentence:
+  // an interim transcript accumulates across sentence boundaries, and the
+  // words of the sentence before are still echo, not him.
+  noteSpokenAloud(said) {
+    if (!said) return;
+    const next = `${this.ttsSaidWindow || ''} ${said}`.trim();
+    this.ttsSaidWindow = next.length > 900 ? next.slice(next.length - 900) : next;
+  }
+  setBargeIn(on) {
+    localStorage.setItem('novaos.bargeIn', on ? '1' : '0');
+    this.setState({ bargeInOn: on });
+  }
+  // HE TALKED OVER NOVA. Same landing as the wake word — stop, and give him
+  // the floor — but with no phrase to say and no button to find, which is the
+  // difference between a conversation and a recital. The words that triggered
+  // it are not carried into the turn: the microphone reopens on his next
+  // breath, and he is mid-sentence anyway. `why` is for the console, so a
+  // false cut-off can be diagnosed rather than guessed at.
+  onBargeIn(heard, why) {
+    if (!this.state.bargeInOn) return;
+    console.log(`[barge-in] ${why} — heard ${JSON.stringify(String(heard).slice(0, 80))}`);
+    this.onWakeWord();
+  }
   beginSpeech() {
     this.speechActive = (this.speechActive || 0) + 1;
     if (!this.state.voiceSpeaking) this.setState({ voiceSpeaking: true });
@@ -7150,6 +7179,7 @@ export default class App extends Component {
     this.ttsQueue = [];
     this.ttsPlaying = false; this.ttsNowSaying = null;
     this.ttsVoiceLock = null; // the next reply chooses its voice afresh
+    this.ttsSaidWindow = '';  // nothing has been spoken into the room yet
   }
   // onPlay fires when this sentence's AUDIO starts (or when it provably
   // can't) — it is how text is revealed in sync with speech instead of
@@ -7225,6 +7255,7 @@ export default class App extends Component {
       if (this.state.voiceSpeak && head.said) {
         this.ttsPlaying = true;          // the queue HOLDS: order survives
         this.ttsNowSaying = head.said;   // still owed to him if he leaves mid-sentence
+        this.noteSpokenAloud(head.said);
         this.speakFallback(head.said, () => {
           if (gen !== (this.ttsGen || 0)) return; // a stop flushed this generation
           this.ttsPlaying = false; this.ttsNowSaying = null;
@@ -7239,6 +7270,7 @@ export default class App extends Component {
     // the sentence in the air — half of what an interrupted brief still owes
     // him (the queue behind it is the other half)
     this.ttsNowSaying = head.said || null;
+    this.noteSpokenAloud(head.said);
     resumeAudioGraph(); // a suspended graph plays SILENTLY — resume before every chunk
     // ...but resume() only lands near a gesture, and a reply arrives from the
     // network. If the graph is still not running, the decoded buffer CANNOT
@@ -7899,8 +7931,9 @@ export default class App extends Component {
 
         {v.presence && <VoicePresence v={v} />}
         {/* "Hey Nova" — headless, opt-in, and never while a mic is already in use */}
-        {v.wakeWord?.on && (
-          <WakeWord enabled blocked={v.wakeWord.blocked} onWake={v.wakeWord.wake} onError={v.wakeWord.error} />
+        {(v.wakeWord?.on || v.bargeIn?.on) && (
+          <WakeWord enabled blocked={v.wakeWord.blocked} onWake={v.wakeWord.wake} onError={v.wakeWord.error}
+            bargeIn={v.bargeIn?.on} speaking={v.bargeIn?.speaking} saying={v.bargeIn?.saying} onBargeIn={v.bargeIn?.fire} />
         )}
         {this.state.prCelebration && (
           <div onClick={() => this.setState({ prCelebration: null })}

@@ -155,6 +155,8 @@ export function valsMisc(app, ctx) {
     wakeWordLabel: wakeWord,
     // "Hey Nova" — the Settings toggle and the Voice screen's status row
     wakeWordOn: !!st.wakeWordOn,
+    bargeInOn: !!st.bargeInOn,
+    setBargeIn: (on) => app.setBargeIn(on),
     wakeWordSupported: speechRecognitionSupported(),
     setWakeWord: (on) => app.setWakeWord(on),
     // How long a pause is allowed to last before it counts as the end of his

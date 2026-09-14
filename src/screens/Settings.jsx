@@ -303,6 +303,22 @@ export function Settings({ v }) {
             )}
           </div>
 
+          {/* His 14-Sep report, driving: "I had to keep trying to cut it off
+              so I could explain more". Tapping is the wrong gesture in a car. */}
+          <div style={css("display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:12px 0;border-top:1px solid color-mix(in srgb, var(--nv-ink) 8%, transparent)")}>
+            <div>
+              <div style={css("font:600 12.5px var(--nv-font-ui)")}>Talk over Nova</div>
+              <div style={css("margin-top:2px;max-width:340px;font-size:11px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>
+                {v.wakeWordSupported
+                  ? 'Start talking while Nova is speaking and it stops and listens — no phrase, no tap. The microphone is open only while Nova is actually talking, and anything it hears that Nova is saying is ignored as its own echo, so it errs on the side of letting Nova finish.'
+                  : 'This browser has no speech recognition, so this can’t run here.'}
+              </div>
+            </div>
+            {v.wakeWordSupported && (
+              <Chip tone={v.bargeInOn ? 'accent' : 'quiet'} active={v.bargeInOn} onClick={() => v.setBargeIn(!v.bargeInOn)} style={{ flex: 'none' }}>{v.bargeInOn ? 'On' : 'Off'}</Chip>
+            )}
+          </div>
+
           {/* His 9-Sep report: "my speech is cut off and I feel like I am
               rushing to keep speaking before it thinks I have stopped
               talking." The browser's endpointer has no knob, so Nova ends

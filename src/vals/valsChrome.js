@@ -412,7 +412,12 @@ export function valsChrome(app, ctx) {
       // recital. (Nova's replies never contain the phrase, so it cannot
       // wake itself.) The Voice screen reports its own mic up through
       // voiceScreenMic, so the wake word now works there too.
-      blocked: !!(st.liveMicOpen || st.voiceScreenMic || st.screen === 'ambient'),
+      // ...and, when the wake word itself is OFF, blocked unless Nova is
+      // actually speaking. Barge-in needs the microphone for exactly as long
+      // as there is something to interrupt, and not one second longer —
+      // nothing in Nova holds a mic open without a reason.
+      blocked: !!(st.liveMicOpen || st.voiceScreenMic || st.screen === 'ambient')
+        || (!st.wakeWordOn && !st.voiceSpeaking),
       wake: () => app.onWakeWord(),
       error: (kind) => {
         app.setWakeWord(false);
@@ -420,6 +425,15 @@ export function valsChrome(app, ctx) {
           ? 'Microphone blocked — "Hey Nova" is off. Allow the mic, then switch it back on in Settings.'
           : 'Wake word stopped — turn it back on in Settings.');
       },
+    },
+    // TALKING OVER NOVA. `saying` is everything spoken so far in this reply,
+    // which is what the open microphone can have heard — the comparison that
+    // separates his voice from the speaker's.
+    bargeIn: {
+      on: !!st.bargeInOn,
+      speaking: !!st.voiceSpeaking,
+      saying: app.ttsSaidWindow || '',
+      fire: (heard, why) => app.onBargeIn(heard, why),
     },
     novaListening: !!st.liveMicOpen,
     // the glass, for surfaces outside the Voice screen

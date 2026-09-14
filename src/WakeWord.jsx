@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { micStarted, micStopped } from './audioSession.js';
+import { bargeInDecision } from './bargeIn.js';
 
 // "HEY NOVA" — the wake word. A headless listener that runs wherever he is
 // in Nova and starts the conversation when it hears its name, so talking
@@ -8,9 +9,16 @@ import { micStarted, micStopped } from './audioSession.js';
 // Rules it lives by:
 //  - OPT-IN, always. It holds the microphone open, and nothing in Nova turns
 //    a microphone on by itself. The Settings toggle is the only way in.
-//  - It NEVER runs at the same time as dictation or while Nova is speaking:
-//    one recogniser owns the mic at a time, and a listener that hears Nova's
-//    own voice would wake on its own replies.
+//  - It never runs at the same time as DICTATION: one recogniser owns the mic
+//    at a time. It DOES run while Nova is speaking, which is what makes
+//    interrupting possible — and is why everything it hears then has to be
+//    checked against what Nova is saying (bargeIn.js). This comment used to
+//    claim the opposite; the vals layer has been the truth since barge-in by
+//    name was added, and this now says so.
+//  - BARGE-IN (14 Sep 2026). His report, driving: "I had to keep trying to cut
+//    it off so I could explain more." Saying the name already worked; now any
+//    sentence Nova is demonstrably not saying cuts it off too, so talking over
+//    Nova needs no phrase and no tap.
 //  - It restarts itself, because the browser ends a recognition session on
 //    its own schedule (silence, tab focus, engine hiccup). A wake word that
 //    stops listening after 60s is worse than none, since he'd never know.
@@ -19,9 +27,19 @@ import { micStarted, micStopped } from './audioSession.js';
 const PHRASE = /\bhey,?\s*nova\b/i;
 const RESTART_MS = 400;
 
-export function WakeWord({ enabled, blocked, onWake, onError }) {
+export function WakeWord({ enabled, blocked, onWake, onError, speaking, saying, bargeIn, onBargeIn }) {
   const wakeRef = useRef(onWake);
   wakeRef.current = onWake;
+  // all of these change on every sentence; refs, so the recogniser is never
+  // torn down and rebuilt mid-reply
+  const bargeRef = useRef(onBargeIn);
+  bargeRef.current = onBargeIn;
+  const speakingRef = useRef(speaking);
+  speakingRef.current = speaking;
+  const sayingRef = useRef(saying);
+  sayingRef.current = saying;
+  const bargeOnRef = useRef(bargeIn);
+  bargeOnRef.current = bargeIn;
   const errRef = useRef(onError);
   errRef.current = onError;
   // `blocked` changes constantly (speaking, listening, thinking); a ref keeps
@@ -46,10 +64,21 @@ export function WakeWord({ enabled, blocked, onWake, onError }) {
       rec.lang = 'en-AU';
       rec.onresult = (e) => {
         for (let i = e.resultIndex; i < e.results.length; i++) {
-          if (!PHRASE.test(e.results[i][0].transcript || '')) continue;
-          // hand the mic over cleanly — dictation opens on the same beat
+          const heard = e.results[i][0].transcript || '';
+          if (PHRASE.test(heard)) {
+            // hand the mic over cleanly — dictation opens on the same beat
+            try { rec.stop(); } catch { /* already stopping */ }
+            wakeRef.current?.();
+            return;
+          }
+          // Anything else only matters while Nova is talking: that is the one
+          // moment the mic is open and he has no other way in. The filter is
+          // biased toward "that was Nova" — see bargeIn.js.
+          if (!bargeOnRef.current || !speakingRef.current) continue;
+          const d = bargeInDecision(heard, sayingRef.current);
+          if (!d.barge) continue;
           try { rec.stop(); } catch { /* already stopping */ }
-          wakeRef.current?.();
+          bargeRef.current?.(heard, d.why);
           return;
         }
       };
