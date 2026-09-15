@@ -102,15 +102,45 @@ export function hapticCapability() {
   return { path: 'none', tiers: false, label: 'This device has no haptics Nova can reach.' };
 }
 
+// WHAT TO TELL ME IF IT STILL DOES NOTHING. A second "I feel nothing" has to
+// arrive with evidence attached, or the next fix is another guess.
+export function hapticDiagnostic() {
+  const nav = typeof navigator !== 'undefined' ? navigator : {};
+  const ua = String(nav.userAgent || '');
+  const m = ua.match(/OS (\d+)[_.](\d+)/);
+  const switches = typeof document !== 'undefined'
+    ? document.querySelectorAll('input[type="checkbox"][switch]').length
+    : 0;
+  return {
+    ios: m ? `${m[1]}.${m[2]}` : 'unknown',
+    browser: /CriOS/.test(ua) ? 'Chrome' : /FxiOS/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : 'other',
+    standalone: !!(nav.standalone || (typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches)),
+    overlayPath: needsSwitchHaptic(),
+    switchesOnScreen: switches,
+    vibrate: typeof nav.vibrate === 'function',
+  };
+}
+
 // The props for the invisible control. Spread onto an <input> that sits inside
 // a POSITIONED tappable. The `switch` attribute goes on by ref because React
 // does not forward it.
 export const switchHapticRef = (el) => { if (el) el.setAttribute('switch', ''); };
+// NEVER `appearance: none`. That was the first attempt and it is why he felt
+// nothing: stripping the appearance stops Safari rendering the element as a
+// SWITCH, and the switch rendering is what carries the Taptic behaviour. The
+// control has to stay a real switch and merely be invisible — opacity and a
+// clip, nothing that changes what the control IS.
+//
+// `touchAction: manipulation` matters too: it hands the tap to the browser's
+// native handling rather than letting a gesture layer intercept it.
 export const SWITCH_HAPTIC_STYLE = {
-  position: 'absolute', inset: 0, width: '100%', height: '100%',
-  margin: 0, padding: 0, border: 0, opacity: 0,
-  appearance: 'none', WebkitAppearance: 'none',
-  background: 'transparent', pointerEvents: 'auto', cursor: 'inherit',
+  position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+  margin: 0,
+  opacity: 0,
+  clipPath: 'inset(0 round 999px)',
+  WebkitTapHighlightColor: 'transparent',
+  touchAction: 'manipulation',
+  cursor: 'pointer',
 };
 
 export const HAPTIC_WORDS = Object.keys(PATTERNS);

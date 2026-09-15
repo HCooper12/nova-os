@@ -2,7 +2,7 @@ import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { TabOrderEditor } from '../TabOrderEditor.jsx';
 import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle, ScreenHead } from '../Controls.jsx';
-import { hapticCapability, HAPTIC_WORDS, haptic } from '../haptics.js';
+import { hapticCapability, HAPTIC_WORDS, haptic, hapticDiagnostic } from '../haptics.js';
 
 // the material pass (6 Sep 2026): labels through Controls.jsx; a filled
 // button is sentence-case in the UI face under the Apple styles
@@ -316,6 +316,20 @@ export function Settings({ v }) {
                       >{w}</Interactive>
                     ))}
                   </div>
+                  {/* IF IT STILL DOES NOTHING. A second "I feel nothing" has to
+                      arrive with evidence, or the next fix is another guess.
+                      `switches` is the decisive one: 0 means the overlay is not
+                      being mounted at all, anything else means it is mounted
+                      and iOS is refusing to fire. */}
+                  {(() => {
+                    const d = hapticDiagnostic();
+                    return (
+                      <div style={css("margin-top:12px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:10px;font:450 11px/1.6 var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 42%, transparent)")}>
+                        Feeling nothing? Send me this line: iOS {d.ios} · {d.browser}
+                        {d.standalone ? ' · installed' : ' · in-browser'} · overlay {d.overlayPath ? 'on' : 'OFF'} · switches {d.switchesOnScreen} · vibrate {d.vibrate ? 'yes' : 'no'}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>
