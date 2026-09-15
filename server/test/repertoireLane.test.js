@@ -10,7 +10,7 @@ import path from 'node:path';
 
 import {
   normalizeProposal, renderCurriculum, renderSources, buildReport,
-  buildRepertoirePrompt, fetchSource,
+  buildRepertoirePrompt, fetchSource, plausibleTranscript,
 } from '../lib/repertoireLane.js';
 import { readEntry } from '../lib/captureReport.js';
 
@@ -63,7 +63,7 @@ test('a source without a real URL is not a source', () => {
     { n: 2, title: 'Vibes', url: 'personal communication' },
   ] });
   assert.equal(out.sources.length, 1);
-  assert.equal(out.consulted, 11 - 11 || 1, 'consulted falls back to the count of real sources');
+  assert.equal(out.consulted, 1, 'with no count given, consulted falls back to the number of REAL sources');
 });
 
 test('newlines inside a field cannot break the page format', () => {
@@ -127,6 +127,28 @@ test('a clip with no audio says so in the prompt instead of shipping an empty qu
   const p = buildRepertoirePrompt({ source: { url: 'https://r/1' }, transcript: '', frames: [], prose: '' });
   assert.match(p, /\(none — the clip had no readable audio\)/);
   assert.doesNotMatch(p, /THE FRAMES/);
+});
+
+/* --------------------- a call that returned is not a read ----------------- */
+// The live 15 Sep run caught this the way it was meant to: the receipt said
+// "1 lines · 15 characters" for a 42-second clip, because transcribeAudio
+// returns { text, backend } and the first draft String()'d the whole object
+// into the literal "[object Object]" — fifteen characters, reported as ✓.
+
+test('"[object Object]" is not a transcript of a 42-second clip', () => {
+  assert.equal(plausibleTranscript('[object Object]', 42), false);
+});
+
+test('the floor catches broken reads without judging a quiet clip', () => {
+  assert.equal(plausibleTranscript('', 42), false);
+  assert.equal(plausibleTranscript('Error: failed', 42), false, 'an error string dressed as a result');
+  assert.equal(plausibleTranscript('x'.repeat(42), 42), true, 'one character a second is the generous floor');
+  assert.equal(plausibleTranscript('x'.repeat(41), 42), false);
+  // real speech is ~10-15 chars a second, so anything genuine clears it easily
+  assert.equal(plausibleTranscript('You ever smell a dead mouse? You remember that smell?', 42), true);
+  // unknown duration falls back to the absolute floor rather than passing anything
+  assert.equal(plausibleTranscript('short', undefined), false);
+  assert.equal(plausibleTranscript('x'.repeat(20), undefined), true);
 });
 
 /* -------------------------------- the fetch ------------------------------- */

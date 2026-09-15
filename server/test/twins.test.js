@@ -2,6 +2,7 @@
 // are pinned here, so a change to one copy is a decision and never a drift.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 
 import { mondayOf, mondayIso } from '../lib/cadence.js';
 import { mondayOf as auditMonday } from '../lib/coachProgramAudit.js';
@@ -88,6 +89,24 @@ test('the three spacing schedules are pinned side by side, and the due arithmeti
   assert.equal(nextDueAt(1000, 0, librarySchedule), 1000 + 1 * DAY);
   assert.equal(nextDueAt(1000, 1, leaderSchedule), 1000 + 6 * DAY);
   assert.equal(nextDueAt(undefined, 0, leaderSchedule), 3 * DAY, 'never seen counts from the epoch — due at once');
+});
+
+test('every kind the Inbox offers RETRY for is a kind retryRecord can actually re-run', async () => {
+  // The client decides whether to draw the button (valsInbox canRetry); the
+  // server decides whether pressing it does anything. They were hand-kept
+  // copies, and adding a lane to one without the other gives him a button that
+  // answers "this draft comes from a scheduled agent" — which is a lie about a
+  // lane that has a perfectly good retry.
+  const vals = await readFile(new URL('../../src/vals/valsInbox.js', import.meta.url), 'utf8');
+  const offered = [...vals.matchAll(/r\.kind === '([a-z-]+)'/g)]
+    .map((m) => m[1])
+    .filter((k) => vals.includes(`canRetry: r.status === 'error'`) && new RegExp(`canRetry[\\s\\S]{0,400}?r\\.kind === '${k}'`).test(vals));
+  const lib = await readFile(new URL('../lib/inbox.js', import.meta.url), 'utf8');
+  const handled = new Set([...lib.matchAll(/record\.kind === '([a-z-]+)'/g)].map((m) => m[1]));
+  for (const kind of offered) {
+    assert.ok(handled.has(kind), `the Inbox offers RETRY for "${kind}" but retryRecord does not handle it`);
+  }
+  assert.ok(offered.includes('repertoire') && handled.has('repertoire'), 'the lane added 15 Sep is covered by this check');
 });
 
 test('the Code tab reads its model list off the board: exactly the four moving aliases are flagged', () => {

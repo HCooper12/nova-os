@@ -290,6 +290,8 @@ const CACHED_LIVE_KEYS = [
   // the surfaces added this week — omitted here they went BLANK the moment the
   // Mac slept, which is exactly when the phone is all he has
   'liveOps', 'liveOvernight', 'liveSkills', 'livePulse',
+  // the daily technique — cached so the card survives the Mac sleeping
+  'liveRepertoire',
   // the Stream self-labels with timestamps, so a cached copy degrades honestly
   'liveOpsStream',
 ];
@@ -1442,6 +1444,7 @@ export default class App extends Component {
     apply('workoutRoutines', (r) => this.setState({ liveWorkoutRoutines: r.routines, liveWorkoutSchedule: r.schedule, liveWorkoutWeekdays: r.weekdays, liveWorkoutProgressions: r.progressions || {} }));
     apply('workoutGoals', (r) => this.setState({ liveWorkoutGoals: r.goals }));
     apply('graph', (r) => { this.setState({ liveGraph: r }); this.gNodes = null; });
+    apply('repertoire', (r) => this.setState({ liveRepertoire: r }));
     apply('inbox', (r) => this.setState({ liveInbox: r }));
     apply('dispatch', (r) => this.setState({ liveDispatch: r }));
     apply('compost', (r) => this.setState({ liveCompost: r }));

@@ -1341,6 +1341,10 @@ export async function retryRecord(vaultPath, id) {
     const { retryPaper } = await import('./paperLane.js');
     return retryPaper(vaultPath, record);
   }
+  if (record.kind === 'repertoire') {
+    const { retryRepertoire } = await import('./repertoireLane.js');
+    return retryRepertoire(vaultPath, record);
+  }
   if (record.kind) throw new Error('this draft comes from a scheduled agent — it re-runs on its own schedule; discard this copy');
   const updated = await updateRecord(id, { status: 'classifying', error: null });
   runClassification(vaultPath, updated);

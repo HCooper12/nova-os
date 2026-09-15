@@ -34,3 +34,4 @@ tools/anatomy/.cache/
 tools/anatomy/__pycache__/
 tools/motion/out/
 tools/motion/ref/
+_devconn.json

@@ -58,7 +58,11 @@ function run(bin, args, { timeoutMs = 120_000 } = {}) {
     const t = setTimeout(() => { child.kill('SIGKILL'); reject(new Error('timed out')); }, timeoutMs);
     child.stdout.on('data', (d) => { out += d; });
     child.stderr.on('data', (d) => { err += d; });
-    child.on('close', (code) => { clearTimeout(t); code === 0 ? resolve(out) : reject(new Error(err.trim().split('\n').pop()?.slice(0, 200) || `exit ${code}`)); });
+    child.on('close', (code) => {
+      clearTimeout(t);
+      if (code === 0) resolve(out);
+      else reject(new Error(err.trim().split('\n').pop()?.slice(0, 200) || `exit ${code}`));
+    });
     child.on('error', (e) => { clearTimeout(t); reject(e); });
   });
 }
@@ -133,20 +137,48 @@ export async function fetchSource(url, workDir, { runner = run } = {}) {
         const audio = path.join(workDir, 'audio.mp3');
         await runner(FFMPEG, ['-y', '-v', 'error', '-i', mediaPath, '-vn', '-ac', '1', '-ar', '16000', '-c:a', 'libmp3lame', '-q:a', '6', audio], { timeoutMs: 120_000 });
         const { transcribeAudio } = await import('./transcribe.js');
-        transcript = String(await transcribeAudio(audio, { mime: 'audio/mpeg' }) || '').trim();
+        // `{ text, backend }`, NOT a string. The first draft did
+        // String(await …) and handed the model the literal "[object Object]"
+        // — fifteen characters that the receipt then reported, straight-faced,
+        // as a successful transcript of a 42-second clip.
+        const { text } = await transcribeAudio(audio, { mime: 'audio/mpeg' });
+        transcript = String(text || '').trim();
         via = 'Whisper — no captions on this platform';
       } catch (e) {
         read.push(readEntry('Transcript', false, e.message.slice(0, 120)));
       }
     }
   }
-  if (transcript) {
+  // A CALL THAT RETURNED IS NOT A TRANSCRIPT. The receipt's whole job is to be
+  // trustworthy, and the first version reported "1 lines · 15 characters" for a
+  // 42-second clip as a ✓ — because the fetch had succeeded. The content has to
+  // clear a plausibility floor too, or the receipt certifies garbage and the
+  // findings built on it inherit the certificate.
+  const tooShort = transcript && !plausibleTranscript(transcript, source.durationSec);
+  if (transcript && !tooShort) {
     read.push(readEntry('Transcript', true, `${transcript.split('\n').filter(Boolean).length} lines · ${transcript.length} characters`, via));
+  } else if (tooShort) {
+    read.push(readEntry('Transcript', false, `${transcript.length} characters for a ${Math.round(source.durationSec)}s clip — too short to be a real transcript`));
+    transcript = ''; // and it must not reach the prompt as if it were one
   } else if (!read.some((r) => r.what === 'Transcript')) {
     read.push(readEntry('Transcript', false, 'no captions and no audio to transcribe'));
   }
 
   return { source, read, transcript, frames };
+}
+
+// Speech runs ~10-15 characters a second; silence and music run at zero. The
+// floor is deliberately generous — one character per second, and at least 20
+// overall — because the job here is to catch a BROKEN read (an error string, a
+// stringified object, an empty result dressed as success), not to judge a
+// quiet clip. A genuinely near-silent video fails this and is reported as
+// unreadable audio, which is the honest answer for it anyway.
+export function plausibleTranscript(text, durationSec) {
+  const n = String(text || '').trim().length;
+  if (n < 20) return false;
+  const d = Number(durationSec);
+  if (!Number.isFinite(d) || d <= 0) return n >= 20;
+  return n >= d;
 }
 
 async function fetchCaptions(url, workDir, runner) {

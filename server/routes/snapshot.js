@@ -55,6 +55,11 @@ export const SLICES = {
   skills: '/api/skills',
   pulse: '/api/pulse',
   leader: '/api/leader',
+  // today's technique rides the sync like the rest of the day's state. It is
+  // a GET that RECORDS the day's pick on first read, which is deliberate:
+  // whichever surface asks first settles what today's technique is, and the
+  // spoken brief then agrees with Home instead of picking again.
+  repertoire: '/api/repertoire/today',
 };
 
 // sentinel for a slice that lost its time-budget race — a unique object, so
