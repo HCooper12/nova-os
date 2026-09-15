@@ -1,4 +1,5 @@
 import { css } from '../css.js';
+import { glowPanel, glowSoft } from '../glowPanel.js';
 import { RingTile } from '../RingTile.jsx';
 import { Eyebrow, TextAction, Meta } from '../Controls.jsx';
 import { absentHintStyle, absentValueStyle } from '../vitalsAbsence.js';
@@ -130,7 +131,7 @@ export function MissionControl({ v }) {
       {/* IT LANDED — the Apple twin's section in this idiom, from the same
           view model. Same record, same wording, same dismissal. */}
       {v.landedMoment && (
-        <section style={css('margin-top:18px;padding:16px 18px 14px;border-radius:var(--nv-radius);border:1px solid color-mix(in srgb, var(--nv-good) 32%, transparent);background:linear-gradient(160deg, color-mix(in srgb, var(--nv-good) 07%, transparent), var(--nv-glass2));animation:fadeUp var(--nv-dur-base) var(--nv-ease)')}>
+        <section className="nv-glow" style={{ marginTop: '18px', padding: '16px 18px 14px', ...glowPanel('--nv-good').style }}>
           <div style={css('display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap')}>
             <Eyebrow as="span" tone="good">Landed</Eyebrow>
             <Meta tone="faint">{v.landedMoment.count} today · {v.landedMoment.filed} filed</Meta>
@@ -157,7 +158,7 @@ export function MissionControl({ v }) {
           same view model. Same technique, same drill, same two taps: the
           server picked it once and both screens read that pick. */}
       {v.todayTechnique && !v.todayTechnique.empty && (
-        <section style={css('margin-top:18px;padding:16px 18px 14px;border-radius:var(--nv-radius);border:1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent);background:linear-gradient(160deg, color-mix(in srgb, var(--nv-cy) 07%, transparent), var(--nv-glass2));animation:fadeUp var(--nv-dur-base) var(--nv-ease)')}>
+        <section className="nv-glow" style={{ marginTop: '18px', padding: '16px 18px 14px', ...glowPanel('--nv-mg').style }}>
           <div style={css('display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap')}>
             <Eyebrow as="span">{v.todayTechnique.modeLabel}</Eyebrow>
             <Meta tone="faint">
@@ -178,8 +179,8 @@ export function MissionControl({ v }) {
               <span style={{ font: `600 12.5px ${R}`, color: 'var(--nv-ink)' }}>Move. </span>{v.todayTechnique.move}
             </div>
           )}
-          <div style={css('margin-top:10px;padding:11px 13px;border-radius:9px;background:color-mix(in srgb, var(--nv-cy) 09%, transparent);border:1px solid color-mix(in srgb, var(--nv-cy) 22%, transparent)')}>
-            <div style={css('font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-cy)')}>TRY IT TODAY</div>
+          <div style={css('margin-top:10px;padding:11px 13px;border-radius:9px;background:color-mix(in srgb, var(--nv-mg) 09%, transparent);border:1px solid color-mix(in srgb, var(--nv-mg) 22%, transparent)')}>
+            <div style={css('font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-mg)')}>TRY IT TODAY</div>
             <div style={{ marginTop: '5px', font: `500 13.5px ${R}`, lineHeight: 1.5, color: 'var(--nv-ink)' }}>{v.todayTechnique.drill}</div>
             {v.todayTechnique.tell && (
               <div style={{ marginTop: '6px', font: `450 12px ${R}`, lineHeight: 1.45, color: 'var(--nv-ink60)' }}>You’ll know it landed: {v.todayTechnique.tell}</div>
@@ -194,11 +195,11 @@ export function MissionControl({ v }) {
             ) : v.todayTechnique.outcome === 'skipped' ? (
               <>
                 <span style={css('font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-ink60)')}>PASSED TODAY</span>
-                <Interactive as="span" onClick={v.todayTechnique.markTried} base={css('cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 13px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)')} hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 12%, transparent)' }}>I DID TRY IT</Interactive>
+                <Interactive as="span" onClick={v.todayTechnique.markTried} base={css('cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 13px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-mg) 45%, transparent);color:var(--nv-mg)')} hoverStyle={{ background: 'color-mix(in srgb, var(--nv-mg) 12%, transparent)' }}>I DID TRY IT</Interactive>
               </>
             ) : (
               <>
-                <Interactive as="span" onClick={v.todayTechnique.markTried} base={css('cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 13px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)')} hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 12%, transparent)' }}>I TRIED IT</Interactive>
+                <Interactive as="span" onClick={v.todayTechnique.markTried} base={css('cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 13px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-mg) 45%, transparent);color:var(--nv-mg)')} hoverStyle={{ background: 'color-mix(in srgb, var(--nv-mg) 12%, transparent)' }}>I TRIED IT</Interactive>
                 <Interactive as="span" onClick={v.todayTechnique.markSkipped} base={css('cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 13px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);color:var(--nv-ink60)')} hoverStyle={{ color: 'var(--nv-ink)' }}>NOT TODAY</Interactive>
               </>
             )}
@@ -210,7 +211,7 @@ export function MissionControl({ v }) {
           same view model: the rings carry the verdict, the serif carries the
           news, and the fix he can still act on sits under it. */}
       {v.wrapCard && (
-        <section className="nv-pane" style={{ marginBottom: mob ? '12px' : '18px', padding: mob ? '16px 18px 14px' : '18px 22px 16px', animation: 'popIn var(--nv-dur-base) var(--nv-ease) both' }}>
+        <section className="nv-pane nv-glow" style={{ marginBottom: mob ? '12px' : '18px', padding: mob ? '16px 18px 14px' : '18px 22px 16px', ...glowSoft(v.wrapCard.floorMet === false ? '--nv-gold' : '--nv-good').style, animation: 'popIn var(--nv-dur-base) var(--nv-ease) both' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', marginBottom: '12px' }}>
             <Eyebrow as="span" tone={v.wrapCard.floorMet === false ? 'gold' : 'good'}>Wrap the day</Eyebrow>
             <Meta tone={v.wrapCard.floorMet === false ? 'gold' : 'good'}>{v.wrapCard.note}</Meta>
@@ -362,7 +363,7 @@ export function MissionControl({ v }) {
           )}
         </div>
 
-        <div className="nv-pane" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column' }}>
+        <div className="nv-pane nv-glow" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', ...glowSoft('--nv-vi').style }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', marginBottom: '10px' }}>
             {/* CONCEPT REVISIT, not "DAILY REVIEW": that name belongs to the
                 day's actual review (the Inbox card), and this card wearing it
@@ -392,7 +393,7 @@ export function MissionControl({ v }) {
           ABOVE the day's plan on purpose: work in flight outranks work
           planned, and he must never have to go looking for it. */}
       {v.jobTray.jobs.length > 0 && (
-        <section className="nv-pane" style={{ marginTop: mob ? '12px' : '18px', padding: mob ? '14px 16px' : '18px 22px' }}>
+        <section className="nv-pane nv-glow" style={{ marginTop: mob ? '12px' : '18px', padding: mob ? '14px 16px' : '18px 22px', ...glowSoft('--nv-cy').style }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px' }}>
             <span style={{ font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track-wide)', color: 'var(--nv-cy)' }}>NOVA IS WORKING</span>
             <span style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-ink40)' }}>{v.jobTray.countLabel.toUpperCase()}</span>

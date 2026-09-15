@@ -1,4 +1,5 @@
 import { css } from './css.js';
+import { glowSoft } from './glowPanel.js';
 import { absentHintStyle, absentValueStyle } from './vitalsAbsence.js';
 import { Interactive } from './Interactive.jsx';
 
@@ -13,16 +14,21 @@ const UI = 'var(--nv-font-ui)';
 
 // Section heading + inset card. label/trailing render OUTSIDE the card like
 // iOS grouped-table headers; pass label={null} for a bare card.
-export function Group({ label, trailing, children, style }) {
+// `accent` is a --nv-* token NAME. Given one, the group's pane wears the lit
+// treatment in that colour (his 15 Sep ask — the same look as the technique
+// card, each section keeping its own accent) and the label picks the colour up
+// so the heading and the light agree. Without one, nothing changes.
+export function Group({ label, trailing, children, style, accent }) {
+  const lit = accent ? glowSoft(accent) : null;
   return (
     <section style={{ marginTop: '18px', ...style }}>
       {(label || trailing) && (
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', margin: '0 6px 7px' }}>
-          {label ? <span style={{ font: `600 12px ${UI}`, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--nv-ink40)' }}>{label}</span> : <span />}
+          {label ? <span style={{ font: `600 12px ${UI}`, letterSpacing: '.05em', textTransform: 'uppercase', color: accent ? `var(${accent})` : 'var(--nv-ink40)' }}>{label}</span> : <span />}
           {trailing || null}
         </div>
       )}
-      <div className="nv-pane" style={{ padding: '4px 0', overflow: 'hidden' }}>{children}</div>
+      <div className={lit ? 'nv-pane nv-glow' : 'nv-pane'} style={{ padding: '4px 0', overflow: 'hidden', ...(lit ? lit.style : {}) }}>{children}</div>
     </section>
   );
 }
@@ -64,13 +70,18 @@ export function MetricTile({ m }) {
 }
 
 // Solid accent pill button (the Apple CTA look, in the theme's accent).
-export function Pill({ label, onClick, tone = 'accent' }) {
+// `accent` is a --nv-* token NAME, for a solid pill that belongs to a section
+// with its own colour (the technique card is pink, so its button is too).
+// The ink was a hardcoded #0b1016, which is the exact thing the token sweep
+// banned: under Daylight the accent is blue and near-black ink on it is wrong.
+// --nv-on-acc is what that token exists for.
+export function Pill({ label, onClick, tone = 'accent', accent = '--nv-acc' }) {
   const solid = tone === 'accent';
   return (
     <Interactive as="span" onClick={onClick}
       base={{ cursor: 'pointer', display: 'inline-block', font: `600 13px ${UI}`, letterSpacing: '.01em', padding: '9px 18px', borderRadius: '999px',
-        background: solid ? 'var(--nv-acc)' : 'rgba(255,255,255,.07)',
-        color: solid ? '#0b1016' : 'var(--nv-ink)',
+        background: solid ? `var(${accent})` : 'rgba(255,255,255,.07)',
+        color: solid ? 'var(--nv-on-acc)' : 'var(--nv-ink)',
         border: solid ? '1px solid transparent' : '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)' }}
       hoverStyle={{ filter: 'brightness(1.1)' }}
     >{label}</Interactive>

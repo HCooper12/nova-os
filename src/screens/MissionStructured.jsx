@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { css } from '../css.js';
+import { glowPanel } from '../glowPanel.js';
 import { RingTile } from '../RingTile.jsx';
 import { resolveFolds, foldStatus, FOLD_LABELS, loadFolds, saveFolds } from '../missionFold.js';
 import { Eyebrow, TextAction, Tag, Meta } from '../Controls.jsx';
@@ -155,7 +156,7 @@ export function MissionStructured({ v }) {
     // sign of life anywhere: any agent doing work is visible on the home
     // screen, always, without him going to look for it.
     working: v.jobTray.jobs.length > 0 ? (
-      <Group key="working" label="Nova is working" trailing={<Meta tone={v.jobTray.running ? 'cyan' : v.jobTray.waiting ? 'good' : 'warn'}>{v.jobTray.countLabel}</Meta>}>
+      <Group key="working" label="Nova is working" accent="--nv-cy" trailing={<Meta tone={v.jobTray.running ? 'cyan' : v.jobTray.waiting ? 'good' : 'warn'}>{v.jobTray.countLabel}</Meta>}>
         {v.jobTray.jobs.map((j, i) => (
           <GRow key={j.id} first={i === 0}
             leading={<span style={{ font: `600 12px ${M}`, color: j.failed ? 'var(--nv-warn)' : j.done ? 'var(--nv-good, #5aa87c)' : 'var(--nv-cy)' }}>{j.failed ? '✕' : j.done ? '✓' : '◍'}</span>}
@@ -171,7 +172,7 @@ export function MissionStructured({ v }) {
     // WRAP THE DAY — the evening's news, in the house objects: two rings,
     // the serif line, and the fix he can still act on tonight.
     wrap: v.wrapCard ? (
-      <Group key="wrap" label="Wrap the day" trailing={<Meta tone={v.wrapCard.floorMet === false ? 'gold' : 'good'}>{v.wrapCard.note}</Meta>}>
+      <Group key="wrap" label="Wrap the day" accent={v.wrapCard.floorMet === false ? '--nv-gold' : '--nv-good'} trailing={<Meta tone={v.wrapCard.floorMet === false ? 'gold' : 'good'}>{v.wrapCard.note}</Meta>}>
         <div style={{ padding: '14px 16px', animation: 'popIn var(--nv-dur-base) var(--nv-ease) both' }}>
           {/* on a phone the rings sit ABOVE the line — beside it the serif
               was squeezed into a nine-word-tall column (seen at 375px) */}
@@ -295,7 +296,7 @@ export function MissionStructured({ v }) {
     ),
 
     review: (
-      <Group key="review" label="Daily review" trailing={
+      <Group key="review" label="Daily review" accent="--nv-vi" trailing={
         <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Meta tone="faint">{v.reviewMeta}</Meta>
           <Interactive as="span" onClick={v.shuffleReview} aria-label="Shuffle daily review" base={{ cursor: 'pointer', font: `400 13px ${M}`, color: 'var(--nv-ink40)' }} hoverStyle={{ color: 'var(--nv-ink)' }}>⟳</Interactive>
@@ -446,7 +447,7 @@ export function MissionStructured({ v }) {
             has seen it. A capture sent from the Shortcut while he was not
             looking is precisely what brings it back. */}
         {v.landedMoment && (
-          <section style={{ marginTop: '18px', padding: mob ? '15px 16px 13px' : '18px 20px 16px', borderRadius: '16px', border: '1px solid color-mix(in srgb, var(--nv-good) 32%, transparent)', background: 'linear-gradient(160deg, color-mix(in srgb, var(--nv-good) 07%, transparent), var(--nv-glass2))', animation: 'fadeUp var(--nv-dur-base) var(--nv-ease)' }}>
+          <section className="nv-glow" style={{ marginTop: '18px', padding: mob ? '15px 16px 13px' : '18px 20px 16px', ...glowPanel('--nv-good', { radius: '16px' }).style }}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
               <div style={{ font: `600 10.5px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--nv-good)' }}>Landed</div>
               <Meta tone="faint">{v.landedMoment.count} today · {v.landedMoment.filed} filed</Meta>
@@ -475,9 +476,9 @@ export function MissionStructured({ v }) {
             answer is the whole point: what he practises is what decides when
             the technique comes back. The drill is the loudest line on it. */}
         {v.todayTechnique && !v.todayTechnique.empty && (
-          <section style={{ marginTop: '18px', padding: mob ? '15px 16px 13px' : '18px 20px 16px', borderRadius: '16px', border: '1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent)', background: 'linear-gradient(160deg, color-mix(in srgb, var(--nv-cy) 07%, transparent), var(--nv-glass2))', animation: 'fadeUp var(--nv-dur-base) var(--nv-ease)' }}>
+          <section className="nv-glow" style={{ marginTop: '18px', padding: mob ? '15px 16px 13px' : '18px 20px 16px', ...glowPanel('--nv-mg', { radius: '16px' }).style }}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
-              <div style={{ font: `600 10.5px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--nv-cy)' }}>
+              <div style={{ font: `600 10.5px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--nv-mg)' }}>
                 {v.todayTechnique.modeLabel}
               </div>
               <Meta tone="faint">
@@ -498,8 +499,8 @@ export function MissionStructured({ v }) {
                 <span style={{ font: `600 12.5px ${UI}`, color: 'var(--nv-ink)' }}>Move. </span>{v.todayTechnique.move}
               </div>
             )}
-            <div style={{ marginTop: '10px', padding: '11px 13px', borderRadius: '11px', background: 'color-mix(in srgb, var(--nv-cy) 09%, transparent)', border: '1px solid color-mix(in srgb, var(--nv-cy) 22%, transparent)' }}>
-              <div style={{ font: `600 10px ${M}`, letterSpacing: '.1em', color: 'var(--nv-cy)' }}>TRY IT TODAY</div>
+            <div style={{ marginTop: '10px', padding: '11px 13px', borderRadius: '11px', background: 'color-mix(in srgb, var(--nv-mg) 09%, transparent)', border: '1px solid color-mix(in srgb, var(--nv-mg) 22%, transparent)' }}>
+              <div style={{ font: `600 10px ${M}`, letterSpacing: '.1em', color: 'var(--nv-mg)' }}>TRY IT TODAY</div>
               <div style={{ marginTop: '5px', font: `500 13.5px ${UI}`, lineHeight: 1.5, color: 'var(--nv-ink)' }}>{v.todayTechnique.drill}</div>
               {v.todayTechnique.tell && (
                 <div style={{ marginTop: '6px', font: `450 12px ${UI}`, lineHeight: 1.45, color: 'var(--nv-ink60)' }}>You’ll know it landed: {v.todayTechnique.tell}</div>
@@ -518,7 +519,7 @@ export function MissionStructured({ v }) {
                 </>
               ) : (
                 <>
-                  <Pill label="I tried it" onClick={() => { haptic('light'); v.todayTechnique.markTried(); }} />
+                  <Pill label="I tried it" accent="--nv-mg" onClick={() => { haptic('light'); v.todayTechnique.markTried(); }} />
                   <Pill label="Not today" onClick={() => { haptic('light'); v.todayTechnique.markSkipped(); }} tone="quiet" />
                 </>
               )}

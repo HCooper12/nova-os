@@ -165,6 +165,7 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   --nv-glow-sat3:0 0 34px -12px rgba(138,106,209,.6);
   --nv-tsh-head-cy:none; --nv-tsh-head-vi:none;
 }
+
 :root[data-nv-theme="ember"] {
   --nv-void:#100b09; --nv-bg1:#170e0b; --nv-bg2:#241410;
   --nv-ink:#f4ede6; --nv-ink60:rgba(244,237,230,.62); --nv-ink40:rgba(244,237,230,.38);
@@ -268,7 +269,8 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 :root[data-nv-style="cupertino"] .nv-pane {
   border-color: transparent;
   background: rgba(255,255,255,.075);
-  box-shadow: 0 18px 44px -30px #000;
+  --nv-pane-shadow: 0 18px 44px -30px #000;
+  box-shadow: var(--nv-pane-shadow);
 }
 /* Daylight × Apple: the style blocks above assume a dark ground — on the
    light palette the cards are WHITE with soft shadow (the mockup-A look).
@@ -282,7 +284,8 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 }
 :root[data-nv-style="apple"][data-nv-theme="daylight"] .nv-pane,
 :root[data-nv-style="cupertino"][data-nv-theme="daylight"] .nv-pane {
-  box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 22px -12px rgba(0,0,0,.14);
+  --nv-pane-shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 22px -12px rgba(0,0,0,.14);
+  box-shadow: var(--nv-pane-shadow);
   backdrop-filter: none;
 }
 
@@ -293,7 +296,8 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   background: var(--nv-glass);
   backdrop-filter: blur(18px);
   border: 1px solid var(--nv-edge);
-  box-shadow: inset 0 1px 0 var(--nv-spec), 0 26px 60px -34px #000;
+  --nv-pane-shadow: inset 0 1px 0 var(--nv-spec), 0 26px 60px -34px #000;
+  box-shadow: var(--nv-pane-shadow);
 }
 .nv-pane::before {
   content: ''; position: absolute; top: 5px; left: 5px; width: 11px; height: 11px;
@@ -371,3 +375,25 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
    sitting blank or (worse) waiting off-screen until the sentence has passed. */
 @keyframes glassScan { from { transform: translateX(-100%); } to { transform: translateX(220%); } }
 @keyframes glassStep { from { opacity: 0; transform: translateY(var(--nv-rise)); } to { opacity: 1; transform: none; } }
+
+/* ================================================================
+   THE LIT PANEL (15 Sep 2026) — his ask: the treatment the technique
+   card wears, on the other Home sections, each keeping its own accent
+   ("the daily review would have purple"). The colour arrives inline as
+   --nv-glow-tint from src/glowPanel.js; only the bloom lives here, so
+   Calm has exactly one place to switch it off.
+
+   DECLARED LAST, and :root-prefixed, for the same reason the style
+   blocks are: `:root[data-nv-style="cupertino"] .nv-pane` is (0,3,0)
+   and a bare `.nv-pane.nv-glow` is (0,2,0), so the first cut lost the
+   cascade silently — the class was on the element, the tint resolved,
+   and no bloom was drawn. Matching that specificity and coming later
+   is what makes it win in every style.
+   ================================================================ */
+.nv-glow { box-shadow: 0 0 60px -22px var(--nv-glow-tint, transparent); }
+:root .nv-pane.nv-glow { box-shadow: var(--nv-pane-shadow), 0 0 60px -22px var(--nv-glow-tint, transparent); }
+
+/* Calm drops the bloom and never the pane's own depth. Zero-size rather than
+   `none`, the house rule for a shadow that may sit in a comma-separated list. */
+:root[data-nv-calm="1"] .nv-glow { box-shadow: 0 0 0 0 rgba(0,0,0,0); }
+:root[data-nv-calm="1"] .nv-pane.nv-glow { box-shadow: var(--nv-pane-shadow); }
