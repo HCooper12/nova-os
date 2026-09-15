@@ -10,7 +10,7 @@ import path from 'node:path';
 
 import {
   normalizeProposal, renderCurriculum, renderSources, buildReport,
-  buildRepertoirePrompt, fetchSource, plausibleTranscript,
+  buildRepertoirePrompt, fetchSource, plausibleTranscript, clip,
 } from '../lib/repertoireLane.js';
 import { readEntry } from '../lib/captureReport.js';
 
@@ -46,8 +46,28 @@ test('a nameless technique is dropped too, and duplicates collapse to one', () =
 
 test('fields are clipped to phone length rather than trusted', () => {
   const out = normalizeProposal({ techniques: [{ name: 'X', drill: 'd', summary: 'S'.repeat(400), move: 'M'.repeat(400) }] });
-  assert.equal(out.techniques[0].summary.length, 140);
-  assert.equal(out.techniques[0].move.length, 220);
+  assert.ok(out.techniques[0].summary.length <= 140);
+  assert.ok(out.techniques[0].move.length <= 220);
+});
+
+test('a clipped field never ends mid-word — the first live run put one on a card', () => {
+  // the actual string that shipped cut at "...broken glass that was "
+  const real = 'Loftus and Palmer had people watch the same crash, then asked how fast the cars were going when they smashed versus hit them, and the word alone shifted their speed estimates, and more people falsely remembered broken glass that was never in the film at all.';
+  const out = clip(real, 220);
+  assert.ok(out.length <= 220);
+  assert.ok(!/\s$/.test(out), 'no trailing space where a word was severed');
+  assert.ok(out.endsWith('…'), 'a trim is marked, so he knows the source said more');
+  assert.ok(real.startsWith(out.slice(0, -1)), 'and everything before the mark is verbatim');
+});
+
+test('a field that fits is returned untouched, with no ellipsis', () => {
+  assert.equal(clip('Short and complete.', 220), 'Short and complete.');
+  assert.equal(clip('  collapses   whitespace  ', 220), 'collapses whitespace');
+});
+
+test('clipping prefers a sentence end when one falls late in the window', () => {
+  const two = 'First sentence ends here. Second sentence runs on and on and on and on and on.';
+  assert.equal(clip(two, 40), 'First sentence ends here.', 'a clean sentence beats a mid-clause cut');
 });
 
 test('a technique with no family inherits the report family, never "undefined"', () => {

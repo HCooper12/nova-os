@@ -275,7 +275,20 @@ function askModel(prompt) {
 
 /* -------------------------- stage 3: code renders ------------------------- */
 
-const clip = (s, n) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
+// Clip to a WORD boundary, not a character count. The first live run put
+// "…more people falsely remembered broken glass that was " on a card — cut
+// mid-sentence, which reads as a broken card rather than a trimmed one. Back
+// off to the last sentence end if there is one late in the window, else the
+// last space, and mark the trim so he knows the source said more.
+export function clip(s, n) {
+  const t = String(s ?? '').replace(/\s+/g, ' ').trim();
+  if (t.length <= n) return t;
+  const window = t.slice(0, n - 1);
+  const sentence = Math.max(window.lastIndexOf('. '), window.lastIndexOf('? '), window.lastIndexOf('! '));
+  if (sentence >= n * 0.6) return window.slice(0, sentence + 1);
+  const space = window.lastIndexOf(' ');
+  return `${(space >= n * 0.5 ? window.slice(0, space) : window).replace(/[,;:\s]+$/, '')}…`;
+}
 
 // Validate into the shape the catalogue writer accepts. A technique without a
 // name or a drill is dropped: the whole promise of the daily card is that
