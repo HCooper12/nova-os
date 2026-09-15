@@ -3110,6 +3110,9 @@ export default class App extends Component {
     }));
   }
   toggleSessionSetDone(exIdx, setIdx) {
+    // THE MOST TACTILE THING HE DOES. Mid-set, one hand, not looking — the hand
+    // is the only sense available, and this screen had no haptic anywhere.
+    haptic('tick');
     this.setState((s) => ({
       workoutSession: {
         ...s.workoutSession,
@@ -3120,6 +3123,7 @@ export default class App extends Component {
     }));
   }
   addSessionSet(exIdx) {
+    haptic('tick');
     this.setState((s) => ({
       workoutSession: {
         ...s.workoutSession,
@@ -3209,9 +3213,11 @@ export default class App extends Component {
       }))
       .filter((e) => e.sets.length);
     if (!exercises.length) {
-      this.toastMsg('Nothing ticked yet — tick the sets you actually did, then finish');
+      // a refusal — his finger did something and nothing happened
+      this.toastFail('Nothing ticked yet — tick the sets you actually did, then finish');
       return;
     }
+    haptic('commit');
     if (this.state.editingSessionId) {
       api.updateWorkoutSession(conn, this.state.editingSessionId, { exercises }).then(() => {
         this.sessionEndReason = 'finished';
