@@ -10,7 +10,7 @@ import path from 'node:path';
 
 import {
   normalizeProposal, renderCurriculum, renderSources, buildReport,
-  buildRepertoirePrompt, fetchSource, plausibleTranscript, clip, cardField,
+  buildRepertoirePrompt, fetchSource, plausibleTranscript, clip, cardField, looksLikeVideo,
 } from '../lib/repertoireLane.js';
 import { readEntry } from '../lib/captureReport.js';
 
@@ -190,14 +190,64 @@ test('the floor catches broken reads without judging a quiet clip', () => {
 
 /* -------------------------------- the fetch ------------------------------- */
 
-test('an unopenable link fails with a pointer at the Researcher, carrying its receipt', async () => {
+// HIS 15 SEP ASK: articles too. The choice of toolchain comes from the URL and
+// is then PROVEN by what comes back — a link that looks like video but will not
+// open falls through to the page reader rather than failing.
+
+test('a plain article URL never waits on the video toolchain', () => {
+  assert.equal(looksLikeVideo('https://example.com/blog/cold-reading', 'fetch'), false);
+  // ...but a video PATH on an ordinary host still earns the video attempt
+  assert.equal(looksLikeVideo('https://example.com/video/123', 'fetch'), true);
+  assert.equal(looksLikeVideo('https://www.instagram.com/reel/X/', 'browser'), true);
+  assert.equal(looksLikeVideo('https://youtu.be/abc', 'transcript'), true);
+});
+
+test('an article is read as page text, and the receipt says which tool read it', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'nova-lane-'));
+  const reader = async (url) => ({ url, ok: true, title: 'Cold reading explained', text: 'The Barnum statement works because '.repeat(12) });
+  const { source, read, transcript, frames } = await fetchSource('https://example.com/blog/cold-reading', dir, { toolHint: 'fetch', reader });
+  assert.equal(source.kind, 'article');
+  assert.equal(source.title, 'Cold reading explained');
+  assert.equal(source.durationSec, null, 'an article has no duration, and the receipt must not invent one');
+  assert.equal(frames.length, 0);
+  assert.ok(transcript.length > 100);
+  const entry = read.find((r) => r.what === 'Page text');
+  assert.equal(entry.ok, true);
+  assert.match(entry.detail, /characters/);
+  assert.match(entry.via, /browser/);
+});
+
+test('a login wall is a RESULT, not a crash — and it is in the receipt', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'nova-lane-'));
+  const reader = async (url) => ({ url, ok: false, reason: 'the platform showed a login wall', text: '' });
+  await assert.rejects(
+    () => fetchSource('https://example.com/members-only', dir, { toolHint: 'fetch', reader }),
+    (e) => {
+      assert.match(e.message, /login wall/);
+      assert.equal(e.evidence.read.find((r) => r.what === 'Page text').ok, false);
+      return true;
+    },
+  );
+});
+
+test('a link that LOOKS like video but will not open falls through to the page reader', async () => {
   const dir = await mkdtemp(path.join(tmpdir(), 'nova-lane-'));
   const runner = async () => { throw new Error('Unsupported URL'); };
+  const reader = async (url) => ({ url, ok: true, title: 'Actually an article', text: 'x'.repeat(400) });
+  const { source, read } = await fetchSource('https://example.com/video/not-really', dir, { toolHint: 'fetch', runner, reader });
+  assert.equal(source.kind, 'article');
+  assert.equal(read.find((r) => r.what === 'Video').ok, false, 'the failed attempt stays in the receipt');
+  assert.equal(read.find((r) => r.what === 'Page text').ok, true);
+});
+
+test('when NEITHER path can read it, the capture is refused rather than guessed', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'nova-lane-'));
+  const runner = async () => { throw new Error('Unsupported URL'); };
+  const reader = async (url) => ({ url, ok: false, reason: 'the page rendered empty', text: '' });
   await assert.rejects(
-    () => fetchSource('https://example.com/an-article', dir, { runner }),
+    () => fetchSource('https://example.com/video/nothing', dir, { toolHint: 'fetch', runner, reader }),
     (e) => {
-      assert.match(e.message, /ask the Researcher to read it instead/);
-      assert.equal(e.evidence.read[0].ok, false);
+      assert.equal(e.evidence.read.length, 2, 'both failures are on the receipt');
       return true;
     },
   );
@@ -209,7 +259,7 @@ test('metadata that lands but media that does not is recorded as exactly that', 
     if (args.includes('-J')) return JSON.stringify({ id: 'x', title: 'V', uploader: 'b', duration: 42, description: 'd' });
     throw new Error('download blocked');
   };
-  const { source, read, transcript, frames } = await fetchSource('https://r/1', dir, { runner });
+  const { source, read, transcript, frames } = await fetchSource('https://r/1', dir, { toolHint: 'transcript', runner });
   assert.equal(source.title, 'V');
   assert.equal(source.durationSec, 42);
   assert.equal(frames.length, 0);

@@ -56,8 +56,8 @@ export const CAPABILITIES = {
   },
   repertoire: {
     agent: 'Repertoire',
-    summary: 'Read one clip for the technique it demonstrates, research the family it belongs to, and build a curriculum taught one a day.',
-    input: 'one video URL, plus what he wants to get out of it',
+    summary: 'Read one clip or article for the technique it demonstrates, research the family it belongs to, and build a curriculum taught one a day.',
+    input: 'one video or article URL, plus what he wants to get out of it',
     output: 'a confirmed report and an ordered set of techniques with drills, filed as a pending record',
     produces: 'repertoire',
     costUsd: 2.5,

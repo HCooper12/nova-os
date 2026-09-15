@@ -123,8 +123,11 @@ export function routeIntent(text) {
     if (hasStudyWords || looksChannel || urls.filter((x) => VIDEO_HOSTS.test(hostOf(x))).length > 1) {
       return { lane: 'study', urls, prose, why: looksChannel ? 'a channel/profile link is a body of work, not one video' : hasStudyWords ? 'you asked for an analysis of a creator or their whole catalogue' : 'several media links in one request' };
     }
+    // A TECHNIQUE TO LEARN — tested before the media split, because since
+    // 15 Sep the lane reads articles too and the question "does he want to
+    // learn this?" is about the SENTENCE, not about whether the link is video.
+    if (REPERTOIRE_RE.test(prose)) return { lane: 'repertoire', urls, prose, why: 'a technique to learn, not just something to digest — Nova reads the source, researches the family it belongs to, and builds a curriculum it teaches you one a day' };
     if (isMediaHost && VIDEO_PATH_RE.test(u)) {
-      if (REPERTOIRE_RE.test(prose)) return { lane: 'repertoire', urls, prose, why: 'a technique to learn, not just a video to digest — Nova reads the clip, researches the family it belongs to, and builds a curriculum it teaches you one a day' };
       if (WEAVE_RE.test(prose)) return { lane: 'weave', urls, prose, why: 'a video to weave into the vault — transcript fetched, every concept and person drafted as pages for review' };
       return { lane: 'watch', urls, prose, why: 'a single video link — the Watcher pulls the transcript and drafts a verdict' };
     }

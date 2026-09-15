@@ -33,10 +33,13 @@ import { flatten, loadRepertoire, slugFor } from './repertoire.js';
 //   3. RENDER (code) — the curriculum is rendered from those fields, not from
 //      model prose, so the catalogue page and the report cannot disagree.
 //
-// DELIBERATELY NARROW: this lane resolves video, because that is what he
-// sends. A link yt-dlp cannot open is refused with a pointer at the
-// Researcher, which already reads pages. Refusing is honest; guessing at an
-// article from its URL is not.
+// TWO KINDS OF SOURCE, one report. A video is read as transcript + frames; an
+// article is rendered in Nova's own signed-in browser and read as page text
+// (his 15 Sep ask — "allow it to read and analyse articles too"). The choice is
+// made from the URL and then PROVEN by what comes back: a link that looks like
+// video but will not open falls through to the page reader rather than failing,
+// and a source neither path could read is refused outright, because the receipt
+// has to mean something.
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const YTDLP = process.env.YTDLP_BIN || '/opt/homebrew/bin/yt-dlp';
@@ -73,18 +76,50 @@ const cookieArgs = () => (existsSync(COOKIES) ? ['--cookies', COOKIES] : []);
 
 // Everything this returns is a FACT about what happened, including the
 // failures. `read` is the receipt the report is built from.
-export async function fetchSource(url, workDir, { runner = run } = {}) {
+// Does this link deserve the video toolchain at all? Pure, so the routing is
+// testable without spending a yt-dlp timeout to find out. A plain article URL
+// skips straight to the page reader instead of waiting 90s to be told it is
+// not a video.
+const VIDEO_PATH_RE = /watch\?v=|youtu\.be\/|\/reel\/|\/shorts\/|\/video\/|vimeo\.com\/\d+|\/p\/|\/status\//i;
+export function looksLikeVideo(url, toolHint) {
+  return toolHint !== 'fetch' || VIDEO_PATH_RE.test(String(url || ''));
+}
+
+// An ARTICLE: rendered in Nova's own browser profile, because a logged-out
+// fetch of half the web returns a consent wall. readWithBrowser never throws —
+// a refusal is a RESULT, and one the receipt states plainly.
+export async function fetchArticle(url, read, { reader } = {}) {
+  const readPage = reader || (await import('./browserResearch.js')).readWithBrowser;
+  const page = await readPage(url);
+  if (!page.ok) {
+    read.push(readEntry('Page text', false, page.reason || 'the page could not be read'));
+    const err = new Error(`that link could not be read (${page.reason || 'unknown'})`);
+    err.evidence = { source: { url, title: page.title || null }, read };
+    throw err;
+  }
+  read.push(readEntry('Page text', true, `${page.text.length} characters`, "rendered in Nova's browser"));
+  return {
+    source: { url, title: page.title || null, author: null, durationSec: null, description: '', kind: 'article', id: null },
+    read,
+    transcript: page.text,
+    frames: [],
+  };
+}
+
+export async function fetchSource(url, workDir, { runner = run, reader, toolHint } = {}) {
   const read = [];
+  const hint = toolHint || (await import('./browserResearch.js')).toolFor(url);
+  if (!looksLikeVideo(url, hint)) return fetchArticle(url, read, { reader });
+
   let meta = null;
   try {
     const raw = await runner(YTDLP, ['-J', '--no-warnings', ...cookieArgs(), url], { timeoutMs: 90_000 });
     meta = JSON.parse(raw);
     read.push(readEntry('Metadata', true, [meta.title, meta.uploader].filter(Boolean).join(' · ') || 'fetched'));
   } catch (e) {
-    read.push(readEntry('Metadata', false, e.message.slice(0, 120)));
-    const err = new Error(`nothing at that link could be opened as video (${e.message.slice(0, 120)}). If it is an article, ask the Researcher to read it instead.`);
-    err.evidence = { source: { url }, read };
-    throw err;
+    // it looked like video and was not, or the platform refused — read the page
+    read.push(readEntry('Video', false, e.message.slice(0, 120)));
+    return fetchArticle(url, read, { reader });
   }
 
   const source = {
@@ -196,6 +231,7 @@ async function fetchCaptions(url, workDir, runner) {
 /* -------------------------- stage 2: the reasoning ------------------------ */
 
 export function buildRepertoirePrompt({ source, transcript, frames, prose, existing = [], focus }) {
+  const isArticle = source?.kind === 'article';
   const known = existing.length
     ? `\nALREADY IN HIS REPERTOIRE — do NOT propose these again, but you may reference them:\n${existing.map((t) => `- ${t.name} (${t.family})`).join('\n')}`
     : '';
@@ -208,9 +244,9 @@ THE SOURCE
 - ${source.url}
 ${source.description ? `- The poster's own caption: “${source.description.slice(0, 600)}”` : ''}
 
-THE TRANSCRIPT — this is verbatim, and it is the primary evidence:
+${isArticle ? 'THE PAGE — read from the live page, and it is the primary evidence' : 'THE TRANSCRIPT — this is verbatim, and it is the primary evidence'}:
 """
-${transcript.slice(0, TRANSCRIPT_CHARS) || '(none — the clip had no readable audio)'}
+${transcript.slice(0, TRANSCRIPT_CHARS) || (isArticle ? '(none — the page could not be read)' : '(none — the clip had no readable audio)')}
 """
 ${frames.length ? `
 THE FRAMES — cut from the clip by ffmpeg, in order. READ THEM with the Read tool. They carry anything on screen that the audio does not, including burned-in captions, and what the people actually DO:
@@ -218,14 +254,14 @@ ${frames.map((f, i) => `- frame ${String(i + 1).padStart(2, '0')}: ${f}`).join('
 ` : ''}
 YOUR JOB, in three parts.
 
-1. WHAT THIS SOURCE ACTUALLY SHOWS. Break the technique down into the moves, in the order they happen, quoting the transcript. Be precise about the MECHANISM — why it works on a person, not just what was said. If the source labels the technique, say whether that label is correct; a popular mislabel is worth naming, because it sends someone researching the wrong literature.
+1. WHAT THIS SOURCE ACTUALLY ${isArticle ? 'SAYS' : 'SHOWS'}. Break the technique down into the moves, in the order they happen, quoting the ${isArticle ? 'page' : 'transcript'}. Be precise about the MECHANISM — why it works on a person, not just what was said. If the source labels the technique, say whether that label is correct; a popular mislabel is worth naming, because it sends someone researching the wrong literature.
 
 2. RESEARCH OUTWARD. Search the web for the real, named techniques in the same family${focus ? ` — the focus he chose is: ${focus}` : ''}. Prefer the primary literature and practitioner sources (experimental psychology, stage mentalism and magic, interrogation and negotiation research, hypnosis and suggestion research). EVERY factual claim about research carries a numbered citation [1], and every number resolves to an entry in your sources array. Note where sources disagree instead of averaging them.
 
 3. BUILD THE CURRICULUM. Order it so it actually teaches: the foundations that everything else needs come FIRST, showy things later. For each technique give a drill small enough to run in a normal day — something he can do to a friend, a barista or a colleague this afternoon — and a "tell" that says how he knows it landed.
 
 HARD RULES
-- Ground part 1 ONLY in the transcript and the frames. If the frames do not show something, say the frames do not show it.
+- Ground part 1 ONLY in ${isArticle ? 'the page text above — it is all you have of this source, so do not describe images, video or anything else you cannot read there' : 'the transcript and the frames. If the frames do not show something, say the frames do not show it'}.
 - Never invent a study, an author, a date or a result. An honest "I could not establish this" beats a confident guess — this files into his vault and he will act on it.
 - Keep every field short enough to read on a phone: summary ≤ 140 characters, move / drill / tell ≤ 220 each.
 - Techniques must be REAL and named as practitioners name them, not invented labels.
