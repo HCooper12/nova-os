@@ -523,6 +523,12 @@ export async function composeShow(vaultPath, { variant = 'morning', now: nowIn }
     try {
       const pick = await deps.todayTechnique(vaultPath, now);
       const { spokenTechniqueLine } = await import('./repertoire.js');
+      // listCard hard-slices a row at 46 characters, which put
+      // "Vocal & Nonverbal Certainty (Confidence Heuris" on the glass. The
+      // shared helper is not ours to change for every lane, so the rows are
+      // clipped on a word boundary BEFORE they reach it — at 46, its slice is
+      // then a no-op.
+      const { clip } = await import('./repertoireLane.js');
       const line = pick && !pick.outcome ? spokenTechniqueLine(pick) : null;
       if (line) {
         steps.push({
@@ -530,8 +536,8 @@ export async function composeShow(vaultPath, { variant = 'morning', now: nowIn }
           card: listCard({
             label: pick.mode === 'review' ? 'TODAY\u2019S TECHNIQUE · AGAIN' : 'TODAY\u2019S TECHNIQUE',
             items: [
-              { name: pick.technique.name },
-              ...(pick.technique.tell ? [{ name: `Tell: ${pick.technique.tell}` }] : []),
+              { name: clip(pick.technique.name, 46) },
+              ...(pick.technique.tell ? [{ name: clip(`Tell: ${pick.technique.tell}`, 46) }] : []),
             ],
             foot: `${pick.technique.family} · ${pick.position} of ${pick.total}${pick.streak > 0 ? ` · ${pick.streak}-day streak` : ''}`,
           }),
