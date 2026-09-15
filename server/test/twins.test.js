@@ -14,6 +14,7 @@ import { yesterdayStepsShape } from '../lib/healthData.js';
 import { tableSchedule, doublingSchedule, nextDueAt } from '../lib/spacing.js';
 import { SCHEDULE as librarySchedule, INTERVALS } from '../lib/librarySpacing.js';
 import { SCHEDULE as leaderSchedule } from '../lib/leader.js';
+import { SCHEDULE as repertoireSchedule, REVIEW_INTERVALS } from '../lib/repertoire.js';
 import { MODEL_CHOICES } from '../lib/modelPrefs.js';
 
 test('ONE Monday: local midnight, every weekday of a week, weeksBack, a date string, and the ISO flavour', () => {
@@ -69,10 +70,18 @@ test("yesterday's steps have one shape: missing, partial (received on its own da
   assert.equal(yesterdayStepsShape([{ date: '2026-09-01', steps: 100, receivedAt: '2026-09-01T19:59:00' }], now, { eveningHour: 20 }).kind, 'partial');
 });
 
-test('the two spacing schedules are pinned side by side, and the due arithmetic is one function', () => {
+test('the three spacing schedules are pinned side by side, and the due arithmetic is one function', () => {
   assert.deepEqual([0, 1, 2, 3, 4, 5, 9].map(librarySchedule), [1, 3, 7, 16, 35, 35, 35], 'Library: the table, last interval repeats');
   assert.deepEqual(INTERVALS, [1, 3, 7, 16, 35]);
   assert.deepEqual([0, 1, 2, 3, 4, 5].map(leaderSchedule), [3, 6, 12, 24, 35, 35], 'Leader: doubling from 3, capped at 35');
+  // The Repertoire's is a THIRD schedule on purpose: a drill he is meant to
+  // perform is not an idea from a book, so it returns sooner and tops out
+  // sooner. Its counter is also different — times TRIED, not times shown —
+  // which is why it can sit on the same arithmetic without meaning the same
+  // thing. Pinned here so changing one is a decision and never a drift.
+  assert.deepEqual([0, 1, 2, 3, 4, 9].map(repertoireSchedule), [2, 5, 12, 30, 30, 30], 'Repertoire: practice gaps, last interval repeats');
+  assert.deepEqual(REVIEW_INTERVALS, [2, 5, 12, 30]);
+  assert.ok(REVIEW_INTERVALS[0] < INTERVALS[1], 'a drill comes back sooner than a book idea');
   assert.deepEqual([0, 2].map(tableSchedule([2, 4, 8])), [2, 8]);
   assert.equal(doublingSchedule(1, 10)(10), 10);
   const DAY = 86_400_000;
