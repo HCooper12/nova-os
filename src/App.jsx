@@ -2849,20 +2849,35 @@ export default class App extends Component {
   clearShoppingList() {
     const conn = getConnection();
     if (!conn) return;
+    // OPTIMISTIC. Clearing is the one write where he already knows the answer
+    // exactly: the ticked things go. He is usually standing at a checkout or
+    // putting shopping away, so the list emptying a round trip later is the
+    // worst moment for it.
+    const previous = this.state.liveShoppingList;
+    const ticked = (previous?.items || []).filter((i) => i.checked);
     this.setState({ shoppingClearBusy: true });
-    api.clearShoppingList(conn).then(({ items, cleared, count }) => {
-      this.noteLocalWrite('shoppingList');
-      this.setState((s) => ({
-        liveShoppingList: { ...s.liveShoppingList, items },
-        shoppingCleared: cleared || [],
+    this.optimisticWrite({
+      tag: 'shoppingList',
+      hapticWord: 'commit',
+      snapshot: () => ({ liveShoppingList: previous, shoppingClearArmed: false, shoppingClearBusy: false }),
+      apply: () => this.setState((st) => ({
         shoppingClearArmed: false,
-        shoppingClearBusy: false,
-      }));
-      this.toastMsg(count ? `Cleared ${count} item${count === 1 ? '' : 's'} — undo at the top` : 'Nothing to clear');
-    }).catch((e) => {
-      this.setState({ shoppingClearBusy: false, shoppingClearArmed: false });
-      this.toastMsg('Could not clear the list: ' + e.message);
-    });
+        liveShoppingList: st.liveShoppingList
+          ? { ...st.liveShoppingList, items: (st.liveShoppingList.items || []).filter((i) => !i.checked) }
+          : st.liveShoppingList,
+      })),
+      call: (c) => api.clearShoppingList(c),
+      onServer: ({ items, cleared, count }) => {
+        // the server's list and its undo set win over the local guess
+        this.setState((st) => ({
+          liveShoppingList: { ...st.liveShoppingList, items },
+          shoppingCleared: cleared || ticked,
+          shoppingClearBusy: false,
+        }));
+        this.toastMsg(count ? `Cleared ${count} item${count === 1 ? '' : 's'} — undo at the top` : 'Nothing to clear');
+      },
+      failMessage: 'Could not clear the list',
+    }).catch(() => { /* snapshot already restored it, and toastFail spoke */ });
   }
   undoShoppingClear() {
     const conn = getConnection();
@@ -5088,7 +5103,31 @@ export default class App extends Component {
     if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
     const t = (text || '').trim();
     if (!t) return;
-    this.setState({ inboxCaptureBusy: true, inboxInput: '' });
+    // OPTIMISTIC. The words are his — only the ROUTING is a model call, so the
+    // card goes on the board in the same frame as "Nova is routing this…"
+    // rather than after a round trip. The refresh below replaces the whole list
+    // with the server's, which is what cleans the provisional row up: it simply
+    // is not in what comes back.
+    const localId = `local-${Date.now()}`;
+    const provisional = {
+      id: localId, kind: null, text: t, status: 'classifying',
+      source, mode: this.state.inboxMode, createdAt: new Date().toISOString(),
+      pendingLocally: true,
+    };
+    haptic('tick');
+    this.noteLocalWrite('inbox');
+    this.setState((st) => ({
+      inboxCaptureBusy: true,
+      inboxInput: '',
+      liveInbox: st.liveInbox
+        ? { ...st.liveInbox, items: [provisional, ...(st.liveInbox.items || [])] }
+        : st.liveInbox,
+    }));
+    const dropProvisional = () => this.setState((st) => ({
+      liveInbox: st.liveInbox
+        ? { ...st.liveInbox, items: (st.liveInbox.items || []).filter((r) => r.id !== localId) }
+        : st.liveInbox,
+    }));
     api.inboxCapture(conn, t, this.state.inboxMode, source).then(({ id }) => {
       this.refreshInbox();
       this.startPoll('inboxCapture:' + id, () => api.inboxItem(conn, id), {
@@ -5106,9 +5145,11 @@ export default class App extends Component {
         },
       });
     }).catch((e) => {
+      // the card came back off the board — it was never real
+      dropProvisional();
       this.setState({ inboxCaptureBusy: false });
       if (isOfflineError(e)) { this.enqueueOutbox('capture', t, { text: t, mode: this.state.inboxMode, source }); return; }
-      this.toastMsg('Capture failed: ' + e.message);
+      this.toastFail('Capture failed: ' + e.message);
     });
   }
   inboxAction(id, kind, reason) {

@@ -140,15 +140,15 @@ multi-step, and the outcome is not a foregone conclusion: `compost` ·
 inbox approve/discard, the shopping toggle, the food log, the stash, the
 rotation slot — and now the shopping add.
 
+**DONE 15-16 Sep:** `shoppingAdd` · `shoppingClear` · `inboxCapture`.
+
 **STILL TO DO** — deterministic writes that continue to wait:
 
-| flag | why it can be optimistic |
-| --- | --- |
-| `shoppingClear` | the list empties; he asked for exactly that |
-| `journalSave` / `reviewReflect` | he typed the text — it is not in doubt |
-| `recipeAdd` | he typed the name and fields |
-| `recipeEdit` | he edited the fields in front of him |
-| `inboxCapture` | the captured text is his; only the ROUTING is a model call, so the card can appear as "classifying" immediately |
+| flag | why it can be optimistic | note |
+| --- | --- | --- |
+| `journalSave` / `reviewReflect` | he typed the text | the composer ALREADY clears instantly and gives the words back on failure; only the entry appearing in the list below is missing, and that needs the day-grouped shape handled |
+| `recipeAdd` | he typed the name and fields | |
+| `recipeEdit` | he edited the fields in front of him | |
 
 ### What was done
 1. **`submitShoppingAdd` is optimistic** — the proof case, and a good one: the
