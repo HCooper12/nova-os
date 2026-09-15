@@ -290,6 +290,16 @@ export function clip(s, n) {
   return `${(space >= n * 0.5 ? window.slice(0, space) : window).replace(/[,;:\s]+$/, '')}…`;
 }
 
+// A CARD HAS NO BIBLIOGRAPHY. The report renders its citations beside a Sources
+// list, so [19][20] means something there. On the technique card — and on the
+// catalogue page, and in the line Nova SPEAKS in the morning — the same markers
+// are noise pointing at nothing, and the live run put "…Milton Model pattern
+// [19][20]…" on a card. Stripped from card fields only; the report's prose
+// keeps them.
+export function cardField(s, n) {
+  return clip(String(s ?? '').replace(/\s*\[\d{1,3}\](?:\s*\[\d{1,3}\])*/g, ''), n);
+}
+
 // Validate into the shape the catalogue writer accepts. A technique without a
 // name or a drill is dropped: the whole promise of the daily card is that
 // there is something to DO, so a nameless entry with no drill is not a
@@ -298,16 +308,16 @@ export function normalizeProposal(parsed) {
   const seen = new Set();
   const techniques = [];
   for (const t of Array.isArray(parsed?.techniques) ? parsed.techniques : []) {
-    const name = clip(t?.name, 80);
-    const drill = clip(t?.drill, 220);
+    const name = cardField(t?.name, 80);
+    const drill = cardField(t?.drill, 220);
     if (!name || !drill) continue;
     const id = slugFor(name);
     if (!id || seen.has(id)) continue;
     seen.add(id);
     techniques.push({
       family: clip(t?.family, 60) || clip(parsed?.family, 60) || 'Unfiled',
-      name, summary: clip(t?.summary, 140), move: clip(t?.move, 220), drill,
-      tell: clip(t?.tell, 220), source: clip(t?.source, 120),
+      name, summary: cardField(t?.summary, 140), move: cardField(t?.move, 220), drill,
+      tell: cardField(t?.tell, 220), source: cardField(t?.source, 120),
     });
   }
   const sources = (Array.isArray(parsed?.sources) ? parsed.sources : [])

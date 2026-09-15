@@ -10,7 +10,7 @@ import path from 'node:path';
 
 import {
   normalizeProposal, renderCurriculum, renderSources, buildReport,
-  buildRepertoirePrompt, fetchSource, plausibleTranscript, clip,
+  buildRepertoirePrompt, fetchSource, plausibleTranscript, clip, cardField,
 } from '../lib/repertoireLane.js';
 import { readEntry } from '../lib/captureReport.js';
 
@@ -89,6 +89,23 @@ test('a source without a real URL is not a source', () => {
 test('newlines inside a field cannot break the page format', () => {
   const out = normalizeProposal({ techniques: [{ name: 'X', drill: 'line one\nline two\n- **Move:** injected' }] });
   assert.ok(!out.techniques[0].drill.includes('\n'), 'a drill is one line or the catalogue parser mis-reads it');
+});
+
+test('citation markers are stripped from CARD fields — a card has no bibliography', () => {
+  // the real string the live run put on a card
+  assert.equal(
+    cardField('This is a named Ericksonian/Milton Model pattern [19][20] worth knowing.', 220),
+    'This is a named Ericksonian/Milton Model pattern worth knowing.',
+  );
+  assert.equal(cardField('Ends on a citation [3].', 220), 'Ends on a citation.');
+  assert.equal(cardField('Reid technique [6][7]', 220), 'Reid technique');
+  assert.equal(cardField('No citations here at all.', 220), 'No citations here at all.');
+  // and it still clips
+  assert.ok(cardField('x'.repeat(400), 100).length <= 100);
+});
+
+test('the stripping does not eat ordinary brackets', () => {
+  assert.equal(cardField('Tell a friend [jokingly] that you already told them.', 220), 'Tell a friend [jokingly] that you already told them.');
 });
 
 /* ------------------------------- rendering ------------------------------- */

@@ -273,6 +273,7 @@ test('practising writes the tally, advances the interval, and logs it to the vau
   assert.equal(res.logged, true);
   const log = await readFile(path.join(vault, LOG_REL), 'utf8');
   assert.match(log, /- 2026-09-15 · \*\*The planted sensation\*\* — tried · worked on Dad/);
+  assert.ok(log.endsWith('\n') && !log.endsWith('\n\n'), 'a markdown file ends with exactly one newline');
 
   // re-marking the SAME day corrects rather than double-counts, in both stores
   await logPractice(vault, '2026-09-15', 'skipped');

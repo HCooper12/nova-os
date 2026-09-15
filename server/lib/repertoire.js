@@ -399,5 +399,6 @@ async function appendLog(vaultPath, dateISO, name, outcome, note) {
   const headEnd = kept.findIndex((l) => l.startsWith('- '));
   const at = headEnd === -1 ? kept.length : headEnd;
   kept.splice(at, 0, line);
-  await writeFile(full, kept.join('\n').replace(/\n{3,}/g, '\n\n'), 'utf8');
+  // a markdown file ends with a newline; Obsidian and every diff expect it
+  await writeFile(full, `${kept.join('\n').replace(/\n{3,}/g, '\n\n').replace(/\s*$/, '')}\n`, 'utf8');
 }
