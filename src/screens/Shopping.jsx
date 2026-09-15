@@ -108,6 +108,12 @@ export function Shopping({ v }) {
                       {item.source && (
                         <div style={css("font-size:10.5px;color:color-mix(in srgb, var(--nv-ink) 35%, transparent);margin-top:2px")}>from {item.source}</div>
                       )}
+                      {/* it is ON the list already — only the aisle is still
+                          being decided, so the row says that rather than
+                          silently jumping category a moment later */}
+                      {item.pending && (
+                        <div style={css("font-size:10.5px;color:var(--nv-gold);margin-top:2px")}>sorting into an aisle…</div>
+                      )}
                     </div>
                     {/* QUANTITY — how many to buy, changed right here. The
                         row itself toggles "got it", so these must not bubble

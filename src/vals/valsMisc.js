@@ -22,6 +22,8 @@ export function valsMisc(app, ctx) {
       name: cat,
       items: shoppingItems.filter((i) => i.category === cat).map((i) => ({
         id: i.id, name: i.name, source: i.source, checked: i.checked,
+        // on the list already, still being sorted into an aisle — the row says so
+        pending: !!i.pending,
         // legacy items carry no qty — one of a thing is the honest default
         qty: Math.max(1, Number(i.qty) || 1),
         // what the recipe called for ("1kg") — the thing he needs at the shops

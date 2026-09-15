@@ -123,19 +123,45 @@ The gap is the writes whose outcome IS known and that still wait. Confirmed:
 The rest need the audit below rather than a guess — classifying 44 flags from
 memory is exactly how a plan ends up wrong.
 
-### What to do
-1. **Audit, and write the classification down** — each `*Busy` flag as either
-   `model` (keep the spinner; the answer is unknown) or `deterministic` (make it
-   optimistic). Two columns, in this file, so it never has to be re-derived.
-2. **Extract the pattern into one helper** rather than hand-rolling it a
-   seventh time:
-   ```js
-   optimisticWrite({ tag, apply, call, onServer, failMessage })
-   ```
-   covering haptic → optimistic setState → `noteLocalWrite(tag)` → call →
-   server-wins → revert + `haptic('warn')` + toast. Six existing call sites
-   collapse into it, which is how the next one gets it right for free.
-3. **Do `addShoppingItem` first** as the proof, then work the audit list.
+### The audit (done 15 Sep — each flag against the call it awaits)
+
+**MODEL — the spinner stays.** The answer is genuinely unknown, and showing a
+guess would be fiction: `calCmd` · `coach` · `code` · `foodScan` · `forge` ·
+`journalPrompt` · `reviewReflectPrompt` · `label` · `leader` · `mealPrep` ·
+`moneyScan` · `quick` · `recipeScan` · `recipeTweak` · `spar` · `studioOutline` ·
+`verdict` · `voice` · `review`.
+
+**REAL WORK — the spinner stays.** Not a model, but genuinely slow and
+multi-step, and the outcome is not a foregone conclusion: `compost` ·
+`commitments` · `dispatch` · `guardian` · `coachApply` · `browserSignIn` ·
+`codeChange` · `money` · `todoist` · `instruments` · `attach`.
+
+**ALREADY OPTIMISTIC** (the reference implementations): the to-do toggle, the
+inbox approve/discard, the shopping toggle, the food log, the stash, the
+rotation slot — and now the shopping add.
+
+**STILL TO DO** — deterministic writes that continue to wait:
+
+| flag | why it can be optimistic |
+| --- | --- |
+| `shoppingClear` | the list empties; he asked for exactly that |
+| `journalSave` / `reviewReflect` | he typed the text — it is not in doubt |
+| `recipeAdd` | he typed the name and fields |
+| `recipeEdit` | he edited the fields in front of him |
+| `inboxCapture` | the captured text is his; only the ROUTING is a model call, so the card can appear as "classifying" immediately |
+
+### What was done
+1. **`submitShoppingAdd` is optimistic** — the proof case, and a good one: the
+   server only uses a model to pick the AISLE, and already has a deterministic
+   fallback category for when that lane is off. So the item he typed appears in
+   the same frame under that fallback, marked `pending`, and the row says
+   "sorting into an aisle…" rather than silently jumping category when the
+   answer lands.
+2. **`optimisticWrite` exists** (App.jsx) — the five beats in one place:
+   answer the hand → show it now → guard the racing snapshot → let the server
+   win → put it back honestly on failure. Six places had hand-rolled that
+   shape; the seventh copy is where a beat gets forgotten.
+3. **Next:** work the STILL TO DO table through the helper.
 
 ### The rule to keep
 An optimistic write is only honest when the outcome is genuinely predictable.

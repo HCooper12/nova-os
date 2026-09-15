@@ -2772,19 +2772,42 @@ export default class App extends Component {
   }
   submitShoppingAdd() {
     const conn = getConnection();
-    const items = this.state.shoppingAddInput.split('\n').map((s) => s.trim()).filter(Boolean);
+    const text = this.state.shoppingAddInput;
+    const items = text.split('\n').map((s) => s.trim()).filter(Boolean);
     if (!conn || !items.length) return;
+    // OPTIMISTIC. He typed the names, so the names are not in doubt — only the
+    // AISLE is, and that is the only part the model does. So the items go on
+    // the list in the same frame under the same fallback category the server
+    // uses when the categoriser is off, marked `pending` so the row can say it
+    // is still being sorted. The server's answer replaces the whole list a
+    // moment later and they land where they belong.
+    const previous = this.state.liveShoppingList;
+    const provisional = items.map((name, i) => ({
+      id: `pending-${Date.now()}-${i}`, name, source: null, checked: false, qty: 1,
+      category: 'Household & Other', pending: true,
+    }));
     this.setState({ shoppingAddBusy: true, shoppingAddError: null });
-    api.addShoppingItems(conn, items.map((name) => ({ name, source: null })))
-      .then(({ jobId }) => this.pollShoppingAdd(conn, jobId))
-      .catch((e) => {
-        if (isOfflineError(e)) {
-          this.setState({ shoppingAddBusy: false, shoppingAddInput: '' });
-          this.enqueueOutbox('shopping', items[0] + (items.length > 1 ? ` +${items.length - 1}` : ''), { items: items.map((name) => ({ name, source: null })) });
-          return;
-        }
-        this.setState({ shoppingAddBusy: false, shoppingAddError: e.message });
-      });
+    this.optimisticWrite({
+      tag: 'shoppingList',
+      snapshot: () => ({ liveShoppingList: previous, shoppingAddInput: text, shoppingAddBusy: false }),
+      apply: () => this.setState((st) => ({
+        shoppingAddInput: '',
+        liveShoppingList: st.liveShoppingList
+          ? { ...st.liveShoppingList, items: [...(st.liveShoppingList.items || []), ...provisional] }
+          : st.liveShoppingList,
+      })),
+      call: (c) => api.addShoppingItems(c, items.map((name) => ({ name, source: null })))
+        .then(({ jobId }) => this.pollShoppingAdd(c, jobId)),
+      failMessage: 'Could not add to shopping list',
+    }).catch((e) => {
+      // offline is not a failure — it is a queued write, and the outbox owns it
+      if (isOfflineError(e)) {
+        this.setState({ shoppingAddBusy: false, shoppingAddInput: '' });
+        this.enqueueOutbox('shopping', items[0] + (items.length > 1 ? ` +${items.length - 1}` : ''), { items: items.map((name) => ({ name, source: null })) });
+        return;
+      }
+      this.setState({ shoppingAddBusy: false, shoppingAddError: e.message });
+    });
   }
   toggleShoppingItem(id, checked) {
     const conn = getConnection();
@@ -5397,6 +5420,32 @@ export default class App extends Component {
     clearTimeout(this.toastT);
     this.setState({ toast: text });
     this.toastT = setTimeout(() => this.setState({ toast: null }), 3600);
+  }
+  // ONE OPTIMISTIC WRITE, written once. Six places had hand-rolled this shape
+  // (the to-do toggle, the inbox approve, the shopping toggle, the food log,
+  // the stash, the rotation) and each had to remember all five beats: answer
+  // the hand, show the result now, guard against a racing snapshot, let the
+  // server's answer win, and put it back honestly if it failed. The seventh
+  // hand-rolled copy is where one of those beats gets forgotten.
+  //
+  // `snapshot` returns a setState patch that restores exactly what was on
+  // screen — the caller decides what "before" means, because only it knows.
+  optimisticWrite({ tag, snapshot, apply, call, onServer, failMessage, hapticWord = 'tick' }) {
+    const conn = getConnection();
+    if (!conn) return Promise.resolve();
+    const before = snapshot();
+    haptic(hapticWord);
+    if (tag) this.noteLocalWrite(tag);
+    apply();
+    return call(conn).then((res) => {
+      if (tag) this.noteLocalWrite(tag);
+      onServer?.(res);
+      return res;
+    }).catch((e) => {
+      this.setState(before);
+      this.toastFail(`${failMessage}: ${e.message}`);
+      throw e;
+    });
   }
   // THE ACTION DID NOT HAPPEN. Used where an optimistic write is TAKEN BACK —
   // the row flipped under his thumb and is now flipping back. The hand is the
