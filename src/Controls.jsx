@@ -76,7 +76,7 @@ export function Eyebrow({ children, tone: t = 'faint', style, as: Tag = 'div', .
 // used to BE the target, at 8.5px.
 // `compact` is for a pair of marks INSIDE a list row (Done · Skip), where the
 // full 15px/40px control squeezed the row's title into a narrow column.
-export function TextAction({ children, onClick, tone: t = 'accent', disabled, compact, style, ariaLabel, title }) {
+export function TextAction({ children, onClick, tone: t = 'accent', disabled, compact, style, ariaLabel, title, haptic = 'tick' }) {
   const apple = isAppleStyle();
   const color = disabled ? 'var(--nv-ink40)' : tone(t);
   return (
@@ -98,7 +98,7 @@ export function TextAction({ children, onClick, tone: t = 'accent', disabled, co
         ...(style || {}),
       }}
       hoverStyle={{ background: `color-mix(in srgb, ${color} 10%, transparent)` }}
-    >{children}</Interactive>
+     haptic={disabled ? undefined : haptic}>{children}</Interactive>
   );
 }
 

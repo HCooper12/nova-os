@@ -75,10 +75,10 @@ export function MetricTile({ m }) {
 // The ink was a hardcoded #0b1016, which is the exact thing the token sweep
 // banned: under Daylight the accent is blue and near-black ink on it is wrong.
 // --nv-on-acc is what that token exists for.
-export function Pill({ label, onClick, tone = 'accent', accent = '--nv-acc' }) {
+export function Pill({ label, onClick, tone = 'accent', accent = '--nv-acc', haptic = 'tick' }) {
   const solid = tone === 'accent';
   return (
-    <Interactive as="span" onClick={onClick}
+    <Interactive as="span" onClick={onClick} haptic={haptic}
       base={{ cursor: 'pointer', display: 'inline-block', font: `600 13px ${UI}`, letterSpacing: '.01em', padding: '9px 18px', borderRadius: '999px',
         background: solid ? `var(${accent})` : 'rgba(255,255,255,.07)',
         color: solid ? 'var(--nv-on-acc)' : 'var(--nv-ink)',

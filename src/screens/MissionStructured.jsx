@@ -425,17 +425,17 @@ export function MissionStructured({ v }) {
               {v.todayTechnique.outcome === 'tried' ? (
                 <>
                   <span style={{ font: `600 12px ${UI}`, color: 'var(--nv-good)' }}>✓ Practised</span>
-                  <Pill label="Actually, not today" onClick={() => { haptic('light'); v.todayTechnique.markSkipped(); }} tone="quiet" />
+                  <Pill label="Actually, not today" onClick={() => { haptic('tick'); v.todayTechnique.markSkipped(); }} tone="quiet" />
                 </>
               ) : v.todayTechnique.outcome === 'skipped' ? (
                 <>
                   <span style={{ font: `600 12px ${UI}`, color: 'var(--nv-ink60)' }}>Passed today</span>
-                  <Pill label="I did try it" onClick={() => { haptic('light'); v.todayTechnique.markTried(); }} tone="quiet" />
+                  <Pill label="I did try it" onClick={() => { haptic('tick'); v.todayTechnique.markTried(); }} tone="quiet" />
                 </>
               ) : (
                 <>
-                  <Pill label="I tried it" accent="--nv-mg" onClick={() => { haptic('light'); v.todayTechnique.markTried(); }} />
-                  <Pill label="Not today" onClick={() => { haptic('light'); v.todayTechnique.markSkipped(); }} tone="quiet" />
+                  <Pill label="I tried it" accent="--nv-mg" onClick={() => { haptic('tick'); v.todayTechnique.markTried(); }} />
+                  <Pill label="Not today" onClick={() => { haptic('tick'); v.todayTechnique.markSkipped(); }} tone="quiet" />
                 </>
               )}
             </div>

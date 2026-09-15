@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { css } from './css.js';
 import { useLongPress } from './longPress.js';
+import { haptic as fireHaptic, needsSwitchHaptic, switchHapticRef, SWITCH_HAPTIC_STYLE } from './haptics.js';
 
 // The original design used `style-hover` / `style-focus` attributes (a Design
 // Canvas-only feature) to patch inline styles on :hover/:focus. This is the
@@ -14,7 +15,17 @@ import { useLongPress } from './longPress.js';
 const NATIVE_INTERACTIVE = new Set(['button', 'a', 'input', 'select', 'textarea', 'label']);
 const DEFAULT_FOCUS = { outline: '2px solid var(--nv-acc-border)', outlineOffset: '2px' };
 
-export function Interactive({ as: Tag = 'div', base, hoverStyle, activeStyle, focusStyle, style: styleProp, onPointerDown, onPointerUp, onPointerCancel, onPointerEnter, onPointerLeave, onFocus, onBlur, onClick, onKeyDown, onLongPress, ...rest }) {
+// `haptic` is OPT-IN, one of the five words in haptics.js. Given one, this
+// element answers the hand two ways at once:
+//   - native shell / Android → the word is fired as a pattern, as before;
+//   - iOS web → a TRANSPARENT system switch is laid over the element so his
+//     own finger lands on it. That is the only path iOS still allows (26.5
+//     closed the programmatic one), and it is why he has never felt anything:
+//     Nova had no iOS path at all.
+// Opt-in rather than automatic because the overlay needs the element to be a
+// positioned ancestor, and quietly making ~300 wrappers into stacking contexts
+// is not a change to make blind.
+export function Interactive({ as: Tag = 'div', base, hoverStyle, activeStyle, focusStyle, style: styleProp, onPointerDown, onPointerUp, onPointerCancel, onPointerEnter, onPointerLeave, onFocus, onBlur, onClick, onKeyDown, onLongPress, haptic: hapticWord, children, ...rest }) {
   const [hover, setHover] = useState(false);
   const [active, setActive] = useState(false);
   const [focus, setFocus] = useState(false);
@@ -43,7 +54,11 @@ export function Interactive({ as: Tag = 'div', base, hoverStyle, activeStyle, fo
   const motion = springs
     ? { transform: active ? 'scale(.978)' : 'scale(1)', transition: 'transform .16s cubic-bezier(.32,.72,0,1)' }
     : {};
-  const style = { ...b, ...motion, ...(hover ? hs : {}), ...(active ? as_ : {}), ...(focus ? fs : {}), ...(lp.style || {}), ...(styleProp || {}) };
+  // the overlay is absolutely positioned, so the element has to be its
+  // containing block — applied ONLY when a haptic word was asked for
+  const wantsSwitch = !!hapticWord && !!onClick && needsSwitchHaptic();
+  const posFix = wantsSwitch ? { position: 'relative' } : {};
+  const style = { ...b, ...posFix, ...motion, ...(hover ? hs : {}), ...(active ? as_ : {}), ...(focus ? fs : {}), ...(lp.style || {}), ...(styleProp || {}) };
   const a11y = actsAsButton
     ? {
         role: 'button',
@@ -57,7 +72,7 @@ export function Interactive({ as: Tag = 'div', base, hoverStyle, activeStyle, fo
   return (
     <Tag
       style={style}
-      onClick={onClick}
+      onClick={onClick ? (e) => { if (hapticWord) fireHaptic(hapticWord); onClick(e); } : undefined}
       onClickCapture={lp.onClickCapture}
       onContextMenu={lp.onContextMenu}
       onPointerDown={(e) => { setActive(true); lp.onPointerDown?.(e); onPointerDown?.(e); }}
@@ -71,6 +86,22 @@ export function Interactive({ as: Tag = 'div', base, hoverStyle, activeStyle, fo
       onBlur={(e) => { setFocus(false); onBlur?.(e); }}
       {...a11y}
       {...rest}
-    />
+    >
+      {children}
+      {wantsSwitch && (
+        <input
+          type="checkbox"
+          ref={switchHapticRef}
+          aria-hidden="true"
+          tabIndex={-1}
+          style={SWITCH_HAPTIC_STYLE}
+          // NO stopPropagation and NO preventDefault. The tap has to land on
+          // this control for iOS to fire the Taptic Engine, and it has to keep
+          // bubbling for the element's own onClick to run — swallow it and
+          // every button wearing one of these goes dead.
+          onChange={() => {}}
+        />
+      )}
+    </Tag>
   );
 }

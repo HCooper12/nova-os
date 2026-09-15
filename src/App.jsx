@@ -1227,7 +1227,7 @@ export default class App extends Component {
     api.stashRemove(conn, raw).then((r) => this.setState({ liveStash: r.categories }))
       .catch((e) => {
         if (previousStash) this.setState({ liveStash: previousStash });
-        this.toastMsg('Could not remove: ' + e.message);
+        this.toastFail('Could not remove: ' + e.message);
       });
   }
 
@@ -1907,7 +1907,12 @@ export default class App extends Component {
     this.setState({ liveRepertoire: { ...cur, outcome } });
     api.repertoirePractice(conn, outcome, note)
       .then((r) => this.setState((st) => ({ liveRepertoire: { ...st.liveRepertoire, outcome: r.outcome, tried: r.tried, streak: r.streak } })))
-      .catch(() => this.setState((st) => ({ liveRepertoire: { ...st.liveRepertoire, outcome: cur.outcome } })));
+      .catch((e) => {
+        // it flipped under his thumb and is flipping back — say so, and buzz.
+        // A silent revert is the worst version of an optimistic write.
+        this.setState((st) => ({ liveRepertoire: { ...st.liveRepertoire, outcome: cur.outcome } }));
+        this.toastFail('Could not mark that: ' + e.message);
+      });
   }
   dismissWrap() {
     const on = this.state.liveWrap?.facts?.date || new Date().toISOString().slice(0, 10);
@@ -1980,7 +1985,7 @@ export default class App extends Component {
       .then((day) => { this.noteLocalWrite('foodLog'); this.applyFoodLogDay(day); })
       .catch((e) => {
         if (previousDay) this.applyFoodLogDay(previousDay);
-        this.toastMsg('Could not remove entry: ' + e.message);
+        this.toastFail('Could not remove entry: ' + e.message);
       });
   }
   // THE ITEMISED PLATE — drop one line of a meal. The whole day comes back
@@ -2790,7 +2795,7 @@ export default class App extends Component {
     api.toggleShoppingItem(conn, id, checked).then(({ items }) => {
       this.noteLocalWrite('shoppingList');
       this.setState((s) => ({ liveShoppingList: { ...s.liveShoppingList, items } }));
-    }).catch((e) => this.toastMsg('Could not update item: ' + e.message));
+    }).catch((e) => this.toastFail('Could not update item: ' + e.message));
   }
   confirmShoppingCompletion() {
     const conn = getConnection();
@@ -4226,6 +4231,7 @@ export default class App extends Component {
     }).catch((e) => {
       if (isOfflineError(e)) { this.enqueueOutbox('todo', text, { text }); return; } // the row stays; the outbox will land it
       this.setState({ liveTodos: previous, todoInput: text }); // give the words back
+      haptic('warn');
       this.toastMsg('Could not add: ' + e.message);
     });
   }
@@ -4256,7 +4262,7 @@ export default class App extends Component {
     }).catch((e) => {
       // revert to exactly what was on screen before the tap, then say why
       this.setState({ liveTodos: previous });
-      this.toastMsg('Could not update that to-do: ' + e.message);
+      this.toastFail('Could not update that to-do: ' + e.message);
     });
   }
   setInboxInput(value) {
@@ -5118,7 +5124,7 @@ export default class App extends Component {
         inboxActionBusy: { ...s.inboxActionBusy, [id]: false },
         liveInbox: previousInbox || s.liveInbox,
       }));
-      this.toastMsg(kind === 'undo' ? 'Could not undo: ' + e.message : 'Action failed: ' + e.message);
+      this.toastFail(kind === 'undo' ? 'Could not undo: ' + e.message : 'Action failed: ' + e.message);
       this.refreshInbox(); // and re-sync, so the truth wins over both guesses
     });
   }
@@ -5390,6 +5396,14 @@ export default class App extends Component {
     clearTimeout(this.toastT);
     this.setState({ toast: text });
     this.toastT = setTimeout(() => this.setState({ toast: null }), 3600);
+  }
+  // THE ACTION DID NOT HAPPEN. Used where an optimistic write is TAKEN BACK —
+  // the row flipped under his thumb and is now flipping back. The hand is the
+  // sense that was answered first, so it is the sense that has to be told, and
+  // `warn` is the one word in the vocabulary that had never once been fired.
+  toastFail(text) {
+    haptic('warn');
+    this.toastMsg(text);
   }
   // ---------- Nova Live: native conversation from the orb ----------
   // Tapping the core toggles the conversation: a second tap ends it, the way

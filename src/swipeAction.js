@@ -182,7 +182,8 @@ export function useOptionPager({ onNext, onPrev, enabled = true } = {}) {
         const elapsedMs = performance.now() - s.startT;
         const paged = shouldPage({ dir: s.dir, dx: s.dx, elapsedMs });
         if (paged) {
-          haptic('light');
+          // a gesture that passed its commit bar IS the threshold word
+          haptic('threshold');
           // drag left → the next option, like every carousel he has ever used
           (s.dx < 0 ? onNext : onPrev)?.();
         }

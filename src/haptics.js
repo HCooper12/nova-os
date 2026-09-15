@@ -43,8 +43,87 @@ function nativeHaptics() {
   } catch { return null; }
 }
 
+/* ------------------------- the iOS web path (Sep 2026) --------------------- */
+//
+// HIS REPORT, 15 Sep: "I have never felt any haptics while using my phone."
+// That was true and expected — iOS WebKit has never shipped navigator.vibrate,
+// so on his phone every call above has been a no-op for a year. What this file
+// said about that was honest; what it did not do was offer the one path that
+// DOES work in Safari.
+//
+// Safari 17.4 added `<input type="checkbox" switch>`, a real system control
+// that fires the Taptic Engine when toggled. Every web-haptics library used it
+// by clicking a hidden one programmatically — and iOS 26.5 closed that path.
+// What still works is the version that was never a trick: put a TRANSPARENT
+// switch ON TOP of the tappable, so the user's own finger lands on the control.
+// iOS treats that as direct manipulation (isTrusted), and the tap is real.
+//
+// The honest limits, stated here because a surface has to be able to tell him:
+//   - ONE flavour. 26.5 also closed programmatic re-ticking, so a multi-part
+//     pattern fires only its first tick. The five words above still MEAN five
+//     different things; on iOS web they all feel like one tap. Tiers need the
+//     native shell.
+//   - iPads have no Taptic Engine at all.
+//   - It cannot be fired from code. A button Nova presses for him never buzzes,
+//     and that is correct — nothing happened under his finger.
+
+function isIOS() {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  // iPadOS 13+ reports as Macintosh; touch points is what separates it
+  return /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1);
+}
+
+// Does this device need (and support) the overlay-switch path? Only when there
+// is no better one: the native shell and the Vibration API both beat it.
+export function needsSwitchHaptic() {
+  if (nativeHaptics()) return false;
+  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') return false;
+  return isIOS();
+}
+
+// What is actually available, in words a settings row can print. Nova has had
+// `hapticsSupported()` since the wrapper landed and has never once shown it to
+// him — which is part of why "I have never felt any haptics" went unexplained.
+export function hapticCapability() {
+  if (nativeHaptics()) {
+    return { path: 'native', tiers: true, label: 'Native shell — the full Taptic vocabulary, all five distinct.' };
+  }
+  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+    return { path: 'vibrate', tiers: true, label: 'Vibration API — patterned, so the five are distinct.' };
+  }
+  if (isIOS()) {
+    return {
+      path: 'switch',
+      tiers: false,
+      label: 'iOS web — one real Taptic tap on anything you press. The five tiers need the native shell (iOS blocks patterned haptics on the web).',
+    };
+  }
+  return { path: 'none', tiers: false, label: 'This device has no haptics Nova can reach.' };
+}
+
+// The props for the invisible control. Spread onto an <input> that sits inside
+// a POSITIONED tappable. The `switch` attribute goes on by ref because React
+// does not forward it.
+export const switchHapticRef = (el) => { if (el) el.setAttribute('switch', ''); };
+export const SWITCH_HAPTIC_STYLE = {
+  position: 'absolute', inset: 0, width: '100%', height: '100%',
+  margin: 0, padding: 0, border: 0, opacity: 0,
+  appearance: 'none', WebkitAppearance: 'none',
+  background: 'transparent', pointerEvents: 'auto', cursor: 'inherit',
+};
+
+export const HAPTIC_WORDS = Object.keys(PATTERNS);
+
 export function haptic(kind = 'tick') {
   try {
+    // A WORD THAT IS NOT IN THE VOCABULARY used to become a tick in silence.
+    // haptic('light') was called in five places and had never been one of the
+    // five — so four card buttons and the swipe pager were all quietly firing
+    // the wrong thing. Nothing could catch it, so now something does.
+    if (!PATTERNS[kind] && typeof console !== 'undefined' && import.meta.env?.DEV) {
+      console.warn(`haptic(): "${kind}" is not one of ${HAPTIC_WORDS.join(', ')} — falling back to tick`);
+    }
     const H = nativeHaptics();
     if (H) {
       const fire = NATIVE[kind] || NATIVE.tick;

@@ -2,6 +2,7 @@ import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { TabOrderEditor } from '../TabOrderEditor.jsx';
 import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle, ScreenHead } from '../Controls.jsx';
+import { hapticCapability, HAPTIC_WORDS, haptic } from '../haptics.js';
 
 // the material pass (6 Sep 2026): labels through Controls.jsx; a filled
 // button is sentence-case in the UI face under the Apple styles
@@ -272,6 +273,55 @@ export function Settings({ v }) {
           </div>
         </div>
       </div>
+
+      {/* HAPTICS — his report, 15 Sep: "I have never felt any haptics while
+          using my phone." He was right, and Nova never told him why: iOS has
+          no Vibration API, so every call was a no-op, and the capability check
+          that has existed since the native wrapper landed was never once shown
+          to him. This row says what is actually available and lets him find
+          out with his own thumb. Each button is a REAL tap target — on iOS the
+          Taptic Engine only fires for a genuine finger on a real control, so
+          there is nothing to press on his behalf. */}
+      {(() => {
+        const cap = hapticCapability();
+        const tone = cap.path === 'none' ? 'warn' : cap.path === 'native' ? 'good' : 'gold';
+        return (
+          <div style={{ marginTop: '34px' }}>
+            <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
+              <Eyebrow as="span">Haptics</Eyebrow>
+              <Meta tone="faint">Whether Nova can tap back, and what it feels like</Meta>
+            </div>
+            <div style={css("margin-top:12px;max-width:520px;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);padding:20px 22px;background:var(--nv-glass);display:flex;flex-direction:column;gap:14px")}>
+              <div>
+                <Tag tone={tone}>{cap.path === 'none' ? 'Unavailable' : cap.path === 'native' ? 'Native' : cap.path === 'vibrate' ? 'Vibration API' : 'iOS web'}</Tag>
+                <div style={css("margin-top:7px;font:450 12.5px/1.6 var(--nv-font-ui);color:var(--nv-ink)")}>{cap.label}</div>
+              </div>
+              {cap.path !== 'none' && (
+                <div style={css("border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:14px")}>
+                  <div style={css("font:600 12.5px var(--nv-font-ui)")}>Feel each one</div>
+                  <div style={css("margin-top:3px;font-size:11px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>
+                    {cap.tiers
+                      ? 'Five words, five different feelings. Press each and you will know which is which without looking.'
+                      : 'On iOS these all feel the same — one real tap. The five stay distinct in the native shell; the web is allowed exactly one.'}
+                  </div>
+                  <div style={css("margin-top:11px;display:flex;gap:8px;flex-wrap:wrap")}>
+                    {HAPTIC_WORDS.map((w) => (
+                      <Interactive
+                        key={w}
+                        as="span"
+                        haptic={w}
+                        onClick={() => haptic(w)}
+                        base={btn('color-mix(in srgb, var(--nv-cy) 12%, transparent)', 'var(--nv-cy)', { border: '1px solid color-mix(in srgb, var(--nv-cy) 34%, transparent)' })}
+                        hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 20%, transparent)' }}
+                      >{w}</Interactive>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* VOICE — moved off the Voice screen, which is a command centre, not
           a preferences page. Everything that only gets set once lives here. */}
