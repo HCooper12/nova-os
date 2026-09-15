@@ -439,6 +439,36 @@ export function MissionStructured({ v }) {
             </div>
           </section>
         )}
+        {/* C3b — IT LANDED. His ask, 15 Sep: the Inbox strip was right, and he
+            wants it here too, "so I can see and dismiss it from there". It
+            answers the question he actually has — did the thing I sent Nova
+            get taken? — on the screen he opens first, and stands down once he
+            has seen it. A capture sent from the Shortcut while he was not
+            looking is precisely what brings it back. */}
+        {v.landedMoment && (
+          <section style={{ marginTop: '18px', padding: mob ? '15px 16px 13px' : '18px 20px 16px', borderRadius: '16px', border: '1px solid color-mix(in srgb, var(--nv-good) 32%, transparent)', background: 'linear-gradient(160deg, color-mix(in srgb, var(--nv-good) 07%, transparent), var(--nv-glass2))', animation: 'fadeUp var(--nv-dur-base) var(--nv-ease)' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+              <div style={{ font: `600 10.5px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--nv-good)' }}>Landed</div>
+              <Meta tone="faint">{v.landedMoment.count} today · {v.landedMoment.filed} filed</Meta>
+            </div>
+            <div style={{ marginTop: '9px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {v.landedMoment.items.map((it) => (
+                <div key={it.id} style={{ display: 'flex', alignItems: 'baseline', gap: '9px', minWidth: 0 }}>
+                  <span style={{ flex: 'none', font: `600 11px ${M}`, color: it.status === 'filed' ? 'var(--nv-good)' : it.status === 'error' ? 'var(--nv-warn)' : 'var(--nv-ink60)' }}>
+                    {it.status === 'filed' ? '✓' : it.status === 'error' ? '!' : '—'}
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0, font: `450 13px ${UI}`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.title}</span>
+                  {it.analysed && <span style={{ flex: 'none', font: `600 9.5px ${M}`, letterSpacing: '.1em', color: 'var(--nv-cy)' }}>ANALYSED</span>}
+                  <span style={{ flex: 'none', maxWidth: '38%', font: `450 10.5px ${UI}`, color: 'var(--nv-ink60)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.where}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+              <Pill label="Open the Inbox" onClick={v.landedMoment.openInbox} tone="quiet" />
+              <Pill label="Noted" onClick={v.landedMoment.dismiss} tone="quiet" />
+            </div>
+          </section>
+        )}
         {/* C1 — THE FOLD. The first two sections of the hour's order (plus
             WORKING and PLAN, which never fold) render in full; everything
             after them is a header and one line of status until tapped. A

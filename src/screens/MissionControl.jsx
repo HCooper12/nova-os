@@ -127,6 +127,32 @@ export function MissionControl({ v }) {
           </div>
         </section>
       )}
+      {/* IT LANDED — the Apple twin's section in this idiom, from the same
+          view model. Same record, same wording, same dismissal. */}
+      {v.landedMoment && (
+        <section style={css('margin-top:18px;padding:16px 18px 14px;border-radius:var(--nv-radius);border:1px solid color-mix(in srgb, var(--nv-good) 32%, transparent);background:linear-gradient(160deg, color-mix(in srgb, var(--nv-good) 07%, transparent), var(--nv-glass2));animation:fadeUp var(--nv-dur-base) var(--nv-ease)')}>
+          <div style={css('display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap')}>
+            <Eyebrow as="span" tone="good">Landed</Eyebrow>
+            <Meta tone="faint">{v.landedMoment.count} today · {v.landedMoment.filed} filed</Meta>
+          </div>
+          <div style={css('margin-top:9px;display:flex;flex-direction:column;gap:5px')}>
+            {v.landedMoment.items.map((it) => (
+              <div key={it.id} style={css('display:flex;align-items:baseline;gap:10px;min-width:0')}>
+                <span style={{ flex: 'none', font: `600 11px ${M}`, color: it.status === 'filed' ? 'var(--nv-good)' : it.status === 'error' ? 'var(--nv-warn)' : 'var(--nv-ink60)' }}>
+                  {it.status === 'filed' ? '✓' : it.status === 'error' ? '!' : '—'}
+                </span>
+                <span style={{ flex: 1, minWidth: 0, font: `500 13px ${R}`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.title}</span>
+                {it.analysed && <span style={{ flex: 'none', font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-cy)' }}>ANALYSED</span>}
+                <span style={{ flex: 'none', maxWidth: '38%', font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-ink60)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.where}</span>
+              </div>
+            ))}
+          </div>
+          <div style={css('margin-top:12px;display:flex;gap:10px')}>
+            <Interactive as="span" onClick={v.landedMoment.openInbox} base={css('cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 13px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)')} hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 12%, transparent)' }}>OPEN THE INBOX</Interactive>
+            <Interactive as="span" onClick={v.landedMoment.dismiss} base={css('cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 13px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);color:var(--nv-ink60)')} hoverStyle={{ color: 'var(--nv-ink)' }}>NOTED</Interactive>
+          </div>
+        </section>
+      )}
       {/* WRAP THE DAY — the evening sentence on the surface he already opens,
           in the same objects as the Apple twin (MissionStructured) from the
           same view model: the rings carry the verdict, the serif carries the

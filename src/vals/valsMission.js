@@ -710,6 +710,46 @@ export function valsMission(app, ctx) {
       const m = prMomentFor(st.liveTrainOverview?.momentum?.prs || [], seen, localDateISO());
       return m ? { ...m, dismiss: () => { try { localStorage.setItem('novaos.prMomentSeen', m.date); } catch { /* best-effort */ } app.setState({ prMomentTick: (st.prMomentTick || 0) + 1 }); }, openTrain: go('workouts') } : null;
     })(),
+    // IT LANDED — ON HOME TOO. His ask, 15 Sep: the Inbox strip was right, and
+    // he wants it here as well, "so I can see and dismiss it from there",
+    // Home being the screen that changes across the day as things become
+    // relevant.
+    //
+    // Today's settled captures only, and it STANDS DOWN once he has seen them:
+    // dismissing stores the newest stamp, and the moment returns the next time
+    // something lands after it. So it is a confirmation, never a badge — and a
+    // capture sent from the Shortcut while he was not looking is exactly what
+    // brings it back.
+    landedMoment: (() => {
+      if (demoMode) return null;
+      const settled = inboxItems
+        .map((r) => ({ r, at: r.filedAt || r.updatedAt || r.createdAt }))
+        .filter(({ r, at }) => ['filed', 'discarded', 'error'].includes(r.status) && isTodayISO(at))
+        .sort((a, b) => String(b.at).localeCompare(String(a.at)));
+      if (!settled.length) return null;
+      const newest = String(settled[0].at);
+      let seen = null;
+      try { seen = localStorage.getItem('novaos.landedSeen'); } catch { /* best-effort */ }
+      if (seen && String(seen) >= newest) return null;
+      return {
+        count: settled.length,
+        filed: settled.filter(({ r }) => r.status === 'filed').length,
+        items: settled.slice(0, 3).map(({ r }) => ({
+          id: r.id,
+          title: r.decision?.title || String(r.text || '').slice(0, 70) || 'a capture',
+          status: r.status,
+          where: r.status === 'filed' ? (r.destination || 'filed') : r.status === 'error' ? 'failed' : 'left alone',
+          // the same rule valsInbox uses, so the two cannot drift into
+          // disagreeing about what "analysed" means
+          analysed: r.kind === 'video' && !!r.decision?.payload?.url && r.status === 'filed',
+        })),
+        dismiss: () => {
+          try { localStorage.setItem('novaos.landedSeen', newest); } catch { /* best-effort */ }
+          app.setState({ landedTick: (st.landedTick || 0) + 1 });
+        },
+        openInbox: go('inbox'),
+      };
+    })(),
     // B1 — the ring cluster. Colour is the verdict (missionFocus.ringState);
     // the readiness ring comes from the same overview Train draws it from.
     ringVitals: [
