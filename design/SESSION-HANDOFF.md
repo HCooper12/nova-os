@@ -172,6 +172,36 @@ before they died. The overlay's shaping is a pure module with 7 tests run
 against his real payload, and its strings grep out of the built bundle — but
 nobody has seen it render.
 
+**THE FEEL PASS, 15 SEP** (a reel he sent; plan in `design/FEEL-PLAN.md`). His
+report first: *"I have never felt any haptics while using my phone."* True and
+expected — iOS WebKit has never shipped `navigator.vibrate`, so every call had
+been a no-op on the only device he uses, and the capability check Nova has
+carried since the native wrapper landed had never once been shown to him.
+
+- **The iOS path that still works.** Safari 17.4's `<input type=checkbox switch>`
+  fires the Taptic Engine. Every library drove it programmatically and **iOS
+  26.5 closed that door**; what survives is laying a TRANSPARENT switch over the
+  tappable so his own finger lands on the control. Opt-in via
+  `<Interactive haptic="tick">` — the overlay needs its host positioned, and
+  turning ~300 wrappers into stacking contexts blind was not the move. Pill and
+  TextAction wear it.
+- **Limits, stated in the UI:** one flavour on iOS web (26.5 also killed
+  re-ticking), no Taptic on iPad, and nothing Nova presses for him can buzz.
+  **Settings → Haptics** names the live path and lets him press all five.
+- **`haptic('light')` was never a word** — five call sites silently firing a
+  tick. **`warn` had NEVER fired.** Both now pinned by tests that read every
+  call site in `src/`.
+- **Train had no haptics at all** — the set tick, adding a set, finishing, and
+  the refusal to finish with nothing ticked.
+- **The technique card morphs into the Repertoire book** — the second
+  shared-element pair in the app, after Recipes.
+- **Shopping add is optimistic**; the full busy-flag audit is written into
+  FEEL-PLAN.md, and `optimisticWrite` now holds the five beats in one place.
+
+**UNCONFIRMED AND ONLY HE CAN CONFIRM IT:** whether the overlay switch actually
+buzzes on his iPhone. It cannot be tested from here, and both browser MCPs were
+down for the back half of the session.
+
 **NEXT ACTION.** Open Home. Today's technique should be card one of five with a
 drill on it. Mark it, then check `Wiki/Library/Repertoire Log.md` has the line
 and `server/data/repertoire.json` has `tried: 1`.
