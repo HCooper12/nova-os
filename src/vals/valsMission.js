@@ -5,6 +5,7 @@ import { plainLabel, liveBlock, isLiveBlock, blockCta, blockDetail, minsLeft, pi
 import { localDateISO } from '../localDate.js';
 import { clampWords } from '../textClamp.js';
 import { dtf } from './fmt.js';
+import { groupFamilies, shapeReports } from '../repertoireBook.js';
 
 // Mission Control domain (Command Core layout): connection status chips and
 // banner, the hero (eyebrow / tagline / standfirst), the core cluster's three
@@ -737,6 +738,9 @@ export function valsMission(app, ctx) {
         filed: settled.filter(({ r }) => r.status === 'filed').length,
         items: settled.slice(0, 3).map(({ r }) => ({
           id: r.id,
+          // the same door the Inbox strip opens: the Inbox, with this record
+          // expanded and scrolled to
+          open: () => app.openCapture(r.id),
           title: r.decision?.title || String(r.text || '').slice(0, 70) || 'a capture',
           status: r.status,
           where: r.status === 'filed' ? (r.destination || 'filed') : r.status === 'error' ? 'failed' : 'left alone',
@@ -751,6 +755,27 @@ export function valsMission(app, ctx) {
         openInbox: go('inbox'),
       };
     })(),
+    // THE REPERTOIRE, OPENED — his ask, 15 Sep: view the whole catalogue and
+    // all the research, from the technique card on Home. Loaded on demand (the
+    // report bodies are tens of thousands of characters and Home needs none of
+    // them), so `loaded` is false until the fetch lands and the view says so
+    // rather than rendering an empty catalogue as "nothing here".
+    repertoireBook: st.repertoireBookOpen ? (() => {
+      const all = st.liveRepertoireAll;
+      const techniques = all?.techniques || [];
+      return {
+        loaded: !!all,
+        tab: st.repertoireTab === 'research' ? 'research' : 'techniques',
+        setTab: (tab) => app.setState({ repertoireTab: tab }),
+        families: groupFamilies(techniques),
+        reports: shapeReports(all?.reports || [], st.repertoireOpenReport),
+        techniqueCount: techniques.length,
+        reportCount: (all?.reports || []).length,
+        empty: all ? 'Nothing in your Repertoire yet.' : 'Loading…',
+        toggleReport: (id) => app.setState({ repertoireOpenReport: st.repertoireOpenReport === id ? null : id }),
+        close: () => app.setState({ repertoireBookOpen: false, repertoireOpenReport: null }),
+      };
+    })() : null,
     // THE LEADER BOX — TWO FACES, HIS SWIPE. His instruction, 15 Sep: the
     // Leader had drifted from general advice into one running situation, and
     // "I like both ideas so turn that box on home into a swipe capable box I
@@ -845,6 +870,7 @@ export function valsMission(app, ctx) {
         outcome: r.outcome || null,          // 'tried' | 'skipped' | null
         tried: r.tried || 0,
         streak: r.streak || 0,
+        openAll: () => app.openRepertoireBook(),
         markTried: () => app.markPractice('tried'),
         markSkipped: () => app.markPractice('skipped'),
       };

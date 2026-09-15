@@ -1,6 +1,7 @@
 import { css } from '../css.js';
 import { glowPanel, glowSoft } from '../glowPanel.js';
 import { LeaderBox } from '../LeaderBox.jsx';
+import { RepertoireBook } from '../RepertoireBook.jsx';
 import { RingTile } from '../RingTile.jsx';
 import { Eyebrow, TextAction, Meta } from '../Controls.jsx';
 import { absentHintStyle, absentValueStyle } from '../vitalsAbsence.js';
@@ -93,6 +94,7 @@ export function MissionControl({ v }) {
   return (
     <div style={v.wrapMission} data-screen-label="Mission Control">
       {v.stepsOverlay && <StepsHistory v={v.stepsOverlay} />}
+      {v.repertoireBook && <RepertoireBook v={v.repertoireBook} />}
       {v.calendarView && <CalendarView v={v.calendarView} />}
       {v.focusChip && <div style={{ marginTop: '10px' }}><FocusChip v={v.focusChip} /></div>}
       {/* C3 — THE RECORD MOMENT. Two PRs landed on 3 Sep and rendered as
@@ -139,14 +141,16 @@ export function MissionControl({ v }) {
           </div>
           <div style={css('margin-top:9px;display:flex;flex-direction:column;gap:5px')}>
             {v.landedMoment.items.map((it) => (
-              <div key={it.id} style={css('display:flex;align-items:baseline;gap:10px;min-width:0')}>
+              <Interactive key={it.id} as="div" onClick={it.open} ariaLabel={`Open ${it.title}`}
+                base={css('cursor:pointer;display:flex;align-items:baseline;gap:10px;min-width:0;border-radius:8px;padding:3px 5px;margin:0 -5px')}
+                hoverStyle={{ background: 'color-mix(in srgb, var(--nv-ink) 06%, transparent)' }}>
                 <span style={{ flex: 'none', font: `600 11px ${M}`, color: it.status === 'filed' ? 'var(--nv-good)' : it.status === 'error' ? 'var(--nv-warn)' : 'var(--nv-ink60)' }}>
                   {it.status === 'filed' ? '✓' : it.status === 'error' ? '!' : '—'}
                 </span>
                 <span style={{ flex: 1, minWidth: 0, font: `500 13px ${R}`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.title}</span>
                 {it.analysed && <span style={{ flex: 'none', font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-cy)' }}>ANALYSED</span>}
                 <span style={{ flex: 'none', maxWidth: '38%', font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-ink60)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.where}</span>
-              </div>
+              </Interactive>
             ))}
           </div>
           <div style={css('margin-top:12px;display:flex;gap:10px')}>
@@ -166,10 +170,13 @@ export function MissionControl({ v }) {
         <section className="nv-glow" style={{ marginTop: '18px', padding: '16px 18px 14px', ...glowPanel('--nv-mg').style }}>
           <div style={css('display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap')}>
             <Eyebrow as="span">{v.todayTechnique.modeLabel}</Eyebrow>
-            <Meta tone="faint">
-              {v.todayTechnique.position} of {v.todayTechnique.total}
-              {v.todayTechnique.streak > 0 ? ` · ${v.todayTechnique.streak}-day streak` : ''}
-            </Meta>
+            <span style={css('display:flex;align-items:center;gap:10px')}>
+              <Meta tone="faint">{v.todayTechnique.streak > 0 ? `${v.todayTechnique.streak}-day streak` : ''}</Meta>
+              <Interactive as="span" onClick={v.todayTechnique.openAll}
+                base={css('cursor:pointer;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:var(--nv-mg)')}
+                hoverStyle={{ color: 'var(--nv-ink)' }}
+              >{v.todayTechnique.position} OF {v.todayTechnique.total} ›</Interactive>
+            </span>
           </div>
           <div style={{ marginTop: '8px', font: `500 19px ${S}`, lineHeight: 1.25, color: 'var(--nv-ink)' }}>{v.todayTechnique.name}</div>
           <div style={css('margin-top:3px;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:var(--nv-ink60)')}>{String(v.todayTechnique.family).toUpperCase()}</div>

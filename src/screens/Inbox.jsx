@@ -158,7 +158,9 @@ export function Inbox({ v }) {
             </div>
             <div style={css('margin-top:8px;display:flex;flex-direction:column;gap:7px')}>
               {v.inboxLanded.recent.map((h) => (
-                <div key={h.id} style={css('display:flex;align-items:baseline;gap:9px;min-width:0')}>
+                <Interactive key={h.id} as="div" onClick={h.open} ariaLabel={`Open ${h.title}`}
+                  base={css('cursor:pointer;display:flex;align-items:baseline;gap:9px;min-width:0;border-radius:8px;padding:3px 5px;margin:0 -5px')}
+                  hoverStyle={{ background: 'color-mix(in srgb, var(--nv-ink) 06%, transparent)' }}>
                   <span style={css(`flex:none;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:${h.status === 'filed' ? 'var(--nv-good)' : h.status === 'error' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 38%, transparent)'}`)}>
                     {h.status === 'filed' ? '✓' : h.status === 'error' ? '!' : '—'}
                   </span>
@@ -172,7 +174,7 @@ export function Inbox({ v }) {
                   <span style={css('flex:none;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 42%, transparent);max-width:40%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>
                     {h.status === 'filed' ? (h.destination || 'filed') : h.status === 'error' ? 'failed' : 'left alone'}
                   </span>
-                </div>
+                </Interactive>
               ))}
             </div>
           </div>
@@ -672,7 +674,7 @@ export function Inbox({ v }) {
             {shownHistory.map((item, i) => {
               const meta = STATUS_META[item.status] || STATUS_META.error;
               return (
-                <div key={item.id} style={css(`padding:10px 4px${i < shownHistory.length - 1 ? ';border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent)' : ''}`)}>
+                <div key={item.id} data-record={item.id} style={css(`padding:10px 4px${i < shownHistory.length - 1 ? ';border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent)' : ''}`)}>
                 <div style={css('display:flex;gap:12px;align-items:baseline')}>
                   <Meta tone="faint" style={{ width: '76px', flex: 'none' }}>{item.time}</Meta>
                   <span style={{ flex: 'none' }}><RouteBadge route={item.route} confidence={null} /></span>

@@ -322,6 +322,7 @@ export function valsInbox(app, ctx) {
     return {
     id: r.id,
     kind: r.kind || null,
+    open: () => app.openCapture(r.id),
     text: r.text,
     time: timeLabel(r.createdAt),
     // the raw stamp too: `time` is a label ("2h ago"), and counting what

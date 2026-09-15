@@ -456,6 +456,7 @@ export default class App extends Component {
     intake: null, // THE INTAKE interview in progress: { facts, idx, questions, known }
     liveWrap: null, wrapDismissedOn: null, // WRAP THE DAY — the evening card on Home
     liveRepertoire: null, // THE REPERTOIRE — today's technique on Home
+    repertoireBookOpen: false, repertoireTab: 'techniques', repertoireOpenReport: null, liveRepertoireAll: null,
     // set when a reply was composed but the device refused to play it —
     // silence must never also be invisible
     speechBlocked: null,
@@ -1889,6 +1890,15 @@ export default class App extends Component {
         }));
       });
     }
+  }
+  // OPEN THE WHOLE THING. The catalogue and the research are one fetch, made
+  // when he asks for it rather than on every sync — it carries the full report
+  // bodies and nothing on Home needs them.
+  openRepertoireBook() {
+    this.setState({ repertoireBookOpen: true });
+    const conn = getConnection();
+    if (!conn) return;
+    api.repertoire(conn).then((r) => this.setState({ liveRepertoireAll: r })).catch(() => {});
   }
   markPractice(outcome, note = '') {
     const conn = getConnection();
@@ -4122,6 +4132,23 @@ export default class App extends Component {
         this.refreshInbox();
       }).catch((e) => this.toastMsg('Research failed to start: ' + e.message));
     });
+  }
+  // OPEN THIS ONE. A confirmation that cannot be opened is a receipt he has to
+  // take on trust — his ask, 15 Sep. From the Inbox strip it expands in place;
+  // from Home it lands on the Inbox with that record already open and scrolled
+  // to, which is the same thing the #/inbox?open= deep link has always done.
+  openCapture(id) {
+    if (!id) return;
+    this.setState((st) => ({ inboxExpanded: { ...(st.inboxExpanded || {}), [id]: true } }));
+    if (this.state.screen !== 'inbox') this.navigate('inbox');
+    // after the screen has painted; a record can be far down the history
+    clearTimeout(this.openCaptureTimer);
+    this.openCaptureTimer = setTimeout(() => {
+      try {
+        const el = document.querySelector(`[data-record="${id}"]`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch { /* the expand already happened; scrolling is the nicety */ }
+    }, 260);
   }
   toggleInboxExpand(id) {
     this.setState((s) => ({ inboxExpanded: { ...s.inboxExpanded, [id]: !(s.inboxExpanded || {})[id] } }));

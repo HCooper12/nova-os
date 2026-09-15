@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { css } from '../css.js';
 import { glowPanel } from '../glowPanel.js';
 import { LeaderBox } from '../LeaderBox.jsx';
+import { RepertoireBook } from '../RepertoireBook.jsx';
 import { RingTile } from '../RingTile.jsx';
 import { resolveFolds, foldStatus, FOLD_LABELS, loadFolds, saveFolds } from '../missionFold.js';
 import { Eyebrow, TextAction, Tag, Meta } from '../Controls.jsx';
@@ -288,6 +289,7 @@ export function MissionStructured({ v }) {
   return (
     <div style={v.wrapMission} data-screen-label="Mission Control">
       {v.stepsOverlay && <StepsHistory v={v.stepsOverlay} />}
+      {v.repertoireBook && <RepertoireBook v={v.repertoireBook} />}
       {v.calendarView && <CalendarView v={v.calendarView} />}
       <div style={{ maxWidth: '760px', margin: '0 auto' }}>
         {v.focusChip && <div style={{ marginTop: '10px' }}><FocusChip v={v.focusChip} /></div>}
@@ -361,14 +363,16 @@ export function MissionStructured({ v }) {
             </div>
             <div style={{ marginTop: '9px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {v.landedMoment.items.map((it) => (
-                <div key={it.id} style={{ display: 'flex', alignItems: 'baseline', gap: '9px', minWidth: 0 }}>
+                <Interactive key={it.id} as="div" onClick={it.open} ariaLabel={`Open ${it.title}`}
+                  base={{ cursor: 'pointer', display: 'flex', alignItems: 'baseline', gap: '9px', minWidth: 0, borderRadius: '8px', padding: '3px 5px', margin: '0 -5px' }}
+                  hoverStyle={{ background: 'color-mix(in srgb, var(--nv-ink) 06%, transparent)' }}>
                   <span style={{ flex: 'none', font: `600 11px ${M}`, color: it.status === 'filed' ? 'var(--nv-good)' : it.status === 'error' ? 'var(--nv-warn)' : 'var(--nv-ink60)' }}>
                     {it.status === 'filed' ? '✓' : it.status === 'error' ? '!' : '—'}
                   </span>
                   <span style={{ flex: 1, minWidth: 0, font: `450 13px ${UI}`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.title}</span>
                   {it.analysed && <span style={{ flex: 'none', font: `600 9.5px ${M}`, letterSpacing: '.1em', color: 'var(--nv-cy)' }}>ANALYSED</span>}
                   <span style={{ flex: 'none', maxWidth: '38%', font: `450 10.5px ${UI}`, color: 'var(--nv-ink60)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.where}</span>
-                </div>
+                </Interactive>
               ))}
             </div>
             <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
@@ -388,10 +392,14 @@ export function MissionStructured({ v }) {
               <div style={{ font: `600 10.5px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--nv-mg)' }}>
                 {v.todayTechnique.modeLabel}
               </div>
-              <Meta tone="faint">
-                {v.todayTechnique.position} of {v.todayTechnique.total}
-                {v.todayTechnique.streak > 0 ? ` · ${v.todayTechnique.streak}-day streak` : ''}
-              </Meta>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+                <Meta tone="faint">{v.todayTechnique.streak > 0 ? `${v.todayTechnique.streak}-day streak` : ''}</Meta>
+                {/* THE DOOR. "1 of 7" is the thing he would press to see all 7,
+                    so it IS the button rather than sitting next to one. */}
+                <TextAction tone="faint" compact onClick={v.todayTechnique.openAll}>
+                  {v.todayTechnique.position} of {v.todayTechnique.total} ›
+                </TextAction>
+              </span>
             </div>
             <div style={{ marginTop: '8px', font: `600 17px ${UI}`, lineHeight: 1.25, color: 'var(--nv-ink)' }}>{v.todayTechnique.name}</div>
             <div style={{ marginTop: '3px', font: `450 11px ${UI}`, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--nv-ink60)' }}>{v.todayTechnique.family}</div>
