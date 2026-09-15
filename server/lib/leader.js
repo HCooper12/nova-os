@@ -236,6 +236,65 @@ export function profileLines(profile, now = Date.now()) {
   return lines;
 }
 
+// THE LIVE SITUATION — deterministic, no model.
+//
+// His report, 15 Sep: the Leader "is drifting from showing me general
+// leadership advice and concepts and is now just focused on a past conversation
+// problem". The state says exactly why: EIGHT open struggles, none ever
+// resolved, six of them one unfolding thread at work — and six consecutive
+// daily ideas about that thread. The struggle pile was the loudest thing in the
+// daily context, so it ate the subject every morning.
+//
+// The pile is not the bug; feeding it to the GENERAL idea was. It gets its own
+// channel here, and the honest part is `daysSinceUpdate`: Nova knows when he
+// last told it anything, and therefore knows that it does NOT know where the
+// situation stands now. That is the second half of his report.
+export const SITUATION_STALE_DAYS = 3;
+
+export function situationOf(state = {}, now = new Date()) {
+  const open = (state.profile?.struggles || []).filter((s) => !s.resolvedAt);
+  const working = state.profile?.working || [];
+  if (!open.length) return null;
+  const nowMs = now.getTime();
+  const stamps = [...open, ...working].map((x) => new Date(x.at).getTime()).filter(Number.isFinite);
+  const newest = stamps.length ? Math.max(...stamps) : 0;
+  const daysSinceUpdate = newest ? Math.floor((nowMs - newest) / 86_400_000) : null;
+  // Newest first BY TIMESTAMP, not by array position. Insertion order has been
+  // chronological so far, but "newest first" is a claim the card makes to him
+  // and it should be true of the data rather than of a convention.
+  const newestFirst = (list, n) => [...list]
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+    .slice(0, n)
+    .map((x) => ({ text: x.text, days: ageDays(x.at, nowMs) }));
+  return {
+    open: newestFirst(open, 6),
+    working: newestFirst(working, 4),
+    openCount: open.length,
+    daysSinceUpdate,
+    // "I have not heard from you about this in N days" — the trigger for
+    // asking rather than assuming.
+    stale: daysSinceUpdate == null || daysSinceUpdate >= SITUATION_STALE_DAYS,
+  };
+}
+
+// What the model is told about the live thread. Separate from the general
+// context ON PURPOSE — they are two questions and they get two answers.
+export function buildSituationContext(situation, recentLeads = []) {
+  if (!situation) return '';
+  const parts = [`HIS OPEN SITUATION — ${situation.openCount} unresolved thing${situation.openCount === 1 ? '' : 's'} he has told the Leader about, newest first:\n`
+    + situation.open.map((s) => `- "${s.text}" (${s.days}d ago)`).join('\n')];
+  if (situation.working.length) {
+    parts.push('WHAT HE SAID IS WORKING:\n' + situation.working.map((w) => `- "${w.text}" (${w.days}d ago)`).join('\n'));
+  }
+  if (recentLeads.length) {
+    parts.push('WHAT THE LEADER HAS ALREADY TOLD HIM TO TRY about this:\n' + recentLeads.map((d) => `- ${d.date}: ${d.title}`).join('\n'));
+  }
+  parts.push(situation.daysSinceUpdate == null
+    ? 'HE HAS NOT UPDATED ANY OF THIS. You do not know what has happened since.'
+    : `HE LAST TOLD YOU ANYTHING ABOUT THIS ${situation.daysSinceUpdate} DAY${situation.daysSinceUpdate === 1 ? '' : 'S'} AGO. Anything after that, you do not know.`);
+  return parts.join('\n\n');
+}
+
 export async function buildLeaderDailyContext(vaultPath, state, now = new Date()) {
   const parts = [];
   try {
@@ -249,7 +308,12 @@ export async function buildLeaderDailyContext(vaultPath, state, now = new Date()
     const org = await orgContext(vaultPath, 'leader', { only: ['standing'] });
     if (org) parts.push(org);
   } catch { /* honest absence */ }
-  parts.push(...profileLines(state.profile, now.getTime()));
+  // WHAT IS WORKING stays — building on a strength is general development and
+  // is not tied to one thread. The STRUGGLE PILE does not: it is the live
+  // situation, it has its own channel below, and feeding it here is precisely
+  // what turned six consecutive mornings into case management for one dispute.
+  const working = (state.profile?.working || []).slice(-6).reverse();
+  if (working.length) parts.push('WHAT IS WORKING FOR HIM (build on these):\n' + working.map((w) => `- "${w.text}" (${ageDays(w.at, now.getTime())}d ago)`).join('\n'));
 
   const { concepts, sources } = await leaderCorpus(vaultPath);
   const conceptKeys = concepts.map((c) => c.key);
@@ -291,28 +355,44 @@ export async function buildLeaderDailyContext(vaultPath, state, now = new Date()
 
 /* -------------------------------- prompts ---------------------------------- */
 
-export function buildDailyPrompt(context, now = new Date()) {
+export function buildDailyPrompt(context, situationContext, now = new Date()) {
   const dateLong = now.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long' });
   return `${NOVA_LENS}
 
-You are the LEADER — the leadership-development voice inside Nova. Your ONE subject is how Hayden MANAGES, LEADS, INSPIRES AND DIRECTS HIS TEAM at work: the conversations he has with his people, the decisions he hands down, the standards he sets, the way he gets the best out of the people who report to him. Compose his ONE leadership idea for ${dateLong}: the single thing worth trying, remembering or considering today. You may Read his vault pages for depth (paths are given below).
+You are the LEADER — the leadership-development voice inside Nova. Your ONE subject is how Hayden MANAGES, LEADS, INSPIRES AND DIRECTS HIS TEAM at work: the conversations he has with his people, the decisions he hands down, the standards he sets, the way he gets the best out of the people who report to him. You may Read his vault pages for depth (paths are given below).
 
-What to produce — exactly one of these kinds:
+You produce TWO SEPARATE THINGS today, ${dateLong}. They are different jobs and they must not blur into each other.
+
+═══ ONE: THE LEAD ═══
+His ONE leadership idea for today — general development, the craft of leading. Exactly one kind:
 - "action": a concrete behaviour to TRY TODAY, small enough to actually do ("In today's 15:30, state the decision first, then take questions").
 - "reminder": a principle he already knows, brought back at the right moment — repetition on purpose. Name where it comes from.
 - "idea": a way of SEEING a situation (a reframe) worth holding this week.
 
-Discipline:
-- Ground it in HIS material below — his concepts, his sources, his stated struggles, what is working for him. Combining two LEADERSHIP concepts into one move is high value. Never invent a source or a quote.
-- IT MUST BE ABOUT LEADING PEOPLE. Not his training, not his body, not his nutrition, not his personal habits or routines. If material about his own performance, recovery, effort or diet reaches you, it is background on his capacity for the day — never the subject, and never a metaphor to build the idea on. He has said outright that a leadership idea derived from his gym data does not help him lead a team; an analogy between his training and his management is exactly the failure to avoid.
-- If nothing in his material supports a genuine idea about leading people today, say so and give ONE well-attributed fundamental of leading a small team instead. An honest fundamental beats a clever bridge from an unrelated domain.
-- If it serves a CURRENT STRUGGLE, say so plainly — that is the connection that makes it land.
+Discipline for THE LEAD:
+- **IT MUST NOT BE ABOUT THE LIVE SITUATION BELOW.** This is the failure he reported: the Leader stopped teaching him to lead and became case management for one running dispute, six mornings in a row. The situation has its own section — leave it there. If today's lead happens to be USEFUL for the situation, that is a bonus you may note in one clause, but the idea must stand on its own for a leader who had none of that going on.
+- Ground it in HIS material — his concepts, his sources, his research library, what is working for him. Combining two LEADERSHIP concepts into one move is high value. Never invent a source or a quote.
+- IT MUST BE ABOUT LEADING PEOPLE. Not his training, not his body, not his nutrition, not his personal habits. If material about his own performance, recovery or diet reaches you, it is background on his capacity — never the subject, and never a metaphor to build on. A leadership idea derived from gym data does not help him lead a team.
+- If his material supports no genuine idea today, say so and give ONE well-attributed fundamental of leading a small team instead. An honest fundamental beats a clever bridge from an unrelated domain.
 - One idea only. Small beats grand. Specific beats general. It must survive being read in ten seconds at 7am.
-- Repetition over time is EXPECTED and good — but a repeat must be deliberate and freshly angled, never a lazy rerun of this week.
+- Repetition over time is expected and good — but a repeat must be deliberate and freshly angled, never a lazy rerun of this week.
 
 ${context || '(no leadership material found in the vault yet — say so honestly and offer one universally sound, source-attributed fundamental instead)'}
 
-Output ONLY a JSON object: {"kind":"action|reminder|idea","title":"<= 9 words","line":"the idea itself, 1-2 sentences, direct address","why":"one line: which struggle/concept/source this serves","refs":["exact titles of the concepts/sources used"]}. No code fences, no commentary.`;
+═══ TWO: THE SITUATION ═══
+${situationContext || '(nothing open — return null for the situation.)'}
+
+Discipline for THE SITUATION:
+- State only what HE HAS ACTUALLY SAID. You are reading a record, not a live feed.
+- **BE EXPLICIT ABOUT THE GAP.** You know when he last told you anything. Anything after that you do not know, and pretending otherwise is the worst thing you can do here — say plainly that you are current only to that point.
+- The QUESTION is the single most useful thing you could learn to be current again. One question, answerable in a sentence, about what has actually HAPPENED — not a coaching question, not "how do you feel about it". If he answers it, the record moves forward.
+- "stands" is 1-2 sentences: where the thread is, as of what he last said.
+
+Output ONLY a JSON object, no code fences, no commentary:
+{
+  "lead": {"kind":"action|reminder|idea","title":"<= 9 words","line":"the idea itself, 1-2 sentences, direct address","why":"one line: which concept/source/strength this serves","refs":["exact titles used"]},
+  "situation": {"headline":"<= 8 words naming the thread","stands":"1-2 sentences on where it is, as of what he last said","question":"the one thing you need to know to be current"} | null
+}`;
 }
 
 export function buildResearchPrompt(state) {
@@ -357,6 +437,26 @@ function runClaude(args, cwd) {
   });
 }
 
+// The situation READ, validated. The deterministic facts (how many are open,
+// how long since he said anything) come from `facts` and are never the model's
+// to state — the same rule the capture receipt runs on. A read with no question
+// is dropped: a situation view whose whole point is getting current, that asks
+// nothing, is just the struggle list again.
+export function normalizeSituationRead(raw, facts) {
+  if (!facts) return null;
+  const clean = (v, n) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
+  const question = clean(raw?.question, 200);
+  if (!question) return null;
+  return {
+    headline: clean(raw?.headline, 70) || 'Your open situation',
+    stands: clean(raw?.stands, 400),
+    question,
+    openCount: facts.openCount,
+    daysSinceUpdate: facts.daysSinceUpdate,
+    stale: facts.stale,
+  };
+}
+
 export function todayLead(state, now = new Date()) {
   const t = todayISO(now);
   return state.daily.find((d) => d.date === t) || null;
@@ -370,8 +470,10 @@ export async function generateDailyLead(vaultPath, { force = false } = {}) {
   if (existing && !force) return { skipped: true, lead: existing };
 
   const { context, picked } = await buildLeaderDailyContext(vaultPath, state, now);
+  const situation = situationOf(state, now);
+  const situationContext = buildSituationContext(situation, state.daily.slice(-5));
   const parsed = await runClaude([
-    '-p', buildDailyPrompt(context, now),
+    '-p', buildDailyPrompt(context, situationContext, now),
     '--permission-mode', 'bypassPermissions',
     '--allowedTools', 'Read Grep Glob',
     '--disallowedTools', DAILY_DISALLOWED,
@@ -382,13 +484,18 @@ export async function generateDailyLead(vaultPath, { force = false } = {}) {
     '--session-id', randomUUID(),
   ], vaultPath);
 
+  // TWO CHANNELS. The older single-object shape is still accepted, so a model
+  // that answers the old way degrades to a lead with no situation rather than
+  // to nothing at all.
+  const leadPart = parsed.lead && typeof parsed.lead === 'object' ? parsed.lead : parsed;
   const lead = {
     date: todayISO(now),
-    kind: ['action', 'reminder', 'idea'].includes(parsed.kind) ? parsed.kind : 'idea',
-    title: String(parsed.title || '').trim().slice(0, 90),
-    line: String(parsed.line || '').trim(),
-    why: String(parsed.why || '').trim(),
-    refs: (Array.isArray(parsed.refs) ? parsed.refs : []).map(String).slice(0, 4),
+    kind: ['action', 'reminder', 'idea'].includes(leadPart.kind) ? leadPart.kind : 'idea',
+    title: String(leadPart.title || '').trim().slice(0, 90),
+    line: String(leadPart.line || '').trim(),
+    why: String(leadPart.why || '').trim(),
+    refs: (Array.isArray(leadPart.refs) ? leadPart.refs : []).map(String).slice(0, 4),
+    situation: normalizeSituationRead(parsed.situation, situation),
     createdAt: now.toISOString(),
   };
   if (!lead.title || !lead.line) throw new Error('the daily idea came back empty');

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
   readLeaderState, todayLead, generateDailyLead, runLeaderResearch,
-  buildLeaderChatContext, applyLeaderReflection, leaderLiveLine,
+  buildLeaderChatContext, applyLeaderReflection, leaderLiveLine, situationOf,
 } from '../lib/leader.js';
 import { startAskLeader } from '../lib/claudeCode.js';
 
@@ -13,8 +13,16 @@ export function leaderRouter(vaultPath) {
   router.get('/leader', async (req, res) => {
     try {
       const state = await readLeaderState();
+      const today = todayLead(state);
+      const facts = situationOf(state);
       res.json({
-        today: todayLead(state),
+        today,
+        // THE LIVE SITUATION, as its own channel — the second face of the Home
+        // box. The model's read of it rides on today's record; the FACTS
+        // (how many are open, how long since he said anything) are recomputed
+        // here from the state, so the card is never stale about its own
+        // staleness even if today's lead has not run.
+        situation: facts ? { ...(today?.situation || {}), ...facts } : null,
         recent: state.daily.slice(-8).reverse(),
         profile: {
           struggles: state.profile.struggles.filter((s) => !s.resolvedAt).slice(-8).reverse(),

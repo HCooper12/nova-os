@@ -15,6 +15,8 @@ import assert from 'node:assert/strict';
 const {
   readLeaderState, applyLeaderReflection, parseLeaderReflect, pickSpaced,
   todayLead, leadLineForBrief, leadForWidget, leaderCorpus, profileLines,
+  situationOf, buildSituationContext, normalizeSituationRead, buildDailyPrompt,
+  SITUATION_STALE_DAYS,
 } = await import('../lib/leader.js');
 
 function pad(n) { return String(n).padStart(2, '0'); }
@@ -235,4 +237,84 @@ test("the daily idea's context carries standing rules but not the fleet's traini
     assert.ok(!/what your colleagues are doing/.test(scoped), 'the trailer must not claim colleagues it did not include');
     assert.ok(!/fleet has done lately/.test(scoped));
   }
+});
+
+/* ------------------------- the drift, and the fix ------------------------- */
+// His report, 15 Sep: the Leader "is drifting from showing me general
+// leadership advice and concepts and is now just focused on a past conversation
+// problem". His real state explained it exactly — 8 open struggles, none ever
+// resolved, six of them one thread, and six consecutive daily ideas about that
+// thread. The struggle pile was the loudest thing in the daily context.
+
+const DAY = 86_400_000;
+const NOW = new Date('2026-09-15T09:00:00Z');
+const at = (daysAgo) => new Date(NOW.getTime() - daysAgo * DAY).toISOString();
+const stateWith = (struggles, working = []) => ({
+  profile: {
+    struggles: struggles.map(([text, d, resolved]) => ({ text, at: at(d), ...(resolved ? { resolvedAt: at(0) } : {}) })),
+    working: working.map(([text, d]) => ({ text, at: at(d) })),
+  },
+  daily: [],
+});
+
+test('with nothing open there is no situation at all', () => {
+  assert.equal(situationOf(stateWith([]), NOW), null);
+  assert.equal(situationOf(stateWith([['done', 4, true]]), NOW), null, 'a resolved struggle is not a live situation');
+});
+
+test('the situation knows how many are open and when he last said anything', () => {
+  const sit = situationOf(stateWith([['the trial report', 1], ['the peer manager', 4]], [['managers on board', 5]]), NOW);
+  assert.equal(sit.openCount, 2);
+  assert.equal(sit.daysSinceUpdate, 1, 'measured from the NEWEST thing he said, struggle or win');
+  assert.equal(sit.stale, false);
+  assert.equal(sit.open[0].text, 'the trial report', 'newest first');
+  assert.equal(sit.open[0].days, 1);
+});
+
+test('silence makes it stale — which is the trigger for asking rather than assuming', () => {
+  const sit = situationOf(stateWith([['the trial report', SITUATION_STALE_DAYS + 1]]), NOW);
+  assert.equal(sit.stale, true);
+  assert.equal(sit.daysSinceUpdate, SITUATION_STALE_DAYS + 1);
+});
+
+test('the situation context SAYS what it does not know', () => {
+  const sit = situationOf(stateWith([['the trial report', 4]]), NOW);
+  const ctx = buildSituationContext(sit, [{ date: '2026-09-14', title: 'Sell The Restructure As His Goal' }]);
+  assert.match(ctx, /LAST TOLD YOU ANYTHING ABOUT THIS 4 DAYS AGO/);
+  assert.match(ctx, /you do not know/i);
+  assert.match(ctx, /ALREADY TOLD HIM TO TRY[\s\S]*Sell The Restructure/, 'so it does not repeat its own advice');
+});
+
+test('THE FIX: the general context no longer carries the struggle pile', () => {
+  const sit = situationOf(stateWith([['the trial report', 1]]), NOW);
+  const prompt = buildDailyPrompt('HIS CONCEPTS AND SOURCES', buildSituationContext(sit, []), NOW);
+  // the two jobs are separated, and the lead is explicitly barred from the thread
+  assert.match(prompt, /ONE: THE LEAD/);
+  assert.match(prompt, /TWO: THE SITUATION/);
+  assert.match(prompt, /MUST NOT BE ABOUT THE LIVE SITUATION/);
+  assert.match(prompt, /BE EXPLICIT ABOUT THE GAP/);
+  // and the struggle text appears ONLY in the situation half
+  const situationHalf = prompt.slice(prompt.indexOf('TWO: THE SITUATION'));
+  const leadHalf = prompt.slice(0, prompt.indexOf('TWO: THE SITUATION'));
+  assert.ok(situationHalf.includes('the trial report'));
+  assert.ok(!leadHalf.includes('the trial report'), 'the struggle pile is what ate six mornings — it must not reach the lead half');
+});
+
+test('a situation read with no QUESTION is dropped — that is the whole point of it', () => {
+  const facts = situationOf(stateWith([['x', 1]]), NOW);
+  assert.equal(normalizeSituationRead({ headline: 'A thing', stands: 'It stands.' }, facts), null);
+  assert.equal(normalizeSituationRead({ question: 'Did the meeting happen?' }, null), null, 'no facts, no read');
+});
+
+test('the FACTS on a situation read are code\'s, never the model\'s', () => {
+  const facts = situationOf(stateWith([['a', 1], ['b', 2]]), NOW);
+  const read = normalizeSituationRead({ headline: 'The trial', stands: 'It stands.', question: 'What did she say?', openCount: 99, daysSinceUpdate: 0, stale: false }, facts);
+  assert.equal(read.openCount, 2, 'the model does not get to state how many are open');
+  assert.equal(read.daysSinceUpdate, 1);
+  assert.equal(read.question, 'What did she say?');
+});
+
+test('the older single-object model answer still yields a lead, just without a situation', () => {
+  // degradation, not failure: normalizeSituationRead returns null and the lead survives
+  assert.equal(normalizeSituationRead(undefined, situationOf(stateWith([['a', 1]]), NOW)), null);
 });
