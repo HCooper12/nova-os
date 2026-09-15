@@ -94,9 +94,9 @@ suggestion/hypnosis/interrogation literature that actually explains the clip.
   build` exit 0 (gated on `$?`, never a grep).
 
 **ASSUMED**
-- That one technique a day is the right cadence, and every third day being a
-  review is the right mix. Both are single constants (`REVIEW_EVERY`,
-  `REVIEW_INTERVALS`) and his to move once he has lived with it.
+- That the week he chose is the right shape. Mon/Wed/Fri introduce, the day
+  after carries, Sunday reviews — three new a week and one review day, his
+  instruction verbatim. It lives in one constant (`ROTA`) and is his to move.
 - That the plausibility floor (1 char/second) never rejects a real transcript.
   A genuinely near-silent clip WILL fail it and be reported as unreadable audio.
 - That he wants the brief beat every morning. It is deliberately not
@@ -105,10 +105,33 @@ suggestion/hypnosis/interrogation literature that actually explains the clip.
 
 **OPEN QUESTIONS / BLOCKERS**
 - **Nothing has run on his iPhone** — now true of four sessions.
-- The catalogue is five techniques. It grows by him sending more clips; there is
-  no "top it up" path yet, and the curriculum ends by repeating reviews forever.
+- The top-up has never fired. Runway is 6 of 7 untaught and `MIN_RUNWAY` is 6,
+  so it is exactly at the boundary — the first fire is about a week away, and
+  nothing has proved the top-up prompt in anger yet.
 - `Wiki/Library/Nova Skills.md` (his page) does not list this lane — only the
   SEED for a fresh install was updated, deliberately, since the page is his.
+
+**HIS FOUR CHANGES, 15 SEP (all shipped and gated)**
+1. **The rota is his week.** "A new technique every second day and then a review
+   on the final day of the week" — Mon/Wed/Fri new, the day after CARRIES it
+   (same drill, second go), Sunday reviews. Driven by the day of the week, not
+   by a count, so a missed day cannot slide the rota sideways. Walked a real
+   week in test: new A · second A · new B · second B · new C · second C · review.
+2. **The lit panel.** The technique card is pink (`--nv-mg`) throughout — edge,
+   bloom, drill box and button. `src/glowPanel.js` makes the look a FUNCTION of
+   an accent token, and four more Home sections wear it in their own colour:
+   daily review purple, landed green, Nova-is-working cyan, wrap the day in its
+   verdict colour. The bloom is a class so Calm can zero it; `.nv-pane`'s shadow
+   became `--nv-pane-shadow` so a lit pane composes depth + bloom.
+3. **Articles.** `readWithBrowser` (the Researcher's proven path) reads a page as
+   text; the toolchain is chosen from the URL and then PROVEN by the result, so a
+   link that looks like video and will not open falls through to the page reader.
+   The prompt stops calling a page a transcript. Routing moved with it: the
+   learning question is about his SENTENCE, not the link type.
+4. **The top-up.** Below six untaught, Nova researches six more and PROPOSES
+   them. Every guard is a pure function: an empty catalogue is not "running low",
+   and it never stacks a second proposal on one he has not answered. Registered
+   in the ops roster so the Guardian watches its heartbeat.
 
 **NEXT ACTION.** Open Home. Today's technique should be card one of five with a
 drill on it. Mark it, then check `Wiki/Library/Repertoire Log.md` has the line
@@ -123,6 +146,10 @@ and `server/data/repertoire.json` has `tried: 1`.
   picker lost every review to it. Whole calendar days, as strings.
 - **Do not wire a new surface only into `refreshLiveData`'s task list** — that
   runs solely when the snapshot throws. A new surface needs a `SLICES` entry.
+- **Do not style `.nv-pane` from a bare two-class rule.**
+  `:root[data-nv-style="cupertino"] .nv-pane` is (0,3,0); `.nv-pane.nv-glow` is
+  (0,2,0) and loses SILENTLY — the class is on the element, the tint resolves,
+  and nothing is drawn. Match the specificity and come later.
 - Everything in the previous blocks' DO NOT lists still stands.
 
 ---
