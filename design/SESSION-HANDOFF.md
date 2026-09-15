@@ -202,6 +202,15 @@ carried since the native wrapper landed had never once been shown to him.
 buzzes on his iPhone. It cannot be tested from here, and both browser MCPs were
 down for the back half of the session.
 
+**THE BLACK SCREEN (15 Sep, mine, fixed in `efce3eb`).** The haptic overlay made
+`Interactive` render a children position; React throws on a void element with
+children and, with no root error boundary, the whole tree unmounts. Every screen
+using `<Interactive as="input">` — Fuel, Settings, Ops, RecipeOverlay,
+PortionSheet — went black. **Lint, build and 1615 tests all passed**, because the
+suite renders no components. `server/test/interactiveRender.test.js` now does,
+and its last case is generated from the real call sites. **DO NOT change a
+component every screen renders without a render test.**
+
 **NEXT ACTION.** Open Home. Today's technique should be card one of five with a
 drill on it. Mark it, then check `Wiki/Library/Repertoire Log.md` has the line
 and `server/data/repertoire.json` has `tried: 1`.
