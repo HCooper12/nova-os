@@ -13,6 +13,21 @@ import { haptic as fireHaptic, needsSwitchHaptic, switchHapticRef, SWITCH_HAPTIC
 // role="button", a tab stop, Enter/Space activation, and a visible focus
 // outline (unless the caller supplies its own focusStyle).
 const NATIVE_INTERACTIVE = new Set(['button', 'a', 'input', 'select', 'textarea', 'label']);
+// A VOID ELEMENT CANNOT TAKE CHILDREN. React throws outright — "input is a void
+// element tag and must neither have children" — and with no root error boundary
+// that unmounts the whole tree into a black screen. `Interactive as="input"` is
+// used all through Fuel, Settings and Ops, so the haptic overlay added on
+// 15 Sep black-screened every one of those screens the moment it shipped.
+// Nothing in lint, build or 1615 tests could see it: it is a runtime throw on a
+// screen none of them render.
+// `textarea` is not void, but React refuses it children whenever `value` or
+// `defaultValue` is set ("do not pass children") — and in React its content is
+// always the value, never children. So it belongs in the same list: these tags
+// get no children POSITION at all, not an empty one.
+const NO_CHILDREN_TAGS = new Set([
+  'input', 'img', 'br', 'hr', 'area', 'base', 'col', 'embed', 'link', 'meta', 'param', 'source', 'track', 'wbr',
+  'textarea',
+]);
 const DEFAULT_FOCUS = { outline: '2px solid var(--nv-acc-border)', outlineOffset: '2px' };
 
 // `haptic` is OPT-IN, one of the five words in haptics.js. Given one, this
@@ -56,7 +71,8 @@ export function Interactive({ as: Tag = 'div', base, hoverStyle, activeStyle, fo
     : {};
   // the overlay is absolutely positioned, so the element has to be its
   // containing block — applied ONLY when a haptic word was asked for
-  const wantsSwitch = !!hapticWord && !!onClick && needsSwitchHaptic();
+  const voidTag = NO_CHILDREN_TAGS.has(Tag);
+  const wantsSwitch = !voidTag && !!hapticWord && !!onClick && needsSwitchHaptic();
   const posFix = wantsSwitch ? { position: 'relative' } : {};
   const style = { ...b, ...posFix, ...motion, ...(hover ? hs : {}), ...(active ? as_ : {}), ...(focus ? fs : {}), ...(lp.style || {}), ...(styleProp || {}) };
   const a11y = actsAsButton
@@ -69,24 +85,29 @@ export function Interactive({ as: Tag = 'div', base, hoverStyle, activeStyle, fo
         },
       }
     : { onKeyDown };
+  const common = {
+    style,
+    onClick: onClick ? (e) => { if (hapticWord) fireHaptic(hapticWord); onClick(e); } : undefined,
+    onClickCapture: lp.onClickCapture,
+    onContextMenu: lp.onContextMenu,
+    onPointerDown: (e) => { setActive(true); lp.onPointerDown?.(e); onPointerDown?.(e); },
+    onPointerMove: lp.onPointerMove,
+    onPointerUp: (e) => { setActive(false); lp.onPointerUp?.(e); onPointerUp?.(e); },
+    onPointerCancel: (e) => { setActive(false); lp.onPointerCancel?.(e); onPointerCancel?.(e); },
+    // hover is a mouse-only affordance — never let touch set it (that's what stuck)
+    onPointerEnter: (e) => { if (e.pointerType === 'mouse') setHover(true); onPointerEnter?.(e); },
+    onPointerLeave: (e) => { setHover(false); setActive(false); lp.onPointerLeave?.(e); onPointerLeave?.(e); },
+    onFocus: (e) => { setFocus(true); onFocus?.(e); },
+    onBlur: (e) => { setFocus(false); onBlur?.(e); },
+    ...a11y,
+    ...rest,
+  };
+  // A void tag is rendered WITHOUT a children position — not with an empty one.
+  // `<Tag>{a}{b}</Tag>` hands React an array even when both are undefined, and
+  // that is what throws.
+  if (voidTag) return <Tag {...common} />;
   return (
-    <Tag
-      style={style}
-      onClick={onClick ? (e) => { if (hapticWord) fireHaptic(hapticWord); onClick(e); } : undefined}
-      onClickCapture={lp.onClickCapture}
-      onContextMenu={lp.onContextMenu}
-      onPointerDown={(e) => { setActive(true); lp.onPointerDown?.(e); onPointerDown?.(e); }}
-      onPointerMove={lp.onPointerMove}
-      onPointerUp={(e) => { setActive(false); lp.onPointerUp?.(e); onPointerUp?.(e); }}
-      onPointerCancel={(e) => { setActive(false); lp.onPointerCancel?.(e); onPointerCancel?.(e); }}
-      // hover is a mouse-only affordance — never let touch set it (that's what stuck)
-      onPointerEnter={(e) => { if (e.pointerType === 'mouse') setHover(true); onPointerEnter?.(e); }}
-      onPointerLeave={(e) => { setHover(false); setActive(false); lp.onPointerLeave?.(e); onPointerLeave?.(e); }}
-      onFocus={(e) => { setFocus(true); onFocus?.(e); }}
-      onBlur={(e) => { setFocus(false); onBlur?.(e); }}
-      {...a11y}
-      {...rest}
-    >
+    <Tag {...common}>
       {children}
       {wantsSwitch && (
         <input
