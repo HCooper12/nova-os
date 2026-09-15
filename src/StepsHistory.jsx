@@ -14,7 +14,11 @@ export function StepsHistory({ v }) {
 
   return (
     <div role="dialog" aria-modal="true" aria-label={weightMode ? 'Weight history' : 'Step history'} onClick={v.close} style={css("position:fixed;inset:0;background:rgba(8,5,12,.82);backdrop-filter:blur(6px);z-index:80;display:flex;align-items:center;justify-content:center;padding:18px;overflow-y:auto")}>
-      <div onClick={(e) => e.stopPropagation()} style={css("width:560px;max-width:96vw;max-height:92vh;overflow-y:auto;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 40px 90px -30px rgba(0,0,0,.95);padding:22px 24px")}>
+      {/* the SAME name the tile had, so the tile expands into this panel */}
+      <div onClick={(e) => e.stopPropagation()} style={{
+        ...css("width:560px;max-width:96vw;max-height:92vh;overflow-y:auto;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 40px 90px -30px rgba(0,0,0,.95);padding:22px 24px"),
+        ...(v.vtName ? { viewTransitionName: v.vtName } : {}),
+      }}>
         <div style={css("display:flex;justify-content:space-between;align-items:center")}>
           <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-mg)")}>{weightMode ? 'WEIGHT · LAST 14 DAYS' : 'STEPS · LAST 7 DAYS'}</span>
           <Interactive as="span" onClick={v.close} base="cursor:pointer;font:var(--nv-micro-l);color:var(--nv-ink60);border:1px solid var(--nv-edge);border-radius:7px;padding:5px 10px" hoverStyle="color:var(--nv-ink)">ESC</Interactive>

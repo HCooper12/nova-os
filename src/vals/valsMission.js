@@ -271,7 +271,14 @@ export function valsMission(app, ctx) {
           hint: partialStepsHint(stepsDay) || staleHint(stepsDay) || (stepsCurrent >= STEP_GOAL ? `${Math.round(stepsRatio * 100)}% · GOAL REACHED` : `${Math.round(stepsRatio * 100)}% · ${(STEP_GOAL - stepsCurrent).toLocaleString()} TO GO`),
         };
   // tap the steps satellite to open the 7-day history + manual edit
-  if (!demoMode) satSteps.onOpen = () => app.setState({ stepsOverlayOpen: true, stepsOverlayMode: 'steps' });
+  if (!demoMode) {
+    // THE MORPH. The tile he taps carries a name and the overlay panel carries
+    // the same one, so the tile grows into the history instead of a dialog
+    // cutting over it. Dropped while the overlay holds it — two elements
+    // sharing a name silently drops the morph.
+    satSteps.vtName = st.stepsOverlayOpen ? undefined : 'vital-steps';
+    satSteps.onOpen = () => app.withTransition(() => app.setState({ stepsOverlayOpen: true, stepsOverlayMode: 'steps' }));
+  }
   // protein numbers come from the rotation — real when synced, the scripted 96
   // only in demo mode, and an honest dash when configured but not synced
   const satProtein = !usingLiveRecipes && !demoMode
@@ -329,12 +336,14 @@ export function valsMission(app, ctx) {
           ? {
               key: 'weight', label: 'WEIGHT', value: (Math.round(weightLatest.weightKg * 10) / 10).toFixed(1), small: 'KG', color: '--nv-gold',
               hint: [weightDelta == null ? 'FIRST READING' : `${weightDelta > 0 ? '+' : ''}${weightDelta} KG / ${weightSpan}D`, weightDated].filter(Boolean).join(' · '),
-              onOpen: () => app.setState({ stepsOverlayOpen: true, stepsOverlayMode: 'weight' }),
+              vtName: st.stepsOverlayOpen ? undefined : 'vital-weight',
+              onOpen: () => app.withTransition(() => app.setState({ stepsOverlayOpen: true, stepsOverlayMode: 'weight' })),
             }
           : {
               key: 'weight', label: 'WEIGHT', value: '—', small: '', color: '--nv-gold',
               hint: usingLiveHealthData ? 'TAP TO LOG · OR ADD TO SHORTCUT' : offlineHint,
-              onOpen: usingLiveHealthData ? () => app.setState({ stepsOverlayOpen: true, stepsOverlayMode: 'weight' }) : undefined,
+              vtName: st.stepsOverlayOpen ? undefined : 'vital-weight',
+              onOpen: usingLiveHealthData ? () => app.withTransition(() => app.setState({ stepsOverlayOpen: true, stepsOverlayMode: 'weight' })) : undefined,
             },
         hrvDay
           ? { key: 'hrv', label: 'HRV', value: String(Math.round(hrvDay.hrv * 10) / 10), small: 'MS', color: '--nv-cy',
@@ -1081,7 +1090,8 @@ export function valsMission(app, ctx) {
       };
       return {
         mode: st.stepsOverlayMode === 'weight' ? 'weight' : 'steps',
-        close: () => app.setState({ stepsOverlayOpen: false, stepEditDate: null }),
+        vtName: `vital-${st.stepsOverlayMode === 'weight' ? 'weight' : 'steps'}`,
+      close: () => app.withTransition(() => app.setState({ stepsOverlayOpen: false, stepEditDate: null })),
         goal: STEP_GOAL,
         current: stepsCurrent,
         currentIsStale: !!(stepsDay && stepsDay.date !== todayKey),

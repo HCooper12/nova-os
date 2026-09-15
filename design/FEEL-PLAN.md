@@ -197,14 +197,19 @@ on the detail surface, open through `withTransition`.
 
 Ranked by how often he meets them:
 
-| from | to | name |
-| --- | --- | --- |
-| Today's technique card (Home) | `RepertoireBook` | `technique-<id>` |
-| Steps / weight satellite (Home) | `StepsHistory` | `vital-<metric>` |
-| An exercise row (Train) | `ExerciseSheet` | `exercise-<id>` |
-| A note row (Notes) | the reader | `note-<id>` |
-| An inbox card | its expanded detail | `record-<id>` |
-| A library shelf card | the source page | `source-<id>` |
+| from | to | name | |
+| --- | --- | --- | --- |
+| Today's technique card (Home) | `RepertoireBook` | `technique-<id>` | **done** |
+| Steps / weight tile (Home) | `StepsHistory` | `vital-steps` / `vital-weight` | **done** |
+| An exercise row (Train) | `ExerciseSheet` | `exercise-<id>` | |
+| A note row (Notes) | the reader | `note-<id>` | |
+| An inbox card | its expanded detail | `record-<id>` | |
+| A library shelf card | the source page | `source-<id>` | |
+
+**Both done pairs are UNSEEN** — the browser tooling was down when they shipped.
+The wiring is right by construction (the name is minted in the vals, dropped
+while the overlay holds it, and applied on both ends) but nobody has watched
+either morph.
 
 The Home technique card is the best first one: it is new, he asked for the door
 onto it, and the overlay it opens has never been seen rendering — doing both at

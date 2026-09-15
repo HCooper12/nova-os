@@ -31,7 +31,7 @@ const orbStyle = (size, dur, dir) => ({
 
 function Sat({ pos, colorVar, glowVar, d }) {
   return (
-    <div onClick={d.onOpen} style={{ position: 'absolute', ...pos, borderRadius: '11px', padding: '2px', background: `conic-gradient(from 210deg, var(${colorVar}) ${d.pct}%, var(--nv-edge) 0)`, boxShadow: `var(${glowVar})`, cursor: d.onOpen ? 'pointer' : 'default' }}>
+    <div onClick={d.onOpen} style={{ position: 'absolute', ...pos, borderRadius: '11px', padding: '2px', background: `conic-gradient(from 210deg, var(${colorVar}) ${d.pct}%, var(--nv-edge) 0)`, boxShadow: `var(${glowVar})`, cursor: d.onOpen ? 'pointer' : 'default', ...(d.vtName ? { viewTransitionName: d.vtName } : {}) }}>
       <div style={{ borderRadius: '9px', background: 'var(--nv-glass2)', backdropFilter: 'blur(14px)', padding: '10px 15px' }}>
         <div style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track-wide)', color: 'var(--nv-ink60)' }}>{d.label}</div>
         <div style={{ font: `700 24px ${R}`, marginTop: '2px', fontVariantNumeric: 'tabular-nums', ...absentValueStyle(d, colorVar) }}>
