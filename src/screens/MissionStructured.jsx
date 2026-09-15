@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { css } from '../css.js';
 import { glowPanel } from '../glowPanel.js';
+import { LeaderBox } from '../LeaderBox.jsx';
 import { RingTile } from '../RingTile.jsx';
 import { resolveFolds, foldStatus, FOLD_LABELS, loadFolds, saveFolds } from '../missionFold.js';
 import { Eyebrow, TextAction, Tag, Meta } from '../Controls.jsx';
@@ -196,104 +197,10 @@ export function MissionStructured({ v }) {
       </Group>
     ) : null,
 
-    lead: v.leaderToday ? (
-      <Group key="lead" label="Lead · try today" trailing={<Meta tone="gold">{cap(v.leaderToday.chip)}</Meta>}>
-        <div style={{ padding: '13px 16px' }}>
-          <div style={{ font: `400 21px/1.25 ${S}`, textWrap: 'pretty' }}>{v.leaderToday.title}</div>
-          <p style={{ margin: '9px 0 0', font: `450 13.5px/1.55 ${UI}`, color: 'var(--nv-ink)' }}>{v.leaderToday.line}</p>
-          {v.leaderToday.why && <p style={{ margin: '7px 0 0', font: `450 12.5px/1.5 ${UI}`, color: 'var(--nv-ink60)' }}>{v.leaderToday.why}</p>}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '9px', marginTop: '12px' }}>
-            <Pill label="Open the Leader ›" onClick={v.openLeader} tone="quiet" />
-          </div>
-        </div>
-      </Group>
-    ) : null,
-
-    plan: v.planToday ? (
-      <div key="plan">
-        {v.oneThing && (
-          /* C2 — THE ONE THING. Border, glow and fill spent on exactly one
-             card: the day's most important open act. Everything else drops a
-             level so hierarchy stops coming from reading order alone. */
-          <section style={{ marginTop: '18px', padding: mob ? '16px 16px 14px' : '20px 22px 18px', borderRadius: '16px', border: '1px solid color-mix(in srgb, var(--nv-gold) 50%, transparent)', boxShadow: '0 0 54px -18px color-mix(in srgb, var(--nv-gold) 75%, transparent)', background: 'linear-gradient(160deg, color-mix(in srgb, var(--nv-gold) 12%, transparent), var(--nv-glass2))' }}>
-            <div style={{ font: `600 10.5px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--nv-gold)' }}>The one thing</div>
-            <div style={{ marginTop: '6px', font: `600 ${mob ? '17px' : '19px'}/1.25 ${UI}`, letterSpacing: '-.01em' }}>{v.oneThing.text}</div>
-            {v.oneThing.why && <div style={{ marginTop: '5px', font: `450 13px/1.5 ${UI}`, color: 'var(--nv-ink60)' }}>{v.oneThing.why}</div>}
-            {v.oneThing.mark && (
-              <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
-                <Pill label="Done" onClick={() => v.oneThing.mark('done')} />
-                <Pill label="Skip" onClick={() => v.oneThing.mark('skipped')} tone="quiet" />
-              </div>
-            )}
-          </section>
-        )}
-      <Group key="plan-group" label="Today's top 3" trailing={<Meta tone={v.planToday.state === 'pending' ? 'gold' : v.planToday.state === 'error' ? 'warn' : 'faint'}>{v.planToday.meta}</Meta>}>
-        {v.planToday.state === 'classifying' ? (
-          <GRow first title={<span style={{ color: 'var(--nv-ink60)', fontWeight: 450 }}>Nova is drawing up today's top 3…</span>} />
-        ) : v.planToday.state === 'error' ? (
-          <GRow first title={<span style={{ color: 'var(--nv-ink60)', fontWeight: 450 }}>Today's plan hit an error — {v.planToday.errorText}. The Inbox has the retry.</span>} />
-        ) : (
-          v.planToday.priorities.map((p, i) => v.oneThing && i === v.oneThing.index ? null : (
-            <GRow key={i} first={i === 0 || (v.oneThing?.index === 0 && i === 1)}
-              leading={<span style={{ font: `600 13px ${M}`, color: 'var(--nv-gold)' }}>{i + 1}</span>}
-              title={<span style={{ opacity: p.outcome ? 0.55 : 1, textDecoration: p.outcome === 'done' ? 'line-through' : 'none' }}>{p.do}</span>}
-              sub={p.why || null}
-              trailing={p.mark ? (
-                <span style={{ display: 'flex', gap: '6px' }}>
-                  <TextAction compact tone={p.outcome === 'done' ? 'good' : 'quiet'} onClick={() => p.mark('done')}>Done</TextAction>
-                  <TextAction compact tone={p.outcome === 'skipped' ? 'warn' : 'quiet'} onClick={() => p.mark('skipped')}>Skip</TextAction>
-                </span>
-              ) : null} />
-          ))
-        )}
-        {(v.planToday.onApprove || v.planToday.state === 'error') && (
-          <div style={{ display: 'flex', gap: '9px', padding: '10px 16px', borderTop: '1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)' }}>
-            {v.planToday.onApprove && <Pill label={v.planToday.busy ? 'Filing…' : 'Approve — into the vault'} onClick={v.planToday.busy ? undefined : v.planToday.onApprove} />}
-            <Pill label="Open Inbox" onClick={v.planToday.onOpenInbox} tone="quiet" />
-          </div>
-        )}
-      </Group>
-      </div>
-    ) : null,
-
-    deck: v.commandDeck.count > 0 ? (
-      <Group key="deck" label="Command deck" trailing={
-        <Interactive as="span" onClick={v.commandDeck.onOpen} base={{ cursor: 'pointer', font: `600 12px ${UI}`, color: 'var(--nv-acc)' }} hoverStyle={{ filter: 'brightness(1.15)' }}>
-          {v.commandDeck.count} waiting ›
-        </Interactive>
-      }>
-        {v.commandDeck.items.map((item, i) => (
-          <GRow key={item.id} first={i === 0} onClick={v.commandDeck.onOpen}
-            leading={<Tag>{item.kindLabel}</Tag>}
-            title={<span style={{ fontWeight: 500 }}>{item.title}</span>}
-            trailing={<span style={{ color: 'var(--nv-ink40)' }}>›</span>} />
-        ))}
-      </Group>
-    ) : null,
-
-    today: (
-      <Group key="today" label="Today" trailing={
-        v.todayIsLive
-          ? <Interactive as="span" onClick={v.openCalendarView} base={{ cursor: 'pointer', font: `600 12px ${UI}`, color: 'var(--nv-acc)' }} hoverStyle={{ filter: 'brightness(1.15)' }}>Next 14 days ›</Interactive>
-          : v.todayStaleLabel ? <Meta tone="warn">{v.todayStaleLabel}</Meta> : null
-      }>
-        {v.todayEvents.map((ev, i) => (
-          <GRow key={i} first={i === 0}
-            leading={<span style={{ font: `600 12px ${M}`, fontVariantNumeric: 'tabular-nums', width: '46px', color: ev.now ? 'var(--nv-cy)' : 'var(--nv-ink40)' }}>{ev.now ? '▸ ' : ''}{ev.time}</span>}
-            title={<span style={{ color: ev.now ? 'var(--nv-cy)' : ev.past ? 'var(--nv-ink40)' : 'var(--nv-ink)' }}>{ev.label}{ev.until && <span style={{ font: 'var(--nv-micro-m)', color: 'var(--nv-cy)', marginLeft: '8px' }}>{ev.until}</span>}</span>}
-            trailing={ev.category ? <span style={{ font: 'var(--nv-micro-m)', letterSpacing: '.05em', padding: '3px 8px', borderRadius: '999px', color: `rgba(${ev.categoryHue},.9)`, background: `rgba(${ev.categoryHue},.12)` }}>{ev.category.toUpperCase()}</span> : null}
-          />
-        ))}
-        {v.calCmdEnabled && (
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '10px 14px', borderTop: '1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)' }}>
-            <input value={v.calCmd} onChange={v.setCalCmd} onKeyDown={(e) => { if (e.key === 'Enter') v.sendCalCmd(); }}
-              placeholder="Ask Nova… “dentist Thu 2pm”, “move gym to Fri 6pm”"
-              style={{ flex: 1, minWidth: 0, background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent)', borderRadius: '11px', padding: '9px 13px', color: 'var(--nv-ink)', fontFamily: UI, outline: 'none' }} />
-            <Pill label={v.calCmdBusy ? 'Drafting…' : 'Draft'} onClick={v.calCmdBusy ? undefined : v.sendCalCmd} />
-          </div>
-        )}
-      </Group>
-    ),
+    // TWO FACES, HIS SWIPE (15 Sep). Was `v.leaderToday` alone; the box now
+    // carries the day's idea AND the live situation, and he swipes between
+    // them. Both come from one view model so the two idioms cannot disagree.
+    lead: v.leaderBox ? <LeaderBox key="lead" box={v.leaderBox} variant="apple" mob={mob} /> : null,
 
     review: (
       <Group key="review" label="Daily review" accent="--nv-vi" trailing={

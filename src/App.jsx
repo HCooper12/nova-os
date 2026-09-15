@@ -366,6 +366,7 @@ export default class App extends Component {
     attachBusy: false,
     // the Leader — leadership development: state mirror + its conversation
     liveLeader: null, leaderChat: [], leaderInput: '', leaderBusy: false,
+    leaderFace: 0, // which face of the Home Leader box he swiped to
     // the briefing reader: the loaded document, its playback, listen|read
     briefing: null, briefingLoading: false, briefingError: null, briefingPlay: null, briefingMode: 'listen',
     briefingMediaUrls: {}, // key → blob URL, fetched when the briefing opens so the glass never buffers
@@ -1874,6 +1875,21 @@ export default class App extends Component {
   // THE REPERTOIRE — he marks today's technique tried or passed. Optimistic,
   // because the tap must feel instant on a card he is meant to use daily; the
   // server's reply carries the corrected tally and streak and wins.
+  // ANSWERING THE SITUATION. The question goes into the Leader chat as his
+  // opening line, because that conversation ALREADY knows how to turn what he
+  // says into struggles/working/resolved (the REFLECT directive). A second
+  // bespoke answer path would be a second thing to keep in step with it.
+  answerSituation() {
+    const sit = this.state.liveLeader?.situation;
+    this.navigate('leader');
+    if (sit?.question) {
+      this.setState({ leaderInput: '' }, () => {
+        this.setState((st) => ({
+          leaderChat: [...st.leaderChat, { at: Date.now(), who: 'system', text: `Nova asked: ${sit.question}` }],
+        }));
+      });
+    }
+  }
   markPractice(outcome, note = '') {
     const conn = getConnection();
     const cur = this.state.liveRepertoire;

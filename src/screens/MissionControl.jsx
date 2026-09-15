@@ -1,5 +1,6 @@
 import { css } from '../css.js';
 import { glowPanel, glowSoft } from '../glowPanel.js';
+import { LeaderBox } from '../LeaderBox.jsx';
 import { RingTile } from '../RingTile.jsx';
 import { Eyebrow, TextAction, Meta } from '../Controls.jsx';
 import { absentHintStyle, absentValueStyle } from '../vitalsAbsence.js';
@@ -154,6 +155,10 @@ export function MissionControl({ v }) {
           </div>
         </section>
       )}
+      {/* THE LEADER BOX — this idiom never had one at all, so the day's idea
+          and the live situation existed for him only in the cupertino twin.
+          Same component, same view model, Command's furniture. */}
+      {v.leaderBox && <LeaderBox box={v.leaderBox} variant="command" mob={mob} />}
       {/* TODAY'S TECHNIQUE — the Apple twin's card in this idiom, from the
           same view model. Same technique, same drill, same two taps: the
           server picked it once and both screens read that pick. */}

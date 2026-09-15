@@ -1,4 +1,5 @@
 import { AGENTS } from './shared.js';
+import { KIND_LABEL } from './valsLeader.js';
 import { pickOneThing, prMomentFor, ringState } from '../missionFocus.js';
 import { plainLabel, liveBlock, isLiveBlock, blockCta, blockDetail, minsLeft, pickTagline } from '../missionLine.js';
 import { localDateISO } from '../localDate.js';
@@ -748,6 +749,64 @@ export function valsMission(app, ctx) {
           app.setState({ landedTick: (st.landedTick || 0) + 1 });
         },
         openInbox: go('inbox'),
+      };
+    })(),
+    // THE LEADER BOX — TWO FACES, HIS SWIPE. His instruction, 15 Sep: the
+    // Leader had drifted from general advice into one running situation, and
+    // "I like both ideas so turn that box on home into a swipe capable box I
+    // can smoothly swipe between".
+    //
+    // So neither face wins the slot. LEAD is the day's leadership idea, back
+    // to being about the craft; SITUATION is the live thread — what is open,
+    // how long since he last said anything, and the one question Nova needs
+    // answered to be current. The order puts LEAD first because that is the
+    // half he said had gone missing.
+    leaderBox: (() => {
+      if (demoMode) return null;
+      const L = st.liveLeader;
+      if (!L) return null;
+      const faces = [];
+      if (L.today?.title) {
+        faces.push({
+          key: 'lead',
+          label: 'Lead · try today',
+          chip: KIND_LABEL[L.today.kind] || 'CONSIDER',
+          title: L.today.title,
+          line: L.today.line,
+          foot: L.today.why || null,
+        });
+      }
+      const sit = L.situation;
+      if (sit?.openCount) {
+        // The AGE is the honest part: Nova is current only to what he last
+        // said, and the card says so rather than implying it knows today.
+        const since = sit.daysSinceUpdate == null ? 'You have never updated this'
+          : sit.daysSinceUpdate === 0 ? 'You updated this today'
+            : `You last updated this ${sit.daysSinceUpdate} day${sit.daysSinceUpdate === 1 ? '' : 's'} ago`;
+        faces.push({
+          key: 'situation',
+          label: 'Your situation',
+          chip: `${sit.openCount} open`,
+          title: sit.headline || 'Your open situation',
+          line: sit.stands || `${sit.openCount} thing${sit.openCount === 1 ? '' : 's'} still open. ${since.toLowerCase()}.`,
+          foot: since + (sit.stale ? ' — Nova does not know what has happened since.' : '.'),
+          question: sit.question || null,
+          stale: !!sit.stale,
+        });
+      }
+      if (!faces.length) return null;
+      const index = Math.min(Math.max(0, st.leaderFace || 0), faces.length - 1);
+      const setFace = (i) => app.setState({ leaderFace: (i + faces.length) % faces.length });
+      return {
+        faces,
+        index,
+        face: faces[index],
+        count: faces.length,
+        next: faces.length > 1 ? () => setFace(index + 1) : null,
+        prev: faces.length > 1 ? () => setFace(index - 1) : null,
+        select: (i) => setFace(i),
+        openLeader: go('leader'),
+        answer: () => app.answerSituation(),
       };
     })(),
     // TODAY'S TECHNIQUE — his ask, 15 Sep: "present me with one of these

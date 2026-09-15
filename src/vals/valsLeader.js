@@ -4,7 +4,7 @@ import { bubble } from './shared.js';
 // his leading (struggles / what's working), and the sit-down conversation.
 // All data is the server's receipts; absence renders as absence.
 
-const KIND_LABEL = { action: 'TRY TODAY', reminder: 'REMEMBER', idea: 'CONSIDER' };
+export const KIND_LABEL = { action: 'TRY TODAY', reminder: 'REMEMBER', idea: 'CONSIDER' };
 
 // Whole days since he said it; today reads "today", never "0d".
 export function chipAge(iso, now = Date.now()) {
