@@ -534,7 +534,8 @@ export async function composeShow(vaultPath, { variant = 'morning', now: nowIn }
         steps.push({
           say: despeak(line),
           card: listCard({
-            label: pick.mode === 'review' ? 'TODAY\u2019S TECHNIQUE · AGAIN' : 'TODAY\u2019S TECHNIQUE',
+            label: pick.mode === 'second' ? 'TODAY’S TECHNIQUE · DAY TWO'
+              : pick.mode === 'review' ? 'TODAY’S TECHNIQUE · AGAIN' : 'TODAY’S TECHNIQUE',
             items: [
               { name: clip(pick.technique.name, 46) },
               ...(pick.technique.tell ? [{ name: clip(`Tell: ${pick.technique.tell}`, 46) }] : []),

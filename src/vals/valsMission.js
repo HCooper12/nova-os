@@ -774,7 +774,13 @@ export function valsMission(app, ctx) {
         drill: t.drill || '',
         tell: t.tell || '',
         source: t.source || '',
-        mode: r.mode,                       // 'new' | 'review'
+        mode: r.mode,                       // 'new' | 'second' | 'review'
+        // ONE label, read by both idioms — his rota gives a technique two days,
+        // and a card that says nothing about which day it is looks like a bug
+        // the second morning
+        modeLabel: r.mode === 'second' ? 'Today’s technique · day two'
+          : r.mode === 'review' ? 'Today’s technique · again'
+            : 'Today’s technique',
         why: r.why || null,                  // why it came back, when it is a review
         position: r.position, total: r.total,
         outcome: r.outcome || null,          // 'tried' | 'skipped' | null

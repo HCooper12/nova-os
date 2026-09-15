@@ -159,7 +159,7 @@ export function MissionControl({ v }) {
       {v.todayTechnique && !v.todayTechnique.empty && (
         <section style={css('margin-top:18px;padding:16px 18px 14px;border-radius:var(--nv-radius);border:1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent);background:linear-gradient(160deg, color-mix(in srgb, var(--nv-cy) 07%, transparent), var(--nv-glass2));animation:fadeUp var(--nv-dur-base) var(--nv-ease)')}>
           <div style={css('display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap')}>
-            <Eyebrow as="span">Today’s technique{v.todayTechnique.mode === 'review' ? ' · again' : ''}</Eyebrow>
+            <Eyebrow as="span">{v.todayTechnique.modeLabel}</Eyebrow>
             <Meta tone="faint">
               {v.todayTechnique.position} of {v.todayTechnique.total}
               {v.todayTechnique.streak > 0 ? ` · ${v.todayTechnique.streak}-day streak` : ''}

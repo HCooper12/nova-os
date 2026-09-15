@@ -478,7 +478,7 @@ export function MissionStructured({ v }) {
           <section style={{ marginTop: '18px', padding: mob ? '15px 16px 13px' : '18px 20px 16px', borderRadius: '16px', border: '1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent)', background: 'linear-gradient(160deg, color-mix(in srgb, var(--nv-cy) 07%, transparent), var(--nv-glass2))', animation: 'fadeUp var(--nv-dur-base) var(--nv-ease)' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
               <div style={{ font: `600 10.5px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--nv-cy)' }}>
-                Today’s technique{v.todayTechnique.mode === 'review' ? ' · again' : ''}
+                {v.todayTechnique.modeLabel}
               </div>
               <Meta tone="faint">
                 {v.todayTechnique.position} of {v.todayTechnique.total}

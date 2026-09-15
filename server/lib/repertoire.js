@@ -189,10 +189,26 @@ export const REVIEW_INTERVALS = [2, 5, 12, 30];
 export const SCHEDULE = tableSchedule(REVIEW_INTERVALS); // pinned beside the Library's and the Leader's in twins.test.js
 export const intervalFor = (tried) => SCHEDULE(tried);
 
-// Every third day is a review day. Deterministic on purpose: a curriculum that
-// re-rolls its mix on each render is not a curriculum, and Home and the spoken
-// brief MUST name the same technique — they both read this one function.
-export const REVIEW_EVERY = 3;
+// THE ROTA — his instruction, 15 Sep: "a new technique every second day and
+// then a review on the final day of the week, so there are 3 new techniques per
+// week and a day of review".
+//
+// So the week is fixed, not counted: a new technique lands Mon / Wed / Fri, the
+// day after each one CARRIES it (the same drill, a second go — which is the
+// point of every second day rather than every day), and Sunday reviews. Three
+// new a week and one review day, exactly as he asked.
+//
+// Driven by the day of the week and not by how many days have been served, so
+// missing a day cannot slide the whole rota sideways — Wednesday is Wednesday
+// whether or not he opened the app on Tuesday.
+export const ROTA = { 1: 'new', 2: 'second', 3: 'new', 4: 'second', 5: 'new', 6: 'second', 7: 'review' };
+
+// 1 = Monday … 7 = Sunday. Parsed as UTC from the date string so the answer is
+// about the DATE he is living in, never about this process's timezone.
+export function dayOfWeek(dateISO) {
+  const d = new Date(`${String(dateISO).slice(0, 10)}T00:00:00Z`).getUTCDay();
+  return d === 0 ? 7 : d;
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
@@ -240,18 +256,20 @@ export async function writeState(state) {
 //
 // Order of decision:
 //   1. a day already served keeps its answer forever (he may open Home twice);
-//   2. every REVIEW_EVERY-th served day is a review, if anything is genuinely
-//      due — most overdue first;
-//   3. otherwise the next untaught technique, in page order;
-//   4. when the curriculum is exhausted, every day is a review — the most
-//      overdue, due or not, because "nothing today" helps nobody;
-//   5. an empty catalogue returns null and the surfaces say so honestly.
-export function pickForDay(techniques = [], state = {}, dateISO, { reviewEvery = REVIEW_EVERY } = {}) {
+//   2. the ROTA decides the SLOT from the day of the week — new, second, review;
+//   3. a second day carries yesterday's technique, or becomes new if there is
+//      nothing to carry (he did not open the app, or it is his first day);
+//   4. Sunday reviews the most overdue, unless nothing has ever been taught;
+//   5. otherwise the next untaught technique, in page order;
+//   6. when the curriculum is exhausted every day reviews — the most overdue,
+//      due or not, because "nothing today" helps nobody;
+//   7. an empty catalogue returns null and the surfaces say so honestly.
+export function pickForDay(techniques = [], state = {}, dateISO, { rota = ROTA } = {}) {
   const days = state.days || {};
   const settled = days[dateISO];
   if (settled?.id) {
     const found = techniques.find((t) => t.id === settled.id);
-    if (found) return { technique: found, mode: settled.mode === 'review' ? 'review' : 'new', why: settled.why || null, settled: true };
+    if (found) return { technique: found, mode: MODES.has(settled.mode) ? settled.mode : 'new', why: settled.why || null, settled: true };
   }
   if (!techniques.length) return null;
 
@@ -266,20 +284,34 @@ export function pickForDay(techniques = [], state = {}, dateISO, { reviewEvery =
     .map((t) => ({ t, over: overdueBy(t) }))
     .sort((a, b) => b.over - a.over || String(a.t.id).localeCompare(String(b.t.id)));
 
-  const servedCount = Object.keys(days).length;
-  const isReviewDay = reviewEvery > 0 && servedCount > 0 && (servedCount + 1) % reviewEvery === 0;
+  const slot = rota[dayOfWeek(dateISO)] || 'new';
 
-  const due = reviews.filter((r) => r.over >= 0);
-  if (isReviewDay && due.length) {
-    return { technique: due[0].t, mode: 'review', why: `due again — ${practisedPhrase(st[due[0].t.id])}` };
+  // SECOND DAY — the same technique as yesterday, for a second go at the drill.
+  // If yesterday has no record (he did not open the app, or this is his first
+  // day) there is nothing to carry, so it becomes new work rather than a blank.
+  if (slot === 'second') {
+    const prev = days[shiftDate(dateISO, -1)];
+    const carried = prev?.id ? techniques.find((t) => t.id === prev.id) : null;
+    if (carried) return { technique: carried, mode: 'second', why: null };
   }
+
+  // SUNDAY — the review. Most overdue first; if nothing has EVER been taught
+  // there is nothing to review, so it falls through to new work.
+  if (slot === 'review' && reviews.length) {
+    const top = reviews[0];
+    return { technique: top.t, mode: 'review', why: `the week's review — ${practisedPhrase(st[top.t.id])}` };
+  }
+
   if (untaught.length) return { technique: untaught[0], mode: 'new', why: null };
+  // the catalogue is exhausted: keep reviewing rather than saying "nothing today"
   if (reviews.length) {
     const top = reviews[0];
     return { technique: top.t, mode: 'review', why: `the whole catalogue is taught — ${practisedPhrase(st[top.t.id])}` };
   }
   return null;
 }
+
+const MODES = new Set(['new', 'second', 'review']);
 
 function practisedPhrase(s = {}) {
   const tried = Number(s.tried) || 0;
@@ -296,6 +328,11 @@ export function spokenTechniqueLine(pick) {
   const t = pick.technique;
   const drill = String(t.drill || '').trim();
   if (!drill) return null;
+  if (pick.mode === 'second') {
+    // he heard what it is yesterday; today is a second go, so the line skips
+    // the explanation and lands straight on the drill
+    return `${t.name} again today, sir. ${drill}`.replace(/\s+/g, ' ').trim();
+  }
   const open = pick.mode === 'review'
     ? `One you have met before, sir: ${t.name}.`
     : `Today's technique, sir: ${t.name}.`;
