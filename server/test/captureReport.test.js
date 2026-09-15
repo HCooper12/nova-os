@@ -25,6 +25,10 @@ test('the source sentence names duration, kind and author, and invents nothing',
   // no author known → the clause is absent, not guessed
   assert.equal(sourceLine({ url: 'https://youtu.be/x', durationSec: 250 }), '4-minute YouTube video');
   assert.equal(sourceLine({ url: 'https://nature.com/a' }), 'page at nature.com');
+  // an explicit kind still names the host — "Analysed article" points at nothing
+  assert.equal(sourceLine({ url: 'https://en.wikipedia.org/wiki/X', kind: 'article' }), 'article at en.wikipedia.org');
+  // ...and does not say it twice when the kind already carries it
+  assert.equal(sourceLine({ url: 'https://nature.com/a', kind: 'page at nature.com' }), 'page at nature.com');
 });
 
 test('duration reads the way a person says it', () => {
@@ -101,6 +105,13 @@ test('the one-line confirmation carries the same facts, no more', () => {
   );
   const dead = { source: reel, read: [readEntry('Transcript', false, 'login required')] };
   assert.match(confirmLine(dead), /^Could not analyse 42-second Instagram reel by bondwayne/);
+  // an ARTICLE says what was read too, or the line names no evidence at all
+  const article = {
+    source: { url: 'https://en.wikipedia.org/wiki/X', kind: 'article', title: 'X' },
+    read: [readEntry('Page text', true, '12000 characters', "rendered in Nova's browser")],
+    research: { consulted: 9, cited: 7 },
+  };
+  assert.equal(confirmLine(article), 'Analysed article at en.wikipedia.org — 12,000 characters read, 7 sources cited.');
 });
 
 /* ------------------------------- assembly -------------------------------- */

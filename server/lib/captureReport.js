@@ -38,8 +38,12 @@ export function sourceLine(source = {}) {
 
 function describeKind(source) {
   const explicit = String(source.kind || '').trim();
-  if (explicit) return explicit;
-  const host = hostOf(source.url);
+  const known = hostOf(source.url);
+  // An explicit kind still earns its host: the article path sets kind:'article'
+  // as a semantic marker, and a receipt reading "Analysed article" names nothing
+  // he could go back and check.
+  if (explicit) return known && !explicit.includes(known) ? `${explicit} at ${known}` : explicit;
+  const host = known;
   if (!host) return 'source';
   if (/instagram\.com$/.test(host)) return 'Instagram reel';
   if (/(youtube\.com|youtu\.be)$/.test(host)) return 'YouTube video';
@@ -150,6 +154,8 @@ export function confirmLine(evidence = {}) {
   if (t) bits.push('transcript read');
   const f = read.find((r) => /frames/i.test(r.what));
   if (f) bits.push(f.detail && /^\d+/.test(f.detail) ? `${f.detail.match(/^\d+/)[0]} frames seen` : 'frames seen');
+  const pg = read.find((r) => /page text|body/i.test(r.what));
+  if (pg) bits.push(pg.detail && /^\d+/.test(pg.detail) ? `${Number(pg.detail.match(/^\d+/)[0]).toLocaleString()} characters read` : 'page read');
   const res = evidence.research;
   if (res && Number.isFinite(res.cited)) bits.push(`${res.cited} source${res.cited === 1 ? '' : 's'} cited`);
   return `Analysed ${what}${bits.length ? ` — ${bits.join(', ')}` : ''}${partial ? ' (frames only)' : ''}.`;
