@@ -452,6 +452,7 @@ export default class App extends Component {
     liveTextOpen: false, liveMicOpen: false, voiceScreenMic: false, voicePendingOffer: null,
     intake: null, // THE INTAKE interview in progress: { facts, idx, questions, known }
     liveWrap: null, wrapDismissedOn: null, // WRAP THE DAY — the evening card on Home
+    liveRepertoire: null, // THE REPERTOIRE — today's technique on Home
     // set when a reply was composed but the device refused to play it —
     // silence must never also be invisible
     speechBlocked: null,
@@ -1553,6 +1554,7 @@ export default class App extends Component {
       async () => this.setState({ liveRotation: await api.rotation(conn) }),
       async () => this.setState({ liveFoodLog: await api.foodLog(conn) }),
       async () => this.setState({ liveWrap: await api.wrapDay(conn) }),
+      async () => this.setState({ liveRepertoire: await api.repertoireToday(conn) }),
       // carry-overs and make-up days ride the sync: the week strip and Today's
       // card read them, and until now nothing loaded them on arrival — the
       // marker existed server-side and the planner stayed blind to it
@@ -1865,6 +1867,18 @@ export default class App extends Component {
     this.navigate('voice');
     this.putCard(wrapStageCard(w));
     this.sayLine(w.line);
+  }
+  // THE REPERTOIRE — he marks today's technique tried or passed. Optimistic,
+  // because the tap must feel instant on a card he is meant to use daily; the
+  // server's reply carries the corrected tally and streak and wins.
+  markPractice(outcome, note = '') {
+    const conn = getConnection();
+    const cur = this.state.liveRepertoire;
+    if (!conn || !cur?.technique) return;
+    this.setState({ liveRepertoire: { ...cur, outcome } });
+    api.repertoirePractice(conn, outcome, note)
+      .then((r) => this.setState((st) => ({ liveRepertoire: { ...st.liveRepertoire, outcome: r.outcome, tried: r.tried, streak: r.streak } })))
+      .catch(() => this.setState((st) => ({ liveRepertoire: { ...st.liveRepertoire, outcome: cur.outcome } })));
   }
   dismissWrap() {
     const on = this.state.liveWrap?.facts?.date || new Date().toISOString().slice(0, 10);

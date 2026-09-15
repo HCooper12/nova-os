@@ -135,6 +135,11 @@ const defaultDeps = {
     const items = await buildLibrary(vaultPath, new Vault(vaultPath));
     return items.length ? briefResurfaceLine(items, now) : null;
   },
+  todayTechnique: async (vaultPath, now) => {
+    const { techniqueForDay } = await import('./repertoire.js');
+    const { localDateISO } = await import('./localDate.js');
+    return techniqueForDay(vaultPath, localDateISO(now));
+  },
   panel: async (vaultPath, directive) => (await import('./panels.js')).buildPanel(vaultPath, directive),
   instruments: async (vaultPath, now) => (await import('./instruments.js')).buildInstruments(vaultPath, { now }),
 };
@@ -499,6 +504,36 @@ export async function composeShow(vaultPath, { variant = 'morning', now: nowIn }
             label: res.reason === 'reconnected' ? 'FROM YOUR LIBRARY · NEWLY CONNECTED' : 'FROM YOUR LIBRARY',
             items: (res.item.concepts || []).slice(0, 4).map((c) => ({ name: c })),
             foot: res.item.provenance === 'researched' ? 'researched, not read' : undefined,
+          }),
+        });
+      }
+    } catch { /* absent section */ }
+  }
+
+  // — today's technique —
+  // His ask, 15 Sep: one technique a day he can develop and use. Unlike the
+  // library beat above this is NOT rate-limited — a daily curriculum that
+  // skips days is not a daily curriculum — but it does stand down once he has
+  // already answered today's card, so the brief never teaches him something he
+  // has just told Nova he practised.
+  //
+  // It reads techniqueForDay, which is the same pure pick Home reads. Whichever
+  // surface asks first records the day; both then say the same name.
+  if (!evening && deps.todayTechnique) {
+    try {
+      const pick = await deps.todayTechnique(vaultPath, now);
+      const { spokenTechniqueLine } = await import('./repertoire.js');
+      const line = pick && !pick.outcome ? spokenTechniqueLine(pick) : null;
+      if (line) {
+        steps.push({
+          say: despeak(line),
+          card: listCard({
+            label: pick.mode === 'review' ? 'TODAY\u2019S TECHNIQUE · AGAIN' : 'TODAY\u2019S TECHNIQUE',
+            items: [
+              { name: pick.technique.name },
+              ...(pick.technique.tell ? [{ name: `Tell: ${pick.technique.tell}` }] : []),
+            ],
+            foot: `${pick.technique.family} · ${pick.position} of ${pick.total}${pick.streak > 0 ? ` · ${pick.streak}-day streak` : ''}`,
           }),
         });
       }

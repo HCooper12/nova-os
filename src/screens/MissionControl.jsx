@@ -153,6 +153,58 @@ export function MissionControl({ v }) {
           </div>
         </section>
       )}
+      {/* TODAY'S TECHNIQUE — the Apple twin's card in this idiom, from the
+          same view model. Same technique, same drill, same two taps: the
+          server picked it once and both screens read that pick. */}
+      {v.todayTechnique && !v.todayTechnique.empty && (
+        <section style={css('margin-top:18px;padding:16px 18px 14px;border-radius:var(--nv-radius);border:1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent);background:linear-gradient(160deg, color-mix(in srgb, var(--nv-cy) 07%, transparent), var(--nv-glass2));animation:fadeUp var(--nv-dur-base) var(--nv-ease)')}>
+          <div style={css('display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap')}>
+            <Eyebrow as="span">Today’s technique{v.todayTechnique.mode === 'review' ? ' · again' : ''}</Eyebrow>
+            <Meta tone="faint">
+              {v.todayTechnique.position} of {v.todayTechnique.total}
+              {v.todayTechnique.streak > 0 ? ` · ${v.todayTechnique.streak}-day streak` : ''}
+            </Meta>
+          </div>
+          <div style={{ marginTop: '8px', font: `500 19px ${S}`, lineHeight: 1.25, color: 'var(--nv-ink)' }}>{v.todayTechnique.name}</div>
+          <div style={css('margin-top:3px;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:var(--nv-ink60)')}>{String(v.todayTechnique.family).toUpperCase()}</div>
+          {v.todayTechnique.summary && (
+            <div style={{ marginTop: '8px', font: `450 13.5px ${R}`, lineHeight: 1.5, color: 'var(--nv-ink)' }}>{v.todayTechnique.summary}</div>
+          )}
+          {v.todayTechnique.why && (
+            <div style={{ marginTop: '6px', font: `450 11.5px ${R}`, color: 'var(--nv-ink60)' }}>Back today — {v.todayTechnique.why}.</div>
+          )}
+          {v.todayTechnique.move && (
+            <div style={{ marginTop: '10px', font: `450 12.5px ${R}`, lineHeight: 1.5, color: 'var(--nv-ink60)' }}>
+              <span style={{ font: `600 12.5px ${R}`, color: 'var(--nv-ink)' }}>Move. </span>{v.todayTechnique.move}
+            </div>
+          )}
+          <div style={css('margin-top:10px;padding:11px 13px;border-radius:9px;background:color-mix(in srgb, var(--nv-cy) 09%, transparent);border:1px solid color-mix(in srgb, var(--nv-cy) 22%, transparent)')}>
+            <div style={css('font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-cy)')}>TRY IT TODAY</div>
+            <div style={{ marginTop: '5px', font: `500 13.5px ${R}`, lineHeight: 1.5, color: 'var(--nv-ink)' }}>{v.todayTechnique.drill}</div>
+            {v.todayTechnique.tell && (
+              <div style={{ marginTop: '6px', font: `450 12px ${R}`, lineHeight: 1.45, color: 'var(--nv-ink60)' }}>You’ll know it landed: {v.todayTechnique.tell}</div>
+            )}
+          </div>
+          <div style={css('margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap')}>
+            {v.todayTechnique.outcome === 'tried' ? (
+              <>
+                <span style={css('font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-good)')}>✓ PRACTISED</span>
+                <Interactive as="span" onClick={v.todayTechnique.markSkipped} base={css('cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 13px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);color:var(--nv-ink60)')} hoverStyle={{ color: 'var(--nv-ink)' }}>ACTUALLY, NOT TODAY</Interactive>
+              </>
+            ) : v.todayTechnique.outcome === 'skipped' ? (
+              <>
+                <span style={css('font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-ink60)')}>PASSED TODAY</span>
+                <Interactive as="span" onClick={v.todayTechnique.markTried} base={css('cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 13px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)')} hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 12%, transparent)' }}>I DID TRY IT</Interactive>
+              </>
+            ) : (
+              <>
+                <Interactive as="span" onClick={v.todayTechnique.markTried} base={css('cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 13px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)')} hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 12%, transparent)' }}>I TRIED IT</Interactive>
+                <Interactive as="span" onClick={v.todayTechnique.markSkipped} base={css('cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 13px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);color:var(--nv-ink60)')} hoverStyle={{ color: 'var(--nv-ink)' }}>NOT TODAY</Interactive>
+              </>
+            )}
+          </div>
+        </section>
+      )}
       {/* WRAP THE DAY — the evening sentence on the surface he already opens,
           in the same objects as the Apple twin (MissionStructured) from the
           same view model: the rings carry the verdict, the serif carries the

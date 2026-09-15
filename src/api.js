@@ -309,6 +309,14 @@ export const api = {
   browseOpen: (conn, url) => post(conn, '/api/browse/open', { url }),
   // WRAP THE DAY — one counted sentence about today's food (server/lib/wrapDay.js)
   wrapDay: (conn) => call(conn, '/api/wrap'),
+
+  // THE REPERTOIRE — one technique a day, and the tap that says he practised
+  // it (server/lib/repertoire.js). `today` records the day's pick on first
+  // read, which is what keeps Home and the spoken brief agreeing.
+  repertoireToday: (conn) => call(conn, '/api/repertoire/today'),
+  repertoire: (conn) => call(conn, '/api/repertoire'),
+  repertoirePractice: (conn, outcome, note) => post(conn, '/api/repertoire/practice', { outcome, note }),
+  repertoireAnalyse: (conn, url, prose) => post(conn, '/api/repertoire/analyse', { url, prose }),
   // THE INTAKE — the interview runs on the glass; the server knows, parses, proposes
   intakePrefill: (conn) => call(conn, '/api/intake/prefill'),
   intakeAnswer: (conn, key, text) => post(conn, '/api/intake/answer', { key, text }),

@@ -166,7 +166,7 @@ export function Inbox({ v }) {
                   {/* "filed AND analysed" is the half he asked for by name, so
                       it gets its own slot — appended to the destination it was
                       the first thing the ellipsis ate */}
-                  {h.deepAnalyse && h.status === 'filed' && (
+                  {h.analysed && h.status === 'filed' && (
                     <span style={css('flex:none;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:var(--nv-cy)')}>analysed</span>
                   )}
                   <span style={css('flex:none;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 42%, transparent);max-width:40%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>

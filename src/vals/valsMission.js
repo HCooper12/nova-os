@@ -741,13 +741,47 @@ export function valsMission(app, ctx) {
           where: r.status === 'filed' ? (r.destination || 'filed') : r.status === 'error' ? 'failed' : 'left alone',
           // the same rule valsInbox uses, so the two cannot drift into
           // disagreeing about what "analysed" means
-          analysed: r.kind === 'video' && !!r.decision?.payload?.url && r.status === 'filed',
+          analysed: !!(r.analysed || (r.kind === 'video' && r.decision?.payload?.url)) && r.status === 'filed',
         })),
         dismiss: () => {
           try { localStorage.setItem('novaos.landedSeen', newest); } catch { /* best-effort */ }
           app.setState({ landedTick: (st.landedTick || 0) + 1 });
         },
         openInbox: go('inbox'),
+      };
+    })(),
+    // TODAY'S TECHNIQUE — his ask, 15 Sep: "present me with one of these
+    // psychological tricks/techniques daily that I can develop and use".
+    //
+    // It is a CARD, not a moment: it does not stand down when seen, because
+    // the point is to come back to it and mark whether he actually did it.
+    // What it shows changes once he answers — before, it is a drill with two
+    // buttons; after, it is a receipt with the streak and the option to change
+    // his mind. The server decides WHICH technique (one pure function of
+    // catalogue, state and date), so this never re-rolls on a re-render and
+    // Home can never disagree with what the morning brief said.
+    todayTechnique: (() => {
+      if (demoMode) return null;
+      const r = st.liveRepertoire;
+      if (!r) return null; // still loading — never renders as "nothing yet"
+      if (!r.technique) return r.reason ? { empty: true, reason: r.reason, openInbox: go('inbox') } : null;
+      const t = r.technique;
+      return {
+        name: t.name,
+        family: t.family,
+        summary: t.summary || '',
+        move: t.move || '',
+        drill: t.drill || '',
+        tell: t.tell || '',
+        source: t.source || '',
+        mode: r.mode,                       // 'new' | 'review'
+        why: r.why || null,                  // why it came back, when it is a review
+        position: r.position, total: r.total,
+        outcome: r.outcome || null,          // 'tried' | 'skipped' | null
+        tried: r.tried || 0,
+        streak: r.streak || 0,
+        markTried: () => app.markPractice('tried'),
+        markSkipped: () => app.markPractice('skipped'),
       };
     })(),
     // B1 — the ring cluster. Colour is the verdict (missionFocus.ringState);

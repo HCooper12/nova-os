@@ -287,6 +287,22 @@ function practisedPhrase(s = {}) {
   return `practised ${tried} time${tried === 1 ? '' : 's'}`;
 }
 
+// THE SPOKEN LINE. Said in the morning brief, so it is two sentences and it
+// ends on the DRILL — the thing he can actually do — rather than trailing off
+// into theory. URLs and bracketed asides never reach it because nothing here
+// is model prose: it is the same fields the card renders.
+export function spokenTechniqueLine(pick) {
+  if (!pick?.technique) return null;
+  const t = pick.technique;
+  const drill = String(t.drill || '').trim();
+  if (!drill) return null;
+  const open = pick.mode === 'review'
+    ? `One you have met before, sir: ${t.name}.`
+    : `Today's technique, sir: ${t.name}.`;
+  const mid = String(t.summary || '').trim();
+  return [open, mid, drill].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+}
+
 /* ---------------------------------- IO ----------------------------------- */
 
 // Today's technique, stable: the first call on a given date RECORDS the pick,

@@ -363,7 +363,7 @@ export function valsInbox(app, ctx) {
     // retry only where the record still carries its full input: a capture's
     // text, a research question, or a video URL. Scheduled drafts re-run on
     // their own.
-    canRetry: r.status === 'error' && (!r.kind || r.kind === 'research' || r.kind === 'video' || r.kind === 'study' || r.kind === 'briefing' || r.kind === 'paper'),
+    canRetry: r.status === 'error' && (!r.kind || r.kind === 'research' || r.kind === 'video' || r.kind === 'study' || r.kind === 'briefing' || r.kind === 'paper' || r.kind === 'repertoire'),
     approve: () => app.inboxAction(r.id, 'approve'),
     // Declining COACH advice asks why — the reason rides the record so the
     // Coach learns from it (and never re-asks). Everything else discards
@@ -420,6 +420,13 @@ export function valsInbox(app, ctx) {
     deepAnalyse: r.kind === 'video' && r.decision?.payload?.url && ['pending', 'filed'].includes(r.status)
       ? () => app.startVideoDeepIngest(r.decision.payload.url)
       : null,
+    // ANALYSED — the MARKER, which is not the same thing as deepAnalyse (that
+    // is the weave BUTTON, and only a video has one). A lane that genuinely
+    // read its source records it on the record itself, from the coverage
+    // receipt; the video rule stays for the Watcher, which predates the flag.
+    // valsMission carries this same expression, so the strip and the Home card
+    // cannot drift into disagreeing about what "analysed" means.
+    analysed: !!(r.analysed || (r.kind === 'video' && r.decision?.payload?.url)),
     // THE MODEL CHOICE GATE, scheduled-lane half — this card doesn't file
     // anything of its own, so it swaps the usual approve/discard for a model
     // tap (discard still works normally underneath — it's the generic

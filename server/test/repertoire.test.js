@@ -11,7 +11,7 @@ import path from 'node:path';
 
 import {
   slugFor, parseRepertoire, formatRepertoire, formatTechnique, flatten,
-  pickForDay, intervalFor, REVIEW_INTERVALS, computeStreak, formatLogLine, daysBetween, shiftDate,
+  pickForDay, intervalFor, REVIEW_INTERVALS, computeStreak, formatLogLine, daysBetween, shiftDate, spokenTechniqueLine,
   REPERTOIRE_REL, LOG_REL,
 } from '../lib/repertoire.js';
 
@@ -208,6 +208,21 @@ test('today unanswered does not break yesterday, but an unanswered PAST day ends
 test('the log line reads like a person wrote it', () => {
   assert.equal(formatLogLine('2026-09-15', 'The planted sensation', 'tried', 'worked on Dad'), '- 2026-09-15 · **The planted sensation** — tried · worked on Dad');
   assert.equal(formatLogLine('2026-09-15', 'X', 'skipped'), '- 2026-09-15 · **X** — passed');
+});
+
+/* ------------------------------ the spoken line --------------------------- */
+
+test('the spoken line ends on the DRILL — the thing he can actually do', () => {
+  const pick = { mode: 'new', technique: { name: 'The planted sensation', summary: 'Name a sensation, make them recall it.', drill: 'Ask a friend if they can smell burning.' } };
+  const line = spokenTechniqueLine(pick);
+  assert.match(line, /^Today's technique, sir: The planted sensation\./);
+  assert.ok(line.endsWith('Ask a friend if they can smell burning.'), 'it finishes on the action');
+  assert.match(spokenTechniqueLine({ ...pick, mode: 'review' }), /^One you have met before, sir/);
+});
+
+test('a technique with no drill is never spoken — there would be nothing to do', () => {
+  assert.equal(spokenTechniqueLine({ mode: 'new', technique: { name: 'X', summary: 'theory only' } }), null);
+  assert.equal(spokenTechniqueLine(null), null);
 });
 
 /* ----------------------------- the vault seam ---------------------------- */

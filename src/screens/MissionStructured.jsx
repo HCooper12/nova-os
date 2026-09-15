@@ -469,6 +469,62 @@ export function MissionStructured({ v }) {
             </div>
           </section>
         )}
+        {/* TODAY'S TECHNIQUE. His ask, 15 Sep: one psychological technique a
+            day that he can develop and use. Unlike the moments above this is
+            a CARD, not a badge — it stays until he answers it, because the
+            answer is the whole point: what he practises is what decides when
+            the technique comes back. The drill is the loudest line on it. */}
+        {v.todayTechnique && !v.todayTechnique.empty && (
+          <section style={{ marginTop: '18px', padding: mob ? '15px 16px 13px' : '18px 20px 16px', borderRadius: '16px', border: '1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent)', background: 'linear-gradient(160deg, color-mix(in srgb, var(--nv-cy) 07%, transparent), var(--nv-glass2))', animation: 'fadeUp var(--nv-dur-base) var(--nv-ease)' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+              <div style={{ font: `600 10.5px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--nv-cy)' }}>
+                Today’s technique{v.todayTechnique.mode === 'review' ? ' · again' : ''}
+              </div>
+              <Meta tone="faint">
+                {v.todayTechnique.position} of {v.todayTechnique.total}
+                {v.todayTechnique.streak > 0 ? ` · ${v.todayTechnique.streak}-day streak` : ''}
+              </Meta>
+            </div>
+            <div style={{ marginTop: '8px', font: `600 17px ${UI}`, lineHeight: 1.25, color: 'var(--nv-ink)' }}>{v.todayTechnique.name}</div>
+            <div style={{ marginTop: '3px', font: `450 11px ${UI}`, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--nv-ink60)' }}>{v.todayTechnique.family}</div>
+            {v.todayTechnique.summary && (
+              <div style={{ marginTop: '8px', font: `450 13.5px ${UI}`, lineHeight: 1.5, color: 'var(--nv-ink)' }}>{v.todayTechnique.summary}</div>
+            )}
+            {v.todayTechnique.why && (
+              <div style={{ marginTop: '6px', font: `450 11.5px ${UI}`, color: 'var(--nv-ink60)' }}>Back today — {v.todayTechnique.why}.</div>
+            )}
+            {v.todayTechnique.move && (
+              <div style={{ marginTop: '10px', font: `450 12.5px ${UI}`, lineHeight: 1.5, color: 'var(--nv-ink60)' }}>
+                <span style={{ font: `600 12.5px ${UI}`, color: 'var(--nv-ink)' }}>Move. </span>{v.todayTechnique.move}
+              </div>
+            )}
+            <div style={{ marginTop: '10px', padding: '11px 13px', borderRadius: '11px', background: 'color-mix(in srgb, var(--nv-cy) 09%, transparent)', border: '1px solid color-mix(in srgb, var(--nv-cy) 22%, transparent)' }}>
+              <div style={{ font: `600 10px ${M}`, letterSpacing: '.1em', color: 'var(--nv-cy)' }}>TRY IT TODAY</div>
+              <div style={{ marginTop: '5px', font: `500 13.5px ${UI}`, lineHeight: 1.5, color: 'var(--nv-ink)' }}>{v.todayTechnique.drill}</div>
+              {v.todayTechnique.tell && (
+                <div style={{ marginTop: '6px', font: `450 12px ${UI}`, lineHeight: 1.45, color: 'var(--nv-ink60)' }}>You’ll know it landed: {v.todayTechnique.tell}</div>
+              )}
+            </div>
+            <div style={{ marginTop: '12px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              {v.todayTechnique.outcome === 'tried' ? (
+                <>
+                  <span style={{ font: `600 12px ${UI}`, color: 'var(--nv-good)' }}>✓ Practised</span>
+                  <Pill label="Actually, not today" onClick={() => { haptic('light'); v.todayTechnique.markSkipped(); }} tone="quiet" />
+                </>
+              ) : v.todayTechnique.outcome === 'skipped' ? (
+                <>
+                  <span style={{ font: `600 12px ${UI}`, color: 'var(--nv-ink60)' }}>Passed today</span>
+                  <Pill label="I did try it" onClick={() => { haptic('light'); v.todayTechnique.markTried(); }} tone="quiet" />
+                </>
+              ) : (
+                <>
+                  <Pill label="I tried it" onClick={() => { haptic('light'); v.todayTechnique.markTried(); }} />
+                  <Pill label="Not today" onClick={() => { haptic('light'); v.todayTechnique.markSkipped(); }} tone="quiet" />
+                </>
+              )}
+            </div>
+          </section>
+        )}
         {/* C1 — THE FOLD. The first two sections of the hour's order (plus
             WORKING and PLAN, which never fold) render in full; everything
             after them is a header and one line of status until tapped. A
