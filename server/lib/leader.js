@@ -800,6 +800,81 @@ export function researchWindowOpen(now = new Date()) {
   return RESEARCH_WEEKDAYS.includes(now.getDay()) && now.getHours() >= RESEARCH_HOUR;
 }
 
+/* ---------------------------- following up --------------------------------- */
+//
+// "Leader should also be following up with me as it currently does not know
+// where the situational context is now directly at (which is also what Nova
+// itself should be doing just like Jarvis would)." — 15 Sep.
+//
+// The situation card asks its question when he opens Home. This is the other
+// half: when he has gone quiet long enough that Nova is out of date, Nova ASKS,
+// unprompted, on the rails — which means it reaches his phone through the same
+// push and Telegram path every other pending record uses. He does not have to
+// open the app for Nova to notice it has fallen behind.
+const DAY_MS = 86_400_000;
+
+// PURE — every guard on interrupting him, testable without a clock or a store.
+export function shouldAskSituation({ situation, records = [], now = Date.now(), gapDays = SITUATION_STALE_DAYS } = {}) {
+  if (!situation) return { ask: false, why: 'nothing open to be out of date about' };
+  if (!situation.stale) return { ask: false, why: `he updated it ${situation.daysSinceUpdate} day(s) ago` };
+  const mine = records.filter((r) => r.kind === 'leader-followup');
+  // An unanswered ask is already sitting on his phone. Asking twice is nagging.
+  if (mine.some((r) => ['pending', 'classifying'].includes(r.status))) {
+    return { ask: false, why: 'already asked, and still waiting on him' };
+  }
+  // And a question he DISMISSED is an answer of a kind — leave the same gap
+  // before raising another, or dismissing it just brings it straight back.
+  const recent = mine.find((r) => now - new Date(r.createdAt).getTime() < gapDays * DAY_MS);
+  if (recent) return { ask: false, why: 'asked within the gap already' };
+  return { ask: true, why: `${situation.daysSinceUpdate} days since he said anything about it` };
+}
+
+// The question, with a deterministic fallback. Today's lead carries the model's
+// question when it has run; when it has not, the newest open thing he named is
+// still a real and specific thing to ask about — better than a generic "how is
+// it going" that tells him Nova has not actually been paying attention.
+export function situationQuestion(state, situation, now = new Date()) {
+  const fromToday = todayLead(state, now)?.situation?.question;
+  if (fromToday) return fromToday;
+  const newest = situation?.open?.[0]?.text;
+  if (!newest) return null;
+  return `Where does this stand now — "${String(newest).slice(0, 140)}"?`;
+}
+
+export async function raiseSituationFollowUp(vaultPath, { now = new Date() } = {}) {
+  const state = await readLeaderState();
+  const situation = situationOf(state, now);
+  const { listRecords, createRecord } = await import('./inboxStore.js');
+  const verdict = shouldAskSituation({ situation, records: await listRecords(), now: now.getTime() });
+  if (!verdict.ask) return { skipped: true, why: verdict.why };
+
+  const question = situationQuestion(state, situation, now);
+  if (!question) return { skipped: true, why: 'nothing specific enough to ask' };
+
+  const days = situation.daysSinceUpdate;
+  const record = await createRecord({
+    id: randomUUID().slice(0, 8),
+    kind: 'leader-followup',
+    text: question,
+    source: 'nova',
+    mode: 'draft',
+    status: 'pending',
+    createdAt: now.toISOString(),
+    decision: {
+      route: 'journal',
+      confidence: 'high',
+      title: 'Leader — where does it stand?',
+      reason: `You last told the Leader anything about this ${days} day${days === 1 ? '' : 's'} ago, so it is working from a picture that old. Answer in the Leader and it updates itself; approve to file the question, discard if it has gone away.`,
+      payload: {
+        text: `Nova asked: ${question}`,
+        category: 'system',
+        label: 'Leader follow-up',
+      },
+    },
+  });
+  return { record, question };
+}
+
 export function startLeaderScheduler(vaultPath) {
   const tick = async () => {
     const { beat } = await import('./heartbeat.js');
@@ -816,6 +891,11 @@ export function startLeaderScheduler(vaultPath) {
         await runLeaderResearch(vaultPath); // internally skips if run this week
       }
     } catch (err) { console.error('leader research failed:', err.message); }
+    try {
+      // it asks only when it has actually fallen behind — every guard is in
+      // shouldAskSituation, and all of them are about not nagging him
+      await raiseSituationFollowUp(vaultPath, { now });
+    } catch (err) { console.error('leader follow-up failed:', err.message); }
   };
   tick();
   setInterval(tick, 30 * 60 * 1000);

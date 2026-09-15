@@ -34,6 +34,8 @@ export const KIND_AGENT = {
   // the Repertoire (15 Sep): a clip read for its technique, researched
   // outward, and taught back one a day — the other agents can say so
   repertoire: 'Repertoire',
+  // the Leader noticing it has fallen behind, and asking
+  'leader-followup': 'Leader',
 };
 
 const HOURS = 48;

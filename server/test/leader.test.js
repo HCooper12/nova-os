@@ -16,7 +16,7 @@ const {
   readLeaderState, applyLeaderReflection, parseLeaderReflect, pickSpaced,
   todayLead, leadLineForBrief, leadForWidget, leaderCorpus, profileLines,
   situationOf, buildSituationContext, normalizeSituationRead, buildDailyPrompt,
-  SITUATION_STALE_DAYS,
+  SITUATION_STALE_DAYS, shouldAskSituation, situationQuestion,
 } = await import('../lib/leader.js');
 
 function pad(n) { return String(n).padStart(2, '0'); }
@@ -317,4 +317,58 @@ test('the FACTS on a situation read are code\'s, never the model\'s', () => {
 test('the older single-object model answer still yields a lead, just without a situation', () => {
   // degradation, not failure: normalizeSituationRead returns null and the lead survives
   assert.equal(normalizeSituationRead(undefined, situationOf(stateWith([['a', 1]]), NOW)), null);
+});
+
+/* ------------------------------ following up ------------------------------ */
+// "Leader should also be following up with me as it currently does not know
+// where the situational context is now directly at." Every guard on
+// interrupting him is pure, so all of them are tested without a clock.
+
+const NOW_MS = NOW.getTime();
+const rec = (status, daysAgo) => ({ kind: 'leader-followup', status, createdAt: at(daysAgo) });
+
+test('it asks once he has gone quiet long enough to be out of date', () => {
+  const sit = situationOf(stateWith([['the trial report', SITUATION_STALE_DAYS + 2]]), NOW);
+  const v = shouldAskSituation({ situation: sit, records: [], now: NOW_MS });
+  assert.equal(v.ask, true);
+  assert.match(v.why, /days since he said anything/);
+});
+
+test('it stays quiet while the picture is current', () => {
+  const sit = situationOf(stateWith([['the trial report', 1]]), NOW);
+  assert.equal(shouldAskSituation({ situation: sit, records: [], now: NOW_MS }).ask, false);
+});
+
+test('it never asks twice — an unanswered question is already on his phone', () => {
+  const sit = situationOf(stateWith([['x', 9]]), NOW);
+  assert.equal(shouldAskSituation({ situation: sit, records: [rec('pending', 1)], now: NOW_MS }).ask, false);
+  assert.match(shouldAskSituation({ situation: sit, records: [rec('pending', 1)], now: NOW_MS }).why, /already asked/);
+});
+
+test('dismissing a question does not bring it straight back', () => {
+  const sit = situationOf(stateWith([['x', 9]]), NOW);
+  // discarded yesterday — inside the gap, so it holds off
+  assert.equal(shouldAskSituation({ situation: sit, records: [rec('discarded', 1)], now: NOW_MS }).ask, false);
+  // ...and asks again once the gap has passed
+  assert.equal(shouldAskSituation({ situation: sit, records: [rec('discarded', SITUATION_STALE_DAYS + 1)], now: NOW_MS }).ask, true);
+});
+
+test('with nothing open there is nothing to be out of date about', () => {
+  assert.equal(shouldAskSituation({ situation: null, records: [], now: NOW_MS }).ask, false);
+});
+
+test('the question falls back to the newest thing he actually named', () => {
+  const st = stateWith([['the weekend duty manager trialled it for two days', 5]]);
+  const sit = situationOf(st, NOW);
+  // no lead has run today, so there is no model question to borrow
+  const q = situationQuestion({ ...st, daily: [] }, sit, NOW);
+  assert.match(q, /Where does this stand now/);
+  assert.match(q, /weekend duty manager/, 'specific, not a generic "how is it going"');
+});
+
+test("today's model question wins when the lead has run", () => {
+  const st = stateWith([['x', 5]]);
+  const today = todayISO(NOW);
+  const q = situationQuestion({ ...st, daily: [{ date: today, situation: { question: 'Did you pull the numbers?' } }] }, situationOf(st, NOW), NOW);
+  assert.equal(q, 'Did you pull the numbers?');
 });
