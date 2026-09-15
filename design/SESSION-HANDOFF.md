@@ -133,6 +133,45 @@ suggestion/hypnosis/interrogation literature that actually explains the clip.
    and it never stacks a second proposal on one he has not answered. Registered
    in the ops roster so the Guardian watches its heartbeat.
 
+**THE LEADER, 15 SEP — THE DRIFT AND THE SWIPE.** His report: it "is drifting
+from showing me general leadership advice and concepts and is now just focused
+on a past conversation problem", and "it does not know where the situational
+context is now directly at".
+
+His state said exactly why: **8 open struggles, not one ever resolved**, six of
+them the same thread — and six consecutive daily ideas about it (10–15 Sep). The
+struggle pile was the loudest thing in the daily context, so it ate the subject
+every morning.
+
+- **Two channels from one call.** THE LEAD is general development, grounded in
+  concepts/sources/research, and explicitly barred from the live situation. THE
+  SITUATION gets the struggle pile. A test slices the prompt in half and asserts
+  the struggle text appears in one and not the other.
+- **The box on Home swipes between them** (`src/LeaderBox.jsx`, useOptionPager —
+  direction locks once and a vertical verdict is final). Gold for the lead,
+  violet for the situation. **The Command twin never had a Leader box at all;
+  it does now.**
+- **`daysSinceUpdate` is the honesty.** Nova knows when he last said anything and
+  therefore knows it does NOT know what happened since. The card says so.
+- **It follows up.** `shouldAskSituation` — stale, not already asked, not asked
+  inside the gap even if he dismissed it — raises a `leader-followup` record,
+  which reaches his phone through the existing push/Telegram path.
+
+Proved on real data: the forced two-channel run gave "Name The Chain, Not The
+Praise" (general feedback craft, nothing to do with the dispute) alongside a
+situation read opening "As of yesterday" and asking about the area-completion
+numbers.
+
+**THE REPERTOIRE OPENS** from the "1 of 7" chip — techniques in teaching order
+and every research report in full, discarded drafts kept and labelled.
+
+**NOT SEEN:** both browser MCPs went down mid-session (chrome-devtools
+disconnected; the extension not connected), so the **Repertoire overlay has
+never been looked at**. The Leader box WAS driven in a browser, swipe included,
+before they died. The overlay's shaping is a pure module with 7 tests run
+against his real payload, and its strings grep out of the built bundle — but
+nobody has seen it render.
+
 **NEXT ACTION.** Open Home. Today's technique should be card one of five with a
 drill on it. Mark it, then check `Wiki/Library/Repertoire Log.md` has the line
 and `server/data/repertoire.json` has `tried: 1`.
