@@ -38,7 +38,11 @@ Counts: 105 server libs · 21 routers · 25 schedulers · 17 screens.
 Named agents: **Coach** (fitness), **Researcher** (web, citation-
 required), **Watcher** (video → verdict/notes), **Studio** (content),
 **CFO** (money), **Commander** (planning), **Guardian** (integrity),
-**Scout** (patterns), **Distiller**, **Brain Week**, **Forge**.
+**Scout** (patterns), **Distiller**, **Brain Week**, **Forge**,
+**Repertoire** (15 Sep: a clip read for the technique in it, researched
+outward into a curriculum, taught back one a day with a drill and a
+practice tally — and the first lane whose coverage receipt is written by
+code from what was actually fetched, not by the model describing itself).
 
 ## The Coach specifically (deepest agent)
 Deterministic engines: progressions (incl. RPE-autoregulated + the new
