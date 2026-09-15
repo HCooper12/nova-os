@@ -32,11 +32,30 @@ export function repertoireRouter(vaultPath) {
     } catch (err) { next(err); }
   });
 
-  // The whole curriculum, in teaching order, with what he has done to each.
+  // The whole curriculum, in teaching order, with what he has done to each —
+  // AND the research behind it. His ask, 15 Sep: "I'd like to be able to view
+  // all of the research and techniques catalogue it has stored". The reports
+  // are already on the records that filed them, so they are served from there
+  // rather than re-read out of the vault: one source, and it keeps the
+  // coverage receipt attached to the research it certifies.
   router.get('/repertoire', async (req, res, next) => {
     try {
       const techniques = flatten(await loadRepertoire(vaultPath));
       const state = await readState();
+      const { listRecords } = await import('../lib/inboxStore.js');
+      const reports = (await listRecords())
+        .filter((r) => r.kind === 'repertoire' && r.decision?.payload?.body)
+        .map((r) => ({
+          id: r.id,
+          title: r.decision.title,
+          at: r.filedAt || r.updatedAt || r.createdAt,
+          status: r.status,
+          url: r.repertoireUrl || null,
+          topUp: !!r.topUp,
+          confirmLine: r.confirmLine || null,
+          body: r.decision.payload.body,
+          added: (r.decision.payload.techniques || []).length,
+        }));
       res.json({
         techniques: techniques.map((t) => ({
           ...t,
@@ -44,6 +63,7 @@ export function repertoireRouter(vaultPath) {
           seen: Number(state.techniques[t.id]?.seen) || 0,
           lastOn: state.techniques[t.id]?.lastSurfacedOn || null,
         })),
+        reports,
         streak: computeStreak(state, localDateISO()),
       });
     } catch (err) { next(err); }

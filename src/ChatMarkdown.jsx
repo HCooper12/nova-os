@@ -36,6 +36,18 @@ export function ChatMarkdown({ text }) {
   return (
     <span>
       {lines.map((line, i) => {
+        // HEADINGS. Without this a report's "## What was analysed" rendered as
+        // literal hashes wherever one was shown — the reports are mostly
+        // headings, so the whole document read as noise.
+        const head = /^\s*(#{1,4})\s+(.*)$/.exec(line);
+        if (head) {
+          const level = head[1].length;
+          return (
+            <span key={i} style={{ display: 'block', marginTop: i ? '14px' : 0, marginBottom: '4px', font: `600 ${level <= 2 ? 14.5 : 13}px var(--nv-font-ui)`, letterSpacing: '.01em', color: 'var(--nv-ink)' }}>
+              {renderInline(head[2], i)}
+            </span>
+          );
+        }
         const bullet = /^\s*[-•]\s+(.*)$/.exec(line);
         const content = renderInline(bullet ? bullet[1] : line, i);
         return (
