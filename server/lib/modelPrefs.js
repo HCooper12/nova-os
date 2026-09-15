@@ -259,6 +259,11 @@ export const LANES = [
     off: 'Briefings are refused; the research angles are not started, so nothing is spent.',
   },
   {
+    id: 'repertoire', label: 'Repertoire · analyse & learn', group: 'research', def: 'sonnet',
+    hint: 'a clip read for the technique in it, then researched outward into a curriculum you practise one a day',
+    off: 'Sending a link to analyse is refused with a plain message. Today’s technique and your practice log are untouched — the catalogue you already have keeps teaching.',
+  },
+  {
     id: 'researcher', label: 'Researcher', group: 'research', def: 'sonnet',
     hint: 'web-read-only, citation-required — the brief always lands in your Inbox for review',
     off: 'Research requests (including “research this” from Ask Nova and the overnight queue) are refused with a plain message.',

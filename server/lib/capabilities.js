@@ -54,6 +54,19 @@ export const CAPABILITIES = {
     autonomy: 'propose',
     delegable: true,
   },
+  repertoire: {
+    agent: 'Repertoire',
+    summary: 'Read one clip for the technique it demonstrates, research the family it belongs to, and build a curriculum taught one a day.',
+    input: 'one video URL, plus what he wants to get out of it',
+    output: 'a confirmed report and an ordered set of techniques with drills, filed as a pending record',
+    produces: 'repertoire',
+    costUsd: 2.5,
+    autonomy: 'propose',
+    // His to ask for by name. It ends in a curriculum written to his vault and
+    // a daily commitment on Home — not a step a planner should take on its own
+    // in the middle of someone else's job.
+    delegable: false,
+  },
   research: {
     agent: 'Researcher',
     summary: 'Answer a question from the open web with citations, or read a link and report what it says.',

@@ -31,6 +31,9 @@ export const KIND_AGENT = {
   scout: 'Scout', 'leader-reflect': 'Leader',
   // the Verbs (6-7 Sep): something Nova DID on his word, and the browser hand
   act: 'Nova', browse: 'Hands · browser',
+  // the Repertoire (15 Sep): a clip read for its technique, researched
+  // outward, and taught back one a day — the other agents can say so
+  repertoire: 'Repertoire',
 };
 
 const HOURS = 48;

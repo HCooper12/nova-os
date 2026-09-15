@@ -828,6 +828,32 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  // repertoire — the analysed report AND the techniques it proposes, filed
+  // together because they are one decision. Approving half of this ("keep the
+  // report, skip the curriculum") would leave a plan he was told he had and a
+  // daily card with nothing to show, so the two travel as a pair and the undo
+  // takes back both.
+  if (route === 'repertoire') {
+    const { addTechniques } = await import('./repertoire.js');
+    const base = sanitizeFilename(payload.title);
+    const suffix = existsSync(path.join(vaultPath, `${INBOX_DIR_REL}/${base}.md`)) ? ` ${Date.now() % 10000}` : '';
+    const relPath = `${INBOX_DIR_REL}/${base}${suffix}.md`;
+    const full = path.join(vaultPath, relPath);
+    await mkdir(path.dirname(full), { recursive: true });
+    const content = matter.stringify(`# ${payload.title}\n\n${payload.body}\n`, {
+      type: 'raw', tags: ['inbox', 'repertoire'], created: date, updated: date,
+    });
+    await writeFile(full, content, 'utf8');
+    const hash = createHash('sha256').update(content).digest('hex');
+    // the catalogue write is second: a failure here leaves the report filed
+    // and is reported as such, rather than losing the analysis he paid for
+    const { added } = await addTechniques(vaultPath, payload.techniques || []);
+    return {
+      destination: `Repertoire — ${added.length} technique${added.length === 1 ? '' : 's'} added${added.length ? '' : ' (all already known)'}, report in ${INBOX_DIR_REL}`,
+      undo: { route: 'repertoire', relPath, hash, ids: added.map((t) => t.id) },
+    };
+  }
+
   // note
   const base = sanitizeFilename(payload.title);
   let relPath = `${INBOX_DIR_REL}/${base}.md`;
@@ -1114,6 +1140,27 @@ export async function undoFiling(vaultPath, undo) {
     const removed = await removeTransactions(undo.ids);
     if (!removed) throw new Error('those ledger entries are no longer there');
     return `removed ${removed} ledger ${removed === 1 ? 'entry' : 'entries'} (an archived import CSV stays in Money/Imports/Processed)`;
+  }
+  if (undo.route === 'repertoire') {
+    // The techniques come out FIRST. If the report page has been edited the
+    // note survives with a clear message, and leaving the catalogue entries
+    // behind in that case would be the worse half to keep: a curriculum he
+    // undid would keep serving him a technique a day.
+    const { removeTechniques } = await import('./repertoire.js');
+    const { removed } = await removeTechniques(vaultPath, undo.ids || []);
+    const full = path.join(vaultPath, undo.relPath);
+    let note = 'the report was already gone';
+    if (existsSync(full)) {
+      const raw = await readFile(full, 'utf8');
+      if (createHash('sha256').update(raw).digest('hex') !== undo.hash) {
+        note = 'the report has been edited since filing, so it was left in place — delete it in Obsidian if you still want it gone';
+      } else {
+        await backupFile(full);
+        await unlink(full);
+        note = 'deleted the report';
+      }
+    }
+    return `removed ${removed} technique${removed === 1 ? '' : 's'} from your Repertoire and ${note}`;
   }
   if (undo.route === 'note') {
     const full = path.join(vaultPath, undo.relPath);

@@ -148,6 +148,12 @@ export function intentRouter(vaultPath) {
         const q = decision.urls?.length ? `${decision.prose || 'Read and summarise this'}: ${decision.urls.join(' ')}` : text;
         out.record = await startResearch(vaultPath, q);
         out.said = 'Researching now — the brief lands in your Inbox with citations.';
+      } else if (lane === 'repertoire') {
+        // a clip he wants to LEARN from: read it, research the family, come
+        // back with a curriculum he practises one a day
+        const { startRepertoire } = await import('../lib/repertoireLane.js');
+        out.record = await startRepertoire(vaultPath, { url: (decision.urls || [])[0], prose: decision.prose || text });
+        out.said = 'Reading the clip, then researching the techniques around it. Nova brings you the report and a plan it can teach you one a day.';
       } else if (lane === 'study') {
         // the real Study agent: enumerate → transcribe → synthesize vs
         // Nova's inventory. The record carries progress and the brief.

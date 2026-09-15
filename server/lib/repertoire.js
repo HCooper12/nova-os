@@ -157,6 +157,28 @@ export async function addTechniques(vaultPath, incoming = []) {
   return { added, total: flatten(existing).length };
 }
 
+// The undo half of addTechniques: takes back exactly the ids that filing
+// added, and nothing else. A family emptied by the removal goes with it, so
+// undo leaves the page as it found it rather than littered with bare
+// headings. Techniques he has since edited are still removed — it is his undo
+// of his own approval — but the backup taken here is the way back.
+export async function removeTechniques(vaultPath, ids = []) {
+  const full = repPath(vaultPath);
+  if (!existsSync(full) || !ids.length) return { removed: 0 };
+  const families = parseRepertoire(await readFile(full, 'utf8'));
+  const drop = new Set(ids);
+  let removed = 0;
+  for (const f of families) {
+    const before = f.techniques.length;
+    f.techniques = f.techniques.filter((t) => !drop.has(t.id));
+    removed += before - f.techniques.length;
+  }
+  if (!removed) return { removed: 0 };
+  await backupFile(full);
+  await writeFile(full, formatRepertoire(families.filter((f) => f.techniques.length)), 'utf8');
+  return { removed };
+}
+
 /* -------------------------------- spacing -------------------------------- */
 //
 // Widening gaps, driven by times TRIED and never by times shown. That is the

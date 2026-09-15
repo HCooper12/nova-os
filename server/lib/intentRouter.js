@@ -12,7 +12,7 @@
 // The router only DECIDES. Dispatch lives in the route, so a decision can
 // always be shown to him before anything runs.
 
-export const LANES = ['brief', 'paper', 'watch', 'weave', 'study', 'research', 'browse', 'code', 'coach', 'leader', 'capture', 'play', 'ask', 'book'];
+export const LANES = ['brief', 'paper', 'watch', 'weave', 'study', 'repertoire', 'research', 'browse', 'code', 'coach', 'leader', 'capture', 'play', 'ask', 'book'];
 
 // "watch AND analyse" — the deep vault weave (transcript fetched, every
 // concept and person drafted into pages) as opposed to the Watcher's verdict.
@@ -48,6 +48,19 @@ const VIDEO_HOSTS = /(^|\.)(youtube\.com|youtu\.be|vimeo\.com|tiktok\.com|instag
 // a channel/profile URL is a BODY OF WORK, not one video — that's a study
 const CHANNEL_RE = /youtube\.com\/(@|c\/|channel\/|user\/)|instagram\.com\/[^/]+\/?$|tiktok\.com\/@[^/]+\/?$/i;
 const VIDEO_PATH_RE = /watch\?v=|youtu\.be\/|\/reel\/|\/shorts\/|\/video\/|vimeo\.com\/\d+|\/p\/|\/status\//i;
+
+// THE REPERTOIRE — a clip he wants to LEARN FROM, not merely digest. The
+// Watcher answers "is this true?"; this answers "how do I do that, and what
+// else is like it?". His 15-Sep ask, verbatim in the part that matters:
+// "research other similar techniques and actions that I can learn like this".
+//
+// Deliberately demanding, because it sits in front of the Watcher on every
+// video link and a false positive turns a verdict request into a curriculum.
+// The technique noun ALONE is not enough — "is this technique legit?" is a
+// question for the Watcher. He has to express wanting to DO it: a learning
+// verb aimed at the thing, a request for MORE of them, or a technique noun
+// tied to practising it.
+const REPERTOIRE_RE = /\b(?:teach me|learn(?: how)?|practi[sc]e|master|pick up|get good at)\b[\s\S]{0,80}?\b(?:techniques?|tricks?|tactics?|skills?|moves?|this|these|it|them)\b|\b(?:other|similar|more|related|like this)\s+(?:psychological\s+)?(?:techniques?|tricks?|tactics?|skills?|moves?)\b|\b(?:techniques?|tricks?|tactics?)\b[\s\S]{0,60}?\b(?:i can (?:learn|use|practi[sc]e)|to (?:learn|practi[sc]e|use)|daily|every day|one a day)\b/i;
 
 const CODE_RE = /\b(build|implement|refactor|fix the bug|write a (script|test|function)|add a (feature|test)|deploy|commit|pull request|codebase|in nova|to nova|the repo)\b/i;
 const STUDY_RE = /\b(analyse|analyze|study|research) (this |their |the )?(creator|channel|account|profile|competitor|person|guy|team)\b|\bevery video\b|\ball (their|his|her) videos\b/i;
@@ -111,6 +124,7 @@ export function routeIntent(text) {
       return { lane: 'study', urls, prose, why: looksChannel ? 'a channel/profile link is a body of work, not one video' : hasStudyWords ? 'you asked for an analysis of a creator or their whole catalogue' : 'several media links in one request' };
     }
     if (isMediaHost && VIDEO_PATH_RE.test(u)) {
+      if (REPERTOIRE_RE.test(prose)) return { lane: 'repertoire', urls, prose, why: 'a technique to learn, not just a video to digest — Nova reads the clip, researches the family it belongs to, and builds a curriculum it teaches you one a day' };
       if (WEAVE_RE.test(prose)) return { lane: 'weave', urls, prose, why: 'a video to weave into the vault — transcript fetched, every concept and person drafted as pages for review' };
       return { lane: 'watch', urls, prose, why: 'a single video link — the Watcher pulls the transcript and drafts a verdict' };
     }
@@ -165,7 +179,7 @@ export function followUpLane(routed, raw, { lastAgent, lastAgentAt } = {}, now =
 
 export const LANE_LABEL = {
   play: 'PLAY', paper: 'STUDY → PROGRAM',
-  watch: 'WATCH', weave: 'WEAVE INTO VAULT', study: 'STUDY', research: 'RESEARCH',
+  watch: 'WATCH', weave: 'WEAVE INTO VAULT', study: 'STUDY', repertoire: 'REPERTOIRE', research: 'RESEARCH',
   brief: 'BRIEFING',
   code: 'CLAUDE CODE', coach: 'COACH', leader: 'LEADER', capture: 'INBOX', ask: 'ASK NOVA', book: 'LIBRARIAN',
   browse: 'BROWSER',
