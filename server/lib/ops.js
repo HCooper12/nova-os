@@ -53,6 +53,7 @@ const SCHEDULED = [
   { id: 'autonomy', label: 'Trust Ladder', role: 'autonomy earned, proposed', cadenceHours: 2 },
   { id: 'distill', label: 'Distiller', role: 'captures woven into the graph', cadenceHours: 2 },
   { id: 'brain-week', label: 'Brain Week', role: 'what entered the second brain', cadenceHours: 2 },
+  { id: 'repertoire-topup', label: 'Repertoire top-up', role: 'researches more techniques when the curriculum runs low', cadenceHours: 2 },
   // These three beat but were absent from the roster, so the fleet ring
   // never showed them and Nova could not name them when asked how it works.
   { id: 'coach-cadence', label: 'Coach Cadence', role: 'when Coach speaks up', cadenceHours: 2 },
@@ -149,6 +150,7 @@ export const AGENT_DEPARTMENTS = {
   autonomy: ['Platform'],
   distill: ['Knowledge'],
   'brain-week': ['Knowledge'],
+  'repertoire-topup': ['Knowledge'],
 };
 
 // Which inbox-record kinds each SCHEDULED agent files — verified against the
@@ -176,6 +178,7 @@ export const AGENT_RECORD_KINDS = {
   autonomy: ['autonomy'],
   distill: ['distill'],
   'brain-week': ['brain-week'],
+  'repertoire-topup': ['repertoire'],
 };
 
 const RECEIPT_LIMIT = 5;

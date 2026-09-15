@@ -324,6 +324,8 @@ async function main() {
     .catch((e) => console.error('distill scheduler failed to start:', e.message));
   import('./lib/brainWeek.js').then(({ startBrainWeekScheduler }) => startBrainWeekScheduler(process.env.VAULT_PATH))
     .catch((e) => console.error('brain week scheduler failed to start:', e.message));
+  import('./lib/repertoireLane.js').then(({ startRepertoireTopUpScheduler }) => startRepertoireTopUpScheduler(process.env.VAULT_PATH))
+    .catch((e) => console.error('repertoire top-up scheduler failed to start:', e.message));
   if (process.env.ICLOUD_USERNAME && process.env.ICLOUD_APP_PASSWORD) {
     startCalendarWatch();
     // pay today's CalDAV round trip once NOW, so the first sync after a

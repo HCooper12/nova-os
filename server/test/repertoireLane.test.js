@@ -11,6 +11,7 @@ import path from 'node:path';
 import {
   normalizeProposal, renderCurriculum, renderSources, buildReport,
   buildRepertoirePrompt, fetchSource, plausibleTranscript, clip, cardField, looksLikeVideo,
+  shouldTopUp, runwayLeft, buildTopUpPrompt, MIN_RUNWAY, TOPUP_TARGET,
 } from '../lib/repertoireLane.js';
 import { readEntry } from '../lib/captureReport.js';
 
@@ -186,6 +187,61 @@ test('the floor catches broken reads without judging a quiet clip', () => {
   // unknown duration falls back to the absolute floor rather than passing anything
   assert.equal(plausibleTranscript('short', undefined), false);
   assert.equal(plausibleTranscript('x'.repeat(20), undefined), true);
+});
+
+/* ------------------------------- the top-up ------------------------------- */
+// "Have Nova research more when it runs low, but it's okay to still repeat
+// ones." A RUNWAY check, not a panic — and every guard on spending money is
+// pure, so it can be tested without a scheduler, a clock or a vault.
+
+const tech = (id) => ({ id, name: id, family: 'F', drill: 'd' });
+const taughtState = (ids) => ({ techniques: Object.fromEntries(ids.map((id) => [id, { lastSurfacedOn: '2026-09-01' }])) });
+
+test('runway is how much NEW work is left, not how big the catalogue is', () => {
+  const all = ['a', 'b', 'c', 'd'].map(tech);
+  assert.equal(runwayLeft(all, {}), 4);
+  assert.equal(runwayLeft(all, taughtState(['a', 'b'])), 2);
+  assert.equal(runwayLeft(all, taughtState(['a', 'b', 'c', 'd'])), 0);
+});
+
+test('it tops up when the runway is short', () => {
+  const all = ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map(tech);
+  const v = shouldTopUp({ techniques: all, state: taughtState(['a', 'b', 'c', 'd', 'e']) });
+  assert.equal(v.go, true);
+  assert.equal(v.runway, 2);
+  assert.match(v.why, /down to 2 untaught/);
+});
+
+test('it does NOT top up while there is still plenty ahead', () => {
+  const all = Array.from({ length: 10 }, (_, i) => tech(`t${i}`));
+  const v = shouldTopUp({ techniques: all, state: {} });
+  assert.equal(v.go, false);
+  assert.match(v.why, /still plenty/);
+  assert.ok(MIN_RUNWAY > 0 && TOPUP_TARGET > 0);
+});
+
+test('an EMPTY catalogue is not "running low" — Nova does not invent a curriculum', () => {
+  const v = shouldTopUp({ techniques: [], state: {} });
+  assert.equal(v.go, false);
+  assert.match(v.why, /no catalogue yet/);
+});
+
+test('it never stacks a second proposal on one he has not answered', () => {
+  const all = ['a', 'b'].map(tech);
+  assert.equal(shouldTopUp({ techniques: all, state: taughtState(['a', 'b']), openRecords: 1 }).go, false);
+  assert.match(shouldTopUp({ techniques: all, state: taughtState(['a', 'b']), openRecords: 1 }).why, /already running or waiting/);
+  // ...and does once that one is settled
+  assert.equal(shouldTopUp({ techniques: all, state: taughtState(['a', 'b']), openRecords: 0 }).go, true);
+});
+
+test('the top-up prompt hands over what he already has, and forbids repeating it', () => {
+  const p = buildTopUpPrompt({ existing: [{ name: 'The Barnum line', family: 'Cold reading' }], families: ['Cold reading'], prose: 'for fun and persuasion' });
+  assert.match(p, /NOVA OPERATING LENS/);
+  assert.match(p, /do NOT propose any of these again/);
+  assert.match(p, /The Barnum line \(Cold reading\)/);
+  assert.match(p, /His standing instruction[\s\S]*for fun and persuasion/);
+  assert.match(p, /EVERY factual claim about research carries a numbered citation/);
+  assert.match(p, /One without a drill is not a technique/);
 });
 
 /* -------------------------------- the fetch ------------------------------- */

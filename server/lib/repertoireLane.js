@@ -453,6 +453,161 @@ async function runRepertoireJob(vaultPath, record, { url, prose, focus }) {
   }
 }
 
+/* ------------------------------ the top-up -------------------------------- */
+//
+// "Have Nova research more when it runs low, but it's okay to still repeat
+// ones." (15 Sep.) So this is a RUNWAY check, not a panic: with three new
+// techniques a week, MIN_RUNWAY untaught is about a fortnight's notice, and the
+// curriculum keeps working the whole time — an exhausted catalogue reviews
+// rather than going blank, which is why this can afford to propose instead of
+// filing itself.
+//
+// It has no source to read, so there is no coverage receipt: nothing was
+// "analysed", and claiming otherwise would be the exact fiction captureReport
+// exists to prevent. What it files is a plainly-labelled proposal whose
+// evidence is his own catalogue plus cited research.
+export const MIN_RUNWAY = 6;
+export const TOPUP_TARGET = 6;
+
+export function buildTopUpPrompt({ existing, families, prose }) {
+  return `${NOVA_LENS}
+
+You are Nova's Repertoire agent. Hayden is working through a curriculum of
+psychological techniques one at a time and is running low on new ones. Research
+and propose ${TOPUP_TARGET} MORE, in the same domain, that he does not already have.
+
+WHAT HE ALREADY HAS (${existing.length} techniques — do NOT propose any of these again):
+${existing.map((t) => `- ${t.name} (${t.family})`).join('\n')}
+
+THE FAMILIES he is already working in: ${families.join(', ') || '(none yet)'}
+
+Stay in this domain. Go WIDER within it rather than deeper into one family —
+the point is new ground he can actually practise, not five more variations on
+what he has. Prefer techniques with a real literature behind them and name them
+the way practitioners do.
+${prose ? `\nHis standing instruction for this curriculum: ${prose}\n` : ''}
+HARD RULES
+- EVERY factual claim about research carries a numbered citation [1], and every
+  number resolves to an entry in your sources array. No citation, no claim.
+- Never invent a study, an author, a date or a result. These file into his vault.
+- Each technique needs a DRILL small enough to run in a normal day, and a TELL
+  that says how he knows it landed. One without a drill is not a technique on
+  this list, it is trivia.
+- Keep every field short enough to read on a phone: summary ≤ 140 characters,
+  move / drill / tell ≤ 220 each.
+
+Output ONLY this JSON object, no code fences, no commentary:
+{
+  "title": "Short title for this addition",
+  "family": "the broad domain",
+  "noteworthy": "markdown bullets — what is genuinely notable in what you found",
+  "techniques": [
+    {"family": "...", "name": "...", "summary": "...", "move": "...", "drill": "...", "tell": "...", "source": "where it comes from"}
+  ],
+  "sources": [{"n": 1, "title": "...", "url": "https://..."}],
+  "consulted": 0
+}`;
+}
+
+// How much new work is left before he is only reviewing. Pure.
+export function runwayLeft(techniques = [], state = {}) {
+  const st = state.techniques || {};
+  return techniques.filter((t) => !(st[t.id]?.lastSurfacedOn || st[t.id]?.lastSurfacedAt)).length;
+}
+
+// Should the loop spend money this tick? Pure, so every guard is testable
+// without a scheduler, a clock or a vault. Returns the reason either way,
+// because "it did nothing" is the answer he will want explained.
+export function shouldTopUp({ techniques = [], state = {}, openRecords = 0, minRunway = MIN_RUNWAY } = {}) {
+  // An EMPTY catalogue is not "running low" — he has not started one, and
+  // topping up a curriculum he never asked for would be Nova inventing work.
+  if (!techniques.length) return { go: false, why: 'no catalogue yet — nothing to top up' };
+  // A second proposal stacked on an unanswered first is nagging, not helping.
+  if (openRecords > 0) return { go: false, why: 'a repertoire record is already running or waiting on him' };
+  const runway = runwayLeft(techniques, state);
+  if (runway >= minRunway) return { go: false, why: `${runway} untaught left — still plenty`, runway };
+  return { go: true, why: `down to ${runway} untaught`, runway };
+}
+
+async function runTopUpJob(vaultPath, record) {
+  const { updateRecord } = await import('./inboxStore.js');
+  try {
+    const existing = flatten(await loadRepertoire(vaultPath));
+    const families = [...new Set(existing.map((t) => t.family))];
+    const raw = await askModel(buildTopUpPrompt({ existing, families, prose: record.repertoireProse || '' }));
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('the top-up did not come back as JSON');
+    const proposal = normalizeProposal(parseModelJson(match[0]));
+    const fresh = proposal.techniques.filter((t) => !existing.some((e) => e.id === slugFor(t.name)));
+    if (!fresh.length) throw new Error('nothing came back that is not already in your Repertoire');
+
+    const body = [
+      `# ${proposal.title}`,
+      '',
+      `_Researched because your Repertoire was down to ${record.runwayAtRaise} untaught technique${record.runwayAtRaise === 1 ? '' : 's'}. Nothing was analysed for this — it is research against the ${existing.length} you already have._`,
+      '',
+      proposal.noteworthy ? `## Noteworthy\n\n${proposal.noteworthy}` : '',
+      renderCurriculum(fresh),
+      renderSources(proposal.sources),
+    ].filter(Boolean).join('\n\n');
+
+    await updateRecord(record.id, {
+      status: 'pending',
+      repertoireTechniques: fresh,
+      decision: {
+        route: 'repertoire',
+        confidence: 'high',
+        title: proposal.title,
+        reason: `Your Repertoire was down to ${record.runwayAtRaise} untaught. Approve to add ${fresh.length} more.`,
+        payload: { title: proposal.title, body, techniques: fresh },
+      },
+      error: null,
+    });
+  } catch (e) {
+    await updateRecord(record.id, { status: 'error', error: e.message.slice(0, 400) }).catch(() => {});
+  }
+}
+
+export async function startTopUp(vaultPath, { runway = 0, prose = '' } = {}) {
+  if (!laneEnabled(REPERTOIRE_LANE)) throw laneOffError(REPERTOIRE_LANE);
+  const { createRecord } = await import('./inboxStore.js');
+  const record = await createRecord({
+    id: randomUUID().slice(0, 8),
+    kind: 'repertoire',
+    text: `Repertoire running low — researching ${TOPUP_TARGET} more techniques`,
+    repertoireProse: prose, runwayAtRaise: runway, topUp: true,
+    source: 'nova', mode: 'draft', status: 'classifying',
+    createdAt: new Date().toISOString(),
+  });
+  runTopUpJob(vaultPath, record);
+  return record;
+}
+
+// THE SCHEDULER. Half-hourly like its neighbours, but it does real work only
+// when the runway is short AND nothing is already in flight or waiting on him —
+// a second proposal stacked on an unanswered first is nagging, not helping.
+export function startRepertoireTopUpScheduler(vaultPath) {
+  const tick = async () => {
+    const { beat } = await import('./heartbeat.js');
+    beat('repertoire-topup');
+    try {
+      if (!laneEnabled(REPERTOIRE_LANE)) return;
+      const { loadRepertoire: load, readState } = await import('./repertoire.js');
+      const { listRecords } = await import('./inboxStore.js');
+      const techniques = flatten(await load(vaultPath));
+      const state = await readState();
+      const openRecords = (await listRecords()).filter((r) => r.kind === 'repertoire' && ['classifying', 'pending'].includes(r.status)).length;
+      const verdict = shouldTopUp({ techniques, state, openRecords });
+      if (!verdict.go) return;
+      await startTopUp(vaultPath, { runway: verdict.runway });
+    } catch (err) {
+      console.error('repertoire top-up failed:', err.message);
+    }
+  };
+  tick();
+  setInterval(tick, 30 * 60 * 1000).unref?.();
+}
+
 export async function startRepertoire(vaultPath, { url, prose, focus } = {}) {
   const link = String(url || '').trim();
   if (!/^https?:\/\/\S+$/.test(link)) throw new Error('a repertoire analysis needs a link');
