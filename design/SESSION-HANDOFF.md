@@ -13,7 +13,122 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**14 SEP, THIRD PASS (latest) — "AS QUICK AND EFFECTIVE AS CLAUDE AND CHATGPT
+**15 SEP — THE REPERTOIRE: A CONFIRMED REPORT, AND ONE TECHNIQUE A DAY.** His
+ask, sent with a 42-second Mentalist reel: *"When I give Nova something to
+analyse and capture I'd like a confirmed report with what's been analysed and if
+anything noteworthy is evident from the research"* — then research the
+techniques around it, build a plan, and **present one a day he can develop and
+use**.
+
+His answers when asked: Home card **and** the spoken morning brief; practice
+**tracked** with reinforcement; catalogue scoped to the **Patrick Jane skill
+set** (suggestion, cold reading, misdirection, observation).
+
+**DONE CRITERIA**
+- *met* — the CONFIRMED report. `server/lib/captureReport.js`, reusable by any
+  lane: code records what each fetch stage actually returned and builds the
+  `## What was analysed` section from those facts. The model writes findings
+  ONLY, under a receipt it never drafts.
+- *met* — the analyse + research lane (`repertoireLane.js`), the curriculum
+  store (`repertoire.js`), routes, both Home idioms, the spoken brief beat.
+- *met* — **run for real on his reel, three times**, each run finding a fault the
+  last one hid (below).
+- *unmet* — **he has not seen it.** Nothing here has been used by him, and the
+  catalogue is filed but the first day's card has not been marked by a human.
+
+**THE THREE RUNS, AND WHAT EACH ONE CAUGHT**
+1. **Run one** produced a good report whose own receipt read `✓ Transcript: 1
+   lines · 15 characters` for a 42-second clip. Fifteen characters is the length
+   of `[object Object]`: `transcribeAudio` returns `{ text, backend }` and the
+   lane stringified the object. The model noticed, said plainly it had no
+   dialogue to quote, and worked from the frames — which is the whole design
+   working, but the receipt had certified the garbage.
+2. So a call that returns is no longer a read: a transcript must clear a
+   plausibility floor (one character per second, minimum twenty) or the entry
+   becomes a FAILURE with the real numbers and `isGrounded` degrades to
+   frames-only. **Run two** then read all 517 characters and produced a far
+   better report — it quotes the dialogue and spots the wadded-up napkin as the
+   physical anchor the whole trick rests on.
+3. **Run two** put `"...broken glass that was "` on a card: `slice(220)` severs
+   the word it lands in. Clipping now backs off to a sentence or word boundary
+   and marks the trim. **Run three** is the clean one.
+
+**THE FINDING HE ASKED FOR.** The reel's own burned-in caption says *"Gaslighting
+is an art form, and Patrick Jane is the Picasso of it."* It is not gaslighting —
+that is sustained denial of someone's real perceptions over time. This is one
+unverifiable assertion plus a real physical prop, which is structurally an
+interrogation **false evidence ploy**. The mislabel matters because it sends
+anyone researching it into abuse-pattern literature instead of the
+suggestion/hypnosis/interrogation literature that actually explains the clip.
+**That caption exists nowhere in the audio** — frames are why it was caught.
+
+**DECISIONS (choice → reason → what it forecloses)**
+- *The coverage receipt is written by CODE, not the model* → a model describing
+  its own reach writes the reach it wishes it had. **Forecloses** the study
+  lane's approach of asking for a `## Coverage` section in the prompt.
+- *An ungrounded capture has its findings DISCARDED, not shortened* → the
+  failure that matters is not a thin report, it is a confident one about a video
+  nobody could open. **Forecloses** "best effort from metadata".
+- *The interval widens with times TRIED, never times shown* → exposure is not
+  practice; a drill is not an idea from a book. **Forecloses** reusing the
+  Library's schedule, and makes a "not today" deliberately not advance the clock.
+- *The day's pick is a pure function of (catalogue, state, date), recorded by
+  its first caller* → Home and the spoken brief must name the same technique.
+  **Forecloses** either surface picking independently.
+- *The lane is video-only* → a link yt-dlp cannot open is refused with a pointer
+  at the Researcher. **Forecloses** guessing at an article from its URL.
+- *Report and techniques file as ONE decision, and undo removes the techniques
+  FIRST* → a curriculum he undid that kept serving a technique a day is the
+  worse half to leave behind.
+
+**VERIFIED (with locators)**
+- Live, `/api/repertoire/analyse` on his reel: `Analysed 42-second Instagram reel
+  by bondwayne — transcript read, 14 frames seen, 8 sources cited.`
+- Both Home idioms driven in the real app at **375×812** (`__novaApp.setState`,
+  devtools emulate): new state and answered state, `scrollWidth === 375`, the
+  serif/mono Command Core twin and the Pill/grouped cupertino twin.
+- `twins.test.js` now derives the Inbox's RETRY kinds and `retryRecord`'s
+  handled kinds from source and compares them — **verified by deleting the
+  repertoire handler and watching it go red**.
+- Gates: `npm test` **1569 pass, 0 fail** · `npm run lint` exit 0 · `npm run
+  build` exit 0 (gated on `$?`, never a grep).
+
+**ASSUMED**
+- That one technique a day is the right cadence, and every third day being a
+  review is the right mix. Both are single constants (`REVIEW_EVERY`,
+  `REVIEW_INTERVALS`) and his to move once he has lived with it.
+- That the plausibility floor (1 char/second) never rejects a real transcript.
+  A genuinely near-silent clip WILL fail it and be reported as unreadable audio.
+- That he wants the brief beat every morning. It is deliberately not
+  rate-limited the way the library's is, and it stands down once he has marked
+  the day's card.
+
+**OPEN QUESTIONS / BLOCKERS**
+- **Nothing has run on his iPhone** — now true of four sessions.
+- The catalogue is five techniques. It grows by him sending more clips; there is
+  no "top it up" path yet, and the curriculum ends by repeating reviews forever.
+- `Wiki/Library/Nova Skills.md` (his page) does not list this lane — only the
+  SEED for a fresh install was updated, deliberately, since the page is his.
+
+**NEXT ACTION.** Open Home. Today's technique should be card one of five with a
+drill on it. Mark it, then check `Wiki/Library/Repertoire Log.md` has the line
+and `server/data/repertoire.json` has `tried: 1`.
+
+**DO NOT**
+- **Do not trust a fetch's success as proof of its result.** This lane shipped a
+  receipt certifying `[object Object]` as a transcript. Check the CONTENT.
+- **Do not add a fourth spacing schedule without pinning it in `twins.test.js`**
+  beside the Library's, the Leader's and the Repertoire's.
+- **Do not compare dates as instants in this feature.** He is AEST; the first
+  picker lost every review to it. Whole calendar days, as strings.
+- **Do not wire a new surface only into `refreshLiveData`'s task list** — that
+  runs solely when the snapshot throws. A new surface needs a `SLICES` entry.
+- Everything in the previous blocks' DO NOT lists still stands.
+
+---
+
+
+**14 SEP, THIRD PASS — "AS QUICK AND EFFECTIVE AS CLAUDE AND CHATGPT
 VOICE." His instruction after the driving report: fix Wren, then keep pushing
 on Nova's voice, knowledge, speed and understanding until it reaches that bar.
 
@@ -1545,6 +1660,18 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+**15 Sep 2026 — The Repertoire.** His standing ask for a CONFIRMED report on
+anything he sends to analyse, plus one technique a day off a Mentalist reel.
+Built `captureReport.js` (the receipt is code's, not the model's — reusable by
+every lane), `repertoire.js` (catalogue in the vault, schedule in server/data,
+interval driven by times TRIED not times shown), `repertoireLane.js` (fetch →
+one model pass → code renders), the routes, both Home idioms and the spoken
+brief beat. Ran it live on his reel three times; each run exposed a fault the
+previous one hid — a stringified object reported as a transcript, then a card
+cut mid-word. The report's best finding is that the reel's own caption calls the
+technique "gaslighting" and it is not: it is an interrogation false evidence
+ploy, and the caption exists only in the frames. 1569 pass · lint 0 · build 0.
 
 ### 14 September 2026 (third pass) — Wren, and the hunt for the seconds
 Ported the three shared voice faults into Wren (committed, not pushed). Then on
