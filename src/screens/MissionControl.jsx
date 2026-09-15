@@ -167,7 +167,7 @@ export function MissionControl({ v }) {
           same view model. Same technique, same drill, same two taps: the
           server picked it once and both screens read that pick. */}
       {v.todayTechnique && !v.todayTechnique.empty && (
-        <section className="nv-glow" style={{ marginTop: '18px', padding: '16px 18px 14px', ...glowPanel('--nv-mg').style }}>
+        <section className="nv-glow" style={{ marginTop: '18px', padding: '16px 18px 14px', ...glowPanel('--nv-mg').style, ...(v.todayTechnique.vtName ? { viewTransitionName: v.todayTechnique.vtName } : {}) }}>
           <div style={css('display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap')}>
             <Eyebrow as="span">{v.todayTechnique.modeLabel}</Eyebrow>
             <span style={css('display:flex;align-items:center;gap:10px')}>

@@ -773,7 +773,8 @@ export function valsMission(app, ctx) {
         reportCount: (all?.reports || []).length,
         empty: all ? 'Nothing in your Repertoire yet.' : 'Loading…',
         toggleReport: (id) => app.setState({ repertoireOpenReport: st.repertoireOpenReport === id ? null : id }),
-        close: () => app.setState({ repertoireBookOpen: false, repertoireOpenReport: null }),
+        vtName: st.liveRepertoire?.technique?.id ? `technique-${st.liveRepertoire.technique.id}` : null,
+        close: () => app.withTransition(() => app.setState({ repertoireBookOpen: false, repertoireOpenReport: null })),
       };
     })() : null,
     // THE LEADER BOX — TWO FACES, HIS SWIPE. His instruction, 15 Sep: the
@@ -871,6 +872,12 @@ export function valsMission(app, ctx) {
         tried: r.tried || 0,
         streak: r.streak || 0,
         openAll: () => app.openRepertoireBook(),
+        // THE MORPH. The card carries a shared view-transition-name and the
+        // book's panel carries the SAME one, so the card expands into it
+        // instead of the screen cutting. It must be unique in the document at
+        // the moment of the transition, so the card drops the name while the
+        // book holds it — the guard valsRecipes already keeps.
+        vtName: st.repertoireBookOpen ? undefined : `technique-${r.technique.id}`,
         markTried: () => app.markPractice('tried'),
         markSkipped: () => app.markPractice('skipped'),
       };

@@ -1895,7 +1895,8 @@ export default class App extends Component {
   // when he asks for it rather than on every sync — it carries the full report
   // bodies and nothing on Home needs them.
   openRepertoireBook() {
-    this.setState({ repertoireBookOpen: true });
+    // the card morphs into the book rather than the book cutting over it
+    this.withTransition(() => this.setState({ repertoireBookOpen: true }));
     const conn = getConnection();
     if (!conn) return;
     api.repertoire(conn).then((r) => this.setState({ liveRepertoireAll: r })).catch(() => {});

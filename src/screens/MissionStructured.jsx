@@ -387,7 +387,7 @@ export function MissionStructured({ v }) {
             answer is the whole point: what he practises is what decides when
             the technique comes back. The drill is the loudest line on it. */}
         {v.todayTechnique && !v.todayTechnique.empty && (
-          <section className="nv-glow" style={{ marginTop: '18px', padding: mob ? '15px 16px 13px' : '18px 20px 16px', ...glowPanel('--nv-mg', { radius: '16px' }).style }}>
+          <section className="nv-glow" style={{ marginTop: '18px', padding: mob ? '15px 16px 13px' : '18px 20px 16px', ...glowPanel('--nv-mg', { radius: '16px' }).style, ...(v.todayTechnique.vtName ? { viewTransitionName: v.todayTechnique.vtName } : {}) }}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
               <div style={{ font: `600 10.5px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--nv-mg)' }}>
                 {v.todayTechnique.modeLabel}

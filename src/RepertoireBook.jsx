@@ -52,8 +52,13 @@ export function RepertoireBook({ v }) {
   return (
     <div role="dialog" aria-modal="true" aria-label="Your Repertoire" onClick={v.close}
       style={css('position:fixed;inset:0;background:rgba(8,5,12,.82);backdrop-filter:blur(6px);z-index:80;display:flex;align-items:center;justify-content:center;padding:18px;overflow-y:auto')}>
+      {/* the SAME view-transition-name the technique card had, so the card
+          expands into this panel and his eye follows one object the whole way */}
       <div onClick={(e) => e.stopPropagation()}
-        style={css('width:620px;max-width:96vw;max-height:92vh;overflow-y:auto;border:1px solid color-mix(in srgb, var(--nv-mg) 26%, transparent);border-radius:var(--nv-radius);background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 40px 90px -30px rgba(0,0,0,.95), 0 0 80px -30px color-mix(in srgb, var(--nv-mg) 50%, transparent);padding:22px 24px')}>
+        style={{
+          ...css('width:620px;max-width:96vw;max-height:92vh;overflow-y:auto;border:1px solid color-mix(in srgb, var(--nv-mg) 26%, transparent);border-radius:var(--nv-radius);background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 40px 90px -30px rgba(0,0,0,.95), 0 0 80px -30px color-mix(in srgb, var(--nv-mg) 50%, transparent);padding:22px 24px'),
+          ...(v.vtName ? { viewTransitionName: v.vtName } : {}),
+        }}>
 
         <div style={css('display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap')}>
           <span style={css('font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-mg)')}>YOUR REPERTOIRE</span>
