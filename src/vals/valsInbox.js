@@ -324,6 +324,9 @@ export function valsInbox(app, ctx) {
     kind: r.kind || null,
     text: r.text,
     time: timeLabel(r.createdAt),
+    // the raw stamp too: `time` is a label ("2h ago"), and counting what
+    // landed TODAY needs a date, not a phrase
+    at: r.filedAt || r.updatedAt || r.createdAt || null,
     // tap-to-expand: collapsed shows a clamped preview; expanded shows what
     // he actually captured AND exactly what approving will file
     expanded,
@@ -642,6 +645,26 @@ export function valsInbox(app, ctx) {
       };
     })(),
     inboxHistory: historyItems,
+    // DID MY CAPTURE LAND? His report, 15 Sep: "I'm still not seeing it
+    // clearly on Nova whether my captures are landing… I need some sort of
+    // confirmation notification within nova itself so I can see it's been
+    // filed and analysed."
+    //
+    // The answer existed — but only as a toast that is gone in seconds, and as
+    // a History section at the very BOTTOM of this screen, below eleven other
+    // panels. Neither survives a capture made from the Shortcut while he is
+    // not looking. This is the same record, counted for today and shown
+    // directly under the Capture box: capture, and watch it land.
+    inboxLanded: (() => {
+      const today = new Date().toDateString();
+      const settled = historyItems.filter((h) => h.status === 'filed' || h.status === 'discarded' || h.status === 'error');
+      const isToday = (h) => h.at && new Date(h.at).toDateString() === today;
+      return {
+        today: settled.filter(isToday).length,
+        filedToday: settled.filter((h) => isToday(h) && h.status === 'filed').length,
+        recent: settled.slice(0, 4),
+      };
+    })(),
     inboxLoaded: inbox != null, // null = still loading — never renders as "nothing captured yet"
     // the skeleton needs to know NOT to shimmer offline (last-known history
     // renders under the offline banner there — a shimmer would promise data

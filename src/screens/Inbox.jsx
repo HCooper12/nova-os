@@ -137,6 +137,46 @@ export function Inbox({ v }) {
             hoverStyle={{ filter: 'brightness(1.1)' }}
           >{v.inboxCaptureBusy ? 'Routing…' : '✦ Capture'}</Interactive>
         </div>
+
+        {/* IT LANDED. His report, 15 Sep: "I'm still not seeing it clearly on
+            Nova whether my captures are landing… I need some sort of
+            confirmation within nova itself so I can see it's been filed and
+            analysed." The record existed — as a toast gone in seconds, and as
+            a History panel at the very bottom of this screen, below eleven
+            others. Neither survives a capture made from the Shortcut while he
+            is not looking. Same record, directly under the box he captured
+            into: capture, and watch it land. */}
+        {v.inboxLanded?.recent?.length > 0 && (
+          <div style={css('margin-top:14px;padding-top:12px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)')}>
+            <div style={css('display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap')}>
+              <Eyebrow as="span" tone="good">Landed</Eyebrow>
+              <Meta tone="faint">
+                {v.inboxLanded.today > 0
+                  ? `${v.inboxLanded.today} today · ${v.inboxLanded.filedToday} filed`
+                  : 'nothing yet today — the most recent below'}
+              </Meta>
+            </div>
+            <div style={css('margin-top:8px;display:flex;flex-direction:column;gap:7px')}>
+              {v.inboxLanded.recent.map((h) => (
+                <div key={h.id} style={css('display:flex;align-items:baseline;gap:9px;min-width:0')}>
+                  <span style={css(`flex:none;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:${h.status === 'filed' ? 'var(--nv-good)' : h.status === 'error' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 38%, transparent)'}`)}>
+                    {h.status === 'filed' ? '✓' : h.status === 'error' ? '!' : '—'}
+                  </span>
+                  <span style={css('flex:1;min-width:0;font-size:12.5px;line-height:1.5;color:var(--nv-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{h.title}</span>
+                  {/* "filed AND analysed" is the half he asked for by name, so
+                      it gets its own slot — appended to the destination it was
+                      the first thing the ellipsis ate */}
+                  {h.deepAnalyse && h.status === 'filed' && (
+                    <span style={css('flex:none;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:var(--nv-cy)')}>analysed</span>
+                  )}
+                  <span style={css('flex:none;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 42%, transparent);max-width:40%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>
+                    {h.status === 'filed' ? (h.destination || 'filed') : h.status === 'error' ? 'failed' : 'left alone'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* FILING MODE. Three cards, ~230px of the first screen, for a setting
