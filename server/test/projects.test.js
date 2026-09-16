@@ -122,21 +122,32 @@ test('the builder gets a shell only where the kernel can contain it', async () =
     assert.ok(denied.includes('Bash'), 'and Bash must be named in the deny list, not merely omitted');
   }
 
-  // BOTH BRANCHES, ON EVERY MACHINE. The block above only runs whichever way
-  // this machine happens to fall, which is how a broken assertion in the
-  // no-shell branch survived a green local suite and went red for three
-  // deploys. Force each path and check it by value.
-  for (const want of [true, false]) {
-    const r = buildInvocation('brief', 'slug', dir, 'haiku', { shell: want });
-    assert.equal(r.shell, want);
-    const allowed = String(r.args[r.args.indexOf('--allowedTools') + 1]);
-    const denied = String(r.args[r.args.indexOf('--disallowedTools') + 1]);
-    assert.equal(allowed, want ? 'Read,Write,Edit,Glob,Grep,Bash' : 'Read,Write,Edit,Glob,Grep');
-    // Bash is NAMED in the deny list when withheld — omission is not denial,
-    // and --allowedTools alone is not enforced under bypassPermissions
-    assert.equal(denied.includes('Bash'), !want);
-    assert.equal(r.cmd === SANDBOX_BIN, want, 'only a shell run goes through the wall');
-    assert.equal(!!r.env, want, 'and only a shell run redirects TMPDIR');
+  // THE NO-SHELL PATH, ON EVERY MACHINE. The block above only runs whichever
+  // way this machine happens to fall, and this is the branch that was broken:
+  // it cannot execute on his Mac, so a green local suite said nothing about it
+  // and it went red for three deploys. Forcing it is safe anywhere — nothing
+  // on this path touches the sandbox.
+  const off = buildInvocation('brief', 'slug', dir, 'haiku', { shell: false });
+  assert.equal(off.shell, false);
+  const allowed = String(off.args[off.args.indexOf('--allowedTools') + 1]);
+  const denied = String(off.args[off.args.indexOf('--disallowedTools') + 1]);
+  assert.equal(allowed, 'Read,Write,Edit,Glob,Grep', 'no wall, no shell');
+  // Bash is NAMED in the deny list when withheld — omission is not denial,
+  // because --allowedTools alone is not enforced under bypassPermissions
+  assert.ok(denied.includes('Bash'));
+  assert.notEqual(off.cmd, SANDBOX_BIN, 'and it does not pretend to go through a wall');
+  assert.equal(off.env, undefined, 'nor redirect TMPDIR it is not using');
+
+  // Forcing the shell ON is only meaningful where a sandbox exists — asking for
+  // one on Linux THROWS by design, which is the whole point of the lane, so
+  // this half stays gated. (Learned the hard way: an earlier version of this
+  // test forced both and turned CI red for exactly that reason.)
+  if (sandboxAvailable()) {
+    const on = buildInvocation('brief', 'slug', dir, 'haiku', { shell: true });
+    assert.equal(on.shell, true);
+    assert.equal(String(on.args[on.args.indexOf('--allowedTools') + 1]), 'Read,Write,Edit,Glob,Grep,Bash');
+    assert.ok(!String(on.args[on.args.indexOf('--disallowedTools') + 1]).includes('Bash'));
+    assert.equal(on.cmd, SANDBOX_BIN, 'a shell run always goes through the wall');
   }
 
   const withShell = buildPrompt('build me a landing page', 'landing-page', { shell: true });
