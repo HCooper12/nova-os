@@ -13,7 +13,27 @@ html, body, #root { margin: 0; height: 100%; }
    document-level rubber-band so the page can't drift out from under a scroll. */
 html { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 html, body { overscroll-behavior: none; }
+/* …and stop an inner scroller handing its leftover scroll to the page behind
+   it. Seventeen of Nova's eighteen full-screen overlays never locked body
+   scroll (only GlassSheet did), so scrolling a modal to its end scrolled the
+   app underneath and lost his place. `contain` keeps the container's own
+   bounce, which is what feels native, and is a NO-OP on any element that does
+   not actually scroll — which is why a broad selector here is safe. :where()
+   so it carries zero specificity and anything explicit still wins. */
+:where(div, main, section, article, aside, nav, ul, ol, pre, textarea) {
+  overscroll-behavior: contain;
+}
 button, a, label, select, input, textarea, [role="button"] { touch-action: manipulation; }
+/* A held finger on a CONTROL must not select its label or raise the iOS
+   copy/share callout — native controls never do. Long-press is a real Nova
+   gesture (longPress.js, 480ms), so the two were fighting for the same hold
+   on every element that was not one of the six with an onLongPress.
+   Deliberately NOT on body: addresses, error messages and numbers are content
+   and must stay selectable. Interactive.jsx gives every clickable non-native
+   tag role="button", which is what makes this reach them. */
+button, label, select, [role="button"] {
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
 /* iOS auto-zooms into any focused text field whose rendered size is under 16px
    and never zooms back — the pinch-to-escape annoyance, and the root of most
    of the "page won't stay put" feel. A >=16px size is the one fix Apple
@@ -34,7 +54,13 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 a { color: var(--nv-gold); text-decoration: none; }
-a:hover { color: var(--nv-acc); }
+/* Touch has no hover, so the browser fakes one and LEAVES IT ON until the
+   next tap elsewhere. Every :hover rule in the app has to sit behind a
+   capability query; the JS side (Interactive.jsx) already refuses hover for
+   any pointerType that is not a mouse. */
+@media (hover: hover) and (pointer: fine) {
+  a:hover { color: var(--nv-acc); }
+}
 ::selection { background: color-mix(in srgb, var(--nv-acc) 30%, transparent); }
 
 input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-ink) 35%, transparent); }
@@ -548,4 +574,33 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 .nv-liquid-flush::after {
   background: none; padding: 0; border-bottom: 1px solid var(--nv-edge);
   -webkit-mask: none; mask: none;
+}
+
+/* ================================================================
+   REDUCE TRANSPARENCY, EVERYWHERE (16 Sep 2026)
+
+   The liquid-glass block above honours `prefers-reduced-transparency`
+   for the three surfaces wearing `.nv-liquid`. It was the app's ONLY
+   handling of it: 48 backdrop-filter declarations, one guard. Every
+   modal, sheet, overlay, toast and context menu ignored the setting.
+
+   Dropping the blur alone would make it WORSE, not better — a
+   semi-transparent surface with nothing frosting what is behind it is
+   less legible, not more. So the surface tokens go solid in the same
+   breath, which is the whole point of them being tokens.
+
+   `!important` on a universal selector is a heavy instrument and it is
+   the right one exactly once: these blurs are written as INLINE styles
+   by ~45 components, nothing else can reach them, and this only ever
+   matches when he has explicitly asked the OS for less transparency.
+   ================================================================ */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --nv-glass: var(--nv-bg1);
+    --nv-glass2: var(--nv-bg2);
+  }
+  * {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
 }

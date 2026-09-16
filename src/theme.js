@@ -83,6 +83,19 @@ export function applyAppearance(theme, calm, style = getNovaStyle()) {
   else root.removeAttribute('data-nv-calm');
   if (style === 'command') root.removeAttribute('data-nv-style');
   else root.setAttribute('data-nv-style', style);
+  // THE STATUS BAR IS PART OF THE APP (16 Sep 2026). index.html pins
+  // theme-color to a single dark #06070d, and Nova ships `daylight` — a LIGHT
+  // palette — so choosing it left a black strip above a near-white app on his
+  // phone, and the browser chrome to match. Read the ground back out of the
+  // token rather than keeping a second table of colours here, so a theme whose
+  // --nv-void changes can never drift from its status bar.
+  try {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    const ground = getComputedStyle(root).getPropertyValue('--nv-void').trim();
+    if (meta && ground) meta.setAttribute('content', ground);
+  } catch {
+    /* best-effort: a missing meta tag is not worth failing a theme change over */
+  }
   try {
     localStorage.setItem(THEME_KEY, theme);
     localStorage.setItem(CALM_KEY, calm ? '1' : '0');
