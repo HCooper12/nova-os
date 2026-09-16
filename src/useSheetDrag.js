@@ -91,7 +91,7 @@ export function useSheetDrag(onClose, { threshold = 110 } = {}) {
       el.style.transform = `translateY(${base}px)`;
       el.style.opacity = '';
     }
-    drag.current = { startY: e.clientY, base, samples: [{ t: performance.now(), y: e.clientY }] };
+    drag.current = { startY: e.clientY, base, samples: [{ t: performance.now(), v: e.clientY }] };
     e.currentTarget.setPointerCapture?.(e.pointerId);
   }, [cancelClose]);
 
@@ -99,7 +99,7 @@ export function useSheetDrag(onClose, { threshold = 110 } = {}) {
     const d = drag.current;
     const el = sheetRef.current;
     if (!d || !el) return;
-    d.samples.push({ t: performance.now(), y: e.clientY });
+    d.samples.push({ t: performance.now(), v: e.clientY });
     if (d.samples.length > 12) d.samples.shift();
     // `base` is where the sheet already was when grabbed, so an interrupted
     // throw continues from there instead of snapping to the top
@@ -117,9 +117,9 @@ export function useSheetDrag(onClose, { threshold = 110 } = {}) {
     if (!d) return;
     drag.current = null;
     const now = performance.now();
-    if (e && e.clientY != null) d.samples.push({ t: now, y: e.clientY });
+    if (e && e.clientY != null) d.samples.push({ t: now, v: e.clientY });
     const v = velocityFrom(d.samples, now);
-    const last = d.samples[d.samples.length - 1].y;
+    const last = d.samples[d.samples.length - 1].v;
     const dy = Math.max(0, d.base + (last - d.startY));
     settle(sheetRef.current, dy, v);
   }, [settle]);

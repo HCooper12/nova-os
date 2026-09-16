@@ -61,7 +61,7 @@ test('VELOCITY HANDOFF: the throw leaves at the speed the finger arrived at', ()
 
 test('velocity comes from a history — a flick that stalls on the last frame still counts', () => {
   // a real 120Hz flick: fast, then the finger slows just before lifting
-  const samples = [{ t: 0, y: 0 }, { t: 16, y: 40 }, { t: 32, y: 80 }, { t: 48, y: 118 }, { t: 64, y: 120 }];
+  const samples = [{ t: 0, v: 0 }, { t: 16, v: 40 }, { t: 32, v: 80 }, { t: 48, v: 118 }, { t: 64, v: 120 }];
   const v = velocityFrom(samples, 64);
   const lastTwoPoints = (120 - 118) / 16;
   assert.ok(v > 1.5, `history velocity ${v} must survive the final-frame stall`);
@@ -73,10 +73,10 @@ test('velocity comes from a history — a flick that stalls on the last frame st
 
 test('velocity degrades honestly rather than throwing', () => {
   assert.equal(velocityFrom([]), 0);
-  assert.equal(velocityFrom([{ t: 0, y: 0 }]), 0, 'one sample is not a velocity');
-  assert.equal(velocityFrom([{ t: 5, y: 0 }, { t: 5, y: 90 }], 5), 0, 'a zero dt must not divide');
+  assert.equal(velocityFrom([{ t: 0, v: 0 }]), 0, 'one sample is not a velocity');
+  assert.equal(velocityFrom([{ t: 5, v: 0 }, { t: 5, v: 90 }], 5), 0, 'a zero dt must not divide');
   // samples older than the window are ignored, so a pause mid-drag resets it
-  const stale = [{ t: 0, y: 0 }, { t: 1000, y: 300 }, { t: 1016, y: 302 }];
+  const stale = [{ t: 0, v: 0 }, { t: 1000, v: 300 }, { t: 1016, v: 302 }];
   assert.ok(Math.abs(velocityFrom(stale, 1016)) < 0.2, `a long pause then a nudge is not a flick (${SAMPLE_MS}ms window)`);
 });
 

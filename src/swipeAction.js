@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { haptic } from './haptics.js';
 import { decideDirection, shouldCommit, shouldPage, startsInEdgeGuard, COMMIT_FRACTION } from './swipeCore.js';
+import { velocityFrom } from './sheetPhysics.js';
 
 // SWIPE ACTIONS — the iOS list grammar: drag a row sideways to act on it.
 // Additive only; every swipeable row keeps its buttons, so desktop, keyboard
@@ -32,7 +33,7 @@ const MAX_TRAVEL = 0.6; // rubber-band ceiling, as a fraction of row width
 export function useSwipeAction({ onRight, onLeft } = {}) {
   const rowRef = useRef(null);
   const underlayRef = useRef(null);
-  const s = useRef({ dir: null, startX: 0, startY: 0, startT: 0, dx: 0, active: false, id: null }).current;
+  const s = useRef({ dir: null, startX: 0, startY: 0, startT: 0, dx: 0, active: false, id: null, samples: [] }).current;
 
   if (!onRight && !onLeft) return { ref: rowRef, underlayRef, handlers: {}, enabled: false };
 
@@ -67,12 +68,15 @@ export function useSwipeAction({ onRight, onLeft } = {}) {
         if (startsInEdgeGuard(e.clientX)) { reset(); return; }
         s.dir = null; s.active = true; s.dx = 0; s.id = e.pointerId;
         s.startX = e.clientX; s.startY = e.clientY; s.startT = performance.now();
+        s.samples = [{ t: s.startT, v: e.clientX }];   // the sampler's value axis; here it is x
         if (rowRef.current) rowRef.current.style.transition = '';
       },
       onPointerMove: (e) => {
         if (!s.active || e.pointerId !== s.id) return;
         const dx = e.clientX - s.startX;
         const dy = e.clientY - s.startY;
+        s.samples.push({ t: performance.now(), v: e.clientX });
+        if (s.samples.length > 12) s.samples.shift();
         // DIRECTION LOCK — decided once, never revisited for this gesture
         if (s.dir === null) {
           const decided = decideDirection(dx, dy);
@@ -98,11 +102,13 @@ export function useSwipeAction({ onRight, onLeft } = {}) {
       onPointerUp: (e) => {
         if (!s.active || e.pointerId !== s.id) return;
         const dx = s.dx;
+        const now = performance.now();
+        if (e.clientX != null) s.samples.push({ t: now, v: e.clientX });
         const commit = shouldCommit({
           dir: s.dir,
           dx,
           rowWidth: rowRef.current?.offsetWidth || 1,
-          elapsedMs: performance.now() - s.startT,
+          velocity: velocityFrom(s.samples, now),
           hasRight: !!onRight,
           hasLeft: !!onLeft,
         });
@@ -136,7 +142,7 @@ export function useSwipeAction({ onRight, onLeft } = {}) {
 // lower distance bar — and the identical direction lock.
 export function useOptionPager({ onNext, onPrev, enabled = true } = {}) {
   const zoneRef = useRef(null);
-  const s = useRef({ dir: null, startX: 0, startY: 0, startT: 0, dx: 0, active: false, id: null }).current;
+  const s = useRef({ dir: null, startX: 0, startY: 0, startT: 0, dx: 0, active: false, id: null, samples: [] }).current;
 
   if (!enabled || (!onNext && !onPrev)) return { ref: zoneRef, handlers: {}, enabled: false };
 
@@ -160,12 +166,15 @@ export function useOptionPager({ onNext, onPrev, enabled = true } = {}) {
         if (startsInEdgeGuard(e.clientX)) { reset(); return; }
         s.dir = null; s.active = true; s.dx = 0; s.id = e.pointerId;
         s.startX = e.clientX; s.startY = e.clientY; s.startT = performance.now();
+        s.samples = [{ t: s.startT, v: e.clientX }];   // the sampler's value axis; here it is x
         if (zoneRef.current) zoneRef.current.style.transition = '';
       },
       onPointerMove: (e) => {
         if (!s.active || e.pointerId !== s.id) return;
         const dx = e.clientX - s.startX;
         const dy = e.clientY - s.startY;
+        s.samples.push({ t: performance.now(), v: e.clientX });
+        if (s.samples.length > 12) s.samples.shift();
         if (!s.dir) {
           const dir = decideDirection(dx, dy);
           if (!dir) return;
@@ -179,8 +188,9 @@ export function useOptionPager({ onNext, onPrev, enabled = true } = {}) {
       },
       onPointerUp: (e) => {
         if (!s.active || e.pointerId !== s.id) { reset(); return; }
-        const elapsedMs = performance.now() - s.startT;
-        const paged = shouldPage({ dir: s.dir, dx: s.dx, elapsedMs });
+        const now = performance.now();
+        if (e.clientX != null) s.samples.push({ t: now, v: e.clientX });
+        const paged = shouldPage({ dir: s.dir, dx: s.dx, velocity: velocityFrom(s.samples, now) });
         if (paged) {
           // a gesture that passed its commit bar IS the threshold word
           haptic('threshold');

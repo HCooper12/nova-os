@@ -54,6 +54,9 @@ export function throwDuration(distance, v) {
 //    last frame of a fast flick reports ~0 and the throw is lost.
 export const SAMPLE_MS = 80;
 
+// Samples are `{ t, v }` — a TIME and a VALUE on whatever axis the caller is
+// tracking. Deliberately not `y`: swipe rows feed it x, and a field named for
+// one axis is a lie the moment a second caller arrives.
 export function velocityFrom(samples, now = samples.length ? samples[samples.length - 1].t : 0) {
   const recent = samples.filter((s) => now - s.t <= SAMPLE_MS);
   if (recent.length < 2) return 0;
@@ -61,7 +64,7 @@ export function velocityFrom(samples, now = samples.length ? samples[samples.len
   const last = recent[recent.length - 1];
   const dt = last.t - first.t;
   if (dt <= 0) return 0;
-  return (last.y - first.y) / dt;
+  return (last.v - first.v) / dt;
 }
 
 // 5. RUBBER-BANDING. Progressive resistance, not a linear 0.55 multiplier and

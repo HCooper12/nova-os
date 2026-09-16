@@ -179,7 +179,22 @@ haptics memory, the only path that works on iOS 26.5 is the transparent switch
 under his finger, which needs the tap to land on the switch — a *drag release*
 may not qualify. **Worth one real test on his phone before building it.**
 
-### 8. Swipe rows judge a flick on the whole gesture's average speed
+### 8. ~~Swipe rows judge a flick on average speed~~ — FIXED
+Now projected from RELEASE velocity over an 80ms history, the same sampler the
+sheets use. Two behaviours changed: a careful drag that *ends* in a flick now
+commits (the old average refused it), and a row pulled back toward home is
+cancelled however far it reached.
+
+**The safety direction was checked, not assumed.** The rightmost action on an
+Inbox row is DISCARD, so a row projects with Apple's snappier `0.99`
+(≈99× on px/ms) rather than the sheet's `0.998` (≈499×) — a flick that would
+throw a sheet clean off the screen must not, on its own, throw away a captured
+thought. A twitchy 30px flick that the **old** rule committed outright (0.75
+px/ms average, over the 0.6 bar) no longer does. The 200-simulated-scrolls
+property and the vertical-lock veto were both re-proved across the new
+velocity range.
+
+### 8b. ~~(original finding)~~
 `swipeCore.shouldCommit` computes `Math.abs(dx) / elapsedMs` — average velocity
 over the entire gesture, not the release velocity. A slow, careful drag that
 ends in a decisive flick reads as slow and does not commit; a fast drag that
