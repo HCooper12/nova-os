@@ -1,6 +1,7 @@
 import { weekData } from '../data.js';
 import { bubble } from './shared.js';
 import { dtf } from './fmt.js';
+import { vtStyle } from '../vtName.js';
 
 // The next N days (today → today+N) as {iso, short} for day pickers.
 function nextDays(n) {
@@ -365,7 +366,18 @@ export function valsWorkouts(app, ctx) {
     exerciseId: e.exerciseId, name: e.name, trackingType: e.trackingType,
     // the anatomy card (3D figure, muscles, cues, history) — a visible chip
     // now, not a long-press nobody could find
-    onOpen: () => app.openExerciseCard(e.name),
+    //
+    // THE ROW HANDS THE SHEET ITS OWN NAME rather than both ends deriving one.
+    // Four different surfaces open this sheet and all key by NAME, so a shared
+    // `ex-<name>` would collide the moment two of them rendered at once — and a
+    // duplicate name does not just drop its own morph, it ABORTS THE WHOLE
+    // TRANSITION (InvalidStateError, measured in Safari 26.5). Passing the key
+    // makes that impossible to get wrong: only the surface that was tapped can
+    // name the thing being tapped. `exerciseId` is unique per session — it is
+    // already the React key for this row.
+    vtKey: `session:${e.exerciseId}`,
+    vtStyle: vtStyle('ex', `session:${e.exerciseId}`, st.exerciseSheet?.vtKey),
+    onOpen: () => app.openExerciseCard(e.name, `session:${e.exerciseId}`),
     // THE LIBRARY IS THE AUTHORITY, not the copy frozen into the session when
     // it started. The weekly volume is counted server-side from the library
     // (groupOf.get(exerciseId)), so the note beside the exercise must read

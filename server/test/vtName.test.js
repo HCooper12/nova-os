@@ -118,3 +118,47 @@ test('nothing in src/ still mints a name from an ARRAY INDEX', async () => {
   }
   assert.deepEqual(bad, [], `these names embed a list index:\n${bad.join('\n')}`);
 });
+
+test('the exercise pair hands the sheet the row\'s OWN key, and both ends agree', async () => {
+  // Four surfaces open ExerciseSheet and every one keys by exercise NAME, so a
+  // derived `ex-<name>` collides the moment two render together — and a
+  // duplicate aborts the WHOLE transition, not just its own morph. The row
+  // therefore passes the key it is wearing. These three have to stay in step,
+  // and they live in three different files.
+  const read = (p) => readFile(path.join(SRC, p), 'utf8');
+
+  const vals = await read('vals/valsWorkouts.js');
+  const worn = vals.match(/vtStyle\('ex',\s*`([^`]+)`/)?.[1];
+  const handed = vals.match(/openExerciseCard\(e\.name,\s*`([^`]+)`\)/)?.[1];
+  assert.ok(worn, 'the session row no longer wears a name');
+  assert.equal(handed, worn, 'the row hands over a DIFFERENT key than it wears — the morph cannot match');
+
+  // and the row must release it while the sheet holds it
+  assert.match(vals, /vtStyle\('ex',\s*`[^`]+`,\s*st\.exerciseSheet\?\.vtKey\)/,
+    'the row does not release its name while the sheet holds it — that is a duplicate, which aborts the transition');
+
+  const app = await read('App.jsx');
+  assert.match(app, /openExerciseCard\(name,\s*vtKey/, 'App drops the key on the floor');
+
+  const sheet = await read('ExerciseSheet.jsx');
+  assert.match(sheet, /vtStyle\('ex',\s*s\.vtKey\)/, 'the sheet never wears the name it was handed');
+  // opened any other way there is no row to morph from, so the slide stays
+  assert.match(sheet, /s\.vtKey\s*\?[\s\S]{0,120}animation: 'sheetUp/,
+    'the sheetUp slide must be the FALLBACK — running it on a morphing element reads as a stutter');
+});
+
+test('withTransition survives a duplicate name instead of leaking a rejection', async () => {
+  // Measured in Safari 26.5: a duplicate rejects `ready` with InvalidStateError
+  // while `finished` RESOLVES — so the two existing catches never saw it and it
+  // surfaced as an unhandled rejection. Dev gets told; production stays quiet.
+  const app = await readFile(path.join(SRC, 'App.jsx'), 'utf8');
+  // the whole method, not a fixed window — a comment added inside it should
+  // not be able to push an assertion out of range (it did, at 1800 chars)
+  const from = app.indexOf('withTransition(fn)');
+  const body = app.slice(from, app.indexOf('\n  navigate(', from));
+  assert.match(body, /t\?\.ready\?\.catch/, '`ready` is the promise a duplicate rejects, and nothing catches it');
+  assert.match(body, /InvalidStateError/, 'a duplicate should be NAMED in dev, not swallowed — silence is how the Library pair survived');
+  for (const p of ['finished', 'updateCallbackDone']) {
+    assert.match(body, new RegExp(`t\\?\\.${p}\\?\\.catch`), `${p} lost its catch`);
+  }
+});

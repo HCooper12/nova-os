@@ -518,7 +518,7 @@ function SessionView({ v }) {
 
       <div style={css("margin-top:20px;display:flex;flex-direction:column;gap:14px")}>
         {v.sessionExercises.map((e) => (
-          <div key={e.exerciseId} style={css(`border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:12px;padding:16px 18px;background:rgba(255,255,255,.02)${e.skipped ? ';opacity:.5' : ''}`)}>
+          <div key={e.exerciseId} style={{ ...css(`border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:12px;padding:16px 18px;background:rgba(255,255,255,.02)${e.skipped ? ';opacity:.5' : ''}`), ...e.vtStyle }}>
             <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap")}>
               <Interactive as="span" onLongPress={e.onLongPress} base={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <span style={css(`font-size:15px;font-weight:500${e.skipped ? ';text-decoration:line-through' : ''}`)}>{e.name}</span>

@@ -856,6 +856,23 @@ export default class App extends Component {
       // these are async rejections, not synchronous throws.
       t?.finished?.catch(() => {});
       t?.updateCallbackDone?.catch(() => {});
+      // A DUPLICATE NAME ABORTS THE WHOLE TRANSITION, not just its own morph.
+      // Measured in Safari 26.5 on 16 Sep: two elements sharing a
+      // view-transition-name rejects `ready` with InvalidStateError ("Multiple
+      // elements found with view-transition-name: …") and the page cuts
+      // instead of animating. `finished` still RESOLVES, so neither catch
+      // above sees it — it surfaced as an unhandled rejection.
+      //
+      // Swallowed in production (the navigation itself is fine), but said out
+      // loud in dev with the offending name. Silence is how the Library's
+      // broken pair survived: it looked like a transition that just wasn't
+      // very good. The guard is `vtStyle(prefix, id, openId)` in vtName.js —
+      // the open row has to release the name the detail is about to take.
+      t?.ready?.catch((e) => {
+        if (import.meta.env.DEV && e?.name === 'InvalidStateError') {
+          console.warn('[nova] view transition skipped —', e.message);
+        }
+      });
     } catch { fn(); }
   }
   navigate(rawScreen, extra = {}) {
@@ -6671,13 +6688,17 @@ export default class App extends Component {
   // THE EXERCISE SHEET. His report, 5 Sep: the 3D figure was nowhere in the
   // exercise library — it existed only as a chat panel. This pulls the same
   // panel from the same builder and shows it in a sheet over Train.
-  openExerciseCard(name) {
+  // `vtKey` is the shared-element name the ROW that opened this was wearing, so
+  // the sheet can morph out of it. Passed in rather than derived: four surfaces
+  // open this sheet and all key by name, and two elements sharing a
+  // view-transition-name aborts the transition outright.
+  openExerciseCard(name, vtKey = null) {
     const conn = getConnection();
     if (!conn || !name) return;
-    this.setState({ exerciseSheet: { name, loading: true, panel: null, error: null } });
+    this.withTransition(() => this.setState({ exerciseSheet: { name, vtKey, loading: true, panel: null, error: null } }));
     api.panel(conn, { panel: 'exercise', name })
-      .then((panel) => this.setState((s) => (s.exerciseSheet?.name === name ? { exerciseSheet: { name, loading: false, panel, error: null } } : null)))
-      .catch((e) => this.setState((s) => (s.exerciseSheet?.name === name ? { exerciseSheet: { name, loading: false, panel: null, error: e.message } } : null)));
+      .then((panel) => this.setState((s) => (s.exerciseSheet?.name === name ? { exerciseSheet: { name, vtKey, loading: false, panel, error: null } } : null)))
+      .catch((e) => this.setState((s) => (s.exerciseSheet?.name === name ? { exerciseSheet: { name, vtKey, loading: false, panel: null, error: e.message } } : null)));
   }
   closeExerciseCard() { this.setState({ exerciseSheet: null }); }
   focusCard(card) {

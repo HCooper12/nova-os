@@ -270,7 +270,7 @@ Ranked by how often he meets them:
 | A note row (Notes) | the reader | `note-<id>` | **done · seen** |
 | A library shelf card | the source page | `lib-<id>` | **done · was BROKEN, see below** |
 | An inbox card | its expanded detail | — | **done**, but not a pair — it expands in place, so it needed the transition, not a name |
-| An exercise row (Train) | `ExerciseSheet` | `exercise-<id>` | still to do |
+| An exercise row (Train) | `ExerciseSheet` | `ex-session-<exerciseId>` | **done** — the row hands over its own key, see below |
 
 ### The Library pair was already "done", and had never once fired
 
@@ -289,6 +289,25 @@ Both faults come from the same root: the name was minted inline, twice, by hand.
 same string without knowing about each other. It also carries the uniqueness
 guard (`vtStyle(prefix, id, openId)`), which until now existed only as a
 hand-written ternary in `valsRecipes.js` that nobody else copied.
+
+### A duplicate name does not drop one morph — it aborts the whole transition
+
+Worth knowing before building any further pair. Measured in Safari 26.5: two
+elements sharing a name rejects `ready` with `InvalidStateError: Multiple
+elements found with view-transition-name: …`, and **`finished` still RESOLVES**
+— so neither catch already in `withTransition` saw it, and it surfaced as an
+unhandled promise rejection while the page cut instead of animating.
+`withTransition` now catches `ready` too, and in DEV prints the offending name:
+silence is precisely how the Library's dead pair survived.
+
+That is also why the exercise pair is built the other way round. Four surfaces
+open `ExerciseSheet` and all four key by exercise NAME, so a derived
+`ex-<name>` collides the moment two of them render together. Instead **the row
+hands the sheet the key it is itself wearing** (`session:<exerciseId>`, already
+its React key), which makes the mismatch unrepresentable: only the surface that
+was tapped can name what was tapped. The `sheetUp` slide becomes the fallback
+for every other way in — running it on an element that is already morphing out
+of a row reads as a stutter.
 
 **Names are ~free, so name the whole list.** 371 note rows carry one each; a
 transition capture measured **75ms with them and 73ms without**. The imperative
