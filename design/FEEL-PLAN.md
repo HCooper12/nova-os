@@ -176,13 +176,43 @@ rotation slot — and now the shopping add.
 
 **DONE 15-16 Sep:** `shoppingAdd` · `shoppingClear` · `inboxCapture`.
 
-**STILL TO DO** — deterministic writes that continue to wait:
+**~~STILL TO DO~~ — CLOSED 16 Sep, and two of the three were misclassified.**
 
-| flag | why it can be optimistic | note |
+| flag | first verdict | what the server actually does |
 | --- | --- | --- |
-| `journalSave` / `reviewReflect` | he typed the text | the composer ALREADY clears instantly and gives the words back on failure; only the entry appearing in the list below is missing, and that needs the day-grouped shape handled |
-| `recipeAdd` | he typed the name and fields | |
-| `recipeEdit` | he edited the fields in front of him | |
+| `journalSave` / `reviewReflect` | optimistic | composer already clears instantly and gives the words back on failure; only the day-grouped list lags. Left as-is on a prior session's recorded reason. |
+| `recipeAdd` | "he typed the name and fields" | **spinner stays** — see below |
+| `recipeEdit` | "he edited the fields in front of him" | **spinner stays** — see below |
+
+### The rule the recipe pair taught: known INPUT is not predictable OUTCOME
+
+Both were listed as optimistic because *he typed every field*, which is true and
+is beside the point. The question is not whether the client knows what was
+asked; it is whether the server is going to do it.
+
+`server/lib/recipes.js` writes the edit into the markdown collection, **re-parses
+the file**, and throws if the result does not round-trip:
+
+- `Edit failed a sanity check — file left unchanged` (count or alternates moved)
+- `Edit did not round-trip through the file — left unchanged`
+- `Recipe insertion failed a sanity check — file left unchanged` (add)
+
+That is the vault-writer guard doing its job, and it means a refusal is a
+**designed, expected outcome**, not a network blip. An optimistic recipe would
+appear, sit there looking saved, and be yanked back — for the one failure the
+system is most careful to produce.
+
+There is a second, quieter reason. The parent recipe's ingredients are stored
+as parsed objects, while his input is plain lines (`subject.ingredients.map(i =>
+i.name)` is how the route compares them). Guessing the rendered shape means
+reimplementing the vault parser in the client — which is exactly what "shared
+formats are contracts" forbids.
+
+**So the rule gains a second half.** An optimistic write is honest when the
+outcome is genuinely predictable — and an outcome is not predictable just
+because the INPUT is known. If the write round-trips through a parsed file, or
+the server can refuse it on integrity grounds, the spinner is the truthful
+answer and stays.
 
 ### What was done
 1. **`submitShoppingAdd` is optimistic** — the proof case, and a good one: the
@@ -195,7 +225,9 @@ rotation slot — and now the shopping add.
    answer the hand → show it now → guard the racing snapshot → let the server
    win → put it back honestly on failure. Six places had hand-rolled that
    shape; the seventh copy is where a beat gets forgotten.
-3. **Next:** work the STILL TO DO table through the helper.
+3. **The table is worked through.** `shoppingAdd`, `shoppingClear` and
+   `inboxCapture` went through the helper; the recipe pair was sent back for
+   the reason above. Nothing is left waiting that honestly could be instant.
 
 ### The rule to keep
 An optimistic write is only honest when the outcome is genuinely predictable.
