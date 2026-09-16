@@ -827,3 +827,29 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
     backdrop-filter: none !important;
   }
 }
+
+/* ================================================================
+   SCREEN TRANSITIONS (17 Sep 2026)
+
+   The View Transitions system was built for the morph pairs and then
+   never ran on the path he actually uses: every dock tab and sidebar
+   item navigated with `instant: true`, which skips it. Measured live
+   on the deployed build — a dock tap started ZERO transitions.
+
+   With it on, the browser's default is a straight cross-fade, which is
+   a dissolve rather than an arrival. These give the incoming screen a
+   small rise on the house curve and let the outgoing one leave
+   faster than the new one comes in — the asymmetry is what stops a
+   cross-fade reading as a smear.
+   ================================================================ */
+::view-transition-old(root) {
+  animation: nvScreenOut 140ms var(--nv-ease-exit) both;
+}
+::view-transition-new(root) {
+  animation: nvScreenIn var(--nv-dur-base) var(--nv-ease) both;
+}
+@keyframes nvScreenOut { to { opacity: 0; } }
+@keyframes nvScreenIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+}

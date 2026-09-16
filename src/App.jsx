@@ -6161,7 +6161,19 @@ export default class App extends Component {
       // a tab or sidebar hop is INSTANT, the way iOS switches tabs — the
       // cross-fade stays for programmatic navigations (a chat route landing
       // on Code, a job tray row), where the app is moving him, not he it
-      go: (screen) => () => { warmScreen(screen); this.navigate(screen, { paletteOpen: false, instant: true }); },
+      // NOT `instant` any more (17 Sep 2026). It was deliberate — the comment
+      // on navigate() says instant "skips the view transition for a hop he
+      // made himself (tabs, sidebar)" — but it meant the whole view-transition
+      // system was dead code on the ONE path he uses most, and the line
+      // directly beneath it promises "screens cross-fade rather than cut".
+      // Every morph pair that exists (technique card, vitals tile, note row,
+      // library shelf, session exercise row) is reached by exactly this hop.
+      // Measured live on the deployed build before changing it: a dock tap
+      // started ZERO view transitions.
+      // His call, and he made it plainly: "when I click on more to view the
+      // other pages of Nova on my phone it just pops up. This is consistent
+      // across the platform … rather than dynamically animating."
+      go: (screen) => () => { warmScreen(screen); this.navigate(screen, { paletteOpen: false }); },
       // …and again on pointerdown, which lands ~100ms before the click. Idle
       // prefetch has usually loaded everything already, so both are normally
       // no-ops (import() is memoized) — this only earns its keep on a tap
