@@ -44,9 +44,7 @@ export function MobileChrome({ v }) {
 
   return (
     <>
-      <div className="nv-liquid nv-liquid-flush" style={css("position:fixed;top:0;left:0;right:0;z-index:70;padding:calc(6px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left))")}>
-        {/* the bar's own content must paint ABOVE its glass — see index.css */}
-        <div className="nv-liquid-content" style={css("display:flex;align-items:center;gap:10px")}>
+      <div className="nv-liquid nv-liquid-flush" style={css("position:fixed;top:0;left:0;right:0;z-index:70;display:flex;align-items:center;gap:10px;padding:calc(6px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left))")}>
         <span onClick={v.goHome} style={css(`cursor:pointer;font:700 17px ${R};letter-spacing:.16em;color:var(--nv-ink)`)}>
           NOVA<span style={css("background:linear-gradient(90deg,var(--nv-cy),var(--nv-vi));-webkit-background-clip:text;background-clip:text;color:transparent")}>·OS</span>
         </span>
@@ -80,7 +78,6 @@ export function MobileChrome({ v }) {
         <span onClick={v.goSettings} aria-label="Settings" style={css(apple
           ? `cursor:pointer;font-size:15px;line-height:1;padding:8px 11px;border:1px solid transparent;border-radius:999px;color:${v.isSettings ? 'var(--nv-acc)' : 'var(--nv-ink60)'};background:${v.isSettings ? 'var(--nv-acc-bg)' : 'color-mix(in srgb, var(--nv-ink) 8%, transparent)'}`
           : `cursor:pointer;font-size:14px;line-height:1;padding:7px 10px;border:1px solid ${v.isSettings ? 'var(--nv-acc-border)' : 'var(--nv-edge)'};border-radius:8px;color:${v.isSettings ? 'var(--nv-acc)' : 'var(--nv-ink60)'}`)}>⚙</span>
-        </div>
       </div>
 
       {/* the More sheet — every screen, grid of silhouettes, one tap */}

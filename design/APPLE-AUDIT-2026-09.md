@@ -137,7 +137,27 @@ piece of work (spacing in `rem`, layouts that reflow) and it only matters if he
 ever wants larger text. **Right now the honest answer is that Nova would break
 rather than adapt.**
 
-### 5. ~~Hard hairlines under floating chrome~~ — FIXED for the top bar
+### 5. Hard hairlines under floating chrome — ATTEMPTED TWICE, REVERTED
+**Both attempts broke the bar on his phone, and neither reproduced on macOS
+Safari 26.5.** Recorded in full because the next person will want to try it.
+
+- **Attempt one:** the bar's glass on a `::before` at `z-index: -1`, relying on
+  painting order to keep the bar's text above it. Correct by spec; correct on
+  macOS. On his iPhone **the bar's own text rendered blurred**.
+- **Attempt two:** the same layer at `z-index: 0` with the content lifted by a
+  wrapper at `z-index: 1`. The blur went, and **the bar stopped taking taps
+  entirely** — a composited `backdrop-filter` layer swallowing touches despite
+  `pointer-events: none`. macOS hit-testing said every button was reachable.
+
+The common factor is a **separate backdrop-filter layer over the bar**, so
+there is no longer one: the glass is back on the element and the edge is the
+hairline. `chromeGeometry.test.js` asserts that layer's ABSENCE.
+
+**A third attempt needs his phone in the loop**, not this Mac — the thing that
+keeps breaking is exactly the thing macOS renders correctly. A fade is worth
+having; a top bar that takes taps is worth more.
+
+### 5b. ~~(original finding)~~
 The bar now wears iOS 26's **scroll edge effect**: its glass extends 20px past
 its content and a mask ramps it to nothing, so content softens as it passes
 underneath and is sharp the moment it clears. No line anywhere. Verified in

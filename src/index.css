@@ -624,8 +624,6 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .nv-liquid { background: var(--nv-liquid-solid); }
   .nv-liquid::after { opacity: .5; }
-  /* a fade with no blur behind it is just a translucent strip — square it off */
-  .nv-liquid-flush::before { background: var(--nv-liquid-solid); bottom: 0; -webkit-mask-image: none; mask-image: none; }
 }
 /* 2. He asked the OS for less transparency. Honour it exactly: no blur, a
       solid surface, and the specular dropped to a plain edge. */
@@ -636,9 +634,6 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
     box-shadow: var(--nv-liquid-drop);
   }
   .nv-liquid::after { background: none; border: 1px solid var(--nv-edge); padding: 0; -webkit-mask: none; mask: none; }
-  .nv-liquid-flush { background: var(--nv-liquid-solid); }
-  .nv-liquid-flush::before { display: none; }
-  .nv-liquid-flush::after { display: block; background: none; border: 0; border-bottom: 1px solid var(--nv-edge); padding: 0; -webkit-mask: none; mask: none; }
 }
 /* 3. Increased contrast: keep the material, make the edge a real line. */
 @media (prefers-contrast: more) {
@@ -652,85 +647,36 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   --nv-liquid-glow: inset 0 0 0 0 rgba(0,0,0,0);
   --nv-liquid-tint: color-mix(in srgb, var(--nv-void) 62%, transparent);
 }
-/* FLUSH — glass that runs edge to edge (the top bar), with iOS 26's SCROLL
-   EDGE EFFECT rather than a hairline.
-
-   The first cut of this gave the bar a 1px bottom border, reproducing the
-   pattern the apple-design skill names explicitly: "scroll edge effects, not
-   hard dividers — instead of a 1px border under a sticky header, fade a small
-   blur/gradient mask where content meets floating chrome". A line under a
-   floating bar is a seam; iOS does not draw one anywhere.
-
-   THE SHAPE, and why it is not simply a blurred strip below the bar. A
-   separate strip softens content that is merely BELOW the chrome, which at
-   rest is sitting under nothing — the screen's own subtitle went out of focus
-   for no reason (tried, looked at, rejected). What actually wants to fade is
-   the BAR'S OWN glass: it extends past its content and its mask ramps it to
-   nothing, so content passing underneath softens at the boundary and is sharp
-   the moment it clears. Verified both states in Safari 26.5 at 375px.
-
-   It costs no extra backdrop pass — it is the same one, moved to ::before so
-   the mask can reach it without also fading the bar's text. */
-.nv-liquid-flush {
-  --nv-liquid-radius: 0;
-  background: none;
-  -webkit-backdrop-filter: none; backdrop-filter: none;
-  box-shadow: none;
-}
-.nv-liquid-flush::after { display: none; }
-/* THE CONTENT RIDES ABOVE THE GLASS, EXPLICITLY (16 Sep 2026).
-   The first cut put the glass on ::before at `z-index: -1` and relied on the
-   painting order to keep the bar's own text above it. By the spec that is
-   correct — a negative-index positioned descendant paints before static inline
-   content — and on macOS Safari 26.5 it rendered correctly, which is how it
-   passed. On his iPhone it did NOT: he reported "parts of the top panel are
-   partially blurred as well like the buttons and nova os icon", and the
-   screenshot shows NOVA·OS, LIVE, Ask and the gear all softened while the page
-   content below them is crisp.
-   A backdrop-filter on a negative-index pseudo-element is the exact construct
-   to suspect there, so the app no longer contains one. The glass sits at the
-   normal level and the content is lifted above it by a wrapper with a real
-   z-index — no negative indices, no reliance on the subtle half of the
-   painting-order rules. */
-.nv-liquid-flush > .nv-liquid-content { position: relative; z-index: 1; }
-.nv-liquid-flush::before {
-  content: ''; position: absolute; left: 0; right: 0; top: 0;
-  bottom: calc(-1 * var(--nv-edge-fade, 20px));
-  pointer-events: none; z-index: 0;
-  background: var(--nv-liquid-sheen), var(--nv-liquid-tint);
-  -webkit-backdrop-filter: blur(var(--nv-liquid-blur)) saturate(var(--nv-liquid-sat));
-  backdrop-filter: blur(var(--nv-liquid-blur)) saturate(var(--nv-liquid-sat));
-  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--nv-edge-fade, 20px)), transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--nv-edge-fade, 20px)), transparent 100%);
-}
-
-/* ================================================================
-   REDUCE TRANSPARENCY, EVERYWHERE (16 Sep 2026)
-
-   The liquid-glass block above honours `prefers-reduced-transparency`
-   for the three surfaces wearing `.nv-liquid`. It was the app's ONLY
-   handling of it: 48 backdrop-filter declarations, one guard. Every
-   modal, sheet, overlay, toast and context menu ignored the setting.
-
-   Dropping the blur alone would make it WORSE, not better — a
-   semi-transparent surface with nothing frosting what is behind it is
-   less legible, not more. So the surface tokens go solid in the same
-   breath, which is the whole point of them being tokens.
-
-   `!important` on a universal selector is a heavy instrument and it is
-   the right one exactly once: these blurs are written as INLINE styles
-   by ~45 components, nothing else can reach them, and this only ever
-   matches when he has explicitly asked the OS for less transparency.
-   ================================================================ */
-@media (prefers-reduced-transparency: reduce) {
-  :root {
-    --nv-glass: var(--nv-bg1);
-    --nv-glass2: var(--nv-bg2);
-  }
-  * {
-    -webkit-backdrop-filter: none !important;
-    backdrop-filter: none !important;
-  }
+/* FLUSH — glass that runs edge to edge (the top bar).
+   
+   REVERTED 17 Sep 2026, after two attempts at iOS 26's scroll-edge fade broke
+   the bar on his phone in two different ways and neither could be reproduced
+   on macOS Safari 26.5.
+   
+   Attempt one put the glass on a ::before at `z-index: -1` so the bar's text
+   would paint above it. By the spec that is correct, and macOS rendered it
+   correctly. On his iPhone the bar's own text came out BLURRED.
+   
+   Attempt two moved that layer to `z-index: 0` and lifted the content with a
+   wrapper at `z-index: 1`. The blur went away and the bar stopped taking taps
+   entirely — a composited backdrop-filter layer swallowing touches despite
+   `pointer-events: none`. Hit-testing on macOS said the buttons were
+   reachable; his phone said otherwise.
+   
+   The common factor in both is a SEPARATE backdrop-filter layer over the bar,
+   so there is no longer one. The glass is back on the element itself, which is
+   how it worked for months, and the edge is the hairline again. A fade is
+   worth having; a top bar that takes taps is worth more, and I cannot test the
+   thing that keeps breaking. If it is tried a third time it needs his phone in
+   the loop, not this Mac.
+   
+   The rim collapses to the one separator the shape actually has — a conic
+   frame around a bar whose left/right/top edges are off-screen draws three
+   hairlines nobody can see and one that reads as a seam. */
+.nv-liquid-flush { --nv-liquid-radius: 0; }
+.nv-liquid-flush::after {
+  background: none; padding: 0; border-bottom: 1px solid var(--nv-edge);
+  -webkit-mask: none; mask: none;
 }
 
 /* ================================================================

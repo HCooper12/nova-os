@@ -33,13 +33,21 @@ test('NO backdrop-filter sits on a negative z-index layer, anywhere', () => {
   assert.deepEqual(offenders, [], 'a blurred layer below the content is the bug he photographed');
 });
 
-test('the bar lifts its content with a real z-index, not painting order', () => {
-  assert.match(strip(CSS), /\.nv-liquid-flush > \.nv-liquid-content \{ position: relative; z-index: 1; \}/);
-  assert.match(CHROME, /className="nv-liquid-content"/, 'the wrapper has to exist in the markup');
-  // and the bar itself must no longer be the flex container, or the wrapper
-  // becomes a flex item and the layout collapses to one column
+test('THE BAR CARRIES ITS OWN GLASS — no separate backdrop layer over it', () => {
+  // Two attempts at a scroll-edge fade each broke the bar on his phone in a
+  // different way and neither reproduced on macOS: a ::before at z-index -1
+  // blurred the bar's own text, and the same layer at z-index 0 stopped the
+  // bar taking taps at all. The common factor is a SEPARATE backdrop-filter
+  // layer over the bar, so there must not be one.
+  const css = strip(CSS);
+  assert.ok(!/\.nv-liquid-flush::before/.test(css), 'a second backdrop layer over the bar is what kept breaking it');
+  assert.ok(!/nv-liquid-content/.test(css), 'and the wrapper that existed only to sit above it');
+  assert.ok(!CHROME.includes('nv-liquid-content'), 'markup too');
+  // the bar is the flex container again, exactly as it was before the attempts
   const bar = CHROME.slice(CHROME.indexOf('nv-liquid nv-liquid-flush'));
-  assert.ok(!bar.slice(0, 260).includes('display:flex'), 'the flex moved to the wrapper');
+  assert.match(bar.slice(0, 300), /display:flex/);
+  // and the edge is the honest hairline rather than nothing at all
+  assert.match(css, /\.nv-liquid-flush::after \{[^}]*border-bottom: 1px solid var\(--nv-edge\)/);
 });
 
 test('the dock cannot be pushed up by an inflated safe-area inset', () => {

@@ -120,40 +120,13 @@ test('the surfaces he actually looks at wear it', () => {
   assert.ok(!/backdrop-filter:blur\(26px\)/.test(chrome), 'the old hand-rolled blur is gone, not sitting beside the new one');
 });
 
-test('FLUSH glass fades at its edge — iOS draws no line under floating chrome', () => {
-  // Anchor on the block's own comment, not on the first `.nv-liquid-flush {`:
-  // the reduced-transparency guard declares that selector EARLIER in the file
-  // and deliberately restores the border there, so a naive slice reads the
-  // guard as a violation of the rule the guard exists to suspend.
-  const from = CSS.indexOf('/* FLUSH —');
-  const nextSection = CSS.indexOf('/* ====', from);
-  const flush = CSS.slice(from, nextSection > 0 ? nextSection : CSS.length);
-  assert.ok(from > 0 && flush.includes('.nv-liquid-flush::before'), 'the flush block moved; this test is reading the wrong slice');
-  // the hairline this replaced was the exact pattern the skill names
-  assert.ok(!/\.nv-liquid-flush::after\s*\{[^}]*border-bottom:\s*1px/.test(flush),
-    'a 1px border under a floating bar is a seam; iOS fades instead');
-  assert.match(flush, /\.nv-liquid-flush::after\s*\{\s*display:\s*none/);
-  // the glass moved to ::before so the mask can reach it without fading the text
-  const before = flush.slice(flush.indexOf('.nv-liquid-flush::before'));
-  assert.match(before, /backdrop-filter:\s*blur\(var\(--nv-liquid-blur\)\)/, 'still ONE pass, just moved');
-  assert.match(before, /bottom:\s*calc\(-1 \* var\(--nv-edge-fade/, 'it has to extend PAST the bar to fade past it');
-  assert.match(before, /mask-image:\s*linear-gradient\(to bottom/);
-  assert.match(before, /-webkit-mask-image/, 'Safari still needs the prefix');
-  // and the element itself must have given its glass up, or there are two
-  const el = flush.slice(0, flush.indexOf('.nv-liquid-flush::after'));
-  assert.match(el, /backdrop-filter:\s*none/, 'the bar keeps no pass of its own');
-});
-
-test('the guards follow the glass when it moves', () => {
-  // a fade with no blur behind it is a translucent strip, which is worse than
-  // the hairline it replaced — both guards have to square it off
-  const nosupport = CSS.slice(CSS.indexOf('@supports not (('));
-  assert.match(nosupport.slice(0, nosupport.indexOf('/* 2.')), /\.nv-liquid-flush::before[^}]*mask-image:\s*none/);
-  const reduced = CSS.slice(CSS.indexOf('@media (prefers-reduced-transparency: reduce)'));
-  const body = reduced.slice(0, reduced.indexOf('/* 3.'));
-  assert.match(body, /\.nv-liquid-flush::before\s*\{\s*display:\s*none/, 'no fade when he asked for no transparency');
-  assert.match(body, /\.nv-liquid-flush::after\s*\{[^}]*border-bottom/, 'and the honest separator comes back');
-});
+// The two tests that were here asserted the scroll-edge fade on the top bar.
+// It was attempted twice (a ::before at z-index -1, then at 0 with a content
+// wrapper) and broke the bar on his phone both times — blurred text, then no
+// taps at all — with neither reproducible on macOS. The feature is reverted,
+// so the assertions go with it rather than sitting here testing an intention.
+// chromeGeometry.test.js now asserts the ABSENCE of that layer instead, which
+// is the thing actually worth holding.
 
 test('MATERIAL WEIGHT: a big surface reads thicker than a small one', () => {
   // "Bigger surfaces should read as thicker: stronger blur + a deeper shadow
