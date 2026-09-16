@@ -652,6 +652,7 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
    six 9px labels survive over arbitrary content, which is the constraint that
    stops this becoming `clear`. */
 .nv-liquid-dock {
+  view-transition-name: nova-dock;
   --nv-liquid-blur: 26px;
   --nv-liquid-sat: 210%;
   --nv-liquid-tint: color-mix(in srgb, var(--nv-void) 28%, transparent);
@@ -727,41 +728,32 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
    hairlines nobody can see and one that reads as a seam. */
 .nv-liquid-flush {
   --nv-liquid-radius: 0;
-  /* NO backdrop-filter, on purpose, and this is the third report of it.
+  /* THE BAR IS NOT A COMPOSITED SURFACE. Fourth pass at this.
   
-     On his iPhone the bar renders its OWN text through its blur — NOVA·OS,
-     LIVE, Ask and the gear all smeared while the line directly beneath them is
-     razor sharp. It has never reproduced on macOS Safari 26.5, at any of the
-     three attempts, so I cannot see it here and cannot verify a cure here.
+     Removing `backdrop-filter` did NOT stop his phone rendering the bar's own
+     text soft — measured at native resolution in his 09:24 recording, NOVA·OS,
+     LIVE, Ask and the gear all smeared while "VAULT · FUEL" one line below is
+     razor sharp. So the filter was never the cause, and everything else
+     `.nv-liquid` contributes is now neutralised here too: `isolation: isolate`
+     (a stacking context, and the one compositing hint left), the box-shadow,
+     and the ::after pseudo-element that drew the hairline.
   
-     The evidence in his own screenshot: the DOCK carries the same
-     backdrop-filter and its labels are perfectly sharp. The difference between
-     them is that the dock has `transform: translateX(-50%)` and the bar has no
-     transform — which is the signature of the iOS bug where a
-     backdrop-filtered element composites its descendants THROUGH the filter
-     unless something promotes them out.
-  
-     The transform is not available here: the bar contains the job-tray popup
-     at `position: fixed`, and a transform on the bar would make that popup
-     position against the BAR instead of the viewport. And two previous cures
-     (a ::before layer at z-index -1, then at 0 with a content wrapper) each
-     traded the blur for a worse fault — the second one stopped the bar taking
-     taps at all.
-  
-     So the bar stops being glass. It is a near-opaque surface with a hairline,
-     which is what it was before any of this and which he never once complained
-     about. Sharp text on the surface he reads every morning beats a material
-     effect I cannot test. The dock, the sheets and the cards keep real glass —
-     they are the surfaces where it works and where he can see it. */
+     What remains is a plain fixed div with a background and a real border —
+     which is exactly what this bar was before any of this started, and the
+     only configuration he has never complained about. If the blur survives
+     THIS, it is not coming from anything I have written, and that is worth
+     knowing too. */
+  isolation: auto;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   background: var(--nv-glass2);
   box-shadow: none;
+  border-bottom: 1px solid var(--nv-edge);
+  /* and it does not cross-fade with the page — see the transition block */
+  view-transition-name: nova-topbar;
 }
-.nv-liquid-flush::after {
-  background: none; padding: 0; border-bottom: 1px solid var(--nv-edge);
-  -webkit-mask: none; mask: none;
-}
+.nv-liquid-flush::after { display: none; }
+
 
 /* ================================================================
    CONCENTRIC CORNERS (16 Sep 2026) — Apple's ConcentricRectangle,
@@ -853,3 +845,20 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
 }
+
+/* THE CHROME STAYS PUT WHILE THE PAGE CHANGES (17 Sep 2026).
+
+   Turning screen transitions on made the bar visibly wash out and come back
+   on every section change — his words: "the glass becomes more transparent
+   and then becomes more translucent again … it made it harder to read the
+   actual buttons". That is not the material: a view transition cross-fades
+   the WHOLE snapshot, so at the midpoint two half-opaque copies of the bar
+   are stacked over the page and you can see straight through both.
+
+   Naming the bar and the dock takes them out of the root snapshot and gives
+   each its own group, and setting their animations to none means they simply
+   persist — which is what native chrome does. The page changes underneath
+   them. */
+::view-transition-old(nova-topbar), ::view-transition-old(nova-dock) { animation: none; opacity: 0; }
+::view-transition-new(nova-topbar), ::view-transition-new(nova-dock) { animation: none; opacity: 1; }
+::view-transition-group(nova-topbar), ::view-transition-group(nova-dock) { animation: none; }

@@ -60,8 +60,14 @@ test('the click still bubbles — swallowing it is what kills the button', () =>
   assert.ok(!input.slice(0, 400).includes('preventDefault'), 'the tap has to reach iOS for the Taptic Engine to fire');
 });
 
-test('the scrolling root cannot resize under a scroll', () => {
+test('the scrolling root cannot resize under a scroll — and cannot be short', () => {
   const app = readFileSync(root('src/App.jsx'), 'utf8');
-  assert.match(app, /min-height:100svh/, 'dvh tracks the URL bar and jumps mid-scroll; svh is stable');
-  assert.ok(!/min-height:100dvh/.test(app));
+  // Both halves matter and svh only gets one of them. It is stable, which is
+  // why it replaced dvh after he reported the page jumping — but it is the
+  // SMALLEST viewport, and on his phone it measured 812 against an 874px
+  // screen, leaving 62px of bare ground under the content. lvh is stable AND
+  // never shorter than the screen.
+  assert.match(app, /min-height:100lvh/, 'the root must never be shorter than the viewport');
+  assert.ok(!/min-height:100dvh/.test(app), 'dvh resizes mid-scroll and the page jumps');
+  assert.ok(!/min-height:100svh/.test(app), 'svh leaves a dead band at the foot');
 });

@@ -67,8 +67,11 @@ test('the app shell measures the viewport that is actually visible', () => {
   // that grows: it resizes mid-scroll and the page visibly jumps. He reported
   // exactly that from the gym on 16 Sep. svh is the smallest viewport, so it
   // is stable and can never overflow.
-  assert.match(app, /min-height:100svh/, 'the growing root must not resize under a scroll');
-  assert.match(app, /height:100dvh/, 'the fixed desktop shell still tracks the visible area');
+  // lvh, not svh and not dvh — the full reasoning is in chromeGeometry.test.js.
+  // svh measured 812 against his 874px screen and left a dead band; dvh tracks
+  // the browser chrome and made the page jump under his scroll.
+  assert.match(app, /min-height:100lvh/, 'the root must never be shorter than the viewport');
+  assert.match(app, /height:100dvh/, 'the FIXED desktop shell does want the visible area');
 });
 
 test('REDUCE TRANSPARENCY is honoured by the whole app, not only the new glass', () => {

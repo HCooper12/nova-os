@@ -33,21 +33,16 @@ test('NO backdrop-filter sits on a negative z-index layer, anywhere', () => {
   assert.deepEqual(offenders, [], 'a blurred layer below the content is the bug he photographed');
 });
 
-test('THE BAR CARRIES ITS OWN GLASS — no separate backdrop layer over it', () => {
+test('no separate backdrop layer over the bar, ever', () => {
   // Two attempts at a scroll-edge fade each broke the bar on his phone in a
-  // different way and neither reproduced on macOS: a ::before at z-index -1
-  // blurred the bar's own text, and the same layer at z-index 0 stopped the
-  // bar taking taps at all. The common factor is a SEPARATE backdrop-filter
-  // layer over the bar, so there must not be one.
+  // different way — a ::before at z-index -1 blurred its text, the same layer
+  // at z-index 0 stopped it taking taps — and neither reproduced on macOS.
   const css = strip(CSS);
   assert.ok(!/\.nv-liquid-flush::before/.test(css), 'a second backdrop layer over the bar is what kept breaking it');
   assert.ok(!/nv-liquid-content/.test(css), 'and the wrapper that existed only to sit above it');
   assert.ok(!CHROME.includes('nv-liquid-content'), 'markup too');
-  // the bar is the flex container again, exactly as it was before the attempts
   const bar = CHROME.slice(CHROME.indexOf('nv-liquid nv-liquid-flush'));
-  assert.match(bar.slice(0, 300), /display:flex/);
-  // and the edge is the honest hairline rather than nothing at all
-  assert.match(css, /\.nv-liquid-flush::after \{[^}]*border-bottom: 1px solid var\(--nv-edge\)/);
+  assert.match(bar.slice(0, 300), /display:flex/, 'the bar is the flex container, as it always was');
 });
 
 test('the dock cannot be pushed up by an inflated safe-area inset', () => {
@@ -65,4 +60,43 @@ test('the Nova core is centred in the dock, not hung off its top', () => {
   assert.ok(!/marginTop: '-23px'/.test(CHROME), 'the negative margin is what made it asymmetric');
   const core = CHROME.slice(CHROME.indexOf("aria-label=\"Talk to Nova\""));
   assert.match(core.slice(0, 700), /width: '54px', height: '54px'/, 'the core keeps its size; only its offset changed');
+});
+
+test('THE BAR CARRIES NO COMPOSITING HINT AT ALL', () => {
+  // Removing backdrop-filter did not stop his phone rendering the bar's own
+  // text soft, so everything else `.nv-liquid` contributes is neutralised on
+  // the bar too. What is left is a plain fixed div with a background and a
+  // real border — the only shape he has never complained about.
+  const css = strip(CSS);
+  const at = css.indexOf('.nv-liquid-flush {');
+  const block = css.slice(at, css.indexOf('}', at));
+  assert.match(block, /isolation: auto/, 'isolate creates a stacking context — the last compositing hint');
+  assert.match(block, /backdrop-filter: none/);
+  assert.match(block, /box-shadow: none/);
+  assert.match(block, /border-bottom: 1px solid var\(--nv-edge\)/, 'a real border, not a pseudo-element');
+  assert.match(css, /\.nv-liquid-flush::after \{ display: none; \}/, 'and the pseudo is off');
+});
+
+test('THE CHROME DOES NOT CROSS-FADE WITH THE PAGE', () => {
+  // A view transition cross-fades the whole snapshot, so mid-transition two
+  // half-opaque copies of the bar stack over the page and you see through
+  // both. He saw exactly that: "the glass becomes more transparent and then
+  // becomes more translucent again".
+  const css = strip(CSS);
+  assert.match(css, /\.nv-liquid-flush \{[^}]*view-transition-name: nova-topbar/s, 'the bar needs its own group');
+  assert.match(css, /\.nv-liquid-dock \{\s*view-transition-name: nova-dock/, 'and so does the dock');
+  assert.match(css, /::view-transition-old\(nova-topbar\), ::view-transition-old\(nova-dock\) \{ animation: none; opacity: 0/);
+  assert.match(css, /::view-transition-new\(nova-topbar\), ::view-transition-new\(nova-dock\) \{ animation: none; opacity: 1/);
+});
+
+test('the app root fills the screen it is actually on', () => {
+  const app = readFileSync(root('src/App.jsx'), 'utf8');
+  // svh is the SMALLEST viewport: measured on his phone it resolved to 812
+  // against a 874px screen, leaving 62px of bare ground under the content —
+  // the "black bar" he photographed twice. dvh tracks the chrome and made the
+  // page jump under his scroll. lvh is the largest AND stable: never shorter
+  // than the screen, never resizes.
+  assert.match(app, /min-height:100lvh/, 'the root must never be shorter than the viewport');
+  assert.ok(!/min-height:100svh/.test(app), 'svh leaves a dead band at the foot');
+  assert.ok(!/min-height:100dvh/.test(app), 'dvh resizes mid-scroll and the page jumps');
 });
