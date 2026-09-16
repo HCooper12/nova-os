@@ -114,7 +114,22 @@ piece of work (spacing in `rem`, layouts that reflow) and it only matters if he
 ever wants larger text. **Right now the honest answer is that Nova would break
 rather than adapt.**
 
-### 5. Hard hairlines under floating chrome, where a fade belongs
+### 5. ~~Hard hairlines under floating chrome~~ — FIXED for the top bar
+The bar now wears iOS 26's **scroll edge effect**: its glass extends 20px past
+its content and a mask ramps it to nothing, so content softens as it passes
+underneath and is sharp the moment it clears. No line anywhere. Verified in
+Safari at both states — at rest and mid-scroll.
+
+The obvious implementation is wrong and was tried first: a separate blurred
+strip *below* the bar softens content that is sitting under nothing, and the
+screen's own subtitle went out of focus for no reason. What wants to fade is
+the bar's own glass, moved to `::before` so the mask can reach it without
+fading the bar's text with it. **It costs no extra backdrop pass.**
+
+`RecipeOverlay`'s sticky header still has its hairline — a sticky header inside
+a scroller is a different shape to a fixed bar and wants its own look at.
+
+### 5b. ~~(original finding)~~
 The skill is specific: *"Scroll edge effects, not hard dividers. Instead of a
 1px border under a sticky header, fade a small blur/gradient mask where content
 meets floating chrome."*

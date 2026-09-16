@@ -555,6 +555,8 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .nv-liquid { background: var(--nv-liquid-solid); }
   .nv-liquid::after { opacity: .5; }
+  /* a fade with no blur behind it is just a translucent strip — square it off */
+  .nv-liquid-flush::before { background: var(--nv-liquid-solid); bottom: 0; -webkit-mask-image: none; mask-image: none; }
 }
 /* 2. He asked the OS for less transparency. Honour it exactly: no blur, a
       solid surface, and the specular dropped to a plain edge. */
@@ -565,6 +567,9 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
     box-shadow: var(--nv-liquid-drop);
   }
   .nv-liquid::after { background: none; border: 1px solid var(--nv-edge); padding: 0; -webkit-mask: none; mask: none; }
+  .nv-liquid-flush { background: var(--nv-liquid-solid); }
+  .nv-liquid-flush::before { display: none; }
+  .nv-liquid-flush::after { display: block; background: none; border: 0; border-bottom: 1px solid var(--nv-edge); padding: 0; -webkit-mask: none; mask: none; }
 }
 /* 3. Increased contrast: keep the material, make the edge a real line. */
 @media (prefers-contrast: more) {
@@ -578,14 +583,41 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   --nv-liquid-glow: inset 0 0 0 0 rgba(0,0,0,0);
   --nv-liquid-tint: color-mix(in srgb, var(--nv-void) 62%, transparent);
 }
-/* FLUSH — glass that runs edge to edge (the top bar). A conic frame around a
-   bar whose left/right/top edges are off-screen draws three hairlines nobody
-   can see and one that reads as a seam, so the rim collapses to the single
-   separator the shape actually has. */
-.nv-liquid-flush { --nv-liquid-radius: 0; }
-.nv-liquid-flush::after {
-  background: none; padding: 0; border-bottom: 1px solid var(--nv-edge);
-  -webkit-mask: none; mask: none;
+/* FLUSH — glass that runs edge to edge (the top bar), with iOS 26's SCROLL
+   EDGE EFFECT rather than a hairline.
+
+   The first cut of this gave the bar a 1px bottom border, reproducing the
+   pattern the apple-design skill names explicitly: "scroll edge effects, not
+   hard dividers — instead of a 1px border under a sticky header, fade a small
+   blur/gradient mask where content meets floating chrome". A line under a
+   floating bar is a seam; iOS does not draw one anywhere.
+
+   THE SHAPE, and why it is not simply a blurred strip below the bar. A
+   separate strip softens content that is merely BELOW the chrome, which at
+   rest is sitting under nothing — the screen's own subtitle went out of focus
+   for no reason (tried, looked at, rejected). What actually wants to fade is
+   the BAR'S OWN glass: it extends past its content and its mask ramps it to
+   nothing, so content passing underneath softens at the boundary and is sharp
+   the moment it clears. Verified both states in Safari 26.5 at 375px.
+
+   It costs no extra backdrop pass — it is the same one, moved to ::before so
+   the mask can reach it without also fading the bar's text. */
+.nv-liquid-flush {
+  --nv-liquid-radius: 0;
+  background: none;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  box-shadow: none;
+}
+.nv-liquid-flush::after { display: none; }
+.nv-liquid-flush::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0;
+  bottom: calc(-1 * var(--nv-edge-fade, 20px));
+  pointer-events: none; z-index: -1;
+  background: var(--nv-liquid-sheen), var(--nv-liquid-tint);
+  -webkit-backdrop-filter: blur(var(--nv-liquid-blur)) saturate(var(--nv-liquid-sat));
+  backdrop-filter: blur(var(--nv-liquid-blur)) saturate(var(--nv-liquid-sat));
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--nv-edge-fade, 20px)), transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--nv-edge-fade, 20px)), transparent 100%);
 }
 
 /* ================================================================
