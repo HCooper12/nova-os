@@ -367,6 +367,7 @@ export default class App extends Component {
     // the Leader — leadership development: state mirror + its conversation
     liveLeader: null, leaderChat: [], leaderInput: '', leaderBusy: false,
     leaderFace: 0, // which face of the Home Leader box he swiped to
+    situationAnswer: '', situationAnswerBusy: false, situationAnswerSaid: null,
     // the briefing reader: the loaded document, its playback, listen|read
     briefing: null, briefingLoading: false, briefingError: null, briefingPlay: null, briefingMode: 'listen',
     briefingMediaUrls: {}, // key → blob URL, fetched when the briefing opens so the glass never buffers
@@ -1880,6 +1881,27 @@ export default class App extends Component {
   // opening line, because that conversation ALREADY knows how to turn what he
   // says into struggles/working/resolved (the REFLECT directive). A second
   // bespoke answer path would be a second thing to keep in step with it.
+  // HIS ANSWER, TAKEN IN PLACE. His report, 16 Sep: there was no easy way to
+  // reply to what the Leader asked — the only route was opening a chat and
+  // steering it, when all he wanted was to say the one thing. Typed or spoken,
+  // it goes straight to the record.
+  submitSituationAnswer() {
+    const conn = getConnection();
+    const text = (this.state.situationAnswer || '').trim();
+    if (!conn || !text || this.state.situationAnswerBusy) return;
+    haptic('tick');
+    this.setState({ situationAnswerBusy: true, situationAnswerSaid: null });
+    api.leaderAnswer(conn, text).then((r) => {
+      const n = (r.added?.struggles?.length || 0) + (r.added?.working?.length || 0) + (r.added?.resolved?.length || 0);
+      if (n) haptic('commit');
+      this.setState({ situationAnswerBusy: false, situationAnswer: '', situationAnswerSaid: r.acknowledged || 'Noted.' });
+      // the card reads the record, so it has to re-read it
+      api.leader(conn).then((L) => this.setState({ liveLeader: L })).catch(() => {});
+    }).catch((e) => {
+      this.setState({ situationAnswerBusy: false });
+      this.toastFail('Could not record that: ' + e.message);
+    });
+  }
   answerSituation() {
     const sit = this.state.liveLeader?.situation;
     this.navigate('leader');

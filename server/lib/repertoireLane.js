@@ -340,13 +340,24 @@ export function cardField(s, n) {
 // name or a drill is dropped: the whole promise of the daily card is that
 // there is something to DO, so a nameless entry with no drill is not a
 // half-useful technique, it is a blank card waiting to happen.
+// A DRILL THAT REFUSES TO BE A DRILL IS NOT ONE. The research proposed "Voodoo
+// Death" as a scale marker with the drill "No drill. Read Cannon's case
+// descriptions…" — true, interesting, and useless as a daily card: it would
+// eventually surface on Home with nothing to do. His call, 16 Sep: "cut it
+// because it confuses me and I don't see the point."
+//
+// The normaliser already required a drill; it did not require the drill to BE
+// one. Context belongs in the report, which keeps it — only the curriculum is
+// for things he can go and do.
+const NOT_A_DRILL = /^\s*(?:no drill|none|n\/a|not applicable|nothing to (?:do|practi[sc]e)|do not (?:attempt|try)|not something to (?:attempt|try)|read about|just read)\b/i;
+
 export function normalizeProposal(parsed) {
   const seen = new Set();
   const techniques = [];
   for (const t of Array.isArray(parsed?.techniques) ? parsed.techniques : []) {
     const name = cardField(t?.name, 80);
     const drill = cardField(t?.drill, 220);
-    if (!name || !drill) continue;
+    if (!name || !drill || NOT_A_DRILL.test(drill)) continue;
     const id = slugFor(name);
     if (!id || seen.has(id)) continue;
     seen.add(id);

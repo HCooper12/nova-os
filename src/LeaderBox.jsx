@@ -2,6 +2,8 @@ import { useOptionPager } from './swipeAction.js';
 import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
 import { glowPanel } from './glowPanel.js';
+import { useDictation } from './useDictation.js';
+import { Chip } from './Controls.jsx';
 
 // THE LEADER BOX — one slot, two faces, his swipe.
 //
@@ -58,6 +60,8 @@ export function LeaderBox({ box, variant = 'apple', mob = false }) {
   // Hooks run unconditionally — useOptionPager itself returns an inert shape
   // when there is nothing to page between.
   const pager = useOptionPager({ onNext: box?.next || undefined, onPrev: box?.prev || undefined, enabled: !!(box && box.count > 1) });
+  const reply = box?.face?.reply || box?.reply;
+  const dict = useDictation(() => reply?.value || '', (t) => reply?.set(t), null);
   if (!box) return null;
 
   const face = box.face;
@@ -89,6 +93,44 @@ export function LeaderBox({ box, variant = 'apple', mob = false }) {
           <div style={{ marginTop: '10px', padding: '11px 13px', borderRadius: apple ? '11px' : '9px', background: `color-mix(in srgb, var(${accent}) 09%, transparent)`, border: `1px solid color-mix(in srgb, var(${accent}) 22%, transparent)` }}>
             <div style={{ font: apple ? `600 10px ${M}` : 'var(--nv-micro-m)', letterSpacing: '.1em', color: `var(${accent})` }}>NOVA NEEDS TO KNOW</div>
             <div style={{ marginTop: '5px', font: `500 13.5px/1.5 ${UI}`, color: 'var(--nv-ink)' }}>{face.question}</div>
+
+            {/* ANSWER IT HERE. His report, 16 Sep: there was no easy way to
+                reply — the only route was opening a chat and steering it, when
+                all he wanted was to say the one thing. Typed or spoken, and the
+                record updates itself. */}
+            {reply && (
+              <div style={{ marginTop: '10px' }}>
+                {reply.said ? (
+                  <div style={css('display:flex;align-items:baseline;gap:9px;flex-wrap:wrap')}>
+                    <span style={{ font: `450 12.5px/1.5 ${UI}`, color: 'var(--nv-good)', flex: 1, minWidth: 0 }}>{reply.said}</span>
+                    <Interactive as="span" onClick={reply.clearSaid} haptic="tick"
+                      base={{ cursor: 'pointer', font: `600 11.5px ${UI}`, color: 'var(--nv-ink60)' }}
+                      hoverStyle={{ color: 'var(--nv-ink)' }}>Say more</Interactive>
+                  </div>
+                ) : (
+                  <>
+                    <textarea
+                      value={reply.value}
+                      onChange={reply.set}
+                      placeholder="Tell Nova where it stands…"
+                      rows={2}
+                      style={css(`width:100%;box-sizing:border-box;resize:vertical;background:var(--nv-well);border:1px solid ${dict.on ? 'var(--nv-acc-border)' : 'color-mix(in srgb, var(--nv-ink) 12%, transparent)'};border-radius:9px;padding:9px 11px;color:var(--nv-ink);font:450 13px var(--nv-font-ui);line-height:1.5;outline:none`)}
+                    />
+                    <div style={css('margin-top:7px;display:flex;gap:8px;align-items:center;flex-wrap:wrap')}>
+                      {dict.supported && (
+                        <Chip tone="cyan" active={dict.on} onClick={dict.toggle}>
+                          {dict.on ? '◉ Listening — tap to stop' : '● Speak it'}
+                        </Chip>
+                      )}
+                      <Interactive as="span" onClick={reply.busy ? undefined : reply.send} haptic="commit"
+                        base={{ cursor: reply.busy || !reply.value.trim() ? 'default' : 'pointer', opacity: reply.value.trim() ? 1 : 0.45, font: apple ? `600 12.5px ${UI}` : 'var(--nv-micro-m)', letterSpacing: apple ? '.01em' : 'var(--nv-micro-track)', padding: apple ? '8px 15px' : '7px 12px', borderRadius: apple ? '999px' : '7px', background: apple ? `var(${accent})` : 'transparent', color: apple ? 'var(--nv-on-acc)' : `var(${accent})`, border: apple ? '1px solid transparent' : `1px solid color-mix(in srgb, var(${accent}) 45%, transparent)` }}
+                        hoverStyle={apple ? { filter: 'brightness(1.08)' } : { background: `color-mix(in srgb, var(${accent}) 12%, transparent)` }}
+                      >{reply.busy ? 'Recording…' : 'Tell Nova'}</Interactive>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -97,12 +139,8 @@ export function LeaderBox({ box, variant = 'apple', mob = false }) {
 
   const actions = (
     <div style={css('margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap')}>
-      {face.question && (
-        <Interactive as="span" onClick={box.answer}
-          base={{ cursor: 'pointer', font: apple ? `600 13px ${UI}` : 'var(--nv-micro-m)', letterSpacing: apple ? '.01em' : 'var(--nv-micro-track)', padding: apple ? '9px 18px' : '8px 13px', borderRadius: apple ? '999px' : '7px', background: apple ? `var(${accent})` : 'transparent', color: apple ? 'var(--nv-on-acc)' : `var(${accent})`, border: apple ? '1px solid transparent' : `1px solid color-mix(in srgb, var(${accent}) 45%, transparent)` }}
-          hoverStyle={apple ? { filter: 'brightness(1.08)' } : { background: `color-mix(in srgb, var(${accent}) 12%, transparent)` }}
-        >{apple ? 'Tell Nova' : 'TELL NOVA'}</Interactive>
-      )}
+      {/* the answer is taken ON the card now — this row is only the door to
+          the fuller conversation, for when one sentence is not enough */}
       <Interactive as="span" onClick={box.openLeader}
         base={{ cursor: 'pointer', font: apple ? `600 13px ${UI}` : 'var(--nv-micro-m)', letterSpacing: apple ? '.01em' : 'var(--nv-micro-track)', padding: apple ? '9px 18px' : '8px 13px', borderRadius: apple ? '999px' : '7px', background: apple ? 'rgba(255,255,255,.07)' : 'transparent', color: 'var(--nv-ink60)', border: '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)' }}
         hoverStyle={{ color: 'var(--nv-ink)' }}

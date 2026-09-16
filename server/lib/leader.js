@@ -8,7 +8,8 @@ import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import os from 'node:os';
 import { NOVA_LENS } from './lens.js';
-import { modelFor, laneSkipped } from './modelPrefs.js';
+import { boundaryArgs } from './spawnBoundary.js';
+import { modelFor, laneSkipped, laneEnabled, laneOffError } from './modelPrefs.js';
 import { settleWatchdog } from './settle.js';
 
 // THE LEADER — Hayden's leadership development agent. Its whole job is to
@@ -839,6 +840,85 @@ export function situationQuestion(state, situation, now = new Date()) {
   const newest = situation?.open?.[0]?.text;
   if (!newest) return null;
   return `Where does this stand now — "${String(newest).slice(0, 140)}"?`;
+}
+
+// ANSWERING IT, WHEREVER HE IS.
+//
+// His report, 16 Sep: "there's no way for me to easily reply to respond to the
+// questions leader wants to know. Make it capable for me to type or speak
+// directly to nova to give it my answers and context."
+//
+// He was right. The situation card asked a question and the only way to answer
+// was to open the Leader screen and start a chat — which is a conversation he
+// has to steer, when all he wanted was to say the one thing and be done. So the
+// answer is taken where the question was asked, typed or spoken, and code turns
+// it into the same struggles/working/resolved update the chat's REFLECT
+// directive already produces.
+//
+// SMALL AND FAST on purpose: he is standing there having just said a sentence.
+// One cheap pass, no tools, no vault reads — everything it needs is in the
+// prompt.
+export function buildAnswerPrompt({ question, answer, situation }) {
+  const open = (situation?.open || []).map((s) => `- "${s.text}" (${s.days}d ago)`).join('\n');
+  return `${NOVA_LENS}
+
+You are the LEADER's record-keeper. Hayden has just answered a question about a
+situation at work. Your ONLY job is to turn what he said into an update to the
+record. You are not coaching him and not replying to him.
+
+WHAT WAS OPEN (his words, as recorded):
+${open || '(nothing recorded)'}
+
+WHAT NOVA ASKED: ${question || '(no question on file — take his words as an update)'}
+
+WHAT HE SAID: """${String(answer || '').slice(0, 2000)}"""
+
+Rules:
+- "resolved" is for a thing on the OPEN list that his answer settles. Quote
+  enough of the original line to identify it. Only when it is genuinely done —
+  "I raised it" does not resolve "I don't feel safe raising it" unless it went well.
+- "struggles" is for a NEW difficulty his answer reveals. His words, tightened
+  to one sentence, third person ("He …").
+- "working" is for something that went RIGHT — a win, a thing that landed.
+- Take nothing that is not in what he said. An empty list is the right answer
+  when he only reported a fact.
+- "acknowledged" is ONE short sentence back to him, plain and specific about
+  what you recorded. Not advice, not a question, not encouragement.
+
+Output ONLY this JSON, no code fences:
+{"struggles":[],"working":[],"resolved":[],"acknowledged":"..."}`;
+}
+
+export async function answerSituation(vaultPath, { text, now = new Date() } = {}) {
+  const answer = String(text || '').trim();
+  if (!answer) throw new Error('nothing to record');
+  if (!laneEnabled('leader-answer')) throw laneOffError('leader-answer');
+  const state = await readLeaderState();
+  const situation = situationOf(state, now);
+  const question = situationQuestion(state, situation, now);
+
+  const parsed = await runClaude([
+    '-p', buildAnswerPrompt({ question, answer, situation }),
+    '--permission-mode', 'bypassPermissions',
+    ...boundaryArgs(''), // it reasons over what it was handed — nothing else
+    '--output-format', 'json',
+    '--model', modelFor('leader-answer'),
+    '--max-budget-usd', '0.2',
+    '--session-id', randomUUID(),
+  ], vaultPath);
+
+  const list = (v) => (Array.isArray(v) ? v.map((x) => String(x || '').trim()).filter(Boolean).slice(0, 6) : []);
+  const update = { struggles: list(parsed.struggles), working: list(parsed.working), resolved: list(parsed.resolved) };
+  const changed = update.struggles.length + update.working.length + update.resolved.length;
+  // CODE writes, always — the model only ever proposed the shape
+  const applied = changed ? await applyLeaderReflection(update) : { added: { struggles: [], working: [], resolved: [] } };
+
+  return {
+    acknowledged: String(parsed.acknowledged || '').trim().slice(0, 200)
+      || (changed ? 'Noted.' : 'Nothing to change on the record from that, sir.'),
+    added: applied.added || { struggles: [], working: [], resolved: [] },
+    question,
+  };
 }
 
 export async function raiseSituationFollowUp(vaultPath, { now = new Date() } = {}) {

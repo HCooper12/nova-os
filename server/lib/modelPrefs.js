@@ -259,6 +259,11 @@ export const LANES = [
     off: 'Briefings are refused; the research angles are not started, so nothing is spent.',
   },
   {
+    id: 'leader-answer', label: 'Leader · record his answer', group: 'conversation', def: 'haiku',
+    hint: 'turns what he types or says back to a situation question into the record — no coaching, just bookkeeping',
+    off: 'Answering a situation question inline is refused; the Leader chat still takes it the long way.',
+  },
+  {
     id: 'repertoire', label: 'Repertoire · analyse & learn', group: 'research', def: 'sonnet',
     hint: 'a clip read for the technique in it, then researched outward into a curriculum you practise one a day',
     off: 'Sending a link to analyse is refused with a plain message. Today’s technique and your practice log are untouched — the catalogue you already have keeps teaching.',

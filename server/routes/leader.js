@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
   readLeaderState, todayLead, generateDailyLead, runLeaderResearch,
-  buildLeaderChatContext, applyLeaderReflection, leaderLiveLine, situationOf,
+  buildLeaderChatContext, applyLeaderReflection, leaderLiveLine, situationOf, answerSituation,
 } from '../lib/leader.js';
 import { startAskLeader } from '../lib/claudeCode.js';
 
@@ -32,6 +32,17 @@ export function leaderRouter(vaultPath) {
         lastResearchAt: state.lastResearchAt,
       });
     } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // HIS ANSWER, WHEREVER HE IS. Typed or spoken straight into the situation
+  // card — no chat to steer. The model only shapes what he said;
+  // applyLeaderReflection does the writing, on the rails, with an undo.
+  router.post('/leader/situation/answer', async (req, res) => {
+    try {
+      res.json(await answerSituation(vaultPath, { text: req.body?.text }));
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
   });
 
   // Force-run a lane (the scheduler owns the normal cadence). Daily runs are

@@ -842,6 +842,15 @@ export function valsMission(app, ctx) {
         select: (i) => setFace(i),
         openLeader: go('leader'),
         answer: () => app.answerSituation(),
+        // ANSWER IN PLACE — typed or spoken, no chat to steer
+        reply: {
+          value: st.situationAnswer || '',
+          set: (e) => app.setState({ situationAnswer: typeof e === 'string' ? e : e.target.value }),
+          send: () => app.submitSituationAnswer(),
+          busy: !!st.situationAnswerBusy,
+          said: st.situationAnswerSaid || null,
+          clearSaid: () => app.setState({ situationAnswerSaid: null }),
+        },
       };
     })(),
     // TODAY'S TECHNIQUE — his ask, 15 Sep: "present me with one of these

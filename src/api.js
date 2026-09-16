@@ -313,6 +313,8 @@ export const api = {
   // THE REPERTOIRE — one technique a day, and the tap that says he practised
   // it (server/lib/repertoire.js). `today` records the day's pick on first
   // read, which is what keeps Home and the spoken brief agreeing.
+  // his answer to what the Leader asked — typed or spoken, taken in place
+  leaderAnswer: (conn, text) => post(conn, '/api/leader/situation/answer', { text }),
   repertoireToday: (conn) => call(conn, '/api/repertoire/today'),
   repertoire: (conn) => call(conn, '/api/repertoire'),
   repertoirePractice: (conn, outcome, note) => post(conn, '/api/repertoire/practice', { outcome, note }),

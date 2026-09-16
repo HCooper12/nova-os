@@ -36,6 +36,18 @@ test('a technique with no drill is DROPPED — a card with nothing to do is the 
   assert.ok(!out.techniques.some((t) => t.name === 'Vague thing'));
 });
 
+test('a drill that REFUSES to be a drill is dropped — the Voodoo Death case', () => {
+  // proposed 15 Sep as a scale marker: real, interesting, and a blank card
+  // waiting to happen. His call, 16 Sep: cut it.
+  const out = normalizeProposal({ techniques: [
+    { name: 'Voodoo Death', drill: "No drill. Read Cannon's case descriptions and notice the structure." },
+    { name: 'Not something to attempt', drill: 'Not something to attempt — context only.' },
+    { name: 'Nocebo Suggestion', drill: 'Tell someone the chair makes people itchy, then wait.' },
+  ] });
+  assert.deepEqual(out.techniques.map((t) => t.name), ['Nocebo Suggestion'],
+    'only the one he can actually go and do survives');
+});
+
 test('a nameless technique is dropped too, and duplicates collapse to one', () => {
   const out = normalizeProposal({ techniques: [
     { name: '', drill: 'do it' },
