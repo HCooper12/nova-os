@@ -618,10 +618,25 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   box-shadow: none;
 }
 .nv-liquid-flush::after { display: none; }
+/* THE CONTENT RIDES ABOVE THE GLASS, EXPLICITLY (16 Sep 2026).
+   The first cut put the glass on ::before at `z-index: -1` and relied on the
+   painting order to keep the bar's own text above it. By the spec that is
+   correct — a negative-index positioned descendant paints before static inline
+   content — and on macOS Safari 26.5 it rendered correctly, which is how it
+   passed. On his iPhone it did NOT: he reported "parts of the top panel are
+   partially blurred as well like the buttons and nova os icon", and the
+   screenshot shows NOVA·OS, LIVE, Ask and the gear all softened while the page
+   content below them is crisp.
+   A backdrop-filter on a negative-index pseudo-element is the exact construct
+   to suspect there, so the app no longer contains one. The glass sits at the
+   normal level and the content is lifted above it by a wrapper with a real
+   z-index — no negative indices, no reliance on the subtle half of the
+   painting-order rules. */
+.nv-liquid-flush > .nv-liquid-content { position: relative; z-index: 1; }
 .nv-liquid-flush::before {
   content: ''; position: absolute; left: 0; right: 0; top: 0;
   bottom: calc(-1 * var(--nv-edge-fade, 20px));
-  pointer-events: none; z-index: -1;
+  pointer-events: none; z-index: 0;
   background: var(--nv-liquid-sheen), var(--nv-liquid-tint);
   -webkit-backdrop-filter: blur(var(--nv-liquid-blur)) saturate(var(--nv-liquid-sat));
   backdrop-filter: blur(var(--nv-liquid-blur)) saturate(var(--nv-liquid-sat));

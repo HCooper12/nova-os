@@ -44,7 +44,9 @@ export function MobileChrome({ v }) {
 
   return (
     <>
-      <div className="nv-liquid nv-liquid-flush" style={css("position:fixed;top:0;left:0;right:0;z-index:70;display:flex;align-items:center;gap:10px;padding:calc(6px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left))")}>
+      <div className="nv-liquid nv-liquid-flush" style={css("position:fixed;top:0;left:0;right:0;z-index:70;padding:calc(6px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left))")}>
+        {/* the bar's own content must paint ABOVE its glass — see index.css */}
+        <div className="nv-liquid-content" style={css("display:flex;align-items:center;gap:10px")}>
         <span onClick={v.goHome} style={css(`cursor:pointer;font:700 17px ${R};letter-spacing:.16em;color:var(--nv-ink)`)}>
           NOVA<span style={css("background:linear-gradient(90deg,var(--nv-cy),var(--nv-vi));-webkit-background-clip:text;background-clip:text;color:transparent")}>·OS</span>
         </span>
@@ -78,6 +80,7 @@ export function MobileChrome({ v }) {
         <span onClick={v.goSettings} aria-label="Settings" style={css(apple
           ? `cursor:pointer;font-size:15px;line-height:1;padding:8px 11px;border:1px solid transparent;border-radius:999px;color:${v.isSettings ? 'var(--nv-acc)' : 'var(--nv-ink60)'};background:${v.isSettings ? 'var(--nv-acc-bg)' : 'color-mix(in srgb, var(--nv-ink) 8%, transparent)'}`
           : `cursor:pointer;font-size:14px;line-height:1;padding:7px 10px;border:1px solid ${v.isSettings ? 'var(--nv-acc-border)' : 'var(--nv-edge)'};border-radius:8px;color:${v.isSettings ? 'var(--nv-acc)' : 'var(--nv-ink60)'}`)}>⚙</span>
+        </div>
       </div>
 
       {/* the More sheet — every screen, grid of silhouettes, one tap */}
@@ -120,13 +123,13 @@ export function MobileChrome({ v }) {
           raised centre button opens
           VOICE: talking is the fastest way in, and the command palette is
           still a tap away on the top bar (✦ ASK) and ⌘K on desktop. */}
-      <div className="nv-liquid" style={css("position:fixed;left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom));z-index:72;display:flex;align-items:center;gap:2px;padding:7px 10px;border-radius:999px")}>
+      <div className="nv-liquid" style={css("position:fixed;left:50%;transform:translateX(-50%);bottom:calc(6px + min(env(safe-area-inset-bottom), 34px));z-index:72;display:flex;align-items:center;gap:2px;padding:7px 10px;border-radius:999px")}>
         {dockTabs.slice(0, 3).map((t) => <DockTab key={t.screen} t={t} />)}
         {/* THE mini Nova icon — his ask: tapping it starts talking right
             here, natively, without opening the Voice section (long-press
             still goes there). The halo breathes with real audio. */}
         <Interactive onClick={v.startLiveTalk} onLongPress={v.holdNovaText} aria-label="Talk to Nova"
-          base={{ position: 'relative', width: '54px', height: '54px', margin: '0 3px', marginTop: '-23px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+          base={{ position: 'relative', width: '54px', height: '54px', margin: '0 3px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
             // the bottom-right core's own treatment, moved in here: a dark
             // well with a thin lit edge, NOT a filled accent disc. The solid
             // cyan fill is what made the core look washed-out and glitchy.
