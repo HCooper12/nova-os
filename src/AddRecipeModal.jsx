@@ -1,4 +1,5 @@
 import { css } from './css.js';
+import { useExit } from './useExit.js';
 import { Interactive } from './Interactive.jsx';
 import { Eyebrow, TextAction, Chip, isAppleStyle } from './Controls.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
@@ -23,12 +24,14 @@ const macroField = (label, value, onChange) => (
 );
 
 export function AddRecipeModal({ v }) {
+  // leave the way you arrived — see useExit.js
+  const exit = useExit(v.closeAddRecipe);
   return (
-    <div role="dialog" aria-modal="true" aria-label="Add a recipe" onClick={v.closeAddRecipe} style={css("position:fixed;inset:0;background:rgba(8,5,12,.72);backdrop-filter:blur(6px);z-index:60;display:flex;align-items:center;justify-content:center;padding:40px;overflow-y:auto")}>
-      <div onClick={v.stopClick} style={css("width:640px;max-width:94vw;max-height:88vh;overflow-y:auto;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 40px 90px -30px rgba(0,0,0,.95),inset 0 1px 0 var(--nv-spec);animation:fadeUp var(--nv-dur-base) var(--nv-ease);padding:26px 28px")}>
+    <div role="dialog" aria-modal="true" aria-label="Add a recipe" onClick={exit.close} ref={exit.scrimRef} style={css("position:fixed;inset:0;background:rgba(8,5,12,.72);backdrop-filter:blur(6px);z-index:60;display:flex;align-items:center;justify-content:center;padding:40px;overflow-y:auto")}>
+      <div ref={exit.panelRef} onClick={v.stopClick} style={css("width:640px;max-width:94vw;max-height:88vh;overflow-y:auto;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 40px 90px -30px rgba(0,0,0,.95),inset 0 1px 0 var(--nv-spec);animation:fadeUp var(--nv-dur-base) var(--nv-ease);padding:26px 28px")}>
         <div style={css("display:flex;justify-content:space-between;align-items:center")}>
           <Eyebrow as="span" tone="gold">New recipe</Eyebrow>
-          <Chip tone="quiet" onClick={v.closeAddRecipe}>Esc</Chip>
+          <Chip tone="quiet" onClick={exit.close}>Esc</Chip>
         </div>
         <h2 style={css("margin:14px 0 0;font:400 26px var(--nv-font-serif)")}>Add a recipe</h2>
         <div style={css("margin-top:8px;font-size:12.5px;color:color-mix(in srgb, var(--nv-ink) 55%, transparent);line-height:1.6")}>
@@ -144,7 +147,7 @@ export function AddRecipeModal({ v }) {
         )}
 
         <div style={css("margin-top:16px;display:flex;justify-content:flex-end;gap:10px")}>
-          <TextAction tone="quiet" onClick={v.closeAddRecipe}>Cancel</TextAction>
+          <TextAction tone="quiet" onClick={exit.close}>Cancel</TextAction>
           <Interactive as="span" onClick={v.recipeAddBusy ? undefined : v.submitAddRecipe} base={btn('var(--nv-gold)', '#1a1322', { opacity: v.recipeAddBusy ? .6 : 1 })} hoverStyle={{ filter: 'brightness(1.08)' }}>{v.recipeAddBusy ? 'Saving…' : 'Save recipe'}</Interactive>
         </div>
       </div>

@@ -54,7 +54,29 @@ reference: move `damping 1.0 / response 0.4`; sheet `0.8 / 0.3`.
 **Against:** a second motion system to keep honest, and the memory on UI
 performance already flags whole-app re-render cost.
 
-### 2. Nothing in Nova leaves the way it arrived
+### 2. ~~Nothing in Nova leaves the way it arrived~~ — PATTERN BUILT, 4 of 18 adopted
+`src/useExit.js` + `nvFall`/`nvFadeOut`. `nvFall` is `fadeUp` read backwards
+exactly, so a panel leaves down the path it rose along, and the scrim releases
+its dim underneath it. **`--nv-ease-exit` finally has a call site** — the first
+in the app since the token was written.
+
+It is a hook, not a wrapper component, and that is the load-bearing choice: the
+parent renders `{v.showX && <Modal/>}` so it owns the unmount, **but it also
+hands the modal its `onClose`** — so the modal can play its own exit and call
+`onClose` when it lands, with no `App.jsx` edit at all. That matters today
+because another session is live in `App.jsx`. `GlassSheet` already worked this
+way; this generalises it for overlays with no origin rect to return to.
+
+Verified in the running app: 60ms after the close click the overlay is still
+mounted, panel running `nvFall` at opacity 0.82, scrim running `nvFadeOut`;
+gone by 300ms.
+
+**Adopted by 4** — Outbox, Calendar, Ingest, Add Recipe. The remaining ~14 are
+a mechanical three-line edit each (hook, two refs, route the close paths).
+Two of them — StepsHistory and RepertoireBook — carry the other session's
+`vtName` morph and want a look at how the two interact before being converted.
+
+### 2b. ~~(original finding)~~
 Six entrance keyframes (`fadeUp`, `sheetUp`, `popIn`, `nvRise`, `deckRise`,
 `shelfIn`), **zero exit keyframes**. `--nv-ease-exit` is defined, carries a
 comment explaining that "anything LEAVING accelerates away", and **has exactly

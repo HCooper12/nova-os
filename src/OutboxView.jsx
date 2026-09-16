@@ -1,4 +1,5 @@
 import { css } from './css.js';
+import { useExit } from './useExit.js';
 import { Interactive } from './Interactive.jsx';
 
 const KIND_LABEL = {
@@ -10,16 +11,18 @@ const KIND_LABEL = {
 // design: nothing here is presented as synced; failed items (the server saw
 // them and said no) carry the rejection and wait for a human call.
 export function OutboxView({ v }) {
+  // leave the way you arrived — see useExit.js
+  const exit = useExit(v.close);
   return (
-    <div role="dialog" aria-modal="true" aria-label="Outbox" onClick={v.close} style={css("position:fixed;inset:0;background:rgba(8,5,12,.78);backdrop-filter:blur(6px);z-index:85;display:flex;align-items:center;justify-content:center;padding:18px")}>
-      <div onClick={(e) => e.stopPropagation()} style={css("width:520px;max-width:96vw;max-height:88vh;overflow-y:auto;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 40px 90px -30px rgba(0,0,0,.9);padding:20px 22px")}>
+    <div role="dialog" aria-modal="true" aria-label="Outbox" onClick={exit.close} ref={exit.scrimRef} style={css("position:fixed;inset:0;background:rgba(8,5,12,.78);backdrop-filter:blur(6px);z-index:85;display:flex;align-items:center;justify-content:center;padding:18px")}>
+      <div ref={exit.panelRef} onClick={(e) => e.stopPropagation()} style={css("width:520px;max-width:96vw;max-height:88vh;overflow-y:auto;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 40px 90px -30px rgba(0,0,0,.9);padding:20px 22px")}>
         <div style={css("display:flex;justify-content:space-between;align-items:center;gap:10px")}>
           <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-gold)")}>OUTBOX · {v.items.length} WAITING</span>
           <span style={css("display:flex;gap:8px;align-items:center")}>
             {v.hasQueued && (
               <Interactive as="span" onClick={v.syncNow} base="cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:6px 13px;border-radius:8px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle="filter:brightness(1.08)">SYNC NOW</Interactive>
             )}
-            <Interactive as="span" onClick={v.close} base="cursor:pointer;font:var(--nv-micro-l);color:var(--nv-ink60);border:1px solid var(--nv-edge);border-radius:7px;padding:5px 10px" hoverStyle="color:var(--nv-ink)">ESC</Interactive>
+            <Interactive as="span" onClick={exit.close} base="cursor:pointer;font:var(--nv-micro-l);color:var(--nv-ink60);border:1px solid var(--nv-edge);border-radius:7px;padding:5px 10px" hoverStyle="color:var(--nv-ink)">ESC</Interactive>
           </span>
         </div>
         <div style={css("margin-top:6px;font-size:11.5px;line-height:1.55;color:var(--nv-ink60)")}>Saved on this phone while Nova's backend was unreachable — they file automatically the moment it answers. Nothing here counts in totals yet.</div>

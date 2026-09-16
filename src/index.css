@@ -80,6 +80,15 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 @keyframes prStar { 0%,100% { transform: scale(1) rotate(0deg); } 50% { transform: scale(1.18) rotate(8deg); } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes sheetUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+/* THE EXITS (16 Sep 2026). The app had six entrance keyframes and none of
+   these — every overlay rose into place and then hard-cut out of existence.
+   `nvFall` is `fadeUp` read backwards, exactly, so a panel leaves down the
+   path it arrived on; `nvFadeOut` releases the scrim underneath it. Both are
+   driven by useExit.js, which is also the first and only thing in the app to
+   use `--nv-ease-exit` — a token that had been defined, commented, and never
+   once called. */
+@keyframes nvFall { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(var(--nv-rise)); } }
+@keyframes nvFadeOut { from { opacity: 1; } to { opacity: 0; } }
 /* the next card rising to the top of the Inbox deck (Inbox.jsx) — a spring-ish settle, not a cut */
 @keyframes deckRise { from { opacity: 0; transform: translateY(var(--nv-rise)) scale(.985); } to { opacity: 1; transform: none; } }
 .nv-deck-rise { animation: deckRise var(--nv-dur-base) var(--nv-ease) both; }
