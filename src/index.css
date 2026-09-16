@@ -397,3 +397,155 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
    `none`, the house rule for a shadow that may sit in a comma-separated list. */
 :root[data-nv-calm="1"] .nv-glow { box-shadow: 0 0 0 0 rgba(0,0,0,0); }
 :root[data-nv-calm="1"] .nv-pane.nv-glow { box-shadow: var(--nv-pane-shadow); }
+
+/* ================================================================
+   LIQUID GLASS (16 Sep 2026) — the iOS 26 material, in the web layer.
+
+   Came from a reel recommending `expo-glass-effect`, which wraps
+   Apple's real UIGlassEffect. That package needs an Expo/React Native
+   app and a native build; Nova is a Vite PWA, so it cannot be
+   installed here at any price. What follows is the honest equivalent,
+   and every number in it was chosen by LOOKING at it in Safari 26.5 —
+   the same WebKit his iPhone runs — over high-contrast content.
+
+   THE TRAP, measured, not assumed. Every "liquid glass on the web"
+   recipe reaches for `backdrop-filter: blur(..) url(#displacement)`
+   for edge refraction. In Safari 26.5:
+     - CSS.supports('backdrop-filter','url(#x)') returns TRUE, and
+     - nothing renders, and
+     - a url() ANYWHERE in the list silently voids the WHOLE filter,
+       taking the blur that would have worked down with it.
+   So the Chrome-only recipe does not degrade on his phone, it leaves
+   NO glass at all. The WebKit PR for this (#68614) was still open and
+   merge-blocked on 6 Sep 2026. Hence: no url() in any backdrop-filter
+   in this app. liquidGlass.test.js fails the build if one comes back.
+
+   What is left is real optics, not a fake: transmission (blur +
+   saturate), a gathered rim (a feathered inset glow that hugs the
+   radius), directional specular (a conic hairline, brightest where the
+   light is), and a tint that keeps content legible — which is what
+   Apple's own material spends most of its budget on.
+   ================================================================ */
+:root {
+  --nv-liquid-blur: 20px;
+  --nv-liquid-sat: 180%;
+  /* the tint tracks each theme's own ground, so a theme swap can never
+     leave a blue-black pane floating on an amber one */
+  --nv-liquid-tint: color-mix(in srgb, var(--nv-void) 46%, transparent);
+  --nv-liquid-sheen: linear-gradient(180deg, rgba(255,255,255,.13), rgba(255,255,255,.03));
+  /* light gathering at the rim: feathered, follows the border-radius exactly,
+     and costs nothing — the second backdrop pass that would do this optically
+     was measured side by side and read as a hard ring, not as thickness */
+  --nv-liquid-glow: inset 0 0 14px -5px rgba(255,255,255,.5);
+  --nv-liquid-spec: inset 0 1px 0 rgba(255,255,255,.3), inset 0 -1px 0 rgba(255,255,255,.1);
+  --nv-liquid-drop: 0 18px 40px -16px rgba(0,0,0,.75);
+  /* the conic hairline. 212deg puts the bright arcs top-left and bottom-right,
+     where a single overhead light would actually put them. */
+  --nv-liquid-rim: conic-gradient(from 212deg,
+    rgba(255,255,255,.9), rgba(255,255,255,.10) 18%, rgba(255,255,255,.04) 44%,
+    rgba(255,255,255,.62) 64%, rgba(255,255,255,.08) 82%, rgba(255,255,255,.9));
+  /* what the material becomes when it cannot be glass — see the guards below */
+  --nv-liquid-solid: var(--nv-glass2);
+}
+/* Daylight is the one LIGHT ground. The tint formula above already tracks it
+   (its --nv-void is #f2f2f7), but a white specular on a white surface is
+   invisible, so the rim inverts to a hairline of ink and the drop softens. */
+:root[data-nv-theme="daylight"] {
+  --nv-liquid-blur: 24px;
+  --nv-liquid-tint: color-mix(in srgb, #fff 58%, transparent);
+  --nv-liquid-sheen: linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.18));
+  --nv-liquid-glow: inset 0 0 16px -6px rgba(255,255,255,.9);
+  --nv-liquid-spec: inset 0 1px 0 rgba(255,255,255,.85), inset 0 -1px 0 rgba(0,0,0,.05);
+  --nv-liquid-drop: 0 1px 2px rgba(0,0,0,.05), 0 14px 34px -18px rgba(0,0,0,.28);
+  --nv-liquid-rim: conic-gradient(from 212deg,
+    rgba(0,0,0,.16), rgba(0,0,0,.04) 18%, rgba(0,0,0,.02) 44%,
+    rgba(0,0,0,.12) 64%, rgba(0,0,0,.03) 82%, rgba(0,0,0,.16));
+}
+
+.nv-liquid {
+  position: relative;
+  /* its own stacking context, so the rim and the drop cannot be reordered by
+     whatever the surrounding screen is doing with z-index */
+  isolation: isolate;
+  border-radius: var(--nv-liquid-radius, var(--nv-radius));
+  background: var(--nv-liquid-sheen), var(--nv-liquid-tint);
+  -webkit-backdrop-filter: blur(var(--nv-liquid-blur)) saturate(var(--nv-liquid-sat));
+  backdrop-filter: blur(var(--nv-liquid-blur)) saturate(var(--nv-liquid-sat));
+  box-shadow: var(--nv-liquid-glow), var(--nv-liquid-spec), var(--nv-liquid-drop);
+}
+/* the directional specular hairline. A gradient cannot be a border, so the
+   gradient fills the box and a two-layer mask subtracts the content box out
+   of it, leaving exactly the 1px frame. Both spellings: Safari needs the
+   -webkit- pair, and -webkit-mask-composite's keyword is `xor`, not
+   `exclude` — verified supported in 26.5 before this shipped.
+
+   ::after, not ::before, so it paints ABOVE the children — a full-bleed image
+   in a glass card should still be cut by the rim. It is a 1px frame at the
+   very edge that content never reaches, so nothing needs a z-index and no
+   child has its own positioning taken away from it. */
+.nv-liquid::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  border-radius: inherit; padding: 1px;
+  background: var(--nv-liquid-rim);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+/* CLEAR — Apple's second style: more transmission, less frost. For glass over
+   quiet ground only; over a photo or a chart it loses the content behind it,
+   which is why it is opt-in and not the default. */
+.nv-liquid-clear {
+  --nv-liquid-blur: 9px;
+  --nv-liquid-sat: 210%;
+  --nv-liquid-tint: color-mix(in srgb, var(--nv-void) 20%, transparent);
+  --nv-liquid-sheen: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.02));
+}
+/* TINTED — the accent bleeds into the material instead of sitting on it, the
+   way a coloured iOS 26 control does. Give it --nv-liquid-hue inline. */
+.nv-liquid-tinted {
+  --nv-liquid-tint: color-mix(in srgb, var(--nv-liquid-hue, var(--nv-acc)) 16%,
+                    color-mix(in srgb, var(--nv-void) 46%, transparent));
+}
+
+/* ---- the guards. Each one is a case where glass is wrong or impossible,
+        and in every one the surface stays OPAQUE rather than vanishing. ---- */
+
+/* 1. No backdrop-filter at all (old engines, and any browser with the feature
+      disabled). Without this the tint alone is translucent over live content
+      and the text underneath shows through the words on top. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .nv-liquid { background: var(--nv-liquid-solid); }
+  .nv-liquid::after { opacity: .5; }
+}
+/* 2. He asked the OS for less transparency. Honour it exactly: no blur, a
+      solid surface, and the specular dropped to a plain edge. */
+@media (prefers-reduced-transparency: reduce) {
+  .nv-liquid {
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+    background: var(--nv-liquid-solid);
+    box-shadow: var(--nv-liquid-drop);
+  }
+  .nv-liquid::after { background: none; border: 1px solid var(--nv-edge); padding: 0; -webkit-mask: none; mask: none; }
+}
+/* 3. Increased contrast: keep the material, make the edge a real line. */
+@media (prefers-contrast: more) {
+  .nv-liquid { --nv-liquid-tint: color-mix(in srgb, var(--nv-void) 74%, transparent); }
+  .nv-liquid::after { background: none; border: 1px solid var(--nv-ink40); padding: 0; -webkit-mask: none; mask: none; }
+}
+/* 4. Calm is his own switch for the same instinct, and it has always meant
+      "less bloom, never less depth" — so the gathered rim goes and the drop
+      that gives the surface its place in the stack stays. */
+:root[data-nv-calm="1"] .nv-liquid {
+  --nv-liquid-glow: inset 0 0 0 0 rgba(0,0,0,0);
+  --nv-liquid-tint: color-mix(in srgb, var(--nv-void) 62%, transparent);
+}
+/* FLUSH — glass that runs edge to edge (the top bar). A conic frame around a
+   bar whose left/right/top edges are off-screen draws three hairlines nobody
+   can see and one that reads as a seam, so the rim collapses to the single
+   separator the shape actually has. */
+.nv-liquid-flush { --nv-liquid-radius: 0; }
+.nv-liquid-flush::after {
+  background: none; padding: 0; border-bottom: 1px solid var(--nv-edge);
+  -webkit-mask: none; mask: none;
+}

@@ -44,7 +44,7 @@ export function MobileChrome({ v }) {
 
   return (
     <>
-      <div style={css("position:fixed;top:0;left:0;right:0;z-index:70;display:flex;align-items:center;gap:10px;padding:calc(6px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left));background:var(--nv-glass2);border-bottom:1px solid var(--nv-edge)")}>
+      <div className="nv-liquid nv-liquid-flush" style={css("position:fixed;top:0;left:0;right:0;z-index:70;display:flex;align-items:center;gap:10px;padding:calc(6px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left))")}>
         <span onClick={v.goHome} style={css(`cursor:pointer;font:700 17px ${R};letter-spacing:.16em;color:var(--nv-ink)`)}>
           NOVA<span style={css("background:linear-gradient(90deg,var(--nv-cy),var(--nv-vi));-webkit-background-clip:text;background-clip:text;color:transparent")}>·OS</span>
         </span>
@@ -83,7 +83,7 @@ export function MobileChrome({ v }) {
       {/* the More sheet — every screen, grid of silhouettes, one tap */}
       {moreOpen && (
         <div onClick={() => setMoreOpen(false)} style={css("position:fixed;inset:0;z-index:74;background:rgba(8,5,12,.6);backdrop-filter:blur(4px)")}>
-          <div onClick={(e) => e.stopPropagation()} style={css("position:absolute;left:0;right:0;bottom:0;border-radius:22px 22px 0 0;border:1px solid var(--nv-edge);border-bottom:none;background:var(--nv-glass2);backdrop-filter:blur(26px);padding:18px 16px calc(20px + env(safe-area-inset-bottom));animation:fadeUp var(--nv-dur-base) var(--nv-ease)")}>
+          <div onClick={(e) => e.stopPropagation()} className="nv-liquid" style={css("position:absolute;left:0;right:0;bottom:0;border-radius:22px 22px 0 0;padding:18px 16px calc(20px + env(safe-area-inset-bottom));animation:fadeUp var(--nv-dur-base) var(--nv-ease)")}>
             <div style={css("width:36px;height:4px;border-radius:2px;background:color-mix(in srgb, var(--nv-ink) 22%, transparent);margin:0 auto 14px")}></div>
             {v.frequentTabs?.length > 0 && (
               <>
@@ -120,7 +120,7 @@ export function MobileChrome({ v }) {
           raised centre button opens
           VOICE: talking is the fastest way in, and the command palette is
           still a tap away on the top bar (✦ ASK) and ⌘K on desktop. */}
-      <div style={css("position:fixed;left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom));z-index:72;display:flex;align-items:center;gap:2px;padding:7px 10px;border-radius:999px;border:1px solid var(--nv-edge);background:var(--nv-glass2);backdrop-filter:blur(26px);box-shadow:0 14px 44px -14px rgba(0,0,0,.65)")}>
+      <div className="nv-liquid" style={css("position:fixed;left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom));z-index:72;display:flex;align-items:center;gap:2px;padding:7px 10px;border-radius:999px")}>
         {dockTabs.slice(0, 3).map((t) => <DockTab key={t.screen} t={t} />)}
         {/* THE mini Nova icon — his ask: tapping it starts talking right
             here, natively, without opening the Voice section (long-press
