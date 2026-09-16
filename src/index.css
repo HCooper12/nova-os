@@ -76,8 +76,14 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 /* the Library shelf assembling — covers rise into place, staggered per index */
 @keyframes shelfIn { from { opacity: 0; transform: translateY(24px) scale(.955); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes spin { to { transform: rotate(360deg); } }
-@keyframes prPop { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: scale(1); } }
-@keyframes prStar { 0%,100% { transform: scale(1) rotate(0deg); } 50% { transform: scale(1.18) rotate(8deg); } }
+/* THE PERSONAL RECORD (rewritten 16 Sep 2026). `prPop` scaled from .6 — a
+   40% jump that reads as a pop-up ad — and `prStar` pulsed the old ◆ on an
+   INFINITE 1.4s loop. A celebration that never stops moving is not
+   celebrating, it is idling, and it is exactly what *Principles of Great
+   Design* means by confetti tacked on top. The card now arrives once and
+   settles: a short rise, a small scale, no overshoot, because nothing here
+   was thrown and bounce belongs to momentum. See PersonalRecord.jsx. */
+@keyframes prRise { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: none; } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes sheetUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
 /* THE EXITS (16 Sep 2026). The app had six entrance keyframes and none of

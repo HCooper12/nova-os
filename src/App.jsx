@@ -46,6 +46,7 @@ import { Voice } from './screens/Voice.jsx';
 import { Recipes } from './screens/Recipes.jsx';
 import { Workouts } from './screens/Workouts.jsx';
 import { MobileChrome } from './MobileChrome.jsx';
+import { PersonalRecord } from './PersonalRecord.jsx';
 import { FloatingCore } from './FloatingCore.jsx';
 import { Toast } from './Toast.jsx';
 import { ContextMenuHost } from './ContextMenu.jsx';
@@ -8228,20 +8229,7 @@ export default class App extends Component {
             bargeIn={v.bargeIn?.on} speaking={v.bargeIn?.speaking} saying={v.bargeIn?.saying} onBargeIn={v.bargeIn?.fire} />
         )}
         {this.state.prCelebration && (
-          <div onClick={() => this.setState({ prCelebration: null })}
-            style={css('position:fixed;inset:0;z-index:125;display:flex;align-items:center;justify-content:center;background:rgba(4,3,8,.7);backdrop-filter:blur(6px);animation:fadeIn var(--nv-dur-base) var(--nv-ease)')}>
-            <div style={css('text-align:center;animation:prPop var(--nv-dur-slow) var(--nv-ease)')}>
-              <div style={css('font-size:56px;line-height:1;color:var(--nv-gold);text-shadow:0 0 40px color-mix(in srgb, var(--nv-gold) 80%, transparent);animation:prStar 1.4s ease-in-out infinite')}>◆</div>
-              <div style={css('margin-top:14px;font:var(--nv-micro-l);letter-spacing:.3em;color:var(--nv-gold)')}>PERSONAL RECORD</div>
-              {this.state.prCelebration.map((p, i) => (
-                <div key={i} style={css('margin-top:8px;font:600 20px var(--nv-font-ui);color:var(--nv-ink)')}>
-                  {p.name} — {p.kind === 'weight' ? `${p.value} kg × ${p.reps}` : `e1RM ${p.value} kg`}
-                  {p.previous ? <span style={css('font-size:13px;color:var(--nv-ink60)')}>{'  '}(was {p.previous})</span> : null}
-                </div>
-              ))}
-              <div style={css('margin-top:10px;font-size:12px;color:var(--nv-ink60)')}>Earned, sir.</div>
-            </div>
-          </div>
+          <PersonalRecord records={this.state.prCelebration} onClose={() => this.setState({ prCelebration: null })} />
         )}
         {this.state.verdict && (
           <Suspense fallback={null}>
