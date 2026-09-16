@@ -8,7 +8,7 @@
 // for a log tells him nothing he can act on.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validatePlan, schedule, describePlan, planProgress, MAX_STEPS, MAX_PLAN_USD } from '../lib/plan.js';
+import { validatePlan, schedule, describePlan, planProgress, MAX_STEPS, MAX_PLAN_USD, unmetNeeds, skipReason } from '../lib/plan.js';
 
 const step = (id, capability, needs = []) => ({ id, capability, needs, what: `do ${id}` });
 
@@ -126,7 +126,50 @@ test('coverage is stated, and a failed step is never quietly dropped', () => {
   ] });
   assert.equal(p.allSettled, true);
   assert.deepEqual(p.failed, ['b']);
-  assert.equal(p.coverage, '2 of 3 steps completed');
+  // the number of failures is IN the coverage line, not left to the prose
+  assert.equal(p.coverage, '2 of 3 steps completed (1 failed)');
+  assert.equal(p.partial, true);
+  assert.equal(p.empty, false);
+});
+
+// PARTIAL COMPLETION. He walks away, step 2 fails, and everything downstream
+// of it used to run anyway — handoffFor dropped the missing output and
+// interpolate left a raw {{s2}} in the instruction, so the agent answered a
+// question about a document nobody had written.
+test('a step whose dependency produced nothing is skipped, and named', () => {
+  assert.deepEqual(unmetNeeds({ needs: ['s1', 's2'] }, { s1: 'the list' }), ['s2']);
+  assert.deepEqual(unmetNeeds({ needs: [] }, {}), []);
+  assert.deepEqual(unmetNeeds({}, {}), []);
+  assert.equal(skipReason(['s2']), 'it needed s2, which produced nothing');
+  assert.equal(skipReason(['s1', 's2']), 'it needed s1 and s2, which produced nothing');
+  assert.equal(skipReason(['s1', 's2', 's3']), 'it needed s1, s2 and s3, which produced nothing');
+  assert.equal(skipReason([]), '');
+});
+
+test('coverage counts what COMPLETED, not what merely stopped', () => {
+  const p = planProgress({ steps: [
+    { id: 'a', status: 'done' }, { id: 'b', status: 'failed' },
+    { id: 'c', status: 'skipped' }, { id: 'd', status: 'done' },
+  ] });
+  // the old rule was `total - failed`, which counted the skipped step as done
+  assert.equal(p.coverage, '2 of 4 steps completed (1 failed, 1 skipped for want of them)');
+  assert.deepEqual(p.done, ['a', 'd']);
+  assert.deepEqual(p.skipped, ['c']);
+  assert.equal(p.settled, 4);
+  assert.equal(p.allSettled, true, 'a skipped step is settled — it is never coming back');
+  assert.equal(p.partial, true);
+});
+
+test('nothing getting through is its own answer, not a small number', () => {
+  const p = planProgress({ steps: [{ id: 'a', status: 'failed' }, { id: 'b', status: 'skipped' }] });
+  assert.equal(p.empty, true, 'no report should be synthesised out of this');
+  assert.equal(p.partial, false);
+  assert.equal(p.coverage, '0 of 2 steps completed (1 failed, 1 skipped for want of them)');
+  // and a wholly clean run claims nothing extra
+  const clean = planProgress({ steps: [{ id: 'a', status: 'done' }] });
+  assert.equal(clean.coverage, '1 of 1 steps completed');
+  assert.equal(clean.empty, false);
+  assert.equal(clean.partial, false);
 });
 
 test('a plan still running has not settled', () => {

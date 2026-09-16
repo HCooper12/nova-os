@@ -76,3 +76,30 @@ test('elapsed is spoken the way he would say it', () => {
   assert.equal(elapsedLabel(null), '');
   assert.equal(elapsedLabel('not a date'), '');
 });
+
+test('a skipped step is its own state on the card, never a waiting one', () => {
+  const c = planCardFrom([plan({ status: 'pending', finishedAt: new Date().toISOString(), plan: { steps: [
+    { id: 's1', what: 'find them', status: 'done' },
+    { id: 's2', what: 'read the terms', status: 'failed', error: 'the site refused' },
+    { id: 's3', what: 'write it up', status: 'skipped', error: 'it needed s2, which produced nothing' },
+  ] } })]);
+  assert.equal(c.done, 1);
+  assert.equal(c.failedCount, 1);
+  assert.equal(c.skippedCount, 1);
+  assert.equal(c.settled, 3, 'skipped is settled — it is never coming back');
+  // the line he reads first counts what LANDED, and names what did not
+  assert.equal(c.tally, '1 of 3 · 1 failed · 1 skipped');
+  assert.deepEqual(c.steps.map((s) => s.glyph), ['✓', '!', '–']);
+  assert.equal(c.steps[2].error, 'it needed s2, which produced nothing');
+  // a waiting step and a skipped one must not look alike
+  assert.notEqual(LOOKUP(c, 's3').glyph, '·');
+});
+const LOOKUP = (card, id) => card.steps.find((s) => s.id === id);
+
+test('a clean run claims nothing extra in its tally', () => {
+  const c = planCardFrom([plan({ plan: { steps: [
+    { id: 's1', what: 'one', status: 'done' }, { id: 's2', what: 'two', status: 'running' },
+  ] } })]);
+  assert.equal(c.tally, '1 of 2');
+  assert.equal(c.skippedCount, 0);
+});

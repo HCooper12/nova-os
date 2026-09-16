@@ -8,9 +8,9 @@
 // output without any agent needing to know a plan exists.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPlannerPrompt, parsePlan, interpolate, extractFirstUrl, parseTitleAuthor, clampQuestion, buildReportPrompt } from '../lib/planner.js';
+import { buildPlannerPrompt, parsePlan, interpolate, extractFirstUrl, parseTitleAuthor, clampQuestion, buildReportPrompt, fallbackReport } from '../lib/planner.js';
 import { DELEGABLE_IDS, CAPABILITIES } from '../lib/capabilities.js';
-import { validatePlan, MAX_PLAN_USD, MAX_STEPS } from '../lib/plan.js';
+import { validatePlan, planProgress, MAX_PLAN_USD, MAX_STEPS } from '../lib/plan.js';
 
 test('the planner is only ever offered agents that exist', () => {
   const prompt = buildPlannerPrompt('watch this and check it');
@@ -153,4 +153,46 @@ test('the report title drops the goal\'s URL — it becomes the vault filename',
   assert.equal(reportTitle('Watch https://www.youtube.com/watch?v=abc and list every claim'), 'Report: Watch and list every claim');
   assert.equal(reportTitle('https://x.y/z — compare the claims'), 'Report: compare the claims');
   assert.equal(reportTitle(''), 'Report: plan');
+});
+
+// WHAT HE COMES BACK TO WHEN THE SUMMARY DOES NOT ARRIVE.
+//
+// The old failure path said "losing the synthesis must not lose the work" in a
+// comment and then left the record pending with an error, no decision and no
+// finishedAt — so the steps that HAD run became invisible and Home showed
+// nothing. He walked away for an hour and came back to an error message.
+const PARTIAL = { steps: [
+  { id: 's1', capability: 'research', what: 'find the suppliers', status: 'done', output: 'Three: A, B and C.' },
+  { id: 's2', capability: 'research', what: 'read their terms', status: 'failed', error: 'the site refused' },
+  { id: 's3', capability: 'write', what: 'write it up', status: 'skipped', error: 'it needed s2, which produced nothing' },
+] };
+
+test('a failed write-up still delivers the work that landed', () => {
+  const r = fallbackReport('find me three suppliers', PARTIAL, planProgress(PARTIAL), 'the model timed out');
+  assert.match(r, /could not write up the summary/);
+  assert.match(r, /the model timed out/);
+  assert.match(r, /Coverage: 1 of 3 steps completed \(1 failed, 1 skipped for want of them\)/);
+  assert.match(r, /Three: A, B and C\./, 'the step that DID run is in his hands');
+  assert.match(r, /Failed: the site refused/);
+  assert.match(r, /Did not run — it needed s2, which produced nothing/);
+});
+
+test('nothing getting through reads as nothing, never as a thin answer', () => {
+  const none = { steps: [
+    { id: 's1', capability: 'research', what: 'find them', status: 'failed', error: 'the site refused' },
+    { id: 's2', capability: 'write', what: 'write it up', status: 'skipped', error: 'it needed s1, which produced nothing' },
+  ] };
+  const r = fallbackReport('find me three suppliers', none, planProgress(none), 'no step produced anything');
+  assert.match(r, /^None of this came back, sir\./);
+  assert.match(r, /Nothing below is an answer/);
+  assert.match(r, /Coverage: 0 of 2 steps completed/);
+});
+
+test('the report prompt tells a skipped step apart from an empty one', () => {
+  const p = buildReportPrompt('find me three suppliers', PARTIAL, planProgress(PARTIAL));
+  assert.match(p, /FAILED: the site refused/);
+  assert.match(p, /DID NOT RUN: it needed s2, which produced nothing/);
+  // "(no output)" would read as "it ran and found nothing", which is a claim
+  assert.ok(!p.includes('write it up\n(no output)'), 'a skipped step never reads as an empty result');
+  assert.match(p, /DID NOT RUN found nothing because nobody looked/);
 });

@@ -11,8 +11,21 @@
 
 // A step that has not started is 'waiting'. It must not borrow the look of one
 // that is running — "in flight" and "not begun" are different answers to the
-// only question he is asking.
-const STEP_STATUS = new Set(['waiting', 'running', 'done', 'failed']);
+// only question he is asking. 'skipped' is its own answer again: it will never
+// run, because what it needed failed.
+const STEP_STATUS = new Set(['waiting', 'running', 'done', 'failed', 'skipped']);
+const SETTLED = new Set(['done', 'failed', 'skipped']);
+
+// One glyph and one colour per state, HERE rather than in the screens, so the
+// two Home idioms cannot drift into disagreeing about what a step's state
+// looks like. A skipped step is not a waiting one: the dash says it is over.
+const LOOK = {
+  done:    { glyph: '✓', tint: 'var(--nv-good)' },
+  failed:  { glyph: '!', tint: 'var(--nv-warn)' },
+  skipped: { glyph: '–', tint: 'var(--nv-warn)' },
+  running: { glyph: '▸', tint: 'var(--nv-cy)' },
+  waiting: { glyph: '·', tint: 'var(--nv-ink60)' },
+};
 
 export function elapsedLabel(at, now = Date.now()) {
   if (!at) return '';
@@ -41,8 +54,13 @@ export function planCardFrom(records, now = Date.now()) {
   if (!rec) return null;
 
   const steps = stepsOf(rec);
-  const settled = steps.filter((s) => s.status === 'done' || s.status === 'failed');
+  // settled counts what is no longer in flight; DONE is what actually landed,
+  // and the card shows both because "3 of 4 settled" and "2 of 4 done" are
+  // different news
+  const settled = steps.filter((s) => SETTLED.has(s.status));
+  const done = steps.filter((s) => s.status === 'done');
   const failed = steps.filter((s) => s.status === 'failed');
+  const skipped = steps.filter((s) => s.status === 'skipped');
   const at = rec.startedAt || rec.createdAt || null;
   return {
     id: rec.id,
@@ -50,13 +68,26 @@ export function planCardFrom(records, now = Date.now()) {
     goal: rec.goal || rec.text || 'a plan',
     total: steps.length,
     settled: settled.length,
+    done: done.length,
     failedCount: failed.length,
+    skippedCount: skipped.length,
+    // The one line he reads first, and the only number in it that survives
+    // being checked is DONE. Settled is not completed: a step that failed and
+    // a step that never ran are both finished and neither is an answer.
+    tally: [
+      `${done.length} of ${steps.length}`,
+      failed.length ? `${failed.length} failed` : '',
+      skipped.length ? `${skipped.length} skipped` : '',
+    ].filter(Boolean).join(' · '),
     since: elapsedLabel(at, now),
     steps: steps.map((s) => ({
       id: s.id,
       what: s.what || s.capability || 'a step',
       status: STEP_STATUS.has(s.status) ? s.status : 'waiting',
-      error: s.status === 'failed' ? (s.error || 'it failed') : null,
+      ...LOOK[STEP_STATUS.has(s.status) ? s.status : 'waiting'],
+      error: s.status === 'failed' ? (s.error || 'it failed')
+        : s.status === 'skipped' ? (s.error || 'it never ran')
+        : null,
     })),
   };
 }

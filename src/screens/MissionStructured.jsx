@@ -360,15 +360,13 @@ export function MissionStructured({ v }) {
               <div style={{ font: `600 10.5px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: v.runningPlan.state === 'ready' ? 'var(--nv-good)' : 'var(--nv-cy)' }}>
                 {v.runningPlan.state === 'ready' ? 'Ready for you' : 'Working on it'}
               </div>
-              <Meta tone="faint">{v.runningPlan.settled} of {v.runningPlan.total} · {v.runningPlan.since}</Meta>
+              <Meta tone="faint">{v.runningPlan.tally} · {v.runningPlan.since}</Meta>
             </div>
             <div style={{ marginTop: '4px', font: `italic 400 ${mob ? '17px' : '19px'}/1.25 ${S}` }}>{v.runningPlan.goal}</div>
             <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
               {v.runningPlan.steps.map((st) => (
                 <div key={st.id} style={{ display: 'flex', alignItems: 'baseline', gap: '9px', minWidth: 0 }}>
-                  <span style={{ flex: 'none', width: '13px', font: `600 11px ${M}`, color: st.status === 'done' ? 'var(--nv-good)' : st.status === 'failed' ? 'var(--nv-warn)' : st.status === 'running' ? 'var(--nv-cy)' : 'var(--nv-ink60)' }}>
-                    {st.status === 'done' ? '✓' : st.status === 'failed' ? '!' : st.status === 'running' ? '▸' : '·'}
-                  </span>
+                  <span style={{ flex: 'none', width: '13px', font: `600 11px ${M}`, color: st.tint }}>{st.glyph}</span>
                   <span style={{ flex: 1, minWidth: 0, font: `450 13px ${UI}`, color: st.status === 'waiting' ? 'var(--nv-ink60)' : 'var(--nv-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{st.what}</span>
                   {st.error && <span style={{ flex: 'none', maxWidth: '40%', font: `450 10.5px ${UI}`, color: 'var(--nv-warn)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{st.error}</span>}
                 </div>

@@ -22,7 +22,7 @@ import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { settleWatchdog } from './settle.js';
 import { describeForPlanner, CAPABILITIES } from './capabilities.js';
-import { validatePlan, schedule, planProgress, describePlan, MAX_STEPS, MAX_PLAN_USD } from './plan.js';
+import { validatePlan, schedule, planProgress, describePlan, unmetNeeds, skipReason, MAX_STEPS, MAX_PLAN_USD } from './plan.js';
 import { salvageJson } from './jsonSalvage.js';
 import path from 'node:path';
 import os from 'node:os';
@@ -301,6 +301,17 @@ export async function runPlan(vaultPath, recordId) {
     // counter-evidence side by side rather than one after the other
     await Promise.all(wave.map(async (stepId) => {
       const step = plan.steps.find((s) => s.id === stepId);
+      // A STEP DOES NOT RUN ON A HOLE. Its wave came up because the steps it
+      // needed all SETTLED — settled is not the same as succeeded. Dispatching
+      // anyway hands the agent an instruction with a raw {{s2}} still in it
+      // and gets back a confident answer about nothing.
+      const unmet = unmetNeeds(step, outputs);
+      if (unmet.length) {
+        step.status = 'skipped';
+        step.error = skipReason(unmet);
+        await updateRecord(recordId, { plan });
+        return;
+      }
       try {
         const created = await dispatchStep(vaultPath, step, outputs);
         step.recordId = created?.id || null;
@@ -321,6 +332,13 @@ export async function runPlan(vaultPath, recordId) {
 
   const progress = planProgress(plan);
   await updateRecord(recordId, { plan, coverage: progress.coverage });
+  // NOTHING GOT THROUGH IS NOT A REPORT. Asking a model to write him a summary
+  // of four failures costs a dollar and invites it to write round the hole —
+  // the one thing the coverage rule exists to prevent. Code says what happened.
+  if (progress.empty) {
+    await finishWith(recordId, record.goal, plan, progress, 'no step produced anything');
+    return { ok: false, error: progress.coverage };
+  }
   return writeReport(vaultPath, recordId, record.goal, plan, progress);
 }
 
@@ -330,6 +348,10 @@ export function buildReportPrompt(goal, plan, progress) {
   const parts = plan.steps.map((s) => {
     const c = CAPABILITIES[s.capability];
     if (s.status === 'failed') return `### ${c?.agent || s.capability} — ${s.what}\nFAILED: ${s.error}`;
+    // a skipped step produced nothing because it never ran — saying "(no
+    // output)" would read as "it ran and found nothing", which is a claim
+    if (s.status === 'skipped') return `### ${c?.agent || s.capability} — ${s.what}\nDID NOT RUN: ${s.error}`;
+    if (s.status !== 'done') return `### ${c?.agent || s.capability} — ${s.what}\nDID NOT FINISH.`;
     return `### ${c?.agent || s.capability} — ${s.what}\n${s.output || '(no output)'}`;
   }).join('\n\n');
   return `You are Nova, reporting back to Hayden on work you delegated.
@@ -345,7 +367,7 @@ ${parts}
 
 RULES
 - Open with the answer, not with a description of what you did.
-- COVERAGE IS A FINDING, NOT A FOOTNOTE: ${progress.coverage}. If any step failed, say so in the first two lines and say what is therefore unknown — never present a partial answer as a whole one.
+- COVERAGE IS A FINDING, NOT A FOOTNOTE: ${progress.coverage}. If any step failed or did not run, say so in the first two lines and say what is therefore unknown — never present a partial answer as a whole one. A step that DID NOT RUN found nothing because nobody looked; do not write round it as though its subject were settled.
 - Where the sources disagree, say so and say which is better evidenced.
 - Cite what came from where. Do not add claims no agent gave you.
 - Plain English. No headings-for-the-sake-of-headings.`;
@@ -375,6 +397,38 @@ export function reportDecision(goal, body) {
   };
 }
 
+// WHAT HE GETS WHEN THE SYNTHESIS DOES NOT ARRIVE.
+//
+// The old failure path said the right thing in a comment — "losing the
+// synthesis must not lose the work" — and then did not do it: the record was
+// left pending with an error, no decision, no finishedAt. The steps HAD run.
+// Their output was sitting in the record. He walked away for an hour and came
+// back to an error message and a Home screen with nothing on it.
+//
+// So the plan always ends with something he can read. Assembled by code from
+// what the steps actually returned: no model, no cost, nothing invented, and
+// honest about being the fallback it is.
+export function fallbackReport(goal, plan, progress, why) {
+  const steps = Array.isArray(plan?.steps) ? plan.steps : [];
+  const lines = [
+    progress.empty
+      ? 'None of this came back, sir. Nothing below is an answer — it is the record of what was attempted and why each part stopped.'
+      : `I could not write up the summary for this one${why ? ` (${why})` : ''}, so here is what the agents came back with, unedited.`,
+    '',
+    `Coverage: ${progress.coverage}.`,
+    '',
+  ];
+  for (const s of steps) {
+    const c = CAPABILITIES[s.capability];
+    const head = `## ${c?.agent || s.capability} — ${s.what || 'a step'}`;
+    if (s.status === 'done') lines.push(head, s.output || '(it finished but returned nothing)', '');
+    else if (s.status === 'failed') lines.push(head, `Failed: ${s.error || 'no reason given'}`, '');
+    else if (s.status === 'skipped') lines.push(head, `Did not run — ${s.error || 'what it needed was missing'}`, '');
+    else lines.push(head, 'Did not finish.', '');
+  }
+  return lines.join('\n').trim();
+}
+
 function writeReport(vaultPath, recordId, goal, plan, progress) {
   return new Promise((resolve) => {
     const child = spawn(CLAUDE_BIN, [
@@ -401,14 +455,27 @@ function writeReport(vaultPath, recordId, goal, plan, progress) {
         resolve({ ok: true });
       } catch (e) {
         // The steps ran and their records exist — losing the synthesis must
-        // not lose the work, so the plan stays pending with the reason.
-        await updateRecord(recordId, { status: 'pending', error: `the report failed: ${e.message}` }).catch(() => {});
+        // not lose the work, so he gets the parts, assembled by code.
+        await finishWith(recordId, goal, plan, progress, e.message);
         resolve({ ok: false, error: e.message });
       }
     });
     child.on('error', async (err) => {
-      await updateRecord(recordId, { status: 'pending', error: `the report failed: ${err.message}` }).catch(() => {});
+      await finishWith(recordId, goal, plan, progress, err.message);
       resolve({ ok: false, error: err.message });
     });
   });
+}
+
+// A plan that has stopped is FINISHED, however it stopped. finishedAt is what
+// Home reads to know the work is back and waiting — withholding it because the
+// summary failed hid the whole plan from the one surface built to show it.
+async function finishWith(recordId, goal, plan, progress, why) {
+  await updateRecord(recordId, {
+    status: 'pending',
+    decision: reportDecision(goal, fallbackReport(goal, plan, progress, why)),
+    coverage: progress.coverage,
+    error: `the report failed: ${why}`,
+    finishedAt: new Date().toISOString(),
+  }).catch(() => {});
 }

@@ -161,21 +161,68 @@ export function describePlan(plan) {
   });
 }
 
+// WHAT A STEP NEEDED AND DID NOT GET. Before this, a step whose dependency
+// failed was dispatched anyway: handoffFor filtered the missing output out and
+// interpolate left the raw "{{s2}}" sitting in the instruction, so the agent
+// was asked to summarise a document nobody had written. It answered — they
+// always answer — and the next step built on that, and the report counted all
+// three as completed. A hole two layers down, presented as coverage.
+//
+// So a step is SKIPPED when something it declared it needed produced nothing.
+// Skipped is settled (it is not coming back) but it is not completed, and the
+// report is told which dependency took it down.
+export function unmetNeeds(step, outputs = {}) {
+  const needs = Array.isArray(step?.needs) ? step.needs : [];
+  return needs.filter((id) => !outputs[id]);
+}
+
+export function skipReason(ids = []) {
+  if (!ids.length) return '';
+  return ids.length === 1
+    ? `it needed ${ids[0]}, which produced nothing`
+    : `it needed ${ids.slice(0, -1).join(', ')} and ${ids[ids.length - 1]}, which produced nothing`;
+}
+
 // A plan is finished when every step has settled. A plan whose steps all ran
 // but whose REPORT failed is not done — the report is the deliverable, and
 // four fragments are what he already had.
+//
+// PARTIAL COMPLETION IS A FIRST-CLASS OUTCOME. He walks away; a step fails;
+// what actually ran must still reach him, and must be counted honestly. Three
+// settled states, and only one of them is completion:
+//   done    — it ran and produced something
+//   failed  — it ran and did not
+//   skipped — it never ran, because what it needed failed
+// Coverage used to read `total - failed`, which counted a skipped step and a
+// step still waiting as completed. It now counts DONE, which is the only
+// number that survives being checked.
 export function planProgress(plan) {
   const steps = Array.isArray(plan?.steps) ? plan.steps : [];
-  const settled = steps.filter((s) => s.status === 'done' || s.status === 'failed');
-  const failed = steps.filter((s) => s.status === 'failed');
+  const of = (st) => steps.filter((s) => s.status === st);
+  const done = of('done');
+  const failed = of('failed');
+  const skipped = of('skipped');
+  const settled = done.length + failed.length + skipped.length;
+  const lost = [
+    failed.length ? `${failed.length} failed` : '',
+    skipped.length ? `${skipped.length} skipped for want of them` : '',
+  ].filter(Boolean).join(', ');
   return {
     total: steps.length,
-    settled: settled.length,
+    settled,
+    done: done.map((s) => s.id),
     failed: failed.map((s) => s.id),
-    allSettled: steps.length > 0 && settled.length === steps.length,
+    skipped: skipped.map((s) => s.id),
+    allSettled: steps.length > 0 && settled === steps.length,
+    // Nothing got through at all is a different answer from a partial one, and
+    // a report that opens "here is what I found" on top of it would be fiction.
+    empty: steps.length > 0 && done.length === 0,
+    partial: done.length > 0 && done.length < steps.length,
     // Coverage is a FINDING, never a footnote — the Study lane's rule, applied
     // to plans. A report built on three of four steps must say so in its first
     // line rather than present a fraction as a whole.
-    coverage: steps.length ? `${steps.length - failed.length} of ${steps.length} steps completed` : 'nothing ran',
+    coverage: steps.length
+      ? `${done.length} of ${steps.length} steps completed${lost ? ` (${lost})` : ''}`
+      : 'nothing ran',
   };
 }

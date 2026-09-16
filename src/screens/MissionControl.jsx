@@ -139,15 +139,13 @@ export function MissionControl({ v }) {
             <Eyebrow as="span" tone={v.runningPlan.state === 'ready' ? 'good' : 'cyan'}>
               {v.runningPlan.state === 'ready' ? 'Ready for you' : 'Working on it'}
             </Eyebrow>
-            <Meta tone="faint">{v.runningPlan.settled} of {v.runningPlan.total} · {v.runningPlan.since}</Meta>
+            <Meta tone="faint">{v.runningPlan.tally} · {v.runningPlan.since}</Meta>
           </div>
           <div style={{ marginTop: '4px', font: `italic 400 19px/1.25 ${S}` }}>{v.runningPlan.goal}</div>
           <div style={css('margin-top:10px;display:flex;flex-direction:column;gap:5px')}>
             {v.runningPlan.steps.map((st) => (
               <div key={st.id} style={css('display:flex;align-items:baseline;gap:10px;min-width:0')}>
-                <span style={{ flex: 'none', width: '13px', font: `600 11px ${M}`, color: st.status === 'done' ? 'var(--nv-good)' : st.status === 'failed' ? 'var(--nv-warn)' : st.status === 'running' ? 'var(--nv-cy)' : 'var(--nv-ink60)' }}>
-                  {st.status === 'done' ? '✓' : st.status === 'failed' ? '!' : st.status === 'running' ? '▸' : '·'}
-                </span>
+                <span style={{ flex: 'none', width: '13px', font: `600 11px ${M}`, color: st.tint }}>{st.glyph}</span>
                 <span style={{ flex: 1, minWidth: 0, font: `500 13px ${R}`, color: st.status === 'waiting' ? 'var(--nv-ink60)' : 'var(--nv-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{st.what}</span>
                 {st.error && <span style={{ flex: 'none', maxWidth: '40%', font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-warn)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{st.error}</span>}
               </div>
