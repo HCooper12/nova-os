@@ -28,13 +28,15 @@ export function Group({ label, trailing, children, style, accent }) {
           {trailing || null}
         </div>
       )}
-      {/* THE ROWS ASSEMBLE (17 Sep 2026). A grouped list landed as one slab —
-          the same fault `.nv-stagger` was written for in September and which
-          only the Library shelf and the chat log had ever used. Every grouped
-          list in the app inherits it from here, so this is one change rather
-          than nine screens, and the class caps at seven beats so a long list
-          can never crawl. */}
-      <div className={`${lit ? 'nv-pane nv-glow' : 'nv-pane'} nv-stagger`} style={{ padding: '4px 0', overflow: 'hidden', ...(lit ? lit.style : {}) }}>{children}</div>
+      {/* NO `.nv-stagger` HERE, and the reason is worth keeping.
+          Adding it made every row on Home PERMANENTLY INVISIBLE. Measured:
+          the animations reported `running` with `currentTime` stuck at 0 and
+          opacity 0.00 at 50, 300, 700 and 1500ms. Home re-renders every
+          second (the live clock), the rows remount, and a `both`-filled
+          entrance restarts before it can finish — so it holds its `from`
+          state forever. `.nv-stagger` is for containers that mount ONCE;
+          a grouped list on a continuously re-rendering screen is not one. */}
+      <div className={lit ? 'nv-pane nv-glow' : 'nv-pane'} style={{ padding: '4px 0', overflow: 'hidden', ...(lit ? lit.style : {}) }}>{children}</div>
     </section>
   );
 }
