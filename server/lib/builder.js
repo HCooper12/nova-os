@@ -89,8 +89,14 @@ ${shell ? `- You have Read, Write, Edit, Glob, Grep and a shell. Use the shell: 
 // because the shell is what he asked for — that would hand a long-running
 // unattended agent free rein over his Mac at exactly the moment the safety
 // mechanism reported itself missing.
-export function buildInvocation(brief, slug, dir, model) {
-  const shell = sandboxAvailable();
+// `shell` is injectable for ONE reason: the no-shell branch cannot run on this
+// Mac, where sandbox-exec is always present, so a green local suite never
+// touched it and CI was the only thing that could. It was wrong from the moment
+// it was written (17 Sep) and went red for three deploys before anyone saw it.
+// A path gated on what the machine happens to have needs to be exercised both
+// ways, by hand, or it is not covered at all.
+export function buildInvocation(brief, slug, dir, model, { shell: force } = {}) {
+  const shell = force === undefined ? sandboxAvailable() : force;
   const argv = [
     '-p', buildPrompt(brief, slug, { shell }),
     '--permission-mode', 'bypassPermissions',

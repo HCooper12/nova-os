@@ -122,6 +122,23 @@ test('the builder gets a shell only where the kernel can contain it', async () =
     assert.ok(denied.includes('Bash'), 'and Bash must be named in the deny list, not merely omitted');
   }
 
+  // BOTH BRANCHES, ON EVERY MACHINE. The block above only runs whichever way
+  // this machine happens to fall, which is how a broken assertion in the
+  // no-shell branch survived a green local suite and went red for three
+  // deploys. Force each path and check it by value.
+  for (const want of [true, false]) {
+    const r = buildInvocation('brief', 'slug', dir, 'haiku', { shell: want });
+    assert.equal(r.shell, want);
+    const allowed = String(r.args[r.args.indexOf('--allowedTools') + 1]);
+    const denied = String(r.args[r.args.indexOf('--disallowedTools') + 1]);
+    assert.equal(allowed, want ? 'Read,Write,Edit,Glob,Grep,Bash' : 'Read,Write,Edit,Glob,Grep');
+    // Bash is NAMED in the deny list when withheld — omission is not denial,
+    // and --allowedTools alone is not enforced under bypassPermissions
+    assert.equal(denied.includes('Bash'), !want);
+    assert.equal(r.cmd === SANDBOX_BIN, want, 'only a shell run goes through the wall');
+    assert.equal(!!r.env, want, 'and only a shell run redirects TMPDIR');
+  }
+
   const withShell = buildPrompt('build me a landing page', 'landing-page', { shell: true });
   assert.match(withShell, /run the tests, and FIX WHAT THEY TELL YOU/);
   assert.match(withShell, /enforced by the\s+operating system/, 'a refused write is expected, not a puzzle to solve');
