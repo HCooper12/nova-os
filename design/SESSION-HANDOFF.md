@@ -13,6 +13,69 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**16 SEP — THE FEEL PLAN IS FINISHED, AND THE BROWSER CAME BACK.**
+`design/FEEL-PLAN.md` is complete: haptics, optimistic UI, oriented transitions.
+Three of its conclusions turned out to be **wrong on inspection**, which is the
+part worth inheriting.
+
+**VERIFIED BY LOOKING** (real Safari 26.5.2 — his phone's WebKit generation —
+at exactly 375 CSS px, against the real vault, not demo data):
+- The Repertoire. Pink card, glow, `2 of 6 ›`, and the catalogue behind it:
+  6 techniques in families, 4 research reports with honest receipts
+  ("transcript read, 14 frames seen, 22 sources cited · 7 techniques · kept",
+  and two labelled `discarded draft`). **He still has not used it.**
+- The Leader, both faces. THE LEAD is back on leadership craft ("Hand Someone A
+  Real Decision Today", citing his own research file, and noting it is "a lever
+  separate from anything you've used this week"). YOUR SITUATION carries the
+  staleness line and the answer composer; `POST /api/leader/situation/answer`
+  was exercised end to end with a **stubbed transport** so nothing fabricated
+  reached his leadership profile.
+- Train's haptic overlays: 0 → 5, each `appearance: auto` (`none` kills the
+  tap), `opacity: 0`, and a tap landing on the overlay still reaches the button.
+
+**THE THREE CORRECTIONS**
+1. **The Library's morph had never once fired.** The shelf minted a name and
+   promised the result in a comment; the detail header carried none. It could
+   not have been fixed by adding one either — the shelf's name embedded the
+   ARRAY INDEX, which the detail cannot know. `src/vtName.js` now mints from the
+   id alone, both ends, plus the uniqueness guard that until now was a
+   hand-written ternary in `valsRecipes.js` nobody copied.
+2. **A duplicate name aborts the WHOLE transition**, not just its own morph —
+   `ready` rejects with InvalidStateError while `finished` RESOLVES, so neither
+   existing catch saw it and it leaked as an unhandled rejection.
+   `withTransition` catches `ready` now and names the culprit in dev.
+3. **The recipe writes are not optimistic and never were.** They were listed
+   because he types every field. `recipes.js` writes the markdown, re-parses it,
+   and throws if it does not round-trip — a refusal is a DESIGNED outcome there.
+   New half of the rule: *an outcome is not predictable just because the input
+   is known.*
+
+**THE TOOLING THAT MADE IT POSSIBLE** — no MCP browser needed, and the
+claude-in-chrome extension is still not connected:
+- `node scripts/dev-connect.mjs` seeds the connection into `public/_devconn.js`
+  (token never printed, gitignored). **`--clean` when done**; it was cleaned.
+- Drive Safari with `do JavaScript … in tab N of window M`. **Address the tab BY
+  URL, never "front document"**: a second Claude session was driving a
+  `localhost:5174` window in the same Safari, and reading its state cost a round
+  chasing a phantom "DEMO DATA" bug. Its work (`builder.js`, `projects.js`,
+  `LiquidGlass.jsx`) is theirs — its four failing tests are green again.
+- Pass JS via a file, not a shell string; AppleScript quoting will eat it.
+
+**MEASURED, NOT ASSUMED**
+- Four new reflexes: tomorrow 42,043→39ms, week-count 32,985→2ms, since-trained
+  11,862→2ms, techniques-left 11,257→8ms. The last was also **wrong** before —
+  "eleven techniques" against a catalogue of six.
+- 371 named note rows cost 75ms to capture vs 73ms with none. The clever
+  imperative fix that seemed necessary would have bought 2ms.
+
+**STILL OPEN**
+- He has still not marked a technique, answered a Leader question, or felt the
+  Train haptics — everything above is built and seen by me, not used by him.
+- Slow asks left to the model: "what did I spend this month" (~11s), "what is my
+  longest streak" (~5s). Both are lookups; the reflex pattern fits.
+- The exercise→sheet morph is verified at both ends separately but never watched
+  end to end: that needs a live session, and starting one writes a draft.
+
 **15 SEP — THE REPERTOIRE: A CONFIRMED REPORT, AND ONE TECHNIQUE A DAY.** His
 ask, sent with a 42-second Mentalist reel: *"When I give Nova something to
 analyse and capture I'd like a confirmed report with what's been analysed and if
