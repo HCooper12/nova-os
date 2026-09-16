@@ -107,8 +107,19 @@ test('the builder gets a shell only where the kernel can contain it', async () =
     assert.ok(run.env.TMPDIR.endsWith(TMP_SUBDIR), 'temp is redirected inside the wall');
     assert.ok(run.env.TMPDIR.startsWith(dir), 'which is inside this project');
   } else {
-    assert.ok(run.args.includes('Read,Write,Edit,Glob,Grep'), 'no wall, no shell');
-    assert.ok(!run.args.some((a) => String(a).includes('Bash')));
+    // Assert on the ALLOW list, not on every arg. `boundaryArgs` also emits
+    // `--disallowedTools`, which contains the string "Bash" precisely BECAUSE
+    // it forbids it — so a blunt `run.args.some(a => a.includes('Bash'))` reads
+    // the wall as a hole. This branch only executes where sandbox-exec is
+    // absent, which is never this Mac and always CI, so the assertion was
+    // wrong from the moment it was written and only CI could ever say so.
+    // (Verified 17 Sep: on the no-shell path allowedTools is exactly
+    // "Read,Write,Edit,Glob,Grep" — the shell really is withheld.)
+    const allowed = String(run.args[run.args.indexOf('--allowedTools') + 1]);
+    const denied = String(run.args[run.args.indexOf('--disallowedTools') + 1]);
+    assert.equal(allowed, 'Read,Write,Edit,Glob,Grep', 'no wall, no shell');
+    assert.ok(!allowed.includes('Bash'), 'a shell with no wall is not a fallback');
+    assert.ok(denied.includes('Bash'), 'and Bash must be named in the deny list, not merely omitted');
   }
 
   const withShell = buildPrompt('build me a landing page', 'landing-page', { shell: true });
