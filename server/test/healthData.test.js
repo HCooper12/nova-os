@@ -252,6 +252,27 @@ test('HRV sent in seconds is read as milliseconds, and nonsense becomes absent',
 });
 
 
+// The FOURTH slip in that same push, and the only one nobody had a rescue for:
+// activeEnergyKcal 1609442.544, which is 384.7 kcal sent in JOULES. The other
+// three were rescued and survived; this one was refused, so 13 Sep simply had
+// no active energy at all — honest, and still a hole in a day's record.
+test('active energy sent in joules is read as kcal, and kJ stays refused', async () => {
+  const { normalizeMetric, pickKnownMetrics } = await import('../lib/healthData.js');
+  const kcal = (v) => normalizeMetric('activeEnergyKcal', v);
+  assert.equal(Math.round(kcal(1609442.54399997) * 10) / 10, 384.7, 'his real 13 Sep value');
+  assert.equal(kcal(689), 689, 'a normal reading is untouched');
+  assert.equal(kcal(0), 0, 'a day with no activity is a reading, not a gap');
+  // THE AMBIGUOUS BAND. Some exporters send kJ. A kJ figure here would divide
+  // into a plausible-LOOKING kcal that is wrong by a factor of a thousand —
+  // worse than showing nothing — so between the ceiling and the floor it stays
+  // refused rather than guessed at.
+  assert.equal(kcal(12_000), null, 'could be kJ; refuse rather than invent');
+  assert.equal(kcal(30_000), null);
+  assert.equal(kcal(9_999_999_999), null, 'and a rescue that lands out of range is still no reading');
+  assert.equal(Math.round(pickKnownMetrics({ activeEnergyKcal: 1609442.544 }).activeEnergyKcal), 385);
+});
+
+
 // The SAME 13 Sep push carried a second unit slip: weightKg 82200, which is
 // 82.2 kilograms sent in grams. Nova answered "82200 kilograms".
 test('weight sent in grams is read as kilograms, and the guard covers every metric', async () => {

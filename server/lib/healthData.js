@@ -536,7 +536,18 @@ const METRIC_RANGE = {
   vo2Max: { min: 15, max: 90 },
   steps: { min: 0, max: 200_000 },
   walkingRunningDistanceKm: { min: 0, max: 200, rescue: (n) => (n > 200 ? n / 1000 : null) }, // metres → km
-  activeEnergyKcal: { min: 0, max: 10_000 },
+  // joules → kcal. His 13 Sep push carried 1,609,442.544 in this field
+  // alongside hrv in SECONDS, distance in METRES and weight in GRAMS — one
+  // Shortcut run that sent every quantity in HealthKit's base SI unit. The
+  // other three had rescues and survived; this one had none and was dropped,
+  // so that day simply had no active energy.
+  //
+  // The floor is deliberate. Some exporters send kJ, and a kJ figure between
+  // 10k and 50k would be rescued into a plausible-looking but wrong kcal —
+  // the one outcome worse than showing nothing. Above 50,000 only joules is a
+  // sane reading (50k kJ is 12,000 kcal, which nobody burns), so that is where
+  // the guess stops being a guess. Between the two it stays refused.
+  activeEnergyKcal: { min: 0, max: 10_000, rescue: (n) => (n > 50_000 ? n / 4184 : null) },
 };
 
 export function normalizeMetric(key, value) {
