@@ -1,4 +1,5 @@
 import { css } from './css.js';
+import { useExit } from './useExit.js';
 import { Interactive } from './Interactive.jsx';
 import { Eyebrow, Chip, Meta } from './Controls.jsx';
 
@@ -10,6 +11,8 @@ const M = 'var(--nv-font-mono)';
 // evidence, the verdict line, and Nova's honesty footer (basis, staleness,
 // caveats). A new card type needs zero new code here.
 export function VerdictCard({ v: verdict, onClose, onSpeak }) {
+  // leave the way you arrived — see useExit.js
+  const exit = useExit(onClose);
   if (!verdict) return null;
   const tone = (t) => (t === 'warn' ? 'var(--nv-warn)' : t === 'good' ? 'var(--nv-good)' : 'var(--nv-cy)');
   const m = verdict.metric;
@@ -18,9 +21,9 @@ export function VerdictCard({ v: verdict, onClose, onSpeak }) {
 
   return (
     <div role="dialog" aria-modal="true" aria-label={verdict.question}
-      onClick={onClose}
+      onClick={exit.close} ref={exit.scrimRef}
       style={css('position:fixed;inset:0;z-index:130;background:rgba(4,3,8,.86);backdrop-filter:blur(8px);overflow-y:auto;display:flex;justify-content:center;padding:24px 14px;animation:fadeIn var(--nv-dur-base) var(--nv-ease)')}>
-      <div onClick={(e) => e.stopPropagation()}
+      <div ref={exit.panelRef} onClick={(e) => e.stopPropagation()}
         style={css('width:min(760px,100%);height:fit-content;border:1px solid color-mix(in srgb, var(--nv-cy) 26%, transparent);border-radius:22px;padding:26px 24px 20px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-cy) 07%, transparent),rgba(0,0,0,.35));box-shadow:0 40px 120px -30px rgba(0,0,0,.95);animation:fadeUp var(--nv-dur-base) var(--nv-ease)')}>
 
         <div style={css('display:flex;justify-content:space-between;align-items:flex-start;gap:12px')}>
@@ -28,7 +31,7 @@ export function VerdictCard({ v: verdict, onClose, onSpeak }) {
             <Eyebrow>{verdict.question} · Nova verdict</Eyebrow>
             <h2 style={css('margin:6px 0 0;font:700 clamp(21px,5vw,32px)/1.08 var(--nv-font-ui);letter-spacing:.01em')}>{verdict.title}</h2>
           </div>
-          <Interactive as="span" onClick={onClose} aria-label="Close"
+          <Interactive as="span" onClick={exit.close} aria-label="Close"
             base={css(`cursor:pointer;flex:none;font:400 20px/1 ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent);padding:4px 8px`)}
             hoverStyle="color:var(--nv-ink)">×</Interactive>
         </div>

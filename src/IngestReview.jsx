@@ -1,4 +1,5 @@
 import { css } from './css.js';
+import { useExit } from './useExit.js';
 import { Interactive } from './Interactive.jsx';
 
 const KIND_COLOR = { new: '#5aa87c', updated: 'var(--nv-gold)' };
@@ -16,6 +17,8 @@ function ChangeCard({ change }) {
 }
 
 export function IngestReview({ v }) {
+  // leave the way you arrived — see useExit.js
+  const exit = useExit(v.closeIngestReview);
   const processing = ['researching', 'fetching', 'digesting', 'staging', 'running', 'reading'].includes(v.ingestStatus);
   const applying = v.ingestStatus === 'applying';
   // Anything unrecognized renders as an error, NEVER as an empty sheet: a
@@ -30,8 +33,8 @@ export function IngestReview({ v }) {
   const preview = v.ingestPreview;
   const readyButEmpty = (v.ingestStatus === 'ready' || applying) && !preview;
   return (
-    <div role="dialog" aria-modal="true" aria-label="Review ingest changes" onClick={processing ? undefined : v.closeIngestReview} style={css("position:fixed;inset:0;background:rgba(8,5,12,.72);backdrop-filter:blur(6px);z-index:60;display:flex;align-items:center;justify-content:center;padding:40px;overflow-y:auto")}>
-      <div onClick={v.stopClick} style={css("width:700px;max-width:94vw;max-height:88vh;overflow-y:auto;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 40px 90px -30px rgba(0,0,0,.95),inset 0 1px 0 var(--nv-spec);animation:fadeUp var(--nv-dur-base) var(--nv-ease);padding:26px 28px")}>
+    <div role="dialog" aria-modal="true" aria-label="Review ingest changes" onClick={processing ? undefined : exit.close} ref={exit.scrimRef} style={css("position:fixed;inset:0;background:rgba(8,5,12,.72);backdrop-filter:blur(6px);z-index:60;display:flex;align-items:center;justify-content:center;padding:40px;overflow-y:auto")}>
+      <div ref={exit.panelRef} onClick={v.stopClick} style={css("width:700px;max-width:94vw;max-height:88vh;overflow-y:auto;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 40px 90px -30px rgba(0,0,0,.95),inset 0 1px 0 var(--nv-spec);animation:fadeUp var(--nv-dur-base) var(--nv-ease);padding:26px 28px")}>
         <div style={css("display:flex;justify-content:space-between;align-items:center")}>
           <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-gold)")}>INGEST · REVIEW</span>
           {/* An escape is ALWAYS available. A processing job used to hide this
@@ -39,7 +42,7 @@ export function IngestReview({ v }) {
               sealed inside a spinner with no way out but force-quitting the
               app — which is exactly what happened with Atomic Habits. */}
           {!applying && (
-            <Interactive as="span" onClick={v.closeIngestReview} base="cursor:pointer;font:var(--nv-micro-l);color:color-mix(in srgb, var(--nv-ink) 50%, transparent);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:7px;padding:5px 10px" hoverStyle="color:var(--nv-ink)">{processing ? 'CANCEL' : 'ESC'}</Interactive>
+            <Interactive as="span" onClick={exit.close} base="cursor:pointer;font:var(--nv-micro-l);color:color-mix(in srgb, var(--nv-ink) 50%, transparent);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:7px;padding:5px 10px" hoverStyle="color:var(--nv-ink)">{processing ? 'CANCEL' : 'ESC'}</Interactive>
           )}
         </div>
 
@@ -67,7 +70,7 @@ export function IngestReview({ v }) {
           <div style={css("margin-top:20px")}>
             <div style={css("font-size:13px;color:var(--nv-warn);line-height:1.6")}>{v.ingestError || 'Something went wrong and the reason was lost before it could be shown. Nothing was written to your vault — try again, and if this repeats it is a bug worth reporting.'}</div>
             <div style={css("margin-top:16px")}>
-              <Interactive as="span" onClick={v.closeIngestReview} base="cursor:pointer;font-size:12.5px;padding:9px 16px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);color:color-mix(in srgb, var(--nv-ink) 70%, transparent)" hoverStyle="background:rgba(255,255,255,.05)">Dismiss</Interactive>
+              <Interactive as="span" onClick={exit.close} base="cursor:pointer;font-size:12.5px;padding:9px 16px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);color:color-mix(in srgb, var(--nv-ink) 70%, transparent)" hoverStyle="background:rgba(255,255,255,.05)">Dismiss</Interactive>
             </div>
           </div>
         )}

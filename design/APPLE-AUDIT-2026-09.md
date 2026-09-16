@@ -71,7 +71,8 @@ Verified in the running app: 60ms after the close click the overlay is still
 mounted, panel running `nvFall` at opacity 0.82, scrim running `nvFadeOut`;
 gone by 300ms.
 
-**Adopted by 4** — Outbox, Calendar, Ingest, Add Recipe. The remaining ~14 are
+**Adopted by 7** — Outbox, Calendar, Ingest, Add Recipe, Ingest Review, Coach
+Apply, Verdict. The remaining ~11 are
 a mechanical three-line edit each (hook, two refs, route the close paths).
 Two of them — StepsHistory and RepertoireBook — carry the other session's
 `vtName` morph and want a look at how the two interact before being converted.
@@ -227,7 +228,27 @@ stops dead still commits. Same class of fault as the sheet's, one layer up.
 Inbox commits, and the direction-lock property that protects DISCARD must be
 re-proved. Not a change to make casually.
 
-### 9. Sixty-one nested corners still are not concentric
+### 9. Sixty-one nested corners still are not concentric — LEFT, on purpose
+Re-measured after the flush fix and identified by content. The clusters:
+
+| where | what it is | outer/gap | has | should be |
+|---|---|---|---|---|
+| Settings ×33 | the model `<select>`s | 22/14 | 5 | 8 |
+| Mission, Train, Fuel ×9 | the LANDED rows | 16/12 | 8 | 4 |
+| Inbox ×7 | "Run now" in the Briefs card | 22/15 | 10 | 7 |
+| Inbox ×7 | the ORPHAN NOTE chips | 22/19 | 8 | 3 |
+
+**Every one is a 3–5px refinement, and forcing them is the mistake.** The
+ORPHAN NOTE chips would go to a 3px radius — nearly square — which is what the
+formula says and probably not what a small chip wants. The Settings 5px is
+Safari's UA default on `<select>`, not a chosen number.
+
+This is the same call as the scrim blur: a rule applied by analogy, without
+looking at each case, costs a real thing to satisfy a principle. The primitive
+(`.nv-inner`, `src/concentric.js`) is shipped and the one case where the rule
+is absolute is fixed. **These want his eye on a phone, a screen at a time.**
+
+### 9b. ~~(original finding)~~
 Apple's `ConcentricRectangle` rule (iOS 26 HIG, and his third reel): a shape
 inside a rounded shape takes **outer radius − the gap**, so both corners share
 a centre point. `.nv-inner` and `src/concentric.js` now exist for this, and the

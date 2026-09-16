@@ -1,4 +1,5 @@
 import { css } from './css.js';
+import { useExit } from './useExit.js';
 import { Interactive } from './Interactive.jsx';
 
 // THE CONFIRM STEP for a Coach plan change — his rule, verbatim: "it should
@@ -8,10 +9,12 @@ import { Interactive } from './Interactive.jsx';
 // one-tap deterministic apply, and his words win over the proposal.
 
 export function CoachApplySheet({ c }) {
+  // leave the way you arrived — see useExit.js
+  const exit = useExit(c.cancel);
   return (
-    <div role="dialog" aria-modal="true" aria-label="Confirm the Coach's change" onClick={c.busy ? undefined : c.cancel}
+    <div role="dialog" aria-modal="true" aria-label="Confirm the Coach's change" onClick={c.busy ? undefined : exit.close} ref={exit.scrimRef}
       style={css('position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;background:rgba(8,5,12,.7);backdrop-filter:blur(6px);padding:20px')}>
-      <div onClick={(e) => e.stopPropagation()}
+      <div ref={exit.panelRef} onClick={(e) => e.stopPropagation()}
         style={css('width:520px;max-width:94vw;border:1px solid color-mix(in srgb, var(--nv-gold) 35%, transparent);border-radius:16px;background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 40px 90px -30px rgba(0,0,0,.95);padding:20px 22px;animation:fadeUp var(--nv-dur-base) var(--nv-ease)')}>
         <div style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-gold)`)}>◆ COACH · CONFIRM THE CHANGE</div>
         <div style={css('margin-top:10px;font-size:13.5px;line-height:1.55')}>{c.proposal}</div>
@@ -27,7 +30,7 @@ export function CoachApplySheet({ c }) {
           <div style={css('margin-top:6px;font-size:11px;color:var(--nv-cy)')}>With a note, Coach reads your words and shapes the change around them — your instruction wins.</div>
         )}
         <div style={css('margin-top:14px;display:flex;gap:10px;justify-content:flex-end')}>
-          <Interactive as="span" onClick={c.busy ? undefined : c.cancel}
+          <Interactive as="span" onClick={c.busy ? undefined : exit.close} ref={exit.scrimRef}
             base={`cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:10px 16px;border-radius:9px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);color:color-mix(in srgb, var(--nv-ink) 60%, transparent);opacity:${c.busy ? 0.5 : 1}`}
             hoverStyle="background:rgba(255,255,255,.05)">CANCEL</Interactive>
           <Interactive as="span" onClick={c.busy ? undefined : c.confirm}

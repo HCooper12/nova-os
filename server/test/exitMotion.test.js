@@ -24,7 +24,10 @@ const HOOK_RAW = readFileSync(root('src/useExit.js'), 'utf8');
 const HOOK = HOOK_RAW.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 // each @keyframes in this file is one line — take the line, not a brace match
 const kf = (name) => (CSS.split('\n').find((l) => l.startsWith(`@keyframes ${name} `)) || '');
-const ADOPTERS = ['src/OutboxView.jsx', 'src/CalendarView.jsx', 'src/IngestModal.jsx', 'src/AddRecipeModal.jsx'];
+const ADOPTERS = [
+  'src/OutboxView.jsx', 'src/CalendarView.jsx', 'src/IngestModal.jsx', 'src/AddRecipeModal.jsx',
+  'src/IngestReview.jsx', 'src/CoachApplySheet.jsx', 'src/VerdictCard.jsx',
+];
 
 test('THE DEAD TOKEN now has a call site', () => {
   assert.match(CSS, /--nv-ease-exit:/, 'the token still exists');
@@ -70,7 +73,10 @@ test('the overlays that adopted it route EVERY close path through the exit', () 
     assert.match(src, /ref=\{exit\.panelRef\}/, `${f} has no panel ref — the panel would cut`);
     assert.ok(src.includes('exit.close'), `${f} still closes directly somewhere`);
     // the raw closer must not survive anywhere as an onClick, or that path cuts
-    const raw = src.match(/onClick=\{(v\.close\w*|v\.closeIngestModal|v\.closeAddRecipe)\}/);
+    // A single missed close path is the whole bug back: that button cuts
+    // while every other route animates, which reads as a glitch rather than
+    // as a missing feature.
+    const raw = src.match(/onClick=\{(v\.close\w*|onClose|c\.cancel)\}/);
     assert.equal(raw, null, `${f} still has a direct close path: ${raw && raw[0]}`);
   }
 });
@@ -78,4 +84,14 @@ test('the overlays that adopted it route EVERY close path through the exit', () 
 test('it changes no parent — the unmount stays where it was', () => {
   const app = readFileSync(root('src/App.jsx'), 'utf8');
   assert.ok(!app.includes('useExit'), 'the hook exists so App.jsx needs no edit; another session owns that file today');
+});
+
+test('a close that is CONDITIONAL stays conditional through the exit', () => {
+  // IngestReview refuses the scrim while a run is processing, and Coach
+  // refuses it while busy. Routing those through the exit must not quietly
+  // make them dismissable — that would abandon a job mid-flight.
+  const review = readFileSync(root('src/IngestReview.jsx'), 'utf8');
+  assert.match(review, /onClick=\{processing \? undefined : exit\.close\}/);
+  const coach = readFileSync(root('src/CoachApplySheet.jsx'), 'utf8');
+  assert.match(coach, /onClick=\{c\.busy \? undefined : exit\.close\}/);
 });
