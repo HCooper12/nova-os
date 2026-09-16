@@ -110,7 +110,10 @@ test('Calm keeps the depth and drops only the bloom, as it does everywhere else'
 
 test('the surfaces he actually looks at wear it', () => {
   const chrome = readFileSync(join(SRC, 'MobileChrome.jsx'), 'utf8');
-  assert.equal((chrome.match(/className="nv-liquid/g) || []).length, 3, 'top bar, dock and More sheet');
+  // match the class exactly — `nv-liquid-content` is the bar's content wrapper,
+  // not a glass surface, and a prefix match counted it as one
+  const glass = chrome.match(/className="nv-liquid(?: nv-liquid-flush)?"/g) || [];
+  assert.equal(glass.length, 3, `top bar, dock and More sheet — found ${glass.length}`);
   assert.ok(!/backdrop-filter:blur\(26px\)/.test(chrome), 'the old hand-rolled blur is gone, not sitting beside the new one');
 });
 
