@@ -10,11 +10,16 @@
 // THREE DELIBERATE LIMITS, each of which he can lift when he wants to and not
 // before:
 //
-//   NO BASH. The allowed tools are Read, Write, Edit, Glob and Grep — the
-//   builder writes files, it does not run them. A React project it scaffolds is
-//   real source he can `npm install` himself. Giving a long-running unattended
-//   agent a shell is a different decision from giving it a folder, and it is
-//   his to make separately.
+//   A SHELL, BEHIND A WALL. It has Bash — he asked for it on 16 Sep, and
+//   without it what he came back to was source he still had to install
+//   himself. The shell is not bounded by an allow-list, because a list of
+//   permitted commands is a promise the model can keep or not (`Bash(rm:*)`
+//   denied still leaves `sh -c`, `find -delete`, `node -e`). It is bounded by
+//   the macOS kernel: sandbox.js denies every write outside the project
+//   directory, so escaping is impossible rather than forbidden — including for
+//   whatever an npm postinstall script decides to do. Where that wall does not
+//   exist, neither does the shell: the build runs without one and the receipt
+//   says so, because a shell with no wall is not a fallback.
 //
 //   ITS OWN DIRECTORY, NOT HIS DESKTOP. cwd is the project folder, so the
 //   model's own idea of "here" is already the boundary; projects.js enforces
@@ -33,6 +38,7 @@ import { settleWatchdog } from './settle.js';
 import { modelFor } from './modelPrefs.js';
 import { createProjectDir, undoProject } from './projects.js';
 import { createRecord } from './inboxStore.js';
+import { sandboxed, sandboxAvailable, sandboxUnavailable } from './sandbox.js';
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 // A build is one long job, like a weave. The ceiling is a cap, not an estimate.
@@ -44,7 +50,7 @@ export function getBuildJob(id) { return jobs.get(id) || null; }
 // What the builder is told. Deliberately short: the brief is his, the rules are
 // about the boundary, and nothing here describes HOW to build — that is the
 // model's job and the reason this lane exists.
-export function buildPrompt(brief, slug) {
+export function buildPrompt(brief, slug, { shell = false } = {}) {
   return `You are building something for Hayden, on his own machine, unattended.
 
 WHAT HE ASKED FOR:
@@ -55,16 +61,48 @@ Your working directory is an empty project folder called "${slug}". Everything y
 make goes in here. You cannot write anywhere else and must not try.
 
 HOW TO WORK:
-- You have Read, Write, Edit, Glob and Grep. You have NO shell: you cannot run
-  installs, builds, servers or tests. Write source he can run himself.
+${shell ? `- You have Read, Write, Edit, Glob, Grep and a shell. Use the shell: install
+  what you need, run the build, run the tests, and FIX WHAT THEY TELL YOU.
+  Handing him something that has never been run is the thing to avoid.
+- Your shell can only write inside this folder. That is enforced by the
+  operating system, not by you, so a command that touches anything outside will
+  simply fail — that is expected, not a problem to work around. Do not try.
+- Leave it in a state he can use: dependencies installed, build passing, and
+  say in the README what command runs it.` : `- You have Read, Write, Edit, Glob and Grep, and NO shell on this machine:
+  you cannot run installs, builds, servers or tests. Write source he can run.
 - Because you cannot run it, it has to be right on paper. Prefer a stack that
   works from source without a build step where the brief allows it, and when it
-  does not, write the package.json and config a normal install would need.
+  does not, write the package.json and config a normal install would need.`}
 - Finish with a README.md that says what you made, how to run it, and — plainly
   — anything you could not do or had to assume. He would rather read one honest
   line about a gap than find it himself.
 - He is not watching. There is nobody to ask, so make the sensible call and
   write down that you made it.`;
+}
+
+// HOW THE BUILD IS ACTUALLY INVOKED — pure, so the shell decision can be
+// tested without spawning anything.
+//
+// THE SHELL IS CONDITIONAL ON THE WALL, never the other way round. If the
+// kernel cannot contain it, the build runs WITHOUT a shell and the receipt says
+// so. The tempting failure here is to fall back to an unsandboxed shell
+// because the shell is what he asked for — that would hand a long-running
+// unattended agent free rein over his Mac at exactly the moment the safety
+// mechanism reported itself missing.
+export function buildInvocation(brief, slug, dir, model) {
+  const shell = sandboxAvailable();
+  const argv = [
+    '-p', buildPrompt(brief, slug, { shell }),
+    '--permission-mode', 'bypassPermissions',
+    ...boundaryArgs(shell ? 'Read,Write,Edit,Glob,Grep,Bash' : 'Read,Write,Edit,Glob,Grep'),
+    '--output-format', 'json',
+    '--model', model || modelFor('build'),
+    '--max-budget-usd', String(BUILD_BUDGET_USD),
+    '--no-session-persistence',
+  ];
+  return shell
+    ? { shell, ...sandboxed(CLAUDE_BIN, argv, dir) }
+    : { shell, cmd: CLAUDE_BIN, args: argv };
 }
 
 // Start a build. Returns a job id immediately — this runs for minutes, which
@@ -79,16 +117,10 @@ export function startBuild(brief, { name, model } = {}) {
   const job = { id: jobId, status: 'running', slug, dir, result: null, error: null };
   jobs.set(jobId, job);
 
-  const child = spawn(CLAUDE_BIN, [
-    '-p', buildPrompt(text, slug),
-    '--permission-mode', 'bypassPermissions',
-    // no Bash: it writes source, it does not run it
-    ...boundaryArgs('Read,Write,Edit,Glob,Grep'),
-    '--output-format', 'json',
-    '--model', model || modelFor('build'),
-    '--max-budget-usd', String(BUILD_BUDGET_USD),
-    '--no-session-persistence',
-  ], { cwd: dir });
+  const run = buildInvocation(text, slug, dir, model);
+  job.shell = run.shell;
+  if (!run.shell) job.note = `built without a shell — ${sandboxUnavailable()}`;
+  const child = spawn(run.cmd, run.args, { cwd: dir, ...(run.env ? { env: run.env } : {}) });
 
   let stdout = '';
   let stderr = '';
@@ -126,12 +158,13 @@ export function startBuild(brief, { name, model } = {}) {
         createdAt: new Date().toISOString(),
         destination: dir,
         ...(job.error ? { error: job.error } : {}),
+        ...(job.note ? { note: job.note } : {}),
         decision: {
           route: 'note',
           confidence: 'high',
           title: slug,
           reason: (job.status === 'done' ? summary : job.error || '').slice(0, 300),
-          payload: { slug, dir, brief: text.slice(0, 2000) },
+          payload: { slug, dir, shell, brief: text.slice(0, 2000) },
         },
         // moved aside, never deleted — see projects.undoProject
         undoData: { route: 'build', slug },

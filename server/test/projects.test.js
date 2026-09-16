@@ -85,16 +85,41 @@ test('the builder is offered to the planner, priced, and on the model board', as
   assert.equal(laneEnabled('build'), true);
 });
 
-test('the builder writes source and cannot run it — no shell, ever', async () => {
-  const { buildPrompt, BUILD_BUDGET_USD } = await import('../lib/builder.js');
-  const src = readFileSync(new URL('../lib/builder.js', import.meta.url), 'utf8');
-  assert.match(src, /boundaryArgs\('Read,Write,Edit,Glob,Grep'\)/, 'the allowed tools are files only');
-  assert.ok(!/boundaryArgs\([^)]*Bash/.test(src), 'a long unattended agent does not get a shell');
+// THE SHELL, AND THE CONDITION ON IT. He asked for one on 16 Sep; the lane was
+// built without because an allow-list around Bash is decoration. It now has a
+// real shell and a real wall, and the contract is that neither ships alone.
+test('the builder gets a shell only where the kernel can contain it', async () => {
+  const { buildPrompt, buildInvocation, BUILD_BUDGET_USD } = await import('../lib/builder.js');
+  const { sandboxAvailable, SANDBOX_BIN, TMP_SUBDIR } = await import('../lib/sandbox.js');
   assert.equal(BUILD_BUDGET_USD, 5);
-  const p = buildPrompt('build me a landing page', 'landing-page');
-  assert.match(p, /You have NO shell/);
-  assert.match(p, /Everything you\s+make goes in here/);
-  assert.match(p, /anything you could not do or had to assume/, 'it must say what it could not do');
+
+  const dir = mkdtempSync(path.join(tmpdir(), 'nova-build-'));
+  const run = buildInvocation('build me a landing page', 'landing-page', dir, 'haiku');
+  assert.equal(run.shell, sandboxAvailable(), 'the shell follows the wall, never the other way round');
+
+  if (run.shell) {
+    // the CLI is not spawned directly — sandbox-exec is, and the CLI rides behind it
+    assert.equal(run.cmd, SANDBOX_BIN);
+    assert.equal(run.args[0], '-p');
+    assert.match(run.args[1], /\(deny file-write\*\)/, 'the profile denies writes by default');
+    assert.ok(run.args[1].includes(realpathSync(dir)), 'and re-allows exactly this project');
+    assert.ok(run.args.includes('Read,Write,Edit,Glob,Grep,Bash'), 'Bash is allowed to the CLI');
+    assert.ok(run.env.TMPDIR.endsWith(TMP_SUBDIR), 'temp is redirected inside the wall');
+    assert.ok(run.env.TMPDIR.startsWith(dir), 'which is inside this project');
+  } else {
+    assert.ok(run.args.includes('Read,Write,Edit,Glob,Grep'), 'no wall, no shell');
+    assert.ok(!run.args.some((a) => String(a).includes('Bash')));
+  }
+
+  const withShell = buildPrompt('build me a landing page', 'landing-page', { shell: true });
+  assert.match(withShell, /run the tests, and FIX WHAT THEY TELL YOU/);
+  assert.match(withShell, /enforced by the\s+operating system/, 'a refused write is expected, not a puzzle to solve');
+  const without = buildPrompt('build me a landing page', 'landing-page');
+  assert.match(without, /NO shell on this machine/);
+  for (const p of [withShell, without]) {
+    assert.match(p, /Everything you\s+make goes in here/);
+    assert.match(p, /anything you could not do or had to assume/, 'it must say what it could not do');
+  }
 });
 
 test('a build is undoable, and every record kind it files is visible to the fleet', async () => {
