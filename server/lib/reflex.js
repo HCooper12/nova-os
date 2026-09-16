@@ -42,6 +42,21 @@ const defaultDeps = {
   // the WARM calendar cache only — a cold cache is null, and null falls
   // through to the model rather than making him wait on iCloud for a reflex
   calendarToday: async () => (await import('./calendar.js')).peekCachedEventsForDay(new Date()),
+  // TOMORROW, warm cache only, same discipline as today's: a cold cache is
+  // null and falls through rather than making him wait on iCloud for a reflex.
+  calendarTomorrow: async () => {
+    const d = new Date(); d.setDate(d.getDate() + 1);
+    return (await import('./calendar.js')).peekCachedEventsForDay(d);
+  },
+  // Nova's own curriculum. Measured 16 Sep: "how many techniques do I have
+  // left" cost 11.3s AND came back ELEVEN when the catalogue holds six — a
+  // model guessing about Nova's own state. A lookup cannot be wrong about it.
+  repertoire: async () => {
+    const { loadRepertoire, flatten, readState, techniqueForDay } = await import('./repertoire.js');
+    const { localDateISO } = await import('./localDate.js');
+    const all = flatten(await loadRepertoire(process.env.VAULT_PATH));
+    return { all, state: await readState(), today: await techniqueForDay(process.env.VAULT_PATH, localDateISO(), { record: false }) };
+  },
   // the ledger — for "what's going on with the X?" (lib/verbs.js's world)
   records: async () => (await import('./inboxStore.js')).listRecords(),
   // "what's on my to-do list" cost 9.5s of model for a file read; "what did I
@@ -291,6 +306,12 @@ function daysApart(fromISO, toISO) {
   return Number.isFinite(a) && Number.isFinite(b) ? Math.round((b - a) / 86_400_000) : null;
 }
 
+// ---- the four that still cost twenty seconds (measured live, 16 Sep) ----
+const TOMORROW_RE = /^(?:what(?:'?s| is)\s+)?(?:on|happening|planned)?\s*(?:for\s+)?tomorrow(?:\s+(?:look like|looking like))?$|^what(?:'?s| is)\s+(?:on\s+)?(?:my\s+)?(?:calendar|schedule|diary)\s+tomorrow$|^tomorrow(?:'?s)?\s+(?:calendar|schedule|plan|day)$/;
+const WEEK_COUNT_RE = /^how many (?:workouts|sessions|times)(?:\s+have i\s+(?:trained|worked out|lifted))?\s+(?:this week|so far this week)$|^how many times have i (?:trained|worked out|lifted) this week$|^(?:my\s+)?workouts? this week$/;
+const SINCE_TRAINED_RE = /^how long (?:has it been |is it )?since i (?:last )?(?:trained|worked out|lifted|went to the gym)$|^when did i last (?:train|work out|lift|go to the gym)$/;
+const REP_RE = /^(?:what(?:'?s| is)\s+)?(?:today(?:'?s)?\s+)?technique(?:\s+today)?$|^how many techniques?(?:\s+(?:do i have|are)\s*)?(?:left|remaining|to go|in my repertoire)?$|^(?:what(?:'?s| is)\s+)?(?:in\s+)?my repertoire$/;
+
 const INBOX_RE = new RegExp([
   "^(?:what(?:'?s| is)?\\s*)?(?:in\\s+)?(?:my\\s+)?inbox$",
   `^how many ${THING}?\\s*(?:are\\s+)?(?:pending|waiting|in (?:my )?inbox)(?:\\s+(?:for me|in my inbox))?$`,
@@ -479,6 +500,68 @@ export async function tryReflex(question, deps = defaultDeps) {
       card: await card({ label: s.routineName || 'Session', value: `${lifts.length}`, unit: lifts.length === 1 ? 'lift' : 'lifts', caption: when.toUpperCase(), tone: 'cy' }) };
   }
 
+  // ---- tomorrow (warm cache only) ----
+  if (TOMORROW_RE.test(q)) {
+    const events = await deps.calendarTomorrow?.().catch(() => null);
+    if (events) {
+      const timed = events.filter((e) => e.time).sort((a, b) => (a.time < b.time ? -1 : 1));
+      if (!events.length) return { matched: 'calendar-tomorrow', text: 'Nothing on the calendar tomorrow, sir.' };
+      const list = timed.slice(0, 4).map((e) => `${e.label} at ${e.time}`);
+      const more = timed.length - list.length;
+      const untimed = events.length - timed.length;
+      return { matched: 'calendar-tomorrow',
+        text: `${events.length} on tomorrow: ${list.join(', ')}${more > 0 ? `, and ${more} more` : ''}${untimed > 0 ? `, plus ${untimed} with no time` : ''}.`,
+        card: await card({ label: 'Tomorrow', value: events.length, unit: events.length === 1 ? 'thing' : 'things', caption: 'CALENDAR', tone: 'cy' }) };
+    }
+  }
+
+  // ---- how many sessions this week ----
+  if (WEEK_COUNT_RE.test(q)) {
+    const sessions = await deps.sessions?.().catch(() => null);
+    if (sessions) {
+      const { mondayIso } = await import('./cadence.js');
+      const monday = mondayIso(today);
+      const week = sessions.filter((x) => x.date >= monday);
+      const names = week.map((x) => x.routineName).filter(Boolean);
+      return { matched: 'week-count',
+        text: week.length
+          ? `${week.length} this week, sir${names.length ? ` — ${names.join(', ')}` : ''}.`
+          : 'Nothing logged this week yet, sir.',
+        card: await card({ label: 'This week', value: week.length, unit: week.length === 1 ? 'session' : 'sessions', caption: 'TRAINING', tone: week.length ? 'cy' : 'warn' }) };
+    }
+  }
+
+  // ---- how long since he trained ----
+  if (SINCE_TRAINED_RE.test(q)) {
+    const sessions = await deps.sessions?.().catch(() => null);
+    if (sessions?.length) {
+      const last = sessions[0];
+      const d = daysApart(last.date, today);
+      const when = d === 0 ? 'Today' : d === 1 ? 'Yesterday' : `${d} days ago`;
+      return { matched: 'since-trained',
+        text: `${when}, sir — ${last.routineName || 'a session'} on ${spokenDate(last.date)}.`,
+        card: await card({ label: 'Last session', value: d === 0 ? 'today' : String(d), unit: d > 1 ? 'days ago' : d === 1 ? 'day ago' : '', caption: (last.routineName || 'SESSION').toUpperCase(), tone: d > 3 ? 'warn' : 'cy' }) };
+    }
+  }
+
+  // ---- his own curriculum ----
+  if (REP_RE.test(q)) {
+    const rep = await deps.repertoire?.().catch(() => null);
+    if (rep?.all) {
+      if (!rep.all.length) {
+        return { matched: 'repertoire-empty',
+          text: 'Nothing in your Repertoire yet, sir — send a clip and ask for the techniques in it.' };
+      }
+      const untaught = rep.all.filter((t) => !(rep.state.techniques?.[t.id]?.lastSurfacedOn)).length;
+      const t = rep.today?.technique;
+      return { matched: 'repertoire',
+        text: t
+          ? `Today is ${t.name}, sir — ${rep.today.position} of ${rep.all.length}, with ${untaught} still to come.`
+          : `${rep.all.length} techniques, sir — ${untaught} still to come.`,
+        card: await card({ label: 'Repertoire', value: rep.all.length, unit: 'techniques', caption: `${untaught} TO COME`, tone: 'mg' }) };
+    }
+  }
+
   // ---- when did he last train a MUSCLE GROUP ----
   const muscle = q.match(MUSCLE_RE);
   if (muscle) {
@@ -557,7 +640,7 @@ export async function tryReflex(question, deps = defaultDeps) {
   // ---- today's calendar: what's on / what's next (warm cache only) ----
   const cal = q.match(/^(?:what(?:'s| is)\s+)?(?:on|on today|on my calendar(?:\s+today)?|my (?:calendar|schedule|day)(?:\s+(?:today|look like|looking like))?|(next|coming up|my next (?:event|meeting|thing)))$/);
   if (cal) {
-    const events = await deps.calendarToday().catch(() => null);
+    const events = await deps.calendarToday?.().catch(() => null);
     if (!events) return null; // cold cache → the model, which can wait on iCloud honestly
     const nowHm = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
     const timed = events.filter((e) => e.time).sort((a, b) => (a.time < b.time ? -1 : 1));
