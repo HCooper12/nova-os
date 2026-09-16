@@ -1,4 +1,5 @@
 import { mono } from './shared.js';
+import { vtStyle } from '../vtName.js';
 
 const serif = 'var(--nv-font-serif)';
 
@@ -86,8 +87,12 @@ export function valsLibrary(app, ctx) {
       spine: spineShapeFor(it.id, it.kind),
       coverStyle: {
         ...coverStyleFor(it.title, it.kind),
-        // the morph target: the cover flies into the detail header
-        viewTransitionName: `lib-${hueOf(it.id)}-${i}`,
+        // THE MORPH TARGET: the cover flies into the detail header. The name is
+        // derived from the id alone (src/vtName.js) so the detail can mint the
+        // same one — it used to embed this row's ARRAY INDEX, which the detail
+        // side cannot know, so the pair never matched and never morphed.
+        // The open row releases the name so only one element ever holds it.
+        ...vtStyle('lib', it.id, st.libraryOpenId),
       },
       // staggered entrance — the shelf assembles rather than appears
       entranceStyle: { animation: 'shelfIn var(--nv-dur-slow) var(--nv-ease) both', animationDelay: `${Math.min(i * 45, 700)}ms` },
@@ -119,7 +124,9 @@ export function valsLibrary(app, ctx) {
           ? 'Researched from public sources — Nova has not read the text. Add your own copy via ⇪ Add to vault to deepen these pages.'
           : it.provenance === 'read' ? 'Woven from the book’s own text or your notes.' : null,
         url: it.url, tags: it.tags || [], created: it.created, updated: it.updated,
-        coverStyle: coverStyleFor(it.title, it.kind),
+        // the other half of the pair — same id, same name, no open-guard here
+        // because this IS the element that holds it
+        coverStyle: { ...coverStyleFor(it.title, it.kind), ...vtStyle('lib', it.id) },
         jacket: st.liveBookCoverUrls?.[it.id] || null,
         isBook: it.kind === 'book',
       } : null,

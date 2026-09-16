@@ -40,7 +40,7 @@ export function Notes({ v }) {
             ))}
           </div>
         </div>
-        <div style={css("border:1px solid var(--nv-edge);border-radius:var(--nv-radius);padding:26px 32px;background:var(--nv-glass);box-shadow:inset 0 1px 0 var(--nv-spec);overflow-y:auto")}>
+        <div style={{ ...css("border:1px solid var(--nv-edge);border-radius:var(--nv-radius);padding:26px 32px;background:var(--nv-glass);box-shadow:inset 0 1px 0 var(--nv-spec);overflow-y:auto"), ...v.openNoteVtStyle }}>
           <Eyebrow tone={v.openNoteTypeColor}>{v.openNoteType}</Eyebrow>
           <h2 style={css("margin:10px 0 0;font:400 32px/1.15 var(--nv-font-serif)")}>{v.openNoteTitle}</h2>
           <Meta as="div" tone="faint" style={{ marginTop: '8px' }}>{v.openNoteMeta}</Meta>

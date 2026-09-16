@@ -4224,7 +4224,15 @@ export default class App extends Component {
     }, 260);
   }
   toggleInboxExpand(id) {
-    this.setState((s) => ({ inboxExpanded: { ...s.inboxExpanded, [id]: !(s.inboxExpanded || {})[id] } }));
+    // The inbox card expands IN PLACE rather than opening a detail screen, so
+    // there is no pair to morph — but it was the one expansion in the app that
+    // JUMPED: the card doubled in height and every row below it snapped down.
+    // A view transition makes the growth readable, which is the whole point the
+    // reel was making about not losing your place. `withTransition` already
+    // opts out under prefers-reduced-motion and degrades where unsupported.
+    this.withTransition(() => this.setState((s) => ({
+      inboxExpanded: { ...s.inboxExpanded, [id]: !(s.inboxExpanded || {})[id] },
+    })));
   }
   startVideoWatch(text) {
     const conn = getConnection();

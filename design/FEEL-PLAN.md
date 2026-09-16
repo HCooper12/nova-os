@@ -265,12 +265,35 @@ Ranked by how often he meets them:
 
 | from | to | name | |
 | --- | --- | --- | --- |
-| Today's technique card (Home) | `RepertoireBook` | `technique-<id>` | **done** |
+| Today's technique card (Home) | `RepertoireBook` | `technique-<id>` | **done · seen** |
 | Steps / weight tile (Home) | `StepsHistory` | `vital-steps` / `vital-weight` | **done** |
-| An exercise row (Train) | `ExerciseSheet` | `exercise-<id>` | |
-| A note row (Notes) | the reader | `note-<id>` | |
-| An inbox card | its expanded detail | `record-<id>` | |
-| A library shelf card | the source page | `source-<id>` | |
+| A note row (Notes) | the reader | `note-<id>` | **done · seen** |
+| A library shelf card | the source page | `lib-<id>` | **done · was BROKEN, see below** |
+| An inbox card | its expanded detail | — | **done**, but not a pair — it expands in place, so it needed the transition, not a name |
+| An exercise row (Train) | `ExerciseSheet` | `exercise-<id>` | still to do |
+
+### The Library pair was already "done", and had never once fired
+
+It is worth writing down because nothing could have caught it but looking. The
+shelf minted a name and its own comment promised the result — *"the morph
+target: the cover flies into the detail header"*. The detail header built its
+style from scratch and carried **no name at all**. Opening a source in Safari
+left exactly one named element on the page: `root`.
+
+It also could not have been fixed by adding the name to the detail, because the
+shelf's name was `lib-${hueOf(it.id)}-${i}` — a hash **plus the array index**.
+The detail side cannot know a row's index, so the two ends could never agree.
+
+Both faults come from the same root: the name was minted inline, twice, by hand.
+`src/vtName.js` now mints it once from the id alone, so both ends compute the
+same string without knowing about each other. It also carries the uniqueness
+guard (`vtStyle(prefix, id, openId)`), which until now existed only as a
+hand-written ternary in `valsRecipes.js` that nobody else copied.
+
+**Names are ~free, so name the whole list.** 371 note rows carry one each; a
+transition capture measured **75ms with them and 73ms without**. The imperative
+"set the name just before the click" trick this seemed to call for would have
+been complexity bought for 2ms.
 
 **SEEN, 16 Sep** — in real Safari 26.5.2 (his phone's WebKit generation) at
 exactly 375 CSS px, against the real vault. `document.startViewTransition` is
