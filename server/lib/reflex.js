@@ -48,6 +48,11 @@ const defaultDeps = {
   // train yesterday" cost 21s. Both are the live record, plainly asked.
   todos: async () => (await import('./todos.js')).listTodos(process.env.VAULT_PATH),
   sessions: async () => (await import('./workoutSessions.js')).loadSessions(process.env.VAULT_PATH, { limit: 14 }),
+  // "when did I last train legs" has to be able to look FURTHER back than the
+  // fortnight the other training answers need — a muscle group he has not hit
+  // in three weeks is exactly the case worth answering.
+  sessionsDeep: async () => (await import('./workoutSessions.js')).loadSessions(process.env.VAULT_PATH, { limit: 60 }),
+  exerciseLibrary: async () => (await import('./exercises.js')).loadExerciseLibrary(process.env.VAULT_PATH),
 };
 
 // STATUS OF A JOB HE NAMED. The reel's "what's going on with my reservation?"
@@ -240,6 +245,52 @@ const TRAINED_RE = new RegExp(
   + "|^(?:what(?:'?s| is| was)?\\s*)?(?:my\\s+)?last (?:session|workout|training)$"
   + `|^did i train ${WHEN}$`);
 
+// ---- MUSCLE GROUPS: the 21-second question ----
+//
+// Measured 16 Sep against the live endpoint: five of his six commonest asks
+// answered in 2-66ms, and "when did I last train legs" took **21,610ms**. The
+// handoff had already named it — "still going to the model, correctly (needs
+// muscle-group interpretation)" — but it is not model work at all. His library
+// carries a muscleGroup on all 135 exercises and every session carries the
+// exercise ids. The answer is a lookup; it was only ever the WORD "legs" that
+// needed translating, and a table does that.
+//
+// This is the lever behind his ask for a conversation without awkward waiting:
+// filler exists to cover a 21-second gap, and the honest way to remove filler
+// is to remove the gap.
+const MUSCLE_WORDS = {
+  legs: ['Quads', 'Hamstrings', 'Glutes', 'Calves'],
+  leg: ['Quads', 'Hamstrings', 'Glutes', 'Calves'],
+  'lower body': ['Quads', 'Hamstrings', 'Glutes', 'Calves'],
+  quads: ['Quads'], quad: ['Quads'], thighs: ['Quads', 'Hamstrings'],
+  hamstrings: ['Hamstrings'], hamstring: ['Hamstrings'], hammies: ['Hamstrings'],
+  glutes: ['Glutes'], calves: ['Calves'], calf: ['Calves'],
+  chest: ['Chest'], pecs: ['Chest'],
+  back: ['Back'], lats: ['Back'],
+  shoulders: ['Shoulders'], shoulder: ['Shoulders'], delts: ['Shoulders'],
+  arms: ['Biceps', 'Triceps', 'Forearms'], arm: ['Biceps', 'Triceps', 'Forearms'],
+  biceps: ['Biceps'], bicep: ['Biceps'], triceps: ['Triceps'], tricep: ['Triceps'],
+  forearms: ['Forearms'],
+  abs: ['Abs'], core: ['Abs'],
+  // his own split names — "push" and "pull" are how he actually talks
+  push: ['Chest', 'Shoulders', 'Triceps'],
+  pull: ['Back', 'Biceps'],
+  'upper body': ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps'],
+};
+const MUSCLE_ALT = Object.keys(MUSCLE_WORDS).sort((a, b) => b.length - a.length).join('|');
+const MUSCLE_RE = new RegExp(
+  `^(?:when did i (?:last )?(?:train|do|hit|work)|how long since i (?:last )?(?:trained|did|hit|worked)`
+  + `|when(?:'?s| was)? (?:my )?last)\\s+(?:my\\s+)?(${MUSCLE_ALT})(?:\\s+(?:day|session|workout))?$`
+  + `|^have i (?:trained|done|hit|worked)\\s+(?:my\\s+)?(${MUSCLE_ALT})\\s+(?:this week|lately|recently)$`);
+
+// Whole days between two local date strings — same discipline as everywhere
+// else: compare at the resolution displayed, never as instants.
+function daysApart(fromISO, toISO) {
+  const a = Date.parse(`${String(fromISO).slice(0, 10)}T00:00:00Z`);
+  const b = Date.parse(`${String(toISO).slice(0, 10)}T00:00:00Z`);
+  return Number.isFinite(a) && Number.isFinite(b) ? Math.round((b - a) / 86_400_000) : null;
+}
+
 const INBOX_RE = new RegExp([
   "^(?:what(?:'?s| is)?\\s*)?(?:in\\s+)?(?:my\\s+)?inbox$",
   `^how many ${THING}?\\s*(?:are\\s+)?(?:pending|waiting|in (?:my )?inbox)(?:\\s+(?:for me|in my inbox))?$`,
@@ -426,6 +477,39 @@ export async function tryReflex(question, deps = defaultDeps) {
     return { matched: 'trained',
       text: `${s.routineName || 'A session'} ${when}, sir — ${shown.join(', ')}${more > 0 ? `, and ${more} more` : ''}.`,
       card: await card({ label: s.routineName || 'Session', value: `${lifts.length}`, unit: lifts.length === 1 ? 'lift' : 'lifts', caption: when.toUpperCase(), tone: 'cy' }) };
+  }
+
+  // ---- when did he last train a MUSCLE GROUP ----
+  const muscle = q.match(MUSCLE_RE);
+  if (muscle) {
+    const word = (muscle[1] || muscle[2] || '').trim();
+    const want = new Set(MUSCLE_WORDS[word] || []);
+    if (want.size) {
+      const [sessions, library] = await Promise.all([
+        deps.sessionsDeep?.().catch(() => null),
+        deps.exerciseLibrary?.().catch(() => null),
+      ]);
+      // no library means no way to translate the word — fall through to the
+      // model rather than answer from a guess
+      if (sessions?.length && library?.exercises?.length) {
+        const groupOf = new Map(library.exercises.map((e) => [e.id, e.muscleGroup]));
+        const hit = sessions.find((sess) => (sess.exercises || [])
+          .some((e) => want.has(groupOf.get(e.exerciseId || e.id))));
+        if (!hit) {
+          return { matched: 'muscle-none',
+            text: `You have not trained ${word} in your last ${sessions.length} sessions, sir.`,
+            card: await card({ label: word, value: '—', caption: 'NOT TRAINED', tone: 'warn' }) };
+        }
+        const days = daysApart(hit.date, today);
+        const when = days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`;
+        const lifts = (hit.exercises || [])
+          .filter((e) => want.has(groupOf.get(e.exerciseId || e.id)))
+          .map((e) => e.name).filter(Boolean).slice(0, 3);
+        return { matched: 'muscle-last',
+          text: `${when === 'today' ? 'Today' : when === 'yesterday' ? 'Yesterday' : `${days} days ago`}, sir — ${hit.routineName || 'a session'} on ${spokenDate(hit.date)}${lifts.length ? `: ${lifts.join(', ')}` : ''}.`,
+          card: await card({ label: word, value: days === 0 ? 'today' : String(days), unit: days > 1 ? 'days ago' : days === 1 ? 'day ago' : '', caption: (hit.routineName || 'SESSION').toUpperCase(), tone: days > 6 ? 'warn' : 'cy' }) };
+      }
+    }
   }
 
   // ---- a personal record on a named lift ----

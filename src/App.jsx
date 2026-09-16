@@ -4702,6 +4702,7 @@ export default class App extends Component {
     // voice leads, glass follows, exactly as the text reveal already does.
     const say = (t, from = null) => {
       clearTimeout(stream.thinkTimer); // a real sentence is here — no filler needed
+      this.cancelAck();                // and the queued "On it, sir" never happens
       const onPlay = () => { if (spokenReveal) reveal(t); if (from != null) this.raiseGlass(from + t.length); };
       // What is SPOKEN is stripped of markdown; what is stored stays raw, so
       // the glass's character offsets into it never move. (spokenProse.js)
@@ -7008,6 +7009,11 @@ export default class App extends Component {
     const spoken = !!this.spokenInput && !!this.state.voiceSpeak;
     this.flushAttachments(conn).then((attachmentId) => api.ask(conn, sent, this.state.voiceSessionId || null, { coachSessionId: this.state.coachSessionId || null, leaderSessionId: this.state.leaderSessionId || null, attachmentId, raw: question, spoken, lastAgent: lastSpeaker?.who || null, lastAgentAt: lastSpeaker?.at || null })).then((resp) => {
       if (resp.text) {
+        // THE REFLEX ANSWERED. This is now the common case — five of his six
+        // commonest asks land here in single-digit milliseconds — so the
+        // queued "On it, sir" must die before it can talk over an answer that
+        // has already arrived.
+        this.cancelAck();
         // Reflex answer — code replied from the live record, no job to poll.
         // Voice leads here too: the text lands when the audio starts. The
         // number it spoke is drawn by the same code (resp.card).
@@ -7268,22 +7274,42 @@ export default class App extends Component {
   // analyse anything. Mirrors the server's small-talk reflex so the ack is
   // never spoken before the request has even left the device.
   static SMALL_TALK = /^(?:ok(?:ay)?|alright|right|perfect|great|nice|good|cool|lovely|brilliant|awesome|cheers|got it|understood|noted|sounds good|hi|hey|hello|morning|good morning|afternoon|evening)?[,\s]*(?:thanks|thank you|ta|cheers|much appreciated|appreciate it)?[,\s]*(?:mate|nova|jarvis|sir)?[.!]?$/i;
+  // THE ACK IS NOW A LAST RESORT, NOT A REFLEX. His instruction, 16 Sep, off a
+  // Jarvis reel: the back-and-forth should feel quick and human, "rather than
+  // awkward waiting and awkward 'on it sir' or other phrases used to fill in
+  // the silent gaps."
+  //
+  // It was written when a reply was 5-8s away and silence was the worse
+  // failure. It is not any more: measured the same day, five of his six
+  // commonest asks answer in 2-66ms, and the one that took 21.6 SECONDS is now
+  // 2ms. Against an answer that fast, speaking "On it, sir" first is not
+  // covering a gap — it IS the gap, and then the answer arrives on top of it.
+  //
+  // So it waits. If the reply has started by ACK_AFTER_MS the filler never
+  // happens at all, which on his numbers is almost always. A real pause still
+  // gets a word, because dead air past a second reads as broken.
+  ACK_AFTER_MS = 900;
   speakAck(question) {
+    this.cancelAck();
     if (!this.state.voiceSpeak) return;
     const q = (question || '').trim();
     if (App.SMALL_TALK.test(q)) return; // a thank-you gets an answer, not a receipt
     if (q.length < 12) return; // short asks answer fast enough
-    // rotate rather than random: no repeat twice running, no randomness to debug
-    this.ackIdx = ((this.ackIdx ?? -1) + 1) % this.ACK_LINES.length;
-    const line = this.ACK_LINES[this.ackIdx];
-    if (this.ttsUsable()) {
-      // his own voice, ~0.5s local synth — and the FIFO guarantees the ack
-      // lands BEFORE the reply's first sentence, never over it
-      this.speakTtsSentence(line);
-      return;
-    }
-    this.beginSpeech();
-    this.speakFallback(line, () => this.endSpeech());
+    this.ackTimer = setTimeout(() => {
+      this.ackTimer = null;
+      // still nothing after the pause a person would allow — say one thing
+      if (!this.state.voiceBusy) return; // already answered
+      // rotate rather than random: no repeat twice running, no randomness to debug
+      this.ackIdx = ((this.ackIdx ?? -1) + 1) % this.ACK_LINES.length;
+      const line = this.ACK_LINES[this.ackIdx];
+      if (this.ttsUsable()) { this.speakTtsSentence(line); return; }
+      this.beginSpeech();
+      this.speakFallback(line, () => this.endSpeech());
+    }, this.ACK_AFTER_MS);
+  }
+  // The answer beat it. Nothing is spoken, and that is the point.
+  cancelAck() {
+    if (this.ackTimer) { clearTimeout(this.ackTimer); this.ackTimer = null; }
   }
   // CONFIGURED IS NOT READY, and the gap between them is thirteen hours of
   // silence. `configured` says an engine is set up; `ready` says it can make a
