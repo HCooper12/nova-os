@@ -910,6 +910,23 @@ export default class App extends Component {
       if (saved > 0) requestAnimationFrame(() => {
         if (this.state.screen === screen && this.mainRef?.current) this.mainRef.current.scrollTop = saved;
       });
+      // THE SCREEN ARRIVES. Deliberately the live <main>, animated with the
+      // Web Animations API rather than a view transition: main holds the
+      // content and NOT the chrome, so the bar and dock are never captured,
+      // never stale, and cannot glitch. It also needs no wrapper element and
+      // no remount, so the scroll restoration above still holds.
+      const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (!reduce && this.mainRef?.current?.animate) {
+        try {
+          this.screenAnim?.cancel();
+          this.screenAnim = this.mainRef.current.animate(
+            [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }],
+            { duration: 260, easing: 'cubic-bezier(.32,.72,0,1)', fill: 'both' },
+          );
+          // release the hold, or a later scroll write fights a finished effect
+          this.screenAnim.finished.catch(() => {}).then(() => this.screenAnim?.cancel());
+        } catch { /* motion is never a requirement */ }
+      }
     });
     if (changed) { if (instant) apply(); else this.withTransition(apply); this.noteScreenVisit(screen); } else apply();
     if (changed && screen === 'voice') this.maybeGreet('voice');
@@ -6161,19 +6178,17 @@ export default class App extends Component {
       // a tab or sidebar hop is INSTANT, the way iOS switches tabs — the
       // cross-fade stays for programmatic navigations (a chat route landing
       // on Code, a job tray row), where the app is moving him, not he it
-      // NOT `instant` any more (17 Sep 2026). It was deliberate — the comment
-      // on navigate() says instant "skips the view transition for a hop he
-      // made himself (tabs, sidebar)" — but it meant the whole view-transition
-      // system was dead code on the ONE path he uses most, and the line
-      // directly beneath it promises "screens cross-fade rather than cut".
-      // Every morph pair that exists (technique card, vitals tile, note row,
-      // library shelf, session exercise row) is reached by exactly this hop.
-      // Measured live on the deployed build before changing it: a dock tap
-      // started ZERO view transitions.
-      // His call, and he made it plainly: "when I click on more to view the
-      // other pages of Nova on my phone it just pops up. This is consistent
-      // across the platform … rather than dynamically animating."
-      go: (screen) => () => { warmScreen(screen); this.navigate(screen, { paletteOpen: false }); },
+      // `instant` is back, and it means "no page SNAPSHOT" — not "no motion".
+      // Turning view transitions on for navigation made the dock glitch: a
+      // snapshot of a backdrop-filtered element bakes in the backdrop it had
+      // when it was captured, so while the page changed underneath, the dock
+      // was showing stale blurred content and then hard-cutting back to live
+      // glass. Naming the chrome to exclude it only moved the problem — it
+      // still gets its own snapshot, and that snapshot is still wrong.
+      // Glass and snapshots are incompatible, and no amount of naming fixes
+      // it. The content animates instead (see navigate()), which leaves the
+      // bar and dock as live DOM that is never captured at all.
+      go: (screen) => () => { warmScreen(screen); this.navigate(screen, { paletteOpen: false, instant: true }); },
       // …and again on pointerdown, which lands ~100ms before the click. Idle
       // prefetch has usually loaded everything already, so both are normally
       // no-ops (import() is memoized) — this only earns its keep on a tap

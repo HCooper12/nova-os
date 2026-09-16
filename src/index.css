@@ -652,7 +652,6 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
    six 9px labels survive over arbitrary content, which is the constraint that
    stops this becoming `clear`. */
 .nv-liquid-dock {
-  view-transition-name: nova-dock;
   --nv-liquid-blur: 26px;
   --nv-liquid-sat: 210%;
   --nv-liquid-tint: color-mix(in srgb, var(--nv-void) 28%, transparent);
@@ -749,8 +748,6 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   background: var(--nv-glass2);
   box-shadow: none;
   border-bottom: 1px solid var(--nv-edge);
-  /* and it does not cross-fade with the page — see the transition block */
-  view-transition-name: nova-topbar;
 }
 .nv-liquid-flush::after { display: none; }
 
@@ -846,19 +843,21 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
 }
 
-/* THE CHROME STAYS PUT WHILE THE PAGE CHANGES (17 Sep 2026).
+/* THE CHROME IS NEVER SNAPSHOTTED (17 Sep 2026, second pass).
 
-   Turning screen transitions on made the bar visibly wash out and come back
-   on every section change — his words: "the glass becomes more transparent
-   and then becomes more translucent again … it made it harder to read the
-   actual buttons". That is not the material: a view transition cross-fades
-   the WHOLE snapshot, so at the midpoint two half-opaque copies of the bar
-   are stacked over the page and you can see straight through both.
+   The first pass named the bar and the dock so they would not cross-fade
+   with the page. It stopped the fade and did not stop the glitch: a named
+   element still gets its OWN snapshot, and a snapshot of a backdrop-filtered
+   element bakes in whatever was behind it at capture time. So while the page
+   changed underneath, the dock showed stale blurred content and then hard-cut
+   back to live glass — which he filmed, twice, as the dock doubling and
+   washing out.
 
-   Naming the bar and the dock takes them out of the root snapshot and gives
-   each its own group, and setting their animations to none means they simply
-   persist — which is what native chrome does. The page changes underneath
-   them. */
-::view-transition-old(nova-topbar), ::view-transition-old(nova-dock) { animation: none; opacity: 0; }
-::view-transition-new(nova-topbar), ::view-transition-new(nova-dock) { animation: none; opacity: 1; }
-::view-transition-group(nova-topbar), ::view-transition-group(nova-dock) { animation: none; }
+   Glass cannot be snapshotted correctly by anything. So navigation no longer
+   snapshots the page at all: `navigate()` animates the live <main> with the
+   Web Animations API, and the chrome lives outside main and is never
+   captured. Nothing here to name, nothing to exclude.
+
+   The shared-element morphs (RepertoireBook, StepsHistory, the note reader,
+   the library shelf, ExerciseSheet) still call withTransition themselves and
+   still work — those open WITHIN a screen and do not move the chrome. */

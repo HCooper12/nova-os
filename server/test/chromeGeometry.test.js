@@ -77,16 +77,26 @@ test('THE BAR CARRIES NO COMPOSITING HINT AT ALL', () => {
   assert.match(css, /\.nv-liquid-flush::after \{ display: none; \}/, 'and the pseudo is off');
 });
 
-test('THE CHROME DOES NOT CROSS-FADE WITH THE PAGE', () => {
-  // A view transition cross-fades the whole snapshot, so mid-transition two
-  // half-opaque copies of the bar stack over the page and you see through
-  // both. He saw exactly that: "the glass becomes more transparent and then
-  // becomes more translucent again".
+test('NOTHING SNAPSHOTS THE CHROME — glass cannot survive being captured', () => {
+  // Naming the bar and dock stopped them cross-fading and did NOT stop the
+  // glitch: a named element still gets its own snapshot, and a snapshot of a
+  // backdrop-filtered element bakes in the backdrop it had at capture time.
+  // He filmed the dock doubling and washing out with page text readable
+  // through it. So navigation stops snapshotting the page entirely.
   const css = strip(CSS);
-  assert.match(css, /\.nv-liquid-flush \{[^}]*view-transition-name: nova-topbar/s, 'the bar needs its own group');
-  assert.match(css, /\.nv-liquid-dock \{\s*view-transition-name: nova-dock/, 'and so does the dock');
-  assert.match(css, /::view-transition-old\(nova-topbar\), ::view-transition-old\(nova-dock\) \{ animation: none; opacity: 0/);
-  assert.match(css, /::view-transition-new\(nova-topbar\), ::view-transition-new\(nova-dock\) \{ animation: none; opacity: 1/);
+  assert.ok(!/view-transition-name/.test(css), 'naming the chrome only moved the problem');
+  assert.ok(!/nova-topbar|nova-dock/.test(css));
+  const app = readFileSync(root('src/App.jsx'), 'utf8');
+  assert.match(app, /this\.navigate\(screen, \{ paletteOpen: false, instant: true \}\)/,
+    'a tab hop must not snapshot the page');
+  // …but it must still MOVE. instant means no snapshot, not no motion.
+  assert.match(app, /this\.mainRef\.current\.animate\(/, 'the live content animates instead');
+  assert.match(app, /translateY\(6px\)/);
+  assert.match(app, /cubic-bezier\(\.32,\.72,0,1\)/, 'the house curve, not a new one');
+  assert.match(app, /prefers-reduced-motion: reduce/);
+  // and it animates MAIN, which excludes the chrome by construction
+  const at = app.indexOf('this.mainRef.current.animate(');
+  assert.ok(app.lastIndexOf('mainRef', at) > 0, 'it has to be main — the chrome lives outside it');
 });
 
 test('the app root fills the screen it is actually on', () => {
