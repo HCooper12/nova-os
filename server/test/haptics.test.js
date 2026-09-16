@@ -79,8 +79,11 @@ test('on his iPhone the overlay path is the one that is left, and it says so', (
     assert.equal(needsSwitchHaptic(), true);
     const cap = hapticCapability();
     assert.equal(cap.path, 'switch');
+    // UNASKED is null — unknown is its own answer, and the row asks rather
+    // than assuming in either direction. (In node there is no localStorage, so
+    // this is the unanswered state by construction.)
     assert.equal(cap.tiers, null, 'UNKNOWN — and null is the honest answer, not false');
-    assert.match(cap.label, /no way to tell/, 'it says it cannot tell');
+    assert.match(cap.label, /cannot detect/, 'it says plainly that it cannot tell');
     assert.match(cap.label, /Press "tick" then "warn"/, 'and hands him the one instrument that can');
   });
 });
