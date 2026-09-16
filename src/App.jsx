@@ -368,6 +368,7 @@ export default class App extends Component {
     liveLeader: null, leaderChat: [], leaderInput: '', leaderBusy: false,
     leaderFace: 0, // which face of the Home Leader box he swiped to
     situationAnswer: '', situationAnswerBusy: false, situationAnswerSaid: null,
+    hapticTick: 0, // his haptic reading changed — re-render the row that states it
     // the briefing reader: the loaded document, its playback, listen|read
     briefing: null, briefingLoading: false, briefingError: null, briefingPlay: null, briefingMode: 'listen',
     briefingMediaUrls: {}, // key → blob URL, fetched when the briefing opens so the glass never buffers

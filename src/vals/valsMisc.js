@@ -145,6 +145,18 @@ export function valsMisc(app, ctx) {
     voicePickerLabel: st.liveTts?.engine === 'local' ? 'NOVA VOICE' : st.liveTts?.engine === 'elevenlabs' ? 'ELEVENLABS VOICE' : 'VOICE',
     voiceDefaultLabel: st.liveTts?.engine === 'local' ? 'Nova (default)' : 'Account default',
     speakOn: st.voiceSpeak,
+    // HIS HAPTIC READING. Nothing in code can feel a haptic, so the answer is
+    // his to give; the tick is only there to re-render the row once he has.
+    hapticTiers: {
+      verdict: (() => { try { const v = localStorage.getItem('novaos.hapticTiers'); return v === 'yes' ? true : v === 'no' ? false : null; } catch { return null; } })(),
+      set: (val) => {
+        try {
+          if (val === null) localStorage.removeItem('novaos.hapticTiers');
+          else localStorage.setItem('novaos.hapticTiers', val ? 'yes' : 'no');
+        } catch { /* private mode — the row just keeps asking */ }
+        app.setState({ hapticTick: (st.hapticTick || 0) + 1 });
+      },
+    },
     toggleSpeak: () => app.setVoiceSpeak(!st.voiceSpeak),
     voiceOptions: (st.liveTts?.voices || []).map((v) => ({ id: v.id, name: v.name })),
     voiceVoiceId: st.voiceVoiceId,

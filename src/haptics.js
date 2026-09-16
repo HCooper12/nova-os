@@ -105,13 +105,20 @@ export function hapticCapability() {
     return { path: 'vibrate', tiers: true, label: 'Vibration API — patterned, so the five are distinct.' };
   }
   if (isIOS()) {
+    // HE IS THE INSTRUMENT. A haptic leaves no trace, so nothing here can be
+    // detected — but he can feel it, and on 16 Sep he did: "same pulses". So
+    // the answer is stored rather than guessed, and the row states whichever
+    // reading it has. Unanswered stays `null`: unknown is its own answer, and
+    // the surface asks rather than assumes.
+    const felt = readTierVerdict();
     return {
       path: 'switch',
-      // UNKNOWN, honestly. Recent iOS closed the extra pulses; Safari freezes
-      // the version it reports, so Nova cannot tell which side of that line
-      // this phone is on, and a haptic leaves no trace to detect.
-      tiers: null,
-      label: 'iOS web — a real Taptic tap on anything you press. The heavier words ask for extra pulses on top; recent iOS blocks those, and Nova has no way to tell whether yours does. Press "tick" then "warn": if they feel different, they are working.',
+      tiers: felt,
+      label: felt === false
+        ? 'iOS web — one real Taptic tap on anything you press. You checked: the extra pulses do not land on this phone, so all five feel the same. Distinct tiers need the native shell.'
+        : felt === true
+          ? 'iOS web — a real Taptic tap, and you confirmed the heavier words land as extra pulses.'
+          : 'iOS web — a real Taptic tap on anything you press. The heavier words ask for extra pulses on top; recent iOS blocks those and Nova cannot detect which way yours goes. Press "tick" then "warn" and tell it below.',
     };
   }
   return { path: 'none', tiers: false, label: 'This device has no haptics Nova can reach.' };
@@ -181,6 +188,21 @@ function retick(kind) {
     at += gaps[i - 1] || 40;
     setTimeout(() => { try { t.label.click(); } catch { /* the tap already landed */ } }, at);
   }
+}
+
+// His reading, stored. Not a preference — a MEASUREMENT only he can take.
+const TIER_KEY = 'novaos.hapticTiers';
+export function readTierVerdict() {
+  try {
+    const v = localStorage.getItem(TIER_KEY);
+    return v === 'yes' ? true : v === 'no' ? false : null;
+  } catch { return null; }
+}
+export function setTierVerdict(v) {
+  try {
+    if (v === null) localStorage.removeItem(TIER_KEY);
+    else localStorage.setItem(TIER_KEY, v ? 'yes' : 'no');
+  } catch { /* private mode — the row just keeps asking */ }
 }
 
 // WHAT TO TELL ME IF IT STILL DOES NOTHING. A second "I feel nothing" has to

@@ -323,6 +323,15 @@ export function Settings({ v }) {
                       `switches` is the decisive one: 0 means the overlay is not
                       being mounted at all, anything else means it is mounted
                       and iOS is refusing to fire. */}
+                  {/* HE IS THE INSTRUMENT. Nothing here can detect a haptic,
+                      so the reading is his to give and Nova's to remember. */}
+                  {cap.path === 'switch' && (
+                    <div style={css("margin-top:11px;display:flex;gap:8px;align-items:center;flex-wrap:wrap")}>
+                      <span style={css("font-size:11px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>Do tick and warn feel different?</span>
+                      <Chip tone="cyan" active={v.hapticTiers.verdict === true} onClick={() => v.hapticTiers.set(true)}>Different</Chip>
+                      <Chip tone="quiet" active={v.hapticTiers.verdict === false} onClick={() => v.hapticTiers.set(false)}>The same</Chip>
+                    </div>
+                  )}
                   {(() => {
                     const d = hapticDiagnostic();
                     return (
