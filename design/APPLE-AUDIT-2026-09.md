@@ -70,7 +70,24 @@ its FLIP back into the card it grew from.
 deleted as an idea that was never taken up. **Either is defensible; having the
 token and not using it is not.**
 
-### 3. The largest type in the app has no tracking
+### 3. ~~The largest type in the app has no tracking~~ — FIXED, and it was worse than "none"
+Measured in the running app: every screen header was **`+.02em` at 28–30px** —
+not untracked, tracked the *wrong way*. Large type reads too loose as it grows;
+that loosened it further. Sixteen headers now read `--nv-display-track`, which
+is `+.02em` under Command (wide tracking **is** the HUD look, and the gym hero
+is uppercase there, which genuinely wants it) and `-.02em` under the Apple
+styles. Verified live at 30px: cupertino −0.6px, Command +0.6px.
+
+A second thing fell out of it: **`letter-spacing` in `em` computes to an
+absolute length and inherits as one**, so the 27px serif span inside a 30px
+header inherited `0.6px` — `.0222em` at its own size, looser than the `.02em`
+intended. The note is in `index.css` beside the token.
+
+The 96px Ambient clock keeps `+.04em` deliberately: monospace tabular numerals
+are a clock face, not prose, and the test exempts on the **face**, not on the
+filename.
+
+### 3b. Serif body sizes (14–16px) are still untracked, and should stay that way
 The serif display line — the Home headline, the news line, 24–34px — carries no
 `letter-spacing` at all. Small mono labels get `+0.14em`
 (`--nv-micro-track`), which is correct for them. The other half of the curve is
@@ -110,7 +127,21 @@ Nova puts a `1px solid var(--nv-edge)` under the top bar and under
 It is a contained change to two places and it is the single most "iOS 26" thing
 left on the list.
 
-### 6. Ten modals run two backdrop passes to achieve roughly one
+### 6. ~~Ten modals run two backdrop passes to achieve roughly one~~ — WITHDRAWN, I was wrong
+A/B'd in the real app over the real Home screen: with the scrim blurred the
+background is illegible mush; with it removed **you can read "LANDED · 9 today
+· 7 filed" straight through the 72% scrim**. The second pass is not waste — it
+is what makes a modal a modal. Raising the scrim's opacity instead would obscure
+just as well for one pass, and would lose the "dimmed but still present" quality
+the blur gives, which is the whole of Apple's material story.
+
+The skill's rule ("never stack a light translucent surface on another") is about
+the legibility of the TOP surface, which was never in question here. Applying it
+by analogy would have cost a real thing to save a cost I had not measured.
+
+**Kept as-is. Nothing to decide.**
+
+### 6b. ~~(original finding, for the record)~~
 `AddRecipeModal`, `IngestModal`, `IngestReview`, `CalendarView`,
 `CoachApplySheet`, `PortionSheet`, `OutboxView`, `RepertoireBook`,
 `RecipeOverlay`, `StepsHistory` each blur the scrim (6px) **and** the panel

@@ -20,7 +20,7 @@ export function Stash({ v }) {
         <ScreenHead numeral="XIII." label="Vault · Stash" />
         <Meta tone="faint">{v.stashHeaderLabel}</Meta>
       </div>
-      <h1 style={css(`margin:18px 0 0;font:700 30px/1.1 ${R};letter-spacing:.02em`)}>Stash it, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>find it fast.</span></h1>
+      <h1 style={css(`margin:18px 0 0;font:700 30px/1.1 ${R};letter-spacing:var(--nv-display-track)`)}>Stash it, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>find it fast.</span></h1>
       <div style={css("margin-top:8px;font-size:13px;color:color-mix(in srgb, var(--nv-ink) 55%, transparent);max-width:600px;line-height:1.6")}>
         Products to restock, links to revisit — grouped so the skincare shelf is two taps from anywhere. Lives in your vault; edit it in Obsidian too.
       </div>

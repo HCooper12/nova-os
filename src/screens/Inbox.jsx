@@ -95,7 +95,7 @@ export function Inbox({ v }) {
         <ScreenHead numeral="V." label="Self · Inbox" />
         <Meta tone="faint">{v.inboxHeaderLabel}</Meta>
       </div>
-      <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Drop the thought, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>Nova files it.</span></h1>
+      <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:var(--nv-display-track)")}>Drop the thought, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>Nova files it.</span></h1>
 
       {/* capture composer */}
       <div className="nv-pane" style={{ marginTop: '20px', padding: '18px 20px' }}>

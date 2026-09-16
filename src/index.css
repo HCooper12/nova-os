@@ -131,6 +131,17 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
      readable size. Three sizes keep the hierarchy the screens already had. */
   --nv-micro-s:500 8.5px var(--nv-font-mono); --nv-micro-m:500 9.5px var(--nv-font-mono); --nv-micro-l:500 11px var(--nv-font-mono);
   --nv-micro-track:.14em; --nv-micro-track-wide:.2em;
+  /* DISPLAY TRACKING (16 Sep 2026). Measured: every screen header was
+     +.02em at 28-30px — the wrong direction for large type, which reads
+     too loose as it grows. Command KEEPS it: wide tracking is the HUD
+     look and always was. The Apple styles tighten, because that is what
+     the face and the size want there. A token, not a number, because the
+     answer genuinely differs per style — same reason --nv-micro-track is
+     one. Watch the unit: letter-spacing in `em` computes to an absolute
+     length and INHERITS as one, so a smaller child span ends up tracked
+     MORE loosely in em terms than its parent (measured: a 27px serif
+     inside a 30px header inherited 0.6px = .0222em, not .02em). */
+  --nv-display-track:.02em;
   /* MOTION TOKENS (11 Sep 2026): one law, not five. Before this the app had
      four easing curves, seven durations on `fadeUp` alone, and five different
      rise distances doing the same job — each correct on its own, and visibly
@@ -256,6 +267,7 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
    attribute in React (valsChrome → appleStyle).
    ================================================================ */
 :root[data-nv-style="apple"], :root[data-nv-style="cupertino"] {
+  --nv-display-track:-.02em;
   --nv-font-ui:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',system-ui,sans-serif;
   --nv-font-serif:ui-serif,'New York',Georgia,serif;
   --nv-font-mono:ui-monospace,'SF Mono','IBM Plex Mono',monospace;

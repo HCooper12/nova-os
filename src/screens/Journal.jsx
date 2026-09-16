@@ -14,7 +14,7 @@ export function Journal({ v }) {
         <ScreenHead numeral="XI." label="Vault · Journal" />
         <Meta tone="faint">{v.journalHeaderLabel}</Meta>
       </div>
-      <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Write it <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>down.</span></h1>
+      <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:var(--nv-display-track)")}>Write it <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>down.</span></h1>
 
       <div style={css("margin-top:20px;border:1px solid color-mix(in srgb, var(--nv-vi) 25%, transparent);border-radius:14px;padding:18px 20px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-vi) 06%, transparent),color-mix(in srgb, var(--nv-vi) 01%, transparent))")}>
         <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px")}>

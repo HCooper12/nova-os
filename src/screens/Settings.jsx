@@ -26,7 +26,7 @@ export function Settings({ v }) {
       <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>
         <ScreenHead numeral="XIV." label="System · Settings" />
       </div>
-      <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Connect the <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>real vault.</span></h1>
+      <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:var(--nv-display-track)")}>Connect the <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>real vault.</span></h1>
       <div style={css("margin-top:8px;font-size:13px;color:color-mix(in srgb, var(--nv-ink) 60%, transparent);max-width:640px;line-height:1.6")}>
         Point Nova OS at the backend running on your Mac to replace the demo data with your
         real Obsidian vault, calendar, and health data. Until then the app runs in demo mode —

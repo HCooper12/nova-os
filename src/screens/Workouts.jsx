@@ -115,7 +115,7 @@ function ExercisePicker({ v }) {
 function RoutinesView({ v }) {
   return (
     <>
-      <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Train, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>your way.</span></h1>
+      <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:var(--nv-display-track)")}>Train, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>your way.</span></h1>
 
       {/* the mockup's hero: ON TODAY'S CARD, front and centre — a session
           in progress replaces it with the resume card below */}
@@ -128,7 +128,7 @@ function RoutinesView({ v }) {
       ) : (
         <div style={css("margin-top:18px;border:1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent);border-radius:16px;padding:20px 22px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-cy) 09%, transparent),transparent);box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 18px 44px -26px color-mix(in srgb, var(--nv-cy) 55%, transparent)")}>
           <Eyebrow tone="cyan">On today's card</Eyebrow>
-          <div style={css("margin-top:7px;font:700 30px/1.05 var(--nv-font-ui);letter-spacing:.01em")}>{isAppleStyle() ? v.gymHero.name : v.gymHero.name.toUpperCase()}</div>
+          <div style={css("margin-top:7px;font:700 30px/1.05 var(--nv-font-ui);letter-spacing:var(--nv-display-track)")}>{isAppleStyle() ? v.gymHero.name : v.gymHero.name.toUpperCase()}</div>
           <Meta as="div" tone="quiet" style={{ marginTop: '7px' }}>{v.gymHero.meta}</Meta>
           {/* WHAT IT HITS — the muscles this session trains, before he
               commits to it. Collapsed to chips; tap for the per-exercise
@@ -420,7 +420,7 @@ function RoutineDetailView({ v }) {
   return (
     <>
       <TextAction tone="quiet" onClick={v.backToRoutines} style={{ marginTop: '18px', marginLeft: '-8px' }}>← Routines</TextAction>
-      <h1 style={css("margin:10px 0 0;font:700 28px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>{v.openRoutineName}</h1>
+      <h1 style={css("margin:10px 0 0;font:700 28px/1.1 var(--nv-font-ui);letter-spacing:var(--nv-display-track)")}>{v.openRoutineName}</h1>
 
       <div style={css("margin-top:18px;display:flex;gap:10px;flex-wrap:wrap")}>
         <Interactive
@@ -498,7 +498,7 @@ function SessionView({ v }) {
   const midSessionLogRef = useStickToBottom();
   return (
     <>
-      <h1 style={css("margin:18px 0 0;font:700 28px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>{v.sessionRoutineName}{v.sessionEditing && <span style={css("font:italic 400 26px var(--nv-font-serif);color:var(--nv-gold)")}> — editing the record.</span>}</h1>
+      <h1 style={css("margin:18px 0 0;font:700 28px/1.1 var(--nv-font-ui);letter-spacing:var(--nv-display-track)")}>{v.sessionRoutineName}{v.sessionEditing && <span style={css("font:italic 400 26px var(--nv-font-serif);color:var(--nv-gold)")}> — editing the record.</span>}</h1>
       <Meta as="div" tone="faint" style={{ marginTop: '4px', textTransform: 'none', letterSpacing: 0 }}>{v.sessionEditing ? 'Untick anything that didn’t actually happen — only ticked sets stay in history.' : 'Session in progress — sets auto-fill from last time. Only ticked sets are saved.'}</Meta>
 
       {/* THE GYM BY VOICE (src/gymVoice.js) is invisible without this line.
@@ -789,7 +789,7 @@ function HistoryView({ v }) {
   return (
     <>
       <TextAction tone="quiet" onClick={v.backFromWorkoutHistory} style={{ marginTop: '18px', marginLeft: '-8px' }}>← Back</TextAction>
-      <h1 style={css("margin:10px 0 0;font:700 28px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>{v.historyRoutineName} <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>history.</span></h1>
+      <h1 style={css("margin:10px 0 0;font:700 28px/1.1 var(--nv-font-ui);letter-spacing:var(--nv-display-track)")}>{v.historyRoutineName} <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>history.</span></h1>
 
       {v.historyLoading ? (
         <div style={css("margin-top:40px;text-align:center;font-size:13px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Loading…</div>
@@ -839,7 +839,7 @@ function MockWorkouts({ v }) {
   const demoLogRef = useStickToBottom();
   return (
     <>
-      <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Push day, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>week six.</span></h1>
+      <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:var(--nv-display-track)")}>Push day, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>week six.</span></h1>
       <div style={css("display:flex;gap:8px;margin-top:18px;overflow-x:auto;padding-bottom:4px")}>
         {v.week.map((d) => (
           <div key={d.day} style={d.style}><div style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track)")}>{d.day}</div><div style={css("margin-top:4px;font-size:11.5px")}>{d.label}</div></div>

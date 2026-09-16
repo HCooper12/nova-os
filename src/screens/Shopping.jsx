@@ -14,7 +14,7 @@ export function Shopping({ v }) {
         <ScreenHead numeral="VII." label="Vault · Shopping list" />
         <Meta tone="faint">{v.shoppingHeaderLabel}</Meta>
       </div>
-      <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Shop <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>once, cleanly.</span></h1>
+      <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:var(--nv-display-track)")}>Shop <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>once, cleanly.</span></h1>
 
       <div style={css("margin-top:20px;display:flex;gap:8px;align-items:flex-start")}>
         <textarea

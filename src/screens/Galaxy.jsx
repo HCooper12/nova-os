@@ -12,7 +12,7 @@ export function Galaxy({ v }) {
         <Meta tone="faint">{v.galaxyStatsLabel}</Meta>
       </div>
       <div style={css("display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:16px")}>
-        <h1 style={css("margin:0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Everything you know, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>connected.</span></h1>
+        <h1 style={css("margin:0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:var(--nv-display-track)")}>Everything you know, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>connected.</span></h1>
         {/* legend chips are filters: tap a type to fade the others, tap again to clear */}
         <div style={css("display:flex;flex-wrap:wrap;gap:8px 14px;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
           {v.galaxyLegend.map((item) => (

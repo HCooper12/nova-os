@@ -78,6 +78,11 @@ export function Ambient({ v }) {
       )}
 
       <div style={css("display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:8px")}>
+        {/* NOT --nv-display-track, deliberately. That token tightens large
+            PROSE, which is what loose tracking hurts as it grows. This is 96px
+            of monospace tabular numerals — a clock face, where the digits are
+            already fixed-width and wide tracking is what keeps the reading
+            calm from across a room. Tightening it would cramp the colon. */}
         <div style={css(`font:200 96px/1 ${M};letter-spacing:.04em;color:${dim(92)};font-variant-numeric:tabular-nums`)}>
           {hh}<span style={css(`color:${dim(35)};animation:dotBlink 2s infinite`)}>:</span>{mm}
         </div>

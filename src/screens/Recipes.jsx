@@ -169,7 +169,7 @@ export function Recipes({ v }) {
         <ScreenHead numeral="VI." label="Vault · Fuel" />
         <Meta tone="faint">{v.recipesHeaderLabel}</Meta>
       </div>
-      <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Fuel, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>macros first.</span></h1>
+      <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:var(--nv-display-track)")}>Fuel, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>macros first.</span></h1>
 
       {/* the redesigned Fuel hero: ring + coloured macros + the gap-fill
           coach line — one glance answers "where am I, and what do I eat

@@ -18,7 +18,7 @@ export function Todos({ v }) {
     <div style={v.wrapTodos}>
       <Eyebrow>Nova · To-Do</Eyebrow>
       <div style={css("display:flex;align-items:baseline;gap:14px;flex-wrap:wrap")}>
-        <h1 style={css(`margin:6px 0 0;font:700 30px/1.05 ${R};letter-spacing:.02em`)}>To-Do</h1>
+        <h1 style={css(`margin:6px 0 0;font:700 30px/1.05 ${R};letter-spacing:var(--nv-display-track)`)}>To-Do</h1>
         <Meta tone="faint">{v.todosHeaderLabel}</Meta>
       </div>
 

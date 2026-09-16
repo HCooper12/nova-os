@@ -14,7 +14,7 @@ export function ClaudeCode({ v }) {
         <Meta tone="faint">Read + edit files · no shell access</Meta>
       </div>
       <div style={css("display:flex;align-items:baseline;justify-content:space-between;margin-top:18px;gap:14px;flex-wrap:wrap")}>
-        <h1 style={css("margin:0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:.02em")}>Claude, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>direct line.</span></h1>
+        <h1 style={css("margin:0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:var(--nv-display-track)")}>Claude, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>direct line.</span></h1>
         <div style={css("display:flex;gap:10px")}>
           <Chip tone="var(--nv-mg)" disabled={v.sparBusy} onClick={v.sparBusy ? undefined : v.startSpar}>{v.sparBusy ? '⚔ Breaker running…' : '⚔ Spar — send the Breaker'}</Chip>
           <Chip tone="quiet" onClick={v.newCodeSession}>+ New session</Chip>

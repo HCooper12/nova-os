@@ -21,7 +21,7 @@ export function Money({ v }) {
     <div style={v.wrapMoney}>
       <Eyebrow>Nova · CFO</Eyebrow>
       <div style={css("display:flex;align-items:baseline;gap:14px;flex-wrap:wrap")}>
-        <h1 style={css(`margin:6px 0 0;font:700 30px/1.05 ${R};letter-spacing:.02em`)}>Money</h1>
+        <h1 style={css(`margin:6px 0 0;font:700 30px/1.05 ${R};letter-spacing:var(--nv-display-track)`)}>Money</h1>
         <Meta tone="faint">{v.moneyHeaderLabel}</Meta>
         {v.moneyMonths.length > 1 && (
           <select value={v.moneyMonth} onChange={v.setMoneyMonth}
