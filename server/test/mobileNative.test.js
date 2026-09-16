@@ -62,7 +62,13 @@ test('an inner scroller cannot hand its leftover scroll to the page behind it', 
 test('the app shell measures the viewport that is actually visible', () => {
   const app = readFileSync(root('src/App.jsx'), 'utf8');
   assert.ok(!/(min-)?height:100vh/.test(app), '100vh is the LARGEST viewport — it overflows by the URL bar');
-  assert.match(app, /height:100dvh/);
+  // svh for the SCROLLING root, not dvh. dvh tracks the URL bar as it
+  // collapses, which is right for a fixed app shell and wrong for something
+  // that grows: it resizes mid-scroll and the page visibly jumps. He reported
+  // exactly that from the gym on 16 Sep. svh is the smallest viewport, so it
+  // is stable and can never overflow.
+  assert.match(app, /min-height:100svh/, 'the growing root must not resize under a scroll');
+  assert.match(app, /height:100dvh/, 'the fixed desktop shell still tracks the visible area');
 });
 
 test('REDUCE TRANSPARENCY is honoured by the whole app, not only the new glass', () => {

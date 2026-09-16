@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { css } from './css.js';
 import { useLongPress } from './longPress.js';
 import { haptic as fireHaptic, needsSwitchHaptic, switchHapticRef, SWITCH_HAPTIC_STYLE } from './haptics.js';
@@ -40,10 +40,27 @@ const DEFAULT_FOCUS = { outline: '2px solid var(--nv-acc-border)', outlineOffset
 // Opt-in rather than automatic because the overlay needs the element to be a
 // positioned ancestor, and quietly making ~300 wrappers into stacking contexts
 // is not a change to make blind.
+// A SCROLL MUST NOT BE A TAP (16 Sep 2026, reported mid-gym-session).
+//
+// The iOS haptic path lays a transparent NATIVE <input type="checkbox"> over
+// the whole control, because a real form control is the only thing iOS 26.5
+// will still fire the Taptic Engine for. That works — and a native form
+// control does not honour the same scroll-versus-tap disambiguation a div
+// does. Dragging a finger up the Train screen from a set row activated the
+// checkbox at touch-end, and the click bubbles by design, so the set ticked.
+// Focusing it also makes iOS scroll it into view, which is the "page jumping"
+// half of the same report.
+//
+// So the overlay is armed on pointerdown and DISARMED the moment the finger
+// travels past the slop radius: past that point the gesture is a scroll, and a
+// scroll must reach the scroller untouched. Re-armed on the next press.
+const SWITCH_SLOP_PX = 10;
+
 export function Interactive({ as: Tag = 'div', base, hoverStyle, activeStyle, focusStyle, style: styleProp, onPointerDown, onPointerUp, onPointerCancel, onPointerEnter, onPointerLeave, onFocus, onBlur, onClick, onKeyDown, onLongPress, haptic: hapticWord, children, ...rest }) {
   const [hover, setHover] = useState(false);
   const [active, setActive] = useState(false);
   const [focus, setFocus] = useState(false);
+  const pressAt = useRef(null);
   // spec #13: hold (or right-click) any Interactive for its secondary
   // actions — the hook composes with the pressed-state handlers below
   const lp = useLongPress(onLongPress);
@@ -85,15 +102,37 @@ export function Interactive({ as: Tag = 'div', base, hoverStyle, activeStyle, fo
         },
       }
     : { onKeyDown };
+  // the overlay for THIS element — a per-element lookup, because the ref the
+  // input carries is module-level and holds whichever mounted last
+  const switchIn = (el) => (wantsSwitch && el ? el.querySelector('input[data-nv-haptic]') : null);
+  const armSwitch = (el, on) => {
+    const sw = switchIn(el);
+    if (!sw) return;
+    sw.disabled = !on;
+    sw.style.pointerEvents = on ? '' : 'none';
+  };
   const common = {
     style,
     onClick: onClick ? (e) => { if (hapticWord) fireHaptic(hapticWord); onClick(e); } : undefined,
     onClickCapture: lp.onClickCapture,
     onContextMenu: lp.onContextMenu,
-    onPointerDown: (e) => { setActive(true); lp.onPointerDown?.(e); onPointerDown?.(e); },
-    onPointerMove: lp.onPointerMove,
-    onPointerUp: (e) => { setActive(false); lp.onPointerUp?.(e); onPointerUp?.(e); },
-    onPointerCancel: (e) => { setActive(false); lp.onPointerCancel?.(e); onPointerCancel?.(e); },
+    onPointerDown: (e) => {
+      setActive(true);
+      pressAt.current = { x: e.clientX, y: e.clientY };
+      armSwitch(e.currentTarget, true);
+      lp.onPointerDown?.(e); onPointerDown?.(e);
+    },
+    onPointerMove: (e) => {
+      const p = pressAt.current;
+      if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > SWITCH_SLOP_PX) {
+        // this is a scroll now, not a press — get the form control out of the way
+        armSwitch(e.currentTarget, false);
+        pressAt.current = null;
+      }
+      lp.onPointerMove?.(e);
+    },
+    onPointerUp: (e) => { setActive(false); pressAt.current = null; lp.onPointerUp?.(e); onPointerUp?.(e); },
+    onPointerCancel: (e) => { setActive(false); pressAt.current = null; armSwitch(e.currentTarget, false); lp.onPointerCancel?.(e); onPointerCancel?.(e); },
     // hover is a mouse-only affordance — never let touch set it (that's what stuck)
     onPointerEnter: (e) => { if (e.pointerType === 'mouse') setHover(true); onPointerEnter?.(e); },
     onPointerLeave: (e) => { setHover(false); setActive(false); lp.onPointerLeave?.(e); onPointerLeave?.(e); },
@@ -112,6 +151,7 @@ export function Interactive({ as: Tag = 'div', base, hoverStyle, activeStyle, fo
       {wantsSwitch && (
         <input
           type="checkbox"
+          data-nv-haptic=""
           ref={switchHapticRef}
           aria-hidden="true"
           tabIndex={-1}
