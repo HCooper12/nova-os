@@ -28,7 +28,13 @@ export function Group({ label, trailing, children, style, accent }) {
           {trailing || null}
         </div>
       )}
-      <div className={lit ? 'nv-pane nv-glow' : 'nv-pane'} style={{ padding: '4px 0', overflow: 'hidden', ...(lit ? lit.style : {}) }}>{children}</div>
+      {/* THE ROWS ASSEMBLE (17 Sep 2026). A grouped list landed as one slab —
+          the same fault `.nv-stagger` was written for in September and which
+          only the Library shelf and the chat log had ever used. Every grouped
+          list in the app inherits it from here, so this is one change rather
+          than nine screens, and the class caps at seven beats so a long list
+          can never crawl. */}
+      <div className={`${lit ? 'nv-pane nv-glow' : 'nv-pane'} nv-stagger`} style={{ padding: '4px 0', overflow: 'hidden', ...(lit ? lit.style : {}) }}>{children}</div>
     </section>
   );
 }
@@ -79,7 +85,11 @@ export function Pill({ label, onClick, tone = 'accent', accent = '--nv-acc', hap
   const solid = tone === 'accent';
   return (
     <Interactive as="span" onClick={onClick} haptic={haptic}
-      base={{ cursor: 'pointer', display: 'inline-block', font: `600 13px ${UI}`, letterSpacing: '.01em', padding: '9px 18px', borderRadius: '999px',
+      base={{ cursor: 'pointer', display: 'inline-block', font: `600 13px ${UI}`, letterSpacing: '.01em',
+        // 44pt. accessibility.md › Controls gives iOS 44x44 recommended and
+        // 28x28 as the floor; 9px of padding put this at ~34, which cleared
+        // the floor and missed the target he actually reaches for one-handed
+        padding: '14px 18px', borderRadius: '999px',
         background: solid ? `var(${accent})` : 'rgba(255,255,255,.07)',
         color: solid ? 'var(--nv-on-acc)' : 'var(--nv-ink)',
         border: solid ? '1px solid transparent' : '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)' }}

@@ -323,7 +323,7 @@ export function MissionStructured({ v }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
               <div style={{ flex: 'none', width: 58, height: 58, borderRadius: '50%', border: '1.5px dashed color-mix(in srgb, var(--nv-mg) 70%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: `600 22px ${M}`, boxShadow: '0 0 30px -8px var(--nv-mg)' }}>{v.prMoment.prs.length}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ font: `600 10.5px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--nv-mg)' }}>{v.prMoment.prs.length === 1 ? 'A record' : 'Records'} · {v.prMoment.date.slice(5).replace('-', '/')}</div>
+                <div style={{ font: `600 11px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--nv-mg)' }}>{v.prMoment.prs.length === 1 ? 'A record' : 'Records'} · {v.prMoment.date.slice(5).replace('-', '/')}</div>
                 <div style={{ marginTop: '3px', font: `italic 400 ${mob ? '18px' : '21px'}/1.2 ${S}` }}>
                   {v.prMoment.prs.length === 1 ? 'One lift went further than it ever has.' : `${v.prMoment.prs.length} lifts went further than they ever have.`}
                 </div>
@@ -336,7 +336,7 @@ export function MissionStructured({ v }) {
                             bare "11.2kg" on a lift he loaded to 9.1 read as a
                             weight he had never touched (his report, 12 Sep). */}
                         <span style={{ font: `600 12px ${M}`, color: 'var(--nv-mg)' }}>{prLift(p)}</span>
-                        <span style={{ display: 'block', marginTop: '1px', font: `450 10px ${UI}`, letterSpacing: '.04em', color: 'var(--nv-ink60)' }}>{prBasis(p)}</span>
+                        <span style={{ display: 'block', marginTop: '1px', font: `450 11px ${UI}`, letterSpacing: '.04em', color: 'var(--nv-ink60)' }}>{prBasis(p)}</span>
                       </span>
                     </div>
                   ))}
@@ -357,7 +357,7 @@ export function MissionStructured({ v }) {
         {v.runningPlan && (
           <section style={{ marginTop: '18px', padding: mob ? '15px 16px 13px' : '18px 20px 16px', borderRadius: '16px', border: `1px solid color-mix(in srgb, ${v.runningPlan.state === 'ready' ? 'var(--nv-good)' : 'var(--nv-cy)'} 38%, transparent)`, background: `linear-gradient(160deg, color-mix(in srgb, ${v.runningPlan.state === 'ready' ? 'var(--nv-good)' : 'var(--nv-cy)'} 08%, transparent), var(--nv-glass2))`, animation: 'fadeUp var(--nv-dur-base) var(--nv-ease)' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
-              <div style={{ font: `600 10.5px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: v.runningPlan.state === 'ready' ? 'var(--nv-good)' : 'var(--nv-cy)' }}>
+              <div style={{ font: `600 11px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: v.runningPlan.state === 'ready' ? 'var(--nv-good)' : 'var(--nv-cy)' }}>
                 {v.runningPlan.state === 'ready' ? 'Ready for you' : 'Working on it'}
               </div>
               <Meta tone="faint">{v.runningPlan.tally} · {v.runningPlan.since}</Meta>
@@ -368,7 +368,7 @@ export function MissionStructured({ v }) {
                 <div key={st.id} style={{ display: 'flex', alignItems: 'baseline', gap: '9px', minWidth: 0 }}>
                   <span style={{ flex: 'none', width: '13px', font: `600 11px ${M}`, color: st.tint }}>{st.glyph}</span>
                   <span style={{ flex: 1, minWidth: 0, font: `450 13px ${UI}`, color: st.status === 'waiting' ? 'var(--nv-ink60)' : 'var(--nv-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{st.what}</span>
-                  {st.error && <span style={{ flex: 'none', maxWidth: '40%', font: `450 10.5px ${UI}`, color: 'var(--nv-warn)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{st.error}</span>}
+                  {st.error && <span style={{ flex: 'none', maxWidth: '40%', font: `450 11px ${UI}`, color: 'var(--nv-warn)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{st.error}</span>}
                 </div>
               ))}
             </div>
@@ -386,7 +386,7 @@ export function MissionStructured({ v }) {
         {v.landedMoment && (
           <section className="nv-glow" style={{ marginTop: '18px', padding: mob ? '15px 16px 13px' : '18px 20px 16px', ...glowPanel('--nv-good', { radius: '16px' }).style }}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
-              <div style={{ font: `600 10.5px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--nv-good)' }}>Landed</div>
+              <div style={{ font: `600 11px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--nv-good)' }}>Landed</div>
               <Meta tone="faint">{v.landedMoment.count} today · {v.landedMoment.filed} filed</Meta>
             </div>
             <div style={{ marginTop: '9px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -398,8 +398,8 @@ export function MissionStructured({ v }) {
                     {it.status === 'filed' ? '✓' : it.status === 'error' ? '!' : '—'}
                   </span>
                   <span style={{ flex: 1, minWidth: 0, font: `450 13px ${UI}`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.title}</span>
-                  {it.analysed && <span style={{ flex: 'none', font: `600 9.5px ${M}`, letterSpacing: '.1em', color: 'var(--nv-cy)' }}>ANALYSED</span>}
-                  <span style={{ flex: 'none', maxWidth: '38%', font: `450 10.5px ${UI}`, color: 'var(--nv-ink60)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.where}</span>
+                  {it.analysed && <span style={{ flex: 'none', font: `600 11px ${M}`, letterSpacing: '.1em', color: 'var(--nv-cy)' }}>ANALYSED</span>}
+                  <span style={{ flex: 'none', maxWidth: '38%', font: `450 11px ${UI}`, color: 'var(--nv-ink60)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.where}</span>
                 </Interactive>
               ))}
             </div>
@@ -417,7 +417,7 @@ export function MissionStructured({ v }) {
         {v.todayTechnique && !v.todayTechnique.empty && (
           <section className="nv-glow" style={{ marginTop: '18px', padding: mob ? '15px 16px 13px' : '18px 20px 16px', ...glowPanel('--nv-mg', { radius: '16px' }).style, ...(v.todayTechnique.vtName ? { viewTransitionName: v.todayTechnique.vtName } : {}) }}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
-              <div style={{ font: `600 10.5px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--nv-mg)' }}>
+              <div style={{ font: `600 11px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--nv-mg)' }}>
                 {v.todayTechnique.modeLabel}
               </div>
               <span style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
@@ -443,7 +443,7 @@ export function MissionStructured({ v }) {
               </div>
             )}
             <div style={{ marginTop: '10px', padding: '11px 13px', borderRadius: '11px', background: 'color-mix(in srgb, var(--nv-mg) 09%, transparent)', border: '1px solid color-mix(in srgb, var(--nv-mg) 22%, transparent)' }}>
-              <div style={{ font: `600 10px ${M}`, letterSpacing: '.1em', color: 'var(--nv-mg)' }}>TRY IT TODAY</div>
+              <div style={{ font: `600 11px ${M}`, letterSpacing: '.1em', color: 'var(--nv-mg)' }}>TRY IT TODAY</div>
               <div style={{ marginTop: '5px', font: `500 13.5px ${UI}`, lineHeight: 1.5, color: 'var(--nv-ink)' }}>{v.todayTechnique.drill}</div>
               {v.todayTechnique.tell && (
                 <div style={{ marginTop: '6px', font: `450 12px ${UI}`, lineHeight: 1.45, color: 'var(--nv-ink60)' }}>You’ll know it landed: {v.todayTechnique.tell}</div>

@@ -52,7 +52,13 @@ const TONES = {
   good: 'var(--nv-good)',
   violet: 'var(--nv-vi)',
   quiet: 'var(--nv-ink60)',
-  faint: 'var(--nv-ink40)',
+  // READABLE-FAINT. `faint` used to be --nv-ink40 (alpha .38), which is
+  // 3.16:1 on the cupertino pane — Meta renders at 12.5px/500, so it needed
+  // 4.5:1 and was the quietest tier of text in the app across 256 call
+  // sites. --nv-ink50 is the same tier drawn at the contrast floor (4.6-4.8:1
+  // in every theme), so the three-step ladder survives: faint / quiet / ink.
+  // --nv-ink40 stays for what it is actually safe for: hairlines and glyphs.
+  faint: 'var(--nv-ink50)',
   ink: 'var(--nv-ink)',
 };
 const tone = (t) => TONES[t] || t || TONES.quiet;
@@ -85,7 +91,10 @@ export function TextAction({ children, onClick, tone: t = 'accent', disabled, co
       base={{
         cursor: disabled ? 'default' : 'pointer',
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        minHeight: apple ? (compact ? '32px' : '40px') : (compact ? '26px' : '32px'),
+        // 44pt on the full mark (accessibility.md › Controls). `compact` stays
+        // at 32 on purpose: it is a pair of marks inside a list row, it clears
+        // the 28pt floor, and 44 there would squeeze the row's title again.
+        minHeight: apple ? (compact ? '32px' : '44px') : (compact ? '26px' : '32px'),
         padding: apple ? (compact ? '5px 8px' : '8px 12px') : (compact ? '3px 7px' : '6px 10px'),
         margin: apple && !compact ? '-4px -4px' : 0,
         borderRadius: '10px',
@@ -217,7 +226,9 @@ export function ScreenHead({ numeral, label, children, style }) {
 function segItemStyle(apple, stretch, on) {
   return {
     cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: stretch ? 1 : 'none',
-    minHeight: apple ? (stretch ? '36px' : '30px') : '24px', padding: apple ? '4px 12px' : '3px 9px',
+    // a full-width segmented control is 44pt on iOS; a content-sized one sits
+    // in denser company and takes 34, still clear of the 28pt floor
+    minHeight: apple ? (stretch ? '44px' : '34px') : '24px', padding: apple ? '4px 12px' : '3px 9px',
     borderRadius: apple ? '8px' : '6px',
     font: apple ? `600 13px ${UI}` : `600 8.5px ${M}`,
     letterSpacing: apple ? '0' : '.14em',
