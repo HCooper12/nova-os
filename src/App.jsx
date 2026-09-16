@@ -3284,7 +3284,7 @@ export default class App extends Component {
     api.completeWorkoutSession(conn, payload).then(({ prs } = {}) => {
       if (prs?.length) {
         this.setState({ prCelebration: prs });
-        haptic('celebrate'); // no-op on iOS today (see haptics.js) — real on Android/desktop
+        haptic('celebrate'); // reaches his phone via the switch overlay; one pulse there, tiers on Android/desktop
         clearTimeout(this.prT);
         this.prT = setTimeout(() => this.setState({ prCelebration: null }), 4200);
       }

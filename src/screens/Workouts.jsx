@@ -156,7 +156,7 @@ function RoutinesView({ v }) {
             </div>
           )}
           {v.gymHero.begin && (
-            <Interactive as="span" onClick={v.gymHero.begin}
+            <Interactive as="span" onClick={v.gymHero.begin} haptic="commit"
               base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { marginTop: '15px' })}
               hoverStyle={{ filter: 'brightness(1.1)' }}
             >▶ Begin session</Interactive>
@@ -426,6 +426,7 @@ function RoutineDetailView({ v }) {
         <Interactive
           as="span"
           onClick={v.startWorkoutDisabled ? undefined : v.startWorkout}
+          haptic="commit"
           base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { cursor: v.startWorkoutDisabled ? 'default' : 'pointer', opacity: v.startWorkoutDisabled ? .4 : 1 })}
           hoverStyle={v.startWorkoutDisabled ? {} : { filter: 'brightness(1.08)' }}
         >Start workout</Interactive>
@@ -547,7 +548,7 @@ function SessionView({ v }) {
               </Interactive>
               <span style={css("display:flex;align-items:center;gap:10px")}>
                 {!e.skipped && <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>{e.targetLabel}{e.weightHint ? ` · Coach: ${e.weightHint}` : ''}</Meta>}
-                <Interactive as="span" onClick={e.onToggleSkip} title={e.skipped ? 'Put it back in today\'s session' : 'Drop this exercise for today only — your program stays as it is'}
+                <Interactive as="span" onClick={e.onToggleSkip} haptic="tick" title={e.skipped ? 'Put it back in today\'s session' : 'Drop this exercise for today only — your program stays as it is'}
                   base={`cursor:pointer;flex:none;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:500 13px/1 var(--nv-font-ui);border:1.3px solid color-mix(in srgb, var(--nv-warn) ${e.skipped ? 75 : 40}%, transparent);color:var(--nv-warn);background:color-mix(in srgb, var(--nv-warn) ${e.skipped ? 18 : 5}%, transparent)`}
                   hoverStyle="background:color-mix(in srgb, var(--nv-warn) 16%, transparent)">{e.skipped ? '↺' : '✕'}</Interactive>
               </span>
@@ -606,17 +607,18 @@ function SessionView({ v }) {
                   <LocalInput type="number" inputMode="decimal" step="0.5" min="0" max="6" value={s.rir} onChange={s.onRir} submitOnEnter={false} placeholder="R" style={{ ...setInputStyle, width: '100%', minWidth: 0, opacity: s.rir !== '' ? 1 : 0.55 }} />
                   {/* set type cycles working → backoff → warm-up; warm-ups are
                       excluded from volume counts and PRs */}
-                  <Interactive as="span" onClick={s.cycleType} title="Tap to cycle: working / backoff / warm-up"
+                  <Interactive as="span" onClick={s.cycleType} haptic="tick" title="Tap to cycle: working / backoff / warm-up"
                     base={`cursor:pointer;text-align:center;font:600 ${isAppleStyle() ? '10.5px var(--nv-font-ui)' : '8px var(--nv-font-mono)'};letter-spacing:.08em;padding:5px 7px;border-radius:6px;border:1px solid ${s.setType === 'warmup' ? 'color-mix(in srgb, var(--nv-gold) 45%, transparent)' : s.setType === 'backoff' ? 'color-mix(in srgb, var(--nv-vi) 45%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 18%, transparent)'};color:${s.setType === 'warmup' ? 'var(--nv-gold)' : s.setType === 'backoff' ? 'var(--nv-vi)' : 'color-mix(in srgb, var(--nv-ink) 45%, transparent)'}`}
                   >{s.setType === 'warmup' ? 'WU' : s.setType === 'backoff' ? 'BO' : 'WK'}</Interactive>
                   <Interactive
                     as="span"
                     onClick={s.onToggleDone}
+                    haptic="tick"
                     base={{ cursor: 'pointer', width: '40px', height: '40px', margin: '-6px 0', justifySelf: 'start', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 700,
                       border: s.done ? '1px solid var(--nv-cy)' : '1px solid color-mix(in srgb, var(--nv-ink) 25%, transparent)', background: s.done ? 'var(--nv-cy)' : 'transparent', color: 'var(--nv-on-acc)' }}
                   >{s.done ? '✓' : ''}</Interactive>
                   {s.canRemove ? (
-                    <Interactive as="span" onClick={s.onRemove} base="cursor:pointer;width:26px;height:36px;margin:-4px 0;display:flex;align-items:center;justify-content:center;font-size:16px;color:color-mix(in srgb, var(--nv-ink) 30%, transparent)" hoverStyle="color:var(--nv-warn)">×</Interactive>
+                    <Interactive as="span" onClick={s.onRemove} haptic="tick" base="cursor:pointer;width:26px;height:36px;margin:-4px 0;display:flex;align-items:center;justify-content:center;font-size:16px;color:color-mix(in srgb, var(--nv-ink) 30%, transparent)" hoverStyle="color:var(--nv-warn)">×</Interactive>
                   ) : <span></span>}
                 </div>
               ))}

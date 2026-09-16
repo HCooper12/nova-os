@@ -104,11 +104,12 @@ export function TextAction({ children, onClick, tone: t = 'accent', disabled, co
 
 // A tappable pill in a tint. No outline: the fill IS the shape, like an iOS
 // filter chip. `active` deepens the tint.
-export function Chip({ children, onClick, tone: t = 'accent', active, disabled, style, ariaLabel, title }) {
+export function Chip({ children, onClick, tone: t = 'accent', active, disabled, style, ariaLabel, title, haptic = 'tick' }) {
   const apple = isAppleStyle();
   const color = tone(t);
   return (
     <Interactive as="span" onClick={disabled ? undefined : onClick} aria-label={ariaLabel} title={title}
+      haptic={disabled || !onClick ? undefined : haptic}
       base={{
         cursor: disabled || !onClick ? 'default' : 'pointer',
         display: 'inline-flex', alignItems: 'center', gap: '6px',

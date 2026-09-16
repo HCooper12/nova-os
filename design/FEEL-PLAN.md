@@ -58,11 +58,27 @@ no fake substitute anywhere — a deliberate decision recorded in the file.
    to the hand: the inbox optimistic revert, the to-do revert, the form-check
    refusal, an offline write going to the outbox, a lane refusing because it is
    switched off.
-3. **Coverage is 32 call sites in four files** — `App.jsx` (24),
+3. ~~**Coverage is 32 call sites in four files**~~ — `App.jsx` (24),
    `MissionStructured.jsx` (5), `swipeAction.js` (2), `Controls.jsx` (1).
    Nothing in the Train screen, which is where the most tactile thing he does
    lives (ticking a set mid-lift, one-handed, not looking). Nothing in Fuel, the
    Inbox screen, or Voice.
+
+   **Closed 16 Sep, and the cheap half was the surprise.** `Chip` took no
+   `haptic` prop at all, so *every chip in the app* was silent — the Coach
+   pills, the tone chips, "Speak it", the Repertoire tabs. One default on the
+   shared component (`haptic = 'tick'`, matching `TextAction`) covered Fuel, the
+   Inbox screen and Voice at once. Train then got six words of its own, the set
+   tick first: `haptics.js` names "a set ticked" as the example of `tick`.
+
+   Verified live, not assumed: the Train screen went from **0 switch overlays to
+   5**, each with `appearance: auto` (`none` kills the tap) and `opacity: 0`, and
+   a tap landing on the invisible overlay still reaches the button underneath.
+
+   The test that keeps it honest was itself half-blind: it grepped `haptic(` and
+   so could not see a `haptic="typo"` PROP, which falls through to a tick just
+   as silently. It checks both forms now, plus Train's coverage and the two
+   component defaults — verified to fail 3/12 when those are removed.
 
 ### What to do
 - **Fix the vocabulary** (5 edits) and add a guard so an unknown word cannot
@@ -76,13 +92,31 @@ no fake substitute anywhere — a deliberate decision recorded in the file.
 - **Cover Train first**, then Fuel, then the Inbox screen. Train is the surface
   where the hand is the only sense available.
 
-### The honest caveat
-**None of this fires on his iPhone today.** iOS Safari and installed PWAs have
-no `navigator.vibrate`; the Capacitor shell that would reach the Taptic Engine
-is scaffolded (`native/README.md`) and blocked on Xcode, which this Mac does not
-have. So the framing is: *get the vocabulary right and the coverage complete
-now, and every one of them lights up the day the shell ships* — at zero extra
-cost, because the call sites are already the right shape.
+### The honest caveat — REVISED 16 Sep, because the first version was wrong
+The original plan said none of this fires on his iPhone, and recommended
+building for a native shell blocked on Xcode. He then reported: "I have never
+felt any haptics while using my phone." Both were true; the second is now fixed.
+
+`navigator.vibrate` genuinely does not exist on iOS. But Safari 17.4+ plays a
+real Taptic tap when an `<input type="checkbox" switch>` is toggled, and that
+works in an installed PWA. `Interactive` overlays an invisible one on any
+element given a haptic word, so **every call site below now reaches his hand**.
+He confirmed it: "now when I push the buttons there is some slight haptic
+feedback."
+
+What is still true: **there are no TIERS on that path.** One toggle is one
+pulse, so `tick` and `celebrate` feel identical on his phone — "Every button is
+the same feel though". `hapticCapability()` reports `tiers: null` rather than
+guessing, and the repeated-pulse patterns still play in full on Android and
+desktop. He was offered per-word pulse counts and chose to keep them the same.
+
+Two traps that cost real time, both pinned in `server/test/haptics.test.js`:
+- **`appearance: none` kills the tap.** It makes the switch a plain box and
+  WebKit stops playing the haptic. `SWITCH_HAPTIC_STYLE` hides it with opacity
+  alone and must never acquire that property.
+- **Safari freezes the iOS version it reports.** His diagnostic read 18.7 while
+  he was on 26. A version gate would have promised tiers to a phone three
+  majors past the cutoff, so there is no version gate anywhere.
 
 ---
 

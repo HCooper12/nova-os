@@ -91,7 +91,7 @@ through a lazy screen. Voice unaffected.
 ### 7. Motion + haptics polish
 **Reality check.** iOS Safari/PWA still has no `navigator.vibrate` — real
 haptics are impossible in the web app today. So: feature-detected haptics
-(fires on platforms that support it, silent no-op on iOS), and the native
+(reaches his iPhone through the switch-overlay path in Interactive — one pulse, no tiers; full patterns elsewhere), and the native
 feel carried by motion instead.
 
 **Change.**

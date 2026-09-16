@@ -43,6 +43,41 @@ test('EVERY haptic() call site in src/ uses a real word', async () => {
   assert.deepEqual(bad, [], `these are not haptic words:\n${bad.join('\n')}`);
 });
 
+test('EVERY haptic="word" JSX PROP uses a real word too', async () => {
+  // The other half of the same hole. `haptic` is both a function and a prop —
+  // Interactive, Chip and TextAction all take `haptic="tick"` — and the call-site
+  // test above greps only `haptic(`. A typo in a PROP falls through to a tick
+  // exactly as silently, and six of these landed on Train on 16 Sep.
+  const files = await walk(SRC);
+  const bad = [];
+  for (const f of files) {
+    const text = await readFile(f, 'utf8');
+    for (const m of text.matchAll(/\bhaptic=["']([a-z-]+)["']/g)) {
+      if (!HAPTIC_WORDS.includes(m[1])) bad.push(`${path.relative(SRC, f)}: haptic="${m[1]}"`);
+    }
+  }
+  assert.deepEqual(bad, [], `these are not haptic words:\n${bad.join('\n')}`);
+});
+
+test('the surfaces where the hand is the only sense are covered', async () => {
+  // Train is where he taps one-handed, mid-lift, without looking — and it had
+  // ZERO haptics while Home had 29. A word here is worth more than anywhere else.
+  const train = await readFile(path.join(SRC, 'screens', 'Workouts.jsx'), 'utf8');
+  const words = [...train.matchAll(/\bhaptic=["']([a-z-]+)["']/g)].map((m) => m[1]);
+  assert.ok(words.length >= 5, `Train has ${words.length} haptic words — the set tick is the app's most-repeated tap`);
+  for (const w of words) assert.ok(HAPTIC_WORDS.includes(w), `haptic="${w}" is not a word`);
+});
+
+test('a Chip and a TextAction answer the hand by default', async () => {
+  // Chip had no haptic prop at all, so EVERY chip in the app was silent —
+  // the tone chips, the Coach pills, Speak it, the Repertoire tabs.
+  const controls = await readFile(path.join(SRC, 'Controls.jsx'), 'utf8');
+  for (const comp of ['Chip', 'TextAction']) {
+    const sig = controls.match(new RegExp(`export function ${comp}\\(\\{[^}]*\\}`, 's'))?.[0] || '';
+    assert.match(sig, /haptic = 'tick'/, `${comp} does not default to a haptic word — its taps are silent`);
+  }
+});
+
 test('at least one call site uses each end of the vocabulary', async () => {
   // A word defined and never fired is a tier he can never feel. `warn` was in
   // exactly that state — the error buzz the whole idea turns on, unused.
