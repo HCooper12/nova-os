@@ -604,3 +604,34 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
     backdrop-filter: none !important;
   }
 }
+
+/* ================================================================
+   CONCENTRIC CORNERS (16 Sep 2026) — Apple's ConcentricRectangle,
+   in CSS.
+
+   The rule, from the HIG: a shape nested inside a rounded shape must
+   have `outer radius − the gap between them`, so both corners share a
+   centre point and the padding stays visually even all the way round
+   the curve. Guessed numbers never quite look right together, and
+   Nova had 62 measured instances of guessing — read out of the live
+   DOM in Safari, not grepped.
+
+   THE TECHNIQUE, AND THE ONE THAT DOES NOT WORK. The tempting version
+   is to declare the arithmetic once on :root as its own custom
+   property and let it inherit. Measured in Safari 26.5: it resolves
+   ONCE, at :root, and inherits the answer — three different parents
+   all produced 20px. A custom property whose value contains var() is
+   substituted at the element it is DECLARED on. The calc therefore
+   has to live in the rule that uses it, where var() is resolved
+   against the element's own inherited values. Verified: 22/14 -> 8px,
+   50/28 -> 22px, 10/40 -> 0px, 12/0 -> 12px.
+
+   USE: the rounded container publishes its geometry —
+     style="--nv-r: var(--nv-radius); --nv-pad: 14px"
+   and any descendant that sits in its corner takes class="nv-inner".
+   A child flush against the edge (--nv-pad: 0) inherits the radius
+   exactly, which is the case the rule is least forgiving about.
+   ================================================================ */
+.nv-inner {
+  border-radius: max(0px, calc(var(--nv-r, var(--nv-radius)) - var(--nv-pad, 0px)));
+}

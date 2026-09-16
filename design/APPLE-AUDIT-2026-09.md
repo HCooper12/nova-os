@@ -9,8 +9,8 @@ behaviour, **reproduced** — either by replaying the control flow in node or by
 reading computed values out of the running app in Safari 26.5. Nothing here is
 "the skill says you should".
 
-**Eight findings were fixed and are in `a81d602` and `c7e8a15`.** The nine
-below are left open on purpose: each is a design decision that is his, not a
+**Nine findings were fixed** (`a81d602`, `c7e8a15`, and the concentric
+primitive). The ten below are left open on purpose: each is a design decision that is his, not a
 defect.
 
 ---
@@ -144,7 +144,40 @@ stops dead still commits. Same class of fault as the sheet's, one layer up.
 Inbox commits, and the direction-lock property that protects DISCARD must be
 re-proved. Not a change to make casually.
 
-### 9. `user-scalable=no` is an accessibility failure that Nova can defend
+### 9. Sixty-one nested corners still are not concentric
+Apple's `ConcentricRectangle` rule (iOS 26 HIG, and his third reel): a shape
+inside a rounded shape takes **outer radius − the gap**, so both corners share
+a centre point. `.nv-inner` and `src/concentric.js` now exist for this, and the
+one case where the rule is absolute is fixed — a flush child must share its
+parent's radius exactly, and `SwipeRow`'s hardcoded 12px track was bulged 10px
+by the `var(--nv-radius)` card inside it under cupertino.
+
+Measured by walking the live DOM in Safari across Mission, Train, Fuel, Inbox,
+Settings and Voice — **62 off-concentric instances, now 61**. The worst
+remaining, with what the rule wants:
+
+| where | outer | gap | has | should be |
+|---|---|---|---|---|
+| Voice, the core's rings | 50 | 28 | 50 | **22** |
+| Inbox, orphan-note chip | 22 | 19 | 8 | 3 |
+| Settings, model selects (×33) | 22 | 14 | 5 | 8 |
+| Mission/Train/Fuel rows (×9) | 16 | 12 | 8 | 4 |
+
+**The decision:** whether to sweep them. Each needs looking at — a deliberate
+capsule inside a card is not a violation, and forcing the formula on one
+flattens it for no reason, which is why this is not a script. The measurement
+above makes it a bounded job rather than an open one.
+
+**A note on the instrument, since it was wrong first.** The naive formula
+reported 109 instances; it was demanding square corners on children inset
+*past* the parent's radius, where the parent's curve has already finished and
+the child is visually independent. Scoping to `gap < outer` is what took it to
+the real 62. The tempting CSS implementation is wrong too: hoisting the
+arithmetic into a `:root` custom property resolves it **once** and inherits the
+answer — measured at 20px for three different parents in Safari. The calc has
+to live in the rule that uses it.
+
+### 10. `user-scalable=no` is an accessibility failure that Nova can defend
 The skill lists it under **Never Ship**. Nova's comment gives a real cause and
 notes system accessibility zoom is unaffected, which is true — the iOS Zoom
 magnifier is separate.
