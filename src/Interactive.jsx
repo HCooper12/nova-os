@@ -83,8 +83,27 @@ export function Interactive({ as: Tag = 'div', base, hoverStyle, activeStyle, fo
   // already animates transform, so nothing fights.
   const pressable = actsAsButton || !!onClick;
   const springs = pressable && !activeStyle;
+  // `none` at rest, NOT `scale(1)`. They look identical and are not: ANY
+  // transform value other than `none` creates a stacking context and gets the
+  // element a composited layer — and on iOS a promoted layer full of text is
+  // routinely rasterised at the wrong scale and comes out SOFT.
+  //
+  // He reported the top bar's text as blurred four times. The first cause was
+  // a backdrop-filter I had added; removing it did not fix it, because by then
+  // there was a second one. Once the chrome's clickables became Interactive
+  // (for the haptic overlay), every item in that bar — NOVA·OS, the LIVE chip,
+  // Ask, the gear — carried `scale(1)` and was its own layer. The line
+  // directly beneath the bar is plain markup, and is razor sharp in the same
+  // screenshot. So is iOS's own status bar above it.
+  //
+  // The press still springs: a transition between `none` and a transform list
+  // treats `none` as the identity matrix, so scale(.978) <-> none interpolates
+  // exactly as scale(.978) <-> scale(1) did. Nothing about the feel changes.
+  //
+  // This is ~329 call sites, so it also gives back 329 permanent compositing
+  // layers the app was holding for no reason.
   const motion = springs
-    ? { transform: active ? 'scale(.978)' : 'scale(1)', transition: 'transform .16s cubic-bezier(.32,.72,0,1)' }
+    ? { transform: active ? 'scale(.978)' : 'none', transition: 'transform .16s cubic-bezier(.32,.72,0,1)' }
     : {};
   // the overlay is absolutely positioned, so the element has to be its
   // containing block — applied ONLY when a haptic word was asked for
