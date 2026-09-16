@@ -211,6 +211,34 @@ suite renders no components. `server/test/interactiveRender.test.js` now does,
 and its last case is generated from the real call sites. **DO NOT change a
 component every screen renders without a render test.**
 
+**CONVERSATION SPEED, 16 SEP** (a Jarvis reel; his ask: quick back-and-forth,
+no "awkward waiting and awkward 'on it sir'").
+
+Measured six real asks live before touching anything. **Five: 2-66ms. One:
+21,610ms** — "when did I last train legs". The conversation is not slow, it is
+BIMODAL, and the filler exists for the second mode.
+
+- **The muscle-group reflex** closes it: 21,610ms → **2ms**, and it agrees with
+  what the model said. His library carries a muscleGroup on all 135 exercises;
+  only the WORD needed a table. Handles legs/arms/core and his own split names
+  (push, pull). Falls through to the model when there is no library to translate
+  with, rather than guessing.
+- **The ack now waits 900ms** and is cancelled the moment an answer appears — on
+  the reflex path and at the model path's first sentence. He will almost never
+  hear it. The lines are NOT deleted: removing filler without removing latency
+  gets silence instead of awkwardness.
+
+**HAPTICS — IT WORKS NOW.** His report: "some slight haptic feedback… every
+button is the same feel." The bug was `appearance: none` on the overlay, which
+stops Safari rendering it as a SWITCH and takes the Taptic behaviour with it.
+The heavier words now ask for extra pulses (commit 2, celebrate/warn 3, warn the
+rapid one).
+
+**THE UA VERSION IS FROZEN.** His diagnostic read iOS 18.7; he is on **iOS 27**.
+A gate on that number nearly shipped, telling a phone three majors past the
+cutoff that its tiers worked. There is no gate now and `tiers` is `null` on iOS
+— unknown is its own answer — because a haptic leaves no trace to detect.
+
 **NEXT ACTION.** Open Home. Today's technique should be card one of five with a
 drill on it. Mark it, then check `Wiki/Library/Repertoire Log.md` has the line
 and `server/data/repertoire.json` has `tried: 1`.
