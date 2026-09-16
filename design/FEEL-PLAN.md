@@ -334,6 +334,27 @@ transition**. `valsRecipes.js:191` already shows the handling —
 overlay holds it, or two elements share a name and the morph is dropped
 silently. Every new pair needs the same guard.
 
+### The other trap: a snapshot cannot hold a live backdrop-filter
+Found by the other session's screen-transition work, 17 Sep — `backdrop-filter`
+samples what is BEHIND an element, but a view transition captures a flat
+snapshot, so the sample freezes at capture time and hard-cuts back to live
+glass when the transition ends. No naming, `animation: none`, or z-index fixes
+it; it's what killed the named-chrome approach to keeping the dock and top bar
+out of screen navigation's cross-fade (see `4f70982`).
+
+Two of THIS plan's morph targets carry `backdrop-filter: blur(22px)` on the
+named element — `StepsHistory.jsx` and `RepertoireBook.jsx`, both on
+`background: var(--nv-glass2)`. Checked, not fixed: `--nv-glass2` runs
+75–88% opaque across every theme (`index.css` root/dark/light blocks), sitting
+under an already-82%-opaque scrim that is NOT part of the named snapshot, for
+a ~280–420ms morph. The frozen sliver of blur is a small contribution to an
+already near-opaque panel for a fraction of a second — likely imperceptible,
+and stripping the blur to remove a theoretical flicker would trade a real
+design element for an unconfirmed one. Left as-is. If he ever reports a flash
+or wash on either panel specifically, the fix is dropping `backdrop-filter`
+on that element (the near-opaque background carries the material on its own)
+— not chasing the animation.
+
 ---
 
 ## Sequencing
