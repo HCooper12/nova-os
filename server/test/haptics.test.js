@@ -172,3 +172,42 @@ test('an iPad reports as a Mac — touch points are what separate it', () => {
     assert.equal(needsSwitchHaptic(), true, 'iPadOS 13+ lies about being a Mac');
   });
 });
+
+test('THE DOCK CAN BUZZ — it is the control he touches most, and it never could', async () => {
+  // His third report, 17 Sep: "The haptics are still not occurring."
+  //
+  // The reason was structural, not a missed call site. On iOS the ONLY thing
+  // that produces a Taptic is his real finger landing on the invisible
+  // `<input type="checkbox" switch>` that Interactive renders — and Interactive
+  // renders it only for an element given a `haptic` PROP. A programmatic
+  // haptic('tick') cannot help: on iOS haptic() takes the canRetick() branch
+  // and retick() returns immediately for any one-pulse word.
+  //
+  // MobileChrome was built from bare `<div onClick>` and `<span onClick>`, so
+  // the tab bar — every screen change he has ever made — was silent BY
+  // CONSTRUCTION. 38 programmatic calls against 9 elements that could actually
+  // fire.
+  const chrome = await readFile(path.join(SRC, 'MobileChrome.jsx'), 'utf8');
+
+  const words = [...chrome.matchAll(/\bhaptic=["']([a-z-]+)["']/g)].map((m) => m[1]);
+  assert.ok(words.length >= 8, `MobileChrome has ${words.length} haptic words — the dock, More, and the sheet grids all need one`);
+  for (const w of words) assert.ok(HAPTIC_WORDS.includes(w), `haptic="${w}" is not a word`);
+
+  // the six dock slots specifically: five tabs + More
+  // window sized to the function, not a byte count — a comment added inside
+  // DockTab should not be able to push the assertion out of range (it did)
+  const dockTab = chrome.slice(chrome.indexOf('function DockTab'), chrome.indexOf('export function MobileChrome'));
+  assert.match(dockTab, /<Interactive[^>]*haptic=/,
+    'DockTab is not an Interactive with a haptic word — a bare <div onClick> cannot hold the switch overlay, so it cannot buzz');
+  assert.match(chrome, /setMoreOpen\(true\)[\s\S]{0,60}haptic=|haptic=[\s\S]{0,120}setMoreOpen\(true\)/,
+    'the More tab cannot buzz');
+
+  // and nothing in the chrome should go back to a bare clickable div/span
+  // A bare clickable div/span cannot hold the overlay, so it cannot buzz. The
+  // two DISMISS surfaces are the honest exceptions — a backdrop you tap to
+  // close is not a control, and buzzing on it would be noise.
+  const DISMISS = /onClick=\{\(e\) => e\.stopPropagation|onClick=\{\(\) => setMoreOpen\(false\)|onClick=\{v\.jobTray\.toggle\} style=\{css\("position:fixed;inset:0/;
+  const bare = [...chrome.matchAll(/<(?:div|span) onClick=\{[^}]*\}[^>]*/g)]
+    .map((m) => m[0]).filter((t) => !DISMISS.test(t));
+  assert.deepEqual(bare, [], `these chrome controls cannot buzz (bare clickable, no Interactive):\n${bare.join('\n')}`);
+});
