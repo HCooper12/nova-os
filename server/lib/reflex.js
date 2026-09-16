@@ -343,7 +343,12 @@ export async function tryReflex(question, deps = defaultDeps) {
   if (chat) return { matched: 'small-talk', text: chat, smallTalk: true };
   if (!q || q.length > 80 || NEEDS_THOUGHT.test(q)) return null;
 
-  const now = new Date();
+  // THE CLOCK IS AN INPUT, NOT AN AMBIENT FACT. Every date answer below —
+  // "yesterday", "2 days ago", "this week" — is arithmetic against today,
+  // and a function that reads the wall clock itself can only be tested on the
+  // day it was written. Two suites had silently rotted to red overnight
+  // because of it. Callers pass the real clock; tests pass a fixed one.
+  const now = deps.now ? new Date(deps.now) : new Date();
   const today = localDate(now);
   const yesterday = localDate(new Date(now.getTime() - 86_400_000));
 
