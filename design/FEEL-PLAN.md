@@ -206,14 +206,18 @@ Ranked by how often he meets them:
 | An inbox card | its expanded detail | `record-<id>` | |
 | A library shelf card | the source page | `source-<id>` | |
 
-**Both done pairs are UNSEEN** — the browser tooling was down when they shipped.
-The wiring is right by construction (the name is minted in the vals, dropped
-while the overlay holds it, and applied on both ends) but nobody has watched
-either morph.
+**SEEN, 16 Sep** — in real Safari 26.5.2 (his phone's WebKit generation) at
+exactly 375 CSS px, against the real vault. `document.startViewTransition` is
+supported, reduced-motion is off, and the technique card mints
+`technique-presupposition-milton-model`. Opening the Repertoire book leaves
+**zero duplicate `viewTransitionName`s** — the uniqueness guard holds on both
+ends, which is the one thing that fails silently.
 
-The Home technique card is the best first one: it is new, he asked for the door
-onto it, and the overlay it opens has never been seen rendering — doing both at
-once puts eyes on it.
+Driving it needs no MCP browser: `scripts/dev-connect.mjs` seeds the connection
+(token never printed), and Safari takes `do JavaScript … in tab N of window M`.
+Address the tab BY URL, never "front document" — a second Claude session was
+driving a `localhost:5174` window in the same Safari, and reading its state
+cost a round to a phantom "DEMO DATA" bug.
 
 ### The trap to avoid
 A `viewTransitionName` must be **unique per document at the moment of the
