@@ -709,3 +709,37 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 .nv-inner {
   border-radius: max(0px, calc(var(--nv-r, var(--nv-radius)) - var(--nv-pad, 0px)));
 }
+
+/* ================================================================
+   REDUCE TRANSPARENCY, EVERYWHERE (16 Sep 2026)
+
+   The liquid-glass block above honours `prefers-reduced-transparency`
+   for the surfaces wearing `.nv-liquid`. It was the app's ONLY handling
+   of it: 48 backdrop-filter declarations, one guard. Every modal,
+   sheet, overlay, toast and context menu ignored the setting.
+
+   Dropping the blur alone would make it WORSE, not better — a
+   semi-transparent surface with nothing frosting what is behind it is
+   less legible, not more. So the surface tokens go solid in the same
+   breath, which is the whole point of them being tokens.
+
+   `!important` on a universal selector is a heavy instrument and it is
+   the right one exactly once: these blurs are written as INLINE styles
+   by ~45 components, nothing else can reach them, and this only ever
+   matches when he has explicitly asked the OS for less transparency.
+
+   RESTORED 17 Sep 2026 — the top-bar revert sliced the file from the
+   FLUSH block to CONCENTRIC CORNERS, and this section sat between them,
+   so it went too. Silently: no lint, no build, nothing visible. Only
+   mobileNative.test.js saw it, which is the entire reason it exists.
+   ================================================================ */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --nv-glass: var(--nv-bg1);
+    --nv-glass2: var(--nv-bg2);
+  }
+  * {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
