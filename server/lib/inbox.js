@@ -953,6 +953,11 @@ export async function undoFiling(vaultPath, undo) {
     const { restored } = await undoDistillJob(vaultPath, undo.jobId);
     return `restored ${restored} file${restored === 1 ? '' : 's'} to their pre-distillation state`;
   }
+  if (undo.route === 'index-repair') {
+    const { undoIndexRepair } = await import('./indexRepair.js');
+    await undoIndexRepair(vaultPath, undo);
+    return 'put Wiki/index.md back as it was before the repair';
+  }
   if (undo.route === 'ingest-apply') {
     const { undoIngestJob } = await import('./ingest.js');
     const { restored } = await undoIngestJob(vaultPath, undo.jobId);
