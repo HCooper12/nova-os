@@ -63,13 +63,45 @@ export function familiesIn(text) {
   return Object.keys(FAMILIES).filter((k) => FAMILIES[k].test(t));
 }
 
-// A request earns a plan when it names at least two families AND at least one
-// of them is real work rather than only a comparison word — "compare my bench
-// to last month" is a question about his own data, not a delegation.
+// WHEN A REQUEST IS SEVERAL JOBS, NOT ONE.
+//
+// The old rule asked one question: do the words name two of four keyword
+// families, and is one of them watch/research/shelf? That reaches a plan for
+// "watch this and check it against my notes" and misses almost everything else
+// he might delegate. His own example, 16 Sep — the Claude advertisement: build
+// a site from that mockup, then pull my Instagram analytics, read the comments,
+// write me a strategy report, and tidy the desktop. Not one of those four
+// families appears in it. The single-lane router would take the first thing it
+// recognised and silently drop the rest of the sentence.
+//
+// SHAPE is the better signal, because a delegation looks like one: several
+// things to PRODUCE, usually strung together with "then". And reaching the
+// planner wrongly is cheap — a plan is proposed and waits for his yes, and the
+// planner's own `cannot` names the parts no agent can do. "I can do these two,
+// not that one" is a far better answer than quietly doing one of five.
+//
+// A question stays a question, however long: "what did I train yesterday and
+// how many steps did I do" is one ask with two clauses, not a delegation —
+// unless he strings jobs together, in which case "can you build X then write Y"
+// is a request wearing a question mark.
+const DO_VERB = /\b(build|make|create|design|write|draft|compose|research|watch|analyse|analyze|compare|summarise|summarize|plan|organise|organize|tidy|sort|find|pull|gather|collect|review|audit|update|export)\b/gi;
+const SEQUENCER = /\b(?:then|after that|afterwards|and also|next,|finally|once (?:that|you|it)|when you'?re done)\b/i;
+const QUESTION_OPENER = /^(?:what|how|when|why|who|where|which|is|are|was|were|do|did|does|can|could|should|would|will|am)\b/i;
+
 export function planWorthy(text) {
   const t = String(text || '').trim();
   if (t.length < 25) return false; // too short to be a compound brief
+
+  // the original route, unchanged: two families and one of them real work
   const fams = familiesIn(t);
-  if (fams.length < 2) return false;
-  return fams.some((f) => f === 'watch' || f === 'research' || f === 'shelf');
+  if (fams.length >= 2 && fams.some((f) => f === 'watch' || f === 'research' || f === 'shelf')) return true;
+
+  const sequenced = SEQUENCER.test(t);
+  if (QUESTION_OPENER.test(t) && !sequenced) return false;
+  // DISTINCT verbs: "research this and research that" is one job asked twice
+  const verbs = new Set((t.match(DO_VERB) || []).map((v) => v.toLowerCase()));
+  if (verbs.size < 2) return false;
+  // two things joined by "then" is a plan; three things is a plan however he
+  // joined them
+  return sequenced || verbs.size >= 3;
 }
