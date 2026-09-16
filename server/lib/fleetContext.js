@@ -36,6 +36,8 @@ export const KIND_AGENT = {
   // that was wrong, not the pages — and worth being able to say out loud:
   // "I found 51 pages your index could not reach, and linked them."
   'index-repair': 'Librarian',
+  // something Nova MADE, in the projects directory, while he was elsewhere
+  build: 'Builder',
   // the Repertoire (15 Sep): a clip read for its technique, researched
   // outward, and taught back one a day — the other agents can say so
   repertoire: 'Repertoire',

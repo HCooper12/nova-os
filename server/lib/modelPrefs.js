@@ -301,6 +301,17 @@ export const LANES = [
 
   // ---- build --------------------------------------------------------------
   {
+    // THE PROJECTS LANE (16 Sep). Distinct from 'code' above: that one edits
+    // Nova's own repo from the phone; this one builds something new from a
+    // brief, unattended, inside the projects directory and with no shell.
+    // Opus by default because he is not there to correct it — the model has to
+    // be right on paper, and the cheap mistake here is an hour of his time
+    // rather than a few cents.
+    id: 'build', label: 'Builder · projects', group: 'build', def: 'opus',
+    hint: 'builds a project from a brief while you are elsewhere — writes source, never runs it',
+    off: 'Build requests are refused with a plain message; nothing half-made is left in the projects folder.',
+  },
+  {
     id: 'code', label: 'Code tab · Builder', group: 'build', def: 'sonnet',
     hint: 'the one lane that can edit real files. The Code screen’s own picker overrides this per message.',
     off: 'The Code tab refuses to send. Nothing can be edited from the phone while it is off.',

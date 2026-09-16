@@ -12,7 +12,7 @@
 // The router only DECIDES. Dispatch lives in the route, so a decision can
 // always be shown to him before anything runs.
 
-export const LANES = ['brief', 'paper', 'watch', 'weave', 'study', 'repertoire', 'research', 'browse', 'code', 'coach', 'leader', 'capture', 'play', 'ask', 'book'];
+export const LANES = ['brief', 'paper', 'watch', 'weave', 'study', 'repertoire', 'research', 'browse', 'build', 'code', 'coach', 'leader', 'capture', 'play', 'ask', 'book'];
 
 // "watch AND analyse" — the deep vault weave (transcript fetched, every
 // concept and person drafted into pages) as opposed to the Watcher's verdict.
@@ -63,6 +63,13 @@ const VIDEO_PATH_RE = /watch\?v=|youtu\.be\/|\/reel\/|\/shorts\/|\/video\/|vimeo
 const REPERTOIRE_RE = /\b(?:teach me|learn(?: how)?|practi[sc]e|master|pick up|get good at)\b[\s\S]{0,80}?\b(?:techniques?|tricks?|tactics?|skills?|moves?|this|these|it|them)\b|\b(?:other|similar|more|related|like this)\s+(?:psychological\s+)?(?:techniques?|tricks?|tactics?|skills?|moves?)\b|\b(?:techniques?|tricks?|tactics?)\b[\s\S]{0,60}?\b(?:i can (?:learn|use|practi[sc]e)|to (?:learn|practi[sc]e|use)|daily|every day|one a day)\b/i;
 
 const CODE_RE = /\b(build|implement|refactor|fix the bug|write a (script|test|function)|add a (feature|test)|deploy|commit|pull request|codebase|in nova|to nova|the repo)\b/i;
+// SOMETHING TO MAKE, versus something to change IN NOVA. CODE_RE already owns
+// the word "build", and it has to keep owning it for "build this into Nova" —
+// so the Builder only takes a request that names an ARTEFACT to produce, and
+// stands aside the moment the request is about Nova's own codebase.
+const BUILD_ARTEFACT_RE = /\b(build|make|create|design|scaffold|put together|mock ?up)\b[^.?!]{0,70}\b(site|website|web ?page|landing ?page|app|script|tool|dashboard|prototype|project|deck|presentation|document|report)\b/i;
+const NOVA_REPO_RE = /\b(in nova|to nova|into nova|the repo|codebase|nova'?s own)\b/i;
+const BUILD_RE = { test: (t) => BUILD_ARTEFACT_RE.test(t) && !NOVA_REPO_RE.test(t) };
 const STUDY_RE = /\b(analyse|analyze|study|research) (this |their |the )?(creator|channel|account|profile|competitor|person|guy|team)\b|\bevery video\b|\ball (their|his|her) videos\b/i;
 // THE BRIEFING — research that comes BACK as a report, rather than an answer
 // now. The distinguishing feature is the deliverable: he asks for something to
@@ -139,6 +146,10 @@ export function routeIntent(text) {
   if (hasStudyWords) return { lane: 'study', urls: [], prose: raw, why: 'you asked for a creator/catalogue analysis' };
   if (BROWSE_MEDIA_RE.test(raw) && !/^\s*(?:play|put on)\b/i.test(raw)) return { lane: 'browse', urls: [], prose: raw, why: 'something to be shown — Nova opens its own browser and you watch it work on the glass' };
   if (PLAY_RE.test(raw)) return { lane: 'play', urls: [], prose: raw, why: 'you asked to watch something — Nova finds the newest one and opens it playing' };
+  // BUILD comes before CODE deliberately: "build me a landing page" is a new
+  // project in his projects folder, while CODE_RE's world is changing Nova
+  // itself. Asking for something to be MADE is the commoner request of the two.
+  if (BUILD_RE.test(raw)) return { lane: 'build', urls: [], prose: raw, why: 'something to make — the Builder writes it as real files in its own project folder' };
   if (CODE_RE.test(raw)) return { lane: 'code', urls: [], prose: raw, why: 'a build/change request — this runs as a Claude Code session inside Nova' };
   // A briefing is research PLUS a deliverable, so it is tested BEFORE the
   // Researcher — otherwise the more specific intent never fires.
@@ -181,6 +192,7 @@ export function followUpLane(routed, raw, { lastAgent, lastAgentAt } = {}, now =
 }
 
 export const LANE_LABEL = {
+  build: 'BUILD',
   play: 'PLAY', paper: 'STUDY → PROGRAM',
   watch: 'WATCH', weave: 'WEAVE INTO VAULT', study: 'STUDY', repertoire: 'REPERTOIRE', research: 'RESEARCH',
   brief: 'BRIEFING',

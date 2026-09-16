@@ -32,6 +32,21 @@ export const CAPABILITIES = {
     autonomy: 'propose',
     delegable: true,
   },
+  // THE ONE LANE THAT WRITES CODE, and the only one that writes outside the
+  // vault — into the projects directory he nominated, and nowhere else. It has
+  // no shell: it writes source he can run himself. Delegable, because "build me
+  // X, then research Y and write it up" is exactly the shape of request that
+  // made the planner worth reaching in the first place.
+  build: {
+    agent: 'Builder',
+    summary: 'Build something from a brief — a site, a script, a document — as real files in its own project folder.',
+    input: 'a brief saying what to build, and any material it should be built from',
+    output: 'a project folder of source, with a README saying how to run it and what it could not do',
+    produces: 'build',
+    costUsd: 5.0,
+    autonomy: 'propose',
+    delegable: true,
+  },
   weave: {
     agent: 'Librarian · weave',
     summary: 'Fetch a video\'s transcript and weave every concept and person in it into the vault as draft pages.',

@@ -211,6 +211,14 @@ async function dispatchStep(vaultPath, step, priorOutputs) {
     if (!meta) throw new Error('could not read a title and author for the Librarian');
     return { id: startIngest(vaultPath)(null, undefined, meta) };
   }
+  if (step.capability === 'build') {
+    const { startBuild } = await import('./builder.js');
+    // The brief carries everything: the step's own words plus whatever the
+    // steps it depends on came back with, because the Builder has no path into
+    // the vault and cannot go looking for the material itself.
+    const handoff = handoffFor(step, priorOutputs, { all: true });
+    return { id: startBuild([stripPlaceholders(step.input) || step.what, handoff].filter(Boolean).join('\n\n'), { name: step.what }) };
+  }
   throw new Error(`no dispatcher for "${step.capability}"`);
 }
 

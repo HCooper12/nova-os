@@ -27,7 +27,12 @@ test('the job lanes are the ones the chat may start', () => {
   // job (it fetches, researches and files a pending record), and pasting a
   // link with "teach me techniques like this" is exactly how he asked for it,
   // so the chat starts it. Not delegable: it ends in a curriculum on Home.
-  assert.deepEqual(CHAT_JOB_LANES, ['watch', 'weave', 'study', 'repertoire', 'research', 'browse', 'book', 'code']);
+  // 'build' joined 16 Sep 2026 — the Builder, which makes something new in his
+  // projects directory rather than changing Nova itself. It is a job (it runs
+  // for minutes and lands a pending record), it is delegable, and the contract
+  // in capabilities.test.js is that anything a PLAN may delegate, the CHAT may
+  // start — otherwise he could only get it by asking for four things at once.
+  assert.deepEqual(CHAT_JOB_LANES, ['watch', 'weave', 'study', 'repertoire', 'research', 'browse', 'book', 'code', 'build']);
   for (const l of CHAT_JOB_LANES) assert.equal(chatStartsAJob(l), true);
   assert.deepEqual(CHAT_NAVIGATING_LANES, ['code'], 'only a build request may move him to another screen');
 });
@@ -51,7 +56,10 @@ test('every lane the router can return is accounted for in exactly one list', ()
   // an accident of omission
   // 'leader' joined 6 Sep 2026 (Verbs phase 2): a conversation lane, answered in the transcript, never a job
   // 'repertoire' joined 15 Sep 2026 — a job lane, see above
-  const { LANES } = { LANES: ['watch', 'weave', 'study', 'repertoire', 'research', 'browse', 'code', 'coach', 'leader', 'capture', 'play', 'ask', 'book'] };
+  // 'build' joined 16 Sep 2026 — a job lane: the Builder, making something new
+  // in his projects directory. ('brief' and 'paper' are router lanes the chat
+  // deliberately does not start, and were never in this local list.)
+  const { LANES } = { LANES: ['watch', 'weave', 'study', 'repertoire', 'research', 'browse', 'build', 'code', 'coach', 'leader', 'capture', 'play', 'ask', 'book'] };
   const all = [...CHAT_JOB_LANES, ...CHAT_CONVERSATION_LANES, ...CHAT_DEFERRED_LANES];
   assert.deepEqual([...all].sort(), [...LANES].sort(), 'a router lane is in no list, or a list names a lane that does not exist');
 });
