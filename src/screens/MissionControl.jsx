@@ -131,6 +131,33 @@ export function MissionControl({ v }) {
           </div>
         </section>
       )}
+      {/* A PLAN IN FLIGHT — the Apple twin's section in this idiom, from the
+          same view model. Same states, same wording. */}
+      {v.runningPlan && (
+        <section style={css(`margin-top:18px;padding:16px 18px 14px;border-radius:var(--nv-radius);border:1px solid color-mix(in srgb, ${v.runningPlan.state === 'ready' ? 'var(--nv-good)' : 'var(--nv-cy)'} 38%, transparent);background:linear-gradient(160deg, color-mix(in srgb, ${v.runningPlan.state === 'ready' ? 'var(--nv-good)' : 'var(--nv-cy)'} 08%, transparent), var(--nv-glass2));animation:fadeUp var(--nv-dur-base) var(--nv-ease)`)}>
+          <div style={css('display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap')}>
+            <Eyebrow as="span" tone={v.runningPlan.state === 'ready' ? 'good' : 'cyan'}>
+              {v.runningPlan.state === 'ready' ? 'Ready for you' : 'Working on it'}
+            </Eyebrow>
+            <Meta tone="faint">{v.runningPlan.settled} of {v.runningPlan.total} · {v.runningPlan.since}</Meta>
+          </div>
+          <div style={{ marginTop: '4px', font: `italic 400 19px/1.25 ${S}` }}>{v.runningPlan.goal}</div>
+          <div style={css('margin-top:10px;display:flex;flex-direction:column;gap:5px')}>
+            {v.runningPlan.steps.map((st) => (
+              <div key={st.id} style={css('display:flex;align-items:baseline;gap:10px;min-width:0')}>
+                <span style={{ flex: 'none', width: '13px', font: `600 11px ${M}`, color: st.status === 'done' ? 'var(--nv-good)' : st.status === 'failed' ? 'var(--nv-warn)' : st.status === 'running' ? 'var(--nv-cy)' : 'var(--nv-ink60)' }}>
+                  {st.status === 'done' ? '✓' : st.status === 'failed' ? '!' : st.status === 'running' ? '▸' : '·'}
+                </span>
+                <span style={{ flex: 1, minWidth: 0, font: `500 13px ${R}`, color: st.status === 'waiting' ? 'var(--nv-ink60)' : 'var(--nv-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{st.what}</span>
+                {st.error && <span style={{ flex: 'none', maxWidth: '40%', font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-warn)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{st.error}</span>}
+              </div>
+            ))}
+          </div>
+          <div style={css('margin-top:12px;display:flex;gap:10px')}>
+            <Interactive as="span" onClick={v.runningPlan.open} base={css('cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 13px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)')} hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 12%, transparent)' }}>{v.runningPlan.state === 'ready' ? 'READ IT' : 'OPEN IT'}</Interactive>
+          </div>
+        </section>
+      )}
       {/* IT LANDED — the Apple twin's section in this idiom, from the same
           view model. Same record, same wording, same dismissal. */}
       {v.landedMoment && (

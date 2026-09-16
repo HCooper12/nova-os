@@ -349,6 +349,36 @@ export function MissionStructured({ v }) {
             </div>
           </section>
         )}
+        {/* C3a — A PLAN IN FLIGHT. His ask, 16 Sep: set a big task, go and do
+            your own thing, come back with it ready. The planner always kept
+            this state; nothing showed it. Ahead of the day's order for the
+            same reason the record moment is — something happening right now
+            that he cannot see is worse than something he has to scroll to. */}
+        {v.runningPlan && (
+          <section style={{ marginTop: '18px', padding: mob ? '15px 16px 13px' : '18px 20px 16px', borderRadius: '16px', border: `1px solid color-mix(in srgb, ${v.runningPlan.state === 'ready' ? 'var(--nv-good)' : 'var(--nv-cy)'} 38%, transparent)`, background: `linear-gradient(160deg, color-mix(in srgb, ${v.runningPlan.state === 'ready' ? 'var(--nv-good)' : 'var(--nv-cy)'} 08%, transparent), var(--nv-glass2))`, animation: 'fadeUp var(--nv-dur-base) var(--nv-ease)' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+              <div style={{ font: `600 10.5px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: v.runningPlan.state === 'ready' ? 'var(--nv-good)' : 'var(--nv-cy)' }}>
+                {v.runningPlan.state === 'ready' ? 'Ready for you' : 'Working on it'}
+              </div>
+              <Meta tone="faint">{v.runningPlan.settled} of {v.runningPlan.total} · {v.runningPlan.since}</Meta>
+            </div>
+            <div style={{ marginTop: '4px', font: `italic 400 ${mob ? '17px' : '19px'}/1.25 ${S}` }}>{v.runningPlan.goal}</div>
+            <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              {v.runningPlan.steps.map((st) => (
+                <div key={st.id} style={{ display: 'flex', alignItems: 'baseline', gap: '9px', minWidth: 0 }}>
+                  <span style={{ flex: 'none', width: '13px', font: `600 11px ${M}`, color: st.status === 'done' ? 'var(--nv-good)' : st.status === 'failed' ? 'var(--nv-warn)' : st.status === 'running' ? 'var(--nv-cy)' : 'var(--nv-ink60)' }}>
+                    {st.status === 'done' ? '✓' : st.status === 'failed' ? '!' : st.status === 'running' ? '▸' : '·'}
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0, font: `450 13px ${UI}`, color: st.status === 'waiting' ? 'var(--nv-ink60)' : 'var(--nv-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{st.what}</span>
+                  {st.error && <span style={{ flex: 'none', maxWidth: '40%', font: `450 10.5px ${UI}`, color: 'var(--nv-warn)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{st.error}</span>}
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+              <Pill label={v.runningPlan.state === 'ready' ? 'Read it' : 'Open it'} onClick={v.runningPlan.open} tone="quiet" />
+            </div>
+          </section>
+        )}
         {/* C3b — IT LANDED. His ask, 15 Sep: the Inbox strip was right, and he
             wants it here too, "so I can see and dismiss it from there". It
             answers the question he actually has — did the thing I sent Nova

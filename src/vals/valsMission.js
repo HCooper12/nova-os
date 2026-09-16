@@ -6,6 +6,7 @@ import { localDateISO } from '../localDate.js';
 import { clampWords } from '../textClamp.js';
 import { dtf } from './fmt.js';
 import { groupFamilies, shapeReports } from '../repertoireBook.js';
+import { planCardFrom } from '../planCard.js';
 
 // Mission Control domain (Command Core layout): connection status chips and
 // banner, the hero (eyebrow / tagline / standfirst), the core cluster's three
@@ -720,6 +721,24 @@ export function valsMission(app, ctx) {
       try { seen = localStorage.getItem('novaos.prMomentSeen'); } catch { /* best-effort */ }
       const m = prMomentFor(st.liveTrainOverview?.momentum?.prs || [], seen, localDateISO());
       return m ? { ...m, dismiss: () => { try { localStorage.setItem('novaos.prMomentSeen', m.date); } catch { /* best-effort */ } app.setState({ prMomentTick: (st.prMomentTick || 0) + 1 }); }, openTrain: go('workouts') } : null;
+    })(),
+    // THE WALK-AWAY SURFACE. His ask, 16 Sep, from the Claude advertisement:
+    // set a big task, go and do your own thing, come back with it ready. The
+    // planner has always kept live per-step state — runPlan writes the record
+    // on every transition — and nothing showed it to him. So he could delegate
+    // and then had no way to know whether anything was happening, which is the
+    // difference between walking away and abandoning it.
+    //
+    // Two states, one card, because they answer the same question:
+    //   RUNNING — which step, of how many, and which ones are already in.
+    //   READY   — it finished while he was gone, and is waiting to be read.
+    // Neither is dismissible: a running plan stops showing when it stops
+    // running, and a finished one when he opens it. A card he can wave away
+    // would be a card that lies about work still in flight.
+    runningPlan: (() => {
+      if (demoMode) return null;
+      const card = planCardFrom(inboxItems);
+      return card && { ...card, open: () => app.openCapture(card.id) };
     })(),
     // IT LANDED — ON HOME TOO. His ask, 15 Sep: the Inbox strip was right, and
     // he wants it here as well, "so I can see and dismiss it from there",
