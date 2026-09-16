@@ -34,7 +34,9 @@ test('it MATERIALISES rather than fading, and never overshoots', () => {
   assert.ok(!/@keyframes prRise/.test(CSS), 'its private keyframe is gone — one entrance, shared');
   const kf = CSS.slice(CSS.indexOf('@keyframes nvMaterialize'));
   const block = kf.slice(0, kf.indexOf('\n}'));
-  assert.match(block, /backdrop-filter: blur\(0px\)/, 'the blur has to start at nothing');
+  // the blur moved OUT of the keyframe deliberately — see liquidGlass.test.js
+  assert.ok(!/backdrop-filter/.test(block), 'the keyframe carries only what every engine can animate');
+  assert.match(CSS, /@starting-style[\s\S]{0,200}blur\(0px\)/, 'and the frost still starts at nothing');
   assert.match(block, /transform: none/);
   const scales = [...block.matchAll(/scale\(([\d.]+)\)/g)].map((m) => Number(m[1]));
   assert.ok(scales.every((n) => n <= 1), `entrance overshoots: ${scales.join(', ')}`);

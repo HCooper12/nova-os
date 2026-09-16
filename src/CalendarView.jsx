@@ -8,8 +8,8 @@ export function CalendarView({ v }) {
   // leave the way you arrived — see useExit.js
   const exit = useExit(v.close);
   return (
-    <div role="dialog" aria-modal="true" aria-label="Calendar" onClick={exit.close} ref={exit.scrimRef} style={css("position:fixed;inset:0;background:rgba(8,5,12,.82);backdrop-filter:blur(6px);z-index:80;display:flex;align-items:center;justify-content:center;padding:18px;overflow-y:auto")}>
-      <div ref={exit.panelRef} onClick={(e) => e.stopPropagation()} style={css("width:560px;max-width:96vw;max-height:92vh;overflow-y:auto;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 40px 90px -30px rgba(0,0,0,.95);padding:22px 24px")}>
+    <div role="dialog" aria-modal="true" aria-label="Calendar" onClick={exit.close} ref={exit.scrimRef} style={css("position:fixed;inset:0;background:rgba(8,5,12,.82);backdrop-filter:blur(6px);animation:fadeIn var(--nv-dur-base) var(--nv-ease);z-index:80;display:flex;align-items:center;justify-content:center;padding:18px;overflow-y:auto")}>
+      <div ref={exit.panelRef} onClick={(e) => e.stopPropagation()} style={css("width:560px;max-width:96vw;max-height:92vh;overflow-y:auto;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 40px 90px -30px rgba(0,0,0,.95);padding:22px 24px;animation:fadeUp var(--nv-dur-base) var(--nv-ease)")}>
         <div style={css("display:flex;justify-content:space-between;align-items:center")}>
           <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-cy)")}>CALENDAR · NEXT 14 DAYS</span>
           <Interactive as="span" onClick={exit.close} base="cursor:pointer;font:var(--nv-micro-l);color:var(--nv-ink60);border:1px solid var(--nv-edge);border-radius:7px;padding:5px 10px" hoverStyle="color:var(--nv-ink)">ESC</Interactive>

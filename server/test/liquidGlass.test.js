@@ -22,6 +22,11 @@ import { fileURLToPath } from 'node:url';
 // fileURLToPath, not .pathname — the repo lives under a path with a space in it
 const SRC = fileURLToPath(new URL('../../src/', import.meta.url));
 const CSS = readFileSync(join(SRC, 'index.css'), 'utf8');
+// A comment-stripped view, for assertions that search for a construct by name.
+// Fourth time this session a doctrine comment has been read as code: the
+// comment above .nv-materialize NAMES @starting-style, and indexOf found the
+// prose before the rule. When a test looks for a THING, give it the code.
+const CODE = CSS.replace(/\/\*[\s\S]*?\*\//g, '');
 
 function walk(dir) {
   return readdirSync(dir).flatMap((f) => {
@@ -158,13 +163,28 @@ test('VIBRANCY: text on glass is not the same flat grey as on solid ground', () 
   assert.ok(pct[1] > 38, `--nv-ink40 on glass is ${pct[1]}%, no higher than the 38% off it`);
 });
 
-test('MATERIALIZE: the blur arrives with the surface, and stops for reduced motion', () => {
+test('MATERIALIZE: the entrance cannot be killed by a property one engine lacks', () => {
+  // The first cut animated backdrop-filter INSIDE the keyframe, verified on
+  // macOS. A keyframe is a single unit: an engine that cannot animate that one
+  // property drops the WHOLE entrance, which is what "it just pops up" looked
+  // like on his phone. Guaranteed properties in the keyframe; the speculative
+  // one on a transition, which is per-property and degrades alone.
   const kf = CSS.slice(CSS.indexOf('@keyframes nvMaterialize'));
   const block = kf.slice(0, kf.indexOf('\n}'));
-  assert.match(block, /-webkit-backdrop-filter: blur\(0px\)/, 'Safari still needs the prefix, in keyframes too');
-  assert.match(block, /backdrop-filter: blur\(var\(--nv-liquid-blur\)\)/, 'it must land on the surface\'s OWN blur');
+  assert.ok(!/backdrop-filter/.test(block), 'a property not verified on HIS engine must not share a keyframe with ones that matter');
+  assert.match(block, /opacity: 0/);
+  assert.match(block, /transform: translateY/);
+
+  const rule = CSS.slice(CSS.indexOf('.nv-materialize {'));
+  const body = rule.slice(0, rule.indexOf('}'));
+  assert.match(body, /animation: nvMaterialize/);
+  assert.match(body, /transition:[\s\S]*-webkit-backdrop-filter/, 'Safari still needs the prefix');
+  assert.match(body, /transition:[\s\S]*[^-]backdrop-filter/);
+  // a transition has no from-value on mount without this
+  const start = CODE.slice(CODE.indexOf('@starting-style'));
+  assert.match(start.slice(0, 220), /\.nv-materialize[\s\S]*blur\(0px\)/, 'the frost must start at nothing');
+
   const after = CSS.slice(CSS.indexOf('.nv-materialize {'));
-  assert.match(after, /prefers-reduced-motion: reduce\) \{ \.nv-materialize \{ animation: none/);
-  assert.match(after, /prefers-reduced-transparency: reduce\) \{ \.nv-materialize \{ animation: none/,
-    'with no transparency there is no material to arrive');
+  assert.match(after, /prefers-reduced-motion: reduce\) \{ \.nv-materialize \{ animation: none; transition: none/);
+  assert.match(after, /prefers-reduced-transparency: reduce\) \{ \.nv-materialize \{ animation: none; transition: none/);
 });

@@ -51,7 +51,7 @@ export function BarcodeScanner({ onDetected, onClose }) {
   };
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Scan a barcode" style={css("position:fixed;inset:0;background:rgba(10,8,14,.96);z-index:200;display:flex;flex-direction:column")}>
+    <div role="dialog" aria-modal="true" aria-label="Scan a barcode" style={css("position:fixed;inset:0;background:rgba(10,8,14,.96);z-index:200;display:flex;flex-direction:column;animation:fadeIn var(--nv-dur-base) var(--nv-ease)")}>
       {/* an always-reachable close, pinned top-right — never let a black camera trap the app */}
       <div style={css("flex:none;display:flex;align-items:center;justify-content:space-between;padding:calc(10px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left))")}>
         <span style={css("font:500 11px var(--nv-font-mono2);letter-spacing:.16em;color:rgba(236,229,218,.6)")}>SCAN A BARCODE</span>

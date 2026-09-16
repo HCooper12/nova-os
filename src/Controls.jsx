@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from 'react';
 import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
 import { haptic } from './haptics.js';
@@ -196,29 +197,87 @@ export function ScreenHead({ numeral, label, children, style }) {
 
 // The segmented pair (DECK | LIST, and the Train tabs): one control, not two
 // bordered words.
+//
+// THE ACTIVE STATE SLIDES (17 Sep 2026). It used to be a `background` on
+// whichever item was selected, so changing tab was an instant swap — he
+// filmed it: Today, Gym, Coach, three hard cuts, and called it "just pops up".
+// This is the control he touches most, so it is the highest-leverage motion in
+// the app.
+//
+// THE TECHNIQUE IS A CLIPPED DUPLICATE, not a sliding pill behind the text.
+// The whole row is rendered twice: once inactive, once entirely in the active
+// style, and the active copy is clipped to just the selected item. Moving the
+// clip moves the highlight AND the text colour in perfect sync, because they
+// are one element being revealed rather than two values being interpolated on
+// separate timings — which, per the animate skill, "never quite lands".
+//
+// The clip is measured in pixels rather than computed as a percentage: items
+// only share a width when `stretch` is set, and a percentage would drift on
+// every content-sized row in the app.
+function segItemStyle(apple, stretch, on) {
+  return {
+    cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: stretch ? 1 : 'none',
+    minHeight: apple ? (stretch ? '36px' : '30px') : '24px', padding: apple ? '4px 12px' : '3px 9px',
+    borderRadius: apple ? '8px' : '6px',
+    font: apple ? `600 13px ${UI}` : `600 8.5px ${M}`,
+    letterSpacing: apple ? '0' : '.14em',
+    textTransform: apple ? 'none' : 'uppercase',
+    whiteSpace: 'nowrap',
+    color: on ? 'var(--nv-ink)' : 'var(--nv-ink40)',
+    background: on ? (apple ? 'color-mix(in srgb, var(--nv-ink) 14%, transparent)' : 'var(--nv-acc-bg)') : 'transparent',
+    boxShadow: on && apple ? '0 1px 2px rgba(0,0,0,.25)' : 'none',
+  };
+}
+
 export function Segmented({ options, value, onChange, ariaLabel, stretch }) {
   const apple = isAppleStyle();
+  const listRef = useRef(null);
+  const [clip, setClip] = useState(null);
+  // The first measurement must NOT animate, or the highlight slides in from
+  // the left edge on every mount. It transitions only once it has a prior
+  // position to travel from.
+  const settled = useRef(false);
+
+  useLayoutEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const active = el.querySelector('[data-seg-active="1"]');
+    if (!active) { setClip(null); return; }
+    const l = el.getBoundingClientRect();
+    const a = active.getBoundingClientRect();
+    if (!l.width || !a.width) return;   // not laid out yet; a later pass gets it
+    const radius = apple ? 8 : 6;
+    setClip(`inset(0 ${Math.max(0, l.right - a.right)}px 0 ${Math.max(0, a.left - l.left)}px round ${radius}px)`);
+    settled.current = true;
+  }, [value, options, apple, stretch]);
+
+  const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const railStyle = css(`position:relative;display:${stretch ? 'flex' : 'inline-flex'};gap:2px;padding:2px;border-radius:${apple ? '10px' : '8px'};background:color-mix(in srgb, var(--nv-ink) ${apple ? '9%' : '6%'}, transparent)`);
+
   return (
-    <span role="tablist" aria-label={ariaLabel} style={css(`display:${stretch ? 'flex' : 'inline-flex'};gap:2px;padding:2px;border-radius:${apple ? '10px' : '8px'};background:color-mix(in srgb, var(--nv-ink) ${apple ? '9%' : '6%'}, transparent)`)}>
-      {options.map(([val, label]) => {
-        const on = val === value;
-        return (
-          <Interactive key={val} as="span" role="tab" aria-selected={on} onClick={() => { if (!on) haptic('tick'); onChange(val); }}
-            base={{
-              cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: stretch ? 1 : 'none',
-              minHeight: apple ? (stretch ? '36px' : '30px') : '24px', padding: apple ? '4px 12px' : '3px 9px',
-              borderRadius: apple ? '8px' : '6px',
-              font: apple ? `600 13px ${UI}` : `600 8.5px ${M}`,
-              letterSpacing: apple ? '0' : '.14em',
-              textTransform: apple ? 'none' : 'uppercase',
-              color: on ? 'var(--nv-ink)' : 'var(--nv-ink40)',
-              background: on ? (apple ? 'color-mix(in srgb, var(--nv-ink) 14%, transparent)' : 'var(--nv-acc-bg)') : 'transparent',
-              boxShadow: on && apple ? '0 1px 2px rgba(0,0,0,.25)' : 'none',
-            }}
-            hoverStyle={{ color: 'var(--nv-ink)' }}
-          >{label}</Interactive>
-        );
-      })}
+    <span ref={listRef} role="tablist" aria-label={ariaLabel} style={railStyle}>
+      {options.map(([val, label]) => (
+        <Interactive key={val} as="span" role="tab" aria-selected={val === value}
+          data-seg-active={val === value ? '1' : '0'}
+          onClick={() => { if (val !== value) haptic('tick'); onChange(val); }}
+          base={segItemStyle(apple, stretch, false)}
+          hoverStyle={{ color: 'var(--nv-ink)' }}
+        >{label}</Interactive>
+      ))}
+      {/* The active copy. aria-hidden and inert to the pointer — the real tabs
+          underneath keep every role, every label and every tap. */}
+      {clip && (
+        <span aria-hidden="true" style={{
+          position: 'absolute', top: '2px', left: '2px', right: '2px', bottom: '2px',
+          display: 'flex', gap: '2px', pointerEvents: 'none',
+          clipPath: clip, WebkitClipPath: clip,
+          transition: reduced || !settled.current ? 'none' : 'clip-path 260ms var(--nv-ease), -webkit-clip-path 260ms var(--nv-ease)',
+        }}>
+          {options.map(([val, label]) => (
+            <span key={val} style={segItemStyle(apple, stretch, true)}>{label}</span>
+          ))}
+        </span>
+      )}
     </span>
   );
 }

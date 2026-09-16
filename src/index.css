@@ -47,8 +47,23 @@ input, textarea, select { font-size: 16px !important; }
    (index.html), so iOS focus-zoom is impossible regardless of font size —
    this class exists for tight controls, later + more specific so it wins. */
 select.nv-compact { font-size: 11px !important; }
+/* THE BAND AT THE FOOT OF THE SCREEN (17 Sep 2026). He photographed a hard
+   black strip below the app. Sampled from his screenshot it is exactly
+   rgb(6,7,13) — `--nv-void`, the page showing through BELOW the app root.
+   The root is `min-height: 100svh`, and svh is the SMALLEST the viewport ever
+   gets; the moment the browser chrome collapses the real viewport is taller
+   and the app stops short of it. dvh would track it and is what made the page
+   jump under his scroll, so neither unit can be the thing that paints.
+   The GROUND paints instead. `html` carries the app's gradient, so the canvas
+   is covered at any height, during overscroll, and past any safe area — and
+   the root keeps `100svh` for layout, which is the stable choice. */
+html {
+  background:
+    radial-gradient(1200px 800px at 60% -18%, var(--nv-bg2) 0%, var(--nv-bg1) 45%, var(--nv-void) 100%)
+    no-repeat var(--nv-void);
+}
 body {
-  background: var(--nv-void, #06070d);
+  background: transparent;
   font-family: var(--nv-font-ui);
   font-weight: 500;
   -webkit-font-smoothing: antialiased;
@@ -582,22 +597,42 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
       Safari 26.5 that backdrop-filter really does interpolate
       (measured 23.09px at 2500ms of a 2600ms ramp to 24px) before
       building anything on it. */
+/* THE GUARANTEED PROPERTIES GO IN THE KEYFRAME; THE SPECULATIVE ONE RIDES A
+   TRANSITION. (Rewritten 17 Sep 2026.)
+
+   The first cut animated `backdrop-filter` INSIDE the keyframe, having
+   measured on macOS Safari that it interpolates. It does — there. If any
+   engine cannot animate that property, though, it does not skip that one line:
+   a keyframe is a single unit, and the whole entrance goes with it. The More
+   sheet on his phone came up as a hard cut, which is exactly what that looks
+   like, and he described it as "it just pops up".
+
+   So the keyframe now moves only `opacity` and `transform`, which every engine
+   can animate, and the frost ramps on a TRANSITION instead — transitions are
+   per-property, so an engine that cannot do this one simply snaps it and every
+   other part of the entrance still plays. `@starting-style` supplies the
+   from-value a transition cannot otherwise have on mount, and where that is
+   unsupported the blur just arrives at full strength.
+
+   Never put a property you have not verified on HIS engine inside a keyframe
+   with properties that matter. */
 @keyframes nvMaterialize {
-  from {
-    opacity: 0; transform: translateY(8px) scale(.985);
+  from { opacity: 0; transform: translateY(8px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+.nv-materialize {
+  animation: nvMaterialize var(--nv-dur-slow) var(--nv-ease) both;
+  transition: -webkit-backdrop-filter var(--nv-dur-slow) var(--nv-ease),
+              backdrop-filter var(--nv-dur-slow) var(--nv-ease);
+}
+@starting-style {
+  .nv-materialize {
     -webkit-backdrop-filter: blur(0px) saturate(100%);
     backdrop-filter: blur(0px) saturate(100%);
   }
-  to {
-    opacity: 1; transform: none;
-    -webkit-backdrop-filter: blur(var(--nv-liquid-blur)) saturate(var(--nv-liquid-sat));
-    backdrop-filter: blur(var(--nv-liquid-blur)) saturate(var(--nv-liquid-sat));
-  }
 }
-.nv-materialize { animation: nvMaterialize var(--nv-dur-slow) var(--nv-ease) both; }
-@media (prefers-reduced-motion: reduce) { .nv-materialize { animation: none; } }
-/* and where he has asked for no transparency there is no material to arrive */
-@media (prefers-reduced-transparency: reduce) { .nv-materialize { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .nv-materialize { animation: none; transition: none; } }
+@media (prefers-reduced-transparency: reduce) { .nv-materialize { animation: none; transition: none; } }
 
 /* CLEAR — Apple's second style: more transmission, less frost. For glass over
    quiet ground only; over a photo or a chart it loses the content behind it,
@@ -608,6 +643,23 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   --nv-liquid-tint: color-mix(in srgb, var(--nv-void) 20%, transparent);
   --nv-liquid-sheen: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.02));
 }
+/* DOCK — a floating CONTROL surface, and §12 is explicit that those are the
+   light ones: "darker/heavier materials separate structural regions; LIGHTER
+   materials draw attention to interactive elements". The dock wore the plain
+   structural tint (46% of the ground) and read as a grey slab rather than as
+   something floating over his screen. Thinner tint, more saturation, a wider
+   drop so it still sits above the page — and the tint stays high enough that
+   six 9px labels survive over arbitrary content, which is the constraint that
+   stops this becoming `clear`. */
+.nv-liquid-dock {
+  --nv-liquid-blur: 26px;
+  --nv-liquid-sat: 210%;
+  --nv-liquid-tint: color-mix(in srgb, var(--nv-void) 28%, transparent);
+  --nv-liquid-sheen: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.04));
+  --nv-liquid-glow: inset 0 0 18px -6px rgba(255,255,255,.6);
+  --nv-liquid-drop: 0 22px 50px -18px rgba(0,0,0,.8);
+}
+
 /* TINTED — the accent bleeds into the material instead of sitting on it, the
    way a coloured iOS 26 control does. Give it --nv-liquid-hue inline. */
 .nv-liquid-tinted {
@@ -673,7 +725,39 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
    The rim collapses to the one separator the shape actually has — a conic
    frame around a bar whose left/right/top edges are off-screen draws three
    hairlines nobody can see and one that reads as a seam. */
-.nv-liquid-flush { --nv-liquid-radius: 0; }
+.nv-liquid-flush {
+  --nv-liquid-radius: 0;
+  /* NO backdrop-filter, on purpose, and this is the third report of it.
+  
+     On his iPhone the bar renders its OWN text through its blur — NOVA·OS,
+     LIVE, Ask and the gear all smeared while the line directly beneath them is
+     razor sharp. It has never reproduced on macOS Safari 26.5, at any of the
+     three attempts, so I cannot see it here and cannot verify a cure here.
+  
+     The evidence in his own screenshot: the DOCK carries the same
+     backdrop-filter and its labels are perfectly sharp. The difference between
+     them is that the dock has `transform: translateX(-50%)` and the bar has no
+     transform — which is the signature of the iOS bug where a
+     backdrop-filtered element composites its descendants THROUGH the filter
+     unless something promotes them out.
+  
+     The transform is not available here: the bar contains the job-tray popup
+     at `position: fixed`, and a transform on the bar would make that popup
+     position against the BAR instead of the viewport. And two previous cures
+     (a ::before layer at z-index -1, then at 0 with a content wrapper) each
+     traded the blur for a worse fault — the second one stopped the bar taking
+     taps at all.
+  
+     So the bar stops being glass. It is a near-opaque surface with a hairline,
+     which is what it was before any of this and which he never once complained
+     about. Sharp text on the surface he reads every morning beats a material
+     effect I cannot test. The dock, the sheets and the cards keep real glass —
+     they are the surfaces where it works and where he can see it. */
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: var(--nv-glass2);
+  box-shadow: none;
+}
 .nv-liquid-flush::after {
   background: none; padding: 0; border-bottom: 1px solid var(--nv-edge);
   -webkit-mask: none; mask: none;
