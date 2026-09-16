@@ -34,7 +34,24 @@ export function elapsedLabel(at, now = Date.now()) {
   const m = Math.max(0, Math.round(ms / 60000));
   if (m < 1) return 'just now';
   if (m < 60) return `${m} min`;
-  return `${Math.floor(m / 60)}h ${m % 60}m`;
+  const h = Math.floor(m / 60);
+  // a real record in his inbox read "306h 4m" — past a couple of days the
+  // hours stop meaning anything and the number is just long
+  if (h >= 48) return `${Math.floor(h / 24)} days`;
+  return `${h}h ${m % 60}m`;
+}
+
+// THE GOAL AS A SENTENCE. His plans are dictated, and a dictated plan about a
+// video starts with the address of the video: one real record's goal opens
+// "https://www.youtube.com/watch?v=sxn5kPQ4Gl0 — watch and analyse this…".
+// reportTitle already strips URLs before they become a filename; the line he
+// reads on Home deserves the same. If stripping leaves nothing, the URL WAS
+// the goal, so keep it rather than showing him a blank card.
+export function goalLine(goal) {
+  const raw = String(goal || '').trim();
+  const clean = raw.replace(/https?:\/\/\S+/g, '').replace(/\s+/g, ' ')
+    .replace(/^[\s—–\-:·,]+/, '').trim();
+  return clean || raw;
 }
 
 // Which plan, if any, belongs on Home. Two states, one card, because they
@@ -65,7 +82,7 @@ export function planCardFrom(records, now = Date.now()) {
   return {
     id: rec.id,
     state: live ? 'running' : 'ready',
-    goal: rec.goal || rec.text || 'a plan',
+    goal: goalLine(rec.goal || rec.text) || 'a plan',
     total: steps.length,
     settled: settled.length,
     done: done.length,

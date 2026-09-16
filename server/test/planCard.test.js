@@ -3,7 +3,7 @@
 // per-step state and nothing ever showed it to him.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { planCardFrom, elapsedLabel } from '../../src/planCard.js';
+import { planCardFrom, elapsedLabel, goalLine } from '../../src/planCard.js';
 
 const plan = (over = {}) => ({
   id: 'p1', kind: 'plan', status: 'classifying',
@@ -73,6 +73,11 @@ test('elapsed is spoken the way he would say it', () => {
   assert.equal(t(3), '3 min');
   assert.equal(t(59), '59 min');
   assert.equal(t(75), '1h 15m');
+  // a record in his real inbox read "306h 4m" — past two days the hours stop
+  // meaning anything and the number is just long
+  assert.equal(t(47 * 60), '47h 0m');
+  assert.equal(t(48 * 60), '2 days');
+  assert.equal(t(12 * 24 * 60), '12 days');
   assert.equal(elapsedLabel(null), '');
   assert.equal(elapsedLabel('not a date'), '');
 });
@@ -102,4 +107,16 @@ test('a clean run claims nothing extra in its tally', () => {
   ] } })]);
   assert.equal(c.tally, '1 of 2');
   assert.equal(c.skippedCount, 0);
+});
+
+test('a dictated goal reads as a sentence, not as an address', () => {
+  // his real plan 3818f7ec opens with the YouTube URL it is about
+  assert.equal(
+    goalLine('https://www.youtube.com/watch?v=sxn5kPQ4Gl0 — watch and analyse this, then compare it'),
+    'watch and analyse this, then compare it');
+  assert.equal(goalLine('read https://a.com/x and summarise it'), 'read and summarise it');
+  // ...but if the URL WAS the goal, a blank card is worse than an address
+  assert.equal(goalLine('https://youtu.be/abc'), 'https://youtu.be/abc');
+  assert.equal(goalLine(''), '');
+  assert.equal(planCardFrom([plan({ goal: '', text: '' })]).goal, 'a plan');
 });
