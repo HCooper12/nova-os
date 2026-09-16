@@ -110,9 +110,12 @@ test('Calm keeps the depth and drops only the bloom, as it does everywhere else'
 
 test('the surfaces he actually looks at wear it', () => {
   const chrome = readFileSync(join(SRC, 'MobileChrome.jsx'), 'utf8');
-  // match the class exactly — `nv-liquid-content` is the bar's content wrapper,
-  // not a glass surface, and a prefix match counted it as one
-  const glass = chrome.match(/className="nv-liquid(?: nv-liquid-flush)?"/g) || [];
+  // `nv-liquid` as a WHOLE class name, so modifiers (nv-liquid-thick,
+  // nv-materialize) still count and `nv-liquid-content` — the bar's content
+  // wrapper, not a surface — does not. Listing the allowed modifiers instead
+  // meant every new one broke this test, which is a test measuring the wrong
+  // thing.
+  const glass = chrome.match(/className="nv-liquid(?![-\w])/g) || [];
   assert.equal(glass.length, 3, `top bar, dock and More sheet — found ${glass.length}`);
   assert.ok(!/backdrop-filter:blur\(26px\)/.test(chrome), 'the old hand-rolled blur is gone, not sitting beside the new one');
 });
@@ -150,4 +153,45 @@ test('the guards follow the glass when it moves', () => {
   const body = reduced.slice(0, reduced.indexOf('/* 3.'));
   assert.match(body, /\.nv-liquid-flush::before\s*\{\s*display:\s*none/, 'no fade when he asked for no transparency');
   assert.match(body, /\.nv-liquid-flush::after\s*\{[^}]*border-bottom/, 'and the honest separator comes back');
+});
+
+test('MATERIAL WEIGHT: a big surface reads thicker than a small one', () => {
+  // "Bigger surfaces should read as thicker: stronger blur + a deeper shadow
+  // than small chips." One blur for every size is why nothing had any relative
+  // depth. The variants must genuinely differ in both, not just in name.
+  const pick = (cls) => {
+    const at = CSS.indexOf(`.${cls} {`);
+    return CSS.slice(at, CSS.indexOf('}', at));
+  };
+  const thin = pick('nv-liquid-thin'), thick = pick('nv-liquid-thick');
+  const blur = (b) => Number((b.match(/--nv-liquid-blur:\s*(\d+)px/) || [])[1]);
+  assert.ok(blur(thin) < 20 && blur(thick) > 20, `thin ${blur(thin)} / default 20 / thick ${blur(thick)}`);
+  assert.match(thin, /--nv-liquid-drop/, 'thickness is blur AND shadow, or it is only a blur');
+  assert.match(thick, /--nv-liquid-drop/);
+});
+
+test('VIBRANCY: text on glass is not the same flat grey as on solid ground', () => {
+  // "Over blurred/translucent surfaces, don't use flat gray text — use higher
+  // contrast." Redefining the tokens INSIDE the material fixes every call site
+  // at once and changes nothing off glass.
+  const at = CSS.indexOf('.nv-liquid {\n  --nv-ink60');
+  assert.ok(at > 0, 'the material does not lift its ink at all');
+  const block = CSS.slice(at, CSS.indexOf('}', at));
+  assert.match(block, /--nv-ink60:\s*color-mix/);
+  assert.match(block, /--nv-ink40:\s*color-mix/);
+  // and it must be LIFTED, not just restated
+  const pct = [...block.matchAll(/var\(--nv-ink\) (\d+)%/g)].map((m) => Number(m[1]));
+  assert.ok(pct[0] > 62, `--nv-ink60 on glass is ${pct[0]}%, no higher than the 62% off it`);
+  assert.ok(pct[1] > 38, `--nv-ink40 on glass is ${pct[1]}%, no higher than the 38% off it`);
+});
+
+test('MATERIALIZE: the blur arrives with the surface, and stops for reduced motion', () => {
+  const kf = CSS.slice(CSS.indexOf('@keyframes nvMaterialize'));
+  const block = kf.slice(0, kf.indexOf('\n}'));
+  assert.match(block, /-webkit-backdrop-filter: blur\(0px\)/, 'Safari still needs the prefix, in keyframes too');
+  assert.match(block, /backdrop-filter: blur\(var\(--nv-liquid-blur\)\)/, 'it must land on the surface\'s OWN blur');
+  const after = CSS.slice(CSS.indexOf('.nv-materialize {'));
+  assert.match(after, /prefers-reduced-motion: reduce\) \{ \.nv-materialize \{ animation: none/);
+  assert.match(after, /prefers-reduced-transparency: reduce\) \{ \.nv-materialize \{ animation: none/,
+    'with no transparency there is no material to arrive');
 });

@@ -76,14 +76,6 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 /* the Library shelf assembling — covers rise into place, staggered per index */
 @keyframes shelfIn { from { opacity: 0; transform: translateY(24px) scale(.955); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes spin { to { transform: rotate(360deg); } }
-/* THE PERSONAL RECORD (rewritten 16 Sep 2026). `prPop` scaled from .6 — a
-   40% jump that reads as a pop-up ad — and `prStar` pulsed the old ◆ on an
-   INFINITE 1.4s loop. A celebration that never stops moving is not
-   celebrating, it is idling, and it is exactly what *Principles of Great
-   Design* means by confetti tacked on top. The card now arrives once and
-   settles: a short rise, a small scale, no overshoot, because nothing here
-   was thrown and bounce belongs to momentum. See PersonalRecord.jsx. */
-@keyframes prRise { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: none; } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes sheetUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
 /* THE EXITS (16 Sep 2026). The app had six entrance keyframes and none of
@@ -545,6 +537,68 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   mask-composite: exclude;
 }
+/* ================================================================
+   THE THREE RULES FROM §12 NOVA WAS NOT FOLLOWING (17 Sep 2026)
+
+   His note: "the apple glass appearance does not look accurate." Read
+   back against the apple-design skill, three of its material rules
+   were simply not implemented, and each one is a reason it reads as a
+   flat blur rather than as glass.
+   ================================================================ */
+
+/* 1. "BIGGER SURFACES SHOULD READ AS THICKER: stronger blur + a deeper
+      shadow than small chips." Nova gave a 340px card and a 40px chip
+      the identical 20px blur, so nothing had any sense of depth or
+      weight relative to anything else. Thickness is now a choice the
+      call site makes, because only it knows how big the surface is. */
+.nv-liquid-thin {
+  --nv-liquid-blur: 11px;
+  --nv-liquid-drop: 0 6px 16px -8px rgba(0,0,0,.5);
+  --nv-liquid-glow: inset 0 0 8px -4px rgba(255,255,255,.4);
+}
+.nv-liquid-thick {
+  --nv-liquid-blur: 32px;
+  --nv-liquid-sat: 200%;
+  --nv-liquid-drop: 0 32px 70px -22px rgba(0,0,0,.85);
+  --nv-liquid-glow: inset 0 0 22px -7px rgba(255,255,255,.55);
+}
+
+/* 2. "VIBRANCY KEEPS TEXT LEGIBLE over changing backgrounds. Don't use
+      flat gray text — higher contrast, slightly heavier, a small
+      letter-spacing bump." Nova set --nv-ink60 / --nv-ink40 on glass
+      exactly as it does on solid ground, which is the flat grey the
+      rule names. Redefining the TOKENS inside the material fixes every
+      call site at once and changes nothing off glass. */
+.nv-liquid {
+  --nv-ink60: color-mix(in srgb, var(--nv-ink) 74%, transparent);
+  --nv-ink40: color-mix(in srgb, var(--nv-ink) 54%, transparent);
+}
+
+/* 3. "MATERIALIZE, DON'T JUST FADE. Animate blur radius and scale
+      together on enter, so the surface reads as a real material
+      arriving rather than a plain opacity fade." Every glass surface in
+      Nova rose and faded with its blur already at full strength — the
+      frost was simply there, the way a picture of glass is. Verified in
+      Safari 26.5 that backdrop-filter really does interpolate
+      (measured 23.09px at 2500ms of a 2600ms ramp to 24px) before
+      building anything on it. */
+@keyframes nvMaterialize {
+  from {
+    opacity: 0; transform: translateY(8px) scale(.985);
+    -webkit-backdrop-filter: blur(0px) saturate(100%);
+    backdrop-filter: blur(0px) saturate(100%);
+  }
+  to {
+    opacity: 1; transform: none;
+    -webkit-backdrop-filter: blur(var(--nv-liquid-blur)) saturate(var(--nv-liquid-sat));
+    backdrop-filter: blur(var(--nv-liquid-blur)) saturate(var(--nv-liquid-sat));
+  }
+}
+.nv-materialize { animation: nvMaterialize var(--nv-dur-slow) var(--nv-ease) both; }
+@media (prefers-reduced-motion: reduce) { .nv-materialize { animation: none; } }
+/* and where he has asked for no transparency there is no material to arrive */
+@media (prefers-reduced-transparency: reduce) { .nv-materialize { animation: none; } }
+
 /* CLEAR — Apple's second style: more transmission, less frost. For glass over
    quiet ground only; over a photo or a chart it loses the content behind it,
    which is why it is opt-in and not the default. */

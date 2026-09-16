@@ -26,12 +26,17 @@ test('THE FOREVER PULSE IS GONE, and cannot come back by accident', () => {
   assert.ok(!SRC.includes('◆'), 'the glyph that said nothing');
 });
 
-test('it arrives once and settles — no overshoot, because nothing was thrown', () => {
-  const rise = CSS.split('\n').find((l) => l.startsWith('@keyframes prRise ')) || '';
-  assert.ok(rise, 'the entrance keyframe is missing');
-  assert.match(rise, /to \{ opacity: 1; transform: none; \}/);
-  // a scale ABOVE 1 anywhere in the entrance would be a bounce
-  const scales = [...rise.matchAll(/scale\(([\d.]+)\)/g)].map((m) => Number(m[1]));
+test('it MATERIALISES rather than fading, and never overshoots', () => {
+  // "Materialize, don't just fade — animate blur radius and scale together on
+  // enter, so the surface reads as a real material arriving." The card is a
+  // glass surface, so it uses the shared material entrance, not one of its own.
+  assert.match(SRC, /nv-materialize/, 'the card must arrive as a material');
+  assert.ok(!/@keyframes prRise/.test(CSS), 'its private keyframe is gone — one entrance, shared');
+  const kf = CSS.slice(CSS.indexOf('@keyframes nvMaterialize'));
+  const block = kf.slice(0, kf.indexOf('\n}'));
+  assert.match(block, /backdrop-filter: blur\(0px\)/, 'the blur has to start at nothing');
+  assert.match(block, /transform: none/);
+  const scales = [...block.matchAll(/scale\(([\d.]+)\)/g)].map((m) => Number(m[1]));
   assert.ok(scales.every((n) => n <= 1), `entrance overshoots: ${scales.join(', ')}`);
 });
 
