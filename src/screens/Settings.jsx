@@ -300,9 +300,11 @@ export function Settings({ v }) {
                 <div style={css("border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:14px")}>
                   <div style={css("font:600 12.5px var(--nv-font-ui)")}>Feel each one</div>
                   <div style={css("margin-top:3px;font-size:11px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>
-                    {cap.tiers
+                    {cap.tiers === true
                       ? 'Five words, five different feelings. Press each and you will know which is which without looking.'
-                      : 'On iOS these all feel the same — one real tap. The five stay distinct in the native shell; the web is allowed exactly one.'}
+                      : cap.tiers === false
+                        ? 'These all feel the same here — one real tap. The five stay distinct in the native shell.'
+                        : 'Tick and threshold are one pulse; commit is two, celebrate and warn are three. If warn feels the same as tick, iOS is refusing the extra pulses on this phone — tell me and the native shell becomes the answer.'}
                   </div>
                   <div style={css("margin-top:11px;display:flex;gap:8px;flex-wrap:wrap")}>
                     {HAPTIC_WORDS.map((w) => (
@@ -325,7 +327,7 @@ export function Settings({ v }) {
                     const d = hapticDiagnostic();
                     return (
                       <div style={css("margin-top:12px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:10px;font:450 11px/1.6 var(--nv-font-mono);color:color-mix(in srgb, var(--nv-ink) 42%, transparent)")}>
-                        Feeling nothing? Send me this line: iOS {d.ios} · {d.browser}
+                        Send me this line: iOS {d.iosReported} (as reported — Safari freezes it) · {d.browser}
                         {d.standalone ? ' · installed' : ' · in-browser'} · overlay {d.overlayPath ? 'on' : 'OFF'} · switches {d.switchesOnScreen} · vibrate {d.vibrate ? 'yes' : 'no'}
                       </div>
                     );

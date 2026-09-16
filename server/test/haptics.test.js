@@ -10,7 +10,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const SRC = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'src');
-const { HAPTIC_WORDS, hapticCapability, needsSwitchHaptic } = await import('../../src/haptics.js');
+const { HAPTIC_WORDS, hapticCapability, needsSwitchHaptic, pulsesFor, reportedIosVersion } = await import('../../src/haptics.js');
 
 async function walk(dir) {
   const out = [];
@@ -79,9 +79,36 @@ test('on his iPhone the overlay path is the one that is left, and it says so', (
     assert.equal(needsSwitchHaptic(), true);
     const cap = hapticCapability();
     assert.equal(cap.path, 'switch');
-    assert.equal(cap.tiers, false, 'iOS web gets one flavour — claiming five would be the lie');
-    assert.match(cap.label, /native shell/, 'and it names what would fix that');
+    assert.equal(cap.tiers, null, 'UNKNOWN — and null is the honest answer, not false');
+    assert.match(cap.label, /no way to tell/, 'it says it cannot tell');
+    assert.match(cap.label, /Press "tick" then "warn"/, 'and hands him the one instrument that can');
   });
+});
+
+test('the reported iOS version is a breadcrumb, never a gate', () => {
+  // 16 Sep: his diagnostic read 18.7 and he is on 27 — Safari FREEZES the
+  // version it reports. A gate on this shipped "your version supports tiers"
+  // to a phone three majors past the one that closed them. It is named
+  // `reportedIosVersion` now so the next reader cannot mistake it for the OS.
+  withNavigator(IPHONE, () => {
+    assert.equal(reportedIosVersion(), '26.5', 'whatever the UA says, and only that');
+    // and nothing in the capability answer depends on it
+    assert.equal(hapticCapability().tiers, null);
+  });
+  withNavigator({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X)', maxTouchPoints: 5 }, () => {
+    assert.equal(hapticCapability().tiers, null, 'an older reported version changes nothing — it cannot be trusted');
+  });
+});
+
+test('the words are one, two or three pulses — warn is three so it cannot read as a commit', () => {
+  assert.deepEqual(pulsesFor('tick'), { count: 1, gaps: [] });
+  assert.deepEqual(pulsesFor('threshold'), { count: 1, gaps: [] });
+  assert.equal(pulsesFor('commit').count, 2);
+  assert.equal(pulsesFor('celebrate').count, 3);
+  assert.equal(pulsesFor('warn').count, 3);
+  assert.ok(pulsesFor('warn').gaps[0] < pulsesFor('celebrate').gaps[0],
+    'and warn is the RAPID three — a celebration is spaced, a refusal is insistent');
+  assert.deepEqual(pulsesFor('nonsense'), { count: 1, gaps: [] }, 'an unknown word is one honest pulse');
 });
 
 test('Android has the real Vibration API, so the overlay is not used', () => {

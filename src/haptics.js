@@ -18,9 +18,21 @@ const PATTERNS = {
   threshold: 8,
   // something worth celebrating — a personal record
   celebrate: [18, 60, 18, 60, 28],
-  // a refusal or a failed write — distinct from every success pattern
-  warn: [30, 50, 30],
+  // a refusal or a failed write — THREE rapid pulses. Two would be a commit
+  // with a different rhythm, and "your action did not happen" has to be
+  // unmistakable at the wrist, not a subtlety.
+  warn: [30, 35, 30, 35, 30],
 };
+
+// How many PULSES a word is, and the gaps between them. A plain number is one
+// pulse; an array alternates buzz/pause, so the pulses are the even slots and
+// the gaps the odd ones. Exported for the test — the whole multi-tick path
+// hangs off this being right.
+export function pulsesFor(kind) {
+  const p = PATTERNS[kind] ?? PATTERNS.tick;
+  if (!Array.isArray(p)) return { count: 1, gaps: [] };
+  return { count: Math.ceil(p.length / 2), gaps: p.filter((_, i) => i % 2 === 1) };
+}
 
 // The same five words, in the Taptic Engine's vocabulary. Selection ticks are
 // the lightest thing iOS does; notifications are the shaped ones.
@@ -95,11 +107,80 @@ export function hapticCapability() {
   if (isIOS()) {
     return {
       path: 'switch',
-      tiers: false,
-      label: 'iOS web — one real Taptic tap on anything you press. The five tiers need the native shell (iOS blocks patterned haptics on the web).',
+      // UNKNOWN, honestly. Recent iOS closed the extra pulses; Safari freezes
+      // the version it reports, so Nova cannot tell which side of that line
+      // this phone is on, and a haptic leaves no trace to detect.
+      tiers: null,
+      label: 'iOS web — a real Taptic tap on anything you press. The heavier words ask for extra pulses on top; recent iOS blocks those, and Nova has no way to tell whether yours does. Press "tick" then "warn": if they feel different, they are working.',
     };
   }
   return { path: 'none', tiers: false, label: 'This device has no haptics Nova can reach.' };
+}
+
+// THE EXTRA PULSES — attempted, never promised.
+//
+// His diagnostic, 16 Sep, read **iOS 18.7**. He is on **iOS 27**. Safari
+// FREEZES the OS version in its user agent, so that number is a placeholder and
+// not his phone — and gating behaviour on it would have been a lie dressed as a
+// feature detect. This nearly shipped as "your version supports tiers" to a
+// device three major versions past the one that closed them.
+//
+// There is no way to observe whether a haptic fired, so there is nothing to
+// feature-detect either. The honest design is therefore: ALWAYS attempt the
+// extra pulses (a re-tick that iOS refuses costs nothing and does nothing), and
+// never claim in the UI that they work. The only instrument that can answer it
+// is his thumb, so the surface tells him how to check.
+//
+// Routed through a LABEL, never the input: WebKit ignores a script click on the
+// control itself, which is the detail every library that tried this learned.
+
+// The version Safari REPORTS. Frozen by WebKit, so it is a diagnostic
+// breadcrumb only — never a gate. Named for what it is.
+export function reportedIosVersion() {
+  if (typeof navigator === 'undefined') return null;
+  const m = String(navigator.userAgent || '').match(/OS (\d+)[_.](\d+)/);
+  return m ? `${m[1]}.${m[2]}` : null;
+}
+
+export function canRetick() {
+  return needsSwitchHaptic();
+}
+
+// One hidden switch for the whole app, created on first use. The per-button
+// overlays give pulse ONE (his real finger); this gives the rest.
+let ticker = null;
+function reticker() {
+  if (typeof document === 'undefined') return null;
+  if (ticker && ticker.input.isConnected) return ticker;
+  const wrap = document.createElement('span');
+  // off-screen but REAL — a display:none control is not a control
+  wrap.style.cssText = 'position:fixed;left:-9999px;bottom:0;width:1px;height:1px;overflow:hidden;pointer-events:none';
+  wrap.setAttribute('aria-hidden', 'true');
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.setAttribute('switch', '');
+  input.id = 'nv-haptic-ticker';
+  input.tabIndex = -1;
+  const label = document.createElement('label');
+  label.setAttribute('for', input.id);
+  wrap.append(input, label);
+  document.body.appendChild(wrap);
+  ticker = { input, label };
+  return ticker;
+}
+
+// Pulses 2..n, spaced by the word's own gaps. Pulse one already happened under
+// his finger, so this never fires for a single-pulse word.
+function retick(kind) {
+  const { count, gaps } = pulsesFor(kind);
+  if (count < 2) return;
+  const t = reticker();
+  if (!t) return;
+  let at = 0;
+  for (let i = 1; i < count; i++) {
+    at += gaps[i - 1] || 40;
+    setTimeout(() => { try { t.label.click(); } catch { /* the tap already landed */ } }, at);
+  }
 }
 
 // WHAT TO TELL ME IF IT STILL DOES NOTHING. A second "I feel nothing" has to
@@ -112,7 +193,8 @@ export function hapticDiagnostic() {
     ? document.querySelectorAll('input[type="checkbox"][switch]').length
     : 0;
   return {
-    ios: m ? `${m[1]}.${m[2]}` : 'unknown',
+    // Safari FREEZES this — it is not the OS version. Labelled so at the call site.
+    iosReported: m ? `${m[1]}.${m[2]}` : 'unknown',
     browser: /CriOS/.test(ua) ? 'Chrome' : /FxiOS/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : 'other',
     standalone: !!(nav.standalone || (typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches)),
     overlayPath: needsSwitchHaptic(),
@@ -160,6 +242,7 @@ export function haptic(kind = 'tick') {
       Promise.resolve(fire(H)).catch(() => {});
       return;
     }
+    if (canRetick()) { retick(kind); return; }
     const pattern = PATTERNS[kind] ?? PATTERNS.tick;
     navigator.vibrate?.(pattern);
   } catch { /* unsupported or blocked — never a reason to break a tap */ }
