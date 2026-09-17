@@ -759,6 +759,29 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
      THIS, it is not coming from anything I have written, and that is worth
      knowing too. */
   isolation: auto;
+  /* THE ONE THING THE SHARP SURFACE HAS AND THIS ONE DID NOT (17 Sep 2026).
+
+     Fifth pass. His screenshots keep saying the same thing and I kept reading
+     past it: the DOCK is `position: fixed` with `transform: translateX(-50%)`
+     and its labels are razor sharp. This bar is `position: fixed` with NO
+     transform and its text is soft — while iOS's own status bar above it and
+     the page line below it are both perfectly crisp.
+
+     That is the long-standing iOS blurry-fixed-layer signature: a fixed
+     element is promoted and rasterised once, and without an explicit 3D hint
+     it can be rasterised at the wrong scale and then stretched. A transform is
+     the known cure, and the dock has been accidentally getting it for months.
+
+     I refused this twice because the bar contained a `position: fixed` job
+     tray, and a transform makes an element the containing block for its fixed
+     descendants — the tray would have positioned against the bar. The tray had
+     no reason to be nested there and now is not, so the obstacle is gone
+     rather than worked around.
+
+     Still not reproducible here: macOS has never shown the blur at any of the
+     five attempts, so this is reasoned from his screenshots, not verified on
+     the engine that has it. */
+  transform: translateZ(0);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   background: var(--nv-glass2);

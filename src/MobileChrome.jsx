@@ -63,19 +63,6 @@ export function MobileChrome({ v }) {
             {v.jobTray.jobs.length}
           </Interactive>
         )}
-        {v.jobTray.open && v.jobTray.jobs.length > 0 && (
-          <div onClick={v.jobTray.toggle} style={css("position:fixed;inset:0;z-index:110")}>
-            <div onClick={(e) => e.stopPropagation()} style={css("position:absolute;top:56px;right:12px;width:min(340px,92vw);border:1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent);border-radius:14px;background:color-mix(in srgb, var(--nv-bg2) 94%, black);box-shadow:0 18px 60px rgba(0,0,0,.55);overflow:hidden;animation:fadeUp var(--nv-dur-base) var(--nv-ease)")}>
-              <Eyebrow style={{ padding: '11px 15px 8px' }}>Running now — Nova pings you when each lands</Eyebrow>
-              {v.jobTray.jobs.map((j) => (
-                <Interactive as="div" key={j.id} onClick={j.go || v.jobTray.goInbox} haptic="tick" base={css("cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 15px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent);font:400 12.5px var(--nv-font-ui);color:var(--nv-ink)")}>
-                  <span style={css("flex:none;width:9px;height:9px;border-radius:50%;border:1.5px solid var(--nv-cy);border-top-color:transparent;animation:spin 1s linear infinite")}></span>
-                  <span style={css("min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{j.label}</span>
-                </Interactive>
-              ))}
-            </div>
-          </div>
-        )}
         {v.outboxCount > 0 && (
           <Interactive as="span" onClick={v.openOutbox} haptic="tick" base={css(chip('var(--nv-gold)'))}>⇪ {v.outboxCount}</Interactive>
         )}
@@ -86,6 +73,27 @@ export function MobileChrome({ v }) {
           ? `cursor:pointer;font-size:15px;line-height:1;padding:8px 11px;border:1px solid transparent;border-radius:999px;color:${v.isSettings ? 'var(--nv-acc)' : 'var(--nv-ink60)'};background:${v.isSettings ? 'var(--nv-acc-bg)' : 'color-mix(in srgb, var(--nv-ink) 8%, transparent)'}`
           : `cursor:pointer;font-size:14px;line-height:1;padding:7px 10px;border:1px solid ${v.isSettings ? 'var(--nv-acc-border)' : 'var(--nv-edge)'};border-radius:8px;color:${v.isSettings ? 'var(--nv-acc)' : 'var(--nv-ink60)'}`)}>⚙</Interactive>
       </div>
+      {/* THE JOB TRAY LIVES OUTSIDE THE BAR (17 Sep 2026).
+          It is a full-screen `position: fixed` overlay, and it used to be a
+          CHILD of the bar. That made the bar the one place in the chrome that
+          could not be given a transform — a transform makes an element the
+          containing block for its fixed descendants, so this would have
+          positioned against the BAR instead of the viewport. It has no reason
+          to be nested; moving it out is what lets the bar be composited
+          properly. See the transform note in index.css. */}
+      {v.jobTray.open && v.jobTray.jobs.length > 0 && (
+        <div onClick={v.jobTray.toggle} style={css("position:fixed;inset:0;z-index:110")}>
+          <div onClick={(e) => e.stopPropagation()} style={css("position:absolute;top:56px;right:12px;width:min(340px,92vw);border:1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent);border-radius:14px;background:color-mix(in srgb, var(--nv-bg2) 94%, black);box-shadow:0 18px 60px rgba(0,0,0,.55);overflow:hidden;animation:fadeUp var(--nv-dur-base) var(--nv-ease)")}>
+            <Eyebrow style={{ padding: '11px 15px 8px' }}>Running now — Nova pings you when each lands</Eyebrow>
+            {v.jobTray.jobs.map((j) => (
+              <Interactive as="div" key={j.id} onClick={j.go || v.jobTray.goInbox} haptic="tick" base={css("cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 15px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent);font:400 12.5px var(--nv-font-ui);color:var(--nv-ink)")}>
+                <span style={css("flex:none;width:9px;height:9px;border-radius:50%;border:1.5px solid var(--nv-cy);border-top-color:transparent;animation:spin 1s linear infinite")}></span>
+                <span style={css("min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{j.label}</span>
+              </Interactive>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* the More sheet — every screen, grid of silhouettes, one tap */}
       {moreOpen && (

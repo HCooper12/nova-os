@@ -110,3 +110,20 @@ test('the app root fills the screen it is actually on', () => {
   assert.ok(!/min-height:100svh/.test(app), 'svh leaves a dead band at the foot');
   assert.ok(!/min-height:100dvh/.test(app), 'dvh resizes mid-scroll and the page jumps');
 });
+
+test('the bar gets a 3D hint, and nothing fixed is nested inside it', () => {
+  // A transform makes an element the containing block for its `position:fixed`
+  // descendants. The bar may only carry one if nothing fixed lives inside it —
+  // the job tray was that thing, and it has been moved out.
+  const css = strip(CSS);
+  const at = css.indexOf('.nv-liquid-flush {');
+  const block = css.slice(at, css.indexOf('}', at));
+  assert.match(block, /transform: translateZ\(0\)/, 'the sharp dock has one; this did not');
+  // and the bar's own markup must contain no fixed descendant
+  const barStart = CHROME.indexOf('nv-liquid nv-liquid-flush');
+  const barEnd = CHROME.indexOf('{/* THE JOB TRAY LIVES OUTSIDE THE BAR', barStart);
+  assert.ok(barEnd > barStart, 'the job tray comment marks where the bar ends');
+  const inside = CHROME.slice(CHROME.indexOf('>', barStart), barEnd);
+  assert.ok(!/position:fixed/.test(inside),
+    'a fixed child would position against the bar instead of the viewport');
+});
