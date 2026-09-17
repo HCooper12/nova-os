@@ -4,6 +4,8 @@ import { Interactive } from '../Interactive.jsx';
 import { ChatMarkdown } from '../ChatMarkdown.jsx';
 import { Eyebrow, TextAction, Chip, Tag, Meta, ScreenHead } from '../Controls.jsx';
 import { useLibraryTint } from '../shelf3d/useLibraryTint.js';
+import { editionFor } from '../shelf3d/edition.js';
+import { artFor, artNow } from '../shelf3d/artPalette.js';
 
 // THE TINT, everywhere it is read. Untinted, this resolves to the theme's own
 // accent, so the fallback IS the current design and there is no second code
@@ -135,11 +137,54 @@ function ChipsRow({ v }) {
   );
 }
 
+// THE GRID BINDS THE SAME VOLUME THE SHELF DOES. `row.edition` from the view
+// model is hash-derived, because the vals run before any image has loaded —
+// so a video that is dark brown on the shelf came out mauve here. The poster's
+// palette is resolved through the SAME cache the shelf uses, and the edition
+// is re-derived from it the moment it lands. Until then the hash edition
+// stands in, which is a real binding and not a placeholder.
+function useArtEditions(rows) {
+  const [, bump] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    let pending = 0;
+    for (const r of rows) {
+      if (!r.jacket || artNow(r.jacket)) continue;
+      pending += 1;
+      // one re-render per arrival would be twenty-one renders; one when the
+      // batch drains is enough, and the hash edition is honest until then
+      artFor(r.jacket).then(() => {
+        if (!alive) return;
+        pending -= 1;
+        if (pending <= 0) bump((n) => n + 1);
+      });
+    }
+    if (!pending) bump((n) => n + 1);
+    return () => { alive = false; };
+  }, [rows.map((r) => `${r.id}:${r.jacket || ''}`).join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (row) => {
+    const a = row.jacket ? artNow(row.jacket) : null;
+    if (!a?.palette && !a?.aspect) return row.edition;
+    return editionFor(row, { artAspect: a.aspect, palette: a.palette });
+  };
+}
+
+// The edition's cloth as a CSS board: the same two-stop shade the canvas
+// painter lays down (coverArt.paintCloth), plus the hinge and a gloss, so a
+// card and a volume of the same source are the same colour.
+const gridCloth = (e) => [
+  'linear-gradient(115deg, transparent 42%, rgba(255,255,255,.05) 47%, transparent 58%)',
+  `linear-gradient(90deg, rgba(0,0,0,.42), rgba(0,0,0,0) 12%)`,
+  `linear-gradient(158deg, color-mix(in srgb, ${e.cloth} 100%, #ffffff 16%) 0%, ${e.cloth} 55%, color-mix(in srgb, ${e.cloth} 100%, #000000 28%) 100%)`,
+].join(', ');
+
 // THE DOM SHELF — the Covers grid, and the CSS shelf that is now only the
 // fallback for a device with no WebGL or a lost context (Bar 7). Unchanged
 // from what shipped, on purpose: a fallback that drifts is not a fallback.
 function Shelf({ v, fellBack }) {
   const spines = v.libraryView === 'spines';
+  const editionOf = useArtEditions(v.libraryShelf);
   useShelfFlip(v.libraryView, v.libraryShelf.length);
   return (
     <>
@@ -166,7 +211,7 @@ function Shelf({ v, fellBack }) {
       <div style={spines
         ? css('display:flex;align-items:flex-end;gap:5px;overflow-x:auto;padding:0 2px 0;min-height:300px')
         : css('margin-top:22px;display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:20px 16px;align-items:end')}>
-        {v.libraryShelf.map((b) => (
+        {v.libraryShelf.map((b) => { const ed = editionOf(b); return (
           <div key={b.id} data-flip={b.id}
             style={spines
               ? { flex: 'none', width: `${b.spine.width}px`, height: `${b.spine.heightPct * 2.8}px` }
@@ -177,25 +222,42 @@ function Shelf({ v, fellBack }) {
               hoverStyle={spines
                 ? { transform: 'translateY(-12px)', boxShadow: '0 22px 44px -18px rgba(0,0,0,.85)' }
                 : { transform: 'translateY(-7px) scale(1.025)', boxShadow: '0 22px 44px -18px rgba(0,0,0,.85)' }}>
-              <div style={{ ...b.coverStyle,
-                aspectRatio: spines ? undefined : (b.isBook ? '2/3' : '16/10'),
+              {/* PHASE 6 — THE GRID AGREES. The card is the same OBJECT the
+                  shelf renders, in CSS: the edition's cloth, the poster as a
+                  PLATE with the same 7% margin (object-fit: contain in an
+                  inset box preserves the aspect exactly, which is the flat
+                  equivalent of the shelf's plate rect), the title in the
+                  edition's foil, the kind glyph as the publisher's mark, and
+                  the edition's accent as the card's bloom. A book's jacket
+                  still covers its board edge to edge. Same source, same
+                  colours, two renderings. */}
+              <div className={spines ? undefined : 'nv-sheen nv-glow'}
+                style={{ ...b.coverStyle,
+                ...(spines ? {} : { background: gridCloth(ed), aspectRatio: String(ed.boardAspect),
+                  '--nv-glow-tint': `color-mix(in srgb, ${ed.accent} 42%, transparent)` }),
                 height: spines ? '100%' : undefined,
-                borderRadius: spines ? '2px 4px 4px 2px' : (b.isBook ? '4px 9px 9px 4px' : '11px'),
+                borderRadius: spines ? '2px 4px 4px 2px' : (b.isBook ? '4px 9px 9px 4px' : '9px'),
                 border: '1px solid rgba(255,255,255,.09)',
                 boxShadow: spines
                   ? 'inset -3px 0 7px -4px rgba(0,0,0,.9), inset 2px 0 0 rgba(255,255,255,.10), 0 12px 26px -14px rgba(0,0,0,.9)'
                   : '0 14px 30px -16px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.08)',
-                padding: spines ? '9px 3px' : '13px 13px 11px',
+                padding: spines ? '9px 3px' : '11px 11px 9px',
                 display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
                 {b.jacket && (
-                  /* the real jacket or poster, once it has loaded — the
-                     generated cover stays underneath as the frame and the
-                     permanent fallback. On a spine it is the sliver of cover
-                     art you would actually see edge-on. */
+                  /* A JACKET COVERS ITS BOARD; A POSTER IS SET INTO ONE. The
+                     old card put a 16:9 thumbnail into a 16:10 frame with
+                     object-fit: cover and sliced a face in half — the same
+                     fault the spines view had, in a bigger frame. */
                   <img src={b.jacket} alt="" loading="lazy"
-                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%',
-                      objectFit: 'cover', opacity: spines ? .5 : 1,
-                      animation: 'fadeIn var(--nv-dur-base) var(--nv-ease)' }} />
+                    style={b.isBook || spines
+                      ? { position: 'absolute', inset: 0, width: '100%', height: '100%',
+                          objectFit: 'cover', opacity: spines ? .5 : 1,
+                          animation: 'fadeIn var(--nv-dur-base) var(--nv-ease)' }
+                      : { position: 'absolute', left: '7%', right: '7%', top: '7%',
+                          width: '86%', height: '52%', objectFit: 'contain',
+                          background: 'rgba(0,0,0,.35)',
+                          boxShadow: '0 2px 10px -3px rgba(0,0,0,.7)',
+                          animation: 'fadeIn var(--nv-dur-base) var(--nv-ease)' }} />
                 )}
                 {spines ? (
                   /* a spine is read side-on, so the title runs up it */
@@ -208,20 +270,31 @@ function Shelf({ v, fellBack }) {
                 ) : (
                   <>
                     <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      {!b.jacket && <span style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track-wide)', color: 'rgba(255,255,255,.5)' }}>{b.kindLabel}</span>}
-                      {!b.isBook && <span style={css('font-size:13px;color:rgba(255,255,255,.55)')}>{b.glyph}</span>}
+                      {!b.jacket && <span style={{ font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track-wide)', color: ed.foil, opacity: .72 }}>{b.kindLabel}</span>}
                     </div>
-                    {!b.jacket && (
-                      <>
-                        <div style={{ marginTop: 'auto', font: `400 ${b.isBook ? 17 : 14.5}px ${S}`, lineHeight: 1.18, color: 'rgba(255,255,255,.94)', textShadow: '0 1px 6px rgba(0,0,0,.4)', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{b.title}</div>
-                        {b.author && <div style={{ marginTop: '7px', font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'rgba(255,255,255,.55)', textTransform: 'uppercase' }}>{b.author}</div>}
-                      </>
+                    {/* the cloth half of a plated card: the title in foil,
+                        the publisher's mark at the foot — the shelf's own
+                        front board, flattened */}
+                    {!(b.isBook && b.jacket) && (
+                      <div style={{ position: 'relative', marginTop: b.jacket ? '52%' : 'auto',
+                        paddingTop: b.jacket ? '13px' : 0, textAlign: 'center' }}>
+                        <div aria-hidden="true" style={{ width: '46px', height: '1px', margin: '0 auto 9px',
+                          background: ed.foil, opacity: .55 }} />
+                        <div style={{ font: `400 ${b.jacket ? 13 : (b.isBook ? 17 : 15)}px ${S}`, lineHeight: 1.2,
+                          color: ed.foil, textShadow: '0 1px 6px rgba(0,0,0,.45)',
+                          display: '-webkit-box', WebkitLineClamp: b.jacket ? 3 : 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{b.title}</div>
+                        {b.author && !b.jacket && <div style={{ marginTop: '7px', font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: ed.foil, opacity: .7, textTransform: 'uppercase' }}>{b.author}</div>}
+                      </div>
                     )}
+                    <div style={{ position: 'relative', marginTop: 'auto', paddingTop: '8px', textAlign: 'center',
+                      font: `400 13px ${S}`, color: ed.foil, opacity: .65 }}>{b.glyph}</div>
                   </>
                 )}
               </div>
             </Interactive>
-            {!spines && b.jacket && (
+            {/* a jacketed BOOK carries no type on its board, so its title
+                belongs under the card; a plated volume already wears its own */}
+            {!spines && b.jacket && b.isBook && (
               <div style={{ marginTop: '9px', font: `400 14.5px ${S}`, lineHeight: 1.2,
                 color: 'var(--nv-ink)', display: '-webkit-box', WebkitLineClamp: 2,
                 WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{b.title}</div>
@@ -234,7 +307,7 @@ function Shelf({ v, fellBack }) {
               </div>
             )}
           </div>
-        ))}
+        ); })}
       </div>
       {spines && (
         <>
@@ -411,7 +484,7 @@ const stageHeight = (box) => (box.w < 820
 // volumes' textures and the renderer itself, right in the middle of the
 // transition that is supposed to be continuous. Three fixed slots instead:
 // what is above the canvas, the canvas, and what is below it.
-function Stage({ v, detail, closing, height, wide, shelf, onClose }) {
+function Stage({ v, detail, closing, height, wide, tint, shelf, onClose }) {
   const open = !!detail;
   // On a wide screen an open volume takes the left half and its editorial
   // column sits beside it — reel-0011's book page. Below 820 the column goes
@@ -426,10 +499,18 @@ function Stage({ v, detail, closing, height, wide, shelf, onClose }) {
 
       <div style={{ marginTop: '14px', display: beside ? 'flex' : 'block',
         gap: '30px', alignItems: 'flex-start' }}>
-      <div style={{ flex: beside ? '0 0 52%' : '1 1 auto', minWidth: 0,
+      {/* ONE GLOW LANGUAGE. The canvas wears the app's own bloom
+          (glowPanel.js, class nv-glow) in the OPEN volume's accent, so the
+          shelf and every lit panel in Nova are lit the same way — and Calm
+          zeroes it here for free, because the rule that zeroes it lives in
+          index.css and not in this file. */}
+      <div className={open ? 'nv-glow' : undefined}
+        style={{ flex: beside ? '0 0 52%' : '1 1 auto', minWidth: 0,
         position: 'relative', borderRadius: 'var(--nv-radius)',
+        '--nv-glow-tint': open && tint?.accent
+          ? `color-mix(in srgb, ${tint.accent} 55%, transparent)` : 'transparent',
         background: open ? 'radial-gradient(120% 90% at 50% 12%, var(--nv-lib-ground, transparent), transparent 72%)' : 'transparent',
-        transition: 'background var(--nv-dur-slow) var(--nv-ease)' }}>
+        transition: 'background var(--nv-dur-slow) var(--nv-ease), box-shadow var(--nv-dur-slow) var(--nv-ease)' }}>
         <Suspense fallback={<div style={{ height: `${height}px` }} />}>
           <Shelf3D rows={v.libraryShelf} height={height}
             selectedId={shelf.selectedId} openId={shelf.openId}
@@ -534,7 +615,7 @@ export function Library({ v }) {
       <div style={css('margin-top:18px')}>
         {onStage
           ? <Stage v={v} detail={d} closing={closing} height={stageHeight(box)}
-              wide={box.w >= 900} shelf={shelf} onClose={() => setClosing(true)} />
+              wide={box.w >= 900} tint={tint} shelf={shelf} onClose={() => setClosing(true)} />
           : (d ? <Detail v={v} /> : <Shelf v={v} fellBack={fellBack} />)}
       </div>
     </div>

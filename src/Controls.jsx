@@ -140,7 +140,12 @@ export function Chip({ children, onClick, tone: t = 'accent', active, disabled, 
           : `color-mix(in srgb, ${color} ${apple ? '14%' : '8%'}, transparent)`,
         border: apple ? '1px solid transparent' : `1px solid color-mix(in srgb, ${color} ${active ? '70%' : '35%'}, transparent)`,
         opacity: disabled ? 0.55 : 1,
-        whiteSpace: 'nowrap',
+        // `whiteSpace: 'nowrap'` used to sit here and silently overrode the
+        // `normal` set above — a duplicate key, so the long-label wrap the
+        // comment promises has never actually worked. It showed up on the
+        // Library detail as "…missing from raw/" cut off mid-word at 375.
+        minWidth: 0,
+        overflowWrap: 'anywhere',
         ...(style || {}),
       }}
       hoverStyle={{ filter: 'brightness(1.12)' }}
