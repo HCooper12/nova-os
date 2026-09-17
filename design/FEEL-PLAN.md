@@ -118,6 +118,34 @@ Two traps that cost real time, both pinned in `server/test/haptics.test.js`:
   he was on 26. A version gate would have promised tiers to a phone three
   majors past the cutoff, so there is no version gate anywhere.
 
+### REVISED AGAIN, 17 Sep — "every call site below now reaches his hand" was wrong
+Third report: "The haptics are still not occurring and the settings screen
+haptics all feel the same." The mechanism above is correct; the coverage claim
+was not. The count, checked rather than assumed: **9 elements in the whole app
+carried a `haptic` PROP against 38 programmatic `haptic()` calls that cannot
+reach iOS at all** — a call from a handler takes the `canRetick()` branch, and
+`retick()` returns immediately for any one-pulse word. Only the prop path can
+ever produce the real tap.
+
+`src/MobileChrome.jsx` — the dock, the tab bar, the control he touches more
+than any other in the app — was built entirely from bare `<div onClick>` and
+`<span onClick>`. Zero haptic props. It was silent **by construction**; no
+call site added anywhere else was ever going to reach it. Converted every
+clickable in the chrome to `Interactive` with a word (6/6 dock tabs, the More
+sheet's two grids, logo, job tray, outbox, Ask, gear) — verified live: 21
+switch overlays where there were 0, `t.warm`'s pointerdown prefetch intact.
+Pinned in `server/test/haptics.test.js` ("THE DOCK CAN BUZZ"), which now fails
+on any new bare clickable in that file.
+
+**"All haptics feel the same" is not fixable on the web** — restated here so
+it stops being reported as a bug. One switch toggle is one Taptic tap; there
+is no intensity or pattern control, and the extra pulses go through a
+scripted label click that WebKit will not fire a haptic for. Five
+distinguishable feels need the native shell (blocked on Xcode — see
+`native/README.md`; he started the App Store download 17 Sep, not yet
+installed). Home's cards and the rest of `App.jsx`'s programmatic call sites
+are still silent by the same mechanism as the dock was; not yet converted.
+
 ---
 
 ## 2. Optimistic UI

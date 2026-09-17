@@ -13,6 +13,152 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**17 SEP (evening) — WHY HAPTICS "STILL WEREN'T OCCURRING": THE DOCK COULD
+NEVER HAVE BUZZED. Plus the shipped-build verification pass, and three rounds
+of cross-session coordination.**
+
+**GOAL.** Continue the Feel Plan's remaining builds; respond to his live
+report that haptics still don't work; verify the last week's work actually
+shipped, with screen recordings, not assumptions.
+
+**DONE CRITERIA**
+- *met* — the four new reflexes (tomorrow/week-count/since-trained/
+  repertoire-left), tested and confirmed live on the running server.
+- *met* — the three deferred view-transition pairs (library shelf→detail,
+  note row→reader, session exercise row→ExerciseSheet), via a real
+  `src/vtName.js` instead of hand-minted names. `withTransition` now catches
+  the `ready` rejection a duplicate name causes (it aborts the WHOLE
+  transition, not just its own morph — Safari 26.5, `InvalidStateError`).
+- *met* — **root cause of the third "haptics don't work" report.**
+  `src/MobileChrome.jsx` — the dock, his most-touched control in the app —
+  was built from bare `<div onClick>`/`<span onClick>`. Zero haptic props.
+  9 elements in the WHOLE APP could ever fire a real tap, against 38
+  programmatic `haptic()` calls that cannot on iOS (they hit `canRetick()`,
+  which returns immediately for a one-pulse word). No call site added
+  anywhere else was ever going to reach the dock. Converted (commit
+  `23c8179`): 6/6 dock tabs, More sheet's two grids, logo, job tray, outbox,
+  Ask, gear.
+- *unmet* — **he has not confirmed feeling it.** Verified structurally (a
+  touch-spoofed Safari, no reload: 21 switch overlays where there were 0,
+  `t.warm`'s pointerdown prefetch intact) — not on his actual phone.
+- *unmet* — Home's cards and the rest of `App.jsx`'s ~38 programmatic
+  `haptic()` calls are silent by the exact same mechanism. Not converted;
+  the dock was the highest-value, most-reported surface and that's as far
+  as this session went.
+- *blocked on him* — distinguishable tiers need the native shell, which
+  needs Xcode. He asked if it's free (yes, to build for his own device);
+  I opened the App Store to Xcode's page (`open macappstore://...`) — his
+  Apple ID sign-in and the click are his to do, and there is no confirmation
+  he has started or finished it.
+
+**STATE**
+- `src/vtName.js` (new) — id-derived, CSS-safe names + the uniqueness guard
+  (`vtStyle(prefix, id, openId)`), replacing three hand-minted, drifted copies.
+- `src/MobileChrome.jsx` — every clickable is now `Interactive` with a
+  `haptic` word; the two dismiss backdrops stay bare deliberately.
+- `server/test/haptics.test.js` — "THE DOCK CAN BUZZ" fails on any new bare
+  clickable in that file; a separate test catches `haptic="typo"` as a JSX
+  PROP, which the original call-site grep couldn't see.
+- `server/test/vtName.test.js` (new) — pins the three-file contract
+  (vals → App.jsx → the sheet) that has to agree on a shared name.
+- `scripts/dev-connect.mjs` (new) — seeds a dev connection from `server/.env`
+  into a served, gitignored `public/_devconn.js` so verification never puts
+  the token in a transcript. `--clean` on every use; confirmed absent now.
+- `design/FEEL-PLAN.md` — corrected TWICE this session. The transition-pair
+  table (Library's morph had a comment promising a result it never
+  produced — the detail carried no name at all). The haptics section's
+  claim "every call site below now reaches his hand" — WRONG, restated as
+  "every element with a `haptic` PROP", with the dock finding folded in.
+- Memory: `nova-haptics-ios.md` corrected (the "Pill and TextAction wear it"
+  coverage line had rotted); `nova-concurrent-sessions.md` (new) — verify a
+  peer's claim against the diff before acting, claim a file before editing
+  it, an isolated worktree to test your own commit without a peer's dirty
+  tree contaminating it, and: **this section is a STACK, prepend, never
+  overwrite** — a peer's still-open work (the 3D Library, below) does not
+  get erased because a different session closed later the same day.
+
+**DECISIONS**
+- **Did not strip `backdrop-filter` from the two morph panels that carry
+  it** (`StepsHistory.jsx`, `RepertoireBook.jsx`) despite a peer's real
+  finding that a view-transition snapshot freezes a backdrop-filter's
+  sample → `--nv-glass2` is 75–88% opaque in every theme, under an
+  82%-opaque scrim that isn't in the snapshot, for a ~280–420ms morph → math
+  says imperceptible; noted the exact one-line fix in FEEL-PLAN.md rather
+  than pre-emptively trading real glass depth for an unconfirmed flicker.
+  **Forecloses:** don't touch it again unless he reports a flash on THOSE
+  TWO panels specifically — then the fix is known.
+- **Did not convert Home/App.jsx's remaining ~38 programmatic haptic calls**
+  → scoped to the reported surface (the dock) rather than a blind sweep →
+  **forecloses** claiming haptics work broadly; FEEL-PLAN says explicitly
+  they don't yet.
+- **Did not attempt Xcode download/sign-in** → entering his Apple ID is a
+  hard line, not a judgment call → **forecloses** any native-shell progress
+  until he does that step himself.
+
+**VERIFIED** (locators)
+- `cd server && npm test` → 1778/1778, this session, after every change.
+- `npm run lint` → 0 errors; `npm run build` → exit 0.
+- `git status --porcelain` → clean; `git rev-list --left-right --count
+  origin/main...HEAD` → `0 0`.
+- Deployed `version.json` buildId matches local `HEAD` exactly (confirmed
+  twice this session, at two different HEADs).
+- Backend: `curl localhost:4173/api/health` → 200.
+- Dock haptics: 21 switch overlays counted live in a touch-spoofed Safari
+  (`navigator.maxTouchPoints` override, no reload — a reload wipes the spoof
+  and gave a false "0 switches" reading earlier in the session).
+- Library/Notes/Exercise transition pairs: 0 duplicate `viewTransitionName`s
+  on the exact shipped bundle (`git worktree add --detach ac15d31`, byte-hash
+  matched against Pages) — screen-recorded and sent to him as an MP4.
+- Two false alarms raised and personally cleared, not his app's fault: a
+  leftover dev service worker showing a stale "newer build" banner (mine,
+  from this session's own rig); the Personal Record dialog "reopening
+  itself" (my own click sweep triggered it, and my detector was
+  case-sensitive against CSS `text-transform` — 36s of watching afterward,
+  zero spontaneous opens).
+
+**ASSUMED**
+- That a touch-spoofed Mac Safari faithfully predicts `needsSwitchHaptic()`
+  on his real iPhone. Structurally sound (same UA check), never watched on
+  his actual device this session.
+- That the backdrop-filter freeze on the two morph panels is genuinely
+  imperceptible — reasoned from the opacity numbers, not watched frame by
+  frame in a recording.
+- Whether he has opened the App Store page and started/finished the Xcode
+  download — unknown either way.
+
+**OPEN QUESTIONS / BLOCKERS**
+- Does the dock actually buzz on his phone? Only his thumb settles this.
+- Is Xcode installed yet? Gates the native shell and true haptic tiers.
+- Does he want the remaining ~38 programmatic call sites (Home, mostly)
+  converted the same way, or is the dock the priority surface for now?
+- **His call, restated because it keeps recurring and is still unmet:** he
+  has not marked a technique, answered a Leader question, or confirmed
+  feeling ANY haptic himself. Every "done" above is built and verified by
+  Claude, not used by him.
+
+**NEXT ACTION** — ask him to tap the dock a few times and open
+Settings → Haptics on his real phone. If the fix worked: a tap he didn't
+feel before now does something, and the five-word test in Settings feels
+present-but-identical rather than absent. If Xcode has landed, confirm with
+`xcode-select -p` (expect a real `Xcode.app` path, not
+`/Library/Developer/CommandLineTools`) before starting `native/README.md`.
+
+**DO NOT**
+- Do not say "every haptic call site reaches his hand" — only elements with
+  a `haptic` PROP do; 38 programmatic calls still don't, on the dock's exact
+  former mechanism.
+- Do not strip `backdrop-filter` from `StepsHistory`/`RepertoireBook`
+  pre-emptively — checked, math says imperceptible; only revisit on an
+  actual report against those two panels.
+- Do not overwrite this section wholesale on the next close — it is a
+  stack; prepend above whatever is here, including the 3D Library entry
+  right below, which is still open and not this session's to resolve.
+- Do not enter his Apple ID or click through the App Store install on his
+  behalf — his to do, no exceptions.
+- Do not trust a touch-spoofed Safari check as equivalent to his phone for
+  haptics specifically — it proves the overlay CAN exist, never that it
+  fires correctly on-device.
+
 **17 SEP (later) — THE 3D LIBRARY IS BUILT AND SHIPPED; HE HAS NOT SEEN IT.**
 His three answers came back the same day (poster-plate editions · replace the
 CSS shelf · try the tumble) and Phases 1–6 went in as four commits, each
@@ -1904,6 +2050,29 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+**17 Sep 2026 (evening) — The dock could never have buzzed.** Third report
+of "haptics still not occurring" traced to a real structural gap:
+`MobileChrome.jsx`'s dock was built from bare clickable divs with zero
+`haptic` props, so it was silent by construction no matter how many other
+call sites existed elsewhere (9 elements app-wide could ever fire a tap,
+against 38 programmatic calls that can't on iOS). Converted the whole
+chrome; verified 21 switch overlays where there were 0. Also fixed the
+three deferred view-transition pairs via a proper `src/vtName.js` instead
+of hand-minted, drifted names, and hardened `withTransition` against a
+duplicate-name abort a peer found (freezes a `backdrop-filter`'s snapshot,
+kills the WHOLE transition, not just one morph). Ran a full shipped-build
+verification pass — cloned the exact deployed commit into an isolated
+worktree, screen-recorded it against his real vault, sent him the MP4 —
+and caught two false alarms that were the verification rig's own fault,
+not his app's (a leftover dev service worker; a case-sensitive PR-dialog
+detector). **Corrected two of my own earlier claims on record**: FEEL-PLAN
+had said haptics reach his hand everywhere (only true for elements with the
+prop, not the 38 that call it programmatically), and a stale coverage note
+in memory. Also corrected a peer's misreport about my reflex tests being
+date-dependent (they aren't; checked live) and gently corrected their
+summary of their own commit. Xcode not yet installed — pointed him at the
+App Store page; the sign-in and click are his.
 
 **15 Sep 2026 — The Repertoire.** His standing ask for a CONFIRMED report on
 anything he sends to analyse, plus one technique a day off a Mentalist reel.
