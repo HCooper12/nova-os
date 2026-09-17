@@ -358,7 +358,12 @@ hand because it is a looking job.
 
 ---
 
-## Decisions for him
+## Decisions for him — ANSWERED 17 Sep
+
+His answers: **1. Nova edition with the poster plate. 2. Replace. 3. Try the
+three-axis tumble.** Bar 5 is therefore relaxed as written under Decision 3:
+the tumble may be free during travel, and the book must settle to the exact
+rest pose within 300 ms of the timeline's end.
 
 1. **What a video is on the shelf.** *Nova edition* (a bound volume with the
    poster as a plate, recommended, because it gives the house look the reel
