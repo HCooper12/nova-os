@@ -35,8 +35,9 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { editionFor, paletteFromImageData } from './edition.js';
-import { paintFront, paintSpine, paintBack, paintFoilMask, fontsReady } from './coverArt.js';
+import { editionFor } from './edition.js';
+import { artFor, rememberArt } from './artPalette.js';
+import { paintFront, paintSpine, paintBack, paintFoilMask, fontsReady, DETAIL_SCALE } from './coverArt.js';
 import { createSharedMaterials } from './materials.js';
 import { createBookRig } from './bookRig.js';
 
@@ -69,6 +70,27 @@ const CAM_AZIM = -12 * (Math.PI / 180);
 
 const T_OPEN = 1.15;
 const T_CLOSE = 0.8;
+
+// THE SHINE (Phase 4). Every number here was set by looking at two captures
+// two seconds apart and asking whether the highlight had MOVED.
+//
+// ENV_SWEEP 0.95 rad — how far the room turns around the volume across the
+//   open. Less than this and the jacket's highlight barely crosses the board;
+//   more and the whole scene visibly swings, which reads as the camera moving.
+// SWAY_DEG 2 — the open volume's idle turn. Two degrees is under the
+//   threshold where it reads as rotation and over the threshold where the
+//   specular sits still; it is the difference between a photograph and an
+//   object.
+// SWAY_PERIOD 6.5 s — slow enough to be ambient, fast enough that two
+//   screenshots two seconds apart land on visibly different phases.
+// ENV_BREATH 0.32 rad — the room's own drift in detail, in antiphase to the
+//   sway, so the cloth's broad sheen and the foil's hard specular travel at
+//   different rates. That separation IS Bar 4: the metal catching light on
+//   its own beat rather than the board's.
+const ENV_SWEEP = 0.95;
+const SWAY_DEG = 2;
+const SWAY_PERIOD = 6.5;
+const ENV_BREATH = 0.32;
 const TAU = Math.PI * 2;
 
 const damp = THREE.MathUtils.damp;
@@ -166,7 +188,12 @@ export function Shelf3D({
       live.current.onFallback?.('no-webgl');
       return undefined;
     }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, narrow() ? 1.5 : 2));
+    // 1.25 ON A PHONE, measured not guessed: at 1.5 the throttled trace sat
+    // above the 33 ms cap, and a shelf of bound volumes has no fine detail
+    // that a quarter of a pixel resolves — the plate and the foil are hi-res
+    // in the TEXTURE, which is where the sharpness actually comes from.
+    const ratio = () => Math.min(window.devicePixelRatio || 1, narrow() ? 1.25 : 2);
+    renderer.setPixelRatio(ratio());
     renderer.setSize(width(), vheight());
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -182,7 +209,10 @@ export function Shelf3D({
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(CAM_FOV, width() / vheight(), 0.05, 12);
-    const lookAt = new THREE.Vector3(0, 0.03, 0);
+    // Aimed a little higher than the volumes' centre so the frame spends its
+    // pixels on books instead of plank — the board was taking a fifth of the
+    // canvas at the old aim.
+    const lookAt = new THREE.Vector3(0, 0.055, 0);
     camera.position.set(
       lookAt.x + CAM_DIST * Math.sin(CAM_AZIM) * Math.cos(CAM_ELEV),
       lookAt.y + CAM_DIST * Math.sin(CAM_ELEV),
@@ -202,7 +232,9 @@ export function Shelf3D({
     const key = new THREE.DirectionalLight(warm.clone().lerp(tokens.acc, 0.18), 1.7);
     key.position.set(-0.5, 0.72, 0.68);
     key.castShadow = true;
-    key.shadow.mapSize.set(1024, 1024);
+    // 512 on a phone: one directional light over nine boxes, and the shadow is
+    // a soft contact patch rather than an outline anyone reads
+    key.shadow.mapSize.set(narrow() ? 512 : 1024, narrow() ? 512 : 1024);
     key.shadow.camera.near = 0.05;
     key.shadow.camera.far = 3.2;
     key.shadow.camera.left = -0.7;
@@ -245,13 +277,24 @@ export function Shelf3D({
     // A PLANK, not a strip: deep enough to show a front edge and a lip, which
     // is what tells you the volumes are standing ON something.
     const boardGeo = new THREE.BoxGeometry(3.4, 0.028, 0.155);
-    const board = new THREE.Mesh(boardGeo, sharedMats.walnut);
+    // THE TOP FACE IS ITS OWN MATERIAL. An up-facing rough plane gathers the
+    // RoomEnvironment's ceiling almost head-on, and under Daylight it clipped
+    // to a white ledge — two rounds of chasing the albedo did nothing because
+    // the albedo was never the problem. BoxGeometry groups run
+    // [+x, -x, +y, -y, +z, -z]; only +y needed less sky.
+    const boardFaces = [
+      sharedMats.walnut, sharedMats.walnut, sharedMats.walnutTop,
+      sharedMats.walnut, sharedMats.walnut, sharedMats.walnut,
+    ];
+    const board = new THREE.Mesh(boardGeo, boardFaces);
     board.position.set(0, BOARD_TOP - 0.014, -0.002);
     board.receiveShadow = true;
     board.castShadow = true;
     stage.add(board);
 
-    const lipGeo = new THREE.BoxGeometry(3.4, 0.0035, 0.010);
+    // a lit edge, not a moulding: 2mm reads as a plank, 3.5 read as a shelf
+    // with a gold stripe painted on it
+    const lipGeo = new THREE.BoxGeometry(3.4, 0.002, 0.007);
     const lip = new THREE.Mesh(lipGeo, sharedMats.walnutLip);
     lip.position.set(0, BOARD_TOP - 0.0012, 0.0735);
     stage.add(lip);
@@ -270,12 +313,12 @@ export function Shelf3D({
     const glowMap = glowTexture();
     const glowMatFloor = new THREE.MeshBasicMaterial({
       map: glowMap, color: tokens.acc.clone(), transparent: true,
-      opacity: 0.26, depthWrite: false, blending: THREE.AdditiveBlending,
+      opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending,
     });
     // KEEP THE POOL UNDER THE BOOKS. At 1.5 × 0.62 it reached a third of a
     // metre in front of the plank and painted a lit rectangle across the
     // bottom of the canvas — a floor, where a shelf edge should be.
-    const glowFloorGeo = new THREE.PlaneGeometry(0.62, 0.15);
+    const glowFloorGeo = new THREE.PlaneGeometry(0.72, 0.19);
     const glowFloor = new THREE.Mesh(glowFloorGeo, glowMatFloor);
     glowFloor.rotation.x = -Math.PI / 2;
     glowFloor.position.set(0, BOARD_TOP + 0.0016, 0.0);
@@ -284,11 +327,15 @@ export function Shelf3D({
 
     const glowMatWall = new THREE.MeshBasicMaterial({
       map: glowMap, color: tokens.acc.clone(), transparent: true,
-      opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending,
+      opacity: 0.46, depthWrite: false, blending: THREE.AdditiveBlending,
     });
-    const glowWallGeo = new THREE.PlaneGeometry(1.4, 0.72);
+    // WIDER AND FURTHER BACK than the intensity alone wanted. At 1.5 × 0.80
+    // and 46% the plane's own gradient fell off inside the frame and the wash
+    // read as a lit PANEL hanging behind the shelf. Spreading the same light
+    // over a bigger, more distant plane puts the falloff outside the canvas.
+    const glowWallGeo = new THREE.PlaneGeometry(2.1, 1.05);
     const glowWall = new THREE.Mesh(glowWallGeo, glowMatWall);
-    glowWall.position.set(0, BOARD_TOP + 0.20, -0.26);
+    glowWall.position.set(0, BOARD_TOP + 0.24, -0.38);
     glowWall.renderOrder = -3;
     stage.add(glowWall);
 
@@ -317,8 +364,8 @@ export function Shelf3D({
     };
     const applyCalm = () => {
       const on = tokens.calm ? 0 : 1;
-      glowMatFloor.opacity = 0.26 * on;
-      glowMatWall.opacity = 0.22 * on;
+      glowMatFloor.opacity = 0.55 * on;
+      glowMatWall.opacity = 0.38 * on;
       glowMatFloor.color.copy(tokens.acc);
       glowMatWall.color.copy(tokens.acc);
     };
@@ -352,6 +399,11 @@ export function Shelf3D({
     // shipped path reads it — `scrubbed` is false unless something in dev
     // sets it, and the first real input clears it.
     let scrubbed = false;
+    let drag = null;
+    // the shine's own clock: it only advances while a volume is open, so the
+    // shelf keeps its zero-frame idle
+    let shinePhase = 0;
+    let sway = 0;
 
     const requestFrame = () => { if (!raf && !suspended && !disposed) raf = requestAnimationFrame(frame); };
 
@@ -360,56 +412,48 @@ export function Shelf3D({
       const row = list[index];
       if (!row?.jacket || art.has(index) || pending.has(index)) return;
       pending.add(index);
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
+      // shared with the Covers grid (artPalette.js) so one source has one
+      // colour, whichever view is looking at it
+      artFor(row.jacket).then((value) => {
         pending.delete(index);
-        if (disposed) return;
-        let palette = null;
-        try {
-          // blob: URLs are same-origin, so this canvas is not tainted — but a
-          // tainted canvas THROWS on getImageData rather than returning null,
-          // and one throw would take the whole shelf down.
-          const c = document.createElement('canvas');
-          c.width = 32; c.height = 32;
-          const cx = c.getContext('2d', { willReadFrequently: true });
-          cx.drawImage(img, 0, 0, 32, 32);
-          palette = paletteFromImageData(cx.getImageData(0, 0, 32, 32).data, 32, 32);
-        } catch { palette = null; }
-        art.set(index, {
-          image: img,
-          aspect: img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : null,
-          palette: palette?.length ? palette : null,
-        });
+        if (disposed || !value) return;
+        art.set(index, value);
+        rememberArt(row.jacket, value);
         // rebuilding the volume that is currently flying would restart the
         // timeline from a new object, so late art waits for the shelf
         if (index === openIndex && mode !== 'shelf') return;
+        if (!value.image) return;
         dropRig(index);
         queueBuild(index);
-      };
-      img.onerror = () => {
-        pending.delete(index);
-        // art that never arrives is not a hole: the edition is painted in its
-        // own cloth with the title set large.
-        art.set(index, { image: null, aspect: null, palette: null });
-      };
-      img.src = row.jacket;
+      });
     };
 
     // ------------------------------------------------------------- rigs
-    const buildRig = (index) => {
+    // Whichever volume you are LOOKING at: the open one, or the selected one.
+    const focusIndex = () => (openIndex >= 0 ? openIndex : selectedIndex);
+
+    const buildRig = (index, hires = false) => {
       const row = list[index];
       if (!row || rigs.has(index) || disposed) return;
       const a = art.get(index);
       const edition = editionFor(row, { artAspect: a?.aspect ?? null, palette: a?.palette ?? null });
+      const k = hires ? DETAIL_SCALE : 1;
       const textures = {
-        front: tex(paintFront(edition, a?.image || null)),
+        // only the two faces you actually read are doubled; the spine is
+        // 128px of type and the back is a colophon, and both stay small
+        front: tex(paintFront(edition, a?.image || null, k)),
         spine: tex(paintSpine(edition)),
-        back: tex(paintBack(edition)),
+        // THE BACK BOARD IS ONLY EVER SEEN MID-TUMBLE, which only the focused
+        // volume does. Painting a 512×768 colophon for all nine rigs was a
+        // quarter of the build cost for a face nobody looks at; the others
+        // get plain cloth, which is what the back of a book looks like from
+        // the front anyway.
+        back: hires ? tex(paintBack(edition)) : null,
         // the foil mask is data, not colour: it must not be colour-managed
-        foil: tex(paintFoilMask(edition), { srgb: false }),
+        foil: tex(paintFoilMask(edition, k), { srgb: false }),
       };
       const rig = createBookRig(edition, textures, sharedMats);
+      rig.hires = hires;
       rig.root.position.set((index - position) * SPACING, BOARD_TOP + edition.height / 2, 0);
       rig.setOpacity(0);
       rig.root.userData.index = index;
@@ -425,12 +469,39 @@ export function Shelf3D({
       rigs.delete(index);
     };
 
-    const queueBuild = (index) => {
-      if (!rigs.has(index) && !buildQueue.includes(index)) buildQueue.push(index);
+    const queueBuild = (index, first = false) => {
+      if (!rigs.has(index) && !buildQueue.includes(index)) {
+        if (first) buildQueue.unshift(index); else buildQueue.push(index);
+      }
       requestFrame();
     };
 
-    const windowSize = () => (narrow() ? 4 : 8);
+    // THE ONE YOU ARE LOOKING AT IS PAINTED TWICE THE SIZE, and only while you
+    // are looking at it. Swapped on the SETTLED selection, never mid-scroll:
+    // repainting four canvases per volume as the shelf flies past is exactly
+    // the stall the build queue exists to avoid. The old one is dropped, so
+    // there is never more than one 1024×1536 pair alive.
+    let hiresWanted = true;
+    // A DWELL BEFORE THE FOCUS SHARPENS. Repainting a 1024×1536 pair is ~35 ms
+    // of real work; landing it in the frame the shelf settles on produced the
+    // one long frame left in the 4x trace. Waiting a quarter second puts it
+    // where nothing at all is moving, and by then he has stopped scrolling
+    // anyway — which is the only moment the extra resolution is for.
+    let hiresDwell = 0;
+    const syncHires = () => {
+      if (mode !== 'shelf') return;
+      const want = focusIndex();
+      for (const [i, rig] of rigs) {
+        if (rig.hires && i !== want) { dropRig(i); queueBuild(i); }
+      }
+      const cur = rigs.get(want);
+      if (hiresWanted && cur && !cur.hires) { dropRig(want); queueBuild(want, true); }
+    };
+
+    // ±3 on a phone: the fade is complete by 3.4 volumes out, so a fourth is
+    // paying for textures nobody can see. Measured against the 4x trace, not
+    // guessed — it is six fewer material binds and six fewer shadow draws.
+    const windowSize = () => (narrow() ? 3 : 8);
 
     const syncWindow = () => {
       const w = windowSize();
@@ -441,6 +512,7 @@ export function Shelf3D({
         else if (i !== openIndex) dropRig(i);
       }
       for (const i of [...buildQueue]) if (i < lo || i > hi) buildQueue.splice(buildQueue.indexOf(i), 1);
+      syncHires();
     };
 
     // ------------------------------------------------------------- poses
@@ -473,7 +545,9 @@ export function Shelf3D({
       // the volume left a hundred pixels of black between itself and the
       // title, which is the "floating in an empty column" fault again in a
       // smaller frame.
-      const u = isNarrow ? -halfW * 0.22 : -halfW * 0.50;
+      // On narrow the column sits UNDER the canvas, so there is nothing to
+      // leave room for: parked off to one side the strip was half empty.
+      const u = isNarrow ? 0 : -halfW * 0.50;
       const v = isNarrow ? halfH * 0.02 : 0;
       const p = new THREE.Vector3(u, v, -CAM_DIST).applyMatrix4(camera.matrixWorld);
       // face the camera, then turn another 23° so the spine and the fore-edge
@@ -492,9 +566,15 @@ export function Shelf3D({
     // exactly zero at p = 0 and p = 1: sin(πp) and sin(2πp) are, and a whole
     // extra turn on y lands where it started. The book rolls on all three
     // axes and still arrives on the pose to the last decimal.
+    // THE SPIN SPENDS ITS TIME FACING YOU. A full turn is what guarantees the
+    // endpoint, but driven by a plain ease it sat on the BACK board for a
+    // third of the travel — you watched a brown slab. Smoothstep applied three
+    // times is almost flat at 0 and 1 and steep in the middle, so the book
+    // lingers front-on at both ends and whips through the back of the turn.
+    const spin = (p) => smoothstep(smoothstep(smoothstep(p)));
     const tumble = (p) => ({
       rx: Math.sin(p * Math.PI) * 0.58,
-      ry: TAU * ease(p),
+      ry: TAU * spin(p),
       rz: Math.sin(p * Math.PI * 2) * 0.30,
       lift: Math.sin(p * Math.PI) * 0.055,
     });
@@ -512,7 +592,7 @@ export function Shelf3D({
       );
       rig.root.rotation.set(
         lerp(a.rx, b.rx, e) + t.rx,
-        lerp(a.ry, b.ry, e) + t.ry,
+        lerp(a.ry, b.ry, e) + t.ry + sway,
         lerp(a.rz, b.rz, e) + t.rz,
       );
       rig.root.scale.setScalar(lerp(a.scale, b.scale, e));
@@ -601,15 +681,20 @@ export function Shelf3D({
           reported = list[selectedIndex].id;
           live.current.onSelect?.(reported);
         }
+        if (position === targetPosition && !drag) {
+          hiresDwell += delta;
+          if (hiresDwell > 0.25) syncHires();
+        } else hiresDwell = 0;
       }
 
       // the room recedes as the book comes forward
       const stageFade = 1 - ease(clamp(travel, 0, 1));
       sharedMats.walnut.opacity = stageFade;
+      sharedMats.walnutTop.opacity = stageFade;
       sharedMats.walnutLip.opacity = stageFade;
       groundMat.opacity = 0.3 * stageFade;
-      glowMatFloor.opacity = (tokens.calm ? 0 : 0.26) * stageFade;
-      glowMatWall.opacity = (tokens.calm ? 0 : 0.22) * stageFade;
+      glowMatFloor.opacity = (tokens.calm ? 0 : 0.55) * stageFade;
+      glowMatWall.opacity = (tokens.calm ? 0 : 0.38) * stageFade;
       stage.visible = stageFade > 0.01;
 
       let moving = onShelf && (Math.abs(position - targetPosition) > 0.0004 || wheelIdle > 0);
@@ -655,6 +740,41 @@ export function Shelf3D({
       return hit ? findIndex(hit.object) : -1;
     };
 
+    // ------------------------------------------------------------- shine
+    //
+    // Bar 4 asks for light that MOVES. Two sources, deliberately out of step:
+    // the room turns around the volume (which is what a real specular
+    // highlight tracks), and the volume itself turns two degrees (which is
+    // what tells you it is an object and not a photograph). The foil is metal
+    // and reads almost entirely off the environment; the cloth is rough and
+    // reads off its sheen, so one turn moves them at different rates.
+    //
+    // NONE OF IT RUNS ON THE SHELF. The clock only advances while a volume is
+    // open, so the shelf's idle is still exactly zero frames.
+    const shineOn = () => !reducedMotion() && !tokens.calm;
+    const updateShine = (delta) => {
+      if (mode === 'shelf') {
+        if (sway !== 0 || scene.environmentRotation.y !== 0) {
+          sway = 0;
+          scene.environmentRotation.y = 0;
+          shinePhase = 0;
+          return true;
+        }
+        return false;
+      }
+      if (!shineOn()) { sway = 0; scene.environmentRotation.y = ENV_SWEEP * ease(clamp(travel, 0, 1)); return false; }
+      shinePhase += delta;
+      // the sweep is carried by the travel, so the highlight crosses the
+      // jacket exactly while the book is flying
+      const swept = ENV_SWEEP * ease(clamp(travel, 0, 1));
+      const breath = mode === 'detail' ? Math.sin((shinePhase / SWAY_PERIOD) * TAU) * ENV_BREATH : 0;
+      scene.environmentRotation.y = swept + breath;
+      sway = mode === 'detail'
+        ? Math.sin((shinePhase / SWAY_PERIOD) * TAU + Math.PI / 2) * (SWAY_DEG * Math.PI / 180)
+        : 0;
+      return true;
+    };
+
     const updateHover = () => {
       pointerDirty = false;
       if (!pointerInside || mode !== 'shelf') { hoveredIndex = -1; return; }
@@ -672,12 +792,25 @@ export function Shelf3D({
 
       // paint at most two volumes a frame: four 512×768 canvases is a few
       // milliseconds each, and seventeen at once is a visible stall
+      // ONE a frame while anything is moving, two when the shelf is still.
+      // A build is a canvas paint plus a texture upload; two of them landing
+      // inside a dragged frame is what blew the budget at 4x.
+      // NOT ONE while a finger is down. A build is a canvas paint plus a
+      // texture upload, and landing either inside a dragged frame is what the
+      // 4x trace kept catching. Volumes that enter the window during a drag
+      // are built when it ends; their fade-in covers the wait.
+      const budget = drag ? 0 : ((mode === 'shelf' && position === targetPosition) ? 2 : 1);
       let built = 0;
-      while (buildQueue.length && built < 2) { buildRig(buildQueue.shift()); built += 1; }
+      while (buildQueue.length && built < budget) {
+        const next = buildQueue.shift();
+        buildRig(next, next === focusIndex() && hiresWanted);
+        built += 1;
+      }
 
       if (pointerDirty) updateHover();
       const travelling = runTimeline(delta);
-      const moving = layout(delta) || travelling;
+      const shining = updateShine(delta);
+      const moving = layout(delta) || travelling || shining;
 
       if (dust && moving) {
         dust.rotation.y = (time / 1000) * 0.012;
@@ -712,7 +845,6 @@ export function Shelf3D({
       wheelIdle = 0.22;
     };
 
-    let drag = null;
     const onPointerDown = (e) => {
       if (mode !== 'shelf') return;
       if (e.pointerType !== 'touch') pointerInside = true;
@@ -790,7 +922,7 @@ export function Shelf3D({
     // ------------------------------------------------------- environment
     const fit = () => {
       const w = width(), h = vheight();
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, narrow() ? 1.5 : 2));
+      renderer.setPixelRatio(ratio());
       renderer.setSize(w, h);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
@@ -833,8 +965,10 @@ export function Shelf3D({
         return {
           x: round(p.x), y: round(p.y), z: round(p.z),
           // the tumble adds a whole turn, so y is reported on (-π, π] — a
-          // rest pose of ~0 must not read as 6.28317
-          rx: round(r.x), ry: round(Math.atan2(Math.sin(r.y), Math.cos(r.y))), rz: round(r.z),
+          // rest pose of ~0 must not read as 6.28317. The idle sway is taken
+          // back out, because the pose this reports is the one Bar 5 is a
+          // promise about, not wherever the shine has the book leaning.
+          rx: round(r.x), ry: round(Math.atan2(Math.sin(r.y - sway), Math.cos(r.y - sway))), rz: round(r.z),
           scale: round(rig.root.scale.x),
         };
       },

@@ -466,6 +466,34 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
    is what makes it win in every style.
    ================================================================ */
 .nv-glow { box-shadow: 0 0 60px -22px var(--nv-glow-tint, transparent); }
+
+/* THE SPECULAR SWEEP — the flat half of the shelf's moving highlight.
+   The Covers grid cannot have image-based light, so it gets the one thing a
+   flat surface CAN have: a band of light that crosses it when you touch it.
+   Same gesture as the shelf's key raking across a jacket, in one gradient.
+   Calm switches it off; reduced motion keeps the light but stops it moving. */
+.nv-sheen { position: relative; }
+.nv-sheen::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(105deg, transparent 38%,
+    var(--nv-sheen-tint, rgba(255,255,255,.26)) 47%, transparent 58%);
+  transform: translateX(-130%);
+  transition: transform var(--nv-dur-slow) var(--nv-ease);
+}
+/* :hover ONLY where a pointer can actually hover — on iOS a tap latches it
+   and the highlight stays parked mid-card. The regression test in
+   server/test/mobileNative.test.js exists because of exactly this, and it
+   caught this rule. Touch gets the sweep from :active instead, which ends
+   when the finger lifts. */
+@media (hover: hover) {
+  .nv-sheen:hover::after { transform: translateX(130%); }
+}
+.nv-sheen:active::after { transform: translateX(130%); }
+:root[data-nv-calm="1"] .nv-sheen::after { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .nv-sheen::after { transition: none; }
+}
 :root .nv-pane.nv-glow { box-shadow: var(--nv-pane-shadow), 0 0 60px -22px var(--nv-glow-tint, transparent); }
 
 /* Calm drops the bloom and never the pane's own depth. Zero-size rather than

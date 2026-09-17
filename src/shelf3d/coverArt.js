@@ -19,6 +19,13 @@ export const FRONT_H = 768;
 export const SPINE_W = 128;
 export const SPINE_H = 768;
 
+// THE SELECTED VOLUME IS PAINTED TWICE THE SIZE. On his phone the front board
+// of the focused volume spans ~380 CSS px, which at dpr 2 is 760 device
+// pixels — a 512-wide canvas was being magnified 1.5×, and the plate and the
+// title went soft. Neighbours are small and moving and stay at 512; only the
+// one you are looking at pays for 1024, and only while you are looking at it.
+export const DETAIL_SCALE = 2;
+
 // The serif is the house voice — read from the document so the four themes
 // (and daylight's New York fallback) all get their own, and no literal font
 // name ever lands in here.
@@ -39,6 +46,24 @@ export function uiFamily() {
 // is already uploaded to the GPU by the time the real face arrives.
 export async function fontsReady() {
   try { await document.fonts?.ready; } catch { /* no font loading API — paint anyway */ }
+}
+
+// one tile per scale, for the life of the page
+const weaveTiles = new Map();
+function weavePattern(ctx, k) {
+  const pitch = 4 * k;
+  let tile = weaveTiles.get(k);
+  if (!tile) {
+    tile = document.createElement('canvas');
+    tile.width = pitch; tile.height = pitch;
+    const t = tile.getContext('2d');
+    t.globalAlpha = 0.05; t.fillStyle = '#ffffff';
+    t.fillRect(0, 0, pitch, k);
+    t.globalAlpha = 0.035; t.fillStyle = '#000000';
+    t.fillRect(0, 0, k, pitch);
+    weaveTiles.set(k, tile);
+  }
+  return ctx.createPattern(tile, 'repeat');
 }
 
 function canvas(w, h) {
@@ -100,7 +125,7 @@ function fitLines(ctx, text, { family, weight = '400', maxWidth, maxLines, from,
 
 // ------------------------------------------------------------------ cloth
 
-function paintCloth(ctx, edition, w, h) {
+function paintCloth(ctx, edition, w, h, k = 1) {
   const g = ctx.createLinearGradient(0, 0, w * 0.35, h);
   g.addColorStop(0, shade(edition.cloth, 1.18));
   g.addColorStop(0.55, edition.cloth);
@@ -108,16 +133,17 @@ function paintCloth(ctx, edition, w, h) {
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, w, h);
 
-  // the weave: two crossed hatchings, barely there. It is what stops a flat
-  // fill from reading as plastic under a specular light.
+  // THE WEAVE IS A PATTERN, NOT 320 STROKES. Two crossed hatchings are what
+  // stop a flat fill reading as plastic under a specular light — but drawn
+  // line by line they cost several milliseconds a board, and two boards
+  // painted inside a dragged frame is what produced the 142 ms spike the
+  // 4x-throttle trace caught. The tile is rasterised once per scale and
+  // blitted; the result is the same pixels. Its pitch scales with the canvas,
+  // because a weave is a physical size — at a fixed 4px it halved on the
+  // hi-res board and turned into moiré.
   ctx.save();
-  ctx.globalAlpha = 0.05;
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 1;
-  for (let y = 0; y < h; y += 4) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
-  ctx.globalAlpha = 0.035;
-  ctx.strokeStyle = '#000000';
-  for (let x = 0; x < w; x += 4) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+  ctx.fillStyle = weavePattern(ctx, k);
+  ctx.fillRect(0, 0, w, h);
   ctx.restore();
 
   // the hinge: a real board is darker where it meets the spine
@@ -132,23 +158,23 @@ function paintCloth(ctx, edition, w, h) {
 
 // Where the type sits. Shared by the visible paint and the foil mask, so the
 // metal is registered to the ink to the pixel.
-function frontLayout(edition) {
-  const pad = 46;
+function frontLayout(edition, k = 1) {
+  const pad = 46 * k;
   const p = edition.plate;
-  if (p && p.fullBleed) return { plate: { x: 0, y: 0, w: FRONT_W, h: FRONT_H }, type: null };
-  const plate = p
-    ? { x: p.x * FRONT_W, y: p.y * FRONT_H, w: p.w * FRONT_W, h: p.h * FRONT_H }
-    : null;
-  const top = plate ? plate.y + plate.h + 44 : FRONT_H * 0.30;
+  const W = FRONT_W * k, H = FRONT_H * k;
+  if (p && p.fullBleed) return { k, W, H, plate: { x: 0, y: 0, w: W, h: H }, type: null };
+  const plate = p ? { x: p.x * W, y: p.y * H, w: p.w * W, h: p.h * H } : null;
+  const top = plate ? plate.y + plate.h + 44 * k : H * 0.30;
   return {
-    plate,
-    type: { x: pad, w: FRONT_W - pad * 2, top, bottom: FRONT_H - 96, cx: FRONT_W / 2 },
+    k, W, H, plate,
+    type: { x: pad, w: W - pad * 2, top, bottom: H - 96 * k, cx: W / 2 },
   };
 }
 
 function drawType(ctx, edition, layout, { ink, mark }) {
   const t = layout.type;
   if (!t) return;
+  const k = layout.k;
   const family = serifFamily();
   const room = t.bottom - t.top;
   const sx = 1 / typeScaleX(edition);
@@ -159,9 +185,9 @@ function drawType(ctx, edition, layout, { ink, mark }) {
   const big = !layout.plate;
   const fit = fitLines(ctx, edition.title, {
     family, maxWidth, maxLines: big ? 5 : 3,
-    from: big ? 62 : 40, to: big ? 26 : 20,
+    from: (big ? 62 : 40) * k, to: (big ? 26 : 20) * k,
   }) || (() => {
-    const size = big ? 30 : 22;
+    const size = (big ? 30 : 22) * k;
     ctx.font = `400 ${size}px ${family}`;
     const perLine = Math.max(6, Math.floor(edition.title.length * (maxWidth / Math.max(1, ctx.measureText(edition.title).width))));
     return { lines: [clipAtWordBoundary(edition.title, perLine * (big ? 5 : 3))], size };
@@ -174,27 +200,27 @@ function drawType(ctx, edition, layout, { ink, mark }) {
 
     // the foil rule above the title — a Stripe Press tell, and it gives the
     // metal something to catch the light on even when the title is short
-    const ruleW = Math.min(t.w, 150) / sx;
-    ctx.fillRect(t.cx - ruleW / 2, t.top - 22, ruleW, 2);
+    const ruleW = Math.min(t.w, 150 * k) / sx;
+    ctx.fillRect(t.cx - ruleW / 2, t.top - 22 * k, ruleW, 2 * k);
 
     const lh = fit.size * 1.16;
-    let y = t.top + Math.max(0, (room - (fit.lines.length * lh + 60)) * 0.06);
+    let y = t.top + Math.max(0, (room - (fit.lines.length * lh + 60 * k)) * 0.06);
     ctx.font = `400 ${fit.size}px ${family}`;
     for (const line of fit.lines) { ctx.fillText(line, t.cx, y); y += lh; }
 
     if (edition.author) {
-      const aSize = Math.max(13, Math.round(fit.size * 0.38));
+      const aSize = Math.max(13 * k, Math.round(fit.size * 0.38));
       ctx.font = `500 ${aSize}px ${uiFamily()}`;
       const a = clipAtWordBoundary(edition.author.toUpperCase(), 34);
       ctx.globalAlpha = 0.86;
-      ctx.fillText(a, t.cx, y + 16);
+      ctx.fillText(a, t.cx, y + 16 * k);
       ctx.globalAlpha = 1;
     }
 
     // the publisher's mark, at the foot, where a colophon goes
-    ctx.font = `400 26px ${family}`;
+    ctx.font = `400 ${26 * k}px ${family}`;
     ctx.fillStyle = mark;
-    ctx.fillText(edition.mark, t.cx, FRONT_H - 74);
+    ctx.fillText(edition.mark, t.cx, layout.H - 74 * k);
   });
 }
 
@@ -202,11 +228,11 @@ function drawType(ctx, edition, layout, { ink, mark }) {
  * paintFront — cloth, the plate (exactly, never cropped), foil type, the mark.
  * @param image an HTMLImageElement that has LOADED, or null.
  */
-export function paintFront(edition, image) {
-  const c = canvas(FRONT_W, FRONT_H);
+export function paintFront(edition, image, k = 1) {
+  const c = canvas(FRONT_W * k, FRONT_H * k);
   const ctx = c.getContext('2d');
-  paintCloth(ctx, edition, FRONT_W, FRONT_H);
-  const layout = frontLayout(edition);
+  paintCloth(ctx, edition, FRONT_W * k, FRONT_H * k, k);
+  const layout = frontLayout(edition, k);
 
   if (layout.plate && image) {
     const { x, y, w, h } = layout.plate;
@@ -214,17 +240,17 @@ export function paintFront(edition, image) {
     // very slightly down in it
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,.55)';
-    ctx.shadowBlur = 16;
+    ctx.shadowBlur = 16 * k;
     ctx.fillStyle = shade(edition.cloth, 0.5);
-    ctx.fillRect(x - 3, y - 3, w + 6, h + 6);
+    ctx.fillRect(x - 3 * k, y - 3 * k, w + 6 * k, h + 6 * k);
     ctx.restore();
     // the whole image into the whole rect: the rect already carries the
     // image's aspect, so this is a pure scale — no crop, no letterbox bars.
     ctx.drawImage(image, x, y, w, h);
     if (!edition.plate.fullBleed) {
       ctx.strokeStyle = 'rgba(0,0,0,.35)';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+      ctx.lineWidth = 2 * k;
+      ctx.strokeRect(x + k, y + k, w - 2 * k, h - 2 * k);
     }
   }
 
@@ -234,12 +260,12 @@ export function paintFront(edition, image) {
 
 // The alphaMap for the foil mesh: white where metal, black where cloth. Same
 // layout call, so it registers exactly over the painted ink.
-export function paintFoilMask(edition) {
-  const c = canvas(FRONT_W, FRONT_H);
+export function paintFoilMask(edition, k = 1) {
+  const c = canvas(FRONT_W * k, FRONT_H * k);
   const ctx = c.getContext('2d');
   ctx.fillStyle = '#000000';
-  ctx.fillRect(0, 0, FRONT_W, FRONT_H);
-  drawType(ctx, edition, frontLayout(edition), { ink: '#ffffff', mark: '#ffffff' });
+  ctx.fillRect(0, 0, FRONT_W * k, FRONT_H * k);
+  drawType(ctx, edition, frontLayout(edition, k), { ink: '#ffffff', mark: '#ffffff' });
   return c;
 }
 

@@ -64,10 +64,13 @@ function makePaperTexture() {
     ctx.fillRect(0, 0, n, n);
     const rnd = seeded(8814);
     // the fore-edge is a stack of sheets, so it is LINES, not noise. Without
-    // them a page block reads as a solid cream brick.
-    for (let x = 0; x < n; x += 2) {
-      ctx.fillStyle = `rgba(120,104,80,${0.05 + rnd() * 0.16})`;
-      ctx.fillRect(x, 0, 1, n);
+    // them a page block reads as a solid cream brick — but at a grazing angle
+    // a hard 1px line every 2px aliased into white dashes, which is what the
+    // spine side of the detail capture was showing. Wider pitch, lower
+    // contrast, and mipmaps so distance resolves it to paper instead of morse.
+    for (let x = 0; x < n; x += 3) {
+      ctx.fillStyle = `rgba(126,112,90,${0.04 + rnd() * 0.07})`;
+      ctx.fillRect(x, 0, 2, n);
     }
     for (let i = 0; i < 2600; i++) {
       ctx.fillStyle = `rgba(150,132,104,${rnd() * 0.10})`;
@@ -76,6 +79,10 @@ function makePaperTexture() {
   });
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.generateMipmaps = true;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.magFilter = THREE.LinearFilter;
+  t.anisotropy = 8;
   t.name = 'nova-paper';
   return t;
 }
@@ -153,6 +160,14 @@ export function createSharedMaterials(tokens = {}) {
     // to fade like everything else
     transparent: true,
   });
+  // THE PLANK'S TOP FACE, alone, takes a third of the sky the sides take. It
+  // points straight up into the RoomEnvironment's ceiling, which is the
+  // brightest thing in the room, and under Daylight it clipped to white. The
+  // sides are unchanged, so the wood still reads as one piece.
+  const walnutTop = new THREE.MeshPhysicalMaterial({
+    color: 0xbdbdbd, map: walnutTex, roughness: 0.9, metalness: 0.02,
+    clearcoat: 0, envMapIntensity: 0.1, transparent: true,
+  });
   // The lip along the plank's front edge. A board with no lit edge reads as a
   // painted stripe; this is the two millimetres that make it a plank.
   const walnutLip = new THREE.MeshPhysicalMaterial({
@@ -165,9 +180,9 @@ export function createSharedMaterials(tokens = {}) {
     depthWrite: false, blending: THREE.MultiplyBlending,
   });
 
-  const owned = [weave, paperTex, walnutTex, contactShadowMap, paper, headband, walnut, walnutLip, contactShadow];
+  const owned = [weave, paperTex, walnutTex, contactShadowMap, paper, headband, walnut, walnutTop, walnutLip, contactShadow];
   return {
-    weave, paper, headband, walnut, walnutLip, contactShadow, contactShadowMap,
+    weave, paper, headband, walnut, walnutTop, walnutLip, contactShadow, contactShadowMap,
     dispose() { for (const o of owned) o.dispose?.(); },
   };
 }
@@ -199,9 +214,10 @@ export function createVolumeMaterials(edition, textures, shared) {
     clearcoat: 0.06, clearcoatRoughness: 0.72,
     sheen: 0.26, sheenRoughness: 0.78,
   });
-  const back = new THREE.MeshPhysicalMaterial({
-    ...clothBase, map: textures.back, roughness: 0.96, metalness: 0.025, sheen: 0.25,
-  });
+  // no back texture means plain cloth, which is exactly what it should be
+  const back = textures.back
+    ? new THREE.MeshPhysicalMaterial({ ...clothBase, map: textures.back, roughness: 0.96, metalness: 0.025, sheen: 0.25 })
+    : null;
   const spine = new THREE.MeshPhysicalMaterial({
     ...clothBase, map: textures.spine, roughness: 0.95, metalness: 0.025, sheen: 0.27,
   });
@@ -226,9 +242,9 @@ export function createVolumeMaterials(edition, textures, shared) {
     roughness: 0.9, metalness: 0, transparent: true,
   });
 
-  const list = [cloth, front, back, spine, foil, groove];
+  const list = [cloth, front, back, spine, foil, groove].filter(Boolean);
   return {
-    cloth, front, back, spine, foil, groove,
+    cloth, front, back: back || cloth, spine, foil, groove,
     fade: list,
     dispose() { for (const m of list) m.dispose(); },
   };
