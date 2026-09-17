@@ -512,7 +512,7 @@ function Stage({ v, detail, closing, height, wide, tint, shelf, onClose }) {
         background: open ? 'radial-gradient(120% 90% at 50% 12%, var(--nv-lib-ground, transparent), transparent 72%)' : 'transparent',
         transition: 'background var(--nv-dur-slow) var(--nv-ease), box-shadow var(--nv-dur-slow) var(--nv-ease)' }}>
         <Suspense fallback={<div style={{ height: `${height}px` }} />}>
-          <Shelf3D rows={v.libraryShelf} height={height}
+          <Shelf3D rows={v.libraryShelf} height={height} word={v.libraryWord}
             selectedId={shelf.selectedId} openId={shelf.openId}
             onSelect={shelf.onSelect} onOpen={shelf.onOpen}
             onOpened={shelf.onOpened} onClosed={shelf.onClosed}

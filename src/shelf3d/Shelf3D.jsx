@@ -37,7 +37,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { editionFor } from './edition.js';
 import { artFor, rememberArt } from './artPalette.js';
-import { paintFront, paintSpine, paintBack, paintFoilMask, fontsReady, DETAIL_SCALE } from './coverArt.js';
+import { paintFront, paintSpine, paintBack, paintFoilMask, paintWord, fontsReady, DETAIL_SCALE, WORD_W, WORD_H } from './coverArt.js';
 import { createSharedMaterials } from './materials.js';
 import { createBookRig } from './bookRig.js';
 
@@ -57,6 +57,24 @@ const DAMP_SPEED = 12;
 const FADE_FROM = 2.6;
 const FADE_OVER = 0.8;
 const BOARD_TOP = -0.075;
+// THE WORD'S share of the room's light. Faint enough that it is a wall and not
+// a headline — the volumes are the subject — and strong enough to survive the
+// Daylight theme, where the ink is dark on a light ground rather than the
+// reverse. Checked at 375px and at 1280 in both, not reasoned about.
+const WORD_ALPHA = 0.17;
+// Between the wash (z -0.38) and the row (z ~0.01), so the volumes cut the
+// letters at the waist. That cut is the whole point of the word being there.
+const WORD_Z = -0.16;
+// ...and how much of the frame it spans at that depth. FITTED, never a world
+// number: at 375px the visible width back there is 0.44, and a plane sized by
+// hand for a desktop showed two letters of "Library" and read as a bug.
+const WORD_FILL = 0.88;
+// AND HOW HIGH IT HANGS. Centred on the row it sat entirely BEHIND the focused
+// volume and only the serif of its first letter escaped — a word you cannot
+// read is decoration, not a name. Level with the top of a full-height volume,
+// its upper half clears the row and its lower half is cut by it, which is the
+// reel's trick and the reason the word is in the room at all.
+const WORD_Y = BOARD_TOP + 0.235;
 const HOVER_CRACK = -0.09; // ~5° — enough to read as a board, not as a bug
 
 // THE BOARD IN DETAIL. HOVER_CRACK is a POINTER'S answer, and the device Nova
@@ -170,13 +188,13 @@ function glowTexture() {
 }
 
 export function Shelf3D({
-  rows = [], selectedId = null, openId = null,
+  rows = [], selectedId = null, openId = null, word = '',
   onSelect, onOpen, onOpened, onClosed, onFallback, height = 420,
 }) {
   const mount = useRef(null);
   const api = useRef(null);
   const live = useRef({});
-  live.current = { rows, selectedId, openId, onSelect, onOpen, onOpened, onClosed, onFallback };
+  live.current = { rows, selectedId, openId, word, onSelect, onOpen, onOpened, onClosed, onFallback };
 
   useEffect(() => {
     const el = mount.current;
@@ -354,6 +372,27 @@ export function Shelf3D({
     glowWall.renderOrder = -3;
     stage.add(glowWall);
 
+    // ---- THE WORD. What this shelf currently IS, set on the back wall where
+    // the volumes cross it. The room had a plank, two washes of light and some
+    // dust in it — nothing with an edge, so the volumes stood in front of
+    // nothing. Transparent and depth-tested, so the cut is the depth buffer's
+    // doing and not a guess about z-order.
+    // It carries no map until setWord paints one — an empty shelf says nothing
+    // rather than standing a leftover word in an empty room.
+    // a UNIT plane, scaled by layoutWord to whatever the canvas is right now
+    const wordGeo = new THREE.PlaneGeometry(1, 1);
+    const wordMat = new THREE.MeshBasicMaterial({
+      color: tokens.ink.clone(), transparent: true, opacity: 0,
+      depthWrite: false,
+    });
+    const wordMesh = new THREE.Mesh(wordGeo, wordMat);
+    wordMesh.position.set(0, WORD_Y, WORD_Z);
+    wordMesh.renderOrder = -1;
+    wordMesh.visible = false;
+    stage.add(wordMesh);
+    let wordTex = null;
+    let wordText = '';
+
     // ---- dust. Off under Calm and under Daylight, which is a lit room.
     let dust = null;
     const buildDust = () => {
@@ -421,6 +460,26 @@ export function Shelf3D({
     let sway = 0;
 
     const requestFrame = () => { if (!raf && !suspended && !disposed) raf = requestAnimationFrame(frame); };
+
+    // THE WORD, repainted only when it actually changes. Every filter chip and
+    // every keystroke in the search box re-runs the vals and pushes a prop, so
+    // the guard is what keeps a canvas paint and a texture upload off the
+    // typing path. An empty word hides the plane rather than showing a blank.
+    const setWord = (next) => {
+      const text = String(next || '').trim();
+      if (text === wordText) return;
+      wordText = text;
+      if (wordTex) { wordTex.dispose(); wordTex = null; }
+      wordMat.map = null;
+      wordMesh.visible = Boolean(text);
+      if (text) {
+        wordTex = tex(paintWord(text));
+        wordMat.map = wordTex;
+        layoutWord();
+      }
+      wordMat.needsUpdate = true;
+      requestFrame();
+    };
 
     // ------------------------------------------------------------- art
     const loadArt = (index) => {
@@ -714,6 +773,9 @@ export function Shelf3D({
       groundMat.opacity = 0.3 * stageFade;
       glowMatFloor.opacity = (tokens.calm ? 0 : 0.55) * stageFade;
       glowMatWall.opacity = (tokens.calm ? 0 : 0.38) * stageFade;
+      // the word goes with the room, but NOT with Calm: Calm turns the lights
+      // down, it does not take the label off the wall.
+      wordMat.opacity = WORD_ALPHA * stageFade;
       stage.visible = stageFade > 0.01;
 
       let moving = onShelf && (Math.abs(position - targetPosition) > 0.0004 || wheelIdle > 0);
@@ -939,6 +1001,16 @@ export function Shelf3D({
     el.addEventListener('keydown', onKeyDown);
 
     // ------------------------------------------------------- environment
+    // THE WORD IS FITTED TO THE CANVAS, on the same frustum arithmetic the
+    // detail pose uses. A rotation, a resize or the stage changing height
+    // re-lays it instead of cropping it.
+    const layoutWord = () => {
+      const dist = CAM_DIST + Math.abs(WORD_Z);
+      const halfH = dist * Math.tan((CAM_FOV / 2) * (Math.PI / 180));
+      const w = halfH * camera.aspect * 2 * WORD_FILL;
+      wordMesh.scale.set(w, w * (WORD_H / WORD_W), 1);
+    };
+
     const fit = () => {
       const w = width(), h = vheight();
       renderer.setPixelRatio(ratio());
@@ -946,6 +1018,7 @@ export function Shelf3D({
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       camera.updateMatrixWorld();
+      layoutWord();
       requestFrame();
     };
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(fit) : null;
@@ -963,6 +1036,10 @@ export function Shelf3D({
       tokens = readTokens(el);
       key.color.copy(warm.clone().lerp(tokens.acc, 0.18));
       rim.color.copy(tokens.acc);
+      // the serif changes with the theme too, so the word is repainted and not
+      // just retinted — Daylight's face is not Command's
+      wordMat.color.copy(tokens.ink);
+      if (wordText) { const t = wordText; wordText = ''; setWord(t); }
       buildDust();
       applyCalm();
       requestFrame();
@@ -1025,11 +1102,14 @@ export function Shelf3D({
         requestFrame();
       },
       unscrub() { scrubbed = false; requestFrame(); },
+      setWord,
+      get word() { return wordText; },
     };
 
     fontsReady().then(() => {
       if (disposed) return;
       api.current.setRows(live.current.rows);
+      setWord(live.current.word);
       if (live.current.openId) setOpen(live.current.openId);
       lastTime = performance.now();
       requestFrame();
@@ -1060,6 +1140,9 @@ export function Shelf3D({
       groundMat.dispose();
       glowFloorGeo.dispose();
       glowWallGeo.dispose();
+      wordGeo.dispose();
+      wordMat.dispose();
+      if (wordTex) wordTex.dispose();
       glowMatFloor.dispose();
       glowMatWall.dispose();
       glowMap.dispose();
@@ -1083,6 +1166,7 @@ export function Shelf3D({
   useEffect(() => { api.current?.setRows(rows); }, [rowKey]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (selectedId) api.current?.select(selectedId); }, [selectedId]);
   useEffect(() => { api.current?.setOpen(openId); }, [openId]);
+  useEffect(() => { api.current?.setWord(word); }, [word]);
   useEffect(() => { api.current?.fit(); }, [height]);
 
   return (

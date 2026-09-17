@@ -48,6 +48,13 @@ const KIND_META = {
   article: { glyph: '¶', label: 'ARTICLE' },
 };
 
+// THE WORD ON THE BACK WALL of the 3D room — what this shelf currently IS.
+// Title case, not the chips' shouting caps: it is set in the house serif at
+// wall size, and caps at that size read as a banner rather than a room.
+const SHELF_WORD = {
+  all: 'Library', book: 'Books', video: 'Videos', podcast: 'Podcasts', article: 'Articles',
+};
+
 const PROVENANCE_META = {
   read: { label: 'READ', color: 'var(--nv-cy)' },
   researched: { label: 'RESEARCHED', color: 'var(--nv-gold)' },
@@ -172,6 +179,10 @@ export function valsLibrary(app, ctx) {
       ? `${items.length} source${items.length === 1 ? '' : 's'} · live from Obsidian`
       : isOffline ? 'Offline — showing nothing rather than guessing' : 'Connect a backend in Settings',
     libraryChips: chips,
+    // the search box narrows the shelf but does not rename it — the query is
+    // already legible in the field, and a wall that retyped itself on every
+    // keystroke would be a strobe
+    libraryWord: SHELF_WORD[filter] || SHELF_WORD.all,
     libraryShelf: shelf,
     libraryEmpty: st.liveLibrary && !items.length
       ? 'Your library is empty. Press ＋ ADD SOURCE above to research a book by title and author, paste your own notes, or drop in a video or podcast link — every source lands on this shelf.'

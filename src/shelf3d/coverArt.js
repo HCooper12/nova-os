@@ -367,3 +367,39 @@ export function paintBack(edition) {
   });
   return c;
 }
+
+// ------------------------------------------------------------------ the word
+//
+// THE SHELF'S OWN NAME, painted for the back wall of the room. The room had a
+// plank, two washes of light and some dust in it — nothing with an edge, so
+// nothing for the volumes to stand IN FRONT OF. A word set behind them and cut
+// by them is the cheapest depth there is: one plane, one canvas, no font file
+// ever reaching the GPU and no TextGeometry to load.
+//
+// Painted WHITE and tinted by the material, the same trick glowTexture uses,
+// so a theme change is a colour copy rather than a repaint.
+export const WORD_W = 1024;
+export const WORD_H = 288;
+
+export function paintWord(word) {
+  const c = canvas(WORD_W, WORD_H);
+  const text = String(word || '').trim();
+  if (!text) return c;
+  const ctx = c.getContext('2d');
+  // FIT THE WORD TO THE PLATE rather than guessing a size: one measure, one
+  // scale. "LIBRARY" and "PODCASTS" are different lengths and both have to sit
+  // on the same wall at the same weight without one of them running off it.
+  let size = WORD_H * 0.74;
+  ctx.font = `400 ${size}px ${serifFamily()}`;
+  const max = WORD_W * 0.93;
+  const measured = ctx.measureText(text).width;
+  if (measured > max) {
+    size *= max / measured;
+    ctx.font = `400 ${size}px ${serifFamily()}`;
+  }
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(text, WORD_W / 2, WORD_H / 2);
+  return c;
+}
