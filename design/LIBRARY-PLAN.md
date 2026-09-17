@@ -205,6 +205,16 @@ one gesture that says "this is a book".
 
 ## Phases — each one a commit, each verified by LOOKING before the next
 
+**STATUS 17 Sep (same day):** Phases 1–6 BUILT and shipped in four commits
+(28361a7, b173a2f, 8a8a7de, 9b0a4ff). Phase 0's standalone recorder was NOT
+written — every phase was captured through the devtools MCP instead, and a
+dev-only `scrub(p)` on `window.__novaShelf` holds the open timeline at a known
+frame. Final audit set: `design/audits/library-2026-09-17/p4-*.jpg`.
+Measured: drag at 4× CPU, 375 px → median 23 ms, max 35 ms (Bar 6's 16 ms
+target NOT met; the 33 ms cap is); one 174 ms frame when the focused volume
+repaints at 1024×1536 after settling; idle shelf 0 frames, detail runs a
+permanent rAF for the sway (a choice, see handoff). Bar 8 open.
+
 The standing rule from the anatomy work applies unchanged: **record and watch
 every version.** The figure's harness (`tools/motion/harness.html` + `record.mjs`, one headless
 Chrome stepped over the debugging protocol) gets a Library sibling at 375×812,

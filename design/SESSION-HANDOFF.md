@@ -13,7 +13,32 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**17 SEP — THE LIBRARY PLAN IS WRITTEN; NOTHING IS BUILT YET.**
+**17 SEP (later) — THE 3D LIBRARY IS BUILT AND SHIPPED; HE HAS NOT SEEN IT.**
+His three answers came back the same day (poster-plate editions · replace the
+CSS shelf · try the tumble) and Phases 1–6 went in as four commits, each
+verified by LOOKING at 375×812 cupertino against his vault (`p4-*.jpg` in the
+audits folder). What is true now:
+- `src/shelf3d/` — `edition.js` (pure, 14 tests), `coverArt.js`, `materials.js`,
+  `bookRig.js`, `artPalette.js` (ONE palette derivation shared by canvas and
+  grid — they disagreed until it existed), `useLibraryTint.js`, `Shelf3D.jsx`.
+- three.js is now ONE shared chunk (`RoomEnvironment-*.js`, 532 KB); Body3D
+  fell 646 → 116 KB. Verify with `grep -c ACESFilmicToneMapping dist/assets/*`.
+- Fallbacks proven: lost context → CSS shelf + note; no WebGL → CSS shelf.
+- The Chip's long-label wrap never worked (duplicate `whiteSpace` key,
+  `Controls.jsx`); fixed, and `mobileNative.test.js` enforces hover gating.
+**OPEN / HIS CALLS:**
+- Bar 6: drag at 4× throttle is median 23 ms / max 35 ms, not ≤16. Levers
+  left: pixel ratio 1.0, drop dust, split the 1024 repaint across two frames
+  (the single 174 ms hitch after a settle).
+- Detail runs a permanent rAF for the ±2° sway (his "alive"); on the phone
+  that is battery while a book is open. A finite settle would return it to
+  zero frames — his choice.
+- The tumble shows the back board briefly at p≈0.5 (designed, with colophon).
+- Still ugly-ish: grid cards are tall (plate 52% + cloth); top third of the
+  shelf canvas is sky; the shine is quiet on matte jackets.
+- **Nothing here has run on his iPhone.** Bar 8.
+
+**17 SEP (morning) — THE LIBRARY PLAN WAS WRITTEN.**
 His ask, with a 35-second Kabarza reel (Stripe Press + the open-source Complete
 Shelf): the Library must reach that level — 3D volumes, the page tinting to the
 book, foil and a moving specular, dust. `design/LIBRARY-PLAN.md` is the plan;
