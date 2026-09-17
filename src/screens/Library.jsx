@@ -1,4 +1,4 @@
-import { useRef, useLayoutEffect } from 'react';
+import { useRef, useLayoutEffect, useState, lazy, Suspense } from 'react';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { ChatMarkdown } from '../ChatMarkdown.jsx';
@@ -18,6 +18,21 @@ const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpp
 
 const M = 'var(--nv-font-mono)';
 const S = 'var(--nv-font-serif)';
+
+// THE SHELF IS A RENDERER NOW. three.js is 600 KB and the Library is already
+// lazy, so this second boundary keeps the renderer out of the screen chunk as
+// well: nobody who opens Covers pays for it. Rollup gives Body3D and this one
+// the SAME three chunk, which Phase 5 checks in dist/assets by hand.
+const Shelf3D = lazy(() => import('../shelf3d/Shelf3D.jsx').then((m) => ({ default: m.Shelf3D })));
+
+// A cheap, synchronous probe — no renderer built, no context taken. If this
+// says no, the CSS shelf below is the view, and it says nothing false.
+const probeWebGL = () => {
+  try {
+    const c = document.createElement('canvas');
+    return !!(c.getContext('webgl2') || c.getContext('webgl'));
+  } catch { return false; }
+};
 
 function ProvenanceBadge({ p, big }) {
   if (!p) return null;
@@ -78,7 +93,15 @@ function useShelfFlip(view, count) {
 
 function Shelf({ v }) {
   const spines = v.libraryView === 'spines';
-  useShelfFlip(v.libraryView, v.libraryShelf.length);
+  // WebGL is probed once, not on every render; a lost context or a missing
+  // one falls back for the rest of the session rather than flickering.
+  const [webglOk] = useState(probeWebGL);
+  const [fellBack, setFellBack] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
+  const use3D = spines && webglOk && !fellBack;
+  // The FLIP hook reads [data-flip] nodes; with the 3D shelf there are none,
+  // and an empty NodeList is a no-op rather than a throw.
+  useShelfFlip(v.libraryView, use3D ? 0 : v.libraryShelf.length);
   return (
     <>
       <div style={css('display:flex;align-items:center;gap:10px;flex-wrap:wrap')}>
@@ -124,7 +147,25 @@ function Shelf({ v }) {
           changes instantly, and useFlip animates the delta on the
           compositor. Two separate trees would have meant an unmount and a
           fade, which is exactly the cut the whole motion contract avoids. */}
+      {use3D ? (
+        <div style={css('margin-top:18px;position:relative')}>
+          <Suspense fallback={<div style={css('height:360px')} />}>
+            <Shelf3D rows={v.libraryShelf} selectedId={selectedId} height={360}
+              onSelect={setSelectedId}
+              onOpen={(id) => v.libraryShelf.find((r) => r.id === id)?.open()}
+              onFallback={setFellBack} />
+          </Suspense>
+          <div style={css('margin-top:8px;text-align:center')}>
+            <Meta tone="faint">Drag or scroll the shelf · tap a volume to open it</Meta>
+          </div>
+        </div>
+      ) : (
       <div style={spines ? { position: 'relative', marginTop: '22px' } : undefined}>
+      {spines && fellBack && (
+        <div style={css('margin-bottom:12px;text-align:center')}>
+          <Meta tone="faint">3D shelf unavailable on this device</Meta>
+        </div>
+      )}
       <div style={spines
         ? css('display:flex;align-items:flex-end;gap:5px;overflow-x:auto;padding:0 2px 0;min-height:300px')
         : css('margin-top:22px;display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:20px 16px;align-items:end')}>
@@ -215,6 +256,7 @@ function Shelf({ v }) {
         </>
       )}
       </div>
+      )}
     </>
   );
 }

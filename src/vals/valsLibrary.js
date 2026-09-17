@@ -1,5 +1,6 @@
 import { mono } from './shared.js';
 import { vtStyle } from '../vtName.js';
+import { editionFor } from '../shelf3d/edition.js';
 
 const serif = 'var(--nv-font-serif)';
 
@@ -85,6 +86,11 @@ export function valsLibrary(app, ctx) {
       backlinks: it.backlinks || 0,
       jacket: st.liveBookCoverUrls?.[it.id] || null,
       spine: spineShapeFor(it.id, it.kind),
+      // THE NOVA EDITION — what this source is as a bound object. The art's
+      // real shape and palette are not known here (the jacket loads in the
+      // browser, later), so this is the hash-derived edition; Shelf3D
+      // re-derives it with `artAspect` and `palette` once the image lands.
+      edition: editionFor(it, { artAspect: null }),
       coverStyle: {
         ...coverStyleFor(it.title, it.kind),
         // THE MORPH TARGET: the cover flies into the detail header. The name is
