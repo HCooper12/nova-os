@@ -76,3 +76,61 @@ test("YouTube's grey placeholder is a miss wearing a 200", async () => {
   assert.ok(Buffer.isBuffer(buf));
   assert.ok(buf.length > 3000, 'it fell through to the size every video has');
 });
+
+// ---- 17 Sep 2026: three of his Library sources are Instagram reels, and all
+// three answered 404 on every shelf render. videoIdOf is YouTube-only and has
+// to stay that way (the ingest pipeline scans vault files for it), so this
+// module got its own broader identity. These pin the two things that matter:
+// the same reel is never fetched twice under two names, and a URL that merely
+// LOOKS like one never reaches the shell.
+
+test('a reel is one poster however it was shared', async () => {
+  const { posterIdentity, posterKey } = await import('../lib/sourcePosters.js');
+  // his actual three, as they arrive: a private share token one day, an
+  // igsi tail the next, a bare link from a browser after that
+  const same = [
+    'https://www.instagram.com/reel/Dc3fEDJRM5n/?stkn=N3VtNWR1dnZlNGRn',
+    'https://www.instagram.com/reel/Dc3fEDJRM5n/?igsi=MWtlcHU1b3NieWhpdQ==',
+    'https://instagram.com/reel/Dc3fEDJRM5n/',
+    'https://www.instagram.com/reel/Dc3fEDJRM5n',
+  ];
+  const keys = new Set(same.map(posterKey));
+  assert.equal(keys.size, 1, `one reel, ${keys.size} cache keys — it will be fetched that many times`);
+  assert.deepEqual(posterIdentity(same[0]), { kind: 'ig', id: 'Dc3fEDJRM5n' });
+});
+
+test('YouTube keeps its own identity and never collides with a reel', async () => {
+  const { posterIdentity, posterKey } = await import('../lib/sourcePosters.js');
+  assert.deepEqual(posterIdentity('https://youtu.be/dQw4w9WgXcQ'), { kind: 'yt', id: 'dQw4w9WgXcQ' });
+  assert.deepEqual(posterIdentity('https://www.youtube.com/watch?v=dQw4w9WgXcQ'), { kind: 'yt', id: 'dQw4w9WgXcQ' });
+  // a shortcode and a video id could theoretically be the same string; the
+  // key is namespaced by kind so they can never share a cache entry
+  assert.notEqual(posterKey('https://youtu.be/Dc3fEDJRM5n'), posterKey('https://www.instagram.com/reel/Dc3fEDJRM5n/'));
+});
+
+test('THE ALLOWLIST IS THE BOUNDARY — a lookalike host never reaches the shell', async () => {
+  const { posterIdentity } = await import('../lib/sourcePosters.js');
+  // getSourcePoster shells out to yt-dlp, and it is reachable from an HTTP
+  // query parameter. Anything that resolves to null stops before the spawn.
+  for (const u of [
+    'https://evil.example.com/reel/abcdef/',
+    'https://instagram.com.evil.test/reel/abcdef/',
+    'https://notinstagram.com/reel/abcdef/',
+    'file:///etc/passwd',
+    'http://169.254.169.254/latest/meta-data/',
+    '',
+    null,
+  ]) {
+    assert.equal(posterIdentity(u), null, `${u} would have been handed to yt-dlp`);
+  }
+  // and the real host still resolves, so the guard is not simply "no"
+  assert.ok(posterIdentity('https://www.instagram.com/reel/Dc3fEDJRM5n/'));
+});
+
+test('a source with no poster we can name is still a clean null', async () => {
+  const { posterIdentity, posterKey, getSourcePoster } = await import('../lib/sourcePosters.js');
+  assert.equal(posterIdentity('https://example.com/some-article'), null);
+  assert.equal(posterKey('https://example.com/some-article'), null);
+  // never throws, never shells — the client keeps its generated cover
+  assert.equal(await getSourcePoster('https://example.com/some-article'), null);
+});
