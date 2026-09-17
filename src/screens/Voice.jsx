@@ -105,7 +105,12 @@ export function Voice({ v }) {
       onError: (err) => v.dictationError(err),
       // a line per turn saying WHY it ended, so "it cut me off" has an
       // answer next time. Fire and forget — never in the way of the send.
-      onTurnEnd: (info) => reportTurnEnd('voice', v.voiceHold, info),
+      onTurnEnd: (info) => {
+        // whether the ENGINE delivered anything, before the send decides
+        // what to say about it — closeOut fires this ahead of onDone
+        v.noteTurnHeard?.(info.heard);
+        reportTurnEnd('voice', v.voiceHold, info);
+      },
     },
   );
 

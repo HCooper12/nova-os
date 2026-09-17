@@ -183,6 +183,10 @@ export function valsMisc(app, ctx) {
     setVoiceHold: (value) => app.setVoiceHold(value),
     voiceTest: st.voiceTest || null,
     runVoiceTest: () => app.runVoiceTest(),
+    // the other direction: can Nova hear HIM. See src/micCheck.js for why
+    // this exists and what stages 4 and 5 are actually settling.
+    micCheck: st.micCheck || null,
+    runMicCheck: () => app.runMicCheck(),
     // the Voice screen's dictation is local to that screen — App needs to
     // know, so the wake word never competes with it for the microphone
     briefQueue: st.briefQueue ? {
@@ -323,6 +327,8 @@ export function valsMisc(app, ctx) {
     voiceAutoListenTick: st.voiceAutoListenTick,
     toggleConvMode: () => app.toggleConvMode(),
     notifyEmptyListen: () => app.notifyEmptyListen(),
+    // observed, not concluded — see App.noteTurnHeard
+    noteTurnHeard: (heard) => app.noteTurnHeard(heard),
     resumeConv: () => app.resumeConv(),
     stopSpeaking: () => app.stopSpeaking(),
     briefMe: () => {

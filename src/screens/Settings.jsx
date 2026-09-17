@@ -10,6 +10,23 @@ const btn = (bg, ink, extra = {}) => (isAppleStyle()
   ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '9px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }
   : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-l)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
 
+// A CHECK RESULT, at 375px. Both diagnostics used a single flex row — tick,
+// stage, detail — and on his phone the detail was squeezed into a column one
+// word wide ("available / in / this / browser"). The stage is a heading and
+// the detail is its sentence, so they stack: the tick keeps the stage company
+// on the first line, and the detail gets the full width underneath it.
+function CheckRow({ ok, stage, detail }) {
+  return (
+    <div style={css("display:flex;flex-direction:column;gap:2px")}>
+      <div style={css("display:flex;gap:7px;align-items:baseline;font:var(--nv-micro-l)")}>
+        <span style={{ color: ok ? 'var(--nv-good)' : 'var(--nv-warn)', flex: 'none' }}>{ok ? '✓' : '✕'}</span>
+        <span style={{ color: 'var(--nv-ink)' }}>{stage}</span>
+      </div>
+      <div style={css("padding-left:18px;font-size:11px;line-height:1.5;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{detail}</div>
+    </div>
+  );
+}
+
 const statusColor = { idle: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', testing: 'var(--nv-gold)', ok: '#5aa87c', error: 'var(--nv-warn)' };
 
 // Swatch dots shown on each theme card: accent, secondary, ground.
@@ -425,13 +442,7 @@ export function Settings({ v }) {
               <div style={css("margin-top:2px;font-size:11px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>Walks the whole path and names whatever fails.</div>
               {v.voiceTest?.stages?.length > 0 && (
                 <div style={css("margin-top:9px;display:flex;flex-direction:column;gap:5px")}>
-                  {v.voiceTest.stages.map((st, i) => (
-                    <div key={i} style={css("display:flex;gap:8px;align-items:baseline;font:var(--nv-micro-l)")}>
-                      <span style={{ color: st.ok ? 'var(--nv-good)' : 'var(--nv-warn)', flex: 'none' }}>{st.ok ? '✓' : '✕'}</span>
-                      <span style={{ color: 'var(--nv-ink)', flex: 'none' }}>{st.stage}</span>
-                      <span style={{ color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)', minWidth: 0 }}>{st.detail}</span>
-                    </div>
-                  ))}
+                  {v.voiceTest.stages.map((st, i) => <CheckRow key={i} {...st} />)}
                 </div>
               )}
               {/* the running build, so "am I on your fix?" is answerable — and
@@ -460,6 +471,52 @@ export function Settings({ v }) {
             </div>
 
             <Chip tone="accent" active onClick={v.runVoiceTest} style={{ flex: 'none' }}>{v.voiceTest?.running ? 'Testing…' : 'Test'}</Chip>
+          </div>
+
+          {/* CAN NOVA HEAR YOU — the other direction, and the one that was
+              silently broken. The turn receipts said his iPhone has never
+              once produced a speech result while a Mac produced one every
+              time; this is what turns that into a cause, on the phone, in
+              about twenty seconds. src/micCheck.js carries the reasoning. */}
+          <div style={css("border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:16px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px")}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={css("font:600 12.5px var(--nv-font-ui)")}>Can Nova hear you?</div>
+              <div style={css("margin-top:2px;font-size:11px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>
+                Run this on the phone you actually talk to. It asks you to speak three times and says what it found.
+              </div>
+
+              {v.micCheck?.prompt && (
+                <div style={{ marginTop: '10px', padding: '10px 12px', borderRadius: '9px',
+                  border: '1px solid var(--nv-acc-border)', background: 'var(--nv-glass)',
+                  font: '600 12.5px var(--nv-font-ui)', color: 'var(--nv-acc)',
+                  animation: 'fadeUp var(--nv-dur-base) var(--nv-ease)' }}>
+                  ◉ {v.micCheck.prompt}
+                </div>
+              )}
+
+              {v.micCheck?.stages?.length > 0 && (
+                <div style={css("margin-top:9px;display:flex;flex-direction:column;gap:5px")}>
+                  {v.micCheck.stages.map((st, i) => <CheckRow key={i} {...st} />)}
+                </div>
+              )}
+
+              {v.micCheck?.verdict && (
+                <div style={{ marginTop: '12px', padding: '12px 13px', borderRadius: 'var(--nv-radius)',
+                  border: `1px solid ${v.micCheck.verdict.settled ? 'color-mix(in srgb, var(--nv-gold) 45%, transparent)' : 'var(--nv-edge)'}`,
+                  background: 'var(--nv-well)', animation: 'fadeUp var(--nv-dur-base) var(--nv-ease)' }}>
+                  <Eyebrow tone={v.micCheck.verdict.settled ? 'gold' : undefined}>
+                    {v.micCheck.verdict.settled ? 'What is wrong' : 'Not settled'}
+                  </Eyebrow>
+                  <div style={css("margin-top:6px;font-size:12px;line-height:1.6;color:var(--nv-ink)")}>{v.micCheck.verdict.cause}</div>
+                  <div style={css("margin-top:7px;font-size:11.5px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>{v.micCheck.verdict.fix}</div>
+                </div>
+              )}
+            </div>
+
+            <Chip tone="accent" active disabled={v.micCheck?.running}
+              onClick={v.micCheck?.running ? undefined : v.runMicCheck} style={{ flex: 'none' }}>
+              {v.micCheck?.running ? 'Listening…' : 'Mic check'}
+            </Chip>
           </div>
 
           {v.voiceOptions.length > 0 && (

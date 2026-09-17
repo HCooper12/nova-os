@@ -53,7 +53,8 @@ import { ContextMenuHost } from './ContextMenu.jsx';
 import { VoicePresence } from './VoicePresence.jsx';
 import { Interactive } from './Interactive.jsx';
 import { WakeWord } from './WakeWord.jsx';
-import { reportBargeIn } from './useDictation.js';
+import { reportBargeIn, reportTurnEnd } from './useDictation.js';
+import { runMicCheck } from './micCheck.js';
 import { NudgeCard } from './NudgeCard.jsx';
 import { ModelChoicePrompt } from './ModelChoicePrompt.jsx';
 import { CoachApplySheet } from './CoachApplySheet.jsx';
@@ -7447,6 +7448,15 @@ export default class App extends Component {
   }
   // two silent listens in a row → pause the loop politely (it's an offer,
   // not surveillance); anything sent resumes it
+  // WHAT NOVA ACTUALLY OBSERVED, kept apart from what it concluded. `heard`
+  // is false when rec.onresult never fired — not one interim, not one word.
+  // On his phone that was EVERY turn for four days while Nova told him the
+  // conversation was paused because he was not ready. The two are different
+  // facts and the message below now says which one it has.
+  noteTurnHeard(heard) {
+    this.deafTurns = heard ? 0 : (this.deafTurns || 0) + 1;
+  }
+
   notifyEmptyListen() {
     // A BARGE-IN FOLLOWED BY SILENCE IS A BARGE-IN THAT WAS WRONG. Nova stopped
     // mid-sentence, opened the microphone, and nobody was there — which means
@@ -7469,7 +7479,14 @@ export default class App extends Component {
     this.convEmpties = (this.convEmpties || 0) + 1;
     if (this.convEmpties >= 2) {
       this.setState({ voiceConvPaused: true });
-      this.toastMsg('Conversation paused — tap the mic when you’re ready');
+      // TWO TURNS WITH NO RESULT EVENT AT ALL is not the same fact as two
+      // turns of silence, and Nova cannot tell them apart from here — it has
+      // no level meter open during dictation on iOS by design. So it says
+      // what it saw and hands him the one thing that CAN tell them apart,
+      // rather than describing his behaviour to him.
+      this.toastMsg((this.deafTurns || 0) >= 2
+        ? 'Nothing reached Nova from the microphone — not a word, either turn. Settings → “Can Nova hear you?” says why.'
+        : 'Conversation paused — tap the mic when you’re ready');
     } else {
       this.maybeAutoListen();
     }
@@ -7640,6 +7657,39 @@ export default class App extends Component {
   // no way to tell them apart from the couch. This walks the real path —
   // replies enabled, engine reachable, audio fetched, audio actually
   // PLAYED — and names the stage that failed, from inside his tap.
+  // THE MIC CHECK — the other direction. runVoiceTest asks whether he can hear
+  // Nova; this asks whether Nova can hear HIM, which is the half that has been
+  // broken on his phone since before anything started keeping receipts.
+  //
+  // It lives here rather than in micCheck.js so the answer is not only a toast:
+  // the finished report goes to the same rail the turn receipts do, so the next
+  // session reads the verdict instead of re-deriving it from ten silent turns.
+  async runMicCheck() {
+    if (this.state.micCheck?.running) return;
+    this.setState({ micCheck: { running: true, stages: [], prompt: '', verdict: null } });
+    const report = await runMicCheck({
+      onStage: (stage, ok, detail) => this.setState((st) => ({
+        micCheck: { ...(st.micCheck || {}), stages: [...((st.micCheck || {}).stages || []), { stage, ok, detail }] },
+      })),
+      // what he should be DOING right now — a check he sits silently through
+      // measures his silence and proves nothing
+      onSay: (prompt) => this.setState((st) => ({ micCheck: { ...(st.micCheck || {}), prompt } })),
+    }).catch((e) => ({ verdict: { cause: `The check itself failed: ${e?.message || e}`, fix: 'Run it again.', settled: false } }));
+    this.setState((st) => ({ micCheck: { ...(st.micCheck || {}), running: false, prompt: '', verdict: report.verdict } }));
+    // a receipt, on the same rail as the turn endings — fire and forget
+    reportTurnEnd('mic-check', this.state.voiceHold, {
+      reason: report.verdict?.settled ? 'mic-check-settled' : 'mic-check',
+      ms: 0, restarts: 0,
+      heard: (report.continuousResults || 0) + (report.singleResults || 0) > 0,
+      why: report.verdict?.cause || '',
+      text: JSON.stringify({
+        permission: report.permission, peak: report.peakLevel,
+        cont: report.continuousResults, single: report.singleResults,
+        audioSession: report.audioSession,
+      }),
+    });
+  }
+
   async runVoiceTest() {
     const conn = getConnection();
     const set = (stage, ok, detail) => this.setState((s) => ({
