@@ -59,6 +59,21 @@ const FADE_OVER = 0.8;
 const BOARD_TOP = -0.075;
 const HOVER_CRACK = -0.09; // ~5° — enough to read as a board, not as a bug
 
+// THE BOARD IN DETAIL. HOVER_CRACK is a POINTER'S answer, and the device Nova
+// is for has no pointer: onPointerUp clears hoveredIndex on touch, so the
+// hinge bookRig builds — "the one gesture that says 'this is a book'" — could
+// never be seen on his phone. The open is where it belongs. A parked volume
+// stands with its board off the page block, which is what an open book looks
+// like, and which is the one thing the shelf's own detail never showed.
+// ~35°: far enough that the fore-edge and the paper read, not so far that a
+// SOLID page block turns side-on and shows as a blank cream slab. Checked
+// against a shut board at the same pose, at 375px, not reasoned about: -0.95
+// swings the board INTO the camera and skews the plate, and 0 is a slab.
+const DETAIL_CRACK = -0.62;
+// ...and it opens LAST. A board swinging through a three-axis tumble is a flap,
+// not a book opening, so the hinge waits until the roll has all but landed.
+const CRACK_FROM = 0.62;
+
 // THE CAMERA. Dead frontal at eye height made every volume a tilted card: no
 // spine, no top edge, no thickness. Nine degrees down and twelve degrees to
 // the LEFT (the spine lives at the book's -x) is the smallest move that makes
@@ -597,7 +612,11 @@ export function Shelf3D({
       );
       rig.root.scale.setScalar(lerp(a.scale, b.scale, e));
       rig.setOpacity(1);
-      rig.frontPivot.rotation.y = 0;
+      // EXACT AT BOTH ENDS BY CONSTRUCTION — 0 for every p up to CRACK_FROM and
+      // DETAIL_CRACK at p = 1 — so the hard settle in runTimeline has nothing
+      // left to correct, and a close shuts the board before the book flies
+      // home rather than returning it to the shelf hanging open.
+      rig.frontPivot.rotation.y = DETAIL_CRACK * smoothstep(clamp((p - CRACK_FROM) / (1 - CRACK_FROM), 0, 1));
     };
 
     const snapTo = (rig, pose) => {
