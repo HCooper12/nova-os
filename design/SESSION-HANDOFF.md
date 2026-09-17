@@ -13,6 +13,29 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**17 SEP — THE LIBRARY PLAN IS WRITTEN; NOTHING IS BUILT YET.**
+His ask, with a 35-second Kabarza reel (Stripe Press + the open-source Complete
+Shelf): the Library must reach that level — 3D volumes, the page tinting to the
+book, foil and a moving specular, dust. `design/LIBRARY-PLAN.md` is the plan;
+`design/audits/library-2026-09-17/` holds five reel frames and the three
+current-state screenshots (375×812, cupertino, his vault).
+
+**THE FINDING** (verified against the live server): his library is 21 sources —
+17 videos, 3 articles, **1 book**. The spines view today slices YouTube
+thumbnails into 30-px strips ("'Eve IS W"). The plan's answer is the *Nova
+edition*: every source is a bound volume Nova designed, the poster set in as a
+plate with a cloth margin, never stretched. **That is Decision 1 and it is his
+before Phase 1 starts.**
+
+**THE REFERENCE** is cloned under the session scratchpad (not the repo):
+`github.com/MengTo/complete-shelf`, one 2.2 MB `index.html` (200 KB of code,
+the rest embedded atlases). Every material/light/transition number in the plan
+carries an `index.html:` line from the stripped copy. Re-clone if needed.
+
+**NEXT:** his three decisions (edition vs art-first; replace vs third toggle;
+roll vs tumble), then Phase 0 (a Library sibling of `tools/motion/record.mjs`)
+and Phase 1 (one true volume). Five sessions estimated; Phase 3 is the risk.
+
 **16 SEP — THE FEEL PLAN IS FINISHED, AND THE BROWSER CAME BACK.**
 `design/FEEL-PLAN.md` is complete: haptics, optimistic UI, oriented transitions.
 Three of its conclusions turned out to be **wrong on inspection**, which is the
