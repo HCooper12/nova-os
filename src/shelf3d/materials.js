@@ -149,6 +149,15 @@ export function createSharedMaterials(tokens = {}) {
   const walnut = new THREE.MeshPhysicalMaterial({
     color: 0xffffff, map: walnutTex, roughness: 0.82, metalness: 0.02,
     clearcoat: 0.06, clearcoatRoughness: 0.8, envMapIntensity: 0.3,
+    // the whole room recedes when a volume opens, so the board has to be able
+    // to fade like everything else
+    transparent: true,
+  });
+  // The lip along the plank's front edge. A board with no lit edge reads as a
+  // painted stripe; this is the two millimetres that make it a plank.
+  const walnutLip = new THREE.MeshPhysicalMaterial({
+    color: 0x4e3620, roughness: 0.68, metalness: 0.03,
+    clearcoat: 0.08, envMapIntensity: 0.35, transparent: true,
   });
   const contactShadow = new THREE.MeshBasicMaterial({
     color: new THREE.Color(tokens.shadowColour || '#000000'),
@@ -156,9 +165,9 @@ export function createSharedMaterials(tokens = {}) {
     depthWrite: false, blending: THREE.MultiplyBlending,
   });
 
-  const owned = [weave, paperTex, walnutTex, contactShadowMap, paper, headband, walnut, contactShadow];
+  const owned = [weave, paperTex, walnutTex, contactShadowMap, paper, headband, walnut, walnutLip, contactShadow];
   return {
-    weave, paper, headband, walnut, contactShadow, contactShadowMap,
+    weave, paper, headband, walnut, walnutLip, contactShadow, contactShadowMap,
     dispose() { for (const o of owned) o.dispose?.(); },
   };
 }
@@ -198,9 +207,17 @@ export function createVolumeMaterials(edition, textures, shared) {
   });
   // THE FOIL. A second mesh a fraction proud of the board, alpha-masked from
   // the type: metal that flashes on its own beat, separately from the cloth.
+  // THE FOIL READS AS METAL OR IT READS AS A SMUDGE. His p2 note — "muddy
+  // pink-grey on brown cloth" — was not the colour: the hex is a near-white
+  // and clears 8:1 on its own cloth. It was the PHYSICS. A metal at
+  // metalness .94 takes essentially all of its brightness from the
+  // environment, and at the scene's 0.66 it had almost none to take, so the
+  // metal mesh sitting on top of the painted title made the title DARKER.
+  // envMapIntensity is the dial that was missing.
   const foil = new THREE.MeshPhysicalMaterial({
     color: foilColour, map: textures.foil, alphaMap: textures.foil,
-    roughness: 0.2, metalness: 0.94, clearcoat: 0.18, clearcoatRoughness: 0.12,
+    roughness: 0.22, metalness: 0.86, clearcoat: 0.18, clearcoatRoughness: 0.12,
+    envMapIntensity: 2.6,
     transparent: true, depthWrite: false,
     polygonOffset: true, polygonOffsetFactor: -2,
   });

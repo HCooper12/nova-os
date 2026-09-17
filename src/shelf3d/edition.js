@@ -75,6 +75,84 @@ export function hexToHsl(value) {
   return rgbToHsl(r, g, b);
 }
 
+// ------------------------------------------------------------- contrast
+//
+// The same arithmetic as server/test/contrast.test.js, for the same reason:
+// "none of it looks wrong" is exactly how a foil title that reads as a smudge
+// survives a screenshot. A title set in the edition's own accent ON the
+// edition's own cloth is the classic failure — both come from one dominant
+// hue, so they can land a few percent apart in lightness and the type
+// disappears. So the foil is not chosen, it is SOLVED FOR.
+
+const srgbToLin = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+
+export function relativeLuminance(value) {
+  const { r, g, b } = hexToRgb(value);
+  const [rl, gl, bl] = [r, g, b].map((c) => srgbToLin(c / 255));
+  return 0.2126 * rl + 0.7152 * gl + 0.0722 * bl;
+}
+
+export function contrastRatio(a, b) {
+  const la = relativeLuminance(a), lb = relativeLuminance(b);
+  const hi = Math.max(la, lb), lo = Math.min(la, lb);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/**
+ * ensureContrast — walk a colour's lightness away from `against` until it
+ * clears `min`. Hue and saturation are kept, because the foil must still look
+ * like this volume's metal; only how much light it carries changes.
+ *
+ * 3:1 is the bar, not 4.5: the foil title is set at the equivalent of large
+ * type on the board and it is decoration carrying a name, not body copy.
+ */
+export function ensureContrast(colour, against, min = 3) {
+  if (contrastRatio(colour, against) >= min) return colour;
+  const { h, s } = hexToHsl(colour);
+  const bgLum = relativeLuminance(against);
+  // go the way there is room to go: away from the cloth, which is usually dark
+  const up = bgLum < 0.18;
+  let best = colour;
+  let bestRatio = contrastRatio(colour, against);
+  for (let i = 1; i <= 24; i++) {
+    const l = clamp(hexToHsl(colour).l + (up ? i * 0.03 : -i * 0.03), 0.04, 0.98);
+    const candidate = hslToHex(h, s, l);
+    const ratio = contrastRatio(candidate, against);
+    if (ratio > bestRatio) { bestRatio = ratio; best = candidate; }
+    if (ratio >= min) return candidate;
+  }
+  // nothing in this hue clears it — fall back to the honest extreme rather
+  // than shipping type nobody can read
+  return bestRatio >= min ? best : (up ? '#f6f1e6' : '#12100c');
+}
+
+/**
+ * mixHex — `color-mix(in srgb, a pct%, b)` done in JS, because the result has
+ * to be MEASURED before it is used. A CSS color-mix cannot be checked for
+ * contrast at the point it is written.
+ */
+export function mixHex(a, b, pct) {
+  const A = hexToRgb(a), B = hexToRgb(b);
+  const t = clamp(pct, 0, 100) / 100;
+  return hex(A.r * t + B.r * (1 - t), A.g * t + B.g * (1 - t), A.b * t + B.b * (1 - t));
+}
+
+/**
+ * safeTint — mix `tint` into `base` as far as it can go while the result still
+ * reads on `bg`. This is the clamp the page-tint needs: a volume bound in a
+ * dark olive cloth must not drag the Library's accent down to where the HIG
+ * audit's three cases start failing again.
+ *
+ * Returns { colour, pct } so the caller can say how much tint it actually got.
+ */
+export function safeTint(base, tint, bg, { pct = 35, min = 4.5 } = {}) {
+  for (let p = pct; p >= 0; p -= 5) {
+    const colour = mixHex(tint, base, p);
+    if (contrastRatio(colour, bg) >= min) return { colour, pct: p };
+  }
+  return { colour: base, pct: 0 };
+}
+
 // ------------------------------------------------- palette from real art
 //
 // PURE so it can be tested: the caller draws the loaded poster/jacket into a
@@ -144,6 +222,11 @@ const KIND_DIMS = {
 // side is what makes a poster read as something SET INTO a cover rather than
 // something printed over it.
 export const PLATE_MARGIN = 0.07;
+
+// The floor for foil on cloth. His p2 screenshots read "muddy pink-grey on
+// brown" — both colours came from one dominant hue, so they landed within a
+// few percent of each other and the title stopped being type.
+export const FOIL_MIN_CONTRAST = 3;
 
 // A jacket only covers the board edge-to-edge when the board can BE that
 // shape. Outside this range the art is not a book jacket, whatever the kind
@@ -237,18 +320,18 @@ function paletteColours(h, palette, kind) {
     const hsls = palette.map(hexToHsl);
     const dom = hsls[0];
     const vivid = hsls.reduce((a, b) => (b.s > a.s ? b : a), hsls[0]);
-    return {
-      // darkened dominant: a cover's colour, taken down to bookcloth
-      cloth: hslToHex(dom.h, clamp(dom.s * 0.72, 0.08, 0.55), paper ? 0.42 : clamp(dom.l * 0.42, 0.10, 0.26)),
-      // a light, warm complement — foil is warm metal, not a second ink
-      foil: hslToHex(dom.h + 28, clamp(dom.s * 0.42, 0.10, 0.40), 0.84),
-      accent: hslToHex(vivid.h, clamp(vivid.s, 0.45, 0.92), 0.56),
-    };
+    // darkened dominant: a cover's colour, taken down to bookcloth
+    const cloth = hslToHex(dom.h, clamp(dom.s * 0.72, 0.08, 0.55), paper ? 0.42 : clamp(dom.l * 0.42, 0.10, 0.26));
+    // a light, warm complement — foil is warm metal, not a second ink — and
+    // then pushed until it actually reads on THIS cloth
+    const foil = ensureContrast(hslToHex(dom.h + 28, clamp(dom.s * 0.42, 0.10, 0.40), 0.84), cloth, FOIL_MIN_CONTRAST);
+    return { cloth, foil, accent: hslToHex(vivid.h, clamp(vivid.s, 0.45, 0.92), 0.56) };
   }
   const hue = h % 360;
+  const cloth = hslToHex(hue, paper ? 0.16 : 0.30, paper ? 0.44 : 0.19);
   return {
-    cloth: hslToHex(hue, paper ? 0.16 : 0.30, paper ? 0.44 : 0.19),
-    foil: hslToHex(hue + 30, 0.30, 0.84),
+    cloth,
+    foil: ensureContrast(hslToHex(hue + 30, 0.30, 0.84), cloth, FOIL_MIN_CONTRAST),
     accent: hslToHex(hue, 0.66, 0.56),
   };
 }

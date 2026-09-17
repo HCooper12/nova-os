@@ -8,7 +8,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   editionFor, plateRect, paletteFromImageData, clipAtWordBoundary,
-  hexToHsl, PLATE_MARGIN,
+  hexToHsl, PLATE_MARGIN, contrastRatio, ensureContrast, safeTint, mixHex,
+  FOIL_MIN_CONTRAST,
 } from './edition.js';
 
 const row = (over = {}) => ({ id: 'Wiki/Sources/Atomic Habits (Clear)', title: 'Atomic habits', author: 'James Clear', kind: 'book', ...over });
@@ -139,4 +140,72 @@ test('a long title clips at a word boundary, with an ellipsis', () => {
   // one unbroken word still has to be cut somewhere, and still says so
   const runOn = clipAtWordBoundary('Supercalifragilisticexpialidocious', 12);
   assert.ok(runOn.endsWith('…') && runOn.length <= 12);
+});
+
+test('foil always clears the contrast floor on its own cloth', () => {
+  // the p2 fault: foil and cloth both derive from ONE dominant hue, so they
+  // can land a few percent apart and the title stops being type
+  const palettes = [
+    ['#6b4a33', '#c9a227', '#2b1d14'],   // the brown that made it muddy
+    ['#8c2f2f', '#e8e8e8', '#222222'],
+    ['#6f7a3a', '#d9d2b0', '#333333'],
+    ['#101010', '#141414', '#0a0a0a'],   // a near-black poster
+    ['#f2f2f2', '#eeeeee', '#fafafa'],   // a near-white poster
+  ];
+  for (const palette of palettes) {
+    for (const kind of ['book', 'video', 'article']) {
+      const e = editionFor(row({ id: `c-${kind}-${palette[0]}`, kind }), { palette });
+      const r = contrastRatio(e.foil, e.cloth);
+      assert.ok(r >= FOIL_MIN_CONTRAST, `${kind} ${palette[0]}: foil ${e.foil} on cloth ${e.cloth} is ${r.toFixed(2)}:1`);
+    }
+  }
+  // and with no art at all, across a spread of ids
+  for (let i = 0; i < 40; i++) {
+    const e = editionFor(row({ id: `hash-${i}`, kind: i % 3 === 0 ? 'article' : 'video' }));
+    assert.ok(contrastRatio(e.foil, e.cloth) >= FOIL_MIN_CONTRAST, `hash-${i}`);
+  }
+});
+
+test('ensureContrast keeps the hue and only moves the light', () => {
+  const out = ensureContrast('#3a3630', '#332f2a', 3);
+  assert.ok(contrastRatio(out, '#332f2a') >= 3);
+  // a hue that genuinely cannot clear it still returns something readable
+  const extreme = ensureContrast('#808080', '#808080', 7);
+  assert.ok(contrastRatio(extreme, '#808080') >= 3, 'no silent failure');
+});
+
+test('contrastRatio matches the known anchors', () => {
+  assert.equal(Math.round(contrastRatio('#ffffff', '#000000')), 21);
+  assert.equal(Math.round(contrastRatio('#ffffff', '#ffffff')), 1);
+});
+
+test('safeTint clamps the page tint until it reads on the pane', () => {
+  // command: --nv-acc #59e6ff on the --nv-bg1 pane #0a0f1e
+  const bright = safeTint('#59e6ff', '#dbb643', '#0a0f1e');
+  assert.equal(bright.pct, 35, 'a light tint gets the full mix');
+  assert.ok(contrastRatio(bright.colour, '#0a0f1e') >= 4.5);
+
+  // a volume bound in near-black cloth must not drag the accent under the bar
+  const dark = safeTint('#59e6ff', '#0b0b0c', '#0a0f1e');
+  assert.ok(contrastRatio(dark.colour, '#0a0f1e') >= 4.5, 'clamped, not dimmed through the floor');
+  assert.ok(dark.pct <= 35);
+
+  // daylight: dark accent on a white pane
+  const day = safeTint('#0060df', '#f0e0a0', '#ffffff');
+  assert.ok(contrastRatio(day.colour, '#ffffff') >= 4.5);
+
+  // a tint that would wash the accent into the pane is backed off until it
+  // reads — and the last resort is the untinted base, never a failing colour
+  const washy = safeTint('#0060df', '#ffffff', '#ffffff');
+  assert.ok(washy.pct < 35, `backed off to ${washy.pct}%`);
+  assert.ok(contrastRatio(washy.colour, '#ffffff') >= 4.5);
+  const impossible = safeTint('#8a8a8a', '#8a8a8a', '#ffffff');
+  assert.equal(impossible.pct, 0);
+  assert.equal(impossible.colour, '#8a8a8a');
+});
+
+test('mixHex is a plain srgb mix', () => {
+  assert.equal(mixHex('#ffffff', '#000000', 100), '#ffffff');
+  assert.equal(mixHex('#ffffff', '#000000', 0), '#000000');
+  assert.equal(mixHex('#ffffff', '#000000', 50), '#808080');
 });

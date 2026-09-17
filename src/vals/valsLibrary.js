@@ -117,6 +117,9 @@ export function valsLibrary(app, ctx) {
     }));
     const it = rawDetail?.item;
     detail = {
+      // the shelf needs to know WHICH volume the detail is for before the
+      // detail's own body has loaded — that is the id the 3D stage flies
+      openIdForShelf: openId,
       loading: !rawDetail,
       error: rawDetail?.error ? 'Couldn’t load this source — tap to retry.' : null,
       retry: () => app.ensureLibraryDetail(openId, true),
