@@ -1,4 +1,5 @@
 import { AGENTS } from './shared.js';
+import { nextWorkBlock, leadLeadsNow, untilWords } from '../workBlock.js';
 import { KIND_LABEL } from './valsLeader.js';
 import { pickOneThing, prMomentFor, ringState } from '../missionFocus.js';
 import { plainLabel, liveBlock, isLiveBlock, blockCta, blockDetail, minsLeft, pickTagline } from '../missionLine.js';
@@ -815,6 +816,10 @@ export function valsMission(app, ctx) {
     // how long since he last said anything, and the one question Nova needs
     // answered to be current. The order puts LEAD first because that is the
     // half he said had gone missing.
+    // His instruction, 18 Sep: the lead leads in the hour before work, because
+    // that is when it is actionable. One definition, shared with the Telegram
+    // reminder that fires on the same edge — see src/workBlock.js.
+    leadFirst: !demoMode && !!st.liveLeader && leadLeadsNow(st.liveCalendar, nowMin),
     leaderBox: (() => {
       if (demoMode) return null;
       const L = st.liveLeader;
@@ -849,6 +854,13 @@ export function valsMission(app, ctx) {
         });
       }
       if (!faces.length) return null;
+      // WHY IT HAS MOVED. Within the hour before a work block the lead goes to
+      // the top of Home (see src/workBlock.js), and the card says so — a panel
+      // that reorders itself silently reads as a layout bug.
+      const work = nextWorkBlock(st.liveCalendar, nowMin);
+      const soon = work && work.startsIn <= 60
+        ? { minutes: work.startsIn, words: untilWords(work.startsIn), label: work.label }
+        : null;
       const index = Math.min(Math.max(0, st.leaderFace || 0), faces.length - 1);
       const setFace = (i) => app.setState({ leaderFace: (i + faces.length) % faces.length });
       return {
@@ -856,6 +868,7 @@ export function valsMission(app, ctx) {
         index,
         face: faces[index],
         count: faces.length,
+        soon,
         next: faces.length > 1 ? () => setFace(index + 1) : null,
         prev: faces.length > 1 ? () => setFace(index - 1) : null,
         select: (i) => setFace(i),

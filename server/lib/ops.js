@@ -28,6 +28,9 @@ const SCHEDULED = [
   { id: 'plan-today', label: 'Plan Today', role: "the day's top 3, picked", cadenceHours: 2 },
   { id: 'weekly-debrief', label: 'Weekly Debrief', role: "the Coach's Sunday sit-down", cadenceHours: 2 },
   { id: 'reminders', label: 'Reminders', role: 'nudges fired on time', cadenceHours: 1 },
+  // ticks every minute so it cannot miss the edge, but only ever ACTS in the
+  // hour before a work block — so an hour without a beat is already a fault
+  { id: 'leader-reminder', label: 'Leader Reminder', role: "the lead, before work", cadenceHours: 1 },
   { id: 'guardian', label: 'Guardian', role: 'integrity, backups, alerts', cadenceHours: 26 },
   { id: 'health-drops', label: 'Health Sync', role: 'iPhone health drops', cadenceHours: 1 },
   { id: 'healthinsight', label: 'Health Insight', role: 'twice-daily noticing', cadenceHours: 2 },

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { promoteLead } from '../workBlock.js';
 import { Elapsed } from '../Elapsed.jsx';
 import { css } from '../css.js';
 import { glowPanel } from '../glowPanel.js';
@@ -303,7 +304,13 @@ export function MissionStructured({ v }) {
 
   // the day decides the order: morning = body first; after that, what to DO
   // (focus + calendar) leads and the vitals step back
-  const order = morning ? ORDERS.morning : hour < 17 ? ORDERS.day : ORDERS.evening;
+  // ...and in the hour before a work block the lead jumps the queue, because
+  // that is when it is actionable. Applied as a promotion rather than a fourth
+  // ORDERS entry, so the assert below still covers every section exactly once.
+  const order = promoteLead(
+    morning ? ORDERS.morning : hour < 17 ? ORDERS.day : ORDERS.evening,
+    v.leadFirst,
+  );
   // a section key missing from ANY order array would vanish silently for
   // part of the day — the dev build says so the moment it happens
   if (import.meta.env?.DEV) assertOrdersCover(Object.keys(sections));

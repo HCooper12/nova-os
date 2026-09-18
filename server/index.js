@@ -320,6 +320,10 @@ async function main() {
     .catch((e) => console.error('pattern-scout scheduler failed to start:', e.message));
   import('./lib/autonomyLedger.js').then(({ startAutonomyScheduler }) => startAutonomyScheduler())
     .catch((e) => console.error('autonomy scheduler failed to start:', e.message));
+  // the lead, in the hour before a work block — the same edge the Home panel
+  // rises on, because that is when he can still act on it (src/workBlock.js)
+  import('./lib/leaderReminder.js').then(({ startLeaderReminderScheduler }) => startLeaderReminderScheduler())
+    .catch((e) => console.error('leader-reminder scheduler failed to start:', e.message));
   import('./lib/distill.js').then(({ startDistillScheduler }) => startDistillScheduler(process.env.VAULT_PATH))
     .catch((e) => console.error('distill scheduler failed to start:', e.message));
   import('./lib/brainWeek.js').then(({ startBrainWeekScheduler }) => startBrainWeekScheduler(process.env.VAULT_PATH))

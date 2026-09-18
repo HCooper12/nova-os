@@ -74,6 +74,15 @@ export function LeaderBox({ box, variant = 'apple', mob = false }) {
         ? { font: `600 10.5px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: `var(${accent})` }
         : { font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', color: `var(${accent})`, textTransform: 'uppercase' }}
       >{face.label}</span>
+      {/* WHY IT IS AT THE TOP. Inside the hour before a work block this card
+          jumps the Home order (src/workBlock.js); without a word saying so,
+          a panel that reorders itself reads as a layout bug. */}
+      {box.soon && (
+        <span style={{ font: apple ? `600 10.5px ${UI}` : 'var(--nv-micro-m)', letterSpacing: '.06em',
+          textTransform: 'uppercase', color: 'var(--nv-gold)' }}>
+          {box.soon.label} {box.soon.words}
+        </span>
+      )}
       <div style={css('display:flex;align-items:center;gap:10px')}>
         <span style={{ font: apple ? `600 10px ${M}` : 'var(--nv-micro-s)', letterSpacing: '.1em', color: 'var(--nv-ink60)', textTransform: 'uppercase' }}>{face.chip}</span>
         <Dots box={box} />
