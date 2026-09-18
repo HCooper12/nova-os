@@ -42,8 +42,8 @@ export function isWorkBlock(event) {
 }
 
 // The next work block that has not started yet, with how long until it does.
-// Blocks already under way are NOT returned: he asked for the hour BEFORE, and
-// a block that started two hours ago is not something to prepare for.
+// Blocks already under way are NOT returned — that is currentWorkBlock's job,
+// and the Telegram reminder reads THIS one so it stays a before-work message.
 export function nextWorkBlock(events, nowMin) {
   let best = null;
   for (const e of events || []) {
@@ -55,8 +55,38 @@ export function nextWorkBlock(events, nowMin) {
   return best ? { ...best, startsIn: best.start - nowMin } : null;
 }
 
+// The work block happening RIGHT NOW, with how long is left of it.
+//
+// A block whose end is before its start crosses midnight — the naive
+// start <= now < end test can never match one, which is the bug that made
+// Nova go quiet for the seven hours of his Recharge block (see liveBlock in
+// valsMission). A night shift is exactly that shape, so it is handled here
+// rather than waited for.
+export function currentWorkBlock(events, nowMin) {
+  for (const e of events || []) {
+    if (!isWorkBlock(e)) continue;
+    const start = hm2min(e.time);
+    const end = hm2min(e.end);
+    if (start === null || end === null) continue;
+    const inside = end > start
+      ? nowMin >= start && nowMin < end
+      : nowMin >= start || nowMin < end;      // crosses midnight
+    if (inside) {
+      const left = end > start ? end - nowMin : (nowMin >= start ? (1440 - nowMin) + end : end - nowMin);
+      return { start, end, label: e.label || 'Work', time: e.time, endTime: e.end, minutesLeft: left };
+    }
+  }
+  return null;
+}
+
 // Should the lead go to the top right now?
+//
+// 19 Sep, his answer to the question the first cut left open: "Yes, lead
+// should stay on top during a work block." So the window is the hour before
+// AND the block itself — it stops being the first thing he sees when work
+// stops, not when work starts.
 export function leadLeadsNow(events, nowMin, within = LEAD_WINDOW_MIN) {
+  if (currentWorkBlock(events, nowMin)) return true;
   const next = nextWorkBlock(events, nowMin);
   return !!next && next.startsIn <= within;
 }
@@ -81,4 +111,15 @@ export function untilWords(startsIn) {
   if (startsIn <= 0) return 'now';
   if (startsIn === 1) return 'in 1 minute';
   return `in ${startsIn} minutes`;
+}
+
+// And once he is IN it, what the card says instead. "in 40 minutes" would be
+// a lie during the block, and "now" says nothing he does not already know —
+// what is left is the part that changes what he does with the lead.
+export function leftWords(minutesLeft) {
+  if (!minutesLeft || minutesLeft <= 0) return 'ending';
+  if (minutesLeft < 60) return `${minutesLeft}m left`;
+  const h = Math.floor(minutesLeft / 60);
+  const m = minutesLeft % 60;
+  return m ? `${h}h ${m}m left` : `${h}h left`;
 }

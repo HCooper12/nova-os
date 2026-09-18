@@ -9,8 +9,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  isWorkBlock, nextWorkBlock, leadLeadsNow, promoteLead, hm2min, untilWords,
-  LEAD_WINDOW_MIN,
+  isWorkBlock, nextWorkBlock, currentWorkBlock, leadLeadsNow, promoteLead,
+  hm2min, untilWords, leftWords, LEAD_WINDOW_MIN,
 } from '../../src/workBlock.js';
 import {
   buildReminder, dueNow, localDayKey, runLeaderReminder, _resetLeaderReminder,
@@ -43,16 +43,43 @@ test('a work block is the Work CALENDAR, not a word in a label', () => {
   assert.equal(isWorkBlock({ label: 'Work', calendar: 'Work' }), false, 'an all-day event has no start to be an hour before');
 });
 
-test('the window opens exactly an hour before, and closes when work starts', () => {
+test('the window opens an hour before and closes when work ENDS', () => {
+  // 19 Sep, his call: "lead should stay on top during a work block."
   assert.equal(leadLeadsNow(TODAY, at(14, 29)), false, 'too early — 61 minutes out');
   assert.equal(leadLeadsNow(TODAY, at(14, 30)), true, 'the window should open at exactly 60 minutes');
   assert.equal(leadLeadsNow(TODAY, at(15, 29)), true);
-  // a block already under way is not something to prepare for — he asked for
-  // the hour BEFORE, and at 16:00 he has been working for half an hour
-  assert.equal(leadLeadsNow(TODAY, at(15, 30)), false);
-  assert.equal(leadLeadsNow(TODAY, at(18, 0)), false);
+  assert.equal(leadLeadsNow(TODAY, at(15, 30)), true, 'it dropped off the moment work started');
+  assert.equal(leadLeadsNow(TODAY, at(18, 0)), true, 'mid-block, and the lead is not on top');
+  assert.equal(leadLeadsNow(TODAY, at(19, 59)), true);
+  assert.equal(leadLeadsNow(TODAY, at(20, 0)), false, 'work ended and the lead kept the top slot');
   assert.equal(leadLeadsNow(TODAY, at(9, 0)), false);
   assert.equal(leadLeadsNow([], at(14, 45)), false, 'no calendar, no promotion');
+});
+
+test('a night shift crossing midnight is still a block he is inside', () => {
+  // the exact shape that made Nova go quiet for the seven hours of his
+  // Recharge block: end before start, so start <= now < end never matches
+  const night = [{ time: '22:00', end: '06:00', label: 'Work', calendar: 'Work' }];
+  assert.ok(currentWorkBlock(night, at(23, 0)), 'the evening half of a night shift is not seen');
+  assert.ok(currentWorkBlock(night, at(2, 0)), 'the morning half of a night shift is not seen');
+  assert.equal(currentWorkBlock(night, at(2, 0)).minutesLeft, 240);
+  assert.equal(currentWorkBlock(night, at(23, 0)).minutesLeft, 420);
+  assert.equal(currentWorkBlock(night, at(12, 0)), null);
+  // and an ordinary block still behaves
+  assert.equal(currentWorkBlock(TODAY, at(17, 0)).minutesLeft, 180);
+  assert.equal(currentWorkBlock(TODAY, at(20, 0)), null);
+  assert.equal(currentWorkBlock(TODAY, at(15, 29)), null);
+  // an event with no end cannot be "inside"
+  assert.equal(currentWorkBlock([{ time: '09:00', label: 'Work', calendar: 'Work' }], at(10, 0)), null);
+});
+
+test('during the block the card says what is LEFT, never "in 40 minutes"', () => {
+  assert.equal(leftWords(180), '3h left');
+  assert.equal(leftWords(270), '4h 30m left');
+  assert.equal(leftWords(45), '45m left');
+  assert.equal(leftWords(1), '1m left');
+  assert.equal(leftWords(0), 'ending');
+  assert.equal(leftWords(null), 'ending');
 });
 
 test('the NEXT work block is the next one, not the first one in the array', () => {
@@ -179,6 +206,17 @@ test('no Telegram, no work, no crash', async () => {
     send: async () => { throw new Error('must not send'); }, configured: () => true,
   });
   assert.equal(noWork.sent, false);
+});
+
+test('THE REMINDER IS STILL A BEFORE-WORK MESSAGE', () => {
+  // The panel now stays up through the block. The Telegram ping must NOT
+  // follow it in: a "before work" message arriving two hours into the shift
+  // is a lie, and it reads nextWorkBlock precisely so it cannot.
+  _resetLeaderReminder();
+  const d = (h, m) => new Date(2026, 8, 18, h, m);
+  assert.ok(dueNow(TODAY, d(14, 45)), 'the before-work window closed');
+  assert.equal(dueNow(TODAY, d(16, 0)), null, 'the reminder now fires mid-block');
+  assert.equal(dueNow(TODAY, d(19, 0)), null);
 });
 
 test('the window constant is the one both sides read', () => {

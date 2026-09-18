@@ -1,5 +1,5 @@
 import { AGENTS } from './shared.js';
-import { nextWorkBlock, leadLeadsNow, untilWords } from '../workBlock.js';
+import { nextWorkBlock, currentWorkBlock, leadLeadsNow, untilWords, leftWords } from '../workBlock.js';
 import { KIND_LABEL } from './valsLeader.js';
 import { pickOneThing, prMomentFor, ringState } from '../missionFocus.js';
 import { plainLabel, liveBlock, isLiveBlock, blockCta, blockDetail, minsLeft, pickTagline } from '../missionLine.js';
@@ -857,10 +857,16 @@ export function valsMission(app, ctx) {
       // WHY IT HAS MOVED. Within the hour before a work block the lead goes to
       // the top of Home (see src/workBlock.js), and the card says so — a panel
       // that reorders itself silently reads as a layout bug.
-      const work = nextWorkBlock(st.liveCalendar, nowMin);
-      const soon = work && work.startsIn <= 60
-        ? { minutes: work.startsIn, words: untilWords(work.startsIn), label: work.label }
-        : null;
+      // ...and it stays there THROUGH the block (his call, 19 Sep), where the
+      // honest line is what is left rather than "in 40 minutes", which would
+      // simply be false once he has started.
+      const nowBlock = currentWorkBlock(st.liveCalendar, nowMin);
+      const ahead = nowBlock ? null : nextWorkBlock(st.liveCalendar, nowMin);
+      const soon = nowBlock
+        ? { minutes: nowBlock.minutesLeft, words: leftWords(nowBlock.minutesLeft), label: nowBlock.label, during: true }
+        : (ahead && ahead.startsIn <= 60
+          ? { minutes: ahead.startsIn, words: untilWords(ahead.startsIn), label: ahead.label, during: false }
+          : null);
       const index = Math.min(Math.max(0, st.leaderFace || 0), faces.length - 1);
       const setFace = (i) => app.setState({ leaderFace: (i + faces.length) % faces.length });
       return {
