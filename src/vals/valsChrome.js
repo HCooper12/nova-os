@@ -1,4 +1,5 @@
 import { NOVA_THEMES, NOVA_CORES, NOVA_STYLES } from '../theme.js';
+import { sinceFor, startedFrom } from '../jobClock.js';
 import { TAB_META, tabLabel, romanFor } from '../tabOrder.js';
 import { AGENTS } from './shared.js';
 import { dtf } from './fmt.js';
@@ -190,9 +191,12 @@ export function valsChrome(app, ctx) {
       const KIND_NAME = { research: 'Research', video: 'Watching', study: 'Study', distill: 'Distilling', 'brain-week': 'Brain week', briefing: 'Briefing', browse: 'Browser', form: 'Form check', intake: 'Your numbers', paper: 'Study' };
       const jobs = (st.liveInbox?.items || [])
         .filter((r) => r.status === 'classifying')
-        .map((r) => ({ id: r.id, label: `${KIND_NAME[r.kind] || 'Filing'} — ${clip(r.text || '', 60)}`, kind: r.kind || 'capture' }));
-      if (st.codeBusy) jobs.unshift({ id: 'code', label: 'Claude Code — session running', kind: 'code', go: () => app.navigate('code') });
-      if (st.verdictBusy) jobs.unshift({ id: 'verdict', label: 'Building a verdict…', kind: 'verdict' });
+        .map((r) => ({ id: r.id, label: `${KIND_NAME[r.kind] || 'Filing'} — ${clip(r.text || '', 60)}`, kind: r.kind || 'capture',
+          // SERVER-STAMPED, so the clock is right after a reload and right on
+          // a second device — this job did not start when this tab noticed it
+          startedAt: startedFrom(r.createdAt) }));
+      if (st.codeBusy) jobs.unshift({ id: 'code', label: 'Claude Code — session running', kind: 'code', go: () => app.navigate('code'), startedAt: sinceFor('code', true) });
+      if (st.verdictBusy) jobs.unshift({ id: 'verdict', label: 'Building a verdict…', kind: 'verdict', startedAt: sinceFor('verdict', true) });
       // EVERY LONG-RUNNING THING HE STARTED, not just the ones that happen to
       // file an inbox record. A vault ingest (a book, a person, a video weave)
       // runs 15-40 minutes entirely outside the record rails, so the tray —
@@ -211,7 +215,7 @@ export function valsChrome(app, ctx) {
           jobs.unshift({ id: 'ingest', kind: 'ingest', failed: true, label: `Ingest failed — ${clip(st.ingestError || 'no reason given', 60)}` });
         } else {
           const p = st.ingestProgress;
-          jobs.unshift({ id: 'ingest', kind: 'ingest',
+          jobs.unshift({ id: 'ingest', kind: 'ingest', startedAt: sinceFor('ingest', true),
             label: `${INGEST_LABEL[st.ingestStatus] || 'Working'}${p?.total ? ` — part ${p.done} of ${p.total}` : '…'}` });
         }
       }
@@ -232,12 +236,18 @@ export function valsChrome(app, ctx) {
             retry: () => app.openIngestJob(j.id) });
         }
       }
-      if (st.leaderBusy) jobs.unshift({ id: 'leader', kind: 'leader', label: 'The Leader is thinking…', go: () => app.navigate('leader') });
-      if (st.coachBusy) jobs.unshift({ id: 'coach', kind: 'coach', label: 'Coach is reading your history…', go: () => app.navigate('workouts') });
-      if (st.forgeBusy) jobs.unshift({ id: 'forge', kind: 'forge', label: 'The Forge is starting a build…', go: () => app.navigate('ops') });
+      if (st.leaderBusy) jobs.unshift({ id: 'leader', kind: 'leader', label: 'The Leader is thinking…', go: () => app.navigate('leader'), startedAt: sinceFor('leader', true) });
+      if (st.coachBusy) jobs.unshift({ id: 'coach', kind: 'coach', label: 'Coach is reading your history…', go: () => app.navigate('workouts'), startedAt: sinceFor('coach', true) });
+      if (st.forgeBusy) jobs.unshift({ id: 'forge', kind: 'forge', label: 'The Forge is starting a build…', go: () => app.navigate('ops'), startedAt: sinceFor('forge', true) });
       // IN FLIGHT means in flight. Ready-for-review and failed cards still
       // show — they need him — but they are counted and labelled as what they
       // are, so "1 running" can never again mean "one thing died last week".
+      // A flag that went false forgets its mark here, so the NEXT run of the
+      // same job starts its own clock instead of inheriting the last one's.
+      for (const [id, on] of [['code', st.codeBusy], ['verdict', st.verdictBusy], ['leader', st.leaderBusy],
+        ['coach', st.coachBusy], ['forge', st.forgeBusy], ['ingest', st.ingestStatus && st.ingestStatus !== 'idle']]) {
+        if (!on) sinceFor(id, false);
+      }
       const running = jobs.filter((j) => !j.done && !j.failed).length;
       const waiting = jobs.filter((j) => j.done).length;
       const failed = jobs.filter((j) => j.failed).length;

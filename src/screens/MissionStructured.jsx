@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Elapsed } from '../Elapsed.jsx';
 import { css } from '../css.js';
 import { glowPanel } from '../glowPanel.js';
 import { LeaderBox } from '../LeaderBox.jsx';
@@ -165,7 +166,7 @@ export function MissionStructured({ v }) {
             title={j.label}
             trailing={j.dismiss ? <Interactive as="span" onClick={(e) => { e.stopPropagation(); j.dismiss(); }} aria-label="Clear this failed job"
               base={{ cursor: "pointer", font: "600 11px var(--nv-font-ui)", letterSpacing: ".08em", color: "var(--nv-ink40)", padding: "6px 8px" }}
-              hoverStyle={{ color: "var(--nv-warn)" }}>CLEAR</Interactive> : undefined}
+              hoverStyle={{ color: "var(--nv-warn)" }}>CLEAR</Interactive> : <Elapsed job={j} />}
             onClick={j.go || undefined} />
         ))}
       </Group>
