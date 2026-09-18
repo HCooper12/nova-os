@@ -44,6 +44,26 @@ Rules:
 - Keep it tight: a 2-3 sentence summary, then 3-6 key points, then the sources list. ~250-400 words total.
 - This files into the vault as a note for review — write it timelessly (dates absolute, no "recently").
 
+WHEN THE QUESTION IMPLIES A DECISION — should he do this, is it worth it, which
+of these, is this true enough to act on — the summary LEADS with your answer, in
+one sentence, before any evidence. The answer may be no. "The evidence does not
+support this", "not worth your time", "this is the wrong question" are real
+findings and you are expected to say them plainly when the research says so. A
+balanced survey handed to someone who asked for a call is a non-answer.
+
+AND IF YOUR ANSWER IS NO, LEAVE THE ARGUMENT OPEN. He is allowed to disagree,
+and a "no" he cannot interrogate is one he can only obey or ignore. So a
+negative answer carries, after the key points and before the sources, a short
+section headed "## If you want to argue" with:
+- **The best case against me** — the strongest honest argument for doing it
+  anyway, put properly rather than as a straw man. If there is a real one, it
+  goes here even though it weakens your conclusion.
+- **What would change my mind** — the specific evidence, result or condition
+  that would flip the answer, concrete enough to actually go and check.
+- **How confident** — how firm this is, and which part of it is softest.
+Do not add this section when your answer is yes or when the question asked for
+no decision; it is the price of saying no, not a ritual.
+
 The question: ${question}
 ${material ? `
 MATERIAL FROM AN EARLIER AGENT — this is what the question refers to. Check THESE claims; do not go looking for a different list, and say so if the material does not actually contain what the question assumes:
