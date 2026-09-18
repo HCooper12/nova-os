@@ -19,6 +19,8 @@ import { loadLiveCache, saveLiveCache, clearLiveCache } from './liveStore.js';
 import { loadOutbox, saveOutbox, isOfflineError, makeOutboxItem } from './outbox.js';
 import { applyAppearance, getNovaTheme, getCalm, getCoreStyle, saveCoreStyle, getNovaStyle } from './theme.js';
 import { getTabOrder, saveTabOrder } from './tabOrder.js';
+import { depthOf } from './edgeBack.js';
+import { EdgeBack } from './EdgeBack.jsx';
 import { NOTE_TYPE_COLOR } from './vals/shared.js';
 import { valsRecipes, CURRENT_VERSION } from './vals/valsRecipes.js';
 import { valsWorkouts } from './vals/valsWorkouts.js';
@@ -939,7 +941,15 @@ export default class App extends Component {
     const want = '#/' + screen;
     // pushState (not location.hash=) so this doesn't also fire hashchange and
     // double-set state; popstate covers the back button.
-    if (window.location.hash !== want) window.history.pushState(null, '', want);
+    //
+    // THE DEPTH RIDES ON THE ENTRY. An installed PWA has no back button, so
+    // the edge-swipe (src/edgeBack.js) is the only way back — and it must not
+    // fire on the entry Nova booted with, where "back" means leaving the app.
+    // Stamping the entry is exact, survives a reload, and needs no listener
+    // guessing which way a popstate went.
+    if (window.location.hash !== want) {
+      window.history.pushState({ novaDepth: depthOf(window.history.state) + 1 }, '', want);
+    }
   }
   // ---------- job polling (shared) ----------
   startPoll(name, fetchJob, handlers) {
@@ -8275,6 +8285,8 @@ export default class App extends Component {
               base={css('position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:74;cursor:pointer;width:18px;height:66px;display:flex;align-items:center;justify-content:center;border:1px solid var(--nv-edge);border-left:none;border-radius:0 9px 9px 0;background:color-mix(in srgb, var(--nv-void) 88%, black);color:color-mix(in srgb, var(--nv-cy) 65%, transparent);font:400 12px var(--nv-font-mono)')}
               hoverStyle="border-color:var(--nv-acc-border);color:var(--nv-cy)">{v.sidebarToggle.open ? '‹' : '›'}</Interactive>
           )}
+          {/* the left-edge back swipe — standalone only, see src/edgeBack.js */}
+          <EdgeBack getEl={() => this.mainRef.current} />
           <main ref={this.mainRef} style={css("flex:1;overflow-y:auto;overflow-x:hidden;min-width:0;overscroll-behavior-y:contain;touch-action:manipulation")}>
             {/* ONE boundary around the screen switch. The daily five are
                 static so they never reach it; the lazy nine hit it only on a

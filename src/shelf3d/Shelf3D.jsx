@@ -35,6 +35,7 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { startsInEdgeGuard } from '../swipeCore.js';
 import { editionFor } from './edition.js';
 import { artFor, rememberArt } from './artPalette.js';
 import { paintFront, paintSpine, paintBack, paintFoilMask, paintWord, fontsReady, DETAIL_SCALE, WORD_W, WORD_H } from './coverArt.js';
@@ -928,6 +929,11 @@ export function Shelf3D({
 
     const onPointerDown = (e) => {
       if (mode !== 'shelf') return;
+      // THE BACK-SWIPE GUTTER IS NOT THE SHELF'S. Every swipeable row in the
+      // app already refuses to start there; the canvas reaches to within 12px
+      // of the screen edge at 375px, so without this a drag from the edge
+      // would scroll the shelf AND go back (src/edgeBack.js).
+      if (startsInEdgeGuard(e.clientX)) return;
       if (e.pointerType !== 'touch') pointerInside = true;
       drag = { id: e.pointerId, x: e.clientX, y: e.clientY, start: targetPosition, moved: 0 };
       // POINTER CAPTURE THROWS more often than it looks: a pointer that has
