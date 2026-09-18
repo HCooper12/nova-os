@@ -1,7 +1,7 @@
 import { Component, createRef, lazy, Suspense } from 'react';
 import { ExerciseSheet } from './ExerciseSheet.jsx';
 import { chatStartsAJob, planWorthy } from './chatLanes.js';
-import { preferMixing } from './audioSession.js';
+import { claimForSpeech, setDuckingPreference, ducksOtherAudio } from './audioSession.js';
 import { unspokenTexts, resumeVerdict } from './speechResume.js';
 import { DEFAULT_HOLD, holdTiming } from './turnEnd.js';
 import { offerVerdictFor } from './verdictOffer.js';
@@ -381,6 +381,9 @@ export default class App extends Component {
     // is that it can be interrupted, and the filter errs toward leaving Nova
     // alone (bargeIn.js). Off is one tap away in Settings.
     bargeInOn: typeof localStorage === 'undefined' ? true : localStorage.getItem('novaos.bargeIn') !== '0',
+    // 18 Sep: he could only hear Nova off silent or on earphones. The mixing
+    // session type the gym fix asked for is the one the ring switch silences.
+    audioDucks: ducksOtherAudio(),
     // opt-in (see setWakeWord) and remembered per device
     wakeWordOn: typeof localStorage === 'undefined' ? false : localStorage.getItem('novaos.wakeWord') === '1',
     // how long a pause has to be before it ends his turn — his choice, because
@@ -6831,7 +6834,7 @@ export default class App extends Component {
   // empty utterance during the tap unlocks both paths for the async reply.
   primeSpeech() {
     try {
-      preferMixing(); // duck his music for Nova's sentence, don't stop it (see audioSession.js)
+      claimForSpeech(); // the session type is HIS choice — see audioSession.js
       resumeAudioGraph(); // inside the gesture — the one moment iOS lets a suspended graph wake
       if (!this.sharedAudio) {
         // THE UNLOCK MUST PLAY SOMETHING REAL. `new Audio()` with no src
@@ -7275,6 +7278,15 @@ export default class App extends Component {
   setBargeIn(on) {
     localStorage.setItem('novaos.bargeIn', on ? '1' : '0');
     this.setState({ bargeInOn: on });
+  }
+
+  // DUCK his other audio, or SPEAK over the ring switch. Not both — iOS has
+  // no mixable category that survives the silent switch, and audioSession.js
+  // carries the whole reasoning. The module owns the localStorage key so the
+  // very first prime of a session reads his choice, not a default.
+  setAudioDucks(duck) {
+    setDuckingPreference(duck);
+    this.setState({ audioDucks: duck });
   }
   // HE TALKED OVER NOVA. Same landing as the wake word — stop, and give him
   // the floor — but with no phrase to say and no button to find, which is the

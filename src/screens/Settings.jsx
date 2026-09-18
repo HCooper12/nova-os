@@ -413,6 +413,31 @@ export function Settings({ v }) {
             )}
           </div>
 
+          {/* 18 Sep, his report: "I can only hear nova if my phone isn't on
+              silent (volume being up doesn't work) or if I have my earphones
+              in." That is the mixing session type the gym fix asked for, doing
+              exactly what it says: iOS silences the mixable categories with
+              the ring switch, and only 'playback' survives it — and 'playback'
+              does not mix. There is no type that does both, so the fork is
+              his. audioSession.js carries the whole reasoning. */}
+          <div style={css("display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:12px 0;border-top:1px solid color-mix(in srgb, var(--nv-ink) 8%, transparent)")}>
+            <div>
+              <div style={css("font:600 12.5px var(--nv-font-ui)")}>When your phone is on silent</div>
+              <div style={css("margin-top:2px;max-width:340px;font-size:11px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>
+                {v.audioDucks
+                  ? 'Right now Nova ducks your music for a sentence and lets it come back — but the ring switch silences Nova completely, and the volume buttons can’t override it. Earphones are the exception.'
+                  : 'Right now Nova speaks whether the ring switch is on or off. The cost: your music or podcast is paused rather than dipped, and iOS may not start it again.'}
+              </div>
+              <div style={css("margin-top:6px;max-width:340px;font-size:10.5px;line-height:1.5;color:color-mix(in srgb, var(--nv-ink) 32%, transparent)")}>
+                iOS has no setting that does both. This is the whole choice.
+              </div>
+            </div>
+            <Chip tone={v.audioDucks ? 'quiet' : 'accent'} active={!v.audioDucks}
+              onClick={() => v.setAudioDucks(!v.audioDucks)} style={{ flex: 'none' }}>
+              {v.audioDucks ? 'Duck music' : 'Speak anyway'}
+            </Chip>
+          </div>
+
           {/* His 9-Sep report: "my speech is cut off and I feel like I am
               rushing to keep speaking before it thinks I have stopped
               talking." The browser's endpointer has no knob, so Nova ends

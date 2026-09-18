@@ -172,6 +172,10 @@ export function valsMisc(app, ctx) {
     bargeInOn: !!st.bargeInOn,
     takeVoiceSeed: () => app.takeVoiceSeed(),
     setBargeIn: (on) => app.setBargeIn(on),
+    // true = his music ducks and the ring switch silences Nova;
+    // false = Nova speaks over silent and other audio pauses
+    audioDucks: !!st.audioDucks,
+    setAudioDucks: (on) => app.setAudioDucks(on),
     wakeWordSupported: speechRecognitionSupported(),
     setWakeWord: (on) => app.setWakeWord(on),
     // How long a pause is allowed to last before it counts as the end of his
