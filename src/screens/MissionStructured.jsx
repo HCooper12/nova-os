@@ -160,15 +160,36 @@ export function MissionStructured({ v }) {
     // screen, always, without him going to look for it.
     working: v.jobTray.jobs.length > 0 ? (
       <Group key="working" label="Nova is working" accent="--nv-cy" trailing={<Meta tone={v.jobTray.running ? 'cyan' : v.jobTray.waiting ? 'good' : 'warn'}>{v.jobTray.countLabel}</Meta>}>
-        {v.jobTray.jobs.map((j, i) => (
+        {v.jobTray.jobs.map((j, i) => [(
           <GRow key={j.id} first={i === 0}
             leading={<span style={{ font: `600 12px ${M}`, color: j.failed ? 'var(--nv-warn)' : j.done ? 'var(--nv-good, #5aa87c)' : 'var(--nv-cy)' }}>{j.failed ? '✕' : j.done ? '✓' : '◍'}</span>}
             title={j.label}
             trailing={j.dismiss ? <Interactive as="span" onClick={(e) => { e.stopPropagation(); j.dismiss(); }} aria-label="Clear this failed job"
               base={{ cursor: "pointer", font: "600 11px var(--nv-font-ui)", letterSpacing: ".08em", color: "var(--nv-ink40)", padding: "6px 8px" }}
-              hoverStyle={{ color: "var(--nv-warn)" }}>CLEAR</Interactive> : <Elapsed job={j} />}
+              hoverStyle={{ color: "var(--nv-warn)" }}>CLEAR</Interactive> : (
+              <span style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flex: 'none' }}>
+                {j.note && <Meta tone="faint">{j.note}</Meta>}
+                <Elapsed job={j} />
+              </span>
+            )}
             onClick={j.go || undefined} />
-        ))}
+        ),
+        // THE PANEL, named. Buildpad's demo showed four researchers each
+        // saying what it was doing; this is the same thing over Nova's own
+        // agents. Only rendered when a job actually fanned out.
+        ...(j.workers || []).map((w) => (
+          <div key={`${j.id}-${w.name}`} style={{ display: 'flex', alignItems: 'baseline', gap: '9px',
+            padding: '5px 16px 5px 40px', font: 'var(--nv-micro-l)',
+            color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>
+            <span style={{ flex: 'none', color: w.status === 'error' ? 'var(--nv-warn)' : w.status === 'done' ? 'var(--nv-good, #5aa87c)' : 'var(--nv-cy)' }}>
+              {w.status === 'error' ? '✕' : w.status === 'done' ? '✓' : '◌'}
+            </span>
+            <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.name}</span>
+            {w.status === 'done' && w.found > 0 && (
+              <span style={{ flex: 'none', fontVariantNumeric: 'tabular-nums' }}>{w.found}</span>
+            )}
+          </div>
+        ))])}
       </Group>
     ) : null,
 

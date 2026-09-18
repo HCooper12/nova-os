@@ -89,7 +89,9 @@ export function MobileChrome({ v }) {
             {v.jobTray.jobs.map((j) => (
               <Interactive as="div" key={j.id} onClick={j.go || v.jobTray.goInbox} haptic="tick" base={css("cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 15px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent);font:400 12.5px var(--nv-font-ui);color:var(--nv-ink)")}>
                 <span style={css("flex:none;width:9px;height:9px;border-radius:50%;border:1.5px solid var(--nv-cy);border-top-color:transparent;animation:spin 1s linear infinite")}></span>
-                <span style={css("flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{j.label}</span>
+                <span style={css("flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>
+                  {j.label}{j.note ? <span style={css("color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}> · {j.note}</span> : null}
+                </span>
                 <Elapsed job={j} />
               </Interactive>
             ))}

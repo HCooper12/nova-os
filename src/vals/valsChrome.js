@@ -194,7 +194,13 @@ export function valsChrome(app, ctx) {
         .map((r) => ({ id: r.id, label: `${KIND_NAME[r.kind] || 'Filing'} — ${clip(r.text || '', 60)}`, kind: r.kind || 'capture',
           // SERVER-STAMPED, so the clock is right after a reload and right on
           // a second device — this job did not start when this tab noticed it
-          startedAt: startedFrom(r.createdAt) }));
+          startedAt: startedFrom(r.createdAt),
+          // WHO IS ACTUALLY WORKING. A research panel runs several named
+          // researchers at once (server/lib/researchPanel.js); the record
+          // carries their progress, so "Nova is working" can say which angle
+          // is still out instead of one opaque "Research —" row.
+          note: r.panel?.merging ? 'writing the brief' : (r.panel?.label || ''),
+          workers: r.panel?.workers || [] }));
       if (st.codeBusy) jobs.unshift({ id: 'code', label: 'Claude Code — session running', kind: 'code', go: () => app.navigate('code'), startedAt: sinceFor('code', true) });
       if (st.verdictBusy) jobs.unshift({ id: 'verdict', label: 'Building a verdict…', kind: 'verdict', startedAt: sinceFor('verdict', true) });
       // EVERY LONG-RUNNING THING HE STARTED, not just the ones that happen to

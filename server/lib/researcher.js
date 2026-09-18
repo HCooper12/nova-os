@@ -8,6 +8,10 @@ import { NOVA_LENS } from './lens.js';
 import { modelFor, laneOffError, laneEnabled } from './modelPrefs.js';
 import { isGateModel } from './modelChoice.js';
 import { settleWatchdog } from './settle.js';
+import {
+  BRIEF_RULES, DECISION_RULES, FALLBACK_PANEL, buildPlannerPrompt, parsePanel,
+  buildWorkerPrompt, parseFindings, buildSynthesisPrompt, panelProgress,
+} from './researchPanel.js';
 
 // The Researcher — Nova's first agent that reaches OUTSIDE the vault. The
 // boundaries are structural: it runs only on an explicit "research …" ask
@@ -17,6 +21,23 @@ import { settleWatchdog } from './settle.js';
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const MAX_BUDGET_USD = '1.0';
+
+// THE PANEL'S BUDGET, per child, not per question. Four workers plus a merge
+// is five processes where there used to be one, so the caps are set so the
+// WHOLE panel lands near the single-agent ceiling rather than five times it:
+// 0.45 × 4 searching + 0.60 merging ≈ 2.4 worst case, against 1.0 before.
+// That is the real price of the fan-out and it is written here rather than
+// discovered on a bill. Measure a real pass before moving these.
+const WORKER_BUDGET_USD = '0.45';
+const SYNTH_BUDGET_USD = '0.60';
+const PLANNER_BUDGET_USD = '0.10';
+
+// TIERED BY TASK, per his cost rule. The workers search and extract — that is
+// well-specified work and Sonnet does it. The MERGE is the judgment call (what
+// disagrees, what outweighs what, and whether the answer is no), so it runs on
+// whatever the lane is set to in Settings, which is where he controls it.
+const WORKER_MODEL = 'sonnet';
+const PLANNER_MODEL = 'sonnet';
 
 // Everything except the web-read tools and Read. Edit/Write matter most.
 const RESEARCH_DISALLOWED = [
@@ -38,31 +59,9 @@ export function buildResearchPrompt(question, context = '') {
 You are Nova's Researcher, building a short web-research brief for Hayden's second brain (an Obsidian vault). Research the question below using web search, then write the brief.
 
 Rules:
-- EVERY factual claim carries a numbered citation like [1], and the Sources section lists each number with title and URL. No citation → don't claim it.
-- Prefer primary and reputable sources; note disagreement between sources honestly instead of averaging it away.
-- Say what you could NOT establish. An honest gap beats a confident guess.
-- Keep it tight: a 2-3 sentence summary, then 3-6 key points, then the sources list. ~250-400 words total.
-- This files into the vault as a note for review — write it timelessly (dates absolute, no "recently").
+${BRIEF_RULES}
 
-WHEN THE QUESTION IMPLIES A DECISION — should he do this, is it worth it, which
-of these, is this true enough to act on — the summary LEADS with your answer, in
-one sentence, before any evidence. The answer may be no. "The evidence does not
-support this", "not worth your time", "this is the wrong question" are real
-findings and you are expected to say them plainly when the research says so. A
-balanced survey handed to someone who asked for a call is a non-answer.
-
-AND IF YOUR ANSWER IS NO, LEAVE THE ARGUMENT OPEN. He is allowed to disagree,
-and a "no" he cannot interrogate is one he can only obey or ignore. So a
-negative answer carries, after the key points and before the sources, a short
-section headed "## If you want to argue" with:
-- **The best case against me** — the strongest honest argument for doing it
-  anyway, put properly rather than as a straw man. If there is a real one, it
-  goes here even though it weakens your conclusion.
-- **What would change my mind** — the specific evidence, result or condition
-  that would flip the answer, concrete enough to actually go and check.
-- **How confident** — how firm this is, and which part of it is softest.
-Do not add this section when your answer is yes or when the question asked for
-no decision; it is the price of saying no, not a ritual.
+${DECISION_RULES}
 
 The question: ${question}
 ${material ? `
@@ -165,55 +164,141 @@ export async function retryResearch(vaultPath, record) {
   return updated;
 }
 
-// The spawn-and-settle step, shared by first runs and retries.
-function runResearchJob(vaultPath, recordId, q, model, context = '') {
-  const child = spawn(CLAUDE_BIN, [
-    '-p', buildResearchPrompt(q, context),
-    '--permission-mode', 'bypassPermissions',
-    '--allowedTools', 'WebSearch WebFetch Read',
-    '--disallowedTools', RESEARCH_DISALLOWED,
-    '--strict-mcp-config', // MCP servers can't auth under launchd — drop them; WebSearch/WebFetch are built-ins
-    '--output-format', 'json',
-    // named explicitly — an unpinned call silently inherits the account's
-    // ambient default model, which cost him a Fable-5 usage-limit hit on a
-    // totally unrelated lane (Coach) once that became the default. The pin
-    // comes from the model board (lib/modelPrefs.js) so it is settable in
-    // Settings, UNLESS the model-choice gate already asked and got an
-    // explicit per-run answer — that answer wins for this one job only.
-    '--model', model || modelFor('researcher'),
-    '--max-budget-usd', MAX_BUDGET_USD,
-    '--session-id', randomUUID(),
-  ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
-
-  let stdout = '';
-  let stderr = '';
-  settleWatchdog(child, { label: "the research", minutes: 20 });
-  child.stdout.on('data', (d) => { stdout += d; });
-  child.stderr.on('data', (d) => { stderr += d; });
-  child.on('close', async (code) => {
+// ONE CLAUDE, one prompt, one JSON answer. Every child in the panel goes
+// through here so the tool boundary, the MCP drop and the model pin are
+// stated once — a worker that quietly gained Write would be a hole in the
+// "web-read-only" promise the whole agent rests on.
+function askClaude(vaultPath, { prompt, model, budget, tools = 'WebSearch WebFetch Read', minutes = 12, label }) {
+  return new Promise((resolve) => {
+    let child;
     try {
-      const outer = JSON.parse(stdout);
-      if (outer.is_error || code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
-      const text = (outer.result || '').trim();
-      const jsonMatch = firstBalancedObjectMatch(text);
-      if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in researcher response');
-      const { title, body } = normalizeResearch(parseModelJson(jsonMatch[0]));
-      // ALWAYS pending — web content never files itself
-      await updateRecord(recordId, {
-        status: 'pending',
-        decision: {
-          route: 'note',
-          confidence: 'high',
-          title,
-          reason: 'Web-research brief — review the sources before it enters the vault.',
-          payload: { title, body },
-        },
-      });
-    } catch (e) {
-      await updateRecord(recordId, { status: 'error', error: e.message }).catch(() => {});
+      child = spawn(CLAUDE_BIN, [
+        '-p', prompt,
+        '--permission-mode', 'bypassPermissions',
+        '--allowedTools', tools,
+        '--disallowedTools', RESEARCH_DISALLOWED,
+        '--strict-mcp-config',
+        '--output-format', 'json',
+        '--model', model,
+        '--max-budget-usd', budget,
+        '--session-id', randomUUID(),
+      ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (e) { resolve({ error: e.message }); return; }
+
+    let stdout = '';
+    let stderr = '';
+    settleWatchdog(child, { label, minutes });
+    child.stdout.on('data', (d) => { stdout += d; });
+    child.stderr.on('data', (d) => { stderr += d; });
+    child.on('error', (err) => resolve({ error: err.message }));
+    child.on('close', (code) => {
+      try {
+        const outer = JSON.parse(stdout);
+        if (outer.is_error || code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
+        resolve({ text: (outer.result || '').trim() });
+      } catch (e) {
+        resolve({ error: e.message || 'no answer' });
+      }
+    });
+  });
+}
+
+// WHO SHOULD LOOK AT THIS. A cheap pass that names the panel for the question
+// in hand; anything it gets wrong costs a fallback, never the run.
+export async function planPanel(vaultPath, question) {
+  // TWO GOES, THEN THE FALLBACK. Measured 18 Sep: this prompt succeeds on its
+  // own three times out of three at ~$0.03, and failed once inside the first
+  // real panel run — a transient, not a defect. One retry turns that into the
+  // named panel he asked for; the alternative is a perfectly good brief
+  // written by four angles called "Direct evidence" because the API blinked.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { text, error } = await askClaude(vaultPath, {
+      prompt: buildPlannerPrompt(question),
+      model: PLANNER_MODEL, budget: PLANNER_BUDGET_USD,
+      tools: 'Read', minutes: 4, label: 'the research panel',
+    });
+    if (!error && text) {
+      const match = text.match(/\[[\s\S]*\]/);
+      const panel = parsePanel(match ? match[0] : text);
+      if (panel) return { panel, planned: true };
     }
+  }
+  // Named for the question is better; named at all is what matters. The
+  // fallback covers any question and always includes a dissenting angle.
+  return { panel: FALLBACK_PANEL, planned: false };
+}
+
+// THE PANEL RUN. Workers go out together and their progress lands on the
+// record as each returns, so the job tray can name who is still out — the
+// whole point of the fan-out being visible rather than merely parallel.
+async function runPanel(vaultPath, recordId, question, model, context) {
+  const { panel, planned } = await planPanel(vaultPath, question);
+  const workers = panel.map((w) => ({ name: w.name, status: 'working', found: 0 }));
+  const publish = () => updateRecord(recordId, { panel: { ...panelProgress(workers), planned } }).catch(() => {});
+  await publish();
+
+  const reports = await Promise.all(panel.map(async (w, i) => {
+    const { text, error } = await askClaude(vaultPath, {
+      prompt: buildWorkerPrompt(question, w, context),
+      model: WORKER_MODEL, budget: WORKER_BUDGET_USD,
+      minutes: 12, label: `the ${w.name} researcher`,
+    });
+    if (error) {
+      workers[i] = { ...workers[i], status: 'error', found: 0 };
+      await publish();
+      return { name: w.name, error };
+    }
+    const json = firstBalancedObjectMatch(text);
+    const findings = json ? parseFindings(parseModelJson(json[0])) : [];
+    workers[i] = { ...workers[i], status: 'done', found: findings.length };
+    await publish();
+    // A worker that ran and found nothing is NOT an error — an angle that
+    // turns up empty is a finding, and the merge is told to report it.
+    return { name: w.name, findings };
+  }));
+
+  // Every angle failed: there is nothing to merge and nothing honest to file.
+  if (reports.every((r) => r.error)) {
+    throw new Error(`all ${reports.length} researchers failed — ${reports[0].error}`);
+  }
+  await updateRecord(recordId, { panel: { ...panelProgress(workers), planned, merging: true } }).catch(() => {});
+
+  const { text, error } = await askClaude(vaultPath, {
+    prompt: buildSynthesisPrompt(question, reports, context),
+    // NO WEB. The sources are chosen; a merge that searches on its own is a
+    // fifth researcher nobody budgeted for, citing sources no angle vouched for.
+    tools: 'Read',
+    model: model || modelFor('researcher'),
+    budget: SYNTH_BUDGET_USD, minutes: 10, label: 'the research merge',
   });
-  child.on('error', async (err) => {
-    await updateRecord(recordId, { status: 'error', error: err.message }).catch(() => {});
-  });
+  if (error) throw new Error(`the merge failed — ${error}`);
+  const json = firstBalancedObjectMatch(text);
+  if (!json) throw new Error(text.slice(0, 200) || 'no JSON in the merge response');
+  return normalizeResearch(parseModelJson(json[0]));
+}
+
+// The run, shared by first attempts and retries. A panel of named researchers
+// goes out in parallel and one merge writes the brief — see researchPanel.js
+// for why four different briefs beat four copies of the same agent.
+//
+// FAILURE IS STILL HONEST. A single angle coming back empty is a finding the
+// merge reports; every angle failing is an error on the record, with the first
+// reason attached, so a retry has something to act on rather than a shrug.
+async function runResearchJob(vaultPath, recordId, q, model, context = '') {
+  try {
+    const { title, body } = await runPanel(vaultPath, recordId, q, model, context);
+    // ALWAYS pending — web content never files itself
+    await updateRecord(recordId, {
+      status: 'pending',
+      decision: {
+        route: 'note',
+        confidence: 'high',
+        title,
+        reason: 'Web-research brief — review the sources before it enters the vault.',
+        payload: { title, body },
+      },
+    });
+  } catch (e) {
+    await updateRecord(recordId, { status: 'error', error: e.message }).catch(() => {});
+  }
 }
