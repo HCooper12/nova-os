@@ -372,3 +372,53 @@ test("today's model question wins when the lead has run", () => {
   const q = situationQuestion({ ...st, daily: [{ date: today, situation: { question: 'Did you pull the numbers?' } }] }, situationOf(st, NOW), NOW);
   assert.equal(q, 'Did you pull the numbers?');
 });
+
+// THE SAME ANSWER, TWICE — the fault of 20 Sep 2026.
+//
+// His phone aborted the answer at its 20s default while the lane ran for
+// ~40s. Express does not cancel on a closed socket, so the answer filed
+// anyway; seeing nothing, he sent it again, and the second pass marked a
+// struggle the first had just written as RESOLVED. Both guards are pinned
+// here: the OVERLAPPING retry (the one that actually bit him — the first run
+// had written nothing yet to compare against) and the later retry.
+const { answerSituation } = await import('../lib/leader.js');
+
+function fakeRun(calls, reply) {
+  return async () => { calls.push(1); await new Promise((r) => setTimeout(r, 30)); return reply; };
+}
+
+test('two overlapping identical answers run the lane ONCE and file once', async () => {
+  const calls = [];
+  const reply = { acknowledged: 'Noted.', struggles: ['She did not follow the weekend plan'], working: [], resolved: [] };
+  const before = (await readLeaderState()).profile.struggles.length;
+  const text = 'She called the plan stupid and did not follow my weekend notes.';
+  const [a, b] = await Promise.all([
+    answerSituation(vault, { text, runImpl: fakeRun(calls, reply) }),
+    answerSituation(vault, { text, runImpl: fakeRun(calls, reply) }),
+  ]);
+  assert.equal(calls.length, 1, 'the model lane ran once for two overlapping sends');
+  const after = (await readLeaderState()).profile.struggles.length;
+  assert.equal(after, before + 1, 'the struggle was written once, not twice');
+  assert.ok(a.acknowledged && b.acknowledged, 'both callers still get an answer');
+  assert.ok(a.repeat || b.repeat, 'the one that rode the first is marked as a repeat');
+});
+
+test('the same answer sent again later is not re-recorded', async () => {
+  const calls = [];
+  const reply = { acknowledged: 'Noted.', struggles: ['A brand new difficulty'], working: [], resolved: [] };
+  const text = 'A sentence said exactly once, then sent again.';
+  await answerSituation(vault, { text, runImpl: fakeRun(calls, reply) });
+  const mid = (await readLeaderState()).profile.struggles.length;
+  await answerSituation(vault, { text, runImpl: fakeRun(calls, reply) });
+  assert.equal(calls.length, 1, 'the second send did not run the lane again');
+  assert.equal((await readLeaderState()).profile.struggles.length, mid, 'nothing was added the second time');
+});
+
+test('a DIFFERENT answer still records normally', async () => {
+  const calls = [];
+  const reply = { acknowledged: 'Noted.', struggles: ['Something else entirely'], working: [], resolved: [] };
+  const before = (await readLeaderState()).profile.struggles.length;
+  await answerSituation(vault, { text: 'Something else entirely happened tonight.', runImpl: fakeRun(calls, reply) });
+  assert.equal(calls.length, 1);
+  assert.equal((await readLeaderState()).profile.struggles.length, before + 1);
+});

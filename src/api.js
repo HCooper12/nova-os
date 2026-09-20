@@ -314,7 +314,12 @@ export const api = {
   // it (server/lib/repertoire.js). `today` records the day's pick on first
   // read, which is what keeps Home and the spoken brief agreeing.
   // his answer to what the Leader asked — typed or spoken, taken in place
-  leaderAnswer: (conn, text) => post(conn, '/api/leader/situation/answer', { text }),
+  // A MODEL LANE CANNOT LIVE ON THE 20s DEFAULT. This one did, and it ran for
+  // ~40s, so his phone aborted every time — while the server, which Express
+  // does not cancel when a socket closes, filed the answer anyway. He saw
+  // failure, sent it again, and the second pass resolved a struggle the first
+  // had just written. Every lane below that spawns a model gets room.
+  leaderAnswer: (conn, text) => post(conn, '/api/leader/situation/answer', { text }, { timeoutMs: 120_000 }),
   repertoireToday: (conn) => call(conn, '/api/repertoire/today'),
   repertoire: (conn) => call(conn, '/api/repertoire'),
   repertoirePractice: (conn, outcome, note) => post(conn, '/api/repertoire/practice', { outcome, note }),

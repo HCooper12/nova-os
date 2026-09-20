@@ -4,7 +4,7 @@ import { doublingSchedule, nextDueAt } from './spacing.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import os from 'node:os';
 import { NOVA_LENS } from './lens.js';
@@ -61,6 +61,7 @@ const EMPTY = () => ({
   // spaced-repetition memory for vault concepts (key -> {count, lastAt})
   spacing: {},
   lastResearchAt: null,
+  lastAnswer: null,
 });
 
 export async function readLeaderState() {
@@ -77,6 +78,9 @@ export async function readLeaderState() {
       daily: Array.isArray(raw.daily) ? raw.daily : base.daily,
       spacing: raw.spacing && typeof raw.spacing === 'object' ? raw.spacing : base.spacing,
       lastResearchAt: raw.lastResearchAt || null,
+      // the receipt for the last answer recorded, so the same one cannot be
+      // recorded twice (see answerSituation)
+      lastAnswer: raw.lastAnswer && typeof raw.lastAnswer === 'object' ? raw.lastAnswer : null,
     };
   } catch {
     return EMPTY();
@@ -889,15 +893,54 @@ Output ONLY this JSON, no code fences:
 {"struggles":[],"working":[],"resolved":[],"acknowledged":"..."}`;
 }
 
-export async function answerSituation(vaultPath, { text, now = new Date() } = {}) {
+// THE SAME ANSWER MUST NEVER BE RECORDED TWICE.
+//
+// 20 Sep 2026, and it cost him a wrong record. The client's default fetch
+// timeout was 20s while this lane runs a model for ~40s, so his phone gave
+// up — but Express does not cancel the work when the socket closes, so the
+// answer WAS filed. Seeing nothing, he sent it again. The second pass read
+// the struggle the first had just written and marked it RESOLVED, so his
+// live anxiety about that night was recorded as settled.
+//
+// Two guards, because his two attempts OVERLAPPED. The persisted receipt
+// alone would not have caught it: the first run had not finished, so it had
+// written nothing to compare against. So the in-flight map is the one that
+// matters, and the receipt covers the retry that comes after.
+const answerKey = (t) => createHash('sha1').update(String(t).toLowerCase().replace(/\s+/g, ' ').trim()).digest('hex');
+const answersInFlight = new Map(); // hash -> Promise
+const SAME_ANSWER_WINDOW_MS = 30 * 60 * 1000;
+
+export async function answerSituation(vaultPath, opts = {}) {
+  const hash = answerKey(opts.text || '');
+  const running = answersInFlight.get(hash);
+  // Already running: ride the first one. Both callers get the same result and
+  // the record is written once.
+  if (running) return { ...(await running), repeat: true };
+  const p = (async () => runAnswerSituation(vaultPath, opts))();
+  answersInFlight.set(hash, p);
+  try { return await p; } finally { answersInFlight.delete(hash); }
+}
+
+async function runAnswerSituation(vaultPath, { text, now = new Date(), runImpl } = {}) {
   const answer = String(text || '').trim();
   if (!answer) throw new Error('nothing to record');
   if (!laneEnabled('leader-answer')) throw laneOffError('leader-answer');
+  const hash = answerKey(answer);
   const state = await readLeaderState();
+  // Said this already, recently: hand back what it did the first time rather
+  // than reading the same sentence into the record a second time.
+  const prior = state.lastAnswer;
+  if (prior?.hash === hash && now.getTime() - new Date(prior.at || 0).getTime() < SAME_ANSWER_WINDOW_MS) {
+    return { ...prior.result, repeat: true };
+  }
   const situation = situationOf(state, now);
   const question = situationQuestion(state, situation, now);
 
-  const parsed = await runClaude([
+  // runImpl is the seam the tests use, the same shape runLeaderResearch takes
+  // a fetchImpl through — the guards around this call are the thing worth
+  // pinning, and they must be provable without spawning a model.
+  const run = runImpl || runClaude;
+  const parsed = await run([
     '-p', buildAnswerPrompt({ question, answer, situation }),
     '--permission-mode', 'bypassPermissions',
     ...boundaryArgs(''), // it reasons over what it was handed — nothing else
@@ -913,12 +956,21 @@ export async function answerSituation(vaultPath, { text, now = new Date() } = {}
   // CODE writes, always — the model only ever proposed the shape
   const applied = changed ? await applyLeaderReflection(update) : { added: { struggles: [], working: [], resolved: [] } };
 
-  return {
+  const result = {
     acknowledged: String(parsed.acknowledged || '').trim().slice(0, 200)
       || (changed ? 'Noted.' : 'Nothing to change on the record from that, sir.'),
     added: applied.added || { struggles: [], working: [], resolved: [] },
     question,
   };
+  // The receipt is written LAST and re-reads state, because
+  // applyLeaderReflection has written since this function read it — stamping
+  // the copy above would silently undo the profile it just filed.
+  try {
+    const fresh = await readLeaderState();
+    fresh.lastAnswer = { hash, at: now.toISOString(), result };
+    await writeLeaderState(fresh);
+  } catch { /* the profile write already succeeded; a missing receipt must not undo it */ }
+  return result;
 }
 
 export async function raiseSituationFollowUp(vaultPath, { now = new Date() } = {}) {

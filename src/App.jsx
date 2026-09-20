@@ -1949,7 +1949,20 @@ export default class App extends Component {
       api.leader(conn).then((L) => this.setState({ liveLeader: L })).catch(() => {});
     }).catch((e) => {
       this.setState({ situationAnswerBusy: false });
-      this.toastFail('Could not record that: ' + e.message);
+      // A TIMEOUT HERE IS NOT A FAILURE, AND SAYING SO WAS THE BUG.
+      // The server does not stop working when the socket closes, so an
+      // aborted answer is very often already on the record. Telling him it
+      // failed is what made him send it again — and the second pass resolved
+      // a struggle the first had just written. So: say what is actually
+      // true, keep his words in the box, and re-read the record.
+      const aborted = /abort|timeout|timed out|network/i.test(e.message || '');
+      if (aborted) {
+        this.toastFail('That is taking longer than usual. Nova may still be recording it — do not send it twice; the Leader will show it.');
+        const c = getConnection();
+        if (c) setTimeout(() => api.leader(c).then((L) => this.setState({ liveLeader: L })).catch(() => {}), 20_000);
+      } else {
+        this.toastFail('Could not record that: ' + e.message);
+      }
     });
   }
   answerSituation() {
