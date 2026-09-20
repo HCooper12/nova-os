@@ -62,8 +62,18 @@ export function valsChrome(app, ctx) {
     const act = st.screen === screen;
     return { num: romanFor(i), label: tabLabel(screen), screen, go: go(screen), warm: warm(screen), active: act,
       // the mobile UI had NO pending signal at all — the badge the app icon
-      // shows must exist inside the app too
-      count: screen === 'inbox' && inboxPendingCount > 0 ? inboxPendingCount : null,
+      // shows must exist inside the app too.
+      //
+      // THE LEADER BADGES WHEN IT IS WAITING ON HIM, and only then. His
+      // report, 21 Sep: no quick way to reach the Leader except the Home
+      // card. It was in the More grid the whole time — but nothing ever said
+      // it wanted him, so there was no reason to look. A badge on the
+      // standing open count would be wallpaper within a week; a badge when
+      // Nova's picture has gone STALE is the moment answering changes
+      // anything, which is the same test the Home card's own warning uses.
+      count: screen === 'inbox' && inboxPendingCount > 0 ? inboxPendingCount
+        : screen === 'leader' && st.liveLeader?.situation?.stale && st.liveLeader.situation.openCount
+          ? st.liveLeader.situation.openCount : null,
       style: { flex: 'none', minWidth: '52px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', padding: '5px 9px', cursor: 'pointer', borderRadius: '9px', color: act ? 'var(--nv-acc)' : 'var(--nv-ink40)', background: act ? 'var(--nv-acc-bg)' : 'none', textShadow: act ? 'var(--nv-tsh-tab)' : 'none' },
       numStyle: { font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: act ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 32%, transparent)' } };
   });
@@ -172,7 +182,16 @@ export function valsChrome(app, ctx) {
       Object.assign(mkNav('Train', 'IX.', 'workouts'), { count: usingLiveWorkouts ? String(liveRoutines.length) : '—' }),
       Object.assign(mkNav('Notes', 'X.', 'notes'), { count: usingLiveNotes ? String(st.liveNotes.length) : demoMode ? String(app.notes.length) : '—' }),
       Object.assign(mkNav('Library', 'XVI.', 'library'), { count: ctx.libraryCount != null && st.liveLibrary !== null ? String(ctx.libraryCount) : '—' }),
-      mkNav('Leader', 'XVII.', 'leader'),
+      // THE LEADER CARRIES ITS OPEN COUNT, like every other row that has one.
+      // His report, 21 Sep: no quick way to reach the Leader except the Home
+      // card. It was in this list all along — but alone among the rows with
+      // real numbers behind them it showed none, so nothing ever drew the eye
+      // to it, and nothing said a question was waiting. Hot when Nova's
+      // picture has gone stale, which is exactly when answering matters.
+      Object.assign(mkNav('Leader', 'XVII.', 'leader'),
+        st.liveLeader?.situation?.openCount
+          ? { count: String(st.liveLeader.situation.openCount), countHot: !!st.liveLeader.situation.stale }
+          : {}),
       Object.assign(mkNav('Journal', 'XI.', 'journal'), { count: st.liveJournalEntries ? String(journalDays.length) : demoMode ? '0' : '—' }),
       mkNav('Money', 'XII.', 'money'),
       Object.assign(mkNav('Stash', 'XIII.', 'stash'), { count: st.liveStash ? String(st.liveStash.reduce((n, c) => n + c.items.length, 0)) : demoMode ? '0' : '—' }),

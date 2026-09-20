@@ -4,6 +4,7 @@ import { Interactive } from '../Interactive.jsx';
 import { ChatMarkdown } from '../ChatMarkdown.jsx';
 import { Eyebrow, TextAction, Tag, Meta } from '../Controls.jsx';
 import { useStickToBottom } from '../useStickToBottom.js';
+import { LeaderBox } from '../LeaderBox.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 
 // THE LEADER — leadership development as a daily practice, not a shelf of
@@ -74,6 +75,19 @@ export function Leader({ v }) {
       ) : (
         <div style={css('margin-top:18px;border:1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent);border-radius:var(--nv-radius);padding:18px 20px;color:color-mix(in srgb, var(--nv-ink) 50%, transparent);font-size:13px')}>
           {v.leaderConnected ? 'No idea for today yet — it lands each morning before the brief.' : 'Connect a backend in Settings to meet the Leader.'}
+        </div>
+      )}
+
+      {/* WHAT NOVA IS ASKING HIM, ON THE LEADER ITSELF.
+          His report, 21 Sep: "This information/page is also not present when I
+          open the leader." It was true — the situation and its question lived
+          only on the Home card, so the one screen named after this work could
+          not show the thing it was currently waiting on.
+          It is the SAME house object Home uses, not a second panel: one card,
+          one reply box, one dictation path, one send. */}
+      {v.leaderSituationBox && (
+        <div style={css('margin-top:18px')}>
+          <LeaderBox box={v.leaderSituationBox} variant="apple" />
         </div>
       )}
 

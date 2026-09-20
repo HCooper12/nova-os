@@ -1,6 +1,6 @@
 import { AGENTS } from './shared.js';
 import { nextWorkBlock, currentWorkBlock, leadLeadsNow, untilWords, leftWords } from '../workBlock.js';
-import { KIND_LABEL } from './valsLeader.js';
+import { KIND_LABEL, situationFace, situationReply } from './valsLeader.js';
 import { pickOneThing, prMomentFor, ringState } from '../missionFocus.js';
 import { plainLabel, liveBlock, isLiveBlock, blockCta, blockDetail, minsLeft, pickTagline } from '../missionLine.js';
 import { localDateISO } from '../localDate.js';
@@ -835,24 +835,12 @@ export function valsMission(app, ctx) {
           foot: L.today.why || null,
         });
       }
-      const sit = L.situation;
-      if (sit?.openCount) {
-        // The AGE is the honest part: Nova is current only to what he last
-        // said, and the card says so rather than implying it knows today.
-        const since = sit.daysSinceUpdate == null ? 'You have never updated this'
-          : sit.daysSinceUpdate === 0 ? 'You updated this today'
-            : `You last updated this ${sit.daysSinceUpdate} day${sit.daysSinceUpdate === 1 ? '' : 's'} ago`;
-        faces.push({
-          key: 'situation',
-          label: 'Your situation',
-          chip: `${sit.openCount} open`,
-          title: sit.headline || 'Your open situation',
-          line: sit.stands || `${sit.openCount} thing${sit.openCount === 1 ? '' : 's'} still open. ${since.toLowerCase()}.`,
-          foot: since + (sit.stale ? ' — Nova does not know what has happened since.' : '.'),
-          question: sit.question || null,
-          stale: !!sit.stale,
-        });
-      }
+      // The AGE is the honest part: Nova is current only to what he last
+      // said, and the card says so rather than implying it knows today.
+      // The shape is valsLeader's, because the Leader screen shows the same
+      // situation and two copies of these words would drift.
+      const face = situationFace(L.situation);
+      if (face) faces.push(face);
       if (!faces.length) return null;
       // WHY IT HAS MOVED. Within the hour before a work block the lead goes to
       // the top of Home (see src/workBlock.js), and the card says so — a panel
@@ -880,15 +868,9 @@ export function valsMission(app, ctx) {
         select: (i) => setFace(i),
         openLeader: go('leader'),
         answer: () => app.answerSituation(),
-        // ANSWER IN PLACE — typed or spoken, no chat to steer
-        reply: {
-          value: st.situationAnswer || '',
-          set: (e) => app.setState({ situationAnswer: typeof e === 'string' ? e : e.target.value }),
-          send: () => app.submitSituationAnswer(),
-          busy: !!st.situationAnswerBusy,
-          said: st.situationAnswerSaid || null,
-          clearSaid: () => app.setState({ situationAnswerSaid: null }),
-        },
+        // ANSWER IN PLACE — typed or spoken, no chat to steer. Same shape the
+        // Leader screen uses, so the two are one send.
+        reply: situationReply(app),
       };
     })(),
     // TODAY'S TECHNIQUE — his ask, 15 Sep: "present me with one of these

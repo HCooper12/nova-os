@@ -14,12 +14,64 @@ export function chipAge(iso, now = Date.now()) {
   return d === 0 ? 'today' : `${d}d`;
 }
 
+// HOW LONG NOVA HAS BEEN OUT OF DATE, in one sentence. Owned here and used
+// by Home too (valsMission imports it), because the two surfaces showing the
+// same situation in different words is how a card starts lying.
+export function situationSince(sit) {
+  if (!sit) return null;
+  return sit.daysSinceUpdate == null ? 'You have never updated this'
+    : sit.daysSinceUpdate === 0 ? 'You updated this today'
+      : `You last updated this ${sit.daysSinceUpdate} day${sit.daysSinceUpdate === 1 ? '' : 's'} ago`;
+}
+
+// THE SITUATION, WHEREVER IT IS SHOWN. His report, 21 Sep: the question and
+// the answer box existed ONLY on the Home card — open the Leader itself and
+// the thing it is currently asking him about was not there at all. One shape,
+// two surfaces, one set of words.
+export function situationFace(sit) {
+  if (!sit?.openCount) return null;
+  const since = situationSince(sit);
+  return {
+    key: 'situation',
+    label: 'Your situation',
+    chip: `${sit.openCount} open`,
+    title: sit.headline || 'Your open situation',
+    line: sit.stands || `${sit.openCount} thing${sit.openCount === 1 ? '' : 's'} still open. ${since.toLowerCase()}.`,
+    foot: since + (sit.stale ? ' — Nova does not know what has happened since.' : '.'),
+    question: sit.question || null,
+    stale: !!sit.stale,
+  };
+}
+
+// The reply box, with the same state and the same action on every surface, so
+// an answer typed in the Leader and one typed on Home are the same send.
+export function situationReply(app) {
+  const st = app.state;
+  return {
+    value: st.situationAnswer || '',
+    set: (e) => app.setState({ situationAnswer: typeof e === 'string' ? e : e.target.value }),
+    send: () => app.submitSituationAnswer(),
+    busy: !!st.situationAnswerBusy,
+    said: st.situationAnswerSaid || null,
+    clearSaid: () => app.setState({ situationAnswerSaid: null }),
+  };
+}
+
 export function valsLeader(app, _ctx) {
   const st = app.state;
   const L = st.liveLeader;
   const today = L?.today || null;
   return {
     isLeader: st.screen === 'leader',
+    // What Nova is currently asking him, ON the Leader — not only on Home.
+    // Shaped as a LeaderBox of one face so the screen can render the same
+    // house object Home does: same card, same reply box, same dictation.
+    // `openLeader` is deliberately absent — it is already open.
+    leaderSituationBox: (() => {
+      const face = situationFace(L?.situation);
+      if (!face) return null;
+      return { faces: [face], face, index: 0, count: 1, soon: null, next: null, prev: null, select: null, reply: situationReply(app) };
+    })(),
     leaderToday: today ? {
       chip: KIND_LABEL[today.kind] || 'CONSIDER',
       title: today.title,

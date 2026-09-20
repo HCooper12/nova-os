@@ -146,7 +146,10 @@ export function LeaderBox({ box, variant = 'apple', mob = false }) {
     </div>
   );
 
-  const actions = (
+  // NO DOOR WHEN YOU ARE ALREADY THROUGH IT. The Leader screen renders this
+  // same card, and there `openLeader` is deliberately absent — rendering the
+  // button anyway would put a control on screen that does nothing at all.
+  const actions = !box.openLeader ? null : (
     <div style={css('margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap')}>
       {/* the answer is taken ON the card now — this row is only the door to
           the fuller conversation, for when one sentence is not enough */}
