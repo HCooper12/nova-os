@@ -161,7 +161,27 @@ it is not optional:
    panel needs `minWidth: 0`; stack columns on mobile rather than squeezing
    a paragraph into a nine-word-tall gutter. Verify by measuring
    `scrollWidth`, not by eye.
-7. **Verify in both styles before shipping** — set `novaos.style` to
+7. **NOTHING IS A PLAIN BOX WITH TEXT IN IT.** His instruction, 22 Sep 2026,
+   after a mockup that drew his program as four small boxes: "I need you to
+   change the overall formatting rules for nova because I notice that you
+   keep making it quite bland… Remember that everything being built must be
+   performing like Jarvis from Iron Man where it is dynamic and animated
+   when presenting information and all information must be presented in
+   some sort of visual way where possible." So, before any surface is
+   written: load the installed design skills (`apple-design`,
+   `emil-design-eng`, `interface-design`, `animate`) and design under them.
+   Every piece of information gets a FORM — a number is a ring, a gauge or a
+   large serif numeral, never a bare digit in a cell; a list of sessions is
+   a rail with depth and material, never a grid of equal boxes; a change is
+   ACTED OUT (a strike sweep, a lift-out, a reflow, a count that ticks),
+   never stated; a headline is the serif news line with a live dot, never a
+   mono label in a corner. Material carries hierarchy (glass, a bright top
+   edge, a bloom in the accent); motion carries meaning (stagger on arrival,
+   a light passing over what is being named, transform/opacity/clip only);
+   everything survives reduced motion as a cross-fade. A screen that would
+   look the same as a spreadsheet of its data is not finished. Mission
+   Control's formatting is a base to stray from, not a ceiling.
+8. **Verify in both styles before shipping** — set `novaos.style` to
    `cupertino` and to `command`, look at both, at 375 and at 1280.
 
 The failure this standard is written against: the first Wrap-the-Day card
