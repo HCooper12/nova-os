@@ -67,9 +67,9 @@ test('the planner is told, in so many words, which agents read his own data', ()
 });
 
 test('the research ceiling is the panel\'s real worst case, not the single-agent figure', () => {
-  // 4 workers at $0.45 + a $0.60 merge = $2.40; it said $1.00 until 21 Sep,
-  // so a three-research plan promised "up to $3" against a real $7.20
-  assert.equal(CAPABILITIES.research.costUsd, 2.4);
+  // 4 workers at $1.20 (measured 21 Sep) + a $0.60 merge = $5.40; it said
+  // $1.00 until 21 Sep, so a three-research plan promised "up to $3"
+  assert.equal(CAPABILITIES.research.costUsd, 5.4);
 });
 
 test('every capability declares the fields the planner and validator need', () => {
@@ -84,7 +84,7 @@ test('every capability declares the fields the planner and validator need', () =
 
 test('the ceiling is a sum of real ceilings, and unknown steps cost nothing', () => {
   assert.equal(ceilingFor(['watch']), 3);
-  assert.equal(ceilingFor(['watch', 'research']), 5.4);
+  assert.equal(ceilingFor(['watch', 'research']), 8.4);
   assert.equal(ceilingFor([]), 0);
   assert.equal(ceilingFor(['nonsense']), 0, 'an unknown id contributes nothing — the validator rejects it separately');
 });

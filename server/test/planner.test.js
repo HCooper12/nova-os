@@ -201,7 +201,7 @@ test('the report prompt tells a skipped step apart from an empty one', () => {
 // --- 21 Sep 2026: the plan that could not see his program, and the
 // correction that went nowhere. What a plan inherits, what it is told, and
 // how a corrected plan carries the old one's work.
-import { inheritedFrom, inheritedText, amendPlan, reportDecision as reportDecision2 } from '../lib/planner.js';
+import { inheritedFrom, inheritedText, amendPlan, reportDecision as reportDecision2, missingInputsNote } from '../lib/planner.js';
 import { costLine } from '../lib/plan.js';
 
 test('the planner is told about the Coach and the dossier, and that his data goes through them', () => {
@@ -251,6 +251,28 @@ test('the report card says what approve does and that the conversation already h
   const d = reportDecision2('review my program', 'body');
   assert.match(d.reason, /^Approve = keep this report/);
   assert.match(d.reason, /already in Nova's and the Coach's context/);
+});
+
+test('a step with SOME of its inputs runs and is told what is missing; with none it skips', () => {
+  const plan = { steps: [
+    { id: 's1', capability: 'program', what: 'his program', status: 'done' },
+    { id: 's2', capability: 'research', what: 'the gaps', status: 'failed', error: 'brief cites [19] but its Sources list has no such entry' },
+    { id: 's3', capability: 'coach', what: 'review it', needs: ['s1', 's2'], missing: ['s2'] },
+  ] };
+  const note = missingInputsNote(plan.steps[2], plan);
+  assert.match(note, /INPUTS THAT DID NOT ARRIVE/);
+  assert.match(note, /s2 \(Researcher: the gaps\) FAILED — brief cites \[19\]/);
+  assert.match(note, /say plainly what is therefore unknown/);
+  assert.equal(missingInputsNote({ id: 'x' }, plan), '');
+  // and the report is told the step ran short
+  const p = buildReportPrompt('g', { steps: [{ ...plan.steps[2], status: 'done', output: 'the review' }] }, { coverage: '1 of 1' });
+  assert.match(p, /ran WITHOUT s2, which failed/);
+});
+
+test('the program dossier is handed on whole; model prose keeps its cap', () => {
+  const long = 'x'.repeat(15000);
+  assert.equal(summarise({ kind: 'program', decision: { title: 'D', payload: { body: long } } }).length, 15002);
+  assert.equal(summarise({ kind: 'research', decision: { title: 'R', payload: { body: long } } }).length, 6000);
 });
 
 test('the plan card carries the cost line and says a correction re-draws it', () => {

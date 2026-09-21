@@ -250,7 +250,8 @@ async function dispatchStep(vaultPath, step, priorOutputs, record = null) {
   const input = interpolate(step.input, priorOutputs);
   const parentPlanId = record?.id || null;
   const inherited = inheritedText(record);
-  const withInherited = (handoff) => [handoff, inherited].filter(Boolean).join('\n\n') || undefined;
+  const missing = missingInputsNote(step, record?.plan);
+  const withInherited = (handoff) => [missing, handoff, inherited].filter(Boolean).join('\n\n') || undefined;
   if (step.capability === 'watch') {
     const { startVideoWatch } = await import('./watcher.js');
     // a Watcher needs a URL, which interpolation supplies; its question is
@@ -427,7 +428,31 @@ export function summarise(record) {
   // the Researcher's brief, the Study note). Reading d.body — which no lane
   // sets — is how the first real plan handed on a title and nothing else.
   const body = d.payload?.body || d.body || d.summary || '';
-  return [d.title, body || record?.text].filter(Boolean).join('\n').slice(0, 6000);
+  // HIS PROGRAM IS NEVER CLIPPED. The dossier is the ground truth every later
+  // step reasons from; at 6k the first real run cut it mid-word through the
+  // audit's own summary, and the report said so. Prose from a model keeps
+  // the cap — detail past it is where a brief starts repeating itself.
+  const cap = record?.kind === 'program' ? 20000 : 6000;
+  return [d.title, body || record?.text].filter(Boolean).join('\n').slice(0, cap);
+}
+
+// WHAT A STEP IS TOLD ABOUT INPUTS THAT NEVER ARRIVED. Pure. The plan's
+// first real run (7f3212b7, 21 Sep): the Researcher failed its citation
+// gate, and the Coach — holding the program dossier and three finished
+// briefs — was skipped "for want of s2". A step with SOME of what it needs
+// runs on what it has and is told what is missing, so the review he asked
+// for happens and says its own gap. A step with NONE of what it needs still
+// skips: that is the hole the rule exists for.
+export function missingInputsNote(step, plan) {
+  const ids = Array.isArray(step?.missing) ? step.missing : [];
+  if (!ids.length) return '';
+  const lines = ids.map((id) => {
+    const s = (plan?.steps || []).find((x) => x.id === id);
+    const agent = s ? (CAPABILITIES[s.capability]?.agent || s.capability) : id;
+    const why = s?.status === 'failed' ? `FAILED — ${s.error || 'no reason'}` : s?.status === 'skipped' ? `did not run — ${s.error || ''}` : 'produced nothing';
+    return `- ${id} (${agent}${s?.what ? `: ${s.what}` : ''}) ${why}`;
+  });
+  return `INPUTS THAT DID NOT ARRIVE — work with what you have, and say plainly what is therefore unknown; never write round these as though they were settled:\n${lines.join('\n')}`;
 }
 
 // One plan runs in one place at a time. A step that pauses and a step that
@@ -474,12 +499,16 @@ export async function resumePlan(vaultPath, recordId) {
         // anyway hands the agent an instruction with a raw {{s2}} still in it
         // and gets back a confident answer about nothing.
         const unmet = unmetNeeds(step, outputs);
-        if (unmet.length) {
+        const needs = Array.isArray(step.needs) ? step.needs : [];
+        const hasSomething = needs.length > unmet.length || (record.inherited || []).length > 0;
+        if (unmet.length && !hasSomething) {
           step.status = 'skipped';
           step.error = skipReason(unmet);
           await updateRecord(recordId, { plan });
           return;
         }
+        // PARTIAL INPUTS RUN, AND ARE NAMED. See missingInputsNote.
+        if (unmet.length) step.missing = unmet;
         try {
           if (!step.recordId) {
             const created = await dispatchStep(vaultPath, step, outputs, record);
@@ -540,7 +569,8 @@ export function buildReportPrompt(goal, plan, progress) {
     // output)" would read as "it ran and found nothing", which is a claim
     if (s.status === 'skipped') return `### ${c?.agent || s.capability} — ${s.what}\nDID NOT RUN: ${s.error}`;
     if (s.status !== 'done') return `### ${c?.agent || s.capability} — ${s.what}\nDID NOT FINISH.`;
-    return `### ${c?.agent || s.capability} — ${s.what}\n${s.output || '(no output)'}`;
+    const partial = Array.isArray(s.missing) && s.missing.length ? ` (ran WITHOUT ${s.missing.join(', ')}, which failed — its gaps are its own)` : '';
+    return `### ${c?.agent || s.capability} — ${s.what}${partial}\n${s.output || '(no output)'}`;
   }).join('\n\n');
   return `You are Nova, reporting back to Hayden on work you delegated.
 

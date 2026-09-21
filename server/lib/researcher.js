@@ -28,7 +28,14 @@ const MAX_BUDGET_USD = '1.0';
 // 0.45 × 4 searching + 0.60 merging ≈ 2.4 worst case, against 1.0 before.
 // That is the real price of the fan-out and it is written here rather than
 // discovered on a bill. Measure a real pass before moving these.
-const WORKER_BUDGET_USD = '0.45';
+// MEASURED, 21 Sep 2026, on his real question: three of four workers hit
+// $0.45 mid-search ($0.50, $0.45, $0.45 spent) and each finished inside a
+// $0.90 continuation; the fourth finished under $0.45 with eight findings.
+// A full worker pass is therefore ~$0.9–1.3 on Sonnet. At $0.45 the pause
+// fired on nearly every run, which turns "ask before spending more" into a
+// tax on every plan. Set at roughly 2× the measured partial so the pause is
+// the exception. The merge survived at $0.60 both times.
+const WORKER_BUDGET_USD = '1.2';
 const SYNTH_BUDGET_USD = '0.60';
 const PLANNER_BUDGET_USD = '0.10';
 
@@ -345,7 +352,33 @@ async function runPanel(vaultPath, recordId, question, model, context, prior = n
   if (out.error) throw new Error(`the merge failed — ${out.error}`);
   const json = firstBalancedObjectMatch(out.text);
   if (!json) throw new Error(out.text.slice(0, 200) || 'no JSON in the merge response');
-  return normalizeResearch(parseModelJson(json[0]));
+  try {
+    return normalizeResearch(parseModelJson(json[0]));
+  } catch (gateErr) {
+    // ONE REPAIR PASS ON A BAD CITATION. The gate is right to refuse a brief
+    // whose [19] points at nothing — but on 21 Sep that refusal threw away a
+    // whole panel's work (four researchers, a merge, a continuation he had
+    // said yes to) over one dangling number, and the Coach step behind it was
+    // skipped. The merge session is resumed once and told exactly what
+    // failed; a second failure is the real thing and is reported as such.
+    if (!/cite|citation|Sources|URL/i.test(gateErr.message)) throw gateErr;
+    await publish({ merging: true, repairing: true });
+    const again = await askClaude(vaultPath, {
+      prompt: `Your brief was refused by the citation check: ${gateErr.message}. Fix ONLY the citations — every [n] used in the body must have a matching numbered entry in the "## Sources" list with a URL, and every Sources entry must carry a URL; renumber if needed and drop any claim you cannot source. Keep the content otherwise unchanged. Output ONLY the JSON object {"title":…,"body":…}.`,
+      tools: 'Read',
+      model: model || modelFor('researcher'),
+      budget: continuationBudget(SYNTH_BUDGET_USD), minutes: 8, label: 'the research merge (citation repair)',
+      resume: out.sessionId,
+    });
+    if (again.budgetStop) {
+      await publish({ paused: ['merge'] });
+      return { paused: [{ name: 'merge', sessionId: again.sessionId, spent: again.spent, budget: again.budget }], reports: settledReports, panel, planned };
+    }
+    if (again.error) throw new Error(`the merge failed its citation check (${gateErr.message}) and the repair failed too — ${again.error}`);
+    const fixed = firstBalancedObjectMatch(again.text);
+    if (!fixed) throw new Error(`the merge failed its citation check (${gateErr.message}) and the repair returned no JSON`);
+    return normalizeResearch(parseModelJson(fixed[0]));
+  }
 }
 
 // WHAT HE SEES WHEN A RESEARCH STEP PAUSES. A decision he can make in one

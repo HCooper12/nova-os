@@ -22,8 +22,8 @@ test('his own example validates, and costs what the lanes cost', () => {
   ] };
   const v = validatePlan(plan);
   assert.equal(v.ok, true, v.errors.join(' · '));
-  // watch $3 + two research panels at their real $2.40 each
-  assert.equal(v.ceilingUsd, 7.8);
+  // watch $3 + two research panels at their real $5.40 each
+  assert.equal(v.ceilingUsd, 13.8);
   // ABOVE THE SOFT LINE AND STILL OK. His instruction, 21 Sep: no caps on
   // research; the number is shown and he decides. The flag is what the card
   // uses to say so.

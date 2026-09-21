@@ -89,12 +89,13 @@ export const CAPABILITIES = {
     output: 'a cited brief, filed as a pending record',
     produces: 'research',
     // THE PANEL'S REAL CEILING, not the single-agent figure it replaced. The
-    // 18 Sep fan-out is four workers at $0.45 plus a $0.60 merge, and this
-    // number still said $1.00 — so the plan card on 21 Sep promised "up to
-    // US$3.00" for three research steps whose honest worst case was $7.20.
-    // A ceiling shown to him before he approves must be one that cannot be
-    // exceeded, or approving it means nothing.
-    costUsd: 2.4,
+    // 18 Sep fan-out is four workers plus a merge, and this number still said
+    // $1.00 — so the plan card on 21 Sep promised "up to US$3.00" for three
+    // research steps whose honest worst case was far more. Workers are $1.20
+    // each since the same day's measurement (researcher.js), the merge $0.60:
+    // 4 × 1.20 + 0.60. A ceiling shown to him before he approves must be one
+    // that cannot be exceeded, or approving it means nothing.
+    costUsd: 5.4,
     autonomy: 'propose',
     delegable: true,
   },
