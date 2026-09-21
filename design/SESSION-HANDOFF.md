@@ -13,6 +13,68 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**21 SEP — HE USED IT. TWO REPORTS, BOTH REAL, BOTH FIXED AND SHIPPED.**
+
+**1. THE LEADER ANSWER THAT FILED TWICE.** He typed a real answer about the
+duty-manager dispute, saw nothing confirm, and sent it again. The server log
+is the only place the truth was visible: `POST /api/leader/situation/answer →
+CLIENT HUNG UP after 20004ms`, twice. `src/api.js` has a 20s default and that
+lane spawns a model for ~40s — and **Express does not cancel the handler when
+the socket closes**, so both filed. The second pass read the struggle the
+first had just written and marked it RESOLVED, recording his live anxiety
+about that night as settled.
+- **The record is repaired** — the struggle was reopened through the existing
+  `undoLeaderReflection({resolved})` rail, which un-resolves without removing
+  the good struggles/working the same run added. Live server serves it.
+- **Two guards, not one.** The in-flight `Map<hash,Promise>` is the one that
+  mattered (his sends OVERLAPPED, so a persisted receipt had nothing to
+  compare against); the stored `state.lastAnswer` covers a later retry.
+  `answerSituation` takes a `runImpl` seam so both are testable without a
+  model. **Both tests were proved by deleting each guard and watching them go
+  red.**
+- A timeout no longer claims failure: it says the work may still be landing,
+  keeps his words in the box, and re-reads the record.
+- **AUDITED THE CLASS**: every other long lane already returns a jobId
+  (journal prompt, food describe, note summary, claude-code, ingest person,
+  repertoire analyse). `leader-answer` was the only synchronous one. Prefer
+  the job pattern for anything new.
+
+**2. THE LIBRARY, LAGGY AND BUGGY.** His 15s recording, read frame by frame,
+alternated between a book and an EMPTY ROOM about once a second. Two causes:
+- A new volume is invisible until built and the build budget was **zero while
+  a finger was down** — so a swipe moved past every built book and refused to
+  build the new ones until he let go. Fixed with a cheap binding (the real
+  cover at quarter scale, affordable mid-drag, replaced in place on lift), a
+  centre-out queue, a starvation floor and a small LRU.
+- **The first frame after mount arrives with a NEGATIVE delta** (rAF gets the
+  timestamp of the frame it belongs to, which predates `lastTime`), and
+  `damp` extrapolated opacity to **-5.59**. The very first frame drawn was an
+  empty room by a different mechanism. `clamp(dt, 0, 0.05)` protects every
+  damped quantity in the file.
+- Drag was 68px/volume (one swipe crossed six books); now derived from the
+  camera, 121px on his phone, measured 1.65 volumes per 200px.
+- **The open settles** (his ask): sway and env-breath ease out over 5s then
+  the loop stops. **Measured: 0 idle frames in detail after the settle.**
+- The hard black slab mid-tumble was the contact shadow (2.4 boards wide,
+  hard-cut at its own canvas edges); it now leaves with the ground.
+- Drag at 4x throttle, 402px: median 18ms, worst 26ms, none over 33.
+
+**A FIX I TRIED AND REVERTED — do not retry it blind.** The fading volumes
+ghost through each other mid-tumble because every volume material is born
+`transparent: true`. Toggling `transparent`/`depthWrite` per-frame in
+`setOpacity` (solid → opaque) **blackened every cover** — all cloth colour and
+all poster plates went flat black. A/B'd against the committed build and
+dropped. The ghosting is REAL and still open; it needs a proper pass, not a
+one-line toggle.
+
+**STILL OPEN**
+- The transparency ghosting above.
+- A ~150ms hitch after a volume settles (the 1024x1536 repaint), placed where
+  nothing is moving.
+- Grid cards are tall; the top third of the shelf canvas is sky.
+- Everything was measured in Chrome emulation at 402x874x3, **not on his
+  iPhone**.
+
 **17 SEP (evening) — WHY HAPTICS "STILL WEREN'T OCCURRING": THE DOCK COULD
 NEVER HAVE BUZZED. Plus the shipped-build verification pass, and three rounds
 of cross-session coordination.**
