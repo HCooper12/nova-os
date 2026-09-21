@@ -32,6 +32,10 @@ export const CHAT_NAVIGATING_LANES = ['code'];
 // in neither list, and this is where someone will look to find out why.
 export const CHAT_CONVERSATION_LANES = ['ask', 'coach', 'leader'];
 export const CHAT_DEFERRED_LANES = ['play', 'capture'];
+// Lanes only a PLAN reaches for: the program dossier is a free deterministic
+// step that hands his real program to the agents after it, not something a
+// sentence in the chat starts by itself.
+export const CHAT_PLAN_ONLY_LANES = ['program'];
 
 export function chatStartsAJob(lane) {
   return CHAT_JOB_LANES.includes(lane);

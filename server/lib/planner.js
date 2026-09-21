@@ -22,7 +22,7 @@ import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { settleWatchdog } from './settle.js';
 import { describeForPlanner, CAPABILITIES } from './capabilities.js';
-import { validatePlan, schedule, planProgress, describePlan, unmetNeeds, skipReason, MAX_STEPS, MAX_PLAN_USD } from './plan.js';
+import { validatePlan, schedule, planProgress, describePlan, unmetNeeds, skipReason, costLine, MAX_STEPS, MAX_PLAN_USD } from './plan.js';
 import { salvageJson } from './jsonSalvage.js';
 import path from 'node:path';
 import os from 'node:os';
@@ -35,21 +35,27 @@ const POLL_MS = 5_000;
 // The planner's brief. The capability list is GENERATED (capabilities.js), never
 // written out here — a planner told about an agent that does not exist is the
 // single most likely way this feature embarrasses itself.
-export function buildPlannerPrompt(goal) {
+export function buildPlannerPrompt(goal, { inherited = [] } = {}) {
+  const held = (inherited || []).filter((m) => m && m.output);
+  const material = held.length
+    ? `\nMATERIAL ALREADY IN HAND — from work that has ALREADY RUN (do not commission it again; it is handed automatically to every step you write, so steps may build on it):\n${held.map((m, i) => `${i + 1}. ${m.label}: ${String(m.output).slice(0, 700).replace(/\s+/g, ' ')}…`).join('\n')}\n`
+    : '';
   return `You are Nova, planning work for Hayden. Break his request into steps and hand each one to an agent.
 
 HIS REQUEST:
 ${goal}
-
+${material}
 THE AGENTS YOU CAN USE — no others exist:
 ${describeForPlanner()}
 
 RULES
-- YOUR OWN SESSION BUDGET IS IRRELEVANT HERE. You are not paying for this work — you are deciding who should do it, and each agent runs later under its own separate budget. Never refuse a plan because you think you cannot afford it.
-- At most ${MAX_STEPS} steps. The whole plan must stay under $${MAX_PLAN_USD} using the ceilings above.
+- YOUR OWN SESSION BUDGET IS IRRELEVANT HERE. You are not paying for this work — you are deciding who should do it, and each agent runs later under its own separate budget. Never refuse a plan because you think you cannot afford it, and never trim a plan to save money — he decides what it is worth when he sees the ceiling.
+- At most ${MAX_STEPS} steps. Anything above $${MAX_PLAN_USD} is fine; it is shown to him and he decides.
+- HIS OWN DATA FIRST. If the request is about HIS program, HIS training, HIS nutrition, HIS numbers, HIS history: the first step is the program dossier (free, instant, it reads the vault), and the Coach is the step that judges anything against it. A Researcher never sees his data unless a step hands it over; put the dossier in "needs" of every step that must know his program.
 - Use the FEWEST steps that genuinely answer him. Two research steps that ask the same question are one step.
 - A step that needs another step's output lists it in "needs". Steps with no dependency run together, so do not chain things that could run side by side.
-- If part of his request needs something no agent above can do, DO NOT invent a step for it. Put it in "cannot" and say what would be needed.
+- END WITH JUDGEMENT WHEN HE ASKED FOR A VERDICT. "Review my program", "what should I change", "is X too much for me" — the last step is the Coach, needing the dossier and every research step, so the report can name concrete changes to HIS program rather than general findings.
+- If part of his request needs something no agent above can do, DO NOT invent a step for it. Put it in "cannot" and say what would be needed. Reading his own data is never in "cannot" — the dossier and the Coach do that.
 - If none of it can be done, return an empty steps array and explain in "cannot".
 
 Reply with ONLY this JSON:
@@ -87,10 +93,32 @@ export function parsePlan(text) {
   };
 }
 
-export async function startPlan(vaultPath, goal, { model } = {}) {
+// WHAT A FINISHED PLAN HANDS TO THE NEXT ONE. Every step that produced
+// something, labelled by agent and task, so a follow-on plan ("now check
+// that against my program") builds on the work instead of paying for it
+// twice. Pure.
+export function inheritedFrom(record) {
+  const steps = Array.isArray(record?.plan?.steps) ? record.plan.steps : [];
+  const out = steps.filter((s) => s.status === 'done' && s.output).map((s) => ({
+    label: `${CAPABILITIES[s.capability]?.agent || s.capability} — ${s.what}`,
+    output: String(s.output),
+  }));
+  const report = String(record?.decision?.payload?.body || '').trim();
+  if (record?.finishedAt && report) out.push({ label: `Nova's report on "${String(record.goal || '').slice(0, 80)}"`, output: report });
+  return out;
+}
+
+export async function startPlan(vaultPath, goal, { model, buildsOn = null, inherited = null, amends = null } = {}) {
   const g = String(goal || '').trim();
   if (!g) throw new Error('a goal is required');
   if (!laneEnabled('planner')) throw laneOffError('planner');
+
+  // a follow-on plan inherits the finished work it names
+  let held = Array.isArray(inherited) ? inherited : [];
+  if (buildsOn && !held.length) {
+    const prior = await getRecord(String(buildsOn)).catch(() => null);
+    if (prior?.kind === 'plan') held = inheritedFrom(prior);
+  }
 
   const record = await createRecord({
     id: randomUUID().slice(0, 8),
@@ -102,14 +130,38 @@ export async function startPlan(vaultPath, goal, { model } = {}) {
     createdAt: new Date().toISOString(),
     goal: g,
     model: model || null,
+    buildsOn: buildsOn || null,
+    amends: amends || null,
+    inherited: held.length ? held.map((m) => ({ label: m.label, output: String(m.output).slice(0, 8000) })) : null,
   });
-  planGoal(vaultPath, record.id, g, model);
+  planGoal(vaultPath, record.id, g, model, held);
   return record;
 }
 
-function planGoal(vaultPath, recordId, goal, model) {
+// HIS CORRECTION TO A PLAN. The old plan is retired, the new one is planned
+// from his request PLUS his words, and anything the old plan had already
+// produced travels with it. Deterministic — nothing here interprets what he
+// meant; the planner does, with the correction in front of it.
+export async function amendPlan(vaultPath, recordId, note) {
+  const prior = await getRecord(recordId);
+  if (!prior || prior.kind !== 'plan') throw new Error('that is not a plan');
+  const correction = String(note || '').trim();
+  if (!correction) throw new Error('an amendment needs his words');
+  const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+  const goal = `${String(prior.goal || prior.text || '').replace(/^Plan:\s*/, '')}\n\nHIS CORRECTION (${stamp} UTC), which overrides anything above that conflicts with it: ${correction}`;
+  const next = await startPlan(vaultPath, goal, { model: prior.model || undefined, inherited: inheritedFrom(prior), amends: prior.id });
+  // a proposal he has not run is retired; a plan that ran keeps its record
+  // and its report, and simply points at what replaced it
+  const ran = prior.finishedAt || (prior.plan?.steps || []).some((s) => s.status && s.status !== 'waiting');
+  await updateRecord(prior.id, ran
+    ? { supersededBy: next.id }
+    : { status: 'discarded', discardedAt: new Date().toISOString(), supersededBy: next.id, declineReason: 'replaced by the amended plan', error: null });
+  return next;
+}
+
+function planGoal(vaultPath, recordId, goal, model, inherited = []) {
   const child = spawn(CLAUDE_BIN, [
-    '-p', buildPlannerPrompt(goal),
+    '-p', buildPlannerPrompt(goal, { inherited }),
     '--permission-mode', 'bypassPermissions',
     // Planning is pure reasoning — it reads the capability list in its prompt
     // and returns JSON. Nothing it could touch would help it, and a planner
@@ -143,9 +195,11 @@ function planGoal(vaultPath, recordId, goal, model) {
         ? [
           ...lines,
           '',
-          `Up to US$${verdict.ceilingUsd.toFixed(2)} — worst case, every agent at its own ceiling.`,
+          costLine(verdict.ceilingUsd, verdict.overSoftCap),
           proposed.cannot ? `\nNot covered: ${proposed.cannot}` : '',
-        ].filter(Boolean).join('\n')
+          '',
+          'Approve = run it. You can correct it first by simply saying so; the plan is re-drawn with your words. The report comes back to this conversation.',
+        ].filter((l) => l !== null && l !== undefined && l !== false).join('\n')
         : [
           "I can't run that as it stands:",
           ...verdict.errors.map((e) => `- ${e}`),
@@ -156,13 +210,15 @@ function planGoal(vaultPath, recordId, goal, model) {
         status: 'pending',
         plan: proposed,
         ceilingUsd: verdict.ceilingUsd,
+        overSoftCap: !!verdict.overSoftCap,
         planOk: verdict.ok,
         blockers: verdict.errors,
         cannot: proposed.cannot || null,
         decision: {
           title: verdict.ok
-            ? `Plan: ${goal.slice(0, 60)}${goal.length > 60 ? '…' : ''}`
+            ? `Plan: ${goal.replace(/\n[\s\S]*$/, '').slice(0, 60)}${goal.length > 60 ? '…' : ''}`
             : `Can't plan: ${goal.slice(0, 55)}${goal.length > 55 ? '…' : ''}`,
+          reason: verdict.ok ? 'Approve = run the plan (it costs money; the ceiling is stated). Discard = drop it.' : 'Approve = file this as read.',
           body,
         },
       });
@@ -183,8 +239,18 @@ function planGoal(vaultPath, recordId, goal, model) {
 // Researcher, the Study lane — under its own budget, its own boundary and its
 // own record. This layer never re-implements an agent; it decides who and
 // when, then waits.
-async function dispatchStep(vaultPath, step, priorOutputs) {
+// Material a plan INHERITED (from the plan it amends or builds on) travels to
+// every step that takes context, after the step's own handoff. Pure.
+export function inheritedText(record) {
+  const held = Array.isArray(record?.inherited) ? record.inherited : [];
+  return held.filter((m) => m?.output).map((m) => `FROM EARLIER WORK — ${m.label}:\n${m.output}`).join('\n\n');
+}
+
+async function dispatchStep(vaultPath, step, priorOutputs, record = null) {
   const input = interpolate(step.input, priorOutputs);
+  const parentPlanId = record?.id || null;
+  const inherited = inheritedText(record);
+  const withInherited = (handoff) => [handoff, inherited].filter(Boolean).join('\n\n') || undefined;
   if (step.capability === 'watch') {
     const { startVideoWatch } = await import('./watcher.js');
     // a Watcher needs a URL, which interpolation supplies; its question is
@@ -197,12 +263,85 @@ async function dispatchStep(vaultPath, step, priorOutputs) {
     // on travels as context. Interpolating a 4k verdict into a 500-char
     // question was how plan 7bf8cee7 lost the Watcher's claims on the way.
     return startResearch(vaultPath, clampQuestion(stripPlaceholders(step.input) || step.what), {
-      context: handoffFor(step, priorOutputs, { all: true }) || undefined,
+      context: withInherited(handoffFor(step, priorOutputs, { all: true })),
+      parentPlanId,
     });
+  }
+  if (step.capability === 'program') {
+    // HIS PROGRAM, BY CODE. Instant, free, and filed as an auto receipt rather
+    // than a decision — a dossier is derived data, not something he approves.
+    const { buildProgramDossier } = await import('./programDossier.js');
+    const d = await buildProgramDossier(vaultPath);
+    const now = new Date().toISOString();
+    return createRecord({
+      id: randomUUID().slice(0, 8),
+      kind: 'program',
+      text: d.title,
+      source: 'nova',
+      mode: 'auto',
+      status: 'filed',
+      auto: true,
+      createdAt: now,
+      filedAt: now,
+      parentPlanId,
+      decision: { route: 'note', confidence: 'high', title: d.title, reason: 'Read from the vault by code for a plan step; nothing was written.', payload: { title: d.title, body: d.body } },
+    });
+  }
+  if (step.capability === 'coach') {
+    // THE COACH AS A STEP. A fresh session — the plan's question must not
+    // land in the middle of his own ongoing Coach chat — with everything the
+    // earlier steps produced as material. The Coach's answer files as a
+    // record the plan can await; any program change it proposes lands on
+    // the rails exactly as it does from its own room.
+    const { startCoachTurn } = await import('./coachTurn.js');
+    const { getMessageJob } = await import('./claudeCode.js');
+    const handoff = withInherited(handoffFor(step, priorOutputs, { all: true }));
+    const question = [
+      `[You are answering as one step of a plan Hayden set. Write a full, structured review — this is a report he will read, not a chat turn: no length cap, headings allowed. Ground every judgement in HIS data below; where the material's evidence does not apply to him, say so. End with a numbered list of the concrete changes you recommend, each with the evidence for it.]`,
+      stripPlaceholders(step.input) || step.what,
+      handoff ? `MATERIAL FROM EARLIER STEPS (research briefs, his program dossier — weigh it against his real data):\n${handoff}` : '',
+    ].filter(Boolean).join('\n\n');
+    const created = await createRecord({
+      id: randomUUID().slice(0, 8),
+      kind: 'coach-review',
+      text: `Coach review: ${step.what}`,
+      source: 'coach',
+      mode: 'draft',
+      status: 'classifying',
+      createdAt: new Date().toISOString(),
+      parentPlanId,
+    });
+    const jobId = await startCoachTurn(vaultPath, { question, sessionId: null });
+    // the Coach answers as a job; this turns it into the record the plan waits on
+    (async () => {
+      const started = Date.now();
+      for (;;) {
+        const job = getMessageJob(jobId);
+        if (!job) { await updateRecord(created.id, { status: 'error', error: 'the Coach job vanished' }); return; }
+        if (job.status === 'ready') {
+          const text = String(job.result?.text || '').trim();
+          const title = `Coach review — ${step.what.slice(0, 70)}`;
+          await updateRecord(created.id, {
+            status: 'pending',
+            coachProposal: job.result?.proposal || null,
+            decision: {
+              route: 'note', confidence: 'high', title,
+              reason: 'Approve = keep the Coach\'s review in your vault as a note. Discard = drop it. Any program change it proposed is its own card.',
+              payload: { title, body: text || '(the Coach returned nothing)' },
+            },
+          });
+          return;
+        }
+        if (job.status === 'error') { await updateRecord(created.id, { status: 'error', error: job.error || 'the Coach failed' }); return; }
+        if (Date.now() - started > STEP_TIMEOUT_MS) { await updateRecord(created.id, { status: 'error', error: 'the Coach did not finish in time' }); return; }
+        await new Promise((r) => setTimeout(r, POLL_MS));
+      }
+    })().catch(() => {});
+    return created;
   }
   if (step.capability === 'study') {
     const { startStudy } = await import('./studyLane.js');
-    const handoff = handoffFor(step, priorOutputs);
+    const handoff = withInherited(handoffFor(step, priorOutputs));
     return startStudy(vaultPath, { urls: [extractFirstUrl(input)].filter(Boolean), prose: [step.what, handoff].filter(Boolean).join('\n\n') });
   }
   if (step.capability === 'book') {
@@ -216,7 +355,7 @@ async function dispatchStep(vaultPath, step, priorOutputs) {
     // The brief carries everything: the step's own words plus whatever the
     // steps it depends on came back with, because the Builder has no path into
     // the vault and cannot go looking for the material itself.
-    const handoff = handoffFor(step, priorOutputs, { all: true });
+    const handoff = withInherited(handoffFor(step, priorOutputs, { all: true }));
     return { id: startBuild([stripPlaceholders(step.input) || step.what, handoff].filter(Boolean).join('\n\n'), { name: step.what }) };
   }
   throw new Error(`no dispatcher for "${step.capability}"`);
@@ -268,6 +407,10 @@ async function awaitRecord(id, { timeoutMs = STEP_TIMEOUT_MS } = {}) {
     const r = await getRecord(id).catch(() => null);
     if (!r) return { ok: false, why: 'the record vanished' };
     if (r.status === 'error') return { ok: false, why: r.error || 'the agent failed' };
+    // PAUSED AT ITS BUDGET, WAITING ON HIM. Not done, not failed: the plan
+    // parks on it and picks up when he answers the step's card.
+    if (r.status === 'pending' && r.budgetStop) return { paused: true, why: r.decision?.title || 'paused at its budget' };
+    if (r.status === 'discarded') return { ok: false, why: r.declineReason ? `he stopped it — ${r.declineReason}` : 'he stopped it' };
     if (r.status === 'pending' || r.status === 'resolved' || r.status === 'filed') {
       return { ok: true, output: summarise(r) };
     }
@@ -287,59 +430,104 @@ export function summarise(record) {
   return [d.title, body || record?.text].filter(Boolean).join('\n').slice(0, 6000);
 }
 
+// One plan runs in one place at a time. A step that pauses and a step that
+// finishes can both try to wake the plan in the same second.
+const plansRunning = new Set();
+
 export async function runPlan(vaultPath, recordId) {
   const record = await getRecord(recordId);
   if (!record?.plan) throw new Error('that plan has nothing to run');
   if (!record.planOk) throw new Error('that plan did not pass its checks');
-  const plan = record.plan;
-  const waves = schedule(plan.steps);
-  await updateRecord(recordId, { status: 'classifying', startedAt: new Date().toISOString() });
+  await updateRecord(recordId, { status: 'classifying', startedAt: record.startedAt || new Date().toISOString(), pausedOn: null });
+  return resumePlan(vaultPath, recordId);
+}
 
-  const outputs = {};
-  for (const wave of waves) {
-    // a wave runs together — his video example checks claims and
-    // counter-evidence side by side rather than one after the other
-    await Promise.all(wave.map(async (stepId) => {
-      const step = plan.steps.find((s) => s.id === stepId);
-      // A STEP DOES NOT RUN ON A HOLE. Its wave came up because the steps it
-      // needed all SETTLED — settled is not the same as succeeded. Dispatching
-      // anyway hands the agent an instruction with a raw {{s2}} still in it
-      // and gets back a confident answer about nothing.
-      const unmet = unmetNeeds(step, outputs);
-      if (unmet.length) {
-        step.status = 'skipped';
-        step.error = skipReason(unmet);
-        await updateRecord(recordId, { plan });
-        return;
-      }
-      try {
-        const created = await dispatchStep(vaultPath, step, outputs);
-        step.recordId = created?.id || null;
-        step.status = 'running';
-        await updateRecord(recordId, { plan });
-        const settled = await awaitRecord(step.recordId);
-        step.status = settled.ok ? 'done' : 'failed';
-        step.output = settled.ok ? settled.output : null;
-        step.error = settled.ok ? null : settled.why;
-        if (settled.ok) outputs[step.id] = settled.output;
-      } catch (e) {
-        step.status = 'failed';
-        step.error = e.message;
-      }
-      await updateRecord(recordId, { plan });
-    }));
-  }
+// RESUMABLE, ON PURPOSE. The loop reads the record's own step states and does
+// only what is left: a step already done is carried, a step already
+// dispatched is awaited (never re-dispatched — that would pay twice), a
+// paused step parks the whole plan until he answers its card, and a plan
+// woken after that answer walks straight back to where it stopped. This is
+// what lets "pause and ask" be honest rather than "fail and restart".
+export async function resumePlan(vaultPath, recordId) {
+  if (plansRunning.has(recordId)) return { ok: false, error: 'already running' };
+  plansRunning.add(recordId);
+  try {
+    const record = await getRecord(recordId);
+    if (!record?.plan) throw new Error('that plan has nothing to run');
+    if (record.finishedAt) return { ok: true, already: true };
+    const plan = record.plan;
+    const waves = schedule(plan.steps);
+    if (record.pausedOn) await updateRecord(recordId, { pausedOn: null, status: 'classifying' });
 
-  const progress = planProgress(plan);
-  await updateRecord(recordId, { plan, coverage: progress.coverage });
-  // NOTHING GOT THROUGH IS NOT A REPORT. Asking a model to write him a summary
-  // of four failures costs a dollar and invites it to write round the hole —
-  // the one thing the coverage rule exists to prevent. Code says what happened.
-  if (progress.empty) {
-    await finishWith(recordId, record.goal, plan, progress, 'no step produced anything');
-    return { ok: false, error: progress.coverage };
+    const outputs = {};
+    for (const s of plan.steps) if (s.status === 'done' && s.output) outputs[s.id] = s.output;
+
+    for (const wave of waves) {
+      let paused = false;
+      // a wave runs together — his video example checks claims and
+      // counter-evidence side by side rather than one after the other
+      await Promise.all(wave.map(async (stepId) => {
+        const step = plan.steps.find((s) => s.id === stepId);
+        if (step.status === 'done' || step.status === 'failed' || step.status === 'skipped') return;
+        // A STEP DOES NOT RUN ON A HOLE. Its wave came up because the steps it
+        // needed all SETTLED — settled is not the same as succeeded. Dispatching
+        // anyway hands the agent an instruction with a raw {{s2}} still in it
+        // and gets back a confident answer about nothing.
+        const unmet = unmetNeeds(step, outputs);
+        if (unmet.length) {
+          step.status = 'skipped';
+          step.error = skipReason(unmet);
+          await updateRecord(recordId, { plan });
+          return;
+        }
+        try {
+          if (!step.recordId) {
+            const created = await dispatchStep(vaultPath, step, outputs, record);
+            step.recordId = created?.id || null;
+            step.status = 'running';
+            step.error = null;
+            await updateRecord(recordId, { plan });
+          }
+          const settled = await awaitRecord(step.recordId);
+          if (settled.paused) {
+            step.status = 'paused';
+            step.error = `paused at its budget — approve its card in your Inbox to continue, or discard it to stop`;
+            paused = true;
+            await updateRecord(recordId, { plan });
+            return;
+          }
+          step.status = settled.ok ? 'done' : 'failed';
+          step.output = settled.ok ? settled.output : null;
+          step.error = settled.ok ? null : settled.why;
+          if (settled.ok) outputs[step.id] = settled.output;
+        } catch (e) {
+          step.status = 'failed';
+          step.error = e.message;
+        }
+        await updateRecord(recordId, { plan });
+      }));
+      if (paused) {
+        // PARKED, NOT FAILED. The plan stays live; the startup reaper leaves
+        // it alone; the step's own card is what he answers.
+        const on = plan.steps.filter((s) => s.status === 'paused').map((s) => s.id).join(', ');
+        await updateRecord(recordId, { plan, pausedOn: on, status: 'classifying' });
+        return { ok: false, paused: on };
+      }
+    }
+
+    const progress = planProgress(plan);
+    await updateRecord(recordId, { plan, coverage: progress.coverage, pausedOn: null });
+    // NOTHING GOT THROUGH IS NOT A REPORT. Asking a model to write him a summary
+    // of four failures costs a dollar and invites it to write round the hole —
+    // the one thing the coverage rule exists to prevent. Code says what happened.
+    if (progress.empty) {
+      await finishWith(recordId, record.goal, plan, progress, 'no step produced anything');
+      return { ok: false, error: progress.coverage };
+    }
+    return await writeReport(vaultPath, recordId, record.goal, plan, progress);
+  } finally {
+    plansRunning.delete(recordId);
   }
-  return writeReport(vaultPath, recordId, record.goal, plan, progress);
 }
 
 // THE REPORT. A plan without one is just several jobs — this is the step that
@@ -370,7 +558,9 @@ RULES
 - COVERAGE IS A FINDING, NOT A FOOTNOTE: ${progress.coverage}. If any step failed or did not run, say so in the first two lines and say what is therefore unknown — never present a partial answer as a whole one. A step that DID NOT RUN found nothing because nobody looked; do not write round it as though its subject were settled.
 - Where the sources disagree, say so and say which is better evidenced.
 - Cite what came from where. Do not add claims no agent gave you.
-- Plain English. No headings-for-the-sake-of-headings.`;
+- IF A PROGRAM DOSSIER OR A COACH REVIEW IS AMONG THE OUTPUTS, THE REPORT IS ABOUT HIM: name his actual routines, his actual sets, his actual numbers. General findings are only worth stating for what they mean for his program.
+- END WITH "## What I would change" — a numbered list of every concrete change worth making, most valuable first, each one specific enough to act on (which routine, which exercise, which number) and each tied to the evidence behind it. Include the changes NOT worth making that he might expect, with why. Then one line: he can say "make change 2", "make all of them" or "argue with number 3" — the Coach applies program changes, and Nova will research anything further.
+- Plain English. Headings only where they carry the structure above.`;
 }
 
 // The report is the plan's artefact, and approving the finished plan FILES
@@ -392,7 +582,10 @@ export function reportDecision(goal, body) {
     route: 'note',
     confidence: 'high',
     title,
-    reason: "Nova's report on the plan you approved — approve to keep it in the vault as a note.",
+    // WHAT APPROVE DOES, and what it does not gate. His report, 21 Sep: the
+    // Inbox was the only place the work surfaced, approving it was opaque, and
+    // there was no way back into the conversation.
+    reason: 'Approve = keep this report in your vault as a note. Discard = drop it. Either way it is already in Nova\'s and the Coach\'s context — ask either to walk you through it, then say which changes to make.',
     payload: { title, body: String(body || '').trim() },
   };
 }

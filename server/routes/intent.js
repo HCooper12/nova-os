@@ -22,9 +22,15 @@ export function intentRouter(vaultPath) {
   // POST /plan/:id/run is the separate, explicit yes.
   router.post('/plan', async (req, res) => {
     try {
-      const { startPlan } = await import('../lib/planner.js');
-      const record = await startPlan(vaultPath, req.body?.text, { model: req.body?.model });
-      res.json({ record, said: 'Working out who should do what — I will show you the plan before anything runs.' });
+      const { startPlan, amendPlan } = await import('../lib/planner.js');
+      // `amends`: his correction to an existing plan — the old one is retired
+      // (or, if it ran, kept and pointed at its successor) and the new one is
+      // planned from his request plus his words, inheriting finished work.
+      // `buildsOn`: a follow-on that inherits a finished plan's outputs.
+      const record = req.body?.amends
+        ? await amendPlan(vaultPath, String(req.body.amends), req.body?.text)
+        : await startPlan(vaultPath, req.body?.text, { model: req.body?.model, buildsOn: req.body?.buildsOn || null });
+      res.json({ record, said: req.body?.amends ? 'Re-planning with that — the revised plan is on its way.' : 'Working out who should do what — I will show you the plan before anything runs.' });
     } catch (e) {
       res.status(400).json({ error: e.message });
     }

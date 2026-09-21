@@ -38,6 +38,8 @@ export const MAX_STEPS = 6;
 // its own budget cap, so a real run almost always costs less. That is the
 // right direction to be wrong in when the number is shown to him for approval
 // — the plan cannot exceed what he agreed to.
+//
+// SINCE 21 SEP 2026 THIS IS A SOFT LINE, NOT A REFUSAL. See validatePlan.
 export const MAX_PLAN_USD = 6;
 
 // A plan is PROPOSED and waits for him. His decision: a plan spends real
@@ -97,19 +99,26 @@ export function validatePlan(plan) {
   }
 
   const ceilingUsd = ceilingFor(steps.map((s) => s?.capability).filter(Boolean));
-  if (ceilingUsd > MAX_PLAN_USD) {
-    // Name the expensive step. "Too expensive" is not actionable; "the book
-    // is $25 on its own" tells him what to drop or approve separately.
-    const worst = [...steps].filter((s) => CAPABILITIES[s?.capability])
-      .sort((a, b) => CAPABILITIES[b.capability].costUsd - CAPABILITIES[a.capability].costUsd)[0];
-    const w = worst ? CAPABILITIES[worst.capability] : null;
-    errors.push(
-      `that could cost up to $${ceilingUsd.toFixed(2)} and the ceiling for one plan is $${MAX_PLAN_USD.toFixed(2)}`
-      + (w && w.costUsd > MAX_PLAN_USD ? ` — ${w.agent} alone is $${w.costUsd.toFixed(2)}, so ask for that one on its own` : ''),
-    );
-  }
+  // COST NEVER REFUSES A PLAN. His instruction, 21 Sep 2026: "I don't want
+  // any caps for usage when it comes to things like researching." The number
+  // is still computed and still shown before he approves — that is what the
+  // yes is for — and a plan above the soft line says so in its own words so
+  // he approves it knowing. What he pays for is his decision; a validator
+  // that vetoed it was making a decision that was never Nova's to make.
+  // (The book stays un-plannable for a different reason: it is a $25 job of
+  // its own kind, and capabilities.js says so. The ceiling here is honest.)
+  const overSoftCap = ceilingUsd > MAX_PLAN_USD;
 
-  return { ok: errors.length === 0, errors, ceilingUsd };
+  return { ok: errors.length === 0, errors, ceilingUsd, overSoftCap };
+}
+
+// The line the plan card shows about money. Plain, and different above the
+// soft line — "this is more than usual" is information, not a refusal.
+export function costLine(ceilingUsd, overSoftCap = ceilingUsd > MAX_PLAN_USD) {
+  const n = `US$${Number(ceilingUsd || 0).toFixed(2)}`;
+  return overSoftCap
+    ? `Up to ${n} — above the usual $${MAX_PLAN_USD.toFixed(2)} for one plan, so this is your call. Worst case, every agent at its own ceiling; a step that reaches its own ceiling pauses and asks before spending more.`
+    : `Up to ${n} — worst case, every agent at its own ceiling. A step that reaches its ceiling pauses and asks before spending more.`;
 }
 
 function hasCycle(steps) {

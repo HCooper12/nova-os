@@ -22,6 +22,9 @@ export const KIND_AGENT = {
   // wrote the report. Named 'Nova' rather than 'Planner' because that is who
   // he asked, and who comes back with the answer.
   plan: 'Nova',
+  // plan steps that file their own records (21 Sep): his program read by
+  // code, and the Coach's review as one step of a plan
+  program: 'Program dossier', 'coach-review': 'Coach',
   guardian: 'Guardian', compost: 'Compost', pattern: 'Pattern Scout',
   autonomy: 'Trust Ladder', distill: 'Distiller', followup: 'Commander',
   video: 'Watcher', study: 'Study Lane', 'forge-job': 'Forge',

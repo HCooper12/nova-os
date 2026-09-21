@@ -12,7 +12,9 @@
 // The router only DECIDES. Dispatch lives in the route, so a decision can
 // always be shown to him before anything runs.
 
-export const LANES = ['brief', 'paper', 'watch', 'weave', 'study', 'repertoire', 'research', 'browse', 'build', 'code', 'coach', 'leader', 'capture', 'play', 'ask', 'book'];
+// `program` is a lane a PLAN reaches for (his program as a dossier, by code);
+// no sentence routes to it on its own, because it is a step, not a request.
+export const LANES = ['brief', 'paper', 'watch', 'weave', 'study', 'repertoire', 'research', 'browse', 'build', 'code', 'coach', 'leader', 'capture', 'play', 'ask', 'book', 'program'];
 
 // "watch AND analyse" — the deep vault weave (transcript fetched, every
 // concept and person drafted into pages) as opposed to the Watcher's verdict.
@@ -197,5 +199,5 @@ export const LANE_LABEL = {
   watch: 'WATCH', weave: 'WEAVE INTO VAULT', study: 'STUDY', repertoire: 'REPERTOIRE', research: 'RESEARCH',
   brief: 'BRIEFING',
   code: 'CLAUDE CODE', coach: 'COACH', leader: 'LEADER', capture: 'INBOX', ask: 'ASK NOVA', book: 'LIBRARIAN',
-  browse: 'BROWSER',
+  browse: 'BROWSER', program: 'PROGRAM DOSSIER',
 };

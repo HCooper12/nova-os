@@ -8,7 +8,7 @@
 // for a log tells him nothing he can act on.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validatePlan, schedule, describePlan, planProgress, MAX_STEPS, MAX_PLAN_USD, unmetNeeds, skipReason } from '../lib/plan.js';
+import { validatePlan, costLine, schedule, describePlan, planProgress, MAX_STEPS, MAX_PLAN_USD, unmetNeeds, skipReason } from '../lib/plan.js';
 
 const step = (id, capability, needs = []) => ({ id, capability, needs, what: `do ${id}` });
 
@@ -22,8 +22,16 @@ test('his own example validates, and costs what the lanes cost', () => {
   ] };
   const v = validatePlan(plan);
   assert.equal(v.ok, true, v.errors.join(' · '));
-  assert.equal(v.ceilingUsd, 5);
-  assert.ok(v.ceilingUsd <= MAX_PLAN_USD, 'his headline example must fit inside the ceiling');
+  // watch $3 + two research panels at their real $2.40 each
+  assert.equal(v.ceilingUsd, 7.8);
+  // ABOVE THE SOFT LINE AND STILL OK. His instruction, 21 Sep: no caps on
+  // research; the number is shown and he decides. The flag is what the card
+  // uses to say so.
+  assert.ok(v.ceilingUsd > MAX_PLAN_USD);
+  assert.equal(v.overSoftCap, true);
+  assert.match(costLine(v.ceilingUsd, v.overSoftCap), /above the usual/);
+  assert.match(costLine(v.ceilingUsd, v.overSoftCap), /pauses and asks/);
+  assert.doesNotMatch(costLine(2, false), /above the usual/);
 });
 
 test('an unknown agent is reported as a missing agent, in his words', () => {
@@ -34,18 +42,21 @@ test('an unknown agent is reported as a missing agent, in his words', () => {
 });
 
 test('a non-delegable agent is refused by name, not by rule', () => {
-  const coach = validatePlan({ steps: [step('a', 'coach')] });
-  assert.equal(coach.ok, false);
-  assert.match(coach.errors[0], /Coach is yours to ask directly/);
   const code = validatePlan({ steps: [step('a', 'code')] });
+  assert.equal(code.ok, false);
   assert.match(code.errors[0], /Claude Code is yours to ask directly/);
+  // the Coach is a step since 21 Sep — see capabilities.test.js
+  const coach = validatePlan({ steps: [step('a', 'program'), step('b', 'coach', ['a'])] });
+  assert.equal(coach.ok, true, coach.errors.join(' · '));
 });
 
-test('a book cannot hide inside a plan, and the message says which step', () => {
+test('cost never refuses a plan — a book inside one is shown as expensive, not blocked', () => {
+  // Before 21 Sep this was an error naming the Librarian. His instruction:
+  // no caps; show the number and let him decide.
   const v = validatePlan({ steps: [step('a', 'watch'), step('b', 'book')] });
-  assert.equal(v.ok, false);
-  assert.match(v.errors[0], /Librarian alone is \$25\.00/);
-  assert.match(v.errors[0], /on its own/);
+  assert.equal(v.ok, true, v.errors.join(' · '));
+  assert.equal(v.ceilingUsd, 28);
+  assert.equal(v.overSoftCap, true);
 });
 
 test('the step ceiling is enforced', () => {

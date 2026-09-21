@@ -84,12 +84,38 @@ export const CAPABILITIES = {
   },
   research: {
     agent: 'Researcher',
-    summary: 'Answer a question from the open web with citations, or read a link and report what it says.',
-    input: 'a question, or a link with an optional instruction',
+    summary: 'Answer a question from the open web with citations, or read a link and report what it says. Runs a panel of four researchers on different angles, then one merge.',
+    input: 'a question, or a link with an optional instruction — plus any MATERIAL from earlier steps (his program, a verdict) it should check against',
     output: 'a cited brief, filed as a pending record',
     produces: 'research',
-    costUsd: 1.0,
+    // THE PANEL'S REAL CEILING, not the single-agent figure it replaced. The
+    // 18 Sep fan-out is four workers at $0.45 plus a $0.60 merge, and this
+    // number still said $1.00 — so the plan card on 21 Sep promised "up to
+    // US$3.00" for three research steps whose honest worst case was $7.20.
+    // A ceiling shown to him before he approves must be one that cannot be
+    // exceeded, or approving it means nothing.
+    costUsd: 2.4,
     autonomy: 'propose',
+    delegable: true,
+  },
+  // HIS PROGRAM, AS DATA. Deterministic — no model, no web, no cost: the
+  // routines, the schedule, the goals, the block, the analytics the Coach
+  // reasons from and the nine audit checks, assembled by code from the vault.
+  //
+  // This exists because of 21 Sep 2026. He asked for a review of his current
+  // program; the plan ran three Researchers on the open web and its report
+  // opened with "no agent ever saw your actual program — the program review
+  // you asked for hasn't been done at all." Every one of those facts was
+  // sitting in the vault the whole time. A plan that needs his data starts
+  // here, and every later step is handed the dossier as material.
+  program: {
+    agent: 'Program dossier',
+    summary: "Read his ACTUAL training program from the vault — routines, sets and reps, weekly schedule, goals, training block, weekly volume per muscle, plateaus, RPE trend, session notes and the audit's findings — as a dossier for the other agents to work from. Code, not a model: instant and free.",
+    input: 'nothing — it reads his real data',
+    output: 'the program dossier, filed as a record and handed to every step that needs it',
+    produces: 'program',
+    costUsd: 0.05,
+    autonomy: 'observe',
     delegable: true,
   },
   book: {
@@ -132,16 +158,23 @@ export const CAPABILITIES = {
   },
   coach: {
     agent: 'Coach',
-    summary: 'Answer a training or nutrition question with his full logged history, and propose program changes.',
-    input: 'a training or nutrition question',
-    output: 'an answer in conversation; program edits as proposals',
-    produces: 'coach-program',
-    costUsd: 1.0,
+    summary: "Judge a training or nutrition question against HIS real data — every logged session, weekly volume per muscle, PRs, plateaus, recovery, nutrition, goals and his own session notes — and propose concrete program changes he can apply with one tap. The only agent that can review his actual program.",
+    input: 'a training or nutrition question, plus any material from earlier steps (research briefs, the program dossier) it should weigh',
+    output: "the Coach's review as a filed record; each change it recommends lands as a proposal he can apply or decline",
+    produces: 'coach-review',
+    // the Coach's own turn ceiling (claudeCode.js MAX_BUDGET_USD) — one
+    // strong-model pass over the full context
+    costUsd: 1.5,
     autonomy: 'propose',
-    // Stays its own agent by his instruction — it holds a long-lived plan it
-    // edits and reviews, and has its own cadence and memory of what it has
-    // already raised. A planner may CONSULT it; it is not a task runner.
-    delegable: false,
+    // DELEGABLE SINCE 21 SEP 2026, on his instruction. It was held out of
+    // plans ("Coach stays its own agent") and the cost was this: asked for a
+    // review of his program, the planner — told "no others exist" about five
+    // lanes, none of which could see his data — wrote that "none of the
+    // agents can read Hayden's vault or his actual training program". His
+    // words: "which is a lie." The Coach still has its own room, its own
+    // cadence and its own memory; a plan CONSULTS it as a step, with the
+    // material the other steps produced, and its answer files as a record.
+    delegable: true,
   },
   browse: {
     agent: 'Hands · browser',
@@ -222,17 +255,28 @@ export function capability(id) { return CAPABILITIES[id] || null; }
 // not an estimate: a number shown to him before he approves must be one that
 // cannot be exceeded, or approving it means nothing.
 export function ceilingFor(stepIds = []) {
-  return stepIds.reduce((sum, id) => sum + (CAPABILITIES[id]?.costUsd || 0), 0);
+  // in cents, so 3 + 2.4 + 2.4 is 7.8 and never 7.800000000000001 on a card
+  const cents = stepIds.reduce((sum, id) => sum + Math.round((CAPABILITIES[id]?.costUsd || 0) * 100), 0);
+  return cents / 100;
 }
 
 // The block the planner prompt is given. Generated, never hand-written, so
 // the planner cannot be told about a capability that does not exist.
 export function describeForPlanner() {
-  return DELEGABLE_IDS.map((id) => {
+  const lines = DELEGABLE_IDS.map((id) => {
     const c = CAPABILITIES[id];
     return `- ${id} (${c.agent}) — ${c.summary}\n    takes: ${c.input}\n    gives: ${c.output}\n    ceiling: $${c.costUsd.toFixed(2)}`;
-  }).join('\n');
+  });
+  // WHO CAN SEE HIS DATA is said outright, because the planner reasons only
+  // from this block. Left implicit, it concluded on 21 Sep that nobody could.
+  const readers = DELEGABLE_IDS.filter((id) => READS_HIS_DATA.has(id)).map((id) => `${id} (${CAPABILITIES[id].agent})`);
+  lines.push(`\nAGENTS THAT READ HIS OWN DATA (workouts, program, nutrition, health, vault): ${readers.join(', ')}. Anything about HIS program, HIS training, HIS numbers goes through them — never say no agent can see his data.`);
+  return lines.join('\n');
 }
+
+// The lanes that reason from his vault and logs rather than from the open
+// web. Named in one place so the planner's block and the tests agree.
+export const READS_HIS_DATA = new Set(['program', 'coach']);
 
 // What he gets when he asks what Nova can do. Same source as the planner's,
 // so the two can never drift apart.

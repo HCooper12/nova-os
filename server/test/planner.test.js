@@ -15,8 +15,9 @@ import { validatePlan, planProgress, MAX_PLAN_USD, MAX_STEPS } from '../lib/plan
 test('the planner is only ever offered agents that exist', () => {
   const prompt = buildPlannerPrompt('watch this and check it');
   for (const id of DELEGABLE_IDS) assert.ok(prompt.includes(id), `prompt omits ${id}`);
-  // the two that are reachable but never delegated must not appear as options
-  assert.ok(!prompt.includes('(Coach)'), 'Coach must not be offered to the planner');
+  // the Coach is offered since 21 Sep (capabilities.test.js says why); the
+  // code lane can alter the machinery running the plan and never is
+  assert.ok(prompt.includes('(Coach)'), 'the Coach is offered to the planner');
   assert.ok(!prompt.includes('(Claude Code)'), 'the code lane must not be offered to the planner');
 });
 
@@ -195,4 +196,63 @@ test('the report prompt tells a skipped step apart from an empty one', () => {
   // "(no output)" would read as "it ran and found nothing", which is a claim
   assert.ok(!p.includes('write it up\n(no output)'), 'a skipped step never reads as an empty result');
   assert.match(p, /DID NOT RUN found nothing because nobody looked/);
+});
+
+// --- 21 Sep 2026: the plan that could not see his program, and the
+// correction that went nowhere. What a plan inherits, what it is told, and
+// how a corrected plan carries the old one's work.
+import { inheritedFrom, inheritedText, amendPlan, reportDecision as reportDecision2 } from '../lib/planner.js';
+import { costLine } from '../lib/plan.js';
+
+test('the planner is told about the Coach and the dossier, and that his data goes through them', () => {
+  const p = buildPlannerPrompt('review my program');
+  assert.match(p, /program \(Program dossier\)/);
+  assert.match(p, /coach \(Coach\)/);
+  assert.match(p, /HIS OWN DATA FIRST/);
+  assert.match(p, /Reading his own data is never in "cannot"/);
+  assert.match(p, /never trim a plan to save money/);
+});
+
+test('a plan built on finished work is told what is already in hand', () => {
+  const p = buildPlannerPrompt('now judge it against my program', { inherited: [{ label: 'Researcher — volume evidence', output: 'Weekly sets per muscle is the unit that matters.' }] });
+  assert.match(p, /MATERIAL ALREADY IN HAND/);
+  assert.match(p, /do not commission it again/);
+  assert.match(p, /Researcher — volume evidence: Weekly sets per muscle/);
+  assert.doesNotMatch(buildPlannerPrompt('x'), /MATERIAL ALREADY IN HAND/);
+});
+
+test('what a finished plan hands on: every done step by agent and task, and its report', () => {
+  const rec = {
+    goal: 'Review my program', finishedAt: '2026-09-21T01:37:16Z',
+    plan: { steps: [
+      { id: 's1', capability: 'research', what: 'volume evidence', status: 'done', output: 'brief one' },
+      { id: 's2', capability: 'research', what: 'split evidence', status: 'failed', output: null },
+    ] },
+    decision: { payload: { body: 'THE REPORT' } },
+  };
+  const held = inheritedFrom(rec);
+  assert.deepEqual(held.map((m) => m.label), ['Researcher — volume evidence', "Nova's report on \"Review my program\""]);
+  assert.equal(held[0].output, 'brief one');
+  const text = inheritedText({ inherited: held });
+  assert.match(text, /FROM EARLIER WORK — Researcher — volume evidence:\nbrief one/);
+  assert.match(text, /FROM EARLIER WORK — Nova's report/);
+  assert.equal(inheritedText({}), '');
+});
+
+test('the report is told to end in concrete changes he can act on by saying so', () => {
+  const p = buildReportPrompt('review my program', { steps: [], report: '' }, { coverage: '2 of 2 steps completed' });
+  assert.match(p, /## What I would change/);
+  assert.match(p, /which routine, which exercise, which number/);
+  assert.match(p, /"make all of them"/);
+  assert.match(p, /THE REPORT IS ABOUT HIM/);
+});
+
+test('the report card says what approve does and that the conversation already has it', () => {
+  const d = reportDecision2('review my program', 'body');
+  assert.match(d.reason, /^Approve = keep this report/);
+  assert.match(d.reason, /already in Nova's and the Coach's context/);
+});
+
+test('the plan card carries the cost line and says a correction re-draws it', () => {
+  assert.match(costLine(7.8, true), /above the usual \$6\.00/);
 });

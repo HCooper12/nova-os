@@ -11,7 +11,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CAPABILITIES, CAPABILITY_IDS, DELEGABLE_IDS, ceilingFor, isCapability, describeForPlanner, describeForHim } from '../lib/capabilities.js';
 import { LANES, LANE_LABEL } from '../lib/intentRouter.js';
-import { CHAT_JOB_LANES } from '../../src/chatLanes.js';
+import { CHAT_JOB_LANES, CHAT_CONVERSATION_LANES, CHAT_PLAN_ONLY_LANES } from '../../src/chatLanes.js';
 
 test('every capability is a lane the router can return', () => {
   for (const id of CAPABILITY_IDS) {
@@ -33,22 +33,43 @@ test('every capability has a dispatch label', () => {
   }
 });
 
-test('everything a plan may delegate, the chat may start — but not the reverse', () => {
-  // A plan reaches only for the cheap, self-contained lanes. The chat may ALSO
-  // start the weave ($25, his to ask for by name) and a code session (which
-  // changes screens) — both fine when he says so, neither a step Nova should
-  // take on its own inside a plan.
-  for (const id of DELEGABLE_IDS) assert.ok(CHAT_JOB_LANES.includes(id), `${id} is delegable but the chat cannot start it`);
+test('everything a plan may delegate, the chat can reach — but not the reverse', () => {
+  // A plan reaches for the self-contained job lanes, the conversation lanes
+  // it may CONSULT as a step (the Coach, since 21 Sep), and the plan-only
+  // dossier. The chat may ALSO start the weave ($25, his to ask for by name)
+  // and a code session (which changes screens) — both fine when he says so,
+  // neither a step Nova should take on its own inside a plan.
+  const reachable = [...CHAT_JOB_LANES, ...CHAT_CONVERSATION_LANES, ...CHAT_PLAN_ONLY_LANES];
+  for (const id of DELEGABLE_IDS) assert.ok(reachable.includes(id), `${id} is delegable but the chat cannot reach it`);
   assert.ok(CHAT_JOB_LANES.includes('weave') && !DELEGABLE_IDS.includes('weave'));
   assert.ok(CHAT_JOB_LANES.includes('code') && !DELEGABLE_IDS.includes('code'));
 });
 
-test('Coach and Claude Code are reachable but never delegated', () => {
-  // his instruction: Coach stays its own agent. Code can alter the machinery
-  // running the plan, which is not a step a planner should take alone.
-  assert.equal(CAPABILITIES.coach.delegable, false);
+test('the Coach IS delegable since 21 Sep 2026; Claude Code never is', () => {
+  // His earlier instruction kept the Coach out of plans. The cost, 21 Sep:
+  // asked for a review of his program, the planner — shown five lanes, none
+  // of which could see his data — wrote that "none of the agents can read
+  // Hayden's vault or his actual training program". His words: "which is a
+  // lie." The Coach is now a step a plan may put work on; it keeps its own
+  // room. Code can alter the machinery running the plan and stays out.
+  assert.equal(CAPABILITIES.coach.delegable, true);
+  assert.equal(CAPABILITIES.program.delegable, true, 'his program, by code, is a step');
   assert.equal(CAPABILITIES.code.delegable, false);
-  assert.ok(isCapability('coach'), 'still reachable — just not delegated');
+  assert.ok(isCapability('coach'));
+});
+
+test('the planner is told, in so many words, which agents read his own data', () => {
+  const block = describeForPlanner();
+  assert.match(block, /AGENTS THAT READ HIS OWN DATA/);
+  assert.match(block, /program \(Program dossier\)/);
+  assert.match(block, /coach \(Coach\)/);
+  assert.match(block, /never say no agent can see his data/);
+});
+
+test('the research ceiling is the panel\'s real worst case, not the single-agent figure', () => {
+  // 4 workers at $0.45 + a $0.60 merge = $2.40; it said $1.00 until 21 Sep,
+  // so a three-research plan promised "up to $3" against a real $7.20
+  assert.equal(CAPABILITIES.research.costUsd, 2.4);
 });
 
 test('every capability declares the fields the planner and validator need', () => {
@@ -63,7 +84,7 @@ test('every capability declares the fields the planner and validator need', () =
 
 test('the ceiling is a sum of real ceilings, and unknown steps cost nothing', () => {
   assert.equal(ceilingFor(['watch']), 3);
-  assert.equal(ceilingFor(['watch', 'research']), 4);
+  assert.equal(ceilingFor(['watch', 'research']), 5.4);
   assert.equal(ceilingFor([]), 0);
   assert.equal(ceilingFor(['nonsense']), 0, 'an unknown id contributes nothing — the validator rejects it separately');
 });
@@ -79,11 +100,12 @@ test('the planner is only ever told about delegable capabilities', () => {
   const block = describeForPlanner();
   for (const id of DELEGABLE_IDS) assert.ok(block.includes(id), `planner block omits ${id}`);
   assert.ok(!block.includes('(Claude Code)'), 'the planner must not be offered the code lane');
-  assert.ok(!block.includes('(Coach)'), 'the planner must not be offered the Coach');
+  assert.ok(block.includes('(Coach)'), 'the planner IS offered the Coach (21 Sep)');
 });
 
 test('what he is told covers everything, delegable or not', () => {
   const lines = describeForHim();
   assert.equal(lines.length, CAPABILITY_IDS.length);
-  assert.ok(lines.some((l) => /Coach/.test(l) && /not something Nova delegates/.test(l)));
+  assert.ok(lines.some((l) => /Claude Code/.test(l) && /not something Nova delegates/.test(l)));
+  assert.ok(lines.some((l) => /^Coach:/.test(l) && !/not something Nova delegates/.test(l)), 'the Coach is no longer described as un-delegable');
 });
