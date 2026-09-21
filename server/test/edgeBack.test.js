@@ -135,7 +135,60 @@ test('navigate stamps the depth it reads back', async () => {
   assert.match(app, /<EdgeBack \/>/, 'the gesture is not mounted');
 });
 
-test('THE PAGE IS NEVER TRANSFORMED — the fault he filmed', async () => {
+test('THE PREVIOUS PAGE IS REVEALED UNDERNEATH, which is what he asked for', async () => {
+  // His third report, with an Apple Settings recording: "I still want to be
+  // able to see the page being swiped back to 'underneath' the current page
+  // as I'm swiping." A blue sliver is not that.
+  const { readFile } = await import('node:fs/promises');
+  const path = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+  const hook = await readFile(path.join(root, 'src', 'edgeBack.js'), 'utf8');
+
+  // the current screen is snapshotted, and the snapshot is what moves
+  assert.match(hook, /cloneNode\(true\)/, 'nothing snapshots the page being left');
+  assert.match(hook, /snap\.style\.transform/, 'the snapshot does not move with the finger');
+  // the real app navigates underneath it, so what is revealed is the real thing
+  assert.match(hook, /onBack\?\.\(\);\s*\/\/ instant/, 'it does not navigate underneath the snapshot');
+  // a clone's scroll is not carried by cloneNode — he filmed being thrown to
+  // the top of the page he was leaving
+  assert.match(hook, /snap\.scrollTop = main\.scrollTop/);
+  // and a fixed child inside the clone would anchor to the layer, not the page
+  assert.match(hook, /position === 'fixed'\) el\.style\.position = 'absolute'/);
+  // Apple's shadow down the leading edge
+  assert.match(hook, /boxShadow/);
+});
+
+test('a cancelled drag puts the screen back', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const path = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const hook = await readFile(path.join(
+    path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'src', 'edgeBack.js',
+  ), 'utf8');
+  // the navigation happens at LOCK, so a cancel has to undo it
+  assert.match(hook, /window\.history\.forward\(\)/, 'a cancelled swipe leaves him on the wrong screen');
+  // ...and the layer is dropped AFTER, or the previous screen flashes
+  const fwd = hook.indexOf('window.history.forward()');
+  const drop = hook.indexOf('teardown', fwd);
+  assert.ok(drop > fwd, 'the snapshot is removed before the screen is restored — it will flash');
+});
+
+test('a drag-driven back skips the view transition', async () => {
+  // the gesture animates two layers by hand; a view transition at the same
+  // moment would cross-fade the thing it is already sliding
+  const { readFile } = await import('node:fs/promises');
+  const path = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+  const app = await readFile(path.join(root, 'src', 'App.jsx'), 'utf8');
+  const hook = await readFile(path.join(root, 'src', 'edgeBack.js'), 'utf8');
+  assert.match(hook, /export function edgeDragInProgress/);
+  assert.match(app, /if \(edgeDragInProgress\(\)\) apply\(\); else this\.withTransition\(apply\);/,
+    'a swipe and a view transition will run at the same time');
+});
+
+test('THE APP\u2019S OWN LAYOUT IS NEVER TRANSFORMED — the fault he filmed', async () => {
   // The first cut put a transform on <main>. A transformed ancestor becomes
   // the containing block for every position:fixed descendant inside it, so
   // the recipe overlay stopped being pinned to the viewport and painted on
@@ -146,11 +199,12 @@ test('THE PAGE IS NEVER TRANSFORMED — the fault he filmed', async () => {
   const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
   const hook = await readFile(path.join(root, 'src', 'edgeBack.js'), 'utf8');
   const cmp = await readFile(path.join(root, 'src', 'EdgeBack.jsx'), 'utf8');
-  assert.doesNotMatch(hook, /style\.transform\s*=/, 'the gesture is transforming app layout again');
+  // it may transform ITS OWN snapshot; it may never transform <main>
+  assert.doesNotMatch(hook, /main\.style\.transform/, 'the gesture is transforming app layout again');
   assert.doesNotMatch(cmp, /getEl/, 'the component is reaching into the app\u2019s own elements again');
-  // its affordance is its own, fixed, and appended outside the layout
-  assert.match(hook, /document\.body\.appendChild\(peel\)/);
-  assert.match(hook, /position:fixed/);
+  // every layer it paints is its own, fixed, and appended outside the layout
+  assert.match(hook, /document\.body\.appendChild\(snap\)/);
+  assert.match(hook, /document\.body\.appendChild\(scrim\)/);
 });
 
 test('progress runs 0..1 and never goes backwards', () => {
@@ -175,6 +229,8 @@ test('BACK ANIMATES LIKE FORWARD', async () => {
   const app = await readFile(path.join(
     path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'src', 'App.jsx',
   ), 'utf8');
-  assert.match(app, /this\.popH = \(\) => \{[\s\S]{0,200}withTransition\(/,
+  // a TAPPED back (the browser button, a deep link) still dissolves like a
+  // forward navigation; only a drag opts out, because the drag IS the animation
+  assert.match(app, /this\.popH = \(\) => \{[\s\S]{0,420}withTransition\(apply\)/,
     'back still swaps instantly while forward dissolves');
 });

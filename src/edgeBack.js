@@ -41,6 +41,14 @@ export const FLICK_MIN_FRACTION = 0.33;
 // ONE PAGE PER GESTURE. "Should only swipe back to the previous page." A
 // second commit inside this window is the same thumb, not a second intention.
 export const COMMIT_COOLDOWN_MS = 600;
+
+// A DRAG THAT NEVER ENDS. Found while verifying: a touchend that never
+// arrives leaves the snapshot layer on screen forever, and the whole app is
+// then frozen behind an inert picture of itself — which is precisely what
+// "it's buggy" looks like from the outside. iOS drops touches for reasons a
+// page never hears about (a call, the app switcher, a system gesture taking
+// over), so this cannot be left to good manners.
+export const STUCK_MS = 2200;
 // WHAT THE LAST SWIPE ACTUALLY DID. Settings reads this.
 //
 // The first cut of this gesture shipped "verified" on synthetic touch events
@@ -51,6 +59,12 @@ export const COMMIT_COOLDOWN_MS = 600;
 // turns "swipe back is not working" into a number.
 let last = null;
 export function lastEdgeGesture() { return last; }
+
+// THE DRAG IS THE TRANSITION. popstate normally runs through withTransition
+// (the View Transition API) so a tap dissolves; during a swipe that would
+// fight the layers this hook is already animating by hand. App reads this.
+let dragging = false;
+export function edgeDragInProgress() { return dragging; }
 export function _resetEdgeGesture() { last = null; }
 
 // A real installed app, not a tab. matchMedia is the standard signal;
@@ -58,6 +72,16 @@ export function _resetEdgeGesture() { last = null; }
 // PWA reports on some versions.
 export function isStandalone() {
   if (typeof window === 'undefined') return false;
+  // A DEV-ONLY SEAM, and it earned its place. This gesture only exists in an
+  // installed PWA, which means it cannot be exercised in the browser where
+  // everything else is verified — and two versions shipped broken because
+  // "verified" meant synthetic events against a faked media query that kept
+  // silently not applying. Same family as window.__novaShelf and
+  // scripts/dev-connect.mjs: a seam that makes the real thing checkable,
+  // compiled out of the build he runs.
+  try {
+    if (import.meta.env?.DEV && localStorage.getItem('novaos.forceStandalone') === '1') return true;
+  } catch { /* storage blocked — fall through to the real test */ }
   try {
     if (window.navigator.standalone === true) return true;
     return window.matchMedia('(display-mode: standalone)').matches
@@ -132,49 +156,111 @@ export function dragProgress(dx, width) {
   return Math.min(1, dx / commitDistance(width));
 }
 
-// `onBack` is what a commit calls. NOTHING in the app's own layout is touched
-// — see dragProgress for the position:fixed fault that cost him a filmed bug.
+// THE INTERACTIVE BACK, as iOS actually does it.
+//
+// 22 SEP, his third report, with two screen recordings — one of Nova, one of
+// Apple Settings: "I still want to be able to see the page being swiped back
+// to 'underneath' the current page as I'm swiping just like it does in other
+// apps." His Apple clip is unambiguous: the previous page is ALREADY THERE,
+// shifted left and dimmed; the current page slides off to the right over it
+// with a shadow down its leading edge; the two converge as the finger moves.
+//
+// So the drag has to show two pages at once, and Nova renders one screen at a
+// time. The way through, without touching the app's own layout (which is what
+// broke it the first time — a transform on <main> re-anchors every
+// position:fixed descendant inside it):
+//
+//   1. SNAPSHOT the current screen into a fixed layer of our own.
+//   2. Navigate back IMMEDIATELY and instantly. The real app underneath is now
+//      the previous screen, live and correct, with its own fixed elements
+//      behaving normally because nothing of Nova's has been transformed.
+//   3. Drag the snapshot. What is revealed underneath is the real thing.
+//   4. Commit — slide the snapshot off and drop it. Already home.
+//      Cancel  — slide it back, history.forward(), drop it.
+//
+// The snapshot is inert: a canvas inside it clones blank, which for a
+// sub-second transition is a trade worth making against the alternative of
+// re-rendering two React trees on every frame of a drag.
 export function useEdgeBack({ onBack, enabled = true }) {
-  const s = useRef({ armed: false, id: null, startX: 0, startY: 0, startT: 0, dir: null, lastCommit: 0 }).current;
+  const s = useRef({ armed: false, id: null, startX: 0, startY: 0, startT: 0, dir: null, lastCommit: 0, live: null }).current;
 
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') return undefined;
-    // a browser tab already has this gesture; doubling it goes back twice
     if (!isStandalone()) return undefined;
 
-    // THE AFFORDANCE, and it is ours alone: a fixed sliver at the left edge
-    // that deepens as he pulls. Fixed to the viewport and appended to <body>,
-    // so it can never become a containing block for anything of Nova's.
-    const peel = document.createElement('div');
-    peel.setAttribute('aria-hidden', 'true');
-    peel.style.cssText = [
-      'position:fixed', 'left:0', 'top:0', 'bottom:0', 'width:0',
-      'pointer-events:none', 'z-index:200', 'opacity:0',
-      'background:linear-gradient(90deg, color-mix(in srgb, var(--nv-acc) 26%, transparent), transparent)',
-      'border-left:2px solid var(--nv-acc)',
-      'will-change:width,opacity',
-    ].join(';');
-    document.body.appendChild(peel);
+    const W = () => window.innerWidth || 375;
 
-    const paint = (progress, animate) => {
-      peel.style.transition = animate ? 'width .22s cubic-bezier(.32,.72,0,1), opacity .22s ease' : '';
-      // it reaches a quarter of the screen at full pull — enough to feel the
-      // gesture arriving, never enough to look like a second page
-      peel.style.width = progress ? `${Math.round(progress * window.innerWidth * 0.25)}px` : '0px';
-      peel.style.opacity = progress ? String(0.35 + progress * 0.65) : '0';
+    // ---- the two layers, built only once a drag actually locks ----
+    const build = () => {
+      const main = document.querySelector('main');
+      if (!main) return null;
+
+      // the page he is leaving, frozen
+      const snap = main.cloneNode(true);
+      // a clone's fixed children would anchor to the layer, not the viewport
+      snap.querySelectorAll('*').forEach((el) => {
+        if (getComputedStyle(el).position === 'fixed') el.style.position = 'absolute';
+      });
+      const box = main.getBoundingClientRect();
+      Object.assign(snap.style, {
+        position: 'fixed', left: `${box.left}px`, top: `${box.top}px`,
+        width: `${box.width}px`, height: `${box.height}px`,
+        margin: '0', zIndex: '201', overflow: 'hidden', pointerEvents: 'none',
+        background: 'var(--nv-void)', willChange: 'transform',
+        // the edge shadow Apple draws down the leading edge of the moving page
+        boxShadow: '-14px 0 34px -6px rgba(0,0,0,.75)',
+      });
+      snap.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(snap);
+      // cloneNode does not carry scroll position — without this he is thrown
+      // to the top of the page he is leaving, which he filmed
+      snap.scrollTop = main.scrollTop;
+
+      // the page underneath is real; this only dims it the way iOS does
+      const scrim = document.createElement('div');
+      scrim.setAttribute('aria-hidden', 'true');
+      scrim.style.cssText = 'position:fixed;inset:0;z-index:200;pointer-events:none;background:#000;opacity:.18;will-change:opacity';
+      document.body.appendChild(scrim);
+      return { snap, scrim };
     };
 
-    const reset = (animate = true) => {
-      s.armed = false; s.id = null; s.dir = null;
-      paint(0, animate);
+    const paint = (dx, animate) => {
+      const l = s.live;
+      if (!l) return;
+      const p = Math.max(0, Math.min(1, dx / W()));
+      const ease = animate ? 'transform .3s cubic-bezier(.32,.72,0,1), opacity .3s cubic-bezier(.32,.72,0,1)' : '';
+      l.snap.style.transition = ease;
+      l.scrim.style.transition = ease;
+      l.snap.style.transform = `translate3d(${Math.max(0, dx)}px,0,0)`;
+      l.scrim.style.opacity = String(0.18 * (1 - p));
     };
+
+    const teardown = () => {
+      const l = s.live;
+      s.live = null;
+      dragging = false;
+      if (!l) return;
+      l.snap.remove();
+      l.scrim.remove();
+    };
+
+    const reset = () => { s.armed = false; s.id = null; s.dir = null; };
+
+    // the watchdog: any live drag that has gone quiet is put back
+    let stuck = 0;
+    const kick = () => {
+      if (stuck) clearTimeout(stuck);
+      stuck = window.setTimeout(() => { if (s.live) settle(0); }, STUCK_MS);
+    };
+    const unkick = () => { if (stuck) { clearTimeout(stuck); stuck = 0; } };
 
     const onStart = (e) => {
       const t = e.touches?.[0];
       if (!t || e.touches.length > 1) return;
       if (t.clientX >= EDGE_GUARD_PX) return;
-      if (!canGoBack(window.history.state)) return;   // nowhere to go
-      if (Date.now() - s.lastCommit < COMMIT_COOLDOWN_MS) return;  // one page per thumb
+      if (!canGoBack(window.history.state)) return;
+      if (s.live) return;                                   // a drag is already live
+      if (Date.now() - s.lastCommit < COMMIT_COOLDOWN_MS) return;
       s.armed = true; s.id = t.identifier; s.dir = null;
       s.startX = t.clientX; s.startY = t.clientY; s.startT = performance.now();
     };
@@ -186,58 +272,85 @@ export function useEdgeBack({ onBack, enabled = true }) {
       const dx = t.clientX - s.startX;
       const dy = t.clientY - s.startY;
 
-      // CLAIM IT EARLY. His report: it "wasn't working properly when trying to
-      // swipe back from the food carousels". A horizontal scroller starts
-      // moving on the first few pixels, long before the formal 12px direction
-      // lock — so by the time we called preventDefault the carousel already
-      // owned the touch. Any horizontal dominance inside the gutter is ours.
+      // CLAIM IT EARLY, or a horizontal carousel under the thumb starts
+      // scrolling before the direction lock and keeps the touch.
       if (Math.abs(dx) > Math.abs(dy) && e.cancelable) e.preventDefault();
 
       const call = edgeDecision({
         startX: s.startX, dx, dy, dt: performance.now() - s.startT,
-        width: window.innerWidth, locked: s.dir === 'h',
+        width: W(), locked: s.dir === 'h',
       });
       last = { startX: Math.round(s.startX), dx: Math.round(dx), dy: Math.round(dy), call, at: Date.now() };
-      if (call === 'cancel' || call === 'none') { reset(); return; }
+      if (call === 'cancel' || call === 'none') { if (s.live) settle(0); else reset(); return; }
       if (call === 'waiting') return;
-      s.dir = 'h';
-      paint(dragProgress(dx, window.innerWidth), false);
+
+      kick();
+      if (!s.dir) {
+        // THE MOMENT THE GESTURE BECOMES REAL: snapshot, then go back for
+        // real so what he uncovers is the actual previous screen.
+        s.dir = 'h';
+        s.live = build();
+        if (!s.live) { reset(); return; }
+        dragging = true;
+        paint(dx, false);
+        onBack?.();                       // instant — see edgeDragInProgress
+        return;
+      }
+      paint(dx, false);
+    };
+
+    // Land the gesture: `to` is 0 (cancel, page comes back) or W (commit).
+    const settle = (to) => {
+      const l = s.live;
+      unkick();
+      reset();
+      if (!l) return;
+      const cancelled = to === 0;
+      paint(to, true);
+      window.setTimeout(() => {
+        // forward FIRST, then drop the layer, or the previous screen flashes
+        if (cancelled) { dragging = true; window.history.forward(); }
+        window.setTimeout(teardown, cancelled ? 40 : 0);
+      }, 300);
     };
 
     const onEnd = (e) => {
-      if (!s.armed) return;
+      if (!s.armed && !s.live) return;
       const t = [...(e.changedTouches || [])].find((x) => x.identifier === s.id);
       const dx = t ? t.clientX - s.startX : 0;
       const dy = t ? t.clientY - s.startY : 0;
       const call = edgeDecision({
         startX: s.startX, dx, dy, dt: performance.now() - s.startT,
-        width: window.innerWidth, locked: s.dir === 'h',
+        width: W(), locked: s.dir === 'h',
       });
       last = { startX: Math.round(s.startX), dx: Math.round(dx), dy: Math.round(dy), call, at: Date.now(), end: true };
+      if (!s.live) { reset(); return; }
       if (call === 'commit') {
-        s.armed = false; s.id = null; s.lastCommit = Date.now();
-        // CLEARED INSTANTLY, before the navigation. Animating the affordance
-        // out WHILE the next screen renders is what overlapped his screens:
-        // the old paint was still running over the new one.
-        paint(0, false);
+        s.lastCommit = Date.now();
         haptic('tick');
-        onBack?.();
+        settle(W());
         return;
       }
-      reset();
+      settle(0);
     };
 
     window.addEventListener('touchstart', onStart, { passive: true });
     window.addEventListener('touchmove', onMove, { passive: false });
     window.addEventListener('touchend', onEnd, { passive: true });
-    const onCancel = () => reset(false);
+    const onCancel = () => { if (s.live) settle(0); else reset(); };
     window.addEventListener('touchcancel', onCancel, { passive: true });
+    // backgrounded mid-drag: iOS will not send a touchend, and he would come
+    // back to a screen he cannot touch
+    const onHide = () => { if (document.visibilityState === 'hidden' && s.live) settle(0); };
+    document.addEventListener('visibilitychange', onHide);
     return () => {
       window.removeEventListener('touchstart', onStart);
       window.removeEventListener('touchmove', onMove);
       window.removeEventListener('touchend', onEnd);
       window.removeEventListener('touchcancel', onCancel);
-      peel.remove();
+      document.removeEventListener('visibilitychange', onHide);
+      unkick();
+      teardown();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]);

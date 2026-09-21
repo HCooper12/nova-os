@@ -20,7 +20,7 @@ import { loadLiveCache, saveLiveCache, clearLiveCache } from './liveStore.js';
 import { loadOutbox, saveOutbox, isOfflineError, makeOutboxItem } from './outbox.js';
 import { applyAppearance, getNovaTheme, getCalm, getCoreStyle, saveCoreStyle, getNovaStyle } from './theme.js';
 import { getTabOrder, saveTabOrder } from './tabOrder.js';
-import { depthOf } from './edgeBack.js';
+import { depthOf, edgeDragInProgress } from './edgeBack.js';
 import { EdgeBack } from './EdgeBack.jsx';
 import { NOTE_TYPE_COLOR } from './vals/shared.js';
 import { valsRecipes, CURRENT_VERSION } from './vals/valsRecipes.js';
@@ -809,7 +809,11 @@ export default class App extends Component {
     // Sep: "the animation needs to be refined like it is with Apple" — and
     // the refined animation already existed, on the other direction only.
     this.popH = () => {
-      this.withTransition(() => this.setState({ screen: screenFromHash() }));
+      // A SWIPE IS ITS OWN TRANSITION. The edge gesture animates two layers by
+      // hand and navigates underneath them; running a view transition at the
+      // same moment would cross-fade the thing it is already sliding.
+      const apply = () => this.setState({ screen: screenFromHash() });
+      if (edgeDragInProgress()) apply(); else this.withTransition(apply);
       this.consumeDeepLink();
     };
     window.addEventListener('popstate', this.popH);
