@@ -46,6 +46,12 @@ phone runs `cupertino` → `MissionStructured`), wears the house objects
 (`RingTile`, the serif news line, `AppleLayout` groups, `Controls.jsx` for
 every label and action), uses only real `--nv-*` tokens, earns an entrance
 animation, and survives 375px. Full standard: NOVA-METHOD.md §2b.
+**Standing, 22 Sep 2026 (his instruction): nothing on a Nova surface is a
+plain box with text in it, and colour means something.** Load `apple-design`,
+`emil-design-eng` and `interface-design` before drawing anything; a number
+gets a form, a list gets depth, a change is acted out, each muscle owns its
+hue. Decisions are a conversation, not a button per idea: a light tick or
+cross, one "do all", and talking back. §2b rules 7–8.
 
 ## Ground rules for a change
 Find the real need under the request → read the existing pattern before

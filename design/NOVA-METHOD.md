@@ -181,7 +181,18 @@ it is not optional:
    everything survives reduced motion as a cross-fade. A screen that would
    look the same as a spreadsheet of its data is not finished. Mission
    Control's formatting is a base to stray from, not a ceiling.
-8. **Verify in both styles before shipping** — set `novaos.style` to
+8. **COLOUR MEANS SOMETHING, AND DECISIONS ARE A CONVERSATION.** His
+   instruction, 22 Sep: more varied colour, but with a purpose — each muscle
+   owns its hue (the same map the 3D figure and the volume bars use), the
+   accent is Nova's own, gold is "not yet decided", never a default fill
+   that persists across a whole surface. And a review must not be a button
+   per idea: a light tick or cross on each item, one "make all of them", and
+   otherwise he TALKS — rambles, argues, asks for a comparison — and Nova
+   synthesises, files what he settled, holds what he doubted with a reason,
+   explains what confused him with the figures, and starts more work from
+   his sentence. No "research further" button; he says it. A back-and-forth
+   that takes half an hour is the feature, not a failure.
+9. **Verify in both styles before shipping** — set `novaos.style` to
    `cupertino` and to `command`, look at both, at 375 and at 1280.
 
 The failure this standard is written against: the first Wrap-the-Day card
