@@ -23,12 +23,24 @@ import { useEffect, useRef } from 'react';
 import { EDGE_GUARD_PX, decideDirection } from './swipeCore.js';
 import { haptic } from './haptics.js';
 
-// How far across before it commits. iOS commits at roughly a third of the
-// screen; on a 375px phone that is ~125px, which is a long way for a gesture
-// he makes constantly. 88px is past any accidental brush and still one flick.
-export const COMMIT_PX = 88;
-// ...or a fast flick that never travelled that far.
-export const FLICK_PX_PER_MS = 0.5;
+// HOW FAR BEFORE IT COMMITS — his call, 22 Sep, after using it: "Should only
+// swipe back if the whole page is swiped too (about over half way across the
+// screen), not just a small swipe as this could be accidentally triggered."
+// 88px on a 375px phone was under a quarter, and he was triggering it by
+// accident. Half the VIEWPORT, measured at gesture time, so it is the same
+// fraction of whatever screen he is holding.
+export const COMMIT_FRACTION = 0.5;
+export function commitDistance(width) {
+  return Math.max(120, Math.round((width || 375) * COMMIT_FRACTION));
+}
+// A flick still counts, but it has to be a real one AND have covered a third
+// of the way — the accidental trigger he reported was a fast short brush.
+export const FLICK_PX_PER_MS = 0.9;
+export const FLICK_MIN_FRACTION = 0.33;
+
+// ONE PAGE PER GESTURE. "Should only swipe back to the previous page." A
+// second commit inside this window is the same thumb, not a second intention.
+export const COMMIT_COOLDOWN_MS = 600;
 // WHAT THE LAST SWIPE ACTUALLY DID. Settings reads this.
 //
 // The first cut of this gesture shipped "verified" on synthetic touch events
@@ -87,7 +99,7 @@ export function canGoBack(state) {
 //
 // So: before the lock, the app's own rule decides. After it, only distance
 // and speed matter, and nothing can take the gesture away.
-export function edgeDecision({ startX, dx, dy, dt, locked = false }) {
+export function edgeDecision({ startX, dx, dy, dt, width = 375, locked = false }) {
   if (startX >= EDGE_GUARD_PX) return 'none';          // not from the gutter
 
   if (!locked) {
@@ -99,35 +111,57 @@ export function edgeDecision({ startX, dx, dy, dt, locked = false }) {
   }
 
   // LOCKED. A finger that wanders back toward the edge is undoing the drag,
-  // not cancelling it — the page follows it home and only a release decides.
+  // not cancelling it — only a release decides.
+  const need = commitDistance(width);
   const flick = dt > 0 && dx / dt >= FLICK_PX_PER_MS;
-  if (dx >= COMMIT_PX || (flick && dx > EDGE_GUARD_PX)) return 'commit';
+  if (dx >= need || (flick && dx >= need * FLICK_MIN_FRACTION)) return 'commit';
   return 'tracking';
 }
 
-// How far the page has actually moved for a given drag — damped, so the sheet
-// never outruns the finger and the gesture reads as weight rather than as a
-// slide. Matches the resistance curve the rest of the app's sheets use.
-export function pageOffset(dx) {
+// HOW FAR THROUGH THE GESTURE HE IS, 0..1 — not a page offset any more.
+//
+// 22 SEP, from his screen recording: the first cut put a `transform` on
+// <main>, and a transformed ancestor re-anchors every position:fixed
+// descendant inside it. So mid-drag the recipe overlay stopped being pinned
+// to the viewport and landed on top of the list underneath — three screens'
+// text painted over each other, which is what he filmed. The page is NEVER
+// transformed now; the affordance is a fixed element of this hook's own,
+// outside the layout it would otherwise break.
+export function dragProgress(dx, width) {
   if (dx <= 0) return 0;
-  return Math.round(dx * 0.62);
+  return Math.min(1, dx / commitDistance(width));
 }
 
-// `getEl` returns the element to slide; `onBack` is what commit calls.
-export function useEdgeBack({ getEl, onBack, enabled = true }) {
-  const s = useRef({ armed: false, id: null, startX: 0, startY: 0, startT: 0, dir: null }).current;
+// `onBack` is what a commit calls. NOTHING in the app's own layout is touched
+// — see dragProgress for the position:fixed fault that cost him a filmed bug.
+export function useEdgeBack({ onBack, enabled = true }) {
+  const s = useRef({ armed: false, id: null, startX: 0, startY: 0, startT: 0, dir: null, lastCommit: 0 }).current;
 
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') return undefined;
     // a browser tab already has this gesture; doubling it goes back twice
     if (!isStandalone()) return undefined;
 
-    const paint = (px, animate) => {
-      const el = getEl?.();
-      if (!el) return;
-      el.style.transition = animate ? 'transform .26s cubic-bezier(.32,.72,0,1)' : '';
-      el.style.transform = px ? `translate3d(${px}px,0,0)` : '';
-      if (animate) setTimeout(() => { const e2 = getEl?.(); if (e2) e2.style.transition = ''; }, 280);
+    // THE AFFORDANCE, and it is ours alone: a fixed sliver at the left edge
+    // that deepens as he pulls. Fixed to the viewport and appended to <body>,
+    // so it can never become a containing block for anything of Nova's.
+    const peel = document.createElement('div');
+    peel.setAttribute('aria-hidden', 'true');
+    peel.style.cssText = [
+      'position:fixed', 'left:0', 'top:0', 'bottom:0', 'width:0',
+      'pointer-events:none', 'z-index:200', 'opacity:0',
+      'background:linear-gradient(90deg, color-mix(in srgb, var(--nv-acc) 26%, transparent), transparent)',
+      'border-left:2px solid var(--nv-acc)',
+      'will-change:width,opacity',
+    ].join(';');
+    document.body.appendChild(peel);
+
+    const paint = (progress, animate) => {
+      peel.style.transition = animate ? 'width .22s cubic-bezier(.32,.72,0,1), opacity .22s ease' : '';
+      // it reaches a quarter of the screen at full pull — enough to feel the
+      // gesture arriving, never enough to look like a second page
+      peel.style.width = progress ? `${Math.round(progress * window.innerWidth * 0.25)}px` : '0px';
+      peel.style.opacity = progress ? String(0.35 + progress * 0.65) : '0';
     };
 
     const reset = (animate = true) => {
@@ -139,7 +173,8 @@ export function useEdgeBack({ getEl, onBack, enabled = true }) {
       const t = e.touches?.[0];
       if (!t || e.touches.length > 1) return;
       if (t.clientX >= EDGE_GUARD_PX) return;
-      if (!canGoBack(window.history.state)) return;   // nowhere to go — leave the gesture alone
+      if (!canGoBack(window.history.state)) return;   // nowhere to go
+      if (Date.now() - s.lastCommit < COMMIT_COOLDOWN_MS) return;  // one page per thumb
       s.armed = true; s.id = t.identifier; s.dir = null;
       s.startX = t.clientX; s.startY = t.clientY; s.startT = performance.now();
     };
@@ -150,17 +185,23 @@ export function useEdgeBack({ getEl, onBack, enabled = true }) {
       if (!t) return;
       const dx = t.clientX - s.startX;
       const dy = t.clientY - s.startY;
+
+      // CLAIM IT EARLY. His report: it "wasn't working properly when trying to
+      // swipe back from the food carousels". A horizontal scroller starts
+      // moving on the first few pixels, long before the formal 12px direction
+      // lock — so by the time we called preventDefault the carousel already
+      // owned the touch. Any horizontal dominance inside the gutter is ours.
+      if (Math.abs(dx) > Math.abs(dy) && e.cancelable) e.preventDefault();
+
       const call = edgeDecision({
-        startX: s.startX, dx, dy, dt: performance.now() - s.startT, locked: s.dir === 'h',
+        startX: s.startX, dx, dy, dt: performance.now() - s.startT,
+        width: window.innerWidth, locked: s.dir === 'h',
       });
       last = { startX: Math.round(s.startX), dx: Math.round(dx), dy: Math.round(dy), call, at: Date.now() };
       if (call === 'cancel' || call === 'none') { reset(); return; }
-      if (call === 'waiting') return;            // still deciding — touch nothing yet
+      if (call === 'waiting') return;
       s.dir = 'h';
-      // Own the gesture now the direction is settled, or Safari pans the page
-      // under the finger while the page is also sliding.
-      if (e.cancelable) e.preventDefault();
-      paint(pageOffset(dx), false);
+      paint(dragProgress(dx, window.innerWidth), false);
     };
 
     const onEnd = (e) => {
@@ -169,33 +210,34 @@ export function useEdgeBack({ getEl, onBack, enabled = true }) {
       const dx = t ? t.clientX - s.startX : 0;
       const dy = t ? t.clientY - s.startY : 0;
       const call = edgeDecision({
-        startX: s.startX, dx, dy, dt: performance.now() - s.startT, locked: s.dir === 'h',
+        startX: s.startX, dx, dy, dt: performance.now() - s.startT,
+        width: window.innerWidth, locked: s.dir === 'h',
       });
       last = { startX: Math.round(s.startX), dx: Math.round(dx), dy: Math.round(dy), call, at: Date.now(), end: true };
       if (call === 'commit') {
-        s.armed = false; s.id = null;
-        // the page leaves the way the finger was going, then the screen
-        // behind it is already there — popstate has re-derived it by the
-        // time the transform is cleared
+        s.armed = false; s.id = null; s.lastCommit = Date.now();
+        // CLEARED INSTANTLY, before the navigation. Animating the affordance
+        // out WHILE the next screen renders is what overlapped his screens:
+        // the old paint was still running over the new one.
+        paint(0, false);
         haptic('tick');
-        paint(0, true);
         onBack?.();
         return;
       }
       reset();
     };
 
-    // passive start, NON-passive move: preventDefault is the whole point once
-    // the direction is locked
     window.addEventListener('touchstart', onStart, { passive: true });
     window.addEventListener('touchmove', onMove, { passive: false });
     window.addEventListener('touchend', onEnd, { passive: true });
-    window.addEventListener('touchcancel', () => reset(false), { passive: true });
+    const onCancel = () => reset(false);
+    window.addEventListener('touchcancel', onCancel, { passive: true });
     return () => {
       window.removeEventListener('touchstart', onStart);
       window.removeEventListener('touchmove', onMove);
       window.removeEventListener('touchend', onEnd);
-      reset(false);
+      window.removeEventListener('touchcancel', onCancel);
+      peel.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]);

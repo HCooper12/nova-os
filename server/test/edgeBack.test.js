@@ -15,14 +15,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  edgeDecision, canGoBack, depthOf, pageOffset, lastEdgeGesture,
-  COMMIT_PX, FLICK_PX_PER_MS,
+  edgeDecision, canGoBack, depthOf, dragProgress, lastEdgeGesture,
+  commitDistance, COMMIT_FRACTION, FLICK_PX_PER_MS, FLICK_MIN_FRACTION,
+  COMMIT_COOLDOWN_MS,
 } from '../../src/edgeBack.js';
 import { EDGE_GUARD_PX, INTENT_PX, startsInEdgeGuard } from '../../src/swipeCore.js';
 
 // dt defaults SLOW on purpose: at the default 100ms almost any real distance
 // is also a flick, and a distance case would pass for the wrong reason.
-const drag = (over = {}) => ({ startX: 4, dx: 0, dy: 0, dt: 900, ...over });
+const drag = (over = {}) => ({ startX: 4, dx: 0, dy: 0, dt: 900, width: 375, ...over });
 
 test('THE GESTURE LIVES IN THE GUTTER THE ROWS ALREADY AVOID', () => {
   // if these two ever disagree, a row swipe and the back swipe fight for the
@@ -36,17 +37,34 @@ test('THE GESTURE LIVES IN THE GUTTER THE ROWS ALREADY AVOID', () => {
   assert.equal(startsInEdgeGuard(EDGE_GUARD_PX), false);
 });
 
-test('it commits on distance, or on a flick that never got there', () => {
+test('IT TAKES HALF THE SCREEN — his report: a small swipe triggered it by accident', () => {
   const locked = (o) => drag({ locked: true, ...o });
-  assert.equal(edgeDecision(locked({ dx: COMMIT_PX - 1 })), 'tracking');
-  assert.equal(edgeDecision(locked({ dx: COMMIT_PX })), 'commit');
-  // a fast flick: 40px in 40ms is 1.0 px/ms, twice the threshold
-  assert.equal(edgeDecision(locked({ dx: 40, dt: 40 })), 'commit');
-  // the same distance taken slowly is still just tracking
-  assert.equal(edgeDecision(locked({ dx: 40, dt: 400 })), 'tracking');
-  // and a flick that has barely left the gutter is a brush, not a gesture
-  assert.equal(edgeDecision(locked({ dx: EDGE_GUARD_PX, dt: 10 })), 'tracking');
-  assert.ok(FLICK_PX_PER_MS > 0);
+  const need = commitDistance(375);
+  assert.equal(need, Math.round(375 * COMMIT_FRACTION));
+  assert.equal(edgeDecision(locked({ dx: need - 1 })), 'tracking');
+  assert.equal(edgeDecision(locked({ dx: need })), 'commit');
+  // the 88px that was triggering by accident is now nowhere near enough
+  assert.equal(edgeDecision(locked({ dx: 88 })), 'tracking');
+  // and it scales with the screen he is actually holding
+  assert.ok(commitDistance(430) > commitDistance(375));
+  assert.ok(commitDistance(320) >= 120, 'a tiny screen must still need a real pull');
+});
+
+test('a flick still counts, but only a real one that got a third of the way', () => {
+  const locked = (o) => drag({ locked: true, ...o });
+  const need = commitDistance(375);
+  const third = Math.ceil(need * FLICK_MIN_FRACTION);
+  // fast AND far enough
+  assert.equal(edgeDecision(locked({ dx: third + 2, dt: (third + 2) / 1.2 })), 'commit');
+  // fast but barely moved — the accidental brush he reported
+  assert.equal(edgeDecision(locked({ dx: 30, dt: 20 })), 'tracking');
+  // far enough but slow — still needs the full distance
+  assert.equal(edgeDecision(locked({ dx: third + 2, dt: 3000 })), 'tracking');
+  assert.ok(FLICK_PX_PER_MS > 0 && FLICK_MIN_FRACTION > 0 && FLICK_MIN_FRACTION < 1);
+});
+
+test('ONE PAGE PER GESTURE — the cooldown is real and long enough to mean it', () => {
+  assert.ok(COMMIT_COOLDOWN_MS >= 300, 'a second commit could ride the same thumb');
 });
 
 // ---- 22 Sep: the three ways a THUMB broke what a synthetic drag passed ----
@@ -64,7 +82,9 @@ test('A THUMB ARCS. A locked gesture cannot be taken away by vertical drift', ()
   // the second shipped bug: the vertical test re-ran on every move, so a drag
   // that had been horizontal for 80px was cancelled by the upward curve a
   // thumb makes as it travels right across a phone.
-  assert.equal(edgeDecision(drag({ dx: 90, dy: 40, locked: true })), 'commit');
+  // a full pull with a thumb's arc on it still commits
+  assert.equal(edgeDecision(drag({ dx: commitDistance(375) + 10, dy: 40, locked: true })), 'commit');
+  // and a half-pull with a big arc is still just tracking, not a cancel
   assert.equal(edgeDecision(drag({ dx: 60, dy: 55, locked: true })), 'tracking');
   // ...and a finger wandering back toward the edge is undoing the drag, not
   // cancelling it — only the release decides
@@ -112,19 +132,49 @@ test('navigate stamps the depth it reads back', async () => {
   ), 'utf8');
   assert.match(app, /pushState\(\{ novaDepth: depthOf\(window\.history\.state\) \+ 1 \}/,
     'navigate no longer stamps the history entry');
-  assert.match(app, /<EdgeBack getEl=/, 'the gesture is not mounted');
+  assert.match(app, /<EdgeBack \/>/, 'the gesture is not mounted');
 });
 
-test('the page follows the finger, damped, and never goes left', () => {
-  assert.equal(pageOffset(0), 0);
-  assert.equal(pageOffset(-50), 0, 'the page moved into the edge');
-  assert.equal(pageOffset(100), 62);
-  assert.ok(pageOffset(200) < 200, 'the page is outrunning the finger');
-  // monotonic, so the page never stutters backwards mid-drag
+test('THE PAGE IS NEVER TRANSFORMED — the fault he filmed', async () => {
+  // The first cut put a transform on <main>. A transformed ancestor becomes
+  // the containing block for every position:fixed descendant inside it, so
+  // the recipe overlay stopped being pinned to the viewport and painted on
+  // top of the list beneath — three screens' text superimposed, on video.
+  const { readFile } = await import('node:fs/promises');
+  const path = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+  const hook = await readFile(path.join(root, 'src', 'edgeBack.js'), 'utf8');
+  const cmp = await readFile(path.join(root, 'src', 'EdgeBack.jsx'), 'utf8');
+  assert.doesNotMatch(hook, /style\.transform\s*=/, 'the gesture is transforming app layout again');
+  assert.doesNotMatch(cmp, /getEl/, 'the component is reaching into the app\u2019s own elements again');
+  // its affordance is its own, fixed, and appended outside the layout
+  assert.match(hook, /document\.body\.appendChild\(peel\)/);
+  assert.match(hook, /position:fixed/);
+});
+
+test('progress runs 0..1 and never goes backwards', () => {
+  assert.equal(dragProgress(0, 375), 0);
+  assert.equal(dragProgress(-50, 375), 0);
+  assert.equal(dragProgress(commitDistance(375), 375), 1);
+  assert.equal(dragProgress(9999, 375), 1, 'progress must clamp');
   let prev = -1;
-  for (let dx = 0; dx <= 300; dx += 10) {
-    const px = pageOffset(dx);
-    assert.ok(px >= prev, `page offset went backwards at dx=${dx}`);
-    prev = px;
+  for (let dx = 0; dx <= 400; dx += 10) {
+    const v = dragProgress(dx, 375);
+    assert.ok(v >= prev, `progress went backwards at dx=${dx}`);
+    prev = v;
   }
+});
+
+test('BACK ANIMATES LIKE FORWARD', async () => {
+  // navigate() always ran its screen change through withTransition; popstate
+  // swapped instantly, so the swipe cut where a tap dissolved.
+  const { readFile } = await import('node:fs/promises');
+  const path = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const app = await readFile(path.join(
+    path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'src', 'App.jsx',
+  ), 'utf8');
+  assert.match(app, /this\.popH = \(\) => \{[\s\S]{0,200}withTransition\(/,
+    'back still swaps instantly while forward dissolves');
 });

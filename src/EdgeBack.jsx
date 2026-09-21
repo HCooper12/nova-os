@@ -5,10 +5,13 @@ import { useEdgeBack } from './edgeBack.js';
 // see, paints through a transform, and re-renders nothing (see the perf
 // memory, and Elapsed.jsx for the same shape).
 //
-// The SCROLLER slides, not the whole app, so the dock stays put under the
-// finger the way a tab bar does on iOS.
-export function EdgeBack({ getEl }) {
-  useEdgeBack({ getEl, onBack: () => window.history.back() });
+// IT TOUCHES NOTHING OF NOVA'S. The first cut transformed <main>, and a
+// transformed ancestor re-anchors every position:fixed descendant inside it —
+// mid-drag the recipe overlay stopped being pinned to the viewport and painted
+// on top of the list beneath it. He filmed three screens' text superimposed.
+// The affordance is now a fixed element the hook owns, appended to <body>.
+export function EdgeBack() {
+  useEdgeBack({ onBack: () => window.history.back() });
   return null;
 }
 

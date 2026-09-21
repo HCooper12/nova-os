@@ -803,7 +803,15 @@ export default class App extends Component {
     };
     window.addEventListener('pointerdown', this.tapUnlockH, { passive: true });
     // Back/forward navigation re-derives the screen from the hash.
-    this.popH = () => { this.setState({ screen: screenFromHash() }); this.consumeDeepLink(); };
+    // BACK ANIMATES LIKE FORWARD. navigate() has always run its screen change
+    // through withTransition (the View Transition API); popstate swapped
+    // instantly, so the back swipe cut where a tap dissolved. His note, 22
+    // Sep: "the animation needs to be refined like it is with Apple" — and
+    // the refined animation already existed, on the other direction only.
+    this.popH = () => {
+      this.withTransition(() => this.setState({ screen: screenFromHash() }));
+      this.consumeDeepLink();
+    };
     window.addEventListener('popstate', this.popH);
     window.addEventListener('hashchange', this.popH);
     // a notification tap lands here on a cold start too
@@ -8448,7 +8456,7 @@ export default class App extends Component {
               hoverStyle="border-color:var(--nv-acc-border);color:var(--nv-cy)">{v.sidebarToggle.open ? '‹' : '›'}</Interactive>
           )}
           {/* the left-edge back swipe — standalone only, see src/edgeBack.js */}
-          <EdgeBack getEl={() => this.mainRef.current} />
+          <EdgeBack />
           <main ref={this.mainRef} style={css("flex:1;overflow-y:auto;overflow-x:hidden;min-width:0;overscroll-behavior-y:contain;touch-action:manipulation")}>
             {/* ONE boundary around the screen switch. The daily five are
                 static so they never reach it; the lazy nine hit it only on a
