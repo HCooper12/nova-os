@@ -40,6 +40,27 @@ decision is, and what happens either way. No decision buried in prose, no
 "still his" list of vague chores mixed in with it. If nothing needs deciding,
 say that. (His instruction, 8 Sep 2026.)
 
+## Not looking AI-generated — and Nova's deliberate exceptions
+
+The global `~/.claude/CLAUDE.md` carries the list of defaults a model
+reaches for when it is not thinking (Vuyyuru, Sep 2026): Inter/Geist,
+pure-white grounds, purple-and-black, orbs, dot grids, liquid glass,
+shadows on everything, three feature cards, a hover animation on
+everything. Read it. The honesty half of it — **never invent a
+testimonial, statistic or claim**, show the real screenshot, honour
+`prefers-reduced-motion`, and never write "it's not X, it's Y" — binds
+here absolutely.
+
+**But Nova already made several of those calls on purpose, and they are
+not up for re-litigation on these grounds.** Liquid glass (`nv-liquid`),
+the violet/cyan accents, the soft `--nv-radius`, the calm shadows: all
+tokenised, all documented in NOVA-METHOD.md §2b and the design memory,
+all chosen against his own reports. A future session reading that list as
+a licence to strip Nova's house materials has misread it. The list is
+about reflexes; Nova's surface is a decision. If you think one of them is
+genuinely wrong for a surface, that is a design argument to put to him —
+with the reason — not a cleanup.
+
 ## Anything he can see
 Every new surface ships in **both** Home idioms from one view model (his
 phone runs `cupertino` → `MissionStructured`), wears the house objects
