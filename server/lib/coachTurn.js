@@ -307,6 +307,15 @@ export async function startCoachTurn(vaultPath, { question, sessionId = null, li
         const fleet = await fleetContext();
         if (fleet) parts.push(fleet);
       } catch { failures.push('fleet activity'); }
+      // THE RESEARCH HE DELEGATED, WITH ITS REPORT. His ask, 21 Sep: go
+      // "directly back to coach and have it summarise the data and information
+      // and results from its actions and work", then make the changes. The
+      // Coach can only do that if the report is in front of it.
+      try {
+        const { plansContext } = await import('./planFollowUp.js');
+        const plans = await plansContext();
+        if (plans) parts.push(plans);
+      } catch { failures.push('his plans'); }
 
       if (failures.length) {
         // Silent context loss made the Coach blame his logging for a code

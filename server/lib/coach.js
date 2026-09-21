@@ -383,6 +383,16 @@ export async function coachLiveLine(vaultPath) {
     const held = tunes.filter((t) => t.hold).map((t) => t.name);
     bits.push(tunes.length ? `${tunes.length} progression tune${tunes.length === 1 ? '' : 's'} active${held.length ? ` (held: ${held.join(', ')})` : ''}` : 'no progression tunes');
   } catch { bits.push('progression tunes FAILED to load this turn'); }
+  // A PLAN THAT FINISHED SINCE THIS CHAT BEGAN. His Coach conversation lives
+  // for days; the report he wants walked through may have landed an hour
+  // ago. Turn-1 context carries the full plans block; a resumed turn gets the
+  // newest finished report here so "what did the research find and what do
+  // I change" is answerable without starting over.
+  try {
+    const { latestReportLine } = await import('./planFollowUp.js');
+    const line = await latestReportLine();
+    if (line) bits.push(line);
+  } catch { bits.push('his plans FAILED to load this turn'); }
   try {
     const { listRecords } = await import('./inboxStore.js');
     const COACH_ROUTES = new Set(['progression-tune', 'routine-edit', 'injury-log', 'goal-target', 'training-block', 'exercise-resource', 'coach-learning', 'exercise-remap']);

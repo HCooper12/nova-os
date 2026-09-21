@@ -12,7 +12,7 @@ import { createRecord } from './inboxStore.js';
 // Hayden approves — in the transcript ("yes, do it") or in the Inbox.
 // Models decide, code acts; every kind below reuses a tested filer + undo.
 
-export const PROPOSE_KINDS = ['capture', 'calendar', 'routine-edit', 'rotation-variant', 'preference', 'profile', 'recipe'];
+export const PROPOSE_KINDS = ['capture', 'calendar', 'routine-edit', 'rotation-variant', 'preference', 'profile', 'recipe', 'plan'];
 
 // The categories his collection actually uses — a recipe filed under an
 // invented heading would land nowhere he looks.
@@ -27,6 +27,19 @@ export async function createVoiceProposal(vaultPath, question, raw) {
     // decision shape, validation, filing, and undo are all existing rails.
     const record = await captureForReview(vaultPath, { text: raw.text, source: 'voice' });
     return { recordId: record.id, title: record.decision.title, route: record.decision.route };
+  }
+
+  if (kind === 'plan') {
+    // MORE WORK, FROM THE CONVERSATION. "Research that further", "now check
+    // this against my program", "do the same for my nutrition" — the model
+    // names the goal, the planner decomposes it, and the plan card waits for
+    // his yes exactly as one he typed would. A finished plan's report may be
+    // handed on as material so the new one builds on it rather than repeats it.
+    const goal = String(raw.goal || '').trim();
+    if (!goal) throw new Error('the plan proposal needs a goal');
+    const { startPlan } = await import('./planner.js');
+    const record = await startPlan(vaultPath, goal, { buildsOn: raw.buildsOn || null });
+    return { recordId: record.id, title: `Plan: ${goal.slice(0, 60)}${goal.length > 60 ? '…' : ''}`, route: 'plan', planning: true };
   }
 
   if (kind === 'calendar') {

@@ -100,6 +100,35 @@ export function voiceRouter(vaultPath) {
       const lane = routed.lane;
       if (routed.sticky) console.log(`ask → ${lane} (sticky: ${routed.why})`);
       if (attachmentPreamble) question = `${attachmentPreamble}\n\n${question}`;
+      // A CORRECTION TO A PLAN HE HAS NOT YET APPROVED CHANGES THE PLAN.
+      // 21 Sep: the card said no agent could read his program; he said the
+      // Coach can; the words went to a chat that had never seen the plan, and
+      // the plan ran as written. Now: a proposed plan inside the follow-up
+      // window makes his next sentence — unless it is a bare yes or no, or
+      // plainly for a specialist — the correction, and the planner re-plans
+      // with it. Deterministic: no model decides whether he meant the plan.
+      let planLive = null;
+      try {
+        const { recentPlanContext, isAffirmativeOrNegative, describePlanForModel } = await import('../lib/planFollowUp.js');
+        planLive = await recentPlanContext();
+        if (planLive?.phase === 'proposed' && !isAffirmativeOrNegative(raw) && !routed.sticky && (lane === 'ask' || lane === 'coach' || lane === 'research')) {
+          const { amendPlan } = await import('../lib/planner.js');
+          const amended = await amendPlan(vaultPath, planLive.record.id, raw);
+          console.log(`ask → plan amended (${planLive.record.id} → ${amended.id}) q=${JSON.stringify(raw.slice(0, 80))}`);
+          return res.json({
+            text: 'Understood — re-planning with that. The revised plan is on its way; say yes when it is on screen.',
+            reflex: true,
+            plan: { recordId: amended.id, replaces: planLive.record.id },
+          });
+        }
+        // Running, paused or just finished: the model is handed the plan as
+        // it stands, so it answers about THIS work rather than a memory of it.
+        if (planLive && (lane === 'ask' || lane === 'coach')) {
+          question = `[The plan he is most likely referring to — ${planLive.phase}, ${Math.round(planLive.ageMs / 60000)} min ago:\n${describePlanForModel(planLive.record)}]\n\n${question}`;
+        }
+      } catch (e) {
+        console.log(`ask: plan follow-up skipped (${e.message})`);
+      }
       if (lane === 'coach') {
         const { startCoachTurn } = await import('../lib/coachTurn.js');
         const coachSession = typeof req.body?.coachSessionId === 'string' && req.body.coachSessionId ? req.body.coachSessionId : null;

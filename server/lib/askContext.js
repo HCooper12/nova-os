@@ -137,6 +137,9 @@ export async function resumedRefreshContext(vaultPath = null) {
     { label: 'today (local)', load: todayLocalContext },
     { label: 'the platform ledger (what he gave Nova)', load: async () => (await import('./platformActivity.js')).platformActivityContext() },
     { label: 'the inbox digest', load: async () => (await import('./platformActivity.js')).inboxDigestContext() },
+    // the plans he delegated, with a finished one's report in full — a
+    // conversation days old must still be able to say what the work found
+    { label: 'his plans and their reports', load: async () => (await import('./planFollowUp.js')).plansContext() },
     // what he has SAID and what he tends to do reach a live session the
     // turn after he says it — a correction made on Monday used to wait for
     // a new conversation (twin of the turn-1 sections above)
@@ -212,6 +215,11 @@ export async function buildAskContext(vaultPath, sessionId, { fast = false } = {
     { label: 'the platform ledger (what he gave Nova)', load: async () => (await import('./platformActivity.js')).platformActivityContext() },
     // the drafts themselves — so "open that Fuel draft and read it" works
     { label: 'the inbox digest', load: async () => (await import('./platformActivity.js')).inboxDigestContext() },
+    // THE WORK HE DELEGATED, AND WHAT IT FOUND. A plan used to finish into
+    // the Inbox and out of every conversation; its report rides here so
+    // "what did you find" and "what should I change" are answered, not
+    // deflected (his report, 21 Sep).
+    { label: 'his plans and their reports', load: async () => (await import('./planFollowUp.js')).plansContext() },
     // self-knowledge: "how do you work?" gets the real architecture
     { label: 'the fleet roster', load: async () => (await import('./ops.js')).fleetRosterContext() },
     { label: 'reminders', load: async () => (await import('./reminders.js')).remindersContext() },
