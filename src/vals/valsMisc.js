@@ -229,7 +229,12 @@ export function valsMisc(app, ctx) {
     novaBuild: RUNNING_BUILD,
     updateReady: st.updateReady ? {
       deployed: st.updateReady,
-      apply: () => applyUpdate(),
+      // THE TAP MUST LOOK TAKEN. His report: he pressed UPDATE and the screen
+      // sat there. The reload is guaranteed now (buildCheck.RELOAD_BY_MS), but
+      // up to a second of nothing still reads as a dead button — so the label
+      // changes the instant he touches it.
+      applying: !!st.updateApplying,
+      apply: () => { app.setState({ updateApplying: true }); applyUpdate(); },
       dismiss: () => app.setState({ updateReady: null }),
     } : null,
     stageCard: st.stageCard || null,

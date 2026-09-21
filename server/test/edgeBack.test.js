@@ -149,12 +149,26 @@ test('THE PREVIOUS PAGE IS REVEALED UNDERNEATH, which is what he asked for', asy
   assert.match(hook, /cloneNode\(true\)/, 'nothing snapshots the page being left');
   assert.match(hook, /snap\.style\.transform/, 'the snapshot does not move with the finger');
   // the real app navigates underneath it, so what is revealed is the real thing
-  assert.match(hook, /onBack\?\.\(\);\s*\/\/ instant/, 'it does not navigate underneath the snapshot');
+  // it navigates underneath the snapshot — on the next frame, so the first
+  // drag frame paints before a whole screen re-renders
+  assert.match(hook, /requestAnimationFrame\(\(\) => \{ if \(s\.live\) onBack\?\.\(\); \}\)/,
+    'it does not navigate underneath the snapshot');
   // a clone's scroll is not carried by cloneNode — he filmed being thrown to
   // the top of the page he was leaving
   assert.match(hook, /snap\.scrollTop = main\.scrollTop/);
-  // and a fixed child inside the clone would anchor to the layer, not the page
-  assert.match(hook, /position === 'fixed'\) el\.style\.position = 'absolute'/);
+  // A FIXED CHILD TRAVELS WITH THE CLONE FOR FREE, because the clone is
+  // transformed from its first paint and a transformed ancestor is the
+  // containing block for its fixed descendants. The first cut instead walked
+  // every element in the page calling getComputedStyle — a forced style
+  // resolution across the whole DOM at the instant his finger started moving,
+  // which is the stutter he described as "clunky" three reports running.
+  assert.doesNotMatch(hook, /querySelectorAll\('\*'\)/,
+    'the gesture walks the whole DOM again — that is the stutter');
+  // a CALL, not the word — the comment explaining why it is gone must survive
+  assert.doesNotMatch(hook, /getComputedStyle\(/,
+    'a forced style resolution is back on the gesture-start path');
+  assert.match(hook, /transform: 'translate3d\(0,0,0\)'/,
+    'the clone is not transformed from the first paint, so fixed children will not travel with it');
   // Apple's shadow down the leading edge
   assert.match(hook, /boxShadow/);
 });
@@ -233,4 +247,27 @@ test('BACK ANIMATES LIKE FORWARD', async () => {
   // forward navigation; only a drag opts out, because the drag IS the animation
   assert.match(app, /this\.popH = \(\) => \{[\s\S]{0,420}withTransition\(apply\)/,
     'back still swaps instantly while forward dissolves');
+});
+
+test('NOTHING EXPENSIVE HAPPENS ON THE FRAME HIS FINGER MOVES', async () => {
+  // Three reports of "clunky". The gesture-start path renders a whole screen
+  // in an app that re-renders everything on any setState, so the navigation
+  // waits a frame — the snapshot gets its first paint, which is the frame he
+  // actually feels.
+  const { readFile } = await import('node:fs/promises');
+  const path = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const hook = await readFile(path.join(
+    path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'src', 'edgeBack.js',
+  ), 'utf8');
+  assert.match(hook, /requestAnimationFrame\(\(\) => \{ if \(s\.live\) onBack\?\.\(\); \}\)/,
+    'the navigation runs in the same task as the first drag frame');
+  // the per-move path may only touch transform and opacity
+  const paint = hook.match(/const paint = \(dx, animate\) => \{[\s\S]*?\n    \};/)[0];
+  assert.match(paint, /style\.transform/);
+  assert.match(paint, /style\.opacity/);
+  assert.doesNotMatch(paint, /getBoundingClientRect|getComputedStyle|querySelector/,
+    'the per-frame paint path forces layout');
+  // and the transition string is written only when it changes
+  assert.match(paint, /if \(want !== eased\)/);
 });

@@ -8520,12 +8520,12 @@ export default class App extends Component {
         {v.updateReady && (
           <div style={css(`position:fixed;top:0;left:0;right:0;z-index:200;display:flex;align-items:center;gap:10px;padding:calc(8px + env(safe-area-inset-top)) 14px 10px;background:color-mix(in srgb, var(--nv-gold) 16%, var(--nv-void));border-bottom:1px solid color-mix(in srgb, var(--nv-gold) 45%, transparent);box-shadow:0 10px 30px rgba(0,0,0,.5)`)}>
             <span style={css('flex:1;min-width:0;font-size:12.5px;line-height:1.4;color:var(--nv-ink)')}>A newer Nova is ready — you’re running an older build.</span>
-            <Interactive as="span" onClick={v.updateReady.apply}
-              base={css('cursor:pointer;flex:none;font:var(--nv-micro-m);letter-spacing:.1em;padding:8px 14px;border-radius:8px;background:var(--nv-gold);color:#1a1322')}
-              hoverStyle="background:color-mix(in srgb, var(--nv-gold) 85%, white)">UPDATE</Interactive>
-            <Interactive as="span" onClick={v.updateReady.dismiss}
+            <Interactive as="span" onClick={v.updateReady.applying ? undefined : v.updateReady.apply} haptic="commit"
+              base={css(`cursor:pointer;flex:none;font:var(--nv-micro-m);letter-spacing:.1em;padding:8px 14px;border-radius:8px;background:var(--nv-gold);color:#1a1322${v.updateReady.applying ? ';opacity:.6' : ''}`)}
+              hoverStyle="background:color-mix(in srgb, var(--nv-gold) 85%, white)">{v.updateReady.applying ? 'UPDATING…' : 'UPDATE'}</Interactive>
+            {!v.updateReady.applying && <Interactive as="span" onClick={v.updateReady.dismiss}
               base={css('cursor:pointer;flex:none;font:var(--nv-micro-m);letter-spacing:.1em;padding:8px 10px;border-radius:8px;color:color-mix(in srgb, var(--nv-ink) 50%, transparent)')}
-              hoverStyle="color:var(--nv-ink)">LATER</Interactive>
+              hoverStyle="color:var(--nv-ink)">LATER</Interactive>}
           </div>
         )}
         <ContextMenuHost menu={this.state.ctxMenu} isMobile={v.isMobile} close={() => this.closeContextMenu()} />

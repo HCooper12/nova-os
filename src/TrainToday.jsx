@@ -4,6 +4,7 @@
 // Every number comes from /api/train/overview in one read; a missing
 // overview renders nothing (honest absence, no skeleton fiction).
 import { css } from './css.js';
+import { muscleVar } from './muscleHue.js';
 import { Interactive } from './Interactive.jsx';
 import { Term } from './Glossary.jsx';
 import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle } from './Controls.jsx';
@@ -222,11 +223,15 @@ export function TrainToday({ o, actions, resume }) {
           {o.volume.slice(0, 6).map((v) => {
             const pct = Math.min(100, Math.round((v.sets / v.target) * 100));
             const low = v.goalMuscle && v.sets < v.target;
+            // the bar wears the muscle's own hue (the figure's, the legend's);
+            // a goal muscle carries its name in that hue too, and a short one
+            // says so in the number, not by repainting the bar red
+            const hue = muscleVar(v.muscle);
             return (
               <div key={v.muscle} style={css('display:flex;align-items:center;gap:8px;margin-top:7px')}>
-                <Meta tone={v.goalMuscle ? 'gold' : 'faint'} style={{ width: '76px', flex: 'none', fontWeight: 600 }}>{cap(v.muscle)}</Meta>
+                <Meta tone={v.goalMuscle ? 'ink' : 'faint'} style={{ width: '76px', flex: 'none', fontWeight: 600, ...(v.goalMuscle ? { color: hue } : {}) }}>{cap(v.muscle)}</Meta>
                 <div style={css('flex:1;height:8px;border-radius:4px;background:rgba(130,175,255,.08);overflow:hidden;position:relative')}>
-                  <i style={css(`display:block;height:100%;width:${pct}%;border-radius:4px;background:${low ? 'linear-gradient(90deg,rgba(224,131,131,.8),rgba(224,131,131,.5))' : 'linear-gradient(90deg,var(--nv-vi),var(--nv-cy))'}`)} />
+                  <i style={css(`display:block;height:100%;width:${pct}%;border-radius:4px;background:linear-gradient(90deg,color-mix(in srgb, ${hue} 55%, transparent),${hue});opacity:${low ? .6 : 1}`)} />
                   {/* what he has ticked in THIS session, lit at the head of the
                       bar — the part that is happening right now reads as
                       happening right now */}

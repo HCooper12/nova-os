@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { muscleHexStatic } from './muscleHue.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
@@ -838,6 +839,21 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
     const secondary = new Set(muscles?.secondary || []);
     const PRI = palette?.primary ? new THREE.Color(palette.primary) : PRIMARY;
     const SEC = palette?.secondary ? new THREE.Color(palette.secondary) : SECONDARY;
+    // EACH MUSCLE IN ITS OWN HUE (22 Sep 2026). With no palette handed in, a
+    // lit chest is coral, a lit lat is teal, a lit tricep is violet — the same
+    // tokens the volume bars, the legend and the report's rail wear, so the
+    // colour means the muscle everywhere he sees it. A supporting muscle
+    // wears the same hue pulled halfway toward skin-grey: still identifiably
+    // itself, visibly not the muscle doing the work. A caller with its own
+    // question (Fuel's debt colour) still passes a palette and gets it.
+    const perMuscle = !palette?.primary;
+    const GREY = new THREE.Color(0x8a8a96);
+    const hueFor = (group, support) => {
+      const hex = perMuscle ? muscleHexStatic(group) : null;
+      if (!hex) return support ? SEC : PRI;
+      const c = new THREE.Color(hex);
+      return support ? c.lerp(GREY, 0.5) : c;
+    };
 
     loadModel().then((gltf) => {
       if (disposed) return;
@@ -860,8 +876,8 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
         const tinted = mats.map((m) => {
           const group = (m.name || '').replace(/^mus_/, '');
           const isMeat = layer === 'muscle';
-          const lit = primary.has(group) ? (isMeat ? MEAT_PRIMARY : PRI)
-            : secondary.has(group) ? (isMeat ? MEAT_SECONDARY : SEC) : null;
+          const lit = primary.has(group) ? (isMeat ? MEAT_PRIMARY : hueFor(group, false))
+            : secondary.has(group) ? (isMeat ? MEAT_SECONDARY : hueFor(group, true)) : null;
           // SKIN, physically. Sheen is the peach-fuzz rim you see on a real
           // arm against a light; the low specular and high-ish roughness stop
           // it reading as wet plastic; the faint red emissive stands in for

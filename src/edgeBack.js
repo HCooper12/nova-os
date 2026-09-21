@@ -197,16 +197,24 @@ export function useEdgeBack({ onBack, enabled = true }) {
 
       // the page he is leaving, frozen
       const snap = main.cloneNode(true);
-      // a clone's fixed children would anchor to the layer, not the viewport
-      snap.querySelectorAll('*').forEach((el) => {
-        if (getComputedStyle(el).position === 'fixed') el.style.position = 'absolute';
-      });
+      // NO WALK HERE. The first cut called getComputedStyle on every element
+      // in the page to re-anchor fixed children — a forced style resolution
+      // across the whole DOM, at the exact moment his finger starts moving.
+      // That was the stutter he kept describing as "clunky": the gesture
+      // blocked for as long as the page was big before it drew a single frame.
+      //
+      // And it was never needed. The snapshot is ALWAYS transformed, and a
+      // transformed ancestor is the containing block for its fixed
+      // descendants — the very property that broke <main> is the one that
+      // makes them travel with the clone for free.
       const box = main.getBoundingClientRect();
       Object.assign(snap.style, {
         position: 'fixed', left: `${box.left}px`, top: `${box.top}px`,
         width: `${box.width}px`, height: `${box.height}px`,
         margin: '0', zIndex: '201', overflow: 'hidden', pointerEvents: 'none',
         background: 'var(--nv-void)', willChange: 'transform',
+        // present from the first paint: this is what captures fixed children
+        transform: 'translate3d(0,0,0)',
         // the edge shadow Apple draws down the leading edge of the moving page
         boxShadow: '-14px 0 34px -6px rgba(0,0,0,.75)',
       });
@@ -224,13 +232,21 @@ export function useEdgeBack({ onBack, enabled = true }) {
       return { snap, scrim };
     };
 
+    // Only transform and opacity, and the transition property is written ONLY
+    // when it changes — setting it on every move costs a style recalc per
+    // frame for a value that is almost always the same one.
+    const EASE = 'transform .3s cubic-bezier(.32,.72,0,1), opacity .3s cubic-bezier(.32,.72,0,1)';
+    let eased = null;
     const paint = (dx, animate) => {
       const l = s.live;
       if (!l) return;
+      const want = animate ? EASE : '';
+      if (want !== eased) {
+        eased = want;
+        l.snap.style.transition = want;
+        l.scrim.style.transition = want;
+      }
       const p = Math.max(0, Math.min(1, dx / W()));
-      const ease = animate ? 'transform .3s cubic-bezier(.32,.72,0,1), opacity .3s cubic-bezier(.32,.72,0,1)' : '';
-      l.snap.style.transition = ease;
-      l.scrim.style.transition = ease;
       l.snap.style.transform = `translate3d(${Math.max(0, dx)}px,0,0)`;
       l.scrim.style.opacity = String(0.18 * (1 - p));
     };
@@ -238,6 +254,7 @@ export function useEdgeBack({ onBack, enabled = true }) {
     const teardown = () => {
       const l = s.live;
       s.live = null;
+      eased = null;
       dragging = false;
       if (!l) return;
       l.snap.remove();
@@ -292,8 +309,14 @@ export function useEdgeBack({ onBack, enabled = true }) {
         s.live = build();
         if (!s.live) { reset(); return; }
         dragging = true;
+        eased = null;
         paint(dx, false);
-        onBack?.();                       // instant — see edgeDragInProgress
+        // AFTER THE FIRST FRAME. Navigating renders a whole screen, and this
+        // app re-renders everything on any setState — doing it inside the
+        // same task as the first drag frame means the finger moves and
+        // nothing follows until that render finishes. One rAF buys the
+        // snapshot its first paint, which is the frame he actually feels.
+        requestAnimationFrame(() => { if (s.live) onBack?.(); });
         return;
       }
       paint(dx, false);

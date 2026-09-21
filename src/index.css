@@ -189,6 +189,14 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   --nv-edge:rgba(130,175,255,.24); --nv-spec:rgba(190,225,255,.45);
   --nv-cy:#59e6ff; --nv-vi:#8f7bff; --nv-mg:#ff7ad9; --nv-gold:#e0b26a;
   --nv-good:#5fe8a8; --nv-warn:#e08383;
+  /* EACH MUSCLE OWNS ITS HUE (22 Sep 2026, his instruction) — the one map
+     the figure, the volume bars, a report's rail and every chip read. Named
+     in src/muscleHue.js; pinned against the exercise library by
+     server/test/muscleHue.test.js. Same in every theme unless a theme block
+     below adjusts lightness. */
+  --nv-m-chest:#ff8a7a; --nv-m-back:#4fd1c5; --nv-m-shoulders:#ffc46b; --nv-m-biceps:#5fe8a8;
+  --nv-m-triceps:#b48cff; --nv-m-quads:#7ab8ff; --nv-m-hamstrings:#5aa0ff; --nv-m-glutes:#c98bff;
+  --nv-m-calves:#8fd3ff; --nv-m-abs:#ffd66b; --nv-m-forearms:#e0b26a; --nv-m-full:#59e6ff; --nv-m-mobility:#9ad5c8;
   --nv-acc:#59e6ff; --nv-acc-bg:rgba(89,230,255,.07); --nv-acc-border:rgba(89,230,255,.42);
   --nv-radius:10px; --nv-bracket:rgba(89,230,255,.55); --nv-bracket-op:1;
   --nv-gridline:rgba(130,175,255,.045); --nv-grid-op:1; --nv-aurora-op:.8; --nv-stars-op:0;
@@ -255,6 +263,10 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
    styles; Settings only offers it there, and switching style back to Command
    falls the theme back too. */
 :root[data-nv-theme="daylight"] {
+  /* the muscle hues a step darker so they hold on a white pane */
+  --nv-m-chest:#e0574a; --nv-m-back:#1f9d90; --nv-m-shoulders:#d99424; --nv-m-biceps:#1fa96c;
+  --nv-m-triceps:#7c58d8; --nv-m-quads:#2f7fd6; --nv-m-hamstrings:#2d6fd0; --nv-m-glutes:#9a5fd8;
+  --nv-m-calves:#3d95cf; --nv-m-abs:#c9a024; --nv-m-forearms:#a67c2e; --nv-m-full:#0f8fa8; --nv-m-mobility:#3f9a86;
   --nv-void:#f2f2f7; --nv-bg1:#f2f2f7; --nv-bg2:#e9e9ef;
   --nv-ink:#1c1c1e; --nv-ink60:rgba(28,28,30,.74); --nv-ink40:rgba(28,28,30,.42);
   --nv-ink50:rgba(28,28,30,.62);      /* 4.79:1 on white; ink60 lifted .6->.74 (was 4.49:1, under the bar) */

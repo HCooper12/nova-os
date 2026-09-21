@@ -40,21 +40,55 @@ export function isStale(running, deployed) {
 // so the next boot can only come from the network. Unregistering alone is
 // not enough — the caches outlive it and would serve the old chunks straight
 // back.
-export async function applyUpdate() {
-  try {
-    if ('serviceWorker' in navigator) {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map((r) => r.unregister().catch(() => {})));
-    }
-    if (typeof caches !== 'undefined') {
-      const keys = await caches.keys();
-      await Promise.all(keys.map((k) => caches.delete(k).catch(() => {})));
-    }
-  } catch { /* best-effort — the reload below is the part that matters */ }
+// 22 SEP, HIS REPORT: "the update button never seems to push the update
+// straight away whenever I press it… nothing has happened. If I don't press
+// the update button but I'm still navigating across nova then the page will
+// reload automatically with the update in place, so it feels like the update
+// notification is there for more of a visual reference."
+//
+// He was right, and the cause was here. Every line of cleanup was AWAITED
+// before the reload, so the one thing that actually matters — the reload —
+// sat behind promises that can simply never settle on iOS: getRegistrations()
+// and caches.delete() in an installed PWA, under a service worker that is
+// mid-update and holding its own locks. The cleanup hung, the reload was
+// never reached, and the banner sat there looking like a picture of a button.
+// That the app DID update later on its own is the same fact from the other
+// side: the service worker's own flow was working the whole time; only the
+// tap was stuck behind it.
+//
+// THE RELOAD IS THE PROMISE. Everything else is best-effort and is now
+// time-boxed and raced against it. A tap reloads within RELOAD_BY_MS no
+// matter what any of the storage APIs decide to do.
+export const RELOAD_BY_MS = 1200;
+
+function hardReload() {
   // cache-busted so even a stubborn HTTP cache cannot hand back the old shell
   const url = new URL(window.location.href);
   url.searchParams.set('nv', Date.now().toString(36));
   window.location.replace(url.toString());
+}
+
+async function dropCaches() {
+  if ('serviceWorker' in navigator) {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.map((r) => r.unregister().catch(() => {})));
+  }
+  if (typeof caches !== 'undefined') {
+    const keys = await caches.keys();
+    await Promise.all(keys.map((k) => caches.delete(k).catch(() => {})));
+  }
+}
+
+export async function applyUpdate({ reload = hardReload, timeoutMs = RELOAD_BY_MS } = {}) {
+  let done = false;
+  const go = () => { if (done) return; done = true; reload(); };
+  // the guarantee: this fires whatever the cleanup is doing
+  const guard = setTimeout(go, timeoutMs);
+  try {
+    await dropCaches();
+  } catch { /* best-effort — the reload is the part that matters */ }
+  clearTimeout(guard);
+  go();
 }
 
 // Poll for a new deploy. Deliberately unhurried — this is a safety net, not

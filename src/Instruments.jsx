@@ -255,8 +255,9 @@ export function Week({ d }) {
 // Training asks what today works. Fuel asks the same body what is waiting
 // to be rebuilt — so it is the same figure in the colour of debt, not a
 // second picture of something else.
+// Training passes no palette: since 22 Sep each worked muscle lights in its
+// own hue (src/muscleHue.js), the same hue the volume bars and legend wear.
 const PALETTE = {
-  body: { primary: 0x8f7bff, secondary: 0x59e6ff },   // --nv-vi / --nv-cy
   fuel: { primary: 0xe08a6a, secondary: 0xe0b26a },   // debt, not a plan
 };
 
@@ -277,7 +278,7 @@ export function BodyInstrument({ d }) {
       right={<Meta tone="quiet">{d.exercises} exercise{d.exercises === 1 ? '' : 's'}</Meta>}
       note={d.carryovers.length ? `◈ ${d.carryovers.length} carry-over${d.carryovers.length === 1 ? '' : 's'} still waiting` : null}>
       <div style={css('display:flex;align-items:center;gap:8px;padding:4px 14px 0;min-width:0')}>
-        <div style={css('flex:1;min-width:0')}><Figure muscles={d.muscles} height={210} palette={PALETTE.body} /></div>
+        <div style={css('flex:1;min-width:0')}><Figure muscles={d.muscles} height={210} palette={null} /></div>
         <div style={css('flex:none;display:flex;flex-direction:column;gap:12px;padding-right:2px')}>
           <div><Meta tone="quiet">Session</Meta>
             <div style={css('font:600 17px var(--nv-font-ui);color:var(--nv-ink)')}>{d.session}</div></div>

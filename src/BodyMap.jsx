@@ -1,4 +1,5 @@
 import { css } from './css.js';
+import { muscleVar } from './muscleHue.js';
 import { PATTERNS } from './exerciseMotion.js';
 
 // The target-muscle diagram — his ask, from a Lyfta screen recording: an
@@ -118,14 +119,17 @@ function Figure({ view, primary, secondary, height, motion, cycle }) {
         style={{ display: 'block', overflow: 'visible' }}>
         {GROUPS.map(([g, side]) => {
           const parts = SILHOUETTE.filter((sp) => sp.part === g);
-          const sec = secondary.flatMap((id) => shapesFor(regions, id, g, side));
-          const pri = primary.flatMap((id) => shapesFor(regions, id, g, side));
+          // each muscle painted in ITS OWN hue — the same token the 3D
+          // figure, the legend and the volume bars use, so coral is always
+          // the chest and teal always the back
+          const sec = secondary.map((id) => [id, shapesFor(regions, id, g, side)]).filter(([, sh]) => sh.length);
+          const pri = primary.map((id) => [id, shapesFor(regions, id, g, side)]).filter(([, sh]) => sh.length);
           if (!parts.length && !sec.length && !pri.length) return null;
           return (
             <Group key={g} name={g} style={anim(g)}>
               {parts.map((sp, i) => <path key={i} d={sp.d} fill="currentColor" opacity="0.15" />)}
-              <Paint shapes={sec} fill="var(--nv-cy)" opacity={0.42} />
-              <Paint shapes={pri} fill="var(--nv-mg)" opacity={0.92} />
+              {sec.map(([id, sh]) => <Paint key={`s-${id}`} shapes={sh} fill={muscleVar(id)} opacity={0.42} />)}
+              {pri.map(([id, sh]) => <Paint key={`p-${id}`} shapes={sh} fill={muscleVar(id)} opacity={0.92} />)}
             </Group>
           );
         })}
@@ -175,15 +179,17 @@ export function BodyMap({ muscles, height = 128, pattern = null, animate = true 
 // the card is to answer a question, not pose one.
 export function MuscleLegend({ muscles }) {
   if (!muscles) return null;
-  const chip = (label, colour) => (
-    <span key={label} style={css(`display:inline-flex;align-items:center;gap:5px;font:var(--nv-micro-m);color:${colour}`)}>
-      <span style={css(`width:7px;height:7px;border-radius:2px;background:${colour}`)} />{label}
+  // a worked muscle is a solid swatch of its own hue; a supporting one the
+  // same hue as an outline — the figure's rule, in the legend's words
+  const chip = (label, colour, support) => (
+    <span key={label} style={css(`display:inline-flex;align-items:center;gap:5px;font:var(--nv-micro-m);color:${colour};opacity:${support ? .8 : 1}`)}>
+      <span style={css(`width:7px;height:7px;border-radius:2px;background:${support ? 'transparent' : colour};box-shadow:inset 0 0 0 1.5px ${colour}`)} />{label}
     </span>
   );
   return (
     <div style={css('display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:6px')}>
-      {(muscles.primaryLabels || []).map((l) => chip(l, 'var(--nv-mg)'))}
-      {(muscles.secondaryLabels || []).map((l) => chip(l, 'var(--nv-cy)'))}
+      {(muscles.primaryLabels || []).map((l, i) => chip(l, muscleVar(muscles.primary?.[i]), false))}
+      {(muscles.secondaryLabels || []).map((l, i) => chip(l, muscleVar(muscles.secondary?.[i]), true))}
     </div>
   );
 }
