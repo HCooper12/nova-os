@@ -21,6 +21,18 @@
 //   tighter than on a desktop, because a phone shows three books and has a
 //   fraction of the memory.
 //
+//   AND A VOLUME IS BOUND BEFORE IT IS PRINTED. Painting those canvases is
+//   the one thing too expensive to do with a finger down, and the first
+//   version simply did not: the build budget was ZERO during a drag, so a
+//   swipe that outran the window presented a room with a plank, a word on the
+//   wall and NO BOOKS until the finger lifted. He filmed it. So a build now
+//   has two stages: a CHEAP binding — boards, spine, page block, headbands,
+//   in the edition's own cloth, no canvas anywhere — which is affordable
+//   mid-drag, and the painted cover, which replaces it in place (same pose,
+//   same opacity) once the hand is off the glass. The invariant is stated as
+//   a number, not a hope: `window.__novaShelf.emptyFrames` counts any frame
+//   drawn with volumes in the list and none of them visible, and it is 0.
+//
 //   THE TIMELINE IS TIME-BASED AND ITS ENDPOINTS ARE EXACT. The open is a
 //   free three-axis tumble (his call, Decision 3) — but a tumble whose extra
 //   rotation is a function that is ZERO at both ends, so the book arrives on
@@ -126,6 +138,72 @@ const SWAY_DEG = 2;
 const SWAY_PERIOD = 6.5;
 const ENV_BREATH = 0.32;
 const TAU = Math.PI * 2;
+
+// THE SETTLE (17 Sep). The sway was a PERMANENT rAF: 575 frames in five idle
+// seconds on a parked volume, on a phone, forever. An object that never stops
+// moving is not calmer than one that does — it is a battery drain with a
+// heartbeat. The shine still crosses the jacket during the open, and the
+// volume still breathes as it arrives; then it eases to exactly zero and the
+// loop stops. Five seconds is long enough that two screenshots a second apart
+// land on different phases and short enough that a book left open is still.
+const SETTLE_TIME = 5;
+
+// HOW FAR A FINGER TRAVELS PER VOLUME, and why it is not a constant.
+//
+// It was 68 CSS px. On his 402px phone one ordinary swipe crossed six volumes
+// — the ±3 window could not contain the jump, so every rig on screen was the
+// wrong one and the shelf had to rebuild the lot mid-gesture. Hypersensitive
+// to the hand AND the thing that made the shelf churn.
+//
+// The honest unit is the volume's own size ON SCREEN. The camera's FOV and
+// distance are fixed, so the frustum's half-height in world units is fixed
+// too: a volume's projected width therefore depends on the canvas HEIGHT
+// alone, never its width. One volume is SPACING world units, so
+// `SPACING * h / (2·halfH)` is exactly how many CSS pixels of canvas a volume
+// occupies — 161px at his 454px stage. DRAG_GAIN 0.75 makes the shelf travel
+// a little faster than the finger (a list's feel, not a map's), landing at
+// ~121px per volume on his phone: a 200px swipe moves 1.65 volumes, which
+// the ±3 window holds with two to spare.
+const DRAG_GAIN = 0.75;
+const HALF_H = CAM_DIST * Math.tan((CAM_FOV / 2) * (Math.PI / 180));
+
+// VOLUMES THAT HAVE JUST LEFT THE WINDOW ARE WORTH MORE THAN NOTHING. A flick
+// that overshoots and comes back rebuilds what it already had; four kept rigs
+// (textures included) is cheaper than four rebuilds, and they are dropped the
+// moment the finger lifts.
+const LRU_KEEP = 4;
+// Cheap bindings are a fraction of a painted cover, so a drag can afford more
+// than the zero it used to spend — but not unlimited. At three a frame the
+// 4x-throttled trace of a 350px out-and-back had two 74 ms frames in it, both
+// of them three builds landing together. Two is the number: the worst frame
+// halves, and the fill rate is still far more than a drag can outrun (a 350px
+// swipe crosses 2.9 volumes over ~18 frames, so it needs about one build a
+// frame; the starvation floor below covers the cold start).
+const DRAG_BUILDS = 2;
+
+// THE CHEAP BINDING'S RESOLUTION, and why it is not zero.
+//
+// The first version of this stage painted nothing at all: cloth colour,
+// boards, a page block, no canvas anywhere. It killed the empty room, and the
+// capture said the rest out loud — three flat terracotta slabs, which is not
+// a volume waiting to be printed, it is the grey box the whole edition system
+// exists to avoid.
+//
+// A quarter scale is 128×192: one twelfth the front's pixels, one thirtieth
+// of the full four-canvas set, and it is the REAL cover — the real plate, the
+// real title, the real mark, soft. A book read while the shelf is moving is
+// soft anyway. What it does without is the foil mesh, because a blurred
+// alpha mask puts a metallic halo on the cloth around the type; the title is
+// still there, painted in the foil's own colour, it simply has no specular
+// until the hand lifts.
+const CHEAP_SCALE = 0.25;
+
+// A VOLUME ARRIVES FAINT, NEVER ABSENT. New rigs faded in from literal zero,
+// which means a rig built on a frame whose delta rounds to nothing is a rig
+// that exists and cannot be seen. It is a one-frame hole rather than the
+// seconds-long one he filmed, and it is the same fault; eight percent is
+// still a fade, and it is still on screen.
+const FADE_IN_FROM = 0.08;
 
 const damp = THREE.MathUtils.damp;
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
@@ -448,6 +526,12 @@ export function Shelf3D({
     let mode = 'shelf';
     let travel = 0;
     let openIndex = -1;
+    // which volume the frame loop is allowed to paint at DETAIL_SCALE, set by
+    // the dwell in syncHires rather than read from the focus every frame
+    let hiresTarget = -1;
+    // dev instrument: the fault this whole two-stage build exists to kill
+    let emptyFrames = 0;
+    const emptyAt = [];
     // A DEV-ONLY INSTRUMENT, the same idea as the figure's motion harness: the
     // timeline can be held at an exact p so a screenshot is OF a known frame
     // rather than of whenever the capture happened to land. Nothing in the
@@ -459,6 +543,10 @@ export function Shelf3D({
     // shelf keeps its zero-frame idle
     let shinePhase = 0;
     let sway = 0;
+    // seconds since the volume arrived on the detail pose; the sway and the
+    // breath are scaled by an envelope that reaches exactly zero at
+    // SETTLE_TIME, and then the loop stops asking for frames
+    let settle = 0;
 
     const requestFrame = () => { if (!raf && !suspended && !disposed) raf = requestAnimationFrame(frame); };
 
@@ -498,8 +586,16 @@ export function Shelf3D({
         // timeline from a new object, so late art waits for the shelf
         if (index === openIndex && mode !== 'shelf') return;
         if (!value.image) return;
-        dropRig(index);
-        queueBuild(index);
+        // IN PLACE, not drop-then-queue: the old rig used to be removed here
+        // and the new one built a frame later, which is one more frame with a
+        // hole in the shelf. It inherits the pose and the opacity instead.
+        const rig = rigs.get(index);
+        if (!rig) { queueBuild(index); return; }
+        // ...but not with a finger down. Art landing mid-drag would otherwise
+        // buy back the very canvas paint the cheap binding exists to avoid —
+        // the volume is marked instead, and repainted when the hand lifts.
+        if (drag) { rig.stale = true; return; }
+        replaceRig(index, rig.hires, false);
       });
     };
 
@@ -507,13 +603,20 @@ export function Shelf3D({
     // Whichever volume you are LOOKING at: the open one, or the selected one.
     const focusIndex = () => (openIndex >= 0 ? openIndex : selectedIndex);
 
-    const buildRig = (index, hires = false) => {
+    // `cheap` is the first stage: the real cover at CHEAP_SCALE and nothing
+    // else — no spine, no colophon, no foil — which is affordable with a
+    // finger down. The volume is its own cloth, its own proportions and its
+    // own jacket; it is simply soft until the hand lifts.
+    const buildRig = (index, hires = false, cheap = false) => {
       const row = list[index];
-      if (!row || rigs.has(index) || disposed) return;
+      if (!row || rigs.has(index) || disposed) return null;
       const a = art.get(index);
       const edition = editionFor(row, { artAspect: a?.aspect ?? null, palette: a?.palette ?? null });
       const k = hires ? DETAIL_SCALE : 1;
-      const textures = {
+      const textures = cheap ? {
+        front: tex(paintFront(edition, a?.image || null, CHEAP_SCALE)),
+        spine: null, back: null, foil: null,
+      } : {
         // only the two faces you actually read are doubled; the spine is
         // 128px of type and the back is a colophon, and both stay small
         front: tex(paintFront(edition, a?.image || null, k)),
@@ -528,12 +631,18 @@ export function Shelf3D({
         foil: tex(paintFoilMask(edition, k), { srgb: false }),
       };
       const rig = createBookRig(edition, textures, sharedMats);
-      rig.hires = hires;
-      rig.root.position.set((index - position) * SPACING, BOARD_TOP + edition.height / 2, 0);
-      rig.setOpacity(0);
+      rig.hires = hires && !cheap;
+      rig.cheap = cheap;
+      // ON ITS POSE, not near it. This used to set x and y only, so a volume
+      // built while the shelf was scrolling appeared upright and un-tilted at
+      // z 0 and then damped into the fan — a pop, on top of the fade.
+      const pose = shelfPose(index, rig);
+      snapTo(rig, pose);
+      rig.setOpacity(Math.min(FADE_IN_FROM, pose.opacity));
       rig.root.userData.index = index;
       scene.add(rig.root);
       rigs.set(index, rig);
+      return rig;
     };
 
     const dropRig = (index) => {
@@ -544,8 +653,58 @@ export function Shelf3D({
       rigs.delete(index);
     };
 
+    // SWAP, DON'T BLINK. Upgrading a cheap binding to its painted cover, or
+    // giving the focus its DETAIL_SCALE pair, replaces one object with
+    // another — and the replacement inherits the pose and the opacity of the
+    // one it replaces, so nothing on screen changes except what is printed.
+    const replaceRig = (index, hires, cheap) => {
+      const old = rigs.get(index);
+      let keep = null;
+      if (old) {
+        keep = {
+          opacity: old.opacity,
+          grounded: old.grounded,
+          position: old.root.position.clone(),
+          rotation: old.root.rotation.clone(),
+          scale: old.root.scale.x,
+          crack: old.frontPivot.rotation.y,
+        };
+        dropRig(index);
+      }
+      const rig = buildRig(index, hires, cheap);
+      if (rig && keep) {
+        rig.root.position.copy(keep.position);
+        rig.root.rotation.copy(keep.rotation);
+        rig.root.scale.setScalar(keep.scale);
+        rig.frontPivot.rotation.y = keep.crack;
+        rig.setGrounded(keep.grounded);
+        rig.setOpacity(keep.opacity);
+      }
+      return rig;
+    };
+
+    // Does this index want the frame loop to do anything for it? A missing
+    // rig always. A cheap one, or one whose art landed after it was painted,
+    // as soon as the hand is off the glass — never during the drag, which is
+    // the whole point of the cheap binding.
+    const wants = (index) => {
+      const rig = rigs.get(index);
+      if (!rig) return true;
+      if (drag) return false;
+      return !!rig.cheap || !!rig.stale;
+    };
+
     const queueBuild = (index, first = false) => {
-      if (!rigs.has(index) && !buildQueue.includes(index)) {
+      if (wants(index) && !buildQueue.includes(index)) {
+        if (first) buildQueue.unshift(index); else buildQueue.push(index);
+      }
+      requestFrame();
+    };
+
+    // syncHires asks for a rebuild the ordinary test would refuse — the rig
+    // is there and it is painted, it is simply painted at the wrong size.
+    const forceQueue = (index, first = false) => {
+      if (!buildQueue.includes(index)) {
         if (first) buildQueue.unshift(index); else buildQueue.push(index);
       }
       requestFrame();
@@ -564,13 +723,15 @@ export function Shelf3D({
     // anyway — which is the only moment the extra resolution is for.
     let hiresDwell = 0;
     const syncHires = () => {
-      if (mode !== 'shelf') return;
+      if (mode !== 'shelf' || drag) return;
       const want = focusIndex();
-      for (const [i, rig] of rigs) {
-        if (rig.hires && i !== want) { dropRig(i); queueBuild(i); }
-      }
+      hiresTarget = hiresWanted ? want : -1;
+      // demote and promote both go through the queue and both REPLACE rather
+      // than drop: the old code dropped here and rebuilt a frame later, and
+      // that gap is a volume missing from the shelf for one frame.
+      for (const [i, rig] of rigs) if (rig.hires && i !== want) forceQueue(i);
       const cur = rigs.get(want);
-      if (hiresWanted && cur && !cur.hires) { dropRig(want); queueBuild(want, true); }
+      if (hiresWanted && cur && !cur.hires) forceQueue(want, true);
     };
 
     // ±3 on a phone: the fade is complete by 3.4 volumes out, so a fourth is
@@ -582,10 +743,26 @@ export function Shelf3D({
       const w = windowSize();
       const centre = Math.round(position);
       const lo = centre - w, hi = centre + w;
+      const strays = [];
+      const want = [];
       for (let i = 0; i < list.length; i++) {
-        if (i >= lo && i <= hi) { loadArt(i); queueBuild(i); }
-        else if (i !== openIndex) dropRig(i);
+        if (i >= lo && i <= hi) want.push(i);
+        else if (i !== openIndex && rigs.has(i)) strays.push(i);
       }
+      // CENTRE-OUT, not left-to-right. Queued in index order, a shelf opened
+      // at volume ten spent its first two frames building volumes seven and
+      // eight — the two furthest from the one he is looking at. The volume
+      // under the eye is built first, then its neighbours, then the fade.
+      want.sort((a, b) => Math.abs(a - centre) - Math.abs(b - centre));
+      for (const i of want) { loadArt(i); queueBuild(i); }
+      // THE LRU, and only while a finger is down. A drag crosses the window
+      // several times over; the volumes just outside it are the ones the next
+      // few hundred milliseconds are most likely to ask for again. A settled
+      // shelf goes back to exactly its window, so nothing is retained for
+      // longer than the gesture that might want it.
+      const keep = drag ? LRU_KEEP : 0;
+      strays.sort((a, b) => Math.abs(a - centre) - Math.abs(b - centre));
+      for (let n = keep; n < strays.length; n++) dropRig(strays[n]);
       for (const i of [...buildQueue]) if (i < lo || i > hi) buildQueue.splice(buildQueue.indexOf(i), 1);
       syncHires();
     };
@@ -605,6 +782,7 @@ export function Shelf3D({
         rz: -offset * ROLL_PER_STEP,
         scale: 1 + focus * FOCUS_SCALE,
         opacity: 1 - smoothstep(clamp((distance - FADE_FROM) / FADE_OVER, 0, 1)),
+        grounded: 1,
       };
     };
 
@@ -616,21 +794,30 @@ export function Shelf3D({
       const halfH = CAM_DIST * Math.tan((CAM_FOV / 2) * (Math.PI / 180));
       const halfW = halfH * camera.aspect;
       const isNarrow = narrow();
-      // Centred in its own strip, not floated at the top of it: parked high,
-      // the volume left a hundred pixels of black between itself and the
-      // title, which is the "floating in an empty column" fault again in a
-      // smaller frame.
-      // On narrow the column sits UNDER the canvas, so there is nothing to
-      // leave room for: parked off to one side the strip was half empty.
+      // On narrow the column sits UNDER the canvas, so the volume is not
+      // pushed to one side — but it IS pushed up.
+      //
+      // ON A PHONE IT PARKS HIGH, and this is the fourth fault from his 402px
+      // recording. Centred in a 454px strip at 78% of its height, the volume
+      // took 52% of the viewport on its own and the dossier beneath it —
+      // "Woven from the book's own text or your notes", the Original chip —
+      // started below the fold and ran under the floating dock. A parked book
+      // is not the page; it is the plate at the TOP of the page. Two thirds
+      // of the strip, sitting in its upper half, leaves a third of the canvas
+      // empty underneath, and the canvas is transparent there, so the text
+      // rises into it (Library.jsx lifts the column by the same fraction)
+      // without the renderer ever being resized mid-tumble.
       const u = isNarrow ? 0 : -halfW * 0.50;
-      const v = isNarrow ? halfH * 0.02 : 0;
+      const v = isNarrow ? halfH * 0.24 : 0;
       const p = new THREE.Vector3(u, v, -CAM_DIST).applyMatrix4(camera.matrixWorld);
       // face the camera, then turn another 23° so the spine and the fore-edge
       // both read — reel-0011's angle
       const faceYaw = Math.atan2(camera.position.x - p.x, camera.position.z - p.z);
-      // fit the volume to ~62% of the canvas height at this distance
-      const fit = (halfH * 2 * (isNarrow ? 0.78 : 0.72)) / rig.edition.height;
-      return { x: p.x, y: p.y, z: p.z, rx: 0.10, ry: faceYaw + 0.40, rz: 0, scale: fit, opacity: 1 };
+      const fit = (halfH * 2 * (isNarrow ? 0.62 : 0.72)) / rig.edition.height;
+      return {
+        x: p.x, y: p.y, z: p.z, rx: 0.10, ry: faceYaw + 0.40, rz: 0,
+        scale: fit, opacity: 1, grounded: 0,
+      };
     };
 
     // ---------------------------------------------------------- the open
@@ -672,6 +859,10 @@ export function Shelf3D({
       );
       rig.root.scale.setScalar(lerp(a.scale, b.scale, e));
       rig.setOpacity(1);
+      // THE FLOOR LEAVES FIRST, on its own quarter-length ramp rather than on
+      // `ease` — so the contact patch and this volume's cast shadow are both
+      // gone long before the tumble turns either of them into the camera.
+      rig.setGrounded(1 - smoothstep(clamp(p / 0.25, 0, 1)));
       // EXACT AT BOTH ENDS BY CONSTRUCTION — 0 for every p up to CRACK_FROM and
       // DETAIL_CRACK at p = 1 — so the hard settle in runTimeline has nothing
       // left to correct, and a close shuts the board before the book flies
@@ -683,6 +874,7 @@ export function Shelf3D({
       rig.root.position.set(pose.x, pose.y, pose.z);
       rig.root.rotation.set(pose.rx, pose.ry, pose.rz);
       rig.root.scale.setScalar(pose.scale);
+      rig.setGrounded(pose.grounded ?? 1);
       rig.setOpacity(pose.opacity);
     };
 
@@ -711,6 +903,7 @@ export function Shelf3D({
         if (travel >= 1) {
           travel = 1;
           mode = 'detail';
+          settle = 0;
           const rig = rigs.get(openIndex);
           // the hard settle: whatever the last frame computed, the rest pose
           // is assigned outright. Bar 5 is a promise about a number.
@@ -840,20 +1033,38 @@ export function Shelf3D({
           sway = 0;
           scene.environmentRotation.y = 0;
           shinePhase = 0;
+          settle = 0;
           return true;
         }
         return false;
       }
-      if (!shineOn()) { sway = 0; scene.environmentRotation.y = ENV_SWEEP * ease(clamp(travel, 0, 1)); return false; }
-      shinePhase += delta;
       // the sweep is carried by the travel, so the highlight crosses the
       // jacket exactly while the book is flying
       const swept = ENV_SWEEP * ease(clamp(travel, 0, 1));
-      const breath = mode === 'detail' ? Math.sin((shinePhase / SWAY_PERIOD) * TAU) * ENV_BREATH : 0;
-      scene.environmentRotation.y = swept + breath;
-      sway = mode === 'detail'
-        ? Math.sin((shinePhase / SWAY_PERIOD) * TAU + Math.PI / 2) * (SWAY_DEG * Math.PI / 180)
-        : 0;
+      if (!shineOn()) { sway = 0; scene.environmentRotation.y = swept; return false; }
+      shinePhase += delta;
+      if (mode !== 'detail') {
+        scene.environmentRotation.y = swept;
+        sway = 0;
+        return true;
+      }
+      // AND THEN IT SETTLES. Past SETTLE_TIME the rest pose is assigned
+      // outright — the same hard landing runTimeline makes, for the same
+      // reason: a sway that merely tends to zero would keep asking for frames
+      // for ever, which is exactly the 575-frames-in-five-idle-seconds this
+      // replaces. One last frame draws the landed pose, then nothing.
+      settle += delta;
+      if (settle >= SETTLE_TIME) {
+        if (sway === 0 && scene.environmentRotation.y === swept) return false;
+        sway = 0;
+        scene.environmentRotation.y = swept;
+        return true;
+      }
+      const envelope = 1 - smoothstep(settle / SETTLE_TIME);
+      scene.environmentRotation.y = swept
+        + Math.sin((shinePhase / SWAY_PERIOD) * TAU) * ENV_BREATH * envelope;
+      sway = Math.sin((shinePhase / SWAY_PERIOD) * TAU + Math.PI / 2)
+        * (SWAY_DEG * Math.PI / 180) * envelope;
       return true;
     };
 
@@ -869,23 +1080,56 @@ export function Shelf3D({
     function frame(time) {
       raf = 0;
       if (disposed) return;
-      const delta = Math.min((time - lastTime) / 1000, 0.05);
+      // A FRAME NEVER TOOK NEGATIVE TIME, and this used to allow one.
+      //
+      // The start-up path sets `lastTime = performance.now()` and then asks
+      // for a frame — but a frame had already been asked for (setRows, then
+      // setWord), and a rAF callback is handed the timestamp of the frame it
+      // belongs to, which had already begun. So the first frame arrived with
+      // `time` 109 ms BEHIND `lastTime`. `damp` has no opinion about negative
+      // dt: it extrapolates away from the target. Measured on his 402px
+      // viewport, the two rigs built on frame 1 came out at opacity −5.59 and
+      // `root.visible = false` — the shelf's very first drawn frame was an
+      // empty room, for exactly the reason he filmed and by a completely
+      // different mechanism. The floor is the whole fix; the ceiling is the
+      // old one (a tab returning from the background must not teleport).
+      const delta = clamp((time - lastTime) / 1000, 0, 0.05);
       lastTime = time;
 
-      // paint at most two volumes a frame: four 512×768 canvases is a few
-      // milliseconds each, and seventeen at once is a visible stall
-      // ONE a frame while anything is moving, two when the shelf is still.
-      // A build is a canvas paint plus a texture upload; two of them landing
-      // inside a dragged frame is what blew the budget at 4x.
-      // NOT ONE while a finger is down. A build is a canvas paint plus a
-      // texture upload, and landing either inside a dragged frame is what the
-      // 4x trace kept catching. Volumes that enter the window during a drag
-      // are built when it ends; their fade-in covers the wait.
-      const budget = drag ? 0 : ((mode === 'shelf' && position === targetPosition) ? 2 : 1);
+      // THE BUDGET, and the reason it is no longer zero.
+      //
+      // Painting a cover is a canvas paint plus a texture upload, and landing
+      // one inside a dragged frame is what the 4x trace kept catching — so
+      // the first version spent NOTHING during a drag. That is how the shelf
+      // came to present an empty room: on a 402px phone one swipe crossed six
+      // volumes, the ±3 window landed entirely on volumes that had no rig,
+      // and nothing was allowed to build them until the finger came up.
+      //
+      // A cheap binding costs neither a paint nor an upload, so a drag can
+      // afford three a frame. Painted covers still wait for the hand to lift.
+      const finger = !!drag;
+      let budget = finger ? DRAG_BUILDS : ((mode === 'shelf' && position === targetPosition) ? 2 : 1);
+      // AND A FLOOR UNDER IT. If nothing within a volume of the focus is on
+      // screen, the shelf is showing a room with no books in it, and no other
+      // consideration outranks fixing that this frame.
+      if (list.length) {
+        const f = focusIndex();
+        let near = false;
+        for (let i = f - 1; i <= f + 1 && !near; i++) {
+          const r = rigs.get(i);
+          if (r && r.opacity > 0.05) near = true;
+        }
+        if (!near) budget = Math.max(budget, 2);
+      }
       let built = 0;
       while (buildQueue.length && built < budget) {
         const next = buildQueue.shift();
-        buildRig(next, next === focusIndex() && hiresWanted);
+        const have = rigs.get(next);
+        // an upgrade waits for the hand; a volume that is already right needs
+        // nothing, and a stale queue entry must not cost a rebuild
+        const wantHires = !finger && next === hiresTarget && hiresWanted;
+        if (have && (finger || (!have.cheap && !have.stale && have.hires === wantHires))) continue;
+        replaceRig(next, wantHires, finger);
         built += 1;
       }
 
@@ -899,9 +1143,33 @@ export function Shelf3D({
         dust.position.y = Math.sin((time / 1000) * 0.17) * 0.004;
       }
 
+      // THE ASSERTION, counted rather than eyeballed. A frame drawn with
+      // volumes in the list and not one of them on screen is the fault he
+      // filmed; it is measured every frame so a regression announces itself.
+      let visible = 0;
+      for (const rig of rigs.values()) if (rig.root.visible && rig.opacity > 0.05) visible += 1;
+      if (list.length && visible === 0) {
+        emptyFrames += 1;
+        // WHERE, not just how many. A count you cannot locate is a count you
+        // end up explaining away; the first twenty are kept with the state
+        // that produced them.
+        if (emptyAt.length < 20) {
+          emptyAt.push({
+            frame: frames + 1, mode, queued: buildQueue.length, dragging: !!drag, delta,
+            held: [...rigs.entries()].map(([i, r]) => [i, Number(r.opacity.toFixed(4)), r.root.visible]),
+          });
+        }
+      }
+
       renderer.render(scene, camera);
       frames += 1;
-      if (api.current) { api.current.frames = frames; api.current.mode = mode; api.current.travel = travel; }
+      if (api.current) {
+        api.current.frames = frames;
+        api.current.mode = mode;
+        api.current.travel = travel;
+        api.current.emptyFrames = emptyFrames;
+        api.current.visible = visible;
+      }
 
       // RENDER ON DEMAND, in BOTH modes: nothing damping, no timeline, nothing
       // queued, no pointer over the canvas — no next frame.
@@ -910,6 +1178,11 @@ export function Shelf3D({
 
     // ------------------------------------------------------------- input
     const setTarget = (v) => { targetPosition = v; requestFrame(); };
+
+    // A volume's own width on the canvas, times the gain. Derived, never a
+    // constant: see DRAG_GAIN. The clamp is only there so a collapsed or
+    // absurd canvas cannot produce a pitch that makes the shelf immovable.
+    const dragPitch = () => clamp((SPACING * vheight()) / (2 * HALF_H) * DRAG_GAIN, 70, 260);
 
     const band = (v) => {
       const max = Math.max(0, list.length - 1);
@@ -951,7 +1224,7 @@ export function Shelf3D({
       if (drag && drag.id === e.pointerId) {
         const dx = e.clientX - drag.x;
         drag.moved = Math.max(drag.moved, Math.abs(dx), Math.abs(e.clientY - drag.y));
-        setTarget(band(drag.start - dx / 68));
+        setTarget(band(drag.start - dx / dragPitch()));
         wheelIdle = 0;
       }
       requestFrame();
@@ -973,6 +1246,10 @@ export function Shelf3D({
       }
       drag = null;
       if (e.pointerType === 'touch') { pointerInside = false; hoveredIndex = -1; }
+      // THE HAND IS OFF THE GLASS, so every cheap binding the drag put up is
+      // now due its painted cover, and the LRU's extra rigs are due release.
+      // Both are syncWindow's job and neither happens without this call.
+      syncWindow();
       requestFrame();
     };
     const onPointerLeave = () => { pointerInside = false; pointerDirty = true; requestFrame(); };
@@ -1054,9 +1331,15 @@ export function Shelf3D({
 
     // ------------------------------------------------------------- start
     api.current = {
-      frames: 0, mode: 'shelf', travel: 0,
+      frames: 0, mode: 'shelf', travel: 0, emptyFrames: 0, visible: 0,
+      get emptyAt() { return emptyAt.slice(); },
       get rigs() { return rigs.size; },
+      // how many of those are still cheap bindings waiting for their cover
+      get cheap() { return [...rigs.values()].filter((r) => r.cheap).length; },
+      get dragPitch() { return dragPitch(); },
+      get settle() { return settle; },
       get selectedIndex() { return selectedIndex; },
+      get position() { return position; },
       // for verification: the open volume's pose, so "the last frame of the
       // open equals the detail pose" can be a number rather than a squint
       pose(index) {
@@ -1085,6 +1368,7 @@ export function Shelf3D({
         art.clear();
         buildQueue.length = 0;
         mode = 'shelf'; travel = 0; openIndex = -1;
+        hiresTarget = -1; settle = 0;
         syncWindow();
         requestFrame();
       },

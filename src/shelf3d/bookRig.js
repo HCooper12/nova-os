@@ -88,6 +88,7 @@ export function createBookRig(edition, textures, sharedMats) {
 
   // the page block first, so the boards close onto it
   const pages = new THREE.Mesh(pageGeo, paper);
+  pages.name = 'pages';
   pages.castShadow = true;
   pages.receiveShadow = true;
   root.add(pages);
@@ -99,11 +100,13 @@ export function createBookRig(edition, textures, sharedMats) {
   }
 
   const spine = new THREE.Mesh(spineGeo, faces(mats.spine, 1));
+  spine.name = 'spine';
   spine.position.x = -w / 2 + SPINE_GAP;
   spine.castShadow = true;
   root.add(spine);
 
   const back = new THREE.Mesh(boardGeo, faces(mats.back, 5));
+  back.name = 'back';
   back.position.z = -(d / 2 - BOARD / 2);
   back.castShadow = true;
   back.receiveShadow = true;
@@ -116,23 +119,29 @@ export function createBookRig(edition, textures, sharedMats) {
   root.add(frontPivot);
 
   const front = new THREE.Mesh(boardGeo, faces(mats.front, 4));
+  front.name = 'front';
   front.position.x = w / 2;
   front.castShadow = true;
   front.receiveShadow = true;
   frontPivot.add(front);
 
   // the foil, a fifth of a millimetre proud of the board: metal that catches
-  // the key light on its own beat
-  const foil = new THREE.Mesh(
-    shared(`foilplane:${r3(w)}:${r3(h)}`, () => new THREE.PlaneGeometry(w, h)),
-    mats.foil,
-  );
-  keys.push(`foilplane:${r3(w)}:${r3(h)}`);
-  foil.position.set(w / 2, 0, BOARD / 2 + 0.0002);
-  frontPivot.add(foil);
+  // the key light on its own beat. A cheap binding has no foil mask yet and
+  // therefore no foil: an unlettered volume, not a metal slab.
+  if (mats.foil) {
+    const foil = new THREE.Mesh(
+      shared(`foilplane:${r3(w)}:${r3(h)}`, () => new THREE.PlaneGeometry(w, h)),
+      mats.foil,
+    );
+    foil.name = 'foil';
+    keys.push(`foilplane:${r3(w)}:${r3(h)}`);
+    foil.position.set(w / 2, 0, BOARD / 2 + 0.0002);
+    frontPivot.add(foil);
+  }
 
   // the shadow the volume drops on the board it stands on
   const contactShadow = new THREE.Mesh(shadowGeo, sharedMats.contactShadow.clone());
+  contactShadow.name = 'contact';
   contactShadow.rotation.x = -Math.PI / 2;
   contactShadow.position.y = -h / 2 + 0.0012;
   contactShadow.scale.set(w * 2.4, d * 4.2, 1);
@@ -140,13 +149,47 @@ export function createBookRig(edition, textures, sharedMats) {
   root.add(contactShadow);
 
   let opacity = 1;
+  // HOW MUCH OF THIS VOLUME IS STILL STANDING ON THE BOARD. 1 on the shelf,
+  // 0 in mid-air.
+  //
+  // THIS IS THE BLACK SLAB HE FILMED. The contact patch is a plane 2.4 boards
+  // wide — about 460 CSS px at his stage height, which is WIDER THAN THE
+  // WHOLE CANVAS — drawn with MultiplyBlending in --nv-void, and its gradient
+  // canvas (512×128) is cut off hard at its own top and bottom edges, so it
+  // has no soft boundary there at all. Flat under a standing book it is
+  // invisible and does its job. The tumble turns it: at p≈0.65 the book is at
+  // rx 0.60, rz -0.24, and the plane tips into the camera as a hard-edged
+  // near-black quadrilateral across the room. Found by holding the timeline
+  // at p and differencing the frame with the plane forced on against the same
+  // frame with it off — the difference IS the slab, edges and all
+  // (design/audits/library-2026-09-17/heat-contact-plane.png).
+  //
+  // The cast shadow goes at the same time and for the same reason: as the
+  // volume scales up and lifts it grows and clips against the key light's
+  // shadow frustum. A book in mid-air, over a room that is receding, casts
+  // neither.
+  let grounded = 1;
+  const casters = [pages, spine, back, front];
+  const applyGround = () => {
+    contactShadow.material.opacity = opacity * 0.24 * grounded;
+    contactShadow.visible = opacity > 0.02 && grounded > 0.01;
+  };
   return {
     root, frontPivot, contactShadow, edition,
     get opacity() { return opacity; },
+    get grounded() { return grounded; },
+    setGrounded(v) {
+      if (v === grounded) return;
+      const wasCasting = grounded > 0.5;
+      grounded = v;
+      applyGround();
+      const casting = v > 0.5;
+      if (casting !== wasCasting) for (const m of casters) m.castShadow = casting;
+    },
     setOpacity(v) {
       opacity = v;
       for (const m of mats.fade) m.opacity = v;
-      contactShadow.material.opacity = v * 0.24;
+      applyGround();
       root.visible = v > 0.02;
     },
     dispose() {

@@ -206,21 +206,29 @@ export function createVolumeMaterials(edition, textures, shared) {
   };
 
   const cloth = new THREE.MeshPhysicalMaterial({ ...clothBase, color: clothColour });
-  const front = new THREE.MeshPhysicalMaterial({
-    ...clothBase, map: textures.front,
-    roughness: 0.92, metalness: 0.035,
-    // a jacket's varnish: enough to carry a moving highlight, not enough to
-    // look like glass
-    clearcoat: 0.06, clearcoatRoughness: 0.72,
-    sheen: 0.26, sheenRoughness: 0.78,
-  });
+  // AN UNPAINTED FACE IS THE CLOTH ITSELF, not a second material with no map
+  // on it. A volume built ahead of its canvases (the cheap binding the shelf
+  // puts up while a finger is down) is then three materials rather than six,
+  // and it is a bound volume in its own colour rather than a grey box.
+  const front = textures.front
+    ? new THREE.MeshPhysicalMaterial({
+      ...clothBase, map: textures.front,
+      roughness: 0.92, metalness: 0.035,
+      // a jacket's varnish: enough to carry a moving highlight, not enough to
+      // look like glass
+      clearcoat: 0.06, clearcoatRoughness: 0.72,
+      sheen: 0.26, sheenRoughness: 0.78,
+    })
+    : null;
   // no back texture means plain cloth, which is exactly what it should be
   const back = textures.back
     ? new THREE.MeshPhysicalMaterial({ ...clothBase, map: textures.back, roughness: 0.96, metalness: 0.025, sheen: 0.25 })
     : null;
-  const spine = new THREE.MeshPhysicalMaterial({
-    ...clothBase, map: textures.spine, roughness: 0.95, metalness: 0.025, sheen: 0.27,
-  });
+  const spine = textures.spine
+    ? new THREE.MeshPhysicalMaterial({
+      ...clothBase, map: textures.spine, roughness: 0.95, metalness: 0.025, sheen: 0.27,
+    })
+    : null;
   // THE FOIL. A second mesh a fraction proud of the board, alpha-masked from
   // the type: metal that flashes on its own beat, separately from the cloth.
   // THE FOIL READS AS METAL OR IT READS AS A SMUDGE. His p2 note — "muddy
@@ -230,13 +238,19 @@ export function createVolumeMaterials(edition, textures, shared) {
   // environment, and at the scene's 0.66 it had almost none to take, so the
   // metal mesh sitting on top of the painted title made the title DARKER.
   // envMapIntensity is the dial that was missing.
-  const foil = new THREE.MeshPhysicalMaterial({
-    color: foilColour, map: textures.foil, alphaMap: textures.foil,
-    roughness: 0.22, metalness: 0.86, clearcoat: 0.18, clearcoatRoughness: 0.12,
-    envMapIntensity: 2.6,
-    transparent: true, depthWrite: false,
-    polygonOffset: true, polygonOffsetFactor: -2,
-  });
+  // NO MASK, NO FOIL. The alphaMap is what cuts the type out of the plane; a
+  // foil material without one is a solid metal sheet over the whole board,
+  // which is what a cheap binding would have shown. It gets no foil mesh at
+  // all instead (bookRig skips it when this is null).
+  const foil = textures.foil
+    ? new THREE.MeshPhysicalMaterial({
+      color: foilColour, map: textures.foil, alphaMap: textures.foil,
+      roughness: 0.22, metalness: 0.86, clearcoat: 0.18, clearcoatRoughness: 0.12,
+      envMapIntensity: 2.6,
+      transparent: true, depthWrite: false,
+      polygonOffset: true, polygonOffsetFactor: -2,
+    })
+    : null;
   const groove = new THREE.MeshPhysicalMaterial({
     color: clothColour.clone().multiplyScalar(0.42),
     roughness: 0.9, metalness: 0, transparent: true,
@@ -244,7 +258,11 @@ export function createVolumeMaterials(edition, textures, shared) {
 
   const list = [cloth, front, back, spine, foil, groove].filter(Boolean);
   return {
-    cloth, front, back: back || cloth, spine, foil, groove,
+    cloth,
+    front: front || cloth,
+    back: back || cloth,
+    spine: spine || cloth,
+    foil, groove,
     fade: list,
     dispose() { for (const m of list) m.dispose(); },
   };

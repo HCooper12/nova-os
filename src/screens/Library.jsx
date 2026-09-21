@@ -520,7 +520,19 @@ function Stage({ v, detail, closing, height, wide, tint, shelf, onClose }) {
         </Suspense>
       </div>
 
-      <div style={{ flex: beside ? '1 1 auto' : 'none', minWidth: 0, marginTop: beside ? '0' : (open ? '4px' : '8px') }}>
+      {/* THE DOSSIER RISES INTO THE CANVAS. On his 402×874 phone the canvas
+          is 454px — 52% of the viewport — and with the volume centred in it
+          the title and the first lines of the dossier started below the fold
+          and ran under the floating dock. The parked volume now sits in the
+          upper two thirds of the strip (Shelf3D's detailPose), and the lower
+          third is empty and TRANSPARENT: the renderer is alpha, the room has
+          receded, and there is nothing drawn down there at all. So the column
+          is pulled up into it by that same third. Nothing is resized, which
+          matters — a canvas that changes height mid-tumble reallocates its
+          drawing buffer in the middle of the one animation that must not
+          stutter. Wide screens are unaffected: the column is beside it. */}
+      <div style={{ flex: beside ? '1 1 auto' : 'none', minWidth: 0,
+        marginTop: beside ? '0' : (open ? `${-Math.round(height * 0.22)}px` : '8px') }}>
         {open ? (
           // the text arrives under the parked volume on the existing fadeUp,
           // and leaves the moment the close begins so the book flies back to
