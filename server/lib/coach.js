@@ -867,9 +867,16 @@ export async function validateCoachEdit(vaultPath, raw) {
 // program changes are confirm-first regardless of autonomy mode.
 export async function createCoachEditRecord(vaultPath, { question, proposal, source = 'coach' }) {
   const { payload, title } = await validateCoachEdit(vaultPath, proposal);
+  // THE CARD'S OWN LINE IS HIS QUESTION, NOT THE MACHINE'S PREAMBLE. A
+  // question that reaches the Coach from a plan step or the front door
+  // opens with bracketed context for the model ("[You are answering as one
+  // step of a plan…]", "[The plan he is most likely referring to…]"), and on
+  // 21 Sep two proposal cards showed exactly that as their text. Strip every
+  // leading bracket block; what is left is what he actually asked.
+  const asked = String(question || '').replace(/^\s*(?:\[[\s\S]*?\]\s*)+/, '').trim() || title;
   const record = {
     id: randomUUID().slice(0, 8),
-    text: question.slice(0, 300),
+    text: asked.slice(0, 300),
     source,
     mode: 'review-all',
     status: 'pending',

@@ -1,3 +1,4 @@
+import { tldrFor } from '../tldr.js';
 // Nova Inbox domain: the capture composer, filing-mode trust ladder, pending
 // approvals, history with undo, and the "proposed rule" nudge (Nova notices
 // from real history when a mode change has earned itself and proposes it —
@@ -367,6 +368,12 @@ export function valsInbox(app, ctx) {
     // approving leads the card, anything else stays where it was
     approveLine: saysWhat ? rawReason : '',
     reason: saysWhat ? '' : rawReason,
+    // THE TL;DR — derived by code from the shape the record already has
+    // (src/tldr.js): the verdict line and the numbered changes for a report
+    // or a brief, the one line a Coach flag already is, nothing for a bare
+    // capture. His ask, 21 Sep: "a succinct summary of the key actionable
+    // steps or information that is an absolute must to know."
+    tldr: tldrFor(r),
     isContinue,
     // the money, plainly, from the record's own payload — never estimated here
     spentUsd: isContinue && Number.isFinite(Number(r.decision?.payload?.spentUsd)) ? Number(r.decision.payload.spentUsd) : null,

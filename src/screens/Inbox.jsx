@@ -306,6 +306,22 @@ export function Inbox({ v }) {
                     clicked approved on something in my inbox." It is the one
                     line on the card written for him rather than for the
                     machine, so it leads, in full ink, above the body. */}
+                {/* THE TL;DR, FIRST OF ALL. Code's reading of what the card
+                    is telling him: the verdict in one line and the actionable
+                    steps when the body carries them. His ask, 21 Sep — so he
+                    never files a thing assuming it was for Nova, not him. */}
+                {item.tldr && (
+                  <div style={css('margin-top:10px;min-width:0;border-left:2px solid color-mix(in srgb, var(--nv-gold) 55%, transparent);padding:2px 0 2px 11px')}>
+                    <Eyebrow as="div" tone="gold">TL;DR</Eyebrow>
+                    {item.tldr.line && <div style={css(`margin-top:4px;min-width:0;font:400 15px/1.45 var(--nv-font-serif);color:var(--nv-ink);text-wrap:pretty`)}>{item.tldr.line}</div>}
+                    {item.tldr.items.length > 0 && (
+                      <ol style={css(`margin:6px 0 0;padding-left:18px;font:500 13px/1.5 ${R};color:var(--nv-ink)`)}>
+                        {item.tldr.items.map((t, i) => <li key={i} style={{ minWidth: 0 }}>{t}</li>)}
+                        {item.tldr.more > 0 && <li style={{ listStyle: 'none', marginLeft: '-18px' }}><Meta tone="faint">and {item.tldr.more} more in the report</Meta></li>}
+                      </ol>
+                    )}
+                  </div>
+                )}
                 {item.approveLine && (
                   <div style={css(`margin-top:9px;min-width:0;font:500 13.5px/1.5 ${R};color:var(--nv-ink)`)}>{item.approveLine}</div>
                 )}
