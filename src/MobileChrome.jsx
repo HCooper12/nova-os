@@ -53,8 +53,15 @@ export function MobileChrome({ v }) {
   return (
     <>
       <div className="nv-liquid nv-liquid-flush" style={css("position:fixed;top:0;left:0;right:0;z-index:70;display:flex;align-items:center;gap:10px;padding:calc(6px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left))")}>
-        <Interactive as="span" onClick={v.goHome} haptic="tick" base={css(`cursor:pointer;font:700 17px ${R};letter-spacing:.16em;color:var(--nv-ink)`)}>
-          NOVA<span style={css("background:linear-gradient(90deg,var(--nv-cy),var(--nv-vi));-webkit-background-clip:text;background-clip:text;color:transparent")}>·OS</span>
+        {/* ONE SLOT, TWO LAYERS. The wordmark is the compact-title slot: as the
+            screen's large title scrolls under the bar the wordmark yields to it,
+            and returns when he scrolls back. Scroll-driven in index.css; both
+            layers ride the same tappable element so either takes him home. */}
+        <Interactive as="span" onClick={v.goHome} haptic="tick" className="nv-title-slot" base={css('cursor:pointer')}>
+          <span className="nv-wordmark" style={css(`font:700 17px ${R};letter-spacing:.16em;color:var(--nv-ink);white-space:nowrap`)}>
+            NOVA<span style={css("background:linear-gradient(90deg,var(--nv-cy),var(--nv-vi));-webkit-background-clip:text;background-clip:text;color:transparent")}>·OS</span>
+          </span>
+          <span className="nv-compact-title" aria-hidden="true">{v.compactTitle}</span>
         </Interactive>
         <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '7px', font: apple ? `600 11px ${R}` : `500 9px ${M}`, letterSpacing: apple ? '.02em' : '.12em', color: v.statusChip.color }}><span style={{ width: '5px', height: '5px', borderRadius: '50%', background: v.statusChip.color, animation: v.statusChip.label === 'LIVE' ? 'novaPulse 2s infinite var(--nv-anim)' : 'none' }}></span>{v.statusChip.label}</span>
         {/* C3 — in-flight work, visible: a spinner chip while agents run */}
@@ -149,9 +156,15 @@ export function MobileChrome({ v }) {
             // the bottom-right core's own treatment, moved in here: a dark
             // well with a thin lit edge, NOT a filled accent disc. The solid
             // cyan fill is what made the core look washed-out and glitchy.
-            background: 'color-mix(in srgb, var(--nv-void) 88%, black)',
-            border: `1px solid ${v.novaSpeaking || v.novaListening || v.novaTalkOn ? 'var(--nv-acc-border)' : 'var(--nv-edge)'}`,
-            boxShadow: '0 10px 28px -10px rgba(0,0,0,.8), 0 0 0 4px color-mix(in srgb, var(--nv-void) 78%, transparent)' }}>
+            // A WELL IN THE GLASS, not a hole through it (22 Sep 2026). The
+            // near-black fill plus a 4px dark ring read as a black disc punched
+            // into the dock — the one thing on the pill that was not glass. The
+            // orb still needs a darker ground to glow against, so this is a
+            // deeper tint of the same material with the bright edge every other
+            // glass surface has, and the outer ring is gone.
+            background: 'color-mix(in srgb, var(--nv-void) 62%, transparent)',
+            border: `1px solid ${v.novaSpeaking || v.novaListening || v.novaTalkOn ? 'var(--nv-acc-border)' : 'rgba(255,255,255,.28)'}`,
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,.35), inset 0 0 14px -4px rgba(255,255,255,.35), 0 10px 26px -10px rgba(0,0,0,.75)' }}>
           <VoiceHalo speaking={v.novaSpeaking} listening={v.novaListening} inset="-6px" />
           {v.novaListening && (
             <span aria-hidden="true" style={{ position: 'absolute', inset: '-3px', borderRadius: '50%', border: '2px solid var(--nv-cy)', opacity: 0.7, animation: 'novaPulse 1.6s infinite var(--nv-anim)' }}></span>

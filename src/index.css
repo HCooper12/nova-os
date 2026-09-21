@@ -708,12 +708,23 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
    six 9px labels survive over arbitrary content, which is the constraint that
    stops this becoming `clear`. */
 .nv-liquid-dock {
-  --nv-liquid-blur: 26px;
-  --nv-liquid-sat: 210%;
-  --nv-liquid-tint: color-mix(in srgb, var(--nv-void) 28%, transparent);
-  --nv-liquid-sheen: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.04));
-  --nv-liquid-glow: inset 0 0 18px -6px rgba(255,255,255,.6);
-  --nv-liquid-drop: 0 22px 50px -18px rgba(0,0,0,.8);
+  --nv-liquid-blur: 28px;
+  --nv-liquid-sat: 220%;
+  /* His reference is Apple's own search pill: what says "glass" is not the
+     tint, it is a crisp bright RIM and content clearly visible through the
+     body. The tint drops and the rim comes up; the labels are lifted to keep
+     legibility instead of leaning on a heavier tint to get it. */
+  --nv-liquid-tint: color-mix(in srgb, var(--nv-void) 22%, transparent);
+  --nv-liquid-sheen: linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.05) 55%, rgba(255,255,255,.08));
+  --nv-liquid-glow: inset 0 0 22px -6px rgba(255,255,255,.7);
+  --nv-liquid-spec: inset 0 1px 0 rgba(255,255,255,.55), inset 0 -1px 0 rgba(255,255,255,.18);
+  --nv-liquid-drop: 0 24px 54px -18px rgba(0,0,0,.85);
+  --nv-liquid-rim: conic-gradient(from 212deg,
+    rgba(255,255,255,1), rgba(255,255,255,.22) 16%, rgba(255,255,255,.10) 42%,
+    rgba(255,255,255,.85) 62%, rgba(255,255,255,.18) 80%, rgba(255,255,255,1));
+  /* the ink tokens lifted further inside the dock than inside other glass:
+     six 9px labels over arbitrary content, with a lighter tint behind them */
+  --nv-ink40: color-mix(in srgb, var(--nv-ink) 66%, transparent);
 }
 
 /* TINTED — the accent bleeds into the material instead of sitting on it, the
@@ -940,3 +951,78 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
    The shared-element morphs (RepertoireBook, StepsHistory, the note reader,
    the library shelf, ExerciseSheet) still call withTransition themselves and
    still work — those open WITHIN a screen and do not move the chrome. */
+
+/* ================================================================
+   THE BAR BREATHES WITH THE SCROLL (22 Sep 2026)
+
+   His reference was Apple Notes: the large title collapses into the
+   compact bar as you scroll, and the bar takes on its material only
+   once content is passing beneath it. At the top there is nothing
+   behind the bar, so it has nothing to be glass OVER — it is
+   transparent and the buttons sit on the page itself. That is also
+   what keeps them readable: the material arrives exactly when
+   something starts to pass under them.
+
+   Nova's own version of the title collapse: the NOVA·OS wordmark is
+   the compact-title slot. As the screen's large title scrolls under
+   the bar, the wordmark yields to it; scroll back and the wordmark
+   returns. One slot, two layers, cross-faded by scroll position.
+
+   Entirely scroll-driven CSS — no listener, nothing on the main
+   thread, nothing to drop a frame. The scroller is <main>, which the
+   bar is NOT inside, so the timeline is named on main and hoisted to
+   the app root with timeline-scope. Verified in Safari 26.5: a fixed
+   sibling of the scroller tracked it at 0 → .64 → .86 over 200px.
+
+   Everything below the @supports gate degrades to what shipped
+   before: a solid bar, the wordmark always shown, no title layer.
+   That gate matters — without it, an engine with no scroll timeline
+   would run the keyframes on the document timeline, jump straight to
+   their end, and hide the wordmark permanently.
+   ================================================================ */
+#root { timeline-scope: --nv-main; }
+#root main { scroll-timeline: --nv-main block; }
+
+/* the two layers share one slot; the wordmark is the one that is tappable */
+.nv-title-slot { position: relative; display: inline-grid; align-items: center; min-height: 22px; }
+.nv-title-slot > * { grid-area: 1 / 1; }
+.nv-compact-title {
+  font: 600 15px var(--nv-font-ui); letter-spacing: var(--nv-display-track); color: var(--nv-ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 46vw;
+  opacity: 0; pointer-events: none;
+}
+
+@supports (animation-timeline: scroll()) {
+  .nv-liquid-flush {
+    background: transparent;
+    border-bottom-color: transparent;
+    animation: nvBarSolid linear both;
+    animation-timeline: --nv-main;
+    animation-range: 0 72px;
+  }
+  @keyframes nvBarSolid {
+    to { background: var(--nv-glass2); border-bottom-color: var(--nv-edge); }
+  }
+  .nv-wordmark {
+    animation: nvWordmarkYield linear both;
+    animation-timeline: --nv-main;
+    animation-range: 36px 110px;
+  }
+  @keyframes nvWordmarkYield {
+    to { opacity: 0; transform: translateY(-5px); }
+  }
+  .nv-compact-title {
+    animation: nvTitleArrive linear both;
+    animation-timeline: --nv-main;
+    animation-range: 56px 130px;
+  }
+  @keyframes nvTitleArrive {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+  }
+  /* reduced motion: the bar is simply solid and the wordmark simply stays */
+  @media (prefers-reduced-motion: reduce) {
+    .nv-liquid-flush { animation: none; background: var(--nv-glass2); border-bottom-color: var(--nv-edge); }
+    .nv-wordmark, .nv-compact-title { animation: none; }
+  }
+}

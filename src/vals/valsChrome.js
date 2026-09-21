@@ -111,6 +111,16 @@ export function valsChrome(app, ctx) {
     // chrome
     showBoot: !st.booted,
     isMobile: mob,
+    // THE COMPACT TITLE (22 Sep 2026): what the bar's wordmark yields to once
+    // the screen's large title has scrolled beneath it. Home's large title is
+    // the greeting, so the compact form is the greeting's first two words —
+    // the same clock rule MissionStructured uses, so the two can never
+    // disagree about what time of day it is.
+    compactTitle: (() => {
+      if (st.screen !== 'mission') return tabLabel(st.screen);
+      const h = new Date().getHours();
+      return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+    })(),
     // full-screen on the Mac: the sidebar folds away, and a tab on the left
     // edge (plus ⌘B) brings it back
     showSidebar: !mob && !st.sidebarHidden,
