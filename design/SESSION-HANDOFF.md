@@ -13,6 +13,60 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**22 SEP (morning) — THE MUSCLE PALETTE, PLATFORM-WIDE; A SCREENSHOT
+INSTRUMENT; THE ORG PLAN WRITTEN.** His instructions: colour with a purpose
+(muscle focus), "apply the muscle palette across the platform so it's always
+in sync and consistent", then the overall aesthetic review.
+
+**WHAT IS TRUE NOW**
+- `src/muscleHue.js` is the one map: a `--nv-m-*` token per library group
+  (13), the eighteen anatomy regions filed under them (`ANATOMY_GROUP`),
+  case-insensitive lookup, `muscleVar` for CSS, `muscleHexStatic` for WebGL.
+  Tokens declared on `:root` in `src/index.css` with a darker daylight set.
+  `server/test/muscleHue.test.js` pins every group and anatomy id to a
+  declared token and the `:root` hex to the map.
+- Readers: `Body3D` (no palette → each lit muscle in its own hue; supporting
+  = same hue lerped 0.5 to skin-grey; Fuel still passes its debt palette),
+  `BodyMap` (per-region fills), `MuscleLegend` (solid = worked, outline =
+  supporting), `TrainToday` volume bars (bar in the muscle's hue, goal
+  muscle's name in it, a short bar at .6 opacity with the number in warn).
+- The Jarvis mockup's tokens (`--m-chest` …) are the same hexes; the report
+  build reads `--nv-m-*` when it lands.
+- **VERIFIED BY LOOKING** (headless Chrome 402×874 via `scripts/shot.mjs`):
+  harness sheet, bench figure at 440px (chest coral, quads blue, lats teal,
+  abs/triceps muted as supporting), the Train bars, the Dumbbell Shoulder
+  Press card's flat map + legend.
+
+**RECEIPTS — READ THIS BEFORE TRUSTING THE LOG.** A peer session
+(nova-os-c7) is committing in the SAME working tree. Its commit `2208373`
+("fix: UPDATE actually updates…") swallowed the palette files while they sat
+staged for my own commit; it was pushed before I saw it, so it stands. The
+palette's why is in this block, not in that message. Rule from it, told to
+the peer: stage-and-commit in one command and read `git diff --cached
+--stat` first; anything you did not stage is the other session's. Their
+unstaged liquid-glass work (`index.css`, `MobileChrome.jsx`,
+`valsChrome.js`) was left alone. My commits: `36d081e` (shot.mjs),
+`dc61273` (ORG-CONVERSATION-PLAN.md).
+
+**THE INSTRUMENT.** Both MCP browsers were unavailable (devtools profile
+held by the peer; extension disconnected) and `screencapture` is refused to
+the sandbox. `node scripts/shot.mjs --eval "window.__novaApp.navigate('workouts')"
+--out x.png` gives a phone-size still from the recorder's own headless Chrome,
+seeded from `public/_devconn.js` (`node scripts/dev-connect.mjs`, `--command`
+for the other idiom; `--clean` after). `--eval` may repeat; a promise is
+awaited; it re-attaches after the app's self-reload. Safari via osascript
+works for DOM reads (address the tab by URL) but cannot screenshot.
+
+**NEXT** (in order): the aesthetic review (subagent, §2b rules 7–8, both
+idioms, every screen, Before/After) → its findings as builds; then the
+queued builds in memory `nova-open-threads` (reply-in-place, the spoken
+Jarvis report, the one-conversation org per `design/ORG-CONVERSATION-PLAN.md`).
+Dev server on :5183 and `_devconn.js` are live for the review; clean both
+at close.
+
+---
+
+
 **21 SEP (afternoon) — THE PLAN LOOP: HIS PROGRAM, THE COACH, PAUSE-AND-ASK,
 AND THE REPORT BACK IN THE CHAT.** Six commits (4a863e0 → 4e1fb4d), all
 shipped. Read memory `nova-plan-loop` first; it carries the why.
