@@ -1,4 +1,5 @@
 import { getConnection } from '../api.js';
+import { isStandalone, lastEdgeGesture, depthOf } from '../edgeBack.js';
 import { GALAXY_MAX_NODES, toWorld } from '../galaxyLayout.js';
 import { orbReply } from '../mockAssistants.js';
 import { NOTE_TYPE_COLOR } from './shared.js';
@@ -189,6 +190,27 @@ export function valsMisc(app, ctx) {
     runVoiceTest: () => app.runVoiceTest(),
     // the other direction: can Nova hear HIM. See src/micCheck.js for why
     // this exists and what stages 4 and 5 are actually settling.
+    // THE BACK SWIPE, as facts rather than "it isn't working". The first cut
+    // shipped verified on synthetic touch events and failed on his phone with
+    // no way to find out why — the same hole that hid the dictation fault for
+    // four days. See src/edgeBack.js.
+    backSwipe: (() => {
+      const g = lastEdgeGesture();
+      const depth = typeof window === 'undefined' ? 0 : depthOf(window.history.state);
+      const standalone = isStandalone();
+      return {
+        standalone,
+        depth,
+        // the one that decides whether the gesture is even listening
+        armed: standalone,
+        reason: !standalone
+          ? 'Off — Nova is in a browser tab, where Safari already owns the edge. Add it to your Home Screen and this turns on.'
+          : depth === 0
+            ? 'On, but you are on the first screen of this session — there is nothing behind it to go back to yet.'
+            : 'On. Drag right from the very left edge.',
+        last: g ? `${g.call} · started ${g.startX}px in · moved ${g.dx}×${g.dy}` : null,
+      };
+    })(),
     micCheck: st.micCheck || null,
     runMicCheck: () => app.runMicCheck(),
     // the Voice screen's dictation is local to that screen — App needs to

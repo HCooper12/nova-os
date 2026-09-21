@@ -498,6 +498,24 @@ export function Settings({ v }) {
             <Chip tone="accent" active onClick={v.runVoiceTest} style={{ flex: 'none' }}>{v.voiceTest?.running ? 'Testing…' : 'Test'}</Chip>
           </div>
 
+          {/* THE BACK SWIPE, as facts. Shipped 19 Sep "verified" on synthetic
+              touch events and did not work on his phone; this is so the next
+              report is a number instead of a guess. */}
+          <div style={css("border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:16px")}>
+            <div style={css("font:600 12.5px var(--nv-font-ui)")}>Swipe back from the left edge</div>
+            <div style={css("margin-top:3px;font-size:11px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>
+              {v.backSwipe.reason}
+            </div>
+            <div style={css("margin-top:9px;display:flex;flex-direction:column;gap:5px")}>
+              <CheckRow ok={v.backSwipe.standalone} stage="Installed to the Home Screen"
+                detail={v.backSwipe.standalone ? 'yes — the gesture is listening' : 'no — running in a browser tab'} />
+              <CheckRow ok={v.backSwipe.depth > 0} stage="Somewhere to go back to"
+                detail={`${v.backSwipe.depth} screen${v.backSwipe.depth === 1 ? '' : 's'} deep this session`} />
+              <CheckRow ok={!!v.backSwipe.last} stage="Last swipe Nova saw"
+                detail={v.backSwipe.last || 'none yet — try one, then come back here'} />
+            </div>
+          </div>
+
           {/* CAN NOVA HEAR YOU — the other direction, and the one that was
               silently broken. The turn receipts said his iPhone has never
               once produced a speech result while a Mac produced one every

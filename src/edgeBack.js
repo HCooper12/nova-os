@@ -20,7 +20,7 @@
 // handlers on one gesture would go back twice.
 
 import { useEffect, useRef } from 'react';
-import { EDGE_GUARD_PX } from './swipeCore.js';
+import { EDGE_GUARD_PX, decideDirection } from './swipeCore.js';
 import { haptic } from './haptics.js';
 
 // How far across before it commits. iOS commits at roughly a third of the
@@ -29,8 +29,17 @@ import { haptic } from './haptics.js';
 export const COMMIT_PX = 88;
 // ...or a fast flick that never travelled that far.
 export const FLICK_PX_PER_MS = 0.5;
-// Vertical slop before we decide he is scrolling, not going back.
-export const VERTICAL_SLOP = 14;
+// WHAT THE LAST SWIPE ACTUALLY DID. Settings reads this.
+//
+// The first cut of this gesture shipped "verified" on synthetic touch events
+// and did not work on his phone, and there was no way to find out why except
+// to guess — the same hole that kept dictation broken for four days until the
+// turn receipts were read by device. So the gesture now leaves a receipt:
+// where it started, how far it got, and what it decided. One tap in Settings
+// turns "swipe back is not working" into a number.
+let last = null;
+export function lastEdgeGesture() { return last; }
+export function _resetEdgeGesture() { last = null; }
 
 // A real installed app, not a tab. matchMedia is the standard signal;
 // navigator.standalone is the older iOS one and is still what a Home Screen
@@ -58,12 +67,39 @@ export function canGoBack(state) {
   return depthOf(state) > 0;
 }
 
-// The gesture, as arithmetic. Pure so the thresholds are pinned by a test
-// rather than by a thumb.
-export function edgeDecision({ startX, dx, dy, dt }) {
+// The gesture, as arithmetic.
+//
+// 22 SEP — HIS REPORT: "Swipe back is not working." The first cut passed a
+// clean synthetic drag and failed a thumb, in three ways that a straight line
+// of touch events cannot produce:
+//
+//   1. `if (dx < 0) return 'cancel'` — ONE pixel of leftward jitter at the
+//      start killed the gesture for good. A finger landing on glass always
+//      wobbles; my test never did.
+//   2. The vertical test re-ran on EVERY move, so a gesture that had plainly
+//      been horizontal for 80px could still be cancelled by the upward ARC a
+//      thumb makes as it travels right. Thumbs pivot; test data does not.
+//   3. There was no direction LOCK at all. Every other gesture in this app
+//      locks once via decideDirection() and never re-questions it — that rule
+//      (INTENT_PX 12, HORIZONTAL_BIAS 1.5) is tuned and proven on his device,
+//      and inventing a private one here was the mistake underneath the other
+//      two.
+//
+// So: before the lock, the app's own rule decides. After it, only distance
+// and speed matter, and nothing can take the gesture away.
+export function edgeDecision({ startX, dx, dy, dt, locked = false }) {
   if (startX >= EDGE_GUARD_PX) return 'none';          // not from the gutter
-  if (Math.abs(dy) > VERTICAL_SLOP && Math.abs(dy) > Math.abs(dx)) return 'cancel';
-  if (dx < 0) return 'cancel';                          // dragging back into the edge
+
+  if (!locked) {
+    const dir = decideDirection(dx, dy);
+    if (dir === 'v') return 'cancel';                   // he is scrolling
+    if (dir !== 'h') return 'waiting';                  // not enough to tell yet
+    if (dx < 0) return 'cancel';                        // locked horizontal, but leftward
+    return 'lock';
+  }
+
+  // LOCKED. A finger that wanders back toward the edge is undoing the drag,
+  // not cancelling it — the page follows it home and only a release decides.
   const flick = dt > 0 && dx / dt >= FLICK_PX_PER_MS;
   if (dx >= COMMIT_PX || (flick && dx > EDGE_GUARD_PX)) return 'commit';
   return 'tracking';
@@ -114,8 +150,12 @@ export function useEdgeBack({ getEl, onBack, enabled = true }) {
       if (!t) return;
       const dx = t.clientX - s.startX;
       const dy = t.clientY - s.startY;
-      const call = edgeDecision({ startX: s.startX, dx, dy, dt: performance.now() - s.startT });
+      const call = edgeDecision({
+        startX: s.startX, dx, dy, dt: performance.now() - s.startT, locked: s.dir === 'h',
+      });
+      last = { startX: Math.round(s.startX), dx: Math.round(dx), dy: Math.round(dy), call, at: Date.now() };
       if (call === 'cancel' || call === 'none') { reset(); return; }
+      if (call === 'waiting') return;            // still deciding — touch nothing yet
       s.dir = 'h';
       // Own the gesture now the direction is settled, or Safari pans the page
       // under the finger while the page is also sliding.
@@ -128,7 +168,10 @@ export function useEdgeBack({ getEl, onBack, enabled = true }) {
       const t = [...(e.changedTouches || [])].find((x) => x.identifier === s.id);
       const dx = t ? t.clientX - s.startX : 0;
       const dy = t ? t.clientY - s.startY : 0;
-      const call = edgeDecision({ startX: s.startX, dx, dy, dt: performance.now() - s.startT });
+      const call = edgeDecision({
+        startX: s.startX, dx, dy, dt: performance.now() - s.startT, locked: s.dir === 'h',
+      });
+      last = { startX: Math.round(s.startX), dx: Math.round(dx), dy: Math.round(dy), call, at: Date.now(), end: true };
       if (call === 'commit') {
         s.armed = false; s.id = null;
         // the page leaves the way the finger was going, then the screen

@@ -15,10 +15,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  edgeDecision, canGoBack, depthOf, pageOffset,
-  COMMIT_PX, FLICK_PX_PER_MS, VERTICAL_SLOP,
+  edgeDecision, canGoBack, depthOf, pageOffset, lastEdgeGesture,
+  COMMIT_PX, FLICK_PX_PER_MS,
 } from '../../src/edgeBack.js';
-import { EDGE_GUARD_PX, startsInEdgeGuard } from '../../src/swipeCore.js';
+import { EDGE_GUARD_PX, INTENT_PX, startsInEdgeGuard } from '../../src/swipeCore.js';
 
 // dt defaults SLOW on purpose: at the default 100ms almost any real distance
 // is also a flick, and a distance case would pass for the wrong reason.
@@ -27,33 +27,64 @@ const drag = (over = {}) => ({ startX: 4, dx: 0, dy: 0, dt: 900, ...over });
 test('THE GESTURE LIVES IN THE GUTTER THE ROWS ALREADY AVOID', () => {
   // if these two ever disagree, a row swipe and the back swipe fight for the
   // same pixels and one of them loses silently
-  assert.equal(edgeDecision(drag({ startX: EDGE_GUARD_PX - 1, dx: 200 })), 'commit');
+  assert.equal(edgeDecision(drag({ startX: EDGE_GUARD_PX - 1, dx: 200 })), 'lock');
   assert.equal(edgeDecision(drag({ startX: EDGE_GUARD_PX, dx: 200 })), 'none');
+  // ...and 'none' wins even once locked: a gesture that never started in the
+  // gutter can never become a back swipe partway through
+  assert.equal(edgeDecision(drag({ startX: EDGE_GUARD_PX, dx: 200, locked: true })), 'none');
   assert.equal(startsInEdgeGuard(EDGE_GUARD_PX - 1), true);
   assert.equal(startsInEdgeGuard(EDGE_GUARD_PX), false);
 });
 
 test('it commits on distance, or on a flick that never got there', () => {
-  assert.equal(edgeDecision(drag({ dx: COMMIT_PX - 1 })), 'tracking');
-  assert.equal(edgeDecision(drag({ dx: COMMIT_PX })), 'commit');
+  const locked = (o) => drag({ locked: true, ...o });
+  assert.equal(edgeDecision(locked({ dx: COMMIT_PX - 1 })), 'tracking');
+  assert.equal(edgeDecision(locked({ dx: COMMIT_PX })), 'commit');
   // a fast flick: 40px in 40ms is 1.0 px/ms, twice the threshold
-  assert.equal(edgeDecision(drag({ dx: 40, dt: 40 })), 'commit');
+  assert.equal(edgeDecision(locked({ dx: 40, dt: 40 })), 'commit');
   // the same distance taken slowly is still just tracking
-  assert.equal(edgeDecision(drag({ dx: 40, dt: 400 })), 'tracking');
+  assert.equal(edgeDecision(locked({ dx: 40, dt: 400 })), 'tracking');
   // and a flick that has barely left the gutter is a brush, not a gesture
-  assert.equal(edgeDecision(drag({ dx: EDGE_GUARD_PX, dt: 10 })), 'tracking');
+  assert.equal(edgeDecision(locked({ dx: EDGE_GUARD_PX, dt: 10 })), 'tracking');
   assert.ok(FLICK_PX_PER_MS > 0);
 });
 
-test('a scroll is a scroll, not a half-hearted back', () => {
-  // his thumb comes down near the edge and drags DOWN the list — the page
-  // must not creep sideways while he reads
-  assert.equal(edgeDecision(drag({ dx: 4, dy: VERTICAL_SLOP + 1 })), 'cancel');
-  assert.equal(edgeDecision(drag({ dx: 4, dy: -(VERTICAL_SLOP + 1) })), 'cancel');
-  // a mostly-horizontal drag with some vertical drift is still a back swipe
-  assert.equal(edgeDecision(drag({ dx: 120, dy: 20 })), 'commit');
-  // dragging back INTO the edge is a cancel, not a negative page offset
-  assert.equal(edgeDecision(drag({ dx: -30 })), 'cancel');
+// ---- 22 Sep: the three ways a THUMB broke what a synthetic drag passed ----
+
+test('A FINGER JITTERS. One pixel left at the start must not kill the gesture', () => {
+  // the shipped bug: `if (dx < 0) return "cancel"` on the very first move,
+  // before any direction was established. A finger landing on glass always
+  // wobbles; the test data never did.
+  assert.equal(edgeDecision(drag({ dx: -1, dy: 0 })), 'waiting');
+  assert.equal(edgeDecision(drag({ dx: -3, dy: 2 })), 'waiting');
+  assert.equal(edgeDecision(drag({ dx: 0, dy: 0 })), 'waiting');
+});
+
+test('A THUMB ARCS. A locked gesture cannot be taken away by vertical drift', () => {
+  // the second shipped bug: the vertical test re-ran on every move, so a drag
+  // that had been horizontal for 80px was cancelled by the upward curve a
+  // thumb makes as it travels right across a phone.
+  assert.equal(edgeDecision(drag({ dx: 90, dy: 40, locked: true })), 'commit');
+  assert.equal(edgeDecision(drag({ dx: 60, dy: 55, locked: true })), 'tracking');
+  // ...and a finger wandering back toward the edge is undoing the drag, not
+  // cancelling it — only the release decides
+  assert.equal(edgeDecision(drag({ dx: -30, locked: true })), 'tracking');
+});
+
+test('the direction is decided by the app\u2019s OWN rule, not a private one', () => {
+  // inventing a second rule here was the mistake under the other two:
+  // swipeCore.decideDirection is tuned and proven on his device.
+  assert.equal(edgeDecision(drag({ dx: 2, dy: 30 })), 'cancel', 'a real scroll is not cancelled');
+  assert.equal(edgeDecision(drag({ dx: INTENT_PX + 8, dy: 4 })), 'lock');
+  // the ambiguous middle waits rather than guessing
+  assert.equal(edgeDecision(drag({ dx: INTENT_PX + 8, dy: INTENT_PX + 3 })), 'waiting');
+});
+
+test('the gesture leaves a receipt, so "not working" is answerable', () => {
+  // the first cut shipped verified-on-synthetic-events and failed on his
+  // phone with no way to find out why. Settings reads this.
+  assert.equal(typeof lastEdgeGesture, 'function');
+  assert.equal(lastEdgeGesture(), null, 'a fresh module should have no gesture recorded');
 });
 
 test('IT NEVER FIRES ON THE ENTRY NOVA BOOTED WITH', () => {
