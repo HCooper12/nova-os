@@ -1405,6 +1405,16 @@ export async function approveRecord(vaultPath, id) {
   // A plan that failed its checks cannot be approved into running. Approving
   // one files the refusal as read — the blockers are the answer he wanted
   // ("that would need a new agent"), not a job to retry.
+  // A STEP PAUSED AT ITS BUDGET. His yes continues exactly the sessions that
+  // stopped, with more room; nothing already found is paid for twice. His
+  // rule, 21 Sep: pause and ask, never just finish.
+  if (record.budgetStop) {
+    if (record.budgetStop.lane === 'research') {
+      const { continueResearch } = await import('./researcher.js');
+      return continueResearch(vaultPath, record);
+    }
+    throw new Error(`this ${record.kind} is paused at its budget but Nova has no way to continue a "${record.budgetStop.lane}" step yet`);
+  }
   if (record.kind === 'plan') {
     if (!record.planOk) {
       return updateRecord(id, { status: 'filed', filedAt: new Date().toISOString(), auto: false, error: null });
@@ -1496,7 +1506,16 @@ export async function discardRecord(id, reason, { vaultPath = null } = {}) {
   // WHY a recommendation was declined is coaching gold — it rides the record
   // so adviceContext can hold the Coach to it (and spare him being re-asked)
   const declineReason = typeof reason === 'string' && reason.trim() ? reason.trim().slice(0, 300) : null;
-  return updateRecord(id, { status: 'discarded', discardedAt: new Date().toISOString(), error: null, ...(declineReason ? { declineReason } : {}) });
+  const updated = await updateRecord(id, { status: 'discarded', discardedAt: new Date().toISOString(), error: null, ...(declineReason ? { declineReason } : {}) });
+  // A STEP HE STOPPED WAKES ITS PLAN. A paused research card he discards is
+  // a decision the plan must hear — otherwise it waits on that step forever.
+  if (record.parentPlanId && vaultPath) {
+    try {
+      const { resumePlan } = await import('./planner.js');
+      resumePlan(vaultPath, record.parentPlanId).catch(() => {});
+    } catch { /* the plan also polls; this only makes it prompt */ }
+  }
+  return updated;
 }
 
 export async function undoRecord(vaultPath, id) {

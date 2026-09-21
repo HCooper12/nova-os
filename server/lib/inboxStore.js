@@ -135,6 +135,11 @@ export async function reapOrphanedClassifying() {
     const store = await load();
     let reaped = 0;
     for (const r of store.items) {
+      // A PLAN WAITING ON HIS DECISION IS NOT ORPHANED. It is 'classifying'
+      // because it is mid-run, and mid-run because a step paused at its
+      // budget and asked him; there is no child process to lose. The plan
+      // picks up again the moment he answers the step's card.
+      if (r.status === 'classifying' && r.kind === 'plan' && r.pausedOn) continue;
       if (r.status === 'classifying') {
         r.status = 'error';
         r.error = 'Interrupted — the server restarted while this was being processed. Discard it, or re-run the loop.';

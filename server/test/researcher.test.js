@@ -109,3 +109,38 @@ test('saying no never costs the citation gate', () => {
   const j = p.indexOf('WHEN THE QUESTION IMPLIES A DECISION');
   assert.ok(i >= 0 && j > i, 'the decision rules were placed above the citation rule');
 });
+
+// A BUDGET STOP IS A PAUSE, NOT A FAILURE (21 Sep 2026). Proved against the
+// CLI: `subtype: "error_max_budget_usd"`, an empty result, and a session that
+// resumes with more room. These pin the shape he sees and the arithmetic.
+const { BUDGET_STOP, continuationBudget, budgetPauseDecision } = await import('../lib/researcher.js');
+
+test('the CLI\'s budget-stop code is the one the researcher looks for', () => {
+  assert.equal(BUDGET_STOP, 'error_max_budget_usd');
+});
+
+test('a continuation offers roughly double, never less than fifty cents', () => {
+  assert.equal(continuationBudget(0.45), 0.9);
+  assert.equal(continuationBudget(0.6), 1.2);
+  assert.equal(continuationBudget(0.1), 0.5);
+  assert.equal(continuationBudget(undefined), 0.5);
+});
+
+test('the pause card says what stopped, what was spent, what is kept, and what approve does', () => {
+  const d = budgetPauseDecision({
+    question: 'Is three sets per exercise too much?',
+    paused: [{ name: 'Counter-Evidence', sessionId: 'abc', spent: 0.47, budget: 0.45 }, { name: 'Split Trials', sessionId: 'def', spent: 0.45, budget: 0.45 }],
+    reports: [{ name: 'Dose-Response', findings: [] }, { name: 'Strength', findings: [] }],
+  });
+  assert.equal(d.route, 'continue');
+  assert.match(d.title, /paused at its budget — continue\?/);
+  assert.match(d.payload.body, /the Counter-Evidence researcher, the Split Trials researcher reached their spending limit/);
+  assert.match(d.payload.body, /US\$0\.92 spent/);
+  assert.match(d.payload.body, /2 of the panel have already reported and are kept/);
+  assert.match(d.payload.body, /Approve = let them continue from where they stopped, with up to US\$1\.80 more/);
+  assert.match(d.payload.body, /Discard = stop here; nothing is filed/);
+  assert.match(d.reason, /Approve = continue with up to US\$1\.80 more/);
+  assert.equal(d.payload.nextBudgetUsd, 1.8);
+  const merge = budgetPauseDecision({ question: 'q', paused: [{ name: 'merge', spent: 0.6, budget: 0.6 }], reports: [] });
+  assert.match(merge.payload.body, /the merge reached its spending limit/);
+});
