@@ -52,6 +52,17 @@ agents' context. He has NOT yet read it or answered the proposals.
   announcement is one paragraph (line breaks not honoured in the log).
 - His NO-CAPS rule is enforced in code and in memory but not yet on his
   Standing Instructions page (needs his approval through the Inbox).
+- **TL;DR on every Inbox card shipped (src/tldr.js, code-derived).** Its first
+  line takes a body's first paragraph — for the Coach review that is its
+  "correction to the dossier", not the verdict; a per-kind opening rule is the
+  obvious refinement.
+- **THE SPOKEN REPORT ("Jarvis") — MOCKUP FIRST, his ask 13:46.** Five beats:
+  verdict card → body model with the muscle lit and zoomed → program grid with
+  that muscle's exercises lit → the one to drop blinks and leaves → the
+  numbered changes with chips. `design/JARVIS-REPORT-PLAN.md` + the artifact
+  linked there. Do not code it until he has reacted to the visual.
+- **He wants proactive suggestions more often and NOT buried in the Inbox** —
+  the TL;DR is the first step; the reply-in-place build below is the second.
 - **QUEUED BUILD (his ask, 21 Sep 12:24):** an optional reply pop-up on any
   Nova notification/banner — speak or type in place, full banner context
   carried into the turn, and a sensible response to "not now" (flag,
