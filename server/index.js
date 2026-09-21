@@ -324,6 +324,10 @@ async function main() {
   // rises on, because that is when he can still act on it (src/workBlock.js)
   import('./lib/leaderReminder.js').then(({ startLeaderReminderScheduler }) => startLeaderReminderScheduler())
     .catch((e) => console.error('leader-reminder scheduler failed to start:', e.message));
+  // correlations in his own numbers, Sunday evening — quiet unless something
+  // actually held (server/lib/patternsWeekly.js)
+  import('./lib/patternsWeekly.js').then(({ startPatternsWeeklyScheduler }) => startPatternsWeeklyScheduler())
+    .catch((e) => console.error('patterns-weekly scheduler failed to start:', e.message));
   import('./lib/distill.js').then(({ startDistillScheduler }) => startDistillScheduler(process.env.VAULT_PATH))
     .catch((e) => console.error('distill scheduler failed to start:', e.message));
   import('./lib/brainWeek.js').then(({ startBrainWeekScheduler }) => startBrainWeekScheduler(process.env.VAULT_PATH))

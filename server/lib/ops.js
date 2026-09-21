@@ -31,6 +31,9 @@ const SCHEDULED = [
   // ticks every minute so it cannot miss the edge, but only ever ACTS in the
   // hour before a work block — so an hour without a beat is already a fault
   { id: 'leader-reminder', label: 'Leader Reminder', role: "the lead, before work", cadenceHours: 1 },
+  // hourly tick, but it only ACTS on a Sunday evening — the cadence matches
+  // the data's, not the clock's (nova-produce-vs-keep: 154 made, 9 kept)
+  { id: 'patterns-weekly', label: 'Patterns', role: 'correlations in his own numbers', cadenceHours: 2 },
   { id: 'guardian', label: 'Guardian', role: 'integrity, backups, alerts', cadenceHours: 26 },
   { id: 'health-drops', label: 'Health Sync', role: 'iPhone health drops', cadenceHours: 1 },
   { id: 'healthinsight', label: 'Health Insight', role: 'twice-daily noticing', cadenceHours: 2 },
