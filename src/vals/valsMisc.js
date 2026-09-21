@@ -266,8 +266,21 @@ export function valsMisc(app, ctx) {
       } : null,
       proposal: !demoMode && m.proposal ? {
         title: m.proposal.title, status: m.proposal.status,
+        // a plan his correction re-drew is not "dismissed" — he did not
+        // decline it, he changed it, and the chip has to say which
+        replaced: !!m.proposal.replaced,
         approve: m.proposal.status === 'pending' ? () => app.resolveVoiceProposal(m.proposal.recordId, true) : null,
         dismiss: m.proposal.status === 'pending' ? () => app.resolveVoiceProposal(m.proposal.recordId, false) : null,
+      } : null,
+      // THE REPORT, BACK IN THE ROOM IT WAS SET FROM. Three ways on, because
+      // a finished report is the start of a decision, not a filing job: talk
+      // it through here, take the same question to the Coach, or keep it.
+      planReport: !demoMode && m.planReport ? {
+        status: m.planReport.status,
+        walk: () => app.walkThroughPlan(),
+        coach: () => app.takePlanToCoach(),
+        keep: m.planReport.status === 'open' ? () => app.keepPlanReport(m.planReport.recordId, m.at) : null,
+        openInbox: () => app.openCapture(m.planReport.recordId),
       } : null,
       research: !demoMode && m.research ? {
         status: m.research.status, question: m.research.question,

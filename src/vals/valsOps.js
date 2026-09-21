@@ -16,6 +16,11 @@ const KIND_LABEL = {
   dispatch: 'DISPATCH', 'routine-edit': 'PROGRAM', 'rotation-variant': 'ROTATION',
   preference: 'STANDING', stash: 'STASH', 'meal-prep': 'MEAL PREP', cfo: 'CFO',
   'food-suggestion': 'FOOD', 'training-check': 'TRAINING', guardian: 'GUARDIAN', coach: 'COACH',
+  // the delegated-plan family — a plan is NOVA's own work, and its two new
+  // step-records are the code-built dossier and the Coach's review. Named the
+  // same as server/lib/fleetContext.js KIND_AGENT, so the stream and the
+  // agents' own context cannot disagree about who did what.
+  plan: 'NOVA', program: 'PROGRAM DOSSIER', 'coach-review': 'COACH',
 };
 
 function ago(iso) {

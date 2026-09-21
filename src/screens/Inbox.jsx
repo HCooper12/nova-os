@@ -301,6 +301,21 @@ export function Inbox({ v }) {
                   <RouteBadge route={item.route} confidence={item.confidence} />
                   <Meta tone="faint">{item.time} · {cap(item.source)}</Meta>
                 </div>
+                {/* WHAT APPROVING DOES, FIRST. His report, 21 Sep: "I don't
+                    actually know what will change or occur after I have
+                    clicked approved on something in my inbox." It is the one
+                    line on the card written for him rather than for the
+                    machine, so it leads, in full ink, above the body. */}
+                {item.approveLine && (
+                  <div style={css(`margin-top:9px;min-width:0;font:500 13.5px/1.5 ${R};color:var(--nv-ink)`)}>{item.approveLine}</div>
+                )}
+                {/* A continue card's whole question is the money. */}
+                {item.isContinue && item.spentUsd != null && (
+                  <div style={css('margin-top:7px;display:flex;gap:14px;flex-wrap:wrap')}>
+                    <Meta tone="quiet">Spent so far US${item.spentUsd.toFixed(2)}</Meta>
+                    {item.nextBudgetUsd != null && <Meta tone="gold">Up to US${item.nextBudgetUsd.toFixed(2)} more</Meta>}
+                  </div>
+                )}
                 <div onClick={item.canExpand ? item.toggleExpand : undefined} style={{ cursor: item.canExpand ? 'pointer' : 'default' }}
                   title={item.canExpand ? (item.expanded ? 'Collapse' : 'Tap to see exactly what approving will file') : undefined}>
                   {/* Two lines, then a real ellipsis. A decision title can be
@@ -309,13 +324,19 @@ export function Inbox({ v }) {
                   <div style={css(`margin-top:9px;font:600 15px ${R};display:-webkit-box;-webkit-line-clamp:${item.expanded ? 'unset' : '2'};-webkit-box-orient:vertical;overflow:hidden`)}>
                     {item.title}
                   </div>
-                  {/* The bare ▸ said nothing about what tapping would do. */}
+                  {/* The bare ▸ said nothing about what tapping would do, and
+                      a report is not "what gets filed" — it says which long
+                      thing is behind it. stopPropagation because the whole
+                      title block toggles too, and two toggles is no toggle. */}
                   {item.canExpand && (
-                    <Meta as="div" tone="cyan" style={{ marginTop: '5px' }}>
-                      {item.expanded ? '▾ Show less' : '▸ See what gets filed'}
-                    </Meta>
+                    <TextAction compact tone="cyan" onClick={(e) => { e?.stopPropagation?.(); item.toggleExpand(); }} style={{ marginTop: '5px' }}>
+                      {item.expanded ? '▾ Show less' : `▸ ${item.expandLabel}`}
+                    </TextAction>
                   )}
-                  {!item.expanded && item.previewShort && <div style={css(`margin-top:3px;font:500 13px/1.5 ${R};color:var(--nv-ink60);white-space:pre-wrap`)}>{item.previewShort}</div>}
+                  {/* a plan or a report is pages long — the 220-character
+                      dribble of it under the title told him nothing and
+                      buried the two lines that did */}
+                  {!item.expanded && !item.longForm && item.previewShort && <div style={css(`margin-top:3px;font:500 13px/1.5 ${R};color:var(--nv-ink60);white-space:pre-wrap`)}>{item.previewShort}</div>}
                   {item.expanded && (
                     <div style={css("margin-top:8px;display:flex;flex-direction:column;gap:8px")}>
                       {item.captured && (
@@ -376,12 +397,12 @@ export function Inbox({ v }) {
                     <Interactive as="span" onClick={item.busy ? undefined : item.approve}
                       base={primary({ opacity: item.busy ? 0.5 : 1 })}
                       hoverStyle={{ filter: 'brightness(1.1)' }}
-                    >{item.busy ? 'Working…' : 'Approve & file'}</Interactive>
+                    >{item.busy ? 'Working…' : item.approveLabel}</Interactive>
                   )}
                   <Interactive as="span" onClick={item.busy ? undefined : item.discard}
                     base={secondary('var(--nv-ink60)', { opacity: item.busy ? 0.5 : 1 })}
                     hoverStyle={{ filter: 'brightness(1.1)' }}
-                  >{item.isModelChoice ? 'Skip this week' : 'Discard'}</Interactive>
+                  >{item.isModelChoice ? 'Skip this week' : item.discardLabel}</Interactive>
                   {item.askingWhy && (
                     <div style={css("flex-basis:100%;margin-top:10px;padding:12px 14px;border:1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent);border-radius:10px;background:color-mix(in srgb, var(--nv-gold) 04%, transparent)")}>
                       <Eyebrow tone="gold" style={{ marginBottom: '9px' }}>{item.whyTitle}</Eyebrow>
@@ -438,8 +459,11 @@ export function Inbox({ v }) {
           {deck && !showingFocus && (
             <Meta as="div" tone="faint" style={{ marginTop: '10px', textAlign: 'center' }}>
               {/* a model-choice card has no right swipe — it needs a model picked —
-                  so the footer must not promise one */}
-              1 of {v.inboxPending.length} · {v.inboxPending[0]?.isModelChoice ? 'pick a model above' : 'swipe right to file'} · left to discard{v.inboxPending.length > 1 ? ' · the next rises' : ''}
+                  so the footer must not promise one. Nor does a paused one
+                  FILE anything: swiping it right spends money and resumes
+                  work, and the footer has to say that out loud. */}
+              1 of {v.inboxPending.length} · {v.inboxPending[0]?.isModelChoice ? 'pick a model above'
+                : v.inboxPending[0]?.isContinue ? 'swipe right to continue it' : 'swipe right to file'} · left to {v.inboxPending[0]?.isContinue ? 'stop here' : 'discard'}{v.inboxPending.length > 1 ? ' · the next rises' : ''}
             </Meta>
           )}
           </div>

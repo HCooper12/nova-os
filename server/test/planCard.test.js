@@ -3,7 +3,7 @@
 // per-step state and nothing ever showed it to him.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { planCardFrom, elapsedLabel, goalLine } from '../../src/planCard.js';
+import { planCardFrom, elapsedLabel, goalLine, pausedLineFrom, reportOpening } from '../../src/planCard.js';
 
 const plan = (over = {}) => ({
   id: 'p1', kind: 'plan', status: 'classifying',
@@ -119,4 +119,69 @@ test('a dictated goal reads as a sentence, not as an address', () => {
   assert.equal(goalLine('https://youtu.be/abc'), 'https://youtu.be/abc');
   assert.equal(goalLine(''), '');
   assert.equal(planCardFrom([plan({ goal: '', text: '' })]).goal, 'a plan');
+});
+
+// 21 Sep 2026 — A STEP THAT REACHED ITS BUDGET IS A QUESTION, NOT WORK. The
+// plan record stays `classifying` so the startup reaper leaves it alone
+// (planner.js), which without this said "Working on it" while absolutely
+// nothing was happening and no one was asking him anything.
+test('a plan paused at its budget is WAITING ON YOU, not running', () => {
+  const c = planCardFrom([plan({
+    pausedOn: 's2',
+    plan: { steps: [
+      { id: 's1', what: 'the dossier', status: 'done' },
+      { id: 's2', what: 'the research', status: 'paused' },
+      { id: 's3', what: 'write it up' },
+    ] },
+  })]);
+  assert.equal(c.state, 'paused');
+  assert.equal(c.pausedLine, 'step 2 paused at its budget — the card in your Inbox asks whether to continue');
+  assert.equal(c.steps[1].status, 'paused');
+  assert.equal(c.steps[1].glyph, '?');
+  assert.equal(c.steps[1].tint, 'var(--nv-warn)');
+  assert.equal(c.steps[1].error, 'waiting on your yes');
+  // paused is NOT settled: the work is not over, it is waiting
+  assert.equal(c.tally, '1 of 3');
+});
+
+test('a running plan with nothing paused is still RUNNING, and READY is untouched', () => {
+  assert.equal(planCardFrom([plan()]).state, 'running');
+  assert.equal(planCardFrom([plan()]).pausedLine, null);
+  const done = { ...plan(), status: 'pending', finishedAt: new Date().toISOString() };
+  assert.equal(planCardFrom([done]).state, 'ready');
+  assert.equal(planCardFrom([done]).pausedLine, null);
+});
+
+test('the paused line names every step that is asking, and never renders blank', () => {
+  const steps = [{ id: 's1' }, { id: 's2' }, { id: 's3' }];
+  assert.equal(pausedLineFrom(steps, 's2, s3'),
+    'steps 2 and 3 paused at their budget — the card in your Inbox asks whether to continue');
+  // the record says it is paused but does not say where: still an honest line
+  assert.equal(pausedLineFrom(steps, ''),
+    'a step paused at its budget — the card in your Inbox asks whether to continue');
+  // the step statuses alone are enough — pausedOn is a convenience, not the truth
+  assert.equal(pausedLineFrom([{ id: 'a' }, { id: 'b', status: 'paused' }], null),
+    'step 2 paused at its budget — the card in your Inbox asks whether to continue');
+});
+
+// THE FIRST BREATH OF A REPORT, for the chat — his 21 Sep report: a finished
+// plan told him nothing in the room he set it from.
+test('the report opening is prose, undressed of its markdown', () => {
+  const body = '# Program review\n\nYour **push** volume is under target by a third. Two things follow from that. A third sentence that should not appear.\n\n## What I would change\n1. Add a set.';
+  assert.equal(reportOpening(body),
+    'Your push volume is under target by a third. Two things follow from that.');
+  // a link keeps its words and loses its address
+  assert.equal(reportOpening('See [the study](https://x.com/y) for the detail.'),
+    'See the study for the detail.');
+  // THE REGRESSION. His real report 9278fdf7 opens with a full stop inside a
+  // quote; the regex that used to do this silently dropped everything before
+  // it, so the chat announced the report starting mid-argument with a stray
+  // quote mark. Caught by LOOKING at it on the Voice screen, not by a test.
+  assert.equal(
+    reportOpening('Coverage is holed: every angle that bore on "what should I cut." And no agent saw your program. A third sentence.'),
+    'Coverage is holed: every angle that bore on "what should I cut." And no agent saw your program.');
+  // a report that is nothing but a list says nothing rather than inventing a sentence
+  assert.equal(reportOpening('## Findings\n\n- one\n- two'), '');
+  assert.equal(reportOpening(''), '');
+  assert.equal(reportOpening(null), '');
 });

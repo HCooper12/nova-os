@@ -1,6 +1,7 @@
 import { Component, createRef, lazy, Suspense } from 'react';
 import { ExerciseSheet } from './ExerciseSheet.jsx';
 import { chatStartsAJob, planWorthy } from './chatLanes.js';
+import { reportOpening, pausedLineFrom } from './planCard.js';
 import { claimForSpeech, setDuckingPreference, ducksOtherAudio } from './audioSession.js';
 import { unspokenTexts, resumeVerdict } from './speechResume.js';
 import { DEFAULT_HOLD, holdTiming } from './turnEnd.js';
@@ -671,6 +672,17 @@ export default class App extends Component {
         this.attachAskPoll(conn, pending.jobId);
       } else if (pending) {
         localStorage.removeItem('novaos.askJob');
+      }
+    } catch { /* best-effort */ }
+    // A DELEGATED PLAN THAT WAS STILL RUNNING when the tab went away. Same
+    // reclaim rail as the ask above: the report has to come back to the
+    // conversation he set it from, and a reload must not be what loses it.
+    try {
+      const pendingPlan = JSON.parse(localStorage.getItem('novaos.planRun') || 'null');
+      if (pendingPlan?.recordId && getConnection() && Date.now() - (pendingPlan.startedAt || 0) < 40 * 60_000) {
+        this.watchPlanRun(pendingPlan.recordId);
+      } else if (pendingPlan) {
+        localStorage.removeItem('novaos.planRun');
       }
     } catch { /* best-effort */ }
     // same reclaim, for a food scan/describe that was mid-flight — see
@@ -4178,7 +4190,18 @@ export default class App extends Component {
     return api.inbox(conn).then((data) => {
       this.setState({ liveInbox: data });
       this.updateAppBadge(data);
+      this.attachRunningPlan(data);
     }).catch(() => {});
+  }
+  // THE SERVER MAY HAVE BEEN THE ONE THAT STARTED IT — a plan approved from
+  // the Inbox, from another device, or resumed after a restart. Once per boot,
+  // the first inbox that arrives re-attaches the run watch to whichever plan
+  // is actually in flight, so the report still comes back to the chat.
+  attachRunningPlan(inbox) {
+    if (this.planRunBooted || this.state.demoMode) return;
+    this.planRunBooted = true;
+    const live = (inbox?.items || []).find((r) => r.kind === 'plan' && r.status === 'classifying' && !r.pausedOn && Array.isArray(r.plan?.steps) && r.plan.steps.length);
+    if (live) this.watchPlanRun(live.id);
   }
   // pending approvals on the app icon (Badging API — installed PWAs)
   updateAppBadge(inbox) {
@@ -6478,7 +6501,7 @@ export default class App extends Component {
       if (rec.status !== 'pending') return; // errored: the Inbox says why
       const title = rec.decision?.title || 'The plan';
       const body = rec.decision?.body || '';
-      const proposal = rec.planOk ? { recordId, title, status: 'pending' } : undefined;
+      const proposal = rec.planOk ? { recordId, title, status: 'pending', kind: 'plan' } : undefined;
       this.setState((s) => ({
         voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: body ? `${title}\n${body}` : title, proposal }],
         voicePendingProposal: proposal ? { recordId, title } : s.voicePendingProposal,
@@ -6486,6 +6509,110 @@ export default class App extends Component {
       if (this.state.voiceSpeak && rec.planOk) this.speakTtsSentence('The plan is on screen, sir — say yes to run it.');
     };
     setTimeout(tick, 1500);
+  }
+  // THE REPORT COMES BACK TO THE CONVERSATION.
+  //
+  // His report, 21 Sep: a plan he delegated from the chat finished into the
+  // Inbox as "approve to file a note" — "this does not give me a succinct
+  // response from Nova itself about what actions to actually take … Nova
+  // should then be telling me that it is ready to continue the conversation."
+  // He approved it in the chat; the chat never mentioned it again.
+  //
+  // So: once a plan is RUNNING, watch it, and when it settles come back to
+  // the room he set it from. Three ways out — walk me through it, take it to
+  // the Coach, keep it — because the report is the START of a decision, not
+  // a filing job. A step that paused at its budget says so and points at the
+  // one card that can answer it.
+  //
+  // The watch survives a reclaim (localStorage, the same mechanism
+  // novaos.askJob proved) and the server may have started the run without
+  // this tab — boot re-attaches to any plan that is still classifying.
+  watchPlanRun(recordId) {
+    const conn = getConnection();
+    if (!conn || !recordId) return;
+    if (this.planRunWatch === recordId) return; // already on it
+    this.planRunWatch = recordId;
+    try { localStorage.setItem('novaos.planRun', JSON.stringify({ recordId, startedAt: Date.now() })); } catch { /* best-effort */ }
+    const started = Date.now();
+    const stop = () => {
+      if (this.planRunWatch === recordId) this.planRunWatch = null;
+      try { localStorage.removeItem('novaos.planRun'); } catch { /* best-effort */ }
+    };
+    const say = (text, planReport) => {
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text, planReport }] }));
+      this.refreshInbox();
+    };
+    const tick = async () => {
+      if (this.planRunWatch !== recordId) return; // superseded or stopped
+      // A real plan runs in minutes, not hours. Past forty the watcher lets
+      // go rather than polling a dead record forever — the Inbox still holds
+      // whatever happened, and says so honestly.
+      if (Date.now() - started > 40 * 60_000) { stop(); return; }
+      let rec = null;
+      try { rec = await api.inboxItem(conn, recordId); } catch { setTimeout(tick, 5000); return; }
+      rec = rec?.record || rec;
+      if (!rec || rec.id !== recordId) { stop(); return; }
+      const steps = Array.isArray(rec.plan?.steps) ? rec.plan.steps : [];
+      if (rec.status === 'error') {
+        stop();
+        say(`The plan stopped before it finished — ${rec.error || 'no reason was recorded'}. Its card in your Inbox has what it did get.`, { recordId, status: 'error' });
+        return;
+      }
+      if (rec.pausedOn || steps.some((st) => st.status === 'paused')) {
+        stop();
+        const line = pausedLineFrom(steps, rec.pausedOn);
+        say(`${line.charAt(0).toUpperCase()}${line.slice(1)}.`, { recordId, status: 'paused' });
+        return;
+      }
+      if (rec.finishedAt) {
+        stop();
+        const opening = reportOpening(rec.decision?.payload?.body || '');
+        say(['The report is back.', opening].filter(Boolean).join('\n'), { recordId, status: 'open' });
+        if (this.state.voiceSpeak) this.speakTtsSentence('The report is back, sir — say the word and I will walk you through it.');
+        return;
+      }
+      setTimeout(tick, 5000);
+    };
+    // a plan that is ALREADY finished (a re-attach, or an approve of one that
+    // ran while he was away) answers on the first look
+    setTimeout(tick, 2000);
+  }
+  // THE QUESTION HE ACTUALLY HAS about a finished plan, asked for him. The
+  // report ends in a numbered "What I would change"; this is the sentence
+  // that turns it into a conversation, and both the chat chip and the Home
+  // card send exactly it, so the two cannot drift.
+  planWalkThroughQuestion() {
+    return 'Walk me through what the plan found — the two or three things that matter, then the concrete changes you would make to my program and why.';
+  }
+  walkThroughPlan() {
+    this.navigate('voice');
+    // after the screen swap, so the answer lands in a transcript he is looking at
+    clearTimeout(this.planWalkTimer);
+    this.planWalkTimer = setTimeout(() => this.askNova(this.planWalkThroughQuestion()), 250);
+  }
+  // The same question, to the Coach, on the Coach's own screen — the existing
+  // forward rail (sendIntent's r.forward) rather than a second path.
+  takePlanToCoach() {
+    this.navigate('workouts', { trainTab: 'coach' });
+    this.doCoach(this.planWalkThroughQuestion());
+  }
+  // KEEP IT — the ordinary Inbox approve, from the chat, with the chip
+  // flipping only once the server has confirmed the write.
+  keepPlanReport(recordId, at) {
+    const conn = getConnection();
+    if (!conn) return;
+    const mark = (status) => this.setState((s) => ({
+      voiceChat: s.voiceChat.map((m) => (m.at === at ? { ...m, planReport: { ...m.planReport, status } } : m)),
+    }));
+    mark('keeping');
+    api.inboxApprove(conn, recordId).then(() => {
+      mark('kept');
+      this.refreshInbox();
+      haptic('commit');
+    }).catch((e) => {
+      mark('open');
+      this.toastMsg(`Couldn't keep it: ${e.message}`);
+    });
   }
   // Undo something done by voice: the same rail as the Inbox's undo. The
   // strip flips only when the server confirms the revert.
@@ -6578,11 +6705,18 @@ export default class App extends Component {
       voicePendingProposal: s.voicePendingProposal?.recordId === recordId ? null : s.voicePendingProposal,
       voiceChat: s.voiceChat.map((m) => (m.proposal?.recordId === recordId ? { ...m, proposal: { ...m.proposal, status, ...extra } } : m)),
     }));
+    // A PLAN IS NOT A FILING. Approving one starts minutes of work whose
+    // report has to come back HERE (watchPlanRun) — and "Undo lives in your
+    // Inbox" would be a lie about a thing that has not happened yet.
+    const isPlan = (this.state.voiceChat || []).some((m) => m.proposal?.recordId === recordId && m.proposal.kind === 'plan');
     const call = approve ? api.inboxApprove(conn, recordId) : api.inboxDiscard(conn, recordId);
     call.then(() => {
       mark(approve ? 'done' : 'dismissed');
+      if (approve && isPlan) this.watchPlanRun(recordId);
       if (approve) { this.refreshLiveData(); this.refreshCalendarCard(); }
-      const line = approve ? 'Done — it’s in. Undo lives in your Inbox.' : 'Left alone — nothing changed.';
+      const line = approve
+        ? (isPlan ? 'Running it now, sir — I’ll bring the report back here the moment it lands.' : 'Done — it’s in. Undo lives in your Inbox.')
+        : 'Left alone — nothing changed.';
       this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line }] }));
       if (this.state.voiceSpeak) this.speak(line);
     }).catch((e) => {
@@ -7126,6 +7260,21 @@ export default class App extends Component {
         // number it spoke is drawn by the same code (resp.card).
         this.setState({ voiceBusy: false });
         if (resp.card) this.putCard(resp.card);
+        // A CORRECTION RE-PLANNED (server/lib/planFollowUp.js). His words
+        // amended a plan he had not approved; the server has discarded the old
+        // record and is drawing a new one. Say so ON the old card — a chip
+        // still offering "Yes, do it" for a plan that no longer exists is the
+        // exact confusion this whole change is against — and watch the new one
+        // in, so the revised plan lands in this same conversation.
+        if (resp.plan?.recordId) {
+          const replaces = resp.plan.replaces || null;
+          if (replaces) this.setState((s) => ({
+            voiceChat: s.voiceChat.map((m) => (m.proposal?.recordId === replaces
+              ? { ...m, proposal: { ...m.proposal, status: 'dismissed', replaced: true } } : m)),
+            voicePendingProposal: s.voicePendingProposal?.recordId === replaces ? null : s.voicePendingProposal,
+          }));
+          this.watchPlanProposal(resp.plan.recordId);
+        }
         const acted = resp.acted ? { ...resp.acted, status: 'done' } : undefined;
         const proposal = resp.proposal ? { ...resp.proposal, status: 'pending' } : undefined;
         const show = () => this.setState((s) => ({

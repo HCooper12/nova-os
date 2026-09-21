@@ -739,7 +739,19 @@ export function valsMission(app, ctx) {
     runningPlan: (() => {
       if (demoMode) return null;
       const card = planCardFrom(inboxItems);
-      return card && { ...card, open: () => app.openCapture(card.id) };
+      if (!card) return null;
+      // WHERE THE TAP GOES IS THE WHOLE POINT. His report, 21 Sep: a finished
+      // plan sent him to the Inbox, where all he could do was agree to file a
+      // note — "this does not give me a succinct response from Nova itself
+      // about what actions to actually take". READY now opens the
+      // conversation and asks the question for him. PAUSED goes to the one
+      // card that can answer it. RUNNING still opens the record.
+      // (PAUSED goes to the Inbox itself, not to this record: the question is
+      // on the STEP's own card, which is the pending one at the top of the deck.)
+      const open = card.state === 'ready' ? () => app.walkThroughPlan()
+        : card.state === 'paused' ? () => app.navigate('inbox')
+          : () => app.openCapture(card.id);
+      return { ...card, open };
     })(),
     // IT LANDED — ON HOME TOO. His ask, 15 Sep: the Inbox strip was right, and
     // he wants it here as well, "so I can see and dismiss it from there",

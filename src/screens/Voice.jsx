@@ -304,8 +304,34 @@ export function Voice({ v }) {
                       </span>
                     )}
                     {m.proposal.status === 'done' && <Meta tone="good">✓ Done — undo in Inbox</Meta>}
-                    {m.proposal.status === 'dismissed' && <Meta tone="faint">✕ Dismissed</Meta>}
+                    {/* REPLACED IS NOT DISMISSED. He did not decline this plan,
+                        he corrected it — the card above is the old draft and
+                        the new one is on its way. Saying "dismissed" here was
+                        the platform losing his correction all over again. */}
+                    {m.proposal.status === 'dismissed' && (
+                      m.proposal.replaced
+                        ? <Meta tone="cyan">↻ Replaced by your correction</Meta>
+                        : <Meta tone="faint">✕ Dismissed</Meta>
+                    )}
                     {m.proposal.status === 'error' && <Meta tone="warn">Still pending in Inbox</Meta>}
+                  </div>
+                )}
+                {/* THE REPORT IS BACK — his 21 Sep report: a finished plan gave
+                    him nothing but an Inbox card asking to file a note. The
+                    chips are the three things he might actually want next. */}
+                {m.planReport && (
+                  <div style={css(`margin-top:8px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;border:1px solid color-mix(in srgb, ${m.planReport.status === 'paused' || m.planReport.status === 'error' ? 'var(--nv-warn)' : 'var(--nv-cy)'} 32%, transparent);border-radius:9px;padding:9px 12px;background:color-mix(in srgb, ${m.planReport.status === 'paused' || m.planReport.status === 'error' ? 'var(--nv-warn)' : 'var(--nv-cy)'} 06%, transparent);animation:popIn var(--nv-dur-base) var(--nv-ease)`)}>
+                    {m.planReport.status === 'paused' || m.planReport.status === 'error' ? (
+                      <Chip tone="gold" onClick={m.planReport.openInbox}>Open Inbox</Chip>
+                    ) : (
+                      <>
+                        <Chip tone="cyan" active onClick={m.planReport.walk}>Walk me through it</Chip>
+                        <Chip tone="gold" onClick={m.planReport.coach}>Take it to the Coach</Chip>
+                        {m.planReport.status === 'kept'
+                          ? <Meta tone="good">✓ Kept in your vault</Meta>
+                          : <TextAction compact tone="quiet" onClick={m.planReport.keep}>{m.planReport.status === 'keeping' ? 'Keeping…' : 'Keep in vault'}</TextAction>}
+                      </>
+                    )}
                   </div>
                 )}
                 {m.panel && <SafeVisual what={`panel:${m.panel.type}`} resetKey={m.at}><VoicePanel panel={m.panel} /></SafeVisual>}

@@ -25,6 +25,10 @@ const SOURCE_LABEL = {
   'read-next': 'LIBRARIAN', 'forge-job': 'FORGE',
   scout: 'SCOUT · PEOPLE', 'leader-reflect': 'LEADER',
   act: 'BY VOICE', browse: 'BROWSER',
+  // the delegated-plan family (21 Sep). A plan is NOVA's own work; its two
+  // new step-records are the code-built dossier and the Coach's review —
+  // named for who did it, matching server/lib/fleetContext.js KIND_AGENT.
+  plan: 'NOVA', program: 'PROGRAM DOSSIER', 'coach-review': 'COACH',
 };
 
 const ROUTE_META = {
@@ -54,6 +58,9 @@ const ROUTE_META = {
   'ingest-apply': { label: 'VAULT INGEST', hue: '224,178,106' },
   // approving writes TWO files — the badge says so
   'watch-note': { label: 'SOURCE + TRANSCRIPT', hue: '224,178,106' },
+  // NOT A FILING AT ALL. Approving this spends more money and resumes work
+  // that stopped mid-sentence; the badge must not wear a NOTE's clothes.
+  continue: { label: 'PAUSED — YOUR CALL', hue: '224,178,106' },
 };
 
 // THE MODEL CHOICE GATE, scheduled-lane half — Pattern Scout/Distill's own
@@ -319,6 +326,22 @@ export function valsInbox(app, ctx) {
     const full = fullPayload(r.decision);
     const preview = payloadPreview(r.decision);
     const expanded = !!(st.inboxExpanded || {})[r.id];
+    // WHAT APPROVE DOES, FIRST AND IN HIS COLOUR. His report, 21 Sep: "I
+    // don't actually know what will change or occur after I have clicked
+    // approved on something in my inbox." The server now writes that sentence
+    // onto the decision (`reason`, starting "Approve ="); a reason that says
+    // it leads the card instead of sitting under the body in 62% ink.
+    const rawReason = r.decision?.reason || '';
+    const saysWhat = /^approve\s*=/i.test(rawReason.trim());
+    // A CONTINUE CARD IS NOT A FILING. Research that stopped at its budget
+    // asks one question — spend more, or stop — so it gets the numbers and
+    // the two verbs that actually apply.
+    const isContinue = r.decision?.route === 'continue';
+    // A PLAN AND A REPORT ARE LONG. Both used to spill 220 characters of body
+    // under the title before he had read a word of what the card was for.
+    const longForm = r.kind === 'plan' ? (r.finishedAt ? 'Read the report' : 'Read the plan')
+      : (r.kind === 'coach-review' || r.kind === 'research' || isContinue) ? 'Read the report'
+        : null;
     return {
     id: r.id,
     kind: r.kind || null,
@@ -340,7 +363,20 @@ export function valsInbox(app, ctx) {
     status: r.status,
     route: r.decision ? (ROUTE_META[r.decision.route] || ROUTE_META.note) : null,
     confidence: r.decision?.confidence || null,
-    reason: r.decision?.reason || '',
+    // the two halves of what used to be one `reason` line: the promise about
+    // approving leads the card, anything else stays where it was
+    approveLine: saysWhat ? rawReason : '',
+    reason: saysWhat ? '' : rawReason,
+    isContinue,
+    // the money, plainly, from the record's own payload — never estimated here
+    spentUsd: isContinue && Number.isFinite(Number(r.decision?.payload?.spentUsd)) ? Number(r.decision.payload.spentUsd) : null,
+    nextBudgetUsd: isContinue && Number.isFinite(Number(r.decision?.payload?.nextBudgetUsd)) ? Number(r.decision.payload.nextBudgetUsd) : null,
+    approveLabel: isContinue ? 'Continue' : 'Approve & file',
+    discardLabel: isContinue ? 'Stop here' : 'Discard',
+    // the disclosure's own words: "see what gets filed" is wrong for a report
+    expandLabel: longForm || 'See what gets filed',
+    // …and a long body does not also get dumped as a 220-character preview
+    longForm: !!longForm,
     // a daily review's 1–3 adjustments as markable rows — done / not today
     // write onto the record (POST /inbox/:id/priority dispatches by kind) and
     // tomorrow's review quotes the marks; shown while the review is live
