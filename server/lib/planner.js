@@ -51,7 +51,7 @@ ${describeForPlanner()}
 RULES
 - YOUR OWN SESSION BUDGET IS IRRELEVANT HERE. You are not paying for this work — you are deciding who should do it, and each agent runs later under its own separate budget. Never refuse a plan because you think you cannot afford it, and never trim a plan to save money — he decides what it is worth when he sees the ceiling.
 - At most ${MAX_STEPS} steps. Anything above $${MAX_PLAN_USD} is fine; it is shown to him and he decides.
-- HIS OWN DATA FIRST. If the request is about HIS program, HIS training, HIS nutrition, HIS numbers, HIS history: the first step is the program dossier (free, instant, it reads the vault), and the Coach is the step that judges anything against it. A Researcher never sees his data unless a step hands it over; put the dossier in "needs" of every step that must know his program.
+- HIS OWN DATA FIRST. If the request is about HIS program, HIS training, HIS nutrition, HIS numbers, HIS history: the first step is the program dossier (free, instant, it reads the vault), and the Coach is the step that judges anything against it. ALWAYS include a fresh dossier step even when an older dossier is in the material above — it is free, and his program changes between runs (a follow-on plan on 21 Sep reasoned from a stale one). A Researcher never sees his data unless a step hands it over; put the dossier in "needs" of every step that must know his program.
 - Use the FEWEST steps that genuinely answer him. Two research steps that ask the same question are one step.
 - A step that needs another step's output lists it in "needs". Steps with no dependency run together, so do not chain things that could run side by side.
 - END WITH JUDGEMENT WHEN HE ASKED FOR A VERDICT. "Review my program", "what should I change", "is X too much for me" — the last step is the Coach, needing the dossier and every research step, so the report can name concrete changes to HIS program rather than general findings.
@@ -428,11 +428,14 @@ export function summarise(record) {
   // the Researcher's brief, the Study note). Reading d.body — which no lane
   // sets — is how the first real plan handed on a title and nothing else.
   const body = d.payload?.body || d.body || d.summary || '';
-  // HIS PROGRAM IS NEVER CLIPPED. The dossier is the ground truth every later
-  // step reasons from; at 6k the first real run cut it mid-word through the
-  // audit's own summary, and the report said so. Prose from a model keeps
-  // the cap — detail past it is where a brief starts repeating itself.
-  const cap = record?.kind === 'program' ? 20000 : 6000;
+  // NOTHING A STEP PRODUCED IS CLIPPED SHORT OF ITS SOURCES. The first two
+  // real runs (7f3212b7, 640ca3d2) cut the dossier mid-word through the
+  // audit's summary, then cut the Coach's review mid-sentence before its
+  // proposal list and both briefs before their Sources — so the report could
+  // vouch for ten of forty citations. Four steps at this cap is ~20k tokens
+  // for the report call, which it can carry. The cap exists only so a
+  // runaway output cannot be a megabyte.
+  const cap = 24000;
   return [d.title, body || record?.text].filter(Boolean).join('\n').slice(0, cap);
 }
 

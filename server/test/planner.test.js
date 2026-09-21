@@ -269,10 +269,12 @@ test('a step with SOME of its inputs runs and is told what is missing; with none
   assert.match(p, /ran WITHOUT s2, which failed/);
 });
 
-test('the program dossier is handed on whole; model prose keeps its cap', () => {
+test('a step\'s output is handed on whole — the sources at the end of a brief are the point', () => {
   const long = 'x'.repeat(15000);
   assert.equal(summarise({ kind: 'program', decision: { title: 'D', payload: { body: long } } }).length, 15002);
-  assert.equal(summarise({ kind: 'research', decision: { title: 'R', payload: { body: long } } }).length, 6000);
+  assert.equal(summarise({ kind: 'research', decision: { title: 'R', payload: { body: long } } }).length, 15002);
+  assert.equal(summarise({ kind: 'research', decision: { title: 'R', payload: { body: 'x'.repeat(40000) } } }).length, 24000, 'only a runaway is clipped');
+  assert.match(buildPlannerPrompt('review my program'), /ALWAYS include a fresh dossier step/);
 });
 
 test('the plan card carries the cost line and says a correction re-draws it', () => {
