@@ -13,6 +13,50 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**21 SEP (afternoon) — THE PLAN LOOP: HIS PROGRAM, THE COACH, PAUSE-AND-ASK,
+AND THE REPORT BACK IN THE CHAT.** Six commits (4a863e0 → 4e1fb4d), all
+shipped. Read memory `nova-plan-loop` first; it carries the why.
+
+**THE FAULT, VERIFIED.** His "review my program" plan wrote "no agent can read
+his program" because the planner is only shown DELEGABLE_IDS and the Coach was
+`delegable:false`; his correction went to an Ask session that had never seen
+the plan (the card is client-drawn); 8/12 research workers died at a $0.45
+cap with no reason recorded; the finished report only filed to the Inbox.
+
+**WHAT IS TRUE NOW**
+- `program` (deterministic dossier, `programDossier.js`) and `coach` are plan
+  steps; the planner is told who reads his data and to ALWAYS take a fresh
+  dossier. Cost never refuses a plan (`overSoftCap` + `costLine`).
+- `resumePlan` is idempotent; `amendPlan` re-plans with his words and
+  inherits finished work; a step with SOME inputs runs with a MISSING note.
+- Researcher: CLI `subtype === 'error_max_budget_usd'` → the record parks as
+  `route:'continue'`; approve resumes the same sessions at 2×; one citation
+  repair pass; worker cap $1.20 (measured), research ceiling $5.40.
+- `planFollowUp.js`: a proposed plan inside 20 min makes his next sentence the
+  correction (deterministic); plans + newest report ride Ask Nova and the
+  Coach context. Client: report back in the chat with walk/coach/keep chips,
+  Home "waiting on you" state, Inbox leads with "Approve = …".
+
+**RUN FOR REAL (his request, live):** 7f3212b7 (dossier → gap research →
+Coach): the pause fired on 3/4 workers, the card read right, the merge then
+failed its citation gate and the Coach was skipped — which produced the
+partial-inputs and repair fixes. 640ca3d2 (follow-on): 3/3, two Coach
+routine-edit proposals filed (remove Cable Overhead Tricep Extension from
+Push; remove EZ-Bar Reverse Curl from Pull), report in his Inbox and in both
+agents' context. He has NOT yet read it or answered the proposals.
+
+**OPEN**
+- The two Coach proposals are pending in his Inbox; the report's seven
+  changes are his to say "make change N" on.
+- Only one plan run is watched by the chat at a time; the report
+  announcement is one paragraph (line breaks not honoured in the log).
+- His NO-CAPS rule is enforced in code and in memory but not yet on his
+  Standing Instructions page (needs his approval through the Inbox).
+- **QUEUED BUILD (his ask, 21 Sep 12:24):** an optional reply pop-up on any
+  Nova notification/banner — speak or type in place, full banner context
+  carried into the turn, and a sensible response to "not now" (flag,
+  reminder). See memory `nova-open-threads`.
+
 **21 SEP — HE USED IT. TWO REPORTS, BOTH REAL, BOTH FIXED AND SHIPPED.**
 
 **1. THE LEADER ANSWER THAT FILED TWICE.** He typed a real answer about the
