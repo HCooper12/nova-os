@@ -59,6 +59,7 @@ test('the ranges are ordered: bar first, wordmark yields, then the title arrives
   const bar = range('.nv-liquid-flush {'), wm = range('.nv-wordmark {'), title = range('.nv-compact-title {');
   assert.ok(bar && wm && title, 'all three need pixel ranges — percentages would drift with page height');
   assert.equal(bar[0], 0, 'the bar starts solidifying the moment anything passes under it');
+  assert.ok(bar[1] <= 32, 'and is solid before the first line of the page reaches it (16px below the bar at rest)');
   assert.ok(wm[0] > bar[0] && title[0] > wm[0], 'the title must not arrive before the wordmark has begun to leave');
   assert.ok(title[1] > wm[1], 'and must finish arriving after the wordmark has finished leaving');
 });
@@ -67,7 +68,7 @@ test('THE FALLBACK IS WHAT SHIPPED BEFORE: solid bar, wordmark shown, no title',
   const inside = supportsBlock();
   const outside = CSS.replace(inside, '');
   const flush = outside.slice(outside.indexOf('.nv-liquid-flush {'));
-  assert.match(flush.slice(0, flush.indexOf('}')), /background: var\(--nv-glass2\)/, 'solid by default');
+  assert.match(flush.slice(0, flush.indexOf('}')), /background: linear-gradient\(var\(--nv-glass2\), var\(--nv-glass2\)\) var\(--nv-void\)/, 'solid by default — and OPAQUE: no blur means a translucent bar ghosts the page through it');
   const title = outside.slice(outside.indexOf('.nv-compact-title {'));
   assert.match(title.slice(0, title.indexOf('}')), /opacity: 0/, 'the title layer is invisible unless a timeline drives it');
   assert.match(title.slice(0, title.indexOf('}')), /pointer-events: none/, 'and never intercepts the wordmark tap');
@@ -76,7 +77,7 @@ test('THE FALLBACK IS WHAT SHIPPED BEFORE: solid bar, wordmark shown, no title',
 test('reduced motion: the bar is simply solid and the wordmark simply stays', () => {
   const inside = supportsBlock();
   const rm = inside.slice(inside.indexOf('@media (prefers-reduced-motion: reduce)'));
-  assert.match(rm, /\.nv-liquid-flush \{ animation: none; background: var\(--nv-glass2\)/);
+  assert.match(rm, /\.nv-liquid-flush \{ animation: none; background: linear-gradient\(var\(--nv-glass2\), var\(--nv-glass2\)\) var\(--nv-void\)/);
   assert.match(rm, /\.nv-wordmark, \.nv-compact-title \{ animation: none; \}/);
 });
 

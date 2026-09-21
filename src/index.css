@@ -835,7 +835,12 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   transform: translateZ(0);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
-  background: var(--nv-glass2);
+  /* OPAQUE. glass2 is 80% and this bar has no backdrop blur (see above), so
+     on its own the page's type ghosted through it at 20% — measured in the
+     22 Sep headless render, "RECORDS · 09/21" legible under "Good morning".
+     Composited over the void it is the same colour he has always seen, with
+     nothing showing through. */
+  background: linear-gradient(var(--nv-glass2), var(--nv-glass2)) var(--nv-void);
   box-shadow: none;
   border-bottom: 1px solid var(--nv-edge);
 }
@@ -993,15 +998,22 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 }
 
 @supports (animation-timeline: scroll()) {
+  /* 0 → 28px, not 0 → 72px. The first headless render (22 Sep) showed why:
+     the page's first line sits 16px below the bar at rest, so at 72px the bar
+     was still a quarter-tinted when text started passing under it — two lines
+     of type on top of each other. Apple's bar takes on its material in the
+     few pixels between "nothing behind it" and "something behind it", so the
+     range is the gap, not a flourish. Both layers are interpolable: a
+     gradient of one colour to a gradient of another, and transparent to void. */
   .nv-liquid-flush {
-    background: transparent;
+    background: linear-gradient(transparent, transparent) transparent;
     border-bottom-color: transparent;
     animation: nvBarSolid linear both;
     animation-timeline: --nv-main;
-    animation-range: 0 72px;
+    animation-range: 0 28px;
   }
   @keyframes nvBarSolid {
-    to { background: var(--nv-glass2); border-bottom-color: var(--nv-edge); }
+    to { background: linear-gradient(var(--nv-glass2), var(--nv-glass2)) var(--nv-void); border-bottom-color: var(--nv-edge); }
   }
   .nv-wordmark {
     animation: nvWordmarkYield linear both;
@@ -1022,7 +1034,7 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   }
   /* reduced motion: the bar is simply solid and the wordmark simply stays */
   @media (prefers-reduced-motion: reduce) {
-    .nv-liquid-flush { animation: none; background: var(--nv-glass2); border-bottom-color: var(--nv-edge); }
+    .nv-liquid-flush { animation: none; background: linear-gradient(var(--nv-glass2), var(--nv-glass2)) var(--nv-void); border-bottom-color: var(--nv-edge); }
     .nv-wordmark, .nv-compact-title { animation: none; }
   }
 }
