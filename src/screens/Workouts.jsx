@@ -183,17 +183,11 @@ function RoutinesView({ v }) {
                 {d.makeup
                   ? <span style={css("font:var(--nv-micro-m);color:var(--nv-gold)")}>Make-up · finish {d.makeup.sourceRoutineName} · {d.makeup.count} left</span>
                   : d.carryoverNote && <span style={css("font:var(--nv-micro-m);color:var(--nv-gold)")}>{d.carryoverNote}</span>}
-                {/* MAKE-UP DAY — a day can be "finish Monday's Pull" rather
-                    than a standard session (his ask, 8 Sep 2026) */}
-                {d.makeup
-                  ? <TextAction compact tone="faint" onClick={d.clearMakeup}>Not a make-up</TextAction>
-                  : (
-                    <select value="" onChange={d.setMakeup} aria-label={`Make ${d.dayLabel} a make-up day`}
-                      style={{ marginTop: '2px', background: 'transparent', border: 'none', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)', fontFamily: 'var(--nv-font-ui)', fontSize: '12px', textAlign: 'right', direction: 'rtl' }}>
-                      <option value="" style={{ background: '#141019' }}>Make-up day…</option>
-                      {d.makeupOptions.map((o) => <option key={o.value} value={o.value} style={{ background: '#141019', color: 'var(--nv-ink)' }}>{o.label}</option>)}
-                    </select>
-                  )}
+                {/* MAKE-UP DAY is now a FOCUS, in the select above — it was
+                    a second control stacked here, which let a day be Push and
+                    also be a make-up, and that is what briefed him with two
+                    facts for one day's training (his report, 22 Sep). To stop
+                    making it up, pick a routine or Rest. */}
               </span>
             </div>
           ))}
@@ -214,16 +208,9 @@ function RoutinesView({ v }) {
               {d.makeup
                 ? <div style={css("margin-top:3px;font:var(--nv-micro-s);color:var(--nv-gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis")} title={`Make-up: finish ${d.makeup.sourceRoutineName}`}>Make-up · {d.makeup.count}</div>
                 : d.carryoverNote && <div style={css("margin-top:3px;font:var(--nv-micro-s);color:var(--nv-gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis")} title={d.carryoverNote}>{d.carryoverNote}</div>}
-              {/* MAKE-UP DAY — same control as the Apple strip, same view model */}
-              {d.makeup
-                ? <TextAction compact tone="faint" onClick={d.clearMakeup} style={{ marginTop: '3px' }}>Undo</TextAction>
-                : (
-                  <select value="" onChange={d.setMakeup} className="nv-compact" aria-label={`Make ${d.dayLabel} a make-up day`}
-                    style={{ marginTop: '4px', width: '100%', background: 'transparent', border: 'none', color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)', fontSize: '10px' }}>
-                    <option value="" style={{ background: '#141019' }}>Make-up…</option>
-                    {d.makeupOptions.map((o) => <option key={o.value} value={o.value} style={{ background: '#141019', color: 'var(--nv-ink)' }}>{o.label}</option>)}
-                  </select>
-                )}
+              {/* MAKE-UP DAY is a FOCUS now, in the select above — same view
+                  model as the Apple strip, and the same reason: two controls
+                  let one day be two things (his report, 22 Sep). */}
             </div>
           ))}
         </div>

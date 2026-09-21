@@ -133,24 +133,48 @@ export function valsWorkouts(app, ctx) {
     // prior session instead of running the scheduled one.
     const dayDate = dateForWeekday(day);
     const dayMakeup = dayCarryovers.find((c) => c.plannedAs === 'day') || null;
+    // A carry-over written without an id identifies by NAME (see the merge
+    // rule in workoutCarryover.js), so the select falls back to the name or it
+    // would show a make-up day as blank and silently re-write the template on
+    // the next touch.
+    const makeupRoutineId = dayMakeup
+      ? (dayMakeup.sourceRoutineId
+        || liveRoutines.find((r) => r.name === dayMakeup.sourceRoutineName)?.id
+        || '')
+      : '';
     return {
       day, dayLabel: WEEKDAY_SHORT[day], isToday, carryoverNote,
       date: dayDate,
       makeup: dayMakeup ? { sourceRoutineName: dayMakeup.sourceRoutineName, count: dayMakeup.exercises.length, sourceDate: dayMakeup.sourceDate || null } : null,
-      makeupOptions: liveRoutines.map((r) => ({ value: r.id, label: `Finish ${r.name}` })),
-      setMakeup: (e) => { const id = e.target.value; if (id) app.markMakeupDay(dayDate, id); e.target.value = ''; },
-      clearMakeup: () => app.clearMakeupDay(dayDate),
       style: { flex: '1', minWidth: '62px', textAlign: 'center', padding: '10px 6px', borderRadius: '10px',
         border: isToday ? '1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent)' : '1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)',
         background: isToday ? 'color-mix(in srgb, var(--nv-cy) 07%, transparent)' : 'rgba(0,0,0,.18)',
         boxShadow: isToday ? '0 0 24px -8px color-mix(in srgb, var(--nv-cy) 50%, transparent)' : 'none' },
       labelColor: isToday ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)',
-      value: routineId,
-      onChange: (e) => app.assignScheduleDay(day, e.target.value || null),
+      // ONE CONTROL, ONE ANSWER (his report, 22 Sep). A make-up used to be a
+      // SECOND select stacked under this one, so a day could be set to Push
+      // and ALSO be a make-up — which is what made Nova brief him with two
+      // facts ("a push day plus a makeup session") for one day's training. He
+      // was working around it by editing the WEEKDAY TEMPLATE to match the
+      // make-up, which changes every future Monday to fix one Tuesday.
+      //
+      // A make-up is now just another focus. The weekday template is left
+      // alone; the make-up is a per-DATE override, which is what it always
+      // was — this only stops asking him to say it in two places.
+      value: dayMakeup ? `makeup:${makeupRoutineId}` : routineId,
+      onChange: (e) => {
+        const val = e.target.value || '';
+        if (val.startsWith('makeup:')) { app.markMakeupDay(dayDate, val.slice(7)); return; }
+        // leaving a make-up: drop the override BEFORE the template is written,
+        // or the date keeps finishing a session he has just stopped planning
+        if (dayMakeup) app.clearMakeupDay(dayDate);
+        app.assignScheduleDay(day, val || null);
+      },
       options: [
         { value: '', label: 'Rest' },
         { value: 'active-rest', label: 'Active rest' },
         ...liveRoutines.map((r) => ({ value: r.id, label: r.name })),
+        ...liveRoutines.map((r) => ({ value: `makeup:${r.id}`, label: `Make-up · finish ${r.name}` })),
       ],
     };
   });
