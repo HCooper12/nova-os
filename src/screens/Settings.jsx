@@ -75,7 +75,7 @@ export function Settings({ v }) {
 
         <div style={css("margin-top:18px;display:flex;gap:10px;flex-wrap:wrap")}>
           <Interactive as="span" onClick={v.testSettingsConnection} base="cursor:pointer;font-size:12.5px;font-weight:500;padding:9px 16px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);color:var(--nv-cy);background:color-mix(in srgb, var(--nv-cy) 06%, transparent)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 14%, transparent)">Test connection</Interactive>
-          <Interactive as="span" onClick={v.saveSettingsConnection} base="cursor:pointer;font-size:12.5px;font-weight:500;padding:9px 16px;border-radius:8px;background:var(--nv-gold);color:#1a1322" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 85%, white)">Save &amp; connect</Interactive>
+          <Button compact onClick={v.saveSettingsConnection}>Save &amp; connect</Button>
           {v.connectionActive && (
             <Interactive as="span" onClick={v.disconnectSettings} base="cursor:pointer;font-size:12.5px;padding:9px 16px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);color:color-mix(in srgb, var(--nv-ink) 70%, transparent)" hoverStyle="background:rgba(255,255,255,.05)">Disconnect</Interactive>
           )}

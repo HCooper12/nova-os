@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { ChatMarkdown } from '../ChatMarkdown.jsx';
-import { Eyebrow, TextAction, Tag, Meta } from '../Controls.jsx';
+import { Eyebrow, TextAction, Tag, Meta, Button } from '../Controls.jsx';
 import { useStickToBottom } from '../useStickToBottom.js';
 import { LeaderBox } from '../LeaderBox.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
@@ -123,9 +123,7 @@ export function Leader({ v }) {
           placeholder="What are you facing — or what worked?"
           base={{ flex: 1, boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)', borderRadius: '10px', padding: '11px 14px', color: 'var(--nv-ink)', fontSize: '13px', fontFamily: UI, outline: 'none' }}
           focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)" />
-        <Interactive as="span" onClick={v.sendLeader}
-          base={css('cursor:pointer;font:600 12px var(--nv-font-ui);padding:11px 18px;border-radius:10px;background:var(--nv-gold);color:#1a1322;display:flex;align-items:center')}
-          hoverStyle="background:color-mix(in srgb, var(--nv-gold) 85%, white)">Send</Interactive>
+        <Button onClick={v.sendLeader} style={{ display: 'flex' }}>Send</Button>
       </div>
 
       {/* the trail — this week's ideas, repetition made visible */}

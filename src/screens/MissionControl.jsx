@@ -373,10 +373,8 @@ export function MissionControl({ v }) {
           {(v.suggestedFocus.onPrimary || v.suggestedFocus.onSecondary) && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: 'auto', paddingTop: '16px' }}>
               {v.suggestedFocus.onPrimary && (
-                <Interactive as="span" onClick={v.suggestedFocus.onPrimary}
-                  base={css("cursor:pointer;font:600 13px var(--nv-font-ui);letter-spacing:.03em;padding:8px 16px;border-radius:8px;border:1px solid var(--nv-gold);background:var(--nv-gold);color:#1a1206;box-shadow:0 4px 16px -6px rgba(224,178,106,.6)")}
-                  hoverStyle={{ filter: 'brightness(1.1)' }}
-                >{v.suggestedFocus.primaryLabel}</Interactive>
+                <Button compact onClick={v.suggestedFocus.onPrimary}
+                >{v.suggestedFocus.primaryLabel}</Button>
               )}
               {v.suggestedFocus.onSecondary && (
                 <Interactive as="span" onClick={v.suggestedFocus.onSecondary}
@@ -528,10 +526,10 @@ export function MissionControl({ v }) {
               )}
               {(v.planToday.onApprove || v.planToday.state === 'error') && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: 'auto', paddingTop: '14px' }}>
-                  {v.planToday.onApprove && <Interactive as="span" onClick={v.planToday.busy ? undefined : v.planToday.onApprove}
-                    base={css("cursor:pointer;font:600 13px var(--nv-font-ui);letter-spacing:.03em;padding:8px 16px;border-radius:8px;border:1px solid var(--nv-gold);background:var(--nv-gold);color:#1a1206;opacity:" + (v.planToday.busy ? '.6' : '1'))}
-                    hoverStyle={{ filter: 'brightness(1.1)' }}
-                  >{v.planToday.busy ? 'Filing…' : 'Approve — into the vault'}</Interactive>}
+                  {v.planToday.onApprove && <Button compact onClick={v.planToday.onApprove} disabled={v.planToday.busy}
+
+
+                  >{v.planToday.busy ? 'Filing…' : 'Approve — into the vault'}</Button>}
                   <Interactive as="span" onClick={v.planToday.onOpenInbox}
                     base={css("cursor:pointer;font:600 13px var(--nv-font-ui);letter-spacing:.03em;padding:8px 16px;border-radius:8px;border:1px solid rgba(232,236,246,.18);color:var(--nv-ink60);background:transparent")}
                     hoverStyle={{ background: 'rgba(255,255,255,.05)' }}

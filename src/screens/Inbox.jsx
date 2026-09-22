@@ -501,7 +501,7 @@ export function Inbox({ v }) {
           <Eyebrow tone="gold">Proposed rule</Eyebrow>
           <div style={css(`margin-top:8px;font:400 17px/1.4 ${S};text-wrap:pretty`)}>{p.text}</div>
           <div style={css("margin-top:12px;display:flex;gap:10px")}>
-            <Interactive as="span" onClick={p.accept} base={css(`cursor:pointer;font:600 13px ${R};padding:7px 16px;border-radius:8px;background:var(--nv-gold);color:#1a1206`)} hoverStyle={{ filter: 'brightness(1.1)' }}>{p.acceptLabel || 'Accept'}</Interactive>
+            <Button compact onClick={p.accept}>{p.acceptLabel || 'Accept'}</Button>
             {p.altLabel && (
               <Interactive as="span" onClick={p.alt} base={css(`cursor:pointer;font:600 13px ${R};padding:7px 16px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);color:var(--nv-cy)`)} hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' }}>{p.altLabel}</Interactive>
             )}

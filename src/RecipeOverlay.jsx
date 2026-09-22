@@ -319,7 +319,7 @@ export function RecipeOverlay({ v }) {
                         <Interactive as="span" onClick={v.discardRecipeTweak} base="cursor:pointer;font-size:12px;padding:7px 14px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);color:color-mix(in srgb, var(--nv-ink) 70%, transparent)" hoverStyle={{ background: 'rgba(255,255,255,.05)' }}>Discard</Interactive>
                         <Interactive as="span" onClick={v.saveRecipeTweak} base="cursor:pointer;font-size:12px;font-weight:500;padding:7px 16px;border-radius:7px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 80%, white)' }}>Save as alternative</Interactive>
                         {v.saveRecipeTweakToday && (
-                          <Interactive as="span" onClick={v.saveRecipeTweakToday} base="cursor:pointer;font-size:12px;font-weight:600;padding:7px 16px;border-radius:7px;background:var(--nv-gold);color:#1a1322" hoverStyle={{ filter: 'brightness(1.08)' }}>Save &amp; use today</Interactive>
+                          <Button compact onClick={v.saveRecipeTweakToday}>Save &amp; use today</Button>
                         )}
                       </div>
                     </div>

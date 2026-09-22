@@ -1,4 +1,5 @@
 import { css } from './css.js';
+import { Button } from './Controls.jsx';
 import { useExit } from './useExit.js';
 import { Interactive } from './Interactive.jsx';
 
@@ -77,7 +78,7 @@ export function IngestModal({ v }) {
           )}
           <div style={css("margin-left:auto;display:flex;gap:10px")}>
             <Interactive as="span" onClick={exit.close} base="cursor:pointer;font-size:12.5px;padding:9px 16px;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);color:color-mix(in srgb, var(--nv-ink) 70%, transparent)" hoverStyle="background:rgba(255,255,255,.05)">Cancel</Interactive>
-            <Interactive as="span" onClick={v.submitIngest} base="cursor:pointer;font-size:12.5px;font-weight:500;padding:9px 18px;border-radius:8px;background:var(--nv-gold);color:#1a1322" hoverStyle="background:color-mix(in srgb, var(--nv-gold) 85%, white)">{v.ingestFile ? 'Read & add to vault' : v.ingestPerson.trim() ? 'Research & add to vault' : 'Add to vault'}</Interactive>
+            <Button compact onClick={v.submitIngest}>{v.ingestFile ? 'Read & add to vault' : v.ingestPerson.trim() ? 'Research & add to vault' : 'Add to vault'}</Button>
           </div>
         </div>
       </div>

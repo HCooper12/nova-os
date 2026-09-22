@@ -1,5 +1,5 @@
 import { css } from '../css.js';
-import { Eyebrow, TextAction, Chip, ScreenHead, Meta } from '../Controls.jsx';
+import { Eyebrow, TextAction, Chip, ScreenHead, Meta, Button } from '../Controls.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpperCase());
 
@@ -46,7 +46,7 @@ export function Galaxy({ v }) {
             <div style={css("margin-top:7px;font:400 19px var(--nv-font-serif)")}>{v.galaxySelLabel}</div>
             <div style={css("margin-top:5px;font-size:12px;color:color-mix(in srgb, var(--nv-ink) 55%, transparent);line-height:1.5")}>{v.galaxySelDesc}</div>
             <div style={css("margin-top:12px;display:flex;gap:8px")}>
-              <span onClick={v.galaxyOpen} style={css("cursor:pointer;font-size:11.5px;font-weight:500;padding:6px 12px;border-radius:7px;background:var(--nv-gold);color:#1a1322")}>Open</span>
+              <Button compact onClick={v.galaxyOpen}>Open</Button>
               <span onClick={v.galaxyClear} style={css("cursor:pointer;font-size:11.5px;padding:6px 12px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent);color:color-mix(in srgb, var(--nv-ink) 65%, transparent)")}>Dismiss</span>
             </div>
           </div>
