@@ -85,10 +85,19 @@ export async function composeFocus(vaultPath, { routine, block, deload, progress
     const stalled = (plateaus || []).find((p) => inRoutine.has(p.exerciseId));
     const bits = [];
     let focusFix = null;
+    // THE VERDICT, SEPARATE FROM ITS REASONING (23 Sep 2026). `text` is
+    // unchanged — it is what the spoken turn reads and what a model is handed.
+    // `verdict` is the same finding unjoined, so the card can set the thing he
+    // earned as a figure and demote the evidence beneath it, instead of
+    // burying "+1 rep" in the fourth line of a paragraph (review finding 12).
+    // Only an EARNED or OUTGROWN day has one; recovery and rest are advice,
+    // and advice has no number.
+    let verdict = null;
     if (outgrown) {
       const outgrownId = outgrown[0].split(':')[1];
       const ex = routine.exercises.find((e) => e.exerciseId === outgrownId);
       bits.push(`${ex?.name} has OUTGROWN its prescription — ${outgrown[1].evidence}`);
+      verdict = { lift: ex?.name || outgrownId, label: 'outgrown', why: outgrown[1].evidence };
       // his ask: a focus that implies a plan change must be appliable on the
       // spot — the weighted-variant op mints "Weighted X", swaps it in with
       // the same prescription, and carries a low starting load on the marker
@@ -97,10 +106,11 @@ export async function composeFocus(vaultPath, { routine, block, deload, progress
     if (earned && !outgrown) {
       const ex = routine.exercises.find((e) => e.exerciseId === earned[0].split(':')[1]);
       bits.push(`${ex?.name}: +${earned[1].delta}${earned[1].kind === 'weight' ? 'kg' : ' rep'} earned — take it (${earned[1].evidence}).`);
+      verdict = { lift: ex?.name || earned[0], delta: earned[1].delta, unit: earned[1].kind === 'weight' ? 'kg' : 'rep', why: earned[1].evidence };
     }
     if (tuned) bits.push(`${tuned.name}: ${tuned.focus}.`);
     if (!bits.length && stalled) bits.push(`${stalled.name} has been flat ${stalled.spanDays} days — today is quality over load: slower lowering, full range, honest reps.`);
-    if (bits.length) return { kind: 'session', text: bits.slice(0, 2).join(' '), ...(focusFix ? { fix: focusFix } : {}) };
+    if (bits.length) return { kind: 'session', text: bits.slice(0, 2).join(' '), ...(verdict ? { verdict } : {}), ...(focusFix ? { fix: focusFix } : {}) };
     return null; // an ordinary day with nothing earned says nothing
   }
   const active = (injuries || []).filter((i) => !i.resolvedAt);
@@ -141,6 +151,8 @@ export async function buildTrainOverview(vaultPath) {
   const focus = await composeFocus(vaultPath, { routine, block, deload, progressions, tunes, plateaus, injuries });
 
   // momentum: last session's PRs (if within 3 days), top plateau, streak
+  const byId = new Map((exercises || []).map((e) => [e.id, e]));
+  const groupOf = (id) => byId.get(id)?.muscleGroup || null;
   const last = sessions[0] || null;
   const recentPRs = last && (Date.now() - new Date(`${last.date}T12:00:00`)) < 3 * 86400000
     ? prsInSession(sessions, last).slice(0, 2) : [];
@@ -258,8 +270,13 @@ export async function buildTrainOverview(vaultPath) {
     momentum: {
       // weight+reps ride along so the card can name the SET he did, not only
       // the estimate derived from it (trainingAnalytics.js: `shown`)
-      prs: recentPRs.map((p) => ({ name: p.name, kind: p.kind, value: p.value, weight: p.weight ?? null, reps: p.reps ?? null, previous: p.previous, date: last?.date })),
-      plateau: plateaus[0] ? { name: plateaus[0].name, spanDays: plateaus[0].spanDays } : null,
+      // THE MUSCLE RIDES ALONG (23 Sep 2026). The momentum cards all wore the
+      // same gold border, which §2b rule 8 reserves for "not yet decided" — a
+      // personal record is decided. The group is what the card is ABOUT, and
+      // the palette already has a hue for it, so the card can be that hue
+      // instead. Absent rather than guessed when the library has no entry.
+      prs: recentPRs.map((p) => ({ name: p.name, kind: p.kind, value: p.value, weight: p.weight ?? null, reps: p.reps ?? null, previous: p.previous, date: last?.date, muscleGroup: groupOf(p.exerciseId) })),
+      plateau: plateaus[0] ? { name: plateaus[0].name, spanDays: plateaus[0].spanDays, muscleGroup: groupOf(plateaus[0].exerciseId) } : null,
       streak: streaks?.workoutStreak ?? null,
     },
     volume,

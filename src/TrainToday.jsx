@@ -7,7 +7,7 @@ import { css } from './css.js';
 import { muscleVar } from './muscleHue.js';
 import { Interactive } from './Interactive.jsx';
 import { Term } from './Glossary.jsx';
-import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle, Button } from './Controls.jsx';
+import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle, Button, Rail } from './Controls.jsx';
 import { todayPanels } from './trainPanels.js';
 
 // the material pass (5 Sep 2026): labels through Controls.jsx; a filled
@@ -34,7 +34,14 @@ function Ring({ score, basis }) {
   );
 }
 
-const fcardBase = (edge) => `flex:0 0 160px;border-radius:14px;padding:12px;border:1px solid ${edge};background:var(--nv-glass);cursor:pointer;transition:transform .2s,border-color .2s`;
+// THE MOMENTUM CARDS. Equal height, so a three-card rail does not read as a
+// broken staircase; snapped, so a flick lands on a card rather than halfway
+// through one; and bordered in the lifted muscle's own hue rather than gold —
+// a personal record is decided, and gold means "not yet decided" (§2b r8).
+// Fixed 128px because the tallest of them is a two-line name plus two lines
+// of detail, and a rail whose cards agree on height is the difference between
+// a row of cards and a row of boxes.
+const fcardBase = (edge) => `flex:0 0 164px;min-height:128px;box-sizing:border-box;display:flex;flex-direction:column;scroll-snap-align:start;border-radius:14px;padding:12px;border:1px solid ${edge};background:var(--nv-glass);cursor:pointer;transition:transform .2s,border-color .2s`;
 
 export function TrainToday({ o, actions, resume }) {
   // one rule for which cards are up, kept pure and tested (src/trainPanels.js)
@@ -142,7 +149,30 @@ export function TrainToday({ o, actions, resume }) {
       {o?.focus && (
         <div style={css('border-radius:16px;padding:13px 14px;border:1px solid color-mix(in srgb, var(--nv-gold) 40%, transparent);background:linear-gradient(135deg,color-mix(in srgb, var(--nv-gold) 10%, transparent),color-mix(in srgb, var(--nv-gold) 2%, transparent))')}>
           <Eyebrow as="span" tone="gold">◈ Focus for today</Eyebrow>
-          <div style={css('font-size:13.5px;color:var(--nv-ink);margin-top:5px;line-height:1.5')}>{o.focus.text}</div>
+          {/* THE THING HE EARNED, AS A FIGURE. This was a five-line paragraph
+              in a gold-bordered box with "+1 rep" somewhere in the middle of
+              it (review finding 12). On a day that earned something, the
+              number leads and the evidence sits under it demoted; on a
+              recovery or rest day there is no number, and the advice is the
+              whole card, which is honest. */}
+          {o.focus.verdict ? (
+            <div style={css('margin-top:7px')}>
+              <div style={css('font-size:13px;font-weight:600;color:var(--nv-ink);line-height:1.3')}>{o.focus.verdict.lift}</div>
+              <div style={css('display:flex;align-items:baseline;gap:7px;margin-top:3px')}>
+                {o.focus.verdict.delta != null ? (
+                  <>
+                    <span style={{ font: '400 32px var(--nv-font-serif)', lineHeight: 1, color: 'var(--nv-gold)', fontVariantNumeric: 'tabular-nums' }}>+{o.focus.verdict.delta}</span>
+                    <span style={css('font:600 13px var(--nv-font-ui);color:var(--nv-gold)')}>{o.focus.verdict.unit}{o.focus.verdict.delta === 1 ? '' : 's'} earned</span>
+                  </>
+                ) : (
+                  <span style={{ font: '400 22px var(--nv-font-serif)', lineHeight: 1.1, color: 'var(--nv-gold)' }}>has outgrown its prescription</span>
+                )}
+              </div>
+              <div style={css('font-size:12px;color:var(--nv-ink60);margin-top:6px;line-height:1.5')}>{o.focus.verdict.why}</div>
+            </div>
+          ) : (
+            <div style={css('font-size:13.5px;color:var(--nv-ink);margin-top:5px;line-height:1.5')}>{o.focus.text}</div>
+          )}
           {o.focus.fix && actions?.applyFocusFix && (
             <div style={css('margin-top:10px')}>
               <Button compact onClick={() => actions.applyFocusFix(o.focus.fix, o.focus.text)}>Make the change</Button>
@@ -151,33 +181,42 @@ export function TrainToday({ o, actions, resume }) {
         </div>
       )}
 
-      {/* momentum feed */}
+      {/* MOMENTUM. The third card used to be sliced vertically by the screen
+          edge — "Sp…" / "no…" — with no peek treatment and nothing to say
+          there was more (review finding 12). Rail fades the side it has more
+          on, and the snap means a flick lands on a card rather than halfway
+          through one. */}
       {o && (o.momentum?.prs?.length > 0 || o.momentum?.plateau || o.momentum?.streak >= 2) && (
-        <div style={css('display:flex;gap:10px;overflow-x:auto;padding:2px 2px 6px;scrollbar-width:none')}>
-          {o.momentum.prs.map((p) => (
-            <div key={p.name + p.kind} style={css(fcardBase('color-mix(in srgb, var(--nv-gold) 50%, transparent)') + ';background:linear-gradient(160deg,color-mix(in srgb, var(--nv-gold) 10%, transparent),var(--nv-glass))')}>
-              <Eyebrow tone="gold" style={{ marginBottom: '6px' }}>◆ PR{p.date ? ` · ${p.date.slice(5)}` : ''}</Eyebrow>
-              <div style={css('font-size:14.5px;font-weight:600;line-height:1.25')}>{p.name}</div>
-              <div style={css('font-size:10.5px;color:var(--nv-ink40);margin-top:4px;font-variant-numeric:tabular-nums')}>
-                {p.kind === 'weight' ? `${p.value}kg × ${p.reps} — heaviest ever` : <span><Term k="e1RM">e1RM</Term> {`${p.value}kg`}</span>}{p.previous ? ` · was ${Math.round(p.previous * 10) / 10}` : ''}
+        <Rail style={{ gap: '10px', padding: '2px 2px 6px', scrollSnapType: 'x mandatory', scrollPaddingLeft: '2px', alignItems: 'stretch' }}
+          ariaLabel="Recent momentum">
+          {o.momentum.prs.map((p) => {
+            const hue = p.muscleGroup ? muscleVar(p.muscleGroup) : 'var(--nv-good)';
+            return (
+              <div key={p.name + p.kind} style={css(fcardBase(`color-mix(in srgb, ${hue} 45%, transparent)`) + `;background:linear-gradient(160deg,color-mix(in srgb, ${hue} 10%, transparent),var(--nv-glass))`)}>
+                <Eyebrow style={{ marginBottom: '6px', color: hue }}>◆ PR{p.date ? ` · ${p.date.slice(5)}` : ''}</Eyebrow>
+                <div style={css('font-size:14.5px;font-weight:600;line-height:1.25')}>{p.name}</div>
+                <div style={css('font-size:10.5px;color:var(--nv-ink40);margin-top:auto;padding-top:6px;font-variant-numeric:tabular-nums')}>
+                  {p.kind === 'weight' ? `${p.value}kg × ${p.reps} — heaviest ever` : <span><Term k="e1RM">e1RM</Term> {`${p.value}kg`}</span>}{p.previous ? ` · was ${Math.round(p.previous * 10) / 10}` : ''}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           {o.momentum.plateau && (
             <Interactive as="div" onClick={actions?.askPlateau ? () => actions.askPlateau(o.momentum.plateau.name) : undefined}
               base={fcardBase('color-mix(in srgb, var(--nv-warn) 45%, transparent)')} hoverStyle="transform:translateY(-2px);border-color:var(--nv-warn)">
               <Eyebrow tone="warn" style={{ marginBottom: '6px' }}>▲ <Term k="stalled">Stalled</Term> · {o.momentum.plateau.spanDays}d</Eyebrow>
               <div style={css('font-size:14.5px;font-weight:600;line-height:1.25')}>{o.momentum.plateau.name}</div>
-              <div style={css('font-size:10.5px;color:var(--nv-ink40);margin-top:4px')}>no strength gain — tap for Coach's fix</div>
+              <div style={css('font-size:10.5px;color:var(--nv-ink40);margin-top:auto;padding-top:6px')}>no strength gain — tap for Coach's fix</div>
             </Interactive>
           )}
           {o.momentum.streak >= 2 && (
             <div style={css(fcardBase('var(--nv-edge)'))}>
               <Eyebrow tone="good" style={{ marginBottom: '6px' }}>● Streak</Eyebrow>
               <div style={css('font-size:14.5px;font-weight:600;font-variant-numeric:tabular-nums')}>{o.momentum.streak} sessions</div>
+              <div style={css('font-size:10.5px;color:var(--nv-ink40);margin-top:auto;padding-top:6px')}>in a row</div>
             </div>
           )}
-        </div>
+        </Rail>
       )}
 
       {/* THE COACH'S OPEN ASK — a proposed program change, on the screen
