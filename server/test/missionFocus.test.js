@@ -4,7 +4,7 @@
 // a finished item promoted as if unfinished, or a PR celebrated twice.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pickOneThing, prMomentFor, ringState } from '../../src/missionFocus.js';
+import { pickOneThing, prMomentFor, ringState, pickFocalVital } from '../../src/missionFocus.js';
 
 // ---- C2: the one thing ----
 
@@ -80,4 +80,48 @@ test('ring state follows the percentage, and a dash is absent — never a zero',
 test('the thresholds are adjustable per metric', () => {
   assert.equal(ringState({ value: '80', pct: 80 }, { goodFrom: 75 }), 'good');
   assert.equal(ringState({ value: '80', pct: 80 }, { goodFrom: 90, behindFrom: 85 }), 'missed');
+});
+
+// ONE FOCAL POINT, AND ONLY WHEN THERE IS ONE TO MAKE.
+test('the vitals row promotes the ring furthest behind', () => {
+  const key = pickFocalVital([
+    { key: 'protein', state: 'behind', pct: 62 },
+    { key: 'steps', state: 'missed', pct: 24 },
+    { key: 'sleep', state: 'good', pct: 96 },
+    { key: 'readiness', state: 'behind', pct: 70 },
+  ]);
+  assert.equal(key, 'steps');
+});
+
+test('a good day promotes nothing — four wins is not a problem to lead with', () => {
+  assert.equal(pickFocalVital([
+    { key: 'protein', state: 'good', pct: 101 },
+    { key: 'steps', state: 'good', pct: 120 },
+    { key: 'sleep', state: 'good', pct: 94 },
+    { key: 'readiness', state: 'good', pct: 88 },
+  ]), null);
+});
+
+test('a missing reading never leads — that is a gap in the data, not in his day', () => {
+  assert.equal(pickFocalVital([
+    { key: 'protein', state: 'absent', pct: 0 },
+    { key: 'steps', state: 'absent', pct: 0 },
+  ]), null);
+  assert.equal(pickFocalVital([
+    { key: 'protein', state: 'absent', pct: 0 },
+    { key: 'sleep', state: 'behind', pct: 66 },
+  ]), 'sleep');
+});
+
+test('a tie keeps the row order, so the choice never looks arbitrary', () => {
+  assert.equal(pickFocalVital([
+    { key: 'protein', state: 'behind', pct: 60 },
+    { key: 'steps', state: 'behind', pct: 60 },
+  ]), 'protein');
+});
+
+test('nothing at all is not a crash', () => {
+  assert.equal(pickFocalVital(), null);
+  assert.equal(pickFocalVital([]), null);
+  assert.equal(pickFocalVital([null, undefined]), null);
 });

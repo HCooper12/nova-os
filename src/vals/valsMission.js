@@ -1,7 +1,7 @@
 import { AGENTS } from './shared.js';
 import { nextWorkBlock, currentWorkBlock, leadLeadsNow, untilWords, leftWords } from '../workBlock.js';
 import { KIND_LABEL, situationFace, situationReply } from './valsLeader.js';
-import { pickOneThing, prMomentFor, ringState } from '../missionFocus.js';
+import { pickOneThing, prMomentFor, ringState, pickFocalVital } from '../missionFocus.js';
 import { plainLabel, liveBlock, isLiveBlock, blockCta, blockDetail, minsLeft, pickTagline } from '../missionLine.js';
 import { localDateISO } from '../localDate.js';
 import { clampWords } from '../textClamp.js';
@@ -326,35 +326,67 @@ export function valsMission(app, ctx) {
   const weightDated = weightLatest && weightLatest.date !== todayKey
     ? (weightAgeDays >= 7 ? `${weightAgeDays} DAYS AGO` : dayLabel(weightLatest.date))
     : null;
-  const bodyMetrics = demoMode
+  // ONE HUE PER DOMAIN, held everywhere (23 Sep 2026, review finding 22).
+//
+// Home's eight vitals wore six ad-hoc colours with no stated system, and two
+// of them were actively misleading: weight in gold, which §2b rule 8 reserves
+// for "not yet decided", and magenta on two unrelated metrics. A colour that
+// means nothing is worse than no colour, because it still asks to be read.
+//
+// So: four domains, four hues, and every vital belongs to exactly one.
+//   recovery — what the body did overnight (sleep, HRV, resting heart rate)
+//   fuel     — what went in (protein, calories)
+//   activity — what he did (steps)
+//   body     — what he is (weight)
+// Gold appears nowhere here. It has one job in this app and this is not it.
+const VITAL_DOMAIN = {
+  recovery: '--nv-cy',
+  fuel: '--nv-good',
+  activity: '--nv-vi',
+  body: '--nv-mg',
+};
+
+  const ringVitals = [
+    { key: 'protein', ...satProtein, state: ringState(satProtein) },
+    { key: 'steps', ...satSteps, state: ringState(satSteps) },
+    { key: 'sleep', ...satSleep, state: ringState(satSleep) },
+    (() => {
+      const r = st.liveTrainOverview?.readiness;
+      const score = r?.score;
+      return { key: 'readiness', label: 'READY', value: score != null ? String(score) : '—', small: '', pct: score ?? 0,
+        hint: r?.basis || (usingLiveHealthData ? 'NO READINESS YET' : ''), state: score != null ? ringState({ value: String(score), pct: score }, { goodFrom: 80, behindFrom: 55 }) : 'absent', onOpen: go('workouts') };
+    })(),
+  ];
+
+const bodyMetrics = demoMode
     ? [
-        { key: 'weight', label: 'WEIGHT', value: '78.2', small: 'KG', hint: '−0.4 KG / 14D', color: '--nv-gold' },
-        { key: 'hrv', label: 'HRV', value: '93.5', small: 'MS', hint: '+9% VS BASELINE', color: '--nv-cy' },
-        { key: 'rhr', label: 'RESTING HR', value: '51', small: 'BPM', hint: 'TODAY', color: '--nv-mg' },
-        { key: 'fuel', label: 'EATEN TODAY', value: '1,430', small: '/2600', hint: 'KCAL · 1,170 LEFT', color: '--nv-good' },
+        { key: 'weight', label: 'WEIGHT', value: '78.2', small: 'KG', hint: '−0.4 KG / 14D', color: VITAL_DOMAIN.body },
+        { key: 'hrv', label: 'HRV', value: '93.5', small: 'MS', hint: '+9% VS BASELINE', color: VITAL_DOMAIN.recovery },
+        { key: 'rhr', label: 'RESTING HR', value: '51', small: 'BPM', hint: 'TODAY', color: VITAL_DOMAIN.recovery },
+        { key: 'fuel', label: 'EATEN TODAY', value: '1,430', small: '/2600', hint: 'KCAL · 1,170 LEFT', color: VITAL_DOMAIN.fuel },
       ]
     : [
         weightLatest
           ? {
-              key: 'weight', label: 'WEIGHT', value: (Math.round(weightLatest.weightKg * 10) / 10).toFixed(1), small: 'KG', color: '--nv-gold',
+              key: 'weight', label: 'WEIGHT', value: (Math.round(weightLatest.weightKg * 10) / 10).toFixed(1), small: 'KG', color: VITAL_DOMAIN.body,
               hint: [weightDelta == null ? 'FIRST READING' : `${weightDelta > 0 ? '+' : ''}${weightDelta} KG / ${weightSpan}D`, weightDated].filter(Boolean).join(' · '),
               vtName: st.stepsOverlayOpen ? undefined : 'vital-weight',
               onOpen: () => app.withTransition(() => app.setState({ stepsOverlayOpen: true, stepsOverlayMode: 'weight' })),
             }
           : {
-              key: 'weight', label: 'WEIGHT', value: '—', small: '', color: '--nv-gold',
+              key: 'weight', label: 'WEIGHT', value: '—', small: '', color: VITAL_DOMAIN.body,
               hint: usingLiveHealthData ? 'TAP TO LOG · OR ADD TO SHORTCUT' : offlineHint,
               vtName: st.stepsOverlayOpen ? undefined : 'vital-weight',
               onOpen: usingLiveHealthData ? () => app.withTransition(() => app.setState({ stepsOverlayOpen: true, stepsOverlayMode: 'weight' })) : undefined,
             },
         hrvDay
-          ? { key: 'hrv', label: 'HRV', value: String(Math.round(hrvDay.hrv * 10) / 10), small: 'MS', color: '--nv-cy',
+          ? { key: 'hrv', label: 'HRV', value: String(Math.round(hrvDay.hrv * 10) / 10), small: 'MS', color: VITAL_DOMAIN.recovery,
               hint: staleHint(hrvDay) || (hrvDeltaPct != null ? `${hrvDeltaPct >= 0 ? '+' : ''}${hrvDeltaPct}% VS BASELINE` : 'BUILDING BASELINE') }
-          : { key: 'hrv', label: 'HRV', value: '—', small: '', color: '--nv-cy', hint: usingLiveHealthData ? 'NO HRV DATA YET' : offlineHint },
+          : { key: 'hrv', label: 'HRV', value: '—', small: '', color: VITAL_DOMAIN.recovery, hint: usingLiveHealthData ? 'NO HRV DATA YET' : offlineHint },
         rhrDay
-          ? { key: 'rhr', label: 'RESTING HR', value: String(Math.round(rhrDay.restingHeartRate)), small: 'BPM', color: '--nv-mg',
+          ? { key: 'rhr', label: 'RESTING HR', value: String(Math.round(rhrDay.restingHeartRate)), small: 'BPM', color: VITAL_DOMAIN.recovery,
               hint: staleHint(rhrDay) || 'TODAY' }
-          : { key: 'rhr', label: 'RESTING HR', value: '—', small: '', color: '--nv-mg', hint: usingLiveHealthData ? 'NO RHR DATA YET' : offlineHint },
+          : { key: 'rhr', label: 'RESTING HR', value: '—', small: '', color: VITAL_DOMAIN.recovery, hint: usingLiveHealthData ? 'NO RHR DATA YET' : offlineHint },
         usingLiveRecipes
           // kcal wears the same green as calories on the Recipes tab — and
           // never the protein satellite's violet, so the two counters can't
@@ -372,7 +404,7 @@ export function valsMission(app, ctx) {
                   : 'KCAL · NO TARGET SET') + macroBit,
                 onOpen: go('recipes') };
             })()
-          : { key: 'fuel', label: 'EATEN TODAY', value: '—', small: '', color: '--nv-good', hint: 'RECONNECT TO LOAD', onOpen: go('recipes') },
+          : { key: 'fuel', label: 'EATEN TODAY', value: '—', small: '', color: VITAL_DOMAIN.fuel, hint: 'RECONNECT TO LOAD', onOpen: go('recipes') },
       ];
 
   const untilLabel = (time) => {
@@ -935,17 +967,9 @@ export function valsMission(app, ctx) {
     })(),
     // B1 — the ring cluster. Colour is the verdict (missionFocus.ringState);
     // the readiness ring comes from the same overview Train draws it from.
-    ringVitals: [
-      { key: 'protein', ...satProtein, state: ringState(satProtein) },
-      { key: 'steps', ...satSteps, state: ringState(satSteps) },
-      { key: 'sleep', ...satSleep, state: ringState(satSleep) },
-      (() => {
-        const r = st.liveTrainOverview?.readiness;
-        const score = r?.score;
-        return { key: 'readiness', label: 'READY', value: score != null ? String(score) : '—', small: '', pct: score ?? 0,
-          hint: r?.basis || (usingLiveHealthData ? 'NO READINESS YET' : ''), state: score != null ? ringState({ value: String(score), pct: score }, { goodFrom: 80, behindFrom: 55 }) : 'absent', onOpen: go('workouts') };
-      })(),
-    ],
+    ringVitals,
+    // which ring leads today, or null when nothing is behind (missionFocus.js)
+    focalVital: pickFocalVital(ringVitals),
     commandDeck,
     noteCard,
     // WRAP THE DAY (server/lib/wrapDay.js): the evening card. It waits for

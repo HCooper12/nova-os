@@ -65,9 +65,16 @@ export function GRow({ leading, title, sub, trailing, onClick, first, children }
 }
 
 // Small metric tile used inside a Group grid (BODY / vitals).
-export function MetricTile({ m }) {
+export function MetricTile({ m, style }) {
+  const lead = !!(style && style.gridColumn);   // promoted to the full row
   return (
-    <Interactive key={m.key} onClick={m.onOpen} style={m.vtName ? { viewTransitionName: m.vtName } : undefined} base={{ cursor: m.onOpen ? 'pointer' : 'default', borderRadius: '12px', padding: '10px 12px' }} hoverStyle={m.onOpen ? { background: 'rgba(255,255,255,.04)' } : {}}>
+    <Interactive key={m.key} onClick={m.onOpen}
+      style={{ ...(m.vtName ? { viewTransitionName: m.vtName } : {}), ...(style || {}) }}
+      base={{ cursor: m.onOpen ? 'pointer' : 'default', borderRadius: '12px', padding: lead ? '12px' : '10px 12px',
+        // the promoted tile gets a ground and its domain's edge, so the
+        // emphasis is material rather than size alone
+        ...(lead ? { background: `color-mix(in srgb, var(${m.color || '--nv-ink'}) 07%, transparent)`, boxShadow: `inset 2px 0 0 color-mix(in srgb, var(${m.color || '--nv-ink'}) 45%, transparent)` } : {}) }}
+      hoverStyle={m.onOpen ? { background: 'rgba(255,255,255,.04)' } : {}}>
       <div style={{ font: `600 10.5px ${UI}`, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--nv-ink60)' }}>{m.label}</div>
       <div style={{ font: `700 23px ${UI}`, letterSpacing: '-.02em', marginTop: '3px', fontVariantNumeric: 'tabular-nums', ...absentValueStyle(m, m.color) }}>
         {m.value}{m.small ? <small style={{ fontSize: '12px', fontWeight: 600, color: 'var(--nv-ink40)', marginLeft: '2px' }}>{m.small}</small> : null}

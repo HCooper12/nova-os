@@ -58,3 +58,29 @@ export function ringState(sat, { goodFrom = 90, behindFrom = 50 } = {}) {
   if (pct >= behindFrom) return 'behind';
   return 'missed';
 }
+
+// C4. ONE FOCAL POINT IN THE VITALS ROW (23 Sep 2026, review finding 22).
+// Four rings at identical size meant the row had no subject: "when everything
+// competes equally, nothing wins" (interface-design). The one furthest behind
+// leads — bigger, and named — because it is the only one of the four that
+// asks anything of him today.
+//
+// It promotes NOTHING when every ring is good or absent. A day where he is on
+// top of all four should look like one, and inventing a leader out of a set
+// of wins would be the same false urgency the rest of this file exists to
+// avoid. `absent` never leads either: a metric with no reading is a gap in
+// the data, not a gap in his day.
+export function pickFocalVital(ringVitals = []) {
+  const list = Array.isArray(ringVitals) ? ringVitals : [];
+  const behind = list.filter((r) => r && (r.state === 'missed' || r.state === 'behind'));
+  if (!behind.length) return null;
+  // worst first; a tie goes to the earlier ring, which is the order the row
+  // already reads in, so the choice never looks arbitrary
+  let worst = behind[0];
+  for (const r of behind) {
+    const a = Number.isFinite(Number(r.pct)) ? Number(r.pct) : 100;
+    const b = Number.isFinite(Number(worst.pct)) ? Number(worst.pct) : 100;
+    if (a < b) worst = r;
+  }
+  return worst.key || null;
+}

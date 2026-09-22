@@ -163,10 +163,13 @@ export function MissionStructured({ v }) {
     setRemembered(next);
     saveFolds(next);
   };
+  // the same four domains the body metrics use (valsMission VITAL_DOMAIN):
+  // sleep is recovery, steps are activity, protein is fuel. Six ad-hoc hues
+  // across these eight tiles was the fault; the system is the fix.
   const vitals = [
     { key: 'sleep', color: '--nv-cy', ...v.satSleep },
-    { key: 'steps', color: '--nv-mg', ...v.satSteps },
-    { key: 'protein', color: '--nv-vi', ...v.satProtein },
+    { key: 'steps', color: '--nv-vi', ...v.satSteps },
+    { key: 'protein', color: '--nv-good', ...v.satProtein },
     ...v.bodyMetrics,
   ];
 
@@ -211,11 +214,26 @@ export function MissionStructured({ v }) {
             product and appeared on one screen; here it sits with protein,
             steps and sleep, colour carrying the verdict (missionFocus.ringState)
             and a dashed ring for a metric that was not reported. */}
+        {/* The four rings stay the same size. Drawing the focal one larger
+            was tried and reverted on 23 Sep: unequal rings in a four-up grid
+            leave their labels on four different baselines, and a ragged row
+            costs more than the emphasis buys. The focal treatment belongs to
+            the tiles below, which have a column to spare. */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', padding: '12px 10px 10px', borderBottom: '1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)' }}>
           {v.ringVitals.map(({ key, ...r }) => <RingTile key={key} {...r} size={mob ? 56 : 62} />)}
         </div>
+        {/* ONE FOCAL POINT (review finding 22). Eight tiles at identical size
+            gave the block no subject — "when everything competes equally,
+            nothing wins" (interface-design). The metric furthest behind takes
+            the full width and leads, and ONLY when something is behind: on a
+            day he is on top of all four the grid stays even, because inventing
+            a leader out of a set of wins is false urgency. The rule is pure
+            and tested (missionFocus.pickFocalVital). */}
         <div style={{ display: 'grid', gridTemplateColumns: mob ? '1fr 1fr' : 'repeat(4,1fr)', gap: '2px', padding: '6px 8px' }}>
-          {vitals.map((m) => <MetricTile key={m.key} m={m} />)}
+          {vitals.map((m) => (
+            <MetricTile key={m.key} m={m}
+              style={m.key === v.focalVital ? { gridColumn: '1 / -1' } : undefined} />
+          ))}
         </div>
       </Group>
     ),
