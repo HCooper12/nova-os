@@ -92,3 +92,70 @@ test('portionVariance: >30% spread between the smallest and largest logged porti
   assert.deepEqual(portionVariance([]), { varied: false, min: null, max: null });
   assert.deepEqual(portionVariance([0, 500, 520]).varied, false, 'a zero-kcal entry is not a portion');
 });
+
+// WHAT HE JUST ADDED COMES FIRST (22 Sep 2026).
+//
+// "have recently logged or added foods added to the top so I don't need to
+// keep scrolling to search for something I just added". The sort used to be
+// by DATE, tie-broken by count — so everything logged today tied, and the
+// tie-break then handed first place to whatever he eats most often. A food
+// added a minute ago lost to a breakfast he has had forty times.
+test('within one day, the food logged LAST is first — not the one logged most often', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'nova-foodrecency-'));
+  const logs = path.join(dir, 'food-log');
+  await mkdir(logs, { recursive: true });
+  const day = (date, entries) => writeFile(path.join(logs, `${date}.json`), JSON.stringify({ date, entries }, null, 2));
+
+  // Oats is the habit: eaten every one of the four days, four times over.
+  // Lamington was typed in this evening, once, and is the thing he is looking
+  // for — under the old sort it came second to Oats and sat below the fold.
+  await day('2026-09-19', [{ id: 'o1', time: '07:00', name: 'Oats', macros: { p: 12, c: 55, f: 6, kcal: 330 } }]);
+  await day('2026-09-20', [{ id: 'o2', time: '07:05', name: 'Oats', macros: { p: 12, c: 55, f: 6, kcal: 330 } }]);
+  await day('2026-09-21', [{ id: 'o3', time: '07:02', name: 'Oats', macros: { p: 12, c: 55, f: 6, kcal: 330 } }]);
+  await day('2026-09-22', [
+    { id: 'o4', time: '07:01', name: 'Oats', macros: { p: 12, c: 55, f: 6, kcal: 330 } },
+    { id: 'l1', time: '21:16', name: 'Pink Lamington', macros: { p: 1, c: 10, f: 2, kcal: 65 } },
+  ]);
+
+  const prev = process.env.NOVA_DATA_DIR;
+  process.env.NOVA_DATA_DIR = dir;
+  try {
+    // a fresh module graph, or foodLog.js keeps the old data dir it resolved at import
+    const { computeFoodHistory: compute } = await import(`../lib/foodHistory.js?recency=${Date.now()}`);
+    const hist = await compute({ days: 45 });
+    assert.equal(hist[0].name, 'Pink Lamington', 'the one he just added leads, over the one he eats daily');
+    assert.equal(hist[1].name, 'Oats');
+    assert.equal(hist[1].count, 4, 'and the habit is still counted, just not ranked by it');
+  } finally {
+    process.env.NOVA_DATA_DIR = prev;
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// A day whose entries carry no clock time at all — every retro log, because
+// foodLog.js stamps a time only when the target date is today. Order inside
+// that day is the order they were appended, which is the order he added them.
+test('a day with no clock times still orders by when the rows were appended', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'nova-foodretro-'));
+  const logs = path.join(dir, 'food-log');
+  await mkdir(logs, { recursive: true });
+  await writeFile(path.join(logs, '2026-09-20.json'), JSON.stringify({
+    date: '2026-09-20',
+    entries: [
+      { id: 'r1', name: 'First added', macros: { p: 1, c: 1, f: 1, kcal: 10 } },
+      { id: 'r2', name: 'Second added', macros: { p: 1, c: 1, f: 1, kcal: 10 } },
+      { id: 'r3', name: 'Third added', macros: { p: 1, c: 1, f: 1, kcal: 10 } },
+    ],
+  }, null, 2));
+
+  const prev = process.env.NOVA_DATA_DIR;
+  process.env.NOVA_DATA_DIR = dir;
+  try {
+    const { computeFoodHistory: compute } = await import(`../lib/foodHistory.js?retro=${Date.now()}`);
+    const hist = await compute({ days: 45 });
+    assert.deepEqual(hist.map((h) => h.name), ['Third added', 'Second added', 'First added']);
+  } finally {
+    process.env.NOVA_DATA_DIR = prev;
+    await rm(dir, { recursive: true, force: true });
+  }
+});

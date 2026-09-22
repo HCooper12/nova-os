@@ -16,14 +16,36 @@ export function normalizeName(name) {
 // Aggregate off-plan food-log entries across recent days into per-item history.
 // Days arrive most-recent-first, so the first time a key is seen is its newest
 // logging — that entry supplies the representative display name + macros (the
-// current portion). Returns newest-eaten first, tie-broken by how often.
+// current portion). Returns newest-eaten first.
+//
+// RECENCY IS A MOMENT, NOT A DAY (22 Sep 2026). This used to sort by date and
+// tie-break by count, which meant every food logged today tied — and the
+// tie-break then put the food he eats MOST first. His report: "have recently
+// logged or added foods added to the top so I don't need to keep scrolling to
+// search for something I just added". The thing he added a minute ago was
+// losing to a breakfast he has had forty times.
+//
+// So each item carries the moment it was last logged. Entries are appended in
+// order within a day and same-day ones carry a clock time, so the stamp is the
+// date plus that time plus that position — the position both orders a day
+// whose entries have no clock time (a retro log genuinely has none, and
+// inventing one would be fiction) and breaks a tie inside the same minute.
+// Count still breaks a true tie.
 export async function computeFoodHistory({ days = 45 } = {}) {
   const daysData = await loadRecentDays(days);
   const byKey = new Map();
   for (const day of daysData) {
-    for (const e of day.entries || []) {
+    const entries = day.entries || [];
+    for (let i = 0; i < entries.length; i++) {
+      const e = entries[i];
       const key = normalizeName(e.name);
       if (!key) continue;
+      // One comparable string, three parts, every part fixed-width so it
+      // compares as a string: the date, the clock time when there is one, and
+      // the row's position in the day. The position is what orders a day whose
+      // entries have no clock time (a retro log — foodLog.js only stamps one
+      // for today, deliberately), and what breaks a tie inside the same minute.
+      const at = `${day.date} ${e.time || '00:00'} ${String(i).padStart(4, '0')}`;
       let item = byKey.get(key);
       if (!item) {
         item = {
@@ -33,6 +55,7 @@ export async function computeFoodHistory({ days = 45 } = {}) {
           source: e.source || null,
           count: 0,
           lastDate: day.date,
+          lastAt: '',
           firstDate: day.date,
           kcals: [], // every logged portion's kcal — so a saved recipe can confess when portions disagreed
         };
@@ -42,11 +65,11 @@ export async function computeFoodHistory({ days = 45 } = {}) {
       item.kcals.push(Number(e.macros?.kcal) || 0);
       if (day.date < item.firstDate) item.firstDate = day.date;
       // the macros a save would carry are the LATEST logged portion's, not the first seen
-      if (day.date >= item.lastDate) { item.lastDate = day.date; item.macros = { p: e.macros.p, c: e.macros.c, f: e.macros.f, kcal: e.macros.kcal }; }
+      if (at >= item.lastAt) { item.lastDate = day.date; item.lastAt = at; item.macros = { p: e.macros.p, c: e.macros.c, f: e.macros.f, kcal: e.macros.kcal }; }
     }
   }
   return [...byKey.values()].sort((a, b) => (
-    a.lastDate < b.lastDate ? 1 : a.lastDate > b.lastDate ? -1 : b.count - a.count
+    a.lastAt < b.lastAt ? 1 : a.lastAt > b.lastAt ? -1 : b.count - a.count
   ));
 }
 
