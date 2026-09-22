@@ -1,11 +1,8 @@
 import { useRef } from 'react';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
-import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle } from '../Controls.jsx';
+import { Eyebrow, TextAction, Chip, Tag, Meta, Button } from '../Controls.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
-const btn = (bg, ink, extra = {}) => (isAppleStyle()
-  ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '10px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }
-  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-l)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
 
 const M = "var(--nv-font-mono)";
 const R = "var(--nv-font-ui)";
@@ -121,9 +118,7 @@ export function Money({ v }) {
               <input value={v.moneyAddAmount} onChange={v.setMoneyAddAmount} onKeyDown={v.moneyAddKey} placeholder="0.00" type="number" inputMode="decimal" step="0.01" min="0"
                 style={{ flex: '0 1 110px', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: `500 12.5px ${M}`, padding: '9px 12px', outline: 'none' }} />
               <Chip tone={v.moneyAddIsSpend ? 'warn' : 'good'} onClick={v.toggleMoneyAddSign}>{v.moneyAddIsSpend ? 'Spend' : 'Money in'}</Chip>
-              <Interactive as="span" onClick={v.moneyBusy ? undefined : v.submitMoneyAdd}
-                base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { opacity: v.moneyBusy ? 0.5 : 1 })}
-                hoverStyle={{ filter: 'brightness(1.08)' }}>Add</Interactive>
+              <Button onClick={v.submitMoneyAdd} disabled={v.moneyBusy}>Add</Button>
             </div>
             {v.moneyTransactions.length === 0 ? (
               <div style={css(`margin-top:14px;font:500 12px ${R};color:color-mix(in srgb, var(--nv-ink) 45%, transparent)`)}>The ledger is empty — capture an expense, drop a bank CSV, or scan a receipt.</div>

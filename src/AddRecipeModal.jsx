@@ -1,11 +1,8 @@
 import { css } from './css.js';
 import { useExit } from './useExit.js';
 import { Interactive } from './Interactive.jsx';
-import { Eyebrow, TextAction, Chip, isAppleStyle } from './Controls.jsx';
+import { Eyebrow, TextAction, Chip, Button } from './Controls.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
-const btn = (bg, ink, extra = {}) => (isAppleStyle()
-  ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '10px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }
-  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-l)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
 
 const macroField = (label, value, onChange) => (
   <div style={css("flex:1")}>
@@ -148,7 +145,7 @@ export function AddRecipeModal({ v }) {
 
         <div style={css("margin-top:16px;display:flex;justify-content:flex-end;gap:10px")}>
           <TextAction tone="quiet" onClick={exit.close}>Cancel</TextAction>
-          <Interactive as="span" onClick={v.recipeAddBusy ? undefined : v.submitAddRecipe} base={btn('var(--nv-gold)', '#1a1322', { opacity: v.recipeAddBusy ? .6 : 1 })} hoverStyle={{ filter: 'brightness(1.08)' }}>{v.recipeAddBusy ? 'Saving…' : 'Save recipe'}</Interactive>
+          <Button onClick={v.submitAddRecipe} disabled={v.recipeAddBusy}>{v.recipeAddBusy ? 'Saving…' : 'Save recipe'}</Button>
         </div>
       </div>
     </div>

@@ -7,14 +7,11 @@ import { css } from './css.js';
 import { muscleVar } from './muscleHue.js';
 import { Interactive } from './Interactive.jsx';
 import { Term } from './Glossary.jsx';
-import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle } from './Controls.jsx';
+import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle, Button } from './Controls.jsx';
 import { todayPanels } from './trainPanels.js';
 
 // the material pass (5 Sep 2026): labels through Controls.jsx; a filled
 // button is sentence case in the UI face under the Apple styles
-const btn = (bg, ink, extra = {}) => (isAppleStyle()
-  ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '11px 20px', borderRadius: '999px', background: bg, color: ink, ...extra }
-  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', font: '600 12px var(--nv-font-mono)', letterSpacing: '.14em', textTransform: 'uppercase', padding: '11px 18px', borderRadius: '12px', background: bg, color: ink, ...extra });
 const cap = (s) => { const t = String(s || '').toLowerCase(); return t.charAt(0).toUpperCase() + t.slice(1); };
 
 function Ring({ score, basis }) {
@@ -89,10 +86,12 @@ export function TrainToday({ o, actions, resume }) {
             <div style={css('color:var(--nv-ink60);font-size:12.5px;margin-top:2px;font-variant-numeric:tabular-nums')}>
               {resume.done} set{resume.done === 1 ? '' : 's'} ticked — pick up where you left off
             </div>
-            <Interactive as="span" onClick={resume.go}
-              base={btn('var(--nv-gold)', '#1a1322', { marginTop: '12px', boxShadow: '0 0 26px -8px color-mix(in srgb, var(--nv-gold) 70%, transparent)' })}
-              hoverStyle="filter:brightness(1.08)"
-            >▶ Resume</Interactive>
+            {/* the card is gold because the session is UNFINISHED; the
+                button is the accent because resuming is an action, not a
+                state — §2b r8, gold is "not yet decided", not "commit" */}
+            <Button onClick={resume.go}
+              style={{ marginTop: '12px', boxShadow: '0 0 26px -8px color-mix(in srgb, var(--nv-acc) 70%, transparent)' }}
+            >▶ Resume</Button>
           </div>
         )}
         {/* MAKE-UP DAY — his own plan for today beats the weekday template.
@@ -106,10 +105,9 @@ export function TrainToday({ o, actions, resume }) {
               {o.makeup.exercises.length} left{o.makeup.sourceDate ? ` from ${o.makeup.sourceDate}` : ''} — {o.makeup.exercises.map((e) => e.name).join(', ')}
             </div>
             {actions?.beginMakeup && (
-              <Interactive as="span" onClick={actions.beginMakeup}
-                base={btn('var(--nv-gold)', '#1a1322', { marginTop: '12px' })}
-                hoverStyle="filter:brightness(1.08)"
-              >▶ Finish the session</Interactive>
+              <Button onClick={actions.beginMakeup}
+                style={{ marginTop: '12px' }}
+              >▶ Finish the session</Button>
             )}
             {actions?.clearMakeup && (
               <div style={{ marginTop: '10px' }}>
@@ -132,10 +130,9 @@ export function TrainToday({ o, actions, resume }) {
               </div>
             )}
             {o.today && actions?.begin && (
-              <Interactive as="span" onClick={actions.begin}
-                base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { marginTop: '12px', boxShadow: '0 0 22px -6px color-mix(in srgb, var(--nv-cy) 70%, transparent)' })}
-                hoverStyle="filter:brightness(1.08)"
-              >▶ Begin session</Interactive>
+              <Button onClick={actions.begin}
+                style={{ marginTop: '12px', boxShadow: '0 0 22px -6px color-mix(in srgb, var(--nv-acc) 70%, transparent)' }}
+              >▶ Begin session</Button>
             )}
           </div>
         )}
@@ -148,9 +145,7 @@ export function TrainToday({ o, actions, resume }) {
           <div style={css('font-size:13.5px;color:var(--nv-ink);margin-top:5px;line-height:1.5')}>{o.focus.text}</div>
           {o.focus.fix && actions?.applyFocusFix && (
             <div style={css('margin-top:10px')}>
-              <Interactive as="span" onClick={() => actions.applyFocusFix(o.focus.fix, o.focus.text)}
-                base={btn('var(--nv-gold)', '#1a1322', { padding: isAppleStyle() ? '9px 16px' : '7px 14px' })}
-                hoverStyle={{ filter: 'brightness(1.08)' }}>Make the change</Interactive>
+              <Button compact onClick={() => actions.applyFocusFix(o.focus.fix, o.focus.text)}>Make the change</Button>
             </div>
           )}
         </div>
@@ -196,9 +191,7 @@ export function TrainToday({ o, actions, resume }) {
           <div style={css('margin-top:7px;font-size:13.5px;line-height:1.5')}>{o.coachAsk.text}</div>
           <div style={css('margin-top:11px;display:flex;gap:8px;flex-wrap:wrap')}>
             {o.coachAsk.applies && actions?.applyCoachAsk && (
-              <Interactive as="span" onClick={() => actions.applyCoachAsk(o.coachAsk.recordId, o.coachAsk.fix, o.coachAsk.text)}
-                base={btn('var(--nv-gold)', '#1a1322', { padding: isAppleStyle() ? '9px 16px' : '7px 14px' })}
-                hoverStyle={{ filter: 'brightness(1.08)' }}>Do it</Interactive>
+              <Button compact onClick={() => actions.applyCoachAsk(o.coachAsk.recordId, o.coachAsk.fix, o.coachAsk.text)}>Do it</Button>
             )}
             {actions?.askVolume && (
               <TextAction tone="cyan" onClick={() => actions.askVolume(`About your suggestion: ${o.coachAsk.text} — talk me through it.`)}>Discuss it</TextAction>

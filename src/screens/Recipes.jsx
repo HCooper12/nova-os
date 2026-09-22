@@ -6,14 +6,11 @@ import { VoicePanel } from '../VoicePanels.jsx';
 import { useDictation } from '../useDictation.js';
 import { useOptionPager } from '../swipeAction.js';
 import { SafeVisual } from '../SafeVisual.jsx';
-import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle, ScreenHead } from '../Controls.jsx';
+import { Eyebrow, TextAction, Chip, Tag, Meta, ScreenHead, Button } from '../Controls.jsx';
 
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx;
 // filled buttons sentence-case in the UI face under the Apple styles
 const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpperCase()).replace(/\bnova\b/g, 'Nova');
-const btn = (bg, ink, extra = {}) => (isAppleStyle()
-  ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '10px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }
-  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-l)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
 
 // ONE CARD ON THE QUICK-LOG RAIL — a food he has eaten before, one tap from
 // being on today's plate again.
@@ -522,11 +519,10 @@ export function Recipes({ v }) {
                       <div style={css("font-size:12.5px;color:var(--nv-ink)")}>{v.foodRecipePick.loggedName || v.foodRecipePick.name}</div>
                       <div style={{ marginTop: '3px', font: 'var(--nv-micro-l)', color: v.foodRecipePick.valid ? 'var(--nv-good)' : '#e08f6f' }}>{v.foodRecipePick.preview}</div>
                     </div>
-                    <Interactive as="span" onClick={v.foodRecipePick.valid ? v.foodRecipePick.confirm : undefined}
-                      base={btn('var(--nv-good)', '#122015', { cursor: v.foodRecipePick.valid ? 'pointer' : 'default', flex: 'none', opacity: v.foodRecipePick.valid ? 1 : 0.45 })}
-                      hoverStyle={v.foodRecipePick.valid ? { filter: 'brightness(1.08)' } : undefined}>
+                    <Button onClick={v.foodRecipePick.confirm} disabled={!v.foodRecipePick.valid}
+                      tone="good" style={{ flex: 'none' }}>
                       Log it
-                    </Interactive>
+                    </Button>
                   </div>
                 </div>
               )}
@@ -545,7 +541,7 @@ export function Recipes({ v }) {
                   <Interactive as="span" onClick={ph.remove} base="cursor:pointer;position:absolute;top:1px;right:1px;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:11px;line-height:1;border-radius:5px;background:rgba(0,0,0,.6);color:#fff" hoverStyle="background:var(--nv-warn)">×</Interactive>
                 </div>
               ))}
-              <Interactive as="span" onClick={v.canRunFoodScan ? v.runFoodScan : undefined} base={btn('var(--nv-good)', '#122015', { cursor: v.canRunFoodScan ? 'pointer' : 'default', flex: 'none', opacity: v.foodScanBusy ? 0.6 : 1 })} hoverStyle={{ background: 'color-mix(in srgb, var(--nv-good) 80%, white)' }}>{v.foodScanBusy ? 'Analyzing…' : `Analyze ${v.foodScanCount} photo${v.foodScanCount === 1 ? '' : 's'}`}</Interactive>
+              <Button onClick={v.canRunFoodScan ? v.runFoodScan : undefined} disabled={v.foodScanBusy || !v.canRunFoodScan} tone="good" style={{ flex: 'none' }}>{v.foodScanBusy ? 'Analyzing…' : `Analyze ${v.foodScanCount} photo${v.foodScanCount === 1 ? '' : 's'}`}</Button>
             </div>
           )}
           {v.foodScanCount > 0 && <div style={css("margin-top:8px;font-size:11px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent);line-height:1.5")}>Add up to 5 — nutrition labels and/or the food itself. More photos + a note give a sharper estimate.</div>}
@@ -560,9 +556,13 @@ export function Recipes({ v }) {
                     placeholder='Answer — e.g. "ate the whole packet", "about 300g"'
                     base="flex:1;min-width:170px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 12px;color:var(--nv-ink);font-family:var(--nv-font-ui);outline:none"
                     focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)" />
-                  <Interactive as="span" onClick={v.foodScanBusy || !v.foodScanAnswer.trim() ? undefined : v.answerFoodScan}
-                    base={btn('var(--nv-gold)', '#1a1322', { flex: 'none', opacity: v.foodScanBusy || !v.foodScanAnswer.trim() ? 0.5 : 1 })}
-                    hoverStyle={{ filter: 'brightness(1.08)' }}>{v.foodScanBusy ? 'Refining…' : 'Refine estimate'}</Interactive>
+                  {/* GOLD HERE IS EARNED, and is the exception to the sweep
+                      of 22 Sep. Nova has asked him a question it cannot answer
+                      itself and can file nothing until he replies: that is the
+                      undecided state of a proposal, which is the one job §2b
+                      rule 8 keeps gold for. The whole panel is gold with it. */}
+                  <Button onClick={v.answerFoodScan} disabled={v.foodScanBusy || !v.foodScanAnswer.trim()}
+                    tone="undecided" style={{ flex: 'none' }}>{v.foodScanBusy ? 'Refining…' : 'Refine estimate'}</Button>
                   <TextAction compact tone="faint" onClick={v.dismissFoodScanQuestion}>Keep as is</TextAction>
                 </div>
               ) : (
@@ -579,7 +579,7 @@ export function Recipes({ v }) {
             <Interactive as="input" type="number" inputMode="numeric" value={v.foodLogC} onChange={v.setFoodLogC} placeholder="C" base="width:52px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 8px;color:var(--nv-gold);font-size:12.5px;font-family:var(--nv-font-mono);outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
             <Interactive as="input" type="number" inputMode="numeric" value={v.foodLogF} onChange={v.setFoodLogF} placeholder="F" base="width:52px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 8px;color:var(--nv-vi);font-size:12.5px;font-family:var(--nv-font-mono);outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
             <Interactive as="input" type="number" inputMode="numeric" value={v.foodLogKcal} onChange={v.setFoodLogKcal} placeholder="kcal" base="width:62px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 8px;color:var(--nv-good);font-size:12.5px;font-family:var(--nv-font-mono);outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
-            <Interactive as="span" onClick={v.foodLogBusy ? undefined : v.submitFoodLog} base={btn('var(--nv-good)', '#122015', { flex: 'none', opacity: v.foodLogBusy ? .6 : 1 })} hoverStyle={{ background: 'color-mix(in srgb, var(--nv-good) 80%, white)' }}>{v.foodLogBusy ? 'Adding…' : '+ Add'}</Interactive>
+            <Button onClick={v.submitFoodLog} disabled={v.foodLogBusy} tone="good" style={{ flex: 'none' }}>{v.foodLogBusy ? 'Adding…' : '+ Add'}</Button>
           </div>}
           {v.canSaveScanToRecipe && (
             <div style={css("margin-top:8px")}>
@@ -698,9 +698,7 @@ export function Recipes({ v }) {
                     ))}
                     <div style={css("margin-left:auto;display:flex;gap:8px")}>
                       <TextAction compact tone="quiet" onClick={v.foodEdit.cancel}>Cancel</TextAction>
-                      <Interactive as="span" onClick={v.foodEdit.save}
-                        base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { padding: isAppleStyle() ? '8px 16px' : '9px 16px' })}
-                        hoverStyle={{ filter: 'brightness(1.08)' }}>Save</Interactive>
+                      <Button compact onClick={v.foodEdit.save}>Save</Button>
                     </div>
                   </div>
                 </div>

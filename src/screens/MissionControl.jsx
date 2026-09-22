@@ -3,7 +3,7 @@ import { glowPanel, glowSoft } from '../glowPanel.js';
 import { LeaderBox } from '../LeaderBox.jsx';
 import { RepertoireBook } from '../RepertoireBook.jsx';
 import { RingTile } from '../RingTile.jsx';
-import { Eyebrow, TextAction, Meta } from '../Controls.jsx';
+import { Eyebrow, TextAction, Meta, Button } from '../Controls.jsx';
 import { absentHintStyle, absentValueStyle } from '../vitalsAbsence.js';
 import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
@@ -404,7 +404,7 @@ export function MissionControl({ v }) {
                 placeholder="Ask Nova… “dentist Thu 2pm”, “move gym to Fri 6pm”, “cancel…”"
                 style={{ flex: 1, minWidth: 0, background: 'var(--nv-well)', border: '1px solid rgba(130,175,255,.16)', borderRadius: '9px', padding: '10px 13px', color: 'var(--nv-ink)', fontSize: '13px', fontFamily: "var(--nv-font-ui)", outline: 'none' }}
               />
-              <Interactive as="span" onClick={v.calCmdBusy ? undefined : v.sendCalCmd} base={{ cursor: v.calCmdBusy ? 'default' : 'pointer', flex: 'none', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', padding: '10px 15px', borderRadius: '9px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)', opacity: v.calCmdBusy ? 0.6 : 1 }} hoverStyle={{ filter: 'brightness(1.08)' }}>{v.calCmdBusy ? 'DRAFTING…' : 'DRAFT'}</Interactive>
+              <Button compact onClick={v.sendCalCmd} disabled={v.calCmdBusy} style={{ flex: 'none' }}>{v.calCmdBusy ? 'DRAFTING…' : 'DRAFT'}</Button>
             </div>
           )}
         </div>

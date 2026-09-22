@@ -1,11 +1,8 @@
 import { css } from '../css.js';
 import { SwipeRow } from '../SwipeRow.jsx';
 import { Interactive } from '../Interactive.jsx';
-import { Eyebrow, TextAction, Chip, isAppleStyle, ScreenHead, Meta } from '../Controls.jsx';
+import { Eyebrow, TextAction, Chip, isAppleStyle, ScreenHead, Meta, Button } from '../Controls.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
-const btn = (bg, ink, extra = {}) => (isAppleStyle()
-  ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '10px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }
-  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-l)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
 
 export function Shopping({ v }) {
   return (
@@ -24,14 +21,13 @@ export function Shopping({ v }) {
           placeholder={"Add an item… one per line for several\ne.g. spatula\npancake mix\nsoft drink"}
           style={css("flex:1;box-sizing:border-box;height:60px;resize:vertical;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:10px 14px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-ui);line-height:1.5;outline:none")}
         />
-        <Interactive
-          as="span"
-          onClick={v.shoppingAddBusy ? undefined : v.submitShoppingAdd}
-          base={btn('var(--nv-gold)', '#1a1322', { display: 'flex', height: '60px', padding: '0 18px', borderRadius: isAppleStyle() ? '16px' : '8px', opacity: v.shoppingAddBusy ? .6 : 1 })}
-          hoverStyle={{ filter: 'brightness(1.08)' }}
+        <Button
+          onClick={v.submitShoppingAdd}
+          disabled={v.shoppingAddBusy}
+          style={{ display: 'flex', height: '60px', padding: '0 18px', borderRadius: isAppleStyle() ? '16px' : '8px' }}
         >
           {v.shoppingAddBusy ? 'Adding…' : '+ Add'}
-        </Interactive>
+        </Button>
       </div>
       {v.shoppingAddError && (
         <div style={css("margin-top:8px;font-size:12px;color:var(--nv-warn)")}>{v.shoppingAddError}</div>
@@ -138,14 +134,12 @@ export function Shopping({ v }) {
 
       {v.shoppingCheckedCount > 0 && (
         <div style={css("margin-top:28px;display:flex;justify-content:flex-end")}>
-          <Interactive
-            as="span"
+          <Button
             onClick={v.confirmShoppingCompletion}
-            base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { textTransform: 'none' })}
-            hoverStyle={{ filter: 'brightness(1.08)' }}
+            style={{ textTransform: 'none' }}
           >
             Confirm completion — {v.shoppingCheckedCount} collected
-          </Interactive>
+          </Button>
         </div>
       )}
     </div>

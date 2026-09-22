@@ -1,11 +1,8 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
-import { Eyebrow, Chip, Tag, Meta, isAppleStyle, ScreenHead } from '../Controls.jsx';
+import { Eyebrow, Chip, Tag, Meta, ScreenHead, Button } from '../Controls.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpperCase()).replace(/\bnova\b/g, 'Nova');
-const btn = (bg, ink, extra = {}) => (isAppleStyle()
-  ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '10px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }
-  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-l)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
 
 export function Journal({ v }) {
   return (
@@ -36,14 +33,13 @@ export function Journal({ v }) {
           <div style={css("margin-top:8px;font-size:12px;color:var(--nv-warn)")}>{v.journalSaveError}</div>
         )}
         <div style={css("margin-top:10px;display:flex;justify-content:flex-end")}>
-          <Interactive
-            as="span"
-            onClick={v.journalSaveBusy ? undefined : v.submitJournalEntry}
-            base={btn('var(--nv-gold)', '#1a1322', { opacity: v.journalSaveBusy ? .6 : 1, textTransform: 'none' })}
-            hoverStyle={{ filter: 'brightness(1.08)' }}
+          <Button
+            onClick={v.submitJournalEntry}
+            disabled={v.journalSaveBusy}
+            style={{ textTransform: 'none' }}
           >
             {v.journalSaveBusy ? 'Saving…' : 'Save entry'}
-          </Interactive>
+          </Button>
         </div>
       </div>
 

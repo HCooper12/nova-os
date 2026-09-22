@@ -6,7 +6,7 @@ import { useDictation } from '../useDictation.js';
 import { SkeletonList } from '../Skeleton.jsx';
 import { LocalInput } from '../LocalInput.jsx';
 import { SwipeRow } from '../SwipeRow.jsx';
-import { Eyebrow, TextAction, Chip, Tag, Meta, Segmented, isAppleStyle, ScreenHead } from '../Controls.jsx';
+import { Eyebrow, TextAction, Chip, Tag, Meta, Segmented, isAppleStyle, ScreenHead, Button } from '../Controls.jsx';
 
 // The Nova Inbox: one place to drop any loose thought — typed or dictated —
 // and let Nova route it (shopping / journal / to-do / note / food log).
@@ -28,9 +28,6 @@ const cap = (s) => { const t = String(s || '').toLowerCase(); return t.charAt(0)
 const secondary = (color, extra = {}) => (isAppleStyle()
   ? { cursor: 'pointer', font: `600 14px ${R}`, padding: '9px 16px', borderRadius: '999px', background: `color-mix(in srgb, ${color} 12%, transparent)`, color, border: '1px solid transparent', ...extra }
   : { cursor: 'pointer', font: `600 12.5px ${R}`, padding: '7px 16px', borderRadius: '8px', border: `1px solid color-mix(in srgb, ${color} 40%, transparent)`, color, ...extra });
-const primary = (extra = {}) => (isAppleStyle()
-  ? { cursor: 'pointer', font: `600 14px ${R}`, padding: '9px 18px', borderRadius: '999px', background: 'var(--nv-gold)', color: '#1a1206', ...extra }
-  : { cursor: 'pointer', font: `600 12.5px ${R}`, padding: '7px 16px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1206', ...extra });
 
 function RouteBadge({ route, confidence }) {
   if (!route) return null;
@@ -132,10 +129,8 @@ export function Inbox({ v }) {
               tomatoes" path and routing it through a chat would make the
               fastest thing in Nova slower. */}
           <Meta tone="faint" style={{ marginLeft: 'auto' }}>links · research · videos → just say it in the chat</Meta>
-          <Interactive as="span" onClick={v.inboxConnected && !v.inboxCaptureBusy ? submit : undefined}
-            base={primary({ opacity: v.inboxConnected && !v.inboxCaptureBusy ? 1 : 0.5 })}
-            hoverStyle={{ filter: 'brightness(1.1)' }}
-          >{v.inboxCaptureBusy ? 'Routing…' : '✦ Capture'}</Interactive>
+          <Button onClick={submit} disabled={!v.inboxConnected || v.inboxCaptureBusy}
+          >{v.inboxCaptureBusy ? 'Routing…' : '✦ Capture'}</Button>
         </div>
 
         {/* IT LANDED. His report, 15 Sep: "I'm still not seeing it clearly on
@@ -400,20 +395,14 @@ export function Inbox({ v }) {
                       (below, unchanged) still skips the week normally. */}
                   {item.isModelChoice ? (
                     <>
-                      <Interactive as="span" onClick={item.busy ? undefined : item.pickOpus}
-                        base={primary({ opacity: item.busy ? 0.5 : 1 })}
-                        hoverStyle={{ filter: 'brightness(1.1)' }}
-                      >{item.busy ? 'Working…' : 'Opus — deeper'}</Interactive>
-                      <Interactive as="span" onClick={item.busy ? undefined : item.pickSonnet}
-                        base={secondary('var(--nv-ink)', { opacity: item.busy ? 0.5 : 1 })}
-                        hoverStyle={{ filter: 'brightness(1.1)' }}
-                      >Sonnet — default</Interactive>
+                      <Button onClick={item.pickOpus} disabled={item.busy}
+                      >{item.busy ? 'Working…' : 'Opus — deeper'}</Button>
+                      <Button onClick={item.pickSonnet} disabled={item.busy} variant="quiet" tone="ink"
+                      >Sonnet — default</Button>
                     </>
                   ) : (
-                    <Interactive as="span" onClick={item.busy ? undefined : item.approve}
-                      base={primary({ opacity: item.busy ? 0.5 : 1 })}
-                      hoverStyle={{ filter: 'brightness(1.1)' }}
-                    >{item.busy ? 'Working…' : item.approveLabel}</Interactive>
+                    <Button onClick={item.approve} disabled={item.busy}
+                    >{item.busy ? 'Working…' : item.approveLabel}</Button>
                   )}
                   <Interactive as="span" onClick={item.busy ? undefined : item.discard}
                     base={secondary('var(--nv-ink60)', { opacity: item.busy ? 0.5 : 1 })}
@@ -434,10 +423,8 @@ export function Inbox({ v }) {
                         <input value={item.whyText} onChange={item.onWhyText} placeholder="Or say it in your own words…"
                           onKeyDown={(e) => { if (e.key === 'Enter') item.submitWhy(); }}
                           style={css(`flex:1;min-width:0;background:rgba(0,0,0,.3);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:8px;padding:8px 11px;font:400 12.5px ${R};color:var(--nv-ink)`)} />
-                        <Interactive as="span" onClick={() => item.submitWhy()}
-                          base={{ cursor: 'pointer', font: `600 12px ${R}`, padding: '8px 14px', borderRadius: '8px', background: 'var(--nv-gold)', color: '#1a1206' }}
-                          hoverStyle={{ filter: 'brightness(1.1)' }}
-                        >{(item.whyText || '').trim() ? 'Discard with reason' : 'Discard anyway'}</Interactive>
+                        <Button compact onClick={() => item.submitWhy()}
+                        >{(item.whyText || '').trim() ? 'Discard with reason' : 'Discard anyway'}</Button>
                         <Interactive as="span" onClick={item.cancelWhy}
                           base={{ cursor: 'pointer', font: `500 12px ${R}`, padding: '8px 10px', color: 'var(--nv-ink60)' }}
                           hoverStyle={{ color: 'var(--nv-ink)' }}
@@ -574,10 +561,8 @@ export function Inbox({ v }) {
                       <div style={css(`margin-top:4px;font:500 11.5px/1.5 ${R};color:var(--nv-ink60)`)}>{p.detail}</div>
                       <div style={css("margin-top:8px;display:flex;gap:8px")}>
                         {p.actionable && (
-                          <Interactive as="span" onClick={p.busy ? undefined : p.accept}
-                            base={{ cursor: 'pointer', font: `600 11.5px ${R}`, padding: '4px 12px', borderRadius: '7px', background: 'var(--nv-gold)', color: '#1a1206', opacity: p.busy ? 0.5 : 1 }}
-                            hoverStyle={{ filter: 'brightness(1.1)' }}
-                          >{p.busy ? '…' : 'Accept'}</Interactive>
+                          <Button compact onClick={p.accept} disabled={p.busy}
+                          >{p.busy ? '…' : 'Accept'}</Button>
                         )}
                         {p.open && (
                           <Interactive as="span" onClick={p.open}
@@ -618,10 +603,8 @@ export function Inbox({ v }) {
                       </div>
                       <div style={css(`margin-top:4px;font:500 11.5px/1.5 ${R};color:var(--nv-ink60)`)}>{p.detail}</div>
                       <div style={css("margin-top:8px;display:flex;gap:8px;flex-wrap:wrap")}>
-                        <Interactive as="span" onClick={p.busy ? undefined : p.accept}
-                          base={{ cursor: 'pointer', font: `600 11.5px ${R}`, padding: '4px 12px', borderRadius: '7px', background: 'var(--nv-gold)', color: 'var(--nv-on-acc)', opacity: p.busy ? 0.5 : 1 }}
-                          hoverStyle={{ filter: 'brightness(1.1)' }}
-                        >{p.busy ? '…' : p.acceptLabel}</Interactive>
+                        <Button compact onClick={p.accept} disabled={p.busy}
+                        >{p.busy ? '…' : p.acceptLabel}</Button>
                         {p.open && (
                           <Interactive as="span" onClick={p.open}
                             base={{ cursor: 'pointer', font: `600 11.5px ${R}`, padding: '4px 12px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-vi) 45%, transparent)', color: 'var(--nv-vi)' }}

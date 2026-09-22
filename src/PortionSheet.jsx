@@ -1,7 +1,7 @@
 import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
 import { useSheetDrag } from './useSheetDrag.js';
-import { Eyebrow } from './Controls.jsx';
+import { Eyebrow, Button } from './Controls.jsx';
 
 // LOG ANY MEAL — one sheet, callable from anywhere.
 //
@@ -56,9 +56,7 @@ export function PortionSheet({ p }) {
           <Interactive as="span" onClick={p.cancel}
             base={`cursor:pointer;font:var(--nv-micro-m);padding:11px 15px;border-radius:10px;border:1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)`}
             hoverStyle="background:rgba(255,255,255,.05)">CANCEL</Interactive>
-          <Interactive as="span" onClick={p.valid ? p.confirm : undefined}
-            base={{ cursor: p.valid ? 'pointer' : 'default', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', padding: '11px 20px', borderRadius: '10px', background: 'var(--nv-good)', color: '#122015', opacity: p.valid ? 1 : 0.45 }}
-            hoverStyle={p.valid ? { background: 'color-mix(in srgb, var(--nv-good) 82%, white)' } : undefined}>LOG IT</Interactive>
+          <Button onClick={p.confirm} disabled={!p.valid} tone="good">LOG IT</Button>
         </div>
       </div>
     </div>

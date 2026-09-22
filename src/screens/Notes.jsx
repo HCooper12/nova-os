@@ -1,11 +1,8 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
-import { Eyebrow, Chip, Meta, isAppleStyle, ScreenHead, Tag } from '../Controls.jsx';
+import { Eyebrow, Chip, Meta, isAppleStyle, ScreenHead, Tag, Button } from '../Controls.jsx';
 const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpperCase());
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
-const btn = (bg, ink, extra = {}) => (isAppleStyle()
-  ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '10px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }
-  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-l)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
 
 export function Notes({ v }) {
   return (
@@ -89,14 +86,14 @@ export function Notes({ v }) {
                     style={css("width:100%;box-sizing:border-box;height:110px;resize:vertical;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:11px 14px;color:var(--nv-ink);font-size:13.5px;font-family:var(--nv-font-ui);line-height:1.6;outline:none")}
                   />
                   <div style={css("margin-top:10px;display:flex;justify-content:flex-end")}>
-                    <Interactive
-                      as="span"
-                      onClick={v.reviewReflectBusy ? undefined : v.saveReviewReflection}
-                      base={btn('var(--nv-vi)', '#1a1322', { opacity: v.reviewReflectBusy ? .6 : 1, textTransform: 'none' })}
-                      hoverStyle={{ background: '#cbb6f2' }}
+                    <Button
+                      onClick={v.saveReviewReflection}
+                      disabled={v.reviewReflectBusy}
+                      tone="violet"
+                      style={{ textTransform: 'none' }}
                     >
                       {v.reviewReflectBusy ? 'Saving…' : 'Save reflection'}
-                    </Interactive>
+                    </Button>
                   </div>
                 </div>
               )}

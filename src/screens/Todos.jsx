@@ -1,11 +1,8 @@
 import { css } from '../css.js';
 import { SwipeRow } from '../SwipeRow.jsx';
 import { Interactive } from '../Interactive.jsx';
-import { Eyebrow, TextAction, Tag, Meta, isAppleStyle } from '../Controls.jsx';
+import { Eyebrow, TextAction, Meta, Button } from '../Controls.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
-const btn = (bg, ink, extra = {}) => (isAppleStyle()
-  ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '10px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }
-  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-l)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
 
 const R = "var(--nv-font-ui)";
 
@@ -32,10 +29,7 @@ export function Todos({ v }) {
               placeholder="Add a to-do — Enter files it here, in Obsidian, and in Todoist"
               style={{ flex: 1, minWidth: 0, background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '9px', color: 'var(--nv-ink)', font: `500 13.5px ${R}`, padding: '11px 14px', outline: 'none' }}
             />
-            <Interactive as="span" onClick={v.submitTodo}
-              base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { flex: 'none', padding: isAppleStyle() ? '11px 18px' : '11px 18px' })}
-              hoverStyle={{ filter: 'brightness(1.08)' }}
-            >Add</Interactive>
+            <Button onClick={v.submitTodo} style={{ flex: 'none' }}>Add</Button>
           </div>
           {v.todosSyncNote && (
             <Meta as="div" tone="faint" style={{ marginTop: '9px' }}>{v.todosSyncNote}</Meta>
@@ -62,7 +56,11 @@ export function Todos({ v }) {
                 right={{ label: 'DONE', icon: '✓', tone: 'var(--nv-good)', run: t.toggle }}
                 style={v.structured ? { borderRadius: 0 } : undefined}
               >
-              <div className={v.structured ? undefined : 'nv-pane'} style={{ display: 'flex', alignItems: 'center', gap: '13px', padding: v.structured ? '11px 16px' : '12px 15px', borderTop: v.structured && ti > 0 ? '1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)' : 'none' }}>
+              {/* AGE, DRAWN RATHER THAN LABELLED. A hairline on the leading
+                  edge that deepens from a fortnight old to six weeks, and the
+                  age itself warms with it — so a column of old items reads as
+                  a gradient instead of a row of identical gold badges. */}
+              <div className={v.structured ? undefined : 'nv-pane'} style={{ display: 'flex', alignItems: 'center', gap: '13px', padding: v.structured ? '11px 16px' : '12px 15px', borderTop: v.structured && ti > 0 ? '1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)' : 'none', boxShadow: t.staleness > 0 ? `inset 2px 0 0 color-mix(in srgb, var(--nv-gold) ${Math.round(30 + t.staleness * 60)}%, transparent)` : undefined }}>
                 <Interactive as="span" onClick={t.toggle} aria-label={`Mark "${t.text}" done`}
                   base={{ cursor: 'pointer', width: '21px', height: '21px', flex: 'none', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 12%, transparent)' }}
@@ -77,8 +75,7 @@ export function Todos({ v }) {
                 ) : (
                   <TextAction compact tone="quiet" onClick={t.startEditCategory} title="Change category (syncs to Todoist as a label)" style={{ flex: 'none' }}>{t.categoryLabel}</TextAction>
                 )}
-                {t.stale && <Tag tone="gold" style={{ flex: 'none' }}>Stale</Tag>}
-                <Meta tone="faint" style={{ flex: 'none' }}>{t.addedLabel}</Meta>
+                <Meta tone={t.staleness > 0 ? 'gold' : 'faint'} style={{ flex: 'none', opacity: t.staleness > 0 ? 0.65 + t.staleness * 0.35 : 1 }} title={t.staleness > 0 ? 'Open longer than a fortnight' : undefined}>{t.addedLabel}</Meta>
               </div>
               </SwipeRow>
             ))}

@@ -8,7 +8,7 @@ import { ChatMarkdown } from '../ChatMarkdown.jsx';
 import { TrainToday } from '../TrainToday.jsx';
 import { SafeVisual } from '../SafeVisual.jsx';
 import { VoicePanel } from '../VoicePanels.jsx';
-import { Eyebrow, TextAction, Chip, Tag, Meta, Segmented, isAppleStyle, ScreenHead, AttachStrip, AttachPending } from '../Controls.jsx';
+import { Eyebrow, TextAction, Chip, Tag, Meta, Segmented, isAppleStyle, ScreenHead, AttachStrip, AttachPending, Button } from '../Controls.jsx';
 import { useStickToBottom } from '../useStickToBottom.js';
 
 // THE MATERIAL PASS (5 Sep 2026, "Nova feels stiff"): labels and tap targets
@@ -16,9 +16,6 @@ import { useStickToBottom } from '../useStickToBottom.js';
 // face under the Apple styles, the console idiom under Command. The two
 // button helpers below do the same for filled/outlined buttons.
 const cap = (s) => { const t = String(s || '').toLowerCase(); return t.charAt(0).toUpperCase() + t.slice(1); };
-const btn = (bg, ink, extra = {}) => (isAppleStyle()
-  ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '11px 20px', borderRadius: '999px', background: bg, color: ink, ...extra }
-  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
 const outline = (color, extra = {}) => (isAppleStyle()
   ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 14px var(--nv-font-ui)', padding: '10px 16px', borderRadius: '999px', background: `color-mix(in srgb, ${color} 12%, transparent)`, color, border: '1px solid transparent', ...extra }
   : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-m)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', border: `1px solid color-mix(in srgb, ${color} 35%, transparent)`, color, background: `color-mix(in srgb, ${color} 06%, transparent)`, ...extra });
@@ -100,12 +97,7 @@ function ExercisePicker({ v }) {
           >
             {v.exercisePickerTrackingTypeOptions.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
-          <Interactive
-            as="span"
-            onClick={v.exercisePickerCreateMuscle ? v.createExercise : undefined}
-            base={{ cursor: v.exercisePickerCreateMuscle ? 'pointer' : 'default', font: 'var(--nv-micro-m)', padding: '6px 12px', borderRadius: '6px', background: 'var(--nv-gold)', color: '#1a1322', opacity: v.exercisePickerCreateMuscle ? 1 : .4 }}
-            hoverStyle={v.exercisePickerCreateMuscle ? { background: 'color-mix(in srgb, var(--nv-gold) 85%, white)' } : {}}
-          >ADD</Interactive>
+          <Button compact onClick={v.createExercise} disabled={!v.exercisePickerCreateMuscle}>ADD</Button>
         </div>
       )}
     </div>
@@ -156,10 +148,9 @@ function RoutinesView({ v }) {
             </div>
           )}
           {v.gymHero.begin && (
-            <Interactive as="span" onClick={v.gymHero.begin} haptic="commit"
-              base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { marginTop: '15px' })}
-              hoverStyle={{ filter: 'brightness(1.1)' }}
-            >▶ Begin session</Interactive>
+            <Button onClick={v.gymHero.begin} haptic="commit"
+              style={{ marginTop: '15px' }}
+            >▶ Begin session</Button>
           )}
         </div>
       ))}
@@ -225,9 +216,7 @@ function RoutinesView({ v }) {
             <div style={css("margin-top:2px;font-size:11.5px;color:var(--nv-ink60)")}>{v.discardedDraft.sets} set{v.discardedDraft.sets === 1 ? '' : 's'} logged · discarded {v.discardedDraft.when}</div>
           </div>
           <div style={css("display:flex;gap:10px;align-items:center")}>
-            <Interactive as="span" onClick={v.discardedDraft.restore}
-              base={btn('var(--nv-warn)', '#1a1206')}
-              hoverStyle={{ filter: 'brightness(1.08)' }}>Restore it</Interactive>
+            <Button onClick={v.discardedDraft.restore} tone="warn">Restore it</Button>
             <TextAction tone="faint" onClick={v.discardedDraft.dismiss}>Dismiss</TextAction>
           </div>
         </div>
@@ -245,7 +234,7 @@ function RoutinesView({ v }) {
             <div style={css("margin-top:5px;font:600 16px var(--nv-font-ui)")}>{v.resumeSession.routineName}</div>
             <div style={css("margin-top:2px;font-size:11.5px;color:var(--nv-ink60)")}>{v.resumeSession.done} set{v.resumeSession.done === 1 ? '' : 's'} logged · {v.resumeSession.ageLabel}</div>
           </div>
-          <span style={btn('var(--nv-gold)', '#1a1322', { whiteSpace: 'nowrap' })}>Resume →</span>
+          <Button style={{ whiteSpace: 'nowrap' }}>Resume →</Button>
         </Interactive>
       )}
 
@@ -260,9 +249,7 @@ function RoutinesView({ v }) {
               style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: 'var(--nv-micro-l)', padding: '9px 10px', outline: 'none' }}>
               {v.finishMissed.dayOptions.map((o) => <option key={o.value} value={o.value} style={{ background: '#141019' }}>{o.label}</option>)}
             </select>
-            <Interactive as="span" onClick={v.finishMissed.push}
-              base={btn('var(--nv-cy)', 'var(--nv-on-acc)')}
-              hoverStyle={{ filter: 'brightness(1.08)' }}>Push these forward</Interactive>
+            <Button onClick={v.finishMissed.push}>Push these forward</Button>
             <TextAction tone="faint" onClick={v.finishMissed.dismiss}>No thanks</TextAction>
           </div>
         </div>
@@ -282,9 +269,7 @@ function RoutinesView({ v }) {
                 <div style={css("margin-top:5px;font-size:11.5px;color:var(--nv-ink60);line-height:1.5")}>{c.count} exercise{c.count === 1 ? '' : 's'} · {c.names}</div>
                 {!c.rescheduling ? (
                   <div style={css("margin-top:12px;display:flex;gap:12px;align-items:center")}>
-                    <Interactive as="span" onClick={c.start}
-                      base={btn('var(--nv-cy)', 'var(--nv-on-acc)')}
-                      hoverStyle={{ filter: 'brightness(1.08)' }}>Do it now</Interactive>
+                    <Button onClick={c.start}>Do it now</Button>
                     <TextAction tone="quiet" onClick={c.startReschedule}>Reschedule</TextAction>
                     <TextAction tone="faint" onClick={c.remove}>Remove</TextAction>
                   </div>
@@ -327,7 +312,7 @@ function RoutinesView({ v }) {
             base="flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:10px 14px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-ui);outline:none"
             focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
           />
-          <Interactive as="span" onClick={v.submitCreateRoutine} base={btn('var(--nv-gold)', '#1a1322')} hoverStyle={{ filter: 'brightness(1.08)' }}>Create</Interactive>
+          <Button onClick={v.submitCreateRoutine}>Create</Button>
           <TextAction tone="quiet" onClick={v.cancelCreateRoutine}>Cancel</TextAction>
         </div>
       )}
@@ -374,10 +359,8 @@ function RoutinesView({ v }) {
             </select>
             <input value={v.quickNote} onChange={v.setQuickNote} placeholder="Optional — “hotel gym, dumbbells only”, “feeling beat”, “arms”…"
               style={{ flex: '1 1 240px', minWidth: 0, background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px var(--nv-font-ui)", padding: '9px 12px', outline: 'none' }} />
-            <Interactive as="span" onClick={v.quickBusy ? undefined : v.buildQuickSession}
-              base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { opacity: v.quickBusy ? 0.5 : 1 })}
-              hoverStyle={{ filter: 'brightness(1.08)' }}
-            >{v.quickBusy ? 'Coach is planning…' : 'Build my session'}</Interactive>
+            <Button onClick={v.buildQuickSession} disabled={v.quickBusy}
+            >{v.quickBusy ? 'Coach is planning…' : 'Build my session'}</Button>
           </div>
         ) : (
           <div style={css("margin-top:10px")}>
@@ -389,9 +372,7 @@ function RoutinesView({ v }) {
               ))}
             </div>
             <div style={css("margin-top:12px;display:flex;gap:10px;align-items:center")}>
-              <Interactive as="span" onClick={v.quickPlan.start}
-                base={btn('var(--nv-cy)', 'var(--nv-on-acc)')}
-                hoverStyle={{ filter: 'brightness(1.08)' }}>Start this session</Interactive>
+              <Button onClick={v.quickPlan.start}>Start this session</Button>
               <TextAction tone="faint" onClick={v.quickPlan.dismiss}>Discard</TextAction>
             </div>
           </div>
@@ -410,13 +391,11 @@ function RoutineDetailView({ v }) {
       <h1 style={css("margin:10px 0 0;font:700 28px/1.1 var(--nv-font-ui);letter-spacing:var(--nv-display-track)")}>{v.openRoutineName}</h1>
 
       <div style={css("margin-top:18px;display:flex;gap:10px;flex-wrap:wrap")}>
-        <Interactive
-          as="span"
-          onClick={v.startWorkoutDisabled ? undefined : v.startWorkout}
+        <Button
+          onClick={v.startWorkout}
           haptic="commit"
-          base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { cursor: v.startWorkoutDisabled ? 'default' : 'pointer', opacity: v.startWorkoutDisabled ? .4 : 1 })}
-          hoverStyle={v.startWorkoutDisabled ? {} : { filter: 'brightness(1.08)' }}
-        >Start workout</Interactive>
+          disabled={v.startWorkoutDisabled}
+        >Start workout</Button>
         <Interactive as="span" onClick={v.viewWorkoutHistory} base={outline('var(--nv-ink60)')} hoverStyle={{ filter: 'brightness(1.1)' }}>View history</Interactive>
       </div>
 
@@ -653,9 +632,7 @@ function SessionView({ v }) {
                     <input value={e.painState.detail} onChange={(ev) => e.setPainField('detail')(ev.target.value)} placeholder="Exact spot + anything else — optional"
                       style={{ marginTop: '9px', width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,.22)', border: '1px solid var(--nv-edge)', borderRadius: '9px', padding: '8px 11px', color: 'var(--nv-ink)', fontSize: '12px', fontFamily: 'var(--nv-font-ui)', outline: 'none' }} />
                     <div style={css("display:flex;gap:8px;margin-top:10px")}>
-                      <Interactive as="span" onClick={e.submitPain}
-                        base={btn('var(--nv-warn)', '#2a1214')}
-                        hoverStyle={{ filter: 'brightness(1.08)' }}>Ask Coach — triage this</Interactive>
+                      <Button onClick={e.submitPain} tone="warn">Ask Coach — triage this</Button>
                       <TextAction tone="faint" onClick={e.closePain}>Cancel</TextAction>
                     </div>
                   </>
@@ -688,7 +665,7 @@ function SessionView({ v }) {
         </div>
       )}
       <div style={css("margin-top:24px;display:flex;gap:14px;align-items:center;flex-wrap:wrap")}>
-        <Interactive as="span" onClick={v.finishSession} base={btn('var(--nv-cy)', 'var(--nv-on-acc)')} hoverStyle={{ filter: 'brightness(1.08)' }}>{v.sessionEditing ? 'Save changes' : 'Finish workout'}</Interactive>
+        <Button onClick={v.finishSession}>{v.sessionEditing ? 'Save changes' : 'Finish workout'}</Button>
         {v.canSaveForLater && (
           <Interactive as="span" onClick={v.saveForLater} base={outline('var(--nv-gold)')} hoverStyle={{ filter: 'brightness(1.1)' }}>Save for later</Interactive>
         )}
@@ -737,9 +714,7 @@ function SessionView({ v }) {
                     <div style={css("margin-top:9px;display:flex;align-items:center;gap:8px;flex-wrap:wrap")}>
                     {m.proposal.status === 'open' && (
                       <>
-                        <Interactive as="span" onClick={m.proposal.apply}
-                          base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { padding: isAppleStyle() ? '9px 16px' : '7px 13px' })}
-                          hoverStyle={{ filter: 'brightness(1.08)' }}>Apply it</Interactive>
+                        <Button compact onClick={m.proposal.apply}>Apply it</Button>
                         <TextAction tone="quiet" onClick={m.proposal.decline}>Not now</TextAction>
                       </>
                     )}
@@ -764,7 +739,7 @@ function SessionView({ v }) {
               base="flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font:500 12.5px var(--nv-font-ui);outline:none"
               focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)"
             />
-            <Interactive as="span" onClick={v.sendCoach} base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { padding: '0 16px' })} hoverStyle={{ filter: 'brightness(1.08)' }}>Ask</Interactive>
+            <Button onClick={v.sendCoach} style={{ padding: '0 16px' }}>Ask</Button>
           </div>
         </div>
       )}
@@ -917,7 +892,7 @@ function GoalsCoachPane({ v }) {
               <textarea value={v.goalsDraft.notes} onChange={v.setGoalsField('notes')} rows={3} placeholder="Anything else the Coach should always know — preferences, schedule quirks…"
                 style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px var(--nv-font-ui)", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
               <div style={css("display:flex;gap:8px")}>
-                <Interactive as="span" onClick={v.saveGoals} base={btn('var(--nv-gold)', '#1a1322')} hoverStyle={{ filter: 'brightness(1.08)' }}>Save</Interactive>
+                <Button onClick={v.saveGoals}>Save</Button>
                 <TextAction tone="faint" onClick={v.cancelGoalsEdit}>Cancel</TextAction>
               </div>
             </div>
@@ -982,9 +957,7 @@ function GoalsCoachPane({ v }) {
                     <div style={css("margin-top:9px;display:flex;align-items:center;gap:8px;flex-wrap:wrap")}>
                     {m.proposal.status === 'open' && (
                       <>
-                        <Interactive as="span" onClick={m.proposal.apply}
-                          base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { padding: isAppleStyle() ? '9px 16px' : '7px 13px' })}
-                          hoverStyle={{ filter: 'brightness(1.08)' }}>Apply it</Interactive>
+                        <Button compact onClick={m.proposal.apply}>Apply it</Button>
                         <TextAction tone="quiet" onClick={m.proposal.decline}>Not now</TextAction>
                       </>
                     )}
@@ -1023,7 +996,7 @@ function GoalsCoachPane({ v }) {
               base="flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font:500 12.5px var(--nv-font-ui);outline:none"
               focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)"
             />
-            <Interactive as="span" onClick={v.sendCoach} base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { padding: '0 16px' })} hoverStyle={{ filter: 'brightness(1.08)' }}>Ask</Interactive>
+            <Button onClick={v.sendCoach} style={{ padding: '0 16px' }}>Ask</Button>
           </div>
         </div>
       </div>

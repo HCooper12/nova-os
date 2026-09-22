@@ -3,12 +3,9 @@ import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
 import { useDictation } from './useDictation.js';
 import { TypeText } from './TypeText.jsx';
-import { Eyebrow, TextAction, Chip, Meta, isAppleStyle } from './Controls.jsx';
+import { Eyebrow, TextAction, Chip, Meta, isAppleStyle, Button } from './Controls.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpperCase());
-const btn = (bg, ink, extra = {}) => (isAppleStyle()
-  ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '10px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }
-  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-l)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
 
 export function RecipeOverlay({ v }) {
   // Talking about a meal, in the place the meal is. One-shot dictation: a
@@ -116,9 +113,7 @@ export function RecipeOverlay({ v }) {
                 not this recipe happens to sit in a rotation slot today. */}
             {v.orLogActive && (
               <div style={css("margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
-                <Interactive as="span" onClick={v.orLogActive}
-                  base={btn('var(--nv-good)', '#122015')}
-                  hoverStyle={{ filter: 'brightness(1.08)' }}>＋ Log this version</Interactive>
+                <Button onClick={v.orLogActive} tone="good">＋ Log this version</Button>
                 <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>adds it to your food log — pick a portion, recipe unchanged</Meta>
               </div>
             )}
@@ -139,7 +134,7 @@ export function RecipeOverlay({ v }) {
                   <Chip tone="quiet" onClick={a.rename} title="Rename this variant">✎ Rename</Chip>
                 )}
                 {a.useToday && (
-                  <Interactive as="span" onClick={a.useToday} base={btn('var(--nv-gold)', '#1a1322')} hoverStyle={{ filter: 'brightness(1.08)' }}>Use for today</Interactive>
+                  <Button onClick={a.useToday}>Use for today</Button>
                 )}
                 {a.isToday && <Meta tone="gold" style={{ textTransform: 'none', letterSpacing: 0 }}>✓ today's version — recipe unchanged</Meta>}
                 {a.makePrimary && (
@@ -282,14 +277,13 @@ export function RecipeOverlay({ v }) {
                         <input type="file" accept="image/*" multiple onChange={v.addRecipeTweakPhotos} disabled={v.recipeTweakBusy} style={css("display:none")} />
                       </label>
                     )}
-                    <Interactive
-                      as="span"
-                      onClick={v.recipeTweakBusy ? undefined : v.submitRecipeTweak}
-                      base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { display: 'flex', padding: '0 14px', opacity: v.recipeTweakBusy ? .6 : 1 })}
-                      hoverStyle={{ filter: 'brightness(1.08)' }}
+                    <Button
+                      onClick={v.submitRecipeTweak}
+                      disabled={v.recipeTweakBusy}
+                      style={{ display: 'flex', padding: '0 14px' }}
                     >
                       {v.recipeTweakBusy ? 'Thinking…' : 'Ask'}
-                    </Interactive>
+                    </Button>
                   </div>
                   {v.recipeTweakPhotos?.length > 0 && (
                     <div style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap")}>
@@ -348,7 +342,7 @@ export function RecipeOverlay({ v }) {
                     base="flex:1;min-width:0;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
                     focusStyle="border:1px solid color-mix(in srgb, var(--nv-cy) 50%, transparent)"
                   />
-                  <Interactive as="span" onClick={v.sendRecipe} base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { display: 'flex', padding: '0 14px' })} hoverStyle={{ filter: 'brightness(1.08)' }}>Ask</Interactive>
+                  <Button onClick={v.sendRecipe} style={{ display: 'flex', padding: '0 14px' }}>Ask</Button>
                 </div>
               </div>
             )}
@@ -465,11 +459,9 @@ function MealEditor({ v }) {
       )}
 
       <div style={css("margin-top:16px;display:flex;gap:9px;align-items:center;flex-wrap:wrap")}>
-        <Interactive as="span" onClick={v.orEditBusy ? undefined : v.saveEdit}
-          base={{ cursor: 'pointer', font: '600 13px var(--nv-font-ui)', padding: '11px 22px', borderRadius: '980px', background: 'var(--nv-cy)', color: 'var(--nv-on-acc)', opacity: v.orEditBusy ? .6 : 1 }}
-          hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 85%, white)' }}>
+        <Button onClick={v.saveEdit} disabled={v.orEditBusy}>
           {v.orEditBusy ? 'Saving…' : 'Save changes'}
-        </Interactive>
+        </Button>
         <Interactive as="span" onClick={v.cancelEdit}
           base="cursor:pointer;font:500 12.5px var(--nv-font-ui);padding:11px 16px;border-radius:980px;color:color-mix(in srgb, var(--nv-ink) 50%, transparent)"
           hoverStyle={{ color: 'var(--nv-ink)' }}>Cancel</Interactive>

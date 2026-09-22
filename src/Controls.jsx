@@ -23,6 +23,7 @@ import { haptic } from './haptics.js';
 //   <Eyebrow>       a section heading — small caps in both styles (iOS does this)
 //   <TextAction>    a tappable word or phrase — text-only, 44pt hit area
 //   <Chip>          a tappable pill in a tint — chips wrap, so they stay short
+//   <Button>        the committing action — one shape, one accent, everywhere
 //   <Tag>           a non-tappable badge (a route, a muscle, a kind)
 //   <Meta>          secondary information — a time, a source, a count
 //   <ScreenHead>    the screen's identity row — numeral · rule · label in
@@ -121,7 +122,9 @@ export function Chip({ children, onClick, tone: t = 'accent', active, disabled, 
     <Interactive as="span" onClick={disabled ? undefined : onClick} aria-label={ariaLabel} title={title}
       haptic={disabled || !onClick ? undefined : haptic}
       base={{
-        cursor: disabled || !onClick ? 'default' : 'pointer',
+        // no handler of its own means a parent Interactive owns the tap — so
+        // the cursor is inherited rather than reset to an arrow over it
+        cursor: disabled ? 'default' : (onClick ? 'pointer' : undefined),
         display: 'inline-flex', alignItems: 'center', gap: '6px',
         // A LONG LABEL WRAPS INSTEAD OF LEAVING THE SCREEN. His Coach
         // suggestions run to a full sentence — "WHY IS ROPE OVERHEAD TRICEP
@@ -149,6 +152,61 @@ export function Chip({ children, onClick, tone: t = 'accent', active, disabled, 
         ...(style || {}),
       }}
       hoverStyle={{ filter: 'brightness(1.12)' }}
+    >{children}</Interactive>
+  );
+}
+
+// THE COMMITTING ACTION. One shape, one accent, in every screen.
+//
+// The aesthetic review, 22 Sep 2026, found `btn(bg, ink, extra)` hand-rolled
+// in FOURTEEN files and already diverged — Train's was 11px/20px at radius
+// 12, Shopping's 10px/18px at radius 8 — so one Settings viewport showed
+// three different button shapes. Worse, sixteen of those call sites filled
+// themselves with `--nv-gold`, which §2b rule 8 reserves for "not yet
+// decided": the colour that is supposed to mean "your call" was the default
+// commit colour on nine screens at once, and so meant nothing.
+//
+// So: the fill is `tone`, and the default is the theme's own accent. Gold is
+// reachable — `tone="undecided"` — but it has to be ASKED for, and it should
+// only be asked for by a proposal genuinely waiting on him.
+//
+// `variant="quiet"` is the same shape drawn as an outline, for the secondary
+// action standing beside a commit (Cancel, Test connection).
+//
+// The ink on a solid fill is `--nv-on-acc`, never a hardcoded hex: the tones
+// are bright on the dark ground and dark under Daylight, and that token is
+// what flips with them. Sixteen call sites had `#1a1322` baked in, which is
+// black text on a dark-gold button in Daylight.
+//
+// 44pt tall under Apple — the target he reaches for one-handed, the same
+// floor `Pill` already holds.
+export function Button({ children, onClick, tone: t = 'accent', variant = 'solid',
+  compact, disabled, style, ariaLabel, title, haptic: hapticWord = 'tick', as = 'span' }) {
+  const apple = isAppleStyle();
+  const color = tone(t === 'undecided' ? 'gold' : t);
+  const solid = variant === 'solid';
+  return (
+    <Interactive as={as} onClick={disabled ? undefined : onClick} aria-label={ariaLabel} title={title}
+      haptic={disabled || !onClick ? undefined : hapticWord}
+      base={{
+        cursor: disabled || !onClick ? 'default' : 'pointer',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+        // a label that outgrows its row wraps rather than leaving the screen,
+        // the lesson Chip already paid for
+        maxWidth: '100%', whiteSpace: 'normal', textAlign: 'center', minWidth: 0,
+        minHeight: compact ? (apple ? '36px' : '28px') : (apple ? '44px' : '34px'),
+        padding: compact ? (apple ? '9px 16px' : '7px 14px') : (apple ? '11px 20px' : '10px 18px'),
+        borderRadius: apple ? '999px' : '12px',
+        font: apple ? `600 ${compact ? '14' : '15'}px ${UI}` : `600 12px ${M}`,
+        letterSpacing: apple ? '-.01em' : '.14em',
+        textTransform: apple ? 'none' : 'uppercase',
+        background: solid ? color : `color-mix(in srgb, ${color} 12%, transparent)`,
+        color: solid ? 'var(--nv-on-acc)' : color,
+        border: solid ? '1px solid transparent' : `1px solid color-mix(in srgb, ${color} 38%, transparent)`,
+        opacity: disabled ? 0.55 : 1,
+        ...(style || {}),
+      }}
+      hoverStyle={{ filter: 'brightness(1.1)' }}
     >{children}</Interactive>
   );
 }

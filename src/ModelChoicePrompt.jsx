@@ -1,5 +1,6 @@
 import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
+import { Button } from './Controls.jsx';
 
 // THE MODEL CHOICE GATE — his ask: before Researcher, the Watcher, Pattern
 // Scout or Distill run on their default model, offer Opus for THIS run.
@@ -18,12 +19,8 @@ export function ModelChoicePrompt({ v }) {
             hoverStyle={{ color: 'var(--nv-ink)' }}>×</Interactive>
         </div>
         <div style={css("margin-top:11px;display:flex;gap:8px")}>
-          <Interactive as="span" onClick={v.pickOpus}
-            base={{ cursor: 'pointer', flex: 1, textAlign: 'center', font: '600 12px var(--nv-font-ui)', padding: '9px 12px', borderRadius: '9px', background: 'var(--nv-gold)', color: '#1a1322' }}
-            hoverStyle={{ filter: 'brightness(1.08)' }}>Opus — deeper</Interactive>
-          <Interactive as="span" onClick={v.pickSonnet}
-            base={{ cursor: 'pointer', flex: 1, textAlign: 'center', font: '600 12px var(--nv-font-ui)', padding: '9px 12px', borderRadius: '9px', border: '1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent)', color: 'var(--nv-ink)' }}
-            hoverStyle={{ background: 'rgba(255,255,255,.05)' }}>Sonnet — default</Interactive>
+          <Button compact onClick={v.pickOpus} style={{ flex: 1 }}>Opus — deeper</Button>
+          <Button compact onClick={v.pickSonnet} variant="quiet" tone="ink" style={{ flex: 1 }}>Sonnet — default</Button>
         </div>
       </div>
     </div>

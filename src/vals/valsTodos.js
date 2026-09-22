@@ -36,7 +36,21 @@ export function valsTodos(app, ctx) {
     startEditCategory: () => app.setState({ todoEditCategoryKey: t.raw }),
     pickCategory: (e) => app.setTodoItemCategory(t.raw, e.target.value),
     addedLabel: timeAgoLabel(t.added),
+    // AGE IS A GRADIENT, NOT A BADGE (22 Sep 2026). Every open item older
+    // than a fortnight used to carry a gold `Stale` tag, so three of them in
+    // a column read as wallpaper rather than a warning — a default fill
+    // persisting across a surface, which §2b rule 8 forbids by name. The
+    // screen now draws age as a hairline that deepens, so `staleness` is
+    // what it needs: 0 until a fortnight, then rising to 1 over the next
+    // month. One old item is a hairline; a column of them is a gradient he
+    // can read at a glance without a single badge.
     stale: !t.checked && t.added && (Date.now() - new Date(t.added).getTime()) / 86400000 >= 14,
+    staleness: (() => {
+      if (t.checked || !t.added) return 0;
+      const days = (Date.now() - new Date(t.added).getTime()) / 86400000;
+      if (!(days >= 14)) return 0;
+      return Math.min(1, (days - 14) / 30);
+    })(),
     toggle: () => app.toggleTodoItem(t.raw),
   });
 

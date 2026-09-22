@@ -1,10 +1,7 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
-import { Eyebrow, TextAction, Chip, isAppleStyle, ScreenHead, Meta } from '../Controls.jsx';
+import { Eyebrow, TextAction, Chip, isAppleStyle, ScreenHead, Meta, Button } from '../Controls.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
-const btn = (bg, ink, extra = {}) => (isAppleStyle()
-  ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '10px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }
-  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-l)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
 
 // The Stash — categorised links to come back to: restock a product (the
 // skincare shelf), revisit a reference, reopen anything with a URL. Backed by
@@ -42,9 +39,8 @@ export function Stash({ v }) {
               placeholder="Link — paste the product / page URL" style={css(`flex:2 1 240px;min-width:0;${inputBase}`)} />
             <input value={v.stashAddNote} onChange={v.setStashField('stashAddNote')} placeholder="Note (optional) — e.g. restock monthly"
               style={css(`flex:1 1 150px;min-width:0;${inputBase}`)} />
-            <Interactive as="span" onClick={v.stashAddBusy ? undefined : v.submitStashAdd}
-              base={btn('var(--nv-gold)', '#1a1322', { flex: 'none', display: 'flex', padding: '0 18px', opacity: v.stashAddBusy ? 0.5 : 1 })}
-              hoverStyle={{ filter: 'brightness(1.08)' }}>{v.stashAddBusy ? 'Stashing…' : 'Stash it'}</Interactive>
+            <Button onClick={v.submitStashAdd} disabled={v.stashAddBusy}
+              style={{ flex: 'none', display: 'flex', padding: '0 18px' }}>{v.stashAddBusy ? 'Stashing…' : 'Stash it'}</Button>
           </div>
           {v.stashAddError && <div style={css("margin-top:8px;font-size:12px;color:var(--nv-warn)")}>{v.stashAddError}</div>}
         </div>

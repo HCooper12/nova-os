@@ -1,14 +1,11 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { TabOrderEditor } from '../TabOrderEditor.jsx';
-import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle, ScreenHead } from '../Controls.jsx';
+import { Eyebrow, TextAction, Chip, Tag, Meta, ScreenHead, Button } from '../Controls.jsx';
 import { hapticCapability, HAPTIC_WORDS, haptic, hapticDiagnostic } from '../haptics.js';
 
 // the material pass (6 Sep 2026): labels through Controls.jsx; a filled
 // button is sentence-case in the UI face under the Apple styles
-const btn = (bg, ink, extra = {}) => (isAppleStyle()
-  ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '9px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }
-  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-l)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
 
 // A CHECK RESULT, at 375px. Both diagnostics used a single flex row — tick,
 // stage, detail — and on his phone the detail was squeezed into a column one
@@ -130,7 +127,7 @@ export function Settings({ v }) {
                   style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 13px var(--nv-font-ui)", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
               </label>
               <div style={css("display:flex;gap:10px;align-items:center")}>
-                <Interactive as="span" onClick={v.profile.saving ? undefined : v.profile.save} base={btn('var(--nv-gold)', '#1a1322', { opacity: v.profile.saving ? 0.5 : 1 })} hoverStyle={{ filter: 'brightness(1.08)' }}>{v.profile.saving ? 'Saving…' : 'Save'}</Interactive>
+                <Button onClick={v.profile.save} disabled={v.profile.saving}>{v.profile.saving ? 'Saving…' : 'Save'}</Button>
                 <TextAction compact tone="faint" onClick={v.profile.cancelEdit}>Cancel</TextAction>
               </div>
             </div>
@@ -267,7 +264,7 @@ export function Settings({ v }) {
               <Meta as="div" tone={v.pushSettings.state === 'on' ? 'good' : 'faint'} style={{ marginTop: '2px' }}>{v.pushSettings.label}</Meta>
             </span>
             {v.pushSettings.state !== 'on' && v.pushSettings.state !== 'unsupported' && (
-              <Interactive as="span" onClick={v.pushSettings.enable} base={btn('var(--nv-cy)', 'var(--nv-on-acc)')} hoverStyle={{ filter: 'brightness(1.08)' }}>Enable</Interactive>
+              <Button onClick={v.pushSettings.enable}>Enable</Button>
             )}
             {v.pushSettings.state === 'on' && (
               <Chip tone="cyan" onClick={v.pushSettings.test}>Test</Chip>
@@ -325,14 +322,13 @@ export function Settings({ v }) {
                   </div>
                   <div style={css("margin-top:11px;display:flex;gap:8px;flex-wrap:wrap")}>
                     {HAPTIC_WORDS.map((w) => (
-                      <Interactive
+                      <Button
                         key={w}
-                        as="span"
                         haptic={w}
+                        variant="quiet"
+                        compact
                         onClick={() => haptic(w)}
-                        base={btn('color-mix(in srgb, var(--nv-cy) 12%, transparent)', 'var(--nv-cy)', { border: '1px solid color-mix(in srgb, var(--nv-cy) 34%, transparent)' })}
-                        hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 20%, transparent)' }}
-                      >{w}</Interactive>
+                      >{w}</Button>
                     ))}
                   </div>
                   {/* IF IT STILL DOES NOTHING. A second "I feel nothing" has to

@@ -1,10 +1,7 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
-import { Eyebrow, TextAction, Chip, Meta, Segmented, isAppleStyle, ScreenHead } from '../Controls.jsx';
+import { Eyebrow, TextAction, Chip, Meta, Segmented, ScreenHead, Button } from '../Controls.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
-const btn = (bg, ink, extra = {}) => (isAppleStyle()
-  ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '10px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }
-  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-l)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
 
 export function ClaudeCode({ v }) {
   return (
@@ -56,9 +53,8 @@ export function ClaudeCode({ v }) {
                   <Interactive as="input" value={v.codeCommitMsg} onChange={v.setCodeCommitMsg} placeholder="Commit message — why, not what…"
                     base="flex:1;min-width:170px;box-sizing:border-box;background:rgba(0,0,0,.3);border:1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent);border-radius:8px;padding:9px 12px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
                     focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 55%, transparent)" />
-                  <Interactive as="span" onClick={v.codeChangeBusy ? undefined : v.commitCodeChanges}
-                    base={btn('var(--nv-gold)', '#1a1206', { flex: 'none', opacity: v.codeChangeBusy ? 0.6 : 1 })}
-                    hoverStyle={{ filter: 'brightness(1.08)' }}>Commit</Interactive>
+                  <Button onClick={v.commitCodeChanges} disabled={v.codeChangeBusy}
+                    style={{ flex: 'none' }}>Commit</Button>
                   <TextAction tone="quiet" disabled={v.codeChangeBusy} onClick={v.codeChangeBusy ? undefined : v.shelveCodeChanges} title="Stashes the changes — recoverable, never destroyed" style={{ flex: 'none' }}>Shelve</TextAction>
                 </div>
               )}
@@ -95,7 +91,7 @@ export function ClaudeCode({ v }) {
               base="flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font:400 12.5px var(--nv-font-mono);outline:none"
               focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
             />
-            <Interactive as="span" onClick={v.codeBusy ? undefined : v.sendCode} base={btn('var(--nv-gold)', '#1a1322', { display: 'flex', padding: '0 16px', opacity: v.codeBusy ? .6 : 1 })} hoverStyle={{ filter: 'brightness(1.08)' }}>Run</Interactive>
+            <Button onClick={v.sendCode} disabled={v.codeBusy} style={{ display: 'flex', padding: '0 16px' }}>Run</Button>
           </div>
         </div>
         <div style={css("display:flex;flex-direction:column;gap:14px")}>

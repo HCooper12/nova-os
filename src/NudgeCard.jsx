@@ -1,5 +1,6 @@
 import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
+import { Button } from './Controls.jsx';
 
 // The nudge — a floating, dismissible suggestion that appears only when a
 // deterministic condition is true RIGHT NOW (an unfinished workout draft, a
@@ -14,9 +15,7 @@ export function NudgeCard({ v }) {
           <span style={{ display: 'block', font: '600 13.5px var(--nv-font-ui)', color: 'var(--nv-ink)' }}>{v.title}</span>
           <span style={{ display: 'block', marginTop: '1px', font: '400 11.5px var(--nv-font-ui)', color: 'var(--nv-ink60)' }}>{v.detail}</span>
         </span>
-        <Interactive as="span" onClick={v.onPrimary}
-          base={{ cursor: 'pointer', flex: 'none', font: '600 12px var(--nv-font-ui)', padding: '8px 15px', borderRadius: '999px', background: 'var(--nv-acc)', color: 'var(--nv-on-acc)' }}
-          hoverStyle={{ filter: 'brightness(1.1)' }}>{v.primaryLabel}</Interactive>
+        <Button compact onClick={v.onPrimary} style={{ flex: 'none' }}>{v.primaryLabel}</Button>
         <Interactive as="span" onClick={v.dismiss} aria-label="Dismiss suggestion"
           base={css("cursor:pointer;flex:none;font-size:15px;color:color-mix(in srgb, var(--nv-ink) 35%, transparent);padding:4px")}
           hoverStyle={{ color: 'var(--nv-ink)' }}>×</Interactive>

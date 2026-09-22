@@ -1,6 +1,7 @@
 import { css } from './css.js';
 import { useExit } from './useExit.js';
 import { Interactive } from './Interactive.jsx';
+import { Button } from './Controls.jsx';
 
 // THE CONFIRM STEP for a Coach plan change — his rule, verbatim: "it should
 // always confirm this if I press the button and give me an opportunity to
@@ -33,9 +34,7 @@ export function CoachApplySheet({ c }) {
           <Interactive as="span" onClick={c.busy ? undefined : exit.close} ref={exit.scrimRef}
             base={`cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:10px 16px;border-radius:9px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);color:color-mix(in srgb, var(--nv-ink) 60%, transparent);opacity:${c.busy ? 0.5 : 1}`}
             hoverStyle="background:rgba(255,255,255,.05)">CANCEL</Interactive>
-          <Interactive as="span" onClick={c.busy ? undefined : c.confirm}
-            base={{ cursor: c.busy ? 'default' : 'pointer', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', padding: '10px 20px', borderRadius: '9px', background: 'var(--nv-gold)', color: '#1a1322', opacity: c.busy ? 0.6 : 1 }}
-            hoverStyle={{ filter: 'brightness(1.08)' }}>{c.busy ? 'APPLYING…' : 'CONFIRM'}</Interactive>
+          <Button onClick={c.confirm} disabled={c.busy}>{c.busy ? 'APPLYING…' : 'CONFIRM'}</Button>
         </div>
       </div>
     </div>

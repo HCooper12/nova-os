@@ -1,11 +1,8 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
-import { Eyebrow, TextAction, Tag, Meta, isAppleStyle } from '../Controls.jsx';
+import { Eyebrow, TextAction, Tag, Meta, isAppleStyle, Button } from '../Controls.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
-const btn = (bg, ink, extra = {}) => (isAppleStyle()
-  ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '10px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }
-  : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-l)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
 
 const M = "var(--nv-font-mono)";
 const dim = (pct) => `color-mix(in srgb, var(--nv-ink) ${pct}%, transparent)`;
@@ -192,11 +189,10 @@ export function Ops({ v }) {
           placeholder="Build me a… (it works in its own sandbox, never your vault)"
           base={{ flex: '1 1 320px', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)', borderRadius: '10px', padding: '11px 14px', color: 'var(--nv-ink)', fontSize: '13px', outline: 'none' }}
           focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)" />
-        <Interactive as="span" onClick={v.forge.busy ? undefined : v.forge.start}
-          base={btn('var(--nv-cy)', 'var(--nv-on-acc)', { cursor: v.forge.busy ? 'default' : 'pointer', display: 'flex', padding: '0 18px', opacity: v.forge.busy ? .6 : 1 })}
-          hoverStyle={v.forge.busy ? '' : 'filter:brightness(1.08)'}>
+        <Button onClick={v.forge.start} disabled={v.forge.busy}
+          style={{ display: 'flex', padding: '0 18px' }}>
           {v.forge.busy ? 'Starting…' : 'Build it'}
-        </Interactive>
+        </Button>
       </div>
       {v.forge.jobs.length > 0 && (
         <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:8px")}>
@@ -228,9 +224,8 @@ export function Ops({ v }) {
           placeholder="Queue a research question for tonight…"
           base={`flex:1;background:var(--nv-well);border:1px solid ${dim(12)};border-radius:9px;padding:9px 13px;color:var(--nv-ink);font:400 12px ${M};outline:none`}
           focusStyle="border-color:color-mix(in srgb, var(--nv-vi) 50%, transparent)" />
-        <Interactive as="span" onClick={v.overnightAdd}
-          base={btn('var(--nv-vi)', 'var(--nv-on-acc)', { display: 'flex', padding: '0 15px' })}
-          hoverStyle="filter:brightness(1.08)">Queue</Interactive>
+        <Button onClick={v.overnightAdd} tone="violet"
+          style={{ display: 'flex', padding: '0 15px' }}>Queue</Button>
       </div>
       <div style={css("margin-top:8px;max-width:820px")}>
         {v.overnightItems.length === 0 && <Meta as="div" tone={dim(38)} style={{ textTransform: 'none', letterSpacing: 0 }}>Nothing queued — hand Nova a question here (or say “research this tonight” in conversation) and wake up to the brief.</Meta>}
