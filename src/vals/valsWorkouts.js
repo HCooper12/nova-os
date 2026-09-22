@@ -1,4 +1,5 @@
 import { musclesNamed } from '../muscleHue.js';
+import { coachWeekRows } from '../coachWeek.js';
 import { weekData } from '../data.js';
 import { bubble } from './shared.js';
 import { dtf } from './fmt.js';
@@ -86,6 +87,8 @@ export function valsWorkouts(app, ctx) {
     chips.push({ label: 'Review my week', tone: null, q: 'Review my training week — volume, effort, anything drifting.' });
     return chips.slice(0, 4).map((c) => ({ label: c.label, tone: c.tone, go: () => app.doCoach(c.q) }));
   })();
+  // the Coach tab's empty log is not a void: the week the Coach is reading
+  const coachWeek = coachWeekRows(overview?.volume);
   const trainTabs = [
     { key: 'today', label: 'TODAY' },
     { key: 'gym', label: 'GYM', live: !!st.workoutSession }, // ● a session is running — the way back
@@ -600,6 +603,7 @@ export function valsWorkouts(app, ctx) {
       start: () => app.startQuickPlanSession(),
       dismiss: () => app.setState({ quickPlan: null }),
     } : null,
+    coachWeek,
     goalsSet: !!st.liveWorkoutGoals,
     goalsView: st.liveWorkoutGoals ? {
       goal: st.liveWorkoutGoals.goal,

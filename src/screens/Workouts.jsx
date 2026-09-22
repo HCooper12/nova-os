@@ -958,7 +958,31 @@ function GoalsCoachPane({ v }) {
               size on a phone rather than the 12.5px the dense tables use */}
           <div ref={coachLogRef} style={css(`flex:1;min-width:0;overflow-y:auto;overflow-x:hidden;margin-top:10px;display:flex;flex-direction:column;gap:10px;font:500 ${v.isMobile ? '15px/1.65' : '12.5px/1.6'} var(--nv-font-ui)`)}>
             {v.coachMsgs.length === 0 && !v.coachBusy && (
-              <div style={css("color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Ask anything a coach should answer — "should I deload?", "why is my bench stuck?", "build me a plan for a 4-day week."</div>
+              <div style={css("display:flex;flex-direction:column;gap:14px")}>
+                <div style={css("color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Ask anything a coach should answer — "should I deload?", "why is my bench stuck?", "build me a plan for a 4-day week."</div>
+                {/* WHAT THE COACH IS READING (finding 8): the empty log used
+                    to be a void; it is the week's volume instrument, small,
+                    each muscle in its own hue, goal muscles first. Real rows
+                    only — no volume, no instrument. */}
+                {v.coachWeek && (
+                  <div style={css("border-top:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent);padding-top:12px")}>
+                    <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap")}>
+                      <Eyebrow as="span" tone="faint">What the Coach is reading</Eyebrow>
+                      <span style={css("font:400 14px var(--nv-font-serif);color:var(--nv-ink60)")}>{v.coachWeek.line}</span>
+                    </div>
+                    {v.coachWeek.rows.map((r) => (
+                      <div key={r.muscle} style={css("display:flex;align-items:center;gap:8px;margin-top:7px")}>
+                        <Meta tone={r.goal ? 'ink' : 'faint'} style={{ width: '76px', flex: 'none', fontWeight: 600, ...(r.goal ? { color: muscleVar(r.muscle) } : {}) }}>{cap(r.muscle)}</Meta>
+                        <div style={css("flex:1;height:6px;border-radius:3px;background:rgba(130,175,255,.08);overflow:hidden")}>
+                          <i style={css(`display:block;height:100%;width:${r.pct}%;border-radius:3px;background:linear-gradient(90deg,color-mix(in srgb, ${muscleVar(r.muscle)} 55%, transparent),${muscleVar(r.muscle)});opacity:${r.short ? .6 : 1}`)} />
+                        </div>
+                        <span style={css(`width:44px;text-align:right;font:var(--nv-micro-m);color:${r.short ? 'var(--nv-warn)' : 'var(--nv-ink60)'};font-variant-numeric:tabular-nums`)}>{r.sets}/{r.target}</span>
+                      </div>
+                    ))}
+                    {v.coachWeek.more > 0 && <Meta as="div" tone="faint" style={{ marginTop: '6px', textTransform: 'none', letterSpacing: 0 }}>and {v.coachWeek.more} more on Today</Meta>}
+                  </div>
+                )}
+              </div>
             )}
             {v.coachMsgs.map((m, i) => (
               <div key={i} style={m.wrapStyle}>
