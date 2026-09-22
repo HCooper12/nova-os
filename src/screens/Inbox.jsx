@@ -234,7 +234,7 @@ export function Inbox({ v }) {
       {v.inboxPending.length > 0 && (
         <div style={{ marginTop: '18px' }}>
           <div style={css("display:flex;align-items:center;gap:10px")}>
-            <Eyebrow tone="gold">Waiting for your call · {v.inboxPending.length}</Eyebrow>
+            <Eyebrow tone="gold">Waiting for your call · <span key={v.inboxPending.length} style={{ display: 'inline-block', animation: 'countPulse .5s var(--nv-ease) both' }}>{v.inboxPending.length}</span></Eyebrow>
             <span style={css("margin-left:auto;display:flex")}>
               <Segmented ariaLabel="How the queue is shown" options={[['deck', 'Deck'], ['list', 'List']]} value={deck ? 'deck' : 'list'} onChange={(mode) => setDeckMode(mode === 'deck')} />
             </span>
@@ -253,9 +253,14 @@ export function Inbox({ v }) {
                   </Chip>
                 )}
                 {v.inboxDigest.patterns.map((p) => (
-                  <Chip key={p.subject} tone="gold" onClick={() => { setFocus(p.subject); }}>
-                    {p.members.length} × {cap(p.subject)} · See all
-                  </Chip>
+                  <span key={p.subject} style={css("display:inline-flex;align-items:center;gap:4px")}>
+                    <Chip tone="gold" onClick={() => { setFocus(p.subject); }}>
+                      {p.members.length} × {cap(p.subject)} · See all
+                    </Chip>
+                    {/* one "do all" at the group head (finding 13) — every
+                        member goes through the same approve path as a swipe */}
+                    <TextAction compact tone="good" disabled={p.busy} onClick={p.busy ? undefined : p.fileAll} ariaLabel={`File all ${p.members.length} ${p.subject}`} haptic="commit">{p.busy ? 'Filing…' : `✓ all ${p.members.length}`}</TextAction>
+                  </span>
                 ))}
                 {v.inboxDigest.decide.length > 0 && (
                   <Chip tone="faint">{v.inboxDigest.decide.length} to decide</Chip>
@@ -290,7 +295,7 @@ export function Inbox({ v }) {
                  locks vertical can never commit (swipeCore.js + its test). */
               /* the deck: a card that has just risen to the top settles in
                  (keyed by record, so only a NEW top card animates) */
-              <div key={item.id} className={deck && !showingFocus ? 'nv-deck-rise' : undefined}>
+              <div key={item.id} className={item.leaving ? `nv-leave-${item.leaving}` : (deck && !showingFocus ? 'nv-deck-rise' : undefined)}>
               <SwipeRow
                 right={item.isModelChoice ? null : { label: 'FILE', icon: '✓', tone: 'var(--nv-good)', run: () => { if (!item.busy) item.approve(); } }}
                 left={{ label: 'DISCARD', icon: '✕', tone: 'var(--nv-warn)', run: () => { if (!item.busy) item.discard(); } }}
@@ -408,13 +413,15 @@ export function Inbox({ v }) {
                       >Sonnet — default</Button>
                     </>
                   ) : (
-                    <Button onClick={item.approve} disabled={item.busy}
-                    >{item.busy ? 'Working…' : item.approveLabel}</Button>
+                    /* A LIGHT TICK, NOT A BUTTON PER IDEA (finding 13, §2b r8):
+                       the verdict is one mark in its colour; the label still
+                       says what approving does. Do-all lives at the group head,
+                       and arguing is the composer, not a third button. */
+                    <TextAction compact tone="good" onClick={item.busy ? undefined : item.approve} disabled={item.busy} haptic="commit"
+                      ariaLabel={item.approveLabel}>{item.busy ? '… Working' : `✓ ${item.approveLabel}`}</TextAction>
                   )}
-                  <Interactive as="span" onClick={item.busy ? undefined : item.discard}
-                    base={secondary('var(--nv-ink60)', { opacity: item.busy ? 0.5 : 1 })}
-                    hoverStyle={{ filter: 'brightness(1.1)' }}
-                  >{item.isModelChoice ? 'Skip this week' : item.discardLabel}</Interactive>
+                  <TextAction compact tone="warn" onClick={item.busy ? undefined : item.discard} disabled={item.busy}
+                    ariaLabel={item.isModelChoice ? 'Skip this week' : item.discardLabel}>{`✕ ${item.isModelChoice ? 'Skip this week' : item.discardLabel}`}</TextAction>
                   {/* THE THIRD VERB — looked at, not decided. The record stays
                       pending; it only stops counting as new. One tap back. */}
                   {item.markSeen && (

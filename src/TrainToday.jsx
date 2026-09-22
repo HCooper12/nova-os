@@ -1,3 +1,4 @@
+import { useState } from 'react';
 // The redesigned Train TODAY pane — mockup v2 made real. One component,
 // both layouts: the hero row wraps on phones and widens on the MacBook
 // (spec: uniform across platforms, never a stretched phone view).
@@ -5,6 +6,7 @@
 // overview renders nothing (honest absence, no skeleton fiction).
 import { css } from './css.js';
 import { muscleVar } from './muscleHue.js';
+import { leaveMs, prefersReducedMotion } from './inboxLeave.js';
 import { Interactive } from './Interactive.jsx';
 import { Term } from './Glossary.jsx';
 import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle, Button, Rail } from './Controls.jsx';
@@ -44,6 +46,16 @@ function Ring({ score, basis }) {
 const fcardBase = (edge) => `flex:0 0 164px;min-height:128px;box-sizing:border-box;display:flex;flex-direction:column;scroll-snap-align:start;border-radius:14px;padding:12px;border:1px solid ${edge};background:var(--nv-glass);cursor:pointer;transition:transform .2s,border-color .2s`;
 
 export function TrainToday({ o, actions, resume }) {
+  // the Coach's ask leaves in its verdict colour for one beat, then the
+  // action runs (finding 13); nothing while it is leaving can be tapped twice
+  const [askLeaving, setAskLeaving] = useState(null);
+  const leaveThen = (verdict, run) => {
+    if (askLeaving) return;
+    const wait = leaveMs(prefersReducedMotion());
+    if (!wait) { run(); return; }
+    setAskLeaving(verdict);
+    setTimeout(() => { run(); setAskLeaving(null); }, wait);
+  };
   // one rule for which cards are up, kept pure and tested (src/trainPanels.js)
   const panels = todayPanels(o, resume);
   // the RESUME card renders from device state alone — it must appear
@@ -223,20 +235,26 @@ export function TrainToday({ o, actions, resume }) {
           where programs are actually decided. Three ways out: take it,
           argue it with Coach, or leave it (and it will ask again, twice). */}
       {o?.coachAsk && (
-        <div style={css(`background:color-mix(in srgb, ${o.coachAsk.nudges ? 'var(--nv-warn)' : 'var(--nv-gold)'} 07%, transparent);border:1px solid color-mix(in srgb, ${o.coachAsk.nudges ? 'var(--nv-warn)' : 'var(--nv-gold)'} 40%, transparent);border-radius:16px;padding:14px`)}>
+        <div className={askLeaving ? `nv-leave-${askLeaving}` : undefined} style={css(`background:color-mix(in srgb, ${o.coachAsk.nudges ? 'var(--nv-warn)' : 'var(--nv-gold)'} 07%, transparent);border:1px solid color-mix(in srgb, ${o.coachAsk.nudges ? 'var(--nv-warn)' : 'var(--nv-gold)'} 40%, transparent);border-radius:16px;padding:14px`)}>
           <Eyebrow tone={o.coachAsk.nudges ? 'warn' : 'gold'}>
             ◆ Coach{o.coachAsk.nudges ? ` · asked ${o.coachAsk.nudges + 1}× · ${o.coachAsk.daysOpen}d open` : ' · a change worth making'}
           </Eyebrow>
           <div style={css('margin-top:7px;font-size:13.5px;line-height:1.5')}>{o.coachAsk.text}</div>
           <div style={css('margin-top:11px;display:flex;gap:8px;flex-wrap:wrap')}>
+            {/* A LIGHT TICK AND CROSS, AND TALKING BACK (finding 13, §2b r8):
+                the verdict is one mark in its colour, arguing is the cyan
+                verb, and the card acts its exit out before the action lands
+                (src/inboxLeave.js — the Inbox deck's beat, reused). */}
             {o.coachAsk.applies && actions?.applyCoachAsk && (
-              <Button compact onClick={() => actions.applyCoachAsk(o.coachAsk.recordId, o.coachAsk.fix, o.coachAsk.text)}>Do it</Button>
+              <TextAction compact tone="good" haptic="commit" disabled={!!askLeaving} ariaLabel="Do it"
+                onClick={() => leaveThen('approve', () => actions.applyCoachAsk(o.coachAsk.recordId, o.coachAsk.fix, o.coachAsk.text))}>✓ Do it</TextAction>
             )}
             {actions?.askVolume && (
-              <TextAction tone="cyan" onClick={() => actions.askVolume(`About your suggestion: ${o.coachAsk.text} — talk me through it.`)}>Discuss it</TextAction>
+              <TextAction compact tone="cyan" onClick={() => actions.askVolume(`About your suggestion: ${o.coachAsk.text} — talk me through it.`)}>Discuss it</TextAction>
             )}
             {actions?.dismissCoachAsk && (
-              <TextAction tone="faint" onClick={() => actions.dismissCoachAsk(o.coachAsk.recordId)}>Not this</TextAction>
+              <TextAction compact tone="warn" disabled={!!askLeaving} ariaLabel="Not this"
+                onClick={() => leaveThen('discard', () => actions.dismissCoachAsk(o.coachAsk.recordId))}>✕ Not this</TextAction>
             )}
           </div>
         </div>

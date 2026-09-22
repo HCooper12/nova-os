@@ -405,6 +405,9 @@ export function valsInbox(app, ctx) {
     error: r.error || null,
     undoSummary: r.undoSummary || null,
     busy: !!st.inboxActionBusy[r.id],
+    // 'approve' | 'discard' while the card is leaving (finding 13): the
+    // screen plays the fall in that verdict's colour before the row goes
+    leaving: (st.inboxLeaving || {})[r.id] || null,
     canUndo: r.status === 'filed' && !!r.undoData,
     canDiscard: r.status === 'error', // errored records need an exit — they used to be unkillable
     // retry only where the record still carries its full input: a capture's
@@ -699,6 +702,13 @@ export function valsInbox(app, ctx) {
         // swipe — same rails, same undo, nothing new can write
         fileRoutine: () => d.routine.forEach((i) => i.approve && i.approve()),
         routineBusy: d.routine.some((i) => i.busy),
+        // one "do all" per repeating subject (§2b r8): every member goes
+        // through the same approve path as a swipe — same rails, same undo
+        patterns: d.patterns.map((p) => ({
+          ...p,
+          fileAll: () => p.members.forEach((i) => i.approve && !i.isModelChoice && i.approve()),
+          busy: p.members.some((i) => i.busy),
+        })),
       };
     })(),
     inboxHistory: historyItems,

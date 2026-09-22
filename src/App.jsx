@@ -64,6 +64,7 @@ import { CoachApplySheet } from './CoachApplySheet.jsx';
 import { PortionSheet } from './PortionSheet.jsx';
 import { Boot } from './Boot.jsx';
 import { haptic } from './haptics.js';
+import { leaveMs, prefersReducedMotion } from './inboxLeave.js';
 import { parseInSession, parseStart, applyInSession, matchRoutine } from './gymVoice.js';
 import { parseSettings } from './settingsVoice.js';
 // 0.05s of silence — a REAL source, so iOS accepts the gesture and unlocks
@@ -5422,8 +5423,22 @@ export default class App extends Component {
       haptic('tick');
       this.noteLocalWrite('inbox');
       const optimisticStatus = kind === 'approve' ? 'filed' : 'discarded';
+      // ACTED OUT (finding 13): the card is marked leaving first, so the
+      // screen can play its fall in the verdict's colour; the status swap
+      // that removes it from the pending list follows one beat later
+      // (src/inboxLeave.js), or at once under reduced motion.
       const items = previousInbox.items.map((r) => (r.id === id ? { ...r, status: optimisticStatus, pendingLocally: true } : r));
-      this.setState({ liveInbox: { items, pendingCount: items.filter((r) => r.status === 'pending').length } });
+      const swap = () => this.setState((s) => ({
+        inboxLeaving: Object.fromEntries(Object.entries(s.inboxLeaving || {}).filter(([k]) => k !== id)),
+        liveInbox: { items, pendingCount: items.filter((r) => r.status === 'pending').length },
+      }));
+      const wait = leaveMs(prefersReducedMotion());
+      if (wait > 0) {
+        this.setState((s) => ({ inboxLeaving: { ...(s.inboxLeaving || {}), [id]: kind } }));
+        setTimeout(swap, wait);
+      } else {
+        swap();
+      }
     }
     this.setState((s) => ({ inboxActionBusy: { ...s.inboxActionBusy, [id]: true } }));
     (kind === 'discard' ? api.inboxDiscard(conn, id, reason) : fn(conn, id)).then(({ record }) => {
