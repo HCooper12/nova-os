@@ -184,3 +184,14 @@ test('tomorrow is not mentioned in the middle of today', () => {
   const s = { hour: 14, nowMin: at(14), tomorrow: { count: 9, sources: ['Upper Body'] } };
   assert.notEqual(pickTagline(s, null).topic, 'tomorrow');
 });
+
+// the third verb: "N waiting, M new" — and the line is unchanged when the
+// verb is not in play (inboxNew absent) or nothing has been marked yet
+test('the morning inbox line names the new ones only once some are seen', async () => {
+  const missionLine = (s) => pickTagline(s);
+  const base = { hour: 8, inboxPending: 15 };
+  assert.match(missionLine({ ...base }).line, /15 captures waiting for your call\./);
+  assert.match(missionLine({ ...base, inboxNew: 15 }).line, /waiting for your call\./, 'nothing seen yet: no suffix');
+  assert.match(missionLine({ ...base, inboxNew: 3 }).line, /15 captures waiting for your call, 3 new\./);
+  assert.match(missionLine({ ...base, inboxNew: 0 }).line, /waiting for your call, none new\./);
+});

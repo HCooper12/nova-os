@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
-import { startCapture, approveRecord, discardRecord, undoRecord, retryRecord, MODES } from '../lib/inbox.js';
+import { setSeen, startCapture, approveRecord, discardRecord, undoRecord, retryRecord, MODES } from '../lib/inbox.js';
 import { listRecords, getRecord } from '../lib/inboxStore.js';
 
 export function inboxRouter(vaultPath) {
@@ -200,6 +200,17 @@ export function inboxRouter(vaultPath) {
   router.post('/inbox/:id/approve', async (req, res) => {
     try {
       const record = await approveRecord(vaultPath, req.params.id);
+      res.json({ record });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // seen: he looked, and is not deciding yet. Body { seen: false } takes it
+  // back. The record stays pending either way.
+  router.post('/inbox/:id/seen', async (req, res) => {
+    try {
+      const record = await setSeen(req.params.id, req.body?.seen !== false);
       res.json({ record });
     } catch (e) {
       res.status(400).json({ error: e.message });

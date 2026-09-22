@@ -5386,6 +5386,22 @@ export default class App extends Component {
       this.toastFail('Capture failed: ' + e.message);
     });
   }
+  // SEEN — the third verb. Optimistic (it is metadata, not a filing, and the
+  // server's record replaces it a moment later); the record stays pending.
+  inboxSeen(id, seen = true) {
+    const conn = getConnection();
+    if (!conn || !this.state.liveInbox?.items) return;
+    const stamp = seen ? new Date().toISOString() : null;
+    const patch = (items) => items.map((r) => (r.id === id ? { ...r, seenAt: stamp } : r));
+    this.setState((s) => ({ liveInbox: s.liveInbox ? { ...s.liveInbox, items: patch(s.liveInbox.items) } : s.liveInbox }));
+    api.inboxSeen(conn, id, seen).then(({ record }) => {
+      this.setState((s) => ({ liveInbox: s.liveInbox ? { ...s.liveInbox, items: s.liveInbox.items.map((r) => (r.id === id ? record : r)) } : s.liveInbox }));
+    }).catch((e) => {
+      this.setState((s) => ({ liveInbox: s.liveInbox ? { ...s.liveInbox, items: s.liveInbox.items.map((r) => (r.id === id ? { ...r, seenAt: seen ? null : r.seenAt } : r)) } : s.liveInbox }));
+      this.toastMsg(`Couldn't mark it seen — ${e.message}`);
+    });
+  }
+
   inboxAction(id, kind, reason) {
     const conn = getConnection();
     if (!conn) return;

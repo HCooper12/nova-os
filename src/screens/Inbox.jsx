@@ -294,7 +294,10 @@ export function Inbox({ v }) {
               <div className="nv-pane" style={{ padding: '14px 18px' }}>
                 <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px")}>
                   <RouteBadge route={item.route} confidence={item.confidence} />
-                  <Meta tone="faint">{item.time} · {cap(item.source)}</Meta>
+                  <Meta tone="faint" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {item.seen && <Tag tone="faint" dashed>Seen</Tag>}
+                    <span>{item.time} · {cap(item.source)}</span>
+                  </Meta>
                 </div>
                 {/* WHAT APPROVING DOES, FIRST. His report, 21 Sep: "I don't
                     actually know what will change or occur after I have
@@ -408,6 +411,14 @@ export function Inbox({ v }) {
                     base={secondary('var(--nv-ink60)', { opacity: item.busy ? 0.5 : 1 })}
                     hoverStyle={{ filter: 'brightness(1.1)' }}
                   >{item.isModelChoice ? 'Skip this week' : item.discardLabel}</Interactive>
+                  {/* THE THIRD VERB — looked at, not decided. The record stays
+                      pending; it only stops counting as new. One tap back. */}
+                  {item.markSeen && (
+                    <TextAction compact tone={item.seen ? 'good' : 'quiet'} onClick={item.busy ? undefined : item.markSeen}
+                      ariaLabel={item.seen ? 'Mark as not seen' : 'Mark as seen, decide later'} title="Seen, deciding later — it stays here">
+                      {item.seen ? '✓ Seen' : 'Seen'}
+                    </TextAction>
+                  )}
                   {item.askingWhy && (
                     <div style={css("flex-basis:100%;margin-top:10px;padding:12px 14px;border:1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent);border-radius:10px;background:color-mix(in srgb, var(--nv-gold) 04%, transparent)")}>
                       <Eyebrow tone="gold" style={{ marginBottom: '9px' }}>{item.whyTitle}</Eyebrow>

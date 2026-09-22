@@ -320,8 +320,11 @@ export function valsInbox(app, ctx) {
   const inbox = st.liveInbox;
   const items = inbox?.items || [];
   const pendingCount = inbox ? items.filter((r) => r.status === 'pending').length : 0;
+  // NEW is pending and not yet seen (the third verb) — a second number, never
+  // a replacement: "waiting for your call" keeps meaning pending everywhere
+  const newCount = inbox ? items.filter((r) => r.status === 'pending' && !r.seenAt).length : 0;
 
-  Object.assign(ctx, { inboxPendingCount: pendingCount });
+  Object.assign(ctx, { inboxPendingCount: pendingCount, inboxNewCount: newCount });
 
   const mkItem = (r) => {
     const full = fullPayload(r.decision);
@@ -409,6 +412,9 @@ export function valsInbox(app, ctx) {
     // their own.
     canRetry: r.status === 'error' && (!r.kind || r.kind === 'research' || r.kind === 'video' || r.kind === 'study' || r.kind === 'briefing' || r.kind === 'paper' || r.kind === 'repertoire'),
     approve: () => app.inboxAction(r.id, 'approve'),
+    // seen: looked at, not decided. A toggle, so a slip is one tap back.
+    seen: !!r.seenAt,
+    markSeen: r.status === 'pending' ? () => app.inboxSeen(r.id, !r.seenAt) : null,
     // Declining COACH advice asks why — the reason rides the record so the
     // Coach learns from it (and never re-asks). Everything else discards
     // in one tap, same as always.
@@ -722,6 +728,7 @@ export function valsInbox(app, ctx) {
     // that isn't coming)
     isOffline,
     inboxPendingCount: pendingCount,
+    inboxNewCount: newCount,
     inboxRefresh: () => app.refreshInbox(),
 
     // loops

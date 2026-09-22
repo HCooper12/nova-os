@@ -208,7 +208,10 @@ export function pickTagline(s = {}, skipTopic = null) {
     ['workout-now', () => s.workoutNow && `It's ${s.workoutNow} o'clock.`],
     ['block', () => s.block && blockLine(s.block, s.nowMin)],
     ['carryover', () => s.carryover && `${plural(s.carryover.count, 'exercise')} still owed from ${s.carryover.source}.`],
-    ['inbox', () => hour < 10 && s.inboxPending > 0 && `${plural(s.inboxPending, 'capture')} waiting for your call.`],
+    // ...and, once he has marked some seen, how many he has not looked at yet.
+    // Absent (null) means the verb is not in play and the line is as it was.
+    ['inbox', () => hour < 10 && s.inboxPending > 0 && `${plural(s.inboxPending, 'capture')} waiting for your call${
+      Number.isFinite(s.inboxNew) && s.inboxNew < s.inboxPending ? (s.inboxNew > 0 ? `, ${s.inboxNew} new` : ', none new') : ''}.`],
     ['workout-done', () => s.workoutDone && s.routineName && hour >= 17 && `${s.routineName} banked. Evening's yours.`],
     ['protein', () => !dayClosed && hour >= 17 && s.proteinGap > 25 && `${s.proteinGap} g of protein left to close tonight.`],
     ['steps', () => !dayClosed && hour >= 19 && s.stepsShort > 2000 && `${s.stepsShort.toLocaleString()} steps between you and the goal.`],

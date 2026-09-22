@@ -1525,3 +1525,17 @@ export async function undoRecord(vaultPath, id) {
   const summary = await undoFiling(vaultPath, record.undoData);
   return updateRecord(id, { status: 'undone', undoneAt: new Date().toISOString(), undoSummary: summary });
 }
+
+// THE THIRD VERB (23 Sep 2026, his "sure, we can try it"): between approve
+// and discard there was no way to say "I have seen this and I am not deciding
+// yet". Borrowed from Bot Crossing's Viewed. A seen record is STILL PENDING —
+// it still waits for his call, still counts in the gate and the badge — it
+// just stops being NEW: the Home line, and one day the Org Map's marker, can
+// tell "15 waiting" from "3 you have not looked at". Operational metadata in
+// server/data, never the vault; reversible with the same call.
+export async function setSeen(id, seen = true, { now = Date.now() } = {}) {
+  const record = await getRecord(id);
+  if (!record) throw new Error('record not found');
+  if (record.status !== 'pending') throw new Error('only a pending record can be marked seen');
+  return updateRecord(id, { seenAt: seen ? new Date(now).toISOString() : null });
+}

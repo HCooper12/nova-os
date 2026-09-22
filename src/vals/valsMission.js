@@ -554,6 +554,7 @@ export function valsMission(app, ctx) {
         ? { count: overdueCarryover.exercises.length, source: overdueCarryover.sourceRoutineName }
         : null,
       inboxPending: ctx.inboxPendingCount || 0,
+      inboxNew: ctx.inboxNewCount ?? null,
       tomorrow: tomorrowOwed.length ? {
         count: tomorrowOwed.reduce((n, c) => n + c.exercises.length, 0),
         sources: tomorrowOwed.map((c) => c.sourceRoutineName),

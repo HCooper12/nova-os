@@ -468,6 +468,7 @@ export const api = {
   inboxItem: (conn, id) => call(conn, `/api/inbox/item/${encodeURIComponent(id)}`),
   inboxCapture: (conn, text, mode, source) => post(conn, '/api/inbox/capture', { text, mode, source }),
   inboxApprove: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/approve`),
+  inboxSeen: (conn, id, seen = true) => post(conn, `/api/inbox/${encodeURIComponent(id)}/seen`, { seen }),
   planPriorityOutcome: (conn, id, index, outcome) => post(conn, `/api/inbox/${encodeURIComponent(id)}/priority`, { index, outcome }),
   inboxDiscard: (conn, id, reason) => post(conn, `/api/inbox/${encodeURIComponent(id)}/discard`, reason ? { reason } : undefined),
   inboxRetry: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/retry`),
