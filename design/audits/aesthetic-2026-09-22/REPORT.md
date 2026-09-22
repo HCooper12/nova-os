@@ -34,7 +34,7 @@ six `FoldRow`s (`src/screens/MissionStructured.jsx:60`) that are, literally,
 a rounded box with an uppercase label, one ellipsised line and a `▸` — the
 single most-seen object in the product is the exact thing rule 7 was written
 against, and the command idiom shows the *same* view model as a designed card
-with a serif headline (`home-command-1700.png` vs `home-cupertino-1800.png`),
+with a serif headline (`home-command-1700.jpg` vs `home-cupertino-1800.jpg`),
 so his phone is getting the worse of the two skins. The motion layer, by
 contrast, is in good shape and should be left alone: `Interactive` already
 gives every pressable a `scale(.978)` at 160ms on the correct curve, the token
@@ -51,7 +51,7 @@ Ordered by visible gain on *his phone* per hour of work. Before/After in the
 format the `emil-design-eng` skill requires.
 
 ### 1 — Home's six fold rows are the rule-7 archetype
-`Home · cupertino` · `home-cupertino-1800.png`, `home-cupertino-2700.png`
+`Home · cupertino` · `home-cupertino-1800.jpg`, `home-cupertino-2700.jpg`
 
 Six stacked boxes — `LEAD · TRY TODAY`, `SUGGESTED FOCUS`, `DAILY REVIEW`,
 `NOVA NOTICED`, `SHORTCUTS`, `AGENTS` — identical height, identical fill,
@@ -64,10 +64,10 @@ truncate mid-word. This is the bottom half of his Home screen.
 | Same status line for all six, `color:'var(--nv-ink60)'` | The status line carries the section's own hue (agents cyan, focus gold only while undecided, review green when filed) | §2b r8 — colour means something |
 
 ### 2 — Gold is the app's default commit colour
-`Journal · Stash · Shopping · Settings · Code · Train · Money · Library · Inbox — both idioms` · `journal-cupertino.png`, `stash-cupertino.png`, `shopping-cupertino.png`, `settings-cupertino.png`, `code-cupertino.png`, `inbox-cupertino.png`, `train-today-cupertino-800.png`, `library-cupertino.png`, `money-cupertino.png`
+`Journal · Stash · Shopping · Settings · Code · Train · Money · Library · Inbox — both idioms` · `journal-cupertino.jpg`, `stash-cupertino.jpg`, `shopping-cupertino.jpg`, `settings-cupertino.jpg`, `code-cupertino.jpg`, `inbox-cupertino.jpg`, `train-today-cupertino-800.jpg`, `library-cupertino.jpg`, `money-cupertino.jpg`
 
 Nine different screens show a gold-filled primary button. Rule 8 reserves gold
-for "not yet decided". On `todos-cupertino.png` every one of three rows carries
+for "not yet decided". On `todos-cupertino.jpg` every one of three rows carries
 a gold `Stale` tag — a default fill persisting across a whole surface, named
 explicitly in the rule.
 
@@ -78,7 +78,7 @@ explicitly in the rule.
 | `src/screens/Todos.jsx:80` — `{t.stale && <Tag tone="gold">Stale}` on every row | Drop the tag; express staleness as the age column's opacity plus a hairline gold left-edge that deepens with age. One item gold reads as a warning; three reads as wallpaper. | §2b r8; `interface-design` 60/30/10 — "colour is a scarce resource" |
 
 ### 3 — `btn()` is hand-rolled in 14 files and has already diverged
-`every screen · both idioms` · `settings-cupertino.png`, `shopping-cupertino.png`, `code-cupertino.png`
+`every screen · both idioms` · `settings-cupertino.jpg`, `shopping-cupertino.jpg`, `code-cupertino.jpg`
 
 Visible symptom: in one Settings viewport there are three different button
 shapes — an 8px outlined rect (`Test connection`, `Disconnect`), a gold rect
@@ -89,10 +89,10 @@ shapes — an 8px outlined rect (`Test connection`, `Disconnect`), a gold rect
 | `const btn = (bg, ink, extra) => …` defined independently in `src/TrainToday.jsx:15`, `src/AddRecipeModal.jsx:6`, `src/RecipeOverlay.jsx:9`, `src/screens/{Money,Ops,Journal,Workouts,Todos,Stash,Shopping,Settings,ClaudeCode,Notes,Recipes}.jsx` — 14 copies. TrainToday: `padding:'11px 20px'`, radius `999px / 12px`. Shopping: `padding:'10px 18px'`, radius `999px / 8px`. | One exported `Button` in `src/Controls.jsx` with `tone` = `accent \| quiet \| warn \| undecided`; delete the 14 locals. Command branch: one radius (12px), one micro font token. | §2b r2 — "Every label and action through `Controls.jsx` — never a hand-rolled … chip again". `interface-design` "Use What Exists": hand-rolling beside the real component "is the same failure" every time. |
 
 ### 4 — Muscles are painted cyan on the one screen that names four of them
-`Train · Gym — both idioms` · `train-gym-cupertino.png`
+`Train · Gym — both idioms` · `train-gym-cupertino.jpg`
 
 `SHOULDERS ×3` `CHEST ×2` `TRICEPS ×2` `BACK ×1` — four muscle chips, one
-colour. Two screens away, `train-today-cupertino-800.png` shows the volume bars
+colour. Two screens away, `train-today-cupertino-800.jpg` shows the volume bars
 doing it correctly (Triceps violet, Back teal, Shoulders gold, Biceps green).
 
 | Before | After | Why |
@@ -102,7 +102,7 @@ doing it correctly (Triceps violet, Back teal, Shoulders gold, Biceps green).
 | Only `Body3D.jsx`, `BodyMap.jsx`, `Instruments.jsx`, `TrainToday.jsx` import `muscleVar` | Every surface that names a muscle imports it | `nova-visual-first-rule`: "apply the muscle palette across the platform so it's always in sync" |
 
 ### 5 — The exercise card dumps six weeks of progression as mono text
-`Exercise sheet · cupertino` · `exercise-card-cupertino.png`
+`Exercise sheet · cupertino` · `exercise-card-cupertino.jpg`
 
 `09-15 25×7@10 25×7@10 25×7@10` … six such rows. The data shows a clean
 22.5kg→25kg progression over six sessions and the card says nothing about it.
@@ -117,7 +117,7 @@ string, no `tabular-nums`).
 | Title is a two-line uppercase mono string ending in an orphan `·` | The serif news line | §2b r7 — "a headline is the serif news line … never a mono label in a corner" |
 
 ### 6 — Two of the four floating voice layers are flat opaque boxes
-`every screen · cupertino` · `home-cupertino-900.png`, `library-cupertino.png`, `code-cupertino.png`
+`every screen · cupertino` · `home-cupertino-900.jpg`, `library-cupertino.jpg`, `code-cupertino.jpg`
 
 The `TAP TO HEAR` strip and the `EVIDENCE` strip park over the middle of
 whatever screen is open, with a hard 1px border and **no** backdrop filter,
@@ -131,7 +131,7 @@ a bright inset top edge.
 | The strip persists with no dismiss while `speechBlocked` is set | Auto-retire after ~12s, or give it an `×` | `apple-design` §16 Agency |
 
 ### 7 — To-Do squeezes the title to ~140px and breaks words mid-character
-`To-Do · cupertino` · `todos-cupertino.png`
+`To-Do · cupertino` · `todos-cupertino.jpg`
 
 `swipe verificatio / n item`. A pasted YouTube URL wraps to nine lines. Three
 `flex:'none'` siblings eat ~230px of a 370px row.
@@ -142,7 +142,7 @@ a bright inset top edge.
 | A URL rendered raw across nine lines | Render a pasted link as a link chip (host + favicon dot), not the query string | §2b r7 |
 
 ### 8 — Train · Coach is two empty boxes and 600px of void
-`Train · Coach — both idioms` · `train-coach-cupertino.png`, `train-coach-command.png`
+`Train · Coach — both idioms` · `train-coach-cupertino.jpg`, `train-coach-command.jpg`
 
 The `GOALS` card is an eyebrow, a headline, two prose lines and a mono meta
 line. Nothing on the screen has a form. Below the composer, ~600px of nothing.
@@ -154,7 +154,7 @@ line. Nothing on the screen has a form. Below the composer, ~600px of nothing.
 | 600px of void under the composer | The last three coach exchanges as a rail, or the week's volume instrument repeated small | `interface-design` — one focal point, then real air, not dead air |
 
 ### 9 — Ops' agent dial is unreadable at 402px
-`Ops · cupertino` · `ops-cupertino.png`
+`Ops · cupertino` · `ops-cupertino.jpg`
 
 Roughly forty agent labels plus forty `ran today` sublabels laid on a circle
 inside a 370px column. Every label overlaps at least one neighbour; the screen
@@ -166,7 +166,7 @@ title `XIV. OPERATIONS` is also hidden behind the top bar.
 | Screen head occluded by the chrome | Add the standard `calc(48px + env(safe-area-inset-top))` top padding this screen is missing | §2b r9 |
 
 ### 10 — Settings renders Nova's trust history as 17 grey bullets
-`Settings · cupertino` · `settings-cupertino-900.png`
+`Settings · cupertino` · `settings-cupertino-900.jpg`
 
 "Acts on Daily Reviews — kept 24 of 30", "Acts on morning briefs — kept 52 of
 63" … seventeen lines, ~900px tall. Seventeen ratios, zero forms. The most
@@ -179,7 +179,7 @@ Nova is allowed to do on its own.
 | Design-style radio cards are plain boxes describing each skin in words | Show a 60px live preview of each skin | `apple-design` §16 Familiarity/Craft — show, don't describe |
 
 ### 11 — Notes clips a wall of 18 identical chips mid-row
-`Notes · cupertino` · `notes-cupertino.png`
+`Notes · cupertino` · `notes-cupertino.jpg`
 
 Eighteen cyan filter chips wrap into six rows; the container's max-height
 slices row six horizontally through the glyphs (`Topic`, `Plan`, `Book`,
@@ -191,7 +191,7 @@ slices row six horizontally through the glyphs (`Topic`, `Plan`, `Book`,
 | All 18 chips `tone="cyan"` | Type-coded: vault-type chips take a hue family; the active one alone takes `--nv-acc` | §2b r8 |
 
 ### 12 — The PR rail hard-clips its third card mid-word
-`Train · Today · cupertino` · `train-today-cupertino.png`, `train-today-cupertino-800.png`
+`Train · Today · cupertino` · `train-today-cupertino.jpg`, `train-today-cupertino-800.jpg`
 
 `Sp…` / `no…` / `Co…` — the third card is sliced vertically by the viewport
 edge with no peek treatment, and the cards have unequal heights.
@@ -202,7 +202,7 @@ edge with no peek treatment, and the cards have unequal heights.
 | `FOCUS FOR TODAY` — a gold-bordered box holding a 5-line paragraph | The `+1 rep earned` verdict as a serif figure with a rep-bar, the reasoning demoted to `--nv-ink60` beneath | §2b r7 |
 
 ### 13 — Decisions are still a button per idea
-`Train · Today, Inbox · both idioms` · `train-today-cupertino-800.png`, `inbox-cupertino-900b.png`
+`Train · Today, Inbox · both idioms` · `train-today-cupertino-800.jpg`, `inbox-cupertino-900b.jpg`
 
 `Do it` (gold) / `Discuss it` / `Not this`; `Approve & file` (gold) /
 `Discard`. Rule 8's second half asks for a light tick or cross per item, one
@@ -214,7 +214,7 @@ edge with no peek treatment, and the cards have unequal heights.
 | The card simply vanishes on accept | Act the change out: strike the old line, slide the new one into its place, tick the count down | §2b r7 — "a change is ACTED OUT … never stated" |
 
 ### 14 — Journal is an archive of his days rendered as a date table
-`Journal · cupertino` · `journal-cupertino.png`
+`Journal · cupertino` · `journal-cupertino.jpg`
 
 Six identical pills: ISO date, truncated title, `N entries ▼`. Today's row is
 indistinguishable from one a week old.
@@ -227,7 +227,7 @@ indistinguishable from one a week old.
 | `Save entry` gold (`src/screens/Journal.jsx:42`) | `Pill` at `--nv-acc` | §2b r8 |
 
 ### 15 — Fuel's hero ring is solid at zero where Home's is dashed
-`Fuel · cupertino` · `fuel-cupertino.png` vs `home-cupertino-1800.png`
+`Fuel · cupertino` · `fuel-cupertino.jpg` vs `home-cupertino-1800.jpg`
 
 Protein is `0 of 150` and draws a solid dim ring; the SLEEP ring on Home
 correctly draws a dashed one for the same "no data" condition.
@@ -241,7 +241,7 @@ correctly draws a dashed one for the same "no data" condition.
 | Date chips wrap into two rows (`For Today / Yst / Sun 20 / Sat 19` // `Fri 18 / Thu 17 / Wed 16`) | One scrolling rail | §2b r6 |
 
 ### 16 — Stash and Library repeat one action pill down the whole list
-`Stash, Library · cupertino` · `stash-cupertino.png`, `library-cupertino.png`
+`Stash, Library · cupertino` · `stash-cupertino.jpg`, `library-cupertino.jpg`
 
 Eight `Open ↗` pills and eight `×` glyphs stacked in a column; every row
 identical, hard hairline dividers, no material.
@@ -253,7 +253,7 @@ identical, hard hairline dividers, no material.
 | Library search input renders `Search the` clipped mid-placeholder | Give the input `flex:1;min-width:0` and shorten the placeholder to `Search` | §2b r6 |
 
 ### 17 — Train's header meta runs to the screen edge
-`Train · cupertino` · `train-today-cupertino.png`, `train-gym-cupertino.png`, `train-coach-cupertino.png`
+`Train · cupertino` · `train-today-cupertino.jpg`, `train-gym-cupertino.jpg`, `train-coach-cupertino.jpg`
 
 `● 4 routines · live from Obsidian` — the final `n` sits on x=771 of 804
 (16px gutter consumed). Same on Notes, Stash, Inbox, Money.
@@ -263,7 +263,7 @@ identical, hard hairline dividers, no material.
 | Screen-head right meta with no right inset and no truncation | `minWidth:0` + `text-overflow:ellipsis` on the meta, and the 16px page gutter respected | §2b r6 |
 
 ### 18 — The "Workout in progress" banner covers the screen head
-`Inbox · command` · `inbox-command.png`
+`Inbox · command` · `inbox-command.jpg`
 
 The resume banner is pinned over the top of the content and hides `SELF ·
 INBOX` and half the serif headline.
@@ -273,7 +273,7 @@ INBOX` and half the serif headline.
 | Fixed banner with no scroll-offset compensation on the page below | Either push the page down by the banner height, or dock the banner to the bottom above the tab bar where the voice layers already live | `apple-design` §16 Wayfinding — never hide "where am I" |
 
 ### 19 — The briefs row drops a raw `<select>` into a designed surface
-`Inbox · cupertino` · `inbox-cupertino-900b.png`
+`Inbox · cupertino` · `inbox-cupertino-900b.jpg`
 
 `08:00 ⌄` / `07:00 ⌄` / `21:00 ⌄` render as OS-default selects with a hard 1px
 border, beside hand-styled `Off / Draft / Auto` pills, and wrap onto their own
@@ -284,7 +284,7 @@ line so the row rhythm breaks.
 | Unstyled native `<select>` | Keep the native element for accessibility but style it to match `Pill` (radius 999px, `--nv-well`, house chevron, `appearance:none`), and keep time + segment on one line | `interface-design` "Controls: native → primitive → hand-roll" — keep native, but it must look like the system it is in |
 
 ### 20 — Briefing's empty state is a paragraph on a void
-`Briefing · cupertino` · `briefing-cupertino.png`
+`Briefing · cupertino` · `briefing-cupertino.jpg`
 
 A `BRIEFING` eyebrow pushed under the top bar (it sits at y=95 where every
 other screen starts at 111), one paragraph, one link, then ~1400px of nothing.
@@ -294,7 +294,7 @@ other screen starts at 111), one paragraph, one link, then ~1400px of nothing.
 | Text-only empty state | The house top padding, the serif news line, a dim standing instrument (the beat rail at rest), and two or three real starter phrasings as chips | §2b r7 — a screen that would look the same as its data is not finished; `interface-design` — empty states are where defaults show hardest |
 
 ### 21 — The rings row overflows its own numerals
-`Home · both idioms` · `home-cupertino-1800.png`, `home-command-1700.png`
+`Home · both idioms` · `home-cupertino-1800.jpg`, `home-command-1700.jpg`
 
 `10,071` is wider than the ring it sits inside; the glyphs cross the stroke on
 both left and right.
@@ -304,7 +304,7 @@ both left and right.
 | Full step count inside a 4-up ring at 402px | Abbreviate inside the ring (`10.1k`) and keep the full figure in the label beneath, or drop to a 3-up row on phones | §2b r6 |
 
 ### 22 — Home's vitals grid is eight metrics with no focal point
-`Home · cupertino` · `home-cupertino-1800.png`
+`Home · cupertino` · `home-cupertino-1800.jpg`
 
 Steps pink, weight gold, HRV cyan, resting HR pink, protein violet, eaten
 green — six hues, no stated system, two of them (gold on weight, pink on two
@@ -319,18 +319,18 @@ same size.
 
 ## 3 · Keep — already right
 
-1. **The Voice screen.** `voice-cupertino.png` — the core, the concentric
+1. **The Voice screen.** `voice-cupertino.jpg` — the core, the concentric
    dashed rings, the mono clock, and the `STATION · STATUS` panel whose rows
    carry their own progress underline. This is the Jarvis reference already
    shipped. Do not touch it.
-2. **`RingTile` and the `93 READY` ring.** `train-today-cupertino.png` — the
+2. **`RingTile` and the `93 READY` ring.** `train-today-cupertino.jpg` — the
    bloom, the arc, the dashed gap state on Home's SLEEP ring. The house object
    works; the problem elsewhere is that it is not used, not that it is wrong.
-3. **The muscle volume bars.** `train-today-cupertino-800.png` — Triceps
+3. **The muscle volume bars.** `train-today-cupertino-800.jpg` — Triceps
    violet, Back teal, Shoulders gold, Biceps green, each from `--nv-m-*`. This
    is exactly what rule 8 asks for, and it is the model the rest of the
    platform should copy.
-4. **The 7-day protein chart.** `fuel-cupertino.png` — real bars, a dashed
+4. **The 7-day protein chart.** `fuel-cupertino.jpg` — real bars, a dashed
    floor line, today's column ringed and excluded from the count, an honest
    "Today is still open" note. Information with a form, and honest.
 5. **The press/motion layer.** `src/Interactive.jsx:106` gives every pressable
@@ -343,13 +343,13 @@ same size.
 6. **The serif news lines.** `Train, your way.` · `Shop once, cleanly.` ·
    `Drop the thought, Nova files it.` · `Everything you know, connected.` —
    the one typographic idea that is unmistakably Nova's.
-7. **The exercise card's body map.** `exercise-card-cupertino.png` — front and
+7. **The exercise card's body map.** `exercise-card-cupertino.jpg` — front and
    back silhouettes with the worked muscles lit from `--nv-m-*`, and
    `Turn it in 3D`. The right half of that card is finished; only the history
    rail below it is not.
 8. **The sheet scrim.** The exercise sheet dims and blurs what is behind it —
    `apple-design` §12 "dim to focus", done correctly.
-9. **The command idiom's BODY card.** `home-command-1700.png` — corner
+9. **The command idiom's BODY card.** `home-command-1700.jpg` — corner
    brackets, rings *and* the metric grid in one bounded object. Proof that the
    view model already carries enough to draw a real card; the cupertino side
    just isn't drawing one.
@@ -413,7 +413,7 @@ system and focal metric), and the tick/cross decision pattern in
   server on `:5183` with the real vault connected. Cupertino for every screen;
   command for Home (×3), Train Today, Train Coach, Fuel, Inbox and Voice.
 - Three command-idiom shots (To-Do, Journal, the exercise sheet) were lost when
-  the dev server went down mid-run — `todos-command.png` and its two siblings
+  the dev server went down mid-run — `todos-command.jpg` and its two siblings
   captured `ERR_CONNECTION_REFUSED` and were deleted rather than kept as
   evidence. The command findings above therefore rest on the seven command
   shots that did land. The seed file was restored to `cupertino` afterwards.
