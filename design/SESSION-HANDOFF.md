@@ -13,6 +13,51 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**23 SEP — THE AESTHETIC REVIEW, BUILT.** All 22 findings are shipped or
+claimed; the status board with a commit per finding is at the head of
+`design/audits/aesthetic-2026-09-22/REPORT.md`. Three sessions worked this
+checkout at once and every commit went in by explicit pathspec.
+
+**MINE, SHIPPED** (in order): `cb2ae8d` one Button and one accent · `be14df3`
++ `e54fa15` the phone-width faults · `8694418` the exercise card's load rail
+and Settings' trust ladder · `036b2e7` the Ops dial · `5f718e8` the recorder ·
+`ed42781` glass voice layers and the house Select · `2e41989` the momentum
+rail in muscle hues and the focus verdict · `5691ff0` Home's vitals domain
+system · `4c0a006` the nudge, the ring numeral, the head meta.
+
+**FOUR NEW HOUSE OBJECTS**, all in `Controls.jsx` — use them rather than
+hand-rolling: `Button` (tone · variant · compact · disabled, 44pt under
+Apple, `--nv-on-acc` ink), `Rail` (a scrolling row of peers, faded only on
+the side that has more), `Chevron` (one stroke that turns), `Select` (a
+native `<select>` in house chrome, the element transparent over the hit
+area). There are now ZERO hand-rolled button helpers in `src/`.
+
+**TWO NEW INSTRUMENTS, and they found what the written review could not.**
+- `node scripts/probe.mjs` — every screen at 375px, reporting overflow,
+  clipped text and tap targets under the 28pt floor as numbers. Add
+  `--style command` for the other idiom. It found two page-scrolls-sideways
+  bugs and eleven under-floor controls that 40 screenshots had not.
+- `node scripts/rec.mjs --slow 8` — an interaction as a GIF. The `--slow`
+  matters: a screenshot through SwiftShader takes 100–300ms, so a 280ms
+  entrance is over before the second frame and reads exactly like a
+  transition that does not exist. It found two missing entrances.
+- Both refuse to run without `node scripts/dev-connect.mjs` first, because a
+  shot of the demo fixtures is indistinguishable from a shot of his vault.
+
+**THE TRAP THAT COST TWO ROUNDS.** `npm run build` does NOT catch an
+undefined JSX identifier — five files got `<Button>` with no import and the
+build stayed green; at runtime that is a blank screen. After any component
+swap, grep every user for its import. Memory: `nova-jsx-import-trap`.
+
+**OPEN**: finding 13 (decisions are a conversation) and 16's whole-row tap
+target are with the peer session. The command idiom's mono micro-labels are
+below the 28pt floor by design — the probe reports and does not fail them,
+since that skin is pointer-first; if he ever runs command on the phone, that
+becomes real work. Queued builds unchanged in memory `nova-open-threads`.
+
+---
+
+
 **23 SEP (later) — THE SESSIONS FEATURE IS VERIFIED LIVE, AND ONE CLAIM IT MADE WAS FALSE.**
 Through the real routes on the running server: "Show me" on a live Nova window answered
 `focused`; closing a live session was refused with the plain sentence; closing the 70-day-old
