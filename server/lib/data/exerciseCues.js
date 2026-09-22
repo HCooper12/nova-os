@@ -99,6 +99,7 @@ export const EXERCISE_CUES = {
   'single-arm-cable-extensions-cross-body-optional': 'Elbow fixed and pointing where it started. Cross-body slightly changes the angle on the long head — keep it deliberate, not a swing.',
   'cable-overhead-tricep-extension': 'Face away from the stack, elbows forward and high. Constant tension in the stretched position is the whole point.',
   'triceps-pushdown-v-bar-attachment': 'V-bar keeps the wrists neutral. Upper arms locked at the sides, full lockout without leaning in.',
+  'triceps-pushdown-straight-bar-attachment': 'Straight bar means a pronated grip — keep the wrists straight, not bent back. Upper arms pinned at the sides; drive to full lockout without leaning over the bar.',
   'rope-overhead-tricep-extension': 'Elbows narrow and pointing forward. Let the hands go well behind the head for the stretch before extending.',
   'carter-extension': 'Behind-the-head cable extension — elbows stay high and still. Go light; the stretched position is where the long head works and where it is easy to overload.',
 
