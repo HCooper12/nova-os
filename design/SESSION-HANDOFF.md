@@ -187,12 +187,23 @@ for the other idiom; `--clean` after). `--eval` may repeat; a promise is
 awaited; it re-attaches after the app's self-reload. Safari via osascript
 works for DOM reads (address the tab by URL) but cannot screenshot.
 
-**NEXT** (in order): the aesthetic review (subagent, §2b rules 7–8, both
-idioms, every screen, Before/After) → its findings as builds; then the
-queued builds in memory `nova-open-threads` (reply-in-place, the spoken
-Jarvis report, the one-conversation org per `design/ORG-CONVERSATION-PLAN.md`).
-Dev server on :5183 and `_devconn.js` are live for the review; clean both
-at close.
+**THE AESTHETIC REVIEW IS DONE** — `design/audits/aesthetic-2026-09-22/REPORT.md`
+(22 ranked findings with Before/After and file:line, 40 stills, a keep list,
+six build sessions A–F). Three systemic causes carry two thirds of it: a
+hand-rolled `btn()` in 14 files with gold as the default commit fill at 16
+call sites; the muscle palette read by only three files (Train · Gym paints
+four muscles cyan); Home's six `FoldRow`s being the plain box rule 7
+forbids. The motion layer is right — leave `Interactive` and the easing
+tokens alone. Spot-checked: the 14/16 counts and `FoldRow` at
+`MissionStructured.jsx:60` are real.
+
+**NEXT** (in order, his go needed for the build programme): Session A (one
+`Button` in Controls.jsx, gold → accent) → B (fold rows become instruments)
+→ C (palette everywhere) → D (402px faults) → E (exercise sheet + trust
+ladder) → F (Fuel/Coach/empty states); then the queued builds in memory
+`nova-open-threads` (reply-in-place, the spoken Jarvis report, the
+one-conversation org per `design/ORG-CONVERSATION-PLAN.md`). The :5183 dev
+server and `_devconn.js` were cleaned at close.
 
 ---
 
