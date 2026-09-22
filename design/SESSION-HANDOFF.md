@@ -197,9 +197,18 @@ faces side by side so he can see the difference; (3) try the "Viewed" verb.
   looked at its shots). NOTE for Fuel: his profile has no carb/fat target,
   so those arcs stay absent until the Intake/collection grows
   `carbTargetG`/`fatTargetG` — a vault change, not UI.
-- **Still open in the review:** finding 13 (decisions a button per idea)
-  and 22 (Home vitals grid, `MissionStructured.jsx` — the fourth session
-  was in it). The peer has 9 (Ops dial) and E is pushed (`8694418`).
+- **Finding 13 shipped** (the commit after `8c3484b`): tick/cross/Seen on
+  the deck card, "✓ all N" per repeating subject, the leaving beat
+  (`src/inboxLeave.js`), and Train Today's Coach ask the same way. The
+  Fuel arcs' missing sweep (`8c3484b`) was caught by the peer's
+  `scripts/rec.mjs` and fixed with `nvArcIn`.
+- **Review status:** every finding is claimed or shipped. The peer holds
+  22 (Home vitals grid) last; 9, 12, 19, 6, E and D are theirs and pushed.
+  16's whole-row tap target (Stash.jsx, Library.jsx) is unclaimed.
+- **Not verified on record:** the Inbox leaving beat (rec.mjs loses the
+  scroll after navigate; two runs were killed for memory — four headless
+  Chromes were up across sessions) and the Coach-ask card (needs a live
+  coachAsk; pinned by test).
 - Not verified: Fuel at 1280 in either idiom; the centre-dash patch on the
   Fuel ring was pinned by test after the shots, not re-shot.
 - Review sessions D, E, F remain. D and E live mostly in the peer's Session
