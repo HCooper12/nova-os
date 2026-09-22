@@ -102,3 +102,31 @@ test('the things that were already right stay right', () => {
   assert.match(CSS, /input,\s*textarea,\s*select\s*\{\s*font-size:\s*16px/, 'under 16px and iOS zooms the page on focus');
   assert.match(CSS, /touch-action:\s*manipulation/);
 });
+
+// THE SCALE LOCK IS OFF — and must stay off (22 Sep 2026).
+//
+// Sixth attempt at the top-bar blur. His test that day: Chrome on the phone
+// is sharp, the installed app is soft, same build. Chrome on iOS is WebKit,
+// so standalone mode is the only variable — and `user-scalable=no` /
+// `maximum-scale` is the one viewport declaration iOS ignores in a tab and
+// honours in a standalone PWA. It is also an accessibility failure in its own
+// right (mobile-native, hard rule 4), and the focus-zoom it was guarding
+// against cannot happen: index.css forces every input to 16px.
+//
+// `minimum-scale=1.0` is NOT the same decision and stays — it is what stops
+// the pinch that shrank the app into the corner and exposed empty space.
+test('nothing in the viewport disables zoom, and pinching still cannot shrink the app', () => {
+  const HTML = readFileSync(root('index.html'), 'utf8');
+  const tag = HTML.match(/<meta name="viewport" content="([^"]+)"/);
+  assert.ok(tag, 'there must be a viewport tag at all');
+  const content = tag[1];
+  assert.ok(!/user-scalable\s*=\s*no/.test(content), 'user-scalable=no is honoured in standalone and blocks zoom');
+  assert.ok(!/maximum-scale/.test(content), 'maximum-scale caps zoom, which is the same failure by another name');
+  assert.match(content, /minimum-scale=1\.0/, 'without it a pinch shrinks the app into the corner — his report, and a different decision');
+  assert.match(content, /viewport-fit=cover/, 'without it every env(safe-area-inset-*) is 0px');
+  // the reason the lock is safe to remove: iOS zooms a focused input only
+  // when its text is under 16px, and it never is.
+  const CSS = readFileSync(root('src/index.css'), 'utf8');
+  assert.match(CSS, /input, textarea, select \{ font-size: 16px !important; \}/,
+    'removing the scale lock is only safe while every input is 16px');
+});

@@ -2,12 +2,35 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- Scale is locked: this is an installed daily-driver PWA, not a document.
-         minimum/maximum-scale + user-scalable=no stop the pinch that shrank the
-         app into the corner and exposed empty space (and belt-and-braces on the
-         focus zoom, already handled by 16px inputs). iOS honours this in
-         standalone mode; system accessibility zoom is unaffected. -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <!-- THE SCALE LOCK IS OFF, and this is the sixth attempt at his top-bar
+         blur (22 Sep 2026). Five CSS fixes changed nothing, which was the
+         clue: the fault is not in the CSS.
+
+         What he reported that day settles the shape of it. In Chrome on the
+         same phone, same build, the bar is SHARP; in the installed app it is
+         soft. Chrome on iOS is WebKit, so the engine is not the variable —
+         standalone mode is. And iOS has exactly one viewport behaviour that
+         differs on precisely that line: Safari and Chrome tabs IGNORE
+         `user-scalable=no` and `maximum-scale` (they have since iOS 10, as an
+         accessibility decision), while an installed PWA HONOURS them. The one
+         declaration that is live only where the blur is, is this one. A
+         honoured scale lock pins the page scale, and a fixed layer whose
+         backing store was rasterised against a different scale gets stretched
+         — soft text on the promoted layer, sharp text everywhere else, which
+         is his symptom exactly.
+
+         `minimum-scale=1.0` STAYS: that is the one that stopped the pinch
+         which shrank the app into the corner and exposed empty space. Zooming
+         IN is what comes back, which is the accessibility behaviour that
+         should never have been taken away (mobile-native skill, hard rule 4:
+         never disable zoom — fix the input font size instead, and index.css
+         already forces every input to 16px, so the focus-zoom this was
+         guarding against cannot happen anyway).
+
+         If the bar is still soft after this, the remaining lever is
+         `apple-mobile-web-app-status-bar-style` below, and that one costs him
+         a reinstall to test. This one costs a reload. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="Nova OS — personal AI operating system: mission control, voice, memory galaxy, agents and vault." />
     <meta name="theme-color" content="#06070d" />
     <!-- Paint the boot backdrop from the very first frame, before the app's CSS
