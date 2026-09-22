@@ -1,4 +1,5 @@
 import { css } from '../css.js';
+import { muscleVar } from '../muscleHue.js';
 import { FormCheckPanel } from '../FormCheckPanel.jsx';
 import { LocalInput } from '../LocalInput.jsx';
 import { Interactive } from '../Interactive.jsx';
@@ -128,9 +129,7 @@ function RoutinesView({ v }) {
           {v.gymHero.targets && (
             <div style={css("margin-top:12px")}>
               <div style={css("display:flex;flex-wrap:wrap;gap:6px;align-items:center")}>
-                {v.gymHero.targets.map((t) => (
-                  <Tag key={t.muscle} tone="cyan">{t.muscle} ×{t.count}</Tag>
-                ))}
+                {v.gymHero.targets.map((t) => <MuscleTag key={t.muscle} muscle={t.muscle} count={t.count} />)}
                 {v.gymHero.targetRows && (
                   <TextAction tone="quiet" onClick={v.gymHero.toggleTargets}>{v.gymHero.targetsOpen ? 'Hide ▴' : 'Per exercise ▾'}</TextAction>
                 )}
@@ -337,8 +336,10 @@ function RoutinesView({ v }) {
               </div>
               <div style={css("margin-top:8px;font-size:12px;color:color-mix(in srgb, var(--nv-ink) 50%, transparent);line-height:1.5")}>{r.exercisesPreview}</div>
               {/* what the routine trains, so browsing says more than names */}
-              {r.targetsLine && (
-                <Meta as="div" tone="color-mix(in srgb, var(--nv-cy) 70%, transparent)" style={{ marginTop: '6px' }}>{r.targetsLine}</Meta>
+              {r.targetChips && (
+                <div style={css("margin-top:7px;display:flex;flex-wrap:wrap;gap:5px")}>
+                  {r.targetChips.map((c) => <MuscleTag key={c.muscle} muscle={c.muscle} count={c.count} />)}
+                </div>
               )}
             </Interactive>
           ))}
@@ -897,10 +898,35 @@ function GoalsCoachPane({ v }) {
               </div>
             </div>
           ) : v.goalsSet ? (
-            <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:6px")}>
-              <div style={css("font:600 14px var(--nv-font-ui)")}>{v.goalsView.goal}</div>
-              {v.goalsView.focus && <div style={css("font:500 12px var(--nv-font-ui);color:var(--nv-ink60)")}>Focus: {v.goalsView.focus}</div>}
-              {v.goalsView.meta && <Meta as="div" tone="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>{v.goalsView.meta}</Meta>}
+            <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:9px")}>
+              {/* the goal is the news line; the rest are instruments (finding 8) */}
+              <div style={css("font:400 19px/1.25 var(--nv-font-serif);text-wrap:pretty")}>{v.goalsView.goal}</div>
+              {(v.goalsView.days || v.goalsView.updated) && (
+                <div style={css("display:flex;align-items:center;gap:12px;flex-wrap:wrap")}>
+                  {v.goalsView.days && (
+                    <span style={css("display:flex;align-items:center;gap:8px")} title={`${v.goalsView.days} days a week`}>
+                      <span style={css("display:flex;gap:3px")} aria-hidden="true">
+                        {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+                          <span key={i} style={{ width: 9, height: 14, borderRadius: 3, background: i < v.goalsView.days ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 10%, transparent)', boxShadow: i < v.goalsView.days ? '0 0 8px -2px var(--nv-acc)' : 'none' }} />
+                        ))}
+                      </span>
+                      <Meta tone="quiet" style={{ textTransform: 'none', letterSpacing: 0 }}>{v.goalsView.days} days a week</Meta>
+                    </span>
+                  )}
+                  {v.goalsView.updated && (
+                    <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span aria-hidden="true" style={{ width: 5, height: 5, borderRadius: '50%', background: 'currentColor', opacity: .6 }} />updated {v.goalsView.updated}
+                    </Meta>
+                  )}
+                </div>
+              )}
+              {v.goalsView.priority.length > 0 && (
+                <div style={css("display:flex;flex-wrap:wrap;gap:6px;align-items:center")}>
+                  <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>Priority</Meta>
+                  {v.goalsView.priority.map((m) => <MuscleTag key={m} muscle={m} />)}
+                </div>
+              )}
+              {v.goalsView.focus && <div style={css("font:500 12.5px/1.5 var(--nv-font-ui);color:var(--nv-ink60)")}>{v.goalsView.focus}</div>}
               {v.goalsView.notes && <div style={css("font:500 11.5px/1.55 var(--nv-font-ui);color:var(--nv-ink60);white-space:pre-wrap")}>{v.goalsView.notes}</div>}
             </div>
           ) : (
@@ -1001,6 +1027,20 @@ function GoalsCoachPane({ v }) {
         </div>
       </div>
     </>
+  );
+}
+
+// A MUSCLE, IN ITS OWN HUE (Session C of the 22 Sep review, finding 4). Gym
+// named four muscles and painted every one cyan; the volume bars two screens
+// away already used the one map. This is that map on a Tag: the hue from
+// src/muscleHue.js, the count in the serif face, a neutral fallback for a
+// group the map does not know rather than a colour that means nothing.
+function MuscleTag({ muscle, count }) {
+  const hue = muscleVar(muscle);
+  return (
+    <Tag style={{ color: hue, background: `color-mix(in srgb, ${hue} 11%, transparent)`, borderColor: `color-mix(in srgb, ${hue} 35%, transparent)` }}>
+      {cap(muscle)}{count != null && <span style={{ font: '400 12px var(--nv-font-serif)', textTransform: 'none', marginLeft: 4 }}>×{count}</span>}
+    </Tag>
   );
 }
 

@@ -109,3 +109,20 @@ export function musclePalette(group) {
   if (!primary) return null;
   return { primary, secondary: '#59e6ff' };
 }
+
+/** The muscle groups a piece of his own prose names, in the order it names
+ *  them — "triceps, biceps and shoulders" → ['Triceps','Biceps','Shoulders'].
+ *  Whole words, case-insensitive, each group once; nothing is inferred (no
+ *  "arms" → biceps), because a chip in a muscle's hue is a claim the text
+ *  must actually make. */
+export function musclesNamed(text) {
+  const s = String(text || '').toLowerCase();
+  if (!s) return [];
+  const found = [];
+  for (const group of Object.keys(MUSCLE_TOKEN)) {
+    const re = new RegExp(`\\b${group.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+    const m = re.exec(s);
+    if (m) found.push({ group, at: m.index });
+  }
+  return found.sort((a, b) => a.at - b.at).map((f) => f.group);
+}

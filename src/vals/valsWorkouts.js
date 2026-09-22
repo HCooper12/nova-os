@@ -1,3 +1,4 @@
+import { musclesNamed } from '../muscleHue.js';
 import { weekData } from '../data.js';
 import { bubble } from './shared.js';
 import { dtf } from './fmt.js';
@@ -75,12 +76,14 @@ export function valsWorkouts(app, ctx) {
   const coachChips = (() => {
     const chips = [];
     const o = overview;
-    if (o?.momentum?.plateau) chips.push({ label: `WHY IS ${o.momentum.plateau.name.split(' (')[0].toUpperCase()} STALLED?`, tone: 'warn', q: `Why is my ${o.momentum.plateau.name} stalled, and what's the fix?` });
+    // sentence case in the vals (§2b rule 3) — Command's CSS uppercases; an
+    // ALL-CAPS literal rendered literally under Apple was finding 8
+    if (o?.momentum?.plateau) chips.push({ label: `Why is ${o.momentum.plateau.name.split(' (')[0]} stalled?`, tone: 'warn', q: `Why is my ${o.momentum.plateau.name} stalled, and what's the fix?` });
     const under = (o?.volume || []).filter((v2) => v2.goalMuscle && v2.sets < v2.target).map((v2) => v2.muscle);
-    if (under.length) chips.push({ label: `ADD ${under[0].toUpperCase()} VOLUME`, tone: 'gold', q: `My ${under.join(' and ')} volume is under target for my goal — restructure my week to fix it.` });
-    if (o?.deload?.advise) chips.push({ label: 'SHOULD I DELOAD TODAY?', tone: 'warn', q: 'Recovery flagged a deload — how should I adjust today, exactly?' });
-    if (o?.today) chips.push({ label: `PLAN TODAY'S ${o.today.name.toUpperCase()}`, tone: null, q: `Walk me into today's ${o.today.name} — what matters most this session?` });
-    chips.push({ label: 'REVIEW MY WEEK', tone: null, q: 'Review my training week — volume, effort, anything drifting.' });
+    if (under.length) chips.push({ label: `Add ${under[0].toLowerCase()} volume`, tone: 'gold', q: `My ${under.join(' and ')} volume is under target for my goal — restructure my week to fix it.` });
+    if (o?.deload?.advise) chips.push({ label: 'Should I deload today?', tone: 'warn', q: 'Recovery flagged a deload — how should I adjust today, exactly?' });
+    if (o?.today) chips.push({ label: `Plan today's ${o.today.name}`, tone: null, q: `Walk me into today's ${o.today.name} — what matters most this session?` });
+    chips.push({ label: 'Review my week', tone: null, q: 'Review my training week — volume, effort, anything drifting.' });
     return chips.slice(0, 4).map((c) => ({ label: c.label, tone: c.tone, go: () => app.doCoach(c.q) }));
   })();
   const trainTabs = [
@@ -186,7 +189,10 @@ export function valsWorkouts(app, ctx) {
       ? r.exercises.slice(0, 3).map((e) => e.name).join(', ') + (r.exercises.length > 3 ? ` +${r.exercises.length - 3} more` : '')
       : 'No exercises yet',
     // what it trains, before he commits to it
-    targetsLine: targetSummary(r.exercises).chips.map((c) => `${c.muscle.toUpperCase()} ×${c.count}`).join(' · ') || null,
+    // what the routine trains, one chip per muscle in ITS OWN HUE (Session C,
+    // 22 Sep): the screen colours each from src/muscleHue.js rather than
+    // painting the whole line cyan
+    targetChips: targetSummary(r.exercises).chips.length ? targetSummary(r.exercises).chips : null,
     completedCount: r.completedCount,
     onOpen: () => app.openRoutine(r.id),
     // spec #13: hold a routine card for its secondary actions
@@ -599,7 +605,13 @@ export function valsWorkouts(app, ctx) {
       goal: st.liveWorkoutGoals.goal,
       focus: st.liveWorkoutGoals.focus,
       notes: st.liveWorkoutGoals.notes,
-      meta: [st.liveWorkoutGoals.daysPerWeek ? `${st.liveWorkoutGoals.daysPerWeek} DAYS/WEEK` : null, st.liveWorkoutGoals.updated ? `UPDATED ${st.liveWorkoutGoals.updated}` : null].filter(Boolean).join(' · '),
+      // the goal as an INSTRUMENT (finding 8): days a week is a seven-cell
+      // rail, the muscles his focus line names are chips in their own hues
+      // (from his words only — musclesNamed infers nothing), the update a
+      // quiet age line rather than an ALL-CAPS meta string
+      days: Number(st.liveWorkoutGoals.daysPerWeek) > 0 ? Math.min(7, Number(st.liveWorkoutGoals.daysPerWeek)) : null,
+      priority: musclesNamed(st.liveWorkoutGoals.focus),
+      updated: st.liveWorkoutGoals.updated ? String(st.liveWorkoutGoals.updated) : null,
     } : null,
     goalsEditing: st.goalsEditing,
     goalsDraft: st.goalsDraft,
