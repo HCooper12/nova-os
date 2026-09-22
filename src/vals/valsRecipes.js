@@ -488,6 +488,29 @@ export function valsRecipes(app, ctx) {
     // promote the currently scanned/entered food straight into the recipe bank
     saveScanToRecipe: () => app.openAddRecipeFrom({ name: st.foodLogName, macros: { p: Number(st.foodLogP) || 0, c: Number(st.foodLogC) || 0, f: Number(st.foodLogF) || 0, kcal: Number(st.foodLogKcal) || 0 } }),
     canSaveScanToRecipe: !!st.foodLogName.trim() && [st.foodLogP, st.foodLogC, st.foodLogF, st.foodLogKcal].some((val) => Number(val) > 0),
+    // THE QUICK-LOG RAIL — the top of the screen, and the whole point of it.
+    //
+    // His report (22 Sep 2026): "have recently logged or added foods added to
+    // the top so I don't need to keep scrolling to search for something I just
+    // added". The recents list was at the FOOT of the food log, behind a
+    // disclosure, under every entry of the day. Something eaten twice a week
+    // took a scroll and two taps to log again.
+    //
+    // Same data as the list below, ordered newest-first by the server (see
+    // foodHistory.js — it sorts by the MOMENT, so what he just added leads),
+    // cut to what fits a horizontal rail. The macros ride along raw so the
+    // card can draw the split rather than spell it out.
+    foodQuickLog: (st.liveFoodHistory || []).slice(0, 12).map((it) => ({
+      key: it.key,
+      name: it.name,
+      kcal: Math.round(Number(it.macros?.kcal) || 0),
+      p: Math.round(Number(it.macros?.p) || 0),
+      c: Math.round(Number(it.macros?.c) || 0),
+      f: Math.round(Number(it.macros?.f) || 0),
+      often: it.count > 1 ? `${it.count}×` : '',
+      log: () => app.relogFoodItem(it),
+    })),
+
     // recent off-plan foods (cross-day history), each re-loggable or promotable
     foodHistoryOpen: st.foodHistoryOpen,
     toggleFoodHistory: () => app.toggleFoodHistory(),

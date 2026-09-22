@@ -962,6 +962,10 @@ export default class App extends Component {
     if (changed && screen === 'voice') this.maybeGreet('voice');
     if (changed && screen === 'code') this.refreshCodeChanges(); // the diff is the first thing he wants to see
     if (changed && screen === 'ops') this.refreshForge(); // arriving at Ops is when the fleet's jobs matter
+    // The quick-log rail sits at the TOP of Fuel and is the fastest path to
+    // logging anything he has eaten before, so its data cannot wait for him to
+    // open a disclosure at the bottom of the screen — it loads on arrival.
+    if (changed && screen === 'recipes' && this.state.liveFoodHistory == null) this.loadFoodHistory();
     const want = '#/' + screen;
     // pushState (not location.hash=) so this doesn't also fire hashchange and
     // double-set state; popstate covers the back button.
@@ -2063,7 +2067,7 @@ export default class App extends Component {
       this.noteLocalWrite('foodLog');
       this.applyFoodLogDay(day); // whole-day replace — the temp row is gone
       this.setState({ foodLogBusy: false });
-      if (this.state.foodHistoryOpen) this.loadFoodHistory();
+      this.loadFoodHistory(); // the rail is always on screen, so it always re-reads
     }).catch((e) => {
       // the optimistic row goes either way — it was never real
       if (previousDay) this.applyFoodLogDay(previousDay);

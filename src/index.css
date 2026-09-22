@@ -988,6 +988,17 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 #root { timeline-scope: --nv-main; }
 #root main { scroll-timeline: --nv-main block; }
 
+/* THE SEND CONTROL ARRIVING. Not a fade — a thing that was not there and now
+   is, coming up from under the field's edge the way iMessage's does. It never
+   starts from scale(0): nothing in the physical world appears out of nothing,
+   and .82 already reads as a disc (emil-design-eng). Short, because he sees
+   this every time he types a food. */
+@keyframes nvSendArrive {
+  from { opacity: 0; transform: scale(.82) translateY(3px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { @keyframes nvSendArrive { from { opacity: 0; } to { opacity: 1; } } }
+
 /* the two layers share one slot; the wordmark is the one that is tappable */
 .nv-title-slot { position: relative; display: inline-grid; align-items: center; min-height: 22px; }
 .nv-title-slot > * { grid-area: 1 / 1; }

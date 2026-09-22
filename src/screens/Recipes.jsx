@@ -15,6 +15,57 @@ const btn = (bg, ink, extra = {}) => (isAppleStyle()
   ? { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: '600 15px var(--nv-font-ui)', letterSpacing: '-.01em', padding: '10px 18px', borderRadius: '999px', background: bg, color: ink, ...extra }
   : { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: 'var(--nv-micro-l)', textTransform: 'uppercase', padding: '9px 16px', borderRadius: '8px', background: bg, color: ink, ...extra });
 
+// ONE CARD ON THE QUICK-LOG RAIL — a food he has eaten before, one tap from
+// being on today's plate again.
+//
+// His ask (22 Sep 2026) was to stop scrolling for something he had just added.
+// The answer is a rail at the top, but a rail of plain name-and-numbers boxes
+// would be the thing CLAUDE.md forbids outright: "nothing on a Nova surface is
+// a plain box with text in it, and colour means something".
+//
+// So the card carries a picture of the food rather than a sentence about it.
+// The energy is the figure, at display size, because that is what he is
+// choosing on. Underneath, the macro split is drawn as one bar in three
+// widths — protein cyan, carbs gold, fat violet, the same three hues these
+// macros wear everywhere else in Nova, so a glance tells him whether this is
+// the protein thing or the carb thing without reading a single number. The
+// bar is proportional to GRAMS, which is honest about composition and says
+// nothing about calories; the calorie figure above it carries that.
+//
+// A food with no macros at all draws no bar rather than a bar of zeros.
+function QuickLogCard({ item }) {
+  const grams = item.p + item.c + item.f;
+  const pct = (n) => (grams > 0 ? `${(n / grams) * 100}%` : '0%');
+  return (
+    <Interactive as="div" onClick={item.log} haptic="commit"
+      aria-label={`Log ${item.name} again — ${item.kcal} calories`}
+      base={{
+        flex: '0 0 132px', minWidth: 0, cursor: 'pointer', borderRadius: '15px', padding: '11px 12px 10px',
+        border: '1px solid var(--nv-edge)', background: 'var(--nv-glass)',
+        display: 'flex', flexDirection: 'column', gap: '7px', textAlign: 'left',
+        transition: 'border-color .18s var(--nv-ease), background .18s var(--nv-ease)',
+      }}
+      hoverStyle={{ borderColor: 'color-mix(in srgb, var(--nv-good) 55%, transparent)', background: 'color-mix(in srgb, var(--nv-good) 07%, var(--nv-glass))' }}>
+      {/* two lines then ellipsis: "Almond Butter Blueberry Protein Smoothie"
+          is a real name in his log and a single clamped line says almost
+          nothing about which food it is */}
+      <span style={css("min-height:32px;font:600 12.5px/1.28 var(--nv-font-ui);color:var(--nv-ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden")}>{item.name}</span>
+      <span style={css("display:flex;align-items:baseline;gap:4px")}>
+        <span style={css("font:700 19px var(--nv-font-ui);letter-spacing:var(--nv-display-track);color:var(--nv-ink);font-variant-numeric:tabular-nums;line-height:1")}>{item.kcal}</span>
+        <span style={css("font:600 9.5px var(--nv-font-ui);letter-spacing:.06em;color:color-mix(in srgb, var(--nv-ink) 42%, transparent)")}>KCAL</span>
+        {item.often && <span style={css("margin-left:auto;font:600 9.5px var(--nv-font-ui);color:color-mix(in srgb, var(--nv-gold) 85%, transparent)")}>{item.often}</span>}
+      </span>
+      {grams > 0 && (
+        <span aria-hidden="true" style={css("display:flex;height:3px;border-radius:2px;overflow:hidden;background:color-mix(in srgb, var(--nv-ink) 10%, transparent)")}>
+          <span style={{ width: pct(item.p), background: 'var(--nv-cy)' }} />
+          <span style={{ width: pct(item.c), background: 'var(--nv-gold)' }} />
+          <span style={{ width: pct(item.f), background: 'var(--nv-vi)' }} />
+        </span>
+      )}
+    </Interactive>
+  );
+}
+
 // Apple-layout twin for the eaten-today strip: same dayMacros object,
 // rendered as four stat tiles instead of the inline HUD strip.
 // ONE MEAL CARD. Its own component because a multi-option card takes a
@@ -297,10 +348,19 @@ export function Recipes({ v }) {
           {v.foodLogViewingLabel && (
             <Meta as="div" tone="gold" style={{ marginTop: '8px' }}>{v.foodLogViewingLabel}</Meta>
           )}
-          {/* ONE bar, four senses (mockup): type it, shoot it, scan it —
-              icons inline, no separate sections. Enter or the arrow submits;
-              the optional note field appears only once photos are staged. */}
-          <div style={css("margin-top:12px;display:flex;gap:8px;align-items:center")}>
+          {/* ONE FIELD, NOT FIVE BOXES (22 Sep 2026). "I need the food log to
+              be revised to be cleaner, easier, more apple-like aesthetic."
+              This was an input followed by four separate 42px bordered
+              squares in a row — at 375px that is 168px of chrome plus gaps
+              beside a field with nowhere left to go, and it read as a toolbar
+              rather than a place to type.
+
+              Apple's own composers put the verbs INSIDE the field: one
+              rounded well, the text on the left, the ways of saying it on the
+              right, and the send control appearing only once there is
+              something to send. Same four capabilities — type it, say it,
+              shoot it, scan it — one object instead of five. */}
+          <div style={css("margin-top:12px;display:flex;align-items:center;gap:2px;background:var(--nv-well);border:1px solid var(--nv-edge);border-radius:14px;padding:4px 5px 4px 6px;transition:border-color .18s var(--nv-ease)")}>
             {/* his report: typing a food and hitting Enter looked like it did
                 nothing — because it didn't SHOW anything, even though a
                 search was genuinely running. Disabled proves the tap
@@ -309,44 +369,44 @@ export function Recipes({ v }) {
                 would never actually be visible) is the rest of the fix. */}
             <Interactive as="input" value={v.foodDescribeInput} onChange={v.setFoodDescribeInput} onKeyDown={v.describeFoodKey}
               disabled={v.foodScanBusy}
-              placeholder="Log anything — type it, shoot it, or scan it…"
-              base="flex:1;min-width:0;box-sizing:border-box;background:rgba(0,0,0,.3);border:1px solid var(--nv-edge);border-radius:12px;padding:11px 14px;color:var(--nv-ink);font-size:13px;font-family:var(--nv-font-ui);outline:none"
-              focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
+              placeholder="Log anything…"
+              base="flex:1;min-width:0;box-sizing:border-box;background:none;border:none;border-radius:10px;padding:9px 8px;color:var(--nv-ink);font-family:var(--nv-font-ui);outline:none" />
             {dict.supported && (
               <Interactive as="span" onClick={dict.toggle} aria-label={dict.on ? 'Stop dictating' : 'Say it'}
-                base={css(`cursor:pointer;flex:none;width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;border:1px solid ${dict.on ? 'var(--nv-good)' : 'color-mix(in srgb, var(--nv-good) 45%, transparent)'};background:color-mix(in srgb, var(--nv-good) ${dict.on ? 22 : 10}%, transparent)`)}
-                hoverStyle="background:color-mix(in srgb, var(--nv-good) 20%, transparent)">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--nv-good)" strokeWidth="2.2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+                base={css(`cursor:pointer;flex:none;width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:${dict.on ? 'color-mix(in srgb, var(--nv-good) 22%, transparent)' : 'none'}`)}
+                hoverStyle="background:rgba(255,255,255,.06)">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={dict.on ? 'var(--nv-good)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)'} strokeWidth="2.2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
               </Interactive>
             )}
-            <label aria-label="Shoot or add photos" style={css("cursor:pointer;flex:none;width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;border:1px solid var(--nv-edge)")}>
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="color-mix(in srgb, var(--nv-ink) 62%, transparent)" strokeWidth="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.4"/></svg>
-              {/* no capture attr + multiple: iOS offers Take Photo OR the
-                  library from the one button — shoot it AND add-photos,
-                  without the fifth icon that overflowed a phone width */}
+            {/* THE CAMERA IS A LABEL WRAPPING THE INPUT, and stays one. On
+                iOS that single element is what opens the sheet offering Take
+                Photo OR the library — `capture` would force the camera and
+                take the library away, and a click() from a handler is the
+                shape iOS blocks in a standalone PWA. */}
+            <label aria-label="Shoot or add photos" style={css("cursor:pointer;flex:none;width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center")}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="color-mix(in srgb, var(--nv-ink) 55%, transparent)" strokeWidth="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.4"/></svg>
               <input type="file" accept="image/*" multiple onChange={v.addFoodScanPhotos} disabled={v.foodScanBusy} style={css("display:none")} />
             </label>
             <Interactive as="span" onClick={v.foodScanBusy ? undefined : v.openBarcodeScanner} aria-label="Scan barcode"
-              base="cursor:pointer;flex:none;width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;border:1px solid var(--nv-edge)"
-              hoverStyle="border-color:var(--nv-good)">
-              <svg width="17" height="17" viewBox="0 0 24 24" stroke="color-mix(in srgb, var(--nv-ink) 62%, transparent)" strokeWidth="2"><path d="M4 6v12M8 6v12M12 6v12M15 6v12M19 6v12" fill="none"/></svg>
+              base="cursor:pointer;flex:none;width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center"
+              hoverStyle="background:rgba(255,255,255,.06)">
+              <svg width="17" height="17" viewBox="0 0 24 24" stroke="color-mix(in srgb, var(--nv-ink) 55%, transparent)" strokeWidth="2"><path d="M4 6v12M8 6v12M12 6v12M15 6v12M19 6v12" fill="none"/></svg>
             </Interactive>
-            {/* THE SUBMIT CONTROL. The bar had none — the comment above
-                claimed "Enter or the arrow submits" but only Enter existed,
-                so on a phone (no Enter key in reach, keyboard covering the
-                view) typing a food genuinely could not be searched. */}
-            <Interactive as="span" onClick={v.canDescribeFood ? v.describeFoodSearch : undefined}
-              aria-label="Search this food"
-              base={{ cursor: v.canDescribeFood ? 'pointer' : 'default', flex: 'none', width: '42px', height: '42px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                border: v.canDescribeFood ? '1px solid var(--nv-good)' : '1px solid var(--nv-edge)',
-                background: v.canDescribeFood ? 'color-mix(in srgb, var(--nv-good) 16%, transparent)' : 'none',
-                opacity: v.foodScanBusy ? 0.5 : 1, transition: 'background .2s ease, border-color .2s ease' }}
-              hoverStyle={v.canDescribeFood ? { background: 'color-mix(in srgb, var(--nv-good) 26%, transparent)' } : undefined}>
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" strokeWidth="2.2"
-                stroke={v.canDescribeFood ? 'var(--nv-good)' : 'color-mix(in srgb, var(--nv-ink) 30%, transparent)'}>
-                <path d="M5 12h13M12 5l7 7-7 7"/>
-              </svg>
-            </Interactive>
+            {/* THE SUBMIT CONTROL. The bar once had none — the comment here
+                claimed "Enter or the arrow submits" while only Enter existed,
+                so on a phone (no Enter key in reach, keyboard over the view) a
+                typed food genuinely could not be searched. It now ARRIVES
+                when there is something to send, the way a send button does,
+                instead of sitting there greyed out taking up the width. */}
+            {v.canDescribeFood && (
+              <Interactive as="span" onClick={v.describeFoodSearch} aria-label="Search this food" haptic="commit"
+                base={{ cursor: 'pointer', flex: 'none', width: '34px', height: '34px', borderRadius: '999px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'var(--nv-good)', opacity: v.foodScanBusy ? 0.5 : 1,
+                  animation: 'nvSendArrive var(--nv-dur-fast) var(--nv-ease) both' }}
+                hoverStyle={{ filter: 'brightness(1.08)' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#122015" strokeWidth="2.6"><path d="M12 19V6M5 12l7-7 7 7"/></svg>
+              </Interactive>
+            )}
           </div>
           {v.foodScanBusy && (
             <div style={css("margin-top:7px;display:flex;align-items:center;gap:6px;font-size:11px;color:color-mix(in srgb, var(--nv-good) 75%, var(--nv-ink))")}>
@@ -354,26 +414,72 @@ export function Recipes({ v }) {
               {v.foodScanSlow ? 'Still searching — a named product can take a moment…' : 'Searching…'}
             </div>
           )}
-          {/* which day this lands on — compact, below the bar (mockup keeps
-              the bar clean); off-plan totals ride along when they exist */}
-          <div style={css("margin-top:9px;display:flex;gap:6px;flex-wrap:wrap;align-items:center")}>
-            <Meta tone="faint">For</Meta>
+
+          {/* THE QUICK-LOG RAIL. Directly under the composer, because this is
+              the fastest way to log and the fastest way should be the nearest
+              thing to hand. Newest first — see foodHistory.js. */}
+          {v.foodQuickLog.length > 0 && (
+            <div style={css("margin-top:12px")}>
+              <Eyebrow as="div" style={{ margin: '0 2px 7px' }}>Log it again</Eyebrow>
+              <div style={css("display:flex;gap:8px;overflow-x:auto;padding:1px 2px 6px;scrollbar-width:none;scroll-snap-type:x proximity")}>
+                {v.foodQuickLog.map((it) => (
+                  <div key={it.key} style={css("scroll-snap-align:start;display:flex")}><QuickLogCard item={it} /></div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* WHICH DAY THIS LANDS ON — one scrolling rail, never two wrapped
+              rows. Seven chips plus the "For" label wrapped at 402px and the
+              second row read as a separate control (aesthetic review, finding
+              15). A rail is also the honest shape: this is a list that has no
+              natural end, not a set of options that happens to be seven. */}
+          <div style={css("margin-top:10px;display:flex;gap:7px;align-items:center;overflow-x:auto;padding-bottom:2px;scrollbar-width:none")}>
+            <Meta tone="faint" style={{ flex: 'none' }}>For</Meta>
             {v.foodLogDays.map((d) => (
-              <Chip key={d.key} tone={d.active ? 'accent' : 'quiet'} active={d.active} onClick={d.pick}>{cap(d.label)}</Chip>
+              <span key={d.key} style={css("flex:none")}><Chip tone={d.active ? 'accent' : 'quiet'} active={d.active} onClick={d.pick}>{cap(d.label)}</Chip></span>
             ))}
-            {v.foodLogEntries.length > 0 && (
-              <span style={css("margin-left:auto;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
-                off-plan: <span style={css("color:var(--nv-cy)")}>{v.foodLogTotals.p}P</span> · <span style={css("color:var(--nv-good)")}>{v.foodLogTotals.kcal} kcal</span>
-              </span>
-            )}
           </div>
+          {/* WHAT TODAY ALREADY HOLDS, as a shape rather than a sentence. The
+              line used to read "off-plan: 113P · 1255 kcal" in 11px grey — a
+              number he is steering by, set smaller than the labels around it.
+              Same three hues as the rail cards, so the bar means the same
+              thing in both places. */}
+          {v.foodLogEntries.length > 0 && (
+            <div style={css("margin-top:10px;display:flex;align-items:center;gap:11px")}>
+              <span style={css("display:flex;align-items:baseline;gap:4px;flex:none")}>
+                <span style={css("font:700 17px var(--nv-font-ui);letter-spacing:var(--nv-display-track);color:var(--nv-ink);font-variant-numeric:tabular-nums")}>{v.foodLogTotals.kcal}</span>
+                <span style={css("font:600 9.5px var(--nv-font-ui);letter-spacing:.06em;color:color-mix(in srgb, var(--nv-ink) 42%, transparent)")}>KCAL OFF-PLAN</span>
+              </span>
+              <span style={css("flex:1;min-width:0;display:flex;flex-direction:column;gap:4px")}>
+                <span aria-hidden="true" style={css("display:flex;height:4px;border-radius:2px;overflow:hidden;background:color-mix(in srgb, var(--nv-ink) 10%, transparent)")}>
+                  {(() => {
+                    const t = v.foodLogTotals, g = (Number(t.p) || 0) + (Number(t.c) || 0) + (Number(t.f) || 0);
+                    const w = (n) => (g > 0 ? `${((Number(n) || 0) / g) * 100}%` : '0%');
+                    return (<>
+                      <span style={{ width: w(t.p), background: 'var(--nv-cy)' }} />
+                      <span style={{ width: w(t.c), background: 'var(--nv-gold)' }} />
+                      <span style={{ width: w(t.f), background: 'var(--nv-vi)' }} />
+                    </>);
+                  })()}
+                </span>
+                <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
+                  <span style={css("color:var(--nv-cy)")}>{v.foodLogTotals.p}P</span> · <span style={css("color:var(--nv-gold)")}>{v.foodLogTotals.c}C</span> · <span style={css("color:var(--nv-vi)")}>{v.foodLogTotals.f}F</span>
+                </span>
+              </span>
+            </div>
+          )}
           {/* Log part of something already in his collection — his ask: a bag
               stored as one full serving, eaten a third at a time, without
               re-entering it as a new food. */}
-          <div style={css("margin-top:10px")}>
+          {/* the two slower ways in, on ONE line. They were stacked rows,
+              which gave a fallback (typing four numbers by hand) the same
+              vertical weight as the composer above it. */}
+          <div style={css("margin-top:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap")}>
             <Chip tone={v.foodRecipePickerOpen ? 'accent' : 'quiet'} active={v.foodRecipePickerOpen} onClick={v.foodRecipePickerOpen ? v.closeFoodRecipePicker : v.openFoodRecipePicker}>
               {v.foodRecipePickerOpen ? '× From your recipes' : '＋ From your recipes'}
             </Chip>
+            <TextAction compact tone="quiet" onClick={() => setManualOpen(!manualOpen)}>{manualVisible ? '▾' : '▸'} Enter macros myself</TextAction>
           </div>
           {v.foodRecipePickerOpen && (
             <div style={css("margin-top:10px;border:1px solid var(--nv-edge);border-radius:12px;background:rgba(0,0,0,.22);padding:12px;animation:fadeUp var(--nv-dur-base) var(--nv-ease)")}>
@@ -467,7 +573,6 @@ export function Recipes({ v }) {
           )}
           {/* manual macros are the fallback, not the feature — folded away
               (mockup: one bar, four senses; numbers only when he wants them) */}
-          <TextAction compact tone="quiet" onClick={() => setManualOpen(!manualOpen)} style={{ marginTop: '10px', marginLeft: '-8px' }}>{manualVisible ? '▾' : '▸'} Enter macros myself</TextAction>
           {manualVisible && <div style={css("margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
             <Interactive as="input" value={v.foodLogName} onChange={v.setFoodLogName} placeholder="What did you eat?" base="flex:1;min-width:140px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 12px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
             <Interactive as="input" type="number" inputMode="numeric" value={v.foodLogP} onChange={v.setFoodLogP} placeholder="P" base="width:52px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 8px;color:var(--nv-cy);font-size:12.5px;font-family:var(--nv-font-mono);outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
@@ -503,19 +608,33 @@ export function Recipes({ v }) {
               <TextAction onClick={v.foodItemUndo.run}>{v.foodItemUndo.label}</TextAction>
             </div>
           )}
+          {/* THE DAY, AS ONE GROUPED LIST (22 Sep 2026). Every row used to
+              carry its own top border, so eight entries drew eight hairlines
+              across the full width and the list read as eight objects rather
+              than one day. Apple's grouped list is the opposite: ONE inset
+              container, separators that start where the text starts and stop
+              at the last row, and no line at all above the first or below the
+              last. Nothing else changed about what a row does — the ✎ and ×
+              stay exactly where his thumb already knows they are, because his
+              complaint was that this looked cluttered, not that it behaved
+              wrongly. */}
           {v.foodLogEntries.length > 0 && (
-            <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:6px")}>
-              {v.foodLogEntries.map((e) => (
+            <div style={css("margin-top:12px;border-radius:14px;border:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);background:color-mix(in srgb, var(--nv-void) 22%, transparent);overflow:hidden")}>
+              {v.foodLogEntries.map((e, i) => (
                 <div key={e.id}>
-                <div style={css("display:flex;align-items:center;gap:10px;font-size:12.5px;padding:6px 0;border-top:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent)")}>
-                  <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 40%, transparent);width:40px;flex:none")}>{e.time}</span>
+                {/* the separator starts where the NAME starts, not at the
+                    container's edge — that inset is the whole signature of an
+                    Apple grouped list, and a full-bleed rule reads as a table */}
+                {i > 0 && <div aria-hidden="true" style={css("height:1px;margin-left:58px;background:color-mix(in srgb, var(--nv-ink) 09%, transparent)")} />}
+                <div style={css("display:flex;align-items:center;gap:10px;font-size:12.5px;padding:9px 10px 9px 12px")}>
+                  <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 40%, transparent);width:36px;flex:none;font-variant-numeric:tabular-nums")}>{e.time}</span>
                   {/* title over macros, iOS-list style: side by side, a long
                       name plus four macro figures pushed the ✎ and × past the
                       row's right edge at 375px (measured, not guessed) */}
-                  <span style={css("min-width:0;flex:1;display:flex;flex-direction:column;gap:1px")}>
-                    <span style={css("overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{e.name}</span>
+                  <span style={css("min-width:0;flex:1;display:flex;flex-direction:column;gap:2px")}>
+                    <span style={css("overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500")}>{e.name}</span>
                     <span style={css("display:flex;align-items:center;gap:7px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 50%, transparent)")}>
-                      <span>{e.p}P · {e.c}C · {e.f}F · {e.kcal}kcal</span>
+                      <span><span style={css("color:color-mix(in srgb, var(--nv-cy) 80%, transparent)")}>{e.p}P</span> · <span style={css("color:color-mix(in srgb, var(--nv-gold) 80%, transparent)")}>{e.c}C</span> · <span style={css("color:color-mix(in srgb, var(--nv-vi) 80%, transparent)")}>{e.f}F</span> · {e.kcal}kcal</span>
                       {e.edited && <Tag tone="gold" title="amended after logging" style={{ flex: 'none' }}>Edited</Tag>}
                     </span>
                   </span>
@@ -532,7 +651,7 @@ export function Recipes({ v }) {
                     total is the server's sum of the ones that are left, so a
                     wrong estimate is correctable instead of all-or-nothing. */}
                 {e.items.length > 0 && (
-                  <div style={css("margin:2px 0 4px 50px;display:flex;flex-direction:column;gap:2px")}>
+                  <div style={css("margin:0 0 7px 58px;display:flex;flex-direction:column;gap:2px")}>
                     {e.items.map((it) => (
                       <div key={it.id} style={css("display:flex;align-items:center;gap:8px;min-width:0")}>
                         <span style={css("flex:none;color:color-mix(in srgb, var(--nv-ink) 26%, transparent);font-size:11px")}>└</span>
@@ -550,6 +669,10 @@ export function Recipes({ v }) {
                 )}
                 </div>
               ))}
+            </div>
+          )}
+          {v.foodLogEntries.length > 0 && (
+            <div style={css("margin-top:6px;display:flex;flex-direction:column;gap:6px")}>
               {v.foodEdit && (
                 <div style={css("margin-top:6px;border:1px solid color-mix(in srgb, var(--nv-cy) 32%, transparent);border-radius:11px;padding:12px;background:color-mix(in srgb, var(--nv-cy) 05%, transparent);animation:fadeUp var(--nv-dur-base) var(--nv-ease)")}>
                   <Eyebrow tone="cyan">Edit this entry</Eyebrow>
@@ -585,11 +708,11 @@ export function Recipes({ v }) {
             </div>
           )}
           <div style={css("margin-top:14px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:10px")}>
-            <TextAction compact tone="quiet" onClick={v.toggleFoodHistory} style={{ marginLeft: '-8px' }}>{v.foodHistoryOpen ? '▾' : '▸'} Recent foods</TextAction>
+            <TextAction compact tone="quiet" onClick={v.toggleFoodHistory} style={{ marginLeft: '-8px' }}>{v.foodHistoryOpen ? '▾' : '▸'} Everything you've logged</TextAction>
             {v.foodHistoryOpen && (
               <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:5px")}>
                 {!v.foodHistoryLoaded && <div style={css("font-size:12px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Loading…</div>}
-                {v.foodHistoryLoaded && v.foodHistory.length === 0 && <div style={css("font-size:12px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent);line-height:1.5")}>Nothing off-plan yet. Scanned and quick-added foods collect here so you can re-log them in a tap.</div>}
+                {v.foodHistoryLoaded && v.foodHistory.length === 0 && <div style={css("font-size:12px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent);line-height:1.5")}>Nothing off-plan yet. Scanned and quick-added foods collect here, and the newest of them ride the rail at the top.</div>}
                 {v.foodHistory.map((it) => (
                   <div key={it.key} style={css("display:flex;align-items:center;gap:9px;font-size:12.5px;padding:4px 0")}>
                     <span style={css("flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{it.name}{it.seen && <span style={css("margin-left:6px;font:var(--nv-micro-m);color:var(--nv-gold)")}>{it.seen}</span>}</span>
