@@ -1,7 +1,7 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { TabOrderEditor } from '../TabOrderEditor.jsx';
-import { Eyebrow, TextAction, Chip, Tag, Meta, ScreenHead, Button } from '../Controls.jsx';
+import { Eyebrow, TextAction, Chip, Tag, Meta, ScreenHead, Button, Chevron } from '../Controls.jsx';
 import { hapticCapability, HAPTIC_WORDS, haptic, hapticDiagnostic } from '../haptics.js';
 
 // the material pass (6 Sep 2026): labels through Controls.jsx; a filled
@@ -666,10 +666,14 @@ export function Settings({ v }) {
               {v.modelSettings.groups.map((g) => (
                 <div key={g.id} style={{ marginTop: '18px', maxWidth: '640px' }}>
                   <Interactive as="div" onClick={g.toggleOpen}
-                    base="cursor:pointer;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding-bottom:7px;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent)"
+                    base="cursor:pointer;display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-height:34px;padding-bottom:7px;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent)"
                     hoverStyle="border-bottom-color:var(--nv-acc-border)"
                   >
-                    <Eyebrow as="span" tone="cyan">{g.open ? '▾' : '▸'} {g.label}</Eyebrow>
+                    {/* 23px and a raw glyph pair; now the house chevron, which
+                        turns rather than swapping character, on a row a thumb
+                        can hit (measured 23 Sep) */}
+                    <Chevron open={g.open} tone="cyan" />
+                    <Eyebrow as="span" tone="cyan">{g.label}</Eyebrow>
                     <Meta tone="faint">{g.hint}</Meta>
                     <Meta tone={g.offCount ? 'warn' : 'faint'} style={{ marginLeft: 'auto' }}>
                       {g.offCount ? `${g.offCount}/${g.count} off` : `${g.count}`}

@@ -20,9 +20,13 @@ export function ClaudeCode({ v }) {
       </div>
       <div style={v.gridCode}>
         <div style={v.consoleCard}>
-          <div style={css("display:flex;align-items:center;gap:9px;padding:12px 18px;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)")}>
+          {/* three dots, a workspace path and a connection state on one
+              unwrapped row overflowed the card by 57px at 375 (measured
+              23 Sep). It wraps now, and the path truncates rather than
+              pushing the state off the end. */}
+          <div style={css("display:flex;align-items:center;gap:9px;row-gap:6px;flex-wrap:wrap;padding:12px 18px;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)")}>
             <span style={css("width:9px;height:9px;border-radius:50%;background:var(--nv-warn)")}></span><span style={css("width:9px;height:9px;border-radius:50%;background:var(--nv-gold)")}></span><span style={css("width:9px;height:9px;border-radius:50%;background:#5aa87c")}></span>
-            <Meta tone="faint" style={{ marginLeft: '8px', textTransform: 'none', letterSpacing: 0 }}>nova — claude-code · {v.codeWorkspace === 'repo' ? '~/nova-os' : '~/vault'}</Meta>
+            <Meta tone="faint" style={{ marginLeft: '8px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: 'none', letterSpacing: 0 }}>nova — claude-code · {v.codeWorkspace === 'repo' ? '~/nova-os' : '~/vault'}</Meta>
             <Meta tone={v.codeConnected ? 'cyan' : 'faint'} style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '7px' }}>
               <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: v.codeConnected ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 30%, transparent)', animation: v.codeConnected ? 'novaPulse 2s infinite' : 'none' }}></span>
               {v.codeConnected ? 'Connected' : 'Not connected'}
@@ -31,7 +35,12 @@ export function ClaudeCode({ v }) {
           {/* C2: the diff, and his call on it — the thing that used to send
               him to a terminal. Shelving is undoable by construction. */}
           {v.codeChanges && !v.codeChanges.clean && (
-            <div style={css("margin:0 16px 0;border:1px solid color-mix(in srgb, var(--nv-gold) 38%, transparent);border-radius:13px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-gold) 07%, transparent),transparent)")}>
+            /* THE CARD IS 460px ON A PHONE AND THIS BLOCK DOES NOT SHRINK.
+               With uncommitted changes it pushed the transcript and composer
+               out of the bottom of the console, clipped by the card's own
+               `overflow:hidden` — 106px of it, measured. It scrolls inside
+               its own box now, so the terminal below it always survives. */
+            <div style={css("margin:0 16px 0;flex:0 1 auto;min-height:0;max-height:46%;overflow-y:auto;border:1px solid color-mix(in srgb, var(--nv-gold) 38%, transparent);border-radius:13px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-gold) 07%, transparent),transparent)")}>
               <div style={css("display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 15px")}>
                 <Eyebrow as="span" tone="gold">Uncommitted changes</Eyebrow>
                 <Meta tone="quiet" style={{ textTransform: 'none', letterSpacing: 0 }}>{v.codeChanges.files.length} file{v.codeChanges.files.length === 1 ? '' : 's'} · {v.codeChanges.branch}</Meta>

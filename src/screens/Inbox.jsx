@@ -154,7 +154,11 @@ export function Inbox({ v }) {
             <div style={css('margin-top:8px;display:flex;flex-direction:column;gap:7px')}>
               {v.inboxLanded.recent.map((h) => (
                 <Interactive key={h.id} as="div" onClick={h.open} ariaLabel={`Open ${h.title}`}
-                  base={css('cursor:pointer;display:flex;align-items:baseline;gap:9px;min-width:0;border-radius:8px;padding:3px 5px;margin:0 -5px')}
+                  /* 25px rows, and every one of them is a tap into a filed
+                     capture (measured 23 Sep). The padding buys the floor
+                     without moving the list: the negative margin gives it
+                     straight back. */
+                  base={css('cursor:pointer;display:flex;align-items:center;gap:9px;min-width:0;min-height:30px;border-radius:8px;padding:5px;margin:0 -5px')}
                   hoverStyle={{ background: 'color-mix(in srgb, var(--nv-ink) 06%, transparent)' }}>
                   <span style={css(`flex:none;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:${h.status === 'filed' ? 'var(--nv-good)' : h.status === 'error' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 38%, transparent)'}`)}>
                     {h.status === 'filed' ? '✓' : h.status === 'error' ? '!' : '—'}
@@ -576,15 +580,9 @@ export function Inbox({ v }) {
                           >{p.busy ? '…' : 'Accept'}</Button>
                         )}
                         {p.open && (
-                          <Interactive as="span" onClick={p.open}
-                            base={{ cursor: 'pointer', font: `600 11.5px ${R}`, padding: '4px 12px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-vi) 45%, transparent)', color: 'var(--nv-vi)' }}
-                            hoverStyle={{ background: 'color-mix(in srgb, var(--nv-vi) 08%, transparent)' }}
-                          >Open</Interactive>
+                          <Button variant="quiet" compact tone="violet" onClick={p.open}>Open</Button>
                         )}
-                        <Interactive as="span" onClick={p.busy ? undefined : p.dismiss}
-                          base={{ cursor: 'pointer', font: `600 11.5px ${R}`, padding: '4px 12px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent)', color: 'var(--nv-ink60)', opacity: p.busy ? 0.5 : 1 }}
-                          hoverStyle={{ background: 'rgba(255,255,255,.05)' }}
-                        >Dismiss</Interactive>
+                        <Button variant="quiet" compact tone="quiet" onClick={p.dismiss} disabled={p.busy}>Dismiss</Button>
                       </div>
                     </div>
                   ))}
@@ -709,10 +707,15 @@ export function Inbox({ v }) {
               const meta = STATUS_META[item.status] || STATUS_META.error;
               return (
                 <div key={item.id} data-record={item.id} style={css(`padding:10px 4px${i < shownHistory.length - 1 ? ';border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent)' : ''}`)}>
-                <div style={css('display:flex;gap:12px;align-items:baseline')}>
+                {/* THE ROW WRAPS. Badge + title + status + up to four action
+                    pills on one unwrapped line ran 115px past a 375px screen
+                    and took the whole page sideways with it (measured 23 Sep).
+                    The title keeps most of the width and the pills drop to
+                    their own line when they no longer fit. */}
+                <div style={css('display:flex;gap:10px;align-items:center;flex-wrap:wrap;row-gap:8px')}>
                   <Meta tone="faint" style={{ width: '76px', flex: 'none' }}>{item.time}</Meta>
                   <span style={{ flex: 'none' }}><RouteBadge route={item.route} confidence={null} /></span>
-                  <span onClick={item.canExpand ? item.toggleExpand : undefined} style={{ minWidth: 0, flex: 1, cursor: item.canExpand ? 'pointer' : 'default' }}
+                  <span onClick={item.canExpand ? item.toggleExpand : undefined} style={{ minWidth: 0, flex: '1 1 60%', cursor: item.canExpand ? 'pointer' : 'default' }}
                     title={item.canExpand ? (item.expanded ? 'Collapse' : 'Tap to see what was captured and filed') : undefined}>
                     <span style={css(`font:600 13.5px ${R};display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap`)}>{item.title}</span>
                     <span style={css(`font:500 11.5px ${R};color:var(--nv-ink60);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap`)}>
@@ -725,29 +728,21 @@ export function Inbox({ v }) {
                   </span>
                   <Meta tone={meta.color} style={{ flex: 'none' }}>{meta.label}</Meta>
                   {item.canUndo && (
-                    <Interactive as="span" onClick={item.busy ? undefined : item.undo}
-                      base={{ cursor: 'pointer', flex: 'none', font: `600 11px ${R}`, padding: '4px 12px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent)', color: 'var(--nv-ink60)', opacity: item.busy ? 0.5 : 1 }}
-                      hoverStyle={{ borderColor: 'var(--nv-acc-border)', color: 'var(--nv-ink)' }}
-                    >{item.busy ? '…' : 'Undo'}</Interactive>
+                    <Button variant="quiet" compact tone="quiet" onClick={item.undo} disabled={item.busy}
+                      style={{ flex: 'none' }}>{item.busy ? '…' : 'Undo'}</Button>
                   )}
                   {item.canRetry && (
-                    <Interactive as="span" onClick={item.busy ? undefined : item.retry}
-                      base={{ cursor: 'pointer', flex: 'none', font: `600 11px ${R}`, padding: '4px 12px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent)', color: 'var(--nv-ink60)', opacity: item.busy ? 0.5 : 1 }}
-                      hoverStyle={{ borderColor: 'var(--nv-acc-border)', color: 'var(--nv-ink)' }}
-                    >{item.busy ? '…' : 'Retry'}</Interactive>
+                    <Button variant="quiet" compact tone="quiet" onClick={item.retry} disabled={item.busy}
+                      style={{ flex: 'none' }}>{item.busy ? '…' : 'Retry'}</Button>
                   )}
                   {item.deepAnalyse && item.status === 'filed' && (
-                    <Interactive as="span" onClick={item.busy ? undefined : item.deepAnalyse}
+                    <Button variant="quiet" compact onClick={item.deepAnalyse} disabled={item.busy}
                       title="Run the full vault weave on this video — every concept and idea into your second brain"
-                      base={{ cursor: 'pointer', flex: 'none', font: `600 11px ${R}`, padding: '4px 12px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent)', color: 'var(--nv-cy)', opacity: item.busy ? 0.5 : 1 }}
-                      hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 08%, transparent)' }}
-                    >Deep weave</Interactive>
+                      style={{ flex: 'none' }}>Deep weave</Button>
                   )}
                   {item.canDiscard && (
-                    <Interactive as="span" onClick={item.busy ? undefined : item.discard}
-                      base={{ cursor: 'pointer', flex: 'none', font: `600 11px ${R}`, padding: '4px 12px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-warn) 35%, transparent)', color: 'var(--nv-warn)', opacity: item.busy ? 0.5 : 1 }}
-                      hoverStyle={{ background: 'color-mix(in srgb, var(--nv-warn) 10%, transparent)' }}
-                    >{item.busy ? '…' : 'Dismiss'}</Interactive>
+                    <Button variant="quiet" compact tone="warn" onClick={item.discard} disabled={item.busy}
+                      style={{ flex: 'none' }}>{item.busy ? '…' : 'Dismiss'}</Button>
                   )}
                 </div>
                 {item.expanded && (

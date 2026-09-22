@@ -176,7 +176,7 @@ export function MissionControl({ v }) {
           <div style={css('margin-top:9px;display:flex;flex-direction:column;gap:5px')}>
             {v.landedMoment.items.map((it) => (
               <Interactive key={it.id} as="div" onClick={it.open} ariaLabel={`Open ${it.title}`}
-                base={css('cursor:pointer;display:flex;align-items:baseline;gap:10px;min-width:0;border-radius:8px;padding:3px 5px;margin:0 -5px')}
+                base={css('cursor:pointer;display:flex;align-items:center;gap:10px;min-width:0;min-height:30px;border-radius:8px;padding:5px;margin:0 -5px')}
                 hoverStyle={{ background: 'color-mix(in srgb, var(--nv-ink) 06%, transparent)' }}>
                 <span style={{ flex: 'none', font: `600 11px ${M}`, color: it.status === 'filed' ? 'var(--nv-good)' : it.status === 'error' ? 'var(--nv-warn)' : 'var(--nv-ink60)' }}>
                   {it.status === 'filed' ? '✓' : it.status === 'error' ? '!' : '—'}
@@ -469,7 +469,7 @@ export function MissionControl({ v }) {
                 <span style={{ flex: 1, minWidth: 0, font: `450 13px/1.5 var(--nv-font-ui)`, color: 'var(--nv-ink)' }}>{j.label}</span>
                 {j.dismiss && (
                   <Interactive as="span" onClick={(e) => { e.stopPropagation(); j.dismiss(); }} aria-label="Clear this failed job"
-                    base={{ flex: "none", cursor: "pointer", font: "600 11px var(--nv-font-ui)", letterSpacing: ".08em", color: "var(--nv-ink40)", padding: "6px 8px", marginRight: "-8px" }}
+                    base={{ flex: "none", cursor: "pointer", font: "600 11px var(--nv-font-ui)", letterSpacing: ".08em", color: "var(--nv-ink40)", display: "inline-flex", alignItems: "center", minHeight: "30px", borderRadius: "8px", padding: "9px 10px", margin: "-9px -10px -9px 0" }}
                     hoverStyle={{ color: "var(--nv-warn)" }}>CLEAR</Interactive>
                 )}
               </div>

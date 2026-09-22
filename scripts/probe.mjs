@@ -106,16 +106,28 @@ if (!seed) { console.error('no public/_devconn.js — run `node scripts/dev-conn
 SEED = style ? `${seed}\nlocalStorage.setItem('novaos.style', ${JSON.stringify(style)});` : seed;
 await attach();
 await send('Page.navigate', { url: `http://localhost:${port}/nova-os/` });
-await new Promise((r) => setTimeout(r, 3500));
+await new Promise((r) => setTimeout(r, 2500));
 await attach();
 
 // PROVE THE RUN IS REAL before reporting a single number. A probe that
 // measures the demo fixtures in the wrong idiom reads exactly like a probe
 // that measured his app, and every conclusion drawn from it is wrong.
-const ready = await evaluate(`JSON.stringify({ conn: !!localStorage.getItem('novaos.connection'), style: document.documentElement.getAttribute('data-nv-style'), app: !!window.__novaApp })`);
-const state = JSON.parse(ready.value || '{}');
+//
+// POLLED, not slept on: after a source edit the dev server rebuilds, and a
+// fixed wait that is long enough on a warm run is short on a cold one — which
+// showed up as "the page never connected" on an app that was perfectly fine.
+let state = {};
+for (let i = 0; i < 40; i++) {
+  const ready = await evaluate(`JSON.stringify({ conn: !!localStorage.getItem('novaos.connection'), style: document.documentElement.getAttribute('data-nv-style'), app: !!window.__novaApp })`);
+  state = JSON.parse(ready.value || '{}');
+  if (state.conn && state.app) break;
+  await new Promise((r) => setTimeout(r, 500));
+  if (i === 12) await attach();   // it may have reloaded itself under us
+}
 if (!state.conn || !state.app) { console.error(`the page never connected (conn=${state.conn} app=${state.app}) — refusing to report demo data`); ws?.close(); await cleanup(); process.exit(1); }
-console.log(`idiom: ${state.style}`);
+// no attribute at all IS the command idiom — the Apple skins stamp their name
+const touchIdiom = state.style === 'cupertino' || state.style === 'apple';
+console.log(`idiom: ${state.style || 'command'}${touchIdiom ? '' : ' (pointer-first)'}`);
 
 // The measurement, run inside the page. Kept as one expression so it survives
 // a re-attach, and deliberately conservative: it reports only what it can
@@ -215,14 +227,18 @@ for (const screen of screens) {
   if (bad) parts.push(`PAGE SCROLLS SIDEWAYS by ${m.docScroll - m.vw}px`);
   if (m.wide.length) parts.push(`${m.wide.length} past the edge`);
   if (m.clipped.length) parts.push(`${m.clipped.length} clipped`);
-  if (m.tiny.length) parts.push(`${m.tiny.length} UNDER THE ${TAP_FLOOR}pt FLOOR`);
+  // The command idiom is the pointer-first skin — its whole vocabulary is the
+  // tracked mono micro-label, and an 11px target under a mouse is not the
+  // fault an 11px target under a thumb is. His phone runs cupertino, so the
+  // floor is enforced there and reported without failing here.
+  if (m.tiny.length) parts.push(`${m.tiny.length} ${touchIdiom ? 'UNDER THE ' + TAP_FLOOR + 'pt FLOOR' : `under ${TAP_FLOOR}pt (pointer skin — noted, not failed)`}`);
   if (m.small.length) parts.push(`${m.small.length} under ${TAP_TARGET}pt`);
   console.log(`${screen.padEnd(10)} ${parts.length ? parts.join(' · ') : 'clean'}`);
   for (const w of m.wide.slice(0, 6)) console.log(`   → +${w.over}px  ${w.el}`);
   for (const c of m.clipped.slice(0, 6)) console.log(`   ✂ ${c.axis} by ${c.by}px  ${c.el}`);
   for (const s of m.tiny.slice(0, 6)) console.log(`   ✖ ${s.w}x${s.h}  ${s.el}`);
   for (const s of m.small.slice(0, 4)) console.log(`   ◦ ${s.w}x${s.h}  ${s.el}`);
-  if (bad || m.wide.length || m.clipped.length || m.tiny.length) failures++;
+  if (bad || m.wide.length || m.clipped.length || (m.tiny.length && touchIdiom)) failures++;
 }
 ws.close();
 await cleanup();

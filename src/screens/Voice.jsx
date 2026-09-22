@@ -553,7 +553,10 @@ export function Voice({ v }) {
                   value={(
                     <Interactive as="span" onClick={() => v.setWakeWord(!v.wakeWordOn)}
                       aria-label={v.wakeWordOn ? 'Turn the wake word off' : 'Turn the wake word on'}
-                      base={{ cursor: 'pointer', font: 'inherit', letterSpacing: 'inherit', color: v.wakeWordOn ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 85%, transparent)' }}
+                      /* 26x15 — the smallest target in the app (measured
+                         23 Sep). Padding buys the floor, the negative margin
+                         gives the line its spacing back. */
+                      base={{ cursor: 'pointer', font: 'inherit', letterSpacing: 'inherit', display: 'inline-block', padding: '7px 8px', margin: '-7px -8px', borderRadius: '7px', color: v.wakeWordOn ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 85%, transparent)' }}
                       hoverStyle="color:var(--nv-cy);text-decoration:underline">{v.wakeWordOn ? 'ON' : 'OFF'}</Interactive>
                   )} />
               )}

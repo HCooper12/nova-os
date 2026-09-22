@@ -294,7 +294,9 @@ export function Recipes({ v }) {
           <div style={css("margin-top:8px;font-size:13px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 85%, transparent)")}>{v.fuelCross.line}</div>
           {v.fuelCross.draft && (
             <Interactive as="span" onClick={v.fuelCross.draft}
-              base={css("cursor:pointer;display:inline-block;margin-top:9px;font:600 11.5px var(--nv-font-ui);color:var(--nv-vi)")}
+              /* 149x13 — the action on the cross-check card, and the
+                 smallest target on Fuel (measured 23 Sep) */
+              base={css("cursor:pointer;display:inline-flex;align-items:center;min-height:32px;margin-top:5px;padding:6px 10px 6px 0;font:600 12.5px var(--nv-font-ui);color:var(--nv-vi)")}
               hoverStyle="filter:brightness(1.25)">Draft the fix with Coach →</Interactive>
           )}
         </div>

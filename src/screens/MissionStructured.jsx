@@ -248,7 +248,7 @@ export function MissionStructured({ v }) {
             leading={<span style={{ font: `600 12px ${M}`, color: j.failed ? 'var(--nv-warn)' : j.done ? 'var(--nv-good, #5aa87c)' : 'var(--nv-cy)' }}>{j.failed ? '✕' : j.done ? '✓' : '◍'}</span>}
             title={j.label}
             trailing={j.dismiss ? <Interactive as="span" onClick={(e) => { e.stopPropagation(); j.dismiss(); }} aria-label="Clear this failed job"
-              base={{ cursor: "pointer", font: "600 11px var(--nv-font-ui)", letterSpacing: ".08em", color: "var(--nv-ink40)", padding: "6px 8px" }}
+              base={{ cursor: "pointer", font: "600 11px var(--nv-font-ui)", letterSpacing: ".08em", color: "var(--nv-ink40)", padding: "9px 10px", margin: "-9px -10px", display: "inline-flex", alignItems: "center", minHeight: "30px", borderRadius: "8px" }}
               hoverStyle={{ color: "var(--nv-warn)" }}>CLEAR</Interactive> : (
               <span style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flex: 'none' }}>
                 {j.note && <Meta tone="faint">{j.note}</Meta>}
@@ -530,7 +530,10 @@ export function MissionStructured({ v }) {
             <div style={{ marginTop: '9px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {v.landedMoment.items.map((it) => (
                 <Interactive key={it.id} as="div" onClick={it.open} ariaLabel={`Open ${it.title}`}
-                  base={{ cursor: 'pointer', display: 'flex', alignItems: 'baseline', gap: '9px', minWidth: 0, borderRadius: '8px', padding: '3px 5px', margin: '0 -5px' }}
+                  /* 22px rows, each a tap into a filed capture (measured
+                     23 Sep). The padding buys the 28pt floor; the negative
+                     margin hands the spacing straight back. */
+                  base={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '9px', minWidth: 0, minHeight: '30px', borderRadius: '8px', padding: '5px', margin: '0 -5px' }}
                   hoverStyle={{ background: 'color-mix(in srgb, var(--nv-ink) 06%, transparent)' }}>
                   <span style={{ flex: 'none', font: `600 11px ${M}`, color: it.status === 'filed' ? 'var(--nv-good)' : it.status === 'error' ? 'var(--nv-warn)' : 'var(--nv-ink60)' }}>
                     {it.status === 'filed' ? '✓' : it.status === 'error' ? '!' : '—'}
