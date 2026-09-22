@@ -13,6 +13,118 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**22 SEP (night) — THE TOP-BAR BLUR (SIXTH ATTEMPT) AND THE CAMERA, BOTH
+DEVICE-UNVERIFIED.** Four commits: `34f5b1e` `8328058` `dbb4fa3` `d95d448`.
+
+**GOAL.** Three of his reports in one pass: the six-report top-bar blur
+(five prior CSS fixes had changed nothing); "I need the food log to be
+revised to be cleaner, easier, more apple-like aesthetic and have recently
+logged or added foods added to the top"; "the camera option isn't always
+working either to add or take a photo."
+
+**DONE CRITERIA — met for code, UNMET for the two device-only questions.**
+Lint/build/tests all pass and the deployed bundle carries every change
+(checked by grepping the live JS/CSS on GitHub Pages, not just the local
+build). Whether either iOS fix actually works can only be answered on his
+phone, and as of this close he has not yet said.
+
+**BLUR — DECISION: removed `user-scalable=no`/`maximum-scale` from the
+viewport meta; kept `minimum-scale=1.0`.** His own test that day was the
+discriminator: same phone, same build, Chrome sharp, installed app soft —
+which rules out the render engine (Chrome on iOS is WebKit too) and points
+at display MODE. iOS honours the scale lock only in standalone, never in a
+tab; a honoured lock pins page scale under a `position:fixed` layer whose
+backing store can then be rasterised at the wrong scale and stretched. This
+FORECLOSES casually re-adding the lock for some future zoom complaint
+without remembering it trades the blur fix away. Reasoning recorded in
+memory [[ios-standalone-vs-tab]]. If still soft: next lever is
+`apple-mobile-web-app-status-bar-style`, which costs him a delete-and-re-add
+of the home-screen icon to test — do not suggest it before he's tried a
+plain reload of the installed app first.
+
+**FOOD LOG — DECISION: a "log it again" rail above the composer, ordered by
+the MOMENT logged (date+time+row-position as one comparable string), not by
+date-then-count.** The old sort tied everything logged today and then
+ranked by habit — a food typed a minute ago lost to breakfast eaten forty
+times. `server/lib/foodHistory.js` `computeFoodHistory()`. This FORECLOSES
+reverting to a count-based tie-break; that is the exact regression the two
+new tests in `server/test/foodHistory.test.js` exist to catch. Composer
+rebuilt as one field (dictate/camera/barcode inside it, send arrives only
+once there's something to send); entries as one grouped inset list, Apple
+separator convention (inset to text, not full-bleed).
+
+**DECISION — macro hues fixed app-wide on Fuel: protein `--nv-cy`, carbs
+`--nv-gold`, fat `--nv-vi`,** used on the quick-log cards' split bar and the
+day's totals bar. This FORECLOSES the peer session's in-progress hero-ring
+macro arcs (finding 15, rows 1-4) using any other hue order — flagged to
+them directly; if they use a different mapping the screen will describe the
+same three numbers in two visual languages.
+
+**CAMERA — four separate faults fixed, one symptom in common** ("nothing
+happened"): the FileList was cleared synchronously before the read
+finished; `createImageBitmap` now tried before the object-URL decode path,
+which iOS can refuse on a fresh capture whose backing file it already
+released; every decode failure used to resolve to '' and vanish via
+`.filter(Boolean)` — now counted and reported in `foodScanError`; staged
+photos now persist to `sessionStorage` (not `localStorage` — this is one
+session's work, not a standing cache) so an iOS eviction while the camera
+sheet is open doesn't lose them. `App.jsx` `downscaleImageFile`,
+`addFoodScanPhotos`, `persistFoodScanPhotos`/`restoreFoodScanPhotos`.
+
+**VERIFIED (with locators):**
+- `npm run lint` exit 0, `npm run build` exit 0, `cd server && npm test` —
+  2024/2024 pass at close (was 1947 at the start of the day).
+- `server/test/foodLogSurface.test.js`, `foodCamera.test.js`,
+  `foodHistory.test.js` (two new recency tests), `mobileNative.test.js` (the
+  new viewport assertion) — all green.
+- Deployed bundle checked directly: `curl` against
+  `https://hcooper12.github.io/nova-os/` — the viewport meta tag has no
+  `user-scalable`/`maximum-scale`; the CSS contains `nvSendArrive`; the JS
+  contains `createImageBitmap` and `novaos.foodScanPhotos`.
+- Headless render against the REAL vault (`scripts/shot.mjs` + `dev-connect`)
+  confirmed rail ordering: Cadbury Dairy Milk (21:33) leads Pink Lamington
+  (21:33, same minute, tie broken by row position) leads the smoothie
+  (21:16) — the exact ordering he asked for.
+
+**ASSUMED, not verified:** that the viewport change actually fixes the
+blur on his device (strong circumstantial reasoning, zero device
+confirmation); that the four camera fixes address his report (same —
+plausible causes, none provable from Node or headless Chrome).
+
+**OPEN / BLOCKERS:**
+- His confirmation on both, device-only — logged in memory
+  [[nova-open-threads]] rather than left to be forgotten.
+- `Recipes.jsx` was handed to a peer session for finding 15's remaining four
+  rows (dashed zero ring, macro arcs, cross-check bars, rotation
+  affordances) — see the cross-session thread that day; not this session's
+  to finish.
+- **Ownership of `server/lib/ops.js`, `server/routes/ops.js`,
+  `claudeSessions*.js` is still unresolved.** Not mine. A peer ("Nova")
+  logged it as "an unnamed fourth session's" in this same file. Whoever owns
+  it should say so; do not assume it is abandoned.
+- **At this close, the working tree has 8 files modified and uncommitted
+  that are NOT mine** (`App.jsx`, `IngestModal.jsx`, `RecipeOverlay.jsx`,
+  `screens/{Galaxy,Inbox,Leader,MissionControl,Settings}.jsx`) — a gold→
+  `Button` repointing consistent with the ongoing finding-2 sweep
+  ("Nova improvement plan" was `busy` at close). Left untouched deliberately;
+  did not stage or commit them. If you are the next session and they are
+  still there, ask before assuming they're abandoned — they may simply be
+  mid-edit.
+
+**DO NOT:**
+- Do not re-add `user-scalable=no` or `maximum-scale` without remembering it
+  trades away the blur fix.
+- Do not let `computeFoodHistory`'s sort regress to date+count — it silently
+  reintroduces "habit beats recency."
+- Do not draw Fuel's macro arcs (or anything else touching P/C/F) in hues
+  other than cyan/gold/violet in that order.
+- Do not stage or commit the 8 uncommitted files above without confirming
+  whose they are.
+- Do not tell him either fix "works" — neither has been confirmed on his
+  phone.
+
+---
+
 **23 SEP — THE AESTHETIC REVIEW, BUILT.** All 22 findings are shipped or
 claimed; the status board with a commit per finding is at the head of
 `design/audits/aesthetic-2026-09-22/REPORT.md`. Three sessions worked this
@@ -2652,6 +2764,26 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+**22 Sep 2026 (night) — the sixth blur attempt, the food log revised, the
+camera's four faults.** Removed the viewport's `user-scalable=no`/
+`maximum-scale` (kept `minimum-scale=1.0`) on the reasoning that iOS honours
+that lock only in a standalone PWA, never a tab, and his own test that day
+(Chrome sharp, installed app soft) pointed exactly there after five CSS
+fixes had changed nothing. Rebuilt the food log per his ask: a "log it
+again" rail above the composer ordered by the actual moment logged (fixed
+the sort — it was ranking by habit, so a food just typed lost to one eaten
+forty times), one field instead of five boxes, one grouped list. Fixed the
+camera's silent failure on four fronts (FileList cleared under the read,
+HEIC through a decode path iOS refuses post-capture, failures vanishing
+with no error, staged photos lost to an iOS eviction). 2024/2024 tests,
+deployed bundle checked directly on GitHub Pages. **Neither fix is verified
+on his device** — logged in `nova-open-threads` rather than left unstated.
+Corrected my own comparison mid-session: told a peer their push-carried-a-
+committed-commit was the same failure as an earlier staged-files mixup; it
+isn't (pushing `main` publishes every commit on the branch — that's just
+git, not an accident), and the memory already on file for it was found to
+apply to their actual failure shape instead, so nothing new needed writing.
 
 **23 Sep 2026 — Working on this Mac.** Step B of the Agent World plan,
 pulled forward by his instruction: every Claude Code session across every
