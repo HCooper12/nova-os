@@ -13,6 +13,38 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**22 SEP (afternoon) — THE AGENT WORLD PLAN, WRITTEN, NOT BUILT.** His ask:
+watch Jarren Rocks' "video game for my AI agents" reel and plan what Nova
+should take from it. Result: `design/AGENT-WORLD-PLAN.md` (commit
+`3f0fb63`) — the reel read frame by frame, the precise gap it exposes (Nova
+cannot show in one look who is working, who is waiting on him, and where),
+and the **Org Map** proposal: seven hex districts from `AGENT_DEPARTMENTS`,
+figures whose states come only from heartbeats, job files, plan records,
+pending records and the autonomy ledger; the ONLY floating marker is
+"waiting on him"; tap → TL;DR card with tick / cross / Talk (the agent
+switch the org-conversation plan needs). Three sizes from one view model:
+Home tile (still frame), Ops (replaces the ring of dots), Ambient. Fun and
+aesthetic ideas listed separately (§4). An Opus survey of his six YouTube
+videos is folded into §8 (badge only when it means "you", N-for-next,
+"Viewed" as a third verb, sticky layout, night as emitted colour).
+
+**VERIFIED:** every file and symbol the plan names exists (`fleetContext.js`
+KIND_AGENT, `ops.js` AGENT_DEPARTMENTS + composeOps, `valsOps.js` job-state
+read, `autonomyLedger.js` verdict, `planner.js` pausedOn / `researcher.js`
+route:'continue', `tldr.js`, `Shelf3D.jsx` conventions). Nothing in `src/`
+or `server/` changed this session. Gates not re-run: docs-only commit.
+
+**OPEN:** his go on the build order (§6: mockup first, then view model →
+marker list on Home → the scene → tile + Ambient), and his call on
+register (luminous forms vs the reel's faces, §3f). The aesthetic review's
+sessions A–F (entry below) are still ahead of it in the queue.
+
+**NEXT ACTION:** if he says go, step 0 is the static mockup artifact of the
+Ops map at phone size (dark + Calm), before any code.
+
+---
+
+
 **22 SEP (midday) — CLOSE PASS: VERIFIED THE GATES, CLEANED THE INSTRUMENT,
 FOUND THE AESTHETIC REVIEW HALF-SHOT AND STALE IN PART.** This was a
 `/nova-close` pass, not feature work — three other sessions (this one's own
